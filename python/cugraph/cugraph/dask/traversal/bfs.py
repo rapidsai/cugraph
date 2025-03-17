@@ -149,10 +149,6 @@ def bfs(input_graph, start, depth_limit=None, return_distances=True, check_start
             else:
                 start = start.astype(vertex_dtype[0])
 
-        is_valid_vertex = input_graph.has_node(start)
-        if not is_valid_vertex:
-            raise ValueError("At least one start vertex provided was invalid")
-
     if input_graph.renumbered:
         if isinstance(start, dask_cudf.DataFrame):
             tmp_col_names = start.columns

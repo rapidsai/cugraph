@@ -110,14 +110,6 @@ def sssp(input_graph, source, cutoff=None, check_source=True):
 
     client = default_client()
 
-    def check_valid_vertex(G, source):
-        is_valid_vertex = G.has_node(source)
-        if not is_valid_vertex:
-            raise ValueError("Invalid source vertex")
-
-    if check_source:
-        check_valid_vertex(input_graph, source)
-
     if cutoff is None:
         cutoff = cupy.inf
 

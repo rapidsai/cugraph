@@ -63,8 +63,6 @@ def _ensure_args(
         )
         if is_nx_graph_type(G_type) and source not in G:
             raise invalid_vertex_err
-        elif indices is None and not G.has_node(source):
-            raise invalid_vertex_err
 
         directed = False
 

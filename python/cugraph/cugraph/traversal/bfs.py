@@ -47,41 +47,6 @@ def _ensure_args(G, start, i_start, directed):
         if directed is not None:
             raise TypeError("'directed' cannot be specified for a " "Graph-type input")
 
-        # ensure start vertex is valid
-        invalid_vertex_err = ValueError("A provided vertex was not valid")
-        if is_nx_graph_type(G_type):
-            if start not in G:
-                raise invalid_vertex_err
-        else:
-            if not isinstance(start, cudf.DataFrame):
-                if not isinstance(start, dask_cudf.DataFrame):
-                    vertex_dtype = G.nodes().dtype
-                    start = cudf.DataFrame(
-                        {"starts": cudf.Series(start, dtype=vertex_dtype)}
-                    )
-
-            if G.is_renumbered():
-                validlen = len(
-                    G.renumber_map.to_internal_vertex_id(start, start.columns).dropna()
-                )
-                if validlen < len(start):
-                    raise invalid_vertex_err
-            else:
-                el = G.edgelist.edgelist_df[["src", "dst"]]
-                col = start.columns[0]
-                null_l = (
-                    el.merge(start[col].rename("src"), on="src", how="right")
-                    .dst.isnull()
-                    .sum()
-                )
-                null_r = (
-                    el.merge(start[col].rename("dst"), on="dst", how="right")
-                    .src.isnull()
-                    .sum()
-                )
-                if null_l + null_r > 0:
-                    raise invalid_vertex_err
-
     if directed is None:
         directed = True
 
