@@ -926,7 +926,7 @@ ConfigureCTest(CAPI_K_TRUSS_TEST c_api/k_truss_test.c)
 if (BUILD_CUGRAPH_MTMG_TESTS)
     ###################################################################################################
     # - MTMG tests -------------------------------------------------------------------------
-    ConfigureTest(MTMG_TEST mtmg/threaded_test.cu)
+    ConfigureTest(MTMG_TEST mtmg/threaded_test.cpp)
     target_link_libraries(MTMG_TEST
                           PRIVATE
                           cugraphmgtestutil
@@ -936,7 +936,7 @@ if (BUILD_CUGRAPH_MTMG_TESTS)
                           ucxx::ucxx
                          )
 
-    ConfigureTest(MTMG_LOUVAIN_TEST mtmg/threaded_test_louvain.cu)
+    ConfigureTest(MTMG_LOUVAIN_TEST mtmg/threaded_test_louvain.cpp)
     target_link_libraries(MTMG_LOUVAIN_TEST
                           PRIVATE
                           cugraphmgtestutil
@@ -946,7 +946,7 @@ if (BUILD_CUGRAPH_MTMG_TESTS)
                           ucxx::ucxx
                          )
 
-    ConfigureTest(MTMG_JACCARD_TEST mtmg/threaded_test_jaccard.cu)
+    ConfigureTest(MTMG_JACCARD_TEST mtmg/threaded_test_jaccard.cpp)
     target_link_libraries(MTMG_JACCARD_TEST
                           PRIVATE
                           cugraphmgtestutil
@@ -959,7 +959,7 @@ if (BUILD_CUGRAPH_MTMG_TESTS)
     if(BUILD_CUGRAPH_MG_TESTS)
         ###############################################################################################
         # - Multi-node MTMG tests ---------------------------------------------------------------------
-        ConfigureTest(MTMG_MULTINODE_TEST mtmg/multi_node_threaded_test.cu utilities/mg_utilities.cpp)
+        ConfigureTest(MTMG_MULTINODE_TEST mtmg/multi_node_threaded_test.cpp utilities/mg_utilities.cpp)
         target_link_libraries(MTMG_MULTINODE_TEST
                               PRIVATE
                               cugraphmgtestutil
