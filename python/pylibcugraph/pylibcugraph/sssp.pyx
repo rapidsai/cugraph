@@ -17,6 +17,7 @@
 import cupy
 import numpy
 
+import pylibcugraph
 from pylibcugraph._cugraph_c.types cimport (
     bool_t,
 )
@@ -126,6 +127,10 @@ def sssp(ResourceHandle resource_handle,
     >>> predecessors
     array([-1, -1,  1,  2], dtype=int32)
     """
+
+    # Check if sources are valid
+    if not pylibcugraph.has_vertex(resource_handle, graph, source, do_expensive_check):
+        raise ValueError(f"vertex {source} is not valid.")
 
     if compute_predecessors is False:
         raise ValueError("compute_predecessors must be True for the current "

@@ -20,6 +20,7 @@ from libc.stdint cimport uintptr_t
 from libc.stdint cimport int32_t
 from libc.limits cimport INT_MAX
 
+import pylibcugraph
 from pylibcugraph.resource_handle cimport ResourceHandle
 from pylibcugraph._cugraph_c.algorithms cimport (
     cugraph_bfs,
@@ -29,6 +30,7 @@ from pylibcugraph._cugraph_c.algorithms cimport (
     cugraph_paths_result_get_distances,
     cugraph_paths_result_free,
 )
+from pylibcugraph import has_vertex
 from pylibcugraph._cugraph_c.array cimport (
     cugraph_type_erased_device_array_view_t,
     cugraph_type_erased_device_array_view_create,
@@ -145,6 +147,10 @@ def bfs(ResourceHandle handle, _GPUGraph graph,
 
     assert_CAI_type(sources, "sources")
 
+    # Check if sources are valid
+    for v in sources.values_host:
+        if not pylibcugraph.has_vertex(handle, graph, v, do_expensive_check):
+            raise ValueError(f"vertex {v} is not valid.")
     if depth_limit <= 0:
         depth_limit = INT_MAX - 1
 
