@@ -157,20 +157,10 @@ struct two_hop_neighbors_functor : public cugraph::c_api::abstract_functor {
                    start_vertices_->as_type<vertex_t const>(),
                    start_vertices_->size_,
                    handle_.get_stream());
-        
-        raft::print_device_vector("b_start_vertices", start_vertices.data(), start_vertices.size(), std::cout);
 
         if constexpr (multi_gpu) {
           start_vertices = cugraph::shuffle_ext_vertices(handle_, std::move(start_vertices));
         }
-
-        raft::print_device_vector("number_map", number_map->data(), number_map->size(), std::cout);
-
-
-        printf("range first = %d", graph_view.local_vertex_partition_range_first());
-        printf("range last = %d", graph_view.local_vertex_partition_range_last());
-
-        printf("\n");
 
         cugraph::renumber_ext_vertices<vertex_t, multi_gpu>(
           handle_,
@@ -180,8 +170,6 @@ struct two_hop_neighbors_functor : public cugraph::c_api::abstract_functor {
           graph_view.local_vertex_partition_range_first(),
           graph_view.local_vertex_partition_range_last(),
           do_expensive_check_);
-      
-      raft::print_device_vector("a_start_vertices", start_vertices.data(), start_vertices.size(), std::cout);
 
       } else {
         start_vertices.resize(graph_view.local_vertex_partition_range_size(), handle_.get_stream());
