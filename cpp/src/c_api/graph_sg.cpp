@@ -268,31 +268,26 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
       if (!renumber_) {
         raft::copy<vertex_t>(
           vertices.data(), edgelist_srcs.data(), edgelist_srcs.size(), handle_.get_stream());
-        
-        cugraph::detail::sort_ints(
-          handle_.get_stream(),
-          raft::device_span<vertex_t>{vertices.data(), vertices.size()});
-        
+
+        cugraph::detail::sort_ints(handle_.get_stream(),
+                                   raft::device_span<vertex_t>{vertices.data(), vertices.size()});
+
         size_t unique_vertices_size = cugraph::detail::unique_ints(
-          handle_.get_stream(),
-          raft::device_span<vertex_t>{vertices.data(), vertices.size()});
+          handle_.get_stream(), raft::device_span<vertex_t>{vertices.data(), vertices.size()});
 
         vertices.resize(unique_vertices_size + edgelist_dsts.size(), handle_.get_stream());
 
-        raft::copy<vertex_t>(
-          vertices.data() + unique_vertices_size,
-          edgelist_dsts.data(),
-          edgelist_dsts.size(),
-          handle_.get_stream());
+        raft::copy<vertex_t>(vertices.data() + unique_vertices_size,
+                             edgelist_dsts.data(),
+                             edgelist_dsts.size(),
+                             handle_.get_stream());
 
-        cugraph::detail::sort_ints(
-          handle_.get_stream(),
-          raft::device_span<vertex_t>{vertices.data(), vertices.size()});
-        
+        cugraph::detail::sort_ints(handle_.get_stream(),
+                                   raft::device_span<vertex_t>{vertices.data(), vertices.size()});
+
         unique_vertices_size = cugraph::detail::unique_ints(
-          handle_.get_stream(),
-          raft::device_span<vertex_t>{vertices.data(), vertices.size()});
-        
+          handle_.get_stream(), raft::device_span<vertex_t>{vertices.data(), vertices.size()});
+
         vertices.resize(unique_vertices_size, handle_.get_stream());
       }
 
@@ -334,16 +329,16 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
                                        graph->view().local_vertex_partition_range_first());
 
         auto is_consecutive = cugraph::detail::is_equal(
-                                handle_.get_stream(),
-                                raft::device_span<vertex_t>{vertices.data(), vertices.size()},
-                                raft::device_span<vertex_t>{number_map->data(), number_map->size()}
-                              );
-        
+          handle_.get_stream(),
+          raft::device_span<vertex_t>{vertices.data(), vertices.size()},
+          raft::device_span<vertex_t>{number_map->data(), number_map->size()});
+
         if (!is_consecutive) {
-          mark_error(CUGRAPH_INVALID_INPUT, "Vertex list must be numbered consecutively from 0 when 'renumber' is 'false'");
+          mark_error(
+            CUGRAPH_INVALID_INPUT,
+            "Vertex list must be numbered consecutively from 0 when 'renumber' is 'false'");
           return;
         }
-      
       }
 
       if (new_edge_weights) { *edge_weights = std::move(new_edge_weights.value()); }

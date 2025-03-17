@@ -299,10 +299,8 @@ struct has_vertex_functor : public cugraph::c_api::abstract_functor {
 
       rmm::device_uvector<vertex_t> vertex_array(1, handle_.get_stream());
 
-      cugraph::detail::sequence_fill(handle_.get_stream(),
-                                     vertex_array.data(),
-                                     vertex_array.size(),
-                                     vertex_t(vertex_));
+      cugraph::detail::sequence_fill(
+        handle_.get_stream(), vertex_array.data(), vertex_array.size(), vertex_t(vertex_));
 
       if constexpr (multi_gpu) {
         vertex_array = cugraph::shuffle_ext_vertices(handle_, std::move(vertex_array));
@@ -327,10 +325,7 @@ struct has_vertex_functor : public cugraph::c_api::abstract_functor {
           handle_.get_comms(), invalid_count, raft::comms::op_t::SUM, handle_.get_stream());
       }
 
-      if (invalid_count == 0) {
-        result_ = bool_t::TRUE;
-      }
-
+      if (invalid_count == 0) { result_ = bool_t::TRUE; }
     }
   }
 };
@@ -413,13 +408,12 @@ extern "C" cugraph_error_code_t cugraph_count_multi_edges(const cugraph_resource
   return cugraph::c_api::run_algorithm(graph, functor, result, error);
 }
 
-extern "C" cugraph_error_code_t cugraph_has_vertex(
-  const cugraph_resource_handle_t* handle,
-  cugraph_graph_t* graph,
-  const int vertex,
-  bool_t do_expensive_check,
-  bool_t* result,
-  cugraph_error_t** error)
+extern "C" cugraph_error_code_t cugraph_has_vertex(const cugraph_resource_handle_t* handle,
+                                                   cugraph_graph_t* graph,
+                                                   const int vertex,
+                                                   bool_t do_expensive_check,
+                                                   bool_t* result,
+                                                   cugraph_error_t** error)
 {
   has_vertex_functor functor(handle, graph, vertex, do_expensive_check);
 
