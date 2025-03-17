@@ -291,13 +291,6 @@ struct has_vertex_functor : public cugraph::c_api::abstract_functor {
     if constexpr (!cugraph::is_candidate<vertex_t, edge_t, weight_t>::value) {
       unsupported();
     } else {
-      if constexpr (store_transposed) { // FIXME: Do we enforce store_transposed == false ?
-        error_code_ = cugraph::c_api::
-          transpose_storage<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
-            handle_, graph_, error_.get());
-        if (error_code_ != CUGRAPH_SUCCESS) return;
-      }
-
       auto graph =
         reinterpret_cast<cugraph::graph_t<vertex_t, edge_t, false, multi_gpu>*>(graph_->graph_);
 
@@ -305,16 +298,6 @@ struct has_vertex_functor : public cugraph::c_api::abstract_functor {
       auto number_map = reinterpret_cast<rmm::device_uvector<vertex_t>*>(graph_->number_map_);
 
       rmm::device_uvector<vertex_t> vertex_array(1, handle_.get_stream());
-
-
-      //vertex.resize(vertex_->size_, handle_.get_stream());
-      #if 0
-      raft::copy(vertex.data(),
-                  vertex_->as_type<vertex_t const>(),
-                  vertex_->size_,
-                  handle_.get_stream());
-      #endif
-
 
       cugraph::detail::sequence_fill(handle_.get_stream(),
                                      vertex_array.data(),
@@ -345,7 +328,6 @@ struct has_vertex_functor : public cugraph::c_api::abstract_functor {
       }
 
       if (invalid_count == 0) {
-        //result_ = static_cast<bool>(true);
         result_ = bool_t::TRUE;
       }
 
