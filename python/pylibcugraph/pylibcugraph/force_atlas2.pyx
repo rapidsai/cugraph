@@ -30,6 +30,9 @@ from pylibcugraph._cugraph_c.array cimport (
 )
 from pylibcugraph._cugraph_c.layout_algorithms cimport (
     cugraph_force_atlas2,
+    cugraph_layout_result_get_vertices,
+    cugraph_layout_result_get_x_axis,
+    cugraph_layout_result_get_y_axis,
 )
 from pylibcugraph._cugraph_c.graph cimport (
     cugraph_graph_t,

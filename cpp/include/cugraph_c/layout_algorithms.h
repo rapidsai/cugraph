@@ -29,6 +29,12 @@
 extern "C" {
 #endif
 
+/**
+ * @brief     Opaque layout output
+ */
+typedef struct {
+  int32_t align_;
+} cugraph_layout_result_t;
 
 /**
  * @brief   Force Atlas 2
@@ -95,6 +101,31 @@ cugraph_error_code_t cugraph_force_atlas2(const cugraph_resource_handle_t* handl
                                           bool_t do_expensive_check,
                                           cugraph_error_t** error);
 
+
+/**
+ * @brief     Get layout vertices
+ */
+cugraph_type_erased_device_array_view_t* cugraph_layout_result_get_vertices(
+  cugraph_layout_result_t* result);
+
+/**
+ * @brief     Get layout x-axis
+ */
+cugraph_type_erased_device_array_view_t* cugraph_layout_result_get_x_axis(
+  cugraph_layout_result_t* result);
+
+/**
+ * @brief     Get layout y-axis
+ */
+cugraph_type_erased_device_array_view_t* cugraph_layout_result_get_y_axis(
+  cugraph_layout_result_t* result);
+
+/**
+ * @brief     Free a layout result
+ *
+ * @param [in] result     The result from a layout algorithm
+ */
+void cugraph_layout_result_free(cugraph_layout_result_t* result);
 
 #ifdef __cplusplus
 }

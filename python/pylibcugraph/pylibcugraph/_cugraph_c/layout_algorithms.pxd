@@ -35,6 +35,29 @@ from pylibcugraph._cugraph_c.graph cimport (
 
 cdef extern from "cugraph_c/layout_algorithms.h":
     ###########################################################################
+    # triangle_count
+    ctypedef struct cugraph_layout_result_t:
+        pass
+
+    cdef cugraph_type_erased_device_array_view_t* \
+        cugraph_layout_result_get_vertices(
+            cugraph_layout_result_t* result
+        )
+
+    cdef cugraph_type_erased_device_array_view_t* \
+        cugraph_layout_result_get_x_axis(
+            cugraph_layout_result_t* result
+        )
+    
+    cdef cugraph_type_erased_device_array_view_t* \
+        cugraph_layout_result_get_y_axis(
+            cugraph_layout_result_t* result
+        )
+
+    cdef void \
+        cugraph_layout_result_free(
+            cugraph_layout_result_t* result
+        )
     
     cdef cugraph_error_code_t cugraph_force_atlas2(
         const cugraph_resource_handle_t* handle,

@@ -31,9 +31,11 @@
 namespace cugraph {
 namespace c_api {
 
-struct cugraph_clustering_result_t {
+
+struct cugraph_layout_result_t {
   cugraph_type_erased_device_array_t* vertices_{nullptr};
-  cugraph_type_erased_device_array_t* clusters_{nullptr};
+  cugraph_type_erased_device_array_t* x_axis_{nullptr};
+  cugraph_type_erased_device_array_t* y_axis_{nullptr};
 };
 
 }  // namespace c_api
@@ -59,7 +61,7 @@ struct force_atlas2_functor : public cugraph::c_api::abstract_functor {
   const double gravity_{};
   bool verbose_{};
   bool do_expensive_check_{};
-  cugraph::c_api::cugraph_type_erased_device_array_t* result_{};;
+  cugraph::c_api::cugraph_layout_result_t* result_{};;
 
   force_atlas2_functor(::cugraph_resource_handle_t const* handle,
                        ::cugraph_graph_t* graph,
@@ -196,13 +198,63 @@ struct force_atlas2_functor : public cugraph::c_api::abstract_functor {
           callback
           );
       
-      result_ = new cugraph::c_api::cugraph_type_erased_device_array_t(pos, graph_->weight_type_);
+      //result_ = new cugraph::c_api::cugraph_type_erased_device_array_t(pos, graph_->weight_type_);
+
+      rmm::device_uvector<float> x_axis(graph_view.local_vertex_partition_range_size(),
+                                           handle_.get_stream());
+      
+      rmm::device_uvector<float> y_axis(graph_view.local_vertex_partition_range_size(),
+                                           handle_.get_stream());
+
+      raft::copy(x_axis.data(), pos.data(), x_axis.size(), handle_.get_stream());
+
+      raft::copy(y_axis.data(), pos.data() + x_axis.size(), x_axis.size(), handle_.get_stream());
+
+      result_ = new cugraph::c_api::cugraph_layout_result_t{
+        new cugraph::c_api::cugraph_type_erased_device_array_t(vertices, graph_->vertex_type_),
+        new cugraph::c_api::cugraph_type_erased_device_array_t(x_axis, cugraph_data_type_id_t::FLOAT32),
+        new cugraph::c_api::cugraph_type_erased_device_array_t(y_axis, cugraph_data_type_id_t::FLOAT32)
+        };
 
     }
   }
 };
 
 }  // namespace
+
+
+extern "C" cugraph_type_erased_device_array_view_t* cugraph_layout_result_get_vertices(
+  cugraph::c_api::cugraph_layout_result_t* result)
+{
+  auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_layout_result_t*>(result);
+  return reinterpret_cast<cugraph_type_erased_device_array_view_t*>(
+    internal_pointer->vertices_->view());
+}
+
+extern "C" cugraph_type_erased_device_array_view_t* cugraph_layout_result_get_x_axis(
+  cugraph::c_api::cugraph_layout_result_t* result)
+{
+  auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_layout_result_t*>(result);
+  return reinterpret_cast<cugraph_type_erased_device_array_view_t*>(
+    internal_pointer->x_axis_->view());
+}
+
+extern "C" cugraph_type_erased_device_array_view_t* cugraph_layout_result_get_y_axis(
+  cugraph::c_api::cugraph_layout_result_t* result)
+{
+  auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_layout_result_t*>(result);
+  return reinterpret_cast<cugraph_type_erased_device_array_view_t*>(
+    internal_pointer->y_axis_->view());
+}
+
+extern "C" void cugraph_layout_result_free(cugraph::c_api::cugraph_layout_result_t* result)
+{
+  auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_layout_result_t*>(result);
+  delete internal_pointer->vertices_;
+  delete internal_pointer->x_axis_;
+  delete internal_pointer->y_axis_;
+  delete internal_pointer;
+}
 
 extern "C" cugraph_error_code_t cugraph_force_atlas2(
   const cugraph_resource_handle_t* handle,
