@@ -62,7 +62,6 @@ cdef extern from "cugraph_c/layout_algorithms.h":
     cdef cugraph_error_code_t cugraph_force_atlas2(
         const cugraph_resource_handle_t* handle,
         cugraph_graph_t* graph,
-        cugraph_type_erased_device_array_t** pos,
         const int max_iter,
         cugraph_type_erased_device_array_view_t* x_start,
         cugraph_type_erased_device_array_view_t* y_start,
@@ -78,5 +77,6 @@ cdef extern from "cugraph_c/layout_algorithms.h":
         const double gravity,
         bool_t verbose,
         bool_t do_expensive_check,
+        cugraph_triangle_count_result_t** result,
         cugraph_error_t** error
     )

@@ -30,6 +30,7 @@ from pylibcugraph._cugraph_c.array cimport (
 )
 from pylibcugraph._cugraph_c.layout_algorithms cimport (
     cugraph_force_atlas2,
+    cugraph_layout_result_t,
     cugraph_layout_result_get_vertices,
     cugraph_layout_result_get_x_axis,
     cugraph_layout_result_get_y_axis,
@@ -155,9 +156,11 @@ def force_atlas2(ResourceHandle resource_handle,
     >>> G = pylibcugraph.SGGraph(
     ...     resource_handle, graph_props, srcs, dsts, weight_array=weights,
     ...     store_transposed=False, renumber=False, do_expensive_check=False)
-    >>> (x_axis, y_axis) = pylibcugraph.force_atlas2(
+    >>> (vertices, x_axis, y_axis) = pylibcugraph.force_atlas2(
     ...     resource_handle, G, 500, None, None, True, False, False, 1.0, 1.0, True,
     ...     0.5, 2.0, False, 1.0, False, False)
+    >>> vertices
+    [   0  1   2   3   4   5    ]
     >>> x_axis
     [ 5.444471    0.4794112   1.2495936  -0.01039529 -1.1892298  -1.5889403 ]
     >>> y_axis
@@ -185,12 +188,12 @@ def force_atlas2(ResourceHandle resource_handle,
             create_cugraph_type_erased_device_array_view_from_py_obj(
                 y_start)
 
+    cdef cugraph_layout_result_t* result_ptr
     cdef cugraph_error_code_t error_code
     cdef cugraph_error_t* error_ptr
 
     error_code = cugraph_force_atlas2(c_resource_handle_ptr,
                                       c_graph_ptr,
-                                      &pos_ptr,
                                       max_iter,
                                       x_start_view_ptr,
                                       y_start_view_ptr,
@@ -206,17 +209,24 @@ def force_atlas2(ResourceHandle resource_handle,
                                       gravity,
                                       verbose,
                                       do_expensive_check,
+                                      result_ptr,
                                       &error_ptr)
     assert_success(error_code, error_ptr, "force_atlas2")
 
-    cdef cugraph_type_erased_device_array_view_t* \
-        pos_view_ptr = \
-            cugraph_type_erased_device_array_view(
-                pos_ptr)
+    cdef cugraph_type_erased_device_array_view_t* vertices_ptr = \
+        cugraph_layout_result_get_vertices(result_ptr)
+    
+    cdef cugraph_type_erased_device_array_view_t* x_axis_ptr = \
+        cugraph_layout_result_get_x_axis(result_ptr)
+    
+    cdef cugraph_type_erased_device_array_view_t* y_axis_ptr = \
+        cugraph_layout_result_get_y_axis(result_ptr)
+    
 
-    cupy_pos = copy_to_cupy_array(c_resource_handle_ptr, pos_view_ptr)
+    cupy_vertices = copy_to_cupy_array(c_resource_handle_ptr, vertices_ptr)
+    
+    cupy_x_axis = copy_to_cupy_array(c_resource_handle_ptr, x_axis_ptr)
 
-    cupy_x_axis = cupy_pos[: len(cupy_pos)/2]
-    cupy_y_axis = cupy_pos[len(cupy_pos)/2: ]
+    cupy_y_axis = copy_to_cupy_array(c_resource_handle_ptr, y_axis_ptr)
 
-    return (cupy_x_axis, cupy_y_axis)
+    return (cupy_vertices, cupy_x_axis, cupy_y_axis)

@@ -118,14 +118,6 @@ struct force_atlas2_functor : public cugraph::c_api::abstract_functor {
     } else if constexpr (!std::is_same_v<edge_t, int32_t>) {
       unsupported();
     } else {
-      // FIXME: Does FA2 expects store_transposed == false
-      if constexpr (store_transposed) {
-        error_code_ =
-          cugraph::c_api::transpose_storage<vertex_t, edge_t, weight_t, store_transposed, false>(
-            handle_, graph_, error_.get());
-        if (error_code_ != CUGRAPH_SUCCESS) return;
-      }
-
       auto graph =
         reinterpret_cast<cugraph::graph_t<vertex_t, edge_t, false, false>*>(graph_->graph_);
 
@@ -259,7 +251,6 @@ extern "C" void cugraph_layout_result_free(cugraph::c_api::cugraph_layout_result
 extern "C" cugraph_error_code_t cugraph_force_atlas2(
   const cugraph_resource_handle_t* handle,
   cugraph_graph_t* graph,
-  cugraph_type_erased_device_array_t** pos,
   const int max_iter,
   cugraph_type_erased_device_array_view_t* x_start,
   cugraph_type_erased_device_array_view_t* y_start,
@@ -275,6 +266,7 @@ extern "C" cugraph_error_code_t cugraph_force_atlas2(
   const double gravity,
   bool_t verbose,
   bool_t do_expensive_check,
+  cugraph::c_api::cugraph_layout_result_t** result,
   cugraph_error_t** error)
 {
   force_atlas2_functor functor(handle,
@@ -295,6 +287,6 @@ extern "C" cugraph_error_code_t cugraph_force_atlas2(
                                verbose,
                                do_expensive_check);
 
-  return cugraph::c_api::run_algorithm(graph, functor, pos, error);
+  return cugraph::c_api::run_algorithm(graph, functor, result, error);
 }
 
