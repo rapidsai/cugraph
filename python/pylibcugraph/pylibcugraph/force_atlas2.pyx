@@ -53,24 +53,23 @@ from pylibcugraph.utils cimport (
 )
 from pylibcugraph._cugraph_c.array cimport (
     cugraph_type_erased_device_array_t,
-    cugraph_type_erased_device_array_view
 )
 
 def force_atlas2(ResourceHandle resource_handle,
                   _GPUGraph graph,
-                  const int max_iter,
+                  int max_iter,
                   x_start,
                   y_start,
                   bool_t outbound_attraction_distribution,
                   bool_t lin_log_mode,
                   bool_t prevent_overlapping,
-                  const double edge_weight_influence,
-                  const double jitter_tolerance,
+                  double edge_weight_influence,
+                  double jitter_tolerance,
                   bool_t barnes_hut_optimize,
-                  const double barnes_hut_theta,
-                  const double scaling_ratio,
+                  double barnes_hut_theta,
+                  double scaling_ratio,
                   bool_t strong_gravity_mode,
-                  const double gravity,
+                  double gravity,
                   bool_t verbose,
                   bool_t do_expensive_check,
                 ):

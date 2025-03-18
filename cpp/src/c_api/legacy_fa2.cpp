@@ -46,38 +46,38 @@ namespace {
 struct force_atlas2_functor : public cugraph::c_api::abstract_functor {
   raft::handle_t const& handle_;
   cugraph::c_api::cugraph_graph_t* graph_{nullptr};
-  const int max_iter_;
+  int max_iter_;
   cugraph::c_api::cugraph_type_erased_device_array_view_t* x_start_{};
   cugraph::c_api::cugraph_type_erased_device_array_view_t* y_start_{};
   bool outbound_attraction_distribution_{};
   bool lin_log_mode_{};
   bool prevent_overlapping_{};
-  const double edge_weight_influence_{};
-  const double jitter_tolerance_{};
+  double edge_weight_influence_{};
+  double jitter_tolerance_{};
   bool barnes_hut_optimize_{};
-  const double barnes_hut_theta_{};
-  const double scaling_ratio_{};
+  double barnes_hut_theta_{};
+  double scaling_ratio_{};
   bool strong_gravity_mode_{};
-  const double gravity_{};
+  double gravity_{};
   bool verbose_{};
   bool do_expensive_check_{};
   cugraph::c_api::cugraph_layout_result_t* result_{};;
 
   force_atlas2_functor(::cugraph_resource_handle_t const* handle,
                        ::cugraph_graph_t* graph,
-                       const int max_iter,
+                       int max_iter,
                        ::cugraph_type_erased_device_array_view_t* x_start,
                        ::cugraph_type_erased_device_array_view_t* y_start,
                        bool outbound_attraction_distribution,
                        bool lin_log_mode,
                        bool prevent_overlapping,
-                       const double edge_weight_influence,
-                       const double jitter_tolerance,
+                       double edge_weight_influence,
+                       double jitter_tolerance,
                        bool barnes_hut_optimize,
-                       const double barnes_hut_theta,
-                       const double scaling_ratio,
+                       double barnes_hut_theta,
+                       double scaling_ratio,
                        bool strong_gravity_mode,
-                       const double gravity,
+                       double gravity,
                        bool verbose,
                        bool do_expensive_check)
     : abstract_functor(),
@@ -249,19 +249,19 @@ extern "C" void cugraph_layout_result_free(cugraph::c_api::cugraph_layout_result
 extern "C" cugraph_error_code_t cugraph_force_atlas2(
   const cugraph_resource_handle_t* handle,
   cugraph_graph_t* graph,
-  const int max_iter,
+  int max_iter,
   cugraph_type_erased_device_array_view_t* x_start,
   cugraph_type_erased_device_array_view_t* y_start,
   bool_t outbound_attraction_distribution,
   bool_t lin_log_mode,
   bool_t prevent_overlapping,
-  const double edge_weight_influence,
-  const double jitter_tolerance,
+  double edge_weight_influence,
+  double jitter_tolerance,
   bool_t barnes_hut_optimize,
-  const double barnes_hut_theta,
-  const double scaling_ratio,
+  double barnes_hut_theta,
+  double scaling_ratio,
   bool_t strong_gravity_mode,
-  const double gravity,
+  double gravity,
   bool_t verbose,
   bool_t do_expensive_check,
   cugraph::c_api::cugraph_layout_result_t** result,
