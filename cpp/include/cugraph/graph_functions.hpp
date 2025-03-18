@@ -1240,6 +1240,8 @@ remove_self_loops(raft::handle_t const& handle,
  * In an MG context it is assumed that edges have been shuffled to the proper GPU,
  * in which case any multi-edges will be on the same GPU.
  *
+ * This version takes edges in a single chunk.
+ *
  * @tparam vertex_t    Type of vertex identifiers. Needs to be an integral type.
  * @tparam edge_t      Type of edge identifiers. Needs to be an integral type.
  * @tparam weight_t    Type of edge weight. Currently float and double are supported.
@@ -1258,10 +1260,14 @@ remove_self_loops(raft::handle_t const& handle,
  * @param keep_min_value_edge Flag indicating whether to keep an arbitrary edge (false) or the
  * minimum value edge (true) among the edges in a multi-edge. Relevant only if @p
  * edgelist_weights.has_value() | @p edgelist_edge_ids.has_value() | @p
- * edgelist_edge_types.has_value() is true. Setting this to true incurs performance overhead as this
- * requires more comparisons.
- * @return Tuple of vectors storing edge sources, destinations, optional weights, optional edge ids,
- * optional edge types, optional edge start times and optional edge end times.
+ * edgelist_edge_types.has_value() | @p edgelist_edge_start_times.has_value() | @p
+ * edgelist_edge_end_times.has_value()is true. If each edge has more than one property values, edge
+ * property values are compared in the order of weight (if valid), edge ID (if valid), edge type (if
+ * valid), edge start time (if valid) and edge end time (if valid). Setting this to true incurs
+ * performance overhead as this requires more comparisons.
+ * @return Tuple of rmm::device_uvector objects storing edge sources, destinations, optional
+ * weights, optional edge ids, optional edge types, optional edge start times and optional edge end
+ * times.
  */
 template <typename vertex_t,
           typename edge_t,
@@ -1284,5 +1290,74 @@ remove_multi_edges(raft::handle_t const& handle,
                    std::optional<rmm::device_uvector<edge_time_t>>&& edgelist_edge_start_times,
                    std::optional<rmm::device_uvector<edge_time_t>>&& edgelist_edge_edge_times,
                    bool keep_min_value_edge = false);
+
+/**
+ * @ingroup graph_functions_cpp
+ * @brief Remove all but one edge when a multi-edge exists.
+ *
+ * When a multi-edge exists, one of the edges will remain. If @p keep_min_value_edge is false, an
+ * arbitrary edge will be selected among the edges in the multi-edge. If @p keep_min_value_edge is
+ * true, the edge with the minimum value will be selected. The edge weights will be first compared
+ * (if @p edgelist_weights.has_value() is true); edge IDs will be compared next (if @p
+ * edgelist_edge_ids.has_value() is true); and edge types (if @p edgelist_edge_types.has_value() is
+ * true) will compared last.
+ *
+ * In an MG context it is assumed that edges have been shuffled to the proper GPU,
+ * in which case any multi-edges will be on the same GPU.
+ *
+ * This version takes edges in multiple chunks.
+ *
+ * @tparam vertex_t    Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t      Type of edge identifiers. Needs to be an integral type.
+ * @tparam weight_t    Type of edge weight. Currently float and double are supported.
+ * @tparam edge_type_t Type of edge type. Needs to be an integral type.
+ * @tparam edge_time_t Type of edge time.  Needs to be an integral type.
+ *
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param edgelist_srcs  Vector of source vertex id lists (one vector element per edge chunk)
+ * @param edgelist_dsts  Vector of destination vertex id lists (one vector element per edge chunk)
+ * @param edgelist_weights  Optional vector of edge weight lists (one vector element per edge chunk)
+ * @param edgelist_edge_ids  Optional vector of edge id lists (one vector element per edge chunk)
+ * @param edgelist_edge_types  Optional vector of edge type lists (one vector element per edge
+ * chunk)
+ * @param edgelist_edge_start_times  Optional vector of edge start time lists (one vector element
+ * per edge chunk)
+ * @param edgelist_edge_end_times  Optional vector of edge end time lists (one vector element per
+ * edge chunk)
+ * @param keep_min_value_edge Flag indicating whether to keep an arbitrary edge (false) or the
+ * minimum value edge (true) among the edges in a multi-edge. Relevant only if @p
+ * edgelist_weights.has_value() | @p edgelist_edge_ids.has_value() | @p
+ * edgelist_edge_types.has_value() | @p edgelist_edge_start_times.has_value() | @p
+ * edgelist_edge_end_times.has_value()is true. If each edge has more than one property values, edge
+ * property values are compared in the order of weight (if valid), edge ID (if valid), edge type (if
+ * valid), edge start time (if valid) and edge end time (if valid). Setting this to true incurs
+ * performance overhead as this requires more comparisons.
+ * @return Tuple of std::vector objects holding rmm::device_uvector objects (# device_uvector objets
+ * per std::vector = # edge chunks) storing edge sources, destinations, optional weights, optional
+ * edge ids, optional edge types, optional edge start times and optional edge end times.
+ */
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          typename edge_type_t,
+          typename edge_time_t>
+std::tuple<std::vector<rmm::device_uvector<vertex_t>>,
+           std::vector<rmm::device_uvector<vertex_t>>,
+           std::optional<std::vector<rmm::device_uvector<weight_t>>>,
+           std::optional<std::vector<rmm::device_uvector<edge_t>>>,
+           std::optional<std::vector<rmm::device_uvector<edge_type_t>>>,
+           std::optional<std::vector<rmm::device_uvector<edge_time_t>>>,
+           std::optional<std::vector<rmm::device_uvector<edge_time_t>>>>
+remove_multi_edges(
+  raft::handle_t const& handle,
+  std::vector<rmm::device_uvector<vertex_t>>&& edgelist_srcs,
+  std::vector<rmm::device_uvector<vertex_t>>&& edgelist_dsts,
+  std::optional<std::vector<rmm::device_uvector<weight_t>>>&& edgelist_weights,
+  std::optional<std::vector<rmm::device_uvector<edge_t>>>&& edgelist_edge_ids,
+  std::optional<std::vector<rmm::device_uvector<edge_type_t>>>&& edgelist_edge_types,
+  std::optional<std::vector<rmm::device_uvector<edge_time_t>>>&& edgelist_edge_start_times,
+  std::optional<std::vector<rmm::device_uvector<edge_time_t>>>&& edgelist_edge_edge_times,
+  bool keep_min_value_edge = false);
 
 }  // namespace cugraph
