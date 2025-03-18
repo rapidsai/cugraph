@@ -159,8 +159,6 @@ struct force_atlas2_functor : public cugraph::c_api::abstract_functor {
         edge_partition_view.number_of_edges());   
 
       cugraph::internals::GraphBasedDimRedCallback* callback = nullptr;
-      
-      //cugraph::legacy::GraphBasedDimRedCallback() // FIXME Add support for callback
 
       rmm::device_uvector<vertex_t> vertices(graph_view.local_vertex_partition_range_size(),
                                              handle_.get_stream());

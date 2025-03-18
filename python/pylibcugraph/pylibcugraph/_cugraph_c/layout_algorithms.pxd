@@ -77,6 +77,6 @@ cdef extern from "cugraph_c/layout_algorithms.h":
         const double gravity,
         bool_t verbose,
         bool_t do_expensive_check,
-        cugraph_triangle_count_result_t** result,
+        cugraph_layout_result_t** result,
         cugraph_error_t** error
     )

@@ -34,6 +34,7 @@ from pylibcugraph._cugraph_c.layout_algorithms cimport (
     cugraph_layout_result_get_vertices,
     cugraph_layout_result_get_x_axis,
     cugraph_layout_result_get_y_axis,
+    cugraph_layout_result_free
 )
 from pylibcugraph._cugraph_c.graph cimport (
     cugraph_graph_t,
@@ -209,7 +210,7 @@ def force_atlas2(ResourceHandle resource_handle,
                                       gravity,
                                       verbose,
                                       do_expensive_check,
-                                      result_ptr,
+                                      &result_ptr,
                                       &error_ptr)
     assert_success(error_code, error_ptr, "force_atlas2")
 
@@ -228,5 +229,7 @@ def force_atlas2(ResourceHandle resource_handle,
     cupy_x_axis = copy_to_cupy_array(c_resource_handle_ptr, x_axis_ptr)
 
     cupy_y_axis = copy_to_cupy_array(c_resource_handle_ptr, y_axis_ptr)
+
+    cugraph_layout_result_free(result_ptr)
 
     return (cupy_vertices, cupy_x_axis, cupy_y_axis)

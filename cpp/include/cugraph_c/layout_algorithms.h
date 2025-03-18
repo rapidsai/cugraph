@@ -97,6 +97,7 @@ cugraph_error_code_t cugraph_force_atlas2(const cugraph_resource_handle_t* handl
                                           const double gravity,
                                           bool_t verbose,
                                           bool_t do_expensive_check,
+                                          cugraph_layout_result_t** result,
                                           cugraph_error_t** error);
 
 
