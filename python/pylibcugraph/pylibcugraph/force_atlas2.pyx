@@ -54,24 +54,32 @@ from pylibcugraph.utils cimport (
 from pylibcugraph._cugraph_c.array cimport (
     cugraph_type_erased_device_array_t,
 )
+from pylibcugraph._cugraph_c.random cimport (
+    cugraph_rng_state_t
+)
+from pylibcugraph.random cimport (
+    CuGraphRandomState
+)
+
 
 def force_atlas2(ResourceHandle resource_handle,
-                  _GPUGraph graph,
-                  int max_iter,
-                  x_start,
-                  y_start,
-                  bool_t outbound_attraction_distribution,
-                  bool_t lin_log_mode,
-                  bool_t prevent_overlapping,
-                  double edge_weight_influence,
-                  double jitter_tolerance,
-                  bool_t barnes_hut_optimize,
-                  double barnes_hut_theta,
-                  double scaling_ratio,
-                  bool_t strong_gravity_mode,
-                  double gravity,
-                  bool_t verbose,
-                  bool_t do_expensive_check,
+                 random_state,
+                 _GPUGraph graph,
+                 int max_iter,
+                 x_start,
+                 y_start,
+                 bool_t outbound_attraction_distribution,
+                 bool_t lin_log_mode,
+                 bool_t prevent_overlapping,
+                 double edge_weight_influence,
+                 double jitter_tolerance,
+                 bool_t barnes_hut_optimize,
+                 double barnes_hut_theta,
+                 double scaling_ratio,
+                 bool_t strong_gravity_mode,
+                 double gravity,
+                 bool_t verbose,
+                 bool_t do_expensive_check,
                 ):
     """
     ForceAtlas2 is a continuous graph layout algorithm for handy network
@@ -82,6 +90,11 @@ def force_atlas2(ResourceHandle resource_handle,
     resource_handle : ResourceHandle
         Handle to the underlying device resources needed for referencing data
         and running algorithms.
+    
+    random_state : int , optional
+        Random state to use when generating samples. Optional argument,
+        defaults to a hash of process id, time, and hostname.
+        (See pylibcugraph.random.CuGraphRandomState)
 
     graph : SGGraph or MGGraph
         The input graph, for either Single or Multi-GPU operations.
@@ -157,7 +170,7 @@ def force_atlas2(ResourceHandle resource_handle,
     ...     resource_handle, graph_props, srcs, dsts, weight_array=weights,
     ...     store_transposed=False, renumber=False, do_expensive_check=False)
     >>> (vertices, x_axis, y_axis) = pylibcugraph.force_atlas2(
-    ...     resource_handle, G, 500, None, None, True, False, False, 1.0, 1.0, True,
+    ...     resource_handle, None, G, 500, None, None, True, False, False, 1.0, 1.0, True,
     ...     0.5, 2.0, False, 1.0, False, False)
     >>> vertices
     [   0  1   2   3   4   5    ]
@@ -192,7 +205,12 @@ def force_atlas2(ResourceHandle resource_handle,
     cdef cugraph_error_code_t error_code
     cdef cugraph_error_t* error_ptr
 
+    cg_rng_state = CuGraphRandomState(resource_handle, random_state)
+
+    cdef cugraph_rng_state_t* rng_state_ptr = cg_rng_state.rng_state_ptr
+
     error_code = cugraph_force_atlas2(c_resource_handle_ptr,
+                                      rng_state_ptr,
                                       c_graph_ptr,
                                       max_iter,
                                       x_start_view_ptr,

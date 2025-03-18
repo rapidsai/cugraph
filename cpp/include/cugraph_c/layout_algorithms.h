@@ -43,6 +43,7 @@ typedef struct {
  * available in Single GPU implementation.
  *
  * @param [in]   handle          Handle for accessing resources
+ * @param [in,out] rng_state     State of the random number generator, updated with each call
  * @param [in]   graph           Pointer to graph.  NOTE: Graph might be modified if the storage
  *                               needs to be transposed
  * @param [in]   max_iter        Maximum number of iterations. Initial vertex positioning
@@ -81,6 +82,7 @@ typedef struct {
  * @return error code
  */
 cugraph_error_code_t cugraph_force_atlas2(const cugraph_resource_handle_t* handle,
+                                          cugraph_rng_state_t* rng_state,
                                           cugraph_graph_t* graph,
                                           int max_iter,
                                           cugraph_type_erased_device_array_view_t* x_start,

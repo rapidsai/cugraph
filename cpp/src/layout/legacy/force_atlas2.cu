@@ -21,6 +21,7 @@ namespace cugraph {
 
 template <typename vertex_t, typename edge_t, typename weight_t>
 void force_atlas2(raft::handle_t const& handle,
+                  // raft::random::RngState& rng_state, # FIXME: Add support
                   legacy::GraphCOOView<vertex_t, edge_t, weight_t>& graph,
                   float* pos,
                   const int max_iter,
@@ -81,6 +82,7 @@ void force_atlas2(raft::handle_t const& handle,
 }
 
 template void force_atlas2<int, int, float>(raft::handle_t const& handle,
+                                            // raft::random::RngState& rng_state, # FIXME: Add support
                                             legacy::GraphCOOView<int, int, float>& graph,
                                             float* pos,
                                             const int max_iter,
@@ -100,6 +102,7 @@ template void force_atlas2<int, int, float>(raft::handle_t const& handle,
                                             internals::GraphBasedDimRedCallback* callback);
 
 template void force_atlas2<int, int, double>(raft::handle_t const& handle,
+                                             // raft::random::RngState& rng_state, # FIXME: Add support
                                              legacy::GraphCOOView<int, int, double>& graph,
                                              float* pos,
                                              const int max_iter,

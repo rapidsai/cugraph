@@ -31,6 +31,9 @@ from pylibcugraph._cugraph_c.array cimport (
 from pylibcugraph._cugraph_c.graph cimport (
     cugraph_graph_t,
 )
+from pylibcugraph._cugraph_c.random cimport (
+    cugraph_rng_state_t,
+)
 
 
 cdef extern from "cugraph_c/layout_algorithms.h":
@@ -61,6 +64,7 @@ cdef extern from "cugraph_c/layout_algorithms.h":
     
     cdef cugraph_error_code_t cugraph_force_atlas2(
         const cugraph_resource_handle_t* handle,
+        cugraph_rng_state_t* rng_state,
         cugraph_graph_t* graph,
         int max_iter,
         cugraph_type_erased_device_array_view_t* x_start,

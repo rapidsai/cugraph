@@ -19,6 +19,7 @@
 #include "c_api/graph.hpp"
 #include "c_api/resource_handle.hpp"
 #include "c_api/utils.hpp"
+#include "c_api/random.hpp"
 
 #include <cugraph_c/algorithms.h>
 
@@ -45,6 +46,7 @@ namespace {
 
 struct force_atlas2_functor : public cugraph::c_api::abstract_functor {
   raft::handle_t const& handle_;
+  cugraph::c_api::cugraph_rng_state_t* rng_state_{nullptr};
   cugraph::c_api::cugraph_graph_t* graph_{nullptr};
   int max_iter_;
   cugraph::c_api::cugraph_type_erased_device_array_view_t* x_start_{};
@@ -64,6 +66,7 @@ struct force_atlas2_functor : public cugraph::c_api::abstract_functor {
   cugraph::c_api::cugraph_layout_result_t* result_{};;
 
   force_atlas2_functor(::cugraph_resource_handle_t const* handle,
+                       cugraph_rng_state_t* rng_state,
                        ::cugraph_graph_t* graph,
                        int max_iter,
                        ::cugraph_type_erased_device_array_view_t* x_start,
@@ -82,6 +85,7 @@ struct force_atlas2_functor : public cugraph::c_api::abstract_functor {
                        bool do_expensive_check)
     : abstract_functor(),
       handle_(*reinterpret_cast<cugraph::c_api::cugraph_resource_handle_t const*>(handle)->handle_),
+      rng_state_(reinterpret_cast<cugraph::c_api::cugraph_rng_state_t*>(rng_state)),
       graph_(reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)),
       max_iter_(max_iter),
       x_start_(
@@ -169,6 +173,7 @@ struct force_atlas2_functor : public cugraph::c_api::abstract_functor {
       
       cugraph::force_atlas2<vertex_t, edge_t, weight_t>(
           handle_,
+          // rng_state_->rng_state_, # FIXME: Add support
           legacy_coo_graph_view,
           pos.data(),
           max_iter_,
@@ -248,6 +253,7 @@ extern "C" void cugraph_layout_result_free(cugraph::c_api::cugraph_layout_result
 
 extern "C" cugraph_error_code_t cugraph_force_atlas2(
   const cugraph_resource_handle_t* handle,
+  cugraph_rng_state_t* rng_state,
   cugraph_graph_t* graph,
   int max_iter,
   cugraph_type_erased_device_array_view_t* x_start,
@@ -268,6 +274,7 @@ extern "C" cugraph_error_code_t cugraph_force_atlas2(
   cugraph_error_t** error)
 {
   force_atlas2_functor functor(handle,
+                               rng_state,
                                graph,
                                max_iter,
                                x_start,
