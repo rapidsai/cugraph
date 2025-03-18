@@ -374,6 +374,10 @@ ConfigureTest(GENERATE_BIPARTITE_RMAT_TEST generators/generate_bipartite_rmat_te
     GPUS 1 PERCENT 100)
 
 ###################################################################################################
+# - Remove multi-edges tests ----------------------------------------------------------------------
+ConfigureTest(REMOVE_MULTI_EDGES_TEST structure/remove_multi_edges_test.cpp)
+
+###################################################################################################
 # - Symmetrize tests ------------------------------------------------------------------------------
 ConfigureTest(SYMMETRIZE_TEST structure/symmetrize_test.cpp)
 

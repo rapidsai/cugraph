@@ -36,7 +36,8 @@ namespace detail {
  * Fills a buffer with uniformly distributed random values between
  * the specified minimum and maximum values.
  *
- * @tparam      value_t      type of the value to operate on
+ * @tparam      value_t      type of the value to operate on (currently supports int32_t, int64_t,
+ * float and double)
  *
  * @param[in]   stream_view  stream view
  * @param[out]  d_value      device array to fill
