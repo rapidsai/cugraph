@@ -78,7 +78,6 @@ void force_atlas2(raft::handle_t const& handle,
                                                             verbose,
                                                             callback);
   }
-  
 }
 
 template void force_atlas2<int, int, float>(raft::handle_t const& handle,
