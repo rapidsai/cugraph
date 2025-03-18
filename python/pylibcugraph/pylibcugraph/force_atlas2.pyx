@@ -90,7 +90,7 @@ def force_atlas2(ResourceHandle resource_handle,
     resource_handle : ResourceHandle
         Handle to the underlying device resources needed for referencing data
         and running algorithms.
-    
+
     random_state : int , optional
         Random state to use when generating samples. Optional argument,
         defaults to a hash of process id, time, and hostname.
@@ -111,18 +111,18 @@ def force_atlas2(ResourceHandle resource_handle,
     outbound_attraction_distribution : bool_t
         Distributes attraction along outbound edges
         Hubs attract less and thus are pushed to the borders.
-    
+
     lin_log_mode : bool_t
         Switch Force Atlas model from lin-lin to lin-log.
         Makes clusters more tight.
-    
+
     prevent_overlapping : bool_t
         Prevent nodes to overlap.
-    
+
     edge_weight_influence : double
         How much influence you give to the edges weight.
         0 is “no influence” and 1 is “normal”.
-    
+
     jitter_tolerance : double
         How much swinging you allow. Above 1 discouraged.
         Lower gives less speed and more precision.
@@ -132,7 +132,7 @@ def force_atlas2(ResourceHandle resource_handle,
 
     barnes_hut_theta : double
         Float between 0 and 1. Tradeoff for speed (1) vs accuracy (0) for Barnes Hut only.
-    
+
     scaling_ratio : double
         How much repulsion you want. More makes a more sparse graph.
         Switching from regular mode to LinLog mode needs a readjustment of the scaling parameter.
@@ -140,16 +140,16 @@ def force_atlas2(ResourceHandle resource_handle,
     strong_gravity_mode : bool_t
         Sets a force that attracts the nodes that are distant from the
         center more. It is so strong that it can sometimes dominate other forces.
-    
+
     gravity : double
         Attracts nodes to the center. Prevents islands from drifting away.
-    
+
     verbose : bool_t
         Output convergence info at each interation.
-    
+
     do_expensive_check : bool_t
         A flag to run expensive checks for input arguments (if set to true)
-    
+
     callback: # FIXME: NOT IMPLEMENTED YET
         intercept the internal state of positions while they are being trained.
 
@@ -178,7 +178,7 @@ def force_atlas2(ResourceHandle resource_handle,
     [ 5.444471    0.4794112   1.2495936  -0.01039529 -1.1892298  -1.5889403 ]
     >>> y_axis
     [-1.4304754e+01 -3.8182523e+00  3.8365445e+00  8.3183739e-03 -8.3009762e-01 -1.9155006e-01
-    
+
     """
 
     cdef cugraph_resource_handle_t* c_resource_handle_ptr = \
@@ -233,16 +233,16 @@ def force_atlas2(ResourceHandle resource_handle,
 
     cdef cugraph_type_erased_device_array_view_t* vertices_ptr = \
         cugraph_layout_result_get_vertices(result_ptr)
-    
+
     cdef cugraph_type_erased_device_array_view_t* x_axis_ptr = \
         cugraph_layout_result_get_x_axis(result_ptr)
-    
+
     cdef cugraph_type_erased_device_array_view_t* y_axis_ptr = \
         cugraph_layout_result_get_y_axis(result_ptr)
-    
+
 
     cupy_vertices = copy_to_cupy_array(c_resource_handle_ptr, vertices_ptr)
-    
+
     cupy_x_axis = copy_to_cupy_array(c_resource_handle_ptr, x_axis_ptr)
 
     cupy_y_axis = copy_to_cupy_array(c_resource_handle_ptr, y_axis_ptr)

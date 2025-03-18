@@ -63,15 +63,19 @@ typedef struct {
  *                               How much swinging you allow. Above 1 discouraged.
  *                               Lower gives less speed and more precision.
  * @param [in]   barnes_hut_optimize
- *                               Whether to use the Barnes Hut approximation or the slower exact version.
+ *                               Whether to use the Barnes Hut approximation or the slower exact
+ * version.
  * @param [in]   barnes_hut_theta
- *                               Float between 0 and 1. Tradeoff for speed (1) vs accuracy (0) for Barnes Hut only.
+ *                               Float between 0 and 1. Tradeoff for speed (1) vs accuracy (0) for
+ * Barnes Hut only.
  * @param [in]   scaling_ratio
  *                               How much repulsion you want. More makes a more sparse graph.
- *                               Switching from regular mode to LinLog mode needs a readjustment of the scaling parameter.
+ *                               Switching from regular mode to LinLog mode needs a readjustment of
+ * the scaling parameter.
  * @param [in]   strong_gravity_mode
  *                               Sets a force that attracts the nodes that are distant from the
- *                               center more. It is so strong that it can sometimes dominate other forces.
+ *                               center more. It is so strong that it can sometimes dominate other
+ * forces.
  * @param [in]   gravity         Attracts nodes to the center. Prevents islands from drifting away.
  * @param [in]   verbose         Output convergence info at each interation.
  * @param [in]   do_expensive_check
@@ -101,7 +105,6 @@ cugraph_error_code_t cugraph_force_atlas2(const cugraph_resource_handle_t* handl
                                           bool_t do_expensive_check,
                                           cugraph_layout_result_t** result,
                                           cugraph_error_t** error);
-
 
 /**
  * @brief     Get layout vertices

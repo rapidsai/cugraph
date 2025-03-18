@@ -17,9 +17,9 @@
 #include "c_api/abstract_functor.hpp"
 #include "c_api/capi_helper.hpp"
 #include "c_api/graph.hpp"
+#include "c_api/random.hpp"
 #include "c_api/resource_handle.hpp"
 #include "c_api/utils.hpp"
-#include "c_api/random.hpp"
 
 #include <cugraph_c/algorithms.h>
 
@@ -31,7 +31,6 @@
 
 namespace cugraph {
 namespace c_api {
-
 
 struct cugraph_layout_result_t {
   cugraph_type_erased_device_array_t* vertices_{nullptr};
@@ -63,7 +62,8 @@ struct force_atlas2_functor : public cugraph::c_api::abstract_functor {
   double gravity_{};
   bool verbose_{};
   bool do_expensive_check_{};
-  cugraph::c_api::cugraph_layout_result_t* result_{};;
+  cugraph::c_api::cugraph_layout_result_t* result_{};
+  ;
 
   force_atlas2_functor(::cugraph_resource_handle_t const* handle,
                        cugraph_rng_state_t* rng_state,
@@ -88,10 +88,8 @@ struct force_atlas2_functor : public cugraph::c_api::abstract_functor {
       rng_state_(reinterpret_cast<cugraph::c_api::cugraph_rng_state_t*>(rng_state)),
       graph_(reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)),
       max_iter_(max_iter),
-      x_start_(
-        reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t*>(x_start)),
-      y_start_(
-        reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t*>(y_start)),
+      x_start_(reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t*>(x_start)),
+      y_start_(reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t*>(y_start)),
       outbound_attraction_distribution_(outbound_attraction_distribution),
       lin_log_mode_(lin_log_mode),
       prevent_overlapping_(prevent_overlapping),
@@ -156,11 +154,9 @@ struct force_atlas2_functor : public cugraph::c_api::abstract_functor {
       cugraph::legacy::GraphCOOView<vertex_t, edge_t, weight_t> legacy_coo_graph_view(
         const_cast<vertex_t*>(srcs.data()),
         const_cast<vertex_t*>(dsts.data()),
-        (edge_weights == nullptr)
-          ? tmp_weights.data()
-          : const_cast<weight_t*>(wgts->data()),
+        (edge_weights == nullptr) ? tmp_weights.data() : const_cast<weight_t*>(wgts->data()),
         graph->number_of_vertices(),
-        edge_partition_view.number_of_edges());   
+        edge_partition_view.number_of_edges());
 
       cugraph::internals::GraphBasedDimRedCallback* callback = nullptr;
 
@@ -169,37 +165,37 @@ struct force_atlas2_functor : public cugraph::c_api::abstract_functor {
       raft::copy(vertices.data(), number_map->data(), vertices.size(), handle_.get_stream());
 
       rmm::device_uvector<float> pos(2 * (edge_partition_view.offsets().size() - 1),
-                                       handle_.get_stream());
-      
+                                     handle_.get_stream());
+
       cugraph::force_atlas2<vertex_t, edge_t, weight_t>(
-          handle_,
-          // rng_state_->rng_state_, # FIXME: Add support
-          legacy_coo_graph_view,
-          pos.data(),
-          max_iter_,
-          x_start_ != nullptr ? x_start_->as_type<float>() : nullptr,
-          y_start_ != nullptr ? y_start_->as_type<float>() : nullptr,
-          outbound_attraction_distribution_,
-          lin_log_mode_,
-          prevent_overlapping_,
-          edge_weight_influence_,
-          jitter_tolerance_,
-          barnes_hut_optimize_,
-          barnes_hut_theta_,
-          scaling_ratio_,
-          strong_gravity_mode_,
-          gravity_,
-          verbose_,
-          callback
-          );
-      
-      //result_ = new cugraph::c_api::cugraph_type_erased_device_array_t(pos, graph_->weight_type_);
+        handle_,
+        // rng_state_->rng_state_, # FIXME: Add support
+        legacy_coo_graph_view,
+        pos.data(),
+        max_iter_,
+        x_start_ != nullptr ? x_start_->as_type<float>() : nullptr,
+        y_start_ != nullptr ? y_start_->as_type<float>() : nullptr,
+        outbound_attraction_distribution_,
+        lin_log_mode_,
+        prevent_overlapping_,
+        edge_weight_influence_,
+        jitter_tolerance_,
+        barnes_hut_optimize_,
+        barnes_hut_theta_,
+        scaling_ratio_,
+        strong_gravity_mode_,
+        gravity_,
+        verbose_,
+        callback);
+
+      // result_ = new cugraph::c_api::cugraph_type_erased_device_array_t(pos,
+      // graph_->weight_type_);
 
       rmm::device_uvector<float> x_axis(graph_view.local_vertex_partition_range_size(),
-                                           handle_.get_stream());
-      
+                                        handle_.get_stream());
+
       rmm::device_uvector<float> y_axis(graph_view.local_vertex_partition_range_size(),
-                                           handle_.get_stream());
+                                        handle_.get_stream());
 
       raft::copy(x_axis.data(), pos.data(), x_axis.size(), handle_.get_stream());
 
@@ -207,16 +203,15 @@ struct force_atlas2_functor : public cugraph::c_api::abstract_functor {
 
       result_ = new cugraph::c_api::cugraph_layout_result_t{
         new cugraph::c_api::cugraph_type_erased_device_array_t(vertices, graph_->vertex_type_),
-        new cugraph::c_api::cugraph_type_erased_device_array_t(x_axis, cugraph_data_type_id_t::FLOAT32),
-        new cugraph::c_api::cugraph_type_erased_device_array_t(y_axis, cugraph_data_type_id_t::FLOAT32)
-        };
-
+        new cugraph::c_api::cugraph_type_erased_device_array_t(x_axis,
+                                                               cugraph_data_type_id_t::FLOAT32),
+        new cugraph::c_api::cugraph_type_erased_device_array_t(y_axis,
+                                                               cugraph_data_type_id_t::FLOAT32)};
     }
   }
 };
 
 }  // namespace
-
 
 extern "C" cugraph_type_erased_device_array_view_t* cugraph_layout_result_get_vertices(
   cugraph::c_api::cugraph_layout_result_t* result)
@@ -294,4 +289,3 @@ extern "C" cugraph_error_code_t cugraph_force_atlas2(
 
   return cugraph::c_api::run_algorithm(graph, functor, result, error);
 }
-

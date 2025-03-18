@@ -51,7 +51,7 @@ cdef extern from "cugraph_c/layout_algorithms.h":
         cugraph_layout_result_get_x_axis(
             cugraph_layout_result_t* result
         )
-    
+
     cdef cugraph_type_erased_device_array_view_t* \
         cugraph_layout_result_get_y_axis(
             cugraph_layout_result_t* result
@@ -61,7 +61,7 @@ cdef extern from "cugraph_c/layout_algorithms.h":
         cugraph_layout_result_free(
             cugraph_layout_result_t* result
         )
-    
+
     cdef cugraph_error_code_t cugraph_force_atlas2(
         const cugraph_resource_handle_t* handle,
         cugraph_rng_state_t* rng_state,
