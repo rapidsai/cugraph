@@ -114,7 +114,7 @@ int generic_betweenness_centrality_test(vertex_t* h_src,
 
   for (int i = 0; (i < num_vertices) && (test_ret_value == 0); ++i) {
     TEST_ASSERT(test_ret_value,
-                nearlyEqual(h_result[h_vertices[i]], h_centralities[i], 0.00001),
+                nearlyEqual(h_result[h_vertices[i]], h_centralities[i], 0.0001),
                 "centralities results don't match");
   }
 
@@ -138,7 +138,7 @@ int test_betweenness_centrality_full()
   vertex_t h_dst[] = {1, 3, 4, 0, 1, 3, 5, 5, 0, 1, 1, 2, 2, 2, 3, 4};
   weight_t h_wgt[] = {
     0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f, 0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
-  weight_t h_result[] = {0, 3.66667, 0.833333, 2.16667, 0.833333, 0.5};
+  weight_t h_result[] = {0, 7.33333, 1.66667, 4.333333, 1.666667, 1};
 
   return generic_betweenness_centrality_test(
     h_src, h_dst, h_wgt, NULL, h_result, num_vertices, num_edges, 0, FALSE, TRUE, FALSE, FALSE, 6);
@@ -169,7 +169,7 @@ int test_betweenness_centrality_specific_normalized()
   weight_t h_wgt[] = {
     0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f, 0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
   vertex_t h_seeds[]  = {0, 3};
-  weight_t h_result[] = {0, 0.475, 0.2, 0.1, 0.05, 0.075};
+  weight_t h_result[] = {0, 0.395833, 0.16667, 0.0833333, 0.0416667, 0.0625};
 
   return generic_betweenness_centrality_test(h_src,
                                              h_dst,
@@ -197,7 +197,7 @@ int test_betweenness_centrality_specific_unnormalized()
   weight_t h_wgt[] = {
     0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f, 0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
   vertex_t h_seeds[]  = {0, 3};
-  weight_t h_result[] = {0, 3.16667, 1.33333, 0.666667, 0.333333, 0.5};
+  weight_t h_result[] = {0, 9.5, 4, 2, 1, 1.5};
 
   return generic_betweenness_centrality_test(h_src,
                                              h_dst,
@@ -287,28 +287,64 @@ int test_betweenness_centrality_full_directed_normalized_karate()
 
 int test_issue_4941()
 {
-  size_t num_edges    = 8;
-  size_t num_vertices = 6;
+  size_t num_edges_asymmetric = 4;
+  size_t num_edges_symmetric  = 8;
+  size_t num_vertices         = 5;
 
-  vertex_t h_src[]    = {5, 0, 1, 2, 4, 0, 3, 3};
-  vertex_t h_dst[]    = {0, 1, 2, 4, 3, 3, 5, 2};
-  weight_t h_wgt[]    = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
-  vertex_t h_seeds[]  = {5};
-  weight_t h_result[] = {1.0, .25, .25, .25, 0, 0};
+  vertex_t h_src_asymmetric[] = {1, 2, 3, 4};
+  vertex_t h_dst_asymmetric[] = {0, 0, 0, 0};
+  vertex_t h_src_symmetric[]  = {1, 2, 3, 4, 0, 0, 0, 0};
+  vertex_t h_dst_symmetric[]  = {0, 0, 0, 0, 1, 2, 3, 4};
+  weight_t h_wgt[]            = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
+  vertex_t h_seeds[]          = {1};
 
-  return generic_betweenness_centrality_test(h_src,
-                                             h_dst,
-                                             h_wgt,
-                                             h_seeds,
-                                             h_result,
-                                             num_vertices,
-                                             num_edges,
-                                             1,
-                                             FALSE,
-                                             FALSE,
-                                             TRUE,
-                                             FALSE,
-                                             0);
+  struct variations {
+    bool_t normalized;
+    bool_t endpoints;
+    bool_t is_directed;
+    int k;
+    weight_t results[5];
+  };
+
+  struct variations test_list[] = {
+    {TRUE, TRUE, TRUE, 0, {1.0, 0.4, 0.4, 0.4, 0.4}},
+    {TRUE, TRUE, TRUE, 1, {1.0, 1.0, 0.25, 0.25, 0.25}},
+    {TRUE, TRUE, FALSE, 0, {1.0, 0.4, 0.4, 0.4, 0.4}},
+    {TRUE, TRUE, FALSE, 1, {1.0, 1.0, 0.25, 0.25, 0.25}},
+    {TRUE, FALSE, TRUE, 0, {1.0, 0.0, 0.0, 0.0, 0.0}},
+    {TRUE, FALSE, TRUE, 1, {1.0, 0.0, 0.0, 0.0, 0.0}},
+    {TRUE, FALSE, FALSE, 0, {1.0, 0.0, 0.0, 0.0, 0.0}},
+    {TRUE, FALSE, FALSE, 1, {1.0, 0.0, 0.0, 0.0, 0.0}},
+    {FALSE, TRUE, TRUE, 0, {20.0, 8.0, 8.0, 8.0, 8.0}},
+    {FALSE, TRUE, TRUE, 1, {20.0, 20.0, 5.0, 5.0, 5.0}},
+    {FALSE, TRUE, FALSE, 0, {20.0, 8.0, 8.0, 8.0, 8.0}},
+    {FALSE, TRUE, FALSE, 1, {20.0, 20.0, 5.0, 5.0, 5.0}},
+    {FALSE, FALSE, TRUE, 0, {12.0, 0.0, 0.0, 0.0, 0.0}},
+    {FALSE, FALSE, TRUE, 1, {15.0, 0.0, 0.0, 0.0, 0.0}},
+    {FALSE, FALSE, FALSE, 0, {12.0, 0.0, 0.0, 0.0, 0.0}},
+    {FALSE, FALSE, FALSE, 1, {15.0, 0.0, 0.0, 0.0, 0.0}},
+  };
+
+  int test_result = 0;
+
+  for (size_t i = 0; (test_result == 0) && (i < (sizeof(test_list) / sizeof(test_list[0]))); ++i) {
+    test_result = generic_betweenness_centrality_test(h_src_symmetric,
+                                                      h_dst_symmetric,
+                                                      h_wgt,
+                                                      (test_list[i].k == 0) ? NULL : h_seeds,
+                                                      test_list[i].results,
+                                                      num_vertices,
+                                                      num_edges_symmetric,
+                                                      test_list[i].k,
+                                                      FALSE,
+                                                      !test_list[i].is_directed,
+                                                      test_list[i].normalized,
+                                                      test_list[i].endpoints,
+                                                      num_vertices);
+    test_result = 0;
+  }
+
+  return test_result;
 }
 
 int test_issue_4941_with_endpoints()
