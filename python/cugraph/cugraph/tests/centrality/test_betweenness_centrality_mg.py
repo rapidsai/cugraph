@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2024, NVIDIA CORPORATION.
+# Copyright (c) 2022-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -65,7 +65,6 @@ def get_mg_graph(dataset, directed):
         renumber=True,
         store_transposed=True,
     )
-
     return dg
 
 
@@ -118,7 +117,6 @@ def test_dask_mg_betweenness_centrality(
     sg_cugraph_bc = cugraph.betweenness_centrality(
         g, k=k, normalized=normalized, endpoints=endpoint, random_state=random_state
     )
-    sg_cugraph_bc = sg_cugraph_bc.sort_values("vertex").reset_index(drop=True)
 
     mg_bc_results = benchmark(
         dcg.betweenness_centrality,
@@ -128,12 +126,10 @@ def test_dask_mg_betweenness_centrality(
         endpoints=endpoint,
         random_state=random_state,
     )
-
-    mg_bc_results = (
-        mg_bc_results.compute().sort_values("vertex").reset_index(drop=True)
-    )["betweenness_centrality"].to_cupy()
-
-    sg_bc_results = (sg_cugraph_bc.sort_values("vertex").reset_index(drop=True))[
+    mg_bc_results = (mg_bc_results.compute().sort_values("vertex"))[
+        "betweenness_centrality"
+    ].to_cupy()
+    sg_bc_results = (sg_cugraph_bc.sort_values("vertex"))[
         "betweenness_centrality"
     ].to_cupy()
 
