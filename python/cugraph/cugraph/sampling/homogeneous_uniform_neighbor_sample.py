@@ -133,8 +133,6 @@ def homogeneous_uniform_neighbor_sample(
             " of the libcugraph C++ API"
         )
 
-
-
     if isinstance(start_list, int):
         start_list = [start_list]
 
@@ -183,12 +181,20 @@ def homogeneous_uniform_neighbor_sample(
             start_list = start_list.rename(columns={columns[0]: start_col_name})
 
 
-    vertex_paths, edge_wgt_paths, max_path_length = pylibcugraph_homogeneous_uniform_neighbor_sample(
+    x = pylibcugraph_homogeneous_uniform_neighbor_sample(
         resource_handle=ResourceHandle(),
         input_graph=G._plc_graph,
         start_vertex_list=start_list,
         starting_vertex_label_offsets=starting_vertex_label_offsets,
         h_fan_out=fanout_vals,
-        with_replacement
+        with_replacement=with_replacement,
+        do_expensive_check=False,
+        prior_sources_behavior=prior_sources_behavior,
+        deduplicate_sources=deduplicate_sources,
+        return_hops=return_hops,
+        renumber=renumber,
+        retain_seeds=retain_seeds,
+        compression=compression,
+        compress_per_hop
         random_state=random_state,
     )
