@@ -56,9 +56,6 @@ jobs:
         uses: rapidsai/shared-actions/check_nightly_success/dispatch@main
         with:
           repo: cugraph
-          # TODO: remove this once upstream issues in RAFT are resolved on 11.4.
-          # The limit was temporarily increased to unblock work.
-          max_days_without_success: 30
   changed-files:
     secrets: inherit
     needs: telemetry-setup
@@ -111,6 +108,9 @@ jobs:
     if: fromJSON(needs.changed-files.outputs.changed_file_groups).test_cpp
     with:
       build_type: pull-request
+      # Filtering out 11.4 runs until 11.4 issues are resolved
+      # See https://github.com/rapidsai/build-planning/issues/164
+      matrix_filter: map(select(.CUDA_VER != "11.4.3"))
   conda-cpp-checks:
     needs: conda-cpp-build
     secrets: inherit
@@ -132,6 +132,9 @@ jobs:
     if: fromJSON(needs.changed-files.outputs.changed_file_groups).test_python
     with:
       build_type: pull-request
+      # Filtering out 11.4 runs until 11.4 issues are resolved
+      # See https://github.com/rapidsai/build-planning/issues/164
+      matrix_filter: map(select(.CUDA_VER != "11.4.3"))
   conda-notebook-tests:
     needs: [conda-python-build, changed-files]
     secrets: inherit
