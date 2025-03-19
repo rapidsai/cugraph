@@ -52,13 +52,6 @@ class edge_property_view_t {
   {
   }
 
-  // nvcc 12.5 sometimes deduces this as a host device function, just defining it fixes that
-  ~edge_property_view_t() {}
-  edge_property_view_t(const edge_property_view_t&)            = default;
-  edge_property_view_t(edge_property_view_t&&)                 = default;
-  edge_property_view_t& operator=(const edge_property_view_t&) = default;
-  edge_property_view_t& operator=(edge_property_view_t&&)      = default;
-
   std::vector<ValueIterator> const& value_firsts() const { return edge_partition_value_firsts_; }
 
   std::vector<edge_t> const& edge_counts() const { return edge_partition_edge_counts_; }
@@ -116,13 +109,6 @@ class edge_property_t {
     : buffers_(std::move(buffers)), edge_counts_(std::move(edge_counts))
   {
   }
-
-  // nvcc 12.5 sometimes deduces this as a host device function, just defining it fixes that
-  ~edge_property_t() {}
-  edge_property_t(const edge_property_t&)            = delete;
-  edge_property_t& operator=(const edge_property_t&) = delete;
-  edge_property_t(edge_property_t&&)                 = default;
-  edge_property_t& operator=(edge_property_t&&)      = default;
 
   void clear(raft::handle_t const& handle)
   {
