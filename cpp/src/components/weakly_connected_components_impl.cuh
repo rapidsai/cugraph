@@ -235,11 +235,6 @@ struct v_op_t {
   vertex_partition_device_view_t<typename GraphViewType::vertex_type, GraphViewType::is_multi_gpu>
     vertex_partition{};
   vertex_type* level_components{};
-  decltype(thrust::make_zip_iterator(thrust::make_tuple(
-    static_cast<vertex_type*>(nullptr), static_cast<vertex_type*>(nullptr)))) edge_buffer_first{};
-  // FIXME: we can use cuda::atomic instead but currently on a system with x86 + GPU, this requires
-  // placing the atomic variable on managed memory and this adds additional complication.
-  size_t* num_edge_inserts{};
   size_t bucket_idx_next{};
   size_t bucket_idx_conflict{};  // relevant only if GraphViewType::is_multi_gpu is true
 
@@ -417,7 +412,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
         new_root_candidates.begin(),
         new_root_candidates.begin() + (new_root_candidates.size() > 0 ? 1 : 0),
         cuda::proclaim_return_type<edge_t>(
-          [vertex_partition, degrees = degrees.data()] __device__(auto v) -> edge_t {
+          [vertex_partition, degrees = degrees.data()] __device__(auto v) {
             return degrees[vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(v)];
           }),
         edge_t{0},
@@ -452,8 +447,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
         // to avoid selecting too many (possibly all) vertices as initial roots leading to no
         // compression in the worst case.
         else if (level_graph_view.number_of_vertices() <=
-                 static_cast<vertex_t>(handle.get_comms().get_size() *
-                                       ceil(1.0 / max_new_roots_ratio))) {
+                 static_cast<vertex_t>(comm_size * ceil(1.0 / max_new_roots_ratio))) {
           std::vector<int> gpu_ids{};
           gpu_ids.reserve(
             std::reduce(new_root_candidate_counts.begin(), new_root_candidate_counts.end()));
@@ -589,20 +583,17 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
       auto next_frontier_bucket_indices =
         GraphViewType::is_multi_gpu ? std::vector<size_t>{bucket_idx_next, bucket_idx_conflict}
                                     : std::vector<size_t>{bucket_idx_next};
-      update_v_frontier(handle,
-                        level_graph_view,
-                        std::move(new_frontier_tagged_vertex_buffer),
-                        vertex_frontier,
-                        raft::host_span<size_t const>(next_frontier_bucket_indices.data(),
-                                                      next_frontier_bucket_indices.size()),
-                        thrust::make_constant_iterator(0) /* dummy */,
-                        thrust::make_discard_iterator() /* dummy */,
-                        v_op_t<GraphViewType>{vertex_partition,
-                                              level_components,
-                                              get_dataframe_buffer_begin(edge_buffer),
-                                              num_edge_inserts.data(),
-                                              bucket_idx_next,
-                                              bucket_idx_conflict});
+      update_v_frontier(
+        handle,
+        level_graph_view,
+        std::move(new_frontier_tagged_vertex_buffer),
+        vertex_frontier,
+        raft::host_span<size_t const>(next_frontier_bucket_indices.data(),
+                                      next_frontier_bucket_indices.size()),
+        thrust::make_constant_iterator(0) /* dummy */,
+        thrust::make_discard_iterator() /* dummy */,
+        v_op_t<GraphViewType>{
+          vertex_partition, level_components, bucket_idx_next, bucket_idx_conflict});
 
       if (GraphViewType::is_multi_gpu) {
         auto cur_num_edge_inserts = num_edge_inserts.value(handle.get_stream());
@@ -666,7 +657,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
         thrust::get<0>(vertex_frontier.bucket(bucket_idx_cur).begin().get_iterator_tuple()),
         thrust::get<0>(vertex_frontier.bucket(bucket_idx_cur).end().get_iterator_tuple()),
         cuda::proclaim_return_type<edge_t>(
-          [vertex_partition, degrees = degrees.data()] __device__(auto v) -> edge_t {
+          [vertex_partition, degrees = degrees.data()] __device__(auto v) {
             return degrees[vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(v)];
           }),
         edge_t{0},
