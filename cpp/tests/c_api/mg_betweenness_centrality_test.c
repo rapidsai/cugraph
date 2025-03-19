@@ -133,7 +133,7 @@ int test_betweenness_centrality(const cugraph_resource_handle_t* handle)
   vertex_t h_dst[] = {1, 3, 4, 0, 1, 3, 5, 5, 0, 1, 1, 2, 2, 2, 3, 4};
   weight_t h_wgt[] = {
     0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f, 0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
-  weight_t h_result[] = {0, 7.33333, 1.66667, 4.333333, 1.666667, 1};
+  weight_t h_result[] = {0, 3.66667, 0.833333, 2.16667, 0.833333, 0.5};
 
   // NOTE: Randomly selecting vertices in MG varies by the GPU topology,
   //  so we'll specify selecting all to get deterministic results for the test.
@@ -154,6 +154,7 @@ int test_betweenness_centrality(const cugraph_resource_handle_t* handle)
                                              FALSE,
                                              num_vertices);
 }
+
 int test_betweenness_centrality_normalized(const cugraph_resource_handle_t* handle)
 {
   size_t num_edges    = 16;
@@ -194,7 +195,7 @@ int test_betweenness_centrality_full(const cugraph_resource_handle_t* handle)
   vertex_t h_dst[] = {1, 3, 4, 0, 1, 3, 5, 5, 0, 1, 1, 2, 2, 2, 3, 4};
   weight_t h_wgt[] = {
     0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f, 0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
-  weight_t h_result[] = {0, 7.33333, 1.66667, 4.333333, 1.666667, 1};
+  weight_t h_result[] = {0, 3.66667, 0.833333, 2.16667, 0.833333, 0.5};
 
   return generic_betweenness_centrality_test(handle,
                                              h_src,
@@ -278,7 +279,7 @@ int test_betweenness_centrality_specific_unnormalized(const cugraph_resource_han
   weight_t h_wgt[] = {
     0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f, 0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
   vertex_t h_seeds[]  = {0, 3};
-  weight_t h_result[] = {0, 9.5, 4, 2, 1, 1.5};
+  weight_t h_result[] = {0, 7.91667, 3.33333, 1.666667, 0.833333, 1.25};
 
   return generic_betweenness_centrality_test(handle,
                                              h_src,

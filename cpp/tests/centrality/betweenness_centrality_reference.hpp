@@ -155,7 +155,10 @@ void reference_rescale(result_t* result,
       }
     }
   } else if (number_of_sources < number_of_vertices) {
-    rescale_factor = (casted_number_of_vertices / casted_number_of_sources);
+    rescale_factor = (endpoints ? casted_number_of_vertices : casted_number_of_vertices - 1) /
+                     (directed ? casted_number_of_sources : 2 * casted_number_of_sources);
+  } else if (!directed) {
+    rescale_factor = 2;
   }
 
   if (rescale_factor != result_t{1}) {
@@ -181,6 +184,8 @@ void reference_edge_rescale(result_t* result,
     if (number_of_edges > 2) {
       rescale_factor /= ((casted_number_of_vertices) * (casted_number_of_vertices - 1));
     }
+  } else {
+    if (!directed) { rescale_factor /= static_cast<result_t>(2); }
   }
 
   if (rescale_factor != result_t{1}) {

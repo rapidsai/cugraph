@@ -547,12 +547,12 @@ def test_betweenness_centrality_nx(graph_file, directed, edgevals):
         (True, False, False, 1, {0: 1.0, 1: 0.0, 2: 0.0, 3: 0.0, 4: 0.0}),
         (False, True, True, None, {0: 20.0, 1: 8.0, 2: 8.0, 3: 8.0, 4: 8.0}),
         (False, True, True, 1, {0: 20.0, 1: 20.0, 2: 5.0, 3: 5.0, 4: 5.0}),
-        (False, True, False, None, {0: 20.0, 1: 8.0, 2: 8.0, 3: 8.0, 4: 8.0}),
-        (False, True, False, 1, {0: 20.0, 1: 20.0, 2: 5.0, 3: 5.0, 4: 5.0}),
+        (False, True, False, None, {0: 10.0, 1: 4.0, 2: 4.0, 3: 4.0, 4: 4.0}),
+        (False, True, False, 1, {0: 10.0, 1: 10.0, 2: 2.5, 3: 2.5, 4: 2.5}),
         (False, False, True, None, {0: 12.0, 1: 0.0, 2: 0.0, 3: 0.0, 4: 0.0}),
         (False, False, True, 1, {0: 15.0, 1: 0.0, 2: 0.0, 3: 0.0, 4: 0.0}),
-        (False, False, False, None, {0: 12.0, 1: 0.0, 2: 0.0, 3: 0.0, 4: 0.0}),
-        (False, False, False, 1, {0: 15.0, 1: 0.0, 2: 0.0, 3: 0.0, 4: 0.0}),
+        (False, False, False, None, {0: 6.0, 1: 0.0, 2: 0.0, 3: 0.0, 4: 0.0}),
+        (False, False, False, 1, {0: 7.5, 1: 0.0, 2: 0.0, 3: 0.0, 4: 0.0}),
     ],
 )
 def test_scale_with_k_on_star_graph(normalized, endpoints, is_directed, k, expected):

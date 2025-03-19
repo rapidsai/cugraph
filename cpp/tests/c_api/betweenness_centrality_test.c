@@ -138,7 +138,7 @@ int test_betweenness_centrality_full()
   vertex_t h_dst[] = {1, 3, 4, 0, 1, 3, 5, 5, 0, 1, 1, 2, 2, 2, 3, 4};
   weight_t h_wgt[] = {
     0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f, 0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
-  weight_t h_result[] = {0, 7.33333, 1.66667, 4.333333, 1.666667, 1};
+  weight_t h_result[] = {0, 3.66667, 0.833333, 2.16667, 0.833333, 0.5};
 
   return generic_betweenness_centrality_test(
     h_src, h_dst, h_wgt, NULL, h_result, num_vertices, num_edges, 0, FALSE, TRUE, FALSE, FALSE, 6);
@@ -197,7 +197,7 @@ int test_betweenness_centrality_specific_unnormalized()
   weight_t h_wgt[] = {
     0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f, 0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
   vertex_t h_seeds[]  = {0, 3};
-  weight_t h_result[] = {0, 9.5, 4, 2, 1, 1.5};
+  weight_t h_result[] = {0, 7.91667, 3.33333, 1.666667, 0.833333, 1.25};
 
   return generic_betweenness_centrality_test(h_src,
                                              h_dst,
@@ -317,12 +317,12 @@ int test_issue_4941()
     {TRUE, FALSE, FALSE, 1, {1.0, 0.0, 0.0, 0.0, 0.0}},
     {FALSE, TRUE, TRUE, 0, {20.0, 8.0, 8.0, 8.0, 8.0}},
     {FALSE, TRUE, TRUE, 1, {20.0, 20.0, 5.0, 5.0, 5.0}},
-    {FALSE, TRUE, FALSE, 0, {20.0, 8.0, 8.0, 8.0, 8.0}},
-    {FALSE, TRUE, FALSE, 1, {20.0, 20.0, 5.0, 5.0, 5.0}},
+    {FALSE, TRUE, FALSE, 0, {10.0, 4.0, 4.0, 4.0, 4.0}},
+    {FALSE, TRUE, FALSE, 1, {10.0, 10.0, 2.5, 2.5, 2.5}},
     {FALSE, FALSE, TRUE, 0, {12.0, 0.0, 0.0, 0.0, 0.0}},
-    {FALSE, FALSE, TRUE, 1, {15.0, 0.0, 0.0, 0.0, 0.0}},
-    {FALSE, FALSE, FALSE, 0, {12.0, 0.0, 0.0, 0.0, 0.0}},
-    {FALSE, FALSE, FALSE, 1, {15.0, 0.0, 0.0, 0.0, 0.0}},
+    {FALSE, FALSE, TRUE, 1, {12.0, 0.0, 0.0, 0.0, 0.0}},
+    {FALSE, FALSE, FALSE, 0, {6.0, 0.0, 0.0, 0.0, 0.0}},
+    {FALSE, FALSE, FALSE, 1, {6.0, 0.0, 0.0, 0.0, 0.0}},
   };
 
   int test_result = 0;
