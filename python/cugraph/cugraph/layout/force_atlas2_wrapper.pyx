@@ -67,7 +67,7 @@ def force_atlas2(input_graph,
     cdef GraphCOOView[int,int,double] graph_double
 
     df = cudf.DataFrame()
-    df['vertex'] = cudf.Series(np.arange(num_verts, dtype=np.int32))
+    df['vertex'] = cudf.Series(cp.arange(num_verts, dtype=cp.int32))
 
     src = input_graph.edgelist.edgelist_df['src']
     dst = input_graph.edgelist.edgelist_df['dst']
