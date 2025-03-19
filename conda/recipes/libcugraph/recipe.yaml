@@ -203,6 +203,7 @@ outputs:
           - libcusolver
           - libcusparse
           - librmm
+          - libucxx
           - nccl
           - openmpi
           - if: cuda_major == "11"
@@ -212,3 +213,58 @@ outputs:
       homepage: ${{ load_from_file("python/libcugraph/pyproject.toml").project.urls.Homepage }}
       license: ${{ load_from_file("python/libcugraph/pyproject.toml").project.license.text }}
       summary: libcugraph_etl library
+
+  - package:
+      name: libcugraph-tests
+      version: ${{ version }}
+    build:
+      script:
+        content: |
+          cmake --install cpp/build --component testing
+          cmake --install cpp/build --component testing_c
+          cmake --install cpp/build --component testing_mg
+          cmake --install cpp/libcugraph_etl/build --component testing
+      dynamic_linking:
+        overlinking_behavior: "error"
+      string: cuda${{ cuda_major }}_${{ date_string }}_${{ head_rev }}
+    requirements:
+      build:
+        - cmake ${{ cmake_version }}
+        - ${{ stdlib("c") }}
+      host:
+        - ${{ pin_subpackage("libcugraph", exact=True) }}
+        - cuda-cudart-dev
+        - cuda-version =${{ cuda_version }}
+        - nccl ${{ nccl_version }}
+        - openmpi <5.0.3 # Required for building cpp-mgtests (multi-GPU tests)
+        - rapids-logger =0.1
+      run:
+        - ${{ pin_compatible("cuda-version", upper_bound="x", lower_bound="x") }}
+        - ${{ pin_subpackage("libcugraph", exact=True) }}
+        - ${{ pin_subpackage("libcugraph_etl", exact=True) }}
+        - if: cuda_major == "11"
+          then:
+            - cudatoolkit
+          else:
+            - cuda-cudart
+      ignore_run_exports:
+        by_name:
+          - cuda-cudart
+          - cuda-nvtx
+          - cuda-version
+          - libcublas
+          - libcudf
+          - libcurand
+          - libcusolver
+          - libcusparse
+          - librmm
+          - libucxx
+          - nccl
+          - openmpi
+          - if: cuda_major == "11"
+            then:
+              - cudatoolkit
+    about:
+      homepage: ${{ load_from_file("python/libcugraph/pyproject.toml").project.urls.Homepage }}
+      license: ${{ load_from_file("python/libcugraph/pyproject.toml").project.license.text }}
+      summary: libcugraph test & benchmark executables
