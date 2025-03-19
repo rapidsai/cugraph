@@ -85,4 +85,76 @@ remove_multi_edges(raft::handle_t const& handle,
                    std::optional<rmm::device_uvector<int64_t>>&& edgelist_edge_end_times,
                    bool keep_min_value_edge);
 
+template std::tuple<std::vector<rmm::device_uvector<int32_t>>,
+                    std::vector<rmm::device_uvector<int32_t>>,
+                    std::optional<std::vector<rmm::device_uvector<float>>>,
+                    std::optional<std::vector<rmm::device_uvector<int32_t>>>,
+                    std::optional<std::vector<rmm::device_uvector<int32_t>>>,
+                    std::optional<std::vector<rmm::device_uvector<int32_t>>>,
+                    std::optional<std::vector<rmm::device_uvector<int32_t>>>>
+remove_multi_edges(
+  raft::handle_t const& handle,
+  std::vector<rmm::device_uvector<int32_t>>&& edgelist_srcs,
+  std::vector<rmm::device_uvector<int32_t>>&& edgelist_dsts,
+  std::optional<std::vector<rmm::device_uvector<float>>>&& edgelist_weights,
+  std::optional<std::vector<rmm::device_uvector<int32_t>>>&& edgelist_edge_ids,
+  std::optional<std::vector<rmm::device_uvector<int32_t>>>&& edgelist_edge_types,
+  std::optional<std::vector<rmm::device_uvector<int32_t>>>&& edgelist_edge_start_times,
+  std::optional<std::vector<rmm::device_uvector<int32_t>>>&& edgelist_edge_end_times,
+  bool keep_min_value_edge);
+
+template std::tuple<std::vector<rmm::device_uvector<int32_t>>,
+                    std::vector<rmm::device_uvector<int32_t>>,
+                    std::optional<std::vector<rmm::device_uvector<double>>>,
+                    std::optional<std::vector<rmm::device_uvector<int32_t>>>,
+                    std::optional<std::vector<rmm::device_uvector<int32_t>>>,
+                    std::optional<std::vector<rmm::device_uvector<int32_t>>>,
+                    std::optional<std::vector<rmm::device_uvector<int32_t>>>>
+remove_multi_edges(
+  raft::handle_t const& handle,
+  std::vector<rmm::device_uvector<int32_t>>&& edgelist_srcs,
+  std::vector<rmm::device_uvector<int32_t>>&& edgelist_dsts,
+  std::optional<std::vector<rmm::device_uvector<double>>>&& edgelist_weights,
+  std::optional<std::vector<rmm::device_uvector<int32_t>>>&& edgelist_edge_ids,
+  std::optional<std::vector<rmm::device_uvector<int32_t>>>&& edgelist_edge_types,
+  std::optional<std::vector<rmm::device_uvector<int32_t>>>&& edgelist_edge_start_times,
+  std::optional<std::vector<rmm::device_uvector<int32_t>>>&& edgelist_edge_end_times,
+  bool keep_min_value_edge);
+
+template std::tuple<std::vector<rmm::device_uvector<int32_t>>,
+                    std::vector<rmm::device_uvector<int32_t>>,
+                    std::optional<std::vector<rmm::device_uvector<float>>>,
+                    std::optional<std::vector<rmm::device_uvector<int32_t>>>,
+                    std::optional<std::vector<rmm::device_uvector<int32_t>>>,
+                    std::optional<std::vector<rmm::device_uvector<int64_t>>>,
+                    std::optional<std::vector<rmm::device_uvector<int64_t>>>>
+remove_multi_edges(
+  raft::handle_t const& handle,
+  std::vector<rmm::device_uvector<int32_t>>&& edgelist_srcs,
+  std::vector<rmm::device_uvector<int32_t>>&& edgelist_dsts,
+  std::optional<std::vector<rmm::device_uvector<float>>>&& edgelist_weights,
+  std::optional<std::vector<rmm::device_uvector<int32_t>>>&& edgelist_edge_ids,
+  std::optional<std::vector<rmm::device_uvector<int32_t>>>&& edgelist_edge_types,
+  std::optional<std::vector<rmm::device_uvector<int64_t>>>&& edgelist_edge_start_times,
+  std::optional<std::vector<rmm::device_uvector<int64_t>>>&& edgelist_edge_end_times,
+  bool keep_min_value_edge);
+
+template std::tuple<std::vector<rmm::device_uvector<int32_t>>,
+                    std::vector<rmm::device_uvector<int32_t>>,
+                    std::optional<std::vector<rmm::device_uvector<double>>>,
+                    std::optional<std::vector<rmm::device_uvector<int32_t>>>,
+                    std::optional<std::vector<rmm::device_uvector<int32_t>>>,
+                    std::optional<std::vector<rmm::device_uvector<int64_t>>>,
+                    std::optional<std::vector<rmm::device_uvector<int64_t>>>>
+remove_multi_edges(
+  raft::handle_t const& handle,
+  std::vector<rmm::device_uvector<int32_t>>&& edgelist_srcs,
+  std::vector<rmm::device_uvector<int32_t>>&& edgelist_dsts,
+  std::optional<std::vector<rmm::device_uvector<double>>>&& edgelist_weights,
+  std::optional<std::vector<rmm::device_uvector<int32_t>>>&& edgelist_edge_ids,
+  std::optional<std::vector<rmm::device_uvector<int32_t>>>&& edgelist_edge_types,
+  std::optional<std::vector<rmm::device_uvector<int64_t>>>&& edgelist_edge_start_times,
+  std::optional<std::vector<rmm::device_uvector<int64_t>>>&& edgelist_edge_end_times,
+  bool keep_min_value_edge);
+
 }  // namespace cugraph

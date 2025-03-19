@@ -2647,7 +2647,7 @@ def bench_add_edges_cyber(benchmark, N):
 
 
 # @pytest.mark.slow
-@pytest.mark.parametrize("n_rows", [10_000, 100_000, 1_000_000, 10_000_000])
+@pytest.mark.parametrize("n_rows", [10_000, 100_000, 1_000_000])
 @pytest.mark.parametrize("n_feats", [32, 64, 128])
 def bench_add_vector_features(benchmark, n_rows, n_feats):
     from cugraph.experimental import PropertyGraph
