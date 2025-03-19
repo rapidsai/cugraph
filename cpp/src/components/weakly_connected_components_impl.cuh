@@ -361,6 +361,8 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
                         return degree > 0 ? invalid_component_id<vertex_t>::value : v;
                       });
 
+    // 2-2. decide whether to run BFS first or not
+
     std::optional<vertex_t> bfs_start_vertex{std::nullopt};
     if (num_levels == 1) {  // if in level 0 and there exists a high-degree vertex, run BFS first to
                             // hopefully find the  biggest connected component (to significantly
@@ -397,7 +399,11 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
       allocate_dataframe_buffer<thrust::tuple<vertex_t, vertex_t>>(0, handle.get_stream());
     rmm::device_scalar<size_t> num_edge_inserts(size_t{0}, handle.get_stream());
 
+    // 2-3. run BFS or multi-root expansion
+
     if (bfs_start_vertex) {
+      // 2-3-1. run BFS and find the vertices that are reachable from the starting vertex
+
       rmm::device_uvector<bool> visited(level_graph_view.local_vertex_partition_range_size(),
                                         handle.get_stream());
       {
@@ -425,6 +431,9 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
                             auto d) { return d != invalid_distance; });
       }
 
+      // 2-3-2. set level_components[] = start_vertex if reachable from the starting vertex and
+      // itself if not reachable
+
       auto pair_first = thrust::make_zip_iterator(
         thrust::make_counting_iterator(level_graph_view.local_vertex_partition_range_first()),
         visited.begin());
@@ -439,7 +448,11 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
           auto visited = thrust::get<1>(pair);
           return visited ? start_vertex : v;
         },
-        [] __device__(auto d) { return d > edge_t{0}; });
+        [] __device__(auto d) {
+          return d > edge_t{0};
+        } /* skip isolated vertices (already updated) */);
+
+      // 2-3-3. extract edges that are unreachable from the starting vertex
 
       edge_src_property_t<GraphViewType, bool> edge_src_visited(handle, level_graph_view);
       update_edge_src_property(
@@ -463,7 +476,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
       handle.sync_stream();  // to ensure that the above set_value_async is completed before
                              // num_edges is freed
     } else {
-      // 2-2. initialize new root candidates
+      // 2-3-1. initialize new root candidates
 
       // Vertices are first partitioned to high-degree vertices and low-degree vertices, we can
       // reach degree_sum_threshold with fewer high-degree vertices leading to a higher compression
@@ -590,7 +603,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
         init_max_new_roots = std::min(init_max_new_roots, max_new_roots);
       }
 
-      // 2-3. initialize vertex frontier, edge_buffer, and edge_dst_components (if
+      // 2-3-2. initialize vertex frontier, edge_buffer, and edge_dst_components (if
       // multi-gpu)
 
       vertex_frontier_t<vertex_t, vertex_t, GraphViewType::is_multi_gpu, true> vertex_frontier(
@@ -609,7 +622,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
                                invalid_component_id<vertex_t>::value);
       }
 
-      // 2.4 iterate till every vertex gets visited
+      // 2-3-3 iterate till every vertex gets visited
 
       size_t iter{0};
       while (true) {
@@ -777,7 +790,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
       }
     }
 
-    // 2-5. construct the next level graph from the edges emitted on conflicts
+    // 2-4. construct the next level graph from the edges emitted on conflicts
 
     auto num_inserts           = num_edge_inserts.value(handle.get_stream());
     auto aggregate_num_inserts = num_inserts;
