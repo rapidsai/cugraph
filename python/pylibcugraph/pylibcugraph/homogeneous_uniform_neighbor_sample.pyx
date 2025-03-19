@@ -97,7 +97,7 @@ def homogeneous_uniform_neighbor_sample(ResourceHandle resource_handle,
                                           compress_per_hop=False,
                                           random_state=None):
     """
-    Performs biased neighborhood sampling, which samples nodes from
+    Performs uniform neighborhood sampling, which samples nodes from
     a graph based on the current node's neighbors, with a corresponding fan_out
     value at each hop. The edges are sampled uniformly. Homogeneous
     neighborhood sampling translates to 1 edge type.

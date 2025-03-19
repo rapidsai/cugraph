@@ -125,6 +125,10 @@ from cugraph.sampling import (
     rw_path,
     node2vec,
     uniform_neighbor_sample,
+    homogeneous_uniform_neighbor_sample,
+    heterogeneous_uniform_neighbor_sample,
+    homogeneous_biased_neighbor_sample,
+    heterogeneous_biased_neighbor_sample,
 )
 
 
