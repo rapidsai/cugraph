@@ -68,8 +68,8 @@ void sort_by_key(raft::handle_t const& handle,
 
 template <typename key_t, typename value_t>
 void sort_tuple_by_key(raft::handle_t const& handle,
-                 raft::device_span<key_t> keys,
-                 std::tuple<raft::device_span<value_t>, raft::device_span<value_t>> values)
+                       raft::device_span<key_t> keys,
+                       std::tuple<raft::device_span<value_t>, raft::device_span<value_t>> values)
 {
   thrust::sort_by_key(
     handle.get_thrust_policy(),
@@ -99,21 +99,25 @@ template void sort_by_key(raft::handle_t const& handle,
                           raft::device_span<int64_t> keys,
                           raft::device_span<double> values);
 
-template void sort_tuple_by_key(raft::handle_t const& handle,
-                          raft::device_span<int32_t> keys,
-                          std::tuple<raft::device_span<float>, raft::device_span<float>> values);
+template void sort_tuple_by_key(
+  raft::handle_t const& handle,
+  raft::device_span<int32_t> keys,
+  std::tuple<raft::device_span<float>, raft::device_span<float>> values);
 
-template void sort_tuple_by_key(raft::handle_t const& handle,
-                          raft::device_span<int32_t> keys,
-                          std::tuple<raft::device_span<double>, raft::device_span<double>> values);
+template void sort_tuple_by_key(
+  raft::handle_t const& handle,
+  raft::device_span<int32_t> keys,
+  std::tuple<raft::device_span<double>, raft::device_span<double>> values);
 
-template void sort_tuple_by_key(raft::handle_t const& handle,
-                          raft::device_span<int64_t> keys,
-                          std::tuple<raft::device_span<float>, raft::device_span<float>> values);
+template void sort_tuple_by_key(
+  raft::handle_t const& handle,
+  raft::device_span<int64_t> keys,
+  std::tuple<raft::device_span<float>, raft::device_span<float>> values);
 
-template void sort_tuple_by_key(raft::handle_t const& handle,
-                          raft::device_span<int64_t> keys,
-                          std::tuple<raft::device_span<double>, raft::device_span<double>> values);
+template void sort_tuple_by_key(
+  raft::handle_t const& handle,
+  raft::device_span<int64_t> keys,
+  std::tuple<raft::device_span<double>, raft::device_span<double>> values);
 
 template <typename vertex_t, typename weight_t>
 std::tuple<rmm::device_uvector<size_t>,
