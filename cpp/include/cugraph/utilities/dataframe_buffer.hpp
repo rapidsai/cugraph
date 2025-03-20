@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -196,6 +196,15 @@ auto get_dataframe_buffer_begin(BufferType& buffer)
 template <typename BufferType,
           typename std::enable_if_t<
             is_std_tuple_of_arithmetic_vectors<std::remove_cv_t<BufferType>>::value>* = nullptr>
+auto get_dataframe_buffer_begin(BufferType& buffer)
+{
+  return detail::get_dataframe_buffer_begin_tuple_impl(
+    std::make_index_sequence<std::tuple_size<BufferType>::value>(), buffer);
+}
+
+template <typename BufferType,
+          typename std::enable_if_t<is_std_tuple_of_arithmetic_device_spans<
+            std::remove_cv_t<BufferType>>::value>* = nullptr>
 auto get_dataframe_buffer_begin(BufferType& buffer)
 {
   return detail::get_dataframe_buffer_begin_tuple_impl(

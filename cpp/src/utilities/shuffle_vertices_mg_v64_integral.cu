@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -58,6 +58,24 @@ template rmm::device_uvector<int64_t> shuffle_int_vertices_to_local_gpu_by_verte
   raft::handle_t const& handle,
   rmm::device_uvector<int64_t>&& vertices,
   std::vector<int64_t> const& vertex_partition_range_lasts);
+
+template std::
+  tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>>
+  shuffle_int_vertex_two_value_pairs_to_local_gpu_by_vertex_partitioning(
+    raft::handle_t const& handle,
+    rmm::device_uvector<int64_t>&& vertices,
+    rmm::device_uvector<int32_t>&& values1,
+    rmm::device_uvector<int32_t>&& values2,
+    std::vector<int64_t> const& vertex_partition_range_lasts);
+
+template std::
+  tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<int32_t>, rmm::device_uvector<int64_t>>
+  shuffle_int_vertex_two_value_pairs_to_local_gpu_by_vertex_partitioning(
+    raft::handle_t const& handle,
+    rmm::device_uvector<int64_t>&& vertices,
+    rmm::device_uvector<int32_t>&& values1,
+    rmm::device_uvector<int64_t>&& values2,
+    std::vector<int64_t> const& vertex_partition_range_lasts);
 
 template rmm::device_uvector<int64_t> shuffle_ext_vertices_to_local_gpu_by_vertex_partitioning(
   raft::handle_t const& handle, rmm::device_uvector<int64_t>&& d_vertices);

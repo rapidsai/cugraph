@@ -16,9 +16,11 @@
 
 #pragma once
 
+#include "cugraph/utilities/shuffle_comm.cuh"
 #include "prims/update_edge_src_dst_property.cuh"  // ??
 #include "prims/vertex_frontier.cuh"
 #include "structure/detail/structure_utils.cuh"
+#include "utilities/tuple_with_optionals_dispatching.hpp"
 
 #include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/edge_src_dst_property.hpp>
@@ -55,6 +57,7 @@ template <typename vertex_t,
           typename weight_t,
           typename edge_t,
           typename edge_type_t,
+          typename edge_time_t,
           typename label_t>
 void sort_sampled_tuples(raft::handle_t const& handle,
                          rmm::device_uvector<vertex_t>& majors,
@@ -62,16 +65,18 @@ void sort_sampled_tuples(raft::handle_t const& handle,
                          std::optional<rmm::device_uvector<weight_t>>& weights,
                          std::optional<rmm::device_uvector<edge_t>>& edge_ids,
                          std::optional<rmm::device_uvector<edge_type_t>>& edge_types,
+                         std::optional<rmm::device_uvector<edge_time_t>>& edge_start_times,
+                         std::optional<rmm::device_uvector<edge_time_t>>& edge_end_times,
                          std::optional<rmm::device_uvector<int32_t>>& hops,
                          rmm::device_uvector<label_t>& labels)
 {
   rmm::device_uvector<size_t> indices(majors.size(), handle.get_stream());
   thrust::sequence(handle.get_thrust_policy(), indices.begin(), indices.end(), size_t{0});
   rmm::device_uvector<label_t> tmp_labels(indices.size(), handle.get_stream());
-  auto tmp_hops =
-    hops ? std::make_optional<rmm::device_uvector<int32_t>>(indices.size(), handle.get_stream())
-         : std::nullopt;
+
   if (hops) {
+    rmm::device_uvector<int32_t> tmp_hops(indices.size(), handle.get_stream());
+
     thrust::sort(
       handle.get_thrust_policy(),
       indices.begin(),
@@ -81,11 +86,12 @@ void sort_sampled_tuples(raft::handle_t const& handle,
                                                                                        size_t r) {
         return thrust::make_tuple(labels[l], hops[l]) < thrust::make_tuple(labels[r], hops[r]);
       });
+
     thrust::gather(handle.get_thrust_policy(),
                    indices.begin(),
                    indices.end(),
                    thrust::make_zip_iterator(labels.begin(), hops->begin()),
-                   thrust::make_zip_iterator(tmp_labels.begin(), tmp_hops->begin()));
+                   thrust::make_zip_iterator(tmp_labels.begin(), tmp_hops.begin()));
     hops = std::move(tmp_hops);
   } else {
     thrust::sort(
@@ -112,87 +118,97 @@ void sort_sampled_tuples(raft::handle_t const& handle,
   majors = std::move(tmp_majors);
   minors = std::move(tmp_minors);
 
-  auto tmp_weights =
-    weights ? std::make_optional<rmm::device_uvector<weight_t>>(indices.size(), handle.get_stream())
-            : std::nullopt;
-  auto tmp_edge_ids =
-    edge_ids ? std::make_optional<rmm::device_uvector<edge_t>>(indices.size(), handle.get_stream())
-             : std::nullopt;
-  auto tmp_edge_types = edge_types ? std::make_optional<rmm::device_uvector<edge_type_t>>(
-                                       indices.size(), handle.get_stream())
-                                   : std::nullopt;
   if (weights) {
-    if (edge_ids) {
-      if (edge_types) {
-        thrust::gather(
-          handle.get_thrust_policy(),
-          indices.begin(),
-          indices.end(),
-          thrust::make_zip_iterator(weights->begin(), edge_ids->begin(), edge_types->begin()),
-          thrust::make_zip_iterator(
-            tmp_weights->begin(), tmp_edge_ids->begin(), tmp_edge_types->begin()));
-      } else {
-        thrust::gather(handle.get_thrust_policy(),
-                       indices.begin(),
-                       indices.end(),
-                       thrust::make_zip_iterator(weights->begin(), edge_ids->begin()),
-                       thrust::make_zip_iterator(tmp_weights->begin(), tmp_edge_ids->begin()));
-      }
+    rmm::device_uvector<weight_t> tmp_weights(indices.size(), handle.get_stream());
+    thrust::gather(handle.get_thrust_policy(),
+                   indices.begin(),
+                   indices.end(),
+                   weights->begin(),
+                   tmp_weights.begin());
+    weights = std::move(tmp_weights);
+  }
+
+  if (edge_ids) {
+    rmm::device_uvector<edge_t> tmp_edge_ids(indices.size(), handle.get_stream());
+    thrust::gather(handle.get_thrust_policy(),
+                   indices.begin(),
+                   indices.end(),
+                   edge_ids->begin(),
+                   tmp_edge_ids.begin());
+    edge_ids = std::move(tmp_edge_ids);
+  }
+
+  if (edge_types) {
+    rmm::device_uvector<edge_type_t> tmp_edge_types(indices.size(), handle.get_stream());
+    thrust::gather(handle.get_thrust_policy(),
+                   indices.begin(),
+                   indices.end(),
+                   edge_types->begin(),
+                   tmp_edge_types.begin());
+    edge_types = std::move(tmp_edge_types);
+  }
+
+  if (edge_start_times) {
+    rmm::device_uvector<edge_time_t> tmp_edge_start_times(indices.size(), handle.get_stream());
+    thrust::gather(handle.get_thrust_policy(),
+                   indices.begin(),
+                   indices.end(),
+                   edge_start_times->begin(),
+                   tmp_edge_start_times.begin());
+    edge_start_times = std::move(tmp_edge_start_times);
+  }
+
+  if (edge_end_times) {
+    rmm::device_uvector<edge_time_t> tmp_edge_end_times(indices.size(), handle.get_stream());
+    thrust::gather(handle.get_thrust_policy(),
+                   indices.begin(),
+                   indices.end(),
+                   edge_end_times->begin(),
+                   tmp_edge_end_times.begin());
+    edge_end_times = std::move(tmp_edge_end_times);
+  }
+}
+
+template <typename KeyIterator, typename KeyToGroupIdOp>
+struct groupby_and_count_functor_t {
+  raft::handle_t const& handle;
+  KeyIterator first;
+  KeyIterator last;
+  KeyToGroupIdOp key_to_group_id_op;
+  int comm_size;
+  size_t mem_frugal_threshold;
+
+  template <bool... Flags, typename TupleType>
+  auto operator()(TupleType tup)
+  {
+    if constexpr (std::is_same_v<TupleType, std::tuple<>>) {
+      return cugraph::groupby_and_count(
+        first, last, key_to_group_id_op, comm_size, mem_frugal_threshold, handle.get_stream());
     } else {
-      if (edge_types) {
-        thrust::gather(handle.get_thrust_policy(),
-                       indices.begin(),
-                       indices.end(),
-                       thrust::make_zip_iterator(weights->begin(), edge_types->begin()),
-                       thrust::make_zip_iterator(tmp_weights->begin(), tmp_edge_types->begin()));
-      } else {
-        thrust::gather(handle.get_thrust_policy(),
-                       indices.begin(),
-                       indices.end(),
-                       weights->begin(),
-                       tmp_weights->begin());
-      }
-    }
-  } else {
-    if (edge_ids) {
-      if (edge_types) {
-        thrust::gather(handle.get_thrust_policy(),
-                       indices.begin(),
-                       indices.end(),
-                       thrust::make_zip_iterator(edge_ids->begin(), edge_types->begin()),
-                       thrust::make_zip_iterator(tmp_edge_ids->begin(), tmp_edge_types->begin()));
-      } else {
-        thrust::gather(handle.get_thrust_policy(),
-                       indices.begin(),
-                       indices.end(),
-                       edge_ids->begin(),
-                       tmp_edge_ids->begin());
-      }
-    } else {
-      if (edge_types) {
-        thrust::gather(handle.get_thrust_policy(),
-                       indices.begin(),
-                       indices.end(),
-                       edge_types->begin(),
-                       tmp_edge_types->begin());
-      }
+      return cugraph::groupby_and_count(first,
+                                        last,
+                                        get_dataframe_buffer_begin(tup),
+                                        key_to_group_id_op,
+                                        comm_size,
+                                        mem_frugal_threshold,
+                                        handle.get_stream());
     }
   }
-  weights    = std::move(tmp_weights);
-  edge_ids   = std::move(tmp_edge_ids);
-  edge_types = std::move(tmp_edge_types);
-}
+};
 
 template <typename vertex_t,
           typename edge_t,
           typename weight_t,
           typename edge_type_t,
+          typename edge_time_t,
           typename label_t>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>,
            std::optional<rmm::device_uvector<edge_t>>,
            std::optional<rmm::device_uvector<edge_type_t>>,
+           std::optional<rmm::device_uvector<edge_time_t>>,
+           std::optional<rmm::device_uvector<edge_time_t>>,
            std::optional<rmm::device_uvector<int32_t>>,
            std::optional<rmm::device_uvector<label_t>>,
            std::optional<rmm::device_uvector<size_t>>>
@@ -203,6 +219,8 @@ shuffle_and_organize_output(
   std::optional<rmm::device_uvector<weight_t>>&& weights,
   std::optional<rmm::device_uvector<edge_t>>&& edge_ids,
   std::optional<rmm::device_uvector<edge_type_t>>&& edge_types,
+  std::optional<rmm::device_uvector<edge_time_t>>&& edge_start_times,
+  std::optional<rmm::device_uvector<edge_time_t>>&& edge_end_times,
   std::optional<rmm::device_uvector<int32_t>>&& hops,
   std::optional<rmm::device_uvector<label_t>>&& labels,
   std::optional<raft::device_span<int32_t const>> label_to_output_comm_rank)
@@ -210,7 +228,16 @@ shuffle_and_organize_output(
   std::optional<rmm::device_uvector<size_t>> offsets{std::nullopt};
 
   if (labels) {
-    sort_sampled_tuples(handle, majors, minors, weights, edge_ids, edge_types, hops, *labels);
+    sort_sampled_tuples(handle,
+                        majors,
+                        minors,
+                        weights,
+                        edge_ids,
+                        edge_types,
+                        edge_start_times,
+                        edge_end_times,
+                        hops,
+                        *labels);
 
     if (label_to_output_comm_rank) {
       auto& comm           = handle.get_comms();
@@ -230,7 +257,37 @@ shuffle_and_organize_output(
       auto mem_frugal_threshold = static_cast<size_t>(
         static_cast<double>(total_global_mem / element_size) * mem_frugal_ratio);
 
-      if (weights) {
+      groupby_and_count_functor_t<label_t*, shuffle_to_output_comm_rank_t<label_t>>
+        groupby_and_count_functor{
+          handle,
+          labels->begin(),
+          labels->end(),
+          shuffle_to_output_comm_rank_t<label_t>{*label_to_output_comm_rank},
+          comm_size,
+          mem_frugal_threshold};
+
+      auto d_tx_value_counts = tuple_with_optionals_dispatch(
+        groupby_and_count_functor,
+        std::make_optional<raft::device_span<vertex_t>>(majors.data(), majors.size()),
+        std::make_optional<raft::device_span<vertex_t>>(minors.data(), minors.size()),
+        weights ? std::make_optional<raft::device_span<weight_t>>(weights->data(), weights->size())
+                : std::nullopt,
+        edge_ids ? std::make_optional<raft::device_span<edge_t>>(edge_ids->data(), edge_ids->size())
+                 : std::nullopt,
+        edge_types ? std::make_optional<raft::device_span<edge_type_t>>(edge_types->data(),
+                                                                        edge_types->size())
+                   : std::nullopt,
+        edge_start_times ? std::make_optional<raft::device_span<edge_time_t>>(
+                             edge_start_times->data(), edge_start_times->size())
+                         : std::nullopt,
+        edge_end_times ? std::make_optional<raft::device_span<edge_time_t>>(edge_end_times->data(),
+                                                                            edge_end_times->size())
+                       : std::nullopt,
+        hops ? std::make_optional<raft::device_span<int32_t>>(hops->data(), hops->size())
+             : std::nullopt);
+
+#if 0
+             if (weights) {
         if (edge_ids) {
           if (edge_types) {
             if (hops) {
@@ -704,8 +761,55 @@ shuffle_and_organize_output(
           }
         }
       }
+#endif
 
-      sort_sampled_tuples(handle, majors, minors, weights, edge_ids, edge_types, hops, *labels);
+      std::vector<size_t> h_tx_value_counts(d_tx_value_counts.size());
+      raft::update_host(h_tx_value_counts.data(),
+                        d_tx_value_counts.data(),
+                        d_tx_value_counts.size(),
+                        handle.get_stream());
+      handle.sync_stream();
+
+      std::forward_as_tuple(std::tie(majors, minors, labels), std::ignore) =
+        shuffle_values(comm,
+                       thrust::make_zip_iterator(majors.begin(), minors.begin(), labels->begin()),
+                       h_tx_value_counts,
+                       handle.get_stream());
+
+      if (weights)
+        std::tie(weights, std::ignore) =
+          shuffle_values(comm, weights->begin(), h_tx_value_counts, handle.get_stream());
+
+      if (edge_ids)
+        std::tie(edge_ids, std::ignore) =
+          shuffle_values(comm, edge_ids->begin(), h_tx_value_counts, handle.get_stream());
+
+      if (edge_types)
+        std::tie(edge_types, std::ignore) =
+          shuffle_values(comm, edge_types->begin(), h_tx_value_counts, handle.get_stream());
+
+      if (edge_start_times)
+        std::tie(edge_start_times, std::ignore) =
+          shuffle_values(comm, edge_start_times->begin(), h_tx_value_counts, handle.get_stream());
+
+      if (edge_end_times)
+        std::tie(edge_end_times, std::ignore) =
+          shuffle_values(comm, edge_end_times->begin(), h_tx_value_counts, handle.get_stream());
+
+      if (hops)
+        std::tie(hops, std::ignore) =
+          shuffle_values(comm, hops->begin(), h_tx_value_counts, handle.get_stream());
+
+      sort_sampled_tuples(handle,
+                          majors,
+                          minors,
+                          weights,
+                          edge_ids,
+                          edge_types,
+                          edge_start_times,
+                          edge_end_times,
+                          hops,
+                          *labels);
     }
 
     size_t num_unique_labels =
@@ -734,6 +838,8 @@ shuffle_and_organize_output(
                          std::move(weights),
                          std::move(edge_ids),
                          std::move(edge_types),
+                         std::move(edge_start_times),
+                         std::move(edge_end_times),
                          std::move(hops),
                          std::move(labels),
                          std::move(offsets));

@@ -15,6 +15,8 @@
  */
 #pragma once
 
+#include <raft/core/device_span.hpp>
+
 #include <rmm/device_uvector.hpp>
 
 #include <thrust/iterator/iterator_traits.h>
@@ -160,6 +162,14 @@ struct is_std_tuple_of_arithmetic_vectors<std::tuple<rmm::device_uvector<Ts>...>
 };
 
 template <typename T>
+struct is_std_tuple_of_arithmetic_device_spans : std::false_type {};
+
+template <typename... Ts>
+struct is_std_tuple_of_arithmetic_device_spans<std::tuple<raft::device_span<Ts>...>> {
+  static constexpr bool value = (... && std::is_arithmetic_v<Ts>);
+};
+
+template <typename T>
 struct is_arithmetic_or_thrust_tuple_of_arithmetic
   : std::integral_constant<bool, std::is_arithmetic_v<T>> {};
 
@@ -301,6 +311,7 @@ __host__ __device__
 
 // a temporary function to emulate thrust::tuple_cat (not supported) using std::tuple_cat (should
 // retire once thrust::tuple is replaced with cuda::std::tuple)
+
 template <typename... TupleTypes>
 auto thrust_tuple_cat(TupleTypes... tups)
 {

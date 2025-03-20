@@ -17,8 +17,10 @@
 #pragma once
 
 #include "prims/per_v_random_select_transform_outgoing_e.cuh"
+#include "prims/transform_reduce_e.cuh"
 #include "prims/vertex_frontier.cuh"
 #include "structure/detail/structure_utils.cuh"
+#include "utilities/tuple_with_optionals_dispatching.hpp"
 
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph.hpp>
@@ -32,6 +34,10 @@
 #include <cuda/std/optional>
 #include <thrust/sort.h>
 #include <thrust/tuple.h>
+
+#include <optional>
+#include <tuple>
+#include <type_traits>
 
 namespace cugraph {
 namespace detail {
@@ -61,6 +67,23 @@ struct sample_edges_op_t {
                                 thrust::get<0>(edge_properties),
                                 thrust::get<1>(edge_properties),
                                 thrust::get<2>(edge_properties));
+    } else if constexpr (cugraph::is_thrust_tuple_of_arithmetic<EdgeProperties>::value &&
+                         (thrust::tuple_size<EdgeProperties>::value == 4)) {
+      return thrust::make_tuple(src,
+                                dst,
+                                thrust::get<0>(edge_properties),
+                                thrust::get<1>(edge_properties),
+                                thrust::get<2>(edge_properties),
+                                thrust::get<3>(edge_properties));
+    } else if constexpr (cugraph::is_thrust_tuple_of_arithmetic<EdgeProperties>::value &&
+                         (thrust::tuple_size<EdgeProperties>::value == 5)) {
+      return thrust::make_tuple(src,
+                                dst,
+                                thrust::get<0>(edge_properties),
+                                thrust::get<1>(edge_properties),
+                                thrust::get<2>(edge_properties),
+                                thrust::get<3>(edge_properties),
+                                thrust::get<4>(edge_properties));
     }
   }
 };
@@ -88,210 +111,214 @@ struct segmented_fill_t {
   }
 };
 
-template <bool has_weight,
-          bool has_edge_id,
-          bool has_edge_type,
-          typename vertex_t,
-          typename edge_t,
-          typename weight_t,
-          typename edge_type_t,
-          typename bias_t,
-          bool multi_gpu>
-std::tuple<std::optional<rmm::device_uvector<size_t>>,
-           rmm::device_uvector<vertex_t>,
-           rmm::device_uvector<vertex_t>,
-           std::optional<rmm::device_uvector<weight_t>>,
-           std::optional<rmm::device_uvector<edge_t>>,
-           std::optional<rmm::device_uvector<edge_type_t>>>
-sample_edges_with_edge_values(
-  raft::handle_t const& handle,
-  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
-  key_bucket_t<vertex_t, void, multi_gpu, false> const& key_list,
-  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
-  std::optional<edge_property_view_t<edge_t, edge_t const*>> edge_id_view,
-  std::optional<edge_property_view_t<edge_t, edge_type_t const*>> edge_type_view,
-  std::optional<edge_property_view_t<edge_t, bias_t const*>> edge_bias_view,
-  raft::random::RngState& rng_state,
-  raft::device_span<vertex_t const> active_majors,
-  raft::host_span<size_t const> Ks,
-  bool with_replacement)
+template <size_t input_tuple_pos,
+          size_t output_tuple_pos,
+          bool Flag,
+          bool... Flags,
+          typename InputTupleType,
+          typename OutputTupleType>
+void move_results(InputTupleType& input_tuple, OutputTupleType& output_tuple)
 {
-  std::optional<rmm::device_uvector<size_t>> sample_offsets{std::nullopt};
-  rmm::device_uvector<vertex_t> majors(0, handle.get_stream());
-  rmm::device_uvector<vertex_t> minors(0, handle.get_stream());
-  std::optional<rmm::device_uvector<weight_t>> weights{std::nullopt};
-  std::optional<rmm::device_uvector<edge_t>> edge_ids{std::nullopt};
-  std::optional<rmm::device_uvector<edge_type_t>> edge_types{std::nullopt};
-
-  assert(Ks.size() >= 1);
-  assert((Ks.size() == 1) || edge_type_view);
-  using edge_value_t = std::conditional_t<
-    has_weight,
-    std::conditional_t<
-      has_edge_id,
-      std::conditional_t<has_edge_type,
-                         thrust::tuple<weight_t, edge_t, edge_type_t>,
-                         thrust::tuple<weight_t, edge_t>>,
-      std::conditional_t<has_edge_type, thrust::tuple<weight_t, edge_type_t>, weight_t>>,
-    std::conditional_t<
-      has_edge_id,
-      std::conditional_t<has_edge_type, thrust::tuple<edge_t, edge_type_t>, edge_t>,
-      std::conditional_t<has_edge_type, edge_type_t, cuda::std::nullopt_t>>>;
-  using sample_e_op_result_t = std::conditional_t<
-    has_weight,
-    std::conditional_t<
-      has_edge_id,
-      std::conditional_t<has_edge_type,
-                         thrust::tuple<vertex_t, vertex_t, weight_t, edge_t, edge_type_t>,
-                         thrust::tuple<vertex_t, vertex_t, weight_t, edge_t>>,
-      std::conditional_t<has_edge_type,
-                         thrust::tuple<vertex_t, vertex_t, weight_t, edge_type_t>,
-                         thrust::tuple<vertex_t, vertex_t, weight_t>>>,
-    std::conditional_t<has_edge_id,
-                       std::conditional_t<has_edge_type,
-                                          thrust::tuple<vertex_t, vertex_t, edge_t, edge_type_t>,
-                                          thrust::tuple<vertex_t, vertex_t, edge_t>>,
-                       std::conditional_t<has_edge_type,
-                                          thrust::tuple<vertex_t, vertex_t, edge_type_t>,
-                                          thrust::tuple<vertex_t, vertex_t>>>>;
-
-  using edge_value_view_t =
-    edge_property_view_type_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, edge_value_t>;
-
-  edge_value_view_t edge_value_view{};
-  if constexpr (has_weight) {
-    if constexpr (has_edge_id) {
-      if constexpr (has_edge_type) {
-        edge_value_view = view_concat(*edge_weight_view, *edge_id_view, *edge_type_view);
-      } else {
-        edge_value_view = view_concat(*edge_weight_view, *edge_id_view);
-      }
-    } else {
-      if constexpr (has_edge_type) {
-        edge_value_view = view_concat(*edge_weight_view, *edge_type_view);
-      } else {
-        edge_value_view = *edge_weight_view;
-      }
-    }
-  } else {
-    if constexpr (has_edge_id) {
-      if constexpr (has_edge_type) {
-        edge_value_view = view_concat(*edge_id_view, *edge_type_view);
-      } else {
-        edge_value_view = *edge_id_view;
-      }
-    } else {
-      if constexpr (has_edge_type) { edge_value_view = *edge_type_view; }
-    }
+  if constexpr (Flag) {
+    std::get<output_tuple_pos>(output_tuple) = std::move(std::get<input_tuple_pos>(input_tuple));
   }
 
-  std::optional<sample_e_op_result_t> invalid_value{std::nullopt};
-
-  auto [offsets, output_buffer] =
-    edge_bias_view
-      ? (Ks.size() == 1 ? cugraph::per_v_random_select_transform_outgoing_e(
-                            handle,
-                            graph_view,
-                            key_list,
-                            edge_src_dummy_property_t{}.view(),
-                            edge_dst_dummy_property_t{}.view(),
-                            *edge_bias_view,
-                            sample_edge_biases_op_t<vertex_t, bias_t>{},
-                            edge_src_dummy_property_t{}.view(),
-                            edge_dst_dummy_property_t{}.view(),
-                            edge_value_view,
-                            sample_edges_op_t<vertex_t>{},
-                            rng_state,
-                            Ks[0],
-                            with_replacement,
-                            invalid_value)
-                        : cugraph::per_v_random_select_transform_outgoing_e(
-                            handle,
-                            graph_view,
-                            key_list,
-                            edge_src_dummy_property_t{}.view(),
-                            edge_dst_dummy_property_t{}.view(),
-                            *edge_bias_view,
-                            sample_edge_biases_op_t<vertex_t, bias_t>{},
-                            edge_src_dummy_property_t{}.view(),
-                            edge_dst_dummy_property_t{}.view(),
-                            edge_value_view,
-                            sample_edges_op_t<vertex_t>{},
-                            *edge_type_view,
-                            rng_state,
-                            Ks,
-                            with_replacement,
-                            invalid_value))
-      : (Ks.size() == 1
-           ? cugraph::per_v_random_select_transform_outgoing_e(handle,
-                                                               graph_view,
-                                                               key_list,
-                                                               edge_src_dummy_property_t{}.view(),
-                                                               edge_dst_dummy_property_t{}.view(),
-                                                               edge_value_view,
-                                                               sample_edges_op_t<vertex_t>{},
-                                                               rng_state,
-                                                               Ks[0],
-                                                               with_replacement,
-                                                               invalid_value)
-           : cugraph::per_v_random_select_transform_outgoing_e(handle,
-                                                               graph_view,
-                                                               key_list,
-                                                               edge_src_dummy_property_t{}.view(),
-                                                               edge_dst_dummy_property_t{}.view(),
-                                                               edge_value_view,
-                                                               sample_edges_op_t<vertex_t>{},
-                                                               *edge_type_view,
-                                                               rng_state,
-                                                               Ks,
-                                                               with_replacement,
-                                                               invalid_value));
-  sample_offsets = std::move(offsets);
-  majors         = std::move(std::get<0>(output_buffer));
-  minors         = std::move(std::get<1>(output_buffer));
-  if constexpr (has_weight) {
-    if constexpr (has_edge_id) {
-      if constexpr (has_edge_type) {
-        weights    = std::move(std::get<2>(output_buffer));
-        edge_ids   = std::move(std::get<3>(output_buffer));
-        edge_types = std::move(std::get<4>(output_buffer));
-      } else {
-        weights  = std::move(std::get<2>(output_buffer));
-        edge_ids = std::move(std::get<3>(output_buffer));
-      }
+  if constexpr (sizeof...(Flags) > 0) {
+    if constexpr (Flag) {
+      move_results<input_tuple_pos + 1, output_tuple_pos + 1, Flags...>(input_tuple, output_tuple);
     } else {
-      if constexpr (has_edge_type) {
-        weights    = std::move(std::get<2>(output_buffer));
-        edge_types = std::move(std::get<3>(output_buffer));
-      } else {
-        weights = std::move(std::get<2>(output_buffer));
-      }
-    }
-  } else {
-    if constexpr (has_edge_id) {
-      if constexpr (has_edge_type) {
-        edge_ids   = std::move(std::get<2>(output_buffer));
-        edge_types = std::move(std::get<3>(output_buffer));
-      } else {
-        edge_ids = std::move(std::get<2>(output_buffer));
-      }
-    } else {
-      if constexpr (has_edge_type) { edge_types = std::move(std::get<2>(output_buffer)); }
+      move_results<input_tuple_pos, output_tuple_pos + 1, Flags...>(input_tuple, output_tuple);
     }
   }
-
-  return std::make_tuple(std::move(sample_offsets),
-                         std::move(majors),
-                         std::move(minors),
-                         std::move(weights),
-                         std::move(edge_ids),
-                         std::move(edge_types));
 }
+
+template <typename EdgePropertyView>
+typename EdgePropertyView::value_type default_value(EdgePropertyView const&)
+{
+  return 0;
+}
+
+template <typename EdgeProperties, std::size_t... I>
+auto construct_invalid_value(EdgeProperties const& properties,
+                             std::integer_sequence<std::size_t, I...>)
+{
+  return thrust::make_tuple(default_value(std::get<I>(properties))...);
+}
+
+template <typename vertex_t, typename... Ts>
+auto construct_invalid_value(std::tuple<Ts...> const& properties)
+{
+  auto tmp_result = thrust_tuple_cat(
+    thrust::make_tuple(vertex_t{}, vertex_t{}),
+    construct_invalid_value(properties, std::make_index_sequence<sizeof...(Ts)>{}));
+  return std::optional<decltype(tmp_result)>{std::nullopt};
+}
+
+template <typename vertex_t>
+struct debug_print {
+  template <typename T1, typename T2, typename T3>
+  int __device__ operator()(vertex_t src, vertex_t dst, T1, T2, T3 wgt) const
+  {
+    return int{0};
+  }
+};
 
 template <typename vertex_t,
           typename edge_t,
           typename weight_t,
           typename edge_type_t,
+          typename edge_time_t,
+          typename bias_t,
+          bool multi_gpu>
+struct sample_edges_functor_t {
+  raft::handle_t const& handle;
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view;
+  key_bucket_t<vertex_t, void, multi_gpu, false> const& key_list;
+  std::optional<edge_property_view_t<edge_t, edge_type_t const*>> edge_type_view;
+  std::optional<edge_property_view_t<edge_t, bias_t const*>> edge_bias_view;
+  raft::random::RngState& rng_state;
+  raft::host_span<size_t const> Ks;
+  bool with_replacement;
+
+  template <typename TupleType>
+  auto concatenate_views(TupleType edge_properties)
+  {
+    if constexpr (std::tuple_size_v<TupleType> == 0) {
+      return edge_property_view_type_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>,
+                                       cuda::std::nullopt_t>{};
+    } else if constexpr (std::tuple_size_v<TupleType> == 1) {
+      return std::get<0>(edge_properties);
+    } else {
+      return view_concat(edge_properties);
+    }
+  }
+
+  template <bool... Flags, typename TupleType>
+  auto operator()(TupleType edge_properties)
+  {
+    auto edge_value_view = concatenate_views(edge_properties);
+    auto invalid_value   = construct_invalid_value<vertex_t>(edge_properties);
+
+    auto [offsets, output_buffer] =
+      edge_bias_view
+        ? (Ks.size() == 1 ? cugraph::per_v_random_select_transform_outgoing_e(
+                              handle,
+                              graph_view,
+                              key_list,
+                              edge_src_dummy_property_t{}.view(),
+                              edge_dst_dummy_property_t{}.view(),
+                              *edge_bias_view,
+                              sample_edge_biases_op_t<vertex_t, bias_t>{},
+                              edge_src_dummy_property_t{}.view(),
+                              edge_dst_dummy_property_t{}.view(),
+                              edge_value_view,
+                              sample_edges_op_t<vertex_t>{},
+                              rng_state,
+                              Ks[0],
+                              with_replacement,
+                              invalid_value)
+                          : cugraph::per_v_random_select_transform_outgoing_e(
+                              handle,
+                              graph_view,
+                              key_list,
+                              edge_src_dummy_property_t{}.view(),
+                              edge_dst_dummy_property_t{}.view(),
+                              *edge_bias_view,
+                              sample_edge_biases_op_t<vertex_t, bias_t>{},
+                              edge_src_dummy_property_t{}.view(),
+                              edge_dst_dummy_property_t{}.view(),
+                              edge_value_view,
+                              sample_edges_op_t<vertex_t>{},
+                              *edge_type_view,
+                              rng_state,
+                              Ks,
+                              with_replacement,
+                              invalid_value))
+        : (Ks.size() == 1
+             ? cugraph::per_v_random_select_transform_outgoing_e(handle,
+                                                                 graph_view,
+                                                                 key_list,
+                                                                 edge_src_dummy_property_t{}.view(),
+                                                                 edge_dst_dummy_property_t{}.view(),
+                                                                 edge_value_view,
+                                                                 sample_edges_op_t<vertex_t>{},
+                                                                 rng_state,
+                                                                 Ks[0],
+                                                                 with_replacement,
+                                                                 invalid_value)
+             : cugraph::per_v_random_select_transform_outgoing_e(handle,
+                                                                 graph_view,
+                                                                 key_list,
+                                                                 edge_src_dummy_property_t{}.view(),
+                                                                 edge_dst_dummy_property_t{}.view(),
+                                                                 edge_value_view,
+                                                                 sample_edges_op_t<vertex_t>{},
+                                                                 *edge_type_view,
+                                                                 rng_state,
+                                                                 Ks,
+                                                                 with_replacement,
+                                                                 invalid_value));
+
+#if 0
+    std::cout << "output_buffer pointers = (" << std::get<0>(output_buffer).data() << ", "
+              << std::get<1>(output_buffer).data();
+    if constexpr (std::tuple_size_v<TupleType> > 0)
+      std::cout << ", " << std::get<2>(output_buffer).data();
+    std::cout << ")" << std::endl;
+
+    raft::print_device_vector("    output_buffer<0>",
+                              std::get<0>(output_buffer).data(),
+                              std::get<0>(output_buffer).size(),
+                              std::cout);
+    raft::print_device_vector("    output_buffer<1>",
+                              std::get<1>(output_buffer).data(),
+                              std::get<1>(output_buffer).size(),
+                              std::cout);
+    if constexpr (std::tuple_size_v<TupleType> > 0)
+      raft::print_device_vector("    output_buffer<2>",
+                                std::get<2>(output_buffer).data(),
+                                std::get<2>(output_buffer).size(),
+                                std::cout);
+#endif
+
+    auto return_result =
+      std::make_tuple(std::move(offsets),
+                      rmm::device_uvector<vertex_t>(0, handle.get_stream()),
+                      rmm::device_uvector<vertex_t>(0, handle.get_stream()),
+                      std::optional<rmm::device_uvector<weight_t>>{std::nullopt},
+                      std::optional<rmm::device_uvector<edge_t>>{std::nullopt},
+                      std::optional<rmm::device_uvector<edge_type_t>>{std::nullopt},
+                      std::optional<rmm::device_uvector<edge_time_t>>{std::nullopt},
+                      std::optional<rmm::device_uvector<edge_time_t>>{std::nullopt});
+
+    // move_results(output_buffer, return_result);
+    // template <bool... Flags, typename InputTupleType, typename OutputTupleType>
+    // void move_results(InputTupleType& input_tuple, OutputTupleType& output_tuple)
+    //{
+    handle.sync_stream();
+    std::cout << "call move_results" << std::endl;
+    move_results<0, 1, true, true, Flags...>(output_buffer, return_result);
+    handle.sync_stream();
+
+#if 0
+    std::cout << "back from move_results" << std::endl;
+    std::cout << "return_result pointers = (" << std::get<0>(return_result)->data() << ", "
+              << std::get<1>(return_result).data() << ", " << std::get<2>(return_result).data();
+    if constexpr (std::tuple_size_v<TupleType> > 0)
+      std::cout << ", " << std::get<3>(return_result)->data();
+    std::cout << ")" << std::endl;
+#endif
+    //}
+
+    return return_result;
+  }
+};
+
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          typename edge_type_t,
+          typename edge_time_t,
           typename bias_t,
           typename label_t,
           bool multi_gpu>
@@ -300,12 +327,16 @@ std::tuple<rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>,
            std::optional<rmm::device_uvector<edge_t>>,
            std::optional<rmm::device_uvector<edge_type_t>>,
+           std::optional<rmm::device_uvector<edge_time_t>>,
+           std::optional<rmm::device_uvector<edge_time_t>>,
            std::optional<rmm::device_uvector<label_t>>>
 sample_edges(raft::handle_t const& handle,
              graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
              std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
              std::optional<edge_property_view_t<edge_t, edge_t const*>> edge_id_view,
              std::optional<edge_property_view_t<edge_t, edge_type_t const*>> edge_type_view,
+             std::optional<edge_property_view_t<edge_t, edge_time_t const*>> edge_start_time_view,
+             std::optional<edge_property_view_t<edge_t, edge_time_t const*>> edge_end_time_view,
              std::optional<edge_property_view_t<edge_t, bias_t const*>> edge_bias_view,
              raft::random::RngState& rng_state,
              raft::device_span<vertex_t const> active_majors,
@@ -313,164 +344,68 @@ sample_edges(raft::handle_t const& handle,
              raft::host_span<size_t const> Ks,
              bool with_replacement)
 {
+  assert(Ks.size() >= 1);
+  assert((Ks.size() == 1) || edge_type_view);
+
   using tag_t = void;
+
+#if 0
+  raft::print_device_vector(
+    "  active_majors", active_majors.data(), active_majors.size(), std::cout);
+  if (active_major_labels)
+    raft::print_device_vector(
+      "  active_major_labels", active_major_labels->data(), active_major_labels->size(), std::cout);
+#endif
+
+#if 1
+  if (edge_weight_view)
+    cugraph::transform_reduce_e(handle,
+                                graph_view,
+                                edge_src_dummy_property_t{}.view(),
+                                edge_dst_dummy_property_t{}.view(),
+                                *edge_weight_view,
+                                debug_print<vertex_t>{},
+                                int{0});
+#endif
 
   cugraph::vertex_frontier_t<vertex_t, tag_t, multi_gpu, false> vertex_frontier(handle, 1);
 
   vertex_frontier.bucket(0).insert(active_majors.begin(), active_majors.end());
 
-  rmm::device_uvector<vertex_t> majors(0, handle.get_stream());
-  rmm::device_uvector<vertex_t> minors(0, handle.get_stream());
-  std::optional<rmm::device_uvector<edge_t>> edge_ids{std::nullopt};
-  std::optional<rmm::device_uvector<weight_t>> weights{std::nullopt};
-  std::optional<rmm::device_uvector<edge_type_t>> edge_types{std::nullopt};
-  std::optional<rmm::device_uvector<size_t>> sample_offsets{std::nullopt};
+  sample_edges_functor_t<vertex_t, edge_t, weight_t, edge_type_t, edge_time_t, bias_t, multi_gpu>
+    sample_functor{handle,
+                   graph_view,
+                   vertex_frontier.bucket(0),
+                   edge_type_view,
+                   edge_bias_view,
+                   rng_state,
+                   Ks,
+                   with_replacement};
 
-  if (edge_weight_view) {
-    bool constexpr has_weight = true;
-    if (edge_id_view) {
-      bool constexpr has_edge_id = true;
-      if (edge_type_view) {
-        bool constexpr has_edge_type = true;
-        std::tie(sample_offsets, majors, minors, weights, edge_ids, edge_types) =
-          sample_edges_with_edge_values<has_weight, has_edge_id, has_edge_type>(
-            handle,
-            graph_view,
-            vertex_frontier.bucket(0),
-            edge_weight_view,
-            edge_id_view,
-            edge_type_view,
-            edge_bias_view,
-            rng_state,
-            active_majors,
-            Ks,
-            with_replacement);
-      } else {
-        bool constexpr has_edge_type = false;
-        std::tie(sample_offsets, majors, minors, weights, edge_ids, edge_types) =
-          sample_edges_with_edge_values<has_weight, has_edge_id, has_edge_type>(
-            handle,
-            graph_view,
-            vertex_frontier.bucket(0),
-            edge_weight_view,
-            edge_id_view,
-            edge_type_view,
-            edge_bias_view,
-            rng_state,
-            active_majors,
-            Ks,
-            with_replacement);
-      }
-    } else {
-      bool constexpr has_edge_id = false;
-      if (edge_type_view) {
-        bool constexpr has_edge_type = true;
-        std::tie(sample_offsets, majors, minors, weights, edge_ids, edge_types) =
-          sample_edges_with_edge_values<has_weight, has_edge_id, has_edge_type>(
-            handle,
-            graph_view,
-            vertex_frontier.bucket(0),
-            edge_weight_view,
-            edge_id_view,
-            edge_type_view,
-            edge_bias_view,
-            rng_state,
-            active_majors,
-            Ks,
-            with_replacement);
-      } else {
-        bool constexpr has_edge_type = false;
-        std::tie(sample_offsets, majors, minors, weights, edge_ids, edge_types) =
-          sample_edges_with_edge_values<has_weight, has_edge_id, has_edge_type>(
-            handle,
-            graph_view,
-            vertex_frontier.bucket(0),
-            edge_weight_view,
-            edge_id_view,
-            edge_type_view,
-            edge_bias_view,
-            rng_state,
-            active_majors,
-            Ks,
-            with_replacement);
-      }
-    }
-  } else {
-    bool constexpr has_weight = false;
-    if (edge_id_view) {
-      bool constexpr has_edge_id = true;
-      if (edge_type_view) {
-        bool constexpr has_edge_type = true;
-        std::tie(sample_offsets, majors, minors, weights, edge_ids, edge_types) =
-          sample_edges_with_edge_values<has_weight, has_edge_id, has_edge_type>(
-            handle,
-            graph_view,
-            vertex_frontier.bucket(0),
-            edge_weight_view,
-            edge_id_view,
-            edge_type_view,
-            edge_bias_view,
-            rng_state,
-            active_majors,
-            Ks,
-            with_replacement);
-      } else {
-        bool constexpr has_edge_type = false;
-        std::tie(sample_offsets, majors, minors, weights, edge_ids, edge_types) =
-          sample_edges_with_edge_values<has_weight, has_edge_id, has_edge_type>(
-            handle,
-            graph_view,
-            vertex_frontier.bucket(0),
-            edge_weight_view,
-            edge_id_view,
-            edge_type_view,
-            edge_bias_view,
-            rng_state,
-            active_majors,
-            Ks,
-            with_replacement);
-      }
-    } else {
-      bool constexpr has_edge_id = false;
-      if (edge_type_view) {
-        bool constexpr has_edge_type = true;
-        auto edge_value_view         = *edge_type_view;
-        std::tie(sample_offsets, majors, minors, weights, edge_ids, edge_types) =
-          sample_edges_with_edge_values<has_weight, has_edge_id, has_edge_type>(
-            handle,
-            graph_view,
-            vertex_frontier.bucket(0),
-            edge_weight_view,
-            edge_id_view,
-            edge_type_view,
-            edge_bias_view,
-            rng_state,
-            active_majors,
-            Ks,
-            with_replacement);
-      } else {
-        bool constexpr has_edge_type = false;
-        std::tie(sample_offsets, majors, minors, weights, edge_ids, edge_types) =
-          sample_edges_with_edge_values<has_weight, has_edge_id, has_edge_type>(
-            handle,
-            graph_view,
-            vertex_frontier.bucket(0),
-            edge_weight_view,
-            edge_id_view,
-            edge_type_view,
-            edge_bias_view,
-            rng_state,
-            active_majors,
-            Ks,
-            with_replacement);
-      }
-    }
-  }
+  auto [sample_offsets,
+        majors,
+        minors,
+        weights,
+        edge_ids,
+        edge_types,
+        edge_start_times,
+        edge_end_times] = tuple_with_optionals_dispatch(sample_functor,
+                                                        edge_weight_view,
+                                                        edge_id_view,
+                                                        edge_type_view,
+                                                        edge_start_time_view,
+                                                        edge_end_time_view);
 
   std::optional<rmm::device_uvector<int32_t>> labels{std::nullopt};
   if (active_major_labels) {
+#if 0
+    handle.sync_stream();
+    std::cout << "in active_major_labels block, active majors size = "
+              << active_major_labels->size() << std::endl;
+#endif
     labels = rmm::device_uvector<int32_t>(sample_offsets->back_element(handle.get_stream()),
                                           handle.get_stream());
+    // std::cout << "labels size = " << labels->size() << std::endl;
     thrust::for_each(handle.get_thrust_policy(),
                      thrust::make_counting_iterator(size_t{0}),
                      thrust::make_counting_iterator(active_majors.size()),
@@ -478,13 +413,24 @@ sample_edges(raft::handle_t const& handle,
                                       raft::device_span<size_t const>(sample_offsets->data(),
                                                                       sample_offsets->size()),
                                       raft::device_span<int32_t>(labels->data(), labels->size())});
+    // raft::print_device_vector("  labels", labels->data(), labels->size(), std::cout);
   }
+
+#if 0
+  handle.sync_stream();
+  std::cout << "print majors" << std::endl;
+  raft::print_device_vector("  majors", majors.data(), majors.size(), std::cout);
+  raft::print_device_vector("  minors", minors.data(), minors.size(), std::cout);
+  if (weights) raft::print_device_vector("  weights", weights->data(), weights->size(), std::cout);
+#endif
 
   return std::make_tuple(std::move(majors),
                          std::move(minors),
                          std::move(weights),
                          std::move(edge_ids),
                          std::move(edge_types),
+                         std::move(edge_start_times),
+                         std::move(edge_end_times),
                          std::move(labels));
 }
 

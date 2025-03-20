@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -76,7 +76,7 @@ shuffle_vertices_and_values_by_gpu_id_impl(
       [key_func = func] __device__(auto val) { return key_func(val); },
       handle.get_stream());
 
-    auto d_values_1 = std::optional<rmm::device_uvector<int32_t>>{std::nullopt};
+    auto d_values_1 = std::optional<rmm::device_uvector<value1_t>>{std::nullopt};
 
     return std::make_tuple(
       std::move(d_shuffled_vertices), std::move(d_values), std::move(d_values_1));
@@ -196,6 +196,41 @@ shuffle_int_vertex_value_pairs_to_local_gpu_by_vertex_partitioning(
       minor_comm_size});
 
   return std::make_tuple(std::move(d_vertices), std::move(d_values));
+}
+
+template <typename vertex_t, typename value1_t, typename value2_t>
+std::
+  tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<value1_t>, rmm::device_uvector<value2_t>>
+  shuffle_int_vertex_two_value_pairs_to_local_gpu_by_vertex_partitioning(
+    raft::handle_t const& handle,
+    rmm::device_uvector<vertex_t>&& vertices,
+    rmm::device_uvector<value1_t>&& values1,
+    rmm::device_uvector<value2_t>&& values2,
+    std::vector<vertex_t> const& vertex_partition_range_lasts)
+{
+  rmm::device_uvector<vertex_t> d_vertex_partition_range_lasts(vertex_partition_range_lasts.size(),
+                                                               handle.get_stream());
+  raft::update_device(d_vertex_partition_range_lasts.data(),
+                      vertex_partition_range_lasts.data(),
+                      vertex_partition_range_lasts.size(),
+                      handle.get_stream());
+  auto& major_comm           = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
+  auto const major_comm_size = major_comm.get_size();
+  auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+  auto const minor_comm_size = minor_comm.get_size();
+
+  auto [d_vertices, d_values1, d_values2] = shuffle_vertices_and_values_by_gpu_id_impl(
+    handle,
+    std::move(vertices),
+    std::move(values1),
+    std::make_optional(std::move(values2)),
+    cugraph::detail::compute_gpu_id_from_int_vertex_t<vertex_t>{
+      raft::device_span<vertex_t const>(d_vertex_partition_range_lasts.data(),
+                                        d_vertex_partition_range_lasts.size()),
+      major_comm_size,
+      minor_comm_size});
+
+  return std::make_tuple(std::move(d_vertices), std::move(d_values1), std::move(*d_values2));
 }
 
 }  // namespace detail

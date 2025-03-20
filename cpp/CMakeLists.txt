@@ -150,6 +150,8 @@ endif()
 #       which should give us a better parallel schedule.
 
 set(CUGRAPH_SOURCES
+    src/sampling/temporal_sampling_sg_v32_e32.cu
+    src/sampling/temporal_sampling_sg_v64_e64.cu
     src/utilities/shuffle_vertices_mg_v32_fp.cu
     src/utilities/shuffle_vertices_mg_v32_integral.cu
     src/utilities/shuffle_vertices_mg_v64_fp.cu
@@ -258,12 +260,20 @@ set(CUGRAPH_SOURCES
     src/sampling/detail/check_edge_bias_values_sg_v32_e32.cu
     src/sampling/detail/check_edge_bias_values_mg_v64_e64.cu
     src/sampling/detail/check_edge_bias_values_mg_v32_e32.cu
+    src/sampling/detail/temporal_partition_vertices_v64.cu
+    src/sampling/detail/temporal_partition_vertices_v32.cu
     src/sampling/detail/sample_edges_sg_v64_e64.cu
     src/sampling/detail/sample_edges_sg_v32_e32.cu
     src/sampling/detail/sample_edges_mg_v64_e64.cu
     src/sampling/detail/sample_edges_mg_v32_e32.cu
-    src/sampling/detail/shuffle_and_organize_output_mg_v64_e64.cu
-    src/sampling/detail/shuffle_and_organize_output_mg_v32_e32.cu
+    src/sampling/detail/shuffle_and_organize_output_mg_v64_e64_t32_w32.cu
+    src/sampling/detail/shuffle_and_organize_output_mg_v32_e32_t32_w32.cu
+    src/sampling/detail/shuffle_and_organize_output_mg_v64_e64_t32_w64.cu
+    src/sampling/detail/shuffle_and_organize_output_mg_v32_e32_t32_w64.cu
+    src/sampling/detail/shuffle_and_organize_output_mg_v64_e64_t64_w32.cu
+    src/sampling/detail/shuffle_and_organize_output_mg_v32_e32_t64_w32.cu
+    src/sampling/detail/shuffle_and_organize_output_mg_v64_e64_t64_w64.cu
+    src/sampling/detail/shuffle_and_organize_output_mg_v32_e32_t64_w64.cu
     src/sampling/neighbor_sampling_mg_v32_e32.cu
     src/sampling/neighbor_sampling_mg_v64_e64.cu
     src/sampling/neighbor_sampling_sg_v32_e32.cu

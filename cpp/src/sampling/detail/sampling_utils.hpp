@@ -82,6 +82,7 @@ template <typename vertex_t,
           typename edge_t,
           typename weight_t,
           typename edge_type_t,
+          typename edge_time_t,
           typename label_t,
           bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>,
@@ -89,6 +90,8 @@ std::tuple<rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>,
            std::optional<rmm::device_uvector<edge_t>>,
            std::optional<rmm::device_uvector<edge_type_t>>,
+           std::optional<rmm::device_uvector<edge_time_t>>,
+           std::optional<rmm::device_uvector<edge_time_t>>,
            std::optional<rmm::device_uvector<label_t>>>
 gather_one_hop_edgelist(
   raft::handle_t const& handle,
@@ -96,6 +99,8 @@ gather_one_hop_edgelist(
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   std::optional<edge_property_view_t<edge_t, edge_t const*>> edge_id_view,
   std::optional<edge_property_view_t<edge_t, edge_type_t const*>> edge_type_view,
+  std::optional<edge_property_view_t<edge_t, edge_time_t const*>> edge_start_time_view,
+  std::optional<edge_property_view_t<edge_t, edge_time_t const*>> edge_end_time_view,
   raft::device_span<vertex_t const> active_majors,
   std::optional<raft::device_span<label_t const>> active_major_labels,
   std::optional<raft::host_span<uint8_t const>> gather_flags,
@@ -131,6 +136,7 @@ template <typename vertex_t,
           typename edge_t,
           typename weight_t,
           typename edge_type_t,
+          typename edge_time_t,
           typename bias_t,
           typename label_t,
           bool multi_gpu>
@@ -139,12 +145,16 @@ std::tuple<rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>,
            std::optional<rmm::device_uvector<edge_t>>,
            std::optional<rmm::device_uvector<edge_type_t>>,
+           std::optional<rmm::device_uvector<edge_time_t>>,
+           std::optional<rmm::device_uvector<edge_time_t>>,
            std::optional<rmm::device_uvector<label_t>>>
 sample_edges(raft::handle_t const& handle,
              graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
              std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
              std::optional<edge_property_view_t<edge_t, edge_t const*>> edge_id_view,
              std::optional<edge_property_view_t<edge_t, edge_type_t const*>> edge_type_view,
+             std::optional<edge_property_view_t<edge_t, edge_time_t const*>> edge_start_time_view,
+             std::optional<edge_property_view_t<edge_t, edge_time_t const*>> edge_end_time_view,
              std::optional<edge_property_view_t<edge_t, bias_t const*>> edge_bias_view,
              raft::random::RngState& rng_state,
              raft::device_span<vertex_t const> active_majors,
@@ -157,18 +167,21 @@ sample_edges(raft::handle_t const& handle,
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam label_t Type of label. Needs to be an integral type.
+ @ @tparam edge_time_t Type of edge time.  Needs to be an integral type.
  * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
  *
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
- * @param sampled_src_vertices The source vertices for the current sampling
- * @param sampled_src_vertex_labels Optional labels for the vertices for the current sampling
+ * @param sampled_src_vertices The source vertices for the current frontier
+ * @param sampled_src_vertex_labels Optional labels for the vertices for the current frontier
+ * @param sampled_src_vertex_times Optional times for the vertices for the current frontier
  * @param sampled_dst_vertices Vertices for the next frontier
  * @param sampled_dst_vertex_labels Optional labels for the next frontier
+ * @param sampled_dst_vertex_times Optional times for the next frontier
  * @param vertex_used_as_source Optional. If specified then we want to exclude vertices that
- * were previously used as sources.  These vertices (and optional labels) will be updated based
- * on the contents of sampled_src_vertices/sampled_src_vertex_labels and the update will be part
- * of the return value.
+ * were previously used as sources.  These vertices (and optional labels and times) will be updated
+ * based on the contents of sampled_src_vertices/sampled_src_vertex_labels/sampled_src_vertex_times
+ * and the update will be part of the return value.
  * @param vertex_partition Vertex partition view from the graph view
  * @param vertex_partition_range_lasts End of range information from graph view
  * @param prior_sources_behavior Identifies how to treat sources in each hop
@@ -178,22 +191,28 @@ sample_edges(raft::handle_t const& handle,
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  *
  * @return A tuple of device vectors containing the vertices for the next frontier expansion and
- *  optional labels associated with the vertices, along with the updated value for
+ *  optional labels and times associated with the vertices, along with the updated value for
  *  @p vertex_used_as_sources
  */
-template <typename vertex_t, typename label_t, bool multi_gpu>
+template <typename vertex_t, typename label_t, typename edge_time_t, bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<label_t>>,
+           std::optional<rmm::device_uvector<edge_time_t>>,
            std::optional<std::tuple<rmm::device_uvector<vertex_t>,
-                                    std::optional<rmm::device_uvector<label_t>>>>>
+                                    std::optional<rmm::device_uvector<label_t>>,
+                                    std::optional<rmm::device_uvector<edge_time_t>>>>>
 prepare_next_frontier(
   raft::handle_t const& handle,
   raft::device_span<vertex_t const> sampled_src_vertices,
   std::optional<raft::device_span<label_t const>> sampled_src_vertex_labels,
-  raft::device_span<vertex_t const> sampled_dst_vertices,
-  std::optional<raft::device_span<label_t const>> sampled_dst_vertex_labels,
+  std::optional<raft::device_span<edge_time_t const>> sampled_src_vertex_times,
+  raft::host_span<raft::device_span<vertex_t const>> sampled_dst_vertices,
+  std::optional<raft::host_span<raft::device_span<label_t const>>> sampled_dst_vertex_labels,
+  std::optional<raft::host_span<raft::device_span<edge_time_t const>>> sampled_dst_vertex_times,
   std::optional<std::tuple<rmm::device_uvector<vertex_t>,
-                           std::optional<rmm::device_uvector<label_t>>>>&& vertex_used_as_source,
+                           std::optional<rmm::device_uvector<label_t>>,
+                           std::optional<rmm::device_uvector<edge_time_t>>>>&&
+    vertex_used_as_source,
   vertex_partition_view_t<vertex_t, multi_gpu> vertex_partition,
   std::vector<vertex_t> const& vertex_partition_range_lasts,
   prior_sources_behavior_t prior_sources_behavior,
@@ -278,12 +297,15 @@ template <typename vertex_t,
           typename edge_t,
           typename weight_t,
           typename edge_type_t,
+          typename edge_time_t,
           typename label_t>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>,
            std::optional<rmm::device_uvector<edge_t>>,
            std::optional<rmm::device_uvector<edge_type_t>>,
+           std::optional<rmm::device_uvector<edge_time_t>>,
+           std::optional<rmm::device_uvector<edge_time_t>>,
            std::optional<rmm::device_uvector<int32_t>>,
            std::optional<rmm::device_uvector<label_t>>,
            std::optional<rmm::device_uvector<size_t>>>
@@ -294,6 +316,8 @@ shuffle_and_organize_output(
   std::optional<rmm::device_uvector<weight_t>>&& weights,
   std::optional<rmm::device_uvector<edge_t>>&& edge_ids,
   std::optional<rmm::device_uvector<edge_type_t>>&& edge_types,
+  std::optional<rmm::device_uvector<edge_time_t>>&& edge_start_times,
+  std::optional<rmm::device_uvector<edge_time_t>>&& edge_end_times,
   std::optional<rmm::device_uvector<int32_t>>&& hops,
   std::optional<rmm::device_uvector<label_t>>&& labels,
   std::optional<raft::device_span<int32_t const>> label_to_output_comm_rank);
@@ -331,6 +355,19 @@ rmm::device_uvector<int32_t> flatten_label_map(
   raft::handle_t const& handle,
   std::tuple<raft::device_span<label_t const>, raft::device_span<int32_t const>>
     label_to_output_comm_rank);
+
+// NEW:
+template <typename vertex_t, typename edge_time_t, typename label_t>
+std::tuple<rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<edge_time_t>,
+           std::optional<rmm::device_uvector<label_t>>,
+           rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<edge_time_t>,
+           std::optional<rmm::device_uvector<label_t>>>
+temporal_partition_vertices(raft::handle_t const& handle,
+                            raft::device_span<vertex_t const> vertices,
+                            raft::device_span<edge_time_t const> vertex_times,
+                            std::optional<raft::device_span<label_t const>> vertex_labels);
 
 }  // namespace detail
 }  // namespace cugraph
