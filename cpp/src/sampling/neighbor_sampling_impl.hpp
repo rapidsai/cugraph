@@ -279,11 +279,8 @@ neighbor_sample_impl(raft::handle_t const& handle,
     if (edge_types) { (*level_result_edge_type_vectors).push_back(std::move(*edge_types)); }
     if (labels) { (*level_result_label_vectors).push_back(std::move(*labels)); }
 
-    // FIXME:  We should modify vertex_partition_range_lasts to return a raft::host_span
-    //  rather than making a copy.
-    auto vertex_partition_range_lasts = graph_view.vertex_partition_range_lasts();
     std::tie(frontier_vertices, frontier_vertex_labels, vertex_used_as_source) =
-      prepare_next_frontier(
+      prepare_next_frontier<vertex_t, label_t, multi_gpu>(
         handle,
         hop == 0
           ? starting_vertices
@@ -300,8 +297,7 @@ neighbor_sample_impl(raft::handle_t const& handle,
               level_result_label_vectors->back().data(), level_result_label_vectors->back().size()))
           : std::nullopt,
         std::move(vertex_used_as_source),
-        graph_view.local_vertex_partition_view(),
-        vertex_partition_range_lasts,
+        graph_view.vertex_partition_range_lasts(),
         prior_sources_behavior,
         dedupe_sources,
         do_expensive_check);

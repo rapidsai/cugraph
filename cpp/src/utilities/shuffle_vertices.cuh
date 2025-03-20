@@ -79,7 +79,7 @@ template <typename vertex_t>
 rmm::device_uvector<vertex_t> shuffle_int_vertices_to_local_gpu_by_vertex_partitioning(
   raft::handle_t const& handle,
   rmm::device_uvector<vertex_t>&& vertices,
-  std::vector<vertex_t> const& vertex_partition_range_lasts)
+  raft::host_span<vertex_t const> vertex_partition_range_lasts)
 {
   rmm::device_uvector<vertex_t> d_vertex_partition_range_lasts(vertex_partition_range_lasts.size(),
                                                                handle.get_stream());
@@ -112,7 +112,7 @@ shuffle_int_vertex_value_pairs_to_local_gpu_by_vertex_partitioning(
   raft::handle_t const& handle,
   rmm::device_uvector<vertex_t>&& vertices,
   rmm::device_uvector<value_t>&& values,
-  std::vector<vertex_t> const& vertex_partition_range_lasts)
+  raft::host_span<vertex_t const> vertex_partition_range_lasts)
 {
   rmm::device_uvector<vertex_t> d_vertex_partition_range_lasts(vertex_partition_range_lasts.size(),
                                                                handle.get_stream());

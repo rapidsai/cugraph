@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -41,7 +41,7 @@ template void unrenumber_int_vertices<int64_t, true>(
   int64_t* vertices,
   size_t num_vertices,
   int64_t const* renumber_map_labels,
-  std::vector<int64_t> const& vertex_partition_range_lasts,
+  raft::host_span<int64_t const> vertex_partition_range_lasts,
   bool do_expensive_check);
 
 template void unrenumber_local_int_edges<int64_t, false, true>(
@@ -50,7 +50,7 @@ template void unrenumber_local_int_edges<int64_t, false, true>(
   std::vector<int64_t*> const& edgelist_dsts /* [INOUT] */,
   std::vector<size_t> const& edgelist_edge_counts,
   int64_t const* renumber_map_labels,
-  std::vector<int64_t> const& vertex_partition_range_lasts,
+  raft::host_span<int64_t const> vertex_partition_range_lasts,
   std::optional<std::vector<std::vector<size_t>>> const& edgelist_intra_partition_segment_offsets,
   bool do_expensive_check);
 
@@ -60,7 +60,7 @@ template void unrenumber_local_int_edges<int64_t, true, true>(
   std::vector<int64_t*> const& edgelist_dsts /* [INOUT] */,
   std::vector<size_t> const& edgelist_edge_counts,
   int64_t const* renumber_map_labels,
-  std::vector<int64_t> const& vertex_partition_range_lasts,
+  raft::host_span<int64_t const> vertex_partition_range_lasts,
   std::optional<std::vector<std::vector<size_t>>> const& edgelist_intra_partition_segment_offsets,
   bool do_expensive_check);
 
