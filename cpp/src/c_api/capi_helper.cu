@@ -73,6 +73,20 @@ template void sort_by_key(raft::handle_t const& handle,
                           raft::device_span<int64_t> keys,
                           raft::device_span<int64_t> values);
 
+template void sort_by_key(raft::handle_t const& handle,
+                          raft::device_span<int32_t> keys,
+                          raft::device_span<float> values);
+template void sort_by_key(raft::handle_t const& handle,
+                          raft::device_span<int64_t> keys,
+                          raft::device_span<float> values);
+
+template void sort_by_key(raft::handle_t const& handle,
+                          raft::device_span<int32_t> keys,
+                          raft::device_span<double> values);
+template void sort_by_key(raft::handle_t const& handle,
+                          raft::device_span<int64_t> keys,
+                          raft::device_span<double> values);
+
 template <typename vertex_t, typename weight_t>
 std::tuple<rmm::device_uvector<size_t>,
            rmm::device_uvector<vertex_t>,
