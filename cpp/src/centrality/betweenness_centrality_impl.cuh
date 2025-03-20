@@ -560,10 +560,12 @@ rmm::device_uvector<weight_t> betweenness_centrality(
         (graph_view.number_of_vertices() - 2));
     }
   } else if (num_sources < static_cast<size_t>(graph_view.number_of_vertices())) {
-    scale_factor = (graph_view.is_symmetric() ? weight_t{2} : weight_t{1}) *
-                   static_cast<weight_t>(num_sources) /
-                   (include_endpoints ? static_cast<weight_t>(graph_view.number_of_vertices())
-                                      : static_cast<weight_t>(graph_view.number_of_vertices() - 1));
+    if ((graph_view.number_of_vertices() > 1) && (num_sources > 0))
+      scale_factor =
+        (graph_view.is_symmetric() ? weight_t{2} : weight_t{1}) *
+        static_cast<weight_t>(num_sources) /
+        (include_endpoints ? static_cast<weight_t>(graph_view.number_of_vertices())
+                           : static_cast<weight_t>(graph_view.number_of_vertices() - 1));
   } else if (graph_view.is_symmetric()) {
     scale_factor = weight_t{2};
   }
