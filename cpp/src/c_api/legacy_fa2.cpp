@@ -160,10 +160,6 @@ struct force_atlas2_functor : public cugraph::c_api::abstract_functor {
 
       cugraph::internals::GraphBasedDimRedCallback* callback = nullptr;
 
-      rmm::device_uvector<vertex_t> vertices(graph_view.local_vertex_partition_range_size(),
-                                             handle_.get_stream());
-      raft::copy(vertices.data(), number_map->data(), vertices.size(), handle_.get_stream());
-
       rmm::device_uvector<float> pos(2 * (edge_partition_view.offsets().size() - 1),
                                      handle_.get_stream());
 
@@ -234,9 +230,6 @@ struct force_atlas2_functor : public cugraph::c_api::abstract_functor {
         verbose_,
         callback);
 
-      // result_ = new cugraph::c_api::cugraph_type_erased_device_array_t(pos,
-      // graph_->weight_type_);
-
       rmm::device_uvector<float> x_axis(graph_view.local_vertex_partition_range_size(),
                                         handle_.get_stream());
 
@@ -246,6 +239,10 @@ struct force_atlas2_functor : public cugraph::c_api::abstract_functor {
       raft::copy(x_axis.data(), pos.data(), x_axis.size(), handle_.get_stream());
 
       raft::copy(y_axis.data(), pos.data() + x_axis.size(), x_axis.size(), handle_.get_stream());
+
+      rmm::device_uvector<vertex_t> vertices(graph_view.local_vertex_partition_range_size(),
+                                             handle_.get_stream());
+      raft::copy(vertices.data(), number_map->data(), vertices.size(), handle_.get_stream());
 
       result_ = new cugraph::c_api::cugraph_layout_result_t{
         new cugraph::c_api::cugraph_type_erased_device_array_t(vertices, graph_->vertex_type_),
