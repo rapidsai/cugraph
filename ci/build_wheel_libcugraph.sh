@@ -5,6 +5,7 @@ set -euo pipefail
 
 package_name="libcugraph"
 package_dir="python/libcugraph"
+wheel_dir=${RAPIDS_WHEEL_BLD_OUTPUT_DIR}
 
 rapids-logger "Generating build requirements"
 matrix_selectors="cuda=${RAPIDS_CUDA_VERSION%.*};arch=$(arch);py=${RAPIDS_PY_VERSION};cuda_suffixed=true"
@@ -29,4 +30,4 @@ rapids-logger "Done build requirements"
 export PIP_NO_BUILD_ISOLATION=0
 
 ./ci/build_wheel.sh libcugraph ${package_dir} cpp
-./ci/validate_wheel.sh ${package_dir} final_dist
+./ci/validate_wheel.sh ${package_dir} "${wheel_dir}"

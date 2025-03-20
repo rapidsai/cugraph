@@ -7,6 +7,8 @@ package_name=$1
 package_dir=$2
 package_type=$3
 
+wheel_dir=${RAPIDS_WHEEL_BLD_OUTPUT_DIR}
+
 source rapids-configure-sccache
 source rapids-date-string
 
@@ -56,6 +58,5 @@ if [[ "${package_dir}" != "python/libcugraph" ]]; then
     )
 fi
 
-mkdir -p final_dist
-python -m auditwheel repair -w final_dist "${EXCLUDE_ARGS[@]}" dist/*
-RAPIDS_PY_WHEEL_NAME="${package_name}_${RAPIDS_PY_CUDA_SUFFIX}" rapids-upload-wheels-to-s3 "${package_type}" final_dist
+python -m auditwheel repair -w "${wheel_dir}" "${EXCLUDE_ARGS[@]}" dist/*
+RAPIDS_PY_WHEEL_NAME="${package_name}_${RAPIDS_PY_CUDA_SUFFIX}" rapids-upload-wheels-to-s3 "${package_type}" "${wheel_dir}"
