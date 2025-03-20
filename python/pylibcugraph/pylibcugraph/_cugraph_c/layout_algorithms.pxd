@@ -25,7 +25,6 @@ from pylibcugraph._cugraph_c.error cimport (
     cugraph_error_t,
 )
 from pylibcugraph._cugraph_c.array cimport (
-    cugraph_type_erased_device_array_t,
     cugraph_type_erased_device_array_view_t,
 )
 from pylibcugraph._cugraph_c.graph cimport (
@@ -38,7 +37,7 @@ from pylibcugraph._cugraph_c.random cimport (
 
 cdef extern from "cugraph_c/layout_algorithms.h":
     ###########################################################################
-    # triangle_count
+    # force_atlas_2
     ctypedef struct cugraph_layout_result_t:
         pass
 
