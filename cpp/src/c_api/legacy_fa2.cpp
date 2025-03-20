@@ -167,8 +167,6 @@ struct force_atlas2_functor : public cugraph::c_api::abstract_functor {
 
       std::optional<rmm::device_uvector<vertex_t>> number_map_pos{std::nullopt};
 
-      raft::print_device_vector("number_map", number_map->begin(), number_map->size(), std::cout);
-
       if (x_start_ != nullptr) {
         // re-order x_start and y_start based on internal vertex IDs
         cp_number_map = rmm::device_uvector<vertex_t>{number_map->size(), handle_.get_stream()};
@@ -186,27 +184,12 @@ struct force_atlas2_functor : public cugraph::c_api::abstract_functor {
           raft::device_span<vertex_t>{cp_number_map->data(), cp_number_map->size()},
           raft::device_span<vertex_t>{number_map_pos->data(), number_map_pos->size()});
 
-        cugraph::c_api::detail::sort_by_key(
+        cugraph::c_api::detail::sort_tuple_by_key(
           handle_,
           raft::device_span<vertex_t>{number_map_pos->data(), number_map_pos->size()},
-          raft::device_span<float>{x_start_->as_type<float>(), x_start_->size_});
-
-        // Reset the number_map copy and the number_map positionning
-        cugraph::detail::sequence_fill(
-          handle_.get_stream(), number_map_pos->begin(), number_map_pos->size(), vertex_t{0});
-
-        raft::copy(
-          cp_number_map->data(), number_map->data(), number_map->size(), handle_.get_stream());
-
-        cugraph::c_api::detail::sort_by_key(
-          handle_,
-          raft::device_span<vertex_t>{cp_number_map->data(), cp_number_map->size()},
-          raft::device_span<vertex_t>{number_map_pos->data(), number_map_pos->size()});
-
-        cugraph::c_api::detail::sort_by_key(
-          handle_,
-          raft::device_span<vertex_t>{number_map_pos->data(), number_map_pos->size()},
-          raft::device_span<float>{y_start_->as_type<float>(), y_start_->size_});
+          std::make_tuple(
+            raft::device_span<float>{x_start_->as_type<float>(), x_start_->size_},
+            raft::device_span<float>{y_start_->as_type<float>(), y_start_->size_}));
       }
 
       cugraph::force_atlas2<vertex_t, edge_t, weight_t>(
