@@ -457,7 +457,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
       edge_src_property_t<GraphViewType, bool> edge_src_visited(handle, level_graph_view);
       update_edge_src_property(
         handle, level_graph_view, visited.begin(), edge_src_visited.mutable_view());
-      auto edge_buffer = extract_transform_if_e(
+      edge_buffer = extract_transform_if_e(
         handle,
         level_graph_view,
         edge_src_visited.view(),
@@ -471,6 +471,16 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
                                            auto src, auto dst, bool src_visited, auto, auto) {
           return (src > dst) /* keep only the edges in the lower triangular part */ && !src_visited;
         }));
+      thrust::sort(handle.get_thrust_policy(),
+                   get_dataframe_buffer_begin(edge_buffer),
+                   get_dataframe_buffer_end(edge_buffer));
+      resize_dataframe_buffer(
+        edge_buffer,
+        thrust::distance(get_dataframe_buffer_begin(edge_buffer),
+                         thrust::unique(handle.get_thrust_policy(),
+                                        get_dataframe_buffer_begin(edge_buffer),
+                                        get_dataframe_buffer_end(edge_buffer))),
+        handle.get_stream());
       auto num_edges = size_dataframe_buffer(edge_buffer);
       num_edge_inserts.set_value_async(num_edges, handle.get_stream());
       handle.sync_stream();  // to ensure that the above set_value_async is completed before
