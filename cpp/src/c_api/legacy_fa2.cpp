@@ -166,7 +166,7 @@ struct force_atlas2_functor : public cugraph::c_api::abstract_functor {
 
       rmm::device_uvector<float> pos(2 * (edge_partition_view.offsets().size() - 1),
                                      handle_.get_stream());
-      
+
       std::optional<rmm::device_uvector<vertex_t>> cp_number_map{std::nullopt};
 
       std::optional<rmm::device_uvector<vertex_t>> number_map_pos{std::nullopt};
@@ -175,20 +175,15 @@ struct force_atlas2_functor : public cugraph::c_api::abstract_functor {
 
       if (x_start_ != nullptr) {
         // re-order x_start and y_start based on internal vertex IDs
-        cp_number_map =
-          rmm::device_uvector<vertex_t>{number_map->size(), handle_.get_stream()};
-        
-        raft::copy(cp_number_map->data(),
-                   number_map->data(),
-                   number_map->size(),
-                   handle_.get_stream());
-        
-        number_map_pos =
-          rmm::device_uvector<vertex_t>{number_map->size(), handle_.get_stream()};
-        
+        cp_number_map = rmm::device_uvector<vertex_t>{number_map->size(), handle_.get_stream()};
+
+        raft::copy(
+          cp_number_map->data(), number_map->data(), number_map->size(), handle_.get_stream());
+
+        number_map_pos = rmm::device_uvector<vertex_t>{number_map->size(), handle_.get_stream()};
+
         cugraph::detail::sequence_fill(
           handle_.get_stream(), number_map_pos->begin(), number_map_pos->size(), vertex_t{0});
-        
 
         cugraph::c_api::detail::sort_by_key(
           handle_,
@@ -199,22 +194,19 @@ struct force_atlas2_functor : public cugraph::c_api::abstract_functor {
           handle_,
           raft::device_span<vertex_t>{number_map_pos->data(), number_map_pos->size()},
           raft::device_span<float>{x_start_->as_type<float>(), x_start_->size_});
-        
 
         // Reset the number_map copy and the number_map positionning
         cugraph::detail::sequence_fill(
           handle_.get_stream(), number_map_pos->begin(), number_map_pos->size(), vertex_t{0});
-        
-        raft::copy(cp_number_map->data(),
-                   number_map->data(),
-                   number_map->size(),
-                   handle_.get_stream());
+
+        raft::copy(
+          cp_number_map->data(), number_map->data(), number_map->size(), handle_.get_stream());
 
         cugraph::c_api::detail::sort_by_key(
           handle_,
           raft::device_span<vertex_t>{cp_number_map->data(), cp_number_map->size()},
           raft::device_span<vertex_t>{number_map_pos->data(), number_map_pos->size()});
-        
+
         cugraph::c_api::detail::sort_by_key(
           handle_,
           raft::device_span<vertex_t>{number_map_pos->data(), number_map_pos->size()},
