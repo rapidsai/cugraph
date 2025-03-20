@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -145,20 +145,23 @@ void reference_rescale(result_t* result,
   if (normalize) {
     if (number_of_vertices > 2) {
       if (endpoints) {
-        rescale_factor /= (casted_number_of_vertices * (casted_number_of_vertices - 1));
+        rescale_factor /=
+          (number_of_sources > 0 ? casted_number_of_sources
+                                 : casted_number_of_vertices * (casted_number_of_vertices - 1));
       } else {
-        rescale_factor /= ((casted_number_of_vertices - 1) * (casted_number_of_vertices - 2));
+        rescale_factor /= (number_of_sources > 0
+                             ? casted_number_of_sources
+                             : (casted_number_of_vertices - 1) * (casted_number_of_vertices - 2));
       }
     }
-  } else {
-    if (!directed) { rescale_factor /= static_cast<result_t>(2); }
+  } else if (number_of_sources < number_of_vertices) {
+    rescale_factor = (endpoints ? casted_number_of_vertices : casted_number_of_vertices - 1) /
+                     (directed ? casted_number_of_sources : 2 * casted_number_of_sources);
+  } else if (!directed) {
+    rescale_factor = 2;
   }
 
   if (rescale_factor != result_t{1}) {
-    if (number_of_sources > 0) {
-      rescale_factor *= (casted_number_of_vertices / casted_number_of_sources);
-    }
-
     for (auto idx = 0; idx < number_of_vertices; ++idx) {
       result[idx] *= rescale_factor;
     }
