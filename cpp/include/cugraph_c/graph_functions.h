@@ -107,7 +107,7 @@ cugraph_error_code_t cugraph_two_hop_neighbors(
  *
  * @param [in]  handle         Handle for accessing resources
  * @param [in]  graph          Pointer to graph
- * @param [in]  vertex         Vertex to be queried
+ * @param [in]  vertices       Vertices to be queried
  * @param [in]  do_expensive_check
  *                             A flag to run expensive checks for input arguments (if set to true)
  * @param [out] result         Opaque pointer to resulting queried vertices
