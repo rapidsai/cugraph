@@ -26,7 +26,9 @@ from pylibcugraph._cugraph_c.error cimport (
     cugraph_error_t,
 )
 from pylibcugraph._cugraph_c.array cimport (
+    cugraph_type_erased_device_array_t,
     cugraph_type_erased_device_array_view_t,
+    cugraph_type_erased_device_array_view
 )
 from pylibcugraph._cugraph_c.graph_functions cimport (
     cugraph_has_vertex
@@ -43,6 +45,7 @@ from pylibcugraph.graphs cimport (
 from pylibcugraph.utils cimport (
     assert_success,
     assert_CAI_type,
+    copy_to_cupy_array,
     create_cugraph_type_erased_device_array_view_from_py_obj
 )
 
@@ -82,7 +85,7 @@ def has_vertex(ResourceHandle resource_handle,
             create_cugraph_type_erased_device_array_view_from_py_obj(
                 vertices)
 
-    cdef bool_t result;
+    cdef cugraph_type_erased_device_array_t* result_ptr
     cdef cugraph_error_code_t error_code
     cdef cugraph_error_t* error_ptr
 
@@ -90,9 +93,16 @@ def has_vertex(ResourceHandle resource_handle,
                                     c_graph_ptr,
                                     vertices_view_ptr,
                                     do_expensive_check,
-                                    &result,
+                                    &result_ptr,
                                     &error_ptr)
     assert_success(error_code, error_ptr, "has_vertex")
 
+    cdef cugraph_type_erased_device_array_view_t* \
+        result_view_ptr = \
+            cugraph_type_erased_device_array_view(
+                result_ptr)
 
-    return True if result else False
+    cupy_has_vertex = copy_to_cupy_array(c_resource_handle_ptr, result_view_ptr)
+
+
+    return cupy_has_vertex
