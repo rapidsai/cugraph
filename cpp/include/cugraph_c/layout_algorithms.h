@@ -47,8 +47,14 @@ typedef struct {
  * @param [in]   graph           Pointer to graph.  NOTE: Graph might be modified if the storage
  *                               needs to be transposed
  * @param [in]   max_iter        Maximum number of iterations. Initial vertex positioning
- * @param [in]   x_start         Initial vertex positioning (x-axis)
- * @param [in]   y_start         Initial vertex positioning (y-axis)
+ * @param [in]   x_start         Optionally send in an initial vertex positioning (x-axis).
+ *                               Set to NULL if no value is passed. If NULL, the initial x-axis
+ *                               are selected randomly.
+ *                               x_start is sorted by vertex id
+ * @param [in]   y_start         Optionally send in an initial vertex positioning (y-axis).
+ *                               Set to NULL if no value is passed. If NULL, the initial y-axis
+ *                               are selected randomly.
+ *                               y_start is sorted by vertex id
  * @param [in]   outbound_attraction_distribution
  *                               Distributes attraction along outbound edges
  *                               Hubs attract less and thus are pushed to the borders.

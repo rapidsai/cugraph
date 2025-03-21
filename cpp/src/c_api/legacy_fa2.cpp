@@ -293,6 +293,24 @@ extern "C" cugraph_error_code_t cugraph_force_atlas2(
   cugraph::c_api::cugraph_layout_result_t** result,
   cugraph_error_t** error)
 {
+
+  CAPI_EXPECTS(((x_start == nullptr) && (y_start == nullptr)) ||
+                ((x_start != nullptr) && (y_start != nullptr)),
+                 CUGRAPH_INVALID_INPUT,
+                 "Both x_start and y_start should either be NULL or specified.",
+                 *error);
+  
+  if (x_start != nullptr) {
+    CAPI_EXPECTS(
+      reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
+        x_start)->type_ ==
+      reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
+        y_start)->type_,
+      CUGRAPH_INVALID_INPUT,
+      "Both x_start and y_start type  must match when provided",
+      *error);
+  }
+
   force_atlas2_functor functor(handle,
                                rng_state,
                                graph,
