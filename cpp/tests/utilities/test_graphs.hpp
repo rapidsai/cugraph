@@ -21,10 +21,10 @@
 #include "utilities/misc_utilities.hpp"
 #include "utilities/thrust_wrapper.hpp"
 
-#include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_generators.hpp>
+#include <cugraph/shuffle_functions.hpp>
 
 #include <raft/random/rng_state.hpp>
 
@@ -344,10 +344,9 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
       (size_t{1} << scale_) <= static_cast<size_t>(std::numeric_limits<vertex_t>::max()),
       "Invalid template parameter: scale_ too large for vertex_t.");
     // Generate in multi-partitions to limit peak memory usage (thrust::sort &
-    // shuffle_vertex_pairs_to_local_gpu_by_edge_partitioning requires a temporary buffer with the
-    // size of the original data). With the current implementation, the temporary memory requirement
-    // is roughly 50% of the original data with num_partitions_per_gpu = 2. If we use
-    // cuMemAddressReserve
+    // shuffle_edges requires a temporary buffer with the size of the original data). With the
+    // current implementation, the temporary memory requirement is roughly 50% of the original data
+    // with num_partitions_per_gpu = 2. If we use cuMemAddressReserve
     // (https://developer.nvidia.com/blog/introducing-low-level-gpu-virtual-memory-management), we
     // can reduce the temporary memory requirement to (1 / num_partitions) * (original data size)
     size_t constexpr num_partitions_per_gpu = 8;
@@ -435,27 +434,24 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
       }
 
       if (multi_gpu && shuffle) {
-        std::tie(store_transposed ? tmp_dst_v : tmp_src_v,
-                 store_transposed ? tmp_src_v : tmp_dst_v,
+        std::tie(tmp_src_v,
+                 tmp_dst_v,
                  tmp_weights_v,
                  std::ignore,
                  std::ignore,
                  std::ignore,
                  std::ignore,
                  std::ignore) =
-          cugraph::detail::shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<
-            vertex_t,
-            vertex_t,
-            weight_t,
-            int32_t,
-            int32_t>(handle,
-                     store_transposed ? std::move(tmp_dst_v) : std::move(tmp_src_v),
-                     store_transposed ? std::move(tmp_src_v) : std::move(tmp_dst_v),
-                     std::move(tmp_weights_v),
-                     std::nullopt,
-                     std::nullopt,
-                     std::nullopt,
-                     std::nullopt);
+          cugraph::shuffle_ext_edges<vertex_t, vertex_t, weight_t, int32_t, int32_t>(
+            handle,
+            std::move(tmp_src_v),
+            std::move(tmp_dst_v),
+            std::move(tmp_weights_v),
+            std::nullopt,
+            std::nullopt,
+            std::nullopt,
+            std::nullopt,
+            store_transposed);
       }
 
       edge_src_chunks.push_back(std::move(tmp_src_v));
@@ -485,8 +481,7 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
     translate(handle, vertex_v);
 
     if (multi_gpu && shuffle) {
-      vertex_v = cugraph::detail::shuffle_ext_vertices_to_local_gpu_by_vertex_partitioning(
-        handle, std::move(vertex_v));
+      vertex_v = cugraph::shuffle_ext_vertices(handle, std::move(vertex_v));
     }
 
     return std::make_tuple(std::move(edge_src_chunks),

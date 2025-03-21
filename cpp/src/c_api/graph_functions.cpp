@@ -28,6 +28,7 @@
 #include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
+#include <cugraph/shuffle_functions.hpp>
 
 namespace {
 
@@ -158,9 +159,7 @@ struct two_hop_neighbors_functor : public cugraph::c_api::abstract_functor {
                    handle_.get_stream());
 
         if constexpr (multi_gpu) {
-          start_vertices =
-            cugraph::detail::shuffle_ext_vertices_to_local_gpu_by_vertex_partitioning(
-              handle_, std::move(start_vertices));
+          start_vertices = cugraph::shuffle_ext_vertices(handle_, std::move(start_vertices));
         }
 
         cugraph::renumber_ext_vertices<vertex_t, multi_gpu>(

@@ -182,7 +182,6 @@ sample_edges(raft::handle_t const& handle,
  * were previously used as sources.  These vertices (and optional labels and times) will be updated
  * based on the contents of sampled_src_vertices/sampled_src_vertex_labels/sampled_src_vertex_times
  * and the update will be part of the return value.
- * @param vertex_partition Vertex partition view from the graph view
  * @param vertex_partition_range_lasts End of range information from graph view
  * @param prior_sources_behavior Identifies how to treat sources in each hop
  * @param dedupe_sources boolean flag, if true then if a vertex v appears as a destination in hop X
@@ -194,7 +193,7 @@ sample_edges(raft::handle_t const& handle,
  *  optional labels and times associated with the vertices, along with the updated value for
  *  @p vertex_used_as_sources
  */
-template <typename vertex_t, typename label_t, typename edge_time_t, bool multi_gpu>
+template <typename vertex_t, typename label_t, typename edge_time_t>
 std::tuple<rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<label_t>>,
            std::optional<rmm::device_uvector<edge_time_t>>,
@@ -213,10 +212,10 @@ prepare_next_frontier(
                            std::optional<rmm::device_uvector<label_t>>,
                            std::optional<rmm::device_uvector<edge_time_t>>>>&&
     vertex_used_as_source,
-  vertex_partition_view_t<vertex_t, multi_gpu> vertex_partition,
-  std::vector<vertex_t> const& vertex_partition_range_lasts,
+  raft::host_span<vertex_t const> vertex_partition_range_lasts,
   prior_sources_behavior_t prior_sources_behavior,
   bool dedupe_sources,
+  bool multi_gpu,
   bool do_expensive_check);
 
 /**

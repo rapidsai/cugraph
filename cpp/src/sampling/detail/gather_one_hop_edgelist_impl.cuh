@@ -56,13 +56,13 @@ struct return_edges_with_properties_e_op {
       vertex_t src{optionally_tagged_src};
 
       if constexpr (std::is_same_v<EdgeProperties, cuda::std::nullopt_t>) {
-        return cuda::std::make_optional(thrust::make_tuple(src, dst));
+        return thrust::make_tuple(src, dst);
       } else if constexpr (std::is_arithmetic<EdgeProperties>::value) {
-        return cuda::std::make_optional(thrust::make_tuple(src, dst, edge_properties));
+        return thrust::make_tuple(src, dst, edge_properties);
       } else if constexpr (cugraph::is_thrust_tuple_of_arithmetic<EdgeProperties>::value &&
                            (thrust::tuple_size<EdgeProperties>::value == 2)) {
-        return cuda::std::make_optional(thrust::make_tuple(
-          src, dst, thrust::get<0>(edge_properties), thrust::get<1>(edge_properties)));
+        return thrust::make_tuple(
+          src, dst, thrust::get<0>(edge_properties), thrust::get<1>(edge_properties));
       } else if constexpr (cugraph::is_thrust_tuple_of_arithmetic<EdgeProperties>::value &&
                            (thrust::tuple_size<EdgeProperties>::value == 3)) {
         return cuda::std::make_optional(thrust::make_tuple(src,
@@ -94,13 +94,13 @@ struct return_edges_with_properties_e_op {
 
       src = thrust::get<0>(optionally_tagged_src);
       if constexpr (std::is_same_v<EdgeProperties, cuda::std::nullopt_t>) {
-        return cuda::std::make_optional(thrust::make_tuple(src, dst, label));
+        return thrust::make_tuple(src, dst, label);
       } else if constexpr (std::is_arithmetic<EdgeProperties>::value) {
-        return cuda::std::make_optional(thrust::make_tuple(src, dst, edge_properties, label));
+        return thrust::make_tuple(src, dst, edge_properties, label);
       } else if constexpr (cugraph::is_thrust_tuple_of_arithmetic<EdgeProperties>::value &&
                            (thrust::tuple_size<EdgeProperties>::value == 2)) {
-        return cuda::std::make_optional(thrust::make_tuple(
-          src, dst, thrust::get<0>(edge_properties), thrust::get<1>(edge_properties), label));
+        return thrust::make_tuple(
+          src, dst, thrust::get<0>(edge_properties), thrust::get<1>(edge_properties), label);
       } else if constexpr (cugraph::is_thrust_tuple_of_arithmetic<EdgeProperties>::value &&
                            (thrust::tuple_size<EdgeProperties>::value == 3)) {
         return cuda::std::make_optional(thrust::make_tuple(src,

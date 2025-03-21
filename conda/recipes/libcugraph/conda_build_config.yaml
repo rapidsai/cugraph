@@ -11,7 +11,7 @@ cuda_compiler:
   - nvcc  # [os.environ.get("RAPIDS_CUDA_VERSION", "").startswith("11")]
 
 cmake_version:
-  - ">=3.26.4,!=3.30.0"
+  - ">=3.30.4"
 
 doxygen_version:
   - ">=1.8.11"
@@ -62,3 +62,6 @@ cuda11_cuda_profiler_api_host_version:
 
 cuda11_cuda_profiler_api_run_version:
   - ">=11.4.240,<12"
+
+libucxx_version:
+  - "0.43.*"

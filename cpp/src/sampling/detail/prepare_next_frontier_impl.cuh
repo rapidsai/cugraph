@@ -23,7 +23,6 @@
 #include <cugraph/graph_view.hpp>
 #include <cugraph/sampling_functions.hpp>
 #include <cugraph/utilities/thrust_tuple_utils.hpp>
-#include <cugraph/vertex_partition_device_view.cuh>
 
 #include <raft/core/handle.hpp>
 #include <raft/util/cudart_utils.hpp>
@@ -41,7 +40,7 @@
 namespace cugraph {
 namespace detail {
 
-template <typename vertex_t, typename label_t, typename edge_time_t, bool multi_gpu>
+template <typename vertex_t, typename label_t, typename edge_time_t>
 std::tuple<rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<label_t>>,
            std::optional<rmm::device_uvector<edge_time_t>>,
@@ -60,16 +59,12 @@ prepare_next_frontier(
                            std::optional<rmm::device_uvector<label_t>>,
                            std::optional<rmm::device_uvector<edge_time_t>>>>&&
     vertex_used_as_source,
-  // FIXME: vertex_partition_view_t should provide vertex_partition_range_lasts()
-  //        (and internally store this information in raft::host_span).
-  vertex_partition_view_t<vertex_t, multi_gpu> vertex_partition,
-  std::vector<vertex_t> const& vertex_partition_range_lasts,
+  raft::host_span<vertex_t const> vertex_partition_range_lasts,
   prior_sources_behavior_t prior_sources_behavior,
   bool dedupe_sources,
+  bool multi_gpu,
   bool do_expensive_check)
 {
-  vertex_partition_device_view_t<vertex_t, multi_gpu> d_vertex_partition(vertex_partition);
-
   std::cout << "sampled_dst_vertices size = " << sampled_dst_vertices.size() << std::endl;
   size_t frontier_size = std::transform_reduce(sampled_dst_vertices.begin(),
                                                sampled_dst_vertices.end(),
@@ -159,7 +154,7 @@ prepare_next_frontier(
                   });
   }
 
-  if constexpr (multi_gpu) {
+  if (multi_gpu) {
     if (frontier_vertex_labels) {
       if (frontier_vertex_times) {
         std::tie(frontier_vertices, *frontier_vertex_labels, *frontier_vertex_times) =

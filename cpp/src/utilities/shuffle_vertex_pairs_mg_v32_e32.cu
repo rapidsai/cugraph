@@ -14,19 +14,7 @@
  * limitations under the License.
  */
 
-#include "detail/graph_partition_utils.cuh"
 #include "shuffle_vertex_pairs.cuh"
-
-#include <cugraph/detail/shuffle_wrappers.hpp>
-#include <cugraph/graph_functions.hpp>
-#include <cugraph/partition_manager.hpp>
-#include <cugraph/utilities/host_scalar_comm.hpp>
-#include <cugraph/utilities/shuffle_comm.cuh>
-
-#include <thrust/iterator/zip_iterator.h>
-#include <thrust/tuple.h>
-
-#include <tuple>
 
 namespace cugraph {
 
@@ -73,44 +61,6 @@ template std::tuple<rmm::device_uvector<int32_t>,
                     std::optional<rmm::device_uvector<float>>,
                     std::optional<rmm::device_uvector<int32_t>>,
                     std::optional<rmm::device_uvector<int32_t>>,
-                    std::optional<rmm::device_uvector<int32_t>>,
-                    std::optional<rmm::device_uvector<int32_t>>,
-                    std::vector<size_t>>
-shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning(
-  raft::handle_t const& handle,
-  rmm::device_uvector<int32_t>&& majors,
-  rmm::device_uvector<int32_t>&& minors,
-  std::optional<rmm::device_uvector<float>>&& weights,
-  std::optional<rmm::device_uvector<int32_t>>&& edge_ids,
-  std::optional<rmm::device_uvector<int32_t>>&& edge_types,
-  std::optional<rmm::device_uvector<int32_t>>&& edge_start_times,
-  std::optional<rmm::device_uvector<int32_t>>&& edge_end_times,
-  std::vector<int32_t> const& vertex_partition_range_lasts);
-
-template std::tuple<rmm::device_uvector<int32_t>,
-                    rmm::device_uvector<int32_t>,
-                    std::optional<rmm::device_uvector<double>>,
-                    std::optional<rmm::device_uvector<int32_t>>,
-                    std::optional<rmm::device_uvector<int32_t>>,
-                    std::optional<rmm::device_uvector<int32_t>>,
-                    std::optional<rmm::device_uvector<int32_t>>,
-                    std::vector<size_t>>
-shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning(
-  raft::handle_t const& handle,
-  rmm::device_uvector<int32_t>&& majors,
-  rmm::device_uvector<int32_t>&& minors,
-  std::optional<rmm::device_uvector<double>>&& weights,
-  std::optional<rmm::device_uvector<int32_t>>&& edge_ids,
-  std::optional<rmm::device_uvector<int32_t>>&& edge_types,
-  std::optional<rmm::device_uvector<int32_t>>&& edge_start_times,
-  std::optional<rmm::device_uvector<int32_t>>&& edge_end_times,
-  std::vector<int32_t> const& vertex_partition_range_lasts);
-
-template std::tuple<rmm::device_uvector<int32_t>,
-                    rmm::device_uvector<int32_t>,
-                    std::optional<rmm::device_uvector<float>>,
-                    std::optional<rmm::device_uvector<int32_t>>,
-                    std::optional<rmm::device_uvector<int32_t>>,
                     std::optional<rmm::device_uvector<int64_t>>,
                     std::optional<rmm::device_uvector<int64_t>>,
                     std::vector<size_t>>
@@ -147,6 +97,44 @@ template std::tuple<rmm::device_uvector<int32_t>,
                     std::optional<rmm::device_uvector<float>>,
                     std::optional<rmm::device_uvector<int32_t>>,
                     std::optional<rmm::device_uvector<int32_t>>,
+                    std::optional<rmm::device_uvector<int32_t>>,
+                    std::optional<rmm::device_uvector<int32_t>>,
+                    std::vector<size_t>>
+shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning(
+  raft::handle_t const& handle,
+  rmm::device_uvector<int32_t>&& majors,
+  rmm::device_uvector<int32_t>&& minors,
+  std::optional<rmm::device_uvector<float>>&& weights,
+  std::optional<rmm::device_uvector<int32_t>>&& edge_ids,
+  std::optional<rmm::device_uvector<int32_t>>&& edge_types,
+  std::optional<rmm::device_uvector<int32_t>>&& edge_start_times,
+  std::optional<rmm::device_uvector<int32_t>>&& edge_end_times,
+  raft::host_span<int32_t const> vertex_partition_range_lasts);
+
+template std::tuple<rmm::device_uvector<int32_t>,
+                    rmm::device_uvector<int32_t>,
+                    std::optional<rmm::device_uvector<double>>,
+                    std::optional<rmm::device_uvector<int32_t>>,
+                    std::optional<rmm::device_uvector<int32_t>>,
+                    std::optional<rmm::device_uvector<int32_t>>,
+                    std::optional<rmm::device_uvector<int32_t>>,
+                    std::vector<size_t>>
+shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning(
+  raft::handle_t const& handle,
+  rmm::device_uvector<int32_t>&& majors,
+  rmm::device_uvector<int32_t>&& minors,
+  std::optional<rmm::device_uvector<double>>&& weights,
+  std::optional<rmm::device_uvector<int32_t>>&& edge_ids,
+  std::optional<rmm::device_uvector<int32_t>>&& edge_types,
+  std::optional<rmm::device_uvector<int32_t>>&& edge_start_times,
+  std::optional<rmm::device_uvector<int32_t>>&& edge_end_times,
+  raft::host_span<int32_t const> vertex_partition_range_lasts);
+
+template std::tuple<rmm::device_uvector<int32_t>,
+                    rmm::device_uvector<int32_t>,
+                    std::optional<rmm::device_uvector<float>>,
+                    std::optional<rmm::device_uvector<int32_t>>,
+                    std::optional<rmm::device_uvector<int32_t>>,
                     std::optional<rmm::device_uvector<int64_t>>,
                     std::optional<rmm::device_uvector<int64_t>>,
                     std::vector<size_t>>
@@ -159,7 +147,7 @@ shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning(
   std::optional<rmm::device_uvector<int32_t>>&& edge_types,
   std::optional<rmm::device_uvector<int64_t>>&& edge_start_times,
   std::optional<rmm::device_uvector<int64_t>>&& edge_end_times,
-  std::vector<int32_t> const& vertex_partition_range_lasts);
+  raft::host_span<int32_t const> vertex_partition_range_lasts);
 
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
@@ -178,7 +166,7 @@ shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning(
   std::optional<rmm::device_uvector<int32_t>>&& edge_types,
   std::optional<rmm::device_uvector<int64_t>>&& edge_start_times,
   std::optional<rmm::device_uvector<int64_t>>&& edge_end_times,
-  std::vector<int32_t> const& vertex_partition_range_lasts);
+  raft::host_span<int32_t const> vertex_partition_range_lasts);
 
 }  // namespace detail
 
@@ -190,14 +178,15 @@ template std::tuple<rmm::device_uvector<int32_t>,
                     std::optional<rmm::device_uvector<int32_t>>,
                     std::optional<rmm::device_uvector<int32_t>>,
                     std::vector<size_t>>
-shuffle_external_edges(raft::handle_t const& handle,
-                       rmm::device_uvector<int32_t>&& majors,
-                       rmm::device_uvector<int32_t>&& minors,
-                       std::optional<rmm::device_uvector<float>>&& weights,
-                       std::optional<rmm::device_uvector<int32_t>>&& edge_ids,
-                       std::optional<rmm::device_uvector<int32_t>>&& edge_types,
-                       std::optional<rmm::device_uvector<int32_t>>&& edge_start_times,
-                       std::optional<rmm::device_uvector<int32_t>>&& edge_end_times);
+shuffle_ext_edges(raft::handle_t const& handle,
+                  rmm::device_uvector<int32_t>&& majors,
+                  rmm::device_uvector<int32_t>&& minors,
+                  std::optional<rmm::device_uvector<float>>&& weights,
+                  std::optional<rmm::device_uvector<int32_t>>&& edge_ids,
+                  std::optional<rmm::device_uvector<int32_t>>&& edge_types,
+                  std::optional<rmm::device_uvector<int32_t>>&& edge_start_times,
+                  std::optional<rmm::device_uvector<int32_t>>&& edge_end_times,
+                  bool store_transposed);
 
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
@@ -207,14 +196,15 @@ template std::tuple<rmm::device_uvector<int32_t>,
                     std::optional<rmm::device_uvector<int32_t>>,
                     std::optional<rmm::device_uvector<int32_t>>,
                     std::vector<size_t>>
-shuffle_external_edges(raft::handle_t const& handle,
-                       rmm::device_uvector<int32_t>&& majors,
-                       rmm::device_uvector<int32_t>&& minors,
-                       std::optional<rmm::device_uvector<double>>&& weights,
-                       std::optional<rmm::device_uvector<int32_t>>&& edge_ids,
-                       std::optional<rmm::device_uvector<int32_t>>&& edge_types,
-                       std::optional<rmm::device_uvector<int32_t>>&& edge_start_times,
-                       std::optional<rmm::device_uvector<int32_t>>&& edge_end_times);
+shuffle_ext_edges(raft::handle_t const& handle,
+                  rmm::device_uvector<int32_t>&& majors,
+                  rmm::device_uvector<int32_t>&& minors,
+                  std::optional<rmm::device_uvector<double>>&& weights,
+                  std::optional<rmm::device_uvector<int32_t>>&& edge_ids,
+                  std::optional<rmm::device_uvector<int32_t>>&& edge_types,
+                  std::optional<rmm::device_uvector<int32_t>>&& edge_start_times,
+                  std::optional<rmm::device_uvector<int32_t>>&& edge_end_times,
+                  bool store_transposed);
 
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
@@ -224,14 +214,15 @@ template std::tuple<rmm::device_uvector<int32_t>,
                     std::optional<rmm::device_uvector<int64_t>>,
                     std::optional<rmm::device_uvector<int64_t>>,
                     std::vector<size_t>>
-shuffle_external_edges(raft::handle_t const& handle,
-                       rmm::device_uvector<int32_t>&& majors,
-                       rmm::device_uvector<int32_t>&& minors,
-                       std::optional<rmm::device_uvector<float>>&& weights,
-                       std::optional<rmm::device_uvector<int32_t>>&& edge_ids,
-                       std::optional<rmm::device_uvector<int32_t>>&& edge_types,
-                       std::optional<rmm::device_uvector<int64_t>>&& edge_start_times,
-                       std::optional<rmm::device_uvector<int64_t>>&& edge_end_times);
+shuffle_ext_edges(raft::handle_t const& handle,
+                  rmm::device_uvector<int32_t>&& majors,
+                  rmm::device_uvector<int32_t>&& minors,
+                  std::optional<rmm::device_uvector<float>>&& weights,
+                  std::optional<rmm::device_uvector<int32_t>>&& edge_ids,
+                  std::optional<rmm::device_uvector<int32_t>>&& edge_types,
+                  std::optional<rmm::device_uvector<int64_t>>&& edge_start_times,
+                  std::optional<rmm::device_uvector<int64_t>>&& edge_end_times,
+                  bool store_transposed);
 
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
@@ -241,13 +232,14 @@ template std::tuple<rmm::device_uvector<int32_t>,
                     std::optional<rmm::device_uvector<int64_t>>,
                     std::optional<rmm::device_uvector<int64_t>>,
                     std::vector<size_t>>
-shuffle_external_edges(raft::handle_t const& handle,
-                       rmm::device_uvector<int32_t>&& majors,
-                       rmm::device_uvector<int32_t>&& minors,
-                       std::optional<rmm::device_uvector<double>>&& weights,
-                       std::optional<rmm::device_uvector<int32_t>>&& edge_ids,
-                       std::optional<rmm::device_uvector<int32_t>>&& edge_types,
-                       std::optional<rmm::device_uvector<int64_t>>&& edge_start_times,
-                       std::optional<rmm::device_uvector<int64_t>>&& edge_end_times);
+shuffle_ext_edges(raft::handle_t const& handle,
+                  rmm::device_uvector<int32_t>&& majors,
+                  rmm::device_uvector<int32_t>&& minors,
+                  std::optional<rmm::device_uvector<double>>&& weights,
+                  std::optional<rmm::device_uvector<int32_t>>&& edge_ids,
+                  std::optional<rmm::device_uvector<int32_t>>&& edge_types,
+                  std::optional<rmm::device_uvector<int64_t>>&& edge_start_times,
+                  std::optional<rmm::device_uvector<int64_t>>&& edge_end_times,
+                  bool store_transposed);
 
 }  // namespace cugraph

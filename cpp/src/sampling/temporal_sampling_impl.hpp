@@ -454,10 +454,10 @@ temporal_neighbor_sample_impl(
         std::make_optional(raft::host_span<raft::device_span<edge_time_t const>>{
           next_frontier_vertex_time_spans->data(), next_frontier_vertex_time_spans->size()}),
         std::move(vertex_used_as_source),
-        graph_view.local_vertex_partition_view(),
         graph_view.vertex_partition_range_lasts(),
         prior_sources_behavior,
         dedupe_sources,
+        multi_gpu,
         do_expensive_check);
 
     frontier_vertices_view =

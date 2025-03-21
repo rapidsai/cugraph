@@ -36,10 +36,10 @@ prepare_next_frontier(
   std::optional<std::tuple<rmm::device_uvector<int64_t>,
                            std::optional<rmm::device_uvector<int32_t>>,
                            std::optional<rmm::device_uvector<int32_t>>>>&& vertex_used_as_source,
-  vertex_partition_view_t<int64_t, true> vertex_partition,
-  std::vector<int64_t> const& vertex_partition_range_lasts,
+  raft::host_span<int64_t const> vertex_partition_range_lasts,
   prior_sources_behavior_t prior_sources_behavior,
   bool dedupe_sources,
+  bool multi_gpu,
   bool do_expensive_check);
 
 template std::tuple<rmm::device_uvector<int64_t>,
@@ -59,10 +59,10 @@ prepare_next_frontier(
   std::optional<std::tuple<rmm::device_uvector<int64_t>,
                            std::optional<rmm::device_uvector<int32_t>>,
                            std::optional<rmm::device_uvector<int64_t>>>>&& vertex_used_as_source,
-  vertex_partition_view_t<int64_t, true> vertex_partition,
-  std::vector<int64_t> const& vertex_partition_range_lasts,
+  raft::host_span<int64_t const> vertex_partition_range_lasts,
   prior_sources_behavior_t prior_sources_behavior,
   bool dedupe_sources,
+  bool multi_gpu,
   bool do_expensive_check);
 
 }  // namespace detail

@@ -16,6 +16,7 @@
 #pragma once
 
 #include <raft/core/handle.hpp>
+#include <raft/core/host_span.hpp>
 #include <raft/random/rng_state.hpp>
 
 #include <rmm/device_uvector.hpp>
@@ -130,46 +131,7 @@ shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning(
   std::optional<rmm::device_uvector<edge_type_t>>&& edge_types,
   std::optional<rmm::device_uvector<edge_time_t>>&& edge_start_times,
   std::optional<rmm::device_uvector<edge_time_t>>&& edge_end_times,
-  std::vector<vertex_t> const& vertex_partition_range_lasts);
-
-/**
- * @ingroup shuffle_wrappers_cpp
- * @brief Shuffle external (i.e. before renumbering) vertices to their local GPU based on vertex
- * partitioning.
- *
- * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
- *
- * @param[in] handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator,
- * and handles to various CUDA libraries) to run graph algorithms.
- * @param[in] vertices Vertices to shuffle.
- *
- * @return Vector of shuffled vertices.
- */
-template <typename vertex_t>
-rmm::device_uvector<vertex_t> shuffle_ext_vertices_to_local_gpu_by_vertex_partitioning(
-  raft::handle_t const& handle, rmm::device_uvector<vertex_t>&& vertices);
-
-/**
- * @ingroup shuffle_wrappers_cpp
- * @brief Shuffle external (i.e. before renumbering) vertex & value pairs to their local GPU based
- * on vertex partitioning.
- *
- * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
- * @tparam value_t Type of values.
- *
- * @param[in] handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator,
- * and handles to various CUDA libraries) to run graph algorithms.
- * @param[in] vertices Vertices to shuffle.
- * @param[in] values Values to shuffle.
- *
- * @return Tuple of vectors storing shuffled vertex & value pairs.
- */
-template <typename vertex_t, typename value_t>
-std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<value_t>>
-shuffle_ext_vertex_value_pairs_to_local_gpu_by_vertex_partitioning(
-  raft::handle_t const& handle,
-  rmm::device_uvector<vertex_t>&& vertices,
-  rmm::device_uvector<value_t>&& values);
+  raft::host_span<vertex_t const> vertex_partition_range_lasts);
 
 /**
  * @ingroup shuffle_wrappers_cpp
@@ -213,7 +175,7 @@ template <typename vertex_t>
 rmm::device_uvector<vertex_t> shuffle_int_vertices_to_local_gpu_by_vertex_partitioning(
   raft::handle_t const& handle,
   rmm::device_uvector<vertex_t>&& vertices,
-  std::vector<vertex_t> const& vertex_partition_range_lasts);
+  raft::host_span<vertex_t const> vertex_partition_range_lasts);
 
 /**
  * @ingroup shuffle_wrappers_cpp
@@ -236,7 +198,7 @@ shuffle_int_vertex_value_pairs_to_local_gpu_by_vertex_partitioning(
   raft::handle_t const& handle,
   rmm::device_uvector<vertex_t>&& vertices,
   rmm::device_uvector<value_t>&& values,
-  std::vector<vertex_t> const& vertex_partition_range_lasts);
+  raft::host_span<vertex_t const> vertex_partition_range_lasts);
 
 /**
  * @ingroup shuffle_wrappers_cpp
@@ -263,7 +225,7 @@ std::
     rmm::device_uvector<vertex_t>&& vertices,
     rmm::device_uvector<value1_t>&& values1,
     rmm::device_uvector<value2_t>&& values2,
-    std::vector<vertex_t> const& vertex_partition_range_lasts);
+    raft::host_span<vertex_t const> vertex_partition_range_lasts);
 
 /**
  * @ingroup shuffle_wrappers_cpp

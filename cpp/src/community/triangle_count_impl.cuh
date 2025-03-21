@@ -15,7 +15,7 @@
  */
 #pragma once
 
-#include "prims/extract_transform_e.cuh"
+#include "prims/extract_transform_if_e.cuh"
 #include "prims/fill_edge_property.cuh"
 #include "prims/transform_e.cuh"
 #include "prims/transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v.cuh"
@@ -24,6 +24,7 @@
 #include <cugraph/algorithms.hpp>
 #include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
+#include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 
@@ -63,21 +64,30 @@ struct is_two_or_greater_t {
 };
 
 template <typename vertex_t, typename edge_t>
-struct extract_low_to_high_degree_edges_t {
-  __device__ cuda::std::optional<thrust::tuple<vertex_t, vertex_t>> operator()(
-    vertex_t src,
-    vertex_t dst,
-    edge_t src_out_degree,
-    edge_t dst_out_degree,
-    cuda::std::nullopt_t) const
+struct extract_low_to_high_degree_edges_e_op_t {
+  __device__ thrust::tuple<vertex_t, vertex_t> operator()(vertex_t src,
+                                                          vertex_t dst,
+                                                          edge_t src_out_degree,
+                                                          edge_t dst_out_degree,
+                                                          cuda::std::nullopt_t) const
   {
-    return (src_out_degree < dst_out_degree)
-             ? cuda::std::optional<thrust::tuple<vertex_t, vertex_t>>{thrust::make_tuple(src, dst)}
-             : (((src_out_degree == dst_out_degree) &&
-                 (src < dst) /* tie-breaking using vertex ID */)
-                  ? cuda::std::optional<thrust::tuple<vertex_t, vertex_t>>{thrust::make_tuple(src,
-                                                                                              dst)}
-                  : cuda::std::nullopt);
+    return thrust::make_tuple(src, dst);
+  }
+};
+
+template <typename vertex_t, typename edge_t>
+struct extract_low_to_high_degree_edges_pred_op_t {
+  __device__ bool operator()(vertex_t src,
+                             vertex_t dst,
+                             edge_t src_out_degree,
+                             edge_t dst_out_degree,
+                             cuda::std::nullopt_t) const
+  {
+    return (src_out_degree < dst_out_degree) ? true
+                                             : (((src_out_degree == dst_out_degree) &&
+                                                 (src < dst) /* tie-breaking using vertex ID */)
+                                                  ? true
+                                                  : false);
   }
 };
 
@@ -432,29 +442,27 @@ void triangle_count(raft::handle_t const& handle,
       handle, cur_graph_view, out_degrees.begin(), edge_src_out_degrees.mutable_view());
     update_edge_dst_property(
       handle, cur_graph_view, out_degrees.begin(), edge_dst_out_degrees.mutable_view());
-    auto [srcs, dsts] = extract_transform_e(handle,
-                                            cur_graph_view,
-                                            edge_src_out_degrees.view(),
-                                            edge_dst_out_degrees.view(),
-                                            edge_dummy_property_t{}.view(),
-                                            extract_low_to_high_degree_edges_t<vertex_t, edge_t>{});
+    auto [srcs, dsts] =
+      extract_transform_if_e(handle,
+                             cur_graph_view,
+                             edge_src_out_degrees.view(),
+                             edge_dst_out_degrees.view(),
+                             edge_dummy_property_t{}.view(),
+                             extract_low_to_high_degree_edges_e_op_t<vertex_t, edge_t>{},
+                             extract_low_to_high_degree_edges_pred_op_t<vertex_t, edge_t>{});
 
     if constexpr (multi_gpu) {
       std::tie(
         srcs, dsts, std::ignore, std::ignore, std::ignore, std::ignore, std::ignore, std::ignore) =
-        detail::shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<vertex_t,
-                                                                                       edge_t,
-                                                                                       weight_t,
-                                                                                       int32_t,
-                                                                                       int32_t>(
-          handle,
-          std::move(srcs),
-          std::move(dsts),
-          std::nullopt,
-          std::nullopt,
-          std::nullopt,
-          std::nullopt,
-          std::nullopt);
+        shuffle_ext_edges<vertex_t, edge_t, weight_t, int32_t, int32_t>(handle,
+                                                                        std::move(srcs),
+                                                                        std::move(dsts),
+                                                                        std::nullopt,
+                                                                        std::nullopt,
+                                                                        std::nullopt,
+                                                                        std::nullopt,
+                                                                        std::nullopt,
+                                                                        false);
     }
 
     std::tie(modified_graph, std::ignore, std::ignore, std::ignore, renumber_map) =
