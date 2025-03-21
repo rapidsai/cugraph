@@ -110,7 +110,7 @@ cugraph_error_code_t cugraph_two_hop_neighbors(
  * @param [in]  vertex         Vertex to be queried
  * @param [in]  do_expensive_check
  *                             A flag to run expensive checks for input arguments (if set to true)
- * @param [out] result         Opaque pointer to resulting queried vertex
+ * @param [out] result         Opaque pointer to resulting queried vertices
  * @param [out] error          Pointer to an error object storing details of any error.  Will
  *                             be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
@@ -119,7 +119,7 @@ cugraph_error_code_t cugraph_has_vertex(const cugraph_resource_handle_t* handle,
                                         cugraph_graph_t* graph,
                                         cugraph_type_erased_device_array_view_t* vertices,
                                         bool_t do_expensive_check,
-                                        bool_t* result,
+                                        cugraph_type_erased_device_array_t** result,
                                         cugraph_error_t** error);
 
 /**

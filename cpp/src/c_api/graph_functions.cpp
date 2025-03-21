@@ -265,7 +265,7 @@ struct has_vertex_functor : public cugraph::c_api::abstract_functor {
   raft::handle_t const& handle_{};
   cugraph::c_api::cugraph_graph_t* graph_{nullptr};
   cugraph::c_api::cugraph_type_erased_device_array_view_t* vertices_{};
-  bool_t result_{bool_t::FALSE};
+  cugraph::c_api::cugraph_type_erased_device_array_t* result_{};
   bool do_expensive_check_{false};
 
   has_vertex_functor(::cugraph_resource_handle_t const* handle,
@@ -308,9 +308,6 @@ struct has_vertex_functor : public cugraph::c_api::abstract_functor {
       }
       */
 
-      // renumber_local_vertices
-      // transform inplace (if invalid) if invalid vertex_id -> 0 otherwise 1.
-      // assuming the renumber, no shuffle
       cugraph::renumber_ext_vertices<vertex_t, multi_gpu>(
         handle_,
         vertices.data(),
@@ -324,20 +321,8 @@ struct has_vertex_functor : public cugraph::c_api::abstract_functor {
         raft::device_span<vertex_t>{vertices.data(), vertices.size()},
         cugraph::invalid_vertex_id<vertex_t>::value,
         handle_.get_stream());
-
-#if 0
-      size_t invalid_count = cugraph::detail::count_values(
-        handle_,
-        raft::device_span<vertex_t const>{vertices.data(), vertices.size()},
-        cugraph::invalid_vertex_id<vertex_t>::value);
-
-      if constexpr (multi_gpu) {
-        invalid_count = cugraph::host_scalar_allreduce(
-          handle_.get_comms(), invalid_count, raft::comms::op_t::SUM, handle_.get_stream());
-      }
-
-      if (invalid_count == 0) { result_ = bool_t::TRUE; }
-#endif
+      
+      result_ = new cugraph::c_api::cugraph_type_erased_device_array_t(vertices, graph_->vertex_type_);
     }
   }
 };
@@ -425,7 +410,7 @@ extern "C" cugraph_error_code_t cugraph_has_vertex(
   cugraph_graph_t* graph,
   cugraph_type_erased_device_array_view_t* vertices,
   bool_t do_expensive_check,
-  bool_t* result,
+  cugraph_type_erased_device_array_t** result,
   cugraph_error_t** error)
 {
   CAPI_EXPECTS(

@@ -36,6 +36,7 @@ from pylibcugraph._cugraph_c.graph cimport cugraph_graph_t
 from pylibcugraph._cugraph_c.array cimport (
     cugraph_type_erased_device_array_view_t,
     cugraph_type_erased_host_array_view_t,
+    cugraph_type_erased_device_array_t,
 )
 
 cdef extern from "cugraph_c/graph_functions.h":
@@ -317,5 +318,5 @@ cdef extern from "cugraph_c/graph_functions.h":
         const cugraph_graph_t* graph,
         cugraph_type_erased_device_array_view_t* vertices,
         bool_t do_expensive_check,
-        bool_t* result,
+        cugraph_type_erased_device_array_t** result,
         cugraph_error_t** error)
