@@ -204,9 +204,6 @@ cdef class SGGraph(_GPUGraph):
         self.vertex_type = cugraph_type_erased_device_array_view_type(
             srcs_or_offsets_view_ptr)
 
-        print("vertex_type = ", self.vertex_type)
-        #self.vertex_type = "int32"
-
         self.weights_view_ptr = create_cugraph_type_erased_device_array_view_from_py_obj(
                 weight_array
             )

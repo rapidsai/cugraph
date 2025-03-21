@@ -20,6 +20,7 @@ from libc.stdint cimport uintptr_t
 from libc.stdint cimport int32_t
 from libc.limits cimport INT_MAX
 
+from pylibcugraph import has_vertex
 from pylibcugraph.resource_handle cimport ResourceHandle
 from pylibcugraph._cugraph_c.algorithms cimport (
     cugraph_bfs,
@@ -147,7 +148,7 @@ def bfs(ResourceHandle handle, _GPUGraph graph,
     assert_CAI_type(sources, "sources")
 
     # Check if sources are valid
-    if not all(pylibcugraph.has_vertex(handle, graph, sources, do_expensive_check)):
+    if not all(has_vertex(handle, graph, sources, do_expensive_check)):
         raise ValueError(
             f"one or more vertices are invalid. Call the method 'has_vertex' ",
             f"to identify the invalid vertices")
