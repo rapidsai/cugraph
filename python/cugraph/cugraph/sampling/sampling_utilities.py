@@ -69,7 +69,7 @@ def sampling_results_from_cupy_array_dict(
         )
 
         label_hop_offsets = cupy_array_dict["label_hop_offsets"]
-        batch_ids = cupy_array_dict["batch_id"]
+        batch_ids = cupy_array_dict["   "]
 
         if renumber:
             renumber_df = cudf.DataFrame(
@@ -79,7 +79,7 @@ def sampling_results_from_cupy_array_dict(
             )
 
             if not return_offsets:
-                if len(batch_ids) > 0:
+                if batch_ids is not None and len(batch_ids) > 0:
                     batch_ids_r = cudf.Series(batch_ids).repeat(
                         cupy.diff(cupy_array_dict["renumber_map_offsets"])
                     )
@@ -125,7 +125,7 @@ def sampling_results_from_cupy_array_dict(
                     offsets_df["renumber_map_offsets"] = renumber_offset_series
 
         else:
-            if len(batch_ids) > 0:
+            if batch_ids is not None and len(batch_ids) > 0:
                 batch_ids_r = cudf.Series(cupy.repeat(batch_ids, num_hops))
                 batch_ids_r = cudf.Series(batch_ids_r).repeat(
                     cupy.diff(label_hop_offsets)
@@ -138,7 +138,7 @@ def sampling_results_from_cupy_array_dict(
 
         # TODO remove this logic in release 23.12, hops will always returned as offsets
         if include_hop_column:
-            if len(batch_ids) > 0:
+            if batch_ids is not None and len(batch_ids) > 0:
                 hop_ids_r = cudf.Series(cupy.arange(num_hops))
                 hop_ids_r = cudf.concat([hop_ids_r] * len(batch_ids), ignore_index=True)
 
