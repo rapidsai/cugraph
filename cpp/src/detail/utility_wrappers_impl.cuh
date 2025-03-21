@@ -111,7 +111,8 @@ void transform_binary(raft::device_span<value_t> values,
                     values.end(),
                     values.begin(),
                     cuda::proclaim_return_type<value_t>([target_value] __device__(value_t value) {
-                      return target_value == value ? static_cast<value_t>(0) : static_cast<value_t>(1);
+                      return target_value == value ? static_cast<value_t>(0)
+                                                   : static_cast<value_t>(1);
                     }));
 }
 

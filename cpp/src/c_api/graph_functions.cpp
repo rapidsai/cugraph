@@ -275,7 +275,8 @@ struct has_vertex_functor : public cugraph::c_api::abstract_functor {
     : abstract_functor(),
       handle_(*reinterpret_cast<cugraph::c_api::cugraph_resource_handle_t const*>(handle)->handle_),
       graph_(reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)),
-      vertices_(reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t*>(vertices)),
+      vertices_(
+        reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t*>(vertices)),
       do_expensive_check_(do_expensive_check)
   {
   }
@@ -319,14 +320,12 @@ struct has_vertex_functor : public cugraph::c_api::abstract_functor {
         graph_view.local_vertex_partition_range_last(),
         do_expensive_check_);
 
-      cugraph::detail::transform_binary(raft::device_span<vertex_t>{vertices.data(),
-                                                                  vertices.size()},
-                                        cugraph::invalid_vertex_id<vertex_t>::value,
-                                        handle_.get_stream()
-                                        );
+      cugraph::detail::transform_binary(
+        raft::device_span<vertex_t>{vertices.data(), vertices.size()},
+        cugraph::invalid_vertex_id<vertex_t>::value,
+        handle_.get_stream());
 
-
-      #if 0
+#if 0
       size_t invalid_count = cugraph::detail::count_values(
         handle_,
         raft::device_span<vertex_t const>{vertices.data(), vertices.size()},
@@ -338,7 +337,7 @@ struct has_vertex_functor : public cugraph::c_api::abstract_functor {
       }
 
       if (invalid_count == 0) { result_ = bool_t::TRUE; }
-      #endif
+#endif
     }
   }
 };
@@ -421,14 +420,14 @@ extern "C" cugraph_error_code_t cugraph_count_multi_edges(const cugraph_resource
   return cugraph::c_api::run_algorithm(graph, functor, result, error);
 }
 
-extern "C" cugraph_error_code_t cugraph_has_vertex(const cugraph_resource_handle_t* handle,
-                                                   cugraph_graph_t* graph,
-                                                   cugraph_type_erased_device_array_view_t* vertices,
-                                                   bool_t do_expensive_check,
-                                                   bool_t* result,
-                                                   cugraph_error_t** error)
+extern "C" cugraph_error_code_t cugraph_has_vertex(
+  const cugraph_resource_handle_t* handle,
+  cugraph_graph_t* graph,
+  cugraph_type_erased_device_array_view_t* vertices,
+  bool_t do_expensive_check,
+  bool_t* result,
+  cugraph_error_t** error)
 {
-
   CAPI_EXPECTS(
     reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)->vertex_type_ ==
       reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(vertices)
