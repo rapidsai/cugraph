@@ -51,6 +51,7 @@ from pylibcugraph.graphs cimport (
 from pylibcugraph.utils cimport (
     assert_success,
     copy_to_cupy_array,
+    get_numpy_type_from_c_type,
 )
 
 
@@ -128,8 +129,12 @@ def sssp(ResourceHandle resource_handle,
     array([-1, -1,  1,  2], dtype=int32)
     """
 
+    vertex_type = get_numpy_type_from_c_type(graph.vertex_type)
+
+    cp_source = cupy.asarray([source], dtype=vertex_type)
+
     # Check if sources are valid
-    if not pylibcugraph.has_vertex(resource_handle, graph, source, do_expensive_check):
+    if not all(pylibcugraph.has_vertex(resource_handle, graph, cp_source, do_expensive_check)):
         raise ValueError(f"vertex {source} is not valid.")
 
     if compute_predecessors is False:

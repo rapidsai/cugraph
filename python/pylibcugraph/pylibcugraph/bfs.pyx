@@ -148,9 +148,10 @@ def bfs(ResourceHandle handle, _GPUGraph graph,
     assert_CAI_type(sources, "sources")
 
     # Check if sources are valid
-    for v in sources.values_host:
-        if not pylibcugraph.has_vertex(handle, graph, v, do_expensive_check):
-            raise ValueError(f"vertex {v} is not valid.")
+    if not all(pylibcugraph.has_vertex(handle, graph, sources, do_expensive_check)):
+        raise ValueError(
+            f"one or more vertices are invalid. Call the method 'has_vertex' ",
+            f"to identify the invalid vertices")
     if depth_limit <= 0:
         depth_limit = INT_MAX - 1
 
