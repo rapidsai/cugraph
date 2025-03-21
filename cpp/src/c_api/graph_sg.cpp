@@ -279,30 +279,29 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
 
         vertices.shrink_to_fit(handle_.get_stream());
 
-        rmm::device_uvector<vertex_t> tmp_edgelist_dsts(
-          edgelist_dsts.size(), handle_.get_stream());
-        
+        rmm::device_uvector<vertex_t> tmp_edgelist_dsts(edgelist_dsts.size(), handle_.get_stream());
+
         raft::copy<vertex_t>(tmp_edgelist_dsts.data(),
                              edgelist_dsts.data(),
                              edgelist_dsts.size(),
                              handle_.get_stream());
-        
-        cugraph::detail::sort_ints(handle_.get_stream(),
-                                   raft::device_span<vertex_t>{
-                                    tmp_edgelist_dsts.data(), tmp_edgelist_dsts.size()});
-        
+
+        cugraph::detail::sort_ints(
+          handle_.get_stream(),
+          raft::device_span<vertex_t>{tmp_edgelist_dsts.data(), tmp_edgelist_dsts.size()});
+
         size_t unique_edgelist_dsts_size = cugraph::detail::unique_ints(
           handle_.get_stream(),
           raft::device_span<vertex_t>{tmp_edgelist_dsts.data(), tmp_edgelist_dsts.size()});
-        
-        
+
         tmp_edgelist_dsts.resize(unique_edgelist_dsts_size, handle_.get_stream());
 
         tmp_edgelist_dsts.shrink_to_fit(handle_.get_stream());
 
-        vertices.resize(unique_edgelist_srcs_size + unique_edgelist_dsts_size, handle_.get_stream());
+        vertices.resize(unique_edgelist_srcs_size + unique_edgelist_dsts_size,
+                        handle_.get_stream());
         vertices.shrink_to_fit(handle_.get_stream());
-        
+
         raft::copy<vertex_t>(vertices.data() + unique_edgelist_srcs_size,
                              tmp_edgelist_dsts.data(),
                              tmp_edgelist_dsts.size(),
