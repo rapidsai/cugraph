@@ -104,5 +104,4 @@ def has_vertex(ResourceHandle resource_handle,
 
     cupy_has_vertex = copy_to_cupy_array(c_resource_handle_ptr, result_view_ptr)
 
-
     return cupy_has_vertex

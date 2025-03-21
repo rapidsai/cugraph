@@ -20,7 +20,6 @@ from libc.stdint cimport uintptr_t
 from libc.stdint cimport int32_t
 from libc.limits cimport INT_MAX
 
-import pylibcugraph
 from pylibcugraph.resource_handle cimport ResourceHandle
 from pylibcugraph._cugraph_c.algorithms cimport (
     cugraph_bfs,
