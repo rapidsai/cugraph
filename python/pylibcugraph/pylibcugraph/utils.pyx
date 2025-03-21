@@ -118,6 +118,8 @@ cdef get_numpy_type_from_c_type(cugraph_data_type_id_t c_type):
         return numpy.float64
     elif c_type == cugraph_data_type_id_t.SIZE_T:
         return numpy.int64
+    elif c_type == cugraph_data_type_id_t.BOOL:
+        return numpy.bool
     else:
         raise RuntimeError("Internal error: got invalid data type enum value "
                            f"from C: {c_type}")

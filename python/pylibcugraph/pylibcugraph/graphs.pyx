@@ -29,6 +29,9 @@ from pylibcugraph._cugraph_c.graph cimport (
     cugraph_graph_create_sg_from_csr,
     cugraph_graph_free,
 )
+from pylibcugraph._cugraph_c.array cimport (
+    cugraph_type_erased_device_array_view_type,
+)
 from pylibcugraph.resource_handle cimport (
     ResourceHandle,
 )
@@ -197,6 +200,13 @@ cdef class SGGraph(_GPUGraph):
             create_cugraph_type_erased_device_array_view_from_py_obj(
                 vertices_array
             )
+        
+        self.vertex_type = cugraph_type_erased_device_array_view_type(
+            srcs_or_offsets_view_ptr)
+
+        print("vertex_type = ", self.vertex_type)
+        #self.vertex_type = "int32"
+
         self.weights_view_ptr = create_cugraph_type_erased_device_array_view_from_py_obj(
                 weight_array
             )
