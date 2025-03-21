@@ -289,6 +289,17 @@ temporal_neighbor_sample_impl(
                                  frontier_vertex_times_current_subset.begin(),
                                  edge_src_times.mutable_view());
 
+#if 1
+        raft::print_device_vector("frontier_vertices_view",
+                                  frontier_vertices_view.data(),
+                                  frontier_vertices_view.size(),
+                                  std::cout);
+        raft::print_device_vector("frontier_vertex_times_current_subset",
+                                  frontier_vertex_times_current_subset.data(),
+                                  frontier_vertex_times_current_subset.size(),
+                                  std::cout);
+#endif
+
         // FIXME: Need to use transform_e, would be more efficient to pass in vertex frontier,
         //   but that doesn't exist today
         // NOTE: using graph_view as input here since to avoid read/write conflicts on edge mask
@@ -299,6 +310,14 @@ temporal_neighbor_sample_impl(
           cugraph::edge_dst_dummy_property_t{}.view(),
           edge_start_time_view,
           [] __device__(auto src, auto dst, auto src_time, auto, auto edge_start_time) {
+#if 1
+            if (src == 380)
+              printf("  edge (%d,%d, src_time = %d, edge_start_time = %d)\n",
+                     (int)src,
+                     (int)dst,
+                     (int)src_time,
+                     (int)edge_start_time);
+#endif
             return edge_start_time > src_time;
           },
           edge_time_mask.mutable_view(),
@@ -468,15 +487,13 @@ temporal_neighbor_sample_impl(
       frontier_vertex_labels_view = raft::device_span<label_t const>{
         frontier_vertex_labels->data(), frontier_vertex_labels->size()};
 
-#if 0
-        raft::print_device_vector("      frontier_vertices",
-          frontier_vertices.data(),
-          frontier_vertices.size(),
-          std::cout);
-          raft::print_device_vector("      frontier_vertex_times",
-            frontier_vertex_times->data(),
-            frontier_vertex_times->size(),
-            std::cout);
+#if 1
+    raft::print_device_vector(
+      "      frontier_vertices", frontier_vertices.data(), frontier_vertices.size(), std::cout);
+    raft::print_device_vector("      frontier_vertex_times",
+                              frontier_vertex_times->data(),
+                              frontier_vertex_times->size(),
+                              std::cout);
 #endif
   }
 

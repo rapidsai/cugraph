@@ -293,14 +293,33 @@ class Tests_Temporal_Neighbor_Sampling
       if (wgt_compare)
         raft::print_device_vector(
           "wgt_compare", wgt_compare->data(), wgt_compare->size(), std::cout);
+#endif
 
+#if 1
       raft::print_device_vector("src_out", src_out.data(), src_out.size(), std::cout);
       raft::print_device_vector("dst_out", dst_out.data(), dst_out.size(), std::cout);
       if (wgt_out)
         raft::print_device_vector("wgt_out", wgt_out->data(), wgt_out->size(), std::cout);
 #endif
       ASSERT_TRUE(cugraph::test::validate_extracted_graph_is_subgraph(
-        handle, src_compare, dst_compare, wgt_compare, src_out, dst_out, wgt_out));
+        handle,
+        raft::device_span<vertex_t const>{src_compare.data(), src_compare.size()},
+        raft::device_span<vertex_t const>{dst_compare.data(), dst_compare.size()},
+        wgt_compare ? std::make_optional(
+                        raft::device_span<weight_t const>{wgt_compare->data(), wgt_compare->size()})
+                    : std::nullopt,
+        raft::device_span<vertex_t const>{src_out.data(), src_out.size()},
+        raft::device_span<vertex_t const>{dst_out.data(), dst_out.size()},
+        wgt_out
+          ? std::make_optional(raft::device_span<weight_t const>{wgt_out->data(), wgt_out->size()})
+          : std::nullopt));
+
+      ASSERT_TRUE(cugraph::test::validate_temporal_integrity(
+        handle,
+        raft::device_span<vertex_t const>{src_out.data(), src_out.size()},
+        raft::device_span<const vertex_t>{dst_out.data(), dst_out.size()},
+        raft::device_span<const edge_time_t>{edge_start_time->data(), edge_start_time->size()},
+        raft::device_span<const vertex_t>{random_sources.data(), random_sources.size()}));
 
       if (random_sources.size() < 100) {
         // This validation is too expensive for large number of vertices

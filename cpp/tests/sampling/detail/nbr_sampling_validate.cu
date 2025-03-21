@@ -14,6 +14,9 @@
  * limitations under the License.
  */
 
+#include "thrust/binary_search.h"
+#include "thrust/functional.h"
+#include "thrust/reduce.h"
 #include "utilities/test_graphs.hpp"
 #include "utilities/thrust_wrapper.hpp"
 
@@ -23,6 +26,7 @@
 #include <cugraph/graph_view.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
 
+#include <raft/core/device_span.hpp>
 #include <raft/core/handle.hpp>
 #if 1
 #include <raft/util/cudart_utils.hpp>
@@ -45,11 +49,11 @@
 #include <thrust/tuple.h>
 #include <thrust/unique.h>
 
-#include <algorithm>
 #include <functional>
 #include <iostream>
 #include <iterator>
 #include <numeric>
+#include <optional>
 #include <queue>
 #include <random>
 #include <tuple>
@@ -109,12 +113,12 @@ struct ArithmeticZipEqual {
 template <typename vertex_t, typename weight_t>
 bool validate_extracted_graph_is_subgraph(
   raft::handle_t const& handle,
-  rmm::device_uvector<vertex_t> const& src,
-  rmm::device_uvector<vertex_t> const& dst,
-  std::optional<rmm::device_uvector<weight_t>> const& wgt,
-  rmm::device_uvector<vertex_t> const& subgraph_src,
-  rmm::device_uvector<vertex_t> const& subgraph_dst,
-  std::optional<rmm::device_uvector<weight_t>> const& subgraph_wgt)
+  raft::device_span<vertex_t const> src,
+  raft::device_span<vertex_t const> dst,
+  std::optional<raft::device_span<weight_t const>> wgt,
+  raft::device_span<vertex_t const> subgraph_src,
+  raft::device_span<vertex_t const> subgraph_dst,
+  std::optional<raft::device_span<weight_t const>> subgraph_wgt)
 {
   if (wgt.has_value() != subgraph_wgt.has_value()) { return false; }
 
@@ -203,39 +207,39 @@ bool validate_extracted_graph_is_subgraph(
 
 template bool validate_extracted_graph_is_subgraph(
   raft::handle_t const& handle,
-  rmm::device_uvector<int32_t> const& src,
-  rmm::device_uvector<int32_t> const& dst,
-  std::optional<rmm::device_uvector<float>> const& wgt,
-  rmm::device_uvector<int32_t> const& subgraph_src,
-  rmm::device_uvector<int32_t> const& subgraph_dst,
-  std::optional<rmm::device_uvector<float>> const& subgraph_wgt);
+  raft::device_span<int32_t const> src,
+  raft::device_span<int32_t const> dst,
+  std::optional<raft::device_span<float const>> wgt,
+  raft::device_span<int32_t const> subgraph_src,
+  raft::device_span<int32_t const> subgraph_dst,
+  std::optional<raft::device_span<float const>> subgraph_wgt);
 
 template bool validate_extracted_graph_is_subgraph(
   raft::handle_t const& handle,
-  rmm::device_uvector<int32_t> const& src,
-  rmm::device_uvector<int32_t> const& dst,
-  std::optional<rmm::device_uvector<double>> const& wgt,
-  rmm::device_uvector<int32_t> const& subgraph_src,
-  rmm::device_uvector<int32_t> const& subgraph_dst,
-  std::optional<rmm::device_uvector<double>> const& subgraph_wgt);
+  raft::device_span<int32_t const> src,
+  raft::device_span<int32_t const> dst,
+  std::optional<raft::device_span<double const>> wgt,
+  raft::device_span<int32_t const> subgraph_src,
+  raft::device_span<int32_t const> subgraph_dst,
+  std::optional<raft::device_span<double const>> subgraph_wgt);
 
 template bool validate_extracted_graph_is_subgraph(
   raft::handle_t const& handle,
-  rmm::device_uvector<int64_t> const& src,
-  rmm::device_uvector<int64_t> const& dst,
-  std::optional<rmm::device_uvector<float>> const& wgt,
-  rmm::device_uvector<int64_t> const& subgraph_src,
-  rmm::device_uvector<int64_t> const& subgraph_dst,
-  std::optional<rmm::device_uvector<float>> const& subgraph_wgt);
+  raft::device_span<int64_t const> src,
+  raft::device_span<int64_t const> dst,
+  std::optional<raft::device_span<float const>> wgt,
+  raft::device_span<int64_t const> subgraph_src,
+  raft::device_span<int64_t const> subgraph_dst,
+  std::optional<raft::device_span<float const>> subgraph_wgt);
 
 template bool validate_extracted_graph_is_subgraph(
   raft::handle_t const& handle,
-  rmm::device_uvector<int64_t> const& src,
-  rmm::device_uvector<int64_t> const& dst,
-  std::optional<rmm::device_uvector<double>> const& wgt,
-  rmm::device_uvector<int64_t> const& subgraph_src,
-  rmm::device_uvector<int64_t> const& subgraph_dst,
-  std::optional<rmm::device_uvector<double>> const& subgraph_wgt);
+  raft::device_span<int64_t const> src,
+  raft::device_span<int64_t const> dst,
+  std::optional<raft::device_span<double const>> wgt,
+  raft::device_span<int64_t const> subgraph_src,
+  raft::device_span<int64_t const> subgraph_dst,
+  std::optional<raft::device_span<double const>> subgraph_wgt);
 
 template <typename vertex_t, typename weight_t>
 bool validate_sampling_depth(raft::handle_t const& handle,
@@ -342,6 +346,118 @@ template bool validate_sampling_depth(raft::handle_t const& handle,
                                       std::optional<rmm::device_uvector<double>>&& d_wgt,
                                       rmm::device_uvector<int64_t>&& d_source_vertices,
                                       int max_depth);
+
+template <typename vertex_t, typename edge_time_t>
+bool validate_temporal_integrity(raft::handle_t const& handle,
+                                 raft::device_span<vertex_t const> srcs,
+                                 raft::device_span<vertex_t const> dsts,
+                                 raft::device_span<edge_time_t const> edge_times,
+                                 raft::device_span<vertex_t const> source_vertices)
+{
+  // Sampling doesn't return paths.  All I can do is determine if an edge
+  // with time t could have been legally selected, not whether it was correct to
+  // actually be selected.
+
+  // for each entry in srcs that is not in source_vertices, there needs to exist
+  // an entry in dsts that has a corresponding edge_time less than the time for this src.
+  //
+  //  I think I can do the following:
+  //    1) compute  the minimum edge_time for each dst
+  //    2) Foreach src, search for dst in minimum time tuple.  If it exists check the time, if it
+  //    does not exist verify that it exists in source_vertices
+
+  rmm::device_uvector<vertex_t> sorted_dsts(dsts.size(), handle.get_stream());
+  rmm::device_uvector<edge_time_t> sorted_dst_times(edge_times.size(), handle.get_stream());
+
+  raft::copy(sorted_dsts.begin(), dsts.begin(), dsts.size(), handle.get_stream());
+  raft::copy(sorted_dst_times.begin(), edge_times.begin(), edge_times.size(), handle.get_stream());
+
+  thrust::sort(handle.get_thrust_policy(),
+               thrust::make_zip_iterator(sorted_dsts.begin(), sorted_dst_times.begin()),
+               thrust::make_zip_iterator(sorted_dsts.end(), sorted_dst_times.end()));
+
+  sorted_dsts.resize(thrust::distance(sorted_dsts.begin(),
+                                      thrust::reduce_by_key(handle.get_thrust_policy(),
+                                                            sorted_dsts.begin(),
+                                                            sorted_dsts.end(),
+                                                            sorted_dst_times.begin(),
+                                                            sorted_dsts.begin(),
+                                                            sorted_dst_times.begin(),
+                                                            thrust::equal_to<vertex_t>(),
+                                                            thrust::minimum<edge_time_t>())
+                                        .first),
+                     handle.get_stream());
+  sorted_dst_times.resize(sorted_dsts.size(), handle.get_stream());
+
+  raft::print_device_vector(
+    "source_vertices", source_vertices.data(), source_vertices.size(), std::cout);
+
+  thrust::for_each(handle.get_thrust_policy(),
+                   thrust::make_zip_iterator(srcs.begin(), dsts.begin(), edge_times.begin()),
+                   thrust::make_zip_iterator(srcs.end(), dsts.end(), edge_times.end()),
+                   [] __device__(auto tup) {
+                     auto s = thrust::get<0>(tup);
+                     auto d = thrust::get<1>(tup);
+                     auto t = thrust::get<2>(tup);
+                     if ((s == 380) || (d == 380)) {
+                       printf("  (%d,%d,%d)\n", (int)s, (int)d, (int)t);
+                     }
+                   });
+
+  auto error_count = thrust::count_if(
+    handle.get_thrust_policy(),
+    thrust::make_zip_iterator(srcs.begin(), edge_times.begin()),
+    thrust::make_zip_iterator(srcs.end(), edge_times.end()),
+    [min_dsts = raft::device_span<vertex_t const>{sorted_dsts.data(), sorted_dsts.size()},
+     min_dst_times =
+       raft::device_span<edge_time_t const>{sorted_dst_times.data(), sorted_dst_times.size()},
+     source_vertices] __device__(auto t) {
+      vertex_t src     = thrust::get<0>(t);
+      edge_time_t time = thrust::get<1>(t);
+
+      auto pos = thrust::lower_bound(thrust::seq, min_dsts.begin(), min_dsts.end(), src);
+      if ((pos == min_dsts.end()) || (*pos != src)) {
+        // source never used as a destination, verify that it was a source
+        printf("src (%d) not found as a dst\n", (int)src);
+        return thrust::find(thrust::seq, source_vertices.begin(), source_vertices.end(), src) ==
+               source_vertices.end();
+      } else {
+        printf(
+          "  comparing times, edge (%d, %d) has time %d, minimum time for previous edge was %d\n",
+          (int)src,
+          -1,
+          (int)time,
+          (int)min_dst_times[thrust::distance(min_dsts.begin(), pos)]);
+        return time < min_dst_times[thrust::distance(min_dsts.begin(), pos)];
+      }
+    });
+
+  return error_count == 0;
+}
+
+template bool validate_temporal_integrity(raft::handle_t const& handle,
+                                          raft::device_span<int32_t const> src,
+                                          raft::device_span<int32_t const> dst,
+                                          raft::device_span<int32_t const> edge_time,
+                                          raft::device_span<int32_t const> source_vertices);
+
+template bool validate_temporal_integrity(raft::handle_t const& handle,
+                                          raft::device_span<int32_t const> src,
+                                          raft::device_span<int32_t const> dst,
+                                          raft::device_span<int64_t const> edge_time,
+                                          raft::device_span<int32_t const> source_vertices);
+
+template bool validate_temporal_integrity(raft::handle_t const& handle,
+                                          raft::device_span<int64_t const> src,
+                                          raft::device_span<int64_t const> dst,
+                                          raft::device_span<int32_t const> edge_time,
+                                          raft::device_span<int64_t const> source_vertices);
+
+template bool validate_temporal_integrity(raft::handle_t const& handle,
+                                          raft::device_span<int64_t const> src,
+                                          raft::device_span<int64_t const> dst,
+                                          raft::device_span<int64_t const> edge_time,
+                                          raft::device_span<int64_t const> source_vertices);
 
 }  // namespace test
 }  // namespace cugraph
