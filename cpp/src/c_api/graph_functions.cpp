@@ -321,8 +321,9 @@ struct has_vertex_functor : public cugraph::c_api::abstract_functor {
         raft::device_span<vertex_t>{vertices.data(), vertices.size()},
         cugraph::invalid_vertex_id<vertex_t>::value,
         handle_.get_stream());
-      
-      result_ = new cugraph::c_api::cugraph_type_erased_device_array_t(vertices, graph_->vertex_type_);
+
+      result_ =
+        new cugraph::c_api::cugraph_type_erased_device_array_t(vertices, graph_->vertex_type_);
     }
   }
 };

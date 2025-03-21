@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2024, NVIDIA CORPORATION.
+# Copyright (c) 2022-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -200,7 +200,7 @@ cdef class SGGraph(_GPUGraph):
             create_cugraph_type_erased_device_array_view_from_py_obj(
                 vertices_array
             )
-        
+
         self.vertex_type = cugraph_type_erased_device_array_view_type(
             srcs_or_offsets_view_ptr)
 
