@@ -102,6 +102,20 @@ void transform_increment_ints(raft::device_span<value_t> values,
 }
 
 template <typename value_t>
+void transform_binary(raft::device_span<value_t> values,
+                      value_t target_value,
+                      raft::handle_t const& handle)
+{
+  thrust::transform(handle.get_thrust_policy(),
+                    values.begin(),
+                    values.end(),
+                    values.begin(),
+                    cuda::proclaim_return_type<value_t>([target_value] __device__(value_t value) {
+                      return target_value == value ? static_cast<value_t>(0) : static_cast<value_t>(1);
+                    }));
+}
+
+template <typename value_t>
 void stride_fill(rmm::cuda_stream_view const& stream_view,
                  value_t* d_value,
                  size_t size,

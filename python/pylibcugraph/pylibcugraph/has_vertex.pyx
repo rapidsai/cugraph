@@ -27,7 +27,6 @@ from pylibcugraph._cugraph_c.error cimport (
 )
 from pylibcugraph._cugraph_c.array cimport (
     cugraph_type_erased_device_array_view_t,
-    cugraph_type_erased_device_array_view_free,
 )
 from pylibcugraph._cugraph_c.graph_functions cimport (
     cugraph_has_vertex
@@ -43,17 +42,17 @@ from pylibcugraph.graphs cimport (
 )
 from pylibcugraph.utils cimport (
     assert_success,
-    copy_to_cupy_array,
+    assert_CAI_type,
     create_cugraph_type_erased_device_array_view_from_py_obj
 )
 
 
 def has_vertex(ResourceHandle resource_handle,
                _GPUGraph graph,
-               vertex,
+               vertices,
                bool_t do_expensive_check):
     """
-        Verify if a vertex exists in the graph
+        Verify if vertices exists in the graph
 
         Parameters
         ----------
@@ -64,17 +63,24 @@ def has_vertex(ResourceHandle resource_handle,
         graph : SGGraph or MGGraph
             The input graph, for either Single or Multi-GPU operations.
 
-        vertex : int
-                 vertex to be queried
+        vertices : device array type
+                 array of vertices to be queried
 
         Returns
         -------
         Return 'True' if the vertex exists in the graph or 'False'
     """
 
+    assert_CAI_type(vertices, "vertices")
+
     cdef cugraph_resource_handle_t* c_resource_handle_ptr = \
         resource_handle.c_resource_handle_ptr
     cdef cugraph_graph_t* c_graph_ptr = graph.c_graph_ptr
+
+    cdef cugraph_type_erased_device_array_view_t* \
+        vertices_view_ptr = \
+            create_cugraph_type_erased_device_array_view_from_py_obj(
+                vertices)
 
     cdef bool_t result;
     cdef cugraph_error_code_t error_code
@@ -82,7 +88,7 @@ def has_vertex(ResourceHandle resource_handle,
 
     error_code = cugraph_has_vertex(c_resource_handle_ptr,
                                     c_graph_ptr,
-                                    vertex,
+                                    vertices_view_ptr,
                                     do_expensive_check,
                                     &result,
                                     &error_ptr)

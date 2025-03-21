@@ -117,6 +117,22 @@ void transform_increment_ints(raft::device_span<value_t> values,
 
 /**
  * @ingroup utility_wrappers_cpp
+ * @brief    Update a value in a device span to 0 if it matches the target_value or 1
+ *
+ * @tparam      value_t      type of the value to operate on. Must be either int32_t or int64_t.
+ *
+ * @param[out]  values       device span to update
+ * @param[in]   target_value        value to be querried
+ * @param[in]   stream_view  stream view
+ *
+ */
+template <typename value_t>
+void transform_binary(raft::device_span<value_t> values,
+                      value_t target_value,
+                      raft::handle_t const& handle);
+
+/**
+ * @ingroup utility_wrappers_cpp
  * @brief    Fill a buffer with a sequence of values
  *
  * Fills the buffer with the sequence:

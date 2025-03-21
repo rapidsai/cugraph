@@ -81,6 +81,10 @@ template void transform_increment_ints(raft::device_span<int32_t> values,
                                        int32_t value,
                                        rmm::cuda_stream_view const& stream_view);
 
+template void transform_binary(raft::device_span<int32_t> values,
+                               int32_t target_value,
+                               raft::handle_t const& handle);
+
 template void stride_fill(rmm::cuda_stream_view const& stream_view,
                           int32_t* d_value,
                           size_t size,
