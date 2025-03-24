@@ -300,7 +300,6 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
 
         vertices.resize(unique_edgelist_srcs_size + unique_edgelist_dsts_size,
                         handle_.get_stream());
-        vertices.shrink_to_fit(handle_.get_stream());
 
         raft::copy<vertex_t>(vertices.data() + unique_edgelist_srcs_size,
                              tmp_edgelist_dsts.data(),
@@ -365,8 +364,6 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
             "Vertex list must be numbered consecutively from 0 when 'renumber' is 'false'");
           return;
         }
-
-        *number_map = std::move(vertices);
       }
 
       if (new_edge_weights) { *edge_weights = std::move(new_edge_weights.value()); }
