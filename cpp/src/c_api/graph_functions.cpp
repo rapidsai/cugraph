@@ -302,12 +302,6 @@ struct has_vertex_functor : public cugraph::c_api::abstract_functor {
       raft::copy(
         vertices.data(), vertices_->as_type<vertex_t>(), vertices_->size_, handle_.get_stream());
 
-      /*
-      if constexpr (multi_gpu) {
-        vertices = cugraph::shuffle_ext_vertices(handle_, std::move(vertices));
-      }
-      */
-
       cugraph::renumber_ext_vertices<vertex_t, multi_gpu>(
         handle_,
         vertices.data(),
@@ -316,14 +310,17 @@ struct has_vertex_functor : public cugraph::c_api::abstract_functor {
         graph_view.local_vertex_partition_range_first(),
         graph_view.local_vertex_partition_range_last(),
         do_expensive_check_);
+      
+      rmm::device_uvector<bool> vertex_check(vertices.size(), handle_.get_stream());
 
-      cugraph::detail::transform_binary(
+      cugraph::detail::transform_not_equal(
         raft::device_span<vertex_t>{vertices.data(), vertices.size()},
+        raft::device_span<bool>{vertex_check.data(), vertex_check.size()},
         cugraph::invalid_vertex_id<vertex_t>::value,
         handle_.get_stream());
 
       result_ =
-        new cugraph::c_api::cugraph_type_erased_device_array_t(vertices, graph_->vertex_type_);
+        new cugraph::c_api::cugraph_type_erased_device_array_t(vertex_check, cugraph_data_type_id_t::BOOL);
     }
   }
 };

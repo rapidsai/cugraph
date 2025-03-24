@@ -79,8 +79,9 @@ template void transform_increment_ints(raft::device_span<int64_t> values,
                                        int64_t value,
                                        rmm::cuda_stream_view const& stream_view);
 
-template void transform_binary(raft::device_span<int64_t> values,
-                               int64_t target_value,
+template void transform_not_equal(raft::device_span<int64_t> values,
+                               raft::device_span<bool> result,
+                               int64_t compare,
                                raft::handle_t const& handle);
 
 template void stride_fill(rmm::cuda_stream_view const& stream_view,
