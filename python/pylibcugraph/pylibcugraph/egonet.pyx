@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2024, NVIDIA CORPORATION.
+# Copyright (c) 2022-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -106,7 +106,6 @@ def ego_graph(ResourceHandle resource_handle,
     ...     store_transposed=False, renumber=False, do_expensive_check=False)
     >>> (sources, destinations, edge_weights, subgraph_offsets) =
     ...     pylibcugraph.ego_graph(resource_handle, G, source_vertices, 2, False)
-    # FIXME: update results
     >>> sources
     [0, 1, 1, 3, 1, 1, 3, 3, 4]
     >>> destinations
