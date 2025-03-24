@@ -310,7 +310,7 @@ struct has_vertex_functor : public cugraph::c_api::abstract_functor {
         graph_view.local_vertex_partition_range_first(),
         graph_view.local_vertex_partition_range_last(),
         do_expensive_check_);
-      
+
       rmm::device_uvector<bool> vertex_check(vertices.size(), handle_.get_stream());
 
       cugraph::detail::transform_not_equal(
@@ -319,8 +319,8 @@ struct has_vertex_functor : public cugraph::c_api::abstract_functor {
         cugraph::invalid_vertex_id<vertex_t>::value,
         handle_.get_stream());
 
-      result_ =
-        new cugraph::c_api::cugraph_type_erased_device_array_t(vertex_check, cugraph_data_type_id_t::BOOL);
+      result_ = new cugraph::c_api::cugraph_type_erased_device_array_t(
+        vertex_check, cugraph_data_type_id_t::BOOL);
     }
   }
 };

@@ -130,9 +130,9 @@ void transform_increment_ints(raft::device_span<value_t> values,
  */
 template <typename value_t>
 void transform_not_equal(raft::device_span<value_t> values,
-                      raft::device_span<bool> result,
-                      value_t compare,
-                      raft::handle_t const& handle);
+                         raft::device_span<bool> result,
+                         value_t compare,
+                         raft::handle_t const& handle);
 
 /**
  * @ingroup utility_wrappers_cpp

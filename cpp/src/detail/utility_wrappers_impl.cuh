@@ -103,17 +103,16 @@ void transform_increment_ints(raft::device_span<value_t> values,
 
 template <typename value_t>
 void transform_not_equal(raft::device_span<value_t> values,
-                      raft::device_span<bool> result,
-                      value_t compare,
-                      raft::handle_t const& handle)
+                         raft::device_span<bool> result,
+                         value_t compare,
+                         raft::handle_t const& handle)
 {
   thrust::transform(handle.get_thrust_policy(),
                     values.begin(),
                     values.end(),
                     result.begin(),
-                    cuda::proclaim_return_type<bool>([compare] __device__(value_t value) {
-                      return compare != value;
-                    }));
+                    cuda::proclaim_return_type<bool>(
+                      [compare] __device__(value_t value) { return compare != value; }));
 }
 
 template <typename value_t>
