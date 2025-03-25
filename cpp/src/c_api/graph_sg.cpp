@@ -263,58 +263,7 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
       std::optional<rmm::device_uvector<edge_time_t>> dummy_start_times{std::nullopt};
       std::optional<rmm::device_uvector<edge_time_t>> dummy_end_times{std::nullopt};
 
-      rmm::device_uvector<vertex_t> vertices(edgelist_srcs.size(), handle_.get_stream());
-
-      if (!renumber_) {
-        raft::copy<vertex_t>(
-          vertices.data(), edgelist_srcs.data(), edgelist_srcs.size(), handle_.get_stream());
-
-        cugraph::detail::sort_ints(handle_.get_stream(),
-                                   raft::device_span<vertex_t>{vertices.data(), vertices.size()});
-
-        size_t unique_edgelist_srcs_size = cugraph::detail::unique_ints(
-          handle_.get_stream(), raft::device_span<vertex_t>{vertices.data(), vertices.size()});
-
-        vertices.resize(unique_edgelist_srcs_size, handle_.get_stream());
-
-        vertices.shrink_to_fit(handle_.get_stream());
-
-        rmm::device_uvector<vertex_t> tmp_edgelist_dsts(edgelist_dsts.size(), handle_.get_stream());
-
-        raft::copy<vertex_t>(tmp_edgelist_dsts.data(),
-                             edgelist_dsts.data(),
-                             edgelist_dsts.size(),
-                             handle_.get_stream());
-
-        cugraph::detail::sort_ints(
-          handle_.get_stream(),
-          raft::device_span<vertex_t>{tmp_edgelist_dsts.data(), tmp_edgelist_dsts.size()});
-
-        size_t unique_edgelist_dsts_size = cugraph::detail::unique_ints(
-          handle_.get_stream(),
-          raft::device_span<vertex_t>{tmp_edgelist_dsts.data(), tmp_edgelist_dsts.size()});
-
-        tmp_edgelist_dsts.resize(unique_edgelist_dsts_size, handle_.get_stream());
-
-        tmp_edgelist_dsts.shrink_to_fit(handle_.get_stream());
-
-        vertices.resize(unique_edgelist_srcs_size + unique_edgelist_dsts_size,
-                        handle_.get_stream());
-
-        raft::copy<vertex_t>(vertices.data() + unique_edgelist_srcs_size,
-                             tmp_edgelist_dsts.data(),
-                             tmp_edgelist_dsts.size(),
-                             handle_.get_stream());
-
-        cugraph::detail::sort_ints(handle_.get_stream(),
-                                   raft::device_span<vertex_t>{vertices.data(), vertices.size()});
-
-        size_t unique_vertices_size = cugraph::detail::unique_ints(
-          handle_.get_stream(), raft::device_span<vertex_t>{vertices.data(), vertices.size()});
-
-        vertices.resize(unique_vertices_size, handle_.get_stream());
-        vertices.shrink_to_fit(handle_.get_stream());
-      }
+        
 
       std::tie(*graph,
                new_edge_weights,
@@ -345,24 +294,33 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
       if (renumber_) {
         *number_map = std::move(new_number_map.value());
       } else {
-        // Ensure vertices are numbered consecutively
 
         number_map->resize(graph->number_of_vertices(), handle_.get_stream());
         cugraph::detail::sequence_fill(handle_.get_stream(),
                                        number_map->data(),
                                        number_map->size(),
                                        graph->view().local_vertex_partition_range_first());
+        
+        if (vertices_) {
+          vertex_list = rmm::device_uvector<vertex_t>(vertices_->size_, handle_.get_stream());
+          raft::copy<vertex_t>(vertex_list->data(),
+                             vertices_->as_type<vertex_t>(),
+                             vertices_->size_,
+                             handle_.get_stream());
+          
+          auto is_consecutive = cugraph::detail::is_equal(
+            handle_.get_stream(),
+            raft::device_span<vertex_t>{vertex_list->data(), vertex_list->size()},
+            raft::device_span<vertex_t>{number_map->data(), number_map->size()});
 
-        auto is_consecutive = cugraph::detail::is_equal(
-          handle_.get_stream(),
-          raft::device_span<vertex_t>{vertices.data(), vertices.size()},
-          raft::device_span<vertex_t>{number_map->data(), number_map->size()});
-
-        if (!is_consecutive) {
-          mark_error(
-            CUGRAPH_INVALID_INPUT,
-            "Vertex list must be numbered consecutively from 0 when 'renumber' is 'false'");
-          return;
+          if (!is_consecutive) {
+            mark_error(
+              CUGRAPH_INVALID_INPUT,
+              "Vertex list must be numbered consecutively from 0 when 'renumber' is 'false'");
+            return;
+          }
+        
+        
         }
       }
 
