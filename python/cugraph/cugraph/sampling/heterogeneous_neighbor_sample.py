@@ -14,6 +14,7 @@
 import cudf
 from pylibcugraph import ResourceHandle
 from pylibcugraph import (
+    heterogeneous_uniform_neighbor_sample as pylibcugraph_heterogeneous_uniform_neighbor_sample,
     heterogeneous_biased_neighbor_sample as pylibcugraph_heterogeneous_biased_neighbor_sample,
 )
 from cugraph.sampling.sampling_utilities import sampling_results_from_cupy_array_dict
@@ -45,7 +46,7 @@ def ensure_valid_dtype(input_graph, start_list):
 
     if start_list_dtypes != vertex_dtype:
         warning_msg = (
-            "Biased neighbor sample requires 'start_list' to match the graph's "
+            "Uniform neighbor sample requires 'start_list' to match the graph's "
             f"'vertex' type. input graph's vertex type is: {vertex_dtype} and got "
             f"'start_list' of type: {start_list_dtypes}."
         )
@@ -55,7 +56,7 @@ def ensure_valid_dtype(input_graph, start_list):
     return start_list
 
 
-def heterogeneous_biased_neighbor_sample(
+def heterogeneous_uniform_neighbor_sample(
     G: Graph,
     start_list: Sequence,
     starting_vertex_label_offsets: Sequence,
@@ -64,6 +65,7 @@ def heterogeneous_biased_neighbor_sample(
     vertex_type_offsets: Sequence = None,
     num_edge_types: int = 1,
     with_replacement: bool = True,
+    with_biases: bool = False
     random_state: int = None,
     return_offsets: bool = False,
     prior_sources_behavior: str = None,
@@ -75,9 +77,9 @@ def heterogeneous_biased_neighbor_sample(
     compression: str = "COO",
 ) -> Tuple[cudf.Series, cudf.Series, Union[None, int, cudf.Series]]:
     """
-    Performs biased neighborhood sampling, which samples nodes from
+    Performs uniform neighborhood sampling, which samples nodes from
     a graph based on the current node's neighbors, with a corresponding fan_out
-    value at each hop. The edges are sampled with biased. Heterogeneous
+    value at each hop. The edges are sampled uniformly. Heterogeneous
     neighborhood sampling translates to more than 1 edge type.
 
     parameters
@@ -97,11 +99,11 @@ def heterogeneous_biased_neighbor_sample(
         List of branching out (fan-out) degrees per starting vertex for each
         hop level. The fanout value at each hop for each edge type is given by the
         relationship fanout_vals[x*num_edge_types + edge_type_id] where x is the
-        hop_id
+        hop_id.
 
         The sampling method can use different fan_out values for each edge type
         which is not the case for homogeneous neighborhood sampling (both biased
-        and biased).
+        and uniform).
     
     vertex_type_offsets: list or cudf.Series (Optional)
         Offsets for each vertex type in the graph.
@@ -113,6 +115,10 @@ def heterogeneous_biased_neighbor_sample(
 
     with_replacement: bool, optional (default=True)
         Flag to specify if the random sampling is done with replacement
+    
+    with_biases: bool, optional (default=False)
+        Flag to specify whether the edges should be sampled uniformly or with biases.
+        Only edge weights can be used as biases for now 
 
     random_state: int, optional
         Random seed to use when making sampling calls.
@@ -283,25 +289,47 @@ def heterogeneous_biased_neighbor_sample(
         else:
             start_list = G.lookup_internal_vertex_id(start_list)
 
-    sampling_result_array_dict = pylibcugraph_heterogeneous_biased_neighbor_sample(
-        resource_handle=ResourceHandle(),
-        input_graph=G._plc_graph,
-        start_vertex_list=start_list,
-        starting_vertex_label_offsets=starting_vertex_label_offsets,
-        vertex_type_offsets=vertex_type_offsets,
-        h_fan_out=fanout_vals,
-        num_edge_types=num_edge_types,
-        with_replacement=with_replacement,
-        do_expensive_check=True,
-        prior_sources_behavior=prior_sources_behavior,
-        deduplicate_sources=deduplicate_sources,
-        return_hops=return_hops,
-        renumber=renumber,
-        retain_seeds=retain_seeds,
-        compression=compression,
-        compress_per_hop=compress_per_hop,
-        random_state=random_state,
-    )
+    if with_biases:
+        sampling_result_array_dict = pylibcugraph_heterogeneous_biased_neighbor_sample(
+            resource_handle=ResourceHandle(),
+            input_graph=G._plc_graph,
+            start_vertex_list=start_list,
+            starting_vertex_label_offsets=starting_vertex_label_offsets,
+            vertex_type_offsets=vertex_type_offsets,
+            h_fan_out=fanout_vals,
+            num_edge_types=num_edge_types,
+            with_replacement=with_replacement,
+            do_expensive_check=True,
+            prior_sources_behavior=prior_sources_behavior,
+            deduplicate_sources=deduplicate_sources,
+            return_hops=return_hops,
+            renumber=renumber,
+            retain_seeds=retain_seeds,
+            compression=compression,
+            compress_per_hop=compress_per_hop,
+            random_state=random_state,
+        )
+    else:
+        sampling_result_array_dict = pylibcugraph_heterogeneous_uniform_neighbor_sample(
+            resource_handle=ResourceHandle(),
+            input_graph=G._plc_graph,
+            start_vertex_list=start_list,
+            starting_vertex_label_offsets=starting_vertex_label_offsets,
+            vertex_type_offsets=vertex_type_offsets,
+            h_fan_out=fanout_vals,
+            num_edge_types=num_edge_types,
+            with_replacement=with_replacement,
+            do_expensive_check=True,
+            prior_sources_behavior=prior_sources_behavior,
+            deduplicate_sources=deduplicate_sources,
+            return_hops=return_hops,
+            renumber=renumber,
+            retain_seeds=retain_seeds,
+            compression=compression,
+            compress_per_hop=compress_per_hop,
+            random_state=random_state,
+        )
+
 
     dfs = sampling_results_from_cupy_array_dict(
         sampling_result_array_dict,
