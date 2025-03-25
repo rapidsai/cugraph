@@ -147,6 +147,8 @@ from pylibcugraph.renumber_arbitrary_edgelist import renumber_arbitrary_edgelist
 
 from pylibcugraph.has_vertex import has_vertex
 
+from pylibcugraph.force_atlas2 import force_atlas2
+
 
 from pylibcugraph import exceptions
 
