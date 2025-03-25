@@ -370,7 +370,6 @@ def homogeneous_uniform_neighbor_sample(ResourceHandle resource_handle,
     # until all references are removed and the GC runs.
     cupy_majors = result.get_majors()
     cupy_major_offsets = result.get_major_offsets()
-    print("major_offsets = ", cupy_major_offsets)
     cupy_minors = result.get_minors()
     cupy_edge_weights = result.get_edge_weights()
     cupy_edge_ids = result.get_edge_ids()
