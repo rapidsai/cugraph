@@ -263,8 +263,6 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
       std::optional<rmm::device_uvector<edge_time_t>> dummy_start_times{std::nullopt};
       std::optional<rmm::device_uvector<edge_time_t>> dummy_end_times{std::nullopt};
 
-        
-
       std::tie(*graph,
                new_edge_weights,
                new_edge_ids,
@@ -294,20 +292,19 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
       if (renumber_) {
         *number_map = std::move(new_number_map.value());
       } else {
-
         number_map->resize(graph->number_of_vertices(), handle_.get_stream());
         cugraph::detail::sequence_fill(handle_.get_stream(),
                                        number_map->data(),
                                        number_map->size(),
                                        graph->view().local_vertex_partition_range_first());
-        
+
         if (vertices_) {
           vertex_list = rmm::device_uvector<vertex_t>(vertices_->size_, handle_.get_stream());
           raft::copy<vertex_t>(vertex_list->data(),
-                             vertices_->as_type<vertex_t>(),
-                             vertices_->size_,
-                             handle_.get_stream());
-          
+                               vertices_->as_type<vertex_t>(),
+                               vertices_->size_,
+                               handle_.get_stream());
+
           auto is_consecutive = cugraph::detail::is_equal(
             handle_.get_stream(),
             raft::device_span<vertex_t>{vertex_list->data(), vertex_list->size()},
@@ -319,8 +316,6 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
               "Vertex list must be numbered consecutively from 0 when 'renumber' is 'false'");
             return;
           }
-        
-        
         }
       }
 
