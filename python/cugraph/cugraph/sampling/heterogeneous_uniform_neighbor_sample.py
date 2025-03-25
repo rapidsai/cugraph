@@ -16,10 +16,43 @@ from pylibcugraph import ResourceHandle
 from pylibcugraph import (
     heterogeneous_uniform_neighbor_sample as pylibcugraph_heterogeneous_uniform_neighbor_sample,
 )
+from cugraph.sampling.sampling_utilities import sampling_results_from_cupy_array_dict
 
 from cugraph.structure import Graph
 
-from typing import Union, Tuple
+
+import numpy
+
+import cudf
+import cupy as cp
+import warnings
+
+from typing import Union, Tuple, Sequence, List
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from cugraph import Graph
+
+
+# FIXME: Move this function to the utility module so that it can be
+# shared by other algos
+def ensure_valid_dtype(input_graph, start_list):
+    vertex_dtype = input_graph.edgelist.edgelist_df.dtypes.iloc[0]
+    if isinstance(start_list, cudf.Series):
+        start_list_dtypes = start_list.dtype
+    else:
+        start_list_dtypes = start_list.dtypes.iloc[0]
+
+    if start_list_dtypes != vertex_dtype:
+        warning_msg = (
+            "Uniform neighbor sample requires 'start_list' to match the graph's "
+            f"'vertex' type. input graph's vertex type is: {vertex_dtype} and got "
+            f"'start_list' of type: {start_list_dtypes}."
+        )
+        warnings.warn(warning_msg, UserWarning)
+        start_list = start_list.astype(vertex_dtype)
+
+    return start_list
 
 
 def heterogeneous_uniform_neighbor_sample(
@@ -28,8 +61,11 @@ def heterogeneous_uniform_neighbor_sample(
     starting_vertex_label_offsets: Sequence,
     fanout_vals: List[int],
     *,
+    vertex_type_offsets: Sequence = None,
+    num_edge_types: int = 1,
     with_replacement: bool = True,
     random_state: int = None,
+    return_offsets: bool = False,
     prior_sources_behavior: str = None,
     deduplicate_sources: bool = False,
     return_hops: bool = True,
@@ -41,8 +77,8 @@ def heterogeneous_uniform_neighbor_sample(
     """
     Performs uniform neighborhood sampling, which samples nodes from
     a graph based on the current node's neighbors, with a corresponding fan_out
-    value at each hop. The edges are sampled uniformly. heterogeneous
-    neighborhood sampling translates to 1 edge type.
+    value at each hop. The edges are sampled uniformly. Heterogeneous
+    neighborhood sampling translates to more than 1 edge type.
 
     parameters
     ----------
@@ -59,13 +95,33 @@ def heterogeneous_uniform_neighbor_sample(
     
     fanout_vals : list
         List of branching out (fan-out) degrees per starting vertex for each
-        hop level.
+        hop level. The fanout value at each hop for each edge type is given by the
+        relationship fanout_vals[x*num_edge_types + edge_type_id] where x is the
+        hop_id.
+
+        The sampling method can use different fan_out values for each edge type
+        which is not the case for homogeneous neighborhood sampling (both biased
+        and uniform).
+    
+    vertex_type_offsets: list or cudf.Series (Optional)
+        Offsets for each vertex type in the graph.
+    
+    num_edge_types: int
+        Number of edge types where a value of 1 translates to homogeneous neighbor
+        sample whereas a value greater than 1 translates to heterogeneous neighbor
+        sample.
 
     with_replacement: bool, optional (default=True)
         Flag to specify if the random sampling is done with replacement
 
     random_state: int, optional
         Random seed to use when making sampling calls.
+    
+    return_offsets: bool, optional (default=False)
+        Whether to return the sampling results with batch ids
+        included as one dataframe, or to instead return two
+        dataframes, one with sampling results and one with
+        batch ids and their start offsets.
     
     prior_sources_behavior: str, optional (default=None)
         Options are "carryover", and "exclude".
@@ -106,14 +162,63 @@ def heterogeneous_uniform_neighbor_sample(
     -------
     result : cudf.DataFrame or Tuple[cudf.DataFrame, cudf.DataFrame]
         GPU data frame containing multiple cudf.Series
-        # FIXME: Update the return type
+        
+
+        If return_offsets=False:
+                df['majors']: cudf.Series
+                    Contains the source vertices from the sampling result
+                df['minors']: cudf.Series
+                    Contains the destination vertices from the sampling result
+                df['edge_weight']: cudf.Series # if provided 
+                    Contains the edge weights from the sampling result
+                df['edge_id']: cudf.Series # if provided 
+                    Contains the edge ids from the sampling result
+                df['edge_type']: cudf.Series # if provided 
+                    Contains the edge types from the sampling result
+                df['batch_id']: cudf.Series
+                    Contains the batch ids from the sampling result
+                df['hop_id']: cudf.Series
+                    Contains the hop ids from the sampling result
+                If renumber=True:
+                    (adds the following dataframe)
+                    renumber_df['renumber_map']: cudf.Series
+                        Contains the renumber maps for each batch
+                    renumber_df['batch_id']: cudf.Series
+                        Contains the batch ids for the renumber maps
+        
+        If return_offsets=True:
+                df['majors']: cudf.Series
+                    Contains the source vertices from the sampling result
+                df['minors']: cudf.Series
+                    Contains the destination vertices from the sampling result
+                df['edge_weight']: cudf.Series # if provided 
+                    Contains the edge weights from the sampling result
+                df['edge_id']: cudf.Series # if provided 
+                    Contains the edge ids from the sampling result
+                df['edge_type']: cudf.Series # if provided 
+                    Contains the edge types from the sampling result
+                df['batch_id']: cudf.Series
+                    Contains the batch ids from the sampling result
+                df['hop_id']: cudf.Series
+                    Contains the hop ids from the sampling result
+                
+                offsets_df['batch_id']: cudf.Series
+                    Contains the batch ids from the sampling result
+                offsets_df['offsets']: cudf.Series
+                    Contains the offsets of each batch in the sampling result
+
+                If renumber=True:
+                    (adds the following dataframe)
+                    renumber_df['renumber_map']: cudf.Series
+                        Contains the renumber maps for each batch
+                    renumber_df['batch_id']: cudf.Series
+                        Contains the batch ids for the renumber maps
+
     """
 
-    
+
     if compression not in ["COO", "CSR", "CSC", "DCSR", "DCSC"]:
         raise ValueError("compression must be one of COO, CSR, CSC, DCSR, or DCSC")
-
-
 
     if (
         (compression != "COO")
@@ -140,6 +245,16 @@ def heterogeneous_uniform_neighbor_sample(
         start_list = cudf.Series(
             start_list, dtype=G.edgelist.edgelist_df[G.srcCol].dtype
         )
+    
+    if isinstance(starting_vertex_label_offsets, list):
+        starting_vertex_label_offsets = cudf.Series(
+            starting_vertex_label_offsets
+        )
+    
+    if isinstance(vertex_type_offsets, list):
+        vertex_type_offsets = cudf.Series(
+            vertex_type_offsets
+        )
 
     # fanout_vals must be passed to pylibcugraph as a host array
     if isinstance(fanout_vals, numpy.ndarray):
@@ -160,41 +275,47 @@ def heterogeneous_uniform_neighbor_sample(
 
     start_list = ensure_valid_dtype(G, start_list)
 
-    if isinstance(start_list, cudf.Series):
-        start_list = start_list.rename(start_col_name)
-        start_list = start_list.to_frame()
-
-        if G.renumbered:
-            start_list = G.lookup_internal_vertex_id(start_list, start_col_name)
-    else:
-        columns = start_list.columns
-
-        if with_batch_ids:
-            if G.renumbered:
-                start_list = G.lookup_internal_vertex_id(start_list, columns[:-1])
-            start_list = start_list.rename(
-                columns={columns[0]: start_col_name, columns[-1]: batch_col_name}
+    if G.renumbered is True:
+        if isinstance(start_list, cudf.DataFrame):
+            start_list = G.lookup_internal_vertex_id(
+                start_list, start_list.columns
             )
         else:
-            if G.renumbered:
-                start_list = G.lookup_internal_vertex_id(start_list, columns)
-            start_list = start_list.rename(columns={columns[0]: start_col_name})
+            start_list = G.lookup_internal_vertex_id(start_list)
 
-
-    x = pylibcugraph_heterogeneous_uniform_neighbor_sample(
+    sampling_result_array_dict = pylibcugraph_heterogeneous_uniform_neighbor_sample(
         resource_handle=ResourceHandle(),
         input_graph=G._plc_graph,
         start_vertex_list=start_list,
         starting_vertex_label_offsets=starting_vertex_label_offsets,
+        vertex_type_offsets=vertex_type_offsets,
         h_fan_out=fanout_vals,
+        num_edge_types=num_edge_types,
         with_replacement=with_replacement,
-        do_expensive_check=False,
+        do_expensive_check=True,
         prior_sources_behavior=prior_sources_behavior,
         deduplicate_sources=deduplicate_sources,
         return_hops=return_hops,
         renumber=renumber,
         retain_seeds=retain_seeds,
         compression=compression,
-        compress_per_hop
+        compress_per_hop=compress_per_hop,
         random_state=random_state,
     )
+
+    dfs = sampling_results_from_cupy_array_dict(
+        sampling_result_array_dict,
+        weight_t,
+        len(fanout_vals),
+        return_offsets=return_offsets,
+        renumber=renumber,
+    )
+
+    if G.renumbered and not renumber:
+        dfs[0] = G.unrenumber(dfs[0], major_col_name, preserve_order=True)
+        dfs[0] = G.unrenumber(dfs[0], minor_col_name, preserve_order=True)
+
+    if len(dfs) > 1:
+        return dfs
+
+    return dfs[0]

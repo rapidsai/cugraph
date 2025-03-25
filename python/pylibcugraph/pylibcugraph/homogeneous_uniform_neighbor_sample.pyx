@@ -242,7 +242,8 @@ def homogeneous_uniform_neighbor_sample(ResourceHandle resource_handle,
     assert_AI_type(h_fan_out, "h_fan_out")
 
     if starting_vertex_label_offsets is not None:
-        if starting_vertex_label_offsets[-1] != len(start_vertex_list):
+        last_elmnt_idx = len(starting_vertex_label_offsets) - 1
+        if starting_vertex_label_offsets[last_elmnt_idx] != len(start_vertex_list):
             raise ValueError(
                 "'starting_vertex_label_offsets' and 'start_vertex_list' must be proportional")
 
@@ -369,6 +370,7 @@ def homogeneous_uniform_neighbor_sample(ResourceHandle resource_handle,
     # until all references are removed and the GC runs.
     cupy_majors = result.get_majors()
     cupy_major_offsets = result.get_major_offsets()
+    print("major_offsets = ", cupy_major_offsets)
     cupy_minors = result.get_minors()
     cupy_edge_weights = result.get_edge_weights()
     cupy_edge_ids = result.get_edge_ids()
@@ -389,7 +391,7 @@ def homogeneous_uniform_neighbor_sample(ResourceHandle resource_handle,
             'edge_type': cupy_edge_types,
             'batch_id': cupy_batch_ids,
             'label_hop_offsets': cupy_label_hop_offsets,
-            'hop_id': None,
+            'hop_id': None, # FIXME: Needs to be remove as 'label_hop_offsets' contains informations about the hop_id
             'renumber_map': cupy_renumber_map,
             'renumber_map_offsets': cupy_renumber_map_offsets
         }
