@@ -232,6 +232,12 @@ def uniform_neighbor_sample(
                         Contains the batch offsets for the renumber maps
     """
 
+    warning_msg = (
+            "'uniform_neighbor_sample' is deprecated in favor of "
+            "homogeneous/heterogeneous_uniform_neighbor_sample."
+        )
+    warnings.warn(warning_msg, FutureWarning)
+
     if use_legacy_names:
         major_col_name = "sources"
         minor_col_name = "destinations"
@@ -344,7 +350,7 @@ def uniform_neighbor_sample(
                 start_list = G.lookup_internal_vertex_id(start_list, columns)
             start_list = start_list.rename(columns={columns[0]: start_col_name})
 
-    sampling_result_array_dict = pylibcugraph_uniform_neighbor_sample(
+    legacy_sampling_result_array_dict = pylibcugraph_uniform_neighbor_sample(
         resource_handle=ResourceHandle(),
         input_graph=G._plc_graph,
         start_list=start_list[start_col_name],
