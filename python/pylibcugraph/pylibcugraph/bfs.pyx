@@ -20,7 +20,7 @@ from libc.stdint cimport uintptr_t
 from libc.stdint cimport int32_t
 from libc.limits cimport INT_MAX
 
-from pylibcugraph import has_vertex
+from pylibcugraph.has_vertex import has_vertex
 from pylibcugraph.resource_handle cimport ResourceHandle
 from pylibcugraph._cugraph_c.algorithms cimport (
     cugraph_bfs,
@@ -30,7 +30,6 @@ from pylibcugraph._cugraph_c.algorithms cimport (
     cugraph_paths_result_get_distances,
     cugraph_paths_result_free,
 )
-from pylibcugraph import has_vertex
 from pylibcugraph._cugraph_c.array cimport (
     cugraph_type_erased_device_array_view_t,
     cugraph_type_erased_device_array_view_create,
