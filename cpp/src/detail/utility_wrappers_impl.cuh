@@ -105,9 +105,9 @@ template <typename value_t>
 void transform_not_equal(raft::device_span<value_t> values,
                          raft::device_span<bool> result,
                          value_t compare,
-                         raft::handle_t const& handle)
+                         rmm::cuda_stream_view const& stream_view)
 {
-  thrust::transform(handle.get_thrust_policy(),
+  thrust::transform(rmm::exec_policy(stream_view),
                     values.begin(),
                     values.end(),
                     result.begin(),
