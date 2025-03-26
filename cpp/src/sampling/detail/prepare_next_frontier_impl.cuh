@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,16 +23,16 @@
 #include <cugraph/graph_view.hpp>
 #include <cugraph/sampling_functions.hpp>
 #include <cugraph/utilities/thrust_tuple_utils.hpp>
-#include <cugraph/vertex_partition_device_view.cuh>
 
 #include <raft/core/handle.hpp>
 
 #include <rmm/device_uvector.hpp>
 
-#include <thrust/optional.h>
 #include <thrust/sort.h>
 #include <thrust/tuple.h>
 #include <thrust/unique.h>
+
+#include <optional>
 
 namespace cugraph {
 namespace detail {
@@ -50,16 +50,11 @@ prepare_next_frontier(
   std::optional<raft::device_span<label_t const>> sampled_dst_vertex_labels,
   std::optional<std::tuple<rmm::device_uvector<vertex_t>,
                            std::optional<rmm::device_uvector<label_t>>>>&& vertex_used_as_source,
-  // FIXME: vertex_partition_view_t should provide vertex_partition_range_lasts()
-  //        (and internally store this information in raft::host_span).
-  vertex_partition_view_t<vertex_t, multi_gpu> vertex_partition,
-  std::vector<vertex_t> const& vertex_partition_range_lasts,
+  raft::host_span<vertex_t const> vertex_partition_range_lasts,
   prior_sources_behavior_t prior_sources_behavior,
   bool dedupe_sources,
   bool do_expensive_check)
 {
-  vertex_partition_device_view_t<vertex_t, multi_gpu> d_vertex_partition(vertex_partition);
-
   size_t frontier_size = sampled_dst_vertices.size();
   if (prior_sources_behavior == prior_sources_behavior_t::CARRY_OVER) {
     frontier_size += sampled_src_vertices.size();

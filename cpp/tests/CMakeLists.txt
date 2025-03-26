@@ -169,7 +169,6 @@ function(ConfigureTest CMAKE_TEST_NAME)
             cugraphtestutil
             GTest::gtest
             GTest::gtest_main
-            test_logger_impls
     )
     set_target_properties(
         ${CMAKE_TEST_NAME}
@@ -200,7 +199,6 @@ function(ConfigureTestMG CMAKE_TEST_NAME)
         GTest::gtest_main
         NCCL::NCCL
         MPI::MPI_CXX
-        test_logger_impls
     )
     set_target_properties(
         ${CMAKE_TEST_NAME}
@@ -252,7 +250,6 @@ function(ConfigureCTest CMAKE_TEST_NAME)
             cugraph_c_testutil
             GTest::gtest
             GTest::gtest_main
-            test_logger_impls
     )
     set_target_properties(
         ${CMAKE_TEST_NAME}
@@ -285,7 +282,6 @@ function(ConfigureCTestMG CMAKE_TEST_NAME)
             GTest::gtest_main
             NCCL::NCCL
             MPI::MPI_CXX
-            test_logger_impls
     )
     set_target_properties(
         ${CMAKE_TEST_NAME}
@@ -313,9 +309,6 @@ function(ConfigureCTestMG CMAKE_TEST_NAME)
 
 
 endfunction()
-
-add_library(test_logger_impls OBJECT)
-target_link_libraries(test_logger_impls PRIVATE raft::raft_logger_impl)
 
 
 ###################################################################################################
@@ -382,6 +375,10 @@ ConfigureTest(GENERATE_RMAT_TEST generators/generate_rmat_test.cpp)
 # - Bipartite R-mat graph generation tests --------------------------------------------------------
 ConfigureTest(GENERATE_BIPARTITE_RMAT_TEST generators/generate_bipartite_rmat_test.cpp
     GPUS 1 PERCENT 100)
+
+###################################################################################################
+# - Remove multi-edges tests ----------------------------------------------------------------------
+ConfigureTest(REMOVE_MULTI_EDGES_TEST structure/remove_multi_edges_test.cpp)
 
 ###################################################################################################
 # - Symmetrize tests ------------------------------------------------------------------------------
@@ -507,24 +504,27 @@ ConfigureTest(RANDOM_WALKS_TEST sampling/sg_random_walks_test.cpp)
 
 ###################################################################################################
 # - UNIFORM NBR SAMPLING tests --------------------------------------------------------------------
-ConfigureTest(UNIFORM_NEIGHBOR_SAMPLING_TEST sampling/uniform_neighbor_sampling.cpp)
+ConfigureTest(UNIFORM_NEIGHBOR_SAMPLING_TEST sampling/uniform_neighbor_sampling.cpp
+        GPUS 1 PERCENT 75)
 
 # - HOMOGENEOUS UNIFORM NBR SAMPLING tests --------------------------------------------------------
 ConfigureTest(
-    HOMOGENEOUS_UNIFORM_NEIGHBOR_SAMPLING_TEST sampling/homogeneous_uniform_neighbor_sampling.cpp)
+    HOMOGENEOUS_UNIFORM_NEIGHBOR_SAMPLING_TEST sampling/homogeneous_uniform_neighbor_sampling.cpp
+        GPUS 1 PERCENT 75)
 
 # - HETEROGENEOUS UNIFORM NBR SAMPLING tests -----------------------------------------------------
 ConfigureTest(
-    HETEROGENEOUS_UNIFORM_NEIGHBOR_SAMPLING_TEST sampling/heterogeneous_uniform_neighbor_sampling.cpp)
+    HETEROGENEOUS_UNIFORM_NEIGHBOR_SAMPLING_TEST sampling/heterogeneous_uniform_neighbor_sampling.cpp
+        GPUS 1 PERCENT 75)
 
 ###################################################################################################
 # - BIASED NBR SAMPLING tests ---------------------------------------------------------------------
-ConfigureTest(BIASED_NEIGHBOR_SAMPLING_TEST sampling/biased_neighbor_sampling.cpp)
+ConfigureTest(BIASED_NEIGHBOR_SAMPLING_TEST sampling/biased_neighbor_sampling.cpp GPUS 1 PERCENT 75)
 
 ###################################################################################################
 # - HOMOGENEOUS BIASED NBR SAMPLING tests ---------------------------------------------------------
 ConfigureTest(
-    HOMOGENEOUS_BIASED_NEIGHBOR_SAMPLING_TEST sampling/homogeneous_biased_neighbor_sampling.cpp)
+    HOMOGENEOUS_BIASED_NEIGHBOR_SAMPLING_TEST sampling/homogeneous_biased_neighbor_sampling.cpp GPUS 1 PERCENT 75)
 
 ###################################################################################################
 # - HETEROGENEOUS BIASED NBR SAMPLING tests -------------------------------------------------------
@@ -731,6 +731,11 @@ endif() # BUILD_CUGRAPH_COMMUNITY_ALGORITHMS
                     prims/mg_transform_reduce_v_frontier_outgoing_e_by_dst.cu)
 
     ###############################################################################################
+    # - MG PRIMS TRANSFORM_REDUCE_IF_V_FRONTIER_OUTGOING_E_BY_DST tests ---------------------------
+    ConfigureTestMG(MG_TRANSFORM_REDUCE_IF_V_FRONTIER_OUTGOING_E_BY_DST_TEST
+                    prims/mg_transform_reduce_if_v_frontier_outgoing_e_by_dst.cu)
+
+    ###############################################################################################
     # - MG PRIMS REDUCE_V tests -------------------------------------------------------------------
     ConfigureTestMG(MG_REDUCE_V_TEST prims/mg_reduce_v.cu)
 
@@ -770,9 +775,18 @@ endif() # BUILD_CUGRAPH_COMMUNITY_ALGORITHMS
     ConfigureTestMG(MG_EXTRACT_TRANSFORM_E_TEST prims/mg_extract_transform_e.cu)
 
     ###############################################################################################
+    # - MG PRIMS EXTRACT_TRANSFORM_IF_E tests -----------------------------------------------------
+    ConfigureTestMG(MG_EXTRACT_TRANSFORM_IF_E_TEST prims/mg_extract_transform_if_e.cu)
+
+    ###############################################################################################
     # - MG PRIMS EXTRACT_TRANSFORM_V_FRONTIER_OUTGOING_E tests ------------------------------------
     ConfigureTestMG(MG_EXTRACT_TRANSFORM_V_FRONTIER_OUTGOING_E_TEST
                     prims/mg_extract_transform_v_frontier_outgoing_e.cu)
+
+    ###############################################################################################
+    # - MG PRIMS EXTRACT_TRANSFORM_IF_V_FRONTIER_OUTGOING_E tests ---------------------------------
+    ConfigureTestMG(MG_EXTRACT_TRANSFORM_IF_V_FRONTIER_OUTGOING_E_TEST
+                    prims/mg_extract_transform_if_v_frontier_outgoing_e.cu)
 
     ###############################################################################################
     # - MG PRIMS PER_V_RANDOM_SELECT_TRANSFORM_OUTGOING_E tests -----------------------------------
@@ -925,6 +939,8 @@ ConfigureCTest(CAPI_TRIANGLE_COUNT_TEST c_api/triangle_count_test.c)
 ConfigureCTest(CAPI_LOUVAIN_TEST c_api/louvain_test.c)
 ConfigureCTest(CAPI_LEIDEN_TEST c_api/leiden_test.c)
 ConfigureCTest(CAPI_ECG_TEST c_api/ecg_test.c)
+ConfigureCTest(CAPI_RENUMBER_ARBITRARY_EDGELIST_TEST c_api/renumber_arbitrary_edgelist_test.c)
+
 #############################################################################
 # Skipping due to CUDA 12.2 failure that traces back to RAFT                #
 # TODO: Uncomment this once the issue is fixed.                             #
@@ -946,7 +962,7 @@ ConfigureCTest(CAPI_K_TRUSS_TEST c_api/k_truss_test.c)
 if (BUILD_CUGRAPH_MTMG_TESTS)
     ###################################################################################################
     # - MTMG tests -------------------------------------------------------------------------
-    ConfigureTest(MTMG_TEST mtmg/threaded_test.cu)
+    ConfigureTest(MTMG_TEST mtmg/threaded_test.cpp)
     target_link_libraries(MTMG_TEST
                           PRIVATE
                           cugraphmgtestutil
@@ -956,7 +972,7 @@ if (BUILD_CUGRAPH_MTMG_TESTS)
                           ucxx::ucxx
                          )
 
-    ConfigureTest(MTMG_LOUVAIN_TEST mtmg/threaded_test_louvain.cu)
+    ConfigureTest(MTMG_LOUVAIN_TEST mtmg/threaded_test_louvain.cpp)
     target_link_libraries(MTMG_LOUVAIN_TEST
                           PRIVATE
                           cugraphmgtestutil
@@ -966,7 +982,7 @@ if (BUILD_CUGRAPH_MTMG_TESTS)
                           ucxx::ucxx
                          )
 
-    ConfigureTest(MTMG_JACCARD_TEST mtmg/threaded_test_jaccard.cu)
+    ConfigureTest(MTMG_JACCARD_TEST mtmg/threaded_test_jaccard.cpp)
     target_link_libraries(MTMG_JACCARD_TEST
                           PRIVATE
                           cugraphmgtestutil
@@ -979,7 +995,7 @@ if (BUILD_CUGRAPH_MTMG_TESTS)
     if(BUILD_CUGRAPH_MG_TESTS)
         ###############################################################################################
         # - Multi-node MTMG tests ---------------------------------------------------------------------
-        ConfigureTest(MTMG_MULTINODE_TEST mtmg/multi_node_threaded_test.cu utilities/mg_utilities.cpp)
+        ConfigureTest(MTMG_MULTINODE_TEST mtmg/multi_node_threaded_test.cpp utilities/mg_utilities.cpp)
         target_link_libraries(MTMG_MULTINODE_TEST
                               PRIVATE
                               cugraphmgtestutil

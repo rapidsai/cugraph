@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, NVIDIA CORPORATION.
+ * Copyright (c) 2024-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,15 +16,14 @@
 #pragma once
 
 #include "prims/count_if_e.cuh"
-#include "prims/detail/extract_transform_v_frontier_e.cuh"
+#include "prims/detail/extract_transform_if_v_frontier_e.cuh"
 #include "prims/fill_edge_src_dst_property.cuh"
 #include "prims/key_store.cuh"
 #include "prims/kv_store.cuh"
 #include "prims/reduce_op.cuh"
 #include "prims/transform_reduce_e.cuh"
-#include "prims/transform_reduce_v_frontier_outgoing_e_by_dst.cuh"
+#include "prims/transform_reduce_if_v_frontier_outgoing_e_by_dst.cuh"
 #include "prims/update_edge_src_dst_property.cuh"
-#include "prims/update_v_frontier.cuh"
 #include "prims/vertex_frontier.cuh"
 
 #include <cugraph/algorithms.hpp>
@@ -37,12 +36,12 @@
 #include <raft/util/cudart_utils.hpp>
 #include <raft/util/integer_utils.hpp>
 
+#include <cuda/std/functional>
+#include <cuda/std/optional>
 #include <thrust/fill.h>
-#include <thrust/functional.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/discard_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
-#include <thrust/optional.h>
 #include <thrust/set_operations.h>
 #include <thrust/transform.h>
 #include <thrust/tuple.h>
@@ -125,20 +124,41 @@ struct check_destination_index_t {
   }
 };
 
-template <typename vertex_t, typename tag_t, typename key_t, typename weight_t, bool multi_gpu>
+template <typename vertex_t, typename tag_t, typename key_t, typename weight_t>
 struct e_op_t {
+  detail::kv_cuco_store_find_device_view_t<detail::kv_cuco_store_view_t<key_t, weight_t const*>>
+    key_to_dist_map{};
+  tag_t num_origins{};
+
+  __device__ thrust::tuple<tag_t, weight_t> operator()(thrust::tuple<vertex_t, tag_t> tagged_src,
+                                                       vertex_t dst,
+                                                       cuda::std::nullopt_t,
+                                                       cuda::std::nullopt_t,
+                                                       weight_t w) const
+  {
+    aggregate_vi_t<vertex_t, tag_t, key_t> aggregator{num_origins};
+
+    auto src_val = key_to_dist_map.find(aggregator(tagged_src));
+    assert(src_val != invalid_distance);
+    auto origin_idx   = thrust::get<1>(tagged_src);
+    auto new_distance = src_val + w;
+    return thrust::make_tuple(origin_idx, new_distance);
+  }
+};
+
+template <typename vertex_t, typename tag_t, typename key_t, typename weight_t>
+struct pred_op_t {
   detail::kv_cuco_store_find_device_view_t<detail::kv_cuco_store_view_t<key_t, weight_t const*>>
     key_to_dist_map{};
   tag_t num_origins{};
   weight_t cutoff{};
   weight_t invalid_distance{};
 
-  __device__ thrust::optional<thrust::tuple<tag_t, weight_t>> operator()(
-    thrust::tuple<vertex_t, tag_t> tagged_src,
-    vertex_t dst,
-    thrust::nullopt_t,
-    thrust::nullopt_t,
-    weight_t w) const
+  __device__ bool operator()(thrust::tuple<vertex_t, tag_t> tagged_src,
+                             vertex_t dst,
+                             cuda::std::nullopt_t,
+                             cuda::std::nullopt_t,
+                             weight_t w) const
   {
     aggregate_vi_t<vertex_t, tag_t, key_t> aggregator{num_origins};
 
@@ -149,10 +169,7 @@ struct e_op_t {
     auto threshold    = cutoff;
     auto dst_val      = key_to_dist_map.find(aggregator(thrust::make_tuple(dst, origin_idx)));
     if (dst_val != invalid_distance) { threshold = dst_val < threshold ? dst_val : threshold; }
-    return (new_distance < threshold)
-             ? thrust::optional<thrust::tuple<tag_t, weight_t>>{thrust::make_tuple(origin_idx,
-                                                                                   new_distance)}
-             : thrust::nullopt;
+    return (new_distance < threshold);
   }
 };
 
@@ -385,7 +402,7 @@ kv_store_t<key_t, weight_t, false /* use_binary_search */> filter_key_to_dist_ma
                               detail::key_cuco_store_contains_device_view_t(key_set.view())});
 
     keep_count = thrust::count_if(
-      handle.get_thrust_policy(), keep_flags.begin(), keep_flags.end(), thrust::identity<bool>{});
+      handle.get_thrust_policy(), keep_flags.begin(), keep_flags.end(), cuda::std::identity{});
   }
 
   size_t new_kv_store_capacity = compute_kv_store_capacity(
@@ -398,7 +415,7 @@ kv_store_t<key_t, weight_t, false /* use_binary_search */> filter_key_to_dist_ma
                             old_key_buffer.end(),
                             old_value_buffer.begin(),
                             keep_flags.begin(),
-                            thrust::identity<bool>{},
+                            cuda::std::identity{},
                             handle.get_stream());
 
   return std::move(key_to_dist_map);
@@ -606,7 +623,7 @@ rmm::device_uvector<weight_t> od_shortest_distances(
                                                                  v_to_destination_indices.size()),
                                static_cast<od_idx_t>(origins.size()),
                                static_cast<od_idx_t>(destinations.size())})),
-                         thrust::identity<weight_t>{},
+                         cuda::std::identity{},
                          check_destination_index_t<vertex_t, od_idx_t, key_t>{
                            raft::device_span<od_idx_t const>(v_to_destination_indices.data(),
                                                              v_to_destination_indices.size()),
@@ -635,32 +652,35 @@ rmm::device_uvector<weight_t> od_shortest_distances(
       // thrust::tuple<vertex_t, od_idx_t> and we need to convert thrust::tuple<vertex_t, od_idx_t>
       // to key_t anyways for post processing
 
-      auto e_op = e_op_t<vertex_t, od_idx_t, key_t, weight_t, GraphViewType::is_multi_gpu>{
+      auto e_op = e_op_t<vertex_t, od_idx_t, key_t, weight_t>{
         detail::kv_cuco_store_find_device_view_t(key_to_dist_map.view()),
-        static_cast<od_idx_t>(origins.size()),
-        cutoff,
-        invalid_distance};
-      detail::transform_reduce_v_frontier_call_e_op_t<
+        static_cast<od_idx_t>(origins.size())};
+      detail::transform_reduce_if_v_frontier_call_e_op_t<
         thrust::tuple<vertex_t, od_idx_t>,
         weight_t,
         vertex_t,
-        thrust::nullopt_t,
-        thrust::nullopt_t,
+        cuda::std::nullopt_t,
+        cuda::std::nullopt_t,
         weight_t,
-        e_op_t<vertex_t, od_idx_t, key_t, weight_t, GraphViewType::is_multi_gpu>>
+        e_op_t<vertex_t, od_idx_t, key_t, weight_t>>
         e_op_wrapper{e_op};
 
       auto new_frontier_tagged_vertex_buffer =
         allocate_dataframe_buffer<thrust::tuple<vertex_t, od_idx_t>>(0, handle.get_stream());
-      std::tie(new_frontier_tagged_vertex_buffer, distance_buffer) =
-        detail::extract_transform_v_frontier_e<false, thrust::tuple<vertex_t, od_idx_t>, weight_t>(
+      std::tie(new_frontier_tagged_vertex_buffer, distance_buffer) = detail::
+        extract_transform_if_v_frontier_e<false, thrust::tuple<vertex_t, od_idx_t>, weight_t>(
           handle,
           graph_view,
           vertex_frontier.bucket(bucket_idx_near),
           edge_src_dummy_property_t{}.view(),
           edge_dst_dummy_property_t{}.view(),
           edge_weight_view,
-          e_op_wrapper);
+          e_op_wrapper,
+          pred_op_t<vertex_t, od_idx_t, key_t, weight_t>{
+            detail::kv_cuco_store_find_device_view_t(key_to_dist_map.view()),
+            static_cast<od_idx_t>(origins.size()),
+            cutoff,
+            invalid_distance});
 
       new_frontier_keys.resize(size_dataframe_buffer(new_frontier_tagged_vertex_buffer),
                                handle.get_stream());
@@ -725,7 +745,7 @@ rmm::device_uvector<weight_t> od_shortest_distances(
                                                                    v_to_destination_indices.size()),
                                  static_cast<od_idx_t>(origins.size()),
                                  static_cast<od_idx_t>(destinations.size())})),
-                           thrust::identity<weight_t>{},
+                           cuda::std::identity{},
                            check_destination_index_t<vertex_t, od_idx_t, key_t>{
                              raft::device_span<od_idx_t const>(v_to_destination_indices.data(),
                                                                v_to_destination_indices.size()),
@@ -947,7 +967,7 @@ rmm::device_uvector<weight_t> od_shortest_distances(
                                                                  split_thresholds.end(),
                                                                  dist)));
                     },
-                    thrust::identity<key_t>{},
+                    cuda::std::identity{},
                     raft::device_span<size_t>(d_counters.data(), d_counters.size()));
               }
               std::vector<size_t> h_counters(d_counters.size());

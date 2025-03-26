@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,12 +27,12 @@
 #include <rmm/device_uvector.hpp>
 
 #include <cub/cub.cuh>
+#include <cuda/std/optional>
 #include <thrust/binary_search.h>
 #include <thrust/execution_policy.h>
 #include <thrust/for_each.h>
 #include <thrust/functional.h>
 #include <thrust/iterator/counting_iterator.h>
-#include <thrust/optional.h>
 #include <thrust/reduce.h>
 #include <thrust/tuple.h>
 
@@ -138,7 +138,7 @@ struct uniform_selector_t {
     {
     }
 
-    __device__ thrust::optional<thrust::tuple<vertex_t, weight_t>> operator()(
+    __device__ cuda::std::optional<thrust::tuple<vertex_t, weight_t>> operator()(
       vertex_t src_v,
       real_t rnd_val,
       vertex_t = 0 /* not used*/,
@@ -146,7 +146,7 @@ struct uniform_selector_t {
       bool     = false /* not used*/) const
     {
       auto crt_out_deg = ptr_d_cache_out_degs_[src_v];
-      if (crt_out_deg == 0) return thrust::nullopt;  // src_v is a sink
+      if (crt_out_deg == 0) return cuda::std::nullopt;  // src_v is a sink
 
       vertex_t v_indx =
         static_cast<vertex_t>(rnd_val >= 1.0 ? crt_out_deg - 1 : rnd_val * crt_out_deg);
@@ -156,7 +156,8 @@ struct uniform_selector_t {
       auto weight_value =
         (values_ == nullptr ? weight_t{1}
                             : values_[start_row + col_indx]);  // account for un-weighted graphs
-      return thrust::optional{thrust::make_tuple(col_indices_[start_row + col_indx], weight_value)};
+      return cuda::std::optional{
+        thrust::make_tuple(col_indices_[start_row + col_indx], weight_value)};
     }
 
    private:
@@ -211,7 +212,7 @@ struct biased_selector_t {
     // Sum(weights(neighborhood(src_v))) are pre-computed and
     // stored in ptr_d_sum_weights_ (too expensive to check, here);
     //
-    __device__ thrust::optional<thrust::tuple<vertex_t, weight_t>> operator()(
+    __device__ cuda::std::optional<thrust::tuple<vertex_t, weight_t>> operator()(
       vertex_t src_v,
       real_t rnd_val,
       vertex_t = 0 /* not used*/,
@@ -223,7 +224,7 @@ struct biased_selector_t {
 
       auto col_indx_begin = row_offsets_[src_v];
       auto col_indx_end   = row_offsets_[src_v + 1];
-      if (col_indx_begin == col_indx_end) return thrust::nullopt;  // src_v is a sink
+      if (col_indx_begin == col_indx_end) return cuda::std::nullopt;  // src_v is a sink
 
       auto col_indx      = col_indx_begin;
       auto prev_col_indx = col_indx;
@@ -234,7 +235,7 @@ struct biased_selector_t {
         run_sum_w += values_[col_indx];
         prev_col_indx = col_indx;
       }
-      return thrust::optional{
+      return cuda::std::optional{
         thrust::make_tuple(col_indices_[prev_col_indx], values_[prev_col_indx])};
     }
 
@@ -293,9 +294,9 @@ struct node2vec_selector_t {
         q_(q),
         coalesced_alpha_{
           (max_degree > 0) && (num_paths > 0) && (ptr_alpha != nullptr)
-            ? thrust::optional<thrust::tuple<vertex_t, edge_t, weight_t*>>{thrust::make_tuple(
+            ? cuda::std::optional<thrust::tuple<vertex_t, edge_t, weight_t*>>{thrust::make_tuple(
                 max_degree, num_paths, ptr_alpha)}
-            : thrust::nullopt}
+            : cuda::std::nullopt}
     {
     }
 
@@ -324,7 +325,7 @@ struct node2vec_selector_t {
       }
     }
 
-    __device__ thrust::optional<thrust::tuple<vertex_t, weight_t>> operator()(
+    __device__ cuda::std::optional<thrust::tuple<vertex_t, weight_t>> operator()(
       vertex_t src_v, real_t rnd_val, vertex_t prev_v, edge_t path_index, bool start_path) const
     {
       auto const offset_indx_begin = row_offsets_[src_v];
@@ -333,7 +334,7 @@ struct node2vec_selector_t {
       weight_t sum_scaled_weights{0};
       auto offset_indx = offset_indx_begin;
 
-      if (offset_indx_begin == offset_indx_end) return thrust::nullopt;  // src_v is a sink
+      if (offset_indx_begin == offset_indx_end) return cuda::std::nullopt;  // src_v is a sink
 
       // for 1st vertex in path just use biased random selection:
       //
@@ -359,7 +360,7 @@ struct node2vec_selector_t {
           run_sum_w += crt_weight;
           prev_offset_indx = offset_indx;
         }
-        return thrust::optional{
+        return cuda::std::optional{
           thrust::make_tuple(col_indices_[prev_offset_indx],
                              values_ == nullptr ? weight_t{1} : values_[prev_offset_indx])};
       }
@@ -402,7 +403,7 @@ struct node2vec_selector_t {
           run_sum_w += ptr_d_scaled_weights[start_alpha_offset + nghbr_indx];
           prev_offset_indx = offset_indx;
         }
-        return thrust::optional{
+        return cuda::std::optional{
           thrust::make_tuple(col_indices_[prev_offset_indx],
                              values_ == nullptr ? weight_t{1} : values_[prev_offset_indx])};
 
@@ -435,7 +436,7 @@ struct node2vec_selector_t {
           run_sum_w += scaled_weight;
           prev_offset_indx = offset_indx;
         }
-        return thrust::optional{
+        return cuda::std::optional{
           thrust::make_tuple(col_indices_[prev_offset_indx],
                              values_ == nullptr ? weight_t{1} : values_[prev_offset_indx])};
       }
@@ -459,7 +460,7 @@ struct node2vec_selector_t {
     // this is information related to a scratchpad buffer, used as cache, hence mutable;
     // (necessary, because get_strategy() is const)
     //
-    mutable thrust::optional<thrust::tuple<vertex_t, edge_t, weight_t*>>
+    mutable cuda::std::optional<thrust::tuple<vertex_t, edge_t, weight_t*>>
       coalesced_alpha_;  // tuple<max_vertex_degree,
                          // num_paths, alpha_buffer[max_vertex_degree*num_paths]>
   };

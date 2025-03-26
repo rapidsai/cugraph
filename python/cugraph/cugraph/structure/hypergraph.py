@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2024, NVIDIA CORPORATION.
+# Copyright (c) 2020-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -38,6 +38,9 @@ import cudf
 import numpy as np
 from cugraph.structure.graph_classes import Graph
 from cugraph.structure.symmetrize import symmetrize
+
+
+_str_dtype = cudf.dtype("str")
 
 
 def hypergraph(
@@ -328,17 +331,19 @@ def _create_entity_nodes(
         cudf.DataFrame(
             dict(
                 [
-                    (NODEID, cudf.core.column.column_empty(0, "str")),
+                    (NODEID, cudf.core.column.column_empty(0, _str_dtype)),
                     (
                         CATEGORY,
                         cudf.core.column.column_empty(
-                            0, "str" if not categorical_metadata else _empty_cat_dt()
+                            0,
+                            _str_dtype if not categorical_metadata else _empty_cat_dt(),
                         ),
                     ),
                     (
                         NODETYPE,
                         cudf.core.column.column_empty(
-                            0, "str" if not categorical_metadata else _empty_cat_dt()
+                            0,
+                            _str_dtype if not categorical_metadata else _empty_cat_dt(),
                         ),
                     ),
                 ]
@@ -428,13 +433,15 @@ def _create_hyper_edges(
             dict(
                 (
                     [
-                        (EVENTID, cudf.core.column.column_empty(0, "str")),
-                        (ATTRIBID, cudf.core.column.column_empty(0, "str")),
+                        (EVENTID, cudf.core.column.column_empty(0, _str_dtype)),
+                        (ATTRIBID, cudf.core.column.column_empty(0, _str_dtype)),
                         (
                             EDGETYPE,
                             cudf.core.column.column_empty(
                                 0,
-                                "str" if not categorical_metadata else _empty_cat_dt(),
+                                _str_dtype
+                                if not categorical_metadata
+                                else _empty_cat_dt(),
                             ),
                         ),
                     ]
@@ -447,7 +454,9 @@ def _create_hyper_edges(
                             CATEGORY,
                             cudf.core.column.column_empty(
                                 0,
-                                "str" if not categorical_metadata else _empty_cat_dt(),
+                                _str_dtype
+                                if not categorical_metadata
+                                else _empty_cat_dt(),
                             ),
                         )
                     ]
@@ -523,14 +532,16 @@ def _create_direct_edges(
             dict(
                 (
                     [
-                        (EVENTID, cudf.core.column.column_empty(0, "str")),
-                        (SOURCE, cudf.core.column.column_empty(0, "str")),
-                        (TARGET, cudf.core.column.column_empty(0, "str")),
+                        (EVENTID, cudf.core.column.column_empty(0, _str_dtype)),
+                        (SOURCE, cudf.core.column.column_empty(0, _str_dtype)),
+                        (TARGET, cudf.core.column.column_empty(0, _str_dtype)),
                         (
                             EDGETYPE,
                             cudf.core.column.column_empty(
                                 0,
-                                "str" if not categorical_metadata else _empty_cat_dt(),
+                                _str_dtype
+                                if not categorical_metadata
+                                else _empty_cat_dt(),
                             ),
                         ),
                     ]
@@ -543,7 +554,9 @@ def _create_direct_edges(
                             CATEGORY,
                             cudf.core.column.column_empty(
                                 0,
-                                "str" if not categorical_metadata else _empty_cat_dt(),
+                                _str_dtype
+                                if not categorical_metadata
+                                else _empty_cat_dt(),
                             ),
                         )
                     ]
@@ -611,7 +624,8 @@ def _str_scalar_to_category(size, val):
         data=None,
         size=size,
         dtype=cudf.CategoricalDtype(
-            categories=cudf.core.column.as_column([val], dtype="str"), ordered=False
+            categories=cudf.core.column.as_column([val], dtype=_str_dtype),
+            ordered=False,
         ),
         mask=None,
         offset=0,
@@ -626,4 +640,6 @@ def _prepend_str(col, val):
 
 # Make an empty categorical string dtype
 def _empty_cat_dt():
-    return cudf.CategoricalDtype(categories=np.array([], dtype="str"), ordered=False)
+    return cudf.CategoricalDtype(
+        categories=np.array([], dtype=_str_dtype), ordered=False
+    )

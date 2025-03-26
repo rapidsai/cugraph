@@ -14,7 +14,7 @@
 # limitations under the License.
 #=============================================================================
 
-cmake_minimum_required(VERSION 3.26.4 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.30.4 FATAL_ERROR)
 
 include(../rapids_config.cmake)
 include(rapids-cmake)
@@ -80,16 +80,6 @@ rapids_find_package(CUDAToolkit REQUIRED
     INSTALL_EXPORT_SET  cugraph-exports
     )
 
-if (BUILD_CUGRAPH_MTMG_TESTS)
-    if(NOT TARGET ucx::ucp)
-        find_package(ucx REQUIRED)
-    endif()
-
-    if(NOT TARGET ucxx::ucxx)
-        find_package(ucxx REQUIRED)
-    endif()
-endif()
-
 set(CUGRAPH_C_FLAGS "")
 set(CUGRAPH_CXX_FLAGS "")
 set(CUGRAPH_CUDA_FLAGS "")
@@ -146,6 +136,16 @@ include(${rapids-cmake-dir}/cpm/cuco.cmake)
 rapids_cpm_cuco(BUILD_EXPORT_SET cugraph-exports INSTALL_EXPORT_SET cugraph-exports)
 include(cmake/thirdparty/get_raft.cmake)
 
+if (BUILD_CUGRAPH_MTMG_TESTS)
+    if(NOT TARGET ucx::ucp)
+        find_package(ucx REQUIRED)
+    endif()
+
+    if(NOT TARGET ucxx::ucxx)
+        find_package(ucxx REQUIRED)
+    endif()
+endif()
+
 if(BUILD_TESTS)
   include(${rapids-cmake-dir}/cpm/gtest.cmake)
   rapids_cpm_gtest(BUILD_STATIC)
@@ -166,6 +166,10 @@ set(CUGRAPH_SOURCES
     src/detail/permute_range_v64.cu
     src/utilities/shuffle_vertex_pairs_mg_v32_e32.cu
     src/utilities/shuffle_vertex_pairs_mg_v64_e64.cu
+    src/utilities/shuffle_local_edge_srcs_dsts_mg_v32_fp.cu
+    src/utilities/shuffle_local_edge_srcs_dsts_mg_v32_integral.cu
+    src/utilities/shuffle_local_edge_srcs_dsts_mg_v64_fp.cu
+    src/utilities/shuffle_local_edge_srcs_dsts_mg_v64_integral.cu
     src/detail/collect_local_vertex_values_sg_v32_e32.cu
     src/detail/collect_local_vertex_values_sg_v64_e64.cu
     src/detail/collect_local_vertex_values_mg_v32_e32.cu
@@ -262,7 +266,6 @@ set(CUGRAPH_SOURCES
     src/structure/select_random_vertices_mg_v64_e64.cu
     src/structure/select_random_vertices_mg_v32_e32.cu
     src/tree/legacy/mst.cu
-    src/from_cugraph_ops/sampling_index.cu
     src/components/weakly_connected_components_sg_v64_e64.cu
     src/components/weakly_connected_components_sg_v32_e32.cu
     src/components/weakly_connected_components_mg_v64_e64.cu
@@ -536,8 +539,6 @@ target_link_libraries(cugraph
     PRIVATE
         ${COMPILED_RAFT_LIB}
         cuco::cuco
-        rmm::rmm_logger_impl
-        raft::raft_logger_impl
     )
 
 ################################################################################
@@ -590,6 +591,8 @@ add_library(cugraph_c
         src/c_api/allgather.cpp
         src/c_api/decompress_to_edgelist.cpp
         src/c_api/edgelist.cpp
+        src/c_api/renumber_arbitrary_edgelist.cu
+        src/c_api/legacy_fa2.cpp
         )
 add_library(cugraph::cugraph_c ALIAS cugraph_c)
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -62,7 +62,8 @@ class Tests_MGEdgeTriangleCount
   void run_current_test(EdgeTriangleCount_Usecase const& edge_triangle_count_usecase,
                         input_usecase_t const& input_usecase)
   {
-    using weight_t = float;
+    using weight_t    = float;
+    using edge_type_t = int32_t;
 
     HighResTimer hr_timer{};
 
@@ -123,13 +124,14 @@ class Tests_MGEdgeTriangleCount
       std::optional<
         cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, false, false>, edge_t>>
         d_sg_cugraph_results{std::nullopt};
-      std::tie(sg_graph, std::ignore, d_sg_cugraph_results, std::ignore) =
+      std::tie(sg_graph, std::ignore, d_sg_cugraph_results, std::ignore, std::ignore) =
         cugraph::test::mg_graph_to_sg_graph(
           *handle_,
           mg_graph_view,
           std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},
           // FIXME: Update 'create_graph_from_edgelist' to support int32_t and int64_t values
           std::make_optional(d_mg_cugraph_results.view()),
+          std::optional<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>{std::nullopt},
           std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
                                                                 (*mg_renumber_map).size()),
           false);

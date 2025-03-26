@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2023, NVIDIA CORPORATION.
+# Copyright (c) 2022-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -45,6 +45,12 @@ from pylibcugraph.resource_handle cimport (
 from pylibcugraph.graphs cimport (
     _GPUGraph,
 )
+from pylibcugraph._cugraph_c.random cimport (
+    cugraph_rng_state_t
+)
+from pylibcugraph.random cimport (
+    CuGraphRandomState
+)
 from pylibcugraph.utils cimport (
     assert_success,
     copy_to_cupy_array,
@@ -56,7 +62,8 @@ from pylibcugraph.utils cimport (
 def uniform_random_walks(ResourceHandle resource_handle,
                          _GPUGraph input_graph,
                          start_vertices,
-                         size_t max_length):
+                         size_t max_length,
+                         random_state=None):
     """
     Compute uniform random walks for each nodes in 'start_vertices'
 
@@ -76,6 +83,10 @@ def uniform_random_walks(ResourceHandle resource_handle,
     max_length: size_t
         The maximum depth of the uniform random walks
 
+    random_state: int (Optional)
+        Random state to use when generating samples.  Optional argument,
+        defaults to a hash of process id, time, and hostname.
+        (See pylibcugraph.random.CuGraphRandomState)
 
     Returns
     -------
@@ -104,8 +115,14 @@ def uniform_random_walks(ResourceHandle resource_handle,
             len(start_vertices),
             get_c_type_from_numpy_type(start_vertices.dtype))
 
+    cg_rng_state = CuGraphRandomState(resource_handle, random_state)
+
+    cdef cugraph_rng_state_t* rng_state_ptr = \
+        cg_rng_state.rng_state_ptr
+
     error_code = cugraph_uniform_random_walks(
         c_resource_handle_ptr,
+        rng_state_ptr,
         c_graph_ptr,
         start_ptr,
         max_length,

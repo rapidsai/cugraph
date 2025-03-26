@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@
 #include "prims/fill_edge_src_dst_property.cuh"
 #include "prims/per_v_transform_reduce_if_incoming_outgoing_e.cuh"
 #include "prims/reduce_op.cuh"
-#include "prims/transform_reduce_v_frontier_outgoing_e_by_dst.cuh"
+#include "prims/transform_reduce_if_v_frontier_outgoing_e_by_dst.cuh"
 #include "prims/update_v_frontier.cuh"
 #include "prims/vertex_frontier.cuh"
 
@@ -31,6 +31,7 @@
 
 #include <raft/core/handle.hpp>
 
+#include <cuda/std/optional>
 #include <thrust/copy.h>
 #include <thrust/count.h>
 #include <thrust/fill.h>
@@ -40,7 +41,6 @@
 #include <thrust/iterator/discard_iterator.h>
 #include <thrust/iterator/permutation_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
-#include <thrust/optional.h>
 #include <thrust/set_operations.h>
 #include <thrust/transform.h>
 #include <thrust/tuple.h>
@@ -70,28 +70,46 @@ struct direction_optimizing_info_t {
                     // graph_view.use_dcs() are both true
 };
 
-template <typename vertex_t, bool multi_gpu>
+template <typename vertex_t>
 struct topdown_e_op_t {
+  __device__ vertex_t operator()(vertex_t src,
+                                 vertex_t dst,
+                                 cuda::std::nullopt_t,
+                                 cuda::std::nullopt_t,
+                                 cuda::std::nullopt_t) const
+  {
+    return src;
+  }
+};
+
+template <typename vertex_t, bool multi_gpu>
+struct topdown_pred_op_t {
   detail::edge_partition_endpoint_property_device_view_t<vertex_t, uint32_t*, bool>
     prev_visited_flags{};  // visited in the previous iterations, to reduce the number of atomic
                            // operations
   detail::edge_partition_endpoint_property_device_view_t<vertex_t, uint32_t*, bool> visited_flags{};
   vertex_t dst_first{};
 
-  __device__ thrust::optional<vertex_t> operator()(
-    vertex_t src, vertex_t dst, thrust::nullopt_t, thrust::nullopt_t, thrust::nullopt_t) const
+  __device__ bool operator()(vertex_t src,
+                             vertex_t dst,
+                             cuda::std::nullopt_t,
+                             cuda::std::nullopt_t,
+                             cuda::std::nullopt_t) const
   {
     auto dst_offset = dst - dst_first;
     auto old        = prev_visited_flags.get(dst_offset);
     if (!old) { old = visited_flags.atomic_or(dst_offset, true); }
-    return old ? thrust::nullopt : thrust::optional<vertex_t>{src};
+    return !old;  // haven't been visited yet.
   }
 };
 
 template <typename vertex_t>
 struct bottomup_e_op_t {
-  __device__ vertex_t operator()(
-    vertex_t src, vertex_t dst, thrust::nullopt_t, thrust::nullopt_t, thrust::nullopt_t) const
+  __device__ vertex_t operator()(vertex_t src,
+                                 vertex_t dst,
+                                 cuda::std::nullopt_t,
+                                 cuda::std::nullopt_t,
+                                 cuda::std::nullopt_t) const
   {
     return dst;
   }
@@ -103,8 +121,11 @@ struct bottomup_pred_op_t {
     prev_visited_flags{};  // visited in the previous iterations
   vertex_t dst_first{};
 
-  __device__ bool operator()(
-    vertex_t src, vertex_t dst, thrust::nullopt_t, thrust::nullopt_t, thrust::nullopt_t) const
+  __device__ bool operator()(vertex_t src,
+                             vertex_t dst,
+                             cuda::std::nullopt_t,
+                             cuda::std::nullopt_t,
+                             cuda::std::nullopt_t) const
   {
     return prev_visited_flags.get(dst - dst_first);
   }
@@ -260,10 +281,10 @@ void bfs(raft::handle_t const& handle,
       auto edge_mask_view = graph_view.edge_mask_view();
       auto edge_partition_e_mask =
         edge_mask_view
-          ? thrust::make_optional<
+          ? cuda::std::make_optional<
               detail::edge_partition_edge_property_device_view_t<edge_t, uint32_t const*, bool>>(
               *edge_mask_view, partition_idx)
-          : thrust::nullopt;
+          : cuda::std::nullopt;
       auto high_and_mid_degree_segment_size =
         (*segment_offsets)[2];  // compute local degrees for high & mid degree segments only, for
                                 // low & hypersparse segments, use low_degree_threshold *
@@ -376,25 +397,26 @@ void bfs(raft::handle_t const& handle,
   while (true) {
     vertex_t next_aggregate_frontier_size{};
     if (topdown) {
-      topdown_e_op_t<vertex_t, GraphViewType::is_multi_gpu> e_op{};
-      e_op.prev_visited_flags =
+      topdown_pred_op_t<vertex_t, GraphViewType::is_multi_gpu> pred_op{};
+      pred_op.prev_visited_flags =
         detail::edge_partition_endpoint_property_device_view_t<vertex_t, uint32_t*, bool>(
           prev_dst_visited_flags.mutable_view());
-      e_op.visited_flags =
+      pred_op.visited_flags =
         detail::edge_partition_endpoint_property_device_view_t<vertex_t, uint32_t*, bool>(
           dst_visited_flags.mutable_view());
-      e_op.dst_first = graph_view.local_edge_partition_dst_range_first();
+      pred_op.dst_first = graph_view.local_edge_partition_dst_range_first();
 
       auto [new_frontier_vertex_buffer, predecessor_buffer] =
-        cugraph::transform_reduce_v_frontier_outgoing_e_by_dst(
+        cugraph::transform_reduce_if_v_frontier_outgoing_e_by_dst(
           handle,
           graph_view,
           vertex_frontier.bucket(bucket_idx_cur),
           edge_src_dummy_property_t{}.view(),
           edge_dst_dummy_property_t{}.view(),
           edge_dummy_property_t{}.view(),
-          e_op,
-          reduce_op::any<vertex_t>());
+          topdown_e_op_t<vertex_t>{},
+          reduce_op::any<vertex_t>(),
+          pred_op);
 
       auto input_pair_first = thrust::make_zip_iterator(thrust::make_constant_iterator(depth + 1),
                                                         predecessor_buffer.begin());

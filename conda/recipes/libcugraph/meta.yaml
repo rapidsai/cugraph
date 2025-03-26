@@ -42,7 +42,6 @@ requirements:
     - {{ compiler('cxx') }}
     - cmake {{ cmake_version }}
     - ninja
-    - openmpi<5.0.3 # Required for building cpp-mgtests (multi-GPU tests)
     - {{ stdlib("c") }}
   host:
     {% if cuda_major == "11" %}
@@ -72,8 +71,9 @@ requirements:
     - libraft ={{ minor_version }}
     - librmm ={{ minor_version }}
     - nccl {{ nccl_version }}
-    - ucx-proc=*=gpu
     - rapids-build-backend>=0.3.1,<0.4.0.dev0
+    - libucxx {{ libucxx_version }}
+    - openmpi<5.0.3 # Required for building cpp-mgtests (multi-GPU tests)
 
 outputs:
   - name: libcugraph
@@ -113,7 +113,6 @@ outputs:
         - libraft ={{ minor_version }}
         - librmm ={{ minor_version }}
         - nccl {{ nccl_version }}
-        - ucx-proc=*=gpu
     about:
       home: https://rapids.ai/
       dev_url: https://github.com/rapidsai/cugraph

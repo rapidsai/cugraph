@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, NVIDIA CORPORATION.
+ * Copyright (c) 2024-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -39,11 +39,11 @@
 #include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
 
+#include <cuda/std/optional>
 #include <thrust/count.h>
 #include <thrust/distance.h>
 #include <thrust/functional.h>
 #include <thrust/iterator/counting_iterator.h>
-#include <thrust/optional.h>
 #include <thrust/transform.h>
 #include <thrust/tuple.h>
 
@@ -80,6 +80,8 @@ class Tests_MGTransformReduceEBySrcDstKey
             bool store_transposed>
   void run_current_test(Prims_Usecase const& prims_usecase, input_usecase_t const& input_usecase)
   {
+    using edge_type_t = int32_t;
+
     HighResTimer hr_timer{};
 
     // 1. create MG graph
@@ -149,7 +151,8 @@ class Tests_MGTransformReduceEBySrcDstKey
       mg_dst_prop.view(),
       cugraph::edge_dummy_property_t{}.view(),
       mg_src_key.view(),
-      [] __device__(auto src, auto dst, auto src_property, auto dst_property, thrust::nullopt_t) {
+      [] __device__(
+        auto src, auto dst, auto src_property, auto dst_property, cuda::std::nullopt_t) {
         if (src_property < dst_property) {
           return src_property;
         } else {
@@ -179,7 +182,8 @@ class Tests_MGTransformReduceEBySrcDstKey
       mg_dst_prop.view(),
       cugraph::edge_dummy_property_t{}.view(),
       mg_dst_key.view(),
-      [] __device__(auto src, auto dst, auto src_property, auto dst_property, thrust::nullopt_t) {
+      [] __device__(
+        auto src, auto dst, auto src_property, auto dst_property, cuda::std::nullopt_t) {
         if (src_property < dst_property) {
           return src_property;
         } else {
@@ -236,12 +240,13 @@ class Tests_MGTransformReduceEBySrcDstKey
                           cugraph::get_dataframe_buffer_begin(mg_aggregate_by_dst_values));
 
       cugraph::graph_t<vertex_t, edge_t, store_transposed, false> sg_graph(*handle_);
-      std::tie(sg_graph, std::ignore, std::ignore, std::ignore) =
+      std::tie(sg_graph, std::ignore, std::ignore, std::ignore, std::ignore) =
         cugraph::test::mg_graph_to_sg_graph(
           *handle_,
           mg_graph_view,
           std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},
           std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
+          std::optional<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>{std::nullopt},
           std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
                                                                 (*mg_renumber_map).size()),
           false);
@@ -279,7 +284,7 @@ class Tests_MGTransformReduceEBySrcDstKey
           cugraph::edge_dummy_property_t{}.view(),
           sg_src_key.view(),
           [] __device__(
-            auto src, auto dst, auto src_property, auto dst_property, thrust::nullopt_t) {
+            auto src, auto dst, auto src_property, auto dst_property, cuda::std::nullopt_t) {
             if (src_property < dst_property) {
               return src_property;
             } else {
@@ -301,7 +306,7 @@ class Tests_MGTransformReduceEBySrcDstKey
           cugraph::edge_dummy_property_t{}.view(),
           sg_dst_key.view(),
           [] __device__(
-            auto src, auto dst, auto src_property, auto dst_property, thrust::nullopt_t) {
+            auto src, auto dst, auto src_property, auto dst_property, cuda::std::nullopt_t) {
             if (src_property < dst_property) {
               return src_property;
             } else {

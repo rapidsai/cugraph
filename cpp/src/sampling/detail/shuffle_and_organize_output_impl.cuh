@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,9 +32,10 @@
 
 #include <rmm/device_uvector.hpp>
 
-#include <thrust/optional.h>
 #include <thrust/sort.h>
 #include <thrust/tuple.h>
+
+#include <optional>
 
 namespace cugraph {
 namespace detail {
@@ -265,7 +266,8 @@ shuffle_and_organize_output(
                                                                         edge_types->begin(),
                                                                         hops->begin(),
                                                                         labels->begin()),
-                                              h_tx_value_counts,
+                                              raft::host_span<size_t const>(
+                                                h_tx_value_counts.data(), h_tx_value_counts.size()),
                                               handle.get_stream());
             } else {
               auto d_tx_value_counts = cugraph::groupby_and_count(
@@ -290,15 +292,16 @@ shuffle_and_organize_output(
 
               std::forward_as_tuple(std::tie(majors, minors, weights, edge_ids, edge_types, labels),
                                     std::ignore) =
-                shuffle_values(comm,
-                               thrust::make_zip_iterator(majors.begin(),
-                                                         minors.begin(),
-                                                         weights->begin(),
-                                                         edge_ids->begin(),
-                                                         edge_types->begin(),
-                                                         labels->begin()),
-                               h_tx_value_counts,
-                               handle.get_stream());
+                shuffle_values(
+                  comm,
+                  thrust::make_zip_iterator(majors.begin(),
+                                            minors.begin(),
+                                            weights->begin(),
+                                            edge_ids->begin(),
+                                            edge_types->begin(),
+                                            labels->begin()),
+                  raft::host_span<size_t const>(h_tx_value_counts.data(), h_tx_value_counts.size()),
+                  handle.get_stream());
             }
           } else {
             if (hops) {
@@ -324,15 +327,16 @@ shuffle_and_organize_output(
 
               std::forward_as_tuple(std::tie(majors, minors, weights, edge_ids, hops, labels),
                                     std::ignore) =
-                shuffle_values(comm,
-                               thrust::make_zip_iterator(majors.begin(),
-                                                         minors.begin(),
-                                                         weights->begin(),
-                                                         edge_ids->begin(),
-                                                         hops->begin(),
-                                                         labels->begin()),
-                               h_tx_value_counts,
-                               handle.get_stream());
+                shuffle_values(
+                  comm,
+                  thrust::make_zip_iterator(majors.begin(),
+                                            minors.begin(),
+                                            weights->begin(),
+                                            edge_ids->begin(),
+                                            hops->begin(),
+                                            labels->begin()),
+                  raft::host_span<size_t const>(h_tx_value_counts.data(), h_tx_value_counts.size()),
+                  handle.get_stream());
             } else {
               auto d_tx_value_counts = cugraph::groupby_and_count(
                 labels->begin(),
@@ -353,14 +357,15 @@ shuffle_and_organize_output(
 
               std::forward_as_tuple(std::tie(majors, minors, weights, edge_ids, labels),
                                     std::ignore) =
-                shuffle_values(comm,
-                               thrust::make_zip_iterator(majors.begin(),
-                                                         minors.begin(),
-                                                         weights->begin(),
-                                                         edge_ids->begin(),
-                                                         labels->begin()),
-                               h_tx_value_counts,
-                               handle.get_stream());
+                shuffle_values(
+                  comm,
+                  thrust::make_zip_iterator(majors.begin(),
+                                            minors.begin(),
+                                            weights->begin(),
+                                            edge_ids->begin(),
+                                            labels->begin()),
+                  raft::host_span<size_t const>(h_tx_value_counts.data(), h_tx_value_counts.size()),
+                  handle.get_stream());
             }
           }
         } else {
@@ -388,15 +393,16 @@ shuffle_and_organize_output(
 
               std::forward_as_tuple(std::tie(majors, minors, weights, edge_types, hops, labels),
                                     std::ignore) =
-                shuffle_values(comm,
-                               thrust::make_zip_iterator(majors.begin(),
-                                                         minors.begin(),
-                                                         weights->begin(),
-                                                         edge_types->begin(),
-                                                         hops->begin(),
-                                                         labels->begin()),
-                               h_tx_value_counts,
-                               handle.get_stream());
+                shuffle_values(
+                  comm,
+                  thrust::make_zip_iterator(majors.begin(),
+                                            minors.begin(),
+                                            weights->begin(),
+                                            edge_types->begin(),
+                                            hops->begin(),
+                                            labels->begin()),
+                  raft::host_span<size_t const>(h_tx_value_counts.data(), h_tx_value_counts.size()),
+                  handle.get_stream());
             } else {
               auto d_tx_value_counts = cugraph::groupby_and_count(
                 labels->begin(),
@@ -417,14 +423,15 @@ shuffle_and_organize_output(
 
               std::forward_as_tuple(std::tie(majors, minors, weights, edge_types, labels),
                                     std::ignore) =
-                shuffle_values(comm,
-                               thrust::make_zip_iterator(majors.begin(),
-                                                         minors.begin(),
-                                                         weights->begin(),
-                                                         edge_types->begin(),
-                                                         labels->begin()),
-                               h_tx_value_counts,
-                               handle.get_stream());
+                shuffle_values(
+                  comm,
+                  thrust::make_zip_iterator(majors.begin(),
+                                            minors.begin(),
+                                            weights->begin(),
+                                            edge_types->begin(),
+                                            labels->begin()),
+                  raft::host_span<size_t const>(h_tx_value_counts.data(), h_tx_value_counts.size()),
+                  handle.get_stream());
             }
           } else {
             if (hops) {
@@ -446,14 +453,15 @@ shuffle_and_organize_output(
               handle.sync_stream();
 
               std::forward_as_tuple(std::tie(majors, minors, weights, hops, labels), std::ignore) =
-                shuffle_values(comm,
-                               thrust::make_zip_iterator(majors.begin(),
-                                                         minors.begin(),
-                                                         weights->begin(),
-                                                         hops->begin(),
-                                                         labels->begin()),
-                               h_tx_value_counts,
-                               handle.get_stream());
+                shuffle_values(
+                  comm,
+                  thrust::make_zip_iterator(majors.begin(),
+                                            minors.begin(),
+                                            weights->begin(),
+                                            hops->begin(),
+                                            labels->begin()),
+                  raft::host_span<size_t const>(h_tx_value_counts.data(), h_tx_value_counts.size()),
+                  handle.get_stream());
             } else {
               auto d_tx_value_counts = cugraph::groupby_and_count(
                 labels->begin(),
@@ -472,11 +480,12 @@ shuffle_and_organize_output(
               handle.sync_stream();
 
               std::forward_as_tuple(std::tie(majors, minors, weights, labels), std::ignore) =
-                shuffle_values(comm,
-                               thrust::make_zip_iterator(
-                                 majors.begin(), minors.begin(), weights->begin(), labels->begin()),
-                               h_tx_value_counts,
-                               handle.get_stream());
+                shuffle_values(
+                  comm,
+                  thrust::make_zip_iterator(
+                    majors.begin(), minors.begin(), weights->begin(), labels->begin()),
+                  raft::host_span<size_t const>(h_tx_value_counts.data(), h_tx_value_counts.size()),
+                  handle.get_stream());
             }
           }
         }
@@ -506,15 +515,16 @@ shuffle_and_organize_output(
 
               std::forward_as_tuple(std::tie(majors, minors, edge_ids, edge_types, hops, labels),
                                     std::ignore) =
-                shuffle_values(comm,
-                               thrust::make_zip_iterator(majors.begin(),
-                                                         minors.begin(),
-                                                         edge_ids->begin(),
-                                                         edge_types->begin(),
-                                                         hops->begin(),
-                                                         labels->begin()),
-                               h_tx_value_counts,
-                               handle.get_stream());
+                shuffle_values(
+                  comm,
+                  thrust::make_zip_iterator(majors.begin(),
+                                            minors.begin(),
+                                            edge_ids->begin(),
+                                            edge_types->begin(),
+                                            hops->begin(),
+                                            labels->begin()),
+                  raft::host_span<size_t const>(h_tx_value_counts.data(), h_tx_value_counts.size()),
+                  handle.get_stream());
             } else {
               auto d_tx_value_counts = cugraph::groupby_and_count(
                 labels->begin(),
@@ -535,14 +545,15 @@ shuffle_and_organize_output(
 
               std::forward_as_tuple(std::tie(majors, minors, edge_ids, edge_types, labels),
                                     std::ignore) =
-                shuffle_values(comm,
-                               thrust::make_zip_iterator(majors.begin(),
-                                                         minors.begin(),
-                                                         edge_ids->begin(),
-                                                         edge_types->begin(),
-                                                         labels->begin()),
-                               h_tx_value_counts,
-                               handle.get_stream());
+                shuffle_values(
+                  comm,
+                  thrust::make_zip_iterator(majors.begin(),
+                                            minors.begin(),
+                                            edge_ids->begin(),
+                                            edge_types->begin(),
+                                            labels->begin()),
+                  raft::host_span<size_t const>(h_tx_value_counts.data(), h_tx_value_counts.size()),
+                  handle.get_stream());
             }
           } else {
             if (hops) {
@@ -564,14 +575,15 @@ shuffle_and_organize_output(
               handle.sync_stream();
 
               std::forward_as_tuple(std::tie(majors, minors, edge_ids, hops, labels), std::ignore) =
-                shuffle_values(comm,
-                               thrust::make_zip_iterator(majors.begin(),
-                                                         minors.begin(),
-                                                         edge_ids->begin(),
-                                                         hops->begin(),
-                                                         labels->begin()),
-                               h_tx_value_counts,
-                               handle.get_stream());
+                shuffle_values(
+                  comm,
+                  thrust::make_zip_iterator(majors.begin(),
+                                            minors.begin(),
+                                            edge_ids->begin(),
+                                            hops->begin(),
+                                            labels->begin()),
+                  raft::host_span<size_t const>(h_tx_value_counts.data(), h_tx_value_counts.size()),
+                  handle.get_stream());
             } else {
               auto d_tx_value_counts = cugraph::groupby_and_count(
                 labels->begin(),
@@ -594,7 +606,7 @@ shuffle_and_organize_output(
                   comm,
                   thrust::make_zip_iterator(
                     majors.begin(), minors.begin(), edge_ids->begin(), labels->begin()),
-                  h_tx_value_counts,
+                  raft::host_span<size_t const>(h_tx_value_counts.data(), h_tx_value_counts.size()),
                   handle.get_stream());
             }
           }
@@ -620,14 +632,15 @@ shuffle_and_organize_output(
 
               std::forward_as_tuple(std::tie(majors, minors, edge_types, hops, labels),
                                     std::ignore) =
-                shuffle_values(comm,
-                               thrust::make_zip_iterator(majors.begin(),
-                                                         minors.begin(),
-                                                         edge_types->begin(),
-                                                         hops->begin(),
-                                                         labels->begin()),
-                               h_tx_value_counts,
-                               handle.get_stream());
+                shuffle_values(
+                  comm,
+                  thrust::make_zip_iterator(majors.begin(),
+                                            minors.begin(),
+                                            edge_types->begin(),
+                                            hops->begin(),
+                                            labels->begin()),
+                  raft::host_span<size_t const>(h_tx_value_counts.data(), h_tx_value_counts.size()),
+                  handle.get_stream());
             } else {
               auto d_tx_value_counts = cugraph::groupby_and_count(
                 labels->begin(),
@@ -650,7 +663,7 @@ shuffle_and_organize_output(
                   comm,
                   thrust::make_zip_iterator(
                     majors.begin(), minors.begin(), edge_types->begin(), labels->begin()),
-                  h_tx_value_counts,
+                  raft::host_span<size_t const>(h_tx_value_counts.data(), h_tx_value_counts.size()),
                   handle.get_stream());
             }
           } else {
@@ -672,11 +685,12 @@ shuffle_and_organize_output(
               handle.sync_stream();
 
               std::forward_as_tuple(std::tie(majors, minors, hops, labels), std::ignore) =
-                shuffle_values(comm,
-                               thrust::make_zip_iterator(
-                                 majors.begin(), minors.begin(), hops->begin(), labels->begin()),
-                               h_tx_value_counts,
-                               handle.get_stream());
+                shuffle_values(
+                  comm,
+                  thrust::make_zip_iterator(
+                    majors.begin(), minors.begin(), hops->begin(), labels->begin()),
+                  raft::host_span<size_t const>(h_tx_value_counts.data(), h_tx_value_counts.size()),
+                  handle.get_stream());
             } else {
               auto d_tx_value_counts = cugraph::groupby_and_count(
                 labels->begin(),
@@ -697,7 +711,7 @@ shuffle_and_organize_output(
               std::forward_as_tuple(std::tie(majors, minors, labels), std::ignore) = shuffle_values(
                 comm,
                 thrust::make_zip_iterator(majors.begin(), minors.begin(), labels->begin()),
-                h_tx_value_counts,
+                raft::host_span<size_t const>(h_tx_value_counts.data(), h_tx_value_counts.size()),
                 handle.get_stream());
             }
           }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -126,7 +126,7 @@ struct check_invalid_bucket_idx_t {
  * @brief Insert (tagged-)vertices to the vertex frontier and update vertex property values of the
  * newly inserted vertices .
  *
- * This primitive often works in pair with transform_reduce_v_frontier_outgoing_e_by_dst. This
+ * This primitive often works in pair with transform_reduce_if_v_frontier_outgoing_e_by_dst. This
  * version of update_v_frontier takes @p payload_buffer and @v_op takes a payload value in addition
  * to a (tagged-)vertex and a vertex property value as input arguments.
  *
@@ -157,10 +157,10 @@ struct check_invalid_bucket_idx_t {
  * graph_view.local_vertex_partition_range_size().
  * @param v_op Ternary operator that takes (tagged-)vertex ID, *(@p vertex_value_input_first + i)
  * (where i is [0, @p graph_view.local_vertex_partition_range_size())) and the payload value for the
- * (tagged-)vertex ID and returns a tuple of 1) a thrust::optional object optionally storing a
- * bucket index and 2) a thrust::optional object optionally storing a new vertex property value. If
- * the first element of the returned tuple is thrust::nullopt, this (tagged-)vertex won't be
- * inserted to the vertex frontier. If the second element is thrust::nullopt, the vertex property
+ * (tagged-)vertex ID and returns a tuple of 1) a cuda::std::optional object optionally storing a
+ * bucket index and 2) a cuda::std::optional object optionally storing a new vertex property value.
+ * If the first element of the returned tuple is cuda::std::nullopt, this (tagged-)vertex won't be
+ * inserted to the vertex frontier. If the second element is cuda::std::nullopt, the vertex property
  * value for this vertex won't be updated. Note that it is currently undefined behavior if there are
  * multiple tagged-vertices with the same vertex ID (but with different tags) AND @p v_op results on
  * the tagged-vertices with the same vertex ID have more than one valid new vertex property values.
@@ -177,7 +177,7 @@ void update_v_frontier(raft::handle_t const& handle,
                        KeyBuffer&& key_buffer,
                        PayloadBuffer&& payload_buffer,
                        VertexFrontierType& frontier,
-                       std::vector<size_t> const& next_frontier_bucket_indices,
+                       raft::host_span<size_t const> next_frontier_bucket_indices,
                        VertexValueInputIterator vertex_value_input_first,
                        // FIXME: currently, it is undefined behavior if there are more than one @p
                        // key_buffer elements with the same vertex ID and the same vertex property
@@ -258,7 +258,7 @@ void update_v_frontier(raft::handle_t const& handle,
  * @brief Insert (tagged-)vertices to the vertex frontier and update vertex property values of the
  * newly inserted vertices .
  *
- * This primitive often works in pair with transform_reduce_v_frontier_outgoing_e_by_dst. This
+ * This primitive often works in pair with transform_reduce_if_v_frontier_outgoing_e_by_dst. This
  * version of update_v_frontier does not take @p payload_buffer and @v_op takes a (tagged-)vertex
  * and a vertex property value as input arguments (no payload value in the input parameter list).
  *
@@ -286,13 +286,13 @@ void update_v_frontier(raft::handle_t const& handle,
  * graph_view.local_vertex_partition_range_size().
  * @param v_op Binary operator that takes (tagged-)vertex ID, and *(@p vertex_value_input_first + i)
  * (where i is [0, @p graph_view.local_vertex_partition_range_size())) and returns a tuple of 1) a
- * thrust::optional object optionally storing a bucket index and 2) a thrust::optional object
+ * cuda::std::optional object optionally storing a bucket index and 2) a cuda::std::optional object
  * optionally storing a new vertex property value. If the first element of the returned tuple is
- * thrust::nullopt, this (tagged-)vertex won't be inserted to the vertex frontier. If the second
- * element is thrust::nullopt, the vertex property value for this vertex won't be updated. Note that
- * it is currently undefined behavior if there are multiple tagged-vertices with the same vertex ID
- * (but with different tags) AND @p v_op results on the tagged-vertices with the same vertex ID have
- * more than one valid new vertex property values.
+ * cuda::std::nullopt, this (tagged-)vertex won't be inserted to the vertex frontier. If the second
+ * element is cuda::std::nullopt, the vertex property value for this vertex won't be updated. Note
+ * that it is currently undefined behavior if there are multiple tagged-vertices with the same
+ * vertex ID (but with different tags) AND @p v_op results on the tagged-vertices with the same
+ * vertex ID have more than one valid new vertex property values.
  */
 template <typename GraphViewType,
           typename KeyBuffer,
@@ -304,7 +304,7 @@ void update_v_frontier(raft::handle_t const& handle,
                        GraphViewType const& graph_view,
                        KeyBuffer&& key_buffer,
                        VertexFrontierType& frontier,
-                       std::vector<size_t> const& next_frontier_bucket_indices,
+                       raft::host_span<size_t const> next_frontier_bucket_indices,
                        VertexValueInputIterator vertex_value_input_first,
                        // FIXME: currently, it is undefined behavior if there are more than one @p
                        // key_buffer elements with the same vertex ID and the same vertex property

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,6 +24,7 @@
 #include <rmm/device_uvector.hpp>
 
 #include <cuda/functional>
+#include <cuda/std/optional>
 #include <thrust/binary_search.h>
 #include <thrust/distance.h>
 #include <thrust/equal.h>
@@ -194,20 +195,20 @@ bool compare_edgelist(raft::handle_t const& handle,
                           handle.get_stream());
         handle.sync_stream();
       }
+      std::vector<vertex_t> lasts{
+        static_cast<vertex_t>(renumber_map_label_end_offset - renumber_map_label_start_offset)};
       cugraph::unrenumber_int_vertices<vertex_t, false>(
         handle,
         this_label_sorted_unrenumbered_edgelist_srcs.data(),
         this_label_sorted_unrenumbered_edgelist_srcs.size(),
         (*renumber_map).data() + renumber_map_label_start_offset,
-        std::vector<vertex_t>{
-          static_cast<vertex_t>(renumber_map_label_end_offset - renumber_map_label_start_offset)});
+        raft::host_span<vertex_t const>(lasts.data(), lasts.size()));
       cugraph::unrenumber_int_vertices<vertex_t, false>(
         handle,
         this_label_sorted_unrenumbered_edgelist_dsts.data(),
         this_label_sorted_unrenumbered_edgelist_dsts.size(),
         (*renumber_map).data() + renumber_map_label_start_offset,
-        std::vector<vertex_t>{
-          static_cast<vertex_t>(renumber_map_label_end_offset - renumber_map_label_start_offset)});
+        raft::host_span<vertex_t const>(lasts.data(), lasts.size()));
     }
 
     if (this_label_sorted_unrenumbered_edgelist_weights) {
@@ -383,26 +384,27 @@ bool compare_heterogeneous_edgelist(
       this_label_org_sorted_indices.begin(),
       this_label_org_sorted_indices.end(),
       [edge_types = org_edgelist_edge_types
-                      ? thrust::make_optional<raft::device_span<edge_type_t const>>(
+                      ? cuda::std::make_optional<raft::device_span<edge_type_t const>>(
                           (*org_edgelist_edge_types).data() + label_start_offset,
                           label_end_offset - label_start_offset)
-                      : thrust::nullopt,
-       hops       = org_edgelist_hops ? thrust::make_optional<raft::device_span<int32_t const>>(
+                      : cuda::std::nullopt,
+       hops       = org_edgelist_hops ? cuda::std::make_optional<raft::device_span<int32_t const>>(
                                     (*org_edgelist_hops).data() + label_start_offset,
                                     label_end_offset - label_start_offset)
-                                      : thrust::nullopt,
+                                      : cuda::std::nullopt,
        srcs       = raft::device_span<vertex_t const>(org_edgelist_srcs.data() + label_start_offset,
                                                 label_end_offset - label_start_offset),
        dsts       = raft::device_span<vertex_t const>(org_edgelist_dsts.data() + label_start_offset,
                                                 label_end_offset - label_start_offset),
-       weights    = org_edgelist_weights ? thrust::make_optional<raft::device_span<weight_t const>>(
+       weights = org_edgelist_weights ? cuda::std::make_optional<raft::device_span<weight_t const>>(
                                           (*org_edgelist_weights).data() + label_start_offset,
                                           label_end_offset - label_start_offset)
-                                         : thrust::nullopt,
-       edge_ids = org_edgelist_edge_ids ? thrust::make_optional<raft::device_span<edge_id_t const>>(
-                                            (*org_edgelist_edge_ids).data() + label_start_offset,
-                                            label_end_offset - label_start_offset)
-                                        : thrust::nullopt] __device__(size_t l_idx, size_t r_idx) {
+                                      : cuda::std::nullopt,
+       edge_ids = org_edgelist_edge_ids
+                    ? cuda::std::make_optional<raft::device_span<edge_id_t const>>(
+                        (*org_edgelist_edge_ids).data() + label_start_offset,
+                        label_end_offset - label_start_offset)
+                    : cuda::std::nullopt] __device__(size_t l_idx, size_t r_idx) {
         edge_type_t l_edge_type{0};
         edge_type_t r_edge_type{0};
         if (edge_types) {
@@ -547,12 +549,13 @@ bool compare_heterogeneous_edgelist(
         auto renumber_map = raft::device_span<vertex_t const>(
           vertex_renumber_map.data() + renumber_map_label_start_offset,
           renumber_map_label_end_offset - renumber_map_label_start_offset);
+        std::vector<vertex_t> lasts{static_cast<vertex_t>(renumber_map.size())};
         cugraph::unrenumber_int_vertices<vertex_t, false>(
           handle,
           this_edge_type_unrenumbered_edgelist_srcs.data(),
           edge_type_end_offset - edge_type_start_offset,
           renumber_map.data(),
-          std::vector<vertex_t>{static_cast<vertex_t>(renumber_map.size())});
+          raft::host_span<vertex_t const>(lasts.data(), lasts.size()));
       }
 
       // unrenumber destination vertex IDs
@@ -593,12 +596,13 @@ bool compare_heterogeneous_edgelist(
         auto renumber_map = raft::device_span<vertex_t const>(
           vertex_renumber_map.data() + renumber_map_label_start_offset,
           renumber_map_label_end_offset - renumber_map_label_start_offset);
+        std::vector<vertex_t> lasts{static_cast<vertex_t>(renumber_map.size())};
         cugraph::unrenumber_int_vertices<vertex_t, false>(
           handle,
           this_edge_type_unrenumbered_edgelist_dsts.data(),
           edge_type_end_offset - edge_type_start_offset,
           renumber_map.data(),
-          std::vector<vertex_t>{static_cast<vertex_t>(renumber_map.size())});
+          raft::host_span<vertex_t const>(lasts.data(), lasts.size()));
       }
 
       // unrenumber edge IDs
@@ -673,15 +677,15 @@ bool compare_heterogeneous_edgelist(
              raft::device_span<vertex_t const>(this_edge_type_unrenumbered_edgelist_dsts.data(),
                                                this_edge_type_unrenumbered_edgelist_dsts.size()),
            weights  = renumbered_edgelist_weights
-                        ? thrust::make_optional<raft::device_span<weight_t const>>(
+                        ? cuda::std::make_optional<raft::device_span<weight_t const>>(
                            (*renumbered_edgelist_weights).data() + edge_type_start_offset,
                            edge_type_end_offset - edge_type_start_offset)
-                        : thrust::nullopt,
+                        : cuda::std::nullopt,
            edge_ids = renumbered_edgelist_edge_ids
-                        ? thrust::make_optional<raft::device_span<edge_id_t const>>(
+                        ? cuda::std::make_optional<raft::device_span<edge_id_t const>>(
                             (*renumbered_edgelist_edge_ids).data() + edge_type_start_offset,
                             edge_type_end_offset - edge_type_start_offset)
-                        : thrust::nullopt] __device__(size_t l_idx, size_t r_idx) {
+                        : cuda::std::nullopt] __device__(size_t l_idx, size_t r_idx) {
             vertex_t l_src = srcs[l_idx];
             vertex_t r_src = srcs[r_idx];
 
@@ -721,15 +725,15 @@ bool compare_heterogeneous_edgelist(
                raft::device_span<vertex_t const>(org_edgelist_dsts.data() + label_start_offset,
                                                  label_end_offset - label_start_offset),
              org_weights  = org_edgelist_weights
-                              ? thrust::make_optional<raft::device_span<weight_t const>>(
+                              ? cuda::std::make_optional<raft::device_span<weight_t const>>(
                                  (*org_edgelist_weights).data() + label_start_offset,
                                  label_end_offset - label_start_offset)
-                              : thrust::nullopt,
+                              : cuda::std::nullopt,
              org_edge_ids = org_edgelist_edge_ids
-                              ? thrust::make_optional<raft::device_span<edge_id_t const>>(
+                              ? cuda::std::make_optional<raft::device_span<edge_id_t const>>(
                                   (*org_edgelist_edge_ids).data() + label_start_offset,
                                   label_end_offset - label_start_offset)
-                              : thrust::nullopt,
+                              : cuda::std::nullopt,
              unrenumbered_srcs =
                raft::device_span<vertex_t const>(this_edge_type_unrenumbered_edgelist_srcs.data(),
                                                  this_edge_type_unrenumbered_edgelist_srcs.size()),
@@ -738,16 +742,16 @@ bool compare_heterogeneous_edgelist(
                                                  this_edge_type_unrenumbered_edgelist_dsts.size()),
              unrenumbered_weights =
                renumbered_edgelist_weights
-                 ? thrust::make_optional<raft::device_span<weight_t const>>(
+                 ? cuda::std::make_optional<raft::device_span<weight_t const>>(
                      (*renumbered_edgelist_weights).data() + edge_type_start_offset,
                      edge_type_end_offset - edge_type_start_offset)
-                 : thrust::nullopt,
+                 : cuda::std::nullopt,
              unrenumbered_edge_ids =
                unrenumbered_edgelist_edge_ids
-                 ? thrust::make_optional<raft::device_span<edge_id_t const>>(
+                 ? cuda::std::make_optional<raft::device_span<edge_id_t const>>(
                      (*unrenumbered_edgelist_edge_ids).data(),
                      (*unrenumbered_edgelist_edge_ids).size())
-                 : thrust::
+                 : cuda::std::
                      nullopt] __device__(size_t org_idx /* from label_start_offset */,
                                          size_t
                                            unrenumbered_idx /* from edge_type_start_offset */) {

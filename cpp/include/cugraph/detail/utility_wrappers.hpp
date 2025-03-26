@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,13 +26,18 @@
 namespace cugraph {
 namespace detail {
 
+/** @defgroup utility_wrappers_cpp C++ Utility Wrappers
+ */
+
 /**
+ * @ingroup utility_wrappers_cpp
  * @brief    Fill a buffer with uniformly distributed random values
  *
  * Fills a buffer with uniformly distributed random values between
  * the specified minimum and maximum values.
  *
- * @tparam      value_t      type of the value to operate on
+ * @tparam      value_t      type of the value to operate on (currently supports int32_t, int64_t,
+ * float and double)
  *
  * @param[in]   stream_view  stream view
  * @param[out]  d_value      device array to fill
@@ -51,6 +56,7 @@ void uniform_random_fill(rmm::cuda_stream_view const& stream_view,
                          raft::random::RngState& rng_state);
 
 /**
+ * @ingroup utility_wrappers_cpp
  * @brief    Fill a buffer with a constant value
  *
  * @tparam      value_t      type of the value to operate on
@@ -66,6 +72,7 @@ template <typename value_t>
 void scalar_fill(raft::handle_t const& handle, value_t* d_value, size_t size, value_t value);
 
 /**
+ * @ingroup utility_wrappers_cpp
  * @brief    Sort a device span
  *
  * @tparam      value_t      type of the value to operate on. Must be either int32_t or int64_t.
@@ -79,6 +86,7 @@ template <typename value_t>
 void sort_ints(raft::handle_t const& handle, raft::device_span<value_t> values);
 
 /**
+ * @ingroup utility_wrappers_cpp
  * @brief    Keep unique element from a device span
  *
  * @tparam      value_t      type of the value to operate on. Must be either int32_t or int64_t.
@@ -93,6 +101,7 @@ template <typename value_t>
 size_t unique_ints(raft::handle_t const& handle, raft::device_span<value_t> values);
 
 /**
+ * @ingroup utility_wrappers_cpp
  * @brief    Increment the values of a device span by a constant value
  *
  * @tparam      value_t      type of the value to operate on. Must be either int32_t or int64_t.
@@ -108,6 +117,7 @@ void transform_increment_ints(raft::device_span<value_t> values,
                               rmm::cuda_stream_view const& stream_view);
 
 /**
+ * @ingroup utility_wrappers_cpp
  * @brief    Fill a buffer with a sequence of values
  *
  * Fills the buffer with the sequence:
@@ -130,6 +140,7 @@ void sequence_fill(rmm::cuda_stream_view const& stream_view,
                    value_t start_value);
 
 /**
+ * @ingroup utility_wrappers_cpp
  * @brief    Fill a buffer with a sequence of values with the input stride
  *
  * Fills the buffer with the sequence with the input stride:
@@ -152,6 +163,7 @@ void stride_fill(rmm::cuda_stream_view const& stream_view,
                  value_t stride);
 
 /**
+ * @ingroup utility_wrappers_cpp
  * @brief    Compute the maximum vertex id of an edge list
  *
  * max(d_edgelist_srcs.max(), d_edgelist_dsts.max())
@@ -172,6 +184,7 @@ vertex_t compute_maximum_vertex_id(rmm::cuda_stream_view const& stream_view,
                                    size_t num_edges);
 
 /**
+ * @ingroup utility_wrappers_cpp
  * @brief    Compute the maximum vertex id of an edge list
  *
  * max(d_edgelist_srcs.max(), d_edgelist_dsts.max())
@@ -194,6 +207,7 @@ vertex_t compute_maximum_vertex_id(rmm::cuda_stream_view const& stream_view,
 }
 
 /**
+ * @ingroup utility_wrappers_cpp
  * @brief Filter zero degree vertices from this frontier
  *
  * @tparam vertex_t vertex type
@@ -211,6 +225,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> filter_de
   rmm::device_uvector<edge_t>&& d_out_degs);
 
 /**
+ * @ingroup utility_wrappers_cpp
  * @brief Check if device span is sorted
  *
  * @tparam data_t type of data in span
@@ -223,6 +238,7 @@ template <typename data_t>
 bool is_sorted(raft::handle_t const& handle, raft::device_span<data_t> span);
 
 /**
+ * @ingroup utility_wrappers_cpp
  * @brief Check if two device spans are equal.  Returns true if every element in the spans are
  * equal.
  *
@@ -239,6 +255,7 @@ bool is_equal(raft::handle_t const& handle,
               raft::device_span<data_t> span2);
 
 /**
+ * @ingroup utility_wrappers_cpp
  * @brief Count the number of times a value appears in a span
  *
  * @tparam data_t type of data in span

@@ -51,11 +51,8 @@ enum class DegreeDirection {
 /** @defgroup legacy_graph_cpp C++ Legacy Graph
  */
 
-/** @ingroup legacy_graph_cpp
- *  @{
- */
-
 /**
+ * @ingroup legacy_graph_cpp
  * @brief       Base class graphs, all but vertices and edges
  *
  * @tparam vertex_t   Type of vertex id
@@ -86,6 +83,7 @@ class GraphViewBase {
   vertex_t get_local_vertex_first() const { return vertex_t{0}; }
 
   /**
+   * @ingroup legacy_graph_cpp
    * @brief      Fill the identifiers array with the vertex identifiers.
    *
    * @param[out]    identifiers      Pointer to device memory to store the vertex
@@ -118,6 +116,7 @@ class GraphViewBase {
 };
 
 /**
+ * @ingroup legacy_graph_cpp
  * @brief       A graph stored in COO (COOrdinate) format.
  *
  * @tparam vertex_t   Type of vertex id
@@ -131,6 +130,7 @@ class GraphCOOView : public GraphViewBase<vertex_t, edge_t, weight_t> {
   vertex_t* dst_indices{nullptr};  ///< colInd
 
   /**
+   * @ingroup legacy_graph_cpp
    * @brief     Computes degree(in, out, in+out) of all the nodes of a Graph
    *
    * @throws     cugraph::logic_error when an error occurs.
@@ -148,6 +148,7 @@ class GraphCOOView : public GraphViewBase<vertex_t, edge_t, weight_t> {
   GraphCOOView() : GraphViewBase<vertex_t, edge_t, weight_t>(nullptr, 0, 0) {}
 
   /**
+   * @ingroup legacy_graph_cpp
    * @brief      Wrap existing arrays representing an edge list in a Graph.
    *
    *             GraphCOOView does not own the memory used to represent this
@@ -180,6 +181,7 @@ class GraphCOOView : public GraphViewBase<vertex_t, edge_t, weight_t> {
 };
 
 /**
+ * @ingroup legacy_graph_cpp
  * @brief       Base class for graph stored in CSR (Compressed Sparse Row)
  * format or CSC (Compressed
  * Sparse Column) format
@@ -195,6 +197,7 @@ class GraphCompressedSparseBaseView : public GraphViewBase<vertex_t, edge_t, wei
   vertex_t* indices{nullptr};  ///< CSR indices
 
   /**
+   * @ingroup legacy_graph_cpp
    * @brief      Fill the identifiers in the array with the source vertex
    * identifiers
    *
@@ -204,6 +207,7 @@ class GraphCompressedSparseBaseView : public GraphViewBase<vertex_t, edge_t, wei
   void get_source_indices(vertex_t* src_indices) const;
 
   /**
+   * @ingroup legacy_graph_cpp
    * @brief     Computes degree(in, out, in+out) of all the nodes of a Graph
    *
    * @throws     cugraph::logic_error when an error occurs.
@@ -220,6 +224,7 @@ class GraphCompressedSparseBaseView : public GraphViewBase<vertex_t, edge_t, wei
   void degree(edge_t* degree, DegreeDirection direction) const;
 
   /**
+   * @ingroup legacy_graph_cpp
    * @brief      Wrap existing arrays representing adjacency lists in a Graph.
    *             GraphCSRView does not own the memory used to represent this
    * graph. This
@@ -253,6 +258,7 @@ class GraphCompressedSparseBaseView : public GraphViewBase<vertex_t, edge_t, wei
 };
 
 /**
+ * @ingroup legacy_graph_cpp
  * @brief       A graph stored in CSR (Compressed Sparse Row) format.
  *
  * @tparam vertex_t   Type of vertex id
@@ -271,6 +277,7 @@ class GraphCSRView : public GraphCompressedSparseBaseView<vertex_t, edge_t, weig
   }
 
   /**
+   * @ingroup legacy_graph_cpp
    * @brief      Wrap existing arrays representing adjacency lists in a Graph.
    *             GraphCSRView does not own the memory used to represent this
    * graph. This
@@ -303,6 +310,7 @@ class GraphCSRView : public GraphCompressedSparseBaseView<vertex_t, edge_t, weig
 };
 
 /**
+ * @ingroup legacy_graph_cpp
  * @brief      TODO : Change this Take ownership of the provided graph arrays in
  * COO format
  *
@@ -329,6 +337,7 @@ struct GraphCOOContents {
 };
 
 /**
+ * @ingroup legacy_graph_cpp
  * @brief       A constructed graph stored in COO (COOrdinate) format.
  *
  * This class will src_indices and dst_indicies (until moved)
@@ -347,6 +356,7 @@ class GraphCOO {
 
  public:
   /**
+   * @ingroup legacy_graph_cpp
    * @brief      Take ownership of the provided graph arrays in COO format
    *
    * @param  number_of_vertices    The number of vertices in the graph
@@ -429,6 +439,7 @@ struct GraphSparseContents {
 };
 
 /**
+ * @ingroup legacy_graph_cpp
  * @brief       Base class for constructted graphs stored in CSR (Compressed
  * Sparse Row) format or
  * CSC (Compressed Sparse Column) format
@@ -453,6 +464,7 @@ class GraphCompressedSparseBase {
   //}
 
   /**
+   * @ingroup legacy_graph_cpp
    * @brief      Take ownership of the provided graph arrays in CSR/CSC format
    *
    * @param  number_of_vertices    The number of vertices in the graph
@@ -507,6 +519,7 @@ class GraphCompressedSparseBase {
 };
 
 /**
+ * @ingroup legacy_graph_cpp
  * @brief       A constructed graph stored in CSR (Compressed Sparse Row)
  * format.
  *
@@ -519,10 +532,13 @@ class GraphCSR : public GraphCompressedSparseBase<vertex_t, edge_t, weight_t> {
  public:
   /**
    * @brief      Default constructor
+   * @ingroup legacy_graph_cpp
+
    */
   GraphCSR() : GraphCompressedSparseBase<vertex_t, edge_t, weight_t>() {}
 
   /**
+   * @ingroup legacy_graph_cpp
    * @brief      Take ownership of the provided graph arrays in CSR format
    *
    * @param  number_of_vertices    The number of vertices in the graph
@@ -582,7 +598,3 @@ struct invalid_edge_id : invalid_idx<edge_t> {};
 }  // namespace cugraph
 
 #include "eidecl_graph.hpp"
-
-/**
- * @}
- */

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -65,6 +65,8 @@ class Tests_MGInducedSubgraph
   void run_current_test(
     std::tuple<InducedSubgraph_Usecase const&, input_usecase_t const&> const& param)
   {
+    using edge_type_t = int32_t;
+
     auto [induced_subgraph_usecase, input_usecase] = param;
 
     HighResTimer hr_timer{};
@@ -224,12 +226,17 @@ class Tests_MGInducedSubgraph
                                                         true,
                                                         handle_->get_stream());
 
-      auto [sg_graph, sg_edge_weights, sg_edge_ids, sg_number_map] =
+      cugraph::graph_t<vertex_t, edge_t, false, false> sg_graph(*handle_);
+      std::optional<
+        cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, false, false>, weight_t>>
+        sg_edge_weights{std::nullopt};
+      std::tie(sg_graph, sg_edge_weights, std::ignore, std::ignore, std::ignore) =
         cugraph::test::mg_graph_to_sg_graph(
           *handle_,
           mg_graph_view,
           mg_edge_weight_view,
           std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
+          std::optional<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>{std::nullopt},
           std::optional<raft::device_span<vertex_t const>>{std::nullopt},
           false);
 

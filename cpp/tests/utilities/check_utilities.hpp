@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2019-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,6 +20,8 @@
 #include <raft/core/handle.hpp>
 #include <raft/core/span.hpp>
 #include <thrust/extrema.h>
+
+#include <cuda/std/functional>
 
 #include <numeric>
 #include <type_traits>
@@ -96,7 +98,7 @@ struct device_nearly_equal {
   bool __device__ operator()(type_t lhs, type_t rhs) const
   {
     return std::abs(lhs - rhs) <
-           thrust::max(thrust::max(lhs, rhs) * threshold_ratio, threshold_magnitude);
+           cuda::std::max(cuda::std::max(lhs, rhs) * threshold_ratio, threshold_magnitude);
   }
 };
 

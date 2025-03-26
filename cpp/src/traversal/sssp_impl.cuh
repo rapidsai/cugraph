@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,7 +19,7 @@
 #include "prims/fill_edge_src_dst_property.cuh"
 #include "prims/reduce_op.cuh"
 #include "prims/transform_reduce_e.cuh"
-#include "prims/transform_reduce_v_frontier_outgoing_e_by_dst.cuh"
+#include "prims/transform_reduce_if_v_frontier_outgoing_e_by_dst.cuh"
 #include "prims/update_edge_src_dst_property.cuh"
 #include "prims/update_v_frontier.cuh"
 #include "prims/vertex_frontier.cuh"
@@ -32,11 +32,11 @@
 
 #include <raft/util/cudart_utils.hpp>
 
+#include <cuda/std/optional>
 #include <thrust/fill.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/discard_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
-#include <thrust/optional.h>
 #include <thrust/transform.h>
 #include <thrust/tuple.h>
 
@@ -46,14 +46,24 @@ namespace cugraph {
 
 namespace {
 
-template <typename vertex_t, typename weight_t, bool multi_gpu>
+template <typename vertex_t, typename weight_t>
 struct e_op_t {
+  __device__ thrust::tuple<weight_t, vertex_t> operator()(
+    vertex_t src, vertex_t dst, weight_t src_val, cuda::std::nullopt_t, weight_t w) const
+  {
+    auto new_distance = src_val + w;
+    return thrust::make_tuple(new_distance, src);
+  }
+};
+
+template <typename vertex_t, typename weight_t, bool multi_gpu>
+struct pred_op_t {
   vertex_partition_device_view_t<vertex_t, multi_gpu> vertex_partition{};
   weight_t const* distances{};
   weight_t cutoff{};
 
-  __device__ thrust::optional<thrust::tuple<weight_t, vertex_t>> operator()(
-    vertex_t src, vertex_t dst, weight_t src_val, thrust::nullopt_t, weight_t w) const
+  __device__ bool operator()(
+    vertex_t src, vertex_t dst, weight_t src_val, cuda::std::nullopt_t, weight_t w) const
   {
     auto push         = true;
     auto new_distance = src_val + w;
@@ -65,9 +75,7 @@ struct e_op_t {
       threshold         = old_distance < threshold ? old_distance : threshold;
     }
     if (new_distance >= threshold) { push = false; }
-    return push ? thrust::optional<thrust::tuple<weight_t, vertex_t>>{thrust::make_tuple(
-                    new_distance, src)}
-                : thrust::nullopt;
+    return push;
   }
 };
 
@@ -197,7 +205,7 @@ void sssp(raft::handle_t const& handle,
       push_graph_view.local_vertex_partition_view());
 
     auto [new_frontier_vertex_buffer, distance_predecessor_buffer] =
-      cugraph::transform_reduce_v_frontier_outgoing_e_by_dst(
+      cugraph::transform_reduce_if_v_frontier_outgoing_e_by_dst(
         handle,
         push_graph_view,
         vertex_frontier.bucket(bucket_idx_cur_near),
@@ -206,28 +214,31 @@ void sssp(raft::handle_t const& handle,
           : detail::edge_major_property_view_t<vertex_t, weight_t const*>(distances),
         edge_dst_dummy_property_t{}.view(),
         edge_weight_view,
-        e_op_t<vertex_t, weight_t, GraphViewType::is_multi_gpu>{
-          vertex_partition, distances, cutoff},
-        reduce_op::minimum<thrust::tuple<weight_t, vertex_t>>());
+        e_op_t<vertex_t, weight_t>{},
+        reduce_op::minimum<thrust::tuple<weight_t, vertex_t>>(),
+        pred_op_t<vertex_t, weight_t, GraphViewType::is_multi_gpu>{
+          vertex_partition, distances, cutoff});
 
+    auto next_frontier_bucket_indices = std::vector<size_t>{bucket_idx_next_near, bucket_idx_far};
     update_v_frontier(
       handle,
       push_graph_view,
       std::move(new_frontier_vertex_buffer),
       std::move(distance_predecessor_buffer),
       vertex_frontier,
-      std::vector<size_t>{bucket_idx_next_near, bucket_idx_far},
+      raft::host_span<size_t const>(next_frontier_bucket_indices.data(),
+                                    next_frontier_bucket_indices.size()),
       distances,
       thrust::make_zip_iterator(thrust::make_tuple(distances, predecessor_first)),
       [near_far_threshold] __device__(auto v, auto v_val, auto pushed_val) {
         auto new_dist = thrust::get<0>(pushed_val);
         auto update   = (new_dist < v_val);
         return thrust::make_tuple(
-          update ? thrust::optional<size_t>{new_dist < near_far_threshold ? bucket_idx_next_near
-                                                                          : bucket_idx_far}
-                 : thrust::nullopt,
-          update ? thrust::optional<thrust::tuple<weight_t, vertex_t>>{pushed_val}
-                 : thrust::nullopt);
+          update ? cuda::std::optional<size_t>{new_dist < near_far_threshold ? bucket_idx_next_near
+                                                                             : bucket_idx_far}
+                 : cuda::std::nullopt,
+          update ? cuda::std::optional<thrust::tuple<weight_t, vertex_t>>{pushed_val}
+                 : cuda::std::nullopt);
       });
 
     vertex_frontier.bucket(bucket_idx_cur_near).clear();
@@ -244,15 +255,15 @@ void sssp(raft::handle_t const& handle,
       while (true) {
         vertex_frontier.split_bucket(
           bucket_idx_far,
-          std::vector<size_t>{bucket_idx_cur_near},
+          raft::host_span<size_t const>(&bucket_idx_cur_near, size_t{1}),
           [vertex_partition, distances, old_near_far_threshold, near_far_threshold] __device__(
             auto v) {
             auto dist =
               *(distances + vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(v));
             return dist >= old_near_far_threshold
-                     ? thrust::optional<size_t>{dist < near_far_threshold ? bucket_idx_cur_near
-                                                                          : bucket_idx_far}
-                     : thrust::nullopt;
+                     ? cuda::std::optional<size_t>{dist < near_far_threshold ? bucket_idx_cur_near
+                                                                             : bucket_idx_far}
+                     : cuda::std::nullopt;
           });
         near_size = vertex_frontier.bucket(bucket_idx_cur_near).aggregate_size();
         far_size  = vertex_frontier.bucket(bucket_idx_far).aggregate_size();

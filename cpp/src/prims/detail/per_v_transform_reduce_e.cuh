@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -46,15 +46,14 @@
 
 #include <cub/cub.cuh>
 #include <cuda/functional>
+#include <cuda/std/optional>
 #include <thrust/copy.h>
 #include <thrust/distance.h>
 #include <thrust/execution_policy.h>
 #include <thrust/fill.h>
 #include <thrust/for_each.h>
-#include <thrust/functional.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/transform_iterator.h>
-#include <thrust/optional.h>
 #include <thrust/scatter.h>
 #include <thrust/set_operations.h>
 #include <thrust/transform_reduce.h>
@@ -74,7 +73,7 @@ namespace cugraph {
 
 namespace detail {
 
-int32_t constexpr per_v_transform_reduce_e_kernel_block_size                        = 512;
+int32_t constexpr per_v_transform_reduce_e_kernel_block_size                        = 256;
 int32_t constexpr per_v_transform_reduce_e_kernel_high_degree_reduce_any_block_size = 128;
 
 template <typename Iterator, typename default_t, typename Enable = void>
@@ -270,7 +269,7 @@ __global__ static void per_v_transform_reduce_e_hypersparse(
   EdgePartitionSrcValueInputWrapper edge_partition_src_value_input,
   EdgePartitionDstValueInputWrapper edge_partition_dst_value_input,
   EdgePartitionEdgeValueInputWrapper edge_partition_e_value_input,
-  thrust::optional<EdgePartitionEdgeMaskWrapper> edge_partition_e_mask,
+  cuda::std::optional<EdgePartitionEdgeMaskWrapper> edge_partition_e_mask,
   ResultValueOutputIteratorOrWrapper result_value_output,
   EdgeOp e_op,
   T init /* relevant only if update_major == true */,
@@ -301,7 +300,7 @@ __global__ static void per_v_transform_reduce_e_hypersparse(
   while (idx < key_count) {
     key_t key{};
     vertex_t major{};
-    thrust::optional<vertex_t> major_idx{};
+    cuda::std::optional<vertex_t> major_idx{};
     if constexpr (use_input_key) {
       key       = *(key_first + idx);
       major     = thrust_tuple_get_or_identity<key_t, 0>(key);
@@ -407,7 +406,7 @@ __global__ static void per_v_transform_reduce_e_low_degree(
   EdgePartitionSrcValueInputWrapper edge_partition_src_value_input,
   EdgePartitionDstValueInputWrapper edge_partition_dst_value_input,
   EdgePartitionEdgeValueInputWrapper edge_partition_e_value_input,
-  thrust::optional<EdgePartitionEdgeMaskWrapper> edge_partition_e_mask,
+  cuda::std::optional<EdgePartitionEdgeMaskWrapper> edge_partition_e_mask,
   ResultValueOutputIteratorOrWrapper result_value_output,
   EdgeOp e_op,
   T init /* relevant only if update_major == true */,
@@ -517,7 +516,7 @@ __global__ static void per_v_transform_reduce_e_mid_degree(
   EdgePartitionSrcValueInputWrapper edge_partition_src_value_input,
   EdgePartitionDstValueInputWrapper edge_partition_dst_value_input,
   EdgePartitionEdgeValueInputWrapper edge_partition_e_value_input,
-  thrust::optional<EdgePartitionEdgeMaskWrapper> edge_partition_e_mask,
+  cuda::std::optional<EdgePartitionEdgeMaskWrapper> edge_partition_e_mask,
   ResultValueOutputIteratorOrWrapper result_value_output,
   EdgeOp e_op,
   T init /* relevant only if update_major == true */,
@@ -595,19 +594,26 @@ __global__ static void per_v_transform_reduce_e_mid_degree(
       }
     }
 
+    // FIXME: Remove once upgraded to CCCL version 3.x
+#if CCCL_MAJOR_VERSION >= 3
+    using cuda::minimum;
+#else
+    using minimum = cub::Min;
+#endif
+
     if (edge_partition_e_mask) {
       if constexpr (update_major && std::is_same_v<ReduceOp, reduce_op::any<T>>) {
         auto rounded_up_local_degree =
           ((static_cast<size_t>(local_degree) + (raft::warp_size() - 1)) / raft::warp_size()) *
           raft::warp_size();
         for (size_t i = lane_id; i < rounded_up_local_degree; i += raft::warp_size()) {
-          thrust::optional<T> e_op_result{thrust::nullopt};
+          cuda::std::optional<T> e_op_result{cuda::std::nullopt};
           if ((i < static_cast<size_t>(local_degree)) &&
               (*edge_partition_e_mask).get(edge_offset + i) && call_pred_op(i)) {
             e_op_result = call_e_op(i);
           }
           first_valid_lane_id = WarpReduce(temp_storage[threadIdx.x / raft::warp_size()])
-                                  .Reduce(e_op_result ? lane_id : raft::warp_size(), cub::Min());
+                                  .Reduce(e_op_result ? lane_id : raft::warp_size(), minimum{});
           first_valid_lane_id = __shfl_sync(raft::warp_full_mask(), first_valid_lane_id, int{0});
           if (lane_id == first_valid_lane_id) { reduced_e_op_result = *e_op_result; }
           if (first_valid_lane_id != raft::warp_size()) { break; }
@@ -635,12 +641,12 @@ __global__ static void per_v_transform_reduce_e_mid_degree(
           ((static_cast<size_t>(local_degree) + (raft::warp_size() - 1)) / raft::warp_size()) *
           raft::warp_size();
         for (size_t i = lane_id; i < rounded_up_local_degree; i += raft::warp_size()) {
-          thrust::optional<T> e_op_result{thrust::nullopt};
+          cuda::std::optional<T> e_op_result{cuda::std::nullopt};
           if (i < static_cast<size_t>(local_degree) && call_pred_op(i)) {
             e_op_result = call_e_op(i);
           }
           first_valid_lane_id = WarpReduce(temp_storage[threadIdx.x / raft::warp_size()])
-                                  .Reduce(e_op_result ? lane_id : raft::warp_size(), cub::Min());
+                                  .Reduce(e_op_result ? lane_id : raft::warp_size(), minimum{});
           first_valid_lane_id = __shfl_sync(raft::warp_full_mask(), first_valid_lane_id, int{0});
           if (lane_id == first_valid_lane_id) { reduced_e_op_result = *e_op_result; }
           if (first_valid_lane_id != raft::warp_size()) { break; }
@@ -704,7 +710,7 @@ __global__ static void per_v_transform_reduce_e_high_degree(
   EdgePartitionSrcValueInputWrapper edge_partition_src_value_input,
   EdgePartitionDstValueInputWrapper edge_partition_dst_value_input,
   EdgePartitionEdgeValueInputWrapper edge_partition_e_value_input,
-  thrust::optional<EdgePartitionEdgeMaskWrapper> edge_partition_e_mask,
+  cuda::std::optional<EdgePartitionEdgeMaskWrapper> edge_partition_e_mask,
   ResultValueOutputIteratorOrWrapper result_value_output,
   EdgeOp e_op,
   T init /* relevant only if update_major == true */,
@@ -787,6 +793,13 @@ __global__ static void per_v_transform_reduce_e_high_degree(
       }
     }
 
+    // FIXME: Remove once upgraded to CCCL version 3.x
+#if CCCL_MAJOR_VERSION >= 3
+    using cuda::minimum;
+#else
+    using minimum = cub::Min;
+#endif
+
     if (edge_partition_e_mask) {
       if constexpr (update_major && std::is_same_v<ReduceOp, reduce_op::any<T>>) {
         auto rounded_up_local_degree =
@@ -795,7 +808,7 @@ __global__ static void per_v_transform_reduce_e_high_degree(
            per_v_transform_reduce_e_kernel_high_degree_reduce_any_block_size) *
           per_v_transform_reduce_e_kernel_high_degree_reduce_any_block_size;
         for (size_t i = threadIdx.x; i < rounded_up_local_degree; i += blockDim.x) {
-          thrust::optional<T> e_op_result{thrust::nullopt};
+          cuda::std::optional<T> e_op_result{cuda::std::nullopt};
           if ((i < static_cast<size_t>(local_degree)) &&
               (*edge_partition_e_mask).get(edge_offset + i) && call_pred_op(i)) {
             e_op_result = call_e_op(i);
@@ -805,7 +818,7 @@ __global__ static void per_v_transform_reduce_e_high_degree(
               .Reduce(e_op_result
                         ? threadIdx.x
                         : per_v_transform_reduce_e_kernel_high_degree_reduce_any_block_size,
-                      cub::Min());
+                      minimum{});
           if (threadIdx.x == 0) { output_thread_id = first_valid_thread_id; }
           __syncthreads();
           first_valid_thread_id = output_thread_id;
@@ -840,7 +853,7 @@ __global__ static void per_v_transform_reduce_e_high_degree(
            per_v_transform_reduce_e_kernel_high_degree_reduce_any_block_size) *
           per_v_transform_reduce_e_kernel_high_degree_reduce_any_block_size;
         for (size_t i = threadIdx.x; i < rounded_up_local_degree; i += blockDim.x) {
-          thrust::optional<T> e_op_result{thrust::nullopt};
+          cuda::std::optional<T> e_op_result{cuda::std::nullopt};
           if ((i < static_cast<size_t>(local_degree)) && call_pred_op(i)) {
             e_op_result = call_e_op(i);
           }
@@ -849,7 +862,7 @@ __global__ static void per_v_transform_reduce_e_high_degree(
               .Reduce(e_op_result
                         ? threadIdx.x
                         : per_v_transform_reduce_e_kernel_high_degree_reduce_any_block_size,
-                      cub::Min());
+                      minimum{});
           if (threadIdx.x == 0) { output_thread_id = first_valid_thread_id; }
           __syncthreads();
           first_valid_thread_id = output_thread_id;
@@ -1146,7 +1159,7 @@ void per_v_transform_reduce_e_edge_partition(
   EdgePartitionSrcValueInputWrapper edge_partition_src_value_input,
   EdgePartitionDstValueInputWrapper edge_partition_dst_value_input,
   EdgePartitionValueInputWrapper edge_partition_e_value_input,
-  thrust::optional<EdgePartitionEdgeMaskWrapper> edge_partition_e_mask,
+  cuda::std::optional<EdgePartitionEdgeMaskWrapper> edge_partition_e_mask,
   ResultValueOutputIteratorOrWrapper output_buffer,
   EdgeOp e_op,
   T major_init,
@@ -1447,21 +1460,21 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
     typename iterator_value_type_or_default_t<OptionalKeyIterator, vertex_t>::value_type;
 
   using edge_partition_src_input_device_view_t = std::conditional_t<
-    std::is_same_v<typename EdgeSrcValueInputWrapper::value_type, thrust::nullopt_t>,
+    std::is_same_v<typename EdgeSrcValueInputWrapper::value_type, cuda::std::nullopt_t>,
     detail::edge_partition_endpoint_dummy_property_device_view_t<vertex_t>,
     detail::edge_partition_endpoint_property_device_view_t<
       vertex_t,
       typename EdgeSrcValueInputWrapper::value_iterator,
       typename EdgeSrcValueInputWrapper::value_type>>;
   using edge_partition_dst_input_device_view_t = std::conditional_t<
-    std::is_same_v<typename EdgeDstValueInputWrapper::value_type, thrust::nullopt_t>,
+    std::is_same_v<typename EdgeDstValueInputWrapper::value_type, cuda::std::nullopt_t>,
     detail::edge_partition_endpoint_dummy_property_device_view_t<vertex_t>,
     detail::edge_partition_endpoint_property_device_view_t<
       vertex_t,
       typename EdgeDstValueInputWrapper::value_iterator,
       typename EdgeDstValueInputWrapper::value_type>>;
   using edge_partition_e_input_device_view_t = std::conditional_t<
-    std::is_same_v<typename EdgeValueInputWrapper::value_type, thrust::nullopt_t>,
+    std::is_same_v<typename EdgeValueInputWrapper::value_type, cuda::std::nullopt_t>,
     detail::edge_partition_edge_dummy_property_device_view_t<vertex_t>,
     detail::edge_partition_edge_property_device_view_t<
       edge_t,
@@ -1551,10 +1564,10 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
         graph_view.local_edge_partition_view(static_cast<size_t>(minor_comm_rank)));
     auto edge_partition_e_mask =
       edge_mask_view
-        ? thrust::make_optional<
+        ? cuda::std::make_optional<
             detail::edge_partition_edge_property_device_view_t<edge_t, uint32_t const*, bool>>(
             *edge_mask_view, static_cast<size_t>(minor_comm_rank))
-        : thrust::nullopt;
+        : cuda::std::nullopt;
 
     std::optional<std::vector<size_t>> edge_partition_stream_pool_indices{std::nullopt};
     if (local_vertex_partition_segment_offsets && (handle.get_stream_pool_size() >= max_segments)) {
@@ -1769,10 +1782,10 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
        sorted_unique_key_first,
        sorted_unique_nzd_key_last,
        deg1_v_first = (filter_input_key && graph_view.use_dcs())
-                        ? thrust::make_optional(graph_view.local_vertex_partition_range_first() +
-                                                (*local_vertex_partition_segment_offsets)[3] +
-                                                *((*hypersparse_degree_offsets).rbegin() + 1))
-                        : thrust::nullopt,
+                        ? cuda::std::make_optional(graph_view.local_vertex_partition_range_first() +
+                                                   (*local_vertex_partition_segment_offsets)[3] +
+                                                   *((*hypersparse_degree_offsets).rbegin() + 1))
+                        : cuda::std::nullopt,
        vertex_partition_range_first =
          graph_view.local_vertex_partition_range_first()] __device__(size_t i) {
         if (i == 0) {
@@ -3137,10 +3150,10 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
             graph_view.local_edge_partition_view(partition_idx));
         auto edge_partition_e_mask =
           edge_mask_view
-            ? thrust::make_optional<
+            ? cuda::std::make_optional<
                 detail::edge_partition_edge_property_device_view_t<edge_t, uint32_t const*, bool>>(
                 *edge_mask_view, partition_idx)
-            : thrust::nullopt;
+            : cuda::std::nullopt;
         size_t num_streams_per_loop{1};
         if (stream_pool_indices) {
           assert((*stream_pool_indices).size() >= num_concurrent_loops);
@@ -3912,23 +3925,25 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
           auto& values       = edge_partition_values[j];
 
           if (minor_comm_rank == static_cast<int>(partition_idx)) {
-            device_gatherv(minor_comm,
-                           get_dataframe_buffer_begin(values),
-                           get_dataframe_buffer_begin(*rx_values),
-                           values.size(),
-                           *rx_value_sizes,
-                           *rx_value_displs,
-                           static_cast<int>(partition_idx),
-                           handle.get_stream());
+            device_gatherv(
+              minor_comm,
+              get_dataframe_buffer_begin(values),
+              get_dataframe_buffer_begin(*rx_values),
+              values.size(),
+              raft::host_span<size_t const>(rx_value_sizes->data(), rx_value_sizes->size()),
+              raft::host_span<size_t const>(rx_value_displs->data(), rx_value_displs->size()),
+              static_cast<int>(partition_idx),
+              handle.get_stream());
           } else {
-            device_gatherv(minor_comm,
-                           get_dataframe_buffer_begin(values),
-                           dataframe_buffer_iterator_type_t<T>{},
-                           values.size(),
-                           std::vector<size_t>{},
-                           std::vector<size_t>{},
-                           static_cast<int>(partition_idx),
-                           handle.get_stream());
+            device_gatherv(
+              minor_comm,
+              get_dataframe_buffer_begin(values),
+              dataframe_buffer_iterator_type_t<T>{},
+              values.size(),
+              raft::host_span<size_t const>(static_cast<size_t const*>(nullptr), size_t{0}),
+              raft::host_span<size_t const>(static_cast<size_t const*>(nullptr), size_t{0}),
+              static_cast<int>(partition_idx),
+              handle.get_stream());
           }
         }
         device_group_end(minor_comm);
@@ -3941,44 +3956,48 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
             auto const& offsets = (*edge_partition_deg1_hypersparse_output_offset_vectors)[j];
             if (offsets.index() == 0) {
               if (minor_comm_rank == static_cast<int>(partition_idx)) {
-                device_gatherv(minor_comm,
-                               std::get<0>(offsets).data(),
-                               std::get<0>(*rx_offsets).data(),
-                               std::get<0>(offsets).size(),
-                               *rx_offset_sizes,
-                               *rx_offset_displs,
-                               static_cast<int>(partition_idx),
-                               handle.get_stream());
+                device_gatherv(
+                  minor_comm,
+                  std::get<0>(offsets).data(),
+                  std::get<0>(*rx_offsets).data(),
+                  std::get<0>(offsets).size(),
+                  raft::host_span<size_t const>(rx_offset_sizes->data(), rx_offset_sizes->size()),
+                  raft::host_span<size_t const>(rx_offset_displs->data(), rx_offset_displs->size()),
+                  static_cast<int>(partition_idx),
+                  handle.get_stream());
               } else {
-                device_gatherv(minor_comm,
-                               std::get<0>(offsets).data(),
-                               static_cast<uint32_t*>(nullptr),
-                               std::get<0>(offsets).size(),
-                               std::vector<size_t>{},
-                               std::vector<size_t>{},
-                               static_cast<int>(partition_idx),
-                               handle.get_stream());
+                device_gatherv(
+                  minor_comm,
+                  std::get<0>(offsets).data(),
+                  static_cast<uint32_t*>(nullptr),
+                  std::get<0>(offsets).size(),
+                  raft::host_span<size_t const>(static_cast<size_t const*>(nullptr), size_t{0}),
+                  raft::host_span<size_t const>(static_cast<size_t const*>(nullptr), size_t{0}),
+                  static_cast<int>(partition_idx),
+                  handle.get_stream());
               }
             } else {
               assert(offsets.index() == 1);
               if (minor_comm_rank == static_cast<int>(partition_idx)) {
-                device_gatherv(minor_comm,
-                               std::get<1>(offsets).data(),
-                               std::get<1>(*rx_offsets).data(),
-                               std::get<1>(offsets).size(),
-                               *rx_offset_sizes,
-                               *rx_offset_displs,
-                               static_cast<int>(partition_idx),
-                               handle.get_stream());
+                device_gatherv(
+                  minor_comm,
+                  std::get<1>(offsets).data(),
+                  std::get<1>(*rx_offsets).data(),
+                  std::get<1>(offsets).size(),
+                  raft::host_span<size_t const>(rx_offset_sizes->data(), rx_offset_sizes->size()),
+                  raft::host_span<size_t const>(rx_offset_displs->data(), rx_offset_displs->size()),
+                  static_cast<int>(partition_idx),
+                  handle.get_stream());
               } else {
-                device_gatherv(minor_comm,
-                               std::get<1>(offsets).data(),
-                               static_cast<size_t*>(nullptr),
-                               std::get<1>(offsets).size(),
-                               std::vector<size_t>{},
-                               std::vector<size_t>{},
-                               static_cast<int>(partition_idx),
-                               handle.get_stream());
+                device_gatherv(
+                  minor_comm,
+                  std::get<1>(offsets).data(),
+                  static_cast<size_t*>(nullptr),
+                  std::get<1>(offsets).size(),
+                  raft::host_span<size_t const>(static_cast<size_t const*>(nullptr), size_t{0}),
+                  raft::host_span<size_t const>(static_cast<size_t const*>(nullptr), size_t{0}),
+                  static_cast<int>(partition_idx),
+                  handle.get_stream());
               }
             }
           }
@@ -4043,7 +4062,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                                         return (bitmap[packed_bool_offset(i)] &
                                                 packed_bool_mask(i)) == packed_bool_mask(i);
                                       })),
-                                  thrust::identity<bool>{})),
+                                  cuda::std::identity{})),
               handle.get_stream());
             // skip shrink_to_fit() to cut execution time
             std::exclusive_scan((*rx_value_sizes).begin(),
@@ -4103,7 +4122,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                                             return (bitmap[packed_bool_offset(i)] &
                                                     packed_bool_mask(i)) == packed_bool_mask(i);
                                           })),
-                                      thrust::identity<bool>{})),
+                                      cuda::std::identity{})),
                   handle.get_stream());
                 // skip shrink_to_fit() to cut execution time
               } else {
@@ -4122,7 +4141,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                                             return (bitmap[packed_bool_offset(i)] &
                                                     packed_bool_mask(i)) == packed_bool_mask(i);
                                           })),
-                                      thrust::identity<bool>{})),
+                                      cuda::std::identity{})),
                   handle.get_stream());
                 // skip shrink_to_fit() to cut execution time
               }

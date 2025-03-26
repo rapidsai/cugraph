@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,8 +22,8 @@
 
 #include <raft/core/handle.hpp>
 
+#include <cuda/std/optional>
 #include <thrust/iterator/iterator_traits.h>
-#include <thrust/optional.h>
 
 #include <optional>
 #include <type_traits>
@@ -63,7 +63,7 @@ class edge_property_view_t {
 
 class edge_dummy_property_view_t {
  public:
-  using value_type     = thrust::nullopt_t;
+  using value_type     = cuda::std::nullopt_t;
   using value_iterator = void*;
 };
 
@@ -155,10 +155,33 @@ class edge_property_t {
 
 class edge_dummy_property_t {
  public:
-  using value_type = thrust::nullopt_t;
+  using value_type = cuda::std::nullopt_t;
 
   auto view() const { return edge_dummy_property_view_t{}; }
 };
+
+template <typename GraphViewType, typename EdgeValueType, typename Enable = void>
+struct edge_property_view_type;
+
+template <typename GraphViewType, typename EdgeValueType>
+struct edge_property_view_type<
+  GraphViewType,
+  EdgeValueType,
+  std::enable_if_t<std::is_same_v<EdgeValueType, cuda::std::nullopt_t>>> {
+  using value = edge_dummy_property_view_t;
+};
+
+template <typename GraphViewType, typename EdgeValueType>
+struct edge_property_view_type<
+  GraphViewType,
+  EdgeValueType,
+  std::enable_if_t<!std::is_same_v<EdgeValueType, cuda::std::nullopt_t>>> {
+  using value = decltype(edge_property_t<GraphViewType, EdgeValueType>(raft::handle_t{}).view());
+};
+
+template <typename GraphViewType, typename EdgeValueType>
+using edge_property_view_type_t =
+  typename edge_property_view_type<GraphViewType, EdgeValueType>::value;
 
 template <typename edge_t, typename... Iters, typename... Types>
 auto view_concat(edge_property_view_t<edge_t, Iters, Types> const&... views)

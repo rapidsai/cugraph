@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,6 +29,7 @@
 #include <cugraph/edge_partition_view.hpp>
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_view.hpp>
+#include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
 #include <cugraph/utilities/thrust_tuple_utils.hpp>
@@ -40,12 +41,12 @@
 #include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
 
+#include <cuda/std/optional>
 #include <thrust/count.h>
 #include <thrust/distance.h>
 #include <thrust/equal.h>
 #include <thrust/functional.h>
 #include <thrust/iterator/counting_iterator.h>
-#include <thrust/optional.h>
 #include <thrust/transform.h>
 #include <thrust/tuple.h>
 
@@ -95,6 +96,8 @@ class Tests_MGPerVTransformReduceDstKeyAggregatedOutgoingE
   template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
   void run_current_test(Prims_Usecase const& prims_usecase, input_usecase_t const& input_usecase)
   {
+    using edge_type_t = int32_t;
+
     HighResTimer hr_timer{};
 
     auto const comm_rank = handle_->get_comms().get_rank();
@@ -155,8 +158,7 @@ class Tests_MGPerVTransformReduceDstKeyAggregatedOutgoingE
                                                    handle_->get_stream());
     thrust::sequence(
       handle_->get_thrust_policy(), mg_kv_store_keys.begin(), mg_kv_store_keys.end(), vertex_t{0});
-    mg_kv_store_keys = cugraph::detail::shuffle_ext_vertices_to_local_gpu_by_vertex_partitioning(
-      *handle_, std::move(mg_kv_store_keys));
+    mg_kv_store_keys = cugraph::shuffle_ext_vertices(*handle_, std::move(mg_kv_store_keys));
     auto mg_kv_store_values =
       cugraph::test::generate<decltype(mg_graph_view), result_t>::vertex_property(
         *handle_, mg_kv_store_keys, key_prop_hash_bin_count);
@@ -218,7 +220,7 @@ class Tests_MGPerVTransformReduceDstKeyAggregatedOutgoingE
               cugraph::edge_dummy_property_t{}.view(),
               mg_dst_key.view(),
               mg_kv_store.view(),
-              key_aggregated_e_op_t<vertex_t, thrust::nullopt_t, result_t>{},
+              key_aggregated_e_op_t<vertex_t, cuda::std::nullopt_t, result_t>{},
               property_initial_value,
               cugraph::reduce_op::plus<result_t>{},
               cugraph::get_dataframe_buffer_begin(mg_results[i]));
@@ -245,7 +247,7 @@ class Tests_MGPerVTransformReduceDstKeyAggregatedOutgoingE
               cugraph::edge_dummy_property_t{}.view(),
               mg_dst_key.view(),
               mg_kv_store.view(),
-              key_aggregated_e_op_t<vertex_t, thrust::nullopt_t, result_t>{},
+              key_aggregated_e_op_t<vertex_t, cuda::std::nullopt_t, result_t>{},
               property_initial_value,
               cugraph::reduce_op::elementwise_minimum<result_t>{},
               cugraph::get_dataframe_buffer_begin(mg_results[i]));
@@ -272,7 +274,7 @@ class Tests_MGPerVTransformReduceDstKeyAggregatedOutgoingE
               cugraph::edge_dummy_property_t{}.view(),
               mg_dst_key.view(),
               mg_kv_store.view(),
-              key_aggregated_e_op_t<vertex_t, thrust::nullopt_t, result_t>{},
+              key_aggregated_e_op_t<vertex_t, cuda::std::nullopt_t, result_t>{},
               property_initial_value,
               cugraph::reduce_op::elementwise_maximum<result_t>{},
               cugraph::get_dataframe_buffer_begin(mg_results[i]));
@@ -296,12 +298,13 @@ class Tests_MGPerVTransformReduceDstKeyAggregatedOutgoingE
       std::optional<
         cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, false, false>, weight_t>>
         sg_edge_weights{std::nullopt};
-      std::tie(sg_graph, sg_edge_weights, std::ignore, std::ignore) =
+      std::tie(sg_graph, sg_edge_weights, std::ignore, std::ignore, std::ignore) =
         cugraph::test::mg_graph_to_sg_graph(
           *handle_,
           mg_graph_view,
           std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},
           std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
+          std::optional<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>{std::nullopt},
           std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
                                                                 (*mg_renumber_map).size()),
           false);
@@ -414,7 +417,7 @@ class Tests_MGPerVTransformReduceDstKeyAggregatedOutgoingE
                   cugraph::edge_dummy_property_t{}.view(),
                   sg_dst_key.view(),
                   sg_kv_store.view(),
-                  key_aggregated_e_op_t<vertex_t, thrust::nullopt_t, result_t>{},
+                  key_aggregated_e_op_t<vertex_t, cuda::std::nullopt_t, result_t>{},
                   property_initial_value,
                   cugraph::reduce_op::plus<result_t>{},
                   cugraph::get_dataframe_buffer_begin(global_result));
@@ -441,7 +444,7 @@ class Tests_MGPerVTransformReduceDstKeyAggregatedOutgoingE
                   cugraph::edge_dummy_property_t{}.view(),
                   sg_dst_key.view(),
                   sg_kv_store.view(),
-                  key_aggregated_e_op_t<vertex_t, thrust::nullopt_t, result_t>{},
+                  key_aggregated_e_op_t<vertex_t, cuda::std::nullopt_t, result_t>{},
                   property_initial_value,
                   cugraph::reduce_op::elementwise_minimum<result_t>{},
                   cugraph::get_dataframe_buffer_begin(global_result));
@@ -468,7 +471,7 @@ class Tests_MGPerVTransformReduceDstKeyAggregatedOutgoingE
                   cugraph::edge_dummy_property_t{}.view(),
                   sg_dst_key.view(),
                   sg_kv_store.view(),
-                  key_aggregated_e_op_t<vertex_t, thrust::nullopt_t, result_t>{},
+                  key_aggregated_e_op_t<vertex_t, cuda::std::nullopt_t, result_t>{},
                   property_initial_value,
                   cugraph::reduce_op::elementwise_maximum<result_t>{},
                   cugraph::get_dataframe_buffer_begin(global_result));
