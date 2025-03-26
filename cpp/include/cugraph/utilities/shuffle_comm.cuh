@@ -149,10 +149,6 @@ struct key_group_id_less_t {
   KeyToGroupIdOp key_to_group_id_op;
   int pivot{};
   __device__ bool operator()(key_type k) const { return key_to_group_id_op(k) < pivot; }
-
-private:
-  KeyToGroupIdOp key_to_group_id_op;
-  int pivot;
 };
 
 template <typename value_type, typename ValueToGroupIdOp>
@@ -160,10 +156,6 @@ struct value_group_id_less_t {
   ValueToGroupIdOp value_to_group_id_op;
   int pivot{};
   __device__ bool operator()(value_type v) const { return value_to_group_id_op(v) < pivot; }
-
-private:
-  ValueToGroupIdOp value_to_group_id_op;
-  int pivot;
 };
 
 template <typename key_type, typename value_type, typename KeyToGroupIdOp>
@@ -174,10 +166,6 @@ struct kv_pair_group_id_less_t {
   {
     return key_to_group_id_op(thrust::get<0>(t)) < pivot;
   }
-
-private:
-  KeyToGroupIdOp key_to_group_id_op;
-  int pivot;
 };
 
 template <typename value_type, typename ValueToGroupIdOp>
@@ -185,10 +173,6 @@ struct value_group_id_greater_equal_t {
   ValueToGroupIdOp value_to_group_id_op;
   int pivot{};
   __device__ bool operator()(value_type v) const { return value_to_group_id_op(v) >= pivot; }
-
-private:
-  ValueToGroupIdOp value_to_group_id_op;
-  int pivot;
 };
 
 template <typename key_type, typename value_type, typename KeyToGroupIdOp>
@@ -199,10 +183,6 @@ struct kv_pair_group_id_greater_equal_t {
   {
     return key_to_group_id_op(thrust::get<0>(t)) >= pivot;
   }
-
-private:
-  KeyToGroupIdOp key_to_group_id_op;
-  int pivot;
 };
 
 template <typename ValueIterator, typename ValueToGroupIdOp>
