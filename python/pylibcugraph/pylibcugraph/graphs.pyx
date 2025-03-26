@@ -431,7 +431,7 @@ cdef class MGGraph(_GPUGraph):
 
                 srcs_view_ptr_ptr[i] = \
                     create_cugraph_type_erased_device_array_view_from_py_obj(src_array[i])
-                
+
                 if i == 0:
                     self.vertex_type = cugraph_type_erased_device_array_view_type(
                         srcs_view_ptr_ptr[0])
