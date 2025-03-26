@@ -71,8 +71,28 @@ def has_vertex(ResourceHandle resource_handle,
 
         Returns
         -------
-        Return 'True' if the vertex exists in the graph or 'False'
-    """
+        Return a device array of bool where 'True' is indicative of a vertex existance
+        and 'False' otherwise.
+
+        Examples
+        --------
+        >>> import pylibcugraph, cupy, numpy
+        >>> srcs = cupy.asarray([0, 1, 1, 2, 2, 2, 3, 3, 4], dtype=numpy.int32)
+        >>> dsts = cupy.asarray([1, 3, 4, 0, 1, 3, 4, 5, 5], dtype=numpy.int32)
+        >>> weights = cupy.asarray(
+        ...     [0.1, 2.1, 1.1, 5.1, 3.1, 4.1, 7.2, 3.2, 6.1], dtype=numpy.float32)
+        >>> source_vertices = cupy.asarray([0, 1], dtype=numpy.int32)
+        >>> resource_handle = pylibcugraph.ResourceHandle()
+        >>> graph_props = pylibcugraph.GraphProperties(
+        ...     is_symmetric=False, is_multigraph=False)
+        >>> G = pylibcugraph.SGGraph(
+        ...     resource_handle, graph_props, srcs, dsts, weight_array=weights,
+        ...     store_transposed=False, renumber=False, do_expensive_check=False)
+        >>> vertices = cupy.asarray([0, 1, 2, 6], dtype=numpy.int32)
+        >>> result = pylibcugraph.has_vertex(resource_handle, G, vertices False)
+        >>> result
+        [ True  True  True False]
+        """
 
     assert_CAI_type(vertices, "vertices")
 
