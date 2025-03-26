@@ -22,6 +22,7 @@
 #include "prims/transform_e.cuh"
 #include "prims/update_edge_src_dst_property.cuh"
 #include "sampling/detail/sampling_utils.hpp"
+#include "utilities/validation_checks.hpp"
 
 #include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
@@ -106,26 +107,12 @@ temporal_neighbor_sample_impl(
                       "exceed std::numeric_limits<bias_t>::max() for any vertex.");
     }
 
-#if 0
-    // Do we have a function to do this?  Seems like a common validation check
-    auto vertex_partition =
-      vertex_partition_device_view_t<vertex_t, multi_gpu>(graph_view.local_vertex_partition_view());
-    auto num_invalid_vertices =
-      thrust::count_if(handle.get_thrust_policy(),
-                       starting_vertices.begin(),
-                       starting_vertices.end(),
-                       [vertex_partition] __device__(auto v) {
-                         return !(vertex_partition.is_valid_vertex(v) &&
-                                  vertex_partition.in_local_vertex_partition_range_nocheck(v));
-                       });
-    if constexpr (multi_gpu) {
-      num_invalid_vertices = cugraph::host_scalar_allreduce(
-        handle.get_comms(), num_invalid_vertices, raft::comms::op_t::SUM, handle.get_stream());
-    }
-
-    CUGRAPH_EXPECTS(num_invalid_vertices == 0,
-                    "Invalid input arguments: there are invalid input vertices.");
-#endif
+    CUGRAPH_EXPECTS(
+      cugraph::count_invalid_vertices(
+        handle,
+        graph_view,
+        raft::device_span<vertex_t const>{starting_vertices.data(), starting_vertices.size()}) == 0,
+      "Invalid input arguments: there are invalid input vertices.");
   }
 
   CUGRAPH_EXPECTS(fan_out.size() > 0, "Invalid input argument: number of levels must be non-zero.");
@@ -133,9 +120,6 @@ temporal_neighbor_sample_impl(
     fan_out.size() <= static_cast<size_t>(std::numeric_limits<int32_t>::max()),
     "Invalid input argument: number of levels should not overflow int32_t");  // as we use int32_t
                                                                               // to store hops
-
-  graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> temporal_graph_view = graph_view;
-  edge_time_t STARTING_TIME{std::numeric_limits<edge_time_t>::min()};
 
   // Get the number of hop.
   auto num_hops = raft::div_rounding_up_safe(
@@ -199,26 +183,18 @@ temporal_neighbor_sample_impl(
 
   std::vector<size_t> result_sizes{};
 
-  cugraph::edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, bool>
-    edge_time_mask(handle, graph_view);
-
-  cugraph::fill_edge_property(
-    handle, temporal_graph_view, edge_time_mask.mutable_view(), bool{true});
-  temporal_graph_view.attach_edge_mask(edge_time_mask.view());
-
-  edge_src_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, edge_time_t>
-    edge_src_times(handle, graph_view);
-  fill_edge_src_property(handle, graph_view, edge_src_times.mutable_view(), STARTING_TIME);
-
   raft::device_span<vertex_t const> frontier_vertices_view{starting_vertices.data(),
                                                            starting_vertices.size()};
   raft::device_span<edge_time_t const> frontier_vertex_times_view{nullptr, size_t{0}};
 
   std::optional<raft::device_span<label_t const>> frontier_vertex_labels_view{
     starting_vertex_labels};
-  rmm::device_uvector<vertex_t> frontier_vertices_current_subset(0, handle.get_stream());
-  rmm::device_uvector<edge_time_t> frontier_vertex_times_current_subset(0, handle.get_stream());
-  std::optional<rmm::device_uvector<label_t>> frontier_vertex_labels_current_subset{std::nullopt};
+  rmm::device_uvector<vertex_t> frontier_vertices_no_duplicates(0, handle.get_stream());
+  rmm::device_uvector<edge_time_t> frontier_vertex_times_no_duplicates(0, handle.get_stream());
+  std::optional<rmm::device_uvector<label_t>> frontier_vertex_labels_no_duplicates{std::nullopt};
+  rmm::device_uvector<vertex_t> frontier_vertices_has_duplicates(0, handle.get_stream());
+  rmm::device_uvector<edge_time_t> frontier_vertex_times_has_duplicates(0, handle.get_stream());
+  std::optional<rmm::device_uvector<label_t>> frontier_vertex_labels_has_duplicates{std::nullopt};
 
   for (size_t hop = 0; hop < num_hops; ++hop) {
     std::cout << "hop loop, hop = " << hop << std::endl;
@@ -253,84 +229,60 @@ temporal_neighbor_sample_impl(
       }
     }
 
-    std::cout << "frontier_vertices_view_size: " << frontier_vertices_view.size() << std::endl;
-    while (frontier_vertices_view.size() > 0) {
-      rmm::device_uvector<vertex_t> frontier_vertices_next_subset(0, handle.get_stream());
-      rmm::device_uvector<edge_time_t> frontier_vertex_times_next_subset(0, handle.get_stream());
-      std::optional<rmm::device_uvector<label_t>> frontier_vertex_labels_next_subset{std::nullopt};
+    //
+    // New logic... let's make the following changes:
+    //   1) Modify temporal_partition_vertices to separate into 2 partitions:  vertices with only
+    //   one time, vertices with multiple times (all of them)
+    //     a) Vertices with only 1 time can use the regular sample edges logic
+    //     b) Vertices with multiple times can biased sampling with a custom bias generator that
+    //     sets the bias to 0 for any edges that fail the time
+    //        constraint and 1 to any edges that pass the time constraint
+    //
+    //  This means we won't need the inner loop, just an extra if block with slightly altered logic
 
-      if (hop > 0) {
-        // It's possible for a vertex to appear in the frontier multiple times with different time
-        // stamps (after the first hop).  To handle that situation, we need to partition the vertex
-        // set.
-        std::tie(frontier_vertices_current_subset,
-                 frontier_vertex_times_current_subset,
-                 frontier_vertex_labels_current_subset,
-                 frontier_vertices_next_subset,
-                 frontier_vertex_times_next_subset,
-                 frontier_vertex_labels_next_subset) =
-          temporal_partition_vertices(handle,
-                                      frontier_vertices_view,
-                                      frontier_vertex_times_view,
-                                      frontier_vertex_labels_view);
+    if (hop > 0) {
+      // It's possible for a vertex to appear in the frontier multiple times with different time
+      // stamps (after the first hop).  To handle that situation, we need to partition the vertex
+      // set.
+      std::tie(frontier_vertices_no_duplicates,
+               frontier_vertex_times_no_duplicates,
+               frontier_vertex_labels_no_duplicates,
+               frontier_vertices_has_duplicates,
+               frontier_vertex_times_has_duplicates,
+               frontier_vertex_labels_has_duplicates) =
+        temporal_partition_vertices(
+          handle, frontier_vertices_view, frontier_vertex_times_view, frontier_vertex_labels_view);
 
-        frontier_vertices_view = raft::device_span<vertex_t const>{
-          frontier_vertices_current_subset.data(), frontier_vertices_current_subset.size()};
-        if (frontier_vertex_labels_current_subset)
-          frontier_vertex_labels_view =
-            raft::device_span<label_t const>{frontier_vertex_labels_current_subset->data(),
-                                             frontier_vertex_labels_current_subset->size()};
-
-        fill_edge_src_property(handle, graph_view, edge_src_times.mutable_view(), STARTING_TIME);
-        update_edge_src_property(handle,
-                                 graph_view,
-                                 frontier_vertices_view.begin(),
-                                 frontier_vertices_view.end(),
-                                 frontier_vertex_times_current_subset.begin(),
-                                 edge_src_times.mutable_view());
-
+      frontier_vertices_view = raft::device_span<vertex_t const>{
+        frontier_vertices_no_duplicates.data(), frontier_vertices_no_duplicates.size()};
+      if (frontier_vertex_labels_no_duplicates)
+        frontier_vertex_labels_view =
+          raft::device_span<label_t const>{frontier_vertex_labels_no_duplicates->data(),
+                                           frontier_vertex_labels_no_duplicates->size()};
+    }
 #if 1
-        raft::print_device_vector("frontier_vertices_view",
-                                  frontier_vertices_view.data(),
-                                  frontier_vertices_view.size(),
-                                  std::cout);
-        raft::print_device_vector("frontier_vertex_times_current_subset",
-                                  frontier_vertex_times_current_subset.data(),
-                                  frontier_vertex_times_current_subset.size(),
-                                  std::cout);
+    raft::print_device_vector("frontier_vertices_view",
+                              frontier_vertices_view.data(),
+                              frontier_vertices_view.size(),
+                              std::cout);
+    raft::print_device_vector("frontier_vertex_times_no_duplicates",
+                              frontier_vertex_times_no_duplicates.data(),
+                              frontier_vertex_times_no_duplicates.size(),
+                              std::cout);
 #endif
 
-        // FIXME: Need to use transform_e, would be more efficient to pass in vertex frontier,
-        //   but that doesn't exist today
-        // NOTE: using graph_view as input here since to avoid read/write conflicts on edge mask
-        cugraph::transform_e(
-          handle,
-          graph_view,
-          edge_src_times.view(),
-          cugraph::edge_dst_dummy_property_t{}.view(),
-          edge_start_time_view,
-          [] __device__(auto src, auto dst, auto src_time, auto, auto edge_start_time) {
-#if 1
-            if (src == 380)
-              printf("  edge (%d,%d, src_time = %d, edge_start_time = %d)\n",
-                     (int)src,
-                     (int)dst,
-                     (int)src_time,
-                     (int)edge_start_time);
-#endif
-            return edge_start_time > src_time;
-          },
-          edge_time_mask.mutable_view(),
-          false);
-      }
+    if (level_Ks) {
+      std::cout << "calling sample_edges, frontier view size = " << frontier_vertices_view.size()
+                << std::endl;
 
-      if (level_Ks) {
-        std::cout << "calling sample_edges, frontier view size = " << frontier_vertices_view.size()
-                  << std::endl;
-
+      // TODO: Need to add the filter back...  I was too aggressive by deleting that logic.  The
+      // regular sample_edges call and the gather_onehop_edgelist functions will need the temporal
+      // filter. The gather_onehop_edgelist function will also need updating for the case where a
+      // vertex appears multiple times... so the outer if logic is still wrong...
+      if (frontier_vertices_no_duplicates.size() > 0) {
         auto [srcs, dsts, weights, edge_ids, edge_types, edge_start_times, edge_end_times, labels] =
           sample_edges(handle,
-                       temporal_graph_view,
+                       graph_view,
                        edge_weight_view,
                        edge_id_view,
                        edge_type_view,
@@ -393,21 +345,47 @@ temporal_neighbor_sample_impl(
             result_label_vectors->back().data(), result_label_vectors->back().size()});
       }
 
-      if (gather_flags) {
+      if (frontier_vertices_has_duplicates.size() > 0) {
+        // need different sample_edges implementation to do set sampling bias to 0
         auto [srcs, dsts, weights, edge_ids, edge_types, edge_start_times, edge_end_times, labels] =
-          gather_one_hop_edgelist(handle,
-                                  temporal_graph_view,
-                                  edge_weight_view,
-                                  edge_id_view,
-                                  edge_type_view,
-                                  std::make_optional(edge_start_time_view),
-                                  edge_end_time_view,
-                                  frontier_vertices_view,
-                                  frontier_vertex_labels_view,
-                                  num_edge_types
-                                    ? std::make_optional<raft::host_span<uint8_t const>>(
-                                        gather_flags->data(), gather_flags->size())
-                                    : std::nullopt);
+          sample_edges(handle,
+                       graph_view,
+                       edge_weight_view,
+                       edge_id_view,
+                       edge_type_view,
+                       std::make_optional(edge_start_time_view),
+                       edge_end_time_view,
+                       edge_bias_view,
+                       rng_state,
+                       frontier_vertices_view,
+                       frontier_vertex_labels_view,
+                       raft::host_span<size_t const>(level_Ks->data(), level_Ks->size()),
+                       with_replacement);
+
+#if 0
+        raft::print_device_vector("      frontier_vertices",
+                                  frontier_vertices_view.data(),
+                                  frontier_vertices_view.size(),
+                                  std::cout);
+        raft::print_device_vector("      srcs", srcs.data(), srcs.size(), std::cout);
+        raft::print_device_vector("      dsts", dsts.data(), dsts.size(), std::cout);
+        raft::print_device_vector(
+          "      edge_start_times", edge_start_times->data(), edge_start_times->size(), std::cout);
+        if (weights)
+          raft::print_device_vector("      weights", weights->data(), weights->size(), std::cout);
+        if (edge_ids)
+          raft::print_device_vector(
+            "      edge_ids", edge_ids->data(), edge_ids->size(), std::cout);
+        if (edge_types)
+          raft::print_device_vector(
+            "      edge_types", edge_types->data(), edge_types->size(), std::cout);
+        if (edge_end_times)
+          raft::print_device_vector(
+            "      edge_end_times", edge_end_times->data(), edge_end_times->size(), std::cout);
+        if (labels)
+          raft::print_device_vector("      labels", labels->data(), labels->size(), std::cout);
+
+#endif
 
         result_sizes.push_back(srcs.size());
         result_src_vectors.push_back(std::move(srcs));
@@ -433,20 +411,58 @@ temporal_neighbor_sample_impl(
           next_frontier_vertex_label_spans->push_back(raft::device_span<label_t const>{
             result_label_vectors->back().data(), result_label_vectors->back().size()});
       }
-
-      frontier_vertices_current_subset      = std::move(frontier_vertices_next_subset);
-      frontier_vertex_labels_current_subset = std::move(frontier_vertex_labels_next_subset);
-      frontier_vertex_times_current_subset  = std::move(frontier_vertex_times_next_subset);
-
-      frontier_vertices_view = raft::device_span<vertex_t const>{
-        frontier_vertices_current_subset.data(), frontier_vertices_current_subset.size()};
-      if (frontier_vertex_labels)
-        frontier_vertex_labels_view =
-          raft::device_span<label_t const>{frontier_vertex_labels_current_subset->begin(),
-                                           frontier_vertex_labels_current_subset->size()};
-      frontier_vertex_times_view = raft::device_span<edge_time_t const>{
-        frontier_vertex_times_current_subset.begin(), frontier_vertex_times_current_subset.size()};
     }
+
+    if (gather_flags) {
+      auto [srcs, dsts, weights, edge_ids, edge_types, edge_start_times, edge_end_times, labels] =
+        gather_one_hop_edgelist(handle,
+                                graph_view,
+                                edge_weight_view,
+                                edge_id_view,
+                                edge_type_view,
+                                std::make_optional(edge_start_time_view),
+                                edge_end_time_view,
+                                frontier_vertices_view,
+                                frontier_vertex_labels_view,
+                                num_edge_types ? std::make_optional<raft::host_span<uint8_t const>>(
+                                                   gather_flags->data(), gather_flags->size())
+                                               : std::nullopt);
+
+      result_sizes.push_back(srcs.size());
+      result_src_vectors.push_back(std::move(srcs));
+      result_dst_vectors.push_back(std::move(dsts));
+
+      if (weights) { (*result_weight_vectors).push_back(std::move(*weights)); }
+      if (edge_ids) { (*result_edge_id_vectors).push_back(std::move(*edge_ids)); }
+      if (edge_types) { (*result_edge_type_vectors).push_back(std::move(*edge_types)); }
+      if (edge_start_times) {
+        (*result_edge_start_time_vectors).push_back(std::move(*edge_start_times));
+      }
+      if (edge_end_times) { (*result_edge_end_time_vectors).push_back(std::move(*edge_end_times)); }
+      if (labels) { (*result_label_vectors).push_back(std::move(*labels)); }
+
+      next_frontier_vertex_spans.push_back(raft::device_span<vertex_t const>{
+        result_dst_vectors.back().data(), result_dst_vectors.back().size()});
+      next_frontier_vertex_time_spans->push_back(
+        raft::device_span<edge_time_t const>{result_edge_start_time_vectors->back().data(),
+                                             result_edge_start_time_vectors->back().size()});
+      if (next_frontier_vertex_label_spans)
+        next_frontier_vertex_label_spans->push_back(raft::device_span<label_t const>{
+          result_label_vectors->back().data(), result_label_vectors->back().size()});
+    }
+
+    frontier_vertices_no_duplicates      = std::move(frontier_vertices_has_duplicates);
+    frontier_vertex_labels_no_duplicates = std::move(frontier_vertex_labels_has_duplicates);
+    frontier_vertex_times_no_duplicates  = std::move(frontier_vertex_times_has_duplicates);
+
+    frontier_vertices_view = raft::device_span<vertex_t const>{
+      frontier_vertices_no_duplicates.data(), frontier_vertices_no_duplicates.size()};
+    if (frontier_vertex_labels)
+      frontier_vertex_labels_view =
+        raft::device_span<label_t const>{frontier_vertex_labels_no_duplicates->begin(),
+                                         frontier_vertex_labels_no_duplicates->size()};
+    frontier_vertex_times_view = raft::device_span<edge_time_t const>{
+      frontier_vertex_times_no_duplicates.begin(), frontier_vertex_times_no_duplicates.size()};
 
     std::cout << "calling prepare_next_frontier" << std::endl;
 

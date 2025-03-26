@@ -29,7 +29,7 @@ template std::tuple<rmm::device_uvector<int64_t>,
                     std::optional<rmm::device_uvector<int32_t>>>
 temporal_sample_edges(
   raft::handle_t const& handle,
-  graph_view_t<int64_t, int64_t, false, false> const& graph_view,
+  graph_view_t<int64_t, int64_t, false, true> const& graph_view,
   std::optional<edge_property_view_t<int64_t, float const*>> edge_weight_view,
   std::optional<edge_property_view_t<int64_t, int64_t const*>> edge_id_view,
   std::optional<edge_property_view_t<int64_t, int32_t const*>> edge_edge_type_view,
@@ -53,7 +53,7 @@ template std::tuple<rmm::device_uvector<int64_t>,
                     std::optional<rmm::device_uvector<int32_t>>>
 temporal_sample_edges(
   raft::handle_t const& handle,
-  graph_view_t<int64_t, int64_t, false, false> const& graph_view,
+  graph_view_t<int64_t, int64_t, false, true> const& graph_view,
   std::optional<edge_property_view_t<int64_t, double const*>> edge_weight_view,
   std::optional<edge_property_view_t<int64_t, int64_t const*>> edge_id_view,
   std::optional<edge_property_view_t<int64_t, int32_t const*>> edge_edge_type_view,
@@ -77,7 +77,7 @@ template std::tuple<rmm::device_uvector<int64_t>,
                     std::optional<rmm::device_uvector<int32_t>>>
 temporal_sample_edges(
   raft::handle_t const& handle,
-  graph_view_t<int64_t, int64_t, false, false> const& graph_view,
+  graph_view_t<int64_t, int64_t, false, true> const& graph_view,
   std::optional<edge_property_view_t<int64_t, float const*>> edge_weight_view,
   std::optional<edge_property_view_t<int64_t, int64_t const*>> edge_id_view,
   std::optional<edge_property_view_t<int64_t, int32_t const*>> edge_edge_type_view,
@@ -91,7 +91,6 @@ temporal_sample_edges(
   raft::host_span<size_t const> Ks,
   bool with_replacement);
 
-#if 0
 template std::tuple<rmm::device_uvector<int64_t>,
                     rmm::device_uvector<int64_t>,
                     std::optional<rmm::device_uvector<double>>,
@@ -102,7 +101,7 @@ template std::tuple<rmm::device_uvector<int64_t>,
                     std::optional<rmm::device_uvector<int32_t>>>
 temporal_sample_edges(
   raft::handle_t const& handle,
-  graph_view_t<int64_t, int64_t, false, false> const& graph_view,
+  graph_view_t<int64_t, int64_t, false, true> const& graph_view,
   std::optional<edge_property_view_t<int64_t, double const*>> edge_weight_view,
   std::optional<edge_property_view_t<int64_t, int64_t const*>> edge_id_view,
   std::optional<edge_property_view_t<int64_t, int32_t const*>> edge_edge_type_view,
@@ -115,7 +114,6 @@ temporal_sample_edges(
   std::optional<raft::device_span<int32_t const>> active_major_labels,
   raft::host_span<size_t const> Ks,
   bool with_replacement);
-#endif
 
 }  // namespace detail
 }  // namespace cugraph

@@ -156,6 +156,7 @@ set(CUGRAPH_SOURCES
     src/utilities/shuffle_vertices_mg_v32_integral.cu
     src/utilities/shuffle_vertices_mg_v64_fp.cu
     src/utilities/shuffle_vertices_mg_v64_integral.cu
+    src/utilities/validation_checks.cu
     src/detail/permute_range_v32.cu
     src/detail/permute_range_v64.cu
     src/utilities/shuffle_vertex_pairs_mg_v32_e32.cu
@@ -270,6 +271,10 @@ set(CUGRAPH_SOURCES
     src/sampling/detail/sample_edges_sg_v32_e32.cu
     src/sampling/detail/sample_edges_mg_v64_e64.cu
     src/sampling/detail/sample_edges_mg_v32_e32.cu
+    src/sampling/detail/temporal_sample_edges_sg_v64_e64.cu
+    src/sampling/detail/temporal_sample_edges_sg_v32_e32.cu
+    src/sampling/detail/temporal_sample_edges_mg_v64_e64.cu
+    src/sampling/detail/temporal_sample_edges_mg_v32_e32.cu
     src/sampling/detail/shuffle_and_organize_output_mg_v64_e64_t32_w32.cu
     src/sampling/detail/shuffle_and_organize_output_mg_v32_e32_t32_w32.cu
     src/sampling/detail/shuffle_and_organize_output_mg_v64_e64_t32_w64.cu

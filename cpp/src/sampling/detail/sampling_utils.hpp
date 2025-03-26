@@ -355,7 +355,28 @@ rmm::device_uvector<int32_t> flatten_label_map(
   std::tuple<raft::device_span<label_t const>, raft::device_span<int32_t const>>
     label_to_output_comm_rank);
 
-// NEW:
+/**
+ * @brief   Partition the temporal frontier for sampling
+ *
+ * Temporal sampling requires special logic if a vertex appears in the frontier with different
+ * timestamps.  This function will partition the frontier appropriately.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_time_t Type of edge time. Needs to be an integral type.
+ * @tparam label_t Type of label. Needs to be an integral type.
+ *
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param vertices Device span identifying the vertices in the frontier
+ * @param vertex_times Device span identifying the time associated with each vertex in the frontier
+ * @param vertex_labels Device span identifying the optional vertex label associated with each
+ * vertex in the frontier
+ *
+ * @returns Tuple containing: device vector of vertices that appear only once in the frontier, times
+ * associated with those vertices and optional labels associated with those vertices, vertices that
+ * appear multiple times in the frontier, times associated with those vertices and optional labels
+ * associated with those vertices.
+ */
 template <typename vertex_t, typename edge_time_t, typename label_t>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<edge_time_t>,
