@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2024, NVIDIA CORPORATION.
+# Copyright (c) 2022-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -28,6 +28,9 @@ from pylibcugraph._cugraph_c.graph cimport (
     cugraph_graph_create_mg,
     cugraph_graph_create_sg_from_csr,
     cugraph_graph_free,
+)
+from pylibcugraph._cugraph_c.array cimport (
+    cugraph_type_erased_device_array_view_type,
 )
 from pylibcugraph.resource_handle cimport (
     ResourceHandle,
@@ -197,6 +200,10 @@ cdef class SGGraph(_GPUGraph):
             create_cugraph_type_erased_device_array_view_from_py_obj(
                 vertices_array
             )
+
+        self.vertex_type = cugraph_type_erased_device_array_view_type(
+            srcs_or_offsets_view_ptr)
+
         self.weights_view_ptr = create_cugraph_type_erased_device_array_view_from_py_obj(
                 weight_array
             )
@@ -421,8 +428,13 @@ cdef class MGGraph(_GPUGraph):
                     srcs_view_ptr_ptr = \
                         <cugraph_type_erased_device_array_view_t **>malloc(
                             num_arrays * sizeof(cugraph_type_erased_device_array_view_t*))
+
                 srcs_view_ptr_ptr[i] = \
                     create_cugraph_type_erased_device_array_view_from_py_obj(src_array[i])
+
+                if i == 0:
+                    self.vertex_type = cugraph_type_erased_device_array_view_type(
+                        srcs_view_ptr_ptr[0])
 
             if dst_array[i] is not None:
                 if i == 0:
