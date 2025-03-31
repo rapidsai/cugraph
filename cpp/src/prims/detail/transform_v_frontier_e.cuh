@@ -521,8 +521,7 @@ auto transform_v_frontier_e(raft::handle_t const& handle,
 
     auto segment_offsets = graph_view.local_edge_partition_segment_offsets(i);
     if (segment_offsets) {
-      auto [edge_partition_key_indices, edge_partition_v_frontier_partition_offsets] =
-        partition_v_frontier(
+      auto res_partition_v_frontier = partition_v_frontier(
           handle,
           edge_partition_frontier_major_first,
           edge_partition_frontier_major_first +
@@ -530,6 +529,10 @@ auto transform_v_frontier_e(raft::handle_t const& handle,
           std::vector<vertex_t>{edge_partition.major_range_first() + (*segment_offsets)[1],
                                 edge_partition.major_range_first() + (*segment_offsets)[2],
                                 edge_partition.major_range_first() + (*segment_offsets)[3]});
+
+      // We cannot capture structured binding before C++20 so we create these variables manually
+      auto& edge_partition_key_indices = ::std::get<0>(res_partition_v_frontier);
+      auto& edge_partition_v_frontier_partition_offsets = ::std::get<1>(res_partition_v_frontier);
 
       // FIXME: we may further improve performance by 1) concurrently running kernels on different
       // segments; 2) individually tuning block sizes for different segments; and 3) adding one
