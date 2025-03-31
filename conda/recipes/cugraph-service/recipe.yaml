@@ -25,8 +25,13 @@ outputs:
       script:
         content: |
           cd python/cugraph-service/client
-          mkdir -p pip_cache
-          python -m pip install --no-build-isolation --no-index --no-deps --ignore-installed --cache-dir ./pip_cache . -vv
+          python -m pip install \
+              --no-build-isolation \
+              --no-index \
+              --no-deps \
+              --ignore-installed \
+              -vv \
+              .
     requirements:
       host:
         - pip
@@ -50,13 +55,11 @@ outputs:
       script:
         content: |
           cd python/cugraph-service/server
-          mkdir -p pip_cache
           python -m pip install \
               --no-build-isolation \
               --no-index \
               --no-deps \
               --ignore-installed \
-              --cache-dir ./pip_cache \
               --config-settings rapidsai.disable-cuda=true \
               -vv \
               .
