@@ -25,7 +25,7 @@ build:
       - '*libarrow.so.*gdb.py'
   prefix_detection:
     # See https://github.com/rapidsai/build-planning/issues/160
-    # Blanket ignore here as there are quite a few shared objects shipped in cuml
+    # Blanket ignore here as there are quite a few shared objects shipped in cugraph
     ignore_binary_files: True
   script:
     content: |
