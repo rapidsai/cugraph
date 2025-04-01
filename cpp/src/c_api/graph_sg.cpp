@@ -297,6 +297,26 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
                                        number_map->data(),
                                        number_map->size(),
                                        graph->view().local_vertex_partition_range_first());
+
+        if (vertices_) {
+          vertex_list = rmm::device_uvector<vertex_t>(vertices_->size_, handle_.get_stream());
+          raft::copy<vertex_t>(vertex_list->data(),
+                               vertices_->as_type<vertex_t>(),
+                               vertices_->size_,
+                               handle_.get_stream());
+
+          auto is_consecutive = cugraph::detail::is_equal(
+            handle_.get_stream(),
+            raft::device_span<vertex_t>{vertex_list->data(), vertex_list->size()},
+            raft::device_span<vertex_t>{number_map->data(), number_map->size()});
+
+          if (!is_consecutive) {
+            mark_error(
+              CUGRAPH_INVALID_INPUT,
+              "Vertex list must be numbered consecutively from 0 when 'renumber' is 'false'");
+            return;
+          }
+        }
       }
 
       if (new_edge_weights) { *edge_weights = std::move(new_edge_weights.value()); }

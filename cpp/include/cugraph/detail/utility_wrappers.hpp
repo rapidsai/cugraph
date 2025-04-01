@@ -118,6 +118,24 @@ void transform_increment_ints(raft::device_span<value_t> values,
 
 /**
  * @ingroup utility_wrappers_cpp
+ * @brief    Update the values of device span to 0 if it matches the compare value or 1
+ *
+ * @tparam      value_t      type of the value to operate on. Must be either int32_t or int64_t.
+ *
+ * @param[out]  values       device span with the values to compare
+ * @param[out]  result       device span with the result of the comparison
+ * @param[in]   compare      value to be querriedm in the values array
+ * @param[in]   stream_view  stream view
+ *
+ */
+template <typename value_t>
+void transform_not_equal(raft::device_span<value_t> values,
+                         raft::device_span<bool> result,
+                         value_t compare,
+                         rmm::cuda_stream_view const& stream_view);
+
+/**
+ * @ingroup utility_wrappers_cpp
  * @brief    Fill a buffer with a sequence of values
  *
  * Fills the buffer with the sequence:
