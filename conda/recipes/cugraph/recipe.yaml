@@ -20,9 +20,6 @@ source:
 
 build:
   string: cuda${{ cuda_major }}_py${{ py_buildstring }}_${{ date_string }}_${{ head_rev }}
-  files:
-    exclude:
-      - '*libarrow.so.*gdb.py'
   prefix_detection:
     # See https://github.com/rapidsai/build-planning/issues/160
     # Blanket ignore here as there are quite a few shared objects shipped in cugraph
