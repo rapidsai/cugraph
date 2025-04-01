@@ -56,7 +56,7 @@ def ensure_valid_dtype(input_graph, start_list):
     return start_list
 
 
-def heterogeneous_uniform_neighbor_sample(
+def heterogeneous_neighbor_sample(
     G: Graph,
     start_list: Sequence,
     starting_vertex_label_offsets: Sequence,
@@ -77,9 +77,9 @@ def heterogeneous_uniform_neighbor_sample(
     compression: str = "COO",
 ) -> Tuple[cudf.Series, cudf.Series, Union[None, int, cudf.Series]]:
     """
-    Performs uniform neighborhood sampling, which samples nodes from
+    Performs uniform/biased neighborhood sampling, which samples nodes from
     a graph based on the current node's neighbors, with a corresponding fan_out
-    value at each hop. The edges are sampled uniformly. Heterogeneous
+    value at each hop. The edges are sampled either uniformly . Heterogeneous
     neighborhood sampling translates to more than 1 edge type.
 
     parameters
