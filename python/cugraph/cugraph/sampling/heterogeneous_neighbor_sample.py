@@ -65,7 +65,7 @@ def heterogeneous_neighbor_sample(
     vertex_type_offsets: Sequence = None,
     num_edge_types: int = 1,
     with_replacement: bool = True,
-    with_biases: bool = False
+    with_biases: bool = False,
     random_state: int = None,
     return_offsets: bool = False,
     prior_sources_behavior: str = None,
