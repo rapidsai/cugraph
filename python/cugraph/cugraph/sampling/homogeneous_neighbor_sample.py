@@ -159,7 +159,7 @@ def homogeneous_neighbor_sample(
                     Contains the source vertices from the sampling result
                 df['minors']: cudf.Series
                     Contains the destination vertices from the sampling result
-                df['edge_weight']: cudf.Series # if provided 
+                df['weight']: cudf.Series # if provided 
                     Contains the edge weights from the sampling result
                 df['edge_id']: cudf.Series # if provided 
                     Contains the edge ids from the sampling result
@@ -181,7 +181,7 @@ def homogeneous_neighbor_sample(
                     Contains the source vertices from the sampling result
                 df['minors']: cudf.Series
                     Contains the destination vertices from the sampling result
-                df['edge_weight']: cudf.Series # if provided 
+                df['weight']: cudf.Series # if provided 
                     Contains the edge weights from the sampling result
                 df['edge_id']: cudf.Series # if provided 
                     Contains the edge ids from the sampling result
@@ -267,44 +267,29 @@ def homogeneous_neighbor_sample(
             )
         else:
             start_list = G.lookup_internal_vertex_id(start_list)
-
+    
     if with_biases:
-        sampling_result_array_dict = pylibcugraph_homogeneous_biased_neighbor_sample(
-            resource_handle=ResourceHandle(),
-            input_graph=G._plc_graph,
-            start_vertex_list=start_list,
-            starting_vertex_label_offsets=starting_vertex_label_offsets,
-            h_fan_out=fanout_vals,
-            with_replacement=with_replacement,
-            do_expensive_check=True,
-            prior_sources_behavior=prior_sources_behavior,
-            deduplicate_sources=deduplicate_sources,
-            return_hops=return_hops,
-            renumber=renumber,
-            retain_seeds=retain_seeds,
-            compression=compression,
-            compress_per_hop=compress_per_hop,
-            random_state=random_state,
-        )
+        sampling_function = pylibcugraph_homogeneous_biased_neighbor_sample
     else:
-        sampling_result_array_dict = pylibcugraph_homogeneous_uniform_neighbor_sample(
-            resource_handle=ResourceHandle(),
-            input_graph=G._plc_graph,
-            start_vertex_list=start_list,
-            starting_vertex_label_offsets=starting_vertex_label_offsets,
-            h_fan_out=fanout_vals,
-            with_replacement=with_replacement,
-            do_expensive_check=True,
-            prior_sources_behavior=prior_sources_behavior,
-            deduplicate_sources=deduplicate_sources,
-            return_hops=return_hops,
-            renumber=renumber,
-            retain_seeds=retain_seeds,
-            compression=compression,
-            compress_per_hop=compress_per_hop,
-            random_state=random_state,
-        )
+        sampling_function = pylibcugraph_homogeneous_uniform_neighbor_sample
 
+    sampling_result_array_dict = sampling_function(
+        resource_handle=ResourceHandle(),
+        input_graph=G._plc_graph,
+        start_vertex_list=start_list,
+        starting_vertex_label_offsets=starting_vertex_label_offsets,
+        h_fan_out=fanout_vals,
+        with_replacement=with_replacement,
+        do_expensive_check=False,
+        prior_sources_behavior=prior_sources_behavior,
+        deduplicate_sources=deduplicate_sources,
+        return_hops=return_hops,
+        renumber=renumber,
+        retain_seeds=retain_seeds,
+        compression=compression,
+        compress_per_hop=compress_per_hop,
+        random_state=random_state,
+    )
 
     dfs = sampling_results_from_cupy_array_dict(
         sampling_result_array_dict,
