@@ -527,9 +527,6 @@ temporal_sample_edges(
   std::optional<rmm::device_uvector<edge_time_t>> edge_end_times{std::nullopt};
 
   if (edge_bias_view) {
-#if 1
-    CUGRAPH_FAIL("temporal sampling not currently supported with biased sampling");
-#else
     sample_edges_functor_t<vertex_t,
                            edge_t,
                            weight_t,
@@ -562,7 +559,6 @@ temporal_sample_edges(
                                                              edge_type_view,
                                                              edge_start_time_view,
                                                              edge_end_time_view);
-#endif
   } else {
     sample_edges_functor_t<vertex_t,
                            edge_t,
