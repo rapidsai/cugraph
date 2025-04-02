@@ -65,22 +65,15 @@ prepare_next_frontier(
   bool multi_gpu,
   bool do_expensive_check)
 {
-  std::cout << "sampled_dst_vertices size = " << sampled_dst_vertices.size() << std::endl;
   size_t frontier_size = std::transform_reduce(sampled_dst_vertices.begin(),
                                                sampled_dst_vertices.end(),
                                                size_t{0},
                                                std::plus{},
-                                               [](auto span) {
-                                                 std::cout << "   span size = " << span.size()
-                                                           << std::endl;
-                                                 return span.size();
-                                               });
+                                               [](auto span) { return span.size(); });
 
   if (prior_sources_behavior == prior_sources_behavior_t::CARRY_OVER) {
     frontier_size += sampled_src_vertices.size();
   }
-
-  std::cout << "  frontier size = " << frontier_size << std::endl;
 
   rmm::device_uvector<vertex_t> frontier_vertices(frontier_size, handle.get_stream());
   auto frontier_vertex_labels =
@@ -344,8 +337,6 @@ prepare_next_frontier(
       }
     }
   }
-
-  std::cout << "   *** returning frontier of size: " << frontier_vertices.size() << std::endl;
 
   return std::make_tuple(std::move(frontier_vertices),
                          std::move(frontier_vertex_labels),

@@ -28,9 +28,6 @@
 
 #include <raft/core/device_span.hpp>
 #include <raft/core/handle.hpp>
-#if 1
-#include <raft/util/cudart_utils.hpp>
-#endif
 
 #include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
@@ -144,37 +141,16 @@ bool validate_extracted_graph_is_subgraph(
     dst_v.resize(new_size, handle.get_stream());
     wgt_v.resize(new_size, handle.get_stream());
 
-#if 0
-    raft::print_device_vector("  subgraph_src", subgraph_src.data(), subgraph_src.size(), std::cout);
-    raft::print_device_vector("  subgraph_dst", subgraph_dst.data(), subgraph_dst.size(), std::cout);
-    raft::print_device_vector("  subgraph_wgt", subgraph_wgt->data(), subgraph_wgt->size(), std::cout);
-#endif
     auto subgraph_iter = thrust::make_zip_iterator(
       thrust::make_tuple(subgraph_src.begin(), subgraph_dst.begin(), subgraph_wgt->begin()));
-    num_invalids = thrust::count_if(
-      handle.get_thrust_policy(),
-      subgraph_iter,
-      subgraph_iter + subgraph_src.size(),
-      [graph_iter, new_size] __device__(auto tup) {
-#if 1
-        if (thrust::binary_search(thrust::seq, graph_iter, graph_iter + new_size, tup) == false) {
-          printf("1: edge (%d,%d,%g) not found\n",
-                 (int)thrust::get<0>(tup),
-                 (int)thrust::get<1>(tup),
-                 (float)thrust::get<2>(tup));
-          thrust::for_each(
-            thrust::seq, graph_iter, graph_iter + new_size, [src = thrust::get<0>(tup)](auto tup2) {
-              if (thrust::get<0>(tup2) == src)
-                printf("  edge (%d,%d,%g)\n",
-                       (int)thrust::get<0>(tup2),
-                       (int)thrust::get<1>(tup2),
-                       (float)thrust::get<2>(tup2));
-            });
-        }
-#endif
-        return (thrust::binary_search(thrust::seq, graph_iter, graph_iter + new_size, tup) ==
-                false);
-      });
+    num_invalids =
+      thrust::count_if(handle.get_thrust_policy(),
+                       subgraph_iter,
+                       subgraph_iter + subgraph_src.size(),
+                       [graph_iter, new_size] __device__(auto tup) {
+                         return (thrust::binary_search(
+                                   thrust::seq, graph_iter, graph_iter + new_size, tup) == false);
+                       });
   } else {
     auto graph_iter = thrust::make_zip_iterator(thrust::make_tuple(src_v.begin(), dst_v.begin()));
     thrust::sort(
@@ -188,18 +164,14 @@ bool validate_extracted_graph_is_subgraph(
 
     auto subgraph_iter =
       thrust::make_zip_iterator(thrust::make_tuple(subgraph_src.begin(), subgraph_dst.begin()));
-    num_invalids = thrust::count_if(
-      handle.get_thrust_policy(),
-      subgraph_iter,
-      subgraph_iter + subgraph_src.size(),
-      [graph_iter, new_size] __device__(auto tup) {
-#if 1
-        if (thrust::binary_search(thrust::seq, graph_iter, graph_iter + new_size, tup) == false)
-          printf("2: edge (%d,%d) not found\n", (int)thrust::get<0>(tup), (int)thrust::get<1>(tup));
-#endif
-        return (thrust::binary_search(thrust::seq, graph_iter, graph_iter + new_size, tup) ==
-                false);
-      });
+    num_invalids =
+      thrust::count_if(handle.get_thrust_policy(),
+                       subgraph_iter,
+                       subgraph_iter + subgraph_src.size(),
+                       [graph_iter, new_size] __device__(auto tup) {
+                         return (thrust::binary_search(
+                                   thrust::seq, graph_iter, graph_iter + new_size, tup) == false);
+                       });
   }
 
   return (num_invalids == 0);
@@ -389,21 +361,6 @@ bool validate_temporal_integrity(raft::handle_t const& handle,
                      handle.get_stream());
   sorted_dst_times.resize(sorted_dsts.size(), handle.get_stream());
 
-  raft::print_device_vector(
-    "source_vertices", source_vertices.data(), source_vertices.size(), std::cout);
-
-  thrust::for_each(handle.get_thrust_policy(),
-                   thrust::make_zip_iterator(srcs.begin(), dsts.begin(), edge_times.begin()),
-                   thrust::make_zip_iterator(srcs.end(), dsts.end(), edge_times.end()),
-                   [] __device__(auto tup) {
-                     auto s = thrust::get<0>(tup);
-                     auto d = thrust::get<1>(tup);
-                     auto t = thrust::get<2>(tup);
-                     if ((s == 380) || (d == 380)) {
-                       printf("  (%d,%d,%d)\n", (int)s, (int)d, (int)t);
-                     }
-                   });
-
   auto error_count = thrust::count_if(
     handle.get_thrust_policy(),
     thrust::make_zip_iterator(srcs.begin(), edge_times.begin()),
@@ -415,20 +372,19 @@ bool validate_temporal_integrity(raft::handle_t const& handle,
       vertex_t src     = thrust::get<0>(t);
       edge_time_t time = thrust::get<1>(t);
 
-      auto pos = thrust::lower_bound(thrust::seq, min_dsts.begin(), min_dsts.end(), src);
-      if ((pos == min_dsts.end()) || (*pos != src)) {
-        // source never used as a destination, verify that it was a source
-        printf("src (%d) not found as a dst\n", (int)src);
-        return thrust::find(thrust::seq, source_vertices.begin(), source_vertices.end(), src) ==
-               source_vertices.end();
+      bool vertex_is_source =
+        thrust::find(thrust::seq, source_vertices.begin(), source_vertices.end(), src) !=
+        source_vertices.end();
+
+      if (vertex_is_source) {
+        return false;
       } else {
-        printf(
-          "  comparing times, edge (%d, %d) has time %d, minimum time for previous edge was %d\n",
-          (int)src,
-          -1,
-          (int)time,
-          (int)min_dst_times[thrust::distance(min_dsts.begin(), pos)]);
-        return time < min_dst_times[thrust::distance(min_dsts.begin(), pos)];
+        auto pos = thrust::lower_bound(thrust::seq, min_dsts.begin(), min_dsts.end(), src);
+        if ((pos == min_dsts.end()) || (*pos != src)) {
+          return true;
+        } else {
+          return time < min_dst_times[thrust::distance(min_dsts.begin(), pos)];
+        }
       }
     });
 

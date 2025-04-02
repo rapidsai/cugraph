@@ -245,12 +245,6 @@ class Tests_Temporal_Neighbor_Sampling
                                        temporal_neighbor_sampling_usecase.fanout.size()),
         sampling_flags);
 
-#if 0
-    raft::print_device_vector("src_out", src_out.data(), src_out.size(), std::cout);
-    raft::print_device_vector("dst_out", dst_out.data(), dst_out.size(), std::cout);
-    if (wgt_out) raft::print_device_vector("wgt_out", wgt_out->data(), wgt_out->size(), std::cout);
-#endif
-
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       hr_timer.stop();
@@ -295,7 +289,8 @@ class Tests_Temporal_Neighbor_Sampling
           "wgt_compare", wgt_compare->data(), wgt_compare->size(), std::cout);
 #endif
 
-#if 1
+#if 0
+      std::cout << "before validation..." << std::endl;
       raft::print_device_vector("src_out", src_out.data(), src_out.size(), std::cout);
       raft::print_device_vector("dst_out", dst_out.data(), dst_out.size(), std::cout);
       if (wgt_out)

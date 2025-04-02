@@ -264,15 +264,6 @@ auto construct_invalid_value(std::tuple<Ts...> const& properties)
   return std::optional<decltype(tmp_result)>{std::nullopt};
 }
 
-template <typename vertex_t>
-struct debug_print {
-  template <typename T1, typename T2, typename T3>
-  int __device__ operator()(vertex_t src, vertex_t dst, T1, T2, T3 wgt) const
-  {
-    return int{0};
-  }
-};
-
 template <typename vertex_t,
           typename edge_t,
           typename weight_t,
@@ -371,28 +362,6 @@ struct sample_edges_functor_t {
                                                                  with_replacement,
                                                                  invalid_value));
 
-#if 0
-    std::cout << "output_buffer pointers = (" << std::get<0>(output_buffer).data() << ", "
-              << std::get<1>(output_buffer).data();
-    if constexpr (std::tuple_size_v<TupleType> > 0)
-      std::cout << ", " << std::get<2>(output_buffer).data();
-    std::cout << ")" << std::endl;
-
-    raft::print_device_vector("    output_buffer<0>",
-                              std::get<0>(output_buffer).data(),
-                              std::get<0>(output_buffer).size(),
-                              std::cout);
-    raft::print_device_vector("    output_buffer<1>",
-                              std::get<1>(output_buffer).data(),
-                              std::get<1>(output_buffer).size(),
-                              std::cout);
-    if constexpr (std::tuple_size_v<TupleType> > 0)
-      raft::print_device_vector("    output_buffer<2>",
-                                std::get<2>(output_buffer).data(),
-                                std::get<2>(output_buffer).size(),
-                                std::cout);
-#endif
-
     auto return_result =
       std::make_tuple(std::move(offsets),
                       rmm::device_uvector<vertex_t>(0, handle.get_stream()),
@@ -403,24 +372,7 @@ struct sample_edges_functor_t {
                       std::optional<rmm::device_uvector<edge_time_t>>{std::nullopt},
                       std::optional<rmm::device_uvector<edge_time_t>>{std::nullopt});
 
-    // move_results(output_buffer, return_result);
-    // template <bool... Flags, typename InputTupleType, typename OutputTupleType>
-    // void move_results(InputTupleType& input_tuple, OutputTupleType& output_tuple)
-    //{
-    handle.sync_stream();
-    std::cout << "call move_results" << std::endl;
     move_results<0, 1, true, true, Flags...>(output_buffer, return_result);
-    handle.sync_stream();
-
-#if 0
-    std::cout << "back from move_results" << std::endl;
-    std::cout << "return_result pointers = (" << std::get<0>(return_result)->data() << ", "
-              << std::get<1>(return_result).data() << ", " << std::get<2>(return_result).data();
-    if constexpr (std::tuple_size_v<TupleType> > 0)
-      std::cout << ", " << std::get<3>(return_result)->data();
-    std::cout << ")" << std::endl;
-#endif
-    //}
 
     return return_result;
   }
@@ -461,25 +413,6 @@ sample_edges(raft::handle_t const& handle,
 
   using tag_t = void;
 
-#if 0
-  raft::print_device_vector(
-    "  active_majors", active_majors.data(), active_majors.size(), std::cout);
-  if (active_major_labels)
-    raft::print_device_vector(
-      "  active_major_labels", active_major_labels->data(), active_major_labels->size(), std::cout);
-#endif
-
-#if 1
-  if (edge_weight_view)
-    cugraph::transform_reduce_e(handle,
-                                graph_view,
-                                edge_src_dummy_property_t{}.view(),
-                                edge_dst_dummy_property_t{}.view(),
-                                *edge_weight_view,
-                                debug_print<vertex_t>{},
-                                int{0});
-#endif
-
   cugraph::vertex_frontier_t<vertex_t, tag_t, multi_gpu, false> vertex_frontier(handle, 1);
 
   vertex_frontier.bucket(0).insert(active_majors.begin(), active_majors.end());
@@ -519,14 +452,8 @@ sample_edges(raft::handle_t const& handle,
 
   std::optional<rmm::device_uvector<int32_t>> labels{std::nullopt};
   if (active_major_labels) {
-#if 0
-    handle.sync_stream();
-    std::cout << "in active_major_labels block, active majors size = "
-              << active_major_labels->size() << std::endl;
-#endif
     labels = rmm::device_uvector<int32_t>(sample_offsets->back_element(handle.get_stream()),
                                           handle.get_stream());
-    // std::cout << "labels size = " << labels->size() << std::endl;
     thrust::for_each(handle.get_thrust_policy(),
                      thrust::make_counting_iterator(size_t{0}),
                      thrust::make_counting_iterator(active_majors.size()),
@@ -534,16 +461,7 @@ sample_edges(raft::handle_t const& handle,
                                       raft::device_span<size_t const>(sample_offsets->data(),
                                                                       sample_offsets->size()),
                                       raft::device_span<int32_t>(labels->data(), labels->size())});
-    // raft::print_device_vector("  labels", labels->data(), labels->size(), std::cout);
   }
-
-#if 0
-  handle.sync_stream();
-  std::cout << "print majors" << std::endl;
-  raft::print_device_vector("  majors", majors.data(), majors.size(), std::cout);
-  raft::print_device_vector("  minors", minors.data(), minors.size(), std::cout);
-  if (weights) raft::print_device_vector("  weights", weights->data(), weights->size(), std::cout);
-#endif
 
   return std::make_tuple(std::move(majors),
                          std::move(minors),
@@ -593,25 +511,6 @@ temporal_sample_edges(
 
   using tag_t = edge_time_t;
 
-#if 0
-  raft::print_device_vector(
-    "  active_majors", active_majors.data(), active_majors.size(), std::cout);
-  if (active_major_labels)
-    raft::print_device_vector(
-      "  active_major_labels", active_major_labels->data(), active_major_labels->size(), std::cout);
-#endif
-
-#if 1
-  if (edge_weight_view)
-    cugraph::transform_reduce_e(handle,
-                                graph_view,
-                                edge_src_dummy_property_t{}.view(),
-                                edge_dst_dummy_property_t{}.view(),
-                                *edge_weight_view,
-                                debug_print<vertex_t>{},
-                                int{0});
-#endif
-
   cugraph::vertex_frontier_t<vertex_t, tag_t, multi_gpu, false> vertex_frontier(handle, 1);
 
   vertex_frontier.bucket(0).insert(
@@ -628,6 +527,9 @@ temporal_sample_edges(
   std::optional<rmm::device_uvector<edge_time_t>> edge_end_times{std::nullopt};
 
   if (edge_bias_view) {
+#if 1
+    CUGRAPH_FAIL("temporal sampling not currently supported with biased sampling");
+#else
     sample_edges_functor_t<vertex_t,
                            edge_t,
                            weight_t,
@@ -660,6 +562,7 @@ temporal_sample_edges(
                                                              edge_type_view,
                                                              edge_start_time_view,
                                                              edge_end_time_view);
+#endif
   } else {
     sample_edges_functor_t<vertex_t,
                            edge_t,
@@ -667,14 +570,14 @@ temporal_sample_edges(
                            edge_type_t,
                            edge_time_t,
                            tag_t,
-                           edge_property_view_t<edge_t, bias_t const*, bias_t>,
+                           edge_property_view_t<edge_t, edge_time_t const*, edge_time_t>,
                            decltype(temporal_sample_edge_biases_op_t<vertex_t, bias_t>{}),
                            multi_gpu>
       sample_functor{handle,
                      graph_view,
                      vertex_frontier.bucket(0),
                      edge_type_view,
-                     edge_bias_view,
+                     edge_start_time_view,
                      temporal_sample_edge_biases_op_t<vertex_t, bias_t>{},
                      rng_state,
                      Ks,
@@ -707,14 +610,6 @@ temporal_sample_edges(
                                                                       sample_offsets->size()),
                                       raft::device_span<int32_t>(labels->data(), labels->size())});
   }
-
-#if 0
-  handle.sync_stream();
-  std::cout << "print majors" << std::endl;
-  raft::print_device_vector("  majors", majors.data(), majors.size(), std::cout);
-  raft::print_device_vector("  minors", minors.data(), minors.size(), std::cout);
-  if (weights) raft::print_device_vector("  weights", weights->data(), weights->size(), std::cout);
-#endif
 
   return std::make_tuple(std::move(majors),
                          std::move(minors),

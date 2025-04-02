@@ -45,10 +45,6 @@ temporal_partition_vertices(raft::handle_t const& handle,
                             raft::device_span<edge_time_t const> vertex_times,
                             std::optional<raft::device_span<label_t const>> vertex_labels)
 {
-  // TODO: New logic... segregate vertices that only appear once from vertices that appear multiple
-  // times
-  std::cout << "inside temporal_partition_vertices" << std::endl;
-
   rmm::device_uvector<vertex_t> vertices_p1(vertices.size(), handle.get_stream());
   rmm::device_uvector<edge_time_t> vertex_times_p1(vertex_times.size(), handle.get_stream());
   std::optional<rmm::device_uvector<label_t>> vertex_labels_p1{
@@ -85,7 +81,6 @@ temporal_partition_vertices(raft::handle_t const& handle,
   rmm::device_uvector<uint32_t> vertex_partition_mask(cugraph::packed_bool_size(vertices_p1.size()),
                                                       handle.get_stream());
 
-  std::cout << "thrust::tabulate" << std::endl;
   thrust::tabulate(
     handle.get_thrust_policy(),
     vertex_partition_mask.begin(),
@@ -113,9 +108,6 @@ temporal_partition_vertices(raft::handle_t const& handle,
 
   size_t num_unique_vertices =
     detail::count_set_bits(handle, vertex_partition_mask.begin(), vertices_p1.size());
-
-  std::cout << "num_unique_vertices = " << num_unique_vertices
-            << ", vertices_p1 size = " << vertices_p1.size() << std::endl;
 
   if (num_unique_vertices < vertices_p1.size()) {
     vertices_p2.resize(vertices_p1.size() - num_unique_vertices, handle.get_stream());
@@ -151,9 +143,6 @@ temporal_partition_vertices(raft::handle_t const& handle,
 
       vertex_labels_p1->resize(vertices_p1.size(), handle.get_stream());
       vertex_times_p1.resize(vertices_p1.size(), handle.get_stream());
-
-      std::cout << " p1 size = " << vertices_p1.size() << ", p2 size = " << vertices_p2.size()
-                << std::endl;
     } else {
       copy_if_mask_not_set(
         handle,
@@ -183,38 +172,6 @@ temporal_partition_vertices(raft::handle_t const& handle,
       vertex_times_p1.resize(vertices_p1.size(), handle.get_stream());
     }
   }
-
-  std::cout << " p1 size = " << vertices_p1.size() << ", p2 size = " << vertices_p2.size()
-            << std::endl;
-#if 1
-  std::cout << "returning make_tuple... p1:" << std::endl;
-  raft::print_device_vector("  p1", vertices_p1.data(), vertices_p1.size(), std::cout);
-  raft::print_device_vector("  p2", vertices_p2.data(), vertices_p2.size(), std::cout);
-
-  // TODO:   BACKWARDS, p1 and p2 are backwards...
-  thrust::for_each(
-    handle.get_thrust_policy(),
-    thrust::make_counting_iterator(0),
-    thrust::make_counting_iterator(1),
-    [v = vertices_p1.data(), t = vertex_times_p1.data(), sz = vertices_p1.size()] __device__(auto) {
-      printf("p1 SZ = %d\n", (int)sz);
-      for (size_t i = 0; i < sz; ++i) {
-        printf("  i = %d, v = %d, time = %d\n", (int)i, (int)v[i], (int)t[i]);
-      }
-    });
-
-  std::cout << "  p2:" << std::endl;
-  thrust::for_each(
-    handle.get_thrust_policy(),
-    thrust::make_counting_iterator(0),
-    thrust::make_counting_iterator(1),
-    [v = vertices_p2.data(), t = vertex_times_p2.data(), sz = vertices_p2.size()] __device__(auto) {
-      printf("p2 SZ = %d\n", (int)sz);
-      for (size_t i = 0; i < sz; ++i) {
-        printf("  i = %d, v = %d, time = %d\n", (int)i, (int)v[i], (int)t[i]);
-      }
-    });
-#endif
 
   return std::make_tuple(std::move(vertices_p1),
                          std::move(vertex_times_p1),

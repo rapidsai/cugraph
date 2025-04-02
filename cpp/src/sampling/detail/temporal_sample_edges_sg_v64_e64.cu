@@ -91,7 +91,7 @@ temporal_sample_edges(
   raft::host_span<size_t const> Ks,
   bool with_replacement);
 
-#if 0
+#if 1
 template std::tuple<rmm::device_uvector<int64_t>,
                     rmm::device_uvector<int64_t>,
                     std::optional<rmm::device_uvector<double>>,
