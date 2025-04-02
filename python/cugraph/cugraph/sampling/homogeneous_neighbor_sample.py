@@ -28,8 +28,7 @@ import warnings
 from typing import Union, Tuple, Sequence, List
 from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
-    from cugraph import Graph
+from cugraph.structure import Graph
 
 
 # FIXME: Move this function to the utility module so that it can be
