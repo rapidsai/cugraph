@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,9 +24,9 @@
 #include <cugraph_c/algorithms.h>
 
 #include <cugraph/algorithms.hpp>
-#include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
+#include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/device_comm.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 
@@ -108,9 +108,8 @@ struct extract_ego_functor : public cugraph::c_api::abstract_functor {
                                        (*source_indices).size(),
                                        displacements[handle_.get_comms().get_rank()]);
 
-        std::tie(source_vertices, source_indices) =
-          cugraph::detail::shuffle_ext_vertex_value_pairs_to_local_gpu_by_vertex_partitioning(
-            handle_, std::move(source_vertices), std::move(*source_indices));
+        std::tie(source_vertices, source_indices) = cugraph::shuffle_ext_vertex_value_pairs(
+          handle_, std::move(source_vertices), std::move(*source_indices));
       }
 
       cugraph::renumber_ext_vertices<vertex_t, multi_gpu>(
@@ -154,12 +153,13 @@ struct extract_ego_functor : public cugraph::c_api::abstract_functor {
         std::exclusive_scan(recvcounts.begin(), recvcounts.end(), displacements.begin(), size_t{0});
         rmm::device_uvector<size_t> allgathered_indices(displacements.back() + recvcounts.back(),
                                                         handle_.get_stream());
-        cugraph::device_allgatherv(handle_.get_comms(),
-                                   (*source_indices).begin(),
-                                   allgathered_indices.begin(),
-                                   recvcounts,
-                                   displacements,
-                                   handle_.get_stream());
+        cugraph::device_allgatherv(
+          handle_.get_comms(),
+          (*source_indices).begin(),
+          allgathered_indices.begin(),
+          raft::host_span<size_t const>(recvcounts.data(), recvcounts.size()),
+          raft::host_span<size_t const>(displacements.data(), displacements.size()),
+          handle_.get_stream());
         source_indices = std::move(allgathered_indices);
 
         std::tie(edge_offsets, src, dst, wgt) =

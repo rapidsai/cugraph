@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2024, NVIDIA CORPORATION.
+# Copyright (c) 2022-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -118,6 +118,8 @@ cdef get_numpy_type_from_c_type(cugraph_data_type_id_t c_type):
         return numpy.float64
     elif c_type == cugraph_data_type_id_t.SIZE_T:
         return numpy.int64
+    elif c_type == cugraph_data_type_id_t.BOOL:
+        return numpy.bool
     else:
         raise RuntimeError("Internal error: got invalid data type enum value "
                            f"from C: {c_type}")

@@ -589,6 +589,13 @@ __global__ static void per_v_transform_reduce_e_mid_degree(
       }
     }
 
+    // FIXME: Remove once upgraded to CCCL version 3.x
+#if CCCL_MAJOR_VERSION >= 3
+    using cuda::minimum;
+#else
+    using minimum = cub::Min;
+#endif
+
     if (edge_partition_e_mask) {
       if constexpr (update_major && std::is_same_v<ReduceOp, reduce_op::any<T>>) {
         auto rounded_up_local_degree =
@@ -601,7 +608,7 @@ __global__ static void per_v_transform_reduce_e_mid_degree(
             e_op_result = call_e_op(i);
           }
           first_valid_lane_id = WarpReduce(temp_storage[threadIdx.x / raft::warp_size()])
-                                  .Reduce(e_op_result ? lane_id : raft::warp_size(), cub::Min());
+                                  .Reduce(e_op_result ? lane_id : raft::warp_size(), minimum{});
           first_valid_lane_id = __shfl_sync(raft::warp_full_mask(), first_valid_lane_id, int{0});
           if (lane_id == first_valid_lane_id) { reduced_e_op_result = *e_op_result; }
           if (first_valid_lane_id != raft::warp_size()) { break; }
@@ -634,7 +641,7 @@ __global__ static void per_v_transform_reduce_e_mid_degree(
             e_op_result = call_e_op(i);
           }
           first_valid_lane_id = WarpReduce(temp_storage[threadIdx.x / raft::warp_size()])
-                                  .Reduce(e_op_result ? lane_id : raft::warp_size(), cub::Min());
+                                  .Reduce(e_op_result ? lane_id : raft::warp_size(), minimum{});
           first_valid_lane_id = __shfl_sync(raft::warp_full_mask(), first_valid_lane_id, int{0});
           if (lane_id == first_valid_lane_id) { reduced_e_op_result = *e_op_result; }
           if (first_valid_lane_id != raft::warp_size()) { break; }
@@ -781,6 +788,13 @@ __global__ static void per_v_transform_reduce_e_high_degree(
       }
     }
 
+    // FIXME: Remove once upgraded to CCCL version 3.x
+#if CCCL_MAJOR_VERSION >= 3
+    using cuda::minimum;
+#else
+    using minimum = cub::Min;
+#endif
+
     if (edge_partition_e_mask) {
       if constexpr (update_major && std::is_same_v<ReduceOp, reduce_op::any<T>>) {
         auto rounded_up_local_degree =
@@ -799,7 +813,7 @@ __global__ static void per_v_transform_reduce_e_high_degree(
               .Reduce(e_op_result
                         ? threadIdx.x
                         : per_v_transform_reduce_e_kernel_high_degree_reduce_any_block_size,
-                      cub::Min());
+                      minimum{});
           if (threadIdx.x == 0) { output_thread_id = first_valid_thread_id; }
           __syncthreads();
           first_valid_thread_id = output_thread_id;
@@ -843,7 +857,7 @@ __global__ static void per_v_transform_reduce_e_high_degree(
               .Reduce(e_op_result
                         ? threadIdx.x
                         : per_v_transform_reduce_e_kernel_high_degree_reduce_any_block_size,
-                      cub::Min());
+                      minimum{});
           if (threadIdx.x == 0) { output_thread_id = first_valid_thread_id; }
           __syncthreads();
           first_valid_thread_id = output_thread_id;
@@ -3872,23 +3886,25 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
           auto& values       = edge_partition_values[j];
 
           if (minor_comm_rank == static_cast<int>(partition_idx)) {
-            device_gatherv(minor_comm,
-                           get_dataframe_buffer_begin(values),
-                           get_dataframe_buffer_begin(*rx_values),
-                           values.size(),
-                           *rx_value_sizes,
-                           *rx_value_displs,
-                           static_cast<int>(partition_idx),
-                           handle.get_stream());
+            device_gatherv(
+              minor_comm,
+              get_dataframe_buffer_begin(values),
+              get_dataframe_buffer_begin(*rx_values),
+              values.size(),
+              raft::host_span<size_t const>(rx_value_sizes->data(), rx_value_sizes->size()),
+              raft::host_span<size_t const>(rx_value_displs->data(), rx_value_displs->size()),
+              static_cast<int>(partition_idx),
+              handle.get_stream());
           } else {
-            device_gatherv(minor_comm,
-                           get_dataframe_buffer_begin(values),
-                           dataframe_buffer_iterator_type_t<T>{},
-                           values.size(),
-                           std::vector<size_t>{},
-                           std::vector<size_t>{},
-                           static_cast<int>(partition_idx),
-                           handle.get_stream());
+            device_gatherv(
+              minor_comm,
+              get_dataframe_buffer_begin(values),
+              dataframe_buffer_iterator_type_t<T>{},
+              values.size(),
+              raft::host_span<size_t const>(static_cast<size_t const*>(nullptr), size_t{0}),
+              raft::host_span<size_t const>(static_cast<size_t const*>(nullptr), size_t{0}),
+              static_cast<int>(partition_idx),
+              handle.get_stream());
           }
         }
         device_group_end(minor_comm);
@@ -3901,44 +3917,48 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
             auto const& offsets = (*edge_partition_deg1_hypersparse_output_offset_vectors)[j];
             if (offsets.index() == 0) {
               if (minor_comm_rank == static_cast<int>(partition_idx)) {
-                device_gatherv(minor_comm,
-                               std::get<0>(offsets).data(),
-                               std::get<0>(*rx_offsets).data(),
-                               std::get<0>(offsets).size(),
-                               *rx_offset_sizes,
-                               *rx_offset_displs,
-                               static_cast<int>(partition_idx),
-                               handle.get_stream());
+                device_gatherv(
+                  minor_comm,
+                  std::get<0>(offsets).data(),
+                  std::get<0>(*rx_offsets).data(),
+                  std::get<0>(offsets).size(),
+                  raft::host_span<size_t const>(rx_offset_sizes->data(), rx_offset_sizes->size()),
+                  raft::host_span<size_t const>(rx_offset_displs->data(), rx_offset_displs->size()),
+                  static_cast<int>(partition_idx),
+                  handle.get_stream());
               } else {
-                device_gatherv(minor_comm,
-                               std::get<0>(offsets).data(),
-                               static_cast<uint32_t*>(nullptr),
-                               std::get<0>(offsets).size(),
-                               std::vector<size_t>{},
-                               std::vector<size_t>{},
-                               static_cast<int>(partition_idx),
-                               handle.get_stream());
+                device_gatherv(
+                  minor_comm,
+                  std::get<0>(offsets).data(),
+                  static_cast<uint32_t*>(nullptr),
+                  std::get<0>(offsets).size(),
+                  raft::host_span<size_t const>(static_cast<size_t const*>(nullptr), size_t{0}),
+                  raft::host_span<size_t const>(static_cast<size_t const*>(nullptr), size_t{0}),
+                  static_cast<int>(partition_idx),
+                  handle.get_stream());
               }
             } else {
               assert(offsets.index() == 1);
               if (minor_comm_rank == static_cast<int>(partition_idx)) {
-                device_gatherv(minor_comm,
-                               std::get<1>(offsets).data(),
-                               std::get<1>(*rx_offsets).data(),
-                               std::get<1>(offsets).size(),
-                               *rx_offset_sizes,
-                               *rx_offset_displs,
-                               static_cast<int>(partition_idx),
-                               handle.get_stream());
+                device_gatherv(
+                  minor_comm,
+                  std::get<1>(offsets).data(),
+                  std::get<1>(*rx_offsets).data(),
+                  std::get<1>(offsets).size(),
+                  raft::host_span<size_t const>(rx_offset_sizes->data(), rx_offset_sizes->size()),
+                  raft::host_span<size_t const>(rx_offset_displs->data(), rx_offset_displs->size()),
+                  static_cast<int>(partition_idx),
+                  handle.get_stream());
               } else {
-                device_gatherv(minor_comm,
-                               std::get<1>(offsets).data(),
-                               static_cast<size_t*>(nullptr),
-                               std::get<1>(offsets).size(),
-                               std::vector<size_t>{},
-                               std::vector<size_t>{},
-                               static_cast<int>(partition_idx),
-                               handle.get_stream());
+                device_gatherv(
+                  minor_comm,
+                  std::get<1>(offsets).data(),
+                  static_cast<size_t*>(nullptr),
+                  std::get<1>(offsets).size(),
+                  raft::host_span<size_t const>(static_cast<size_t const*>(nullptr), size_t{0}),
+                  raft::host_span<size_t const>(static_cast<size_t const*>(nullptr), size_t{0}),
+                  static_cast<int>(partition_idx),
+                  handle.get_stream());
               }
             }
           }

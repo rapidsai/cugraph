@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Copyright (c) 2019-2022, NVIDIA CORPORATION.
+# Copyright (c) 2019-2025, NVIDIA CORPORATION.
 
 # This assumes the script is executed from the root of the repo directory
 
@@ -8,4 +8,4 @@
 # openmpi build dependencies). The conda package does NOT include these test
 # binaries or extra dependencies, but these are built here for use in CI runs.
 
-./build.sh libcugraph libcugraph_etl cpp-mgtests -n -v --allgpuarch
+./build.sh libcugraph libcugraph_etl cpp-mgtests cpp-mtmgtests -n -v --allgpuarch

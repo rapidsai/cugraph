@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@ namespace cugraph {
 
 template <typename vertex_t, typename edge_t, typename weight_t>
 void force_atlas2(raft::handle_t const& handle,
+                  // raft::random::RngState& rng_state, # FIXME: Add support
                   legacy::GraphCOOView<vertex_t, edge_t, weight_t>& graph,
                   float* pos,
                   const int max_iter,
@@ -80,42 +81,46 @@ void force_atlas2(raft::handle_t const& handle,
   }
 }
 
-template void force_atlas2<int, int, float>(raft::handle_t const& handle,
-                                            legacy::GraphCOOView<int, int, float>& graph,
-                                            float* pos,
-                                            const int max_iter,
-                                            float* x_start,
-                                            float* y_start,
-                                            bool outbound_attraction_distribution,
-                                            bool lin_log_mode,
-                                            bool prevent_overlapping,
-                                            const float edge_weight_influence,
-                                            const float jitter_tolerance,
-                                            bool barnes_hut_optimize,
-                                            const float barnes_hut_theta,
-                                            const float scaling_ratio,
-                                            bool strong_gravity_mode,
-                                            const float gravity,
-                                            bool verbose,
-                                            internals::GraphBasedDimRedCallback* callback);
+template void force_atlas2<int, int, float>(
+  raft::handle_t const& handle,
+  // raft::random::RngState& rng_state, # FIXME: Add support
+  legacy::GraphCOOView<int, int, float>& graph,
+  float* pos,
+  const int max_iter,
+  float* x_start,
+  float* y_start,
+  bool outbound_attraction_distribution,
+  bool lin_log_mode,
+  bool prevent_overlapping,
+  const float edge_weight_influence,
+  const float jitter_tolerance,
+  bool barnes_hut_optimize,
+  const float barnes_hut_theta,
+  const float scaling_ratio,
+  bool strong_gravity_mode,
+  const float gravity,
+  bool verbose,
+  internals::GraphBasedDimRedCallback* callback);
 
-template void force_atlas2<int, int, double>(raft::handle_t const& handle,
-                                             legacy::GraphCOOView<int, int, double>& graph,
-                                             float* pos,
-                                             const int max_iter,
-                                             float* x_start,
-                                             float* y_start,
-                                             bool outbound_attraction_distribution,
-                                             bool lin_log_mode,
-                                             bool prevent_overlapping,
-                                             const float edge_weight_influence,
-                                             const float jitter_tolerance,
-                                             bool barnes_hut_optimize,
-                                             const float barnes_hut_theta,
-                                             const float scaling_ratio,
-                                             bool strong_gravity_mode,
-                                             const float gravity,
-                                             bool verbose,
-                                             internals::GraphBasedDimRedCallback* callback);
+template void force_atlas2<int, int, double>(
+  raft::handle_t const& handle,
+  // raft::random::RngState& rng_state, # FIXME: Add support
+  legacy::GraphCOOView<int, int, double>& graph,
+  float* pos,
+  const int max_iter,
+  float* x_start,
+  float* y_start,
+  bool outbound_attraction_distribution,
+  bool lin_log_mode,
+  bool prevent_overlapping,
+  const float edge_weight_influence,
+  const float jitter_tolerance,
+  bool barnes_hut_optimize,
+  const float barnes_hut_theta,
+  const float scaling_ratio,
+  bool strong_gravity_mode,
+  const float gravity,
+  bool verbose,
+  internals::GraphBasedDimRedCallback* callback);
 
 }  // namespace cugraph

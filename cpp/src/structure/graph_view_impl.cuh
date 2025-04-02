@@ -541,6 +541,7 @@ graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<!mu
                graph_view_meta_t<vertex_t, edge_t, store_transposed, multi_gpu> meta)
   : detail::graph_base_t<vertex_t, edge_t>(
       meta.number_of_vertices, meta.number_of_edges, meta.properties),
+    vertex_partition_range_offsets_(std::vector<vertex_t>{vertex_t{0}, meta.number_of_vertices}),
     offsets_(offsets),
     indices_(indices),
     segment_offsets_(meta.segment_offsets),

@@ -42,7 +42,6 @@ requirements:
     - {{ compiler('cxx') }}
     - cmake {{ cmake_version }}
     - ninja
-    - openmpi<5.0.3 # Required for building cpp-mgtests (multi-GPU tests)
     - {{ stdlib("c") }}
   host:
     {% if cuda_major == "11" %}
@@ -73,6 +72,8 @@ requirements:
     - librmm ={{ minor_version }}
     - nccl {{ nccl_version }}
     - rapids-build-backend>=0.3.1,<0.4.0.dev0
+    - libucxx {{ libucxx_version }}
+    - openmpi<5.0.3 # Required for building cpp-mgtests (multi-GPU tests)
 
 outputs:
   - name: libcugraph
