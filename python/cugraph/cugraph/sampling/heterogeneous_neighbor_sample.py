@@ -26,7 +26,6 @@ import cupy as cp
 import warnings
 
 from typing import Union, Tuple, Sequence, List
-from typing import TYPE_CHECKING
 
 from cugraph.structure import Graph
 
