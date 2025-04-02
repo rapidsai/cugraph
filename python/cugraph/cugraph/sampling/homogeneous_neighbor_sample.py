@@ -14,17 +14,14 @@
 import cudf
 from pylibcugraph import ResourceHandle
 from pylibcugraph import (
-    homogeneous_uniform_neighbor_sample as pylibcugraph_homogeneous_uniform_neighbor_sample,
-    homogeneous_biased_neighbor_sample as pylibcugraph_homogeneous_biased_neighbor_sample,
+    homogeneous_uniform_neighbor_sample as plc_homogeneous_uniform_neighbor_sample,
+    homogeneous_biased_neighbor_sample as plc_homogeneous_biased_neighbor_sample,
 )
 from cugraph.sampling.sampling_utilities import sampling_results_from_cupy_array_dict
-
-from cugraph.structure import Graph
 
 
 import numpy
 
-import cudf
 import cupy as cp
 import warnings
 
@@ -77,8 +74,8 @@ def homogeneous_neighbor_sample(
     """
     Performs uniform/biased neighborhood sampling, which samples nodes from
     a graph based on the current node's neighbors, with a corresponding fan_out
-    value at each hop. The edges are sampled either uniformly or with biases. Homogeneous
-    neighborhood sampling translates to 1 edge type.
+    value at each hop. The edges are sampled either uniformly or with biases.
+    Homogeneous neighborhood sampling translates to 1 edge type.
 
     parameters
     ----------
@@ -264,9 +261,9 @@ def homogeneous_neighbor_sample(
             start_list = G.lookup_internal_vertex_id(start_list)
 
     if with_biases:
-        sampling_function = pylibcugraph_homogeneous_biased_neighbor_sample
+        sampling_function = plc_homogeneous_biased_neighbor_sample
     else:
-        sampling_function = pylibcugraph_homogeneous_uniform_neighbor_sample
+        sampling_function = plc_homogeneous_uniform_neighbor_sample
 
     sampling_result_array_dict = sampling_function(
         resource_handle=ResourceHandle(),

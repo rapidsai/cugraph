@@ -13,8 +13,8 @@
 
 from pylibcugraph import ResourceHandle
 from pylibcugraph import (
-    heterogeneous_uniform_neighbor_sample as pylibcugraph_heterogeneous_uniform_neighbor_sample,
-    heterogeneous_biased_neighbor_sample as pylibcugraph_heterogeneous_biased_neighbor_sample,
+    heterogeneous_uniform_neighbor_sample as plc_heterogeneous_uniform_neighbor_sample,
+    heterogeneous_biased_neighbor_sample as plc_heterogeneous_biased_neighbor_sample,
 )
 from cugraph.sampling.sampling_utilities import sampling_results_from_cupy_array_dict
 
@@ -280,9 +280,9 @@ def heterogeneous_neighbor_sample(
             start_list = G.lookup_internal_vertex_id(start_list)
 
     if with_biases:
-        sampling_function = pylibcugraph_heterogeneous_biased_neighbor_sample
+        sampling_function = plc_heterogeneous_biased_neighbor_sample
     else:
-        sampling_function = pylibcugraph_heterogeneous_uniform_neighbor_sample
+        sampling_function = plc_heterogeneous_uniform_neighbor_sample
 
     sampling_result_array_dict = sampling_function(
         resource_handle=ResourceHandle(),
