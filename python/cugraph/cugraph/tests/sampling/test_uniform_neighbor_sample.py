@@ -845,7 +845,9 @@ def test_uniform_neighbor_sample_offset_renumber(hops):
     assert renumber_map_offsets.iloc[0] == 0
     assert renumber_map_offsets.iloc[-1] == len(renumber_map)
 
-    assert len(offsets_renumbered) == len(sampling_results_renumbered.hop_id.unique()) + 1
+    assert (
+        len(offsets_renumbered) == len(sampling_results_renumbered.hop_id.unique()) + 1
+    )
 
 
 @pytest.mark.sg

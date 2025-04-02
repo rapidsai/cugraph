@@ -205,9 +205,9 @@ def legacy_sampling_results_from_cupy_array_dict(
         )
 
         offsets_df = cudf.Series(
-                    label_hop_offsets,
-                    name="offsets",
-                ).to_frame()
+            label_hop_offsets,
+            name="offsets",
+        ).to_frame()
 
         if len(batches_series) > len(offsets_df):
             # this is extremely rare so the inefficiency is ok

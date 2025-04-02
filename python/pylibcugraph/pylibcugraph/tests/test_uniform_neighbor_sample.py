@@ -231,23 +231,25 @@ def test_neighborhood_sampling_large_sg_graph(benchmark):
         do_expensive_check=False,
     )
 
-    result = {keys:values for keys, values in result.items() if values is not None}
+    result = {keys: values for keys, values in result.items() if values is not None}
 
     assert type(result) is dict
-    assert isinstance(result['majors'], cp.ndarray)
-    assert isinstance(result['minors'], cp.ndarray)
-    assert isinstance(result['weight'], cp.ndarray)
+    assert isinstance(result["majors"], cp.ndarray)
+    assert isinstance(result["minors"], cp.ndarray)
+    assert isinstance(result["weight"], cp.ndarray)
     # Crude check that the results are accessible
-    assert result['majors'][0].dtype == np.int32
-    assert result['minors'][0].dtype == np.int32
-    assert result['weight'][0].dtype == np.float32
+    assert result["majors"][0].dtype == np.int32
+    assert result["minors"][0].dtype == np.int32
+    assert result["weight"][0].dtype == np.float32
 
     # FIXME: this is to help debug a leak in uniform_neighbor_sample, remove
     # once leak is fixed
     free_before_cleanup = device.mem_info[0]
     print(f"{free_before_cleanup=}")
 
-    result_bytes = (len(result['majors']) + len(result['minors']) + len(result['weight'])) * (32 // 8)
+    result_bytes = (
+        len(result["majors"]) + len(result["minors"]) + len(result["weight"])
+    ) * (32 // 8)
 
     # Cleanup the result - this should leave the memory used equal to the
     # amount prior to running the algo.
