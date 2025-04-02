@@ -14,10 +14,8 @@
 import cudf
 from pylibcugraph import ResourceHandle
 from pylibcugraph import (
-    homogeneous_uniform_neighbor_sample as \
-        pylibcugraph_homogeneous_uniform_neighbor_sample,
-    homogeneous_biased_neighbor_sample as \
-        pylibcugraph_homogeneous_biased_neighbor_sample,
+    homogeneous_uniform_neighbor_sample as pylibcugraph_homogeneous_uniform_neighbor_sample,
+    homogeneous_biased_neighbor_sample as pylibcugraph_homogeneous_biased_neighbor_sample,
 )
 from cugraph.sampling.sampling_utilities import sampling_results_from_cupy_array_dict
 
@@ -297,6 +295,8 @@ def homogeneous_neighbor_sample(
     )
 
     if G.renumbered and not renumber:
+        major_col_name = "majors"
+        minor_col_name = "minors"
         dfs[0] = G.unrenumber(dfs[0], major_col_name, preserve_order=True)
         dfs[0] = G.unrenumber(dfs[0], minor_col_name, preserve_order=True)
 

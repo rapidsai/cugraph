@@ -313,6 +313,8 @@ def heterogeneous_neighbor_sample(
     )
 
     if G.renumbered and not renumber:
+        major_col_name = "majors"
+        minor_col_name = "minors"
         dfs[0] = G.unrenumber(dfs[0], major_col_name, preserve_order=True)
         dfs[0] = G.unrenumber(dfs[0], minor_col_name, preserve_order=True)
 
