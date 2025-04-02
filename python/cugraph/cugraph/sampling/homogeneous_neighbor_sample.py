@@ -14,8 +14,10 @@
 import cudf
 from pylibcugraph import ResourceHandle
 from pylibcugraph import (
-    homogeneous_uniform_neighbor_sample as pylibcugraph_homogeneous_uniform_neighbor_sample,
-    homogeneous_biased_neighbor_sample as pylibcugraph_homogeneous_biased_neighbor_sample,
+    homogeneous_uniform_neighbor_sample as \
+        pylibcugraph_homogeneous_uniform_neighbor_sample,
+    homogeneous_biased_neighbor_sample as \
+        pylibcugraph_homogeneous_biased_neighbor_sample,
 )
 from cugraph.sampling.sampling_utilities import sampling_results_from_cupy_array_dict
 

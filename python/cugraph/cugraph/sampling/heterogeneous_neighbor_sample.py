@@ -11,15 +11,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import cudf
 from pylibcugraph import ResourceHandle
 from pylibcugraph import (
     heterogeneous_uniform_neighbor_sample as pylibcugraph_heterogeneous_uniform_neighbor_sample,
     heterogeneous_biased_neighbor_sample as pylibcugraph_heterogeneous_biased_neighbor_sample,
 )
 from cugraph.sampling.sampling_utilities import sampling_results_from_cupy_array_dict
-
-from cugraph.structure import Graph
 
 
 import numpy
