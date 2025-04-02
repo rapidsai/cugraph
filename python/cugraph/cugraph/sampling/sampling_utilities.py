@@ -204,11 +204,10 @@ def legacy_sampling_results_from_cupy_array_dict(
             name="batch_id",
         )
 
-        # TODO remove this logic in release 23.12
         offsets_df = cudf.Series(
-            label_hop_offsets[cupy.arange(len(batch_ids) + 1) * num_hops],
-            name="offsets",
-        ).to_frame()
+                    label_hop_offsets,
+                    name="offsets",
+                ).to_frame()
 
         if len(batches_series) > len(offsets_df):
             # this is extremely rare so the inefficiency is ok
