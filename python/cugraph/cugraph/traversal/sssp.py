@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2024, NVIDIA CORPORATION.
+# Copyright (c) 2019-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -62,8 +62,6 @@ def _ensure_args(
             f"Vertex {source} is not valid for the NetworkX Graph"
         )
         if is_nx_graph_type(G_type) and source not in G:
-            raise invalid_vertex_err
-        elif indices is None and not G.has_node(source):
             raise invalid_vertex_err
 
         directed = False
