@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2024, NVIDIA CORPORATION.
+# Copyright (c) 2019-2025, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -148,10 +148,6 @@ def bfs(input_graph, start, depth_limit=None, return_distances=True, check_start
                 start = start.astype(vertex_dtype)
             else:
                 start = start.astype(vertex_dtype[0])
-
-        is_valid_vertex = input_graph.has_node(start)
-        if not is_valid_vertex:
-            raise ValueError("At least one start vertex provided was invalid")
 
     if input_graph.renumbered:
         if isinstance(start, dask_cudf.DataFrame):
