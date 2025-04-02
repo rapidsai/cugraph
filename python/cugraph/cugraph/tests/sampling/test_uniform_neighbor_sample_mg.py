@@ -797,9 +797,7 @@ def test_uniform_neighbor_sample_exclude_sources_basic(dask_client):
     next_sources = set(
         sampling_results[sampling_results.hop_id > 1].majors.values_host.tolist()
     )
-    for v in sampling_results[
-        sampling_results.hop_id == 1
-    ].majors.values_host.tolist():
+    for v in sampling_results[sampling_results.hop_id == 1].majors.values_host.tolist():
         assert v not in next_sources
 
 
@@ -823,9 +821,7 @@ def test_uniform_neighbor_sample_exclude_sources_email_eu_core(dask_client):
 
     for hop in range(5):
         current_sources = set(
-            sampling_results[
-                sampling_results.hop_id == hop
-            ].majors.values_host.tolist()
+            sampling_results[sampling_results.hop_id == hop].majors.values_host.tolist()
         )
         future_sources = set(
             sampling_results[sampling_results.hop_id > hop].majors.values_host.tolist()
@@ -881,9 +877,7 @@ def test_uniform_neighbor_sample_carry_over_sources_basic(dask_client):
 
     for hop in range(2):
         sources_current_hop = set(
-            sampling_results[
-                sampling_results.hop_id == hop
-            ].majors.values_host.tolist()
+            sampling_results[sampling_results.hop_id == hop].majors.values_host.tolist()
         )
         sources_next_hop = set(
             sampling_results[
@@ -915,9 +909,7 @@ def test_uniform_neighbor_sample_carry_over_sources_email_eu_core(dask_client):
 
     for hop in range(4):
         sources_current_hop = set(
-            sampling_results[
-                sampling_results.hop_id == hop
-            ].majors.values_host.tolist()
+            sampling_results[sampling_results.hop_id == hop].majors.values_host.tolist()
         )
         sources_next_hop = set(
             sampling_results[
@@ -996,9 +988,7 @@ def test_uniform_neighbor_sample_renumber(dask_client, hops):
     assert (renumber_map.batch_id == 0).all()
     assert (
         renumber_map.renumber_map.nunique()
-        == cudf.concat(
-            [sources_hop_0, sampling_results_renumbered.minors]
-        ).nunique()
+        == cudf.concat([sources_hop_0, sampling_results_renumbered.minors]).nunique()
     )
 
 

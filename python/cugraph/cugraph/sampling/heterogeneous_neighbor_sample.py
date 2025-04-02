@@ -89,12 +89,12 @@ def heterogeneous_neighbor_sample(
 
     start_list : list or cudf.Series
         a list of starting vertices for sampling
-    
+
     starting_vertex_label_offsets: list or cudf.Series
         Offsets of each label within the start_list. Expanding
         'starting_vertex_label_offsets' must lead to an array of
         len(start_list)
-    
+
     fanout_vals : list
         List of branching out (fan-out) degrees per starting vertex for each
         hop level. The fanout value at each hop for each edge type is given by the
@@ -104,10 +104,10 @@ def heterogeneous_neighbor_sample(
         The sampling method can use different fan_out values for each edge type
         which is not the case for homogeneous neighborhood sampling (both biased
         and uniform).
-    
+
     vertex_type_offsets: list or cudf.Series (Optional)
         Offsets for each vertex type in the graph.
-    
+
     num_edge_types: int
         Number of edge types where a value of 1 translates to homogeneous neighbor
         sample whereas a value greater than 1 translates to heterogeneous neighbor
@@ -115,20 +115,20 @@ def heterogeneous_neighbor_sample(
 
     with_replacement: bool, optional (default=True)
         Flag to specify if the random sampling is done with replacement
-    
+
     with_biases: bool, optional (default=False)
         Flag to specify whether the edges should be sampled uniformly or with biases.
-        Only edge weights can be used as biases for now 
+        Only edge weights can be used as biases for now
 
     random_state: int, optional
         Random seed to use when making sampling calls.
-    
+
     return_offsets: bool, optional (default=False)
         Whether to return the sampling results with batch ids
         included as one dataframe, or to instead return two
         dataframes, one with sampling results and one with
         batch ids and their start offsets.
-    
+
     prior_sources_behavior: str, optional (default=None)
         Options are "carryover", and "exclude".
         Default will leave the source list as-is.
@@ -141,7 +141,7 @@ def heterogeneous_neighbor_sample(
         Whether to first deduplicate the list of possible sources
         from the previous destinations before performing next
         hop.
-    
+
     return_hops: bool, optional (default=True)
         Whether to return the sampling results with hop ids
         corresponding to the hop where the edge appeared.
@@ -155,7 +155,7 @@ def heterogeneous_neighbor_sample(
     retain_seeds: bool, optional (default=False)
         If True, will retain the original seeds (original source vertices)
         in the output even if they do not have outgoing neighbors.
-    
+
     compress_per_hop: bool, optional (default=False)
         Whether to compress globally (default), or to produce a separate
         compressed edgelist per hop.
@@ -168,18 +168,18 @@ def heterogeneous_neighbor_sample(
     -------
     result : cudf.DataFrame or Tuple[cudf.DataFrame, cudf.DataFrame]
         GPU data frame containing multiple cudf.Series
-        
+
 
         If return_offsets=False:
                 df['majors']: cudf.Series
                     Contains the source vertices from the sampling result
                 df['minors']: cudf.Series
                     Contains the destination vertices from the sampling result
-                df['weight']: cudf.Series # if provided 
+                df['weight']: cudf.Series # if provided
                     Contains the edge weights from the sampling result
-                df['edge_id']: cudf.Series # if provided 
+                df['edge_id']: cudf.Series # if provided
                     Contains the edge ids from the sampling result
-                df['edge_type']: cudf.Series # if provided 
+                df['edge_type']: cudf.Series # if provided
                     Contains the edge types from the sampling result
                 df['batch_id']: cudf.Series
                     Contains the batch ids from the sampling result
@@ -191,23 +191,23 @@ def heterogeneous_neighbor_sample(
                         Contains the renumber maps for each batch
                     renumber_df['batch_id']: cudf.Series
                         Contains the batch ids for the renumber maps
-        
+
         If return_offsets=True:
                 df['majors']: cudf.Series
                     Contains the source vertices from the sampling result
                 df['minors']: cudf.Series
                     Contains the destination vertices from the sampling result
-                df['weight']: cudf.Series # if provided 
+                df['weight']: cudf.Series # if provided
                     Contains the edge weights from the sampling result
-                df['edge_id']: cudf.Series # if provided 
+                df['edge_id']: cudf.Series # if provided
                     Contains the edge ids from the sampling result
-                df['edge_type']: cudf.Series # if provided 
+                df['edge_type']: cudf.Series # if provided
                     Contains the edge types from the sampling result
                 df['batch_id']: cudf.Series
                     Contains the batch ids from the sampling result
                 df['hop_id']: cudf.Series
                     Contains the hop ids from the sampling result
-                
+
                 offsets_df['batch_id']: cudf.Series
                     Contains the batch ids from the sampling result
                 offsets_df['offsets']: cudf.Series
@@ -221,7 +221,6 @@ def heterogeneous_neighbor_sample(
                         Contains the batch ids for the renumber maps
 
     """
-
 
     if compression not in ["COO", "CSR", "CSC", "DCSR", "DCSC"]:
         raise ValueError("compression must be one of COO, CSR, CSC, DCSR, or DCSC")
@@ -251,16 +250,12 @@ def heterogeneous_neighbor_sample(
         start_list = cudf.Series(
             start_list, dtype=G.edgelist.edgelist_df[G.srcCol].dtype
         )
-    
+
     if isinstance(starting_vertex_label_offsets, list):
-        starting_vertex_label_offsets = cudf.Series(
-            starting_vertex_label_offsets
-        )
-    
+        starting_vertex_label_offsets = cudf.Series(starting_vertex_label_offsets)
+
     if isinstance(vertex_type_offsets, list):
-        vertex_type_offsets = cudf.Series(
-            vertex_type_offsets
-        )
+        vertex_type_offsets = cudf.Series(vertex_type_offsets)
 
     # fanout_vals must be passed to pylibcugraph as a host array
     if isinstance(fanout_vals, numpy.ndarray):
@@ -283,12 +278,10 @@ def heterogeneous_neighbor_sample(
 
     if G.renumbered is True:
         if isinstance(start_list, cudf.DataFrame):
-            start_list = G.lookup_internal_vertex_id(
-                start_list, start_list.columns
-            )
+            start_list = G.lookup_internal_vertex_id(start_list, start_list.columns)
         else:
             start_list = G.lookup_internal_vertex_id(start_list)
-    
+
     if with_biases:
         sampling_function = pylibcugraph_heterogeneous_biased_neighbor_sample
     else:

@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2024, NVIDIA CORPORATION.
+# Copyright (c) 2022-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -375,9 +375,7 @@ def test_uniform_neighbor_sample_edge_properties(return_offsets):
         == sampling_results["minors"].values_host.tolist()
     )
 
-    assert sampling_results["hop_id"].values_host.tolist() == (
-        [0, 0, 1, 1, 1, 1] * 2
-    )
+    assert sampling_results["hop_id"].values_host.tolist() == ([0, 0, 1, 1, 1, 1] * 2)
 
     if return_offsets:
         assert sampling_offsets["batch_id"].dropna().values_host.tolist() == [0, 1]
@@ -590,9 +588,7 @@ def test_uniform_neighbor_sample_exclude_sources_basic():
     next_sources = set(
         sampling_results[sampling_results.hop_id > 1].majors.values_host.tolist()
     )
-    for v in sampling_results[
-        sampling_results.hop_id == 1
-    ].majors.values_host.tolist():
+    for v in sampling_results[sampling_results.hop_id == 1].majors.values_host.tolist():
         assert v not in next_sources
 
 
@@ -616,9 +612,7 @@ def test_uniform_neighbor_sample_exclude_sources_email_eu_core():
 
     for hop in range(5):
         current_sources = set(
-            sampling_results[
-                sampling_results.hop_id == hop
-            ].majors.values_host.tolist()
+            sampling_results[sampling_results.hop_id == hop].majors.values_host.tolist()
         )
         future_sources = set(
             sampling_results[sampling_results.hop_id > hop].majors.values_host.tolist()
@@ -667,9 +661,7 @@ def test_uniform_neighbor_sample_carry_over_sources_basic():
 
     for hop in range(2):
         sources_current_hop = set(
-            sampling_results[
-                sampling_results.hop_id == hop
-            ].majors.values_host.tolist()
+            sampling_results[sampling_results.hop_id == hop].majors.values_host.tolist()
         )
         sources_next_hop = set(
             sampling_results[
@@ -701,9 +693,7 @@ def test_uniform_neighbor_sample_carry_over_sources_email_eu_core():
 
     for hop in range(4):
         sources_current_hop = set(
-            sampling_results[
-                sampling_results.hop_id == hop
-            ].majors.values_host.tolist()
+            sampling_results[sampling_results.hop_id == hop].majors.values_host.tolist()
         )
         sources_next_hop = set(
             sampling_results[

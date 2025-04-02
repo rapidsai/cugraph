@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2024, NVIDIA CORPORATION.
+# Copyright (c) 2022-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -16,7 +16,9 @@ from __future__ import annotations
 from pylibcugraph import ResourceHandle
 from pylibcugraph import uniform_neighbor_sample as pylibcugraph_uniform_neighbor_sample
 
-from cugraph.sampling.sampling_utilities import legacy_sampling_results_from_cupy_array_dict
+from cugraph.sampling.sampling_utilities import (
+    legacy_sampling_results_from_cupy_array_dict,
+)
 
 import numpy
 
@@ -203,9 +205,9 @@ def uniform_neighbor_sample(
     """
 
     warning_msg = (
-            "'uniform_neighbor_sample' is deprecated in favor of "
-            "homogeneous/heterogeneous_uniform_neighbor_sample."
-        )
+        "'uniform_neighbor_sample' is deprecated in favor of "
+        "homogeneous/heterogeneous_uniform_neighbor_sample."
+    )
     warnings.warn(warning_msg, FutureWarning)
 
     major_col_name = "majors"

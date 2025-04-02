@@ -1,4 +1,4 @@
-# Copyright (c) 2023-2024, NVIDIA CORPORATION.
+# Copyright (c) 2023-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -28,7 +28,7 @@ def sampling_results_from_cupy_array_dict(
     results_df = cudf.DataFrame()
 
     major_col_name = "majors"
- 
+
     majors = cupy_array_dict["majors"]
     if majors is not None:
         results_df["majors"] = majors
@@ -105,7 +105,9 @@ def sampling_results_from_cupy_array_dict(
 
     if len(batch_ids) > 0:
         hop_ids_r = cudf.Series(cupy.arange(num_hops))
-        hop_ids_r = cudf.concat([hop_ids_r] * len(cudf.Series(batch_ids).unique()), ignore_index=True)
+        hop_ids_r = cudf.concat(
+            [hop_ids_r] * len(cudf.Series(batch_ids).unique()), ignore_index=True
+        )
 
         # generate the hop column
         hop_ids_r = (
@@ -125,9 +127,7 @@ def sampling_results_from_cupy_array_dict(
         )
         if len(major_offsets_series) > len(results_df):
             # this is extremely rare so the inefficiency is ok
-            results_df = results_df.join(
-                major_offsets_series, how="outer"
-            ).sort_index()
+            results_df = results_df.join(major_offsets_series, how="outer").sort_index()
         else:
             results_df["major_offsets"] = major_offsets_series
 
@@ -154,7 +154,6 @@ def legacy_sampling_results_from_cupy_array_dict(
     Creates a cudf DataFrame from cupy arrays from pylibcugraph wrapper
     """
     results_df = cudf.DataFrame()
-
 
     major_col_name = "majors"
     minor_col_name = "minors"
@@ -211,7 +210,6 @@ def legacy_sampling_results_from_cupy_array_dict(
             name="offsets",
         ).to_frame()
 
-
         if len(batches_series) > len(offsets_df):
             # this is extremely rare so the inefficiency is ok
             offsets_df = offsets_df.join(batches_series, how="outer").sort_index()
@@ -234,9 +232,7 @@ def legacy_sampling_results_from_cupy_array_dict(
     else:
         if len(batch_ids) > 0:
             batch_ids_r = cudf.Series(cupy.repeat(batch_ids, num_hops))
-            batch_ids_r = cudf.Series(batch_ids_r).repeat(
-                cupy.diff(label_hop_offsets)
-            )
+            batch_ids_r = cudf.Series(batch_ids_r).repeat(cupy.diff(label_hop_offsets))
             batch_ids_r.reset_index(drop=True, inplace=True)
 
             results_df["batch_id"] = batch_ids_r
@@ -265,9 +261,7 @@ def legacy_sampling_results_from_cupy_array_dict(
         )
         if len(major_offsets_series) > len(results_df):
             # this is extremely rare so the inefficiency is ok
-            results_df = results_df.join(
-                major_offsets_series, how="outer"
-            ).sort_index()
+            results_df = results_df.join(major_offsets_series, how="outer").sort_index()
         else:
             results_df["major_offsets"] = major_offsets_series
 

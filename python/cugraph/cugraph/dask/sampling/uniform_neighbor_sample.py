@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2023, NVIDIA CORPORATION.
+# Copyright (c) 2022-2025, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -270,14 +270,12 @@ def _mg_call_plc_uniform_neighbor_sample(
     ]
     del ddf
 
-    empty_df = (
-        create_empty_df_with_edge_props(
-            indices_t,
-            weight_t,
-            return_offsets=return_offsets,
-            renumber=renumber,
-            compression=compression,
-        )
+    empty_df = create_empty_df_with_edge_props(
+        indices_t,
+        weight_t,
+        return_offsets=return_offsets,
+        renumber=renumber,
+        compression=compression,
     )
     if not isinstance(empty_df, (list, tuple)):
         empty_df = [empty_df]
