@@ -205,7 +205,7 @@ def uniform_neighbor_sample(
     """
 
     warning_msg = (
-        "'uniform_neighbor_sample' is deprecated in favor of "
+        "uniform_neighbor_sample is deprecated in favor of "
         "homogeneous/heterogeneous_uniform_neighbor_sample."
     )
     warnings.warn(warning_msg, FutureWarning)
