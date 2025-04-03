@@ -7,8 +7,6 @@ package_name=$1
 package_dir=$2
 package_type=$3
 
-wheel_dir=${RAPIDS_WHEEL_BLD_OUTPUT_DIR}
-
 source rapids-configure-sccache
 source rapids-date-string
 
@@ -58,5 +56,6 @@ if [[ "${package_dir}" != "python/libcugraph" ]]; then
     )
 fi
 
-python -m auditwheel repair -w "${wheel_dir}" "${EXCLUDE_ARGS[@]}" dist/*
-RAPIDS_PY_WHEEL_NAME="${package_name}_${RAPIDS_PY_CUDA_SUFFIX}" rapids-upload-wheels-to-s3 "${package_type}" "${wheel_dir}"
+# repair wheels and write to the location that artifact-uploading code expects to find them
+python -m auditwheel repair -w "${RAPIDS_WHEEL_BLD_OUTPUT_DIR}" "${EXCLUDE_ARGS[@]}" dist/*
+RAPIDS_PY_WHEEL_NAME="${package_name}_${RAPIDS_PY_CUDA_SUFFIX}" rapids-upload-wheels-to-s3 "${package_type}" "${RAPIDS_WHEEL_BLD_OUTPUT_DIR}"

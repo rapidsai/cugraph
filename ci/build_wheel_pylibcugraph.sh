@@ -4,7 +4,6 @@
 set -euo pipefail
 
 package_dir="python/pylibcugraph"
-wheel_dir=${RAPIDS_WHEEL_BLD_OUTPUT_DIR}
 
 RAPIDS_PY_CUDA_SUFFIX="$(rapids-wheel-ctk-name-gen ${RAPIDS_CUDA_VERSION})"
 
@@ -21,4 +20,4 @@ EOF
 export PIP_CONSTRAINT="${PWD}/constraints.txt"
 
 ./ci/build_wheel.sh pylibcugraph ${package_dir} python
-./ci/validate_wheel.sh ${package_dir} "${wheel_dir}"
+./ci/validate_wheel.sh ${package_dir} "${RAPIDS_WHEEL_BLD_OUTPUT_DIR}"
