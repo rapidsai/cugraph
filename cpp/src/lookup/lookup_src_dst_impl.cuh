@@ -29,6 +29,7 @@
 
 #include <raft/core/handle.hpp>
 
+#include <cuda/std/iterator>
 #include <cuda/std/optional>
 
 namespace cugraph {
@@ -240,7 +241,7 @@ struct lookup_container_t<edge_id_t, edge_type_t, vertex_t, value_t>::lookup_con
       thrust::sort(handle.get_thrust_policy(), unique_types.begin(), unique_types.end());
 
       unique_types.resize(
-        thrust::distance(
+        cuda::std::distance(
           unique_types.begin(),
           thrust::unique(handle.get_thrust_policy(), unique_types.begin(), unique_types.end())),
         handle.get_stream());
