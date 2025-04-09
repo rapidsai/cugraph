@@ -21,19 +21,48 @@ namespace detail {
 
 template std::tuple<rmm::device_uvector<int64_t>,
                     std::optional<rmm::device_uvector<int32_t>>,
+                    std::optional<rmm::device_uvector<int32_t>>,
                     std::optional<std::tuple<rmm::device_uvector<int64_t>,
+                                             std::optional<rmm::device_uvector<int32_t>>,
                                              std::optional<rmm::device_uvector<int32_t>>>>>
-prepare_next_frontier<int64_t, int32_t, false>(
+prepare_next_frontier(
   raft::handle_t const& handle,
   raft::device_span<int64_t const> sampled_src_vertices,
   std::optional<raft::device_span<int32_t const>> sampled_src_vertex_labels,
-  raft::device_span<int64_t const> sampled_dst_vertices,
-  std::optional<raft::device_span<int32_t const>> sampled_dst_vertex_labels,
+  std::optional<raft::device_span<int32_t const>> sampled_src_vertex_times,
+  raft::host_span<raft::device_span<int64_t const>> sampled_dst_vertices,
+  std::optional<raft::host_span<raft::device_span<int32_t const>>> sampled_dst_vertex_labels,
+  std::optional<raft::host_span<raft::device_span<int32_t const>>> sampled_dst_vertex_times,
   std::optional<std::tuple<rmm::device_uvector<int64_t>,
+                           std::optional<rmm::device_uvector<int32_t>>,
                            std::optional<rmm::device_uvector<int32_t>>>>&& vertex_used_as_source,
   raft::host_span<int64_t const> vertex_partition_range_lasts,
   prior_sources_behavior_t prior_sources_behavior,
   bool dedupe_sources,
+  bool multi_gpu,
+  bool do_expensive_check);
+
+template std::tuple<rmm::device_uvector<int64_t>,
+                    std::optional<rmm::device_uvector<int32_t>>,
+                    std::optional<rmm::device_uvector<int64_t>>,
+                    std::optional<std::tuple<rmm::device_uvector<int64_t>,
+                                             std::optional<rmm::device_uvector<int32_t>>,
+                                             std::optional<rmm::device_uvector<int64_t>>>>>
+prepare_next_frontier(
+  raft::handle_t const& handle,
+  raft::device_span<int64_t const> sampled_src_vertices,
+  std::optional<raft::device_span<int32_t const>> sampled_src_vertex_labels,
+  std::optional<raft::device_span<int64_t const>> sampled_src_vertex_times,
+  raft::host_span<raft::device_span<int64_t const>> sampled_dst_vertices,
+  std::optional<raft::host_span<raft::device_span<int32_t const>>> sampled_dst_vertex_labels,
+  std::optional<raft::host_span<raft::device_span<int64_t const>>> sampled_dst_vertex_times,
+  std::optional<std::tuple<rmm::device_uvector<int64_t>,
+                           std::optional<rmm::device_uvector<int32_t>>,
+                           std::optional<rmm::device_uvector<int64_t>>>>&& vertex_used_as_source,
+  raft::host_span<int64_t const> vertex_partition_range_lasts,
+  prior_sources_behavior_t prior_sources_behavior,
+  bool dedupe_sources,
+  bool multi_gpu,
   bool do_expensive_check);
 
 }  // namespace detail
