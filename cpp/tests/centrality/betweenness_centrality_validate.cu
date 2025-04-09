@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@
 #include "betweenness_centrality_validate.hpp"
 #include "utilities/check_utilities.hpp"
 
+#include <thrust/equal.h>
 #include <thrust/sort.h>
 
 #include <gtest/gtest.h>

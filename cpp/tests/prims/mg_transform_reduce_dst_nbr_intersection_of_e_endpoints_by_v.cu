@@ -40,6 +40,7 @@
 
 #include <rmm/device_uvector.hpp>
 
+#include <thrust/equal.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/tuple.h>
 

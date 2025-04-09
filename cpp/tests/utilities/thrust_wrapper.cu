@@ -23,6 +23,7 @@
 
 #include <cuda/std/iterator>
 #include <thrust/copy.h>
+#include <thrust/equal.h>
 #include <thrust/extrema.h>
 #include <thrust/gather.h>
 #include <thrust/iterator/zip_iterator.h>

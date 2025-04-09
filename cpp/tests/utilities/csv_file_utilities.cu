@@ -25,6 +25,7 @@
 #include <rmm/device_uvector.hpp>
 
 #include <cuda/std/iterator>
+#include <thrust/equal.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/remove.h>
 
