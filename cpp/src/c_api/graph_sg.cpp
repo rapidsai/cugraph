@@ -242,17 +242,22 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
                  edgelist_edge_ids,
                  edgelist_edge_types,
                  std::ignore,
-                 std::ignore) = cugraph::
-          symmetrize_edgelist<vertex_t, edge_t, weight_t, edge_type_t, edge_time_t, multi_gpu>(
-            handle_,
-            std::move(edgelist_srcs),
-            std::move(edgelist_dsts),
-            std::move(edgelist_weights),
-            std::move(edgelist_edge_ids),
-            std::move(edgelist_edge_types),
-            std::move(dummy_start_times),
-            std::move(dummy_end_times),
-            false);
+                 std::ignore) =
+          cugraph::symmetrize_edgelist<vertex_t,
+                                       edge_t,
+                                       weight_t,
+                                       edge_type_t,
+                                       edge_time_t,
+                                       store_transposed,
+                                       multi_gpu>(handle_,
+                                                  std::move(edgelist_srcs),
+                                                  std::move(edgelist_dsts),
+                                                  std::move(edgelist_weights),
+                                                  std::move(edgelist_edge_ids),
+                                                  std::move(edgelist_edge_types),
+                                                  std::move(dummy_start_times),
+                                                  std::move(dummy_end_times),
+                                                  false);
       }
 
       std::optional<rmm::device_uvector<edge_time_t>> dummy_start_times{std::nullopt};
@@ -292,6 +297,26 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
                                        number_map->data(),
                                        number_map->size(),
                                        graph->view().local_vertex_partition_range_first());
+
+        if (vertices_) {
+          vertex_list = rmm::device_uvector<vertex_t>(vertices_->size_, handle_.get_stream());
+          raft::copy<vertex_t>(vertex_list->data(),
+                               vertices_->as_type<vertex_t>(),
+                               vertices_->size_,
+                               handle_.get_stream());
+
+          auto is_consecutive = cugraph::detail::is_equal(
+            handle_.get_stream(),
+            raft::device_span<vertex_t>{vertex_list->data(), vertex_list->size()},
+            raft::device_span<vertex_t>{number_map->data(), number_map->size()});
+
+          if (!is_consecutive) {
+            mark_error(
+              CUGRAPH_INVALID_INPUT,
+              "Vertex list must be numbered consecutively from 0 when 'renumber' is 'false'");
+            return;
+          }
+        }
       }
 
       if (new_edge_weights) { *edge_weights = std::move(new_edge_weights.value()); }
@@ -474,17 +499,22 @@ struct create_graph_csr_functor : public cugraph::c_api::abstract_functor {
                  edgelist_edge_ids,
                  edgelist_edge_types,
                  edgelist_edge_start_times,
-                 edgelist_edge_end_times) = cugraph::
-          symmetrize_edgelist<vertex_t, edge_t, weight_t, edge_type_t, edge_time_t, multi_gpu>(
-            handle_,
-            std::move(edgelist_srcs),
-            std::move(edgelist_dsts),
-            std::move(edgelist_weights),
-            std::move(edgelist_edge_ids),
-            std::move(edgelist_edge_types),
-            std::move(edgelist_edge_start_times),
-            std::move(edgelist_edge_end_times),
-            false);
+                 edgelist_edge_end_times) =
+          cugraph::symmetrize_edgelist<vertex_t,
+                                       edge_t,
+                                       weight_t,
+                                       edge_type_t,
+                                       edge_time_t,
+                                       store_transposed,
+                                       multi_gpu>(handle_,
+                                                  std::move(edgelist_srcs),
+                                                  std::move(edgelist_dsts),
+                                                  std::move(edgelist_weights),
+                                                  std::move(edgelist_edge_ids),
+                                                  std::move(edgelist_edge_types),
+                                                  std::move(edgelist_edge_start_times),
+                                                  std::move(edgelist_edge_end_times),
+                                                  false);
       }
 
       std::tie(*graph,

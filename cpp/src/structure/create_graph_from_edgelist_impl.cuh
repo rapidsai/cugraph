@@ -182,8 +182,8 @@ void expensive_check_edgelist(raft::handle_t const& handle,
         device_allgatherv(minor_comm,
                           (*vertices).data(),
                           sorted_majors.data(),
-                          recvcounts,
-                          displacements,
+                          raft::host_span<size_t const>(recvcounts.data(), recvcounts.size()),
+                          raft::host_span<size_t const>(displacements.data(), displacements.size()),
                           handle.get_stream());
         thrust::sort(handle.get_thrust_policy(), sorted_majors.begin(), sorted_majors.end());
       }
@@ -198,8 +198,8 @@ void expensive_check_edgelist(raft::handle_t const& handle,
         device_allgatherv(major_comm,
                           (*vertices).data(),
                           sorted_minors.data(),
-                          recvcounts,
-                          displacements,
+                          raft::host_span<size_t const>(recvcounts.data(), recvcounts.size()),
+                          raft::host_span<size_t const>(displacements.data(), displacements.size()),
                           handle.get_stream());
         thrust::sort(handle.get_thrust_policy(), sorted_minors.begin(), sorted_minors.end());
       }
@@ -266,17 +266,21 @@ bool check_symmetric(raft::handle_t const& handle,
            std::ignore,
            std::ignore,
            std::ignore,
-           std::ignore) =
-    symmetrize_edgelist<vertex_t, vertex_t, float /* dummy */, int32_t, int32_t, multi_gpu>(
-      handle,
-      std::move(symmetrized_srcs),
-      std::move(symmetrized_dsts),
-      std::nullopt,
-      std::nullopt,
-      std::nullopt,
-      std::nullopt,
-      std::nullopt,
-      true);
+           std::ignore) = symmetrize_edgelist<vertex_t,
+                                              vertex_t,
+                                              float /* dummy */,
+                                              int32_t,
+                                              int32_t,
+                                              store_transposed,
+                                              multi_gpu>(handle,
+                                                         std::move(symmetrized_srcs),
+                                                         std::move(symmetrized_dsts),
+                                                         std::nullopt,
+                                                         std::nullopt,
+                                                         std::nullopt,
+                                                         std::nullopt,
+                                                         std::nullopt,
+                                                         true);
 
   if (org_srcs.size() != symmetrized_srcs.size()) { return false; }
 
@@ -1371,24 +1375,17 @@ create_graph_from_edgelist_impl(
     if (compress) {
       size_t min_clz{sizeof(vertex_t) * 8};
       for (size_t i = 0; i < num_chunks; ++i) {
-        min_clz =
-          thrust::transform_reduce(handle.get_thrust_policy(),
-                                   edgelist_srcs[i].begin(),
-                                   edgelist_srcs[i].end(),
-                                   cuda::proclaim_return_type<size_t>([] __device__(auto v) {
-                                     return static_cast<size_t>(__clzll(v));
-                                   }),
-                                   min_clz,
-                                   thrust::minimum<size_t>{});
-        min_clz =
-          thrust::transform_reduce(handle.get_thrust_policy(),
-                                   edgelist_dsts[i].begin(),
-                                   edgelist_dsts[i].end(),
-                                   cuda::proclaim_return_type<size_t>([] __device__(auto v) {
-                                     return static_cast<size_t>(__clzll(v));
-                                   }),
-                                   min_clz,
-                                   thrust::minimum<size_t>{});
+        auto min_clz_first = thrust::make_transform_iterator(
+          thrust::make_zip_iterator(edgelist_srcs[i].begin(), edgelist_dsts[i].begin()),
+          cuda::proclaim_return_type<size_t>([] __device__(auto pair) {
+            return static_cast<size_t>(
+              cuda::std::min(__clzll(thrust::get<0>(pair)), __clzll(thrust::get<1>(pair))));
+          }));
+        min_clz = thrust::reduce(handle.get_thrust_policy(),
+                                 min_clz_first,
+                                 min_clz_first + edgelist_srcs[i].size(),
+                                 min_clz,
+                                 thrust::minimum<size_t>{});
       }
       compressed_v_size = sizeof(vertex_t) - (min_clz / 8);
       compressed_v_size = std::max(compressed_v_size, size_t{1});
@@ -1809,8 +1806,12 @@ create_graph_from_edgelist_impl(
     if (vertices) {
       num_vertices = (*vertices).size();
     } else {
-      num_vertices = 1 + cugraph::detail::compute_maximum_vertex_id(
-                           handle.get_stream(), edgelist_srcs, edgelist_dsts);
+      if (edgelist_srcs.size() > 0) {
+        num_vertices = 1 + cugraph::detail::compute_maximum_vertex_id(
+                             handle.get_stream(), edgelist_srcs, edgelist_dsts);
+      } else {
+        num_vertices = 0;
+      }
     }
   }
 

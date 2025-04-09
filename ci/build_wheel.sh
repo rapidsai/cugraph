@@ -20,7 +20,7 @@ sccache --zero-stats
 
 rapids-logger "Building '${package_name}' wheel"
 
-python -m pip wheel \
+rapids-pip-retry wheel \
     -w dist \
     -v \
     --no-deps \
@@ -46,6 +46,7 @@ EXCLUDE_ARGS+=(
   --exclude "libcusolver.so.*"
   --exclude "libcusparse.so.*"
   --exclude "libnvJitLink.so.*"
+  --exclude "librapids_logger.so"
 )
 
 if [[ "${package_dir}" != "python/libcugraph" ]]; then

@@ -22,8 +22,8 @@
 #include "utilities/mg_utilities.hpp"
 
 #include <cugraph/algorithms.hpp>
-#include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
+#include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
 #include <cugraph/utilities/misc_utils.cuh>
 
@@ -114,8 +114,7 @@ class Tests_MGEgonet
       }
     }
 
-    d_mg_sources = cugraph::detail::shuffle_ext_vertices_to_local_gpu_by_vertex_partitioning(
-      *handle_, std::move(d_mg_sources));
+    d_mg_sources = cugraph::shuffle_ext_vertices(*handle_, std::move(d_mg_sources));
 
     cugraph::renumber_ext_vertices<vertex_t, true>(
       *handle_,

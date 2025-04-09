@@ -790,12 +790,13 @@ nbr_intersection(raft::handle_t const& handle,
             rx_counts.begin(), rx_counts.end(), rx_displacements.begin(), size_t{0});
           rmm::device_uvector<vertex_t> rx_unique_majors(rx_displacements.back() + rx_counts.back(),
                                                          handle.get_stream());
-          device_allgatherv(minor_comm,
-                            unique_majors.begin(),
-                            rx_unique_majors.begin(),
-                            rx_counts,
-                            rx_displacements,
-                            handle.get_stream());
+          device_allgatherv(
+            minor_comm,
+            unique_majors.begin(),
+            rx_unique_majors.begin(),
+            raft::host_span<size_t const>(rx_counts.data(), rx_counts.size()),
+            raft::host_span<size_t const>(rx_displacements.data(), rx_displacements.size()),
+            handle.get_stream());
           unique_majors = std::move(rx_unique_majors);
 
           thrust::sort(handle.get_thrust_policy(), unique_majors.begin(), unique_majors.end());
@@ -849,12 +850,16 @@ nbr_intersection(raft::handle_t const& handle,
         }
 
         std::tie(rx_majors, rx_major_counts) =
-          shuffle_values(major_comm, unique_majors.begin(), tx_counts, handle.get_stream());
+          shuffle_values(major_comm,
+                         unique_majors.begin(),
+                         raft::host_span<size_t const>(tx_counts.data(), tx_counts.size()),
+                         handle.get_stream());
 
+        std::vector<size_t> tmp_counts(major_comm_size, minor_comm_size);
         std::tie(rx_group_counts, std::ignore) =
           shuffle_values(major_comm,
                          d_tx_group_counts.begin(),
-                         std::vector<size_t>(major_comm_size, minor_comm_size),
+                         raft::host_span<size_t const>(tmp_counts.data(), tmp_counts.size()),
                          handle.get_stream());
       }
 
@@ -1030,7 +1035,10 @@ nbr_intersection(raft::handle_t const& handle,
       {
         rmm::device_uvector<edge_t> local_degrees_for_unique_majors(size_t{0}, handle.get_stream());
         std::tie(local_degrees_for_unique_majors, std::ignore) = shuffle_values(
-          major_comm, local_degrees_for_rx_majors.begin(), rx_major_counts, handle.get_stream());
+          major_comm,
+          local_degrees_for_rx_majors.begin(),
+          raft::host_span<size_t const>(rx_major_counts.data(), rx_major_counts.size()),
+          handle.get_stream());
         major_nbr_offsets = rmm::device_uvector<edge_t>(local_degrees_for_unique_majors.size() + 1,
                                                         handle.get_stream());
         (*major_nbr_offsets).set_element_to_zero_async(size_t{0}, handle.get_stream());
@@ -1043,14 +1051,17 @@ nbr_intersection(raft::handle_t const& handle,
       }
 
       std::tie(major_nbr_indices, std::ignore) = shuffle_values(
-        major_comm, local_nbrs_for_rx_majors.begin(), local_nbr_counts, handle.get_stream());
+        major_comm,
+        local_nbrs_for_rx_majors.begin(),
+        raft::host_span<size_t const>(local_nbr_counts.data(), local_nbr_counts.size()),
+        handle.get_stream());
 
       if constexpr (!std::is_same_v<edge_property_value_t, cuda::std::nullopt_t>) {
-        std::tie(major_e_property_values, std::ignore) =
-          shuffle_values(major_comm,
-                         local_e_property_values_for_rx_majors.begin(),
-                         local_nbr_counts,
-                         handle.get_stream());
+        std::tie(major_e_property_values, std::ignore) = shuffle_values(
+          major_comm,
+          local_e_property_values_for_rx_majors.begin(),
+          raft::host_span<size_t const>(local_nbr_counts.data(), local_nbr_counts.size()),
+          handle.get_stream());
       }
 
       major_to_idx_map_ptr = std::make_unique<kv_store_t<vertex_t, vertex_t, false>>(
@@ -1189,8 +1200,9 @@ nbr_intersection(raft::handle_t const& handle,
           minor_comm,
           get_dataframe_buffer_begin(vertex_pair_buffer) + rx_v_pair_displacements[minor_comm_rank],
           get_dataframe_buffer_begin(vertex_pair_buffer),
-          rx_v_pair_counts,
-          rx_v_pair_displacements,
+          raft::host_span<size_t const>(rx_v_pair_counts.data(), rx_v_pair_counts.size()),
+          raft::host_span<size_t const>(rx_v_pair_displacements.data(),
+                                        rx_v_pair_displacements.size()),
           handle.get_stream());
 
         auto edge_partition =
@@ -1398,16 +1410,18 @@ nbr_intersection(raft::handle_t const& handle,
         }
         rmm::device_uvector<edge_t> gathered_nbr_intersection_sizes(
           rx_v_pair_counts[minor_comm_rank] * minor_comm_size, handle.get_stream());
+        std::vector<size_t> rx_counts(minor_comm_size, rx_v_pair_counts[minor_comm_rank]);
         device_multicast_sendrecv(
           minor_comm,
           rx_v_pair_nbr_intersection_sizes.begin(),
-          rx_v_pair_counts,
-          rx_v_pair_displacements,
-          ranks,
+          raft::host_span<size_t const>(rx_v_pair_counts.data(), rx_v_pair_counts.size()),
+          raft::host_span<size_t const>(rx_v_pair_displacements.data(),
+                                        rx_v_pair_displacements.size()),
+          raft::host_span<int const>(ranks.data(), ranks.size()),
           gathered_nbr_intersection_sizes.begin(),
-          std::vector<size_t>(minor_comm_size, rx_v_pair_counts[minor_comm_rank]),
-          displacements,
-          ranks,
+          raft::host_span<size_t const>(rx_counts.data(), rx_counts.size()),
+          raft::host_span<size_t const>(displacements.data(), displacements.size()),
+          raft::host_span<int const>(ranks.data(), ranks.size()),
           handle.get_stream());
         rx_v_pair_nbr_intersection_sizes.resize(size_t{0}, handle.get_stream());
         rx_v_pair_nbr_intersection_sizes.shrink_to_fit(handle.get_stream());
@@ -1491,16 +1505,19 @@ nbr_intersection(raft::handle_t const& handle,
         rmm::device_uvector<vertex_t> gathered_nbr_intersection_indices(
           rx_displacements.back() + gathered_nbr_intersection_index_rx_counts.back(),
           handle.get_stream());
-        device_multicast_sendrecv(minor_comm,
-                                  rx_v_pair_nbr_intersection_indices.begin(),
-                                  rx_v_pair_nbr_intersection_index_tx_counts,
-                                  tx_displacements,
-                                  ranks,
-                                  gathered_nbr_intersection_indices.begin(),
-                                  gathered_nbr_intersection_index_rx_counts,
-                                  rx_displacements,
-                                  ranks,
-                                  handle.get_stream());
+        device_multicast_sendrecv(
+          minor_comm,
+          rx_v_pair_nbr_intersection_indices.begin(),
+          raft::host_span<size_t const>(rx_v_pair_nbr_intersection_index_tx_counts.data(),
+                                        rx_v_pair_nbr_intersection_index_tx_counts.size()),
+          raft::host_span<size_t const>(tx_displacements.data(), tx_displacements.size()),
+          raft::host_span<int const>(ranks.data(), ranks.size()),
+          gathered_nbr_intersection_indices.begin(),
+          raft::host_span<size_t const>(gathered_nbr_intersection_index_rx_counts.data(),
+                                        gathered_nbr_intersection_index_rx_counts.size()),
+          raft::host_span<size_t const>(rx_displacements.data(), rx_displacements.size()),
+          raft::host_span<int const>(ranks.data(), ranks.size()),
+          handle.get_stream());
         rx_v_pair_nbr_intersection_indices.resize(size_t{0}, handle.get_stream());
         rx_v_pair_nbr_intersection_indices.shrink_to_fit(handle.get_stream());
 
@@ -1518,32 +1535,38 @@ nbr_intersection(raft::handle_t const& handle,
             handle.get_stream());
 
         if constexpr (!std::is_same_v<edge_property_value_t, cuda::std::nullopt_t>) {
-          device_multicast_sendrecv(minor_comm,
-                                    rx_v_pair_nbr_intersection_e_property_values0.begin(),
-                                    rx_v_pair_nbr_intersection_index_tx_counts,
-                                    tx_displacements,
-                                    ranks,
-                                    gathered_nbr_intersection_e_property_values0.begin(),
-                                    gathered_nbr_intersection_index_rx_counts,
-                                    rx_displacements,
-                                    ranks,
-                                    handle.get_stream());
+          device_multicast_sendrecv(
+            minor_comm,
+            rx_v_pair_nbr_intersection_e_property_values0.begin(),
+            raft::host_span<size_t const>(rx_v_pair_nbr_intersection_index_tx_counts.data(),
+                                          rx_v_pair_nbr_intersection_index_tx_counts.size()),
+            raft::host_span<size_t const>(tx_displacements.data(), tx_displacements.size()),
+            raft::host_span<int const>(ranks.data(), ranks.size()),
+            gathered_nbr_intersection_e_property_values0.begin(),
+            raft::host_span<size_t const>(gathered_nbr_intersection_index_rx_counts.data(),
+                                          gathered_nbr_intersection_index_rx_counts.size()),
+            raft::host_span<size_t const>(rx_displacements.data(), rx_displacements.size()),
+            raft::host_span<int const>(ranks.data(), ranks.size()),
+            handle.get_stream());
           rx_v_pair_nbr_intersection_e_property_values0.resize(size_t{0}, handle.get_stream());
           rx_v_pair_nbr_intersection_e_property_values0.shrink_to_fit(handle.get_stream());
 
           combined_nbr_intersection_e_property_values0.resize(
             gathered_nbr_intersection_e_property_values0.size(), handle.get_stream());
 
-          device_multicast_sendrecv(minor_comm,
-                                    rx_v_pair_nbr_intersection_e_property_values1.begin(),
-                                    rx_v_pair_nbr_intersection_index_tx_counts,
-                                    tx_displacements,
-                                    ranks,
-                                    gathered_nbr_intersection_e_property_values1.begin(),
-                                    gathered_nbr_intersection_index_rx_counts,
-                                    rx_displacements,
-                                    ranks,
-                                    handle.get_stream());
+          device_multicast_sendrecv(
+            minor_comm,
+            rx_v_pair_nbr_intersection_e_property_values1.begin(),
+            raft::host_span<size_t const>(rx_v_pair_nbr_intersection_index_tx_counts.data(),
+                                          rx_v_pair_nbr_intersection_index_tx_counts.size()),
+            raft::host_span<size_t const>(tx_displacements.data(), tx_displacements.size()),
+            raft::host_span<int const>(ranks.data(), ranks.size()),
+            gathered_nbr_intersection_e_property_values1.begin(),
+            raft::host_span<size_t const>(gathered_nbr_intersection_index_rx_counts.data(),
+                                          gathered_nbr_intersection_index_rx_counts.size()),
+            raft::host_span<size_t const>(rx_displacements.data(), rx_displacements.size()),
+            raft::host_span<int const>(ranks.data(), ranks.size()),
+            handle.get_stream());
           rx_v_pair_nbr_intersection_e_property_values1.resize(size_t{0}, handle.get_stream());
           rx_v_pair_nbr_intersection_e_property_values1.shrink_to_fit(handle.get_stream());
           combined_nbr_intersection_e_property_values1.resize(
