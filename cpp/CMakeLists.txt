@@ -550,6 +550,7 @@ add_library(cugraph_c
         src/c_api/decompress_to_edgelist.cpp
         src/c_api/edgelist.cpp
         src/c_api/renumber_arbitrary_edgelist.cu
+        src/c_api/legacy_fa2.cpp
         )
 add_library(cugraph::cugraph_c ALIAS cugraph_c)
 
