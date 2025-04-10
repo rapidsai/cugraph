@@ -209,7 +209,7 @@ struct force_atlas2_functor : public cugraph::c_api::abstract_functor {
         lin_log_mode_,
         prevent_overlapping_,
         vertex_radius_,
-        overlap_scaling_ratio,
+        overlap_scaling_ratio_,
         edge_weight_influence_,
         jitter_tolerance_,
         barnes_hut_optimize_,
