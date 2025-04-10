@@ -53,6 +53,8 @@ struct force_atlas2_functor : public cugraph::c_api::abstract_functor {
   bool outbound_attraction_distribution_{};
   bool lin_log_mode_{};
   bool prevent_overlapping_{};
+  cugraph::c_api::cugraph_type_erased_device_array_view_t* vertex_radius_{};
+  double overlap_scaling_ratio_{};
   double edge_weight_influence_{};
   double jitter_tolerance_{};
   bool barnes_hut_optimize_{};
@@ -74,6 +76,8 @@ struct force_atlas2_functor : public cugraph::c_api::abstract_functor {
                        bool outbound_attraction_distribution,
                        bool lin_log_mode,
                        bool prevent_overlapping,
+                       ::cugraph_type_erased_device_array_view_t* vertex_radius,
+                       double overlap_scaling_ratio,
                        double edge_weight_influence,
                        double jitter_tolerance,
                        bool barnes_hut_optimize,
@@ -93,6 +97,8 @@ struct force_atlas2_functor : public cugraph::c_api::abstract_functor {
       outbound_attraction_distribution_(outbound_attraction_distribution),
       lin_log_mode_(lin_log_mode),
       prevent_overlapping_(prevent_overlapping),
+      vertex_radius_(reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t*>(vertex_radius)),
+      overlap_scaling_ratio_(overlap_scaling_ratio),
       edge_weight_influence_(edge_weight_influence),
       jitter_tolerance_(jitter_tolerance),
       barnes_hut_optimize_(barnes_hut_optimize),
@@ -202,6 +208,8 @@ struct force_atlas2_functor : public cugraph::c_api::abstract_functor {
         outbound_attraction_distribution_,
         lin_log_mode_,
         prevent_overlapping_,
+        vertex_radius_,
+        overlap_scaling_ratio,
         edge_weight_influence_,
         jitter_tolerance_,
         barnes_hut_optimize_,
@@ -281,6 +289,8 @@ extern "C" cugraph_error_code_t cugraph_force_atlas2(
   bool_t outbound_attraction_distribution,
   bool_t lin_log_mode,
   bool_t prevent_overlapping,
+  cugraph_type_erased_device_array_view_t* vertex_radius,
+  double overlap_scaling_ratio,
   double edge_weight_influence,
   double jitter_tolerance,
   bool_t barnes_hut_optimize,

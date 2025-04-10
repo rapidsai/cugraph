@@ -34,6 +34,8 @@ cdef extern from "cugraph/algorithms.hpp" namespace "cugraph":
         bool outbound_attraction_distribution,
         bool lin_log_mode,
         bool prevent_overlapping,
+        float *vertex_radius,
+        const float overlap_scaling_ratio,
         const float edge_weight_influence,
         const float jitter_tolerance,
         bool barnes_hut_optimize,

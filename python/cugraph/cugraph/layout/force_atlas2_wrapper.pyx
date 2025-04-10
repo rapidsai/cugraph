@@ -35,6 +35,8 @@ def force_atlas2(input_graph,
                  outbound_attraction_distribution=True,
                  lin_log_mode=False,
                  prevent_overlapping=False,
+                 vertex_radius=None,
+                 overlap_scaling_ratio=100.0,
                  edge_weight_influence=1.0,
                  jitter_tolerance=1.0,
                  barnes_hut_optimize=True,
@@ -97,6 +99,14 @@ def force_atlas2(input_graph,
         x_start = pos_list['x'].__cuda_array_interface__['data'][0]
         y_start = pos_list['y'].__cuda_array_interface__['data'][0]
 
+    cdef uintptr_t vertex_radius_arr = <uintptr_t>NULL
+    if prevent_overlapping:
+        if len(vertex_radius) != num_verts:
+            raise ValueError('pos_list must have initial positions for all vertices')
+        vertex_radius['radius'] = vertex_radius['radius'].astype(np.float32)
+        vertex_radius['radius'][vertex_radius['vertex']] = vertex_radius['radius']
+        vertex_radius_arr = vertex_radius['vertex'].__cuda_array_interface__['data'][0]
+
     cdef uintptr_t callback_ptr = 0
     if callback:
         callback_ptr = callback.get_native_callback()
@@ -124,6 +134,8 @@ def force_atlas2(input_graph,
                         <bool>outbound_attraction_distribution,
                         <bool>lin_log_mode,
                         <bool>prevent_overlapping,
+                        <float*>vertex_radius_arr,
+                        <float>overlap_scaling_ratio,
                         <float>edge_weight_influence,
                         <float>jitter_tolerance,
                         <bool>barnes_hut_optimize,
@@ -146,6 +158,8 @@ def force_atlas2(input_graph,
                 <bool>outbound_attraction_distribution,
                 <bool>lin_log_mode,
                 <bool>prevent_overlapping,
+                <float*>vertex_radius_arr,
+                <float>overlap_scaling_ratio,
                 <float>edge_weight_influence,
                 <float>jitter_tolerance,
                 <bool>barnes_hut_optimize,

@@ -23,6 +23,8 @@ def force_atlas2(
     outbound_attraction_distribution=True,
     lin_log_mode=False,
     prevent_overlapping=False,
+    vertex_radius=None,
+    overlap_scaling_ratio=100.0,
     edge_weight_influence=1.0,
     jitter_tolerance=1.0,
     barnes_hut_optimize=True,
@@ -69,6 +71,15 @@ def force_atlas2(
 
     prevent_overlapping: bool, optional (default=False)
         Prevent nodes to overlap.
+
+    vertex_radius: cudf.DataFrame, optional (default=None)
+        Data frame containing the radius of each vertex in the graph.
+        Used only when prevent_overlapping is set to True.
+        Must contain two columns 'vertex' and 'radius'.
+
+    overlap_scaling_ratio: float, optional (default=100.0)
+        Scaling of the repulsion force when two nodes are overlapping.
+        Used only when prevent_overlapping is set to True.
 
     edge_weight_influence: float, optional (default=1.0)
         How much influence you give to the edges weight.
@@ -144,7 +155,20 @@ def force_atlas2(
             pos_list = input_graph.add_internal_vertex_id(pos_list, "vertex", cols)
 
     if prevent_overlapping:
-        raise Exception("Feature not supported")
+        if barnes_hut_optimize:
+            raise ValueError("prevent_overlapping can only be enabled when "
+                "barnes_hut_optimize is set to False")
+        if vertex_radius is None:
+            raise ValueError("vertex_radius must be provided when "
+                "prevent_overlapping is enabled")
+        if not isinstance(vertex_radius, cudf.DataFrame):
+            raise TypeError("vertex_radius must be a cudf.DataFrame")
+        if set(vertex_radius.columns) != set(["vertex", "radius"]):
+            raise ValueError("vertex_radius has wrong column names")
+        if input_graph.renumbered is True:
+            vertex_radius = input_graph.add_internal_vertex_id(vertex_radius,
+                "vertex",
+                "vertex")
 
     if input_graph.is_directed():
         input_graph = input_graph.to_undirected()
@@ -156,6 +180,8 @@ def force_atlas2(
         outbound_attraction_distribution=outbound_attraction_distribution,
         lin_log_mode=lin_log_mode,
         prevent_overlapping=prevent_overlapping,
+        vertex_radius=vertex_radius,
+        overlap_scaling_ratio=overlap_scaling_ratio,
         edge_weight_influence=edge_weight_influence,
         jitter_tolerance=jitter_tolerance,
         barnes_hut_optimize=barnes_hut_optimize,
