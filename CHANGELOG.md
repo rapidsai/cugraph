@@ -1,3 +1,75 @@
+# cugraph 25.04.00 (9 Apr 2025)
+
+## 🚨 Breaking Changes
+
+- Take vertex_partition_range_offsets(_lasts) using a raft::host_span instead of std::vector constant reference. ([#4959](https://github.com/rapidsai/cugraph/pull/4959)) [@seunghwak](https://github.com/seunghwak)
+- Use raft::host_span instead of const reference to std::vector ([#4931](https://github.com/rapidsai/cugraph/pull/4931)) [@seunghwak](https://github.com/seunghwak)
+- Remove Obsolete GNN Benchmarks ([#4929](https://github.com/rapidsai/cugraph/pull/4929)) [@alexbarghi-nv](https://github.com/alexbarghi-nv)
+- Update heterogeneous sampling algorithm code to use the newly developed heterogeneous sampling primitve. ([#4922](https://github.com/rapidsai/cugraph/pull/4922)) [@seunghwak](https://github.com/seunghwak)
+- Use new rapids-logger library ([#4911](https://github.com/rapidsai/cugraph/pull/4911)) [@vyasr](https://github.com/vyasr)
+- Forward-merge branch-25.02 into branch-25.04 ([#4907](https://github.com/rapidsai/cugraph/pull/4907)) [@nv-rliu](https://github.com/nv-rliu)
+
+## 🐛 Bug Fixes
+
+- Fix compiler dependency on ARM ([#4980](https://github.com/rapidsai/cugraph/pull/4980)) [@bdice](https://github.com/bdice)
+- Update Betweenness Centrality normalization ([#4974](https://github.com/rapidsai/cugraph/pull/4974)) [@ChuckHastings](https://github.com/ChuckHastings)
+- Fix update-version script ([#4972](https://github.com/rapidsai/cugraph/pull/4972)) [@raydouglass](https://github.com/raydouglass)
+- Updates call to `as_column` for new requirement on `dtype` arg ([#4965](https://github.com/rapidsai/cugraph/pull/4965)) [@rlratzel](https://github.com/rlratzel)
+- Fix datasets API (no longer experimental) ([#4964](https://github.com/rapidsai/cugraph/pull/4964)) [@bdice](https://github.com/bdice)
+- remove_multi_edges bug fix. ([#4961](https://github.com/rapidsai/cugraph/pull/4961)) [@seunghwak](https://github.com/seunghwak)
+- temporarily increase the timeout for nightly test failures ([#4957](https://github.com/rapidsai/cugraph/pull/4957)) [@ChuckHastings](https://github.com/ChuckHastings)
+- CUDF changed API to assume the dtype is already converted to a cudf type ([#4955](https://github.com/rapidsai/cugraph/pull/4955)) [@ChuckHastings](https://github.com/ChuckHastings)
+- Fix devcontainer names ([#4908](https://github.com/rapidsai/cugraph/pull/4908)) [@bdice](https://github.com/bdice)
+- Remove Redundant Sort in BC test ([#4899](https://github.com/rapidsai/cugraph/pull/4899)) [@nv-rliu](https://github.com/nv-rliu)
+
+## 📖 Documentation
+
+- Remove Obsolete GNN Benchmarks ([#4929](https://github.com/rapidsai/cugraph/pull/4929)) [@alexbarghi-nv](https://github.com/alexbarghi-nv)
+
+## 🚀 New Features
+
+- Add local edge source/destination shuffle functions and clean up shuffle utility functions. ([#4936](https://github.com/rapidsai/cugraph/pull/4936)) [@seunghwak](https://github.com/seunghwak)
+
+## 🛠️ Improvements
+
+- Revert &quot;ci: pre-filter 11.4 jobs before they are enabled in shared workflows ([#4975)&quot; (#4995](https://github.com/rapidsai/cugraph/pull/4975)&quot; (#4995)) [@divyegala](https://github.com/divyegala)
+- Reduce peak memory requirement of WCC ([#4990](https://github.com/rapidsai/cugraph/pull/4990)) [@seunghwak](https://github.com/seunghwak)
+- Revert hacks around compile issue with host device deduction ([#4985](https://github.com/rapidsai/cugraph/pull/4985)) [@miscco](https://github.com/miscco)
+- Remove largest property graph test to avoid OOM in CI ([#4981](https://github.com/rapidsai/cugraph/pull/4981)) [@ChuckHastings](https://github.com/ChuckHastings)
+- Revert &quot;temporarily increase the timeout for nightly test failures&quot; ([#4957) (#4979](https://github.com/rapidsai/cugraph/pull/4957) (#4979)) [@divyegala](https://github.com/divyegala)
+- ci: pre-filter 11.4 jobs before they are enabled in shared workflows ([#4975](https://github.com/rapidsai/cugraph/pull/4975)) [@gforsyth](https://github.com/gforsyth)
+- [CTK 12.5]: Avoid another compiler issue with host device detection ([#4971](https://github.com/rapidsai/cugraph/pull/4971)) [@miscco](https://github.com/miscco)
+- Update remove_multi_edges to support edge list in multiple chunks. ([#4970](https://github.com/rapidsai/cugraph/pull/4970)) [@seunghwak](https://github.com/seunghwak)
+- Refactor Force Atlas 2 ([#4969](https://github.com/rapidsai/cugraph/pull/4969)) [@jnke2016](https://github.com/jnke2016)
+- Optimize check for vertex existence ([#4966](https://github.com/rapidsai/cugraph/pull/4966)) [@jnke2016](https://github.com/jnke2016)
+- Reduce memory footprint of core number computation. ([#4963](https://github.com/rapidsai/cugraph/pull/4963)) [@seunghwak](https://github.com/seunghwak)
+- Silence compiler warnings about host device destructor ([#4960](https://github.com/rapidsai/cugraph/pull/4960)) [@miscco](https://github.com/miscco)
+- Take vertex_partition_range_offsets(_lasts) using a raft::host_span instead of std::vector constant reference. ([#4959](https://github.com/rapidsai/cugraph/pull/4959)) [@seunghwak](https://github.com/seunghwak)
+- Use CuPy for arrays &amp; CUDA Python for low-level CUDA functions ([#4958](https://github.com/rapidsai/cugraph/pull/4958)) [@jakirkham](https://github.com/jakirkham)
+- Reduce downloaded test data in CI ([#4951](https://github.com/rapidsai/cugraph/pull/4951)) [@ChuckHastings](https://github.com/ChuckHastings)
+- Use conda-build instead of conda-mambabuild ([#4950](https://github.com/rapidsai/cugraph/pull/4950)) [@bdice](https://github.com/bdice)
+- add cugraph-notebook-codeowners to CODEOWNERS ([#4949](https://github.com/rapidsai/cugraph/pull/4949)) [@AyodeAwe](https://github.com/AyodeAwe)
+- Replace `cub::Min` with `cuda::minimum` ([#4948](https://github.com/rapidsai/cugraph/pull/4948)) [@miscco](https://github.com/miscco)
+- update handling of GNN dependencies ([#4947](https://github.com/rapidsai/cugraph/pull/4947)) [@jameslamb](https://github.com/jameslamb)
+- Update primitives to better follow STL/thrust conventions in supporting predicate operations ([#4946](https://github.com/rapidsai/cugraph/pull/4946)) [@seunghwak](https://github.com/seunghwak)
+- Require CMake 3.30.4 ([#4938](https://github.com/rapidsai/cugraph/pull/4938)) [@robertmaynard](https://github.com/robertmaynard)
+- Create Conda CI test env in one step ([#4935](https://github.com/rapidsai/cugraph/pull/4935)) [@KyleFromNVIDIA](https://github.com/KyleFromNVIDIA)
+- Account for breaking changes in RAFT API ([#4934](https://github.com/rapidsai/cugraph/pull/4934)) [@divyegala](https://github.com/divyegala)
+- Use raft::host_span instead of const reference to std::vector ([#4931](https://github.com/rapidsai/cugraph/pull/4931)) [@seunghwak](https://github.com/seunghwak)
+- Use shared-workflows branch-25.04 ([#4927](https://github.com/rapidsai/cugraph/pull/4927)) [@bdice](https://github.com/bdice)
+- Replace `thrust::identity` with `cuda::std::identity` ([#4925](https://github.com/rapidsai/cugraph/pull/4925)) [@miscco](https://github.com/miscco)
+- Fix CUDA 12.8 build compiler warnings ([#4924](https://github.com/rapidsai/cugraph/pull/4924)) [@seunghwak](https://github.com/seunghwak)
+- Enable MTMG tests in CI ([#4923](https://github.com/rapidsai/cugraph/pull/4923)) [@ChuckHastings](https://github.com/ChuckHastings)
+- Update heterogeneous sampling algorithm code to use the newly developed heterogeneous sampling primitve. ([#4922](https://github.com/rapidsai/cugraph/pull/4922)) [@seunghwak](https://github.com/seunghwak)
+- [FIX] Improve the Warning Displayed for Uneven Batch Distributions ([#4920](https://github.com/rapidsai/cugraph/pull/4920)) [@alexbarghi-nv](https://github.com/alexbarghi-nv)
+- Add build_type input field for `test.yaml` ([#4918](https://github.com/rapidsai/cugraph/pull/4918)) [@gforsyth](https://github.com/gforsyth)
+- Use `rapids-pip-retry` in CI jobs that might need retries ([#4913](https://github.com/rapidsai/cugraph/pull/4913)) [@bdice](https://github.com/bdice)
+- Use new rapids-logger library ([#4911](https://github.com/rapidsai/cugraph/pull/4911)) [@vyasr](https://github.com/vyasr)
+- Forward-merge branch-25.02 into branch-25.04 ([#4907](https://github.com/rapidsai/cugraph/pull/4907)) [@nv-rliu](https://github.com/nv-rliu)
+- Migrate to NVKS for amd64 CI runners ([#4905](https://github.com/rapidsai/cugraph/pull/4905)) [@bdice](https://github.com/bdice)
+- Do not rely on `thrust::null_type` ([#4904](https://github.com/rapidsai/cugraph/pull/4904)) [@miscco](https://github.com/miscco)
+- Add `verify-codeowners` hook ([#4900](https://github.com/rapidsai/cugraph/pull/4900)) [@KyleFromNVIDIA](https://github.com/KyleFromNVIDIA)
+
 # cugraph 25.02.00 (13 Feb 2025)
 
 ## 🚨 Breaking Changes
