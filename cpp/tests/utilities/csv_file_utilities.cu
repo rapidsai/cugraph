@@ -25,6 +25,7 @@
 #include <rmm/device_uvector.hpp>
 
 #include <thrust/distance.h>
+#include <thrust/equal.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/remove.h>
 
