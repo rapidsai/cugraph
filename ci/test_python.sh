@@ -68,12 +68,24 @@ rapids-logger "pytest pylibcugraph"
 #
 # FIXME: TEMPORARILY disable MG PropertyGraph tests (experimental) tests and
 # bulk sampler IO tests (hangs in CI)
-rapids-logger "pytest cugraph"
+rapids-logger "pytest cugraph (not mg)"
 ./ci/run_cugraph_pytests.sh \
   --verbose \
   --junitxml="${RAPIDS_TESTS_DIR}/junit-cugraph.xml" \
   --numprocesses=8 \
   --dist=worksteal \
+  -m "not mg"
+  --cov-config=../../.coveragerc \
+  --cov=cugraph \
+  --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph-coverage.xml" \
+  --cov-report=term
+
+
+rapids-logger "pytest cugraph (mg)"
+./ci/run_cugraph_pytests.sh \
+  --verbose \
+  --junitxml="${RAPIDS_TESTS_DIR}/junit-cugraph.xml" \
+  -m "mg"
   --cov-config=../../.coveragerc \
   --cov=cugraph \
   --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph-coverage.xml" \
