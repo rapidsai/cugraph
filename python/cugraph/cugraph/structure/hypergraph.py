@@ -630,7 +630,9 @@ def _str_scalar_to_category(size, val):
         mask=None,
         offset=0,
         null_count=0,
-        children=(cudf.core.column.as_column(0, length=size, dtype=np.int32),),
+        children=(
+            cudf.core.column.as_column(0, length=size, dtype=np.dtype(np.int32)),
+        ),
     )
 
 

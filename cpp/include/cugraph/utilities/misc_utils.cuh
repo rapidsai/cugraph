@@ -28,6 +28,7 @@
 #include <thrust/gather.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/transform_iterator.h>
+#include <thrust/scan.h>
 
 #include <optional>
 #include <tuple>
