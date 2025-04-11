@@ -225,6 +225,7 @@ class DistSampler:
         seeds_per_call: int,
         assume_equal_input_size: bool = False,
         label: Optional[TensorType] = None,
+        empty_fill=[],
     ):
         torch = import_optional("torch")
 
@@ -248,16 +249,16 @@ class DistSampler:
                 num_call_groups, op=torch.distributed.ReduceOp.MAX
             )
             seeds_call_groups = list(seeds_call_groups) + (
-                [torch.tensor([], dtype=seeds.dtype, device="cuda")]
+                [torch.tensor(empty_fill, dtype=seeds.dtype, device="cuda")]
                 * (int(num_call_groups) - len(seeds_call_groups))
             )
             index_call_groups = list(index_call_groups) + (
-                [torch.tensor([], dtype=torch.int64, device=input_id.device)]
+                [torch.tensor(empty_fill, dtype=torch.int64, device=input_id.device)]
                 * (int(num_call_groups) - len(index_call_groups))
             )
             if label is not None:
                 label_call_groups = list(label_call_groups) + (
-                    [torch.tensor([], dtype=label.dtype, device=label.device)]
+                    [torch.tensor(empty_fill, dtype=label.dtype, device=label.device)]
                     * (int(num_call_groups) - len(label_call_groups))
                 )
 
@@ -395,13 +396,14 @@ class DistSampler:
         # We start by reorganizing the seed and index tensors so we can
         # determine the unique vertices.  This results in the expected
         # src-to-dst concatenation for each batch
-        current_seeds = torch.concat(
-            [
-                current_seeds[0].reshape((-1, batch_size)),
-                current_seeds[1].reshape((-1, batch_size)),
-            ],
-            axis=-1,
-        )
+        if current_seeds.numel() > 0:
+            current_seeds = torch.concat(
+                [
+                    current_seeds[0].reshape((-1, batch_size)),
+                    current_seeds[1].reshape((-1, batch_size)),
+                ],
+                axis=-1,
+            )
 
         # The returned unique values must be sorted or else the inverse won't line up
         # In the future this may be a good target for a C++ function
@@ -569,6 +571,7 @@ class DistSampler:
             actual_seed_edges_per_call,
             assume_equal_input_size=input_size_is_equal,
             label=input_label,
+            empty_fill=torch.empty((2, 0), dtype=torch.int64),
         )
         if len(groups) == 2:
             edges_call_groups, index_call_groups = groups
