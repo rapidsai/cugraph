@@ -50,7 +50,7 @@ rapids-logger "pytest pylibcugraph"
 ./ci/run_pylibcugraph_pytests.sh \
   --verbose \
   --junitxml="${RAPIDS_TESTS_DIR}/junit-pylibcugraph.xml" \
-  --num-processes=8 \
+  --numprocesses=8 \
   --dist=worksteal \
   --cov-config=../../.coveragerc \
   --cov=pylibcugraph \
@@ -72,7 +72,7 @@ rapids-logger "pytest cugraph"
 ./ci/run_cugraph_pytests.sh \
   --verbose \
   --junitxml="${RAPIDS_TESTS_DIR}/junit-cugraph.xml" \
-  --num-processes=8 \
+  --numprocesses=8 \
   --dist=worksteal \
   --cov-config=../../.coveragerc \
   --cov=cugraph \
@@ -87,7 +87,7 @@ rapids-logger "pytest cugraph-service (single GPU)"
 ./ci/run_cugraph_service_pytests.sh \
   --verbose \
   --junitxml="${RAPIDS_TESTS_DIR}/junit-cugraph-service.xml" \
-  --num-processes=8 \
+  --numprocesses=8 \
   --dist=worksteal \
   --cov-config=../.coveragerc \
   --cov=cugraph_service_client \

@@ -25,7 +25,7 @@ else
     DASK_CUDA_WAIT_WORKERS_MIN_TIMEOUT="1000s" \
     python -m pytest \
        --verbose \
-       --num-processes=8 \
+       --numprocesses=8 \
        --dist=worksteal \
        --import-mode=append \
        --benchmark-disable \
