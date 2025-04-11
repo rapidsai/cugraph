@@ -27,6 +27,7 @@
 #include <cuda/functional>
 #include <thrust/count.h>
 #include <thrust/distance.h>
+#include <thrust/equal.h>
 #include <thrust/functional.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/reduce.h>
