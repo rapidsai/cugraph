@@ -29,6 +29,22 @@ else
        --dist=worksteal \
        --import-mode=append \
        --benchmark-disable \
+       -m "not mg"
        -k "not test_property_graph_mg and not test_bulk_sampler_io" \
        ./python/${package_name}/${python_package_name}/tests
+
+    RAPIDS_DATASET_ROOT_DIR=`pwd`/datasets \
+    PY_IGNORE_IMPORTMISMATCH=1 \
+    DASK_WORKER_DEVICES="0" \
+    DASK_DISTRIBUTED__SCHEDULER__WORKER_TTL="1000s" \
+    DASK_DISTRIBUTED__COMM__TIMEOUTS__CONNECT="1000s" \
+    DASK_CUDA_WAIT_WORKERS_MIN_TIMEOUT="1000s" \
+    python -m pytest \
+       --verbose \
+       --import-mode=append \
+       --benchmark-disable \
+       -m "mg"
+       -k "not test_property_graph_mg and not test_bulk_sampler_io" \
+       ./python/${package_name}/${python_package_name}/tests
+
 fi
