@@ -94,7 +94,7 @@ BUILD_CPP_MG_TESTS=OFF
 BUILD_CPP_MTMG_TESTS=OFF
 BUILD_ALL_GPU_ARCH=0
 CMAKE_GENERATOR_OPTION=("-G" "Ninja")
-PYTHON_ARGS_FOR_INSTALL="-m pip install --no-build-isolation --no-deps --config-settings rapidsai.disable-cuda=true"
+PYTHON_ARGS_FOR_INSTALL=("-m" "pip" "install" "--no-build-isolation" "--no-deps" "--config-settings" "rapidsai.disable-cuda=true")
 
 # Set defaults for vars that may not have been defined externally
 #  FIXME: if PREFIX is not set, check CONDA_PREFIX, but there is no fallback
@@ -165,7 +165,7 @@ if hasArg --cmake_default_generator; then
     CMAKE_GENERATOR_OPTION=()
 fi
 if hasArg --pydevelop; then
-    PYTHON_ARGS_FOR_INSTALL="${PYTHON_ARGS_FOR_INSTALL} -e"
+    PYTHON_ARGS_FOR_INSTALL+=("-e")
 fi
 
 SKBUILD_EXTRA_CMAKE_ARGS="${EXTRA_CMAKE_ARGS}"
@@ -289,7 +289,7 @@ if buildDefault || hasArg pylibcugraph || hasArg all; then
         cleanPythonDir "${REPODIR}/python/pylibcugraph"
     else
         SKBUILD_CMAKE_ARGS="${SKBUILD_EXTRA_CMAKE_ARGS}" \
-            python "${PYTHON_ARGS_FOR_INSTALL}" "${REPODIR}/python/pylibcugraph"
+            python "${PYTHON_ARGS_FOR_INSTALL[@]}" "${REPODIR}/python/pylibcugraph"
     fi
 fi
 
@@ -299,7 +299,7 @@ if buildDefault || hasArg cugraph || hasArg all; then
         cleanPythonDir "${REPODIR}/python/cugraph"
     else
         SKBUILD_CMAKE_ARGS="${SKBUILD_EXTRA_CMAKE_ARGS}" \
-            python "${PYTHON_ARGS_FOR_INSTALL}" "${REPODIR}/python/cugraph"
+            python "${PYTHON_ARGS_FOR_INSTALL[@]}" "${REPODIR}/python/cugraph"
     fi
 fi
 
@@ -308,8 +308,8 @@ if hasArg cugraph-service || hasArg all; then
     if hasArg --clean; then
         cleanPythonDir "${REPODIR}/python/cugraph-service"
     else
-        python "${PYTHON_ARGS_FOR_INSTALL}" "${REPODIR}/python/cugraph-service/client"
-        python "${PYTHON_ARGS_FOR_INSTALL}" "${REPODIR}/python/cugraph-service/server"
+        python "${PYTHON_ARGS_FOR_INSTALL[@]}" "${REPODIR}/python/cugraph-service/client"
+        python "${PYTHON_ARGS_FOR_INSTALL[@]}" "${REPODIR}/python/cugraph-service/server"
     fi
 fi
 
