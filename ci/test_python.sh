@@ -87,8 +87,6 @@ rapids-logger "pytest cugraph-service (single GPU)"
 ./ci/run_cugraph_service_pytests.sh \
   --verbose \
   --junitxml="${RAPIDS_TESTS_DIR}/junit-cugraph-service.xml" \
-  --numprocesses=8 \
-  --dist=worksteal \
   --cov-config=../.coveragerc \
   --cov=cugraph_service_client \
   --cov=cugraph_service_server \
