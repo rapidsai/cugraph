@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2024, NVIDIA CORPORATION.
+# Copyright (c) 2022-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -43,7 +43,7 @@ fixture_params = gen_fixture_params_product(
     (datasets, "graph_file"),
     (IS_DIRECTED, "directed"),
     ([False, True], "with_replacement"),
-    (["int32", "float32"], "indices_type"),
+    (["float32"], "indices_type"),
 )
 
 
@@ -200,11 +200,11 @@ def test_uniform_neighbor_sample_simple(input_combo):
             f"are invalid\n {invalid_edge}"
         )
 
-    # Ensure the right indices type is returned
-    assert result_nbr["indices"].dtype == input_combo["indices_type"]
+    # Ensure the right weights type is returned
+    assert result_nbr["weight"].dtype == input_combo["indices_type"]
 
     sampled_vertex_result = (
-        cudf.concat([result_nbr["sources"], result_nbr["destinations"]])
+        cudf.concat([result_nbr["majors"], result_nbr["minors"]])
         .drop_duplicates()
         .reset_index(drop=True)
     )
@@ -285,12 +285,12 @@ def test_uniform_neighbor_sample_tree(directed):
     # Since the validity of results have (probably) been tested at both the C++
     # and C layers, simply test that the python interface and conversions were
     # done correctly.
-    assert result_nbr["sources"].dtype == "int32"
-    assert result_nbr["destinations"].dtype == "int32"
-    assert result_nbr["indices"].dtype == "float32"
+    assert result_nbr["majors"].dtype == "int32"
+    assert result_nbr["minors"].dtype == "int32"
+    assert result_nbr["weight"].dtype == "float32"
 
     result_nbr_vertices = (
-        cudf.concat([result_nbr["sources"], result_nbr["destinations"]])
+        cudf.concat([result_nbr["majors"], result_nbr["minors"]])
         .drop_duplicates()
         .reset_index(drop=True)
     )
@@ -309,19 +309,18 @@ def test_uniform_neighbor_sample_unweighted(simple_unweighted_input_expected_out
         with_replacement=test_data["with_replacement"],
     )
 
-    actual_src = sampling_results.sources
+    actual_src = sampling_results.majors
     actual_src = actual_src.to_arrow().to_pylist()
     assert sorted(actual_src) == sorted(test_data["expected_src"])
 
-    actual_dst = sampling_results.destinations
+    actual_dst = sampling_results.minors
     actual_dst = actual_dst.to_arrow().to_pylist()
     assert sorted(actual_dst) == sorted(test_data["expected_dst"])
 
 
 @pytest.mark.sg
 @pytest.mark.parametrize("return_offsets", [True, False])
-@pytest.mark.parametrize("include_hop_column", [True, False])
-def test_uniform_neighbor_sample_edge_properties(return_offsets, include_hop_column):
+def test_uniform_neighbor_sample_edge_properties(return_offsets):
     edgelist_df = cudf.DataFrame(
         {
             "src": cudf.Series([0, 1, 2, 3, 4, 3, 4, 2, 0, 1, 0, 2], dtype="int32"),
@@ -352,10 +351,8 @@ def test_uniform_neighbor_sample_edge_properties(return_offsets, include_hop_col
         start_list=start_df,
         fanout_vals=[2, 2],
         with_replacement=False,
-        with_edge_properties=True,
         with_batch_ids=True,
         return_offsets=return_offsets,
-        include_hop_column=include_hop_column,
     )
     if return_offsets:
         sampling_results, sampling_offsets = sampling_results
@@ -371,36 +368,25 @@ def test_uniform_neighbor_sample_edge_properties(return_offsets, include_hop_col
     )
     assert (
         edgelist_df.loc[sampling_results.edge_id]["src"].values_host.tolist()
-        == sampling_results["sources"].values_host.tolist()
+        == sampling_results["majors"].values_host.tolist()
     )
     assert (
         edgelist_df.loc[sampling_results.edge_id]["dst"].values_host.tolist()
-        == sampling_results["destinations"].values_host.tolist()
+        == sampling_results["minors"].values_host.tolist()
     )
 
-    if include_hop_column:
-        assert sampling_results["hop_id"].values_host.tolist() == (
-            [0, 0, 1, 1, 1, 1] * 2
-        )
-    else:
-        assert "hop_id" not in sampling_results
+    assert sampling_results["hop_id"].values_host.tolist() == ([0, 0, 1, 1, 1, 1] * 2)
 
     if return_offsets:
         assert sampling_offsets["batch_id"].dropna().values_host.tolist() == [0, 1]
-        if include_hop_column:
-            assert sampling_offsets["offsets"].dropna().values_host.tolist() == [
-                0,
-                6,
-                12,
-            ]
-        else:
-            assert sampling_offsets["offsets"].dropna().values_host.tolist() == [
-                0,
-                2,
-                6,
-                8,
-                12,
-            ]
+        assert sampling_offsets["offsets"].dropna().values_host.tolist() == [
+            0,
+            2,
+            6,
+            8,
+            12,
+        ]
+
     else:
         assert sampling_results["batch_id"].values_host.tolist() == ([0] * 6 + [1] * 6)
 
@@ -435,13 +421,12 @@ def test_uniform_neighbor_sample_edge_properties_self_loops():
         ),
         fanout_vals=[2, 2],
         with_replacement=False,
-        with_edge_properties=True,
         with_batch_ids=True,
         random_state=80,
     )
 
-    assert sorted(sampling_results.sources.values_host.tolist()) == [0, 0, 1, 1, 2, 2]
-    assert sorted(sampling_results.destinations.values_host.tolist()) == [
+    assert sorted(sampling_results.majors.values_host.tolist()) == [0, 0, 1, 1, 2, 2]
+    assert sorted(sampling_results.minors.values_host.tolist()) == [
         0,
         0,
         1,
@@ -480,7 +465,6 @@ def test_uniform_neighbor_sample_hop_id_order():
         cudf.Series([0, 1], dtype="int64"),
         fanout_vals=[2, 2, 2],
         with_replacement=False,
-        with_edge_properties=True,
     )
 
     assert (
@@ -511,7 +495,6 @@ def test_uniform_neighbor_sample_hop_id_order_multi_batch():
         ),
         fanout_vals=[2, 2, 2],
         with_replacement=False,
-        with_edge_properties=True,
         with_batch_ids=True,
     )
 
@@ -558,7 +541,6 @@ def test_uniform_neighbor_sample_empty_start_list():
         ),
         fanout_vals=[2, 2],
         with_replacement=False,
-        with_edge_properties=True,
         with_batch_ids=True,
         random_state=32,
     )
@@ -589,7 +571,6 @@ def test_uniform_neighbor_sample_exclude_sources_basic():
         ),
         [2, 3, 3],
         with_replacement=False,
-        with_edge_properties=True,
         with_batch_ids=True,
         random_state=62,
         prior_sources_behavior="exclude",
@@ -597,21 +578,19 @@ def test_uniform_neighbor_sample_exclude_sources_basic():
 
     expected_hop_0 = [1, 2, 1, 5, 2, 0]
     assert sorted(
-        sampling_results[sampling_results.hop_id == 0].destinations.values_host.tolist()
+        sampling_results[sampling_results.hop_id == 0].minors.values_host.tolist()
     ) == sorted(expected_hop_0)
 
     next_sources = set(
-        sampling_results[sampling_results.hop_id > 0].sources.values_host.tolist()
+        sampling_results[sampling_results.hop_id > 0].majors.values_host.tolist()
     )
     for v in [0, 4, 1]:
         assert v not in next_sources
 
     next_sources = set(
-        sampling_results[sampling_results.hop_id > 1].sources.values_host.tolist()
+        sampling_results[sampling_results.hop_id > 1].majors.values_host.tolist()
     )
-    for v in sampling_results[
-        sampling_results.hop_id == 1
-    ].sources.values_host.tolist():
+    for v in sampling_results[sampling_results.hop_id == 1].majors.values_host.tolist():
         assert v not in next_sources
 
 
@@ -629,19 +608,16 @@ def test_uniform_neighbor_sample_exclude_sources_email_eu_core():
         seeds,
         [5, 4, 3, 2, 1],
         with_replacement=False,
-        with_edge_properties=True,
         with_batch_ids=False,
         prior_sources_behavior="exclude",
     )
 
     for hop in range(5):
         current_sources = set(
-            sampling_results[
-                sampling_results.hop_id == hop
-            ].sources.values_host.tolist()
+            sampling_results[sampling_results.hop_id == hop].majors.values_host.tolist()
         )
         future_sources = set(
-            sampling_results[sampling_results.hop_id > hop].sources.values_host.tolist()
+            sampling_results[sampling_results.hop_id > hop].majors.values_host.tolist()
         )
 
         for s in current_sources:
@@ -671,16 +647,15 @@ def test_uniform_neighbor_sample_carry_over_sources_basic():
         ),
         [2, 3, 3],
         with_replacement=False,
-        with_edge_properties=True,
         with_batch_ids=True,
         random_state=62,
         prior_sources_behavior="carryover",
-    ).sort_values(by="hop_id")[["sources", "destinations", "hop_id"]]
+    ).sort_values(by="hop_id")[["majors", "minors", "hop_id"]]
 
     assert (
         len(
             sampling_results[
-                (sampling_results.hop_id == 2) & (sampling_results.sources == 6)
+                (sampling_results.hop_id == 2) & (sampling_results.majors == 6)
             ]
         )
         == 2
@@ -688,14 +663,12 @@ def test_uniform_neighbor_sample_carry_over_sources_basic():
 
     for hop in range(2):
         sources_current_hop = set(
-            sampling_results[
-                sampling_results.hop_id == hop
-            ].sources.values_host.tolist()
+            sampling_results[sampling_results.hop_id == hop].majors.values_host.tolist()
         )
         sources_next_hop = set(
             sampling_results[
                 sampling_results.hop_id == (hop + 1)
-            ].sources.values_host.tolist()
+            ].majors.values_host.tolist()
         )
 
         for s in sources_current_hop:
@@ -716,21 +689,18 @@ def test_uniform_neighbor_sample_carry_over_sources_email_eu_core():
         seeds,
         [5, 4, 3, 2, 1],
         with_replacement=False,
-        with_edge_properties=True,
         with_batch_ids=False,
         prior_sources_behavior="carryover",
     )
 
     for hop in range(4):
         sources_current_hop = set(
-            sampling_results[
-                sampling_results.hop_id == hop
-            ].sources.values_host.tolist()
+            sampling_results[sampling_results.hop_id == hop].majors.values_host.tolist()
         )
         sources_next_hop = set(
             sampling_results[
                 sampling_results.hop_id == (hop + 1)
-            ].sources.values_host.tolist()
+            ].majors.values_host.tolist()
         )
 
         for s in sources_current_hop:
@@ -751,7 +721,6 @@ def test_uniform_neighbor_sample_deduplicate_sources_email_eu_core():
         seeds,
         [5, 4, 3, 2, 1],
         with_replacement=False,
-        with_edge_properties=True,
         with_batch_ids=False,
         deduplicate_sources=True,
     )
@@ -759,7 +728,7 @@ def test_uniform_neighbor_sample_deduplicate_sources_email_eu_core():
     for hop in range(5):
         counts_current_hop = (
             sampling_results[sampling_results.hop_id == hop]
-            .sources.value_counts()
+            .majors.value_counts()
             .values_host.tolist()
         )
         for c in counts_current_hop:
@@ -781,7 +750,6 @@ def test_uniform_neighbor_sample_renumber(hops):
         seeds,
         hops,
         with_replacement=False,
-        with_edge_properties=True,
         with_batch_ids=False,
         deduplicate_sources=True,
         renumber=False,
@@ -793,7 +761,6 @@ def test_uniform_neighbor_sample_renumber(hops):
         seeds,
         hops,
         with_replacement=False,
-        with_edge_properties=True,
         with_batch_ids=False,
         deduplicate_sources=True,
         renumber=True,
@@ -802,11 +769,11 @@ def test_uniform_neighbor_sample_renumber(hops):
 
     sources_hop_0 = sampling_results_unrenumbered[
         sampling_results_unrenumbered.hop_id == 0
-    ].sources
+    ].majors
     for hop in range(len(hops)):
         destinations_hop = sampling_results_unrenumbered[
             sampling_results_unrenumbered.hop_id <= hop
-        ].destinations
+        ].minors
         expected_renumber_map = cudf.concat([sources_hop_0, destinations_hop]).unique()
 
         assert sorted(expected_renumber_map.values_host.tolist()) == sorted(
@@ -835,7 +802,6 @@ def test_uniform_neighbor_sample_offset_renumber(hops):
         seeds,
         hops,
         with_replacement=False,
-        with_edge_properties=True,
         with_batch_ids=False,
         deduplicate_sources=True,
         renumber=False,
@@ -852,7 +818,6 @@ def test_uniform_neighbor_sample_offset_renumber(hops):
         seeds,
         hops,
         with_replacement=False,
-        with_edge_properties=True,
         with_batch_ids=False,
         deduplicate_sources=True,
         renumber=True,
@@ -862,11 +827,11 @@ def test_uniform_neighbor_sample_offset_renumber(hops):
 
     sources_hop_0 = sampling_results_unrenumbered[
         sampling_results_unrenumbered.hop_id == 0
-    ].sources
+    ].majors
     for hop in range(len(hops)):
         destinations_hop = sampling_results_unrenumbered[
             sampling_results_unrenumbered.hop_id <= hop
-        ].destinations
+        ].minors
         expected_renumber_map = cudf.concat([sources_hop_0, destinations_hop]).unique()
 
         assert sorted(expected_renumber_map.values_host.tolist()) == sorted(
@@ -880,7 +845,9 @@ def test_uniform_neighbor_sample_offset_renumber(hops):
     assert renumber_map_offsets.iloc[0] == 0
     assert renumber_map_offsets.iloc[-1] == len(renumber_map)
 
-    assert len(offsets_renumbered) == 2
+    assert (
+        len(offsets_renumbered) == len(sampling_results_renumbered.hop_id.unique()) + 1
+    )
 
 
 @pytest.mark.sg
@@ -899,7 +866,6 @@ def test_uniform_neighbor_sample_csr_csc_global(hops, seed):
         seeds,
         hops,
         with_replacement=False,
-        with_edge_properties=True,
         with_batch_ids=False,
         deduplicate_sources=True,
         # carryover not valid because C++ sorts on (hop,src)
@@ -907,10 +873,8 @@ def test_uniform_neighbor_sample_csr_csc_global(hops, seed):
         renumber=True,
         return_offsets=True,
         random_state=seed,
-        use_legacy_names=False,
         compress_per_hop=False,
         compression="CSR",
-        include_hop_column=False,
     )
 
     major_offsets = sampling_results["major_offsets"].dropna().values
@@ -945,17 +909,14 @@ def test_uniform_neighbor_sample_csr_csc_local(hops, seed):
         seeds,
         hops,
         with_replacement=False,
-        with_edge_properties=True,
         with_batch_ids=False,
         deduplicate_sources=True,
         prior_sources_behavior="carryover",
         renumber=True,
         return_offsets=True,
         random_state=seed,
-        use_legacy_names=False,
         compress_per_hop=True,
         compression="CSR",
-        include_hop_column=False,
     )
 
     for hop in range(len(hops)):
@@ -999,7 +960,6 @@ def test_uniform_neighbor_sample_retain_seeds():
         batch_df,
         fanout,
         with_replacement=False,
-        with_edge_properties=True,
         with_batch_ids=True,
         random_state=62,
         return_offsets=True,

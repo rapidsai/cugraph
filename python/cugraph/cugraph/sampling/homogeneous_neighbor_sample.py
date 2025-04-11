@@ -11,30 +11,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import annotations
-
+import cudf
 from pylibcugraph import ResourceHandle
-from pylibcugraph import uniform_neighbor_sample as pylibcugraph_uniform_neighbor_sample
-
-from cugraph.sampling.sampling_utilities import (
-    legacy_sampling_results_from_cupy_array_dict,
+from pylibcugraph import (
+    homogeneous_uniform_neighbor_sample as plc_homogeneous_uniform_neighbor_sample,
+    homogeneous_biased_neighbor_sample as plc_homogeneous_biased_neighbor_sample,
 )
+from cugraph.sampling.sampling_utilities import sampling_results_from_cupy_array_dict
+
 
 import numpy
 
-import cudf
 import cupy as cp
 import warnings
 
 from typing import Union, Tuple, Sequence, List
-from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
-    from cugraph import Graph
-
-
-start_col_name = "_START_"
-batch_col_name = "_BATCH_"
+from cugraph.structure import Graph
 
 
 # FIXME: Move this function to the utility module so that it can be
@@ -58,47 +51,53 @@ def ensure_valid_dtype(input_graph, start_list):
     return start_list
 
 
-def uniform_neighbor_sample(
+def homogeneous_neighbor_sample(
     G: Graph,
     start_list: Sequence,
+    starting_vertex_label_offsets: Sequence,
     fanout_vals: List[int],
     *,
     with_replacement: bool = True,
-    with_batch_ids: bool = False,
+    with_biases: bool = False,
     random_state: int = None,
     return_offsets: bool = False,
-    return_hops: bool = True,
     prior_sources_behavior: str = None,
     deduplicate_sources: bool = False,
+    return_hops: bool = True,
     renumber: bool = False,
     retain_seeds: bool = False,
-    label_offsets: Sequence = None,
     compress_per_hop: bool = False,
     compression: str = "COO",
-) -> Union[cudf.DataFrame, Tuple[cudf.DataFrame, cudf.DataFrame]]:
+) -> Tuple[cudf.Series, cudf.Series, Union[None, int, cudf.Series]]:
     """
-    Does neighborhood sampling, which samples nodes from a graph based on the
-    current node's neighbors, with a corresponding fanout value at each hop.
+    Performs uniform/biased neighborhood sampling, which samples nodes from
+    a graph based on the current node's neighbors, with a corresponding fan_out
+    value at each hop. The edges are sampled either uniformly or with biases.
+    Homogeneous neighborhood sampling translates to 1 edge type.
 
-    Parameters
+    parameters
     ----------
-    G : cugraph.Graph
-        cuGraph graph, which contains connectivity information as dask cudf
-        edge list dataframe
+    G : cuGraph.Graph
+        The graph can be either directed or undirected.
 
-    start_list : list or cudf.Series (int32)
+    start_list : list or cudf.Series
         a list of starting vertices for sampling
 
-    fanout_vals : list (int32)
+    starting_vertex_label_offsets: list or cudf.Series
+        Offsets of each label within the start_list. Expanding
+        'starting_vertex_label_offsets' must lead to an array of
+        len(start_list)
+
+    fanout_vals : list
         List of branching out (fan-out) degrees per starting vertex for each
         hop level.
 
     with_replacement: bool, optional (default=True)
         Flag to specify if the random sampling is done with replacement
 
-    with_batch_ids: bool, optional (default=False)
-        Flag to specify whether batch ids are present in the start_list
-        Assumes they are the last column in the start_list dataframe
+    with_biases: bool, optional (default=False)
+        Flag to specify whether the edges should be sampled uniformly or with biases.
+        Only edge weights can be used as biases for now
 
     random_state: int, optional
         Random seed to use when making sampling calls.
@@ -108,11 +107,6 @@ def uniform_neighbor_sample(
         included as one dataframe, or to instead return two
         dataframes, one with sampling results and one with
         batch ids and their start offsets.
-
-    return_hops: bool, optional (default=True)
-        Whether to return the sampling results with hop ids
-        corresponding to the hop where the edge appeared.
-        Defaults to True.
 
     prior_sources_behavior: str, optional (default=None)
         Options are "carryover", and "exclude".
@@ -127,6 +121,11 @@ def uniform_neighbor_sample(
         from the previous destinations before performing next
         hop.
 
+    return_hops: bool, optional (default=True)
+        Whether to return the sampling results with hop ids
+        corresponding to the hop where the edge appeared.
+        Defaults to True.
+
     renumber: bool, optional (default=False)
         Whether to renumber on a per-batch basis.  If True,
         will return the renumber map and renumber map offsets
@@ -135,11 +134,6 @@ def uniform_neighbor_sample(
     retain_seeds: bool, optional (default=False)
         If True, will retain the original seeds (original source vertices)
         in the output even if they do not have outgoing neighbors.
-
-    label_offsets: integer sequence, optional (default=None)
-        Offsets of each label within the start vertex list.
-        Only used if retain_seeds is True.  Required if retain_seeds
-        is True.
 
     compress_per_hop: bool, optional (default=False)
         Whether to compress globally (default), or to produce a separate
@@ -156,62 +150,56 @@ def uniform_neighbor_sample(
 
 
         If return_offsets=False:
-            df['majors']: cudf.Series
-                Contains the source vertices from the sampling result
-            df['destinations']: cudf.Series
-                Contains the destination vertices from the sampling result
-            df['weight']: cudf.Series
-                Contains the edge weights from the sampling result
-            df['edge_id']: cudf.Series
-                Contains the edge ids from the sampling result
-            df['edge_type']: cudf.Series
-                Contains the edge types from the sampling result
-            df['batch_id']: cudf.Series
-                Contains the batch ids from the sampling result
-            df['hop_id']: cudf.Series
-                Contains the hop ids from the sampling result
-            If renumber=True:
-                (adds the following dataframe)
-                renumber_df['map']: cudf.Series
-                    Contains the renumber maps for each batch
-                renumber_df['offsets']: cudf.Series
-                    Contains the batch offsets for the renumber maps
+                df['majors']: cudf.Series
+                    Contains the source vertices from the sampling result
+                df['minors']: cudf.Series
+                    Contains the destination vertices from the sampling result
+                df['weight']: cudf.Series # if provided
+                    Contains the edge weights from the sampling result
+                df['edge_id']: cudf.Series # if provided
+                    Contains the edge ids from the sampling result
+                df['edge_type']: cudf.Series # if provided
+                    Contains the edge types from the sampling result
+                df['batch_id']: cudf.Series
+                    Contains the batch ids from the sampling result
+                df['hop_id']: cudf.Series
+                    Contains the hop ids from the sampling result
+                If renumber=True:
+                    (adds the following dataframe)
+                    renumber_df['renumber_map']: cudf.Series
+                        Contains the renumber maps for each batch
+                    renumber_df['batch_id']: cudf.Series
+                        Contains the batch ids for the renumber maps
 
         If return_offsets=True:
-            df['majors']: cudf.Series
-                Contains the source vertices from the sampling result
-            df['minors']: cudf.Series
-                Contains the destination vertices from the sampling result
-            df['weight']: cudf.Series
-                Contains the edge weights from the sampling result
-            df['edge_id']: cudf.Series
-                Contains the edge ids from the sampling result
-            df['edge_type']: cudf.Series
-                Contains the edge types from the sampling result
-            df['hop_id']: cudf.Series
-                Contains the hop ids from the sampling result
+                df['majors']: cudf.Series
+                    Contains the source vertices from the sampling result
+                df['minors']: cudf.Series
+                    Contains the destination vertices from the sampling result
+                df['weight']: cudf.Series # if provided
+                    Contains the edge weights from the sampling result
+                df['edge_id']: cudf.Series # if provided
+                    Contains the edge ids from the sampling result
+                df['edge_type']: cudf.Series # if provided
+                    Contains the edge types from the sampling result
+                df['batch_id']: cudf.Series
+                    Contains the batch ids from the sampling result
+                df['hop_id']: cudf.Series
+                    Contains the hop ids from the sampling result
 
-            offsets_df['batch_id']: cudf.Series
-                Contains the batch ids from the sampling result
-            offsets_df['offsets']: cudf.Series
-                Contains the offsets of each batch in the sampling result
+                offsets_df['batch_id']: cudf.Series
+                    Contains the batch ids from the sampling result
+                offsets_df['offsets']: cudf.Series
+                    Contains the offsets of each batch in the sampling result
 
-            If renumber=True:
-                (adds the following dataframe)
-                renumber_df['map']: cudf.Series
-                    Contains the renumber maps for each batch
-                renumber_df['offsets']: cudf.Series
-                    Contains the batch offsets for the renumber maps
+                If renumber=True:
+                    (adds the following dataframe)
+                    renumber_df['renumber_map']: cudf.Series
+                        Contains the renumber maps for each batch
+                    renumber_df['batch_id']: cudf.Series
+                        Contains the batch ids for the renumber maps
+
     """
-
-    warning_msg = (
-        "uniform_neighbor_sample is deprecated in favor of "
-        "homogeneous/heterogeneous_uniform_neighbor_sample."
-    )
-    warnings.warn(warning_msg, FutureWarning)
-
-    major_col_name = "majors"
-    minor_col_name = "minors"
 
     if compression not in ["COO", "CSR", "CSC", "DCSR", "DCSC"]:
         raise ValueError("compression must be one of COO, CSR, CSC, DCSR, or DCSC")
@@ -242,13 +230,8 @@ def uniform_neighbor_sample(
             start_list, dtype=G.edgelist.edgelist_df[G.srcCol].dtype
         )
 
-    if not with_batch_ids:
-        if isinstance(start_list, cudf.Series):
-            start_list = start_list.reset_index(drop=True).to_frame()
-
-        start_list[batch_col_name] = cudf.Series(
-            cp.zeros(len(start_list), dtype="int32")
-        )
+    if isinstance(starting_vertex_label_offsets, list):
+        starting_vertex_label_offsets = cudf.Series(starting_vertex_label_offsets)
 
     # fanout_vals must be passed to pylibcugraph as a host array
     if isinstance(fanout_vals, numpy.ndarray):
@@ -269,48 +252,36 @@ def uniform_neighbor_sample(
 
     start_list = ensure_valid_dtype(G, start_list)
 
-    if isinstance(start_list, cudf.Series):
-        start_list = start_list.rename(start_col_name)
-        start_list = start_list.to_frame()
-
-        if G.renumbered:
-            start_list = G.lookup_internal_vertex_id(start_list, start_col_name)
-    else:
-        columns = start_list.columns
-
-        if with_batch_ids:
-            if G.renumbered:
-                start_list = G.lookup_internal_vertex_id(start_list, columns[:-1])
-            start_list = start_list.rename(
-                columns={columns[0]: start_col_name, columns[-1]: batch_col_name}
-            )
+    if G.renumbered is True:
+        if isinstance(start_list, cudf.DataFrame):
+            start_list = G.lookup_internal_vertex_id(start_list, start_list.columns)
         else:
-            if G.renumbered:
-                start_list = G.lookup_internal_vertex_id(start_list, columns)
-            start_list = start_list.rename(columns={columns[0]: start_col_name})
+            start_list = G.lookup_internal_vertex_id(start_list)
 
-    sampling_result_array_dict = pylibcugraph_uniform_neighbor_sample(
+    if with_biases:
+        sampling_function = plc_homogeneous_biased_neighbor_sample
+    else:
+        sampling_function = plc_homogeneous_uniform_neighbor_sample
+
+    sampling_result_array_dict = sampling_function(
         resource_handle=ResourceHandle(),
         input_graph=G._plc_graph,
-        start_list=start_list[start_col_name],
-        batch_id_list=start_list[batch_col_name]
-        if batch_col_name in start_list
-        else None,
+        start_vertex_list=start_list,
+        starting_vertex_label_offsets=starting_vertex_label_offsets,
         h_fan_out=fanout_vals,
         with_replacement=with_replacement,
         do_expensive_check=False,
-        random_state=random_state,
         prior_sources_behavior=prior_sources_behavior,
         deduplicate_sources=deduplicate_sources,
         return_hops=return_hops,
         renumber=renumber,
         retain_seeds=retain_seeds,
-        label_offsets=label_offsets,
         compression=compression,
         compress_per_hop=compress_per_hop,
+        random_state=random_state,
     )
 
-    dfs = legacy_sampling_results_from_cupy_array_dict(
+    dfs = sampling_results_from_cupy_array_dict(
         sampling_result_array_dict,
         weight_t,
         len(fanout_vals),
@@ -319,6 +290,8 @@ def uniform_neighbor_sample(
     )
 
     if G.renumbered and not renumber:
+        major_col_name = "majors"
+        minor_col_name = "minors"
         dfs[0] = G.unrenumber(dfs[0], major_col_name, preserve_order=True)
         dfs[0] = G.unrenumber(dfs[0], minor_col_name, preserve_order=True)
 

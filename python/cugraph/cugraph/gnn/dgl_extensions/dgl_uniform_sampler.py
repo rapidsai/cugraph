@@ -114,6 +114,8 @@ class DGLUniformSampler:
             edge_dir=edge_dir,
         )
 
+        print("sampled_df = \n", sampled_df)
+
         if self.has_multiple_etypes:
             # Heterogeneous graph case
             # Add type information
@@ -122,12 +124,12 @@ class DGLUniformSampler:
             return (
                 sampled_df[src_n].astype("float").values,
                 sampled_df[dst_n].astype("float").values,
-                sampled_df["indices"].astype("float").values,
+                sampled_df["weight"].astype("float").values,
             )
 
     def _get_edgeid_type_d(self, df):
-        df["type"] = self._get_type_id_from_indices(
-            df["indices"], self.etype_id_range_dict
+        df["type"] = self._get_type_id_from_weight(
+            df["weight"], self.etype_id_range_dict
         )
         result_d = {
             etype: df[df["type"] == etype_id]
@@ -137,19 +139,19 @@ class DGLUniformSampler:
             etype: (
                 df[src_n].astype("float").values,
                 df[dst_n].astype("float").values,
-                df["indices"].astype("float").values,
+                df["weight"].astype("float").values,
             )
             for etype, df in result_d.items()
         }
 
     @staticmethod
-    def _get_type_id_from_indices(indices, etype_id_range_dict):
+    def _get_type_id_from_weight(weight, etype_id_range_dict):
         type_ser = cudf.Series(
-            cp.full(shape=len(indices), fill_value=-1, dtype=cp.int32)
+            cp.full(shape=len(weight), fill_value=-1, dtype=cp.int32)
         )
 
         for etype_id, (start, stop) in etype_id_range_dict.items():
-            range_types = (start <= indices) & (indices < stop)
+            range_types = (start <= weight) & (weight < stop)
             type_ser[range_types] = type_ser.dtype.type(etype_id)
 
         return type_ser

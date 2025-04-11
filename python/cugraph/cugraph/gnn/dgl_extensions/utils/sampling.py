@@ -93,7 +93,7 @@ def sample_multiple_sgs(
             )
             output_dfs.append(output)
     if len(output_dfs) == 0:
-        empty_df = cudf.DataFrame({"sources": [], "destinations": [], "indices": []})
+        empty_df = cudf.DataFrame({"majors": [], "minors": [], "weight": []})
         return empty_df.astype(cp.int32)
 
     return cudf.concat(output_dfs, ignore_index=True)
@@ -121,7 +121,7 @@ def sample_single_sg(
         (start_list >= start_list_range[0]) & (start_list <= start_list_range[1])
     ]
     if len(start_list) == 0:
-        empty_df = cudf.DataFrame({"sources": [], "destinations": [], "indices": []})
+        empty_df = cudf.DataFrame({"majors": [], "minors": [], "weight": []})
         return empty_df
     sampled_df = sample_f(
         sg,
@@ -226,14 +226,15 @@ def sample_cugraph_graphs(
             with_replacement=replace,
         )
 
+
     # we reverse directions when directions=='in'
     if edge_dir == "in":
         sampled_df = sampled_df.rename(
-            columns={"destinations": src_n, "sources": dst_n}
+            columns={"minors": src_n, "majors": dst_n}
         )
     else:
         sampled_df = sampled_df.rename(
-            columns={"sources": src_n, "destinations": dst_n}
+            columns={"majors": src_n, "minors": dst_n}
         )
     # Transfer data to client
     if isinstance(sampled_df, dask_cudf.DataFrame):

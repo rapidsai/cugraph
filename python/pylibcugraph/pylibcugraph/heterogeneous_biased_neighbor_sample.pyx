@@ -133,7 +133,7 @@ def heterogeneous_biased_neighbor_sample(ResourceHandle resource_handle,
         Device array containing the branching out (fan-out) degrees per
         starting vertex for each hop level. The fanout value at each hop for each
         edge type is given by the relationship
-        h_fanout[x*num_edge_types + edge_type_id]
+        h_fanout[x*num_edge_types + edge_type_id] where x is the hop_id
 
         The sampling method can use different fan_out values for each edge type
         which is not the case for homogeneous neighborhood sampling (both biased

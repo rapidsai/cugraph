@@ -266,7 +266,6 @@ class BulkSampler:
                 batch_id_filter
             ],
             with_batch_ids=True,
-            with_edge_properties=True,
             return_offsets=True,
             renumber=self.__renumber,
             # use_legacy_names=False,
