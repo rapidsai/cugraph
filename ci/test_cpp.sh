@@ -34,7 +34,8 @@ rapids-logger "Check GPU usage"
 nvidia-smi
 
 # RAPIDS_DATASET_ROOT_DIR is used by test scripts
-export RAPIDS_DATASET_ROOT_DIR="$(realpath datasets)"
+RAPIDS_DATASET_ROOT_DIR="$(realpath datasets)"
+export RAPIDS_DATASET_ROOT_DIR
 pushd "${RAPIDS_DATASET_ROOT_DIR}"
 ./get_test_data.sh --cpp_ci_subset
 popd
@@ -49,4 +50,4 @@ rapids-logger "Run gtests"
 ./ci/run_ctests.sh -j10 && EXITCODE=$? || EXITCODE=$?;
 
 rapids-logger "Test script exiting with value: $EXITCODE"
-exit ${EXITCODE}
+exit "${EXITCODE}"

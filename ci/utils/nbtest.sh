@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright (c) 2019-2021, NVIDIA CORPORATION.
+# Copyright (c) 2019-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -48,22 +48,22 @@ get_ipython().run_cell_magic=my_run_cell_magic
 NO_COLORS=--colors=NoColor
 EXITCODE=0
 NBTMPDIR=${WORKSPACE}/tmp
-mkdir -p ${NBTMPDIR}
+mkdir -p "${NBTMPDIR}"
 
-for nb in $*; do
-    NBFILENAME=$1
+for nb in "$@"; do
+    NBFILENAME=$nb
     NBNAME=${NBFILENAME%.*}
     NBNAME=${NBNAME##*/}
     NBTESTSCRIPT=${NBTMPDIR}/${NBNAME}-test.py
     shift
 
     echo --------------------------------------------------------------------------------
-    echo STARTING: ${NBNAME}
+    echo STARTING: "${NBNAME}"
     echo --------------------------------------------------------------------------------
-    jupyter nbconvert --to script ${NBFILENAME} --output ${NBTMPDIR}/${NBNAME}-test
-    echo "${MAGIC_OVERRIDE_CODE}" > ${NBTMPDIR}/tmpfile
-    cat ${NBTESTSCRIPT} >> ${NBTMPDIR}/tmpfile
-    mv ${NBTMPDIR}/tmpfile ${NBTESTSCRIPT}
+    jupyter nbconvert --to script "${NBFILENAME}" --output "${NBTMPDIR}/${NBNAME}-test"
+    echo "${MAGIC_OVERRIDE_CODE}" > "${NBTMPDIR}/tmpfile"
+    cat "${NBTESTSCRIPT}" >> "${NBTMPDIR}/tmpfile"
+    mv "${NBTMPDIR}/tmpfile" "${NBTESTSCRIPT}"
 
     echo "Running \"ipython ${NO_COLORS} ${NBTESTSCRIPT}\" on $(date)"
     echo

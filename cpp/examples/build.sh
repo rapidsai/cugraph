@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright (c) 2024, NVIDIA CORPORATION.
+# Copyright (c) 2024-2025, NVIDIA CORPORATION.
 
 # script for building libcugraph examples
 
@@ -45,12 +45,12 @@ HELP="$0 [<target> ...] [<flag> ...]
    --help                     - print this text
 "
 
-if (( ${NUMARGS} == 0 )); then
+if (( NUMARGS == 0 )); then
     echo "${HELP}"
 fi
 
 # Check for valid usage
-if (( ${NUMARGS} != 0 )); then
+if (( NUMARGS != 0 )); then
     for a in ${ARGS}; do
         if ! (echo "${VALIDARGS}" | grep -q "^[[:blank:]]*${a}$"); then
             echo "Invalid option: ${a}"
@@ -60,7 +60,7 @@ if (( ${NUMARGS} != 0 )); then
 fi
 
 function hasArg {
-    (( ${NUMARGS} != 0 )) && (echo " ${ARGS} " | grep -q " $1 ")
+    (( NUMARGS != 0 )) && (echo " ${ARGS} " | grep -q " $1 ")
 }
 
 if hasArg -h || hasArg --help; then
@@ -76,13 +76,13 @@ fi
 if hasArg clean; then
     # Ignore errors for clean since missing files, etc. are not failures
     set +e
-    for idx in ${!EXAMPLES[@]}
+    for idx in "${!EXAMPLES[@]}"
     do
         current_example=${EXAMPLES[$idx]}
         build_dir="${EXAMPLES_ROOT_DIR}/${current_example}/build"
-        if [ -d ${build_dir} ]; then
-            find ${build_dir} -mindepth 1 -delete
-            rmdir ${build_dir} || true
+        if [ -d "${build_dir}" ]; then
+            find "${build_dir}" -mindepth 1 -delete
+            rmdir "${build_dir}" || true
             echo "Removed ${build_dir}"
         fi
     done
@@ -97,15 +97,15 @@ build_example() {
   build_dir="${example_dir}/build"
 
   # Configure
-  cmake -S ${example_dir} -B ${build_dir} -Dcugraph_ROOT="${CUGRAPH_BUILD_DIR}" ${CMAKE_VERBOSE_OPTION}
+  cmake -S "${example_dir}" -B "${build_dir}" -Dcugraph_ROOT="${CUGRAPH_BUILD_DIR}" ${CMAKE_VERBOSE_OPTION}
   # Build
-  cmake --build ${build_dir} -j${PARALLEL_LEVEL} ${VERBOSE_FLAG}
+  cmake --build "${build_dir}" "-j${PARALLEL_LEVEL}" "${VERBOSE_FLAG}"
 }
 
 if hasArg all; then
-    for idx in ${!EXAMPLES[@]}
+    for idx in "${!EXAMPLES[@]}"
     do
         current_example=${EXAMPLES[$idx]}
-        build_example $current_example
+        build_example "$current_example"
     done
 fi

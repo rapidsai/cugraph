@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright (c) 2019-2024, NVIDIA CORPORATION.
+# Copyright (c) 2019-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -20,8 +20,8 @@ trap "EXITCODE=1" ERR
 
 NUMARGS=$#
 ARGS=$*
-THISDIR=$(cd $(dirname $0);pwd)
-CUGRAPH_ROOT=$(cd ${THISDIR}/..;pwd)
+THISDIR=$(cd "$(dirname "$0")";pwd)
+CUGRAPH_ROOT=$(cd "${THISDIR}"/..;pwd)
 GTEST_ARGS="--gtest_output=xml:${CUGRAPH_ROOT}/test-results/"
 DOWNLOAD_MODE=""
 EXITCODE=0
@@ -30,7 +30,7 @@ export RAPIDS_DATASET_ROOT_DIR=${RAPIDS_DATASET_ROOT_DIR:-${CUGRAPH_ROOT}/datase
 
 # FIXME: consider using getopts for option parsing
 function hasArg {
-    (( ${NUMARGS} != 0 )) && (echo " ${ARGS} " | grep -q " $1 ")
+    (( NUMARGS != 0 )) && (echo " ${ARGS} " | grep -q " $1 ")
 }
 
 # Add options unique to running a "quick" subset of tests here:
@@ -50,12 +50,12 @@ if hasArg "--skip-download"; then
     echo "Using datasets in ${RAPIDS_DATASET_ROOT_DIR}"
 else
     echo "Download datasets..."
-    cd ${RAPIDS_DATASET_ROOT_DIR}
+    cd "${RAPIDS_DATASET_ROOT_DIR}"
     bash ./get_test_data.sh ${DOWNLOAD_MODE}
 fi
 
 if [[ -z "$PROJECT_FLASH" || "$PROJECT_FLASH" == "0" ]]; then
-    cd ${CUGRAPH_ROOT}/cpp/build
+    cd "${CUGRAPH_ROOT}"/cpp/build
 fi
 
 # Do not abort the script on error from this point on. This allows all tests to
@@ -66,16 +66,16 @@ set +e
 if hasArg "--run-cpp-tests"; then
     echo "C++ gtests for cuGraph (single-GPU only)..."
     for gt in "${CONDA_PREFIX}/bin/gtests/libcugraph/"*_TEST; do
-        test_name=$(basename $gt)
+        test_name=$(basename "$gt")
         echo "Running gtest $test_name"
-        ${gt} ${GTEST_FILTER} ${GTEST_ARGS}
+        ${gt} "${GTEST_FILTER}" "${GTEST_ARGS}"
         echo "Ran gtest $test_name : return code was: $?, test script exit code is now: $EXITCODE"
     done
     # FIXME: the C API tests do not generate XML, so CI systems will not show
     # them in the GUI. Failing C API tests will still fail CI though, and the
     # output will appear in logs.
     for ct in "${CONDA_PREFIX}/bin/gtests/libcugraph_c/"CAPI_*_TEST; do
-        test_name=$(basename $ct)
+        test_name=$(basename "$ct")
         echo "Running C API test $test_name"
         ${ct}
         echo "Ran C API test $test_name : return code was: $?, test script exit code is now: $EXITCODE"
@@ -84,24 +84,24 @@ fi
 
 if hasArg "--run-python-tests"; then
     echo "Python pytest for pylibcugraph..."
-    cd ${CUGRAPH_ROOT}/python/pylibcugraph/pylibcugraph
-    pytest -sv --cache-clear --junitxml=${CUGRAPH_ROOT}/junit-pylibcugraph-pytests.xml --cov-config=.coveragerc --cov=pylibcugraph --cov-report=xml:${WORKSPACE}/python/pylibcugraph/pylibcugraph-coverage.xml --cov-report term --ignore=raft --benchmark-disable
+    cd "${CUGRAPH_ROOT}"/python/pylibcugraph/pylibcugraph
+    pytest -sv --cache-clear --junitxml="${CUGRAPH_ROOT}"/junit-pylibcugraph-pytests.xml --cov-config=.coveragerc --cov=pylibcugraph --cov-report=xml:"{WORKSPACE}"/python/pylibcugraph/pylibcugraph-coverage.xml --cov-report term --ignore=raft --benchmark-disable
     echo "Ran Python pytest for pylibcugraph : return code was: $?, test script exit code is now: $EXITCODE"
 
     echo "Python pytest for cuGraph (single-GPU only)..."
     conda list
-    cd ${CUGRAPH_ROOT}/python/cugraph/cugraph
-    pytest -sv -m sg --cache-clear --junitxml=${CUGRAPH_ROOT}/junit-cugraph-pytests.xml --cov-config=.coveragerc --cov=cugraph --cov-report=xml:${WORKSPACE}/python/cugraph/cugraph-coverage.xml --cov-report term --ignore=raft --benchmark-disable
+    cd "${CUGRAPH_ROOT}"/python/cugraph/cugraph
+    pytest -sv -m sg --cache-clear --junitxml="${CUGRAPH_ROOT}"/junit-cugraph-pytests.xml --cov-config=.coveragerc --cov=cugraph --cov-report=xml:"{WORKSPACE}"/python/cugraph/cugraph-coverage.xml --cov-report term --ignore=raft --benchmark-disable
     echo "Ran Python pytest for cugraph : return code was: $?, test script exit code is now: $EXITCODE"
 
     echo "Python benchmarks for cuGraph (running as tests)..."
-    cd ${CUGRAPH_ROOT}/benchmarks/cugraph
+    cd "${CUGRAPH_ROOT}"/benchmarks/cugraph
     pytest -sv -m sg -m "managedmem_on and poolallocator_on and tiny" --benchmark-disable
     echo "Ran Python benchmarks for cuGraph (running as tests) : return code was: $?, test script exit code is now: $EXITCODE"
 
     echo "Python pytest for cugraph-service (single-GPU only)..."
-    cd ${CUGRAPH_ROOT}/python/cugraph-service
-    pytest -sv --cache-clear --junitxml=${CUGRAPH_ROOT}/junit-cugraph-service-pytests.xml --benchmark-disable -k "not mg" ./tests
+    cd "${CUGRAPH_ROOT}"/python/cugraph-service
+    pytest -sv --cache-clear --junitxml="${CUGRAPH_ROOT}"/junit-cugraph-service-pytests.xml --benchmark-disable -k "not mg" ./tests
     echo "Ran Python pytest for cugraph-service : return code was: $?, test script exit code is now: $EXITCODE"
 fi
 

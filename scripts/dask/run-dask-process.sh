@@ -60,19 +60,17 @@ DASK_CLUSTER_CONFIG_TYPE=${DASK_CLUSTER_CONFIG_TYPE:-TCP}
 ################################################################################
 # FUNCTIONS
 
-numargs=$#
-args=$*
 hasArg () {
-    (( ${numargs} != 0 )) && (echo " ${args} " | grep -q " $1 ")
+    (( NUMARGS != 0 )) && (echo " ${ARGS} " | grep -q " $1 ")
 }
 
 logger_prefix=">>>> "
 logger () {
     if (( $# > 0 )) && [ "$1" == "-p" ]; then
         shift
-        echo -e "${logger_prefix}$@"
+        echo -e "${logger_prefix}$*"
     else
-        echo -e "$(date --utc "+%D-%T.%N")_UTC${logger_prefix}$@"
+        echo -e "$(date --utc "+%D-%T.%N")_UTC${logger_prefix}$*"
     fi
 }
 
@@ -153,9 +151,9 @@ worker_pid=""
 num_scheduler_tries=0
 
 startScheduler () {
-    mkdir -p $(dirname $SCHEDULER_FILE)
-    echo "RUNNING: \"dask scheduler $SCHEDULER_ARGS\"" > $DASK_SCHEDULER_LOG
-    dask scheduler $SCHEDULER_ARGS >> $DASK_SCHEDULER_LOG 2>&1 &
+    mkdir -p "$(dirname "$SCHEDULER_FILE")"
+    echo "RUNNING: \"dask scheduler $SCHEDULER_ARGS\"" > "$DASK_SCHEDULER_LOG"
+    dask scheduler "$SCHEDULER_ARGS" >> "$DASK_SCHEDULER_LOG" 2>&1 &
     scheduler_pid=$!
 }
 
@@ -166,7 +164,7 @@ startScheduler () {
 START_SCHEDULER=0
 START_WORKERS=0
 
-if (( ${NUMARGS} == 0 )); then
+if (( NUMARGS == 0 )); then
     echo "${HELP}"
     exit 0
 else
@@ -220,11 +218,11 @@ else
     buildTcpArgs
 fi
 
-mkdir -p $DASK_LOGS_DIR
+mkdir -p "$DASK_LOGS_DIR"
 logger "Logs written to: $DASK_LOGS_DIR"
 
 if [[ $START_SCHEDULER == 1 ]]; then
-    rm -f $SCHEDULER_FILE $DASK_SCHEDULER_LOG $DASK_WORKERS_LOG
+    rm -f "$SCHEDULER_FILE" "$DASK_SCHEDULER_LOG" "$DASK_WORKERS_LOG"
 
     startScheduler
     sleep 6
@@ -251,13 +249,13 @@ if [[ $START_SCHEDULER == 1 ]]; then
 fi
 
 if [[ $START_WORKERS == 1 ]]; then
-    rm -f $DASK_WORKERS_LOG
+    rm -f "$DASK_WORKERS_LOG"
     while [ ! -f "$SCHEDULER_FILE" ]; do
         logger "run-dask-process.sh: $SCHEDULER_FILE not present - waiting to start workers..."
         sleep 2
     done
-    echo "RUNNING: \"dask_cuda_worker $WORKER_ARGS\"" > $DASK_WORKERS_LOG
-    dask-cuda-worker $WORKER_ARGS >> $DASK_WORKERS_LOG 2>&1 &
+    echo "RUNNING: \"dask_cuda_worker $WORKER_ARGS\"" > "$DASK_WORKERS_LOG"
+    dask-cuda-worker "$WORKER_ARGS" >> "$DASK_WORKERS_LOG" 2>&1 &
     worker_pid=$!
     logger "worker(s) started."
 fi

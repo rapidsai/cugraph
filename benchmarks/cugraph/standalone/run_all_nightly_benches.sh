@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright (c) 2021-2022, NVIDIA CORPORATION.
+# Copyright (c) 2021-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-THIS_SCRIPT_DIR=$(cd $(dirname ${BASH_SOURCE[0]}) && pwd)
+THIS_SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 #WEIGHTED_ALGOS="--algo=bfs --algo=sssp"
 #UNWEIGHTED_ALGOS="--algo=wcc"
@@ -34,7 +34,7 @@ for scale in $SCALE_VALUES; do
             echo ""
             echo ">>>>>>>>>>>>>>>>> EDGEFACTOR: $edgefactor"
             #env CUDA_VISIBLE_DEVICES="$gpus" python "$THIS_SCRIPT_DIR"/main.py $WEIGHTED_ALGOS --scale=$scale --symmetric-graph
-            env CUDA_VISIBLE_DEVICES="$gpus" python "$THIS_SCRIPT_DIR"/main.py $UNWEIGHTED_ALGOS --unweighted --symmetric-graph --scale=$scale --edgefactor=$edgefactor
+            env CUDA_VISIBLE_DEVICES="$gpus" python "$THIS_SCRIPT_DIR"/main.py "$UNWEIGHTED_ALGOS" --unweighted --symmetric-graph --scale="$scale" --edgefactor="$edgefactor"
         done
     done
     mv out.csv random_scale_"$scale".csv
