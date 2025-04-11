@@ -329,6 +329,8 @@ extern "C" cugraph_error_code_t cugraph_force_atlas2(
                                outbound_attraction_distribution,
                                lin_log_mode,
                                prevent_overlapping,
+                               vertex_radius,
+                               overlap_scaling_ratio,
                                edge_weight_influence,
                                jitter_tolerance,
                                barnes_hut_optimize,
