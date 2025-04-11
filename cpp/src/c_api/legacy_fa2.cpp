@@ -197,6 +197,29 @@ struct force_atlas2_functor : public cugraph::c_api::abstract_functor {
                           raft::device_span<float>{y_start_->as_type<float>(), y_start_->size_}));
       }
 
+      if (vertex_radius_ != nullptr) {
+        // re-order vertex_radius_ based on internal vertex IDs
+        cp_number_map = rmm::device_uvector<vertex_t>{number_map->size(), handle_.get_stream()};
+
+        raft::copy(
+          cp_number_map->data(), number_map->data(), number_map->size(), handle_.get_stream());
+
+        number_map_pos = rmm::device_uvector<vertex_t>{number_map->size(), handle_.get_stream()};
+
+        cugraph::detail::sequence_fill(
+          handle_.get_stream(), number_map_pos->begin(), number_map_pos->size(), vertex_t{0});
+
+        cugraph::c_api::detail::sort_by_key(
+          handle_,
+          raft::device_span<vertex_t>{cp_number_map->data(), cp_number_map->size()},
+          raft::device_span<vertex_t>{number_map_pos->data(), number_map_pos->size()});
+
+        cugraph::c_api::detail::sort_tuple_by_key(
+          handle_,
+          raft::device_span<vertex_t>{number_map_pos->data(), number_map_pos->size()},
+          std::make_tuple(raft::device_span<float>{vertex_radius_->as_type<float>(), vertex_radius_->size_}));
+      }
+
       cugraph::force_atlas2<vertex_t, edge_t, weight_t>(
         handle_,
         // rng_state_->rng_state_, # FIXME: Add support
@@ -208,7 +231,7 @@ struct force_atlas2_functor : public cugraph::c_api::abstract_functor {
         outbound_attraction_distribution_,
         lin_log_mode_,
         prevent_overlapping_,
-        vertex_radius_,
+        vertex_radius_ != nullptr ? vertex_radius_->as_type<float>() : nullptr,
         overlap_scaling_ratio_,
         edge_weight_influence_,
         jitter_tolerance_,
