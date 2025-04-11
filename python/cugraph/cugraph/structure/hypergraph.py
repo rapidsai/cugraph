@@ -35,12 +35,8 @@
 # THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import cudf
-import numpy as np
 from cugraph.structure.graph_classes import Graph
 from cugraph.structure.symmetrize import symmetrize
-
-
-_str_dtype = cudf.dtype("str")
 
 
 def hypergraph(
@@ -195,7 +191,9 @@ def hypergraph(
     events[NODETYPE] = (
         "event"
         if not categorical_metadata
-        else _str_scalar_to_category(len(events), "event")
+        else cudf.CategoricalIndex.from_codes(
+            codes=[0] * len(events), categories=["event"], ordered=False
+        )
     )
 
     if not dropna:
@@ -327,33 +325,13 @@ def _create_entity_nodes(
     CATEGORY="category",
     NODETYPE="node_type",
 ):
-    nodes = [
-        cudf.DataFrame(
-            dict(
-                [
-                    (NODEID, cudf.core.column.column_empty(0, _str_dtype)),
-                    (
-                        CATEGORY,
-                        cudf.core.column.column_empty(
-                            0,
-                            _str_dtype if not categorical_metadata else _empty_cat_dt(),
-                        ),
-                    ),
-                    (
-                        NODETYPE,
-                        cudf.core.column.column_empty(
-                            0,
-                            _str_dtype if not categorical_metadata else _empty_cat_dt(),
-                        ),
-                    ),
-                ]
-                + [
-                    (key, cudf.core.column.column_empty(0, col.dtype))
-                    for key, col in events[columns].items()
-                ]
-            )
-        )
-    ]
+    first_node_df = cudf.DataFrame(columns=[NODEID, CATEGORY, NODETYPE, *columns])
+    if categorical_metadata:
+        first_node_df[CATEGORY] = first_node_df[CATEGORY].astype("category")
+        first_node_df[NODETYPE] = first_node_df[NODETYPE].astype("category")
+    for col in columns:
+        first_node_df[col] = first_node_df[col].astype(events[col].dtype)
+    nodes = [first_node_df]
 
     for key, col in events[columns].items():
         cat = categories.get(key, key)
@@ -363,14 +341,18 @@ def _create_entity_nodes(
             continue
         df = cudf.DataFrame(
             {
-                key: cudf.core.column.as_column(col),
+                key: cudf.Index(col),
                 NODEID: _prepend_str(col, cat + DELIM),
                 CATEGORY: cat
                 if not categorical_metadata
-                else _str_scalar_to_category(len(col), cat),
+                else cudf.CategoricalIndex.from_codes(
+                    codes=[0] * len(col), categories=[cat], ordered=False
+                ),
                 NODETYPE: key
                 if not categorical_metadata
-                else _str_scalar_to_category(len(col), key),
+                else cudf.CategoricalIndex.from_codes(
+                    codes=[0] * len(events), categories=[key], ordered=False
+                ),
             }
         )
         df.reset_index(drop=True, inplace=True)
@@ -401,12 +383,16 @@ def _create_hyper_nodes(
     nodes[NODETYPE] = (
         EVENTID
         if not categorical_metadata
-        else _str_scalar_to_category(len(nodes), EVENTID)
+        else cudf.CategoricalIndex.from_codes(
+            codes=[0] * len(nodes), categories=[EVENTID], ordered=False
+        )
     )
     nodes[CATEGORY] = (
         "event"
         if not categorical_metadata
-        else _str_scalar_to_category(len(nodes), "event")
+        else cudf.CategoricalIndex.from_codes(
+            codes=[0] * len(events), categories=["event"], ordered=False
+        )
     )
     nodes[NODEID] = nodes[EVENTID]
     nodes.reset_index(drop=True, inplace=True)
@@ -428,50 +414,17 @@ def _create_hyper_edges(
     NODETYPE="node_type",
 ):
     edge_attrs = [x for x in events.columns if x != NODETYPE]
-    edges = [
-        cudf.DataFrame(
-            dict(
-                (
-                    [
-                        (EVENTID, cudf.core.column.column_empty(0, _str_dtype)),
-                        (ATTRIBID, cudf.core.column.column_empty(0, _str_dtype)),
-                        (
-                            EDGETYPE,
-                            cudf.core.column.column_empty(
-                                0,
-                                _str_dtype
-                                if not categorical_metadata
-                                else _empty_cat_dt(),
-                            ),
-                        ),
-                    ]
-                )
-                + (
-                    []
-                    if len(categories) == 0
-                    else [
-                        (
-                            CATEGORY,
-                            cudf.core.column.column_empty(
-                                0,
-                                _str_dtype
-                                if not categorical_metadata
-                                else _empty_cat_dt(),
-                            ),
-                        )
-                    ]
-                )
-                + (
-                    []
-                    if drop_edge_attrs
-                    else [
-                        (key, cudf.core.column.column_empty(0, col.dtype))
-                        for key, col in events[edge_attrs].items()
-                    ]
-                )
-            )
+    first_edge_df = cudf.DataFrame(columns=[EVENTID, ATTRIBID, EDGETYPE])
+    if categorical_metadata:
+        first_edge_df[EDGETYPE] = first_edge_df[EDGETYPE].astype("category")
+    if len(categories) > 0:
+        first_edge_df[CATEGORY] = (
+            cudf.Index([]) if not categorical_metadata else cudf.CategoricalIndex([])
         )
-    ]
+    if not drop_edge_attrs:
+        for key, col in events[edge_attrs].items():
+            first_edge_df[key] = cudf.Index([], dtype=col.dtype)
+    edges = [first_edge_df]
 
     for key, col in events[columns].items():
         cat = categories.get(key, key)
@@ -484,10 +437,16 @@ def _create_hyper_edges(
             df[CATEGORY] = (
                 key
                 if not categorical_metadata
-                else _str_scalar_to_category(len(df), key)
+                else cudf.CategoricalIndex.from_codes(
+                    codes=[0] * len(df), categories=[key], ordered=False
+                )
             )
         df[EDGETYPE] = (
-            cat if not categorical_metadata else _str_scalar_to_category(len(df), cat)
+            cat
+            if not categorical_metadata
+            else cudf.CategoricalIndex.from_codes(
+                codes=[0] * len(df), categories=[cat], ordered=False
+            )
         )
         df[ATTRIBID] = _prepend_str(col, cat + DELIM)
         df.reset_index(drop=True, inplace=True)
@@ -527,51 +486,17 @@ def _create_direct_edges(
             edge_shape[name] = columns[(i + 1) :]
 
     edge_attrs = [x for x in events.columns if x != NODETYPE]
-    edges = [
-        cudf.DataFrame(
-            dict(
-                (
-                    [
-                        (EVENTID, cudf.core.column.column_empty(0, _str_dtype)),
-                        (SOURCE, cudf.core.column.column_empty(0, _str_dtype)),
-                        (TARGET, cudf.core.column.column_empty(0, _str_dtype)),
-                        (
-                            EDGETYPE,
-                            cudf.core.column.column_empty(
-                                0,
-                                _str_dtype
-                                if not categorical_metadata
-                                else _empty_cat_dt(),
-                            ),
-                        ),
-                    ]
-                )
-                + (
-                    []
-                    if len(categories) == 0
-                    else [
-                        (
-                            CATEGORY,
-                            cudf.core.column.column_empty(
-                                0,
-                                _str_dtype
-                                if not categorical_metadata
-                                else _empty_cat_dt(),
-                            ),
-                        )
-                    ]
-                )
-                + (
-                    []
-                    if drop_edge_attrs
-                    else [
-                        (key, cudf.core.column.column_empty(0, col.dtype))
-                        for key, col in events[edge_attrs].items()
-                    ]
-                )
-            )
+    first_edge_df = cudf.DataFrame(columns=[EVENTID, SOURCE, TARGET, EDGETYPE])
+    if categorical_metadata:
+        first_edge_df[EDGETYPE] = first_edge_df[EDGETYPE].astype("category")
+    if len(categories) > 0:
+        first_edge_df[CATEGORY] = (
+            cudf.Index([]) if not categorical_metadata else cudf.CategoricalIndex([])
         )
-    ]
+    if not drop_edge_attrs:
+        for key, col in events[edge_attrs].items():
+            first_edge_df[key] = cudf.Index([], dtype=col.dtype)
+    edges = [first_edge_df]
 
     for key1, col1 in events[sorted(edge_shape.keys())].items():
         cat1 = categories.get(key1, key1)
@@ -594,12 +519,18 @@ def _create_direct_edges(
                 df[CATEGORY] = (
                     key1 + DELIM + key2
                     if not categorical_metadata
-                    else _str_scalar_to_category(len(df), key1 + DELIM + key2)
+                    else cudf.CategoricalIndex.from_codes(
+                        codes=[0] * len(df),
+                        categories=[key1 + DELIM + key2],
+                        ordered=False,
+                    )
                 )
             df[EDGETYPE] = (
                 cat1 + DELIM + cat2
                 if not categorical_metadata
-                else _str_scalar_to_category(len(df), cat1 + DELIM + cat2)
+                else cudf.CategoricalIndex.from_codes(
+                    codes=[0] * len(df), categories=[cat1 + DELIM + cat2], ordered=False
+                )
             )
             df[SOURCE] = _prepend_str(col1, cat1 + DELIM)
             df[TARGET] = _prepend_str(col2, cat2 + DELIM)
@@ -619,29 +550,5 @@ def _create_direct_edges(
     return edges
 
 
-def _str_scalar_to_category(size, val):
-    return cudf.core.column.CategoricalColumn(
-        data=None,
-        size=size,
-        dtype=cudf.CategoricalDtype(
-            categories=cudf.core.column.as_column([val], dtype=_str_dtype),
-            ordered=False,
-        ),
-        mask=None,
-        offset=0,
-        null_count=0,
-        children=(
-            cudf.core.column.as_column(0, length=size, dtype=np.dtype(np.int32)),
-        ),
-    )
-
-
 def _prepend_str(col, val):
     return val + col.astype(str).fillna("null")
-
-
-# Make an empty categorical string dtype
-def _empty_cat_dt():
-    return cudf.CategoricalDtype(
-        categories=np.array([], dtype=_str_dtype), ordered=False
-    )
