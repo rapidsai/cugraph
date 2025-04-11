@@ -22,4 +22,4 @@ EOF
 export PIP_CONSTRAINT="${PWD}/constraints.txt"
 
 ./ci/build_wheel.sh cugraph ${package_dir} python
-./ci/validate_wheel.sh ${package_dir} final_dist
+./ci/validate_wheel.sh ${package_dir} "${RAPIDS_WHEEL_BLD_OUTPUT_DIR}"

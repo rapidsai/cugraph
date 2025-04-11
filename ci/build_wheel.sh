@@ -56,6 +56,6 @@ if [[ "${package_dir}" != "python/libcugraph" ]]; then
     )
 fi
 
-mkdir -p final_dist
-python -m auditwheel repair -w final_dist "${EXCLUDE_ARGS[@]}" dist/*
-RAPIDS_PY_WHEEL_NAME="${package_name}_${RAPIDS_PY_CUDA_SUFFIX}" rapids-upload-wheels-to-s3 "${package_type}" final_dist
+# repair wheels and write to the location that artifact-uploading code expects to find them
+python -m auditwheel repair -w "${RAPIDS_WHEEL_BLD_OUTPUT_DIR}" "${EXCLUDE_ARGS[@]}" dist/*
+RAPIDS_PY_WHEEL_NAME="${package_name}_${RAPIDS_PY_CUDA_SUFFIX}" rapids-upload-wheels-to-s3 "${package_type}" "${RAPIDS_WHEEL_BLD_OUTPUT_DIR}"
