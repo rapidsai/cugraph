@@ -21,6 +21,7 @@
 
 #include <thrust/binary_search.h>
 #include <thrust/count.h>
+#include <thrust/equal.h>
 #include <thrust/execution_policy.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/sort.h>
