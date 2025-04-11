@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2024, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2019-2025, NVIDIA CORPORATION.  All rights reserved.
  *
  * NVIDIA CORPORATION and its licensors retain all intellectual property
  * and proprietary rights in and to this software, related documentation
@@ -22,8 +22,8 @@
 
 #include <rmm/device_vector.hpp>
 
+#include <cuda/std/iterator>
 #include <thrust/device_vector.h>
-#include <thrust/distance.h>
 #include <thrust/iterator/constant_iterator.h>
 #include <thrust/iterator/discard_iterator.h>
 #include <thrust/reduce.h>
@@ -83,7 +83,7 @@ size_t get_component_sizes(const IndexT* p_d_labels,
                                        thrust::make_discard_iterator(),  // ignore...
                                        d_num_vs_per_component.begin());
 
-  size_t counts = thrust::distance(d_num_vs_per_component.begin(), pair_it.second);
+  size_t counts = cuda::std::distance(d_num_vs_per_component.begin(), pair_it.second);
 
   d_num_vs_per_component.resize(counts);
   return counts;

@@ -31,11 +31,11 @@
 
 #include <raft/util/integer_utils.hpp>
 
+#include <cuda/std/iterator>
 #include <cuda/std/optional>
 #include <cuda/std/utility>
 #include <thrust/copy.h>
 #include <thrust/count.h>
-#include <thrust/distance.h>
 #include <thrust/execution_policy.h>
 #include <thrust/iterator/transform_iterator.h>
 #include <thrust/sort.h>
@@ -62,7 +62,7 @@ struct extract_triangles_endpoints {
   {
     auto itr = thrust::upper_bound(
       thrust::seq, intersection_offsets.begin() + 1, intersection_offsets.end(), i);
-    auto idx = thrust::distance(intersection_offsets.begin() + 1, itr);
+    auto idx = cuda::std::distance(intersection_offsets.begin() + 1, itr);
 
     auto endpoints = thrust::make_tuple(weak_srcs[chunk_start + idx],  // p
                                         weak_dsts[chunk_start + idx],  // q
@@ -117,7 +117,7 @@ struct extract_low_to_high_degree_edges_from_endpoints_e_op_t {
                                    thrust::make_zip_iterator(srcs.end(), dsts.end()),
                                    thrust::make_tuple(src, dst));
 
-    auto idx = thrust::distance(thrust::make_zip_iterator(srcs.begin(), dsts.begin()), itr);
+    auto idx = cuda::std::distance(thrust::make_zip_iterator(srcs.begin(), dsts.begin()), itr);
 
     if (src_out_degree < dst_out_degree) {
       return thrust::make_tuple(src, dst, count[idx]);
@@ -367,9 +367,10 @@ k_truss(raft::handle_t const& handle,
                                                 get_dataframe_buffer_begin(triangles_endpoints),
                                                 get_dataframe_buffer_end(triangles_endpoints));
 
-      auto num_unique_triangles = thrust::distance(  // Triangles are represented by their endpoints
-        get_dataframe_buffer_begin(triangles_endpoints),
-        unique_triangle_end);
+      auto num_unique_triangles =
+        cuda::std::distance(  // Triangles are represented by their endpoints
+          get_dataframe_buffer_begin(triangles_endpoints),
+          unique_triangle_end);
 
       resize_dataframe_buffer(triangles_endpoints, num_unique_triangles, handle.get_stream());
 
@@ -420,7 +421,7 @@ k_truss(raft::handle_t const& handle,
                                              get_dataframe_buffer_end(triangles_endpoints));
 
         num_unique_triangles =
-          thrust::distance(get_dataframe_buffer_begin(triangles_endpoints), unique_triangle_end);
+          cuda::std::distance(get_dataframe_buffer_begin(triangles_endpoints), unique_triangle_end);
         resize_dataframe_buffer(triangles_endpoints, num_unique_triangles, handle.get_stream());
       }
 
@@ -606,7 +607,7 @@ k_truss(raft::handle_t const& handle,
                                                                      edge_t count) {
           auto itr_pair = thrust::lower_bound(
             thrust::seq, edge_buffer_first, edge_buffer_last, thrust::make_tuple(src, dst));
-          auto idx_pair = thrust::distance(edge_buffer_first, itr_pair);
+          auto idx_pair = cuda::std::distance(edge_buffer_first, itr_pair);
           count -= decrease_count[idx_pair];
 
           return count;

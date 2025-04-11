@@ -36,11 +36,11 @@
 #include <rmm/device_uvector.hpp>
 #include <rmm/mr/device/polymorphic_allocator.hpp>
 
+#include <cuda/std/iterator>
 #include <cuda/std/optional>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
 #include <thrust/count.h>
-#include <thrust/distance.h>
 #include <thrust/execution_policy.h>
 #include <thrust/fill.h>
 #include <thrust/for_each.h>
@@ -122,7 +122,8 @@ struct update_rx_major_local_degree_t {
   {
     auto it = thrust::upper_bound(
       thrust::seq, rx_reordered_group_lasts.begin(), rx_reordered_group_lasts.end(), idx);
-    auto major_comm_rank = static_cast<int>(thrust::distance(rx_reordered_group_lasts.begin(), it));
+    auto major_comm_rank =
+      static_cast<int>(cuda::std::distance(rx_reordered_group_lasts.begin(), it));
     auto offset_in_local_edge_partition =
       idx - (major_comm_rank == int{0} ? reordered_idx_first
                                        : rx_reordered_group_lasts[major_comm_rank - int{1}]);
@@ -174,7 +175,8 @@ struct update_rx_major_local_nbrs_t {
 
     auto it = thrust::upper_bound(
       thrust::seq, rx_reordered_group_lasts.begin(), rx_reordered_group_lasts.end(), idx);
-    auto major_comm_rank = static_cast<int>(thrust::distance(rx_reordered_group_lasts.begin(), it));
+    auto major_comm_rank =
+      static_cast<int>(cuda::std::distance(rx_reordered_group_lasts.begin(), it));
     auto offset_in_local_edge_partition =
       idx - (major_comm_rank == int{0} ? reordered_idx_first
                                        : rx_reordered_group_lasts[major_comm_rank - int{1}]);
@@ -659,7 +661,7 @@ struct gatherv_indices_t {
 // pair if intersect_dst_nbr[0] == GraphViewType::is_storage_transposed and build neighbor lists for
 // the second element of every input vertex pair if single-GPU and intersect_dst_nbr[1] ==
 // GraphViewType::is_storage_transposed or multi-GPU. For load balancing,
-// thrust::distance(vertex_pair_first, vertex_pair_last) should be comparable across the global
+// cuda::std::distance(vertex_pair_first, vertex_pair_last) should be comparable across the global
 // communicator. If we need to build the neighbor lists, grouping based on applying "vertex ID %
 // number of groups"  is recommended for load-balancing.
 template <typename GraphViewType, typename VertexPairIterator, typename EdgeValueInputIterator>
@@ -708,7 +710,7 @@ nbr_intersection(raft::handle_t const& handle,
   static_assert(std::is_same_v<typename thrust::iterator_traits<VertexPairIterator>::value_type,
                                thrust::tuple<vertex_t, vertex_t>>);
 
-  size_t input_size = static_cast<size_t>(thrust::distance(vertex_pair_first, vertex_pair_last));
+  size_t input_size = static_cast<size_t>(cuda::std::distance(vertex_pair_first, vertex_pair_last));
 
   std::array<bool, 2> intersect_minor_nbr = {
     intersect_dst_nbr[0] != GraphViewType::is_storage_transposed,
@@ -772,7 +774,7 @@ nbr_intersection(raft::handle_t const& handle,
 
         thrust::sort(handle.get_thrust_policy(), unique_majors.begin(), unique_majors.end());
         unique_majors.resize(
-          thrust::distance(
+          cuda::std::distance(
             unique_majors.begin(),
             thrust::unique(handle.get_thrust_policy(), unique_majors.begin(), unique_majors.end())),
           handle.get_stream());
@@ -800,10 +802,10 @@ nbr_intersection(raft::handle_t const& handle,
           unique_majors = std::move(rx_unique_majors);
 
           thrust::sort(handle.get_thrust_policy(), unique_majors.begin(), unique_majors.end());
-          unique_majors.resize(thrust::distance(unique_majors.begin(),
-                                                thrust::unique(handle.get_thrust_policy(),
-                                                               unique_majors.begin(),
-                                                               unique_majors.end())),
+          unique_majors.resize(cuda::std::distance(unique_majors.begin(),
+                                                   thrust::unique(handle.get_thrust_policy(),
+                                                                  unique_majors.begin(),
+                                                                  unique_majors.end())),
                                handle.get_stream());
 
           unique_majors.shrink_to_fit(handle.get_stream());
@@ -1325,11 +1327,11 @@ nbr_intersection(raft::handle_t const& handle,
 
         if constexpr (std::is_same_v<edge_property_value_t, cuda::std::nullopt_t>) {
           rx_v_pair_nbr_intersection_indices.resize(
-            thrust::distance(rx_v_pair_nbr_intersection_indices.begin(),
-                             thrust::remove(handle.get_thrust_policy(),
-                                            rx_v_pair_nbr_intersection_indices.begin(),
-                                            rx_v_pair_nbr_intersection_indices.end(),
-                                            invalid_vertex_id<vertex_t>::value)),
+            cuda::std::distance(rx_v_pair_nbr_intersection_indices.begin(),
+                                thrust::remove(handle.get_thrust_policy(),
+                                               rx_v_pair_nbr_intersection_indices.begin(),
+                                               rx_v_pair_nbr_intersection_indices.end(),
+                                               invalid_vertex_id<vertex_t>::value)),
             handle.get_stream());
           rx_v_pair_nbr_intersection_indices.shrink_to_fit(handle.get_stream());
         } else {
@@ -1347,7 +1349,7 @@ nbr_intersection(raft::handle_t const& handle,
             });
 
           rx_v_pair_nbr_intersection_indices.resize(
-            thrust::distance(common_nbr_and_e_property_values_begin, last), handle.get_stream());
+            cuda::std::distance(common_nbr_and_e_property_values_begin, last), handle.get_stream());
 
           rx_v_pair_nbr_intersection_indices.shrink_to_fit(handle.get_stream());
 
@@ -1793,10 +1795,10 @@ nbr_intersection(raft::handle_t const& handle,
     while (num_scanned < nbr_intersection_indices.size()) {
       size_t this_scan_size = std::min(
         size_t{1} << 27,
-        static_cast<size_t>(thrust::distance(nbr_intersection_indices.begin() + num_scanned,
-                                             nbr_intersection_indices.end())));
+        static_cast<size_t>(cuda::std::distance(nbr_intersection_indices.begin() + num_scanned,
+                                                nbr_intersection_indices.end())));
       if constexpr (std::is_same_v<edge_property_value_t, cuda::std::nullopt_t>) {
-        num_copied += static_cast<size_t>(thrust::distance(
+        num_copied += static_cast<size_t>(cuda::std::distance(
           tmp_indices.begin() + num_copied,
           thrust::copy_if(handle.get_thrust_policy(),
                           nbr_intersection_indices.begin() + num_scanned,
@@ -1812,7 +1814,7 @@ nbr_intersection(raft::handle_t const& handle,
         auto zipped_itr_to_tmps_begin = thrust::make_zip_iterator(thrust::make_tuple(
           tmp_indices.begin(), tmp_property_values0.begin(), tmp_property_values1.begin()));
 
-        num_copied += static_cast<size_t>(thrust::distance(
+        num_copied += static_cast<size_t>(cuda::std::distance(
           zipped_itr_to_tmps_begin + num_copied,
           thrust::copy_if(
             handle.get_thrust_policy(),
@@ -1836,23 +1838,23 @@ nbr_intersection(raft::handle_t const& handle,
 #else
     if constexpr (std::is_same_v<edge_property_value_t, cuda::std::nullopt_t>) {
       nbr_intersection_indices.resize(
-        thrust::distance(nbr_intersection_indices.begin(),
-                         thrust::remove(handle.get_thrust_policy(),
-                                        nbr_intersection_indices.begin(),
-                                        nbr_intersection_indices.end(),
-                                        invalid_vertex_id<vertex_t>::value)),
+        cuda::std::distance(nbr_intersection_indices.begin(),
+                            thrust::remove(handle.get_thrust_policy(),
+                                           nbr_intersection_indices.begin(),
+                                           nbr_intersection_indices.end(),
+                                           invalid_vertex_id<vertex_t>::value)),
         handle.get_stream());
     } else {
       nbr_intersection_indices.resize(
-        thrust::distance(zipped_itr_to_indices_and_e_property_values_begin,
-                         thrust::remove_if(handle.get_thrust_policy(),
-                                           zipped_itr_to_indices_and_e_property_values_begin,
-                                           zipped_itr_to_indices_and_e_property_values_begin +
-                                             nbr_intersection_indices.size(),
-                                           [] __device__(auto nbr_p0_p1) {
-                                             return thrust::get<0>(nbr_p0_p1) ==
-                                                    invalid_vertex_id<vertex_t>::value;
-                                           })),
+        cuda::std::distance(zipped_itr_to_indices_and_e_property_values_begin,
+                            thrust::remove_if(handle.get_thrust_policy(),
+                                              zipped_itr_to_indices_and_e_property_values_begin,
+                                              zipped_itr_to_indices_and_e_property_values_begin +
+                                                nbr_intersection_indices.size(),
+                                              [] __device__(auto nbr_p0_p1) {
+                                                return thrust::get<0>(nbr_p0_p1) ==
+                                                       invalid_vertex_id<vertex_t>::value;
+                                              })),
         handle.get_stream());
 
       nbr_intersection_e_property_values0.resize(nbr_intersection_indices.size(),

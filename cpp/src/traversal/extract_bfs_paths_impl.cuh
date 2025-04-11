@@ -31,9 +31,9 @@
 #include <rmm/exec_policy.hpp>
 
 #include <cuda/std/functional>
+#include <cuda/std/iterator>
 #include <thrust/binary_search.h>
 #include <thrust/count.h>
-#include <thrust/distance.h>
 #include <thrust/extrema.h>
 #include <thrust/fill.h>
 #include <thrust/for_each.h>
@@ -129,7 +129,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<size_t>> shrink_ex
     begin_iter + vertex_list.size(),
     [invalid_vertex] __device__(auto p) { return thrust::get<0>(p) == invalid_vertex; });
 
-  size_t new_size = thrust::distance(begin_iter, end_iter);
+  size_t new_size = cuda::std::distance(begin_iter, end_iter);
   vertex_list.resize(new_size, handle.get_stream());
   path_offset.resize(new_size, handle.get_stream());
 

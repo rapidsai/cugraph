@@ -34,6 +34,7 @@
 #include <cub/cub.cuh>
 #include <cuda/atomic>
 #include <cuda/functional>
+#include <cuda/std/iterator>
 #include <cuda/std/optional>
 #include <thrust/copy.h>
 #include <thrust/count.h>
@@ -169,7 +170,7 @@ struct count_valids_t {
   {
     auto first = sample_local_nbr_indices.begin() + i * K;
     return static_cast<int32_t>(
-      thrust::distance(first, thrust::find(thrust::seq, first, first + K, invalid_idx)));
+      cuda::std::distance(first, thrust::find(thrust::seq, first, first + K, invalid_idx)));
   }
 };
 
@@ -636,7 +637,7 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
       sample_local_nbr_indices.shrink_to_fit(handle.get_stream());
 
       resize_dataframe_buffer(
-        sample_e_op_results, thrust::distance(pair_first, pair_last), handle.get_stream());
+        sample_e_op_results, cuda::std::distance(pair_first, pair_last), handle.get_stream());
       shrink_to_fit_dataframe_buffer(sample_e_op_results, handle.get_stream());
     }
   }

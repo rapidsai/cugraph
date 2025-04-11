@@ -19,6 +19,7 @@
 
 #include <rmm/device_uvector.hpp>
 
+#include <cuda/std/iterator>
 #include <thrust/binary_search.h>
 #include <thrust/remove.h>
 #include <thrust/tuple.h>
@@ -56,8 +57,8 @@ remove_visited_vertices_from_frontier(
                                      tuple);
       });
 
-    frontier_vertices.resize(thrust::distance(begin_iter, new_end), handle.get_stream());
-    frontier_vertex_labels->resize(thrust::distance(begin_iter, new_end), handle.get_stream());
+    frontier_vertices.resize(cuda::std::distance(begin_iter, new_end), handle.get_stream());
+    frontier_vertex_labels->resize(cuda::std::distance(begin_iter, new_end), handle.get_stream());
   } else {
     auto new_end = thrust::copy_if(
       handle.get_thrust_policy(),
@@ -66,7 +67,7 @@ remove_visited_vertices_from_frontier(
       frontier_vertices.begin(),
       [a_begin = vertices_used_as_source.begin(), a_end = vertices_used_as_source.end()] __device__(
         vertex_t v) { return !thrust::binary_search(thrust::seq, a_begin, a_end, v); });
-    frontier_vertices.resize(thrust::distance(frontier_vertices.begin(), new_end),
+    frontier_vertices.resize(cuda::std::distance(frontier_vertices.begin(), new_end),
                              handle.get_stream());
   }
 

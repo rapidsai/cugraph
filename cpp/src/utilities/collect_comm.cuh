@@ -30,10 +30,10 @@
 #include <rmm/mr/device/per_device_resource.hpp>
 #include <rmm/mr/device/polymorphic_allocator.hpp>
 
+#include <cuda/std/iterator>
 #include <thrust/adjacent_difference.h>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
-#include <thrust/distance.h>
 #include <thrust/execution_policy.h>
 #include <thrust/find.h>
 #include <thrust/functional.h>
@@ -66,13 +66,13 @@ dataframe_buffer_type_t<typename KVStoreViewType::value_type> collect_values_for
 
   // 1. collect values for the unique keys in [collect_key_first, collect_key_last)
 
-  rmm::device_uvector<key_t> unique_keys(thrust::distance(collect_key_first, collect_key_last),
+  rmm::device_uvector<key_t> unique_keys(cuda::std::distance(collect_key_first, collect_key_last),
                                          stream_view);
   thrust::copy(
     rmm::exec_policy_nosync(stream_view), collect_key_first, collect_key_last, unique_keys.begin());
   thrust::sort(rmm::exec_policy_nosync(stream_view), unique_keys.begin(), unique_keys.end());
   unique_keys.resize(
-    thrust::distance(
+    cuda::std::distance(
       unique_keys.begin(),
       thrust::unique(rmm::exec_policy(stream_view), unique_keys.begin(), unique_keys.end())),
     stream_view);
@@ -126,7 +126,8 @@ dataframe_buffer_type_t<typename KVStoreViewType::value_type> collect_values_for
                           return thrust::get<1>(pair) == invalid_value;
                         });  // remove (k,v) pairs with unmatched keys (it is invalid to insert a
                              // (k,v) pair with v = empty_key_sentinel)
-    auto num_valid_pairs = static_cast<size_t>(thrust::distance(kv_pair_first, valid_kv_pair_last));
+    auto num_valid_pairs =
+      static_cast<size_t>(cuda::std::distance(kv_pair_first, valid_kv_pair_last));
     unique_key_value_store =
       kv_store_t<key_t, value_t, false>(unique_keys.begin(),
                                         unique_keys.begin() + num_valid_pairs,
@@ -145,7 +146,7 @@ dataframe_buffer_type_t<typename KVStoreViewType::value_type> collect_values_for
   // 3. find values for [collect_key_first, collect_key_last)
 
   auto value_buffer = allocate_dataframe_buffer<value_t>(
-    thrust::distance(collect_key_first, collect_key_last), stream_view);
+    cuda::std::distance(collect_key_first, collect_key_last), stream_view);
   unique_key_value_store_view.find(
     collect_key_first, collect_key_last, get_dataframe_buffer_begin(value_buffer), stream_view);
 
@@ -276,7 +277,7 @@ collect_values_for_int_vertices(
   using vertex_t = typename thrust::iterator_traits<VertexIterator>::value_type;
   using value_t  = typename thrust::iterator_traits<ValueIterator>::value_type;
 
-  size_t input_size = thrust::distance(collect_vertex_first, collect_vertex_last);
+  size_t input_size = cuda::std::distance(collect_vertex_first, collect_vertex_last);
 
   rmm::device_uvector<vertex_t> sorted_unique_int_vertices(input_size, stream_view);
 
@@ -288,7 +289,7 @@ collect_values_for_int_vertices(
   auto last = thrust::unique(rmm::exec_policy(stream_view),
                              sorted_unique_int_vertices.begin(),
                              sorted_unique_int_vertices.end());
-  sorted_unique_int_vertices.resize(thrust::distance(sorted_unique_int_vertices.begin(), last),
+  sorted_unique_int_vertices.resize(cuda::std::distance(sorted_unique_int_vertices.begin(), last),
                                     stream_view);
 
   auto tmp_value_buffer = collect_values_for_sorted_unique_int_vertices(

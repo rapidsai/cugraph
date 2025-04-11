@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,9 +25,9 @@
 #include <rmm/device_uvector.hpp>
 #include <rmm/mr/device/polymorphic_allocator.hpp>
 
+#include <cuda/std/iterator>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
-#include <thrust/distance.h>
 #include <thrust/functional.h>
 #include <thrust/gather.h>
 #include <thrust/iterator/counting_iterator.h>
@@ -70,7 +70,7 @@ struct kv_binary_search_find_op_t {
   {
     auto it = thrust::lower_bound(thrust::seq, store_key_first, store_key_last, key);
     if (it != store_key_last && *it == key) {
-      return *(store_value_first + thrust::distance(store_key_first, it));
+      return *(store_value_first + cuda::std::distance(store_key_first, it));
     } else {
       return invalid_value;
     }
@@ -176,7 +176,7 @@ struct kv_binary_search_store_device_view_t {
   {
     auto it = thrust::lower_bound(thrust::seq, store_key_first, store_key_last, key);
     if (it != store_key_last && *it == key) {
-      return *(store_value_first + thrust::distance(store_key_first, it));
+      return *(store_value_first + cuda::std::distance(store_key_first, it));
     } else {
       return invalid_value;
     }
@@ -342,7 +342,7 @@ class kv_cuco_store_view_t {
     if constexpr (std::is_arithmetic_v<value_type>) {
       cuco_store_->find(key_first, key_last, value_first, stream.value());
     } else {
-      rmm::device_uvector<size_t> indices(thrust::distance(key_first, key_last), stream);
+      rmm::device_uvector<size_t> indices(cuda::std::distance(key_first, key_last), stream);
       auto invalid_idx = cuco_store_->empty_value_sentinel();
       cuco_store_->find(key_first, key_last, indices.begin(), stream.value());
       thrust::transform(rmm::exec_policy(stream),
@@ -412,13 +412,13 @@ class kv_binary_search_store_t {
                        is necessary for binary-search) */
     ,
     rmm::cuda_stream_view stream)
-    : store_keys_(static_cast<size_t>(thrust::distance(key_first, key_last)), stream),
+    : store_keys_(static_cast<size_t>(cuda::std::distance(key_first, key_last)), stream),
       store_values_(allocate_dataframe_buffer<value_t>(
-        static_cast<size_t>(thrust::distance(key_first, key_last)), stream)),
+        static_cast<size_t>(cuda::std::distance(key_first, key_last)), stream)),
       invalid_value_(invalid_value)
   {
     thrust::copy(rmm::exec_policy(stream), key_first, key_last, store_keys_.begin());
-    auto num_keys = static_cast<size_t>(thrust::distance(key_first, key_last));
+    auto num_keys = static_cast<size_t>(cuda::std::distance(key_first, key_last));
     thrust::copy(rmm::exec_policy(stream),
                  value_first,
                  value_first + num_keys,
@@ -546,7 +546,7 @@ class kv_cuco_store_t {
     static_assert(
       std::is_same_v<typename thrust::iterator_traits<ValueIterator>::value_type, value_t>);
 
-    auto num_keys = static_cast<size_t>(thrust::distance(key_first, key_last));
+    auto num_keys = static_cast<size_t>(cuda::std::distance(key_first, key_last));
     allocate(num_keys, invalid_key, invalid_value, stream);
     if constexpr (!std::is_arithmetic_v<value_t>) { invalid_value_ = invalid_value; }
     capacity_ = num_keys;
@@ -565,7 +565,7 @@ class kv_cuco_store_t {
     static_assert(
       std::is_same_v<typename thrust::iterator_traits<ValueIterator>::value_type, value_t>);
 
-    auto num_keys = static_cast<size_t>(thrust::distance(key_first, key_last));
+    auto num_keys = static_cast<size_t>(cuda::std::distance(key_first, key_last));
     if (num_keys == 0) return;
 
     if constexpr (std::is_arithmetic_v<value_t>) {
@@ -609,7 +609,7 @@ class kv_cuco_store_t {
     static_assert(
       std::is_same_v<typename thrust::iterator_traits<ValueIterator>::value_type, value_t>);
 
-    auto num_keys = static_cast<size_t>(thrust::distance(key_first, key_last));
+    auto num_keys = static_cast<size_t>(cuda::std::distance(key_first, key_last));
     if (num_keys == 0) return;
 
     if constexpr (std::is_arithmetic_v<value_t>) {
@@ -659,7 +659,7 @@ class kv_cuco_store_t {
     static_assert(
       std::is_same_v<typename thrust::iterator_traits<ValueIterator>::value_type, value_t>);
 
-    auto num_keys = static_cast<size_t>(thrust::distance(key_first, key_last));
+    auto num_keys = static_cast<size_t>(cuda::std::distance(key_first, key_last));
     if (num_keys == 0) return;
 
     if constexpr (std::is_arithmetic_v<value_t>) {
@@ -706,7 +706,7 @@ class kv_cuco_store_t {
       auto pair_first = thrust::make_zip_iterator(
         thrust::make_tuple(store_value_offsets.begin(), kv_indices.begin()));
       kv_indices.resize(
-        thrust::distance(
+        cuda::std::distance(
           pair_first,
           thrust::remove_if(rmm::exec_policy(stream),
                             pair_first,
@@ -723,15 +723,15 @@ class kv_cuco_store_t {
                    [key_first] __device__(auto lhs, auto rhs) {
                      return *(key_first + lhs) < *(key_first + rhs);
                    });
-      kv_indices.resize(thrust::distance(kv_indices.begin(),
-                                         thrust::unique(rmm::exec_policy(stream),
-                                                        kv_indices.begin(),
-                                                        kv_indices.end(),
-                                                        [key_first] __device__(auto lhs, auto rhs) {
-                                                          return *(key_first + lhs) ==
-                                                                 *(key_first + rhs);
-                                                        })),
-                        stream);
+      kv_indices.resize(
+        cuda::std::distance(kv_indices.begin(),
+                            thrust::unique(rmm::exec_policy(stream),
+                                           kv_indices.begin(),
+                                           kv_indices.end(),
+                                           [key_first] __device__(auto lhs, auto rhs) {
+                                             return *(key_first + lhs) == *(key_first + rhs);
+                                           })),
+        stream);
 
       thrust::for_each(
         rmm::exec_policy(stream),
@@ -758,13 +758,13 @@ class kv_cuco_store_t {
       values.resize(size_, stream);
       auto pair_last = cuco_store_->retrieve_all(keys.begin(), values.begin(), stream.value());
       // FIXME: this resize (& shrink_to_fit) shouldn't be necessary if size_ is exact
-      keys.resize(thrust::distance(keys.begin(), std::get<0>(pair_last)), stream);
+      keys.resize(cuda::std::distance(keys.begin(), std::get<0>(pair_last)), stream);
       values.resize(keys.size(), stream);
     } else {
       rmm::device_uvector<size_t> indices(size_, stream);
       auto pair_last = cuco_store_->retrieve_all(keys.begin(), indices.begin(), stream.value());
       // FIXME: this resize (& shrink_to_fit) shouldn't be necessary if size_ is exact
-      keys.resize(thrust::distance(keys.begin(), std::get<0>(pair_last)), stream);
+      keys.resize(cuda::std::distance(keys.begin(), std::get<0>(pair_last)), stream);
       indices.resize(keys.size(), stream);
       resize_dataframe_buffer(values, keys.size(), stream);
       thrust::gather(rmm::exec_policy(stream),
@@ -889,8 +889,8 @@ class kv_store_t {
     ,
     key_t invalid_key /* invalid key shouldn't appear in any *iter in [key_first, key_last) */,
     value_t invalid_value /* invalid_value shouldn't appear in any *iter in [value_first,
-                             value_first + thrust::distance(key_first, key_last)), invalid_value is
-                             returned when match fails for the given key */
+                             value_first + cuda::std::distance(key_first, key_last)), invalid_value
+                             is returned when match fails for the given key */
     ,
     rmm::cuda_stream_view stream,
     std::enable_if_t<!binary_search, int32_t> = 0)
@@ -922,8 +922,8 @@ class kv_store_t {
     ValueIterator value_first,
     key_t invalid_key /* invalid key shouldn't appear in any *iter in [key_first, key_last) */,
     value_t invalid_value /* invalid_value shouldn't appear in any *iter in [value_first,
-                             value_first + thrust::distance(key_first, key_last)), invalid_value is
-                             returned when match fails for the given key */
+                             value_first + cuda::std::distance(key_first, key_last)), invalid_value
+                             is returned when match fails for the given key */
     ,
     rmm::cuda_stream_view stream,
     std::enable_if_t<!binary_search, int32_t> = 0)

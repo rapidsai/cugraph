@@ -29,11 +29,11 @@
 #include <rmm/device_uvector.hpp>
 
 #include <cuda/functional>
+#include <cuda/std/iterator>
 #include <cuda/std/optional>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
 #include <thrust/count.h>
-#include <thrust/distance.h>
 #include <thrust/fill.h>
 #include <thrust/find.h>
 #include <thrust/for_each.h>
@@ -517,8 +517,10 @@ struct random_walker_t {
 
     handle_.sync_stream();
 
-    d_coalesced_v.resize(thrust::distance(d_coalesced_v.begin(), new_end_v), handle_.get_stream());
-    d_coalesced_w.resize(thrust::distance(d_coalesced_w.begin(), new_end_w), handle_.get_stream());
+    d_coalesced_v.resize(cuda::std::distance(d_coalesced_v.begin(), new_end_v),
+                         handle_.get_stream());
+    d_coalesced_w.resize(cuda::std::distance(d_coalesced_w.begin(), new_end_w),
+                         handle_.get_stream());
   }
 
   // in-place non-static (needs handle_):
@@ -878,7 +880,7 @@ struct coo_convertor_t {
 
     // resize to new_end:
     //
-    d_sz_w_scan.resize(thrust::distance(d_sz_w_scan.begin(), new_end_it), handle_.get_stream());
+    d_sz_w_scan.resize(cuda::std::distance(d_sz_w_scan.begin(), new_end_it), handle_.get_stream());
 
     // get paths' edge number exclusive scan
     // by transforming paths' vertex numbers that

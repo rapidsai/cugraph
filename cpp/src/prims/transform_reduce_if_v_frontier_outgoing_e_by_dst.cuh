@@ -43,11 +43,11 @@
 #include <rmm/exec_policy.hpp>
 
 #include <cub/cub.cuh>
+#include <cuda/std/iterator>
 #include <cuda/std/optional>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
 #include <thrust/count.h>
-#include <thrust/distance.h>
 #include <thrust/execution_policy.h>
 #include <thrust/functional.h>
 #include <thrust/iterator/constant_iterator.h>
@@ -175,9 +175,9 @@ filter_buffer_elements(
      subgroup_size,
      major_comm_rank,
      major_comm_size] __device__(auto v) {
-      auto root =
-        thrust::distance(offsets.begin() + 1,
-                         thrust::upper_bound(thrust::seq, offsets.begin() + 1, offsets.end(), v));
+      auto root = cuda::std::distance(
+        offsets.begin() + 1,
+        thrust::upper_bound(thrust::seq, offsets.begin() + 1, offsets.end(), v));
       auto v_offset = v - offsets[root];
       if (v_offset < allreduce_count_per_rank) {
         priorities[allreduce_count_per_rank * root + v_offset] =
@@ -193,7 +193,7 @@ filter_buffer_elements(
                    handle.get_stream());
   if constexpr (std::is_same_v<payload_t, void>) {
     unique_v_buffer.resize(
-      thrust::distance(
+      cuda::std::distance(
         unique_v_buffer.begin(),
         thrust::remove_if(
           handle.get_thrust_policy(),
@@ -206,7 +206,7 @@ filter_buffer_elements(
            subgroup_size,
            major_comm_rank,
            major_comm_size] __device__(auto v) {
-            auto root = thrust::distance(
+            auto root = cuda::std::distance(
               offsets.begin() + 1,
               thrust::upper_bound(thrust::seq, offsets.begin() + 1, offsets.end(), v));
             auto v_offset = v - offsets[root];
@@ -227,7 +227,7 @@ filter_buffer_elements(
     auto kv_pair_first = thrust::make_zip_iterator(unique_v_buffer.begin(),
                                                    get_dataframe_buffer_begin(payload_buffer));
     unique_v_buffer.resize(
-      thrust::distance(
+      cuda::std::distance(
         kv_pair_first,
         thrust::remove_if(
           handle.get_thrust_policy(),
@@ -240,7 +240,7 @@ filter_buffer_elements(
            subgroup_size,
            major_comm_rank,
            major_comm_size] __device__(auto v) {
-            auto root = thrust::distance(
+            auto root = cuda::std::distance(
               offsets.begin() + 1,
               thrust::upper_bound(thrust::seq, offsets.begin() + 1, offsets.end(), v));
             auto v_offset = v - offsets[root];
@@ -322,12 +322,12 @@ sort_and_reduce_buffer_elements(
       if constexpr (std::is_same_v<payload_t, void>) {
         resize_dataframe_buffer(
           key_buffer,
-          thrust::distance(get_dataframe_buffer_begin(key_buffer),
-                           thrust::remove_if(handle.get_thrust_policy(),
-                                             get_dataframe_buffer_begin(key_buffer),
-                                             get_dataframe_buffer_end(key_buffer),
-                                             stencil_first,
-                                             is_not_equal_t<bool>{true})),
+          cuda::std::distance(get_dataframe_buffer_begin(key_buffer),
+                              thrust::remove_if(handle.get_thrust_policy(),
+                                                get_dataframe_buffer_begin(key_buffer),
+                                                get_dataframe_buffer_end(key_buffer),
+                                                stencil_first,
+                                                is_not_equal_t<bool>{true})),
           handle.get_stream());
         shrink_to_fit_dataframe_buffer(key_buffer, handle.get_stream());
         thrust::sort(handle.get_thrust_policy(),
@@ -339,12 +339,12 @@ sort_and_reduce_buffer_elements(
                                                     get_dataframe_buffer_begin(payload_buffer));
         resize_dataframe_buffer(
           key_buffer,
-          thrust::distance(pair_first,
-                           thrust::remove_if(handle.get_thrust_policy(),
-                                             pair_first,
-                                             pair_first + size_dataframe_buffer(key_buffer),
-                                             stencil_first,
-                                             is_not_equal_t<bool>{true})),
+          cuda::std::distance(pair_first,
+                              thrust::remove_if(handle.get_thrust_policy(),
+                                                pair_first,
+                                                pair_first + size_dataframe_buffer(key_buffer),
+                                                stencil_first,
+                                                is_not_equal_t<bool>{true})),
           handle.get_stream());
         resize_dataframe_buffer(
           payload_buffer, size_dataframe_buffer(key_buffer), handle.get_stream());
@@ -397,7 +397,7 @@ sort_and_reduce_buffer_elements(
           }));
       resize_dataframe_buffer(
         output_key_buffer,
-        thrust::distance(
+        cuda::std::distance(
           get_dataframe_buffer_begin(output_key_buffer),
           thrust::copy_if(handle.get_thrust_policy(),
                           input_key_first,
@@ -420,7 +420,7 @@ sort_and_reduce_buffer_elements(
     } else {
       resize_dataframe_buffer(
         key_buffer,
-        thrust::distance(
+        cuda::std::distance(
           get_dataframe_buffer_begin(key_buffer),
           thrust::remove_if(handle.get_thrust_policy(),
                             get_dataframe_buffer_begin(key_buffer),
@@ -461,7 +461,7 @@ sort_and_reduce_buffer_elements(
                                   get_dataframe_buffer_begin(tmp_payload_buffer));
       resize_dataframe_buffer(
         output_key_buffer,
-        thrust::distance(
+        cuda::std::distance(
           output_pair_first,
           thrust::copy_if(handle.get_thrust_policy(),
                           input_pair_first,
@@ -489,7 +489,7 @@ sort_and_reduce_buffer_elements(
                                                   get_dataframe_buffer_begin(payload_buffer));
       resize_dataframe_buffer(
         key_buffer,
-        thrust::distance(
+        cuda::std::distance(
           pair_first,
           thrust::remove_if(handle.get_thrust_policy(),
                             pair_first,
@@ -520,15 +520,15 @@ sort_and_reduce_buffer_elements(
                                                   get_dataframe_buffer_begin(payload_buffer));
       resize_dataframe_buffer(
         key_buffer,
-        thrust::distance(pair_first,
-                         thrust::remove_if(handle.get_thrust_policy(),
-                                           pair_first,
-                                           pair_first + size_dataframe_buffer(key_buffer),
-                                           cuda::proclaim_return_type<bool>(
-                                             [invalid_key = *invalid_key] __device__(auto kv) {
-                                               auto key = thrust::get<0>(kv);
-                                               return key == invalid_key;
-                                             }))),
+        cuda::std::distance(pair_first,
+                            thrust::remove_if(handle.get_thrust_policy(),
+                                              pair_first,
+                                              pair_first + size_dataframe_buffer(key_buffer),
+                                              cuda::proclaim_return_type<bool>(
+                                                [invalid_key = *invalid_key] __device__(auto kv) {
+                                                  auto key = thrust::get<0>(kv);
+                                                  return key == invalid_key;
+                                                }))),
         handle.get_stream());
       resize_dataframe_buffer(
         payload_buffer, size_dataframe_buffer(key_buffer), handle.get_stream());
@@ -815,7 +815,7 @@ transform_reduce_if_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
                lasts  = raft::device_span<vertex_t const>(
                  d_vertex_partition_range_offsets.data() + 1,
                  static_cast<size_t>(major_comm_size))] __device__(auto v) {
-                auto major_comm_rank = thrust::distance(
+                auto major_comm_rank = cuda::std::distance(
                   lasts.begin(), thrust::upper_bound(thrust::seq, lasts.begin(), lasts.end(), v));
                 return static_cast<uint32_t>(v - firsts[major_comm_rank]);
               }));

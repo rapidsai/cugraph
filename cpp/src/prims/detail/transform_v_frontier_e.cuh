@@ -29,6 +29,7 @@
 
 #include <raft/core/handle.hpp>
 
+#include <cuda/std/iterator>
 #include <cuda/std/optional>
 #include <thrust/copy.h>
 #include <thrust/iterator/counting_iterator.h>
@@ -118,8 +119,8 @@ __global__ static void transform_v_frontier_e_hypersparse_or_low_degree(
   auto const tid = threadIdx.x + blockIdx.x * blockDim.x;
   auto idx       = static_cast<size_t>(tid);
 
-  while (idx < static_cast<size_t>(thrust::distance(edge_partition_frontier_key_index_first,
-                                                    edge_partition_frontier_key_index_last))) {
+  while (idx < static_cast<size_t>(cuda::std::distance(edge_partition_frontier_key_index_first,
+                                                       edge_partition_frontier_key_index_last))) {
     auto key_idx      = *(edge_partition_frontier_key_index_first + idx);
     auto key          = *(edge_partition_frontier_key_first + key_idx);
     auto major        = thrust_tuple_get_or_identity<key_t, 0>(key);
@@ -209,8 +210,8 @@ __global__ static void transform_v_frontier_e_mid_degree(
   auto const lane_id = tid % raft::warp_size();
   size_t idx         = static_cast<size_t>(tid / raft::warp_size());
 
-  while (idx < static_cast<size_t>(thrust::distance(edge_partition_frontier_key_index_first,
-                                                    edge_partition_frontier_key_index_last))) {
+  while (idx < static_cast<size_t>(cuda::std::distance(edge_partition_frontier_key_index_first,
+                                                       edge_partition_frontier_key_index_last))) {
     auto key_idx      = *(edge_partition_frontier_key_index_first + idx);
     auto key          = *(edge_partition_frontier_key_first + key_idx);
     auto major        = thrust_tuple_get_or_identity<key_t, 0>(key);
@@ -298,8 +299,8 @@ __global__ static void transform_v_frontier_e_high_degree(
   __shared__ typename BlockScan::TempStorage temp_storage;
   __shared__ edge_t increment;
 
-  while (idx < static_cast<size_t>(thrust::distance(edge_partition_frontier_key_index_first,
-                                                    edge_partition_frontier_key_index_last))) {
+  while (idx < static_cast<size_t>(cuda::std::distance(edge_partition_frontier_key_index_first,
+                                                       edge_partition_frontier_key_index_last))) {
     auto key_idx      = *(edge_partition_frontier_key_index_first + idx);
     auto key          = *(edge_partition_frontier_key_first + key_idx);
     auto major        = thrust_tuple_get_or_identity<key_t, 0>(key);

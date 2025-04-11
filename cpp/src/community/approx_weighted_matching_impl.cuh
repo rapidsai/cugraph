@@ -28,6 +28,7 @@
 
 #include <raft/core/handle.hpp>
 
+#include <cuda/std/iterator>
 #include <thrust/fill.h>
 
 namespace cugraph {
@@ -203,7 +204,7 @@ std::tuple<rmm::device_uvector<vertex_t>, weight_t> approximate_weighted_matchin
       [] __device__(auto pair1, auto pair2) { return (pair1 > pair2) ? pair1 : pair2; });
 
     vertex_t nr_reduces_tuples =
-      static_cast<vertex_t>(thrust::distance(unique_targets.begin(), new_end.first));
+      static_cast<vertex_t>(cuda::std::distance(unique_targets.begin(), new_end.first));
 
     targets                = std::move(unique_targets);
     offers_from_candidates = std::move(best_offers_to_targets);

@@ -35,6 +35,7 @@
 
 #include <raft/core/handle.hpp>
 
+#include <cuda/std/iterator>
 #include <cuda/std/optional>
 #include <thrust/functional.h>
 #include <thrust/reduce.h>
@@ -386,7 +387,7 @@ void accumulate_edge_results(
                                              thrust::make_zip_iterator(src.end(), dst.end()));
 
       src.resize(
-        thrust::distance(thrust::make_zip_iterator(src.begin(), dst.begin()), new_edgelist_end),
+        cuda::std::distance(thrust::make_zip_iterator(src.begin(), dst.begin()), new_edgelist_end),
         handle.get_stream());
       dst.resize(src.size(), handle.get_stream());
 
@@ -490,7 +491,7 @@ rmm::device_uvector<weight_t> betweenness_centrality(
                                              handle.get_stream());
   detail::scalar_fill(handle, centralities.data(), centralities.size(), weight_t{0});
 
-  size_t num_sources = thrust::distance(vertices_begin, vertices_end);
+  size_t num_sources = cuda::std::distance(vertices_begin, vertices_end);
   std::vector<size_t> source_offsets{{0, num_sources}};
   int my_rank = 0;
 
@@ -631,7 +632,7 @@ edge_betweenness_centrality(
       handle, graph_view, centralities.mutable_view(), weight_t{0}, do_expensive_check);
   }
 
-  size_t num_sources = thrust::distance(vertices_begin, vertices_end);
+  size_t num_sources = cuda::std::distance(vertices_begin, vertices_end);
   std::vector<size_t> source_offsets{{0, num_sources}};
   int my_rank = 0;
 

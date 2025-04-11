@@ -32,6 +32,7 @@
 
 #include <rmm/exec_policy.hpp>
 
+#include <cuda/std/iterator>
 #include <cuda/std/optional>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
@@ -68,11 +69,11 @@ struct compute_local_edge_partition_id_t {
   {
     auto major = thrust::get<0>(*(vertex_pair_first + i));
     return static_cast<int>(
-      thrust::distance(edge_partition_major_range_lasts.begin(),
-                       thrust::upper_bound(thrust::seq,
-                                           edge_partition_major_range_lasts.begin(),
-                                           edge_partition_major_range_lasts.end(),
-                                           major)));
+      cuda::std::distance(edge_partition_major_range_lasts.begin(),
+                          thrust::upper_bound(thrust::seq,
+                                              edge_partition_major_range_lasts.begin(),
+                                              edge_partition_major_range_lasts.end(),
+                                              major)));
   }
 };
 
@@ -158,12 +159,12 @@ struct call_intersection_op_t {
     property_t dst_prop{};
     if (unique_vertices) {
       src_prop = *(vertex_property_first +
-                   thrust::distance(
+                   cuda::std::distance(
                      (*unique_vertices).begin(),
                      thrust::lower_bound(
                        thrust::seq, (*unique_vertices).begin(), (*unique_vertices).end(), src)));
       dst_prop = *(vertex_property_first +
-                   thrust::distance(
+                   cuda::std::distance(
                      (*unique_vertices).begin(),
                      thrust::lower_bound(
                        thrust::seq, (*unique_vertices).begin(), (*unique_vertices).end(), dst)));
@@ -214,7 +215,7 @@ struct call_intersection_op_t {
  * output value for the input pair.
  * @param vertex_pair_value_output_first Iterator pointing to the vertex pair property variables for
  * the first vertex pair (inclusive). `vertex_pair_value_output_last` (exclusive) is deduced as @p
- * vertex_pair_value_output_first + @p thrust::distance(vertex_pair_first, vertex_pair_last).
+ * vertex_pair_value_output_first + @p cuda::std::distance(vertex_pair_first, vertex_pair_last).
  * @param A flag to run expensive checks for input arguments (if set to `true`).
  */
 template <typename GraphViewType,
@@ -249,7 +250,8 @@ void per_v_pair_transform_dst_nbr_intersection(
                     "Invalid input arguments: there are invalid input vertex pairs.");
   }
 
-  auto num_input_pairs = static_cast<size_t>(thrust::distance(vertex_pair_first, vertex_pair_last));
+  auto num_input_pairs =
+    static_cast<size_t>(cuda::std::distance(vertex_pair_first, vertex_pair_last));
   std::optional<rmm::device_uvector<vertex_t>> sorted_unique_vertices{std::nullopt};
   std::optional<decltype(allocate_dataframe_buffer<property_t>(size_t{0}, rmm::cuda_stream_view{}))>
     property_buffer_for_sorted_unique_vertices{std::nullopt};
@@ -278,10 +280,10 @@ void per_v_pair_transform_dst_nbr_intersection(
                  (*sorted_unique_vertices).begin(),
                  (*sorted_unique_vertices).end());
     (*sorted_unique_vertices)
-      .resize(thrust::distance((*sorted_unique_vertices).begin(),
-                               thrust::unique(handle.get_thrust_policy(),
-                                              (*sorted_unique_vertices).begin(),
-                                              (*sorted_unique_vertices).end())),
+      .resize(cuda::std::distance((*sorted_unique_vertices).begin(),
+                                  thrust::unique(handle.get_thrust_policy(),
+                                                 (*sorted_unique_vertices).begin(),
+                                                 (*sorted_unique_vertices).end())),
               handle.get_stream());
 
     property_buffer_for_sorted_unique_vertices = collect_values_for_sorted_unique_int_vertices(

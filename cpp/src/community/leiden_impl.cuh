@@ -27,6 +27,7 @@
 
 #include <rmm/device_uvector.hpp>
 
+#include <cuda/std/iterator>
 #include <thrust/sort.h>
 #include <thrust/unique.h>
 
@@ -48,7 +49,7 @@ vertex_t remove_duplicates(raft::handle_t const& handle, rmm::device_uvector<ver
 {
   thrust::sort(handle.get_thrust_policy(), input_array.begin(), input_array.end());
 
-  auto nr_unique_elements = static_cast<vertex_t>(thrust::distance(
+  auto nr_unique_elements = static_cast<vertex_t>(cuda::std::distance(
     input_array.begin(),
     thrust::unique(handle.get_thrust_policy(), input_array.begin(), input_array.end())));
 
@@ -59,7 +60,7 @@ vertex_t remove_duplicates(raft::handle_t const& handle, rmm::device_uvector<ver
 
     thrust::sort(handle.get_thrust_policy(), input_array.begin(), input_array.end());
 
-    nr_unique_elements = static_cast<vertex_t>(thrust::distance(
+    nr_unique_elements = static_cast<vertex_t>(cuda::std::distance(
       input_array.begin(),
       thrust::unique(handle.get_thrust_policy(), input_array.begin(), input_array.end())));
 
@@ -529,12 +530,12 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
                      thrust::make_zip_iterator(numbering_map->begin(), numeric_sequence.begin()),
                      thrust::make_zip_iterator(numbering_map->end(), numeric_sequence.end()));
 
-        size_t new_size = thrust::distance(numbering_map->begin(),
-                                           thrust::unique_by_key(handle.get_thrust_policy(),
-                                                                 numbering_map->begin(),
-                                                                 numbering_map->end(),
-                                                                 numeric_sequence.begin())
-                                             .first);
+        size_t new_size = cuda::std::distance(numbering_map->begin(),
+                                              thrust::unique_by_key(handle.get_thrust_policy(),
+                                                                    numbering_map->begin(),
+                                                                    numbering_map->end(),
+                                                                    numeric_sequence.begin())
+                                                .first);
 
         numbering_map->resize(new_size, handle.get_stream());
         numeric_sequence.resize(new_size, handle.get_stream());
@@ -547,12 +548,12 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
                        thrust::make_zip_iterator(numbering_map->begin(), numeric_sequence.begin()),
                        thrust::make_zip_iterator(numbering_map->end(), numeric_sequence.end()));
 
-          size_t new_size = thrust::distance(numbering_map->begin(),
-                                             thrust::unique_by_key(handle.get_thrust_policy(),
-                                                                   numbering_map->begin(),
-                                                                   numbering_map->end(),
-                                                                   numeric_sequence.begin())
-                                               .first);
+          size_t new_size = cuda::std::distance(numbering_map->begin(),
+                                                thrust::unique_by_key(handle.get_thrust_policy(),
+                                                                      numbering_map->begin(),
+                                                                      numbering_map->end(),
+                                                                      numeric_sequence.begin())
+                                                  .first);
 
           numbering_map->resize(new_size, handle.get_stream());
           numeric_sequence.resize(new_size, handle.get_stream());

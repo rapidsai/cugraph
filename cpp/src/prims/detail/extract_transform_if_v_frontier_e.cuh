@@ -40,11 +40,11 @@
 #include <rmm/exec_policy.hpp>
 
 #include <cub/cub.cuh>
+#include <cuda/std/iterator>
 #include <cuda/std/optional>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
 #include <thrust/count.h>
-#include <thrust/distance.h>
 #include <thrust/execution_policy.h>
 #include <thrust/functional.h>
 #include <thrust/iterator/iterator_traits.h>
@@ -179,7 +179,7 @@ __global__ static void extract_transform_if_v_frontier_e_hypersparse_or_low_degr
 
   auto indices = edge_partition.indices();
 
-  vertex_t num_keys = static_cast<size_t>(thrust::distance(key_first, key_last));
+  vertex_t num_keys = static_cast<size_t>(cuda::std::distance(key_first, key_last));
   auto rounded_up_num_keys =
     ((static_cast<size_t>(num_keys) + (raft::warp_size() - 1)) / raft::warp_size()) *
     raft::warp_size();
@@ -254,7 +254,7 @@ __global__ static void extract_transform_if_v_frontier_e_hypersparse_or_low_degr
         cuda::std::optional<e_op_result_t> e_op_result{cuda::std::nullopt};
 
         if (i < static_cast<size_t>(num_edges_this_warp)) {
-          auto key_idx_this_warp = static_cast<vertex_t>(thrust::distance(
+          auto key_idx_this_warp = static_cast<vertex_t>(cuda::std::distance(
             this_warp_inclusive_sum_first,
             thrust::upper_bound(
               thrust::seq, this_warp_inclusive_sum_first, this_warp_inclusive_sum_last, i)));
@@ -279,7 +279,7 @@ __global__ static void extract_transform_if_v_frontier_e_hypersparse_or_low_degr
         cuda::std::optional<e_op_result_t> e_op_result{cuda::std::nullopt};
 
         if (i < static_cast<size_t>(num_edges_this_warp)) {
-          auto key_idx_this_warp = static_cast<vertex_t>(thrust::distance(
+          auto key_idx_this_warp = static_cast<vertex_t>(cuda::std::distance(
             this_warp_inclusive_sum_first,
             thrust::upper_bound(
               thrust::seq, this_warp_inclusive_sum_first, this_warp_inclusive_sum_last, i)));
@@ -348,7 +348,7 @@ __global__ static void extract_transform_if_v_frontier_e_mid_degree(
 
   cuda::atomic_ref<size_t, cuda::thread_scope_device> buffer_idx(*buffer_idx_ptr);
 
-  while (idx < static_cast<size_t>(thrust::distance(key_first, key_last))) {
+  while (idx < static_cast<size_t>(cuda::std::distance(key_first, key_last))) {
     auto key          = *(key_first + idx);
     auto major        = thrust_tuple_get_or_identity<key_t, 0>(key);
     auto major_offset = edge_partition.major_offset_from_major_nocheck(major);
@@ -468,7 +468,7 @@ __global__ static void extract_transform_if_v_frontier_e_high_degree(
   while (idx < rounded_up_num_edges) {
     cuda::std::optional<e_op_result_t> e_op_result{cuda::std::nullopt};
     if (idx < num_edges) {
-      auto key_idx = thrust::distance(
+      auto key_idx = cuda::std::distance(
         key_local_degree_offsets.begin() + 1,
         thrust::upper_bound(
           thrust::seq, key_local_degree_offsets.begin() + 1, key_local_degree_offsets.end(), idx));
@@ -664,7 +664,7 @@ void extract_transform_if_v_frontier_e_edge_partition(
                          : handle.get_stream();
 
     auto frontier_size = static_cast<size_t>(
-      thrust::distance(edge_partition_frontier_key_first, edge_partition_frontier_key_last));
+      cuda::std::distance(edge_partition_frontier_key_first, edge_partition_frontier_key_last));
     if (frontier_size > 0) {
       raft::grid_1d_thread_t update_grid(frontier_size,
                                          extract_transform_if_v_frontier_e_kernel_block_size,
@@ -811,7 +811,7 @@ extract_transform_if_v_frontier_e(raft::handle_t const& handle,
     }
     auto segment_offsets = graph_view.local_edge_partition_segment_offsets(partition_idx);
     if (segment_offsets) {
-      if (thrust::distance(frontier_key_first, frontier_key_last) > 0) {
+      if (cuda::std::distance(frontier_key_first, frontier_key_last) > 0) {
         key_segment_offsets = compute_key_segment_offsets(
           frontier_key_first,
           frontier_key_last,
@@ -893,7 +893,7 @@ extract_transform_if_v_frontier_e(raft::handle_t const& handle,
         }
       }
       approx_tmp_buffer_size_per_loop =
-        static_cast<size_t>(thrust::distance(frontier_key_first, frontier_key_last)) * key_size +
+        static_cast<size_t>(cuda::std::distance(frontier_key_first, frontier_key_last)) * key_size +
         local_max_pushes * (output_key_size + output_value_size);
     }
 
@@ -912,7 +912,8 @@ extract_transform_if_v_frontier_e(raft::handle_t const& handle,
       [frontier_key_first,
        max_tmp_buffer_size,
        approx_tmp_buffer_size_per_loop,
-       v_list_size = static_cast<size_t>(thrust::distance(frontier_key_first, frontier_key_last)),
+       v_list_size =
+         static_cast<size_t>(cuda::std::distance(frontier_key_first, frontier_key_last)),
        vertex_partition_range_first =
          graph_view.local_vertex_partition_range_first()] __device__(size_t i) {
         if (i == 0) {
@@ -999,7 +1000,7 @@ extract_transform_if_v_frontier_e(raft::handle_t const& handle,
     }
   } else {
     local_frontier_sizes = std::vector<size_t>{static_cast<size_t>(
-      static_cast<vertex_t>(thrust::distance(frontier_key_first, frontier_key_last)))};
+      static_cast<vertex_t>(cuda::std::distance(frontier_key_first, frontier_key_last)))};
     if (key_segment_offsets) {
       key_segment_offset_vectors       = std::vector<std::vector<size_t>>(1);
       (*key_segment_offset_vectors)[0] = *key_segment_offsets;

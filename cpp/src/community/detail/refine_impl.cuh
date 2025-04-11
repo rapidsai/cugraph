@@ -34,8 +34,8 @@
 #include <raft/random/rng_device.cuh>
 
 #include <cuda/functional>
+#include <cuda/std/iterator>
 #include <thrust/binary_search.h>
-#include <thrust/distance.h>
 #include <thrust/execution_policy.h>
 #include <thrust/functional.h>
 #include <thrust/iterator/zip_iterator.h>
@@ -747,7 +747,7 @@ refine_clustering(
     thrust::sort(handle.get_thrust_policy(), dst_vertices.begin(), dst_vertices.end());
 
     dst_vertices.resize(
-      static_cast<size_t>(thrust::distance(
+      static_cast<size_t>(cuda::std::distance(
         dst_vertices.begin(),
         thrust::unique(handle.get_thrust_policy(), dst_vertices.begin(), dst_vertices.end()))),
       handle.get_stream());
@@ -760,7 +760,7 @@ refine_clustering(
       thrust::sort(handle.get_thrust_policy(), dst_vertices.begin(), dst_vertices.end());
 
       dst_vertices.resize(
-        static_cast<size_t>(thrust::distance(
+        static_cast<size_t>(cuda::std::distance(
           dst_vertices.begin(),
           thrust::unique(handle.get_thrust_policy(), dst_vertices.begin(), dst_vertices.end()))),
         handle.get_stream());
@@ -808,10 +808,10 @@ refine_clustering(
                leiden_keys_to_read_louvain.end());
 
   auto nr_unique_leiden_clusters =
-    static_cast<size_t>(thrust::distance(leiden_keys_to_read_louvain.begin(),
-                                         thrust::unique(handle.get_thrust_policy(),
-                                                        leiden_keys_to_read_louvain.begin(),
-                                                        leiden_keys_to_read_louvain.end())));
+    static_cast<size_t>(cuda::std::distance(leiden_keys_to_read_louvain.begin(),
+                                            thrust::unique(handle.get_thrust_policy(),
+                                                           leiden_keys_to_read_louvain.begin(),
+                                                           leiden_keys_to_read_louvain.end())));
 
   leiden_keys_to_read_louvain.resize(nr_unique_leiden_clusters, handle.get_stream());
 
@@ -825,10 +825,10 @@ refine_clustering(
                  leiden_keys_to_read_louvain.end());
 
     nr_unique_leiden_clusters =
-      static_cast<size_t>(thrust::distance(leiden_keys_to_read_louvain.begin(),
-                                           thrust::unique(handle.get_thrust_policy(),
-                                                          leiden_keys_to_read_louvain.begin(),
-                                                          leiden_keys_to_read_louvain.end())));
+      static_cast<size_t>(cuda::std::distance(leiden_keys_to_read_louvain.begin(),
+                                              thrust::unique(handle.get_thrust_policy(),
+                                                             leiden_keys_to_read_louvain.begin(),
+                                                             leiden_keys_to_read_louvain.end())));
     leiden_keys_to_read_louvain.resize(nr_unique_leiden_clusters, handle.get_stream());
   }
 

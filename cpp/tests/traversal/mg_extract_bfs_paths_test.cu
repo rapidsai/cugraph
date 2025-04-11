@@ -36,6 +36,8 @@
 #include <rmm/device_uvector.hpp>
 #include <rmm/mr/device/cuda_memory_resource.hpp>
 
+#include <cuda/std/iterator>
+
 #include <gtest/gtest.h>
 
 #include <algorithm>
@@ -141,7 +143,7 @@ class Tests_MGExtractBFSPaths
         d_vertices.end(),
         [invalid_vertex, predecessors = d_mg_predecessors.data(), local_vertex_first] __device__(
           auto v) { return predecessors[v - local_vertex_first] == invalid_vertex; });
-      d_vertices.resize(thrust::distance(d_vertices.begin(), end_iter), handle_->get_stream());
+      d_vertices.resize(cuda::std::distance(d_vertices.begin(), end_iter), handle_->get_stream());
     }
 
     // Compute size of the distributed vertex set

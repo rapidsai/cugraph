@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@
 
 #include <rmm/device_uvector.hpp>
 
+#include <cuda/std/iterator>
 #include <thrust/binary_search.h>
 #include <thrust/equal.h>
 #include <thrust/execution_policy.h>
@@ -61,7 +62,7 @@ void induced_subgraph_validate(
      subgraph_edge_offsets_end = d_cugraph_subgraph_edge_offsets.begin()] __device__(vertex_t idx) {
       auto offset = thrust::upper_bound(
         thrust::device, subgraph_edge_offsets_begin, subgraph_edge_offsets_end, idx);
-      return static_cast<vertex_t>(thrust::distance(subgraph_edge_offsets_begin, offset));
+      return static_cast<vertex_t>(cuda::std::distance(subgraph_edge_offsets_begin, offset));
     });
 
   if (d_reference_subgraph_edgelist_weights) {

@@ -25,8 +25,8 @@
 #include <rmm/exec_policy.hpp>
 
 #include <cuda/functional>
+#include <cuda/std/iterator>
 #include <thrust/count.h>
-#include <thrust/distance.h>
 #include <thrust/equal.h>
 #include <thrust/functional.h>
 #include <thrust/iterator/zip_iterator.h>
@@ -76,7 +76,7 @@ size_t unique_ints(raft::handle_t const& handle, raft::device_span<value_t> valu
 {
   auto unique_element_last =
     thrust::unique(handle.get_thrust_policy(), values.begin(), values.end());
-  return thrust::distance(values.begin(), unique_element_last);
+  return cuda::std::distance(values.begin(), unique_element_last);
 }
 
 template <typename value_t>
@@ -171,7 +171,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> filter_de
                       zip_iter,
                       [] __device__(auto pair) { return thrust::get<1>(pair) == 0; });
 
-  auto new_size = thrust::distance(zip_iter, zip_iter_end);
+  auto new_size = cuda::std::distance(zip_iter, zip_iter_end);
   d_vertices.resize(new_size, handle.get_stream());
   d_out_degs.resize(new_size, handle.get_stream());
 

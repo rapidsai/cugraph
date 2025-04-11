@@ -28,8 +28,8 @@
 #include <cugraph/utilities/host_scalar_comm.hpp>
 
 #include <cuda/functional>
+#include <cuda/std/iterator>
 #include <thrust/count.h>
-#include <thrust/distance.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/merge.h>
 #include <thrust/remove.h>
@@ -65,13 +65,13 @@ rmm::device_uvector<vertex_t> maximal_independent_moves(
 
   // Only vertices with non-zero out-degree are possible can move
   remaining_vertices.resize(
-    thrust::distance(remaining_vertices.begin(),
-                     thrust::copy_if(handle.get_thrust_policy(),
-                                     vertex_begin,
-                                     vertex_end,
-                                     out_degrees.begin(),
-                                     remaining_vertices.begin(),
-                                     [] __device__(auto deg) { return deg > 0; })),
+    cuda::std::distance(remaining_vertices.begin(),
+                        thrust::copy_if(handle.get_thrust_policy(),
+                                        vertex_begin,
+                                        vertex_end,
+                                        out_degrees.begin(),
+                                        remaining_vertices.begin(),
+                                        [] __device__(auto deg) { return deg > 0; })),
     handle.get_stream());
 
   // Set ID of each vertex as its rank
@@ -262,7 +262,7 @@ rmm::device_uvector<vertex_t> maximal_independent_moves(
     max_outgoing_ranks.resize(0, handle.get_stream());
     max_outgoing_ranks.shrink_to_fit(handle.get_stream());
 
-    d_sampled_vertices.resize(thrust::distance(d_sampled_vertices.begin(), last),
+    d_sampled_vertices.resize(cuda::std::distance(d_sampled_vertices.begin(), last),
                               handle.get_stream());
     d_sampled_vertices.shrink_to_fit(handle.get_stream());
 

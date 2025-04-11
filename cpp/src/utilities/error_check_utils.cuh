@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, NVIDIA CORPORATION.
+ * Copyright (c) 2024-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,6 +26,7 @@
 
 #include <rmm/device_uvector.hpp>
 
+#include <cuda/std/iterator>
 #include <thrust/binary_search.h>
 #include <thrust/count.h>
 
@@ -57,7 +58,7 @@ struct is_invalid_input_vertex_pair_t {
                                   major);
     if (it == edge_partition_major_range_lasts.end()) { return true; }
     auto edge_partition_idx =
-      static_cast<size_t>(thrust::distance(edge_partition_major_range_lasts.begin(), it));
+      static_cast<size_t>(cuda::std::distance(edge_partition_major_range_lasts.begin(), it));
     if (major < edge_partition_major_range_firsts[edge_partition_idx]) { return true; }
     return (minor < edge_partition_minor_range_first) || (minor >= edge_partition_minor_range_last);
   }

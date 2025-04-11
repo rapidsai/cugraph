@@ -25,6 +25,7 @@
 #include <cugraph/vertex_partition_device_view.cuh>
 
 #include <cuda/std/functional>
+#include <cuda/std/iterator>
 #include <thrust/gather.h>
 
 namespace cugraph {
@@ -79,7 +80,7 @@ rmm::device_uvector<result_t> vertex_result_view_t<result_t>::gather(
       vertex_partition_view.local_vertex_partition_range_first(),
       vertex_partition_view.local_vertex_partition_range_last());
 
-    size_t new_size = thrust::distance(
+    size_t new_size = cuda::std::distance(
       thrust::make_zip_iterator(local_vertices.begin(), vertex_gpu_ids.begin(), vertex_pos.begin()),
       thrust::remove_if(
         rmm::exec_policy(stream),

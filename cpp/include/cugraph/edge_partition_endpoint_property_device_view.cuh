@@ -23,9 +23,9 @@
 
 #include <raft/core/device_span.hpp>
 
+#include <cuda/std/iterator>
 #include <cuda/std/optional>
 #include <thrust/binary_search.h>
-#include <thrust/distance.h>
 #include <thrust/execution_policy.h>
 #include <thrust/fill.h>
 #include <thrust/iterator/iterator_traits.h>
@@ -204,7 +204,7 @@ class edge_partition_endpoint_property_device_view_t {
       assert((it != (*keys_).begin() + (*key_chunk_start_offsets_)[chunk_idx + 1]) &&
              (*it == (range_first_ + offset)));
       val_offset = (*key_chunk_start_offsets_)[chunk_idx] +
-                   static_cast<vertex_t>(thrust::distance(
+                   static_cast<vertex_t>(cuda::std::distance(
                      (*keys_).begin() + (*key_chunk_start_offsets_)[chunk_idx], it));
     }
     return val_offset;

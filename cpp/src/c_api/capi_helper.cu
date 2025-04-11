@@ -20,6 +20,7 @@
 #include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/misc_utils.cuh>
 
+#include <cuda/std/iterator>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/sort.h>
 
@@ -139,7 +140,7 @@ reorder_extracted_egonets(raft::handle_t const& handle,
     [offset_lasts   = raft::device_span<size_t const>(offsets.begin() + 1, offsets.end()),
      source_indices = raft::device_span<size_t const>(source_indices.data(),
                                                       source_indices.size())] __device__(size_t i) {
-      auto idx = static_cast<size_t>(thrust::distance(
+      auto idx = static_cast<size_t>(cuda::std::distance(
         offset_lasts.begin(),
         thrust::upper_bound(thrust::seq, offset_lasts.begin(), offset_lasts.end(), i)));
       return source_indices[idx];
@@ -164,7 +165,7 @@ reorder_extracted_egonets(raft::handle_t const& handle,
     offsets.end(),
     [sort_indices = raft::device_span<size_t const>(sort_indices.data(),
                                                     sort_indices.size())] __device__(size_t i) {
-      return static_cast<size_t>(thrust::distance(
+      return static_cast<size_t>(cuda::std::distance(
         sort_indices.begin(),
         thrust::upper_bound(thrust::seq, sort_indices.begin(), sort_indices.end(), i)));
     });

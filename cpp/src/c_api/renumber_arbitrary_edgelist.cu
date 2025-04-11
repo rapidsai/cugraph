@@ -23,6 +23,7 @@
 #include <cugraph/graph.hpp>
 #include <cugraph/utilities/error.hpp>
 
+#include <cuda/std/iterator>
 #include <thrust/binary_search.h>
 #include <thrust/iterator/counting_iterator.h>
 
@@ -45,10 +46,10 @@ cugraph_error_code_t renumber_arbitrary_edgelist(
                  vertices.data() + srcs->size_);
 
   thrust::sort(handle.get_thrust_policy(), vertices.begin(), vertices.end());
-  vertices.resize(
-    thrust::distance(vertices.begin(),
-                     thrust::unique(handle.get_thrust_policy(), vertices.begin(), vertices.end())),
-    handle.get_stream());
+  vertices.resize(cuda::std::distance(
+                    vertices.begin(),
+                    thrust::unique(handle.get_thrust_policy(), vertices.begin(), vertices.end())),
+                  handle.get_stream());
 
   vertices.shrink_to_fit(handle.get_stream());
   rmm::device_uvector<vertex_t> ids(vertices.size(), handle.get_stream());
@@ -89,7 +90,7 @@ cugraph_error_code_t renumber_arbitrary_edgelist(
         auto pos = thrust::lower_bound(
           thrust::seq, vertices_span.begin(), vertices_span.end(), renumber_chunk_span[idx]);
         if ((pos != vertices_span.end()) && (*pos == renumber_chunk_span[idx])) {
-          ids_span[thrust::distance(vertices_span.begin(), pos)] =
+          ids_span[cuda::std::distance(vertices_span.begin(), pos)] =
             static_cast<vertex_t>(chunk_base_offset + idx);
         }
       });
@@ -107,7 +108,7 @@ cugraph_error_code_t renumber_arbitrary_edgelist(
     srcs->as_type<vertex_t>() + srcs->size_,
     srcs->as_type<vertex_t>(),
     [vertices_span, ids_span] __device__(vertex_t v) {
-      return ids_span[thrust::distance(
+      return ids_span[cuda::std::distance(
         vertices_span.begin(),
         thrust::lower_bound(thrust::seq, vertices_span.begin(), vertices_span.end(), v))];
     });
@@ -118,7 +119,7 @@ cugraph_error_code_t renumber_arbitrary_edgelist(
     dsts->as_type<vertex_t>() + srcs->size_,
     dsts->as_type<vertex_t>(),
     [vertices_span, ids_span] __device__(vertex_t v) {
-      return ids_span[thrust::distance(
+      return ids_span[cuda::std::distance(
         vertices_span.begin(),
         thrust::lower_bound(thrust::seq, vertices_span.begin(), vertices_span.end(), v))];
     });

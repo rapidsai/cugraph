@@ -37,9 +37,9 @@
 
 #include <rmm/device_uvector.hpp>
 
+#include <cuda/std/iterator>
 #include <cuda/std/optional>
 #include <thrust/count.h>
-#include <thrust/distance.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/tuple.h>
 
@@ -137,7 +137,7 @@ class Tests_MGTransformE
       auto edge_first = thrust::make_zip_iterator(
         thrust::make_tuple(store_transposed ? dsts.begin() : srcs.begin(),
                            store_transposed ? srcs.begin() : dsts.begin()));
-      srcs.resize(thrust::distance(
+      srcs.resize(cuda::std::distance(
                     edge_first,
                     thrust::remove_if(handle_->get_thrust_policy(),
                                       edge_first,

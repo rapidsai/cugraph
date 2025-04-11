@@ -29,6 +29,7 @@
 #include <rmm/device_uvector.hpp>
 #include <rmm/exec_policy.hpp>
 
+#include <cuda/std/iterator>
 #include <thrust/iterator/constant_iterator.h>
 #include <thrust/reduce.h>
 #include <thrust/sort.h>
@@ -101,7 +102,7 @@ rmm::device_uvector<vertex_t> permute_range(raft::handle_t const& handle,
                                               thrust::equal_to<int>());
 
       auto nr_output_pairs =
-        static_cast<vertex_t>(thrust::distance(d_reduced_ranks.begin(), output_end.first));
+        static_cast<vertex_t>(cuda::std::distance(d_reduced_ranks.begin(), output_end.first));
 
       std::vector<vertex_t> h_reduced_ranks(comm_size);
       std::vector<vertex_t> h_reduced_counts(comm_size);

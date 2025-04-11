@@ -23,8 +23,8 @@
 
 #include <rmm/device_uvector.hpp>
 
+#include <cuda/std/iterator>
 #include <thrust/copy.h>
-#include <thrust/distance.h>
 #include <thrust/for_each.h>
 #include <thrust/gather.h>
 #include <thrust/iterator/counting_iterator.h>
@@ -265,11 +265,11 @@ merge_lower_triangular(raft::handle_t const& handle,
   auto merged_edge_and_flag_first = thrust::make_zip_iterator(
     merged_majors.begin(), merged_minors.begin(), merged_properties.begin(), includes.begin());
   merged_majors.resize(
-    thrust::distance(merged_edge_and_flag_first,
-                     thrust::remove_if(handle.get_thrust_policy(),
-                                       merged_edge_and_flag_first,
-                                       merged_edge_and_flag_first + merged_majors.size(),
-                                       [] __device__(auto t) { return !thrust::get<3>(t); })),
+    cuda::std::distance(merged_edge_and_flag_first,
+                        thrust::remove_if(handle.get_thrust_policy(),
+                                          merged_edge_and_flag_first,
+                                          merged_edge_and_flag_first + merged_majors.size(),
+                                          [] __device__(auto t) { return !thrust::get<3>(t); })),
     handle.get_stream());
   merged_majors.shrink_to_fit(handle.get_stream());
   merged_minors.resize(merged_majors.size(), handle.get_stream());
@@ -345,7 +345,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> merge_l
   upper_triangular_minors.resize(0, handle.get_stream());
   upper_triangular_minors.shrink_to_fit(handle.get_stream());
 
-  merged_majors.resize(thrust::distance(merged_first, merged_last), handle.get_stream());
+  merged_majors.resize(cuda::std::distance(merged_first, merged_last), handle.get_stream());
   merged_majors.shrink_to_fit(handle.get_stream());
   merged_minors.resize(merged_majors.size(), handle.get_stream());
   merged_minors.shrink_to_fit(handle.get_stream());
@@ -407,13 +407,13 @@ symmetrize_edgelist(raft::handle_t const& handle,
                                                    edge_first + edgelist_majors.size(),
                                                    lower_triangular_compare);
     num_lower_triangular_edges =
-      static_cast<size_t>(thrust::distance(edge_first, lower_triangular_last));
+      static_cast<size_t>(cuda::std::distance(edge_first, lower_triangular_last));
     auto diagonal_last = thrust::partition(handle.get_thrust_policy(),
                                            edge_first + num_lower_triangular_edges,
                                            edge_first + edgelist_majors.size(),
                                            diagonal_compare);
     num_diagonal_edges =
-      static_cast<size_t>(thrust::distance(lower_triangular_last, diagonal_last));
+      static_cast<size_t>(cuda::std::distance(lower_triangular_last, diagonal_last));
   } else if (edge_property_count == 1) {
     if (edgelist_weights) {
       auto edge_first = thrust::make_zip_iterator(
@@ -423,13 +423,13 @@ symmetrize_edgelist(raft::handle_t const& handle,
                                                      edge_first + edgelist_majors.size(),
                                                      lower_triangular_compare);
       num_lower_triangular_edges =
-        static_cast<size_t>(thrust::distance(edge_first, lower_triangular_last));
+        static_cast<size_t>(cuda::std::distance(edge_first, lower_triangular_last));
       auto diagonal_last = thrust::partition(handle.get_thrust_policy(),
                                              edge_first + num_lower_triangular_edges,
                                              edge_first + edgelist_majors.size(),
                                              diagonal_compare);
       num_diagonal_edges =
-        static_cast<size_t>(thrust::distance(lower_triangular_last, diagonal_last));
+        static_cast<size_t>(cuda::std::distance(lower_triangular_last, diagonal_last));
     }
 
     if (edgelist_edge_ids) {
@@ -440,13 +440,13 @@ symmetrize_edgelist(raft::handle_t const& handle,
                                                      edge_first + edgelist_majors.size(),
                                                      lower_triangular_compare);
       num_lower_triangular_edges =
-        static_cast<size_t>(thrust::distance(edge_first, lower_triangular_last));
+        static_cast<size_t>(cuda::std::distance(edge_first, lower_triangular_last));
       auto diagonal_last = thrust::partition(handle.get_thrust_policy(),
                                              edge_first + num_lower_triangular_edges,
                                              edge_first + edgelist_majors.size(),
                                              diagonal_compare);
       num_diagonal_edges =
-        static_cast<size_t>(thrust::distance(lower_triangular_last, diagonal_last));
+        static_cast<size_t>(cuda::std::distance(lower_triangular_last, diagonal_last));
     }
 
     if (edgelist_edge_types) {
@@ -457,13 +457,13 @@ symmetrize_edgelist(raft::handle_t const& handle,
                                                      edge_first + edgelist_majors.size(),
                                                      lower_triangular_compare);
       num_lower_triangular_edges =
-        static_cast<size_t>(thrust::distance(edge_first, lower_triangular_last));
+        static_cast<size_t>(cuda::std::distance(edge_first, lower_triangular_last));
       auto diagonal_last = thrust::partition(handle.get_thrust_policy(),
                                              edge_first + num_lower_triangular_edges,
                                              edge_first + edgelist_majors.size(),
                                              diagonal_compare);
       num_diagonal_edges =
-        static_cast<size_t>(thrust::distance(lower_triangular_last, diagonal_last));
+        static_cast<size_t>(cuda::std::distance(lower_triangular_last, diagonal_last));
     }
 
     if (edgelist_edge_start_times) {
@@ -474,13 +474,13 @@ symmetrize_edgelist(raft::handle_t const& handle,
                                                      edge_first + edgelist_majors.size(),
                                                      lower_triangular_compare);
       num_lower_triangular_edges =
-        static_cast<size_t>(thrust::distance(edge_first, lower_triangular_last));
+        static_cast<size_t>(cuda::std::distance(edge_first, lower_triangular_last));
       auto diagonal_last = thrust::partition(handle.get_thrust_policy(),
                                              edge_first + num_lower_triangular_edges,
                                              edge_first + edgelist_majors.size(),
                                              diagonal_compare);
       num_diagonal_edges =
-        static_cast<size_t>(thrust::distance(lower_triangular_last, diagonal_last));
+        static_cast<size_t>(cuda::std::distance(lower_triangular_last, diagonal_last));
     }
 
     if (edgelist_edge_end_times) {
@@ -491,13 +491,13 @@ symmetrize_edgelist(raft::handle_t const& handle,
                                                      edge_first + edgelist_majors.size(),
                                                      lower_triangular_compare);
       num_lower_triangular_edges =
-        static_cast<size_t>(thrust::distance(edge_first, lower_triangular_last));
+        static_cast<size_t>(cuda::std::distance(edge_first, lower_triangular_last));
       auto diagonal_last = thrust::partition(handle.get_thrust_policy(),
                                              edge_first + num_lower_triangular_edges,
                                              edge_first + edgelist_majors.size(),
                                              diagonal_compare);
       num_diagonal_edges =
-        static_cast<size_t>(thrust::distance(lower_triangular_last, diagonal_last));
+        static_cast<size_t>(cuda::std::distance(lower_triangular_last, diagonal_last));
     }
   } else {
     rmm::device_uvector<edge_t> property_position(edgelist_majors.size(), handle.get_stream());
@@ -511,13 +511,13 @@ symmetrize_edgelist(raft::handle_t const& handle,
                                                    edge_first + edgelist_majors.size(),
                                                    lower_triangular_compare);
     num_lower_triangular_edges =
-      static_cast<size_t>(thrust::distance(edge_first, lower_triangular_last));
+      static_cast<size_t>(cuda::std::distance(edge_first, lower_triangular_last));
     auto diagonal_last = thrust::partition(handle.get_thrust_policy(),
                                            edge_first + num_lower_triangular_edges,
                                            edge_first + edgelist_majors.size(),
                                            diagonal_compare);
     num_diagonal_edges =
-      static_cast<size_t>(thrust::distance(lower_triangular_last, diagonal_last));
+      static_cast<size_t>(cuda::std::distance(lower_triangular_last, diagonal_last));
 
     if (edgelist_weights) {
       rmm::device_uvector<weight_t> tmp(property_position.size(), handle.get_stream());

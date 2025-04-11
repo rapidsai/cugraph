@@ -37,10 +37,10 @@
 #include <rmm/device_uvector.hpp>
 
 #include <cuda/functional>
+#include <cuda/std/iterator>
 #include <cuda/std/optional>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
-#include <thrust/distance.h>
 #include <thrust/for_each.h>
 #include <thrust/functional.h>
 #include <thrust/iterator/constant_iterator.h>
@@ -105,7 +105,7 @@ accumulate_new_roots(raft::handle_t const& handle,
          (num_new_roots < max_new_roots)) {
     auto scan_size = std::min(
       max_scan_size,
-      static_cast<vertex_t>(thrust::distance(candidate_first + num_scanned, candidate_last)));
+      static_cast<vertex_t>(cuda::std::distance(candidate_first + num_scanned, candidate_last)));
 
     rmm::device_uvector<vertex_t> tmp_new_roots(scan_size, handle.get_stream());
     rmm::device_uvector<vertex_t> tmp_indices(tmp_new_roots.size(), handle.get_stream());
@@ -114,7 +114,7 @@ accumulate_new_roots(raft::handle_t const& handle,
     auto output_pair_first =
       thrust::make_zip_iterator(thrust::make_tuple(tmp_new_roots.begin(), tmp_indices.begin()));
     tmp_new_roots.resize(
-      static_cast<vertex_t>(thrust::distance(
+      static_cast<vertex_t>(cuda::std::distance(
         output_pair_first,
         thrust::copy_if(
           handle.get_thrust_policy(),
@@ -150,7 +150,7 @@ accumulate_new_roots(raft::handle_t const& handle,
                                       degree_sum_threshold - degree_sum);
       if (last != tmp_cumulative_degrees.end()) { ++last; }
       auto tmp_num_new_roots =
-        std::min(static_cast<vertex_t>(thrust::distance(tmp_cumulative_degrees.begin(), last)),
+        std::min(static_cast<vertex_t>(cuda::std::distance(tmp_cumulative_degrees.begin(), last)),
                  max_new_roots - num_new_roots);
 
       thrust::copy(handle.get_thrust_policy(),
@@ -368,7 +368,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
                             // hopefully find the  biggest connected component (to significantly
                             // reduce the graph size and accordingly, peak memory usage)
       auto max_it = thrust::max_element(handle.get_thrust_policy(), degrees.begin(), degrees.end());
-      auto max_v_offset = static_cast<vertex_t>(thrust::distance(degrees.begin(), max_it));
+      auto max_v_offset = static_cast<vertex_t>(cuda::std::distance(degrees.begin(), max_it));
       edge_t max_degree{};
       raft::update_host(
         std::addressof(max_degree), degrees.data() + max_v_offset, size_t{1}, handle.get_stream());
@@ -476,10 +476,10 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
                    get_dataframe_buffer_end(edge_buffer));
       resize_dataframe_buffer(
         edge_buffer,
-        thrust::distance(get_dataframe_buffer_begin(edge_buffer),
-                         thrust::unique(handle.get_thrust_policy(),
-                                        get_dataframe_buffer_begin(edge_buffer),
-                                        get_dataframe_buffer_end(edge_buffer))),
+        cuda::std::distance(get_dataframe_buffer_begin(edge_buffer),
+                            thrust::unique(handle.get_thrust_policy(),
+                                           get_dataframe_buffer_begin(edge_buffer),
+                                           get_dataframe_buffer_end(edge_buffer))),
         handle.get_stream());
       auto num_edges = size_dataframe_buffer(edge_buffer);
       num_edge_inserts.set_value_async(num_edges, handle.get_stream());
@@ -501,7 +501,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
       rmm::device_uvector<vertex_t> new_root_candidates(
         level_graph_view.local_vertex_partition_range_size(), handle.get_stream());
       new_root_candidates.resize(
-        thrust::distance(
+        cuda::std::distance(
           new_root_candidates.begin(),
           thrust::copy_if(
             handle.get_thrust_policy(),
@@ -776,7 +776,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
           auto unique_edge_last = thrust::unique(
             handle.get_thrust_policy(), edge_first, edge_first + new_num_edge_inserts);
           auto num_unique_edges =
-            static_cast<size_t>(thrust::distance(edge_first, unique_edge_last));
+            static_cast<size_t>(cuda::std::distance(edge_first, unique_edge_last));
           num_edge_inserts.set_value_async(num_unique_edges, handle.get_stream());
           handle.sync_stream();  // to ensure that the above set_value_async is completed before
                                  // num_unique_edges is freed
@@ -844,9 +844,10 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
         auto edge_last  = get_dataframe_buffer_end(edge_buffer);
         thrust::sort(handle.get_thrust_policy(), edge_first, edge_last);
         auto unique_edge_last = thrust::unique(handle.get_thrust_policy(), edge_first, edge_last);
-        resize_dataframe_buffer(edge_buffer,
-                                static_cast<size_t>(thrust::distance(edge_first, unique_edge_last)),
-                                handle.get_stream());
+        resize_dataframe_buffer(
+          edge_buffer,
+          static_cast<size_t>(cuda::std::distance(edge_first, unique_edge_last)),
+          handle.get_stream());
         shrink_to_fit_dataframe_buffer(edge_buffer, handle.get_stream());
       }
 

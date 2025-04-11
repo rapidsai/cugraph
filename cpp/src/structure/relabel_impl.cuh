@@ -30,9 +30,9 @@
 #include <rmm/mr/device/per_device_resource.hpp>
 #include <rmm/mr/device/polymorphic_allocator.hpp>
 
+#include <cuda/std/iterator>
 #include <thrust/copy.h>
 #include <thrust/count.h>
-#include <thrust/distance.h>
 #include <thrust/functional.h>
 #include <thrust/iterator/discard_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
@@ -75,10 +75,10 @@ void relabel(raft::handle_t const& handle,
     rmm::device_uvector<vertex_t> unique_old_labels(num_labels, handle.get_stream());
     thrust::copy(handle.get_thrust_policy(), labels, labels + num_labels, unique_old_labels.data());
     thrust::sort(handle.get_thrust_policy(), unique_old_labels.begin(), unique_old_labels.end());
-    unique_old_labels.resize(thrust::distance(unique_old_labels.begin(),
-                                              thrust::unique(handle.get_thrust_policy(),
-                                                             unique_old_labels.begin(),
-                                                             unique_old_labels.end())),
+    unique_old_labels.resize(cuda::std::distance(unique_old_labels.begin(),
+                                                 thrust::unique(handle.get_thrust_policy(),
+                                                                unique_old_labels.begin(),
+                                                                unique_old_labels.end())),
                              handle.get_stream());
     unique_old_labels.shrink_to_fit(handle.get_stream());
 

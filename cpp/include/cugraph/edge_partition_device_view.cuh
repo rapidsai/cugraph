@@ -26,9 +26,9 @@
 #include <rmm/device_uvector.hpp>
 #include <rmm/exec_policy.hpp>
 
+#include <cuda/std/iterator>
 #include <cuda/std/optional>
 #include <thrust/binary_search.h>
-#include <thrust/distance.h>
 #include <thrust/execution_policy.h>
 #include <thrust/transform.h>
 #include <thrust/transform_reduce.h>
@@ -52,7 +52,7 @@ __device__ cuda::std::optional<vertex_t> major_hypersparse_idx_from_major_nochec
     thrust::lower_bound(thrust::seq, dcs_nzd_vertices.begin(), dcs_nzd_vertices.end(), major);
   return it != dcs_nzd_vertices.end()
            ? (*it == major ? cuda::std::optional<vertex_t>{static_cast<vertex_t>(
-                               thrust::distance(dcs_nzd_vertices.begin(), it))}
+                               cuda::std::distance(dcs_nzd_vertices.begin(), it))}
                            : cuda::std::nullopt)
            : cuda::std::nullopt;
 }
@@ -161,7 +161,7 @@ class edge_partition_device_view_base_t {
 
   __device__ vertex_t major_idx_from_local_edge_idx_nocheck(edge_t local_edge_idx) const noexcept
   {
-    return static_cast<vertex_t>(thrust::distance(
+    return static_cast<vertex_t>(cuda::std::distance(
       offsets_.begin() + 1,
       thrust::upper_bound(thrust::seq, offsets_.begin() + 1, offsets_.end(), local_edge_idx)));
   }
@@ -219,7 +219,7 @@ class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t
                                           MajorIterator major_last,
                                           rmm::cuda_stream_view stream) const
   {
-    if (thrust::distance(major_first, major_last) == 0) return size_t{0};
+    if (cuda::std::distance(major_first, major_last) == 0) return size_t{0};
     return dcs_nzd_vertices_ ? thrust::transform_reduce(
                                  rmm::exec_policy(stream),
                                  major_first,
@@ -258,7 +258,7 @@ class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t
                                               raft::device_span<size_t> count /* size = 1 */,
                                               rmm::cuda_stream_view stream) const
   {
-    if (thrust::distance(major_first, major_last) == 0) {
+    if (cuda::std::distance(major_first, major_last) == 0) {
       RAFT_CUDA_TRY(cudaMemsetAsync(count.data(), 0, sizeof(size_t), stream));
     }
 
@@ -278,14 +278,14 @@ class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t
                              tmp_storage_bytes,
                              local_degree_first,
                              count.data(),
-                             thrust::distance(major_first, major_last),
+                             cuda::std::distance(major_first, major_last),
                              stream);
       d_tmp_storage.resize(tmp_storage_bytes, stream);
       cub::DeviceReduce::Sum(d_tmp_storage.data(),
                              tmp_storage_bytes,
                              local_degree_first,
                              count.data(),
-                             thrust::distance(major_first, major_last),
+                             cuda::std::distance(major_first, major_last),
                              stream);
     } else {
       auto local_degree_first = thrust::make_transform_iterator(
@@ -300,14 +300,14 @@ class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t
                              tmp_storage_bytes,
                              local_degree_first,
                              count.data(),
-                             thrust::distance(major_first, major_last),
+                             cuda::std::distance(major_first, major_last),
                              stream);
       d_tmp_storage.resize(tmp_storage_bytes, stream);
       cub::DeviceReduce::Sum(d_tmp_storage.data(),
                              tmp_storage_bytes,
                              local_degree_first,
                              count.data(),
-                             thrust::distance(major_first, major_last),
+                             cuda::std::distance(major_first, major_last),
                              stream);
     }
   }
@@ -343,7 +343,7 @@ class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t
                                                              MajorIterator major_last,
                                                              rmm::cuda_stream_view stream) const
   {
-    rmm::device_uvector<edge_t> local_degrees(thrust::distance(major_first, major_last), stream);
+    rmm::device_uvector<edge_t> local_degrees(cuda::std::distance(major_first, major_last), stream);
     if (dcs_nzd_vertices_) {
       assert(major_hypersparse_first_);
       thrust::transform(rmm::exec_policy_nosync(stream),
@@ -373,7 +373,7 @@ class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t
                                                     MajorIterator major_last,
                                                     rmm::cuda_stream_view stream) const
   {
-    if (thrust::distance(major_first, major_last) == 0) return size_t{0};
+    if (cuda::std::distance(major_first, major_last) == 0) return size_t{0};
     return dcs_nzd_vertices_ ? thrust::transform_reduce(
                                  rmm::exec_policy(stream),
                                  major_first,
@@ -453,7 +453,7 @@ class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t
     MajorIterator major_last,
     rmm::cuda_stream_view stream) const
   {
-    rmm::device_uvector<edge_t> local_degrees(thrust::distance(major_first, major_last), stream);
+    rmm::device_uvector<edge_t> local_degrees(cuda::std::distance(major_first, major_last), stream);
     if (dcs_nzd_vertices_) {
       assert(major_hypersparse_first_);
       thrust::transform(
@@ -634,7 +634,7 @@ class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t
                                           MajorIterator major_last,
                                           rmm::cuda_stream_view stream) const
   {
-    if (thrust::distance(major_first, major_last) == 0) return size_t{0};
+    if (cuda::std::distance(major_first, major_last) == 0) return size_t{0};
     return thrust::transform_reduce(
       rmm::exec_policy(stream),
       major_first,
@@ -657,7 +657,7 @@ class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t
                                               raft::device_span<size_t> count /* size = 1 */,
                                               rmm::cuda_stream_view stream) const
   {
-    if (thrust::distance(major_first, major_last) == 0) {
+    if (cuda::std::distance(major_first, major_last) == 0) {
       RAFT_CUDA_TRY(cudaMemsetAsync(count.data(), 0, sizeof(size_t), stream));
     }
 
@@ -678,14 +678,14 @@ class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t
                            tmp_storage_bytes,
                            local_degree_first,
                            count.data(),
-                           thrust::distance(major_first, major_last),
+                           cuda::std::distance(major_first, major_last),
                            stream);
     d_tmp_storage.resize(tmp_storage_bytes, stream);
     cub::DeviceReduce::Sum(d_tmp_storage.data(),
                            tmp_storage_bytes,
                            local_degree_first,
                            count.data(),
-                           thrust::distance(major_first, major_last),
+                           cuda::std::distance(major_first, major_last),
                            stream);
   }
 
@@ -709,7 +709,7 @@ class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t
                                                              MajorIterator major_last,
                                                              rmm::cuda_stream_view stream) const
   {
-    rmm::device_uvector<edge_t> local_degrees(thrust::distance(major_first, major_last), stream);
+    rmm::device_uvector<edge_t> local_degrees(cuda::std::distance(major_first, major_last), stream);
     thrust::transform(rmm::exec_policy_nosync(stream),
                       major_first,
                       major_last,
@@ -728,7 +728,7 @@ class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t
                                                     MajorIterator major_last,
                                                     rmm::cuda_stream_view stream) const
   {
-    if (thrust::distance(major_first, major_last) == 0) return size_t{0};
+    if (cuda::std::distance(major_first, major_last) == 0) return size_t{0};
     return thrust::transform_reduce(
       rmm::exec_policy(stream),
       major_first,
@@ -774,7 +774,7 @@ class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t
     MajorIterator major_last,
     rmm::cuda_stream_view stream) const
   {
-    rmm::device_uvector<edge_t> local_degrees(thrust::distance(major_first, major_last), stream);
+    rmm::device_uvector<edge_t> local_degrees(cuda::std::distance(major_first, major_last), stream);
     thrust::transform(
       rmm::exec_policy_nosync(stream),
       major_first,
