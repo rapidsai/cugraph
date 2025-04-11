@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -135,16 +135,6 @@ class Tests_BFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, input_
         cugraph::test::generate<decltype(graph_view), bool>::edge_property(handle, graph_view, 2);
       graph_view.attach_edge_mask((*edge_mask).view());
     }
-    {  // FIXME: for testing, delete
-      auto num_self_loops  = graph_view.count_self_loops(handle);
-      auto number_of_edges = graph_view.compute_number_of_edges(handle);
-      std::cout << "V=" << graph_view.number_of_vertices() << " E=" << number_of_edges
-                << " num_self_loops=" << num_self_loops;
-      if (graph_view.is_symmetric()) {
-        std::cout << " undirected E=" << ((number_of_edges - num_self_loops) / 2 + num_self_loops)
-                  << std::endl;
-      }
-    }
 
     ASSERT_TRUE(static_cast<vertex_t>(bfs_usecase.source) >= 0 &&
                 static_cast<vertex_t>(bfs_usecase.source) < graph_view.number_of_vertices())
@@ -214,8 +204,7 @@ class Tests_BFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, input_
                                                d_predecessors.size(),
                                                (*d_renumber_map_labels).data(),
                                                vertex_t{0},
-                                               graph_view.number_of_vertices(),
-                                               true);
+                                               graph_view.number_of_vertices());
 
         rmm::device_uvector<vertex_t> d_unrenumbered_distances(size_t{0}, handle.get_stream());
         std::tie(std::ignore, d_unrenumbered_distances) =

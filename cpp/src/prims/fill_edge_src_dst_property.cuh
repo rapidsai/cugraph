@@ -194,7 +194,7 @@ void fill_edge_major_property(raft::handle_t const& handle,
             if ((it != edge_partition_key_last) && (*it == major)) {
               auto edge_partition_offset = thrust::distance(edge_partition_key_first, it);
               if constexpr (contains_packed_bool_element) {
-                packe_bool_atomic_set(edge_partition_value_first, edge_partition_offset, input);
+                packed_bool_atomic_set(edge_partition_value_first, edge_partition_offset, input);
               } else {
                 *(edge_partition_value_first + edge_partition_offset) = input;
               }
