@@ -37,6 +37,8 @@ __global__ static void attraction_kernel(const vertex_t* restrict row,
                                          bool outbound_attraction_distribution,
                                          bool lin_log_mode,
                                          const float edge_weight_influence,
+                                         bool prevent_overlapping,
+                                         const float* restrict vertex_radius,
                                          const float coef)
 {
   vertex_t i, src, dst;
@@ -86,6 +88,8 @@ void apply_attraction(const vertex_t* restrict row,
                       bool lin_log_mode,
                       const float edge_weight_influence,
                       const float coef,
+                      bool prevent_overlapping,
+                      const float* restrict vertex_radius,
                       cudaStream_t stream)
 {
   // 0 edge graph.
@@ -112,6 +116,8 @@ void apply_attraction(const vertex_t* restrict row,
                                        outbound_attraction_distribution,
                                        lin_log_mode,
                                        edge_weight_influence,
+                                       prevent_overlapping,
+                                       vertex_radius,
                                        coef);
 
   RAFT_CHECK_CUDA(stream);
