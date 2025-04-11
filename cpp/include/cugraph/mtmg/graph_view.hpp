@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, NVIDIA CORPORATION.
+ * Copyright (c) 2023-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -42,7 +42,7 @@ class graph_view_t : public detail::device_shared_wrapper_t<
   /**
    * @brief Get the vertex_partition_view for this graph
    */
-  std::vector<vertex_t> get_vertex_partition_range_lasts(
+  raft::host_span<vertex_t const> get_vertex_partition_range_lasts(
     cugraph::mtmg::handle_t const& handle) const
   {
     return this->get(handle).vertex_partition_range_lasts();

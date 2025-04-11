@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2024, NVIDIA CORPORATION.:
+# Copyright (c) 2020-2025, NVIDIA CORPORATION.:
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -23,6 +23,7 @@ import cupy
 import cugraph
 from cugraph.datasets import karate_disjoint
 from cugraph.testing import utils, SMALL_DATASETS
+from cugraph.utilities import nx_factory
 
 
 # =============================================================================
@@ -304,6 +305,7 @@ def compare_scores(sorted_df, first_key, second_key, epsilon=DEFAULT_EPSILON):
 # =============================================================================
 # Tests
 # =============================================================================
+@pytest.mark.skip(reason="https://github.com/networkx/networkx/pull/7908")
 @pytest.mark.sg
 @pytest.mark.parametrize("graph_file", SMALL_DATASETS)
 @pytest.mark.parametrize("directed", [False, True])
@@ -529,3 +531,45 @@ def test_betweenness_centrality_nx(graph_file, directed, edgevals):
             print(f"{cugraph_bc[i][0]} and {networkx_bc[i][0]}")
     print("Mismatches:", err)
     assert err < (0.01 * len(cugraph_bc))
+
+
+@pytest.mark.sg
+@pytest.mark.parametrize(
+    ("normalized", "endpoints", "is_directed", "k", "expected"),
+    [
+        (True, True, True, None, {0: 1.0, 1: 0.4, 2: 0.4, 3: 0.4, 4: 0.4}),
+        (True, True, True, 1, {0: 1.0, 1: 1.0, 2: 0.25, 3: 0.25, 4: 0.25}),
+        (True, True, False, None, {0: 1.0, 1: 0.4, 2: 0.4, 3: 0.4, 4: 0.4}),
+        (True, True, False, 1, {0: 1.0, 1: 1.0, 2: 0.25, 3: 0.25, 4: 0.25}),
+        (True, False, True, None, {0: 1.0, 1: 0.0, 2: 0.0, 3: 0.0, 4: 0.0}),
+        (True, False, True, 1, {0: 1.0, 1: 0.0, 2: 0.0, 3: 0.0, 4: 0.0}),
+        (True, False, False, None, {0: 1.0, 1: 0.0, 2: 0.0, 3: 0.0, 4: 0.0}),
+        (True, False, False, 1, {0: 1.0, 1: 0.0, 2: 0.0, 3: 0.0, 4: 0.0}),
+        (False, True, True, None, {0: 20.0, 1: 8.0, 2: 8.0, 3: 8.0, 4: 8.0}),
+        (False, True, True, 1, {0: 20.0, 1: 20.0, 2: 5.0, 3: 5.0, 4: 5.0}),
+        (False, True, False, None, {0: 10.0, 1: 4.0, 2: 4.0, 3: 4.0, 4: 4.0}),
+        (False, True, False, 1, {0: 10.0, 1: 10.0, 2: 2.5, 3: 2.5, 4: 2.5}),
+        (False, False, True, None, {0: 12.0, 1: 0.0, 2: 0.0, 3: 0.0, 4: 0.0}),
+        (False, False, True, 1, {0: 12.0, 1: 0.0, 2: 0.0, 3: 0.0, 4: 0.0}),
+        (False, False, False, None, {0: 6.0, 1: 0.0, 2: 0.0, 3: 0.0, 4: 0.0}),
+        (False, False, False, 1, {0: 6.0, 1: 0.0, 2: 0.0, 3: 0.0, 4: 0.0}),
+    ],
+)
+def test_scale_with_k_on_star_graph(normalized, endpoints, is_directed, k, expected):
+    # seed=1 selects node 1 as the initial node when using k=1.
+    # Recall node 0 is the center of the star graph.
+    Gnx = nx.star_graph(4)
+    if is_directed:
+        Gnx = Gnx.to_directed()
+
+    G = nx_factory.convert_from_nx(Gnx)
+
+    if k:
+        sorted_df = _calc_bc_subset(
+            G, Gnx, normalized, None, endpoints, k, 1, np.float32
+        )
+    else:
+        sorted_df = _calc_bc_full(G, Gnx, normalized, None, endpoints, k, 1, np.float32)
+
+    sorted_df["expected"] = expected.values()
+    compare_scores(sorted_df, first_key="cu_bc", second_key="expected")

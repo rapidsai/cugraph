@@ -15,7 +15,7 @@ import pytest
 import numpy as np
 import os
 
-import numba.cuda
+from cuda.bindings import runtime as cuda_runtime
 
 from cugraph.gnn import FeatureStore
 
@@ -28,8 +28,10 @@ wgth = import_optional("pylibwholegraph.torch")
 
 
 def get_cudart_version():
-    major, minor = numba.cuda.runtime.get_version()
-    return major * 1000 + minor * 10
+    status, version = cuda_runtime.getLocalRuntimeVersion()
+    if status != cuda_runtime.cudaError_t.cudaSuccess:
+        raise RuntimeError(f"CUDA Error: {status}")
+    return version
 
 
 pytestmark = [

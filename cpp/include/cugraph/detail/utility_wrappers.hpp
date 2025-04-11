@@ -36,7 +36,8 @@ namespace detail {
  * Fills a buffer with uniformly distributed random values between
  * the specified minimum and maximum values.
  *
- * @tparam      value_t      type of the value to operate on
+ * @tparam      value_t      type of the value to operate on (currently supports int32_t, int64_t,
+ * float and double)
  *
  * @param[in]   stream_view  stream view
  * @param[out]  d_value      device array to fill
@@ -114,6 +115,24 @@ template <typename value_t>
 void transform_increment_ints(raft::device_span<value_t> values,
                               value_t value,
                               rmm::cuda_stream_view const& stream_view);
+
+/**
+ * @ingroup utility_wrappers_cpp
+ * @brief    Update the values of device span to 0 if it matches the compare value or 1
+ *
+ * @tparam      value_t      type of the value to operate on. Must be either int32_t or int64_t.
+ *
+ * @param[out]  values       device span with the values to compare
+ * @param[out]  result       device span with the result of the comparison
+ * @param[in]   compare      value to be querriedm in the values array
+ * @param[in]   stream_view  stream view
+ *
+ */
+template <typename value_t>
+void transform_not_equal(raft::device_span<value_t> values,
+                         raft::device_span<bool> result,
+                         value_t compare,
+                         rmm::cuda_stream_view const& stream_view);
 
 /**
  * @ingroup utility_wrappers_cpp

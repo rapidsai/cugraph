@@ -3,8 +3,6 @@
 
 set -euo pipefail
 
-rapids-configure-conda-channels
-
 source rapids-configure-sccache
 
 source rapids-date-string
@@ -16,28 +14,42 @@ rapids-print-env
 CPP_CHANNEL=$(rapids-download-conda-from-s3 cpp)
 
 rapids-generate-version > ./VERSION
+
 RAPIDS_PACKAGE_VERSION=$(head -1 ./VERSION)
 export RAPIDS_PACKAGE_VERSION
 
-rapids-logger "Begin py build"
+# populates `RATTLER_CHANNELS` array
+source rapids-rattler-channel-string
+
+rapids-logger "Prepending channel ${CPP_CHANNEL} to RATTLER_CHANNELS"
+
+RATTLER_CHANNELS=("--channel" "${CPP_CHANNEL}" "${RATTLER_CHANNELS[@]}")
 
 sccache --zero-stats
 
-# TODO: Remove `--no-test` flags once importing on a CPU
-# node works correctly
-rapids-conda-retry build \
-  --no-test \
-  --channel "${CPP_CHANNEL}" \
-  conda/recipes/pylibcugraph
+rapids-logger "Building pylibcugraph"
+
+# --no-build-id allows for caching with `sccache`
+# more info is available at
+# https://rattler.build/latest/tips_and_tricks/#using-sccache-or-ccache-with-rattler-build
+rattler-build build --recipe conda/recipes/pylibcugraph \
+                    --experimental \
+                    --no-build-id \
+                    --channel-priority disabled \
+                    --output-dir "$RAPIDS_CONDA_BLD_OUTPUT_DIR" \
+                    "${RATTLER_CHANNELS[@]}"
 
 sccache --show-adv-stats
 sccache --zero-stats
 
-rapids-conda-retry build \
-  --no-test \
-  --channel "${CPP_CHANNEL}" \
-  --channel "${RAPIDS_CONDA_BLD_OUTPUT_DIR}" \
-  conda/recipes/cugraph
+rapids-logger "Building cugraph"
+
+rattler-build build --recipe conda/recipes/cugraph \
+                    --experimental \
+                    --no-build-id \
+                    --channel-priority disabled \
+                    --output-dir "$RAPIDS_CONDA_BLD_OUTPUT_DIR" \
+                    "${RATTLER_CHANNELS[@]}"
 
 sccache --show-adv-stats
 
@@ -45,10 +57,18 @@ sccache --show-adv-stats
 # built on each CUDA platform to ensure they are included in each set of
 # artifacts, since test scripts only install from one set of artifacts based on
 # the CUDA version used for the test run.
-rapids-conda-retry build \
-  --no-test \
-  --channel "${CPP_CHANNEL}" \
-  --channel "${RAPIDS_CONDA_BLD_OUTPUT_DIR}" \
-  conda/recipes/cugraph-service
+
+rapids-logger "Building cugraph-service"
+
+rattler-build build --recipe conda/recipes/cugraph-service \
+                    --experimental \
+                    --no-build-id \
+                    --channel-priority disabled \
+                    --output-dir "$RAPIDS_CONDA_BLD_OUTPUT_DIR" \
+                    "${RATTLER_CHANNELS[@]}"
+
+# remove build_cache directory to avoid uploading the entire source tree
+# tracked in https://github.com/prefix-dev/rattler-build/issues/1424
+rm -rf "$RAPIDS_CONDA_BLD_OUTPUT_DIR"/build_cache
 
 rapids-upload-conda-to-s3 python

@@ -90,6 +90,16 @@ auto std_tuple_to_thrust_tuple(TupleType tup, std::index_sequence<Is...>)
   return thrust::make_tuple(std::get<Is>(tup)...);
 }
 
+template <typename TupleType, size_t F, size_t... Is>
+#ifdef __CUDACC__
+__host__ __device__
+#endif
+  auto
+  thrust_tuple_slice_impl(TupleType tup, std::index_sequence<Is...>)
+{
+  return thrust::make_tuple(thrust::get<F + Is>(tup)...);
+}
+
 template <typename TupleType, std::size_t... Is>
 constexpr TupleType thrust_tuple_of_arithmetic_numeric_limits_lowest(std::index_sequence<Is...>)
 {
@@ -305,6 +315,17 @@ template <typename... TupleTypes>
 auto thrust_tuple_cat(TupleTypes... tups)
 {
   return std_tuple_to_thrust_tuple(std::tuple_cat(thrust_tuple_to_std_tuple(tups)...));
+}
+
+template <typename TupleType, size_t F /* first (inclusive) */, size_t L /* last (exclusive) */>
+#ifdef __CUDACC__
+__host__ __device__
+#endif
+  auto
+  thrust_tuple_slice(TupleType tup)
+{
+  static_assert(L > F);
+  return detail::thrust_tuple_slice_impl<TupleType, F>(tup, std::make_index_sequence<L - F>());
 }
 
 template <typename TupleType>

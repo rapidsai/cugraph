@@ -27,6 +27,7 @@
 #include <cuda/functional>
 #include <thrust/count.h>
 #include <thrust/distance.h>
+#include <thrust/equal.h>
 #include <thrust/functional.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/reduce.h>
@@ -99,6 +100,20 @@ void transform_increment_ints(raft::device_span<value_t> values,
                     cuda::proclaim_return_type<value_t>([incr] __device__(value_t value) {
                       return static_cast<value_t>(value + incr);
                     }));
+}
+
+template <typename value_t>
+void transform_not_equal(raft::device_span<value_t> values,
+                         raft::device_span<bool> result,
+                         value_t compare,
+                         rmm::cuda_stream_view const& stream_view)
+{
+  thrust::transform(rmm::exec_policy(stream_view),
+                    values.begin(),
+                    values.end(),
+                    result.begin(),
+                    cuda::proclaim_return_type<bool>(
+                      [compare] __device__(value_t value) { return compare != value; }));
 }
 
 template <typename value_t>
