@@ -24,7 +24,9 @@ else
     DASK_DISTRIBUTED__COMM__TIMEOUTS__CONNECT="1000s" \
     DASK_CUDA_WAIT_WORKERS_MIN_TIMEOUT="1000s" \
     python -m pytest \
-       -v \
+       --verbose \
+       --num-processes=8 \
+       --dist=worksteal \
        --import-mode=append \
        --benchmark-disable \
        -k "not test_property_graph_mg and not test_bulk_sampler_io" \
