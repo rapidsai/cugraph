@@ -207,6 +207,10 @@ void overlap_list(legacy::GraphCSRView<VT, ET, WT> const& graph,
  * @param[in] lin_log_mode                      Switch ForceAtlas’ model from lin-lin to lin-log
  * (tribute to Andreas Noack). Makes clusters more tight.
  * @param[in] prevent_overlapping               Prevent nodes from overlapping.
+ * @param[in] vertex_radius                     Radius of each vertex, used when prevent_overlapping
+ * is set.
+ * @param[in] overlap_scaling_ratio             When prevent_overlapping is set, scales the
+ * repulsion force between two nodes that are overlapping.
  * @param[in] edge_weight_influence             How much influence you give to the edges weight. 0
  * is “no influence” and 1 is “normal”.
  * @param[in] jitter_tolerance                  How much swinging you allow. Above 1 discouraged.
@@ -215,16 +219,16 @@ void overlap_list(legacy::GraphCSRView<VT, ET, WT> const& graph,
  * slower exact version.
  * @param[in] barnes_hut_theta:                 Float between 0 and 1. Tradeoff for speed (1) vs
  * accuracy (0) for Barnes Hut only.
- * @params[in] scaling_ratio                    Float strictly positive. How much repulsion you
+ * @param[in] scaling_ratio                    Float strictly positive. How much repulsion you
  * want. More makes a more sparse graph. Switching from regular mode to LinLog mode needs a
  * readjustment of the scaling parameter.
- * @params[in] strong_gravity_mode              Sets a force
+ * @param[in] strong_gravity_mode              Sets a force
  * that attracts the nodes that are distant from the center more. It is so strong that it can
  * sometimes dominate other forces.
- * @params[in] gravity                          Attracts nodes to the center. Prevents islands from
+ * @param[in] gravity                          Attracts nodes to the center. Prevents islands from
  * drifting away.
- * @params[in] verbose                          Output convergence info at each interation.
- * @params[in] callback                         An instance of GraphBasedDimRedCallback class to
+ * @param[in] verbose                          Output convergence info at each interation.
+ * @param[in] callback                         An instance of GraphBasedDimRedCallback class to
  * intercept the internal state of positions while they are being trained.
  *
  */
