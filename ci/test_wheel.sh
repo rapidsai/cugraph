@@ -10,7 +10,7 @@ python_package_name=${package_name//-/_}
 # Run smoke tests for aarch64 pull requests
 arch=$(uname -m)
 if [[ "${arch}" == "aarch64" && ${RAPIDS_BUILD_TYPE} == "pull-request" ]]; then
-    python ./ci/wheel_smoke_test_"{package_name}".py
+    python ./ci/wheel_smoke_test_"${package_name}".py
 else
     # Test runs that include tests that use dask require
     # --import-mode=append. See test_python.sh for details.
