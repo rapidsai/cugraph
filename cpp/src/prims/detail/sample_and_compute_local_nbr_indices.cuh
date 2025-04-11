@@ -2662,37 +2662,75 @@ compute_aggregate_local_frontier_bias_type_pairs(
   using edge_t   = typename GraphViewType::edge_type;
   using key_t    = typename thrust::iterator_traits<KeyIterator>::value_type;
 
-  using edge_type_t = typename EdgeTypeInputWrapper::value_type;
-  using bias_t      = typename edge_op_result_type<key_t,
+  using edge_value_t = typename EdgeValueInputWrapper::value_type;
+  using edge_type_t  = typename EdgeTypeInputWrapper::value_type;
+  using bias_t       = typename edge_op_result_type<key_t,
                                               vertex_t,
                                               typename EdgeSrcValueInputWrapper::value_type,
                                               typename EdgeDstValueInputWrapper::value_type,
                                               typename EdgeValueInputWrapper::value_type,
                                               BiasEdgeOp>::type;
+  static_assert(std::is_arithmetic_v<bias_t>);
+  static_assert(std::is_integral_v<edge_type_t>);
 
   std::vector<size_t> local_frontier_sizes(local_frontier_offsets.size() - 1);
   std::adjacent_difference(
     local_frontier_offsets.begin() + 1, local_frontier_offsets.end(), local_frontier_sizes.begin());
-  auto [aggregate_local_frontier_bias_type_pairs, aggregate_local_frontier_local_degree_offsets] =
-    transform_v_frontier_e(
-      handle,
-      graph_view,
-      aggregate_local_frontier_key_first,
-      edge_src_value_input,
-      edge_dst_value_input,
-      view_concat(edge_value_input, edge_type_input),
-      cuda::proclaim_return_type<thrust::tuple<bias_t, edge_type_t>>(
-        [bias_e_op] __device__(auto src, auto dst, auto src_val, auto dst_val, auto e_val) {
-          return thrust::make_tuple(bias_e_op(src, dst, src_val, dst_val, thrust::get<0>(e_val)),
-                                    thrust::get<1>(e_val));
-        }),
-      raft::host_span<size_t const>(local_frontier_offsets.data(), local_frontier_offsets.size()));
+
+  rmm::device_uvector<bias_t> aggregate_local_frontier_biases(0, handle.get_stream());
+  rmm::device_uvector<edge_type_t> aggregate_local_frontier_edge_types(0, handle.get_stream());
+  rmm::device_uvector<size_t> aggregate_local_frontier_local_degree_offsets(0, handle.get_stream());
+  if constexpr (std::is_same_v<edge_value_t, cuda::std::nullopt_t>) {
+    std::forward_as_tuple(
+      std::tie(aggregate_local_frontier_biases, aggregate_local_frontier_edge_types),
+      aggregate_local_frontier_local_degree_offsets) =
+      transform_v_frontier_e(
+        handle,
+        graph_view,
+        aggregate_local_frontier_key_first,
+        edge_src_value_input,
+        edge_dst_value_input,
+        edge_type_input,
+        cuda::proclaim_return_type<thrust::tuple<bias_t, edge_type_t>>(
+          [bias_e_op] __device__(auto src, auto dst, auto src_val, auto dst_val, auto e_val) {
+            return thrust::make_tuple(bias_e_op(src, dst, src_val, dst_val, cuda::std::nullopt),
+                                      e_val);
+          }),
+        raft::host_span<size_t const>(local_frontier_offsets.data(),
+                                      local_frontier_offsets.size()));
+  } else {
+    std::forward_as_tuple(
+      std::tie(aggregate_local_frontier_biases, aggregate_local_frontier_edge_types),
+      aggregate_local_frontier_local_degree_offsets) =
+      transform_v_frontier_e(
+        handle,
+        graph_view,
+        aggregate_local_frontier_key_first,
+        edge_src_value_input,
+        edge_dst_value_input,
+        view_concat(edge_value_input, edge_type_input),
+        cuda::proclaim_return_type<thrust::tuple<bias_t, edge_type_t>>(
+          [bias_e_op] __device__(auto src, auto dst, auto src_val, auto dst_val, auto e_val) {
+            using tuple_type          = decltype(e_val);
+            auto constexpr tuple_size = thrust::tuple_size<tuple_type>::value;
+            edge_value_t bias_e_op_e_val{};
+            if constexpr (std::is_arithmetic_v<edge_value_t>) {
+              bias_e_op_e_val = thrust::get<0>(e_val);
+            } else {
+              bias_e_op_e_val = thrust_tuple_slice<tuple_type, size_t{0}, tuple_size - 1>(e_val);
+            }
+            return thrust::make_tuple(bias_e_op(src, dst, src_val, dst_val, bias_e_op_e_val),
+                                      thrust::get<tuple_size - 1>(e_val));
+          }),
+        raft::host_span<size_t const>(local_frontier_offsets.data(),
+                                      local_frontier_offsets.size()));
+  }
 
   if (do_expensive_check) {
     auto num_invalid_biases = thrust::count_if(
       handle.get_thrust_policy(),
-      std::get<0>(aggregate_local_frontier_bias_type_pairs).begin(),
-      std::get<0>(aggregate_local_frontier_bias_type_pairs).end(),
+      aggregate_local_frontier_biases.begin(),
+      aggregate_local_frontier_biases.end(),
       check_out_of_range_t<bias_t>{bias_t{0.0}, std::numeric_limits<bias_t>::max()});
     if constexpr (GraphViewType::is_multi_gpu) {
       num_invalid_biases = host_scalar_allreduce(
@@ -2706,7 +2744,7 @@ compute_aggregate_local_frontier_bias_type_pairs(
   // 3. exclude 0 bias neighbors & update offsets
 
   rmm::device_uvector<edge_t> aggregate_local_frontier_nz_bias_indices(
-    std::get<0>(aggregate_local_frontier_bias_type_pairs).size(), handle.get_stream());
+    aggregate_local_frontier_biases.size(), handle.get_stream());
   thrust::tabulate(handle.get_thrust_policy(),
                    aggregate_local_frontier_nz_bias_indices.begin(),
                    aggregate_local_frontier_nz_bias_indices.end(),
@@ -2727,12 +2765,11 @@ compute_aggregate_local_frontier_bias_type_pairs(
                               aggregate_local_frontier_local_degrees.begin());
 
   {
-    auto pair_first =
-      thrust::make_zip_iterator(std::get<0>(aggregate_local_frontier_bias_type_pairs).begin(),
-                                thrust::make_counting_iterator(size_t{0}));
+    auto pair_first = thrust::make_zip_iterator(aggregate_local_frontier_biases.begin(),
+                                                thrust::make_counting_iterator(size_t{0}));
     thrust::for_each(handle.get_thrust_policy(),
                      pair_first,
-                     pair_first + std::get<0>(aggregate_local_frontier_bias_type_pairs).size(),
+                     pair_first + aggregate_local_frontier_biases.size(),
                      [offsets = raft::device_span<size_t const>(
                         aggregate_local_frontier_local_degree_offsets.data(),
                         aggregate_local_frontier_local_degree_offsets.size()),
@@ -2758,27 +2795,27 @@ compute_aggregate_local_frontier_bias_type_pairs(
 
   {
     auto triplet_first =
-      thrust::make_zip_iterator(std::get<0>(aggregate_local_frontier_bias_type_pairs).begin(),
-                                std::get<1>(aggregate_local_frontier_bias_type_pairs).begin(),
+      thrust::make_zip_iterator(aggregate_local_frontier_biases.begin(),
+                                aggregate_local_frontier_edge_types.begin(),
                                 aggregate_local_frontier_nz_bias_indices.begin());
-    auto triplet_last = thrust::remove_if(
-      handle.get_thrust_policy(),
-      triplet_first,
-      triplet_first + std::get<0>(aggregate_local_frontier_bias_type_pairs).size(),
-      [] __device__(auto triplet) { return thrust::get<0>(triplet) == 0.0; });
-    std::get<0>(aggregate_local_frontier_bias_type_pairs)
-      .resize(thrust::distance(triplet_first, triplet_last), handle.get_stream());
-    std::get<1>(aggregate_local_frontier_bias_type_pairs)
-      .resize(thrust::distance(triplet_first, triplet_last), handle.get_stream());
+    auto triplet_last =
+      thrust::remove_if(handle.get_thrust_policy(),
+                        triplet_first,
+                        triplet_first + aggregate_local_frontier_biases.size(),
+                        [] __device__(auto triplet) { return thrust::get<0>(triplet) == 0.0; });
+    aggregate_local_frontier_biases.resize(thrust::distance(triplet_first, triplet_last),
+                                           handle.get_stream());
+    aggregate_local_frontier_edge_types.resize(thrust::distance(triplet_first, triplet_last),
+                                               handle.get_stream());
     aggregate_local_frontier_nz_bias_indices.resize(thrust::distance(triplet_first, triplet_last),
                                                     handle.get_stream());
-    std::get<0>(aggregate_local_frontier_bias_type_pairs).shrink_to_fit(handle.get_stream());
-    std::get<1>(aggregate_local_frontier_bias_type_pairs).shrink_to_fit(handle.get_stream());
+    aggregate_local_frontier_biases.shrink_to_fit(handle.get_stream());
+    aggregate_local_frontier_edge_types.shrink_to_fit(handle.get_stream());
     aggregate_local_frontier_nz_bias_indices.shrink_to_fit(handle.get_stream());
   }
 
-  return std::make_tuple(std::move(std::get<0>(aggregate_local_frontier_bias_type_pairs)),
-                         std::move(std::get<1>(aggregate_local_frontier_bias_type_pairs)),
+  return std::make_tuple(std::move(aggregate_local_frontier_biases),
+                         std::move(aggregate_local_frontier_edge_types),
                          std::move(aggregate_local_frontier_nz_bias_indices),
                          std::move(aggregate_local_frontier_local_degree_offsets));
 }
