@@ -214,10 +214,10 @@ struct force_atlas2_functor : public cugraph::c_api::abstract_functor {
           raft::device_span<vertex_t>{cp_number_map->data(), cp_number_map->size()},
           raft::device_span<vertex_t>{number_map_pos->data(), number_map_pos->size()});
 
-        cugraph::c_api::detail::sort_tuple_by_key(
+        cugraph::c_api::detail::sort_by_key(
           handle_,
           raft::device_span<vertex_t>{number_map_pos->data(), number_map_pos->size()},
-          std::make_tuple(raft::device_span<float>{vertex_radius_->as_type<float>(), vertex_radius_->size_}));
+          raft::device_span<float>{vertex_radius_->as_type<float>(), vertex_radius_->size_});
       }
 
       cugraph::force_atlas2<vertex_t, edge_t, weight_t>(
