@@ -50,6 +50,8 @@ rapids-logger "pytest pylibcugraph"
 ./ci/run_pylibcugraph_pytests.sh \
   --verbose \
   --junitxml="${RAPIDS_TESTS_DIR}/junit-pylibcugraph.xml" \
+  --numprocesses=8 \
+  --dist=worksteal \
   --cov-config=../../.coveragerc \
   --cov=pylibcugraph \
   --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/pylibcugraph-coverage.xml" \
@@ -70,6 +72,8 @@ rapids-logger "pytest cugraph"
 ./ci/run_cugraph_pytests.sh \
   --verbose \
   --junitxml="${RAPIDS_TESTS_DIR}/junit-cugraph.xml" \
+  --numprocesses=8 \
+  --dist=worksteal \
   --cov-config=../../.coveragerc \
   --cov=cugraph \
   --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph-coverage.xml" \
