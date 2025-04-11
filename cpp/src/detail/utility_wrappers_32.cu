@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -80,6 +80,11 @@ template void sequence_fill(rmm::cuda_stream_view const& stream_view,
 template void transform_increment_ints(raft::device_span<int32_t> values,
                                        int32_t value,
                                        rmm::cuda_stream_view const& stream_view);
+
+template void transform_not_equal(raft::device_span<int32_t> values,
+                                  raft::device_span<bool> result,
+                                  int32_t compare,
+                                  rmm::cuda_stream_view const& stream_view);
 
 template void stride_fill(rmm::cuda_stream_view const& stream_view,
                           int32_t* d_value,

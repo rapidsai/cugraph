@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2024, NVIDIA CORPORATION.
+# Copyright (c) 2019-2025, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -109,14 +109,6 @@ def sssp(input_graph, source, cutoff=None, check_source=True):
         raise ValueError(err_msg)
 
     client = default_client()
-
-    def check_valid_vertex(G, source):
-        is_valid_vertex = G.has_node(source)
-        if not is_valid_vertex:
-            raise ValueError("Invalid source vertex")
-
-    if check_source:
-        check_valid_vertex(input_graph, source)
 
     if cutoff is None:
         cutoff = cupy.inf

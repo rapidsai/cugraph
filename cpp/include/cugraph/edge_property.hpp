@@ -52,9 +52,6 @@ class edge_property_view_t {
   {
   }
 
-  // nvcc 12.5 sometimes deduces this as a host device function, just defining it fixes that
-  ~edge_property_view_t() {}
-
   std::vector<ValueIterator> const& value_firsts() const { return edge_partition_value_firsts_; }
 
   std::vector<edge_t> const& edge_counts() const { return edge_partition_edge_counts_; }

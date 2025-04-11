@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -617,6 +617,8 @@ rmm::device_uvector<T> keep_flagged_elements(raft::handle_t const& handle,
 
   detail::copy_if_mask_set(
     handle, vector.begin(), vector.end(), keep_flags.begin(), result.begin());
+  vector.resize(0, handle.get_stream());
+  vector.shrink_to_fit(handle.get_stream());
 
   return result;
 }
