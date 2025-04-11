@@ -86,14 +86,14 @@ BUILD_DIRS="${LIBCUGRAPH_BUILD_DIR}
 
 # Set defaults for vars modified by flags to this script
 VERBOSE_FLAG=""
-CMAKE_VERBOSE_OPTION=""
+CMAKE_VERBOSE_OPTION=()
 BUILD_TYPE=Release
-INSTALL_TARGET="--target install"
+INSTALL_TARGET=("--target" "install")
 BUILD_CPP_TESTS=ON
 BUILD_CPP_MG_TESTS=OFF
 BUILD_CPP_MTMG_TESTS=OFF
 BUILD_ALL_GPU_ARCH=0
-CMAKE_GENERATOR_OPTION="-G Ninja"
+CMAKE_GENERATOR_OPTION=("-G" "Ninja")
 PYTHON_ARGS_FOR_INSTALL="-m pip install --no-build-isolation --no-deps --config-settings rapidsai.disable-cuda=true"
 
 # Set defaults for vars that may not have been defined externally
@@ -141,13 +141,13 @@ fi
 # Process flags
 if hasArg -v; then
     VERBOSE_FLAG="-v"
-    CMAKE_VERBOSE_OPTION="--log-level=VERBOSE"
+    CMAKE_VERBOSE_OPTION=("--log-level=VERBOSE")
 fi
 if hasArg -g; then
     BUILD_TYPE=Debug
 fi
 if hasArg -n; then
-    INSTALL_TARGET=""
+    INSTALL_TARGET=()
 fi
 if hasArg --allgpuarch; then
     BUILD_ALL_GPU_ARCH=1
@@ -162,7 +162,7 @@ if hasArg cpp-mgtests || hasArg all; then
     BUILD_CPP_MG_TESTS=ON
 fi
 if hasArg --cmake_default_generator; then
-    CMAKE_GENERATOR_OPTION=""
+    CMAKE_GENERATOR_OPTION=()
 fi
 if hasArg --pydevelop; then
     PYTHON_ARGS_FOR_INSTALL="${PYTHON_ARGS_FOR_INSTALL} -e"
@@ -244,9 +244,10 @@ if buildDefault || hasArg libcugraph || hasArg all; then
               -DBUILD_TESTS=${BUILD_CPP_TESTS} \
               -DBUILD_CUGRAPH_MG_TESTS=${BUILD_CPP_MG_TESTS} \
               -DBUILD_CUGRAPH_MTMG_TESTS=${BUILD_CPP_MTMG_TESTS} \
-              "${CMAKE_GENERATOR_OPTION}" \
-              "${CMAKE_VERBOSE_OPTION}"
-        cmake --build "${LIBCUGRAPH_BUILD_DIR}" "-j${PARALLEL_LEVEL}" "${INSTALL_TARGET}" "${VERBOSE_FLAG}"
+              "${CMAKE_GENERATOR_OPTION[@]}" \
+              "${CMAKE_VERBOSE_OPTION[@]}"
+
+        cmake --build "${LIBCUGRAPH_BUILD_DIR}" "-j${PARALLEL_LEVEL}" "${INSTALL_TARGET[@]}" "${VERBOSE_FLAG}"
     fi
 fi
 
@@ -275,10 +276,10 @@ if buildDefault || hasArg libcugraph_etl || hasArg all; then
               -DBUILD_CUGRAPH_MG_TESTS=${BUILD_CPP_MG_TESTS} \
               -DBUILD_CUGRAPH_MTMG_TESTS=${BUILD_CPP_MTMG_TESTS} \
               -DCMAKE_PREFIX_PATH="${LIBCUGRAPH_BUILD_DIR}" \
-              "${CMAKE_GENERATOR_OPTION}" \
-              "${CMAKE_VERBOSE_OPTION}" \
+              "${CMAKE_GENERATOR_OPTION[@]}" \
+              "${CMAKE_VERBOSE_OPTION[@]}" \
               "${REPODIR}/cpp/libcugraph_etl"
-        cmake --build "${LIBCUGRAPH_ETL_BUILD_DIR}" "-j${PARALLEL_LEVEL}" "${INSTALL_TARGET}" "${VERBOSE_FLAG}"
+        cmake --build "${LIBCUGRAPH_ETL_BUILD_DIR}" "-j${PARALLEL_LEVEL}" "${INSTALL_TARGET[@]}" "${VERBOSE_FLAG}"
     fi
 fi
 
@@ -320,21 +321,9 @@ if hasArg docs || hasArg all; then
         cmake -B "${LIBCUGRAPH_BUILD_DIR}" -S "${REPODIR}/cpp" \
               -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
               -DCMAKE_BUILD_TYPE="${BUILD_TYPE}" \
-              "${CMAKE_GENERATOR_OPTION}" \
-              "${CMAKE_VERBOSE_OPTION}"
+              "${CMAKE_GENERATOR_OPTION[@]}" \
+              "${CMAKE_VERBOSE_OPTION[@]}"
     fi
-
-    # for PROJECT in libwholegraph; do
-    #     XML_DIR="${REPODIR}/docs/cugraph/${PROJECT}"
-    #     rm -rf "${XML_DIR}"
-    #     mkdir -p "${XML_DIR}"
-    #     export XML_DIR_${PROJECT^^}="$XML_DIR"
-
-    #     echo "downloading xml for ${PROJECT} into ${XML_DIR}. Environment variable XML_DIR_${PROJECT^^} is set to ${XML_DIR}"
-    #     curl -O "https://d1664dvumjb44w.cloudfront.net/${PROJECT}/xml_tar/${RAPIDS_VERSION}/xml.tar.gz"
-    #     tar -xzf xml.tar.gz -C "${XML_DIR}"
-    #     rm "./xml.tar.gz"
-    # done
 
     cd "${LIBCUGRAPH_BUILD_DIR}"
     cmake --build "${LIBCUGRAPH_BUILD_DIR}" "-j${PARALLEL_LEVEL}" --target docs_cugraph ${VERBOSE_FLAG}
