@@ -239,10 +239,6 @@ def graph_objs(request):
                     sources = result_df["majors"].to_cupy()
                     destinations = result_df["minors"].to_cupy()
 
-                    # FIXME not sure what indices is supposed to refer to
-                    # indices = result_df["indices"].to_cupy()
-
-                # return (sources, destinations, indices)
                 return (sources, destinations)
 
     yield (G, num_verts, uns_func)
