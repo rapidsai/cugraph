@@ -41,6 +41,9 @@ export LD_PRELOAD="${CONDA_PREFIX}/lib/libgomp.so.1"
 
 # RAPIDS_DATASET_ROOT_DIR is used by test scripts
 export RAPIDS_DATASET_ROOT_DIR="$(realpath datasets)"
+pushd "${RAPIDS_DATASET_ROOT_DIR}"
+./get_test_data.sh --subset
+popd
 
 EXITCODE=0
 trap "EXITCODE=1" ERR
