@@ -38,11 +38,25 @@ __global__ static void repulsion_kernel(const float* restrict x_pos,
   for (; i < n; i += gridDim.y * blockDim.y) {
     for (; j < n; j += gridDim.x * blockDim.x) {
       if (j >= i) return;
-      float x_dist   = x_pos[i] - x_pos[j];
-      float y_dist   = y_pos[i] - y_pos[j];
-      float distance = x_dist * x_dist + y_dist * y_dist;
-      distance += FLT_EPSILON;
-      float factor = scaling_ratio * mass[i] * mass[j] / distance;
+      float factor;
+      float x_dist      = x_pos[i] - x_pos[j];
+      float y_dist      = y_pos[i] - y_pos[j];
+      float distance_sq = x_dist * x_dist + y_dist * y_dist + FLT_EPSILON;
+      if (prevent_overlapping) {
+        float radius_i = node_radius[i];
+        float radius_j = node_radius[j];
+        float distance = sqrt(distance_sq);
+        if (distance_sq <= radius_i * radius_i + radius_j * radius_j) {
+          // Overlapping
+          factor = overlap_scaling_ratio * mass[i] * mass[j] / distance;
+        } else {
+          // Non-overlapping
+          float distance_inter = distance - radius_i - radius_j + FLT_EPSILON;
+          factor = scaling_ratio * mass[i] * mass[j] / (distance * distance_inter);
+        }
+      } else {
+        factor = scaling_ratio * mass[i] * mass[j] / distance_sq;
+      }
       // Add forces
       atomicAdd(&repel_x[i], x_dist * factor);
       atomicAdd(&repel_x[j], -x_dist * factor);
