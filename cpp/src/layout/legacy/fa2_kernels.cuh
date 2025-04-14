@@ -58,11 +58,34 @@ __global__ static void attraction_kernel(const vertex_t* restrict row,
     float y_dist = y_pos[src] - y_pos[dst];
     float factor = -coef * weight;
 
-    if (lin_log_mode) {
-      float distance = pow(x_dist, 2) + pow(y_dist, 2);
-      distance += FLT_EPSILON;
-      distance = sqrt(distance);
-      factor *= log(1 + distance) / distance;
+    if (prevent_overlapping) {
+      float radius_src = node_radius[src];
+      float radius_dst = node_radius[dst];
+      float distance_sq = x_dist * x_dist + y_dist * y_dist;
+      if (distance_sq <= pow(radius_src + radius_dst, 2)) {
+        // Overlapping, force is 0
+        continue
+      } else {
+        // Not overlapping, force is based on d' instead of d
+
+        float distance = pow(x_dist, 2) + pow(y_dist, 2);
+        distance += FLT_EPSILON;
+        distance = sqrt(distance);
+        float distance_inter = distance - radius_src - radius_dst;
+
+        if (lin_log_mode) {
+          factor *= log(1 + distance_inter) / distance;
+        } else {
+          factor *= distance_inter / distance
+        }
+      }
+    } else {
+      if (lin_log_mode) {
+        float distance = pow(x_dist, 2) + pow(y_dist, 2);
+        distance += FLT_EPSILON;
+        distance = sqrt(distance);
+        factor *= log(1 + distance) / distance;
+      }
     }
     if (outbound_attraction_distribution) factor /= mass[src];
 
