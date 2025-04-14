@@ -16,7 +16,9 @@
 #pragma once
 
 #include "prims/extract_transform_if_e.cuh"
+#include "prims/fill_edge_property.cuh"
 #include "prims/fill_edge_src_dst_property.cuh"
+#include "prims/transform_e.cuh"
 #include "prims/transform_reduce_if_v_frontier_outgoing_e_by_dst.cuh"
 #include "prims/update_edge_src_dst_property.cuh"
 #include "prims/update_v_frontier.cuh"
@@ -457,20 +459,41 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
       edge_src_property_t<GraphViewType, bool> edge_src_visited(handle, level_graph_view);
       update_edge_src_property(
         handle, level_graph_view, visited.begin(), edge_src_visited.mutable_view());
-      edge_buffer = extract_transform_if_e(
-        handle,
-        level_graph_view,
-        edge_src_visited.view(),
-        edge_dst_dummy_property_t{}.view(),
-        edge_dummy_property_t{}.view(),
-        cuda::proclaim_return_type<thrust::tuple<vertex_t, vertex_t>>(
-          [] __device__(auto src, auto dst, auto, auto, auto) {
-            return thrust::make_tuple(src, dst);
-          }),
-        cuda::proclaim_return_type<bool>([] __device__(
-                                           auto src, auto dst, bool src_visited, auto, auto) {
-          return (src > dst) /* keep only the edges in the lower triangular part */ && !src_visited;
-        }));
+      {
+        auto tmp_graph_view = level_graph_view;
+        edge_property_t<GraphViewType, bool> edge_mask(handle, level_graph_view);
+        if (tmp_graph_view.has_edge_mask()) {
+          tmp_graph_view.clear_edge_mask();
+          cugraph::fill_edge_property(handle,
+                                      tmp_graph_view,
+                                      edge_mask.mutable_view(),
+                                      false);  // if level_graph_view has an attached edge mask,
+                                               // masked out values of edge_mask won't be updated.
+        }
+        transform_e(handle,
+                    level_graph_view,
+                    edge_src_visited.view(),
+                    edge_dst_dummy_property_t{}.view(),
+                    edge_dummy_property_t{}.view(),
+                    cuda::proclaim_return_type<bool>(
+                      [] __device__(auto src, auto dst, bool src_visited, auto, auto) {
+                        return (src > dst) /* keep only the edges in the lower triangular part */ &&
+                               !src_visited;
+                      }),
+                    edge_mask.mutable_view());
+        tmp_graph_view.attach_edge_mask(edge_mask.view());
+        std::tie(std::get<0>(edge_buffer),
+                 std::get<1>(edge_buffer),
+                 std::ignore,
+                 std::ignore,
+                 std::ignore) = decompress_to_edgelist<vertex_t,
+                                                       edge_t,
+                                                       weight_t,
+                                                       edge_type_t,
+                                                       GraphViewType::is_storage_transposed,
+                                                       GraphViewType::is_multi_gpu>(
+          handle, tmp_graph_view, std::nullopt, std::nullopt, std::nullopt, std::nullopt);
+      }
       thrust::sort(handle.get_thrust_policy(),
                    get_dataframe_buffer_begin(edge_buffer),
                    get_dataframe_buffer_end(edge_buffer));
