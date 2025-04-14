@@ -21,7 +21,7 @@
 #include <cugraph/sampling_functions.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
 
-#include <thrust/distance.h>
+#include <cuda/std/iterator>
 #include <thrust/sort.h>
 #include <thrust/unique.h>
 

@@ -33,10 +33,10 @@
 #include <rmm/mr/device/per_device_resource.hpp>
 #include <rmm/mr/device/polymorphic_allocator.hpp>
 
+#include <cuda/std/iterator>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
 #include <thrust/count.h>
-#include <thrust/distance.h>
 #include <thrust/execution_policy.h>
 #include <thrust/fill.h>
 #include <thrust/for_each.h>
@@ -112,7 +112,7 @@ struct search_and_increment_degree_t {
                                   sorted_vertices,
                                   sorted_vertices + num_vertices,
                                   thrust::get<0>(vertex_degree_pair));
-    *(degrees + thrust::distance(sorted_vertices, it)) += thrust::get<1>(vertex_degree_pair);
+    *(degrees + cuda::std::distance(sorted_vertices, it)) += thrust::get<1>(vertex_degree_pair);
   }
 };
 
@@ -346,7 +346,7 @@ compute_renumber_map(raft::handle_t const& handle,
           }
           thrust::sort(handle.get_thrust_policy(), tmp_majors.begin(), tmp_majors.end());
           tmp_majors.resize(
-            thrust::distance(
+            cuda::std::distance(
               tmp_majors.begin(),
               thrust::unique(handle.get_thrust_policy(), tmp_majors.begin(), tmp_majors.end())),
             handle.get_stream());
@@ -410,7 +410,7 @@ compute_renumber_map(raft::handle_t const& handle,
           }
           thrust::sort(handle.get_thrust_policy(), tmp_minors.begin(), tmp_minors.end());
           tmp_minors.resize(
-            thrust::distance(
+            cuda::std::distance(
               tmp_minors.begin(),
               thrust::unique(handle.get_thrust_policy(), tmp_minors.begin(), tmp_minors.end())),
             handle.get_stream());
@@ -439,10 +439,10 @@ compute_renumber_map(raft::handle_t const& handle,
                        this_bin_sorted_unique_minors.begin(),
                        this_bin_sorted_unique_minors.end());
           this_bin_sorted_unique_minors.resize(
-            thrust::distance(this_bin_sorted_unique_minors.begin(),
-                             thrust::unique(handle.get_thrust_policy(),
-                                            this_bin_sorted_unique_minors.begin(),
-                                            this_bin_sorted_unique_minors.end())),
+            cuda::std::distance(this_bin_sorted_unique_minors.begin(),
+                                thrust::unique(handle.get_thrust_policy(),
+                                               this_bin_sorted_unique_minors.begin(),
+                                               this_bin_sorted_unique_minors.end())),
             handle.get_stream());
           this_bin_sorted_unique_minors.shrink_to_fit(handle.get_stream());
         }
@@ -502,10 +502,10 @@ compute_renumber_map(raft::handle_t const& handle,
         this_bin_sorted_unique_majors.shrink_to_fit(handle.get_stream());
         this_bin_sorted_unique_minors.resize(0, handle.get_stream());
         this_bin_sorted_unique_minors.shrink_to_fit(handle.get_stream());
-        merged_vertices.resize(thrust::distance(merged_vertices.begin(),
-                                                thrust::unique(handle.get_thrust_policy(),
-                                                               merged_vertices.begin(),
-                                                               merged_vertices.end())),
+        merged_vertices.resize(cuda::std::distance(merged_vertices.begin(),
+                                                   thrust::unique(handle.get_thrust_policy(),
+                                                                  merged_vertices.begin(),
+                                                                  merged_vertices.end())),
                                handle.get_stream());
         merged_vertices.shrink_to_fit(handle.get_stream());
         this_bin_sorted_unique_vertices = std::move(merged_vertices);
@@ -585,7 +585,7 @@ compute_renumber_map(raft::handle_t const& handle,
             thrust::lower_bound(thrust::seq, sorted_majors.begin(), sorted_majors.end(), major);
           assert((it != sorted_majors.end()) && (*it == major));
           cuda::atomic_ref<edge_t, cuda::thread_scope_device> atomic_counter(
-            sorted_major_degrees[thrust::distance(sorted_majors.begin(), it)]);
+            sorted_major_degrees[cuda::std::distance(sorted_majors.begin(), it)]);
           atomic_counter.fetch_add(edge_t{1}, cuda::std::memory_order_relaxed);
         });
 
@@ -619,7 +619,7 @@ compute_renumber_map(raft::handle_t const& handle,
                          thrust::seq, sorted_majors.begin(), sorted_majors.end(), major);
                        assert((it != sorted_majors.end()) && (*it == major));
                        cuda::atomic_ref<edge_t, cuda::thread_scope_device> atomic_counter(
-                         sorted_major_degrees[thrust::distance(sorted_majors.begin(), it)]);
+                         sorted_major_degrees[cuda::std::distance(sorted_majors.begin(), it)]);
                        atomic_counter.fetch_add(edge_t{1}, cuda::std::memory_order_relaxed);
                      });
   }
@@ -743,10 +743,10 @@ void expensive_check_edgelist(
     thrust::sort(
       handle.get_thrust_policy(), (*sorted_local_vertices).begin(), (*sorted_local_vertices).end());
     CUGRAPH_EXPECTS(
-      static_cast<size_t>(thrust::distance((*sorted_local_vertices).begin(),
-                                           thrust::unique(handle.get_thrust_policy(),
-                                                          (*sorted_local_vertices).begin(),
-                                                          (*sorted_local_vertices).end()))) ==
+      static_cast<size_t>(cuda::std::distance((*sorted_local_vertices).begin(),
+                                              thrust::unique(handle.get_thrust_policy(),
+                                                             (*sorted_local_vertices).begin(),
+                                                             (*sorted_local_vertices).end()))) ==
         (*sorted_local_vertices).size(),
       "Invalid input argument: (local_)vertices should not have duplicates.");
   }

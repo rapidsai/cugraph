@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,8 +31,8 @@
 #include <rmm/device_vector.hpp>
 #include <rmm/exec_policy.hpp>
 
+#include <cuda/std/iterator>
 #include <thrust/copy.h>
-#include <thrust/distance.h>
 #include <thrust/fill.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/remove.h>
@@ -126,7 +126,7 @@ extract(raft::handle_t const& handle,
 
     if constexpr (multi_gpu) {
       auto it  = std::upper_bound(source_start.begin(), source_start.end(), i);
-      auto gpu = thrust::distance(source_start.begin(), it) - 1;
+      auto gpu = cuda::std::distance(source_start.begin(), it) - 1;
 
       if (gpu == handle.get_comms().get_rank())
         source = raft::device_span<vertex_t const>{source_vertex.data() + i - source_start[gpu], 1};
@@ -162,7 +162,7 @@ extract(raft::handle_t const& handle,
                                       std::numeric_limits<vertex_t>::max());
 
     // release temp storage
-    reached[i].resize(thrust::distance(reached[i].begin(), reached_end), worker_stream_view);
+    reached[i].resize(cuda::std::distance(reached[i].begin(), reached_end), worker_stream_view);
     reached[i].shrink_to_fit(worker_stream_view);
   }
 

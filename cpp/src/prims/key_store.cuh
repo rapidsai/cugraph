@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2023-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,9 +18,9 @@
 #include <rmm/device_uvector.hpp>
 #include <rmm/mr/device/polymorphic_allocator.hpp>
 
+#include <cuda/std/iterator>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
-#include <thrust/distance.h>
 #include <thrust/functional.h>
 #include <thrust/iterator/iterator_traits.h>
 #include <thrust/sort.h>
@@ -195,7 +195,7 @@ class key_binary_search_store_t {
                        is necessary for binary-search) */
     ,
     rmm::cuda_stream_view stream)
-    : store_keys_(static_cast<size_t>(thrust::distance(key_first, key_last)), stream)
+    : store_keys_(static_cast<size_t>(cuda::std::distance(key_first, key_last)), stream)
   {
     thrust::copy(rmm::exec_policy(stream), key_first, key_last, store_keys_.begin());
     if (!key_sorted) {
@@ -265,7 +265,7 @@ class key_cuco_store_t {
                    key_t invalid_key,
                    rmm::cuda_stream_view stream)
   {
-    auto num_keys = static_cast<size_t>(thrust::distance(key_first, key_last));
+    auto num_keys = static_cast<size_t>(cuda::std::distance(key_first, key_last));
     allocate(num_keys, invalid_key, stream);
     capacity_ = num_keys;
     size_     = 0;
@@ -276,7 +276,7 @@ class key_cuco_store_t {
   template <typename KeyIterator>
   void insert(KeyIterator key_first, KeyIterator key_last, rmm::cuda_stream_view stream)
   {
-    auto num_keys = static_cast<size_t>(thrust::distance(key_first, key_last));
+    auto num_keys = static_cast<size_t>(cuda::std::distance(key_first, key_last));
     if (num_keys == 0) return;
 
     size_ += cuco_store_->insert(key_first, key_last, stream.value());
@@ -289,7 +289,7 @@ class key_cuco_store_t {
                  PredOp pred_op,
                  rmm::cuda_stream_view stream)
   {
-    auto num_keys = static_cast<size_t>(thrust::distance(key_first, key_last));
+    auto num_keys = static_cast<size_t>(cuda::std::distance(key_first, key_last));
     if (num_keys == 0) return;
 
     size_ += cuco_store_->insert_if(key_first, key_last, stencil_first, pred_op, stream.value());
@@ -299,7 +299,7 @@ class key_cuco_store_t {
   {
     rmm::device_uvector<key_t> keys(size(), stream);
     auto last = cuco_store_->retrieve_all(keys.begin(), stream.value());
-    keys.resize(thrust::distance(keys.begin(), last), stream);
+    keys.resize(cuda::std::distance(keys.begin(), last), stream);
     keys.shrink_to_fit(stream);
     allocate(0, invalid_key(), stream);
     capacity_ = 0;

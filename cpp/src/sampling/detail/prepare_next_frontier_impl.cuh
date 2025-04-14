@@ -29,6 +29,7 @@
 
 #include <rmm/device_uvector.hpp>
 
+#include <cuda/std/iterator>
 #include <thrust/sort.h>
 #include <thrust/tuple.h>
 #include <thrust/unique.h>
@@ -259,8 +260,8 @@ prepare_next_frontier(
         auto end_iter =
           thrust::unique(handle.get_thrust_policy(), begin_iter, begin_iter + new_verts_size);
 
-        verts.resize(thrust::distance(begin_iter, end_iter), handle.get_stream());
-        labels->resize(thrust::distance(begin_iter, end_iter), handle.get_stream());
+        verts.resize(cuda::std::distance(begin_iter, end_iter), handle.get_stream());
+        labels->resize(cuda::std::distance(begin_iter, end_iter), handle.get_stream());
       }
     } else {
       if (sampled_src_vertex_times) {
@@ -279,7 +280,7 @@ prepare_next_frontier(
 
         auto end_iter = thrust::unique(handle.get_thrust_policy(), verts.begin(), verts.end());
 
-        verts.resize(thrust::distance(verts.begin(), end_iter), handle.get_stream());
+        verts.resize(cuda::std::distance(verts.begin(), end_iter), handle.get_stream());
       }
     }
 
@@ -314,8 +315,9 @@ prepare_next_frontier(
         auto new_end = thrust::unique(
           handle.get_thrust_policy(), begin_iter, begin_iter + frontier_vertices.size());
 
-        frontier_vertices.resize(thrust::distance(begin_iter, new_end), handle.get_stream());
-        frontier_vertex_labels->resize(thrust::distance(begin_iter, new_end), handle.get_stream());
+        frontier_vertices.resize(cuda::std::distance(begin_iter, new_end), handle.get_stream());
+        frontier_vertex_labels->resize(cuda::std::distance(begin_iter, new_end),
+                                       handle.get_stream());
       }
     } else {
       if (frontier_vertex_times) {
@@ -332,7 +334,7 @@ prepare_next_frontier(
         auto new_end = thrust::unique(
           handle.get_thrust_policy(), frontier_vertices.begin(), frontier_vertices.end());
 
-        frontier_vertices.resize(thrust::distance(frontier_vertices.begin(), new_end),
+        frontier_vertices.resize(cuda::std::distance(frontier_vertices.begin(), new_end),
                                  handle.get_stream());
       }
     }

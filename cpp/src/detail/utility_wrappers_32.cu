@@ -25,8 +25,8 @@
 #include <rmm/exec_policy.hpp>
 
 #include <cuda/functional>
+#include <cuda/std/iterator>
 #include <thrust/count.h>
-#include <thrust/distance.h>
 #include <thrust/functional.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/reduce.h>

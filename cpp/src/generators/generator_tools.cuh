@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,8 +25,8 @@
 
 #include <rmm/device_uvector.hpp>
 
+#include <cuda/std/iterator>
 #include <thrust/copy.h>
-#include <thrust/distance.h>
 #include <thrust/execution_policy.h>
 #include <thrust/for_each.h>
 #include <thrust/iterator/zip_iterator.h>
@@ -165,7 +165,7 @@ combine_edgelists(raft::handle_t const& handle,
       auto end_iter = thrust::unique_by_key(
         handle.get_thrust_policy(), pair_first, pair_first + srcs_v.size(), weights_v.begin());
 
-      number_of_edges = thrust::distance(pair_first, thrust::get<0>(end_iter));
+      number_of_edges = cuda::std::distance(pair_first, thrust::get<0>(end_iter));
     } else {
       thrust::sort(handle.get_thrust_policy(),
                    thrust::make_zip_iterator(thrust::make_tuple(srcs_v.begin(), dsts_v.begin())),
@@ -179,7 +179,7 @@ combine_edgelists(raft::handle_t const& handle,
         thrust::make_zip_iterator(thrust::make_tuple(srcs_v.begin(), dsts_v.begin())),
         thrust::make_zip_iterator(thrust::make_tuple(srcs_v.end(), dsts_v.end())));
 
-      number_of_edges = thrust::distance(pair_first, end_iter);
+      number_of_edges = cuda::std::distance(pair_first, end_iter);
     }
 
     srcs_v.resize(number_of_edges, handle.get_stream());
@@ -222,7 +222,7 @@ symmetrize_edgelist_from_triangular(
           return thrust::get<0>(e) != thrust::get<1>(e);
         });
       num_strictly_triangular_edges =
-        static_cast<size_t>(thrust::distance(edge_first, strictly_triangular_last));
+        static_cast<size_t>(cuda::std::distance(edge_first, strictly_triangular_last));
     } else {
       auto edge_first =
         thrust::make_zip_iterator(thrust::make_tuple(d_src_v.begin(), d_dst_v.begin()));
@@ -231,7 +231,7 @@ symmetrize_edgelist_from_triangular(
           return thrust::get<0>(e) != thrust::get<1>(e);
         });
       num_strictly_triangular_edges =
-        static_cast<size_t>(thrust::distance(edge_first, strictly_triangular_last));
+        static_cast<size_t>(cuda::std::distance(edge_first, strictly_triangular_last));
     }
   }
 

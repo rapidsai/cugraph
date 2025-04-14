@@ -28,10 +28,10 @@
 
 #include <rmm/exec_policy.hpp>
 
+#include <cuda/std/iterator>
 #include <cuda/std/optional>
 #include <thrust/binary_search.h>
 #include <thrust/count.h>
-#include <thrust/distance.h>
 #include <thrust/for_each.h>
 #include <thrust/iterator/zip_iterator.h>
 
@@ -173,14 +173,14 @@ struct update_e_value_t {
     for (auto it = lower_it; it != upper_it; ++it) {
       assert(*it == minor);
       if constexpr (check_edge_mask) {
-        if (edge_partition_e_mask.get(edge_offset + thrust::distance(indices, it))) {
+        if (edge_partition_e_mask.get(edge_offset + cuda::std::distance(indices, it))) {
           auto e_op_result =
             e_op(src,
                  dst,
                  edge_partition_src_value_input.get(src_offset),
                  edge_partition_dst_value_input.get(dst_offset),
-                 edge_partition_e_value_input.get(edge_offset + thrust::distance(indices, it)));
-          edge_partition_e_value_output.set(edge_offset + thrust::distance(indices, it),
+                 edge_partition_e_value_input.get(edge_offset + cuda::std::distance(indices, it)));
+          edge_partition_e_value_output.set(edge_offset + cuda::std::distance(indices, it),
                                             e_op_result);
         }
       } else {
@@ -189,8 +189,9 @@ struct update_e_value_t {
                dst,
                edge_partition_src_value_input.get(src_offset),
                edge_partition_dst_value_input.get(dst_offset),
-               edge_partition_e_value_input.get(edge_offset + thrust::distance(indices, it)));
-        edge_partition_e_value_output.set(edge_offset + thrust::distance(indices, it), e_op_result);
+               edge_partition_e_value_input.get(edge_offset + cuda::std::distance(indices, it)));
+        edge_partition_e_value_output.set(edge_offset + cuda::std::distance(indices, it),
+                                          e_op_result);
       }
     }
   }
@@ -571,8 +572,8 @@ void transform_e(raft::handle_t const& handle,
               auto upper_it =
                 thrust::upper_bound(thrust::seq, lower_it, indices + local_degree, minor);
               if (detail::count_set_bits((*edge_partition_e_mask).value_first(),
-                                         edge_offset + thrust::distance(indices, lower_it),
-                                         thrust::distance(lower_it, upper_it)) == 0) {
+                                         edge_offset + cuda::std::distance(indices, lower_it),
+                                         cuda::std::distance(lower_it, upper_it)) == 0) {
                 return true;
               }
             }

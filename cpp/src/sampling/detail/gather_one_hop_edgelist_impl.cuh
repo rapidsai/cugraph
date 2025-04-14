@@ -32,6 +32,7 @@
 
 #include <rmm/device_uvector.hpp>
 
+#include <cuda/std/iterator>
 #include <cuda/std/optional>
 #include <thrust/tuple.h>
 

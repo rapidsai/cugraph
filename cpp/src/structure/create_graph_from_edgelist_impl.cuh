@@ -32,10 +32,10 @@
 
 #include <raft/core/handle.hpp>
 
+#include <cuda/std/iterator>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
 #include <thrust/count.h>
-#include <thrust/distance.h>
 #include <thrust/equal.h>
 #include <thrust/execution_policy.h>
 #include <thrust/iterator/zip_iterator.h>
@@ -83,11 +83,11 @@ void expensive_check_edgelist(raft::handle_t const& handle,
     thrust::copy(
       handle.get_thrust_policy(), (*vertices).begin(), (*vertices).end(), sorted_vertices.begin());
     thrust::sort(handle.get_thrust_policy(), sorted_vertices.begin(), sorted_vertices.end());
-    CUGRAPH_EXPECTS(static_cast<size_t>(thrust::distance(sorted_vertices.begin(),
-                                                         thrust::unique(handle.get_thrust_policy(),
-                                                                        sorted_vertices.begin(),
-                                                                        sorted_vertices.end()))) ==
-                      sorted_vertices.size(),
+    CUGRAPH_EXPECTS(static_cast<size_t>(cuda::std::distance(
+                      sorted_vertices.begin(),
+                      thrust::unique(handle.get_thrust_policy(),
+                                     sorted_vertices.begin(),
+                                     sorted_vertices.end()))) == sorted_vertices.size(),
                     "Invalid input argument: vertices should not have duplicates.");
     if (!renumber) {
       CUGRAPH_EXPECTS(static_cast<size_t>(thrust::count_if(
