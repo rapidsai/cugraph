@@ -46,7 +46,7 @@ __global__ static void repulsion_kernel(const float* restrict x_pos,
         float radius_i = node_radius[i];
         float radius_j = node_radius[j];
         float distance = sqrt(distance_sq);
-        if (distance_sq <= radius_i * radius_i + radius_j * radius_j) {
+        if (distance <= radius_i + radius_j) {
           // Overlapping
           factor = overlap_scaling_ratio * mass[i] * mass[j] / distance;
         } else {
