@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -36,10 +36,10 @@
 #include <rmm/exec_policy.hpp>
 
 #include <cuda/functional>
+#include <cuda/std/iterator>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
 #include <thrust/count.h>
-#include <thrust/distance.h>
 #include <thrust/execution_policy.h>
 #include <thrust/fill.h>
 #include <thrust/for_each.h>
@@ -65,7 +65,7 @@ void pack_bools(raft::handle_t const& handle,
                 BoolInputIterator input_last,
                 PackedBoolOutputIterator output_first)
 {
-  auto num_bools   = static_cast<size_t>(thrust::distance(input_first, input_last));
+  auto num_bools   = static_cast<size_t>(cuda::std::distance(input_first, input_last));
   auto packed_size = cugraph::packed_bool_size(num_bools);
   thrust::tabulate(handle.get_thrust_policy(),
                    output_first,
@@ -80,7 +80,7 @@ void pack_unaligned_bools(raft::handle_t const& handle,
                           PackedBoolOutputIterator output_first,
                           size_t intraword_start_offset)
 {
-  auto num_bools            = static_cast<size_t>(thrust::distance(input_first, input_last));
+  auto num_bools            = static_cast<size_t>(cuda::std::distance(input_first, input_last));
   auto num_first_word_bools = std::min(num_bools, packed_bools_per_word() - intraword_start_offset);
   auto num_aligned_bools    = (num_bools - num_first_word_bools) -
                            (num_bools - num_first_word_bools) % packed_bools_per_word();
@@ -289,10 +289,11 @@ void update_edge_major_property(raft::handle_t const& handle,
     auto const minor_comm_rank = minor_comm.get_rank();
     auto const minor_comm_size = minor_comm.get_size();
 
-    auto local_v_list_sizes = host_scalar_allgather(
-      minor_comm,
-      static_cast<size_t>(thrust::distance(sorted_unique_vertex_first, sorted_unique_vertex_last)),
-      handle.get_stream());
+    auto local_v_list_sizes =
+      host_scalar_allgather(minor_comm,
+                            static_cast<size_t>(cuda::std::distance(sorted_unique_vertex_first,
+                                                                    sorted_unique_vertex_last)),
+                            handle.get_stream());
     auto max_rx_size = std::reduce(
       local_v_list_sizes.begin(), local_v_list_sizes.end(), size_t{0}, [](auto lhs, auto rhs) {
         return std::max(lhs, rhs);
@@ -329,7 +330,7 @@ void update_edge_major_property(raft::handle_t const& handle,
           pack_bools(
             handle,
             bool_first,
-            bool_first + thrust::distance(sorted_unique_vertex_first, sorted_unique_vertex_last),
+            bool_first + cuda::std::distance(sorted_unique_vertex_first, sorted_unique_vertex_last),
             rx_value_first);
         } else {
           auto map_first = thrust::make_transform_iterator(
@@ -342,7 +343,7 @@ void update_edge_major_property(raft::handle_t const& handle,
           thrust::gather(
             handle.get_thrust_policy(),
             map_first,
-            map_first + thrust::distance(sorted_unique_vertex_first, sorted_unique_vertex_last),
+            map_first + cuda::std::distance(sorted_unique_vertex_first, sorted_unique_vertex_last),
             vertex_property_input_first,
             rx_value_first);
         }
@@ -378,7 +379,7 @@ void update_edge_major_property(raft::handle_t const& handle,
             auto it    = thrust::lower_bound(
               thrust::seq, edge_partition_key_first, edge_partition_key_last, major);
             if ((it != edge_partition_key_last) && (*it == major)) {
-              auto edge_partition_offset = thrust::distance(edge_partition_key_first, it);
+              auto edge_partition_offset = cuda::std::distance(edge_partition_key_first, it);
               if constexpr (contains_packed_bool_element) {
                 auto rx_value = static_cast<bool>(*(rx_value_first + packed_bool_offset(i)) &
                                                   packed_bool_mask(i));
@@ -441,7 +442,7 @@ void update_edge_major_property(raft::handle_t const& handle,
       thrust::scatter(
         handle.get_thrust_policy(),
         val_first,
-        val_first + thrust::distance(sorted_unique_vertex_first, sorted_unique_vertex_last),
+        val_first + cuda::std::distance(sorted_unique_vertex_first, sorted_unique_vertex_last),
         sorted_unique_vertex_first,
         edge_partition_value_firsts[0]);
     }
@@ -716,8 +717,8 @@ void update_edge_minor_property(raft::handle_t const& handle,
     auto const major_comm_rank = major_comm.get_rank();
     auto const major_comm_size = major_comm.get_size();
 
-    auto v_list_size =
-      static_cast<size_t>(thrust::distance(sorted_unique_vertex_first, sorted_unique_vertex_last));
+    auto v_list_size = static_cast<size_t>(
+      cuda::std::distance(sorted_unique_vertex_first, sorted_unique_vertex_last));
     std::array<vertex_t, 2> v_list_range = {vertex_t{0}, vertex_t{0}};
     if (v_list_size > 0) {
       rmm::device_uvector<vertex_t> tmps(2, handle.get_stream());
@@ -799,7 +800,7 @@ void update_edge_minor_property(raft::handle_t const& handle,
           pack_bools(
             handle,
             bool_first,
-            bool_first + thrust::distance(sorted_unique_vertex_first, sorted_unique_vertex_last),
+            bool_first + cuda::std::distance(sorted_unique_vertex_first, sorted_unique_vertex_last),
             rx_value_first);
         } else {
           auto map_first = thrust::make_transform_iterator(
@@ -812,7 +813,7 @@ void update_edge_minor_property(raft::handle_t const& handle,
           thrust::gather(
             handle.get_thrust_policy(),
             map_first,
-            map_first + thrust::distance(sorted_unique_vertex_first, sorted_unique_vertex_last),
+            map_first + cuda::std::distance(sorted_unique_vertex_first, sorted_unique_vertex_last),
             vertex_property_input_first,
             rx_value_first);
         }
@@ -861,7 +862,7 @@ void update_edge_minor_property(raft::handle_t const& handle,
             auto it =
               thrust::lower_bound(thrust::seq, subrange_key_first, subrange_key_last, minor);
             if ((it != subrange_key_last) && (*it == minor)) {
-              auto subrange_offset = thrust::distance(subrange_key_first, it);
+              auto subrange_offset = cuda::std::distance(subrange_key_first, it);
               if constexpr (contains_packed_bool_element) {
                 auto rx_value = static_cast<bool>(*(rx_value_first + packed_bool_offset(i)) &
                                                   packed_bool_mask(i));
@@ -923,7 +924,7 @@ void update_edge_minor_property(raft::handle_t const& handle,
       thrust::scatter(
         handle.get_thrust_policy(),
         val_first,
-        val_first + thrust::distance(sorted_unique_vertex_first, sorted_unique_vertex_last),
+        val_first + cuda::std::distance(sorted_unique_vertex_first, sorted_unique_vertex_last),
         sorted_unique_vertex_first,
         edge_partition_value_first);
     }

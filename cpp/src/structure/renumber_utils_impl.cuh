@@ -29,10 +29,10 @@
 #include <rmm/mr/device/per_device_resource.hpp>
 #include <rmm/mr/device/polymorphic_allocator.hpp>
 
+#include <cuda/std/iterator>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
 #include <thrust/count.h>
-#include <thrust/distance.h>
 #include <thrust/functional.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/transform_iterator.h>
@@ -374,7 +374,7 @@ void renumber_ext_vertices(raft::handle_t const& handle,
 
     rmm::device_uvector<vertex_t> sorted_unique_ext_vertices(num_vertices, handle.get_stream());
     sorted_unique_ext_vertices.resize(
-      thrust::distance(
+      cuda::std::distance(
         sorted_unique_ext_vertices.begin(),
         thrust::copy_if(handle.get_thrust_policy(),
                         vertices,
@@ -386,10 +386,10 @@ void renumber_ext_vertices(raft::handle_t const& handle,
                  sorted_unique_ext_vertices.begin(),
                  sorted_unique_ext_vertices.end());
     sorted_unique_ext_vertices.resize(
-      thrust::distance(sorted_unique_ext_vertices.begin(),
-                       thrust::unique(handle.get_thrust_policy(),
-                                      sorted_unique_ext_vertices.begin(),
-                                      sorted_unique_ext_vertices.end())),
+      cuda::std::distance(sorted_unique_ext_vertices.begin(),
+                          thrust::unique(handle.get_thrust_policy(),
+                                         sorted_unique_ext_vertices.begin(),
+                                         sorted_unique_ext_vertices.end())),
       handle.get_stream());
 
     kv_store_t<vertex_t, vertex_t, false> local_renumber_map(
@@ -578,7 +578,7 @@ void unrenumber_int_vertices(raft::handle_t const& handle,
 
     rmm::device_uvector<vertex_t> sorted_unique_int_vertices(num_vertices, handle.get_stream());
     sorted_unique_int_vertices.resize(
-      thrust::distance(
+      cuda::std::distance(
         sorted_unique_int_vertices.begin(),
         thrust::copy_if(handle.get_thrust_policy(),
                         vertices,
@@ -590,10 +590,10 @@ void unrenumber_int_vertices(raft::handle_t const& handle,
                  sorted_unique_int_vertices.begin(),
                  sorted_unique_int_vertices.end());
     sorted_unique_int_vertices.resize(
-      thrust::distance(sorted_unique_int_vertices.begin(),
-                       thrust::unique(handle.get_thrust_policy(),
-                                      sorted_unique_int_vertices.begin(),
-                                      sorted_unique_int_vertices.end())),
+      cuda::std::distance(sorted_unique_int_vertices.begin(),
+                          thrust::unique(handle.get_thrust_policy(),
+                                         sorted_unique_int_vertices.begin(),
+                                         sorted_unique_int_vertices.end())),
       handle.get_stream());
 
     auto ext_vertices_for_sorted_unique_int_vertices =

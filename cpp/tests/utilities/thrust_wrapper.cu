@@ -21,8 +21,8 @@
 
 #include <rmm/exec_policy.hpp>
 
+#include <cuda/std/iterator>
 #include <thrust/copy.h>
-#include <thrust/distance.h>
 #include <thrust/equal.h>
 #include <thrust/extrema.h>
 #include <thrust/gather.h>
@@ -361,7 +361,7 @@ cugraph::dataframe_buffer_type_t<value_t> unique(raft::handle_t const& handle,
                              cugraph::get_dataframe_buffer_end(values));
   cugraph::resize_dataframe_buffer(
     values,
-    thrust::distance(cugraph::get_dataframe_buffer_begin(values), last),
+    cuda::std::distance(cugraph::get_dataframe_buffer_begin(values), last),
     handle.get_stream());
   cugraph::shrink_to_fit_dataframe_buffer(values, handle.get_stream());
 
@@ -573,7 +573,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> remove_
   rmm::device_uvector<vertex_t>&& v1,
   rmm::device_uvector<vertex_t>&& v2)
 {
-  auto new_size = thrust::distance(
+  auto new_size = cuda::std::distance(
     thrust::make_zip_iterator(v1.begin(), v2.begin()),
     thrust::remove_if(
       handle.get_thrust_policy(),

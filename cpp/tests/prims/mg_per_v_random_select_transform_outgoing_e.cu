@@ -41,6 +41,7 @@
 
 #include <rmm/device_uvector.hpp>
 
+#include <cuda/std/iterator>
 #include <cuda/std/optional>
 #include <thrust/adjacent_difference.h>
 #include <thrust/iterator/counting_iterator.h>
@@ -626,8 +627,8 @@ class Tests_MGPerVRandomSelectTransformOutgoingE
                 auto lower_it = thrust::lower_bound(thrust::seq, sg_nbr_first, sg_nbr_last, sg_dst);
                 auto upper_it = thrust::upper_bound(thrust::seq, sg_nbr_first, sg_nbr_last, sg_dst);
                 bool found    = false;
-                for (auto it = (*sg_nbr_bias_first + thrust::distance(sg_nbr_first, lower_it));
-                     it != (*sg_nbr_bias_first + thrust::distance(sg_nbr_first, upper_it));
+                for (auto it = (*sg_nbr_bias_first + cuda::std::distance(sg_nbr_first, lower_it));
+                     it != (*sg_nbr_bias_first + cuda::std::distance(sg_nbr_first, upper_it));
                      ++it) {
                   if (*it > 0.0) {
                     found = true;
@@ -678,10 +679,10 @@ class Tests_MGPerVRandomSelectTransformOutgoingE
                   sg_nbr_bias_first
                     ? thrust::count_if(
                         thrust::seq,
-                        *sg_nbr_bias_first + thrust::distance(sg_nbr_first, lower_it),
-                        *sg_nbr_bias_first + thrust::distance(sg_nbr_first, upper_it),
+                        *sg_nbr_bias_first + cuda::std::distance(sg_nbr_first, lower_it),
+                        *sg_nbr_bias_first + cuda::std::distance(sg_nbr_first, upper_it),
                         [] __device__(auto bias) { return bias > 0.0; })
-                    : thrust::distance(lower_it, upper_it);
+                    : cuda::std::distance(lower_it, upper_it);
                 if (dst_count > multiplicity) { return true; }
               }
             }
