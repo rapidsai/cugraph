@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,6 +32,8 @@
 #include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
 #include <rmm/mr/device/cuda_memory_resource.hpp>
+
+#include <cuda/std/iterator>
 
 #include <gtest/gtest.h>
 
@@ -137,7 +139,7 @@ class Tests_ExtractBfsPaths
         d_vertices.end(),
         [invalid_vertex, predecessors = d_predecessors.data(), local_vertex_first] __device__(
           auto v) { return predecessors[v - local_vertex_first] == invalid_vertex; });
-      d_vertices.resize(thrust::distance(d_vertices.begin(), end_iter), handle.get_stream());
+      d_vertices.resize(cuda::std::distance(d_vertices.begin(), end_iter), handle.get_stream());
     }
 
     raft::random::RngState rng_state(0);

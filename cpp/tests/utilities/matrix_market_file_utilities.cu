@@ -25,7 +25,7 @@
 
 #include <rmm/exec_policy.hpp>
 
-#include <thrust/distance.h>
+#include <cuda/std/iterator>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/remove.h>
 #include <thrust/sequence.h>
@@ -333,12 +333,12 @@ read_edgelist_from_matrix_market_file(raft::handle_t const& handle,
     auto vertex_key_func = cugraph::detail::compute_gpu_id_from_ext_vertex_t<vertex_t>{
       comm_size, major_comm_size, minor_comm_size};
     d_vertices.resize(
-      thrust::distance(d_vertices.begin(),
-                       thrust::remove_if(handle.get_thrust_policy(),
-                                         d_vertices.begin(),
-                                         d_vertices.end(),
-                                         [comm_rank, key_func = vertex_key_func] __device__(
-                                           auto val) { return key_func(val) != comm_rank; })),
+      cuda::std::distance(d_vertices.begin(),
+                          thrust::remove_if(handle.get_thrust_policy(),
+                                            d_vertices.begin(),
+                                            d_vertices.end(),
+                                            [comm_rank, key_func = vertex_key_func] __device__(
+                                              auto val) { return key_func(val) != comm_rank; })),
       handle.get_stream());
     d_vertices.shrink_to_fit(handle.get_stream());
 
@@ -348,7 +348,7 @@ read_edgelist_from_matrix_market_file(raft::handle_t const& handle,
     if (d_edgelist_weights) {
       auto edge_first       = thrust::make_zip_iterator(thrust::make_tuple(
         d_edgelist_srcs.begin(), d_edgelist_dsts.begin(), (*d_edgelist_weights).begin()));
-      number_of_local_edges = thrust::distance(
+      number_of_local_edges = cuda::std::distance(
         edge_first,
         thrust::remove_if(
           handle.get_thrust_policy(),
@@ -363,7 +363,7 @@ read_edgelist_from_matrix_market_file(raft::handle_t const& handle,
     } else {
       auto edge_first = thrust::make_zip_iterator(
         thrust::make_tuple(d_edgelist_srcs.begin(), d_edgelist_dsts.begin()));
-      number_of_local_edges = thrust::distance(
+      number_of_local_edges = cuda::std::distance(
         edge_first,
         thrust::remove_if(
           handle.get_thrust_policy(),
