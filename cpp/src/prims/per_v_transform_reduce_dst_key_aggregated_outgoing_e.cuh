@@ -40,10 +40,10 @@
 #include <rmm/mr/device/polymorphic_allocator.hpp>
 
 #include <cub/cub.cuh>
+#include <cuda/std/iterator>
 #include <cuda/std/optional>
 #include <thrust/copy.h>
 #include <thrust/count.h>
-#include <thrust/distance.h>
 #include <thrust/fill.h>
 #include <thrust/functional.h>
 #include <thrust/iterator/constant_iterator.h>
@@ -576,19 +576,19 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
           thrust::make_zip_iterator(tmp_majors.begin(), tmp_minor_keys.begin());
         if constexpr (!std::is_same_v<edge_value_t, cuda::std::nullopt_t>) {
           reduced_size +=
-            thrust::distance(output_key_first + reduced_size,
-                             thrust::get<0>(thrust::reduce_by_key(
-                               handle.get_thrust_policy(),
-                               input_key_first,
-                               input_key_first + (h_edge_offsets[j + 1] - h_edge_offsets[j]),
-                               detail::get_optional_dataframe_buffer_begin<edge_value_t>(
-                                 unreduced_key_aggregated_edge_values),
-                               output_key_first + reduced_size,
-                               detail::get_optional_dataframe_buffer_begin<edge_value_t>(
-                                 tmp_key_aggregated_edge_values) +
-                                 reduced_size)));
+            cuda::std::distance(output_key_first + reduced_size,
+                                thrust::get<0>(thrust::reduce_by_key(
+                                  handle.get_thrust_policy(),
+                                  input_key_first,
+                                  input_key_first + (h_edge_offsets[j + 1] - h_edge_offsets[j]),
+                                  detail::get_optional_dataframe_buffer_begin<edge_value_t>(
+                                    unreduced_key_aggregated_edge_values),
+                                  output_key_first + reduced_size,
+                                  detail::get_optional_dataframe_buffer_begin<edge_value_t>(
+                                    tmp_key_aggregated_edge_values) +
+                                    reduced_size)));
         } else {
-          reduced_size += thrust::distance(
+          reduced_size += cuda::std::distance(
             output_key_first + reduced_size,
             thrust::copy_if(
               handle.get_thrust_policy(),
@@ -681,7 +681,7 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
                minor_comm_rank_lasts.data(), minor_comm_rank_lasts.size())] __device__(size_t i) {
               auto it = thrust::upper_bound(
                 thrust::seq, minor_comm_rank_lasts.begin(), minor_comm_rank_lasts.end(), i);
-              return static_cast<int>(thrust::distance(minor_comm_rank_lasts.begin(), it));
+              return static_cast<int>(cuda::std::distance(minor_comm_rank_lasts.begin(), it));
             });
 
           thrust::copy(
@@ -692,7 +692,7 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
             handle.get_thrust_policy(), pair_first, pair_first + minor_comm_ranks.size());
           auto unique_pair_last = thrust::unique(
             handle.get_thrust_policy(), pair_first, pair_first + minor_comm_ranks.size());
-          minor_comm_ranks.resize(thrust::distance(pair_first, unique_pair_last),
+          minor_comm_ranks.resize(cuda::std::distance(pair_first, unique_pair_last),
                                   handle.get_stream());
           majors.resize(minor_comm_ranks.size(), handle.get_stream());
 
@@ -753,7 +753,7 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
                                   majors.begin(),
                                   majors.end(),
                                   get_dataframe_buffer_begin(edge_major_values));
-          majors.resize(thrust::distance(majors.begin(), thrust::get<0>(unique_pair_last)),
+          majors.resize(cuda::std::distance(majors.begin(), thrust::get<0>(unique_pair_last)),
                         handle.get_stream());
           resize_dataframe_buffer(edge_major_values, majors.size(), handle.get_stream());
 
@@ -904,7 +904,7 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
             handle.get_thrust_policy(), key_pair_first, key_pair_first + rx_majors.size());
         }
 
-        auto num_uniques = thrust::distance(
+        auto num_uniques = cuda::std::distance(
           key_pair_first,
           thrust::unique(
             handle.get_thrust_policy(), key_pair_first, key_pair_first + rx_majors.size()));
@@ -933,10 +933,10 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
                    tmp_minor_keys.end(),
                    unique_minor_keys.begin());
       thrust::sort(handle.get_thrust_policy(), unique_minor_keys.begin(), unique_minor_keys.end());
-      unique_minor_keys.resize(thrust::distance(unique_minor_keys.begin(),
-                                                thrust::unique(handle.get_thrust_policy(),
-                                                               unique_minor_keys.begin(),
-                                                               unique_minor_keys.end())),
+      unique_minor_keys.resize(cuda::std::distance(unique_minor_keys.begin(),
+                                                   thrust::unique(handle.get_thrust_policy(),
+                                                                  unique_minor_keys.begin(),
+                                                                  unique_minor_keys.end())),
                                handle.get_stream());
       unique_minor_keys.shrink_to_fit(handle.get_stream());
 

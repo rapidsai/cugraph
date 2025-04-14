@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,8 +26,8 @@
 #include <rmm/cuda_stream_view.hpp>
 #include <rmm/device_uvector.hpp>
 
+#include <cuda/std/iterator>
 #include <thrust/copy.h>
-#include <thrust/distance.h>
 #include <thrust/fill.h>
 #include <thrust/for_each.h>
 #include <thrust/functional.h>
@@ -178,7 +178,7 @@ weight_t hungarian_sparse(raft::handle_t const& handle,
                                   d_tasks,
                                   [] __device__(vertex_t v) { return v >= 0; });
 
-  vertex_t size = thrust::distance(d_tasks, temp_end);
+  vertex_t size = cuda::std::distance(d_tasks, temp_end);
   tasks_v.resize(size, handle.get_stream());
 
   //

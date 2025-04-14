@@ -30,6 +30,7 @@
 
 #include <raft/core/handle.hpp>
 
+#include <cuda/std/iterator>
 #include <cuda/std/optional>
 #include <thrust/copy.h>
 #include <thrust/count.h>
@@ -561,7 +562,7 @@ void bfs(raft::handle_t const& handle,
             handle.get_stream());
           (*((*aux_info).nzd_unvisited_vertices))
             .resize(
-              thrust::distance(
+              cuda::std::distance(
                 (*((*aux_info).nzd_unvisited_vertices)).begin(),
                 thrust::copy_if(
                   handle.get_thrust_policy(),
@@ -636,13 +637,13 @@ void bfs(raft::handle_t const& handle,
 
         new_frontier_vertex_buffer.resize(predecessor_buffer.size(), handle.get_stream());
         new_frontier_vertex_buffer.resize(
-          thrust::distance(new_frontier_vertex_buffer.begin(),
-                           thrust::copy_if(handle.get_thrust_policy(),
-                                           vertex_frontier.bucket(bucket_idx_cur).cbegin(),
-                                           vertex_frontier.bucket(bucket_idx_cur).cend(),
-                                           predecessor_buffer.begin(),
-                                           new_frontier_vertex_buffer.begin(),
-                                           detail::is_not_equal_t<vertex_t>{invalid_vertex})),
+          cuda::std::distance(new_frontier_vertex_buffer.begin(),
+                              thrust::copy_if(handle.get_thrust_policy(),
+                                              vertex_frontier.bucket(bucket_idx_cur).cbegin(),
+                                              vertex_frontier.bucket(bucket_idx_cur).cend(),
+                                              predecessor_buffer.begin(),
+                                              new_frontier_vertex_buffer.begin(),
+                                              detail::is_not_equal_t<vertex_t>{invalid_vertex})),
           handle.get_stream());
 
         assert(direction_optimizing);
@@ -661,7 +662,7 @@ void bfs(raft::handle_t const& handle,
           });
         (*((*aux_info).nzd_unvisited_vertices))
           .resize(
-            thrust::distance(
+            cuda::std::distance(
               (*((*aux_info).nzd_unvisited_vertices)).begin(),
               thrust::remove_if(
                 handle.get_thrust_policy(),

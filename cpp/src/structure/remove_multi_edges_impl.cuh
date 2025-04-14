@@ -31,8 +31,8 @@
 #include <rmm/device_uvector.hpp>
 
 #include <cuda/std/cstddef>
+#include <cuda/std/iterator>
 #include <thrust/binary_search.h>
-#include <thrust/distance.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/sort.h>
 #include <thrust/tuple.h>
@@ -239,10 +239,10 @@ std::vector<rmm::device_uvector<bool>> compute_multi_edge_flags(
                  unique_possibly_multi_edge_hashes.begin(),
                  unique_possibly_multi_edge_hashes.end());
     unique_possibly_multi_edge_hashes.resize(
-      thrust::distance(unique_possibly_multi_edge_hashes.begin(),
-                       thrust::unique(handle.get_thrust_policy(),
-                                      unique_possibly_multi_edge_hashes.begin(),
-                                      unique_possibly_multi_edge_hashes.end())),
+      cuda::std::distance(unique_possibly_multi_edge_hashes.begin(),
+                          thrust::unique(handle.get_thrust_policy(),
+                                         unique_possibly_multi_edge_hashes.begin(),
+                                         unique_possibly_multi_edge_hashes.end())),
       handle.get_stream());
   }
   hashes.resize(0, handle.get_stream());
@@ -274,17 +274,17 @@ std::vector<rmm::device_uvector<bool>> compute_multi_edge_flags(
                                        unique_possibly_multi_edge_hashes.end(),
                                        hash);
         });
-      offset += thrust::distance(output_pair_first + offset, output_pair_last);
+      offset += cuda::std::distance(output_pair_first + offset, output_pair_last);
     }
 
     thrust::sort(handle.get_thrust_policy(),
                  output_pair_first,
                  output_pair_first + unique_multi_edge_srcs.size());
     unique_multi_edge_srcs.resize(
-      thrust::distance(output_pair_first,
-                       thrust::unique(handle.get_thrust_policy(),
-                                      output_pair_first,
-                                      output_pair_first + unique_multi_edge_srcs.size())),
+      cuda::std::distance(output_pair_first,
+                          thrust::unique(handle.get_thrust_policy(),
+                                         output_pair_first,
+                                         output_pair_first + unique_multi_edge_srcs.size())),
       handle.get_stream());
     unique_multi_edge_dsts.resize(unique_multi_edge_srcs.size(), handle.get_stream());
   }
@@ -536,13 +536,13 @@ remove_multi_edges_impl(
         thrust::make_zip_iterator(edgelist_srcs[j].begin(), edgelist_dsts[j].begin()) +
         group_disps[j][i];
       non_multi_edge_counts[j][i] = static_cast<size_t>(
-        thrust::distance(pair_first,
-                         thrust::stable_partition(
-                           handle.get_thrust_policy(),
-                           pair_first,
-                           pair_first + group_counts[j][i],
-                           multi_edge_flags[j].begin(),
-                           [] __device__(auto multi_edge_flag) { return !multi_edge_flag; })));
+        cuda::std::distance(pair_first,
+                            thrust::stable_partition(
+                              handle.get_thrust_policy(),
+                              pair_first,
+                              pair_first + group_counts[j][i],
+                              multi_edge_flags[j].begin(),
+                              [] __device__(auto multi_edge_flag) { return !multi_edge_flag; })));
       if (edge_property_count == 0) {
         /* nothing to do */
       } else if (edge_property_count == 1) {
@@ -896,7 +896,7 @@ remove_multi_edges_impl(
         [lasts              = raft::device_span<size_t const>(d_lasts.data(), d_lasts.size()),
          group_valid_counts = raft::device_span<size_t const>(
            d_group_valid_counts.data(), d_group_valid_counts.size())] __device__(auto i) {
-          auto group_idx = thrust::distance(
+          auto group_idx = cuda::std::distance(
             lasts.begin(), thrust::upper_bound(thrust::seq, lasts.begin(), lasts.end(), i));
           auto intra_group_idx = i - (group_idx == 0 ? 0 : lasts[group_idx - 1]);
           return intra_group_idx < group_valid_counts[group_idx];

@@ -30,6 +30,7 @@
 
 #include <rmm/exec_policy.hpp>
 
+#include <cuda/std/iterator>
 #include <thrust/count.h>
 #include <thrust/fill.h>
 #include <thrust/iterator/constant_iterator.h>
@@ -155,10 +156,11 @@ void fill_edge_major_property(raft::handle_t const& handle,
     auto const minor_comm_rank = minor_comm.get_rank();
     auto const minor_comm_size = minor_comm.get_size();
 
-    auto local_v_list_sizes = host_scalar_allgather(
-      minor_comm,
-      static_cast<size_t>(thrust::distance(sorted_unique_vertex_first, sorted_unique_vertex_last)),
-      handle.get_stream());
+    auto local_v_list_sizes =
+      host_scalar_allgather(minor_comm,
+                            static_cast<size_t>(cuda::std::distance(sorted_unique_vertex_first,
+                                                                    sorted_unique_vertex_last)),
+                            handle.get_stream());
     auto max_rx_size = std::reduce(
       local_v_list_sizes.begin(), local_v_list_sizes.end(), size_t{0}, [](auto lhs, auto rhs) {
         return std::max(lhs, rhs);
@@ -192,7 +194,7 @@ void fill_edge_major_property(raft::handle_t const& handle,
             auto it    = thrust::lower_bound(
               thrust::seq, edge_partition_key_first, edge_partition_key_last, major);
             if ((it != edge_partition_key_last) && (*it == major)) {
-              auto edge_partition_offset = thrust::distance(edge_partition_key_first, it);
+              auto edge_partition_offset = cuda::std::distance(edge_partition_key_first, it);
               if constexpr (contains_packed_bool_element) {
                 packed_bool_atomic_set(edge_partition_value_first, edge_partition_offset, input);
               } else {
@@ -247,7 +249,7 @@ void fill_edge_major_property(raft::handle_t const& handle,
       thrust::scatter(
         handle.get_thrust_policy(),
         val_first,
-        val_first + thrust::distance(sorted_unique_vertex_first, sorted_unique_vertex_last),
+        val_first + cuda::std::distance(sorted_unique_vertex_first, sorted_unique_vertex_last),
         sorted_unique_vertex_first,
         edge_partition_value_firsts[0]);
     }
@@ -335,7 +337,7 @@ void fill_edge_minor_property(raft::handle_t const& handle,
     std::vector<vertex_t> local_v_list_range_lasts{};
     {
       auto v_list_size = static_cast<vertex_t>(
-        thrust::distance(sorted_unique_vertex_first, sorted_unique_vertex_last));
+        cuda::std::distance(sorted_unique_vertex_first, sorted_unique_vertex_last));
       rmm::device_uvector<size_t> d_aggregate_tmps(major_comm_size * size_t{4},
                                                    handle.get_stream());
       thrust::tabulate(
@@ -797,7 +799,7 @@ void fill_edge_minor_property(raft::handle_t const& handle,
                   auto it =
                     thrust::lower_bound(thrust::seq, subrange_key_first, subrange_key_last, minor);
                   if ((it != subrange_key_last) && (*it == minor)) {
-                    auto subrange_offset = thrust::distance(subrange_key_first, it);
+                    auto subrange_offset = cuda::std::distance(subrange_key_first, it);
                     if constexpr (contains_packed_bool_element) {
                       fill_scalar_or_thrust_tuple(
                         edge_partition_value_first, subrange_start_offset + subrange_offset, input);
@@ -905,10 +907,10 @@ void fill_edge_minor_property(raft::handle_t const& handle,
                rx_firsts = raft::device_span<void const* const>(d_ptrs.data(), d_ptrs.size()),
                output_value_first = edge_partition_value_first,
                compressed         = compressed_v_list.has_value()] __device__(auto i) {
-                auto loop_idx =
-                  thrust::distance(loop_offsets.begin() + 1,
-                                   thrust::upper_bound(
-                                     thrust::seq, loop_offsets.begin() + 1, loop_offsets.end(), i));
+                auto loop_idx = cuda::std::distance(
+                  loop_offsets.begin() + 1,
+                  thrust::upper_bound(
+                    thrust::seq, loop_offsets.begin() + 1, loop_offsets.end(), i));
                 auto rx_first = rx_firsts[loop_idx];
                 vertex_t minor{};
                 if (compressed) {
@@ -930,7 +932,7 @@ void fill_edge_minor_property(raft::handle_t const& handle,
                    loop_offsets,
                    rx_firsts = raft::device_span<void const* const>(d_ptrs.data(), d_ptrs.size()),
                    minor_range_first] __device__(auto i) {
-                    auto loop_idx = thrust::distance(
+                    auto loop_idx = cuda::std::distance(
                       loop_offsets.begin() + 1,
                       thrust::upper_bound(
                         thrust::seq, loop_offsets.begin() + 1, loop_offsets.end(), i));
@@ -951,7 +953,7 @@ void fill_edge_minor_property(raft::handle_t const& handle,
                   [loop_offsets,
                    rx_firsts = raft::device_span<void const* const>(d_ptrs.data(), d_ptrs.size()),
                    minor_range_first] __device__(auto i) {
-                    auto loop_idx = thrust::distance(
+                    auto loop_idx = cuda::std::distance(
                       loop_offsets.begin() + 1,
                       thrust::upper_bound(
                         thrust::seq, loop_offsets.begin() + 1, loop_offsets.end(), i));
@@ -986,7 +988,7 @@ void fill_edge_minor_property(raft::handle_t const& handle,
       thrust::scatter(
         handle.get_thrust_policy(),
         val_first,
-        val_first + thrust::distance(sorted_unique_vertex_first, sorted_unique_vertex_last),
+        val_first + cuda::std::distance(sorted_unique_vertex_first, sorted_unique_vertex_last),
         sorted_unique_vertex_first,
         edge_partition_value_first);
     }

@@ -172,7 +172,8 @@ function(ConfigureTest CMAKE_TEST_NAME)
     )
     set_target_properties(
         ${CMAKE_TEST_NAME}
-            PROPERTIES INSTALL_RPATH "\$ORIGIN/../../../lib"
+            PROPERTIES RUNTIME_OUTPUT_DIRECTORY "$<BUILD_INTERFACE:${CUGRAPH_BINARY_DIR}/gtests>"
+                       INSTALL_RPATH "\$ORIGIN/../../../lib"
                        CXX_STANDARD                        17
                        CXX_STANDARD_REQUIRED               ON
                        CUDA_STANDARD                       17
@@ -202,7 +203,8 @@ function(ConfigureTestMG CMAKE_TEST_NAME)
     )
     set_target_properties(
         ${CMAKE_TEST_NAME}
-            PROPERTIES INSTALL_RPATH "\$ORIGIN/../../../lib"
+            PROPERTIES RUNTIME_OUTPUT_DIRECTORY "$<BUILD_INTERFACE:${CUGRAPH_BINARY_DIR}/gtests>"
+                       INSTALL_RPATH "\$ORIGIN/../../../lib"
                        CXX_STANDARD                        17
                        CXX_STANDARD_REQUIRED               ON
                        CUDA_STANDARD                       17
@@ -253,7 +255,8 @@ function(ConfigureCTest CMAKE_TEST_NAME)
     )
     set_target_properties(
         ${CMAKE_TEST_NAME}
-            PROPERTIES INSTALL_RPATH "\$ORIGIN/../../../lib"
+            PROPERTIES RUNTIME_OUTPUT_DIRECTORY "$<BUILD_INTERFACE:${CUGRAPH_BINARY_DIR}/gtests>"
+                       INSTALL_RPATH "\$ORIGIN/../../../lib"
                        CXX_STANDARD                        17
                        CXX_STANDARD_REQUIRED               ON
                        CUDA_STANDARD                       17
@@ -285,7 +288,8 @@ function(ConfigureCTestMG CMAKE_TEST_NAME)
     )
     set_target_properties(
         ${CMAKE_TEST_NAME}
-            PROPERTIES INSTALL_RPATH "\$ORIGIN/../../../lib"
+            PROPERTIES RUNTIME_OUTPUT_DIRECTORY "$<BUILD_INTERFACE:${CUGRAPH_BINARY_DIR}/gtests>"
+                       INSTALL_RPATH "\$ORIGIN/../../../lib"
                        CXX_STANDARD                        17
                        CXX_STANDARD_REQUIRED               ON
                        CUDA_STANDARD                       17
