@@ -19,6 +19,7 @@
 
 #include <cugraph/vertex_partition_device_view.cuh>
 
+#include <cuda/std/iterator>
 #include <thrust/count.h>
 #include <thrust/iterator/discard_iterator.h>
 #include <thrust/set_operations.h>
@@ -401,13 +402,13 @@ size_t count_intersection(raft::handle_t const& handle,
   auto iter2       = thrust::make_zip_iterator(srcs2.begin(), dsts2.begin());
   auto output_iter = thrust::make_discard_iterator();
 
-  return thrust::distance(output_iter,
-                          thrust::set_intersection(handle.get_thrust_policy(),
-                                                   iter1,
-                                                   iter1 + srcs1.size(),
-                                                   iter2,
-                                                   iter2 + srcs2.size(),
-                                                   output_iter));
+  return cuda::std::distance(output_iter,
+                             thrust::set_intersection(handle.get_thrust_policy(),
+                                                      iter1,
+                                                      iter1 + srcs1.size(),
+                                                      iter2,
+                                                      iter2 + srcs2.size(),
+                                                      output_iter));
 #if 0
   // OLD Approach
   return thrust::count_if(
@@ -425,10 +426,10 @@ size_t count_intersection(raft::handle_t const& handle,
                                      thrust::make_zip_iterator(src.end(), dst.end()),
                                      tuple) ? size_t{1} : size_t{0};
 #else
-        auto lb = thrust::distance(
+        auto lb = cuda::std::distance(
           src.begin(),
           thrust::lower_bound(thrust::seq, src.begin(), src.end(), thrust::get<0>(tuple)));
-        auto ub = thrust::distance(
+        auto ub = cuda::std::distance(
           src.begin(),
           thrust::upper_bound(thrust::seq, src.begin(), src.end(), thrust::get<0>(tuple)));
 

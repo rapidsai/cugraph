@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>
 
+#include <cuda/std/iterator>
 #include <thrust/sort.h>
 
 #include <gtest/gtest.h>
@@ -98,7 +99,7 @@ void random_walks_validate(
             auto pos  = thrust::find(thrust::seq, iter, iter + num_edges, thrust::make_tuple(s, d));
 
             if (pos != (iter + num_edges)) {
-              auto index = thrust::distance(iter, pos);
+              auto index = cuda::std::distance(iter, pos);
 
               for (; (index < num_edges) && (s == src[index]) && (d == dst[index]); ++index) {
                 if (w == wgt[index]) return 0;
