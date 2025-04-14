@@ -514,9 +514,9 @@ auto transform_v_frontier_e(raft::handle_t const& handle,
     auto edge_partition_e_value_input = edge_partition_e_input_device_view_t(edge_value_input, i);
 
     // CUDASTF logical data buffer for transform reduce phase
-    std::vector<logical_data<void_interface>> l_tv_buffers(5);
+    std::vector<token> l_tv_buffers(5);
     for (size_t segment_i = 0; segment_i < 5; segment_i++) {
-         l_tv_buffers[segment_i] = cudastf_ctx.logical_token();
+         l_tv_buffers[segment_i] = cudastf_ctx.token();
     }
 
     auto segment_offsets = graph_view.local_edge_partition_segment_offsets(i);

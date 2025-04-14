@@ -1172,10 +1172,10 @@ void per_v_transform_reduce_e_edge_partition(
   async_resources_handle& cudastf_handle = *raft::resource::get_custom_resource<async_resources_handle>(handle);
   stream_ctx cudastf_ctx(handle.get_stream(), cudastf_handle);
 
-  logical_data<void_interface> output_tokens[4];
+  token output_tokens[4];
   for (size_t i = 0; i < 4; i++)
   {
-     output_tokens[i] = cudastf_ctx.logical_token();
+     output_tokens[i] = cudastf_ctx.token();
   }
 
   constexpr bool use_input_key = !std::is_same_v<OptionalKeyIterator, void*>;
