@@ -64,7 +64,7 @@ __global__ static void attraction_kernel(const vertex_t* restrict row,
       float distance_sq = x_dist * x_dist + y_dist * y_dist;
       if (distance_sq <= pow(radius_src + radius_dst, 2)) {
         // Overlapping, force is 0
-        continue
+        continue;
       } else {
         // Not overlapping, force is based on d' instead of d
 
@@ -76,7 +76,7 @@ __global__ static void attraction_kernel(const vertex_t* restrict row,
         if (lin_log_mode) {
           factor *= log(1 + distance_inter) / distance;
         } else {
-          factor *= distance_inter / distance
+          factor *= distance_inter / distance;
         }
       }
     } else {
