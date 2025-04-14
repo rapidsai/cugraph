@@ -40,14 +40,16 @@ inline std::vector<size_t> init_stream_pool_indices(size_t max_tmp_buffer_size,
                                                     size_t num_streams_per_loop,
                                                     size_t max_streams)
 {
-  size_t num_streams = std::min(loop_count * num_streams_per_loop,
-                                raft::round_down_safe(max_streams, num_streams_per_loop));
+  size_t num_streams =
+    std::min(loop_count * num_streams_per_loop,
+             std::max(raft::round_down_safe(max_streams, num_streams_per_loop), size_t{1}));
 
   auto num_concurrent_loops =
     (approx_tmp_buffer_size_per_loop > 0)
       ? std::max(max_tmp_buffer_size / approx_tmp_buffer_size_per_loop, size_t{1})
       : loop_count;
-  num_streams = std::min(num_concurrent_loops * num_streams_per_loop, num_streams);
+  num_streams = std::min(num_concurrent_loops * num_streams_per_loop,
+                         num_streams);  // 1 or multiple of num_streams_per_loop
 
   std::vector<size_t> stream_pool_indices(num_streams);
   std::iota(stream_pool_indices.begin(), stream_pool_indices.end(), size_t{0});
