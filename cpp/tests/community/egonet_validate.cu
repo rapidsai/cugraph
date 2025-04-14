@@ -19,6 +19,7 @@
 
 #include <cugraph/algorithms.hpp>
 
+#include <cuda/std/iterator>
 #include <thrust/binary_search.h>
 #include <thrust/count.h>
 #include <thrust/equal.h>
@@ -149,10 +150,10 @@ egonet_reference(
         [visited_begin = visited.begin(), visited_end = visited.end()] __device__(auto v) {
           return !thrust::binary_search(thrust::seq, visited_begin, visited_end, v);
         });
-      frontier.resize(thrust::distance(frontier.begin(), new_end), handle.get_stream());
+      frontier.resize(cuda::std::distance(frontier.begin(), new_end), handle.get_stream());
       thrust::sort(handle.get_thrust_policy(), frontier.begin(), frontier.end());
       new_end = thrust::unique(handle.get_thrust_policy(), frontier.begin(), frontier.end());
-      frontier.resize(thrust::distance(frontier.begin(), new_end), handle.get_stream());
+      frontier.resize(cuda::std::distance(frontier.begin(), new_end), handle.get_stream());
 
       size_t old_visited_size = visited.size();
       visited.resize(old_visited_size + frontier.size(), handle.get_stream());

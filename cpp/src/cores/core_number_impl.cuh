@@ -28,9 +28,9 @@
 
 #include <raft/core/handle.hpp>
 
+#include <cuda/std/iterator>
 #include <cuda/std/optional>
 #include <thrust/copy.h>
-#include <thrust/distance.h>
 #include <thrust/for_each.h>
 #include <thrust/functional.h>
 #include <thrust/iterator/counting_iterator.h>
@@ -133,7 +133,7 @@ void core_number(raft::handle_t const& handle,
   rmm::device_uvector<vertex_t> remaining_vertices(graph_view.local_vertex_partition_range_size(),
                                                    handle.get_stream());
   remaining_vertices.resize(
-    thrust::distance(
+    cuda::std::distance(
       remaining_vertices.begin(),
       thrust::copy_if(
         handle.get_thrust_policy(),
@@ -217,7 +217,7 @@ void core_number(raft::handle_t const& handle,
       [core_numbers, k, v_first = graph_view.local_vertex_partition_range_first()] __device__(
         auto v) { return core_numbers[v - v_first] >= k; });
     vertex_frontier.bucket(bucket_idx_cur).insert(less_than_k_first, remaining_vertices.end());
-    remaining_vertices.resize(thrust::distance(remaining_vertices.begin(), less_than_k_first),
+    remaining_vertices.resize(cuda::std::distance(remaining_vertices.begin(), less_than_k_first),
                               handle.get_stream());
 
     auto delta = (graph_view.is_symmetric() && (degree_type == k_core_degree_type_t::INOUT))
@@ -289,7 +289,7 @@ void core_number(raft::handle_t const& handle,
         }
 
         vertex_frontier.bucket(bucket_idx_next)
-          .resize(static_cast<size_t>(thrust::distance(
+          .resize(static_cast<size_t>(cuda::std::distance(
             vertex_frontier.bucket(bucket_idx_next).begin(),
             thrust::remove_if(
               handle.get_thrust_policy(),
@@ -313,7 +313,7 @@ void core_number(raft::handle_t const& handle,
       // iterations). Need more tuning (e.g. Possibly use a logarithmic binning) if we encounter
       // such use cases.
       remaining_vertices.resize(
-        thrust::distance(
+        cuda::std::distance(
           remaining_vertices.begin(),
           thrust::remove_if(
             handle.get_thrust_policy(),

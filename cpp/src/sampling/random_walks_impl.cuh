@@ -39,6 +39,7 @@
 
 #include <rmm/device_uvector.hpp>
 
+#include <cuda/std/iterator>
 #include <cuda/std/optional>
 
 #include <algorithm>
@@ -111,7 +112,7 @@ struct node2vec_random_walk_e_bias_op_t {
       thrust::make_zip_iterator(current_vertices_.begin(), prev_vertices_.begin()),
       thrust::make_zip_iterator(current_vertices_.end(), prev_vertices_.end()),
       tagged_src);
-    auto low_idx = thrust::distance(
+    auto low_idx = cuda::std::distance(
       thrust::make_zip_iterator(current_vertices_.begin(), prev_vertices_.begin()), lower_itr);
     auto intersection_index_first = intersection_indices_.begin() + intersection_offsets_[low_idx];
     auto intersection_index_last =
@@ -138,7 +139,7 @@ struct node2vec_random_walk_e_bias_op_t {
       thrust::make_zip_iterator(current_vertices_.begin(), prev_vertices_.begin()),
       thrust::make_zip_iterator(current_vertices_.end(), prev_vertices_.end()),
       tagged_src);
-    auto low_idx = thrust::distance(
+    auto low_idx = cuda::std::distance(
       thrust::make_zip_iterator(current_vertices_.begin(), prev_vertices_.begin()), lower_itr);
     auto intersection_index_first = intersection_indices_.begin() + intersection_offsets_[low_idx];
     auto intersection_index_last =
@@ -701,7 +702,7 @@ random_walk_impl(raft::handle_t const& handle,
                                                       current_position.begin(),
                                                       previous_vertices->begin());
 
-          compacted_length = thrust::distance(
+          compacted_length = cuda::std::distance(
             input_iter,
             thrust::remove_if(handle.get_thrust_policy(),
                               input_iter,
@@ -716,7 +717,7 @@ random_walk_impl(raft::handle_t const& handle,
                                                       current_gpu.begin(),
                                                       current_position.begin());
 
-          compacted_length = thrust::distance(
+          compacted_length = cuda::std::distance(
             input_iter,
             thrust::remove_if(handle.get_thrust_policy(),
                               input_iter,
@@ -733,7 +734,7 @@ random_walk_impl(raft::handle_t const& handle,
                                                       current_position.begin(),
                                                       previous_vertices->begin());
 
-          compacted_length = thrust::distance(
+          compacted_length = cuda::std::distance(
             input_iter,
             thrust::remove_if(handle.get_thrust_policy(),
                               input_iter,
@@ -746,7 +747,7 @@ random_walk_impl(raft::handle_t const& handle,
           auto input_iter = thrust::make_zip_iterator(
             current_vertices.begin(), current_gpu.begin(), current_position.begin());
 
-          compacted_length = thrust::distance(
+          compacted_length = cuda::std::distance(
             input_iter,
             thrust::remove_if(handle.get_thrust_policy(),
                               input_iter,
@@ -765,7 +766,7 @@ random_walk_impl(raft::handle_t const& handle,
                                                       current_position.begin(),
                                                       previous_vertices->begin());
 
-          compacted_length = thrust::distance(
+          compacted_length = cuda::std::distance(
             input_iter,
             thrust::remove_if(handle.get_thrust_policy(),
                               input_iter,
@@ -778,7 +779,7 @@ random_walk_impl(raft::handle_t const& handle,
           auto input_iter = thrust::make_zip_iterator(
             current_vertices.begin(), new_weights->begin(), current_position.begin());
 
-          compacted_length = thrust::distance(
+          compacted_length = cuda::std::distance(
             input_iter,
             thrust::remove_if(handle.get_thrust_policy(),
                               input_iter,
@@ -793,7 +794,7 @@ random_walk_impl(raft::handle_t const& handle,
           auto input_iter = thrust::make_zip_iterator(
             current_vertices.begin(), current_position.begin(), previous_vertices->begin());
 
-          compacted_length = thrust::distance(
+          compacted_length = cuda::std::distance(
             input_iter,
             thrust::remove_if(handle.get_thrust_policy(),
                               input_iter,
@@ -806,7 +807,7 @@ random_walk_impl(raft::handle_t const& handle,
           auto input_iter =
             thrust::make_zip_iterator(current_vertices.begin(), current_position.begin());
 
-          compacted_length = thrust::distance(
+          compacted_length = cuda::std::distance(
             input_iter,
             thrust::remove_if(handle.get_thrust_policy(),
                               input_iter,
