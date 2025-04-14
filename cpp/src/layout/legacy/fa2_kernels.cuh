@@ -47,7 +47,7 @@ __global__ static void attraction_kernel(const vertex_t* restrict row,
     dst = col[i];
 
     // We only need the lower triangular part
-    if (dst <= src) return;
+    if (dst <= src) continue;
 
     if (v) { weight = v[i]; }
     weight = pow(weight, edge_weight_influence);
