@@ -81,6 +81,8 @@ def setup(tmpdir):
         dataset.unload()
     gc.collect()
 
+    datasets.set_download_dir(None)
+
 
 ###############################################################################
 # Helpers
@@ -151,6 +153,7 @@ def test_set_download_dir():
     assert datasets.get_download_dir() == Path(tmpd.name).absolute()
 
     tmpd.cleanup()
+    datasets.set_download_dir(None)
 
 
 @pytest.mark.parametrize("dataset", ALL_DATASETS)
@@ -253,6 +256,7 @@ def test_get_path(dataset):
 
     assert dataset.get_path().is_file()
     tmpd.cleanup()
+    datasets.set_download_dir(None)
 
 
 @pytest.mark.parametrize("dataset", WEIGHTED_DATASETS)

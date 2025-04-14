@@ -45,6 +45,7 @@ def test_load_resultset():
 
         assert "resultsets.tar.gz" in os.listdir(datasets_download_dir / "tests")
         assert "traversal_mappings.csv" in os.listdir(resultsets_download_dir)
+    set_download_dir(None)
 
 
 def test_verify_resultset_load():
