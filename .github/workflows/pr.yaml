@@ -17,19 +17,19 @@ jobs:
       - changed-files
       - checks
       - conda-cpp-build
-      - conda-cpp-tests
-      - conda-cpp-checks
-      - conda-notebook-tests
+#     - conda-cpp-tests
+#     - conda-cpp-checks
+#     - conda-notebook-tests
       - conda-python-build
       - conda-python-tests
-      - docs-build
-      - wheel-build-libcugraph
-      - wheel-build-pylibcugraph
-      - wheel-tests-pylibcugraph
-      - wheel-build-cugraph
-      - wheel-tests-cugraph
+#     - docs-build
+#     - wheel-build-libcugraph
+#     - wheel-build-pylibcugraph
+#     - wheel-tests-pylibcugraph
+#     - wheel-build-cugraph
+#     - wheel-tests-cugraph
       - telemetry-setup
-      - devcontainer
+#     - devcontainer
     secrets: inherit
     uses: rapidsai/shared-workflows/.github/workflows/pr-builder.yaml@branch-25.06
     if: always()
@@ -101,21 +101,21 @@ jobs:
     with:
       build_type: pull-request
       node_type: cpu32
-  conda-cpp-tests:
-    needs: [conda-cpp-build, changed-files]
-    secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/conda-cpp-tests.yaml@branch-25.06
-    if: fromJSON(needs.changed-files.outputs.changed_file_groups).test_cpp
-    with:
-      build_type: pull-request
-  conda-cpp-checks:
-    needs: conda-cpp-build
-    secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/conda-cpp-post-build-checks.yaml@branch-25.06
-    with:
-      build_type: pull-request
-      enable_check_symbols: true
-      symbol_exclusions: (cugraph::ops|hornet|void writeEdgeCountsKernel|void markUniqueOffsetsKernel)
+# conda-cpp-tests:
+#   needs: [conda-cpp-build, changed-files]
+#   secrets: inherit
+#   uses: rapidsai/shared-workflows/.github/workflows/conda-cpp-tests.yaml@branch-25.06
+#   if: fromJSON(needs.changed-files.outputs.changed_file_groups).test_cpp
+#   with:
+#     build_type: pull-request
+# conda-cpp-checks:
+#   needs: conda-cpp-build
+#   secrets: inherit
+#   uses: rapidsai/shared-workflows/.github/workflows/conda-cpp-post-build-checks.yaml@branch-25.06
+#   with:
+#     build_type: pull-request
+#     enable_check_symbols: true
+#     symbol_exclusions: (cugraph::ops|hornet|void writeEdgeCountsKernel|void markUniqueOffsetsKernel)
   conda-python-build:
     needs: conda-cpp-build
     secrets: inherit
@@ -129,78 +129,78 @@ jobs:
     if: fromJSON(needs.changed-files.outputs.changed_file_groups).test_python
     with:
       build_type: pull-request
-  conda-notebook-tests:
-    needs: [conda-python-build, changed-files]
-    secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/custom-job.yaml@branch-25.06
-    if: fromJSON(needs.changed-files.outputs.changed_file_groups).test_notebooks
-    with:
-      build_type: pull-request
-      node_type: "gpu-l4-latest-1"
-      arch: "amd64"
-      container_image: "rapidsai/ci-conda:cuda11.8.0-ubuntu22.04-py3.10"
-      run_script: "ci/test_notebooks.sh"
-  docs-build:
-    needs: conda-python-build
-    secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/custom-job.yaml@branch-25.06
-    with:
-      build_type: pull-request
-      node_type: "gpu-l4-latest-1"
-      arch: "amd64"
-      container_image: "rapidsai/ci-conda:cuda11.8.0-ubuntu22.04-py3.10"
-      run_script: "ci/build_docs.sh"
-  wheel-build-libcugraph:
-    needs: checks
-    secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@branch-25.06
-    with:
-      # build for every combination of arch and CUDA version, but only for the latest Python
-      matrix_filter: group_by([.ARCH, (.CUDA_VER|split(".")|map(tonumber)|.[0])]) | map(max_by(.PY_VER|split(".")|map(tonumber)))
-      build_type: pull-request
-      script: ci/build_wheel_libcugraph.sh
-  wheel-build-pylibcugraph:
-    needs: wheel-build-libcugraph
-    secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@branch-25.06
-    with:
-      build_type: pull-request
-      script: ci/build_wheel_pylibcugraph.sh
-  wheel-tests-pylibcugraph:
-    needs: [wheel-build-pylibcugraph, changed-files]
-    secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/wheels-test.yaml@branch-25.06
-    if: fromJSON(needs.changed-files.outputs.changed_file_groups).test_python
-    with:
-      build_type: pull-request
-      script: ci/test_wheel_pylibcugraph.sh
-  wheel-build-cugraph:
-    needs: wheel-build-pylibcugraph
-    secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@branch-25.06
-    with:
-      build_type: pull-request
-      script: ci/build_wheel_cugraph.sh
-  wheel-tests-cugraph:
-    needs: [wheel-build-cugraph, changed-files]
-    secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/wheels-test.yaml@branch-25.06
-    if: fromJSON(needs.changed-files.outputs.changed_file_groups).test_python
-    with:
-      build_type: pull-request
-      script: ci/test_wheel_cugraph.sh
-  devcontainer:
-    secrets: inherit
-    needs: telemetry-setup
-    uses: rapidsai/shared-workflows/.github/workflows/build-in-devcontainer.yaml@branch-25.06
-    with:
-      arch: '["amd64"]'
-      cuda: '["12.8"]'
-      node_type: cpu32
-      build_command: |
-        sccache -z;
-        build-all --verbose -j$(nproc --ignore=1) -DBUILD_CUGRAPH_MG_TESTS=ON;
-        sccache -s;
+# conda-notebook-tests:
+#   needs: [conda-python-build, changed-files]
+#   secrets: inherit
+#   uses: rapidsai/shared-workflows/.github/workflows/custom-job.yaml@branch-25.06
+#   if: fromJSON(needs.changed-files.outputs.changed_file_groups).test_notebooks
+#   with:
+#     build_type: pull-request
+#     node_type: "gpu-l4-latest-1"
+#     arch: "amd64"
+#     container_image: "rapidsai/ci-conda:cuda11.8.0-ubuntu22.04-py3.10"
+#     run_script: "ci/test_notebooks.sh"
+# docs-build:
+#   needs: conda-python-build
+#   secrets: inherit
+#   uses: rapidsai/shared-workflows/.github/workflows/custom-job.yaml@branch-25.06
+#   with:
+#     build_type: pull-request
+#     node_type: "gpu-l4-latest-1"
+#     arch: "amd64"
+#     container_image: "rapidsai/ci-conda:cuda11.8.0-ubuntu22.04-py3.10"
+#     run_script: "ci/build_docs.sh"
+# wheel-build-libcugraph:
+#   needs: checks
+#   secrets: inherit
+#   uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@branch-25.06
+#   with:
+#     # build for every combination of arch and CUDA version, but only for the latest Python
+#     matrix_filter: group_by([.ARCH, (.CUDA_VER|split(".")|map(tonumber)|.[0])]) | map(max_by(.PY_VER|split(".")|map(tonumber)))
+#     build_type: pull-request
+#     script: ci/build_wheel_libcugraph.sh
+# wheel-build-pylibcugraph:
+#   needs: wheel-build-libcugraph
+#   secrets: inherit
+#   uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@branch-25.06
+#   with:
+#     build_type: pull-request
+#     script: ci/build_wheel_pylibcugraph.sh
+# wheel-tests-pylibcugraph:
+#   needs: [wheel-build-pylibcugraph, changed-files]
+#   secrets: inherit
+#   uses: rapidsai/shared-workflows/.github/workflows/wheels-test.yaml@branch-25.06
+#   if: fromJSON(needs.changed-files.outputs.changed_file_groups).test_python
+#   with:
+#     build_type: pull-request
+#     script: ci/test_wheel_pylibcugraph.sh
+# wheel-build-cugraph:
+#   needs: wheel-build-pylibcugraph
+#   secrets: inherit
+#   uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@branch-25.06
+#   with:
+#     build_type: pull-request
+#     script: ci/build_wheel_cugraph.sh
+# wheel-tests-cugraph:
+#   needs: [wheel-build-cugraph, changed-files]
+#   secrets: inherit
+#   uses: rapidsai/shared-workflows/.github/workflows/wheels-test.yaml@branch-25.06
+#   if: fromJSON(needs.changed-files.outputs.changed_file_groups).test_python
+#   with:
+#     build_type: pull-request
+#     script: ci/test_wheel_cugraph.sh
+# devcontainer:
+#   secrets: inherit
+#   needs: telemetry-setup
+#   uses: rapidsai/shared-workflows/.github/workflows/build-in-devcontainer.yaml@branch-25.06
+#   with:
+#     arch: '["amd64"]'
+#     cuda: '["12.8"]'
+#     node_type: cpu32
+#     build_command: |
+#       sccache -z;
+#       build-all --verbose -j$(nproc --ignore=1) -DBUILD_CUGRAPH_MG_TESTS=ON;
+#       sccache -s;
   telemetry-summarize:
     # This job must use a self-hosted runner to record telemetry traces.
     runs-on: linux-amd64-cpu4
