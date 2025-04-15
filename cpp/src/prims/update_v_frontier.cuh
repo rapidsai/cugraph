@@ -24,7 +24,7 @@
 
 #include <rmm/exec_policy.hpp>
 
-#include <thrust/distance.h>
+#include <cuda/std/iterator>
 #include <thrust/functional.h>
 #include <thrust/iterator/iterator_traits.h>
 #include <thrust/iterator/zip_iterator.h>
@@ -234,11 +234,11 @@ void update_v_frontier(raft::handle_t const& handle,
     auto bucket_key_pair_first = thrust::make_zip_iterator(
       thrust::make_tuple(bucket_indices.begin(), get_dataframe_buffer_begin(key_buffer)));
     bucket_indices.resize(
-      thrust::distance(bucket_key_pair_first,
-                       thrust::remove_if(handle.get_thrust_policy(),
-                                         bucket_key_pair_first,
-                                         bucket_key_pair_first + bucket_indices.size(),
-                                         detail::check_invalid_bucket_idx_t<key_t>())),
+      cuda::std::distance(bucket_key_pair_first,
+                          thrust::remove_if(handle.get_thrust_policy(),
+                                            bucket_key_pair_first,
+                                            bucket_key_pair_first + bucket_indices.size(),
+                                            detail::check_invalid_bucket_idx_t<key_t>())),
       handle.get_stream());
     resize_dataframe_buffer(key_buffer, bucket_indices.size(), handle.get_stream());
     bucket_indices.shrink_to_fit(handle.get_stream());
@@ -353,11 +353,11 @@ void update_v_frontier(raft::handle_t const& handle,
     auto bucket_key_pair_first = thrust::make_zip_iterator(
       thrust::make_tuple(bucket_indices.begin(), get_dataframe_buffer_begin(key_buffer)));
     bucket_indices.resize(
-      thrust::distance(bucket_key_pair_first,
-                       thrust::remove_if(handle.get_thrust_policy(),
-                                         bucket_key_pair_first,
-                                         bucket_key_pair_first + bucket_indices.size(),
-                                         detail::check_invalid_bucket_idx_t<key_t>())),
+      cuda::std::distance(bucket_key_pair_first,
+                          thrust::remove_if(handle.get_thrust_policy(),
+                                            bucket_key_pair_first,
+                                            bucket_key_pair_first + bucket_indices.size(),
+                                            detail::check_invalid_bucket_idx_t<key_t>())),
       handle.get_stream());
     resize_dataframe_buffer(key_buffer, bucket_indices.size(), handle.get_stream());
     bucket_indices.shrink_to_fit(handle.get_stream());

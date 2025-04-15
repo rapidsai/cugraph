@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2023-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@
 #include <raft/core/handle.hpp>
 
 #include <cuda/functional>
+#include <cuda/std/iterator>
 #include <thrust/copy.h>
 #include <thrust/functional.h>
 #include <thrust/iterator/counting_iterator.h>
@@ -138,7 +139,7 @@ __device__ size_t copy_if_mask_set(InputIterator input_first,
                   !cugraph::has_packed_bool_element<OutputIterator, output_value_type>(),
                 "unimplemented.");
 
-  return static_cast<size_t>(thrust::distance(
+  return static_cast<size_t>(cuda::std::distance(
     output_first + output_start_offset,
     thrust::copy_if(thrust::seq,
                     input_first + input_start_offset,

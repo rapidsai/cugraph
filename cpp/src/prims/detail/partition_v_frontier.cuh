@@ -31,6 +31,7 @@
 #include <cub/cub.cuh>
 #include <cuda/atomic>
 #include <cuda/functional>
+#include <cuda/std/iterator>
 #include <thrust/copy.h>
 #include <thrust/count.h>
 #include <thrust/iterator/constant_iterator.h>
@@ -58,15 +59,15 @@ partition_v_frontier(raft::handle_t const& handle,
                                      (exclusive) of the i'th partition value range */
 )
 {
-  rmm::device_uvector<size_t> indices(thrust::distance(frontier_value_first, frontier_value_last),
-                                      handle.get_stream());
+  rmm::device_uvector<size_t> indices(
+    cuda::std::distance(frontier_value_first, frontier_value_last), handle.get_stream());
   thrust::sequence(handle.get_thrust_policy(), indices.begin(), indices.end(), size_t{0});
 
   auto num_partitions = thresholds.size() + 1;
   std::vector<size_t> v_frontier_partition_offsets(num_partitions + 1);
   v_frontier_partition_offsets[0] = size_t{0};
   v_frontier_partition_offsets.back() =
-    static_cast<size_t>(thrust::distance(frontier_value_first, frontier_value_last));
+    static_cast<size_t>(cuda::std::distance(frontier_value_first, frontier_value_last));
 
   auto index_first = indices.begin();
   auto index_last  = indices.end();
@@ -79,7 +80,7 @@ partition_v_frontier(raft::handle_t const& handle,
                           return *(frontier_value_first + idx) < threshold;
                         });
     v_frontier_partition_offsets[1 + i] =
-      v_frontier_partition_offsets[i] + thrust::distance(index_first, false_first);
+      v_frontier_partition_offsets[i] + cuda::std::distance(index_first, false_first);
     index_first = false_first;
   }
 
@@ -105,9 +106,10 @@ partition_v_frontier_per_value_idx(
 {
   using value_t = typename thrust::iterator_traits<ValueIterator>::value_type;
 
-  assert((thrust::distance(frontier_value_first, frontier_value_last) % num_values_per_key) == 0);
+  assert((cuda::std::distance(frontier_value_first, frontier_value_last) % num_values_per_key) ==
+         0);
   rmm::device_uvector<size_t> key_indices(
-    thrust::distance(frontier_value_first, frontier_value_last), handle.get_stream());
+    cuda::std::distance(frontier_value_first, frontier_value_last), handle.get_stream());
   rmm::device_uvector<value_idx_t> value_indices(key_indices.size(), handle.get_stream());
   auto index_pair_first = thrust::make_zip_iterator(key_indices.begin(), value_indices.begin());
   auto index_pair_last  = thrust::make_zip_iterator(key_indices.end(), value_indices.end());
@@ -123,7 +125,7 @@ partition_v_frontier_per_value_idx(
   std::vector<size_t> v_frontier_partition_offsets(num_partitions + 1);
   v_frontier_partition_offsets[0] = size_t{0};
   v_frontier_partition_offsets.back() =
-    static_cast<size_t>(thrust::distance(frontier_value_first, frontier_value_last));
+    static_cast<size_t>(cuda::std::distance(frontier_value_first, frontier_value_last));
 
   rmm::device_uvector<value_t> d_thresholds(thresholds.size(), handle.get_stream());
   raft::update_device(
@@ -144,7 +146,7 @@ partition_v_frontier_per_value_idx(
                thresholds[value_idx * (num_partitions - 1) + true_partition_idx];
       });
     v_frontier_partition_offsets[1 + i] =
-      v_frontier_partition_offsets[i] + thrust::distance(index_pair_first, false_first);
+      v_frontier_partition_offsets[i] + cuda::std::distance(index_pair_first, false_first);
     index_pair_first = false_first;
   }
 
