@@ -43,8 +43,8 @@ __global__ static void repulsion_kernel(const float* restrict x_pos,
       float y_dist      = y_pos[i] - y_pos[j];
       float distance_sq = x_dist * x_dist + y_dist * y_dist + FLT_EPSILON;
       if (prevent_overlapping) {
-        float radius_i = node_radius[i];
-        float radius_j = node_radius[j];
+        float radius_i = vertex_radius[i];
+        float radius_j = vertex_radius[j];
         float distance = sqrt(distance_sq);
         if (distance <= radius_i + radius_j) {
           // Overlapping
