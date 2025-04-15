@@ -88,13 +88,13 @@ BUILD_DIRS="${LIBCUGRAPH_BUILD_DIR}
 VERBOSE_FLAG=""
 CMAKE_VERBOSE_OPTION=()
 BUILD_TYPE=Release
-INSTALL_TARGET=("--target" "install")
+INSTALL_TARGET=(--target install)
 BUILD_CPP_TESTS=ON
 BUILD_CPP_MG_TESTS=OFF
 BUILD_CPP_MTMG_TESTS=OFF
 BUILD_ALL_GPU_ARCH=0
-CMAKE_GENERATOR_OPTION=("-G" "Ninja")
-PYTHON_ARGS_FOR_INSTALL=("-m" "pip" "install" "--no-build-isolation" "--no-deps" "--config-settings" "rapidsai.disable-cuda=true")
+CMAKE_GENERATOR_OPTION=(-G Ninja)
+PYTHON_ARGS_FOR_INSTALL=(-m pip install --no-build-isolation --no-deps --config-settings rapidsai.disable-cuda=true)
 
 # Set defaults for vars that may not have been defined externally
 #  FIXME: if PREFIX is not set, check CONDA_PREFIX, but there is no fallback
@@ -141,7 +141,7 @@ fi
 # Process flags
 if hasArg -v; then
     VERBOSE_FLAG="-v"
-    CMAKE_VERBOSE_OPTION=("--log-level=VERBOSE")
+    CMAKE_VERBOSE_OPTION=(--log-level=VERBOSE)
 fi
 if hasArg -g; then
     BUILD_TYPE=Debug
@@ -165,7 +165,7 @@ if hasArg --cmake_default_generator; then
     CMAKE_GENERATOR_OPTION=()
 fi
 if hasArg --pydevelop; then
-    PYTHON_ARGS_FOR_INSTALL+=("-e")
+    PYTHON_ARGS_FOR_INSTALL+=(-e)
 fi
 
 SKBUILD_EXTRA_CMAKE_ARGS="${EXTRA_CMAKE_ARGS}"
