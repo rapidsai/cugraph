@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -47,7 +47,7 @@ __global__ static void attraction_kernel(const vertex_t* restrict row,
     dst = col[i];
 
     // We only need the lower triangular part
-    if (dst <= src) return;
+    if (dst <= src) continue;
 
     if (v) { weight = v[i]; }
     weight = pow(weight, edge_weight_influence);
