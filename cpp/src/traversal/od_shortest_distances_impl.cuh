@@ -36,6 +36,7 @@
 #include <raft/util/cudart_utils.hpp>
 #include <raft/util/integer_utils.hpp>
 
+#include <cuda/std/__algorithm_>
 #include <cuda/std/functional>
 #include <cuda/std/iterator>
 #include <cuda/std/optional>
@@ -276,7 +277,7 @@ __global__ static void multi_partition_copy(
     ((num_elems + static_cast<size_t>(blockDim.x - 1)) / static_cast<size_t>(blockDim.x)) *
     static_cast<size_t>(blockDim.x);
   while (idx < rounded_up_num_elems) {
-    thrust::fill(thrust::seq, tmp_counts, tmp_counts + num_partitions, int32_t{0});
+    cuda::std::fill(tmp_counts, tmp_counts + num_partitions, int32_t{0});
     auto tmp_idx = idx;
     for (int32_t i = 0; i < tmp_buffer_size; ++i) {
       if (tmp_idx < num_elems) {
@@ -817,12 +818,10 @@ rmm::device_uvector<weight_t> od_shortest_distances(
             raft::device_span<key_t*>(d_buffer_ptrs.data(), d_buffer_ptrs.size()),
             [split_thresholds = raft::device_span<weight_t const>(
                d_split_thresholds.data(), d_split_thresholds.size())] __device__(auto pair) {
-              return static_cast<uint8_t>(
-                cuda::std::distance(split_thresholds.begin(),
-                                    thrust::upper_bound(thrust::seq,
-                                                        split_thresholds.begin(),
-                                                        split_thresholds.end(),
-                                                        thrust::get<1>(pair))));
+              return static_cast<uint8_t>(cuda::std::distance(
+                split_thresholds.begin(),
+                cuda::std::upper_bound(
+                  split_thresholds.begin(), split_thresholds.end(), thrust::get<1>(pair))));
             },
             [] __device__(auto pair) { return thrust::get<0>(pair); },
             raft::device_span<size_t>(d_counters.data(), d_counters.size()));
@@ -962,11 +961,10 @@ rmm::device_uvector<weight_t> od_shortest_distances(
                       return static_cast<uint8_t>(
                         (dist < invalid_threshold)
                           ? max_num_partitions /* discard */
-                          : cuda::std::distance(split_thresholds.begin(),
-                                                thrust::upper_bound(thrust::seq,
-                                                                    split_thresholds.begin(),
-                                                                    split_thresholds.end(),
-                                                                    dist)));
+                          : cuda::std::distance(
+                              split_thresholds.begin(),
+                              cuda::std::upper_bound(
+                                split_thresholds.begin(), split_thresholds.end(), dist)));
                     },
                     cuda::std::identity{},
                     raft::device_span<size_t>(d_counters.data(), d_counters.size()));

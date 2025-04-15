@@ -21,7 +21,9 @@
 #include <raft/core/handle.hpp>
 
 #include <cuda/functional>
+#include <cuda/std/__algorithm_>
 #include <cuda/std/iterator>
+#include <cuda/std/numeric>
 #include <thrust/copy.h>
 #include <thrust/functional.h>
 #include <thrust/iterator/counting_iterator.h>
@@ -53,19 +55,18 @@ __device__ size_t count_set_bits(MaskIterator mask_first, size_t start_offset, s
     ++mask_first;
   }
 
-  return thrust::transform_reduce(
-    thrust::seq,
+  return cuda::std::transform_reduce(
     thrust::make_counting_iterator(size_t{0}),
     thrust::make_counting_iterator(packed_bool_size(num_bits)),
+    ret,
+    thrust::plus<size_t>{},
     [mask_first, num_bits] __device__(size_t i) {
       auto word = *(mask_first + i);
       if ((i + 1) * packed_bools_per_word() > num_bits) {
         word &= packed_bool_partial_mask(num_bits % packed_bools_per_word());
       }
       return static_cast<size_t>(__popc(word));
-    },
-    ret,
-    thrust::plus<size_t>{});
+    });
 }
 
 // @p n starts from 1

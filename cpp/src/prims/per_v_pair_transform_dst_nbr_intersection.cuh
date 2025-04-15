@@ -32,9 +32,9 @@
 
 #include <rmm/exec_policy.hpp>
 
+#include <cuda/std/__algorithm_>
 #include <cuda/std/iterator>
 #include <cuda/std/optional>
-#include <thrust/binary_search.h>
 #include <thrust/copy.h>
 #include <thrust/count.h>
 #include <thrust/execution_policy.h>
@@ -68,12 +68,10 @@ struct compute_local_edge_partition_id_t {
   __device__ int operator()(size_t i) const
   {
     auto major = thrust::get<0>(*(vertex_pair_first + i));
-    return static_cast<int>(
-      cuda::std::distance(edge_partition_major_range_lasts.begin(),
-                          thrust::upper_bound(thrust::seq,
-                                              edge_partition_major_range_lasts.begin(),
-                                              edge_partition_major_range_lasts.end(),
-                                              major)));
+    return static_cast<int>(cuda::std::distance(
+      edge_partition_major_range_lasts.begin(),
+      cuda::std::upper_bound(
+        edge_partition_major_range_lasts.begin(), edge_partition_major_range_lasts.end(), major)));
   }
 };
 
@@ -158,16 +156,16 @@ struct call_intersection_op_t {
     property_t src_prop{};
     property_t dst_prop{};
     if (unique_vertices) {
-      src_prop = *(vertex_property_first +
-                   cuda::std::distance(
-                     (*unique_vertices).begin(),
-                     thrust::lower_bound(
-                       thrust::seq, (*unique_vertices).begin(), (*unique_vertices).end(), src)));
-      dst_prop = *(vertex_property_first +
-                   cuda::std::distance(
-                     (*unique_vertices).begin(),
-                     thrust::lower_bound(
-                       thrust::seq, (*unique_vertices).begin(), (*unique_vertices).end(), dst)));
+      src_prop =
+        *(vertex_property_first +
+          cuda::std::distance(
+            (*unique_vertices).begin(),
+            cuda::std::lower_bound((*unique_vertices).begin(), (*unique_vertices).end(), src)));
+      dst_prop =
+        *(vertex_property_first +
+          cuda::std::distance(
+            (*unique_vertices).begin(),
+            cuda::std::lower_bound((*unique_vertices).begin(), (*unique_vertices).end(), dst)));
     } else {
       auto major_offset = edge_partition.major_offset_from_major_nocheck(major);
       auto minor_offset = edge_partition.minor_offset_from_minor_nocheck(minor);

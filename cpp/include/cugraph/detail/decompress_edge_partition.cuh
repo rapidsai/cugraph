@@ -24,9 +24,9 @@
 
 #include <rmm/device_uvector.hpp>
 
+#include <cuda/std/__algorithm_>
 #include <thrust/copy.h>
 #include <thrust/execution_policy.h>
-#include <thrust/fill.h>
 #include <thrust/for_each.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/sequence.h>
@@ -159,10 +159,9 @@ void decompress_edge_partition_to_fill_edgelist_majors(
           auto major_offset = edge_partition.major_offset_from_major_nocheck(major);
           auto local_degree = edge_partition.local_degree(major_offset);
           auto local_offset = edge_partition.local_offset(major_offset);
-          thrust::fill(thrust::seq,
-                       output_buffer.begin() + local_offset,
-                       output_buffer.begin() + local_offset + local_degree,
-                       major);
+          cuda::std::fill(output_buffer.begin() + local_offset,
+                          output_buffer.begin() + local_offset + local_degree,
+                          major);
         });
     }
     if (edge_partition.dcs_nzd_vertex_count() && (*(edge_partition.dcs_nzd_vertex_count()) > 0)) {
@@ -177,10 +176,9 @@ void decompress_edge_partition_to_fill_edgelist_majors(
             major_start_offset + idx;  // major_offset != major_idx in the hypersparse region
           auto local_degree = edge_partition.local_degree(major_idx);
           auto local_offset = edge_partition.local_offset(major_idx);
-          thrust::fill(thrust::seq,
-                       output_buffer.begin() + local_offset,
-                       output_buffer.begin() + local_offset + local_degree,
-                       major);
+          cuda::std::fill(output_buffer.begin() + local_offset,
+                          output_buffer.begin() + local_offset + local_degree,
+                          major);
         });
     }
   } else {
@@ -192,10 +190,9 @@ void decompress_edge_partition_to_fill_edgelist_majors(
                        auto major_offset = edge_partition.major_offset_from_major_nocheck(major);
                        auto local_degree = edge_partition.local_degree(major_offset);
                        auto local_offset = edge_partition.local_offset(major_offset);
-                       thrust::fill(thrust::seq,
-                                    output_buffer.begin() + local_offset,
-                                    output_buffer.begin() + local_offset + local_degree,
-                                    major);
+                       cuda::std::fill(output_buffer.begin() + local_offset,
+                                       output_buffer.begin() + local_offset + local_degree,
+                                       major);
                      });
   }
 

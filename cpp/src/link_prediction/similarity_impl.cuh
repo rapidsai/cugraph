@@ -31,6 +31,7 @@
 #include <rmm/device_uvector.hpp>
 
 #include <cuda/std/iterator>
+#include <cuda/std/numeric>
 
 #include <optional>
 #include <tuple>
@@ -107,20 +108,19 @@ rmm::device_uvector<weight_t> similarity(
 
           auto pair_first = thrust::make_zip_iterator(intersected_properties_a.data(),
                                                       intersected_properties_b.data());
-          thrust::tie(norm_a, norm_b, sum_of_product_of_a_and_b) = thrust::transform_reduce(
-            thrust::seq,
+          thrust::tie(norm_a, norm_b, sum_of_product_of_a_and_b) = cuda::std::transform_reduce(
             pair_first,
             pair_first + intersected_properties_a.size(),
-            [] __device__(auto property_pair) {
-              auto prop_a = thrust::get<0>(property_pair);
-              auto prop_b = thrust::get<1>(property_pair);
-              return thrust::make_tuple(prop_a * prop_a, prop_b * prop_b, prop_a * prop_b);
-            },
             thrust::make_tuple(weight_t{0}, weight_t{0}, weight_t{0}),
             [] __device__(auto lhs, auto rhs) {
               return thrust::make_tuple(thrust::get<0>(lhs) + thrust::get<0>(rhs),
                                         thrust::get<1>(lhs) + thrust::get<1>(rhs),
                                         thrust::get<2>(lhs) + thrust::get<2>(rhs));
+            },
+            [] __device__(auto property_pair) {
+              auto prop_a = thrust::get<0>(property_pair);
+              auto prop_b = thrust::get<1>(property_pair);
+              return thrust::make_tuple(prop_a * prop_a, prop_b * prop_b, prop_a * prop_b);
             });
 
           return functor.compute_score(static_cast<weight_t>(sqrt(norm_a)),
@@ -140,21 +140,20 @@ rmm::device_uvector<weight_t> similarity(
                       sum_of_max_weight_a_intersect_b,
                       sum_of_intersected_a,
                       sum_of_intersected_b) =
-            thrust::transform_reduce(
-              thrust::seq,
+            cuda::std::transform_reduce(
               pair_first,
               pair_first + intersected_properties_a.size(),
-              [] __device__(auto property_pair) {
-                auto prop_a = thrust::get<0>(property_pair);
-                auto prop_b = thrust::get<1>(property_pair);
-                return thrust::make_tuple(min(prop_a, prop_b), max(prop_a, prop_b), prop_a, prop_b);
-              },
               thrust::make_tuple(weight_t{0}, weight_t{0}, weight_t{0}, weight_t{0}),
               [] __device__(auto lhs, auto rhs) {
                 return thrust::make_tuple(thrust::get<0>(lhs) + thrust::get<0>(rhs),
                                           thrust::get<1>(lhs) + thrust::get<1>(rhs),
                                           thrust::get<2>(lhs) + thrust::get<2>(rhs),
                                           thrust::get<3>(lhs) + thrust::get<3>(rhs));
+              },
+              [] __device__(auto property_pair) {
+                auto prop_a = thrust::get<0>(property_pair);
+                auto prop_b = thrust::get<1>(property_pair);
+                return thrust::make_tuple(min(prop_a, prop_b), max(prop_a, prop_b), prop_a, prop_b);
               });
 
           weight_t sum_of_uniq_a = weight_a - sum_of_intersected_a;

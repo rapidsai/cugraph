@@ -43,9 +43,9 @@
 #include <rmm/exec_policy.hpp>
 
 #include <cub/cub.cuh>
+#include <cuda/std/__algorithm_>
 #include <cuda/std/iterator>
 #include <cuda/std/optional>
-#include <thrust/binary_search.h>
 #include <thrust/copy.h>
 #include <thrust/count.h>
 #include <thrust/execution_policy.h>
@@ -176,8 +176,7 @@ filter_buffer_elements(
      major_comm_rank,
      major_comm_size] __device__(auto v) {
       auto root = cuda::std::distance(
-        offsets.begin() + 1,
-        thrust::upper_bound(thrust::seq, offsets.begin() + 1, offsets.end(), v));
+        offsets.begin() + 1, cuda::std::upper_bound(offsets.begin() + 1, offsets.end(), v));
       auto v_offset = v - offsets[root];
       if (v_offset < allreduce_count_per_rank) {
         priorities[allreduce_count_per_rank * root + v_offset] =
@@ -207,8 +206,7 @@ filter_buffer_elements(
            major_comm_rank,
            major_comm_size] __device__(auto v) {
             auto root = cuda::std::distance(
-              offsets.begin() + 1,
-              thrust::upper_bound(thrust::seq, offsets.begin() + 1, offsets.end(), v));
+              offsets.begin() + 1, cuda::std::upper_bound(offsets.begin() + 1, offsets.end(), v));
             auto v_offset = v - offsets[root];
             if (v_offset < allreduce_count_per_rank) {
               auto selected_rank = priority_to_rank<vertex_t, priority_t>(
@@ -241,8 +239,7 @@ filter_buffer_elements(
            major_comm_rank,
            major_comm_size] __device__(auto v) {
             auto root = cuda::std::distance(
-              offsets.begin() + 1,
-              thrust::upper_bound(thrust::seq, offsets.begin() + 1, offsets.end(), v));
+              offsets.begin() + 1, cuda::std::upper_bound(offsets.begin() + 1, offsets.end(), v));
             auto v_offset = v - offsets[root];
             if (v_offset < allreduce_count_per_rank) {
               auto selected_rank = priority_to_rank<vertex_t, priority_t>(
@@ -816,7 +813,7 @@ transform_reduce_if_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
                  d_vertex_partition_range_offsets.data() + 1,
                  static_cast<size_t>(major_comm_size))] __device__(auto v) {
                 auto major_comm_rank = cuda::std::distance(
-                  lasts.begin(), thrust::upper_bound(thrust::seq, lasts.begin(), lasts.end(), v));
+                  lasts.begin(), cuda::std::upper_bound(lasts.begin(), lasts.end(), v));
                 return static_cast<uint32_t>(v - firsts[major_comm_rank]);
               }));
           resize_dataframe_buffer(key_buffer, 0, handle.get_stream());

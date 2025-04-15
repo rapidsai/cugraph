@@ -23,6 +23,7 @@
 #include <cugraph/mtmg/vertex_pair_result_view.hpp>
 #include <cugraph/vertex_partition_device_view.cuh>
 
+#include <cuda/std/__algorithm_>
 #include <cuda/std/iterator>
 #include <thrust/functional.h>
 #include <thrust/gather.h>
@@ -117,15 +118,14 @@ std::
   thrust::sort_by_key(
     rmm::exec_policy(stream), local_vertices.begin(), local_vertices.end(), vertex_gpu_ids.begin());
 
-  auto new_end =
-    thrust::remove_if(rmm::exec_policy(stream),
-                      thrust::make_zip_iterator(v1.begin(), v2.begin(), result.begin()),
-                      thrust::make_zip_iterator(v1.end(), v2.end(), result.end()),
-                      [v1_check = raft::device_span<vertex_t const>{
-                         local_vertices.data(), local_vertices.size()}] __device__(auto tuple) {
-                        return thrust::binary_search(
-                          thrust::seq, v1_check.begin(), v1_check.end(), thrust::get<0>(tuple));
-                      });
+  auto new_end = thrust::remove_if(
+    rmm::exec_policy(stream),
+    thrust::make_zip_iterator(v1.begin(), v2.begin(), result.begin()),
+    thrust::make_zip_iterator(v1.end(), v2.end(), result.end()),
+    [v1_check = raft::device_span<vertex_t const>{local_vertices.data(),
+                                                  local_vertices.size()}] __device__(auto tuple) {
+      return cuda::std::binary_search(v1_check.begin(), v1_check.end(), thrust::get<0>(tuple));
+    });
 
   v1.resize(
     cuda::std::distance(thrust::make_zip_iterator(v1.begin(), v2.begin(), result.begin()), new_end),
@@ -147,7 +147,7 @@ std::
          gpu     = raft::device_span<int const>{vertex_gpu_ids.data(),
                                                 vertex_gpu_ids.size()}] __device__(auto v1) {
           return gpu[cuda::std::distance(
-            local_v.begin(), thrust::lower_bound(thrust::seq, local_v.begin(), local_v.end(), v1))];
+            local_v.begin(), cuda::std::lower_bound(local_v.begin(), local_v.end(), v1))];
         }),
       stream);
 

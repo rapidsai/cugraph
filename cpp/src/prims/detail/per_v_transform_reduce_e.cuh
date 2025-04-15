@@ -46,7 +46,9 @@
 
 #include <cub/cub.cuh>
 #include <cuda/functional>
+#include <cuda/std/__algorithm_>
 #include <cuda/std/iterator>
+#include <cuda/std/numeric>
 #include <cuda/std/optional>
 #include <thrust/copy.h>
 #include <thrust/execution_policy.h>
@@ -199,12 +201,11 @@ __device__ void update_result_value_output(
           break;
         }
       } else {
-        val = thrust::transform_reduce(thrust::seq,
-                                       thrust::make_counting_iterator(edge_t{0}),
-                                       thrust::make_counting_iterator(local_degree),
-                                       transform_op,
-                                       init,
-                                       reduce_op);
+        val = cuda::std::transform_reduce(thrust::make_counting_iterator(edge_t{0}),
+                                          thrust::make_counting_iterator(local_degree),
+                                          init,
+                                          reduce_op,
+                                          transform_op);
       }
     } else {
       val = init;
@@ -225,18 +226,17 @@ __device__ void update_result_value_output(
     }
     *(result_value_output + output_idx) = val;
   } else {
-    thrust::for_each(thrust::seq,
-                     thrust::make_counting_iterator(edge_t{0}),
-                     thrust::make_counting_iterator(local_degree),
-                     transform_and_atomic_reduce_t<vertex_t,
-                                                   edge_t,
-                                                   multi_gpu,
-                                                   result_t,
-                                                   TransformOp,
-                                                   ReduceOp,
-                                                   PredOp,
-                                                   ResultValueOutputIteratorOrWrapper>{
-                       edge_partition, indices, transform_op, pred_op, result_value_output});
+    cuda::std::for_each(thrust::make_counting_iterator(edge_t{0}),
+                        thrust::make_counting_iterator(local_degree),
+                        transform_and_atomic_reduce_t<vertex_t,
+                                                      edge_t,
+                                                      multi_gpu,
+                                                      result_t,
+                                                      TransformOp,
+                                                      ReduceOp,
+                                                      PredOp,
+                                                      ResultValueOutputIteratorOrWrapper>{
+                          edge_partition, indices, transform_op, pred_op, result_value_output});
   }
 }
 
@@ -1793,10 +1793,9 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                   }));
                 return v_list_size - static_cast<size_t>(cuda::std::distance(
                                        sorted_unique_v_first,
-                                       thrust::lower_bound(thrust::seq,
-                                                           sorted_unique_v_first,
-                                                           sorted_unique_v_first + v_list_size,
-                                                           deg1_v_first)));
+                                       cuda::std::lower_bound(sorted_unique_v_first,
+                                                              sorted_unique_v_first + v_list_size,
+                                                              deg1_v_first)));
               }
             }
           } else {
@@ -1809,10 +1808,9 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                   }));
                 return v_list_size - static_cast<size_t>(cuda::std::distance(
                                        sorted_unique_v_first,
-                                       thrust::lower_bound(thrust::seq,
-                                                           sorted_unique_v_first,
-                                                           sorted_unique_v_first + v_list_size,
-                                                           deg1_v_first)));
+                                       cuda::std::lower_bound(sorted_unique_v_first,
+                                                              sorted_unique_v_first + v_list_size,
+                                                              deg1_v_first)));
               }
             }
           }
@@ -3033,17 +3031,15 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                       auto casted_first = static_cast<uint32_t const*>(first);
                       return size - static_cast<size_t>(cuda::std::distance(
                                       casted_first,
-                                      thrust::lower_bound(thrust::seq,
-                                                          casted_first,
-                                                          casted_first + size,
-                                                          static_cast<uint32_t>(start_offset))));
+                                      cuda::std::lower_bound(casted_first,
+                                                             casted_first + size,
+                                                             static_cast<uint32_t>(start_offset))));
                     } else {
                       auto casted_first = static_cast<size_t const*>(first);
-                      return size -
-                             static_cast<size_t>(cuda::std::distance(
-                               casted_first,
-                               thrust::lower_bound(
-                                 thrust::seq, casted_first, casted_first + size, start_offset)));
+                      return size - static_cast<size_t>(cuda::std::distance(
+                                      casted_first,
+                                      cuda::std::lower_bound(
+                                        casted_first, casted_first + size, start_offset)));
                     }
                   } else {
                     return size_t{0};
@@ -4163,8 +4159,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                      std::get<0>(selected_ranks).data(),
                      std::get<0>(selected_ranks).size())] __device__(auto i) {
                     auto minor_comm_rank       = static_cast<uint8_t>(cuda::std::distance(
-                      lasts.begin(),
-                      thrust::upper_bound(thrust::seq, lasts.begin(), lasts.end(), i)));
+                      lasts.begin(), cuda::std::upper_bound(lasts.begin(), lasts.end(), i)));
                     selected_ranks[offsets[i]] = minor_comm_rank;
                   });
               } else {
@@ -4179,8 +4174,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                      std::get<1>(selected_ranks).data(),
                      std::get<1>(selected_ranks).size())] __device__(auto i) {
                     auto minor_comm_rank       = static_cast<int>(cuda::std::distance(
-                      lasts.begin(),
-                      thrust::upper_bound(thrust::seq, lasts.begin(), lasts.end(), i)));
+                      lasts.begin(), cuda::std::upper_bound(lasts.begin(), lasts.end(), i)));
                     selected_ranks[offsets[i]] = minor_comm_rank;
                   });
               }
@@ -4200,8 +4194,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                      std::get<0>(selected_ranks).data(),
                      std::get<0>(selected_ranks).size())] __device__(auto i) {
                     auto minor_comm_rank       = static_cast<uint8_t>(cuda::std::distance(
-                      lasts.begin(),
-                      thrust::upper_bound(thrust::seq, lasts.begin(), lasts.end(), i)));
+                      lasts.begin(), cuda::std::upper_bound(lasts.begin(), lasts.end(), i)));
                     selected_ranks[offsets[i]] = minor_comm_rank;
                   });
               } else {
@@ -4216,8 +4209,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                      std::get<1>(selected_ranks).data(),
                      std::get<1>(selected_ranks).size())] __device__(auto i) {
                     auto minor_comm_rank       = static_cast<int>(cuda::std::distance(
-                      lasts.begin(),
-                      thrust::upper_bound(thrust::seq, lasts.begin(), lasts.end(), i)));
+                      lasts.begin(), cuda::std::upper_bound(lasts.begin(), lasts.end(), i)));
                     selected_ranks[offsets[i]] = minor_comm_rank;
                   });
               }

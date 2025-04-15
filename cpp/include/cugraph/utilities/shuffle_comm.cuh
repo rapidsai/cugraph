@@ -26,6 +26,7 @@
 
 #include <cuda/atomic>
 #include <cuda/functional>
+#include <cuda/std/__algorithm_>
 #include <cuda/std/iterator>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
@@ -63,9 +64,8 @@ struct compute_group_id_count_pair_t {
   {
     static_assert(
       std::is_same_v<typename thrust::iterator_traits<GroupIdIterator>::value_type, int>);
-    auto lower_it =
-      thrust::lower_bound(thrust::seq, group_id_first, group_id_last, static_cast<int>(i));
-    auto upper_it = thrust::upper_bound(thrust::seq, lower_it, group_id_last, static_cast<int>(i));
+    auto lower_it = cuda::std::lower_bound(group_id_first, group_id_last, static_cast<int>(i));
+    auto upper_it = cuda::std::upper_bound(lower_it, group_id_last, static_cast<int>(i));
     return thrust::make_tuple(static_cast<int>(i),
                               static_cast<size_t>(cuda::std::distance(lower_it, upper_it)));
   }

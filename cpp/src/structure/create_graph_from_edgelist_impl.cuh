@@ -32,8 +32,8 @@
 
 #include <raft/core/handle.hpp>
 
+#include <cuda/std/__algorithm_>
 #include <cuda/std/iterator>
-#include <thrust/binary_search.h>
 #include <thrust/copy.h>
 #include <thrust/count.h>
 #include <thrust/equal.h>
@@ -60,14 +60,10 @@ struct check_edge_t {
 
   __device__ bool operator()(thrust::tuple<vertex_t, vertex_t> const& e) const
   {
-    return !thrust::binary_search(thrust::seq,
-                                  sorted_valid_major_range_first,
-                                  sorted_valid_major_range_last,
-                                  thrust::get<0>(e)) ||
-           !thrust::binary_search(thrust::seq,
-                                  sorted_valid_minor_range_first,
-                                  sorted_valid_minor_range_last,
-                                  thrust::get<1>(e));
+    return !cuda::std::binary_search(
+             sorted_valid_major_range_first, sorted_valid_major_range_last, thrust::get<0>(e)) ||
+           !cuda::std::binary_search(
+             sorted_valid_minor_range_first, sorted_valid_minor_range_last, thrust::get<1>(e));
   }
 };
 

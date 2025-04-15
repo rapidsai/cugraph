@@ -26,9 +26,9 @@
 #include <rmm/device_uvector.hpp>
 #include <rmm/exec_policy.hpp>
 
+#include <cuda/std/__algorithm_>
 #include <cuda/std/iterator>
 #include <cuda/std/optional>
-#include <thrust/binary_search.h>
 #include <thrust/execution_policy.h>
 #include <thrust/transform.h>
 #include <thrust/transform_reduce.h>
@@ -48,8 +48,7 @@ __device__ cuda::std::optional<vertex_t> major_hypersparse_idx_from_major_nochec
 {
   // we can avoid binary search (and potentially improve performance) if we add an auxiliary array
   // or cuco::static_map (at the expense of additional memory)
-  auto it =
-    thrust::lower_bound(thrust::seq, dcs_nzd_vertices.begin(), dcs_nzd_vertices.end(), major);
+  auto it = cuda::std::lower_bound(dcs_nzd_vertices.begin(), dcs_nzd_vertices.end(), major);
   return it != dcs_nzd_vertices.end()
            ? (*it == major ? cuda::std::optional<vertex_t>{static_cast<vertex_t>(
                                cuda::std::distance(dcs_nzd_vertices.begin(), it))}
@@ -163,7 +162,7 @@ class edge_partition_device_view_base_t {
   {
     return static_cast<vertex_t>(cuda::std::distance(
       offsets_.begin() + 1,
-      thrust::upper_bound(thrust::seq, offsets_.begin() + 1, offsets_.end(), local_edge_idx)));
+      cuda::std::upper_bound(offsets_.begin() + 1, offsets_.end(), local_edge_idx)));
   }
 
   // major_idx == major offset if CSR/CSC, major_offset != major_idx if DCSR/DCSC

@@ -19,6 +19,7 @@
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>
 
+#include <cuda/std/__algorithm_>
 #include <cuda/std/iterator>
 #include <thrust/sort.h>
 
@@ -96,7 +97,7 @@ void random_walks_validate(
           //    should add a check to verify that degree(src) == 0
           if (d != cugraph::invalid_vertex_id<vertex_t>::value) {
             auto iter = thrust::make_zip_iterator(src, dst);
-            auto pos  = thrust::find(thrust::seq, iter, iter + num_edges, thrust::make_tuple(s, d));
+            auto pos  = cuda::std::find(iter, iter + num_edges, thrust::make_tuple(s, d));
 
             if (pos != (iter + num_edges)) {
               auto index = cuda::std::distance(iter, pos);
@@ -139,7 +140,7 @@ void random_walks_validate(
           //    should add a check to verify that degree(src) == 0
           if (d != cugraph::invalid_vertex_id<vertex_t>::value) {
             auto iter = thrust::make_zip_iterator(src, dst);
-            auto pos  = thrust::find(thrust::seq, iter, iter + num_edges, thrust::make_tuple(s, d));
+            auto pos  = cuda::std::find(iter, iter + num_edges, thrust::make_tuple(s, d));
 
             if (pos == (iter + num_edges)) printf("edge (%d,%d) NOT FOUND\n", (int)s, (int)d);
 

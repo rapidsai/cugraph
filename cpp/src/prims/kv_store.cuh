@@ -25,8 +25,8 @@
 #include <rmm/device_uvector.hpp>
 #include <rmm/mr/device/polymorphic_allocator.hpp>
 
+#include <cuda/std/__algorithm_>
 #include <cuda/std/iterator>
-#include <thrust/binary_search.h>
 #include <thrust/copy.h>
 #include <thrust/functional.h>
 #include <thrust/gather.h>
@@ -68,7 +68,7 @@ struct kv_binary_search_find_op_t {
 
   __device__ value_type operator()(key_type key) const
   {
-    auto it = thrust::lower_bound(thrust::seq, store_key_first, store_key_last, key);
+    auto it = cuda::std::lower_bound(store_key_first, store_key_last, key);
     if (it != store_key_last && *it == key) {
       return *(store_value_first + cuda::std::distance(store_key_first, it));
     } else {
@@ -86,7 +86,7 @@ struct kv_binary_search_contains_op_t {
 
   __device__ bool operator()(key_type key) const
   {
-    return thrust::binary_search(thrust::seq, store_key_first, store_key_last, key);
+    return cuda::std::binary_search(store_key_first, store_key_last, key);
   }
 };
 
@@ -174,7 +174,7 @@ struct kv_binary_search_store_device_view_t {
 
   __device__ value_type find(key_type key) const
   {
-    auto it = thrust::lower_bound(thrust::seq, store_key_first, store_key_last, key);
+    auto it = cuda::std::lower_bound(store_key_first, store_key_last, key);
     if (it != store_key_last && *it == key) {
       return *(store_value_first + cuda::std::distance(store_key_first, it));
     } else {

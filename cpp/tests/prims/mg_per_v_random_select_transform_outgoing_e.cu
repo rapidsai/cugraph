@@ -41,6 +41,7 @@
 
 #include <rmm/device_uvector.hpp>
 
+#include <cuda/std/__algorithm_>
 #include <cuda/std/iterator>
 #include <cuda/std/optional>
 #include <thrust/adjacent_difference.h>
@@ -541,12 +542,10 @@ class Tests_MGPerVRandomSelectTransformOutgoingE
               cuda::std::array<edge_t, array_size> per_type_sample_counts{};
               auto num_chunks = (num_edge_types + array_size - edge_type_t{1}) / array_size;
               for (edge_type_t c = 0; c < num_chunks; ++c) {
-                thrust::fill(
-                  thrust::seq, per_type_out_degrees.begin(), per_type_out_degrees.end(), edge_t{0});
-                thrust::fill(thrust::seq,
-                             per_type_sample_counts.begin(),
-                             per_type_sample_counts.end(),
-                             edge_t{0});
+                cuda::std::fill(
+                  per_type_out_degrees.begin(), per_type_out_degrees.end(), edge_t{0});
+                cuda::std::fill(
+                  per_type_sample_counts.begin(), per_type_sample_counts.end(), edge_t{0});
 
                 for (auto offset = *(sg_graph_offsets + v); offset < *(sg_graph_offsets + v + 1);
                      ++offset) {
@@ -592,10 +591,9 @@ class Tests_MGPerVRandomSelectTransformOutgoingE
             } else {
               auto out_degree = *(sg_graph_offsets + v + 1) - *(sg_graph_offsets + v);
               if (sg_graph_biases) {
-                out_degree = thrust::count_if(thrust::seq,
-                                              *sg_graph_biases + *(sg_graph_offsets + v),
-                                              *sg_graph_biases + *(sg_graph_offsets + v + 1),
-                                              [] __device__(auto bias) { return bias > 0.0; });
+                out_degree = cuda::std::count_if(*sg_graph_biases + *(sg_graph_offsets + v),
+                                                 *sg_graph_biases + *(sg_graph_offsets + v + 1),
+                                                 [] __device__(auto bias) { return bias > 0.0; });
               }
               if (with_replacement) {
                 if ((out_degree > 0 && sample_count != K_sum) ||
@@ -624,8 +622,8 @@ class Tests_MGPerVRandomSelectTransformOutgoingE
               if (sg_src != v) { return true; }
 
               if (sg_nbr_bias_first) {
-                auto lower_it = thrust::lower_bound(thrust::seq, sg_nbr_first, sg_nbr_last, sg_dst);
-                auto upper_it = thrust::upper_bound(thrust::seq, sg_nbr_first, sg_nbr_last, sg_dst);
+                auto lower_it = cuda::std::lower_bound(sg_nbr_first, sg_nbr_last, sg_dst);
+                auto upper_it = cuda::std::upper_bound(sg_nbr_first, sg_nbr_last, sg_dst);
                 bool found    = false;
                 for (auto it = (*sg_nbr_bias_first + cuda::std::distance(sg_nbr_first, lower_it));
                      it != (*sg_nbr_bias_first + cuda::std::distance(sg_nbr_first, upper_it));
@@ -637,10 +635,9 @@ class Tests_MGPerVRandomSelectTransformOutgoingE
                 }
                 if (!found) { return true; }
               } else {
-                if (!thrust::binary_search(thrust::seq,
-                                           sg_nbr_first,
-                                           sg_nbr_last,
-                                           sg_dst)) {  // assumed neighbor lists are sorted
+                if (!cuda::std::binary_search(sg_nbr_first,
+                                              sg_nbr_last,
+                                              sg_dst)) {  // assumed neighbor lists are sorted
                   return true;
                 }
               }
@@ -664,21 +661,18 @@ class Tests_MGPerVRandomSelectTransformOutgoingE
                   thrust::get<1>(sample_e_op_result_first.get_iterator_tuple()) + offset_first;
                 auto sg_dst_last =
                   thrust::get<1>(sample_e_op_result_first.get_iterator_tuple()) + offset_last;
-                auto dst_count = thrust::count(thrust::seq, sg_dst_first, sg_dst_last, sg_dst);
+                auto dst_count = cuda::std::count(sg_dst_first, sg_dst_last, sg_dst);
                 auto lower_it =
-                  thrust::lower_bound(thrust::seq,
-                                      sg_nbr_first,
-                                      sg_nbr_last,
-                                      sg_dst);  // this assumes neighbor lists are sorted
+                  cuda::std::lower_bound(sg_nbr_first,
+                                         sg_nbr_last,
+                                         sg_dst);  // this assumes neighbor lists are sorted
                 auto upper_it =
-                  thrust::upper_bound(thrust::seq,
-                                      sg_nbr_first,
-                                      sg_nbr_last,
-                                      sg_dst);  // this assumes neighbor lists are sorted
+                  cuda::std::upper_bound(sg_nbr_first,
+                                         sg_nbr_last,
+                                         sg_dst);  // this assumes neighbor lists are sorted
                 auto multiplicity =
                   sg_nbr_bias_first
-                    ? thrust::count_if(
-                        thrust::seq,
+                    ? cuda::std::count_if(
                         *sg_nbr_bias_first + cuda::std::distance(sg_nbr_first, lower_it),
                         *sg_nbr_bias_first + cuda::std::distance(sg_nbr_first, upper_it),
                         [] __device__(auto bias) { return bias > 0.0; })
