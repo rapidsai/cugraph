@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,11 +30,10 @@ __global__ static void repulsion_kernel(const float* restrict x_pos,
                                         const float scaling_ratio,
                                         const vertex_t n)
 {
-  int j = (blockIdx.x * blockDim.x) + threadIdx.x;  // for every item in row
   int i = (blockIdx.y * blockDim.y) + threadIdx.y;  // for every row
   for (; i < n; i += gridDim.y * blockDim.y) {
-    for (; j < n; j += gridDim.x * blockDim.x) {
-      if (j >= i) return;
+    int j = (blockIdx.x * blockDim.x) + threadIdx.x;  // for every item in row
+    for (; j < i; j += gridDim.x * blockDim.x) {
       float x_dist   = x_pos[i] - x_pos[j];
       float y_dist   = y_pos[i] - y_pos[j];
       float distance = x_dist * x_dist + y_dist * y_dist;
