@@ -27,6 +27,10 @@
 #include <numeric>
 #include <utility>
 
+#include <cuda/experimental/stf.cuh>
+
+using namespace cuda::experimental::stf;
+
 namespace cugraph {
 
 /**

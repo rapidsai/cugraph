@@ -58,6 +58,15 @@ option(USE_RAFT_STATIC "Build raft as a static library" OFF)
 option(CUGRAPH_COMPILE_RAFT_LIB "Compile the raft library instead of using it header-only" ON)
 option(CUDA_STATIC_RUNTIME "Statically link the CUDA toolkit runtime and libraries" OFF)
 
+option(BUILD_CUGRAPH_COMPONENTS_ALGORITHMS "Enable components algorithms" ON)
+option(BUILD_CUGRAPH_SAMPLING_ALGORITHMS "Enable sampling algorithms" ON)
+option(BUILD_CUGRAPH_CENTRALITY_ALGORITHMS "Enable centrality algorithms" ON)
+option(BUILD_CUGRAPH_COMMUNITY_ALGORITHMS "Enable community algorithms" ON)
+option(BUILD_CUGRAPH_TRAVERSAL_ALGORITHMS "Enable traversal algorithms" ON)
+option(BUILD_CUGRAPH_TREE_ALGORITHMS "Enable tree algorithms" ON)
+option(BUILD_CUGRAPH_LINK_ANALYSIS_ALGORITHMS "Enable link analysis algorithms" ON)
+option(BUILD_CUGRAPH_LINK_PREDICTION_ALGORITHMS "Enable link prediction algorithms" ON)
+
 message(VERBOSE "CUGRAPH: CUDA_STATIC_RUNTIME=${CUDA_STATIC_RUNTIME}")
 
 ################################################################################
@@ -494,6 +503,7 @@ target_link_libraries(cugraph
         rmm::rmm
         raft::raft
         $<BUILD_LOCAL_INTERFACE:CUDA::toolkit>
+        cuda
     PRIVATE
         ${COMPILED_RAFT_LIB}
         cuco::cuco
