@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -36,9 +36,9 @@ namespace detail {
 
 template <typename vertex_t, typename VertexValueInputIterator, typename VertexOp, typename T>
 struct transform_reduce_call_v_op_t {
-  vertex_t local_vertex_partition_range_first{};
-  VertexValueInputIterator vertex_value_input_first{};
-  VertexOp v_op{};
+  vertex_t local_vertex_partition_range_first;
+  VertexValueInputIterator vertex_value_input_first;
+  VertexOp v_op;
 
   __device__ T operator()(vertex_t i)
   {
