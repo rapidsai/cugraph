@@ -15,6 +15,8 @@
  */
 #pragma once
 
+#include <raft/core/device_span.hpp>
+
 #include <rmm/device_uvector.hpp>
 
 #include <thrust/iterator/iterator_traits.h>
@@ -90,6 +92,16 @@ auto std_tuple_to_thrust_tuple(TupleType tup, std::index_sequence<Is...>)
   return thrust::make_tuple(std::get<Is>(tup)...);
 }
 
+template <typename TupleType, size_t F, size_t... Is>
+#ifdef __CUDACC__
+__host__ __device__
+#endif
+  auto
+  thrust_tuple_slice_impl(TupleType tup, std::index_sequence<Is...>)
+{
+  return thrust::make_tuple(thrust::get<F + Is>(tup)...);
+}
+
 template <typename TupleType, std::size_t... Is>
 constexpr TupleType thrust_tuple_of_arithmetic_numeric_limits_lowest(std::index_sequence<Is...>)
 {
@@ -156,6 +168,14 @@ struct is_std_tuple_of_arithmetic_vectors : std::false_type {};
 
 template <typename... Ts>
 struct is_std_tuple_of_arithmetic_vectors<std::tuple<rmm::device_uvector<Ts>...>> {
+  static constexpr bool value = (... && std::is_arithmetic_v<Ts>);
+};
+
+template <typename T>
+struct is_std_tuple_of_arithmetic_device_spans : std::false_type {};
+
+template <typename... Ts>
+struct is_std_tuple_of_arithmetic_device_spans<std::tuple<raft::device_span<Ts>...>> {
   static constexpr bool value = (... && std::is_arithmetic_v<Ts>);
 };
 
@@ -301,10 +321,22 @@ __host__ __device__
 
 // a temporary function to emulate thrust::tuple_cat (not supported) using std::tuple_cat (should
 // retire once thrust::tuple is replaced with cuda::std::tuple)
+
 template <typename... TupleTypes>
 auto thrust_tuple_cat(TupleTypes... tups)
 {
   return std_tuple_to_thrust_tuple(std::tuple_cat(thrust_tuple_to_std_tuple(tups)...));
+}
+
+template <typename TupleType, size_t F /* first (inclusive) */, size_t L /* last (exclusive) */>
+#ifdef __CUDACC__
+__host__ __device__
+#endif
+  auto
+  thrust_tuple_slice(TupleType tup)
+{
+  static_assert(L > F);
+  return detail::thrust_tuple_slice_impl<TupleType, F>(tup, std::make_index_sequence<L - F>());
 }
 
 template <typename TupleType>

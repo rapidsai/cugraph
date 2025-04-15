@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -184,7 +184,17 @@ class Tests_Homogeneous_Uniform_Neighbor_Sampling
         true);
 
       ASSERT_TRUE(cugraph::test::validate_extracted_graph_is_subgraph(
-        handle, src_compare, dst_compare, wgt_compare, src_out, dst_out, wgt_out));
+        handle,
+        raft::device_span<vertex_t const>{src_compare.data(), src_compare.size()},
+        raft::device_span<vertex_t const>{dst_compare.data(), dst_compare.size()},
+        wgt_compare ? std::make_optional(
+                        raft::device_span<weight_t const>{wgt_compare->data(), wgt_compare->size()})
+                    : std::nullopt,
+        raft::device_span<vertex_t const>{src_out.data(), src_out.size()},
+        raft::device_span<vertex_t const>{dst_out.data(), dst_out.size()},
+        wgt_out
+          ? std::make_optional(raft::device_span<weight_t const>{wgt_out->data(), wgt_out->size()})
+          : std::nullopt));
 
       if (random_sources.size() < 100) {
         // This validation is too expensive for large number of vertices

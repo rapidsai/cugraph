@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2023-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -189,6 +189,25 @@ OutputIterator copy_if_mask_set(raft::handle_t const& handle,
                                     check_bit_set_t<MaskIterator, size_t>{mask_first, size_t{0}}),
     output_first,
     is_equal_t<bool>{true});
+}
+
+template <typename InputIterator,
+          typename MaskIterator,  // should be packed bool
+          typename OutputIterator>
+OutputIterator copy_if_mask_not_set(raft::handle_t const& handle,
+                                    InputIterator input_first,
+                                    InputIterator input_last,
+                                    MaskIterator mask_first,
+                                    OutputIterator output_first)
+{
+  return thrust::copy_if(
+    handle.get_thrust_policy(),
+    input_first,
+    input_last,
+    thrust::make_transform_iterator(thrust::make_counting_iterator(size_t{0}),
+                                    check_bit_set_t<MaskIterator, size_t>{mask_first, size_t{0}}),
+    output_first,
+    is_equal_t<bool>{false});
 }
 
 }  // namespace detail

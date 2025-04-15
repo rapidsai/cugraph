@@ -28,12 +28,12 @@
 #include <cugraph/vertex_partition_view.hpp>
 
 #include <raft/core/handle.hpp>
+#include <raft/util/cudart_utils.hpp>
 #include <raft/util/integer_utils.hpp>
 
 #include <rmm/device_uvector.hpp>
 
-#include <cuda/std/optional>
-#include <thrust/unique.h>
+#include <type_traits>
 
 namespace cugraph {
 namespace detail {
@@ -72,7 +72,10 @@ neighbor_sample_impl(raft::handle_t const& handle,
                      bool dedupe_sources,
                      bool do_expensive_check)
 {
+  using edge_time_t = int32_t;
+
   static_assert(std::is_floating_point_v<bias_t>);
+  static_assert(std::is_same_v<bias_t, weight_t>);
 
   if constexpr (!multi_gpu) {
     CUGRAPH_EXPECTS(!label_to_output_comm_rank,
@@ -95,6 +98,27 @@ neighbor_sample_impl(raft::handle_t const& handle,
                       "Invalid input argument: sum of neighboring edge bias values should not "
                       "exceed std::numeric_limits<bias_t>::max() for any vertex.");
     }
+
+#if 0
+// Do we have a function to do this?  Seems like a common validation check
+    auto vertex_partition =
+      vertex_partition_device_view_t<vertex_t, multi_gpu>(graph_view.local_vertex_partition_view());
+    auto num_invalid_vertices =
+      thrust::count_if(handle.get_thrust_policy(),
+                       starting_vertices.begin(),
+                       starting_vertices.end(),
+                       [vertex_partition] __device__(auto v) {
+                         return !(vertex_partition.is_valid_vertex(v) &&
+                                  vertex_partition.in_local_vertex_partition_range_nocheck(v));
+                       });
+    if constexpr (multi_gpu) {
+      num_invalid_vertices = cugraph::host_scalar_allreduce(
+        handle.get_comms(), num_invalid_vertices, raft::comms::op_t::SUM, handle.get_stream());
+    }
+
+    CUGRAPH_EXPECTS(num_invalid_vertices == 0,
+                    "Invalid input arguments: there are invalid input vertices.");
+#endif
   }
 
   CUGRAPH_EXPECTS(fan_out.size() > 0, "Invalid input argument: number of levels must be non-zero.");
@@ -108,28 +132,28 @@ neighbor_sample_impl(raft::handle_t const& handle,
   auto num_hops = raft::div_rounding_up_safe(
     fan_out.size(), static_cast<size_t>(num_edge_types ? *num_edge_types : edge_type_t{1}));
 
-  std::vector<rmm::device_uvector<vertex_t>> level_result_src_vectors{};
-  std::vector<rmm::device_uvector<vertex_t>> level_result_dst_vectors{};
+  std::vector<rmm::device_uvector<vertex_t>> result_src_vectors{};
+  std::vector<rmm::device_uvector<vertex_t>> result_dst_vectors{};
 
-  auto level_result_weight_vectors =
-    edge_weight_view ? std::make_optional(std::vector<rmm::device_uvector<weight_t>>{})
-                     : std::nullopt;
-  auto level_result_edge_id_vectors =
+  auto result_weight_vectors = edge_weight_view
+                                 ? std::make_optional(std::vector<rmm::device_uvector<weight_t>>{})
+                                 : std::nullopt;
+  auto result_edge_id_vectors =
     edge_id_view ? std::make_optional(std::vector<rmm::device_uvector<edge_t>>{}) : std::nullopt;
-  auto level_result_edge_type_vectors =
+  auto result_edge_type_vectors =
     edge_type_view ? std::make_optional(std::vector<rmm::device_uvector<edge_type_t>>{})
                    : std::nullopt;
-  auto level_result_label_vectors =
-    starting_vertex_labels ? std::make_optional(std::vector<rmm::device_uvector<label_t>>{})
-                           : std::nullopt;
+  auto result_label_vectors = starting_vertex_labels
+                                ? std::make_optional(std::vector<rmm::device_uvector<label_t>>{})
+                                : std::nullopt;
 
-  level_result_src_vectors.reserve(num_hops);
-  level_result_dst_vectors.reserve(num_hops);
+  result_src_vectors.reserve(num_hops);
+  result_dst_vectors.reserve(num_hops);
 
-  if (level_result_weight_vectors) { (*level_result_weight_vectors).reserve(num_hops); }
-  if (level_result_edge_id_vectors) { (*level_result_edge_id_vectors).reserve(num_hops); }
-  if (level_result_edge_type_vectors) { (*level_result_edge_type_vectors).reserve(num_hops); }
-  if (level_result_label_vectors) { (*level_result_label_vectors).reserve(num_hops); }
+  if (result_weight_vectors) { (*result_weight_vectors).reserve(num_hops); }
+  if (result_edge_id_vectors) { (*result_edge_id_vectors).reserve(num_hops); }
+  if (result_edge_type_vectors) { (*result_edge_type_vectors).reserve(num_hops); }
+  if (result_label_vectors) { (*result_label_vectors).reserve(num_hops); }
 
   rmm::device_uvector<vertex_t> frontier_vertices(0, handle.get_stream());
 
@@ -138,8 +162,9 @@ neighbor_sample_impl(raft::handle_t const& handle,
       ? std::make_optional(rmm::device_uvector<label_t>{0, handle.get_stream()})
       : std::nullopt;
 
-  std::optional<
-    std::tuple<rmm::device_uvector<vertex_t>, std::optional<rmm::device_uvector<label_t>>>>
+  std::optional<std::tuple<rmm::device_uvector<vertex_t>,
+                           std::optional<rmm::device_uvector<label_t>>,
+                           std::optional<rmm::device_uvector<edge_time_t>>>>
     vertex_used_as_source{std::nullopt};
 
   if (prior_sources_behavior == prior_sources_behavior_t::EXCLUDE) {
@@ -147,14 +172,21 @@ neighbor_sample_impl(raft::handle_t const& handle,
       std::make_tuple(rmm::device_uvector<vertex_t>{0, handle.get_stream()},
                       starting_vertex_labels
                         ? std::make_optional(rmm::device_uvector<label_t>{0, handle.get_stream()})
-                        : std::nullopt));
+                        : std::nullopt,
+                      std::optional<rmm::device_uvector<edge_time_t>>{std::nullopt}));
   }
 
-  std::vector<size_t> level_sizes{};
+  std::vector<size_t> result_sizes{};
 
   for (size_t hop = 0; hop < num_hops; ++hop) {
     std::optional<std::vector<size_t>> level_Ks{std::nullopt};
     std::optional<std::vector<uint8_t>> gather_flags{std::nullopt};
+    std::vector<raft::device_span<vertex_t const>> next_frontier_vertex_spans{};
+    auto next_frontier_vertex_label_spans =
+      starting_vertex_labels ? std::make_optional<std::vector<raft::device_span<label_t const>>>()
+                             : std::nullopt;
+    std::optional<std::vector<raft::device_span<edge_time_t const>>>
+      next_frontier_vertex_time_spans{std::nullopt};
 
     auto start_offset = hop * (num_edge_types ? *num_edge_types : edge_type_t{1});
     auto end_offset =
@@ -177,42 +209,60 @@ neighbor_sample_impl(raft::handle_t const& handle,
       }
     }
 
-    rmm::device_uvector<vertex_t> srcs(0, handle.get_stream());
-    rmm::device_uvector<vertex_t> dsts(0, handle.get_stream());
-    std::optional<rmm::device_uvector<weight_t>> weights{std::nullopt};
-    std::optional<rmm::device_uvector<edge_t>> edge_ids{std::nullopt};
-    std::optional<rmm::device_uvector<edge_type_t>> edge_types{std::nullopt};
-    std::optional<rmm::device_uvector<int32_t>> labels{std::nullopt};
+    std::optional<edge_property_view_t<edge_t, edge_time_t const*>> edge_start_time_view{
+      std::nullopt};
+    std::optional<edge_property_view_t<edge_t, edge_time_t const*>> edge_end_time_view{
+      std::nullopt};
 
     if (level_Ks) {
-      std::tie(srcs, dsts, weights, edge_ids, edge_types, labels) = sample_edges(
-        handle,
-        graph_view,
-        edge_weight_view,
-        edge_id_view,
-        edge_type_view,
-        edge_bias_view,
-        rng_state,
-        hop == 0
-          ? starting_vertices
-          : raft::device_span<vertex_t const>(frontier_vertices.data(), frontier_vertices.size()),
-        hop == 0 ? starting_vertex_labels
-        : starting_vertex_labels
-          ? std::make_optional(raft::device_span<label_t const>(frontier_vertex_labels->data(),
-                                                                frontier_vertex_labels->size()))
-          : std::nullopt,
-        raft::host_span<size_t const>(level_Ks->data(), level_Ks->size()),
-        with_replacement);
+      auto [srcs, dsts, weights, edge_ids, edge_types, edge_start_times, edge_end_times, labels] =
+        sample_edges(handle,
+                     graph_view,
+                     edge_weight_view,
+                     edge_id_view,
+                     edge_type_view,
+                     edge_start_time_view,
+                     edge_end_time_view,
+                     edge_bias_view,
+                     rng_state,
+                     hop == 0 ? starting_vertices
+                              : raft::device_span<vertex_t const>(frontier_vertices.data(),
+                                                                  frontier_vertices.size()),
+                     hop == 0 ? starting_vertex_labels
+                     : starting_vertex_labels
+                       ? std::make_optional(raft::device_span<label_t const>(
+                           frontier_vertex_labels->data(), frontier_vertex_labels->size()))
+                       : std::nullopt,
+                     raft::host_span<size_t const>(level_Ks->data(), level_Ks->size()),
+                     with_replacement);
+
+      result_sizes.push_back(srcs.size());
+      result_src_vectors.push_back(std::move(srcs));
+      result_dst_vectors.push_back(std::move(dsts));
+
+      if (weights) { (*result_weight_vectors).push_back(std::move(*weights)); }
+      if (edge_ids) { (*result_edge_id_vectors).push_back(std::move(*edge_ids)); }
+      if (edge_types) { (*result_edge_type_vectors).push_back(std::move(*edge_types)); }
+      if (labels) { (*result_label_vectors).push_back(std::move(*labels)); }
+
+      next_frontier_vertex_spans.push_back(raft::device_span<vertex_t const>{
+        result_dst_vectors.back().data(), result_dst_vectors.back().size()});
+      if (next_frontier_vertex_label_spans) {
+        next_frontier_vertex_label_spans->push_back(raft::device_span<label_t const>{
+          result_label_vectors->back().data(), result_label_vectors->back().size()});
+      }
     }
 
     if (gather_flags) {
-      auto [tmp_srcs, tmp_dsts, tmp_weights, tmp_edge_ids, tmp_edge_types, tmp_labels] =
+      auto [srcs, dsts, weights, edge_ids, edge_types, edge_start_times, edge_end_times, labels] =
         gather_one_hop_edgelist(
           handle,
           graph_view,
           edge_weight_view,
           edge_id_view,
           edge_type_view,
+          edge_start_time_view,
+          edge_end_time_view,
           hop == 0
             ? starting_vertices
             : raft::device_span<vertex_t const>(frontier_vertices.data(), frontier_vertices.size()),
@@ -225,62 +275,25 @@ neighbor_sample_impl(raft::handle_t const& handle,
                                                                               gather_flags->size())
                          : std::nullopt);
 
-      auto old_size = srcs.size();
-      if (old_size > 0) {
-        auto new_size = old_size + tmp_srcs.size();
-        srcs.resize(new_size, handle.get_stream());
-        raft::copy(srcs.begin() + old_size, tmp_srcs.begin(), tmp_srcs.size(), handle.get_stream());
-        dsts.resize(new_size, handle.get_stream());
-        raft::copy(dsts.begin() + old_size, tmp_dsts.begin(), tmp_dsts.size(), handle.get_stream());
-        if (weights) {
-          weights->resize(new_size, handle.get_stream());
-          raft::copy(weights->begin() + old_size,
-                     tmp_weights->begin(),
-                     tmp_weights->size(),
-                     handle.get_stream());
-        }
-        if (edge_ids) {
-          edge_ids->resize(new_size, handle.get_stream());
-          raft::copy(edge_ids->begin() + old_size,
-                     tmp_edge_ids->begin(),
-                     tmp_edge_ids->size(),
-                     handle.get_stream());
-        }
-        if (edge_types) {
-          edge_types->resize(new_size, handle.get_stream());
-          raft::copy(edge_types->begin() + old_size,
-                     tmp_edge_types->begin(),
-                     tmp_edge_types->size(),
-                     handle.get_stream());
-        }
-        if (labels) {
-          labels->resize(new_size, handle.get_stream());
-          raft::copy(labels->begin() + old_size,
-                     tmp_labels->begin(),
-                     tmp_labels->size(),
-                     handle.get_stream());
-        }
-      } else {
-        srcs       = std::move(tmp_srcs);
-        dsts       = std::move(tmp_dsts);
-        weights    = std::move(tmp_weights);
-        edge_ids   = std::move(tmp_edge_ids);
-        edge_types = std::move(tmp_edge_types);
-        labels     = std::move(tmp_labels);
+      result_sizes.push_back(srcs.size());
+      result_src_vectors.push_back(std::move(srcs));
+      result_dst_vectors.push_back(std::move(dsts));
+
+      if (weights) { (*result_weight_vectors).push_back(std::move(*weights)); }
+      if (edge_ids) { (*result_edge_id_vectors).push_back(std::move(*edge_ids)); }
+      if (edge_types) { (*result_edge_type_vectors).push_back(std::move(*edge_types)); }
+      if (labels) { (*result_label_vectors).push_back(std::move(*labels)); }
+
+      next_frontier_vertex_spans.push_back(raft::device_span<vertex_t const>{
+        result_dst_vectors.back().data(), result_dst_vectors.back().size()});
+      if (next_frontier_vertex_label_spans) {
+        next_frontier_vertex_label_spans->push_back(raft::device_span<label_t const>{
+          result_label_vectors->back().data(), result_label_vectors->back().size()});
       }
     }
 
-    level_sizes.push_back(srcs.size());
-    level_result_src_vectors.push_back(std::move(srcs));
-    level_result_dst_vectors.push_back(std::move(dsts));
-
-    if (weights) { (*level_result_weight_vectors).push_back(std::move(*weights)); }
-    if (edge_ids) { (*level_result_edge_id_vectors).push_back(std::move(*edge_ids)); }
-    if (edge_types) { (*level_result_edge_type_vectors).push_back(std::move(*edge_types)); }
-    if (labels) { (*level_result_label_vectors).push_back(std::move(*labels)); }
-
-    std::tie(frontier_vertices, frontier_vertex_labels, vertex_used_as_source) =
-      prepare_next_frontier<vertex_t, label_t, multi_gpu>(
+    std::tie(frontier_vertices, frontier_vertex_labels, std::ignore, vertex_used_as_source) =
+      prepare_next_frontier(
         handle,
         hop == 0
           ? starting_vertices
@@ -290,138 +303,163 @@ neighbor_sample_impl(raft::handle_t const& handle,
           ? std::make_optional(raft::device_span<label_t const>(frontier_vertex_labels->data(),
                                                                 frontier_vertex_labels->size()))
           : std::nullopt,
-        raft::device_span<vertex_t const>{level_result_dst_vectors.back().data(),
-                                          level_result_dst_vectors.back().size()},
-        frontier_vertex_labels
-          ? std::make_optional(raft::device_span<label_t const>(
-              level_result_label_vectors->back().data(), level_result_label_vectors->back().size()))
+        std::optional<raft::device_span<edge_time_t const>>{std::nullopt},
+        raft::host_span<raft::device_span<vertex_t const>>{next_frontier_vertex_spans.data(),
+                                                           next_frontier_vertex_spans.size()},
+        next_frontier_vertex_label_spans
+          ? std::make_optional(raft::host_span<raft::device_span<label_t const>>{
+              next_frontier_vertex_label_spans->data(), next_frontier_vertex_label_spans->size()})
+          : std::nullopt,
+        next_frontier_vertex_time_spans
+          ? std::make_optional(raft::host_span<raft::device_span<edge_time_t const>>{
+              next_frontier_vertex_time_spans->data(), next_frontier_vertex_time_spans->size()})
           : std::nullopt,
         std::move(vertex_used_as_source),
         graph_view.vertex_partition_range_lasts(),
         prior_sources_behavior,
         dedupe_sources,
+        multi_gpu,
         do_expensive_check);
   }
 
-  auto result_size = std::reduce(level_sizes.begin(), level_sizes.end());
+  auto result_size = std::reduce(result_sizes.begin(), result_sizes.end());
   size_t output_offset{};
 
   rmm::device_uvector<vertex_t> result_srcs(result_size, handle.get_stream());
   output_offset = 0;
-  for (size_t i = 0; i < level_result_src_vectors.size(); ++i) {
+  for (size_t i = 0; i < result_src_vectors.size(); ++i) {
     raft::copy(result_srcs.begin() + output_offset,
-               level_result_src_vectors[i].begin(),
-               level_sizes[i],
+               result_src_vectors[i].begin(),
+               result_sizes[i],
                handle.get_stream());
-    output_offset += level_sizes[i];
+    output_offset += result_sizes[i];
   }
-  level_result_src_vectors.clear();
-  level_result_src_vectors.shrink_to_fit();
+  result_src_vectors.clear();
+  result_src_vectors.shrink_to_fit();
 
   rmm::device_uvector<vertex_t> result_dsts(result_size, handle.get_stream());
   output_offset = 0;
-  for (size_t i = 0; i < level_result_dst_vectors.size(); ++i) {
+  for (size_t i = 0; i < result_dst_vectors.size(); ++i) {
     raft::copy(result_dsts.begin() + output_offset,
-               level_result_dst_vectors[i].begin(),
-               level_sizes[i],
+               result_dst_vectors[i].begin(),
+               result_sizes[i],
                handle.get_stream());
-    output_offset += level_sizes[i];
+    output_offset += result_sizes[i];
   }
-  level_result_dst_vectors.clear();
-  level_result_dst_vectors.shrink_to_fit();
+  result_dst_vectors.clear();
+  result_dst_vectors.shrink_to_fit();
 
   auto result_weights =
-    level_result_weight_vectors
+    result_weight_vectors
       ? std::make_optional(rmm::device_uvector<weight_t>(result_size, handle.get_stream()))
       : std::nullopt;
   if (result_weights) {
     output_offset = 0;
-    for (size_t i = 0; i < (*level_result_weight_vectors).size(); ++i) {
-      if (level_sizes[i] > 0) {
-        raft::copy((*result_weights).begin() + output_offset,
-                   (*level_result_weight_vectors)[i].begin(),
-                   level_sizes[i],
-                   handle.get_stream());
-        output_offset += level_sizes[i];
-      }
+    for (size_t i = 0; i < (*result_weight_vectors).size(); ++i) {
+      raft::copy((*result_weights).begin() + output_offset,
+                 (*result_weight_vectors)[i].begin(),
+                 result_sizes[i],
+                 handle.get_stream());
+      output_offset += result_sizes[i];
     }
-    level_result_weight_vectors = std::nullopt;
+    result_weight_vectors = std::nullopt;
   }
 
   auto result_edge_ids =
-    level_result_edge_id_vectors
+    result_edge_id_vectors
       ? std::make_optional(rmm::device_uvector<edge_t>(result_size, handle.get_stream()))
       : std::nullopt;
   if (result_edge_ids) {
     output_offset = 0;
-    for (size_t i = 0; i < (*level_result_edge_id_vectors).size(); ++i) {
-      if (level_sizes[i] > 0) {
-        raft::copy((*result_edge_ids).begin() + output_offset,
-                   (*level_result_edge_id_vectors)[i].begin(),
-                   level_sizes[i],
-                   handle.get_stream());
-        output_offset += level_sizes[i];
-      }
+    for (size_t i = 0; i < (*result_edge_id_vectors).size(); ++i) {
+      raft::copy((*result_edge_ids).begin() + output_offset,
+                 (*result_edge_id_vectors)[i].begin(),
+                 result_sizes[i],
+                 handle.get_stream());
+      output_offset += result_sizes[i];
     }
-    level_result_edge_id_vectors = std::nullopt;
+    result_edge_id_vectors = std::nullopt;
   }
 
   auto result_edge_types =
-    level_result_edge_type_vectors
+    result_edge_type_vectors
       ? std::make_optional(rmm::device_uvector<edge_type_t>(result_size, handle.get_stream()))
       : std::nullopt;
   if (result_edge_types) {
     output_offset = 0;
-    for (size_t i = 0; i < (*level_result_edge_type_vectors).size(); ++i) {
-      if (level_sizes[i] > 0) {
-        raft::copy((*result_edge_types).begin() + output_offset,
-                   (*level_result_edge_type_vectors)[i].begin(),
-                   level_sizes[i],
-                   handle.get_stream());
-        output_offset += level_sizes[i];
-      }
+    for (size_t i = 0; i < (*result_edge_type_vectors).size(); ++i) {
+      raft::copy((*result_edge_types).begin() + output_offset,
+                 (*result_edge_type_vectors)[i].begin(),
+                 result_sizes[i],
+                 handle.get_stream());
+      output_offset += result_sizes[i];
     }
-    level_result_edge_type_vectors = std::nullopt;
-  }
-
-  auto result_labels =
-    level_result_label_vectors
-      ? std::make_optional(rmm::device_uvector<label_t>(result_size, handle.get_stream()))
-      : std::nullopt;
-  if (result_labels) {
-    output_offset = 0;
-    for (size_t i = 0; i < (*level_result_label_vectors).size(); ++i) {
-      if (level_sizes[i] > 0) {
-        raft::copy((*result_labels).begin() + output_offset,
-                   (*level_result_label_vectors)[i].begin(),
-                   level_sizes[i],
-                   handle.get_stream());
-        output_offset += level_sizes[i];
-      }
-    }
-    level_result_label_vectors = std::nullopt;
+    result_edge_type_vectors = std::nullopt;
   }
 
   std::optional<rmm::device_uvector<int32_t>> result_hops{std::nullopt};
+
   if (return_hops) {
     result_hops   = rmm::device_uvector<int32_t>(result_size, handle.get_stream());
     output_offset = 0;
     for (size_t i = 0; i < num_hops; ++i) {
       scalar_fill(
-        handle, result_hops->data() + output_offset, level_sizes[i], static_cast<int32_t>(i));
-      output_offset += level_sizes[i];
+        handle, result_hops->data() + output_offset, result_sizes[i], static_cast<int32_t>(i));
+      output_offset += result_sizes[i];
     }
   }
 
-  return detail::shuffle_and_organize_output(handle,
-                                             std::move(result_srcs),
-                                             std::move(result_dsts),
-                                             std::move(result_weights),
-                                             std::move(result_edge_ids),
-                                             std::move(result_edge_types),
-                                             std::move(result_hops),
-                                             std::move(result_labels),
-                                             label_to_output_comm_rank);
+  auto result_labels =
+    result_label_vectors
+      ? std::make_optional(rmm::device_uvector<label_t>(result_size, handle.get_stream()))
+      : std::nullopt;
+  if (result_labels) {
+    output_offset = 0;
+    for (size_t i = 0; i < (*result_label_vectors).size(); ++i) {
+      raft::copy((*result_labels).begin() + output_offset,
+                 (*result_label_vectors)[i].begin(),
+                 result_sizes[i],
+                 handle.get_stream());
+      output_offset += result_sizes[i];
+    }
+    result_label_vectors = std::nullopt;
+  }
+
+  std::optional<rmm::device_uvector<edge_time_t>> result_edge_start_times{std::nullopt};
+  std::optional<rmm::device_uvector<edge_time_t>> result_edge_end_times{std::nullopt};
+  std::optional<rmm::device_uvector<size_t>> result_offsets{std::nullopt};
+
+  // FIXME: Should shuffle_and_organize_output just not return the labels?
+  //   seems like it.
+  std::tie(result_srcs,
+           result_dsts,
+           result_weights,
+           result_edge_ids,
+           result_edge_types,
+           result_edge_start_times,
+           result_edge_end_times,
+           result_hops,
+           result_labels,
+           result_offsets) = detail::shuffle_and_organize_output(handle,
+                                                                 std::move(result_srcs),
+                                                                 std::move(result_dsts),
+                                                                 std::move(result_weights),
+                                                                 std::move(result_edge_ids),
+                                                                 std::move(result_edge_types),
+                                                                 std::move(result_edge_start_times),
+                                                                 std::move(result_edge_end_times),
+                                                                 std::move(result_hops),
+                                                                 std::move(result_labels),
+                                                                 label_to_output_comm_rank);
+
+  return std::make_tuple(std::move(result_srcs),
+                         std::move(result_dsts),
+                         std::move(result_weights),
+                         std::move(result_edge_ids),
+                         std::move(result_edge_start_times),
+                         std::move(result_edge_end_times),
+                         std::move(result_hops),
+                         std::move(result_offsets));
 }
 
 }  // namespace detail
