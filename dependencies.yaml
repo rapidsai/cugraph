@@ -433,7 +433,7 @@ dependencies:
           - cython>=3.0.0
   python_run_cugraph:
     common:
-      - output_types: [conda, pyproject]
+      - output_types: [conda, pyproject, requirements]
         packages:
           - &dask rapids-dask-dependency==25.6.*,>=0.0.0a0
           - &numba numba>=0.59.1,<0.61.0a0
@@ -444,7 +444,7 @@ dependencies:
           - fsspec>=0.6.0
           - requests
           - nccl>=2.19
-      - output_types: pyproject
+      - output_types: [pyproject, requirements]
         packages:
             # cudf uses fsspec but is protocol independent. cugraph
             # dataset APIs require [http] extras for use with cudf.
@@ -466,12 +466,12 @@ dependencies:
           - *numpy
   python_run_cugraph_service_client:
     common:
-      - output_types: [conda, pyproject]
+      - output_types: [conda, pyproject, requirements]
         packages:
           - &thrift thriftpy2>=0.4.15,!=0.5.0,!=0.5.1
   python_run_cugraph_service_server:
     common:
-      - output_types: [conda, pyproject]
+      - output_types: [conda, pyproject, requirements]
         packages:
           - *dask
           - *numba
@@ -491,7 +491,7 @@ dependencies:
           - notebook>=0.5.0
   test_python_common:
     common:
-      - output_types: [conda, pyproject]
+      - output_types: [conda, pyproject, requirements]
         packages:
           - &pandas pandas
           - pytest
@@ -501,7 +501,7 @@ dependencies:
           - scipy
   test_python_cugraph:
     common:
-      - output_types: [conda, pyproject]
+      - output_types: [conda, pyproject, requirements]
         packages:
           - certifi
           - networkx>=2.5.1
