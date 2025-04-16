@@ -30,8 +30,8 @@
 #include <cugraph/graph_functions.hpp>
 
 #include <cuda/functional>
+#include <cuda/std/__algorithm_>
 #include <cuda/std/optional>
-#include <thrust/binary_search.h>
 #include <thrust/execution_policy.h>
 #include <thrust/functional.h>
 #include <thrust/iterator/zip_iterator.h>
@@ -319,8 +319,8 @@ rmm::device_uvector<vertex_t> update_clustering_by_delta_modularity(
                       [d_cluster_weights = cluster_weights_v.data(),
                        d_cluster_keys    = cluster_keys_v.data(),
                        num_clusters      = cluster_keys_v.size()] __device__(vertex_t cluster) {
-                        auto pos = thrust::lower_bound(
-                          thrust::seq, d_cluster_keys, d_cluster_keys + num_clusters, cluster);
+                        auto pos = cuda::std::lower_bound(
+                          d_cluster_keys, d_cluster_keys + num_clusters, cluster);
                         return d_cluster_weights[pos - d_cluster_keys];
                       });
   }

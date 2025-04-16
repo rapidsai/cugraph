@@ -27,8 +27,8 @@
 #include <rmm/device_uvector.hpp>
 
 #include <cub/cub.cuh>
+#include <cuda/std/__algorithm_>
 #include <cuda/std/optional>
-#include <thrust/binary_search.h>
 #include <thrust/execution_policy.h>
 #include <thrust/for_each.h>
 #include <thrust/functional.h>
@@ -314,8 +314,8 @@ struct node2vec_selector_t {
         auto prev_indx_begin = row_offsets_[prev_v];
         auto prev_indx_end   = row_offsets_[prev_v + 1];
 
-        auto found_next_from_prev = thrust::binary_search(
-          thrust::seq, col_indices_ + prev_indx_begin, col_indices_ + prev_indx_end, next_v);
+        auto found_next_from_prev = cuda::std::binary_search(
+          col_indices_ + prev_indx_begin, col_indices_ + prev_indx_end, next_v);
 
         if (found_next_from_prev) {
           return 1;

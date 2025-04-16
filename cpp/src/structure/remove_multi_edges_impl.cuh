@@ -30,6 +30,7 @@
 
 #include <rmm/device_uvector.hpp>
 
+#include <cuda/std/__algorithm_>
 #include <cuda/std/cstddef>
 #include <cuda/std/iterator>
 #include <thrust/binary_search.h>
@@ -269,10 +270,9 @@ std::vector<rmm::device_uvector<bool>> compute_multi_edge_flags(
          hash_func =
            hash_src_dst_pair_t<vertex_t>{}] __device__(thrust::tuple<vertex_t, vertex_t> pair) {
           auto hash = hash_func(pair);
-          return thrust::binary_search(thrust::seq,
-                                       unique_possibly_multi_edge_hashes.begin(),
-                                       unique_possibly_multi_edge_hashes.end(),
-                                       hash);
+          return cuda::std::binary_search(unique_possibly_multi_edge_hashes.begin(),
+                                          unique_possibly_multi_edge_hashes.end(),
+                                          hash);
         });
       offset += cuda::std::distance(output_pair_first + offset, output_pair_last);
     }
@@ -307,8 +307,8 @@ std::vector<rmm::device_uvector<bool>> compute_multi_edge_flags(
                       pair_first + edgelist_srcs[i].size(),
                       multi_edge_flags[i].begin(),
                       [unique_multi_edge_first, unique_multi_edge_last] __device__(auto pair) {
-                        return thrust::binary_search(
-                          thrust::seq, unique_multi_edge_first, unique_multi_edge_last, pair);
+                        return cuda::std::binary_search(
+                          unique_multi_edge_first, unique_multi_edge_last, pair);
                       });
   }
 
@@ -897,7 +897,7 @@ remove_multi_edges_impl(
          group_valid_counts = raft::device_span<size_t const>(
            d_group_valid_counts.data(), d_group_valid_counts.size())] __device__(auto i) {
           auto group_idx = cuda::std::distance(
-            lasts.begin(), thrust::upper_bound(thrust::seq, lasts.begin(), lasts.end(), i));
+            lasts.begin(), cuda::std::upper_bound(lasts.begin(), lasts.end(), i));
           auto intra_group_idx = i - (group_idx == 0 ? 0 : lasts[group_idx - 1]);
           return intra_group_idx < group_valid_counts[group_idx];
         });

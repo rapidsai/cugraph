@@ -36,9 +36,9 @@
 #include <rmm/device_uvector.hpp>
 #include <rmm/mr/device/polymorphic_allocator.hpp>
 
+#include <cuda/std/__algorithm_>
 #include <cuda/std/iterator>
 #include <cuda/std/optional>
-#include <thrust/binary_search.h>
 #include <thrust/copy.h>
 #include <thrust/count.h>
 #include <thrust/execution_policy.h>
@@ -120,8 +120,8 @@ struct update_rx_major_local_degree_t {
 
   __device__ void operator()(size_t idx) const
   {
-    auto it = thrust::upper_bound(
-      thrust::seq, rx_reordered_group_lasts.begin(), rx_reordered_group_lasts.end(), idx);
+    auto it =
+      cuda::std::upper_bound(rx_reordered_group_lasts.begin(), rx_reordered_group_lasts.end(), idx);
     auto major_comm_rank =
       static_cast<int>(cuda::std::distance(rx_reordered_group_lasts.begin(), it));
     auto offset_in_local_edge_partition =
@@ -173,8 +173,8 @@ struct update_rx_major_local_nbrs_t {
   {
     using edge_property_value_t = typename edge_partition_e_input_device_view_t::value_type;
 
-    auto it = thrust::upper_bound(
-      thrust::seq, rx_reordered_group_lasts.begin(), rx_reordered_group_lasts.end(), idx);
+    auto it =
+      cuda::std::upper_bound(rx_reordered_group_lasts.begin(), rx_reordered_group_lasts.end(), idx);
     auto major_comm_rank =
       static_cast<int>(cuda::std::distance(rx_reordered_group_lasts.begin(), it));
     auto offset_in_local_edge_partition =
@@ -239,17 +239,15 @@ struct update_rx_major_local_nbrs_t {
           auto input_first =
             thrust::make_zip_iterator(indices, edge_partition_e_value_input.value_first()) +
             edge_offset;
-          thrust::copy(thrust::seq,
-                       input_first,
-                       input_first + local_degree,
-                       thrust::make_zip_iterator(local_nbrs_for_rx_majors.begin(),
-                                                 local_e_property_values_for_rx_majors) +
-                         output_start_offset);
+          cuda::std::copy(input_first,
+                          input_first + local_degree,
+                          thrust::make_zip_iterator(local_nbrs_for_rx_majors.begin(),
+                                                    local_e_property_values_for_rx_majors) +
+                            output_start_offset);
         } else {
-          thrust::copy(thrust::seq,
-                       indices + edge_offset,
-                       indices + (edge_offset + local_degree),
-                       local_nbrs_for_rx_majors.begin() + output_start_offset);
+          cuda::std::copy(indices + edge_offset,
+                          indices + (edge_offset + local_degree),
+                          local_nbrs_for_rx_majors.begin() + output_start_offset);
         }
       }
     }
@@ -568,8 +566,7 @@ struct copy_intersecting_nbrs_and_update_intersection_size_t {
                                                  nbr_intersection_offsets[i]);
     }
 
-    thrust::fill(
-      thrust::seq,
+    cuda::std::fill(
       nbr_intersection_indices.begin() + (nbr_intersection_offsets[i] + intersection_size),
       nbr_intersection_indices.begin() + nbr_intersection_offsets[i + 1],
       invalid_id);
@@ -631,17 +628,16 @@ struct gatherv_indices_t {
                              combined_nbr_intersection_e_property_values0,
                              combined_nbr_intersection_e_property_values1));
 
-        thrust::copy(thrust::seq,
-                     zipped_gathered_begin + gathered_intersection_offsets[output_size * j + i],
-                     zipped_gathered_begin + gathered_intersection_offsets[output_size * j + i + 1],
-                     zipped_combined_begin + output_offset);
+        cuda::std::copy(
+          zipped_gathered_begin + gathered_intersection_offsets[output_size * j + i],
+          zipped_gathered_begin + gathered_intersection_offsets[output_size * j + i + 1],
+          zipped_combined_begin + output_offset);
       } else {
-        thrust::copy(thrust::seq,
-                     gathered_intersection_indices.begin() +
-                       gathered_intersection_offsets[output_size * j + i],
-                     gathered_intersection_indices.begin() +
-                       gathered_intersection_offsets[output_size * j + i + 1],
-                     combined_nbr_intersection_indices.begin() + output_offset);
+        cuda::std::copy(gathered_intersection_indices.begin() +
+                          gathered_intersection_offsets[output_size * j + i],
+                        gathered_intersection_indices.begin() +
+                          gathered_intersection_offsets[output_size * j + i + 1],
+                        combined_nbr_intersection_indices.begin() + output_offset);
       }
       output_offset += gathered_intersection_offsets[output_size * j + i + 1] -
                        gathered_intersection_offsets[output_size * j + i];

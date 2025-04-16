@@ -33,6 +33,7 @@
 #include <rmm/mr/device/per_device_resource.hpp>
 #include <rmm/mr/device/polymorphic_allocator.hpp>
 
+#include <cuda/std/__algorithm_>
 #include <cuda/std/iterator>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
@@ -69,10 +70,9 @@ struct check_edge_src_and_dst_t {
 
   __device__ bool operator()(thrust::tuple<vertex_t, vertex_t> e) const
   {
-    return !thrust::binary_search(
-             thrust::seq, sorted_majors.begin(), sorted_majors.end(), thrust::get<0>(e)) ||
-           !thrust::binary_search(
-             thrust::seq, sorted_minors.begin(), sorted_minors.end(), thrust::get<1>(e));
+    return !cuda::std::binary_search(
+             sorted_majors.begin(), sorted_majors.end(), thrust::get<0>(e)) ||
+           !cuda::std::binary_search(sorted_minors.begin(), sorted_minors.end(), thrust::get<1>(e));
   }
 };
 
@@ -108,10 +108,8 @@ struct search_and_increment_degree_t {
 
   __device__ void operator()(thrust::tuple<vertex_t, edge_t> vertex_degree_pair) const
   {
-    auto it = thrust::lower_bound(thrust::seq,
-                                  sorted_vertices,
-                                  sorted_vertices + num_vertices,
-                                  thrust::get<0>(vertex_degree_pair));
+    auto it = cuda::std::lower_bound(
+      sorted_vertices, sorted_vertices + num_vertices, thrust::get<0>(vertex_degree_pair));
     *(degrees + cuda::std::distance(sorted_vertices, it)) += thrust::get<1>(vertex_degree_pair);
   }
 };
@@ -581,8 +579,7 @@ compute_renumber_map(raft::handle_t const& handle,
            raft::device_span<vertex_t const>(sorted_majors.data(), sorted_majors.size()),
          sorted_major_degrees = raft::device_span<edge_t>(
            sorted_major_degrees.data(), sorted_major_degrees.size())] __device__(auto major) {
-          auto it =
-            thrust::lower_bound(thrust::seq, sorted_majors.begin(), sorted_majors.end(), major);
+          auto it = cuda::std::lower_bound(sorted_majors.begin(), sorted_majors.end(), major);
           assert((it != sorted_majors.end()) && (*it == major));
           cuda::atomic_ref<edge_t, cuda::thread_scope_device> atomic_counter(
             sorted_major_degrees[cuda::std::distance(sorted_majors.begin(), it)]);
@@ -615,8 +612,8 @@ compute_renumber_map(raft::handle_t const& handle,
                       sorted_major_degrees = raft::device_span<edge_t>(
                         sorted_local_vertex_degrees.data(),
                         sorted_local_vertex_degrees.size())] __device__(auto major) {
-                       auto it = thrust::lower_bound(
-                         thrust::seq, sorted_majors.begin(), sorted_majors.end(), major);
+                       auto it =
+                         cuda::std::lower_bound(sorted_majors.begin(), sorted_majors.end(), major);
                        assert((it != sorted_majors.end()) && (*it == major));
                        cuda::atomic_ref<edge_t, cuda::thread_scope_device> atomic_counter(
                          sorted_major_degrees[cuda::std::distance(sorted_majors.begin(), it)]);

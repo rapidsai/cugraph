@@ -35,6 +35,7 @@
 
 #include <rmm/device_scalar.hpp>
 
+#include <cuda/std/__algorithm_>
 #include <cuda/std/functional>
 #include <cuda/std/iterator>
 #include <thrust/adjacent_difference.h>
@@ -223,9 +224,8 @@ rmm::device_uvector<vertex_t> create_local_samples(
          raft::device_span<weight_t const>{normalized_biases->data(), normalized_biases->size()},
        offset = graph_view.local_vertex_partition_range_first()] __device__(weight_t r) {
         size_t result =
-          offset +
-          static_cast<vertex_t>(cuda::std::distance(
-            biases.begin(), thrust::lower_bound(thrust::seq, biases.begin(), biases.end(), r)));
+          offset + static_cast<vertex_t>(cuda::std::distance(
+                     biases.begin(), cuda::std::lower_bound(biases.begin(), biases.end(), r)));
 
         // FIXME: https://github.com/rapidsai/raft/issues/2400
         // results in the possibility that 1 can appear as a
@@ -511,10 +511,9 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> negativ
       d_send_counts.end(),
       [gpu_assignment_span = raft::device_span<const int>{
          gpu_assignment.data(), gpu_assignment.size()}] __device__(size_t i) {
-        auto begin = thrust::lower_bound(
-          thrust::seq, gpu_assignment_span.begin(), gpu_assignment_span.end(), static_cast<int>(i));
-        auto end =
-          thrust::upper_bound(thrust::seq, begin, gpu_assignment_span.end(), static_cast<int>(i));
+        auto begin = cuda::std::lower_bound(
+          gpu_assignment_span.begin(), gpu_assignment_span.end(), static_cast<int>(i));
+        auto end = cuda::std::upper_bound(begin, gpu_assignment_span.end(), static_cast<int>(i));
         return cuda::std::distance(begin, end);
       });
 

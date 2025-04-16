@@ -26,8 +26,8 @@
 
 #include <rmm/device_uvector.hpp>
 
+#include <cuda/std/__algorithm_>
 #include <cuda/std/iterator>
-#include <thrust/binary_search.h>
 #include <thrust/count.h>
 
 #include <vector>
@@ -52,10 +52,8 @@ struct is_invalid_input_vertex_pair_t {
     if (!is_valid_vertex(num_vertices, major) || !is_valid_vertex(num_vertices, minor)) {
       return true;
     }
-    auto it = thrust::upper_bound(thrust::seq,
-                                  edge_partition_major_range_lasts.begin(),
-                                  edge_partition_major_range_lasts.end(),
-                                  major);
+    auto it = cuda::std::upper_bound(
+      edge_partition_major_range_lasts.begin(), edge_partition_major_range_lasts.end(), major);
     if (it == edge_partition_major_range_lasts.end()) { return true; }
     auto edge_partition_idx =
       static_cast<size_t>(cuda::std::distance(edge_partition_major_range_lasts.begin(), it));

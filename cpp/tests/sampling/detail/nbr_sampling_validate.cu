@@ -28,6 +28,7 @@
 #include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
 
+#include <cuda/std/__algorithm_>
 #include <cuda/std/functional>
 #include <cuda/std/iterator>
 #include <thrust/count.h>
@@ -139,14 +140,13 @@ bool validate_extracted_graph_is_subgraph(
 
     auto subgraph_iter = thrust::make_zip_iterator(
       thrust::make_tuple(subgraph_src.begin(), subgraph_dst.begin(), subgraph_wgt->begin()));
-    num_invalids =
-      thrust::count_if(handle.get_thrust_policy(),
-                       subgraph_iter,
-                       subgraph_iter + subgraph_src.size(),
-                       [graph_iter, new_size] __device__(auto tup) {
-                         return (thrust::binary_search(
-                                   thrust::seq, graph_iter, graph_iter + new_size, tup) == false);
-                       });
+    num_invalids = thrust::count_if(
+      handle.get_thrust_policy(),
+      subgraph_iter,
+      subgraph_iter + subgraph_src.size(),
+      [graph_iter, new_size] __device__(auto tup) {
+        return (cuda::std::binary_search(graph_iter, graph_iter + new_size, tup) == false);
+      });
   } else {
     auto graph_iter = thrust::make_zip_iterator(thrust::make_tuple(src_v.begin(), dst_v.begin()));
     thrust::sort(
@@ -160,14 +160,13 @@ bool validate_extracted_graph_is_subgraph(
 
     auto subgraph_iter =
       thrust::make_zip_iterator(thrust::make_tuple(subgraph_src.begin(), subgraph_dst.begin()));
-    num_invalids =
-      thrust::count_if(handle.get_thrust_policy(),
-                       subgraph_iter,
-                       subgraph_iter + subgraph_src.size(),
-                       [graph_iter, new_size] __device__(auto tup) {
-                         return (thrust::binary_search(
-                                   thrust::seq, graph_iter, graph_iter + new_size, tup) == false);
-                       });
+    num_invalids = thrust::count_if(
+      handle.get_thrust_policy(),
+      subgraph_iter,
+      subgraph_iter + subgraph_src.size(),
+      [graph_iter, new_size] __device__(auto tup) {
+        return (cuda::std::binary_search(graph_iter, graph_iter + new_size, tup) == false);
+      });
   }
 
   return (num_invalids == 0);

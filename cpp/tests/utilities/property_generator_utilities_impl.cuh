@@ -29,6 +29,7 @@
 #include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
 
+#include <cuda/std/__algorithm_>
 #include <cuda/std/iterator>
 #include <thrust/functional.h>
 #include <thrust/iterator/counting_iterator.h>
@@ -147,12 +148,10 @@ generate<GraphViewType, property_t>::edge_property_by_src_dst_types(
     [vertex_type_offsets, hash_bin_count] __device__(auto src, auto dst, auto, auto, auto) {
       auto src_v_type = cuda::std::distance(
         vertex_type_offsets.begin() + 1,
-        thrust::upper_bound(
-          thrust::seq, vertex_type_offsets.begin() + 1, vertex_type_offsets.end(), src));
+        cuda::std::upper_bound(vertex_type_offsets.begin() + 1, vertex_type_offsets.end(), src));
       auto dst_v_type = cuda::std::distance(
         vertex_type_offsets.begin() + 1,
-        thrust::upper_bound(
-          thrust::seq, vertex_type_offsets.begin() + 1, vertex_type_offsets.end(), dst));
+        cuda::std::upper_bound(vertex_type_offsets.begin() + 1, vertex_type_offsets.end(), dst));
       auto num_v_types = vertex_type_offsets.size() - 1;
       return detail::make_property_value<property_t>((src_v_type * num_v_types + dst_v_type) %
                                                      hash_bin_count);

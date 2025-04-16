@@ -19,8 +19,8 @@
 
 #include <cugraph/algorithms.hpp>
 
+#include <cuda/std/__algorithm_>
 #include <cuda/std/iterator>
-#include <thrust/binary_search.h>
 #include <thrust/count.h>
 #include <thrust/equal.h>
 #include <thrust/execution_policy.h>
@@ -102,10 +102,8 @@ egonet_reference(
         handle.get_thrust_policy(),
         d_coo_src.begin(),
         d_coo_src.end(),
-        [frontier_begin = frontier.begin(),
-         frontier_end   = frontier.end()] __device__(vertex_t src) {
-          return thrust::binary_search(thrust::seq, frontier_begin, frontier_end, src);
-        });
+        [frontier_begin = frontier.begin(), frontier_end = frontier.end()] __device__(
+          vertex_t src) { return cuda::std::binary_search(frontier_begin, frontier_end, src); });
 
       size_t old_size = d_reference_src.size();
 
@@ -125,7 +123,7 @@ egonet_reference(
           [frontier_begin = frontier.begin(),
            frontier_end   = frontier.end()] __device__(auto tuple) {
             vertex_t src = thrust::get<0>(tuple);
-            return thrust::binary_search(thrust::seq, frontier_begin, frontier_end, src);
+            return cuda::std::binary_search(frontier_begin, frontier_end, src);
           });
       } else {
         thrust::copy_if(handle.get_thrust_policy(),
@@ -136,8 +134,7 @@ egonet_reference(
                         [frontier_begin = frontier.begin(),
                          frontier_end   = frontier.end()] __device__(auto tuple) {
                           vertex_t src = thrust::get<0>(tuple);
-                          return thrust::binary_search(
-                            thrust::seq, frontier_begin, frontier_end, src);
+                          return cuda::std::binary_search(frontier_begin, frontier_end, src);
                         });
       }
 
@@ -148,7 +145,7 @@ egonet_reference(
         d_reference_dst.end(),
         frontier.begin(),
         [visited_begin = visited.begin(), visited_end = visited.end()] __device__(auto v) {
-          return !thrust::binary_search(thrust::seq, visited_begin, visited_end, v);
+          return !cuda::std::binary_search(visited_begin, visited_end, v);
         });
       frontier.resize(cuda::std::distance(frontier.begin(), new_end), handle.get_stream());
       thrust::sort(handle.get_thrust_policy(), frontier.begin(), frontier.end());
@@ -167,19 +164,19 @@ egonet_reference(
     }
 
     if (frontier.size() > 0) {
-      size_t new_entries = thrust::count_if(
-        handle.get_thrust_policy(),
-        thrust::make_zip_iterator(d_coo_src.begin(), d_coo_dst.begin()),
-        thrust::make_zip_iterator(d_coo_src.end(), d_coo_dst.end()),
-        [frontier_begin = frontier.begin(),
-         frontier_end   = frontier.end(),
-         visited_begin  = visited.begin(),
-         visited_end    = visited.end()] __device__(auto tuple) {
-          vertex_t src = thrust::get<0>(tuple);
-          vertex_t dst = thrust::get<1>(tuple);
-          return thrust::binary_search(thrust::seq, frontier_begin, frontier_end, src) &&
-                 thrust::binary_search(thrust::seq, visited_begin, visited_end, dst);
-        });
+      size_t new_entries =
+        thrust::count_if(handle.get_thrust_policy(),
+                         thrust::make_zip_iterator(d_coo_src.begin(), d_coo_dst.begin()),
+                         thrust::make_zip_iterator(d_coo_src.end(), d_coo_dst.end()),
+                         [frontier_begin = frontier.begin(),
+                          frontier_end   = frontier.end(),
+                          visited_begin  = visited.begin(),
+                          visited_end    = visited.end()] __device__(auto tuple) {
+                           vertex_t src = thrust::get<0>(tuple);
+                           vertex_t dst = thrust::get<1>(tuple);
+                           return cuda::std::binary_search(frontier_begin, frontier_end, src) &&
+                                  cuda::std::binary_search(visited_begin, visited_end, dst);
+                         });
 
       size_t old_size = d_reference_src.size();
 
@@ -202,25 +199,24 @@ egonet_reference(
            visited_end    = visited.end()] __device__(auto tuple) {
             vertex_t src = thrust::get<0>(tuple);
             vertex_t dst = thrust::get<1>(tuple);
-            return thrust::binary_search(thrust::seq, frontier_begin, frontier_end, src) &&
-                   thrust::binary_search(thrust::seq, visited_begin, visited_end, dst);
+            return cuda::std::binary_search(frontier_begin, frontier_end, src) &&
+                   cuda::std::binary_search(visited_begin, visited_end, dst);
           });
       } else {
-        thrust::copy_if(
-          handle.get_thrust_policy(),
-          thrust::make_zip_iterator(d_coo_src.begin(), d_coo_dst.begin()),
-          thrust::make_zip_iterator(d_coo_src.end(), d_coo_dst.end()),
-          thrust::make_zip_iterator(d_reference_src.begin() + old_size,
-                                    d_reference_dst.begin() + old_size),
-          [frontier_begin = frontier.begin(),
-           frontier_end   = frontier.end(),
-           visited_begin  = visited.begin(),
-           visited_end    = visited.end()] __device__(auto tuple) {
-            vertex_t src = thrust::get<0>(tuple);
-            vertex_t dst = thrust::get<1>(tuple);
-            return thrust::binary_search(thrust::seq, frontier_begin, frontier_end, src) &&
-                   thrust::binary_search(thrust::seq, visited_begin, visited_end, dst);
-          });
+        thrust::copy_if(handle.get_thrust_policy(),
+                        thrust::make_zip_iterator(d_coo_src.begin(), d_coo_dst.begin()),
+                        thrust::make_zip_iterator(d_coo_src.end(), d_coo_dst.end()),
+                        thrust::make_zip_iterator(d_reference_src.begin() + old_size,
+                                                  d_reference_dst.begin() + old_size),
+                        [frontier_begin = frontier.begin(),
+                         frontier_end   = frontier.end(),
+                         visited_begin  = visited.begin(),
+                         visited_end    = visited.end()] __device__(auto tuple) {
+                          vertex_t src = thrust::get<0>(tuple);
+                          vertex_t dst = thrust::get<1>(tuple);
+                          return cuda::std::binary_search(frontier_begin, frontier_end, src) &&
+                                 cuda::std::binary_search(visited_begin, visited_end, dst);
+                        });
       }
 
       offset += new_entries;

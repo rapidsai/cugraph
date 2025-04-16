@@ -28,9 +28,9 @@
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 
+#include <cuda/std/__algorithm_>
 #include <cuda/std/iterator>
 #include <cuda/std/optional>
-#include <thrust/binary_search.h>
 #include <thrust/copy.h>
 #include <thrust/count.h>
 #include <thrust/execution_policy.h>
@@ -113,8 +113,7 @@ struct vertex_to_count_t {
 
   __device__ edge_t operator()(vertex_t v) const
   {
-    auto it = thrust::lower_bound(
-      thrust::seq, sorted_local_vertices.begin(), sorted_local_vertices.end(), v);
+    auto it = cuda::std::lower_bound(sorted_local_vertices.begin(), sorted_local_vertices.end(), v);
     if ((it != sorted_local_vertices.end()) && (*it == v)) {
       return *(local_counts.begin() + cuda::std::distance(sorted_local_vertices.begin(), it));
     } else {

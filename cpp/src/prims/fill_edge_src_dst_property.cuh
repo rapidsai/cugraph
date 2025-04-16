@@ -30,6 +30,7 @@
 
 #include <rmm/exec_policy.hpp>
 
+#include <cuda/std/__algorithm_>
 #include <cuda/std/iterator>
 #include <thrust/count.h>
 #include <thrust/fill.h>
@@ -191,8 +192,8 @@ void fill_edge_major_property(raft::handle_t const& handle,
            edge_partition_key_last    = ((*edge_partition_keys)[i]).end(),
            edge_partition_value_first = edge_partition_value_firsts[i]] __device__(size_t i) {
             auto major = *(rx_vertex_first + i);
-            auto it    = thrust::lower_bound(
-              thrust::seq, edge_partition_key_first, edge_partition_key_last, major);
+            auto it =
+              cuda::std::lower_bound(edge_partition_key_first, edge_partition_key_last, major);
             if ((it != edge_partition_key_last) && (*it == major)) {
               auto edge_partition_offset = cuda::std::distance(edge_partition_key_first, it);
               if constexpr (contains_packed_bool_element) {
@@ -494,8 +495,8 @@ void fill_edge_minor_property(raft::handle_t const& handle,
                   ((vertex_partition_range_last - word_v_first) <= packed_bools_per_word())
                     ? vertex_partition_range_last
                     : (word_v_first + static_cast<vertex_t>(packed_bools_per_word()));
-                auto it = thrust::lower_bound(
-                  thrust::seq, sorted_unique_vertex_first, sorted_unique_vertex_last, word_v_first);
+                auto it = cuda::std::lower_bound(
+                  sorted_unique_vertex_first, sorted_unique_vertex_last, word_v_first);
                 while ((it != sorted_unique_vertex_last) && (*it < word_v_last)) {
                   auto v_offset = *it - minor_range_first;
                   if (input) {
@@ -796,8 +797,7 @@ void fill_edge_minor_property(raft::handle_t const& handle,
                   } else {
                     minor = range_first + *(rx_compressed_vertex_first + i);
                   }
-                  auto it =
-                    thrust::lower_bound(thrust::seq, subrange_key_first, subrange_key_last, minor);
+                  auto it = cuda::std::lower_bound(subrange_key_first, subrange_key_last, minor);
                   if ((it != subrange_key_last) && (*it == minor)) {
                     auto subrange_offset = cuda::std::distance(subrange_key_first, it);
                     if constexpr (contains_packed_bool_element) {
@@ -909,8 +909,7 @@ void fill_edge_minor_property(raft::handle_t const& handle,
                compressed         = compressed_v_list.has_value()] __device__(auto i) {
                 auto loop_idx = cuda::std::distance(
                   loop_offsets.begin() + 1,
-                  thrust::upper_bound(
-                    thrust::seq, loop_offsets.begin() + 1, loop_offsets.end(), i));
+                  cuda::std::upper_bound(loop_offsets.begin() + 1, loop_offsets.end(), i));
                 auto rx_first = rx_firsts[loop_idx];
                 vertex_t minor{};
                 if (compressed) {
@@ -934,8 +933,7 @@ void fill_edge_minor_property(raft::handle_t const& handle,
                    minor_range_first] __device__(auto i) {
                     auto loop_idx = cuda::std::distance(
                       loop_offsets.begin() + 1,
-                      thrust::upper_bound(
-                        thrust::seq, loop_offsets.begin() + 1, loop_offsets.end(), i));
+                      cuda::std::upper_bound(loop_offsets.begin() + 1, loop_offsets.end(), i));
                     auto minor =
                       range_firsts[loop_idx] + *(static_cast<uint32_t const*>(rx_firsts[loop_idx]) +
                                                  (i - loop_offsets[loop_idx]));
@@ -955,8 +953,7 @@ void fill_edge_minor_property(raft::handle_t const& handle,
                    minor_range_first] __device__(auto i) {
                     auto loop_idx = cuda::std::distance(
                       loop_offsets.begin() + 1,
-                      thrust::upper_bound(
-                        thrust::seq, loop_offsets.begin() + 1, loop_offsets.end(), i));
+                      cuda::std::upper_bound(loop_offsets.begin() + 1, loop_offsets.end(), i));
                     auto minor = *(static_cast<vertex_t const*>(rx_firsts[loop_idx]) +
                                    (i - loop_offsets[loop_idx]));
                     return minor - minor_range_first;

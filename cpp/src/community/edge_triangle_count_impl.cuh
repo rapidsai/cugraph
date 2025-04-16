@@ -28,6 +28,7 @@
 
 #include <raft/util/integer_utils.hpp>
 
+#include <cuda/std/__algorithm_>
 #include <cuda/std/iterator>
 #include <cuda/std/optional>
 #include <thrust/adjacent_difference.h>
@@ -52,16 +53,15 @@ struct update_edges_p_r_q_r_num_triangles {
 
   __device__ void operator()(size_t i) const
   {
-    auto itr = thrust::upper_bound(
-      thrust::seq, intersection_offsets.begin() + 1, intersection_offsets.end(), i);
+    auto itr =
+      cuda::std::upper_bound(intersection_offsets.begin() + 1, intersection_offsets.end(), i);
     auto idx = cuda::std::distance(intersection_offsets.begin() + 1, itr);
     if (edge_first_or_second == 0) {
       auto p_r_pair = thrust::make_tuple(thrust::get<0>(*(edge_first + chunk_start + idx)),
                                          intersection_indices[i]);
 
       // Find its position in 'edges'
-      auto itr_p_r_p_q =
-        thrust::lower_bound(thrust::seq, edge_first, edge_first + num_edges, p_r_pair);
+      auto itr_p_r_p_q = cuda::std::lower_bound(edge_first, edge_first + num_edges, p_r_pair);
 
       assert(*itr_p_r_p_q == p_r_pair);
       idx = cuda::std::distance(edge_first, itr_p_r_p_q);
@@ -70,8 +70,7 @@ struct update_edges_p_r_q_r_num_triangles {
                                          intersection_indices[i]);
 
       // Find its position in 'edges'
-      auto itr_p_r_p_q =
-        thrust::lower_bound(thrust::seq, edge_first, edge_first + num_edges, p_r_pair);
+      auto itr_p_r_p_q = cuda::std::lower_bound(edge_first, edge_first + num_edges, p_r_pair);
       assert(*itr_p_r_p_q == p_r_pair);
       idx = cuda::std::distance(edge_first, itr_p_r_p_q);
     }
@@ -90,8 +89,8 @@ struct extract_p_r_q_r {
 
   __device__ thrust::tuple<vertex_t, vertex_t> operator()(edge_t i) const
   {
-    auto itr = thrust::upper_bound(
-      thrust::seq, intersection_offsets.begin() + 1, intersection_offsets.end(), i);
+    auto itr =
+      cuda::std::upper_bound(intersection_offsets.begin() + 1, intersection_offsets.end(), i);
     auto idx = cuda::std::distance(intersection_offsets.begin() + 1, itr);
 
     if (p_r_or_q_r == 0) {
@@ -113,8 +112,8 @@ struct extract_q_r {
 
   __device__ thrust::tuple<vertex_t, vertex_t> operator()(edge_t i) const
   {
-    auto itr = thrust::upper_bound(
-      thrust::seq, intersection_offsets.begin() + 1, intersection_offsets.end(), i);
+    auto itr =
+      cuda::std::upper_bound(intersection_offsets.begin() + 1, intersection_offsets.end(), i);
     auto idx  = cuda::std::distance(intersection_offsets.begin() + 1, itr);
     auto pair = thrust::make_tuple(thrust::get<1>(*(edge_first + chunk_start + idx)),
                                    intersection_indices[i]);
@@ -274,31 +273,31 @@ edge_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, edge_t> edge_t
           std::nullopt,
           graph_view.vertex_partition_range_lasts());
 
-      thrust::for_each(
-        handle.get_thrust_policy(),
-        thrust::make_counting_iterator<edge_t>(0),
-        thrust::make_counting_iterator<edge_t>(pair_srcs.size()),
-        [num_edges     = edgelist_srcs.size(),
-         num_triangles = num_triangles.data(),
-         pair_srcs     = pair_srcs.data(),
-         pair_dsts     = pair_dsts.data(),
-         pair_count    = (*pair_count).data(),
-         edge_first] __device__(auto idx) {
-          auto src          = pair_srcs[idx];
-          auto dst          = pair_dsts[idx];
-          auto p_r_q_r_pair = thrust::make_tuple(src, dst);
+      thrust::for_each(handle.get_thrust_policy(),
+                       thrust::make_counting_iterator<edge_t>(0),
+                       thrust::make_counting_iterator<edge_t>(pair_srcs.size()),
+                       [num_edges     = edgelist_srcs.size(),
+                        num_triangles = num_triangles.data(),
+                        pair_srcs     = pair_srcs.data(),
+                        pair_dsts     = pair_dsts.data(),
+                        pair_count    = (*pair_count).data(),
+                        edge_first] __device__(auto idx) {
+                         auto src          = pair_srcs[idx];
+                         auto dst          = pair_dsts[idx];
+                         auto p_r_q_r_pair = thrust::make_tuple(src, dst);
 
-          // Find its position in 'edges'
-          auto itr_p_r_q_r =
-            thrust::lower_bound(thrust::seq, edge_first, edge_first + num_edges, p_r_q_r_pair);
+                         // Find its position in 'edges'
+                         auto itr_p_r_q_r =
+                           cuda::std::lower_bound(edge_first, edge_first + num_edges, p_r_q_r_pair);
 
-          assert(*itr_p_r_q_r == p_r_q_r_pair);
-          auto idx_p_r_q_r = cuda::std::distance(edge_first, itr_p_r_q_r);
+                         assert(*itr_p_r_q_r == p_r_q_r_pair);
+                         auto idx_p_r_q_r = cuda::std::distance(edge_first, itr_p_r_q_r);
 
-          cuda::atomic_ref<edge_t, cuda::thread_scope_device> atomic_counter(
-            num_triangles[idx_p_r_q_r]);
-          auto r = atomic_counter.fetch_add(pair_count[idx], cuda::std::memory_order_relaxed);
-        });
+                         cuda::atomic_ref<edge_t, cuda::thread_scope_device> atomic_counter(
+                           num_triangles[idx_p_r_q_r]);
+                         auto r = atomic_counter.fetch_add(pair_count[idx],
+                                                           cuda::std::memory_order_relaxed);
+                       });
 
     } else {
       // Given intersection offsets and indices that are used to update the number of
@@ -361,7 +360,7 @@ edge_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, edge_t> edge_t
       auto pair = thrust::make_tuple(src, dst);
 
       // Find its position in 'edges'
-      auto itr_pair = thrust::lower_bound(thrust::seq, edge_first, edge_last, pair);
+      auto itr_pair = cuda::std::lower_bound(edge_first, edge_last, pair);
       auto idx_pair = cuda::std::distance(edge_first, itr_pair);
       return num_triangles[idx_pair];
     },

@@ -30,6 +30,7 @@
 
 #include <rmm/exec_policy.hpp>
 
+#include <cuda/std/__algorithm_>
 #include <cuda/std/iterator>
 #include <cuda/std/optional>
 #include <thrust/count.h>
@@ -64,8 +65,8 @@ struct compute_gpu_id_t {
 
   __device__ int operator()(size_t i) const
   {
-    return static_cast<int>(cuda::std::distance(
-      lasts.begin(), thrust::upper_bound(thrust::seq, lasts.begin(), lasts.end(), i)));
+    return static_cast<int>(
+      cuda::std::distance(lasts.begin(), cuda::std::upper_bound(lasts.begin(), lasts.end(), i)));
   }
 };
 

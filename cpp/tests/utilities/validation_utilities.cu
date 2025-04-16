@@ -19,6 +19,7 @@
 
 #include <cugraph/vertex_partition_device_view.cuh>
 
+#include <cuda/std/__algorithm_>
 #include <cuda/std/iterator>
 #include <thrust/count.h>
 #include <thrust/iterator/discard_iterator.h>
@@ -421,21 +422,20 @@ size_t count_intersection(raft::handle_t const& handle,
                                                graph_dst.size()}] __device__(auto tuple) {
 #if 0
         // FIXME: This fails on rocky linux CUDA 11.8, works on CUDA 12
-        return thrust::binary_search(thrust::seq,
+        return cuda::std::binary_search(
                                      thrust::make_zip_iterator(src.begin(), dst.begin()),
                                      thrust::make_zip_iterator(src.end(), dst.end()),
                                      tuple) ? size_t{1} : size_t{0};
 #else
         auto lb = cuda::std::distance(
           src.begin(),
-          thrust::lower_bound(thrust::seq, src.begin(), src.end(), thrust::get<0>(tuple)));
+          cuda::std::lower_bound( src.begin(), src.end(), thrust::get<0>(tuple)));
         auto ub = cuda::std::distance(
           src.begin(),
-          thrust::upper_bound(thrust::seq, src.begin(), src.end(), thrust::get<0>(tuple)));
+          cuda::std::upper_bound( src.begin(), src.end(), thrust::get<0>(tuple)));
 
         if (src.data()[lb] == thrust::get<0>(tuple)) {
-          return thrust::binary_search(
-            thrust::seq, dst.begin() + lb, dst.begin() + ub, thrust::get<1>(tuple))
+          return cuda::std::binary_search( dst.begin() + lb, dst.begin() + ub, thrust::get<1>(tuple))
               ? size_t{1}
               : size_t{0};
         } else {

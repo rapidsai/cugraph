@@ -24,6 +24,7 @@
 #include <rmm/device_uvector.hpp>
 
 #include <cuda/functional>
+#include <cuda/std/__algorithm_>
 #include <cuda/std/iterator>
 #include <cuda/std/optional>
 #include <thrust/binary_search.h>
@@ -1156,16 +1157,15 @@ bool check_vertex_renumber_map_invariants(
                                vertex_type         = j] __device__(auto pair) {
                                 auto type_idx = cuda::std::distance(
                                   vertex_type_offsets.begin() + 1,
-                                  thrust::upper_bound(thrust::seq,
-                                                      vertex_type_offsets.begin() + 1,
-                                                      vertex_type_offsets.end(),
-                                                      thrust::get<0>(pair)));
+                                  cuda::std::upper_bound(vertex_type_offsets.begin() + 1,
+                                                         vertex_type_offsets.end(),
+                                                         thrust::get<0>(pair)));
                                 return static_cast<size_t>(cuda::std::distance(
                                          vertex_type_offsets.begin() + 1,
-                                         thrust::upper_bound(thrust::seq,
-                                                             vertex_type_offsets.begin() + 1,
-                                                             vertex_type_offsets.end(),
-                                                             thrust::get<0>(pair)))) == vertex_type;
+                                         cuda::std::upper_bound(vertex_type_offsets.begin() + 1,
+                                                                vertex_type_offsets.end(),
+                                                                thrust::get<0>(pair)))) ==
+                                       vertex_type;
                               })),
             handle.get_stream());
           (*this_type_unique_major_hops)
@@ -1176,21 +1176,20 @@ bool check_vertex_renumber_map_invariants(
           output_pair_first = thrust::make_zip_iterator(this_type_unique_minors.begin(),
                                                         (*this_type_unique_minor_hops).begin());
           this_type_unique_minors.resize(
-            cuda::std::distance(
-              output_pair_first,
-              thrust::copy_if(handle.get_thrust_policy(),
-                              input_pair_first,
-                              input_pair_first + this_label_unique_minors.size(),
-                              output_pair_first,
-                              [vertex_type_offsets = *vertex_type_offsets,
-                               vertex_type         = j] __device__(auto pair) {
-                                return static_cast<size_t>(cuda::std::distance(
-                                         vertex_type_offsets.begin() + 1,
-                                         thrust::upper_bound(thrust::seq,
+            cuda::std::distance(output_pair_first,
+                                thrust::copy_if(handle.get_thrust_policy(),
+                                                input_pair_first,
+                                                input_pair_first + this_label_unique_minors.size(),
+                                                output_pair_first,
+                                                [vertex_type_offsets = *vertex_type_offsets,
+                                                 vertex_type         = j] __device__(auto pair) {
+                                                  return static_cast<size_t>(cuda::std::distance(
+                                                           vertex_type_offsets.begin() + 1,
+                                                           cuda::std::upper_bound(
                                                              vertex_type_offsets.begin() + 1,
                                                              vertex_type_offsets.end(),
                                                              thrust::get<0>(pair)))) == vertex_type;
-                              })),
+                                                })),
             handle.get_stream());
           (*this_type_unique_minor_hops)
             .resize(this_type_unique_minors.size(), handle.get_stream());
@@ -1272,10 +1271,8 @@ bool check_vertex_renumber_map_invariants(
              this_type_matching_renumbered_vertices = raft::device_span<vertex_t const>(
                this_type_matching_renumbered_vertices.data(),
                this_type_matching_renumbered_vertices.size())] __device__(vertex_t major) {
-              auto it = thrust::lower_bound(thrust::seq,
-                                            this_type_sorted_org_vertices.begin(),
-                                            this_type_sorted_org_vertices.end(),
-                                            major);
+              auto it = cuda::std::lower_bound(
+                this_type_sorted_org_vertices.begin(), this_type_sorted_org_vertices.end(), major);
               return this_type_matching_renumbered_vertices[cuda::std::distance(
                 this_type_sorted_org_vertices.begin(), it)];
             }));
@@ -1322,14 +1319,13 @@ bool check_vertex_renumber_map_invariants(
                 [vertex_type_offsets = *vertex_type_offsets, vertex_type = j] __device__(auto v) {
                   auto type_idx = cuda::std::distance(
                     vertex_type_offsets.begin() + 1,
-                    thrust::upper_bound(
-                      thrust::seq, vertex_type_offsets.begin() + 1, vertex_type_offsets.end(), v));
-                  return static_cast<size_t>(
-                           cuda::std::distance(vertex_type_offsets.begin() + 1,
-                                               thrust::upper_bound(thrust::seq,
-                                                                   vertex_type_offsets.begin() + 1,
-                                                                   vertex_type_offsets.end(),
-                                                                   v))) == vertex_type;
+                    cuda::std::upper_bound(
+                      vertex_type_offsets.begin() + 1, vertex_type_offsets.end(), v));
+                  return static_cast<size_t>(cuda::std::distance(
+                           vertex_type_offsets.begin() + 1,
+                           cuda::std::upper_bound(
+                             vertex_type_offsets.begin() + 1, vertex_type_offsets.end(), v))) ==
+                         vertex_type;
                 })),
             handle.get_stream());
 
@@ -1342,12 +1338,11 @@ bool check_vertex_renumber_map_invariants(
                 this_label_unique_minors.end(),
                 this_type_unique_minors.begin(),
                 [vertex_type_offsets = *vertex_type_offsets, vertex_type = j] __device__(auto v) {
-                  return static_cast<size_t>(
-                           cuda::std::distance(vertex_type_offsets.begin() + 1,
-                                               thrust::upper_bound(thrust::seq,
-                                                                   vertex_type_offsets.begin() + 1,
-                                                                   vertex_type_offsets.end(),
-                                                                   v))) == vertex_type;
+                  return static_cast<size_t>(cuda::std::distance(
+                           vertex_type_offsets.begin() + 1,
+                           cuda::std::upper_bound(
+                             vertex_type_offsets.begin() + 1, vertex_type_offsets.end(), v))) ==
+                         vertex_type;
                 })),
             handle.get_stream());
           (*this_type_unique_minor_hops)
@@ -1372,10 +1367,8 @@ bool check_vertex_renumber_map_invariants(
                               [sorted_unique_majors = raft::device_span<vertex_t const>(
                                  this_type_unique_majors.data(),
                                  this_type_unique_majors.size())] __device__(auto minor) {
-                                return thrust::binary_search(thrust::seq,
-                                                             sorted_unique_majors.begin(),
-                                                             sorted_unique_majors.end(),
-                                                             minor);
+                                return cuda::std::binary_search(
+                                  sorted_unique_majors.begin(), sorted_unique_majors.end(), minor);
                               })),
           handle.get_stream());
 
@@ -1396,10 +1389,8 @@ bool check_vertex_renumber_map_invariants(
                this_type_matching_renumbered_vertices.data(),
                this_type_matching_renumbered_vertices.size())] __device__(vertex_t major)
               -> vertex_t {
-              auto it = thrust::lower_bound(thrust::seq,
-                                            this_type_sorted_org_vertices.begin(),
-                                            this_type_sorted_org_vertices.end(),
-                                            major);
+              auto it = cuda::std::lower_bound(
+                this_type_sorted_org_vertices.begin(), this_type_sorted_org_vertices.end(), major);
               return this_type_matching_renumbered_vertices[cuda::std::distance(
                 this_type_sorted_org_vertices.begin(), it)];
             }),
@@ -1417,10 +1408,8 @@ bool check_vertex_renumber_map_invariants(
                this_type_matching_renumbered_vertices.data(),
                this_type_matching_renumbered_vertices.size())] __device__(vertex_t minor)
               -> vertex_t {
-              auto it = thrust::lower_bound(thrust::seq,
-                                            this_type_sorted_org_vertices.begin(),
-                                            this_type_sorted_org_vertices.end(),
-                                            minor);
+              auto it = cuda::std::lower_bound(
+                this_type_sorted_org_vertices.begin(), this_type_sorted_org_vertices.end(), minor);
               return this_type_matching_renumbered_vertices[cuda::std::distance(
                 this_type_sorted_org_vertices.begin(), it)];
             }),
@@ -1677,10 +1666,8 @@ bool check_edge_id_renumber_map_invariants(
              this_type_matching_renumbered_edge_ids = raft::device_span<edge_id_t const>(
                this_type_matching_renumbered_edge_ids.data(),
                this_type_matching_renumbered_edge_ids.size())] __device__(edge_id_t id) {
-              auto it = thrust::lower_bound(thrust::seq,
-                                            this_type_sorted_org_edge_ids.begin(),
-                                            this_type_sorted_org_edge_ids.end(),
-                                            id);
+              auto it = cuda::std::lower_bound(
+                this_type_sorted_org_edge_ids.begin(), this_type_sorted_org_edge_ids.end(), id);
               return this_type_matching_renumbered_edge_ids[cuda::std::distance(
                 this_type_sorted_org_edge_ids.begin(), it)];
             }));

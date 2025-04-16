@@ -30,6 +30,7 @@
 
 #include <raft/random/rng_state.hpp>
 
+#include <cuda/std/__algorithm_>
 #include <cuda/std/optional>
 
 #include <gtest/gtest.h>
@@ -157,8 +158,7 @@ class Tests_SGGraphColoring
         << "adjacent vertices can't have same color." << std::endl;
 
       if (nr_conflicts >= 0) {
-        thrust::for_each(
-          thrust::host,
+        cuda::std::for_each(
           thrust::make_zip_iterator(thrust::make_tuple(
             h_colors.begin(), h_vertices_in_this_proces.begin(), h_color_conflict_flags.begin())),
           thrust::make_zip_iterator(thrust::make_tuple(

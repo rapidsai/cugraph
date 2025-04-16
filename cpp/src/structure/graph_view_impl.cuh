@@ -38,6 +38,7 @@
 #include <rmm/exec_policy.hpp>
 
 #include <cuda/functional>
+#include <cuda/std/__algorithm_>
 #include <cuda/std/iterator>
 #include <cuda/std/optional>
 #include <thrust/binary_search.h>
@@ -864,8 +865,7 @@ graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<mul
                           edge_t local_degree{};
                           thrust::tie(indices, local_edge_offset, local_degree) =
                             edge_partition.local_edges(*major_idx);
-                          auto it = thrust::lower_bound(
-                            thrust::seq, indices, indices + local_degree, minor);
+                          auto it = cuda::std::lower_bound(indices, indices + local_degree, minor);
                           if ((it != indices + local_degree) && *it == minor) {
                             if (edge_partition_e_mask) {
                               return (*edge_partition_e_mask)
@@ -934,7 +934,7 @@ graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<!mu
       edge_t local_degree{};
       thrust::tie(indices, local_edge_offset, local_degree) =
         edge_partition.local_edges(major_offset);
-      auto it = thrust::lower_bound(thrust::seq, indices, indices + local_degree, minor);
+      auto it = cuda::std::lower_bound(indices, indices + local_degree, minor);
       if ((it != indices + local_degree) && *it == minor) {
         if (edge_partition_e_mask) {
           return (*edge_partition_e_mask).get(local_edge_offset + cuda::std::distance(indices, it));
@@ -1010,8 +1010,8 @@ graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<mul
           edge_t local_degree{};
           thrust::tie(indices, local_edge_offset, local_degree) =
             edge_partition.local_edges(*major_idx);
-          auto lower_it = thrust::lower_bound(thrust::seq, indices, indices + local_degree, minor);
-          auto upper_it = thrust::upper_bound(thrust::seq, indices, indices + local_degree, minor);
+          auto lower_it     = cuda::std::lower_bound(indices, indices + local_degree, minor);
+          auto upper_it     = cuda::std::upper_bound(indices, indices + local_degree, minor);
           auto multiplicity = static_cast<edge_t>(cuda::std::distance(lower_it, upper_it));
           if (edge_partition_e_mask && (multiplicity > 0)) {
             multiplicity = static_cast<edge_t>(detail::count_set_bits(
@@ -1079,8 +1079,8 @@ graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<!mu
       edge_t local_degree{};
       thrust::tie(indices, local_edge_offset, local_degree) =
         edge_partition.local_edges(major_offset);
-      auto lower_it     = thrust::lower_bound(thrust::seq, indices, indices + local_degree, minor);
-      auto upper_it     = thrust::upper_bound(thrust::seq, indices, indices + local_degree, minor);
+      auto lower_it     = cuda::std::lower_bound(indices, indices + local_degree, minor);
+      auto upper_it     = cuda::std::upper_bound(indices, indices + local_degree, minor);
       auto multiplicity = static_cast<edge_t>(cuda::std::distance(lower_it, upper_it));
       if (edge_partition_e_mask && (multiplicity > 0)) {
         multiplicity = static_cast<edge_t>(detail::count_set_bits(

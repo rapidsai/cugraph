@@ -40,6 +40,7 @@
 #include <rmm/exec_policy.hpp>
 
 #include <cub/cub.cuh>
+#include <cuda/std/__algorithm_>
 #include <cuda/std/iterator>
 #include <cuda/std/optional>
 #include <thrust/binary_search.h>
@@ -254,10 +255,10 @@ __global__ static void extract_transform_if_v_frontier_e_hypersparse_or_low_degr
         cuda::std::optional<e_op_result_t> e_op_result{cuda::std::nullopt};
 
         if (i < static_cast<size_t>(num_edges_this_warp)) {
-          auto key_idx_this_warp = static_cast<vertex_t>(cuda::std::distance(
-            this_warp_inclusive_sum_first,
-            thrust::upper_bound(
-              thrust::seq, this_warp_inclusive_sum_first, this_warp_inclusive_sum_last, i)));
+          auto key_idx_this_warp = static_cast<vertex_t>(
+            cuda::std::distance(this_warp_inclusive_sum_first,
+                                cuda::std::upper_bound(
+                                  this_warp_inclusive_sum_first, this_warp_inclusive_sum_last, i)));
           auto local_edge_offset =
             warp_key_local_edge_offsets[warp_id * raft::warp_size() + key_idx_this_warp] +
             static_cast<edge_t>(i - ((key_idx_this_warp == 0) ? edge_t{0}
@@ -279,10 +280,10 @@ __global__ static void extract_transform_if_v_frontier_e_hypersparse_or_low_degr
         cuda::std::optional<e_op_result_t> e_op_result{cuda::std::nullopt};
 
         if (i < static_cast<size_t>(num_edges_this_warp)) {
-          auto key_idx_this_warp = static_cast<vertex_t>(cuda::std::distance(
-            this_warp_inclusive_sum_first,
-            thrust::upper_bound(
-              thrust::seq, this_warp_inclusive_sum_first, this_warp_inclusive_sum_last, i)));
+          auto key_idx_this_warp = static_cast<vertex_t>(
+            cuda::std::distance(this_warp_inclusive_sum_first,
+                                cuda::std::upper_bound(
+                                  this_warp_inclusive_sum_first, this_warp_inclusive_sum_last, i)));
           auto local_edge_offset =
             warp_key_local_edge_offsets[warp_id * raft::warp_size() + key_idx_this_warp] +
             static_cast<edge_t>(i - ((key_idx_this_warp == 0) ? edge_t{0}
@@ -470,8 +471,8 @@ __global__ static void extract_transform_if_v_frontier_e_high_degree(
     if (idx < num_edges) {
       auto key_idx = cuda::std::distance(
         key_local_degree_offsets.begin() + 1,
-        thrust::upper_bound(
-          thrust::seq, key_local_degree_offsets.begin() + 1, key_local_degree_offsets.end(), idx));
+        cuda::std::upper_bound(
+          key_local_degree_offsets.begin() + 1, key_local_degree_offsets.end(), idx));
       auto key          = *(key_first + key_idx);
       auto major        = thrust_tuple_get_or_identity<key_t, 0>(key);
       auto major_offset = edge_partition.major_offset_from_major_nocheck(major);

@@ -31,6 +31,7 @@
 
 #include <raft/util/integer_utils.hpp>
 
+#include <cuda/std/__algorithm_>
 #include <cuda/std/iterator>
 #include <cuda/std/optional>
 #include <cuda/std/utility>
@@ -60,8 +61,8 @@ struct extract_triangles_endpoints {
 
   __device__ thrust::tuple<vertex_t, vertex_t, vertex_t> operator()(edge_t i) const
   {
-    auto itr = thrust::upper_bound(
-      thrust::seq, intersection_offsets.begin() + 1, intersection_offsets.end(), i);
+    auto itr =
+      cuda::std::upper_bound(intersection_offsets.begin() + 1, intersection_offsets.end(), i);
     auto idx = cuda::std::distance(intersection_offsets.begin() + 1, itr);
 
     auto endpoints = thrust::make_tuple(weak_srcs[chunk_start + idx],  // p
@@ -112,10 +113,9 @@ struct extract_low_to_high_degree_edges_from_endpoints_e_op_t {
                                                                   edge_t dst_out_degree,
                                                                   cuda::std::nullopt_t) const
   {
-    auto itr = thrust::lower_bound(thrust::seq,
-                                   thrust::make_zip_iterator(srcs.begin(), dsts.begin()),
-                                   thrust::make_zip_iterator(srcs.end(), dsts.end()),
-                                   thrust::make_tuple(src, dst));
+    auto itr = cuda::std::lower_bound(thrust::make_zip_iterator(srcs.begin(), dsts.begin()),
+                                      thrust::make_zip_iterator(srcs.end(), dsts.end()),
+                                      thrust::make_tuple(src, dst));
 
     auto idx = cuda::std::distance(thrust::make_zip_iterator(srcs.begin(), dsts.begin()), itr);
 
@@ -139,10 +139,9 @@ struct extract_low_to_high_degree_edges_from_endpoints_pred_op_t {
   raft::device_span<vertex_t const> dsts{};
   __device__ bool operator()(vertex_t src, vertex_t dst, edge_t, edge_t, cuda::std::nullopt_t) const
   {
-    return thrust::binary_search(thrust::seq,
-                                 thrust::make_zip_iterator(srcs.begin(), dsts.begin()),
-                                 thrust::make_zip_iterator(srcs.end(), dsts.end()),
-                                 thrust::make_tuple(src, dst));
+    return cuda::std::binary_search(thrust::make_zip_iterator(srcs.begin(), dsts.begin()),
+                                    thrust::make_zip_iterator(srcs.end(), dsts.end()),
+                                    thrust::make_tuple(src, dst));
   }
 };
 
@@ -605,8 +604,8 @@ k_truss(raft::handle_t const& handle,
                                                                      cuda::std::nullopt_t,
                                                                      cuda::std::nullopt_t,
                                                                      edge_t count) {
-          auto itr_pair = thrust::lower_bound(
-            thrust::seq, edge_buffer_first, edge_buffer_last, thrust::make_tuple(src, dst));
+          auto itr_pair = cuda::std::lower_bound(
+            edge_buffer_first, edge_buffer_last, thrust::make_tuple(src, dst));
           auto idx_pair = cuda::std::distance(edge_buffer_first, itr_pair);
           count -= decrease_count[idx_pair];
 

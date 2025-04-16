@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, NVIDIA CORPORATION.
+ * Copyright (c) 2024-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,7 +24,7 @@
 #include <raft/core/handle.hpp>
 #include <raft/random/rng_state.hpp>
 
-#include <thrust/for_each.h>
+#include <cuda/std/__algorithm_>
 
 #include <iostream>
 #include <string>
@@ -237,21 +237,20 @@ void look_into_vertex_and_edge_partitions(
   //
 
   if (renumber_map) {
-    thrust::for_each(thrust::host,
-                     thrust::make_zip_iterator(thrust::make_tuple(
-                       h_vertices_in_this_proces.begin(),
-                       thrust::make_counting_iterator(renumbered_vertex_id_of_local_first))),
-                     thrust::make_zip_iterator(thrust::make_tuple(
-                       h_vertices_in_this_proces.end(),
-                       thrust::make_counting_iterator(renumbered_vertex_id_of_local_last))),
-                     [comm_rank](auto old_and_new_id_pair) {
-                       auto old_id = thrust::get<0>(old_and_new_id_pair);
-                       auto new_id = thrust::get<1>(old_and_new_id_pair);
-                       printf("owner rank = %d, original vertex id %d is renumbered to  %d\n",
-                              comm_rank,
-                              static_cast<int>(old_id),
-                              static_cast<int>(new_id));
-                     });
+    cuda::std::for_each(thrust::make_zip_iterator(thrust::make_tuple(
+                          h_vertices_in_this_proces.begin(),
+                          thrust::make_counting_iterator(renumbered_vertex_id_of_local_first))),
+                        thrust::make_zip_iterator(thrust::make_tuple(
+                          h_vertices_in_this_proces.end(),
+                          thrust::make_counting_iterator(renumbered_vertex_id_of_local_last))),
+                        [comm_rank](auto old_and_new_id_pair) {
+                          auto old_id = thrust::get<0>(old_and_new_id_pair);
+                          auto new_id = thrust::get<1>(old_and_new_id_pair);
+                          printf("owner rank = %d, original vertex id %d is renumbered to  %d\n",
+                                 comm_rank,
+                                 static_cast<int>(old_id),
+                                 static_cast<int>(new_id));
+                        });
   }
 
   //
@@ -307,8 +306,7 @@ void look_into_vertex_and_edge_partitions(
         auto v                               = major_range_first + i;
         auto deg_of_v_in_this_edge_partition = offsets[i + 1] - offsets[i];
 
-        thrust::for_each(
-          thrust::seq,
+        cuda::std::for_each(
           thrust::make_counting_iterator(edge_t{offsets[i]}),
           thrust::make_counting_iterator(edge_t{offsets[i + 1]}),
           [comm_rank, ep_idx, v, indices, is_weighted, weights] __device__(auto pos) {
@@ -353,8 +351,7 @@ void look_into_vertex_and_edge_partitions(
           auto major_idx                       = (major_hypersparse_first - major_range_first) + i;
           auto deg_of_v_in_this_edge_partition = offsets[major_idx + 1] - offsets[major_idx];
 
-          thrust::for_each(
-            thrust::seq,
+          cuda::std::for_each(
             thrust::make_counting_iterator(edge_t{offsets[major_idx]}),
             thrust::make_counting_iterator(edge_t{offsets[major_idx + 1]}),
             [comm_rank, ep_idx, v, indices, is_weighted, weights] __device__(auto pos) {
