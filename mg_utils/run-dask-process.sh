@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright (c) 2022-2023, NVIDIA CORPORATION.
+# Copyright (c) 2022-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -12,10 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-THIS_DIR=$(cd $(dirname ${BASH_SOURCE[0]}) && pwd)
+THIS_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
-source ${THIS_DIR}/default-config.sh
-source ${THIS_DIR}/functions.sh
+source "${THIS_DIR}/default-config.sh"
+source "${THIS_DIR}/functions.sh"
 
 # Logs can be written to a specific location by setting the LOGS_DIR
 # env var.
@@ -25,7 +25,7 @@ LOGS_DIR=${LOGS_DIR:-dask_logs-$$}
 NUMARGS=$#
 ARGS=$*
 function hasArg {
-    (( ${NUMARGS} != 0 )) && (echo " ${ARGS} " | grep -q " $1 ")
+    (( NUMARGS != 0 )) && (echo " ${ARGS} " | grep -q " $1 ")
 }
 VALIDARGS="-h --help scheduler workers --tcp --ucx --ucxib --ucx-ib"
 HELP="$0 [<app> ...] [<flag> ...]
@@ -49,7 +49,7 @@ CLUSTER_CONFIG_TYPE=${CLUSTER_CONFIG_TYPE:-TCP}
 START_SCHEDULER=0
 START_WORKERS=0
 
-if (( ${NUMARGS} == 0 )); then
+if (( NUMARGS == 0 )); then
     echo "${HELP}"
     exit 0
 else
@@ -187,17 +187,17 @@ worker_pid=""
 num_scheduler_tries=0
 
 function startScheduler {
-    mkdir -p $(dirname $SCHEDULER_FILE)
-    echo "RUNNING: \"python -m distributed.cli.dask_scheduler $SCHEDULER_ARGS\"" > $SCHEDULER_LOG
-    dask-scheduler $SCHEDULER_ARGS >> $SCHEDULER_LOG 2>&1 &
+    mkdir -p "$(dirname "$SCHEDULER_FILE")"
+    echo "RUNNING: \"python -m distributed.cli.dask_scheduler $SCHEDULER_ARGS\"" > "$SCHEDULER_LOG"
+    dask-scheduler "$SCHEDULER_ARGS" >> "$SCHEDULER_LOG" 2>&1 &
     scheduler_pid=$!
 }
 
-mkdir -p $LOGS_DIR
+mkdir -p "$LOGS_DIR"
 logger "Logs written to: $LOGS_DIR"
 
 if [[ $START_SCHEDULER == 1 ]]; then
-    rm -f $SCHEDULER_FILE $SCHEDULER_LOG $WORKERS_LOG
+    rm -f "$SCHEDULER_FILE" "$SCHEDULER_LOG" "$WORKERS_LOG"
 
     startScheduler
     sleep 6
@@ -213,7 +213,7 @@ if [[ $START_SCHEDULER == 1 ]]; then
                 echo "scheduler failed to start, retry #$num_scheduler_tries"
                 startScheduler
                 sleep 6
-                num_scheduler_tries=$(echo $num_scheduler_tries+1 | bc)
+                num_scheduler_tries=$(echo "$num_scheduler_tries"+1 | bc)
             else
                 echo "could not start scheduler, exiting."
                 exit 1
@@ -224,13 +224,13 @@ if [[ $START_SCHEDULER == 1 ]]; then
 fi
 
 if [[ $START_WORKERS == 1 ]]; then
-    rm -f $WORKERS_LOG
+    rm -f "$WORKERS_LOG"
     while [ ! -f "$SCHEDULER_FILE" ]; do
         echo "run-dask-process.sh: $SCHEDULER_FILE not present - waiting to start workers..."
         sleep 2
     done
-    echo "RUNNING: \"python -m dask_cuda.cli.dask_cuda_worker $WORKER_ARGS\"" > $WORKERS_LOG
-    dask-cuda-worker $WORKER_ARGS >> $WORKERS_LOG 2>&1 &
+    echo "RUNNING: \"python -m dask_cuda.cli.dask_cuda_worker $WORKER_ARGS\"" > "$WORKERS_LOG"
+    dask-cuda-worker "$WORKER_ARGS" >> "$WORKERS_LOG" 2>&1 &
     worker_pid=$!
     echo "worker(s) started."
 fi
