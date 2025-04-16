@@ -828,6 +828,8 @@ extract_transform_if_v_frontier_e(raft::handle_t const& handle,
 
   // 2. compute local max_pushes
 
+  auto edge_mask_view = graph_view.edge_mask_view();
+
   size_t local_max_pushes{};
   {
     size_t partition_idx{};
@@ -839,14 +841,26 @@ extract_transform_if_v_frontier_e(raft::handle_t const& handle,
     auto edge_partition =
       edge_partition_device_view_t<vertex_t, edge_t, GraphViewType::is_multi_gpu>(
         graph_view.local_edge_partition_view(partition_idx));
+    auto edge_partition_e_mask =
+      edge_mask_view
+        ? cuda::std::make_optional<
+            detail::edge_partition_edge_property_device_view_t<edge_t, uint32_t const*, bool>>(
+            *edge_mask_view, partition_idx)
+        : cuda::std::nullopt;
     auto frontier_major_first =
       thrust_tuple_get_or_identity<decltype(frontier_key_first), 0>(frontier_key_first);
     auto frontier_major_last =
       thrust_tuple_get_or_identity<decltype(frontier_key_last), 0>(frontier_key_last);
-    // for an edge-masked graph, we can pass edge mask to compute tighter bound (at the expense of
-    // additional computing)
-    local_max_pushes = edge_partition.compute_number_of_edges(
-      frontier_major_first, frontier_major_last, handle.get_stream());
+    if (edge_partition_e_mask) {
+      local_max_pushes =
+        edge_partition.compute_number_of_edges_with_mask(edge_partition_e_mask->value_first(),
+                                                         frontier_major_first,
+                                                         frontier_major_last,
+                                                         handle.get_stream());
+    } else {
+      local_max_pushes = edge_partition.compute_number_of_edges(
+        frontier_major_first, frontier_major_last, handle.get_stream());
+    }
   }
 
   // 3. communication over minor_comm
@@ -1074,8 +1088,20 @@ extract_transform_if_v_frontier_e(raft::handle_t const& handle,
     }
   }
 
-  // set-up stream ppol
+  // set-up stream ppol & num_concurrent_loops
 
+  size_t num_streams_per_loop{1};
+  if (graph_view.local_vertex_partition_segment_offsets() &&
+      (handle.get_stream_pool_size() >= max_segments)) {
+    num_streams_per_loop = std::max(
+      std::min(size_t{8} / graph_view.number_of_local_edge_partitions(), max_segments),
+      size_t{
+        1});  // Note that "CUDA_DEVICE_MAX_CONNECTIONS (default: 8, can be set to [1, 32])" sets
+              // the number of queues, if the total number of streams exceeds this number, jobs on
+              // different streams can be sent to one queue leading to false dependency. Setting
+              // num_concurrent_loops above the number of queues has some benefits in NCCL
+              // communications but creating too many streams just for compute may not help.
+  }
   std::optional<std::vector<size_t>> stream_pool_indices{std::nullopt};
   if constexpr (GraphViewType::is_multi_gpu) {
     auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
@@ -1087,18 +1113,6 @@ extract_transform_if_v_frontier_e(raft::handle_t const& handle,
       std::reduce(tmp_buffer_size_per_loop_approximations.begin(),
                   tmp_buffer_size_per_loop_approximations.end()) /
       static_cast<size_t>(minor_comm_size);
-    size_t num_streams_per_loop{1};
-    if (graph_view.local_vertex_partition_segment_offsets() &&
-        (handle.get_stream_pool_size() >= max_segments)) {
-      num_streams_per_loop = std::max(
-        std::min(size_t{8} / graph_view.number_of_local_edge_partitions(), max_segments),
-        size_t{
-          1});  // Note that "CUDA_DEVICE_MAX_CONNECTIONS (default: 8, can be set to [1, 32])" sets
-                // the number of queues, if the total number of streams exceeds this number, jobs on
-                // different streams can be sent to one queue leading to false dependency. Setting
-                // num_concurrent_loops above the number of queues has some benefits in NCCL
-                // communications but creating too many streams just for compute may not help.
-    }
     stream_pool_indices = init_stream_pool_indices(max_tmp_buffer_size,
                                                    approx_tmp_buffer_size_per_loop,
                                                    graph_view.number_of_local_edge_partitions(),
@@ -1111,8 +1125,9 @@ extract_transform_if_v_frontier_e(raft::handle_t const& handle,
   std::optional<std::vector<size_t>> loop_stream_pool_indices{
     std::nullopt};  // first num_concurrent_loopos streams from stream_pool_indices
   if (stream_pool_indices) {
-    num_concurrent_loops =
-      std::min(graph_view.number_of_local_edge_partitions(), (*stream_pool_indices).size());
+    assert(stream_pool_indices->size() >= num_streams_per_loop);
+    num_concurrent_loops     = std::min(graph_view.number_of_local_edge_partitions(),
+                                    (*stream_pool_indices).size() / num_streams_per_loop);
     loop_stream_pool_indices = std::vector<size_t>(num_concurrent_loops);
     std::iota((*loop_stream_pool_indices).begin(), (*loop_stream_pool_indices).end(), size_t{0});
   }
@@ -1129,8 +1144,6 @@ extract_transform_if_v_frontier_e(raft::handle_t const& handle,
   std::vector<optional_dataframe_buffer_type_t<output_value_t>> value_buffers{};
   key_buffers.reserve(graph_view.number_of_local_edge_partitions());
   value_buffers.reserve(graph_view.number_of_local_edge_partitions());
-
-  auto edge_mask_view = graph_view.edge_mask_view();
 
   for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); i += num_concurrent_loops) {
     auto loop_count =
@@ -1311,6 +1324,13 @@ extract_transform_if_v_frontier_e(raft::handle_t const& handle,
             auto edge_partition =
               edge_partition_device_view_t<vertex_t, edge_t, GraphViewType::is_multi_gpu>(
                 graph_view.local_edge_partition_view(partition_idx));
+            auto edge_partition_e_mask =
+              edge_mask_view
+                ? cuda::std::make_optional<
+                    detail::
+                      edge_partition_edge_property_device_view_t<edge_t, uint32_t const*, bool>>(
+                    *edge_mask_view, partition_idx)
+                : cuda::std::nullopt;
 
             auto const& keys = edge_partition_key_buffers[j];
 
@@ -1324,11 +1344,20 @@ extract_transform_if_v_frontier_e(raft::handle_t const& handle,
                        local_frontier_range_firsts[partition_idx]] __device__(uint32_t v_offset) {
                       return range_first + static_cast<vertex_t>(v_offset);
                     }));
-                edge_partition.compute_number_of_edges_async(
-                  major_first,
-                  major_first + std::get<0>(keys).size(),
-                  raft::device_span<size_t>(counters.data() + j, size_t{1}),
-                  loop_stream);
+                if (edge_partition_e_mask) {
+                  edge_partition.compute_number_of_edges_with_mask_async(
+                    edge_partition_e_mask->value_first(),
+                    major_first,
+                    major_first + std::get<0>(keys).size(),
+                    raft::device_span<size_t>(counters.data() + j, size_t{1}),
+                    loop_stream);
+                } else {
+                  edge_partition.compute_number_of_edges_async(
+                    major_first,
+                    major_first + std::get<0>(keys).size(),
+                    raft::device_span<size_t>(counters.data() + j, size_t{1}),
+                    loop_stream);
+                }
                 computed = true;
               }
             }
@@ -1344,11 +1373,20 @@ extract_transform_if_v_frontier_e(raft::handle_t const& handle,
                 num_keys  = size_dataframe_buffer(keys);
               }
               auto major_first = thrust_tuple_get_or_identity<decltype(key_first), 0>(key_first);
-              edge_partition.compute_number_of_edges_async(
-                major_first,
-                major_first + num_keys,
-                raft::device_span<size_t>(counters.data() + j, size_t{1}),
-                loop_stream);
+              if (edge_partition_e_mask) {
+                edge_partition.compute_number_of_edges_with_mask_async(
+                  edge_partition_e_mask->value_first(),
+                  major_first,
+                  major_first + num_keys,
+                  raft::device_span<size_t>(counters.data() + j, size_t{1}),
+                  loop_stream);
+              } else {
+                edge_partition.compute_number_of_edges_async(
+                  major_first,
+                  major_first + num_keys,
+                  raft::device_span<size_t>(counters.data() + j, size_t{1}),
+                  loop_stream);
+              }
             }
           }
         }
@@ -1465,11 +1503,6 @@ extract_transform_if_v_frontier_e(raft::handle_t const& handle,
               detail::edge_partition_edge_property_device_view_t<edge_t, uint32_t const*, bool>>(
               *edge_mask_view, partition_idx)
           : cuda::std::nullopt;
-      size_t num_streams_per_loop{1};
-      if (stream_pool_indices) {
-        assert((*stream_pool_indices).size() >= num_concurrent_loops);
-        num_streams_per_loop = (*stream_pool_indices).size() / num_concurrent_loops;
-      }
       auto edge_partition_stream_pool_indices =
         stream_pool_indices
           ? std::make_optional<raft::host_span<size_t const>>(
