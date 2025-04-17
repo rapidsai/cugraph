@@ -73,15 +73,17 @@ cdef coo_to_df(GraphCOOPtrType graph):
     # FIXME: this function assumes columns named "src" and "dst" and can only
     # be used for SG graphs due to that assumption.
     contents = move(graph.get()[0].release())
-    src = move_device_buffer_to_column(
+    src = move_device_buffer_to_series(
         move(contents.src_indices),
         DataType(type_id.INT32),
         4,
+        None,
     )
-    dst = move_device_buffer_to_column(
+    dst = move_device_buffer_to_series(
         move(contents.dst_indices),
         DataType(type_id.INT32),
         4,
+        None,
     )
 
     if GraphCOOPtrType is GraphCOOPtrFloat:
@@ -93,10 +95,11 @@ cdef coo_to_df(GraphCOOPtrType graph):
     else:
         raise TypeError("Invalid GraphCOOPtrType")
 
-    wgt = move_device_buffer_to_column(
+    wgt = move_device_buffer_to_series(
         move(contents.edge_data),
         weight_type,
-        itemsize
+        itemsize,
+        None,
     )
 
     df = cudf.DataFrame()
