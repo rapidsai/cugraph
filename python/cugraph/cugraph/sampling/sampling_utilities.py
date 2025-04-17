@@ -1,4 +1,4 @@
-# Copyright (c) 2023-2024, NVIDIA CORPORATION.
+# Copyright (c) 2023-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -79,7 +79,7 @@ def sampling_results_from_cupy_array_dict(
             )
 
             if not return_offsets:
-                if len(batch_ids) > 0:
+                if batch_ids is not None and len(batch_ids) > 0:
                     batch_ids_r = cudf.Series(batch_ids).repeat(
                         cupy.diff(cupy_array_dict["renumber_map_offsets"])
                     )
@@ -125,7 +125,7 @@ def sampling_results_from_cupy_array_dict(
                     offsets_df["renumber_map_offsets"] = renumber_offset_series
 
         else:
-            if len(batch_ids) > 0:
+            if batch_ids is not None and len(batch_ids) > 0:
                 batch_ids_r = cudf.Series(cupy.repeat(batch_ids, num_hops))
                 batch_ids_r = cudf.Series(batch_ids_r).repeat(
                     cupy.diff(label_hop_offsets)
@@ -138,7 +138,7 @@ def sampling_results_from_cupy_array_dict(
 
         # TODO remove this logic in release 23.12, hops will always returned as offsets
         if include_hop_column:
-            if len(batch_ids) > 0:
+            if batch_ids is not None and len(batch_ids) > 0:
                 hop_ids_r = cudf.Series(cupy.arange(num_hops))
                 hop_ids_r = cudf.concat([hop_ids_r] * len(batch_ids), ignore_index=True)
 

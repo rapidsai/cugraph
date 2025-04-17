@@ -24,7 +24,7 @@
 
 #include <rmm/device_uvector.hpp>
 
-#include <thrust/distance.h>
+#include <cuda/std/iterator>
 #include <thrust/equal.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/remove.h>
@@ -259,7 +259,7 @@ read_edgelist_from_csv_file(raft::handle_t const& handle,
     if (d_edgelist_weights) {
       auto edge_first       = thrust::make_zip_iterator(thrust::make_tuple(
         d_edgelist_srcs.begin(), d_edgelist_dsts.begin(), (*d_edgelist_weights).begin()));
-      number_of_local_edges = thrust::distance(
+      number_of_local_edges = cuda::std::distance(
         edge_first,
         thrust::remove_if(
           handle.get_thrust_policy(),
@@ -274,7 +274,7 @@ read_edgelist_from_csv_file(raft::handle_t const& handle,
     } else {
       auto edge_first = thrust::make_zip_iterator(
         thrust::make_tuple(d_edgelist_srcs.begin(), d_edgelist_dsts.begin()));
-      number_of_local_edges = thrust::distance(
+      number_of_local_edges = cuda::std::distance(
         edge_first,
         thrust::remove_if(
           handle.get_thrust_policy(),

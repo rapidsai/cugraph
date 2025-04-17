@@ -30,6 +30,8 @@
 
 #include <rmm/device_uvector.hpp>
 
+#include <cuda/std/iterator>
+
 #include <optional>
 #include <tuple>
 
@@ -406,7 +408,7 @@ all_pairs_similarity(raft::handle_t const& handle,
         static_cast<vertex_t>(batch_offsets[batch_number + 1] - batch_offsets[batch_number]),
         do_expensive_check);
 
-      auto new_size = thrust::distance(
+      auto new_size = cuda::std::distance(
         thrust::make_zip_iterator(v1.begin(), v2.begin()),
         thrust::remove_if(
           handle.get_thrust_policy(),
@@ -450,7 +452,7 @@ all_pairs_similarity(raft::handle_t const& handle,
                    do_expensive_check);
 
       // Add a remove_if to remove items that are less than the last topk element
-      new_size = thrust::distance(
+      new_size = cuda::std::distance(
         thrust::make_zip_iterator(score.begin(), v1.begin(), v2.begin()),
         thrust::remove_if(handle.get_thrust_policy(),
                           thrust::make_zip_iterator(score.begin(), v1.begin(), v2.begin()),
@@ -596,7 +598,7 @@ all_pairs_similarity(raft::handle_t const& handle,
                                            static_cast<vertex_t>(vertices_span.size()),
                                            do_expensive_check);
 
-    auto new_size = thrust::distance(
+    auto new_size = cuda::std::distance(
       thrust::make_zip_iterator(v1.begin(), v2.begin()),
       thrust::remove_if(
         handle.get_thrust_policy(),

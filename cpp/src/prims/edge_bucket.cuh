@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2023-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,8 +24,8 @@
 #include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
 
+#include <cuda/std/iterator>
 #include <thrust/copy.h>
-#include <thrust/distance.h>
 #include <thrust/fill.h>
 #include <thrust/iterator/constant_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
@@ -195,14 +195,14 @@ class edge_bucket_t {
       std::is_same_v<typename thrust::iterator_traits<VertexIterator>::value_type, vertex_t>);
 
     auto major_first    = src_major ? src_first : dst_first;
-    auto major_last     = major_first + thrust::distance(src_first, src_last);
+    auto major_last     = major_first + cuda::std::distance(src_first, src_last);
     auto minor_first    = src_major ? dst_first : src_first;
     auto new_pair_first = thrust::make_zip_iterator(thrust::make_tuple(major_first, minor_first));
 
     if (majors_.size() > 0) {
       if constexpr (sorted_unique) {
         rmm::device_uvector<vertex_t> merged_majors(
-          majors_.size() + thrust::distance(major_first, major_last), handle_ptr_->get_stream());
+          majors_.size() + cuda::std::distance(major_first, major_last), handle_ptr_->get_stream());
         rmm::device_uvector<vertex_t> merged_minors(merged_majors.size(),
                                                     handle_ptr_->get_stream());
         auto old_pair_first =
@@ -213,13 +213,13 @@ class edge_bucket_t {
                       old_pair_first,
                       old_pair_first + majors_.size(),
                       new_pair_first,
-                      new_pair_first + thrust::distance(major_first, major_last),
+                      new_pair_first + cuda::std::distance(major_first, major_last),
                       merged_pair_first);
         merged_majors.resize(
-          thrust::distance(merged_pair_first,
-                           thrust::unique(handle_ptr_->get_thrust_policy(),
-                                          merged_pair_first,
-                                          merged_pair_first + merged_majors.size())),
+          cuda::std::distance(merged_pair_first,
+                              thrust::unique(handle_ptr_->get_thrust_policy(),
+                                             merged_pair_first,
+                                             merged_pair_first + merged_majors.size())),
           handle_ptr_->get_stream());
         merged_minors.resize(merged_majors.size(), handle_ptr_->get_stream());
         merged_majors.shrink_to_fit(handle_ptr_->get_stream());
@@ -228,22 +228,22 @@ class edge_bucket_t {
         minors_ = std::move(merged_minors);
       } else {
         auto cur_size = majors_.size();
-        majors_.resize(cur_size + thrust::distance(major_first, major_last),
+        majors_.resize(cur_size + cuda::std::distance(major_first, major_last),
                        handle_ptr_->get_stream());
         minors_.resize(majors_.size(), handle_ptr_->get_stream());
         thrust::copy(
           handle_ptr_->get_thrust_policy(),
           new_pair_first,
-          new_pair_first + thrust::distance(major_first, major_last),
+          new_pair_first + cuda::std::distance(major_first, major_last),
           thrust::make_zip_iterator(thrust::make_tuple(majors_.begin(), minors_.begin())) +
             cur_size);
       }
     } else {
-      majors_.resize(thrust::distance(major_first, major_last), handle_ptr_->get_stream());
+      majors_.resize(cuda::std::distance(major_first, major_last), handle_ptr_->get_stream());
       minors_.resize(majors_.size(), handle_ptr_->get_stream());
       thrust::copy(handle_ptr_->get_thrust_policy(),
                    new_pair_first,
-                   new_pair_first + thrust::distance(major_first, major_last),
+                   new_pair_first + cuda::std::distance(major_first, major_last),
                    thrust::make_zip_iterator(thrust::make_tuple(majors_.begin(), minors_.begin())));
     }
   }
@@ -274,7 +274,7 @@ class edge_bucket_t {
     static_assert(std::is_same_v<typename thrust::iterator_traits<TagIterator>::value_type, tag_t>);
 
     auto major_first = src_major ? src_first : dst_first;
-    auto major_last  = major_first + thrust::distance(src_first, src_last);
+    auto major_last  = major_first + cuda::std::distance(src_first, src_last);
     auto minor_first = src_major ? dst_first : src_first;
     auto new_triplet_first =
       thrust::make_zip_iterator(thrust::make_tuple(major_first, minor_first, tag_first));
@@ -282,7 +282,7 @@ class edge_bucket_t {
     if (majors_.size() > 0) {
       if constexpr (sorted_unique) {
         rmm::device_uvector<vertex_t> merged_majors(
-          majors_.size() + thrust::distance(major_first, major_last), handle_ptr_->get_stream());
+          majors_.size() + cuda::std::distance(major_first, major_last), handle_ptr_->get_stream());
         rmm::device_uvector<vertex_t> merged_minors(merged_majors.size(),
                                                     handle_ptr_->get_stream());
         rmm::device_uvector<tag_t> merged_tags(merged_majors.size(), handle_ptr_->get_stream());
@@ -294,13 +294,13 @@ class edge_bucket_t {
                       old_triplet_first,
                       old_triplet_first + majors_.size(),
                       new_triplet_first,
-                      new_triplet_first + thrust::distance(major_first, major_last),
+                      new_triplet_first + cuda::std::distance(major_first, major_last),
                       merged_triplet_first);
         merged_majors.resize(
-          thrust::distance(merged_triplet_first,
-                           thrust::unique(handle_ptr_->get_thrust_policy(),
-                                          merged_triplet_first,
-                                          merged_triplet_first + merged_majors.size())),
+          cuda::std::distance(merged_triplet_first,
+                              thrust::unique(handle_ptr_->get_thrust_policy(),
+                                             merged_triplet_first,
+                                             merged_triplet_first + merged_majors.size())),
           handle_ptr_->get_stream());
         merged_minors.resize(merged_majors.size(), handle_ptr_->get_stream());
         merged_tags.resize(merged_majors.size(), handle_ptr_->get_stream());
@@ -312,24 +312,24 @@ class edge_bucket_t {
         tags_   = std::move(merged_tags);
       } else {
         auto cur_size = majors_.size();
-        majors_.resize(cur_size + thrust::distance(major_first, major_last),
+        majors_.resize(cur_size + cuda::std::distance(major_first, major_last),
                        handle_ptr_->get_stream());
         minors_.resize(majors_.size(), handle_ptr_->get_stream());
         tags_.resize(majors_.size(), handle_ptr_->get_stream());
         thrust::copy(handle_ptr_->get_thrust_policy(),
                      new_triplet_first,
-                     new_triplet_first + thrust::distance(major_first, major_last),
+                     new_triplet_first + cuda::std::distance(major_first, major_last),
                      thrust::make_zip_iterator(
                        thrust::make_tuple(majors_.begin(), minors_.begin(), tags_.begin())) +
                        cur_size);
       }
     } else {
-      majors_.resize(thrust::distance(major_first, major_last), handle_ptr_->get_stream());
+      majors_.resize(cuda::std::distance(major_first, major_last), handle_ptr_->get_stream());
       minors_.resize(majors_.size(), handle_ptr_->get_stream());
       tags_.resize(majors_.size(), handle_ptr_->get_stream());
       thrust::copy(handle_ptr_->get_thrust_policy(),
                    new_triplet_first,
-                   new_triplet_first + thrust::distance(major_first, major_last),
+                   new_triplet_first + cuda::std::distance(major_first, major_last),
                    thrust::make_zip_iterator(
                      thrust::make_tuple(majors_.begin(), minors_.begin(), tags_.begin())));
     }

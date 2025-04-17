@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@
 #include <cugraph/graph_view.hpp>
 #include <cugraph/utilities/error.hpp>
 
+#include <cuda/std/iterator>
 #include <thrust/copy.h>
 #include <thrust/iterator/discard_iterator.h>
 
@@ -70,7 +71,7 @@ k_core(raft::handle_t const& handle,
     [k] __device__(auto tuple) { return (k <= thrust::get<1>(tuple)); });
 
   subgraph_vertices.resize(
-    thrust::distance(
+    cuda::std::distance(
       thrust::make_zip_iterator(subgraph_vertices.begin(), thrust::make_discard_iterator()),
       iter_end),
     handle.get_stream());
