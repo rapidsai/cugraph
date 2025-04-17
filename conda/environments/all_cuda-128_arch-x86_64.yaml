@@ -30,7 +30,6 @@ dependencies:
 - graphviz
 - ipython
 - libcublas-dev
-- libcudf==25.6.*,>=0.0.0a0
 - libcurand-dev
 - libcusolver-dev
 - libcusparse-dev
@@ -50,6 +49,7 @@ dependencies:
 - pre-commit
 - pydantic
 - pydata-sphinx-theme
+- pylibcudf==25.6.*,>=0.0.0a0
 - pylibraft==25.6.*,>=0.0.0a0
 - pylibwholegraph==25.6.*,>=0.0.0a0
 - pytest

@@ -27,7 +27,6 @@ dependencies:
 - gcc_linux-64=11.*
 - graphviz
 - ipython
-- libcudf==25.6.*,>=0.0.0a0
 - libraft==25.6.*,>=0.0.0a0
 - librmm==25.6.*,>=0.0.0a0
 - nbsphinx
@@ -45,6 +44,7 @@ dependencies:
 - pre-commit
 - pydantic
 - pydata-sphinx-theme
+- pylibcudf==25.6.*,>=0.0.0a0
 - pylibraft==25.6.*,>=0.0.0a0
 - pylibwholegraph==25.6.*,>=0.0.0a0
 - pytest
