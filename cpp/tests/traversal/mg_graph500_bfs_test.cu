@@ -15,6 +15,7 @@
  */
 
 #include "detail/graph_partition_utils.cuh"
+#include "nbr_unrenumber_cache.cuh"
 #include "prims/count_if_e.cuh"
 #include "prims/extract_transform_if_e.cuh"
 #include "prims/fill_edge_src_dst_property.cuh"
@@ -65,6 +66,8 @@
 #include <random>
 
 struct Graph500_BFS_Usecase {
+  bool use_pruned_graph_unrenumber_cache{
+    false};  // use cache to locally unrenumber (at the expense of additional memory usage)
   bool use_host_buffer{false};
   bool validate{true};
 };
@@ -815,6 +818,9 @@ class Tests_GRAPH500_MGBFS
     rmm::device_uvector<vertex_t> mg_graph_to_isolated_trees_map(
       0, handle_->get_stream());  // we may store this in host buffer to save HBM
     rmm::device_uvector<vertex_t> mg_isolated_trees_to_graph_map(0, handle_->get_stream());
+
+    std::optional<cugraph::test::nbr_unrenumber_cache_t<vertex_t>>
+      mg_pruned_graph_pred_unrenumber_cache{std::nullopt};
     {
       edge_t num_input_edges{};
       edge_t num_edges{};  // after removing self-loops and multi-edges
@@ -1027,6 +1033,18 @@ class Tests_GRAPH500_MGBFS
         mg_renumber_map.data(),
         raft::host_span<vertex_t const>(vertex_partition_range_offsets.data() + 1,
                                         vertex_partition_range_offsets.size() - 1));
+
+      if (bfs_usecase.use_pruned_graph_unrenumber_cache) {
+        mg_pruned_graph_pred_unrenumber_cache = cugraph::test::build_nbr_unrenumber_cache(
+          *handle_,
+          mg_pruned_graph.view(),
+          raft::device_span<vertex_t const>(mg_pruned_graph_renumber_map.data(),
+                                            mg_pruned_graph_renumber_map.size()),
+          invalid_vertex,
+          bfs_usecase.use_host_buffer
+            ? std::make_optional<rmm::host_device_async_resource_ref>(pinned_host_mr_.get())
+            : std::nullopt);
+      }
 
       if (cugraph::test::g_perf) {
         RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -1266,14 +1284,20 @@ class Tests_GRAPH500_MGBFS
       auto time2 = std::chrono::steady_clock::now();
 #endif
 
-      cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(
-        *handle_,
-        d_mg_bfs_predecessors.data(),
-        d_mg_bfs_predecessors.size(),
-        reachable_from_2cores ? mg_pruned_graph_renumber_map.data()
-                              : mg_isolated_trees_renumber_map.data(),
-        reachable_from_2cores ? mg_pruned_graph_view.vertex_partition_range_lasts()
-                              : mg_isolated_trees_view.vertex_partition_range_lasts());
+      if (reachable_from_2cores && mg_pruned_graph_pred_unrenumber_cache) {
+        mg_pruned_graph_pred_unrenumber_cache->unrenumber(
+          *handle_,
+          raft::device_span<vertex_t>(d_mg_bfs_predecessors.data(), d_mg_bfs_predecessors.size()));
+      } else {
+        cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(
+          *handle_,
+          d_mg_bfs_predecessors.data(),
+          d_mg_bfs_predecessors.size(),
+          reachable_from_2cores ? mg_pruned_graph_renumber_map.data()
+                                : mg_isolated_trees_renumber_map.data(),
+          reachable_from_2cores ? mg_pruned_graph_view.vertex_partition_range_lasts()
+                                : mg_isolated_trees_view.vertex_partition_range_lasts());
+      }
 #if 1
       RAFT_CUDA_TRY(cudaDeviceSynchronize());
       auto time3 = std::chrono::steady_clock::now();
@@ -2217,7 +2241,7 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_GRAPH500_MGBFS_Rmat,
   ::testing::Values(
     // enable correctness checks
-    std::make_tuple(Graph500_BFS_Usecase{true, true},
+    std::make_tuple(Graph500_BFS_Usecase{true, true, true},
                     cugraph::test::Rmat_Usecase(10,
                                                 16,
                                                 0.57,
@@ -2236,7 +2260,7 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_GRAPH500_MGBFS_Rmat,
   ::testing::Values(
     // disable correctness checks for large graphs
-    std::make_tuple(Graph500_BFS_Usecase{true, false},
+    std::make_tuple(Graph500_BFS_Usecase{true, true, false},
                     cugraph::test::Rmat_Usecase(20,
                                                 16,
                                                 0.57,
