@@ -59,7 +59,6 @@ DEPENDENCIES=(
   libcugraph-tests
   libraft
   librmm
-  pylibcudf
   pylibcugraph
   pylibwholegraph
   pylibraft
