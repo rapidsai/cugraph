@@ -351,7 +351,7 @@ def _create_entity_nodes(
                 NODETYPE: key
                 if not categorical_metadata
                 else cudf.CategoricalIndex.from_codes(
-                    codes=[0] * len(events), categories=[key], ordered=False
+                    codes=[0] * len(col), categories=[key], ordered=False
                 ),
             }
         )
@@ -391,7 +391,7 @@ def _create_hyper_nodes(
         "event"
         if not categorical_metadata
         else cudf.CategoricalIndex.from_codes(
-            codes=[0] * len(events), categories=["event"], ordered=False
+            codes=[0] * len(nodes), categories=["event"], ordered=False
         )
     )
     nodes[NODEID] = nodes[EVENTID]
