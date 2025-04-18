@@ -15,6 +15,7 @@ files:
       - depends_on_cupy
       - depends_on_dask_cuda
       - depends_on_dask_cudf
+      - depends_on_libcudf
       - depends_on_libraft
       - depends_on_librmm
       - depends_on_pylibcudf
@@ -669,6 +670,12 @@ dependencies:
             packages:
               - pylibwholegraph-cu11==25.6.*,>=0.0.0a0
           - {matrix: null, packages: [*pylibwholegraph_unsuffixed]}
+
+  depends_on_libcudf:
+    common:
+      - output_types: conda
+        packages:
+          - libcudf==25.6.*,>=0.0.0a0
 
   depends_on_libraft:
     common:

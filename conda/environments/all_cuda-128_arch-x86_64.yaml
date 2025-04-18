@@ -30,6 +30,7 @@ dependencies:
 - graphviz
 - ipython
 - libcublas-dev
+- libcudf==25.6.*,>=0.0.0a0
 - libcurand-dev
 - libcusolver-dev
 - libcusparse-dev
