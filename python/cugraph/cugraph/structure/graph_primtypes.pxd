@@ -20,7 +20,6 @@ from libcpp cimport bool
 from libcpp.memory cimport unique_ptr
 from libcpp.utility cimport pair
 from libcpp.vector cimport vector
-from pylibcudf cimport DataType
 from pylibraft.common.handle cimport *
 from rmm.librmm.device_buffer cimport device_buffer
 
@@ -157,14 +156,14 @@ ctypedef GraphCSRView[int,int,double] GraphCSRViewDouble
 
 cdef move_device_buffer_to_column(
     unique_ptr[device_buffer] device_buffer_unique_ptr,
-    DataType dtype,
+    dtype,
     size_t itemsize,
 )
 cdef move_device_buffer_to_series(
     unique_ptr[device_buffer] device_buffer_unique_ptr,
-    DataType dtype,
+    dtype,
     size_t itemsize,
-    series_name
+    series_name,
 )
 cdef coo_to_df(GraphCOOPtrType graph)
 cdef csr_to_series(GraphCSRPtrType graph)

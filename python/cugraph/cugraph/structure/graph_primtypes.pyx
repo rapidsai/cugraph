@@ -19,13 +19,14 @@
 from libc.stdint cimport uintptr_t
 from libcpp.utility cimport move
 
-from pylibcudf cimport Column, DataType, type_id
+from rmm.pylibrmm.device_buffer cimport DeviceBuffer
+import pylibcudf as plc
 import cudf
 
 
 cdef move_device_buffer_to_column(
     unique_ptr[device_buffer] device_buffer_unique_ptr,
-    DataType dtype,
+    dtype,
     size_t itemsize,
 ):
     """
@@ -35,9 +36,10 @@ cdef move_device_buffer_to_column(
     transfered but None is returned.
     """
     cdef size_t buff_size = device_buffer_unique_ptr.get().size()
+    cdef DeviceBuffer buff = DeviceBuffer.c_from_unique_ptr(move(device_buffer_unique_ptr))
     cdef size_t col_size = buff_size // itemsize
-    cdef Column result_column = Column.from_rmm_buffer(
-        move(device_buffer_unique_ptr),
+    result_column = plc.Column.from_rmm_buffer(
+        buff,
         dtype,
         col_size,
         [],
@@ -49,7 +51,7 @@ cdef move_device_buffer_to_column(
 
 cdef move_device_buffer_to_series(
     unique_ptr[device_buffer] device_buffer_unique_ptr,
-    DataType dtype,
+    dtype,
     size_t itemsize,
     series_name
 ):
@@ -75,22 +77,22 @@ cdef coo_to_df(GraphCOOPtrType graph):
     contents = move(graph.get()[0].release())
     src = move_device_buffer_to_series(
         move(contents.src_indices),
-        DataType(type_id.INT32),
+        plc.DataType(plc.TypeId.INT32),
         4,
         None,
     )
     dst = move_device_buffer_to_series(
         move(contents.dst_indices),
-        DataType(type_id.INT32),
+        plc.DataType(plc.TypeId.INT32),
         4,
         None,
     )
 
     if GraphCOOPtrType is GraphCOOPtrFloat:
-        weight_type = DataType(type_id.FLOAT32)
+        weight_type = plc.DataType(plc.TypeId.FLOAT32)
         itemsize = 4
     elif GraphCOOPtrType is GraphCOOPtrDouble:
-        weight_type = DataType(type_id.FLOAT64)
+        weight_type = plc.DataType(plc.TypeId.FLOAT64)
         itemsize = 8
     else:
         raise TypeError("Invalid GraphCOOPtrType")
@@ -115,22 +117,22 @@ cdef csr_to_series(GraphCSRPtrType graph):
     contents = move(graph.get()[0].release())
     csr_offsets = move_device_buffer_to_series(
         move(contents.offsets),
-        DataType(type_id.INT32),
+        plc.DataType(plc.TypeId.INT32),
         4,
         "csr_offsets"
     )
     csr_indices = move_device_buffer_to_series(
         move(contents.indices),
-        DataType(type_id.INT32),
+        plc.DataType(plc.TypeId.INT32),
         4,
         "csr_indices"
     )
 
     if GraphCSRPtrType is GraphCSRPtrFloat:
-        weight_type = DataType(type_id.FLOAT32)
+        weight_type = plc.DataType(plc.TypeId.FLOAT32)
         itemsize = 4
     elif GraphCSRPtrType is GraphCSRPtrDouble:
-        weight_type = DataType(type_id.FLOAT64)
+        weight_type = plc.DataType(plc.TypeId.FLOAT64)
         itemsize = 8
     else:
         raise TypeError("Invalid GraphCSRPtrType")
