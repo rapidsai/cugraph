@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2024, NVIDIA CORPORATION.
+# Copyright (c) 2019-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -154,8 +154,17 @@ ctypedef GraphCOOView[int,int,double] GraphCOOViewDouble
 ctypedef GraphCSRView[int,int,float] GraphCSRViewFloat
 ctypedef GraphCSRView[int,int,double] GraphCSRViewDouble
 
-cdef move_device_buffer_to_column(unique_ptr[device_buffer] device_buffer_unique_ptr, dtype)
-cdef move_device_buffer_to_series(unique_ptr[device_buffer] device_buffer_unique_ptr, dtype, series_name)
+cdef move_device_buffer_to_column(
+    unique_ptr[device_buffer] device_buffer_unique_ptr,
+    dtype,
+    size_t itemsize,
+)
+cdef move_device_buffer_to_series(
+    unique_ptr[device_buffer] device_buffer_unique_ptr,
+    dtype,
+    size_t itemsize,
+    series_name,
+)
 cdef coo_to_df(GraphCOOPtrType graph)
 cdef csr_to_series(GraphCSRPtrType graph)
 cdef GraphCOOViewFloat get_coo_float_graph_view(input_graph, bool weighted=*)
