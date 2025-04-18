@@ -106,7 +106,6 @@ files:
       key: requires
     includes:
       - common_build
-      - depends_on_libcudf
       - depends_on_libcugraph
       - depends_on_libraft
       - depends_on_librmm
