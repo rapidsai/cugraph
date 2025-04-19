@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2024, NVIDIA CORPORATION.
+# Copyright (c) 2020-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -62,6 +62,8 @@ def cugraph_call(
     outbound_attraction_distribution,
     lin_log_mode,
     prevent_overlapping,
+    vertex_radius,
+    overlap_scaling_ratio
     edge_weight_influence,
     jitter_tolerance,
     barnes_hut_theta,
@@ -89,6 +91,8 @@ def cugraph_call(
         outbound_attraction_distribution=outbound_attraction_distribution,
         lin_log_mode=lin_log_mode,
         prevent_overlapping=prevent_overlapping,
+        vertex_radius=vertex_radius,
+        overlap_scaling_ratio=overlap_scaling_ratio,
         edge_weight_influence=edge_weight_influence,
         jitter_tolerance=jitter_tolerance,
         barnes_hut_optimize=barnes_hut_optimize,
@@ -153,6 +157,8 @@ def test_force_atlas2(graph_file, score, max_iter, barnes_hut_optimize):
         outbound_attraction_distribution=True,
         lin_log_mode=False,
         prevent_overlapping=False,
+        vertex_radius=None,
+        overlap_scaling_ratio=100.0,
         edge_weight_influence=1.0,
         jitter_tolerance=1.0,
         barnes_hut_optimize=False,

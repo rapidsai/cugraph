@@ -37,6 +37,8 @@ __global__ static void attraction_kernel(const vertex_t* restrict row,
                                          bool outbound_attraction_distribution,
                                          bool lin_log_mode,
                                          const float edge_weight_influence,
+                                         bool prevent_overlapping,
+                                         const float* restrict vertex_radius,
                                          const float coef)
 {
   vertex_t i, src, dst;
@@ -56,11 +58,32 @@ __global__ static void attraction_kernel(const vertex_t* restrict row,
     float y_dist = y_pos[src] - y_pos[dst];
     float factor = -coef * weight;
 
-    if (lin_log_mode) {
-      float distance = pow(x_dist, 2) + pow(y_dist, 2);
-      distance += FLT_EPSILON;
-      distance = sqrt(distance);
-      factor *= log(1 + distance) / distance;
+    if (prevent_overlapping) {
+      float radius_src = vertex_radius[src];
+      float radius_dst = vertex_radius[dst];
+      float distance_sq = x_dist * x_dist + y_dist * y_dist;
+      if (distance_sq <= pow(radius_src + radius_dst, 2)) {
+        // Overlapping, force is 0
+        continue;
+      } else {
+        // Not overlapping, force is based on d' instead of d
+        float distance = pow(x_dist, 2) + pow(y_dist, 2);
+        distance += FLT_EPSILON;
+        distance = sqrt(distance);
+        float distance_inter = distance - radius_src - radius_dst;
+        if (lin_log_mode) {
+          factor *= log(1 + distance_inter) / distance;
+        } else {
+          factor *= distance_inter / distance;
+        }
+      }
+    } else {
+      if (lin_log_mode) {
+        float distance = pow(x_dist, 2) + pow(y_dist, 2);
+        distance += FLT_EPSILON;
+        distance = sqrt(distance);
+        factor *= log(1 + distance) / distance;
+      }
     }
     if (outbound_attraction_distribution) factor /= mass[src];
 
@@ -86,6 +109,8 @@ void apply_attraction(const vertex_t* restrict row,
                       bool lin_log_mode,
                       const float edge_weight_influence,
                       const float coef,
+                      bool prevent_overlapping,
+                      const float* restrict vertex_radius,
                       cudaStream_t stream)
 {
   // 0 edge graph.
@@ -112,6 +137,8 @@ void apply_attraction(const vertex_t* restrict row,
                                        outbound_attraction_distribution,
                                        lin_log_mode,
                                        edge_weight_influence,
+                                       prevent_overlapping,
+                                       vertex_radius,
                                        coef);
 
   RAFT_CHECK_CUDA(stream);

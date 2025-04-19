@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2022, NVIDIA CORPORATION.
+# Copyright (c) 2020-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -34,6 +34,8 @@ cdef extern from "cugraph/algorithms.hpp" namespace "cugraph":
         bool outbound_attraction_distribution,
         bool lin_log_mode,
         bool prevent_overlapping,
+        float *vertex_radius,
+        const float overlap_scaling_ratio,
         const float edge_weight_influence,
         const float jitter_tolerance,
         bool barnes_hut_optimize,

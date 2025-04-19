@@ -71,6 +71,8 @@ cdef extern from "cugraph_c/layout_algorithms.h":
         bool_t outbound_attraction_distribution,
         bool_t lin_log_mode,
         bool_t prevent_overlapping,
+        cugraph_type_erased_device_array_view_t* vertex_radius,
+        double overlap_scaling_ratio,
         double edge_weight_influence,
         double jitter_tolerance,
         bool_t barnes_hut_optimize,
