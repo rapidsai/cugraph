@@ -130,6 +130,7 @@ struct e_op_t {
   detail::kv_cuco_store_find_device_view_t<detail::kv_cuco_store_view_t<key_t, weight_t const*>>
     key_to_dist_map{};
   tag_t num_origins{};
+  weight_t invalid_distance{};
 
   __device__ thrust::tuple<tag_t, weight_t> operator()(thrust::tuple<vertex_t, tag_t> tagged_src,
                                                        vertex_t dst,
@@ -655,7 +656,8 @@ rmm::device_uvector<weight_t> od_shortest_distances(
 
       auto e_op = e_op_t<vertex_t, od_idx_t, key_t, weight_t>{
         detail::kv_cuco_store_find_device_view_t(key_to_dist_map.view()),
-        static_cast<od_idx_t>(origins.size())};
+        static_cast<od_idx_t>(origins.size()), 
+        invalid_distance};
       detail::transform_reduce_if_v_frontier_call_e_op_t<
         thrust::tuple<vertex_t, od_idx_t>,
         weight_t,
