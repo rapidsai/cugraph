@@ -159,8 +159,8 @@ jobs:
       matrix_filter: group_by([.ARCH, (.CUDA_VER|split(".")|map(tonumber)|.[0])]) | map(max_by(.PY_VER|split(".")|map(tonumber)))
       build_type: pull-request
       script: ci/build_wheel_libcugraph.sh
+      package-name: libcugraph
       package-type: cpp
-      wheel-name: libcugraph
   wheel-build-pylibcugraph:
     needs: wheel-build-libcugraph
     secrets: inherit
@@ -168,8 +168,8 @@ jobs:
     with:
       build_type: pull-request
       script: ci/build_wheel_pylibcugraph.sh
+      package-name: pylibcugraph
       package-type: python
-      wheel-name: pylibcugraph
   wheel-tests-pylibcugraph:
     needs: [wheel-build-pylibcugraph, changed-files]
     secrets: inherit
@@ -185,8 +185,8 @@ jobs:
     with:
       build_type: pull-request
       script: ci/build_wheel_cugraph.sh
+      package-name: cugraph
       package-type: python
-      wheel-name: cugraph
   wheel-tests-cugraph:
     needs: [wheel-build-cugraph, changed-files]
     secrets: inherit
