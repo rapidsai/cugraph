@@ -29,8 +29,8 @@
 #include <rmm/device_uvector.hpp>
 
 #include <cuda/std/functional>
+#include <cuda/std/iterator>
 #include <thrust/count.h>
-#include <thrust/distance.h>
 #include <thrust/equal.h>
 #include <thrust/extrema.h>
 #include <thrust/fill.h>
@@ -131,7 +131,7 @@ bool validate_extracted_graph_is_subgraph(
       handle.get_thrust_policy(), graph_iter, graph_iter + src_v.size(), ArithmeticZipLess{});
     auto graph_iter_end = thrust::unique(
       handle.get_thrust_policy(), graph_iter, graph_iter + src_v.size(), ArithmeticZipEqual{});
-    auto new_size = thrust::distance(graph_iter, graph_iter_end);
+    auto new_size = cuda::std::distance(graph_iter, graph_iter_end);
 
     src_v.resize(new_size, handle.get_stream());
     dst_v.resize(new_size, handle.get_stream());
@@ -153,7 +153,7 @@ bool validate_extracted_graph_is_subgraph(
       handle.get_thrust_policy(), graph_iter, graph_iter + src_v.size(), ArithmeticZipLess{});
     auto graph_iter_end = thrust::unique(
       handle.get_thrust_policy(), graph_iter, graph_iter + src_v.size(), ArithmeticZipEqual{});
-    auto new_size = thrust::distance(graph_iter, graph_iter_end);
+    auto new_size = cuda::std::distance(graph_iter, graph_iter_end);
 
     src_v.resize(new_size, handle.get_stream());
     dst_v.resize(new_size, handle.get_stream());

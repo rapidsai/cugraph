@@ -71,12 +71,16 @@ jobs:
     secrets: inherit
     uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@branch-25.06
     with:
+      # build for every combination of arch and CUDA version, but only for the latest Python version
+      matrix_filter: group_by([.ARCH, (.CUDA_VER|split(".")|map(tonumber)|.[0])]) | map(max_by(.PY_VER|split(".")|map(tonumber)))
       build_type: ${{ inputs.build_type || 'branch' }}
       branch: ${{ inputs.branch }}
       sha: ${{ inputs.sha }}
       date: ${{ inputs.date }}
       script: ci/build_wheel_libcugraph.sh
       node_type: cpu32
+      package-type: cpp
+      wheel-name: libcugraph
   wheel-publish-libcugraph:
     needs: wheel-build-libcugraph
     secrets: inherit
@@ -98,6 +102,8 @@ jobs:
       sha: ${{ inputs.sha }}
       date: ${{ inputs.date }}
       script: ci/build_wheel_pylibcugraph.sh
+      package-type: python
+      wheel-name: pylibcugraph
   wheel-publish-pylibcugraph:
     needs: wheel-build-pylibcugraph
     secrets: inherit
@@ -119,6 +125,8 @@ jobs:
       sha: ${{ inputs.sha }}
       date: ${{ inputs.date }}
       script: ci/build_wheel_cugraph.sh
+      package-type: python
+      wheel-name: cugraph
   wheel-publish-cugraph:
     needs: wheel-build-cugraph
     secrets: inherit

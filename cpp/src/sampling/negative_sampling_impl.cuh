@@ -36,6 +36,7 @@
 #include <rmm/device_scalar.hpp>
 
 #include <cuda/std/functional>
+#include <cuda/std/iterator>
 #include <thrust/adjacent_difference.h>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
@@ -97,7 +98,7 @@ normalize_biases(raft::handle_t const& handle,
     // thrust::upper_bound to assign random values to GPUs, we need the value 1.0 to
     // be part of the upper-most range.  We'll compute the last non-zero value in the
     // gpu_biases array here and below we will fill it with a value larger than 1.0
-    size_t trailing_zeros = thrust::distance(
+    size_t trailing_zeros = cuda::std::distance(
       thrust::make_reverse_iterator(gpu_biases->end()),
       thrust::find_if(handle.get_thrust_policy(),
                       thrust::make_reverse_iterator(gpu_biases->end()),
@@ -223,7 +224,7 @@ rmm::device_uvector<vertex_t> create_local_samples(
        offset = graph_view.local_vertex_partition_range_first()] __device__(weight_t r) {
         size_t result =
           offset +
-          static_cast<vertex_t>(thrust::distance(
+          static_cast<vertex_t>(cuda::std::distance(
             biases.begin(), thrust::lower_bound(thrust::seq, biases.begin(), biases.end(), r)));
 
         // FIXME: https://github.com/rapidsai/raft/issues/2400
@@ -369,8 +370,8 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> negativ
                                        has_edge_flags.begin(),
                                        cuda::std::identity());
 
-      batch_srcs.resize(thrust::distance(begin_iter, new_end), handle.get_stream());
-      batch_dsts.resize(thrust::distance(begin_iter, new_end), handle.get_stream());
+      batch_srcs.resize(cuda::std::distance(begin_iter, new_end), handle.get_stream());
+      batch_dsts.resize(cuda::std::distance(begin_iter, new_end), handle.get_stream());
     }
 
     if (remove_duplicates) {
@@ -383,7 +384,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> negativ
                        thrust::make_zip_iterator(batch_srcs.begin(), batch_dsts.begin()),
                        thrust::make_zip_iterator(batch_srcs.end(), batch_dsts.end()));
 
-      size_t new_size = thrust::distance(
+      size_t new_size = cuda::std::distance(
         thrust::make_zip_iterator(batch_srcs.begin(), batch_dsts.begin()), new_end);
 
       if (srcs.size() > 0) {
@@ -402,7 +403,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> negativ
                                  thrust::make_zip_iterator(new_src.end(), new_dst.end()));
 
         new_size =
-          thrust::distance(thrust::make_zip_iterator(new_src.begin(), new_dst.begin()), new_end);
+          cuda::std::distance(thrust::make_zip_iterator(new_src.begin(), new_dst.begin()), new_end);
 
         srcs = std::move(new_src);
         dsts = std::move(new_dst);
@@ -514,7 +515,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> negativ
           thrust::seq, gpu_assignment_span.begin(), gpu_assignment_span.end(), static_cast<int>(i));
         auto end =
           thrust::upper_bound(thrust::seq, begin, gpu_assignment_span.end(), static_cast<int>(i));
-        return thrust::distance(begin, end);
+        return cuda::std::distance(begin, end);
       });
 
     std::vector<size_t> tx_value_counts(comm_size, 0);

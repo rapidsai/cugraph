@@ -23,6 +23,7 @@
 #include <cugraph/mtmg/vertex_pair_result_view.hpp>
 #include <cugraph/vertex_partition_device_view.cuh>
 
+#include <cuda/std/iterator>
 #include <thrust/functional.h>
 #include <thrust/gather.h>
 
@@ -127,7 +128,7 @@ std::
                       });
 
   v1.resize(
-    thrust::distance(thrust::make_zip_iterator(v1.begin(), v2.begin(), result.begin()), new_end),
+    cuda::std::distance(thrust::make_zip_iterator(v1.begin(), v2.begin(), result.begin()), new_end),
     stream);
   v2.resize(v1.size(), stream);
   result.resize(v1.size(), stream);
@@ -145,7 +146,7 @@ std::
         [local_v = raft::device_span<vertex_t const>{local_vertices.data(), local_vertices.size()},
          gpu     = raft::device_span<int const>{vertex_gpu_ids.data(),
                                                 vertex_gpu_ids.size()}] __device__(auto v1) {
-          return gpu[thrust::distance(
+          return gpu[cuda::std::distance(
             local_v.begin(), thrust::lower_bound(thrust::seq, local_v.begin(), local_v.end(), v1))];
         }),
       stream);

@@ -30,6 +30,7 @@
 
 #include <rmm/device_uvector.hpp>
 
+#include <cuda/std/iterator>
 #include <cuda/std/optional>
 #include <thrust/tuple.h>
 
@@ -256,7 +257,7 @@ gather_one_hop_edgelist(
                                                        edge_ids->begin(),
                                                        edge_types->begin(),
                                                        labels->begin());
-          new_size         = static_cast<size_t>(thrust::distance(
+          new_size         = static_cast<size_t>(cuda::std::distance(
             tuple_first,
             thrust::remove_if(
               handle.get_thrust_policy(),
@@ -273,7 +274,7 @@ gather_one_hop_edgelist(
                                                        edge_weights->begin(),
                                                        edge_ids->begin(),
                                                        edge_types->begin());
-          new_size         = static_cast<size_t>(thrust::distance(
+          new_size         = static_cast<size_t>(cuda::std::distance(
             tuple_first,
             thrust::remove_if(
               handle.get_thrust_policy(),
@@ -292,7 +293,7 @@ gather_one_hop_edgelist(
                                                        edge_weights->begin(),
                                                        edge_types->begin(),
                                                        labels->begin());
-          new_size         = static_cast<size_t>(thrust::distance(
+          new_size         = static_cast<size_t>(cuda::std::distance(
             tuple_first,
             thrust::remove_if(
               handle.get_thrust_policy(),
@@ -306,7 +307,7 @@ gather_one_hop_edgelist(
         } else {
           auto tuple_first = thrust::make_zip_iterator(
             majors.begin(), minors.begin(), edge_weights->begin(), edge_types->begin());
-          new_size = static_cast<size_t>(thrust::distance(
+          new_size = static_cast<size_t>(cuda::std::distance(
             tuple_first,
             thrust::remove_if(
               handle.get_thrust_policy(),
@@ -327,7 +328,7 @@ gather_one_hop_edgelist(
                                                        edge_ids->begin(),
                                                        edge_types->begin(),
                                                        labels->begin());
-          new_size         = static_cast<size_t>(thrust::distance(
+          new_size         = static_cast<size_t>(cuda::std::distance(
             tuple_first,
             thrust::remove_if(
               handle.get_thrust_policy(),
@@ -341,7 +342,7 @@ gather_one_hop_edgelist(
         } else {
           auto tuple_first = thrust::make_zip_iterator(
             majors.begin(), minors.begin(), edge_ids->begin(), edge_types->begin());
-          new_size = static_cast<size_t>(thrust::distance(
+          new_size = static_cast<size_t>(cuda::std::distance(
             tuple_first,
             thrust::remove_if(
               handle.get_thrust_policy(),
@@ -357,7 +358,7 @@ gather_one_hop_edgelist(
         if constexpr (std::is_same_v<tag_t, label_t>) {
           auto tuple_first = thrust::make_zip_iterator(
             majors.begin(), minors.begin(), edge_types->begin(), labels->begin());
-          new_size = static_cast<size_t>(thrust::distance(
+          new_size = static_cast<size_t>(cuda::std::distance(
             tuple_first,
             thrust::remove_if(
               handle.get_thrust_policy(),
@@ -371,7 +372,7 @@ gather_one_hop_edgelist(
         } else {
           auto tuple_first =
             thrust::make_zip_iterator(majors.begin(), minors.begin(), edge_types->begin());
-          new_size = static_cast<size_t>(thrust::distance(
+          new_size = static_cast<size_t>(cuda::std::distance(
             tuple_first,
             thrust::remove_if(
               handle.get_thrust_policy(),
