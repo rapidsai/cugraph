@@ -36,8 +36,8 @@
 #include <rmm/exec_policy.hpp>
 
 #include <cuda/functional>
+#include <cuda/std/__algorithm_>
 #include <cuda/std/iterator>
-#include <thrust/binary_search.h>
 #include <thrust/copy.h>
 #include <thrust/count.h>
 #include <thrust/execution_policy.h>
@@ -376,8 +376,8 @@ void update_edge_major_property(raft::handle_t const& handle,
            edge_partition_key_last    = ((*edge_partition_keys)[i]).end(),
            edge_partition_value_first = edge_partition_value_firsts[i]] __device__(size_t i) {
             auto major = *(rx_vertex_first + i);
-            auto it    = thrust::lower_bound(
-              thrust::seq, edge_partition_key_first, edge_partition_key_last, major);
+            auto it =
+              cuda::std::lower_bound(edge_partition_key_first, edge_partition_key_last, major);
             if ((it != edge_partition_key_last) && (*it == major)) {
               auto edge_partition_offset = cuda::std::distance(edge_partition_key_first, it);
               if constexpr (contains_packed_bool_element) {
@@ -859,8 +859,7 @@ void update_edge_minor_property(raft::handle_t const& handle,
            edge_partition_value_first = edge_partition_value_first,
            subrange_start_offset      = (*key_offsets)[i]] __device__(auto i) {
             auto minor = *(rx_vertex_first + i);
-            auto it =
-              thrust::lower_bound(thrust::seq, subrange_key_first, subrange_key_last, minor);
+            auto it    = cuda::std::lower_bound(subrange_key_first, subrange_key_last, minor);
             if ((it != subrange_key_last) && (*it == minor)) {
               auto subrange_offset = cuda::std::distance(subrange_key_first, it);
               if constexpr (contains_packed_bool_element) {

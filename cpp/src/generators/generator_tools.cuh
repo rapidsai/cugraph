@@ -25,6 +25,7 @@
 
 #include <rmm/device_uvector.hpp>
 
+#include <cuda/std/__algorithm_>
 #include <cuda/std/iterator>
 #include <thrust/copy.h>
 #include <thrust/execution_policy.h>
@@ -115,8 +116,7 @@ combine_edgelists(raft::handle_t const& handle,
     CUGRAPH_EXPECTS(sources.size() == optional_d_weights.value().size(),
                     "has_weights is specified, sources and weights must be the same size");
 
-    thrust::for_each_n(
-      thrust::host,
+    cuda::std::for_each_n(
       thrust::make_zip_iterator(
         thrust::make_tuple(sources.begin(), dests.begin(), optional_d_weights.value().begin())),
       sources.size(),
@@ -127,8 +127,7 @@ combine_edgelists(raft::handle_t const& handle,
                         "source vertex and weights uvectors must be same size");
       });
   } else {
-    thrust::for_each_n(
-      thrust::host,
+    cuda::std::for_each_n(
       thrust::make_zip_iterator(thrust::make_tuple(sources.begin(), dests.begin())),
       sources.size(),
       [](auto tuple) {

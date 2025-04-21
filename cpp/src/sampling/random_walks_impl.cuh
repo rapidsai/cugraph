@@ -39,6 +39,7 @@
 
 #include <rmm/device_uvector.hpp>
 
+#include <cuda/std/__algorithm_>
 #include <cuda/std/iterator>
 #include <cuda/std/optional>
 
@@ -107,8 +108,7 @@ struct node2vec_random_walk_e_bias_op_t {
     //  Check tag (prev vert) for destination
     if (dst == thrust::get<1>(tagged_src)) { return 1.0 / p_; }
     //  Search zipped vertices for tagged src
-    auto lower_itr = thrust::lower_bound(
-      thrust::seq,
+    auto lower_itr = cuda::std::lower_bound(
       thrust::make_zip_iterator(current_vertices_.begin(), prev_vertices_.begin()),
       thrust::make_zip_iterator(current_vertices_.end(), prev_vertices_.end()),
       tagged_src);
@@ -117,8 +117,7 @@ struct node2vec_random_walk_e_bias_op_t {
     auto intersection_index_first = intersection_indices_.begin() + intersection_offsets_[low_idx];
     auto intersection_index_last =
       intersection_indices_.begin() + intersection_offsets_[low_idx + 1];
-    auto itr =
-      thrust::lower_bound(thrust::seq, intersection_index_first, intersection_index_last, dst);
+    auto itr = cuda::std::lower_bound(intersection_index_first, intersection_index_last, dst);
     return (itr != intersection_index_last && *itr == dst) ? 1.0 : 1.0 / q_;
   }
 
@@ -134,8 +133,7 @@ struct node2vec_random_walk_e_bias_op_t {
     //  Check tag (prev vert) for destination
     if (dst == thrust::get<1>(tagged_src)) { return 1.0 / p_; }
     //  Search zipped vertices for tagged src
-    auto lower_itr = thrust::lower_bound(
-      thrust::seq,
+    auto lower_itr = cuda::std::lower_bound(
       thrust::make_zip_iterator(current_vertices_.begin(), prev_vertices_.begin()),
       thrust::make_zip_iterator(current_vertices_.end(), prev_vertices_.end()),
       tagged_src);
@@ -144,8 +142,7 @@ struct node2vec_random_walk_e_bias_op_t {
     auto intersection_index_first = intersection_indices_.begin() + intersection_offsets_[low_idx];
     auto intersection_index_last =
       intersection_indices_.begin() + intersection_offsets_[low_idx + 1];
-    auto itr =
-      thrust::lower_bound(thrust::seq, intersection_index_first, intersection_index_last, dst);
+    auto itr = cuda::std::lower_bound(intersection_index_first, intersection_index_last, dst);
     return (itr != intersection_index_last && *itr == dst) ? 1.0 : 1.0 / q_;
   }
 };

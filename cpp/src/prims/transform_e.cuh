@@ -28,9 +28,9 @@
 
 #include <rmm/exec_policy.hpp>
 
+#include <cuda/std/__algorithm_>
 #include <cuda/std/iterator>
 #include <cuda/std/optional>
-#include <thrust/binary_search.h>
 #include <thrust/count.h>
 #include <thrust/for_each.h>
 #include <thrust/iterator/zip_iterator.h>
@@ -162,8 +162,8 @@ struct update_e_value_t {
     edge_t edge_offset{};
     edge_t local_degree{};
     thrust::tie(indices, edge_offset, local_degree) = edge_partition.local_edges(*major_idx);
-    auto lower_it = thrust::lower_bound(thrust::seq, indices, indices + local_degree, minor);
-    auto upper_it = thrust::upper_bound(thrust::seq, lower_it, indices + local_degree, minor);
+    auto lower_it = cuda::std::lower_bound(indices, indices + local_degree, minor);
+    auto upper_it = cuda::std::upper_bound(lower_it, indices + local_degree, minor);
 
     auto src        = GraphViewType::is_storage_transposed ? minor : major;
     auto dst        = GraphViewType::is_storage_transposed ? major : minor;
@@ -565,12 +565,10 @@ void transform_e(raft::handle_t const& handle,
             edge_t local_degree{};
             thrust::tie(indices, edge_offset, local_degree) =
               edge_partition.local_edges(*major_idx);
-            auto lower_it =
-              thrust::lower_bound(thrust::seq, indices, indices + local_degree, minor);
+            auto lower_it = cuda::std::lower_bound(indices, indices + local_degree, minor);
             if (*lower_it != minor) { return true; }
             if (edge_partition_e_mask) {
-              auto upper_it =
-                thrust::upper_bound(thrust::seq, lower_it, indices + local_degree, minor);
+              auto upper_it = cuda::std::upper_bound(lower_it, indices + local_degree, minor);
               if (detail::count_set_bits((*edge_partition_e_mask).value_first(),
                                          edge_offset + cuda::std::distance(indices, lower_it),
                                          cuda::std::distance(lower_it, upper_it)) == 0) {

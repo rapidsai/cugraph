@@ -32,6 +32,7 @@
 
 #include <rmm/exec_policy.hpp>
 
+#include <cuda/std/__algorithm_>
 #include <cuda/std/optional>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
@@ -154,10 +155,8 @@ struct segmented_fill_t {
     auto value = *(fill_value_first + i);
     // FIXME: this can lead to thread-divergence with a mix of segment sizes (better optimize if
     // this becomes a performance bottleneck)
-    thrust::fill(thrust::seq,
-                 output_value_first + segment_offsets[i],
-                 output_value_first + segment_offsets[i + 1],
-                 value);
+    cuda::std::fill(
+      output_value_first + segment_offsets[i], output_value_first + segment_offsets[i + 1], value);
   }
 };
 

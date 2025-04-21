@@ -40,6 +40,7 @@
 #include <rmm/mr/device/polymorphic_allocator.hpp>
 
 #include <cub/cub.cuh>
+#include <cuda/std/__algorithm_>
 #include <cuda/std/iterator>
 #include <cuda/std/optional>
 #include <thrust/copy.h>
@@ -679,8 +680,8 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
             minor_comm_ranks.end(),
             [minor_comm_rank_lasts = raft::device_span<size_t const>(
                minor_comm_rank_lasts.data(), minor_comm_rank_lasts.size())] __device__(size_t i) {
-              auto it = thrust::upper_bound(
-                thrust::seq, minor_comm_rank_lasts.begin(), minor_comm_rank_lasts.end(), i);
+              auto it = cuda::std::upper_bound(
+                minor_comm_rank_lasts.begin(), minor_comm_rank_lasts.end(), i);
               return static_cast<int>(cuda::std::distance(minor_comm_rank_lasts.begin(), it));
             });
 

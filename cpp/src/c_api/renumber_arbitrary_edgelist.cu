@@ -23,8 +23,8 @@
 #include <cugraph/graph.hpp>
 #include <cugraph/utilities/error.hpp>
 
+#include <cuda/std/__algorithm_>
 #include <cuda/std/iterator>
-#include <thrust/binary_search.h>
 #include <thrust/iterator/counting_iterator.h>
 
 namespace {
@@ -87,8 +87,8 @@ cugraph_error_code_t renumber_arbitrary_edgelist(
          raft::device_span<vertex_t const>{renumber_chunk.data(), renumber_chunk.size()},
        vertices_span,
        ids_span] __device__(size_t idx) {
-        auto pos = thrust::lower_bound(
-          thrust::seq, vertices_span.begin(), vertices_span.end(), renumber_chunk_span[idx]);
+        auto pos = cuda::std::lower_bound(
+          vertices_span.begin(), vertices_span.end(), renumber_chunk_span[idx]);
         if ((pos != vertices_span.end()) && (*pos == renumber_chunk_span[idx])) {
           ids_span[cuda::std::distance(vertices_span.begin(), pos)] =
             static_cast<vertex_t>(chunk_base_offset + idx);
@@ -102,27 +102,25 @@ cugraph_error_code_t renumber_arbitrary_edgelist(
                                 cugraph::invalid_vertex_id<vertex_t>::value) == 0,
                   "some vertices were not renumbered");
 
-  thrust::transform(
-    handle.get_thrust_policy(),
-    srcs->as_type<vertex_t>(),
-    srcs->as_type<vertex_t>() + srcs->size_,
-    srcs->as_type<vertex_t>(),
-    [vertices_span, ids_span] __device__(vertex_t v) {
-      return ids_span[cuda::std::distance(
-        vertices_span.begin(),
-        thrust::lower_bound(thrust::seq, vertices_span.begin(), vertices_span.end(), v))];
-    });
+  thrust::transform(handle.get_thrust_policy(),
+                    srcs->as_type<vertex_t>(),
+                    srcs->as_type<vertex_t>() + srcs->size_,
+                    srcs->as_type<vertex_t>(),
+                    [vertices_span, ids_span] __device__(vertex_t v) {
+                      return ids_span[cuda::std::distance(
+                        vertices_span.begin(),
+                        cuda::std::lower_bound(vertices_span.begin(), vertices_span.end(), v))];
+                    });
 
-  thrust::transform(
-    handle.get_thrust_policy(),
-    dsts->as_type<vertex_t>(),
-    dsts->as_type<vertex_t>() + srcs->size_,
-    dsts->as_type<vertex_t>(),
-    [vertices_span, ids_span] __device__(vertex_t v) {
-      return ids_span[cuda::std::distance(
-        vertices_span.begin(),
-        thrust::lower_bound(thrust::seq, vertices_span.begin(), vertices_span.end(), v))];
-    });
+  thrust::transform(handle.get_thrust_policy(),
+                    dsts->as_type<vertex_t>(),
+                    dsts->as_type<vertex_t>() + srcs->size_,
+                    dsts->as_type<vertex_t>(),
+                    [vertices_span, ids_span] __device__(vertex_t v) {
+                      return ids_span[cuda::std::distance(
+                        vertices_span.begin(),
+                        cuda::std::lower_bound(vertices_span.begin(), vertices_span.end(), v))];
+                    });
 
   return CUGRAPH_SUCCESS;
 }

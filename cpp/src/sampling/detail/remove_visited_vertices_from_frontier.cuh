@@ -19,8 +19,8 @@
 
 #include <rmm/device_uvector.hpp>
 
+#include <cuda/std/__algorithm_>
 #include <cuda/std/iterator>
-#include <thrust/binary_search.h>
 #include <thrust/remove.h>
 #include <thrust/tuple.h>
 
@@ -51,10 +51,9 @@ remove_visited_vertices_from_frontier(
        b_begin = vertex_labels_used_as_source->begin(),
        b_end =
          vertex_labels_used_as_source->end()] __device__(thrust::tuple<vertex_t, label_t> tuple) {
-        return thrust::binary_search(thrust::seq,
-                                     thrust::make_zip_iterator(a_begin, b_begin),
-                                     thrust::make_zip_iterator(a_end, b_end),
-                                     tuple);
+        return cuda::std::binary_search(thrust::make_zip_iterator(a_begin, b_begin),
+                                        thrust::make_zip_iterator(a_end, b_end),
+                                        tuple);
       });
 
     frontier_vertices.resize(cuda::std::distance(begin_iter, new_end), handle.get_stream());
@@ -66,7 +65,7 @@ remove_visited_vertices_from_frontier(
       frontier_vertices.end(),
       frontier_vertices.begin(),
       [a_begin = vertices_used_as_source.begin(), a_end = vertices_used_as_source.end()] __device__(
-        vertex_t v) { return !thrust::binary_search(thrust::seq, a_begin, a_end, v); });
+        vertex_t v) { return !cuda::std::binary_search(a_begin, a_end, v); });
     frontier_vertices.resize(cuda::std::distance(frontier_vertices.begin(), new_end),
                              handle.get_stream());
   }

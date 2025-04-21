@@ -35,13 +35,14 @@
 
 #include <rmm/exec_policy.hpp>
 
+#include <cuda/std/__algorithm_>
+#include <cuda/std/numeric>
 #include <cuda/std/optional>
 #include <thrust/execution_policy.h>
 #include <thrust/fill.h>
 #include <thrust/functional.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/reduce.h>
-#include <thrust/transform_reduce.h>
 #include <thrust/tuple.h>
 
 #include <cstdint>
@@ -116,26 +117,24 @@ __global__ static void transform_reduce_e_hypersparse(
 
     e_op_result_t sum{};
     if (edge_partition_e_mask) {
-      sum = thrust::transform_reduce(
-        thrust::seq,
+      sum = cuda::std::transform_reduce(
         thrust::make_counting_iterator(edge_t{0}),
         thrust::make_counting_iterator(local_degree),
+        e_op_result_t{},
+        edge_property_add,
         [&edge_partition_e_mask, &call_e_op, edge_offset] __device__(auto i) {
           if ((*edge_partition_e_mask).get(edge_offset + i)) {
             return call_e_op(i);
           } else {
             return e_op_result_t{};
           }
-        },
-        e_op_result_t{},
-        edge_property_add);
+        });
     } else {
-      sum = thrust::transform_reduce(thrust::seq,
-                                     thrust::make_counting_iterator(edge_t{0}),
-                                     thrust::make_counting_iterator(local_degree),
-                                     call_e_op,
-                                     e_op_result_t{},
-                                     edge_property_add);
+      sum = cuda::std::transform_reduce(thrust::make_counting_iterator(edge_t{0}),
+                                        thrust::make_counting_iterator(local_degree),
+                                        e_op_result_t{},
+                                        edge_property_add,
+                                        call_e_op);
     }
 
     e_op_result_sum = edge_property_add(e_op_result_sum, sum);
@@ -205,26 +204,24 @@ __global__ static void transform_reduce_e_low_degree(
 
     e_op_result_t sum{};
     if (edge_partition_e_mask) {
-      sum = thrust::transform_reduce(
-        thrust::seq,
+      sum = cuda::std::transform_reduce(
         thrust::make_counting_iterator(edge_t{0}),
         thrust::make_counting_iterator(local_degree),
+        e_op_result_t{},
+        edge_property_add,
         [&edge_partition_e_mask, &call_e_op, edge_offset] __device__(auto i) {
           if ((*edge_partition_e_mask).get(edge_offset + i)) {
             return call_e_op(i);
           } else {
             return e_op_result_t{};
           }
-        },
-        e_op_result_t{},
-        edge_property_add);
+        });
     } else {
-      sum = thrust::transform_reduce(thrust::seq,
-                                     thrust::make_counting_iterator(edge_t{0}),
-                                     thrust::make_counting_iterator(local_degree),
-                                     call_e_op,
-                                     e_op_result_t{},
-                                     edge_property_add);
+      sum = cuda::std::transform_reduce(thrust::make_counting_iterator(edge_t{0}),
+                                        thrust::make_counting_iterator(local_degree),
+                                        e_op_result_t{},
+                                        edge_property_add,
+                                        call_e_op);
     }
 
     e_op_result_sum = edge_property_add(e_op_result_sum, sum);

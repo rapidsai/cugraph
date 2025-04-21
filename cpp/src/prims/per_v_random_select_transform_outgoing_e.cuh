@@ -34,6 +34,7 @@
 #include <cub/cub.cuh>
 #include <cuda/atomic>
 #include <cuda/functional>
+#include <cuda/std/__algorithm_>
 #include <cuda/std/iterator>
 #include <cuda/std/optional>
 #include <thrust/copy.h>
@@ -170,7 +171,7 @@ struct count_valids_t {
   {
     auto first = sample_local_nbr_indices.begin() + i * K;
     return static_cast<int32_t>(
-      cuda::std::distance(first, thrust::find(thrust::seq, first, first + K, invalid_idx)));
+      cuda::std::distance(first, cuda::std::find(first, first + K, invalid_idx)));
   }
 };
 

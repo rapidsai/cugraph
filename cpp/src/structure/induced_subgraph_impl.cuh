@@ -34,9 +34,9 @@
 
 #include <rmm/device_uvector.hpp>
 
+#include <cuda/std/__algorithm_>
 #include <cuda/std/iterator>
 #include <cuda/std/optional>
-#include <thrust/binary_search.h>
 #include <thrust/copy.h>
 #include <thrust/count.h>
 #include <thrust/execution_policy.h>
@@ -82,10 +82,10 @@ struct induced_subgraph_weighted_pred_op {
                              weight_t wgt) const
   {
     size_t subgraph = thrust::get<1>(tagged_src);
-    return thrust::binary_search(thrust::seq,
-                                 dst_subgraph_vertices.data() + dst_subgraph_offsets[subgraph],
-                                 dst_subgraph_vertices.data() + dst_subgraph_offsets[subgraph + 1],
-                                 dst);
+    return cuda::std::binary_search(
+      dst_subgraph_vertices.data() + dst_subgraph_offsets[subgraph],
+      dst_subgraph_vertices.data() + dst_subgraph_offsets[subgraph + 1],
+      dst);
   }
 };
 
@@ -115,10 +115,10 @@ struct induced_subgraph_unweighted_pred_op {
                              cuda::std::nullopt_t) const
   {
     size_t subgraph = thrust::get<1>(tagged_src);
-    return thrust::binary_search(thrust::seq,
-                                 dst_subgraph_vertices.data() + dst_subgraph_offsets[subgraph],
-                                 dst_subgraph_vertices.data() + dst_subgraph_offsets[subgraph + 1],
-                                 dst);
+    return cuda::std::binary_search(
+      dst_subgraph_vertices.data() + dst_subgraph_offsets[subgraph],
+      dst_subgraph_vertices.data() + dst_subgraph_offsets[subgraph + 1],
+      dst);
   }
 };
 

@@ -29,6 +29,7 @@
 
 #include <rmm/device_uvector.hpp>
 
+#include <cuda/std/__algorithm_>
 #include <cuda/std/optional>
 #include <thrust/sort.h>
 #include <thrust/tuple.h>
@@ -81,10 +82,9 @@ struct segmented_fill_t {
 
   __device__ void operator()(size_t i) const
   {
-    thrust::fill(thrust::seq,
-                 output_values.begin() + segment_offsets[i],
-                 output_values.begin() + segment_offsets[i + 1],
-                 fill_values[i]);
+    cuda::std::fill(output_values.begin() + segment_offsets[i],
+                    output_values.begin() + segment_offsets[i + 1],
+                    fill_values[i]);
   }
 };
 

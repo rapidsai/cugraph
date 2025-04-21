@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2019-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,10 +15,10 @@
  */
 #pragma once
 
+#include <cuda/std/__algorithm_>
 #include <thrust/device_vector.h>
 #include <thrust/execution_policy.h>
 #include <thrust/extrema.h>
-#include <thrust/find.h>
 #include <thrust/for_each.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/transform.h>
@@ -38,7 +38,7 @@ struct CStableChecker {
   //
   bool is_set(void) const
   {
-    auto pos = thrust::find(d_flag_.begin(), d_flag_.end(), 1);
+    auto pos = cuda::std::find(d_flag_.begin(), d_flag_.end(), 1);
     return (pos != d_flag_.end());
   }
 
@@ -113,8 +113,8 @@ struct SCC_Data {
                         auto end   = begin + n;
                         ByteT one{1};
 
-                        auto pos = thrust::find_if(
-                          thrust::seq, begin, end, [one](IndexT entry) { return (entry == one); });
+                        auto pos = cuda::std::find_if(
+                          begin, end, [one](IndexT entry) { return (entry == one); });
 
                         // if( pos != end ) // always the case, because C starts as I + A
                         return IndexT(pos - begin);
@@ -171,10 +171,9 @@ struct SCC_Data {
             //
             auto begin = p_d_ci + p_d_ro[i];
             auto end   = p_d_ci + p_d_ro[i + 1];
-            auto pos   = thrust::find_if(
-              thrust::seq, begin, end, [one, j, nrows, p_d_Cprev, p_d_ci](IndexT k) {
-                return (p_d_Cprev[k * nrows + j] == one);
-              });
+            auto pos = cuda::std::find_if(begin, end, [one, j, nrows, p_d_Cprev, p_d_ci](IndexT k) {
+              return (p_d_Cprev[k * nrows + j] == one);
+            });
 
             if (pos != end) p_d_C[indx] = one;
           }
