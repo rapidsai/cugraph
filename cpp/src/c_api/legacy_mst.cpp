@@ -17,6 +17,7 @@
 #include "c_api/abstract_functor.hpp"
 #include "c_api/capi_helper.hpp"
 #include "c_api/graph.hpp"
+#include "c_api/induced_subgraph_result.hpp"
 #include "c_api/random.hpp"
 #include "c_api/resource_handle.hpp"
 #include "c_api/utils.hpp"
@@ -29,25 +30,13 @@
 
 #include <optional>
 
-namespace cugraph {
-namespace c_api {
-
-struct cugraph_layout_result_t {
-  cugraph_type_erased_device_array_t* vertices_{nullptr};
-  cugraph_type_erased_device_array_t* x_axis_{nullptr};
-  cugraph_type_erased_device_array_t* y_axis_{nullptr};
-};
-
-}  // namespace c_api
-}  // namespace cugraph
-
 namespace {
 
 struct minimum_spanning_tree_functor : public cugraph::c_api::abstract_functor {
   raft::handle_t const& handle_;
   cugraph::c_api::cugraph_graph_t* graph_{nullptr};
   bool do_expensive_check_{};
-  cugraph::c_api::cugraph_layout_result_t* result_{};
+  cugraph::c_api::cugraph_induced_subgraph_result_t* result_{};
   ;
 
   minimum_spanning_tree_functor(::cugraph_resource_handle_t const* handle,
@@ -93,7 +82,7 @@ struct minimum_spanning_tree_functor : public cugraph::c_api::abstract_functor {
         cugraph::detail::scalar_fill(handle_, tmp_weights.data(), tmp_weights.size(), weight_t{1});
       }
 
-      cugraph::legacy::GraphCSRView<vertex_t, edge_t, weight_t> legacy_graph_view(
+      cugraph::legacy::GraphCSRView<vertex_t, edge_t, weight_t> legacy_csr_graph_view(
         const_cast<edge_t*>(edge_partition_view.offsets().data()),
         const_cast<vertex_t*>(edge_partition_view.indices().data()),
         (edge_weights == nullptr)
@@ -101,57 +90,47 @@ struct minimum_spanning_tree_functor : public cugraph::c_api::abstract_functor {
           : const_cast<weight_t*>(edge_weights->view().value_firsts().front()),
         edge_partition_view.offsets().size() - 1,
         edge_partition_view.indices().size());
-
-     
       
-
-      auto x = cugraph::minimum_spanning_tree<vertex_t, edge_t, weight_t>(
+      auto result_legacy_coo_graph = cugraph::minimum_spanning_tree<vertex_t, edge_t, weight_t>(
         handle_,
-        legacy_graph_view
+        legacy_csr_graph_view
         );
+      
+      const size_t num_edges  = result_legacy_coo_graph->view().number_of_edges;
+      const vertex_t* result_src = result_legacy_coo_graph->view().src_indices;
+      const vertex_t* result_dst = result_legacy_coo_graph->view().dst_indices;
+      const weight_t* result_wgt   = result_legacy_coo_graph->view().edge_data;
+
+        rmm::device_uvector<size_t> edge_offsets(2, handle_.get_stream());
+      std::vector<size_t> h_edge_offsets{{0, num_edges}};
+      raft::update_device(
+        edge_offsets.data(), h_edge_offsets.data(), h_edge_offsets.size(), handle_.get_stream());
+
+       // FIXME: Add support for edge_id and edge_type_id.
+      
+      result_ = new cugraph::c_api::cugraph_induced_subgraph_result_t{
+        new cugraph::c_api::cugraph_type_erased_device_array_t(result_src, graph_->vertex_type_),
+        new cugraph::c_api::cugraph_type_erased_device_array_t(result_dst, graph_->vertex_type_),
+        result_wgt ? new cugraph::c_api::cugraph_type_erased_device_array_t(result_wgt,
+                                                                            graph_->weight_type_)
+                   : NULL,
+        NULL,
+        NULL,
+        new cugraph::c_api::cugraph_type_erased_device_array_t(edge_offsets,
+                                                               cugraph_data_type_id_t::SIZE_T)};
+    
+      
     }
   }
 };
 
 }  // namespace
 
-extern "C" cugraph_type_erased_device_array_view_t* cugraph_layout_result_get_vertices(
-  cugraph::c_api::cugraph_layout_result_t* result)
-{
-  auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_layout_result_t*>(result);
-  return reinterpret_cast<cugraph_type_erased_device_array_view_t*>(
-    internal_pointer->vertices_->view());
-}
-
-extern "C" cugraph_type_erased_device_array_view_t* cugraph_layout_result_get_x_axis(
-  cugraph::c_api::cugraph_layout_result_t* result)
-{
-  auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_layout_result_t*>(result);
-  return reinterpret_cast<cugraph_type_erased_device_array_view_t*>(
-    internal_pointer->x_axis_->view());
-}
-
-extern "C" cugraph_type_erased_device_array_view_t* cugraph_layout_result_get_y_axis(
-  cugraph::c_api::cugraph_layout_result_t* result)
-{
-  auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_layout_result_t*>(result);
-  return reinterpret_cast<cugraph_type_erased_device_array_view_t*>(
-    internal_pointer->y_axis_->view());
-}
-
-extern "C" void cugraph_layout_result_free(cugraph::c_api::cugraph_layout_result_t* result)
-{
-  auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_layout_result_t*>(result);
-  delete internal_pointer->vertices_;
-  delete internal_pointer->x_axis_;
-  delete internal_pointer->y_axis_;
-  delete internal_pointer;
-}
-
 extern "C" cugraph_error_code_t cugraph_minimum_spanning_tree(
   const cugraph_resource_handle_t* handle,
   cugraph_graph_t* graph,
-  cugraph::c_api::cugraph_layout_result_t** result,
+  bool_t do_expensive_check,
+  cugraph_induced_subgraph_result_t** result,
   cugraph_error_t** error)
 {
 
