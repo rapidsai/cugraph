@@ -101,8 +101,8 @@ def force_atlas2(input_graph,
 
     cdef uintptr_t vertex_radius_arr = <uintptr_t>NULL
     if prevent_overlapping:
-        if len(vertex_radius) != num_verts:
-            raise ValueError('pos_list must have initial positions for all vertices')
+        if vertex_radius is None or len(vertex_radius) != num_verts:
+            raise ValueError('vertex_radius must be provided for all vertices')
         vertex_radius['radius'] = vertex_radius['radius'].astype(np.float32)
         vertex_radius['radius'][vertex_radius['vertex']] = vertex_radius['radius']
         vertex_radius_arr = vertex_radius['vertex'].__cuda_array_interface__['data'][0]
