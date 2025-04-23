@@ -55,12 +55,7 @@ std::unique_ptr<raft::handle_t> initialize_mg_handle(size_t pool_size)
 
   raft::comms::initialize_mpi_comms(handle.get(), MPI_COMM_WORLD);
 
-  auto gpu_row_comm_size = static_cast<int>(sqrt(static_cast<double>(comm_size)));
-  while (comm_size % gpu_row_comm_size != 0) {
-    --gpu_row_comm_size;
-  }
-
-  cugraph::partition_manager::init_subcomm(*handle, gpu_row_comm_size);
+  cugraph::partition_manager::init_subcomm(*handle, std::max(comm_size / 16, 1));
 
   return std::move(handle);
 }

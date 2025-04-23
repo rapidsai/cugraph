@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include "prims/kv_store.cuh"
+#include "utilities/collect_comm.cuh"
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/graph_functions.hpp>
@@ -33,7 +33,9 @@
 #include <thrust/fill.h>
 #include <thrust/for_each.h>
 #include <thrust/iterator/transform_iterator.h>
+#include <thrust/merge.h>
 #include <thrust/reduce.h>
+#include <thrust/set_operations.h>
 #include <thrust/tabulate.h>
 
 #include <optional>
@@ -42,89 +44,426 @@ namespace cugraph {
 namespace test {
 
 template <typename vertex_t>
+struct in_dense_t {
+  raft::device_span<vertex_t const> vertex_partition_range_lasts{};
+  vertex_t v_offset_threshold;
+
+  __device__ bool operator()(vertex_t v) const
+  {
+    auto vertex_partition_id = static_cast<int>(cuda::std::distance(
+      vertex_partition_range_lasts.begin(),
+      thrust::upper_bound(
+        thrust::seq, vertex_partition_range_lasts.begin(), vertex_partition_range_lasts.end(), v)));
+    auto v_offset =
+      v - ((vertex_partition_id == 0) ? vertex_t{0}
+                                      : vertex_partition_range_lasts[vertex_partition_id - 1]);
+    return v_offset < v_offset_threshold;
+  }
+};
+
+template <typename vertex_t>
 class nbr_unrenumber_cache_t {
  public:
+  static size_t constexpr dense_lsb_bits   = 8;
+  using dense_lsb_t                        = uint8_t;
+  static size_t constexpr dense_total_bits = 23;
+  using dense_offset_t                     = uint32_t;
+
+  static size_t constexpr sparse_lsb_bits = 16;
+  using sparse_lsb_t                      = uint16_t;
+  using sparse_offset_t = uint32_t;  // should be large enough to cover the maximum number of sorted
+                                     // unique neighbors per vertex partition
+
+  static_assert(dense_lsb_bits == sizeof(dense_lsb_t) * 8);
+  static_assert(sizeof(dense_offset_t) * 8 >= dense_total_bits);
+  static_assert(sparse_lsb_bits == sizeof(sparse_lsb_t) * 8);
+  static_assert(dense_total_bits >= sparse_lsb_bits);  // to ensure proper alignment
+
   nbr_unrenumber_cache_t(raft::handle_t const& handle,
                          rmm::device_uvector<vertex_t>&& sorted_unique_nbrs,
                          rmm::device_uvector<vertex_t>&& unrenumbered_sorted_unique_nbrs,
+                         rmm::device_uvector<vertex_t>&& vertex_partition_range_lasts,
                          vertex_t number_of_vertices,
-                         vertex_t invalid_vertex)
-    : sorted_unique_nbr_segment_offsets_(0, handle.get_stream()),
-      sorted_unique_nbr_lower_uint16s_(0, handle.get_stream()),
-      unrenumbered_sorted_unique_nbrs_(std::move(unrenumbered_sorted_unique_nbrs)),
+                         vertex_t invalid_vertex,
+                         std::optional<rmm::host_device_async_resource_ref> pinned_host_mr)
+    : dense_sorted_unique_nbr_segment_lasts_(0, handle.get_stream()),
+      dense_sorted_unique_nbr_v_offset_lsbs_(0, handle.get_stream()),
+      dense_unrenumbered_sorted_unique_nbrs_(0, handle.get_stream()),
+      dense_sorted_unique_nbr_vertex_partition_range_lasts_(0, handle.get_stream()),
+      sparse_sorted_unique_nbr_segment_lasts_(0, handle.get_stream()),
+      sparse_sorted_unique_nbr_v_offset_lsbs_(0, handle.get_stream()),
+      sparse_unrenumbered_sorted_unique_nbrs_(0, handle.get_stream()),
+      sparse_sorted_unique_nbr_vertex_partition_range_lasts_(0, handle.get_stream()),
+      vertex_partition_range_lasts_(std::move(vertex_partition_range_lasts)),
       number_of_vertices_(number_of_vertices),
       invalid_vertex_(invalid_vertex)
   {
-    init_key_cache(handle, std::move(sorted_unique_nbrs), number_of_vertices);
+    init_key_cache(handle,
+                   std::move(sorted_unique_nbrs),
+                   std::move(unrenumbered_sorted_unique_nbrs),
+                   pinned_host_mr);
   }
 
   void init_key_cache(raft::handle_t const& handle,
                       rmm::device_uvector<vertex_t>&& sorted_unique_nbrs,
-                      vertex_t number_of_vertices)
+                      rmm::device_uvector<vertex_t>&& unrenumbered_sorted_unique_nbrs,
+                      std::optional<rmm::host_device_async_resource_ref> pinned_host_mr)
   {
-    auto num_segments =
-      (static_cast<size_t>(number_of_vertices) + static_cast<size_t>((1 << 16) - 1)) >> 16;
-    sorted_unique_nbr_segment_offsets_.resize(num_segments + 1, handle.get_stream());
-    auto search_first = thrust::make_transform_iterator(
-      thrust::make_counting_iterator(size_t{0}),
-      cuda::proclaim_return_type<vertex_t>(
-        [] __device__(size_t segment_id) { return static_cast<vertex_t>(segment_id << 16); }));
+    size_t dense_sorted_unique_nbr_size{};
+    size_t sparse_sorted_unique_nbr_size{};
+    {
+      auto in_dense_func = in_dense_t<vertex_t>{
+        raft::device_span<vertex_t const>(vertex_partition_range_lasts_.data(),
+                                          vertex_partition_range_lasts_.size()),
+        vertex_t{1} << dense_total_bits};
+      dense_sorted_unique_nbr_size  = thrust::count_if(handle.get_thrust_policy(),
+                                                      sorted_unique_nbrs.begin(),
+                                                      sorted_unique_nbrs.end(),
+                                                      in_dense_func);
+      sparse_sorted_unique_nbr_size = sorted_unique_nbrs.size() - dense_sorted_unique_nbr_size;
+#if 1
+      std::cout << "init_key_cache dense_sorted_unique_nbr_size=" << dense_sorted_unique_nbr_size
+                << " sparse_sorted_unique_nbr_size=" << sparse_sorted_unique_nbr_size << std::endl;
+#endif
+
+      auto tmp_sorted_unique_nbrs =
+        pinned_host_mr
+          ? rmm::device_uvector<vertex_t>(
+              sorted_unique_nbrs.size(), handle.get_stream(), *pinned_host_mr)
+          : rmm::device_uvector<vertex_t>(sorted_unique_nbrs.size(), handle.get_stream());
+      dense_unrenumbered_sorted_unique_nbrs_.resize(dense_sorted_unique_nbr_size,
+                                                    handle.get_stream());
+      sparse_unrenumbered_sorted_unique_nbrs_.resize(sparse_sorted_unique_nbr_size,
+                                                     handle.get_stream());
+      auto pair_first = thrust::make_zip_iterator(sorted_unique_nbrs.begin(),
+                                                  unrenumbered_sorted_unique_nbrs.begin());
+      thrust::copy_if(handle.get_thrust_policy(),
+                      pair_first,
+                      pair_first + sorted_unique_nbrs.size(),
+                      thrust::make_zip_iterator(tmp_sorted_unique_nbrs.begin(),
+                                                dense_unrenumbered_sorted_unique_nbrs_.begin()),
+                      cuda::proclaim_return_type<bool>([in_dense_func] __device__(auto pair) {
+                        return in_dense_func(thrust::get<0>(pair));
+                      }));
+      thrust::copy_if(
+        handle.get_thrust_policy(),
+        pair_first,
+        pair_first + sorted_unique_nbrs.size(),
+        thrust::make_zip_iterator(tmp_sorted_unique_nbrs.begin() + dense_sorted_unique_nbr_size,
+                                  sparse_unrenumbered_sorted_unique_nbrs_.begin()),
+        cuda::proclaim_return_type<bool>(
+          [in_dense_func] __device__(auto pair) { return !in_dense_func(thrust::get<0>(pair)); }));
+
+      sorted_unique_nbrs = std::move(tmp_sorted_unique_nbrs);
+      unrenumbered_sorted_unique_nbrs.resize(0, handle.get_stream());
+      unrenumbered_sorted_unique_nbrs.shrink_to_fit(handle.get_stream());
+    }
+    dense_sorted_unique_nbr_vertex_partition_range_lasts_.resize(
+      vertex_partition_range_lasts_.size(), handle.get_stream());
     thrust::lower_bound(handle.get_thrust_policy(),
                         sorted_unique_nbrs.begin(),
+                        sorted_unique_nbrs.begin() + dense_sorted_unique_nbr_size,
+                        vertex_partition_range_lasts_.begin(),
+                        vertex_partition_range_lasts_.end(),
+                        dense_sorted_unique_nbr_vertex_partition_range_lasts_.begin());
+
+    sparse_sorted_unique_nbr_vertex_partition_range_lasts_.resize(
+      vertex_partition_range_lasts_.size(), handle.get_stream());
+    thrust::lower_bound(handle.get_thrust_policy(),
+                        sorted_unique_nbrs.begin() + dense_sorted_unique_nbr_size,
                         sorted_unique_nbrs.end(),
-                        search_first,
-                        search_first + num_segments,
-                        sorted_unique_nbr_segment_offsets_.begin());
-    auto array_size = sorted_unique_nbrs.size();
-    sorted_unique_nbr_segment_offsets_.set_element_async(
-      num_segments, array_size, handle.get_stream());
-    sorted_unique_nbr_lower_uint16s_.resize(array_size, handle.get_stream());
+                        vertex_partition_range_lasts_.begin(),
+                        vertex_partition_range_lasts_.end(),
+                        sparse_sorted_unique_nbr_vertex_partition_range_lasts_.begin());
+
+    auto sorted_unique_nbr_v_offsets =
+      pinned_host_mr
+        ? rmm::device_uvector<vertex_t>(
+            sorted_unique_nbrs.size(), handle.get_stream(), *pinned_host_mr)
+        : rmm::device_uvector<vertex_t>(sorted_unique_nbrs.size(), handle.get_stream());
     thrust::transform(handle.get_thrust_policy(),
                       sorted_unique_nbrs.begin(),
                       sorted_unique_nbrs.end(),
-                      sorted_unique_nbr_lower_uint16s_.begin(),
-                      cuda::proclaim_return_type<uint16_t>([] __device__(vertex_t v) {
-                        return static_cast<uint16_t>(static_cast<uint64_t>(v));
-                      }));
+                      sorted_unique_nbr_v_offsets.begin(),
+                      cuda::proclaim_return_type<vertex_t>(
+                        [vertex_partition_range_lasts = raft::device_span<vertex_t const>(
+                           vertex_partition_range_lasts_.data(),
+                           vertex_partition_range_lasts_.size())] __device__(auto v) {
+                          auto vertex_partition_id = static_cast<int>(cuda::std::distance(
+                            vertex_partition_range_lasts.begin(),
+                            thrust::upper_bound(thrust::seq,
+                                                vertex_partition_range_lasts.begin(),
+                                                vertex_partition_range_lasts.end(),
+                                                v)));
+                          return v - ((vertex_partition_id == 0)
+                                        ? vertex_t{0}
+                                        : vertex_partition_range_lasts[vertex_partition_id - 1]);
+                        }));
     sorted_unique_nbrs.resize(0, handle.get_stream());
     sorted_unique_nbrs.shrink_to_fit(handle.get_stream());
+
+    {
+      vertex_t max_vertex_partition_size{};
+      {
+        auto size_first = thrust::make_transform_iterator(
+          thrust::make_counting_iterator(size_t{0}),
+          cuda::proclaim_return_type<vertex_t>(
+            [lasts = raft::device_span<vertex_t const>(
+               vertex_partition_range_lasts_.data(),
+               vertex_partition_range_lasts_.size())] __device__(auto i) {
+              return (i == 0) ? lasts[i] : (lasts[i] - lasts[i - 1]);
+            }));
+        max_vertex_partition_size =
+          thrust::reduce(handle.get_thrust_policy(),
+                         size_first,
+                         size_first + vertex_partition_range_lasts_.size(),
+                         vertex_t{0},
+                         thrust::maximum<vertex_t>{});
+      }
+
+      auto dense_size_per_vertex_partition =
+        std::min(vertex_t{1} << dense_total_bits, max_vertex_partition_size);
+      auto sparse_size_per_vertex_partition =
+        (max_vertex_partition_size > dense_size_per_vertex_partition)
+          ? (max_vertex_partition_size - dense_size_per_vertex_partition)
+          : vertex_t{0};
+      if ((sparse_size_per_vertex_partition != 0) &&
+          ((sparse_size_per_vertex_partition - 1) >
+           static_cast<vertex_t>(std::numeric_limits<sparse_offset_t>::max()))) {
+        CUGRAPH_FAIL("sparse_offset_t overflow.");
+      }
+
+      dense_num_segments_per_vertex_partition_ =
+        (static_cast<size_t>(dense_size_per_vertex_partition) +
+         ((size_t{1} << dense_lsb_bits) - 1)) >>
+        dense_lsb_bits;
+      sparse_num_segments_per_vertex_partition_ =
+        (static_cast<size_t>(sparse_size_per_vertex_partition) +
+         ((size_t{1} << sparse_lsb_bits) - 1)) >>
+        sparse_lsb_bits;
+    }
+
+    dense_sorted_unique_nbr_segment_lasts_.resize(
+      dense_num_segments_per_vertex_partition_ * vertex_partition_range_lasts_.size(),
+      handle.get_stream());
+    thrust::tabulate(
+      handle.get_thrust_policy(),
+      dense_sorted_unique_nbr_segment_lasts_.begin(),
+      dense_sorted_unique_nbr_segment_lasts_.end(),
+      cuda::proclaim_return_type<dense_offset_t>(
+        [sorted_unique_nbr_v_offsets = raft::device_span<vertex_t const>(
+           sorted_unique_nbr_v_offsets.data(), dense_sorted_unique_nbr_size),
+         sorted_unique_nbr_vertex_partition_range_lasts = raft::device_span<vertex_t const>(
+           dense_sorted_unique_nbr_vertex_partition_range_lasts_.data(),
+           dense_sorted_unique_nbr_vertex_partition_range_lasts_.size()),
+         vertex_partition_range_lasts = raft::device_span<vertex_t const>(
+           vertex_partition_range_lasts_.data(), vertex_partition_range_lasts_.size()),
+         dense_num_segments_per_vertex_partition =
+           dense_num_segments_per_vertex_partition_] __device__(size_t i) {
+          auto vertex_partition_id = static_cast<int>(i / dense_num_segments_per_vertex_partition);
+          auto segment_id          = i % dense_num_segments_per_vertex_partition;
+          auto segment_v_offset_last = static_cast<vertex_t>(cuda::std::min(
+            (segment_id + 1) << dense_lsb_bits,
+            static_cast<size_t>(vertex_partition_range_lasts[vertex_partition_id] -
+                                ((vertex_partition_id == 0)
+                                   ? vertex_t{0}
+                                   : vertex_partition_range_lasts[vertex_partition_id - 1]))));
+          auto start_offset =
+            ((vertex_partition_id == 0)
+               ? vertex_t{0}
+               : sorted_unique_nbr_vertex_partition_range_lasts[vertex_partition_id - 1]);
+          auto end_offset = sorted_unique_nbr_vertex_partition_range_lasts[vertex_partition_id];
+          auto it         = thrust::lower_bound(thrust::seq,
+                                        sorted_unique_nbr_v_offsets.begin() + start_offset,
+                                        sorted_unique_nbr_v_offsets.begin() + end_offset,
+                                        segment_v_offset_last);
+          return static_cast<dense_offset_t>(
+            cuda::std::distance(sorted_unique_nbr_v_offsets.begin() + start_offset, it));
+        }));
+
+    dense_sorted_unique_nbr_v_offset_lsbs_.resize(dense_sorted_unique_nbr_size,
+                                                  handle.get_stream());
+    thrust::transform(handle.get_thrust_policy(),
+                      sorted_unique_nbr_v_offsets.begin(),
+                      sorted_unique_nbr_v_offsets.begin() + dense_sorted_unique_nbr_size,
+                      dense_sorted_unique_nbr_v_offset_lsbs_.begin(),
+                      cuda::proclaim_return_type<dense_lsb_t>([] __device__(auto v_offset) {
+                        return static_cast<dense_lsb_t>(static_cast<uint64_t>(v_offset));
+                      }));
+
+    sparse_sorted_unique_nbr_segment_lasts_.resize(
+      sparse_num_segments_per_vertex_partition_ * vertex_partition_range_lasts_.size(),
+      handle.get_stream());
+    thrust::tabulate(
+      handle.get_thrust_policy(),
+      sparse_sorted_unique_nbr_segment_lasts_.begin(),
+      sparse_sorted_unique_nbr_segment_lasts_.end(),
+      cuda::proclaim_return_type<sparse_offset_t>(
+        [sorted_unique_nbr_v_offsets = raft::device_span<vertex_t const>(
+           sorted_unique_nbr_v_offsets.data() + dense_sorted_unique_nbr_size,
+           sparse_sorted_unique_nbr_size),
+         sorted_unique_nbr_vertex_partition_range_lasts = raft::device_span<vertex_t const>(
+           sparse_sorted_unique_nbr_vertex_partition_range_lasts_.data(),
+           sparse_sorted_unique_nbr_vertex_partition_range_lasts_.size()),
+         vertex_partition_range_lasts = raft::device_span<vertex_t const>(
+           vertex_partition_range_lasts_.data(), vertex_partition_range_lasts_.size()),
+         sparse_num_segments_per_vertex_partition =
+           sparse_num_segments_per_vertex_partition_] __device__(size_t i) {
+          auto vertex_partition_id = static_cast<int>(i / sparse_num_segments_per_vertex_partition);
+          auto segment_id          = i % sparse_num_segments_per_vertex_partition;
+          auto segment_v_offset_last = static_cast<vertex_t>(cuda::std::min(
+            (size_t{1} << dense_total_bits) + ((segment_id + 1) << sparse_lsb_bits),
+            static_cast<size_t>(
+              vertex_partition_range_lasts[vertex_partition_id] -
+              ((vertex_partition_id == 0)
+                 ? vertex_t{0}
+                 : vertex_partition_range_lasts[vertex_partition_id -
+                                                1]))));  // dense_total_bits >= sparse_lsb_bits, so
+                                                         // proper alignment is guaranteed
+          auto start_offset =
+            ((vertex_partition_id == 0)
+               ? vertex_t{0}
+               : sorted_unique_nbr_vertex_partition_range_lasts[vertex_partition_id - 1]);
+          auto end_offset = sorted_unique_nbr_vertex_partition_range_lasts[vertex_partition_id];
+          auto it         = thrust::lower_bound(thrust::seq,
+                                        sorted_unique_nbr_v_offsets.begin() + start_offset,
+                                        sorted_unique_nbr_v_offsets.begin() + end_offset,
+                                        segment_v_offset_last);
+          return static_cast<sparse_offset_t>(
+            cuda::std::distance(sorted_unique_nbr_v_offsets.begin() + start_offset, it));
+        }));
+
+    sparse_sorted_unique_nbr_v_offset_lsbs_.resize(sparse_sorted_unique_nbr_size,
+                                                   handle.get_stream());
+    thrust::transform(handle.get_thrust_policy(),
+                      sorted_unique_nbr_v_offsets.begin() + dense_sorted_unique_nbr_size,
+                      sorted_unique_nbr_v_offsets.end(),
+                      sparse_sorted_unique_nbr_v_offset_lsbs_.begin(),
+                      cuda::proclaim_return_type<sparse_lsb_t>([] __device__(auto v_offset) {
+                        return static_cast<sparse_lsb_t>(static_cast<uint64_t>(v_offset));
+                      }));
+
+    sorted_unique_nbr_v_offsets.resize(0, handle.get_stream());
+    sorted_unique_nbr_v_offsets.shrink_to_fit(handle.get_stream());
   }
 
   void unrenumber(raft::handle_t const& handle, raft::device_span<vertex_t> nbrs)
   {
-    thrust::transform(
+    thrust::transform_if(
       handle.get_thrust_policy(),
       nbrs.begin(),
       nbrs.end(),
       nbrs.begin(),
       cuda::proclaim_return_type<vertex_t>(
-        [sorted_unique_nbr_segment_offsets = raft::device_span<size_t const>(
-           sorted_unique_nbr_segment_offsets_.data(), sorted_unique_nbr_segment_offsets_.size()),
-         sorted_unique_nbr_lower_uint16s = raft::device_span<uint16_t const>(
-           sorted_unique_nbr_lower_uint16s_.data(), sorted_unique_nbr_lower_uint16s_.size()),
-         unrenumbered_sorted_unique_nbrs = raft::device_span<vertex_t const>(
-           unrenumbered_sorted_unique_nbrs_.data(), unrenumbered_sorted_unique_nbrs_.size()),
-         invalid_vertex = invalid_vertex_] __device__(auto nbr) {
-          if (nbr == invalid_vertex) {
-            return invalid_vertex;
+        [dense_sorted_unique_nbr_segment_lasts =
+           raft::device_span<dense_offset_t const>(dense_sorted_unique_nbr_segment_lasts_.data(),
+                                                   dense_sorted_unique_nbr_segment_lasts_.size()),
+         dense_sorted_unique_nbr_v_offset_lsbs =
+           raft::device_span<dense_lsb_t const>(dense_sorted_unique_nbr_v_offset_lsbs_.data(),
+                                                dense_sorted_unique_nbr_v_offset_lsbs_.size()),
+         dense_unrenumbered_sorted_unique_nbrs =
+           raft::device_span<vertex_t const>(dense_unrenumbered_sorted_unique_nbrs_.data(),
+                                             dense_unrenumbered_sorted_unique_nbrs_.size()),
+         dense_sorted_unique_nbr_vertex_partition_range_lasts = raft::device_span<vertex_t const>(
+           dense_sorted_unique_nbr_vertex_partition_range_lasts_.data(),
+           dense_sorted_unique_nbr_vertex_partition_range_lasts_.size()),
+         dense_num_segments_per_vertex_partition = dense_num_segments_per_vertex_partition_,
+         sparse_sorted_unique_nbr_segment_lasts =
+           raft::device_span<sparse_offset_t const>(sparse_sorted_unique_nbr_segment_lasts_.data(),
+                                                    sparse_sorted_unique_nbr_segment_lasts_.size()),
+         sparse_sorted_unique_nbr_v_offset_lsbs =
+           raft::device_span<sparse_lsb_t const>(sparse_sorted_unique_nbr_v_offset_lsbs_.data(),
+                                                 sparse_sorted_unique_nbr_v_offset_lsbs_.size()),
+         sparse_unrenumbered_sorted_unique_nbrs =
+           raft::device_span<vertex_t const>(sparse_unrenumbered_sorted_unique_nbrs_.data(),
+                                             sparse_unrenumbered_sorted_unique_nbrs_.size()),
+         sparse_sorted_unique_nbr_vertex_partition_range_lasts = raft::device_span<vertex_t const>(
+           sparse_sorted_unique_nbr_vertex_partition_range_lasts_.data(),
+           sparse_sorted_unique_nbr_vertex_partition_range_lasts_.size()),
+         sparse_num_segments_per_vertex_partition = sparse_num_segments_per_vertex_partition_,
+         vertex_partition_range_lasts             = raft::device_span<vertex_t const>(
+           vertex_partition_range_lasts_.data(),
+           vertex_partition_range_lasts_.size())] __device__(auto nbr) {
+          auto vertex_partition_id = static_cast<int>(
+            cuda::std::distance(vertex_partition_range_lasts.begin(),
+                                thrust::upper_bound(thrust::seq,
+                                                    vertex_partition_range_lasts.begin(),
+                                                    vertex_partition_range_lasts.end(),
+                                                    nbr)));
+          auto v_offset = nbr - ((vertex_partition_id == 0)
+                                   ? vertex_t{0}
+                                   : vertex_partition_range_lasts[vertex_partition_id - 1]);
+          bool dense    = v_offset < (vertex_t{1} << dense_total_bits);
+          auto segment_id =
+            static_cast<size_t>(v_offset -
+                                (dense ? vertex_t{0} : (vertex_t{1} << dense_total_bits))) >>
+            (dense ? dense_lsb_bits : sparse_lsb_bits);
+          auto start_offset =
+            ((vertex_partition_id == 0)
+               ? vertex_t{0}
+               : (dense
+                    ? dense_sorted_unique_nbr_vertex_partition_range_lasts[vertex_partition_id - 1]
+                    : sparse_sorted_unique_nbr_vertex_partition_range_lasts[vertex_partition_id -
+                                                                            1])) +
+            ((segment_id == 0) ? vertex_t{0}
+                               : (dense ? dense_sorted_unique_nbr_segment_lasts
+                                            [dense_num_segments_per_vertex_partition *
+                                               static_cast<size_t>(vertex_partition_id) +
+                                             segment_id - 1]
+                                        : sparse_sorted_unique_nbr_segment_lasts
+                                            [sparse_num_segments_per_vertex_partition *
+                                               static_cast<size_t>(vertex_partition_id) +
+                                             segment_id - 1]));
+          auto end_offset =
+            ((vertex_partition_id == 0)
+               ? vertex_t{0}
+               : (dense
+                    ? dense_sorted_unique_nbr_vertex_partition_range_lasts[vertex_partition_id - 1]
+                    : sparse_sorted_unique_nbr_vertex_partition_range_lasts[vertex_partition_id -
+                                                                            1])) +
+            (dense
+               ? dense_sorted_unique_nbr_segment_lasts[dense_num_segments_per_vertex_partition *
+                                                         static_cast<size_t>(vertex_partition_id) +
+                                                       segment_id]
+               : sparse_sorted_unique_nbr_segment_lasts[sparse_num_segments_per_vertex_partition *
+                                                          static_cast<size_t>(vertex_partition_id) +
+                                                        segment_id]);
+          if (dense) {
+            auto it =
+              thrust::lower_bound(thrust::seq,
+                                  dense_sorted_unique_nbr_v_offset_lsbs.begin() + start_offset,
+                                  dense_sorted_unique_nbr_v_offset_lsbs.begin() + end_offset,
+                                  static_cast<dense_lsb_t>(static_cast<uint64_t>(v_offset)));
+            return dense_unrenumbered_sorted_unique_nbrs[cuda::std::distance(
+              dense_sorted_unique_nbr_v_offset_lsbs.begin(), it)];
           } else {
-            auto first = sorted_unique_nbr_lower_uint16s.begin() +
-                         sorted_unique_nbr_segment_offsets[nbr >> 16];
-            auto last = sorted_unique_nbr_lower_uint16s.begin() +
-                        sorted_unique_nbr_segment_offsets[(nbr >> 16) + 1];
-            auto it = thrust::lower_bound(
-              thrust::seq, first, last, static_cast<uint16_t>(static_cast<uint64_t>(nbr)));
-            assert((it != last) && (*it == static_cast<uint16_t>(static_cast<uint64_t>(nbr))));
-            return unrenumbered_sorted_unique_nbrs[cuda::std::distance(
-              sorted_unique_nbr_lower_uint16s.begin(), it)];
+            auto it =
+              thrust::lower_bound(thrust::seq,
+                                  sparse_sorted_unique_nbr_v_offset_lsbs.begin() + start_offset,
+                                  sparse_sorted_unique_nbr_v_offset_lsbs.begin() + end_offset,
+                                  static_cast<sparse_lsb_t>(static_cast<uint64_t>(v_offset)));
+            return sparse_unrenumbered_sorted_unique_nbrs[cuda::std::distance(
+              sparse_sorted_unique_nbr_v_offset_lsbs.begin(), it)];
           }
-        }));
+        }),
+      cuda::proclaim_return_type<bool>(
+        [invalid_vertex = invalid_vertex_] __device__(auto nbr) { return nbr != invalid_vertex; }));
   }
 
  private:
-  rmm::device_uvector<size_t> sorted_unique_nbr_segment_offsets_;
-  rmm::device_uvector<uint16_t> sorted_unique_nbr_lower_uint16s_;
-  rmm::device_uvector<vertex_t> unrenumbered_sorted_unique_nbrs_;
+  rmm::device_uvector<dense_offset_t> dense_sorted_unique_nbr_segment_lasts_;
+  rmm::device_uvector<dense_lsb_t> dense_sorted_unique_nbr_v_offset_lsbs_;
+  rmm::device_uvector<vertex_t> dense_unrenumbered_sorted_unique_nbrs_;
+  rmm::device_uvector<vertex_t> dense_sorted_unique_nbr_vertex_partition_range_lasts_;
+  size_t dense_num_segments_per_vertex_partition_{};
+
+  rmm::device_uvector<sparse_offset_t> sparse_sorted_unique_nbr_segment_lasts_;
+  rmm::device_uvector<sparse_lsb_t> sparse_sorted_unique_nbr_v_offset_lsbs_;
+  rmm::device_uvector<vertex_t> sparse_unrenumbered_sorted_unique_nbrs_;
+  rmm::device_uvector<vertex_t> sparse_sorted_unique_nbr_vertex_partition_range_lasts_;
+  size_t sparse_num_segments_per_vertex_partition_{};
+
+  rmm::device_uvector<vertex_t> vertex_partition_range_lasts_;
   vertex_t number_of_vertices_{};
   vertex_t invalid_vertex_{};
 };
@@ -137,14 +476,6 @@ nbr_unrenumber_cache_t<vertex_t> build_nbr_unrenumber_cache(
   vertex_t invalid_vertex,
   std::optional<rmm::host_device_async_resource_ref> pinned_host_mr)
 {
-#if 1
-  pinned_host_mr = std::nullopt;
-  RAFT_CUDA_TRY(cudaDeviceSynchronize());
-  std::cout << "START build_unrenumber_cache range_size="
-            << mg_graph_view.local_vertex_partition_range_size() << std::endl;
-  RAFT_CUDA_TRY(cudaDeviceSynchronize());
-  auto time0 = std::chrono::steady_clock::now();
-#endif
   auto& comm = handle.get_comms();
 
   auto h_vertex_partition_range_lasts = mg_graph_view.vertex_partition_range_lasts();
@@ -155,12 +486,9 @@ nbr_unrenumber_cache_t<vertex_t> build_nbr_unrenumber_cache(
                       h_vertex_partition_range_lasts.size(),
                       handle.get_stream());
 
-  constexpr size_t num_k_hop_rounds = 16;  // to cut peak memory usage
+  constexpr size_t num_k_hop_rounds      = 16;  // to cut peak memory usage
+  constexpr size_t num_unrenumber_rounds = 8;   // to cut peak memory usage
 
-#if 1
-  RAFT_CUDA_TRY(cudaDeviceSynchronize());
-  auto time1 = std::chrono::steady_clock::now();
-#endif
   auto nbrs = pinned_host_mr
                 ? rmm::device_uvector<vertex_t>(0, handle.get_stream(), *pinned_host_mr)
                 : rmm::device_uvector<vertex_t>(0, handle.get_stream());
@@ -194,55 +522,75 @@ nbr_unrenumber_cache_t<vertex_t> build_nbr_unrenumber_cache(
         this_round_nbrs.begin(),
         thrust::unique(handle.get_thrust_policy(), this_round_nbrs.begin(), this_round_nbrs.end())),
       handle.get_stream());
-    auto old_size = nbrs.size();
-    nbrs.resize(old_size + this_round_nbrs.size(), handle.get_stream());
-    thrust::copy(handle.get_thrust_policy(),
-                 this_round_nbrs.begin(),
-                 this_round_nbrs.end(),
-                 nbrs.begin() + old_size);
+    rmm::device_uvector<vertex_t> new_nbrs(this_round_nbrs.size(), handle.get_stream());
+    new_nbrs.resize(cuda::std::distance(new_nbrs.begin(),
+                                        thrust::set_difference(handle.get_thrust_policy(),
+                                                               this_round_nbrs.begin(),
+                                                               this_round_nbrs.end(),
+                                                               nbrs.begin(),
+                                                               nbrs.end(),
+                                                               new_nbrs.begin())),
+                    handle.get_stream());
+    auto merged_nbrs =
+      pinned_host_mr
+        ? rmm::device_uvector<vertex_t>(
+            nbrs.size() + new_nbrs.size(), handle.get_stream(), *pinned_host_mr)
+        : rmm::device_uvector<vertex_t>(nbrs.size() + new_nbrs.size(), handle.get_stream());
+    thrust::merge(handle.get_thrust_policy(),
+                  nbrs.begin(),
+                  nbrs.end(),
+                  new_nbrs.begin(),
+                  new_nbrs.end(),
+                  merged_nbrs.begin());
+    nbrs = std::move(merged_nbrs);
   }
 
-#if 1
-  RAFT_CUDA_TRY(cudaDeviceSynchronize());
-  auto time2 = std::chrono::steady_clock::now();
-#endif
-  thrust::sort(handle.get_thrust_policy(), nbrs.begin(), nbrs.end());
-  nbrs.resize(cuda::std::distance(
-                nbrs.begin(), thrust::unique(handle.get_thrust_policy(), nbrs.begin(), nbrs.end())),
-              handle.get_stream());
-  nbrs.shrink_to_fit(handle.get_stream());
-#if 1
-  RAFT_CUDA_TRY(cudaDeviceSynchronize());
-  auto time3 = std::chrono::steady_clock::now();
-#endif
   auto unrenumbered_nbrs =
     pinned_host_mr
       ? rmm::device_uvector<vertex_t>(nbrs.size(), handle.get_stream(), *pinned_host_mr)
       : rmm::device_uvector<vertex_t>(nbrs.size(), handle.get_stream());
-  thrust::copy(handle.get_thrust_policy(), nbrs.begin(), nbrs.end(), unrenumbered_nbrs.begin());
-  cugraph::unrenumber_int_vertices<vertex_t, true>(handle,
-                                                   unrenumbered_nbrs.data(),
-                                                   unrenumbered_nbrs.size(),
-                                                   renumber_map.data(),
-                                                   mg_graph_view.vertex_partition_range_lasts());
-#if 1
-  RAFT_CUDA_TRY(cudaDeviceSynchronize());
-  auto time4                         = std::chrono::steady_clock::now();
-  std::chrono::duration<double> dur0 = time1 - time0;
-  std::chrono::duration<double> dur1 = time2 - time1;
-  std::chrono::duration<double> dur2 = time3 - time2;
-  std::chrono::duration<double> dur3 = time4 - time3;
-  RAFT_CUDA_TRY(cudaDeviceSynchronize());
-  std::cout << "END build_unrenumber_cache nbrs.size()=" << nbrs.size() << " dur=(" << dur0.count()
-            << "," << dur1.count() << "," << dur2.count() << "," << dur3.count() << ")"
-            << std::endl;
-#endif
+  for (size_t r = 0; r < num_unrenumber_rounds; ++r) {
+    auto chunk_size =
+      (unrenumbered_nbrs.size() + (num_unrenumber_rounds - 1)) / num_unrenumber_rounds;
+    rmm::device_uvector<vertex_t> this_chunk_nbrs(
+      unrenumbered_nbrs.size() / num_unrenumber_rounds +
+        ((r < (unrenumbered_nbrs.size() % num_unrenumber_rounds)) ? size_t{1} : size_t{0}),
+      handle.get_stream());
+    auto offset_first = thrust::make_transform_iterator(
+      thrust::make_counting_iterator(size_t{0}),
+      cuda::proclaim_return_type<size_t>(
+        [num_unrenumber_rounds, r] __device__(auto i) { return r + i * num_unrenumber_rounds; }));
+    thrust::gather(
+      handle.get_thrust_policy(),
+      offset_first,
+      offset_first + this_chunk_nbrs.size(),
+      nbrs.begin(),
+      this_chunk_nbrs
+        .begin());  // gather with strides to avoid most vertices falling to the local vertex
+                    // partition ranges of a small subset of GPUs leading to uneven memory pressures
+    auto this_chunk_unrenumbered_nbrs = cugraph::collect_values_for_sorted_unique_int_vertices(
+      handle.get_comms(),
+      raft::device_span<vertex_t const>(this_chunk_nbrs.data(), this_chunk_nbrs.size()),
+      renumber_map.begin(),
+      mg_graph_view.vertex_partition_range_lasts(),
+      mg_graph_view.local_vertex_partition_range_first(),
+      handle.get_stream());
+    this_chunk_nbrs.resize(0, handle.get_stream());
+    this_chunk_nbrs.shrink_to_fit(handle.get_stream());
+    thrust::scatter(handle.get_thrust_policy(),
+                    this_chunk_unrenumbered_nbrs.begin(),
+                    this_chunk_unrenumbered_nbrs.end(),
+                    offset_first,
+                    unrenumbered_nbrs.begin());
+  }
 
   return nbr_unrenumber_cache_t(handle,
                                 std::move(nbrs),
                                 std::move(unrenumbered_nbrs),
+                                std::move(d_vertex_partition_range_lasts),
                                 mg_graph_view.number_of_vertices(),
-                                invalid_vertex);
+                                invalid_vertex,
+                                pinned_host_mr);
 }
 
 }  // namespace test

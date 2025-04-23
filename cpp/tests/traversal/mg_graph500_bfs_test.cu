@@ -74,33 +74,38 @@ struct Graph500_BFS_Usecase {
 
 template <typename vertex_t>
 struct hash_vertex_pair_t {
-  using result_type = std::conditional_t<sizeof(vertex_t) == 8,
-                                         typename cuco::xxhash_64<vertex_t>::result_type,
-                                         typename cuco::xxhash_32<vertex_t>::result_type>;
+  using result_type = typename cuco::murmurhash3_32<vertex_t>::result_type;
+
   __device__ result_type operator()(thrust::tuple<vertex_t, vertex_t> const& pair) const
   {
-    vertex_t buf[2];
-    buf[0] = thrust::get<0>(pair);
-    buf[1] = thrust::get<1>(pair);
-    std::conditional_t<sizeof(vertex_t) == 8, cuco::xxhash_64<vertex_t>, cuco::xxhash_32<vertex_t>>
-      hash_func{};
-    return hash_func.compute_hash(reinterpret_cast<cuda::std::byte*>(buf), 2 * sizeof(vertex_t));
+    cuco::murmurhash3_32<vertex_t> hash_func{};
+    auto hash0 = hash_func(thrust::get<0>(pair));
+    auto hash1 = hash_func(thrust::get<1>(pair));
+    return hash0 + hash1;
   }
 };
 
 void init_nccl_env_variables()
 {
 #if 0
-    {
-      auto ret = setenv("NCCL_DEBUG", "WARN", 1);
-      if (ret != 0) std::cerr << "setenv(\"NCCL_DEBUG\", \"TRACE\", 1) returned " << ret << std::endl;
-    }
+  {
+    auto ret = setenv("NCCL_DEBUG", "WARN", 1);
+    if (ret != 0) std::cerr << "setenv(\"NCCL_DEBUG\", \"TRACE\", 1) returned " << ret << std::endl;
+  }
 #endif
-#if 1    // workstation
-         /* nothing to do */
-#elif 0  // for pre-Tyche
+#if 0  // workstation
   /* nothing to do */
-#elif 0  // for CW
+#endif
+#if 1  // for pre-Tyche
+  {
+#if 1
+    /* nothing to do */
+#else
+    auto ret = setenv("NCCL_BUFFSIZE", "2097152", 1);
+#endif
+  }
+#endif
+#if 0  // for CW
   {
     auto ret = setenv("NCCL_NET", "IB", 1);
     if (ret != 0) std::cerr << "setenv(\"NCCL_NET\", \"IB\", 1) returned " << ret << std::endl;
@@ -109,7 +114,8 @@ void init_nccl_env_variables()
       std::cerr << "setenv(\"NCCL_SOCKET_IFNAME\", \"enp90s0f0np0\", 1) returned " << ret
                 << std::endl;
   }
-#else    // for EOS
+#endif
+#if 0  // for EOS
   {
     auto ret = setenv("NCCL_COLLNET_ENABLE", "0", 1);
     if (ret != 0)
@@ -127,8 +133,8 @@ void init_nccl_env_variables()
 
 // for vertices that belong to a 2-core, parents[v] = v
 // for vertices that do not belong to any 2-core but reachable from 2-cores, parents[v] is updated
-// to the parent of v in the tree spanning from a vertex in a 2-core. for vertices unreachable from
-// any 2-core, parents[v] = invalid_vertex
+// to the parent of v in the tree spanning from a vertex in a 2-core. for vertices unreachable
+// from any 2-core, parents[v] = invalid_vertex
 template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
 rmm::device_uvector<vertex_t> find_trees_from_2cores(
   raft::handle_t const& handle,
@@ -270,19 +276,19 @@ template <typename vertex_t,
           typename edge_time_t,
           bool store_transposed,
           bool multi_gpu>
-std::tuple<
-  cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu>,
-  rmm::device_uvector<vertex_t>,  // mg_pruned_graph_renumber_map
-  rmm::device_uvector<vertex_t>,  // mg_graph_to_pruned_graph_map (mg_graph v_offset to
-                                  // mg_pruned_graph v_offset)
-  rmm::device_uvector<vertex_t>,  // mg_pruned_graph_to_graph_map (mg_pruned_graph v_offset to
-                                  // mg_graph v_offset)
-  cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu>,
-  rmm::device_uvector<vertex_t>,  // mg_isolated_trees_renumber_map
-  rmm::device_uvector<vertex_t>,  // mg_graph_to_isolated_trees_map (mg_graph v_offset to
-                                  // mg_isolated_trees v_offset)
-  rmm::device_uvector<
-    vertex_t>>  // mg_isolated_trees_to_graph_map (mg_isolated_trees v_offset to mg_graph v_offset)
+std::tuple<cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu>,
+           rmm::device_uvector<vertex_t>,  // mg_pruned_graph_renumber_map
+           rmm::device_uvector<vertex_t>,  // mg_graph_to_pruned_graph_map (mg_graph v_offset to
+                                           // mg_pruned_graph v_offset)
+           rmm::device_uvector<vertex_t>,  // mg_pruned_graph_to_graph_map (mg_pruned_graph
+                                           // v_offset to mg_graph v_offset)
+           cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu>,
+           rmm::device_uvector<vertex_t>,  // mg_isolated_trees_renumber_map
+           rmm::device_uvector<vertex_t>,  // mg_graph_to_isolated_trees_map (mg_graph v_offset to
+                                           // mg_isolated_trees v_offset)
+           rmm::device_uvector<
+             vertex_t>>  // mg_isolated_trees_to_graph_map (mg_isolated_trees v_offset to mg_graph
+                         // v_offset)
 extract_forest_pruned_graph_and_isolated_trees(
   raft::handle_t const& handle,
   cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu>&& mg_graph,
@@ -294,10 +300,6 @@ extract_forest_pruned_graph_and_isolated_trees(
   auto mg_graph_view = mg_graph.view();
 
   // extract pruned graph edges
-#if 1
-  RAFT_CUDA_TRY(cudaDeviceSynchronize());
-  std::cout << "extract pruned graph edges" << std::endl;
-#endif
 
   std::vector<rmm::device_uvector<vertex_t>> pruned_graph_src_chunks{};
   std::vector<rmm::device_uvector<vertex_t>> pruned_graph_dst_chunks{};
@@ -311,30 +313,32 @@ extract_forest_pruned_graph_and_isolated_trees(
       pruned_graph_src_chunks.emplace_back(0, handle.get_stream());
       pruned_graph_dst_chunks.emplace_back(0, handle.get_stream());
     }
-    rmm::device_uvector<bool> in_2cores(mg_graph_view.local_vertex_partition_range_size(),
-                                        handle.get_stream());
-    auto pair_first = thrust::make_zip_iterator(
-      thrust::make_counting_iterator(mg_graph_view.local_vertex_partition_range_first()),
-      parents.begin());
-    thrust::transform(handle.get_thrust_policy(),
-                      pair_first,
-                      pair_first + mg_graph_view.local_vertex_partition_range_size(),
-                      in_2cores.begin(),
-                      cuda::proclaim_return_type<bool>([] __device__(auto pair) {
-                        return thrust::get<0>(pair) == thrust::get<1>(pair);
-                      }));
     cugraph::edge_src_property_t<
       cugraph::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
       bool>
       edge_src_in_2cores(handle, mg_graph_view);
-    cugraph::update_edge_src_property(
-      handle, mg_graph_view, in_2cores.begin(), edge_src_in_2cores.mutable_view());
     cugraph::edge_dst_property_t<
       cugraph::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
       bool>
       edge_dst_in_2cores(handle, mg_graph_view);
-    cugraph::update_edge_dst_property(
-      handle, mg_graph_view, in_2cores.begin(), edge_dst_in_2cores.mutable_view());
+    {
+      rmm::device_uvector<bool> in_2cores(mg_graph_view.local_vertex_partition_range_size(),
+                                          handle.get_stream());
+      auto pair_first = thrust::make_zip_iterator(
+        thrust::make_counting_iterator(mg_graph_view.local_vertex_partition_range_first()),
+        parents.begin());
+      thrust::transform(handle.get_thrust_policy(),
+                        pair_first,
+                        pair_first + mg_graph_view.local_vertex_partition_range_size(),
+                        in_2cores.begin(),
+                        cuda::proclaim_return_type<bool>([] __device__(auto pair) {
+                          return thrust::get<0>(pair) == thrust::get<1>(pair);
+                        }));
+      cugraph::update_edge_src_property(
+        handle, mg_graph_view, in_2cores.begin(), edge_src_in_2cores.mutable_view());
+      cugraph::update_edge_dst_property(
+        handle, mg_graph_view, in_2cores.begin(), edge_dst_in_2cores.mutable_view());
+    }
     for (size_t i = 0; i < num_chunks; ++i) {
       cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
                                bool>
@@ -390,10 +394,6 @@ extract_forest_pruned_graph_and_isolated_trees(
   }
 
   // extract isolated trees
-#if 1
-  RAFT_CUDA_TRY(cudaDeviceSynchronize());
-  std::cout << "extract isolated trees edges" << std::endl;
-#endif
 
   rmm::device_uvector<vertex_t> isolated_tree_edge_srcs(0, handle.get_stream());
   rmm::device_uvector<vertex_t> isolated_tree_edge_dsts(0, handle.get_stream());
@@ -459,18 +459,10 @@ extract_forest_pruned_graph_and_isolated_trees(
   }
 
   // clear mg_graph
-#if 1
-  RAFT_CUDA_TRY(cudaDeviceSynchronize());
-  std::cout << "clear mg_graph" << std::endl;
-#endif
 
   mg_graph = cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu>(handle);
 
   // create the forest pruned graph
-#if 1
-  RAFT_CUDA_TRY(cudaDeviceSynchronize());
-  std::cout << "create pruned graph" << std::endl;
-#endif
 
   cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu> mg_pruned_graph(handle);
   rmm::device_uvector<vertex_t> mg_pruned_graph_renumber_map(0, handle.get_stream());
@@ -500,10 +492,6 @@ extract_forest_pruned_graph_and_isolated_trees(
   }
 
   // create the isolated trees graph
-#if 1
-  RAFT_CUDA_TRY(cudaDeviceSynchronize());
-  std::cout << "create isolated trees graph" << std::endl;
-#endif
 
   cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu> mg_isolated_trees(handle);
   rmm::device_uvector<vertex_t> mg_isolated_trees_renumber_map(0, handle.get_stream());
@@ -534,10 +522,6 @@ extract_forest_pruned_graph_and_isolated_trees(
   }
 
   // update v_offset mappings between mg_graph and mg_isolated_trees & mg_pruned_graph
-#if 1
-  RAFT_CUDA_TRY(cudaDeviceSynchronize());
-  std::cout << "update maps" << std::endl;
-#endif
 
   rmm::device_uvector<vertex_t> mg_graph_to_isolated_trees_map(0, handle.get_stream());
   rmm::device_uvector<vertex_t> mg_isolated_trees_to_graph_map(0, handle.get_stream());
@@ -865,8 +849,7 @@ class Tests_GRAPH500_MGBFS
       for (size_t i = 0; i < src_chunks.size(); ++i) {
 #if 1
         RAFT_CUDA_TRY(cudaDeviceSynchronize());
-        std::cout << "i=" << i << "/" << src_chunks.size()
-                  << " remove_self_loops & shuffle_ext_edges" << std::endl;
+        std::cout << "remove_self_loops & shuffle_ext_edges i=" << i << std::endl;
 #endif
         std::tie(src_chunks[i],
                  dst_chunks[i],
@@ -907,7 +890,7 @@ class Tests_GRAPH500_MGBFS
 
 #if 1
       RAFT_CUDA_TRY(cudaDeviceSynchronize());
-      std::cout << "remove multi-edges" << std::endl;
+      std::cout << "remove_multi_edges" << std::endl;
 #endif
       std::tie(
         src_chunks, dst_chunks, std::ignore, std::ignore, std::ignore, std::ignore, std::ignore) =
@@ -967,29 +950,35 @@ class Tests_GRAPH500_MGBFS
 
 #if 1
       RAFT_CUDA_TRY(cudaDeviceSynchronize());
-      std::cout << "forest pruning" << std::endl;
+      std::cout << "WCC & find_trees_from_2cores" << std::endl;
 #endif
-      std::optional<rmm::device_uvector<vertex_t>> tmp_components{std::nullopt};
       {
         auto mg_graph_view = mg_graph.view();
 
         components.resize(mg_graph_view.local_vertex_partition_range_size(), handle_->get_stream());
         cugraph::weakly_connected_components(
           *handle_, mg_graph_view, components.data(), components.size());
-        if (bfs_usecase
-              .use_host_buffer) {  // temporarily store components in host buffer to free up HBM
-          tmp_components = rmm::device_uvector<vertex_t>(
-            components.size(), handle_->get_stream(), pinned_host_mr_.get());
-          thrust::copy(handle_->get_thrust_policy(),
-                       components.begin(),
-                       components.end(),
-                       tmp_components->begin());
-          components.resize(0, handle_->get_stream());
-          components.shrink_to_fit(handle_->get_stream());
-        }
         parents = find_trees_from_2cores(*handle_, mg_graph_view, invalid_vertex);
       }
 
+      std::optional<rmm::device_uvector<vertex_t>> tmp_components{std::nullopt};
+      if (bfs_usecase
+            .use_host_buffer) {  // temporarily store components in host buffer to free up HBM
+                                 // before extracting sub-graphs (which uses a lot of HBM)
+        tmp_components = rmm::device_uvector<vertex_t>(
+          components.size(), handle_->get_stream(), pinned_host_mr_.get());
+        thrust::copy(handle_->get_thrust_policy(),
+                     components.begin(),
+                     components.end(),
+                     tmp_components->begin());
+        components.resize(0, handle_->get_stream());
+        components.shrink_to_fit(handle_->get_stream());
+      }
+
+#if 1
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());
+      std::cout << "extract_forest_pruned_graph_and_isolated_trees" << std::endl;
+#endif
       std::tie(mg_pruned_graph,
                mg_pruned_graph_renumber_map,
                mg_graph_to_pruned_graph_map,
@@ -1014,7 +1003,7 @@ class Tests_GRAPH500_MGBFS
             ? std::make_optional<rmm::host_device_async_resource_ref>(pinned_host_mr_.get())
             : std::nullopt);
 
-      if (tmp_components) {
+      if (bfs_usecase.use_host_buffer) {
         components.resize(tmp_components->size(), handle_->get_stream());
         thrust::copy(handle_->get_thrust_policy(),
                      tmp_components->begin(),
@@ -1023,6 +1012,10 @@ class Tests_GRAPH500_MGBFS
         tmp_components = std::nullopt;
       }
 
+#if 1
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());
+      std::cout << "unrenumber parents" << std::endl;
+#endif
       unrenumbered_parents.resize(parents.size(), handle_->get_stream());
       thrust::copy(
         handle_->get_thrust_policy(), parents.begin(), parents.end(), unrenumbered_parents.begin());
@@ -1035,6 +1028,10 @@ class Tests_GRAPH500_MGBFS
                                         vertex_partition_range_offsets.size() - 1));
 
       if (bfs_usecase.use_pruned_graph_unrenumber_cache) {
+#if 1
+        RAFT_CUDA_TRY(cudaDeviceSynchronize());
+        std::cout << "build_nbr_unrenumber_cache" << std::endl;
+#endif
         mg_pruned_graph_pred_unrenumber_cache = cugraph::test::build_nbr_unrenumber_cache(
           *handle_,
           mg_pruned_graph.view(),
@@ -1198,8 +1195,8 @@ class Tests_GRAPH500_MGBFS
           }
 
           auto unrenumbered_v = unrenumbered_starting_vertex;
-          auto n =
-            starting_vertex_parent;  // reverse the parent child relationship till we reach a 2-core
+          auto n = starting_vertex_parent;  // reverse the parent child relationship till we reach
+                                            // a 2-core
           while (true) {
             assert(v != n);  // in this case, v is already a 2-core vertex
             ++subgraph_starting_vertex_distance;
@@ -1677,8 +1674,8 @@ class Tests_GRAPH500_MGBFS
           num_invalids      = cugraph::host_scalar_allreduce(
             comm, num_invalids, raft::comms::op_t::SUM, handle_->get_stream());
 
-          ASSERT_EQ(num_invalids, 0)
-            << " source and destination vertices in the BFS predecessor tree are not one hop away.";
+          ASSERT_EQ(num_invalids, 0) << " source and destination vertices in the BFS predecessor "
+                                        "tree are not one hop away.";
         }
 
         if (cugraph::test::g_perf) {
@@ -1819,7 +1816,8 @@ class Tests_GRAPH500_MGBFS
                   return level_src && !adjacent_level_dst;
                 }));
             ASSERT_EQ(num_invalids, 0)
-              << "only one of the two connected vertices is reachable from the starting vertex or "
+              << "only one of the two connected vertices is reachable from the starting vertex "
+                 "or "
                  "the distances from the starting vertex differ by more than one.";
           }
 
@@ -1986,8 +1984,8 @@ class Tests_GRAPH500_MGBFS
                                }));
           num_invalids = cugraph::host_scalar_allreduce(
             comm, num_invalids, raft::comms::op_t::SUM, handle_->get_stream());
-          ASSERT_EQ(num_invalids, 0)
-            << "the BFS tree does not span the entire connected component of the starting vertex.";
+          ASSERT_EQ(num_invalids, 0) << "the BFS tree does not span the entire connected "
+                                        "component of the starting vertex.";
         }
 
         if (cugraph::test::g_perf) {
@@ -2050,8 +2048,8 @@ class Tests_GRAPH500_MGBFS
                     }))),
               handle_->get_stream());
             query_vertices.resize(query_preds.size(), handle_->get_stream());
-            if (!in_2cores) {  // found BFS predecessor tree may contain edges from v -> parents[v]
-                               // (instead of parents[v] -> v)
+            if (!in_2cores) {  // found BFS predecessor tree may contain edges from v ->
+                               // parents[v] (instead of parents[v] -> v)
               rmm::device_uvector<vertex_t> forest_edge_vertices(parents.size(),
                                                                  handle_->get_stream());
               rmm::device_uvector<vertex_t> forest_edge_parents(forest_edge_vertices.size(),
