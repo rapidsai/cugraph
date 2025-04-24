@@ -497,6 +497,9 @@ class Tests_SamplingHeterogeneousPostProcessing
 
         // Check the invariants in vertex renumber_map
 
+        // FIXME:  Adding this in https://github.com/rapidsai/cugraph/pull/5046 to
+        //         work around a test failure.  Need to investigate the root cause
+        //         of the failure rather than mask it.
         handle.sync_stream();
 
         ASSERT_TRUE(check_vertex_renumber_map_invariants<vertex_t>(
