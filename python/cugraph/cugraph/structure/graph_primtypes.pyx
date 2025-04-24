@@ -20,7 +20,7 @@ from libc.stdint cimport uintptr_t
 from libcpp.utility cimport move
 
 from rmm.pylibrmm.device_buffer cimport DeviceBuffer
-import pylibcudf as plc
+import pylibcudf
 import cudf
 
 
@@ -38,7 +38,7 @@ cdef move_device_buffer_to_column(
     cdef size_t buff_size = device_buffer_unique_ptr.get().size()
     cdef DeviceBuffer buff = DeviceBuffer.c_from_unique_ptr(move(device_buffer_unique_ptr))
     cdef size_t col_size = buff_size // itemsize
-    result_column = plc.Column.from_rmm_buffer(
+    result_column = pylibcudf.Column.from_rmm_buffer(
         buff,
         dtype,
         col_size,
@@ -77,22 +77,22 @@ cdef coo_to_df(GraphCOOPtrType graph):
     contents = move(graph.get()[0].release())
     src = move_device_buffer_to_series(
         move(contents.src_indices),
-        plc.DataType(plc.TypeId.INT32),
+        pylibcudf.DataType(pylibcudf.TypeId.INT32),
         4,
         None,
     )
     dst = move_device_buffer_to_series(
         move(contents.dst_indices),
-        plc.DataType(plc.TypeId.INT32),
+        pylibcudf.DataType(pylibcudf.TypeId.INT32),
         4,
         None,
     )
 
     if GraphCOOPtrType is GraphCOOPtrFloat:
-        weight_type = plc.DataType(plc.TypeId.FLOAT32)
+        weight_type = pylibcudf.DataType(pylibcudf.TypeId.FLOAT32)
         itemsize = 4
     elif GraphCOOPtrType is GraphCOOPtrDouble:
-        weight_type = plc.DataType(plc.TypeId.FLOAT64)
+        weight_type = pylibcudf.DataType(pylibcudf.TypeId.FLOAT64)
         itemsize = 8
     else:
         raise TypeError("Invalid GraphCOOPtrType")
@@ -117,22 +117,22 @@ cdef csr_to_series(GraphCSRPtrType graph):
     contents = move(graph.get()[0].release())
     csr_offsets = move_device_buffer_to_series(
         move(contents.offsets),
-        plc.DataType(plc.TypeId.INT32),
+        pylibcudf.DataType(pylibcudf.TypeId.INT32),
         4,
         "csr_offsets"
     )
     csr_indices = move_device_buffer_to_series(
         move(contents.indices),
-        plc.DataType(plc.TypeId.INT32),
+        pylibcudf.DataType(pylibcudf.TypeId.INT32),
         4,
         "csr_indices"
     )
 
     if GraphCSRPtrType is GraphCSRPtrFloat:
-        weight_type = plc.DataType(plc.TypeId.FLOAT32)
+        weight_type = pylibcudf.DataType(pylibcudf.TypeId.FLOAT32)
         itemsize = 4
     elif GraphCSRPtrType is GraphCSRPtrDouble:
-        weight_type = plc.DataType(plc.TypeId.FLOAT64)
+        weight_type = pylibcudf.DataType(pylibcudf.TypeId.FLOAT64)
         itemsize = 8
     else:
         raise TypeError("Invalid GraphCSRPtrType")
