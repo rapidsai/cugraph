@@ -13,7 +13,7 @@ PYLIBCUGRAPH_WHEELHOUSE=$(RAPIDS_PY_WHEEL_NAME="pylibcugraph_${RAPIDS_PY_CUDA_SU
 # echo to expand wildcard before adding `[extra]` requires for pip
 rapids-pip-retry install \
     "$(echo "${CUGRAPH_WHEELHOUSE}"/cugraph*.whl)[test]" \
-    "${PYLIBCUGRAPH_WHEELHOUSE}/pylibcugraph*.whl" \
-    "${LIBCUGRAPH_WHEELHOUSE}/libcugraph*.whl"
+    "${PYLIBCUGRAPH_WHEELHOUSE}"/pylibcugraph*.whl \
+    "${LIBCUGRAPH_WHEELHOUSE}"/libcugraph*.whl
 
 ./ci/test_wheel.sh cugraph
