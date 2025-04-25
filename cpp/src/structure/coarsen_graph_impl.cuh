@@ -350,27 +350,18 @@ coarsen_graph(raft::handle_t const& handle,
 
     // 1-2. globally shuffle
 
-    std::tie(edgelist_majors,
-             edgelist_minors,
-             edgelist_weights,
-             std::ignore,
-             std::ignore,
-             std::ignore,
-             std::ignore,
-             std::ignore) =
-      cugraph::detail::shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<
-        vertex_t,
-        edge_t,
-        weight_t,
-        int32_t,
-        int32_t>(handle,
-                 std::move(edgelist_majors),
-                 std::move(edgelist_minors),
-                 std::move(edgelist_weights),
-                 std::nullopt,
-                 std::nullopt,
-                 std::nullopt,
-                 std::nullopt);
+    std::vector<cugraph::variant::device_uvectors_t> edgelist_properties{};
+    if (edgelist_weights) edgelist_properties.push_back(std::move(*edgelist_weights));
+
+    std::tie(edgelist_majors, edgelist_minors, edgelist_properties, std::ignore) =
+      cugraph::detail::shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning(
+        handle,
+        std::move(edgelist_majors),
+        std::move(edgelist_minors),
+        std::move(edgelist_properties));
+
+    if (edgelist_properties.size() == 1)
+      edgelist_weights = std::move(std::get<rmm::device_uvector<weight_t>>(edgelist_properties[0]));
 
     // 1-3. groupby and coarsen again
 
@@ -482,27 +473,23 @@ coarsen_graph(raft::handle_t const& handle,
                                                                 reversed_edgelist_majors.begin())));
     }
 
+    std::vector<cugraph::variant::device_uvectors_t> reversed_edgelist_properties{};
+    if (reversed_edgelist_weights)
+      reversed_edgelist_properties.push_back(std::move(*reversed_edgelist_weights));
+
     std::tie(reversed_edgelist_majors,
              reversed_edgelist_minors,
-             reversed_edgelist_weights,
-             std::ignore,
-             std::ignore,
-             std::ignore,
-             std::ignore,
+             reversed_edgelist_properties,
              std::ignore) =
-      cugraph::detail::shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<
-        vertex_t,
-        edge_t,
-        weight_t,
-        int32_t,
-        int32_t>(handle,
-                 std::move(reversed_edgelist_majors),
-                 std::move(reversed_edgelist_minors),
-                 std::move(reversed_edgelist_weights),
-                 std::nullopt,
-                 std::nullopt,
-                 std::nullopt,
-                 std::nullopt);
+      cugraph::detail::shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning(
+        handle,
+        std::move(reversed_edgelist_majors),
+        std::move(reversed_edgelist_minors),
+        std::move(reversed_edgelist_properties));
+
+    if (reversed_edgelist_properties.size() == 1)
+      reversed_edgelist_weights =
+        std::move(std::get<rmm::device_uvector<weight_t>>(reversed_edgelist_properties[0]));
 
     auto output_offset = concatenated_edgelist_majors.size();
 

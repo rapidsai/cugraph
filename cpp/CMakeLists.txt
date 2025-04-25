@@ -173,6 +173,7 @@ set(CUGRAPH_SOURCES
     src/sampling/detail/conversion_utilities.cu
     src/sampling/random_walks_mg_v64_e64.cu
     src/sampling/random_walks_mg_v32_e32.cu
+    src/sampling/detail/random_walk_shuffle_mg.cu
     src/community/detail/common_methods_mg_v64_e64.cu
     src/community/detail/common_methods_mg_v32_e32.cu
     src/community/detail/common_methods_sg_v64_e64.cu

@@ -466,24 +466,12 @@ k_truss(raft::handle_t const& handle,
         std::tie(std::get<0>(edgelist_to_update_count),
                  std::get<1>(edgelist_to_update_count),
                  std::ignore,
-                 std::ignore,
-                 std::ignore,
-                 std::ignore,
-                 std::ignore,
                  std::ignore) =
-          detail::shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<vertex_t,
-                                                                                         edge_t,
-                                                                                         weight_t,
-                                                                                         int32_t,
-                                                                                         int32_t>(
+          detail::shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning(
             handle,
             std::move(std::get<0>(edgelist_to_update_count)),
             std::move(std::get<1>(edgelist_to_update_count)),
-            std::nullopt,
-            std::nullopt,
-            std::nullopt,
-            std::nullopt,
-            std::nullopt,
+            std::vector<cugraph::variant::device_uvectors_t>{},
             cur_graph_view.vertex_partition_range_lasts());
       }
 
@@ -649,27 +637,12 @@ k_truss(raft::handle_t const& handle,
 
       // shuffle the edges if multi_gpu
       if constexpr (multi_gpu) {
-        std::tie(weak_edgelist_dsts,
-                 weak_edgelist_srcs,
-                 std::ignore,
-                 std::ignore,
-                 std::ignore,
-                 std::ignore,
-                 std::ignore,
-                 std::ignore) =
-          detail::shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<vertex_t,
-                                                                                         edge_t,
-                                                                                         weight_t,
-                                                                                         int32_t,
-                                                                                         int32_t>(
+        std::tie(weak_edgelist_dsts, weak_edgelist_srcs, std::ignore, std::ignore) =
+          detail::shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning(
             handle,
             std::move(weak_edgelist_dsts),
             std::move(weak_edgelist_srcs),
-            std::nullopt,
-            std::nullopt,
-            std::nullopt,
-            std::nullopt,
-            std::nullopt,
+            std::vector<cugraph::variant::device_uvectors_t>{},
             cur_graph_view.vertex_partition_range_lasts());
       }
 

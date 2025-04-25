@@ -241,37 +241,23 @@ edge_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, edge_t> edge_t
       rmm::device_uvector<vertex_t> pair_dsts(0, handle.get_stream());
       std::optional<rmm::device_uvector<edge_t>> pair_count{std::nullopt};
 
-      std::optional<rmm::device_uvector<edge_t>> opt_increase_count =
-        std::make_optional(rmm::device_uvector<edge_t>(increase_count.size(), handle.get_stream()));
+      std::vector<cugraph::variant::device_uvectors_t> edge_properties{};
 
-      raft::copy<edge_t>((*opt_increase_count).begin(),
+      edge_properties.push_back(
+        rmm::device_uvector<edge_t>(increase_count.size(), handle.get_stream()));
+
+      raft::copy<edge_t>(std::get<rmm::device_uvector<edge_t>>(edge_properties[0]).begin(),
                          increase_count.begin(),
                          increase_count.size(),
                          handle.get_stream());
 
       // There are still multiple copies here but is it worth sorting and reducing again?
-      std::tie(pair_srcs,
-               pair_dsts,
-               std::ignore,
-               pair_count,
-               std::ignore,
-               std::ignore,
-               std::ignore,
-               std::ignore) =
-        shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<vertex_t,
-                                                                               edge_t,
-                                                                               weight_t,
-                                                                               int32_t,
-                                                                               int32_t>(
+      std::tie(pair_srcs, pair_dsts, edge_properties, std::ignore) =
+        shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning(
           handle,
           std::move(std::get<0>(vertex_pair_buffer)),
           std::move(std::get<1>(vertex_pair_buffer)),
-          std::nullopt,
-          // FIXME: Add general purpose function for shuffling vertex pairs and arbitrary attributes
-          std::move(opt_increase_count),
-          std::nullopt,
-          std::nullopt,
-          std::nullopt,
+          std::move(edge_properties),
           graph_view.vertex_partition_range_lasts());
 
       thrust::for_each(

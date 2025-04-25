@@ -707,26 +707,71 @@ symmetrize_edgelist(raft::handle_t const& handle,
   // 2. shuffle the (to-be-flipped) upper triangular edges
 
   if constexpr (multi_gpu) {
+    // FIXME:  This whole function should use the variant properties
+    bool has_weights{false};
+    bool has_edge_ids{false};
+    bool has_edge_types{false};
+    bool has_edge_start_times{false};
+    bool has_edge_end_times{false};
+
+    std::vector<cugraph::variant::device_uvectors_t> upper_triangular_edge_properties{};
+
+    if (upper_triangular_weights) {
+      has_weights = true;
+      upper_triangular_edge_properties.push_back(std::move(*upper_triangular_weights));
+    }
+
+    if (upper_triangular_edge_ids) {
+      has_edge_ids = true;
+      upper_triangular_edge_properties.push_back(std::move(*upper_triangular_edge_ids));
+    }
+
+    if (upper_triangular_edge_types) {
+      has_edge_types = true;
+      upper_triangular_edge_properties.push_back(std::move(*upper_triangular_edge_types));
+    }
+
+    if (upper_triangular_edge_start_times) {
+      has_edge_start_times = true;
+      upper_triangular_edge_properties.push_back(std::move(*upper_triangular_edge_start_times));
+    }
+
+    if (upper_triangular_edge_end_times) {
+      has_edge_end_times = true;
+      upper_triangular_edge_properties.push_back(std::move(*upper_triangular_edge_end_times));
+    }
+
     std::tie(upper_triangular_minors,
              upper_triangular_majors,
-             upper_triangular_weights,
-             upper_triangular_edge_ids,
-             upper_triangular_edge_types,
-             upper_triangular_edge_start_times,
-             upper_triangular_edge_end_times,
+             upper_triangular_edge_properties,
              std::ignore) =
-      shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<vertex_t,
-                                                                             vertex_t,
-                                                                             weight_t,
-                                                                             int32_t>(
+      shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning(
         handle,
         std::move(upper_triangular_minors),
         std::move(upper_triangular_majors),
-        std::move(upper_triangular_weights),
-        std::move(upper_triangular_edge_ids),
-        std::move(upper_triangular_edge_types),
-        std::move(upper_triangular_edge_start_times),
-        std::move(upper_triangular_edge_end_times));
+        std::move(upper_triangular_edge_properties));
+
+    size_t pos = 0;
+
+    if (has_weights)
+      upper_triangular_weights =
+        std::get<rmm::device_uvector<weight_t>>(std::move(upper_triangular_edge_properties[pos++]));
+
+    if (has_edge_ids)
+      upper_triangular_edge_ids =
+        std::get<rmm::device_uvector<edge_t>>(std::move(upper_triangular_edge_properties[pos++]));
+
+    if (has_edge_types)
+      upper_triangular_edge_types = std::get<rmm::device_uvector<edge_type_t>>(
+        std::move(upper_triangular_edge_properties[pos++]));
+
+    if (has_edge_start_times)
+      upper_triangular_edge_start_times = std::get<rmm::device_uvector<edge_time_t>>(
+        std::move(upper_triangular_edge_properties[pos++]));
+
+    if (has_edge_end_times)
+      upper_triangular_edge_end_times = std::get<rmm::device_uvector<edge_time_t>>(
+        std::move(upper_triangular_edge_properties[pos++]));
   }
 
   // 3. merge the lower triangular and the (flipped) upper triangular edges
@@ -980,27 +1025,70 @@ symmetrize_edgelist(raft::handle_t const& handle,
   }
 
   if constexpr (multi_gpu) {
+    bool has_weights{false};
+    bool has_edge_ids{false};
+    bool has_edge_types{false};
+    bool has_edge_start_times{false};
+    bool has_edge_end_times{false};
+
+    std::vector<cugraph::variant::device_uvectors_t> upper_triangular_edge_properties{};
+
+    if (upper_triangular_weights) {
+      has_weights = true;
+      upper_triangular_edge_properties.push_back(std::move(*upper_triangular_weights));
+    }
+
+    if (upper_triangular_edge_ids) {
+      has_edge_ids = true;
+      upper_triangular_edge_properties.push_back(std::move(*upper_triangular_edge_ids));
+    }
+
+    if (upper_triangular_edge_types) {
+      has_edge_types = true;
+      upper_triangular_edge_properties.push_back(std::move(*upper_triangular_edge_types));
+    }
+
+    if (upper_triangular_edge_start_times) {
+      has_edge_start_times = true;
+      upper_triangular_edge_properties.push_back(std::move(*upper_triangular_edge_start_times));
+    }
+
+    if (upper_triangular_edge_end_times) {
+      has_edge_end_times = true;
+      upper_triangular_edge_properties.push_back(std::move(*upper_triangular_edge_end_times));
+    }
+
     std::tie(upper_triangular_majors,
              upper_triangular_minors,
-             upper_triangular_weights,
-             upper_triangular_edge_ids,
-             upper_triangular_edge_types,
-             upper_triangular_edge_start_times,
-             upper_triangular_edge_end_times,
+             upper_triangular_edge_properties,
              std::ignore) =
-      shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<vertex_t,
-                                                                             vertex_t,
-                                                                             weight_t,
-                                                                             edge_type_t,
-                                                                             edge_time_t>(
+      shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning(
         handle,
         std::move(upper_triangular_majors),
         std::move(upper_triangular_minors),
-        std::move(upper_triangular_weights),
-        std::move(upper_triangular_edge_ids),
-        std::move(upper_triangular_edge_types),
-        std::move(upper_triangular_edge_start_times),
-        std::move(upper_triangular_edge_end_times));
+        std::move(upper_triangular_edge_properties));
+
+    size_t pos = 0;
+
+    if (has_weights)
+      upper_triangular_weights =
+        std::get<rmm::device_uvector<weight_t>>(std::move(upper_triangular_edge_properties[pos++]));
+
+    if (has_edge_ids)
+      upper_triangular_edge_ids =
+        std::get<rmm::device_uvector<edge_t>>(std::move(upper_triangular_edge_properties[pos++]));
+
+    if (has_edge_types)
+      upper_triangular_edge_types = std::get<rmm::device_uvector<edge_type_t>>(
+        std::move(upper_triangular_edge_properties[pos++]));
+
+    if (has_edge_start_times)
+      upper_triangular_edge_start_times = std::get<rmm::device_uvector<edge_time_t>>(
+        std::move(upper_triangular_edge_properties[pos++]));
+
+    if (has_edge_end_times)
+      upper_triangular_edge_end_times = std::get<rmm::device_uvector<edge_time_t>>(
+        std::move(upper_triangular_edge_properties[pos++]));
   }
 
   edgelist_majors           = std::move(merged_lower_triangular_majors);

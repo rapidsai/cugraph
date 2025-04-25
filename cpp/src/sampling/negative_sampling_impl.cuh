@@ -330,30 +330,13 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> negativ
       handle, rng_state, graph_view, normalized_dst_biases, gpu_dst_biases, samples_in_this_batch);
 
     if constexpr (multi_gpu) {
-      auto vertex_partition_range_lasts = graph_view.vertex_partition_range_lasts();
-
-      std::tie(batch_srcs,
-               batch_dsts,
-               std::ignore,
-               std::ignore,
-               std::ignore,
-               std::ignore,
-               std::ignore,
-               std::ignore) =
-        detail::shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<vertex_t,
-                                                                                       edge_t,
-                                                                                       weight_t,
-                                                                                       int32_t,
-                                                                                       int32_t>(
+      std::tie(batch_srcs, batch_dsts, std::ignore, std::ignore) =
+        detail::shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning(
           handle,
           std::move(batch_srcs),
           std::move(batch_dsts),
-          std::nullopt,
-          std::nullopt,
-          std::nullopt,
-          std::nullopt,
-          std::nullopt,
-          vertex_partition_range_lasts);
+          std::vector<cugraph::variant::device_uvectors_t>{},
+          graph_view.vertex_partition_range_lasts());
     }
 
     if (remove_existing_edges) {
