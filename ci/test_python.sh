@@ -9,8 +9,8 @@ cd "$(dirname "$(realpath "${BASH_SOURCE[0]}")")"/../
 . /opt/conda/etc/profile.d/conda.sh
 
 rapids-logger "Downloading artifacts from previous jobs"
-CPP_CHANNEL=$(rapids-download-conda-from-s3 cpp)
-PYTHON_CHANNEL=$(rapids-download-conda-from-s3 python)
+CPP_CHANNEL=$(rapids-download-conda-from-github cpp)
+PYTHON_CHANNEL=$(rapids-download-conda-from-github python)
 
 rapids-logger "Generate Python testing dependencies"
 rapids-dependency-file-generator \
@@ -40,7 +40,8 @@ nvidia-smi
 export LD_PRELOAD="${CONDA_PREFIX}/lib/libgomp.so.1"
 
 # RAPIDS_DATASET_ROOT_DIR is used by test scripts
-export RAPIDS_DATASET_ROOT_DIR="$(realpath datasets)"
+RAPIDS_DATASET_ROOT_DIR="$(realpath datasets)"
+export RAPIDS_DATASET_ROOT_DIR
 
 EXITCODE=0
 trap "EXITCODE=1" ERR
