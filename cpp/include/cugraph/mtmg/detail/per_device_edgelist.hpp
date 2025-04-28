@@ -301,38 +301,38 @@ class per_device_edgelist_t {
       if (edge_end_time_) resize_and_copy_buffers(*edge_end_time_, total_size, stream);
     }
 
-    auto tmp_wgt     = wgt_ ? std::make_optional(std::move((*wgt_)[0])) : std::nullopt;
-    auto tmp_edge_id = edge_id_ ? std::make_optional(std::move((*edge_id_)[0])) : std::nullopt;
-    auto tmp_edge_type =
-      edge_type_ ? std::make_optional(std::move((*edge_type_)[0])) : std::nullopt;
-    auto tmp_edge_start_time =
-      edge_start_time_ ? std::make_optional(std::move((*edge_start_time_)[0])) : std::nullopt;
-    auto tmp_edge_end_time =
-      edge_end_time_ ? std::make_optional(std::move((*edge_end_time_)[0])) : std::nullopt;
+    std::vector<cugraph::variant::device_uvectors_t> tmp_edge_properties{};
+    if (wgt_) tmp_edge_properties.push_back(std::move((*wgt_)[0]));
+    if (edge_id_) tmp_edge_properties.push_back(std::move((*edge_id_)[0]));
+    if (edge_type_) tmp_edge_properties.push_back(std::move((*edge_type_)[0]));
+    if (edge_start_time_) tmp_edge_properties.push_back(std::move((*edge_start_time_)[0]));
+    if (edge_end_time_) tmp_edge_properties.push_back(std::move((*edge_end_time_)[0]));
 
     std::tie(store_transposed ? dst_[0] : src_[0],
              store_transposed ? src_[0] : dst_[0],
-             tmp_wgt,
-             tmp_edge_id,
-             tmp_edge_type,
-             tmp_edge_start_time,
-             tmp_edge_end_time,
+             tmp_edge_properties,
              std::ignore) =
       cugraph::detail::shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning(
         handle.raft_handle(),
         store_transposed ? std::move(dst_[0]) : std::move(src_[0]),
         store_transposed ? std::move(src_[0]) : std::move(dst_[0]),
-        std::move(tmp_wgt),
-        std::move(tmp_edge_id),
-        std::move(tmp_edge_type),
-        std::move(tmp_edge_start_time),
-        std::move(tmp_edge_end_time));
+        std::move(tmp_edge_properties));
 
-    if (tmp_wgt) ((*wgt_)[0]) = std::move(*tmp_wgt);
-    if (tmp_edge_id) ((*edge_id_)[0]) = std::move(*tmp_edge_id);
-    if (tmp_edge_type) ((*edge_type_)[0]) = std::move(*tmp_edge_type);
-    if (tmp_edge_start_time) ((*edge_start_time_)[0]) = std::move(*tmp_edge_start_time);
-    if (tmp_edge_end_time) ((*edge_end_time_)[0]) = std::move(*tmp_edge_end_time);
+    size_t pos{0};
+    if (wgt_)
+      ((*wgt_)[0]) = std::move(std::get<rmm::device_uvector<weight_t>>(tmp_edge_properties[pos++]));
+    if (edge_id_)
+      ((*edge_id_)[0]) =
+        std::move(std::get<rmm::device_uvector<edge_t>>(tmp_edge_properties[pos++]));
+    if (edge_type_)
+      ((*edge_type_)[0]) =
+        std::move(std::get<rmm::device_uvector<edge_type_t>>(tmp_edge_properties[pos++]));
+    if (edge_start_time_)
+      ((*edge_start_time_)[0]) =
+        std::move(std::get<rmm::device_uvector<edge_time_t>>(tmp_edge_properties[pos++]));
+    if (edge_end_time_)
+      ((*edge_end_time_)[0]) =
+        std::move(std::get<rmm::device_uvector<edge_time_t>>(tmp_edge_properties[pos++]));
   }
 
  private:
