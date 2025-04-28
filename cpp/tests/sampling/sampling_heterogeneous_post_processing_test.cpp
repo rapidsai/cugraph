@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, NVIDIA CORPORATION.
+ * Copyright (c) 2024-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -496,6 +496,11 @@ class Tests_SamplingHeterogeneousPostProcessing
              "edgelist.";
 
         // Check the invariants in vertex renumber_map
+
+        // FIXME:  Adding this in https://github.com/rapidsai/cugraph/pull/5046 to
+        //         work around a test failure.  Need to investigate the root cause
+        //         of the failure rather than mask it.
+        handle.sync_stream();
 
         ASSERT_TRUE(check_vertex_renumber_map_invariants<vertex_t>(
           handle,
