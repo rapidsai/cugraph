@@ -11,7 +11,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import cudf
+
 from cugraph.tree import minimum_spanning_tree_wrapper
+from pylibcugraph import minimum_spanning_tree as pylibcugraph_minimum_spanning_tree
+from pylibcugraph import ResourceHandle
 from cugraph.structure.graph_classes import Graph
 from cugraph.utilities import (
     ensure_cugraph_obj_for_nx,
@@ -23,7 +27,19 @@ def _minimum_spanning_tree_subgraph(G):
     mst_subgraph = Graph()
     if G.is_directed():
         raise ValueError("input graph must be undirected")
-    mst_df = minimum_spanning_tree_wrapper.minimum_spanning_tree(G)
+
+    sources, destinations, edge_weights, _ = pylibcugraph_minimum_spanning_tree(
+        resource_handle=ResourceHandle(),
+        graph=G._plc_graph,
+        do_expensive_check=True,
+    )
+
+    mst_df = cudf.DataFrame()
+    mst_df["src"] = sources
+    mst_df["dst"] = destinations
+    if edge_weights is not None:
+        mst_df["weight"] = edge_weights
+
     if G.renumbered:
         mst_df = G.unrenumber(mst_df, "src")
         mst_df = G.unrenumber(mst_df, "dst")
