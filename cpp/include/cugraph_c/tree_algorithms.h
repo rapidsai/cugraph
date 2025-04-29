@@ -47,7 +47,7 @@ typedef struct {
  *                               needs to be transposed
  * @param [in]   do_expensive_check
  *                               A flag to run expensive checks for input arguments (if set to true)
- * @param [out]  result          Opaque object containing the layout result
+ * @param [out]  result          Opaque object containing the extracted subgraph
  * @param [out]  error           Pointer to an error object storing details of any error.  Will
  *                               be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
@@ -55,33 +55,8 @@ typedef struct {
 cugraph_error_code_t cugraph_minimum_spanning_tree(const cugraph_resource_handle_t* handle,
                                                    cugraph_graph_t* graph,
                                                    bool_t do_expensive_check,
-                                                   cugraph_layout_result_t** result,
+                                                   cugraph_induced_subgraph_result_t** result,
                                                    cugraph_error_t** error);
-
-/**
- * @brief     Get layout vertices
- */
-cugraph_type_erased_device_array_view_t* cugraph_layout_result_get_vertices(
-  cugraph_layout_result_t* result);
-
-/**
- * @brief     Get layout x-axis
- */
-cugraph_type_erased_device_array_view_t* cugraph_layout_result_get_x_axis(
-  cugraph_layout_result_t* result);
-
-/**
- * @brief     Get layout y-axis
- */
-cugraph_type_erased_device_array_view_t* cugraph_layout_result_get_y_axis(
-  cugraph_layout_result_t* result);
-
-/**
- * @brief     Free a layout result
- *
- * @param [in] result     The result from a layout algorithm
- */
-void cugraph_layout_result_free(cugraph_layout_result_t* result);
 
 #ifdef __cplusplus
 }

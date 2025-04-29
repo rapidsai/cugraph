@@ -97,29 +97,60 @@ struct minimum_spanning_tree_functor : public cugraph::c_api::abstract_functor {
         );
       
       const size_t num_edges  = result_legacy_coo_graph->view().number_of_edges;
-      const vertex_t* result_src = result_legacy_coo_graph->view().src_indices;
-      const vertex_t* result_dst = result_legacy_coo_graph->view().dst_indices;
-      const weight_t* result_wgt   = result_legacy_coo_graph->view().edge_data;
 
-        rmm::device_uvector<size_t> edge_offsets(2, handle_.get_stream());
+      rmm::device_uvector<vertex_t> result_src(num_edges, handle_.get_stream());
+      raft::copy(result_src.data(),
+                 result_legacy_coo_graph->view().src_indices,
+                 result_src.size(),
+                 handle_.get_stream());
+
+      rmm::device_uvector<vertex_t> result_dst(num_edges, handle_.get_stream());
+      raft::copy(result_dst.data(),
+                 result_legacy_coo_graph->view().dst_indices,
+                 result_dst.size(),
+                 handle_.get_stream());
+
+      std::optional<rmm::device_uvector<weight_t>> result_wgt{std::nullopt};
+
+      result_wgt =
+        rmm::device_uvector<weight_t>{num_edges, handle_.get_stream()};
+      raft::copy(result_wgt->data(),
+                  result_legacy_coo_graph->view().edge_data,
+                  result_wgt->size(),
+                  handle_.get_stream());
+
+      cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(
+        handle_,
+        result_src.data(),
+        result_src.size(),
+        number_map->data(),
+        graph_view.vertex_partition_range_lasts(),
+        do_expensive_check_);
+
+      cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(
+        handle_,
+        result_dst.data(),
+        result_dst.size(),
+        number_map->data(),
+        graph_view.vertex_partition_range_lasts(),
+        do_expensive_check_);
+
+      rmm::device_uvector<size_t> edge_offsets(2, handle_.get_stream());
       std::vector<size_t> h_edge_offsets{{0, num_edges}};
       raft::update_device(
         edge_offsets.data(), h_edge_offsets.data(), h_edge_offsets.size(), handle_.get_stream());
 
        // FIXME: Add support for edge_id and edge_type_id.
-      
       result_ = new cugraph::c_api::cugraph_induced_subgraph_result_t{
         new cugraph::c_api::cugraph_type_erased_device_array_t(result_src, graph_->vertex_type_),
         new cugraph::c_api::cugraph_type_erased_device_array_t(result_dst, graph_->vertex_type_),
-        result_wgt ? new cugraph::c_api::cugraph_type_erased_device_array_t(result_wgt,
+        result_wgt ? new cugraph::c_api::cugraph_type_erased_device_array_t(*result_wgt,
                                                                             graph_->weight_type_)
                    : NULL,
         NULL,
         NULL,
         new cugraph::c_api::cugraph_type_erased_device_array_t(edge_offsets,
                                                                cugraph_data_type_id_t::SIZE_T)};
-    
-      
     }
   }
 };

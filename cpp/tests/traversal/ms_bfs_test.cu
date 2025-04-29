@@ -267,7 +267,36 @@ class Tests_MsBfs : public ::testing::TestWithParam<MsBfs_Usecase> {
                                      d_distances.begin(),
                                      d_distances.end(),
                                      static_cast<vertex_t>(0));
-    ASSERT_TRUE(ref_sum > 0);
+
+    auto d_vertex_degree = graph_view.compute_out_degrees(handle);
+
+    thrust::sort(rmm::exec_policy(handle.get_stream()), d_sources.begin(), d_sources.end());
+
+    d_vertices.resize(graph_view.number_of_vertices(), handle.get_stream());
+    
+    thrust::sequence(
+      rmm::exec_policy(handle.get_stream()), d_vertices.begin(), d_vertices.end(), vertex_t{0});
+
+    auto seeds_degree_last = thrust::partition(rmm::exec_policy(handle.get_stream()),
+                                         thrust::make_zip_iterator(d_vertex_degree.begin(), d_vertices.begin()),
+                                         thrust::make_zip_iterator(d_vertex_degree.end(), d_vertices.end()),
+                                         [d_sources = raft::device_span<vertex_t>(d_sources.data(), d_sources.size())] __device__(auto pair_vertex_degree){
+                                            return thrust::binary_search(thrust::seq, d_sources.begin(), d_sources.end(), thrust::get<1>(pair_vertex_degree));
+                                         });
+
+    auto seeds_degree_size = thrust::distance(thrust::make_zip_iterator(d_vertex_degree.begin(), d_vertices.begin()), seeds_degree_last);
+    
+    d_vertex_degree.resize(seeds_degree_size, handle.get_stream());
+
+    auto seeds_degree_sum = thrust::reduce(rmm::exec_policy(handle.get_stream()),
+                                           d_vertex_degree.begin(),
+                                           d_vertex_degree.end(),
+                                           static_cast<vertex_t>(0),
+                                           thrust::plus<vertex_t>());
+    
+    // Check the degree of the seed vertices
+    // If degree of all seeds is zero hence ref_sum is zero otherwise ref_sum > 0
+    ASSERT_TRUE(seeds_degree_sum ? ref_sum > 0 : ref_sum == 0);
     ASSERT_TRUE(ref_sum < std::numeric_limits<vertex_t>::max());
     ASSERT_TRUE(ref_sum == ms_sum);
   }
@@ -279,6 +308,7 @@ INSTANTIATE_TEST_SUITE_P(rmat_small_test,
                          Tests_MsBfs,
                          ::testing::Values(MsBfs_Usecase{8, 10, 16, 32, 2},
                                            MsBfs_Usecase{512, 10, 16, 32, 3},
-                                           MsBfs_Usecase{512, 10, 16, 32, 100}));
+                                           MsBfs_Usecase{512, 10, 16, 32, 100}
+                                           ));
 
 CUGRAPH_TEST_PROGRAM_MAIN()
