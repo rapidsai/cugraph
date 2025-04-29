@@ -105,7 +105,7 @@ def force_atlas2(input_graph,
             raise ValueError('vertex_radius must be provided for all vertices')
         vertex_radius['radius'] = vertex_radius['radius'].astype(np.float32)
         vertex_radius['radius'][vertex_radius['vertex']] = vertex_radius['radius']
-        vertex_radius_arr = vertex_radius['vertex'].__cuda_array_interface__['data'][0]
+        vertex_radius_arr = vertex_radius['radius'].__cuda_array_interface__['data'][0]
 
     cdef uintptr_t callback_ptr = 0
     if callback:
