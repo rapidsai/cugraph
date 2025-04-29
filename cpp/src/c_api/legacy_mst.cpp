@@ -90,13 +90,11 @@ struct minimum_spanning_tree_functor : public cugraph::c_api::abstract_functor {
           : const_cast<weight_t*>(edge_weights->view().value_firsts().front()),
         edge_partition_view.offsets().size() - 1,
         edge_partition_view.indices().size());
-      
-      auto result_legacy_coo_graph = cugraph::minimum_spanning_tree<vertex_t, edge_t, weight_t>(
-        handle_,
-        legacy_csr_graph_view
-        );
-      
-      const size_t num_edges  = result_legacy_coo_graph->view().number_of_edges;
+
+      auto result_legacy_coo_graph =
+        cugraph::minimum_spanning_tree<vertex_t, edge_t, weight_t>(handle_, legacy_csr_graph_view);
+
+      const size_t num_edges = result_legacy_coo_graph->view().number_of_edges;
 
       rmm::device_uvector<vertex_t> result_src(num_edges, handle_.get_stream());
       raft::copy(result_src.data(),
@@ -112,12 +110,11 @@ struct minimum_spanning_tree_functor : public cugraph::c_api::abstract_functor {
 
       std::optional<rmm::device_uvector<weight_t>> result_wgt{std::nullopt};
 
-      result_wgt =
-        rmm::device_uvector<weight_t>{num_edges, handle_.get_stream()};
+      result_wgt = rmm::device_uvector<weight_t>{num_edges, handle_.get_stream()};
       raft::copy(result_wgt->data(),
-                  result_legacy_coo_graph->view().edge_data,
-                  result_wgt->size(),
-                  handle_.get_stream());
+                 result_legacy_coo_graph->view().edge_data,
+                 result_wgt->size(),
+                 handle_.get_stream());
 
       cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(
         handle_,
@@ -140,7 +137,7 @@ struct minimum_spanning_tree_functor : public cugraph::c_api::abstract_functor {
       raft::update_device(
         edge_offsets.data(), h_edge_offsets.data(), h_edge_offsets.size(), handle_.get_stream());
 
-       // FIXME: Add support for edge_id and edge_type_id.
+      // FIXME: Add support for edge_id and edge_type_id.
       result_ = new cugraph::c_api::cugraph_induced_subgraph_result_t{
         new cugraph::c_api::cugraph_type_erased_device_array_t(result_src, graph_->vertex_type_),
         new cugraph::c_api::cugraph_type_erased_device_array_t(result_dst, graph_->vertex_type_),
@@ -164,10 +161,7 @@ extern "C" cugraph_error_code_t cugraph_minimum_spanning_tree(
   cugraph_induced_subgraph_result_t** result,
   cugraph_error_t** error)
 {
-
-  minimum_spanning_tree_functor functor(handle,
-                                        graph,
-                                        do_expensive_check);
+  minimum_spanning_tree_functor functor(handle, graph, do_expensive_check);
 
   return cugraph::c_api::run_algorithm(graph, functor, result, error);
 }

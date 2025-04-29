@@ -203,17 +203,17 @@ int test_minimum_spanning_tree_no_weights()
   size_t num_expected_offsets = 2;
 
   return generic_minimum_spanning_tree_test(h_src,
-                              h_dst,
-                              NULL,
-                              h_result_src,
-                              h_result_dst,
-                              h_result_wgt,
-                              h_result_offsets,
-                              num_vertices,
-                              num_edges,
-                              num_expected_offsets,
-                              num_expected_edges,
-                              FALSE);
+                                            h_dst,
+                                            NULL,
+                                            h_result_src,
+                                            h_result_dst,
+                                            h_result_wgt,
+                                            h_result_offsets,
+                                            num_vertices,
+                                            num_edges,
+                                            num_expected_offsets,
+                                            num_expected_edges,
+                                            FALSE);
 }
 
 /******************************************************************************/
