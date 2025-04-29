@@ -157,18 +157,23 @@ def force_atlas2(
     if prevent_overlapping:
         if barnes_hut_optimize:
             raise ValueError("prevent_overlapping can only be enabled when "
-                "barnes_hut_optimize is set to False")
+                             "barnes_hut_optimize is set to False")
         if vertex_radius is None:
             raise ValueError("vertex_radius must be provided when "
-                "prevent_overlapping is enabled")
+                             "prevent_overlapping is enabled")
         if not isinstance(vertex_radius, cudf.DataFrame):
             raise TypeError("vertex_radius must be a cudf.DataFrame")
         if set(vertex_radius.columns) != set(["vertex", "radius"]):
             raise ValueError("vertex_radius has wrong column names")
         if input_graph.renumbered is True:
-            vertex_radius = input_graph.add_internal_vertex_id(vertex_radius,
+            if input_graph.vertex_column_size() > 1:
+                cols = pos_list.columns[:-2].to_list()
+            else:
+                cols = "vertex"
+            vertex_radius = input_graph.add_internal_vertex_id(
+                vertex_radius,
                 "vertex",
-                "vertex")
+                cols)
 
     if input_graph.is_directed():
         input_graph = input_graph.to_undirected()
