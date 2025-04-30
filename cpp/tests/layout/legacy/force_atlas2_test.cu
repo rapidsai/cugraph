@@ -163,7 +163,7 @@ class Tests_Force_Atlas2 : public ::testing::TestWithParam<Force_Atlas2_Usecase>
       hr_timer.start("force_atlas2");
       for (int i = 0; i < PERF_MULTIPLIER; ++i) {
         cugraph::force_atlas2<int, int, T>(handle,
-                                           rng_state,
+                                           //rng_state,
                                            G,
                                            pos.data(),
                                            max_iter,
@@ -187,7 +187,7 @@ class Tests_Force_Atlas2 : public ::testing::TestWithParam<Force_Atlas2_Usecase>
     } else {
       cudaProfilerStart();
       cugraph::force_atlas2<int, int, T>(handle,
-                                         rng_state,
+                                         //rng_state,
                                          G,
                                          pos.data(),
                                          max_iter,

@@ -21,7 +21,7 @@ namespace cugraph {
 
 template <typename vertex_t, typename edge_t, typename weight_t>
 void force_atlas2(raft::handle_t const& handle,
-                  raft::random::RngState& rng_state,
+                  // raft::random::RngState& rng_state, FIXME: add support for rng state
                   legacy::GraphCOOView<vertex_t, edge_t, weight_t>& graph,
                   float* pos,
                   const int max_iter,
@@ -45,7 +45,7 @@ void force_atlas2(raft::handle_t const& handle,
 
   if (!barnes_hut_optimize) {
     cugraph::detail::exact_fa2<vertex_t, edge_t, weight_t>(handle,
-                                                           rng_state,
+                                                           // rng_state, FIXME: add support for rng state
                                                            graph,
                                                            pos,
                                                            max_iter,
@@ -63,7 +63,7 @@ void force_atlas2(raft::handle_t const& handle,
                                                            callback);
   } else {
     cugraph::detail::barnes_hut<vertex_t, edge_t, weight_t>(handle,
-                                                            rng_state,
+                                                            // rng_state, FIXME: add support for rng state
                                                             graph,
                                                             pos,
                                                             max_iter,
@@ -84,7 +84,7 @@ void force_atlas2(raft::handle_t const& handle,
 }
 
 template void force_atlas2<int, int, float>(raft::handle_t const& handle,
-                                            raft::random::RngState& rng_state,
+                                            //raft::random::RngState& rng_state,
                                             legacy::GraphCOOView<int, int, float>& graph,
                                             float* pos,
                                             const int max_iter,
@@ -104,7 +104,7 @@ template void force_atlas2<int, int, float>(raft::handle_t const& handle,
                                             internals::GraphBasedDimRedCallback* callback);
 
 template void force_atlas2<int, int, double>(raft::handle_t const& handle,
-                                             raft::random::RngState& rng_state,
+                                             //raft::random::RngState& rng_state,
                                              legacy::GraphCOOView<int, int, double>& graph,
                                              float* pos,
                                              const int max_iter,

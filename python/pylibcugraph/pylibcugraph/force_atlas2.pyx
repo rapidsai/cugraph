@@ -96,6 +96,8 @@ def force_atlas2(ResourceHandle resource_handle,
         defaults to a hash of process id, time, and hostname.
         (See pylibcugraph.random.CuGraphRandomState)
 
+        Not Supported yet.
+
     graph : SGGraph or MGGraph
         The input graph, for either Single or Multi-GPU operations.
 

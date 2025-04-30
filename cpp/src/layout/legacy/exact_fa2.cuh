@@ -37,7 +37,7 @@ namespace detail {
 
 template <typename vertex_t, typename edge_t, typename weight_t>
 void exact_fa2(raft::handle_t const& handle,
-               raft::random::RngState& rng_state,
+               //raft::random::RngState& rng_state,
                legacy::GraphCOOView<vertex_t, edge_t, weight_t>& graph,
                float* pos,
                const int max_iter                            = 500,
@@ -81,6 +81,9 @@ void exact_fa2(raft::handle_t const& handle,
   d_mass       = mass.data();
   d_swinging   = swinging.data();
   d_traction   = traction.data();
+
+  // Initialize positions with random values
+  raft::random::RngState rng_state{0};
 
   uniform_random_fill(handle.get_stream(), pos, n * 2, -100.0f, 100.0f, rng_state);
 

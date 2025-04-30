@@ -37,7 +37,7 @@ namespace detail {
 
 template <typename vertex_t, typename edge_t, typename weight_t>
 void barnes_hut(raft::handle_t const& handle,
-                raft::random::RngState& rng_state,
+                //raft::random::RngState& rng_state, FIXME: add support for rng state
                 legacy::GraphCOOView<vertex_t, edge_t, weight_t>& graph,
                 float* pos,
                 const int max_iter                            = 500,
@@ -127,6 +127,9 @@ void barnes_hut(raft::handle_t const& handle,
 
   rmm::device_uvector<float> d_nodes_pos((nnodes + 1) * 2, stream_view);
   float* nodes_pos = d_nodes_pos.data();
+
+  // Initialize positions with random values
+  raft::random::RngState rng_state{0};
 
   // Copy start x and y positions.
   if (x_start && y_start) {
