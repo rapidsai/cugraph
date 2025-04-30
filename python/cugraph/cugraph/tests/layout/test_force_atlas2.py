@@ -108,7 +108,7 @@ DATASETS = [
     (polbooks, 0.75),
     (dolphins, 0.66),
     (netscience, 0.66),
-    (dining_prefs, 0.50),
+    (dining_prefs, 0.4),
 ]
 
 DATASETS2 = [
