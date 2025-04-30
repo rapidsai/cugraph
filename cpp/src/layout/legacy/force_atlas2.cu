@@ -44,47 +44,49 @@ void force_atlas2(raft::handle_t const& handle,
   CUGRAPH_EXPECTS(graph.number_of_vertices != 0, "Invalid input: Graph is empty");
 
   if (!barnes_hut_optimize) {
-    cugraph::detail::exact_fa2<vertex_t, edge_t, weight_t>(handle,
-                                                           // rng_state, FIXME: add support for rng state
-                                                           graph,
-                                                           pos,
-                                                           max_iter,
-                                                           x_start,
-                                                           y_start,
-                                                           outbound_attraction_distribution,
-                                                           lin_log_mode,
-                                                           prevent_overlapping,
-                                                           edge_weight_influence,
-                                                           jitter_tolerance,
-                                                           scaling_ratio,
-                                                           strong_gravity_mode,
-                                                           gravity,
-                                                           verbose,
-                                                           callback);
+    cugraph::detail::exact_fa2<vertex_t, edge_t, weight_t>(
+      handle,
+      // rng_state, FIXME: add support for rng state
+      graph,
+      pos,
+      max_iter,
+      x_start,
+      y_start,
+      outbound_attraction_distribution,
+      lin_log_mode,
+      prevent_overlapping,
+      edge_weight_influence,
+      jitter_tolerance,
+      scaling_ratio,
+      strong_gravity_mode,
+      gravity,
+      verbose,
+      callback);
   } else {
-    cugraph::detail::barnes_hut<vertex_t, edge_t, weight_t>(handle,
-                                                            // rng_state, FIXME: add support for rng state
-                                                            graph,
-                                                            pos,
-                                                            max_iter,
-                                                            x_start,
-                                                            y_start,
-                                                            outbound_attraction_distribution,
-                                                            lin_log_mode,
-                                                            prevent_overlapping,
-                                                            edge_weight_influence,
-                                                            jitter_tolerance,
-                                                            barnes_hut_theta,
-                                                            scaling_ratio,
-                                                            strong_gravity_mode,
-                                                            gravity,
-                                                            verbose,
-                                                            callback);
+    cugraph::detail::barnes_hut<vertex_t, edge_t, weight_t>(
+      handle,
+      // rng_state, FIXME: add support for rng state
+      graph,
+      pos,
+      max_iter,
+      x_start,
+      y_start,
+      outbound_attraction_distribution,
+      lin_log_mode,
+      prevent_overlapping,
+      edge_weight_influence,
+      jitter_tolerance,
+      barnes_hut_theta,
+      scaling_ratio,
+      strong_gravity_mode,
+      gravity,
+      verbose,
+      callback);
   }
 }
 
 template void force_atlas2<int, int, float>(raft::handle_t const& handle,
-                                            //raft::random::RngState& rng_state,
+                                            // raft::random::RngState& rng_state,
                                             legacy::GraphCOOView<int, int, float>& graph,
                                             float* pos,
                                             const int max_iter,
@@ -104,7 +106,7 @@ template void force_atlas2<int, int, float>(raft::handle_t const& handle,
                                             internals::GraphBasedDimRedCallback* callback);
 
 template void force_atlas2<int, int, double>(raft::handle_t const& handle,
-                                             //raft::random::RngState& rng_state,
+                                             // raft::random::RngState& rng_state,
                                              legacy::GraphCOOView<int, int, double>& graph,
                                              float* pos,
                                              const int max_iter,

@@ -230,7 +230,7 @@ void overlap_list(legacy::GraphCSRView<VT, ET, WT> const& graph,
  */
 template <typename vertex_t, typename edge_t, typename weight_t>
 void force_atlas2(raft::handle_t const& handle,
-                  //raft::random::RngState& rng_state,
+                  // raft::random::RngState& rng_state,
                   legacy::GraphCOOView<vertex_t, edge_t, weight_t>& graph,
                   float* pos,
                   const int max_iter                            = 500,
