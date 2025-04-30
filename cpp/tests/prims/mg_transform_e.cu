@@ -100,7 +100,7 @@ class Tests_MGTransformE
 
     auto mg_graph_view = mg_graph.view();
 
-    std::optional<cugraph::edge_property_t<decltype(mg_graph_view), bool>> edge_mask{std::nullopt};
+    std::optional<cugraph::edge_property_t<edge_t, bool>> edge_mask{std::nullopt};
     if (prims_usecase.edge_masking) {
       edge_mask = cugraph::test::generate<decltype(mg_graph_view), bool>::edge_property(
         *handle_, mg_graph_view, 2);
@@ -157,8 +157,7 @@ class Tests_MGTransformE
                        dsts.begin());  // now edge_list stores edge pairs with (src + dst) % 2 == 0
     }
 
-    cugraph::edge_property_t<decltype(mg_graph_view), result_t> edge_value_output(*handle_,
-                                                                                  mg_graph_view);
+    cugraph::edge_property_t<edge_t, result_t> edge_value_output(*handle_, mg_graph_view);
 
     cugraph::fill_edge_property(
       *handle_, mg_graph_view, edge_value_output.mutable_view(), property_initial_value);

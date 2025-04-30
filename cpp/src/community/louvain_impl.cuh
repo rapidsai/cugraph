@@ -64,7 +64,7 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
   std::unique_ptr<Dendrogram<vertex_t>> dendrogram = std::make_unique<Dendrogram<vertex_t>>();
   graph_t current_graph(handle);
   graph_view_t current_graph_view(graph_view);
-  std::optional<edge_property_t<graph_view_t, weight_t>> current_edge_weights(handle);
+  std::optional<edge_property_t<edge_t, weight_t>> current_edge_weights(handle);
   std::optional<edge_property_view_t<edge_t, weight_t const*>> current_edge_weight_view(
     edge_weight_view);
 

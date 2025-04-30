@@ -50,10 +50,10 @@ std::tuple<rmm::device_uvector<vertex_t>, weight_t> approximate_weighted_matchin
   graph_view_t current_graph_view(graph_view);
   if (current_graph_view.has_edge_mask()) { current_graph_view.clear_edge_mask(); }
 
-  cugraph::edge_property_t<graph_view_t, bool> edge_masks_even(handle, current_graph_view);
+  cugraph::edge_property_t<edge_t, bool> edge_masks_even(handle, current_graph_view);
   cugraph::fill_edge_property(
     handle, current_graph_view, edge_masks_even.mutable_view(), bool{false});
-  cugraph::edge_property_t<graph_view_t, bool> edge_masks_odd(handle, current_graph_view);
+  cugraph::edge_property_t<edge_t, bool> edge_masks_odd(handle, current_graph_view);
   cugraph::fill_edge_property(
     handle, current_graph_view, edge_masks_odd.mutable_view(), bool{false});
 

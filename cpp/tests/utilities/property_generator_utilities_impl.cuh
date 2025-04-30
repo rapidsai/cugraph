@@ -112,12 +112,13 @@ generate<GraphViewType, property_t>::dst_property(raft::handle_t const& handle,
 }
 
 template <typename GraphViewType, typename property_t>
-cugraph::edge_property_t<GraphViewType, property_t>
+cugraph::edge_property_t<typename GraphViewType::edge_type, property_t>
 generate<GraphViewType, property_t>::edge_property(raft::handle_t const& handle,
                                                    GraphViewType const& graph_view,
                                                    int32_t hash_bin_count)
 {
-  auto output_property = cugraph::edge_property_t<GraphViewType, property_t>(handle, graph_view);
+  auto output_property =
+    cugraph::edge_property_t<typename GraphViewType::edge_type, property_t>(handle, graph_view);
   cugraph::transform_e(handle,
                        graph_view,
                        cugraph::edge_src_dummy_property_t{}.view(),
@@ -129,14 +130,15 @@ generate<GraphViewType, property_t>::edge_property(raft::handle_t const& handle,
 }
 
 template <typename GraphViewType, typename property_t>
-cugraph::edge_property_t<GraphViewType, property_t>
+cugraph::edge_property_t<typename GraphViewType::edge_type, property_t>
 generate<GraphViewType, property_t>::edge_property_by_src_dst_types(
   raft::handle_t const& handle,
   GraphViewType const& graph_view,
   raft::device_span<typename GraphViewType::vertex_type const> vertex_type_offsets,
   int32_t hash_bin_count)
 {
-  auto output_property = cugraph::edge_property_t<GraphViewType, property_t>(handle, graph_view);
+  auto output_property =
+    cugraph::edge_property_t<typename GraphViewType::edge_type, property_t>(handle, graph_view);
 
   cugraph::transform_e(
     handle,
@@ -163,11 +165,12 @@ generate<GraphViewType, property_t>::edge_property_by_src_dst_types(
 }
 
 template <typename GraphViewType, typename property_t>
-cugraph::edge_property_t<GraphViewType, property_t>
+cugraph::edge_property_t<typename GraphViewType::edge_type, property_t>
 generate<GraphViewType, property_t>::unique_edge_property(raft::handle_t const& handle,
                                                           GraphViewType const& graph_view)
 {
-  auto output_property = cugraph::edge_property_t<GraphViewType, property_t>(handle, graph_view);
+  auto output_property =
+    cugraph::edge_property_t<typename GraphViewType::edge_type, property_t>(handle, graph_view);
   if constexpr (std::is_integral_v<property_t> && !std::is_same_v<property_t, bool>) {
     CUGRAPH_EXPECTS(
       graph_view.compute_number_of_edges(handle) <= std::numeric_limits<property_t>::max(),
@@ -192,14 +195,15 @@ generate<GraphViewType, property_t>::unique_edge_property(raft::handle_t const& 
 }
 
 template <typename GraphViewType, typename property_t>
-cugraph::edge_property_t<GraphViewType, property_t>
+cugraph::edge_property_t<typename GraphViewType::edge_type, property_t>
 generate<GraphViewType, property_t>::unique_edge_property_per_type(
   raft::handle_t const& handle,
   GraphViewType const& graph_view,
   cugraph::edge_property_view_t<typename GraphViewType::edge_type, int32_t const*> edge_type_view,
   int32_t num_edge_types)
 {
-  auto output_property = cugraph::edge_property_t<GraphViewType, property_t>(handle, graph_view);
+  auto output_property =
+    cugraph::edge_property_t<typename GraphViewType::edge_type, property_t>(handle, graph_view);
   if constexpr (std::is_integral_v<property_t> && !std::is_same_v<property_t, bool>) {
     CUGRAPH_EXPECTS(
       graph_view.compute_number_of_edges(handle) <= std::numeric_limits<property_t>::max(),

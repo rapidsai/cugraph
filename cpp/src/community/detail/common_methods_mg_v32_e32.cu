@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -44,17 +44,15 @@ template double compute_modularity(
   double total_edge_weight,
   double resolution);
 
-template std::tuple<
-  cugraph::graph_t<int32_t, int32_t, false, true>,
-  std::optional<edge_property_t<graph_view_t<int32_t, int32_t, false, true>, float>>>
+template std::tuple<cugraph::graph_t<int32_t, int32_t, false, true>,
+                    std::optional<edge_property_t<int32_t, float>>>
 graph_contraction(raft::handle_t const& handle,
                   cugraph::graph_view_t<int32_t, int32_t, false, true> const& graph_view,
                   std::optional<edge_property_view_t<int32_t, float const*>> edge_weights,
                   raft::device_span<int32_t> labels);
 
-template std::tuple<
-  cugraph::graph_t<int32_t, int32_t, false, true>,
-  std::optional<edge_property_t<graph_view_t<int32_t, int32_t, false, true>, double>>>
+template std::tuple<cugraph::graph_t<int32_t, int32_t, false, true>,
+                    std::optional<edge_property_t<int32_t, double>>>
 graph_contraction(raft::handle_t const& handle,
                   cugraph::graph_view_t<int32_t, int32_t, false, true> const& graph_view,
                   std::optional<edge_property_view_t<int32_t, double const*>> edge_weights,

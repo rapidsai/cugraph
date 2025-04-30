@@ -96,7 +96,7 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
     edge_weight_view);
 
   graph_t coarse_graph(handle);
-  std::optional<edge_property_t<graph_view_t, weight_t>> coarsen_graph_edge_weight(handle);
+  std::optional<edge_property_t<edge_t, weight_t>> coarsen_graph_edge_weight(handle);
 
 #ifdef TIMING
   HighResTimer hr_timer{};

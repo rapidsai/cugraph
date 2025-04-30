@@ -200,11 +200,10 @@ void triangle_count(raft::handle_t const& handle,
   // 2. Mask out the edges that has source or destination that cannot be reached from vertices
   // within two hop (if vertices.has_value() is true).
 
-  cugraph::edge_property_t<decltype(cur_graph_view), bool> edge_mask(handle);
+  cugraph::edge_property_t<edge_t, bool> edge_mask(handle);
 
   if (vertices) {
-    cugraph::edge_property_t<decltype(cur_graph_view), bool> within_two_hop_edge_mask(
-      handle, cur_graph_view);
+    cugraph::edge_property_t<edge_t, bool> within_two_hop_edge_mask(handle, cur_graph_view);
     cugraph::fill_edge_property(
       handle, unmasked_cur_graph_view, within_two_hop_edge_mask.mutable_view(), false);
 
@@ -362,8 +361,7 @@ void triangle_count(raft::handle_t const& handle,
   // 3. Exclude self-loops
 
   {
-    cugraph::edge_property_t<decltype(cur_graph_view), bool> self_loop_edge_mask(handle,
-                                                                                 cur_graph_view);
+    cugraph::edge_property_t<edge_t, bool> self_loop_edge_mask(handle, cur_graph_view);
     cugraph::fill_edge_property(
       handle, unmasked_cur_graph_view, self_loop_edge_mask.mutable_view(), false);
 
@@ -384,8 +382,7 @@ void triangle_count(raft::handle_t const& handle,
   // 4. Find 2-core and exclude edges that do not belong to 2-core add masking support).
 
   {
-    cugraph::edge_property_t<decltype(cur_graph_view), bool> in_two_core_edge_mask(handle,
-                                                                                   cur_graph_view);
+    cugraph::edge_property_t<edge_t, bool> in_two_core_edge_mask(handle, cur_graph_view);
     cugraph::fill_edge_property(
       handle, unmasked_cur_graph_view, in_two_core_edge_mask.mutable_view(), false);
 

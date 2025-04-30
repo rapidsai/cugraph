@@ -215,9 +215,8 @@ weight_t compute_modularity(
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-std::tuple<
-  cugraph::graph_t<vertex_t, edge_t, false, multi_gpu>,
-  std::optional<edge_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, weight_t>>>
+std::tuple<cugraph::graph_t<vertex_t, edge_t, false, multi_gpu>,
+           std::optional<edge_property_t<edge_t, weight_t>>>
 graph_contraction(raft::handle_t const& handle,
                   cugraph::graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
                   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weights_view,

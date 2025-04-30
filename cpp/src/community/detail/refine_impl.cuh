@@ -628,8 +628,7 @@ refine_clustering(
     cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu> decision_graph(handle);
 
     std::optional<rmm::device_uvector<vertex_t>> renumber_map{std::nullopt};
-    std::optional<edge_property_t<DecisionGraphViewType, weight_t>> coarse_edge_weights{
-      std::nullopt};
+    std::optional<edge_property_t<edge_t, weight_t>> coarse_edge_weights{std::nullopt};
 
     if constexpr (multi_gpu) {
       std::tie(d_srcs,
