@@ -191,8 +191,8 @@ void overlap_list(legacy::GraphCSRView<VT, ET, WT> const& graph,
  * @tparam weight_t                                   Type of edge weights. Supported values : float
  * or double.
  *
- * @param[in] handle                            Library handle (RAFT). If a communicator is set in the
- * handle, the multi GPU version will be selected.
+ * @param[in] handle                            Library handle (RAFT). If a communicator is set in
+ * the handle, the multi GPU version will be selected.
  * @param[in]  rng_state         The RngState instance holding pseudo-random number generator state.
  * @param[in] graph                             cuGraph graph descriptor, should contain the
  * connectivity information as a COO. Graph is considered undirected. Edge weights are used for this
