@@ -191,8 +191,8 @@ void overlap_list(legacy::GraphCSRView<VT, ET, WT> const& graph,
  * @tparam weight_t                                   Type of edge weights. Supported values : float
  * or double.
  *
- * @param[in] handle                          Library handle (RAFT). If a communicator is set in the
- * handle, the multi GPU version will be selected.
+ * @param[in] handle                            Library handle (RAFT). If a communicator is set in
+ * the handle, the multi GPU version will be selected.
  * @param[in] graph                             cuGraph graph descriptor, should contain the
  * connectivity information as a COO. Graph is considered undirected. Edge weights are used for this
  * algorithm and set to 1 by default.
@@ -230,6 +230,7 @@ void overlap_list(legacy::GraphCSRView<VT, ET, WT> const& graph,
  */
 template <typename vertex_t, typename edge_t, typename weight_t>
 void force_atlas2(raft::handle_t const& handle,
+                  // raft::random::RngState& rng_state,
                   legacy::GraphCOOView<vertex_t, edge_t, weight_t>& graph,
                   float* pos,
                   const int max_iter                            = 500,
