@@ -126,10 +126,8 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> brandes_b
   detail::scalar_fill(handle, distances.data(), distances.size(), invalid_distance);
   detail::scalar_fill(handle, sigmas.data(), sigmas.size(), edge_t{0});
 
-  edge_src_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, edge_t> src_sigmas(
-    handle, graph_view);
-  edge_dst_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, vertex_t> dst_distances(
-    handle, graph_view);
+  edge_src_property_t<vertex_t, edge_t, false> src_sigmas(handle, graph_view);
+  edge_dst_property_t<vertex_t, vertex_t, false> dst_distances(handle, graph_view);
 
   auto vertex_partition =
     vertex_partition_device_view_t<vertex_t, multi_gpu>(graph_view.local_vertex_partition_view());
@@ -240,12 +238,10 @@ void accumulate_vertex_results(
                       });
   }
 
-  edge_src_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>,
-                      thrust::tuple<vertex_t, edge_t, weight_t>>
-    src_properties(handle, graph_view);
-  edge_dst_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>,
-                      thrust::tuple<vertex_t, edge_t, weight_t>>
-    dst_properties(handle, graph_view);
+  edge_src_property_t<vertex_t, thrust::tuple<vertex_t, edge_t, weight_t>, false> src_properties(
+    handle, graph_view);
+  edge_dst_property_t<vertex_t, thrust::tuple<vertex_t, edge_t, weight_t>, false> dst_properties(
+    handle, graph_view);
 
   update_edge_src_property(
     handle,
@@ -335,12 +331,10 @@ void accumulate_edge_results(
   rmm::device_uvector<weight_t> deltas(sigmas.size(), handle.get_stream());
   detail::scalar_fill(handle, deltas.data(), deltas.size(), weight_t{0});
 
-  edge_src_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>,
-                      thrust::tuple<vertex_t, edge_t, weight_t>>
-    src_properties(handle, graph_view);
-  edge_dst_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>,
-                      thrust::tuple<vertex_t, edge_t, weight_t>>
-    dst_properties(handle, graph_view);
+  edge_src_property_t<vertex_t, thrust::tuple<vertex_t, edge_t, weight_t>, false> src_properties(
+    handle, graph_view);
+  edge_dst_property_t<vertex_t, thrust::tuple<vertex_t, edge_t, weight_t>, false> dst_properties(
+    handle, graph_view);
 
   update_edge_src_property(
     handle,

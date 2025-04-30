@@ -329,10 +329,10 @@ void triangle_count(raft::handle_t const& handle,
     unique_two_hop_nbrs.resize(0, handle.get_stream());
     unique_two_hop_nbrs.shrink_to_fit(handle.get_stream());
 
-    edge_src_property_t<decltype(cur_graph_view), bool> edge_src_within_two_hop_flags(
-      handle, cur_graph_view);
-    edge_dst_property_t<decltype(cur_graph_view), bool> edge_dst_within_two_hop_flags(
-      handle, cur_graph_view);
+    edge_src_property_t<vertex_t, bool, false> edge_src_within_two_hop_flags(handle,
+                                                                             cur_graph_view);
+    edge_dst_property_t<vertex_t, bool, false> edge_dst_within_two_hop_flags(handle,
+                                                                             cur_graph_view);
     update_edge_src_property(handle,
                              cur_graph_view,
                              within_two_hop_flags.begin(),
@@ -391,10 +391,8 @@ void triangle_count(raft::handle_t const& handle,
     core_number(
       handle, cur_graph_view, core_numbers.data(), k_core_degree_type_t::OUT, size_t{2}, size_t{2});
 
-    edge_src_property_t<decltype(cur_graph_view), bool> edge_src_in_two_cores(handle,
-                                                                              cur_graph_view);
-    edge_dst_property_t<decltype(cur_graph_view), bool> edge_dst_in_two_cores(handle,
-                                                                              cur_graph_view);
+    edge_src_property_t<vertex_t, bool, false> edge_src_in_two_cores(handle, cur_graph_view);
+    edge_dst_property_t<vertex_t, bool, false> edge_dst_in_two_cores(handle, cur_graph_view);
     auto in_two_core_first =
       thrust::make_transform_iterator(core_numbers.begin(), is_two_or_greater_t<edge_t>{});
     rmm::device_uvector<bool> in_two_core_flags(core_numbers.size(), handle.get_stream());
@@ -431,10 +429,8 @@ void triangle_count(raft::handle_t const& handle,
   {
     auto out_degrees = cur_graph_view.compute_out_degrees(handle);
 
-    edge_src_property_t<decltype(cur_graph_view), edge_t> edge_src_out_degrees(handle,
-                                                                               cur_graph_view);
-    edge_dst_property_t<decltype(cur_graph_view), edge_t> edge_dst_out_degrees(handle,
-                                                                               cur_graph_view);
+    edge_src_property_t<vertex_t, edge_t, false> edge_src_out_degrees(handle, cur_graph_view);
+    edge_dst_property_t<vertex_t, edge_t, false> edge_dst_out_degrees(handle, cur_graph_view);
     update_edge_src_property(
       handle, cur_graph_view, out_degrees.begin(), edge_src_out_degrees.mutable_view());
     update_edge_dst_property(

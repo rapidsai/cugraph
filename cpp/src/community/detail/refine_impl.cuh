@@ -148,11 +148,15 @@ refine_clustering(
   rmm::device_uvector<typename GraphViewType::vertex_type>&& louvain_cluster_keys,
   rmm::device_uvector<weight_t>&& louvain_cluster_weights,
   rmm::device_uvector<typename GraphViewType::vertex_type>&& louvain_assignment_of_vertices,
-  edge_src_property_t<GraphViewType, weight_t> const& src_vertex_weights_cache,
-  edge_src_property_t<GraphViewType, typename GraphViewType::vertex_type> const&
-    src_louvain_assignment_cache,
-  edge_dst_property_t<GraphViewType, typename GraphViewType::vertex_type> const&
-    dst_louvain_assignment_cache)
+  edge_src_property_t<typename GraphViewType::vertex_type,
+                      weight_t,
+                      GraphViewType::is_storage_transposed> const& src_vertex_weights_cache,
+  edge_src_property_t<typename GraphViewType::vertex_type,
+                      typename GraphViewType::vertex_type,
+                      GraphViewType::is_storage_transposed> const& src_louvain_assignment_cache,
+  edge_dst_property_t<typename GraphViewType::vertex_type,
+                      typename GraphViewType::vertex_type,
+                      GraphViewType::is_storage_transposed> const& dst_louvain_assignment_cache)
 {
   const weight_t POSITIVE_GAIN = 1e-6;
   using vertex_t               = typename GraphViewType::vertex_type;
@@ -258,19 +262,19 @@ refine_clustering(
                         wcut > (resolution * wdeg * (louvain_volume - wdeg) / total_edge_weight));
                     }));
 
-  edge_src_property_t<GraphViewType, weight_t> src_louvain_cluster_weight_cache(handle);
-  edge_src_property_t<GraphViewType, weight_t> src_cut_to_louvain_cache(handle);
+  edge_src_property_t<vertex_t, weight_t, false> src_louvain_cluster_weight_cache(handle);
+  edge_src_property_t<vertex_t, weight_t, false> src_cut_to_louvain_cache(handle);
 
   if (GraphViewType::is_multi_gpu) {
     // Update cluster weight, weighted degree and cut for edge sources
     src_louvain_cluster_weight_cache =
-      edge_src_property_t<GraphViewType, weight_t>(handle, graph_view);
+      edge_src_property_t<vertex_t, weight_t, false>(handle, graph_view);
     update_edge_src_property(handle,
                              graph_view,
                              vertex_louvain_cluster_weights.begin(),
                              src_louvain_cluster_weight_cache.mutable_view());
 
-    src_cut_to_louvain_cache = edge_src_property_t<GraphViewType, weight_t>(handle, graph_view);
+    src_cut_to_louvain_cache = edge_src_property_t<vertex_t, weight_t, false>(handle, graph_view);
     update_edge_src_property(handle,
                              graph_view,
                              weighted_cut_of_vertices_to_louvain.begin(),
@@ -296,9 +300,9 @@ refine_clustering(
                         leiden_assignment.size(),
                         graph_view.local_vertex_partition_range_first());
 
-  edge_src_property_t<GraphViewType, vertex_t> src_leiden_assignment_cache(handle);
-  edge_dst_property_t<GraphViewType, vertex_t> dst_leiden_assignment_cache(handle);
-  edge_src_property_t<GraphViewType, uint8_t> src_singleton_and_connected_flag_cache(handle);
+  edge_src_property_t<vertex_t, vertex_t, false> src_leiden_assignment_cache(handle);
+  edge_dst_property_t<vertex_t, vertex_t, false> dst_leiden_assignment_cache(handle);
+  edge_src_property_t<vertex_t, uint8_t, false> src_singleton_and_connected_flag_cache(handle);
 
   // FIXME:  Why is kvstore used here?  Can't this be accomplished by
   //  a direct lookup in louvain_assignment_of_vertices using
@@ -334,11 +338,11 @@ refine_clustering(
 
     if constexpr (GraphViewType::is_multi_gpu) {
       src_leiden_assignment_cache =
-        edge_src_property_t<GraphViewType, vertex_t>(handle, graph_view);
+        edge_src_property_t<vertex_t, vertex_t, false>(handle, graph_view);
       dst_leiden_assignment_cache =
-        edge_dst_property_t<GraphViewType, vertex_t>(handle, graph_view);
+        edge_dst_property_t<vertex_t, vertex_t, false>(handle, graph_view);
       src_singleton_and_connected_flag_cache =
-        edge_src_property_t<GraphViewType, uint8_t>(handle, graph_view);
+        edge_src_property_t<vertex_t, uint8_t, false>(handle, graph_view);
 
       update_edge_src_property(
         handle, graph_view, leiden_assignment.begin(), src_leiden_assignment_cache.mutable_view());

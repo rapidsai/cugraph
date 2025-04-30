@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2023-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -136,14 +136,14 @@ class Tests_MGMaximalIndependentSet
 
       // Cache for inclusiong_flags
       using GraphViewType = cugraph::graph_view_t<vertex_t, edge_t, false, true>;
-      cugraph::edge_src_property_t<GraphViewType, vertex_t> src_inclusion_cache(*handle_);
-      cugraph::edge_dst_property_t<GraphViewType, vertex_t> dst_inclusion_cache(*handle_);
+      cugraph::edge_src_property_t<vertex_t, vertex_t, false> src_inclusion_cache(*handle_);
+      cugraph::edge_dst_property_t<vertex_t, vertex_t, false> dst_inclusion_cache(*handle_);
 
       if constexpr (multi_gpu) {
         src_inclusion_cache =
-          cugraph::edge_src_property_t<GraphViewType, vertex_t>(*handle_, mg_graph_view);
+          cugraph::edge_src_property_t<vertex_t, vertex_t, false>(*handle_, mg_graph_view);
         dst_inclusion_cache =
-          cugraph::edge_dst_property_t<GraphViewType, vertex_t>(*handle_, mg_graph_view);
+          cugraph::edge_dst_property_t<vertex_t, vertex_t, false>(*handle_, mg_graph_view);
         update_edge_src_property(
           *handle_, mg_graph_view, inclusiong_flags.begin(), src_inclusion_cache.mutable_view());
         update_edge_dst_property(

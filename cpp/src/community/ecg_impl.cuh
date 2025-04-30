@@ -62,8 +62,8 @@ std::tuple<rmm::device_uvector<vertex_t>, size_t, weight_t> ecg(
     resolution > 0.0 && resolution <= 1.0,
     "Invalid input arguments: resolution must be a positive number in range (0.0, 1.0]");
 
-  edge_src_property_t<graph_view_t, vertex_t> src_cluster_assignments(handle, graph_view);
-  edge_dst_property_t<graph_view_t, vertex_t> dst_cluster_assignments(handle, graph_view);
+  edge_src_property_t<vertex_t, vertex_t, false> src_cluster_assignments(handle, graph_view);
+  edge_dst_property_t<vertex_t, vertex_t, false> dst_cluster_assignments(handle, graph_view);
   edge_property_t<edge_t, weight_t> modified_edge_weights(handle, graph_view);
 
   cugraph::fill_edge_property(

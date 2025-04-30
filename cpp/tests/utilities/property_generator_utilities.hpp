@@ -52,15 +52,15 @@ struct generate {
                                               thrust::counting_iterator<vertex_type> end,
                                               int32_t hash_bin_count);
 
-  static cugraph::edge_src_property_t<GraphViewType, property_t> src_property(
-    raft::handle_t const& handle,
-    GraphViewType const& graph_view,
-    property_buffer_type const& property);
+  static cugraph::edge_src_property_t<vertex_type, property_t, GraphViewType::is_storage_transposed>
+  src_property(raft::handle_t const& handle,
+               GraphViewType const& graph_view,
+               property_buffer_type const& property);
 
-  static cugraph::edge_dst_property_t<GraphViewType, property_t> dst_property(
-    raft::handle_t const& handle,
-    GraphViewType const& graph_view,
-    property_buffer_type const& property);
+  static cugraph::edge_dst_property_t<vertex_type, property_t, GraphViewType::is_storage_transposed>
+  dst_property(raft::handle_t const& handle,
+               GraphViewType const& graph_view,
+               property_buffer_type const& property);
 
   static cugraph::edge_property_t<edge_type, property_t> edge_property(
     raft::handle_t const& handle, GraphViewType const& graph_view, int32_t hash_bin_count);

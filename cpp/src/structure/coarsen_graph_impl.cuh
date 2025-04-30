@@ -283,10 +283,9 @@ coarsen_graph(raft::handle_t const& handle,
 
   bool lower_triangular_only = graph_view.is_symmetric();
 
-  std::conditional_t<
-    store_transposed,
-    edge_src_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, vertex_t>,
-    edge_dst_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, vertex_t>>
+  std::conditional_t<store_transposed,
+                     edge_src_property_t<edge_t, vertex_t, store_transposed>,
+                     edge_dst_property_t<edge_t, vertex_t, store_transposed>>
     edge_minor_labels(handle, graph_view);
   if constexpr (store_transposed) {
     update_edge_src_property(handle, graph_view, labels, edge_minor_labels.mutable_view());

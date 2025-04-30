@@ -212,10 +212,10 @@ k_truss(raft::handle_t const& handle,
                   size_t{2},
                   size_t{2});
 
-      edge_src_property_t<decltype(cur_graph_view), bool> edge_src_in_k_minus_1_cores(
-        handle, cur_graph_view);
-      edge_dst_property_t<decltype(cur_graph_view), bool> edge_dst_in_k_minus_1_cores(
-        handle, cur_graph_view);
+      edge_src_property_t<vertex_t, bool, false> edge_src_in_k_minus_1_cores(handle,
+                                                                             cur_graph_view);
+      edge_dst_property_t<vertex_t, bool, false> edge_dst_in_k_minus_1_cores(handle,
+                                                                             cur_graph_view);
       auto in_k_minus_1_core_first =
         thrust::make_transform_iterator(core_numbers.begin(), is_k_or_greater_t<edge_t>{k - 1});
       rmm::device_uvector<bool> in_k_minus_1_core_flags(core_numbers.size(), handle.get_stream());
@@ -255,10 +255,8 @@ k_truss(raft::handle_t const& handle,
 
   // 3. Keep only the edges from a low-degree vertex to a high-degree vertex.
 
-  edge_src_property_t<decltype(cur_graph_view), edge_t> edge_src_out_degrees(handle,
-                                                                             cur_graph_view);
-  edge_dst_property_t<decltype(cur_graph_view), edge_t> edge_dst_out_degrees(handle,
-                                                                             cur_graph_view);
+  edge_src_property_t<vertex_t, edge_t, false> edge_src_out_degrees(handle, cur_graph_view);
+  edge_dst_property_t<vertex_t, edge_t, false> edge_dst_out_degrees(handle, cur_graph_view);
 
   cugraph::edge_property_t<edge_t, bool> dodg_mask(handle, cur_graph_view);
   {
