@@ -19,7 +19,7 @@ on:
 jobs:
   conda-cpp-checks:
     secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/conda-cpp-post-build-checks.yaml@branch-25.06
+    uses: rapidsai/shared-workflows/.github/workflows/conda-cpp-post-build-checks.yaml@branch-25.08
     with:
       build_type: ${{ inputs.build_type }}
       branch: ${{ inputs.branch }}
@@ -29,7 +29,7 @@ jobs:
       symbol_exclusions: (cugraph::ops|hornet|void writeEdgeCountsKernel|void markUniqueOffsetsKernel)
   conda-cpp-tests:
     secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/conda-cpp-tests.yaml@branch-25.06
+    uses: rapidsai/shared-workflows/.github/workflows/conda-cpp-tests.yaml@branch-25.08
     with:
       build_type: ${{ inputs.build_type }}
       branch: ${{ inputs.branch }}
@@ -37,7 +37,7 @@ jobs:
       sha: ${{ inputs.sha }}
   conda-python-tests:
     secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/conda-python-tests.yaml@branch-25.06
+    uses: rapidsai/shared-workflows/.github/workflows/conda-python-tests.yaml@branch-25.08
     with:
       build_type: ${{ inputs.build_type }}
       branch: ${{ inputs.branch }}
@@ -45,7 +45,7 @@ jobs:
       sha: ${{ inputs.sha }}
   wheel-tests-pylibcugraph:
     secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/wheels-test.yaml@branch-25.06
+    uses: rapidsai/shared-workflows/.github/workflows/wheels-test.yaml@branch-25.08
     with:
       build_type: ${{ inputs.build_type }}
       branch: ${{ inputs.branch }}
@@ -54,7 +54,7 @@ jobs:
       script: ci/test_wheel_pylibcugraph.sh
   wheel-tests-cugraph:
     secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/wheels-test.yaml@branch-25.06
+    uses: rapidsai/shared-workflows/.github/workflows/wheels-test.yaml@branch-25.08
     with:
       build_type: ${{ inputs.build_type }}
       branch: ${{ inputs.branch }}
