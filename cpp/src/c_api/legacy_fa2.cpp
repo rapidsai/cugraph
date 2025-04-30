@@ -193,7 +193,7 @@ struct force_atlas2_functor : public cugraph::c_api::abstract_functor {
 
       cugraph::force_atlas2<vertex_t, edge_t, weight_t>(
         handle_,
-        // rng_state_->rng_state_, # FIXME: Add support
+        // rng_state_->rng_state_,
         legacy_coo_graph_view,
         pos.data(),
         max_iter_,
