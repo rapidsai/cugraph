@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, NVIDIA CORPORATION.
+ * Copyright (c) 2024-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -100,7 +100,7 @@ class Tests_MGLookupEdgeSrcDst
     auto mg_edge_weight_view =
       mg_edge_weights ? std::make_optional((*mg_edge_weights).view()) : std::nullopt;
 
-    std::optional<cugraph::edge_property_t<decltype(mg_graph_view), bool>> edge_mask{std::nullopt};
+    std::optional<cugraph::edge_property_t<edge_t, bool>> edge_mask{std::nullopt};
 
     //
     // FIXME: As the graph generator doesn't generate edge ids and types at the moment, generate
@@ -112,12 +112,11 @@ class Tests_MGLookupEdgeSrcDst
       1 << 8,
       static_cast<int>(std::rand() % (1 + (mg_graph_view.number_of_vertices() / (1 << 20)))));
 
-    std::optional<cugraph::edge_property_t<decltype(mg_graph_view), int32_t>> edge_types{
-      std::nullopt};
+    std::optional<cugraph::edge_property_t<edge_t, int32_t>> edge_types{std::nullopt};
     edge_types = cugraph::test::generate<decltype(mg_graph_view), int32_t>::edge_property(
       *handle_, mg_graph_view, number_of_edge_types);
 
-    std::optional<cugraph::edge_property_t<decltype(mg_graph_view), edge_t>> edge_ids{std::nullopt};
+    std::optional<cugraph::edge_property_t<edge_t, edge_t>> edge_ids{std::nullopt};
 
     edge_ids = cugraph::test::generate<decltype(mg_graph_view), edge_t>::edge_property(
       *handle_, mg_graph_view, 1);

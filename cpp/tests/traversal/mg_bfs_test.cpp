@@ -95,7 +95,7 @@ class Tests_MGBFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, inpu
 
     auto mg_graph_view = mg_graph.view();
 
-    std::optional<cugraph::edge_property_t<decltype(mg_graph_view), bool>> edge_mask{std::nullopt};
+    std::optional<cugraph::edge_property_t<edge_t, bool>> edge_mask{std::nullopt};
     if (bfs_usecase.edge_masking) {
       edge_mask = cugraph::test::generate<decltype(mg_graph_view), bool>::edge_property(
         *handle_, mg_graph_view, 2);

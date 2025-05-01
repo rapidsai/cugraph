@@ -137,7 +137,7 @@ class Tests_InducedSubgraph
     auto edge_weight_view =
       edge_weights ? std::make_optional((*edge_weights).view()) : std::nullopt;
 
-    std::optional<cugraph::edge_property_t<decltype(graph_view), bool>> edge_mask{std::nullopt};
+    std::optional<cugraph::edge_property_t<edge_t, bool>> edge_mask{std::nullopt};
     if (induced_subgraph_usecase.edge_masking) {
       edge_mask =
         cugraph::test::generate<decltype(graph_view), bool>::edge_property(handle, graph_view, 2);

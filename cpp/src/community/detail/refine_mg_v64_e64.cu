@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2023-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,45 +20,37 @@ namespace detail {
 
 template std::tuple<rmm::device_uvector<int64_t>,
                     std::pair<rmm::device_uvector<int64_t>, rmm::device_uvector<int64_t>>>
-refine_clustering(
-  raft::handle_t const& handle,
-  raft::random::RngState& rng_state,
-  cugraph::graph_view_t<int64_t, int64_t, false, true> const& graph_view,
-  std::optional<edge_property_view_t<int64_t, float const*>> edge_weight_view,
-  float total_edge_weight,
-  float resolution,
-  float theta,
-  rmm::device_uvector<float> const& vertex_weights_v,
-  rmm::device_uvector<int64_t>&& cluster_keys_v,
-  rmm::device_uvector<float>&& cluster_weights_v,
-  rmm::device_uvector<int64_t>&& next_clusters_v,
-  edge_src_property_t<cugraph::graph_view_t<int64_t, int64_t, false, true>, float> const&
-    src_vertex_weights_cache,
-  edge_src_property_t<cugraph::graph_view_t<int64_t, int64_t, false, true>, int64_t> const&
-    src_clusters_cache,
-  edge_dst_property_t<cugraph::graph_view_t<int64_t, int64_t, false, true>, int64_t> const&
-    dst_clusters_cache);
+refine_clustering(raft::handle_t const& handle,
+                  raft::random::RngState& rng_state,
+                  cugraph::graph_view_t<int64_t, int64_t, false, true> const& graph_view,
+                  std::optional<edge_property_view_t<int64_t, float const*>> edge_weight_view,
+                  float total_edge_weight,
+                  float resolution,
+                  float theta,
+                  rmm::device_uvector<float> const& vertex_weights_v,
+                  rmm::device_uvector<int64_t>&& cluster_keys_v,
+                  rmm::device_uvector<float>&& cluster_weights_v,
+                  rmm::device_uvector<int64_t>&& next_clusters_v,
+                  edge_src_property_t<int64_t, float, false> const& src_vertex_weights_cache,
+                  edge_src_property_t<int64_t, int64_t, false> const& src_clusters_cache,
+                  edge_dst_property_t<int64_t, int64_t, false> const& dst_clusters_cache);
 
 template std::tuple<rmm::device_uvector<int64_t>,
                     std::pair<rmm::device_uvector<int64_t>, rmm::device_uvector<int64_t>>>
-refine_clustering(
-  raft::handle_t const& handle,
-  raft::random::RngState& rng_state,
-  cugraph::graph_view_t<int64_t, int64_t, false, true> const& graph_view,
-  std::optional<edge_property_view_t<int64_t, double const*>> edge_weight_view,
-  double total_edge_weight,
-  double resolution,
-  double theta,
-  rmm::device_uvector<double> const& vertex_weights_v,
-  rmm::device_uvector<int64_t>&& cluster_keys_v,
-  rmm::device_uvector<double>&& cluster_weights_v,
-  rmm::device_uvector<int64_t>&& next_clusters_v,
-  edge_src_property_t<cugraph::graph_view_t<int64_t, int64_t, false, true>, double> const&
-    src_vertex_weights_cache,
-  edge_src_property_t<cugraph::graph_view_t<int64_t, int64_t, false, true>, int64_t> const&
-    src_clusters_cache,
-  edge_dst_property_t<cugraph::graph_view_t<int64_t, int64_t, false, true>, int64_t> const&
-    dst_clusters_cache);
+refine_clustering(raft::handle_t const& handle,
+                  raft::random::RngState& rng_state,
+                  cugraph::graph_view_t<int64_t, int64_t, false, true> const& graph_view,
+                  std::optional<edge_property_view_t<int64_t, double const*>> edge_weight_view,
+                  double total_edge_weight,
+                  double resolution,
+                  double theta,
+                  rmm::device_uvector<double> const& vertex_weights_v,
+                  rmm::device_uvector<int64_t>&& cluster_keys_v,
+                  rmm::device_uvector<double>&& cluster_weights_v,
+                  rmm::device_uvector<int64_t>&& next_clusters_v,
+                  edge_src_property_t<int64_t, double, false> const& src_vertex_weights_cache,
+                  edge_src_property_t<int64_t, int64_t, false> const& src_clusters_cache,
+                  edge_dst_property_t<int64_t, int64_t, false> const& dst_clusters_cache);
 
 }  // namespace detail
 }  // namespace cugraph

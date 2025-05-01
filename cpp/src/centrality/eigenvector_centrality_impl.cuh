@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -88,7 +88,7 @@ rmm::device_uvector<weight_t> eigenvector_centrality(
   // Power iteration
   rmm::device_uvector<weight_t> old_centralities(centralities.size(), handle.get_stream());
 
-  edge_src_property_t<GraphViewType, weight_t> edge_src_centralities(handle, pull_graph_view);
+  edge_src_property_t<vertex_t, weight_t, true> edge_src_centralities(handle, pull_graph_view);
 
   size_t iter{0};
   while (true) {

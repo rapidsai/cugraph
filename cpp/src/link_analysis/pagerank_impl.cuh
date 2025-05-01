@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -230,7 +230,7 @@ centrality_algorithm_metadata_t pagerank(
   // old PageRank values
   rmm::device_uvector<result_t> old_pageranks(pull_graph_view.local_vertex_partition_range_size(),
                                               handle.get_stream());
-  edge_src_property_t<GraphViewType, result_t> edge_src_pageranks(handle, pull_graph_view);
+  edge_src_property_t<vertex_t, result_t, true> edge_src_pageranks(handle, pull_graph_view);
   size_t iter{0};
   while (true) {
     thrust::copy(
