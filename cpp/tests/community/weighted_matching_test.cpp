@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, NVIDIA CORPORATION.
+ * Copyright (c) 2024-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -89,7 +89,7 @@ class Tests_SGWeightedMatching
     auto sg_edge_weight_view =
       sg_edge_weights ? std::make_optional((*sg_edge_weights).view()) : std::nullopt;
 
-    std::optional<cugraph::edge_property_t<decltype(sg_graph_view), bool>> edge_mask{std::nullopt};
+    std::optional<cugraph::edge_property_t<edge_t, bool>> edge_mask{std::nullopt};
     if (weighted_matching_usecase.edge_masking) {
       edge_mask = cugraph::test::generate<decltype(sg_graph_view), bool>::edge_property(
         handle, sg_graph_view, 2);

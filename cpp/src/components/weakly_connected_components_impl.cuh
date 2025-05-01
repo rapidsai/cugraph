@@ -467,7 +467,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
 
       // 2-3-3. extract edges that are unreachable from the starting vertex
 
-      edge_src_property_t<GraphViewType, bool> edge_src_visited(handle, level_graph_view);
+      edge_src_property_t<vertex_t, bool, false> edge_src_visited(handle, level_graph_view);
       update_edge_src_property(
         handle, level_graph_view, visited.begin(), edge_src_visited.mutable_view());
       {
@@ -657,8 +657,8 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
 
       auto edge_dst_components =
         GraphViewType::is_multi_gpu
-          ? edge_dst_property_t<GraphViewType, vertex_t>(handle, level_graph_view)
-          : edge_dst_property_t<GraphViewType, vertex_t>(handle) /* dummy */;
+          ? edge_dst_property_t<vertex_t, vertex_t, false>(handle, level_graph_view)
+          : edge_dst_property_t<vertex_t, vertex_t, false>(handle) /* dummy */;
       if constexpr (GraphViewType::is_multi_gpu) {
         fill_edge_dst_property(handle,
                                level_graph_view,

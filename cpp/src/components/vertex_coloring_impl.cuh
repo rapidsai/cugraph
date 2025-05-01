@@ -40,11 +40,11 @@ rmm::device_uvector<vertex_t> vertex_coloring(
   graph_view_t current_graph_view(graph_view);
 
   // edge mask
-  cugraph::edge_property_t<graph_view_t, bool> edge_masks_even(handle, current_graph_view);
+  cugraph::edge_property_t<edge_t, bool> edge_masks_even(handle, current_graph_view);
   cugraph::fill_edge_property(
     handle, current_graph_view, edge_masks_even.mutable_view(), bool{false});
 
-  cugraph::edge_property_t<graph_view_t, bool> edge_masks_odd(handle, current_graph_view);
+  cugraph::edge_property_t<edge_t, bool> edge_masks_odd(handle, current_graph_view);
   cugraph::fill_edge_property(
     handle, current_graph_view, edge_masks_odd.mutable_view(), bool{false});
 
@@ -94,14 +94,14 @@ rmm::device_uvector<vertex_t> vertex_coloring(
 
     if (current_graph_view.compute_number_of_edges(handle) == 0) { break; }
 
-    cugraph::edge_src_property_t<graph_view_t, flag_t> src_mis_flags(handle);
-    cugraph::edge_dst_property_t<graph_view_t, flag_t> dst_mis_flags(handle);
+    cugraph::edge_src_property_t<vertex_t, flag_t, false> src_mis_flags(handle);
+    cugraph::edge_dst_property_t<vertex_t, flag_t, false> dst_mis_flags(handle);
 
     if constexpr (graph_view_t::is_multi_gpu) {
       src_mis_flags =
-        cugraph::edge_src_property_t<graph_view_t, flag_t>(handle, current_graph_view);
+        cugraph::edge_src_property_t<vertex_t, flag_t, false>(handle, current_graph_view);
       dst_mis_flags =
-        cugraph::edge_dst_property_t<graph_view_t, flag_t>(handle, current_graph_view);
+        cugraph::edge_dst_property_t<vertex_t, flag_t, false>(handle, current_graph_view);
 
       cugraph::update_edge_src_property(
         handle, current_graph_view, is_vertex_in_mis.begin(), src_mis_flags.mutable_view());

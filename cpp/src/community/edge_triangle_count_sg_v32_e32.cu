@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, NVIDIA CORPORATION.
+ * Copyright (c) 2024-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@
 namespace cugraph {
 
 // SG instantiation
-template edge_property_t<graph_view_t<int32_t, int32_t, false, false>, int32_t> edge_triangle_count(
+template edge_property_t<int32_t, int32_t> edge_triangle_count(
   raft::handle_t const& handle,
   cugraph::graph_view_t<int32_t, int32_t, false, false> const& graph_view,
   bool do_expensive_check);
