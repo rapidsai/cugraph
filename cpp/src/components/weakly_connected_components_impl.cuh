@@ -472,7 +472,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
         handle, level_graph_view, visited.begin(), edge_src_visited.mutable_view());
       {
         auto tmp_graph_view = level_graph_view;
-        edge_property_t<GraphViewType, bool> edge_mask(handle, level_graph_view);
+        edge_property_t<edge_t, bool> edge_mask(handle, level_graph_view);
         if (tmp_graph_view.has_edge_mask()) {
           tmp_graph_view.clear_edge_mask();
           cugraph::fill_edge_property(handle,
