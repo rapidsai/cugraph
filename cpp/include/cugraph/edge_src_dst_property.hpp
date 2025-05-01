@@ -371,6 +371,7 @@ class edge_endpoint_dummy_property_view_t {
 
 }  // namespace detail
 
+// FIXME: We should explore how to remove `store_transposed` as a template parameter.
 template <typename vertex_t, typename T, bool store_transposed>
 class edge_src_property_t {
  public:
@@ -461,6 +462,7 @@ class edge_src_property_t {
     edge_partition_key_chunk_start_offsets_{std::nullopt};
 };
 
+// FIXME: We should explore how to remove `store_transposed` as a template parameter.
 template <typename vertex_t, typename T, bool store_transposed>
 class edge_dst_property_t {
  public:
