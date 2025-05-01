@@ -105,14 +105,14 @@ class Tests_MGGraphColoring
                     });
 
       using GraphViewType = cugraph::graph_view_t<vertex_t, edge_t, false, multi_gpu>;
-      cugraph::edge_src_property_t<GraphViewType, vertex_t> src_color_cache(*handle_);
-      cugraph::edge_dst_property_t<GraphViewType, vertex_t> dst_color_cache(*handle_);
+      cugraph::edge_src_property_t<vertex_t, vertex_t, false> src_color_cache(*handle_);
+      cugraph::edge_dst_property_t<vertex_t, vertex_t, false> dst_color_cache(*handle_);
 
       if constexpr (multi_gpu) {
         src_color_cache =
-          cugraph::edge_src_property_t<GraphViewType, vertex_t>(*handle_, mg_graph_view);
+          cugraph::edge_src_property_t<vertex_t, vertex_t, false>(*handle_, mg_graph_view);
         dst_color_cache =
-          cugraph::edge_dst_property_t<GraphViewType, vertex_t>(*handle_, mg_graph_view);
+          cugraph::edge_dst_property_t<vertex_t, vertex_t, false>(*handle_, mg_graph_view);
         update_edge_src_property(
           *handle_, mg_graph_view, d_colors.begin(), src_color_cache.mutable_view());
         update_edge_dst_property(

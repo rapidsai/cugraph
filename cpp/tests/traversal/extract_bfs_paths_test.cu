@@ -92,7 +92,7 @@ class Tests_ExtractBfsPaths
 
     auto graph_view = graph.view();
 
-    std::optional<cugraph::edge_property_t<decltype(graph_view), bool>> edge_mask{std::nullopt};
+    std::optional<cugraph::edge_property_t<edge_t, bool>> edge_mask{std::nullopt};
     if (extract_bfs_paths_usecase.edge_masking) {
       edge_mask =
         cugraph::test::generate<decltype(graph_view), bool>::edge_property(handle, graph_view, 2);

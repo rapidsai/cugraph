@@ -442,21 +442,14 @@ template <typename vertex_t,
           typename edge_time_t,
           bool store_transposed,
           bool multi_gpu>
-std::enable_if_t<
-  multi_gpu,
-  std::tuple<
-    cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu>,
-    std::optional<
-      edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, weight_t>>,
-    std::optional<
-      edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, edge_t>>,
-    std::optional<
-      edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, edge_type_t>>,
-    std::optional<
-      edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, edge_time_t>>,
-    std::optional<
-      edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, edge_time_t>>,
-    std::optional<rmm::device_uvector<vertex_t>>>>
+std::enable_if_t<multi_gpu,
+                 std::tuple<cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu>,
+                            std::optional<edge_property_t<edge_t, weight_t>>,
+                            std::optional<edge_property_t<edge_t, edge_t>>,
+                            std::optional<edge_property_t<edge_t, edge_type_t>>,
+                            std::optional<edge_property_t<edge_t, edge_time_t>>,
+                            std::optional<edge_property_t<edge_t, edge_time_t>>,
+                            std::optional<rmm::device_uvector<vertex_t>>>>
 create_graph_from_partitioned_edgelist(
   raft::handle_t const& handle,
   std::optional<rmm::device_uvector<vertex_t>>&& local_vertices,
@@ -879,46 +872,31 @@ create_graph_from_partitioned_edgelist(
 
   // 4. create a graph and an edge_property_t object.
 
-  std::optional<edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, true>, weight_t>>
-    edge_weights{std::nullopt};
+  std::optional<edge_property_t<edge_t, weight_t>> edge_weights{std::nullopt};
   if (edge_partition_weights) {
-    edge_weights =
-      edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, true>, weight_t>(
-        std::move(*edge_partition_weights));
+    edge_weights = edge_property_t<edge_t, weight_t>(std::move(*edge_partition_weights));
   }
 
-  std::optional<edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, true>, edge_t>>
-    edge_ids{std::nullopt};
+  std::optional<edge_property_t<edge_t, edge_t>> edge_ids{std::nullopt};
   if (edge_partition_edge_ids) {
-    edge_ids = edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, true>, edge_t>(
-      std::move(*edge_partition_edge_ids));
+    edge_ids = edge_property_t<edge_t, edge_t>(std::move(*edge_partition_edge_ids));
   }
 
-  std::optional<
-    edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, true>, edge_type_t>>
-    edge_types{std::nullopt};
+  std::optional<edge_property_t<edge_t, edge_type_t>> edge_types{std::nullopt};
   if (edge_partition_edge_types) {
-    edge_types =
-      edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, true>, edge_type_t>(
-        std::move(*edge_partition_edge_types));
+    edge_types = edge_property_t<edge_t, edge_type_t>(std::move(*edge_partition_edge_types));
   }
 
-  std::optional<
-    edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, true>, edge_time_t>>
-    edge_start_times{std::nullopt};
+  std::optional<edge_property_t<edge_t, edge_time_t>> edge_start_times{std::nullopt};
   if (edge_partition_edge_start_times) {
     edge_start_times =
-      edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, true>, edge_time_t>(
-        std::move(*edge_partition_edge_start_times));
+      edge_property_t<edge_t, edge_time_t>(std::move(*edge_partition_edge_start_times));
   }
 
-  std::optional<
-    edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, true>, edge_time_t>>
-    edge_end_times{std::nullopt};
+  std::optional<edge_property_t<edge_t, edge_time_t>> edge_end_times{std::nullopt};
   if (edge_partition_edge_end_times) {
     edge_end_times =
-      edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, true>, edge_time_t>(
-        std::move(*edge_partition_edge_end_times));
+      edge_property_t<edge_t, edge_time_t>(std::move(*edge_partition_edge_end_times));
   }
 
   return std::make_tuple(
@@ -949,21 +927,14 @@ template <typename vertex_t,
           typename edge_time_t,
           bool store_transposed,
           bool multi_gpu>
-std::enable_if_t<
-  multi_gpu,
-  std::tuple<
-    cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu>,
-    std::optional<
-      edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, weight_t>>,
-    std::optional<
-      edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, edge_t>>,
-    std::optional<
-      edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, edge_type_t>>,
-    std::optional<
-      edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, edge_time_t>>,
-    std::optional<
-      edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, edge_time_t>>,
-    std::optional<rmm::device_uvector<vertex_t>>>>
+std::enable_if_t<multi_gpu,
+                 std::tuple<cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu>,
+                            std::optional<edge_property_t<edge_t, weight_t>>,
+                            std::optional<edge_property_t<edge_t, edge_t>>,
+                            std::optional<edge_property_t<edge_t, edge_type_t>>,
+                            std::optional<edge_property_t<edge_t, edge_time_t>>,
+                            std::optional<edge_property_t<edge_t, edge_time_t>>,
+                            std::optional<rmm::device_uvector<vertex_t>>>>
 create_graph_from_edgelist_impl(
   raft::handle_t const& handle,
   std::optional<rmm::device_uvector<vertex_t>>&& local_vertices,
@@ -1210,21 +1181,14 @@ template <typename vertex_t,
           typename edge_time_t,
           bool store_transposed,
           bool multi_gpu>
-std::enable_if_t<
-  multi_gpu,
-  std::tuple<
-    cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu>,
-    std::optional<
-      edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, weight_t>>,
-    std::optional<
-      edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, edge_t>>,
-    std::optional<
-      edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, edge_type_t>>,
-    std::optional<
-      edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, edge_time_t>>,
-    std::optional<
-      edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, edge_time_t>>,
-    std::optional<rmm::device_uvector<vertex_t>>>>
+std::enable_if_t<multi_gpu,
+                 std::tuple<cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu>,
+                            std::optional<edge_property_t<edge_t, weight_t>>,
+                            std::optional<edge_property_t<edge_t, edge_t>>,
+                            std::optional<edge_property_t<edge_t, edge_type_t>>,
+                            std::optional<edge_property_t<edge_t, edge_time_t>>,
+                            std::optional<edge_property_t<edge_t, edge_time_t>>,
+                            std::optional<rmm::device_uvector<vertex_t>>>>
 create_graph_from_edgelist_impl(
   raft::handle_t const& handle,
   std::optional<rmm::device_uvector<vertex_t>>&& local_vertices,
@@ -1702,21 +1666,14 @@ template <typename vertex_t,
           typename edge_time_t,
           bool store_transposed,
           bool multi_gpu>
-std::enable_if_t<
-  !multi_gpu,
-  std::tuple<
-    cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu>,
-    std::optional<
-      edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, weight_t>>,
-    std::optional<
-      edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, edge_t>>,
-    std::optional<
-      edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, edge_type_t>>,
-    std::optional<
-      edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, edge_time_t>>,
-    std::optional<
-      edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, edge_time_t>>,
-    std::optional<rmm::device_uvector<vertex_t>>>>
+std::enable_if_t<!multi_gpu,
+                 std::tuple<cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu>,
+                            std::optional<edge_property_t<edge_t, weight_t>>,
+                            std::optional<edge_property_t<edge_t, edge_t>>,
+                            std::optional<edge_property_t<edge_t, edge_type_t>>,
+                            std::optional<edge_property_t<edge_t, edge_time_t>>,
+                            std::optional<edge_property_t<edge_t, edge_time_t>>,
+                            std::optional<rmm::device_uvector<vertex_t>>>>
 create_graph_from_edgelist_impl(
   raft::handle_t const& handle,
   std::optional<rmm::device_uvector<vertex_t>>&& vertices,
@@ -2004,58 +1961,39 @@ create_graph_from_edgelist_impl(
 
   // 3. create a graph and an edge_property_t object.
 
-  std::optional<
-    edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, weight_t>>
-    edge_weights{std::nullopt};
+  std::optional<edge_property_t<edge_t, weight_t>> edge_weights{std::nullopt};
   if (weights) {
     std::vector<rmm::device_uvector<weight_t>> buffers{};
     buffers.push_back(std::move(*weights));
-    edge_weights =
-      edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, weight_t>(
-        std::move(buffers));
+    edge_weights = edge_property_t<edge_t, weight_t>(std::move(buffers));
   }
 
-  std::optional<
-    edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, edge_t>>
-    edge_ids{std::nullopt};
+  std::optional<edge_property_t<edge_t, edge_t>> edge_ids{std::nullopt};
   if (ids) {
     std::vector<rmm::device_uvector<edge_t>> buffers{};
     buffers.push_back(std::move(*ids));
-    edge_ids = edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, edge_t>(
-      std::move(buffers));
+    edge_ids = edge_property_t<edge_t, edge_t>(std::move(buffers));
   }
 
-  std::optional<
-    edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, edge_type_t>>
-    edge_types{std::nullopt};
+  std::optional<edge_property_t<edge_t, edge_type_t>> edge_types{std::nullopt};
   if (types) {
     std::vector<rmm::device_uvector<edge_type_t>> buffers{};
     buffers.push_back(std::move(*types));
-    edge_types =
-      edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, edge_type_t>(
-        std::move(buffers));
+    edge_types = edge_property_t<edge_t, edge_type_t>(std::move(buffers));
   }
 
-  std::optional<
-    edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, edge_time_t>>
-    edge_start_times{std::nullopt};
+  std::optional<edge_property_t<edge_t, edge_time_t>> edge_start_times{std::nullopt};
   if (start_times) {
     std::vector<rmm::device_uvector<edge_time_t>> buffers{};
     buffers.push_back(std::move(*start_times));
-    edge_start_times =
-      edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, edge_time_t>(
-        std::move(buffers));
+    edge_start_times = edge_property_t<edge_t, edge_time_t>(std::move(buffers));
   }
 
-  std::optional<
-    edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, edge_time_t>>
-    edge_end_times{std::nullopt};
+  std::optional<edge_property_t<edge_t, edge_time_t>> edge_end_times{std::nullopt};
   if (end_times) {
     std::vector<rmm::device_uvector<edge_time_t>> buffers{};
     buffers.push_back(std::move(*end_times));
-    edge_end_times =
-      edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, edge_time_t>(
-        std::move(buffers));
+    edge_end_times = edge_property_t<edge_t, edge_time_t>(std::move(buffers));
   }
 
   // 4. graph_t constructor
@@ -2085,21 +2023,14 @@ template <typename vertex_t,
           typename edge_time_t,
           bool store_transposed,
           bool multi_gpu>
-std::enable_if_t<
-  !multi_gpu,
-  std::tuple<
-    cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu>,
-    std::optional<
-      edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, weight_t>>,
-    std::optional<
-      edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, edge_t>>,
-    std::optional<
-      edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, edge_type_t>>,
-    std::optional<
-      edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, edge_time_t>>,
-    std::optional<
-      edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, edge_time_t>>,
-    std::optional<rmm::device_uvector<vertex_t>>>>
+std::enable_if_t<!multi_gpu,
+                 std::tuple<cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu>,
+                            std::optional<edge_property_t<edge_t, weight_t>>,
+                            std::optional<edge_property_t<edge_t, edge_t>>,
+                            std::optional<edge_property_t<edge_t, edge_type_t>>,
+                            std::optional<edge_property_t<edge_t, edge_time_t>>,
+                            std::optional<edge_property_t<edge_t, edge_time_t>>,
+                            std::optional<rmm::device_uvector<vertex_t>>>>
 create_graph_from_edgelist_impl(
   raft::handle_t const& handle,
   std::optional<rmm::device_uvector<vertex_t>>&& local_vertices,
@@ -2331,15 +2262,11 @@ template <typename vertex_t,
           typename edge_type_t,
           bool store_transposed,
           bool multi_gpu>
-std::tuple<
-  graph_t<vertex_t, edge_t, store_transposed, multi_gpu>,
-  std::optional<
-    edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, weight_t>>,
-  std::optional<
-    edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, edge_t>>,
-  std::optional<
-    edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, edge_type_t>>,
-  std::optional<rmm::device_uvector<vertex_t>>>
+std::tuple<graph_t<vertex_t, edge_t, store_transposed, multi_gpu>,
+           std::optional<edge_property_t<edge_t, weight_t>>,
+           std::optional<edge_property_t<edge_t, edge_t>>,
+           std::optional<edge_property_t<edge_t, edge_type_t>>,
+           std::optional<rmm::device_uvector<vertex_t>>>
 create_graph_from_edgelist(raft::handle_t const& handle,
                            std::optional<rmm::device_uvector<vertex_t>>&& vertices,
                            rmm::device_uvector<vertex_t>&& edgelist_srcs,
@@ -2384,15 +2311,11 @@ template <typename vertex_t,
           typename edge_type_t,
           bool store_transposed,
           bool multi_gpu>
-std::tuple<
-  graph_t<vertex_t, edge_t, store_transposed, multi_gpu>,
-  std::optional<
-    edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, weight_t>>,
-  std::optional<
-    edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, edge_t>>,
-  std::optional<
-    edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, edge_type_t>>,
-  std::optional<rmm::device_uvector<vertex_t>>>
+std::tuple<graph_t<vertex_t, edge_t, store_transposed, multi_gpu>,
+           std::optional<edge_property_t<edge_t, weight_t>>,
+           std::optional<edge_property_t<edge_t, edge_t>>,
+           std::optional<edge_property_t<edge_t, edge_type_t>>,
+           std::optional<rmm::device_uvector<vertex_t>>>
 create_graph_from_edgelist(
   raft::handle_t const& handle,
   std::optional<rmm::device_uvector<vertex_t>>&& vertices,
@@ -2439,19 +2362,13 @@ template <typename vertex_t,
           typename edge_time_t,
           bool store_transposed,
           bool multi_gpu>
-std::tuple<
-  graph_t<vertex_t, edge_t, store_transposed, multi_gpu>,
-  std::optional<
-    edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, weight_t>>,
-  std::optional<
-    edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, edge_t>>,
-  std::optional<
-    edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, edge_type_t>>,
-  std::optional<
-    edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, edge_time_t>>,
-  std::optional<
-    edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, edge_time_t>>,
-  std::optional<rmm::device_uvector<vertex_t>>>
+std::tuple<graph_t<vertex_t, edge_t, store_transposed, multi_gpu>,
+           std::optional<edge_property_t<edge_t, weight_t>>,
+           std::optional<edge_property_t<edge_t, edge_t>>,
+           std::optional<edge_property_t<edge_t, edge_type_t>>,
+           std::optional<edge_property_t<edge_t, edge_time_t>>,
+           std::optional<edge_property_t<edge_t, edge_time_t>>,
+           std::optional<rmm::device_uvector<vertex_t>>>
 create_graph_from_edgelist(
   raft::handle_t const& handle,
   std::optional<rmm::device_uvector<vertex_t>>&& vertices,
@@ -2493,19 +2410,13 @@ template <typename vertex_t,
           typename edge_time_t,
           bool store_transposed,
           bool multi_gpu>
-std::tuple<
-  cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu>,
-  std::optional<
-    edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, weight_t>>,
-  std::optional<
-    edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, edge_t>>,
-  std::optional<
-    edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, edge_type_t>>,
-  std::optional<
-    edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, edge_time_t>>,
-  std::optional<
-    edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, edge_time_t>>,
-  std::optional<rmm::device_uvector<vertex_t>>>
+std::tuple<cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu>,
+           std::optional<edge_property_t<edge_t, weight_t>>,
+           std::optional<edge_property_t<edge_t, edge_t>>,
+           std::optional<edge_property_t<edge_t, edge_type_t>>,
+           std::optional<edge_property_t<edge_t, edge_time_t>>,
+           std::optional<edge_property_t<edge_t, edge_time_t>>,
+           std::optional<rmm::device_uvector<vertex_t>>>
 create_graph_from_edgelist(
   raft::handle_t const& handle,
   std::optional<rmm::device_uvector<vertex_t>>&& vertices,

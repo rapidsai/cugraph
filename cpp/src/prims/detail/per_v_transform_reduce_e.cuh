@@ -2038,9 +2038,10 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
 
   // 8. set-up temporary buffers
 
-  using minor_tmp_buffer_type = std::conditional_t<GraphViewType::is_storage_transposed,
-                                                   edge_src_property_t<GraphViewType, T>,
-                                                   edge_dst_property_t<GraphViewType, T>>;
+  using minor_tmp_buffer_type =
+    std::conditional_t<GraphViewType::is_storage_transposed,
+                       edge_src_property_t<vertex_t, T, GraphViewType::is_storage_transposed>,
+                       edge_dst_property_t<vertex_t, T, GraphViewType::is_storage_transposed>>;
   [[maybe_unused]] std::unique_ptr<minor_tmp_buffer_type> minor_tmp_buffer{};
   if constexpr (GraphViewType::is_multi_gpu && !update_major) {
     minor_tmp_buffer = std::make_unique<minor_tmp_buffer_type>(handle, graph_view);

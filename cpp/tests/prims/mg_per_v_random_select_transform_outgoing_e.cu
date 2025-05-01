@@ -163,15 +163,14 @@ class Tests_MGPerVRandomSelectTransformOutgoingE
     auto mg_edge_weight_view =
       mg_edge_weights ? std::make_optional((*mg_edge_weights).view()) : std::nullopt;
 
-    std::optional<cugraph::edge_property_t<decltype(mg_graph_view), bool>> edge_mask{std::nullopt};
+    std::optional<cugraph::edge_property_t<edge_t, bool>> edge_mask{std::nullopt};
     if (prims_usecase.edge_masking) {
       edge_mask = cugraph::test::generate<decltype(mg_graph_view), bool>::edge_property(
         *handle_, mg_graph_view, 2);
       mg_graph_view.attach_edge_mask((*edge_mask).view());
     }
 
-    std::optional<cugraph::edge_property_t<decltype(mg_graph_view), edge_type_t>> mg_edge_types{
-      std::nullopt};
+    std::optional<cugraph::edge_property_t<edge_t, edge_type_t>> mg_edge_types{std::nullopt};
     if (prims_usecase.Ks.size() > 1) {
       mg_edge_types = cugraph::test::generate<decltype(mg_graph_view), edge_type_t>::edge_property(
         *handle_, mg_graph_view, static_cast<int32_t>(prims_usecase.Ks.size()));
@@ -399,12 +398,8 @@ class Tests_MGPerVRandomSelectTransformOutgoingE
       }
 
       cugraph::graph_t<vertex_t, edge_t, false, false> sg_graph(*handle_);
-      std::optional<
-        cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, false, false>, weight_t>>
-        sg_edge_weights{std::nullopt};
-      std::optional<cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, false, false>,
-                                             edge_type_t>>
-        sg_edge_types{std::nullopt};
+      std::optional<cugraph::edge_property_t<edge_t, weight_t>> sg_edge_weights{std::nullopt};
+      std::optional<cugraph::edge_property_t<edge_t, edge_type_t>> sg_edge_types{std::nullopt};
       std::tie(sg_graph, sg_edge_weights, std::ignore, sg_edge_types, std::ignore) =
         cugraph::test::mg_graph_to_sg_graph(
           *handle_,

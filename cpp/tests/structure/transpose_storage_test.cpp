@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -97,10 +97,8 @@ class Tests_TransposeStorage
     }
 
     cugraph::graph_t<vertex_t, edge_t, !store_transposed, false> storage_transposed_graph(handle);
-    std::optional<
-      cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, !store_transposed, false>,
-                               weight_t>>
-      storage_transposed_edge_weights{std::nullopt};
+    std::optional<cugraph::edge_property_t<edge_t, weight_t>> storage_transposed_edge_weights{
+      std::nullopt};
     std::tie(storage_transposed_graph, storage_transposed_edge_weights, d_renumber_map_labels) =
       transpose_graph_storage(
         handle, std::move(graph), std::move(edge_weights), std::move(d_renumber_map_labels));

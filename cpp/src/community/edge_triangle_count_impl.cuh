@@ -124,7 +124,7 @@ struct extract_q_r {
 };
 
 template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
-edge_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, edge_t> edge_triangle_count_impl(
+edge_property_t<edge_t, edge_t> edge_triangle_count_impl(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
   bool do_expensive_check)
@@ -321,8 +321,7 @@ edge_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, edge_t> edge_t
     prev_chunk_size += chunk_size;
   }
 
-  cugraph::edge_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, edge_t> counts(
-    handle, graph_view);
+  cugraph::edge_property_t<edge_t, edge_t> counts(handle, graph_view);
 
   cugraph::edge_bucket_t<vertex_t, void, true, multi_gpu, true> valid_edges(handle);
   valid_edges.insert(edgelist_srcs.begin(), edgelist_srcs.end(), edgelist_dsts.begin());
@@ -360,7 +359,7 @@ edge_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, edge_t> edge_t
 }  // namespace detail
 
 template <typename vertex_t, typename edge_t, bool multi_gpu>
-edge_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, edge_t> edge_triangle_count(
+edge_property_t<edge_t, edge_t> edge_triangle_count(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   bool do_expensive_check)

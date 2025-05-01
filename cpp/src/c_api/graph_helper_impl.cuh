@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,11 +31,10 @@ rmm::device_uvector<vertex_t> expand_sparse_offsets(raft::device_span<edge_t con
 }
 
 template <typename GraphViewType, typename T>
-edge_property_t<GraphViewType, T> create_constant_edge_property(raft::handle_t const& handle,
-                                                                GraphViewType const& graph_view,
-                                                                T constant_value)
+edge_property_t<typename GraphViewType::edge_type, T> create_constant_edge_property(
+  raft::handle_t const& handle, GraphViewType const& graph_view, T constant_value)
 {
-  edge_property_t<GraphViewType, T> edge_property(handle, graph_view);
+  edge_property_t<typename GraphViewType::edge_type, T> edge_property(handle, graph_view);
 
   cugraph::fill_edge_property(handle, graph_view, edge_property.mutable_view(), constant_value);
 

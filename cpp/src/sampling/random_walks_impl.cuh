@@ -272,7 +272,8 @@ struct biased_selector {
     vertex_frontier.bucket(0).insert(current_vertices.begin(), current_vertices.end());
 
     auto vertex_weight_sum = compute_out_weight_sums(handle, graph_view, *edge_weight_view);
-    edge_src_property_t<GraphViewType, weight_t> edge_src_out_weight_sums(handle, graph_view);
+    edge_src_property_t<vertex_t, weight_t, GraphViewType::is_storage_transposed>
+      edge_src_out_weight_sums(handle, graph_view);
     update_edge_src_property(handle,
                              graph_view,
                              vertex_frontier.bucket(0).begin(),
