@@ -94,9 +94,8 @@ struct node2vec_functor : public abstract_functor {
 
       auto graph_view = graph->view();
 
-      auto edge_weights = reinterpret_cast<
-        cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, false, multi_gpu>,
-                                 weight_t>*>(graph_->edge_weights_);
+      auto edge_weights =
+        reinterpret_cast<cugraph::edge_property_t<edge_t, weight_t>*>(graph_->edge_weights_);
 
       auto number_map = reinterpret_cast<rmm::device_uvector<vertex_t>*>(graph_->number_map_);
 
@@ -201,9 +200,8 @@ struct uniform_random_walks_functor : public cugraph::c_api::abstract_functor {
 
       auto graph_view = graph->view();
 
-      auto edge_weights = reinterpret_cast<
-        cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, false, multi_gpu>,
-                                 weight_t>*>(graph_->edge_weights_);
+      auto edge_weights =
+        reinterpret_cast<cugraph::edge_property_t<edge_t, weight_t>*>(graph_->edge_weights_);
 
       auto number_map = reinterpret_cast<rmm::device_uvector<vertex_t>*>(graph_->number_map_);
 
@@ -305,9 +303,8 @@ struct biased_random_walks_functor : public cugraph::c_api::abstract_functor {
 
       auto graph_view = graph->view();
 
-      auto edge_weights = reinterpret_cast<
-        cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, false, multi_gpu>,
-                                 weight_t>*>(graph_->edge_weights_);
+      auto edge_weights =
+        reinterpret_cast<cugraph::edge_property_t<edge_t, weight_t>*>(graph_->edge_weights_);
 
       auto number_map = reinterpret_cast<rmm::device_uvector<vertex_t>*>(graph_->number_map_);
 
@@ -415,9 +412,8 @@ struct node2vec_random_walks_functor : public cugraph::c_api::abstract_functor {
 
       auto graph_view = graph->view();
 
-      auto edge_weights = reinterpret_cast<
-        cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, false, multi_gpu>,
-                                 weight_t>*>(graph_->edge_weights_);
+      auto edge_weights =
+        reinterpret_cast<cugraph::edge_property_t<edge_t, weight_t>*>(graph_->edge_weights_);
 
       auto number_map = reinterpret_cast<rmm::device_uvector<vertex_t>*>(graph_->number_map_);
 

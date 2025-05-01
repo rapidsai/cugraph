@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, NVIDIA CORPORATION.
+ * Copyright (c) 2024-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -205,8 +205,8 @@ class Tests_Negative_Sampling : public ::testing::TestWithParam<input_usecase_t>
 
  private:
   graph_t graph_;
-  std::optional<cugraph::edge_property_t<graph_view_t, weight_t>> edge_weights_{std::nullopt};
-  std::optional<cugraph::edge_property_t<graph_view_t, bool>> edge_mask_{std::nullopt};
+  std::optional<cugraph::edge_property_t<edge_t, weight_t>> edge_weights_{std::nullopt};
+  std::optional<cugraph::edge_property_t<edge_t, bool>> edge_mask_{std::nullopt};
   std::optional<rmm::device_uvector<vertex_t>> renumber_map_labels_{std::nullopt};
 };
 
