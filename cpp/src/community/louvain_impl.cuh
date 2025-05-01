@@ -64,7 +64,7 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
   std::unique_ptr<Dendrogram<vertex_t>> dendrogram = std::make_unique<Dendrogram<vertex_t>>();
   graph_t current_graph(handle);
   graph_view_t current_graph_view(graph_view);
-  std::optional<edge_property_t<graph_view_t, weight_t>> current_edge_weights(handle);
+  std::optional<edge_property_t<edge_t, weight_t>> current_edge_weights(handle);
   std::optional<edge_property_view_t<edge_t, weight_t const*>> current_edge_weight_view(
     edge_weight_view);
 
@@ -76,9 +76,9 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
   rmm::device_uvector<weight_t> cluster_weights_v(0, handle.get_stream());
   rmm::device_uvector<weight_t> vertex_weights_v(0, handle.get_stream());
   rmm::device_uvector<vertex_t> next_clusters_v(0, handle.get_stream());
-  edge_src_property_t<graph_view_t, weight_t> src_vertex_weights_cache(handle);
-  edge_src_property_t<graph_view_t, vertex_t> src_clusters_cache(handle);
-  edge_dst_property_t<graph_view_t, vertex_t> dst_clusters_cache(handle);
+  edge_src_property_t<vertex_t, weight_t, false> src_vertex_weights_cache(handle);
+  edge_src_property_t<vertex_t, vertex_t, false> src_clusters_cache(handle);
+  edge_dst_property_t<vertex_t, vertex_t, false> dst_clusters_cache(handle);
 
   while (dendrogram->num_levels() < max_level) {
     //
@@ -137,7 +137,7 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
         handle, std::move(cluster_keys_v), std::move(cluster_weights_v));
 
       src_vertex_weights_cache =
-        edge_src_property_t<graph_view_t, weight_t>(handle, current_graph_view);
+        edge_src_property_t<vertex_t, weight_t, false>(handle, current_graph_view);
       update_edge_src_property(handle,
                                current_graph_view,
                                vertex_weights_v.begin(),
@@ -167,10 +167,12 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
                handle.get_stream());
 
     if constexpr (multi_gpu) {
-      src_clusters_cache = edge_src_property_t<graph_view_t, vertex_t>(handle, current_graph_view);
+      src_clusters_cache =
+        edge_src_property_t<vertex_t, vertex_t, false>(handle, current_graph_view);
       update_edge_src_property(
         handle, current_graph_view, next_clusters_v.begin(), src_clusters_cache.mutable_view());
-      dst_clusters_cache = edge_dst_property_t<graph_view_t, vertex_t>(handle, current_graph_view);
+      dst_clusters_cache =
+        edge_dst_property_t<vertex_t, vertex_t, false>(handle, current_graph_view);
       update_edge_dst_property(
         handle, current_graph_view, next_clusters_v.begin(), dst_clusters_cache.mutable_view());
     }

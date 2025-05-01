@@ -191,8 +191,8 @@ void overlap_list(legacy::GraphCSRView<VT, ET, WT> const& graph,
  * @tparam weight_t                                   Type of edge weights. Supported values : float
  * or double.
  *
- * @param[in] handle                          Library handle (RAFT). If a communicator is set in the
- * handle, the multi GPU version will be selected.
+ * @param[in] handle                            Library handle (RAFT). If a communicator is set in
+ * the handle, the multi GPU version will be selected.
  * @param[in] graph                             cuGraph graph descriptor, should contain the
  * connectivity information as a COO. Graph is considered undirected. Edge weights are used for this
  * algorithm and set to 1 by default.
@@ -230,6 +230,7 @@ void overlap_list(legacy::GraphCSRView<VT, ET, WT> const& graph,
  */
 template <typename vertex_t, typename edge_t, typename weight_t>
 void force_atlas2(raft::handle_t const& handle,
+                  // raft::random::RngState& rng_state,
                   legacy::GraphCOOView<vertex_t, edge_t, weight_t>& graph,
                   float* pos,
                   const int max_iter                            = 500,
@@ -418,8 +419,7 @@ rmm::device_uvector<weight_t> betweenness_centrality(
  * @return edge_property_t containing the centralities.
  */
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-edge_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, weight_t>
-edge_betweenness_centrality(
+edge_property_t<edge_t, weight_t> edge_betweenness_centrality(
   const raft::handle_t& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
@@ -1889,7 +1889,7 @@ void triangle_count(raft::handle_t const& handle,
  * @return edge_property_t containing the edge triangle count
  */
 template <typename vertex_t, typename edge_t, bool multi_gpu>
-edge_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, edge_t> edge_triangle_count(
+edge_property_t<edge_t, edge_t> edge_triangle_count(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   bool do_expensive_check = false);

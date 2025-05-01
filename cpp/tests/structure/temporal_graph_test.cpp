@@ -122,18 +122,9 @@ class Tests_TemporalGraph
     }
 
     cugraph::graph_t<vertex_t, edge_t, store_transposed, false> graph(handle);
-    std::optional<
-      cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, store_transposed, false>,
-                               weight_t>>
-      edge_weights{std::nullopt};
-    std::optional<
-      cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, store_transposed, false>,
-                               edge_time_t>>
-      edge_start_times{std::nullopt};
-    std::optional<
-      cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, store_transposed, false>,
-                               edge_time_t>>
-      edge_end_times{std::nullopt};
+    std::optional<cugraph::edge_property_t<edge_t, weight_t>> edge_weights{std::nullopt};
+    std::optional<cugraph::edge_property_t<edge_t, edge_time_t>> edge_start_times{std::nullopt};
+    std::optional<cugraph::edge_property_t<edge_t, edge_time_t>> edge_end_times{std::nullopt};
     std::optional<rmm::device_uvector<vertex_t>> renumber_map{std::nullopt};
 
     size_t size = std::transform_reduce(edge_src_chunks.begin(),

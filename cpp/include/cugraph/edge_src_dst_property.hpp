@@ -371,24 +371,25 @@ class edge_endpoint_dummy_property_view_t {
 
 }  // namespace detail
 
-template <typename GraphViewType, typename T>
+// FIXME: We should explore how to remove `store_transposed` as a template parameter.
+template <typename vertex_t, typename T, bool store_transposed>
 class edge_src_property_t {
  public:
   static_assert(is_arithmetic_or_thrust_tuple_of_arithmetic<T>::value);
 
-  using value_type = T;
-
   edge_src_property_t(raft::handle_t const& handle) : property_(handle) {}
 
+  template <typename GraphViewType>
   edge_src_property_t(raft::handle_t const& handle, GraphViewType const& graph_view)
     : property_(handle)
   {
-    using vertex_t = typename GraphViewType::vertex_type;
+    static_assert(std::is_same_v<vertex_t, typename GraphViewType::vertex_type>);
+    static_assert(store_transposed == GraphViewType::is_storage_transposed);
 
     auto key_chunk_size = graph_view.local_sorted_unique_edge_src_chunk_size();
     if (key_chunk_size) {
       if constexpr (GraphViewType::is_multi_gpu) {
-        if constexpr (GraphViewType::is_storage_transposed) {
+        if constexpr (store_transposed) {
           property_ = detail::edge_minor_property_t<vertex_t, T>(
             handle,
             *(graph_view.local_sorted_unique_edge_srcs()),
@@ -421,7 +422,7 @@ class edge_src_property_t {
         assert(false);
       }
     } else {
-      if constexpr (GraphViewType::is_storage_transposed) {
+      if constexpr (store_transposed) {
         property_ = detail::edge_minor_property_t<vertex_t, T>(
           handle,
           graph_view.local_edge_partition_src_range_size(),
@@ -443,35 +444,26 @@ class edge_src_property_t {
   void clear(raft::handle_t const& handle)
   {
     property_.clear(handle);
-
-    if constexpr (GraphViewType::is_multi_gpu && !GraphViewType::is_storage_transposed) {
-      edge_partition_keys_                    = std::nullopt;
-      edge_partition_key_chunk_start_offsets_ = std::nullopt;
-    }
+    edge_partition_keys_.reset();
+    edge_partition_key_chunk_start_offsets_.reset();
   }
 
   auto view() const { return property_.view(); }
   auto mutable_view() { return property_.mutable_view(); }
 
  private:
-  std::conditional_t<GraphViewType::is_storage_transposed,
-                     detail::edge_minor_property_t<typename GraphViewType::vertex_type, T>,
-                     detail::edge_major_property_t<typename GraphViewType::vertex_type, T>>
+  std::conditional_t<store_transposed,
+                     detail::edge_minor_property_t<vertex_t, T>,
+                     detail::edge_major_property_t<vertex_t, T>>
     property_;
 
-  std::conditional_t<
-    GraphViewType::is_multi_gpu && !GraphViewType::is_storage_transposed,
-    std::optional<std::vector<raft::device_span<typename GraphViewType::vertex_type const>>>,
-    std::byte>
-    edge_partition_keys_{};
-  std::conditional_t<
-    GraphViewType::is_multi_gpu && !GraphViewType::is_storage_transposed,
-    std::optional<std::vector<raft::device_span<typename GraphViewType::vertex_type const>>>,
-    std::byte>
-    edge_partition_key_chunk_start_offsets_{};
+  std::optional<std::vector<raft::device_span<vertex_t const>>> edge_partition_keys_{std::nullopt};
+  std::optional<std::vector<raft::device_span<vertex_t const>>>
+    edge_partition_key_chunk_start_offsets_{std::nullopt};
 };
 
-template <typename GraphViewType, typename T>
+// FIXME: We should explore how to remove `store_transposed` as a template parameter.
+template <typename vertex_t, typename T, bool store_transposed>
 class edge_dst_property_t {
  public:
   static_assert(is_arithmetic_or_thrust_tuple_of_arithmetic<T>::value);
@@ -480,15 +472,17 @@ class edge_dst_property_t {
 
   edge_dst_property_t(raft::handle_t const& handle) : property_(handle) {}
 
+  template <typename GraphViewType>
   edge_dst_property_t(raft::handle_t const& handle, GraphViewType const& graph_view)
     : property_(handle)
   {
-    using vertex_t = typename GraphViewType::vertex_type;
+    static_assert(std::is_same_v<vertex_t, typename GraphViewType::vertex_type>);
+    static_assert(store_transposed == GraphViewType::is_storage_transposed);
 
     auto key_chunk_size = graph_view.local_sorted_unique_edge_dst_chunk_size();
     if (key_chunk_size) {
       if constexpr (GraphViewType::is_multi_gpu) {
-        if constexpr (GraphViewType::is_storage_transposed) {
+        if constexpr (store_transposed) {
           edge_partition_keys_ = std::vector<raft::device_span<vertex_t const>>(
             graph_view.number_of_local_edge_partitions());
           edge_partition_key_chunk_start_offsets_ = std::vector<raft::device_span<vertex_t const>>(
@@ -521,7 +515,7 @@ class edge_dst_property_t {
         assert(false);
       }
     } else {
-      if constexpr (GraphViewType::is_storage_transposed) {
+      if constexpr (store_transposed) {
         std::vector<vertex_t> major_range_sizes(graph_view.number_of_local_edge_partitions(),
                                                 vertex_t{0});
         std::vector<vertex_t> major_range_firsts(graph_view.number_of_local_edge_partitions());
@@ -543,32 +537,22 @@ class edge_dst_property_t {
   void clear(raft::handle_t const& handle)
   {
     property_.clear(handle);
-
-    if constexpr (GraphViewType::is_multi_gpu && GraphViewType::is_storage_transposed) {
-      edge_partition_keys_                    = std::nullopt;
-      edge_partition_key_chunk_start_offsets_ = std::nullopt;
-    }
+    edge_partition_keys_.reset();
+    edge_partition_key_chunk_start_offsets_.reset();
   }
 
   auto view() const { return property_.view(); }
   auto mutable_view() { return property_.mutable_view(); }
 
  private:
-  std::conditional_t<GraphViewType::is_storage_transposed,
-                     detail::edge_major_property_t<typename GraphViewType::vertex_type, T>,
-                     detail::edge_minor_property_t<typename GraphViewType::vertex_type, T>>
+  std::conditional_t<store_transposed,
+                     detail::edge_major_property_t<vertex_t, T>,
+                     detail::edge_minor_property_t<vertex_t, T>>
     property_;
 
-  std::conditional_t<
-    GraphViewType::is_multi_gpu && GraphViewType::is_storage_transposed,
-    std::optional<std::vector<raft::device_span<typename GraphViewType::vertex_type const>>>,
-    std::byte /* dummy */>
-    edge_partition_keys_{};
-  std::conditional_t<
-    GraphViewType::is_multi_gpu && GraphViewType::is_storage_transposed,
-    std::optional<std::vector<raft::device_span<typename GraphViewType::vertex_type const>>>,
-    std::byte /* dummy */>
-    edge_partition_key_chunk_start_offsets_{};
+  std::optional<std::vector<raft::device_span<vertex_t const>>> edge_partition_keys_{std::nullopt};
+  std::optional<std::vector<raft::device_span<vertex_t const>>>
+    edge_partition_key_chunk_start_offsets_{std::nullopt};
 };
 
 class edge_src_dummy_property_t {
