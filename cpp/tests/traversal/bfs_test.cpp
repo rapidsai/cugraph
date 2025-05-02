@@ -129,7 +129,7 @@ class Tests_BFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, input_
     }
     auto graph_view = graph.view();
 
-    std::optional<cugraph::edge_property_t<decltype(graph_view), bool>> edge_mask{std::nullopt};
+    std::optional<cugraph::edge_property_t<edge_t, bool>> edge_mask{std::nullopt};
     if (bfs_usecase.edge_masking) {
       edge_mask =
         cugraph::test::generate<decltype(graph_view), bool>::edge_property(handle, graph_view, 2);

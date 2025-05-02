@@ -177,8 +177,8 @@ void sssp(raft::handle_t const& handle,
 
   auto edge_src_distances =
     GraphViewType::is_multi_gpu
-      ? edge_src_property_t<GraphViewType, weight_t>(handle, push_graph_view)
-      : edge_src_property_t<GraphViewType, weight_t>(handle);
+      ? edge_src_property_t<vertex_t, weight_t, false>(handle, push_graph_view)
+      : edge_src_property_t<vertex_t, weight_t, false>(handle);
   if (GraphViewType::is_multi_gpu) {
     fill_edge_src_property(handle,
                            push_graph_view,

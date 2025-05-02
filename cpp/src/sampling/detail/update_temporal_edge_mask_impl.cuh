@@ -43,8 +43,7 @@ void update_temporal_edge_mask(
 {
   edge_time_t const STARTING_TIME{std::numeric_limits<edge_time_t>::min()};
 
-  edge_src_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, edge_time_t> edge_src_times(
-    handle, graph_view);
+  edge_src_property_t<edge_t, edge_time_t, false> edge_src_times(handle, graph_view);
 
   rmm::device_uvector<edge_time_t> local_frontier_vertex_times(
     graph_view.local_vertex_partition_range_size(), handle.get_stream());

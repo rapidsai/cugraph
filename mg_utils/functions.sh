@@ -1,4 +1,5 @@
-# Copyright (c) 2022-2023, NVIDIA CORPORATION.
+#!/bin/bash
+# Copyright (c) 2022-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -19,11 +20,11 @@
 NUMARGS=$#
 ARGS=$*
 function hasArg {
-    (( ${NUMARGS} != 0 )) && (echo " ${ARGS} " | grep -q " $1 ")
+    (( NUMARGS != 0 )) && (echo " ${ARGS} " | grep -q " $1 ")
 }
 
 function logger {
-  echo -e ">>>> $@"
+  echo -e ">>>> $*"
 }
 
 # Calling "setTee outfile" will cause all stdout and stderr of the
@@ -40,7 +41,7 @@ function setTee {
     teeFile=$1
     # Create a named pipe.
     pipeName=$(mktemp -u)
-    mkfifo $pipeName
+    mkfifo "$pipeName"
     # Close the currnet 1 and 2 and restore to original (3, 4) in the
     # event this function is called repeatedly.
     exec 1>&- 2>&-
@@ -49,9 +50,9 @@ function setTee {
     # and stderr to the named pipe which goes to the tee process. The
     # named pipe "file" can be removed and the tee process stays alive
     # until the fd is closed.
-    tee -a < $pipeName $teeFile &
-    exec > $pipeName 2>&1
-    rm $pipeName
+    tee -a < "$pipeName" "$teeFile" &
+    exec > "$pipeName" 2>&1
+    rm "$pipeName"
 }
 
 # Call this to stop script output from going to "tee" after a prior

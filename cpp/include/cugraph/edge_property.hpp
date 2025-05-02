@@ -68,12 +68,12 @@ class edge_dummy_property_view_t {
   using value_iterator = void*;
 };
 
-template <typename GraphViewType, typename T>
+template <typename edge_t, typename T>
 class edge_property_t {
  public:
   static_assert(cugraph::is_arithmetic_or_thrust_tuple_of_arithmetic<T>::value);
 
-  using edge_type  = typename GraphViewType::edge_type;
+  using edge_type  = edge_t;
   using value_type = T;
   using buffer_type =
     decltype(allocate_dataframe_buffer<std::conditional_t<std::is_same_v<T, bool>, uint32_t, T>>(
@@ -81,6 +81,7 @@ class edge_property_t {
 
   edge_property_t(raft::handle_t const& handle) {}
 
+  template <typename GraphViewType>
   edge_property_t(raft::handle_t const& handle, GraphViewType const& graph_view)
   {
     buffers_.reserve(graph_view.number_of_local_edge_partitions());

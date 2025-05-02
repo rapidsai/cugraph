@@ -760,24 +760,13 @@ template <typename vertex_t,
           bool store_transposed,
           bool multi_gpu,
           typename input_usecase_t>
-std::tuple<
-  cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu>,
-  std::optional<
-    cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
-                             weight_t>>,
-  std::optional<
-    cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
-                             edge_t>>,
-  std::optional<
-    cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
-                             edge_type_t>>,
-  std::optional<
-    cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
-                             edge_time_t>>,
-  std::optional<
-    cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
-                             edge_time_t>>,
-  std::optional<rmm::device_uvector<vertex_t>>>
+std::tuple<cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu>,
+           std::optional<cugraph::edge_property_t<edge_t, weight_t>>,
+           std::optional<cugraph::edge_property_t<edge_t, edge_t>>,
+           std::optional<cugraph::edge_property_t<edge_t, edge_type_t>>,
+           std::optional<cugraph::edge_property_t<edge_t, edge_time_t>>,
+           std::optional<cugraph::edge_property_t<edge_t, edge_time_t>>,
+           std::optional<rmm::device_uvector<vertex_t>>>
 construct_graph(
   raft::handle_t const& handle,
   input_usecase_t const& input_usecase,
@@ -927,21 +916,11 @@ construct_graph(
   }
 
   graph_t<vertex_t, edge_t, store_transposed, multi_gpu> graph(handle);
-  std::optional<
-    edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, weight_t>>
-    edge_weights{std::nullopt};
-  std::optional<
-    edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, edge_t>>
-    edge_ids{std::nullopt};
-  std::optional<
-    edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, edge_type_t>>
-    edge_types{std::nullopt};
-  std::optional<
-    edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, edge_time_t>>
-    edge_start_times{std::nullopt};
-  std::optional<
-    edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, edge_time_t>>
-    edge_end_times{std::nullopt};
+  std::optional<edge_property_t<edge_t, weight_t>> edge_weights{std::nullopt};
+  std::optional<edge_property_t<edge_t, edge_t>> edge_ids{std::nullopt};
+  std::optional<edge_property_t<edge_t, edge_type_t>> edge_types{std::nullopt};
+  std::optional<edge_property_t<edge_t, edge_time_t>> edge_start_times{std::nullopt};
+  std::optional<edge_property_t<edge_t, edge_time_t>> edge_end_times{std::nullopt};
   std::optional<rmm::device_uvector<vertex_t>> renumber_map{std::nullopt};
   if (edge_src_chunks.size() == 1) {
     std::tie(
@@ -1005,9 +984,7 @@ template <typename vertex_t,
           bool multi_gpu,
           typename input_usecase_t>
 std::tuple<cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu>,
-           std::optional<cugraph::edge_property_t<
-             cugraph::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
-             weight_t>>,
+           std::optional<cugraph::edge_property_t<edge_t, weight_t>>,
            std::optional<rmm::device_uvector<vertex_t>>>
 construct_graph(raft::handle_t const& handle,
                 input_usecase_t const& input_usecase,
@@ -1017,10 +994,7 @@ construct_graph(raft::handle_t const& handle,
                 bool drop_multi_edges = false)
 {
   cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu> graph(handle);
-  std::optional<
-    cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
-                             weight_t>>
-    edge_weights{std::nullopt};
+  std::optional<cugraph::edge_property_t<edge_t, weight_t>> edge_weights{std::nullopt};
   std::optional<rmm::device_uvector<vertex_t>> renumber_map{std::nullopt};
 
   std::tie(graph, edge_weights, std::ignore, std::ignore, std::ignore, std::ignore, renumber_map) =

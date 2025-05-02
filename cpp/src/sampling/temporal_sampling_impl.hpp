@@ -176,8 +176,7 @@ temporal_neighbor_sample_impl(
 
   graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> temporal_graph_view{graph_view};
 
-  cugraph::edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, bool>
-    edge_time_mask(handle, graph_view);
+  cugraph::edge_property_t<edge_t, bool> edge_time_mask(handle, graph_view);
 
   rmm::device_uvector<vertex_t> frontier_vertices_no_duplicates(0, handle.get_stream());
   rmm::device_uvector<edge_time_t> frontier_vertex_times_no_duplicates(0, handle.get_stream());
