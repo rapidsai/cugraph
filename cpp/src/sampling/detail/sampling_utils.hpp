@@ -102,6 +102,7 @@ gather_one_hop_edgelist(
   std::optional<edge_property_view_t<edge_t, edge_time_t const*>> edge_start_time_view,
   std::optional<edge_property_view_t<edge_t, edge_time_t const*>> edge_end_time_view,
   raft::device_span<vertex_t const> active_majors,
+  std::optional<raft::device_span<edge_time_t const>> active_major_times,
   std::optional<raft::device_span<label_t const>> active_major_labels,
   std::optional<raft::host_span<uint8_t const>> gather_flags,
   bool do_expensive_check = false);

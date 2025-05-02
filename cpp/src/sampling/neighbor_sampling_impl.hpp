@@ -127,7 +127,7 @@ neighbor_sample_impl(raft::handle_t const& handle,
     "Invalid input argument: number of levels should not overflow int32_t");  // as we use int32_t
                                                                               // to store hops
 
-  // Get the number of hop. If homogeneous neighbor sample, num_edge_types = 1.
+  // Get the number of hops. If homogeneous neighbor sample, num_edge_types = 1.
 
   auto num_hops = raft::div_rounding_up_safe(
     fan_out.size(), static_cast<size_t>(num_edge_types ? *num_edge_types : edge_type_t{1}));
@@ -266,6 +266,7 @@ neighbor_sample_impl(raft::handle_t const& handle,
           hop == 0
             ? starting_vertices
             : raft::device_span<vertex_t const>(frontier_vertices.data(), frontier_vertices.size()),
+          std::optional<raft::device_span<edge_time_t const>>{std::nullopt},
           hop == 0 ? starting_vertex_labels
           : starting_vertex_labels
             ? std::make_optional(raft::device_span<label_t const>(frontier_vertex_labels->data(),
@@ -456,9 +457,9 @@ neighbor_sample_impl(raft::handle_t const& handle,
                          std::move(result_dsts),
                          std::move(result_weights),
                          std::move(result_edge_ids),
-                         std::move(result_edge_start_times),
-                         std::move(result_edge_end_times),
+                         std::move(result_edge_types),
                          std::move(result_hops),
+                         std::move(result_labels),
                          std::move(result_offsets));
 }
 

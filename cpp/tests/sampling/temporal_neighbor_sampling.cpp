@@ -281,21 +281,6 @@ class Tests_Temporal_Neighbor_Sampling
         raft::device_span<vertex_t const>(vertices.data(), vertices.size()),
         true);
 
-#if 0
-      raft::print_device_vector("src_compare", src_compare.data(), src_compare.size(), std::cout);
-      raft::print_device_vector("dst_compare", dst_compare.data(), dst_compare.size(), std::cout);
-      if (wgt_compare)
-        raft::print_device_vector(
-          "wgt_compare", wgt_compare->data(), wgt_compare->size(), std::cout);
-#endif
-
-#if 0
-      std::cout << "before validation..." << std::endl;
-      raft::print_device_vector("src_out", src_out.data(), src_out.size(), std::cout);
-      raft::print_device_vector("dst_out", dst_out.data(), dst_out.size(), std::cout);
-      if (wgt_out)
-        raft::print_device_vector("wgt_out", wgt_out->data(), wgt_out->size(), std::cout);
-#endif
       ASSERT_TRUE(cugraph::test::validate_extracted_graph_is_subgraph(
         handle,
         raft::device_span<vertex_t const>{src_compare.data(), src_compare.size()},
@@ -364,28 +349,26 @@ INSTANTIATE_TEST_SUITE_P(
   file_test,
   Tests_Temporal_Neighbor_Sampling_File,
   ::testing::Combine(
-    ::testing::Values(Temporal_Neighbor_Sampling_Usecase{{4, 10}, 128, false, false, false},
-                      Temporal_Neighbor_Sampling_Usecase{{4, 10}, 128, false, false, true},
-                      Temporal_Neighbor_Sampling_Usecase{{4, 10}, 128, true, false, false},
-                      Temporal_Neighbor_Sampling_Usecase{{4, 10}, 128, true, false, true},
-                      Temporal_Neighbor_Sampling_Usecase{{4, 10}, 128, false, true, false},
-                      Temporal_Neighbor_Sampling_Usecase{{4, 10}, 128, false, true, true},
-                      Temporal_Neighbor_Sampling_Usecase{{4, 10}, 128, true, true, false},
-                      Temporal_Neighbor_Sampling_Usecase{{4, 10}, 128, true, true, true}),
+    ::testing::Values(Temporal_Neighbor_Sampling_Usecase{{4, -1, 10}, 128, false, false, true},
+                      Temporal_Neighbor_Sampling_Usecase{{4, -1, 10}, 128, true, false, false},
+                      Temporal_Neighbor_Sampling_Usecase{{4, -1, 10}, 128, true, false, true},
+                      Temporal_Neighbor_Sampling_Usecase{{4, -1, 10}, 128, false, true, false},
+                      Temporal_Neighbor_Sampling_Usecase{{4, -1, 10}, 128, false, true, true},
+                      Temporal_Neighbor_Sampling_Usecase{{4, -1, 10}, 128, true, true, false},
+                      Temporal_Neighbor_Sampling_Usecase{{4, -1, 10}, 128, true, true, true}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(
   file_large_test,
   Tests_Temporal_Neighbor_Sampling_File,
   ::testing::Combine(
-    ::testing::Values(Temporal_Neighbor_Sampling_Usecase{{4, 10}, 128, false, false, false, false},
-                      Temporal_Neighbor_Sampling_Usecase{{4, 10}, 128, false, false, true, false},
-                      Temporal_Neighbor_Sampling_Usecase{{4, 10}, 128, true, false, false, false},
-                      Temporal_Neighbor_Sampling_Usecase{{4, 10}, 128, true, false, true, false},
-                      Temporal_Neighbor_Sampling_Usecase{{4, 10}, 128, false, true, false, false},
-                      Temporal_Neighbor_Sampling_Usecase{{4, 10}, 128, false, true, true, false},
-                      Temporal_Neighbor_Sampling_Usecase{{4, 10}, 128, true, true, false, false},
-                      Temporal_Neighbor_Sampling_Usecase{{4, 10}, 128, true, true, true, false}),
+    ::testing::Values(Temporal_Neighbor_Sampling_Usecase{{4, 10}, 128, false, false, true},
+                      Temporal_Neighbor_Sampling_Usecase{{4, 10}, 128, true, false, false},
+                      Temporal_Neighbor_Sampling_Usecase{{4, 10}, 128, true, false, true},
+                      Temporal_Neighbor_Sampling_Usecase{{4, 10}, 128, false, true, false},
+                      Temporal_Neighbor_Sampling_Usecase{{4, 10}, 128, false, true, true},
+                      Temporal_Neighbor_Sampling_Usecase{{4, 10}, 128, true, true, false},
+                      Temporal_Neighbor_Sampling_Usecase{{4, 10}, 128, true, true, true}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
                       cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
                       cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx"))));
@@ -394,14 +377,13 @@ INSTANTIATE_TEST_SUITE_P(
   rmat_small_test,
   Tests_Temporal_Neighbor_Sampling_Rmat,
   ::testing::Combine(
-    ::testing::Values(  // Temporal_Neighbor_Sampling_Usecase{{4, 10}, 128, false, false, false},
-      Temporal_Neighbor_Sampling_Usecase{{4, 10}, 128, false, false, true},
-      Temporal_Neighbor_Sampling_Usecase{{4, 10}, 128, true, false, false},
-      Temporal_Neighbor_Sampling_Usecase{{4, 10}, 128, true, false, true},
-      Temporal_Neighbor_Sampling_Usecase{{4, 10}, 128, false, true, false},
-      Temporal_Neighbor_Sampling_Usecase{{4, 10}, 128, false, true, true},
-      Temporal_Neighbor_Sampling_Usecase{{4, 10}, 128, true, true, false},
-      Temporal_Neighbor_Sampling_Usecase{{4, 10}, 128, true, true, true}),
+    ::testing::Values(Temporal_Neighbor_Sampling_Usecase{{4, -1, 10}, 128, false, false, true},
+                      Temporal_Neighbor_Sampling_Usecase{{4, -1, 10}, 128, true, false, false},
+                      Temporal_Neighbor_Sampling_Usecase{{4, -1, 10}, 128, true, false, true},
+                      Temporal_Neighbor_Sampling_Usecase{{4, -1, 10}, 128, false, true, false},
+                      Temporal_Neighbor_Sampling_Usecase{{4, -1, 10}, 128, false, true, true},
+                      Temporal_Neighbor_Sampling_Usecase{{4, -1, 10}, 128, true, true, false},
+                      Temporal_Neighbor_Sampling_Usecase{{4, -1, 10}, 128, true, true, true}),
     ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false, 0))));
 
 INSTANTIATE_TEST_SUITE_P(
@@ -412,14 +394,13 @@ INSTANTIATE_TEST_SUITE_P(
                           factor (to avoid running same benchmarks more than once) */
   Tests_Temporal_Neighbor_Sampling_Rmat,
   ::testing::Combine(
-    ::testing::Values(Temporal_Neighbor_Sampling_Usecase{{4, 10}, 128, false, false, false, false},
-                      Temporal_Neighbor_Sampling_Usecase{{4, 10}, 128, false, false, true, false},
-                      Temporal_Neighbor_Sampling_Usecase{{4, 10}, 128, true, false, false, false},
-                      Temporal_Neighbor_Sampling_Usecase{{4, 10}, 128, true, false, true, false},
-                      Temporal_Neighbor_Sampling_Usecase{{4, 10}, 128, false, true, false, false},
-                      Temporal_Neighbor_Sampling_Usecase{{4, 10}, 128, false, true, true, false},
-                      Temporal_Neighbor_Sampling_Usecase{{4, 10}, 128, true, true, false, false},
-                      Temporal_Neighbor_Sampling_Usecase{{4, 10}, 128, true, true, true, false}),
+    ::testing::Values(Temporal_Neighbor_Sampling_Usecase{{4, 10}, 128, false, false, true},
+                      Temporal_Neighbor_Sampling_Usecase{{4, 10}, 128, true, false, false},
+                      Temporal_Neighbor_Sampling_Usecase{{4, 10}, 128, true, false, true},
+                      Temporal_Neighbor_Sampling_Usecase{{4, 10}, 128, false, true, false},
+                      Temporal_Neighbor_Sampling_Usecase{{4, 10}, 128, false, true, true},
+                      Temporal_Neighbor_Sampling_Usecase{{4, 10}, 128, true, true, false},
+                      Temporal_Neighbor_Sampling_Usecase{{4, 10}, 128, true, true, true}),
     ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false, 0))));
 
 CUGRAPH_TEST_PROGRAM_MAIN()

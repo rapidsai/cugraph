@@ -36,6 +36,7 @@ gather_one_hop_edgelist(
   std::optional<edge_property_view_t<int32_t, int32_t const*>> edge_edge_start_time_view,
   std::optional<edge_property_view_t<int32_t, int32_t const*>> edge_edge_end_time_view,
   raft::device_span<int32_t const> active_majors,
+  std::optional<raft::device_span<int32_t const>> active_major_times,
   std::optional<raft::device_span<int32_t const>> active_major_labels,
   std::optional<raft::host_span<uint8_t const>> gather_flags,
   bool do_expensive_check);
@@ -57,6 +58,7 @@ gather_one_hop_edgelist(
   std::optional<edge_property_view_t<int32_t, int32_t const*>> edge_edge_start_time_view,
   std::optional<edge_property_view_t<int32_t, int32_t const*>> edge_edge_end_time_view,
   raft::device_span<int32_t const> active_majors,
+  std::optional<raft::device_span<int32_t const>> active_major_times,
   std::optional<raft::device_span<int32_t const>> active_major_labels,
   std::optional<raft::host_span<uint8_t const>> gather_flags,
   bool do_expensive_check);
@@ -78,6 +80,7 @@ gather_one_hop_edgelist(
   std::optional<edge_property_view_t<int32_t, int64_t const*>> edge_edge_start_time_view,
   std::optional<edge_property_view_t<int32_t, int64_t const*>> edge_edge_end_time_view,
   raft::device_span<int32_t const> active_majors,
+  std::optional<raft::device_span<int64_t const>> active_major_times,
   std::optional<raft::device_span<int32_t const>> active_major_labels,
   std::optional<raft::host_span<uint8_t const>> gather_flags,
   bool do_expensive_check);
@@ -99,6 +102,7 @@ gather_one_hop_edgelist(
   std::optional<edge_property_view_t<int32_t, int64_t const*>> edge_edge_start_time_view,
   std::optional<edge_property_view_t<int32_t, int64_t const*>> edge_edge_end_time_view,
   raft::device_span<int32_t const> active_majors,
+  std::optional<raft::device_span<int64_t const>> active_major_times,
   std::optional<raft::device_span<int32_t const>> active_major_labels,
   std::optional<raft::host_span<uint8_t const>> gather_flags,
   bool do_expensive_check);

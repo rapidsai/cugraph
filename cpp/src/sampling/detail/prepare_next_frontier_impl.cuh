@@ -99,10 +99,11 @@ prepare_next_frontier(
   std::for_each(sampled_dst_vertices.begin(),
                 sampled_dst_vertices.end(),
                 [&handle, &frontier_vertices, &current_pos](auto& list) {
-                  thrust::copy(handle.get_thrust_policy(),
-                               list.begin(),
-                               list.end(),
-                               frontier_vertices.begin() + current_pos);
+                  if (list.size() > 0)
+                    thrust::copy(handle.get_thrust_policy(),
+                                 list.begin(),
+                                 list.end(),
+                                 frontier_vertices.begin() + current_pos);
                   current_pos += list.size();
                 });
 
@@ -119,10 +120,11 @@ prepare_next_frontier(
     std::for_each(sampled_dst_vertex_labels->begin(),
                   sampled_dst_vertex_labels->end(),
                   [&handle, &frontier_vertex_labels, &current_pos](auto& list) {
-                    thrust::copy(handle.get_thrust_policy(),
-                                 list.begin(),
-                                 list.end(),
-                                 frontier_vertex_labels->begin() + current_pos);
+                    if (list.size() > 0)
+                      thrust::copy(handle.get_thrust_policy(),
+                                   list.begin(),
+                                   list.end(),
+                                   frontier_vertex_labels->begin() + current_pos);
                     current_pos += list.size();
                   });
   }
@@ -140,10 +142,11 @@ prepare_next_frontier(
     std::for_each(sampled_dst_vertex_times->begin(),
                   sampled_dst_vertex_times->end(),
                   [&handle, &frontier_vertex_times, &current_pos](auto& list) {
-                    thrust::copy(handle.get_thrust_policy(),
-                                 list.begin(),
-                                 list.end(),
-                                 frontier_vertex_times->begin() + current_pos);
+                    if (list.size() > 0)
+                      thrust::copy(handle.get_thrust_policy(),
+                                   list.begin(),
+                                   list.end(),
+                                   frontier_vertex_times->begin() + current_pos);
                     current_pos += list.size();
                   });
   }
