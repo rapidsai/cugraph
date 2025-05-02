@@ -29,6 +29,7 @@
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
+#include <cugraph/variant/edge_properties.hpp>
 
 #include <raft/core/handle.hpp>
 
@@ -1004,17 +1005,42 @@ create_graph_from_edgelist_impl(
     }
   }
 
+  std::vector<cugraph::variant::device_spans_t> edgelist_property_spans{};
+
+  if (edgelist_weights) {
+    edgelist_property_spans.push_back(
+      raft::device_span<weight_t>{edgelist_weights->data(), edgelist_weights->size()});
+  }
+
+  if (edgelist_edge_ids) {
+    edgelist_property_spans.push_back(
+      raft::device_span<edge_t>{edgelist_edge_ids->data(), edgelist_edge_ids->size()});
+  }
+
+  if (edgelist_edge_types) {
+    edgelist_property_spans.push_back(
+      raft::device_span<edge_type_t>{edgelist_edge_types->data(), edgelist_edge_types->size()});
+  }
+
+  if (edgelist_edge_start_times) {
+    edgelist_property_spans.push_back(raft::device_span<edge_time_t>{
+      edgelist_edge_start_times->data(), edgelist_edge_start_times->size()});
+  }
+
+  if (edgelist_edge_end_times) {
+    edgelist_property_spans.push_back(raft::device_span<edge_time_t>{
+      edgelist_edge_end_times->data(), edgelist_edge_end_times->size()});
+  }
+
   // 1. groupby edges to their target local adjacency matrix partition (and further groupby within
   // the local partition by applying the compute_gpu_id_from_vertex_t to minor vertex IDs).
   auto d_edge_counts = cugraph::detail::groupby_and_count_edgelist_by_local_partition_id(
     handle,
-    store_transposed ? edgelist_dsts : edgelist_srcs,
-    store_transposed ? edgelist_srcs : edgelist_dsts,
-    edgelist_weights,
-    edgelist_edge_ids,
-    edgelist_edge_types,
-    edgelist_edge_start_times,
-    edgelist_edge_end_times,
+    store_transposed ? raft::device_span<vertex_t>{edgelist_dsts.data(), edgelist_dsts.size()}
+                     : raft::device_span<vertex_t>{edgelist_srcs.data(), edgelist_srcs.size()},
+    store_transposed ? raft::device_span<vertex_t>{edgelist_srcs.data(), edgelist_srcs.size()}
+                     : raft::device_span<vertex_t>{edgelist_dsts.data(), edgelist_dsts.size()},
+    edgelist_property_spans,
     true);
 
   std::vector<size_t> h_edge_counts(d_edge_counts.size());
@@ -1361,41 +1387,40 @@ create_graph_from_edgelist_impl(
   // IDs).
   std::vector<std::vector<edge_t>> edgelist_edge_offset_vectors(num_chunks);
   for (size_t i = 0; i < num_chunks; ++i) {  // iterate over input edge chunks
-    std::optional<rmm::device_uvector<weight_t>> this_chunk_weights{std::nullopt};
-    if (edgelist_weights) { this_chunk_weights = std::move((*edgelist_weights)[i]); }
-    std::optional<rmm::device_uvector<edge_t>> this_chunk_edge_ids{std::nullopt};
-    if (edgelist_edge_ids) { this_chunk_edge_ids = std::move((*edgelist_edge_ids)[i]); }
-    std::optional<rmm::device_uvector<edge_type_t>> this_chunk_edge_types{std::nullopt};
-    if (edgelist_edge_types) { this_chunk_edge_types = std::move((*edgelist_edge_types)[i]); }
-    std::optional<rmm::device_uvector<edge_time_t>> this_chunk_edge_start_times{std::nullopt};
-    if (edgelist_edge_start_times) {
-      this_chunk_edge_start_times = std::move((*edgelist_edge_start_times)[i]);
+    std::vector<cugraph::variant::device_spans_t> this_chunk_edge_properties{};
+
+    if (edgelist_weights) {
+      this_chunk_edge_properties.push_back(
+        raft::device_span<weight_t>{(*edgelist_weights)[i].data(), (*edgelist_weights)[i].size()});
     }
-    std::optional<rmm::device_uvector<edge_time_t>> this_chunk_edge_end_times{std::nullopt};
+    if (edgelist_edge_ids) {
+      this_chunk_edge_properties.push_back(
+        raft::device_span<edge_t>{(*edgelist_edge_ids)[i].data(), (*edgelist_edge_ids)[i].size()});
+    }
+    if (edgelist_edge_types) {
+      this_chunk_edge_properties.push_back(raft::device_span<edge_type_t>{
+        (*edgelist_edge_types)[i].data(), (*edgelist_edge_types)[i].size()});
+    }
+    if (edgelist_edge_start_times) {
+      this_chunk_edge_properties.push_back(raft::device_span<edge_time_t>{
+        (*edgelist_edge_start_times)[i].data(), (*edgelist_edge_start_times)[i].size()});
+    }
     if (edgelist_edge_end_times) {
-      this_chunk_edge_end_times = std::move((*edgelist_edge_end_times)[i]);
+      this_chunk_edge_properties.push_back(raft::device_span<edge_time_t>{
+        (*edgelist_edge_end_times)[i].data(), (*edgelist_edge_end_times)[i].size()});
     }
 
     auto d_this_chunk_edge_counts =
       cugraph::detail::groupby_and_count_edgelist_by_local_partition_id(
         handle,
-        store_transposed ? edgelist_dsts[i] : edgelist_srcs[i],
-        store_transposed ? edgelist_srcs[i] : edgelist_dsts[i],
-        this_chunk_weights,
-        this_chunk_edge_ids,
-        this_chunk_edge_types,
-        this_chunk_edge_start_times,
-        this_chunk_edge_end_times,
+        store_transposed
+          ? raft::device_span<vertex_t>{edgelist_dsts[i].data(), edgelist_dsts[i].size()}
+          : raft::device_span<vertex_t>{edgelist_srcs[i].data(), edgelist_srcs[i].size()},
+        store_transposed
+          ? raft::device_span<vertex_t>{edgelist_srcs[i].data(), edgelist_dsts[i].size()}
+          : raft::device_span<vertex_t>{edgelist_dsts[i].data(), edgelist_dsts[i].size()},
+        this_chunk_edge_properties,
         true);
-    if (this_chunk_weights) { (*edgelist_weights)[i] = std::move(*this_chunk_weights); }
-    if (this_chunk_edge_ids) { (*edgelist_edge_ids)[i] = std::move(*this_chunk_edge_ids); }
-    if (this_chunk_edge_types) { (*edgelist_edge_types)[i] = std::move(*this_chunk_edge_types); }
-    if (this_chunk_edge_start_times) {
-      (*edgelist_edge_start_times)[i] = std::move(*this_chunk_edge_start_times);
-    }
-    if (this_chunk_edge_end_times) {
-      (*edgelist_edge_end_times)[i] = std::move(*this_chunk_edge_end_times);
-    }
 
     std::vector<size_t> h_this_chunk_edge_counts(d_this_chunk_edge_counts.size());
     raft::update_host(h_this_chunk_edge_counts.data(),

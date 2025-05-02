@@ -129,6 +129,11 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
     if constexpr (!multi_gpu || !cugraph::is_candidate<vertex_t, edge_t, weight_t>::value) {
       unsupported();
     } else {
+      // For now... let's wrap the edge properties into the new variant structure.
+      // Eventually it would be "better" (if we stick to this approach) to perhaps
+      // set indices of the properties in the graph_t object so that we can just
+      // directly index the correct variable and only store the packed property
+      // structures.
       std::optional<rmm::device_uvector<vertex_t>> new_number_map;
 
       std::optional<cugraph::edge_property_t<edge_t, weight_t>> new_edge_weights{std::nullopt};
@@ -146,6 +151,7 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
       rmm::device_uvector<vertex_t> edgelist_dsts =
         concatenate<vertex_t>(handle_, dst_, num_arrays_);
 
+#if 0
       std::optional<rmm::device_uvector<weight_t>> edgelist_weights =
         weights_ ? std::make_optional(concatenate<weight_t>(handle_, weights_, num_arrays_))
                  : std::nullopt;
@@ -161,23 +167,41 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
 
       std::optional<rmm::device_uvector<edge_time_t>> edgelist_edge_start_times{std::nullopt};
       std::optional<rmm::device_uvector<edge_time_t>> edgelist_edge_end_times{std::nullopt};
+#else
+      std::vector<cugraph::variant::device_uvectors_t> edgelist_edge_properties{};
 
-      std::tie(edgelist_srcs,
-               edgelist_dsts,
-               edgelist_weights,
-               edgelist_edge_ids,
-               edgelist_edge_types,
-               edgelist_edge_start_times,
-               edgelist_edge_end_times,
-               std::ignore) = cugraph::shuffle_ext_edges(handle_,
-                                                         std::move(edgelist_srcs),
-                                                         std::move(edgelist_dsts),
-                                                         std::move(edgelist_weights),
-                                                         std::move(edgelist_edge_ids),
-                                                         std::move(edgelist_edge_types),
-                                                         std::move(edgelist_edge_start_times),
-                                                         std::move(edgelist_edge_end_times),
-                                                         store_transposed);
+      if (weights_)
+        edgelist_edge_properties.push_back(concatenate<weight_t>(handle_, weights_, num_arrays_));
+      if (edge_ids_)
+        edgelist_edge_properties.push_back(concatenate<edge_t>(handle_, edge_ids_, num_arrays_));
+      if (edge_type_ids_)
+        edgelist_edge_properties.push_back(
+          concatenate<edge_type_t>(handle_, edge_type_ids_, num_arrays_));
+#endif
+
+      std::tie(edgelist_srcs, edgelist_dsts, edgelist_edge_properties, std::ignore) =
+        cugraph::shuffle_ext_edges(handle_,
+                                   std::move(edgelist_srcs),
+                                   std::move(edgelist_dsts),
+                                   std::move(edgelist_edge_properties),
+                                   store_transposed);
+
+      std::optional<rmm::device_uvector<weight_t>> edgelist_weights{std::nullopt};
+      std::optional<rmm::device_uvector<edge_t>> edgelist_edge_ids{std::nullopt};
+      std::optional<rmm::device_uvector<edge_type_t>> edgelist_edge_types{std::nullopt};
+      std::optional<rmm::device_uvector<edge_time_t>> edgelist_edge_start_times{std::nullopt};
+      std::optional<rmm::device_uvector<edge_time_t>> edgelist_edge_end_times{std::nullopt};
+
+      size_t pos = 0;
+      if (weights_)
+        edgelist_weights =
+          std::get<rmm::device_uvector<weight_t>>(std::move(edgelist_edge_properties[pos++]));
+      if (edge_ids_)
+        edgelist_edge_ids =
+          std::get<rmm::device_uvector<edge_t>>(std::move(edgelist_edge_properties[pos++]));
+      if (edge_type_ids_)
+        edgelist_edge_types =
+          std::get<rmm::device_uvector<edge_type_t>>(std::move(edgelist_edge_properties[pos++]));
 
       if (vertex_list) {
         vertex_list = cugraph::shuffle_ext_vertices(handle_, std::move(*vertex_list));

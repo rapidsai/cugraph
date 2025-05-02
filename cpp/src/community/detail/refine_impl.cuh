@@ -635,24 +635,15 @@ refine_clustering(
     std::optional<edge_property_t<edge_t, weight_t>> coarse_edge_weights{std::nullopt};
 
     if constexpr (multi_gpu) {
-      std::tie(d_srcs,
-               d_dsts,
-               d_weights,
-               std::ignore,
-               std::ignore,
-               std::ignore,
-               std::ignore,
-               std::ignore) =
-        cugraph::shuffle_ext_edges<vertex_t, vertex_t, weight_t, int32_t, int32_t>(
-          handle,
-          std::move(d_srcs),
-          std::move(d_dsts),
-          std::move(d_weights),
-          std::nullopt,
-          std::nullopt,
-          std::nullopt,
-          std::nullopt,
-          GraphViewType::is_storage_transposed);
+      std::vector<cugraph::variant::device_uvectors_t> edge_properties{};
+      edge_properties.push_back(std::move(*d_weights));
+      std::tie(d_srcs, d_dsts, edge_properties, std::ignore) =
+        cugraph::shuffle_ext_edges<vertex_t>(handle,
+                                             std::move(d_srcs),
+                                             std::move(d_dsts),
+                                             std::move(edge_properties),
+                                             GraphViewType::is_storage_transposed);
+      d_weights = std::move(std::get<rmm::device_uvector<weight_t>>(edge_properties[0]));
     }
 
     std::tie(decision_graph, coarse_edge_weights, std::ignore, std::ignore, renumber_map) =

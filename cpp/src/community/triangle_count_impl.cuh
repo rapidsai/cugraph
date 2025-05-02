@@ -27,6 +27,7 @@
 #include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
+#include <cugraph/variant/edge_properties.hpp>
 
 #include <cuda/std/iterator>
 #include <cuda/std/optional>
@@ -445,17 +446,12 @@ void triangle_count(raft::handle_t const& handle,
                              extract_low_to_high_degree_edges_pred_op_t<vertex_t, edge_t>{});
 
     if constexpr (multi_gpu) {
-      std::tie(
-        srcs, dsts, std::ignore, std::ignore, std::ignore, std::ignore, std::ignore, std::ignore) =
-        shuffle_ext_edges<vertex_t, edge_t, weight_t, int32_t, int32_t>(handle,
-                                                                        std::move(srcs),
-                                                                        std::move(dsts),
-                                                                        std::nullopt,
-                                                                        std::nullopt,
-                                                                        std::nullopt,
-                                                                        std::nullopt,
-                                                                        std::nullopt,
-                                                                        false);
+      std::tie(srcs, dsts, std::ignore, std::ignore) =
+        shuffle_ext_edges(handle,
+                          std::move(srcs),
+                          std::move(dsts),
+                          std::vector<cugraph::variant::device_uvectors_t>{},
+                          false);
     }
 
     std::tie(modified_graph, std::ignore, std::ignore, std::ignore, renumber_map) =

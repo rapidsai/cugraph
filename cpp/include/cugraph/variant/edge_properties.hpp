@@ -152,5 +152,13 @@ struct variant_size {
   }
 };
 
+inline device_spans_t make_span(device_uvectors_t& v)
+{
+  return variant_type_dispatch(v, [](auto& v) {
+    using T = typename std::remove_reference<decltype(v)>::type::value_type;
+    return static_cast<device_spans_t>(raft::device_span<T>(v.data(), v.size()));
+  });
+}
+
 }  // namespace variant
 }  // namespace cugraph

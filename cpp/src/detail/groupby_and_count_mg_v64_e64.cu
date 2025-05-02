@@ -37,46 +37,9 @@ namespace detail {
 
 template rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
   raft::handle_t const& handle,
-  rmm::device_uvector<int64_t>& d_edgelist_majors,
-  rmm::device_uvector<int64_t>& d_edgelist_minors,
-  std::optional<rmm::device_uvector<float>>& d_edgelist_weights,
-  std::optional<rmm::device_uvector<int64_t>>& d_edgelist_edge_ids,
-  std::optional<rmm::device_uvector<int32_t>>& d_edgelist_edge_types,
-  std::optional<rmm::device_uvector<int32_t>>& d_edgelist_edge_start_times,
-  std::optional<rmm::device_uvector<int32_t>>& d_edgelist_edge_end_times,
-  bool groupby_and_counts_local_partition);
-
-template rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
-  raft::handle_t const& handle,
-  rmm::device_uvector<int64_t>& d_edgelist_majors,
-  rmm::device_uvector<int64_t>& d_edgelist_minors,
-  std::optional<rmm::device_uvector<double>>& d_edgelist_weights,
-  std::optional<rmm::device_uvector<int64_t>>& d_edgelist_edge_ids,
-  std::optional<rmm::device_uvector<int32_t>>& d_edgelist_edge_types,
-  std::optional<rmm::device_uvector<int32_t>>& d_edgelist_edge_start_times,
-  std::optional<rmm::device_uvector<int32_t>>& d_edgelist_edge_end_times,
-  bool groupby_and_counts_local_partition);
-
-template rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
-  raft::handle_t const& handle,
-  rmm::device_uvector<int64_t>& d_edgelist_majors,
-  rmm::device_uvector<int64_t>& d_edgelist_minors,
-  std::optional<rmm::device_uvector<float>>& d_edgelist_weights,
-  std::optional<rmm::device_uvector<int64_t>>& d_edgelist_edge_ids,
-  std::optional<rmm::device_uvector<int32_t>>& d_edgelist_edge_types,
-  std::optional<rmm::device_uvector<int64_t>>& d_edgelist_edge_start_times,
-  std::optional<rmm::device_uvector<int64_t>>& d_edgelist_edge_end_times,
-  bool groupby_and_counts_local_partition);
-
-template rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
-  raft::handle_t const& handle,
-  rmm::device_uvector<int64_t>& d_edgelist_majors,
-  rmm::device_uvector<int64_t>& d_edgelist_minors,
-  std::optional<rmm::device_uvector<double>>& d_edgelist_weights,
-  std::optional<rmm::device_uvector<int64_t>>& d_edgelist_edge_ids,
-  std::optional<rmm::device_uvector<int32_t>>& d_edgelist_edge_types,
-  std::optional<rmm::device_uvector<int64_t>>& d_edgelist_edge_start_times,
-  std::optional<rmm::device_uvector<int64_t>>& d_edgelist_edge_end_times,
+  raft::device_span<int64_t>& edgelist_majors,
+  raft::device_span<int64_t>& edgelist_minors,
+  std::vector<cugraph::variant::device_spans_t> edgelist_properties,
   bool groupby_and_counts_local_partition);
 
 }  // namespace detail
