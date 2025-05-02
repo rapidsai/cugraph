@@ -49,18 +49,14 @@ namespace detail {
 
 template <typename vertex_t>
 struct hash_src_dst_pair_t {
-  using result_type = std::conditional_t<sizeof(vertex_t) == 8,
-                                         typename cuco::xxhash_64<vertex_t>::result_type,
-                                         typename cuco::xxhash_32<vertex_t>::result_type>;
+  using result_type = typename cuco::murmurhash3_32<vertex_t>::result_type;
 
   __device__ result_type operator()(thrust::tuple<vertex_t, vertex_t> pair) const
   {
-    vertex_t buf[2];
-    buf[0] = thrust::get<0>(pair);
-    buf[1] = thrust::get<1>(pair);
-    std::conditional_t<sizeof(vertex_t) == 8, cuco::xxhash_64<vertex_t>, cuco::xxhash_32<vertex_t>>
-      hash_func{};
-    return hash_func.compute_hash(reinterpret_cast<cuda::std::byte*>(buf), 2 * sizeof(vertex_t));
+    cuco::murmurhash3_32<vertex_t> hash_func{};
+    auto hash0 = hash_func(thrust::get<0>(pair));
+    auto hash1 = hash_func(thrust::get<1>(pair));
+    return hash0 + hash1;
   }
 };
 
@@ -128,17 +124,9 @@ group_edges(raft::handle_t const& handle,
             rmm::device_uvector<vertex_t>&& edgelist_srcs,
             rmm::device_uvector<vertex_t>&& edgelist_dsts,
             std::optional<rmm::device_uvector<edge_value_t>>&& edgelist_values,
-            int num_groups)
+            int num_groups,
+            size_t mem_frugal_threshold)
 {
-  auto total_global_mem = handle.get_device_properties().totalGlobalMem;
-  auto constexpr mem_frugal_ratio =
-    0.25;  // if the expected temporary buffer size exceeds the mem_frugal_ratio of the
-           // total_global_mem, switch to the memory frugal approach
-  auto mem_frugal_threshold = static_cast<size_t>(
-    static_cast<double>(total_global_mem / (sizeof(vertex_t) * 2 +
-                                            (edgelist_values ? sizeof(edge_value_t) : size_t{0}))) *
-    mem_frugal_ratio);
-
   auto pair_first = thrust::make_zip_iterator(edgelist_srcs.begin(), edgelist_dsts.begin());
   std::vector<size_t> h_group_counts(num_groups);
   if (edgelist_values) {
@@ -174,7 +162,8 @@ template <typename vertex_t>
 std::vector<rmm::device_uvector<bool>> compute_multi_edge_flags(
   raft::handle_t const& handle,
   raft::host_span<raft::device_span<vertex_t const>> edgelist_srcs,
-  raft::host_span<raft::device_span<vertex_t const>> edgelist_dsts)
+  raft::host_span<raft::device_span<vertex_t const>> edgelist_dsts,
+  size_t mem_frugal_threshold)
 {
   using hash_result_type = typename hash_src_dst_pair_t<vertex_t>::result_type;
 
@@ -203,7 +192,19 @@ std::vector<rmm::device_uvector<bool>> compute_multi_edge_flags(
   rmm::device_uvector<hash_result_type> unique_possibly_multi_edge_hashes(0, handle.get_stream());
   size_t num_possibly_multi_edges{0};
   {
-    thrust::sort(handle.get_thrust_policy(), hashes.begin(), hashes.end());
+    if (tot_edges < mem_frugal_threshold) {
+      thrust::sort(handle.get_thrust_policy(), hashes.begin(), hashes.end());
+    } else {
+      auto second_first =
+        mem_frugal_partition(hashes.begin(),
+                             hashes.end(),
+                             cuda::proclaim_return_type<int>(
+                               [] __device__(auto hash) { return static_cast<int>(hash % 2); }),
+                             int{1},
+                             handle.get_stream());
+      thrust::sort(handle.get_thrust_policy(), hashes.begin(), second_first);
+      thrust::sort(handle.get_thrust_policy(), second_first, hashes.end());
+    }
     rmm::device_uvector<bool> is_definitely_not_multi_edge_hashes(hashes.size(),
                                                                   handle.get_stream());
     thrust::tabulate(
@@ -227,13 +228,16 @@ std::vector<rmm::device_uvector<bool>> compute_multi_edge_flags(
                                              is_definitely_not_multi_edge_hashes.end(),
                                              false);
     unique_possibly_multi_edge_hashes.resize(num_possibly_multi_edges, handle.get_stream());
-    thrust::copy_if(
-      handle.get_thrust_policy(),
-      hashes.begin(),
-      hashes.end(),
-      is_definitely_not_multi_edge_hashes.begin(),
-      unique_possibly_multi_edge_hashes.begin(),
-      [] __device__(bool definitely_not_multi_edge) { return !definitely_not_multi_edge; });
+    thrust::copy_if(handle.get_thrust_policy(),
+                    hashes.begin(),
+                    hashes.end(),
+                    is_definitely_not_multi_edge_hashes.begin(),
+                    unique_possibly_multi_edge_hashes.begin(),
+                    cuda::proclaim_return_type<bool>([] __device__(bool definitely_not_multi_edge) {
+                      return !definitely_not_multi_edge;
+                    }));
+    is_definitely_not_multi_edge_hashes.resize(0, handle.get_stream());
+    is_definitely_not_multi_edge_hashes.shrink_to_fit(handle.get_stream());
 
     thrust::sort(handle.get_thrust_policy(),
                  unique_possibly_multi_edge_hashes.begin(),
@@ -419,6 +423,30 @@ remove_multi_edges_impl(
   int num_chunks = edgelist_srcs.size();
   int num_groups = std::max(edgelist_srcs.size(), size_t{2});  // to cut peak memory usage
 
+  auto total_global_mem = handle.get_device_properties().totalGlobalMem;
+  auto constexpr mem_frugal_ratio =
+    0.5;  // if the aggregate edge data size exceeds the mem_frugal_ratio of the total global_mem
+          // (in an approximate sense), switch to the memory frugal approach
+  auto element_size = sizeof(vertex_t) * 2;
+  if (edge_property_count == 1) {
+    if (edgelist_weights) {
+      element_size += sizeof(weight_t);
+    } else if (edgelist_edge_ids) {
+      element_size += sizeof(edge_t);
+    } else if (edgelist_edge_types) {
+      element_size += sizeof(edge_type_t);
+    } else {
+      assert(edgelist_edge_start_times || edgelist_edge_end_times);
+      element_size += sizeof(edge_time_t);
+    }
+  } else if (edge_property_count > 1) {
+    element_size += sizeof(size_t);
+  }
+
+  auto mem_frugal_threshold =
+    static_cast<size_t>(static_cast<double>(total_global_mem / element_size) * mem_frugal_ratio) /
+    static_cast<size_t>(num_chunks);
+
   std::vector<std::vector<size_t>> group_counts(num_chunks);
   std::optional<std::vector<rmm::device_uvector<size_t>>> edgelist_indices{std::nullopt};
   if (edge_property_count > 1) {
@@ -434,7 +462,8 @@ remove_multi_edges_impl(
                                                           std::move(edgelist_srcs[i]),
                                                           std::move(edgelist_dsts[i]),
                                                           std::nullopt,
-                                                          num_groups);
+                                                          num_groups,
+                                                          mem_frugal_threshold);
     } else if (edge_property_count == 1) {
       if (edgelist_weights) {
         std::optional<rmm::device_uvector<weight_t>> tmp{std::nullopt};
@@ -444,7 +473,8 @@ remove_multi_edges_impl(
             std::move(edgelist_srcs[i]),
             std::move(edgelist_dsts[i]),
             std::make_optional(std::move((*edgelist_weights)[i])),
-            num_groups);
+            num_groups,
+            mem_frugal_threshold);
         (*edgelist_weights)[i] = std::move(*tmp);
       } else if (edgelist_edge_ids) {
         std::optional<rmm::device_uvector<edge_t>> tmp{std::nullopt};
@@ -454,7 +484,8 @@ remove_multi_edges_impl(
             std::move(edgelist_srcs[i]),
             std::move(edgelist_dsts[i]),
             std::make_optional(std::move((*edgelist_edge_ids)[i])),
-            num_groups);
+            num_groups,
+            mem_frugal_threshold);
         (*edgelist_edge_ids)[i] = std::move(*tmp);
       } else if (edgelist_edge_types) {
         std::optional<rmm::device_uvector<edge_type_t>> tmp{std::nullopt};
@@ -464,7 +495,8 @@ remove_multi_edges_impl(
             std::move(edgelist_srcs[i]),
             std::move(edgelist_dsts[i]),
             std::make_optional(std::move((*edgelist_edge_types)[i])),
-            num_groups);
+            num_groups,
+            mem_frugal_threshold);
         (*edgelist_edge_types)[i] = std::move(*tmp);
       } else if (edgelist_edge_start_times) {
         std::optional<rmm::device_uvector<edge_time_t>> tmp{std::nullopt};
@@ -474,7 +506,8 @@ remove_multi_edges_impl(
             std::move(edgelist_srcs[i]),
             std::move(edgelist_dsts[i]),
             std::make_optional(std::move((*edgelist_edge_start_times)[i])),
-            num_groups);
+            num_groups,
+            mem_frugal_threshold);
         (*edgelist_edge_start_times)[i] = std::move(*tmp);
       } else {
         assert(edgelist_edge_end_times);
@@ -485,7 +518,8 @@ remove_multi_edges_impl(
             std::move(edgelist_srcs[i]),
             std::move(edgelist_dsts[i]),
             std::make_optional(std::move((*edgelist_edge_end_times)[i])),
-            num_groups);
+            num_groups,
+            mem_frugal_threshold);
         (*edgelist_edge_end_times)[i] = std::move(*tmp);
       }
     } else {
@@ -499,7 +533,8 @@ remove_multi_edges_impl(
                                               std::move(edgelist_srcs[i]),
                                               std::move(edgelist_dsts[i]),
                                               std::make_optional(std::move((*edgelist_indices)[i])),
-                                              num_groups);
+                                              num_groups,
+                                              mem_frugal_threshold);
       (*edgelist_indices)[i] = std::move(*tmp);
     }
   }
@@ -529,7 +564,8 @@ remove_multi_edges_impl(
                                        raft::host_span<raft::device_span<vertex_t const>>(
                                          group_edgelist_srcs.data(), group_edgelist_srcs.size()),
                                        raft::host_span<raft::device_span<vertex_t const>>(
-                                         group_edgelist_dsts.data(), group_edgelist_dsts.size()));
+                                         group_edgelist_dsts.data(), group_edgelist_dsts.size()),
+                                       mem_frugal_threshold);
 
     for (int j = 0; j < num_chunks; ++j) {
       auto pair_first =
