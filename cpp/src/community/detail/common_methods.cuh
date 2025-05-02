@@ -173,13 +173,11 @@ weight_t compute_modularity(
   //
   // Sum(Sigma_tot_c^2), over all clusters c
   //
-  weight_t sum_degree_squared = thrust::transform_reduce(
-    handle.get_thrust_policy(),
+  auto squared_first = thrust::make_transform_iterator(
     cluster_weights.begin(),
-    cluster_weights.end(),
-    cuda::proclaim_return_type<weight_t>([] __device__(weight_t p) -> weight_t { return p * p; }),
-    weight_t{0},
-    thrust::plus<weight_t>());
+    cuda::proclaim_return_type<weight_t>([] __device__(weight_t p) { return p * p; }));
+  weight_t sum_degree_squared = thrust::reduce(
+    handle.get_thrust_policy(), squared_first, squared_first + cluster_weights.size());
 
   if constexpr (multi_gpu) {
     sum_degree_squared = host_scalar_allreduce(
@@ -197,13 +195,14 @@ weight_t compute_modularity(
               : detail::edge_minor_property_view_t<vertex_t, vertex_t const*>(next_clusters.begin(),
                                                                               vertex_t{0}),
     *edge_weight_view,
-    [] __device__(auto, auto, auto src_cluster, auto nbr_cluster, weight_t wt) {
-      if (src_cluster == nbr_cluster) {
-        return wt;
-      } else {
-        return weight_t{0};
-      }
-    },
+    cuda::proclaim_return_type<weight_t>(
+      [] __device__(auto, auto, auto src_cluster, auto nbr_cluster, weight_t wt) {
+        if (src_cluster == nbr_cluster) {
+          return wt;
+        } else {
+          return weight_t{0};
+        }
+      }),
     weight_t{0});
 
   weight_t Q = sum_internal / total_edge_weight -

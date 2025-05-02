@@ -223,13 +223,12 @@ std::tuple<rmm::device_uvector<vertex_t>, vertex_t> extract_bfs_paths(
     if constexpr (multi_gpu) {
       auto& comm = handle.get_comms();
       current_frontier =
-        collect_values_for_int_vertices(comm,
+        collect_values_for_int_vertices(handle,
                                         current_frontier.begin(),
                                         current_frontier.end(),
                                         predecessors,
                                         h_vertex_partition_range_lasts,
-                                        graph_view.local_vertex_partition_range_first(),
-                                        handle.get_stream());
+                                        graph_view.local_vertex_partition_range_first());
     } else {
       thrust::transform(handle.get_thrust_policy(),
                         current_frontier.begin(),
