@@ -50,16 +50,16 @@ EXITCODE=0
 trap "EXITCODE=1" ERR
 set +e
 
-#rapids-logger "pytest pylibcugraph"
-#./ci/run_pylibcugraph_pytests.sh \
-#  --verbose \
-#  --junitxml="${RAPIDS_TESTS_DIR}/junit-pylibcugraph.xml" \
-#  --numprocesses=8 \
-#  --dist=worksteal \
-#  --cov-config=../../.coveragerc \
-#  --cov=pylibcugraph \
-#  --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/pylibcugraph-coverage.xml" \
-#  --cov-report=term
+rapids-logger "pytest pylibcugraph"
+./ci/run_pylibcugraph_pytests.sh \
+  --verbose \
+  --junitxml="${RAPIDS_TESTS_DIR}/junit-pylibcugraph.xml" \
+  --numprocesses=8 \
+  --dist=worksteal \
+  --cov-config=../../.coveragerc \
+  --cov=pylibcugraph \
+  --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/pylibcugraph-coverage.xml" \
+  --cov-report=term
 
 
 # Test runs that include tests that use dask require
@@ -98,29 +98,29 @@ rapids-logger "pytest cugraph (not mg, without xdist)"
   --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph-coverage.xml" \
   --cov-report=term
 
-#rapids-logger "pytest cugraph (mg)"
-#./ci/run_cugraph_pytests.sh \
-#  --verbose \
-#  --junitxml="${RAPIDS_TESTS_DIR}/junit-cugraph.xml" \
-#  -m "mg" \
-#  --cov-config=../../.coveragerc \
-#  --cov=cugraph \
-#  --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph-coverage.xml" \
-#  --cov-report=term
+rapids-logger "pytest cugraph (mg)"
+./ci/run_cugraph_pytests.sh \
+  --verbose \
+  --junitxml="${RAPIDS_TESTS_DIR}/junit-cugraph.xml" \
+  -m "mg" \
+  --cov-config=../../.coveragerc \
+  --cov=cugraph \
+  --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph-coverage.xml" \
+  --cov-report=term
 
 
-#rapids-logger "pytest cugraph benchmarks (run as tests)"
-#./ci/run_cugraph_benchmark_pytests.sh --verbose
-#
-#rapids-logger "pytest cugraph-service (single GPU)"
-#./ci/run_cugraph_service_pytests.sh \
-#  --verbose \
-#  --junitxml="${RAPIDS_TESTS_DIR}/junit-cugraph-service.xml" \
-#  --cov-config=../.coveragerc \
-#  --cov=cugraph_service_client \
-#  --cov=cugraph_service_server \
-#  --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph-service-coverage.xml" \
-#  --cov-report=term
+rapids-logger "pytest cugraph benchmarks (run as tests)"
+./ci/run_cugraph_benchmark_pytests.sh --verbose
+
+rapids-logger "pytest cugraph-service (single GPU)"
+./ci/run_cugraph_service_pytests.sh \
+  --verbose \
+  --junitxml="${RAPIDS_TESTS_DIR}/junit-cugraph-service.xml" \
+  --cov-config=../.coveragerc \
+  --cov=cugraph_service_client \
+  --cov=cugraph_service_server \
+  --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph-service-coverage.xml" \
+  --cov-report=term
 
 rapids-logger "Test script exiting with value: $EXITCODE"
 exit ${EXITCODE}
