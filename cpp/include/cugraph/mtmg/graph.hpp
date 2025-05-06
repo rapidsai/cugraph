@@ -82,21 +82,11 @@ void create_graph_from_edgelist(
   graph_properties_t graph_properties,
   bool renumber,
   cugraph::mtmg::graph_t<vertex_t, edge_t, store_transposed, multi_gpu>& graph,
-  std::optional<cugraph::mtmg::edge_property_t<
-    cugraph::mtmg::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
-    weight_t>>& edge_weights,
-  std::optional<cugraph::mtmg::edge_property_t<
-    cugraph::mtmg::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
-    edge_t>>& edge_ids,
-  std::optional<cugraph::mtmg::edge_property_t<
-    cugraph::mtmg::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
-    edge_type_t>>& edge_types,
-  std::optional<cugraph::mtmg::edge_property_t<
-    cugraph::mtmg::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
-    edge_time_t>>& edge_start_times,
-  std::optional<cugraph::mtmg::edge_property_t<
-    cugraph::mtmg::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
-    edge_time_t>>& edge_end_times,
+  std::optional<cugraph::mtmg::edge_property_t<edge_t, weight_t>>& edge_weights,
+  std::optional<cugraph::mtmg::edge_property_t<edge_t, edge_t>>& edge_ids,
+  std::optional<cugraph::mtmg::edge_property_t<edge_t, edge_type_t>>& edge_types,
+  std::optional<cugraph::mtmg::edge_property_t<edge_t, edge_time_t>>& edge_start_times,
+  std::optional<cugraph::mtmg::edge_property_t<edge_t, edge_time_t>>& edge_end_times,
   std::optional<cugraph::mtmg::renumber_map_t<vertex_t>>& renumber_map,
   bool do_expensive_check = false)
 {

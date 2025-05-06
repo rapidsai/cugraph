@@ -86,9 +86,7 @@ class Tests_MGLeiden
     auto const comm_rank = comm.get_rank();
 
     cugraph::graph_t<vertex_t, edge_t, false, false> sg_graph(handle);
-    std::optional<
-      cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, false, false>, weight_t>>
-      sg_edge_weights{std::nullopt};
+    std::optional<cugraph::edge_property_t<edge_t, weight_t>> sg_edge_weights{std::nullopt};
     std::tie(sg_graph, sg_edge_weights, std::ignore, std::ignore, std::ignore) =
       cugraph::test::mg_graph_to_sg_graph(
         *handle_,

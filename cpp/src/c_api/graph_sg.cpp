@@ -99,20 +99,11 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
 
       std::optional<rmm::device_uvector<vertex_t>> new_number_map;
 
-      std::optional<cugraph::edge_property_t<
-        cugraph::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
-        weight_t>>
-        new_edge_weights{std::nullopt};
+      std::optional<cugraph::edge_property_t<edge_t, weight_t>> new_edge_weights{std::nullopt};
 
-      std::optional<cugraph::edge_property_t<
-        cugraph::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
-        edge_t>>
-        new_edge_ids{std::nullopt};
+      std::optional<cugraph::edge_property_t<edge_t, edge_t>> new_edge_ids{std::nullopt};
 
-      std::optional<cugraph::edge_property_t<
-        cugraph::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
-        edge_type_t>>
-        new_edge_types{std::nullopt};
+      std::optional<cugraph::edge_property_t<edge_t, edge_type_t>> new_edge_types{std::nullopt};
 
       std::optional<rmm::device_uvector<vertex_t>> vertex_list =
         vertices_ ? std::make_optional(
@@ -175,17 +166,11 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
       rmm::device_uvector<vertex_t>* number_map =
         new rmm::device_uvector<vertex_t>(0, handle_.get_stream());
 
-      auto edge_weights = new cugraph::edge_property_t<
-        cugraph::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
-        weight_t>(handle_);
+      auto edge_weights = new cugraph::edge_property_t<edge_t, weight_t>(handle_);
 
-      auto edge_ids = new cugraph::edge_property_t<
-        cugraph::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
-        edge_t>(handle_);
+      auto edge_ids = new cugraph::edge_property_t<edge_t, edge_t>(handle_);
 
-      auto edge_types = new cugraph::edge_property_t<
-        cugraph::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
-        edge_type_t>(handle_);
+      auto edge_types = new cugraph::edge_property_t<edge_t, edge_type_t>(handle_);
 
       if (drop_self_loops_) {
         std::optional<rmm::device_uvector<edge_time_t>> dummy_start_times{std::nullopt};
@@ -401,20 +386,11 @@ struct create_graph_csr_functor : public cugraph::c_api::abstract_functor {
 
       std::optional<rmm::device_uvector<vertex_t>> new_number_map;
 
-      std::optional<cugraph::edge_property_t<
-        cugraph::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
-        weight_t>>
-        new_edge_weights{std::nullopt};
+      std::optional<cugraph::edge_property_t<edge_t, weight_t>> new_edge_weights{std::nullopt};
 
-      std::optional<cugraph::edge_property_t<
-        cugraph::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
-        edge_t>>
-        new_edge_ids{std::nullopt};
+      std::optional<cugraph::edge_property_t<edge_t, edge_t>> new_edge_ids{std::nullopt};
 
-      std::optional<cugraph::edge_property_t<
-        cugraph::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
-        edge_type_t>>
-        new_edge_types{std::nullopt};
+      std::optional<cugraph::edge_property_t<edge_t, edge_type_t>> new_edge_types{std::nullopt};
 
       std::optional<rmm::device_uvector<vertex_t>> vertex_list = std::make_optional(
         rmm::device_uvector<vertex_t>(offsets_->size_ - 1, handle_.get_stream()));
@@ -479,17 +455,11 @@ struct create_graph_csr_functor : public cugraph::c_api::abstract_functor {
       rmm::device_uvector<vertex_t>* number_map =
         new rmm::device_uvector<vertex_t>(0, handle_.get_stream());
 
-      auto edge_weights = new cugraph::edge_property_t<
-        cugraph::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
-        weight_t>(handle_);
+      auto edge_weights = new cugraph::edge_property_t<edge_t, weight_t>(handle_);
 
-      auto edge_ids = new cugraph::edge_property_t<
-        cugraph::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
-        edge_t>(handle_);
+      auto edge_ids = new cugraph::edge_property_t<edge_t, edge_t>(handle_);
 
-      auto edge_types = new cugraph::edge_property_t<
-        cugraph::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
-        edge_type_t>(handle_);
+      auto edge_types = new cugraph::edge_property_t<edge_t, edge_type_t>(handle_);
 
       if (symmetrize_) {
         // Symmetrize the edgelist
@@ -612,19 +582,16 @@ struct destroy_graph_functor : public cugraph::c_api::abstract_functor {
 
     delete internal_number_map_pointer;
 
-    auto internal_edge_weight_pointer = reinterpret_cast<
-      cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
-                               weight_t>*>(edge_weights_);
+    auto internal_edge_weight_pointer =
+      reinterpret_cast<cugraph::edge_property_t<edge_t, weight_t>*>(edge_weights_);
     if (internal_edge_weight_pointer) { delete internal_edge_weight_pointer; }
 
-    auto internal_edge_id_pointer = reinterpret_cast<
-      cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
-                               edge_t>*>(edge_ids_);
+    auto internal_edge_id_pointer =
+      reinterpret_cast<cugraph::edge_property_t<edge_t, edge_t>*>(edge_ids_);
     if (internal_edge_id_pointer) { delete internal_edge_id_pointer; }
 
-    auto internal_edge_type_pointer = reinterpret_cast<
-      cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
-                               edge_type_t>*>(edge_types_);
+    auto internal_edge_type_pointer =
+      reinterpret_cast<cugraph::edge_property_t<edge_t, edge_type_t>*>(edge_types_);
     if (internal_edge_type_pointer) { delete internal_edge_type_pointer; }
   }
 };

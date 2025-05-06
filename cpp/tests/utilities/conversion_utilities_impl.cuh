@@ -284,13 +284,11 @@ template <typename vertex_t,
           typename weight_t,
           typename edge_type_t,
           bool store_transposed>
-std::tuple<
-  cugraph::graph_t<vertex_t, edge_t, store_transposed, false>,
-  std::optional<edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, false>, weight_t>>,
-  std::optional<edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, false>, edge_t>>,
-  std::optional<
-    edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, false>, edge_type_t>>,
-  std::optional<rmm::device_uvector<vertex_t>>>
+std::tuple<cugraph::graph_t<vertex_t, edge_t, store_transposed, false>,
+           std::optional<edge_property_t<edge_t, weight_t>>,
+           std::optional<edge_property_t<edge_t, edge_t>>,
+           std::optional<edge_property_t<edge_t, edge_type_t>>,
+           std::optional<rmm::device_uvector<vertex_t>>>
 mg_graph_to_sg_graph(
   raft::handle_t const& handle,
   cugraph::graph_view_t<vertex_t, edge_t, store_transposed, true> const& graph_view,
@@ -327,13 +325,9 @@ mg_graph_to_sg_graph(
   if (renumber_map) { vertices = cugraph::test::device_gatherv(handle, *renumber_map); }
 
   graph_t<vertex_t, edge_t, store_transposed, false> sg_graph(handle);
-  std::optional<edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, false>, weight_t>>
-    sg_edge_weights{std::nullopt};
-  std::optional<edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, false>, edge_t>>
-    sg_edge_ids{std::nullopt};
-  std::optional<
-    edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, false>, edge_type_t>>
-    sg_edge_types{std::nullopt};
+  std::optional<edge_property_t<edge_t, weight_t>> sg_edge_weights{std::nullopt};
+  std::optional<edge_property_t<edge_t, edge_t>> sg_edge_ids{std::nullopt};
+  std::optional<edge_property_t<edge_t, edge_type_t>> sg_edge_types{std::nullopt};
   std::optional<rmm::device_uvector<vertex_t>> sg_number_map;
   if (handle.get_comms().get_rank() == 0) {
     if (!renumber_map) {

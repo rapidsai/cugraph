@@ -156,13 +156,13 @@ rmm::device_uvector<vertex_t> maximal_independent_moves(
       });
 
     // Caches for ranks
-    edge_src_property_t<GraphViewType, vertex_t> src_rank_cache(handle);
-    edge_dst_property_t<GraphViewType, vertex_t> dst_rank_cache(handle);
+    edge_src_property_t<vertex_t, vertex_t, false> src_rank_cache(handle);
+    edge_dst_property_t<vertex_t, vertex_t, false> dst_rank_cache(handle);
 
     // Update rank caches with temporary ranks
     if constexpr (multi_gpu) {
-      src_rank_cache = edge_src_property_t<GraphViewType, vertex_t>(handle, graph_view);
-      dst_rank_cache = edge_dst_property_t<GraphViewType, vertex_t>(handle, graph_view);
+      src_rank_cache = edge_src_property_t<vertex_t, vertex_t, false>(handle, graph_view);
+      dst_rank_cache = edge_dst_property_t<vertex_t, vertex_t, false>(handle, graph_view);
       update_edge_src_property(
         handle, graph_view, temporary_ranks.begin(), src_rank_cache.mutable_view());
       update_edge_dst_property(
