@@ -111,10 +111,7 @@ class Tests_Multithreaded
     std::optional<cugraph::mtmg::renumber_map_t<vertex_t>> renumber_map =
       std::make_optional<cugraph::mtmg::renumber_map_t<vertex_t>>();
 
-    std::optional<cugraph::mtmg::edge_property_t<
-      cugraph::mtmg::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
-      weight_t>>
-      edge_weights{std::nullopt};
+    std::optional<cugraph::mtmg::edge_property_t<edge_t, weight_t>> edge_weights{std::nullopt};
 
     //
     // Simulate graph creation by spawning threads to walk through the
@@ -243,22 +240,12 @@ class Tests_Multithreaded
 
         if (thread_handle.get_thread_rank() > 0) return;
 
-        std::optional<cugraph::mtmg::edge_property_t<
-          cugraph::mtmg::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
-          edge_t>>
-          edge_ids{std::nullopt};
-        std::optional<cugraph::mtmg::edge_property_t<
-          cugraph::mtmg::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
-          edge_type_t>>
-          edge_types{std::nullopt};
-        std::optional<cugraph::mtmg::edge_property_t<
-          cugraph::mtmg::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
-          edge_time_t>>
-          edge_start_times{std::nullopt};
-        std::optional<cugraph::mtmg::edge_property_t<
-          cugraph::mtmg::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
-          edge_time_t>>
-          edge_end_times{std::nullopt};
+        std::optional<cugraph::mtmg::edge_property_t<edge_t, edge_t>> edge_ids{std::nullopt};
+        std::optional<cugraph::mtmg::edge_property_t<edge_t, edge_type_t>> edge_types{std::nullopt};
+        std::optional<cugraph::mtmg::edge_property_t<edge_t, edge_time_t>> edge_start_times{
+          std::nullopt};
+        std::optional<cugraph::mtmg::edge_property_t<edge_t, edge_time_t>> edge_end_times{
+          std::nullopt};
 
         edgelist.finalize_buffer(thread_handle);
         edgelist.consolidate_and_shuffle(thread_handle, store_transposed);
@@ -401,10 +388,7 @@ class Tests_Multithreaded
     if (multithreaded_usecase.check_correctness) {
       // Want to compare the results in computed_similarities_v with SG results
       cugraph::graph_t<vertex_t, edge_t, store_transposed, false> sg_graph(handle);
-      std::optional<
-        cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, store_transposed, false>,
-                                 weight_t>>
-        sg_edge_weights{std::nullopt};
+      std::optional<cugraph::edge_property_t<edge_t, weight_t>> sg_edge_weights{std::nullopt};
 
       std::tie(sg_graph,
                sg_edge_weights,

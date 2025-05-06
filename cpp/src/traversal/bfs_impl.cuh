@@ -376,9 +376,9 @@ void bfs(raft::handle_t const& handle,
 
   // 5. initialize BFS temporary state data
 
-  auto prev_dst_visited_flags = edge_dst_property_t<GraphViewType, bool>(handle, graph_view);
+  auto prev_dst_visited_flags = edge_dst_property_t<vertex_t, bool, false>(handle, graph_view);
   fill_edge_dst_property(handle, graph_view, prev_dst_visited_flags.mutable_view(), false);
-  auto dst_visited_flags = edge_dst_property_t<GraphViewType, bool>(
+  auto dst_visited_flags = edge_dst_property_t<vertex_t, bool, false>(
     handle, graph_view);  // this may mark some vertices visited in previous iterations as unvisited
                           // (but this is OK as we check prev_dst_visited_flags first)
   fill_edge_dst_property(handle, graph_view, dst_visited_flags.mutable_view(), false);

@@ -84,10 +84,7 @@ class Tests_MGTransposeStorage
     // 2. create SG graph from MG graph before releasing memory (for correctness check)
 
     cugraph::graph_t<vertex_t, edge_t, store_transposed, false> sg_graph(*handle_);
-    std::optional<
-      cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, store_transposed, false>,
-                               weight_t>>
-      sg_edge_weights{std::nullopt};
+    std::optional<cugraph::edge_property_t<edge_t, weight_t>> sg_edge_weights{std::nullopt};
     if (transpose_storage_usecase.check_correctness) {
       std::tie(sg_graph, sg_edge_weights, std::ignore, std::ignore, std::ignore) =
         cugraph::test::mg_graph_to_sg_graph(
@@ -114,10 +111,8 @@ class Tests_MGTransposeStorage
 
     cugraph::graph_t<vertex_t, edge_t, !store_transposed, true> mg_storage_transposed_graph(
       *handle_);
-    std::optional<
-      cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, !store_transposed, true>,
-                               weight_t>>
-      mg_storage_transposed_edge_weights{std::nullopt};
+    std::optional<cugraph::edge_property_t<edge_t, weight_t>> mg_storage_transposed_edge_weights{
+      std::nullopt};
     std::tie(mg_storage_transposed_graph, mg_storage_transposed_edge_weights, mg_renumber_map) =
       cugraph::transpose_graph_storage(
         *handle_,

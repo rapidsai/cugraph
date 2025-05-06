@@ -287,13 +287,12 @@ void per_v_pair_transform_dst_nbr_intersection(
               handle.get_stream());
 
     property_buffer_for_sorted_unique_vertices = collect_values_for_sorted_unique_int_vertices(
-      comm,
+      handle,
       raft::device_span<vertex_t const>((*sorted_unique_vertices).data(),
                                         (*sorted_unique_vertices).size()),
       vertex_value_input_first,
       graph_view.vertex_partition_range_lasts(),
-      graph_view.local_vertex_partition_range_first(),
-      handle.get_stream());
+      graph_view.local_vertex_partition_range_first());
   }
 
   rmm::device_uvector<size_t> vertex_pair_indices(num_input_pairs, handle.get_stream());

@@ -96,7 +96,7 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
     edge_weight_view);
 
   graph_t coarse_graph(handle);
-  std::optional<edge_property_t<graph_view_t, weight_t>> coarsen_graph_edge_weight(handle);
+  std::optional<edge_property_t<edge_t, weight_t>> coarsen_graph_edge_weight(handle);
 
 #ifdef TIMING
   HighResTimer hr_timer{};
@@ -231,10 +231,10 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
       }
     }
 
-    edge_src_property_t<graph_view_t, weight_t> src_vertex_weights_cache(handle);
+    edge_src_property_t<vertex_t, weight_t, false> src_vertex_weights_cache(handle);
     if constexpr (graph_view_t::is_multi_gpu) {
       src_vertex_weights_cache =
-        edge_src_property_t<graph_view_t, weight_t>(handle, current_graph_view);
+        edge_src_property_t<vertex_t, weight_t, false>(handle, current_graph_view);
       update_edge_src_property(handle,
                                current_graph_view,
                                vertex_weights.begin(),
@@ -258,17 +258,17 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
                dendrogram->current_level_size(),
                handle.get_stream());
 
-    edge_src_property_t<graph_view_t, vertex_t> src_louvain_assignment_cache(handle);
-    edge_dst_property_t<graph_view_t, vertex_t> dst_louvain_assignment_cache(handle);
+    edge_src_property_t<vertex_t, vertex_t, false> src_louvain_assignment_cache(handle);
+    edge_dst_property_t<vertex_t, vertex_t, false> dst_louvain_assignment_cache(handle);
     if constexpr (multi_gpu) {
       src_louvain_assignment_cache =
-        edge_src_property_t<graph_view_t, vertex_t>(handle, current_graph_view);
+        edge_src_property_t<vertex_t, vertex_t, false>(handle, current_graph_view);
       update_edge_src_property(handle,
                                current_graph_view,
                                louvain_assignment_for_vertices.begin(),
                                src_louvain_assignment_cache.mutable_view());
       dst_louvain_assignment_cache =
-        edge_dst_property_t<graph_view_t, vertex_t>(handle, current_graph_view);
+        edge_dst_property_t<vertex_t, vertex_t, false>(handle, current_graph_view);
       update_edge_dst_property(handle,
                                current_graph_view,
                                louvain_assignment_for_vertices.begin(),

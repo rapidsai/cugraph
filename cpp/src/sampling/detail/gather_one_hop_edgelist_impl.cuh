@@ -140,8 +140,7 @@ gather_one_hop_edgelist(
       std::conditional_t<has_edge_type, thrust::tuple<edge_t, edge_type_t>, edge_t>,
       std::conditional_t<has_edge_type, edge_type_t, cuda::std::nullopt_t>>>;
 
-  using edge_value_view_t =
-    edge_property_view_type_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, edge_value_t>;
+  using edge_value_view_t = edge_property_view_type_t<edge_t, edge_value_t>;
 
   edge_value_view_t edge_value_view{};
   if constexpr (has_weight) {
