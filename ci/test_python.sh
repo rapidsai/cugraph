@@ -79,7 +79,7 @@ rapids-logger "pytest cugraph (not mg, with xdist)"
   --numprocesses=8 \
   --dist=worksteal \
   -m "not mg" \
-  -k "not test_dataset and not test_bulk_sampler and not test_create_undirected_graph_from_asymmetric_adj_list" \
+  -k "not test_dataset and not test_bulk_sampler and not test_create_undirected_graph_from_asymmetric_adj_list and not test_uniform_neighbor_sample" \
   --cov-config=../../.coveragerc \
   --cov=cugraph \
   --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph-coverage.xml" \
@@ -92,7 +92,7 @@ rapids-logger "pytest cugraph (not mg, without xdist)"
   --numprocesses=1 \
   --dist=worksteal \
   -m "not mg" \
-  -k "not test_dataset and (test_bulk_sampler or test_create_undirected_graph_from_asymmetric_adj_list)" \
+  -k "not test_dataset and (test_bulk_sampler or test_create_undirected_graph_from_asymmetric_adj_list or test_uniform_neighbor_sample)" \
   --cov-config=../../.coveragerc \
   --cov=cugraph \
   --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph-coverage.xml" \
