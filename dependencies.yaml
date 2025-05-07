@@ -405,12 +405,8 @@ dependencies:
             packages:
               - python=3.12
           - matrix:
-              py: "3.13"
             packages:
-              - python=3.13
-          - matrix:
-            packages:
-              - python>=3.10,<3.14
+              - python>=3.10,<3.13
   python_build_rapids:
     common:
       - output_types: [conda, pyproject, requirements]
@@ -440,7 +436,7 @@ dependencies:
       - output_types: [conda, pyproject]
         packages:
           - &dask rapids-dask-dependency==25.6.*,>=0.0.0a0
-          - &numba numba>=0.59.1,<0.61.0a0
+          - &numba numba>=0.59.1,<0.62.0a0
           - &numpy numpy>=1.23,<3.0a0
       - output_types: conda
         packages:
