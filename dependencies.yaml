@@ -438,7 +438,7 @@ dependencies:
       - output_types: [conda, pyproject]
         packages:
           - &dask rapids-dask-dependency==25.6.*,>=0.0.0a0
-          - &numba numba>=0.59.1,<0.61.0a0
+          - &numba numba>=0.59.1,<0.62.0a0
           - &numpy numpy>=1.23,<3.0a0
       - output_types: conda
         packages:
