@@ -13,6 +13,7 @@
 
 from cugraph.gnn.data_loading.dist_sampler import (
     NeighborSampler,
+    DistSampler,
 )
 from cugraph.gnn.data_loading.dist_io import (
     DistSampleWriter,
