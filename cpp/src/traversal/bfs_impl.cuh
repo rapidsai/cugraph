@@ -389,7 +389,7 @@ void bfs(raft::handle_t const& handle,
                          prev_dst_visited_flags.mutable_view(),
                          true);
 
-  // 4. BFS iteration
+  // 6. BFS iteration
   vertex_t depth{0};
   bool topdown = true;
   auto cur_aggregate_frontier_size =

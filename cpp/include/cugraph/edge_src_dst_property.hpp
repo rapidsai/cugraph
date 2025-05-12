@@ -254,11 +254,11 @@ class edge_major_property_t {
       for (size_t i = 0; i < edge_partition_major_range_firsts_.size(); ++i) {
         vertex_t range_size{};
         if constexpr (GraphViewType::is_storage_transposed) {
-          auto range_size = graph_view.local_edge_partition_dst_range_size(i);
+          range_size = graph_view.local_edge_partition_dst_range_size(i);
           edge_partition_major_range_firsts_[i] =
             graph_view.local_edge_partition_dst_range_first(i);
         } else {
-          auto range_size = graph_view.local_edge_partition_src_range_size(i);
+          range_size = graph_view.local_edge_partition_src_range_size(i);
           edge_partition_major_range_firsts_[i] =
             graph_view.local_edge_partition_src_range_first(i);
         }
@@ -389,9 +389,9 @@ class edge_minor_property_t {
     } else {
       vertex_t range_size{};
       if constexpr (GraphViewType::is_storage_transposed) {
-        auto range_size = graph_view.local_edge_partition_src_range_size();
+        range_size = graph_view.local_edge_partition_src_range_size();
       } else {
-        auto range_size = graph_view.local_edge_partition_dst_range_size();
+        range_size = graph_view.local_edge_partition_dst_range_size();
       }
       resize_dataframe_buffer(buffer_,
                               std::is_same_v<T, bool>
