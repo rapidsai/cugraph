@@ -85,6 +85,8 @@ rapids-logger "pytest cugraph (not mg, with xdist)"
   --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph-coverage.xml" \
   --cov-report=term
 
+# Some tests fail with pytest-xdist enabled.
+# See https://github.com/rapidsai/cugraph/issues/5048
 rapids-logger "pytest cugraph (not mg, without xdist)"
 ./ci/run_cugraph_pytests.sh \
   --verbose \
