@@ -107,6 +107,7 @@ outputs:
         - ${{ stdlib("c") }}
       host:
         - cuda-version =${{ cuda_version }}
+        - librmm =${{ minor_version }}
         - rapids-logger =0.1
         - if: cuda_major == "11"
           then:
@@ -183,6 +184,7 @@ outputs:
       host:
         - cuda-version =${{ cuda_version }}
         - libcudf =${{ minor_version }}
+        - librmm =${{ minor_version }}
         - if: cuda_major == "11"
           then: cudatoolkit
           else: cuda-cudart-dev
