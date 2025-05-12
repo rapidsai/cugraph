@@ -175,10 +175,9 @@ void sssp(raft::handle_t const& handle,
 
   // 5. SSSP iteration
 
-  auto edge_src_distances =
-    GraphViewType::is_multi_gpu
-      ? edge_src_property_t<vertex_t, weight_t, false>(handle, push_graph_view)
-      : edge_src_property_t<vertex_t, weight_t, false>(handle);
+  auto edge_src_distances = GraphViewType::is_multi_gpu
+                              ? edge_src_property_t<vertex_t, weight_t>(handle, push_graph_view)
+                              : edge_src_property_t<vertex_t, weight_t>(handle);
   if (GraphViewType::is_multi_gpu) {
     fill_edge_src_property(handle,
                            push_graph_view,
@@ -211,7 +210,8 @@ void sssp(raft::handle_t const& handle,
         vertex_frontier.bucket(bucket_idx_cur_near),
         GraphViewType::is_multi_gpu
           ? edge_src_distances.view()
-          : detail::edge_major_property_view_t<vertex_t, weight_t const*>(distances),
+          : detail::edge_endpoint_property_view_t<vertex_t, weight_t const*>(
+              std::vector<weight_t const*>{distances}, std::vector<vertex_t>{vertex_t{0}}),
         edge_dst_dummy_property_t{}.view(),
         edge_weight_view,
         e_op_t<vertex_t, weight_t>{},

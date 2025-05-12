@@ -52,28 +52,31 @@ class edge_partition_endpoint_property_device_view_t {
   edge_partition_endpoint_property_device_view_t() = default;
 
   edge_partition_endpoint_property_device_view_t(
-    edge_major_property_view_t<vertex_t, ValueIterator, value_t> const& view, size_t partition_idx)
-    : value_first_(view.value_firsts()[partition_idx]),
+    edge_endpoint_property_view_t<vertex_t, ValueIterator, value_t> const& view,
+    size_t partition_idx)
+    : value_first_(view.major_value_firsts()[partition_idx]),
       range_first_(view.major_range_firsts()[partition_idx])
   {
-    if (view.keys()) {
-      keys_                    = (*(view.keys()))[partition_idx];
-      key_chunk_start_offsets_ = (*(view.key_chunk_start_offsets()))[partition_idx];
+    CUGRAPH_EXPECTS(view.is_major(), "Invalid input argument.");
+    if (view.major_keys()) {
+      keys_                    = (*(view.major_keys()))[partition_idx];
+      key_chunk_start_offsets_ = (*(view.major_key_chunk_start_offsets()))[partition_idx];
       key_chunk_size_          = *(view.key_chunk_size());
     }
-    value_first_ = view.value_firsts()[partition_idx];
+    value_first_ = view.major_value_firsts()[partition_idx];
     range_first_ = view.major_range_firsts()[partition_idx];
   }
 
   edge_partition_endpoint_property_device_view_t(
-    edge_minor_property_view_t<vertex_t, ValueIterator, value_t> const& view)
+    edge_endpoint_property_view_t<vertex_t, ValueIterator, value_t> const& view)
   {
-    if (view.keys()) {
-      keys_                    = *(view.keys());
-      key_chunk_start_offsets_ = *(view.key_chunk_start_offsets());
+    CUGRAPH_EXPECTS(view.is_major() == false, "Invalid input argument.");
+    if (view.minor_keys()) {
+      keys_                    = *(view.minor_keys());
+      key_chunk_start_offsets_ = *(view.minor_key_chunk_start_offsets());
       key_chunk_size_          = *(view.key_chunk_size());
     }
-    value_first_ = view.value_first();
+    value_first_ = view.minor_value_first();
     range_first_ = view.minor_range_first();
   }
 

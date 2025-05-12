@@ -197,7 +197,7 @@ decompress_edge_partition_to_relabeled_and_grouped_and_coarsened_edgelist(
                     [major_label_first,
                      minor_label_input = detail::edge_partition_endpoint_property_device_view_t<
                        vertex_t,
-                       decltype(minor_label_input.value_first())>(minor_label_input),
+                       decltype(minor_label_input.minor_value_first())>(minor_label_input),
                      major_range_first = edge_partition.major_range_first(),
                      minor_range_first = edge_partition.minor_range_first()] __device__(auto val) {
                       return thrust::make_tuple(
@@ -284,8 +284,8 @@ coarsen_graph(raft::handle_t const& handle,
   bool lower_triangular_only = graph_view.is_symmetric();
 
   std::conditional_t<store_transposed,
-                     edge_src_property_t<edge_t, vertex_t, store_transposed>,
-                     edge_dst_property_t<edge_t, vertex_t, store_transposed>>
+                     edge_src_property_t<edge_t, vertex_t>,
+                     edge_dst_property_t<edge_t, vertex_t>>
     edge_minor_labels(handle, graph_view);
   if constexpr (store_transposed) {
     update_edge_src_property(handle, graph_view, labels, edge_minor_labels.mutable_view());
@@ -628,7 +628,7 @@ coarsen_graph(raft::handle_t const& handle,
             *edge_mask_view, 0)
         : std::nullopt,
       labels,
-      detail::edge_minor_property_view_t<vertex_t, vertex_t const*>(labels, vertex_t{0}),
+      detail::edge_endpoint_property_view_t<vertex_t, vertex_t const*>(labels, vertex_t{0}),
       graph_view.local_edge_partition_segment_offsets(0),
       lower_triangular_only);
 
