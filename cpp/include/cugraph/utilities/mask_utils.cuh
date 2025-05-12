@@ -195,11 +195,11 @@ OutputIterator copy_if_mask_set(raft::handle_t const& handle,
 template <typename InputIterator,
           typename MaskIterator,  // should be packed bool
           typename OutputIterator>
-OutputIterator copy_if_mask_not_set(raft::handle_t const& handle,
-                                    InputIterator input_first,
-                                    InputIterator input_last,
-                                    MaskIterator mask_first,
-                                    OutputIterator output_first)
+OutputIterator copy_if_mask_unset(raft::handle_t const& handle,
+                                  InputIterator input_first,
+                                  InputIterator input_last,
+                                  MaskIterator mask_first,
+                                  OutputIterator output_first)
 {
   return thrust::copy_if(
     handle.get_thrust_policy(),

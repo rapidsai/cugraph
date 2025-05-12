@@ -116,7 +116,7 @@ temporal_partition_vertices(raft::handle_t const& handle,
     if (vertex_labels) {
       vertex_labels_p2->resize(vertices_p1.size() - num_unique_vertices, handle.get_stream());
 
-      copy_if_mask_not_set(
+      copy_if_mask_unset(
         handle,
         thrust::make_zip_iterator(
           vertices_p1.begin(), vertex_times_p1.begin(), vertex_labels_p1->begin()),
@@ -144,7 +144,7 @@ temporal_partition_vertices(raft::handle_t const& handle,
       vertex_labels_p1->resize(vertices_p1.size(), handle.get_stream());
       vertex_times_p1.resize(vertices_p1.size(), handle.get_stream());
     } else {
-      copy_if_mask_not_set(
+      copy_if_mask_unset(
         handle,
         thrust::make_zip_iterator(
           vertices_p1.begin(), vertex_times_p1.begin(), vertex_labels_p1->begin()),

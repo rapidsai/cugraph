@@ -37,6 +37,7 @@
 #include <algorithm>
 #include <optional>
 #include <span>
+#include <tuple>
 
 namespace cugraph {
 namespace detail {
@@ -154,12 +155,12 @@ prepare_next_frontier(
   if (multi_gpu) {
     if (frontier_vertex_labels) {
       if (frontier_vertex_times) {
-        std::tie(frontier_vertices, *frontier_vertex_labels, *frontier_vertex_times) =
-          shuffle_int_vertex_two_value_pairs_to_local_gpu_by_vertex_partitioning(
+        std::forward_as_tuple(frontier_vertices,
+                              std::tie(*frontier_vertex_labels, *frontier_vertex_times)) =
+          shuffle_int_vertex_value_pairs_to_local_gpu_by_vertex_partitioning(
             handle,
             std::move(frontier_vertices),
-            std::move(*frontier_vertex_labels),
-            std::move(*frontier_vertex_times),
+            std::make_tuple(std::move(*frontier_vertex_labels), std::move(*frontier_vertex_times)),
             vertex_partition_range_lasts);
       } else {
         std::tie(frontier_vertices, *frontier_vertex_labels) =

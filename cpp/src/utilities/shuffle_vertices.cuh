@@ -106,12 +106,12 @@ rmm::device_uvector<vertex_t> shuffle_int_vertices_to_local_gpu_by_vertex_partit
   return std::move(vertices);
 }
 
-template <typename vertex_t, typename value_t>
-std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<value_t>>
+template <typename vertex_t, typename value_vector_t>
+std::tuple<rmm::device_uvector<vertex_t>, value_vector_t>
 shuffle_int_vertex_value_pairs_to_local_gpu_by_vertex_partitioning(
   raft::handle_t const& handle,
   rmm::device_uvector<vertex_t>&& vertices,
-  rmm::device_uvector<value_t>&& values,
+  value_vector_t&& values,
   raft::host_span<vertex_t const> vertex_partition_range_lasts)
 {
   rmm::device_uvector<vertex_t> d_vertex_partition_range_lasts(vertex_partition_range_lasts.size(),
@@ -138,43 +138,6 @@ shuffle_int_vertex_value_pairs_to_local_gpu_by_vertex_partitioning(
     handle.get_stream());
 
   return std::make_tuple(std::move(vertices), std::move(values));
-}
-
-template <typename vertex_t, typename value1_t, typename value2_t>
-std::
-  tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<value1_t>, rmm::device_uvector<value2_t>>
-  shuffle_int_vertex_two_value_pairs_to_local_gpu_by_vertex_partitioning(
-    raft::handle_t const& handle,
-    rmm::device_uvector<vertex_t>&& vertices,
-    rmm::device_uvector<value1_t>&& values1,
-    rmm::device_uvector<value2_t>&& values2,
-    raft::host_span<vertex_t const> vertex_partition_range_lasts)
-{
-  rmm::device_uvector<vertex_t> d_vertex_partition_range_lasts(vertex_partition_range_lasts.size(),
-                                                               handle.get_stream());
-  raft::update_device(d_vertex_partition_range_lasts.data(),
-                      vertex_partition_range_lasts.data(),
-                      vertex_partition_range_lasts.size(),
-                      handle.get_stream());
-  auto& major_comm           = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
-  auto const major_comm_size = major_comm.get_size();
-  auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
-  auto const minor_comm_size = minor_comm.get_size();
-
-  std::forward_as_tuple(vertices, std::tie(values1, values2), std::ignore) =
-    cugraph::groupby_gpu_id_and_shuffle_kv_pairs(
-      handle.get_comms(),
-      vertices.begin(),
-      vertices.end(),
-      thrust::make_zip_iterator(values1.begin(), values2.begin()),
-      cugraph::detail::compute_gpu_id_from_int_vertex_t<vertex_t>{
-        raft::device_span<vertex_t const>(d_vertex_partition_range_lasts.data(),
-                                          d_vertex_partition_range_lasts.size()),
-        major_comm_size,
-        minor_comm_size},
-      handle.get_stream());
-
-  return std::make_tuple(std::move(vertices), std::move(values1), std::move(values2));
 }
 
 }  // namespace detail

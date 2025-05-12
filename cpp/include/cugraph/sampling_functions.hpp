@@ -692,6 +692,99 @@ homogeneous_uniform_temporal_neighbor_sample(
 
 /**
  * @ingroup sampling_functions_cpp
+ * @brief Heterogeneous Temporal Uniform Neighborhood Sampling.
+ *
+ * This function traverses from a set of starting vertices, traversing outgoing edges and
+ * randomly selects (uniformly) from these outgoing neighbors to extract a subgraph.
+ * The branching out to select outgoing neighbors is performed with heterogeneous fanouts
+ * where the number of edge types is bigger than 1.
+ *
+ * This version of sampling adds a temporal filter.  Edges can only be sampled in temporal order.
+ * That is, if we sample an edge from vertex `u` to vertex `v` at timestamp `t1`, then when we
+ * sample edges departing vertex `v` we can only consider edges where the timestamp on that edge is
+ * greater than `t1`.
+ *
+ * Output from this function is a tuple of vectors (src, dst, weight, edge_id, edge_type, hop,
+ * offsets), identifying the randomly selected edges where the size of src, dst, weight, edge_id,
+ * edge_type and hop is the number of sampled edges while the size of the offsets vector is the
+ * number of labels + 1.  src is the source vertex, dst is the destination vertex, weight
+ * (optional) is the edge weight, edge_id (optional) identifies the edge id, edge_type (optional)
+ * identifies the edge type, hop identifies which hop the edge was encountered in.
+ * The offsets array (optional) identifies the offset for each label.
+ *
+ * If @p label_to_output_comm_rank is specified then the data will be shuffled so that all entries
+ * for a particular label are returned on the specified rank.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam weight_t Type of edge weights. Needs to be a floating point type.
+ * @tparam edge_type_t Type of edge type. Needs to be an integral type.
+ * @tparam edge_time_t Type of edge time. Needs to be an integral type.
+ * @tparam store_transposed Flag indicating whether sources (if false) or destinations (if
+ * true) are major indices
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param rng_state A pre-initialized raft::RngState object for generating random numbers
+ * @param graph_view Graph View object to generate NBR Sampling on.
+ * @param edge_weight_view Optional view object holding edge weights for @p graph_view.
+ * @param edge_id_view Optional view object holding edge ids for @p graph_view.
+ * @param edge_type_view Optional view object holding edge types for @p graph_view.
+ * @param edge_start_time_view Object holding edge start times for @p graph_view.
+ * @param edge_end_time_view Optional view object holding edge end times for @p graph_view.
+ * @param starting_vertices Device span of starting vertex IDs for the sampling.
+ * In a multi-gpu context the starting vertices should be local to this GPU.
+ * @param starting_vertex_labels Optional device span of labels associated with each starting
+ * vertex for the sampling.
+ * @param label_to_output_comm_rank Optional device span identifying which rank should get sampling
+ * outputs of each vertex label.  This should be the same on each rank.
+ * @param fan_out Host span defining branching out (fan-out) degree per source vertex for each
+ * level. The fanout value at hop x is given by the expression 'fanout[x*num_edge_types +
+ * edge_type_id]'
+ * @param num_edge_types Number of edge types where a value of 1 translates to homogeneous neighbor
+ * sample whereas a value greater than 1 translates to heterogeneous neighbor sample.
+ * @param flags A set of flags indicating which sampling features should be used.
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ * @return tuple device vectors (vertex_t source_vertex, vertex_t destination_vertex,
+ * optional weight_t weight, optional edge_t edge id, optional edge_type_t edge type,
+ * optional edge_time_t start time, optional edge_time_t end time, optional int32_t hop, optional
+ * size_t offsets)
+ */
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          typename edge_type_t,
+          typename edge_time_t,
+          bool store_transposed,
+          bool multi_gpu>
+std::tuple<rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           std::optional<rmm::device_uvector<weight_t>>,
+           std::optional<rmm::device_uvector<edge_t>>,
+           std::optional<rmm::device_uvector<edge_type_t>>,
+           std::optional<rmm::device_uvector<edge_time_t>>,
+           std::optional<rmm::device_uvector<edge_time_t>>,
+           std::optional<rmm::device_uvector<int32_t>>,
+           std::optional<rmm::device_uvector<size_t>>>
+heterogeneous_uniform_temporal_neighbor_sample(
+  raft::handle_t const& handle,
+  raft::random::RngState& rng_state,
+  graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
+  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+  std::optional<edge_property_view_t<edge_t, edge_t const*>> edge_id_view,
+  std::optional<edge_property_view_t<edge_t, edge_type_t const*>> edge_type_view,
+  edge_property_view_t<edge_t, edge_time_t const*> edge_start_time_view,
+  std::optional<edge_property_view_t<edge_t, edge_time_t const*>> edge_end_time_view,
+  raft::device_span<vertex_t const> starting_vertices,
+  std::optional<raft::device_span<int32_t const>> starting_vertex_labels,
+  std::optional<raft::device_span<int32_t const>> label_to_output_comm_rank,
+  raft::host_span<int32_t const> fan_out,
+  edge_type_t num_edge_types,
+  sampling_flags_t sampling_flags,
+  bool do_expensive_check = false);
+
+/**
+ * @ingroup sampling_functions_cpp
  * @brief Homogeneous Temporal Biased Neighborhood Sampling.
  *
  * This function traverses from a set of starting vertices, traversing outgoing edges and
@@ -782,99 +875,6 @@ homogeneous_biased_temporal_neighbor_sample(
   std::optional<raft::device_span<int32_t const>> starting_vertex_labels,
   std::optional<raft::device_span<int32_t const>> label_to_output_comm_rank,
   raft::host_span<int32_t const> fan_out,
-  sampling_flags_t sampling_flags,
-  bool do_expensive_check = false);
-
-/**
- * @ingroup sampling_functions_cpp
- * @brief Heterogeneous Temporal Uniform Neighborhood Sampling.
- *
- * This function traverses from a set of starting vertices, traversing outgoing edges and
- * randomly selects (uniformly) from these outgoing neighbors to extract a subgraph.
- * The branching out to select outgoing neighbors is performed with heterogeneous fanouts
- * where the number of edge types is bigger than 1.
- *
- * This version of sampling adds a temporal filter.  Edges can only be sampled in temporal order.
- * That is, if we sample an edge from vertex `u` to vertex `v` at timestamp `t1`, then when we
- * sample edges departing vertex `v` we can only consider edges where the timestamp on that edge is
- * greater than `t1`.
- *
- * Output from this function is a tuple of vectors (src, dst, weight, edge_id, edge_type, hop,
- * offsets), identifying the randomly selected edges where the size of src, dst, weight, edge_id,
- * edge_type and hop is the number of sampled edges while the size of the offsets vector is the
- * number of labels + 1.  src is the source vertex, dst is the destination vertex, weight
- * (optional) is the edge weight, edge_id (optional) identifies the edge id, edge_type (optional)
- * identifies the edge type, hop identifies which hop the edge was encountered in.
- * The offsets array (optional) identifies the offset for each label.
- *
- * If @p label_to_output_comm_rank is specified then the data will be shuffled so that all entries
- * for a particular label are returned on the specified rank.
- *
- * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
- * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
- * @tparam weight_t Type of edge weights. Needs to be a floating point type.
- * @tparam edge_type_t Type of edge type. Needs to be an integral type.
- * @tparam edge_time_t Type of edge time. Needs to be an integral type.
- * @tparam store_transposed Flag indicating whether sources (if false) or destinations (if
- * true) are major indices
- * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
- * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
- * handles to various CUDA libraries) to run graph algorithms.
- * @param rng_state A pre-initialized raft::RngState object for generating random numbers
- * @param graph_view Graph View object to generate NBR Sampling on.
- * @param edge_weight_view Optional view object holding edge weights for @p graph_view.
- * @param edge_id_view Optional view object holding edge ids for @p graph_view.
- * @param edge_type_view Optional view object holding edge types for @p graph_view.
- * @param edge_start_time_view Object holding edge start times for @p graph_view.
- * @param edge_end_time_view Optional view object holding edge end times for @p graph_view.
- * @param starting_vertices Device span of starting vertex IDs for the sampling.
- * In a multi-gpu context the starting vertices should be local to this GPU.
- * @param starting_vertex_labels Optional device span of labels associated with each starting
- * vertex for the sampling.
- * @param label_to_output_comm_rank Optional device span identifying which rank should get sampling
- * outputs of each vertex label.  This should be the same on each rank.
- * @param fan_out Host span defining branching out (fan-out) degree per source vertex for each
- * level. The fanout value at hop x is given by the expression 'fanout[x*num_edge_types +
- * edge_type_id]'
- * @param num_edge_types Number of edge types where a value of 1 translates to homogeneous neighbor
- * sample whereas a value greater than 1 translates to heterogeneous neighbor sample.
- * @param flags A set of flags indicating which sampling features should be used.
- * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
- * @return tuple device vectors (vertex_t source_vertex, vertex_t destination_vertex,
- * optional weight_t weight, optional edge_t edge id, optional edge_type_t edge type,
- * optional edge_time_t start time, optional edge_time_t end time, optional int32_t hop, optional
- * size_t offsets)
- */
-template <typename vertex_t,
-          typename edge_t,
-          typename weight_t,
-          typename edge_type_t,
-          typename edge_time_t,
-          bool store_transposed,
-          bool multi_gpu>
-std::tuple<rmm::device_uvector<vertex_t>,
-           rmm::device_uvector<vertex_t>,
-           std::optional<rmm::device_uvector<weight_t>>,
-           std::optional<rmm::device_uvector<edge_t>>,
-           std::optional<rmm::device_uvector<edge_type_t>>,
-           std::optional<rmm::device_uvector<edge_time_t>>,
-           std::optional<rmm::device_uvector<edge_time_t>>,
-           std::optional<rmm::device_uvector<int32_t>>,
-           std::optional<rmm::device_uvector<size_t>>>
-heterogeneous_uniform_temporal_neighbor_sample(
-  raft::handle_t const& handle,
-  raft::random::RngState& rng_state,
-  graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
-  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
-  std::optional<edge_property_view_t<edge_t, edge_t const*>> edge_id_view,
-  std::optional<edge_property_view_t<edge_t, edge_type_t const*>> edge_type_view,
-  edge_property_view_t<edge_t, edge_time_t const*> edge_start_time_view,
-  std::optional<edge_property_view_t<edge_t, edge_time_t const*>> edge_end_time_view,
-  raft::device_span<vertex_t const> starting_vertices,
-  std::optional<raft::device_span<int32_t const>> starting_vertex_labels,
-  std::optional<raft::device_span<int32_t const>> label_to_output_comm_rank,
-  raft::host_span<int32_t const> fan_out,
-  edge_type_t num_edge_types,
   sampling_flags_t sampling_flags,
   bool do_expensive_check = false);
 

@@ -204,16 +204,20 @@ auto view_concat(edge_property_view_t<edge_t, Iters, Types> const&... views)
     edge_partition_concat_value_firsts, first_view.edge_counts());
 }
 
+namespace detail {
+
 template <typename... Ts, std::size_t... Is>
 auto view_concat_impl(std::tuple<Ts...> const& tuple, std::index_sequence<Is...>)
 {
   return view_concat(std::get<Is>(tuple)...);
 }
 
+}  // namespace detail
+
 template <typename... Ts>
 auto view_concat(std::tuple<Ts...> const& tuple)
 {
-  return view_concat_impl(tuple, std::index_sequence_for<Ts...>{});
+  return detail::view_concat_impl(tuple, std::index_sequence_for<Ts...>{});
 }
 
 }  // namespace cugraph
