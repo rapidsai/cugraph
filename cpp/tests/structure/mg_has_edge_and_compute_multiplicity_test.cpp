@@ -123,13 +123,25 @@ class Tests_MGHasEdgeAndComputeMultiplicity
     std::tie(store_transposed ? d_mg_edge_dsts : d_mg_edge_srcs,
              store_transposed ? d_mg_edge_srcs : d_mg_edge_dsts,
              std::ignore,
+             std::ignore,
+             std::ignore,
+             std::ignore,
+             std::ignore,
              std::ignore) =
       cugraph::detail::shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<
-        vertex_t>(*handle_,
-                  std::move(store_transposed ? d_mg_edge_dsts : d_mg_edge_srcs),
-                  std::move(store_transposed ? d_mg_edge_srcs : d_mg_edge_dsts),
-                  std::vector<cugraph::variant::device_uvectors_t>{},
-                  mg_graph_view.vertex_partition_range_lasts());
+        vertex_t,
+        edge_t,
+        weight_t,
+        int32_t,
+        int32_t>(*handle_,
+                 std::move(store_transposed ? d_mg_edge_dsts : d_mg_edge_srcs),
+                 std::move(store_transposed ? d_mg_edge_srcs : d_mg_edge_dsts),
+                 std::nullopt,
+                 std::nullopt,
+                 std::nullopt,
+                 std::nullopt,
+                 std::nullopt,
+                 mg_graph_view.vertex_partition_range_lasts());
 
     // 3. run MG has_edge & compute_multiplicity
 

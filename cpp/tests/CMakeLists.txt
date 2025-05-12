@@ -835,10 +835,14 @@ if(BUILD_CUGRAPH_MG_TESTS)
     # - MG BIASED NBR SAMPLING tests --------------------------------------------------------------
     ConfigureTestMG(MG_BIASED_NEIGHBOR_SAMPLING_TEST sampling/mg_biased_neighbor_sampling.cpp)
 
+    ###############################################################################################
+    # - MG TEMPORAL NBR SAMPLING tests --------------------------------------------------------------
+    ConfigureTestMG(
+        MG_TEMPORAL_NEIGHBOR_SAMPLING_TEST sampling/mg_temporal_neighbor_sampling.cpp)
+
     ###################################################################################################
     # - NEGATIVE SAMPLING tests --------------------------------------------------------------------
     ConfigureTestMG(MG_NEGATIVE_SAMPLING_TEST sampling/mg_negative_sampling.cpp)
-
 
     ###############################################################################################
     # - MG RANDOM_WALKS tests ---------------------------------------------------------------------

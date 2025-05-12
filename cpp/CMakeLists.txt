@@ -152,6 +152,8 @@ endif()
 set(CUGRAPH_SOURCES
     src/sampling/temporal_sampling_sg_v32_e32.cu
     src/sampling/temporal_sampling_sg_v64_e64.cu
+    src/sampling/temporal_sampling_mg_v32_e32.cu
+    src/sampling/temporal_sampling_mg_v64_e64.cu
     src/sampling/detail/update_temporal_edge_mask_sg_v32_e32.cu
     src/sampling/detail/update_temporal_edge_mask_sg_v64_e64.cu
     src/sampling/detail/update_temporal_edge_mask_mg_v32_e32.cu

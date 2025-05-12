@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include "cugraph/utilities/host_scalar_comm.hpp"
 #include "sampling/detail/sampling_utils.hpp"
 #include "utilities/validation_checks.hpp"
 
@@ -33,6 +34,8 @@
 #include <raft/util/integer_utils.hpp>
 
 #include <rmm/device_uvector.hpp>
+
+#include <cstddef>
 
 namespace cugraph {
 namespace detail {
@@ -194,6 +197,8 @@ temporal_neighbor_sample_impl(
                              : std::nullopt;
     auto next_frontier_vertex_time_spans =
       std::make_optional<std::vector<raft::device_span<edge_time_t const>>>();
+    size_t no_duplicates_size{0};
+    size_t has_duplicates_size{0};
 
     auto start_offset = hop * (num_edge_types ? *num_edge_types : edge_type_t{1});
     auto end_offset =
@@ -234,7 +239,17 @@ temporal_neighbor_sample_impl(
           std::make_optional(raft::device_span<label_t const>{frontier_vertex_labels->data(),
                                                               frontier_vertex_labels->size()}));
 
-      if (frontier_vertices_no_duplicates.size() > 0) {
+      no_duplicates_size  = frontier_vertices_no_duplicates.size();
+      has_duplicates_size = frontier_vertices_has_duplicates.size();
+
+      if constexpr (multi_gpu) {
+        no_duplicates_size = host_scalar_allreduce(
+          handle.get_comms(), no_duplicates_size, raft::comms::op_t::SUM, handle.get_stream());
+        has_duplicates_size = host_scalar_allreduce(
+          handle.get_comms(), no_duplicates_size, raft::comms::op_t::SUM, handle.get_stream());
+      }
+
+      if (no_duplicates_size > 0) {
         update_temporal_edge_mask(
           handle,
           graph_view,
@@ -250,7 +265,7 @@ temporal_neighbor_sample_impl(
     }
 
     if (level_Ks) {
-      if ((hop == 0) || (frontier_vertices_no_duplicates.size() > 0)) {
+      if ((hop == 0) || (no_duplicates_size > 0)) {
         auto [srcs, dsts, weights, edge_ids, edge_types, edge_start_times, edge_end_times, labels] =
           sample_edges(
             handle,
@@ -300,7 +315,7 @@ temporal_neighbor_sample_impl(
         }
       }
 
-      if (frontier_vertices_has_duplicates.size() > 0) {
+      if (has_duplicates_size > 0) {
         // need different sample_edges implementation to do set sampling bias to 0
         auto [srcs, dsts, weights, edge_ids, edge_types, edge_start_times, edge_end_times, labels] =
           temporal_sample_edges(
@@ -355,7 +370,7 @@ temporal_neighbor_sample_impl(
     }
 
     if (gather_flags) {
-      if (frontier_vertices_no_duplicates.size() > 0) {
+      if (no_duplicates_size > 0) {
         auto [srcs, dsts, weights, edge_ids, edge_types, edge_start_times, edge_end_times, labels] =
           gather_one_hop_edgelist(
             handle,
@@ -405,7 +420,7 @@ temporal_neighbor_sample_impl(
         }
       }
 
-      if (frontier_vertices_has_duplicates.size() > 0) {
+      if (has_duplicates_size > 0) {
         auto [srcs, dsts, weights, edge_ids, edge_types, edge_start_times, edge_end_times, labels] =
           gather_one_hop_edgelist(
             handle,

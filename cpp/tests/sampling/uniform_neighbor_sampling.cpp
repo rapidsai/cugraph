@@ -190,15 +190,6 @@ class Tests_Uniform_Neighbor_Sampling
         raft::device_span<vertex_t const>(vertices.data(), vertices.size()),
         true);
 
-#if 0
-        raft::print_device_vector("src_compare", src_compare.data(), src_compare.size(), std::cout);
-        raft::print_device_vector("dst_compare", dst_compare.data(), dst_compare.size(), std::cout);
-        if (wgt_compare) raft::print_device_vector("wgt_compare", wgt_compare->data(), wgt_compare->size(), std::cout);
-
-        raft::print_device_vector("src_out", src_out.data(), src_out.size(), std::cout);
-        raft::print_device_vector("dst_out", dst_out.data(), dst_out.size(), std::cout);
-        if (wgt_out) raft::print_device_vector("wgt_out", wgt_out->data(), wgt_out->size(), std::cout);
-#endif
       ASSERT_TRUE(cugraph::test::validate_extracted_graph_is_subgraph(
         handle,
         raft::device_span<vertex_t const>{src_compare.data(), src_compare.size()},

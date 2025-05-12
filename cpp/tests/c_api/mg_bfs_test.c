@@ -48,6 +48,9 @@ int generic_bfs_test(const cugraph_resource_handle_t* p_handle,
   cugraph_type_erased_device_array_t* p_sources          = NULL;
   cugraph_type_erased_device_array_view_t* p_source_view = NULL;
 
+  int rank = cugraph_resource_handle_get_rank(p_handle);
+  if (rank > 0) num_seeds = 0;
+
   ret_code =
     cugraph_type_erased_device_array_create(p_handle, num_seeds, INT32, &p_sources, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "p_sources create failed.");

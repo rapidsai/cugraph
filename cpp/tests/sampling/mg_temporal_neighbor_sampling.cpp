@@ -14,11 +14,14 @@
  * limitations under the License.
  */
 
+#include "cuda_runtime_api.h"
 #include "detail/nbr_sampling_validate.hpp"
 #include "utilities/base_fixture.hpp"
-#include "utilities/conversion_utilities.hpp"
-#include "utilities/property_generator_utilities.hpp"
+#include "utilities/device_comm_wrapper.hpp"
+#include "utilities/mg_utilities.hpp"
+#include "utilities/test_graphs.hpp"
 
+#include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/sampling_functions.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
 
@@ -34,14 +37,14 @@ struct Temporal_Neighbor_Sampling_Usecase {
 };
 
 template <typename input_usecase_t>
-class Tests_Temporal_Neighbor_Sampling
+class Tests_MGTemporal_Neighbor_Sampling
   : public ::testing::TestWithParam<
       std::tuple<Temporal_Neighbor_Sampling_Usecase, input_usecase_t>> {
  public:
-  Tests_Temporal_Neighbor_Sampling() {}
+  Tests_MGTemporal_Neighbor_Sampling() {}
 
-  static void SetUpTestCase() {}
-  static void TearDownTestCase() {}
+  static void SetUpTestCase() { handle_ = cugraph::test::initialize_mg_handle(); }
+  static void TearDownTestCase() { handle_.reset(); }
 
   virtual void SetUp() {}
   virtual void TearDown() {}
@@ -57,24 +60,23 @@ class Tests_Temporal_Neighbor_Sampling
 
     auto [temporal_neighbor_sampling_usecase, input_usecase] = param;
 
-    raft::handle_t handle{};
     HighResTimer hr_timer{};
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      hr_timer.start("Construct graph");
+      hr_timer.start("MG construct graph");
     }
 
     std::optional<
-      std::function<rmm::device_uvector<edge_time_t>(raft::handle_t const& handle, size_t, size_t)>>
+      std::function<rmm::device_uvector<edge_time_t>(raft::handle_t const&, size_t, size_t)>>
       edge_start_times_functor{std::nullopt};
     std::optional<
-      std::function<rmm::device_uvector<edge_time_t>(raft::handle_t const& handle, size_t, size_t)>>
+      std::function<rmm::device_uvector<edge_time_t>(raft::handle_t const&, size_t, size_t)>>
       edge_end_times_functor{std::nullopt};
 
     // FIXME: Seed should be configurable in the test
     constexpr uint64_t seed{0};
-    raft::random::RngState rng_state(seed);
+    raft::random::RngState rng_state(seed + handle_->get_comms().get_rank());
 
     edge_start_times_functor = std::make_optional(
       [&rng_state](raft::handle_t const& handle, size_t size, size_t base_offset) {
@@ -90,59 +92,26 @@ class Tests_Temporal_Neighbor_Sampling
         return std::move(result);
       });
 
-#if 0
-    cugraph::graph_t<vertex_t, edge_t, store_transposed, false> graph(handle);
-    std::optional<
-      cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, store_transposed, false>,
-                               weight_t>>
-      edge_weights{std::nullopt};
-    std::optional<
-      cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, store_transposed, false>,
-                               edge_t>>
-      edge_ids{std::nullopt};
-    std::optional<
-      cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, store_transposed, false>,
-                               edge_type_t>>
-      edge_ids{std::nullopt};
-    std::optional<
-      cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, store_transposed, false>,
-                               int32_t>>
-      edge_start_times{std::nullopt};
-    std::optional<
-      cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, store_transposed, false>,
-                               int32_t>>
-      edge_end_times{std::nullopt};
-    std::optional<rmm::device_uvector<vertex_t>> renumber_map{std::nullopt};
-
-    std::tie(graph,
-             edge_weights,
-             edge_ids,
-             edge_types,
-             edge_start_times,
-             edge_end_times,
-             renumber_map) =
-#else
     auto [graph,
           edge_weights,
           edge_ids,
           edge_types,
           edge_start_times,
           edge_end_times,
-          renumber_map] =
-#endif
-      cugraph::test::
-        construct_graph<vertex_t, edge_t, float, int32_t, int32_t, store_transposed, false>(
-          handle,
-          input_usecase,
-          true,
-          std::nullopt,
-          std::nullopt,
-          edge_start_times_functor,
-          edge_end_times_functor,
-          renumber);
+          renumber_map] = cugraph::test::
+      construct_graph<vertex_t, edge_t, weight_t, int32_t, int32_t, store_transposed, true>(
+        *handle_,
+        input_usecase,
+        true,
+        std::nullopt,
+        std::nullopt,
+        edge_start_times_functor,
+        edge_end_times_functor,
+        renumber);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      handle_->get_comms().barrier();
       hr_timer.stop();
       hr_timer.display_and_clear(std::cout);
     }
@@ -161,7 +130,7 @@ class Tests_Temporal_Neighbor_Sampling
     std::optional<cugraph::edge_property_t<decltype(graph_view), bool>> edge_mask{std::nullopt};
     if (temporal_neighbor_sampling_usecase.edge_masking) {
       edge_mask =
-        cugraph::test::generate<decltype(graph_view), bool>::edge_property(handle, graph_view, 2);
+        cugraph::test::generate<decltype(graph_view), bool>::edge_property(*handle_, graph_view, 2);
       graph_view.attach_edge_mask((*edge_mask).view());
     }
 #endif
@@ -169,7 +138,7 @@ class Tests_Temporal_Neighbor_Sampling
     constexpr float select_probability{0.05};
 
     auto random_sources = cugraph::select_random_vertices(
-      handle,
+      *handle_,
       graph_view,
       std::optional<raft::device_span<vertex_t const>>{std::nullopt},
       rng_state,
@@ -181,9 +150,9 @@ class Tests_Temporal_Neighbor_Sampling
     //
     //  Now we'll assign the vertices to batches
     //
-    rmm::device_uvector<float> random_numbers(random_sources.size(), handle.get_stream());
+    rmm::device_uvector<float> random_numbers(random_sources.size(), handle_->get_stream());
 
-    cugraph::detail::uniform_random_fill(handle.get_stream(),
+    cugraph::detail::uniform_random_fill(handle_->get_stream(),
                                          random_numbers.data(),
                                          random_numbers.size(),
                                          float{0},
@@ -191,28 +160,28 @@ class Tests_Temporal_Neighbor_Sampling
                                          rng_state);
 
     std::tie(random_numbers, random_sources) = cugraph::test::sort_by_key<float, vertex_t>(
-      handle, std::move(random_numbers), std::move(random_sources));
+      *handle_, std::move(random_numbers), std::move(random_sources));
 
-    random_numbers.resize(0, handle.get_stream());
-    random_numbers.shrink_to_fit(handle.get_stream());
+    random_numbers.resize(0, handle_->get_stream());
+    random_numbers.shrink_to_fit(handle_->get_stream());
 
-    auto batch_number = std::make_optional<rmm::device_uvector<int32_t>>(0, handle.get_stream());
+    auto batch_number = std::make_optional<rmm::device_uvector<int32_t>>(0, handle_->get_stream());
 
     batch_number = cugraph::test::sequence(
-      handle, random_sources.size(), temporal_neighbor_sampling_usecase.batch_size, int32_t{0});
+      *handle_, random_sources.size(), temporal_neighbor_sampling_usecase.batch_size, int32_t{0});
 
-    rmm::device_uvector<vertex_t> random_sources_copy(random_sources.size(), handle.get_stream());
+    rmm::device_uvector<vertex_t> random_sources_copy(random_sources.size(), handle_->get_stream());
 
     raft::copy(random_sources_copy.data(),
                random_sources.data(),
                random_sources.size(),
-               handle.get_stream());
+               handle_->get_stream());
 
     std::optional<raft::device_span<int32_t const>> label_to_output_comm_rank_mapping{std::nullopt};
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      hr_timer.start("Uniform temporal sampling");
+      hr_timer.start("MG Uniform temporal sampling");
     }
 
     cugraph::sampling_flags_t sampling_flags{};
@@ -227,7 +196,7 @@ class Tests_Temporal_Neighbor_Sampling
             hop,
             offsets] =
       homogeneous_uniform_temporal_neighbor_sample(
-        handle,
+        *handle_,
         rng_state,
         graph_view,
         edge_weights_view,
@@ -251,94 +220,148 @@ class Tests_Temporal_Neighbor_Sampling
     }
 
     if (temporal_neighbor_sampling_usecase.check_correctness) {
+      // Consolidate results on GPU 0
+      auto mg_start_src = cugraph::test::device_gatherv(
+        *handle_, raft::device_span<vertex_t const>{random_sources.data(), random_sources.size()});
+      auto mg_aggregate_src = cugraph::test::device_gatherv(
+        *handle_, raft::device_span<vertex_t const>{src_out.data(), src_out.size()});
+      auto mg_aggregate_dst = cugraph::test::device_gatherv(
+        *handle_, raft::device_span<vertex_t const>{dst_out.data(), dst_out.size()});
+      auto mg_aggregate_wgt =
+        wgt_out ? std::make_optional(cugraph::test::device_gatherv(
+                    *handle_, raft::device_span<weight_t const>{wgt_out->data(), wgt_out->size()}))
+                : std::nullopt;
+      auto mg_aggregate_start_times = edge_start_time
+                                        ? std::make_optional(cugraph::test::device_gatherv(
+                                            *handle_,
+                                            raft::device_span<edge_time_t const>{
+                                              edge_start_time->data(), edge_start_time->size()}))
+                                        : std::nullopt;
+      auto mg_aggregate_end_times =
+        edge_end_time
+          ? std::make_optional(cugraph::test::device_gatherv(
+              *handle_,
+              raft::device_span<edge_time_t const>{edge_end_time->data(), edge_end_time->size()}))
+          : std::nullopt;
+
       //  First validate that the extracted edges are actually a subset of the
       //  edges in the input graph
-      rmm::device_uvector<vertex_t> vertices(2 * src_out.size(), handle.get_stream());
-      raft::copy(vertices.data(), src_out.data(), src_out.size(), handle.get_stream());
+      rmm::device_uvector<vertex_t> vertices(2 * mg_aggregate_src.size(), handle_->get_stream());
       raft::copy(
-        vertices.data() + src_out.size(), dst_out.data(), dst_out.size(), handle.get_stream());
-      vertices = cugraph::test::sort<vertex_t>(handle, std::move(vertices));
-      vertices = cugraph::test::unique<vertex_t>(handle, std::move(vertices));
+        vertices.data(), mg_aggregate_src.data(), mg_aggregate_src.size(), handle_->get_stream());
+      raft::copy(vertices.data() + mg_aggregate_src.size(),
+                 mg_aggregate_dst.data(),
+                 mg_aggregate_dst.size(),
+                 handle_->get_stream());
+      vertices = cugraph::test::sort<vertex_t>(*handle_, std::move(vertices));
+      vertices = cugraph::test::unique<vertex_t>(*handle_, std::move(vertices));
 
-      rmm::device_uvector<size_t> d_subgraph_offsets(2, handle.get_stream());
+      vertices = cugraph::detail::shuffle_int_vertices_to_local_gpu_by_vertex_partitioning(
+        *handle_, std::move(vertices), graph_view.vertex_partition_range_lasts());
+
+      rmm::device_uvector<size_t> d_subgraph_offsets(2, handle_->get_stream());
       std::vector<size_t> h_subgraph_offsets({0, vertices.size()});
 
       raft::update_device(d_subgraph_offsets.data(),
                           h_subgraph_offsets.data(),
                           h_subgraph_offsets.size(),
-                          handle.get_stream());
+                          handle_->get_stream());
 
-      rmm::device_uvector<vertex_t> src_compare(0, handle.get_stream());
-      rmm::device_uvector<vertex_t> dst_compare(0, handle.get_stream());
+      rmm::device_uvector<vertex_t> src_compare(0, handle_->get_stream());
+      rmm::device_uvector<vertex_t> dst_compare(0, handle_->get_stream());
       std::optional<rmm::device_uvector<weight_t>> wgt_compare{std::nullopt};
 
       std::tie(src_compare, dst_compare, wgt_compare, std::ignore) = extract_induced_subgraphs(
-        handle,
+        *handle_,
         graph_view,
         edge_weights_view,
         raft::device_span<size_t const>(d_subgraph_offsets.data(), 2),
         raft::device_span<vertex_t const>(vertices.data(), vertices.size()),
         true);
 
-      ASSERT_TRUE(cugraph::test::validate_extracted_graph_is_subgraph(
-        handle,
-        raft::device_span<vertex_t const>{src_compare.data(), src_compare.size()},
-        raft::device_span<vertex_t const>{dst_compare.data(), dst_compare.size()},
-        wgt_compare ? std::make_optional(
-                        raft::device_span<weight_t const>{wgt_compare->data(), wgt_compare->size()})
-                    : std::nullopt,
-        raft::device_span<vertex_t const>{src_out.data(), src_out.size()},
-        raft::device_span<vertex_t const>{dst_out.data(), dst_out.size()},
-        wgt_out
-          ? std::make_optional(raft::device_span<weight_t const>{wgt_out->data(), wgt_out->size()})
-          : std::nullopt));
+      auto mg_aggregate_src_compare = cugraph::test::device_gatherv(
+        *handle_, raft::device_span<vertex_t const>{src_compare.data(), src_compare.size()});
+      auto mg_aggregate_dst_compare = cugraph::test::device_gatherv(
+        *handle_, raft::device_span<vertex_t const>{dst_compare.data(), dst_compare.size()});
+      auto mg_aggregate_wgt_compare =
+        wgt_compare
+          ? std::make_optional(cugraph::test::device_gatherv(
+              *handle_,
+              raft::device_span<weight_t const>{wgt_compare->data(), wgt_compare->size()}))
+          : std::nullopt;
 
-      ASSERT_TRUE(cugraph::test::validate_temporal_integrity(
-        handle,
-        raft::device_span<vertex_t const>{src_out.data(), src_out.size()},
-        raft::device_span<const vertex_t>{dst_out.data(), dst_out.size()},
-        raft::device_span<const edge_time_t>{edge_start_time->data(), edge_start_time->size()},
-        raft::device_span<const vertex_t>{random_sources.data(), random_sources.size()}));
+      if (handle_->get_comms().get_rank() == 0) {
+        cugraph::test::validate_extracted_graph_is_subgraph(
+          *handle_,
+          raft::device_span<vertex_t const>{mg_aggregate_src_compare.data(),
+                                            mg_aggregate_src_compare.size()},
+          raft::device_span<vertex_t const>{mg_aggregate_dst_compare.data(),
+                                            mg_aggregate_dst_compare.size()},
+          mg_aggregate_wgt_compare
+            ? std::make_optional(raft::device_span<weight_t const>{
+                mg_aggregate_wgt_compare->data(), mg_aggregate_wgt_compare->size()})
+            : std::nullopt,
+          raft::device_span<vertex_t const>{mg_aggregate_src.data(), mg_aggregate_src.size()},
+          raft::device_span<vertex_t const>{mg_aggregate_dst.data(), mg_aggregate_dst.size()},
+          mg_aggregate_wgt ? std::make_optional(raft::device_span<weight_t const>{
+                               mg_aggregate_wgt->data(), mg_aggregate_wgt->size()})
+                           : std::nullopt);
 
-      if (random_sources.size() < 100) {
-        // This validation is too expensive for large number of vertices
-        ASSERT_TRUE(
-          cugraph::test::validate_sampling_depth(handle,
-                                                 std::move(src_out),
-                                                 std::move(dst_out),
-                                                 std::move(wgt_out),
-                                                 std::move(random_sources),
-                                                 temporal_neighbor_sampling_usecase.fanout.size()));
+        ASSERT_TRUE(cugraph::test::validate_temporal_integrity(
+          *handle_,
+          raft::device_span<vertex_t const>{mg_aggregate_src.data(), mg_aggregate_src.size()},
+          raft::device_span<const vertex_t>{mg_aggregate_dst.data(), mg_aggregate_dst.size()},
+          raft::device_span<const edge_time_t>{mg_aggregate_start_times->data(),
+                                               mg_aggregate_start_times->size()},
+          raft::device_span<const vertex_t>{mg_start_src.data(), mg_start_src.size()}));
+
+        if (random_sources.size() < 100) {
+          // This validation is too expensive for large number of vertices
+          ASSERT_TRUE(cugraph::test::validate_sampling_depth(
+            *handle_,
+            std::move(mg_aggregate_src),
+            std::move(mg_aggregate_dst),
+            std::move(mg_aggregate_wgt),
+            std::move(mg_start_src),
+            temporal_neighbor_sampling_usecase.fanout.size()));
+        }
       }
     }
   }
+
+ private:
+  static std::unique_ptr<raft::handle_t> handle_;
 };
 
-using Tests_Temporal_Neighbor_Sampling_File =
-  Tests_Temporal_Neighbor_Sampling<cugraph::test::File_Usecase>;
+template <typename input_usecase_t>
+std::unique_ptr<raft::handle_t> Tests_MGTemporal_Neighbor_Sampling<input_usecase_t>::handle_ =
+  nullptr;
 
-using Tests_Temporal_Neighbor_Sampling_Rmat =
-  Tests_Temporal_Neighbor_Sampling<cugraph::test::Rmat_Usecase>;
+using Tests_MGTemporal_Neighbor_Sampling_File =
+  Tests_MGTemporal_Neighbor_Sampling<cugraph::test::File_Usecase>;
 
-TEST_P(Tests_Temporal_Neighbor_Sampling_File, CheckInt32Int32Float)
+using Tests_MGTemporal_Neighbor_Sampling_Rmat =
+  Tests_MGTemporal_Neighbor_Sampling<cugraph::test::Rmat_Usecase>;
+
+TEST_P(Tests_MGTemporal_Neighbor_Sampling_File, CheckInt32Int32Float)
 {
   run_current_test<int32_t, int32_t, float>(
     override_File_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
-TEST_P(Tests_Temporal_Neighbor_Sampling_File, CheckInt64Int64Float)
+TEST_P(Tests_MGTemporal_Neighbor_Sampling_File, CheckInt64Int64Float)
 {
   run_current_test<int64_t, int64_t, float>(
     override_File_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
-TEST_P(Tests_Temporal_Neighbor_Sampling_Rmat, CheckInt32Int32Float)
+TEST_P(Tests_MGTemporal_Neighbor_Sampling_Rmat, CheckInt32Int32Float)
 {
   run_current_test<int32_t, int32_t, float>(
     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
-TEST_P(Tests_Temporal_Neighbor_Sampling_Rmat, CheckInt64Int64Float)
+TEST_P(Tests_MGTemporal_Neighbor_Sampling_Rmat, CheckInt64Int64Float)
 {
   run_current_test<int64_t, int64_t, float>(
     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
@@ -346,7 +369,7 @@ TEST_P(Tests_Temporal_Neighbor_Sampling_Rmat, CheckInt64Int64Float)
 
 INSTANTIATE_TEST_SUITE_P(
   file_test,
-  Tests_Temporal_Neighbor_Sampling_File,
+  Tests_MGTemporal_Neighbor_Sampling_File,
   ::testing::Combine(
     ::testing::Values(Temporal_Neighbor_Sampling_Usecase{{4, -1, 10}, 128, false, false, true},
                       Temporal_Neighbor_Sampling_Usecase{{4, -1, 10}, 128, true, false, false},
@@ -359,7 +382,7 @@ INSTANTIATE_TEST_SUITE_P(
 
 INSTANTIATE_TEST_SUITE_P(
   file_large_test,
-  Tests_Temporal_Neighbor_Sampling_File,
+  Tests_MGTemporal_Neighbor_Sampling_File,
   ::testing::Combine(
     ::testing::Values(Temporal_Neighbor_Sampling_Usecase{{4, 10}, 128, false, false, true},
                       Temporal_Neighbor_Sampling_Usecase{{4, 10}, 128, true, false, false},
@@ -374,7 +397,7 @@ INSTANTIATE_TEST_SUITE_P(
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_small_test,
-  Tests_Temporal_Neighbor_Sampling_Rmat,
+  Tests_MGTemporal_Neighbor_Sampling_Rmat,
   ::testing::Combine(
     ::testing::Values(Temporal_Neighbor_Sampling_Usecase{{4, -1, 10}, 128, false, false, true},
                       Temporal_Neighbor_Sampling_Usecase{{4, -1, 10}, 128, true, false, false},
@@ -391,7 +414,7 @@ INSTANTIATE_TEST_SUITE_P(
                           vertex & edge type combination) by command line arguments and do not
                           include more than one Rmat_Usecase that differ only in scale or edge
                           factor (to avoid running same benchmarks more than once) */
-  Tests_Temporal_Neighbor_Sampling_Rmat,
+  Tests_MGTemporal_Neighbor_Sampling_Rmat,
   ::testing::Combine(
     ::testing::Values(Temporal_Neighbor_Sampling_Usecase{{4, 10}, 128, false, false, true},
                       Temporal_Neighbor_Sampling_Usecase{{4, 10}, 128, true, false, false},
@@ -402,4 +425,4 @@ INSTANTIATE_TEST_SUITE_P(
                       Temporal_Neighbor_Sampling_Usecase{{4, 10}, 128, true, true, true}),
     ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false, 0))));
 
-CUGRAPH_TEST_PROGRAM_MAIN()
+CUGRAPH_MG_TEST_PROGRAM_MAIN()

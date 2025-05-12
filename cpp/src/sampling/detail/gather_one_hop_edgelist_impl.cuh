@@ -22,6 +22,7 @@
 #include "prims/update_edge_src_dst_property.cuh"
 #include "prims/vertex_frontier.cuh"
 #include "structure/detail/structure_utils.cuh"
+#include "utilities/collect_comm.cuh"
 #include "utilities/tuple_with_optionals_dispatching.hpp"
 
 #include <cugraph/edge_src_dst_property.hpp>
@@ -38,6 +39,7 @@
 #include <cuda/std/iterator>
 #include <cuda/std/optional>
 #include <thrust/iterator/zip_iterator.h>
+#include <thrust/sort.h>
 #include <thrust/tuple.h>
 
 #include <cuda.h>
@@ -641,19 +643,47 @@ gather_one_hop_edgelist(
                      vertex_label_time_ids.end(),
                      starting_id);
 
+    kv_store_t<size_t, thrust::tuple<edge_time_t, label_t>, true> kv_store{handle.get_stream()};
     if (multi_gpu) {
-      // allgatherv vertex_label_time_ids, vertex_labels, vertex_label_times across minor comm
-      // sort by id
-    }
+      auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
 
-    kv_store_t<size_t, thrust::tuple<edge_time_t, label_t>, true> kv_store(
-      vertex_label_time_ids.begin(),
-      vertex_label_time_ids.end(),
-      thrust::make_zip_iterator(active_major_times->begin(),
-                                active_major_labels->begin()),  // multi_gpu is different
-      thrust::make_tuple(edge_time_t{-1}, label_t{-1}),
-      true,
-      handle.get_stream());
+      auto all_minor_keys =
+        device_allgatherv(handle,
+                          minor_comm,
+                          raft::device_span<size_t const>{vertex_label_time_ids.data(),
+                                                          vertex_label_time_ids.size()});
+      auto all_minor_times =
+        device_allgatherv(handle,
+                          minor_comm,
+                          raft::device_span<edge_time_t const>{active_major_times->data(),
+                                                               active_major_times->size()});
+      auto all_minor_labels = device_allgatherv(
+        handle,
+        minor_comm,
+        raft::device_span<label_t const>{active_major_labels->data(), active_major_labels->size()});
+
+      CUGRAPH_EXPECTS(
+        thrust::is_sorted(handle.get_thrust_policy(), all_minor_keys.begin(), all_minor_keys.end()),
+        "need to SORT!");
+
+      kv_store = kv_store_t<size_t, thrust::tuple<edge_time_t, label_t>, true>(
+        all_minor_keys.begin(),
+        all_minor_keys.end(),
+        thrust::make_zip_iterator(all_minor_times.begin(), all_minor_labels.begin()),
+        thrust::make_tuple(edge_time_t{-1}, label_t{-1}),
+        true,
+        handle.get_stream());
+
+    } else {
+      kv_store = kv_store_t<size_t, thrust::tuple<edge_time_t, label_t>, true>(
+        vertex_label_time_ids.begin(),
+        vertex_label_time_ids.end(),
+        thrust::make_zip_iterator(active_major_times->begin(),
+                                  active_major_labels->begin()),  // multi_gpu is different
+        thrust::make_tuple(edge_time_t{-1}, label_t{-1}),
+        true,
+        handle.get_stream());
+    }
 
     cugraph::vertex_frontier_t<vertex_t, size_t, multi_gpu, false> vertex_label_frontier(handle, 1);
     vertex_label_frontier.bucket(0).insert(
