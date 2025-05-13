@@ -51,8 +51,8 @@ struct sample_edges_op_t {
                                           thrust::tuple<edge_property_t>,
                                           edge_property_t>>
       edge_property_tup{};
-    if constexpr (!std::is_same_v < edge_property_t, cuda::std::nullopt_t) {
-      if constexpr (std::is_same_v < edge_property_t) {
+    if constexpr (!std::is_same_v<edge_property_t, cuda::std::nullopt_t>) {
+      if constexpr (std::is_same_v<edge_property_t>) {
         thrust::get<0>(edge_property_tup) = edge_properties;
       } else {
         edge_property_tup = edge_properties;
