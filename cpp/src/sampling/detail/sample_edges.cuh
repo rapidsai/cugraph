@@ -38,12 +38,12 @@ namespace detail {
 
 template <typename vertex_t>
 struct sample_edges_op_t {
-  template <typename EdgeProperties>
+  template <typename edge_property_t>
   auto __host__ __device__ operator()(vertex_t src,
                                       vertex_t dst,
                                       cuda::std::nullopt_t,
                                       cuda::std::nullopt_t,
-                                      EdgeProperties edge_properties) const
+                                      edge_property_t edge_properties) const
   {
     std::conditional_t<std::is_same_v<edge_property_t, cuda::std::nullopt_t>,
                        thrust::tuple<>,
@@ -52,7 +52,7 @@ struct sample_edges_op_t {
                                           edge_property_t>>
       edge_property_tup{};
     if constexpr (!std::is_same_v<edge_property_t, cuda::std::nullopt_t>) {
-      if constexpr (std::is_same_v<edge_property_t>) {
+      if constexpr (std::is_arithmetic_v<edge_property_t>) {
         thrust::get<0>(edge_property_tup) = edge_properties;
       } else {
         edge_property_tup = edge_properties;
