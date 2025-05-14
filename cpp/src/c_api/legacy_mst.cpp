@@ -96,6 +96,9 @@ struct minimum_spanning_tree_functor : public cugraph::c_api::abstract_functor {
 
       const size_t num_edges = result_legacy_coo_graph->view().number_of_edges;
 
+      // FIXME: Add new constructor for cugraph_type_erased_host_array_t that takes an
+      // rmm::device_buffer with the goa of skipping copies
+
       rmm::device_uvector<vertex_t> result_src(num_edges, handle_.get_stream());
       raft::copy(result_src.data(),
                  result_legacy_coo_graph->view().src_indices,
