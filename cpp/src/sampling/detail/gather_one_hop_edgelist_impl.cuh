@@ -58,6 +58,28 @@ auto __host__ __device__ format_gather_edges_return_tuple(vertex_t src,
                                                           EdgeProperties edge_properties,
                                                           label_t label)
 {
+#if 0
+    std::conditional_t<std::is_same_v<edge_property_t, cuda::std::nullopt_t>,
+                       thrust::tuple<>,
+                       std::conditional_t<std::is_arithmetic_v<edge_property_t>,
+                                          thrust::tuple<edge_property_t>,
+                                          edge_property_t>>
+      edge_property_tup{};
+    if constexpr (!std::is_same_v<edge_property_t, cuda::std::nullopt_t>) {
+      if constexpr (std::is_arithmetic_v<edge_property_t>) {
+        thrust::get<0>(edge_property_tup) = edge_properties;
+      } else {
+        edge_property_tup = edge_properties;
+      }
+    }
+    std::conditional_t<std::is_same_v<key_t, vertex_t>, thrust::tuple<>, thrust::tuple<int32_t>>
+      label_tup{};
+    if constexpr (!std::is_same_v<key_t, vertex_t>) {
+      thrust::get<0>(label_tup) = thrust::get<1>(optionally_tagged_src);
+    }
+    return thrust_tuple_cat(thrust::make_tuple(src, dst), edge_property_tup, label_tup);
+#endif
+
   // FIXME: A solution using thrust_tuple_cat would be more flexible here
   if constexpr (std::is_same_v<label_t, cuda::std::nullopt_t>) {
     if constexpr (std::is_same_v<EdgeProperties, cuda::std::nullopt_t>) {
@@ -136,12 +158,12 @@ auto __host__ __device__ format_gather_edges_return_tuple(vertex_t src,
 }
 
 struct return_edges_with_properties_e_op {
-  template <typename key_t, typename vertex_t, typename EdgeProperties>
+  template <typename key_t, typename vertex_t, typename edge_property_t>
   auto __host__ __device__ operator()(key_t optionally_tagged_src,
                                       vertex_t dst,
                                       cuda::std::nullopt_t,
                                       cuda::std::nullopt_t,
-                                      EdgeProperties edge_properties) const
+                                      edge_property_t edge_properties) const
   {
     static_assert(std::is_same_v<key_t, vertex_t> ||
                   std::is_same_v<key_t, thrust::tuple<vertex_t, int32_t>>);
