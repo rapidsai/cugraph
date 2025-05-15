@@ -1,4 +1,4 @@
-# Copyright (c) 2021-2024, NVIDIA CORPORATION.
+# Copyright (c) 2021-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -391,7 +391,9 @@ class simpleDistributedGraphImpl:
         del persisted_keys_d
         self._plc_graph = {
             w: _client.compute(
-                delayed_task, workers=w, allow_other_workers=False,
+                delayed_task,
+                workers=w,
+                allow_other_workers=False,
             )
             for w, delayed_task in delayed_tasks_d.items()
         }
