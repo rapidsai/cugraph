@@ -107,7 +107,7 @@ class edge_endpoint_property_view_t {
   }
 
   ~edge_endpoint_property_view_t()
-  {  // to silence a spurious warning
+  {  // to silence a spurious "maybe used uninitialized" warning
     key_info_ = std::nullopt;
     if (value_firsts_.index() == 0) {
       std::get<0>(value_firsts_).clear();
@@ -564,7 +564,10 @@ class edge_src_property_t {
   edge_src_property_t(edge_src_property_t const&)            = delete;
   edge_src_property_t& operator=(edge_src_property_t&&)      = default;
   edge_src_property_t& operator=(edge_src_property_t const&) = delete;
-  ~edge_src_property_t() { this->clear(); }
+  ~edge_src_property_t()
+  {
+    this->clear();
+  }  // to silence a spurious "maybe used uninitialized" warning
 
   void clear() { property_ = std::monostate{}; }
 
@@ -615,7 +618,10 @@ class edge_dst_property_t {
   edge_dst_property_t(edge_dst_property_t const&)            = delete;
   edge_dst_property_t& operator=(edge_dst_property_t&&)      = default;
   edge_dst_property_t& operator=(edge_dst_property_t const&) = delete;
-  ~edge_dst_property_t() { this->clear(); }
+  ~edge_dst_property_t()
+  {
+    this->clear();
+  }  // to silence a spurious "maybe used uninitialized" warning
 
   void clear() { property_ = std::monostate{}; }
 
