@@ -459,7 +459,7 @@ ValueIterator mem_frugal_partition(
     value_first,
     value_last,
     value_group_id_less_t<typename thrust::iterator_traits<ValueIterator>::value_type,
-                          ValueToGroupIdOp>{value_to_group_id_op, pivot}));
+                            ValueToGroupIdOp>{value_to_group_id_op, pivot}));
   auto second_size  = num_elements - first_size;
 
   auto tmp_buffer =
