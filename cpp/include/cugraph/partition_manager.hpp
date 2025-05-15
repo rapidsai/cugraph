@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
 
@@ -156,6 +157,10 @@ class partition_manager {
   static void init_subcomm(raft::handle_t& handle, int gpu_row_comm_size)
   {
     auto& comm = handle.get_comms();
+
+    CUGRAPH_EXPECTS(
+      (comm.get_size() % gpu_row_comm_size) == 0,
+      "Invalid input argument: comm_size should be an integer multiple of gpu_row_comm_size.");
 
     auto rank   = comm.get_rank();
     int row_idx = rank / gpu_row_comm_size;
