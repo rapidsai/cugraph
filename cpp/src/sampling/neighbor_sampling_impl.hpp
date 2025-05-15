@@ -19,6 +19,7 @@
 #include "prims/fill_edge_property.cuh"
 #include "prims/transform_e.cuh"
 #include "sampling/detail/sampling_utils.hpp"
+#include "utilities/validation_checks.hpp"
 
 #include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
@@ -99,26 +100,12 @@ neighbor_sample_impl(raft::handle_t const& handle,
                       "exceed std::numeric_limits<bias_t>::max() for any vertex.");
     }
 
-#if 0
-// Do we have a function to do this?  Seems like a common validation check
-    auto vertex_partition =
-      vertex_partition_device_view_t<vertex_t, multi_gpu>(graph_view.local_vertex_partition_view());
-    auto num_invalid_vertices =
-      thrust::count_if(handle.get_thrust_policy(),
-                       starting_vertices.begin(),
-                       starting_vertices.end(),
-                       [vertex_partition] __device__(auto v) {
-                         return !(vertex_partition.is_valid_vertex(v) &&
-                                  vertex_partition.in_local_vertex_partition_range_nocheck(v));
-                       });
-    if constexpr (multi_gpu) {
-      num_invalid_vertices = cugraph::host_scalar_allreduce(
-        handle.get_comms(), num_invalid_vertices, raft::comms::op_t::SUM, handle.get_stream());
-    }
-
-    CUGRAPH_EXPECTS(num_invalid_vertices == 0,
-                    "Invalid input arguments: there are invalid input vertices.");
-#endif
+    CUGRAPH_EXPECTS(
+      cugraph::count_invalid_vertices(
+        handle,
+        graph_view,
+        raft::device_span<vertex_t const>{starting_vertices.data(), starting_vertices.size()}) == 0,
+      "Invalid input arguments: there are invalid input vertices.");
   }
 
   CUGRAPH_EXPECTS(fan_out.size() > 0, "Invalid input argument: number of levels must be non-zero.");

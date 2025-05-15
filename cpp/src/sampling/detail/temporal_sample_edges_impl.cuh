@@ -37,55 +37,45 @@
 namespace cugraph {
 namespace detail {
 
-template <typename vertex_t>
+template <typename vertex_t, typename edge_properties_t>
 struct sample_edges_op_t {
-  template <typename EdgeProperties>
-  auto __host__ __device__ operator()(vertex_t src,
-                                      vertex_t dst,
-                                      thrust::nullopt_t,
-                                      thrust::nullopt_t,
-                                      EdgeProperties edge_properties) const
+  using edge_properties_tup_type =
+    std::conditional_t<std::is_same_v<edge_properties_t, cuda::std::nullopt_t>,
+                       thrust::tuple<>,
+                       std::conditional_t<std::is_arithmetic_v<edge_properties_t>,
+                                          thrust::tuple<edge_properties_t>,
+                                          edge_properties_t>>;
+
+  using return_type = decltype(cugraph::thrust_tuple_cat(thrust::tuple<vertex_t, vertex_t>{},
+                                                         edge_properties_tup_type{}));
+
+  return_type __device__ operator()(vertex_t src,
+                                    vertex_t dst,
+                                    thrust::nullopt_t,
+                                    thrust::nullopt_t,
+                                    edge_properties_t edge_properties) const
   {
-    // FIXME: A solution using thrust_tuple_cat would be more flexible here
-    if constexpr (std::is_same_v<EdgeProperties, thrust::nullopt_t>) {
-      return thrust::make_tuple(src, dst);
-    } else if constexpr (std::is_arithmetic<EdgeProperties>::value) {
-      return thrust::make_tuple(src, dst, edge_properties);
-    } else if constexpr (cugraph::is_thrust_tuple_of_arithmetic<EdgeProperties>::value &&
-                         (thrust::tuple_size<EdgeProperties>::value == 2)) {
-      return thrust::make_tuple(
-        src, dst, thrust::get<0>(edge_properties), thrust::get<1>(edge_properties));
-    } else if constexpr (cugraph::is_thrust_tuple_of_arithmetic<EdgeProperties>::value &&
-                         (thrust::tuple_size<EdgeProperties>::value == 3)) {
-      return thrust::make_tuple(src,
-                                dst,
-                                thrust::get<0>(edge_properties),
-                                thrust::get<1>(edge_properties),
-                                thrust::get<2>(edge_properties));
-    } else if constexpr (cugraph::is_thrust_tuple_of_arithmetic<EdgeProperties>::value &&
-                         (thrust::tuple_size<EdgeProperties>::value == 4)) {
-      return thrust::make_tuple(src,
-                                dst,
-                                thrust::get<0>(edge_properties),
-                                thrust::get<1>(edge_properties),
-                                thrust::get<2>(edge_properties),
-                                thrust::get<3>(edge_properties));
-    } else if constexpr (cugraph::is_thrust_tuple_of_arithmetic<EdgeProperties>::value &&
-                         (thrust::tuple_size<EdgeProperties>::value == 5)) {
-      return thrust::make_tuple(src,
-                                dst,
-                                thrust::get<0>(edge_properties),
-                                thrust::get<1>(edge_properties),
-                                thrust::get<2>(edge_properties),
-                                thrust::get<3>(edge_properties),
-                                thrust::get<4>(edge_properties));
+    std::conditional_t<std::is_same_v<edge_properties_t, cuda::std::nullopt_t>,
+                       thrust::tuple<>,
+                       std::conditional_t<std::is_arithmetic_v<edge_properties_t>,
+                                          thrust::tuple<edge_properties_t>,
+                                          edge_properties_t>>
+      edge_properties_tup{};
+
+    if constexpr (!std::is_same_v<edge_properties_t, cuda::std::nullopt_t>) {
+      if constexpr (std::is_arithmetic_v<edge_properties_t>) {
+        thrust::get<0>(edge_properties_tup) = edge_properties;
+      } else {
+        edge_properties_tup = edge_properties;
+      }
     }
+    return thrust_tuple_cat(thrust::make_tuple(src, dst), edge_properties_tup);
   }
 };
 
 template <typename vertex_t, typename bias_t>
 struct sample_edge_biases_op_t {
-  auto __host__ __device__
+  bias_t __device__
   operator()(vertex_t, vertex_t, thrust::nullopt_t, thrust::nullopt_t, bias_t bias) const
   {
     return bias;
@@ -161,16 +151,6 @@ temporal_sample_edges(
       if (edge_type_view) {
         if (edge_bias_view) {
           if (edge_end_time_view) {
-            auto vvv     = view_concat(*edge_weight_view,
-                                   *edge_id_view,
-                                   *edge_type_view,
-                                   *edge_start_time_view,
-                                   *edge_end_time_view);
-            auto invalid = std::optional<
-              thrust::
-                tuple<vertex_t, vertex_t, weight_t, edge_t, edge_type_t, edge_time_t, edge_time_t>>{
-              std::nullopt};
-
             std::forward_as_tuple(
               sample_offsets,
               std::tie(
@@ -185,20 +165,15 @@ temporal_sample_edges(
                 sample_edge_biases_op_t<vertex_t, bias_t>{},
                 edge_src_dummy_property_t{}.view(),
                 edge_dst_dummy_property_t{}.view(),
-#if 0
                 view_concat(*edge_weight_view,
                             *edge_id_view,
                             *edge_type_view,
                             *edge_start_time_view,
                             *edge_end_time_view),
-#else
-                vvv,
-#endif
                 sample_edges_op_t<vertex_t>{},
                 rng_state,
                 fanout,
                 with_replacement,
-#if 0
                 std::optional<thrust::tuple<vertex_t,
                                             vertex_t,
                                             weight_t,
@@ -206,9 +181,6 @@ temporal_sample_edges(
                                             edge_type_t,
                                             edge_time_t,
                                             edge_time_t>>{std::nullopt},
-#else
-                invalid,
-#endif
                 false);
           } else {
             std::forward_as_tuple(

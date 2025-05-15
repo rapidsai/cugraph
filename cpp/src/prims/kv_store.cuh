@@ -172,7 +172,7 @@ struct kv_binary_search_store_device_view_t {
   {
   }
 
-  __host__ __device__ value_type find(key_type key) const
+  __device__ value_type find(key_type key) const
   {
     auto it = thrust::lower_bound(thrust::seq, store_key_first, store_key_last, key);
     if (it != store_key_last && *it == key) {

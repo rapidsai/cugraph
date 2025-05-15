@@ -90,56 +90,22 @@ class Tests_Temporal_Neighbor_Sampling
         return std::move(result);
       });
 
-#if 0
-    cugraph::graph_t<vertex_t, edge_t, store_transposed, false> graph(handle);
-    std::optional<
-      cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, store_transposed, false>,
-                               weight_t>>
-      edge_weights{std::nullopt};
-    std::optional<
-      cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, store_transposed, false>,
-                               edge_t>>
-      edge_ids{std::nullopt};
-    std::optional<
-      cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, store_transposed, false>,
-                               edge_type_t>>
-      edge_ids{std::nullopt};
-    std::optional<
-      cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, store_transposed, false>,
-                               int32_t>>
-      edge_start_times{std::nullopt};
-    std::optional<
-      cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, store_transposed, false>,
-                               int32_t>>
-      edge_end_times{std::nullopt};
-    std::optional<rmm::device_uvector<vertex_t>> renumber_map{std::nullopt};
-
-    std::tie(graph,
-             edge_weights,
-             edge_ids,
-             edge_types,
-             edge_start_times,
-             edge_end_times,
-             renumber_map) =
-#else
     auto [graph,
           edge_weights,
           edge_ids,
           edge_types,
           edge_start_times,
           edge_end_times,
-          renumber_map] =
-#endif
-      cugraph::test::
-        construct_graph<vertex_t, edge_t, float, int32_t, int32_t, store_transposed, false>(
-          handle,
-          input_usecase,
-          true,
-          std::nullopt,
-          std::nullopt,
-          edge_start_times_functor,
-          edge_end_times_functor,
-          renumber);
+          renumber_map] = cugraph::test::
+      construct_graph<vertex_t, edge_t, float, int32_t, int32_t, store_transposed, false>(
+        handle,
+        input_usecase,
+        true,
+        std::nullopt,
+        std::nullopt,
+        edge_start_times_functor,
+        edge_end_times_functor,
+        renumber);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -156,15 +122,6 @@ class Tests_Temporal_Neighbor_Sampling
       edge_start_times ? std::make_optional((*edge_start_times).view()) : std::nullopt;
     auto edge_end_times_view =
       edge_end_times ? std::make_optional((*edge_end_times).view()) : std::nullopt;
-
-#if 0
-    std::optional<cugraph::edge_property_t<decltype(graph_view), bool>> edge_mask{std::nullopt};
-    if (temporal_neighbor_sampling_usecase.edge_masking) {
-      edge_mask =
-        cugraph::test::generate<decltype(graph_view), bool>::edge_property(handle, graph_view, 2);
-      graph_view.attach_edge_mask((*edge_mask).view());
-    }
-#endif
 
     constexpr float select_probability{0.05};
 

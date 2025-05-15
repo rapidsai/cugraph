@@ -25,36 +25,6 @@
 namespace cugraph {
 namespace detail {
 
-#if 0
-template <size_t tuple_pos, use_element_t Flag, use_element_t... Flags, typename TupleType>
-auto add_null_opts_impl(TupleType tuple)
-{
-  if constexpr (sizeof...(Flags) == 0) {
-    if constexpr (Flag == use_optional)
-      return std::make_tuple(std::make_optional(std::move(std::get<tuple_pos>(tuple))));
-    else if constexpr (Flag == not_optional)
-      return std::make_tuple(std::move(std::get<tuple_pos>(tuple)));
-    else  // skip_optional
-      return std::make_tuple(std::nullopt);
-  } else {
-    if constexpr (Flag == use_optional) {
-      auto my_tuple_entry  = std::move(std::get<tuple_pos>(tuple));
-      auto remaining_tuple = add_null_opts_impl<tuple_pos + 1, Flags...>(std::move(tuple));
-      return std::tuple_cat(std::make_tuple(std::make_optional(std::move(my_tuple_entry))),
-                            std::move(remaining_tuple));
-    } else if constexpr (Flag == not_optional) {
-      auto my_tuple_entry  = std::move(std::get<tuple_pos>(tuple));
-      auto remaining_tuple = add_null_opts_impl<tuple_pos + 1, Flags...>(std::move(tuple));
-      return std::tuple_cat(std::make_tuple(std::move(my_tuple_entry)), std::move(remaining_tuple));
-    } else {
-      // skip_optional
-      return std::tuple_cat(std::make_tuple(std::nullopt),
-                            add_null_opts_impl<tuple_pos, Flags...>(std::move(tuple)));
-    }
-  }
-}
-#endif
-
 template <bool... Flags, typename Functor, typename TupleType, typename T1, typename... Ts>
 auto tuple_with_optionals_dispatch_impl(Functor f, TupleType tuple, T1 t1, Ts... ts)
 {
