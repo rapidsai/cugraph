@@ -128,7 +128,7 @@ void update_edge_major_property(raft::handle_t const& handle,
                   std::is_arithmetic_v<typename EdgeMajorPropertyOutputWrapper::value_type>,
                 "unimplemented for thrust::tuple types with a packed bool element.");
 
-  auto edge_partition_value_firsts = edge_major_property_output.value_firsts();
+  auto edge_partition_value_firsts = edge_major_property_output.major_value_firsts();
   if constexpr (GraphViewType::is_multi_gpu) {
     using vertex_t = typename GraphViewType::vertex_type;
 
@@ -141,7 +141,7 @@ void update_edge_major_property(raft::handle_t const& handle,
     auto const minor_comm_rank = minor_comm.get_rank();
     auto const minor_comm_size = minor_comm.get_size();
 
-    auto edge_partition_keys = edge_major_property_output.keys();
+    auto edge_partition_keys = edge_major_property_output.major_keys();
     if (edge_partition_keys) {
       vertex_t max_rx_size{0};
       for (int i = 0; i < minor_comm_size; ++i) {
@@ -281,7 +281,7 @@ void update_edge_major_property(raft::handle_t const& handle,
   using vertex_t = typename GraphViewType::vertex_type;
   using edge_t   = typename GraphViewType::edge_type;
 
-  auto edge_partition_value_firsts = edge_major_property_output.value_firsts();
+  auto edge_partition_value_firsts = edge_major_property_output.major_value_firsts();
   if constexpr (GraphViewType::is_multi_gpu) {
     auto& comm                 = handle.get_comms();
     auto const comm_rank       = comm.get_rank();
@@ -307,7 +307,7 @@ void update_edge_major_property(raft::handle_t const& handle,
       handle.get_stream());
     auto rx_value_first = get_dataframe_buffer_begin(rx_tmp_buffer);
 
-    auto edge_partition_keys = edge_major_property_output.keys();
+    auto edge_partition_keys = edge_major_property_output.major_keys();
     for (int i = 0; i < minor_comm_size; ++i) {
       auto edge_partition =
         edge_partition_device_view_t<vertex_t, edge_t, GraphViewType::is_multi_gpu>(
@@ -464,7 +464,7 @@ void update_edge_minor_property(raft::handle_t const& handle,
                   std::is_arithmetic_v<typename EdgeMinorPropertyOutputWrapper::value_type>,
                 "unimplemented for thrust::tuple types with a packed bool element.");
 
-  auto edge_partition_value_first = edge_minor_property_output.value_first();
+  auto edge_partition_value_first = edge_minor_property_output.minor_value_first();
   if constexpr (GraphViewType::is_multi_gpu) {
     using vertex_t          = typename GraphViewType::vertex_type;
     using bcast_buffer_type = dataframe_buffer_type_t<
@@ -501,7 +501,7 @@ void update_edge_minor_property(raft::handle_t const& handle,
     auto num_rounds = (static_cast<size_t>(major_comm_size) + num_concurrent_bcasts - size_t{1}) /
                       num_concurrent_bcasts;
 
-    auto edge_partition_keys = edge_minor_property_output.keys();
+    auto edge_partition_keys = edge_minor_property_output.minor_keys();
 
     std::optional<std::vector<bcast_buffer_type>> rx_value_buffers{std::nullopt};
     if (contains_packed_bool_element || edge_partition_keys) {
@@ -709,7 +709,7 @@ void update_edge_minor_property(raft::handle_t const& handle,
   using vertex_t = typename GraphViewType::vertex_type;
   using edge_t   = typename GraphViewType::edge_type;
 
-  auto edge_partition_value_first = edge_minor_property_output.value_first();
+  auto edge_partition_value_first = edge_minor_property_output.minor_value_first();
   if constexpr (GraphViewType::is_multi_gpu) {
     auto& comm                 = handle.get_comms();
     auto const comm_rank       = comm.get_rank();
@@ -771,7 +771,7 @@ void update_edge_minor_property(raft::handle_t const& handle,
     auto edge_partition =
       edge_partition_device_view_t<vertex_t, edge_t, GraphViewType::is_multi_gpu>(
         graph_view.local_edge_partition_view(size_t{0}));
-    auto edge_partition_keys = edge_minor_property_output.keys();
+    auto edge_partition_keys = edge_minor_property_output.minor_keys();
     for (int i = 0; i < major_comm_size; ++i) {
       rmm::device_uvector<vertex_t> rx_vertices(local_v_list_sizes[i], handle.get_stream());
       auto rx_tmp_buffer = allocate_dataframe_buffer<
