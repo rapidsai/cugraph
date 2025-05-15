@@ -106,10 +106,23 @@ class edge_endpoint_property_view_t {
   {
   }
 
+  ~edge_endpoint_property_view_t()
+  {  // to silence a spurious warning
+    key_info_ = std::nullopt;
+    if (value_firsts_.index() == 0) {
+      std::get<0>(value_firsts_).clear();
+      std::get<0>(value_firsts_).shrink_to_fit();
+    }
+    if (range_firsts_.index() == 0) {
+      std::get<0>(range_firsts_).clear();
+      std::get<0>(range_firsts_).shrink_to_fit();
+    }
+  }
+
   std::optional<raft::host_span<raft::device_span<vertex_t const> const>> major_keys() const
   {
-    CUGRAPH_EXPECTS((key_info_.has_value() == false) || (key_info_->index() == 0),
-                    "This function is valid only when this ob ject stores a view object of edge "
+    CUGRAPH_EXPECTS(value_firsts_.index() == 0,
+                    "This function is valid only when this object stores a view object of edge "
                     "major property values.");
     return key_info_ ? std::make_optional(std::get<0>(*key_info_).edge_partition_keys)
                      : std::nullopt;
@@ -118,8 +131,8 @@ class edge_endpoint_property_view_t {
   std::optional<raft::host_span<raft::device_span<vertex_t const> const>>
   major_key_chunk_start_offsets() const
   {
-    CUGRAPH_EXPECTS((key_info_.has_value() == false) || (key_info_->index() == 0),
-                    "This function is valid only when this ob ject stores a view object of edge "
+    CUGRAPH_EXPECTS(value_firsts_.index() == 0,
+                    "This function is valid only when this object stores a view object of edge "
                     "major property values.");
     return key_info_
              ? std::make_optional(std::get<0>(*key_info_).edge_partition_key_chunk_start_offsets)
@@ -128,16 +141,16 @@ class edge_endpoint_property_view_t {
 
   std::optional<raft::device_span<vertex_t const>> minor_keys() const
   {
-    CUGRAPH_EXPECTS((key_info_.has_value() == false) || (key_info_->index() == 1),
-                    "This function is valid only when this ob ject stores a view object of edge "
+    CUGRAPH_EXPECTS(value_firsts_.index() == 1,
+                    "This function is valid only when this object stores a view object of edge "
                     "minor property values.");
     return key_info_ ? std::make_optional(std::get<1>(*key_info_).keys) : std::nullopt;
   }
 
   std::optional<raft::device_span<vertex_t const>> minor_key_chunk_start_offsets() const
   {
-    CUGRAPH_EXPECTS((key_info_.has_value() == false) || (key_info_->index() == 1),
-                    "This function is valid only when this ob ject stores a view object of edge "
+    CUGRAPH_EXPECTS(value_firsts_.index() == 1,
+                    "This function is valid only when this object stores a view object of edge "
                     "minor property values.");
     return key_info_ ? std::make_optional(std::get<1>(*key_info_).key_chunk_start_offsets)
                      : std::nullopt;
@@ -156,15 +169,15 @@ class edge_endpoint_property_view_t {
   std::vector<ValueIterator> const& major_value_firsts() const
   {
     CUGRAPH_EXPECTS(value_firsts_.index() == 0,
-                    "This function is valid only when this ob ject stores a view object of edge "
+                    "This function is valid only when this object stores a view object of edge "
                     "major property values.");
     return std::get<0>(value_firsts_);
   }
 
   std::vector<vertex_t> const& major_range_firsts() const
   {
-    CUGRAPH_EXPECTS(range_firsts_.index() == 0,
-                    "This function is valid only when this ob ject stores a view object of edge "
+    CUGRAPH_EXPECTS(value_firsts_.index() == 0,
+                    "This function is valid only when this object stores a view object of edge "
                     "major property values.");
     return std::get<0>(range_firsts_);
   }
@@ -172,15 +185,15 @@ class edge_endpoint_property_view_t {
   ValueIterator minor_value_first() const
   {
     CUGRAPH_EXPECTS(value_firsts_.index() == 1,
-                    "This function is valid only when this ob ject stores a view object of edge "
+                    "This function is valid only when this object stores a view object of edge "
                     "minor property values.");
     return std::get<1>(value_firsts_);
   }
 
   vertex_t minor_range_first() const
   {
-    CUGRAPH_EXPECTS(range_firsts_.index() == 1,
-                    "This function is valid only when this ob ject stores a view object of edge "
+    CUGRAPH_EXPECTS(value_firsts_.index() == 1,
+                    "This function is valid only when this object stores a view object of edge "
                     "minor property values.");
     return std::get<1>(range_firsts_);
   }
@@ -204,10 +217,8 @@ class edge_major_property_t {
     dataframe_buffer_type_t<std::conditional_t<std::is_same_v<T, bool>, uint32_t, T>>;
   using value_iterator =
     dataframe_buffer_iterator_type_t<std::conditional_t<std::is_same_v<T, bool>, uint32_t, T>>;
-
-  edge_major_property_t() = delete;
-
-  edge_major_property_t(raft::handle_t const& handle) {}
+  using const_value_iterator = dataframe_buffer_const_iterator_type_t<
+    std::conditional_t<std::is_same_v<T, bool>, uint32_t, T>>;
 
   template <typename GraphViewType>
   edge_major_property_t(raft::handle_t const& handle, GraphViewType const& graph_view)
@@ -271,7 +282,17 @@ class edge_major_property_t {
     }
   }
 
-  void clear(raft::handle_t const& handle)
+  edge_major_property_t()                                        = delete;
+  edge_major_property_t(edge_major_property_t&&)                 = default;
+  edge_major_property_t(edge_major_property_t const&)            = delete;
+  edge_major_property_t& operator=(edge_major_property_t&&)      = default;
+  edge_major_property_t& operator=(edge_major_property_t const&) = delete;
+  ~edge_major_property_t()
+  {  // to silence a spurious "maybe used uninitialized" warning
+    this->clear();
+  }
+
+  void clear()
   {
     edge_partition_keys_                    = std::nullopt;
     edge_partition_key_chunk_start_offsets_ = std::nullopt;
@@ -285,8 +306,6 @@ class edge_major_property_t {
 
   auto view() const
   {
-    using const_value_iterator = decltype(get_dataframe_buffer_cbegin(buffers_[0]));
-
     std::vector<const_value_iterator> edge_partition_value_firsts(buffers_.size());
     for (size_t i = 0; i < edge_partition_value_firsts.size(); ++i) {
       edge_partition_value_firsts[i] = get_dataframe_buffer_cbegin(buffers_[i]);
@@ -310,8 +329,6 @@ class edge_major_property_t {
 
   auto mutable_view()
   {
-    using value_iterator = decltype(get_dataframe_buffer_begin(buffers_[0]));
-
     std::vector<value_iterator> edge_partition_value_firsts(buffers_.size());
     for (size_t i = 0; i < edge_partition_value_firsts.size(); ++i) {
       edge_partition_value_firsts[i] = get_dataframe_buffer_begin(buffers_[i]);
@@ -350,14 +367,8 @@ class edge_minor_property_t {
 
   using value_iterator =
     dataframe_buffer_iterator_type_t<std::conditional_t<std::is_same_v<T, bool>, uint32_t, T>>;
-
-  edge_minor_property_t() = delete;
-
-  edge_minor_property_t(raft::handle_t const& handle)
-    : buffer_(allocate_dataframe_buffer<std::conditional_t<std::is_same_v<T, bool>, uint32_t, T>>(
-        0, handle.get_stream()))
-  {
-  }
+  using const_value_iterator = dataframe_buffer_const_iterator_type_t<
+    std::conditional_t<std::is_same_v<T, bool>, uint32_t, T>>;
 
   template <typename GraphViewType>
   edge_minor_property_t(raft::handle_t const& handle, GraphViewType const& graph_view)
@@ -401,14 +412,30 @@ class edge_minor_property_t {
     }
   }
 
-  void clear(raft::handle_t const& handle)
+  edge_minor_property_t()                                        = delete;
+  edge_minor_property_t(edge_minor_property_t&&)                 = default;
+  edge_minor_property_t(edge_minor_property_t const&)            = delete;
+  edge_minor_property_t& operator=(edge_minor_property_t&&)      = default;
+  edge_minor_property_t& operator=(edge_minor_property_t const&) = delete;
+  ~edge_minor_property_t()
+  {  // to silence a spurious "maybe used uninitialized" warning
+    this->clear();
+  }
+
+  void clear()
   {
     keys_                    = std::nullopt;
     key_chunk_start_offsets_ = std::nullopt;
     key_chunk_size_          = std::nullopt;
 
-    resize_dataframe_buffer(buffer_, size_t{0}, handle.get_stream());
-    shrink_to_fit_dataframe_buffer(buffer_, handle.get_stream());
+    rmm::cuda_stream_view stream{};
+    if constexpr (std::is_arithmetic_v<T>) {
+      stream = buffer_.stream();
+    } else {
+      stream = std::get<0>(buffer_).stream();
+    }
+    resize_dataframe_buffer(buffer_, size_t{0}, stream);
+    shrink_to_fit_dataframe_buffer(buffer_, stream);
     minor_range_first_ = vertex_t{0};
   }
 
@@ -519,16 +546,10 @@ class edge_src_property_t {
  public:
   static_assert(is_arithmetic_or_thrust_tuple_of_arithmetic<T>::value);
 
-  edge_src_property_t() = delete;
-
-  edge_src_property_t(raft::handle_t const& handle)
-    : property_(detail::edge_major_property_t<vertex_t, T>(handle))
-  {
-  }
+  edge_src_property_t(raft::handle_t const& handle) {}
 
   template <typename GraphViewType>
   edge_src_property_t(raft::handle_t const& handle, GraphViewType const& graph_view)
-    : property_(detail::edge_major_property_t<vertex_t, T>(handle))
   {
     static_assert(std::is_same_v<vertex_t, typename GraphViewType::vertex_type>);
     if constexpr (GraphViewType::is_storage_transposed) {
@@ -538,30 +559,35 @@ class edge_src_property_t {
     }
   }
 
-  void clear(raft::handle_t const& handle)
-  {
-    if (property_.index() == 0) {
-      std::get<0>(property_).clear(handle);
-    } else {
-      std::get<1>(property_).clear(handle);
-    }
-  }
+  edge_src_property_t()                                      = delete;
+  edge_src_property_t(edge_src_property_t&&)                 = default;
+  edge_src_property_t(edge_src_property_t const&)            = delete;
+  edge_src_property_t& operator=(edge_src_property_t&&)      = default;
+  edge_src_property_t& operator=(edge_src_property_t const&) = delete;
+  ~edge_src_property_t() { this->clear(); }
+
+  void clear() { property_ = std::monostate{}; }
 
   auto view() const
   {
-    return property_.index() == 0 ? std::get<0>(property_).view() : std::get<1>(property_).view();
+    CUGRAPH_EXPECTS(property_.index() != 0,
+                    "This function should not be called before initialization.");
+    return property_.index() == 1 ? std::get<1>(property_).view() : std::get<2>(property_).view();
   }
 
   auto mutable_view()
   {
-    return property_.index() == 0 ? std::get<0>(property_).mutable_view()
-                                  : std::get<1>(property_).mutable_view();
+    CUGRAPH_EXPECTS(property_.index() != 0,
+                    "This function should not be called before initialization.");
+    return property_.index() == 1 ? std::get<1>(property_).mutable_view()
+                                  : std::get<2>(property_).mutable_view();
   }
 
  private:
-  std::variant<detail::edge_major_property_t<vertex_t, T>,
+  std::variant<std::monostate,
+               detail::edge_major_property_t<vertex_t, T>,
                detail::edge_minor_property_t<vertex_t, T>>
-    property_;
+    property_{};
 };
 
 template <typename vertex_t, typename T>
@@ -571,16 +597,10 @@ class edge_dst_property_t {
 
   using value_type = T;
 
-  edge_dst_property_t() = delete;
-
-  edge_dst_property_t(raft::handle_t const& handle)
-    : property_(detail::edge_major_property_t<vertex_t, T>(handle))
-  {
-  }
+  edge_dst_property_t(raft::handle_t const& handle) {}
 
   template <typename GraphViewType>
   edge_dst_property_t(raft::handle_t const& handle, GraphViewType const& graph_view)
-    : property_(detail::edge_major_property_t<vertex_t, T>(handle))
   {
     static_assert(std::is_same_v<vertex_t, typename GraphViewType::vertex_type>);
     if constexpr (GraphViewType::is_storage_transposed) {
@@ -590,30 +610,35 @@ class edge_dst_property_t {
     }
   }
 
-  void clear(raft::handle_t const& handle)
-  {
-    if (property_.index() == 0) {
-      std::get<0>(property_).clear(handle);
-    } else {
-      std::get<1>(property_).clear(handle);
-    }
-  }
+  edge_dst_property_t()                                      = delete;
+  edge_dst_property_t(edge_dst_property_t&&)                 = default;
+  edge_dst_property_t(edge_dst_property_t const&)            = delete;
+  edge_dst_property_t& operator=(edge_dst_property_t&&)      = default;
+  edge_dst_property_t& operator=(edge_dst_property_t const&) = delete;
+  ~edge_dst_property_t() { this->clear(); }
+
+  void clear() { property_ = std::monostate{}; }
 
   auto view() const
   {
-    return property_.index() == 0 ? std::get<0>(property_).view() : std::get<1>(property_).view();
+    CUGRAPH_EXPECTS(property_.index() != 0,
+                    "This function should not be called before initialization.");
+    return property_.index() == 1 ? std::get<1>(property_).view() : std::get<2>(property_).view();
   }
 
   auto mutable_view()
   {
-    return property_.index() == 0 ? std::get<0>(property_).mutable_view()
-                                  : std::get<1>(property_).mutable_view();
+    CUGRAPH_EXPECTS(property_.index() != 0,
+                    "This function should not be called before initialization.");
+    return property_.index() == 1 ? std::get<1>(property_).mutable_view()
+                                  : std::get<2>(property_).mutable_view();
   }
 
  private:
-  std::variant<detail::edge_major_property_t<vertex_t, T>,
+  std::variant<std::monostate,
+               detail::edge_major_property_t<vertex_t, T>,
                detail::edge_minor_property_t<vertex_t, T>>
-    property_;
+    property_{};
 };
 
 class edge_src_dummy_property_t {

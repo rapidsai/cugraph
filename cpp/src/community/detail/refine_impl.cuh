@@ -547,9 +547,9 @@ refine_clustering(
       reduce_op::maximum<thrust::tuple<weight_t, vertex_t>>(),
       cugraph::get_dataframe_buffer_begin(gain_and_dst_output_pairs));
 
-    src_leiden_assignment_cache.clear(handle);
-    dst_leiden_assignment_cache.clear(handle);
-    src_singleton_and_connected_flag_cache.clear(handle);
+    src_leiden_assignment_cache.clear();
+    dst_leiden_assignment_cache.clear();
+    src_singleton_and_connected_flag_cache.clear();
 
     louvain_of_leiden_keys_used_in_edge_reduction.resize(0, handle.get_stream());
     louvain_of_leiden_keys_used_in_edge_reduction.shrink_to_fit(handle.get_stream());
@@ -791,8 +791,8 @@ refine_clustering(
     dst_vertices.shrink_to_fit(handle.get_stream());
   }
 
-  src_louvain_cluster_weight_cache.clear(handle);
-  src_cut_to_louvain_cache.clear(handle);
+  src_louvain_cluster_weight_cache.clear();
+  src_cut_to_louvain_cache.clear();
 
   singleton_and_connected_flags.resize(0, handle.get_stream());
   singleton_and_connected_flags.shrink_to_fit(handle.get_stream());

@@ -262,9 +262,9 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
     cluster_weights_v.shrink_to_fit(handle.get_stream());
     vertex_weights_v.shrink_to_fit(handle.get_stream());
     next_clusters_v.shrink_to_fit(handle.get_stream());
-    src_vertex_weights_cache.clear(handle);
-    src_clusters_cache.clear(handle);
-    dst_clusters_cache.clear(handle);
+    src_vertex_weights_cache.clear();
+    src_clusters_cache.clear();
+    dst_clusters_cache.clear();
 
     std::tie(current_graph, current_edge_weights) = cugraph::detail::graph_contraction(
       handle,

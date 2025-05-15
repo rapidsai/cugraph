@@ -443,13 +443,13 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
     cluster_weights.shrink_to_fit(handle.get_stream());
     vertex_weights.shrink_to_fit(handle.get_stream());
     louvain_assignment_for_vertices.shrink_to_fit(handle.get_stream());
-    src_vertex_weights_cache.clear(handle);
-    src_louvain_assignment_cache.clear(handle);
-    dst_louvain_assignment_cache.clear(handle);
+    src_vertex_weights_cache.clear();
+    src_louvain_assignment_cache.clear();
+    dst_louvain_assignment_cache.clear();
 
     if (!terminate) {
-      src_louvain_assignment_cache.clear(handle);
-      dst_louvain_assignment_cache.clear(handle);
+      src_louvain_assignment_cache.clear();
+      dst_louvain_assignment_cache.clear();
 
       auto nr_unique_leiden = static_cast<vertex_t>(leiden_to_louvain_map.first.size());
       if (graph_view_t::is_multi_gpu) {
