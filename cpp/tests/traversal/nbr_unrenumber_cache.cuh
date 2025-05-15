@@ -121,10 +121,6 @@ class nbr_unrenumber_cache_t {
                                                       sorted_unique_nbrs.end(),
                                                       in_dense_func);
       sparse_sorted_unique_nbr_size = sorted_unique_nbrs.size() - dense_sorted_unique_nbr_size;
-#if 1
-      std::cout << "init_key_cache dense_sorted_unique_nbr_size=" << dense_sorted_unique_nbr_size
-                << " sparse_sorted_unique_nbr_size=" << sparse_sorted_unique_nbr_size << std::endl;
-#endif
 
       auto tmp_sorted_unique_nbrs =
         pinned_host_mr
@@ -569,12 +565,11 @@ nbr_unrenumber_cache_t<vertex_t> build_nbr_unrenumber_cache(
         .begin());  // gather with strides to avoid most vertices falling to the local vertex
                     // partition ranges of a small subset of GPUs leading to uneven memory pressures
     auto this_chunk_unrenumbered_nbrs = cugraph::collect_values_for_sorted_unique_int_vertices(
-      handle.get_comms(),
+      handle,
       raft::device_span<vertex_t const>(this_chunk_nbrs.data(), this_chunk_nbrs.size()),
       renumber_map.begin(),
       mg_graph_view.vertex_partition_range_lasts(),
-      mg_graph_view.local_vertex_partition_range_first(),
-      handle.get_stream());
+      mg_graph_view.local_vertex_partition_range_first());
     this_chunk_nbrs.resize(0, handle.get_stream());
     this_chunk_nbrs.shrink_to_fit(handle.get_stream());
     thrust::scatter(handle.get_thrust_policy(),
