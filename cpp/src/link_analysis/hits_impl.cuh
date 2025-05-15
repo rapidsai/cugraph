@@ -95,8 +95,8 @@ std::tuple<result_t, size_t> hits(raft::handle_t const& handle,
   }
 
   // Property wrappers
-  edge_src_property_t<vertex_t, result_t, true> prev_src_hubs(handle, graph_view);
-  edge_dst_property_t<vertex_t, result_t, true> curr_dst_auth(handle, graph_view);
+  edge_src_property_t<vertex_t, result_t> prev_src_hubs(handle, graph_view);
+  edge_dst_property_t<vertex_t, result_t> curr_dst_auth(handle, graph_view);
   rmm::device_uvector<result_t> temp_hubs(graph_view.local_vertex_partition_range_size(),
                                           handle.get_stream());
 

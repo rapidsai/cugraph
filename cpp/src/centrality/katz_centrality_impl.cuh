@@ -99,7 +99,7 @@ void katz_centrality(
   // old katz centrality values
   rmm::device_uvector<result_t> tmp_katz_centralities(
     pull_graph_view.local_vertex_partition_range_size(), handle.get_stream());
-  edge_src_property_t<vertex_t, result_t, true> edge_src_katz_centralities(handle, pull_graph_view);
+  edge_src_property_t<vertex_t, result_t> edge_src_katz_centralities(handle, pull_graph_view);
   auto new_katz_centralities = katz_centralities;
   auto old_katz_centralities = tmp_katz_centralities.data();
   size_t iter{0};
