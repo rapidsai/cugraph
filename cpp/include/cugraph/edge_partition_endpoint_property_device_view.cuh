@@ -54,8 +54,6 @@ class edge_partition_endpoint_property_device_view_t {
   edge_partition_endpoint_property_device_view_t(
     edge_endpoint_property_view_t<vertex_t, ValueIterator, value_t> const& view,
     size_t partition_idx)
-    : value_first_(view.major_value_firsts()[partition_idx]),
-      range_first_(view.major_range_firsts()[partition_idx])
   {
     CUGRAPH_EXPECTS(view.is_major(), "Invalid input argument.");
     if (view.major_keys()) {
