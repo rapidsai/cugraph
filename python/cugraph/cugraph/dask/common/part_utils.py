@@ -123,7 +123,7 @@ def persist_dask_df_equal_parts_per_worker(
     persisted_keys_d = {}
     for w, ddf_k in zip(workers, ddf_keys_ls):
         persisted_keys_d[w] = client.compute(
-            ddf_k, workers=w, allow_other_workers=False, pure=False
+            ddf_k, workers=w, allow_other_workers=False,
         )
 
     persisted_keys_ls = [

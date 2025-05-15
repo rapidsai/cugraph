@@ -391,7 +391,7 @@ class simpleDistributedGraphImpl:
         del persisted_keys_d
         self._plc_graph = {
             w: _client.compute(
-                delayed_task, workers=w, allow_other_workers=False, pure=False
+                delayed_task, workers=w, allow_other_workers=False,
             )
             for w, delayed_task in delayed_tasks_d.items()
         }
