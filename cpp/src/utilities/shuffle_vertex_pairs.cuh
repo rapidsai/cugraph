@@ -479,8 +479,8 @@ shuffle_ext_edges(raft::handle_t const& handle,
                   std::optional<rmm::device_uvector<edge_time_t>>&& edge_end_times,
                   bool store_transposed)
 {
-  auto& comm                 = handle.get_comms();
-  auto const comm_size       = comm.get_size();
+  auto& comm           = handle.get_comms();
+  auto const comm_size = comm.get_size();
 
   auto majors = store_transposed ? std::move(edge_dsts) : std::move(edge_srcs);
   auto minors = store_transposed ? std::move(edge_srcs) : std::move(edge_dsts);
