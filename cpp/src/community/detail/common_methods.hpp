@@ -75,8 +75,8 @@ weight_t compute_modularity(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
-  edge_src_property_t<vertex_t, vertex_t, false> const& src_clusters_cache,
-  edge_dst_property_t<vertex_t, vertex_t, false> const& dst_clusters_cache,
+  edge_src_property_t<vertex_t, vertex_t> const& src_clusters_cache,
+  edge_dst_property_t<vertex_t, vertex_t> const& dst_clusters_cache,
   rmm::device_uvector<vertex_t> const& next_clusters,
   rmm::device_uvector<weight_t> const& cluster_weights,
   weight_t total_edge_weight,
@@ -101,9 +101,9 @@ rmm::device_uvector<vertex_t> update_clustering_by_delta_modularity(
   rmm::device_uvector<vertex_t>&& cluster_keys_v,
   rmm::device_uvector<weight_t>&& cluster_weights_v,
   rmm::device_uvector<vertex_t>&& next_clusters_v,
-  edge_src_property_t<vertex_t, weight_t, false> const& src_vertex_weights_cache,
-  edge_src_property_t<vertex_t, vertex_t, false> const& src_clusters_cache,
-  edge_dst_property_t<vertex_t, vertex_t, false> const& dst_clusters_cache,
+  edge_src_property_t<vertex_t, weight_t> const& src_vertex_weights_cache,
+  edge_src_property_t<vertex_t, vertex_t> const& src_clusters_cache,
+  edge_dst_property_t<vertex_t, vertex_t> const& dst_clusters_cache,
   bool up_down);
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
@@ -113,7 +113,7 @@ compute_cluster_keys_and_values(
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   rmm::device_uvector<vertex_t> const& next_clusters_v,
-  edge_src_property_t<vertex_t, vertex_t, false> const& src_clusters_cache);
+  edge_src_property_t<vertex_t, vertex_t> const& src_clusters_cache);
 
 }  // namespace detail
 }  // namespace cugraph

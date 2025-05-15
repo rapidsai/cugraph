@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2023-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -328,7 +328,7 @@ extern "C" cugraph_error_code_t cugraph_generate_edge_weights(
         std::make_unique<cugraph::c_api::cugraph_type_erased_device_array_t>(tmp, dtype);
       break;
     }
-    otherwise : {
+    otherwise: {
       *error = reinterpret_cast<::cugraph_error_t*>(new cugraph::c_api::cugraph_error_t(
         "Only FLOAT and DOUBLE supported as generated edge weights"));
       return CUGRAPH_INVALID_INPUT;
