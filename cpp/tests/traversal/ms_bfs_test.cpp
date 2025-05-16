@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,11 +26,11 @@
 #include <cugraph/graph_view.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
 
-#include <rmm/device_scalar.hpp>
-#include <rmm/device_vector.hpp>
-
 #include <raft/core/handle.hpp>
 #include <raft/util/cudart_utils.hpp>
+
+#include <rmm/device_scalar.hpp>
+#include <rmm/device_vector.hpp>
 
 #include <gtest/gtest.h>
 
@@ -43,7 +43,7 @@
 #include <vector>
 
 struct MsBfs_Usecase {
-  size_t  radius;
+  size_t radius;
   size_t max_seeds;
   bool test_weighted_{false};
   bool check_correctness_{true};
@@ -60,11 +60,10 @@ class Tests_MsBfs : public ::testing::TestWithParam<std::tuple<MsBfs_Usecase, in
   virtual void SetUp() {}
   virtual void TearDown() {}
 
-
   template <typename vertex_t, typename edge_t, typename weight_t>
   void run_current_test(std::tuple<MsBfs_Usecase const&, input_usecase_t const&> const& param)
   {
-    constexpr bool renumber               = false;
+    constexpr bool renumber             = false;
     auto [MsBfs_usecase, input_usecase] = param;
     raft::handle_t handle{};
 
@@ -92,9 +91,8 @@ class Tests_MsBfs : public ::testing::TestWithParam<std::tuple<MsBfs_Usecase, in
     auto edge_weight_view =
       edge_weights ? std::make_optional((*edge_weights).view()) : std::nullopt;
 
-    rmm::device_uvector<vertex_t> d_labels(graph_view.number_of_vertices(),
-                                           handle.get_stream());
-    
+    rmm::device_uvector<vertex_t> d_labels(graph_view.number_of_vertices(), handle.get_stream());
+
     ASSERT_TRUE(graph_view.is_symmetric())
       << "Weakly connected components works only on undirected (symmetric) graphs.";
 
@@ -103,44 +101,39 @@ class Tests_MsBfs : public ::testing::TestWithParam<std::tuple<MsBfs_Usecase, in
 
     auto d_vertices = cugraph::test::sequence<vertex_t>(
       handle, graph_view.number_of_vertices(), size_t{1}, vertex_t{0});
-    
+
     rmm::device_uvector<vertex_t> d_sorted_vertices{0, handle.get_stream()};
     rmm::device_uvector<vertex_t> d_sorted_labels{0, handle.get_stream()};
 
     std::tie(d_sorted_labels, d_sorted_vertices) =
-          cugraph::test::sort_by_key<vertex_t, vertex_t>(
-            handle, d_labels, d_vertices);
-    
+      cugraph::test::sort_by_key<vertex_t, vertex_t>(handle, d_labels, d_vertices);
+
     rmm::device_uvector<vertex_t> d_tmp_sorted_labels(d_sorted_labels.size(), handle.get_stream());
 
-    raft::copy(d_tmp_sorted_labels.data(), d_sorted_labels.data(), d_sorted_labels.size(), handle.get_stream());
-    
-    auto num_unique_labels = cugraph::test::unique_count<vertex_t>(
-      handle,
-      d_tmp_sorted_labels
-    );
+    raft::copy(d_tmp_sorted_labels.data(),
+               d_sorted_labels.data(),
+               d_sorted_labels.size(),
+               handle.get_stream());
+
+    auto num_unique_labels = cugraph::test::unique_count<vertex_t>(handle, d_tmp_sorted_labels);
 
     rmm::device_uvector<vertex_t> d_first_components(num_unique_labels, handle.get_stream());
 
     std::tie(std::ignore, d_first_components) = cugraph::test::reduce_by_key<vertex_t, vertex_t>(
-      handle,
-      std::move(d_sorted_labels),
-      std::move(d_sorted_vertices),
-      num_unique_labels
-    );
-    
+      handle, std::move(d_sorted_labels), std::move(d_sorted_vertices), num_unique_labels);
+
     // Select random seeds from different components
     raft::random::RngState rng_state(0);
-    auto d_sources = cugraph::select_random_vertices(
-      handle,
-      graph_view,
-      std::make_optional(raft::device_span<vertex_t const>{
-        d_first_components.data(), d_first_components.size()}),
-      rng_state,
-      std::min(MsBfs_usecase.max_seeds, num_unique_labels),
-      false,
-      true);
-    
+    auto d_sources =
+      cugraph::select_random_vertices(handle,
+                                      graph_view,
+                                      std::make_optional(raft::device_span<vertex_t const>{
+                                        d_first_components.data(), d_first_components.size()}),
+                                      rng_state,
+                                      std::min(MsBfs_usecase.max_seeds, num_unique_labels),
+                                      false,
+                                      true);
+
     rmm::device_uvector<vertex_t> d_distances(graph_view.number_of_vertices(), handle.get_stream());
     rmm::device_uvector<vertex_t> d_predecessors(graph_view.number_of_vertices(),
                                                  handle.get_stream());
@@ -181,7 +174,7 @@ class Tests_MsBfs : public ::testing::TestWithParam<std::tuple<MsBfs_Usecase, in
         rmm::device_uvector<vertex_t> tmp_distances(graph_view.number_of_vertices(),
                                                     handle.get_next_usable_stream(i));
         rmm::device_uvector<vertex_t> tmp_predecessors(graph_view.number_of_vertices(),
-                                                      handle.get_next_usable_stream(i));
+                                                       handle.get_next_usable_stream(i));
 
         d_distances_ref.push_back(std::move(tmp_distances));
         d_predecessors_ref.push_back(std::move(tmp_predecessors));
@@ -204,57 +197,43 @@ class Tests_MsBfs : public ::testing::TestWithParam<std::tuple<MsBfs_Usecase, in
       // checksum
       vertex_t ref_sum = 0;
       for (size_t i = 0; i < h_sources.size(); i++) {
+        d_distances_ref[i] = cugraph::test::replace<vertex_t>(handle,
+                                                              std::move(d_distances_ref[i]),
+                                                              std::numeric_limits<vertex_t>::max(),
+                                                              static_cast<vertex_t>(0));
 
-        d_distances_ref[i] = cugraph::test::replace<vertex_t>(
-          handle,
-          std::move(d_distances_ref[i]),
-          std::numeric_limits<vertex_t>::max(),
-          static_cast<vertex_t>(0)
-        );
-
-        ref_sum += cugraph::test::reduce(
-          handle, std::move(d_distances_ref[i]),static_cast<vertex_t>(0));
-
+        ref_sum +=
+          cugraph::test::reduce(handle, std::move(d_distances_ref[i]), static_cast<vertex_t>(0));
       }
 
-      d_distances = cugraph::test::replace<vertex_t>(
-          handle,
-          std::move(d_distances),
-          std::numeric_limits<vertex_t>::max(),
-          static_cast<vertex_t>(0)
-      );
+      d_distances = cugraph::test::replace<vertex_t>(handle,
+                                                     std::move(d_distances),
+                                                     std::numeric_limits<vertex_t>::max(),
+                                                     static_cast<vertex_t>(0));
 
-      vertex_t ms_sum = cugraph::test::reduce(
-          handle, std::move(d_distances),static_cast<vertex_t>(0));
+      vertex_t ms_sum =
+        cugraph::test::reduce(handle, std::move(d_distances), static_cast<vertex_t>(0));
 
       auto d_vertex_degree = graph_view.compute_out_degrees(handle);
 
-      
       d_sources = cugraph::test::sort<vertex_t>(handle, std::move(d_sources));
-      
+
       size_t seeds_degree_size = 0;
 
-      std::tie(d_vertex_degree, d_vertices, seeds_degree_size) = cugraph::test::partition<vertex_t, vertex_t>(
-        handle,
-        std::move(d_vertex_degree),
-        std::move(d_vertices),
-        d_sources
-      );
+      std::tie(d_vertex_degree, d_vertices, seeds_degree_size) =
+        cugraph::test::partition<vertex_t, vertex_t>(
+          handle, std::move(d_vertex_degree), std::move(d_vertices), d_sources);
 
       d_vertex_degree.resize(seeds_degree_size, handle.get_stream());
 
-      auto seeds_degree_sum = cugraph::test::reduce(
-        handle,
-        std::move(d_vertex_degree),
-        static_cast<vertex_t>(0)
-      );
+      auto seeds_degree_sum =
+        cugraph::test::reduce(handle, std::move(d_vertex_degree), static_cast<vertex_t>(0));
 
       // Check the degree of the seed vertices
       // If degree of all seeds is zero hence ref_sum is zero otherwise ref_sum > 0
       ASSERT_TRUE(seeds_degree_sum ? ref_sum > 0 : ref_sum == 0);
       ASSERT_TRUE(ref_sum < std::numeric_limits<vertex_t>::max());
       ASSERT_TRUE(ref_sum == ms_sum);
-      
     }
   }
 };
@@ -291,8 +270,7 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_MsBfs_File,
   ::testing::Combine(
     // enable correctness checks
-    ::testing::Values(MsBfs_Usecase{2, 5, false, true},
-                      MsBfs_Usecase{4, 9, true, true}),
+    ::testing::Values(MsBfs_Usecase{2, 5, false, true}, MsBfs_Usecase{4, 9, true, true}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/netscience.mtx"),
                       cugraph::test::File_Usecase("test/datasets/dolphins.mtx"))));
 
@@ -312,8 +290,7 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_MsBfs_Rmat,
   // disable correctness checks for large graphs
   ::testing::Combine(
-    ::testing::Values(MsBfs_Usecase{10, 150, false, false},
-                      MsBfs_Usecase{12, 170, true, false}),
+    ::testing::Values(MsBfs_Usecase{10, 150, false, false}, MsBfs_Usecase{12, 170, true, false}),
     ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, true, false))));
 
 CUGRAPH_TEST_PROGRAM_MAIN()

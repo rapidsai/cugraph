@@ -402,24 +402,22 @@ reduce_by_key(raft::handle_t const& handle,
 
   auto reduced_keys =
     cugraph::allocate_dataframe_buffer<key_t>(num_unique_keys, handle.get_stream());
-  
+
   auto reduced_values =
     cugraph::allocate_dataframe_buffer<value_t>(num_unique_keys, handle.get_stream());
 
   // FIXME: Default binary op is thrust::minimum. If there are usecases,
   // update this to support thrust::plus, thrust::maximum and more.
 
-  thrust::reduce_by_key(
-      handle.get_thrust_policy(),
-      cugraph::get_dataframe_buffer_begin(sorted_keys),
-      cugraph::get_dataframe_buffer_end(sorted_keys),
-      cugraph::get_dataframe_buffer_begin(sorted_values),
-      cugraph::get_dataframe_buffer_begin(reduced_keys),
-      cugraph::get_dataframe_buffer_begin(reduced_values),
-      thrust::equal_to<key_t>{},
-      thrust::minimum<value_t>{}
-  );
-    
+  thrust::reduce_by_key(handle.get_thrust_policy(),
+                        cugraph::get_dataframe_buffer_begin(sorted_keys),
+                        cugraph::get_dataframe_buffer_end(sorted_keys),
+                        cugraph::get_dataframe_buffer_begin(sorted_values),
+                        cugraph::get_dataframe_buffer_begin(reduced_keys),
+                        cugraph::get_dataframe_buffer_begin(reduced_values),
+                        thrust::equal_to<key_t>{},
+                        thrust::minimum<value_t>{});
+
   return std::make_tuple(std::move(reduced_keys), std::move(reduced_values));
 }
 
@@ -442,7 +440,6 @@ cugraph::dataframe_buffer_type_t<value_t> replace(
   value_t old_value,
   value_t new_value)
 {
-
   thrust::replace(rmm::exec_policy(handle.get_stream()),
                   cugraph::get_dataframe_buffer_begin(values),
                   cugraph::get_dataframe_buffer_end(values),
@@ -458,23 +455,20 @@ template rmm::device_uvector<int32_t> replace<int32_t>(raft::handle_t const& han
                                                        int32_t new_value);
 
 template rmm::device_uvector<int64_t> replace<int64_t>(raft::handle_t const& handle,
-                                                      rmm::device_uvector<int64_t>&& values,
-                                                      int64_t old_value,
-                                                      int64_t new_value);
+                                                       rmm::device_uvector<int64_t>&& values,
+                                                       int64_t old_value,
+                                                       int64_t new_value);
 
 template <typename value_t>
-value_t reduce(
-  raft::handle_t const& handle,
-  cugraph::dataframe_buffer_type_t<value_t>&& values,
-  value_t init_value)
+value_t reduce(raft::handle_t const& handle,
+               cugraph::dataframe_buffer_type_t<value_t>&& values,
+               value_t init_value)
 {
-
   return thrust::reduce(rmm::exec_policy(handle.get_stream()),
                         cugraph::get_dataframe_buffer_begin(values),
                         cugraph::get_dataframe_buffer_end(values),
                         init_value,
-                        thrust::plus<value_t>()
-                        );
+                        thrust::plus<value_t>());
 }
 
 template int32_t reduce<int32_t>(raft::handle_t const& handle,
@@ -486,45 +480,45 @@ template int64_t reduce<int64_t>(raft::handle_t const& handle,
                                  int64_t init_value);
 
 template <typename key_t, typename value_t>
-std::tuple<cugraph::dataframe_buffer_type_t<key_t>, cugraph::dataframe_buffer_type_t<value_t>, size_t>
-partition(raft::handle_t const& handle,
-          cugraph::dataframe_buffer_type_t<key_t>&& keys,
-          cugraph::dataframe_buffer_type_t<value_t>&& values,
-          cugraph::dataframe_buffer_type_t<value_t> const& pred_values)
+std::
+  tuple<cugraph::dataframe_buffer_type_t<key_t>, cugraph::dataframe_buffer_type_t<value_t>, size_t>
+  partition(raft::handle_t const& handle,
+            cugraph::dataframe_buffer_type_t<key_t>&& keys,
+            cugraph::dataframe_buffer_type_t<value_t>&& values,
+            cugraph::dataframe_buffer_type_t<value_t> const& pred_values)
 {
-
   auto first_partition_last = thrust::partition(
-        rmm::exec_policy(handle.get_stream()),
-        thrust::make_zip_iterator(cugraph::get_dataframe_buffer_begin(keys), cugraph::get_dataframe_buffer_begin(values)),
-        thrust::make_zip_iterator(cugraph::get_dataframe_buffer_end(keys), cugraph::get_dataframe_buffer_end(values)),
-        [
-         pred_values_begin = cugraph::get_dataframe_buffer_begin(pred_values),
-         pred_values_end = cugraph::get_dataframe_buffer_end(pred_values)
-        ] __device__(
-          auto pair_key_value) {
-          return thrust::binary_search(
-            thrust::seq, pred_values_begin, pred_values_end, thrust::get<1>(pair_key_value));
-        });
+    rmm::exec_policy(handle.get_stream()),
+    thrust::make_zip_iterator(cugraph::get_dataframe_buffer_begin(keys),
+                              cugraph::get_dataframe_buffer_begin(values)),
+    thrust::make_zip_iterator(cugraph::get_dataframe_buffer_end(keys),
+                              cugraph::get_dataframe_buffer_end(values)),
+    [pred_values_begin = cugraph::get_dataframe_buffer_begin(pred_values),
+     pred_values_end =
+       cugraph::get_dataframe_buffer_end(pred_values)] __device__(auto pair_key_value) {
+      return thrust::binary_search(
+        thrust::seq, pred_values_begin, pred_values_end, thrust::get<1>(pair_key_value));
+    });
 
-  size_t first_parition_size = thrust::distance(
-    thrust::make_zip_iterator(cugraph::get_dataframe_buffer_begin(keys), cugraph::get_dataframe_buffer_begin(values)),
-    first_partition_last);
-    
+  size_t first_parition_size =
+    thrust::distance(thrust::make_zip_iterator(cugraph::get_dataframe_buffer_begin(keys),
+                                               cugraph::get_dataframe_buffer_begin(values)),
+                     first_partition_last);
 
   return std::make_tuple(std::move(keys), std::move(values), first_parition_size);
 }
 
 template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>, size_t>
 partition<int32_t, int32_t>(raft::handle_t const& handle,
-                                rmm::device_uvector<int32_t>&& keys,
-                                rmm::device_uvector<int32_t>&& values,
-                                rmm::device_uvector<int32_t> const& pred_values);
+                            rmm::device_uvector<int32_t>&& keys,
+                            rmm::device_uvector<int32_t>&& values,
+                            rmm::device_uvector<int32_t> const& pred_values);
 
 template std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<int64_t>, size_t>
 partition<int64_t, int64_t>(raft::handle_t const& handle,
-                                rmm::device_uvector<int64_t>&& keys,
-                                rmm::device_uvector<int64_t>&& values,
-                                rmm::device_uvector<int64_t> const& pred_values);
+                            rmm::device_uvector<int64_t>&& keys,
+                            rmm::device_uvector<int64_t>&& values,
+                            rmm::device_uvector<int64_t> const& pred_values);
 
 template <typename value_t>
 cugraph::dataframe_buffer_type_t<value_t> sequence(raft::handle_t const& handle,
