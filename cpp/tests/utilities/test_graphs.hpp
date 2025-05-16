@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2025, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -338,8 +338,7 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
                      bool test_weighted,
                      bool store_transposed,
                      bool multi_gpu,
-                     bool shuffle = true,
-                     uint64_t seed = 0) const
+                     bool shuffle = true) const
   {
     CUGRAPH_EXPECTS(
       (size_t{1} << scale_) <= static_cast<size_t>(std::numeric_limits<vertex_t>::max()),
@@ -387,14 +386,8 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
 
     // 2. generate edges
 
-    seed += static_cast<uint64_t>(multi_gpu ? handle.get_comms().get_rank() : 0);
-
-    std::cout<<"seed = " << seed << std::endl;
-    
     raft::random::RngState rng_state{
-      base_seed_ + seed};
-    
-
+      base_seed_ + static_cast<uint64_t>(multi_gpu ? handle.get_comms().get_rank() : 0)};
 
     std::vector<rmm::device_uvector<vertex_t>> edge_src_chunks{};
     std::vector<rmm::device_uvector<vertex_t>> edge_dst_chunks{};
