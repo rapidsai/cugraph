@@ -17,7 +17,6 @@
 #pragma once
 
 #include "cugraph/utilities/shuffle_comm.cuh"
-#include "prims/update_edge_src_dst_property.cuh"  // ??
 #include "prims/vertex_frontier.cuh"
 #include "structure/detail/structure_utils.cuh"
 #include "utilities/tuple_with_optionals_dispatching.hpp"

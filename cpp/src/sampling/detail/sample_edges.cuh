@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include "common_utilities.cuh"
 #include "prims/per_v_random_select_transform_outgoing_e.cuh"
 #include "prims/transform_reduce_e.cuh"
 #include "prims/vertex_frontier.cuh"

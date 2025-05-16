@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include "common_utilities.cuh"
 #include "prims/extract_transform_if_v_frontier_outgoing_e.cuh"
 #include "prims/extract_transform_v_frontier_outgoing_e.cuh"
 #include "prims/kv_store.cuh"
@@ -53,44 +54,6 @@
 namespace cugraph {
 namespace detail {
 
-namespace {
-
-template <typename TupleType>
-auto constexpr concatenate_views(TupleType edge_properties)
-{
-  if constexpr (std::tuple_size_v<TupleType> == 0) {
-    return edge_dummy_property_view_t{};
-  } else if constexpr (std::tuple_size_v<TupleType> == 1) {
-    return std::get<0>(edge_properties);
-  } else {
-    return view_concat(edge_properties);
-  }
-}
-
-// FIXME:  Duplicated across files...
-template <size_t input_tuple_pos,
-          size_t output_tuple_pos,
-          bool Flag,
-          bool... Flags,
-          typename InputTupleType,
-          typename OutputTupleType>
-void move_results(InputTupleType& input_tuple, OutputTupleType& output_tuple)
-{
-  if constexpr (Flag) {
-    std::get<output_tuple_pos>(output_tuple) = std::move(std::get<input_tuple_pos>(input_tuple));
-  }
-
-  if constexpr (sizeof...(Flags) > 0) {
-    if constexpr (Flag) {
-      move_results<input_tuple_pos + 1, output_tuple_pos + 1, Flags...>(input_tuple, output_tuple);
-    } else {
-      move_results<input_tuple_pos, output_tuple_pos + 1, Flags...>(input_tuple, output_tuple);
-    }
-  }
-}
-
-}  // namespace
-
 template <typename vertex_t, typename edge_properties_t, typename label_t>
 struct format_gather_edges_return_t {
   using edge_properties_tup_type =
@@ -113,12 +76,8 @@ struct format_gather_edges_return_t {
                                        edge_properties_t edge_properties,
                                        label_t label) const
   {
-    std::conditional_t<std::is_same_v<edge_properties_t, cuda::std::nullopt_t>,
-                       thrust::tuple<>,
-                       std::conditional_t<std::is_arithmetic_v<edge_properties_t>,
-                                          thrust::tuple<edge_properties_t>,
-                                          edge_properties_t>>
-      edge_properties_tup{};
+    edge_properties_tup_type edge_properties_tup{};
+
     if constexpr (!std::is_same_v<edge_properties_t, cuda::std::nullopt_t>) {
       if constexpr (std::is_arithmetic_v<edge_properties_t>) {
         thrust::get<0>(edge_properties_tup) = edge_properties;
@@ -126,6 +85,7 @@ struct format_gather_edges_return_t {
         edge_properties_tup = edge_properties;
       }
     }
+
     std::conditional_t<std::is_same_v<label_t, cuda::std::nullopt_t>,
                        thrust::tuple<>,
                        thrust::tuple<label_t>>
