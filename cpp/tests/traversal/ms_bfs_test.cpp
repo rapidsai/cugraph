@@ -117,6 +117,9 @@ class Tests_MsBfs : public ::testing::TestWithParam<std::tuple<MsBfs_Usecase, in
 
     auto num_unique_labels = cugraph::test::unique_count<vertex_t>(handle, d_tmp_sorted_labels);
 
+    // Should run this test on datasets with more than 1 component
+    ASSERT_TRUE(num_unique_labels > 1);
+
     rmm::device_uvector<vertex_t> d_first_components(num_unique_labels, handle.get_stream());
 
     std::tie(std::ignore, d_first_components) = cugraph::test::reduce_by_key<vertex_t, vertex_t>(
@@ -271,8 +274,7 @@ INSTANTIATE_TEST_SUITE_P(
   ::testing::Combine(
     // enable correctness checks
     ::testing::Values(MsBfs_Usecase{2, 5, false, true}, MsBfs_Usecase{4, 9, true, true}),
-    ::testing::Values(cugraph::test::File_Usecase("test/datasets/netscience.mtx"),
-                      cugraph::test::File_Usecase("test/datasets/dolphins.mtx"))));
+    ::testing::Values(cugraph::test::File_Usecase("test/datasets/netscience.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(rmat_small_test,
                          Tests_MsBfs_Rmat,
