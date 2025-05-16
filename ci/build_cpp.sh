@@ -10,7 +10,7 @@ source rapids-date-string
 export CMAKE_GENERATOR=Ninja
 
 # HACK
-export PARALLEL_LEVEL=4
+export PARALLEL_LEVEL=8
 
 rapids-print-env
 
