@@ -200,8 +200,8 @@ class Tests_MGNegative_Sampling : public ::testing::TestWithParam<input_usecase_
 
  private:
   graph_t graph_;
-  std::optional<cugraph::edge_property_t<graph_view_t, weight_t>> edge_weights_{std::nullopt};
-  std::optional<cugraph::edge_property_t<graph_view_t, bool>> edge_mask_{std::nullopt};
+  std::optional<cugraph::edge_property_t<edge_t, weight_t>> edge_weights_{std::nullopt};
+  std::optional<cugraph::edge_property_t<edge_t, bool>> edge_mask_{std::nullopt};
   std::optional<rmm::device_uvector<vertex_t>> renumber_map_labels_{std::nullopt};
 };
 

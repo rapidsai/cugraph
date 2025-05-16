@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, NVIDIA CORPORATION.
+ * Copyright (c) 2024-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -127,9 +127,10 @@ class Tests_SGMaximalIndependentSet
       per_v_transform_reduce_outgoing_e(
         handle,
         sg_graph_view,
-        cugraph::detail::edge_major_property_view_t<vertex_t, vertex_t const*>(
-          inclusiong_flags.data()),
-        cugraph::detail::edge_minor_property_view_t<vertex_t, vertex_t const*>(
+        cugraph::detail::edge_endpoint_property_view_t<vertex_t, vertex_t const*>(
+          std::vector<vertex_t const*>{inclusiong_flags.data()},
+          std::vector<vertex_t>{vertex_t{0}}),
+        cugraph::detail::edge_endpoint_property_view_t<vertex_t, vertex_t const*>(
           inclusiong_flags.data(), vertex_t{0}),
         cugraph::edge_dummy_property_t{}.view(),
         [] __device__(auto src, auto dst, auto src_included, auto dst_included, auto wt) {

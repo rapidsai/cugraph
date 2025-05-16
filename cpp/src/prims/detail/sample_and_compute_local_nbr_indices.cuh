@@ -37,6 +37,7 @@
 #include <cub/cub.cuh>
 #include <cuda/atomic>
 #include <cuda/functional>
+#include <cuda/std/cmath>
 #include <cuda/std/iterator>
 #include <cuda/std/optional>
 #include <thrust/adjacent_difference.h>
@@ -2666,11 +2667,11 @@ compute_aggregate_local_frontier_bias_type_pairs(
   using edge_value_t = typename EdgeValueInputWrapper::value_type;
   using edge_type_t  = typename EdgeTypeInputWrapper::value_type;
   using bias_t       = typename edge_op_result_type<key_t,
-                                              vertex_t,
-                                              typename EdgeSrcValueInputWrapper::value_type,
-                                              typename EdgeDstValueInputWrapper::value_type,
-                                              typename EdgeValueInputWrapper::value_type,
-                                              BiasEdgeOp>::type;
+                                                    vertex_t,
+                                                    typename EdgeSrcValueInputWrapper::value_type,
+                                                    typename EdgeDstValueInputWrapper::value_type,
+                                                    typename EdgeValueInputWrapper::value_type,
+                                                    BiasEdgeOp>::type;
   static_assert(std::is_arithmetic_v<bias_t>);
   static_assert(std::is_integral_v<edge_type_t>);
 
@@ -5535,11 +5536,11 @@ homogeneous_biased_sample_and_compute_local_nbr_indices(
   using key_t    = typename thrust::iterator_traits<KeyIterator>::value_type;
 
   using bias_t      = typename edge_op_result_type<key_t,
-                                              vertex_t,
-                                              typename EdgeSrcValueInputWrapper::value_type,
-                                              typename EdgeDstValueInputWrapper::value_type,
-                                              typename EdgeValueInputWrapper::value_type,
-                                              BiasEdgeOp>::type;
+                                                   vertex_t,
+                                                   typename EdgeSrcValueInputWrapper::value_type,
+                                                   typename EdgeDstValueInputWrapper::value_type,
+                                                   typename EdgeValueInputWrapper::value_type,
+                                                   BiasEdgeOp>::type;
   using edge_type_t = int32_t;  // dummy
 
   int minor_comm_rank{0};
@@ -5726,11 +5727,11 @@ heterogeneous_biased_sample_and_compute_local_nbr_indices(
   using key_t    = typename thrust::iterator_traits<KeyIterator>::value_type;
 
   using bias_t      = typename edge_op_result_type<key_t,
-                                              vertex_t,
-                                              typename EdgeSrcValueInputWrapper::value_type,
-                                              typename EdgeDstValueInputWrapper::value_type,
-                                              typename EdgeValueInputWrapper::value_type,
-                                              BiasEdgeOp>::type;
+                                                   vertex_t,
+                                                   typename EdgeSrcValueInputWrapper::value_type,
+                                                   typename EdgeDstValueInputWrapper::value_type,
+                                                   typename EdgeValueInputWrapper::value_type,
+                                                   BiasEdgeOp>::type;
   using edge_type_t = typename EdgeTypeInputWrapper::value_type;
 
   int minor_comm_rank{0};

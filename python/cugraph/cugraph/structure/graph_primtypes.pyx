@@ -16,43 +16,58 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-import numpy as np
 from libc.stdint cimport uintptr_t
 from libcpp.utility cimport move
 
 from rmm.pylibrmm.device_buffer cimport DeviceBuffer
-from cudf.core.buffer import as_buffer
+import pylibcudf
 import cudf
 
 
 cdef move_device_buffer_to_column(
-    unique_ptr[device_buffer] device_buffer_unique_ptr, dtype):
+    unique_ptr[device_buffer] device_buffer_unique_ptr,
+    dtype,
+    size_t itemsize,
+):
     """
     Transfers ownership of device_buffer_unique_ptr to a cuDF buffer which is
     used to construct a cudf column object, which is then returned. If the
     intermediate buffer is empty, the device_buffer_unique_ptr is still
     transfered but None is returned.
     """
-    buff = DeviceBuffer.c_from_unique_ptr(move(device_buffer_unique_ptr))
-    buff = as_buffer(buff)
-    if buff.nbytes != 0:
-        column = cudf.core.column.build_column(buff, dtype=cudf.dtype(dtype))
-        return column
+    cdef size_t buff_size = device_buffer_unique_ptr.get().size()
+    cdef DeviceBuffer buff = DeviceBuffer.c_from_unique_ptr(move(device_buffer_unique_ptr))
+    cdef size_t col_size = buff_size // itemsize
+    result_column = pylibcudf.Column.from_rmm_buffer(
+        buff,
+        dtype,
+        col_size,
+        [],
+    )
+    if buff_size != 0:
+        return result_column
     return None
 
 
 cdef move_device_buffer_to_series(
-    unique_ptr[device_buffer] device_buffer_unique_ptr, dtype, series_name):
+    unique_ptr[device_buffer] device_buffer_unique_ptr,
+    dtype,
+    size_t itemsize,
+    series_name
+):
     """
     Transfers ownership of device_buffer_unique_ptr to a cuDF buffer which is
     used to construct a cudf.Series object with name series_name, which is then
     returned. If the intermediate buffer is empty, the device_buffer_unique_ptr
     is still transfered but None is returned.
     """
-    column = move_device_buffer_to_column(move(device_buffer_unique_ptr), dtype)
+    column = move_device_buffer_to_column(
+        move(device_buffer_unique_ptr),
+        dtype,
+        itemsize,
+    )
     if column is not None:
-        series = cudf.Series._from_data({series_name: column})
-        return series
+        return cudf.Series.from_pylibcudf(column, metadata={"name": series_name})
     return None
 
 
@@ -60,17 +75,34 @@ cdef coo_to_df(GraphCOOPtrType graph):
     # FIXME: this function assumes columns named "src" and "dst" and can only
     # be used for SG graphs due to that assumption.
     contents = move(graph.get()[0].release())
-    src = move_device_buffer_to_column(move(contents.src_indices), "int32")
-    dst = move_device_buffer_to_column(move(contents.dst_indices), "int32")
+    src = move_device_buffer_to_series(
+        move(contents.src_indices),
+        pylibcudf.DataType(pylibcudf.TypeId.INT32),
+        4,
+        None,
+    )
+    dst = move_device_buffer_to_series(
+        move(contents.dst_indices),
+        pylibcudf.DataType(pylibcudf.TypeId.INT32),
+        4,
+        None,
+    )
 
     if GraphCOOPtrType is GraphCOOPtrFloat:
-        weight_type = "float32"
+        weight_type = pylibcudf.DataType(pylibcudf.TypeId.FLOAT32)
+        itemsize = 4
     elif GraphCOOPtrType is GraphCOOPtrDouble:
-        weight_type = "float64"
+        weight_type = pylibcudf.DataType(pylibcudf.TypeId.FLOAT64)
+        itemsize = 8
     else:
         raise TypeError("Invalid GraphCOOPtrType")
 
-    wgt = move_device_buffer_to_column(move(contents.edge_data), weight_type)
+    wgt = move_device_buffer_to_series(
+        move(contents.edge_data),
+        weight_type,
+        itemsize,
+        None,
+    )
 
     df = cudf.DataFrame()
     df['src'] = src
@@ -83,20 +115,34 @@ cdef coo_to_df(GraphCOOPtrType graph):
 
 cdef csr_to_series(GraphCSRPtrType graph):
     contents = move(graph.get()[0].release())
-    csr_offsets = move_device_buffer_to_series(move(contents.offsets),
-                                               "int32", "csr_offsets")
-    csr_indices = move_device_buffer_to_series(move(contents.indices),
-                                               "int32", "csr_indices")
+    csr_offsets = move_device_buffer_to_series(
+        move(contents.offsets),
+        pylibcudf.DataType(pylibcudf.TypeId.INT32),
+        4,
+        "csr_offsets"
+    )
+    csr_indices = move_device_buffer_to_series(
+        move(contents.indices),
+        pylibcudf.DataType(pylibcudf.TypeId.INT32),
+        4,
+        "csr_indices"
+    )
 
     if GraphCSRPtrType is GraphCSRPtrFloat:
-        weight_type = "float32"
+        weight_type = pylibcudf.DataType(pylibcudf.TypeId.FLOAT32)
+        itemsize = 4
     elif GraphCSRPtrType is GraphCSRPtrDouble:
-        weight_type = "float64"
+        weight_type = pylibcudf.DataType(pylibcudf.TypeId.FLOAT64)
+        itemsize = 8
     else:
         raise TypeError("Invalid GraphCSRPtrType")
 
-    csr_weights = move_device_buffer_to_series(move(contents.edge_data),
-                                               weight_type, "csr_weights")
+    csr_weights = move_device_buffer_to_series(
+        move(contents.edge_data),
+        weight_type,
+        itemsize,
+        "csr_weights"
+    )
 
     return (csr_offsets, csr_indices, csr_weights)
 

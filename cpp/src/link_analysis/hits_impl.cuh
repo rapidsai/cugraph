@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -95,8 +95,8 @@ std::tuple<result_t, size_t> hits(raft::handle_t const& handle,
   }
 
   // Property wrappers
-  edge_src_property_t<GraphViewType, result_t> prev_src_hubs(handle, graph_view);
-  edge_dst_property_t<GraphViewType, result_t> curr_dst_auth(handle, graph_view);
+  edge_src_property_t<vertex_t, result_t> prev_src_hubs(handle, graph_view);
+  edge_dst_property_t<vertex_t, result_t> curr_dst_auth(handle, graph_view);
   rmm::device_uvector<result_t> temp_hubs(graph_view.local_vertex_partition_range_size(),
                                           handle.get_stream());
 
