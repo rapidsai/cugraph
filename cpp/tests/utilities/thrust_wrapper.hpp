@@ -63,9 +63,40 @@ sort_by_key(raft::handle_t const& handle,
             cugraph::dataframe_buffer_type_t<key_t> const& second,
             cugraph::dataframe_buffer_type_t<value_t> const& values);
 
+template <typename key_t, typename value_t>
+std::tuple<cugraph::dataframe_buffer_type_t<key_t>, cugraph::dataframe_buffer_type_t<value_t>>
+reduce_by_key(raft::handle_t const& handle,
+               cugraph::dataframe_buffer_type_t<key_t>&& keys,
+               cugraph::dataframe_buffer_type_t<value_t>&& values,
+               size_t num_unique_keys);
+
+template <typename value_t>
+cugraph::dataframe_buffer_type_t<value_t> replace(
+  raft::handle_t const& handle,
+  cugraph::dataframe_buffer_type_t<value_t>&& values,
+  value_t old_value,
+  value_t new_value);
+
+template <typename value_t>
+value_t reduce(
+  raft::handle_t const& handle,
+  cugraph::dataframe_buffer_type_t<value_t>&& values,
+  value_t init_value);
+
+template <typename key_t, typename value_t>
+std::tuple<cugraph::dataframe_buffer_type_t<key_t>, cugraph::dataframe_buffer_type_t<value_t>, size_t>
+partition(raft::handle_t const& handle,
+               cugraph::dataframe_buffer_type_t<key_t>&& keys,
+               cugraph::dataframe_buffer_type_t<value_t>&& values,
+               cugraph::dataframe_buffer_type_t<value_t> const& pred_values);
+
 template <typename value_t>
 cugraph::dataframe_buffer_type_t<value_t> unique(
   raft::handle_t const& handle, cugraph::dataframe_buffer_type_t<value_t>&& values);
+
+template <typename value_t>
+size_t unique_count(
+  raft::handle_t const& handle, cugraph::dataframe_buffer_type_t<value_t> const& values);
 
 template <typename value_t>
 cugraph::dataframe_buffer_type_t<value_t> sequence(raft::handle_t const& handle,
