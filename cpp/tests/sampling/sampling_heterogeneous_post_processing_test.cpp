@@ -159,8 +159,7 @@ class Tests_SamplingHeterogeneousPostProcessing
         .num_vertex_types;  // necessary to enforce that edge type dictates edge source vertex type
                             // and edge destination vertex type.
 
-    std::optional<cugraph::edge_property_t<decltype(graph_view), edge_type_t>> edge_types{
-      std::nullopt};
+    std::optional<cugraph::edge_property_t<edge_t, edge_type_t>> edge_types{std::nullopt};
     if (num_edge_types > 1) {
       edge_types =
         cugraph::test::generate<decltype(graph_view), edge_type_t>::edge_property_by_src_dst_types(
@@ -170,7 +169,7 @@ class Tests_SamplingHeterogeneousPostProcessing
           num_edge_types);
     }
 
-    cugraph::edge_property_t<decltype(graph_view), edge_id_t> edge_ids(handle);
+    cugraph::edge_property_t<edge_t, edge_id_t> edge_ids(handle);
     if (edge_types) {
       static_assert(std::is_same_v<edge_type_t, int32_t>);
       edge_ids =

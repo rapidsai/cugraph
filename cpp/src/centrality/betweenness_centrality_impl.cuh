@@ -126,10 +126,8 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> brandes_b
   detail::scalar_fill(handle, distances.data(), distances.size(), invalid_distance);
   detail::scalar_fill(handle, sigmas.data(), sigmas.size(), edge_t{0});
 
-  edge_src_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, edge_t> src_sigmas(
-    handle, graph_view);
-  edge_dst_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, vertex_t> dst_distances(
-    handle, graph_view);
+  edge_src_property_t<vertex_t, edge_t> src_sigmas(handle, graph_view);
+  edge_dst_property_t<vertex_t, vertex_t> dst_distances(handle, graph_view);
 
   auto vertex_partition =
     vertex_partition_device_view_t<vertex_t, multi_gpu>(graph_view.local_vertex_partition_view());
@@ -240,12 +238,10 @@ void accumulate_vertex_results(
                       });
   }
 
-  edge_src_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>,
-                      thrust::tuple<vertex_t, edge_t, weight_t>>
-    src_properties(handle, graph_view);
-  edge_dst_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>,
-                      thrust::tuple<vertex_t, edge_t, weight_t>>
-    dst_properties(handle, graph_view);
+  edge_src_property_t<vertex_t, thrust::tuple<vertex_t, edge_t, weight_t>> src_properties(
+    handle, graph_view);
+  edge_dst_property_t<vertex_t, thrust::tuple<vertex_t, edge_t, weight_t>> dst_properties(
+    handle, graph_view);
 
   update_edge_src_property(
     handle,
@@ -335,12 +331,10 @@ void accumulate_edge_results(
   rmm::device_uvector<weight_t> deltas(sigmas.size(), handle.get_stream());
   detail::scalar_fill(handle, deltas.data(), deltas.size(), weight_t{0});
 
-  edge_src_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>,
-                      thrust::tuple<vertex_t, edge_t, weight_t>>
-    src_properties(handle, graph_view);
-  edge_dst_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>,
-                      thrust::tuple<vertex_t, edge_t, weight_t>>
-    dst_properties(handle, graph_view);
+  edge_src_property_t<vertex_t, thrust::tuple<vertex_t, edge_t, weight_t>> src_properties(
+    handle, graph_view);
+  edge_dst_property_t<vertex_t, thrust::tuple<vertex_t, edge_t, weight_t>> dst_properties(
+    handle, graph_view);
 
   update_edge_src_property(
     handle,
@@ -587,8 +581,7 @@ template <typename vertex_t,
           typename weight_t,
           bool multi_gpu,
           typename VertexIterator>
-edge_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, weight_t>
-edge_betweenness_centrality(
+edge_property_t<edge_t, weight_t> edge_betweenness_centrality(
   const raft::handle_t& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
@@ -619,8 +612,7 @@ edge_betweenness_centrality(
                     "Invalid input argument: sources have invalid vertex IDs.");
   }
 
-  edge_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, weight_t> centralities(
-    handle, graph_view);
+  edge_property_t<edge_t, weight_t> centralities(handle, graph_view);
 
   if (graph_view.has_edge_mask()) {
     auto unmasked_graph_view = graph_view;
@@ -754,8 +746,7 @@ rmm::device_uvector<weight_t> betweenness_centrality(
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-edge_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, weight_t>
-edge_betweenness_centrality(
+edge_property_t<edge_t, weight_t> edge_betweenness_centrality(
   const raft::handle_t& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
