@@ -546,6 +546,12 @@ class edge_src_property_t {
  public:
   static_assert(is_arithmetic_or_thrust_tuple_of_arithmetic<T>::value);
 
+  using value_type = T;
+  using value_iterator =
+    dataframe_buffer_iterator_type_t<std::conditional_t<std::is_same_v<T, bool>, uint32_t, T>>;
+  using const_value_iterator = dataframe_buffer_const_iterator_type_t<
+    std::conditional_t<std::is_same_v<T, bool>, uint32_t, T>>;
+
   edge_src_property_t(raft::handle_t const& handle) {}
 
   template <typename GraphViewType>
@@ -599,6 +605,10 @@ class edge_dst_property_t {
   static_assert(is_arithmetic_or_thrust_tuple_of_arithmetic<T>::value);
 
   using value_type = T;
+  using value_iterator =
+    dataframe_buffer_iterator_type_t<std::conditional_t<std::is_same_v<T, bool>, uint32_t, T>>;
+  using const_value_iterator = dataframe_buffer_const_iterator_type_t<
+    std::conditional_t<std::is_same_v<T, bool>, uint32_t, T>>;
 
   edge_dst_property_t(raft::handle_t const& handle) {}
 
@@ -660,6 +670,160 @@ class edge_dst_dummy_property_t {
 
   auto view() const { return detail::edge_endpoint_dummy_property_view_t{}; }
 };
+
+// SG-only (use a vertex property buffer instead of creating a new edge_src_property_t object to
+// save memory)
+template <typename vertex_t, typename T, typename GraphViewType>
+detail::edge_endpoint_property_view_t<vertex_t,
+                                      typename edge_src_property_t<vertex_t,
+                                                                   T>::const_value_iterator,
+                                      T>
+make_edge_src_property_view(
+  GraphViewType const& graph_view,
+  typename edge_src_property_t<vertex_t, T>::const_value_iterator value_first,
+  size_t num_values)
+{
+  using const_value_iterator = typename edge_src_property_t<vertex_t, T>::const_value_iterator;
+
+  CUGRAPH_EXPECTS(!GraphViewType::is_multi_gpu,
+                  "Invalid input argument: this function is only for single-GPU.");
+
+  vertex_t range_size{};
+  if constexpr (GraphViewType::is_storage_transposed) {  // minor
+    range_size = graph_view.local_edge_partition_src_range_size();
+  } else {  // major
+    range_size = graph_view.local_edge_partition_src_range_size(size_t{0});
+  }
+  auto expected_num_values = std::is_same_v<T, bool>
+                               ? cugraph::packed_bool_size(static_cast<size_t>(range_size))
+                               : static_cast<size_t>(range_size);
+  CUGRAPH_EXPECTS(
+    num_values == expected_num_values,
+    "Invalid input argument: num_values does not match the expected number of values.");
+
+  if constexpr (GraphViewType::is_storage_transposed) {  // minor
+    return detail::edge_endpoint_property_view_t<vertex_t, const_value_iterator, T>(value_first,
+                                                                                    vertex_t{0});
+  } else {  // major
+    return detail::edge_endpoint_property_view_t<vertex_t, const_value_iterator, T>(
+      std::vector<const_value_iterator>{value_first}, std::vector<vertex_t>{vertex_t{0}});
+  }
+}
+
+// SG-only (use a vertex property buffer instead of creating a new edge_src_property_t object to
+// save memory)
+template <typename vertex_t, typename T, typename GraphViewType>
+detail::edge_endpoint_property_view_t<vertex_t,
+                                      typename edge_src_property_t<vertex_t, T>::value_iterator,
+                                      T>
+make_edge_src_property_mutable_view(
+  GraphViewType const& graph_view,
+  typename edge_src_property_t<vertex_t, T>::value_iterator value_first,
+  size_t num_values)
+{
+  using value_iterator = typename edge_src_property_t<vertex_t, T>::value_iterator;
+
+  CUGRAPH_EXPECTS(!GraphViewType::is_multi_gpu,
+                  "Invalid input argument: this function is only for single-GPU.");
+
+  vertex_t range_size{};
+  if constexpr (GraphViewType::is_storage_transposed) {  // minor
+    range_size = graph_view.local_edge_partition_src_range_size();
+  } else {  // major
+    range_size = graph_view.local_edge_partition_src_range_size(size_t{0});
+  }
+  auto expected_num_values = std::is_same_v<T, bool>
+                               ? cugraph::packed_bool_size(static_cast<size_t>(range_size))
+                               : static_cast<size_t>(range_size);
+  CUGRAPH_EXPECTS(
+    num_values == expected_num_values,
+    "Invalid input argument: num_values does not match the expected number of values.");
+
+  if constexpr (GraphViewType::is_storage_transposed) {  // minor
+    return detail::edge_endpoint_property_view_t<vertex_t, value_iterator, T>(value_first,
+                                                                              vertex_t{0});
+  } else {  // major
+    return detail::edge_endpoint_property_view_t<vertex_t, value_iterator, T>(
+      std::vector<value_iterator>{value_first}, std::vector<vertex_t>{vertex_t{0}});
+  }
+}
+
+// SG-only (use a vertex property buffer instead of creating a new edge_dst_property_t object to
+// save memory)
+template <typename vertex_t, typename T, typename GraphViewType>
+detail::edge_endpoint_property_view_t<vertex_t,
+                                      typename edge_dst_property_t<vertex_t,
+                                                                   T>::const_value_iterator,
+                                      T>
+make_edge_dst_property_view(
+  GraphViewType const& graph_view,
+  typename edge_dst_property_t<vertex_t, T>::const_value_iterator value_first,
+  size_t num_values)
+{
+  using const_value_iterator = typename edge_dst_property_t<vertex_t, T>::const_value_iterator;
+
+  CUGRAPH_EXPECTS(!GraphViewType::is_multi_gpu,
+                  "Invalid input argument: this function is only for single-GPU.");
+
+  vertex_t range_size{};
+  if constexpr (GraphViewType::is_storage_transposed) {  // major
+    range_size = graph_view.local_edge_partition_dst_range_size(size_t{0});
+  } else {  // minor
+    range_size = graph_view.local_edge_partition_dst_range_size();
+  }
+  auto expected_num_values = std::is_same_v<T, bool>
+                               ? cugraph::packed_bool_size(static_cast<size_t>(range_size))
+                               : static_cast<size_t>(range_size);
+  CUGRAPH_EXPECTS(
+    num_values == expected_num_values,
+    "Invalid input argument: num_values does not match the expected number of values.");
+
+  if constexpr (GraphViewType::is_storage_transposed) {  // major
+    return detail::edge_endpoint_property_view_t<vertex_t, const_value_iterator, T>(
+      std::vector<const_value_iterator>{value_first}, std::vector<vertex_t>{vertex_t{0}});
+  } else {  // minor
+    return detail::edge_endpoint_property_view_t<vertex_t, const_value_iterator, T>(value_first,
+                                                                                    vertex_t{0});
+  }
+}
+
+// SG-only (use a vertex property buffer instead of creating a new edge_dst_property_t object to
+// save memory)
+template <typename vertex_t, typename T, typename GraphViewType>
+detail::edge_endpoint_property_view_t<vertex_t,
+                                      typename edge_dst_property_t<vertex_t, T>::value_iterator,
+                                      T>
+make_edge_dst_property_mutable_view(
+  GraphViewType const& graph_view,
+  typename edge_dst_property_t<vertex_t, T>::value_iterator value_first,
+  size_t num_values)
+{
+  using value_iterator = typename edge_dst_property_t<vertex_t, T>::value_iterator;
+
+  CUGRAPH_EXPECTS(!GraphViewType::is_multi_gpu,
+                  "Invalid input argument: this function is only for single-GPU.");
+
+  vertex_t range_size{};
+  if constexpr (GraphViewType::is_storage_transposed) {  // major
+    range_size = graph_view.local_edge_partition_dst_range_size(size_t{0});
+  } else {  // minor
+    range_size = graph_view.local_edge_partition_dst_range_size();
+  }
+  auto expected_num_values = std::is_same_v<T, bool>
+                               ? cugraph::packed_bool_size(static_cast<size_t>(range_size))
+                               : static_cast<size_t>(range_size);
+  CUGRAPH_EXPECTS(
+    num_values == expected_num_values,
+    "Invalid input argument: num_values does not match the expected number of values.");
+
+  if constexpr (GraphViewType::is_storage_transposed) {  // major
+    return detail::edge_endpoint_property_view_t<vertex_t, value_iterator, T>(
+      std::vector<value_iterator>{value_first}, std::vector<vertex_t>{vertex_t{0}});
+  } else {  // minor
+    return detail::edge_endpoint_property_view_t<vertex_t, value_iterator, T>(value_first,
+                                                                              vertex_t{0});
+  }
+}
 
 template <typename vertex_t, typename... Iters, typename... Types>
 auto view_concat(detail::edge_endpoint_property_view_t<vertex_t, Iters, Types> const&... views)
