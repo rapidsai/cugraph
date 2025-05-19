@@ -102,6 +102,20 @@ void transform_increment_ints(raft::device_span<value_t> values,
 }
 
 template <typename value_t>
+void transform_not_equal(raft::device_span<value_t> values,
+                         raft::device_span<bool> result,
+                         value_t compare,
+                         rmm::cuda_stream_view const& stream_view)
+{
+  thrust::transform(rmm::exec_policy(stream_view),
+                    values.begin(),
+                    values.end(),
+                    result.begin(),
+                    cuda::proclaim_return_type<bool>(
+                      [compare] __device__(value_t value) { return compare != value; }));
+}
+
+template <typename value_t>
 void stride_fill(rmm::cuda_stream_view const& stream_view,
                  value_t* d_value,
                  size_t size,

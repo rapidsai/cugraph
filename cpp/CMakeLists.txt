@@ -71,16 +71,6 @@ rapids_find_package(CUDAToolkit REQUIRED
     INSTALL_EXPORT_SET  cugraph-exports
     )
 
-if (BUILD_CUGRAPH_MTMG_TESTS)
-    if(NOT TARGET ucx::ucp)
-        find_package(ucx REQUIRED)
-    endif()
-
-    if(NOT TARGET ucxx::ucxx)
-        find_package(ucxx REQUIRED)
-    endif()
-endif()
-
 set(CUGRAPH_C_FLAGS "")
 set(CUGRAPH_CXX_FLAGS "")
 set(CUGRAPH_CUDA_FLAGS "")
@@ -136,6 +126,16 @@ rapids_cpm_rmm(BUILD_EXPORT_SET cugraph-exports)
 include(${rapids-cmake-dir}/cpm/cuco.cmake)
 rapids_cpm_cuco(BUILD_EXPORT_SET cugraph-exports INSTALL_EXPORT_SET cugraph-exports)
 include(cmake/thirdparty/get_raft.cmake)
+
+if (BUILD_CUGRAPH_MTMG_TESTS)
+    if(NOT TARGET ucx::ucp)
+        find_package(ucx REQUIRED)
+    endif()
+
+    if(NOT TARGET ucxx::ucxx)
+        find_package(ucxx REQUIRED)
+    endif()
+endif()
 
 if(BUILD_TESTS)
   include(${rapids-cmake-dir}/cpm/gtest.cmake)
@@ -550,6 +550,7 @@ add_library(cugraph_c
         src/c_api/decompress_to_edgelist.cpp
         src/c_api/edgelist.cpp
         src/c_api/renumber_arbitrary_edgelist.cu
+        src/c_api/legacy_fa2.cpp
         )
 add_library(cugraph::cugraph_c ALIAS cugraph_c)
 

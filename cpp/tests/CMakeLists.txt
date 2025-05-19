@@ -374,6 +374,10 @@ ConfigureTest(GENERATE_BIPARTITE_RMAT_TEST generators/generate_bipartite_rmat_te
     GPUS 1 PERCENT 100)
 
 ###################################################################################################
+# - Remove multi-edges tests ----------------------------------------------------------------------
+ConfigureTest(REMOVE_MULTI_EDGES_TEST structure/remove_multi_edges_test.cpp)
+
+###################################################################################################
 # - Symmetrize tests ------------------------------------------------------------------------------
 ConfigureTest(SYMMETRIZE_TEST structure/symmetrize_test.cpp)
 
@@ -715,6 +719,11 @@ if(BUILD_CUGRAPH_MG_TESTS)
                     prims/mg_transform_reduce_v_frontier_outgoing_e_by_dst.cu)
 
     ###############################################################################################
+    # - MG PRIMS TRANSFORM_REDUCE_IF_V_FRONTIER_OUTGOING_E_BY_DST tests ---------------------------
+    ConfigureTestMG(MG_TRANSFORM_REDUCE_IF_V_FRONTIER_OUTGOING_E_BY_DST_TEST
+                    prims/mg_transform_reduce_if_v_frontier_outgoing_e_by_dst.cu)
+
+    ###############################################################################################
     # - MG PRIMS REDUCE_V tests -------------------------------------------------------------------
     ConfigureTestMG(MG_REDUCE_V_TEST prims/mg_reduce_v.cu)
 
@@ -754,9 +763,18 @@ if(BUILD_CUGRAPH_MG_TESTS)
     ConfigureTestMG(MG_EXTRACT_TRANSFORM_E_TEST prims/mg_extract_transform_e.cu)
 
     ###############################################################################################
+    # - MG PRIMS EXTRACT_TRANSFORM_IF_E tests -----------------------------------------------------
+    ConfigureTestMG(MG_EXTRACT_TRANSFORM_IF_E_TEST prims/mg_extract_transform_if_e.cu)
+
+    ###############################################################################################
     # - MG PRIMS EXTRACT_TRANSFORM_V_FRONTIER_OUTGOING_E tests ------------------------------------
     ConfigureTestMG(MG_EXTRACT_TRANSFORM_V_FRONTIER_OUTGOING_E_TEST
                     prims/mg_extract_transform_v_frontier_outgoing_e.cu)
+
+    ###############################################################################################
+    # - MG PRIMS EXTRACT_TRANSFORM_IF_V_FRONTIER_OUTGOING_E tests ---------------------------------
+    ConfigureTestMG(MG_EXTRACT_TRANSFORM_IF_V_FRONTIER_OUTGOING_E_TEST
+                    prims/mg_extract_transform_if_v_frontier_outgoing_e.cu)
 
     ###############################################################################################
     # - MG PRIMS PER_V_RANDOM_SELECT_TRANSFORM_OUTGOING_E tests -----------------------------------
@@ -912,7 +930,7 @@ ConfigureCTest(CAPI_K_TRUSS_TEST c_api/k_truss_test.c)
 if (BUILD_CUGRAPH_MTMG_TESTS)
     ###################################################################################################
     # - MTMG tests -------------------------------------------------------------------------
-    ConfigureTest(MTMG_TEST mtmg/threaded_test.cu)
+    ConfigureTest(MTMG_TEST mtmg/threaded_test.cpp)
     target_link_libraries(MTMG_TEST
                           PRIVATE
                           cugraphmgtestutil
@@ -922,7 +940,7 @@ if (BUILD_CUGRAPH_MTMG_TESTS)
                           ucxx::ucxx
                          )
 
-    ConfigureTest(MTMG_LOUVAIN_TEST mtmg/threaded_test_louvain.cu)
+    ConfigureTest(MTMG_LOUVAIN_TEST mtmg/threaded_test_louvain.cpp)
     target_link_libraries(MTMG_LOUVAIN_TEST
                           PRIVATE
                           cugraphmgtestutil
@@ -932,7 +950,7 @@ if (BUILD_CUGRAPH_MTMG_TESTS)
                           ucxx::ucxx
                          )
 
-    ConfigureTest(MTMG_JACCARD_TEST mtmg/threaded_test_jaccard.cu)
+    ConfigureTest(MTMG_JACCARD_TEST mtmg/threaded_test_jaccard.cpp)
     target_link_libraries(MTMG_JACCARD_TEST
                           PRIVATE
                           cugraphmgtestutil
@@ -945,7 +963,7 @@ if (BUILD_CUGRAPH_MTMG_TESTS)
     if(BUILD_CUGRAPH_MG_TESTS)
         ###############################################################################################
         # - Multi-node MTMG tests ---------------------------------------------------------------------
-        ConfigureTest(MTMG_MULTINODE_TEST mtmg/multi_node_threaded_test.cu utilities/mg_utilities.cpp)
+        ConfigureTest(MTMG_MULTINODE_TEST mtmg/multi_node_threaded_test.cpp utilities/mg_utilities.cpp)
         target_link_libraries(MTMG_MULTINODE_TEST
                               PRIVATE
                               cugraphmgtestutil

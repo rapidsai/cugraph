@@ -16,6 +16,7 @@
 #pragma once
 
 #include <raft/core/handle.hpp>
+#include <raft/core/host_span.hpp>
 #include <raft/random/rng_state.hpp>
 
 #include <rmm/device_uvector.hpp>
@@ -130,7 +131,7 @@ shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning(
   std::optional<rmm::device_uvector<edge_type_t>>&& edge_types,
   std::optional<rmm::device_uvector<edge_time_t>>&& edge_start_times,
   std::optional<rmm::device_uvector<edge_time_t>>&& edge_end_times,
-  std::vector<vertex_t> const& vertex_partition_range_lasts);
+  raft::host_span<vertex_t const> vertex_partition_range_lasts);
 
 /**
  * @ingroup shuffle_wrappers_cpp
@@ -174,7 +175,7 @@ template <typename vertex_t>
 rmm::device_uvector<vertex_t> shuffle_int_vertices_to_local_gpu_by_vertex_partitioning(
   raft::handle_t const& handle,
   rmm::device_uvector<vertex_t>&& vertices,
-  std::vector<vertex_t> const& vertex_partition_range_lasts);
+  raft::host_span<vertex_t const> vertex_partition_range_lasts);
 
 /**
  * @ingroup shuffle_wrappers_cpp
@@ -197,7 +198,7 @@ shuffle_int_vertex_value_pairs_to_local_gpu_by_vertex_partitioning(
   raft::handle_t const& handle,
   rmm::device_uvector<vertex_t>&& vertices,
   rmm::device_uvector<value_t>&& values,
-  std::vector<vertex_t> const& vertex_partition_range_lasts);
+  raft::host_span<vertex_t const> vertex_partition_range_lasts);
 
 /**
  * @ingroup shuffle_wrappers_cpp

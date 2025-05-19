@@ -15,8 +15,9 @@
  */
 #pragma once
 
+#include "prims/extract_transform_if_e.cuh"
 #include "prims/fill_edge_src_dst_property.cuh"
-#include "prims/transform_reduce_v_frontier_outgoing_e_by_dst.cuh"
+#include "prims/transform_reduce_if_v_frontier_outgoing_e_by_dst.cuh"
 #include "prims/update_edge_src_dst_property.cuh"
 #include "prims/update_v_frontier.cuh"
 #include "prims/vertex_frontier.cuh"
@@ -185,16 +186,29 @@ accumulate_new_roots(raft::handle_t const& handle,
 
 template <typename vertex_t, typename EdgeIterator>
 struct e_op_t {
+  __device__ vertex_t operator()(thrust::tuple<vertex_t, vertex_t> tagged_src,
+                                 vertex_t dst,
+                                 cuda::std::nullopt_t,
+                                 cuda::std::nullopt_t,
+                                 cuda::std::nullopt_t) const
+  {
+    auto tag = thrust::get<1>(tagged_src);
+    return tag;
+  }
+};
+
+template <typename vertex_t, typename EdgeIterator>
+struct pred_op_t {
   detail::edge_partition_endpoint_property_device_view_t<vertex_t, vertex_t*> dst_components{};
   vertex_t dst_first{};
   EdgeIterator edge_buffer_first{};
   size_t* num_edge_inserts{};
 
-  __device__ cuda::std::optional<vertex_t> operator()(thrust::tuple<vertex_t, vertex_t> tagged_src,
-                                                      vertex_t dst,
-                                                      cuda::std::nullopt_t,
-                                                      cuda::std::nullopt_t,
-                                                      cuda::std::nullopt_t) const
+  __device__ bool operator()(thrust::tuple<vertex_t, vertex_t> tagged_src,
+                             vertex_t dst,
+                             cuda::std::nullopt_t,
+                             cuda::std::nullopt_t,
+                             cuda::std::nullopt_t) const
   {
     auto tag        = thrust::get<1>(tagged_src);
     auto dst_offset = dst - dst_first;
@@ -208,8 +222,7 @@ struct e_op_t {
       *(edge_buffer_first + edge_idx) =
         tag >= old ? thrust::make_tuple(tag, old) : thrust::make_tuple(old, tag);
     }
-    return old == invalid_component_id<vertex_t>::value ? cuda::std::optional<vertex_t>{tag}
-                                                        : cuda::std::nullopt;
+    return old == invalid_component_id<vertex_t>::value;
   }
 };
 
@@ -223,11 +236,6 @@ struct v_op_t {
   vertex_partition_device_view_t<typename GraphViewType::vertex_type, GraphViewType::is_multi_gpu>
     vertex_partition{};
   vertex_type* level_components{};
-  decltype(thrust::make_zip_iterator(thrust::make_tuple(
-    static_cast<vertex_type*>(nullptr), static_cast<vertex_type*>(nullptr)))) edge_buffer_first{};
-  // FIXME: we can use cuda::atomic instead but currently on a system with x86 + GPU, this requires
-  // placing the atomic variable on managed memory and this adds additional complication.
-  size_t* num_edge_inserts{};
   size_t bucket_idx_next{};
   size_t bucket_idx_conflict{};  // relevant only if GraphViewType::is_multi_gpu is true
 
@@ -305,6 +313,15 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
   // next level)
   auto degree_sum_threshold =
     static_cast<edge_t>(handle.get_device_properties().multiProcessorCount) * edge_t{1024};
+  if constexpr (GraphViewType::is_multi_gpu) {  // to enforce that degree_sum_threshold is same in
+                                                // every GPU (e.g. there is no guarantee that every
+                                                // GPU has the same number of SMs)
+    auto& comm           = handle.get_comms();
+    auto const comm_size = comm.get_size();
+    degree_sum_threshold = host_scalar_allreduce(
+      comm, degree_sum_threshold, raft::comms::op_t::SUM, handle.get_stream());
+    degree_sum_threshold /= static_cast<edge_t>(comm_size);
+  }
 
   size_t num_levels{0};
   graph_t<vertex_t, edge_t, GraphViewType::is_storage_transposed, GraphViewType::is_multi_gpu>
@@ -344,325 +361,446 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
                         return degree > 0 ? invalid_component_id<vertex_t>::value : v;
                       });
 
-    // 2-2. initialize new root candidates
+    // 2-2. decide whether to run BFS first or not
 
-    // Vertices are first partitioned to high-degree vertices and low-degree vertices, we can reach
-    // degree_sum_threshold with fewer high-degree vertices leading to a higher compression ratio.
-    // The degree threshold is set to ceil(sqrt(degree_sum_threshold * 2)); this guarantees the
-    // compression ratio of at least 50% (ignoring rounding errors) even if all the selected roots
-    // fall into a single connected component as there will be at least as many non-root vertices in
-    // the connected component (assuming there are no multi-edges, if there are multi-edges, we may
-    // not get 50% compression in # vertices but still get compression in # edges). the remaining
-    // low-degree vertices will be randomly shuffled so comparable ratios of vertices will be
-    // selected as roots in the remaining connected components.
-
-    rmm::device_uvector<vertex_t> new_root_candidates(
-      level_graph_view.local_vertex_partition_range_size(), handle.get_stream());
-    new_root_candidates.resize(
-      thrust::distance(
-        new_root_candidates.begin(),
-        thrust::copy_if(
-          handle.get_thrust_policy(),
-          thrust::make_counting_iterator(level_graph_view.local_vertex_partition_range_first()),
-          thrust::make_counting_iterator(level_graph_view.local_vertex_partition_range_last()),
-          new_root_candidates.begin(),
-          [vertex_partition, level_components] __device__(auto v) {
-            return level_components[vertex_partition
-                                      .local_vertex_partition_offset_from_vertex_nocheck(v)] ==
-                   invalid_component_id<vertex_t>::value;
-          })),
-      handle.get_stream());
-    auto high_degree_partition_last = thrust::stable_partition(
-      handle.get_thrust_policy(),
-      new_root_candidates.begin(),
-      new_root_candidates.end(),
-      [vertex_partition,
-       degrees   = degrees.data(),
-       threshold = static_cast<edge_t>(
-         ceil(sqrt(static_cast<double>(degree_sum_threshold) * 2.0)))] __device__(auto v) {
-        return degrees[vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(v)] >=
-               threshold;
-      });
-    thrust::shuffle(handle.get_thrust_policy(),
-                    high_degree_partition_last,
-                    new_root_candidates.end(),
-                    thrust::default_random_engine());
-
-    double constexpr max_new_roots_ratio =
-      0.05;  // to avoid selecting all the vertices as roots leading to zero compression
-    static_assert(max_new_roots_ratio > 0.0);
-    auto max_new_roots = std::max(
-      static_cast<vertex_t>(new_root_candidates.size() * max_new_roots_ratio), vertex_t{1});
-
-    auto init_max_new_roots = max_new_roots;
-    if (GraphViewType::is_multi_gpu) {
-      auto& comm           = handle.get_comms();
-      auto const comm_rank = comm.get_rank();
-      auto const comm_size = comm.get_size();
-
-      auto first_candidate_degree = thrust::transform_reduce(
-        handle.get_thrust_policy(),
-        new_root_candidates.begin(),
-        new_root_candidates.begin() + (new_root_candidates.size() > 0 ? 1 : 0),
-        cuda::proclaim_return_type<edge_t>(
-          [vertex_partition, degrees = degrees.data()] __device__(auto v) -> edge_t {
-            return degrees[vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(v)];
-          }),
-        edge_t{0},
-        thrust::plus<edge_t>{});
-
-      auto first_candidate_degrees =
-        host_scalar_gather(comm, first_candidate_degree, int{0}, handle.get_stream());
-      auto new_root_candidate_counts =
-        host_scalar_gather(comm, new_root_candidates.size(), int{0}, handle.get_stream());
-
-      if (comm_rank == 0) {
-        std::vector<vertex_t> init_max_new_root_counts(comm_size, vertex_t{0});
-
-        // if there exists very high degree vertices, we can exceed degree_sum_threshold * comm_size
-        // with fewer than one root per GPU
-        if (std::reduce(first_candidate_degrees.begin(), first_candidate_degrees.end()) >
-            degree_sum_threshold * comm_size) {
-          std::vector<std::tuple<edge_t, int>> degree_gpu_id_pairs(comm_size);
-          for (int i = 0; i < comm_size; ++i) {
-            degree_gpu_id_pairs[i] = std::make_tuple(first_candidate_degrees[i], i);
-          }
-          std::sort(degree_gpu_id_pairs.begin(), degree_gpu_id_pairs.end(), [](auto lhs, auto rhs) {
-            return std::get<0>(lhs) > std::get<0>(rhs);
-          });
-          edge_t sum{0};
-          for (size_t i = 0; i < degree_gpu_id_pairs.size(); ++i) {
-            sum += std::get<0>(degree_gpu_id_pairs[i]);
-            init_max_new_root_counts[std::get<1>(degree_gpu_id_pairs[i])] = 1;
-            if (sum > degree_sum_threshold * comm_size) { break; }
-          }
-        }
-        // to avoid selecting too many (possibly all) vertices as initial roots leading to no
-        // compression in the worst case.
-        else if (level_graph_view.number_of_vertices() <=
-                 static_cast<vertex_t>(handle.get_comms().get_size() *
-                                       ceil(1.0 / max_new_roots_ratio))) {
-          std::vector<int> gpu_ids{};
-          gpu_ids.reserve(
-            std::reduce(new_root_candidate_counts.begin(), new_root_candidate_counts.end()));
-          for (size_t i = 0; i < new_root_candidate_counts.size(); ++i) {
-            gpu_ids.insert(gpu_ids.end(), new_root_candidate_counts[i], static_cast<int>(i));
-          }
-          std::random_device rd{};
-          std::shuffle(gpu_ids.begin(), gpu_ids.end(), std::mt19937(rd()));
-          gpu_ids.resize(
-            std::max(static_cast<vertex_t>(gpu_ids.size() * max_new_roots_ratio), vertex_t{1}));
-          for (size_t i = 0; i < gpu_ids.size(); ++i) {
-            ++init_max_new_root_counts[gpu_ids[i]];
-          }
-        } else {
-          std::fill(init_max_new_root_counts.begin(),
-                    init_max_new_root_counts.end(),
-                    std::numeric_limits<vertex_t>::max());
-        }
-
-        init_max_new_roots =
-          host_scalar_scatter(comm, init_max_new_root_counts, int{0}, handle.get_stream());
-      } else {
-        init_max_new_roots =
-          host_scalar_scatter(comm, std::vector<vertex_t>{}, int{0}, handle.get_stream());
-      }
-
+    std::optional<vertex_t> bfs_start_vertex{std::nullopt};
+    if (num_levels == 1) {  // if in level 0 and there exists a high-degree vertex, run BFS first to
+                            // hopefully find the  biggest connected component (to significantly
+                            // reduce the graph size and accordingly, peak memory usage)
+      auto max_it = thrust::max_element(handle.get_thrust_policy(), degrees.begin(), degrees.end());
+      auto max_v_offset = static_cast<vertex_t>(thrust::distance(degrees.begin(), max_it));
+      edge_t max_degree{};
+      raft::update_host(
+        std::addressof(max_degree), degrees.data() + max_v_offset, size_t{1}, handle.get_stream());
       handle.sync_stream();
-      init_max_new_roots = std::min(init_max_new_roots, max_new_roots);
+      auto max_v     = level_graph_view.local_vertex_partition_range_first() + max_v_offset;
+      auto threshold = degree_sum_threshold;
+      if constexpr (GraphViewType::is_multi_gpu) {
+        auto& comm            = handle.get_comms();
+        auto const comm_size  = comm.get_size();
+        auto local_max_degree = max_degree;
+        max_degree =
+          host_scalar_allreduce(comm, max_degree, raft::comms::op_t::MAX, handle.get_stream());
+        max_v = host_scalar_allreduce(
+          comm,
+          local_max_degree == max_degree ? max_v : std::numeric_limits<vertex_t>::max(),
+          raft::comms::op_t::MIN,
+          handle.get_stream());
+        threshold *= std::max(
+          static_cast<edge_t>(sqrt(comm_size)),
+          edge_t{
+            1});  // graph size often grows proportional to comm_size but maximum degree may grow
+                  // slower than graph size for many practial graphs; use sqrt() to consider this.
+      }
+      if (max_degree > threshold) { bfs_start_vertex = max_v; }
     }
-
-    // 2-3. initialize vertex frontier, edge_buffer, and edge_dst_components (if
-    // multi-gpu)
-
-    vertex_frontier_t<vertex_t, vertex_t, GraphViewType::is_multi_gpu, true> vertex_frontier(
-      handle, num_buckets);
-    vertex_t next_candidate_offset{0};
-    edge_t edge_count{0};
 
     auto edge_buffer =
       allocate_dataframe_buffer<thrust::tuple<vertex_t, vertex_t>>(0, handle.get_stream());
-    // FIXME: we can use cuda::atomic instead but currently on a system with x86 + GPU, this
-    // requires placing the atomic variable on managed memory and this adds additional complication.
     rmm::device_scalar<size_t> num_edge_inserts(size_t{0}, handle.get_stream());
 
-    auto edge_dst_components =
-      GraphViewType::is_multi_gpu
-        ? edge_dst_property_t<GraphViewType, vertex_t>(handle, level_graph_view)
-        : edge_dst_property_t<GraphViewType, vertex_t>(handle);
-    if constexpr (GraphViewType::is_multi_gpu) {
-      fill_edge_dst_property(handle,
-                             level_graph_view,
-                             edge_dst_components.mutable_view(),
-                             invalid_component_id<vertex_t>::value);
-    }
+    // 2-3. run BFS or multi-root expansion
 
-    // 2.4 iterate till every vertex gets visited
+    if (bfs_start_vertex) {
+      // 2-3-1. run BFS and find the vertices that are reachable from the starting vertex
 
-    size_t iter{0};
-    while (true) {
-      if ((edge_count < degree_sum_threshold) &&
-          (next_candidate_offset < static_cast<vertex_t>(new_root_candidates.size()))) {
-        auto [new_roots, num_scanned, degree_sum] = accumulate_new_roots<GraphViewType>(
-          handle,
-          vertex_partition,
-          level_components,
-          degrees.data(),
-          new_root_candidates.data() + next_candidate_offset,
-          new_root_candidates.data() + new_root_candidates.size(),
-          iter == 0 ? init_max_new_roots : max_new_roots,
-          degree_sum_threshold - edge_count);
-        next_candidate_offset += num_scanned;
-        edge_count += degree_sum;
-
-        thrust::sort(handle.get_thrust_policy(), new_roots.begin(), new_roots.end());
-
-        thrust::for_each(
-          handle.get_thrust_policy(),
-          new_roots.begin(),
-          new_roots.end(),
-          [vertex_partition, components = level_components] __device__(auto c) {
-            components[vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(c)] = c;
-          });
-
-        auto pair_first =
-          thrust::make_zip_iterator(thrust::make_tuple(new_roots.begin(), new_roots.begin()));
-        vertex_frontier.bucket(bucket_idx_cur).insert(pair_first, pair_first + new_roots.size());
+      rmm::device_uvector<bool> visited(level_graph_view.local_vertex_partition_range_size(),
+                                        handle.get_stream());
+      {
+        rmm::device_uvector<vertex_t> sources(0, handle.get_stream());
+        if ((*bfs_start_vertex >= level_graph_view.local_vertex_partition_range_first()) &&
+            (*bfs_start_vertex < level_graph_view.local_vertex_partition_range_last())) {
+          sources.resize(1, handle.get_stream());
+          raft::update_device(
+            sources.data(), std::addressof(*bfs_start_vertex), size_t{1}, handle.get_stream());
+        }
+        rmm::device_uvector<vertex_t> distances(visited.size(), handle.get_stream());
+        bfs(handle,
+            level_graph_view,
+            distances.data(),
+            static_cast<vertex_t*>(nullptr),
+            sources.data(),
+            sources.size(),
+            true /* direction_optimizing */,
+            std::numeric_limits<vertex_t>::max());
+        thrust::transform(handle.get_thrust_policy(),
+                          distances.begin(),
+                          distances.end(),
+                          visited.begin(),
+                          [invalid_distance = std::numeric_limits<vertex_t>::max()] __device__(
+                            auto d) { return d != invalid_distance; });
       }
 
-      if (vertex_frontier.bucket(bucket_idx_cur).aggregate_size() == 0) { break; }
+      // 2-3-2. set level_components[] = start_vertex if reachable from the starting vertex and
+      // itself if not reachable
 
+      auto pair_first = thrust::make_zip_iterator(
+        thrust::make_counting_iterator(level_graph_view.local_vertex_partition_range_first()),
+        visited.begin());
+      thrust::transform_if(
+        handle.get_thrust_policy(),
+        pair_first,
+        pair_first + level_graph_view.local_vertex_partition_range_size(),
+        degrees.begin(),
+        level_components,
+        [start_vertex = *bfs_start_vertex] __device__(auto pair) {
+          auto v       = thrust::get<0>(pair);
+          auto visited = thrust::get<1>(pair);
+          return visited ? start_vertex : v;
+        },
+        [] __device__(auto d) {
+          return d > edge_t{0};
+        } /* skip isolated vertices (already updated) */);
+
+      // 2-3-3. extract edges that are unreachable from the starting vertex
+
+      edge_src_property_t<GraphViewType, bool> edge_src_visited(handle, level_graph_view);
+      update_edge_src_property(
+        handle, level_graph_view, visited.begin(), edge_src_visited.mutable_view());
+      edge_buffer = extract_transform_if_e(
+        handle,
+        level_graph_view,
+        edge_src_visited.view(),
+        edge_dst_dummy_property_t{}.view(),
+        edge_dummy_property_t{}.view(),
+        cuda::proclaim_return_type<thrust::tuple<vertex_t, vertex_t>>(
+          [] __device__(auto src, auto dst, auto, auto, auto) {
+            return thrust::make_tuple(src, dst);
+          }),
+        cuda::proclaim_return_type<bool>([] __device__(
+                                           auto src, auto dst, bool src_visited, auto, auto) {
+          return (src > dst) /* keep only the edges in the lower triangular part */ && !src_visited;
+        }));
+      thrust::sort(handle.get_thrust_policy(),
+                   get_dataframe_buffer_begin(edge_buffer),
+                   get_dataframe_buffer_end(edge_buffer));
+      resize_dataframe_buffer(
+        edge_buffer,
+        thrust::distance(get_dataframe_buffer_begin(edge_buffer),
+                         thrust::unique(handle.get_thrust_policy(),
+                                        get_dataframe_buffer_begin(edge_buffer),
+                                        get_dataframe_buffer_end(edge_buffer))),
+        handle.get_stream());
+      auto num_edges = size_dataframe_buffer(edge_buffer);
+      num_edge_inserts.set_value_async(num_edges, handle.get_stream());
+      handle.sync_stream();  // to ensure that the above set_value_async is completed before
+                             // num_edges is freed
+    } else {
+      // 2-3-1. initialize new root candidates
+
+      // Vertices are first partitioned to high-degree vertices and low-degree vertices, we can
+      // reach degree_sum_threshold with fewer high-degree vertices leading to a higher compression
+      // ratio. The degree threshold is set to ceil(sqrt(degree_sum_threshold * 2)); this guarantees
+      // the compression ratio of at least 50% (ignoring rounding errors) even if all the selected
+      // roots fall into a single connected component as there will be at least as many non-root
+      // vertices in the connected component (assuming there are no multi-edges, if there are
+      // multi-edges, we may not get 50% compression in # vertices but still get compression in #
+      // edges). the remaining low-degree vertices will be randomly shuffled so comparable ratios of
+      // vertices will be selected as roots in the remaining connected components.
+
+      rmm::device_uvector<vertex_t> new_root_candidates(
+        level_graph_view.local_vertex_partition_range_size(), handle.get_stream());
+      new_root_candidates.resize(
+        thrust::distance(
+          new_root_candidates.begin(),
+          thrust::copy_if(
+            handle.get_thrust_policy(),
+            thrust::make_counting_iterator(level_graph_view.local_vertex_partition_range_first()),
+            thrust::make_counting_iterator(level_graph_view.local_vertex_partition_range_last()),
+            new_root_candidates.begin(),
+            [vertex_partition, level_components] __device__(auto v) {
+              return level_components[vertex_partition
+                                        .local_vertex_partition_offset_from_vertex_nocheck(v)] ==
+                     invalid_component_id<vertex_t>::value;
+            })),
+        handle.get_stream());
+      auto high_degree_partition_last = thrust::stable_partition(
+        handle.get_thrust_policy(),
+        new_root_candidates.begin(),
+        new_root_candidates.end(),
+        [vertex_partition,
+         degrees   = degrees.data(),
+         threshold = static_cast<edge_t>(
+           ceil(sqrt(static_cast<double>(degree_sum_threshold) * 2.0)))] __device__(auto v) {
+          return degrees[vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(v)] >=
+                 threshold;
+        });
+      thrust::shuffle(handle.get_thrust_policy(),
+                      high_degree_partition_last,
+                      new_root_candidates.end(),
+                      thrust::default_random_engine());
+
+      double constexpr max_new_roots_ratio =
+        0.05;  // to avoid selecting all the vertices as roots leading to zero compression
+      static_assert(max_new_roots_ratio > 0.0);
+      auto max_new_roots = std::max(
+        static_cast<vertex_t>(new_root_candidates.size() * max_new_roots_ratio), vertex_t{1});
+
+      auto init_max_new_roots = max_new_roots;
+      if (GraphViewType::is_multi_gpu) {
+        auto& comm           = handle.get_comms();
+        auto const comm_rank = comm.get_rank();
+        auto const comm_size = comm.get_size();
+
+        auto first_candidate_degree = thrust::transform_reduce(
+          handle.get_thrust_policy(),
+          new_root_candidates.begin(),
+          new_root_candidates.begin() + (new_root_candidates.size() > 0 ? 1 : 0),
+          cuda::proclaim_return_type<edge_t>(
+            [vertex_partition, degrees = degrees.data()] __device__(auto v) {
+              return degrees[vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(v)];
+            }),
+          edge_t{0},
+          thrust::plus<edge_t>{});
+
+        auto first_candidate_degrees =
+          host_scalar_gather(comm, first_candidate_degree, int{0}, handle.get_stream());
+        auto new_root_candidate_counts =
+          host_scalar_gather(comm, new_root_candidates.size(), int{0}, handle.get_stream());
+
+        if (comm_rank == 0) {
+          std::vector<vertex_t> init_max_new_root_counts(comm_size, vertex_t{0});
+
+          // if there exists very high degree vertices, we can exceed degree_sum_threshold *
+          // comm_size with fewer than one root per GPU
+          if (std::reduce(first_candidate_degrees.begin(), first_candidate_degrees.end()) >
+              degree_sum_threshold * comm_size) {
+            std::vector<std::tuple<edge_t, int>> degree_gpu_id_pairs(comm_size);
+            for (int i = 0; i < comm_size; ++i) {
+              degree_gpu_id_pairs[i] = std::make_tuple(first_candidate_degrees[i], i);
+            }
+            std::sort(degree_gpu_id_pairs.begin(),
+                      degree_gpu_id_pairs.end(),
+                      [](auto lhs, auto rhs) { return std::get<0>(lhs) > std::get<0>(rhs); });
+            edge_t sum{0};
+            for (size_t i = 0; i < degree_gpu_id_pairs.size(); ++i) {
+              sum += std::get<0>(degree_gpu_id_pairs[i]);
+              init_max_new_root_counts[std::get<1>(degree_gpu_id_pairs[i])] = 1;
+              if (sum > degree_sum_threshold * comm_size) { break; }
+            }
+          }
+          // to avoid selecting too many (possibly all) vertices as initial roots leading to no
+          // compression in the worst case.
+          else if (level_graph_view.number_of_vertices() <=
+                   static_cast<vertex_t>(comm_size * ceil(1.0 / max_new_roots_ratio))) {
+            std::vector<int> gpu_ids{};
+            gpu_ids.reserve(
+              std::reduce(new_root_candidate_counts.begin(), new_root_candidate_counts.end()));
+            for (size_t i = 0; i < new_root_candidate_counts.size(); ++i) {
+              gpu_ids.insert(gpu_ids.end(), new_root_candidate_counts[i], static_cast<int>(i));
+            }
+            std::random_device rd{};
+            std::shuffle(gpu_ids.begin(), gpu_ids.end(), std::mt19937(rd()));
+            gpu_ids.resize(
+              std::max(static_cast<vertex_t>(gpu_ids.size() * max_new_roots_ratio), vertex_t{1}));
+            for (size_t i = 0; i < gpu_ids.size(); ++i) {
+              ++init_max_new_root_counts[gpu_ids[i]];
+            }
+          } else {
+            std::fill(init_max_new_root_counts.begin(),
+                      init_max_new_root_counts.end(),
+                      std::numeric_limits<vertex_t>::max());
+          }
+
+          init_max_new_roots =
+            host_scalar_scatter(comm, init_max_new_root_counts, int{0}, handle.get_stream());
+        } else {
+          init_max_new_roots =
+            host_scalar_scatter(comm, std::vector<vertex_t>{}, int{0}, handle.get_stream());
+        }
+
+        handle.sync_stream();
+        init_max_new_roots = std::min(init_max_new_roots, max_new_roots);
+      }
+
+      // 2-3-2. initialize vertex frontier, edge_buffer, and edge_dst_components (if
+      // multi-gpu)
+
+      vertex_frontier_t<vertex_t, vertex_t, GraphViewType::is_multi_gpu, true> vertex_frontier(
+        handle, num_buckets);
+      vertex_t next_candidate_offset{0};
+      edge_t edge_count{0};
+
+      auto edge_dst_components =
+        GraphViewType::is_multi_gpu
+          ? edge_dst_property_t<GraphViewType, vertex_t>(handle, level_graph_view)
+          : edge_dst_property_t<GraphViewType, vertex_t>(handle);
       if constexpr (GraphViewType::is_multi_gpu) {
-        update_edge_dst_property(
+        fill_edge_dst_property(handle,
+                               level_graph_view,
+                               edge_dst_components.mutable_view(),
+                               invalid_component_id<vertex_t>::value);
+      }
+
+      // 2-3-3 iterate till every vertex gets visited
+
+      size_t iter{0};
+      while (true) {
+        if ((edge_count < degree_sum_threshold) &&
+            (next_candidate_offset < static_cast<vertex_t>(new_root_candidates.size()))) {
+          auto [new_roots, num_scanned, degree_sum] = accumulate_new_roots<GraphViewType>(
+            handle,
+            vertex_partition,
+            level_components,
+            degrees.data(),
+            new_root_candidates.data() + next_candidate_offset,
+            new_root_candidates.data() + new_root_candidates.size(),
+            iter == 0 ? init_max_new_roots : max_new_roots,
+            degree_sum_threshold - edge_count);
+          next_candidate_offset += num_scanned;
+          edge_count += degree_sum;
+
+          thrust::sort(handle.get_thrust_policy(), new_roots.begin(), new_roots.end());
+
+          thrust::for_each(
+            handle.get_thrust_policy(),
+            new_roots.begin(),
+            new_roots.end(),
+            [vertex_partition, components = level_components] __device__(auto c) {
+              components[vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(c)] = c;
+            });
+
+          auto pair_first =
+            thrust::make_zip_iterator(thrust::make_tuple(new_roots.begin(), new_roots.begin()));
+          vertex_frontier.bucket(bucket_idx_cur).insert(pair_first, pair_first + new_roots.size());
+        }
+
+        if (vertex_frontier.bucket(bucket_idx_cur).aggregate_size() == 0) { break; }
+
+        if constexpr (GraphViewType::is_multi_gpu) {
+          update_edge_dst_property(
+            handle,
+            level_graph_view,
+            thrust::get<0>(vertex_frontier.bucket(bucket_idx_cur).begin().get_iterator_tuple()),
+            thrust::get<0>(vertex_frontier.bucket(bucket_idx_cur).end().get_iterator_tuple()),
+            level_components,
+            edge_dst_components.mutable_view());
+        }
+
+        auto max_pushes = GraphViewType::is_multi_gpu
+                            ? static_cast<edge_t>(compute_num_out_nbrs_from_frontier(
+                                handle, level_graph_view, vertex_frontier.bucket(bucket_idx_cur)))
+                            : edge_count;
+
+        // FIXME: if we use cuco::static_map (no duplicates, ideally we need static_set),
+        // edge_buffer size cannot exceed (# roots)^2 and we can avoid additional sort & unique (but
+        // resizing the buffer may be more expensive).
+        auto old_num_edge_inserts = num_edge_inserts.value(handle.get_stream());
+        resize_dataframe_buffer(
+          edge_buffer, old_num_edge_inserts + max_pushes, handle.get_stream());
+
+        auto new_frontier_tagged_vertex_buffer =
+          cugraph::transform_reduce_if_v_frontier_outgoing_e_by_dst(
+            handle,
+            level_graph_view,
+            vertex_frontier.bucket(bucket_idx_cur),
+            edge_src_dummy_property_t{}.view(),
+            edge_dst_dummy_property_t{}.view(),
+            edge_dummy_property_t{}.view(),
+            e_op_t<vertex_t, decltype(get_dataframe_buffer_begin(edge_buffer))>{},
+            reduce_op::null(),
+            pred_op_t<vertex_t, decltype(get_dataframe_buffer_begin(edge_buffer))>{
+              GraphViewType::is_multi_gpu
+                ? detail::edge_partition_endpoint_property_device_view_t<vertex_t, vertex_t*>(
+                    edge_dst_components.mutable_view())
+                : detail::edge_partition_endpoint_property_device_view_t<vertex_t, vertex_t*>(
+                    detail::edge_minor_property_view_t<vertex_t, vertex_t*>(level_components,
+                                                                            vertex_t{0})),
+              level_graph_view.local_edge_partition_dst_range_first(),
+              get_dataframe_buffer_begin(edge_buffer),
+              num_edge_inserts.data()});
+
+        auto next_frontier_bucket_indices =
+          GraphViewType::is_multi_gpu ? std::vector<size_t>{bucket_idx_next, bucket_idx_conflict}
+                                      : std::vector<size_t>{bucket_idx_next};
+        update_v_frontier(
           handle,
           level_graph_view,
+          std::move(new_frontier_tagged_vertex_buffer),
+          vertex_frontier,
+          raft::host_span<size_t const>(next_frontier_bucket_indices.data(),
+                                        next_frontier_bucket_indices.size()),
+          thrust::make_constant_iterator(0) /* dummy */,
+          thrust::make_discard_iterator() /* dummy */,
+          v_op_t<GraphViewType>{
+            vertex_partition, level_components, bucket_idx_next, bucket_idx_conflict});
+
+        if (GraphViewType::is_multi_gpu) {
+          auto cur_num_edge_inserts = num_edge_inserts.value(handle.get_stream());
+          auto& conflict_bucket     = vertex_frontier.bucket(bucket_idx_conflict);
+          resize_dataframe_buffer(
+            edge_buffer, cur_num_edge_inserts + conflict_bucket.size(), handle.get_stream());
+          thrust::for_each(
+            handle.get_thrust_policy(),
+            conflict_bucket.begin(),
+            conflict_bucket.end(),
+            [vertex_partition,
+             level_components,
+             edge_buffer_first = get_dataframe_buffer_begin(edge_buffer),
+             num_edge_inserts  = num_edge_inserts.data()] __device__(auto tagged_v) {
+              auto v_offset = vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(
+                thrust::get<0>(tagged_v));
+              auto old = *(level_components + v_offset);
+              auto tag = thrust::get<1>(tagged_v);
+              static_assert(sizeof(unsigned long long int) == sizeof(size_t));
+              auto edge_idx = atomicAdd(reinterpret_cast<unsigned long long int*>(num_edge_inserts),
+                                        static_cast<unsigned long long int>(1));
+              // keep only the edges in the lower triangular part
+              *(edge_buffer_first + edge_idx) =
+                tag >= old ? thrust::make_tuple(tag, old) : thrust::make_tuple(old, tag);
+            });
+          conflict_bucket.clear();
+        }
+
+        // maintain the list of sorted unique edges (we can avoid this if we use cuco::static_map(no
+        // duplicates, ideally we need static_set)).
+        auto new_num_edge_inserts = num_edge_inserts.value(handle.get_stream());
+        if (new_num_edge_inserts > old_num_edge_inserts) {
+          auto edge_first = get_dataframe_buffer_begin(edge_buffer);
+          thrust::sort(handle.get_thrust_policy(),
+                       edge_first + old_num_edge_inserts,
+                       edge_first + new_num_edge_inserts);
+          if (old_num_edge_inserts > 0) {
+            auto tmp_edge_buffer = allocate_dataframe_buffer<thrust::tuple<vertex_t, vertex_t>>(
+              new_num_edge_inserts, handle.get_stream());
+            auto tmp_edge_first = get_dataframe_buffer_begin(tmp_edge_buffer);
+            thrust::merge(handle.get_thrust_policy(),
+                          edge_first,
+                          edge_first + old_num_edge_inserts,
+                          edge_first + old_num_edge_inserts,
+                          edge_first + new_num_edge_inserts,
+                          tmp_edge_first);
+            edge_buffer = std::move(tmp_edge_buffer);
+          }
+          edge_first            = get_dataframe_buffer_begin(edge_buffer);
+          auto unique_edge_last = thrust::unique(
+            handle.get_thrust_policy(), edge_first, edge_first + new_num_edge_inserts);
+          auto num_unique_edges =
+            static_cast<size_t>(thrust::distance(edge_first, unique_edge_last));
+          num_edge_inserts.set_value_async(num_unique_edges, handle.get_stream());
+          handle.sync_stream();  // to ensure that the above set_value_async is completed before
+                                 // num_unique_edges is freed
+        }
+
+        vertex_frontier.bucket(bucket_idx_cur).clear();
+        vertex_frontier.bucket(bucket_idx_cur).shrink_to_fit();
+        vertex_frontier.swap_buckets(bucket_idx_cur, bucket_idx_next);
+        edge_count = thrust::transform_reduce(
+          handle.get_thrust_policy(),
           thrust::get<0>(vertex_frontier.bucket(bucket_idx_cur).begin().get_iterator_tuple()),
           thrust::get<0>(vertex_frontier.bucket(bucket_idx_cur).end().get_iterator_tuple()),
-          level_components,
-          edge_dst_components.mutable_view());
+          cuda::proclaim_return_type<edge_t>(
+            [vertex_partition, degrees = degrees.data()] __device__(auto v) {
+              return degrees[vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(v)];
+            }),
+          edge_t{0},
+          thrust::plus<edge_t>());
+
+        ++iter;
       }
-
-      auto max_pushes = GraphViewType::is_multi_gpu
-                          ? static_cast<edge_t>(compute_num_out_nbrs_from_frontier(
-                              handle, level_graph_view, vertex_frontier.bucket(bucket_idx_cur)))
-                          : edge_count;
-
-      // FIXME: if we use cuco::static_map (no duplicates, ideally we need static_set), edge_buffer
-      // size cannot exceed (# roots)^2 and we can avoid additional sort & unique (but resizing the
-      // buffer may be more expensive).
-      auto old_num_edge_inserts = num_edge_inserts.value(handle.get_stream());
-      resize_dataframe_buffer(edge_buffer, old_num_edge_inserts + max_pushes, handle.get_stream());
-
-      auto new_frontier_tagged_vertex_buffer =
-        cugraph::transform_reduce_v_frontier_outgoing_e_by_dst(
-          handle,
-          level_graph_view,
-          vertex_frontier.bucket(bucket_idx_cur),
-          edge_src_dummy_property_t{}.view(),
-          edge_dst_dummy_property_t{}.view(),
-          edge_dummy_property_t{}.view(),
-          e_op_t<vertex_t, decltype(get_dataframe_buffer_begin(edge_buffer))>{
-            GraphViewType::is_multi_gpu
-              ? detail::edge_partition_endpoint_property_device_view_t<vertex_t, vertex_t*>(
-                  edge_dst_components.mutable_view())
-              : detail::edge_partition_endpoint_property_device_view_t<vertex_t, vertex_t*>(
-                  detail::edge_minor_property_view_t<vertex_t, vertex_t*>(level_components,
-                                                                          vertex_t{0})),
-            level_graph_view.local_edge_partition_dst_range_first(),
-            get_dataframe_buffer_begin(edge_buffer),
-            num_edge_inserts.data()},
-          reduce_op::null());
-
-      auto next_frontier_bucket_indices =
-        GraphViewType::is_multi_gpu ? std::vector<size_t>{bucket_idx_next, bucket_idx_conflict}
-                                    : std::vector<size_t>{bucket_idx_next};
-      update_v_frontier(handle,
-                        level_graph_view,
-                        std::move(new_frontier_tagged_vertex_buffer),
-                        vertex_frontier,
-                        raft::host_span<size_t const>(next_frontier_bucket_indices.data(),
-                                                      next_frontier_bucket_indices.size()),
-                        thrust::make_constant_iterator(0) /* dummy */,
-                        thrust::make_discard_iterator() /* dummy */,
-                        v_op_t<GraphViewType>{vertex_partition,
-                                              level_components,
-                                              get_dataframe_buffer_begin(edge_buffer),
-                                              num_edge_inserts.data(),
-                                              bucket_idx_next,
-                                              bucket_idx_conflict});
-
-      if (GraphViewType::is_multi_gpu) {
-        auto cur_num_edge_inserts = num_edge_inserts.value(handle.get_stream());
-        auto& conflict_bucket     = vertex_frontier.bucket(bucket_idx_conflict);
-        resize_dataframe_buffer(
-          edge_buffer, cur_num_edge_inserts + conflict_bucket.size(), handle.get_stream());
-        thrust::for_each(
-          handle.get_thrust_policy(),
-          conflict_bucket.begin(),
-          conflict_bucket.end(),
-          [vertex_partition,
-           level_components,
-           edge_buffer_first = get_dataframe_buffer_begin(edge_buffer),
-           num_edge_inserts  = num_edge_inserts.data()] __device__(auto tagged_v) {
-            auto v_offset = vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(
-              thrust::get<0>(tagged_v));
-            auto old = *(level_components + v_offset);
-            auto tag = thrust::get<1>(tagged_v);
-            static_assert(sizeof(unsigned long long int) == sizeof(size_t));
-            auto edge_idx = atomicAdd(reinterpret_cast<unsigned long long int*>(num_edge_inserts),
-                                      static_cast<unsigned long long int>(1));
-            // keep only the edges in the lower triangular part
-            *(edge_buffer_first + edge_idx) =
-              tag >= old ? thrust::make_tuple(tag, old) : thrust::make_tuple(old, tag);
-          });
-        conflict_bucket.clear();
-      }
-
-      // maintain the list of sorted unique edges (we can avoid this if we use cuco::static_map(no
-      // duplicates, ideally we need static_set)).
-      auto new_num_edge_inserts = num_edge_inserts.value(handle.get_stream());
-      if (new_num_edge_inserts > old_num_edge_inserts) {
-        auto edge_first = get_dataframe_buffer_begin(edge_buffer);
-        thrust::sort(handle.get_thrust_policy(),
-                     edge_first + old_num_edge_inserts,
-                     edge_first + new_num_edge_inserts);
-        if (old_num_edge_inserts > 0) {
-          auto tmp_edge_buffer = allocate_dataframe_buffer<thrust::tuple<vertex_t, vertex_t>>(
-            new_num_edge_inserts, handle.get_stream());
-          auto tmp_edge_first = get_dataframe_buffer_begin(tmp_edge_buffer);
-          thrust::merge(handle.get_thrust_policy(),
-                        edge_first,
-                        edge_first + old_num_edge_inserts,
-                        edge_first + old_num_edge_inserts,
-                        edge_first + new_num_edge_inserts,
-                        tmp_edge_first);
-          edge_buffer = std::move(tmp_edge_buffer);
-        }
-        edge_first = get_dataframe_buffer_begin(edge_buffer);
-        auto unique_edge_last =
-          thrust::unique(handle.get_thrust_policy(), edge_first, edge_first + new_num_edge_inserts);
-        auto num_unique_edges = static_cast<size_t>(thrust::distance(edge_first, unique_edge_last));
-        num_edge_inserts.set_value_async(num_unique_edges, handle.get_stream());
-      }
-
-      vertex_frontier.bucket(bucket_idx_cur).clear();
-      vertex_frontier.bucket(bucket_idx_cur).shrink_to_fit();
-      vertex_frontier.swap_buckets(bucket_idx_cur, bucket_idx_next);
-      edge_count = thrust::transform_reduce(
-        handle.get_thrust_policy(),
-        thrust::get<0>(vertex_frontier.bucket(bucket_idx_cur).begin().get_iterator_tuple()),
-        thrust::get<0>(vertex_frontier.bucket(bucket_idx_cur).end().get_iterator_tuple()),
-        cuda::proclaim_return_type<edge_t>(
-          [vertex_partition, degrees = degrees.data()] __device__(auto v) -> edge_t {
-            return degrees[vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(v)];
-          }),
-        edge_t{0},
-        thrust::plus<edge_t>());
-
-      ++iter;
     }
 
-    // 2-5. construct the next level graph from the edges emitted on conflicts
+    // 2-4. construct the next level graph from the edges emitted on conflicts
 
     auto num_inserts           = num_edge_inserts.value(handle.get_stream());
     auto aggregate_num_inserts = num_inserts;

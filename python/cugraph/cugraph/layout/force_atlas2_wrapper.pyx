@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2023, NVIDIA CORPORATION.
+# Copyright (c) 2020-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -22,7 +22,7 @@ from cugraph.structure.graph_primtypes cimport *
 from libcpp cimport bool
 from libc.stdint cimport uintptr_t
 import cudf
-from numba import cuda
+import cupy as cp
 import numpy as np
 
 cdef extern from "cugraph/legacy/internals.hpp" namespace "cugraph::internals":
@@ -67,7 +67,7 @@ def force_atlas2(input_graph,
     cdef GraphCOOView[int,int,double] graph_double
 
     df = cudf.DataFrame()
-    df['vertex'] = cudf.Series(np.arange(num_verts, dtype=np.int32))
+    df['vertex'] = cudf.Series(cp.arange(num_verts, dtype=cp.int32))
 
     src = input_graph.edgelist.edgelist_df['src']
     dst = input_graph.edgelist.edgelist_df['dst']
@@ -103,12 +103,12 @@ def force_atlas2(input_graph,
 
 
     # We keep np.float32 as results for both cases
-    pos = cuda.device_array(
+    pos = cp.empty(
             (num_verts, 2),
             order="F",
-            dtype=np.float32)
+            dtype=cp.float32)
 
-    pos_ptr = pos.device_ctypes_pointer.value
+    pos_ptr = pos.data.ptr
 
     if input_graph.edgelist.weights \
             and input_graph.edgelist.edgelist_df['weights'].dtype == np.float64:
