@@ -136,14 +136,14 @@ class Tests_MGMaximalIndependentSet
 
       // Cache for inclusiong_flags
       using GraphViewType = cugraph::graph_view_t<vertex_t, edge_t, false, true>;
-      cugraph::edge_src_property_t<vertex_t, vertex_t, false> src_inclusion_cache(*handle_);
-      cugraph::edge_dst_property_t<vertex_t, vertex_t, false> dst_inclusion_cache(*handle_);
+      cugraph::edge_src_property_t<vertex_t, vertex_t> src_inclusion_cache(*handle_);
+      cugraph::edge_dst_property_t<vertex_t, vertex_t> dst_inclusion_cache(*handle_);
 
       if constexpr (multi_gpu) {
         src_inclusion_cache =
-          cugraph::edge_src_property_t<vertex_t, vertex_t, false>(*handle_, mg_graph_view);
+          cugraph::edge_src_property_t<vertex_t, vertex_t>(*handle_, mg_graph_view);
         dst_inclusion_cache =
-          cugraph::edge_dst_property_t<vertex_t, vertex_t, false>(*handle_, mg_graph_view);
+          cugraph::edge_dst_property_t<vertex_t, vertex_t>(*handle_, mg_graph_view);
         update_edge_src_property(
           *handle_, mg_graph_view, inclusiong_flags.begin(), src_inclusion_cache.mutable_view());
         update_edge_dst_property(
@@ -154,10 +154,11 @@ class Tests_MGMaximalIndependentSet
         *handle_,
         mg_graph_view,
         multi_gpu ? src_inclusion_cache.view()
-                  : cugraph::detail::edge_major_property_view_t<vertex_t, vertex_t const*>(
-                      inclusiong_flags.data()),
+                  : cugraph::detail::edge_endpoint_property_view_t<vertex_t, vertex_t const*>(
+                      std::vector<vertex_t const*>{inclusiong_flags.data()},
+                      std::vector<vertex_t>{vertex_t{0}}),
         multi_gpu ? dst_inclusion_cache.view()
-                  : cugraph::detail::edge_minor_property_view_t<vertex_t, vertex_t const*>(
+                  : cugraph::detail::edge_endpoint_property_view_t<vertex_t, vertex_t const*>(
                       inclusiong_flags.data(), vertex_t{0}),
         cugraph::edge_dummy_property_t{}.view(),
         [] __device__(auto src, auto dst, auto src_included, auto dst_included, auto wt) {

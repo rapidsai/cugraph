@@ -156,13 +156,13 @@ rmm::device_uvector<vertex_t> maximal_independent_moves(
       });
 
     // Caches for ranks
-    edge_src_property_t<vertex_t, vertex_t, false> src_rank_cache(handle);
-    edge_dst_property_t<vertex_t, vertex_t, false> dst_rank_cache(handle);
+    edge_src_property_t<vertex_t, vertex_t> src_rank_cache(handle);
+    edge_dst_property_t<vertex_t, vertex_t> dst_rank_cache(handle);
 
     // Update rank caches with temporary ranks
     if constexpr (multi_gpu) {
-      src_rank_cache = edge_src_property_t<vertex_t, vertex_t, false>(handle, graph_view);
-      dst_rank_cache = edge_dst_property_t<vertex_t, vertex_t, false>(handle, graph_view);
+      src_rank_cache = edge_src_property_t<vertex_t, vertex_t>(handle, graph_view);
+      dst_rank_cache = edge_dst_property_t<vertex_t, vertex_t>(handle, graph_view);
       update_edge_src_property(
         handle, graph_view, temporary_ranks.begin(), src_rank_cache.mutable_view());
       update_edge_dst_property(
@@ -178,11 +178,12 @@ rmm::device_uvector<vertex_t> maximal_independent_moves(
     per_v_transform_reduce_outgoing_e(
       handle,
       graph_view,
-      multi_gpu
-        ? src_rank_cache.view()
-        : detail::edge_major_property_view_t<vertex_t, vertex_t const*>(temporary_ranks.data()),
+      multi_gpu ? src_rank_cache.view()
+                : detail::edge_endpoint_property_view_t<vertex_t, vertex_t const*>(
+                    std::vector<vertex_t const*>{temporary_ranks.data()},
+                    std::vector<vertex_t>{vertex_t{0}}),
       multi_gpu ? dst_rank_cache.view()
-                : detail::edge_minor_property_view_t<vertex_t, vertex_t const*>(
+                : detail::edge_endpoint_property_view_t<vertex_t, vertex_t const*>(
                     temporary_ranks.data(), vertex_t{0}),
       edge_dummy_property_t{}.view(),
       [] __device__(auto src, auto dst, auto src_rank, auto dst_rank, auto wt) { return dst_rank; },
@@ -199,11 +200,12 @@ rmm::device_uvector<vertex_t> maximal_independent_moves(
     per_v_transform_reduce_incoming_e(
       handle,
       graph_view,
-      multi_gpu
-        ? src_rank_cache.view()
-        : detail::edge_major_property_view_t<vertex_t, vertex_t const*>(temporary_ranks.data()),
+      multi_gpu ? src_rank_cache.view()
+                : detail::edge_endpoint_property_view_t<vertex_t, vertex_t const*>(
+                    std::vector<vertex_t const*>{temporary_ranks.data()},
+                    std::vector<vertex_t>{vertex_t{0}}),
       multi_gpu ? dst_rank_cache.view()
-                : detail::edge_minor_property_view_t<vertex_t, vertex_t const*>(
+                : detail::edge_endpoint_property_view_t<vertex_t, vertex_t const*>(
                     temporary_ranks.data(), vertex_t{0}),
       edge_dummy_property_t{}.view(),
       [] __device__(auto src, auto dst, auto src_rank, auto dst_rank, auto wt) { return src_rank; },

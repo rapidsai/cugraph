@@ -579,8 +579,7 @@ __global__ static void per_v_transform_reduce_e_mid_degree(
       reduced_e_op_result{};
     [[maybe_unused]] std::conditional_t<update_major && std::is_same_v<ReduceOp, reduce_op::any<T>>,
                                         int32_t,
-                                        std::byte /* dummy */>
-      first_valid_lane_id{};
+                                        std::byte /* dummy */> first_valid_lane_id{};
     if constexpr (update_major) {
       reduced_e_op_result =
         (lane_id == 0) ? init : identity_element;  // init == identity_element for reduce_op::any<T>
@@ -735,8 +734,7 @@ __global__ static void per_v_transform_reduce_e_high_degree(
   [[maybe_unused]] __shared__
     std::conditional_t<update_major && std::is_same_v<ReduceOp, reduce_op::any<T>>,
                        int32_t,
-                       std::byte /* dummy */>
-      output_thread_id;
+                       std::byte /* dummy */> output_thread_id;
 
   while (idx < static_cast<size_t>(cuda::std::distance(key_first, key_last))) {
     auto key   = *(key_first + idx);
@@ -777,8 +775,7 @@ __global__ static void per_v_transform_reduce_e_high_degree(
       reduced_e_op_result{};
     [[maybe_unused]] std::conditional_t<update_major && std::is_same_v<ReduceOp, reduce_op::any<T>>,
                                         int32_t,
-                                        std::byte /* dummy */>
-      first_valid_thread_id{};
+                                        std::byte /* dummy */> first_valid_thread_id{};
     if constexpr (update_major) {
       reduced_e_op_result = threadIdx.x == 0
                               ? init
@@ -1634,8 +1631,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
   [[maybe_unused]] std::conditional_t<GraphViewType::is_multi_gpu && update_major &&
                                         std::is_same_v<ReduceOp, reduce_op::any<T>>,
                                       int,
-                                      std::byte /* dummy */>
-    subgroup_size{};
+                                      std::byte /* dummy */> subgroup_size{};
   if constexpr (GraphViewType::is_multi_gpu && update_major &&
                 std::is_same_v<ReduceOp, reduce_op::any<T>>) {
     auto& comm                 = handle.get_comms();
@@ -2038,31 +2034,30 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
 
   // 8. set-up temporary buffers
 
-  using minor_tmp_buffer_type =
-    std::conditional_t<GraphViewType::is_storage_transposed,
-                       edge_src_property_t<vertex_t, T, GraphViewType::is_storage_transposed>,
-                       edge_dst_property_t<vertex_t, T, GraphViewType::is_storage_transposed>>;
+  using minor_tmp_buffer_type = detail::edge_minor_property_t<vertex_t, T>;
   [[maybe_unused]] std::unique_ptr<minor_tmp_buffer_type> minor_tmp_buffer{};
   if constexpr (GraphViewType::is_multi_gpu && !update_major) {
-    minor_tmp_buffer = std::make_unique<minor_tmp_buffer_type>(handle, graph_view);
-    auto minor_init  = init;
-    auto view        = minor_tmp_buffer->view();
-    if (view.keys()) {  // defer applying the initial value to the end as minor_tmp_buffer ma not
-                        // store values for the entire minor rangey
+    minor_tmp_buffer  = std::make_unique<minor_tmp_buffer_type>(handle, graph_view);
+    auto minor_init   = init;
+    auto mutable_view = minor_tmp_buffer->mutable_view();
+    if (mutable_view.minor_keys()) {  // defer applying the initial value to the end as
+                                      // minor_tmp_buffer ma not
+                                      // store values for the entire minor rangey
       minor_init = ReduceOp::identity_element;
     } else {
       auto& major_comm = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
       auto const major_comm_rank = major_comm.get_rank();
       minor_init                 = (major_comm_rank == 0) ? init : ReduceOp::identity_element;
     }
-    fill_edge_minor_property(handle, graph_view, minor_tmp_buffer->mutable_view(), minor_init);
+    fill_edge_minor_property(handle, graph_view, mutable_view, minor_init);
   }
 
   using edge_partition_minor_output_device_view_t =
     std::conditional_t<GraphViewType::is_multi_gpu && !update_major,
                        detail::edge_partition_endpoint_property_device_view_t<
                          vertex_t,
-                         decltype(minor_tmp_buffer->mutable_view().value_first())>,
+                         typename minor_tmp_buffer_type::value_iterator,
+                         T>,
                        void /* dummy */>;
 
   auto counters = allocate_optional_dataframe_buffer<
@@ -4312,7 +4307,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
     auto const minor_comm_size = minor_comm.get_size();
 
     auto view = minor_tmp_buffer->view();
-    if (view.keys()) {  // applying the initial value is deferred to here
+    if (view.minor_keys()) {  // applying the initial value is deferred to here
       vertex_t max_vertex_partition_size{0};
       for (int i = 0; i < major_comm_size; ++i) {
         auto this_segment_vertex_partition_id =
@@ -4341,14 +4336,14 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                        graph_view.vertex_partition_range_size(this_segment_vertex_partition_id),
                      minor_init);
         auto value_first = thrust::make_transform_iterator(
-          view.value_first(),
+          view.minor_value_first(),
           cuda::proclaim_return_type<T>(
             [reduce_op, minor_init] __device__(auto val) { return reduce_op(val, minor_init); }));
         thrust::scatter(handle.get_thrust_policy(),
                         value_first + (*minor_key_offsets)[i],
                         value_first + (*minor_key_offsets)[i + 1],
                         thrust::make_transform_iterator(
-                          (*(view.keys())).begin() + (*minor_key_offsets)[i],
+                          (*(view.minor_keys())).begin() + (*minor_key_offsets)[i],
                           cuda::proclaim_return_type<vertex_t>(
                             [key_first = graph_view.vertex_partition_range_first(
                                this_segment_vertex_partition_id)] __device__(auto key) {
@@ -4377,7 +4372,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
         auto offset = graph_view.vertex_partition_range_first(this_segment_vertex_partition_id) -
                       minor_range_first;
         device_reduce(major_comm,
-                      view.value_first() + offset,
+                      view.minor_value_first() + offset,
                       tmp_vertex_value_output_first,
                       static_cast<size_t>(
                         graph_view.vertex_partition_range_size(this_segment_vertex_partition_id)),

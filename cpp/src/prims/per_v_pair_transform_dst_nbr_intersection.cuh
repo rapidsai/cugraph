@@ -389,9 +389,9 @@ void per_v_pair_transform_dst_nbr_intersection(
       rmm::device_uvector<size_t> intersection_offsets(size_t{0}, handle.get_stream());
       rmm::device_uvector<vertex_t> intersection_indices(size_t{0}, handle.get_stream());
       [[maybe_unused]] rmm::device_uvector<edge_property_value_t>
-        r_nbr_intersection_property_values0(size_t{0}, handle.get_stream());
+      r_nbr_intersection_property_values0(size_t{0}, handle.get_stream());
       [[maybe_unused]] rmm::device_uvector<edge_property_value_t>
-        r_nbr_intersection_property_values1(size_t{0}, handle.get_stream());
+      r_nbr_intersection_property_values1(size_t{0}, handle.get_stream());
 
       if constexpr (!std::is_same_v<edge_property_value_t, cuda::std::nullopt_t>) {
         std::tie(intersection_offsets,

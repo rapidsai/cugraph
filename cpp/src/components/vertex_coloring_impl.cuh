@@ -94,14 +94,12 @@ rmm::device_uvector<vertex_t> vertex_coloring(
 
     if (current_graph_view.compute_number_of_edges(handle) == 0) { break; }
 
-    cugraph::edge_src_property_t<vertex_t, flag_t, false> src_mis_flags(handle);
-    cugraph::edge_dst_property_t<vertex_t, flag_t, false> dst_mis_flags(handle);
+    cugraph::edge_src_property_t<vertex_t, flag_t> src_mis_flags(handle);
+    cugraph::edge_dst_property_t<vertex_t, flag_t> dst_mis_flags(handle);
 
     if constexpr (graph_view_t::is_multi_gpu) {
-      src_mis_flags =
-        cugraph::edge_src_property_t<vertex_t, flag_t, false>(handle, current_graph_view);
-      dst_mis_flags =
-        cugraph::edge_dst_property_t<vertex_t, flag_t, false>(handle, current_graph_view);
+      src_mis_flags = cugraph::edge_src_property_t<vertex_t, flag_t>(handle, current_graph_view);
+      dst_mis_flags = cugraph::edge_dst_property_t<vertex_t, flag_t>(handle, current_graph_view);
 
       cugraph::update_edge_src_property(
         handle, current_graph_view, is_vertex_in_mis.begin(), src_mis_flags.mutable_view());
@@ -114,11 +112,12 @@ rmm::device_uvector<vertex_t> vertex_coloring(
       cugraph::transform_e(
         handle,
         current_graph_view,
-        graph_view_t::is_multi_gpu
-          ? src_mis_flags.view()
-          : detail::edge_major_property_view_t<vertex_t, flag_t const*>(is_vertex_in_mis.begin()),
+        graph_view_t::is_multi_gpu ? src_mis_flags.view()
+                                   : detail::edge_endpoint_property_view_t<vertex_t, flag_t const*>(
+                                       std::vector<flag_t const*>{is_vertex_in_mis.begin()},
+                                       std::vector<vertex_t>{vertex_t{0}}),
         graph_view_t::is_multi_gpu ? dst_mis_flags.view()
-                                   : detail::edge_minor_property_view_t<vertex_t, flag_t const*>(
+                                   : detail::edge_endpoint_property_view_t<vertex_t, flag_t const*>(
                                        is_vertex_in_mis.begin(), vertex_t{0}),
         cugraph::edge_dummy_property_t{}.view(),
         [color_id] __device__(
@@ -135,11 +134,12 @@ rmm::device_uvector<vertex_t> vertex_coloring(
       cugraph::transform_e(
         handle,
         current_graph_view,
-        graph_view_t::is_multi_gpu
-          ? src_mis_flags.view()
-          : detail::edge_major_property_view_t<vertex_t, flag_t const*>(is_vertex_in_mis.begin()),
+        graph_view_t::is_multi_gpu ? src_mis_flags.view()
+                                   : detail::edge_endpoint_property_view_t<vertex_t, flag_t const*>(
+                                       std::vector<flag_t const*>{is_vertex_in_mis.begin()},
+                                       std::vector<vertex_t>{vertex_t{0}}),
         graph_view_t::is_multi_gpu ? dst_mis_flags.view()
-                                   : detail::edge_minor_property_view_t<vertex_t, flag_t const*>(
+                                   : detail::edge_endpoint_property_view_t<vertex_t, flag_t const*>(
                                        is_vertex_in_mis.begin(), vertex_t{0}),
         cugraph::edge_dummy_property_t{}.view(),
         [color_id] __device__(
