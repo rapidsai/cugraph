@@ -17,6 +17,7 @@
 #include "utilities/base_fixture.hpp"
 #include "utilities/check_utilities.hpp"
 #include "utilities/conversion_utilities.hpp"
+#include "utilities/property_generator_utilities.hpp"
 #include "utilities/test_graphs.hpp"
 #include "utilities/thrust_wrapper.hpp"
 
@@ -46,6 +47,7 @@ struct MsBfs_Usecase {
   size_t radius;
   size_t max_seeds;
   bool test_weighted_{false};
+  bool edge_masking_{false}; // FIXME: Not Supported
   bool check_correctness_{true};
 };
 
@@ -90,6 +92,13 @@ class Tests_MsBfs : public ::testing::TestWithParam<std::tuple<MsBfs_Usecase, in
 
     auto edge_weight_view =
       edge_weights ? std::make_optional((*edge_weights).view()) : std::nullopt;
+    
+    std::optional<cugraph::edge_property_t<edge_t, bool>> edge_mask{std::nullopt};
+    if (MsBfs_usecase.edge_masking_) {
+      edge_mask =
+        cugraph::test::generate<decltype(graph_view), bool>::edge_property(handle, graph_view, 2);
+      graph_view.attach_edge_mask((*edge_mask).view());
+    }
 
     rmm::device_uvector<vertex_t> d_labels(graph_view.number_of_vertices(), handle.get_stream());
 
@@ -266,13 +275,13 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_MsBfs_File,
   ::testing::Combine(
     // enable correctness checks
-    ::testing::Values(MsBfs_Usecase{2, 5, false, true}, MsBfs_Usecase{4, 9, true, true}),
+    ::testing::Values(MsBfs_Usecase{2, 5, false, false, true}, MsBfs_Usecase{4, 9, true, false, true}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/netscience.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(rmat_small_test,
                          Tests_MsBfs_Rmat,
                          // enable correctness checks
-                         ::testing::Combine(::testing::Values(MsBfs_Usecase{2, 5, false, true}),
+                         ::testing::Combine(::testing::Values(MsBfs_Usecase{2, 5, false, false, true}),
                                             ::testing::Values(cugraph::test::Rmat_Usecase(
                                               10, 16, 0.57, 0.19, 0.19, 0, true, false))));
 
@@ -285,7 +294,7 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_MsBfs_Rmat,
   // disable correctness checks for large graphs
   ::testing::Combine(
-    ::testing::Values(MsBfs_Usecase{10, 150, false, false}, MsBfs_Usecase{12, 170, true, false}),
+    ::testing::Values(MsBfs_Usecase{10, 150, false, false}, MsBfs_Usecase{12, 170, true, false, false}),
     ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, true, false))));
 
 CUGRAPH_TEST_PROGRAM_MAIN()
