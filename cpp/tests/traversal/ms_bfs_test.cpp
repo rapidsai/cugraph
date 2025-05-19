@@ -47,7 +47,7 @@ struct MsBfs_Usecase {
   size_t radius;
   size_t max_seeds;
   bool test_weighted_{false};
-  bool edge_masking_{false}; // FIXME: Not Supported
+  bool edge_masking_{false};  // FIXME: Not Supported
   bool check_correctness_{true};
 };
 
@@ -92,7 +92,7 @@ class Tests_MsBfs : public ::testing::TestWithParam<std::tuple<MsBfs_Usecase, in
 
     auto edge_weight_view =
       edge_weights ? std::make_optional((*edge_weights).view()) : std::nullopt;
-    
+
     std::optional<cugraph::edge_property_t<edge_t, bool>> edge_mask{std::nullopt};
     if (MsBfs_usecase.edge_masking_) {
       edge_mask =
@@ -207,8 +207,7 @@ class Tests_MsBfs : public ::testing::TestWithParam<std::tuple<MsBfs_Usecase, in
                                                               std::numeric_limits<vertex_t>::max(),
                                                               static_cast<vertex_t>(0));
 
-        ref_sum +=
-          cugraph::test::reduce(handle, d_distances_ref[i], static_cast<vertex_t>(0));
+        ref_sum += cugraph::test::reduce(handle, d_distances_ref[i], static_cast<vertex_t>(0));
       }
 
       d_distances = cugraph::test::replace<vertex_t>(handle,
@@ -216,8 +215,7 @@ class Tests_MsBfs : public ::testing::TestWithParam<std::tuple<MsBfs_Usecase, in
                                                      std::numeric_limits<vertex_t>::max(),
                                                      static_cast<vertex_t>(0));
 
-      vertex_t ms_sum =
-        cugraph::test::reduce(handle, d_distances, static_cast<vertex_t>(0));
+      vertex_t ms_sum = cugraph::test::reduce(handle, d_distances, static_cast<vertex_t>(0));
 
       auto d_vertex_degree = graph_view.compute_out_degrees(handle);
 
@@ -275,15 +273,17 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_MsBfs_File,
   ::testing::Combine(
     // enable correctness checks
-    ::testing::Values(MsBfs_Usecase{2, 5, false, false, true}, MsBfs_Usecase{4, 9, true, false, true}),
+    ::testing::Values(MsBfs_Usecase{2, 5, false, false, true},
+                      MsBfs_Usecase{4, 9, true, false, true}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/netscience.mtx"))));
 
-INSTANTIATE_TEST_SUITE_P(rmat_small_test,
-                         Tests_MsBfs_Rmat,
-                         // enable correctness checks
-                         ::testing::Combine(::testing::Values(MsBfs_Usecase{2, 5, false, false, true}),
-                                            ::testing::Values(cugraph::test::Rmat_Usecase(
-                                              10, 16, 0.57, 0.19, 0.19, 0, true, false))));
+INSTANTIATE_TEST_SUITE_P(
+  rmat_small_test,
+  Tests_MsBfs_Rmat,
+  // enable correctness checks
+  ::testing::Combine(
+    ::testing::Values(MsBfs_Usecase{2, 5, false, false, true}),
+    ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, true, false))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
@@ -294,7 +294,8 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_MsBfs_Rmat,
   // disable correctness checks for large graphs
   ::testing::Combine(
-    ::testing::Values(MsBfs_Usecase{10, 150, false, false}, MsBfs_Usecase{12, 170, true, false, false}),
+    ::testing::Values(MsBfs_Usecase{10, 150, false, false},
+                      MsBfs_Usecase{12, 170, true, false, false}),
     ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, true, false))));
 
 CUGRAPH_TEST_PROGRAM_MAIN()

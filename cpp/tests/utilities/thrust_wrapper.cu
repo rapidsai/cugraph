@@ -397,7 +397,6 @@ reduce_by_key(raft::handle_t const& handle,
               cugraph::dataframe_buffer_type_t<value_t> const& values,
               size_t num_unique_keys)
 {
-
   auto reduced_keys =
     cugraph::allocate_dataframe_buffer<key_t>(num_unique_keys, handle.get_stream());
 
