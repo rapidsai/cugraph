@@ -47,7 +47,7 @@ struct MsBfs_Usecase {
   size_t radius;
   size_t max_seeds;
   bool test_weighted_{false};
-  bool edge_masking_{false};  // FIXME: Not Supported
+  bool edge_masking_{false};
   bool check_correctness_{true};
 };
 
@@ -273,7 +273,7 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_MsBfs_File,
   ::testing::Combine(
     // enable correctness checks
-    ::testing::Values(MsBfs_Usecase{2, 5, false, false, true},
+    ::testing::Values(MsBfs_Usecase{2, 5, false, true, true},
                       MsBfs_Usecase{4, 9, true, false, true}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/netscience.mtx"))));
 
