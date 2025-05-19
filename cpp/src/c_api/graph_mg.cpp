@@ -131,20 +131,11 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
     } else {
       std::optional<rmm::device_uvector<vertex_t>> new_number_map;
 
-      std::optional<cugraph::edge_property_t<
-        cugraph::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
-        weight_t>>
-        new_edge_weights{std::nullopt};
+      std::optional<cugraph::edge_property_t<edge_t, weight_t>> new_edge_weights{std::nullopt};
 
-      std::optional<cugraph::edge_property_t<
-        cugraph::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
-        edge_t>>
-        new_edge_ids{std::nullopt};
+      std::optional<cugraph::edge_property_t<edge_t, edge_t>> new_edge_ids{std::nullopt};
 
-      std::optional<cugraph::edge_property_t<
-        cugraph::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
-        edge_type_t>>
-        new_edge_types{std::nullopt};
+      std::optional<cugraph::edge_property_t<edge_t, edge_type_t>> new_edge_types{std::nullopt};
 
       std::optional<rmm::device_uvector<vertex_t>> vertex_list =
         vertices_ ? std::make_optional(concatenate<vertex_t>(handle_, vertices_, num_arrays_))
@@ -197,17 +188,11 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
       rmm::device_uvector<vertex_t>* number_map =
         new rmm::device_uvector<vertex_t>(0, handle_.get_stream());
 
-      auto edge_weights = new cugraph::edge_property_t<
-        cugraph::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
-        weight_t>(handle_);
+      auto edge_weights = new cugraph::edge_property_t<edge_t, weight_t>(handle_);
 
-      auto edge_ids = new cugraph::edge_property_t<
-        cugraph::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
-        edge_t>(handle_);
+      auto edge_ids = new cugraph::edge_property_t<edge_t, edge_t>(handle_);
 
-      auto edge_types = new cugraph::edge_property_t<
-        cugraph::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
-        edge_type_t>(handle_);
+      auto edge_types = new cugraph::edge_property_t<edge_t, edge_type_t>(handle_);
 
       if (drop_self_loops_) {
         std::tie(edgelist_srcs,

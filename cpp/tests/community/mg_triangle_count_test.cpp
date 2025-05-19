@@ -92,7 +92,7 @@ class Tests_MGTriangleCount
 
     auto mg_graph_view = mg_graph.view();
 
-    std::optional<cugraph::edge_property_t<decltype(mg_graph_view), bool>> edge_mask{std::nullopt};
+    std::optional<cugraph::edge_property_t<edge_t, bool>> edge_mask{std::nullopt};
     if (triangle_count_usecase.edge_masking) {
       edge_mask = cugraph::test::generate<decltype(mg_graph_view), bool>::edge_property(
         *handle_, mg_graph_view, 2);

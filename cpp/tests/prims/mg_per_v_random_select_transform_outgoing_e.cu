@@ -41,6 +41,7 @@
 
 #include <rmm/device_uvector.hpp>
 
+#include <cuda/std/iterator>
 #include <cuda/std/optional>
 #include <thrust/adjacent_difference.h>
 #include <thrust/iterator/counting_iterator.h>
@@ -162,15 +163,14 @@ class Tests_MGPerVRandomSelectTransformOutgoingE
     auto mg_edge_weight_view =
       mg_edge_weights ? std::make_optional((*mg_edge_weights).view()) : std::nullopt;
 
-    std::optional<cugraph::edge_property_t<decltype(mg_graph_view), bool>> edge_mask{std::nullopt};
+    std::optional<cugraph::edge_property_t<edge_t, bool>> edge_mask{std::nullopt};
     if (prims_usecase.edge_masking) {
       edge_mask = cugraph::test::generate<decltype(mg_graph_view), bool>::edge_property(
         *handle_, mg_graph_view, 2);
       mg_graph_view.attach_edge_mask((*edge_mask).view());
     }
 
-    std::optional<cugraph::edge_property_t<decltype(mg_graph_view), edge_type_t>> mg_edge_types{
-      std::nullopt};
+    std::optional<cugraph::edge_property_t<edge_t, edge_type_t>> mg_edge_types{std::nullopt};
     if (prims_usecase.Ks.size() > 1) {
       mg_edge_types = cugraph::test::generate<decltype(mg_graph_view), edge_type_t>::edge_property(
         *handle_, mg_graph_view, static_cast<int32_t>(prims_usecase.Ks.size()));
@@ -398,12 +398,8 @@ class Tests_MGPerVRandomSelectTransformOutgoingE
       }
 
       cugraph::graph_t<vertex_t, edge_t, false, false> sg_graph(*handle_);
-      std::optional<
-        cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, false, false>, weight_t>>
-        sg_edge_weights{std::nullopt};
-      std::optional<cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, false, false>,
-                                             edge_type_t>>
-        sg_edge_types{std::nullopt};
+      std::optional<cugraph::edge_property_t<edge_t, weight_t>> sg_edge_weights{std::nullopt};
+      std::optional<cugraph::edge_property_t<edge_t, edge_type_t>> sg_edge_types{std::nullopt};
       std::tie(sg_graph, sg_edge_weights, std::ignore, sg_edge_types, std::ignore) =
         cugraph::test::mg_graph_to_sg_graph(
           *handle_,
@@ -626,8 +622,8 @@ class Tests_MGPerVRandomSelectTransformOutgoingE
                 auto lower_it = thrust::lower_bound(thrust::seq, sg_nbr_first, sg_nbr_last, sg_dst);
                 auto upper_it = thrust::upper_bound(thrust::seq, sg_nbr_first, sg_nbr_last, sg_dst);
                 bool found    = false;
-                for (auto it = (*sg_nbr_bias_first + thrust::distance(sg_nbr_first, lower_it));
-                     it != (*sg_nbr_bias_first + thrust::distance(sg_nbr_first, upper_it));
+                for (auto it = (*sg_nbr_bias_first + cuda::std::distance(sg_nbr_first, lower_it));
+                     it != (*sg_nbr_bias_first + cuda::std::distance(sg_nbr_first, upper_it));
                      ++it) {
                   if (*it > 0.0) {
                     found = true;
@@ -678,10 +674,10 @@ class Tests_MGPerVRandomSelectTransformOutgoingE
                   sg_nbr_bias_first
                     ? thrust::count_if(
                         thrust::seq,
-                        *sg_nbr_bias_first + thrust::distance(sg_nbr_first, lower_it),
-                        *sg_nbr_bias_first + thrust::distance(sg_nbr_first, upper_it),
+                        *sg_nbr_bias_first + cuda::std::distance(sg_nbr_first, lower_it),
+                        *sg_nbr_bias_first + cuda::std::distance(sg_nbr_first, upper_it),
                         [] __device__(auto bias) { return bias > 0.0; })
-                    : thrust::distance(lower_it, upper_it);
+                    : cuda::std::distance(lower_it, upper_it);
                 if (dst_count > multiplicity) { return true; }
               }
             }

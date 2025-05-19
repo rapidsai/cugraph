@@ -19,7 +19,6 @@
 #include "prims/per_v_transform_reduce_if_incoming_outgoing_e.cuh"
 #include "prims/reduce_op.cuh"
 #include "prims/transform_reduce_if_v_frontier_outgoing_e_by_dst.cuh"
-#include "prims/update_v_frontier.cuh"
 #include "prims/vertex_frontier.cuh"
 
 #include <cugraph/algorithms.hpp>
@@ -31,6 +30,7 @@
 
 #include <raft/core/handle.hpp>
 
+#include <cuda/std/iterator>
 #include <cuda/std/optional>
 #include <thrust/copy.h>
 #include <thrust/count.h>
@@ -376,9 +376,9 @@ void bfs(raft::handle_t const& handle,
 
   // 5. initialize BFS temporary state data
 
-  auto prev_dst_visited_flags = edge_dst_property_t<GraphViewType, bool>(handle, graph_view);
+  auto prev_dst_visited_flags = edge_dst_property_t<vertex_t, bool>(handle, graph_view);
   fill_edge_dst_property(handle, graph_view, prev_dst_visited_flags.mutable_view(), false);
-  auto dst_visited_flags = edge_dst_property_t<GraphViewType, bool>(
+  auto dst_visited_flags = edge_dst_property_t<vertex_t, bool>(
     handle, graph_view);  // this may mark some vertices visited in previous iterations as unvisited
                           // (but this is OK as we check prev_dst_visited_flags first)
   fill_edge_dst_property(handle, graph_view, dst_visited_flags.mutable_view(), false);
@@ -389,7 +389,7 @@ void bfs(raft::handle_t const& handle,
                          prev_dst_visited_flags.mutable_view(),
                          true);
 
-  // 4. BFS iteration
+  // 6. BFS iteration
   vertex_t depth{0};
   bool topdown = true;
   auto cur_aggregate_frontier_size =
@@ -562,7 +562,7 @@ void bfs(raft::handle_t const& handle,
             handle.get_stream());
           (*((*aux_info).nzd_unvisited_vertices))
             .resize(
-              thrust::distance(
+              cuda::std::distance(
                 (*((*aux_info).nzd_unvisited_vertices)).begin(),
                 thrust::copy_if(
                   handle.get_thrust_policy(),
@@ -637,13 +637,13 @@ void bfs(raft::handle_t const& handle,
 
         new_frontier_vertex_buffer.resize(predecessor_buffer.size(), handle.get_stream());
         new_frontier_vertex_buffer.resize(
-          thrust::distance(new_frontier_vertex_buffer.begin(),
-                           thrust::copy_if(handle.get_thrust_policy(),
-                                           vertex_frontier.bucket(bucket_idx_cur).cbegin(),
-                                           vertex_frontier.bucket(bucket_idx_cur).cend(),
-                                           predecessor_buffer.begin(),
-                                           new_frontier_vertex_buffer.begin(),
-                                           detail::is_not_equal_t<vertex_t>{invalid_vertex})),
+          cuda::std::distance(new_frontier_vertex_buffer.begin(),
+                              thrust::copy_if(handle.get_thrust_policy(),
+                                              vertex_frontier.bucket(bucket_idx_cur).cbegin(),
+                                              vertex_frontier.bucket(bucket_idx_cur).cend(),
+                                              predecessor_buffer.begin(),
+                                              new_frontier_vertex_buffer.begin(),
+                                              detail::is_not_equal_t<vertex_t>{invalid_vertex})),
           handle.get_stream());
 
         assert(direction_optimizing);
@@ -662,7 +662,7 @@ void bfs(raft::handle_t const& handle,
           });
         (*((*aux_info).nzd_unvisited_vertices))
           .resize(
-            thrust::distance(
+            cuda::std::distance(
               (*((*aux_info).nzd_unvisited_vertices)).begin(),
               thrust::remove_if(
                 handle.get_thrust_policy(),

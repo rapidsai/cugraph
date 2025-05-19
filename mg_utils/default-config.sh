@@ -1,4 +1,5 @@
-# Copyright (c) 2022-2023, NVIDIA CORPORATION.
+#!/bin/bash
+# Copyright (c) 2022-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -11,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-THIS_DIR=$(cd $(dirname ${BASH_SOURCE[0]}) && pwd)
+THIS_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 # Most are defined using the bash := or :- syntax, which means they
 # will be set only if they were previously unset. The project config
@@ -20,7 +21,6 @@ THIS_DIR=$(cd $(dirname ${BASH_SOURCE[0]}) && pwd)
 # file that should not be overridded by a project, then they will
 # simply not use that syntax and override, since these variables are
 # read last.
-SCRIPTS_DIR=$THIS_DIR
 WORKSPACE=$THIS_DIR
 
 # These really should be oerridden by the project config!
@@ -36,4 +36,4 @@ DASK_HOST_MEMORY_LIMIT=${DASK_HOST_MEMORY_LIMIT:-auto}
 BUILD_LOG_FILE=${BUILD_LOG_FILE:-${RESULTS_DIR}/build_log.txt}
 SCHEDULER_FILE=${SCHEDULER_FILE:-${WORKSPACE}/dask-scheduler.json}
 DATE=${DATE:-$(date --utc "+%Y-%m-%d_%H:%M:%S")_UTC}
-ENV_EXPORT_FILE=${ENV_EXPORT_FILE:-${WORKSPACE}/$(basename ${CONDA_ENV})-${DATE}.txt}
+ENV_EXPORT_FILE=${ENV_EXPORT_FILE:-${WORKSPACE}/$(basename "${CONDA_ENV}")-${DATE}.txt}

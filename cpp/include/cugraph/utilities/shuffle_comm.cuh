@@ -18,6 +18,7 @@
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/device_comm.hpp>
 
+#include <raft/core/device_span.hpp>
 #include <raft/core/handle.hpp>
 #include <raft/core/host_span.hpp>
 
@@ -26,10 +27,10 @@
 
 #include <cuda/atomic>
 #include <cuda/functional>
+#include <cuda/std/iterator>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
 #include <thrust/count.h>
-#include <thrust/distance.h>
 #include <thrust/execution_policy.h>
 #include <thrust/fill.h>
 #include <thrust/iterator/iterator_traits.h>
@@ -67,7 +68,7 @@ struct compute_group_id_count_pair_t {
       thrust::lower_bound(thrust::seq, group_id_first, group_id_last, static_cast<int>(i));
     auto upper_it = thrust::upper_bound(thrust::seq, lower_it, group_id_last, static_cast<int>(i));
     return thrust::make_tuple(static_cast<int>(i),
-                              static_cast<size_t>(thrust::distance(lower_it, upper_it)));
+                              static_cast<size_t>(cuda::std::distance(lower_it, upper_it)));
   }
 };
 
@@ -185,7 +186,10 @@ struct kv_pair_group_id_greater_equal_t {
   }
 };
 
-template <typename ValueIterator, typename ValueToGroupIdOp>
+template <typename gid_offset_t,
+          typename offset_t,
+          typename ValueIterator,
+          typename ValueToGroupIdOp>
 void multi_partition(ValueIterator value_first,
                      ValueIterator value_last,
                      ValueToGroupIdOp value_to_group_id_op,
@@ -193,25 +197,26 @@ void multi_partition(ValueIterator value_first,
                      int group_last,
                      rmm::cuda_stream_view stream_view)
 {
-  auto num_values = static_cast<size_t>(thrust::distance(value_first, value_last));
+  auto num_values = static_cast<size_t>(cuda::std::distance(value_first, value_last));
   auto num_groups = group_last - group_first;
 
   rmm::device_uvector<size_t> counts(num_groups, stream_view);
-  rmm::device_uvector<int> group_ids(num_values, stream_view);
-  rmm::device_uvector<size_t> intra_partition_displs(num_values, stream_view);
+  rmm::device_uvector<gid_offset_t> group_id_offsets(num_values, stream_view);
+  rmm::device_uvector<offset_t> intra_partition_displs(num_values, stream_view);
   thrust::fill(rmm::exec_policy(stream_view), counts.begin(), counts.end(), size_t{0});
   thrust::transform(
     rmm::exec_policy(stream_view),
     value_first,
     value_last,
     thrust::make_zip_iterator(
-      thrust::make_tuple(group_ids.begin(), intra_partition_displs.begin())),
-    cuda::proclaim_return_type<thrust::tuple<int, size_t>>(
+      thrust::make_tuple(group_id_offsets.begin(), intra_partition_displs.begin())),
+    cuda::proclaim_return_type<thrust::tuple<gid_offset_t, offset_t>>(
       [value_to_group_id_op, group_first, counts = counts.data()] __device__(auto value) {
-        auto group_id = value_to_group_id_op(value);
-        cuda::std::atomic_ref<size_t> counter(counts[group_id - group_first]);
-        return thrust::make_tuple(group_id,
-                                  counter.fetch_add(size_t{1}, cuda::std::memory_order_relaxed));
+        auto group_id_offset = static_cast<gid_offset_t>(value_to_group_id_op(value) - group_first);
+        cuda::std::atomic_ref<size_t> counter(counts[group_id_offset]);
+        return thrust::make_tuple(
+          group_id_offset,
+          static_cast<offset_t>(counter.fetch_add(size_t{1}, cuda::std::memory_order_relaxed)));
       }));
 
   rmm::device_uvector<size_t> displacements(num_groups, stream_view);
@@ -221,25 +226,28 @@ void multi_partition(ValueIterator value_first,
   auto tmp_value_buffer =
     allocate_dataframe_buffer<typename thrust::iterator_traits<ValueIterator>::value_type>(
       num_values, stream_view);
-  auto input_triplet_first = thrust::make_zip_iterator(
-    thrust::make_tuple(value_first, group_ids.begin(), intra_partition_displs.begin()));
   auto tmp_value_first = get_dataframe_buffer_begin(tmp_value_buffer);
-  thrust::for_each(
+  thrust::scatter(
     rmm::exec_policy(stream_view),
-    input_triplet_first,
-    input_triplet_first + num_values,
-    [group_first,
-     displacements = displacements.data(),
-     output_first  = get_dataframe_buffer_begin(tmp_value_buffer)] __device__(auto triplet) {
-      auto group_id            = thrust::get<1>(triplet);
-      auto offset              = displacements[group_id - group_first] + thrust::get<2>(triplet);
-      *(output_first + offset) = thrust::get<0>(triplet);
-    });
+    value_first,
+    value_last,
+    thrust::make_transform_iterator(
+      thrust::make_zip_iterator(group_id_offsets.begin(), intra_partition_displs.begin()),
+      cuda::proclaim_return_type<size_t>(
+        [displacements = raft::device_span<size_t const>(
+           displacements.data(), displacements.size())] __device__(auto pair) {
+          return displacements[thrust::get<0>(pair)] + static_cast<size_t>(thrust::get<1>(pair));
+        })),
+    tmp_value_first);
   thrust::copy(
     rmm::exec_policy(stream_view), tmp_value_first, tmp_value_first + num_values, value_first);
 }
 
-template <typename KeyIterator, typename ValueIterator, typename KeyToGroupIdOp>
+template <typename gid_offset_t,
+          typename offset_t,
+          typename KeyIterator,
+          typename ValueIterator,
+          typename KeyToGroupIdOp>
 void multi_partition(KeyIterator key_first,
                      KeyIterator key_last,
                      ValueIterator value_first,
@@ -248,57 +256,60 @@ void multi_partition(KeyIterator key_first,
                      int group_last,
                      rmm::cuda_stream_view stream_view)
 {
-  auto num_keys   = static_cast<size_t>(thrust::distance(key_first, key_last));
+  auto num_keys   = static_cast<size_t>(cuda::std::distance(key_first, key_last));
   auto num_groups = group_last - group_first;
 
   rmm::device_uvector<size_t> counts(num_groups, stream_view);
-  rmm::device_uvector<int> group_ids(num_keys, stream_view);
-  rmm::device_uvector<size_t> intra_partition_displs(num_keys, stream_view);
+  rmm::device_uvector<gid_offset_t> group_id_offsets(num_keys, stream_view);
+  rmm::device_uvector<offset_t> intra_partition_displs(num_keys, stream_view);
   thrust::fill(rmm::exec_policy(stream_view), counts.begin(), counts.end(), size_t{0});
   thrust::transform(
     rmm::exec_policy(stream_view),
     key_first,
     key_last,
     thrust::make_zip_iterator(
-      thrust::make_tuple(group_ids.begin(), intra_partition_displs.begin())),
-    cuda::proclaim_return_type<thrust::tuple<int, size_t>>(
+      thrust::make_tuple(group_id_offsets.begin(), intra_partition_displs.begin())),
+    cuda::proclaim_return_type<thrust::tuple<gid_offset_t, offset_t>>(
       [key_to_group_id_op, group_first, counts = counts.data()] __device__(auto key) {
-        auto group_id = key_to_group_id_op(key);
-        cuda::std::atomic_ref<size_t> counter(counts[group_id - group_first]);
-        return thrust::make_tuple(group_id,
-                                  counter.fetch_add(size_t{1}, cuda::std::memory_order_relaxed));
+        auto group_id_offset = static_cast<gid_offset_t>(key_to_group_id_op(key) - group_first);
+        cuda::std::atomic_ref<size_t> counter(counts[group_id_offset]);
+        return thrust::make_tuple(
+          group_id_offset,
+          static_cast<offset_t>(counter.fetch_add(size_t{1}, cuda::std::memory_order_relaxed)));
       }));
 
   rmm::device_uvector<size_t> displacements(num_groups, stream_view);
   thrust::exclusive_scan(
     rmm::exec_policy(stream_view), counts.begin(), counts.end(), displacements.begin());
 
-  auto tmp_key_buffer =
-    allocate_dataframe_buffer<typename thrust::iterator_traits<KeyIterator>::value_type>(
-      num_keys, stream_view);
-  auto tmp_value_buffer =
-    allocate_dataframe_buffer<typename thrust::iterator_traits<ValueIterator>::value_type>(
-      num_keys, stream_view);
-  auto input_quadraplet_first = thrust::make_zip_iterator(
-    thrust::make_tuple(key_first, value_first, group_ids.begin(), intra_partition_displs.begin()));
-  auto tmp_kv_pair_first = thrust::make_zip_iterator(thrust::make_tuple(
-    get_dataframe_buffer_begin(tmp_key_buffer), get_dataframe_buffer_begin(tmp_value_buffer)));
-  thrust::for_each(rmm::exec_policy(stream_view),
-                   input_quadraplet_first,
-                   input_quadraplet_first + num_keys,
-                   [group_first,
-                    displacements = displacements.data(),
-                    output_first  = tmp_kv_pair_first] __device__(auto quadraplet) {
-                     auto group_id = thrust::get<2>(quadraplet);
-                     auto offset =
-                       displacements[group_id - group_first] + thrust::get<3>(quadraplet);
-                     *(output_first + offset) =
-                       thrust::make_tuple(thrust::get<0>(quadraplet), thrust::get<1>(quadraplet));
-                   });
-  thrust::copy(rmm::exec_policy(stream_view),
-               tmp_kv_pair_first,
-               tmp_kv_pair_first + num_keys,
-               thrust::make_zip_iterator(thrust::make_tuple(key_first, value_first)));
+  auto map_first = thrust::make_transform_iterator(
+    thrust::make_zip_iterator(group_id_offsets.begin(), intra_partition_displs.begin()),
+    cuda::proclaim_return_type<size_t>(
+      [displacements = raft::device_span<size_t const>(
+         displacements.data(), displacements.size())] __device__(auto pair) {
+        return displacements[thrust::get<0>(pair)] + static_cast<size_t>(thrust::get<1>(pair));
+      }));
+  {
+    auto tmp_key_buffer =
+      allocate_dataframe_buffer<typename thrust::iterator_traits<KeyIterator>::value_type>(
+        num_keys, stream_view);
+    auto tmp_key_first = get_dataframe_buffer_begin(tmp_key_buffer);
+    thrust::scatter(rmm::exec_policy(stream_view), key_first, key_last, map_first, tmp_key_first);
+    thrust::copy(rmm::exec_policy(stream_view), tmp_key_first, tmp_key_first + num_keys, key_first);
+  }
+  {
+    auto tmp_value_buffer =
+      allocate_dataframe_buffer<typename thrust::iterator_traits<ValueIterator>::value_type>(
+        num_keys, stream_view);
+    auto tmp_value_first = get_dataframe_buffer_begin(tmp_value_buffer);
+    thrust::scatter(rmm::exec_policy(stream_view),
+                    value_first,
+                    value_first + num_keys,
+                    map_first,
+                    tmp_value_first);
+    thrust::copy(
+      rmm::exec_policy(stream_view), tmp_value_first, tmp_value_first + num_keys, value_first);
+  }
 }
 
 template <typename ValueIterator>
@@ -307,7 +318,7 @@ void swap_partitions(ValueIterator value_first,
                      size_t first_partition_size,
                      rmm::cuda_stream_view stream_view)
 {
-  auto num_elements          = static_cast<size_t>(thrust::distance(value_first, value_last));
+  auto num_elements          = static_cast<size_t>(cuda::std::distance(value_first, value_last));
   auto second_partition_size = num_elements - first_partition_size;
   if (first_partition_size >= second_partition_size) {
     auto tmp_value_buffer =
@@ -357,7 +368,7 @@ void swap_partitions(KeyIterator key_first,
                      size_t first_partition_size,
                      rmm::cuda_stream_view stream_view)
 {
-  auto num_elements          = static_cast<size_t>(thrust::distance(key_first, key_last));
+  auto num_elements          = static_cast<size_t>(cuda::std::distance(key_first, key_last));
   auto second_partition_size = num_elements - first_partition_size;
   if (first_partition_size >= second_partition_size) {
     auto tmp_key_buffer =
@@ -442,13 +453,13 @@ ValueIterator mem_frugal_partition(
   int pivot,  // group id less than pivot goes to the first partition
   rmm::cuda_stream_view stream_view)
 {
-  auto num_elements = static_cast<size_t>(thrust::distance(value_first, value_last));
+  auto num_elements = static_cast<size_t>(cuda::std::distance(value_first, value_last));
   auto first_size   = static_cast<size_t>(thrust::count_if(
     rmm::exec_policy(stream_view),
     value_first,
     value_last,
     value_group_id_less_t<typename thrust::iterator_traits<ValueIterator>::value_type,
-                          ValueToGroupIdOp>{value_to_group_id_op, pivot}));
+                            ValueToGroupIdOp>{value_to_group_id_op, pivot}));
   auto second_size  = num_elements - first_size;
 
   auto tmp_buffer =
@@ -497,7 +508,7 @@ std::tuple<KeyIterator, ValueIterator> mem_frugal_partition(
   int pivot,  // group Id less than pivot goes to the first partition
   rmm::cuda_stream_view stream_view)
 {
-  auto num_elements = static_cast<size_t>(thrust::distance(key_first, key_last));
+  auto num_elements = static_cast<size_t>(cuda::std::distance(key_first, key_last));
   auto first_size   = static_cast<size_t>(thrust::count_if(
     rmm::exec_policy(stream_view),
     key_first,
@@ -576,7 +587,7 @@ void mem_frugal_groupby(
   while (offset_first < offset_last) {
     for (size_t i = offset_first; i < offset_last; ++i) {
       auto pivot = (group_firsts[i] + group_lasts[i]) / 2;
-      if (static_cast<size_t>(thrust::distance(value_firsts[i], value_lasts[i])) <
+      if (static_cast<size_t>(cuda::std::distance(value_firsts[i], value_lasts[i])) <
           mem_frugal_threshold) {
         if (group_lasts[i] - group_firsts[i] == 2) {
           thrust::partition(
@@ -586,26 +597,29 @@ void mem_frugal_groupby(
             value_group_id_less_t<typename thrust::iterator_traits<ValueIterator>::value_type,
                                   ValueToGroupIdOp>{value_to_group_id_op, pivot});
         } else {
-#if 1  // FIXME: keep the both if and else cases till the performance improvement gets fully
-       // validated. The else path should be eventually deleted.
-          multi_partition(value_firsts[i],
-                          value_lasts[i],
-                          value_to_group_id_op,
-                          group_firsts[i],
-                          group_lasts[i],
-                          stream_view);
-#else
-          thrust::sort(rmm::exec_policy(stream_view),
-                       value_firsts[i],
-                       value_lasts[i],
-                       [value_to_group_id_op] __device__(auto lhs, auto rhs) {
-                         return value_to_group_id_op(lhs) < value_to_group_id_op(rhs);
-                       });
-#endif
+          if ((((group_lasts[i] - group_firsts[i]) - int{1}) <=
+               static_cast<int>(std::numeric_limits<uint8_t>::max())) &&
+              ((static_cast<size_t>(cuda::std::distance(value_firsts[i], value_lasts[i])) -
+                size_t{1}) <= static_cast<size_t>(std::numeric_limits<uint32_t>::max()))) {
+            multi_partition<uint8_t, uint32_t>(value_firsts[i],
+                                               value_lasts[i],
+                                               value_to_group_id_op,
+                                               group_firsts[i],
+                                               group_lasts[i],
+                                               stream_view);
+          } else {
+            multi_partition<int, size_t>(value_firsts[i],
+                                         value_lasts[i],
+                                         value_to_group_id_op,
+                                         group_firsts[i],
+                                         group_lasts[i],
+                                         stream_view);
+          }
         }
       } else {
         ValueIterator second_first{};
-        auto num_elements = static_cast<size_t>(thrust::distance(value_firsts[i], value_lasts[i]));
+        auto num_elements =
+          static_cast<size_t>(cuda::std::distance(value_firsts[i], value_lasts[i]));
         auto first_chunk_partition_first  = mem_frugal_partition(value_firsts[i],
                                                                 value_firsts[i] + num_elements / 2,
                                                                 value_to_group_id_op,
@@ -617,9 +631,9 @@ void mem_frugal_groupby(
                                                                  pivot,
                                                                  stream_view);
         auto no_less_size                 = static_cast<size_t>(
-          thrust::distance(first_chunk_partition_first, value_firsts[i] + num_elements / 2));
+          cuda::std::distance(first_chunk_partition_first, value_firsts[i] + num_elements / 2));
         auto less_size = static_cast<size_t>(
-          thrust::distance(value_firsts[i] + num_elements / 2, second_chunk_partition_first));
+          cuda::std::distance(value_firsts[i] + num_elements / 2, second_chunk_partition_first));
         swap_partitions(value_firsts[i] + (num_elements / 2 - no_less_size),
                         value_firsts[i] + (num_elements / 2 + less_size),
                         no_less_size,
@@ -674,7 +688,7 @@ void mem_frugal_groupby(
   while (offset_first < offset_last) {
     for (size_t i = offset_first; i < offset_last; ++i) {
       auto pivot = (group_firsts[i] + group_lasts[i]) / 2;
-      if (static_cast<size_t>(thrust::distance(key_firsts[i], key_lasts[i])) <
+      if (static_cast<size_t>(cuda::std::distance(key_firsts[i], key_lasts[i])) <
           mem_frugal_threshold) {
         if (group_lasts[i] - group_firsts[i] == 2) {
           auto kv_pair_first =
@@ -682,33 +696,35 @@ void mem_frugal_groupby(
           thrust::partition(
             rmm::exec_policy(stream_view),
             kv_pair_first,
-            kv_pair_first + thrust::distance(key_firsts[i], key_lasts[i]),
+            kv_pair_first + cuda::std::distance(key_firsts[i], key_lasts[i]),
             kv_pair_group_id_less_t<typename thrust::iterator_traits<KeyIterator>::value_type,
                                     typename thrust::iterator_traits<ValueIterator>::value_type,
                                     KeyToGroupIdOp>{key_to_group_id_op, pivot});
         } else {
-#if 1  // FIXME: keep the both if and else cases till the performance improvement gets fully
-       // validated. The else path should be eventually deleted.
-          multi_partition(key_firsts[i],
-                          key_lasts[i],
-                          value_firsts[i],
-                          key_to_group_id_op,
-                          group_firsts[i],
-                          group_lasts[i],
-                          stream_view);
-#else
-          thrust::sort_by_key(rmm::exec_policy(stream_view),
-                              key_firsts[i],
-                              key_lasts[i],
-                              value_firsts[i],
-                              [key_to_group_id_op] __device__(auto lhs, auto rhs) {
-                                return key_to_group_id_op(lhs) < key_to_group_id_op(rhs);
-                              });
-#endif
+          if ((((group_lasts[i] - group_firsts[i]) - int{1}) <=
+               static_cast<int>(std::numeric_limits<uint8_t>::max())) &&
+              ((static_cast<size_t>(cuda::std::distance(key_firsts[i], key_lasts[i])) -
+                size_t{1}) <= static_cast<size_t>(std::numeric_limits<uint32_t>::max()))) {
+            multi_partition<uint8_t, uint32_t>(key_firsts[i],
+                                               key_lasts[i],
+                                               value_firsts[i],
+                                               key_to_group_id_op,
+                                               group_firsts[i],
+                                               group_lasts[i],
+                                               stream_view);
+          } else {
+            multi_partition<int, size_t>(key_firsts[i],
+                                         key_lasts[i],
+                                         value_firsts[i],
+                                         key_to_group_id_op,
+                                         group_firsts[i],
+                                         group_lasts[i],
+                                         stream_view);
+          }
         }
       } else {
         std::tuple<KeyIterator, ValueIterator> second_first{};
-        auto num_elements = static_cast<size_t>(thrust::distance(key_firsts[i], key_lasts[i]));
+        auto num_elements = static_cast<size_t>(cuda::std::distance(key_firsts[i], key_lasts[i]));
         auto first_chunk_partition_first  = mem_frugal_partition(key_firsts[i],
                                                                 key_firsts[i] + num_elements / 2,
                                                                 value_firsts[i],
@@ -721,9 +737,9 @@ void mem_frugal_groupby(
                                                                  key_to_group_id_op,
                                                                  pivot,
                                                                  stream_view);
-        auto no_less_size                 = static_cast<size_t>(thrust::distance(
+        auto no_less_size                 = static_cast<size_t>(cuda::std::distance(
           std::get<0>(first_chunk_partition_first), key_firsts[i] + num_elements / 2));
-        auto less_size                    = static_cast<size_t>(thrust::distance(
+        auto less_size                    = static_cast<size_t>(cuda::std::distance(
           key_firsts[i] + num_elements / 2, std::get<0>(second_chunk_partition_first)));
         swap_partitions(key_firsts[i] + (num_elements / 2 - no_less_size),
                         key_firsts[i] + (num_elements / 2 + less_size),
@@ -785,7 +801,7 @@ rmm::device_uvector<size_t> groupby_and_count(ValueIterator tx_value_first /* [I
     rank_count_pair_first,
     rank_count_pair_first + num_groups,
     detail::compute_group_id_count_pair_t<decltype(group_id_first)>{
-      group_id_first, group_id_first + thrust::distance(tx_value_first, tx_value_last)});
+      group_id_first, group_id_first + cuda::std::distance(tx_value_first, tx_value_last)});
 
   return d_tx_value_counts;
 }
@@ -815,11 +831,12 @@ rmm::device_uvector<size_t> groupby_and_count(VertexIterator tx_key_first /* [IN
   rmm::device_uvector<size_t> d_tx_value_counts(d_tx_dst_ranks.size(), stream_view);
   auto rank_count_pair_first = thrust::make_zip_iterator(
     thrust::make_tuple(d_tx_dst_ranks.begin(), d_tx_value_counts.begin()));
-  thrust::tabulate(rmm::exec_policy(stream_view),
-                   rank_count_pair_first,
-                   rank_count_pair_first + num_groups,
-                   detail::compute_group_id_count_pair_t<decltype(group_id_first)>{
-                     group_id_first, group_id_first + thrust::distance(tx_key_first, tx_key_last)});
+  thrust::tabulate(
+    rmm::exec_policy(stream_view),
+    rank_count_pair_first,
+    rank_count_pair_first + num_groups,
+    detail::compute_group_id_count_pair_t<decltype(group_id_first)>{
+      group_id_first, group_id_first + cuda::std::distance(tx_key_first, tx_key_last)});
 
   return d_tx_value_counts;
 }
@@ -1040,10 +1057,10 @@ auto shuffle_and_unique_segment_sorted_values(
                  get_dataframe_buffer_begin(sorted_unique_values));
     resize_dataframe_buffer(
       sorted_unique_values,
-      thrust::distance(get_dataframe_buffer_begin(sorted_unique_values),
-                       thrust::unique(rmm::exec_policy_nosync(stream_view),
-                                      get_dataframe_buffer_begin(sorted_unique_values),
-                                      get_dataframe_buffer_end(sorted_unique_values))),
+      cuda::std::distance(get_dataframe_buffer_begin(sorted_unique_values),
+                          thrust::unique(rmm::exec_policy_nosync(stream_view),
+                                         get_dataframe_buffer_begin(sorted_unique_values),
+                                         get_dataframe_buffer_end(sorted_unique_values))),
       stream_view);
   } else {
     rmm::device_uvector<size_t> d_tx_value_counts(comm_size, stream_view);
@@ -1095,10 +1112,10 @@ auto shuffle_and_unique_segment_sorted_values(
       }
       resize_dataframe_buffer(
         merged_sorted_values,
-        thrust::distance(get_dataframe_buffer_begin(merged_sorted_values),
-                         thrust::unique(rmm::exec_policy_nosync(stream_view),
-                                        get_dataframe_buffer_begin(merged_sorted_values),
-                                        get_dataframe_buffer_end(merged_sorted_values))),
+        cuda::std::distance(get_dataframe_buffer_begin(merged_sorted_values),
+                            thrust::unique(rmm::exec_policy_nosync(stream_view),
+                                           get_dataframe_buffer_begin(merged_sorted_values),
+                                           get_dataframe_buffer_end(merged_sorted_values))),
         stream_view);
       sorted_unique_values = std::move(merged_sorted_values);
     }

@@ -46,9 +46,9 @@
 
 #include <cub/cub.cuh>
 #include <cuda/functional>
+#include <cuda/std/iterator>
 #include <cuda/std/optional>
 #include <thrust/copy.h>
-#include <thrust/distance.h>
 #include <thrust/execution_policy.h>
 #include <thrust/fill.h>
 #include <thrust/for_each.h>
@@ -287,7 +287,7 @@ __global__ static void per_v_transform_reduce_e_hypersparse(
 
   size_t key_count{};
   if constexpr (use_input_key) {
-    key_count = static_cast<size_t>(thrust::distance(key_first, key_last));
+    key_count = static_cast<size_t>(cuda::std::distance(key_first, key_last));
   } else {
     key_count = *(edge_partition.dcs_nzd_vertex_count());
   }
@@ -419,7 +419,7 @@ __global__ static void per_v_transform_reduce_e_low_degree(
   auto const tid = threadIdx.x + blockIdx.x * blockDim.x;
   auto idx       = static_cast<size_t>(tid);
 
-  while (idx < static_cast<size_t>(thrust::distance(key_first, key_last))) {
+  while (idx < static_cast<size_t>(cuda::std::distance(key_first, key_last))) {
     auto key   = *(key_first + idx);
     auto major = thrust_tuple_get_or_identity<key_t, 0>(key);
 
@@ -540,7 +540,7 @@ __global__ static void per_v_transform_reduce_e_mid_degree(
       temp_storage[update_major ? (per_v_transform_reduce_e_kernel_block_size / raft::warp_size())
                                 : int32_t{1} /* dummy */];
 
-  while (idx < static_cast<size_t>(thrust::distance(key_first, key_last))) {
+  while (idx < static_cast<size_t>(cuda::std::distance(key_first, key_last))) {
     auto key   = *(key_first + idx);
     auto major = thrust_tuple_get_or_identity<key_t, 0>(key);
 
@@ -579,8 +579,7 @@ __global__ static void per_v_transform_reduce_e_mid_degree(
       reduced_e_op_result{};
     [[maybe_unused]] std::conditional_t<update_major && std::is_same_v<ReduceOp, reduce_op::any<T>>,
                                         int32_t,
-                                        std::byte /* dummy */>
-      first_valid_lane_id{};
+                                        std::byte /* dummy */> first_valid_lane_id{};
     if constexpr (update_major) {
       reduced_e_op_result =
         (lane_id == 0) ? init : identity_element;  // init == identity_element for reduce_op::any<T>
@@ -735,10 +734,9 @@ __global__ static void per_v_transform_reduce_e_high_degree(
   [[maybe_unused]] __shared__
     std::conditional_t<update_major && std::is_same_v<ReduceOp, reduce_op::any<T>>,
                        int32_t,
-                       std::byte /* dummy */>
-      output_thread_id;
+                       std::byte /* dummy */> output_thread_id;
 
-  while (idx < static_cast<size_t>(thrust::distance(key_first, key_last))) {
+  while (idx < static_cast<size_t>(cuda::std::distance(key_first, key_last))) {
     auto key   = *(key_first + idx);
     auto major = thrust_tuple_get_or_identity<key_t, 0>(key);
 
@@ -777,8 +775,7 @@ __global__ static void per_v_transform_reduce_e_high_degree(
       reduced_e_op_result{};
     [[maybe_unused]] std::conditional_t<update_major && std::is_same_v<ReduceOp, reduce_op::any<T>>,
                                         int32_t,
-                                        std::byte /* dummy */>
-      first_valid_thread_id{};
+                                        std::byte /* dummy */> first_valid_thread_id{};
     if constexpr (update_major) {
       reduced_e_op_result = threadIdx.x == 0
                               ? init
@@ -1341,7 +1338,7 @@ void per_v_transform_reduce_e_edge_partition(
     size_t num_keys{};
     if constexpr (use_input_key) {
       num_keys =
-        static_cast<size_t>(thrust::distance(edge_partition_key_first, edge_partition_key_last));
+        static_cast<size_t>(cuda::std::distance(edge_partition_key_first, edge_partition_key_last));
     } else {
       num_keys = static_cast<size_t>(edge_partition.major_range_size());
     }
@@ -1485,9 +1482,9 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
     if constexpr (use_input_key) {
       thrust::fill(handle.get_thrust_policy(),
                    vertex_value_output_first +
-                     thrust::distance(sorted_unique_key_first, sorted_unique_nzd_key_last),
+                     cuda::std::distance(sorted_unique_key_first, sorted_unique_nzd_key_last),
                    vertex_value_output_first +
-                     thrust::distance(sorted_unique_key_first, sorted_unique_key_last),
+                     cuda::std::distance(sorted_unique_key_first, sorted_unique_key_last),
                    init);
     } else {
       if (local_vertex_partition_segment_offsets) {
@@ -1592,7 +1589,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
       handle.get_thrust_policy(),
       vertex_value_output_first,
       vertex_value_output_first +
-        thrust::distance(sorted_unique_key_first, sorted_unique_nzd_key_last),
+        cuda::std::distance(sorted_unique_key_first, sorted_unique_nzd_key_last),
       init);  // we allow false positives (some edge operations may actually return init)
 
     resize_optional_dataframe_buffer<key_t>(tmp_key_buffer, num_tmp_keys, handle.get_stream());
@@ -1603,7 +1600,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
     thrust::copy_if(
       handle.get_thrust_policy(),
       input_first,
-      input_first + thrust::distance(sorted_unique_key_first, sorted_unique_nzd_key_last),
+      input_first + cuda::std::distance(sorted_unique_key_first, sorted_unique_nzd_key_last),
       vertex_value_output_first,
       thrust::make_zip_iterator(get_optional_dataframe_buffer_begin<key_t>(tmp_key_buffer),
                                 get_optional_dataframe_buffer_begin<size_t>(tmp_output_indices)),
@@ -1634,8 +1631,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
   [[maybe_unused]] std::conditional_t<GraphViewType::is_multi_gpu && update_major &&
                                         std::is_same_v<ReduceOp, reduce_op::any<T>>,
                                       int,
-                                      std::byte /* dummy */>
-    subgroup_size{};
+                                      std::byte /* dummy */> subgroup_size{};
   if constexpr (GraphViewType::is_multi_gpu && update_major &&
                 std::is_same_v<ReduceOp, reduce_op::any<T>>) {
     auto& comm                 = handle.get_comms();
@@ -1703,7 +1699,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
       size_t major_range_size{};
       if constexpr (use_input_key) {
         major_range_size = static_cast<size_t>(
-          thrust::distance(sorted_unique_key_first, sorted_unique_nzd_key_last));
+          cuda::std::distance(sorted_unique_key_first, sorted_unique_nzd_key_last));
         ;
       } else {
         major_range_size = graph_view.local_vertex_partition_range_size();
@@ -1763,7 +1759,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
         }
         if constexpr (use_input_key) {
           auto v_list_size = static_cast<size_t>(
-            thrust::distance(sorted_unique_key_first, sorted_unique_nzd_key_last));
+            cuda::std::distance(sorted_unique_key_first, sorted_unique_nzd_key_last));
           if (i == 2) { return v_list_size; }
           if constexpr (try_bitmap) {
             if (i == 3) {
@@ -1791,7 +1787,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                   cuda::proclaim_return_type<vertex_t>([] __device__(auto key) {
                     return thrust_tuple_get_or_identity<key_t, 0>(key);
                   }));
-                return v_list_size - static_cast<size_t>(thrust::distance(
+                return v_list_size - static_cast<size_t>(cuda::std::distance(
                                        sorted_unique_v_first,
                                        thrust::lower_bound(thrust::seq,
                                                            sorted_unique_v_first,
@@ -1807,7 +1803,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                   cuda::proclaim_return_type<vertex_t>([] __device__(auto key) {
                     return thrust_tuple_get_or_identity<key_t, 0>(key);
                   }));
-                return v_list_size - static_cast<size_t>(thrust::distance(
+                return v_list_size - static_cast<size_t>(cuda::std::distance(
                                        sorted_unique_v_first,
                                        thrust::lower_bound(thrust::seq,
                                                            sorted_unique_v_first,
@@ -1890,8 +1886,8 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
     }
   } else {
     if constexpr (use_input_key) {
-      local_key_list_sizes = std::vector<size_t>{
-        static_cast<size_t>(thrust::distance(sorted_unique_key_first, sorted_unique_nzd_key_last))};
+      local_key_list_sizes = std::vector<size_t>{static_cast<size_t>(
+        cuda::std::distance(sorted_unique_key_first, sorted_unique_nzd_key_last))};
       if (key_segment_offsets) {
         key_segment_offset_vectors       = std::vector<std::vector<size_t>>(1);
         (*key_segment_offset_vectors)[0] = *key_segment_offsets;
@@ -2038,30 +2034,30 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
 
   // 8. set-up temporary buffers
 
-  using minor_tmp_buffer_type = std::conditional_t<GraphViewType::is_storage_transposed,
-                                                   edge_src_property_t<GraphViewType, T>,
-                                                   edge_dst_property_t<GraphViewType, T>>;
+  using minor_tmp_buffer_type = detail::edge_minor_property_t<vertex_t, T>;
   [[maybe_unused]] std::unique_ptr<minor_tmp_buffer_type> minor_tmp_buffer{};
   if constexpr (GraphViewType::is_multi_gpu && !update_major) {
-    minor_tmp_buffer = std::make_unique<minor_tmp_buffer_type>(handle, graph_view);
-    auto minor_init  = init;
-    auto view        = minor_tmp_buffer->view();
-    if (view.keys()) {  // defer applying the initial value to the end as minor_tmp_buffer ma not
-                        // store values for the entire minor rangey
+    minor_tmp_buffer  = std::make_unique<minor_tmp_buffer_type>(handle, graph_view);
+    auto minor_init   = init;
+    auto mutable_view = minor_tmp_buffer->mutable_view();
+    if (mutable_view.minor_keys()) {  // defer applying the initial value to the end as
+                                      // minor_tmp_buffer ma not
+                                      // store values for the entire minor rangey
       minor_init = ReduceOp::identity_element;
     } else {
       auto& major_comm = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
       auto const major_comm_rank = major_comm.get_rank();
       minor_init                 = (major_comm_rank == 0) ? init : ReduceOp::identity_element;
     }
-    fill_edge_minor_property(handle, graph_view, minor_tmp_buffer->mutable_view(), minor_init);
+    fill_edge_minor_property(handle, graph_view, mutable_view, minor_init);
   }
 
   using edge_partition_minor_output_device_view_t =
     std::conditional_t<GraphViewType::is_multi_gpu && !update_major,
                        detail::edge_partition_endpoint_property_device_view_t<
                          vertex_t,
-                         decltype(minor_tmp_buffer->mutable_view().value_first())>,
+                         typename minor_tmp_buffer_type::value_iterator,
+                         T>,
                        void /* dummy */>;
 
   auto counters = allocate_optional_dataframe_buffer<
@@ -3031,7 +3027,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                     auto start_offset = d_scalars[i * 2 + 1];
                     if (uint32_key_output_offset) {
                       auto casted_first = static_cast<uint32_t const*>(first);
-                      return size - static_cast<size_t>(thrust::distance(
+                      return size - static_cast<size_t>(cuda::std::distance(
                                       casted_first,
                                       thrust::lower_bound(thrust::seq,
                                                           casted_first,
@@ -3040,7 +3036,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                     } else {
                       auto casted_first = static_cast<size_t const*>(first);
                       return size -
-                             static_cast<size_t>(thrust::distance(
+                             static_cast<size_t>(cuda::std::distance(
                                casted_first,
                                thrust::lower_bound(
                                  thrust::seq, casted_first, casted_first + size, start_offset)));
@@ -4010,7 +4006,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
               });
             resize_dataframe_buffer(
               *rx_values,
-              thrust::distance(
+              cuda::std::distance(
                 get_dataframe_buffer_begin(*rx_values),
                 thrust::remove_if(handle.get_thrust_policy(),
                                   get_dataframe_buffer_begin(*rx_values),
@@ -4070,7 +4066,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
               if ((*rx_offsets).index() == 0) {
                 resize_dataframe_buffer(
                   std::get<0>(*rx_offsets),
-                  thrust::distance(
+                  cuda::std::distance(
                     get_dataframe_buffer_begin(std::get<0>(*rx_offsets)),
                     thrust::remove_if(handle.get_thrust_policy(),
                                       get_dataframe_buffer_begin(std::get<0>(*rx_offsets)),
@@ -4089,7 +4085,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
               } else {
                 resize_dataframe_buffer(
                   std::get<1>(*rx_offsets),
-                  thrust::distance(
+                  cuda::std::distance(
                     get_dataframe_buffer_begin(std::get<1>(*rx_offsets)),
                     thrust::remove_if(handle.get_thrust_policy(),
                                       get_dataframe_buffer_begin(std::get<1>(*rx_offsets)),
@@ -4162,7 +4158,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                    selected_ranks = raft::device_span<uint8_t>(
                      std::get<0>(selected_ranks).data(),
                      std::get<0>(selected_ranks).size())] __device__(auto i) {
-                    auto minor_comm_rank       = static_cast<uint8_t>(thrust::distance(
+                    auto minor_comm_rank       = static_cast<uint8_t>(cuda::std::distance(
                       lasts.begin(),
                       thrust::upper_bound(thrust::seq, lasts.begin(), lasts.end(), i)));
                     selected_ranks[offsets[i]] = minor_comm_rank;
@@ -4178,7 +4174,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                    selected_ranks = raft::device_span<int>(
                      std::get<1>(selected_ranks).data(),
                      std::get<1>(selected_ranks).size())] __device__(auto i) {
-                    auto minor_comm_rank       = static_cast<int>(thrust::distance(
+                    auto minor_comm_rank       = static_cast<int>(cuda::std::distance(
                       lasts.begin(),
                       thrust::upper_bound(thrust::seq, lasts.begin(), lasts.end(), i)));
                     selected_ranks[offsets[i]] = minor_comm_rank;
@@ -4199,7 +4195,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                    selected_ranks = raft::device_span<uint8_t>(
                      std::get<0>(selected_ranks).data(),
                      std::get<0>(selected_ranks).size())] __device__(auto i) {
-                    auto minor_comm_rank       = static_cast<uint8_t>(thrust::distance(
+                    auto minor_comm_rank       = static_cast<uint8_t>(cuda::std::distance(
                       lasts.begin(),
                       thrust::upper_bound(thrust::seq, lasts.begin(), lasts.end(), i)));
                     selected_ranks[offsets[i]] = minor_comm_rank;
@@ -4215,7 +4211,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                    selected_ranks = raft::device_span<int>(
                      std::get<1>(selected_ranks).data(),
                      std::get<1>(selected_ranks).size())] __device__(auto i) {
-                    auto minor_comm_rank       = static_cast<int>(thrust::distance(
+                    auto minor_comm_rank       = static_cast<int>(cuda::std::distance(
                       lasts.begin(),
                       thrust::upper_bound(thrust::seq, lasts.begin(), lasts.end(), i)));
                     selected_ranks[offsets[i]] = minor_comm_rank;
@@ -4311,7 +4307,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
     auto const minor_comm_size = minor_comm.get_size();
 
     auto view = minor_tmp_buffer->view();
-    if (view.keys()) {  // applying the initial value is deferred to here
+    if (view.minor_keys()) {  // applying the initial value is deferred to here
       vertex_t max_vertex_partition_size{0};
       for (int i = 0; i < major_comm_size; ++i) {
         auto this_segment_vertex_partition_id =
@@ -4340,14 +4336,14 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                        graph_view.vertex_partition_range_size(this_segment_vertex_partition_id),
                      minor_init);
         auto value_first = thrust::make_transform_iterator(
-          view.value_first(),
+          view.minor_value_first(),
           cuda::proclaim_return_type<T>(
             [reduce_op, minor_init] __device__(auto val) { return reduce_op(val, minor_init); }));
         thrust::scatter(handle.get_thrust_policy(),
                         value_first + (*minor_key_offsets)[i],
                         value_first + (*minor_key_offsets)[i + 1],
                         thrust::make_transform_iterator(
-                          (*(view.keys())).begin() + (*minor_key_offsets)[i],
+                          (*(view.minor_keys())).begin() + (*minor_key_offsets)[i],
                           cuda::proclaim_return_type<vertex_t>(
                             [key_first = graph_view.vertex_partition_range_first(
                                this_segment_vertex_partition_id)] __device__(auto key) {
@@ -4376,7 +4372,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
         auto offset = graph_view.vertex_partition_range_first(this_segment_vertex_partition_id) -
                       minor_range_first;
         device_reduce(major_comm,
-                      view.value_first() + offset,
+                      view.minor_value_first() + offset,
                       tmp_vertex_value_output_first,
                       static_cast<size_t>(
                         graph_view.vertex_partition_range_size(this_segment_vertex_partition_id)),

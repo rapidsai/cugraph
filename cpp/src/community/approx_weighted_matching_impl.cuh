@@ -28,6 +28,7 @@
 
 #include <raft/core/handle.hpp>
 
+#include <cuda/std/iterator>
 #include <thrust/fill.h>
 
 namespace cugraph {
@@ -49,10 +50,10 @@ std::tuple<rmm::device_uvector<vertex_t>, weight_t> approximate_weighted_matchin
   graph_view_t current_graph_view(graph_view);
   if (current_graph_view.has_edge_mask()) { current_graph_view.clear_edge_mask(); }
 
-  cugraph::edge_property_t<graph_view_t, bool> edge_masks_even(handle, current_graph_view);
+  cugraph::edge_property_t<edge_t, bool> edge_masks_even(handle, current_graph_view);
   cugraph::fill_edge_property(
     handle, current_graph_view, edge_masks_even.mutable_view(), bool{false});
-  cugraph::edge_property_t<graph_view_t, bool> edge_masks_odd(handle, current_graph_view);
+  cugraph::edge_property_t<edge_t, bool> edge_masks_odd(handle, current_graph_view);
   cugraph::fill_edge_property(
     handle, current_graph_view, edge_masks_odd.mutable_view(), bool{false});
 
@@ -95,18 +96,18 @@ std::tuple<rmm::device_uvector<vertex_t>, weight_t> approximate_weighted_matchin
                         local_vertices.size(),
                         current_graph_view.local_vertex_partition_range_first());
 
-  edge_src_property_t<graph_view_t, vertex_t> src_key_cache(handle);
-  cugraph::edge_src_property_t<graph_view_t, bool> src_match_flags(handle);
-  cugraph::edge_dst_property_t<graph_view_t, bool> dst_match_flags(handle);
+  cugraph::edge_src_property_t<vertex_t, vertex_t> src_key_cache(handle);
+  cugraph::edge_src_property_t<vertex_t, bool> src_match_flags(handle);
+  cugraph::edge_dst_property_t<vertex_t, bool> dst_match_flags(handle);
 
   if constexpr (graph_view_t::is_multi_gpu) {
-    src_key_cache = edge_src_property_t<graph_view_t, vertex_t>(handle, current_graph_view);
+    src_key_cache = cugraph::edge_src_property_t<vertex_t, vertex_t>(handle, current_graph_view);
 
     update_edge_src_property(
       handle, current_graph_view, local_vertices.begin(), src_key_cache.mutable_view());
 
-    src_match_flags = cugraph::edge_src_property_t<graph_view_t, bool>(handle, current_graph_view);
-    dst_match_flags = cugraph::edge_dst_property_t<graph_view_t, bool>(handle, current_graph_view);
+    src_match_flags = cugraph::edge_src_property_t<vertex_t, bool>(handle, current_graph_view);
+    dst_match_flags = cugraph::edge_dst_property_t<vertex_t, bool>(handle, current_graph_view);
   }
 
   vertex_t loop_counter = 0;
@@ -130,7 +131,9 @@ std::tuple<rmm::device_uvector<vertex_t>, weight_t> approximate_weighted_matchin
         edge_weight_view,
         graph_view_t::is_multi_gpu
           ? src_key_cache.view()
-          : detail::edge_major_property_view_t<vertex_t, vertex_t const*>(local_vertices.begin()),
+          : detail::edge_endpoint_property_view_t<vertex_t, vertex_t const*>(
+              std::vector<vertex_t const*>{local_vertices.begin()},
+              std::vector<vertex_t>{vertex_t{0}}),
         [] __device__(auto, auto dst, cuda::std::nullopt_t, cuda::std::nullopt_t, auto wt) {
           return thrust::make_tuple(wt, dst);
         },
@@ -203,7 +206,7 @@ std::tuple<rmm::device_uvector<vertex_t>, weight_t> approximate_weighted_matchin
       [] __device__(auto pair1, auto pair2) { return (pair1 > pair2) ? pair1 : pair2; });
 
     vertex_t nr_reduces_tuples =
-      static_cast<vertex_t>(thrust::distance(unique_targets.begin(), new_end.first));
+      static_cast<vertex_t>(cuda::std::distance(unique_targets.begin(), new_end.first));
 
     targets                = std::move(unique_targets);
     offers_from_candidates = std::move(best_offers_to_targets);
@@ -323,9 +326,11 @@ std::tuple<rmm::device_uvector<vertex_t>, weight_t> approximate_weighted_matchin
         cugraph::transform_e(
           handle,
           current_graph_view,
-          detail::edge_major_property_view_t<vertex_t, bool const*>(is_vertex_matched.begin()),
-          detail::edge_minor_property_view_t<vertex_t, bool const*>(is_vertex_matched.begin(),
-                                                                    vertex_t{0}),
+          detail::edge_endpoint_property_view_t<vertex_t, bool const*>(
+            std::vector<bool const*>{is_vertex_matched.begin()},
+            std::vector<vertex_t>{vertex_t{0}}),
+          detail::edge_endpoint_property_view_t<vertex_t, bool const*>(is_vertex_matched.begin(),
+                                                                       vertex_t{0}),
           cugraph::edge_dummy_property_t{}.view(),
           [] __device__(
             auto src, auto dst, auto is_src_matched, auto is_dst_matched, cuda::std::nullopt_t) {
@@ -355,9 +360,11 @@ std::tuple<rmm::device_uvector<vertex_t>, weight_t> approximate_weighted_matchin
         cugraph::transform_e(
           handle,
           current_graph_view,
-          detail::edge_major_property_view_t<vertex_t, bool const*>(is_vertex_matched.begin()),
-          detail::edge_minor_property_view_t<vertex_t, bool const*>(is_vertex_matched.begin(),
-                                                                    vertex_t{0}),
+          detail::edge_endpoint_property_view_t<vertex_t, bool const*>(
+            std::vector<bool const*>{is_vertex_matched.begin()},
+            std::vector<vertex_t>{vertex_t{0}}),
+          detail::edge_endpoint_property_view_t<vertex_t, bool const*>(is_vertex_matched.begin(),
+                                                                       vertex_t{0}),
           cugraph::edge_dummy_property_t{}.view(),
           [] __device__(
             auto src, auto dst, auto is_src_matched, auto is_dst_matched, cuda::std::nullopt_t) {

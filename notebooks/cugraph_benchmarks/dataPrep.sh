@@ -1,18 +1,19 @@
 #!/bin/bash
+# Copyright (c) 2025, NVIDIA CORPORATION.
 
 if [ ! -d "./data" ]
 then
     mkdir ./data
 fi
 
-cd data
+cd data || exit 1
 
 if [ ! -f "./preferentialAttachment.mtx" ]
 then
     if [ ! -d "./tmp" ]
     then
         mkdir tmp
-        cd tmp
+        cd tmp || exit 1
 
         wget -N https://sparse.tamu.edu/MM/DIMACS10/preferentialAttachment.tar.gz
         wget -N https://sparse.tamu.edu/MM/DIMACS10/caidaRouterLevel.tar.gz

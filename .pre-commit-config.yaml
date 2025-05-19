@@ -35,7 +35,7 @@ repos:
         additional_dependencies:
           - flake8==7.1.1
   - repo: https://github.com/pre-commit/mirrors-clang-format
-    rev: v16.0.6
+    rev: v20.1.4
     hooks:
       - id: clang-format
         types_or: [c, c++, cuda]
@@ -65,3 +65,8 @@ repos:
     hooks:
         - id: rapids-dependency-file-generator
           args: ["--clean"]
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.10.0.1
+    hooks:
+      - id: shellcheck
+        args: ["--severity=warning"]

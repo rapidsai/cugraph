@@ -30,6 +30,8 @@
 
 #include <rmm/device_uvector.hpp>
 
+#include <cuda/std/iterator>
+
 #include <optional>
 #include <tuple>
 
@@ -296,7 +298,7 @@ all_pairs_similarity(raft::handle_t const& handle,
     // Let's compute the maximum size of the 2-hop neighborhood of each vertex
     // FIXME: If vertices is specified, this could be done on a subset of the vertices
     //
-    edge_dst_property_t<GraphViewType, edge_t> edge_dst_degrees(handle, graph_view);
+    edge_dst_property_t<vertex_t, edge_t> edge_dst_degrees(handle, graph_view);
     update_edge_dst_property(handle, graph_view, degrees.begin(), edge_dst_degrees.mutable_view());
 
     per_v_transform_reduce_incoming_e(
@@ -406,7 +408,7 @@ all_pairs_similarity(raft::handle_t const& handle,
         static_cast<vertex_t>(batch_offsets[batch_number + 1] - batch_offsets[batch_number]),
         do_expensive_check);
 
-      auto new_size = thrust::distance(
+      auto new_size = cuda::std::distance(
         thrust::make_zip_iterator(v1.begin(), v2.begin()),
         thrust::remove_if(
           handle.get_thrust_policy(),
@@ -450,7 +452,7 @@ all_pairs_similarity(raft::handle_t const& handle,
                    do_expensive_check);
 
       // Add a remove_if to remove items that are less than the last topk element
-      new_size = thrust::distance(
+      new_size = cuda::std::distance(
         thrust::make_zip_iterator(score.begin(), v1.begin(), v2.begin()),
         thrust::remove_if(handle.get_thrust_policy(),
                           thrust::make_zip_iterator(score.begin(), v1.begin(), v2.begin()),
@@ -596,7 +598,7 @@ all_pairs_similarity(raft::handle_t const& handle,
                                            static_cast<vertex_t>(vertices_span.size()),
                                            do_expensive_check);
 
-    auto new_size = thrust::distance(
+    auto new_size = cuda::std::distance(
       thrust::make_zip_iterator(v1.begin(), v2.begin()),
       thrust::remove_if(
         handle.get_thrust_policy(),

@@ -29,10 +29,10 @@
 #include <rmm/mr/device/per_device_resource.hpp>
 #include <rmm/mr/device/polymorphic_allocator.hpp>
 
+#include <cuda/std/iterator>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
 #include <thrust/count.h>
-#include <thrust/distance.h>
 #include <thrust/functional.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/transform_iterator.h>
@@ -276,20 +276,18 @@ void unrenumber_local_int_edges(
                    i,
                    handle.get_stream());
 
-      kv_store_t<vertex_t, vertex_t, false> renumber_map(
-        thrust::make_counting_iterator(vertex_partition_minor_range_first),
-        thrust::make_counting_iterator(vertex_partition_minor_range_first) + segment_size,
-        renumber_map_minor_labels.begin(),
-        invalid_vertex_id<vertex_t>::value,
-        invalid_vertex_id<vertex_t>::value,
-        handle.get_stream());
-      auto renumber_map_view = renumber_map.view();
       for (size_t j = 0; j < edgelist_minors.size(); ++j) {
-        renumber_map_view.find(
+        thrust::transform(
+          handle.get_thrust_policy(),
           edgelist_minors[j] + (*edgelist_intra_partition_segment_offsets)[j][i],
           edgelist_minors[j] + (*edgelist_intra_partition_segment_offsets)[j][i + 1],
           edgelist_minors[j] + (*edgelist_intra_partition_segment_offsets)[j][i],
-          handle.get_stream());
+          cuda::proclaim_return_type<vertex_t>(
+            [renumber_map =
+               raft::device_span<vertex_t const>(renumber_map_minor_labels.data(), segment_size),
+             v_first = vertex_partition_minor_range_first] __device__(auto v) {
+              return renumber_map[v - v_first];
+            }));
       }
     }
   } else {
@@ -321,20 +319,17 @@ void unrenumber_local_int_edges(
                       raft::host_span<size_t const>(displacements.data(), displacements.size()),
                       handle.get_stream());
 
-    kv_store_t<vertex_t, vertex_t, false> renumber_map(
-      thrust::make_counting_iterator(edge_partition_minor_range_first),
-      thrust::make_counting_iterator(edge_partition_minor_range_first) +
-        renumber_map_minor_labels.size(),
-      renumber_map_minor_labels.begin(),
-      invalid_vertex_id<vertex_t>::value,
-      invalid_vertex_id<vertex_t>::value,
-      handle.get_stream());
-    auto renumber_map_view = renumber_map.view();
     for (size_t i = 0; i < edgelist_minors.size(); ++i) {
-      renumber_map_view.find(edgelist_minors[i],
-                             edgelist_minors[i] + edgelist_edge_counts[i],
-                             edgelist_minors[i],
-                             handle.get_stream());
+      thrust::transform(handle.get_thrust_policy(),
+                        edgelist_minors[i],
+                        edgelist_minors[i] + edgelist_edge_counts[i],
+                        edgelist_minors[i],
+                        cuda::proclaim_return_type<vertex_t>(
+                          [renumber_map = raft::device_span<vertex_t const>(
+                             renumber_map_minor_labels.data(), renumber_map_minor_labels.size()),
+                           v_first = edge_partition_minor_range_first] __device__(auto v) {
+                            return renumber_map[v - v_first];
+                          }));
     }
   }
 }
@@ -374,7 +369,7 @@ void renumber_ext_vertices(raft::handle_t const& handle,
 
     rmm::device_uvector<vertex_t> sorted_unique_ext_vertices(num_vertices, handle.get_stream());
     sorted_unique_ext_vertices.resize(
-      thrust::distance(
+      cuda::std::distance(
         sorted_unique_ext_vertices.begin(),
         thrust::copy_if(handle.get_thrust_policy(),
                         vertices,
@@ -386,10 +381,10 @@ void renumber_ext_vertices(raft::handle_t const& handle,
                  sorted_unique_ext_vertices.begin(),
                  sorted_unique_ext_vertices.end());
     sorted_unique_ext_vertices.resize(
-      thrust::distance(sorted_unique_ext_vertices.begin(),
-                       thrust::unique(handle.get_thrust_policy(),
-                                      sorted_unique_ext_vertices.begin(),
-                                      sorted_unique_ext_vertices.end())),
+      cuda::std::distance(sorted_unique_ext_vertices.begin(),
+                          thrust::unique(handle.get_thrust_policy(),
+                                         sorted_unique_ext_vertices.begin(),
+                                         sorted_unique_ext_vertices.end())),
       handle.get_stream());
 
     kv_store_t<vertex_t, vertex_t, false> local_renumber_map(
@@ -578,7 +573,7 @@ void unrenumber_int_vertices(raft::handle_t const& handle,
 
     rmm::device_uvector<vertex_t> sorted_unique_int_vertices(num_vertices, handle.get_stream());
     sorted_unique_int_vertices.resize(
-      thrust::distance(
+      cuda::std::distance(
         sorted_unique_int_vertices.begin(),
         thrust::copy_if(handle.get_thrust_policy(),
                         vertices,
@@ -590,28 +585,26 @@ void unrenumber_int_vertices(raft::handle_t const& handle,
                  sorted_unique_int_vertices.begin(),
                  sorted_unique_int_vertices.end());
     sorted_unique_int_vertices.resize(
-      thrust::distance(sorted_unique_int_vertices.begin(),
-                       thrust::unique(handle.get_thrust_policy(),
-                                      sorted_unique_int_vertices.begin(),
-                                      sorted_unique_int_vertices.end())),
+      cuda::std::distance(sorted_unique_int_vertices.begin(),
+                          thrust::unique(handle.get_thrust_policy(),
+                                         sorted_unique_int_vertices.begin(),
+                                         sorted_unique_int_vertices.end())),
       handle.get_stream());
 
     auto ext_vertices_for_sorted_unique_int_vertices =
       collect_values_for_sorted_unique_int_vertices(
-        comm,
+        handle,
         raft::device_span<vertex_t const>(sorted_unique_int_vertices.data(),
                                           sorted_unique_int_vertices.size()),
         renumber_map_labels,
         vertex_partition_range_lasts,
-        local_int_vertex_first,
-        handle.get_stream());
+        local_int_vertex_first);
 
-    kv_store_t<vertex_t, vertex_t, false> renumber_map(
-      sorted_unique_int_vertices.begin(),
-      sorted_unique_int_vertices.end(),
-      ext_vertices_for_sorted_unique_int_vertices.begin(),
+    kv_store_t<vertex_t, vertex_t, true> renumber_map(
+      std::move(sorted_unique_int_vertices),
+      std::move(ext_vertices_for_sorted_unique_int_vertices),
       invalid_vertex_id<vertex_t>::value,
-      invalid_vertex_id<vertex_t>::value,
+      true,
       handle.get_stream());
     auto renumber_map_view = renumber_map.view();
     renumber_map_view.find(vertices, vertices + num_vertices, vertices, handle.get_stream());

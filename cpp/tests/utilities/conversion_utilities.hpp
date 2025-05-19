@@ -52,8 +52,7 @@ decltype(auto) make_graph(raft::handle_t const& handle,
   }
 
   cugraph::graph_t<vertex_t, edge_t, false, false> graph(handle);
-  std::optional<cugraph::edge_property_t<graph_view_t<vertex_t, edge_t, false, false>, weight_t>>
-    edge_weights{std::nullopt};
+  std::optional<cugraph::edge_property_t<edge_t, weight_t>> edge_weights{std::nullopt};
   std::tie(graph, edge_weights, std::ignore, std::ignore) =
     cugraph::create_graph_from_edgelist<vertex_t, edge_t, weight_t, int32_t, false, false>(
       handle,
@@ -220,18 +219,11 @@ template <typename vertex_t,
           typename weight_t,
           typename edge_type_t,
           bool store_transposed>
-std::tuple<
-  cugraph::graph_t<vertex_t, edge_t, store_transposed, false>,
-  std::optional<
-    cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, store_transposed, false>,
-                             weight_t>>,
-  std::optional<
-    cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, store_transposed, false>,
-                             edge_t>>,
-  std::optional<
-    cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, store_transposed, false>,
-                             edge_type_t>>,
-  std::optional<rmm::device_uvector<vertex_t>>>
+std::tuple<cugraph::graph_t<vertex_t, edge_t, store_transposed, false>,
+           std::optional<cugraph::edge_property_t<edge_t, weight_t>>,
+           std::optional<cugraph::edge_property_t<edge_t, edge_t>>,
+           std::optional<cugraph::edge_property_t<edge_t, edge_type_t>>,
+           std::optional<rmm::device_uvector<vertex_t>>>
 mg_graph_to_sg_graph(
   raft::handle_t const& handle,
   cugraph::graph_view_t<vertex_t, edge_t, store_transposed, true> const& graph_view,
