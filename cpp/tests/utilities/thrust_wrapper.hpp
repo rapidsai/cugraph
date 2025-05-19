@@ -66,8 +66,8 @@ sort_by_key(raft::handle_t const& handle,
 template <typename key_t, typename value_t>
 std::tuple<cugraph::dataframe_buffer_type_t<key_t>, cugraph::dataframe_buffer_type_t<value_t>>
 reduce_by_key(raft::handle_t const& handle,
-              cugraph::dataframe_buffer_type_t<key_t>&& keys,
-              cugraph::dataframe_buffer_type_t<value_t>&& values,
+              cugraph::dataframe_buffer_type_t<key_t> const& keys,
+              cugraph::dataframe_buffer_type_t<value_t> const& values,
               size_t num_unique_keys);
 
 template <typename value_t>
@@ -79,7 +79,7 @@ cugraph::dataframe_buffer_type_t<value_t> replace(
 
 template <typename value_t>
 value_t reduce(raft::handle_t const& handle,
-               cugraph::dataframe_buffer_type_t<value_t>&& values,
+               cugraph::dataframe_buffer_type_t<value_t> const& values,
                value_t init_value);
 
 template <typename key_t, typename value_t>

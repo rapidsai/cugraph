@@ -393,12 +393,10 @@ template size_t unique_count<int64_t>(raft::handle_t const& handle,
 template <typename key_t, typename value_t>
 std::tuple<cugraph::dataframe_buffer_type_t<key_t>, cugraph::dataframe_buffer_type_t<value_t>>
 reduce_by_key(raft::handle_t const& handle,
-              cugraph::dataframe_buffer_type_t<key_t>&& keys,
-              cugraph::dataframe_buffer_type_t<value_t>&& values,
+              cugraph::dataframe_buffer_type_t<key_t> const& keys,
+              cugraph::dataframe_buffer_type_t<value_t> const& values,
               size_t num_unique_keys)
 {
-  auto sorted_keys   = std::move(keys);
-  auto sorted_values = std::move(values);
 
   auto reduced_keys =
     cugraph::allocate_dataframe_buffer<key_t>(num_unique_keys, handle.get_stream());
@@ -410,9 +408,9 @@ reduce_by_key(raft::handle_t const& handle,
   // update this to support thrust::plus, thrust::maximum and more.
 
   thrust::reduce_by_key(handle.get_thrust_policy(),
-                        cugraph::get_dataframe_buffer_begin(sorted_keys),
-                        cugraph::get_dataframe_buffer_end(sorted_keys),
-                        cugraph::get_dataframe_buffer_begin(sorted_values),
+                        cugraph::get_dataframe_buffer_begin(keys),
+                        cugraph::get_dataframe_buffer_end(keys),
+                        cugraph::get_dataframe_buffer_begin(values),
                         cugraph::get_dataframe_buffer_begin(reduced_keys),
                         cugraph::get_dataframe_buffer_begin(reduced_values),
                         thrust::equal_to<key_t>{},
@@ -423,14 +421,14 @@ reduce_by_key(raft::handle_t const& handle,
 
 template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>>
 reduce_by_key<int32_t, int32_t>(raft::handle_t const& handle,
-                                rmm::device_uvector<int32_t>&& keys,
-                                rmm::device_uvector<int32_t>&& values,
+                                rmm::device_uvector<int32_t> const& keys,
+                                rmm::device_uvector<int32_t> const& values,
                                 size_t num_unique_keys);
 
 template std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<int64_t>>
 reduce_by_key<int64_t, int64_t>(raft::handle_t const& handle,
-                                rmm::device_uvector<int64_t>&& keys,
-                                rmm::device_uvector<int64_t>&& values,
+                                rmm::device_uvector<int64_t> const& keys,
+                                rmm::device_uvector<int64_t> const& values,
                                 size_t num_unique_keys);
 
 template <typename value_t>
@@ -461,7 +459,7 @@ template rmm::device_uvector<int64_t> replace<int64_t>(raft::handle_t const& han
 
 template <typename value_t>
 value_t reduce(raft::handle_t const& handle,
-               cugraph::dataframe_buffer_type_t<value_t>&& values,
+               cugraph::dataframe_buffer_type_t<value_t> const& values,
                value_t init_value)
 {
   return thrust::reduce(rmm::exec_policy(handle.get_stream()),
@@ -472,11 +470,11 @@ value_t reduce(raft::handle_t const& handle,
 }
 
 template int32_t reduce<int32_t>(raft::handle_t const& handle,
-                                 rmm::device_uvector<int32_t>&& values,
+                                 rmm::device_uvector<int32_t> const& values,
                                  int32_t init_value);
 
 template int64_t reduce<int64_t>(raft::handle_t const& handle,
-                                 rmm::device_uvector<int64_t>&& values,
+                                 rmm::device_uvector<int64_t> const& values,
                                  int64_t init_value);
 
 template <typename key_t, typename value_t>

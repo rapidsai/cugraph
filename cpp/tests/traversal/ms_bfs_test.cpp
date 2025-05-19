@@ -108,14 +108,7 @@ class Tests_MsBfs : public ::testing::TestWithParam<std::tuple<MsBfs_Usecase, in
     std::tie(d_sorted_labels, d_sorted_vertices) =
       cugraph::test::sort_by_key<vertex_t, vertex_t>(handle, d_labels, d_vertices);
 
-    rmm::device_uvector<vertex_t> d_tmp_sorted_labels(d_sorted_labels.size(), handle.get_stream());
-
-    raft::copy(d_tmp_sorted_labels.data(),
-               d_sorted_labels.data(),
-               d_sorted_labels.size(),
-               handle.get_stream());
-
-    auto num_unique_labels = cugraph::test::unique_count<vertex_t>(handle, d_tmp_sorted_labels);
+    auto num_unique_labels = cugraph::test::unique_count<vertex_t>(handle, d_sorted_labels);
 
     // Should run this test on datasets with more than 1 component
     ASSERT_TRUE(num_unique_labels > 1);
@@ -123,7 +116,7 @@ class Tests_MsBfs : public ::testing::TestWithParam<std::tuple<MsBfs_Usecase, in
     rmm::device_uvector<vertex_t> d_first_components(num_unique_labels, handle.get_stream());
 
     std::tie(std::ignore, d_first_components) = cugraph::test::reduce_by_key<vertex_t, vertex_t>(
-      handle, std::move(d_sorted_labels), std::move(d_sorted_vertices), num_unique_labels);
+      handle, d_sorted_labels, d_sorted_vertices, num_unique_labels);
 
     // Select random seeds from different components
     raft::random::RngState rng_state(0);
@@ -206,7 +199,7 @@ class Tests_MsBfs : public ::testing::TestWithParam<std::tuple<MsBfs_Usecase, in
                                                               static_cast<vertex_t>(0));
 
         ref_sum +=
-          cugraph::test::reduce(handle, std::move(d_distances_ref[i]), static_cast<vertex_t>(0));
+          cugraph::test::reduce(handle, d_distances_ref[i], static_cast<vertex_t>(0));
       }
 
       d_distances = cugraph::test::replace<vertex_t>(handle,
@@ -215,7 +208,7 @@ class Tests_MsBfs : public ::testing::TestWithParam<std::tuple<MsBfs_Usecase, in
                                                      static_cast<vertex_t>(0));
 
       vertex_t ms_sum =
-        cugraph::test::reduce(handle, std::move(d_distances), static_cast<vertex_t>(0));
+        cugraph::test::reduce(handle, d_distances, static_cast<vertex_t>(0));
 
       auto d_vertex_degree = graph_view.compute_out_degrees(handle);
 
@@ -230,7 +223,7 @@ class Tests_MsBfs : public ::testing::TestWithParam<std::tuple<MsBfs_Usecase, in
       d_vertex_degree.resize(seeds_degree_size, handle.get_stream());
 
       auto seeds_degree_sum =
-        cugraph::test::reduce(handle, std::move(d_vertex_degree), static_cast<vertex_t>(0));
+        cugraph::test::reduce(handle, d_vertex_degree, static_cast<vertex_t>(0));
 
       // Check the degree of the seed vertices
       // If degree of all seeds is zero hence ref_sum is zero otherwise ref_sum > 0
