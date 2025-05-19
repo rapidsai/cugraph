@@ -294,9 +294,9 @@ class edge_major_property_t {
 
   void clear()
   {
-    edge_partition_keys_                    = std::nullopt;
-    edge_partition_key_chunk_start_offsets_ = std::nullopt;
-    key_chunk_size_                         = std::nullopt;
+    edge_partition_keys_.reset();
+    edge_partition_key_chunk_start_offsets_.reset();
+    key_chunk_size_.reset();
 
     buffers_.clear();
     buffers_.shrink_to_fit();
@@ -424,9 +424,9 @@ class edge_minor_property_t {
 
   void clear()
   {
-    keys_                    = std::nullopt;
-    key_chunk_start_offsets_ = std::nullopt;
-    key_chunk_size_          = std::nullopt;
+    keys_.reset();
+    key_chunk_start_offsets_.reset();
+    key_chunk_size_.reset();
 
     rmm::cuda_stream_view stream{};
     if constexpr (std::is_arithmetic_v<T>) {

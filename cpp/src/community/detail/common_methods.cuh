@@ -261,7 +261,7 @@ rmm::device_uvector<vertex_t> update_clustering_by_delta_modularity(
   CUGRAPH_EXPECTS(edge_weight_view.has_value(), "Graph must be weighted.");
 
   rmm::device_uvector<weight_t> vertex_cluster_weights_v(0, handle.get_stream());
-  edge_src_property_t<vertex_t, weight_t> src_cluster_weights(handle);
+  std::optional<edge_src_property_t<vertex_t, weight_t>> src_cluster_weights{std::nullopt};
 
   if constexpr (multi_gpu) {
     auto& comm                 = handle.get_comms();
@@ -290,7 +290,7 @@ rmm::device_uvector<vertex_t> update_clustering_by_delta_modularity(
 
     src_cluster_weights = edge_src_property_t<vertex_t, weight_t>(handle, graph_view);
     update_edge_src_property(
-      handle, graph_view, vertex_cluster_weights_v.begin(), src_cluster_weights.mutable_view());
+      handle, graph_view, vertex_cluster_weights_v.begin(), src_cluster_weights->mutable_view());
     vertex_cluster_weights_v.resize(0, handle.get_stream());
     vertex_cluster_weights_v.shrink_to_fit(handle.get_stream());
   } else {
@@ -346,8 +346,8 @@ rmm::device_uvector<vertex_t> update_clustering_by_delta_modularity(
     thrust::make_zip_iterator(
       thrust::make_tuple(old_cluster_sum_v.begin(), cluster_subtract_v.begin())));
 
-  edge_src_property_t<vertex_t, thrust::tuple<weight_t, weight_t>>
-    src_old_cluster_sum_subtract_pairs(handle);
+  std::optional<edge_src_property_t<vertex_t, thrust::tuple<weight_t, weight_t>>>
+    src_old_cluster_sum_subtract_pairs{std::nullopt};
 
   if constexpr (multi_gpu) {
     src_old_cluster_sum_subtract_pairs =
@@ -356,7 +356,7 @@ rmm::device_uvector<vertex_t> update_clustering_by_delta_modularity(
                              graph_view,
                              thrust::make_zip_iterator(thrust::make_tuple(
                                old_cluster_sum_v.begin(), cluster_subtract_v.begin())),
-                             src_old_cluster_sum_subtract_pairs.mutable_view());
+                             src_old_cluster_sum_subtract_pairs->mutable_view());
     old_cluster_sum_v.resize(0, handle.get_stream());
     old_cluster_sum_v.shrink_to_fit(handle.get_stream());
     cluster_subtract_v.resize(0, handle.get_stream());
@@ -371,8 +371,8 @@ rmm::device_uvector<vertex_t> update_clustering_by_delta_modularity(
   auto zipped_src_device_view =
     multi_gpu ? view_concat(src_vertex_weights_cache.view(),
                             src_clusters_cache.view(),
-                            src_cluster_weights.view(),
-                            src_old_cluster_sum_subtract_pairs.view())
+                            src_cluster_weights->view(),
+                            src_old_cluster_sum_subtract_pairs->view())
               : view_concat(
                   make_edge_src_property_view<vertex_t, weight_t>(
                     graph_view, vertex_weights_v.begin(), vertex_weights_v.size()),
