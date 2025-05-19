@@ -21,7 +21,7 @@ dependencies:
 - cudf==25.8.*,>=0.0.0a0
 - cupy>=12.0.0
 - cxx-compiler
-- cython>=3.0.0
+- cython>=3.0.0,<3.1.0a0
 - dask-cuda==25.8.*,>=0.0.0a0
 - dask-cudf==25.8.*,>=0.0.0a0
 - doxygen
@@ -52,7 +52,6 @@ dependencies:
 - pydata-sphinx-theme
 - pylibcudf==25.6.*,>=0.0.0a0
 - pylibraft==25.8.*,>=0.0.0a0
-- pylibwholegraph==25.8.*,>=0.0.0a0
 - pytest
 - pytest-benchmark
 - pytest-cov

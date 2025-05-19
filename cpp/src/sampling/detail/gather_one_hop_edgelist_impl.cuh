@@ -38,59 +38,41 @@ namespace cugraph {
 namespace detail {
 
 struct return_edges_with_properties_e_op {
-  template <typename key_t, typename vertex_t, typename EdgeProperties>
+  template <typename key_t, typename vertex_t, typename edge_property_t>
   auto __host__ __device__ operator()(key_t optionally_tagged_src,
                                       vertex_t dst,
                                       cuda::std::nullopt_t,
                                       cuda::std::nullopt_t,
-                                      EdgeProperties edge_properties) const
+                                      edge_property_t edge_properties) const
   {
     static_assert(std::is_same_v<key_t, vertex_t> ||
                   std::is_same_v<key_t, thrust::tuple<vertex_t, int32_t>>);
 
-    // FIXME: A solution using thrust_tuple_cat would be more flexible here
+    vertex_t src{};
     if constexpr (std::is_same_v<key_t, vertex_t>) {
-      vertex_t src{optionally_tagged_src};
-
-      if constexpr (std::is_same_v<EdgeProperties, cuda::std::nullopt_t>) {
-        return thrust::make_tuple(src, dst);
-      } else if constexpr (std::is_arithmetic<EdgeProperties>::value) {
-        return thrust::make_tuple(src, dst, edge_properties);
-      } else if constexpr (cugraph::is_thrust_tuple_of_arithmetic<EdgeProperties>::value &&
-                           (thrust::tuple_size<EdgeProperties>::value == 2)) {
-        return thrust::make_tuple(
-          src, dst, thrust::get<0>(edge_properties), thrust::get<1>(edge_properties));
-      } else if constexpr (cugraph::is_thrust_tuple_of_arithmetic<EdgeProperties>::value &&
-                           (thrust::tuple_size<EdgeProperties>::value == 3)) {
-        return thrust::make_tuple(src,
-                                  dst,
-                                  thrust::get<0>(edge_properties),
-                                  thrust::get<1>(edge_properties),
-                                  thrust::get<2>(edge_properties));
-      }
+      src = optionally_tagged_src;
     } else {
-      vertex_t src{thrust::get<0>(optionally_tagged_src)};
-      int32_t label{thrust::get<1>(optionally_tagged_src)};
-
       src = thrust::get<0>(optionally_tagged_src);
-      if constexpr (std::is_same_v<EdgeProperties, cuda::std::nullopt_t>) {
-        return thrust::make_tuple(src, dst, label);
-      } else if constexpr (std::is_arithmetic<EdgeProperties>::value) {
-        return thrust::make_tuple(src, dst, edge_properties, label);
-      } else if constexpr (cugraph::is_thrust_tuple_of_arithmetic<EdgeProperties>::value &&
-                           (thrust::tuple_size<EdgeProperties>::value == 2)) {
-        return thrust::make_tuple(
-          src, dst, thrust::get<0>(edge_properties), thrust::get<1>(edge_properties), label);
-      } else if constexpr (cugraph::is_thrust_tuple_of_arithmetic<EdgeProperties>::value &&
-                           (thrust::tuple_size<EdgeProperties>::value == 3)) {
-        return thrust::make_tuple(src,
-                                  dst,
-                                  thrust::get<0>(edge_properties),
-                                  thrust::get<1>(edge_properties),
-                                  thrust::get<2>(edge_properties),
-                                  label);
+    }
+    std::conditional_t<std::is_same_v<edge_property_t, cuda::std::nullopt_t>,
+                       thrust::tuple<>,
+                       std::conditional_t<std::is_arithmetic_v<edge_property_t>,
+                                          thrust::tuple<edge_property_t>,
+                                          edge_property_t>>
+      edge_property_tup{};
+    if constexpr (!std::is_same_v<edge_property_t, cuda::std::nullopt_t>) {
+      if constexpr (std::is_arithmetic_v<edge_property_t>) {
+        thrust::get<0>(edge_property_tup) = edge_properties;
+      } else {
+        edge_property_tup = edge_properties;
       }
     }
+    std::conditional_t<std::is_same_v<key_t, vertex_t>, thrust::tuple<>, thrust::tuple<int32_t>>
+      label_tup{};
+    if constexpr (!std::is_same_v<key_t, vertex_t>) {
+      thrust::get<0>(label_tup) = thrust::get<1>(optionally_tagged_src);
+    }
+    return thrust_tuple_cat(thrust::make_tuple(src, dst), edge_property_tup, label_tup);
   }
 };
 

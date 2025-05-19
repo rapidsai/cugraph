@@ -163,7 +163,7 @@ void core_number(raft::handle_t const& handle,
 
   vertex_frontier_t<vertex_t, void, multi_gpu, true> vertex_frontier(handle, num_buckets);
 
-  edge_dst_property_t<edge_t, bool, false> edge_dst_valids(handle, graph_view);
+  edge_dst_property_t<edge_t, bool> edge_dst_valids(handle, graph_view);
   fill_edge_dst_property(handle, graph_view, edge_dst_valids.mutable_view(), true);
   if (!graph_view.is_symmetric() &&
       degree_type != k_core_degree_type_t::INOUT) {  // 0 core number vertex may have non-zero
