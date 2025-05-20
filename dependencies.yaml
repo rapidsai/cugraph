@@ -760,7 +760,7 @@ dependencies:
     common:
       - output_types: conda
         packages:
-          - &pylibcudf_unsuffixed pylibcudf==25.6.*,>=0.0.0a0
+          - &pylibcudf_unsuffixed pylibcudf==25.8.*,>=0.0.0a0
       - output_types: requirements
         packages:
           # pip recognizes the index as a global option for the requirements.txt file
@@ -773,12 +773,12 @@ dependencies:
               cuda: "12.*"
               cuda_suffixed: "true"
             packages:
-              - pylibcudf-cu12==25.6.*,>=0.0.0a0
+              - pylibcudf-cu12==25.8.*,>=0.0.0a0
           - matrix:
               cuda: "11.*"
               cuda_suffixed: "true"
             packages:
-              - pylibcudf-cu11==25.6.*,>=0.0.0a0
+              - pylibcudf-cu11==25.8.*,>=0.0.0a0
           - {matrix: null, packages: [*pylibcudf_unsuffixed]}
 
   depends_on_cudf:
