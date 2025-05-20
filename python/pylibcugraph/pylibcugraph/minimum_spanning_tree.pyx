@@ -85,11 +85,11 @@ def minimum_spanning_tree(ResourceHandle resource_handle,
     >>> srcs = cupy.asarray([0, 1, 1, 2, 2, 2, 3, 4, 1, 3, 4,
     ...     0, 1, 3, 5, 5], dtype=numpy.int32)
     >>> dsts = cupy.asarray([1, 3, 4, 0, 1, 3, 5, 5, 0, 1, 1,
-    ...     2, 2, 2, 3, 4}], dtype=numpy.int32)
+    ...     2, 2, 2, 3, 4], dtype=numpy.int32)
     >>> weights = cupy.asarray(
     ...     [0.1, 2.1, 1.1, 5.1, 3.1, 4.1, 7.2, 3.2, 0.1, 2.1,
     ...     1.1, 5.1, 3.1, 4.1, 7.2, 3.2]
-    ...     ,dtype=numpy.float32)cccccbldrijdilijgffgtludfulnbchlirkkrflhthnv
+    ...     ,dtype=numpy.float32)
     >>> resource_handle = pylibcugraph.ResourceHandle()
     >>> graph_props = pylibcugraph.GraphProperties(
     ...     is_symmetric=True, is_multigraph=False)
@@ -99,13 +99,13 @@ def minimum_spanning_tree(ResourceHandle resource_handle,
     >>> (sources, destinations, edge_weights, subgraph_offsets) =
     ...     pylibcugraph.minimum_spanning_tree(resource_handle, G, False)
     >>> sources
-    [0 1 2 3 4 5 1 1 1 4]
+    array([0, 1, 2, 3, 4, 5, 1, 1, 1, 4], dtype=int32)
     >>> destinations
-    [1 0 1 1 1 4 2 3 4 5]
+    array([1, 0, 1, 1, 1, 4, 2, 3, 4, 5], dtype=int32)
     >>> edge_weights
-    [0.1 0.1 3.1 2.1 1.1 3.2 3.1 2.1 1.1 3.2]
+    array([0.1, 0.1, 3.1, 2.1, 1.1, 3.2, 3.1, 2.1, 1.1, 3.2], dtype=float32)
     >>> subgraph_offsets
-    [0 10]
+    array([0, 10])
 
     """
     cdef cugraph_resource_handle_t* c_resource_handle_ptr = \
