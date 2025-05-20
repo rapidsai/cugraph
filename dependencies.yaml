@@ -479,7 +479,6 @@ dependencies:
       - output_types: [conda, pyproject, requirements]
         packages:
           - *dask
-          - *numba
           - *numpy
           - *thrift
   test_cpp:
