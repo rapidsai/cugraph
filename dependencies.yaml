@@ -227,7 +227,6 @@ files:
       key: test
     includes:
       - depends_on_cudf
-      - depends_on_cugraph_pyg
       - depends_on_cupy
       - test_python_common
       - test_python_cugraph_service_client
