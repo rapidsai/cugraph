@@ -432,6 +432,7 @@ class simpleGraphImpl:
                 then containing the weight value for each edge
         """
         if self.edgelist is None:
+            # The graph must have an adjacency list or else the call below will fail
             src, dst, weights = graph_primtypes_wrapper.view_edge_list(self)
             self.edgelist = self.EdgeList(src, dst, weights)
 
@@ -467,9 +468,9 @@ class simpleGraphImpl:
             use_initial_input_df = False
 
         if use_initial_input_df and self.properties.directed:
-            edgelist_df = self.input_df
+            edgelist_df = self.input_df # Original input.
         else:
-            edgelist_df = self.edgelist.edgelist_df
+            edgelist_df = self.decompress_to_edgelist()
             if srcCol is None and dstCol is None:
                 srcCol = simpleGraphImpl.srcCol
                 dstCol = simpleGraphImpl.dstCol
@@ -478,12 +479,6 @@ class simpleGraphImpl:
             # unrenumber before extracting the upper triangular part
             # case when the vertex column name is of size 1
             if self.properties.renumbered:
-                edgelist_df = self.renumber_map.unrenumber(
-                    edgelist_df, simpleGraphImpl.srcCol
-                )
-                edgelist_df = self.renumber_map.unrenumber(
-                    edgelist_df, simpleGraphImpl.dstCol
-                )
                 edgelist_df = edgelist_df.rename(
                     columns=self.renumber_map.internal_to_external_col_names
                 )
@@ -503,12 +498,6 @@ class simpleGraphImpl:
                     <= edgelist_df[simpleGraphImpl.dstCol]
                 ]
 
-            edgelist_df = self.renumber_map.unrenumber(
-                edgelist_df, simpleGraphImpl.srcCol
-            )
-            edgelist_df = self.renumber_map.unrenumber(
-                edgelist_df, simpleGraphImpl.dstCol
-            )
             edgelist_df = edgelist_df.rename(
                 columns=self.renumber_map.internal_to_external_col_names
             )
@@ -537,6 +526,7 @@ class simpleGraphImpl:
         ).reset_index(drop=True)
 
         return edgelist_df
+
 
     def delete_edge_list(self):
         """
@@ -921,18 +911,19 @@ class simpleGraphImpl:
         """
         # TODO: Move to Outer graphs?
         if directed_edges and self.edgelist is not None:
-            return len(self.edgelist.edgelist_df)
+            return len(self.decompress_to_edgelist())
         if self.properties.edge_count is None:
             if self.edgelist is not None:
+                edgelist_df = self.decompress_to_edgelist()
                 if self.properties.directed is False:
                     self.properties.edge_count = len(
-                        self.edgelist.edgelist_df[
-                            self.edgelist.edgelist_df[simpleGraphImpl.srcCol]
-                            >= self.edgelist.edgelist_df[simpleGraphImpl.dstCol]
+                        edgelist_df[
+                            edgelist_df[simpleGraphImpl.srcCol]
+                            >= edgelist_df[simpleGraphImpl.dstCol]
                         ]
                     )
                 else:
-                    self.properties.edge_count = len(self.edgelist.edgelist_df)
+                    self.properties.edge_count = len(edgelist_df)
             elif self.adjlist is not None:
                 self.properties.edge_count = len(self.adjlist.indices)
             elif self.transposedadjlist is not None:
