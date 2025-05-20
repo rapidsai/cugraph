@@ -70,7 +70,7 @@ def minimum_spanning_tree(ResourceHandle resource_handle,
     graph : SGGraph or MGGraph
         The input graph.
 
-    do_expensive_check : bool_t
+    do_expensive_check : bool (default=True)
         If True, performs more extensive tests on the inputs to ensure
         validitity, at the expense of increased run time.
 
