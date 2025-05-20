@@ -189,12 +189,11 @@ rmm::device_uvector<vertex_t> maximal_independent_set(
       handle,
       graph_view,
       multi_gpu ? src_rank_cache.view()
-                : detail::edge_endpoint_property_view_t<vertex_t, vertex_t const*>(
-                    std::vector<vertex_t const*>{temporary_ranks.data()},
-                    std::vector<vertex_t>{vertex_t{0}}),
+                : make_edge_src_property_view<vertex_t, vertex_t>(
+                    graph_view, temporary_ranks.begin(), temporary_ranks.size()),
       multi_gpu ? dst_rank_cache.view()
-                : detail::edge_endpoint_property_view_t<vertex_t, vertex_t const*>(
-                    temporary_ranks.data(), vertex_t{0}),
+                : make_edge_dst_property_view<vertex_t, vertex_t>(
+                    graph_view, temporary_ranks.begin(), temporary_ranks.size()),
       edge_dummy_property_t{}.view(),
       [] __device__(auto src, auto dst, auto src_rank, auto dst_rank, auto wt) { return dst_rank; },
       std::numeric_limits<vertex_t>::lowest(),
@@ -211,12 +210,11 @@ rmm::device_uvector<vertex_t> maximal_independent_set(
       handle,
       graph_view,
       multi_gpu ? src_rank_cache.view()
-                : detail::edge_endpoint_property_view_t<vertex_t, vertex_t const*>(
-                    std::vector<vertex_t const*>{temporary_ranks.data()},
-                    std::vector<vertex_t>{vertex_t{0}}),
+                : make_edge_src_property_view<vertex_t, vertex_t>(
+                    graph_view, temporary_ranks.begin(), temporary_ranks.size()),
       multi_gpu ? dst_rank_cache.view()
-                : detail::edge_endpoint_property_view_t<vertex_t, vertex_t const*>(
-                    temporary_ranks.data(), vertex_t{0}),
+                : make_edge_dst_property_view<vertex_t, vertex_t>(
+                    graph_view, temporary_ranks.begin(), temporary_ranks.size()),
       edge_dummy_property_t{}.view(),
       [] __device__(auto src, auto dst, auto src_rank, auto dst_rank, auto wt) { return src_rank; },
       std::numeric_limits<vertex_t>::lowest(),
