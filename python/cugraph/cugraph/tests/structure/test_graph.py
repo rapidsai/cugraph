@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2024, NVIDIA CORPORATION.
+# Copyright (c) 2019-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -453,6 +453,17 @@ def test_view_edge_list_for_Graph(graph_file):
     assert (cu_edge_list["1"].to_numpy() == nx_edge_list["1"].to_numpy()).all()
 
 
+@pytest.mark.sg
+@pytest.mark.parametrize("directed", [True, False])
+def test_view_edge_list_for_nxGraph(directed):
+    G = nx.florentine_families_graph()
+    df = nx.to_pandas_edgelist(G)
+    cG = cugraph.Graph(directed=directed)
+    cG.from_pandas_edgelist(df, source='source', destination='target')
+
+    assert df.shape == cG.view_edge_list().shape
+
+
 # Test
 @pytest.mark.sg
 @pytest.mark.filterwarnings("ignore:make_current is deprecated:DeprecationWarning")
@@ -604,6 +615,34 @@ def test_number_of_vertices(graph_file):
     G.from_cudf_edgelist(cu_M, source="0", destination="1")
     Gnx = nx.from_pandas_edgelist(M, source="0", target="1", create_using=nx.DiGraph())
     assert G.number_of_vertices() == Gnx.number_of_nodes()
+
+
+@pytest.mark.sg
+def test_number_of_edges():
+
+    # cycle edges
+    cycle_edges = [
+        (0, 1, 1.0),
+        (1, 2, 1.0),
+        (2, 3, 1.0),
+        (3, 0, 1.0)
+    ]
+
+    # Create pandas DataFrame
+    df = pd.DataFrame(cycle_edges, columns=['source', 'destination', 'weight'])
+        
+    # Convert to cuDF
+    cudf_edges = cudf.DataFrame.from_pandas(df)
+        
+    # Create directed graph
+    G_directed = cugraph.Graph(directed=True)
+    G_directed.from_cudf_edgelist(cudf_edges, source='source', destination='destination', edge_attr='weight')
+        
+    # Create undirected graph
+    G_undirected = cugraph.Graph(directed=False)
+    G_undirected.from_cudf_edgelist(cudf_edges, source='source', destination='destination', edge_attr='weight')
+
+    assert G_directed.number_of_edges() == G_undirected.number_of_edges()
 
 
 # Test
