@@ -56,7 +56,7 @@ from pylibcugraph.utils cimport (
 
 def minimum_spanning_tree(ResourceHandle resource_handle,
                           _GPUGraph graph,
-                          bool_t do_expensive_check):
+                          do_expensive_check=False):
     """
     Extract a minimum spanning tree (MST) or forest (MSF) on an undirected
     graph
@@ -148,11 +148,8 @@ def minimum_spanning_tree(ResourceHandle resource_handle,
     else:
         cupy_edge_weights = None
 
-    # FIXME: Should we keep the offsets array or just drop it from the final
-    # solution?
     cupy_subgraph_offsets = copy_to_cupy_array(
         c_resource_handle_ptr, subgraph_offsets_ptr)
-
 
     # Free pointer
     cugraph_induced_subgraph_result_free(result_ptr)
