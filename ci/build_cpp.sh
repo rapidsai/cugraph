@@ -3,6 +3,8 @@
 
 set -euo pipefail
 
+source ci/use_gha_tools_from_pr.sh
+
 source rapids-configure-sccache
 
 source rapids-date-string

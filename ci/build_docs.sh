@@ -3,6 +3,8 @@
 
 set -euo pipefail
 
+source ci/use_gha_tools_from_pr.sh
+
 if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
   DGL_CHANNEL="dglteam/label/th23_cu118"
 else

@@ -3,6 +3,8 @@
 
 set -Eeuo pipefail
 
+source ci/use_gha_tools_from_pr.sh
+
 . /opt/conda/etc/profile.d/conda.sh
 
 rapids-logger "Downloading artifacts from previous jobs"

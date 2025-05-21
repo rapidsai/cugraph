@@ -3,6 +3,8 @@
 
 set -eoxu pipefail
 
+source ci/use_gha_tools_from_pr.sh
+
 package_name=$1
 
 python_package_name=${package_name//-/_}

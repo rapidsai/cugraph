@@ -3,6 +3,8 @@
 
 set -eoxu pipefail
 
+source ci/use_gha_tools_from_pr.sh
+
 # Download the packages built in the previous step
 mkdir -p ./dist
 RAPIDS_PY_CUDA_SUFFIX="$(rapids-wheel-ctk-name-gen "${RAPIDS_CUDA_VERSION}")"

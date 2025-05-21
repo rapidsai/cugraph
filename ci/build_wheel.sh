@@ -3,6 +3,8 @@
 
 set -euo pipefail
 
+source ci/use_gha_tools_from_pr.sh
+
 package_name=$1
 package_dir=$2
 package_type=$3
