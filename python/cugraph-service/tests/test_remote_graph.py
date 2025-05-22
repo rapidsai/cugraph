@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2023, NVIDIA CORPORATION.
+# Copyright (c) 2022-2025, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -656,10 +656,12 @@ def test_backend_torch(
 def test_remote_graph_neighbor_sample(
     client_with_property_csvs_loaded, pG_with_property_csvs_loaded
 ):
-    # FIXME: consider moving the call dispatcher into cugraph-service-client or
-    # cugraph proper. Import it here for now to allow tests to run in an
-    # environment without cugraph-pyg.
-    from cugraph_pyg.loader.dispatch import call_cugraph_algorithm
+    # FIXME: This test was using call_cugraph_algorithm from
+    # cugraph_pyg.loader.dispatch, which no longer exists. This test should be
+    # updated to call the proper replacement for call_cugraph_algorithm, or
+    # removed.
+    def call_cugraph_algorithm(*args, **kwargs):
+        raise NotImplementedError
 
     rpG = RemoteGraph(client_with_property_csvs_loaded, 0)
     pG = pG_with_property_csvs_loaded
@@ -701,10 +703,12 @@ def test_remote_graph_neighbor_sample(
 def test_remote_graph_neighbor_sample_implicit_subgraph(
     client_with_property_csvs_loaded, pG_with_property_csvs_loaded
 ):
-    # FIXME: consider moving the call dispatcher into cugraph-service-client or
-    # cugraph proper. Import it here for now to allow tests to run in an
-    # environment without cugraph-pyg.
-    from cugraph_pyg.loader.dispatch import call_cugraph_algorithm
+    # FIXME: This test was using call_cugraph_algorithm from
+    # cugraph_pyg.loader.dispatch, which no longer exists. This test should be
+    # updated to call the proper replacement for call_cugraph_algorithm, or
+    # removed.
+    def call_cugraph_algorithm(*args, **kwargs):
+        raise NotImplementedError
 
     rpG = RemoteGraph(client_with_property_csvs_loaded, 0)
     pG = pG_with_property_csvs_loaded

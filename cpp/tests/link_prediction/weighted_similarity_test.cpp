@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,6 +22,8 @@
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
+
+#include <cuda/std/iterator>
 
 #include <gtest/gtest.h>
 
@@ -147,7 +149,7 @@ class Tests_Similarity
                                   });
 
       h_v1.resize(
-        thrust::distance(thrust::make_zip_iterator(h_v1.begin(), h_v2.begin()), end_iter));
+        cuda::std::distance(thrust::make_zip_iterator(h_v1.begin(), h_v2.begin()), end_iter));
       h_v2.resize(h_v1.size());
 
       d_v1.resize(h_v1.size(), handle.get_stream());

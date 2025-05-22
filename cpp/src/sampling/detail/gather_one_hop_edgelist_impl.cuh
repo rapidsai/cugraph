@@ -30,6 +30,7 @@
 
 #include <rmm/device_uvector.hpp>
 
+#include <cuda/std/iterator>
 #include <cuda/std/optional>
 #include <thrust/tuple.h>
 
@@ -37,59 +38,41 @@ namespace cugraph {
 namespace detail {
 
 struct return_edges_with_properties_e_op {
-  template <typename key_t, typename vertex_t, typename EdgeProperties>
+  template <typename key_t, typename vertex_t, typename edge_property_t>
   auto __host__ __device__ operator()(key_t optionally_tagged_src,
                                       vertex_t dst,
                                       cuda::std::nullopt_t,
                                       cuda::std::nullopt_t,
-                                      EdgeProperties edge_properties) const
+                                      edge_property_t edge_properties) const
   {
     static_assert(std::is_same_v<key_t, vertex_t> ||
                   std::is_same_v<key_t, thrust::tuple<vertex_t, int32_t>>);
 
-    // FIXME: A solution using thrust_tuple_cat would be more flexible here
+    vertex_t src{};
     if constexpr (std::is_same_v<key_t, vertex_t>) {
-      vertex_t src{optionally_tagged_src};
-
-      if constexpr (std::is_same_v<EdgeProperties, cuda::std::nullopt_t>) {
-        return thrust::make_tuple(src, dst);
-      } else if constexpr (std::is_arithmetic<EdgeProperties>::value) {
-        return thrust::make_tuple(src, dst, edge_properties);
-      } else if constexpr (cugraph::is_thrust_tuple_of_arithmetic<EdgeProperties>::value &&
-                           (thrust::tuple_size<EdgeProperties>::value == 2)) {
-        return thrust::make_tuple(
-          src, dst, thrust::get<0>(edge_properties), thrust::get<1>(edge_properties));
-      } else if constexpr (cugraph::is_thrust_tuple_of_arithmetic<EdgeProperties>::value &&
-                           (thrust::tuple_size<EdgeProperties>::value == 3)) {
-        return thrust::make_tuple(src,
-                                  dst,
-                                  thrust::get<0>(edge_properties),
-                                  thrust::get<1>(edge_properties),
-                                  thrust::get<2>(edge_properties));
-      }
+      src = optionally_tagged_src;
     } else {
-      vertex_t src{thrust::get<0>(optionally_tagged_src)};
-      int32_t label{thrust::get<1>(optionally_tagged_src)};
-
       src = thrust::get<0>(optionally_tagged_src);
-      if constexpr (std::is_same_v<EdgeProperties, cuda::std::nullopt_t>) {
-        return thrust::make_tuple(src, dst, label);
-      } else if constexpr (std::is_arithmetic<EdgeProperties>::value) {
-        return thrust::make_tuple(src, dst, edge_properties, label);
-      } else if constexpr (cugraph::is_thrust_tuple_of_arithmetic<EdgeProperties>::value &&
-                           (thrust::tuple_size<EdgeProperties>::value == 2)) {
-        return thrust::make_tuple(
-          src, dst, thrust::get<0>(edge_properties), thrust::get<1>(edge_properties), label);
-      } else if constexpr (cugraph::is_thrust_tuple_of_arithmetic<EdgeProperties>::value &&
-                           (thrust::tuple_size<EdgeProperties>::value == 3)) {
-        return thrust::make_tuple(src,
-                                  dst,
-                                  thrust::get<0>(edge_properties),
-                                  thrust::get<1>(edge_properties),
-                                  thrust::get<2>(edge_properties),
-                                  label);
+    }
+    std::conditional_t<std::is_same_v<edge_property_t, cuda::std::nullopt_t>,
+                       thrust::tuple<>,
+                       std::conditional_t<std::is_arithmetic_v<edge_property_t>,
+                                          thrust::tuple<edge_property_t>,
+                                          edge_property_t>>
+      edge_property_tup{};
+    if constexpr (!std::is_same_v<edge_property_t, cuda::std::nullopt_t>) {
+      if constexpr (std::is_arithmetic_v<edge_property_t>) {
+        thrust::get<0>(edge_property_tup) = edge_properties;
+      } else {
+        edge_property_tup = edge_properties;
       }
     }
+    std::conditional_t<std::is_same_v<key_t, vertex_t>, thrust::tuple<>, thrust::tuple<int32_t>>
+      label_tup{};
+    if constexpr (!std::is_same_v<key_t, vertex_t>) {
+      thrust::get<0>(label_tup) = thrust::get<1>(optionally_tagged_src);
+    }
+    return thrust_tuple_cat(thrust::make_tuple(src, dst), edge_property_tup, label_tup);
   }
 };
 
@@ -139,8 +122,7 @@ gather_one_hop_edgelist(
       std::conditional_t<has_edge_type, thrust::tuple<edge_t, edge_type_t>, edge_t>,
       std::conditional_t<has_edge_type, edge_type_t, cuda::std::nullopt_t>>>;
 
-  using edge_value_view_t =
-    edge_property_view_type_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, edge_value_t>;
+  using edge_value_view_t = edge_property_view_type_t<edge_t, edge_value_t>;
 
   edge_value_view_t edge_value_view{};
   if constexpr (has_weight) {
@@ -256,7 +238,7 @@ gather_one_hop_edgelist(
                                                        edge_ids->begin(),
                                                        edge_types->begin(),
                                                        labels->begin());
-          new_size         = static_cast<size_t>(thrust::distance(
+          new_size         = static_cast<size_t>(cuda::std::distance(
             tuple_first,
             thrust::remove_if(
               handle.get_thrust_policy(),
@@ -273,7 +255,7 @@ gather_one_hop_edgelist(
                                                        edge_weights->begin(),
                                                        edge_ids->begin(),
                                                        edge_types->begin());
-          new_size         = static_cast<size_t>(thrust::distance(
+          new_size         = static_cast<size_t>(cuda::std::distance(
             tuple_first,
             thrust::remove_if(
               handle.get_thrust_policy(),
@@ -292,7 +274,7 @@ gather_one_hop_edgelist(
                                                        edge_weights->begin(),
                                                        edge_types->begin(),
                                                        labels->begin());
-          new_size         = static_cast<size_t>(thrust::distance(
+          new_size         = static_cast<size_t>(cuda::std::distance(
             tuple_first,
             thrust::remove_if(
               handle.get_thrust_policy(),
@@ -306,7 +288,7 @@ gather_one_hop_edgelist(
         } else {
           auto tuple_first = thrust::make_zip_iterator(
             majors.begin(), minors.begin(), edge_weights->begin(), edge_types->begin());
-          new_size = static_cast<size_t>(thrust::distance(
+          new_size = static_cast<size_t>(cuda::std::distance(
             tuple_first,
             thrust::remove_if(
               handle.get_thrust_policy(),
@@ -327,7 +309,7 @@ gather_one_hop_edgelist(
                                                        edge_ids->begin(),
                                                        edge_types->begin(),
                                                        labels->begin());
-          new_size         = static_cast<size_t>(thrust::distance(
+          new_size         = static_cast<size_t>(cuda::std::distance(
             tuple_first,
             thrust::remove_if(
               handle.get_thrust_policy(),
@@ -341,7 +323,7 @@ gather_one_hop_edgelist(
         } else {
           auto tuple_first = thrust::make_zip_iterator(
             majors.begin(), minors.begin(), edge_ids->begin(), edge_types->begin());
-          new_size = static_cast<size_t>(thrust::distance(
+          new_size = static_cast<size_t>(cuda::std::distance(
             tuple_first,
             thrust::remove_if(
               handle.get_thrust_policy(),
@@ -357,7 +339,7 @@ gather_one_hop_edgelist(
         if constexpr (std::is_same_v<tag_t, label_t>) {
           auto tuple_first = thrust::make_zip_iterator(
             majors.begin(), minors.begin(), edge_types->begin(), labels->begin());
-          new_size = static_cast<size_t>(thrust::distance(
+          new_size = static_cast<size_t>(cuda::std::distance(
             tuple_first,
             thrust::remove_if(
               handle.get_thrust_policy(),
@@ -371,7 +353,7 @@ gather_one_hop_edgelist(
         } else {
           auto tuple_first =
             thrust::make_zip_iterator(majors.begin(), minors.begin(), edge_types->begin());
-          new_size = static_cast<size_t>(thrust::distance(
+          new_size = static_cast<size_t>(cuda::std::distance(
             tuple_first,
             thrust::remove_if(
               handle.get_thrust_policy(),

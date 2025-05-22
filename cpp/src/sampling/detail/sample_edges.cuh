@@ -38,30 +38,27 @@ namespace detail {
 
 template <typename vertex_t>
 struct sample_edges_op_t {
-  template <typename EdgeProperties>
+  template <typename edge_property_t>
   auto __host__ __device__ operator()(vertex_t src,
                                       vertex_t dst,
                                       cuda::std::nullopt_t,
                                       cuda::std::nullopt_t,
-                                      EdgeProperties edge_properties) const
+                                      edge_property_t edge_properties) const
   {
-    // FIXME: A solution using thrust_tuple_cat would be more flexible here
-    if constexpr (std::is_same_v<EdgeProperties, cuda::std::nullopt_t>) {
-      return thrust::make_tuple(src, dst);
-    } else if constexpr (std::is_arithmetic<EdgeProperties>::value) {
-      return thrust::make_tuple(src, dst, edge_properties);
-    } else if constexpr (cugraph::is_thrust_tuple_of_arithmetic<EdgeProperties>::value &&
-                         (thrust::tuple_size<EdgeProperties>::value == 2)) {
-      return thrust::make_tuple(
-        src, dst, thrust::get<0>(edge_properties), thrust::get<1>(edge_properties));
-    } else if constexpr (cugraph::is_thrust_tuple_of_arithmetic<EdgeProperties>::value &&
-                         (thrust::tuple_size<EdgeProperties>::value == 3)) {
-      return thrust::make_tuple(src,
-                                dst,
-                                thrust::get<0>(edge_properties),
-                                thrust::get<1>(edge_properties),
-                                thrust::get<2>(edge_properties));
+    std::conditional_t<std::is_same_v<edge_property_t, cuda::std::nullopt_t>,
+                       thrust::tuple<>,
+                       std::conditional_t<std::is_arithmetic_v<edge_property_t>,
+                                          thrust::tuple<edge_property_t>,
+                                          edge_property_t>>
+      edge_property_tup{};
+    if constexpr (!std::is_same_v<edge_property_t, cuda::std::nullopt_t>) {
+      if constexpr (std::is_arithmetic_v<edge_property_t>) {
+        thrust::get<0>(edge_property_tup) = edge_properties;
+      } else {
+        edge_property_tup = edge_properties;
+      }
     }
+    return thrust_tuple_cat(thrust::make_tuple(src, dst), edge_property_tup);
   }
 };
 
@@ -155,8 +152,7 @@ sample_edges_with_edge_values(
                                           thrust::tuple<vertex_t, vertex_t, edge_type_t>,
                                           thrust::tuple<vertex_t, vertex_t>>>>;
 
-  using edge_value_view_t =
-    edge_property_view_type_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, edge_value_t>;
+  using edge_value_view_t = edge_property_view_type_t<edge_t, edge_value_t>;
 
   edge_value_view_t edge_value_view{};
   if constexpr (has_weight) {

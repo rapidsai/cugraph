@@ -15,7 +15,7 @@
 #=============================================================================
 
 cmake_minimum_required(VERSION 3.30.4 FATAL_ERROR)
-include(../../rapids_config.cmake)
+include(../../cmake/rapids_config.cmake)
 
 include(rapids-cmake)
 include(rapids-cpm)
@@ -86,6 +86,9 @@ list(APPEND CUGRAPH_ETL_CUDA_FLAGS --expt-extended-lambda --expt-relaxed-constex
 list(APPEND CUGRAPH_ETL_CUDA_FLAGS -Werror=cross-execution-space-call -Wno-deprecated-declarations -Xptxas=--disable-warnings)
 list(APPEND CUGRAPH_ETL_CUDA_FLAGS -Xcompiler=-Wall,-Wno-error=sign-compare,-Wno-error=unused-but-set-variable)
 list(APPEND CUGRAPH_ETL_CUDA_FLAGS -Xfatbin=-compress-all)
+if(CMAKE_CUDA_COMPILER_ID STREQUAL "NVIDIA" AND CMAKE_CUDA_COMPILER_VERSION VERSION_EQUAL 12.9)
+  list(APPEND CUGRAPH_ETL_CUDA_FLAGS -Xfatbin=--compress-level=3)
+endif()
 
 # Option to enable line info in CUDA device compilation to allow introspection when profiling /
 # memchecking

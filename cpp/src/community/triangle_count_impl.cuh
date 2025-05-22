@@ -28,11 +28,11 @@
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 
+#include <cuda/std/iterator>
 #include <cuda/std/optional>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
 #include <thrust/count.h>
-#include <thrust/distance.h>
 #include <thrust/execution_policy.h>
 #include <thrust/fill.h>
 #include <thrust/iterator/transform_iterator.h>
@@ -116,7 +116,7 @@ struct vertex_to_count_t {
     auto it = thrust::lower_bound(
       thrust::seq, sorted_local_vertices.begin(), sorted_local_vertices.end(), v);
     if ((it != sorted_local_vertices.end()) && (*it == v)) {
-      return *(local_counts.begin() + thrust::distance(sorted_local_vertices.begin(), it));
+      return *(local_counts.begin() + cuda::std::distance(sorted_local_vertices.begin(), it));
     } else {
       return edge_t{0};
     }
@@ -200,11 +200,10 @@ void triangle_count(raft::handle_t const& handle,
   // 2. Mask out the edges that has source or destination that cannot be reached from vertices
   // within two hop (if vertices.has_value() is true).
 
-  cugraph::edge_property_t<decltype(cur_graph_view), bool> edge_mask(handle);
+  cugraph::edge_property_t<edge_t, bool> edge_mask(handle);
 
   if (vertices) {
-    cugraph::edge_property_t<decltype(cur_graph_view), bool> within_two_hop_edge_mask(
-      handle, cur_graph_view);
+    cugraph::edge_property_t<edge_t, bool> within_two_hop_edge_mask(handle, cur_graph_view);
     cugraph::fill_edge_property(
       handle, unmasked_cur_graph_view, within_two_hop_edge_mask.mutable_view(), false);
 
@@ -213,7 +212,7 @@ void triangle_count(raft::handle_t const& handle,
       handle.get_thrust_policy(), (*vertices).begin(), (*vertices).end(), unique_vertices.begin());
     thrust::sort(handle.get_thrust_policy(), unique_vertices.begin(), unique_vertices.end());
     unique_vertices.resize(
-      thrust::distance(
+      cuda::std::distance(
         unique_vertices.begin(),
         thrust::unique(handle.get_thrust_policy(), unique_vertices.begin(), unique_vertices.end())),
       handle.get_stream());
@@ -234,10 +233,10 @@ void triangle_count(raft::handle_t const& handle,
     one_hop_nbrs.shrink_to_fit(handle.get_stream());
     thrust::sort(
       handle.get_thrust_policy(), unique_one_hop_nbrs.begin(), unique_one_hop_nbrs.end());
-    unique_one_hop_nbrs.resize(thrust::distance(unique_one_hop_nbrs.begin(),
-                                                thrust::unique(handle.get_thrust_policy(),
-                                                               unique_one_hop_nbrs.begin(),
-                                                               unique_one_hop_nbrs.end())),
+    unique_one_hop_nbrs.resize(cuda::std::distance(unique_one_hop_nbrs.begin(),
+                                                   thrust::unique(handle.get_thrust_policy(),
+                                                                  unique_one_hop_nbrs.begin(),
+                                                                  unique_one_hop_nbrs.end())),
                                handle.get_stream());
 
     if constexpr (multi_gpu) {
@@ -245,10 +244,10 @@ void triangle_count(raft::handle_t const& handle,
         handle, std::move(unique_one_hop_nbrs), cur_graph_view.vertex_partition_range_lasts());
       thrust::sort(
         handle.get_thrust_policy(), unique_one_hop_nbrs.begin(), unique_one_hop_nbrs.end());
-      unique_one_hop_nbrs.resize(thrust::distance(unique_one_hop_nbrs.begin(),
-                                                  thrust::unique(handle.get_thrust_policy(),
-                                                                 unique_one_hop_nbrs.begin(),
-                                                                 unique_one_hop_nbrs.end())),
+      unique_one_hop_nbrs.resize(cuda::std::distance(unique_one_hop_nbrs.begin(),
+                                                     thrust::unique(handle.get_thrust_policy(),
+                                                                    unique_one_hop_nbrs.begin(),
+                                                                    unique_one_hop_nbrs.end())),
                                  handle.get_stream());
     }
 
@@ -268,10 +267,10 @@ void triangle_count(raft::handle_t const& handle,
     two_hop_nbrs.shrink_to_fit(handle.get_stream());
     thrust::sort(
       handle.get_thrust_policy(), unique_two_hop_nbrs.begin(), unique_two_hop_nbrs.end());
-    unique_two_hop_nbrs.resize(thrust::distance(unique_two_hop_nbrs.begin(),
-                                                thrust::unique(handle.get_thrust_policy(),
-                                                               unique_two_hop_nbrs.begin(),
-                                                               unique_two_hop_nbrs.end())),
+    unique_two_hop_nbrs.resize(cuda::std::distance(unique_two_hop_nbrs.begin(),
+                                                   thrust::unique(handle.get_thrust_policy(),
+                                                                  unique_two_hop_nbrs.begin(),
+                                                                  unique_two_hop_nbrs.end())),
                                handle.get_stream());
 
     if constexpr (multi_gpu) {
@@ -279,10 +278,10 @@ void triangle_count(raft::handle_t const& handle,
         handle, std::move(unique_two_hop_nbrs), cur_graph_view.vertex_partition_range_lasts());
       thrust::sort(
         handle.get_thrust_policy(), unique_two_hop_nbrs.begin(), unique_two_hop_nbrs.end());
-      unique_two_hop_nbrs.resize(thrust::distance(unique_two_hop_nbrs.begin(),
-                                                  thrust::unique(handle.get_thrust_policy(),
-                                                                 unique_two_hop_nbrs.begin(),
-                                                                 unique_two_hop_nbrs.end())),
+      unique_two_hop_nbrs.resize(cuda::std::distance(unique_two_hop_nbrs.begin(),
+                                                     thrust::unique(handle.get_thrust_policy(),
+                                                                    unique_two_hop_nbrs.begin(),
+                                                                    unique_two_hop_nbrs.end())),
                                  handle.get_stream());
     }
 
@@ -330,10 +329,8 @@ void triangle_count(raft::handle_t const& handle,
     unique_two_hop_nbrs.resize(0, handle.get_stream());
     unique_two_hop_nbrs.shrink_to_fit(handle.get_stream());
 
-    edge_src_property_t<decltype(cur_graph_view), bool> edge_src_within_two_hop_flags(
-      handle, cur_graph_view);
-    edge_dst_property_t<decltype(cur_graph_view), bool> edge_dst_within_two_hop_flags(
-      handle, cur_graph_view);
+    edge_src_property_t<vertex_t, bool> edge_src_within_two_hop_flags(handle, cur_graph_view);
+    edge_dst_property_t<vertex_t, bool> edge_dst_within_two_hop_flags(handle, cur_graph_view);
     update_edge_src_property(handle,
                              cur_graph_view,
                              within_two_hop_flags.begin(),
@@ -362,8 +359,7 @@ void triangle_count(raft::handle_t const& handle,
   // 3. Exclude self-loops
 
   {
-    cugraph::edge_property_t<decltype(cur_graph_view), bool> self_loop_edge_mask(handle,
-                                                                                 cur_graph_view);
+    cugraph::edge_property_t<edge_t, bool> self_loop_edge_mask(handle, cur_graph_view);
     cugraph::fill_edge_property(
       handle, unmasked_cur_graph_view, self_loop_edge_mask.mutable_view(), false);
 
@@ -384,8 +380,7 @@ void triangle_count(raft::handle_t const& handle,
   // 4. Find 2-core and exclude edges that do not belong to 2-core add masking support).
 
   {
-    cugraph::edge_property_t<decltype(cur_graph_view), bool> in_two_core_edge_mask(handle,
-                                                                                   cur_graph_view);
+    cugraph::edge_property_t<edge_t, bool> in_two_core_edge_mask(handle, cur_graph_view);
     cugraph::fill_edge_property(
       handle, unmasked_cur_graph_view, in_two_core_edge_mask.mutable_view(), false);
 
@@ -394,10 +389,8 @@ void triangle_count(raft::handle_t const& handle,
     core_number(
       handle, cur_graph_view, core_numbers.data(), k_core_degree_type_t::OUT, size_t{2}, size_t{2});
 
-    edge_src_property_t<decltype(cur_graph_view), bool> edge_src_in_two_cores(handle,
-                                                                              cur_graph_view);
-    edge_dst_property_t<decltype(cur_graph_view), bool> edge_dst_in_two_cores(handle,
-                                                                              cur_graph_view);
+    edge_src_property_t<vertex_t, bool> edge_src_in_two_cores(handle, cur_graph_view);
+    edge_dst_property_t<vertex_t, bool> edge_dst_in_two_cores(handle, cur_graph_view);
     auto in_two_core_first =
       thrust::make_transform_iterator(core_numbers.begin(), is_two_or_greater_t<edge_t>{});
     rmm::device_uvector<bool> in_two_core_flags(core_numbers.size(), handle.get_stream());
@@ -434,10 +427,8 @@ void triangle_count(raft::handle_t const& handle,
   {
     auto out_degrees = cur_graph_view.compute_out_degrees(handle);
 
-    edge_src_property_t<decltype(cur_graph_view), edge_t> edge_src_out_degrees(handle,
-                                                                               cur_graph_view);
-    edge_dst_property_t<decltype(cur_graph_view), edge_t> edge_dst_out_degrees(handle,
-                                                                               cur_graph_view);
+    edge_src_property_t<vertex_t, edge_t> edge_src_out_degrees(handle, cur_graph_view);
+    edge_dst_property_t<vertex_t, edge_t> edge_dst_out_degrees(handle, cur_graph_view);
     update_edge_src_property(
       handle, cur_graph_view, out_degrees.begin(), edge_src_out_degrees.mutable_view());
     update_edge_dst_property(

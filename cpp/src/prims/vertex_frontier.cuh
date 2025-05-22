@@ -32,9 +32,9 @@
 
 #include <cuda/atomic>
 #include <cuda/functional>
+#include <cuda/std/iterator>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
-#include <thrust/distance.h>
 #include <thrust/fill.h>
 #include <thrust/iterator/constant_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
@@ -108,19 +108,20 @@ std::vector<size_t> compute_key_segment_offsets(KeyIterator sorted_key_first,
   } else {
     auto sorted_vertex_first =
       thrust::make_transform_iterator(sorted_key_first, thrust_tuple_get<key_t, 0>{});
-    thrust::lower_bound(rmm::exec_policy_nosync(stream_view),
-                        sorted_vertex_first,
-                        sorted_vertex_first + thrust::distance(sorted_key_first, sorted_key_last),
-                        d_thresholds.begin(),
-                        d_thresholds.end(),
-                        d_offsets.begin());
+    thrust::lower_bound(
+      rmm::exec_policy_nosync(stream_view),
+      sorted_vertex_first,
+      sorted_vertex_first + cuda::std::distance(sorted_key_first, sorted_key_last),
+      d_thresholds.begin(),
+      d_thresholds.end(),
+      d_offsets.begin());
   }
 
   std::vector<size_t> h_offsets(d_offsets.size() + 2);
   raft::update_host(h_offsets.data() + 1, d_offsets.data(), d_offsets.size(), stream_view);
   RAFT_CUDA_TRY(cudaStreamSynchronize(stream_view));
   h_offsets[0]     = size_t{0};
-  h_offsets.back() = static_cast<size_t>(thrust::distance(sorted_key_first, sorted_key_last));
+  h_offsets.back() = static_cast<size_t>(cuda::std::distance(sorted_key_first, sorted_key_last));
 
   return h_offsets;
 }
@@ -398,7 +399,7 @@ class key_bucket_t {
     if (std::get<1>(vertices_).size() > 0) {
       if constexpr (sorted_unique) {
         rmm::device_uvector<vertex_t> merged_vertices(
-          std::get<1>(vertices_).size() + thrust::distance(vertex_first, vertex_last),
+          std::get<1>(vertices_).size() + cuda::std::distance(vertex_first, vertex_last),
           handle_ptr_->get_stream());
         thrust::merge(handle_ptr_->get_thrust_policy(),
                       std::get<1>(vertices_).begin(),
@@ -406,15 +407,15 @@ class key_bucket_t {
                       vertex_first,
                       vertex_last,
                       merged_vertices.begin());
-        merged_vertices.resize(thrust::distance(merged_vertices.begin(),
-                                                thrust::unique(handle_ptr_->get_thrust_policy(),
-                                                               merged_vertices.begin(),
-                                                               merged_vertices.end())),
+        merged_vertices.resize(cuda::std::distance(merged_vertices.begin(),
+                                                   thrust::unique(handle_ptr_->get_thrust_policy(),
+                                                                  merged_vertices.begin(),
+                                                                  merged_vertices.end())),
                                handle_ptr_->get_stream());
         std::get<1>(vertices_) = std::move(merged_vertices);
       } else {
         auto cur_size = std::get<1>(vertices_).size();
-        std::get<1>(vertices_).resize(cur_size + thrust::distance(vertex_first, vertex_last),
+        std::get<1>(vertices_).resize(cur_size + cuda::std::distance(vertex_first, vertex_last),
                                       handle_ptr_->get_stream());
         thrust::copy(handle_ptr_->get_thrust_policy(),
                      vertex_first,
@@ -422,7 +423,7 @@ class key_bucket_t {
                      std::get<1>(vertices_).begin() + cur_size);
       }
     } else {
-      std::get<1>(vertices_).resize(thrust::distance(vertex_first, vertex_last),
+      std::get<1>(vertices_).resize(cuda::std::distance(vertex_first, vertex_last),
                                     handle_ptr_->get_stream());
       thrust::copy(handle_ptr_->get_thrust_policy(),
                    vertex_first,
@@ -452,7 +453,7 @@ class key_bucket_t {
     if (std::get<1>(vertices_).size() > 0) {
       if constexpr (sorted_unique) {
         rmm::device_uvector<vertex_t> merged_vertices(
-          std::get<1>(vertices_).size() + thrust::distance(key_first, key_last),
+          std::get<1>(vertices_).size() + cuda::std::distance(key_first, key_last),
           handle_ptr_->get_stream());
         rmm::device_uvector<tag_t> merged_tags(merged_vertices.size(), handle_ptr_->get_stream());
         auto old_pair_first =
@@ -466,17 +467,17 @@ class key_bucket_t {
                       key_last,
                       merged_pair_first);
         merged_vertices.resize(
-          thrust::distance(merged_pair_first,
-                           thrust::unique(handle_ptr_->get_thrust_policy(),
-                                          merged_pair_first,
-                                          merged_pair_first + merged_vertices.size())),
+          cuda::std::distance(merged_pair_first,
+                              thrust::unique(handle_ptr_->get_thrust_policy(),
+                                             merged_pair_first,
+                                             merged_pair_first + merged_vertices.size())),
           handle_ptr_->get_stream());
         merged_tags.resize(merged_vertices.size(), handle_ptr_->get_stream());
         std::get<1>(vertices_) = std::move(merged_vertices);
         std::get<1>(tags_)     = std::move(merged_tags);
       } else {
         auto cur_size = std::get<1>(vertices_).size();
-        std::get<1>(vertices_).resize(cur_size + thrust::distance(key_first, key_last),
+        std::get<1>(vertices_).resize(cur_size + cuda::std::distance(key_first, key_last),
                                       handle_ptr_->get_stream());
         std::get<1>(tags_).resize(std::get<1>(vertices_).size(), handle_ptr_->get_stream());
         thrust::copy(
@@ -487,9 +488,10 @@ class key_bucket_t {
             cur_size);
       }
     } else {
-      std::get<1>(vertices_).resize(thrust::distance(key_first, key_last),
+      std::get<1>(vertices_).resize(cuda::std::distance(key_first, key_last),
                                     handle_ptr_->get_stream());
-      std::get<1>(tags_).resize(thrust::distance(key_first, key_last), handle_ptr_->get_stream());
+      std::get<1>(tags_).resize(cuda::std::distance(key_first, key_last),
+                                handle_ptr_->get_stream());
       thrust::copy(
         handle_ptr_->get_thrust_policy(),
         key_first,
@@ -689,7 +691,7 @@ class vertex_frontier_t {
     // 2. separte the elements to stay in this bucket from the elements to be moved to other buckets
 
     auto pair_first = thrust::make_zip_iterator(bucket_indices.begin(), this_bucket.begin());
-    auto new_this_bucket_size = static_cast<size_t>(thrust::distance(
+    auto new_this_bucket_size = static_cast<size_t>(cuda::std::distance(
       pair_first,
       thrust::stable_partition(  // stable_partition to maintain sorted order within each bucket
         handle_ptr_->get_thrust_policy(),
@@ -703,14 +705,14 @@ class vertex_frontier_t {
 
     bucket_indices.resize(
       new_this_bucket_size +
-        thrust::distance(pair_first + new_this_bucket_size,
-                         thrust::remove_if(handle_ptr_->get_thrust_policy(),
-                                           pair_first + new_this_bucket_size,
-                                           pair_first + bucket_indices.size(),
-                                           [] __device__(auto pair) {
-                                             return thrust::get<0>(pair) ==
-                                                    static_cast<uint8_t>(kInvalidBucketIdx);
-                                           })),
+        cuda::std::distance(pair_first + new_this_bucket_size,
+                            thrust::remove_if(handle_ptr_->get_thrust_policy(),
+                                              pair_first + new_this_bucket_size,
+                                              pair_first + bucket_indices.size(),
+                                              [] __device__(auto pair) {
+                                                return thrust::get<0>(pair) ==
+                                                       static_cast<uint8_t>(kInvalidBucketIdx);
+                                              })),
       handle_ptr_->get_stream());
     this_bucket.resize(bucket_indices.size());
 
@@ -734,7 +736,7 @@ class vertex_frontier_t {
     // 1. group the elements by their target bucket indices
 
     auto pair_first = thrust::make_zip_iterator(bucket_idx_first, key_first);
-    auto pair_last  = pair_first + thrust::distance(bucket_idx_first, bucket_idx_last);
+    auto pair_last  = pair_first + cuda::std::distance(bucket_idx_first, bucket_idx_last);
 
     std::vector<size_t> insert_bucket_indices{};
     std::vector<size_t> insert_offsets{};
@@ -743,9 +745,9 @@ class vertex_frontier_t {
       insert_bucket_indices =
         std::vector<size_t>(to_bucket_indices.begin(), to_bucket_indices.end());
       insert_offsets = {0};
-      insert_sizes   = {static_cast<size_t>(thrust::distance(pair_first, pair_last))};
+      insert_sizes   = {static_cast<size_t>(cuda::std::distance(pair_first, pair_last))};
     } else if (to_bucket_indices.size() == 2) {
-      auto next_bucket_size = static_cast<size_t>(thrust::distance(
+      auto next_bucket_size = static_cast<size_t>(cuda::std::distance(
         pair_first,
         thrust::stable_partition(  // stable_partition to maintain sorted order within each bucket
           handle_ptr_->get_thrust_policy(),
@@ -759,7 +761,7 @@ class vertex_frontier_t {
       insert_offsets = {0, next_bucket_size};
       insert_sizes   = {
         next_bucket_size,
-        static_cast<size_t>(thrust::distance(pair_first + next_bucket_size, pair_last))};
+        static_cast<size_t>(cuda::std::distance(pair_first + next_bucket_size, pair_last))};
     } else {
       thrust::stable_sort(  // stable_sort to maintain sorted order within each bucket
         handle_ptr_->get_thrust_policy(),
@@ -775,7 +777,7 @@ class vertex_frontier_t {
                                       thrust::make_constant_iterator(size_t{1}),
                                       d_indices.begin(),
                                       d_counts.begin());
-      d_indices.resize(thrust::distance(d_indices.begin(), thrust::get<0>(it)),
+      d_indices.resize(cuda::std::distance(d_indices.begin(), thrust::get<0>(it)),
                        handle_ptr_->get_stream());
       d_counts.resize(d_indices.size(), handle_ptr_->get_stream());
       std::vector<uint8_t> h_indices(d_indices.size());

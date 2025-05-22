@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -35,11 +35,11 @@
 #include <rmm/exec_policy.hpp>
 
 #include <cub/cub.cuh>
+#include <cuda/std/iterator>
 #include <thrust/adjacent_difference.h>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
 #include <thrust/count.h>
-#include <thrust/distance.h>
 #include <thrust/equal.h>
 #include <thrust/fill.h>
 #include <thrust/for_each.h>
@@ -206,7 +206,7 @@ update_local_sorted_unique_edge_majors_minors(
         size_t this_scan_size =
           std::min(size_t{1} << 30,
                    static_cast<size_t>(minor_range_last - (minor_range_first + num_scanned)));
-        num_copied += static_cast<size_t>(thrust::distance(
+        num_copied += static_cast<size_t>(cuda::std::distance(
           unique_edge_minors.begin() + num_copied,
           thrust::copy_if(
             handle.get_thrust_policy(),
@@ -332,7 +332,7 @@ update_local_sorted_unique_edge_majors_minors(
         CUGRAPH_EXPECTS(sparse_range_last - major_range_first < std::numeric_limits<int32_t>::max(),
                         "copy_if will fail (https://github.com/NVIDIA/thrust/issues/1302), "
                         "work-around required.");
-        auto cur_size = thrust::distance(
+        auto cur_size = cuda::std::distance(
           unique_edge_majors.begin(),
           thrust::copy_if(
             handle.get_thrust_policy(),

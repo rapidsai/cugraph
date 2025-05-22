@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, NVIDIA CORPORATION.
+ * Copyright (c) 2024-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,6 +25,7 @@
 #include <rmm/device_uvector.hpp>
 
 #include <cub/cub.cuh>
+#include <cuda/std/iterator>
 
 #include <numeric>
 #include <vector>
@@ -39,14 +40,16 @@ inline std::vector<size_t> init_stream_pool_indices(size_t max_tmp_buffer_size,
                                                     size_t num_streams_per_loop,
                                                     size_t max_streams)
 {
-  size_t num_streams = std::min(loop_count * num_streams_per_loop,
-                                raft::round_down_safe(max_streams, num_streams_per_loop));
+  size_t num_streams =
+    std::min(loop_count * num_streams_per_loop,
+             std::max(raft::round_down_safe(max_streams, num_streams_per_loop), size_t{1}));
 
   auto num_concurrent_loops =
     (approx_tmp_buffer_size_per_loop > 0)
       ? std::max(max_tmp_buffer_size / approx_tmp_buffer_size_per_loop, size_t{1})
       : loop_count;
-  num_streams = std::min(num_concurrent_loops * num_streams_per_loop, num_streams);
+  num_streams = std::min(num_concurrent_loops * num_streams_per_loop,
+                         num_streams);  // 1 or multiple of num_streams_per_loop
 
   std::vector<size_t> stream_pool_indices(num_streams);
   std::iota(stream_pool_indices.begin(), stream_pool_indices.end(), size_t{0});
@@ -64,13 +67,14 @@ void copy_if_nosync(InputIterator input_first,
                     rmm::cuda_stream_view stream_view)
 {
   CUGRAPH_EXPECTS(
-    static_cast<size_t>(thrust::distance(input_first, input_last)) <=
+    static_cast<size_t>(cuda::std::distance(input_first, input_last)) <=
       static_cast<size_t>(std::numeric_limits<int>::max()),
     "cugraph::detail::copy_if_nosync relies on cub::DeviceSelect::Flagged which uses int for input "
-    "size, but thrust::distance(input_first, input_last) exceeds std::numeric_limits<int>::max().");
+    "size, but cuda::std::distance(input_first, input_last) exceeds "
+    "std::numeric_limits<int>::max().");
 
   size_t tmp_storage_bytes{0};
-  size_t input_size = static_cast<int>(thrust::distance(input_first, input_last));
+  size_t input_size = static_cast<int>(cuda::std::distance(input_first, input_last));
 
   cub::DeviceSelect::Flagged(static_cast<void*>(nullptr),
                              tmp_storage_bytes,
@@ -101,13 +105,13 @@ void count_nosync(InputIterator input_first,
                   rmm::cuda_stream_view stream_view)
 {
   CUGRAPH_EXPECTS(
-    static_cast<size_t>(thrust::distance(input_first, input_last)) <=
+    static_cast<size_t>(cuda::std::distance(input_first, input_last)) <=
       static_cast<size_t>(std::numeric_limits<int>::max()),
     "cugraph::detail::count_nosync relies on cub::DeviceReduce::Sum which uses int for input size, "
-    "but thrust::distance(input_first, input_last) exceeds std::numeric_limits<int>::max().");
+    "but cuda::std::distance(input_first, input_last) exceeds std::numeric_limits<int>::max().");
 
   size_t tmp_storage_bytes{0};
-  size_t input_size = static_cast<int>(thrust::distance(input_first, input_last));
+  size_t input_size = static_cast<int>(cuda::std::distance(input_first, input_last));
 
   cub::DeviceReduce::Sum(static_cast<void*>(nullptr),
                          tmp_storage_bytes,
@@ -130,13 +134,13 @@ void sum_nosync(
   rmm::cuda_stream_view stream_view)
 {
   CUGRAPH_EXPECTS(
-    static_cast<size_t>(thrust::distance(input_first, input_last)) <=
+    static_cast<size_t>(cuda::std::distance(input_first, input_last)) <=
       static_cast<size_t>(std::numeric_limits<int>::max()),
     "cugraph::detail::count_nosync relies on cub::DeviceReduce::Sum which uses int for input size, "
-    "but thrust::distance(input_first, input_last) exceeds std::numeric_limits<int>::max().");
+    "but cuda::std::distance(input_first, input_last) exceeds std::numeric_limits<int>::max().");
 
   size_t tmp_storage_bytes{0};
-  size_t input_size = static_cast<int>(thrust::distance(input_first, input_last));
+  size_t input_size = static_cast<int>(cuda::std::distance(input_first, input_last));
 
   cub::DeviceReduce::Sum(static_cast<void*>(nullptr),
                          tmp_storage_bytes,

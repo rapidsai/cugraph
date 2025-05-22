@@ -236,11 +236,10 @@ def graph_objs(request):
 
                 with TimerContext("dask compute() results"):
                     result_df = result_ddf.compute()
-                    sources = result_df["sources"].to_cupy()
-                    destinations = result_df["destinations"].to_cupy()
-                    indices = result_df["indices"].to_cupy()
+                    sources = result_df["majors"].to_cupy()
+                    destinations = result_df["minors"].to_cupy()
 
-                return (sources, destinations, indices)
+                return (sources, destinations)
 
     yield (G, num_verts, uns_func)
 
