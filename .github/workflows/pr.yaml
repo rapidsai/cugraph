@@ -67,6 +67,7 @@ jobs:
           - '!.devcontainer/**'
           - '!CONTRIBUTING.md'
           - '!README.md'
+          - '!ci/release/update-version.sh'
           - '!docs/**'
           - '!img/**'
           - '!mg_utils/**'
@@ -78,12 +79,14 @@ jobs:
           - '!.devcontainer/**'
           - '!CONTRIBUTING.md'
           - '!README.md'
+          - '!ci/release/update-version.sh'
           - '!docs/**'
         test_python:
           - '**'
           - '!.devcontainer/**'
           - '!CONTRIBUTING.md'
           - '!README.md'
+          - '!ci/release/update-version.sh'
           - '!docs/**'
           - '!img/**'
           - '!notebooks/**'
@@ -101,6 +104,7 @@ jobs:
     with:
       build_type: pull-request
       node_type: cpu32
+      script: ci/build_cpp.sh
   conda-cpp-tests:
     needs: [conda-cpp-build, changed-files]
     secrets: inherit
@@ -108,6 +112,7 @@ jobs:
     if: fromJSON(needs.changed-files.outputs.changed_file_groups).test_cpp
     with:
       build_type: pull-request
+      script: ci/test_cpp.sh
   conda-cpp-checks:
     needs: conda-cpp-build
     secrets: inherit
@@ -122,6 +127,7 @@ jobs:
     uses: rapidsai/shared-workflows/.github/workflows/conda-python-build.yaml@branch-25.08
     with:
       build_type: pull-request
+      script: ci/build_python.sh
   conda-python-tests:
     needs: [conda-python-build, changed-files]
     secrets: inherit
@@ -129,6 +135,7 @@ jobs:
     if: fromJSON(needs.changed-files.outputs.changed_file_groups).test_python
     with:
       build_type: pull-request
+      script: ci/test_python.sh
   conda-notebook-tests:
     needs: [conda-python-build, changed-files]
     secrets: inherit
@@ -139,7 +146,7 @@ jobs:
       node_type: "gpu-l4-latest-1"
       arch: "amd64"
       container_image: "rapidsai/ci-conda:cuda11.8.0-ubuntu22.04-py3.10"
-      run_script: "ci/test_notebooks.sh"
+      script: "ci/test_notebooks.sh"
   docs-build:
     needs: conda-python-build
     secrets: inherit
@@ -149,7 +156,7 @@ jobs:
       node_type: "gpu-l4-latest-1"
       arch: "amd64"
       container_image: "rapidsai/ci-conda:cuda11.8.0-ubuntu22.04-py3.10"
-      run_script: "ci/build_docs.sh"
+      script: "ci/build_docs.sh"
   wheel-build-libcugraph:
     needs: checks
     secrets: inherit
