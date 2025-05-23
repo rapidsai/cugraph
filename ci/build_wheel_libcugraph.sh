@@ -5,6 +5,8 @@ set -euo pipefail
 
 source ci/use_gha_tools_from_pr.sh
 
+source rapids-init-pip
+
 package_name="libcugraph"
 package_dir="python/libcugraph"
 
