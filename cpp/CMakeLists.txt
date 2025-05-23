@@ -157,6 +157,22 @@ set(CUGRAPH_SOURCES
     src/sampling/temporal_sampling_sg_v64_e64.cu
     src/sampling/temporal_sampling_mg_v32_e32.cu
     src/sampling/temporal_sampling_mg_v64_e64.cu
+    src/sampling/detail/temporal_label_gather_one_hop_edgelist_v32_w32_t32_sg.cu
+    src/sampling/detail/temporal_label_gather_one_hop_edgelist_v32_w32_t32_mg.cu
+    src/sampling/detail/temporal_label_gather_one_hop_edgelist_v32_w32_t64_sg.cu
+    src/sampling/detail/temporal_label_gather_one_hop_edgelist_v32_w32_t64_mg.cu
+    src/sampling/detail/temporal_label_gather_one_hop_edgelist_v32_w64_t32_sg.cu
+    src/sampling/detail/temporal_label_gather_one_hop_edgelist_v32_w64_t32_mg.cu
+    src/sampling/detail/temporal_label_gather_one_hop_edgelist_v32_w64_t64_sg.cu
+    src/sampling/detail/temporal_label_gather_one_hop_edgelist_v32_w64_t64_mg.cu
+    src/sampling/detail/temporal_label_gather_one_hop_edgelist_v64_w32_t32_sg.cu
+    src/sampling/detail/temporal_label_gather_one_hop_edgelist_v64_w32_t32_mg.cu
+    src/sampling/detail/temporal_label_gather_one_hop_edgelist_v64_w32_t64_sg.cu
+    src/sampling/detail/temporal_label_gather_one_hop_edgelist_v64_w32_t64_mg.cu
+    src/sampling/detail/temporal_label_gather_one_hop_edgelist_v64_w64_t32_sg.cu
+    src/sampling/detail/temporal_label_gather_one_hop_edgelist_v64_w64_t32_mg.cu
+    src/sampling/detail/temporal_label_gather_one_hop_edgelist_v64_w64_t64_sg.cu
+    src/sampling/detail/temporal_label_gather_one_hop_edgelist_v64_w64_t64_mg.cu
     src/sampling/detail/update_temporal_edge_mask_sg_v32_e32.cu
     src/sampling/detail/update_temporal_edge_mask_sg_v64_e64.cu
     src/sampling/detail/update_temporal_edge_mask_mg_v32_e32.cu
@@ -276,6 +292,54 @@ set(CUGRAPH_SOURCES
     src/sampling/detail/check_edge_bias_values_mg_v32_e32.cu
     src/sampling/detail/temporal_partition_vertices_v64.cu
     src/sampling/detail/temporal_partition_vertices_v32.cu
+    src/sampling/detail/temporal_simple_gather_one_hop_edgelist_v32_w32_t32_sg.cu
+    src/sampling/detail/temporal_simple_gather_one_hop_edgelist_v32_w32_t32_mg.cu
+    src/sampling/detail/temporal_simple_gather_one_hop_edgelist_v32_w32_t64_sg.cu
+    src/sampling/detail/temporal_simple_gather_one_hop_edgelist_v32_w32_t64_mg.cu
+    src/sampling/detail/temporal_simple_gather_one_hop_edgelist_v32_w64_t32_sg.cu
+    src/sampling/detail/temporal_simple_gather_one_hop_edgelist_v32_w64_t32_mg.cu
+    src/sampling/detail/temporal_simple_gather_one_hop_edgelist_v32_w64_t64_sg.cu
+    src/sampling/detail/temporal_simple_gather_one_hop_edgelist_v32_w64_t64_mg.cu
+    src/sampling/detail/temporal_simple_gather_one_hop_edgelist_v64_w32_t32_sg.cu
+    src/sampling/detail/temporal_simple_gather_one_hop_edgelist_v64_w32_t32_mg.cu
+    src/sampling/detail/temporal_simple_gather_one_hop_edgelist_v64_w32_t64_sg.cu
+    src/sampling/detail/temporal_simple_gather_one_hop_edgelist_v64_w32_t64_mg.cu
+    src/sampling/detail/temporal_simple_gather_one_hop_edgelist_v64_w64_t32_sg.cu
+    src/sampling/detail/temporal_simple_gather_one_hop_edgelist_v64_w64_t32_mg.cu
+    src/sampling/detail/temporal_simple_gather_one_hop_edgelist_v64_w64_t64_sg.cu
+    src/sampling/detail/temporal_simple_gather_one_hop_edgelist_v64_w64_t64_mg.cu
+    src/sampling/detail/simple_gather_one_hop_edgelist_v32_w32_t32_tag_mg.cu
+    src/sampling/detail/simple_gather_one_hop_edgelist_v32_w32_t32_tag_sg.cu
+    src/sampling/detail/simple_gather_one_hop_edgelist_v32_w32_t64_tag_mg.cu
+    src/sampling/detail/simple_gather_one_hop_edgelist_v32_w32_t64_tag_sg.cu
+    src/sampling/detail/simple_gather_one_hop_edgelist_v32_w64_t32_tag_mg.cu
+    src/sampling/detail/simple_gather_one_hop_edgelist_v32_w64_t32_tag_sg.cu
+    src/sampling/detail/simple_gather_one_hop_edgelist_v32_w64_t64_tag_mg.cu
+    src/sampling/detail/simple_gather_one_hop_edgelist_v32_w64_t64_tag_sg.cu
+    src/sampling/detail/simple_gather_one_hop_edgelist_v64_w32_t32_tag_mg.cu
+    src/sampling/detail/simple_gather_one_hop_edgelist_v64_w32_t32_tag_sg.cu
+    src/sampling/detail/simple_gather_one_hop_edgelist_v64_w32_t64_tag_mg.cu
+    src/sampling/detail/simple_gather_one_hop_edgelist_v64_w32_t64_tag_sg.cu
+    src/sampling/detail/simple_gather_one_hop_edgelist_v64_w64_t32_tag_mg.cu
+    src/sampling/detail/simple_gather_one_hop_edgelist_v64_w64_t32_tag_sg.cu
+    src/sampling/detail/simple_gather_one_hop_edgelist_v64_w64_t64_tag_mg.cu
+    src/sampling/detail/simple_gather_one_hop_edgelist_v64_w64_t64_tag_sg.cu
+    src/sampling/detail/simple_gather_one_hop_edgelist_v32_w32_t32_notag_mg.cu
+    src/sampling/detail/simple_gather_one_hop_edgelist_v32_w32_t32_notag_sg.cu
+    src/sampling/detail/simple_gather_one_hop_edgelist_v32_w32_t64_notag_mg.cu
+    src/sampling/detail/simple_gather_one_hop_edgelist_v32_w32_t64_notag_sg.cu
+    src/sampling/detail/simple_gather_one_hop_edgelist_v32_w64_t32_notag_mg.cu
+    src/sampling/detail/simple_gather_one_hop_edgelist_v32_w64_t32_notag_sg.cu
+    src/sampling/detail/simple_gather_one_hop_edgelist_v32_w64_t64_notag_mg.cu
+    src/sampling/detail/simple_gather_one_hop_edgelist_v32_w64_t64_notag_sg.cu
+    src/sampling/detail/simple_gather_one_hop_edgelist_v64_w32_t32_notag_mg.cu
+    src/sampling/detail/simple_gather_one_hop_edgelist_v64_w32_t32_notag_sg.cu
+    src/sampling/detail/simple_gather_one_hop_edgelist_v64_w32_t64_notag_mg.cu
+    src/sampling/detail/simple_gather_one_hop_edgelist_v64_w32_t64_notag_sg.cu
+    src/sampling/detail/simple_gather_one_hop_edgelist_v64_w64_t32_notag_mg.cu
+    src/sampling/detail/simple_gather_one_hop_edgelist_v64_w64_t32_notag_sg.cu
+    src/sampling/detail/simple_gather_one_hop_edgelist_v64_w64_t64_notag_mg.cu
+    src/sampling/detail/simple_gather_one_hop_edgelist_v64_w64_t64_notag_sg.cu
     src/sampling/detail/sample_edges_sg_v64_e64.cu
     src/sampling/detail/sample_edges_sg_v32_e32.cu
     src/sampling/detail/sample_edges_mg_v64_e64.cu

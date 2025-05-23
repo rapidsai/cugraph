@@ -30,6 +30,7 @@
 #include <cugraph/vertex_partition_device_view.cuh>
 
 #include <raft/core/handle.hpp>
+#include <raft/core/resource/thrust_policy.hpp>
 
 #include <rmm/device_uvector.hpp>
 
@@ -168,6 +169,7 @@ void sort_sampled_tuples(raft::handle_t const& handle,
   }
 }
 
+#if 0
 template <typename KeyIterator, typename KeyToGroupIdOp>
 struct groupby_and_count_functor_t {
   raft::handle_t const& handle;
@@ -194,6 +196,7 @@ struct groupby_and_count_functor_t {
     }
   }
 };
+#endif
 
 template <typename vertex_t,
           typename edge_t,
@@ -243,10 +246,15 @@ shuffle_and_organize_output(
       auto const comm_size = comm.get_size();
 
       auto total_global_mem = handle.get_device_properties().totalGlobalMem;
-      auto element_size     = sizeof(vertex_t) * 2 + (weights ? sizeof(weight_t) : size_t{0}) +
-                          (edge_ids ? sizeof(edge_t) : size_t{0}) +
-                          (edge_types ? sizeof(edge_type_t) : size_t{0}) +
-                          (hops ? sizeof(int32_t) : size_t{0}) + sizeof(label_t);
+      size_t element_size   = sizeof(vertex_t) * 2 + sizeof(label_t);
+      size_t property_count{0};
+
+      if (weights) ++property_count;
+      if (edge_ids) ++property_count;
+      if (edge_types) ++property_count;
+      if (edge_start_times) ++property_count;
+      if (edge_end_times) ++property_count;
+      if (hops) ++property_count;
 
       auto constexpr mem_frugal_ratio =
         0.1;  // if the expected temporary buffer size exceeds the mem_frugal_ratio of the
@@ -256,6 +264,8 @@ shuffle_and_organize_output(
       auto mem_frugal_threshold = static_cast<size_t>(
         static_cast<double>(total_global_mem / element_size) * mem_frugal_ratio);
 
+#if 0
+        // TODO:  Refactor to use scatter approach... should reduce biggest current hit
       groupby_and_count_functor_t<label_t*, shuffle_to_output_comm_rank_t<label_t>>
         groupby_and_count_functor{
           handle,
@@ -284,6 +294,150 @@ shuffle_and_organize_output(
                        : std::nullopt,
         hops ? std::make_optional<raft::device_span<int32_t>>(hops->data(), hops->size())
              : std::nullopt);
+#else
+      rmm::device_uvector<size_t> d_tx_value_counts(0, handle.get_stream());
+
+      if (property_count == 0) {
+        d_tx_value_counts = cugraph::groupby_and_count(
+          labels->begin(),
+          labels->end(),
+          thrust::make_zip_iterator(majors.begin(), minors.begin()),
+          shuffle_to_output_comm_rank_t<label_t>{*label_to_output_comm_rank},
+          comm_size,
+          mem_frugal_threshold,
+          handle.get_stream());
+      } else if (property_count == 1) {
+        if (weights) {
+          d_tx_value_counts = cugraph::groupby_and_count(
+            labels->begin(),
+            labels->end(),
+            thrust::make_zip_iterator(majors.begin(), minors.begin(), weights->begin()),
+            shuffle_to_output_comm_rank_t<label_t>{*label_to_output_comm_rank},
+            comm_size,
+            mem_frugal_threshold,
+            handle.get_stream());
+        }
+        if (edge_ids) {
+          d_tx_value_counts = cugraph::groupby_and_count(
+            labels->begin(),
+            labels->end(),
+            thrust::make_zip_iterator(majors.begin(), minors.begin(), edge_ids->begin()),
+            shuffle_to_output_comm_rank_t<label_t>{*label_to_output_comm_rank},
+            comm_size,
+            mem_frugal_threshold,
+            handle.get_stream());
+        }
+        if (edge_types) {
+          d_tx_value_counts = cugraph::groupby_and_count(
+            labels->begin(),
+            labels->end(),
+            thrust::make_zip_iterator(majors.begin(), minors.begin(), edge_types->begin()),
+            shuffle_to_output_comm_rank_t<label_t>{*label_to_output_comm_rank},
+            comm_size,
+            mem_frugal_threshold,
+            handle.get_stream());
+        }
+        if (edge_start_times) {
+          d_tx_value_counts = cugraph::groupby_and_count(
+            labels->begin(),
+            labels->end(),
+            thrust::make_zip_iterator(majors.begin(), minors.begin(), edge_start_times->begin()),
+            shuffle_to_output_comm_rank_t<label_t>{*label_to_output_comm_rank},
+            comm_size,
+            mem_frugal_threshold,
+            handle.get_stream());
+        }
+        if (edge_end_times) {
+          d_tx_value_counts = cugraph::groupby_and_count(
+            labels->begin(),
+            labels->end(),
+            thrust::make_zip_iterator(majors.begin(), minors.begin(), edge_end_times->begin()),
+            shuffle_to_output_comm_rank_t<label_t>{*label_to_output_comm_rank},
+            comm_size,
+            mem_frugal_threshold,
+            handle.get_stream());
+        }
+        if (hops) {
+          d_tx_value_counts = cugraph::groupby_and_count(
+            labels->begin(),
+            labels->end(),
+            thrust::make_zip_iterator(majors.begin(), minors.begin(), hops->begin()),
+            shuffle_to_output_comm_rank_t<label_t>{*label_to_output_comm_rank},
+            comm_size,
+            mem_frugal_threshold,
+            handle.get_stream());
+        }
+      } else {
+        rmm::device_uvector<size_t> position(0, handle.get_stream());
+
+        thrust::sequence(handle.get_thrust_policy(), position.begin(), position.end(), size_t{0});
+
+        d_tx_value_counts = cugraph::groupby_and_count(
+          labels->begin(),
+          labels->end(),
+          thrust::make_zip_iterator(majors.begin(), minors.begin(), position.begin()),
+          shuffle_to_output_comm_rank_t<label_t>{*label_to_output_comm_rank},
+          comm_size,
+          mem_frugal_threshold,
+          handle.get_stream());
+
+        if (weights) {
+          rmm::device_uvector<weight_t> tmp_weights(position.size(), handle.get_stream());
+          thrust::gather(handle.get_thrust_policy(),
+                         position.begin(),
+                         position.end(),
+                         weights->begin(),
+                         tmp_weights.begin());
+          weights = std::move(tmp_weights);
+        }
+        if (edge_ids) {
+          rmm::device_uvector<edge_t> tmp_edge_ids(position.size(), handle.get_stream());
+          thrust::gather(handle.get_thrust_policy(),
+                         position.begin(),
+                         position.end(),
+                         edge_ids->begin(),
+                         tmp_edge_ids.begin());
+          edge_ids = std::move(tmp_edge_ids);
+        }
+        if (edge_types) {
+          rmm::device_uvector<edge_type_t> tmp_edge_types(position.size(), handle.get_stream());
+          thrust::gather(handle.get_thrust_policy(),
+                         position.begin(),
+                         position.end(),
+                         edge_types->begin(),
+                         tmp_edge_types.begin());
+          edge_types = std::move(tmp_edge_types);
+        }
+        if (edge_start_times) {
+          rmm::device_uvector<edge_time_t> tmp_edge_start_times(position.size(),
+                                                                handle.get_stream());
+          thrust::gather(handle.get_thrust_policy(),
+                         position.begin(),
+                         position.end(),
+                         edge_start_times->begin(),
+                         tmp_edge_start_times.begin());
+          edge_start_times = std::move(tmp_edge_start_times);
+        }
+        if (edge_end_times) {
+          rmm::device_uvector<edge_time_t> tmp_edge_end_times(position.size(), handle.get_stream());
+          thrust::gather(handle.get_thrust_policy(),
+                         position.begin(),
+                         position.end(),
+                         edge_end_times->begin(),
+                         tmp_edge_end_times.begin());
+          edge_end_times = std::move(tmp_edge_end_times);
+        }
+        if (hops) {
+          rmm::device_uvector<int32_t> tmp_hops(position.size(), handle.get_stream());
+          thrust::gather(handle.get_thrust_policy(),
+                         position.begin(),
+                         position.end(),
+                         hops->begin(),
+                         tmp_hops.begin());
+          hops = std::move(tmp_hops);
+        }
+      }
+#endif
 
       std::vector<size_t> h_tx_value_counts(d_tx_value_counts.size());
       raft::update_host(h_tx_value_counts.data(),

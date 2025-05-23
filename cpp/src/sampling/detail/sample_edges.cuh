@@ -231,6 +231,7 @@ struct sample_edges_functor_t {
 
     invalid_value_t invalid_value{std::nullopt};
 
+    // TODO: Refactor like gather_one_hop
     auto [offsets, output_buffer] =
       edge_bias_view ? (Ks.size() == 1 ? cugraph::per_v_random_select_transform_outgoing_e(
                                            handle,
