@@ -3,7 +3,7 @@
 
 if [[ ! -d "/tmp/gha-tools" ]]; then
   git clone \
-    --branch "get-more-debugging-information" \
+    --branch "gha-artifacts/fewer-network-requests" \
     https://github.com/rapidsai/gha-tools.git \
     /tmp/gha-tools
 
