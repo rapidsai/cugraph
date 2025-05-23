@@ -100,7 +100,7 @@ PYTHON_ARGS_FOR_INSTALL=(-m pip install --no-build-isolation --no-deps --config-
 #  FIXME: if PREFIX is not set, check CONDA_PREFIX, but there is no fallback
 #  from there!
 INSTALL_PREFIX=${PREFIX:=${CONDA_PREFIX}}
-PARALLEL_LEVEL=${PARALLEL_LEVEL:=4}
+PARALLEL_LEVEL=${PARALLEL_LEVEL:=$(nproc)}
 BUILD_ABI=${BUILD_ABI:=ON}
 
 function hasArg {

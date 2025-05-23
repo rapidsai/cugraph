@@ -30,8 +30,5 @@ rapids-logger "Done build requirements"
 # 0 really means "add --no-build-isolation" (ref: https://github.com/pypa/pip/issues/5735)
 export PIP_NO_BUILD_ISOLATION=0
 
-# HACK until we improve build time
-export PARALLEL_LEVEL=8
-
 ./ci/build_wheel.sh libcugraph ${package_dir} cpp
 ./ci/validate_wheel.sh ${package_dir} "${RAPIDS_WHEEL_BLD_OUTPUT_DIR}"

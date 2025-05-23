@@ -43,7 +43,7 @@ void update_temporal_edge_mask(
 {
   edge_time_t const STARTING_TIME{std::numeric_limits<edge_time_t>::min()};
 
-  edge_src_property_t<edge_t, edge_time_t, false> edge_src_times(handle, graph_view);
+  edge_src_property_t<edge_t, edge_time_t> edge_src_times(handle, graph_view);
 
 #if 0
   // FIXME:  This call to update_edge_src_property seems like what I want, but it

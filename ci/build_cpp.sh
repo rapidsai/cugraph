@@ -9,9 +9,6 @@ source rapids-date-string
 
 export CMAKE_GENERATOR=Ninja
 
-# HACK
-export PARALLEL_LEVEL=8
-
 rapids-print-env
 
 rapids-logger "Begin cpp build"
