@@ -31,9 +31,9 @@ refine_clustering(raft::handle_t const& handle,
                   rmm::device_uvector<int32_t>&& cluster_keys_v,
                   rmm::device_uvector<float>&& cluster_weights_v,
                   rmm::device_uvector<int32_t>&& next_clusters_v,
-                  edge_src_property_t<int32_t, float, false> const& src_vertex_weights_cache,
-                  edge_src_property_t<int32_t, int32_t, false> const& src_clusters_cache,
-                  edge_dst_property_t<int32_t, int32_t, false> const& dst_clusters_cache);
+                  edge_src_property_t<int32_t, float> const& src_vertex_weights_cache,
+                  edge_src_property_t<int32_t, int32_t> const& src_clusters_cache,
+                  edge_dst_property_t<int32_t, int32_t> const& dst_clusters_cache);
 
 template std::tuple<rmm::device_uvector<int32_t>,
                     std::pair<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>>>
@@ -48,9 +48,9 @@ refine_clustering(raft::handle_t const& handle,
                   rmm::device_uvector<int32_t>&& cluster_keys_v,
                   rmm::device_uvector<double>&& cluster_weights_v,
                   rmm::device_uvector<int32_t>&& next_clusters_v,
-                  edge_src_property_t<int32_t, double, false> const& src_vertex_weights_cache,
-                  edge_src_property_t<int32_t, int32_t, false> const& src_clusters_cache,
-                  edge_dst_property_t<int32_t, int32_t, false> const& dst_clusters_cache);
+                  edge_src_property_t<int32_t, double> const& src_vertex_weights_cache,
+                  edge_src_property_t<int32_t, int32_t> const& src_clusters_cache,
+                  edge_dst_property_t<int32_t, int32_t> const& dst_clusters_cache);
 
 }  // namespace detail
 }  // namespace cugraph

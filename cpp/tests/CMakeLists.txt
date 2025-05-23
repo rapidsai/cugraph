@@ -434,7 +434,7 @@ ConfigureTest(EXTRACT_BFS_PATHS_TEST
 
 ###################################################################################################
 # - Multi-source BFS tests ------------------------------------------------------------------------
-ConfigureTest(MSBFS_TEST traversal/ms_bfs_test.cu)
+ConfigureTest(MSBFS_TEST traversal/ms_bfs_test.cpp)
 
 ###################################################################################################
 # - SSSP tests ------------------------------------------------------------------------------------
@@ -641,6 +641,10 @@ if(BUILD_CUGRAPH_MG_TESTS)
     ###############################################################################################
     # - MG BFS tests ------------------------------------------------------------------------------
     ConfigureTestMG(MG_BFS_TEST traversal/mg_bfs_test.cpp)
+
+    ###############################################################################################
+    # - MG GRAPH500 BFS tests ---------------------------------------------------------------------
+    ConfigureTestMG(MG_GRAPH500_BFS_TEST traversal/mg_graph500_bfs_test.cu)
 
     ###############################################################################################
     # - Extract BFS Paths tests -------------------------------------------------------------------
@@ -941,6 +945,7 @@ ConfigureCTest(CAPI_COUNT_MULTI_EDGES c_api/count_multi_edges_test.c)
 ConfigureCTest(CAPI_EGONET_TEST c_api/egonet_test.c)
 ConfigureCTest(CAPI_TWO_HOP_NEIGHBORS_TEST c_api/two_hop_neighbors_test.c)
 ConfigureCTest(CAPI_K_TRUSS_TEST c_api/k_truss_test.c)
+ConfigureCTest(CAPI_MST_TEST c_api/legacy_mst_test.c)
 
 if (BUILD_CUGRAPH_MTMG_TESTS)
     ###################################################################################################

@@ -3,7 +3,7 @@ files:
   all:
     output: [conda]
     matrix:
-      cuda: ["11.8", "12.9"]
+      cuda: ["11.8", "12.8"]
       arch: [x86_64, aarch64]
     includes:
       - checks
@@ -227,7 +227,6 @@ files:
       key: test
     includes:
       - depends_on_cudf
-      - depends_on_cugraph_pyg
       - depends_on_cupy
       - test_python_common
       - test_python_cugraph_service_client
@@ -480,7 +479,6 @@ dependencies:
       - output_types: [conda, pyproject, requirements]
         packages:
           - *dask
-          - *numba
           - *numpy
           - *thrift
   test_cpp:

@@ -28,26 +28,28 @@ concurrency:
 jobs:
   cpp-build:
     secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/conda-cpp-build.yaml@cuda-12.9.0
+    uses: rapidsai/shared-workflows/.github/workflows/conda-cpp-build.yaml@branch-25.06
     with:
       build_type: ${{ inputs.build_type || 'branch' }}
       branch: ${{ inputs.branch }}
       date: ${{ inputs.date }}
+      script: ci/build_cpp.sh
       sha: ${{ inputs.sha }}
       node_type: cpu32
   python-build:
     needs: [cpp-build]
     secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/conda-python-build.yaml@cuda-12.9.0
+    uses: rapidsai/shared-workflows/.github/workflows/conda-python-build.yaml@branch-25.06
     with:
       build_type: ${{ inputs.build_type || 'branch' }}
       branch: ${{ inputs.branch }}
       date: ${{ inputs.date }}
+      script: ci/build_python.sh
       sha: ${{ inputs.sha }}
   upload-conda:
     needs: [cpp-build, python-build]
     secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/conda-upload-packages.yaml@cuda-12.9.0
+    uses: rapidsai/shared-workflows/.github/workflows/conda-upload-packages.yaml@branch-25.06
     with:
       build_type: ${{ inputs.build_type || 'branch' }}
       branch: ${{ inputs.branch }}
@@ -57,7 +59,7 @@ jobs:
     if: github.ref_type == 'branch'
     needs: python-build
     secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/custom-job.yaml@cuda-12.9.0
+    uses: rapidsai/shared-workflows/.github/workflows/custom-job.yaml@branch-25.06
     with:
       arch: "amd64"
       branch: ${{ inputs.branch }}
@@ -65,11 +67,11 @@ jobs:
       container_image: "rapidsai/ci-conda:cuda11.8.0-ubuntu22.04-py3.10"
       date: ${{ inputs.date }}
       node_type: "gpu-l4-latest-1"
-      run_script: "ci/build_docs.sh"
+      script: "ci/build_docs.sh"
       sha: ${{ inputs.sha }}
   wheel-build-libcugraph:
     secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@cuda-12.9.0
+    uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@branch-25.06
     with:
       # build for every combination of arch and CUDA version, but only for the latest Python version
       matrix_filter: group_by([.ARCH, (.CUDA_VER|split(".")|map(tonumber)|.[0])]) | map(max_by(.PY_VER|split(".")|map(tonumber)))
@@ -84,7 +86,7 @@ jobs:
   wheel-publish-libcugraph:
     needs: wheel-build-libcugraph
     secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/wheels-publish.yaml@cuda-12.9.0
+    uses: rapidsai/shared-workflows/.github/workflows/wheels-publish.yaml@branch-25.06
     with:
       build_type: ${{ inputs.build_type || 'branch' }}
       branch: ${{ inputs.branch }}
@@ -95,7 +97,7 @@ jobs:
   wheel-build-pylibcugraph:
     needs: wheel-build-libcugraph
     secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@cuda-12.9.0
+    uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@branch-25.06
     with:
       build_type: ${{ inputs.build_type || 'branch' }}
       branch: ${{ inputs.branch }}
@@ -107,7 +109,7 @@ jobs:
   wheel-publish-pylibcugraph:
     needs: wheel-build-pylibcugraph
     secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/wheels-publish.yaml@cuda-12.9.0
+    uses: rapidsai/shared-workflows/.github/workflows/wheels-publish.yaml@branch-25.06
     with:
       build_type: ${{ inputs.build_type || 'branch' }}
       branch: ${{ inputs.branch }}
@@ -118,7 +120,7 @@ jobs:
   wheel-build-cugraph:
     needs: wheel-build-pylibcugraph
     secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@cuda-12.9.0
+    uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@branch-25.06
     with:
       build_type: ${{ inputs.build_type || 'branch' }}
       branch: ${{ inputs.branch }}
@@ -130,7 +132,7 @@ jobs:
   wheel-publish-cugraph:
     needs: wheel-build-cugraph
     secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/wheels-publish.yaml@cuda-12.9.0
+    uses: rapidsai/shared-workflows/.github/workflows/wheels-publish.yaml@branch-25.06
     with:
       build_type: ${{ inputs.build_type || 'branch' }}
       branch: ${{ inputs.branch }}

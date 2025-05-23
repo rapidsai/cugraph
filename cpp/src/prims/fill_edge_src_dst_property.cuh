@@ -99,8 +99,8 @@ void fill_edge_major_property(raft::handle_t const& handle,
                   std::is_arithmetic_v<typename EdgeMajorPropertyOutputWrapper::value_type>,
                 "unimplemented for thrust::tuple types with a packed bool element.");
 
-  auto keys         = edge_major_property_output.keys();
-  auto value_firsts = edge_major_property_output.value_firsts();
+  auto keys         = edge_major_property_output.major_keys();
+  auto value_firsts = edge_major_property_output.major_value_firsts();
   for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
     size_t num_buffer_elements{0};
     if (keys) {
@@ -148,7 +148,7 @@ void fill_edge_major_property(raft::handle_t const& handle,
   using vertex_t = typename GraphViewType::vertex_type;
   using edge_t   = typename GraphViewType::edge_type;
 
-  auto edge_partition_value_firsts = edge_major_property_output.value_firsts();
+  auto edge_partition_value_firsts = edge_major_property_output.major_value_firsts();
   if constexpr (GraphViewType::is_multi_gpu) {
     auto& comm                 = handle.get_comms();
     auto const comm_rank       = comm.get_rank();
@@ -167,7 +167,7 @@ void fill_edge_major_property(raft::handle_t const& handle,
       });
     rmm::device_uvector<vertex_t> rx_vertices(max_rx_size, handle.get_stream());
 
-    auto edge_partition_keys = edge_major_property_output.keys();
+    auto edge_partition_keys = edge_major_property_output.major_keys();
     for (int i = 0; i < minor_comm_size; ++i) {
       auto edge_partition =
         edge_partition_device_view_t<vertex_t, edge_t, GraphViewType::is_multi_gpu>(
@@ -267,7 +267,7 @@ void fill_edge_minor_property(raft::handle_t const& handle,
                                      typename EdgeMinorPropertyOutputWrapper::value_type>();
   static_assert(std::is_same_v<T, typename EdgeMinorPropertyOutputWrapper::value_type>);
 
-  auto keys = edge_minor_property_output.keys();
+  auto keys = edge_minor_property_output.minor_keys();
   size_t num_buffer_elements{0};
   if (keys) {
     num_buffer_elements = (*keys).size();
@@ -278,7 +278,7 @@ void fill_edge_minor_property(raft::handle_t const& handle,
       num_buffer_elements = static_cast<size_t>(graph_view.local_edge_partition_dst_range_size());
     }
   }
-  auto value_first = edge_minor_property_output.value_first();
+  auto value_first = edge_minor_property_output.minor_value_first();
   if constexpr (contains_packed_bool_element) {
     static_assert(std::is_arithmetic_v<T>, "unimplemented for thrust::tuple types.");
     auto packed_input = input ? packed_bool_full_mask() : packed_bool_empty_mask();
@@ -308,7 +308,7 @@ void fill_edge_minor_property(raft::handle_t const& handle,
   using vertex_t = typename GraphViewType::vertex_type;
   using edge_t   = typename GraphViewType::edge_type;
 
-  auto edge_partition_value_first = edge_minor_property_output.value_first();
+  auto edge_partition_value_first = edge_minor_property_output.minor_value_first();
   vertex_t minor_range_first{};
   if constexpr (GraphViewType::is_storage_transposed) {
     minor_range_first = graph_view.local_edge_partition_src_range_first();
@@ -402,7 +402,7 @@ void fill_edge_minor_property(raft::handle_t const& handle,
       }
     }
 
-    auto edge_partition_keys = edge_minor_property_output.keys();
+    auto edge_partition_keys = edge_minor_property_output.minor_keys();
 
     std::optional<rmm::device_uvector<uint32_t>> v_list_bitmap{std::nullopt};
     std::optional<rmm::device_uvector<uint32_t>> compressed_v_list{std::nullopt};

@@ -467,7 +467,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
 
       // 2-3-3. extract edges that are unreachable from the starting vertex
 
-      edge_src_property_t<vertex_t, bool, false> edge_src_visited(handle, level_graph_view);
+      edge_src_property_t<vertex_t, bool> edge_src_visited(handle, level_graph_view);
       update_edge_src_property(
         handle, level_graph_view, visited.begin(), edge_src_visited.mutable_view());
       {
@@ -657,8 +657,8 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
 
       auto edge_dst_components =
         GraphViewType::is_multi_gpu
-          ? edge_dst_property_t<vertex_t, vertex_t, false>(handle, level_graph_view)
-          : edge_dst_property_t<vertex_t, vertex_t, false>(handle) /* dummy */;
+          ? edge_dst_property_t<vertex_t, vertex_t>(handle, level_graph_view)
+          : edge_dst_property_t<vertex_t, vertex_t>(handle) /* dummy */;
       if constexpr (GraphViewType::is_multi_gpu) {
         fill_edge_dst_property(handle,
                                level_graph_view,
@@ -738,8 +738,10 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
                 ? detail::edge_partition_endpoint_property_device_view_t<vertex_t, vertex_t*>(
                     edge_dst_components.mutable_view())
                 : detail::edge_partition_endpoint_property_device_view_t<vertex_t, vertex_t*>(
-                    detail::edge_minor_property_view_t<vertex_t, vertex_t*>(level_components,
-                                                                            vertex_t{0})),
+                    make_edge_dst_property_mutable_view<vertex_t, vertex_t>(
+                      level_graph_view,
+                      level_components,
+                      static_cast<size_t>(level_graph_view.local_vertex_partition_range_size()))),
               level_graph_view.local_edge_partition_dst_range_first(),
               get_dataframe_buffer_begin(edge_buffer),
               num_edge_inserts.data()});
@@ -1006,8 +1008,6 @@ void weakly_connected_components(raft::handle_t const& handle,
                                  vertex_t* components,
                                  bool do_expensive_check)
 {
-  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
-
   weakly_connected_components_impl(handle, graph_view, components, do_expensive_check);
 }
 
