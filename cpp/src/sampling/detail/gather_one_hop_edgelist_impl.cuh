@@ -17,8 +17,7 @@
 #pragma once
 
 #include "common_utilities.cuh"
-#include "cuda/std/detail/libcxx/include/optional"
-#include "gather_one_hop_functions.hpp"
+#include "gather_one_hop_functions.cuh"
 #include "prims/extract_transform_if_v_frontier_outgoing_e.cuh"
 #include "prims/extract_transform_v_frontier_outgoing_e.cuh"
 #include "prims/kv_store.cuh"
