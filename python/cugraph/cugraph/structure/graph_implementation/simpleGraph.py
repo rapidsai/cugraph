@@ -468,7 +468,7 @@ class simpleGraphImpl:
             use_initial_input_df = False
 
         if use_initial_input_df and self.properties.directed:
-            edgelist_df = self.input_df # Original input.
+            edgelist_df = self.input_df  # Original input.
         else:
             edgelist_df = self.decompress_to_edgelist()
             if srcCol is None and dstCol is None:
@@ -526,7 +526,6 @@ class simpleGraphImpl:
         ).reset_index(drop=True)
 
         return edgelist_df
-
 
     def delete_edge_list(self):
         """

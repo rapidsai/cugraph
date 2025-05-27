@@ -459,7 +459,7 @@ def test_view_edge_list_for_nxGraph(directed):
     G = nx.florentine_families_graph()
     df = nx.to_pandas_edgelist(G)
     cG = cugraph.Graph(directed=directed)
-    cG.from_pandas_edgelist(df, source='source', destination='target')
+    cG.from_pandas_edgelist(df, source="source", destination="target")
 
     assert df.shape == cG.view_edge_list().shape
 
@@ -621,26 +621,25 @@ def test_number_of_vertices(graph_file):
 def test_number_of_edges():
 
     # cycle edges
-    cycle_edges = [
-        (0, 1, 1.0),
-        (1, 2, 1.0),
-        (2, 3, 1.0),
-        (3, 0, 1.0)
-    ]
+    cycle_edges = [(0, 1, 1.0), (1, 2, 1.0), (2, 3, 1.0), (3, 0, 1.0)]
 
     # Create pandas DataFrame
-    df = pd.DataFrame(cycle_edges, columns=['source', 'destination', 'weight'])
-        
+    df = pd.DataFrame(cycle_edges, columns=["source", "destination", "weight"])
+
     # Convert to cuDF
     cudf_edges = cudf.DataFrame.from_pandas(df)
-        
+
     # Create directed graph
     G_directed = cugraph.Graph(directed=True)
-    G_directed.from_cudf_edgelist(cudf_edges, source='source', destination='destination', edge_attr='weight')
-        
+    G_directed.from_cudf_edgelist(
+        cudf_edges, source="source", destination="destination", edge_attr="weight"
+    )
+
     # Create undirected graph
     G_undirected = cugraph.Graph(directed=False)
-    G_undirected.from_cudf_edgelist(cudf_edges, source='source', destination='destination', edge_attr='weight')
+    G_undirected.from_cudf_edgelist(
+        cudf_edges, source="source", destination="destination", edge_attr="weight"
+    )
 
     assert G_directed.number_of_edges() == G_undirected.number_of_edges()
 
