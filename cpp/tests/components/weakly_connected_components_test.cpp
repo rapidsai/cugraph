@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 
 #include "utilities/base_fixture.hpp"
 #include "utilities/conversion_utilities.hpp"
+#include "utilities/property_generator_utilities.hpp"
 #include "utilities/test_graphs.hpp"
 
 #include <cugraph/algorithms.hpp>
@@ -80,6 +81,7 @@ void weakly_connected_components_reference(edge_t const* offsets,
 }
 
 struct WeaklyConnectedComponents_Usecase {
+  bool edge_masking{false};
   bool check_correctness{true};
 };
 
@@ -128,6 +130,13 @@ class Tests_WeaklyConnectedComponent
     auto graph_view = graph.view();
     ASSERT_TRUE(graph_view.is_symmetric())
       << "Weakly connected components works only on undirected (symmetric) graphs.";
+
+    std::optional<cugraph::edge_property_t<edge_t, bool>> edge_mask{std::nullopt};
+    if (weakly_connected_components_usecase.edge_masking) {
+      edge_mask =
+        cugraph::test::generate<decltype(graph_view), bool>::edge_property(handle, graph_view, 2);
+      graph_view.attach_edge_mask((*edge_mask).view());
+    }
 
     rmm::device_uvector<vertex_t> d_components(graph_view.number_of_vertices(),
                                                handle.get_stream());
@@ -225,11 +234,17 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_WeaklyConnectedComponents_File,
   ::testing::Values(
     // enable correctness checks
-    std::make_tuple(WeaklyConnectedComponents_Usecase{},
+    std::make_tuple(WeaklyConnectedComponents_Usecase{false},
                     cugraph::test::File_Usecase("test/datasets/karate.mtx")),
-    std::make_tuple(WeaklyConnectedComponents_Usecase{},
+    std::make_tuple(WeaklyConnectedComponents_Usecase{true},
+                    cugraph::test::File_Usecase("test/datasets/karate.mtx")),
+    std::make_tuple(WeaklyConnectedComponents_Usecase{false},
                     cugraph::test::File_Usecase("test/datasets/polbooks.mtx")),
-    std::make_tuple(WeaklyConnectedComponents_Usecase{},
+    std::make_tuple(WeaklyConnectedComponents_Usecase{true},
+                    cugraph::test::File_Usecase("test/datasets/polbooks.mtx")),
+    std::make_tuple(WeaklyConnectedComponents_Usecase{false},
+                    cugraph::test::File_Usecase("test/datasets/netscience.mtx")),
+    std::make_tuple(WeaklyConnectedComponents_Usecase{true},
                     cugraph::test::File_Usecase("test/datasets/netscience.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(
@@ -237,7 +252,9 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_WeaklyConnectedComponents_Rmat,
   ::testing::Values(
     // enable correctness checks
-    std::make_tuple(WeaklyConnectedComponents_Usecase{},
+    std::make_tuple(WeaklyConnectedComponents_Usecase{false},
+                    cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, true, false)),
+    std::make_tuple(WeaklyConnectedComponents_Usecase{true},
                     cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, true, false))));
 
 INSTANTIATE_TEST_SUITE_P(
@@ -249,7 +266,9 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_WeaklyConnectedComponents_Rmat,
   ::testing::Values(
     // disable correctness checks
-    std::make_tuple(WeaklyConnectedComponents_Usecase{false},
+    std::make_tuple(WeaklyConnectedComponents_Usecase{false, false},
+                    cugraph::test::Rmat_Usecase(20, 16, 0.57, 0.19, 0.19, 0, true, false)),
+    std::make_tuple(WeaklyConnectedComponents_Usecase{true, false},
                     cugraph::test::Rmat_Usecase(20, 16, 0.57, 0.19, 0.19, 0, true, false))));
 
 CUGRAPH_TEST_PROGRAM_MAIN()
