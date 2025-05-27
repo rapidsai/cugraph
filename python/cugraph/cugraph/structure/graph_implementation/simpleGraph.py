@@ -491,7 +491,7 @@ class simpleGraphImpl:
                 ]
 
         elif not use_initial_input_df and self.properties.renumbered:
-            # Do not unrenumber the vertices if the initial input df was used
+            # Do not unrenumber the vertices if the initial input df was used.
             if not self.properties.directed:
                 edgelist_df = edgelist_df[
                     edgelist_df[simpleGraphImpl.srcCol]
