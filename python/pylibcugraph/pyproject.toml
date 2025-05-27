@@ -72,7 +72,7 @@ build-backend = "scikit_build_core.build"
 dependencies-file = "../../dependencies.yaml"
 requires = [
     "cmake>=3.30.4",
-    "cython>=3.0.0,<3.1.0a0",
+    "cython>=3.0.0",
     "libcugraph==25.8.*,>=0.0.0a0",
     "libraft==25.8.*,>=0.0.0a0",
     "librmm==25.8.*,>=0.0.0a0",
