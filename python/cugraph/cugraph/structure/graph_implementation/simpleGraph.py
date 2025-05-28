@@ -476,7 +476,6 @@ class simpleGraphImpl:
         else:
             use_initial_input_df = False
             return_unrenumbered_edgelist = False
-        
 
         if self.properties.directed:
             # If the graph is directed, no need for the renumbered edgelist
@@ -484,15 +483,16 @@ class simpleGraphImpl:
             return_unrenumbered_edgelist = True
 
         if use_initial_input_df and self.properties.directed:
-            edgelist_df = self.input_df # Original input.
+            edgelist_df = self.input_df  # Original input.
         else:
             edgelist_df = self.decompress_to_edgelist(
-                return_unrenumbered_edgelist=return_unrenumbered_edgelist)
+                return_unrenumbered_edgelist=return_unrenumbered_edgelist
+            )
 
             if self.properties.renumbered:
                 edgelist_df = edgelist_df.rename(
-                        columns=self.renumber_map.internal_to_external_col_names
-                    )
+                    columns=self.renumber_map.internal_to_external_col_names
+                )
 
             if srcCol is None and dstCol is None:
                 srcCol = simpleGraphImpl.srcCol
@@ -518,7 +518,8 @@ class simpleGraphImpl:
             if not self.properties.directed:
 
                 edgelist_df = self.decompress_to_edgelist(
-                    return_unrenumbered_edgelist=return_unrenumbered_edgelist)
+                    return_unrenumbered_edgelist=return_unrenumbered_edgelist
+                )
 
                 # Need to leverage the renumbered edgelist to extract the upper
                 # triangular matrix for multi-column or string vertices
@@ -529,7 +530,7 @@ class simpleGraphImpl:
 
                 # unrenumber the edgelist
                 edgelist_df = self.renumber_map.unrenumber(
-                edgelist_df, simpleGraphImpl.srcCol
+                    edgelist_df, simpleGraphImpl.srcCol
                 )
                 edgelist_df = self.renumber_map.unrenumber(
                     edgelist_df, simpleGraphImpl.dstCol
@@ -562,7 +563,6 @@ class simpleGraphImpl:
         ).reset_index(drop=True)
 
         return edgelist_df
-
 
     def delete_edge_list(self):
         """

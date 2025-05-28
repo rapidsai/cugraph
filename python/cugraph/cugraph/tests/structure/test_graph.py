@@ -250,8 +250,7 @@ def test_add_adj_list_to_edge_list(graph_file):
     G = cugraph.Graph(directed=True)
     G.from_cudf_adjlist(offsets, indices, None)
 
-    edgelist = G.view_edge_list().sort_values(
-        by=["src", "dst"]).reset_index(drop=True)
+    edgelist = G.view_edge_list().sort_values(by=["src", "dst"]).reset_index(drop=True)
     sources_cu = edgelist["src"]
     destinations_cu = edgelist["dst"]
     compare_series(sources_cu, sources_exp)
@@ -301,7 +300,9 @@ def test_view_edge_list_from_adj_list(graph_file):
     indices = cudf.Series(Mcsr.indices)
     G = cugraph.Graph(directed=True)
     G.from_cudf_adjlist(offsets, indices, None)
-    edgelist_df = G.view_edge_list().sort_values(by=["src", "dst"]).reset_index(drop=True)
+    edgelist_df = (
+        G.view_edge_list().sort_values(by=["src", "dst"]).reset_index(drop=True)
+    )
     Mcoo = Mcsr.tocoo()
     src1 = Mcoo.row
     dst1 = Mcoo.col
