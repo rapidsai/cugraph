@@ -947,8 +947,7 @@ class simpleGraphImpl:
         """
         # TODO: Move to Outer graphs?
         if directed_edges and self.edgelist is not None:
-            return len(self.decompress_to_edgelist(
-                return_unrenumbered_edgelist=False))
+            return len(self.decompress_to_edgelist(return_unrenumbered_edgelist=False))
         if self.properties.edge_count is None:
             if self.edgelist is not None:
                 edgelist_df = self.decompress_to_edgelist()

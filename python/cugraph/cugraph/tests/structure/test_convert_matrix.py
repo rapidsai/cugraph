@@ -67,10 +67,8 @@ def test_to_from_pandas(graph_file):
     # Compare pandas edgelist
     exp_pdf = nx.to_pandas_edgelist(new_nxG)
     res_pdf = cugraph.to_pandas_edgelist(new_cuG)
-    
-    exp_pdf = exp_pdf.rename(
-        columns={"source": "src", "target": "dst"}
-    )
+
+    exp_pdf = exp_pdf.rename(columns={"source": "src", "target": "dst"})
 
     exp_pdf = exp_pdf.sort_values(by=["src", "dst"]).reset_index(drop=True)
     res_pdf = res_pdf.sort_values(by=["src", "dst"]).reset_index(drop=True)
@@ -118,9 +116,7 @@ def test_from_to_numpy(graph_file):
     exp_pdf = nx.to_pandas_edgelist(new_nxG)
     res_pdf = cugraph.to_pandas_edgelist(new_cuG)
 
-    exp_pdf = exp_pdf.rename(
-        columns={"source": "src", "target": "dst"}
-    )
+    exp_pdf = exp_pdf.rename(columns={"source": "src", "target": "dst"})
 
     exp_pdf = exp_pdf.sort_values(by=["src", "dst"]).reset_index(drop=True)
     res_pdf = res_pdf.sort_values(by=["src", "dst"]).reset_index(drop=True)
@@ -138,9 +134,7 @@ def test_from_to_numpy(graph_file):
     exp_pdf = nx.to_pandas_edgelist(new_nxG)
     res_pdf = cugraph.to_pandas_edgelist(new_cuG)
 
-    exp_pdf = exp_pdf.rename(
-        columns={"source": "src", "target": "dst"}
-    )
+    exp_pdf = exp_pdf.rename(columns={"source": "src", "target": "dst"})
 
     exp_pdf = exp_pdf.sort_values(by=["src", "dst"]).reset_index(drop=True)
     res_pdf = res_pdf.sort_values(by=["src", "dst"]).reset_index(drop=True)

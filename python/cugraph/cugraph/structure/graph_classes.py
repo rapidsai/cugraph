@@ -72,9 +72,9 @@ class Graph:
                     # with different weight column names than the one provided
                     # by the user.
                     weights = m_graph.weight_column
-                    elist = elist.rename(
-                        columns={'weight': weights}
-                    ).reset_index(drop=True)
+                    elist = elist.rename(columns={"weight": weights}).reset_index(
+                        drop=True
+                    )
                 else:
                     weights = None
                 self.from_cudf_edgelist(
