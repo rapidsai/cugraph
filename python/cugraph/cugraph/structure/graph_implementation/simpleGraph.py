@@ -445,6 +445,12 @@ class simpleGraphImpl:
         """
         use_initial_input_df = True
 
+        # Retrieve the renumbered edgelist if the upper triangular matrix
+        # needs to be extracted otherwised, retrieve the unrenumbered version.
+        # Only undirected graphs return the upper triangular matrix when calling
+        # the 'view_edge_list' method.
+        return_unrenumbered_edgelist = True
+
         if self.input_df is not None:
             if type(srcCol) is list and type(dstCol) is list:
                 if len(srcCol) == 1:
@@ -456,21 +462,38 @@ class simpleGraphImpl:
                     ] or self.input_df[dstCol].dtype not in [np.int32, np.int64]:
                         # hypergraph case
                         use_initial_input_df = False
+                        return_unrenumbered_edgelist = False
                 else:
                     use_initial_input_df = False
+                    return_unrenumbered_edgelist = False
 
             elif self.input_df[srcCol].dtype not in [
                 np.int32,
                 np.int64,
             ] or self.input_df[dstCol].dtype not in [np.int32, np.int64]:
                 use_initial_input_df = False
+                return_unrenumbered_edgelist = False
         else:
             use_initial_input_df = False
+            return_unrenumbered_edgelist = False
+        
+
+        if self.properties.directed:
+            # If the graph is directed, no need for the renumbered edgelist
+            # to extract the upper triangular matrix
+            return_unrenumbered_edgelist = True
 
         if use_initial_input_df and self.properties.directed:
-            edgelist_df = self.input_df  # Original input.
+            edgelist_df = self.input_df # Original input.
         else:
-            edgelist_df = self.decompress_to_edgelist()
+            edgelist_df = self.decompress_to_edgelist(
+                return_unrenumbered_edgelist=return_unrenumbered_edgelist)
+
+            if self.properties.renumbered:
+                edgelist_df = edgelist_df.rename(
+                        columns=self.renumber_map.internal_to_external_col_names
+                    )
+
             if srcCol is None and dstCol is None:
                 srcCol = simpleGraphImpl.srcCol
                 dstCol = simpleGraphImpl.dstCol
@@ -491,16 +514,29 @@ class simpleGraphImpl:
                 ]
 
         elif not use_initial_input_df and self.properties.renumbered:
-            # Do not unrenumber the vertices if the initial input df was used.
+            # Do not unrenumber the vertices if the initial input df was used
             if not self.properties.directed:
+
+                edgelist_df = self.decompress_to_edgelist(
+                    return_unrenumbered_edgelist=return_unrenumbered_edgelist)
+
+                # Need to leverage the renumbered edgelist to extract the upper
+                # triangular matrix for multi-column or string vertices
                 edgelist_df = edgelist_df[
                     edgelist_df[simpleGraphImpl.srcCol]
                     <= edgelist_df[simpleGraphImpl.dstCol]
                 ]
 
-            edgelist_df = edgelist_df.rename(
-                columns=self.renumber_map.internal_to_external_col_names
-            )
+                # unrenumber the edgelist
+                edgelist_df = self.renumber_map.unrenumber(
+                edgelist_df, simpleGraphImpl.srcCol
+                )
+                edgelist_df = self.renumber_map.unrenumber(
+                    edgelist_df, simpleGraphImpl.dstCol
+                )
+                edgelist_df = edgelist_df.rename(
+                    columns=self.renumber_map.internal_to_external_col_names
+                )
 
         if self.vertex_columns is not None and len(self.vertex_columns) == 2:
             # single column vertices internally renamed to 'simpleGraphImpl.srcCol'
@@ -526,6 +562,7 @@ class simpleGraphImpl:
         ).reset_index(drop=True)
 
         return edgelist_df
+
 
     def delete_edge_list(self):
         """

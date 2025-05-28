@@ -250,7 +250,8 @@ def test_add_adj_list_to_edge_list(graph_file):
     G = cugraph.Graph(directed=True)
     G.from_cudf_adjlist(offsets, indices, None)
 
-    edgelist = G.view_edge_list()
+    edgelist = G.view_edge_list().sort_values(
+        by=["src", "dst"]).reset_index(drop=True)
     sources_cu = edgelist["src"]
     destinations_cu = edgelist["dst"]
     compare_series(sources_cu, sources_exp)
@@ -300,7 +301,7 @@ def test_view_edge_list_from_adj_list(graph_file):
     indices = cudf.Series(Mcsr.indices)
     G = cugraph.Graph(directed=True)
     G.from_cudf_adjlist(offsets, indices, None)
-    edgelist_df = G.view_edge_list()
+    edgelist_df = G.view_edge_list().sort_values(by=["src", "dst"]).reset_index(drop=True)
     Mcoo = Mcsr.tocoo()
     src1 = Mcoo.row
     dst1 = Mcoo.col
@@ -1101,6 +1102,7 @@ def test_graph_creation_edges_multi_col_vertices(graph_file, directed):
     G.from_cudf_edgelist(input_df, source=srcCol, destination=dstCol, edge_attr=wgtCol)
 
     input_df = input_df.loc[:, columns]
+
     edge_list_view = G.view_edge_list().loc[:, columns]
     edges = G.edges().loc[:, vertexCol]
 
