@@ -322,7 +322,7 @@ class simpleGraphImpl:
         self,
         source="src",
         destination="dst",
-        weight="weights",
+        weight="weight",
     ):
         """
         Returns the graph edge list as a Pandas DataFrame.
