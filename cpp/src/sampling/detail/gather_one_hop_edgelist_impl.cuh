@@ -16,392 +16,281 @@
 
 #pragma once
 
+#include "common_utilities.cuh"
+#include "gather_one_hop_functions.cuh"
+#include "prims/extract_transform_if_v_frontier_outgoing_e.cuh"
 #include "prims/extract_transform_v_frontier_outgoing_e.cuh"
+#include "prims/kv_store.cuh"
 #include "prims/update_edge_src_dst_property.cuh"
 #include "prims/vertex_frontier.cuh"
 #include "structure/detail/structure_utils.cuh"
+#include "utilities/collect_comm.cuh"
+#include "utilities/tuple_with_optionals_dispatching.hpp"
 
+#include <cugraph/edge_property.hpp>
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_view.hpp>
+#include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/thrust_tuple_utils.hpp>
 
 #include <raft/core/handle.hpp>
+#include <raft/util/cudart_utils.hpp>
 
 #include <rmm/device_uvector.hpp>
 
 #include <cuda/std/iterator>
 #include <cuda/std/optional>
+#include <thrust/iterator/zip_iterator.h>
+#include <thrust/sort.h>
 #include <thrust/tuple.h>
+
+#include <cuda.h>
+
+#include <cstddef>
+#include <numeric>
+#include <optional>
+#include <tuple>
+#include <type_traits>
 
 namespace cugraph {
 namespace detail {
-
-struct return_edges_with_properties_e_op {
-  template <typename key_t, typename vertex_t, typename edge_property_t>
-  auto __host__ __device__ operator()(key_t optionally_tagged_src,
-                                      vertex_t dst,
-                                      cuda::std::nullopt_t,
-                                      cuda::std::nullopt_t,
-                                      edge_property_t edge_properties) const
-  {
-    static_assert(std::is_same_v<key_t, vertex_t> ||
-                  std::is_same_v<key_t, thrust::tuple<vertex_t, int32_t>>);
-
-    vertex_t src{};
-    if constexpr (std::is_same_v<key_t, vertex_t>) {
-      src = optionally_tagged_src;
-    } else {
-      src = thrust::get<0>(optionally_tagged_src);
-    }
-    std::conditional_t<std::is_same_v<edge_property_t, cuda::std::nullopt_t>,
-                       thrust::tuple<>,
-                       std::conditional_t<std::is_arithmetic_v<edge_property_t>,
-                                          thrust::tuple<edge_property_t>,
-                                          edge_property_t>>
-      edge_property_tup{};
-    if constexpr (!std::is_same_v<edge_property_t, cuda::std::nullopt_t>) {
-      if constexpr (std::is_arithmetic_v<edge_property_t>) {
-        thrust::get<0>(edge_property_tup) = edge_properties;
-      } else {
-        edge_property_tup = edge_properties;
-      }
-    }
-    std::conditional_t<std::is_same_v<key_t, vertex_t>, thrust::tuple<>, thrust::tuple<int32_t>>
-      label_tup{};
-    if constexpr (!std::is_same_v<key_t, vertex_t>) {
-      thrust::get<0>(label_tup) = thrust::get<1>(optionally_tagged_src);
-    }
-    return thrust_tuple_cat(thrust::make_tuple(src, dst), edge_property_tup, label_tup);
-  }
-};
-
-template <bool has_weight,
-          bool has_edge_id,
-          bool has_edge_type,
-          typename label_t,
-          typename vertex_t,
-          typename edge_t,
-          typename weight_t,
-          typename edge_type_t,
-          typename tag_t,
-          bool multi_gpu>
-std::tuple<rmm::device_uvector<vertex_t>,
-           rmm::device_uvector<vertex_t>,
-           std::optional<rmm::device_uvector<weight_t>>,
-           std::optional<rmm::device_uvector<edge_t>>,
-           std::optional<rmm::device_uvector<edge_type_t>>,
-           std::optional<rmm::device_uvector<label_t>>>
-gather_one_hop_edgelist(
-  raft::handle_t const& handle,
-  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
-  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
-  std::optional<edge_property_view_t<edge_t, edge_t const*>> edge_id_view,
-  std::optional<edge_property_view_t<edge_t, edge_type_t const*>> edge_type_view,
-  cugraph::vertex_frontier_t<vertex_t, tag_t, multi_gpu, false> const& vertex_frontier,
-  std::optional<raft::host_span<uint8_t const>> gather_flags,
-  bool do_expensive_check)
-{
-  rmm::device_uvector<vertex_t> majors(0, handle.get_stream());
-  rmm::device_uvector<vertex_t> minors(0, handle.get_stream());
-  std::optional<rmm::device_uvector<edge_t>> edge_ids{std::nullopt};
-  std::optional<rmm::device_uvector<weight_t>> edge_weights{std::nullopt};
-  std::optional<rmm::device_uvector<edge_type_t>> edge_types{std::nullopt};
-  std::optional<rmm::device_uvector<label_t>> labels{std::nullopt};
-
-  using edge_value_t = std::conditional_t<
-    has_weight,
-    std::conditional_t<
-      has_edge_id,
-      std::conditional_t<has_edge_type,
-                         thrust::tuple<weight_t, edge_t, edge_type_t>,
-                         thrust::tuple<weight_t, edge_t>>,
-      std::conditional_t<has_edge_type, thrust::tuple<weight_t, edge_type_t>, weight_t>>,
-    std::conditional_t<
-      has_edge_id,
-      std::conditional_t<has_edge_type, thrust::tuple<edge_t, edge_type_t>, edge_t>,
-      std::conditional_t<has_edge_type, edge_type_t, cuda::std::nullopt_t>>>;
-
-  using edge_value_view_t = edge_property_view_type_t<edge_t, edge_value_t>;
-
-  edge_value_view_t edge_value_view{};
-  if constexpr (has_weight) {
-    if constexpr (has_edge_id) {
-      if constexpr (has_edge_type) {
-        edge_value_view = view_concat(*edge_weight_view, *edge_id_view, *edge_type_view);
-      } else {
-        edge_value_view = view_concat(*edge_weight_view, *edge_id_view);
-      }
-    } else {
-      if constexpr (has_edge_type) {
-        edge_value_view = view_concat(*edge_weight_view, *edge_type_view);
-      } else {
-        edge_value_view = *edge_weight_view;
-      }
-    }
-  } else {
-    if constexpr (has_edge_id) {
-      if constexpr (has_edge_type) {
-        edge_value_view = view_concat(*edge_id_view, *edge_type_view);
-      } else {
-        edge_value_view = *edge_id_view;
-      }
-    } else {
-      if constexpr (has_edge_type) { edge_value_view = *edge_type_view; }
-    }
-  }
-
-  auto output_buffer =
-    cugraph::extract_transform_v_frontier_outgoing_e(handle,
-                                                     graph_view,
-                                                     vertex_frontier.bucket(0),
-                                                     edge_src_dummy_property_t{}.view(),
-                                                     edge_dst_dummy_property_t{}.view(),
-                                                     edge_value_view,
-                                                     return_edges_with_properties_e_op{},
-                                                     do_expensive_check);
-
-  majors = std::move(std::get<0>(output_buffer));
-  minors = std::move(std::get<1>(output_buffer));
-  if constexpr (has_weight) {
-    if constexpr (has_edge_id) {
-      if constexpr (has_edge_type) {
-        edge_weights = std::move(std::get<2>(output_buffer));
-        edge_ids     = std::move(std::get<3>(output_buffer));
-        edge_types   = std::move(std::get<4>(output_buffer));
-        if constexpr (std::is_same_v<tag_t, label_t>) {
-          labels = std::move(std::get<5>(output_buffer));
-        }
-      } else {
-        edge_weights = std::move(std::get<2>(output_buffer));
-        edge_ids     = std::move(std::get<3>(output_buffer));
-        if constexpr (std::is_same_v<tag_t, label_t>) {
-          labels = std::move(std::get<4>(output_buffer));
-        }
-      }
-    } else {
-      if constexpr (has_edge_type) {
-        edge_weights = std::move(std::get<2>(output_buffer));
-        edge_types   = std::move(std::get<3>(output_buffer));
-        if constexpr (std::is_same_v<tag_t, label_t>) {
-          labels = std::move(std::get<4>(output_buffer));
-        }
-      } else {
-        edge_weights = std::move(std::get<2>(output_buffer));
-        if constexpr (std::is_same_v<tag_t, label_t>) {
-          labels = std::move(std::get<3>(output_buffer));
-        }
-      }
-    }
-  } else {
-    if constexpr (has_edge_id) {
-      if constexpr (has_edge_type) {
-        edge_ids   = std::move(std::get<2>(output_buffer));
-        edge_types = std::move(std::get<3>(output_buffer));
-        if constexpr (std::is_same_v<tag_t, label_t>) {
-          labels = std::move(std::get<4>(output_buffer));
-        }
-      } else {
-        edge_ids = std::move(std::get<2>(output_buffer));
-        if constexpr (std::is_same_v<tag_t, label_t>) {
-          labels = std::move(std::get<3>(output_buffer));
-        }
-      }
-    } else {
-      if constexpr (has_edge_type) {
-        edge_types = std::move(std::get<2>(output_buffer));
-        if constexpr (std::is_same_v<tag_t, label_t>) {
-          labels = std::move(std::get<3>(output_buffer));
-        }
-      } else {
-        if constexpr (std::is_same_v<tag_t, label_t>) {
-          labels = std::move(std::get<2>(output_buffer));
-        }
-      }
-    }
-  }
-
-  if (gather_flags) {
-    assert(edge_types);
-
-    rmm::device_uvector<uint8_t> d_gather_flags(gather_flags->size(), handle.get_stream());
-    raft::update_device(
-      d_gather_flags.data(), gather_flags->data(), gather_flags->size(), handle.get_stream());
-
-    size_t new_size{};
-    if constexpr (has_weight) {
-      if constexpr (has_edge_id) {
-        if constexpr (std::is_same_v<tag_t, label_t>) {
-          auto tuple_first = thrust::make_zip_iterator(majors.begin(),
-                                                       minors.begin(),
-                                                       edge_weights->begin(),
-                                                       edge_ids->begin(),
-                                                       edge_types->begin(),
-                                                       labels->begin());
-          new_size         = static_cast<size_t>(cuda::std::distance(
-            tuple_first,
-            thrust::remove_if(
-              handle.get_thrust_policy(),
-              tuple_first,
-              tuple_first + majors.size(),
-              [gather_flags = raft::device_span<uint8_t const>(
-                 d_gather_flags.data(), d_gather_flags.size())] __device__(auto tup) {
-                auto type = thrust::get<4>(tup);
-                return gather_flags[type] == static_cast<uint8_t>(false);
-              })));
-        } else {
-          auto tuple_first = thrust::make_zip_iterator(majors.begin(),
-                                                       minors.begin(),
-                                                       edge_weights->begin(),
-                                                       edge_ids->begin(),
-                                                       edge_types->begin());
-          new_size         = static_cast<size_t>(cuda::std::distance(
-            tuple_first,
-            thrust::remove_if(
-              handle.get_thrust_policy(),
-              tuple_first,
-              tuple_first + majors.size(),
-              [gather_flags = raft::device_span<uint8_t const>(
-                 d_gather_flags.data(), d_gather_flags.size())] __device__(auto tup) {
-                auto type = thrust::get<4>(tup);
-                return gather_flags[type] == static_cast<uint8_t>(false);
-              })));
-        }
-      } else {
-        if constexpr (std::is_same_v<tag_t, label_t>) {
-          auto tuple_first = thrust::make_zip_iterator(majors.begin(),
-                                                       minors.begin(),
-                                                       edge_weights->begin(),
-                                                       edge_types->begin(),
-                                                       labels->begin());
-          new_size         = static_cast<size_t>(cuda::std::distance(
-            tuple_first,
-            thrust::remove_if(
-              handle.get_thrust_policy(),
-              tuple_first,
-              tuple_first + majors.size(),
-              [gather_flags = raft::device_span<uint8_t const>(
-                 d_gather_flags.data(), d_gather_flags.size())] __device__(auto tup) {
-                auto type = thrust::get<3>(tup);
-                return gather_flags[type] == static_cast<uint8_t>(false);
-              })));
-        } else {
-          auto tuple_first = thrust::make_zip_iterator(
-            majors.begin(), minors.begin(), edge_weights->begin(), edge_types->begin());
-          new_size = static_cast<size_t>(cuda::std::distance(
-            tuple_first,
-            thrust::remove_if(
-              handle.get_thrust_policy(),
-              tuple_first,
-              tuple_first + majors.size(),
-              [gather_flags = raft::device_span<uint8_t const>(
-                 d_gather_flags.data(), d_gather_flags.size())] __device__(auto tup) {
-                auto type = thrust::get<3>(tup);
-                return gather_flags[type] == static_cast<uint8_t>(false);
-              })));
-        }
-      }
-    } else {
-      if constexpr (has_edge_id) {
-        if constexpr (std::is_same_v<tag_t, label_t>) {
-          auto tuple_first = thrust::make_zip_iterator(majors.begin(),
-                                                       minors.begin(),
-                                                       edge_ids->begin(),
-                                                       edge_types->begin(),
-                                                       labels->begin());
-          new_size         = static_cast<size_t>(cuda::std::distance(
-            tuple_first,
-            thrust::remove_if(
-              handle.get_thrust_policy(),
-              tuple_first,
-              tuple_first + majors.size(),
-              [gather_flags = raft::device_span<uint8_t const>(
-                 d_gather_flags.data(), d_gather_flags.size())] __device__(auto tup) {
-                auto type = thrust::get<3>(tup);
-                return gather_flags[type] == static_cast<uint8_t>(false);
-              })));
-        } else {
-          auto tuple_first = thrust::make_zip_iterator(
-            majors.begin(), minors.begin(), edge_ids->begin(), edge_types->begin());
-          new_size = static_cast<size_t>(cuda::std::distance(
-            tuple_first,
-            thrust::remove_if(
-              handle.get_thrust_policy(),
-              tuple_first,
-              tuple_first + majors.size(),
-              [gather_flags = raft::device_span<uint8_t const>(
-                 d_gather_flags.data(), d_gather_flags.size())] __device__(auto tup) {
-                auto type = thrust::get<3>(tup);
-                return gather_flags[type] == static_cast<uint8_t>(false);
-              })));
-        }
-      } else {
-        if constexpr (std::is_same_v<tag_t, label_t>) {
-          auto tuple_first = thrust::make_zip_iterator(
-            majors.begin(), minors.begin(), edge_types->begin(), labels->begin());
-          new_size = static_cast<size_t>(cuda::std::distance(
-            tuple_first,
-            thrust::remove_if(
-              handle.get_thrust_policy(),
-              tuple_first,
-              tuple_first + majors.size(),
-              [gather_flags = raft::device_span<uint8_t const>(
-                 d_gather_flags.data(), d_gather_flags.size())] __device__(auto tup) {
-                auto type = thrust::get<2>(tup);
-                return gather_flags[type] == static_cast<uint8_t>(false);
-              })));
-        } else {
-          auto tuple_first =
-            thrust::make_zip_iterator(majors.begin(), minors.begin(), edge_types->begin());
-          new_size = static_cast<size_t>(cuda::std::distance(
-            tuple_first,
-            thrust::remove_if(
-              handle.get_thrust_policy(),
-              tuple_first,
-              tuple_first + majors.size(),
-              [gather_flags = raft::device_span<uint8_t const>(
-                 d_gather_flags.data(), d_gather_flags.size())] __device__(auto tup) {
-                auto type = thrust::get<2>(tup);
-                return gather_flags[type] == static_cast<uint8_t>(false);
-              })));
-        }
-      }
-    }
-
-    majors.resize(new_size, handle.get_stream());
-    majors.shrink_to_fit(handle.get_stream());
-    minors.resize(new_size, handle.get_stream());
-    minors.shrink_to_fit(handle.get_stream());
-    if constexpr (has_weight) {
-      edge_weights->resize(new_size, handle.get_stream());
-      edge_weights->shrink_to_fit(handle.get_stream());
-    }
-    if constexpr (has_edge_id) {
-      edge_ids->resize(new_size, handle.get_stream());
-      edge_ids->shrink_to_fit(handle.get_stream());
-    }
-    if constexpr (has_edge_type) {
-      edge_types->resize(new_size, handle.get_stream());
-      edge_types->shrink_to_fit(handle.get_stream());
-    }
-    if constexpr (std::is_same_v<tag_t, label_t>) {
-      labels->resize(new_size, handle.get_stream());
-      labels->shrink_to_fit(handle.get_stream());
-    }
-  }
-
-  return std::make_tuple(std::move(majors),
-                         std::move(minors),
-                         std::move(edge_weights),
-                         std::move(edge_ids),
-                         std::move(edge_types),
-                         std::move(labels));
-}
 
 template <typename vertex_t,
           typename edge_t,
           typename weight_t,
           typename edge_type_t,
+          typename edge_time_t,
+          typename tag_t,
+          typename label_t,
+          bool multi_gpu>
+struct gather_one_hop_edgelist_functor_t {
+  raft::handle_t const& handle;
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view;
+  key_bucket_t<vertex_t, tag_t, multi_gpu, false> const& key_list;
+  std::optional<raft::host_span<uint8_t const>> gather_flags;
+  bool do_expensive_check{false};
+
+  template <bool... Flags, typename TupleType>
+  auto operator()(TupleType edge_properties)
+  {
+    using key_t =
+      std::conditional_t<std::is_same_v<tag_t, void>, vertex_t, thrust::tuple<vertex_t, tag_t>>;
+
+    auto return_result =
+      std::make_tuple(rmm::device_uvector<vertex_t>(0, handle.get_stream()),
+                      rmm::device_uvector<vertex_t>(0, handle.get_stream()),
+                      std::optional<rmm::device_uvector<edge_type_t>>{std::nullopt},
+                      std::optional<rmm::device_uvector<weight_t>>{std::nullopt},
+                      std::optional<rmm::device_uvector<edge_t>>{std::nullopt},
+                      std::optional<rmm::device_uvector<edge_time_t>>{std::nullopt},
+                      std::optional<rmm::device_uvector<edge_time_t>>{std::nullopt},
+                      std::optional<rmm::device_uvector<label_t>>{std::nullopt});
+
+    auto edge_value_view           = concatenate_views(edge_properties);
+    using edge_property_elements_t = typename decltype(edge_value_view)::value_type;
+
+    if (gather_flags) {
+      if constexpr (std::tuple_size_v<TupleType> > 0) {
+        if constexpr (std::is_same_v<std::tuple_element_t<0, TupleType>,
+                                     edge_property_view_t<edge_t, edge_type_t const*>>) {
+          rmm::device_uvector<uint8_t> d_gather_flags(gather_flags->size(), handle.get_stream());
+          raft::update_device(
+            d_gather_flags.data(), gather_flags->data(), gather_flags->size(), handle.get_stream());
+
+          auto output_buffer = simple_gather_one_hop_edgelist(
+            handle,
+            graph_view,
+            key_list,
+            cuda::std::make_optional(
+              raft::device_span<uint8_t const>{d_gather_flags.data(), d_gather_flags.size()}),
+            edge_value_view,
+            do_expensive_check);
+
+          move_results<0, 0, true, true, Flags..., !std::is_same_v<tag_t, void>>(output_buffer,
+                                                                                 return_result);
+        } else {
+          CUGRAPH_FAIL("If gather_flags specified edge_type must be first property");
+        }
+      } else {
+        CUGRAPH_FAIL("If gather_flags specified edge_type must be first property");
+      }
+    } else {
+      auto output_buffer = simple_gather_one_hop_edgelist(
+        handle, graph_view, key_list, cuda::std::nullopt, edge_value_view, do_expensive_check);
+
+      move_results<0, 0, true, true, Flags..., !std::is_same_v<tag_t, void>>(output_buffer,
+                                                                             return_result);
+    }
+
+    return return_result;
+  }
+};
+
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          typename edge_type_t,
+          typename edge_time_t,
+          typename label_t,
+          bool multi_gpu>
+struct temporal_simple_gather_one_hop_edgelist_functor_t {
+  raft::handle_t const& handle;
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view;
+  key_bucket_t<vertex_t, edge_time_t, multi_gpu, false> const& key_list;
+  std::optional<raft::host_span<uint8_t const>> gather_flags;
+  bool do_expensive_check{false};
+
+  template <bool... Flags, typename TupleType>
+  auto operator()(TupleType edge_properties)
+  {
+    auto return_result =
+      std::make_tuple(rmm::device_uvector<vertex_t>(0, handle.get_stream()),
+                      rmm::device_uvector<vertex_t>(0, handle.get_stream()),
+                      std::optional<rmm::device_uvector<edge_time_t>>{std::nullopt},
+                      std::optional<rmm::device_uvector<edge_type_t>>{std::nullopt},
+                      std::optional<rmm::device_uvector<weight_t>>{std::nullopt},
+                      std::optional<rmm::device_uvector<edge_t>>{std::nullopt},
+                      std::optional<rmm::device_uvector<edge_time_t>>{std::nullopt},
+                      std::optional<rmm::device_uvector<label_t>>{std::nullopt});
+
+    if constexpr (std::tuple_size_v<TupleType> == 0) {
+      CUGRAPH_FAIL("Edge time must be specified");
+    } else if constexpr (!std::is_same_v<std::tuple_element_t<0, TupleType>,
+                                         edge_property_view_t<edge_t, edge_time_t const*>>) {
+      CUGRAPH_FAIL("Edge time must be first");
+    } else {
+      auto edge_value_view           = concatenate_views(edge_properties);
+      using edge_property_elements_t = typename decltype(edge_value_view)::value_type;
+
+      if (gather_flags) {
+        if constexpr (1 < std::tuple_size_v<TupleType>) {
+          if constexpr (std::is_same_v<std::tuple_element_t<1, TupleType>,
+                                       edge_property_view_t<edge_t, edge_type_t const*>>) {
+            rmm::device_uvector<uint8_t> d_gather_flags(gather_flags->size(), handle.get_stream());
+            raft::update_device(d_gather_flags.data(),
+                                gather_flags->data(),
+                                gather_flags->size(),
+                                handle.get_stream());
+
+            auto output_buffer = temporal_simple_gather_one_hop_edgelist(
+              handle,
+              graph_view,
+              key_list,
+              cuda::std::make_optional(
+                raft::device_span<uint8_t const>{d_gather_flags.data(), d_gather_flags.size()}),
+              edge_value_view,
+              do_expensive_check);
+
+            move_results<0, 0, true, true, Flags..., false>(output_buffer, return_result);
+          } else {
+            CUGRAPH_FAIL("If gather_flags specified edge_type must be first property");
+          }
+        } else {
+          CUGRAPH_FAIL("If gather_flags specified edge_type must be first property");
+        }
+      } else {
+        auto output_buffer = temporal_simple_gather_one_hop_edgelist(
+          handle, graph_view, key_list, cuda::std::nullopt, edge_value_view, do_expensive_check);
+
+        move_results<0, 0, true, true, Flags..., false>(output_buffer, return_result);
+      }
+    }
+
+    return return_result;
+  }
+};
+
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          typename edge_type_t,
+          typename edge_time_t,
+          typename label_t,
+          bool multi_gpu>
+struct temporal_label_gather_one_hop_edgelist_functor_t {
+  raft::handle_t const& handle;
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view;
+  key_bucket_t<vertex_t, size_t, multi_gpu, false> const& key_list;
+  kv_binary_search_store_device_view_t<kv_binary_search_store_view_t<
+    size_t const*,
+    thrust::zip_iterator<thrust::tuple<edge_time_t const*, label_t const*>>>>
+    kv_store_view;
+
+  std::optional<raft::host_span<uint8_t const>> gather_flags;
+  bool do_expensive_check{false};
+
+  template <bool... Flags, typename TupleType>
+  auto operator()(TupleType edge_properties)
+  {
+    auto return_result =
+      std::make_tuple(rmm::device_uvector<vertex_t>(0, handle.get_stream()),
+                      rmm::device_uvector<vertex_t>(0, handle.get_stream()),
+                      std::optional<rmm::device_uvector<edge_time_t>>{std::nullopt},
+                      std::optional<rmm::device_uvector<edge_type_t>>{std::nullopt},
+                      std::optional<rmm::device_uvector<weight_t>>{std::nullopt},
+                      std::optional<rmm::device_uvector<edge_t>>{std::nullopt},
+                      std::optional<rmm::device_uvector<edge_time_t>>{std::nullopt},
+                      std::optional<rmm::device_uvector<label_t>>{std::nullopt});
+
+    if constexpr (0 == std::tuple_size_v<TupleType>) {
+      CUGRAPH_FAIL("Edge time must be specified as a property");
+    } else if constexpr (!std::is_same_v<typename std::tuple_element_t<0, TupleType>::value_type,
+                                         edge_time_t>) {
+      CUGRAPH_FAIL("Edge time must be specified as first property");
+    } else {
+      auto edge_value_view           = concatenate_views(edge_properties);
+      using edge_property_elements_t = typename decltype(edge_value_view)::value_type;
+
+      if (gather_flags) {
+        if constexpr (1 < std::tuple_size_v<TupleType>)
+          if constexpr (std::is_same_v<typename std::tuple_element_t<1, TupleType>::value_type,
+                                       edge_type_t>) {
+            rmm::device_uvector<uint8_t> d_gather_flags(gather_flags->size(), handle.get_stream());
+            raft::update_device(d_gather_flags.data(),
+                                gather_flags->data(),
+                                gather_flags->size(),
+                                handle.get_stream());
+
+            auto output_buffer = temporal_label_gather_one_hop_edgelist(
+              handle,
+              graph_view,
+              key_list,
+              cuda::std::make_optional(
+                raft::device_span<uint8_t const>{d_gather_flags.data(), d_gather_flags.size()}),
+              kv_store_view,
+              edge_value_view,
+              do_expensive_check);
+
+            move_results<0, 0, true, true, Flags..., true>(output_buffer, return_result);
+          } else {
+            CUGRAPH_FAIL("If gather_flags specified edge_type must be second property");
+          }
+        else {
+          CUGRAPH_FAIL("If gather_flags specified edge_type must be second property");
+        }
+      } else {
+        auto output_buffer = temporal_label_gather_one_hop_edgelist(handle,
+                                                                    graph_view,
+                                                                    key_list,
+                                                                    cuda::std::nullopt,
+                                                                    kv_store_view,
+                                                                    edge_value_view,
+                                                                    do_expensive_check);
+
+        move_results<0, 0, true, true, Flags..., true>(output_buffer, return_result);
+      }
+    }
+
+    return return_result;
+  }
+};
+
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          typename edge_type_t,
+          typename edge_time_t,
           typename label_t,
           bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>,
@@ -409,6 +298,8 @@ std::tuple<rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>,
            std::optional<rmm::device_uvector<edge_t>>,
            std::optional<rmm::device_uvector<edge_type_t>>,
+           std::optional<rmm::device_uvector<edge_time_t>>,
+           std::optional<rmm::device_uvector<edge_time_t>>,
            std::optional<rmm::device_uvector<label_t>>>
 gather_one_hop_edgelist(
   raft::handle_t const& handle,
@@ -416,14 +307,120 @@ gather_one_hop_edgelist(
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   std::optional<edge_property_view_t<edge_t, edge_t const*>> edge_id_view,
   std::optional<edge_property_view_t<edge_t, edge_type_t const*>> edge_type_view,
+  std::optional<edge_property_view_t<edge_t, edge_time_t const*>> edge_start_time_view,
+  std::optional<edge_property_view_t<edge_t, edge_time_t const*>> edge_end_time_view,
   raft::device_span<vertex_t const> active_majors,
+  std::optional<raft::device_span<edge_time_t const>> active_major_times,
   std::optional<raft::device_span<label_t const>> active_major_labels,
   std::optional<raft::host_span<uint8_t const>> gather_flags,
   bool do_expensive_check)
 {
   assert(!gather_flags || edge_type_view);
 
-  if (active_major_labels) {
+  rmm::device_uvector<vertex_t> result_srcs(0, handle.get_stream());
+  rmm::device_uvector<vertex_t> result_dsts(0, handle.get_stream());
+  std::optional<rmm::device_uvector<weight_t>> result_weights{std::nullopt};
+  std::optional<rmm::device_uvector<edge_t>> result_ids{std::nullopt};
+  std::optional<rmm::device_uvector<edge_type_t>> result_types{std::nullopt};
+  std::optional<rmm::device_uvector<edge_time_t>> result_start_times{std::nullopt};
+  std::optional<rmm::device_uvector<edge_time_t>> result_end_times{std::nullopt};
+  std::optional<rmm::device_uvector<label_t>> result_labels{std::nullopt};
+
+  if (active_major_labels && active_major_times) {
+    using tag_t = size_t;
+
+    // FIXME: Currently can't use multiple attributes in the tag.  Here's a hack
+    rmm::device_uvector<size_t> vertex_label_time_ids(active_majors.size(), handle.get_stream());
+
+    size_t starting_id{0};
+    if (multi_gpu) {
+      auto sizes = cugraph::host_scalar_allgather(
+        handle.get_comms(), active_majors.size(), handle.get_stream());
+      std::exclusive_scan(sizes.begin(), sizes.end(), sizes.begin(), size_t{0});
+      starting_id = sizes[handle.get_comms().get_rank()];
+    }
+
+    thrust::sequence(handle.get_thrust_policy(),
+                     vertex_label_time_ids.begin(),
+                     vertex_label_time_ids.end(),
+                     starting_id);
+
+    kv_store_t<size_t, thrust::tuple<edge_time_t, label_t>, true> kv_store{handle.get_stream()};
+    if (multi_gpu) {
+      auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+
+      auto all_minor_keys =
+        device_allgatherv(handle,
+                          minor_comm,
+                          raft::device_span<size_t const>{vertex_label_time_ids.data(),
+                                                          vertex_label_time_ids.size()});
+      auto all_minor_times =
+        device_allgatherv(handle,
+                          minor_comm,
+                          raft::device_span<edge_time_t const>{active_major_times->data(),
+                                                               active_major_times->size()});
+      auto all_minor_labels = device_allgatherv(
+        handle,
+        minor_comm,
+        raft::device_span<label_t const>{active_major_labels->data(), active_major_labels->size()});
+
+      CUGRAPH_EXPECTS(
+        thrust::is_sorted(handle.get_thrust_policy(), all_minor_keys.begin(), all_minor_keys.end()),
+        "need to SORT!");
+
+      kv_store = kv_store_t<size_t, thrust::tuple<edge_time_t, label_t>, true>(
+        all_minor_keys.begin(),
+        all_minor_keys.end(),
+        thrust::make_zip_iterator(all_minor_times.begin(), all_minor_labels.begin()),
+        thrust::make_tuple(edge_time_t{-1}, label_t{-1}),
+        true,
+        handle.get_stream());
+
+    } else {
+      kv_store = kv_store_t<size_t, thrust::tuple<edge_time_t, label_t>, true>(
+        vertex_label_time_ids.begin(),
+        vertex_label_time_ids.end(),
+        thrust::make_zip_iterator(active_major_times->begin(),
+                                  active_major_labels->begin()),  // multi_gpu is different
+        thrust::make_tuple(edge_time_t{-1}, label_t{-1}),
+        true,
+        handle.get_stream());
+    }
+
+    cugraph::vertex_frontier_t<vertex_t, size_t, multi_gpu, false> vertex_label_frontier(handle, 1);
+    vertex_label_frontier.bucket(0).insert(
+      thrust::make_zip_iterator(active_majors.begin(), vertex_label_time_ids.begin()),
+      thrust::make_zip_iterator(active_majors.end(), vertex_label_time_ids.end()));
+
+    temporal_label_gather_one_hop_edgelist_functor_t<vertex_t,
+                                                     edge_t,
+                                                     weight_t,
+                                                     edge_type_t,
+                                                     edge_time_t,
+                                                     label_t,
+                                                     multi_gpu>
+      gather_functor{
+        handle,
+        graph_view,
+        vertex_label_frontier.bucket(0),
+        kv_binary_search_store_device_view_t<decltype(kv_store.view())>{kv_store.view()},
+        gather_flags,
+        do_expensive_check};
+
+    std::tie(result_srcs,
+             result_dsts,
+             result_start_times,
+             result_types,
+             result_weights,
+             result_ids,
+             result_end_times,
+             result_labels) = tuple_with_optionals_dispatch(gather_functor,
+                                                            edge_start_time_view,
+                                                            edge_type_view,
+                                                            edge_weight_view,
+                                                            edge_id_view,
+                                                            edge_end_time_view);
+  } else if (active_major_labels) {
     using tag_t = label_t;
 
     cugraph::vertex_frontier_t<vertex_t, label_t, multi_gpu, false> vertex_label_frontier(handle,
@@ -432,227 +429,104 @@ gather_one_hop_edgelist(
       thrust::make_zip_iterator(active_majors.begin(), active_major_labels->begin()),
       thrust::make_zip_iterator(active_majors.end(), active_major_labels->end()));
 
-    if (edge_weight_view) {
-      bool constexpr has_weight = true;
-      if (edge_id_view) {
-        bool constexpr has_edge_id = true;
-        if (edge_type_view) {
-          bool constexpr has_edge_type = true;
-          return gather_one_hop_edgelist<has_weight, has_edge_id, has_edge_type, label_t>(
-            handle,
-            graph_view,
-            edge_weight_view,
-            edge_id_view,
-            edge_type_view,
-            vertex_label_frontier,
-            gather_flags,
-            do_expensive_check);
-        } else {
-          bool constexpr has_edge_type = false;
-          return gather_one_hop_edgelist<has_weight, has_edge_id, has_edge_type, label_t>(
-            handle,
-            graph_view,
-            edge_weight_view,
-            edge_id_view,
-            edge_type_view,
-            vertex_label_frontier,
-            gather_flags,
-            do_expensive_check);
-        }
-      } else {
-        bool constexpr has_edge_id = false;
-        if (edge_type_view) {
-          bool constexpr has_edge_type = true;
-          return gather_one_hop_edgelist<has_weight, has_edge_id, has_edge_type, label_t>(
-            handle,
-            graph_view,
-            edge_weight_view,
-            edge_id_view,
-            edge_type_view,
-            vertex_label_frontier,
-            gather_flags,
-            do_expensive_check);
-        } else {
-          bool constexpr has_edge_type = false;
-          return gather_one_hop_edgelist<has_weight, has_edge_id, has_edge_type, label_t>(
-            handle,
-            graph_view,
-            edge_weight_view,
-            edge_id_view,
-            edge_type_view,
-            vertex_label_frontier,
-            gather_flags,
-            do_expensive_check);
-        }
-      }
-    } else {
-      bool constexpr has_weight = false;
-      if (edge_id_view) {
-        bool constexpr has_edge_id = true;
-        if (edge_type_view) {
-          bool constexpr has_edge_type = true;
-          return gather_one_hop_edgelist<has_weight, has_edge_id, has_edge_type, label_t>(
-            handle,
-            graph_view,
-            edge_weight_view,
-            edge_id_view,
-            edge_type_view,
-            vertex_label_frontier,
-            gather_flags,
-            do_expensive_check);
-        } else {
-          bool constexpr has_edge_type = false;
-          return gather_one_hop_edgelist<has_weight, has_edge_id, has_edge_type, label_t>(
-            handle,
-            graph_view,
-            edge_weight_view,
-            edge_id_view,
-            edge_type_view,
-            vertex_label_frontier,
-            gather_flags,
-            do_expensive_check);
-        }
-      } else {
-        bool constexpr has_edge_id = false;
-        if (edge_type_view) {
-          bool constexpr has_edge_type = true;
-          return gather_one_hop_edgelist<has_weight, has_edge_id, has_edge_type, label_t>(
-            handle,
-            graph_view,
-            edge_weight_view,
-            edge_id_view,
-            edge_type_view,
-            vertex_label_frontier,
-            gather_flags,
-            do_expensive_check);
-        } else {
-          bool constexpr has_edge_type = false;
-          return gather_one_hop_edgelist<has_weight, has_edge_id, has_edge_type, label_t>(
-            handle,
-            graph_view,
-            edge_weight_view,
-            edge_id_view,
-            edge_type_view,
-            vertex_label_frontier,
-            gather_flags,
-            do_expensive_check);
-        }
-      }
-    }
+    gather_one_hop_edgelist_functor_t<vertex_t,
+                                      edge_t,
+                                      weight_t,
+                                      edge_type_t,
+                                      edge_time_t,
+                                      tag_t,
+                                      label_t,
+                                      multi_gpu>
+      gather_functor{
+        handle, graph_view, vertex_label_frontier.bucket(0), gather_flags, do_expensive_check};
+
+    std::tie(result_srcs,
+             result_dsts,
+             result_types,
+             result_weights,
+             result_ids,
+             result_start_times,
+             result_end_times,
+             result_labels) = tuple_with_optionals_dispatch(gather_functor,
+                                                            edge_type_view,
+                                                            edge_weight_view,
+                                                            edge_id_view,
+                                                            edge_start_time_view,
+                                                            edge_end_time_view);
+
+  } else if (active_major_times) {
+    using tag_t = label_t;
+
+    cugraph::vertex_frontier_t<vertex_t, edge_time_t, multi_gpu, false> vertex_time_frontier(handle,
+                                                                                             1);
+    vertex_time_frontier.bucket(0).insert(
+      thrust::make_zip_iterator(active_majors.begin(), active_major_times->begin()),
+      thrust::make_zip_iterator(active_majors.end(), active_major_times->end()));
+
+    temporal_simple_gather_one_hop_edgelist_functor_t<vertex_t,
+                                                      edge_t,
+                                                      weight_t,
+                                                      edge_type_t,
+                                                      edge_time_t,
+                                                      label_t,
+                                                      multi_gpu>
+      gather_functor{
+        handle, graph_view, vertex_time_frontier.bucket(0), gather_flags, do_expensive_check};
+
+    std::tie(result_srcs,
+             result_dsts,
+             result_start_times,
+             result_types,
+             result_weights,
+             result_ids,
+             result_end_times,
+             result_labels) = tuple_with_optionals_dispatch(gather_functor,
+                                                            edge_start_time_view,
+                                                            edge_type_view,
+                                                            edge_weight_view,
+                                                            edge_id_view,
+                                                            edge_end_time_view);
+
   } else {
     using tag_t = void;
 
     cugraph::vertex_frontier_t<vertex_t, void, multi_gpu, false> vertex_frontier(handle, 1);
     vertex_frontier.bucket(0).insert(active_majors.begin(), active_majors.end());
 
-    if (edge_weight_view) {
-      bool constexpr has_weight = true;
-      if (edge_id_view) {
-        bool constexpr has_edge_id = true;
-        if (edge_type_view) {
-          bool constexpr has_edge_type = true;
-          return gather_one_hop_edgelist<has_weight, has_edge_id, has_edge_type, label_t>(
-            handle,
-            graph_view,
-            edge_weight_view,
-            edge_id_view,
-            edge_type_view,
-            vertex_frontier,
-            gather_flags,
-            do_expensive_check);
-        } else {
-          bool constexpr has_edge_type = false;
-          return gather_one_hop_edgelist<has_weight, has_edge_id, has_edge_type, label_t>(
-            handle,
-            graph_view,
-            edge_weight_view,
-            edge_id_view,
-            edge_type_view,
-            vertex_frontier,
-            gather_flags,
-            do_expensive_check);
-        }
-      } else {
-        bool constexpr has_edge_id = false;
-        if (edge_type_view) {
-          bool constexpr has_edge_type = true;
-          return gather_one_hop_edgelist<has_weight, has_edge_id, has_edge_type, label_t>(
-            handle,
-            graph_view,
-            edge_weight_view,
-            edge_id_view,
-            edge_type_view,
-            vertex_frontier,
-            gather_flags,
-            do_expensive_check);
-        } else {
-          bool constexpr has_edge_type = false;
-          return gather_one_hop_edgelist<has_weight, has_edge_id, has_edge_type, label_t>(
-            handle,
-            graph_view,
-            edge_weight_view,
-            edge_id_view,
-            edge_type_view,
-            vertex_frontier,
-            gather_flags,
-            do_expensive_check);
-        }
-      }
-    } else {
-      bool constexpr has_weight = false;
-      if (edge_id_view) {
-        bool constexpr has_edge_id = true;
-        if (edge_type_view) {
-          bool constexpr has_edge_type = true;
-          return gather_one_hop_edgelist<has_weight, has_edge_id, has_edge_type, label_t>(
-            handle,
-            graph_view,
-            edge_weight_view,
-            edge_id_view,
-            edge_type_view,
-            vertex_frontier,
-            gather_flags,
-            do_expensive_check);
-        } else {
-          bool constexpr has_edge_type = false;
-          return gather_one_hop_edgelist<has_weight, has_edge_id, has_edge_type, label_t>(
-            handle,
-            graph_view,
-            edge_weight_view,
-            edge_id_view,
-            edge_type_view,
-            vertex_frontier,
-            gather_flags,
-            do_expensive_check);
-        }
-      } else {
-        bool constexpr has_edge_id = false;
-        if (edge_type_view) {
-          bool constexpr has_edge_type = true;
-          return gather_one_hop_edgelist<has_weight, has_edge_id, has_edge_type, label_t>(
-            handle,
-            graph_view,
-            edge_weight_view,
-            edge_id_view,
-            edge_type_view,
-            vertex_frontier,
-            gather_flags,
-            do_expensive_check);
-        } else {
-          bool constexpr has_edge_type = false;
-          return gather_one_hop_edgelist<has_weight, has_edge_id, has_edge_type, label_t>(
-            handle,
-            graph_view,
-            edge_weight_view,
-            edge_id_view,
-            edge_type_view,
-            vertex_frontier,
-            gather_flags,
-            do_expensive_check);
-        }
-      }
-    }
+    gather_one_hop_edgelist_functor_t<vertex_t,
+                                      edge_t,
+                                      weight_t,
+                                      edge_type_t,
+                                      edge_time_t,
+                                      tag_t,
+                                      label_t,
+                                      multi_gpu>
+      gather_functor{
+        handle, graph_view, vertex_frontier.bucket(0), gather_flags, do_expensive_check};
+
+    std::tie(result_srcs,
+             result_dsts,
+             result_types,
+             result_weights,
+             result_ids,
+             result_start_times,
+             result_end_times,
+             result_labels) = tuple_with_optionals_dispatch(gather_functor,
+                                                            edge_type_view,
+                                                            edge_weight_view,
+                                                            edge_id_view,
+                                                            edge_start_time_view,
+                                                            edge_end_time_view);
   }
+
+  return std::make_tuple(std::move(result_srcs),
+                         std::move(result_dsts),
+                         std::move(result_weights),
+                         std::move(result_ids),
+                         std::move(result_types),
+                         std::move(result_start_times),
+                         std::move(result_end_times),
+                         std::move(result_labels));
 }
 
 }  // namespace detail

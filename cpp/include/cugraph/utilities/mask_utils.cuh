@@ -192,6 +192,25 @@ OutputIterator copy_if_mask_set(raft::handle_t const& handle,
     is_equal_t<bool>{true});
 }
 
+template <typename InputIterator,
+          typename MaskIterator,  // should be packed bool
+          typename OutputIterator>
+OutputIterator copy_if_mask_unset(raft::handle_t const& handle,
+                                  InputIterator input_first,
+                                  InputIterator input_last,
+                                  MaskIterator mask_first,
+                                  OutputIterator output_first)
+{
+  return thrust::copy_if(
+    handle.get_thrust_policy(),
+    input_first,
+    input_last,
+    thrust::make_transform_iterator(thrust::make_counting_iterator(size_t{0}),
+                                    check_bit_set_t<MaskIterator, size_t>{mask_first, size_t{0}}),
+    output_first,
+    is_equal_t<bool>{false});
+}
+
 }  // namespace detail
 
 }  // namespace cugraph

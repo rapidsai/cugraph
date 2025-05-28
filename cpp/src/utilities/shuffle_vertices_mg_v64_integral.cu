@@ -42,9 +42,34 @@ shuffle_int_vertex_value_pairs_to_local_gpu_by_vertex_partitioning(
 template std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<size_t>>
 shuffle_int_vertex_value_pairs_to_local_gpu_by_vertex_partitioning(
   raft::handle_t const& handle,
-  rmm::device_uvector<int64_t>&& d_vertices,
-  rmm::device_uvector<size_t>&& d_values,
+  rmm::device_uvector<int64_t>&& vertices,
+  rmm::device_uvector<size_t>&& values,
   raft::host_span<int64_t const> vertex_partition_range_lasts);
+
+template std::tuple<rmm::device_uvector<int64_t>,
+                    std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>>>
+shuffle_int_vertex_value_pairs_to_local_gpu_by_vertex_partitioning(
+  raft::handle_t const& handle,
+  rmm::device_uvector<int64_t>&& d_vertices,
+  std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>>&& d_values,
+  raft::host_span<int64_t const> vertex_partition_range_lasts);
+
+template std::tuple<rmm::device_uvector<int64_t>,
+                    std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int64_t>>>
+shuffle_int_vertex_value_pairs_to_local_gpu_by_vertex_partitioning(
+  raft::handle_t const& handle,
+  rmm::device_uvector<int64_t>&& d_vertices,
+  std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int64_t>>&& d_values,
+  raft::host_span<int64_t const> vertex_partition_range_lasts);
+
+template rmm::device_uvector<int64_t> shuffle_ext_vertices_to_local_gpu_by_vertex_partitioning(
+  raft::handle_t const& handle, rmm::device_uvector<int64_t>&& d_vertices);
+
+template std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<int64_t>>
+shuffle_ext_vertex_value_pairs_to_local_gpu_by_vertex_partitioning(
+  raft::handle_t const& handle,
+  rmm::device_uvector<int64_t>&& vertices,
+  rmm::device_uvector<int64_t>&& values);
 
 }  // namespace detail
 
