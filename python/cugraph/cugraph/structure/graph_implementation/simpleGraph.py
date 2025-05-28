@@ -831,7 +831,7 @@ class simpleGraphImpl:
         ----------
         return_unrenumbered_edgelist : bool (default=True)
             Flag determining whether to return the original input edgelist
-            if 'True' or the renumbered one of 'False' and the edgelist was
+            if 'True' or the renumbered one if 'False' and the edgelist was
             renumbered.
 
         Returns
@@ -947,7 +947,8 @@ class simpleGraphImpl:
         """
         # TODO: Move to Outer graphs?
         if directed_edges and self.edgelist is not None:
-            return len(self.decompress_to_edgelist())
+            return len(self.decompress_to_edgelist(
+                return_unrenumbered_edgelist=False))
         if self.properties.edge_count is None:
             if self.edgelist is not None:
                 edgelist_df = self.decompress_to_edgelist()

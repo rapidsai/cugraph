@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2023, NVIDIA CORPORATION.
+# Copyright (c) 2019-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -67,14 +67,14 @@ def test_to_from_pandas(graph_file):
     # Compare pandas edgelist
     exp_pdf = nx.to_pandas_edgelist(new_nxG)
     res_pdf = cugraph.to_pandas_edgelist(new_cuG)
-
+    
     exp_pdf = exp_pdf.rename(
-        columns={"source": "src", "target": "dst", "weight": "weights"}
+        columns={"source": "src", "target": "dst"}
     )
 
     exp_pdf = exp_pdf.sort_values(by=["src", "dst"]).reset_index(drop=True)
     res_pdf = res_pdf.sort_values(by=["src", "dst"]).reset_index(drop=True)
-    res_pdf = res_pdf[["src", "dst", "weights"]]
+    res_pdf = res_pdf[["src", "dst", "weight"]]
 
     assert exp_pdf.equals(res_pdf)
 
@@ -119,12 +119,12 @@ def test_from_to_numpy(graph_file):
     res_pdf = cugraph.to_pandas_edgelist(new_cuG)
 
     exp_pdf = exp_pdf.rename(
-        columns={"source": "src", "target": "dst", "weight": "weights"}
+        columns={"source": "src", "target": "dst"}
     )
 
     exp_pdf = exp_pdf.sort_values(by=["src", "dst"]).reset_index(drop=True)
     res_pdf = res_pdf.sort_values(by=["src", "dst"]).reset_index(drop=True)
-    res_pdf = res_pdf[["src", "dst", "weights"]]
+    res_pdf = res_pdf[["src", "dst", "weight"]]
 
     assert exp_pdf.equals(res_pdf)
 
@@ -139,12 +139,12 @@ def test_from_to_numpy(graph_file):
     res_pdf = cugraph.to_pandas_edgelist(new_cuG)
 
     exp_pdf = exp_pdf.rename(
-        columns={"source": "src", "target": "dst", "weight": "weights"}
+        columns={"source": "src", "target": "dst"}
     )
 
     exp_pdf = exp_pdf.sort_values(by=["src", "dst"]).reset_index(drop=True)
     res_pdf = res_pdf.sort_values(by=["src", "dst"]).reset_index(drop=True)
-    res_pdf = res_pdf[["src", "dst", "weights"]]
+    res_pdf = res_pdf[["src", "dst", "weight"]]
 
     assert exp_pdf.equals(res_pdf)
 
