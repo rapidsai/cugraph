@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2024, NVIDIA CORPORATION.
+# Copyright (c) 2022-2025, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -97,9 +97,9 @@ def call_algo(sg_algo_func, G, **kwargs):
             kwargs_to_pass = {a: kwargs[a] for a in possible_args if a in kwargs}
             result_df = uniform_neighbor_sample(G, **kwargs_to_pass)
             # Convert DataFrame into CuPy arrays for returning to the client
-            sources = result_df["sources"].to_cupy()
-            destinations = result_df["destinations"].to_cupy()
-            indices = result_df["indices"].to_cupy()
+            sources = result_df["majors"].to_cupy()
+            destinations = result_df["minors"].to_cupy()
+            indices = result_df["weight"].to_cupy()
 
         return UniformNeighborSampleResult(
             sources=sources,
