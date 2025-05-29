@@ -408,26 +408,25 @@ EdgeTypeAndIdToSrcDstLookupContainerType build_edge_id_and_type_to_src_dst_looku
     auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
     auto const minor_comm_size = minor_comm.get_size();
 
-    auto [gpu_ids, edge_types] =
-      cugraph::extract_transform_e(
-        handle,
-        graph_view,
-        cugraph::edge_src_dummy_property_t{}.view(),
-        cugraph::edge_dst_dummy_property_t{}.view(),
-        view_concat(edge_id_view, edge_type_view),
-        cuda::proclaim_return_type<thrust::tuple<int, edge_type_t>>(
-          [key_func =
-             cugraph::detail::compute_gpu_id_from_ext_edge_id_t<edge_t>{
-               comm_size,
-               major_comm_size,
-               minor_comm_size}] __device__(auto,
-                                            auto,
-                                            cuda::std::nullopt_t,
-                                            cuda::std::nullopt_t,
-                                            thrust::tuple<edge_t, edge_type_t> id_and_type) {
-            return thrust::make_tuple(key_func(thrust::get<0>(id_and_type)),
-                                      thrust::get<1>(id_and_type));
-          }));
+    auto [gpu_ids, edge_types] = cugraph::extract_transform_e(
+      handle,
+      graph_view,
+      cugraph::edge_src_dummy_property_t{}.view(),
+      cugraph::edge_dst_dummy_property_t{}.view(),
+      view_concat(edge_id_view, edge_type_view),
+      cuda::proclaim_return_type<thrust::tuple<int, edge_type_t>>(
+        [key_func =
+           cugraph::detail::compute_gpu_id_from_ext_edge_id_t<edge_t>{
+             comm_size,
+             major_comm_size,
+             minor_comm_size}] __device__(auto,
+                                          auto,
+                                          cuda::std::nullopt_t,
+                                          cuda::std::nullopt_t,
+                                          thrust::tuple<edge_t, edge_type_t> id_and_type) {
+          return thrust::make_tuple(key_func(thrust::get<0>(id_and_type)),
+                                    thrust::get<1>(id_and_type));
+        }));
 
     auto type_and_gpu_id_pair_begin =
       thrust::make_zip_iterator(thrust::make_tuple(edge_types.begin(), gpu_ids.begin()));
@@ -656,9 +655,9 @@ EdgeTypeAndIdToSrcDstLookupContainerType build_edge_id_and_type_to_src_dst_looku
                                                        edgelist_types.end())),
           [key_func =
              cugraph::detail::compute_gpu_id_from_ext_edge_id_t<edge_t>{
-               comm_size,
-               major_comm_size,
-               minor_comm_size}] __device__(auto val) { return key_func(thrust::get<2>(val)); },
+               comm_size, major_comm_size, minor_comm_size}] __device__(auto val) {
+            return key_func(thrust::get<2>(val));
+          },
           handle.get_stream());
     }
 

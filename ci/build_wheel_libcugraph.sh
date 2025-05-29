@@ -3,6 +3,8 @@
 
 set -euo pipefail
 
+source rapids-init-pip
+
 package_name="libcugraph"
 package_dir="python/libcugraph"
 
@@ -28,5 +30,5 @@ rapids-logger "Done build requirements"
 # 0 really means "add --no-build-isolation" (ref: https://github.com/pypa/pip/issues/5735)
 export PIP_NO_BUILD_ISOLATION=0
 
-./ci/build_wheel.sh libcugraph ${package_dir} cpp
+./ci/build_wheel.sh libcugraph ${package_dir}
 ./ci/validate_wheel.sh ${package_dir} "${RAPIDS_WHEEL_BLD_OUTPUT_DIR}"

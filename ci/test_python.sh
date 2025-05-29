@@ -51,6 +51,8 @@ rapids-logger "pytest pylibcugraph"
 ./ci/run_pylibcugraph_pytests.sh \
   --verbose \
   --junitxml="${RAPIDS_TESTS_DIR}/junit-pylibcugraph.xml" \
+  --numprocesses=8 \
+  --dist=worksteal \
   --cov-config=../../.coveragerc \
   --cov=pylibcugraph \
   --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/pylibcugraph-coverage.xml" \
@@ -67,10 +69,39 @@ rapids-logger "pytest pylibcugraph"
 #
 # FIXME: TEMPORARILY disable MG PropertyGraph tests (experimental) tests and
 # bulk sampler IO tests (hangs in CI)
-rapids-logger "pytest cugraph"
+rapids-logger "pytest cugraph (not mg, with xdist)"
 ./ci/run_cugraph_pytests.sh \
   --verbose \
   --junitxml="${RAPIDS_TESTS_DIR}/junit-cugraph.xml" \
+  --numprocesses=8 \
+  --dist=worksteal \
+  -m "not mg" \
+  -k "not test_dataset and not test_bulk_sampler and not test_create_undirected_graph_from_asymmetric_adj_list and not test_uniform_neighbor_sample and not test_node2vec" \
+  --cov-config=../../.coveragerc \
+  --cov=cugraph \
+  --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph-coverage.xml" \
+  --cov-report=term
+
+# Some tests fail with pytest-xdist enabled.
+# See https://github.com/rapidsai/cugraph/issues/5048
+rapids-logger "pytest cugraph (not mg, without xdist)"
+./ci/run_cugraph_pytests.sh \
+  --verbose \
+  --junitxml="${RAPIDS_TESTS_DIR}/junit-cugraph.xml" \
+  --numprocesses=1 \
+  --dist=worksteal \
+  -m "not mg" \
+  -k "not test_dataset and (test_bulk_sampler or test_create_undirected_graph_from_asymmetric_adj_list or test_uniform_neighbor_sample or test_node2vec)" \
+  --cov-config=../../.coveragerc \
+  --cov=cugraph \
+  --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph-coverage.xml" \
+  --cov-report=term
+
+rapids-logger "pytest cugraph (mg)"
+./ci/run_cugraph_pytests.sh \
+  --verbose \
+  --junitxml="${RAPIDS_TESTS_DIR}/junit-cugraph.xml" \
+  -m "mg" \
   --cov-config=../../.coveragerc \
   --cov=cugraph \
   --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph-coverage.xml" \

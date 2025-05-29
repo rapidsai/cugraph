@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -160,7 +160,7 @@ struct GenerateRmat_Usecase {
 
   GenerateRmat_Usecase(
     size_t scale, size_t edge_factor, double a, double b, double c, bool clip_and_flip)
-    : scale(scale), edge_factor(edge_factor), a(a), b(b), c(c), clip_and_flip(clip_and_flip){};
+    : scale(scale), edge_factor(edge_factor), a(a), b(b), c(c), clip_and_flip(clip_and_flip) {};
 };
 
 class Tests_GenerateRmat : public ::testing::TestWithParam<GenerateRmat_Usecase> {
@@ -323,7 +323,7 @@ struct GenerateRmats_Usecase {
       max_scale(max_scale),
       component_distribution(component_distribution),
       edge_distribution(edge_distribution),
-      edge_factor(edge_factor){};
+      edge_factor(edge_factor) {};
 };
 
 class Tests_GenerateRmats : public ::testing::TestWithParam<GenerateRmats_Usecase> {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -44,7 +44,7 @@ using accum_type = uint32_t;
 constexpr uint32_t hash_inc_constant = 9999;
 
 typedef struct str_hash_value {
-  __host__ __device__ str_hash_value(){};
+  __host__ __device__ str_hash_value() {};
 
   __host__ __device__ str_hash_value(size_type row, accum_type count, int32_t col)
   {

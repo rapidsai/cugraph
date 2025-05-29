@@ -287,12 +287,8 @@ shuffle_ext_edges(raft::handle_t const& handle,
                   std::vector<cugraph::variant::device_uvectors_t>&& edge_properties,
                   bool store_transposed)
 {
-  auto& comm                 = handle.get_comms();
-  auto const comm_size       = comm.get_size();
-  auto& major_comm           = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
-  auto const major_comm_size = major_comm.get_size();
-  auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
-  auto const minor_comm_size = minor_comm.get_size();
+  auto& comm           = handle.get_comms();
+  auto const comm_size = comm.get_size();
 
   auto majors = store_transposed ? std::move(edge_dsts) : std::move(edge_srcs);
   auto minors = store_transposed ? std::move(edge_srcs) : std::move(edge_dsts);
