@@ -424,8 +424,7 @@ dependencies:
     specific:
       - output_types: [conda, requirements, pyproject]
         matrices:
-          - matrix:
-              cuda: "12.*"
+          - matrix: # All CUDA 12 versions
             packages:
               - cuda-python>=12.6.2,<13.0a0
   python_run_pylibcugraph:
