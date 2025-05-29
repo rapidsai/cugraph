@@ -925,9 +925,9 @@ class Tests_GRAPH500_MGBFS
     auto mg_pruned_graph_view   = mg_pruned_graph.view();
     auto mg_isolated_trees_view = mg_isolated_trees.view();
     std::cout << "mg_pruned_graph V=" << mg_pruned_graph_view.number_of_vertices()
-              << " E=" << mg_pruned_graph_view.number_of_edges()
+              << " E=" << mg_pruned_graph_view.compute_number_of_edges(*handle_)
               << " mg_isolated_trees_view V=" << mg_isolated_trees_view.number_of_vertices()
-              << " E=" << mg_isolated_trees_view.number_of_edges() << std::endl;
+              << " E=" << mg_isolated_trees_view.compute_number_of_edges(*handle_) << std::endl;
 
     // 3. randomly select starting vertices
 

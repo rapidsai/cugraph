@@ -658,14 +658,6 @@ class graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if
       major_value_range_start_offset);
   }
 
-  // FIXME: deprecated, replaced with compute_number_of_edges (which works with or without edge
-  // masking)
-  edge_t number_of_edges() const
-  {
-    CUGRAPH_EXPECTS(!(this->has_edge_mask()), "unimplemented.");
-    return this->number_of_edges_;
-  }
-
   edge_t compute_number_of_edges(raft::handle_t const& handle) const;
 
   rmm::device_uvector<edge_t> compute_in_degrees(raft::handle_t const& handle) const;
@@ -987,14 +979,6 @@ class graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if
     assert(partition_idx == 0);  // there is only one edge partition in single-GPU
     return edge_partition_view_t<vertex_t, edge_t, false>(
       offsets_, indices_, this->number_of_vertices());
-  }
-
-  // FIXME: deprecated, replaced with compute_number_of_edges (which works with or without edge
-  // masking)
-  edge_t number_of_edges() const
-  {
-    CUGRAPH_EXPECTS(!(this->has_edge_mask()), "unimplemented.");
-    return this->number_of_edges_;
   }
 
   edge_t compute_number_of_edges(raft::handle_t const& handle) const;
