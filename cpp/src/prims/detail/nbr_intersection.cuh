@@ -664,17 +664,17 @@ struct gatherv_indices_t {
 // cuda::std::distance(vertex_pair_first, vertex_pair_last) should be comparable across the global
 // communicator. If we need to build the neighbor lists, grouping based on applying "vertex ID %
 // number of groups"  is recommended for load-balancing.
-template <typename GraphViewType, typename VertexPairIterator, typename EdgeValueInputIterator>
+template <typename GraphViewType, typename VertexPairIterator, typename EdgeValueInputWrapper>
 std::conditional_t<
-  !std::is_same_v<typename EdgeValueInputIterator::value_type, cuda::std::nullopt_t>,
+  !std::is_same_v<typename EdgeValueInputWrapper::value_type, cuda::std::nullopt_t>,
   std::tuple<rmm::device_uvector<size_t>,
              rmm::device_uvector<typename GraphViewType::vertex_type>,
-             rmm::device_uvector<typename EdgeValueInputIterator::value_type>,
-             rmm::device_uvector<typename EdgeValueInputIterator::value_type>>,
+             rmm::device_uvector<typename EdgeValueInputWrapper::value_type>,
+             rmm::device_uvector<typename EdgeValueInputWrapper::value_type>>,
   std::tuple<rmm::device_uvector<size_t>, rmm::device_uvector<typename GraphViewType::vertex_type>>>
 nbr_intersection(raft::handle_t const& handle,
                  GraphViewType const& graph_view,
-                 EdgeValueInputIterator edge_value_input,
+                 EdgeValueInputWrapper edge_value_input,
                  VertexPairIterator vertex_pair_first,
                  VertexPairIterator vertex_pair_last,
                  std::array<bool, 2> intersect_dst_nbr,
@@ -683,7 +683,7 @@ nbr_intersection(raft::handle_t const& handle,
   using vertex_t = typename GraphViewType::vertex_type;
   using edge_t   = typename GraphViewType::edge_type;
 
-  using edge_property_value_t = typename EdgeValueInputIterator::value_type;
+  using edge_property_value_t = typename EdgeValueInputWrapper::value_type;
 
   using edge_partition_e_input_device_view_t = std::conditional_t<
     std::is_same_v<typename EdgeValueInputWrapper::value_iterator, void*>,

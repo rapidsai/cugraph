@@ -68,7 +68,7 @@ template <typename edge_t, typename vertex_t>
 class edge_multi_index_property_view_t {
  public:
   using edge_type      = edge_t;
-  using value_type     = vertex_t;
+  using value_type     = edge_t;
   using value_iterator = void*;
 
   edge_multi_index_property_view_t() = default;
