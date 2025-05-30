@@ -342,7 +342,7 @@ edge_property_t<edge_t, edge_t> edge_triangle_count_impl(
 
   cugraph::edge_property_t<edge_t, edge_t> counts(handle, graph_view);
 
-  cugraph::edge_bucket_t<vertex_t, edge_t, void, true, multi_gpu, true> valid_edges(
+  cugraph::edge_bucket_t<vertex_t, edge_t, true, multi_gpu, true> valid_edges(
     handle, false /* multigraph */);
   valid_edges.insert(edgelist_srcs.begin(),
                      edgelist_srcs.end(),

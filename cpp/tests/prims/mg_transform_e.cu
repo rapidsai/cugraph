@@ -122,7 +122,7 @@ class Tests_MGTransformE
     auto mg_dst_prop = cugraph::test::generate<decltype(mg_graph_view), result_t>::dst_property(
       *handle_, mg_graph_view, mg_vertex_prop);
 
-    cugraph::edge_bucket_t<vertex_t, edge_t, void, !store_transposed /* src_major */, true, true>
+    cugraph::edge_bucket_t<vertex_t, edge_t, !store_transposed /* src_major */, true, true>
       edge_list(*handle_, mg_graph_view.is_multigraph());
     if (prims_usecase.use_edgelist) {
       rmm::device_uvector<vertex_t> srcs(0, handle_->get_stream());

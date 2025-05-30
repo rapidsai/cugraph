@@ -465,7 +465,6 @@ void transform_e(raft::handle_t const& handle,
 
   static_assert(GraphViewType::is_storage_transposed != EdgeBucketType::is_src_major);
   static_assert(EdgeBucketType::is_sorted_unique);
-  static_assert(!EdgeBucketType::is_tagged);
 
   using edge_partition_src_input_device_view_t = std::conditional_t<
     std::is_same_v<typename EdgeSrcValueInputWrapper::value_type, cuda::std::nullopt_t>,
@@ -496,6 +495,10 @@ void transform_e(raft::handle_t const& handle,
     typename EdgeValueOutputWrapper::value_iterator,
     typename EdgeValueOutputWrapper::value_type>;
 
+  CUGRAPH_EXPECTS(graph_view.is_multigraph() == multi_edge_index_first.has_value(),
+                  "Invalid input arguments: the edge list should include multi-edge index for a "
+                  "multi-graph (and should not for a non-multi-graph).");
+
   auto major_first =
     GraphViewType::is_storage_transposed ? edge_list.dst_begin() : edge_list.src_begin();
   auto minor_first =
@@ -515,9 +518,6 @@ void transform_e(raft::handle_t const& handle,
           return thrust::make_tuple(thrust::get<0>(pair), thrust::get<1>(pair), edge_t{0});
         }
       }));
-  CUGRAPH_EXPECTS(graph_view.is_multigraph() == multi_edge_index_first.has_value(),
-                  "Invalid input arguments: the edge list should include multi-edge index for a "
-                  "multi-graph (and should not for a non-multi-graph).");
 
   if (do_expensive_check) {
     CUGRAPH_EXPECTS(

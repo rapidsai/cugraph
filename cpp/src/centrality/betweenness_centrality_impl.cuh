@@ -380,7 +380,7 @@ void accumulate_edge_results(
     //  Populate edge_list with edges where `thrust::get<0>(dst_props) == d`
     //  and `thrust::get<0>(dst_props) == (d-1)`
     //
-    cugraph::edge_bucket_t<vertex_t, edge_t, void, true, multi_gpu, true> edge_list(
+    cugraph::edge_bucket_t<vertex_t, edge_t, true, multi_gpu, true> edge_list(
       handle, graph_view.is_multigraph());
 
     rmm::device_uvector<vertex_t> srcs(0, handle.get_stream());

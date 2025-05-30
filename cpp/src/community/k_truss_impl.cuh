@@ -296,9 +296,9 @@ k_truss(raft::handle_t const& handle,
     auto edge_triangle_counts =
       edge_triangle_count<vertex_t, edge_t, multi_gpu>(handle, cur_graph_view, false);
 
-    cugraph::edge_bucket_t<vertex_t, edge_t, void, true, multi_gpu, true> edgelist_weak(
+    cugraph::edge_bucket_t<vertex_t, edge_t, true, multi_gpu, true> edgelist_weak(
       handle, false /* multigraph */);
-    cugraph::edge_bucket_t<vertex_t, edge_t, void, true, multi_gpu, true> edges_to_decrement_count(
+    cugraph::edge_bucket_t<vertex_t, edge_t, true, multi_gpu, true> edges_to_decrement_count(
       handle, false /* multigraph */);
     size_t prev_chunk_size = 0;  // FIXME: Add support for chunking
 
