@@ -133,7 +133,12 @@ class Tests_EdgeTriangleCount
 
     auto [graph, edge_weight, d_renumber_map_labels] =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, false>(
-        handle, input_usecase, false, renumber, true, true);
+        handle,
+        input_usecase,
+        false,
+        renumber,
+        true /* drop self_loops */,
+        true /* drop_multi_edges */);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
