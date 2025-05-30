@@ -1,4 +1,4 @@
-# Copyright (c) 2021-2024, NVIDIA CORPORATION.
+# Copyright (c) 2021-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -68,7 +68,13 @@ class Graph:
             if isinstance(m_graph, MultiGraph):
                 elist = m_graph.view_edge_list()
                 if m_graph.is_weighted():
+                    # 'view_edge_list' retrieves the edgelist possibly
+                    # with different weight column names than the one provided
+                    # by the user.
                     weights = m_graph.weight_column
+                    elist = elist.rename(columns={"weight": weights}).reset_index(
+                        drop=True
+                    )
                 else:
                     weights = None
                 self.from_cudf_edgelist(

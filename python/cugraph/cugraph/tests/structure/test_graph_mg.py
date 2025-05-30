@@ -378,7 +378,7 @@ def test_graph_creation_edge_properties(dask_client, graph_file, edge_props):
 def test_graph_creation_properties(dask_client, graph_file, directed, renumber):
     srcCol = "src"
     dstCol = "dst"
-    wgtCol = "wgt"
+    wgtCol = "weight"
     df = cudf.read_csv(
         graph_file,
         delimiter=" ",

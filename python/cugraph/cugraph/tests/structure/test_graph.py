@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2024, NVIDIA CORPORATION.
+# Copyright (c) 2019-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -250,7 +250,7 @@ def test_add_adj_list_to_edge_list(graph_file):
     G = cugraph.Graph(directed=True)
     G.from_cudf_adjlist(offsets, indices, None)
 
-    edgelist = G.view_edge_list()
+    edgelist = G.view_edge_list().sort_values(by=["src", "dst"]).reset_index(drop=True)
     sources_cu = edgelist["src"]
     destinations_cu = edgelist["dst"]
     compare_series(sources_cu, sources_exp)
@@ -300,7 +300,9 @@ def test_view_edge_list_from_adj_list(graph_file):
     indices = cudf.Series(Mcsr.indices)
     G = cugraph.Graph(directed=True)
     G.from_cudf_adjlist(offsets, indices, None)
-    edgelist_df = G.view_edge_list()
+    edgelist_df = (
+        G.view_edge_list().sort_values(by=["src", "dst"]).reset_index(drop=True)
+    )
     Mcoo = Mcsr.tocoo()
     src1 = Mcoo.row
     dst1 = Mcoo.col
@@ -451,6 +453,17 @@ def test_view_edge_list_for_Graph(graph_file):
     # assert cu_edge_list.equals(nx_edge_list)
     assert (cu_edge_list["0"].to_numpy() == nx_edge_list["0"].to_numpy()).all()
     assert (cu_edge_list["1"].to_numpy() == nx_edge_list["1"].to_numpy()).all()
+
+
+@pytest.mark.sg
+@pytest.mark.parametrize("directed", [True, False])
+def test_view_edge_list_for_nxGraph(directed):
+    G = nx.florentine_families_graph()
+    df = nx.to_pandas_edgelist(G)
+    cG = cugraph.Graph(directed=directed)
+    cG.from_pandas_edgelist(df, source="source", destination="target")
+
+    assert df.shape == cG.view_edge_list().shape
 
 
 # Test
@@ -604,6 +617,33 @@ def test_number_of_vertices(graph_file):
     G.from_cudf_edgelist(cu_M, source="0", destination="1")
     Gnx = nx.from_pandas_edgelist(M, source="0", target="1", create_using=nx.DiGraph())
     assert G.number_of_vertices() == Gnx.number_of_nodes()
+
+
+@pytest.mark.sg
+def test_number_of_edges():
+
+    # cycle edges
+    cycle_edges = [(0, 1, 1.0), (1, 2, 1.0), (2, 3, 1.0), (3, 0, 1.0)]
+
+    # Create pandas DataFrame
+    df = pd.DataFrame(cycle_edges, columns=["source", "destination", "weight"])
+
+    # Convert to cuDF
+    cudf_edges = cudf.DataFrame.from_pandas(df)
+
+    # Create directed graph
+    G_directed = cugraph.Graph(directed=True)
+    G_directed.from_cudf_edgelist(
+        cudf_edges, source="source", destination="destination", edge_attr="weight"
+    )
+
+    # Create undirected graph
+    G_undirected = cugraph.Graph(directed=False)
+    G_undirected.from_cudf_edgelist(
+        cudf_edges, source="source", destination="destination", edge_attr="weight"
+    )
+
+    assert G_directed.number_of_edges() == G_undirected.number_of_edges()
 
 
 # Test
@@ -1063,6 +1103,7 @@ def test_graph_creation_edges_multi_col_vertices(graph_file, directed):
     G.from_cudf_edgelist(input_df, source=srcCol, destination=dstCol, edge_attr=wgtCol)
 
     input_df = input_df.loc[:, columns]
+
     edge_list_view = G.view_edge_list().loc[:, columns]
     edges = G.edges().loc[:, vertexCol]
 
