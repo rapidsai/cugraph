@@ -17,6 +17,7 @@
 #pragma once
 
 #include <cugraph/utilities/dataframe_buffer.hpp>
+#include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/packed_bool_utils.hpp>
 #include <cugraph/utilities/thrust_tuple_utils.hpp>
 
@@ -196,11 +197,13 @@ class edge_multi_index_property_t {
   template <typename GraphViewType>
   edge_multi_index_property_t(raft::handle_t const& handle, GraphViewType const& graph_view)
   {
+    CUGRAPH_EXPECTS(graph_view.is_multigraph(),
+                    "Invalid input argument: graph_view is not a multi-graph");
     edge_partition_offsets_.resize(graph_view.number_of_local_edge_partitions());
     edge_partition_indices_.resize(graph_view.number_of_local_edge_partitions());
     for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
-      edge_partition_offsets_[i] = graph_view.offsets(i);
-      edge_partition_indices_[i] = graph_view.indices(i);
+      edge_partition_offsets_[i] = graph_view.local_edge_partition_offsets(i);
+      edge_partition_indices_[i] = graph_view.local_edge_partition_indices(i);
     }
   }
 

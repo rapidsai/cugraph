@@ -272,7 +272,7 @@ class graph_base_t {
   graph_base_t(vertex_t number_of_vertices, edge_t number_of_edges, graph_properties_t properties)
     : number_of_vertices_(number_of_vertices),
       number_of_edges_(number_of_edges),
-      properties_(properties) {};
+      properties_(properties){};
 
   vertex_t number_of_vertices() const { return number_of_vertices_; }
 
@@ -682,6 +682,16 @@ class graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if
     raft::device_span<vertex_t const> edge_dsts,
     bool do_expensive_check = false);
 
+  raft::device_span<edge_t const> local_edge_partition_offsets(size_t partition_idx) const
+  {
+    return edge_partition_offsets_[partition_idx];
+  }
+
+  raft::device_span<vertex_t const> local_edge_partition_indices(size_t partition_idx) const
+  {
+    return edge_partition_indices_[partition_idx];
+  }
+
   template <bool transposed = is_storage_transposed>
   std::enable_if_t<transposed, std::optional<raft::device_span<vertex_t const>>>
   local_sorted_unique_edge_srcs() const
@@ -1001,6 +1011,18 @@ class graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if
                                                    raft::device_span<vertex_t const> edge_srcs,
                                                    raft::device_span<vertex_t const> edge_dsts,
                                                    bool do_expensive_check = false);
+
+  raft::device_span<edge_t const> local_edge_partition_offsets(size_t partition_idx = 0) const
+  {
+    assert(partition_idx == 0);
+    return offsets_;
+  }
+
+  raft::device_span<vertex_t const> local_edge_partition_indices(size_t partition_idx = 0) const
+  {
+    assert(partition_idx == 0);
+    return indices_;
+  }
 
   template <bool transposed = is_storage_transposed>
   std::enable_if_t<transposed, std::optional<raft::device_span<vertex_t const>>>
