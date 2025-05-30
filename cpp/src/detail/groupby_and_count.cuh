@@ -15,6 +15,7 @@
  */
 
 #pragma once
+
 #include "detail/graph_partition_utils.cuh"
 
 #include <cugraph/detail/shuffle_wrappers.hpp>
@@ -24,6 +25,9 @@
 #include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
 #include <cugraph/variant/edge_properties.hpp>
+
+#include <raft/core/device_span.hpp>
+#include <raft/core/host_span.hpp>
 
 #include <rmm/exec_policy.hpp>
 
@@ -41,9 +45,9 @@ namespace detail {
 template <typename vertex_t>
 rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
   raft::handle_t const& handle,
-  raft::device_span<vertex_t>& edgelist_majors,
-  raft::device_span<vertex_t>& edgelist_minors,
-  std::vector<cugraph::variant::device_spans_t> edgelist_properties,
+  raft::device_span<vertex_t> edgelist_majors,
+  raft::device_span<vertex_t> edgelist_minors,
+  raft::host_span<cugraph::variant::device_spans_t> edgelist_properties,
   bool groupby_and_count_local_partition_by_minor)
 {
   auto& comm                 = handle.get_comms();

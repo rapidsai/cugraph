@@ -760,24 +760,12 @@ class Tests_GRAPH500_MGBFS
             std::nullopt,
             std::nullopt);
 
-        std::tie(src_chunks[i],
-                 dst_chunks[i],
-                 std::ignore,
-                 std::ignore,
-                 std::ignore,
-                 std::ignore,
-                 std::ignore,
-                 std::ignore) =
-          cugraph::shuffle_ext_edges<vertex_t, edge_t, weight_t, edge_type_t, edge_time_t>(
-            *handle_,
-            std::move(src_chunks[i]),
-            std::move(dst_chunks[i]),
-            std::nullopt,
-            std::nullopt,
-            std::nullopt,
-            std::nullopt,
-            std::nullopt,
-            store_transposed);
+        std::tie(src_chunks[i], dst_chunks[i], std::ignore, std::ignore) =
+          cugraph::shuffle_ext_edges(*handle_,
+                                     std::move(src_chunks[i]),
+                                     std::move(dst_chunks[i]),
+                                     std::vector<cugraph::variant::device_uvectors_t>{},
+                                     store_transposed);
       }
 
       std::tie(
@@ -2000,28 +1988,13 @@ class Tests_GRAPH500_MGBFS
             comm, num_invalids, raft::comms::op_t::SUM, handle_->get_stream());
           ASSERT_EQ(num_invalids, 0) << "predecessor->v missing in the input graph.";
 
-          std::tie(query_preds,
-                   query_vertices,
-                   std::ignore,
-                   std::ignore,
-                   std::ignore,
-                   std::ignore,
-                   std::ignore,
-                   std::ignore) =
-            cugraph::detail::shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<
-              vertex_t,
-              edge_t,
-              weight_t,
-              edge_type_t,
-              edge_time_t>(*handle_,
-                           std::move(query_preds),
-                           std::move(query_vertices),
-                           std::nullopt,
-                           std::nullopt,
-                           std::nullopt,
-                           std::nullopt,
-                           std::nullopt,
-                           mg_subgraph_view.vertex_partition_range_lasts());
+          std::tie(query_preds, query_vertices, std::ignore, std::ignore) =
+            cugraph::detail::shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning(
+              *handle_,
+              std::move(query_preds),
+              std::move(query_vertices),
+              std::vector<cugraph::variant::device_uvectors_t>{},
+              mg_subgraph_view.vertex_partition_range_lasts());
 
           auto flags = mg_subgraph_view.has_edge(
             *handle_,

@@ -1041,7 +1041,8 @@ create_graph_from_edgelist_impl(
                      : raft::device_span<vertex_t>{edgelist_srcs.data(), edgelist_srcs.size()},
     store_transposed ? raft::device_span<vertex_t>{edgelist_srcs.data(), edgelist_srcs.size()}
                      : raft::device_span<vertex_t>{edgelist_dsts.data(), edgelist_dsts.size()},
-    edgelist_property_spans,
+    raft::host_span<cugraph::variant::device_spans_t>{edgelist_property_spans.data(),
+                                                      edgelist_property_spans.size()},
     true);
 
   std::vector<size_t> h_edge_counts(d_edge_counts.size());
@@ -1420,7 +1421,8 @@ create_graph_from_edgelist_impl(
         store_transposed
           ? raft::device_span<vertex_t>{edgelist_srcs[i].data(), edgelist_dsts[i].size()}
           : raft::device_span<vertex_t>{edgelist_dsts[i].data(), edgelist_dsts[i].size()},
-        this_chunk_edge_properties,
+        raft::host_span<cugraph::variant::device_spans_t>{this_chunk_edge_properties.data(),
+                                                          this_chunk_edge_properties.size()},
         true);
 
     std::vector<size_t> h_this_chunk_edge_counts(d_this_chunk_edge_counts.size());

@@ -190,7 +190,7 @@ rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
   raft::handle_t const& handle,
   raft::device_span<vertex_t> edgelist_majors,
   raft::device_span<vertex_t> edgelist_minors,
-  std::vector<cugraph::variant::device_spans_t> edgelist_properties,
+  raft::host_span<cugraph::variant::device_spans_t> edgelist_properties,
   bool groupby_and_count_local_partition_by_minor = false);
 
 /**
