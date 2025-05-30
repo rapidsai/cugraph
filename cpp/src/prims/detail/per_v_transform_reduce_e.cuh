@@ -579,7 +579,8 @@ __global__ static void per_v_transform_reduce_e_mid_degree(
       reduced_e_op_result{};
     [[maybe_unused]] std::conditional_t<update_major && std::is_same_v<ReduceOp, reduce_op::any<T>>,
                                         int32_t,
-                                        std::byte /* dummy */> first_valid_lane_id{};
+                                        std::byte /* dummy */>
+      first_valid_lane_id{};
     if constexpr (update_major) {
       reduced_e_op_result =
         (lane_id == 0) ? init : identity_element;  // init == identity_element for reduce_op::any<T>
@@ -734,7 +735,8 @@ __global__ static void per_v_transform_reduce_e_high_degree(
   [[maybe_unused]] __shared__
     std::conditional_t<update_major && std::is_same_v<ReduceOp, reduce_op::any<T>>,
                        int32_t,
-                       std::byte /* dummy */> output_thread_id;
+                       std::byte /* dummy */>
+      output_thread_id;
 
   while (idx < static_cast<size_t>(cuda::std::distance(key_first, key_last))) {
     auto key   = *(key_first + idx);
@@ -775,7 +777,8 @@ __global__ static void per_v_transform_reduce_e_high_degree(
       reduced_e_op_result{};
     [[maybe_unused]] std::conditional_t<update_major && std::is_same_v<ReduceOp, reduce_op::any<T>>,
                                         int32_t,
-                                        std::byte /* dummy */> first_valid_thread_id{};
+                                        std::byte /* dummy */>
+      first_valid_thread_id{};
     if constexpr (update_major) {
       reduced_e_op_result = threadIdx.x == 0
                               ? init
@@ -1439,8 +1442,11 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
       typename EdgeDstValueInputWrapper::value_iterator,
       typename EdgeDstValueInputWrapper::value_type>>;
   using edge_partition_e_input_device_view_t = std::conditional_t<
-    std::is_same_v<typename EdgeValueInputWrapper::value_type, cuda::std::nullopt_t>,
-    detail::edge_partition_edge_dummy_property_device_view_t<vertex_t>,
+    std::is_same_v<typename EdgeValueInputWrapper::value_iterator, void*>,
+    std::conditional_t<
+      std::is_same_v<typename EdgeValueInputWrapper::value_type, cuda::std::nullopt_t>,
+      detail::edge_partition_edge_dummy_property_device_view_t<vertex_t>,
+      detail::edge_partition_edge_multi_index_property_device_view_t<edge_t, vertex_t>>,
     detail::edge_partition_edge_property_device_view_t<
       edge_t,
       typename EdgeValueInputWrapper::value_iterator,
@@ -1631,7 +1637,8 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
   [[maybe_unused]] std::conditional_t<GraphViewType::is_multi_gpu && update_major &&
                                         std::is_same_v<ReduceOp, reduce_op::any<T>>,
                                       int,
-                                      std::byte /* dummy */> subgroup_size{};
+                                      std::byte /* dummy */>
+    subgroup_size{};
   if constexpr (GraphViewType::is_multi_gpu && update_major &&
                 std::is_same_v<ReduceOp, reduce_op::any<T>>) {
     auto& comm                 = handle.get_comms();

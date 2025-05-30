@@ -76,9 +76,20 @@ struct extract_edge_e_op_t {
     vertex_t dst,
     thrust::tuple<vertex_t, edge_t, weight_t> src_props,
     thrust::tuple<vertex_t, edge_t, weight_t> dst_props,
-    weight_t) const
+    cuda::std::nullopt_t) const
   {
     return thrust::make_tuple(src, dst);
+  }
+
+  template <typename edge_t, typename weight_t>
+  __device__ thrust::tuple<vertex_t, vertex_t, edge_t> operator()(
+    vertex_t src,
+    vertex_t dst,
+    thrust::tuple<vertex_t, edge_t, weight_t> src_props,
+    thrust::tuple<vertex_t, edge_t, weight_t> dst_props,
+    edge_t edge_multi_index) const
+  {
+    return thrust::make_tuple(src, dst, edge_multi_index);
   }
 };
 
@@ -91,7 +102,17 @@ struct extract_edge_pred_op_t {
                              vertex_t dst,
                              thrust::tuple<vertex_t, edge_t, weight_t> src_props,
                              thrust::tuple<vertex_t, edge_t, weight_t> dst_props,
-                             weight_t) const
+                             cuda::std::nullopt_t) const
+  {
+    return ((thrust::get<0>(dst_props) == d) && (thrust::get<0>(src_props) == (d - 1)));
+  }
+
+  template <typename edge_t, typename weight_t>
+  __device__ bool operator()(vertex_t src,
+                             vertex_t dst,
+                             thrust::tuple<vertex_t, edge_t, weight_t> src_props,
+                             thrust::tuple<vertex_t, edge_t, weight_t> dst_props,
+                             edge_t edge_multi_index) const
   {
     return ((thrust::get<0>(dst_props) == d) && (thrust::get<0>(src_props) == (d - 1)));
   }
@@ -359,34 +380,41 @@ void accumulate_edge_results(
     //  Populate edge_list with edges where `thrust::get<0>(dst_props) == d`
     //  and `thrust::get<0>(dst_props) == (d-1)`
     //
-    cugraph::edge_bucket_t<vertex_t, void, true, multi_gpu, true> edge_list(handle);
+    cugraph::edge_bucket_t<vertex_t, edge_t, void, true, multi_gpu, true> edge_list(
+      handle, graph_view.is_multigraph());
 
-    {
-      auto [src, dst] = extract_transform_if_e(handle,
-                                               graph_view,
-                                               src_properties.view(),
-                                               dst_properties.view(),
-                                               centralities_view,
-                                               extract_edge_e_op_t<vertex_t>{},
-                                               extract_edge_pred_op_t<vertex_t>{d},
-                                               do_expensive_check);
+    rmm::device_uvector<vertex_t> srcs(0, handle.get_stream());
+    rmm::device_uvector<vertex_t> dsts(0, handle.get_stream());
+    std::optional<rmm::device_uvector<edge_t>> indices{std::nullopt};
+    if (graph_view.is_multigraph()) {
+      edge_multi_index_property_t<edge_t, vertex_t> edge_multi_indices(handle, graph_view);
+      std::tie(srcs, dsts, indices) = extract_transform_if_e(handle,
+                                                             graph_view,
+                                                             src_properties.view(),
+                                                             dst_properties.view(),
+                                                             edge_multi_indices.view(),
+                                                             extract_edge_e_op_t<vertex_t>{},
+                                                             extract_edge_pred_op_t<vertex_t>{d},
+                                                             do_expensive_check);
 
-      thrust::sort(handle.get_thrust_policy(),
-                   thrust::make_zip_iterator(src.begin(), dst.begin()),
-                   thrust::make_zip_iterator(src.end(), dst.end()));
-
-      // Eliminate duplicates in case of a multi-graph
-      auto new_edgelist_end = thrust::unique(handle.get_thrust_policy(),
-                                             thrust::make_zip_iterator(src.begin(), dst.begin()),
-                                             thrust::make_zip_iterator(src.end(), dst.end()));
-
-      src.resize(
-        cuda::std::distance(thrust::make_zip_iterator(src.begin(), dst.begin()), new_edgelist_end),
-        handle.get_stream());
-      dst.resize(src.size(), handle.get_stream());
-
-      edge_list.insert(src.begin(), src.end(), dst.begin());
+      auto triplet_first = thrust::make_zip_iterator(srcs.begin(), dsts.begin(), indices->begin());
+      thrust::sort(handle.get_thrust_policy(), triplet_first, triplet_first + srcs.size());
+    } else {
+      auto [srcs, dsts] = extract_transform_if_e(handle,
+                                                 graph_view,
+                                                 src_properties.view(),
+                                                 dst_properties.view(),
+                                                 edge_dummy_property_t{}.view(),
+                                                 extract_edge_e_op_t<vertex_t>{},
+                                                 extract_edge_pred_op_t<vertex_t>{d},
+                                                 do_expensive_check);
+      auto pair_first   = thrust::make_zip_iterator(srcs.begin(), dsts.begin());
+      thrust::sort(handle.get_thrust_policy(), pair_first, pair_first + srcs.size());
     }
+    edge_list.insert(srcs.begin(),
+                     srcs.end(),
+                     dsts.begin(),
+                     indices ? std::make_optional(indices->begin()) : std::nullopt);
 
     transform_e(
       handle,

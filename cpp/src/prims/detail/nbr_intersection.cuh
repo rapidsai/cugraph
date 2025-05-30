@@ -685,13 +685,16 @@ nbr_intersection(raft::handle_t const& handle,
 
   using edge_property_value_t = typename EdgeValueInputIterator::value_type;
 
-  using edge_partition_e_input_device_view_t =
-    std::conditional_t<std::is_same_v<edge_property_value_t, cuda::std::nullopt_t>,
-                       detail::edge_partition_edge_dummy_property_device_view_t<vertex_t>,
-                       detail::edge_partition_edge_property_device_view_t<
-                         edge_t,
-                         typename EdgeValueInputIterator::value_iterator,
-                         edge_property_value_t>>;
+  using edge_partition_e_input_device_view_t = std::conditional_t<
+    std::is_same_v<typename EdgeValueInputWrapper::value_iterator, void*>,
+    std::conditional_t<
+      std::is_same_v<typename EdgeValueInputWrapper::value_type, cuda::std::nullopt_t>,
+      detail::edge_partition_edge_dummy_property_device_view_t<vertex_t>,
+      detail::edge_partition_edge_multi_index_property_device_view_t<edge_t, vertex_t>>,
+    detail::edge_partition_edge_property_device_view_t<
+      edge_t,
+      typename EdgeValueInputWrapper::value_iterator,
+      typename EdgeValueInputWrapper::value_type>>;
 
   using optional_property_buffer_value_type =
     std::conditional_t<!std::is_same_v<edge_property_value_t, cuda::std::nullopt_t>,
@@ -1148,11 +1151,13 @@ nbr_intersection(raft::handle_t const& handle,
     [[maybe_unused]] std::conditional_t<
       !std::is_same_v<edge_property_value_t, cuda::std::nullopt_t>,
       std::vector<rmm::device_uvector<edge_property_value_t>>,
-      std::byte /* dummy */> edge_partition_nbr_intersection_e_property_values0{};
+      std::byte /* dummy */>
+      edge_partition_nbr_intersection_e_property_values0{};
     [[maybe_unused]] std::conditional_t<
       !std::is_same_v<edge_property_value_t, cuda::std::nullopt_t>,
       std::vector<rmm::device_uvector<edge_property_value_t>>,
-      std::byte /* dummy */> edge_partition_nbr_intersection_e_property_values1{};
+      std::byte /* dummy */>
+      edge_partition_nbr_intersection_e_property_values1{};
 
     if constexpr (!std::is_same_v<edge_property_value_t, cuda::std::nullopt_t>) {
       edge_partition_nbr_intersection_e_property_values0.reserve(

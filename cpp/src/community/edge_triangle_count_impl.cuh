@@ -130,6 +130,11 @@ edge_property_t<edge_t, edge_t> edge_triangle_count_impl(
   bool do_expensive_check)
 {
   using weight_t = float;
+
+  CUGRAPH_EXPECTS(
+    !graph_view.is_multigraph(),
+    "Invalid input arguments: edge_triangle_count currently does not support multi-graphs.");
+
   rmm::device_uvector<vertex_t> edgelist_srcs(0, handle.get_stream());
   rmm::device_uvector<vertex_t> edgelist_dsts(0, handle.get_stream());
   std::tie(edgelist_srcs, edgelist_dsts, std::ignore, std::ignore, std::ignore) =
@@ -337,8 +342,12 @@ edge_property_t<edge_t, edge_t> edge_triangle_count_impl(
 
   cugraph::edge_property_t<edge_t, edge_t> counts(handle, graph_view);
 
-  cugraph::edge_bucket_t<vertex_t, void, true, multi_gpu, true> valid_edges(handle);
-  valid_edges.insert(edgelist_srcs.begin(), edgelist_srcs.end(), edgelist_dsts.begin());
+  cugraph::edge_bucket_t<vertex_t, edge_t, void, true, multi_gpu, true> valid_edges(
+    handle, false /* multigraph */);
+  valid_edges.insert(edgelist_srcs.begin(),
+                     edgelist_srcs.end(),
+                     edgelist_dsts.begin(),
+                     std::optional<edge_t const*>{std::nullopt});
 
   auto cur_graph_view = graph_view;
 

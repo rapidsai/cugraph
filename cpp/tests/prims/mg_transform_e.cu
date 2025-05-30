@@ -122,8 +122,8 @@ class Tests_MGTransformE
     auto mg_dst_prop = cugraph::test::generate<decltype(mg_graph_view), result_t>::dst_property(
       *handle_, mg_graph_view, mg_vertex_prop);
 
-    cugraph::edge_bucket_t<vertex_t, void, !store_transposed /* src_major */, true, true> edge_list(
-      *handle_);
+    cugraph::edge_bucket_t<vertex_t, edge_t, void, !store_transposed /* src_major */, true, true>
+      edge_list(*handle_, mg_graph_view.is_multigraph());
     if (prims_usecase.use_edgelist) {
       rmm::device_uvector<vertex_t> srcs(0, handle_->get_stream());
       rmm::device_uvector<vertex_t> dsts(0, handle_->get_stream());
@@ -134,27 +134,63 @@ class Tests_MGTransformE
         std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
         std::optional<cugraph::edge_property_view_t<edge_t, int32_t const*>>{std::nullopt},
         std::optional<raft::device_span<vertex_t const>>{std::nullopt});
-      auto edge_first = thrust::make_zip_iterator(
-        thrust::make_tuple(store_transposed ? dsts.begin() : srcs.begin(),
-                           store_transposed ? srcs.begin() : dsts.begin()));
-      srcs.resize(cuda::std::distance(
-                    edge_first,
-                    thrust::remove_if(handle_->get_thrust_policy(),
-                                      edge_first,
-                                      edge_first + srcs.size(),
-                                      [] __device__(thrust::tuple<vertex_t, vertex_t> e) {
-                                        return ((thrust::get<0>(e) + thrust::get<1>(e)) % 2) != 0;
-                                      })),
-                  handle_->get_stream());
-      dsts.resize(srcs.size(), handle_->get_stream());
-      edge_first = thrust::make_zip_iterator(
-        thrust::make_tuple(store_transposed ? dsts.begin() : srcs.begin(),
-                           store_transposed ? srcs.begin() : dsts.begin()));
-      thrust::sort(handle_->get_thrust_policy(), edge_first, edge_first + srcs.size());
+      std::optional<rmm::device_uvector<edge_t>> edge_multi_indices{std::nullopt};
+      auto pair_first = thrust::make_zip_iterator(store_transposed ? dsts.begin() : srcs.begin(),
+                                                  store_transposed ? srcs.begin() : dsts.begin());
+      thrust::sort(handle_->get_thrust_policy(), pair_first, pair_first + srcs.size());
+      if (mg_graph_view.is_multigraph()) {
+        edge_multi_indices = rmm::device_uvector<edge_t>(srcs.size(), handle_->get_stream());
+        thrust::tabulate(
+          handle_->get_thrust_policy(),
+          edge_multi_indices->begin(),
+          edge_multi_indices->end(),
+          cuda::proclaim_return_type<edge_t>(
+            [pair_first, num_pairs = srcs.size()] __device__(auto i) {
+              auto pair  = *(pair_first + i);
+              auto major = thrust::get<0>(pair);
+              auto minor = thrust::get<1>(pair);
+              return static_cast<edge_t>(cuda::std::distance(
+                thrust::lower_bound(thrust::seq, pair_first, pair_first + num_pairs, pair),
+                pair_first + i));
+            }));
+      }
 
-      edge_list.insert(srcs.begin(),
-                       srcs.end(),
-                       dsts.begin());  // now edge_list stores edge pairs with (src + dst) % 2 == 0
+      size_t new_size{0};
+      if (edge_multi_indices) {
+        auto edge_first = thrust::make_zip_iterator(
+          thrust::make_tuple(store_transposed ? dsts.begin() : srcs.begin(),
+                             store_transposed ? srcs.begin() : dsts.begin(),
+                             edge_multi_indices->begin()));
+        new_size = static_cast<size_t>(cuda::std::distance(
+          edge_first,
+          thrust::remove_if(handle_->get_thrust_policy(),
+                            edge_first,
+                            edge_first + srcs.size(),
+                            cuda::proclaim_return_type<bool>(
+                              [] __device__(thrust::tuple<vertex_t, vertex_t, edge_t> e) {
+                                return ((thrust::get<0>(e) + thrust::get<1>(e)) % 2) != 0;
+                              }))));
+      } else {
+        auto edge_first = pair_first;
+        new_size        = static_cast<size_t>(cuda::std::distance(
+          edge_first,
+          thrust::remove_if(
+            handle_->get_thrust_policy(),
+            edge_first,
+            edge_first + srcs.size(),
+            cuda::proclaim_return_type<bool>([] __device__(thrust::tuple<vertex_t, vertex_t> e) {
+              return ((thrust::get<0>(e) + thrust::get<1>(e)) % 2) != 0;
+            }))));
+      }
+      srcs.resize(new_size, handle_->get_stream());
+      dsts.resize(new_size, handle_->get_stream());
+      if (edge_multi_indices) { edge_multi_indices->resize(new_size, handle_->get_stream()); }
+
+      edge_list.insert(
+        srcs.begin(),
+        srcs.end(),
+        dsts.begin(),
+        edge_multi_indices ? std::make_optional(edge_multi_indices->begin()) : std::nullopt);
     }
 
     cugraph::edge_property_t<edge_t, result_t> edge_value_output(*handle_, mg_graph_view);
@@ -176,14 +212,15 @@ class Tests_MGTransformE
         mg_src_prop.view(),
         mg_dst_prop.view(),
         cugraph::edge_dummy_property_t{}.view(),
-        [] __device__(
-          auto src, auto dst, auto src_property, auto dst_property, cuda::std::nullopt_t) {
-          if (src_property < dst_property) {
-            return src_property;
-          } else {
-            return dst_property;
-          }
-        },
+        cuda::proclaim_return_type<result_t>(
+          [] __device__(
+            auto src, auto dst, auto src_property, auto dst_property, cuda::std::nullopt_t) {
+            if (src_property < dst_property) {
+              return src_property;
+            } else {
+              return dst_property;
+            }
+          }),
         edge_value_output.mutable_view());
     } else {
       cugraph::transform_e(
@@ -192,14 +229,15 @@ class Tests_MGTransformE
         mg_src_prop.view(),
         mg_dst_prop.view(),
         cugraph::edge_dummy_property_t{}.view(),
-        [] __device__(
-          auto src, auto dst, auto src_property, auto dst_property, cuda::std::nullopt_t) {
-          if (src_property < dst_property) {
-            return src_property;
-          } else {
-            return dst_property;
-          }
-        },
+        cuda::proclaim_return_type<result_t>(
+          [] __device__(
+            auto src, auto dst, auto src_property, auto dst_property, cuda::std::nullopt_t) {
+            if (src_property < dst_property) {
+              return src_property;
+            } else {
+              return dst_property;
+            }
+          }),
         edge_value_output.mutable_view());
     }
 

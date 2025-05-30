@@ -296,8 +296,10 @@ k_truss(raft::handle_t const& handle,
     auto edge_triangle_counts =
       edge_triangle_count<vertex_t, edge_t, multi_gpu>(handle, cur_graph_view, false);
 
-    cugraph::edge_bucket_t<vertex_t, void, true, multi_gpu, true> edgelist_weak(handle);
-    cugraph::edge_bucket_t<vertex_t, void, true, multi_gpu, true> edges_to_decrement_count(handle);
+    cugraph::edge_bucket_t<vertex_t, edge_t, void, true, multi_gpu, true> edgelist_weak(
+      handle, false /* multigraph */);
+    cugraph::edge_bucket_t<vertex_t, edge_t, void, true, multi_gpu, true> edges_to_decrement_count(
+      handle, false /* multigraph */);
     size_t prev_chunk_size = 0;  // FIXME: Add support for chunking
 
     while (true) {
@@ -573,7 +575,8 @@ k_truss(raft::handle_t const& handle,
 
       edges_to_decrement_count.insert(std::get<0>(vertex_pair_buffer_unique).begin(),
                                       std::get<0>(vertex_pair_buffer_unique).end(),
-                                      std::get<1>(vertex_pair_buffer_unique).begin());
+                                      std::get<1>(vertex_pair_buffer_unique).begin(),
+                                      std::optional<edge_t const*>{std::nullopt});
 
       cur_graph_view.clear_edge_mask();
       // Check for edge existance on the directed graph view
@@ -615,8 +618,10 @@ k_truss(raft::handle_t const& handle,
         thrust::make_zip_iterator(weak_edgelist_srcs.begin(), weak_edgelist_dsts.begin()),
         thrust::make_zip_iterator(weak_edgelist_srcs.end(), weak_edgelist_dsts.end()));
 
-      edgelist_weak.insert(
-        weak_edgelist_srcs.begin(), weak_edgelist_srcs.end(), weak_edgelist_dsts.begin());
+      edgelist_weak.insert(weak_edgelist_srcs.begin(),
+                           weak_edgelist_srcs.end(),
+                           weak_edgelist_dsts.begin(),
+                           std::optional<edge_t const*>{std::nullopt});
 
       // Get undirected graph view
       cur_graph_view.clear_edge_mask();
@@ -671,8 +676,10 @@ k_truss(raft::handle_t const& handle,
         thrust::make_zip_iterator(weak_edgelist_dsts.begin(), weak_edgelist_srcs.begin()),
         thrust::make_zip_iterator(weak_edgelist_dsts.end(), weak_edgelist_srcs.end()));
 
-      edgelist_weak.insert(
-        weak_edgelist_dsts.begin(), weak_edgelist_dsts.end(), weak_edgelist_srcs.begin());
+      edgelist_weak.insert(weak_edgelist_dsts.begin(),
+                           weak_edgelist_dsts.end(),
+                           weak_edgelist_srcs.begin(),
+                           std::optional<edge_t const*>{std::nullopt});
 
       cugraph::transform_e(
         handle,
