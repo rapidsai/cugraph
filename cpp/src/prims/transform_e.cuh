@@ -495,10 +495,6 @@ void transform_e(raft::handle_t const& handle,
     typename EdgeValueOutputWrapper::value_iterator,
     typename EdgeValueOutputWrapper::value_type>;
 
-  CUGRAPH_EXPECTS(graph_view.is_multigraph() == multi_edge_index_first.has_value(),
-                  "Invalid input arguments: the edge list should include multi-edge index for a "
-                  "multi-graph (and should not for a non-multi-graph).");
-
   auto major_first =
     GraphViewType::is_storage_transposed ? edge_list.dst_begin() : edge_list.src_begin();
   auto minor_first =
@@ -506,6 +502,11 @@ void transform_e(raft::handle_t const& handle,
 
   auto pair_first             = thrust::make_zip_iterator(major_first, minor_first);
   auto multi_edge_index_first = edge_list.multi_edge_index_begin();
+
+  CUGRAPH_EXPECTS(graph_view.is_multigraph() == multi_edge_index_first.has_value(),
+                  "Invalid input arguments: the edge list should include multi-edge index for a "
+                  "multi-graph (and should not for a non-multi-graph).");
+
   auto edge_first             = thrust::make_transform_iterator(
     thrust::make_counting_iterator(size_t{0}),
     cuda::proclaim_return_type<thrust::tuple<vertex_t, vertex_t, edge_t>>(
