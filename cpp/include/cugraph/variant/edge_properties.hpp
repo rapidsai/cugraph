@@ -27,15 +27,15 @@ namespace cugraph {
 namespace variant {
 
 using device_uvectors_t    = std::variant<rmm::device_uvector<float>,
-                                       rmm::device_uvector<double>,
-                                       rmm::device_uvector<int32_t>,
-                                       rmm::device_uvector<int64_t>,
-                                       rmm::device_uvector<size_t>>;
+                                          rmm::device_uvector<double>,
+                                          rmm::device_uvector<int32_t>,
+                                          rmm::device_uvector<int64_t>,
+                                          rmm::device_uvector<size_t>>;
 using device_spans_t       = std::variant<raft::device_span<float>,
-                                    raft::device_span<double>,
-                                    raft::device_span<int32_t>,
-                                    raft::device_span<int64_t>,
-                                    raft::device_span<size_t>>;
+                                          raft::device_span<double>,
+                                          raft::device_span<int32_t>,
+                                          raft::device_span<int64_t>,
+                                          raft::device_span<size_t>>;
 using const_device_spans_t = std::variant<raft::device_span<float const>,
                                           raft::device_span<double const>,
                                           raft::device_span<int32_t const>,
