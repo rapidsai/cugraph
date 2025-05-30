@@ -272,7 +272,7 @@ class graph_base_t {
   graph_base_t(vertex_t number_of_vertices, edge_t number_of_edges, graph_properties_t properties)
     : number_of_vertices_(number_of_vertices),
       number_of_edges_(number_of_edges),
-      properties_(properties){};
+      properties_(properties) {};
 
   vertex_t number_of_vertices() const { return number_of_vertices_; }
 

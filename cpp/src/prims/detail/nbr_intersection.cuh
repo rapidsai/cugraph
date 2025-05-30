@@ -1151,13 +1151,11 @@ nbr_intersection(raft::handle_t const& handle,
     [[maybe_unused]] std::conditional_t<
       !std::is_same_v<edge_property_value_t, cuda::std::nullopt_t>,
       std::vector<rmm::device_uvector<edge_property_value_t>>,
-      std::byte /* dummy */>
-      edge_partition_nbr_intersection_e_property_values0{};
+      std::byte /* dummy */> edge_partition_nbr_intersection_e_property_values0{};
     [[maybe_unused]] std::conditional_t<
       !std::is_same_v<edge_property_value_t, cuda::std::nullopt_t>,
       std::vector<rmm::device_uvector<edge_property_value_t>>,
-      std::byte /* dummy */>
-      edge_partition_nbr_intersection_e_property_values1{};
+      std::byte /* dummy */> edge_partition_nbr_intersection_e_property_values1{};
 
     if constexpr (!std::is_same_v<edge_property_value_t, cuda::std::nullopt_t>) {
       edge_partition_nbr_intersection_e_property_values0.reserve(
