@@ -126,12 +126,12 @@ shuffle_ext_vertex_value_pairs(raft::handle_t const& handle,
 template <typename vertex_t>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
-           std::vector<cugraph::variant::device_uvectors_t>,
+           std::vector<cugraph::numeric_device_uvector_t>,
            std::vector<size_t>>
 shuffle_ext_edges(raft::handle_t const& handle,
                   rmm::device_uvector<vertex_t>&& edge_srcs,
                   rmm::device_uvector<vertex_t>&& edge_dsts,
-                  std::vector<cugraph::variant::device_uvectors_t>&& edge_properties,
+                  std::vector<cugraph::numeric_device_uvector_t>&& edge_properties,
                   bool store_transposed);
 
 /**

@@ -168,7 +168,7 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
       std::optional<rmm::device_uvector<edge_time_t>> edgelist_edge_start_times{std::nullopt};
       std::optional<rmm::device_uvector<edge_time_t>> edgelist_edge_end_times{std::nullopt};
 #else
-      std::vector<cugraph::variant::device_uvectors_t> edgelist_edge_properties{};
+      std::vector<cugraph::numeric_device_uvector_t> edgelist_edge_properties{};
 
       if (weights_)
         edgelist_edge_properties.push_back(concatenate<weight_t>(handle_, weights_, num_arrays_));

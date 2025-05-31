@@ -153,7 +153,7 @@ class Tests_MGSimilarity
           vertex_t>(*handle_,
                     std::move(v1),
                     std::move(v2),
-                    std::vector<cugraph::variant::device_uvectors_t>{},
+                    std::vector<cugraph::numeric_device_uvector_t>{},
                     mg_graph_view.vertex_partition_range_lasts());
 
       std::tuple<raft::device_span<vertex_t const>, raft::device_span<vertex_t const>> vertex_pairs{

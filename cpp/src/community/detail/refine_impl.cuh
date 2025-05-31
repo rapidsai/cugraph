@@ -645,7 +645,7 @@ refine_clustering(
     std::optional<edge_property_t<edge_t, weight_t>> coarse_edge_weights{std::nullopt};
 
     if constexpr (multi_gpu) {
-      std::vector<cugraph::variant::device_uvectors_t> edge_properties{};
+      std::vector<cugraph::numeric_device_uvector_t> edge_properties{};
       edge_properties.push_back(std::move(*d_weights));
       std::tie(d_srcs, d_dsts, edge_properties, std::ignore) =
         cugraph::shuffle_ext_edges<vertex_t>(handle,

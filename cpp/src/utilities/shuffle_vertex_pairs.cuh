@@ -50,13 +50,13 @@ struct vertex_pair_groupby_functor_t {
 template <typename vertex_t, typename func_t>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
-           std::vector<cugraph::variant::device_uvectors_t>,
+           std::vector<cugraph::numeric_device_uvector_t>,
            std::vector<size_t>>
 shuffle_vertex_pairs_with_values_by_gpu_id_impl(
   raft::handle_t const& handle,
   rmm::device_uvector<vertex_t>&& majors,
   rmm::device_uvector<vertex_t>&& minors,
-  std::vector<cugraph::variant::device_uvectors_t>&& edge_properties,
+  std::vector<cugraph::numeric_device_uvector_t>&& edge_properties,
   func_t func)
 {
   auto& comm           = handle.get_comms();
@@ -65,8 +65,7 @@ shuffle_vertex_pairs_with_values_by_gpu_id_impl(
   size_t element_size = sizeof(vertex_t) * 2;
 
   if (edge_properties.size() == 1) {
-    element_size +=
-      cugraph::variant::variant_type_dispatch(edge_properties[0], cugraph::variant::variant_size{});
+    element_size += cugraph::variant_type_dispatch(edge_properties[0], cugraph::variant_size{});
   } else if (edge_properties.size() > 1) {
     element_size += sizeof(size_t);
   }
@@ -106,7 +105,7 @@ shuffle_vertex_pairs_with_values_by_gpu_id_impl(
                                  mem_frugal_threshold,
                                  handle.get_stream());
   } else if (edge_properties.size() == 1) {
-    d_tx_value_counts = cugraph::variant::variant_type_dispatch(
+    d_tx_value_counts = cugraph::variant_type_dispatch(
       edge_properties[0],
       [&handle, &majors, &minors, &groupby_functor, comm_size, mem_frugal_threshold](auto& prop) {
         return cugraph::groupby_and_count(
@@ -133,7 +132,7 @@ shuffle_vertex_pairs_with_values_by_gpu_id_impl(
     std::for_each(edge_properties.begin(),
                   edge_properties.end(),
                   [&property_position, &handle](auto& property) {
-                    cugraph::variant::variant_type_dispatch(
+                    cugraph::variant_type_dispatch(
                       property, [&handle, &property_position](auto& prop) {
                         using T = typename std::remove_reference<decltype(prop)>::type;
                         T tmp(prop.size(), handle.get_stream());
@@ -176,14 +175,13 @@ shuffle_vertex_pairs_with_values_by_gpu_id_impl(
       edge_properties.begin(),
       edge_properties.end(),
       [&handle, &h_tx_value_counts, &comm](auto& property) {
-        cugraph::variant::variant_type_dispatch(
-          property, [&handle, &h_tx_value_counts, &comm](auto& prop) {
-            std::tie(prop, std::ignore) = shuffle_values(
-              comm,
-              prop.begin(),
-              raft::host_span<size_t const>(h_tx_value_counts.data(), h_tx_value_counts.size()),
-              handle.get_stream());
-          });
+        cugraph::variant_type_dispatch(property, [&handle, &h_tx_value_counts, &comm](auto& prop) {
+          std::tie(prop, std::ignore) = shuffle_values(
+            comm,
+            prop.begin(),
+            raft::host_span<size_t const>(h_tx_value_counts.data(), h_tx_value_counts.size()),
+            handle.get_stream());
+        });
       });
   } else {
     if (edge_properties.size() == 0) {
@@ -193,7 +191,7 @@ shuffle_vertex_pairs_with_values_by_gpu_id_impl(
         raft::host_span<size_t const>(h_tx_value_counts.data(), h_tx_value_counts.size()),
         handle.get_stream());
     } else {
-      cugraph::variant::variant_type_dispatch(
+      cugraph::variant_type_dispatch(
         edge_properties[0], [&handle, &majors, &minors, &comm, &h_tx_value_counts](auto& prop) {
           std::forward_as_tuple(std::tie(majors, minors, prop), std::ignore) = shuffle_values(
             comm,
@@ -215,13 +213,13 @@ namespace detail {
 template <typename vertex_t>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
-           std::vector<cugraph::variant::device_uvectors_t>,
+           std::vector<cugraph::numeric_device_uvector_t>,
            std::vector<size_t>>
 shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning(
   raft::handle_t const& handle,
   rmm::device_uvector<vertex_t>&& majors,
   rmm::device_uvector<vertex_t>&& minors,
-  std::vector<cugraph::variant::device_uvectors_t>&& edge_properties)
+  std::vector<cugraph::numeric_device_uvector_t>&& edge_properties)
 {
   auto& comm                 = handle.get_comms();
   auto const comm_size       = comm.get_size();
@@ -242,13 +240,13 @@ shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning(
 template <typename vertex_t>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
-           std::vector<cugraph::variant::device_uvectors_t>,
+           std::vector<cugraph::numeric_device_uvector_t>,
            std::vector<size_t>>
 shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning(
   raft::handle_t const& handle,
   rmm::device_uvector<vertex_t>&& majors,
   rmm::device_uvector<vertex_t>&& minors,
-  std::vector<cugraph::variant::device_uvectors_t>&& edge_properties,
+  std::vector<cugraph::numeric_device_uvector_t>&& edge_properties,
   raft::host_span<vertex_t const> vertex_partition_range_lasts)
 {
   auto& comm                 = handle.get_comms();
@@ -279,12 +277,12 @@ shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning(
 template <typename vertex_t>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
-           std::vector<cugraph::variant::device_uvectors_t>,
+           std::vector<cugraph::numeric_device_uvector_t>,
            std::vector<size_t>>
 shuffle_ext_edges(raft::handle_t const& handle,
                   rmm::device_uvector<vertex_t>&& edge_srcs,
                   rmm::device_uvector<vertex_t>&& edge_dsts,
-                  std::vector<cugraph::variant::device_uvectors_t>&& edge_properties,
+                  std::vector<cugraph::numeric_device_uvector_t>&& edge_properties,
                   bool store_transposed)
 {
   auto& comm           = handle.get_comms();
@@ -311,7 +309,7 @@ shuffle_ext_edges(raft::handle_t const& handle,
   bool has_edge_start_times{false};
   bool has_edge_end_times{false};
 
-  std::vector<cugraph::variant::device_uvectors_t> edge_properties{};
+  std::vector<cugraph::numeric_device_uvector_t> edge_properties{};
 
   if (edge_weights) {
     has_weights = true;

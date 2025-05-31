@@ -182,7 +182,7 @@ class Tests_MGPerVPairTransformDstNbrIntersection
         vertex_t>(*handle_,
                   std::move(std::get<0>(mg_vertex_pair_buffer)),
                   std::move(std::get<1>(mg_vertex_pair_buffer)),
-                  std::vector<cugraph::variant::device_uvectors_t>{},
+                  std::vector<cugraph::numeric_device_uvector_t>{},
                   h_vertex_partition_range_lasts);
 
     auto mg_result_buffer = cugraph::allocate_dataframe_buffer<thrust::tuple<weight_t, weight_t>>(

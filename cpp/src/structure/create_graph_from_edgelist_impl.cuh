@@ -1006,7 +1006,7 @@ create_graph_from_edgelist_impl(
     }
   }
 
-  std::vector<cugraph::variant::device_spans_t> edgelist_property_spans{};
+  std::vector<cugraph::numeric_device_span_t> edgelist_property_spans{};
 
   if (edgelist_weights) {
     edgelist_property_spans.push_back(
@@ -1041,8 +1041,8 @@ create_graph_from_edgelist_impl(
                      : raft::device_span<vertex_t>{edgelist_srcs.data(), edgelist_srcs.size()},
     store_transposed ? raft::device_span<vertex_t>{edgelist_srcs.data(), edgelist_srcs.size()}
                      : raft::device_span<vertex_t>{edgelist_dsts.data(), edgelist_dsts.size()},
-    raft::host_span<cugraph::variant::device_spans_t>{edgelist_property_spans.data(),
-                                                      edgelist_property_spans.size()},
+    raft::host_span<cugraph::numeric_device_span_t>{edgelist_property_spans.data(),
+                                                    edgelist_property_spans.size()},
     true);
 
   std::vector<size_t> h_edge_counts(d_edge_counts.size());
@@ -1389,7 +1389,7 @@ create_graph_from_edgelist_impl(
   // IDs).
   std::vector<std::vector<edge_t>> edgelist_edge_offset_vectors(num_chunks);
   for (size_t i = 0; i < num_chunks; ++i) {  // iterate over input edge chunks
-    std::vector<cugraph::variant::device_spans_t> this_chunk_edge_properties{};
+    std::vector<cugraph::numeric_device_span_t> this_chunk_edge_properties{};
 
     if (edgelist_weights) {
       this_chunk_edge_properties.push_back(
@@ -1421,8 +1421,8 @@ create_graph_from_edgelist_impl(
         store_transposed
           ? raft::device_span<vertex_t>{edgelist_srcs[i].data(), edgelist_dsts[i].size()}
           : raft::device_span<vertex_t>{edgelist_dsts[i].data(), edgelist_dsts[i].size()},
-        raft::host_span<cugraph::variant::device_spans_t>{this_chunk_edge_properties.data(),
-                                                          this_chunk_edge_properties.size()},
+        raft::host_span<cugraph::numeric_device_span_t>{this_chunk_edge_properties.data(),
+                                                        this_chunk_edge_properties.size()},
         true);
 
     std::vector<size_t> h_this_chunk_edge_counts(d_this_chunk_edge_counts.size());

@@ -128,7 +128,7 @@ class Tests_MGHasEdgeAndComputeMultiplicity
         vertex_t>(*handle_,
                   std::move(store_transposed ? d_mg_edge_dsts : d_mg_edge_srcs),
                   std::move(store_transposed ? d_mg_edge_srcs : d_mg_edge_dsts),
-                  std::vector<cugraph::variant::device_uvectors_t>{},
+                  std::vector<cugraph::numeric_device_uvector_t>{},
                   mg_graph_view.vertex_partition_range_lasts());
 
     // 3. run MG has_edge & compute_multiplicity

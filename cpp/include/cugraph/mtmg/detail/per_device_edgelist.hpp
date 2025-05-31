@@ -301,7 +301,7 @@ class per_device_edgelist_t {
       if (edge_end_time_) resize_and_copy_buffers(*edge_end_time_, total_size, stream);
     }
 
-    std::vector<cugraph::variant::device_uvectors_t> tmp_edge_properties{};
+    std::vector<cugraph::numeric_device_uvector_t> tmp_edge_properties{};
     if (wgt_) tmp_edge_properties.push_back(std::move((*wgt_)[0]));
     if (edge_id_) tmp_edge_properties.push_back(std::move((*edge_id_)[0]));
     if (edge_type_) tmp_edge_properties.push_back(std::move((*edge_type_)[0]));

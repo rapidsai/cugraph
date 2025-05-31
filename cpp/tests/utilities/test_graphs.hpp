@@ -434,7 +434,7 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
       }
 
       if (multi_gpu && shuffle) {
-        std::vector<cugraph::variant::device_uvectors_t> tmp_edge_properties{};
+        std::vector<cugraph::numeric_device_uvector_t> tmp_edge_properties{};
         if (tmp_weights_v) tmp_edge_properties.push_back(std::move(*tmp_weights_v));
 
         std::tie(tmp_src_v, tmp_dst_v, tmp_edge_properties, std::ignore) =

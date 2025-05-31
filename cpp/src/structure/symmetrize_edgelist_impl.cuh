@@ -714,7 +714,7 @@ symmetrize_edgelist(raft::handle_t const& handle,
     bool has_edge_start_times{false};
     bool has_edge_end_times{false};
 
-    std::vector<cugraph::variant::device_uvectors_t> upper_triangular_edge_properties{};
+    std::vector<cugraph::numeric_device_uvector_t> upper_triangular_edge_properties{};
 
     if (upper_triangular_weights) {
       has_weights = true;
@@ -1031,7 +1031,7 @@ symmetrize_edgelist(raft::handle_t const& handle,
     bool has_edge_start_times{false};
     bool has_edge_end_times{false};
 
-    std::vector<cugraph::variant::device_uvectors_t> upper_triangular_edge_properties{};
+    std::vector<cugraph::numeric_device_uvector_t> upper_triangular_edge_properties{};
 
     if (upper_triangular_weights) {
       has_weights = true;

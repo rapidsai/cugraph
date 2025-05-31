@@ -764,7 +764,7 @@ class Tests_GRAPH500_MGBFS
           cugraph::shuffle_ext_edges(*handle_,
                                      std::move(src_chunks[i]),
                                      std::move(dst_chunks[i]),
-                                     std::vector<cugraph::variant::device_uvectors_t>{},
+                                     std::vector<cugraph::numeric_device_uvector_t>{},
                                      store_transposed);
       }
 
@@ -1993,7 +1993,7 @@ class Tests_GRAPH500_MGBFS
               *handle_,
               std::move(query_preds),
               std::move(query_vertices),
-              std::vector<cugraph::variant::device_uvectors_t>{},
+              std::vector<cugraph::numeric_device_uvector_t>{},
               mg_subgraph_view.vertex_partition_range_lasts());
 
           auto flags = mg_subgraph_view.has_edge(

@@ -15,6 +15,7 @@
  */
 #pragma once
 
+#include <cugraph/edge_property.hpp>
 #include <cugraph/utilities/error.hpp>
 
 #include <raft/core/device_span.hpp>
@@ -24,26 +25,36 @@
 #include <variant>
 
 namespace cugraph {
-namespace variant {
 
-using device_uvectors_t    = std::variant<rmm::device_uvector<float>,
-                                          rmm::device_uvector<double>,
-                                          rmm::device_uvector<int32_t>,
-                                          rmm::device_uvector<int64_t>,
-                                          rmm::device_uvector<size_t>>;
-using device_spans_t       = std::variant<raft::device_span<float>,
-                                          raft::device_span<double>,
-                                          raft::device_span<int32_t>,
-                                          raft::device_span<int64_t>,
-                                          raft::device_span<size_t>>;
-using const_device_spans_t = std::variant<raft::device_span<float const>,
-                                          raft::device_span<double const>,
-                                          raft::device_span<int32_t const>,
-                                          raft::device_span<int64_t const>,
-                                          raft::device_span<size_t const>>;
+using numeric_device_uvector_t    = std::variant<std::monostate,
+                                                 rmm::device_uvector<float>,
+                                                 rmm::device_uvector<double>,
+                                                 rmm::device_uvector<int32_t>,
+                                                 rmm::device_uvector<int64_t>,
+                                                 rmm::device_uvector<size_t>>;
+using numeric_device_span_t       = std::variant<std::monostate,
+                                                 raft::device_span<float>,
+                                                 raft::device_span<double>,
+                                                 raft::device_span<int32_t>,
+                                                 raft::device_span<int64_t>,
+                                                 raft::device_span<size_t>>;
+using const_numeric_device_span_t = std::variant<std::monostate,
+                                                 raft::device_span<float const>,
+                                                 raft::device_span<double const>,
+                                                 raft::device_span<int32_t const>,
+                                                 raft::device_span<int64_t const>,
+                                                 raft::device_span<size_t const>>;
+
+template <typename edge_t>
+using edge_property_views_t = std::variant<std::monostate,
+                                           cugraph::edge_property_view_t<edge_t, float const*>,
+                                           cugraph::edge_property_view_t<edge_t, double const*>,
+                                           cugraph::edge_property_view_t<edge_t, int32_t const*>,
+                                           cugraph::edge_property_view_t<edge_t, int64_t const*>,
+                                           cugraph::edge_property_view_t<edge_t, size_t const*>>;
 
 template <typename func_t>
-auto variant_type_dispatch(device_uvectors_t& property, func_t func)
+auto variant_type_dispatch(numeric_device_uvector_t& property, func_t func)
 {
   if (std::holds_alternative<rmm::device_uvector<float>>(property)) {
     auto& prop = std::get<rmm::device_uvector<float>>(property);
@@ -66,7 +77,7 @@ auto variant_type_dispatch(device_uvectors_t& property, func_t func)
 }
 
 template <typename func_t>
-auto variant_type_dispatch(device_uvectors_t const& property, func_t func)
+auto variant_type_dispatch(numeric_device_uvector_t const& property, func_t func)
 {
   if (std::holds_alternative<rmm::device_uvector<float>>(property)) {
     auto& prop = std::get<rmm::device_uvector<float>>(property);
@@ -89,7 +100,7 @@ auto variant_type_dispatch(device_uvectors_t const& property, func_t func)
 }
 
 template <typename func_t>
-auto variant_type_dispatch(device_spans_t& property, func_t func)
+auto variant_type_dispatch(numeric_device_span_t& property, func_t func)
 {
   if (std::holds_alternative<raft::device_span<float>>(property)) {
     auto& prop = std::get<raft::device_span<float>>(property);
@@ -112,7 +123,7 @@ auto variant_type_dispatch(device_spans_t& property, func_t func)
 }
 
 template <typename func_t>
-auto variant_type_dispatch(const_device_spans_t& property, func_t func)
+auto variant_type_dispatch(const_numeric_device_span_t& property, func_t func)
 {
   if (std::holds_alternative<raft::device_span<float const>>(property)) {
     auto& prop = std::get<raft::device_span<float const>>(property);
@@ -128,6 +139,33 @@ auto variant_type_dispatch(const_device_spans_t& property, func_t func)
     return func(prop);
   } else if (std::holds_alternative<raft::device_span<size_t const>>(property)) {
     auto& prop = std::get<raft::device_span<size_t const>>(property);
+    return func(prop);
+  }
+
+  CUGRAPH_FAIL("unsupported variant type -- shouldn't happen");
+}
+
+template <typename edge_t, typename func_t>
+auto variant_type_dispatch(edge_property_views_t<edge_t>& property, func_t func)
+{
+  if (std::holds_alternative<cugraph::edge_property_view_t<edge_t, float const*>>(property)) {
+    auto& prop = std::get<cugraph::edge_property_view_t<edge_t, float const*>>(property);
+    return func(prop);
+  } else if (std::holds_alternative<cugraph::edge_property_view_t<edge_t, double const*>>(
+               property)) {
+    auto& prop = std::get<cugraph::edge_property_view_t<edge_t, double const*>>(property);
+    return func(prop);
+  } else if (std::holds_alternative<cugraph::edge_property_view_t<edge_t, int32_t const*>>(
+               property)) {
+    auto& prop = std::get<cugraph::edge_property_view_t<edge_t, int32_t const*>>(property);
+    return func(prop);
+  } else if (std::holds_alternative<cugraph::edge_property_view_t<edge_t, int64_t const*>>(
+               property)) {
+    auto& prop = std::get<cugraph::edge_property_view_t<edge_t, int64_t const*>>(property);
+    return func(prop);
+  } else if (std::holds_alternative<cugraph::edge_property_view_t<edge_t, size_t const*>>(
+               property)) {
+    auto& prop = std::get<cugraph::edge_property_view_t<edge_t, size_t const*>>(property);
     return func(prop);
   }
 
@@ -152,13 +190,21 @@ struct variant_size {
   }
 };
 
-inline device_spans_t make_span(device_uvectors_t& v)
+inline numeric_device_span_t make_numeric_device_span(numeric_device_uvector_t& v)
 {
   return variant_type_dispatch(v, [](auto& v) {
     using T = typename std::remove_reference<decltype(v)>::type::value_type;
-    return static_cast<device_spans_t>(raft::device_span<T>(v.data(), v.size()));
+    return static_cast<numeric_device_span_t>(raft::device_span<T>(v.data(), v.size()));
   });
 }
 
-}  // namespace variant
+inline std::vector<numeric_device_span_t> make_numeric_device_span(
+  std::vector<numeric_device_uvector_t>& v)
+{
+  std::vector<numeric_device_span_t> results(v.size());
+  std::transform(
+    v.begin(), v.end(), results.begin(), [](auto& c) { return make_numeric_device_span(c); });
+  return results;
+}
+
 }  // namespace cugraph

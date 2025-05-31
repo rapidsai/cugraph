@@ -89,7 +89,7 @@ transpose_graph_storage_impl(raft::handle_t const& handle,
   graph = graph_t<vertex_t, edge_t, store_transposed, multi_gpu>(handle);
 
   // FIXME:  Add support for edge types
-  std::vector<cugraph::variant::device_uvectors_t> edgelist_edge_properties{};
+  std::vector<cugraph::numeric_device_uvector_t> edgelist_edge_properties{};
   if (edgelist_weights) edgelist_edge_properties.push_back(std::move(*edgelist_weights));
 
   std::tie(edgelist_dsts, edgelist_srcs, edgelist_edge_properties, std::ignore) =

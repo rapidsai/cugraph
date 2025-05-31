@@ -47,7 +47,7 @@ rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
   raft::handle_t const& handle,
   raft::device_span<vertex_t> edgelist_majors,
   raft::device_span<vertex_t> edgelist_minors,
-  raft::host_span<cugraph::variant::device_spans_t> edgelist_properties,
+  raft::host_span<cugraph::numeric_device_span_t> edgelist_properties,
   bool groupby_and_count_local_partition_by_minor)
 {
   auto& comm                 = handle.get_comms();
@@ -63,8 +63,7 @@ rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
   size_t element_size = sizeof(vertex_t) * 2;
 
   if (edgelist_properties.size() == 1) {
-    element_size += cugraph::variant::variant_type_dispatch(edgelist_properties[0],
-                                                            cugraph::variant::variant_size{});
+    element_size += cugraph::variant_type_dispatch(edgelist_properties[0], cugraph::variant_size{});
   } else if (edgelist_properties.size() > 1) {
     element_size += sizeof(size_t);
   }
@@ -121,7 +120,7 @@ rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
                                           handle.get_stream());
     }
   } else if (edgelist_properties.size() == 1) {
-    result = cugraph::variant::variant_type_dispatch(
+    result = cugraph::variant_type_dispatch(
       edgelist_properties[0],
       [&handle,
        &pair_first,
@@ -172,24 +171,23 @@ rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
                                           handle.get_stream());
     }
 
-    std::for_each(edgelist_properties.begin(),
-                  edgelist_properties.end(),
-                  [&property_position, &handle](auto& property) {
-                    cugraph::variant::variant_type_dispatch(
-                      property, [&handle, &property_position](auto& prop) {
-                        using T = typename std::remove_reference<decltype(prop)>::type::value_type;
-                        rmm::device_uvector<T> tmp(prop.size(), handle.get_stream());
+    std::for_each(
+      edgelist_properties.begin(),
+      edgelist_properties.end(),
+      [&property_position, &handle](auto& property) {
+        cugraph::variant_type_dispatch(property, [&handle, &property_position](auto& prop) {
+          using T = typename std::remove_reference<decltype(prop)>::type::value_type;
+          rmm::device_uvector<T> tmp(prop.size(), handle.get_stream());
 
-                        thrust::gather(handle.get_thrust_policy(),
-                                       property_position.begin(),
-                                       property_position.end(),
-                                       prop.begin(),
-                                       tmp.begin());
+          thrust::gather(handle.get_thrust_policy(),
+                         property_position.begin(),
+                         property_position.end(),
+                         prop.begin(),
+                         tmp.begin());
 
-                        thrust::copy(
-                          handle.get_thrust_policy(), tmp.begin(), tmp.end(), prop.begin());
-                      });
-                  });
+          thrust::copy(handle.get_thrust_policy(), tmp.begin(), tmp.end(), prop.begin());
+        });
+      });
   }
 
   return result;

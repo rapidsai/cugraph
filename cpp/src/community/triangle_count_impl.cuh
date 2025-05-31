@@ -448,7 +448,7 @@ void triangle_count(raft::handle_t const& handle,
         shuffle_ext_edges(handle,
                           std::move(srcs),
                           std::move(dsts),
-                          std::vector<cugraph::variant::device_uvectors_t>{},
+                          std::vector<cugraph::numeric_device_uvector_t>{},
                           false);
     }
 
