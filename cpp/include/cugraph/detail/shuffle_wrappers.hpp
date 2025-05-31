@@ -15,7 +15,7 @@
  */
 #pragma once
 
-#include <cugraph/variant/edge_properties.hpp>
+#include <cugraph/edge_properties.hpp>
 
 #include <raft/core/handle.hpp>
 #include <raft/core/host_span.hpp>

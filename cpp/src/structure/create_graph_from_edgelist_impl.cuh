@@ -21,6 +21,7 @@
 
 #include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
+#include <cugraph/edge_properties.hpp>
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
@@ -29,7 +30,6 @@
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
-#include <cugraph/variant/edge_properties.hpp>
 
 #include <raft/core/handle.hpp>
 

@@ -23,11 +23,11 @@
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/detail/shuffle_wrappers.hpp>
+#include <cugraph/edge_properties.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
-#include <cugraph/variant/edge_properties.hpp>
 
 #include <cuda/std/iterator>
 #include <cuda/std/optional>
