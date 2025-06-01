@@ -189,6 +189,9 @@ class edge_property_t {
   std::vector<edge_type> edge_partition_edge_counts_{};
 };
 
+// multi-edge index to index a specific edge (along with source & vertex IDs) in multi-graphs; note
+// that multi-edge indices may not be consecutive integers starting from 0 if an edge mask is
+// attached to a graph_view object.
 template <typename edge_t, typename vertex_t>
 class edge_multi_index_property_t {
  public:
