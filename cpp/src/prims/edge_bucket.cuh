@@ -299,6 +299,10 @@ class edge_bucket_t {
 
   auto src_end() { return (src_major ? majors_.begin() : minors_.begin()) + size(); }
 
+  vertex_t const* src_data() const { return src_major ? majors_.data() : minors_.data(); }
+
+  vertex_t* src_data() { return src_major ? majors_.data() : minors_.data(); }
+
   auto const dst_begin() const { return src_major ? minors_.begin() : majors_.begin(); }
 
   auto dst_begin() { return src_major ? minors_.begin() : majors_.begin(); }
@@ -306,6 +310,10 @@ class edge_bucket_t {
   auto const dst_end() const { return (src_major ? minors_.begin() : majors_.begin()) + size(); }
 
   auto dst_end() { return (src_major ? minors_.begin() : majors_.begin()) + size(); }
+
+  vertex_t const* dst_data() const { return src_major ? minors_.data() : majors_.data(); }
+
+  vertex_t* dst_data() { return src_major ? minors_.data() : majors_.data(); }
 
   auto const multi_edge_index_begin() const
   {
@@ -326,6 +334,16 @@ class edge_bucket_t {
   auto multi_edge_index_end()
   {
     return multi_edge_indices_ ? std::make_optional(multi_edge_indices_->begin() + size())
+                               : std::nullopt;
+  }
+
+  std::optional<edge_t const*> multi_edge_index_data() const {
+    return multi_edge_indices_ ? std::make_optional(multi_edge_indices_->data())
+                               : std::nullopt;
+  }
+
+  std::optional<edge_t*> multi_edge_index_data() {
+    return multi_edge_indices_ ? std::make_optional(multi_edge_indices_->data())
                                : std::nullopt;
   }
 
