@@ -524,6 +524,13 @@ void transform_e(raft::handle_t const& handle,
     CUGRAPH_EXPECTS(
       thrust::is_sorted(handle.get_thrust_policy(), edge_first, edge_first + edge_list.size()),
       "Invalid input arguments: edge_list is not sorted.");
+    auto num_uniques = static_cast<size_t>(
+      thrust::count_if(handle.get_thrust_policy(),
+                       thrust::make_counting_iterator(size_t{0}),
+                       thrust::make_counting_iterator(edge_list.size()),
+                       detail::is_first_in_run_t<decltype(edge_first)>{edge_first}));
+    CUGRAPH_EXPECTS(num_uniques == edge_list.size(),
+                    "Invalid input arguments: edgelist has duplicates.");
   }
 
   std::vector<size_t> edge_partition_offsets(graph_view.number_of_local_edge_partitions() + 1, 0);
