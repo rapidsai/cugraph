@@ -33,7 +33,7 @@ std::tuple<rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<vertex_t>>>
 random_walk_shuffle_input(raft::handle_t const& handle,
                           rmm::device_uvector<vertex_t>&& vertices,
-                          rmm::device_uvector<int>&& gpus,
+                          rmm::device_uvector<int>&& output_gpus,
                           rmm::device_uvector<size_t>&& positions,
                           std::optional<rmm::device_uvector<vertex_t>>&& previous_vertices,
                           raft::device_span<vertex_t const> vertex_partition_range_lasts)
@@ -47,29 +47,32 @@ random_walk_shuffle_input(raft::handle_t const& handle,
     vertex_partition_range_lasts, major_comm_size, minor_comm_size};
 
   if (previous_vertices) {
-    std::forward_as_tuple(std::tie(vertices, gpus, positions, previous_vertices), std::ignore) =
+    std::forward_as_tuple(std::tie(vertices, output_gpus, positions, previous_vertices),
+                          std::ignore) =
       cugraph::groupby_gpu_id_and_shuffle_values(
         handle.get_comms(),
         thrust::make_zip_iterator(
-          vertices.begin(), gpus.begin(), positions.begin(), previous_vertices->begin()),
+          vertices.begin(), output_gpus.begin(), positions.begin(), previous_vertices->begin()),
         thrust::make_zip_iterator(
-          vertices.end(), gpus.end(), positions.end(), previous_vertices->end()),
+          vertices.end(), output_gpus.end(), positions.end(), previous_vertices->end()),
         [key_func] __device__(auto val) { return key_func(thrust::get<0>(val)); },
         handle.get_stream());
 
   } else {
     // Shuffle vertices to correct GPU to compute random indices
-    std::forward_as_tuple(std::tie(vertices, gpus, positions), std::ignore) =
+    std::forward_as_tuple(std::tie(vertices, output_gpus, positions), std::ignore) =
       cugraph::groupby_gpu_id_and_shuffle_values(
         handle.get_comms(),
-        thrust::make_zip_iterator(vertices.begin(), gpus.begin(), positions.begin()),
-        thrust::make_zip_iterator(vertices.end(), gpus.end(), positions.end()),
+        thrust::make_zip_iterator(vertices.begin(), output_gpus.begin(), positions.begin()),
+        thrust::make_zip_iterator(vertices.end(), output_gpus.end(), positions.end()),
         [key_func] __device__(auto val) { return key_func(thrust::get<0>(val)); },
         handle.get_stream());
   }
 
-  return std::make_tuple(
-    std::move(vertices), std::move(gpus), std::move(positions), std::move(previous_vertices));
+  return std::make_tuple(std::move(vertices),
+                         std::move(output_gpus),
+                         std::move(positions),
+                         std::move(previous_vertices));
 }
 
 template <typename vertex_t, typename weight_t>
@@ -81,19 +84,19 @@ std::tuple<rmm::device_uvector<vertex_t>,
 random_walk_shuffle_output(raft::handle_t const& handle,
                            rmm::device_uvector<vertex_t>&& vertices,
                            std::optional<rmm::device_uvector<weight_t>>&& weights,
-                           rmm::device_uvector<int>&& gpus,
+                           rmm::device_uvector<int>&& output_gpus,
                            rmm::device_uvector<size_t>&& positions,
                            std::optional<rmm::device_uvector<vertex_t>>&& previous_vertices)
 {
   if (previous_vertices) {
     if (weights) {
-      auto current_iter = thrust::make_zip_iterator(gpus.begin(),
+      auto current_iter = thrust::make_zip_iterator(output_gpus.begin(),
                                                     vertices.begin(),
                                                     positions.begin(),
                                                     weights->begin(),
                                                     previous_vertices->begin());
 
-      std::forward_as_tuple(std::tie(gpus, vertices, positions, weights, previous_vertices),
+      std::forward_as_tuple(std::tie(output_gpus, vertices, positions, weights, previous_vertices),
                             std::ignore) =
         cugraph::groupby_gpu_id_and_shuffle_values(
           handle.get_comms(),
@@ -103,9 +106,10 @@ random_walk_shuffle_output(raft::handle_t const& handle,
           handle.get_stream());
     } else {
       auto current_iter = thrust::make_zip_iterator(
-        gpus.begin(), vertices.begin(), positions.begin(), previous_vertices->begin());
+        output_gpus.begin(), vertices.begin(), positions.begin(), previous_vertices->begin());
 
-      std::forward_as_tuple(std::tie(gpus, vertices, positions, previous_vertices), std::ignore) =
+      std::forward_as_tuple(std::tie(output_gpus, vertices, positions, previous_vertices),
+                            std::ignore) =
         cugraph::groupby_gpu_id_and_shuffle_values(
           handle.get_comms(),
           current_iter,
@@ -116,9 +120,9 @@ random_walk_shuffle_output(raft::handle_t const& handle,
   } else {
     if (weights) {
       auto current_iter = thrust::make_zip_iterator(
-        gpus.begin(), vertices.begin(), positions.begin(), weights->begin());
+        output_gpus.begin(), vertices.begin(), positions.begin(), weights->begin());
 
-      std::forward_as_tuple(std::tie(gpus, vertices, positions, weights), std::ignore) =
+      std::forward_as_tuple(std::tie(output_gpus, vertices, positions, weights), std::ignore) =
         cugraph::groupby_gpu_id_and_shuffle_values(
           handle.get_comms(),
           current_iter,
@@ -127,9 +131,9 @@ random_walk_shuffle_output(raft::handle_t const& handle,
           handle.get_stream());
     } else {
       auto current_iter =
-        thrust::make_zip_iterator(gpus.begin(), vertices.begin(), positions.begin());
+        thrust::make_zip_iterator(output_gpus.begin(), vertices.begin(), positions.begin());
 
-      std::forward_as_tuple(std::tie(gpus, vertices, positions), std::ignore) =
+      std::forward_as_tuple(std::tie(output_gpus, vertices, positions), std::ignore) =
         cugraph::groupby_gpu_id_and_shuffle_values(
           handle.get_comms(),
           current_iter,
@@ -141,7 +145,7 @@ random_walk_shuffle_output(raft::handle_t const& handle,
 
   return std::make_tuple(std::move(vertices),
                          std::move(weights),
-                         std::move(gpus),
+                         std::move(output_gpus),
                          std::move(positions),
                          std::move(previous_vertices));
 }

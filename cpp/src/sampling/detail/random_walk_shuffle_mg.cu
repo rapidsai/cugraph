@@ -25,7 +25,7 @@ template std::tuple<rmm::device_uvector<int32_t>,
                     std::optional<rmm::device_uvector<int32_t>>>
 random_walk_shuffle_input(raft::handle_t const& handle,
                           rmm::device_uvector<int32_t>&& vertices,
-                          rmm::device_uvector<int>&& gpus,
+                          rmm::device_uvector<int>&& output_gpus,
                           rmm::device_uvector<size_t>&& positions,
                           std::optional<rmm::device_uvector<int32_t>>&& previous_vertices,
                           raft::device_span<int32_t const> vertex_partition_range_lasts);
@@ -36,7 +36,7 @@ template std::tuple<rmm::device_uvector<int64_t>,
                     std::optional<rmm::device_uvector<int64_t>>>
 random_walk_shuffle_input(raft::handle_t const& handle,
                           rmm::device_uvector<int64_t>&& vertices,
-                          rmm::device_uvector<int>&& gpus,
+                          rmm::device_uvector<int>&& output_gpus,
                           rmm::device_uvector<size_t>&& positions,
                           std::optional<rmm::device_uvector<int64_t>>&& previous_vertices,
                           raft::device_span<int64_t const> vertex_partition_range_lasts);
@@ -49,7 +49,7 @@ template std::tuple<rmm::device_uvector<int32_t>,
 random_walk_shuffle_output(raft::handle_t const& handle,
                            rmm::device_uvector<int32_t>&& vertices,
                            std::optional<rmm::device_uvector<float>>&& weights,
-                           rmm::device_uvector<int>&& gpus,
+                           rmm::device_uvector<int>&& output_gpus,
                            rmm::device_uvector<size_t>&& positions,
                            std::optional<rmm::device_uvector<int32_t>>&& previous_vertices);
 
@@ -61,7 +61,7 @@ template std::tuple<rmm::device_uvector<int32_t>,
 random_walk_shuffle_output(raft::handle_t const& handle,
                            rmm::device_uvector<int32_t>&& vertices,
                            std::optional<rmm::device_uvector<double>>&& weights,
-                           rmm::device_uvector<int>&& gpus,
+                           rmm::device_uvector<int>&& output_gpus,
                            rmm::device_uvector<size_t>&& positions,
                            std::optional<rmm::device_uvector<int32_t>>&& previous_vertices);
 
@@ -73,7 +73,7 @@ template std::tuple<rmm::device_uvector<int64_t>,
 random_walk_shuffle_output(raft::handle_t const& handle,
                            rmm::device_uvector<int64_t>&& vertices,
                            std::optional<rmm::device_uvector<float>>&& weights,
-                           rmm::device_uvector<int>&& gpus,
+                           rmm::device_uvector<int>&& output_gpus,
                            rmm::device_uvector<size_t>&& positions,
                            std::optional<rmm::device_uvector<int64_t>>&& previous_vertices);
 
@@ -85,7 +85,7 @@ template std::tuple<rmm::device_uvector<int64_t>,
 random_walk_shuffle_output(raft::handle_t const& handle,
                            rmm::device_uvector<int64_t>&& vertices,
                            std::optional<rmm::device_uvector<double>>&& weights,
-                           rmm::device_uvector<int>&& gpus,
+                           rmm::device_uvector<int>&& output_gpus,
                            rmm::device_uvector<size_t>&& positions,
                            std::optional<rmm::device_uvector<int64_t>>&& previous_vertices);
 

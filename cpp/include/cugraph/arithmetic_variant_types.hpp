@@ -237,7 +237,7 @@ inline arithmetic_device_span_t make_arithmetic_device_span(arithmetic_device_uv
   });
 }
 
-inline std::vector<arithmetic_device_span_t> make_arithmetic_device_span(
+inline std::vector<arithmetic_device_span_t> make_arithmetic_device_span_vector(
   std::vector<arithmetic_device_uvector_t>& v)
 {
   std::vector<arithmetic_device_span_t> results(v.size());

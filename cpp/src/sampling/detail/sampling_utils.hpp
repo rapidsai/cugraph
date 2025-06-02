@@ -338,13 +338,13 @@ rmm::device_uvector<int32_t> flatten_label_map(
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param vertices Device vector for the vertices
- * @param gpus Device vector for the GPU for the vertex
+ * @param output_gpus Device vector for the output GPU for the vertex
  * @param positions Device vector for the position in the input array
  * @param previous_vertices Optional device vector for the previous vertex in the random walk
  * @param vertex_partition_range_lasts Last value of each GPUs partition range
  *
- * @returns Tuple of device uvectors containing vertices, gpus, positions and optional previous
- * vertices
+ * @returns Tuple of device uvectors containing vertices, output_gpus, positions and optional
+ * previous vertices
  */
 template <typename vertex_t>
 std::tuple<rmm::device_uvector<vertex_t>,
@@ -353,13 +353,14 @@ std::tuple<rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<vertex_t>>>
 random_walk_shuffle_input(raft::handle_t const& handle,
                           rmm::device_uvector<vertex_t>&& vertices,
-                          rmm::device_uvector<int>&& gpus,
+                          rmm::device_uvector<int>&& output_gpus,
                           rmm::device_uvector<size_t>&& positions,
                           std::optional<rmm::device_uvector<vertex_t>>&& previous_vertices,
                           raft::device_span<vertex_t const> vertex_partition_range_lasts);
 
 /**
- * @brief Shuffle random walk output to proper GPU
+ * @brief Shuffle random walk output to proper GPU.  Results from a random walk must be shuffled
+ * back to the GPU where the walk was initiated, which we store in @p output_gpus.
  *
  * @tparam vertex_t - Vertex type
  * @tparam weight_t - Weight type
@@ -368,12 +369,12 @@ random_walk_shuffle_input(raft::handle_t const& handle,
  * handles to various CUDA libraries) to run graph algorithms.
  * @param vertices Device vector for the vertices
  * @param weights Optional device vector for the weights
- * @param gpus Device vector for the GPU for the vertex
+ * @param output_gpus Device vector for the output GPU for the vertex
  * @param positions Device vector for the position in the input array
  * @param previous_vertices Optional device vector for the previous vertex in the random walk
  *
- * @returns Tuple of device uvectors containing vertices, optional weights, gpus, positions and
- * optional previous vertices
+ * @returns Tuple of device uvectors containing vertices, optional weights, output_gpus, positions
+ * and optional previous vertices
  */
 template <typename vertex_t, typename weight_t>
 std::tuple<rmm::device_uvector<vertex_t>,
@@ -384,7 +385,7 @@ std::tuple<rmm::device_uvector<vertex_t>,
 random_walk_shuffle_output(raft::handle_t const& handle,
                            rmm::device_uvector<vertex_t>&& vertices,
                            std::optional<rmm::device_uvector<weight_t>>&& weights,
-                           rmm::device_uvector<int>&& gpus,
+                           rmm::device_uvector<int>&& output_gpus,
                            rmm::device_uvector<size_t>&& positions,
                            std::optional<rmm::device_uvector<vertex_t>>&& previous_vertices);
 

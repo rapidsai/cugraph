@@ -124,9 +124,9 @@ rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
     result = cugraph::variant_type_dispatch(
       edgelist_properties[0],
       [&handle,
-       &pair_first,
+       pair_first,
        size = edgelist_majors.size(),
-       &local_edge_partition_include_minor_op,
+       local_edge_partition_include_minor_op,
        local_edge_partition_op,
        comm_size,
        mem_frugal_threshold,

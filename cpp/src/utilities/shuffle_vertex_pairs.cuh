@@ -292,8 +292,6 @@ shuffle_ext_edges(raft::handle_t const& handle,
   auto majors = store_transposed ? std::move(edge_dsts) : std::move(edge_srcs);
   auto minors = store_transposed ? std::move(edge_srcs) : std::move(edge_dsts);
 
-#if 1
-
   std::vector<size_t> rx_counts{};
   std::tie(majors, minors, edge_properties, rx_counts) =
     detail::shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning(
@@ -301,71 +299,6 @@ shuffle_ext_edges(raft::handle_t const& handle,
 
   edge_srcs = store_transposed ? std::move(minors) : std::move(majors);
   edge_dsts = store_transposed ? std::move(majors) : std::move(minors);
-
-#else
-
-  bool has_weights{false};
-  bool has_edge_ids{false};
-  bool has_edge_types{false};
-  bool has_edge_start_times{false};
-  bool has_edge_end_times{false};
-
-  std::vector<cugraph::arithmetic_device_uvector_t> edge_properties{};
-
-  if (edge_weights) {
-    has_weights = true;
-    edge_properties.push_back(std::move(*edge_weights));
-  }
-  if (edge_ids) {
-    has_edge_ids = true;
-    edge_properties.push_back(std::move(*edge_ids));
-  }
-
-  if (edge_types) {
-    has_edge_types = true;
-    edge_properties.push_back(std::move(*edge_types));
-  }
-
-  if (edge_start_times) {
-    has_edge_start_times = true;
-    edge_properties.push_back(std::move(*edge_start_times));
-  }
-
-  if (edge_end_times) {
-    has_edge_end_times = true;
-    edge_properties.push_back(std::move(*edge_end_times));
-  }
-
-  std::vector<size_t> rx_counts{};
-  std::tie(majors, minors, edge_properties, rx_counts) =
-    detail::shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning(
-      handle, std::move(majors), std::move(minors), std::move(edge_properties));
-
-  size_t pos = 0;
-
-  edge_weights = has_weights ? std::make_optional(std::get<rmm::device_uvector<weight_t>>(
-                                 std::move(edge_properties[pos++])))
-                             : std::nullopt;
-  edge_ids =
-    has_edge_ids
-      ? std::make_optional(std::get<rmm::device_uvector<edge_t>>(std::move(edge_properties[pos++])))
-      : std::nullopt;
-  edge_types       = has_edge_types ? std::make_optional(std::get<rmm::device_uvector<edge_type_t>>(
-                                  std::move(edge_properties[pos++])))
-                                    : std::nullopt;
-  edge_start_times = has_edge_start_times
-                       ? std::make_optional(std::get<rmm::device_uvector<edge_time_t>>(
-                           std::move(edge_properties[pos++])))
-                       : std::nullopt;
-  edge_end_times   = has_edge_end_times
-                       ? std::make_optional(std::get<rmm::device_uvector<edge_time_t>>(
-                         std::move(edge_properties[pos++])))
-                       : std::nullopt;
-
-  edge_srcs = store_transposed ? std::move(minors) : std::move(majors);
-  edge_dsts = store_transposed ? std::move(majors) : std::move(minors);
-
-#endif
 
   return std::make_tuple(
     std::move(edge_srcs), std::move(edge_dsts), std::move(edge_properties), std::move(rx_counts));
