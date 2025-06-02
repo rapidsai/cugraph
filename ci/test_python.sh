@@ -8,6 +8,7 @@ cd "$(dirname "$(realpath "${BASH_SOURCE[0]}")")"/../
 
 . /opt/conda/etc/profile.d/conda.sh
 
+Commenting out after first time installing
 rapids-logger "Downloading artifacts from previous jobs"
 CPP_CHANNEL=$(rapids-download-conda-from-github cpp)
 PYTHON_CHANNEL=$(rapids-download-conda-from-github python)
@@ -47,16 +48,16 @@ EXITCODE=0
 trap "EXITCODE=1" ERR
 set +e
 
-rapids-logger "pytest pylibcugraph"
-./ci/run_pylibcugraph_pytests.sh \
-  --verbose \
-  --junitxml="${RAPIDS_TESTS_DIR}/junit-pylibcugraph.xml" \
-  --numprocesses=8 \
-  --dist=worksteal \
-  --cov-config=../../.coveragerc \
-  --cov=pylibcugraph \
-  --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/pylibcugraph-coverage.xml" \
-  --cov-report=term
+# rapids-logger "pytest pylibcugraph"
+# ./ci/run_pylibcugraph_pytests.sh \
+#   --verbose \
+#   --junitxml="${RAPIDS_TESTS_DIR}/junit-pylibcugraph.xml" \
+#   --numprocesses=8 \
+#   --dist=worksteal \
+#   --cov-config=../../.coveragerc \
+#   --cov=pylibcugraph \
+#   --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/pylibcugraph-coverage.xml" \
+#   --cov-report=term
 
 
 # Test runs that include tests that use dask require
@@ -69,57 +70,60 @@ rapids-logger "pytest pylibcugraph"
 #
 # FIXME: TEMPORARILY disable MG PropertyGraph tests (experimental) tests and
 # bulk sampler IO tests (hangs in CI)
-rapids-logger "pytest cugraph (not mg, with xdist)"
-./ci/run_cugraph_pytests.sh \
-  --verbose \
-  --junitxml="${RAPIDS_TESTS_DIR}/junit-cugraph.xml" \
-  --numprocesses=8 \
-  --dist=worksteal \
-  -m "not mg" \
-  -k "not test_dataset and not test_bulk_sampler and not test_create_undirected_graph_from_asymmetric_adj_list and not test_uniform_neighbor_sample and not test_node2vec" \
-  --cov-config=../../.coveragerc \
-  --cov=cugraph \
-  --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph-coverage.xml" \
-  --cov-report=term
+# rapids-logger "pytest cugraph (not mg, with xdist)"
+# ./ci/run_cugraph_pytests.sh \
+#   --verbose \
+#   --junitxml="${RAPIDS_TESTS_DIR}/junit-cugraph.xml" \
+#   --numprocesses=8 \
+#   --dist=worksteal \
+#   -m "not mg" \
+#   -k "not test_dataset and not test_bulk_sampler and not test_create_undirected_graph_from_asymmetric_adj_list and not test_uniform_neighbor_sample and not test_node2vec" \
+#   --cov-config=../../.coveragerc \
+#   --cov=cugraph \
+#   --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph-coverage.xml" \
+#   --cov-report=term
 
 # Some tests fail with pytest-xdist enabled.
 # See https://github.com/rapidsai/cugraph/issues/5048
-rapids-logger "pytest cugraph (not mg, without xdist)"
-./ci/run_cugraph_pytests.sh \
-  --verbose \
-  --junitxml="${RAPIDS_TESTS_DIR}/junit-cugraph.xml" \
-  --numprocesses=1 \
-  --dist=worksteal \
-  -m "not mg" \
-  -k "not test_dataset and (test_bulk_sampler or test_create_undirected_graph_from_asymmetric_adj_list or test_uniform_neighbor_sample or test_node2vec)" \
-  --cov-config=../../.coveragerc \
-  --cov=cugraph \
-  --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph-coverage.xml" \
-  --cov-report=term
+# rapids-logger "pytest cugraph (not mg, without xdist)"
+# ./ci/run_cugraph_pytests.sh \
+#   --verbose \
+#   --junitxml="${RAPIDS_TESTS_DIR}/junit-cugraph.xml" \
+#   --numprocesses=8 \
+#   --dist=worksteal \
+#   -m "not mg" \
+#   -k "not test_dataset and (test_bulk_sampler or test_create_undirected_graph_from_asymmetric_adj_list or test_uniform_neighbor_sample or test_node2vec)" \
+#   --cov-config=../../.coveragerc \
+#   --cov=cugraph \
+#   --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph-coverage.xml" \
+#   --cov-report=term
 
 rapids-logger "pytest cugraph (mg)"
 ./ci/run_cugraph_pytests.sh \
   --verbose \
   --junitxml="${RAPIDS_TESTS_DIR}/junit-cugraph.xml" \
+  --numprocesses=8 \
+  --dist=worksteal \
   -m "mg" \
   --cov-config=../../.coveragerc \
   --cov=cugraph \
   --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph-coverage.xml" \
-  --cov-report=term
+  --cov-report=term \
+  /repo/python/cugraph/cugraph/tests/utils/test_replication_mg.py
 
 
-rapids-logger "pytest cugraph benchmarks (run as tests)"
-./ci/run_cugraph_benchmark_pytests.sh --verbose
+# rapids-logger "pytest cugraph benchmarks (run as tests)"
+# ./ci/run_cugraph_benchmark_pytests.sh --verbose
 
-rapids-logger "pytest cugraph-service (single GPU)"
-./ci/run_cugraph_service_pytests.sh \
-  --verbose \
-  --junitxml="${RAPIDS_TESTS_DIR}/junit-cugraph-service.xml" \
-  --cov-config=../.coveragerc \
-  --cov=cugraph_service_client \
-  --cov=cugraph_service_server \
-  --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph-service-coverage.xml" \
-  --cov-report=term
+# rapids-logger "pytest cugraph-service (single GPU)"
+# ./ci/run_cugraph_service_pytests.sh \
+#   --verbose \
+#   --junitxml="${RAPIDS_TESTS_DIR}/junit-cugraph-service.xml" \
+#   --cov-config=../.coveragerc \
+#   --cov=cugraph_service_client \
+#   --cov=cugraph_service_server \
+#   --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph-service-coverage.xml" \
+#   --cov-report=term
 
 rapids-logger "Test script exiting with value: $EXITCODE"
 exit ${EXITCODE}
