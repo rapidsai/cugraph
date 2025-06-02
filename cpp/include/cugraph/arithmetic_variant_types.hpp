@@ -57,11 +57,11 @@ using edge_arithmetic_property_view_t =
 template <typename edge_t>
 using edge_arithmetic_property_mutable_view_t =
   std::variant<std::monostate,
-               cugraph::edge_property_mutable_view_t<edge_t, float const*>,
-               cugraph::edge_property_mutable_view_t<edge_t, double const*>,
-               cugraph::edge_property_mutable_view_t<edge_t, int32_t const*>,
-               cugraph::edge_property_mutable_view_t<edge_t, int64_t const*>,
-               cugraph::edge_property_mutable_view_t<edge_t, size_t const*>>;
+               cugraph::edge_property_view_t<edge_t, float*>,
+               cugraph::edge_property_view_t<edge_t, double*>,
+               cugraph::edge_property_view_t<edge_t, int32_t*>,
+               cugraph::edge_property_view_t<edge_t, int64_t*>,
+               cugraph::edge_property_view_t<edge_t, size_t*>>;
 
 template <typename func_t>
 auto variant_type_dispatch(arithmetic_device_uvector_t& property, func_t func)
@@ -178,7 +178,32 @@ auto variant_type_dispatch(edge_arithmetic_property_view_t<edge_t>& property, fu
     return func(prop);
   } else {
     CUGRAPH_EXPECTS(
-      std::holds_alternative<cugraph::edge_property_view_t<edge_t, size_t const*>>(property),
+      (std::holds_alternative<cugraph::edge_property_view_t<edge_t, size_t const*>>(property)),
+      "unsupported variant type -- shouldn't happen");
+
+    auto& prop = std::get<cugraph::edge_property_view_t<edge_t, size_t const*>>(property);
+    return func(prop);
+  }
+}
+
+template <typename edge_t, typename func_t>
+auto variant_type_dispatch(edge_arithmetic_mutable_property_view_t<edge_t>& property, func_t func)
+{
+  if (std::holds_alternative<cugraph::edge_property_view_t<edge_t, float*>>(property)) {
+    auto& prop = std::get<cugraph::edge_property_view_t<edge_t, float*>>(property);
+    return func(prop);
+  } else if (std::holds_alternative<cugraph::edge_property_view_t<edge_t, double*>>(property)) {
+    auto& prop = std::get<cugraph::edge_property_view_t<edge_t, double*>>(property);
+    return func(prop);
+  } else if (std::holds_alternative<cugraph::edge_property_view_t<edge_t, int32_t*>>(property)) {
+    auto& prop = std::get<cugraph::edge_property_view_t<edge_t, int32_t*>>(property);
+    return func(prop);
+  } else if (std::holds_alternative<cugraph::edge_property_view_t<edge_t, int64_t*>>(property)) {
+    auto& prop = std::get<cugraph::edge_property_view_t<edge_t, int64_t*>>(property);
+    return func(prop);
+  } else {
+    CUGRAPH_EXPECTS(
+      (std::holds_alternative<cugraph::edge_property_view_t<edge_t, size_t*>>(property)),
       "unsupported variant type -- shouldn't happen");
 
     auto& prop = std::get<cugraph::edge_property_view_t<edge_t, size_t const*>>(property);
