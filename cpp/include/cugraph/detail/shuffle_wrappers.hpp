@@ -15,7 +15,7 @@
  */
 #pragma once
 
-#include <cugraph/edge_properties.hpp>
+#include <cugraph/arithmetic_variant_types.hpp>
 
 #include <raft/core/handle.hpp>
 #include <raft/core/host_span.hpp>
@@ -53,13 +53,13 @@ namespace detail {
 template <typename vertex_t>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
-           std::vector<cugraph::numeric_device_uvector_t>,
+           std::vector<cugraph::arithmetic_device_uvector_t>,
            std::vector<size_t>>
 shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning(
   raft::handle_t const& handle,
   rmm::device_uvector<vertex_t>&& majors,
   rmm::device_uvector<vertex_t>&& minors,
-  std::vector<cugraph::numeric_device_uvector_t>&& edge_properties);
+  std::vector<cugraph::arithmetic_device_uvector_t>&& edge_properties);
 
 /**
  * @ingroup shuffle_wrappers_cpp
@@ -86,13 +86,13 @@ shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning(
 template <typename vertex_t>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
-           std::vector<cugraph::numeric_device_uvector_t>,
+           std::vector<cugraph::arithmetic_device_uvector_t>,
            std::vector<size_t>>
 shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning(
   raft::handle_t const& handle,
   rmm::device_uvector<vertex_t>&& majors,
   rmm::device_uvector<vertex_t>&& minors,
-  std::vector<cugraph::numeric_device_uvector_t>&& edge_properties,
+  std::vector<cugraph::arithmetic_device_uvector_t>&& edge_properties,
   raft::host_span<vertex_t const> vertex_partition_range_lasts);
 
 /**
@@ -190,7 +190,7 @@ rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
   raft::handle_t const& handle,
   raft::device_span<vertex_t> edgelist_majors,
   raft::device_span<vertex_t> edgelist_minors,
-  raft::host_span<cugraph::numeric_device_span_t> edgelist_properties,
+  raft::host_span<cugraph::arithmetic_device_span_t> edgelist_properties,
   bool groupby_and_count_local_partition_by_minor = false);
 
 /**

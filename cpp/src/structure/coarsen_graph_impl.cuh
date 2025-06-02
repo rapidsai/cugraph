@@ -346,7 +346,7 @@ coarsen_graph(raft::handle_t const& handle,
 
     // 1-2. globally shuffle
 
-    std::vector<cugraph::numeric_device_uvector_t> edgelist_properties{};
+    std::vector<cugraph::arithmetic_device_uvector_t> edgelist_properties{};
     if (edgelist_weights) edgelist_properties.push_back(std::move(*edgelist_weights));
 
     std::tie(edgelist_majors, edgelist_minors, edgelist_properties, std::ignore) =
@@ -469,7 +469,7 @@ coarsen_graph(raft::handle_t const& handle,
                                                                 reversed_edgelist_majors.begin())));
     }
 
-    std::vector<cugraph::numeric_device_uvector_t> reversed_edgelist_properties{};
+    std::vector<cugraph::arithmetic_device_uvector_t> reversed_edgelist_properties{};
     if (reversed_edgelist_weights)
       reversed_edgelist_properties.push_back(std::move(*reversed_edgelist_weights));
 

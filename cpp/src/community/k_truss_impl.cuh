@@ -464,7 +464,7 @@ k_truss(raft::handle_t const& handle,
             handle,
             std::move(std::get<0>(edgelist_to_update_count)),
             std::move(std::get<1>(edgelist_to_update_count)),
-            std::vector<cugraph::numeric_device_uvector_t>{},
+            std::vector<cugraph::arithmetic_device_uvector_t>{},
             cur_graph_view.vertex_partition_range_lasts());
       }
 
@@ -635,7 +635,7 @@ k_truss(raft::handle_t const& handle,
             handle,
             std::move(weak_edgelist_dsts),
             std::move(weak_edgelist_srcs),
-            std::vector<cugraph::numeric_device_uvector_t>{},
+            std::vector<cugraph::arithmetic_device_uvector_t>{},
             cur_graph_view.vertex_partition_range_lasts());
       }
 

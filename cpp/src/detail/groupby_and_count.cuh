@@ -18,9 +18,9 @@
 
 #include "detail/graph_partition_utils.cuh"
 
+#include <cugraph/arithmetic_variant_types.hpp>
 #include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
-#include <cugraph/edge_properties.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
@@ -47,7 +47,7 @@ rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
   raft::handle_t const& handle,
   raft::device_span<vertex_t> edgelist_majors,
   raft::device_span<vertex_t> edgelist_minors,
-  raft::host_span<cugraph::numeric_device_span_t> edgelist_properties,
+  raft::host_span<cugraph::arithmetic_device_span_t> edgelist_properties,
   bool groupby_and_count_local_partition_by_minor)
 {
   auto& comm                 = handle.get_comms();
@@ -63,7 +63,8 @@ rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
   size_t element_size = sizeof(vertex_t) * 2;
 
   if (edgelist_properties.size() == 1) {
-    element_size += cugraph::variant_type_dispatch(edgelist_properties[0], cugraph::variant_size{});
+    element_size +=
+      cugraph::variant_type_dispatch(edgelist_properties[0], cugraph::sizeof_arithmetic_element{});
   } else if (edgelist_properties.size() > 1) {
     element_size += sizeof(size_t);
   }

@@ -862,7 +862,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
           shuffle_ext_edges(handle,
                             std::move(std::get<0>(edge_buffer)),
                             std::move(std::get<1>(edge_buffer)),
-                            std::vector<cugraph::numeric_device_uvector_t>{},
+                            std::vector<cugraph::arithmetic_device_uvector_t>{},
                             GraphViewType::is_storage_transposed);
         auto edge_first = get_dataframe_buffer_begin(edge_buffer);
         auto edge_last  = get_dataframe_buffer_end(edge_buffer);

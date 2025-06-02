@@ -241,7 +241,7 @@ edge_property_t<edge_t, edge_t> edge_triangle_count_impl(
       rmm::device_uvector<vertex_t> pair_dsts(0, handle.get_stream());
       std::optional<rmm::device_uvector<edge_t>> pair_count{std::nullopt};
 
-      std::vector<cugraph::numeric_device_uvector_t> edge_properties{};
+      std::vector<cugraph::arithmetic_device_uvector_t> edge_properties{};
 
       edge_properties.push_back(
         rmm::device_uvector<edge_t>(increase_count.size(), handle.get_stream()));

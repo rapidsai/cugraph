@@ -39,7 +39,7 @@ template rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partiti
   raft::handle_t const& handle,
   raft::device_span<int64_t> edgelist_majors,
   raft::device_span<int64_t> edgelist_minors,
-  raft::host_span<cugraph::numeric_device_span_t> edgelist_properties,
+  raft::host_span<cugraph::arithmetic_device_span_t> edgelist_properties,
   bool groupby_and_counts_local_partition);
 
 }  // namespace detail

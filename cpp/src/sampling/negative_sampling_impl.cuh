@@ -335,7 +335,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> negativ
           handle,
           std::move(batch_srcs),
           std::move(batch_dsts),
-          std::vector<cugraph::numeric_device_uvector_t>{},
+          std::vector<cugraph::arithmetic_device_uvector_t>{},
           graph_view.vertex_partition_range_lasts());
     }
 

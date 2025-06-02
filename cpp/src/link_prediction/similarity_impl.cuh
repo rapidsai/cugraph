@@ -428,7 +428,7 @@ all_pairs_similarity(raft::handle_t const& handle,
             handle,
             std::move(v1),
             std::move(v2),
-            std::vector<cugraph::numeric_device_uvector_t>{},
+            std::vector<cugraph::arithmetic_device_uvector_t>{},
             vertex_partition_range_lasts);
       }
 
@@ -609,7 +609,7 @@ all_pairs_similarity(raft::handle_t const& handle,
           handle,
           std::move(v1),
           std::move(v2),
-          std::vector<cugraph::numeric_device_uvector_t>{},
+          std::vector<cugraph::arithmetic_device_uvector_t>{},
           vertex_partition_range_lasts);
     }
 

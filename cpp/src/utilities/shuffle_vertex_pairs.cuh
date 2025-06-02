@@ -18,9 +18,9 @@
 
 #include "detail/graph_partition_utils.cuh"
 
+#include <cugraph/arithmetic_variant_types.hpp>
 #include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
-#include <cugraph/edge_properties.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
@@ -50,13 +50,13 @@ struct vertex_pair_groupby_functor_t {
 template <typename vertex_t, typename func_t>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
-           std::vector<cugraph::numeric_device_uvector_t>,
+           std::vector<cugraph::arithmetic_device_uvector_t>,
            std::vector<size_t>>
 shuffle_vertex_pairs_with_values_by_gpu_id_impl(
   raft::handle_t const& handle,
   rmm::device_uvector<vertex_t>&& majors,
   rmm::device_uvector<vertex_t>&& minors,
-  std::vector<cugraph::numeric_device_uvector_t>&& edge_properties,
+  std::vector<cugraph::arithmetic_device_uvector_t>&& edge_properties,
   func_t func)
 {
   auto& comm           = handle.get_comms();
@@ -65,7 +65,8 @@ shuffle_vertex_pairs_with_values_by_gpu_id_impl(
   size_t element_size = sizeof(vertex_t) * 2;
 
   if (edge_properties.size() == 1) {
-    element_size += cugraph::variant_type_dispatch(edge_properties[0], cugraph::variant_size{});
+    element_size +=
+      cugraph::variant_type_dispatch(edge_properties[0], cugraph::sizeof_arithmetic_element{});
   } else if (edge_properties.size() > 1) {
     element_size += sizeof(size_t);
   }
@@ -213,13 +214,13 @@ namespace detail {
 template <typename vertex_t>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
-           std::vector<cugraph::numeric_device_uvector_t>,
+           std::vector<cugraph::arithmetic_device_uvector_t>,
            std::vector<size_t>>
 shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning(
   raft::handle_t const& handle,
   rmm::device_uvector<vertex_t>&& majors,
   rmm::device_uvector<vertex_t>&& minors,
-  std::vector<cugraph::numeric_device_uvector_t>&& edge_properties)
+  std::vector<cugraph::arithmetic_device_uvector_t>&& edge_properties)
 {
   auto& comm                 = handle.get_comms();
   auto const comm_size       = comm.get_size();
@@ -240,13 +241,13 @@ shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning(
 template <typename vertex_t>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
-           std::vector<cugraph::numeric_device_uvector_t>,
+           std::vector<cugraph::arithmetic_device_uvector_t>,
            std::vector<size_t>>
 shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning(
   raft::handle_t const& handle,
   rmm::device_uvector<vertex_t>&& majors,
   rmm::device_uvector<vertex_t>&& minors,
-  std::vector<cugraph::numeric_device_uvector_t>&& edge_properties,
+  std::vector<cugraph::arithmetic_device_uvector_t>&& edge_properties,
   raft::host_span<vertex_t const> vertex_partition_range_lasts)
 {
   auto& comm                 = handle.get_comms();
@@ -277,12 +278,12 @@ shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning(
 template <typename vertex_t>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
-           std::vector<cugraph::numeric_device_uvector_t>,
+           std::vector<cugraph::arithmetic_device_uvector_t>,
            std::vector<size_t>>
 shuffle_ext_edges(raft::handle_t const& handle,
                   rmm::device_uvector<vertex_t>&& edge_srcs,
                   rmm::device_uvector<vertex_t>&& edge_dsts,
-                  std::vector<cugraph::numeric_device_uvector_t>&& edge_properties,
+                  std::vector<cugraph::arithmetic_device_uvector_t>&& edge_properties,
                   bool store_transposed)
 {
   auto& comm           = handle.get_comms();
@@ -309,7 +310,7 @@ shuffle_ext_edges(raft::handle_t const& handle,
   bool has_edge_start_times{false};
   bool has_edge_end_times{false};
 
-  std::vector<cugraph::numeric_device_uvector_t> edge_properties{};
+  std::vector<cugraph::arithmetic_device_uvector_t> edge_properties{};
 
   if (edge_weights) {
     has_weights = true;

@@ -78,7 +78,7 @@ struct create_vertex_pairs_functor : public cugraph::c_api::abstract_functor {
             handle_,
             std::move(first_copy),
             std::move(second_copy),
-            std::vector<cugraph::numeric_device_uvector_t>{});
+            std::vector<cugraph::arithmetic_device_uvector_t>{});
       }
       // FIXME: use std::tuple (template) instead.
       result_ = new cugraph::c_api::cugraph_vertex_pairs_t{
