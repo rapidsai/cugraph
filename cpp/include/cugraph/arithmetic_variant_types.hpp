@@ -187,7 +187,7 @@ auto variant_type_dispatch(edge_arithmetic_property_view_t<edge_t>& property, fu
 }
 
 template <typename edge_t, typename func_t>
-auto variant_type_dispatch(edge_arithmetic_mutable_property_view_t<edge_t>& property, func_t func)
+auto variant_type_dispatch(edge_arithmetic_property_mutable_view_t<edge_t>& property, func_t func)
 {
   if (std::holds_alternative<cugraph::edge_property_view_t<edge_t, float*>>(property)) {
     auto& prop = std::get<cugraph::edge_property_view_t<edge_t, float*>>(property);
