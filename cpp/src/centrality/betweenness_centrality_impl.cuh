@@ -585,6 +585,8 @@ rmm::device_uvector<weight_t> betweenness_centrality(
       thrust::make_counting_iterator(graph_view.local_vertex_partition_range_first()),
       centralities.begin());
 
+    std::cout << "sf = " << *scale_factor << ", ss = " << *scale_source << std::endl;
+
     thrust::transform(
       handle.get_thrust_policy(),
       iter,
