@@ -305,7 +305,6 @@ def compare_scores(sorted_df, first_key, second_key, epsilon=DEFAULT_EPSILON):
 # =============================================================================
 # Tests
 # =============================================================================
-@pytest.mark.skip(reason="https://github.com/networkx/networkx/pull/7908")
 @pytest.mark.sg
 @pytest.mark.parametrize("graph_file", SMALL_DATASETS)
 @pytest.mark.parametrize("directed", [False, True])
