@@ -44,6 +44,11 @@ export LD_PRELOAD="${CONDA_PREFIX}/lib/libgomp.so.1"
 RAPIDS_DATASET_ROOT_DIR="$(realpath datasets)"
 export RAPIDS_DATASET_ROOT_DIR
 
+echo " ===> Some Debugging <=== "
+echo $RAPIDS_DATASET_ROOT_DIR
+ls $RAPIDS_DATASET_ROOT_DIR
+echo " ===> Some Debugging <=== "
+
 EXITCODE=0
 trap "EXITCODE=1" ERR
 set +e
