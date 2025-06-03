@@ -76,6 +76,7 @@ set(cython_sources
     renumber_arbitrary_edgelist.pyx
     has_vertex.pyx
     force_atlas2.pyx
+    minimum_spanning_tree.pyx
 )
 set(linked_libraries cugraph::cugraph;cugraph::cugraph_c)
 

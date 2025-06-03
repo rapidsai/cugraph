@@ -18,6 +18,7 @@
 #include "utilities/conversion_utilities.hpp"
 #include "utilities/device_comm_wrapper.hpp"
 #include "utilities/mg_utilities.hpp"
+#include "utilities/property_generator_utilities.hpp"
 #include "utilities/test_graphs.hpp"
 #include "utilities/thrust_wrapper.hpp"
 
@@ -37,6 +38,7 @@
 #include <gtest/gtest.h>
 
 struct WeaklyConnectedComponents_Usecase {
+  bool edge_masking{false};
   bool check_correctness{true};
 };
 
@@ -88,6 +90,13 @@ class Tests_MGWeaklyConnectedComponents
     }
 
     auto mg_graph_view = mg_graph.view();
+
+    std::optional<cugraph::edge_property_t<edge_t, bool>> edge_mask{std::nullopt};
+    if (weakly_connected_components_usecase.edge_masking) {
+      edge_mask = cugraph::test::generate<decltype(mg_graph_view), bool>::edge_property(
+        *handle_, mg_graph_view, 2);
+      mg_graph_view.attach_edge_mask(edge_mask->view());
+    }
 
     // 2. run MG weakly connected components
 
@@ -209,7 +218,8 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_MGWeaklyConnectedComponents_File,
   ::testing::Combine(
     // enable correctness checks
-    ::testing::Values(WeaklyConnectedComponents_Usecase{0}),
+    ::testing::Values(WeaklyConnectedComponents_Usecase{false},
+                      WeaklyConnectedComponents_Usecase{true}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
                       cugraph::test::File_Usecase("test/datasets/polbooks.mtx"),
                       cugraph::test::File_Usecase("test/datasets/netscience.mtx"))));
@@ -219,7 +229,9 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_MGWeaklyConnectedComponents_Rmat,
   ::testing::Values(
     // enable correctness checks
-    std::make_tuple(WeaklyConnectedComponents_Usecase{},
+    std::make_tuple(WeaklyConnectedComponents_Usecase{false},
+                    cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, true, false)),
+    std::make_tuple(WeaklyConnectedComponents_Usecase{true},
                     cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, true, false))));
 
 INSTANTIATE_TEST_SUITE_P(
@@ -231,7 +243,9 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_MGWeaklyConnectedComponents_Rmat,
   ::testing::Values(
     // disable correctness checks
-    std::make_tuple(WeaklyConnectedComponents_Usecase{false},
+    std::make_tuple(WeaklyConnectedComponents_Usecase{false, false},
+                    cugraph::test::Rmat_Usecase(20, 16, 0.57, 0.19, 0.19, 0, true, false)),
+    std::make_tuple(WeaklyConnectedComponents_Usecase{true, false},
                     cugraph::test::Rmat_Usecase(20, 16, 0.57, 0.19, 0.19, 0, true, false))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()

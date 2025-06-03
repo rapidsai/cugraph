@@ -112,13 +112,14 @@ rmm::device_uvector<vertex_t> vertex_coloring(
       cugraph::transform_e(
         handle,
         current_graph_view,
-        graph_view_t::is_multi_gpu ? src_mis_flags.view()
-                                   : detail::edge_endpoint_property_view_t<vertex_t, flag_t const*>(
-                                       std::vector<flag_t const*>{is_vertex_in_mis.begin()},
-                                       std::vector<vertex_t>{vertex_t{0}}),
-        graph_view_t::is_multi_gpu ? dst_mis_flags.view()
-                                   : detail::edge_endpoint_property_view_t<vertex_t, flag_t const*>(
-                                       is_vertex_in_mis.begin(), vertex_t{0}),
+        graph_view_t::is_multi_gpu
+          ? src_mis_flags.view()
+          : make_edge_src_property_view<vertex_t, flag_t>(
+              current_graph_view, is_vertex_in_mis.begin(), is_vertex_in_mis.size()),
+        graph_view_t::is_multi_gpu
+          ? dst_mis_flags.view()
+          : make_edge_dst_property_view<vertex_t, flag_t>(
+              current_graph_view, is_vertex_in_mis.begin(), is_vertex_in_mis.size()),
         cugraph::edge_dummy_property_t{}.view(),
         [color_id] __device__(
           auto src, auto dst, auto is_src_in_mis, auto is_dst_in_mis, cuda::std::nullopt_t) {
@@ -134,13 +135,14 @@ rmm::device_uvector<vertex_t> vertex_coloring(
       cugraph::transform_e(
         handle,
         current_graph_view,
-        graph_view_t::is_multi_gpu ? src_mis_flags.view()
-                                   : detail::edge_endpoint_property_view_t<vertex_t, flag_t const*>(
-                                       std::vector<flag_t const*>{is_vertex_in_mis.begin()},
-                                       std::vector<vertex_t>{vertex_t{0}}),
-        graph_view_t::is_multi_gpu ? dst_mis_flags.view()
-                                   : detail::edge_endpoint_property_view_t<vertex_t, flag_t const*>(
-                                       is_vertex_in_mis.begin(), vertex_t{0}),
+        graph_view_t::is_multi_gpu
+          ? src_mis_flags.view()
+          : make_edge_src_property_view<vertex_t, flag_t>(
+              current_graph_view, is_vertex_in_mis.begin(), is_vertex_in_mis.size()),
+        graph_view_t::is_multi_gpu
+          ? dst_mis_flags.view()
+          : make_edge_dst_property_view<vertex_t, flag_t>(
+              current_graph_view, is_vertex_in_mis.begin(), is_vertex_in_mis.size()),
         cugraph::edge_dummy_property_t{}.view(),
         [color_id] __device__(
           auto src, auto dst, auto is_src_in_mis, auto is_dst_in_mis, cuda::std::nullopt_t) {
