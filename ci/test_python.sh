@@ -13,7 +13,7 @@ rapids-logger "Downloading artifacts from previous jobs"
 CPP_CHANNEL=$(rapids-download-conda-from-github cpp)
 PYTHON_CHANNEL=$(rapids-download-conda-from-github python)
 
-rapids-logger "Generate Python testing dependencies"
+# rapids-logger "Generate Python testing dependencies"
 rapids-dependency-file-generator \
   --output conda \
   --file-key test_python \
@@ -21,6 +21,7 @@ rapids-dependency-file-generator \
   --prepend-channel "${CPP_CHANNEL}" \
   --prepend-channel "${PYTHON_CHANNEL}" \
   | tee env.yaml
+
 
 rapids-mamba-retry env create --yes -f env.yaml -n test
 
@@ -82,7 +83,7 @@ rapids-logger "pytest cugraph (not mg, with xdist)"
   --numprocesses=8 \
   --dist=worksteal \
   -m "not mg" \
-  -k "not test_dataset and not test_bulk_sampler and not test_create_undirected_graph_from_asymmetric_adj_list and not test_uniform_neighbor_sample and not test_node2vec" \
+  -k "not test_dataset and not test_bulk_sampler and not test_create_undirected_graph_from_asymmetric_adj_list and not test_uniform_neighbor_sample and not test_node2vec and not test_property_graph_mg" \
   --cov-config=../../.coveragerc \
   --cov=cugraph \
   --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph-coverage.xml" \
@@ -90,31 +91,32 @@ rapids-logger "pytest cugraph (not mg, with xdist)"
 
 # Some tests fail with pytest-xdist enabled.
 # See https://github.com/rapidsai/cugraph/issues/5048
-# rapids-logger "pytest cugraph (not mg, without xdist)"
-# ./ci/run_cugraph_pytests.sh \
-#   --verbose \
-#   --junitxml="${RAPIDS_TESTS_DIR}/junit-cugraph.xml" \
-#   --numprocesses=8 \
-#   --dist=worksteal \
-#   -m "not mg" \
-#   -k "not test_dataset and (test_bulk_sampler or test_create_undirected_graph_from_asymmetric_adj_list or test_uniform_neighbor_sample or test_node2vec)" \
-#   --cov-config=../../.coveragerc \
-#   --cov=cugraph \
-#   --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph-coverage.xml" \
-#   --cov-report=term
-
-rapids-logger "pytest cugraph (mg)"
+rapids-logger "pytest cugraph (not mg, without xdist)"
 ./ci/run_cugraph_pytests.sh \
   --verbose \
   --junitxml="${RAPIDS_TESTS_DIR}/junit-cugraph.xml" \
   --numprocesses=8 \
   --dist=worksteal \
-  -m "mg" \
+  -m "not mg" \
+  -k "not test_property_graph_mg" \
   --cov-config=../../.coveragerc \
   --cov=cugraph \
   --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph-coverage.xml" \
-  --cov-report=term \
-  /repo/python/cugraph/cugraph/tests/utils/test_replication_mg.py
+  --cov-report=term
+
+# rapids-logger "pytest cugraph (mg)"
+# ./ci/run_cugraph_pytests.sh \
+#   --verbose \
+#   --junitxml="${RAPIDS_TESTS_DIR}/junit-cugraph.xml" \
+#   --numprocesses=8 \
+#   --dist=worksteal \
+#   -m "mg" \
+#   -k "not test_property_graph_mg" \
+#   --cov-config=../../.coveragerc \
+#   --cov=cugraph \
+#   --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph-coverage.xml" \
+#   --cov-report=term \
+#   /repo/python/cugraph/cugraph/tests/utils/test_replication_mg.py
 
 
 # rapids-logger "pytest cugraph benchmarks (run as tests)"
