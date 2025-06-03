@@ -510,7 +510,10 @@ void transform_e(raft::handle_t const& handle,
   auto edge_first = thrust::make_transform_iterator(
     thrust::make_counting_iterator(size_t{0}),
     cuda::proclaim_return_type<thrust::tuple<vertex_t, vertex_t, edge_t>>(
-      [pair_first, multi_edge_index_first] __device__(size_t i) {
+      [pair_first,
+       multi_edge_index_first = multi_edge_index_first
+                                  ? cuda::std::make_optional(*multi_edge_index_first)
+                                  : cuda::std::nullopt] __device__(size_t i) {
         auto pair = *(pair_first + i);
         if (multi_edge_index_first) {
           return thrust::make_tuple(
