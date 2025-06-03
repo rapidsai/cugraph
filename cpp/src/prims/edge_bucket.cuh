@@ -337,14 +337,14 @@ class edge_bucket_t {
                                : std::nullopt;
   }
 
-  std::optional<edge_t const*> multi_edge_index_data() const {
-    return multi_edge_indices_ ? std::make_optional(multi_edge_indices_->data())
-                               : std::nullopt;
+  std::optional<edge_t const*> multi_edge_index_data() const
+  {
+    return multi_edge_indices_ ? std::make_optional(multi_edge_indices_->data()) : std::nullopt;
   }
 
-  std::optional<edge_t*> multi_edge_index_data() {
-    return multi_edge_indices_ ? std::make_optional(multi_edge_indices_->data())
-                               : std::nullopt;
+  std::optional<edge_t*> multi_edge_index_data()
+  {
+    return multi_edge_indices_ ? std::make_optional(multi_edge_indices_->data()) : std::nullopt;
   }
 
  private:
