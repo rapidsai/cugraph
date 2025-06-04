@@ -15,6 +15,8 @@
  */
 #pragma once
 
+#include "detail/prim_utils.cuh"
+
 #include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/edge_partition_edge_property_device_view.cuh>
 #include <cugraph/edge_partition_endpoint_property_device_view.cuh>
@@ -583,32 +585,11 @@ void transform_e(raft::handle_t const& handle,
 
     if (do_expensive_check) {
       CUGRAPH_EXPECTS(
-        thrust::count_if(
-          handle.get_thrust_policy(),
-          edge_first + edge_partition_offsets[i],
-          edge_first + edge_partition_offsets[i + 1],
-          [edge_partition, edge_partition_e_mask] __device__(auto edge) {
-            auto major            = thrust::get<0>(edge);
-            auto minor            = thrust::get<1>(edge);
-            auto multi_edge_index = thrust::get<2>(edge);
-            auto major_idx        = edge_partition.major_idx_from_major_nocheck(major);
-            if (!major_idx) { return true; }
-            vertex_t const* indices{nullptr};
-            edge_t edge_offset{};
-            edge_t local_degree{};
-            thrust::tie(indices, edge_offset, local_degree) =
-              edge_partition.local_edges(*major_idx);
-            auto lower_it =
-              thrust::lower_bound(thrust::seq, indices, indices + local_degree, minor);
-            if (*(lower_it + multi_edge_index) != minor) { return true; }
-            if (edge_partition_e_mask) {
-              if (edge_partition_e_mask->get(edge_offset + cuda::std::distance(indices, lower_it) +
-                                             multi_edge_index) == false) {
-                return true;
-              }
-            }
-            return false;
-          }) == 0,
+        thrust::count_if(handle.get_thrust_policy(),
+                         edge_first + edge_partition_offsets[i],
+                         edge_first + edge_partition_offsets[i + 1],
+                         detail::edge_exists_t<vertex_t, edge_t, GraphViewType::is_multi_gpu>{
+                           edge_partition, edge_partition_e_mask}) == 0,
         "Invalid input arguments: edge_list contains edges that do not exist in the input graph.");
     }
 
