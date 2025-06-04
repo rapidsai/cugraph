@@ -312,7 +312,8 @@ def generate_upper_triangle(dataframe):
     return dataframe
 
 
-@pytest.mark.skip(reason="https://github.com/networkx/networkx/pull/7908")
+# TODO: remove this if successfully tested in ci
+# @pytest.mark.skip(reason="https://github.com/networkx/networkx/pull/7908")
 @pytest.mark.sg
 @pytest.mark.parametrize("graph_file", SMALL_DATASETS)
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
