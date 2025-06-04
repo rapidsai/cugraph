@@ -62,6 +62,9 @@ struct k_truss_functor : public cugraph::c_api::abstract_functor {
       unsupported();
     } else {
       if constexpr (store_transposed) {
+#if 1
+        std::cout << "in k_truss_functor, transpose storage of graph" << std::endl;
+#endif
         error_code_ = cugraph::c_api::
           transpose_storage<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
             handle_, graph_, error_.get());
@@ -77,6 +80,11 @@ struct k_truss_functor : public cugraph::c_api::abstract_functor {
       auto number_map = reinterpret_cast<rmm::device_uvector<vertex_t>*>(graph_->number_map_);
 
       auto graph_view = graph->view();
+
+#if 1
+      handle_.sync_stream();
+      std::cout << "calling cugraph::k_truss" << std::endl;
+#endif
 
       auto [result_src, result_dst, result_wgt] =
         cugraph::k_truss<vertex_t, edge_t, weight_t, multi_gpu>(
@@ -106,6 +114,11 @@ struct k_truss_functor : public cugraph::c_api::abstract_functor {
       std::vector<size_t> h_edge_offsets{{0, result_src.size()}};
       raft::update_device(
         edge_offsets.data(), h_edge_offsets.data(), h_edge_offsets.size(), handle_.get_stream());
+
+#if 1
+      handle_.sync_stream();
+      std::cout << "creating result" << std::endl;
+#endif
 
       // FIXME: Add support for edge_id and edge_type_id.
       result_ = new cugraph::c_api::cugraph_induced_subgraph_result_t{
