@@ -112,7 +112,6 @@ class Tests_MGTransformGatherE
     // 2. run MG transform_gather_e
 
     const int hash_bin_count = 5;
-    const int initial_value  = 4;
 
     auto mg_vertex_prop =
       cugraph::test::generate<decltype(mg_graph_view), result_t>::vertex_property(

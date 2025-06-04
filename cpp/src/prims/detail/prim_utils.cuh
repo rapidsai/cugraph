@@ -15,6 +15,9 @@
  */
 #pragma once
 
+#include <cugraph/edge_partition_device_view.cuh>
+#include <cugraph/edge_partition_edge_property_device_view.cuh>
+
 #include <limits>
 #include <type_traits>
 
