@@ -181,7 +181,7 @@ class Tests_KTruss : public ::testing::TestWithParam<std::tuple<KTruss_Usecase, 
     // them especially for rmat generated graphs.
     auto [graph, edge_weight, d_renumber_map_labels] =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, false>(
-        handle, input_usecase, k_truss_usecase.test_weighted_, renumber, true, true);
+        handle, input_usecase, k_truss_usecase.test_weighted_, renumber, false, true);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement

@@ -72,7 +72,7 @@ class Tests_KCore : public ::testing::TestWithParam<std::tuple<KCore_Usecase, in
 
     auto [graph, edge_weights, d_renumber_map_labels] =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, false>(
-        handle, input_usecase, false, renumber, true, true);
+        handle, input_usecase, false, renumber, false, true);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement

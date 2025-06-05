@@ -57,20 +57,6 @@ class Tests_EdgeTriangleCount
   virtual void SetUp() {}
   virtual void TearDown() {}
 
-  // FIXME: There is an utility equivalent functor not
-  // supporting host vectors.
-  template <typename type_t>
-  struct host_nearly_equal {
-    const type_t threshold_ratio;
-    const type_t threshold_magnitude;
-
-    bool operator()(type_t lhs, type_t rhs) const
-    {
-      return std::abs(lhs - rhs) <
-             std::max(std::max(lhs, rhs) * threshold_ratio, threshold_magnitude);
-    }
-  };
-
   template <typename vertex_t, typename edge_t>
   std::vector<edge_t> edge_triangle_count_reference(std::vector<vertex_t> h_srcs,
                                                     std::vector<vertex_t> h_dsts)
@@ -133,7 +119,7 @@ class Tests_EdgeTriangleCount
 
     auto [graph, edge_weight, d_renumber_map_labels] =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, false>(
-        handle, input_usecase, false, renumber, true, true);
+        handle, input_usecase, false, renumber, false, true);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
