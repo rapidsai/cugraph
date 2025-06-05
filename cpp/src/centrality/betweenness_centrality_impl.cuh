@@ -400,15 +400,15 @@ void accumulate_edge_results(
       auto triplet_first = thrust::make_zip_iterator(srcs.begin(), dsts.begin(), indices->begin());
       thrust::sort(handle.get_thrust_policy(), triplet_first, triplet_first + srcs.size());
     } else {
-      auto [srcs, dsts] = extract_transform_if_e(handle,
-                                                 graph_view,
-                                                 src_properties.view(),
-                                                 dst_properties.view(),
-                                                 edge_dummy_property_t{}.view(),
-                                                 extract_edge_e_op_t<vertex_t>{},
-                                                 extract_edge_pred_op_t<vertex_t>{d},
-                                                 do_expensive_check);
-      auto pair_first   = thrust::make_zip_iterator(srcs.begin(), dsts.begin());
+      std::tie(srcs, dsts) = extract_transform_if_e(handle,
+                                                    graph_view,
+                                                    src_properties.view(),
+                                                    dst_properties.view(),
+                                                    edge_dummy_property_t{}.view(),
+                                                    extract_edge_e_op_t<vertex_t>{},
+                                                    extract_edge_pred_op_t<vertex_t>{d},
+                                                    do_expensive_check);
+      auto pair_first      = thrust::make_zip_iterator(srcs.begin(), dsts.begin());
       thrust::sort(handle.get_thrust_policy(), pair_first, pair_first + srcs.size());
     }
     edge_list.insert(srcs.begin(),
