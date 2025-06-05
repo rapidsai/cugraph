@@ -102,11 +102,10 @@ struct extract_edge_pred_op_t {
 namespace cugraph {
 namespace detail {
 
-template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+template <typename vertex_t, typename edge_t, bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> brandes_bfs(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
-  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   vertex_frontier_t<vertex_t, void, multi_gpu, true>& vertex_frontier,
   bool do_expensive_check)
 {
@@ -190,15 +189,13 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> brandes_b
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-void accumulate_vertex_results(
-  raft::handle_t const& handle,
-  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
-  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
-  raft::device_span<weight_t> centralities,
-  rmm::device_uvector<vertex_t>&& distances,
-  rmm::device_uvector<edge_t>&& sigmas,
-  bool with_endpoints,
-  bool do_expensive_check)
+void accumulate_vertex_results(raft::handle_t const& handle,
+                               graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+                               raft::device_span<weight_t> centralities,
+                               rmm::device_uvector<vertex_t>&& distances,
+                               rmm::device_uvector<edge_t>&& sigmas,
+                               bool with_endpoints,
+                               bool do_expensive_check)
 {
   constexpr vertex_t invalid_distance = std::numeric_limits<vertex_t>::max();
 
@@ -308,14 +305,12 @@ void accumulate_vertex_results(
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-void accumulate_edge_results(
-  raft::handle_t const& handle,
-  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
-  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
-  edge_property_view_t<edge_t, weight_t*> centralities_view,
-  rmm::device_uvector<vertex_t>&& distances,
-  rmm::device_uvector<edge_t>&& sigmas,
-  bool do_expensive_check)
+void accumulate_edge_results(raft::handle_t const& handle,
+                             graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+                             edge_property_view_t<edge_t, weight_t*> centralities_view,
+                             rmm::device_uvector<vertex_t>&& distances,
+                             rmm::device_uvector<edge_t>&& sigmas,
+                             bool do_expensive_check)
 {
   constexpr vertex_t invalid_distance = std::numeric_limits<vertex_t>::max();
 
@@ -528,11 +523,9 @@ rmm::device_uvector<weight_t> betweenness_centrality(
     // FIXME:  This has an inefficiency in early iterations, as it doesn't have enough work to
     //         keep the GPUs busy.  But we can't run too many at once or we will run out of
     //         memory. Need to investigate options to improve this performance
-    auto [distances, sigmas] =
-      brandes_bfs(handle, graph_view, edge_weight_view, vertex_frontier, do_expensive_check);
+    auto [distances, sigmas] = brandes_bfs(handle, graph_view, vertex_frontier, do_expensive_check);
     accumulate_vertex_results(handle,
                               graph_view,
-                              edge_weight_view,
                               raft::device_span<weight_t>{centralities.data(), centralities.size()},
                               std::move(distances),
                               std::move(sigmas),
@@ -667,11 +660,9 @@ edge_property_t<edge_t, weight_t> edge_betweenness_centrality(
     // FIXME:  This has an inefficiency in early iterations, as it doesn't have enough work to
     //         keep the GPUs busy.  But we can't run too many at once or we will run out of
     //         memory. Need to investigate options to improve this performance
-    auto [distances, sigmas] =
-      brandes_bfs(handle, graph_view, edge_weight_view, vertex_frontier, do_expensive_check);
+    auto [distances, sigmas] = brandes_bfs(handle, graph_view, vertex_frontier, do_expensive_check);
     accumulate_edge_results(handle,
                             graph_view,
-                            edge_weight_view,
                             centralities.mutable_view(),
                             std::move(distances),
                             std::move(sigmas),

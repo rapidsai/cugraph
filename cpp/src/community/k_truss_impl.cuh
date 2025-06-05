@@ -174,6 +174,10 @@ k_truss(raft::handle_t const& handle,
 #if 1
   handle.sync_stream();
   std::cout << "  starting step 2" << std::endl;
+  if constexpr (multi_gpu) {
+    std::cout << "    rank = " << handle.get_comms().get_rank()
+              << ", size = " << handle.get_comms().get_size() << std::endl;
+  }
 #endif
 
   auto cur_graph_view          = graph_view;
@@ -316,6 +320,11 @@ k_truss(raft::handle_t const& handle,
     size_t prev_chunk_size = 0;  // FIXME: Add support for chunking
 
     while (true) {
+#if 1
+      handle.sync_stream();
+      std::cout << "   in loop, cur_graph_view.compute_number_of_edges(handle) = "
+                << cur_graph_view.compute_number_of_edges(handle) << std::endl;
+#endif
       // Extract weak edges
       auto [weak_edgelist_srcs, weak_edgelist_dsts] = extract_transform_if_e(
         handle,
