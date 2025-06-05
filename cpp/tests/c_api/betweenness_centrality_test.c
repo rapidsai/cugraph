@@ -176,7 +176,7 @@ int test_betweenness_centrality_specific_normalized()
   weight_t h_wgt[] = {
     0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f, 0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
   vertex_t h_seeds[]  = {0, 3};
-  weight_t h_result[] = {0, 0.316667, 0.133333, 0.133333, 0.0333333, 0.05};
+  weight_t h_result[] = {0, 0.395833, 0.166667, 0.166667, 0.0416667, 0.0625};
 
   return generic_betweenness_centrality_test(h_src,
                                              h_dst,
@@ -204,7 +204,7 @@ int test_betweenness_centrality_specific_unnormalized()
   weight_t h_wgt[] = {
     0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f, 0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
   vertex_t h_seeds[]  = {0, 3};
-  weight_t h_result[] = {0, 9.5, 4, 4, 1, 1.5};
+  weight_t h_result[] = {0, 7.91667, 3.33333, 3.33333, 0.833333, 1.25};
 
   return generic_betweenness_centrality_test(h_src,
                                              h_dst,
@@ -318,18 +318,18 @@ int test_issue_4941()
     {TRUE, TRUE, TRUE, 1, {1.0, 1.0, 0.25, 0.25, 0.25}},
     {TRUE, TRUE, FALSE, 0, {1.0, 0.4, 0.4, 0.4, 0.4}},
     {TRUE, TRUE, FALSE, 1, {1.0, 1.0, 0.25, 0.25, 0.25}},
-    {TRUE, FALSE, TRUE, 0, {0.6, 0.0, 0.0, 0.0, 0.0}},
-    {TRUE, FALSE, TRUE, 1, {0.75, NAN, 0.0, 0.0, 0.0}},
-    {TRUE, FALSE, FALSE, 0, {0.6, 0.0, 0.0, 0.0, 0.0}},
-    {TRUE, FALSE, FALSE, 1, {0.75, NAN, 0.0, 0.0, 0.0}},
+    {TRUE, FALSE, TRUE, 0, {1.0, 0.0, 0.0, 0.0, 0.0}},
+    {TRUE, FALSE, TRUE, 1, {1.0, NAN, 0.0, 0.0, 0.0}},
+    {TRUE, FALSE, FALSE, 0, {1.0, 0.0, 0.0, 0.0, 0.0}},
+    {TRUE, FALSE, FALSE, 1, {1.0, NAN, 0.0, 0.0, 0.0}},
     {FALSE, TRUE, TRUE, 0, {20.0, 8.0, 8.0, 8.0, 8.0}},
     {FALSE, TRUE, TRUE, 1, {20.0, 20.0, 5.0, 5.0, 5.0}},
     {FALSE, TRUE, FALSE, 0, {10.0, 4.0, 4.0, 4.0, 4.0}},
     {FALSE, TRUE, FALSE, 1, {10.0, 10.0, 2.5, 2.5, 2.5}},
     {FALSE, FALSE, TRUE, 0, {12.0, 0.0, 0.0, 0.0, 0.0}},
-    {FALSE, FALSE, TRUE, 1, {15, NAN, 0.0, 0.0, 0.0}},
+    {FALSE, FALSE, TRUE, 1, {12, NAN, 0.0, 0.0, 0.0}},
     {FALSE, FALSE, FALSE, 0, {6.0, 0.0, 0.0, 0.0, 0.0}},
-    {FALSE, FALSE, FALSE, 1, {7.5, NAN, 0.0, 0.0, 0.0}},
+    {FALSE, FALSE, FALSE, 1, {6.0, NAN, 0.0, 0.0, 0.0}},
   };
 
   int test_result = 0;

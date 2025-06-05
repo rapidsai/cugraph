@@ -543,24 +543,26 @@ rmm::device_uvector<weight_t> betweenness_centrality(
   std::optional<weight_t> scale_nonsource{std::nullopt};
   std::optional<weight_t> scale_source{std::nullopt};
 
-  if ((static_cast<edge_t>(num_sources) == graph_view.number_of_vertices()) || include_endpoints) {
+  weight_t num_vertices = static_cast<weight_t>(graph_view.number_of_vertices());
+  if (!include_endpoints) num_vertices = num_vertices - 1;
+
+  if ((static_cast<edge_t>(num_sources) == num_vertices) || include_endpoints) {
     if (normalized) {
-      scale_nonsource = static_cast<weight_t>(num_sources * (graph_view.number_of_vertices() - 1));
+      scale_nonsource = static_cast<weight_t>(num_sources * (num_vertices - 1));
     } else if (graph_view.is_symmetric()) {
-      scale_nonsource = static_cast<weight_t>(num_sources * 2) /
-                        static_cast<weight_t>(graph_view.number_of_vertices());
-    } else {
       scale_nonsource =
-        static_cast<weight_t>(num_sources) / static_cast<weight_t>(graph_view.number_of_vertices());
+        static_cast<weight_t>(num_sources * 2) / static_cast<weight_t>(num_vertices);
+    } else {
+      scale_nonsource = static_cast<weight_t>(num_sources) / static_cast<weight_t>(num_vertices);
     }
 
     scale_source = scale_nonsource;
   } else if (normalized) {
-    scale_nonsource = static_cast<weight_t>(num_sources) * (graph_view.number_of_vertices() - 1);
-    scale_source = static_cast<weight_t>(num_sources - 1) * (graph_view.number_of_vertices() - 1);
+    scale_nonsource = static_cast<weight_t>(num_sources) * (num_vertices - 1);
+    scale_source    = static_cast<weight_t>(num_sources - 1) * (num_vertices - 1);
   } else {
-    scale_nonsource = static_cast<weight_t>(num_sources) / graph_view.number_of_vertices();
-    scale_source    = static_cast<weight_t>(num_sources - 1) / graph_view.number_of_vertices();
+    scale_nonsource = static_cast<weight_t>(num_sources) / num_vertices;
+    scale_source    = static_cast<weight_t>(num_sources - 1) / num_vertices;
 
     if (graph_view.is_symmetric()) {
       *scale_nonsource *= 2;

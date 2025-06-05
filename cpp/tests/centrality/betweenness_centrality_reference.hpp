@@ -141,6 +141,7 @@ void reference_rescale(result_t* result,
 {
   result_t casted_number_of_sources  = static_cast<result_t>(number_of_sources);
   result_t casted_number_of_vertices = static_cast<result_t>(number_of_vertices);
+  if (!endpoints) casted_number_of_vertices = casted_number_of_vertices - 1;
 
   if ((number_of_sources == number_of_vertices) || endpoints) {
     result_t rescale_factor = static_cast<result_t>(1);
