@@ -358,19 +358,19 @@ void triangle_count(raft::handle_t const& handle,
 
   // 3. Exclude self-loops
 
-  {
+  if (cur_graph_view.count_self_loops(handle) > edge_t{0}) {
     cugraph::edge_property_t<edge_t, bool> self_loop_edge_mask(handle, cur_graph_view);
     cugraph::fill_edge_property(
       handle, unmasked_cur_graph_view, self_loop_edge_mask.mutable_view(), false);
 
-    transform_e(
-      handle,
-      cur_graph_view,
-      edge_src_dummy_property_t{}.view(),
-      edge_dst_dummy_property_t{}.view(),
-      edge_dummy_property_t{}.view(),
-      [] __device__(auto src, auto dst, auto, auto, auto) { return src != dst; },
-      self_loop_edge_mask.mutable_view());
+    transform_e(handle,
+                cur_graph_view,
+                edge_src_dummy_property_t{}.view(),
+                edge_dst_dummy_property_t{}.view(),
+                edge_dummy_property_t{}.view(),
+                cuda::proclaim_return_type<bool>(
+                  [] __device__(auto src, auto dst, auto, auto, auto) { return src != dst; }),
+                self_loop_edge_mask.mutable_view());
 
     edge_mask = std::move(self_loop_edge_mask);
     if (cur_graph_view.has_edge_mask()) { cur_graph_view.clear_edge_mask(); }

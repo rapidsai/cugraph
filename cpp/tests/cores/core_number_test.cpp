@@ -236,7 +236,7 @@ class Tests_CoreNumber
     std::optional<rmm::device_uvector<vertex_t>> d_renumber_map_labels{std::nullopt};
     std::tie(graph, std::ignore, d_renumber_map_labels) =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, false>(
-        handle, input_usecase, false, renumber, true, true);
+        handle, input_usecase, false, renumber, false, true);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
