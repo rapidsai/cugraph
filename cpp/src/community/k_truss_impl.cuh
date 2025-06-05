@@ -171,6 +171,11 @@ k_truss(raft::handle_t const& handle,
 
   // 2. Exclude self-loops and edges that do not belong to (k-1)-core
 
+#if 1
+  handle.sync_stream();
+  std::cout << "  starting step 2" << std::endl;
+#endif
+
   auto cur_graph_view          = graph_view;
   auto unmasked_cur_graph_view = cur_graph_view;
 
@@ -253,6 +258,11 @@ k_truss(raft::handle_t const& handle,
 
   // 3. Keep only the edges from a low-degree vertex to a high-degree vertex.
 
+#if 1
+  handle.sync_stream();
+  std::cout << "  starting step 3" << std::endl;
+#endif
+
   edge_src_property_t<vertex_t, edge_t> edge_src_out_degrees(handle, cur_graph_view);
   edge_dst_property_t<vertex_t, edge_t> edge_dst_out_degrees(handle, cur_graph_view);
 
@@ -288,6 +298,11 @@ k_truss(raft::handle_t const& handle,
   }
 
   // 4. Compute triangle count using nbr_intersection and unroll weak edges
+
+#if 1
+  handle.sync_stream();
+  std::cout << "  starting step 4" << std::endl;
+#endif
 
   {
     // Mask self loops and edges not being part of k-1 core
@@ -668,6 +683,11 @@ k_truss(raft::handle_t const& handle,
       cur_graph_view.clear_edge_mask();
       cur_graph_view.attach_edge_mask(dodg_mask.view());
     }
+
+#if 1
+    handle.sync_stream();
+    std::cout << "  ending step 4" << std::endl;
+#endif
 
     cur_graph_view.clear_edge_mask();
     cur_graph_view.attach_edge_mask(dodg_mask.view());

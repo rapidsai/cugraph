@@ -94,6 +94,11 @@ struct k_truss_functor : public cugraph::c_api::abstract_functor {
           k_,
           do_expensive_check_);
 
+#if 1
+      handle_.sync_stream();
+      std::cout << "back from cugraph::k_truss" << std::endl;
+#endif
+
       cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(
         handle_,
         result_src.data(),
