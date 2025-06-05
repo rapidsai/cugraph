@@ -21,7 +21,10 @@
 #include <cugraph/utilities/packed_bool_utils.hpp>
 #include <cugraph/utilities/thrust_tuple_utils.hpp>
 
+#include <raft/core/device_span.hpp>
+
 #include <cuda/std/optional>
+#include <thrust/binary_search.h>
 #include <thrust/iterator/iterator_traits.h>
 
 namespace cugraph {
@@ -51,7 +54,6 @@ class edge_partition_edge_property_device_view_t {
     edge_property_view_t<edge_t, ValueIterator, value_t> const& view, size_t partition_idx)
     : value_first_(view.value_firsts()[partition_idx])
   {
-    value_first_ = view.value_firsts()[partition_idx];
   }
 
   __host__ __device__ ValueIterator value_first() const { return value_first_; }
@@ -176,6 +178,42 @@ class edge_partition_edge_property_device_view_t {
 
  private:
   ValueIterator value_first_{};
+};
+
+template <typename edge_t, typename vertex_t>
+class edge_partition_edge_multi_index_property_device_view_t {
+ public:
+  using edge_type  = edge_t;
+  using value_type = edge_t;
+
+  static constexpr bool is_packed_bool          = false;
+  static constexpr bool has_packed_bool_element = false;
+
+  edge_partition_edge_multi_index_property_device_view_t() = default;
+
+  edge_partition_edge_multi_index_property_device_view_t(
+    edge_multi_index_property_view_t<edge_t, vertex_t> const& view, size_t partition_idx)
+    : offsets_(view.offsets()[partition_idx]), indices_(view.indices()[partition_idx])
+  {
+  }
+
+  __device__ edge_t get(edge_t offset) const
+  {
+    auto major_idx = static_cast<vertex_t>(cuda::std::distance(
+      offsets_.begin() + 1,
+      thrust::upper_bound(thrust::seq, offsets_.begin() + 1, offsets_.end(), offset)));
+    auto nbr       = indices_[offset];
+    return static_cast<edge_t>(
+      cuda::std::distance(thrust::lower_bound(thrust::seq,
+                                              indices_.begin() + offsets_[major_idx],
+                                              indices_.begin() + offsets_[major_idx + 1],
+                                              nbr),
+                          indices_.begin() + offset));
+  }
+
+ private:
+  raft::device_span<edge_t const> offsets_{};
+  raft::device_span<vertex_t const> indices_{};
 };
 
 template <typename edge_t>

@@ -658,14 +658,6 @@ class graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if
       major_value_range_start_offset);
   }
 
-  // FIXME: deprecated, replaced with compute_number_of_edges (which works with or without edge
-  // masking)
-  edge_t number_of_edges() const
-  {
-    CUGRAPH_EXPECTS(!(this->has_edge_mask()), "unimplemented.");
-    return this->number_of_edges_;
-  }
-
   edge_t compute_number_of_edges(raft::handle_t const& handle) const;
 
   rmm::device_uvector<edge_t> compute_in_degrees(raft::handle_t const& handle) const;
@@ -689,6 +681,16 @@ class graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if
     raft::device_span<vertex_t const> edge_srcs,
     raft::device_span<vertex_t const> edge_dsts,
     bool do_expensive_check = false);
+
+  raft::device_span<edge_t const> local_edge_partition_offsets(size_t partition_idx) const
+  {
+    return edge_partition_offsets_[partition_idx];
+  }
+
+  raft::device_span<vertex_t const> local_edge_partition_indices(size_t partition_idx) const
+  {
+    return edge_partition_indices_[partition_idx];
+  }
 
   template <bool transposed = is_storage_transposed>
   std::enable_if_t<transposed, std::optional<raft::device_span<vertex_t const>>>
@@ -989,14 +991,6 @@ class graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if
       offsets_, indices_, this->number_of_vertices());
   }
 
-  // FIXME: deprecated, replaced with compute_number_of_edges (which works with or without edge
-  // masking)
-  edge_t number_of_edges() const
-  {
-    CUGRAPH_EXPECTS(!(this->has_edge_mask()), "unimplemented.");
-    return this->number_of_edges_;
-  }
-
   edge_t compute_number_of_edges(raft::handle_t const& handle) const;
 
   rmm::device_uvector<edge_t> compute_in_degrees(raft::handle_t const& handle) const;
@@ -1017,6 +1011,18 @@ class graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if
                                                    raft::device_span<vertex_t const> edge_srcs,
                                                    raft::device_span<vertex_t const> edge_dsts,
                                                    bool do_expensive_check = false);
+
+  raft::device_span<edge_t const> local_edge_partition_offsets(size_t partition_idx = 0) const
+  {
+    assert(partition_idx == 0);
+    return offsets_;
+  }
+
+  raft::device_span<vertex_t const> local_edge_partition_indices(size_t partition_idx = 0) const
+  {
+    assert(partition_idx == 0);
+    return indices_;
+  }
 
   template <bool transposed = is_storage_transposed>
   std::enable_if_t<transposed, std::optional<raft::device_span<vertex_t const>>>
