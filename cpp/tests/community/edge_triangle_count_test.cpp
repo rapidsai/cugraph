@@ -66,8 +66,10 @@ class Tests_EdgeTriangleCount
 
     for (int i = 0; i < h_srcs.size(); ++i) {  // edge centric implementation
       // for each edge, find the intersection
-      auto src          = h_srcs[i];
-      auto dst          = h_dsts[i];
+      auto src = h_srcs[i];
+      auto dst = h_dsts[i];
+      if (src == dst) continue;  // exclude self-loops
+
       auto it_src_start = std::lower_bound(h_srcs.begin(), h_srcs.end(), src);
       auto src_start    = std::distance(h_srcs.begin(), it_src_start);
 
@@ -87,12 +89,10 @@ class Tests_EdgeTriangleCount
                             std::inserter(nbr_intersection, nbr_intersection.end()));
       // Find the supporting edges
       for (auto v : nbr_intersection) {
+        if ((v == src) || (v == dst)) continue;  // exclude self-loops
         auto it_edge  = std::lower_bound(h_dsts.begin() + src_start, h_dsts.begin() + src_end, v);
         auto idx_edge = std::distance(h_dsts.begin(), it_edge);
         edge_triangle_counts[idx_edge] += 1;
-
-        it_edge  = std::lower_bound(h_dsts.begin() + dst_start, h_dsts.begin() + dst_end, v);
-        idx_edge = std::distance(h_dsts.begin(), it_edge);
       }
     }
 
