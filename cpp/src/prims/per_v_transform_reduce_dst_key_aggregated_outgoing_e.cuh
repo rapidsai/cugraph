@@ -304,8 +304,11 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
       vertex_t,
       typename EdgeDstKeyInputWrapper::value_iterator>;
   using edge_partition_e_input_device_view_t = std::conditional_t<
-    std::is_same_v<typename EdgeValueInputWrapper::value_type, cuda::std::nullopt_t>,
-    detail::edge_partition_edge_dummy_property_device_view_t<vertex_t>,
+    std::is_same_v<typename EdgeValueInputWrapper::value_iterator, void*>,
+    std::conditional_t<
+      std::is_same_v<typename EdgeValueInputWrapper::value_type, cuda::std::nullopt_t>,
+      detail::edge_partition_edge_dummy_property_device_view_t<vertex_t>,
+      detail::edge_partition_edge_multi_index_property_device_view_t<edge_t, vertex_t>>,
     detail::edge_partition_edge_property_device_view_t<
       edge_t,
       typename EdgeValueInputWrapper::value_iterator,
