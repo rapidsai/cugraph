@@ -41,6 +41,7 @@
 #include <rmm/device_uvector.hpp>
 #include <rmm/exec_policy.hpp>
 
+#include <thrust/equal.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/tuple.h>
 
@@ -141,7 +142,7 @@ class Tests_MGPerVPairTransformDstNbrIntersection
     auto mg_graph_view       = mg_graph.view();
     auto mg_edge_weight_view = (*mg_edge_weight).view();
 
-    std::optional<cugraph::edge_property_t<decltype(mg_graph_view), bool>> edge_mask{std::nullopt};
+    std::optional<cugraph::edge_property_t<edge_t, bool>> edge_mask{std::nullopt};
     if (prims_usecase.edge_masking) {
       edge_mask = cugraph::test::generate<decltype(mg_graph_view), bool>::edge_property(
         *handle_, mg_graph_view, 2);
@@ -261,10 +262,7 @@ class Tests_MGPerVPairTransformDstNbrIntersection
 
       cugraph::graph_t<vertex_t, edge_t, false, false> sg_graph(*handle_);
 
-      std::optional<
-        cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, store_transposed, false>,
-                                 weight_t>>
-        sg_edge_weight{std::nullopt};
+      std::optional<cugraph::edge_property_t<edge_t, weight_t>> sg_edge_weight{std::nullopt};
 
       std::tie(sg_graph, sg_edge_weight, std::ignore, std::ignore, std::ignore) =
         cugraph::test::mg_graph_to_sg_graph(

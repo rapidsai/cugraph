@@ -29,11 +29,11 @@
 
 #include <cub/cub.cuh>
 #include <cuda/functional>
+#include <cuda/std/iterator>
 #include <cuda/std/optional>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
 #include <thrust/count.h>
-#include <thrust/distance.h>
 #include <thrust/iterator/constant_iterator.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
@@ -61,16 +61,16 @@ struct edge_order_t {
   __device__ bool operator()(size_t l_idx, size_t r_idx) const
   {
     if (edgelist_label_offsets) {
-      auto l_label = thrust::distance((*edgelist_label_offsets).begin() + 1,
-                                      thrust::upper_bound(thrust::seq,
-                                                          (*edgelist_label_offsets).begin() + 1,
-                                                          (*edgelist_label_offsets).end(),
-                                                          (*edgelist_label_offsets)[0] + l_idx));
-      auto r_label = thrust::distance((*edgelist_label_offsets).begin() + 1,
-                                      thrust::upper_bound(thrust::seq,
-                                                          (*edgelist_label_offsets).begin() + 1,
-                                                          (*edgelist_label_offsets).end(),
-                                                          (*edgelist_label_offsets)[0] + r_idx));
+      auto l_label = cuda::std::distance((*edgelist_label_offsets).begin() + 1,
+                                         thrust::upper_bound(thrust::seq,
+                                                             (*edgelist_label_offsets).begin() + 1,
+                                                             (*edgelist_label_offsets).end(),
+                                                             (*edgelist_label_offsets)[0] + l_idx));
+      auto r_label = cuda::std::distance((*edgelist_label_offsets).begin() + 1,
+                                         thrust::upper_bound(thrust::seq,
+                                                             (*edgelist_label_offsets).begin() + 1,
+                                                             (*edgelist_label_offsets).end(),
+                                                             (*edgelist_label_offsets)[0] + r_idx));
       if (l_label != r_label) { return l_label < r_label; }
     }
 
@@ -108,12 +108,13 @@ struct is_first_triplet_in_run_t {
   {
     if (i == 0) return true;
     if (edgelist_label_offsets) {
-      auto prev_label = thrust::distance((*edgelist_label_offsets).begin() + 1,
-                                         thrust::upper_bound(thrust::seq,
-                                                             (*edgelist_label_offsets).begin() + 1,
-                                                             (*edgelist_label_offsets).end(),
-                                                             i - 1));
-      auto this_label = thrust::distance(
+      auto prev_label =
+        cuda::std::distance((*edgelist_label_offsets).begin() + 1,
+                            thrust::upper_bound(thrust::seq,
+                                                (*edgelist_label_offsets).begin() + 1,
+                                                (*edgelist_label_offsets).end(),
+                                                i - 1));
+      auto this_label = cuda::std::distance(
         (*edgelist_label_offsets).begin() + 1,
         thrust::upper_bound(
           thrust::seq, (*edgelist_label_offsets).begin() + 1, (*edgelist_label_offsets).end(), i));
@@ -134,7 +135,7 @@ struct compute_label_index_t {
 
   __device__ label_index_t operator()(size_t i) const
   {
-    return static_cast<label_index_t>(thrust::distance(
+    return static_cast<label_index_t>(cuda::std::distance(
       edgelist_label_offsets.begin() + 1,
       thrust::upper_bound(
         thrust::seq, edgelist_label_offsets.begin() + 1, edgelist_label_offsets.end(), i)));
@@ -147,7 +148,7 @@ struct optionally_compute_label_index_t {
 
   __device__ label_index_t operator()(size_t i) const
   {
-    return edgelist_label_offsets ? static_cast<label_index_t>(thrust::distance(
+    return edgelist_label_offsets ? static_cast<label_index_t>(cuda::std::distance(
                                       (*edgelist_label_offsets).begin() + 1,
                                       thrust::upper_bound(thrust::seq,
                                                           (*edgelist_label_offsets).begin() + 1,
@@ -360,30 +361,30 @@ void check_input_edges(raft::handle_t const& handle,
                 auto cur  = *(triplet_first + i);
                 if (thrust::get<0>(prev) == thrust::get<0>(cur)) {  // same edge type
                   auto prev_major_v_type =
-                    thrust::distance(vertex_type_offsets.begin() + 1,
-                                     thrust::upper_bound(thrust::seq,
-                                                         vertex_type_offsets.begin() + 1,
-                                                         vertex_type_offsets.end(),
-                                                         thrust::get<1>(prev)));
+                    cuda::std::distance(vertex_type_offsets.begin() + 1,
+                                        thrust::upper_bound(thrust::seq,
+                                                            vertex_type_offsets.begin() + 1,
+                                                            vertex_type_offsets.end(),
+                                                            thrust::get<1>(prev)));
                   auto cur_major_v_type =
-                    thrust::distance(vertex_type_offsets.begin() + 1,
-                                     thrust::upper_bound(thrust::seq,
-                                                         vertex_type_offsets.begin() + 1,
-                                                         vertex_type_offsets.end(),
-                                                         thrust::get<1>(cur)));
+                    cuda::std::distance(vertex_type_offsets.begin() + 1,
+                                        thrust::upper_bound(thrust::seq,
+                                                            vertex_type_offsets.begin() + 1,
+                                                            vertex_type_offsets.end(),
+                                                            thrust::get<1>(cur)));
                   if (prev_major_v_type != cur_major_v_type) { return true; }
                   auto prev_minor_v_type =
-                    thrust::distance(vertex_type_offsets.begin() + 1,
-                                     thrust::upper_bound(thrust::seq,
-                                                         vertex_type_offsets.begin() + 1,
-                                                         vertex_type_offsets.end(),
-                                                         thrust::get<2>(prev)));
+                    cuda::std::distance(vertex_type_offsets.begin() + 1,
+                                        thrust::upper_bound(thrust::seq,
+                                                            vertex_type_offsets.begin() + 1,
+                                                            vertex_type_offsets.end(),
+                                                            thrust::get<2>(prev)));
                   auto cur_minor_v_type =
-                    thrust::distance(vertex_type_offsets.begin() + 1,
-                                     thrust::upper_bound(thrust::seq,
-                                                         vertex_type_offsets.begin() + 1,
-                                                         vertex_type_offsets.end(),
-                                                         thrust::get<2>(cur)));
+                    cuda::std::distance(vertex_type_offsets.begin() + 1,
+                                        thrust::upper_bound(thrust::seq,
+                                                            vertex_type_offsets.begin() + 1,
+                                                            vertex_type_offsets.end(),
+                                                            thrust::get<2>(cur)));
                   if (prev_minor_v_type != cur_minor_v_type) { return true; }
                 }
               }
@@ -406,30 +407,30 @@ void check_input_edges(raft::handle_t const& handle,
                 auto prev = *(pair_first + i - 1);
                 auto cur  = *(pair_first + i);
                 auto prev_src_v_type =
-                  thrust::distance(vertex_type_offsets.begin() + 1,
-                                   thrust::upper_bound(thrust::seq,
-                                                       vertex_type_offsets.begin() + 1,
-                                                       vertex_type_offsets.end(),
-                                                       thrust::get<0>(prev)));
+                  cuda::std::distance(vertex_type_offsets.begin() + 1,
+                                      thrust::upper_bound(thrust::seq,
+                                                          vertex_type_offsets.begin() + 1,
+                                                          vertex_type_offsets.end(),
+                                                          thrust::get<0>(prev)));
                 auto cur_src_v_type =
-                  thrust::distance(vertex_type_offsets.begin() + 1,
-                                   thrust::upper_bound(thrust::seq,
-                                                       vertex_type_offsets.begin() + 1,
-                                                       vertex_type_offsets.end(),
-                                                       thrust::get<0>(cur)));
+                  cuda::std::distance(vertex_type_offsets.begin() + 1,
+                                      thrust::upper_bound(thrust::seq,
+                                                          vertex_type_offsets.begin() + 1,
+                                                          vertex_type_offsets.end(),
+                                                          thrust::get<0>(cur)));
                 if (prev_src_v_type != cur_src_v_type) { return true; }
                 auto prev_dst_v_type =
-                  thrust::distance(vertex_type_offsets.begin() + 1,
-                                   thrust::upper_bound(thrust::seq,
-                                                       vertex_type_offsets.begin() + 1,
-                                                       vertex_type_offsets.end(),
-                                                       thrust::get<1>(prev)));
+                  cuda::std::distance(vertex_type_offsets.begin() + 1,
+                                      thrust::upper_bound(thrust::seq,
+                                                          vertex_type_offsets.begin() + 1,
+                                                          vertex_type_offsets.end(),
+                                                          thrust::get<1>(prev)));
                 auto cur_dst_v_type =
-                  thrust::distance(vertex_type_offsets.begin() + 1,
-                                   thrust::upper_bound(thrust::seq,
-                                                       vertex_type_offsets.begin() + 1,
-                                                       vertex_type_offsets.end(),
-                                                       thrust::get<1>(cur)));
+                  cuda::std::distance(vertex_type_offsets.begin() + 1,
+                                      thrust::upper_bound(thrust::seq,
+                                                          vertex_type_offsets.begin() + 1,
+                                                          vertex_type_offsets.end(),
+                                                          thrust::get<1>(cur)));
                 if (prev_dst_v_type != cur_dst_v_type) { return true; }
               }
               return false;
@@ -463,10 +464,10 @@ void check_input_edges(raft::handle_t const& handle,
                        this_label_seed_vertices.begin(),
                        this_label_seed_vertices.end());
           this_label_seed_vertices.resize(
-            thrust::distance(this_label_seed_vertices.begin(),
-                             thrust::unique(handle.get_thrust_policy(),
-                                            this_label_seed_vertices.begin(),
-                                            this_label_seed_vertices.end())),
+            cuda::std::distance(this_label_seed_vertices.begin(),
+                                thrust::unique(handle.get_thrust_policy(),
+                                               this_label_seed_vertices.begin(),
+                                               this_label_seed_vertices.end())),
             handle.get_stream());
         }
 
@@ -484,13 +485,13 @@ void check_input_edges(raft::handle_t const& handle,
           this_label_zero_hop_majors.resize(end_offset - start_offset, handle.get_stream());
           if (edgelist_hops) {
             this_label_zero_hop_majors.resize(
-              thrust::distance(this_label_zero_hop_majors.begin(),
-                               thrust::copy_if(handle.get_thrust_policy(),
-                                               edgelist_majors.begin() + start_offset,
-                                               edgelist_majors.begin() + end_offset,
-                                               (*edgelist_hops).begin() + start_offset,
-                                               this_label_zero_hop_majors.begin(),
-                                               detail::is_equal_t<int32_t>{0})),
+              cuda::std::distance(this_label_zero_hop_majors.begin(),
+                                  thrust::copy_if(handle.get_thrust_policy(),
+                                                  edgelist_majors.begin() + start_offset,
+                                                  edgelist_majors.begin() + end_offset,
+                                                  (*edgelist_hops).begin() + start_offset,
+                                                  this_label_zero_hop_majors.begin(),
+                                                  detail::is_equal_t<int32_t>{0})),
               handle.get_stream());
           } else {
             thrust::copy(handle.get_thrust_policy(),
@@ -502,16 +503,16 @@ void check_input_edges(raft::handle_t const& handle,
                        this_label_zero_hop_majors.begin(),
                        this_label_zero_hop_majors.end());
           this_label_zero_hop_majors.resize(
-            thrust::distance(this_label_zero_hop_majors.begin(),
-                             thrust::unique(handle.get_thrust_policy(),
-                                            this_label_zero_hop_majors.begin(),
-                                            this_label_zero_hop_majors.end())),
+            cuda::std::distance(this_label_zero_hop_majors.begin(),
+                                thrust::unique(handle.get_thrust_policy(),
+                                               this_label_zero_hop_majors.begin(),
+                                               this_label_zero_hop_majors.end())),
             handle.get_stream());
         }
 
         rmm::device_uvector<vertex_t> zero_hop_majors_minus_seed_vertices(
           this_label_zero_hop_majors.size(), handle.get_stream());
-        CUGRAPH_EXPECTS(thrust::distance(
+        CUGRAPH_EXPECTS(cuda::std::distance(
                           zero_hop_majors_minus_seed_vertices.begin(),
                           thrust::set_difference(handle.get_thrust_policy(),
                                                  this_label_zero_hop_majors.begin(),
@@ -590,28 +591,27 @@ compute_min_hop_for_unique_label_vertex_pairs(
       }
 
       tmp_indices.resize(
-        thrust::distance(tmp_indices.begin(),
-                         thrust::unique(handle.get_thrust_policy(),
-                                        tmp_indices.begin(),
-                                        tmp_indices.end(),
-                                        [edgelist_label_offsets = *edgelist_label_offsets,
-                                         edgelist_vertices] __device__(size_t l_idx, size_t r_idx) {
-                                          auto l_it =
-                                            thrust::upper_bound(thrust::seq,
-                                                                edgelist_label_offsets.begin() + 1,
-                                                                edgelist_label_offsets.end(),
-                                                                l_idx);
-                                          auto r_it =
-                                            thrust::upper_bound(thrust::seq,
-                                                                edgelist_label_offsets.begin() + 1,
-                                                                edgelist_label_offsets.end(),
-                                                                r_idx);
-                                          if (l_it != r_it) { return false; }
+        cuda::std::distance(
+          tmp_indices.begin(),
+          thrust::unique(handle.get_thrust_policy(),
+                         tmp_indices.begin(),
+                         tmp_indices.end(),
+                         [edgelist_label_offsets = *edgelist_label_offsets,
+                          edgelist_vertices] __device__(size_t l_idx, size_t r_idx) {
+                           auto l_it = thrust::upper_bound(thrust::seq,
+                                                           edgelist_label_offsets.begin() + 1,
+                                                           edgelist_label_offsets.end(),
+                                                           l_idx);
+                           auto r_it = thrust::upper_bound(thrust::seq,
+                                                           edgelist_label_offsets.begin() + 1,
+                                                           edgelist_label_offsets.end(),
+                                                           r_idx);
+                           if (l_it != r_it) { return false; }
 
-                                          auto l_vertex = edgelist_vertices[l_idx];
-                                          auto r_vertex = edgelist_vertices[r_idx];
-                                          return l_vertex == r_vertex;
-                                        })),
+                           auto l_vertex = edgelist_vertices[l_idx];
+                           auto r_vertex = edgelist_vertices[r_idx];
+                           return l_vertex == r_vertex;
+                         })),
         handle.get_stream());
 
       tmp_label_indices.resize(tmp_indices.size(), handle.get_stream());
@@ -624,7 +624,7 @@ compute_min_hop_for_unique_label_vertex_pairs(
           [edgelist_label_offsets = *edgelist_label_offsets,
            edgelist_vertices,
            edgelist_hops = *edgelist_hops] __device__(size_t i) {
-            auto label_idx = static_cast<label_index_t>(thrust::distance(
+            auto label_idx = static_cast<label_index_t>(cuda::std::distance(
               edgelist_label_offsets.begin() + 1,
               thrust::upper_bound(
                 thrust::seq, edgelist_label_offsets.begin() + 1, edgelist_label_offsets.end(), i)));
@@ -682,7 +682,7 @@ compute_min_hop_for_unique_label_vertex_pairs(
           [edgelist_label_offsets = *edgelist_label_offsets,
            edgelist_vertices      = raft::device_span<vertex_t const>(
              segment_sorted_vertices.data(), segment_sorted_vertices.size())] __device__(size_t i) {
-            auto label_idx = static_cast<label_index_t>(thrust::distance(
+            auto label_idx = static_cast<label_index_t>(cuda::std::distance(
               edgelist_label_offsets.begin() + 1,
               thrust::upper_bound(
                 thrust::seq, edgelist_label_offsets.begin() + 1, edgelist_label_offsets.end(), i)));
@@ -691,11 +691,11 @@ compute_min_hop_for_unique_label_vertex_pairs(
       auto output_pair_first =
         thrust::make_zip_iterator(tmp_label_indices.begin(), tmp_vertices.begin());
       auto num_uniques =
-        thrust::distance(output_pair_first,
-                         thrust::unique_copy(handle.get_thrust_policy(),
-                                             input_pair_first,
-                                             input_pair_first + segment_sorted_vertices.size(),
-                                             output_pair_first));
+        cuda::std::distance(output_pair_first,
+                            thrust::unique_copy(handle.get_thrust_policy(),
+                                                input_pair_first,
+                                                input_pair_first + segment_sorted_vertices.size(),
+                                                output_pair_first));
       tmp_label_indices.resize(num_uniques, handle.get_stream());
       tmp_vertices.resize(num_uniques, handle.get_stream());
       tmp_label_indices.shrink_to_fit(handle.get_stream());
@@ -748,27 +748,27 @@ compute_min_hop_for_unique_label_vertex_pairs(
            seed_vertices             = raft::device_span<vertex_t const>(
              segment_sorted_vertices.data(), segment_sorted_vertices.size())] __device__(size_t i) {
             auto label_idx = static_cast<label_index_t>(
-              thrust::distance(seed_vertex_label_offsets.begin() + 1,
-                               thrust::upper_bound(thrust::seq,
-                                                   seed_vertex_label_offsets.begin() + 1,
-                                                   seed_vertex_label_offsets.end(),
-                                                   i)));
+              cuda::std::distance(seed_vertex_label_offsets.begin() + 1,
+                                  thrust::upper_bound(thrust::seq,
+                                                      seed_vertex_label_offsets.begin() + 1,
+                                                      seed_vertex_label_offsets.end(),
+                                                      i)));
             return thrust::make_tuple(label_idx, seed_vertices[i]);
           }));
       auto output_pair_first = thrust::make_zip_iterator(unique_seed_vertex_label_indices.begin(),
                                                          unique_seed_vertices.begin());
       auto num_uniques =
-        thrust::distance(output_pair_first,
-                         thrust::unique_copy(handle.get_thrust_policy(),
-                                             input_pair_first,
-                                             input_pair_first + segment_sorted_vertices.size(),
-                                             output_pair_first));
+        cuda::std::distance(output_pair_first,
+                            thrust::unique_copy(handle.get_thrust_policy(),
+                                                input_pair_first,
+                                                input_pair_first + segment_sorted_vertices.size(),
+                                                output_pair_first));
       unique_seed_vertex_label_indices.resize(
-        thrust::distance(output_pair_first,
-                         thrust::unique_copy(handle.get_thrust_policy(),
-                                             input_pair_first,
-                                             input_pair_first + segment_sorted_vertices.size(),
-                                             output_pair_first)),
+        cuda::std::distance(output_pair_first,
+                            thrust::unique_copy(handle.get_thrust_policy(),
+                                                input_pair_first,
+                                                input_pair_first + segment_sorted_vertices.size(),
+                                                output_pair_first)),
         handle.get_stream());
       unique_seed_vertices.resize(unique_seed_vertex_label_indices.size(), handle.get_stream());
 
@@ -800,7 +800,7 @@ compute_min_hop_for_unique_label_vertex_pairs(
           });
 
         unique_seed_vertex_label_indices.resize(
-          thrust::distance(
+          cuda::std::distance(
             key_pair_from_seed_vertex_first,
             thrust::remove_if(
               handle.get_thrust_policy(),
@@ -850,7 +850,7 @@ compute_min_hop_for_unique_label_vertex_pairs(
         auto pair_from_seed_vertex_first = thrust::make_zip_iterator(
           unique_seed_vertex_label_indices.begin(), unique_seed_vertices.begin());
         unique_seed_vertex_label_indices.resize(
-          thrust::distance(
+          cuda::std::distance(
             pair_from_seed_vertex_first,
             thrust::remove_if(
               handle.get_thrust_policy(),
@@ -920,11 +920,11 @@ compute_min_hop_for_unique_label_vertex_pairs(
         (*tmp_hops).begin());  // vertex is a primary key, hop is a secondary key
       thrust::sort(handle.get_thrust_policy(), pair_first, pair_first + tmp_vertices.size());
       tmp_vertices.resize(
-        thrust::distance(tmp_vertices.begin(),
-                         thrust::get<0>(thrust::unique_by_key(handle.get_thrust_policy(),
-                                                              tmp_vertices.begin(),
-                                                              tmp_vertices.end(),
-                                                              (*tmp_hops).begin()))),
+        cuda::std::distance(tmp_vertices.begin(),
+                            thrust::get<0>(thrust::unique_by_key(handle.get_thrust_policy(),
+                                                                 tmp_vertices.begin(),
+                                                                 tmp_vertices.end(),
+                                                                 (*tmp_hops).begin()))),
         handle.get_stream());
       (*tmp_hops).resize(tmp_vertices.size(), handle.get_stream());
       tmp_vertices.shrink_to_fit(handle.get_stream());
@@ -932,7 +932,7 @@ compute_min_hop_for_unique_label_vertex_pairs(
     } else {
       thrust::sort(handle.get_thrust_policy(), tmp_vertices.begin(), tmp_vertices.end());
       tmp_vertices.resize(
-        thrust::distance(
+        cuda::std::distance(
           tmp_vertices.begin(),
           thrust::unique(handle.get_thrust_policy(), tmp_vertices.begin(), tmp_vertices.end())),
         handle.get_stream());
@@ -950,10 +950,10 @@ compute_min_hop_for_unique_label_vertex_pairs(
                    unique_seed_vertices.begin());
       thrust::sort(
         handle.get_thrust_policy(), unique_seed_vertices.begin(), unique_seed_vertices.end());
-      unique_seed_vertices.resize(thrust::distance(unique_seed_vertices.begin(),
-                                                   thrust::unique(handle.get_thrust_policy(),
-                                                                  unique_seed_vertices.begin(),
-                                                                  unique_seed_vertices.end())),
+      unique_seed_vertices.resize(cuda::std::distance(unique_seed_vertices.begin(),
+                                                      thrust::unique(handle.get_thrust_policy(),
+                                                                     unique_seed_vertices.begin(),
+                                                                     unique_seed_vertices.end())),
                                   handle.get_stream());
 
       /* merge with the (vertex, min. hop) pairs from the edgelist */
@@ -980,20 +980,21 @@ compute_min_hop_for_unique_label_vertex_pairs(
                          });
 
         unique_seed_vertices.resize(
-          thrust::distance(unique_seed_vertices.begin(),
-                           thrust::remove_if(
-                             handle.get_thrust_policy(),
-                             unique_seed_vertices.begin(),
-                             unique_seed_vertices.end(),
-                             [pair_from_edgelist_first,
-                              pair_from_edgelist_last =
-                                pair_from_edgelist_first + tmp_vertices.size()] __device__(auto v) {
-                               auto it = thrust::lower_bound(thrust::seq,
-                                                             pair_from_edgelist_first,
-                                                             pair_from_edgelist_last,
-                                                             thrust::make_tuple(v, int32_t{0}));
-                               return (it != pair_from_edgelist_last) && (thrust::get<0>(*it) == v);
-                             })),
+          cuda::std::distance(
+            unique_seed_vertices.begin(),
+            thrust::remove_if(handle.get_thrust_policy(),
+                              unique_seed_vertices.begin(),
+                              unique_seed_vertices.end(),
+                              [pair_from_edgelist_first,
+                               pair_from_edgelist_last = pair_from_edgelist_first +
+                                                         tmp_vertices.size()] __device__(auto v) {
+                                auto it = thrust::lower_bound(thrust::seq,
+                                                              pair_from_edgelist_first,
+                                                              pair_from_edgelist_last,
+                                                              thrust::make_tuple(v, int32_t{0}));
+                                return (it != pair_from_edgelist_last) &&
+                                       (thrust::get<0>(*it) == v);
+                              })),
           handle.get_stream());
         if (unique_seed_vertices.size() > 0) {
           rmm::device_uvector<vertex_t> merged_vertices(
@@ -1012,7 +1013,7 @@ compute_min_hop_for_unique_label_vertex_pairs(
         }
       } else {
         unique_seed_vertices.resize(
-          thrust::distance(
+          cuda::std::distance(
             unique_seed_vertices.begin(),
             thrust::remove_if(handle.get_thrust_policy(),
                               unique_seed_vertices.begin(),
@@ -1141,7 +1142,7 @@ compute_vertex_renumber_map(
         auto unique_key_first =
           thrust::make_zip_iterator(merged_label_indices.begin(), merged_vertices.begin());
         merged_label_indices.resize(
-          thrust::distance(
+          cuda::std::distance(
             unique_key_first,
             thrust::get<0>(thrust::unique_by_key(
               handle.get_thrust_policy(),
@@ -1162,11 +1163,11 @@ compute_vertex_renumber_map(
             quadraplet_first,
             quadraplet_first + merged_vertices.size(),
             [offsets = *vertex_type_offsets] __device__(auto lhs, auto rhs) {
-              auto lhs_v_type = thrust::distance(
+              auto lhs_v_type = cuda::std::distance(
                 offsets.begin() + 1,
                 thrust::upper_bound(
                   thrust::seq, offsets.begin() + 1, offsets.end(), thrust::get<1>(lhs)));
-              auto rhs_v_type = thrust::distance(
+              auto rhs_v_type = cuda::std::distance(
                 offsets.begin() + 1,
                 thrust::upper_bound(
                   thrust::seq, offsets.begin() + 1, offsets.end(), thrust::get<1>(rhs)));
@@ -1204,7 +1205,7 @@ compute_vertex_renumber_map(
         auto unique_key_first =
           thrust::make_zip_iterator(merged_label_indices.begin(), merged_vertices.begin());
         merged_label_indices.resize(
-          thrust::distance(
+          cuda::std::distance(
             unique_key_first,
             thrust::get<0>(thrust::unique_by_key(handle.get_thrust_policy(),
                                                  unique_key_first,
@@ -1221,11 +1222,11 @@ compute_vertex_renumber_map(
             triplet_first,
             triplet_first + merged_vertices.size(),
             [offsets = *vertex_type_offsets] __device__(auto lhs, auto rhs) {
-              auto lhs_v_type = thrust::distance(
+              auto lhs_v_type = cuda::std::distance(
                 offsets.begin() + 1,
                 thrust::upper_bound(
                   thrust::seq, offsets.begin() + 1, offsets.end(), thrust::get<1>(lhs)));
-              auto rhs_v_type = thrust::distance(
+              auto rhs_v_type = cuda::std::distance(
                 offsets.begin() + 1,
                 thrust::upper_bound(
                   thrust::seq, offsets.begin() + 1, offsets.end(), thrust::get<1>(rhs)));
@@ -1270,7 +1271,7 @@ compute_vertex_renumber_map(
           renumber_map.begin(),
           cuda::proclaim_return_type<vertex_type_t>(
             [offsets = *vertex_type_offsets] __device__(auto v) {
-              return static_cast<vertex_type_t>(thrust::distance(
+              return static_cast<vertex_type_t>(cuda::std::distance(
                 offsets.begin() + 1,
                 thrust::upper_bound(thrust::seq, offsets.begin() + 1, offsets.end(), v)));
             })));
@@ -1326,12 +1327,13 @@ compute_vertex_renumber_map(
       unique_label_minor_pair_hops = std::nullopt;
 
       merged_vertices.resize(
-        thrust::distance(merged_vertices.begin(),
-                         thrust::get<0>(thrust::unique_by_key(
-                           handle.get_thrust_policy(),
-                           merged_vertices.begin(),
-                           merged_vertices.end(),
-                           thrust::make_zip_iterator(merged_hops.begin(), merged_flags.begin())))),
+        cuda::std::distance(
+          merged_vertices.begin(),
+          thrust::get<0>(thrust::unique_by_key(
+            handle.get_thrust_policy(),
+            merged_vertices.begin(),
+            merged_vertices.end(),
+            thrust::make_zip_iterator(merged_hops.begin(), merged_flags.begin())))),
         handle.get_stream());
       merged_hops.resize(merged_vertices.size(), handle.get_stream());
       merged_flags.resize(merged_vertices.size(), handle.get_stream());
@@ -1344,11 +1346,11 @@ compute_vertex_renumber_map(
           triplet_first,
           triplet_first + merged_vertices.size(),
           [offsets = *vertex_type_offsets] __device__(auto lhs, auto rhs) {
-            auto lhs_v_type = thrust::distance(
+            auto lhs_v_type = cuda::std::distance(
               offsets.begin() + 1,
               thrust::upper_bound(
                 thrust::seq, offsets.begin() + 1, offsets.end(), thrust::get<0>(lhs)));
-            auto rhs_v_type = thrust::distance(
+            auto rhs_v_type = cuda::std::distance(
               offsets.begin() + 1,
               thrust::upper_bound(
                 thrust::seq, offsets.begin() + 1, offsets.end(), thrust::get<0>(rhs)));
@@ -1377,7 +1379,7 @@ compute_vertex_renumber_map(
       auto num_unique_majors = unique_label_major_pair_vertices.size();
       renumber_map           = std::move(unique_label_major_pair_vertices);
       renumber_map.resize(
-        renumber_map.size() + thrust::distance(output_vertices.begin(), output_last),
+        renumber_map.size() + cuda::std::distance(output_vertices.begin(), output_last),
         handle.get_stream());
       thrust::copy(handle.get_thrust_policy(),
                    output_vertices.begin(),
@@ -1390,10 +1392,10 @@ compute_vertex_renumber_map(
           renumber_map.begin(),
           renumber_map.end(),
           [offsets = *vertex_type_offsets] __device__(auto lhs, auto rhs) {
-            auto lhs_v_type = thrust::distance(
+            auto lhs_v_type = cuda::std::distance(
               offsets.begin() + 1,
               thrust::upper_bound(thrust::seq, offsets.begin() + 1, offsets.end(), lhs));
-            auto rhs_v_type = thrust::distance(
+            auto rhs_v_type = cuda::std::distance(
               offsets.begin() + 1,
               thrust::upper_bound(thrust::seq, offsets.begin() + 1, offsets.end(), rhs));
             return lhs_v_type < rhs_v_type;
@@ -1409,7 +1411,7 @@ compute_vertex_renumber_map(
         renumber_map.begin(),
         cuda::proclaim_return_type<vertex_type_t>(
           [offsets = *vertex_type_offsets] __device__(auto v) {
-            return static_cast<vertex_type_t>(thrust::distance(
+            return static_cast<vertex_type_t>(cuda::std::distance(
               offsets.begin() + 1,
               thrust::upper_bound(thrust::seq, offsets.begin() + 1, offsets.end(), v)));
           }));
@@ -1570,11 +1572,11 @@ compute_edge_id_renumber_map(
                    std::numeric_limits<size_t>::max());
     }
 
-    tmp_indices.resize(thrust::distance(tmp_indices.begin(),
-                                        thrust::remove(handle.get_thrust_policy(),
-                                                       tmp_indices.begin(),
-                                                       tmp_indices.end(),
-                                                       std::numeric_limits<size_t>::max())),
+    tmp_indices.resize(cuda::std::distance(tmp_indices.begin(),
+                                           thrust::remove(handle.get_thrust_policy(),
+                                                          tmp_indices.begin(),
+                                                          tmp_indices.end(),
+                                                          std::numeric_limits<size_t>::max())),
                        handle.get_stream());
 
     renumber_map = rmm::device_uvector<edge_id_t>(tmp_indices.size(), handle.get_stream());
@@ -1593,7 +1595,7 @@ compute_edge_id_renumber_map(
         cuda::proclaim_return_type<thrust::tuple<label_index_t, edge_type_t>>(
           [edgelist_label_offsets = *edgelist_label_offsets,
            edgelist_edge_types    = *edgelist_edge_types] __device__(size_t i) {
-            auto label_idx = thrust::distance(
+            auto label_idx = cuda::std::distance(
               edgelist_label_offsets.begin() + 1,
               thrust::upper_bound(
                 thrust::seq, edgelist_label_offsets.begin() + 1, edgelist_label_offsets.end(), i));
@@ -1618,7 +1620,7 @@ compute_edge_id_renumber_map(
         tmp_indices.begin(),
         cuda::proclaim_return_type<label_index_t>(
           [edgelist_label_offsets = *edgelist_label_offsets] __device__(size_t i) {
-            auto label_idx = thrust::distance(
+            auto label_idx = cuda::std::distance(
               edgelist_label_offsets.begin() + 1,
               thrust::upper_bound(
                 thrust::seq, edgelist_label_offsets.begin() + 1, edgelist_label_offsets.end(), i));
@@ -1684,16 +1686,16 @@ compute_edge_id_renumber_map(
       auto pair_first = thrust::make_zip_iterator((*tmp_types).begin(), tmp_ids.begin());
       if (tmp_hops) {
         tmp_ids.resize(
-          thrust::distance(pair_first,
-                           thrust::get<0>(thrust::unique_by_key(handle.get_thrust_policy(),
-                                                                pair_first,
-                                                                pair_first + tmp_ids.size(),
-                                                                (*tmp_hops).begin()))),
+          cuda::std::distance(pair_first,
+                              thrust::get<0>(thrust::unique_by_key(handle.get_thrust_policy(),
+                                                                   pair_first,
+                                                                   pair_first + tmp_ids.size(),
+                                                                   (*tmp_hops).begin()))),
           handle.get_stream());
         (*tmp_hops).resize(tmp_ids.size(), handle.get_stream());
       } else {
         tmp_ids.resize(
-          thrust::distance(
+          cuda::std::distance(
             pair_first,
             thrust::unique(handle.get_thrust_policy(), pair_first, pair_first + tmp_ids.size())),
           handle.get_stream());
@@ -1702,7 +1704,7 @@ compute_edge_id_renumber_map(
     } else {
       if (tmp_hops) {
         tmp_ids.resize(
-          thrust::distance(
+          cuda::std::distance(
             tmp_ids.begin(),
             thrust::get<0>(thrust::unique_by_key(
               handle.get_thrust_policy(), tmp_ids.begin(), tmp_ids.end(), (*tmp_hops).begin()))),
@@ -1710,7 +1712,7 @@ compute_edge_id_renumber_map(
         (*tmp_hops).resize(tmp_ids.size(), handle.get_stream());
       } else {
         tmp_ids.resize(
-          thrust::distance(
+          cuda::std::distance(
             tmp_ids.begin(),
             thrust::unique(handle.get_thrust_policy(), tmp_ids.begin(), tmp_ids.end())),
           handle.get_stream());
@@ -1795,7 +1797,7 @@ renumber_sampled_edgelist(raft::handle_t const& handle,
                      [renumber_map_label_offsets = raft::device_span<size_t const>(
                         (*renumber_map_label_offsets).data(),
                         (*renumber_map_label_offsets).size())] __device__(size_t i) {
-                       auto label_index        = static_cast<label_index_t>(thrust::distance(
+                       auto label_index        = static_cast<label_index_t>(cuda::std::distance(
                          renumber_map_label_offsets.begin() + 1,
                          thrust::upper_bound(thrust::seq,
                                              renumber_map_label_offsets.begin() + 1,
@@ -1880,11 +1882,11 @@ renumber_sampled_edgelist(raft::handle_t const& handle,
          segment_sorted_new_vertices.size())] __device__(auto pair) {
         auto old_vertex = thrust::get<0>(pair);
         auto label_idx  = static_cast<label_index_t>(
-          thrust::distance(edgelist_label_offsets.begin() + 1,
-                           thrust::upper_bound(thrust::seq,
-                                               edgelist_label_offsets.begin() + 1,
-                                               edgelist_label_offsets.end(),
-                                               thrust::get<1>(pair))));
+          cuda::std::distance(edgelist_label_offsets.begin() + 1,
+                              thrust::upper_bound(thrust::seq,
+                                                  edgelist_label_offsets.begin() + 1,
+                                                  edgelist_label_offsets.end(),
+                                                  thrust::get<1>(pair))));
         auto label_start_offset = renumber_map_label_offsets[label_idx];
         auto label_end_offset   = renumber_map_label_offsets[label_idx + 1];
         auto it                 = thrust::lower_bound(thrust::seq,
@@ -1892,7 +1894,7 @@ renumber_sampled_edgelist(raft::handle_t const& handle,
                                       old_vertices.begin() + label_end_offset,
                                       old_vertex);
         assert(*it == old_vertex);
-        return *(new_vertices.begin() + thrust::distance(old_vertices.begin(), it));
+        return *(new_vertices.begin() + cuda::std::distance(old_vertices.begin(), it));
       });
 
     pair_first =
@@ -1912,11 +1914,11 @@ renumber_sampled_edgelist(raft::handle_t const& handle,
          segment_sorted_new_vertices.size())] __device__(auto pair) {
         auto old_vertex = thrust::get<0>(pair);
         auto label_idx  = static_cast<label_index_t>(
-          thrust::distance(edgelist_label_offsets.begin() + 1,
-                           thrust::upper_bound(thrust::seq,
-                                               edgelist_label_offsets.begin() + 1,
-                                               edgelist_label_offsets.end(),
-                                               thrust::get<1>(pair))));
+          cuda::std::distance(edgelist_label_offsets.begin() + 1,
+                              thrust::upper_bound(thrust::seq,
+                                                  edgelist_label_offsets.begin() + 1,
+                                                  edgelist_label_offsets.end(),
+                                                  thrust::get<1>(pair))));
         auto label_start_offset = renumber_map_label_offsets[label_idx];
         auto label_end_offset   = renumber_map_label_offsets[label_idx + 1];
         auto it                 = thrust::lower_bound(thrust::seq,
@@ -1924,7 +1926,7 @@ renumber_sampled_edgelist(raft::handle_t const& handle,
                                       old_vertices.begin() + label_end_offset,
                                       old_vertex);
         assert(*it == old_vertex);
-        return new_vertices[thrust::distance(old_vertices.begin(), it)];
+        return new_vertices[cuda::std::distance(old_vertices.begin(), it)];
       });
 
     if (seed_vertices) {
@@ -1945,11 +1947,11 @@ renumber_sampled_edgelist(raft::handle_t const& handle,
            segment_sorted_new_vertices.size())] __device__(auto pair) {
           auto old_vertex = thrust::get<0>(pair);
           auto label_idx  = static_cast<label_index_t>(
-            thrust::distance(seed_vertex_label_offsets.begin() + 1,
-                             thrust::upper_bound(thrust::seq,
-                                                 seed_vertex_label_offsets.begin() + 1,
-                                                 seed_vertex_label_offsets.end(),
-                                                 thrust::get<1>(pair))));
+            cuda::std::distance(seed_vertex_label_offsets.begin() + 1,
+                                thrust::upper_bound(thrust::seq,
+                                                    seed_vertex_label_offsets.begin() + 1,
+                                                    seed_vertex_label_offsets.end(),
+                                                    thrust::get<1>(pair))));
           auto label_start_offset = renumber_map_label_offsets[label_idx];
           auto label_end_offset   = renumber_map_label_offsets[label_idx + 1];
           auto it                 = thrust::lower_bound(thrust::seq,
@@ -1957,7 +1959,7 @@ renumber_sampled_edgelist(raft::handle_t const& handle,
                                         old_vertices.begin() + label_end_offset,
                                         old_vertex);
           assert(*it == old_vertex);
-          return new_vertices[thrust::distance(old_vertices.begin(), it)];
+          return new_vertices[cuda::std::distance(old_vertices.begin(), it)];
         });
     }
   } else {
@@ -2070,7 +2072,7 @@ heterogeneous_renumber_sampled_edgelist(
                      [renumber_map_label_type_offsets = raft::device_span<size_t const>(
                         (*vertex_renumber_map_label_type_offsets).data(),
                         (*vertex_renumber_map_label_type_offsets).size())] __device__(size_t i) {
-                       auto idx          = static_cast<size_t>(thrust::distance(
+                       auto idx          = static_cast<size_t>(cuda::std::distance(
                          renumber_map_label_type_offsets.begin() + 1,
                          thrust::upper_bound(thrust::seq,
                                              renumber_map_label_type_offsets.begin() + 1,
@@ -2156,13 +2158,13 @@ heterogeneous_renumber_sampled_edgelist(
         label_index_t label_idx{0};
         if (edgelist_label_offsets) {
           label_idx = static_cast<label_index_t>(
-            thrust::distance((*edgelist_label_offsets).begin() + 1,
-                             thrust::upper_bound(thrust::seq,
-                                                 (*edgelist_label_offsets).begin() + 1,
-                                                 (*edgelist_label_offsets).end(),
-                                                 thrust::get<1>(pair))));
+            cuda::std::distance((*edgelist_label_offsets).begin() + 1,
+                                thrust::upper_bound(thrust::seq,
+                                                    (*edgelist_label_offsets).begin() + 1,
+                                                    (*edgelist_label_offsets).end(),
+                                                    thrust::get<1>(pair))));
         }
-        auto v_type       = static_cast<vertex_type_t>(thrust::distance(
+        auto v_type       = static_cast<vertex_type_t>(cuda::std::distance(
           vertex_type_offsets.begin() + 1,
           thrust::upper_bound(
             thrust::seq, vertex_type_offsets.begin() + 1, vertex_type_offsets.end(), old_vertex)));
@@ -2174,7 +2176,7 @@ heterogeneous_renumber_sampled_edgelist(
                                       old_vertices.begin() + end_offset,
                                       old_vertex);
         assert(*it == old_vertex);
-        return *(new_vertices.begin() + thrust::distance(old_vertices.begin(), it));
+        return *(new_vertices.begin() + cuda::std::distance(old_vertices.begin(), it));
       });
 
     pair_first =
@@ -2198,13 +2200,13 @@ heterogeneous_renumber_sampled_edgelist(
         label_index_t label_idx{0};
         if (edgelist_label_offsets) {
           label_idx = static_cast<label_index_t>(
-            thrust::distance((*edgelist_label_offsets).begin() + 1,
-                             thrust::upper_bound(thrust::seq,
-                                                 (*edgelist_label_offsets).begin() + 1,
-                                                 (*edgelist_label_offsets).end(),
-                                                 thrust::get<1>(pair))));
+            cuda::std::distance((*edgelist_label_offsets).begin() + 1,
+                                thrust::upper_bound(thrust::seq,
+                                                    (*edgelist_label_offsets).begin() + 1,
+                                                    (*edgelist_label_offsets).end(),
+                                                    thrust::get<1>(pair))));
         }
-        auto v_type       = static_cast<vertex_type_t>(thrust::distance(
+        auto v_type       = static_cast<vertex_type_t>(cuda::std::distance(
           vertex_type_offsets.begin() + 1,
           thrust::upper_bound(
             thrust::seq, vertex_type_offsets.begin() + 1, vertex_type_offsets.end(), old_vertex)));
@@ -2216,7 +2218,7 @@ heterogeneous_renumber_sampled_edgelist(
                                       old_vertices.begin() + end_offset,
                                       old_vertex);
         assert(*it == old_vertex);
-        return *(new_vertices.begin() + thrust::distance(old_vertices.begin(), it));
+        return *(new_vertices.begin() + cuda::std::distance(old_vertices.begin(), it));
       });
 
     if (seed_vertices) {
@@ -2241,18 +2243,18 @@ heterogeneous_renumber_sampled_edgelist(
           label_index_t label_idx{0};
           if (seed_vertex_label_offsets) {
             label_idx = static_cast<label_index_t>(
-              thrust::distance((*seed_vertex_label_offsets).begin() + 1,
-                               thrust::upper_bound(thrust::seq,
-                                                   (*seed_vertex_label_offsets).begin() + 1,
-                                                   (*seed_vertex_label_offsets).end(),
-                                                   thrust::get<1>(pair))));
+              cuda::std::distance((*seed_vertex_label_offsets).begin() + 1,
+                                  thrust::upper_bound(thrust::seq,
+                                                      (*seed_vertex_label_offsets).begin() + 1,
+                                                      (*seed_vertex_label_offsets).end(),
+                                                      thrust::get<1>(pair))));
           }
           auto v_type = static_cast<vertex_type_t>(
-            thrust::distance(vertex_type_offsets.begin() + 1,
-                             thrust::upper_bound(thrust::seq,
-                                                 vertex_type_offsets.begin() + 1,
-                                                 vertex_type_offsets.end(),
-                                                 old_vertex)));
+            cuda::std::distance(vertex_type_offsets.begin() + 1,
+                                thrust::upper_bound(thrust::seq,
+                                                    vertex_type_offsets.begin() + 1,
+                                                    vertex_type_offsets.end(),
+                                                    old_vertex)));
           auto start_offset =
             renumber_map_label_type_offsets[label_idx * num_vertex_types + v_type];
           auto end_offset =
@@ -2262,7 +2264,7 @@ heterogeneous_renumber_sampled_edgelist(
                                         old_vertices.begin() + end_offset,
                                         old_vertex);
           assert(*it == old_vertex);
-          return new_vertices[thrust::distance(old_vertices.begin(), it)];
+          return new_vertices[cuda::std::distance(old_vertices.begin(), it)];
         });
     }
   }
@@ -2279,7 +2281,7 @@ heterogeneous_renumber_sampled_edgelist(
                        [renumber_map_label_type_offsets = raft::device_span<size_t const>(
                           (*edge_id_renumber_map_label_type_offsets).data(),
                           (*edge_id_renumber_map_label_type_offsets).size())] __device__(size_t i) {
-                         auto idx          = static_cast<size_t>(thrust::distance(
+                         auto idx          = static_cast<size_t>(cuda::std::distance(
                            renumber_map_label_type_offsets.begin() + 1,
                            thrust::upper_bound(thrust::seq,
                                                renumber_map_label_type_offsets.begin() + 1,
@@ -2388,11 +2390,11 @@ heterogeneous_renumber_sampled_edgelist(
             size_t label_idx{0};
             if (edgelist_label_offsets) {
               label_idx = static_cast<size_t>(
-                thrust::distance((*edgelist_label_offsets).begin() + 1,
-                                 thrust::upper_bound(thrust::seq,
-                                                     (*edgelist_label_offsets).begin() + 1,
-                                                     (*edgelist_label_offsets).end(),
-                                                     edge_idx)));
+                cuda::std::distance((*edgelist_label_offsets).begin() + 1,
+                                    thrust::upper_bound(thrust::seq,
+                                                        (*edgelist_label_offsets).begin() + 1,
+                                                        (*edgelist_label_offsets).end(),
+                                                        edge_idx)));
             }
             edge_type_t edge_type{0};
             if (edge_types) { edge_type = (*edge_types)[edge_idx]; }
@@ -2405,7 +2407,7 @@ heterogeneous_renumber_sampled_edgelist(
                                           renumber_map.begin() + renumber_map_end_offset,
                                           old_edge_id);
             assert(*it == old_edge_id);
-            return *(new_edge_ids.begin() + thrust::distance(renumber_map.begin(), it));
+            return *(new_edge_ids.begin() + cuda::std::distance(renumber_map.begin(), it));
           }));
     } else {
       thrust::transform(
@@ -2423,7 +2425,7 @@ heterogeneous_renumber_sampled_edgelist(
             auto it = thrust::lower_bound(
               thrust::seq, renumber_map.begin(), renumber_map.end(), old_edge_id);
             assert(*it == old_edge_id);
-            return *(new_edge_ids.begin() + thrust::distance(renumber_map.begin(), it));
+            return *(new_edge_ids.begin() + cuda::std::distance(renumber_map.begin(), it));
           }));
     }
   }
@@ -2446,7 +2448,7 @@ void permute_array(raft::handle_t const& handle,
 {
   using value_t = typename thrust::iterator_traits<ValueIterator>::value_type;
 
-  auto tmp_buffer = allocate_dataframe_buffer<value_t>(thrust::distance(index_first, index_last),
+  auto tmp_buffer = allocate_dataframe_buffer<value_t>(cuda::std::distance(index_first, index_last),
                                                        handle.get_stream());
   thrust::gather(handle.get_thrust_policy(),
                  index_first,
@@ -2706,7 +2708,7 @@ renumber_and_compress_sampled_edgelist(
                               thrust::equal_to<thrust::tuple<label_index_t, int32_t>>{},
                               thrust::minimum<vertex_t>{});
       auto num_unique_keys =
-        static_cast<size_t>(thrust::distance(output_key_first, thrust::get<0>(output_it)));
+        static_cast<size_t>(cuda::std::distance(output_key_first, thrust::get<0>(output_it)));
       thrust::reduce_by_key(handle.get_thrust_policy(),
                             input_key_first,
                             input_key_first + edgelist_majors.size(),
@@ -2949,8 +2951,9 @@ renumber_and_compress_sampled_edgelist(
                                                 (*edgelist_hops).begin() + end_offset,
                                                 h);
             start_offset =
-              static_cast<size_t>(thrust::distance((*edgelist_hops).begin(), lower_it));
-            end_offset = static_cast<size_t>(thrust::distance((*edgelist_hops).begin(), upper_it));
+              static_cast<size_t>(cuda::std::distance((*edgelist_hops).begin(), lower_it));
+            end_offset =
+              static_cast<size_t>(cuda::std::distance((*edgelist_hops).begin(), upper_it));
           }
           if (compress_per_hop) {
             if (start_offset < end_offset)
@@ -3336,8 +3339,9 @@ renumber_and_sort_sampled_edgelist(
                                                 (*edgelist_hops).begin() + end_offset,
                                                 h);
             start_offset =
-              static_cast<size_t>(thrust::distance((*edgelist_hops).begin(), lower_it));
-            end_offset = static_cast<size_t>(thrust::distance((*edgelist_hops).begin(), upper_it));
+              static_cast<size_t>(cuda::std::distance((*edgelist_hops).begin(), lower_it));
+            end_offset =
+              static_cast<size_t>(cuda::std::distance((*edgelist_hops).begin(), upper_it));
           }
 
           return end_offset - start_offset;
@@ -3530,9 +3534,9 @@ heterogeneous_renumber_and_sort_sampled_edgelist(
                                                 (*edgelist_edge_types).begin() + end_offset,
                                                 t);
             start_offset =
-              static_cast<size_t>(thrust::distance((*edgelist_edge_types).begin(), lower_it));
+              static_cast<size_t>(cuda::std::distance((*edgelist_edge_types).begin(), lower_it));
             end_offset =
-              static_cast<size_t>(thrust::distance((*edgelist_edge_types).begin(), upper_it));
+              static_cast<size_t>(cuda::std::distance((*edgelist_edge_types).begin(), upper_it));
           }
 
           if (edgelist_hops) {
@@ -3546,8 +3550,9 @@ heterogeneous_renumber_and_sort_sampled_edgelist(
                                                 (*edgelist_hops).begin() + end_offset,
                                                 h);
             start_offset =
-              static_cast<size_t>(thrust::distance((*edgelist_hops).begin(), lower_it));
-            end_offset = static_cast<size_t>(thrust::distance((*edgelist_hops).begin(), upper_it));
+              static_cast<size_t>(cuda::std::distance((*edgelist_hops).begin(), lower_it));
+            end_offset =
+              static_cast<size_t>(cuda::std::distance((*edgelist_hops).begin(), upper_it));
           }
 
           return end_offset - start_offset;
@@ -3679,8 +3684,9 @@ sort_sampled_edgelist(raft::handle_t const& handle,
                                                 (*edgelist_hops).begin() + end_offset,
                                                 h);
             start_offset =
-              static_cast<size_t>(thrust::distance((*edgelist_hops).begin(), lower_it));
-            end_offset = static_cast<size_t>(thrust::distance((*edgelist_hops).begin(), upper_it));
+              static_cast<size_t>(cuda::std::distance((*edgelist_hops).begin(), lower_it));
+            end_offset =
+              static_cast<size_t>(cuda::std::distance((*edgelist_hops).begin(), upper_it));
           }
 
           return end_offset - start_offset;

@@ -236,11 +236,10 @@ def graph_objs(request):
 
                 with TimerContext("dask compute() results"):
                     result_df = result_ddf.compute()
-                    sources = result_df["sources"].to_cupy()
-                    destinations = result_df["destinations"].to_cupy()
-                    indices = result_df["indices"].to_cupy()
+                    sources = result_df["majors"].to_cupy()
+                    destinations = result_df["minors"].to_cupy()
 
-                return (sources, destinations, indices)
+                return (sources, destinations)
 
     yield (G, num_verts, uns_func)
 
@@ -275,8 +274,6 @@ def bench_cugraph_uniform_neighbor_sample(
         start_list=uns_args["start_list"],
         fanout_vals=uns_args["fanout"],
         with_replacement=uns_args["with_replacement"],
-        use_legacy_names=False,
-        with_edge_properties=True,
     )
     """
     dtmap = {"int32": 32 // 8, "int64": 64 // 8}

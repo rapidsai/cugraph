@@ -37,6 +37,8 @@
 #include <cub/cub.cuh>
 #include <cuda/atomic>
 #include <cuda/functional>
+#include <cuda/std/cmath>
+#include <cuda/std/iterator>
 #include <cuda/std/optional>
 #include <thrust/adjacent_difference.h>
 #include <thrust/copy.h>
@@ -130,7 +132,7 @@ struct convert_value_key_pair_to_shuffle_t {
       auto displacement_first =
         partitioned_local_value_displacements.begin() + key_idx * minor_comm_size;
       minor_comm_rank =
-        static_cast<int>(thrust::distance(
+        static_cast<int>(cuda::std::distance(
           displacement_first,
           thrust::upper_bound(
             thrust::seq, displacement_first, displacement_first + minor_comm_size, nbr_value))) -
@@ -167,7 +169,7 @@ struct convert_per_type_value_key_pair_to_shuffle_t {
     auto per_type_nbr_value       = thrust::get<0>(pair);
     auto idx                      = thrust::get<1>(pair);
     auto key_idx                  = idx / K_sum;
-    auto type                     = static_cast<edge_type_t>(thrust::distance(
+    auto type                     = static_cast<edge_type_t>(cuda::std::distance(
       K_offsets.begin() + 1,
       thrust::upper_bound(thrust::seq, K_offsets.begin() + 1, K_offsets.end(), idx % K_sum)));
     auto per_type_local_nbr_value = per_type_nbr_value;
@@ -176,13 +178,13 @@ struct convert_per_type_value_key_pair_to_shuffle_t {
     if (per_type_nbr_value != invalid_value) {
       auto displacement_first = partitioned_per_type_local_value_displacements.begin() +
                                 (key_idx * num_edge_types + type) * minor_comm_size;
-      minor_comm_rank =
-        static_cast<int>(thrust::distance(displacement_first,
-                                          thrust::upper_bound(thrust::seq,
-                                                              displacement_first,
-                                                              displacement_first + minor_comm_size,
-                                                              per_type_nbr_value))) -
-        1;
+      minor_comm_rank = static_cast<int>(cuda::std::distance(
+                          displacement_first,
+                          thrust::upper_bound(thrust::seq,
+                                              displacement_first,
+                                              displacement_first + minor_comm_size,
+                                              per_type_nbr_value))) -
+                        1;
       per_type_local_nbr_value -= *(displacement_first + minor_comm_rank);
       cuda::atomic_ref<size_t, cuda::thread_scope_device> counter(tx_counts[minor_comm_rank]);
       intra_partition_offset = counter.fetch_add(size_t{1}, cuda::std::memory_order_relaxed);
@@ -254,12 +256,12 @@ struct find_nth_valid_nbr_idx_t {
         thrust::get<0>(unique_major_valid_local_nbr_count_inclusive_sums)[unique_major_idx];
       auto end_offset =
         thrust::get<0>(unique_major_valid_local_nbr_count_inclusive_sums)[unique_major_idx + 1];
-      auto word_idx =
-        static_cast<edge_t>(thrust::distance(inclusive_sum_first + start_offset,
-                                             thrust::upper_bound(thrust::seq,
-                                                                 inclusive_sum_first + start_offset,
-                                                                 inclusive_sum_first + end_offset,
-                                                                 local_nbr_idx)));
+      auto word_idx = static_cast<edge_t>(
+        cuda::std::distance(inclusive_sum_first + start_offset,
+                            thrust::upper_bound(thrust::seq,
+                                                inclusive_sum_first + start_offset,
+                                                inclusive_sum_first + end_offset,
+                                                local_nbr_idx)));
       local_nbr_idx =
         word_idx * packed_bools_per_word() +
         find_nth_set_bits(
@@ -411,7 +413,7 @@ compute_unique_keys(raft::handle_t const& handle,
     thrust::sort(handle.get_thrust_policy(),
                  get_dataframe_buffer_begin(tmp_keys) + local_frontier_offsets[i],
                  get_dataframe_buffer_begin(tmp_keys) + local_frontier_offsets[i + 1]);
-    local_frontier_unique_key_sizes[i] = thrust::distance(
+    local_frontier_unique_key_sizes[i] = cuda::std::distance(
       get_dataframe_buffer_begin(tmp_keys) + local_frontier_offsets[i],
       thrust::unique(handle.get_thrust_policy(),
                      get_dataframe_buffer_begin(tmp_keys) + local_frontier_offsets[i],
@@ -440,7 +442,7 @@ compute_unique_keys(raft::handle_t const& handle,
                             local_frontier_unique_key_offsets[i],
          unique_key_last = get_dataframe_buffer_begin(aggregate_local_frontier_unique_keys) +
                            local_frontier_unique_key_offsets[i + 1]] __device__(key_t key) {
-          return static_cast<size_t>(thrust::distance(
+          return static_cast<size_t>(cuda::std::distance(
             unique_key_first, thrust::find(thrust::seq, unique_key_first, unique_key_last, key)));
         }));
   }
@@ -738,7 +740,7 @@ void sample_nbr_index_with_replacement(
         auto num_edge_types = static_cast<size_t>(K_offsets.size() - 1);
         auto i              = thrust::get<0>(pair);
         auto r              = thrust::get<1>(pair);
-        auto idx            = thrust::distance(
+        auto idx            = cuda::std::distance(
           input_r_offsets.begin() + 1,
           thrust::upper_bound(thrust::seq, input_r_offsets.begin() + 1, input_r_offsets.end(), i));
         auto frontier_idx = frontier_indices[idx];
@@ -767,7 +769,7 @@ void sample_nbr_index_with_replacement(
           auto i              = thrust::get<0>(pair);
           auto r              = thrust::get<1>(pair);
           auto frontier_idx   = i / K_sum;
-          auto type           = static_cast<edge_type_t>(thrust::distance(
+          auto type           = static_cast<edge_type_t>(cuda::std::distance(
             K_offsets.begin() + 1,
             thrust::upper_bound(thrust::seq, K_offsets.begin() + 1, K_offsets.end(), i % K_sum)));
           auto degree         = frontier_per_type_degrees[frontier_idx * num_edge_types + type];
@@ -868,7 +870,7 @@ void sample_nbr_index_without_replacement(
                           : cuda::std::nullopt,
        nbr_indices,
        K] __device__(size_t i) {
-        auto idx = thrust::distance(
+        auto idx = cuda::std::distance(
           input_r_offsets.begin() + 1,
           thrust::upper_bound(thrust::seq, input_r_offsets.begin() + 1, input_r_offsets.end(), i));
         auto nbr_idx = K + (i - input_r_offsets[idx]);
@@ -931,7 +933,7 @@ void sample_nbr_index_without_replacement(
        K_sum,
        invalid_idx = cugraph::invalid_edge_id_v<edge_t>] __device__(auto i) {
         auto num_edge_types = static_cast<edge_type_t>(K_offsets.size() - 1);
-        auto idx            = thrust::distance(
+        auto idx            = cuda::std::distance(
           sample_size_offsets.begin() + 1,
           thrust::upper_bound(
             thrust::seq, sample_size_offsets.begin() + 1, sample_size_offsets.end(), i));
@@ -954,7 +956,7 @@ void sample_nbr_index_without_replacement(
        invalid_idx = cugraph::invalid_edge_id_v<edge_t>] __device__(auto i) {
         auto num_edge_types = static_cast<edge_type_t>(K_offsets.size() - 1);
         auto frontier_idx   = i / K_sum;
-        auto type           = static_cast<edge_t>(thrust::distance(
+        auto type           = static_cast<edge_t>(cuda::std::distance(
           K_offsets.begin() + 1,
           thrust::upper_bound(thrust::seq, K_offsets.begin() + 1, K_offsets.end(), i % K_sum)));
         auto d              = frontier_per_type_degrees[frontier_idx * num_edge_types + type];
@@ -1035,7 +1037,7 @@ void sample_nbr_index_without_replacement(
        K_sum,
        invalid_idx = cugraph::invalid_edge_id_v<edge_t>] __device__(size_t i) {
         auto num_edge_types = static_cast<edge_type_t>(K_offsets.size() - 1);
-        auto idx            = thrust::distance(
+        auto idx            = cuda::std::distance(
           input_r_offsets.begin() + 1,
           thrust::upper_bound(thrust::seq, input_r_offsets.begin() + 1, input_r_offsets.end(), i));
         auto type = types ? (*types)[idx] : static_cast<edge_type_t>(idx % num_edge_types);
@@ -1339,7 +1341,7 @@ rmm::device_uvector<edge_t> compute_homogeneous_uniform_sampling_index_without_r
                                K] __device__(auto segment_idx) {
                                 return unique_counts[segment_idx] >= static_cast<edge_t>(K);
                               });
-          auto num_retry_segments = thrust::distance((*retry_segment_indices).begin(), last);
+          auto num_retry_segments = cuda::std::distance((*retry_segment_indices).begin(), last);
           if (num_retry_segments > 0) {
             (*retry_segment_indices).resize(num_retry_segments, handle.get_stream());
           } else {
@@ -1765,7 +1767,7 @@ rmm::device_uvector<edge_t> compute_heterogeneous_uniform_sampling_index_without
                                 return thrust::get<0>(pair) >=
                                        static_cast<edge_t>(K_offsets[type + 1] - K_offsets[type]);
                               });
-          auto num_retry_segments = thrust::distance((*retry_segment_indices).begin(), last);
+          auto num_retry_segments = cuda::std::distance((*retry_segment_indices).begin(), last);
           if (num_retry_segments > 0) {
             (*retry_segment_indices).resize(num_retry_segments, handle.get_stream());
           } else {
@@ -1876,7 +1878,7 @@ rmm::device_uvector<edge_t> compute_heterogeneous_uniform_sampling_index_without
            raft::device_span<edge_t>(per_type_nbr_indices.data(), per_type_nbr_indices.size()),
          K_offsets,
          K_sum] __device__(size_t i) {
-          auto idx = thrust::distance(
+          auto idx = cuda::std::distance(
             output_count_offsets.begin() + 1,
             thrust::upper_bound(
               thrust::seq, output_count_offsets.begin() + 1, output_count_offsets.end(), i));
@@ -1977,7 +1979,7 @@ void compute_homogeneous_biased_sampling_index_without_replacement(
                                             packed_input_degree_offsets.begin() + 1,
                                             packed_input_degree_offsets.end(),
                                             i);
-              auto idx          = thrust::distance(packed_input_degree_offsets.begin() + 1, it);
+              auto idx          = cuda::std::distance(packed_input_degree_offsets.begin() + 1, it);
               auto frontier_idx = frontier_indices[idx];
               return input_biases[input_degree_offsets[frontier_idx] +
                                   (i - packed_input_degree_offsets[idx])];
@@ -2019,7 +2021,7 @@ void compute_homogeneous_biased_sampling_index_without_replacement(
                                         input_degree_offsets.data() + chunk_offsets[i],
                                         chunk_offsets[i + 1] - chunk_offsets[i]),
                         element_offset = element_offsets[i]] __device__(size_t i) {
-                         auto idx = thrust::distance(
+                         auto idx = cuda::std::distance(
                            offsets.begin() + 1,
                            thrust::upper_bound(
                              thrust::seq, offsets.begin() + 1, offsets.end(), element_offset + i));
@@ -2241,7 +2243,7 @@ void compute_heterogeneous_biased_sampling_index_without_replacement(
                                             packed_input_per_type_degree_offsets.begin() + 1,
                                             packed_input_per_type_degree_offsets.end(),
                                             i);
-              auto idx = thrust::distance(packed_input_per_type_degree_offsets.begin() + 1, it);
+              auto idx = cuda::std::distance(packed_input_per_type_degree_offsets.begin() + 1, it);
               auto frontier_idx = frontier_indices[idx];
               auto type         = frontier_types[idx];
               return input_biases[input_per_type_degree_offsets[frontier_idx * num_edge_types +
@@ -2286,7 +2288,7 @@ void compute_heterogeneous_biased_sampling_index_without_replacement(
                          input_per_type_degree_offsets.data() + chunk_offsets[i],
                          chunk_offsets[i + 1] - chunk_offsets[i]),
          element_offset = element_offsets[i]] __device__(size_t i) {
-          auto idx = thrust::distance(
+          auto idx = cuda::std::distance(
             offsets.begin() + 1,
             thrust::upper_bound(
               thrust::seq, offsets.begin() + 1, offsets.end(), element_offset + i));
@@ -2474,7 +2476,7 @@ rmm::device_uvector<edge_t> compute_aggregate_local_frontier_per_type_local_degr
         auto edge_type_first =
           aggregate_local_frontier_unique_key_edge_types.begin() + start_offset;
         auto edge_type_last = aggregate_local_frontier_unique_key_edge_types.begin() + end_offset;
-        return static_cast<edge_t>(thrust::distance(
+        return static_cast<edge_t>(cuda::std::distance(
           thrust::lower_bound(thrust::seq, edge_type_first, edge_type_last, edge_type),
           thrust::upper_bound(thrust::seq, edge_type_first, edge_type_last, edge_type)));
       });
@@ -2566,7 +2568,7 @@ compute_aggregate_local_frontier_biases(raft::handle_t const& handle,
                       aggregate_local_frontier_local_degree_offsets.size())] __device__(size_t i) {
                      auto it =
                        thrust::upper_bound(thrust::seq, offsets.begin() + 1, offsets.end(), i);
-                     auto idx = thrust::distance(offsets.begin() + 1, it);
+                     auto idx = cuda::std::distance(offsets.begin() + 1, it);
                      return static_cast<edge_t>(i - offsets[idx]);
                    });
 
@@ -2592,7 +2594,7 @@ compute_aggregate_local_frontier_biases(raft::handle_t const& handle,
                        auto bias = thrust::get<0>(pair);
                        if (bias == 0.0) {
                          auto i   = thrust::get<1>(pair);
-                         auto idx = thrust::distance(
+                         auto idx = cuda::std::distance(
                            offsets.begin() + 1,
                            thrust::upper_bound(thrust::seq, offsets.begin() + 1, offsets.end(), i));
                          cuda::atomic_ref<size_t, cuda::thread_scope_device> degree(degrees[idx]);
@@ -2614,9 +2616,9 @@ compute_aggregate_local_frontier_biases(raft::handle_t const& handle,
                         pair_first,
                         pair_first + aggregate_local_frontier_biases.size(),
                         [] __device__(auto pair) { return thrust::get<0>(pair) == 0.0; });
-    aggregate_local_frontier_biases.resize(thrust::distance(pair_first, pair_last),
+    aggregate_local_frontier_biases.resize(cuda::std::distance(pair_first, pair_last),
                                            handle.get_stream());
-    aggregate_local_frontier_nz_bias_indices.resize(thrust::distance(pair_first, pair_last),
+    aggregate_local_frontier_nz_bias_indices.resize(cuda::std::distance(pair_first, pair_last),
                                                     handle.get_stream());
     aggregate_local_frontier_biases.shrink_to_fit(handle.get_stream());
     aggregate_local_frontier_nz_bias_indices.shrink_to_fit(handle.get_stream());
@@ -2662,37 +2664,75 @@ compute_aggregate_local_frontier_bias_type_pairs(
   using edge_t   = typename GraphViewType::edge_type;
   using key_t    = typename thrust::iterator_traits<KeyIterator>::value_type;
 
-  using edge_type_t = typename EdgeTypeInputWrapper::value_type;
-  using bias_t      = typename edge_op_result_type<key_t,
-                                              vertex_t,
-                                              typename EdgeSrcValueInputWrapper::value_type,
-                                              typename EdgeDstValueInputWrapper::value_type,
-                                              typename EdgeValueInputWrapper::value_type,
-                                              BiasEdgeOp>::type;
+  using edge_value_t = typename EdgeValueInputWrapper::value_type;
+  using edge_type_t  = typename EdgeTypeInputWrapper::value_type;
+  using bias_t       = typename edge_op_result_type<key_t,
+                                                    vertex_t,
+                                                    typename EdgeSrcValueInputWrapper::value_type,
+                                                    typename EdgeDstValueInputWrapper::value_type,
+                                                    typename EdgeValueInputWrapper::value_type,
+                                                    BiasEdgeOp>::type;
+  static_assert(std::is_arithmetic_v<bias_t>);
+  static_assert(std::is_integral_v<edge_type_t>);
 
   std::vector<size_t> local_frontier_sizes(local_frontier_offsets.size() - 1);
   std::adjacent_difference(
     local_frontier_offsets.begin() + 1, local_frontier_offsets.end(), local_frontier_sizes.begin());
-  auto [aggregate_local_frontier_bias_type_pairs, aggregate_local_frontier_local_degree_offsets] =
-    transform_v_frontier_e(
-      handle,
-      graph_view,
-      aggregate_local_frontier_key_first,
-      edge_src_value_input,
-      edge_dst_value_input,
-      view_concat(edge_value_input, edge_type_input),
-      cuda::proclaim_return_type<thrust::tuple<bias_t, edge_type_t>>(
-        [bias_e_op] __device__(auto src, auto dst, auto src_val, auto dst_val, auto e_val) {
-          return thrust::make_tuple(bias_e_op(src, dst, src_val, dst_val, thrust::get<0>(e_val)),
-                                    thrust::get<1>(e_val));
-        }),
-      raft::host_span<size_t const>(local_frontier_offsets.data(), local_frontier_offsets.size()));
+
+  rmm::device_uvector<bias_t> aggregate_local_frontier_biases(0, handle.get_stream());
+  rmm::device_uvector<edge_type_t> aggregate_local_frontier_edge_types(0, handle.get_stream());
+  rmm::device_uvector<size_t> aggregate_local_frontier_local_degree_offsets(0, handle.get_stream());
+  if constexpr (std::is_same_v<edge_value_t, cuda::std::nullopt_t>) {
+    std::forward_as_tuple(
+      std::tie(aggregate_local_frontier_biases, aggregate_local_frontier_edge_types),
+      aggregate_local_frontier_local_degree_offsets) =
+      transform_v_frontier_e(
+        handle,
+        graph_view,
+        aggregate_local_frontier_key_first,
+        edge_src_value_input,
+        edge_dst_value_input,
+        edge_type_input,
+        cuda::proclaim_return_type<thrust::tuple<bias_t, edge_type_t>>(
+          [bias_e_op] __device__(auto src, auto dst, auto src_val, auto dst_val, auto e_val) {
+            return thrust::make_tuple(bias_e_op(src, dst, src_val, dst_val, cuda::std::nullopt),
+                                      e_val);
+          }),
+        raft::host_span<size_t const>(local_frontier_offsets.data(),
+                                      local_frontier_offsets.size()));
+  } else {
+    std::forward_as_tuple(
+      std::tie(aggregate_local_frontier_biases, aggregate_local_frontier_edge_types),
+      aggregate_local_frontier_local_degree_offsets) =
+      transform_v_frontier_e(
+        handle,
+        graph_view,
+        aggregate_local_frontier_key_first,
+        edge_src_value_input,
+        edge_dst_value_input,
+        view_concat(edge_value_input, edge_type_input),
+        cuda::proclaim_return_type<thrust::tuple<bias_t, edge_type_t>>(
+          [bias_e_op] __device__(auto src, auto dst, auto src_val, auto dst_val, auto e_val) {
+            using tuple_type          = decltype(e_val);
+            auto constexpr tuple_size = thrust::tuple_size<tuple_type>::value;
+            edge_value_t bias_e_op_e_val{};
+            if constexpr (std::is_arithmetic_v<edge_value_t>) {
+              bias_e_op_e_val = thrust::get<0>(e_val);
+            } else {
+              bias_e_op_e_val = thrust_tuple_slice<tuple_type, size_t{0}, tuple_size - 1>(e_val);
+            }
+            return thrust::make_tuple(bias_e_op(src, dst, src_val, dst_val, bias_e_op_e_val),
+                                      thrust::get<tuple_size - 1>(e_val));
+          }),
+        raft::host_span<size_t const>(local_frontier_offsets.data(),
+                                      local_frontier_offsets.size()));
+  }
 
   if (do_expensive_check) {
     auto num_invalid_biases = thrust::count_if(
       handle.get_thrust_policy(),
-      std::get<0>(aggregate_local_frontier_bias_type_pairs).begin(),
-      std::get<0>(aggregate_local_frontier_bias_type_pairs).end(),
+      aggregate_local_frontier_biases.begin(),
+      aggregate_local_frontier_biases.end(),
       check_out_of_range_t<bias_t>{bias_t{0.0}, std::numeric_limits<bias_t>::max()});
     if constexpr (GraphViewType::is_multi_gpu) {
       num_invalid_biases = host_scalar_allreduce(
@@ -2706,7 +2746,7 @@ compute_aggregate_local_frontier_bias_type_pairs(
   // 3. exclude 0 bias neighbors & update offsets
 
   rmm::device_uvector<edge_t> aggregate_local_frontier_nz_bias_indices(
-    std::get<0>(aggregate_local_frontier_bias_type_pairs).size(), handle.get_stream());
+    aggregate_local_frontier_biases.size(), handle.get_stream());
   thrust::tabulate(handle.get_thrust_policy(),
                    aggregate_local_frontier_nz_bias_indices.begin(),
                    aggregate_local_frontier_nz_bias_indices.end(),
@@ -2715,7 +2755,7 @@ compute_aggregate_local_frontier_bias_type_pairs(
                       aggregate_local_frontier_local_degree_offsets.size())] __device__(size_t i) {
                      auto it =
                        thrust::upper_bound(thrust::seq, offsets.begin() + 1, offsets.end(), i);
-                     auto idx = thrust::distance(offsets.begin() + 1, it);
+                     auto idx = cuda::std::distance(offsets.begin() + 1, it);
                      return static_cast<edge_t>(i - offsets[idx]);
                    });
 
@@ -2727,12 +2767,11 @@ compute_aggregate_local_frontier_bias_type_pairs(
                               aggregate_local_frontier_local_degrees.begin());
 
   {
-    auto pair_first =
-      thrust::make_zip_iterator(std::get<0>(aggregate_local_frontier_bias_type_pairs).begin(),
-                                thrust::make_counting_iterator(size_t{0}));
+    auto pair_first = thrust::make_zip_iterator(aggregate_local_frontier_biases.begin(),
+                                                thrust::make_counting_iterator(size_t{0}));
     thrust::for_each(handle.get_thrust_policy(),
                      pair_first,
-                     pair_first + std::get<0>(aggregate_local_frontier_bias_type_pairs).size(),
+                     pair_first + aggregate_local_frontier_biases.size(),
                      [offsets = raft::device_span<size_t const>(
                         aggregate_local_frontier_local_degree_offsets.data(),
                         aggregate_local_frontier_local_degree_offsets.size()),
@@ -2744,7 +2783,7 @@ compute_aggregate_local_frontier_bias_type_pairs(
                          auto i = thrust::get<1>(pair);
                          auto it =
                            thrust::upper_bound(thrust::seq, offsets.begin() + 1, offsets.end(), i);
-                         auto idx = thrust::distance(offsets.begin() + 1, it);
+                         auto idx = cuda::std::distance(offsets.begin() + 1, it);
                          cuda::atomic_ref<size_t, cuda::thread_scope_device> degree(degrees[idx]);
                          degree.fetch_sub(size_t{1}, cuda::std::memory_order_relaxed);
                        }
@@ -2758,27 +2797,27 @@ compute_aggregate_local_frontier_bias_type_pairs(
 
   {
     auto triplet_first =
-      thrust::make_zip_iterator(std::get<0>(aggregate_local_frontier_bias_type_pairs).begin(),
-                                std::get<1>(aggregate_local_frontier_bias_type_pairs).begin(),
+      thrust::make_zip_iterator(aggregate_local_frontier_biases.begin(),
+                                aggregate_local_frontier_edge_types.begin(),
                                 aggregate_local_frontier_nz_bias_indices.begin());
-    auto triplet_last = thrust::remove_if(
-      handle.get_thrust_policy(),
-      triplet_first,
-      triplet_first + std::get<0>(aggregate_local_frontier_bias_type_pairs).size(),
-      [] __device__(auto triplet) { return thrust::get<0>(triplet) == 0.0; });
-    std::get<0>(aggregate_local_frontier_bias_type_pairs)
-      .resize(thrust::distance(triplet_first, triplet_last), handle.get_stream());
-    std::get<1>(aggregate_local_frontier_bias_type_pairs)
-      .resize(thrust::distance(triplet_first, triplet_last), handle.get_stream());
-    aggregate_local_frontier_nz_bias_indices.resize(thrust::distance(triplet_first, triplet_last),
-                                                    handle.get_stream());
-    std::get<0>(aggregate_local_frontier_bias_type_pairs).shrink_to_fit(handle.get_stream());
-    std::get<1>(aggregate_local_frontier_bias_type_pairs).shrink_to_fit(handle.get_stream());
+    auto triplet_last =
+      thrust::remove_if(handle.get_thrust_policy(),
+                        triplet_first,
+                        triplet_first + aggregate_local_frontier_biases.size(),
+                        [] __device__(auto triplet) { return thrust::get<0>(triplet) == 0.0; });
+    aggregate_local_frontier_biases.resize(cuda::std::distance(triplet_first, triplet_last),
+                                           handle.get_stream());
+    aggregate_local_frontier_edge_types.resize(cuda::std::distance(triplet_first, triplet_last),
+                                               handle.get_stream());
+    aggregate_local_frontier_nz_bias_indices.resize(
+      cuda::std::distance(triplet_first, triplet_last), handle.get_stream());
+    aggregate_local_frontier_biases.shrink_to_fit(handle.get_stream());
+    aggregate_local_frontier_edge_types.shrink_to_fit(handle.get_stream());
     aggregate_local_frontier_nz_bias_indices.shrink_to_fit(handle.get_stream());
   }
 
-  return std::make_tuple(std::move(std::get<0>(aggregate_local_frontier_bias_type_pairs)),
-                         std::move(std::get<1>(aggregate_local_frontier_bias_type_pairs)),
+  return std::make_tuple(std::move(aggregate_local_frontier_biases),
+                         std::move(aggregate_local_frontier_edge_types),
                          std::move(aggregate_local_frontier_nz_bias_indices),
                          std::move(aggregate_local_frontier_local_degree_offsets));
 }
@@ -3111,7 +3150,7 @@ rmm::device_uvector<edge_t> compute_local_nbr_indices_from_per_type_local_nbr_in
             auto i                 = thrust::get<1>(pair);
             auto key_idx           = i / K_sum;
             auto unique_key_idx    = key_idx_to_unique_key_idx[key_idx];
-            auto type              = static_cast<edge_type_t>(thrust::distance(
+            auto type              = static_cast<edge_type_t>(cuda::std::distance(
               K_offsets.begin() + 1,
               thrust::upper_bound(thrust::seq, K_offsets.begin() + 1, K_offsets.end(), i % K_sum)));
             auto type_start_offset = static_cast<edge_t>(
@@ -3197,7 +3236,7 @@ biased_sample_with_replacement(
            aggregate_local_frontier_unique_key_per_type_local_degree_offsets.data(),
            aggregate_local_frontier_unique_key_per_type_local_degree_offsets
              .size())] __device__(size_t i) {
-          return static_cast<size_t>(thrust::distance(
+          return static_cast<size_t>(cuda::std::distance(
             offsets.begin() + 1,
             thrust::upper_bound(thrust::seq, offsets.begin() + 1, offsets.end(), i)));
         }));
@@ -3296,7 +3335,7 @@ biased_sample_with_replacement(
          K_sum,
          invalid_value = std::numeric_limits<bias_t>::infinity()] __device__(bias_t r, size_t i) {
           auto num_edge_types = static_cast<edge_type_t>(K_offsets.size() - 1);
-          auto type           = static_cast<edge_type_t>(thrust::distance(
+          auto type           = static_cast<edge_type_t>(cuda::std::distance(
             K_offsets.begin() + 1,
             thrust::upper_bound(thrust::seq, K_offsets.begin() + 1, K_offsets.end(), i % K_sum)));
           // bias_sum will be 0 if degree is 0 or all the edges have 0 bias
@@ -3378,7 +3417,7 @@ biased_sample_with_replacement(
           auto type =
             num_edge_types > 1
               ? (edge_types ? (*edge_types)[i]
-                            : static_cast<edge_type_t>(thrust::distance(
+                            : static_cast<edge_type_t>(cuda::std::distance(
                                 K_offsets.begin() + 1,
                                 thrust::upper_bound(
                                   thrust::seq, K_offsets.begin() + 1, K_offsets.end(), i % K_sum))))
@@ -3391,7 +3430,7 @@ biased_sample_with_replacement(
             aggregate_local_frontier_unique_key_bias_segmented_local_inclusive_sums.begin() +
             unique_key_per_type_local_degree_offsets[unique_key_idx * num_edge_types + type];
           auto inclusive_sum_last     = inclusive_sum_first + local_degree;
-          auto per_type_local_nbr_idx = static_cast<edge_t>(thrust::distance(
+          auto per_type_local_nbr_idx = static_cast<edge_t>(cuda::std::distance(
             inclusive_sum_first,
             thrust::upper_bound(
               thrust::seq, inclusive_sum_first, inclusive_sum_last, local_random_number)));
@@ -4596,7 +4635,7 @@ heterogeneous_biased_sample_without_replacement(
           [offsets = raft::device_span<size_t const>(high_frontier_output_offsets.data(),
                                                      high_frontier_output_offsets.size()),
            minor_comm_size] __device__(size_t i) {
-            auto idx = thrust::distance(
+            auto idx = cuda::std::distance(
               offsets.begin() + 1,
               thrust::upper_bound(
                 thrust::seq, offsets.begin() + 1, offsets.end(), i / minor_comm_size));
@@ -4624,7 +4663,7 @@ heterogeneous_biased_sample_without_replacement(
            num_edge_types,
            minor_comm_size] __device__(size_t i) {
             auto minor_comm_rank = static_cast<int>(i / offsets[offsets.size() - 1]);
-            auto idx             = thrust::distance(
+            auto idx             = cuda::std::distance(
               offsets.begin() + 1,
               thrust::upper_bound(
                 thrust::seq, offsets.begin() + 1, offsets.end(), i % offsets[offsets.size() - 1]));
@@ -5230,7 +5269,7 @@ heterogeneous_uniform_sample_and_compute_local_nbr_indices(
            aggregate_local_frontier_unique_key_local_degree_offsets.data() + h_key_offsets[i],
            (h_key_offsets[i + 1] - h_key_offsets[i]) + 1),
          start_offset = h_nbr_offsets[i]] __device__(size_t i) {
-          auto idx = thrust::distance(
+          auto idx = cuda::std::distance(
             offsets.begin() + 1,
             thrust::upper_bound(thrust::seq, offsets.begin() + 1, offsets.end(), start_offset + i));
           return static_cast<edge_t>((start_offset + i) - offsets[idx]);
@@ -5497,11 +5536,11 @@ homogeneous_biased_sample_and_compute_local_nbr_indices(
   using key_t    = typename thrust::iterator_traits<KeyIterator>::value_type;
 
   using bias_t      = typename edge_op_result_type<key_t,
-                                              vertex_t,
-                                              typename EdgeSrcValueInputWrapper::value_type,
-                                              typename EdgeDstValueInputWrapper::value_type,
-                                              typename EdgeValueInputWrapper::value_type,
-                                              BiasEdgeOp>::type;
+                                                   vertex_t,
+                                                   typename EdgeSrcValueInputWrapper::value_type,
+                                                   typename EdgeDstValueInputWrapper::value_type,
+                                                   typename EdgeValueInputWrapper::value_type,
+                                                   BiasEdgeOp>::type;
   using edge_type_t = int32_t;  // dummy
 
   int minor_comm_rank{0};
@@ -5688,11 +5727,11 @@ heterogeneous_biased_sample_and_compute_local_nbr_indices(
   using key_t    = typename thrust::iterator_traits<KeyIterator>::value_type;
 
   using bias_t      = typename edge_op_result_type<key_t,
-                                              vertex_t,
-                                              typename EdgeSrcValueInputWrapper::value_type,
-                                              typename EdgeDstValueInputWrapper::value_type,
-                                              typename EdgeValueInputWrapper::value_type,
-                                              BiasEdgeOp>::type;
+                                                   vertex_t,
+                                                   typename EdgeSrcValueInputWrapper::value_type,
+                                                   typename EdgeDstValueInputWrapper::value_type,
+                                                   typename EdgeValueInputWrapper::value_type,
+                                                   BiasEdgeOp>::type;
   using edge_type_t = typename EdgeTypeInputWrapper::value_type;
 
   int minor_comm_rank{0};

@@ -1,4 +1,5 @@
-# Copyright (c) 2021-2024, NVIDIA CORPORATION.
+#!/bin/bash
+# Copyright (c) 2021-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -11,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-#!/bin/bash
 set -e
 set -o pipefail
 
@@ -82,7 +82,7 @@ self_loops
 NUMARGS=$#
 ARGS=$*
 function hasArg {
-    (( ${NUMARGS} != 0 )) && (echo " ${ARGS} " | grep -q " $1 ")
+    (( NUMARGS != 0 )) && (echo " ${ARGS} " | grep -q " $1 ")
 }
 
 if hasArg -h || hasArg --help; then
@@ -104,7 +104,9 @@ else
     DATASET_DATA="${BASE_DATASET_DATA} ${EXTENDED_DATASET_DATA}"
 fi
 
+# shellcheck disable=SC2207
 URLS=($(echo "$DATASET_DATA"|awk '{if (NR%4 == 3) print $0}'))  # extract 3rd fields to a bash array
+# shellcheck disable=SC2207
 DESTDIRS=($(echo "$DATASET_DATA"|awk '{if (NR%4 == 0) print $0}'))  # extract 4th fields to a bash array
 
 echo Downloading ...
@@ -112,8 +114,8 @@ echo Downloading ...
 # Download all tarfiles to a tmp dir
 mkdir -p tmp
 cd tmp
-for url in ${URLS[*]}; do
-   time wget -N --progress=dot:giga ${url}
+for url in "${URLS[@]}"; do
+   time wget -N --progress=dot:giga "${url}"
 done
 cd ..
 
@@ -123,6 +125,7 @@ mkdir -p "${DESTDIRS[@]}"
 # Iterate over the arrays and untar the nth tarfile to the nth dest directory.
 # The tarfile name is derived from the download url.
 echo Decompressing ...
+# shellcheck disable=SC2016
 for index in ${!DESTDIRS[*]}; do
     echo "tmp/$(basename "${URLS[$index]}") -C ${DESTDIRS[$index]}" | tr '\n' '\0'
-done | xargs -0 -t -r -n1 -P$(nproc --all) sh -c 'tar -xzvf $0 --overwrite'
+done | xargs -0 -t -r -n1 -P"$(nproc --all)" sh -c 'tar -xzvf $0 --overwrite'

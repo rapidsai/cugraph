@@ -35,9 +35,9 @@
 #include <rmm/device_uvector.hpp>
 #include <rmm/exec_policy.hpp>
 
+#include <cuda/std/iterator>
 #include <thrust/copy.h>
 #include <thrust/count.h>
-#include <thrust/distance.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/discard_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
@@ -123,7 +123,7 @@ groupby_e_and_coarsen_edgelist(rmm::device_uvector<vertex_t>&& edgelist_majors,
                            std::move(tmp_edgelist_weights));
   } else {
     thrust::sort(rmm::exec_policy(stream_view), pair_first, pair_first + edgelist_majors.size());
-    auto num_uniques = static_cast<size_t>(thrust::distance(
+    auto num_uniques = static_cast<size_t>(cuda::std::distance(
       pair_first,
       thrust::unique(
         rmm::exec_policy(stream_view), pair_first, pair_first + edgelist_majors.size())));
@@ -197,7 +197,7 @@ decompress_edge_partition_to_relabeled_and_grouped_and_coarsened_edgelist(
                     [major_label_first,
                      minor_label_input = detail::edge_partition_endpoint_property_device_view_t<
                        vertex_t,
-                       decltype(minor_label_input.value_first())>(minor_label_input),
+                       decltype(minor_label_input.minor_value_first())>(minor_label_input),
                      major_range_first = edge_partition.major_range_first(),
                      minor_range_first = edge_partition.minor_range_first()] __device__(auto val) {
                       return thrust::make_tuple(
@@ -210,7 +210,7 @@ decompress_edge_partition_to_relabeled_and_grouped_and_coarsened_edgelist(
       auto edge_first = thrust::make_zip_iterator(thrust::make_tuple(
         edgelist_majors.begin(), edgelist_minors.begin(), (*edgelist_weights).begin()));
       edgelist_majors.resize(
-        thrust::distance(
+        cuda::std::distance(
           edge_first,
           thrust::remove_if(
             handle.get_thrust_policy(),
@@ -227,7 +227,7 @@ decompress_edge_partition_to_relabeled_and_grouped_and_coarsened_edgelist(
       auto edge_first = thrust::make_zip_iterator(
         thrust::make_tuple(edgelist_majors.begin(), edgelist_minors.begin()));
       edgelist_majors.resize(
-        thrust::distance(
+        cuda::std::distance(
           edge_first,
           thrust::remove_if(handle.get_thrust_policy(),
                             edge_first,
@@ -257,13 +257,10 @@ template <typename vertex_t,
           typename weight_t,
           bool store_transposed,
           bool multi_gpu>
-std::enable_if_t<
-  multi_gpu,
-  std::tuple<
-    graph_t<vertex_t, edge_t, store_transposed, multi_gpu>,
-    std::optional<
-      edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, weight_t>>,
-    std::optional<rmm::device_uvector<vertex_t>>>>
+std::enable_if_t<multi_gpu,
+                 std::tuple<graph_t<vertex_t, edge_t, store_transposed, multi_gpu>,
+                            std::optional<edge_property_t<edge_t, weight_t>>,
+                            std::optional<rmm::device_uvector<vertex_t>>>>
 coarsen_graph(raft::handle_t const& handle,
               graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
               std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
@@ -286,10 +283,9 @@ coarsen_graph(raft::handle_t const& handle,
 
   bool lower_triangular_only = graph_view.is_symmetric();
 
-  std::conditional_t<
-    store_transposed,
-    edge_src_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, vertex_t>,
-    edge_dst_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, vertex_t>>
+  std::conditional_t<store_transposed,
+                     edge_src_property_t<edge_t, vertex_t>,
+                     edge_dst_property_t<edge_t, vertex_t>>
     edge_minor_labels(handle, graph_view);
   if constexpr (store_transposed) {
     update_edge_src_property(handle, graph_view, labels, edge_minor_labels.mutable_view());
@@ -384,7 +380,7 @@ coarsen_graph(raft::handle_t const& handle,
     coarsened_edgelist_minors.push_back(std::move(edgelist_minors));
     if (edgelist_weights) { (*coarsened_edgelist_weights).push_back(std::move(*edgelist_weights)); }
   }
-  edge_minor_labels.clear(handle);
+  edge_minor_labels.clear();
 
   // 2. concatenate and groupby and coarsen again (and if the input graph is symmetric, 1) create a
   // copy excluding self loops, 2) globally shuffle, and 3) concatenate again)
@@ -455,7 +451,7 @@ coarsen_graph(raft::handle_t const& handle,
                           edge_first,
                           edge_first + concatenated_edgelist_majors.size(),
                           is_not_self_loop_t<thrust::tuple<vertex_t, vertex_t, weight_t>>{});
-      reversed_edgelist_majors.resize(thrust::distance(edge_first, last), handle.get_stream());
+      reversed_edgelist_majors.resize(cuda::std::distance(edge_first, last), handle.get_stream());
       reversed_edgelist_minors.resize(reversed_edgelist_majors.size(), handle.get_stream());
       reversed_edgelist_weights =
         rmm::device_uvector<weight_t>(reversed_edgelist_majors.size(), handle.get_stream());
@@ -473,7 +469,7 @@ coarsen_graph(raft::handle_t const& handle,
                                     edge_first,
                                     edge_first + concatenated_edgelist_majors.size(),
                                     is_not_self_loop_t<thrust::tuple<vertex_t, vertex_t>>{});
-      reversed_edgelist_majors.resize(thrust::distance(edge_first, last), handle.get_stream());
+      reversed_edgelist_majors.resize(cuda::std::distance(edge_first, last), handle.get_stream());
       reversed_edgelist_minors.resize(reversed_edgelist_majors.size(), handle.get_stream());
       thrust::copy(handle.get_thrust_policy(),
                    edge_first,
@@ -543,7 +539,7 @@ coarsen_graph(raft::handle_t const& handle,
     handle.get_thrust_policy(), labels, labels + unique_labels.size(), unique_labels.begin());
   thrust::sort(handle.get_thrust_policy(), unique_labels.begin(), unique_labels.end());
   unique_labels.resize(
-    thrust::distance(
+    cuda::std::distance(
       unique_labels.begin(),
       thrust::unique(handle.get_thrust_policy(), unique_labels.begin(), unique_labels.end())),
     handle.get_stream());
@@ -552,7 +548,7 @@ coarsen_graph(raft::handle_t const& handle,
 
   thrust::sort(handle.get_thrust_policy(), unique_labels.begin(), unique_labels.end());
   unique_labels.resize(
-    thrust::distance(
+    cuda::std::distance(
       unique_labels.begin(),
       thrust::unique(handle.get_thrust_policy(), unique_labels.begin(), unique_labels.end())),
     handle.get_stream());
@@ -560,9 +556,7 @@ coarsen_graph(raft::handle_t const& handle,
   // 4. create a graph
 
   graph_t<vertex_t, edge_t, store_transposed, multi_gpu> coarsened_graph(handle);
-  std::optional<
-    edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, weight_t>>
-    edge_weights{std::nullopt};
+  std::optional<edge_property_t<edge_t, weight_t>> edge_weights{std::nullopt};
   std::optional<rmm::device_uvector<vertex_t>> renumber_map{std::nullopt};
   std::tie(coarsened_graph, edge_weights, std::ignore, std::ignore, renumber_map) =
     create_graph_from_edgelist<vertex_t, edge_t, weight_t, int32_t, store_transposed, multi_gpu>(
@@ -590,13 +584,10 @@ template <typename vertex_t,
           typename weight_t,
           bool store_transposed,
           bool multi_gpu>
-std::enable_if_t<
-  !multi_gpu,
-  std::tuple<
-    graph_t<vertex_t, edge_t, store_transposed, multi_gpu>,
-    std::optional<
-      edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, weight_t>>,
-    std::optional<rmm::device_uvector<vertex_t>>>>
+std::enable_if_t<!multi_gpu,
+                 std::tuple<graph_t<vertex_t, edge_t, store_transposed, multi_gpu>,
+                            std::optional<edge_property_t<edge_t, weight_t>>,
+                            std::optional<rmm::device_uvector<vertex_t>>>>
 coarsen_graph(raft::handle_t const& handle,
               graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
               std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
@@ -637,7 +628,7 @@ coarsen_graph(raft::handle_t const& handle,
             *edge_mask_view, 0)
         : std::nullopt,
       labels,
-      detail::edge_minor_property_view_t<vertex_t, vertex_t const*>(labels, vertex_t{0}),
+      detail::edge_endpoint_property_view_t<vertex_t, vertex_t const*>(labels, vertex_t{0}),
       graph_view.local_edge_partition_segment_offsets(0),
       lower_triangular_only);
 
@@ -654,7 +645,7 @@ coarsen_graph(raft::handle_t const& handle,
                           is_not_self_loop_t<thrust::tuple<vertex_t, vertex_t, weight_t>>{});
 
       auto cur_size      = coarsened_edgelist_majors.size();
-      auto reversed_size = static_cast<size_t>(thrust::distance(edge_first, last));
+      auto reversed_size = static_cast<size_t>(cuda::std::distance(edge_first, last));
 
       coarsened_edgelist_majors.resize(cur_size + reversed_size, handle.get_stream());
       coarsened_edgelist_minors.resize(coarsened_edgelist_majors.size(), handle.get_stream());
@@ -681,7 +672,7 @@ coarsen_graph(raft::handle_t const& handle,
                                     is_not_self_loop_t<thrust::tuple<vertex_t, vertex_t>>{});
 
       auto cur_size      = coarsened_edgelist_majors.size();
-      auto reversed_size = static_cast<size_t>(thrust::distance(edge_first, last));
+      auto reversed_size = static_cast<size_t>(cuda::std::distance(edge_first, last));
 
       coarsened_edgelist_majors.resize(cur_size + reversed_size, handle.get_stream());
       coarsened_edgelist_minors.resize(coarsened_edgelist_majors.size(), handle.get_stream());
@@ -701,7 +692,7 @@ coarsen_graph(raft::handle_t const& handle,
   if (renumber) {
     thrust::copy(handle.get_thrust_policy(), labels, labels + vertices.size(), vertices.begin());
     thrust::sort(handle.get_thrust_policy(), vertices.begin(), vertices.end());
-    vertices.resize(thrust::distance(
+    vertices.resize(cuda::std::distance(
                       vertices.begin(),
                       thrust::unique(handle.get_thrust_policy(), vertices.begin(), vertices.end())),
                     handle.get_stream());
@@ -717,9 +708,7 @@ coarsen_graph(raft::handle_t const& handle,
   }
 
   graph_t<vertex_t, edge_t, store_transposed, multi_gpu> coarsened_graph(handle);
-  std::optional<
-    edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, weight_t>>
-    edge_weights{std::nullopt};
+  std::optional<edge_property_t<edge_t, weight_t>> edge_weights{std::nullopt};
   std::optional<rmm::device_uvector<vertex_t>> renumber_map{std::nullopt};
   std::tie(coarsened_graph, edge_weights, std::ignore, std::ignore, renumber_map) =
     create_graph_from_edgelist<vertex_t, edge_t, weight_t, int32_t, store_transposed, multi_gpu>(
@@ -747,11 +736,9 @@ template <typename vertex_t,
           typename weight_t,
           bool store_transposed,
           bool multi_gpu>
-std::tuple<
-  graph_t<vertex_t, edge_t, store_transposed, multi_gpu>,
-  std::optional<
-    edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, weight_t>>,
-  std::optional<rmm::device_uvector<vertex_t>>>
+std::tuple<graph_t<vertex_t, edge_t, store_transposed, multi_gpu>,
+           std::optional<edge_property_t<edge_t, weight_t>>,
+           std::optional<rmm::device_uvector<vertex_t>>>
 coarsen_graph(raft::handle_t const& handle,
               graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
               std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,

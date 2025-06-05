@@ -31,7 +31,7 @@
 #include <rmm/exec_policy.hpp>
 
 #include <cub/cub.cuh>
-#include <thrust/distance.h>
+#include <cuda/std/iterator>
 #include <thrust/fill.h>
 #include <thrust/for_each.h>
 #include <thrust/iterator/counting_iterator.h>
@@ -118,15 +118,15 @@ std::tuple<rmm::device_uvector<edge_t>, rmm::device_uvector<vertex_t>> compress_
   CUGRAPH_EXPECTS(
     dcs_nzd_vertices.size() < static_cast<size_t>(std::numeric_limits<int32_t>::max()),
     "remove_if will fail (https://github.com/NVIDIA/thrust/issues/1302), work-around required.");
-  dcs_nzd_vertices.resize(thrust::distance(pair_first,
-                                           thrust::remove_if(rmm::exec_policy(stream_view),
-                                                             pair_first,
-                                                             pair_first + dcs_nzd_vertices.size(),
-                                                             [] __device__(auto pair) {
-                                                               return thrust::get<0>(pair) ==
-                                                                      invalid_vertex;
-                                                             })),
-                          stream_view);
+  dcs_nzd_vertices.resize(
+    cuda::std::distance(pair_first,
+                        thrust::remove_if(rmm::exec_policy(stream_view),
+                                          pair_first,
+                                          pair_first + dcs_nzd_vertices.size(),
+                                          [] __device__(auto pair) {
+                                            return thrust::get<0>(pair) == invalid_vertex;
+                                          })),
+    stream_view);
   dcs_nzd_vertices.shrink_to_fit(stream_view);
   if (static_cast<vertex_t>(dcs_nzd_vertices.size()) < major_range_last - major_hypersparse_first) {
     // copying offsets.back() to the new last position
@@ -176,7 +176,7 @@ sort_and_compress_edgelist(
                                              false,
                                              stream_view);
 
-    auto pivot = major_range_first + static_cast<vertex_t>(thrust::distance(
+    auto pivot = major_range_first + static_cast<vertex_t>(cuda::std::distance(
                                        offsets.begin(),
                                        thrust::lower_bound(rmm::exec_policy(stream_view),
                                                            offsets.begin(),
@@ -274,7 +274,7 @@ sort_and_compress_edgelist(rmm::device_uvector<vertex_t>&& edgelist_srcs,
                                        stream_view);
       std::array<uint32_t, 3> pivots{};
       for (size_t i = 0; i < 3; ++i) {
-        pivots[i] = static_cast<uint32_t>(thrust::distance(
+        pivots[i] = static_cast<uint32_t>(cuda::std::distance(
           offsets.begin(),
           thrust::lower_bound(rmm::exec_policy(stream_view),
                               offsets.begin(),
@@ -319,7 +319,7 @@ sort_and_compress_edgelist(rmm::device_uvector<vertex_t>&& edgelist_srcs,
       for (size_t i = 0; i < 3; ++i) {
         pivots[i] =
           major_range_first +
-          static_cast<vertex_t>(thrust::distance(
+          static_cast<vertex_t>(cuda::std::distance(
             offsets.begin(),
             thrust::lower_bound(rmm::exec_policy(stream_view),
                                 offsets.begin(),
@@ -391,7 +391,7 @@ void sort_adjacency_list(raft::handle_t const& handle,
 
   // 1. Check if there is anything to sort
 
-  auto num_edges = static_cast<edge_t>(thrust::distance(index_first, index_last));
+  auto num_edges = static_cast<edge_t>(cuda::std::distance(index_first, index_last));
   if (num_edges == 0) { return; }
 
   // 2. We segmented sort edges in chunks, and we need to adjust chunk offsets as we need to sort
@@ -522,7 +522,7 @@ void sort_adjacency_list(raft::handle_t const& handle,
 
   // 1. Check if there is anything to sort
 
-  auto num_edges = static_cast<edge_t>(thrust::distance(index_first, index_last));
+  auto num_edges = static_cast<edge_t>(cuda::std::distance(index_first, index_last));
   if (num_edges == 0) { return; }
 
   // 2. We segmented sort edges in chunks, and we need to adjust chunk offsets as we need to sort

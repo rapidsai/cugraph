@@ -30,9 +30,9 @@
 #include <rmm/mr/device/per_device_resource.hpp>
 #include <rmm/mr/device/polymorphic_allocator.hpp>
 
+#include <cuda/std/iterator>
 #include <thrust/copy.h>
 #include <thrust/count.h>
-#include <thrust/distance.h>
 #include <thrust/functional.h>
 #include <thrust/iterator/discard_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
@@ -75,10 +75,10 @@ void relabel(raft::handle_t const& handle,
     rmm::device_uvector<vertex_t> unique_old_labels(num_labels, handle.get_stream());
     thrust::copy(handle.get_thrust_policy(), labels, labels + num_labels, unique_old_labels.data());
     thrust::sort(handle.get_thrust_policy(), unique_old_labels.begin(), unique_old_labels.end());
-    unique_old_labels.resize(thrust::distance(unique_old_labels.begin(),
-                                              thrust::unique(handle.get_thrust_policy(),
-                                                             unique_old_labels.begin(),
-                                                             unique_old_labels.end())),
+    unique_old_labels.resize(cuda::std::distance(unique_old_labels.begin(),
+                                                 thrust::unique(handle.get_thrust_policy(),
+                                                                unique_old_labels.begin(),
+                                                                unique_old_labels.end())),
                              handle.get_stream());
     unique_old_labels.shrink_to_fit(handle.get_stream());
 
@@ -102,15 +102,14 @@ void relabel(raft::handle_t const& handle,
                      std::get<1>(old_new_label_pairs),
                      std::get<1>(old_new_label_pairs) + num_label_pairs,
                      label_pair_new_labels.begin());
-        auto pair_first = thrust::make_zip_iterator(
-          thrust::make_tuple(label_pair_old_labels.begin(), label_pair_new_labels.begin()));
-        std::forward_as_tuple(std::tie(rx_label_pair_old_labels, rx_label_pair_new_labels),
-                              std::ignore) =
-          groupby_gpu_id_and_shuffle_values(
-            handle.get_comms(),
-            pair_first,
-            pair_first + num_label_pairs,
-            [key_func] __device__(auto val) { return key_func(thrust::get<0>(val)); },
+        std::tie(rx_label_pair_old_labels, rx_label_pair_new_labels, std::ignore) =
+          groupby_gpu_id_and_shuffle_kv_pairs(
+            comm,
+            label_pair_old_labels.begin(),
+            label_pair_old_labels.end(),
+            label_pair_new_labels.begin(),
+            cuda::proclaim_return_type<int>(
+              [key_func] __device__(auto key) { return key_func(key); }),
             handle.get_stream());
       }
 
@@ -136,10 +135,11 @@ void relabel(raft::handle_t const& handle,
         rmm::device_uvector<vertex_t> rx_unique_old_labels(0, handle.get_stream());
         std::vector<size_t> rx_value_counts{};
         std::tie(rx_unique_old_labels, rx_value_counts) = groupby_gpu_id_and_shuffle_values(
-          handle.get_comms(),
+          comm,
           unique_old_labels.begin(),
           unique_old_labels.end(),
-          [key_func] __device__(auto val) { return key_func(val); },
+          cuda::proclaim_return_type<int>(
+            [key_func] __device__(auto val) { return key_func(val); }),
           handle.get_stream());
 
         if (skip_missing_labels) {
@@ -163,7 +163,7 @@ void relabel(raft::handle_t const& handle,
         }
 
         std::tie(new_labels_for_unique_old_labels, std::ignore) = shuffle_values(
-          handle.get_comms(),
+          comm,
           rx_unique_old_labels.begin(),
           raft::host_span<size_t const>(rx_value_counts.data(), rx_value_counts.size()),
           handle.get_stream());

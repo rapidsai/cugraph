@@ -37,6 +37,7 @@
 #include <raft/util/integer_utils.hpp>
 
 #include <cuda/std/functional>
+#include <cuda/std/iterator>
 #include <cuda/std/optional>
 #include <thrust/fill.h>
 #include <thrust/iterator/counting_iterator.h>
@@ -129,6 +130,7 @@ struct e_op_t {
   detail::kv_cuco_store_find_device_view_t<detail::kv_cuco_store_view_t<key_t, weight_t const*>>
     key_to_dist_map{};
   tag_t num_origins{};
+  weight_t invalid_distance{};
 
   __device__ thrust::tuple<tag_t, weight_t> operator()(thrust::tuple<vertex_t, tag_t> tagged_src,
                                                        vertex_t dst,
@@ -270,7 +272,7 @@ __global__ static void multi_partition_copy(
   uint8_t tmp_partitions[tmp_buffer_size];
   uint8_t tmp_offsets[tmp_buffer_size];
 
-  auto num_elems = static_cast<size_t>(thrust::distance(input_first, input_last));
+  auto num_elems = static_cast<size_t>(cuda::std::distance(input_first, input_last));
   auto rounded_up_num_elems =
     ((num_elems + static_cast<size_t>(blockDim.x - 1)) / static_cast<size_t>(blockDim.x)) *
     static_cast<size_t>(blockDim.x);
@@ -654,7 +656,8 @@ rmm::device_uvector<weight_t> od_shortest_distances(
 
       auto e_op = e_op_t<vertex_t, od_idx_t, key_t, weight_t>{
         detail::kv_cuco_store_find_device_view_t(key_to_dist_map.view()),
-        static_cast<od_idx_t>(origins.size())};
+        static_cast<od_idx_t>(origins.size()),
+        invalid_distance};
       detail::transform_reduce_if_v_frontier_call_e_op_t<
         thrust::tuple<vertex_t, od_idx_t>,
         weight_t,
@@ -817,11 +820,11 @@ rmm::device_uvector<weight_t> od_shortest_distances(
             [split_thresholds = raft::device_span<weight_t const>(
                d_split_thresholds.data(), d_split_thresholds.size())] __device__(auto pair) {
               return static_cast<uint8_t>(
-                thrust::distance(split_thresholds.begin(),
-                                 thrust::upper_bound(thrust::seq,
-                                                     split_thresholds.begin(),
-                                                     split_thresholds.end(),
-                                                     thrust::get<1>(pair))));
+                cuda::std::distance(split_thresholds.begin(),
+                                    thrust::upper_bound(thrust::seq,
+                                                        split_thresholds.begin(),
+                                                        split_thresholds.end(),
+                                                        thrust::get<1>(pair))));
             },
             [] __device__(auto pair) { return thrust::get<0>(pair); },
             raft::device_span<size_t>(d_counters.data(), d_counters.size()));
@@ -840,10 +843,10 @@ rmm::device_uvector<weight_t> od_shortest_distances(
       }
 
       thrust::sort(handle.get_thrust_policy(), tmp_near_q_keys.begin(), tmp_near_q_keys.end());
-      tmp_near_q_keys.resize(thrust::distance(tmp_near_q_keys.begin(),
-                                              thrust::unique(handle.get_thrust_policy(),
-                                                             tmp_near_q_keys.begin(),
-                                                             tmp_near_q_keys.end())),
+      tmp_near_q_keys.resize(cuda::std::distance(tmp_near_q_keys.begin(),
+                                                 thrust::unique(handle.get_thrust_policy(),
+                                                                tmp_near_q_keys.begin(),
+                                                                tmp_near_q_keys.end())),
                              handle.get_stream());
       auto near_vi_first = thrust::make_transform_iterator(
         tmp_near_q_keys.begin(),
@@ -961,11 +964,11 @@ rmm::device_uvector<weight_t> od_shortest_distances(
                       return static_cast<uint8_t>(
                         (dist < invalid_threshold)
                           ? max_num_partitions /* discard */
-                          : thrust::distance(split_thresholds.begin(),
-                                             thrust::upper_bound(thrust::seq,
-                                                                 split_thresholds.begin(),
-                                                                 split_thresholds.end(),
-                                                                 dist)));
+                          : cuda::std::distance(split_thresholds.begin(),
+                                                thrust::upper_bound(thrust::seq,
+                                                                    split_thresholds.begin(),
+                                                                    split_thresholds.end(),
+                                                                    dist)));
                     },
                     cuda::std::identity{},
                     raft::device_span<size_t>(d_counters.data(), d_counters.size()));
@@ -993,7 +996,7 @@ rmm::device_uvector<weight_t> od_shortest_distances(
                 is_no_smaller_than_threshold_t<key_t, weight_t>{
                   invalid_threshold,
                   detail::kv_cuco_store_find_device_view_t(key_to_dist_map.view())});
-              new_near_q_keys.resize(thrust::distance(new_near_q_keys.begin(), last),
+              new_near_q_keys.resize(cuda::std::distance(new_near_q_keys.begin(), last),
                                      handle.get_stream());
             } else {
               far_buffers[i - num_near_q_insert_buffers] = std::move(far_buffers[i]);
@@ -1001,10 +1004,10 @@ rmm::device_uvector<weight_t> od_shortest_distances(
           }
 
           thrust::sort(handle.get_thrust_policy(), new_near_q_keys.begin(), new_near_q_keys.end());
-          new_near_q_keys.resize(thrust::distance(new_near_q_keys.begin(),
-                                                  thrust::unique(handle.get_thrust_policy(),
-                                                                 new_near_q_keys.begin(),
-                                                                 new_near_q_keys.end())),
+          new_near_q_keys.resize(cuda::std::distance(new_near_q_keys.begin(),
+                                                     thrust::unique(handle.get_thrust_policy(),
+                                                                    new_near_q_keys.begin(),
+                                                                    new_near_q_keys.end())),
                                  handle.get_stream());
           auto near_vi_first = thrust::make_transform_iterator(
             new_near_q_keys.begin(),

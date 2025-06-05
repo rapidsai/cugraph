@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, NVIDIA CORPORATION.
+ * Copyright (c) 2024-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -72,13 +72,11 @@ struct build_lookup_map_functor : public cugraph::c_api::abstract_functor {
 
       auto graph_view = graph->view();
 
-      auto edge_ids = reinterpret_cast<
-        cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, false, multi_gpu>,
-                                 edge_t>*>(graph_->edge_ids_);
+      auto edge_ids =
+        reinterpret_cast<cugraph::edge_property_t<edge_t, edge_t>*>(graph_->edge_ids_);
 
-      auto edge_types = reinterpret_cast<
-        cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, false, multi_gpu>,
-                                 edge_type_type_t>*>(graph_->edge_types_);
+      auto edge_types =
+        reinterpret_cast<cugraph::edge_property_t<edge_t, edge_type_type_t>*>(graph_->edge_types_);
 
       auto renumber_map = reinterpret_cast<rmm::device_uvector<vertex_t>*>(graph_->number_map_);
 

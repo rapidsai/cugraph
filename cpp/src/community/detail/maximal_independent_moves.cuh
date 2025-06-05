@@ -28,8 +28,8 @@
 #include <cugraph/utilities/host_scalar_comm.hpp>
 
 #include <cuda/functional>
+#include <cuda/std/iterator>
 #include <thrust/count.h>
-#include <thrust/distance.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/merge.h>
 #include <thrust/remove.h>
@@ -65,13 +65,13 @@ rmm::device_uvector<vertex_t> maximal_independent_moves(
 
   // Only vertices with non-zero out-degree are possible can move
   remaining_vertices.resize(
-    thrust::distance(remaining_vertices.begin(),
-                     thrust::copy_if(handle.get_thrust_policy(),
-                                     vertex_begin,
-                                     vertex_end,
-                                     out_degrees.begin(),
-                                     remaining_vertices.begin(),
-                                     [] __device__(auto deg) { return deg > 0; })),
+    cuda::std::distance(remaining_vertices.begin(),
+                        thrust::copy_if(handle.get_thrust_policy(),
+                                        vertex_begin,
+                                        vertex_end,
+                                        out_degrees.begin(),
+                                        remaining_vertices.begin(),
+                                        [] __device__(auto deg) { return deg > 0; })),
     handle.get_stream());
 
   // Set ID of each vertex as its rank
@@ -156,13 +156,13 @@ rmm::device_uvector<vertex_t> maximal_independent_moves(
       });
 
     // Caches for ranks
-    edge_src_property_t<GraphViewType, vertex_t> src_rank_cache(handle);
-    edge_dst_property_t<GraphViewType, vertex_t> dst_rank_cache(handle);
+    edge_src_property_t<vertex_t, vertex_t> src_rank_cache(handle);
+    edge_dst_property_t<vertex_t, vertex_t> dst_rank_cache(handle);
 
     // Update rank caches with temporary ranks
     if constexpr (multi_gpu) {
-      src_rank_cache = edge_src_property_t<GraphViewType, vertex_t>(handle, graph_view);
-      dst_rank_cache = edge_dst_property_t<GraphViewType, vertex_t>(handle, graph_view);
+      src_rank_cache = edge_src_property_t<vertex_t, vertex_t>(handle, graph_view);
+      dst_rank_cache = edge_dst_property_t<vertex_t, vertex_t>(handle, graph_view);
       update_edge_src_property(
         handle, graph_view, temporary_ranks.begin(), src_rank_cache.mutable_view());
       update_edge_dst_property(
@@ -178,12 +178,12 @@ rmm::device_uvector<vertex_t> maximal_independent_moves(
     per_v_transform_reduce_outgoing_e(
       handle,
       graph_view,
-      multi_gpu
-        ? src_rank_cache.view()
-        : detail::edge_major_property_view_t<vertex_t, vertex_t const*>(temporary_ranks.data()),
+      multi_gpu ? src_rank_cache.view()
+                : make_edge_src_property_view<vertex_t, vertex_t>(
+                    graph_view, temporary_ranks.begin(), temporary_ranks.size()),
       multi_gpu ? dst_rank_cache.view()
-                : detail::edge_minor_property_view_t<vertex_t, vertex_t const*>(
-                    temporary_ranks.data(), vertex_t{0}),
+                : make_edge_dst_property_view<vertex_t, vertex_t>(
+                    graph_view, temporary_ranks.begin(), temporary_ranks.size()),
       edge_dummy_property_t{}.view(),
       [] __device__(auto src, auto dst, auto src_rank, auto dst_rank, auto wt) { return dst_rank; },
       std::numeric_limits<vertex_t>::lowest(),
@@ -199,12 +199,12 @@ rmm::device_uvector<vertex_t> maximal_independent_moves(
     per_v_transform_reduce_incoming_e(
       handle,
       graph_view,
-      multi_gpu
-        ? src_rank_cache.view()
-        : detail::edge_major_property_view_t<vertex_t, vertex_t const*>(temporary_ranks.data()),
+      multi_gpu ? src_rank_cache.view()
+                : make_edge_src_property_view<vertex_t, vertex_t>(
+                    graph_view, temporary_ranks.begin(), temporary_ranks.size()),
       multi_gpu ? dst_rank_cache.view()
-                : detail::edge_minor_property_view_t<vertex_t, vertex_t const*>(
-                    temporary_ranks.data(), vertex_t{0}),
+                : make_edge_dst_property_view<vertex_t, vertex_t>(
+                    graph_view, temporary_ranks.begin(), temporary_ranks.size()),
       edge_dummy_property_t{}.view(),
       [] __device__(auto src, auto dst, auto src_rank, auto dst_rank, auto wt) { return src_rank; },
       std::numeric_limits<vertex_t>::lowest(),
@@ -262,7 +262,7 @@ rmm::device_uvector<vertex_t> maximal_independent_moves(
     max_outgoing_ranks.resize(0, handle.get_stream());
     max_outgoing_ranks.shrink_to_fit(handle.get_stream());
 
-    d_sampled_vertices.resize(thrust::distance(d_sampled_vertices.begin(), last),
+    d_sampled_vertices.resize(cuda::std::distance(d_sampled_vertices.begin(), last),
                               handle.get_stream());
     d_sampled_vertices.shrink_to_fit(handle.get_stream());
 

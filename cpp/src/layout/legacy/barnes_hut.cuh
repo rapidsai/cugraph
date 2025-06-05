@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -37,6 +37,7 @@ namespace detail {
 
 template <typename vertex_t, typename edge_t, typename weight_t>
 void barnes_hut(raft::handle_t const& handle,
+                // raft::random::RngState& rng_state, FIXME: add support for rng state
                 legacy::GraphCOOView<vertex_t, edge_t, weight_t>& graph,
                 float* pos,
                 const int max_iter                            = 500,
