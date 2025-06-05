@@ -1814,7 +1814,8 @@ void core_number(raft::handle_t const& handle,
  * @brief   Extract K-Core of a graph
  *
  * This function internally calls core_number (if @p core_numbers.has_value() is false). core_number
-does not support multi-graphs. Self-loops are excluded in computing core nuumbers.
+does not support multi-graphs. Self-loops are excluded in computing core nuumbers. Note that the
+extracted K-Core can still include self-loops.
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
