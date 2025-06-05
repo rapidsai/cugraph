@@ -143,8 +143,6 @@ rapids-logger "pytest cugraph (mg dist_sampler and uns)"
 ./ci/run_cugraph_pytests.sh \
   --verbose \
   --junitxml="${RAPIDS_TESTS_DIR}/junit-cugraph.xml" \
-  --numprocesses=8 \
-  --dist=worksteal \
   -m "mg" \
   -k "test_dist_sampler_mg or test_uniform_neighbor_sample_mg" \
   --cov-config=../../.coveragerc \
