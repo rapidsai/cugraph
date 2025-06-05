@@ -118,18 +118,20 @@ rapids-logger "pytest cugraph (datasets)"
 ./ci/run_cugraph_pytests.sh \
   --verbose \
   --junitxml="${RAPIDS_TESTS_DIR}/junit-cugraph.xml" \
-  -m "not mg" \
   -k "test_dataset" \
   --cov-config=../../.coveragerc \
   --cov=cugraph \
   --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph-coverage.xml" \
   --cov-report=term
 
-rapids-logger "pytest cugraph (mg)"
+rapids-logger "pytest cugraph (mg, with xdist)"
 ./ci/run_cugraph_pytests.sh \
   --verbose \
   --junitxml="${RAPIDS_TESTS_DIR}/junit-cugraph.xml" \
+  --numprocesses=8 \
+  --dist=worksteal \
   -m "mg" \
+  -k "not test_dataset and not test_property_graph_mg" \
   --cov-config=../../.coveragerc \
   --cov=cugraph \
   --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph-coverage.xml" \
