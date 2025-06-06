@@ -186,6 +186,11 @@ edge_property_t<edge_t, edge_t> edge_triangle_count_impl(
                                       edge_first + prev_chunk_size,
                                       edge_first + prev_chunk_size + chunk_size,
                                       do_expensive_check);
+#if 1
+    handle.sync_stream();
+    std::cout << " foreach" << std::endl;
+#endif
+
     // Update the number of triangles of each (p, q) edges by looking at their intersection
     // size
     thrust::for_each(
@@ -200,9 +205,19 @@ edge_property_t<edge_t, edge_t> edge_triangle_count_impl(
       });
 
     if constexpr (multi_gpu) {
+#if 1
+      handle.sync_stream();
+      std::cout << "  allocate data frame " << intersection_indices.size() << std::endl;
+#endif
+
       // stores all the pairs (p, r) and (q, r)
       auto vertex_pair_buffer_tmp = allocate_dataframe_buffer<thrust::tuple<vertex_t, vertex_t>>(
         intersection_indices.size() * 2, handle.get_stream());
+
+#if 1
+      handle.sync_stream();
+      std::cout << "  tabulate 1" << std::endl;
+#endif
 
       // tabulate with the size of intersection_indices, and call binary search on
       // intersection_offsets to get (p, r).
@@ -217,6 +232,12 @@ edge_property_t<edge_t, edge_t> edge_triangle_count_impl(
           raft::device_span<vertex_t const>(intersection_indices.data(),
                                             intersection_indices.size()),
           edge_first});
+
+#if 1
+      handle.sync_stream();
+      std::cout << "  tabulate 2" << std::endl;
+#endif
+
       // FIXME: Consolidate both functions
       thrust::tabulate(
         handle.get_thrust_policy(),
@@ -234,6 +255,11 @@ edge_property_t<edge_t, edge_t> edge_triangle_count_impl(
                    get_dataframe_buffer_begin(vertex_pair_buffer_tmp),
                    get_dataframe_buffer_end(vertex_pair_buffer_tmp));
 
+#if 1
+      handle.sync_stream();
+      std::cout << "  increase_count_tmp: " << intersection_indices.size() << std::endl;
+#endif
+
       rmm::device_uvector<edge_t> increase_count_tmp(2 * intersection_indices.size(),
                                                      handle.get_stream());
       thrust::fill(handle.get_thrust_policy(),
@@ -241,9 +267,19 @@ edge_property_t<edge_t, edge_t> edge_triangle_count_impl(
                    increase_count_tmp.end(),
                    size_t{1});
 
+#if 1
+      handle.sync_stream();
+      std::cout << "  unique_count" << std::endl;
+#endif
+
       auto count_p_r_q_r = thrust::unique_count(handle.get_thrust_policy(),
                                                 get_dataframe_buffer_begin(vertex_pair_buffer_tmp),
                                                 get_dataframe_buffer_end(vertex_pair_buffer_tmp));
+
+#if 1
+      handle.sync_stream();
+      std::cout << "  count_p_r_q_r = " << count_p_r_q_r << std::endl;
+#endif
 
       rmm::device_uvector<edge_t> increase_count(count_p_r_q_r, handle.get_stream());
 
@@ -270,6 +306,10 @@ edge_property_t<edge_t, edge_t> edge_triangle_count_impl(
                          increase_count.begin(),
                          increase_count.size(),
                          handle.get_stream());
+#if 1
+      handle.sync_stream();
+      std::cout << "  shuffle" << std::endl;
+#endif
 
       // There are still multiple copies here but is it worth sorting and reducing again?
       std::tie(pair_srcs, pair_dsts, edge_properties, std::ignore) =
@@ -340,6 +380,10 @@ edge_property_t<edge_t, edge_t> edge_triangle_count_impl(
     }
     prev_chunk_size += chunk_size;
   }
+#if 1
+  handle.sync_stream();
+  std::cout << "  back from shuffle" << std::endl;
+#endif
 
   cugraph::edge_property_t<edge_t, edge_t> counts(handle, graph_view);
 
