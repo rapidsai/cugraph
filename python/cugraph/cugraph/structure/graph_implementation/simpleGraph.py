@@ -312,15 +312,16 @@ class simpleGraphImpl:
         if self.batch_enabled:
             self._replicate_edgelist()
         
-        if self.properties.renumbered is True:
-            if isinstance(vertices, cudf.Series):
-                vertices = self.lookup_internal_vertex_id(vertices, vertices.columns)
-            else:
-                vertices = self.lookup_internal_vertex_id(cudf.Series(vertices))
-        
-        if not isinstance(vertices, cudf.Series):
-            vertex_dtype = self.edgelist.edgelist_df[simpleGraphImpl.srcCol].dtype
-            vertices = cudf.Series(vertices, dtype=vertex_dtype)
+        if vertices is not None:
+            if self.properties.renumbered is True:
+                if isinstance(vertices, cudf.Series):
+                    vertices = self.lookup_internal_vertex_id(vertices, vertices.columns)
+                else:
+                    vertices = self.lookup_internal_vertex_id(cudf.Series(vertices))
+            
+            if not isinstance(vertices, cudf.Series):
+                vertex_dtype = self.edgelist.edgelist_df[simpleGraphImpl.srcCol].dtype
+                vertices = cudf.Series(vertices, dtype=vertex_dtype)
 
         self._make_plc_graph(
             value_col=value_col,
@@ -1314,6 +1315,8 @@ class simpleGraphImpl:
         symmetrize: bool = False,
         vertices: cudf.Series = None
     ):
+        
+        print("vertices = \n", vertices)
         """
         Parameters
         ----------
