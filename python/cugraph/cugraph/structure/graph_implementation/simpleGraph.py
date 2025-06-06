@@ -135,6 +135,7 @@ class simpleGraphImpl:
         renumber=True,
         store_transposed=False,
         symmetrize=None,
+        vertices=None
     ):
 
         if self.properties.directed and symmetrize:
@@ -298,6 +299,16 @@ class simpleGraphImpl:
 
         else:
             value_col = None
+        
+        if self.properties.renumbered is True:
+            if isinstance(vertices, cudf.Series):
+                vertices = G.lookup_internal_vertex_id(vertices, vertices.columns)
+            else:
+                start = G.lookup_internal_vertex_id(cudf.Series(start))
+        
+        if not isinstance(vertices, cudf.Series):
+            vertex_dtype = self.nodes().dtype
+            vertices = cudf.Series(start, dtype=vertex_dtype)
 
         # FIXME: if the user calls self.edgelist.edgelist_df after creating a
         # symmetric graph, return the symmetric edgelist?
@@ -1249,6 +1260,7 @@ class simpleGraphImpl:
         renumber: bool = True,
         drop_multi_edges: bool = False,
         symmetrize: bool = False,
+        vertices: cudf.Series = None
     ):
         """
         Parameters
@@ -1269,6 +1281,8 @@ class simpleGraphImpl:
             Whether to drop multi edges
         symmetrize: bool (default=False)
             Whether to symmetrize
+        vertices: cudf.Series = None
+            vertices in the graph
         """
 
         if value_col is None:
@@ -1332,6 +1346,7 @@ class simpleGraphImpl:
             renumber=renumber,
             do_expensive_check=True,
             input_array_format=input_array_format,
+            vertices_array=vertices,
             drop_multi_edges=drop_multi_edges,
             symmetrize=symmetrize,
         )

@@ -122,6 +122,7 @@ class Graph:
         renumber=True,
         store_transposed=False,
         symmetrize=None,
+        vertices=None,
     ):
         """
         Initialize a graph from the edge list. It is an error to call this
@@ -181,6 +182,14 @@ class Graph:
             If the incoming edgelist is intended for an undirected graph and it is
             known to be symmetric, this flag can be set to False to skip the
             symmetrization step for better performance.
+        
+        vertices : cudf.Series or List, optional (default=None)
+            An  containing all vertices of the graph. This array is
+            optional, but must be used if the graph contains isolated vertices
+            which cannot be represented in the source and destination arrays. 
+            If specified, this array must contain every vertex identifier,
+            including vertex identifiers that are already included in the
+            source and destination arrays.
 
         Examples
         --------
@@ -200,6 +209,7 @@ class Graph:
             raise RuntimeError("Graph already has values")
         self._Impl._simpleGraphImpl__from_edgelist(
             input_df,
+            vertices=vertices,
             source=source,
             destination=destination,
             edge_attr=edge_attr,
@@ -495,7 +505,10 @@ class Graph:
             df["src"] = src
             df["dst"] = dst
         df["weight"] = weight
-        self.from_cudf_edgelist(df, "src", "dst", edge_attr="weight")
+
+        num_vertices = np_array.shape[0]
+        vertices = cudf.Series(np.arange(0, num_vertices))
+        self.from_cudf_edgelist(df, "src", "dst", edge_attr="weight", vertices=vertices)
 
     def from_numpy_matrix(self, np_matrix):
         """
