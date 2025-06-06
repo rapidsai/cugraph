@@ -16,6 +16,7 @@ import time
 
 import pytest
 import pandas as pd
+import numpy as np
 import scipy
 import networkx as nx
 
@@ -644,6 +645,35 @@ def test_number_of_edges():
     )
 
     assert G_directed.number_of_edges() == G_undirected.number_of_edges()
+
+
+@pytest.mark.sg
+def test_vertex_list():
+    A = np.array([[0., 0., 0., 0., 0., 0., 0., 1., 0., 0.],
+       [0., 0., 0., 0., 0., 1., 0., 0., 1., 0.],
+       [0., 0., 0., 0., 0., 0., 0., 1., 0., 0.],
+       [0., 0., 0., 0., 0., 0., 0., 1., 0., 0.],
+       [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+       [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+       [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+       [0., 0., 0., 0., 0., 0., 0., 1., 0., 0.],
+       [0., 0., 0., 0., 0., 0., 0., 1., 0., 0.],
+       [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.]])
+
+    G = nx.from_numpy_array(A)
+    cG = cugraph.from_numpy_array(nx.to_numpy_array(G))
+
+    assert len(G.nodes()) == len(cG.nodes())
+
+    nx_nodes = cudf.Series([n for n in G.nodes()])
+    cG_nodes = cG.nodes().sort_values(ignore_index=True)
+
+    assert_series_equal(
+        nx_nodes,
+        cG_nodes,
+        check_names=False,
+        check_dtype=False,
+    )
 
 
 # Test
