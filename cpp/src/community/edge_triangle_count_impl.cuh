@@ -129,12 +129,22 @@ edge_property_t<edge_t, edge_t> edge_triangle_count_impl(
   graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
   bool do_expensive_check)
 {
+#if 1
+  handle.sync_stream();
+  std::cout << "in cugraph::detail::edge_triangle_count_impl" << std::endl;
+#endif
+
   using weight_t = float;
   rmm::device_uvector<vertex_t> edgelist_srcs(0, handle.get_stream());
   rmm::device_uvector<vertex_t> edgelist_dsts(0, handle.get_stream());
   std::tie(edgelist_srcs, edgelist_dsts, std::ignore, std::ignore, std::ignore) =
     decompress_to_edgelist<vertex_t, edge_t, weight_t, int32_t>(
       handle, graph_view, std::nullopt, std::nullopt, std::nullopt, std::nullopt);
+
+#if 1
+  handle.sync_stream();
+  std::cout << "after decompress_to_edgelist" << std::endl;
+#endif
 
   auto edge_first = thrust::make_zip_iterator(edgelist_srcs.begin(), edgelist_dsts.begin());
 
@@ -153,10 +163,20 @@ edge_property_t<edge_t, edge_t> edge_triangle_count_impl(
       handle.get_comms(), num_chunks, raft::comms::op_t::MAX, handle.get_stream());
   }
 
+#if 1
+  handle.sync_stream();
+  std::cout << "  num_chunks = " << num_chunks << std::endl;
+#endif
+
   // Need to ensure that the vector has its values initialized to 0 before incrementing
   thrust::fill(handle.get_thrust_policy(), num_triangles.begin(), num_triangles.end(), 0);
 
   for (size_t i = 0; i < num_chunks; ++i) {
+#if 1
+    handle.sync_stream();
+    std::cout << "  i = " << i << std::endl;
+#endif
+
     auto chunk_size = std::min(edges_to_intersect_per_iteration, num_remaining_edges);
     num_remaining_edges -= chunk_size;
     // Perform 'nbr_intersection' in chunks to reduce peak memory.
