@@ -320,6 +320,11 @@ edge_property_t<edge_t, edge_t> edge_triangle_count_impl(
           std::move(edge_properties),
           graph_view.vertex_partition_range_lasts());
 
+#if 1
+      handle.sync_stream();
+      std::cout << "  back from shuffle" << std::endl;
+#endif
+
       thrust::for_each(
         handle.get_thrust_policy(),
         thrust::make_counting_iterator<edge_t>(0),
@@ -382,7 +387,7 @@ edge_property_t<edge_t, edge_t> edge_triangle_count_impl(
   }
 #if 1
   handle.sync_stream();
-  std::cout << "  back from shuffle" << std::endl;
+  std::cout << "  done with loop" << std::endl;
 #endif
 
   cugraph::edge_property_t<edge_t, edge_t> counts(handle, graph_view);
@@ -391,6 +396,11 @@ edge_property_t<edge_t, edge_t> edge_triangle_count_impl(
   valid_edges.insert(edgelist_srcs.begin(), edgelist_srcs.end(), edgelist_dsts.begin());
 
   auto cur_graph_view = graph_view;
+
+#if 1
+  handle.sync_stream();
+  std::cout << "  call transform_e" << std::endl;
+#endif
 
   cugraph::transform_e(
     handle,
@@ -416,6 +426,11 @@ edge_property_t<edge_t, edge_t> edge_triangle_count_impl(
     },
     counts.mutable_view(),
     false);
+
+#if 1
+  handle.sync_stream();
+  std::cout << "  back from transform_e" << std::endl;
+#endif
 
   return counts;
 }
