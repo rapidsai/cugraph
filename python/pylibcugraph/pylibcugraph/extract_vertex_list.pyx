@@ -117,9 +117,4 @@ def extract_vertex_list(ResourceHandle resource_handle,
 
     cupy_vertices = copy_to_cupy_array(c_resource_handle_ptr, vertices_view_ptr)
 
-
-
-    # Free pointer
-    cugraph_type_erased_device_array_view_free(vertices_view_ptr)
-
     return cupy_vertices
