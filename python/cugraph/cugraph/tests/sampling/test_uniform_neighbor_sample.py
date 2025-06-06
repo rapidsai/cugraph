@@ -787,7 +787,7 @@ def test_uniform_neighbor_sample_renumber(hops):
 @pytest.mark.sg
 @pytest.mark.parametrize("hops", [[5], [5, 5], [5, 5, 5]])
 def test_uniform_neighbor_sample_offset_renumber(hops):
-    el = email_Eu_core.get_edgelist()
+    el = email_Eu_core.get_edgelist(download=True)
 
     G = cugraph.Graph(directed=True)
     G.from_cudf_edgelist(el, source="src", destination="dst")
@@ -895,7 +895,7 @@ def test_uniform_neighbor_sample_csr_csc_global(hops, seed):
 @pytest.mark.parametrize("seed", [62, 66, 68])
 @pytest.mark.parametrize("hops", [[5], [5, 5], [5, 5, 5]])
 def test_uniform_neighbor_sample_csr_csc_local(hops, seed):
-    el = email_Eu_core.get_edgelist()
+    el = email_Eu_core.get_edgelist(download=True)
 
     G = cugraph.Graph(directed=True)
     G.from_cudf_edgelist(el, source="src", destination="dst")
