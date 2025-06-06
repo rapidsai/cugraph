@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include "community/detail/common_methods.cuh"
+#include "community/detail/common_methods_impl.cuh"
 
 namespace cugraph {
 namespace detail {
