@@ -215,6 +215,8 @@ struct all_pairs_similarity_functor : public cugraph::c_api::abstract_functor {
                    vertices_->size_,
                    handle_.get_stream());
         
+        if constexpr (multi_gpu) {vertices = cugraph::shuffle_ext_vertices(handle_, std::move(*vertices)); }
+        
         //
         // Need to renumber vertices
         //
@@ -226,8 +228,6 @@ struct all_pairs_similarity_functor : public cugraph::c_api::abstract_functor {
             graph_view.local_vertex_partition_range_first(),
             graph_view.local_vertex_partition_range_last(),
             do_expensive_check_);
-
-        if constexpr (multi_gpu) { vertices = cugraph::shuffle_ext_vertices(handle_, std::move(*vertices)); }
       } 
       
       auto [v1, v2, similarity_coefficients] =
@@ -609,7 +609,7 @@ extern "C" cugraph_error_code_t cugraph_all_pairs_cosine_similarity_coefficients
       *error);
   }
   all_pairs_similarity_functor functor(
-    handle, graph, vertices, cosine_functor{}, use_weight, topk, do_expensive_check);
+    handle, graph, vertices, cosine_functor{}, use_weight, topk, true);
 
   return cugraph::c_api::run_algorithm(graph, functor, result, error);
 }
