@@ -312,8 +312,18 @@ k_truss(raft::handle_t const& handle,
     // Mask self loops and edges not being part of k-1 core
     auto weak_edges_mask = std::move(undirected_mask);
 
+#if 1
+    handle.sync_stream();
+    std::cout << "  starting step 4a" << std::endl;
+#endif
+
     auto edge_triangle_counts =
       edge_triangle_count<vertex_t, edge_t, multi_gpu>(handle, cur_graph_view, false);
+
+#if 1
+    handle.sync_stream();
+    std::cout << "  starting step 4b" << std::endl;
+#endif
 
     cugraph::edge_bucket_t<vertex_t, void, true, multi_gpu, true> edgelist_weak(handle);
     cugraph::edge_bucket_t<vertex_t, void, true, multi_gpu, true> edges_to_decrement_count(handle);
