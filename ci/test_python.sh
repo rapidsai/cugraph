@@ -69,30 +69,6 @@ rapids-logger "pytest pylibcugraph"
 #
 # FIXME: TEMPORARILY disable MG PropertyGraph tests (experimental) tests and
 # bulk sampler IO tests (hangs in CI)
-
-RAPIDS_DATASET_ROOT_DIR="$(realpath datasets)"
-export RAPIDS_DATASET_ROOT_DIR
-
-EXITCODE=0
-trap "EXITCODE=1" ERR
-set +e
-
-rapids-logger "pytest pylibcugraph"
-./ci/run_pylibcugraph_pytests.sh \
-  --verbose \
-  --junitxml="${RAPIDS_TESTS_DIR}/junit-pylibcugraph.xml" \
-  --numprocesses=8 \
-  --dist=worksteal \
-  --cov-config=../../.coveragerc \
-  --cov=pylibcugraph \
-  --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/pylibcugraph-coverage.xml" \
-  --cov-report=term
-
-
-# Test runs that include tests that use dask require
-#
-# FIXME: TEMPORARILY disable MG PropertyGraph tests (experimental) tests and
-# bulk sampler IO tests (hangs in CI)
 rapids-logger "pytest cugraph (not mg, with xdist)"
 ./ci/run_cugraph_pytests.sh \
   --verbose \
