@@ -1316,7 +1316,6 @@ class simpleGraphImpl:
         vertices: cudf.Series = None
     ):
         
-        print("vertices = \n", vertices)
         """
         Parameters
         ----------
