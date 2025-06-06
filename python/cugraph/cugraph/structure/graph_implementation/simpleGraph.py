@@ -943,7 +943,7 @@ class simpleGraphImpl:
             else:
                 vertices = df_["vertex"]
 
-        return vertices
+        return vertices.sort_values(ignore_index=True)
 
     def select_random_vertices(
         self,

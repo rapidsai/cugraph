@@ -670,7 +670,7 @@ def test_vertex_list():
     assert len(G.nodes()) == len(cG.nodes())
 
     nx_nodes = cudf.Series([n for n in G.nodes()])
-    cG_nodes = cG.nodes().sort_values(ignore_index=True)
+    cG_nodes = cG.nodes()
 
     assert_series_equal(
         nx_nodes,
