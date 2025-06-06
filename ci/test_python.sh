@@ -8,20 +8,20 @@ cd "$(dirname "$(realpath "${BASH_SOURCE[0]}")")"/../
 
 . /opt/conda/etc/profile.d/conda.sh
 
-# rapids-logger "Downloading artifacts from previous jobs"
-# CPP_CHANNEL=$(rapids-download-conda-from-github cpp)
-# PYTHON_CHANNEL=$(rapids-download-conda-from-github python)
+rapids-logger "Downloading artifacts from previous jobs"
+CPP_CHANNEL=$(rapids-download-conda-from-github cpp)
+PYTHON_CHANNEL=$(rapids-download-conda-from-github python)
 
-# rapids-logger "Generate Python testing dependencies"
-# rapids-dependency-file-generator \
-#   --output conda \
-#   --file-key test_python \
-#   --matrix "cuda=${RAPIDS_CUDA_VERSION%.*};arch=$(arch);py=${RAPIDS_PY_VERSION}" \
-#   --prepend-channel "${CPP_CHANNEL}" \
-#   --prepend-channel "${PYTHON_CHANNEL}" \
-#   | tee env.yaml
+rapids-logger "Generate Python testing dependencies"
+rapids-dependency-file-generator \
+  --output conda \
+  --file-key test_python \
+  --matrix "cuda=${RAPIDS_CUDA_VERSION%.*};arch=$(arch);py=${RAPIDS_PY_VERSION}" \
+  --prepend-channel "${CPP_CHANNEL}" \
+  --prepend-channel "${PYTHON_CHANNEL}" \
+  | tee env.yaml
 
-# rapids-mamba-retry env create --yes -f env.yaml -n test
+rapids-mamba-retry env create --yes -f env.yaml -n test
 
 # Temporarily allow unbound variables for conda activation.
 set +u
