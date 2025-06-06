@@ -2633,7 +2633,7 @@ def bench_add_edges_cyber(benchmark, N):
     from cugraph.experimental import PropertyGraph
 
     # Partition the dataframe to add in chunks
-    cyber_df = cyber.get_edgelist(download=True)
+    cyber_df = cyber.get_edgelist()
     chunk = (len(cyber_df) + N - 1) // N
     dfs = [cyber_df.iloc[i * chunk : (i + 1) * chunk] for i in range(N)]
 
