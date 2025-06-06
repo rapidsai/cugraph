@@ -85,7 +85,7 @@ rapids-logger "pytest cugraph (not mg, with xdist)"
 # The datasets tests may modify global states and interfere with tests running on other workers
 # these tests are typically only limited by network speed and run fairly quickly, so they can be
 # run separately
-rapids-logger "pytest cugraph (datasets)"
+rapids-logger "pytest cugraph (datasets APIs)"
 ./ci/run_cugraph_pytests.sh \
   --verbose \
   --junitxml="${RAPIDS_TESTS_DIR}/junit-cugraph.xml" \
