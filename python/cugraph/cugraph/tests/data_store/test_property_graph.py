@@ -2628,7 +2628,6 @@ def bench_extract_subgraph_for_rmat_detect_duplicate_edges(
 
 @pytest.mark.slow
 @pytest.mark.parametrize("N", [1, 3, 10, 30])
-@pytest.mark.benchmark(warmup=True, warmup_iterations=10, max_time=0.005)
 def bench_add_edges_cyber(benchmark, N):
     from cugraph.experimental import PropertyGraph
 
