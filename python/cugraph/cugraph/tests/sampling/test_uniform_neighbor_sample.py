@@ -787,7 +787,7 @@ def test_uniform_neighbor_sample_renumber(hops):
 @pytest.mark.sg
 @pytest.mark.parametrize("hops", [[5], [5, 5], [5, 5, 5]])
 def test_uniform_neighbor_sample_offset_renumber(hops):
-    el = email_Eu_core.get_edgelist(download=True)
+    el = email_Eu_core.get_edgelist()
 
     G = cugraph.Graph(directed=True)
     G.from_cudf_edgelist(el, source="src", destination="dst")
