@@ -41,8 +41,8 @@ struct extract_vertex_list_functor : public cugraph::c_api::abstract_functor {
   cugraph::c_api::cugraph_type_erased_device_array_t* result_{};
 
   extract_vertex_list_functor(cugraph_resource_handle_t const* handle,
-                                 cugraph_graph_t* graph,
-                                 bool do_expensive_check)
+                              cugraph_graph_t* graph,
+                              bool do_expensive_check)
     : abstract_functor(),
       handle_(*reinterpret_cast<cugraph::c_api::cugraph_resource_handle_t const*>(handle)->handle_),
       graph_(reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)),
@@ -77,12 +77,9 @@ struct extract_vertex_list_functor : public cugraph::c_api::abstract_functor {
       auto number_map = reinterpret_cast<rmm::device_uvector<vertex_t>*>(graph_->number_map_);
 
       rmm::device_uvector<vertex_t> vertex_list(number_map->size(), handle_.get_stream());
-      
-      raft::copy(vertex_list.data(),
-                 number_map->data(),
-                 number_map->size(),
-                 handle_.get_stream());
-      
+
+      raft::copy(vertex_list.data(), number_map->data(), number_map->size(), handle_.get_stream());
+
       cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(
         handle_,
         vertex_list.data(),
@@ -90,10 +87,9 @@ struct extract_vertex_list_functor : public cugraph::c_api::abstract_functor {
         number_map->data(),
         graph_view.vertex_partition_range_lasts(),
         do_expensive_check_);
-      
-      result_ = new cugraph::c_api::cugraph_type_erased_device_array_t(vertex_list,
-                                                                       graph_->vertex_type_);
-      
+
+      result_ =
+        new cugraph::c_api::cugraph_type_erased_device_array_t(vertex_list, graph_->vertex_type_);
     }
   }
 };

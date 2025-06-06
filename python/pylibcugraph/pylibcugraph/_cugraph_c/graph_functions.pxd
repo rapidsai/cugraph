@@ -320,7 +320,7 @@ cdef extern from "cugraph_c/graph_functions.h":
         bool_t do_expensive_check,
         cugraph_type_erased_device_array_t** result,
         cugraph_error_t** error)
-    
+
     ###########################################################################
     # extract vertex list
     cdef cugraph_error_code_t \

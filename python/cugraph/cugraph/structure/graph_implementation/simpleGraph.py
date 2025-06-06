@@ -136,7 +136,7 @@ class simpleGraphImpl:
         renumber=True,
         store_transposed=False,
         symmetrize=None,
-        vertices=None
+        vertices=None,
     ):
 
         if self.properties.directed and symmetrize:
@@ -311,14 +311,16 @@ class simpleGraphImpl:
 
         if self.batch_enabled:
             self._replicate_edgelist()
-        
+
         if vertices is not None:
             if self.properties.renumbered is True:
                 if isinstance(vertices, cudf.Series):
-                    vertices = self.lookup_internal_vertex_id(vertices, vertices.columns)
+                    vertices = self.lookup_internal_vertex_id(
+                        vertices, vertices.columns
+                    )
                 else:
                     vertices = self.lookup_internal_vertex_id(cudf.Series(vertices))
-            
+
             if not isinstance(vertices, cudf.Series):
                 vertex_dtype = self.edgelist.edgelist_df[simpleGraphImpl.srcCol].dtype
                 vertices = cudf.Series(vertices, dtype=vertex_dtype)
@@ -329,7 +331,7 @@ class simpleGraphImpl:
             renumber=renumber,
             drop_multi_edges=not self.properties.multi_edge,
             symmetrize=symmetrize,
-            vertices=vertices
+            vertices=vertices,
         )
 
     def to_pandas_edgelist(
@@ -892,7 +894,7 @@ class simpleGraphImpl:
             df, _ = self.renumber_map.unrenumber(df, "dst", get_column_names=True)
 
         return df
-    
+
     def extract_vertex_list(
         self, return_unrenumbered_vertices: bool = True
     ) -> cudf.DataFrame:
@@ -923,14 +925,14 @@ class simpleGraphImpl:
 
         do_expensive_check = False
         vertices = pylibcugraph_extract_vertex_list(
-                    resource_handle=ResourceHandle(),
-                    graph=self._plc_graph,
-                    do_expensive_check=do_expensive_check)
+            resource_handle=ResourceHandle(),
+            graph=self._plc_graph,
+            do_expensive_check=do_expensive_check,
+        )
 
         vertices = cudf.Series(
-            vertices,
-            dtype=self.edgelist.edgelist_df[simpleGraphImpl.srcCol].dtype)
-
+            vertices, dtype=self.edgelist.edgelist_df[simpleGraphImpl.srcCol].dtype
+        )
 
         if self.properties.renumbered and return_unrenumbered_vertices:
             df_ = cudf.DataFrame()
@@ -1313,9 +1315,9 @@ class simpleGraphImpl:
         renumber: bool = True,
         drop_multi_edges: bool = False,
         symmetrize: bool = False,
-        vertices: cudf.Series = None
+        vertices: cudf.Series = None,
     ):
-        
+
         """
         Parameters
         ----------
@@ -1547,7 +1549,7 @@ class simpleGraphImpl:
         if self.edgelist is not None:
             # Retrieve the vertex list
             return self.extract_vertex_list(return_unrenumbered_vertices=False)
-            
+
         if self.adjlist is not None:
             return cudf.Series(np.arange(0, self.number_of_nodes()))
 
