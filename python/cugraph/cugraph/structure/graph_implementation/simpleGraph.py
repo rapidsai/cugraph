@@ -15,6 +15,7 @@ from cugraph.structure import graph_primtypes_wrapper
 from cugraph.structure.replicate_edgelist import replicate_cudf_dataframe
 from cugraph.structure.symmetrize import symmetrize as symmetrize_df
 from pylibcugraph import decompress_to_edgelist as pylibcugraph_decompress_to_edgelist
+from pylibcugraph import extract_vertex_list as pylibcugraph_extract_vertex_list
 from cugraph.structure.number_map import NumberMap
 import cugraph.dask.common.mg_utils as mg_utils
 import cudf
@@ -299,16 +300,6 @@ class simpleGraphImpl:
 
         else:
             value_col = None
-        
-        if self.properties.renumbered is True:
-            if isinstance(vertices, cudf.Series):
-                vertices = G.lookup_internal_vertex_id(vertices, vertices.columns)
-            else:
-                start = G.lookup_internal_vertex_id(cudf.Series(start))
-        
-        if not isinstance(vertices, cudf.Series):
-            vertex_dtype = self.nodes().dtype
-            vertices = cudf.Series(start, dtype=vertex_dtype)
 
         # FIXME: if the user calls self.edgelist.edgelist_df after creating a
         # symmetric graph, return the symmetric edgelist?
@@ -320,6 +311,16 @@ class simpleGraphImpl:
 
         if self.batch_enabled:
             self._replicate_edgelist()
+        
+        if self.properties.renumbered is True:
+            if isinstance(vertices, cudf.Series):
+                vertices = self.lookup_internal_vertex_id(vertices, vertices.columns)
+            else:
+                vertices = self.lookup_internal_vertex_id(cudf.Series(vertices))
+        
+        if not isinstance(vertices, cudf.Series):
+            vertex_dtype = self.edgelist.edgelist_df[simpleGraphImpl.srcCol].dtype
+            vertices = cudf.Series(vertices, dtype=vertex_dtype)
 
         self._make_plc_graph(
             value_col=value_col,
@@ -327,6 +328,7 @@ class simpleGraphImpl:
             renumber=renumber,
             drop_multi_edges=not self.properties.multi_edge,
             symmetrize=symmetrize,
+            vertices=vertices
         )
 
     def to_pandas_edgelist(
@@ -889,6 +891,56 @@ class simpleGraphImpl:
             df, _ = self.renumber_map.unrenumber(df, "dst", get_column_names=True)
 
         return df
+    
+    def extract_vertex_list(
+        self, return_unrenumbered_vertices: bool = True
+    ) -> cudf.DataFrame:
+        """
+        Extract the vertices from a graph.
+
+        Parameters
+        ----------
+        return_unrenumbered_vertices : bool (default=True)
+            Flag determining whether to return the original input input vertices
+            if 'True' or the renumbered one if 'False' and the edgelist was
+            renumbered.
+
+        Returns
+        -------
+
+        series : cudf.Series
+            GPU Series containing all the vertices in the graph including
+            isolated vertices.
+
+        Examples
+        --------
+        >>> from cugraph.datasets import karate
+        >>> G = karate.get_graph(download=True)
+        >>> vertices = G.extract_vertex_list()
+
+        """
+
+        do_expensive_check = False
+        vertices = pylibcugraph_extract_vertex_list(
+                    resource_handle=ResourceHandle(),
+                    graph=self._plc_graph,
+                    do_expensive_check=do_expensive_check)
+
+        vertices = cudf.Series(
+            vertices,
+            dtype=self.edgelist.edgelist_df[simpleGraphImpl.srcCol].dtype)
+
+
+        if self.properties.renumbered and return_unrenumbered_vertices:
+            df_ = cudf.DataFrame()
+            df_["vertex"] = vertices
+            df_ = self.renumber_map.unrenumber(df_, "vertex")
+            if len(df_.columns) > 1:
+                vertices = df_
+            else:
+                vertices = df_["vertex"]
+
+        return vertices
 
     def select_random_vertices(
         self,
@@ -1491,22 +1543,9 @@ class simpleGraphImpl:
         If multi columns vertices, return a cudf.DataFrame.
         """
         if self.edgelist is not None:
-            df = self.edgelist.edgelist_df
-            if self.properties.renumbered:
-                df = self.renumber_map.df_internal_to_external.drop(columns="id")
-
-                if len(df.columns) > 1:
-                    return df
-                else:
-                    return df[df.columns[0]]
-            else:
-                return (
-                    cudf.concat(
-                        [df[simpleGraphImpl.srcCol], df[simpleGraphImpl.dstCol]]
-                    )
-                    .drop_duplicates()
-                    .reset_index(drop=True)
-                )
+            # Retrieve the vertex list
+            return self.extract_vertex_list(return_unrenumbered_vertices=False)
+            
         if self.adjlist is not None:
             return cudf.Series(np.arange(0, self.number_of_nodes()))
 
