@@ -130,7 +130,8 @@ generate_rmat_edgelists(raft::handle_t const& handle,
                         generator_distribution_t size_distribution,
                         generator_distribution_t edge_distribution,
                         bool clip_and_flip,
-                        bool scramble_vertex_ids)
+                        bool scramble_vertex_ids,
+                        std::optional<large_buffer_type_t> large_buffer_type)
 {
   CUGRAPH_EXPECTS(min_scale > 0, "minimum graph scale is 1.");
   CUGRAPH_EXPECTS(
@@ -185,7 +186,8 @@ generate_rmat_edgelists(raft::handle_t const& handle,
                                                       b,
                                                       c,
                                                       clip_and_flip,
-                                                      scramble_vertex_ids));
+                                                      scramble_vertex_ids,
+                                                      large_buffer_type));
   }
   return output;
 }

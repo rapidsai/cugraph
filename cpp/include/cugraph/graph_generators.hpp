@@ -161,6 +161,8 @@ enum class generator_distribution_t { POWER_LAW = 0, UNIFORM };
  * @param scramble_vertex_ids Flag controlling whether to scramble vertex ID bits (if set to `true`)
  * or not (if set to `false`); scrambling vertex ID bits breaks correlation between vertex ID values
  * and vertex degrees.
+ * @param large_buffer_type Dictates the large buffer type to use in generating and storing the edge
+ * list (if the value is std::nullopt, the default RMM per-device memory resource is used).
  * @return A vector of std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> of
  *size @p n_edgelists, each vector element being a tuple of rmm::device_uvector objects for edge
  *source vertex IDs and edge destination vertex IDs.
@@ -173,11 +175,12 @@ generate_rmat_edgelists(
   size_t n_edgelists,
   size_t min_scale,
   size_t max_scale,
-  size_t edge_factor                         = 16,
-  generator_distribution_t size_distribution = generator_distribution_t::POWER_LAW,
-  generator_distribution_t edge_distribution = generator_distribution_t::POWER_LAW,
-  bool clip_and_flip                         = false,
-  bool scramble_vertex_ids                   = false);
+  size_t edge_factor                                   = 16,
+  generator_distribution_t size_distribution           = generator_distribution_t::POWER_LAW,
+  generator_distribution_t edge_distribution           = generator_distribution_t::POWER_LAW,
+  bool clip_and_flip                                   = false,
+  bool scramble_vertex_ids                             = false,
+  std::optional<large_buffer_type_t> large_buffer_type = std::nullopt);
 
 /**
  * @ingroup graph_generators_cpp

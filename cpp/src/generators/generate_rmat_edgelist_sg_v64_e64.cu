@@ -57,6 +57,7 @@ generate_rmat_edgelists<int64_t>(raft::handle_t const& handle,
                                  generator_distribution_t size_distribution,
                                  generator_distribution_t edge_distribution,
                                  bool clip_and_flip,
-                                 bool scramble_vertex_ids);
+                                 bool scramble_vertex_ids,
+                                 std::optional<large_buffer_type_t> large_buffer_type);
 
 }  // namespace cugraph
