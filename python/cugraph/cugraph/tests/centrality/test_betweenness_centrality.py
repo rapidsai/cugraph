@@ -19,7 +19,6 @@ import numpy as np
 import networkx as nx
 
 import cudf
-import cupy
 import cugraph
 from cugraph.datasets import karate_disjoint
 from cugraph.testing import utils, SMALL_DATASETS
@@ -292,10 +291,12 @@ def compare_scores(sorted_df, first_key, second_key, epsilon=DEFAULT_EPSILON):
     # Compare with numpy and pandas since presence of NaNs in cudf Series
     # results in "ValueError: CuPy currently does not support masked arrays."
     errors = sorted_df[
-        ~np.isclose(sorted_df[first_key].to_pandas(),
-                    sorted_df[second_key].to_pandas(),
-                    rtol=epsilon,
-                    equal_nan=True)
+        ~np.isclose(
+            sorted_df[first_key].to_pandas(),
+            sorted_df[second_key].to_pandas(),
+            rtol=epsilon,
+            equal_nan=True,
+        )
     ]
     num_errors = len(errors)
     if num_errors > 0:
