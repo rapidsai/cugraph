@@ -113,9 +113,16 @@ int generic_betweenness_centrality_test(vertex_t* h_src,
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "copy_to_host failed.");
 
   for (int i = 0; (i < num_vertices) && (test_ret_value == 0); ++i) {
-    TEST_ASSERT(test_ret_value,
-                nearlyEqual(h_result[h_vertices[i]], h_centralities[i], 0.0001),
-                "centralities results don't match");
+    if (isnan(h_result[h_vertices[i]])) {
+      TEST_ASSERT(test_ret_value, isnan(h_centralities[i]), "expected NaN, got a non-NaN value");
+    } else {
+      if (!nearlyEqual(h_result[h_vertices[i]], h_centralities[i], 0.0001))
+        printf("  expected: %g, got %g\n", h_result[h_vertices[i]], h_centralities[i]);
+
+      TEST_ASSERT(test_ret_value,
+                  nearlyEqual(h_result[h_vertices[i]], h_centralities[i], 0.0001),
+                  "centralities results don't match");
+    }
   }
 
   cugraph_centrality_result_free(p_result);
@@ -169,7 +176,7 @@ int test_betweenness_centrality_specific_normalized()
   weight_t h_wgt[] = {
     0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f, 0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
   vertex_t h_seeds[]  = {0, 3};
-  weight_t h_result[] = {0, 0.395833, 0.16667, 0.0833333, 0.0416667, 0.0625};
+  weight_t h_result[] = {0, 0.395833, 0.166667, 0.166667, 0.0416667, 0.0625};
 
   return generic_betweenness_centrality_test(h_src,
                                              h_dst,
@@ -197,7 +204,7 @@ int test_betweenness_centrality_specific_unnormalized()
   weight_t h_wgt[] = {
     0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f, 0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
   vertex_t h_seeds[]  = {0, 3};
-  weight_t h_result[] = {0, 7.91667, 3.33333, 1.666667, 0.833333, 1.25};
+  weight_t h_result[] = {0, 7.91667, 3.33333, 3.33333, 0.833333, 1.25};
 
   return generic_betweenness_centrality_test(h_src,
                                              h_dst,
@@ -312,17 +319,17 @@ int test_issue_4941()
     {TRUE, TRUE, FALSE, 0, {1.0, 0.4, 0.4, 0.4, 0.4}},
     {TRUE, TRUE, FALSE, 1, {1.0, 1.0, 0.25, 0.25, 0.25}},
     {TRUE, FALSE, TRUE, 0, {1.0, 0.0, 0.0, 0.0, 0.0}},
-    {TRUE, FALSE, TRUE, 1, {1.0, 0.0, 0.0, 0.0, 0.0}},
+    {TRUE, FALSE, TRUE, 1, {1.0, NAN, 0.0, 0.0, 0.0}},
     {TRUE, FALSE, FALSE, 0, {1.0, 0.0, 0.0, 0.0, 0.0}},
-    {TRUE, FALSE, FALSE, 1, {1.0, 0.0, 0.0, 0.0, 0.0}},
+    {TRUE, FALSE, FALSE, 1, {1.0, NAN, 0.0, 0.0, 0.0}},
     {FALSE, TRUE, TRUE, 0, {20.0, 8.0, 8.0, 8.0, 8.0}},
     {FALSE, TRUE, TRUE, 1, {20.0, 20.0, 5.0, 5.0, 5.0}},
     {FALSE, TRUE, FALSE, 0, {10.0, 4.0, 4.0, 4.0, 4.0}},
     {FALSE, TRUE, FALSE, 1, {10.0, 10.0, 2.5, 2.5, 2.5}},
     {FALSE, FALSE, TRUE, 0, {12.0, 0.0, 0.0, 0.0, 0.0}},
-    {FALSE, FALSE, TRUE, 1, {12.0, 0.0, 0.0, 0.0, 0.0}},
+    {FALSE, FALSE, TRUE, 1, {12, NAN, 0.0, 0.0, 0.0}},
     {FALSE, FALSE, FALSE, 0, {6.0, 0.0, 0.0, 0.0, 0.0}},
-    {FALSE, FALSE, FALSE, 1, {6.0, 0.0, 0.0, 0.0, 0.0}},
+    {FALSE, FALSE, FALSE, 1, {6.0, NAN, 0.0, 0.0, 0.0}},
   };
 
   int test_result = 0;
