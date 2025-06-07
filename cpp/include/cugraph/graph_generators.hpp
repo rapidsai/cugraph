@@ -15,6 +15,8 @@
  */
 #pragma once
 
+#include <cugraph/large_buffer_manager.hpp>
+
 #include <raft/core/handle.hpp>
 #include <raft/random/rng_state.hpp>
 
@@ -73,6 +75,8 @@ namespace cugraph {
  * @param scramble_vertex_ids Flag controlling whether to scramble vertex ID bits (if set to `true`)
  * or not (if set to `false`); scrambling vertex ID bits breaks correlation between vertex ID values
  * and vertex degrees.
+ * @param large_buffer_type Dictates the large buffer type to use in generating and storing the edge
+ * list (if the value is std::nullopt, the default RMM per-device memory resource is used).
  * @return std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> A tuple of
  * rmm::device_uvector objects for edge source vertex IDs and edge destination vertex IDs.
  */
@@ -81,12 +85,13 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> generat
   raft::handle_t const& handle,
   size_t scale,
   size_t num_edges,
-  double a                 = 0.57,
-  double b                 = 0.19,
-  double c                 = 0.19,
-  uint64_t seed            = 0,
-  bool clip_and_flip       = false,
-  bool scramble_vertex_ids = false);
+  double a                                             = 0.57,
+  double b                                             = 0.19,
+  double c                                             = 0.19,
+  uint64_t seed                                        = 0,
+  bool clip_and_flip                                   = false,
+  bool scramble_vertex_ids                             = false,
+  std::optional<large_buffer_type_t> large_buffer_type = std::nullopt);
 
 /**
  * @ingroup graph_generators_cpp
@@ -125,6 +130,8 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> generat
  * @param scramble_vertex_ids Flag controlling whether to scramble vertex ID bits (if set to `true`)
  * or not (if set to `false`); scrambling vertex ID bits breaks correlation between vertex ID values
  * and vertex degrees.
+ * @param large_buffer_type Dictates the large buffer type to use in generating and storing the edge
+ * list (if the value is std::nullopt, the default RMM per-device memory resource is used).
  * @return std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> A tuple of
  * rmm::device_uvector objects for edge source vertex IDs and edge destination vertex IDs.
  */
@@ -134,11 +141,12 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> generat
   raft::random::RngState& rng_state,
   size_t scale,
   size_t num_edges,
-  double a                 = 0.57,
-  double b                 = 0.19,
-  double c                 = 0.19,
-  bool clip_and_flip       = false,
-  bool scramble_vertex_ids = false);
+  double a                                             = 0.57,
+  double b                                             = 0.19,
+  double c                                             = 0.19,
+  bool clip_and_flip                                   = false,
+  bool scramble_vertex_ids                             = false,
+  std::optional<large_buffer_type_t> large_buffer_type = std::nullopt);
 
 /**
  * @ingroup graph_generators_cpp

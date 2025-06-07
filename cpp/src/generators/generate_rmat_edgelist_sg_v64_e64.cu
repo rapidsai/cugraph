@@ -44,7 +44,8 @@ generate_rmat_edgelist<int64_t>(raft::handle_t const& handle,
                                 double b,
                                 double c,
                                 bool clip_and_flip,
-                                bool scramble_vertex_ids);
+                                bool scramble_vertex_ids,
+                                std::optional<large_buffer_type_t> large_buffer_type);
 
 template std::vector<std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<int64_t>>>
 generate_rmat_edgelists<int64_t>(raft::handle_t const& handle,
@@ -67,7 +68,8 @@ generate_rmat_edgelist<int64_t>(raft::handle_t const& handle,
                                 double c,
                                 uint64_t seed,
                                 bool clip_and_flip,
-                                bool scramble_vertex_ids);
+                                bool scramble_vertex_ids,
+                                std::optional<large_buffer_type_t> large_buffer_type);
 
 template std::vector<std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<int64_t>>>
 generate_rmat_edgelists<int64_t>(raft::handle_t const& handle,
