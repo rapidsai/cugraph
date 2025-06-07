@@ -15,7 +15,7 @@
  */
 #pragma once
 
-#include "common_methods.hpp"
+#include "common_methods.cuh"
 #include "detail/graph_partition_utils.cuh"
 #include "prims/kv_store.cuh"
 #include "prims/per_v_transform_reduce_dst_key_aggregated_outgoing_e.cuh"
@@ -242,6 +242,21 @@ graph_contraction(raft::handle_t const& handle,
   return std::make_tuple(std::move(new_graph), std::move(new_edge_weights));
 }
 
+template <typename vertex_t, typename weight_t, typename KeyToCommRankOp>
+rmm::device_uvector<weight_t> collect_vertex_cluster_weights(
+  raft::handle_t const& handle,
+  kv_store_t<vertex_t, weight_t, false>& cluster_key_weight_map,
+  raft::device_span<vertex_t const> next_clusters,
+  KeyToCommRankOp vertex_to_gpu_id_op)
+{
+  return cugraph::collect_values_for_keys(handle.get_comms(),
+                                          cluster_key_weight_map.view(),
+                                          next_clusters.begin(),
+                                          next_clusters.end(),
+                                          vertex_to_gpu_id_op,
+                                          handle.get_stream());
+}
+
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 rmm::device_uvector<vertex_t> update_clustering_by_delta_modularity(
   raft::handle_t const& handle,
@@ -281,12 +296,12 @@ rmm::device_uvector<vertex_t> update_clustering_by_delta_modularity(
       invalid_vertex_id<vertex_t>::value,
       std::numeric_limits<weight_t>::max(),
       handle.get_stream());
-    vertex_cluster_weights_v = cugraph::collect_values_for_keys(comm,
-                                                                cluster_key_weight_map.view(),
-                                                                next_clusters_v.begin(),
-                                                                next_clusters_v.end(),
-                                                                vertex_to_gpu_id_op,
-                                                                handle.get_stream());
+
+    vertex_cluster_weights_v = collect_vertex_cluster_weights(
+      handle,
+      cluster_key_weight_map,
+      raft::device_span<vertex_t const>{next_clusters_v.data(), next_clusters_v.size()},
+      vertex_to_gpu_id_op);
 
     src_cluster_weights = edge_src_property_t<vertex_t, weight_t>(handle, graph_view);
     update_edge_src_property(

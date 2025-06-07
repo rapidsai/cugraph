@@ -16,7 +16,7 @@
 
 #pragma once
 
-#include "community/detail/common_methods.hpp"
+#include "community/detail/common_methods.cuh"
 #include "prims/fill_edge_property.cuh"
 #include "prims/transform_e.cuh"
 #include "prims/update_edge_src_dst_property.cuh"

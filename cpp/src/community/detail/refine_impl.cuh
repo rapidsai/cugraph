@@ -15,7 +15,7 @@
  */
 #pragma once
 
-#include "common_methods.hpp"
+#include "common_methods.cuh"
 #include "detail/graph_partition_utils.cuh"
 #include "maximal_independent_moves.hpp"
 #include "prims/per_v_transform_reduce_dst_key_aggregated_outgoing_e.cuh"
@@ -184,16 +184,12 @@ refine_clustering(
     cugraph::detail::compute_gpu_id_from_ext_vertex_t<vertex_t> vertex_to_gpu_id_op{
       comm_size, major_comm_size, minor_comm_size};
 
-    // Try moving collect_values_for_keys with the functor into a separate utility function.  This
-    // only depends on vertex_t/weight_t combinations and is likely to be expensive to compile.
-    //
-    vertex_louvain_cluster_weights =
-      cugraph::collect_values_for_keys(comm,
-                                       cluster_key_weight_map.view(),
-                                       louvain_assignment_of_vertices.begin(),
-                                       louvain_assignment_of_vertices.end(),
-                                       vertex_to_gpu_id_op,
-                                       handle.get_stream());
+    vertex_louvain_cluster_weights = collect_vertex_cluster_weights(
+      handle,
+      cluster_key_weight_map,
+      raft::device_span<vertex_t const>{louvain_assignment_of_vertices.data(),
+                                        louvain_assignment_of_vertices.size()},
+      vertex_to_gpu_id_op);
 
   } else {
     vertex_louvain_cluster_weights.resize(louvain_assignment_of_vertices.size(),
@@ -491,13 +487,12 @@ refine_clustering(
       // cugraph::detail::compute_gpu_id_from_ext_vertex_t<vertex_t> vertex_to_gpu_id_op{
       //   comm_size, major_comm_size, minor_comm_size};
 
-      louvain_of_leiden_keys_used_in_edge_reduction =
-        cugraph::collect_values_for_keys(comm,
-                                         leiden_to_louvain_map.view(),
-                                         leiden_keys_used_in_edge_reduction.begin(),
-                                         leiden_keys_used_in_edge_reduction.end(),
-                                         vertex_to_gpu_id_op,
-                                         handle.get_stream());
+      louvain_of_leiden_keys_used_in_edge_reduction = collect_vertex_cluster_weights(
+        handle,
+        leiden_to_louvain_map,
+        raft::device_span<vertex_t const>{leiden_keys_used_in_edge_reduction.data(),
+                                          leiden_keys_used_in_edge_reduction.size()},
+        vertex_to_gpu_id_op);
     } else {
       louvain_of_leiden_keys_used_in_edge_reduction.resize(
         leiden_keys_used_in_edge_reduction.size(), handle.get_stream());
@@ -867,13 +862,12 @@ refine_clustering(
     // cugraph::detail::compute_gpu_id_from_ext_vertex_t<vertex_t> vertex_to_gpu_id_op{
     //   comm_size, major_comm_size, minor_comm_size};
 
-    lovain_of_leiden_cluster_keys =
-      cugraph::collect_values_for_keys(comm,
-                                       leiden_to_louvain_map.view(),
-                                       leiden_keys_to_read_louvain.begin(),
-                                       leiden_keys_to_read_louvain.end(),
-                                       vertex_to_gpu_id_op,
-                                       handle.get_stream());
+    lovain_of_leiden_cluster_keys = collect_vertex_cluster_weights(
+      handle,
+      leiden_to_louvain_map,
+      raft::device_span<vertex_t const>{leiden_keys_to_read_louvain.data(),
+                                        leiden_keys_to_read_louvain.size()},
+      vertex_to_gpu_id_op);
 
   } else {
     lovain_of_leiden_cluster_keys.resize(leiden_keys_to_read_louvain.size(), handle.get_stream());

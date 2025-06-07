@@ -15,7 +15,7 @@
  */
 #pragma once
 
-#include "community/detail/common_methods.hpp"
+#include "community/detail/common_methods.cuh"
 #include "community/detail/refine.hpp"
 #include "community/flatten_dendrogram.hpp"
 #include "prims/update_edge_src_dst_property.cuh"

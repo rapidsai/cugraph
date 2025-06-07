@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include "community/detail/common_method_impl.cuh"
+#include "common_methods_impl.cuh"
 
 namespace cugraph {
 namespace detail {
@@ -39,6 +39,42 @@ template double compute_modularity(
   rmm::device_uvector<double> const& cluster_weights,
   double total_edge_weight,
   double resolution);
+
+template rmm::device_uvector<float> collect_vertex_cluster_weights(
+  raft::handle_t const& handle,
+  kv_store_t<int64_t, float, false>& cluster_key_weight_map,
+  raft::device_span<int64_t const> next_clusters,
+  cugraph::detail::compute_gpu_id_from_ext_vertex_t<int64_t> vertex_to_gpu_id_op);
+
+template rmm::device_uvector<double> collect_vertex_cluster_weights(
+  raft::handle_t const& handle,
+  kv_store_t<int64_t, double, false>& cluster_key_weight_map,
+  raft::device_span<int64_t const> next_clusters,
+  cugraph::detail::compute_gpu_id_from_ext_vertex_t<int64_t> vertex_to_gpu_id_op);
+
+template rmm::device_uvector<int64_t> collect_vertex_cluster_weights(
+  raft::handle_t const& handle,
+  kv_store_t<int64_t, int64_t, false>& cluster_key_weight_map,
+  raft::device_span<int64_t const> next_clusters,
+  cugraph::detail::compute_gpu_id_from_ext_vertex_t<int64_t> vertex_to_gpu_id_op);
+
+template rmm::device_uvector<float> collect_vertex_cluster_weights(
+  raft::handle_t const& handle,
+  kv_store_t<int64_t, float, false>& cluster_key_weight_map,
+  raft::device_span<int64_t const> next_clusters,
+  cugraph::detail::compute_gpu_id_from_int_vertex_t<int64_t> vertex_to_gpu_id_op);
+
+template rmm::device_uvector<double> collect_vertex_cluster_weights(
+  raft::handle_t const& handle,
+  kv_store_t<int64_t, double, false>& cluster_key_weight_map,
+  raft::device_span<int64_t const> next_clusters,
+  cugraph::detail::compute_gpu_id_from_int_vertex_t<int64_t> vertex_to_gpu_id_op);
+
+template rmm::device_uvector<int64_t> collect_vertex_cluster_weights(
+  raft::handle_t const& handle,
+  kv_store_t<int64_t, int64_t, false>& cluster_key_weight_map,
+  raft::device_span<int64_t const> next_clusters,
+  cugraph::detail::compute_gpu_id_from_int_vertex_t<int64_t> vertex_to_gpu_id_op);
 
 template std::tuple<cugraph::graph_t<int64_t, int64_t, false, true>,
                     std::optional<edge_property_t<int64_t, float>>>

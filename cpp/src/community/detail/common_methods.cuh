@@ -15,6 +15,8 @@
  */
 #pragma once
 
+#include "prims/kv_store.cuh"
+
 #include <cugraph/dendrogram.hpp>
 #include <cugraph/edge_property.hpp>
 #include <cugraph/edge_src_dst_property.hpp>
@@ -81,6 +83,13 @@ weight_t compute_modularity(
   rmm::device_uvector<weight_t> const& cluster_weights,
   weight_t total_edge_weight,
   weight_t resolution);
+
+template <typename vertex_t, typename weight_t, typename KeyToCommRankOp>
+rmm::device_uvector<weight_t> collect_vertex_cluster_weights(
+  raft::handle_t const& handle,
+  kv_store_t<vertex_t, weight_t, false>& cluster_key_weight_map,
+  raft::device_span<vertex_t const> next_clusters,
+  KeyToCommRankOp vertex_to_gpu_id_op);
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 std::tuple<graph_t<vertex_t, edge_t, false, multi_gpu>,
