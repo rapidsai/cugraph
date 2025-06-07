@@ -59,29 +59,4 @@ generate_rmat_edgelists<int32_t>(raft::handle_t const& handle,
                                  bool clip_and_flip,
                                  bool scramble_vertex_ids);
 
-/* DEPRECATED */
-template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>>
-generate_rmat_edgelist<int32_t>(raft::handle_t const& handle,
-                                size_t scale,
-                                size_t num_edges,
-                                double a,
-                                double b,
-                                double c,
-                                uint64_t seed,
-                                bool clip_and_flip,
-                                bool scramble_vertex_ids,
-                                std::optional<large_buffer_type_t> large_buffer_type);
-
-template std::vector<std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>>>
-generate_rmat_edgelists<int32_t>(raft::handle_t const& handle,
-                                 size_t n_edgelists,
-                                 size_t min_scale,
-                                 size_t max_scale,
-                                 size_t edge_factor,
-                                 generator_distribution_t size_distribution,
-                                 generator_distribution_t edge_distribution,
-                                 uint64_t seed,
-                                 bool clip_and_flip,
-                                 bool scramble_vertex_ids);
-
 }  // namespace cugraph
