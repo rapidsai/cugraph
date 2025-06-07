@@ -19,7 +19,7 @@
 // #define TIMING
 
 // FIXME: Only outstanding items preventing this becoming a .hpp file
-#include "community/detail/common_methods.hpp"
+#include "community/detail/common_methods.cuh"
 #include "community/flatten_dendrogram.hpp"
 #include "prims/update_edge_src_dst_property.cuh"
 

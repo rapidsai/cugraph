@@ -22,6 +22,7 @@
 #include "prims/property_op_utils.cuh"
 #include "prims/update_edge_src_dst_property.cuh"
 #include "prims/vertex_frontier.cuh"
+#include "sampling/detail/sampling_utils.hpp"
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/detail/shuffle_wrappers.hpp>
@@ -618,43 +619,15 @@ random_walk_impl(raft::handle_t const& handle,
       auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
       auto const minor_comm_size = minor_comm.get_size();
 
-      if (previous_vertices) {
-        std::forward_as_tuple(
-          std::tie(current_vertices, current_gpu, current_position, previous_vertices),
-          std::ignore) =
-          cugraph::groupby_gpu_id_and_shuffle_values(
-            handle.get_comms(),
-            thrust::make_zip_iterator(current_vertices.begin(),
-                                      current_gpu.begin(),
-                                      current_position.begin(),
-                                      previous_vertices->begin()),
-            thrust::make_zip_iterator(current_vertices.end(),
-                                      current_gpu.end(),
-                                      current_position.end(),
-                                      previous_vertices->end()),
-            [key_func =
-               cugraph::detail::compute_gpu_id_from_int_vertex_t<vertex_t>{
-                 {vertex_partition_range_lasts.begin(), vertex_partition_range_lasts.size()},
-                 major_comm_size,
-                 minor_comm_size}] __device__(auto val) { return key_func(thrust::get<0>(val)); },
-            handle.get_stream());
-      } else {
-        // Shuffle vertices to correct GPU to compute random indices
-        std::forward_as_tuple(std::tie(current_vertices, current_gpu, current_position),
-                              std::ignore) =
-          cugraph::groupby_gpu_id_and_shuffle_values(
-            handle.get_comms(),
-            thrust::make_zip_iterator(
-              current_vertices.begin(), current_gpu.begin(), current_position.begin()),
-            thrust::make_zip_iterator(
-              current_vertices.end(), current_gpu.end(), current_position.end()),
-            [key_func =
-               cugraph::detail::compute_gpu_id_from_int_vertex_t<vertex_t>{
-                 {vertex_partition_range_lasts.begin(), vertex_partition_range_lasts.size()},
-                 major_comm_size,
-                 minor_comm_size}] __device__(auto val) { return key_func(thrust::get<0>(val)); },
-            handle.get_stream());
-      }
+      std::tie(current_vertices, current_gpu, current_position, previous_vertices) =
+        random_walk_shuffle_input(
+          handle,
+          std::move(current_vertices),
+          std::move(current_gpu),
+          std::move(current_position),
+          std::move(previous_vertices),
+          raft::device_span<vertex_t const>{vertex_partition_range_lasts.begin(),
+                                            vertex_partition_range_lasts.size()});
     }
 
     //  Sort for nbr_intersection, must sort all together
@@ -837,70 +810,13 @@ random_walk_impl(raft::handle_t const& handle,
       current_gpu.resize(compacted_length, handle.get_stream());
       current_gpu.shrink_to_fit(handle.get_stream());
 
-      // Shuffle back to original GPU
-      if (previous_vertices) {
-        if (result_weights) {
-          auto current_iter = thrust::make_zip_iterator(current_vertices.begin(),
-                                                        new_weights->begin(),
-                                                        current_gpu.begin(),
-                                                        current_position.begin(),
-                                                        previous_vertices->begin());
-
-          std::forward_as_tuple(
-            std::tie(
-              current_vertices, *new_weights, current_gpu, current_position, *previous_vertices),
-            std::ignore) =
-            cugraph::groupby_gpu_id_and_shuffle_values(
-              handle.get_comms(),
-              current_iter,
-              current_iter + current_vertices.size(),
-              [] __device__(auto val) { return thrust::get<2>(val); },
-              handle.get_stream());
-        } else {
-          auto current_iter = thrust::make_zip_iterator(current_vertices.begin(),
-                                                        current_gpu.begin(),
-                                                        current_position.begin(),
-                                                        previous_vertices->begin());
-
-          std::forward_as_tuple(
-            std::tie(current_vertices, current_gpu, current_position, *previous_vertices),
-            std::ignore) =
-            cugraph::groupby_gpu_id_and_shuffle_values(
-              handle.get_comms(),
-              current_iter,
-              current_iter + current_vertices.size(),
-              [] __device__(auto val) { return thrust::get<1>(val); },
-              handle.get_stream());
-        }
-      } else {
-        if (result_weights) {
-          auto current_iter = thrust::make_zip_iterator(current_vertices.begin(),
-                                                        new_weights->begin(),
-                                                        current_gpu.begin(),
-                                                        current_position.begin());
-
-          std::forward_as_tuple(
-            std::tie(current_vertices, *new_weights, current_gpu, current_position), std::ignore) =
-            cugraph::groupby_gpu_id_and_shuffle_values(
-              handle.get_comms(),
-              current_iter,
-              current_iter + current_vertices.size(),
-              [] __device__(auto val) { return thrust::get<2>(val); },
-              handle.get_stream());
-        } else {
-          auto current_iter = thrust::make_zip_iterator(
-            current_vertices.begin(), current_gpu.begin(), current_position.begin());
-
-          std::forward_as_tuple(std::tie(current_vertices, current_gpu, current_position),
-                                std::ignore) =
-            cugraph::groupby_gpu_id_and_shuffle_values(
-              handle.get_comms(),
-              current_iter,
-              current_iter + current_vertices.size(),
-              [] __device__(auto val) { return thrust::get<1>(val); },
-              handle.get_stream());
-        }
-      }
+      std::tie(current_vertices, new_weights, current_gpu, current_position, previous_vertices) =
+        random_walk_shuffle_output(handle,
+                                   std::move(current_vertices),
+                                   std::move(new_weights),
+                                   std::move(current_gpu),
+                                   std::move(current_position),
+                                   std::move(previous_vertices));
     }
 
     if (result_weights) {

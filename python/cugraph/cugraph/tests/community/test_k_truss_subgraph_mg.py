@@ -1,4 +1,4 @@
-# Copyright (c) 2024, NVIDIA CORPORATION.
+# Copyright (c) 2024-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -60,7 +60,7 @@ def get_mg_graph(dataset, directed):
         destination="dst",
         edge_attr="wgt",
         renumber=True,
-        store_transposed=True,
+        store_transposed=False,
     )
 
     return dg

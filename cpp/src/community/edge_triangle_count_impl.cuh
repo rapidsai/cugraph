@@ -129,12 +129,22 @@ edge_property_t<edge_t, edge_t> edge_triangle_count_impl(
   graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
   bool do_expensive_check)
 {
+#if 1
+  handle.sync_stream();
+  std::cout << "in cugraph::detail::edge_triangle_count_impl" << std::endl;
+#endif
+
   using weight_t = float;
   rmm::device_uvector<vertex_t> edgelist_srcs(0, handle.get_stream());
   rmm::device_uvector<vertex_t> edgelist_dsts(0, handle.get_stream());
   std::tie(edgelist_srcs, edgelist_dsts, std::ignore, std::ignore, std::ignore) =
     decompress_to_edgelist<vertex_t, edge_t, weight_t, int32_t>(
       handle, graph_view, std::nullopt, std::nullopt, std::nullopt, std::nullopt);
+
+#if 1
+  handle.sync_stream();
+  std::cout << "after decompress_to_edgelist" << std::endl;
+#endif
 
   auto edge_first = thrust::make_zip_iterator(edgelist_srcs.begin(), edgelist_dsts.begin());
 
@@ -153,10 +163,20 @@ edge_property_t<edge_t, edge_t> edge_triangle_count_impl(
       handle.get_comms(), num_chunks, raft::comms::op_t::MAX, handle.get_stream());
   }
 
+#if 1
+  handle.sync_stream();
+  std::cout << "  num_chunks = " << num_chunks << std::endl;
+#endif
+
   // Need to ensure that the vector has its values initialized to 0 before incrementing
   thrust::fill(handle.get_thrust_policy(), num_triangles.begin(), num_triangles.end(), 0);
 
   for (size_t i = 0; i < num_chunks; ++i) {
+#if 1
+    handle.sync_stream();
+    std::cout << "  i = " << i << std::endl;
+#endif
+
     auto chunk_size = std::min(edges_to_intersect_per_iteration, num_remaining_edges);
     num_remaining_edges -= chunk_size;
     // Perform 'nbr_intersection' in chunks to reduce peak memory.
@@ -166,6 +186,11 @@ edge_property_t<edge_t, edge_t> edge_triangle_count_impl(
                                       edge_first + prev_chunk_size,
                                       edge_first + prev_chunk_size + chunk_size,
                                       do_expensive_check);
+#if 1
+    handle.sync_stream();
+    std::cout << " foreach" << std::endl;
+#endif
+
     // Update the number of triangles of each (p, q) edges by looking at their intersection
     // size
     thrust::for_each(
@@ -180,9 +205,19 @@ edge_property_t<edge_t, edge_t> edge_triangle_count_impl(
       });
 
     if constexpr (multi_gpu) {
+#if 1
+      handle.sync_stream();
+      std::cout << "  allocate data frame " << intersection_indices.size() << std::endl;
+#endif
+
       // stores all the pairs (p, r) and (q, r)
       auto vertex_pair_buffer_tmp = allocate_dataframe_buffer<thrust::tuple<vertex_t, vertex_t>>(
         intersection_indices.size() * 2, handle.get_stream());
+
+#if 1
+      handle.sync_stream();
+      std::cout << "  tabulate 1" << std::endl;
+#endif
 
       // tabulate with the size of intersection_indices, and call binary search on
       // intersection_offsets to get (p, r).
@@ -197,6 +232,12 @@ edge_property_t<edge_t, edge_t> edge_triangle_count_impl(
           raft::device_span<vertex_t const>(intersection_indices.data(),
                                             intersection_indices.size()),
           edge_first});
+
+#if 1
+      handle.sync_stream();
+      std::cout << "  tabulate 2" << std::endl;
+#endif
+
       // FIXME: Consolidate both functions
       thrust::tabulate(
         handle.get_thrust_policy(),
@@ -214,6 +255,11 @@ edge_property_t<edge_t, edge_t> edge_triangle_count_impl(
                    get_dataframe_buffer_begin(vertex_pair_buffer_tmp),
                    get_dataframe_buffer_end(vertex_pair_buffer_tmp));
 
+#if 1
+      handle.sync_stream();
+      std::cout << "  increase_count_tmp: " << intersection_indices.size() << std::endl;
+#endif
+
       rmm::device_uvector<edge_t> increase_count_tmp(2 * intersection_indices.size(),
                                                      handle.get_stream());
       thrust::fill(handle.get_thrust_policy(),
@@ -221,9 +267,19 @@ edge_property_t<edge_t, edge_t> edge_triangle_count_impl(
                    increase_count_tmp.end(),
                    size_t{1});
 
+#if 1
+      handle.sync_stream();
+      std::cout << "  unique_count" << std::endl;
+#endif
+
       auto count_p_r_q_r = thrust::unique_count(handle.get_thrust_policy(),
                                                 get_dataframe_buffer_begin(vertex_pair_buffer_tmp),
                                                 get_dataframe_buffer_end(vertex_pair_buffer_tmp));
+
+#if 1
+      handle.sync_stream();
+      std::cout << "  count_p_r_q_r = " << count_p_r_q_r << std::endl;
+#endif
 
       rmm::device_uvector<edge_t> increase_count(count_p_r_q_r, handle.get_stream());
 
@@ -241,38 +297,33 @@ edge_property_t<edge_t, edge_t> edge_triangle_count_impl(
       rmm::device_uvector<vertex_t> pair_dsts(0, handle.get_stream());
       std::optional<rmm::device_uvector<edge_t>> pair_count{std::nullopt};
 
-      std::optional<rmm::device_uvector<edge_t>> opt_increase_count =
-        std::make_optional(rmm::device_uvector<edge_t>(increase_count.size(), handle.get_stream()));
+      std::vector<cugraph::arithmetic_device_uvector_t> edge_properties{};
 
-      raft::copy<edge_t>((*opt_increase_count).begin(),
+      edge_properties.push_back(
+        rmm::device_uvector<edge_t>(increase_count.size(), handle.get_stream()));
+
+      raft::copy<edge_t>(std::get<rmm::device_uvector<edge_t>>(edge_properties[0]).begin(),
                          increase_count.begin(),
                          increase_count.size(),
                          handle.get_stream());
+#if 1
+      handle.sync_stream();
+      std::cout << "  shuffle" << std::endl;
+#endif
 
       // There are still multiple copies here but is it worth sorting and reducing again?
-      std::tie(pair_srcs,
-               pair_dsts,
-               std::ignore,
-               pair_count,
-               std::ignore,
-               std::ignore,
-               std::ignore,
-               std::ignore) =
-        shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<vertex_t,
-                                                                               edge_t,
-                                                                               weight_t,
-                                                                               int32_t,
-                                                                               int32_t>(
+      std::tie(pair_srcs, pair_dsts, edge_properties, std::ignore) =
+        shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning(
           handle,
           std::move(std::get<0>(vertex_pair_buffer)),
           std::move(std::get<1>(vertex_pair_buffer)),
-          std::nullopt,
-          // FIXME: Add general purpose function for shuffling vertex pairs and arbitrary attributes
-          std::move(opt_increase_count),
-          std::nullopt,
-          std::nullopt,
-          std::nullopt,
+          std::move(edge_properties),
           graph_view.vertex_partition_range_lasts());
+
+#if 1
+      handle.sync_stream();
+      std::cout << "  back from shuffle" << std::endl;
+#endif
 
       thrust::for_each(
         handle.get_thrust_policy(),
@@ -334,6 +385,10 @@ edge_property_t<edge_t, edge_t> edge_triangle_count_impl(
     }
     prev_chunk_size += chunk_size;
   }
+#if 1
+  handle.sync_stream();
+  std::cout << "  done with loop" << std::endl;
+#endif
 
   cugraph::edge_property_t<edge_t, edge_t> counts(handle, graph_view);
 
@@ -341,6 +396,11 @@ edge_property_t<edge_t, edge_t> edge_triangle_count_impl(
   valid_edges.insert(edgelist_srcs.begin(), edgelist_srcs.end(), edgelist_dsts.begin());
 
   auto cur_graph_view = graph_view;
+
+#if 1
+  handle.sync_stream();
+  std::cout << "  call transform_e" << std::endl;
+#endif
 
   cugraph::transform_e(
     handle,
@@ -366,6 +426,11 @@ edge_property_t<edge_t, edge_t> edge_triangle_count_impl(
     },
     counts.mutable_view(),
     false);
+
+#if 1
+  handle.sync_stream();
+  std::cout << "  back from transform_e" << std::endl;
+#endif
 
   return counts;
 }

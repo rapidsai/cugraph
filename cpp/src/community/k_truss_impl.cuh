@@ -171,6 +171,15 @@ k_truss(raft::handle_t const& handle,
 
   // 2. Exclude self-loops and edges that do not belong to (k-1)-core
 
+#if 1
+  handle.sync_stream();
+  std::cout << "  starting step 2" << std::endl;
+  if constexpr (multi_gpu) {
+    std::cout << "    rank = " << handle.get_comms().get_rank()
+              << ", size = " << handle.get_comms().get_size() << std::endl;
+  }
+#endif
+
   auto cur_graph_view          = graph_view;
   auto unmasked_cur_graph_view = cur_graph_view;
 
@@ -253,6 +262,11 @@ k_truss(raft::handle_t const& handle,
 
   // 3. Keep only the edges from a low-degree vertex to a high-degree vertex.
 
+#if 1
+  handle.sync_stream();
+  std::cout << "  starting step 3" << std::endl;
+#endif
+
   edge_src_property_t<vertex_t, edge_t> edge_src_out_degrees(handle, cur_graph_view);
   edge_dst_property_t<vertex_t, edge_t> edge_dst_out_degrees(handle, cur_graph_view);
 
@@ -289,18 +303,38 @@ k_truss(raft::handle_t const& handle,
 
   // 4. Compute triangle count using nbr_intersection and unroll weak edges
 
+#if 1
+  handle.sync_stream();
+  std::cout << "  starting step 4" << std::endl;
+#endif
+
   {
     // Mask self loops and edges not being part of k-1 core
     auto weak_edges_mask = std::move(undirected_mask);
 
+#if 1
+    handle.sync_stream();
+    std::cout << "  starting step 4a" << std::endl;
+#endif
+
     auto edge_triangle_counts =
       edge_triangle_count<vertex_t, edge_t, multi_gpu>(handle, cur_graph_view, false);
+
+#if 1
+    handle.sync_stream();
+    std::cout << "  starting step 4b" << std::endl;
+#endif
 
     cugraph::edge_bucket_t<vertex_t, void, true, multi_gpu, true> edgelist_weak(handle);
     cugraph::edge_bucket_t<vertex_t, void, true, multi_gpu, true> edges_to_decrement_count(handle);
     size_t prev_chunk_size = 0;  // FIXME: Add support for chunking
 
     while (true) {
+#if 1
+      handle.sync_stream();
+      std::cout << "   in loop, cur_graph_view.compute_number_of_edges(handle) = "
+                << cur_graph_view.compute_number_of_edges(handle) << std::endl;
+#endif
       // Extract weak edges
       auto [weak_edgelist_srcs, weak_edgelist_dsts] = extract_transform_if_e(
         handle,
@@ -459,24 +493,12 @@ k_truss(raft::handle_t const& handle,
         std::tie(std::get<0>(edgelist_to_update_count),
                  std::get<1>(edgelist_to_update_count),
                  std::ignore,
-                 std::ignore,
-                 std::ignore,
-                 std::ignore,
-                 std::ignore,
                  std::ignore) =
-          detail::shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<vertex_t,
-                                                                                         edge_t,
-                                                                                         weight_t,
-                                                                                         int32_t,
-                                                                                         int32_t>(
+          detail::shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning(
             handle,
             std::move(std::get<0>(edgelist_to_update_count)),
             std::move(std::get<1>(edgelist_to_update_count)),
-            std::nullopt,
-            std::nullopt,
-            std::nullopt,
-            std::nullopt,
-            std::nullopt,
+            std::vector<cugraph::arithmetic_device_uvector_t>{},
             cur_graph_view.vertex_partition_range_lasts());
       }
 
@@ -642,27 +664,12 @@ k_truss(raft::handle_t const& handle,
 
       // shuffle the edges if multi_gpu
       if constexpr (multi_gpu) {
-        std::tie(weak_edgelist_dsts,
-                 weak_edgelist_srcs,
-                 std::ignore,
-                 std::ignore,
-                 std::ignore,
-                 std::ignore,
-                 std::ignore,
-                 std::ignore) =
-          detail::shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<vertex_t,
-                                                                                         edge_t,
-                                                                                         weight_t,
-                                                                                         int32_t,
-                                                                                         int32_t>(
+        std::tie(weak_edgelist_dsts, weak_edgelist_srcs, std::ignore, std::ignore) =
+          detail::shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning(
             handle,
             std::move(weak_edgelist_dsts),
             std::move(weak_edgelist_srcs),
-            std::nullopt,
-            std::nullopt,
-            std::nullopt,
-            std::nullopt,
-            std::nullopt,
+            std::vector<cugraph::arithmetic_device_uvector_t>{},
             cur_graph_view.vertex_partition_range_lasts());
       }
 
@@ -695,6 +702,11 @@ k_truss(raft::handle_t const& handle,
       cur_graph_view.clear_edge_mask();
       cur_graph_view.attach_edge_mask(dodg_mask.view());
     }
+
+#if 1
+    handle.sync_stream();
+    std::cout << "  ending step 4" << std::endl;
+#endif
 
     cur_graph_view.clear_edge_mask();
     cur_graph_view.attach_edge_mask(dodg_mask.view());
