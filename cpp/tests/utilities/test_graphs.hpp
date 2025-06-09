@@ -263,7 +263,8 @@ class File_Usecase : public detail::TranslateGraph_Usecase {
   construct_edgelist(raft::handle_t const& handle,
                      bool test_weighted,
                      bool store_transposed,
-                     bool multi_gpu) const
+                     bool multi_gpu,
+                     bool shuffle = true) const
   {
     rmm::device_uvector<vertex_t> srcs(0, handle.get_stream());
     rmm::device_uvector<vertex_t> dsts(0, handle.get_stream());
@@ -274,10 +275,10 @@ class File_Usecase : public detail::TranslateGraph_Usecase {
     if (extension == "mtx") {
       std::tie(srcs, dsts, weights, vertices, is_symmetric) =
         read_edgelist_from_matrix_market_file<vertex_t, weight_t>(
-          handle, graph_file_full_path_, test_weighted, store_transposed, multi_gpu);
+          handle, graph_file_full_path_, test_weighted, store_transposed, multi_gpu, shuffle);
     } else if (extension == "csv") {
       std::tie(srcs, dsts, weights, is_symmetric) = read_edgelist_from_csv_file<vertex_t, weight_t>(
-        handle, graph_file_full_path_, test_weighted, store_transposed, multi_gpu);
+        handle, graph_file_full_path_, test_weighted, store_transposed, multi_gpu, shuffle);
     }
 
     translate(handle, srcs, dsts);
