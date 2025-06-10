@@ -74,9 +74,17 @@ def graphs(request):
             delimiter=",",
             dtype=["int32", "int32", "float64"],
         )
+        nodes = cudf.concat(
+            [cudf_df["src"], cudf_df["dst"]]).unique().sort_values().reset_index(
+                drop=True)
+        num_vertices = nodes.iloc[-1] + 1
+
+        import cupy as cp
+        # vertex list including isolated vertices
+        vertices = cudf.Series(cp.arange(0, num_vertices)).astype("int32")
         cugraph_G = cugraph.Graph()
         cugraph_G.from_cudf_edgelist(
-            cudf_df, source="src", destination="dst", edge_attr="data"
+            cudf_df, source="src", destination="dst", edge_attr="data", vertices=vertices
         )
 
         # construct cupy coo_matrix graph
@@ -230,14 +238,15 @@ def test_shortest_path_length_no_target(graphs, load_traversal_results):
     )
 
     # results for vertex 8 and 9 are not returned
-    assert cugraph_path_1_to_all.shape[0] == len(golden_path_1_to_all) + 2
+    assert cugraph_path_1_to_all.shape[0] == len(golden_path_1_to_all) + 3
     for index in range(cugraph_path_1_to_all.shape[0]):
 
         vertex = cugraph_path_1_to_all["vertex"][index].item()
         distance = cugraph_path_1_to_all["distance"][index].item()
 
         # verify cugraph against networkx
-        if vertex in {8, 9}:
+        # vertex '0' is an isolated vertex 
+        if vertex in {0, 8, 9}:
             # Networkx does not return distances for these vertexes.
             assert distance == sys.float_info.max
         else:

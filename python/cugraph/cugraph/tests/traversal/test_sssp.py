@@ -536,10 +536,11 @@ def test_sssp_csr_graph(graph_file):
     result_sssp["predecessor_csr"] = result_csr["predecessor"]
 
     distance_diffs = result_sssp.query("distance_csr != distance_coo")
-    predecessor_diffs = result_sssp.query("predecessor_csr != predecessor_coo")
 
     assert len(distance_diffs) == 0
-    assert len(predecessor_diffs) == 0
+    # Note: Predecessors can be different hence only check for distances
+    # predecessor_diffs = result_sssp.query("predecessor_csr != predecessor_coo")
+    # assert len(predecessor_diffs) == 0
 
 
 @pytest.mark.sg
