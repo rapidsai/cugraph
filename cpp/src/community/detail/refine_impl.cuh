@@ -28,6 +28,7 @@
 
 #include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
+#include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/shuffle_functions.hpp>
 
@@ -213,12 +214,14 @@ refine_clustering(
     graph_view,
     GraphViewType::is_multi_gpu
       ? src_louvain_assignment_cache.view()
-      : detail::edge_endpoint_property_view_t<vertex_t, vertex_t const*>(
-          std::vector<vertex_t const*>{louvain_assignment_of_vertices.data()},
-          std::vector<vertex_t>{vertex_t{0}}),
-    GraphViewType::is_multi_gpu ? dst_louvain_assignment_cache.view()
-                                : detail::edge_endpoint_property_view_t<vertex_t, vertex_t const*>(
-                                    louvain_assignment_of_vertices.data(), vertex_t{0}),
+      : make_edge_src_property_view<vertex_t, vertex_t>(graph_view,
+                                                        louvain_assignment_of_vertices.begin(),
+                                                        louvain_assignment_of_vertices.size()),
+    GraphViewType::is_multi_gpu
+      ? dst_louvain_assignment_cache.view()
+      : make_edge_dst_property_view<vertex_t, vertex_t>(graph_view,
+                                                        louvain_assignment_of_vertices.begin(),
+                                                        louvain_assignment_of_vertices.size()),
     *edge_weight_view,
     cuda::proclaim_return_type<weight_t>(
       [] __device__(auto src, auto dst, auto src_cluster, auto dst_cluster, auto wt) {
@@ -355,20 +358,22 @@ refine_clustering(
     auto src_input_property_values =
       GraphViewType::is_multi_gpu
         ? view_concat(src_louvain_assignment_cache.view(), src_leiden_assignment_cache.view())
-        : view_concat(detail::edge_endpoint_property_view_t<vertex_t, vertex_t const*>(
-                        std::vector<vertex_t const*>{louvain_assignment_of_vertices.data()},
-                        std::vector<vertex_t>{vertex_t{0}}),
-                      detail::edge_endpoint_property_view_t<vertex_t, vertex_t const*>(
-                        std::vector<vertex_t const*>{leiden_assignment.data()},
-                        std::vector<vertex_t>{vertex_t{0}}));
+        : view_concat(
+            make_edge_src_property_view<vertex_t, vertex_t>(graph_view,
+                                                            louvain_assignment_of_vertices.begin(),
+                                                            louvain_assignment_of_vertices.size()),
+            make_edge_src_property_view<vertex_t, vertex_t>(
+              graph_view, leiden_assignment.begin(), leiden_assignment.size()));
 
     auto dst_input_property_values =
       GraphViewType::is_multi_gpu
         ? view_concat(dst_louvain_assignment_cache.view(), dst_leiden_assignment_cache.view())
-        : view_concat(detail::edge_endpoint_property_view_t<vertex_t, vertex_t const*>(
-                        louvain_assignment_of_vertices.data(), vertex_t{0}),
-                      detail::edge_endpoint_property_view_t<vertex_t, vertex_t const*>(
-                        leiden_assignment.data(), vertex_t{0}));
+        : view_concat(
+            make_edge_dst_property_view<vertex_t, vertex_t>(graph_view,
+                                                            louvain_assignment_of_vertices.begin(),
+                                                            louvain_assignment_of_vertices.size()),
+            make_edge_dst_property_view<vertex_t, vertex_t>(
+              graph_view, leiden_assignment.begin(), leiden_assignment.size()));
 
     rmm::device_uvector<vertex_t> leiden_keys_used_in_edge_reduction(0, handle.get_stream());
     rmm::device_uvector<weight_t> refined_community_volumes(0, handle.get_stream());
@@ -391,9 +396,8 @@ refine_clustering(
         *edge_weight_view,
         GraphViewType::is_multi_gpu
           ? dst_leiden_assignment_cache.view()
-          : detail::edge_endpoint_property_view_t<vertex_t, vertex_t const*>(
-              leiden_assignment.data(), vertex_t{0}),
-
+          : make_edge_dst_property_view<vertex_t, vertex_t>(
+              graph_view, leiden_assignment.begin(), leiden_assignment.size()),
         [] __device__(auto src,
                       auto dst,
                       thrust::tuple<vertex_t, vertex_t> src_louvain_leidn,
@@ -436,24 +440,24 @@ refine_clustering(
                       src_singleton_and_connected_flag_cache.view(),
                       src_leiden_assignment_cache.view(),
                       src_louvain_assignment_cache.view())
-        : view_concat(detail::edge_endpoint_property_view_t<vertex_t, weight_t const*>(
-                        std::vector<weight_t const*>{weighted_degree_of_vertices.data()},
-                        std::vector<vertex_t>{vertex_t{0}}),
-                      detail::edge_endpoint_property_view_t<vertex_t, weight_t const*>(
-                        std::vector<weight_t const*>{weighted_cut_of_vertices_to_louvain.data()},
-                        std::vector<vertex_t>{vertex_t{0}}),
-                      detail::edge_endpoint_property_view_t<vertex_t, weight_t const*>(
-                        std::vector<weight_t const*>{vertex_louvain_cluster_weights.data()},
-                        std::vector<vertex_t>{vertex_t{0}}),
-                      detail::edge_endpoint_property_view_t<vertex_t, uint8_t const*>(
-                        std::vector<uint8_t const*>{singleton_and_connected_flags.data()},
-                        std::vector<vertex_t>{vertex_t{0}}),
-                      detail::edge_endpoint_property_view_t<vertex_t, vertex_t const*>(
-                        std::vector<vertex_t const*>{leiden_assignment.data()},
-                        std::vector<vertex_t>{vertex_t{0}}),
-                      detail::edge_endpoint_property_view_t<vertex_t, vertex_t const*>(
-                        std::vector<vertex_t const*>{louvain_assignment_of_vertices.data()},
-                        std::vector<vertex_t>{vertex_t{0}}));
+        : view_concat(
+            make_edge_src_property_view<vertex_t, weight_t>(
+              graph_view, weighted_degree_of_vertices.begin(), weighted_degree_of_vertices.size()),
+            make_edge_src_property_view<vertex_t, weight_t>(
+              graph_view,
+              weighted_cut_of_vertices_to_louvain.begin(),
+              weighted_cut_of_vertices_to_louvain.size()),
+            make_edge_src_property_view<vertex_t, weight_t>(graph_view,
+                                                            vertex_louvain_cluster_weights.begin(),
+                                                            vertex_louvain_cluster_weights.size()),
+            make_edge_src_property_view<vertex_t, uint8_t>(graph_view,
+                                                           singleton_and_connected_flags.begin(),
+                                                           singleton_and_connected_flags.size()),
+            make_edge_src_property_view<vertex_t, vertex_t>(
+              graph_view, leiden_assignment.begin(), leiden_assignment.size()),
+            make_edge_src_property_view<vertex_t, vertex_t>(graph_view,
+                                                            louvain_assignment_of_vertices.begin(),
+                                                            louvain_assignment_of_vertices.size()));
 
     rmm::device_uvector<vertex_t> louvain_of_leiden_keys_used_in_edge_reduction(
       0, handle.get_stream());
@@ -538,8 +542,8 @@ refine_clustering(
       *edge_weight_view,
       GraphViewType::is_multi_gpu
         ? dst_leiden_assignment_cache.view()
-        : detail::edge_endpoint_property_view_t<vertex_t, vertex_t const*>(leiden_assignment.data(),
-                                                                           vertex_t{0}),
+        : make_edge_dst_property_view<vertex_t, vertex_t>(
+            graph_view, leiden_assignment.begin(), leiden_assignment.size()),
       leiden_cluster_key_values_map.view(),
       detail::leiden_key_aggregated_edge_op_t<vertex_t, weight_t, value_t>{
         total_edge_weight, resolution, theta, device_state},

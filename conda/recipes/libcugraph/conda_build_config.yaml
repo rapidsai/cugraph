@@ -64,4 +64,4 @@ cuda11_cuda_profiler_api_run_version:
   - ">=11.4.240,<12"
 
 libucxx_version:
-  - "0.44.*"
+  - "0.45.*"

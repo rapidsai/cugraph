@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2024, NVIDIA CORPORATION.
+# Copyright (c) 2020-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -63,6 +63,7 @@ def test_multigraph(graph_file):
 @pytest.mark.parametrize("graph_file", DEFAULT_DATASETS)
 def test_Graph_from_MultiGraph(graph_file):
     # FIXME: Migrate to new test fixtures for Graph setup once available
+    # Test undirected Multigraph
     GM = graph_file.get_graph(create_using=cugraph.MultiGraph())
     dataset_path = graph_file.get_path()
     nxM = utils.read_csv_for_nx(dataset_path, read_weights_in_sp=True)
@@ -76,7 +77,9 @@ def test_Graph_from_MultiGraph(graph_file):
 
     G = cugraph.Graph(GM)
     Gnx = nx.Graph(GnxM)
-    assert Gnx.number_of_edges() == G.number_of_edges(directed_edges=True)
+    assert Gnx.number_of_edges() == G.number_of_edges(directed_edges=False)
+
+    # Test directed Multigraph
     GdM = graph_file.get_graph(create_using=cugraph.MultiGraph(directed=True))
     GnxdM = nx.from_pandas_edgelist(
         nxM,
@@ -87,7 +90,7 @@ def test_Graph_from_MultiGraph(graph_file):
     )
     Gd = cugraph.Graph(GdM, directed=True)
     Gnxd = nx.DiGraph(GnxdM)
-    assert Gnxd.number_of_edges() == Gd.number_of_edges()
+    assert Gnxd.number_of_edges() == Gd.number_of_edges(directed_edges=True)
 
 
 @pytest.mark.sg
