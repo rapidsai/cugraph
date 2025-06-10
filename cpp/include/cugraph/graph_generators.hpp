@@ -357,9 +357,11 @@ generate_erdos_renyi_graph_edgelist_gnm(raft::handle_t const& handle,
  * handles to various CUDA libraries) to run graph algorithms.
  * @param d_src_v Vector of source vertices
  * @param d_dst_v Vector of destination vertices
- * @param d_weights_v Optional vector of edge weights
+ * @param d_weight_v Optional vector of edge weights
  * @param check_diagonal Flag indicating whether to check for diagonal edges or not. If set to true,
  * symmetrize only the edges with source != destination (to avoid duplicating every self-loops).
+ * @param large_buffer_type Dictates the large buffer type to use in storing the symmetrized edge
+ * list.
  * @return std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> A tuple of
  * rmm::device_uvector objects for edge source vertex IDs and edge destination vertex IDs.
  */
@@ -371,8 +373,9 @@ symmetrize_edgelist_from_triangular(
   raft::handle_t const& handle,
   rmm::device_uvector<vertex_t>&& d_src_v,
   rmm::device_uvector<vertex_t>&& d_dst_v,
-  std::optional<rmm::device_uvector<weight_t>>&& optional_d_weights_v,
-  bool check_diagonal = false);
+  std::optional<rmm::device_uvector<weight_t>>&& d_weight_v,
+  bool check_diagonal                                  = false,
+  std::optional<large_buffer_type_t> large_buffer_type = std::nullopt);
 
 /**
  * @ingroup graph_generators_cpp
