@@ -185,7 +185,7 @@ class Graph:
             symmetrization step for better performance.
 
         vertices : cudf.Series or List, optional (default=None)
-            An  containing all vertices of the graph. This array is
+            A cudf.Series or list containing all vertices of the graph. This is
             optional, but must be used if the graph contains isolated vertices
             which cannot be represented in the source and destination arrays.
             If specified, this array must contain every vertex identifier,
@@ -438,7 +438,7 @@ class Graph:
             vertex IDs.
         
         vertices : cudf.Series or List, optional (default=None)
-            An  containing all vertices of the graph. This array is
+            A cudf.Series or list containing all vertices of the graph. This is
             optional, but must be used if the graph contains isolated vertices
             which cannot be represented in the source and destination arrays.
             If specified, this array must contain every vertex identifier,
@@ -927,7 +927,7 @@ class NPartiteGraph(Graph):
             for certain algorithms.
         
         vertices : cudf.Series or List, optional (default=None)
-            An  containing all vertices of the graph. This array is
+            A cudf.Series or list containing all vertices of the graph. This is
             optional, but must be used if the graph contains isolated vertices
             which cannot be represented in the source and destination arrays.
             If specified, this array must contain every vertex identifier,
