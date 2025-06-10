@@ -15,7 +15,6 @@
  */
 #pragma once
 
-#include "cugraph/utilities/host_scalar_comm.hpp"
 #include "utilities/csv_file_utilities.hpp"
 #include "utilities/matrix_market_file_utilities.hpp"
 #include "utilities/misc_utilities.hpp"
@@ -24,7 +23,9 @@
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_generators.hpp>
+#include <cugraph/large_buffer_manager.hpp>
 #include <cugraph/shuffle_functions.hpp>
+#include <cugraph/utilities/host_scalar_comm.hpp>
 
 #include <raft/random/rng_state.hpp>
 
@@ -260,11 +261,14 @@ class File_Usecase : public detail::TranslateGraph_Usecase {
              std::optional<std::vector<rmm::device_uvector<weight_t>>>,
              std::optional<rmm::device_uvector<vertex_t>>,
              bool>
-  construct_edgelist(raft::handle_t const& handle,
-                     bool test_weighted,
-                     bool store_transposed,
-                     bool multi_gpu,
-                     bool shuffle = true) const
+  construct_edgelist(
+    raft::handle_t const& handle,
+    bool test_weighted,
+    bool store_transposed,
+    bool multi_gpu,
+    bool shuffle                                                = true,
+    std::optional<large_buffer_type_t> large_edge_buffer_type   = std::nullopt,
+    std::optional<large_buffer_type_t> large_vertex_buffer_type = std::nullopt) const
   {
     rmm::device_uvector<vertex_t> srcs(0, handle.get_stream());
     rmm::device_uvector<vertex_t> dsts(0, handle.get_stream());
@@ -339,11 +343,20 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
                      bool test_weighted,
                      bool store_transposed,
                      bool multi_gpu,
-                     bool shuffle = true) const
+                     bool shuffle                                                = true,
+                     std::optional<large_buffer_type_t> large_vertex_buffer_type = std::nullopt,
+                     std::optional<large_buffer_type_t> large_edge_buffer_type = std::nullopt) const
   {
     CUGRAPH_EXPECTS(
       (size_t{1} << scale_) <= static_cast<size_t>(std::numeric_limits<vertex_t>::max()),
       "Invalid template parameter: scale_ too large for vertex_t.");
+    CUGRAPH_EXPECTS(
+      !large_vertex_buffer_type || cugraph::large_buffer_manager::memory_buffer_initialized(),
+      "Invalid input argument: large memory buffer is not initialized.");
+    CUGRAPH_EXPECTS(
+      !large_edge_buffer_type || cugraph::large_buffer_manager::memory_buffer_initialized(),
+      "Invalid input argument: large memory buffer is not initialized.");
+
     // Generate in multi-partitions to limit peak memory usage (thrust::sort &
     // shuffle_edges requires a temporary buffer with the size of the original data). With the
     // current implementation, the temporary memory requirement is roughly 50% of the original data
@@ -407,16 +420,16 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
                                                   a_,
                                                   b_,
                                                   c_,
-                                                  undirected_ ? true : false);
-      if (scramble_vertex_ids_) {
-        std::tie(tmp_src_v, tmp_dst_v) =
-          cugraph::scramble_vertex_ids(handle, std::move(tmp_src_v), std::move(tmp_dst_v), scale_);
-      }
+                                                  undirected_ ? true : false,
+                                                  scramble_vertex_ids_,
+                                                  large_edge_buffer_type);
 
       std::optional<rmm::device_uvector<weight_t>> tmp_weights_v{std::nullopt};
       if (edge_weight_chunks) {
-        tmp_weights_v =
-          std::make_optional<rmm::device_uvector<weight_t>>(tmp_src_v.size(), handle.get_stream());
+        tmp_weights_v = large_edge_buffer_type
+                          ? large_buffer_manager::allocate_memory_buffer<weight_t>(
+                              tmp_src_v.size(), handle.get_stream())
+                          : rmm::device_uvector<weight_t>(tmp_src_v.size(), handle.get_stream());
 
         cugraph::detail::uniform_random_fill(handle.get_stream(),
                                              tmp_weights_v->data(),
@@ -430,8 +443,12 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
 
       if (undirected_) {
         std::tie(tmp_src_v, tmp_dst_v, tmp_weights_v) =
-          cugraph::symmetrize_edgelist_from_triangular<vertex_t, weight_t>(
-            handle, std::move(tmp_src_v), std::move(tmp_dst_v), std::move(tmp_weights_v));
+          cugraph::symmetrize_edgelist_from_triangular<vertex_t, weight_t>(handle,
+                                                                           std::move(tmp_src_v),
+                                                                           std::move(tmp_dst_v),
+                                                                           std::move(tmp_weights_v),
+                                                                           false,
+                                                                           large_edge_buffer_type);
       }
 
       if (multi_gpu && shuffle) {
@@ -466,7 +483,10 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
     for (size_t i = 0; i < partition_vertex_firsts.size(); ++i) {
       tot_vertex_counts += partition_vertex_lasts[i] - partition_vertex_firsts[i];
     }
-    rmm::device_uvector<vertex_t> vertex_v(tot_vertex_counts, handle.get_stream());
+    auto vertex_v = large_vertex_buffer_type
+                      ? large_buffer_manager::allocate_memory_buffer<vertex_t>(tot_vertex_counts,
+                                                                               handle.get_stream())
+                      : rmm::device_uvector<vertex_t>(tot_vertex_counts, handle.get_stream());
     size_t v_offset{0};
     for (size_t i = 0; i < partition_vertex_firsts.size(); ++i) {
       cugraph::detail::sequence_fill(handle.get_stream(),
@@ -482,7 +502,8 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
     translate(handle, vertex_v);
 
     if (multi_gpu && shuffle) {
-      vertex_v = cugraph::shuffle_ext_vertices(handle, std::move(vertex_v));
+      vertex_v =
+        cugraph::shuffle_ext_vertices(handle, std::move(vertex_v), large_vertex_buffer_type);
     }
 
     return std::make_tuple(std::move(edge_src_chunks),
