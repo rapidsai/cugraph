@@ -854,7 +854,6 @@ def test_bipartite_api(graph_file):
     assert set1.equals(set1_exp)
     # assert if set2 is the remaining set of nodes not in set1_exp
 
-
     assert set2.equals(set2_exp)
 
 
