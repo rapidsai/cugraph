@@ -15,14 +15,19 @@
  */
 
 #pragma once
+
 #include "detail/graph_partition_utils.cuh"
 
+#include <cugraph/arithmetic_variant_types.hpp>
 #include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
+
+#include <raft/core/device_span.hpp>
+#include <raft/core/host_span.hpp>
 
 #include <rmm/exec_policy.hpp>
 
@@ -37,20 +42,12 @@
 namespace cugraph {
 namespace detail {
 
-template <typename vertex_t,
-          typename edge_t,
-          typename weight_t,
-          typename edge_type_t,
-          typename edge_time_t>
+template <typename vertex_t>
 rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
   raft::handle_t const& handle,
-  rmm::device_uvector<vertex_t>& d_edgelist_majors,
-  rmm::device_uvector<vertex_t>& d_edgelist_minors,
-  std::optional<rmm::device_uvector<weight_t>>& d_edgelist_weights,
-  std::optional<rmm::device_uvector<edge_t>>& d_edgelist_edge_ids,
-  std::optional<rmm::device_uvector<edge_type_t>>& d_edgelist_edge_types,
-  std::optional<rmm::device_uvector<edge_time_t>>& d_edgelist_edge_start_times,
-  std::optional<rmm::device_uvector<edge_time_t>>& d_edgelist_edge_end_times,
+  raft::device_span<vertex_t> edgelist_majors,
+  raft::device_span<vertex_t> edgelist_minors,
+  raft::host_span<cugraph::arithmetic_device_span_t> edgelist_properties,
   bool groupby_and_count_local_partition_by_minor)
 {
   auto& comm                 = handle.get_comms();
@@ -63,32 +60,13 @@ rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
   auto const minor_comm_size = minor_comm.get_size();
   auto const minor_comm_rank = minor_comm.get_rank();
 
-  int edge_property_count = 0;
-  size_t element_size     = sizeof(vertex_t) * 2;
-
-  if (d_edgelist_weights) {
-    ++edge_property_count;
-    element_size += sizeof(weight_t);
+  size_t element_size = sizeof(vertex_t) * 2;
+  if (edgelist_properties.size() == 1) {
+    element_size +=
+      cugraph::variant_type_dispatch(edgelist_properties[0], cugraph::sizeof_arithmetic_element{});
+  } else if (edgelist_properties.size() > 1) {
+    element_size += sizeof(size_t);
   }
-
-  if (d_edgelist_edge_ids) {
-    ++edge_property_count;
-    element_size += sizeof(edge_t);
-  }
-  if (d_edgelist_edge_types) {
-    ++edge_property_count;
-    element_size += sizeof(edge_type_t);
-  }
-  if (d_edgelist_edge_start_times) {
-    ++edge_property_count;
-    element_size += sizeof(edge_time_t);
-  }
-  if (d_edgelist_edge_end_times) {
-    ++edge_property_count;
-    element_size += sizeof(edge_time_t);
-  }
-
-  if (edge_property_count > 1) { element_size = sizeof(vertex_t) * 2 + sizeof(size_t); }
 
   auto total_global_mem = handle.get_device_properties().totalGlobalMem;
   auto constexpr mem_frugal_ratio =
@@ -99,8 +77,8 @@ rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
   auto mem_frugal_threshold =
     static_cast<size_t>(static_cast<double>(total_global_mem / element_size) * mem_frugal_ratio);
 
-  auto pair_first = thrust::make_zip_iterator(
-    thrust::make_tuple(d_edgelist_majors.begin(), d_edgelist_minors.begin()));
+  auto pair_first =
+    thrust::make_zip_iterator(thrust::make_tuple(edgelist_majors.begin(), edgelist_minors.begin()));
 
   rmm::device_uvector<size_t> result(0, handle.get_stream());
 
@@ -125,123 +103,59 @@ rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
       return key_func(pair);
     };
 
-  if (edge_property_count == 0) {
+  if (edgelist_properties.size() == 0) {
     if (groupby_and_count_local_partition_by_minor) {
       result = cugraph::groupby_and_count(pair_first,
-                                          pair_first + d_edgelist_majors.size(),
+                                          pair_first + edgelist_majors.size(),
                                           local_edge_partition_include_minor_op,
                                           comm_size,
                                           mem_frugal_threshold,
                                           handle.get_stream());
     } else {
       result = cugraph::groupby_and_count(pair_first,
-                                          pair_first + d_edgelist_majors.size(),
+                                          pair_first + edgelist_majors.size(),
                                           local_edge_partition_op,
                                           comm_size,
                                           mem_frugal_threshold,
                                           handle.get_stream());
     }
-
-  } else if (edge_property_count == 1) {
-    if (d_edgelist_weights) {
-      if (groupby_and_count_local_partition_by_minor) {
-        result = cugraph::groupby_and_count(pair_first,
-                                            pair_first + d_edgelist_majors.size(),
-                                            d_edgelist_weights->begin(),
+  } else if (edgelist_properties.size() == 1) {
+    result = cugraph::variant_type_dispatch(
+      edgelist_properties[0],
+      [&handle,
+       pair_first,
+       size = edgelist_majors.size(),
+       local_edge_partition_include_minor_op,
+       local_edge_partition_op,
+       comm_size,
+       mem_frugal_threshold,
+       groupby_and_count_local_partition_by_minor](auto& prop) {
+        if (groupby_and_count_local_partition_by_minor) {
+          return cugraph::groupby_and_count(pair_first,
+                                            pair_first + size,
+                                            prop.begin(),
                                             local_edge_partition_include_minor_op,
                                             comm_size,
                                             mem_frugal_threshold,
                                             handle.get_stream());
-      } else {
-        result = cugraph::groupby_and_count(pair_first,
-                                            pair_first + d_edgelist_majors.size(),
-                                            d_edgelist_weights->begin(),
+        } else {
+          return cugraph::groupby_and_count(pair_first,
+                                            pair_first + size,
+                                            prop.begin(),
                                             local_edge_partition_op,
                                             comm_size,
                                             mem_frugal_threshold,
                                             handle.get_stream());
-      }
-    } else if (d_edgelist_edge_ids) {
-      if (groupby_and_count_local_partition_by_minor) {
-        result = cugraph::groupby_and_count(pair_first,
-                                            pair_first + d_edgelist_majors.size(),
-                                            d_edgelist_edge_ids->begin(),
-                                            local_edge_partition_include_minor_op,
-                                            comm_size,
-                                            mem_frugal_threshold,
-                                            handle.get_stream());
-      } else {
-        result = cugraph::groupby_and_count(pair_first,
-                                            pair_first + d_edgelist_majors.size(),
-                                            d_edgelist_edge_ids->begin(),
-                                            local_edge_partition_op,
-                                            comm_size,
-                                            mem_frugal_threshold,
-                                            handle.get_stream());
-      }
-    } else if (d_edgelist_edge_types) {
-      if (groupby_and_count_local_partition_by_minor) {
-        result = cugraph::groupby_and_count(pair_first,
-                                            pair_first + d_edgelist_majors.size(),
-                                            d_edgelist_edge_types->begin(),
-                                            local_edge_partition_include_minor_op,
-                                            comm_size,
-                                            mem_frugal_threshold,
-                                            handle.get_stream());
-      } else {
-        result = cugraph::groupby_and_count(pair_first,
-                                            pair_first + d_edgelist_majors.size(),
-                                            d_edgelist_edge_types->begin(),
-                                            local_edge_partition_op,
-                                            comm_size,
-                                            mem_frugal_threshold,
-                                            handle.get_stream());
-      }
-    } else if (d_edgelist_edge_start_times) {
-      if (groupby_and_count_local_partition_by_minor) {
-        result = cugraph::groupby_and_count(pair_first,
-                                            pair_first + d_edgelist_majors.size(),
-                                            d_edgelist_edge_start_times->begin(),
-                                            local_edge_partition_include_minor_op,
-                                            comm_size,
-                                            mem_frugal_threshold,
-                                            handle.get_stream());
-      } else {
-        result = cugraph::groupby_and_count(pair_first,
-                                            pair_first + d_edgelist_majors.size(),
-                                            d_edgelist_edge_start_times->begin(),
-                                            local_edge_partition_op,
-                                            comm_size,
-                                            mem_frugal_threshold,
-                                            handle.get_stream());
-      }
-    } else if (d_edgelist_edge_end_times) {
-      if (groupby_and_count_local_partition_by_minor) {
-        result = cugraph::groupby_and_count(pair_first,
-                                            pair_first + d_edgelist_majors.size(),
-                                            d_edgelist_edge_end_times->begin(),
-                                            local_edge_partition_include_minor_op,
-                                            comm_size,
-                                            mem_frugal_threshold,
-                                            handle.get_stream());
-      } else {
-        result = cugraph::groupby_and_count(pair_first,
-                                            pair_first + d_edgelist_majors.size(),
-                                            d_edgelist_edge_end_times->begin(),
-                                            local_edge_partition_op,
-                                            comm_size,
-                                            mem_frugal_threshold,
-                                            handle.get_stream());
-      }
-    }
+        }
+      });
   } else {
-    rmm::device_uvector<edge_t> property_position(d_edgelist_majors.size(), handle.get_stream());
+    rmm::device_uvector<size_t> property_position(edgelist_majors.size(), handle.get_stream());
     detail::sequence_fill(
-      handle.get_stream(), property_position.data(), property_position.size(), edge_t{0});
+      handle.get_stream(), property_position.data(), property_position.size(), size_t{0});
 
     if (groupby_and_count_local_partition_by_minor) {
       result = cugraph::groupby_and_count(pair_first,
-                                          pair_first + d_edgelist_majors.size(),
+                                          pair_first + edgelist_majors.size(),
                                           property_position.begin(),
                                           local_edge_partition_include_minor_op,
                                           comm_size,
@@ -249,7 +163,7 @@ rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
                                           handle.get_stream());
     } else {
       result = cugraph::groupby_and_count(pair_first,
-                                          pair_first + d_edgelist_majors.size(),
+                                          pair_first + edgelist_majors.size(),
                                           property_position.begin(),
                                           local_edge_partition_op,
                                           comm_size,
@@ -257,65 +171,23 @@ rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
                                           handle.get_stream());
     }
 
-    if (d_edgelist_weights) {
-      rmm::device_uvector<weight_t> tmp(property_position.size(), handle.get_stream());
+    std::for_each(
+      edgelist_properties.begin(),
+      edgelist_properties.end(),
+      [&property_position, &handle](auto& property) {
+        cugraph::variant_type_dispatch(property, [&handle, &property_position](auto& prop) {
+          using T = typename std::remove_reference<decltype(prop)>::type::value_type;
+          rmm::device_uvector<T> tmp(prop.size(), handle.get_stream());
 
-      thrust::gather(handle.get_thrust_policy(),
-                     property_position.begin(),
-                     property_position.end(),
-                     d_edgelist_weights->begin(),
-                     tmp.begin());
+          thrust::gather(handle.get_thrust_policy(),
+                         property_position.begin(),
+                         property_position.end(),
+                         prop.begin(),
+                         tmp.begin());
 
-      d_edgelist_weights = std::move(tmp);
-    }
-
-    if (d_edgelist_edge_ids) {
-      rmm::device_uvector<edge_t> tmp(property_position.size(), handle.get_stream());
-
-      thrust::gather(handle.get_thrust_policy(),
-                     property_position.begin(),
-                     property_position.end(),
-                     d_edgelist_edge_ids->begin(),
-                     tmp.begin());
-
-      d_edgelist_edge_ids = std::move(tmp);
-    }
-
-    if (d_edgelist_edge_types) {
-      rmm::device_uvector<edge_type_t> tmp(property_position.size(), handle.get_stream());
-
-      thrust::gather(handle.get_thrust_policy(),
-                     property_position.begin(),
-                     property_position.end(),
-                     d_edgelist_edge_types->begin(),
-                     tmp.begin());
-
-      d_edgelist_edge_types = std::move(tmp);
-    }
-
-    if (d_edgelist_edge_start_times) {
-      rmm::device_uvector<edge_time_t> tmp(property_position.size(), handle.get_stream());
-
-      thrust::gather(handle.get_thrust_policy(),
-                     property_position.begin(),
-                     property_position.end(),
-                     d_edgelist_edge_start_times->begin(),
-                     tmp.begin());
-
-      d_edgelist_edge_start_times = std::move(tmp);
-    }
-
-    if (d_edgelist_edge_end_times) {
-      rmm::device_uvector<edge_time_t> tmp(property_position.size(), handle.get_stream());
-
-      thrust::gather(handle.get_thrust_policy(),
-                     property_position.begin(),
-                     property_position.end(),
-                     d_edgelist_edge_end_times->begin(),
-                     tmp.begin());
-
-      d_edgelist_edge_end_times = std::move(tmp);
-    }
+          thrust::copy(handle.get_thrust_policy(), tmp.begin(), tmp.end(), prop.begin());
+        });
+      });
   }
 
   return result;
