@@ -15,6 +15,7 @@
  */
 #pragma once
 
+#include <cugraph/large_buffer_manager.hpp>
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/device_comm.hpp>
 
@@ -845,9 +846,13 @@ template <typename TxValueIterator>
 auto shuffle_values(raft::comms::comms_t const& comm,
                     TxValueIterator tx_value_first,
                     raft::host_span<size_t const> tx_value_counts,
-                    rmm::cuda_stream_view stream_view)
+                    rmm::cuda_stream_view stream_view,
+                    std::optional<large_buffer_type_t> large_buffer_type = std::nullopt)
 {
   using value_t = typename thrust::iterator_traits<TxValueIterator>::value_type;
+
+  CUGRAPH_EXPECTS(!large_buffer_type || large_buffer_manager::memory_buffer_initialized(),
+                  "Invalid input argument: large memory buffer is not initialized.");
 
   auto const comm_size = comm.get_size();
 
@@ -864,8 +869,11 @@ auto shuffle_values(raft::comms::comms_t const& comm,
   std::tie(tx_counts, tx_displs, tx_dst_ranks, rx_counts, rx_displs, rx_src_ranks) =
     detail::compute_tx_rx_counts_displs_ranks(comm, d_tx_value_counts, true, stream_view);
 
-  auto rx_value_buffer = allocate_dataframe_buffer<value_t>(
-    rx_displs.size() > 0 ? rx_displs.back() + rx_counts.back() : size_t{0}, stream_view);
+  auto rx_buffer_size = rx_displs.size() > 0 ? rx_displs.back() + rx_counts.back() : size_t{0};
+  auto rx_value_buffer =
+    large_buffer_type
+      ? large_buffer_manager::allocate_memory_buffer<value_t>(rx_buffer_size, stream_view)
+      : allocate_dataframe_buffer<value_t>(rx_buffer_size, stream_view);
 
   // (if num_tx_dst_ranks == num_rx_src_ranks == comm_size).
   device_multicast_sendrecv(comm,
@@ -901,9 +909,13 @@ auto shuffle_values(
   raft::host_span<size_t const> tx_value_counts,
   size_t alignment,  // # elements
   std::optional<typename thrust::iterator_traits<TxValueIterator>::value_type> fill_value,
-  rmm::cuda_stream_view stream_view)
+  rmm::cuda_stream_view stream_view,
+  std::optional<large_buffer_type_t> large_buffer_type = std::nullopt)
 {
   using value_t = typename thrust::iterator_traits<TxValueIterator>::value_type;
+
+  CUGRAPH_EXPECTS(!large_buffer_type || large_buffer_manager::memory_buffer_initialized(),
+                  "Invalid input argument: large memory buffer is not initialized.");
 
   auto const comm_size = comm.get_size();
 
@@ -991,8 +1003,11 @@ auto shuffle_values(
     offset                      = rx_aligned_displacements[i] + rx_aligned_counts[i];
   }
 
-  auto rx_values = allocate_dataframe_buffer<value_t>(
-    rx_aligned_displacements.back() + rx_aligned_counts.back(), stream_view);
+  auto rx_buffer_size = rx_aligned_displacements.back() + rx_aligned_counts.back();
+  auto rx_values =
+    large_buffer_type
+      ? large_buffer_manager::allocate_memory_buffer<value_t>(rx_buffer_size, stream_view)
+      : allocate_dataframe_buffer<value_t>(rx_buffer_size, stream_view);
   if (fill_value) {
     thrust::fill(rmm::exec_policy_nosync(stream_view),
                  get_dataframe_buffer_begin(rx_values),

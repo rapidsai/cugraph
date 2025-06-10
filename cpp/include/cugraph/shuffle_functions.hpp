@@ -15,6 +15,8 @@
  */
 #pragma once
 
+#include <cugraph/large_buffer_manager.hpp>
+
 #include <raft/core/handle.hpp>
 #include <raft/core/host_span.hpp>
 
@@ -151,7 +153,8 @@ shuffle_ext_edges(raft::handle_t const& handle,
                   std::optional<rmm::device_uvector<edge_type_t>>&& edge_types,
                   std::optional<rmm::device_uvector<edge_time_t>>&& edge_start_times,
                   std::optional<rmm::device_uvector<edge_time_t>>&& edge_end_times,
-                  bool store_transposed);
+                  bool store_transposed,
+                  std::optional<large_buffer_type_t> large_buffer_type = std::nullopt);
 
 /**
  * @brief Shuffle local edge sources (already placed by edge partitioning) to the owning GPUs (by
