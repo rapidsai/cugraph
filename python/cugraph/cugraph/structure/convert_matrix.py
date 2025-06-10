@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2024, NVIDIA CORPORATION.
+# Copyright (c) 2019-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -275,7 +275,7 @@ def from_pandas_edgelist(
     edge_attr=None,
     create_using=Graph,
     renumber=True,
-    vertices=None
+    vertices=None,
 ):
     """
     See :func:`networkx.convert_matrix.from_pandas_edgelist`.
@@ -313,7 +313,7 @@ def from_pandas_edgelist(
     create_using: cugraph.Graph (instance or class), optional (default=Graph)
         Specify the type of Graph to create. Can pass in an instance to create
         a Graph instance with specified 'directed' attribute.
-    
+
     vertices : cudf.Series or List, optional (default=None)
             A cudf.Series or list containing all vertices of the graph. This is
             optional, but must be used if the graph contains isolated vertices
@@ -359,7 +359,7 @@ def from_pandas_edgelist(
         destination=destination,
         edge_attr=edge_attr,
         renumber=renumber,
-        vertices=vertices
+        vertices=vertices,
     )
     return G
 

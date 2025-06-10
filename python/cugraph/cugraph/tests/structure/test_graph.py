@@ -284,7 +284,9 @@ def test_create_undirected_graph_from_asymmetric_adj_list():
     DG.from_cudf_adjlist(offsets, indices, None, symmetrize=False)
 
     assert_frame_equal(
-        karate_asymmetric.get_edgelist()[["src", "dst"]].sort_values(by=["src", "dst"]).reset_index(drop=True),
+        karate_asymmetric.get_edgelist()[["src", "dst"]]
+        .sort_values(by=["src", "dst"])
+        .reset_index(drop=True),
         DG.view_edge_list().sort_values(by=["src", "dst"]).reset_index(drop=True),
         check_dtype=False,
     )
@@ -779,7 +781,12 @@ def test_has_edge(graph_file):
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_has_node(graph_file):
     cu_M = utils.read_csv_file(graph_file)
-    nodes = cudf.concat([cu_M["0"], cu_M["1"]]).unique().sort_values().reset_index(drop=True)
+    nodes = (
+        cudf.concat([cu_M["0"], cu_M["1"]])
+        .unique()
+        .sort_values()
+        .reset_index(drop=True)
+    )
 
     num_vertices = nodes.iloc[-1] + 1
 
@@ -787,7 +794,6 @@ def test_has_node(graph_file):
 
     # vertex list including isolated vertices
     vertices = cudf.Series(cp.arange(0, num_vertices)).astype("int32")
-
 
     # cugraph add_edge_list
     G = cugraph.Graph()
@@ -832,7 +838,7 @@ def test_bipartite_api(graph_file):
 
     # vertex list including isolated vertices
     vertices = cudf.Series(cp.arange(0, num_vertices)).astype("int32")
-    
+
     G.from_cudf_edgelist(cu_M, source="0", destination="1", vertices=vertices)
 
     # Identify isolated vertices by looking at the vertex degree
@@ -847,12 +853,12 @@ def test_bipartite_api(graph_file):
     print("type 'isolated_vertices' = ", type(isolated_vertices))
     print("type 'set2_exp' = ", type(set2_exp))
 
-    set2_exp = cudf.concat(
-        [set2_exp, isolated_vertices]).sort_values().reset_index(drop=True)
+    set2_exp = (
+        cudf.concat([set2_exp, isolated_vertices]).sort_values().reset_index(drop=True)
+    )
 
-    #print("df = \n", G.degree()[idx]["vertex"])
+    # print("df = \n", G.degree()[idx]["vertex"])
 
-    
     # Call sets() to get the bipartite set of nodes.
     set1, set2 = G.sets()
 

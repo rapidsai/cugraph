@@ -266,9 +266,12 @@ def ensure_cugraph_obj(obj, nx_weight_attr=None, matrix_graph_type=None):
             G = matrix_graph_type()
         # Identify all the vertices in the graph
 
-        nodes = cudf.concat(
-            [df["source"], df["destination"]]).unique().sort_values().reset_index(
-                drop=True)
+        nodes = (
+            cudf.concat([df["source"], df["destination"]])
+            .unique()
+            .sort_values()
+            .reset_index(drop=True)
+        )
         num_vertices = nodes.iloc[-1] + 1
 
         # vertex list including isolated vertices

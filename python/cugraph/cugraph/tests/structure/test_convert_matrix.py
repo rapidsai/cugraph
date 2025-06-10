@@ -45,12 +45,15 @@ def test_to_from_pandas(graph_file):
     nx_pdf = nx_pdf[sorted(nx_pdf.columns)]
     nx_pdf.sort_index(inplace=True)
 
-    vertices = pd.concat(
-        [M["0"], M["1"]]
-    ).drop_duplicates().sort_values().reset_index(drop=True)
+    vertices = (
+        pd.concat([M["0"], M["1"]])
+        .drop_duplicates()
+        .sort_values()
+        .reset_index(drop=True)
+    )
 
     num_vertices = vertices.iloc[-1] + 1
-    vertices = cudf.Series(cp.arange(0, num_vertices )).astype("int32")
+    vertices = cudf.Series(cp.arange(0, num_vertices)).astype("int32")
 
     # create a cugraph Directed Graph and convert to pandas adjacency
 
@@ -60,8 +63,8 @@ def test_to_from_pandas(graph_file):
         destination="1",
         edge_attr="weight",
         create_using=cugraph.Graph(directed=True),
-        vertices = vertices # Pass all nodes including isolated vertices
-    )    
+        vertices=vertices,  # Pass all nodes including isolated vertices
+    )
 
     cu_pdf = cugraph.to_pandas_adjacency(cuG)
     cu_pdf = cu_pdf[sorted(cu_pdf.columns)]
@@ -69,9 +72,9 @@ def test_to_from_pandas(graph_file):
 
     isolated_vertices = []
     for v in range(len(cu_pdf)):
-        if (sum(cu_pdf[v]) == 0.0):
+        if sum(cu_pdf[v]) == 0.0:
             isolated_vertices.append(v)
-    
+
     # remove isolated vertices from the cuGraph adjacency matrix
     cu_pdf.drop(labels=isolated_vertices, inplace=True)
     cu_pdf.drop(isolated_vertices, axis=1, inplace=True)
@@ -108,13 +111,16 @@ def test_from_to_numpy(graph_file):
     nxG = nx.from_pandas_edgelist(
         M, source="0", target="1", edge_attr="weight", create_using=nx.DiGraph
     )
-    vertices = pd.concat(
-        [M["0"], M["1"]]
-    ).drop_duplicates().sort_values().reset_index(drop=True)
+    vertices = (
+        pd.concat([M["0"], M["1"]])
+        .drop_duplicates()
+        .sort_values()
+        .reset_index(drop=True)
+    )
 
     num_vertices = vertices.iloc[-1] + 1
 
-    vertices = cudf.Series(cp.arange(0, num_vertices )).astype("int32")
+    vertices = cudf.Series(cp.arange(0, num_vertices)).astype("int32")
 
     cuG = cugraph.from_pandas_edgelist(
         M,
@@ -122,7 +128,7 @@ def test_from_to_numpy(graph_file):
         destination="1",
         edge_attr="weight",
         create_using=cugraph.Graph(directed=True),
-        vertices = vertices # Pass all nodes including isolated vertices
+        vertices=vertices,  # Pass all nodes including isolated vertices
     )
 
     for v in cuG.nodes().values_host:

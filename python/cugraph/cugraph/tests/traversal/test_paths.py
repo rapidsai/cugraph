@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2024, NVIDIA CORPORATION.
+# Copyright (c) 2019-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -74,17 +74,25 @@ def graphs(request):
             delimiter=",",
             dtype=["int32", "int32", "float64"],
         )
-        nodes = cudf.concat(
-            [cudf_df["src"], cudf_df["dst"]]).unique().sort_values().reset_index(
-                drop=True)
+        nodes = (
+            cudf.concat([cudf_df["src"], cudf_df["dst"]])
+            .unique()
+            .sort_values()
+            .reset_index(drop=True)
+        )
         num_vertices = nodes.iloc[-1] + 1
 
         import cupy as cp
+
         # vertex list including isolated vertices
         vertices = cudf.Series(cp.arange(0, num_vertices)).astype("int32")
         cugraph_G = cugraph.Graph()
         cugraph_G.from_cudf_edgelist(
-            cudf_df, source="src", destination="dst", edge_attr="data", vertices=vertices
+            cudf_df,
+            source="src",
+            destination="dst",
+            edge_attr="data",
+            vertices=vertices,
         )
 
         # construct cupy coo_matrix graph
@@ -245,7 +253,7 @@ def test_shortest_path_length_no_target(graphs, load_traversal_results):
         distance = cugraph_path_1_to_all["distance"][index].item()
 
         # verify cugraph against networkx
-        # vertex '0' is an isolated vertex 
+        # vertex '0' is an isolated vertex
         if vertex in {0, 8, 9}:
             # Networkx does not return distances for these vertexes.
             assert distance == sys.float_info.max

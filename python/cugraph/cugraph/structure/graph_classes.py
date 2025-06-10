@@ -436,7 +436,7 @@ class Graph:
         renumber : bool, optional (default=True)
             Indicate whether or not to renumber the source and destination
             vertex IDs.
-        
+
         vertices : cudf.Series or List, optional (default=None)
             A cudf.Series or list containing all vertices of the graph. This is
             optional, but must be used if the graph contains isolated vertices
@@ -886,7 +886,7 @@ class NPartiteGraph(Graph):
         edge_attr=None,
         renumber=True,
         store_transposed=False,
-        vertices=None
+        vertices=None,
     ):
         """
         Initialize a graph from the edge list. It is an error to call this
@@ -925,7 +925,7 @@ class NPartiteGraph(Graph):
         store_transposed : bool, optional (default=False)
             If True, stores the transpose of the adjacency matrix.  Required
             for certain algorithms.
-        
+
         vertices : cudf.Series or List, optional (default=None)
             A cudf.Series or list containing all vertices of the graph. This is
             optional, but must be used if the graph contains isolated vertices
@@ -953,7 +953,7 @@ class NPartiteGraph(Graph):
             destination=destination,
             edge_attr=edge_attr,
             renumber=renumber,
-            vertices=vertices
+            vertices=vertices,
         )
 
     def from_dask_cudf_edgelist(
