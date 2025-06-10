@@ -57,7 +57,7 @@ requirements:
   host:
     - cuda-version =${{ cuda_version }}
     - cudf =${{ minor_version }}
-    - cython >=3.0.3
+    - cython >=3.1.2
     - libcugraph =${{ version }}
     - pip
     - pylibcudf =${{ minor_version }}

@@ -49,7 +49,7 @@ requirements:
     - ${{ stdlib("c") }}
   host:
     - cuda-version =${{ cuda_version }}
-    - cython >=3.0.3
+    - cython >=3.1.2
     - libcugraph =${{ version }}
     - pip
     - pylibraft =${{ minor_version }}
