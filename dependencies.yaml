@@ -3,7 +3,7 @@ files:
   all:
     output: [conda]
     matrix:
-      cuda: ["11.8", "12.8"]
+      cuda: ["12.8"]
       arch: [x86_64, aarch64]
     includes:
       - checks
@@ -279,22 +279,6 @@ dependencies:
       - output_types: conda
         matrices:
           - matrix:
-              cuda: "11.2"
-            packages:
-              - cuda-version=11.2
-          - matrix:
-              cuda: "11.4"
-            packages:
-              - cuda-version=11.4
-          - matrix:
-              cuda: "11.5"
-            packages:
-              - cuda-version=11.5
-          - matrix:
-              cuda: "11.8"
-            packages:
-              - cuda-version=11.8
-          - matrix:
               cuda: "12.0"
             packages:
               - cuda-version=12.0
@@ -328,11 +312,6 @@ dependencies:
               - libcurand-dev
               - libcusolver-dev
               - libcusparse-dev
-          - matrix:
-              cuda: "11.*"
-            packages:
-              - cudatoolkit
-              - cuda-nvtx
   common_build:
     common:
       - output_types: [conda, requirements, pyproject]
@@ -349,18 +328,6 @@ dependencies:
     specific:
       - output_types: [conda]
         matrices:
-          - matrix:
-              arch: x86_64
-              cuda: "11.8"
-            packages:
-              - gcc_linux-64=11.*
-              - nvcc_linux-64=11.8
-          - matrix:
-              arch: aarch64
-              cuda: "11.8"
-            packages:
-              - gcc_linux-aarch64=11.*
-              - nvcc_linux-aarch64=11.8
           - matrix:
               arch: x86_64
               cuda: "12.*"
@@ -457,13 +424,9 @@ dependencies:
     specific:
       - output_types: [conda, requirements, pyproject]
         matrices:
-          - matrix:
-              cuda: "12.*"
+          - matrix: # All CUDA 12 versions
             packages:
               - cuda-python>=12.6.2,<13.0a0
-          - matrix: # All CUDA 11 versions
-            packages:
-              - cuda-python>=11.8.5,<12.0a0
   python_run_pylibcugraph:
     common:
       - output_types: [conda, pyproject, requirements]
@@ -550,11 +513,6 @@ dependencies:
               cuda_suffixed: "true"
             packages:
               - cugraph-cu12==25.8.*,>=0.0.0a0
-          - matrix:
-              cuda: "11.*"
-              cuda_suffixed: "true"
-            packages:
-              - cugraph-cu11==25.8.*,>=0.0.0a0
           - {matrix: null, packages: [*cugraph_unsuffixed]}
 
   depends_on_cugraph_pyg:
@@ -575,11 +533,6 @@ dependencies:
               cuda_suffixed: "true"
             packages:
               - cugraph-pyg-cu12==25.8.*,>=0.0.0a0
-          - matrix:
-              cuda: "11.*"
-              cuda_suffixed: "true"
-            packages:
-              - cugraph-pyg-cu11==25.8.*,>=0.0.0a0
           - {matrix: null, packages: [*cugraph_pyg_unsuffixed]}
 
   depends_on_cugraph_service_client:
@@ -632,9 +585,6 @@ dependencies:
           - matrix: {cuda: "12.*"}
             packages:
               - --extra-index-url=https://download.pytorch.org/whl/cu121
-          - matrix: {cuda: "11.*"}
-            packages:
-              - --extra-index-url=https://download.pytorch.org/whl/cu118
           - {matrix: null, packages: null}
       - output_types: [requirements, pyproject]
         matrices:
@@ -642,10 +592,6 @@ dependencies:
             packages:
               - &pytorch_pip torch>=2.3
               - &tensordict tensordict>=0.1.2
-          - matrix: {cuda: "11.*"}
-            packages:
-              - *pytorch_pip
-              - *tensordict
           - {matrix: null, packages: [*pytorch_pip, *tensordict]}
 
   depends_on_pylibwholegraph:
@@ -666,11 +612,6 @@ dependencies:
               cuda_suffixed: "true"
             packages:
               - pylibwholegraph-cu12==25.8.*,>=0.0.0a0
-          - matrix:
-              cuda: "11.*"
-              cuda_suffixed: "true"
-            packages:
-              - pylibwholegraph-cu11==25.8.*,>=0.0.0a0
           - {matrix: null, packages: [*pylibwholegraph_unsuffixed]}
 
   depends_on_libcudf:
@@ -697,11 +638,6 @@ dependencies:
               cuda_suffixed: "true"
             packages:
               - libraft-cu12==25.8.*,>=0.0.0a0
-          - matrix:
-              cuda: "11.*"
-              cuda_suffixed: "true"
-            packages:
-              - libraft-cu11==25.8.*,>=0.0.0a0
           - {matrix: null, packages: [*libraft_unsuffixed]}
 
   depends_on_librmm:
@@ -722,11 +658,6 @@ dependencies:
               cuda_suffixed: "true"
             packages:
               - librmm-cu12==25.8.*,>=0.0.0a0
-          - matrix:
-              cuda: "11.*"
-              cuda_suffixed: "true"
-            packages:
-              - librmm-cu11==25.8.*,>=0.0.0a0
           - {matrix: null, packages: [*librmm_unsuffixed]}
 
   depends_on_rmm:
@@ -747,11 +678,6 @@ dependencies:
               cuda_suffixed: "true"
             packages:
               - rmm-cu12==25.8.*,>=0.0.0a0
-          - matrix:
-              cuda: "11.*"
-              cuda_suffixed: "true"
-            packages:
-              - rmm-cu11==25.8.*,>=0.0.0a0
           - {matrix: null, packages: [*rmm_unsuffixed]}
 
   depends_on_pylibcudf:
@@ -772,11 +698,6 @@ dependencies:
               cuda_suffixed: "true"
             packages:
               - pylibcudf-cu12==25.8.*,>=0.0.0a0
-          - matrix:
-              cuda: "11.*"
-              cuda_suffixed: "true"
-            packages:
-              - pylibcudf-cu11==25.8.*,>=0.0.0a0
           - {matrix: null, packages: [*pylibcudf_unsuffixed]}
 
   depends_on_cudf:
@@ -797,11 +718,6 @@ dependencies:
               cuda_suffixed: "true"
             packages:
               - cudf-cu12==25.8.*,>=0.0.0a0
-          - matrix:
-              cuda: "11.*"
-              cuda_suffixed: "true"
-            packages:
-              - cudf-cu11==25.8.*,>=0.0.0a0
           - {matrix: null, packages: [*cudf_unsuffixed]}
 
   depends_on_dask_cuda:
@@ -833,11 +749,6 @@ dependencies:
               cuda_suffixed: "true"
             packages:
               - dask-cudf-cu12==25.8.*,>=0.0.0a0
-          - matrix:
-              cuda: "11.*"
-              cuda_suffixed: "true"
-            packages:
-              - dask-cudf-cu11==25.8.*,>=0.0.0a0
           - {matrix: null, packages: [*dask_cudf_unsuffixed]}
 
   depends_on_pylibraft:
@@ -858,11 +769,6 @@ dependencies:
               cuda_suffixed: "true"
             packages:
               - pylibraft-cu12==25.8.*,>=0.0.0a0
-          - matrix:
-              cuda: "11.*"
-              cuda_suffixed: "true"
-            packages:
-              - pylibraft-cu11==25.8.*,>=0.0.0a0
           - {matrix: null, packages: [*pylibraft_unsuffixed]}
 
   depends_on_raft_dask:
@@ -883,11 +789,6 @@ dependencies:
               cuda_suffixed: "true"
             packages:
               - raft-dask-cu12==25.8.*,>=0.0.0a0
-          - matrix:
-              cuda: "11.*"
-              cuda_suffixed: "true"
-            packages:
-              - raft-dask-cu11==25.8.*,>=0.0.0a0
           - {matrix: null, packages: [*raft_dask_unsuffixed]}
 
   depends_on_libcugraph:
@@ -908,11 +809,6 @@ dependencies:
               cuda_suffixed: "true"
             packages:
               - libcugraph-cu12==25.8.*,>=0.0.0a0
-          - matrix:
-              cuda: "11.*"
-              cuda_suffixed: "true"
-            packages:
-              - libcugraph-cu11==25.8.*,>=0.0.0a0
           - {matrix: null, packages: [*libcugraph_unsuffixed]}
 
   depends_on_pylibcugraph:
@@ -933,11 +829,6 @@ dependencies:
               cuda_suffixed: "true"
             packages:
               - pylibcugraph-cu12==25.8.*,>=0.0.0a0
-          - matrix:
-              cuda: "11.*"
-              cuda_suffixed: "true"
-            packages:
-              - pylibcugraph-cu11==25.8.*,>=0.0.0a0
           - {matrix: null, packages: [*pylibcugraph_unsuffixed]}
 
   depends_on_cupy:
@@ -952,12 +843,9 @@ dependencies:
       - output_types: [requirements, pyproject]
         matrices:
           - matrix: {cuda: "12.*"}
-            packages:
+            packages: &cupy_packages_cu12
               - cupy-cuda12x>=12.0.0
-          - matrix: {cuda: "11.*"}
-            packages: &cupy_packages_cu11
-              - cupy-cuda11x>=12.0.0
-          - {matrix: null, packages: *cupy_packages_cu11}
+          - {matrix: null, packages: *cupy_packages_cu12}
 
   depends_on_ucx_py:
     common:
@@ -977,9 +865,4 @@ dependencies:
               cuda_suffixed: "true"
             packages:
               - ucx-py-cu12==0.45.*,>=0.0.0a0
-          - matrix:
-              cuda: "11.*"
-              cuda_suffixed: "true"
-            packages:
-              - ucx-py-cu11==0.45.*,>=0.0.0a0
           - {matrix: null, packages: [*ucx_py_unsuffixed]}
