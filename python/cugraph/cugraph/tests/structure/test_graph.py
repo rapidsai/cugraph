@@ -790,10 +790,8 @@ def test_has_node(graph_file):
 
     num_vertices = nodes.iloc[-1] + 1
 
-    import cupy as cp
-
     # vertex list including isolated vertices
-    vertices = cudf.Series(cp.arange(0, num_vertices)).astype("int32")
+    vertices = cudf.Series(cupy.arange(0, num_vertices)).astype("int32")
 
     # cugraph add_edge_list
     G = cugraph.Graph()
@@ -834,30 +832,20 @@ def test_bipartite_api(graph_file):
 
     num_vertices = nodes.iloc[-1] + 1
 
-    import cupy as cp
-
     # vertex list including isolated vertices
-    vertices = cudf.Series(cp.arange(0, num_vertices)).astype("int32")
+    vertices = cudf.Series(cupy.arange(0, num_vertices)).astype("int32")
 
     G.from_cudf_edgelist(cu_M, source="0", destination="1", vertices=vertices)
 
     # Identify isolated vertices by looking at the vertex degree
-    print("degree = \n", G.degree())
 
     idx = G.degree()["degree"] == 0
 
     isolated_vertices = G.degree()[idx]["vertex"]
 
-    print("isolated_vertices = \n", isolated_vertices)
-    print("set2_exp = \n", set2_exp.all())
-    print("type 'isolated_vertices' = ", type(isolated_vertices))
-    print("type 'set2_exp' = ", type(set2_exp))
-
     set2_exp = (
         cudf.concat([set2_exp, isolated_vertices]).sort_values().reset_index(drop=True)
     )
-
-    # print("df = \n", G.degree()[idx]["vertex"])
 
     # Call sets() to get the bipartite set of nodes.
     set1, set2 = G.sets()
@@ -866,8 +854,6 @@ def test_bipartite_api(graph_file):
     assert set1.equals(set1_exp)
     # assert if set2 is the remaining set of nodes not in set1_exp
 
-    print("set2 = \n", set2)
-    print("set2_exp = \n", set2_exp.sort_values().reset_index(drop=True))
 
     assert set2.equals(set2_exp)
 
