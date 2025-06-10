@@ -18,6 +18,7 @@ from .graph_implementation import (
     npartiteGraphImpl,
 )
 import cudf
+import cupy
 import dask_cudf
 
 from cugraph.utilities.utils import import_optional
@@ -390,6 +391,7 @@ class Graph:
         edge_id=None,
         edge_type=None,
         renumber=True,
+        vertices=None,
     ):
         """
         Initialize a graph from the edge list. It is an error to call this
@@ -434,6 +436,14 @@ class Graph:
         renumber : bool, optional (default=True)
             Indicate whether or not to renumber the source and destination
             vertex IDs.
+        
+        vertices : cudf.Series or List, optional (default=None)
+            An  containing all vertices of the graph. This array is
+            optional, but must be used if the graph contains isolated vertices
+            which cannot be represented in the source and destination arrays.
+            If specified, this array must contain every vertex identifier,
+            including vertex identifiers that are already included in the
+            source and destination arrays.
 
         Examples
         --------
@@ -461,6 +471,7 @@ class Graph:
             edge_id=edge_id,
             edge_type=edge_type,
             renumber=renumber,
+            vertices=vertices,
         )
 
     def from_pandas_adjacency(self, pdf):
@@ -506,8 +517,13 @@ class Graph:
             df["dst"] = dst
         df["weight"] = weight
 
+        # Vertices must be numbered from [0, max_vertex + 1) otherwise
+        # isolated vertices will be implied.
+
         num_vertices = np_array.shape[0]
-        vertices = cudf.Series(np.arange(0, num_vertices))
+        if nodes is not None:
+            num_vertices = max(nodes) + 1
+        vertices = cudf.Series(cupy.arange(0, num_vertices))
         self.from_cudf_edgelist(df, "src", "dst", edge_attr="weight", vertices=vertices)
 
     def from_numpy_matrix(self, np_matrix):
@@ -870,6 +886,7 @@ class NPartiteGraph(Graph):
         edge_attr=None,
         renumber=True,
         store_transposed=False,
+        vertices=None
     ):
         """
         Initialize a graph from the edge list. It is an error to call this
@@ -908,6 +925,14 @@ class NPartiteGraph(Graph):
         store_transposed : bool, optional (default=False)
             If True, stores the transpose of the adjacency matrix.  Required
             for certain algorithms.
+        
+        vertices : cudf.Series or List, optional (default=None)
+            An  containing all vertices of the graph. This array is
+            optional, but must be used if the graph contains isolated vertices
+            which cannot be represented in the source and destination arrays.
+            If specified, this array must contain every vertex identifier,
+            including vertex identifiers that are already included in the
+            source and destination arrays.
 
         Examples
         --------
@@ -928,6 +953,7 @@ class NPartiteGraph(Graph):
             destination=destination,
             edge_attr=edge_attr,
             renumber=renumber,
+            vertices=vertices
         )
 
     def from_dask_cudf_edgelist(

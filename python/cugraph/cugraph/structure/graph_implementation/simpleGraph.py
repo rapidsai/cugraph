@@ -1547,6 +1547,7 @@ class simpleGraphImpl:
         If multi columns vertices, return a cudf.DataFrame.
         """
         if self.edgelist is not None:
+            #print("retrieving")
             # Retrieve the vertex list
             return self.extract_vertex_list(return_unrenumbered_vertices=False)
 

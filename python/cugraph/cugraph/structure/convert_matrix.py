@@ -275,6 +275,7 @@ def from_pandas_edgelist(
     edge_attr=None,
     create_using=Graph,
     renumber=True,
+    vertices=None
 ):
     """
     See :func:`networkx.convert_matrix.from_pandas_edgelist`.
@@ -312,6 +313,14 @@ def from_pandas_edgelist(
     create_using: cugraph.Graph (instance or class), optional (default=Graph)
         Specify the type of Graph to create. Can pass in an instance to create
         a Graph instance with specified 'directed' attribute.
+    
+    vertices : cudf.Series or List, optional (default=None)
+            An  containing all vertices of the graph. This array is
+            optional, but must be used if the graph contains isolated vertices
+            which cannot be represented in the source and destination arrays.
+            If specified, this array must contain every vertex identifier,
+            including vertex identifiers that are already included in the
+            source and destination arrays.
 
     Returns
     -------
@@ -350,6 +359,7 @@ def from_pandas_edgelist(
         destination=destination,
         edge_attr=edge_attr,
         renumber=renumber,
+        vertices=vertices
     )
     return G
 

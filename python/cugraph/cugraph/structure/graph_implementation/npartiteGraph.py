@@ -28,6 +28,7 @@ class npartiteGraphImpl(simpleGraphImpl):
         destination="destination",
         edge_attr=None,
         renumber=True,
+        vertices=None
     ):
         self._simpleGraphImpl__from_edgelist(
             input_df,
@@ -35,6 +36,7 @@ class npartiteGraphImpl(simpleGraphImpl):
             destination=destination,
             edge_attr=edge_attr,
             renumber=renumber,
+            vertices=vertices
         )
 
     def sets(self):

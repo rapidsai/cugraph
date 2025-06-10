@@ -382,7 +382,7 @@ def shortest_path_length(G, source, target=None):
     if isinstance(df, tuple):
         # cupy path, df is tuple of (distance, predecessor)
         if target:
-            return df[0][target - 1]
+            return df[0][target]
         results = cudf.DataFrame()
         results["vertex"] = range(df[0].shape[0])
         results["distance"] = df[0]
