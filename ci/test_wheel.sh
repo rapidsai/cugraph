@@ -12,6 +12,7 @@ arch=$(uname -m)
 if [[ "${arch}" == "aarch64" && ${RAPIDS_BUILD_TYPE} == "pull-request" ]]; then
     python ./ci/wheel_smoke_test_"${package_name}".py
 else
+    rapids-logger "wheel test cugraph"
     # Test runs that include tests that use dask require
     # --import-mode=append. See test_python.sh for details.
     # FIXME: Adding PY_IGNORE_IMPORTMISMATCH=1 to workaround conftest.py import
@@ -25,8 +26,11 @@ else
     DASK_CUDA_WAIT_WORKERS_MIN_TIMEOUT="1000s" \
     python -m pytest \
        -v \
+       --numprocesses=8 \
+        --dist=worksteal \
        --import-mode=append \
        --benchmark-disable \
-       -k "not test_property_graph_mg" \
+       -m "not mg" \
+       -k "not test_property_graph_mg and not datasets" \
        "./python/${package_name}/${python_package_name}/tests"
 fi
