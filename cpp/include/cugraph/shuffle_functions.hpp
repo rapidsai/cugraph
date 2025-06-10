@@ -46,8 +46,10 @@ namespace cugraph {
  * @return Vector of vertex ids mapped to this GPU.
  */
 template <typename vertex_t>
-rmm::device_uvector<vertex_t> shuffle_external_vertices(raft::handle_t const& handle,
-                                                        rmm::device_uvector<vertex_t>&& vertices);
+rmm::device_uvector<vertex_t> shuffle_external_vertices(
+  raft::handle_t const& handle,
+  rmm::device_uvector<vertex_t>&& vertices,
+  std::optional<large_buffer_type_t> large_buffer_type = std::nullopt);
 
 /**
  * @ingroup shuffle_functions_cpp
@@ -61,8 +63,10 @@ rmm::device_uvector<vertex_t> shuffle_external_vertices(raft::handle_t const& ha
  * @return Vector of vertex ids mapped to this GPU.
  */
 template <typename vertex_t>
-rmm::device_uvector<vertex_t> shuffle_ext_vertices(raft::handle_t const& handle,
-                                                   rmm::device_uvector<vertex_t>&& vertices);
+rmm::device_uvector<vertex_t> shuffle_ext_vertices(
+  raft::handle_t const& handle,
+  rmm::device_uvector<vertex_t>&& vertices,
+  std::optional<large_buffer_type_t> large_buffer_type = std::nullopt);
 
 /**
  * @ingroup shuffle_functions_cpp
@@ -82,9 +86,11 @@ rmm::device_uvector<vertex_t> shuffle_ext_vertices(raft::handle_t const& handle,
  */
 template <typename vertex_t, typename value_t>
 std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<value_t>>
-shuffle_external_vertex_value_pairs(raft::handle_t const& handle,
-                                    rmm::device_uvector<vertex_t>&& vertices,
-                                    rmm::device_uvector<value_t>&& values);
+shuffle_external_vertex_value_pairs(
+  raft::handle_t const& handle,
+  rmm::device_uvector<vertex_t>&& vertices,
+  rmm::device_uvector<value_t>&& values,
+  std::optional<large_buffer_type_t> large_buffer_type = std::nullopt);
 
 /**
  * @ingroup shuffle_functions_cpp
@@ -104,7 +110,8 @@ template <typename vertex_t, typename value_t>
 std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<value_t>>
 shuffle_ext_vertex_value_pairs(raft::handle_t const& handle,
                                rmm::device_uvector<vertex_t>&& vertices,
-                               rmm::device_uvector<value_t>&& values);
+                               rmm::device_uvector<value_t>&& values,
+                               std::optional<large_buffer_type_t> large_buffer_type = std::nullopt);
 
 /**
  * @ingroup graph_functions_cpp

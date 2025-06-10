@@ -1140,12 +1140,19 @@ auto shuffle_and_unique_segment_sorted_values(
 }
 
 template <typename ValueIterator, typename ValueToGPUIdOp>
-auto groupby_gpu_id_and_shuffle_values(raft::comms::comms_t const& comm,
-                                       ValueIterator tx_value_first /* [INOUT */,
-                                       ValueIterator tx_value_last /* [INOUT */,
-                                       ValueToGPUIdOp value_to_gpu_id_op,
-                                       rmm::cuda_stream_view stream_view)
+auto groupby_gpu_id_and_shuffle_values(
+  raft::comms::comms_t const& comm,
+  ValueIterator tx_value_first /* [INOUT */,
+  ValueIterator tx_value_last /* [INOUT */,
+  ValueToGPUIdOp value_to_gpu_id_op,
+  rmm::cuda_stream_view stream_view,
+  std::optional<large_buffer_type_t> large_buffer_type = std::nullopt)
 {
+  using value_t = typename thrust::iterator_traits<ValueIterator>::value_type;
+
+  CUGRAPH_EXPECTS(!large_buffer_type || large_buffer_manager::memory_buffer_initialized(),
+                  "Invalid input argument: large memory buffer is not initialized.");
+
   auto const comm_size = comm.get_size();
 
   auto d_tx_value_counts = groupby_and_count(tx_value_first,
@@ -1164,9 +1171,11 @@ auto groupby_gpu_id_and_shuffle_values(raft::comms::comms_t const& comm,
   std::tie(tx_counts, tx_displs, tx_dst_ranks, rx_counts, rx_displs, rx_src_ranks) =
     detail::compute_tx_rx_counts_displs_ranks(comm, d_tx_value_counts, true, stream_view);
 
+  auto rx_buffer_size = rx_displs.size() > 0 ? rx_displs.back() + rx_counts.back() : size_t{0};
   auto rx_value_buffer =
-    allocate_dataframe_buffer<typename thrust::iterator_traits<ValueIterator>::value_type>(
-      rx_displs.size() > 0 ? rx_displs.back() + rx_counts.back() : size_t{0}, stream_view);
+    large_buffer_type
+      ? large_buffer_manager::allocate_memory_buffer<value_t>(rx_buffer_size, stream_view)
+      : allocate_dataframe_buffer<value_t>(rx_buffer_size, stream_view);
 
   // (if num_tx_dst_ranks == num_rx_src_ranks == comm_size).
   device_multicast_sendrecv(comm,
@@ -1192,13 +1201,21 @@ auto groupby_gpu_id_and_shuffle_values(raft::comms::comms_t const& comm,
 }
 
 template <typename VertexIterator, typename ValueIterator, typename KeyToGPUIdOp>
-auto groupby_gpu_id_and_shuffle_kv_pairs(raft::comms::comms_t const& comm,
-                                         VertexIterator tx_key_first /* [INOUT */,
-                                         VertexIterator tx_key_last /* [INOUT */,
-                                         ValueIterator tx_value_first /* [INOUT */,
-                                         KeyToGPUIdOp key_to_gpu_id_op,
-                                         rmm::cuda_stream_view stream_view)
+auto groupby_gpu_id_and_shuffle_kv_pairs(
+  raft::comms::comms_t const& comm,
+  VertexIterator tx_key_first /* [INOUT */,
+  VertexIterator tx_key_last /* [INOUT */,
+  ValueIterator tx_value_first /* [INOUT */,
+  KeyToGPUIdOp key_to_gpu_id_op,
+  rmm::cuda_stream_view stream_view,
+  std::optional<large_buffer_type_t> large_buffer_type = std::nullopt)
 {
+  using vertex_t = typename thrust::iterator_traits<VertexIterator>::value_type;
+  using value_t  = typename thrust::iterator_traits<ValueIterator>::value_type;
+
+  CUGRAPH_EXPECTS(!large_buffer_type || large_buffer_manager::memory_buffer_initialized(),
+                  "Invalid input argument: large memory buffer is not initialized.");
+
   auto const comm_size = comm.get_size();
 
   auto d_tx_value_counts = groupby_and_count(tx_key_first,
@@ -1218,11 +1235,14 @@ auto groupby_gpu_id_and_shuffle_kv_pairs(raft::comms::comms_t const& comm,
   std::tie(tx_counts, tx_displs, tx_dst_ranks, rx_counts, rx_displs, rx_src_ranks) =
     detail::compute_tx_rx_counts_displs_ranks(comm, d_tx_value_counts, true, stream_view);
 
-  rmm::device_uvector<typename thrust::iterator_traits<VertexIterator>::value_type> rx_keys(
-    rx_displs.size() > 0 ? rx_displs.back() + rx_counts.back() : size_t{0}, stream_view);
+  auto rx_buffer_size = rx_displs.size() > 0 ? rx_displs.back() + rx_counts.back() : size_t{0};
+  auto rx_keys        = large_buffer_type ? large_buffer_manager::allocate_memory_buffer<vertex_t>(
+                                       rx_buffer_size, stream_view)
+                                          : rmm::device_uvector<vertex_t>(rx_buffer_size, stream_view);
   auto rx_value_buffer =
-    allocate_dataframe_buffer<typename thrust::iterator_traits<ValueIterator>::value_type>(
-      rx_keys.size(), stream_view);
+    large_buffer_type
+      ? large_buffer_manager::allocate_memory_buffer<value_t>(rx_buffer_size, stream_view)
+      : allocate_dataframe_buffer<value_t>(rx_buffer_size, stream_view);
 
   // (if num_tx_dst_ranks == num_rx_src_ranks == comm_size).
   device_multicast_sendrecv(comm,

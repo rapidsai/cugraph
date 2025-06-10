@@ -22,22 +22,26 @@ namespace cugraph {
 template std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<float>>
 shuffle_external_vertex_value_pairs(raft::handle_t const& handle,
                                     rmm::device_uvector<int64_t>&& vertices,
-                                    rmm::device_uvector<float>&& values);
+                                    rmm::device_uvector<float>&& values,
+                                    std::optional<large_buffer_type_t> large_buffer_type);
 
 // deprecated
 template std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<double>>
 shuffle_external_vertex_value_pairs(raft::handle_t const& handle,
                                     rmm::device_uvector<int64_t>&& vertices,
-                                    rmm::device_uvector<double>&& values);
+                                    rmm::device_uvector<double>&& values,
+                                    std::optional<large_buffer_type_t> large_buffer_type);
 
 template std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<float>>
 shuffle_ext_vertex_value_pairs(raft::handle_t const& handle,
                                rmm::device_uvector<int64_t>&& vertices,
-                               rmm::device_uvector<float>&& values);
+                               rmm::device_uvector<float>&& values,
+                               std::optional<large_buffer_type_t> large_buffer_type);
 
 template std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<double>>
 shuffle_ext_vertex_value_pairs(raft::handle_t const& handle,
                                rmm::device_uvector<int64_t>&& vertices,
-                               rmm::device_uvector<double>&& values);
+                               rmm::device_uvector<double>&& values,
+                               std::optional<large_buffer_type_t> large_buffer_type);
 
 }  // namespace cugraph
