@@ -8,3 +8,4 @@ omit = cugraph/cugraph/tests/*
        pylibcugraph/pylibcugraph/tests/*
 disable_warnings = include-ignored
                    no-data-collected
+                   module-not-measured
