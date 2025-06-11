@@ -665,7 +665,10 @@ def test_vertex_list():
     )
 
     G = nx.from_numpy_array(A)
-    cG = cugraph.from_numpy_array(nx.to_numpy_array(G))
+
+    # Vertex list including isolated vertices
+    vertices = cudf.Series(cupy.arange(0, A.shape[0]))
+    cG = cugraph.from_numpy_array(nx.to_numpy_array(G), vertices=vertices)
 
     assert len(G.nodes()) == len(cG.nodes())
 
