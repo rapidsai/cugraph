@@ -23,6 +23,7 @@ from cugraph.dask.comms.comms_wrapper import init_subcomms
 
 __nccl_comms = None
 __raft_handle = None
+__old_device = None
 
 
 def nccl_init(rank: int, world_size: int, uid: int):
@@ -78,8 +79,7 @@ def cugraph_comms_shutdown():
     __nccl_comms.destroy()
     setDevice(__old_device)
 
-    del __old_device
-
+    __old_device = None
     __nccl_comms = None
     __raft_handle = None
 
