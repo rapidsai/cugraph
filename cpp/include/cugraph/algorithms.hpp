@@ -436,7 +436,6 @@ enum class cugraph_cc_t {
  * @ingroup components_cpp
  * @brief      Compute connected components.
  *
- * The weak version (for undirected graphs, only) was imported from cuML.
  * This implementation comes from [1] and solves component labeling problem in
  * parallel on CSR-indexes based upon the vertex degree and adjacency graph.
  *
@@ -1782,8 +1781,8 @@ enum class k_core_degree_type_t { IN = 0, OUT = 1, INOUT = 2 };
 .* @ingroup core_cpp
  * @brief   Compute core numbers of individual vertices from K-Core decomposition.
  *
- * The input graph should not have self-loops nor multi-edges. Currently, only undirected graphs are
- * supported.
+ * This algorithms does not support multi-graphs. Self-loops are excluded in computing core
+nuumbers.
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
@@ -1814,7 +1813,9 @@ void core_number(raft::handle_t const& handle,
 .* @ingroup core_cpp
  * @brief   Extract K-Core of a graph
  *
- * @throws     cugraph::logic_error when an error occurs.
+ * This function internally calls core_number (if @p core_numbers.has_value() is false). core_number
+does not support multi-graphs. Self-loops are excluded in computing core nuumbers. Note that the
+extracted K-Core can still include self-loops.
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
@@ -1851,6 +1852,9 @@ k_core(raft::handle_t const& handle,
  * Compute triangle counts for the entire set of vertices (if @p vertices is std::nullopt) or the
  * given vertices (@p vertices.has_value() is true).
  *
+ * This algorithms does not support multi-graphs. Self-loops are excluded in computing triangle
+ * counts.
+ *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
  * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
@@ -1877,6 +1881,9 @@ void triangle_count(raft::handle_t const& handle,
  *
  * Compute edge triangle counts for the entire set of edges.
  *
+ * This algorithms does not support multi-graphs. Self-loops are excluded in computing edge triangle
+counts (they will have a triangle count of 0).
+ *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
  * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
@@ -1899,6 +1906,8 @@ edge_property_t<edge_t, edge_t> edge_triangle_count(
  * @brief Compute K-Truss.
  *
  * Extract the K-Truss subgraph of a graph
+ *
+ * This algorithms does not support multi-graphs. Self-loops are excluded in computing K-Truss.
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
