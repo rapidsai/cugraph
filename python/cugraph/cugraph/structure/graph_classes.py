@@ -500,7 +500,7 @@ class Graph:
 
         nodes: array-like or None, optional (default=None)
             A list of column names, acting as labels for nodes
-        
+
         vertices : cudf.Series or List, optional (default=None)
             A cudf.Series or list containing all vertices of the graph. This is
             optional, but must be used if the graph contains isolated vertices

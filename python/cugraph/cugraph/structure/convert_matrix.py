@@ -446,7 +446,7 @@ def from_numpy_array(A, create_using=Graph, vertices=None):
     create_using: cugraph.Graph (instance or class), optional (default=Graph)
         Specify the type of Graph to create. Can pass in an instance to create
         a Graph instance with specified 'directed' attribute.
-    
+
     vertices : cudf.Series or List, optional (default=None)
         A cudf.Series or list containing all vertices of the graph. This is
         optional, but must be used if the graph contains isolated vertices
