@@ -15,6 +15,7 @@
  */
 #pragma once
 
+#include <cugraph/arithmetic_variant_types.hpp>
 #include <cugraph/large_buffer_manager.hpp>
 
 #include <raft/core/handle.hpp>
@@ -244,20 +245,12 @@ shuffle_int_vertex_value_pairs_to_local_gpu_by_vertex_partitioning(
  * groupby_and_count_local_partition is false) or in each segment with the same (local partition ID,
  * GPU ID) pair.
  */
-template <typename vertex_t,
-          typename edge_t,
-          typename weight_t,
-          typename edge_type_t,
-          typename edge_time_t>
+template <typename vertex_t>
 rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
   raft::handle_t const& handle,
-  rmm::device_uvector<vertex_t>& d_edgelist_majors,
-  rmm::device_uvector<vertex_t>& d_edgelist_minors,
-  std::optional<rmm::device_uvector<weight_t>>& d_edgelist_weights,
-  std::optional<rmm::device_uvector<edge_t>>& d_edgelist_edge_ids,
-  std::optional<rmm::device_uvector<edge_type_t>>& d_edgelist_edge_types,
-  std::optional<rmm::device_uvector<edge_time_t>>& d_edgelist_edge_start_times,
-  std::optional<rmm::device_uvector<edge_time_t>>& d_edgelist_edge_end_times,
+  raft::device_span<vertex_t> edgelist_majors,
+  raft::device_span<vertex_t> edgelist_minors,
+  raft::host_span<cugraph::arithmetic_device_span_t> edgelist_properties,
   bool groupby_and_count_local_partition_by_minor = false);
 
 /**
