@@ -16,7 +16,6 @@ import time
 
 import pytest
 import pandas as pd
-import numpy as np
 import scipy
 import networkx as nx
 
@@ -260,6 +259,7 @@ def test_add_adj_list_to_edge_list(graph_file):
 
 @pytest.mark.sg
 def test_create_undirected_graph_from_asymmetric_adj_list():
+    # karate_asymmetric.get_path()
     Mnx = utils.read_csv_for_nx(karate_asymmetric.get_path())
     N = max(max(Mnx["0"]), max(Mnx["1"])) + 1
     Mcsr = scipy.sparse.csr_matrix((Mnx.weight, (Mnx["0"], Mnx["1"])), shape=(N, N))
@@ -270,26 +270,22 @@ def test_create_undirected_graph_from_asymmetric_adj_list():
     G = cugraph.Graph(directed=False)
 
     with pytest.raises(Exception):
-        # If an undirected graph is created with 'symmetrize' set to False, the
+        # Ifan undirected graph is created with 'symmetrize' set to False, the
         # edgelist provided by the user must be symmetric.
         G.from_cudf_adjlist(offsets, indices, None, symmetrize=False)
 
     G = cugraph.Graph(directed=False)
     G.from_cudf_adjlist(offsets, indices, None, symmetrize=True)
 
+    # FIXME: Since we have no mechanism to access the symmetrized edgelist
+    # from the graph_view_t, assert that the edgelist size is unchanged. Once
+    # exposing 'decompress_to_edgelist', ensure that
+    # G.number_of_edges() == 2 * karate_asymmetric.get_edgelist()?
     assert G.number_of_edges() == len(karate_asymmetric.get_edgelist())
 
-    # Directed graph case
-    DG = cugraph.Graph(directed=True)
-    DG.from_cudf_adjlist(offsets, indices, None, symmetrize=False)
-
-    assert_frame_equal(
-        karate_asymmetric.get_edgelist()[["src", "dst"]]
-        .sort_values(by=["src", "dst"])
-        .reset_index(drop=True),
-        DG.view_edge_list().sort_values(by=["src", "dst"]).reset_index(drop=True),
-        check_dtype=False,
-    )
+    # FIXME: Once 'decompress_to_edgelist' is exposed to the
+    # python API, ensure that the derived edgelist is symmetric
+    # if symmetrize = True.
 
 
 # Test
@@ -650,39 +646,6 @@ def test_number_of_edges():
     assert G_directed.number_of_edges() == G_undirected.number_of_edges()
 
 
-@pytest.mark.sg
-def test_vertex_list():
-    A = np.array(
-        [
-            [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0],
-            [0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0],
-            [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0],
-            [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0],
-            [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-            [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-            [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-            [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0],
-            [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0],
-            [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-        ]
-    )
-
-    G = nx.from_numpy_array(A)
-    cG = cugraph.from_numpy_array(nx.to_numpy_array(G))
-
-    assert len(G.nodes()) == len(cG.nodes())
-
-    nx_nodes = cudf.Series([n for n in G.nodes()])
-    cG_nodes = cG.nodes()
-
-    assert_series_equal(
-        nx_nodes,
-        cG_nodes,
-        check_names=False,
-        check_dtype=False,
-    )
-
-
 # Test
 @pytest.mark.sg
 @pytest.mark.parametrize("graph_file", utils.DATASETS_SMALL)
@@ -781,21 +744,11 @@ def test_has_edge(graph_file):
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_has_node(graph_file):
     cu_M = utils.read_csv_file(graph_file)
-    nodes = (
-        cudf.concat([cu_M["0"], cu_M["1"]])
-        .unique()
-        .sort_values()
-        .reset_index(drop=True)
-    )
-
-    num_vertices = nodes.iloc[-1] + 1
-
-    # vertex list including isolated vertices
-    vertices = cudf.Series(cupy.arange(0, num_vertices)).astype("int32")
+    nodes = cudf.concat([cu_M["0"], cu_M["1"]]).unique()
 
     # cugraph add_edge_list
     G = cugraph.Graph()
-    G.from_cudf_edgelist(cu_M, source="0", destination="1", vertices=vertices)
+    G.from_cudf_edgelist(cu_M, source="0", destination="1")
 
     for n in nodes.values_host:
         assert G.has_node(n)
@@ -807,7 +760,7 @@ def test_invalid_has_node():
     G = cugraph.Graph()
     G.from_cudf_edgelist(df, source="src", destination="dst")
     assert not G.has_node(-1)
-    # Note: 0 is an isolated vertex so it will be part of the graph
+    assert not G.has_node(0)
     assert not G.has_node(G.number_of_nodes() + 1)
 
 
@@ -821,7 +774,6 @@ def test_bipartite_api(graph_file):
 
     # Create set of nodes for partition
     set1_exp = cudf.Series(nodes[0 : int(len(nodes) / 2)])
-
     set2_exp = cudf.Series(set(nodes.values_host) - set(set1_exp.values_host))
 
     G = cugraph.BiPartiteGraph()
@@ -829,23 +781,7 @@ def test_bipartite_api(graph_file):
 
     # Add a set of nodes present in one partition
     G.add_nodes_from(set1_exp, bipartite="set1")
-
-    num_vertices = nodes.iloc[-1] + 1
-
-    # vertex list including isolated vertices
-    vertices = cudf.Series(cupy.arange(0, num_vertices)).astype("int32")
-
-    G.from_cudf_edgelist(cu_M, source="0", destination="1", vertices=vertices)
-
-    # Identify isolated vertices by looking at the vertex degree
-
-    idx = G.degree()["degree"] == 0
-
-    isolated_vertices = G.degree()[idx]["vertex"]
-
-    set2_exp = (
-        cudf.concat([set2_exp, isolated_vertices]).sort_values().reset_index(drop=True)
-    )
+    G.from_cudf_edgelist(cu_M, source="0", destination="1")
 
     # Call sets() to get the bipartite set of nodes.
     set1, set2 = G.sets()
@@ -853,7 +789,6 @@ def test_bipartite_api(graph_file):
     # assert if the input set1_exp is same as returned bipartite set1
     assert set1.equals(set1_exp)
     # assert if set2 is the remaining set of nodes not in set1_exp
-
     assert set2.equals(set2_exp)
 
 

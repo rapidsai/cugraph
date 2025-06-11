@@ -16,9 +16,6 @@ import gc
 import pytest
 import numpy as np
 import networkx as nx
-import cudf
-import pandas as pd
-import cupy as cp
 
 import cugraph
 from cugraph.testing import utils
@@ -45,39 +42,18 @@ def test_to_from_pandas(graph_file):
     nx_pdf = nx_pdf[sorted(nx_pdf.columns)]
     nx_pdf.sort_index(inplace=True)
 
-    vertices = (
-        pd.concat([M["0"], M["1"]])
-        .drop_duplicates()
-        .sort_values()
-        .reset_index(drop=True)
-    )
-
-    num_vertices = vertices.iloc[-1] + 1
-    vertices = cudf.Series(cp.arange(0, num_vertices)).astype("int32")
-
     # create a cugraph Directed Graph and convert to pandas adjacency
-
     cuG = cugraph.from_pandas_edgelist(
         M,
         source="0",
         destination="1",
         edge_attr="weight",
         create_using=cugraph.Graph(directed=True),
-        vertices=vertices,  # Pass all nodes including isolated vertices
     )
 
     cu_pdf = cugraph.to_pandas_adjacency(cuG)
     cu_pdf = cu_pdf[sorted(cu_pdf.columns)]
     cu_pdf.sort_index(inplace=True)
-
-    isolated_vertices = []
-    for v in range(len(cu_pdf)):
-        if sum(cu_pdf[v]) == 0.0:
-            isolated_vertices.append(v)
-
-    # remove isolated vertices from the cuGraph adjacency matrix
-    cu_pdf.drop(labels=isolated_vertices, inplace=True)
-    cu_pdf.drop(isolated_vertices, axis=1, inplace=True)
 
     # Compare pandas adjacency list
     assert nx_pdf.equals(cu_pdf)
@@ -111,16 +87,6 @@ def test_from_to_numpy(graph_file):
     nxG = nx.from_pandas_edgelist(
         M, source="0", target="1", edge_attr="weight", create_using=nx.DiGraph
     )
-    vertices = (
-        pd.concat([M["0"], M["1"]])
-        .drop_duplicates()
-        .sort_values()
-        .reset_index(drop=True)
-    )
-
-    num_vertices = vertices.iloc[-1] + 1
-
-    vertices = cudf.Series(cp.arange(0, num_vertices)).astype("int32")
 
     cuG = cugraph.from_pandas_edgelist(
         M,
@@ -128,15 +94,7 @@ def test_from_to_numpy(graph_file):
         destination="1",
         edge_attr="weight",
         create_using=cugraph.Graph(directed=True),
-        vertices=vertices,  # Pass all nodes including isolated vertices
     )
-
-    for v in cuG.nodes().values_host:
-        # Add all vertices to the nxG including isolated vertices
-        # FIXME: Add method that returns all isolated vertices in the
-        # graph (cuG.isolated_nodes()). This will avoid adding nodes that
-        # already exists in the graph
-        nxG.add_node(v)
 
     # convert graphs to numpy array
     nparray_nx = nx.to_numpy_array(nxG, nodelist=cuG.nodes().values_host)

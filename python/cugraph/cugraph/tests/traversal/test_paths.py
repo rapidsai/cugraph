@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2025, NVIDIA CORPORATION.
+# Copyright (c) 2019-2024, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -74,25 +74,9 @@ def graphs(request):
             delimiter=",",
             dtype=["int32", "int32", "float64"],
         )
-        nodes = (
-            cudf.concat([cudf_df["src"], cudf_df["dst"]])
-            .unique()
-            .sort_values()
-            .reset_index(drop=True)
-        )
-        num_vertices = nodes.iloc[-1] + 1
-
-        import cupy as cp
-
-        # vertex list including isolated vertices
-        vertices = cudf.Series(cp.arange(0, num_vertices)).astype("int32")
         cugraph_G = cugraph.Graph()
         cugraph_G.from_cudf_edgelist(
-            cudf_df,
-            source="src",
-            destination="dst",
-            edge_attr="data",
-            vertices=vertices,
+            cudf_df, source="src", destination="dst", edge_attr="data"
         )
 
         # construct cupy coo_matrix graph
@@ -236,6 +220,11 @@ def test_shortest_path_length_no_target(graphs, load_traversal_results):
     )
     cupy_path_1_to_all = cugraph.shortest_path_length(cupy_df, 1)
 
+    print("\ncupy_df = \n", cupy_df)
+
+    print("\ncugraph = \n", cugraph_path_1_to_all)
+    print("cupy = \n", cupy_path_1_to_all)
+
     # Cast networkx graph on cugraph vertex column type from str to int.
     # SSSP preserves vertex type, convert for comparison
     assert_series_equal(
@@ -246,15 +235,14 @@ def test_shortest_path_length_no_target(graphs, load_traversal_results):
     )
 
     # results for vertex 8 and 9 are not returned
-    assert cugraph_path_1_to_all.shape[0] == len(golden_path_1_to_all) + 3
+    assert cugraph_path_1_to_all.shape[0] == len(golden_path_1_to_all) + 2
     for index in range(cugraph_path_1_to_all.shape[0]):
 
         vertex = cugraph_path_1_to_all["vertex"][index].item()
         distance = cugraph_path_1_to_all["distance"][index].item()
 
         # verify cugraph against networkx
-        # vertex '0' is an isolated vertex
-        if vertex in {0, 8, 9}:
+        if vertex in {8, 9}:
             # Networkx does not return distances for these vertexes.
             assert distance == sys.float_info.max
         else:
