@@ -489,7 +489,7 @@ class Graph:
         columns = pdf.columns
         self.from_numpy_array(np_array, columns)
 
-    def from_numpy_array(self, np_array, nodes=None):
+    def from_numpy_array(self, np_array, nodes=None, vertices=None):
         """
         Initializes the graph from numpy array containing adjacency matrix.
 
@@ -500,6 +500,14 @@ class Graph:
 
         nodes: array-like or None, optional (default=None)
             A list of column names, acting as labels for nodes
+        
+        vertices : cudf.Series or List, optional (default=None)
+            A cudf.Series or list containing all vertices of the graph. This is
+            optional, but must be used if the graph contains isolated vertices
+            which cannot be represented in the source and destination arrays.
+            If specified, this array must contain every vertex identifier,
+            including vertex identifiers that are already included in the
+            source and destination arrays.
         """
         np_array = np.asarray(np_array)
         if len(np_array.shape) != 2:
@@ -515,7 +523,7 @@ class Graph:
             df["src"] = src
             df["dst"] = dst
         df["weight"] = weight
-        self.from_cudf_edgelist(df, "src", "dst", edge_attr="weight")
+        self.from_cudf_edgelist(df, "src", "dst", edge_attr="weight", vertices=vertices)
 
     def from_numpy_matrix(self, np_matrix):
         """
