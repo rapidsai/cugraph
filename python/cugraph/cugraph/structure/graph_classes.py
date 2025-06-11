@@ -516,15 +516,7 @@ class Graph:
             df["src"] = src
             df["dst"] = dst
         df["weight"] = weight
-
-        # Vertices must be numbered from [0, max_vertex + 1) otherwise
-        # isolated vertices will be implied.
-
-        num_vertices = np_array.shape[0]
-        if nodes is not None:
-            num_vertices = max(nodes) + 1
-        vertices = cudf.Series(cupy.arange(0, num_vertices))
-        self.from_cudf_edgelist(df, "src", "dst", edge_attr="weight", vertices=vertices)
+        self.from_cudf_edgelist(df, "src", "dst", edge_attr="weight")
 
     def from_numpy_matrix(self, np_matrix):
         """
