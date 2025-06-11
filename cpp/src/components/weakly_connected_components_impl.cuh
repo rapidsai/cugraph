@@ -15,6 +15,7 @@
  */
 #pragma once
 
+#include "detail/shuffle_wrappers.hpp"
 #include "prims/extract_transform_if_e.cuh"
 #include "prims/fill_edge_property.cuh"
 #include "prims/fill_edge_src_dst_property.cuh"
@@ -26,7 +27,6 @@
 #include "utilities/collect_comm.cuh"
 
 #include <cugraph/algorithms.hpp>
-#include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>

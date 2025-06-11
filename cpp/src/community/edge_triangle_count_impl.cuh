@@ -17,12 +17,12 @@
 #pragma once
 
 #include "detail/graph_partition_utils.cuh"
+#include "detail/shuffle_wrappers.hpp"
 #include "prims/edge_bucket.cuh"
 #include "prims/fill_edge_property.cuh"
 #include "prims/per_v_pair_dst_nbr_intersection.cuh"
 #include "prims/transform_e.cuh"
 
-#include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/utilities/error.hpp>

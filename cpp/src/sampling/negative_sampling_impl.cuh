@@ -16,16 +16,16 @@
 
 #pragma once
 
-#include "cugraph/detail/collect_comm_wrapper.hpp"
-#include "cugraph/utilities/device_comm.hpp"
+#include "detail/shuffle_wrappers.hpp"
 #include "prims/reduce_v.cuh"
 #include "prims/update_edge_src_dst_property.cuh"
 #include "thrust/iterator/zip_iterator.h"
 #include "utilities/collect_comm.cuh"
 
-#include <cugraph/detail/shuffle_wrappers.hpp>
+#include <cugraph/detail/collect_comm_wrapper.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/sampling_functions.hpp>
+#include <cugraph/utilities/device_comm.hpp>
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 

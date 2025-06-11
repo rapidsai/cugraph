@@ -17,10 +17,10 @@
 
 #include "cugraph/edge_partition_view.hpp"
 #include "detail/graph_partition_utils.cuh"
+#include "detail/shuffle_wrappers.hpp"
 #include "structure/detail/structure_utils.cuh"
 
 #include <cugraph/arithmetic_variant_types.hpp>
-#include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>

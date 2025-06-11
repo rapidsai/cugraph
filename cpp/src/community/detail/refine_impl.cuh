@@ -17,6 +17,7 @@
 
 #include "common_methods.hpp"
 #include "detail/graph_partition_utils.cuh"
+#include "detail/shuffle_wrappers.hpp"
 #include "maximal_independent_moves.hpp"
 #include "prims/per_v_transform_reduce_dst_key_aggregated_outgoing_e.cuh"
 #include "prims/per_v_transform_reduce_incoming_outgoing_e.cuh"
@@ -26,7 +27,6 @@
 #include "prims/update_edge_src_dst_property.cuh"
 #include "utilities/collect_comm.cuh"
 
-#include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_functions.hpp>
