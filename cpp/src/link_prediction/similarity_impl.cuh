@@ -422,22 +422,14 @@ all_pairs_similarity(raft::handle_t const& handle,
       if constexpr (multi_gpu) {
         // shuffle vertex pairs
         auto vertex_partition_range_lasts = graph_view.vertex_partition_range_lasts();
+        std::vector<cugraph::arithmetic_device_uvector_t> edge_properties{};
 
-        std::tie(
-          v1, v2, std::ignore, std::ignore, std::ignore, std::ignore, std::ignore, std::ignore) =
-          detail::shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<vertex_t,
-                                                                                         edge_t,
-                                                                                         weight_t,
-                                                                                         int32_t,
-                                                                                         int32_t>(
+        std::tie(v1, v2, std::ignore, std::ignore) =
+          detail::shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning(
             handle,
             std::move(v1),
             std::move(v2),
-            std::nullopt,
-            std::nullopt,
-            std::nullopt,
-            std::nullopt,
-            std::nullopt,
+            std::move(edge_properties),
             vertex_partition_range_lasts);
       }
 
@@ -612,22 +604,14 @@ all_pairs_similarity(raft::handle_t const& handle,
     if constexpr (multi_gpu) {
       // shuffle vertex pairs
       auto vertex_partition_range_lasts = graph_view.vertex_partition_range_lasts();
+      std::vector<cugraph::arithmetic_device_uvector_t> edge_properties{};
 
-      std::tie(
-        v1, v2, std::ignore, std::ignore, std::ignore, std::ignore, std::ignore, std::ignore) =
-        detail::shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<vertex_t,
-                                                                                       edge_t,
-                                                                                       weight_t,
-                                                                                       int32_t,
-                                                                                       int32_t>(
+      std::tie(v1, v2, std::ignore, std::ignore) =
+        detail::shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning(
           handle,
           std::move(v1),
           std::move(v2),
-          std::nullopt,
-          std::nullopt,
-          std::nullopt,
-          std::nullopt,
-          std::nullopt,
+          std::move(edge_properties),
           vertex_partition_range_lasts);
     }
 

@@ -266,40 +266,26 @@ edge_property_t<edge_t, edge_t> edge_triangle_count_impl(
 
       rmm::device_uvector<vertex_t> pair_srcs(0, handle.get_stream());
       rmm::device_uvector<vertex_t> pair_dsts(0, handle.get_stream());
-      std::optional<rmm::device_uvector<edge_t>> pair_count{std::nullopt};
+      std::vector<cugraph::arithmetic_device_uvector_t> pair_properties{};
 
-      std::optional<rmm::device_uvector<edge_t>> opt_increase_count =
-        std::make_optional(rmm::device_uvector<edge_t>(increase_count.size(), handle.get_stream()));
+      rmm::device_uvector<edge_t> pair_count(increase_count.size(), handle.get_stream());
 
-      raft::copy<edge_t>((*opt_increase_count).begin(),
-                         increase_count.begin(),
-                         increase_count.size(),
-                         handle.get_stream());
+      raft::copy(
+        pair_count.begin(), increase_count.begin(), increase_count.size(), handle.get_stream());
+
+      pair_properties.push_back(std::move(pair_count));
 
       // There are still multiple copies here but is it worth sorting and reducing again?
-      std::tie(pair_srcs,
-               pair_dsts,
-               std::ignore,
-               pair_count,
-               std::ignore,
-               std::ignore,
-               std::ignore,
-               std::ignore) =
-        shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<vertex_t,
-                                                                               edge_t,
-                                                                               weight_t,
-                                                                               int32_t,
-                                                                               int32_t>(
+      std::tie(pair_srcs, pair_dsts, pair_properties, std::ignore) =
+        shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning(
           handle,
           std::move(std::get<0>(vertex_pair_buffer)),
           std::move(std::get<1>(vertex_pair_buffer)),
-          std::nullopt,
-          // FIXME: Add general purpose function for shuffling vertex pairs and arbitrary attributes
-          std::move(opt_increase_count),
-          std::nullopt,
-          std::nullopt,
-          std::nullopt,
+          std::move(pair_properties),
           cur_graph_view.vertex_partition_range_lasts());
+
+      pair_count = std::move(std::get<rmm::device_uvector<edge_t>>(pair_properties[0]));
+      pair_properties.clear();
 
       thrust::for_each(
         handle.get_thrust_policy(),
@@ -309,7 +295,7 @@ edge_property_t<edge_t, edge_t> edge_triangle_count_impl(
          num_triangles = num_triangles.data(),
          pair_srcs     = pair_srcs.data(),
          pair_dsts     = pair_dsts.data(),
-         pair_count    = (*pair_count).data(),
+         pair_count    = pair_count.data(),
          edge_first] __device__(auto idx) {
           auto src          = pair_srcs[idx];
           auto dst          = pair_dsts[idx];

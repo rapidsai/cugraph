@@ -354,19 +354,16 @@ coarsen_graph(raft::handle_t const& handle,
              std::ignore,
              std::ignore,
              std::ignore) =
-      cugraph::detail::shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<
-        vertex_t,
-        edge_t,
-        weight_t,
-        int32_t,
-        int32_t>(handle,
-                 std::move(edgelist_majors),
-                 std::move(edgelist_minors),
-                 std::move(edgelist_weights),
-                 std::nullopt,
-                 std::nullopt,
-                 std::nullopt,
-                 std::nullopt);
+      cugraph::shuffle_ext_edges<vertex_t, edge_t, weight_t, int32_t, int32_t>(
+        handle,
+        std::move(edgelist_majors),
+        std::move(edgelist_minors),
+        std::move(edgelist_weights),
+        std::nullopt,
+        std::nullopt,
+        std::nullopt,
+        std::nullopt,
+        false);
 
     // 1-3. groupby and coarsen again
 
@@ -486,19 +483,16 @@ coarsen_graph(raft::handle_t const& handle,
              std::ignore,
              std::ignore,
              std::ignore) =
-      cugraph::detail::shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<
-        vertex_t,
-        edge_t,
-        weight_t,
-        int32_t,
-        int32_t>(handle,
-                 std::move(reversed_edgelist_majors),
-                 std::move(reversed_edgelist_minors),
-                 std::move(reversed_edgelist_weights),
-                 std::nullopt,
-                 std::nullopt,
-                 std::nullopt,
-                 std::nullopt);
+      cugraph::shuffle_ext_edges<vertex_t, edge_t, weight_t, int32_t, int32_t>(
+        handle,
+        std::move(reversed_edgelist_majors),
+        std::move(reversed_edgelist_minors),
+        std::move(reversed_edgelist_weights),
+        std::nullopt,
+        std::nullopt,
+        std::nullopt,
+        std::nullopt,
+        false);
 
     auto output_offset = concatenated_edgelist_majors.size();
 

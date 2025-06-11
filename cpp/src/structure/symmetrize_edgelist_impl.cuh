@@ -17,6 +17,7 @@
 
 #include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
+#include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/error.hpp>
 
 #include <raft/core/handle.hpp>
@@ -714,19 +715,15 @@ symmetrize_edgelist(raft::handle_t const& handle,
              upper_triangular_edge_types,
              upper_triangular_edge_start_times,
              upper_triangular_edge_end_times,
-             std::ignore) =
-      shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<vertex_t,
-                                                                             vertex_t,
-                                                                             weight_t,
-                                                                             int32_t>(
-        handle,
-        std::move(upper_triangular_minors),
-        std::move(upper_triangular_majors),
-        std::move(upper_triangular_weights),
-        std::move(upper_triangular_edge_ids),
-        std::move(upper_triangular_edge_types),
-        std::move(upper_triangular_edge_start_times),
-        std::move(upper_triangular_edge_end_times));
+             std::ignore) = shuffle_ext_edges(handle,
+                                              std::move(upper_triangular_minors),
+                                              std::move(upper_triangular_majors),
+                                              std::move(upper_triangular_weights),
+                                              std::move(upper_triangular_edge_ids),
+                                              std::move(upper_triangular_edge_types),
+                                              std::move(upper_triangular_edge_start_times),
+                                              std::move(upper_triangular_edge_end_times),
+                                              false);
   }
 
   // 3. merge the lower triangular and the (flipped) upper triangular edges
@@ -987,20 +984,15 @@ symmetrize_edgelist(raft::handle_t const& handle,
              upper_triangular_edge_types,
              upper_triangular_edge_start_times,
              upper_triangular_edge_end_times,
-             std::ignore) =
-      shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<vertex_t,
-                                                                             vertex_t,
-                                                                             weight_t,
-                                                                             edge_type_t,
-                                                                             edge_time_t>(
-        handle,
-        std::move(upper_triangular_majors),
-        std::move(upper_triangular_minors),
-        std::move(upper_triangular_weights),
-        std::move(upper_triangular_edge_ids),
-        std::move(upper_triangular_edge_types),
-        std::move(upper_triangular_edge_start_times),
-        std::move(upper_triangular_edge_end_times));
+             std::ignore) = shuffle_ext_edges(handle,
+                                              std::move(upper_triangular_majors),
+                                              std::move(upper_triangular_minors),
+                                              std::move(upper_triangular_weights),
+                                              std::move(upper_triangular_edge_ids),
+                                              std::move(upper_triangular_edge_types),
+                                              std::move(upper_triangular_edge_start_times),
+                                              std::move(upper_triangular_edge_end_times),
+                                              false);
   }
 
   edgelist_majors           = std::move(merged_lower_triangular_majors);

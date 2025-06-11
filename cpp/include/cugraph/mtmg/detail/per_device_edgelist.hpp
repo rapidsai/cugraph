@@ -16,8 +16,8 @@
 
 #pragma once
 
-#include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/mtmg/handle.hpp>
+#include <cugraph/shuffle_functions.hpp>
 
 // FIXME: Could use std::span once compiler supports C++20
 #include <raft/core/host_span.hpp>
@@ -310,23 +310,22 @@ class per_device_edgelist_t {
     auto tmp_edge_end_time =
       edge_end_time_ ? std::make_optional(std::move((*edge_end_time_)[0])) : std::nullopt;
 
-    std::tie(store_transposed ? dst_[0] : src_[0],
-             store_transposed ? src_[0] : dst_[0],
+    std::tie(src_[0],
+             dst_[0],
              tmp_wgt,
              tmp_edge_id,
              tmp_edge_type,
              tmp_edge_start_time,
              tmp_edge_end_time,
-             std::ignore) =
-      cugraph::detail::shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning(
-        handle.raft_handle(),
-        store_transposed ? std::move(dst_[0]) : std::move(src_[0]),
-        store_transposed ? std::move(src_[0]) : std::move(dst_[0]),
-        std::move(tmp_wgt),
-        std::move(tmp_edge_id),
-        std::move(tmp_edge_type),
-        std::move(tmp_edge_start_time),
-        std::move(tmp_edge_end_time));
+             std::ignore) = cugraph::detail::shuffle_ext_edges(handle.raft_handle(),
+                                                               std::move(src_[0]),
+                                                               std::move(dst_[0]),
+                                                               std::move(tmp_wgt),
+                                                               std::move(tmp_edge_id),
+                                                               std::move(tmp_edge_type),
+                                                               std::move(tmp_edge_start_time),
+                                                               std::move(tmp_edge_end_time),
+                                                               store_transposed);
 
     if (tmp_wgt) ((*wgt_)[0]) = std::move(*tmp_wgt);
     if (tmp_edge_id) ((*edge_id_)[0]) = std::move(*tmp_edge_id);

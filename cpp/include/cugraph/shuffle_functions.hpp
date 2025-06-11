@@ -15,6 +15,8 @@
  */
 #pragma once
 
+#include <cugraph/utilities/dataframe_buffer.hpp>
+
 #include <raft/core/handle.hpp>
 #include <raft/core/host_span.hpp>
 
