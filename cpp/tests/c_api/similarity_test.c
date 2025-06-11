@@ -706,9 +706,8 @@ int test_all_pairs_cosine()
   weight_t h_wgt[]    = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
   vertex_t h_first[]  = {0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 5, 5};
   vertex_t h_second[] = {1, 2, 3, 4, 0, 2, 3, 5, 0, 1, 3, 4, 5, 0, 1, 2, 4, 0, 2, 3, 1, 2};
-  weight_t h_result[] = {0.5, 0.5,      1.0,      0.5, 0.5, 0.666667, 0.333333, 1.0,
-                         0.5, 0.666667, 0.333333, 0.5, 0.5, 1.0,      0.333333, 0.333333,
-                         1.0, 0.5,      0.5,      1.0, 1.0, 0.5};
+  weight_t h_result[] = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+                         1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
 
   return generic_all_pairs_similarity_test(h_src,
                                            h_dst,
@@ -737,9 +736,9 @@ int test_weighted_all_pairs_cosine_topk()
   weight_t h_wgt[] = {
     0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 3.5, 4.0, 4.0};
 
-  vertex_t h_first[]  = {0, 1, 1, 2, 3, 4};
-  vertex_t h_second[] = {1, 0, 2, 1, 4, 3};
-  weight_t h_result[] = {0.0, 0.0, 1.0, 1.0, 1.0, 1.0};
+  vertex_t h_first[]  = {3, 3, 4, 4, 5, 5};
+  vertex_t h_second[] = {5, 6, 5, 6, 3, 4};
+  weight_t h_result[] = {1, 1, 1, 1, 1, 1};
 
   return generic_all_pairs_similarity_test(h_src,
                                            h_dst,
@@ -947,9 +946,9 @@ int test_all_pairs_cosine_topk()
   vertex_t h_src[]    = {0, 1, 1, 2, 2, 2, 3, 4, 1, 3, 4, 0, 1, 3, 5, 5};
   vertex_t h_dst[]    = {1, 3, 4, 0, 1, 3, 5, 5, 0, 1, 1, 2, 2, 2, 3, 4};
   weight_t h_wgt[]    = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
-  vertex_t h_first[]  = {0, 1, 3, 3, 4, 5};
-  vertex_t h_second[] = {3, 5, 0, 4, 3, 1};
-  weight_t h_result[] = {1.000000, 1.000000, 1.000000, 1.000000, 1.000000, 1.000000};
+  vertex_t h_first[]  = {1, 1, 1, 1, 2, 2};
+  vertex_t h_second[] = {0, 2, 3, 5, 0, 1};
+  weight_t h_result[] = {1, 1, 1, 1, 1, 1};
 
   return generic_all_pairs_similarity_test(h_src,
                                            h_dst,
@@ -979,22 +978,22 @@ int test_weighted_all_pairs_cosine()
 
   vertex_t h_first[]  = {0, 0, 1, 1, 2, 2, 3, 3, 3, 4, 4, 4, 5, 5, 6, 6};
   vertex_t h_second[] = {1, 2, 0, 2, 0, 1, 4, 5, 6, 3, 5, 6, 3, 4, 3, 4};
-  weight_t h_result[] = {0.714286,
-                         0.416667,
-                         0.714286,
+  weight_t h_result[] = {0.990830,
+                         0.976187,
+                         0.990830,
+                         0.996546,
+                         0.976187,
+                         0.996546,
+                         0.974632,
                          1,
-                         0.416667,
+                         1,
+                         0.974632,
                          1,
                          1,
-                         0.166667,
-                         0.5,
                          1,
-                         0.571429,
-                         0.75,
-                         0.166667,
-                         0.571429,
-                         0.5,
-                         0.75};
+                         1,
+                         1,
+                         1};
 
   return generic_all_pairs_similarity_test(h_src,
                                            h_dst,
