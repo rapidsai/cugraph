@@ -618,21 +618,6 @@ random_walk_impl(raft::handle_t const& handle,
       auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
       auto const minor_comm_size = minor_comm.get_size();
 
-#if 0
-      sleep(handle.get_comms().get_rank());
-      std::cout << "level = " << level
-                << ", before shuffle rank = " << handle.get_comms().get_rank() << std::endl;
-
-      raft::print_device_vector(
-        "  current_vertices", current_vertices.data(), current_vertices.size(), std::cout);
-      raft::print_device_vector("  current_gpu", current_gpu.data(), current_gpu.size(), std::cout);
-      raft::print_device_vector(
-        "  current_position", current_position.data(), current_position.size(), std::cout);
-      if (previous_vertices)
-        raft::print_device_vector(
-          "  previous_vertices", previous_vertices->data(), previous_vertices->size(), std::cout);
-#endif
-
       std::vector<cugraph::arithmetic_device_uvector_t> vertex_properties{};
       vertex_properties.push_back(std::move(current_gpu));
       vertex_properties.push_back(std::move(current_position));
@@ -654,20 +639,6 @@ random_walk_impl(raft::handle_t const& handle,
       if (previous_vertices)
         *previous_vertices =
           std::move(std::get<rmm::device_uvector<vertex_t>>(vertex_properties[2]));
-
-#if 0
-      sleep(handle.get_comms().get_rank());
-      std::cout << "after shuffle rank = " << handle.get_comms().get_rank() << std::endl;
-
-      raft::print_device_vector(
-        "  current_vertices", current_vertices.data(), current_vertices.size(), std::cout);
-      raft::print_device_vector("  current_gpu", current_gpu.data(), current_gpu.size(), std::cout);
-      raft::print_device_vector(
-        "  current_position", current_position.data(), current_position.size(), std::cout);
-      if (previous_vertices)
-        raft::print_device_vector(
-          "  previous_vertices", previous_vertices->data(), previous_vertices->size(), std::cout);
-#endif
     }
 
     //  Sort for nbr_intersection, must sort all together
@@ -699,12 +670,6 @@ random_walk_impl(raft::handle_t const& handle,
                                          std::move(current_vertices),
                                          std::move(previous_vertices));
 
-    // FIXME: remove_if has a 32-bit overflow issue
-    // (https://github.com/NVIDIA/thrust/issues/1302) Seems unlikely here (the goal of
-    // sampling is to extract small graphs) so not going to work around this for now.
-    CUGRAPH_EXPECTS(
-      current_vertices.size() < static_cast<size_t>(std::numeric_limits<int32_t>::max()),
-      "remove_if will fail, current_vertices.size() is too large");
     size_t compacted_length{0};
     if constexpr (multi_gpu) {
       if (result_weights) {
