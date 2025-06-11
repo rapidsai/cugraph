@@ -233,7 +233,7 @@ inline arithmetic_device_span_t make_arithmetic_device_span(arithmetic_device_uv
 {
   return variant_type_dispatch(v, [](auto& v) {
     using T = typename std::remove_reference<decltype(v)>::type::value_type;
-    return static_cast<arithmetic_device_span_t>(raft::device_span<T>(v.data(), v.size()));
+    return arithmetic_device_span_t(raft::device_span<T>(v.data(), v.size()));
   });
 }
 
