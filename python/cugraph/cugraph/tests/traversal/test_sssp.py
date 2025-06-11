@@ -523,7 +523,6 @@ def test_sssp_csr_graph(graph_file):
 
     print("source = ", source)
 
-
     G_csr.from_cudf_adjlist(offsets, indices, weights)
 
     result_csr = cugraph.sssp(G_csr, source)

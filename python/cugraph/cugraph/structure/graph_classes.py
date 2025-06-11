@@ -18,7 +18,6 @@ from .graph_implementation import (
     npartiteGraphImpl,
 )
 import cudf
-import cupy
 import dask_cudf
 
 from cugraph.utilities.utils import import_optional

@@ -220,11 +220,6 @@ def test_shortest_path_length_no_target(graphs, load_traversal_results):
     )
     cupy_path_1_to_all = cugraph.shortest_path_length(cupy_df, 1)
 
-    print("\ncupy_df = \n", cupy_df)
-
-    print("\ncugraph = \n", cugraph_path_1_to_all)
-    print("cupy = \n", cupy_path_1_to_all)
-
     # Cast networkx graph on cugraph vertex column type from str to int.
     # SSSP preserves vertex type, convert for comparison
     assert_series_equal(
