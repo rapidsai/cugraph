@@ -18,6 +18,7 @@
 
 #include "detail/graph_partition_utils.cuh"
 #include "prims/edge_bucket.cuh"
+#include "prims/fill_edge_property.cuh"
 #include "prims/per_v_pair_dst_nbr_intersection.cuh"
 #include "prims/transform_e.cuh"
 
@@ -133,13 +134,34 @@ edge_property_t<edge_t, edge_t> edge_triangle_count_impl(
 
   CUGRAPH_EXPECTS(
     !graph_view.is_multigraph(),
-    "Invalid input arguments: edge_triangle_count currently does not support multi-graphs.");
+    "Invalid input argument: edge triangle count currently does not support multi-graphs.");
+
+  // Exclude self-loops
+
+  std::optional<cugraph::edge_property_t<edge_t, bool>> self_loop_edge_mask{std::nullopt};
+  auto cur_graph_view = graph_view;
+  if (cur_graph_view.count_self_loops(handle) > edge_t{0}) {
+    self_loop_edge_mask = cugraph::edge_property_t<edge_t, bool>(handle, cur_graph_view);
+    if (cur_graph_view.has_edge_mask()) { cur_graph_view.clear_edge_mask(); }
+    cugraph::fill_edge_property(handle, cur_graph_view, self_loop_edge_mask->mutable_view(), false);
+
+    transform_e(handle,
+                graph_view,
+                edge_src_dummy_property_t{}.view(),
+                edge_dst_dummy_property_t{}.view(),
+                edge_dummy_property_t{}.view(),
+                cuda::proclaim_return_type<bool>(
+                  [] __device__(auto src, auto dst, auto, auto, auto) { return src != dst; }),
+                self_loop_edge_mask->mutable_view());
+
+    cur_graph_view.attach_edge_mask(self_loop_edge_mask->view());
+  }
 
   rmm::device_uvector<vertex_t> edgelist_srcs(0, handle.get_stream());
   rmm::device_uvector<vertex_t> edgelist_dsts(0, handle.get_stream());
   std::tie(edgelist_srcs, edgelist_dsts, std::ignore, std::ignore, std::ignore) =
     decompress_to_edgelist<vertex_t, edge_t, weight_t, int32_t>(
-      handle, graph_view, std::nullopt, std::nullopt, std::nullopt, std::nullopt);
+      handle, cur_graph_view, std::nullopt, std::nullopt, std::nullopt, std::nullopt);
 
   auto edge_first = thrust::make_zip_iterator(edgelist_srcs.begin(), edgelist_dsts.begin());
 
@@ -167,7 +189,7 @@ edge_property_t<edge_t, edge_t> edge_triangle_count_impl(
     // Perform 'nbr_intersection' in chunks to reduce peak memory.
     auto [intersection_offsets, intersection_indices] =
       per_v_pair_dst_nbr_intersection(handle,
-                                      graph_view,
+                                      cur_graph_view,
                                       edge_first + prev_chunk_size,
                                       edge_first + prev_chunk_size + chunk_size,
                                       do_expensive_check);
@@ -277,7 +299,7 @@ edge_property_t<edge_t, edge_t> edge_triangle_count_impl(
           std::nullopt,
           std::nullopt,
           std::nullopt,
-          graph_view.vertex_partition_range_lasts());
+          cur_graph_view.vertex_partition_range_lasts());
 
       thrust::for_each(
         handle.get_thrust_policy(),
@@ -340,7 +362,12 @@ edge_property_t<edge_t, edge_t> edge_triangle_count_impl(
     prev_chunk_size += chunk_size;
   }
 
-  cugraph::edge_property_t<edge_t, edge_t> counts(handle, graph_view);
+  cugraph::edge_property_t<edge_t, edge_t> counts(handle, cur_graph_view);
+  {
+    auto unmasked_graph_view = cur_graph_view;
+    if (unmasked_graph_view.has_edge_mask()) { unmasked_graph_view.clear_edge_mask(); }
+    cugraph::fill_edge_property(handle, unmasked_graph_view, counts.mutable_view(), edge_t{0});
+  }
 
   cugraph::edge_bucket_t<vertex_t, edge_t, true, multi_gpu, true> valid_edges(
     handle, false /* multigraph */);
@@ -349,11 +376,9 @@ edge_property_t<edge_t, edge_t> edge_triangle_count_impl(
                      edgelist_dsts.begin(),
                      std::optional<edge_t const*>{std::nullopt});
 
-  auto cur_graph_view = graph_view;
-
   cugraph::transform_e(
     handle,
-    graph_view,
+    cur_graph_view,
     valid_edges,
     cugraph::edge_src_dummy_property_t{}.view(),
     cugraph::edge_dst_dummy_property_t{}.view(),

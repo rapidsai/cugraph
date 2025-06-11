@@ -1,3 +1,68 @@
+# cugraph 25.06.00 (5 Jun 2025)
+
+## 🚨 Breaking Changes
+
+- Convert non-type template parameter store_transposed in edge_src|dst_property_t to a runtime parameter ([#5074](https://github.com/rapidsai/cugraph/pull/5074)) [@seunghwak](https://github.com/seunghwak)
+- Remove Remaining cuGraph-DGL Code ([#5061](https://github.com/rapidsai/cugraph/pull/5061)) [@alexbarghi-nv](https://github.com/alexbarghi-nv)
+- Simplify edge_property_t ([#5053](https://github.com/rapidsai/cugraph/pull/5053)) [@ChuckHastings](https://github.com/ChuckHastings)
+- Add support for random state to FA2 ([#5052](https://github.com/rapidsai/cugraph/pull/5052)) [@jnke2016](https://github.com/jnke2016)
+
+## 🐛 Bug Fixes
+
+- Adds `test_node2vec` to temporary non-xdist test list ([#5084](https://github.com/rapidsai/cugraph/pull/5084)) [@rlratzel](https://github.com/rlratzel)
+- Update method retrieving the edgelist ([#5082](https://github.com/rapidsai/cugraph/pull/5082)) [@jnke2016](https://github.com/jnke2016)
+- Pin cython to avoid version 3.1.0 because of bug (cython issue 6841) ([#5068](https://github.com/rapidsai/cugraph/pull/5068)) [@rlratzel](https://github.com/rlratzel)
+- Fix MSBFS Test Failure ([#5051](https://github.com/rapidsai/cugraph/pull/5051)) [@jnke2016](https://github.com/jnke2016)
+- Temporarily disable test so we can upgrade to CCCL 2.8.x ([#5047](https://github.com/rapidsai/cugraph/pull/5047)) [@ChuckHastings](https://github.com/ChuckHastings)
+- Added  #include &lt;cuda/std/cmath&gt; for correct cuda::std::log reference ([#5039](https://github.com/rapidsai/cugraph/pull/5039)) [@SagaciousFish](https://github.com/SagaciousFish)
+- Fix ForceAtlas2 incorrect loop conditions ([#5030](https://github.com/rapidsai/cugraph/pull/5030)) [@MathisHammel](https://github.com/MathisHammel)
+- Fix sampling primitive build error. ([#5004](https://github.com/rapidsai/cugraph/pull/5004)) [@seunghwak](https://github.com/seunghwak)
+
+## 🛠️ Improvements
+
+- Test WCC with edge masking ([#5093](https://github.com/rapidsai/cugraph/pull/5093)) [@seunghwak](https://github.com/seunghwak)
+- use &#39;rapids-init-pip&#39; in wheel CI, other CI changes ([#5089](https://github.com/rapidsai/cugraph/pull/5089)) [@jameslamb](https://github.com/jameslamb)
+- Removes unnecessary dependencies from cugraph-service ([#5087](https://github.com/rapidsai/cugraph/pull/5087)) [@rlratzel](https://github.com/rlratzel)
+- Utility functions to create an edge_src|dst_property view objects. ([#5078](https://github.com/rapidsai/cugraph/pull/5078)) [@seunghwak](https://github.com/seunghwak)
+- Test code for Graph 500 BFS ([#5077](https://github.com/rapidsai/cugraph/pull/5077)) [@seunghwak](https://github.com/seunghwak)
+- Remove pure=False from client.compute calls ([#5076](https://github.com/rapidsai/cugraph/pull/5076)) [@TomAugspurger](https://github.com/TomAugspurger)
+- Finish CUDA 12.9 migration and use branch-25.06 workflows ([#5075](https://github.com/rapidsai/cugraph/pull/5075)) [@bdice](https://github.com/bdice)
+- Convert non-type template parameter store_transposed in edge_src|dst_property_t to a runtime parameter ([#5074](https://github.com/rapidsai/cugraph/pull/5074)) [@seunghwak](https://github.com/seunghwak)
+- Update to clang 20 ([#5073](https://github.com/rapidsai/cugraph/pull/5073)) [@bdice](https://github.com/bdice)
+- Remove get_test_data before tests run. ([#5072](https://github.com/rapidsai/cugraph/pull/5072)) [@bdice](https://github.com/bdice)
+- Make thrust_tuple_cat device callable. ([#5070](https://github.com/rapidsai/cugraph/pull/5070)) [@seunghwak](https://github.com/seunghwak)
+- Quote head_rev in conda recipes ([#5069](https://github.com/rapidsai/cugraph/pull/5069)) [@bdice](https://github.com/bdice)
+- fix(rattler): add librmm to host to fix overlinking errors ([#5065](https://github.com/rapidsai/cugraph/pull/5065)) [@gforsyth](https://github.com/gforsyth)
+- CUDA 12.9 use updated compression flags ([#5064](https://github.com/rapidsai/cugraph/pull/5064)) [@robertmaynard](https://github.com/robertmaynard)
+- Remove Remaining cuGraph-DGL Code ([#5061](https://github.com/rapidsai/cugraph/pull/5061)) [@alexbarghi-nv](https://github.com/alexbarghi-nv)
+- Exclude librmm.so from auditwheel ([#5058](https://github.com/rapidsai/cugraph/pull/5058)) [@bdice](https://github.com/bdice)
+- Add support for Python 3.13 ([#5057](https://github.com/rapidsai/cugraph/pull/5057)) [@gforsyth](https://github.com/gforsyth)
+- Simplify edge_property_t ([#5053](https://github.com/rapidsai/cugraph/pull/5053)) [@ChuckHastings](https://github.com/ChuckHastings)
+- Add support for random state to FA2 ([#5052](https://github.com/rapidsai/cugraph/pull/5052)) [@jnke2016](https://github.com/jnke2016)
+- [BUGFIX] Fixed quoting in wheel paths in cugraph and pylibcugraph tests ([#5049](https://github.com/rapidsai/cugraph/pull/5049)) [@VenkateshJaya](https://github.com/VenkateshJaya)
+- Fix failing test with new cccl ([#5046](https://github.com/rapidsai/cugraph/pull/5046)) [@ChuckHastings](https://github.com/ChuckHastings)
+- add C implementation of MST ([#5044](https://github.com/rapidsai/cugraph/pull/5044)) [@jnke2016](https://github.com/jnke2016)
+- Download build artifacts from GitHub for CI ([#5043](https://github.com/rapidsai/cugraph/pull/5043)) [@VenkateshJaya](https://github.com/VenkateshJaya)
+- Avoid unnecessary libcugraph wheel builds ([#5037](https://github.com/rapidsai/cugraph/pull/5037)) [@VenkateshJaya](https://github.com/VenkateshJaya)
+- Use public pylibcudf APIs in graph_primtypes ([#5036](https://github.com/rapidsai/cugraph/pull/5036)) [@mroeschke](https://github.com/mroeschke)
+- refactor(rattler): enable strict channel priority for builds ([#5035](https://github.com/rapidsai/cugraph/pull/5035)) [@gforsyth](https://github.com/gforsyth)
+- Reduce peak memory usage ([#5031](https://github.com/rapidsai/cugraph/pull/5031)) [@seunghwak](https://github.com/seunghwak)
+- Avoid private cuDF Python APIs ([#5028](https://github.com/rapidsai/cugraph/pull/5028)) [@mroeschke](https://github.com/mroeschke)
+- Use pytest-xdist for parallel testing ([#5027](https://github.com/rapidsai/cugraph/pull/5027)) [@bdice](https://github.com/bdice)
+- Vendor RAPIDS.cmake ([#5024](https://github.com/rapidsai/cugraph/pull/5024)) [@bdice](https://github.com/bdice)
+- Add missing thrust headers &amp; Pass dtype objects to cuDF as_column ([#5023](https://github.com/rapidsai/cugraph/pull/5023)) [@alliepiper](https://github.com/alliepiper)
+- Add ARM conda environments ([#5021](https://github.com/rapidsai/cugraph/pull/5021)) [@bdice](https://github.com/bdice)
+- Add missing shuffle function declarations in shuffle_funcstions.hpp ([#5018](https://github.com/rapidsai/cugraph/pull/5018)) [@seunghwak](https://github.com/seunghwak)
+- Do not pretend to default initialize a device lambda ([#5015](https://github.com/rapidsai/cugraph/pull/5015)) [@miscco](https://github.com/miscco)
+- Update C++ test binary file output directory from build/tests to build/gtests ([#5014](https://github.com/rapidsai/cugraph/pull/5014)) [@seunghwak](https://github.com/seunghwak)
+- Replace `Thrust` iterator facilities with `libcu++` ones ([#5013](https://github.com/rapidsai/cugraph/pull/5013)) [@miscco](https://github.com/miscco)
+- Branch 25.06 merge 25.04 ([#5007](https://github.com/rapidsai/cugraph/pull/5007)) [@rlratzel](https://github.com/rlratzel)
+- Fixes Failing Cugraph Uniform Neighbor Sample Benchmark ([#5001](https://github.com/rapidsai/cugraph/pull/5001)) [@nv-rliu](https://github.com/nv-rliu)
+- Port all conda recipes to `rattler-build` ([#4999](https://github.com/rapidsai/cugraph/pull/4999)) [@gforsyth](https://github.com/gforsyth)
+- Moving wheel builds to specified location and uploading build artifacts to Github ([#4993](https://github.com/rapidsai/cugraph/pull/4993)) [@VenkateshJaya](https://github.com/VenkateshJaya)
+- Refactor Python Neighborhood Sample ([#4988](https://github.com/rapidsai/cugraph/pull/4988)) [@jnke2016](https://github.com/jnke2016)
+- Add shellcheck to pre-commit and fix warnings ([#4954](https://github.com/rapidsai/cugraph/pull/4954)) [@gforsyth](https://github.com/gforsyth)
+
 # cugraph 25.04.00 (9 Apr 2025)
 
 ## 🚨 Breaking Changes
