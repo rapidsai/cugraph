@@ -165,7 +165,6 @@ def test_reader_dask(dask_client, dataset):
 
     assert E is not None
     assert isinstance(E, dask_cudf.DataFrame)
-    dataset.unload()
 
 
 @pytest.mark.parametrize("dataset", ALL_DATASETS)
@@ -423,8 +422,6 @@ def test_benchmarking_datasets(dataset):
     assert has_selfloop(dataset) == dataset.metadata["has_loop"]
     assert is_symmetric(dataset) == dataset.metadata["is_symmetric"]
     assert G.is_multigraph() == dataset.metadata["is_multigraph"]
-
-    dataset.unload()
 
 
 @pytest.mark.parametrize("dataset", ALL_DATASETS)
