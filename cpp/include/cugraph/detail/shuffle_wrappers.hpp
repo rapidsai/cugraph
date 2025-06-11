@@ -187,25 +187,18 @@ shuffle_int_vertex_value_pairs_to_local_gpu_by_vertex_partitioning(
 /**
  * @ingroup shuffle_wrappers_cpp
  * @brief Groupby and count edgelist using the key function which returns the target local partition
- * ID for an edge.
+ * ID for an edge.  The specified spans are reordered in place.
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
- * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
- * @tparam weight_t Type of edge weights. Needs to be a floating point type.
- * @tparam edge_type_t Type of edge type identifiers. Needs to be an integral type.
- * @tparam edge_time_t Type of edge time. Needs to be an integral type.
  *
  * @param[in] handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator,
  * and handles to various CUDA libraries) to run graph algorithms.
- * @param[in,out] d_edgelist_majors Vertex IDs for sources (if we are internally storing edges in
+ * @param[in,out] edgelist_majors Vertex IDs for sources (if we are internally storing edges in
  * the sparse 2D matrix using sources as major indices) or destinations (otherwise)
- * @param[in,out] d_edgelist_minors Vertex IDs for destinations (if we are internally storing edges
+ * @param[in,out] edgelist_minors Vertex IDs for destinations (if we are internally storing edges
  * in the sparse 2D matrix using sources as major indices) or sources (otherwise)
- * @param[in,out] d_edgelist_weights Optional edge weights
- * @param[in,out] d_edgelist_ids Optional edge ids
- * @param[in,out] d_edgelist_types Optional edge types
- * @param[in,out] d_edgelist_start_times Optional edge start times
- * @param[in,out] d_edgelist_end_times Optional edge end times
+ * @param[in,out] edgelist_properties Span of edge properties, each element a device span of an
+ * edge property.
  * @param[in] groupby_and_count_local_partition_by_minor If set to true, groupby and count edges
  * based on (local partition ID, GPU ID) pairs (where GPU IDs are computed by applying the
  * compute_gpu_id_from_vertex_t function to the minor vertex ID). If set to false, groupby and count
@@ -220,7 +213,7 @@ rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
   raft::handle_t const& handle,
   raft::device_span<vertex_t> edgelist_majors,
   raft::device_span<vertex_t> edgelist_minors,
-  raft::host_span<cugraph::arithmetic_device_span_t> edgelist_properties,
+  raft::host_span<arithmetic_device_span_t> edgelist_properties,
   bool groupby_and_count_local_partition_by_minor = false);
 
 /**
@@ -259,4 +252,45 @@ rmm::device_uvector<value_t> collect_local_vertex_values_from_ext_vertex_value_p
   bool do_expensive_check);
 
 }  // namespace detail
+
+/**
+ * @ingroup shuffle_wrappers_cpp
+ * @brief Shuffle keys and their associated properties to the proper GPU based on a partitioning
+ * function.  Keys for this function are assumed to be an arithmetic type
+ *
+ * @tparam key_t type of key
+ * @tparam key_to_gpu_op_t Function to convert key to GPU id
+ *
+ * @param[in] handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator,
+ * and handles to various CUDA libraries) to run graph algorithms.
+ * @param [in] key Device vector of keys
+ * @param [in] properties Vector of device vectors of properties associated with each key
+ * @param [in] key_to_gpu_op function converting key to a GPU id
+ *
+ * @return tuple of device vector of keys and vector of device vector of properties associated with
+ * the key.
+ */
+template <typename key_t, typename key_to_gpu_op_t>
+std::tuple<rmm::device_uvector<key_t>, std::vector<arithmetic_device_uvector_t>>
+shuffle_keys_with_properties(raft::handle_t const& handle,
+                             rmm::device_uvector<key_t>&& keys,
+                             std::vector<arithmetic_device_uvector_t>&& properties,
+                             key_to_gpu_op_t key_to_gpu_op);
+
+/**
+ * @ingroup shuffle_wrappers_cpp
+ * @brief Shuffle properties to the proper GPU
+ * *
+ * @param[in] handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator,
+ * and handles to various CUDA libraries) to run graph algorithms.
+ * @param [in] gpu Device vector of gpu ids
+ * @param [in] properties Vector of device vectors of properties
+ *
+ * @return vector of device vector of properties shuffled to the proper GPU
+ */
+std::vector<arithmetic_device_uvector_t> shuffle_properties(
+  raft::handle_t const& handle,
+  rmm::device_uvector<int>&& gpus,
+  std::vector<arithmetic_device_uvector_t>&& properties);
+
 }  // namespace cugraph
