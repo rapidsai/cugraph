@@ -13,6 +13,7 @@
 
 import os
 import gc
+import importlib
 from pathlib import Path
 
 import pandas
@@ -219,9 +220,8 @@ def test_get_path(dataset, tmp_path):
     datasets.set_download_dir(tmp_path.name)
     dataset.get_edgelist(download=True)
 
-    # assert dataset.get_path().is_file()
-    assert 1 == 0
-    print(dataset.get_path())
+    assert dataset.get_path().is_file()
+
     datasets.set_download_dir(None)
 
 
@@ -335,19 +335,20 @@ def test_ctor_with_datafile():
 
 
 def test_unload():
-    from cugraph.datasets import karate
+    importlib.reload(datasets)
+    test_obj = datasets.karate
 
-    assert karate._edgelist is None
+    assert test_obj._edgelist is None
 
-    karate.get_edgelist()
-    assert karate._edgelist is not None
-    karate.unload()
-    assert karate._edgelist is None
+    test_obj.get_edgelist(download=True)
+    assert test_obj._edgelist is not None
+    test_obj.unload()
+    assert test_obj._edgelist is None
 
-    karate.get_graph()
-    assert karate._edgelist is not None
-    karate.unload()
-    assert karate._edgelist is None
+    test_obj.get_graph()
+    assert test_obj._edgelist is not None
+    test_obj.unload()
+    assert test_obj._edgelist is None
 
 
 @pytest.mark.parametrize("dataset", ALL_DATASETS)
