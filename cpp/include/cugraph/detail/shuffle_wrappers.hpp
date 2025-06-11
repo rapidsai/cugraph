@@ -215,7 +215,7 @@ shuffle_int_vertex_value_pairs_to_local_gpu_by_vertex_partitioning(
  * the sparse 2D matrix using sources as major indices) or destinations (otherwise)
  * @param[in,out] edgelist_minors Vertex IDs for destinations (if we are internally storing edges
  * in the sparse 2D matrix using sources as major indices) or sources (otherwise)
- * @param[in,out] edgelist_properties Vector of edge properties, each element a device span of an
+ * @param[in,out] edgelist_properties Span of edge properties, each element a device span of an
  * edge property.
  * @param[in] groupby_and_count_local_partition_by_minor If set to true, groupby and count edges
  * based on (local partition ID, GPU ID) pairs (where GPU IDs are computed by applying the
