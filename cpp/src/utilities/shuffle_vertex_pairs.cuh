@@ -127,7 +127,8 @@ shuffle_vertex_pairs_with_values_by_gpu_id_impl(
       [func] __device__(auto val) { return func(thrust::get<0>(val), thrust::get<1>(val)); },
       comm_size,
       mem_frugal_threshold,
-      handle.get_stream());
+      handle.get_stream(),
+      large_buffer_type);
   } else if (edge_property_count == 1) {
     if (weights) {
       d_tx_value_counts = cugraph::groupby_and_count(
@@ -136,7 +137,8 @@ shuffle_vertex_pairs_with_values_by_gpu_id_impl(
         [func] __device__(auto val) { return func(thrust::get<0>(val), thrust::get<1>(val)); },
         comm_size,
         mem_frugal_threshold,
-        handle.get_stream());
+        handle.get_stream(),
+        large_buffer_type);
     } else if (edge_ids) {
       d_tx_value_counts = cugraph::groupby_and_count(
         thrust::make_zip_iterator(majors.begin(), minors.begin(), edge_ids->begin()),
@@ -144,7 +146,8 @@ shuffle_vertex_pairs_with_values_by_gpu_id_impl(
         [func] __device__(auto val) { return func(thrust::get<0>(val), thrust::get<1>(val)); },
         comm_size,
         mem_frugal_threshold,
-        handle.get_stream());
+        handle.get_stream(),
+        large_buffer_type);
     } else if (edge_types) {
       d_tx_value_counts = cugraph::groupby_and_count(
         thrust::make_zip_iterator(majors.begin(), minors.begin(), edge_types->begin()),
@@ -152,7 +155,8 @@ shuffle_vertex_pairs_with_values_by_gpu_id_impl(
         [func] __device__(auto val) { return func(thrust::get<0>(val), thrust::get<1>(val)); },
         comm_size,
         mem_frugal_threshold,
-        handle.get_stream());
+        handle.get_stream(),
+        large_buffer_type);
     } else if (edge_start_times) {
       d_tx_value_counts = cugraph::groupby_and_count(
         thrust::make_zip_iterator(majors.begin(), minors.begin(), edge_start_times->begin()),
@@ -160,7 +164,8 @@ shuffle_vertex_pairs_with_values_by_gpu_id_impl(
         [func] __device__(auto val) { return func(thrust::get<0>(val), thrust::get<1>(val)); },
         comm_size,
         mem_frugal_threshold,
-        handle.get_stream());
+        handle.get_stream(),
+        large_buffer_type);
     } else if (edge_end_times) {
       d_tx_value_counts = cugraph::groupby_and_count(
         thrust::make_zip_iterator(majors.begin(), minors.begin(), edge_end_times->begin()),
@@ -168,7 +173,8 @@ shuffle_vertex_pairs_with_values_by_gpu_id_impl(
         [func] __device__(auto val) { return func(thrust::get<0>(val), thrust::get<1>(val)); },
         comm_size,
         mem_frugal_threshold,
-        handle.get_stream());
+        handle.get_stream(),
+        large_buffer_type);
     }
   } else {
     auto property_position =
@@ -184,7 +190,8 @@ shuffle_vertex_pairs_with_values_by_gpu_id_impl(
       [func] __device__(auto val) { return func(thrust::get<0>(val), thrust::get<1>(val)); },
       comm_size,
       mem_frugal_threshold,
-      handle.get_stream());
+      handle.get_stream(),
+      large_buffer_type);
 
     if (weights) {
       auto tmp = large_buffer_type

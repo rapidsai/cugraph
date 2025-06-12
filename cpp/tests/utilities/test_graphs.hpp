@@ -469,7 +469,8 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
             std::nullopt,
             std::nullopt,
             std::nullopt,
-            store_transposed);
+            store_transposed,
+            large_edge_buffer_type);
       }
 
       edge_src_chunks.push_back(std::move(tmp_src_v));
