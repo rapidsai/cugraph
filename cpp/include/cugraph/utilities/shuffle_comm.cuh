@@ -81,7 +81,7 @@ inline std::tuple<std::vector<size_t>,
                   std::vector<size_t>,
                   std::vector<int>>
 compute_tx_rx_counts_displs_ranks(raft::comms::comms_t const& comm,
-                                  rmm::device_uvector<size_t> const& d_tx_value_counts,
+                                  raft::device_span<size_t const> d_tx_value_counts,
                                   bool drop_empty_ranks,
                                   rmm::cuda_stream_view stream_view)
 {
@@ -900,7 +900,7 @@ rmm::device_uvector<size_t> groupby_and_count(
 template <typename TxValueIterator>
 auto shuffle_values(raft::comms::comms_t const& comm,
                     TxValueIterator tx_value_first,
-                    raft::host_span<size_t const> tx_value_counts,
+                    raft::device_span<size_t const> d_tx_value_counts,
                     rmm::cuda_stream_view stream_view,
                     std::optional<large_buffer_type_t> large_buffer_type = std::nullopt)
 {
@@ -910,10 +910,6 @@ auto shuffle_values(raft::comms::comms_t const& comm,
                   "Invalid input argument: large memory buffer is not initialized.");
 
   auto const comm_size = comm.get_size();
-
-  rmm::device_uvector<size_t> d_tx_value_counts(comm_size, stream_view);
-  raft::update_device(
-    d_tx_value_counts.data(), tx_value_counts.data(), comm_size, stream_view.value());
 
   std::vector<size_t> tx_counts{};
   std::vector<size_t> tx_displs{};
@@ -952,6 +948,29 @@ auto shuffle_values(raft::comms::comms_t const& comm,
   }
 
   return std::make_tuple(std::move(rx_value_buffer), rx_counts);
+}
+
+template <typename TxValueIterator>
+auto shuffle_values(raft::comms::comms_t const& comm,
+                    TxValueIterator tx_value_first,
+                    raft::host_span<size_t const> tx_value_counts,
+                    rmm::cuda_stream_view stream_view,
+                    std::optional<large_buffer_type_t> large_buffer_type = std::nullopt)
+{
+  using value_t = typename thrust::iterator_traits<TxValueIterator>::value_type;
+
+  auto const comm_size = comm.get_size();
+
+  rmm::device_uvector<size_t> d_tx_value_counts(comm_size, stream_view);
+  raft::update_device(
+    d_tx_value_counts.data(), tx_value_counts.data(), comm_size, stream_view.value());
+
+  return shuffle_values(
+    comm,
+    tx_value_first,
+    raft::device_span<size_t const>{d_tx_value_counts.data(), d_tx_value_counts.size()},
+    stream_view,
+    large_buffer_type);
 }
 
 // Add gaps in the receive buffer to enforce that the sent data offset and the received data offset
@@ -1148,7 +1167,11 @@ auto shuffle_and_unique_segment_sorted_values(
     std::vector<size_t> rx_counts{};
     std::vector<size_t> rx_displs{};
     std::tie(tx_counts, tx_displs, std::ignore, rx_counts, rx_displs, std::ignore) =
-      detail::compute_tx_rx_counts_displs_ranks(comm, d_tx_value_counts, false, stream_view);
+      detail::compute_tx_rx_counts_displs_ranks(
+        comm,
+        raft::device_span<size_t const>{d_tx_value_counts.data(), d_tx_value_counts.size()},
+        false,
+        stream_view);
 
     d_tx_value_counts.resize(0, stream_view);
     d_tx_value_counts.shrink_to_fit(stream_view);
@@ -1237,7 +1260,11 @@ auto groupby_gpu_id_and_shuffle_values(
   std::vector<size_t> rx_displs{};
   std::vector<int> rx_src_ranks{};
   std::tie(tx_counts, tx_displs, tx_dst_ranks, rx_counts, rx_displs, rx_src_ranks) =
-    detail::compute_tx_rx_counts_displs_ranks(comm, d_tx_value_counts, true, stream_view);
+    detail::compute_tx_rx_counts_displs_ranks(
+      comm,
+      raft::device_span<size_t const>{d_tx_value_counts.data(), d_tx_value_counts.size()},
+      true,
+      stream_view);
 
   auto rx_buffer_size = rx_displs.size() > 0 ? rx_displs.back() + rx_counts.back() : size_t{0};
   auto rx_value_buffer =
@@ -1302,7 +1329,11 @@ auto groupby_gpu_id_and_shuffle_kv_pairs(
   std::vector<size_t> rx_displs{};
   std::vector<int> rx_src_ranks{};
   std::tie(tx_counts, tx_displs, tx_dst_ranks, rx_counts, rx_displs, rx_src_ranks) =
-    detail::compute_tx_rx_counts_displs_ranks(comm, d_tx_value_counts, true, stream_view);
+    detail::compute_tx_rx_counts_displs_ranks(
+      comm,
+      raft::device_span<size_t const>{d_tx_value_counts.data(), d_tx_value_counts.size()},
+      true,
+      stream_view);
 
   auto rx_buffer_size = rx_displs.size() > 0 ? rx_displs.back() + rx_counts.back() : size_t{0};
   auto rx_keys        = large_buffer_type ? large_buffer_manager::allocate_memory_buffer<vertex_t>(

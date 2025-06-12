@@ -18,6 +18,7 @@
 #include "prims/kv_store.cuh"
 #include "utilities/collect_comm.cuh"
 
+#include <cugraph/arithmetic_variant_types.hpp>
 #include <cugraph/detail/collect_comm_wrapper.hpp>
 #include <cugraph/detail/decompress_edge_partition.cuh>
 #include <cugraph/detail/shuffle_wrappers.hpp>
@@ -31,6 +32,8 @@
 
 #include <cuda/std/iterator>
 #include <cuda/std/optional>
+
+#include <vector>
 
 namespace cugraph {
 
@@ -435,35 +438,34 @@ EdgeTypeAndIdToSrcDstLookupContainerType build_edge_id_and_type_to_src_dst_looku
                  type_and_gpu_id_pair_begin,
                  type_and_gpu_id_pair_begin + edge_types.size());
 
-    auto nr_unique_paris = thrust::count_if(
+    auto nr_unique_pairs = thrust::count_if(
       handle.get_thrust_policy(),
       thrust::make_counting_iterator(size_t{0}),
       thrust::make_counting_iterator(edge_types.size()),
       detail::is_first_in_run_t<decltype(type_and_gpu_id_pair_begin)>{type_and_gpu_id_pair_begin});
 
-    auto unique_pairs_buffer = cugraph::allocate_dataframe_buffer<
-      typename thrust::iterator_traits<decltype(type_and_gpu_id_pair_begin)>::value_type>(
-      nr_unique_paris, handle.get_stream());
-
-    rmm::device_uvector<edge_t> unique_pair_counts(nr_unique_paris, handle.get_stream());
+    rmm::device_uvector<int> unique_gpu_ids(nr_unique_pairs, handle.get_stream());
+    rmm::device_uvector<edge_type_t> unique_edge_types(nr_unique_pairs, handle.get_stream());
+    rmm::device_uvector<edge_t> unique_pair_counts(nr_unique_pairs, handle.get_stream());
 
     {
-      rmm::device_uvector<edge_t> unique_pair_end_offsets(nr_unique_paris, handle.get_stream());
+      rmm::device_uvector<edge_t> unique_pair_end_offsets(nr_unique_pairs, handle.get_stream());
 
       thrust::copy_if(handle.get_thrust_policy(),
                       type_and_gpu_id_pair_begin,
                       type_and_gpu_id_pair_begin + edge_types.size(),
                       thrust::make_counting_iterator(size_t{0}),
-                      cugraph::get_dataframe_buffer_begin(unique_pairs_buffer),
+                      thrust::make_zip_iterator(unique_edge_types.begin(), unique_gpu_ids.begin()),
                       detail::is_first_in_run_t<decltype(type_and_gpu_id_pair_begin)>{
                         type_and_gpu_id_pair_begin});
 
-      thrust::upper_bound(handle.get_thrust_policy(),
-                          type_and_gpu_id_pair_begin,
-                          type_and_gpu_id_pair_begin + edge_types.size(),
-                          cugraph::get_dataframe_buffer_begin(unique_pairs_buffer),
-                          cugraph::get_dataframe_buffer_end(unique_pairs_buffer),
-                          unique_pair_end_offsets.begin());
+      thrust::upper_bound(
+        handle.get_thrust_policy(),
+        type_and_gpu_id_pair_begin,
+        type_and_gpu_id_pair_begin + edge_types.size(),
+        thrust::make_zip_iterator(unique_edge_types.begin(), unique_gpu_ids.begin()),
+        thrust::make_zip_iterator(unique_edge_types.end(), unique_gpu_ids.end()),
+        unique_pair_end_offsets.begin());
 
       thrust::adjacent_difference(handle.get_thrust_policy(),
                                   unique_pair_end_offsets.begin(),
@@ -476,40 +478,37 @@ EdgeTypeAndIdToSrcDstLookupContainerType build_edge_id_and_type_to_src_dst_looku
     edge_types.shrink_to_fit(handle.get_stream());
     gpu_ids.shrink_to_fit(handle.get_stream());
 
-    std::forward_as_tuple(
-      std::tie(std::get<0>(unique_pairs_buffer), std::ignore, unique_pair_counts), std::ignore) =
-      cugraph::groupby_gpu_id_and_shuffle_values(
-        handle.get_comms(),
-        thrust::make_zip_iterator(thrust::make_tuple(std::get<0>(unique_pairs_buffer).begin(),
-                                                     std::get<1>(unique_pairs_buffer).begin(),
-                                                     unique_pair_counts.begin())),
-        thrust::make_zip_iterator(thrust::make_tuple(std::get<0>(unique_pairs_buffer).end(),
-                                                     std::get<1>(unique_pairs_buffer).end(),
-                                                     unique_pair_counts.end())),
-        [] __device__(auto val) { return thrust::get<1>(val); },
-        handle.get_stream());
+    std::vector<cugraph::arithmetic_device_uvector_t> unique_properties{};
+    unique_properties.push_back(std::move(unique_edge_types));
+    unique_properties.push_back(std::move(unique_pair_counts));
+
+    unique_properties =
+      cugraph::shuffle_properties(handle, std::move(unique_gpu_ids), std::move(unique_properties));
 
     //
-    // Count local #elments for all the types mapped to this GPU
+    // Count local #elements for all the types mapped to this GPU
     //
+    unique_edge_types = std::move(std::get<rmm::device_uvector<edge_type_t>>(unique_properties[0]));
+    unique_pair_counts = std::move(std::get<rmm::device_uvector<edge_t>>(unique_properties[1]));
+    unique_properties.clear();
 
     thrust::sort_by_key(handle.get_thrust_policy(),
-                        std::get<0>(unique_pairs_buffer).begin(),
-                        std::get<0>(unique_pairs_buffer).end(),
+                        unique_edge_types.begin(),
+                        unique_edge_types.end(),
                         unique_pair_counts.begin());
 
-    auto nr_unique_types = thrust::count_if(
-      handle.get_thrust_policy(),
-      thrust::make_counting_iterator(size_t{0}),
-      thrust::make_counting_iterator(std::get<0>(unique_pairs_buffer).size()),
-      detail::is_first_in_run_t<edge_type_t const*>{std::get<0>(unique_pairs_buffer).data()});
+    auto nr_unique_types =
+      thrust::count_if(handle.get_thrust_policy(),
+                       thrust::make_counting_iterator(size_t{0}),
+                       thrust::make_counting_iterator(unique_edge_types.size()),
+                       detail::is_first_in_run_t<edge_type_t const*>{unique_edge_types.data()});
 
     unique_types.resize(static_cast<size_t>(nr_unique_types), handle.get_stream());
     unique_type_counts.resize(static_cast<size_t>(nr_unique_types), handle.get_stream());
 
     thrust::reduce_by_key(handle.get_thrust_policy(),
-                          std::get<0>(unique_pairs_buffer).begin(),
-                          std::get<0>(unique_pairs_buffer).end(),
+                          unique_edge_types.begin(),
+                          unique_edge_types.end(),
                           unique_pair_counts.begin(),
                           unique_types.begin(),
                           unique_type_counts.begin());
@@ -641,24 +640,21 @@ EdgeTypeAndIdToSrcDstLookupContainerType build_edge_id_and_type_to_src_dst_looku
       auto const minor_comm_size = minor_comm.get_size();
 
       // Shuffle to the proper GPUs
-      std::forward_as_tuple(
-        std::tie(edgelist_majors, edgelist_minors, edgelist_ids, edgelist_types), std::ignore) =
-        cugraph::groupby_gpu_id_and_shuffle_values(
-          handle.get_comms(),
-          thrust::make_zip_iterator(thrust::make_tuple(edgelist_majors.begin(),
-                                                       edgelist_minors.begin(),
-                                                       edgelist_ids.begin(),
-                                                       edgelist_types.begin())),
-          thrust::make_zip_iterator(thrust::make_tuple(edgelist_majors.end(),
-                                                       edgelist_minors.end(),
-                                                       edgelist_ids.end(),
-                                                       edgelist_types.end())),
-          [key_func =
-             cugraph::detail::compute_gpu_id_from_ext_edge_id_t<edge_t>{
-               comm_size, major_comm_size, minor_comm_size}] __device__(auto val) {
-            return key_func(thrust::get<2>(val));
-          },
-          handle.get_stream());
+      std::vector<cugraph::arithmetic_device_uvector_t> edgelist_values{};
+      edgelist_values.push_back(std::move(edgelist_majors));
+      edgelist_values.push_back(std::move(edgelist_minors));
+      edgelist_values.push_back(std::move(edgelist_types));
+
+      std::tie(edgelist_ids, edgelist_values) = cugraph::shuffle_keys_with_properties(
+        handle,
+        std::move(edgelist_ids),
+        std::move(edgelist_values),
+        cugraph::detail::compute_gpu_id_from_ext_edge_id_t<edge_t>{
+          comm_size, major_comm_size, minor_comm_size});
+
+      edgelist_majors = std::move(std::get<rmm::device_uvector<vertex_t>>(edgelist_values[0]));
+      edgelist_minors = std::move(std::get<rmm::device_uvector<vertex_t>>(edgelist_values[1]));
+      edgelist_types  = std::move(std::get<rmm::device_uvector<edge_type_t>>(edgelist_values[2]));
     }
 
     //
