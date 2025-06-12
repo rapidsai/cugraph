@@ -232,9 +232,15 @@ symmetrize_edgelist_from_triangular(raft::handle_t const& handle,
   auto new_srcs = large_buffer_type ? large_buffer_manager::allocate_memory_buffer<vertex_t>(
                                         new_size, handle.get_stream())
                                     : rmm::device_uvector<vertex_t>(new_size, handle.get_stream());
+  thrust::copy(handle.get_thrust_policy(), d_src_v.begin(), d_src_v.end(), new_srcs.begin());
+  d_src_v.resize(0, handle.get_stream());
+  d_src_v.shrink_to_fit(handle.get_stream());
   auto new_dsts = large_buffer_type ? large_buffer_manager::allocate_memory_buffer<vertex_t>(
                                         new_size, handle.get_stream())
                                     : rmm::device_uvector<vertex_t>(new_size, handle.get_stream());
+  thrust::copy(handle.get_thrust_policy(), d_dst_v.begin(), d_dst_v.end(), new_dsts.begin());
+  d_dst_v.resize(0, handle.get_stream());
+  d_dst_v.shrink_to_fit(handle.get_stream());
   auto new_weights =
     d_weight_v
       ? std::make_optional(
@@ -242,19 +248,20 @@ symmetrize_edgelist_from_triangular(raft::handle_t const& handle,
             ? large_buffer_manager::allocate_memory_buffer<weight_t>(new_size, handle.get_stream())
             : rmm::device_uvector<weight_t>(new_size, handle.get_stream()))
       : std::nullopt;
-  if (d_weight_v) {
-    auto old_edge_first = thrust::make_zip_iterator(
-      thrust::make_tuple(d_src_v.begin(), d_dst_v.begin(), d_weight_v->begin()));
+  if (new_weights) {
     thrust::copy(
-      handle.get_thrust_policy(),
-      old_edge_first,
-      old_edge_first + old_size,
-      thrust::make_zip_iterator(new_srcs.begin(), new_dsts.begin(), new_weights->begin()));
+      handle.get_thrust_policy(), d_weight_v->begin(), d_weight_v->end(), new_weights->begin());
+    d_weight_v = std::nullopt;
+  }
+
+  if (new_weights) {
+    auto edge_first = thrust::make_zip_iterator(
+      thrust::make_tuple(new_srcs.begin(), new_dsts.begin(), new_weights->begin()));
     if (check_diagonal) {
       thrust::copy_if(
         handle.get_thrust_policy(),
-        old_edge_first,
-        old_edge_first + old_size,
+        edge_first,
+        edge_first + old_size,
         thrust::make_zip_iterator(new_dsts.begin(), new_srcs.begin(), new_weights->begin()) +
           old_size,
         cuda::proclaim_return_type<bool>(
@@ -262,38 +269,26 @@ symmetrize_edgelist_from_triangular(raft::handle_t const& handle,
     } else {
       thrust::copy(
         handle.get_thrust_policy(),
-        old_edge_first,
-        old_edge_first + old_size,
+        edge_first,
+        edge_first + old_size,
         thrust::make_zip_iterator(new_dsts.begin(), new_srcs.begin(), new_weights->begin()) +
           old_size);
     }
   } else {
-    auto old_edge_first = thrust::make_zip_iterator(d_src_v.begin(), d_dst_v.begin());
-    thrust::copy(handle.get_thrust_policy(),
-                 old_edge_first,
-                 old_edge_first + old_size,
-                 thrust::make_zip_iterator(new_srcs.begin(), new_dsts.begin()));
+    auto edge_first = thrust::make_zip_iterator(new_srcs.begin(), new_dsts.begin());
     if (check_diagonal) {
       thrust::copy_if(handle.get_thrust_policy(),
-                      old_edge_first,
-                      old_edge_first + old_size,
+                      edge_first,
+                      edge_first + old_size,
                       thrust::make_zip_iterator(new_dsts.begin(), new_srcs.begin()) + old_size,
                       cuda::proclaim_return_type<bool>(
                         [] __device__(auto e) { return thrust::get<0>(e) != thrust::get<1>(e); }));
     } else {
       thrust::copy(handle.get_thrust_policy(),
-                   old_edge_first,
-                   old_edge_first + old_size,
+                   edge_first,
+                   edge_first + old_size,
                    thrust::make_zip_iterator(new_dsts.begin(), new_srcs.begin()) + old_size);
     }
-  }
-  d_src_v.resize(0, handle.get_stream());
-  d_src_v.shrink_to_fit(handle.get_stream());
-  d_dst_v.resize(0, handle.get_stream());
-  d_dst_v.shrink_to_fit(handle.get_stream());
-  if (d_weight_v) {
-    d_weight_v->resize(0, handle.get_stream());
-    d_weight_v->shrink_to_fit(handle.get_stream());
   }
 
   return std::make_tuple(std::move(new_srcs), std::move(new_dsts), std::move(new_weights));
