@@ -53,31 +53,6 @@ rmm::device_uvector<vertex_t> shuffle_ext_vertices_to_local_gpu_by_vertex_partit
   return std::move(vertices);
 }
 
-template <typename vertex_t, typename value_t>
-std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<value_t>>
-shuffle_ext_vertex_value_pairs_to_local_gpu_by_vertex_partitioning(
-  raft::handle_t const& handle,
-  rmm::device_uvector<vertex_t>&& vertices,
-  rmm::device_uvector<value_t>&& values)
-{
-  auto const comm_size       = handle.get_comms().get_size();
-  auto& major_comm           = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
-  auto const major_comm_size = major_comm.get_size();
-  auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
-  auto const minor_comm_size = minor_comm.get_size();
-
-  std::tie(vertices, values, std::ignore) = cugraph::groupby_gpu_id_and_shuffle_kv_pairs(
-    handle.get_comms(),
-    vertices.begin(),
-    vertices.end(),
-    get_dataframe_buffer_begin(values),
-    cugraph::detail::compute_gpu_id_from_ext_vertex_t<vertex_t>{
-      comm_size, major_comm_size, minor_comm_size},
-    handle.get_stream());
-
-  return std::make_tuple(std::move(vertices), std::move(values));
-}
-
 template <typename vertex_t>
 rmm::device_uvector<vertex_t> shuffle_int_vertices_to_local_gpu_by_vertex_partitioning(
   raft::handle_t const& handle,
@@ -153,34 +128,30 @@ rmm::device_uvector<vertex_t> shuffle_ext_vertices(raft::handle_t const& handle,
                                                                           std::move(vertices));
 }
 
-// deprecated
-template <typename vertex_t>
-rmm::device_uvector<vertex_t> shuffle_external_vertices(raft::handle_t const& handle,
-                                                        rmm::device_uvector<vertex_t>&& vertices)
-{
-  return detail::shuffle_ext_vertices_to_local_gpu_by_vertex_partitioning(handle,
-                                                                          std::move(vertices));
-}
-
-// deprecated
-template <typename vertex_t, typename value_t>
-std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<value_t>>
-shuffle_external_vertex_value_pairs(raft::handle_t const& handle,
-                                    rmm::device_uvector<vertex_t>&& vertices,
-                                    rmm::device_uvector<value_t>&& values)
-{
-  return detail::shuffle_ext_vertex_value_pairs_to_local_gpu_by_vertex_partitioning(
-    handle, std::move(vertices), std::move(values));
-}
-
 template <typename vertex_t, typename value_t>
 std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<value_t>>
 shuffle_ext_vertex_value_pairs(raft::handle_t const& handle,
                                rmm::device_uvector<vertex_t>&& vertices,
                                rmm::device_uvector<value_t>&& values)
 {
-  return detail::shuffle_ext_vertex_value_pairs_to_local_gpu_by_vertex_partitioning(
-    handle, std::move(vertices), std::move(values));
+  auto const comm_size       = handle.get_comms().get_size();
+  auto& major_comm           = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
+  auto const major_comm_size = major_comm.get_size();
+  auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+  auto const minor_comm_size = minor_comm.get_size();
+
+  std::vector<arithmetic_device_uvector_t> properties{};
+  properties.push_back(std::move(values));
+
+  std::tie(vertices, properties) =
+    shuffle_keys_with_properties(handle,
+                                 std::move(vertices),
+                                 std::move(properties),
+                                 cugraph::detail::compute_gpu_id_from_ext_vertex_t<vertex_t>{
+                                   comm_size, major_comm_size, minor_comm_size});
+
+  return std::make_tuple(std::move(vertices),
+                         std::move(std::get<rmm::device_uvector<value_t>>(properties[0])));
 }
 
 template <typename key_t, typename key_to_gpu_op_t>
