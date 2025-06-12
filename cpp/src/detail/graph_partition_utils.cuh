@@ -322,5 +322,17 @@ struct compute_local_edge_partition_minor_range_vertex_partition_id_t {
   }
 };
 
+// FIXME: Think about where this should belong
+template <typename label_t>
+struct shuffle_to_output_comm_rank_t {
+  raft::device_span<int32_t const> output_rank_;
+
+  template <typename key_t>
+  __device__ int32_t operator()(key_t key) const
+  {
+    return output_rank_[key];
+  }
+};
+
 }  // namespace detail
 }  // namespace cugraph
