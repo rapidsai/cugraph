@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2025, NVIDIA CORPORATION.
+ * Copyright (c) 2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -60,7 +60,8 @@ enum class large_buffer_type_t { MEMORY, STORAGE, NUM_TYPES };
 class large_buffer_manager {
  public:
   template <typename T>
-  static dataframe_buffer_type_t<T> allocate_memory_buffer(size_t size, rmm::cuda_stream_view stream)
+  static dataframe_buffer_type_t<T> allocate_memory_buffer(size_t size,
+                                                           rmm::cuda_stream_view stream)
   {
     CUGRAPH_EXPECTS(memory_buffer_initialized(), "large memory buffer resource is not set.");
     return allocate_dataframe_buffer<T>(size, stream, memory_buffer_resource()->get());
@@ -73,9 +74,7 @@ class large_buffer_manager {
     return storage_buffer_t<T>();
   }
 
-  static auto memory_buffer_mr() {
-    return memory_buffer_resource()->get();
-  }
+  static auto memory_buffer_mr() { return memory_buffer_resource()->get(); }
 
   static bool memory_buffer_initialized() { return memory_buffer_resource().has_value(); }
 
