@@ -82,20 +82,6 @@ rapids-logger "pytest cugraph (not mg, with xdist)"
   --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph-coverage.xml" \
   --cov-report=term
 
-# TODO: remove if successfully run with xdist
-# The datasets tests may modify global states and interfere with tests running on other workers
-# these tests are typically only limited by network speed and run fairly quickly, so they can be
-# run separately
-# rapids-logger "pytest cugraph (datasets APIs)"
-# ./ci/run_cugraph_pytests.sh \
-#   --verbose \
-#   --junitxml="${RAPIDS_TESTS_DIR}/junit-cugraph.xml" \
-#   -k "test_dataset" \
-#   --cov-config=../../.coveragerc \
-#   --cov=cugraph \
-#   --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph-coverage.xml" \
-#   --cov-report=term
-
 # excludes known failures that will always fail when run in combination
 rapids-logger "pytest cugraph (mg, with xdist)"
 ./ci/run_cugraph_pytests.sh \
@@ -110,29 +96,29 @@ rapids-logger "pytest cugraph (mg, with xdist)"
   --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph-coverage.xml" \
   --cov-report=term
 
-# rapids-logger "pytest cugraph (mg dist_sampler and uns)"
-# ./ci/run_cugraph_pytests.sh \
-#   --verbose \
-#   --junitxml="${RAPIDS_TESTS_DIR}/junit-cugraph.xml" \
-#   -m "mg" \
-#   -k "test_dist_sampler_mg or test_uniform_neighbor_sample_mg" \
-#   --cov-config=../../.coveragerc \
-#   --cov=cugraph \
-#   --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph-coverage.xml" \
-#   --cov-report=term
+rapids-logger "pytest cugraph (mg dist_sampler and uns)"
+./ci/run_cugraph_pytests.sh \
+  --verbose \
+  --junitxml="${RAPIDS_TESTS_DIR}/junit-cugraph.xml" \
+  -m "mg" \
+  -k "test_dist_sampler_mg or test_uniform_neighbor_sample_mg" \
+  --cov-config=../../.coveragerc \
+  --cov=cugraph \
+  --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph-coverage.xml" \
+  --cov-report=term
 
-# rapids-logger "pytest cugraph benchmarks (run as tests)"
-# ./ci/run_cugraph_benchmark_pytests.sh --verbose
+rapids-logger "pytest cugraph benchmarks (run as tests)"
+./ci/run_cugraph_benchmark_pytests.sh --verbose
 
-# rapids-logger "pytest cugraph-service (single GPU)"
-# ./ci/run_cugraph_service_pytests.sh \
-#   --verbose \
-#   --junitxml="${RAPIDS_TESTS_DIR}/junit-cugraph-service.xml" \
-#   --cov-config=../.coveragerc \
-#   --cov=cugraph_service_client \
-#   --cov=cugraph_service_server \
-#   --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph-service-coverage.xml" \
-#   --cov-report=term
+rapids-logger "pytest cugraph-service (single GPU)"
+./ci/run_cugraph_service_pytests.sh \
+  --verbose \
+  --junitxml="${RAPIDS_TESTS_DIR}/junit-cugraph-service.xml" \
+  --cov-config=../.coveragerc \
+  --cov=cugraph_service_client \
+  --cov=cugraph_service_server \
+  --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph-service-coverage.xml" \
+  --cov-report=term
 
 rapids-logger "Test script exiting with value: $EXITCODE"
 exit ${EXITCODE}
