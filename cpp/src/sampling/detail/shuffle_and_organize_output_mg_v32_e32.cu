@@ -14,9 +14,6 @@
  * limitations under the License.
  */
 
-// MOVE THIS!
-#include "utilities/shuffle_vertices.cuh"
-
 #include <cugraph/arithmetic_variant_types.hpp>
 #include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/utilities/device_functors.cuh>
@@ -32,7 +29,6 @@
 namespace cugraph {
 namespace detail {
 
-// FIXME: Eliminate .cuh file
 std::tuple<std::vector<cugraph::arithmetic_device_uvector_t>,
            std::optional<rmm::device_uvector<int32_t>>,
            std::optional<rmm::device_uvector<size_t>>>
