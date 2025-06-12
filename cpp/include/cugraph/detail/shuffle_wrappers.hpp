@@ -296,6 +296,8 @@ rmm::device_uvector<value_t> collect_local_vertex_values_from_ext_vertex_value_p
  * @param [in] key Device vector of keys
  * @param [in] properties Vector of device vectors of properties associated with each key
  * @param [in] key_to_gpu_op function converting key to a GPU id
+ * @param[in] large_buffer_type Dictates the large buffer type to use in storing the shuffled key
+ * value pairs (if the value is std::nullopt, the default RMM per-device memory resource is used).
  *
  * @return tuple of device vector of keys and vector of device vector of properties associated with
  * the key.
@@ -305,7 +307,8 @@ std::tuple<rmm::device_uvector<key_t>, std::vector<arithmetic_device_uvector_t>>
 shuffle_keys_with_properties(raft::handle_t const& handle,
                              rmm::device_uvector<key_t>&& keys,
                              std::vector<arithmetic_device_uvector_t>&& properties,
-                             key_to_gpu_op_t key_to_gpu_op);
+                             key_to_gpu_op_t key_to_gpu_op,
+                             std::optional<large_buffer_type_t> large_buffer_type = std::nullopt);
 
 /**
  * @ingroup shuffle_wrappers_cpp
@@ -315,12 +318,16 @@ shuffle_keys_with_properties(raft::handle_t const& handle,
  * and handles to various CUDA libraries) to run graph algorithms.
  * @param [in] gpu Device vector of gpu ids
  * @param [in] properties Vector of device vectors of properties
+ * @param[in] large_buffer_type Dictates the large buffer type to use in storing the shuffled
+ * property values (if the value is std::nullopt, the default RMM per-device memory resource is
+ * used).
  *
  * @return vector of device vector of properties shuffled to the proper GPU
  */
 std::vector<arithmetic_device_uvector_t> shuffle_properties(
   raft::handle_t const& handle,
   rmm::device_uvector<int>&& gpus,
-  std::vector<arithmetic_device_uvector_t>&& properties);
+  std::vector<arithmetic_device_uvector_t>&& properties,
+  std::optional<large_buffer_type_t> large_buffer_type = std::nullopt);
 
 }  // namespace cugraph

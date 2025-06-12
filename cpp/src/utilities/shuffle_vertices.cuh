@@ -182,7 +182,7 @@ shuffle_keys_with_properties(raft::handle_t const& handle,
                              rmm::device_uvector<key_t>&& keys,
                              std::vector<arithmetic_device_uvector_t>&& properties,
                              key_to_gpu_op_t key_to_gpu_op,
-                             std::optional<large_buffer_type_t> large_buffer_type = std::nullopt)
+                             std::optional<large_buffer_type_t> large_buffer_type)
 {
   if (properties.size() == 0) {
     std::tie(keys, std::ignore) = cugraph::groupby_gpu_id_and_shuffle_values(handle.get_comms(),
@@ -193,7 +193,7 @@ shuffle_keys_with_properties(raft::handle_t const& handle,
                                                                              large_buffer_type);
   } else if (properties.size() == 1) {
     std::tie(keys, properties[0]) = cugraph::variant_type_dispatch(
-      properties[0], [&handle, &keys, &key_to_gpu_op](auto& property) {
+      properties[0], [&handle, &keys, &key_to_gpu_op, large_buffer_type](auto& property) {
         std::tie(keys, property, std::ignore) =
           cugraph::groupby_gpu_id_and_shuffle_kv_pairs(handle.get_comms(),
                                                        keys.begin(),
@@ -217,7 +217,7 @@ shuffle_keys_with_properties(raft::handle_t const& handle,
     auto mem_frugal_threshold =
       static_cast<size_t>(static_cast<double>(total_global_mem / element_size) * mem_frugal_ratio);
 
-    auto property_positions =
+    auto property_position =
       large_buffer_type
         ? large_buffer_manager::allocate_memory_buffer<size_t>(keys.size(), handle.get_stream())
         : rmm::device_uvector<size_t>(keys.size(), handle.get_stream());
@@ -247,7 +247,8 @@ shuffle_keys_with_properties(raft::handle_t const& handle,
       properties.end(),
       [&handle, &property_position, d_tx_value_counts_span, large_buffer_type](auto& property) {
         cugraph::variant_type_dispatch(
-          property, [&handle, &property_position, d_tx_value_counts_span](auto& prop) {
+          property,
+          [&handle, &property_position, d_tx_value_counts_span, large_buffer_type](auto& prop) {
             using T  = typename std::remove_reference<decltype(prop)>::type::value_type;
             auto tmp = large_buffer_type ? large_buffer_manager::allocate_memory_buffer<T>(
                                              prop.size(), handle.get_stream())
