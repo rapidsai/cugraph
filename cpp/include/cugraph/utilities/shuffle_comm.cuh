@@ -80,7 +80,7 @@ inline std::tuple<std::vector<size_t>,
                   std::vector<size_t>,
                   std::vector<int>>
 compute_tx_rx_counts_displs_ranks(raft::comms::comms_t const& comm,
-                                  rmm::device_uvector<size_t> const& d_tx_value_counts,
+                                  raft::device_span<size_t const> d_tx_value_counts,
                                   bool drop_empty_ranks,
                                   rmm::cuda_stream_view stream_view)
 {
@@ -844,16 +844,12 @@ rmm::device_uvector<size_t> groupby_and_count(VertexIterator tx_key_first /* [IN
 template <typename TxValueIterator>
 auto shuffle_values(raft::comms::comms_t const& comm,
                     TxValueIterator tx_value_first,
-                    raft::host_span<size_t const> tx_value_counts,
+                    raft::device_span<size_t const> d_tx_value_counts,
                     rmm::cuda_stream_view stream_view)
 {
   using value_t = typename thrust::iterator_traits<TxValueIterator>::value_type;
 
   auto const comm_size = comm.get_size();
-
-  rmm::device_uvector<size_t> d_tx_value_counts(comm_size, stream_view);
-  raft::update_device(
-    d_tx_value_counts.data(), tx_value_counts.data(), comm_size, stream_view.value());
 
   std::vector<size_t> tx_counts{};
   std::vector<size_t> tx_displs{};
@@ -889,6 +885,27 @@ auto shuffle_values(raft::comms::comms_t const& comm,
   }
 
   return std::make_tuple(std::move(rx_value_buffer), rx_counts);
+}
+
+template <typename TxValueIterator>
+auto shuffle_values(raft::comms::comms_t const& comm,
+                    TxValueIterator tx_value_first,
+                    raft::host_span<size_t const> tx_value_counts,
+                    rmm::cuda_stream_view stream_view)
+{
+  using value_t = typename thrust::iterator_traits<TxValueIterator>::value_type;
+
+  auto const comm_size = comm.get_size();
+
+  rmm::device_uvector<size_t> d_tx_value_counts(comm_size, stream_view);
+  raft::update_device(
+    d_tx_value_counts.data(), tx_value_counts.data(), comm_size, stream_view.value());
+
+  return shuffle_values(
+    comm,
+    tx_value_first,
+    raft::device_span<size_t const>{d_tx_value_counts.data(), d_tx_value_counts.size()},
+    stream_view);
 }
 
 // Add gaps in the receive buffer to enforce that the sent data offset and the received data offset
@@ -1072,7 +1089,11 @@ auto shuffle_and_unique_segment_sorted_values(
     std::vector<size_t> rx_counts{};
     std::vector<size_t> rx_displs{};
     std::tie(tx_counts, tx_displs, std::ignore, rx_counts, rx_displs, std::ignore) =
-      detail::compute_tx_rx_counts_displs_ranks(comm, d_tx_value_counts, false, stream_view);
+      detail::compute_tx_rx_counts_displs_ranks(
+        comm,
+        raft::device_span<size_t const>{d_tx_value_counts.data(), d_tx_value_counts.size()},
+        false,
+        stream_view);
 
     d_tx_value_counts.resize(0, stream_view);
     d_tx_value_counts.shrink_to_fit(stream_view);
@@ -1147,7 +1168,11 @@ auto groupby_gpu_id_and_shuffle_values(raft::comms::comms_t const& comm,
   std::vector<size_t> rx_displs{};
   std::vector<int> rx_src_ranks{};
   std::tie(tx_counts, tx_displs, tx_dst_ranks, rx_counts, rx_displs, rx_src_ranks) =
-    detail::compute_tx_rx_counts_displs_ranks(comm, d_tx_value_counts, true, stream_view);
+    detail::compute_tx_rx_counts_displs_ranks(
+      comm,
+      raft::device_span<size_t const>{d_tx_value_counts.data(), d_tx_value_counts.size()},
+      true,
+      stream_view);
 
   auto rx_value_buffer =
     allocate_dataframe_buffer<typename thrust::iterator_traits<ValueIterator>::value_type>(
@@ -1201,7 +1226,11 @@ auto groupby_gpu_id_and_shuffle_kv_pairs(raft::comms::comms_t const& comm,
   std::vector<size_t> rx_displs{};
   std::vector<int> rx_src_ranks{};
   std::tie(tx_counts, tx_displs, tx_dst_ranks, rx_counts, rx_displs, rx_src_ranks) =
-    detail::compute_tx_rx_counts_displs_ranks(comm, d_tx_value_counts, true, stream_view);
+    detail::compute_tx_rx_counts_displs_ranks(
+      comm,
+      raft::device_span<size_t const>{d_tx_value_counts.data(), d_tx_value_counts.size()},
+      true,
+      stream_view);
 
   rmm::device_uvector<typename thrust::iterator_traits<VertexIterator>::value_type> rx_keys(
     rx_displs.size() > 0 ? rx_displs.back() + rx_counts.back() : size_t{0}, stream_view);
