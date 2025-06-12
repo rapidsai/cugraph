@@ -312,7 +312,10 @@ def generate_upper_triangle(dataframe):
     return dataframe
 
 
-@pytest.mark.skip(reason="https://github.com/networkx/networkx/pull/7908")
+@pytest.mark.skipif(
+    float(".".join(nx.__version__.split(".")[:2])) < 3.5,
+    reason="Requires networkx >= 3.5",
+)
 @pytest.mark.sg
 @pytest.mark.parametrize("graph_file", SMALL_DATASETS)
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
@@ -343,7 +346,10 @@ def test_edge_betweenness_centrality(
     compare_scores(sorted_df, first_key="cu_bc", second_key="ref_bc")
 
 
-@pytest.mark.skip(reason="https://github.com/networkx/networkx/pull/7908")
+@pytest.mark.skipif(
+    float(".".join(nx.__version__.split(".")[:2])) < 3.5,
+    reason="Requires networkx >= 3.5",
+)
 @pytest.mark.sg
 @pytest.mark.parametrize("graph_file", SMALL_DATASETS)
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
@@ -383,7 +389,10 @@ def test_edge_betweenness_centrality_k_full(
 #       the function operating the comparison inside is first proceeding
 #       to a random sampling over the number of vertices (thus direct offsets)
 #       in the graph structure instead of actual vertices identifiers
-@pytest.mark.skip(reason="https://github.com/networkx/networkx/pull/7908")
+@pytest.mark.skipif(
+    float(".".join(nx.__version__.split(".")[:2])) < 3.5,
+    reason="Requires networkx >= 3.5",
+)
 @pytest.mark.sg
 @pytest.mark.parametrize("graph_file", [karate_disjoint])
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
@@ -487,7 +496,10 @@ def test_edge_betweenness_invalid_dtype(
         compare_scores(sorted_df, first_key="cu_bc", second_key="ref_bc")
 
 
-@pytest.mark.skip(reason="https://github.com/networkx/networkx/pull/7908")
+@pytest.mark.skipif(
+    float(".".join(nx.__version__.split(".")[:2])) < 3.5,
+    reason="Requires networkx >= 3.5",
+)
 @pytest.mark.sg
 @pytest.mark.parametrize("graph_file", SMALL_DATASETS)
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
