@@ -317,15 +317,15 @@ class per_device_edgelist_t {
              tmp_edge_type,
              tmp_edge_start_time,
              tmp_edge_end_time,
-             std::ignore) = cugraph::detail::shuffle_ext_edges(handle.raft_handle(),
-                                                               std::move(src_[0]),
-                                                               std::move(dst_[0]),
-                                                               std::move(tmp_wgt),
-                                                               std::move(tmp_edge_id),
-                                                               std::move(tmp_edge_type),
-                                                               std::move(tmp_edge_start_time),
-                                                               std::move(tmp_edge_end_time),
-                                                               store_transposed);
+             std::ignore) = cugraph::shuffle_ext_edges(handle.raft_handle(),
+                                                       std::move(src_[0]),
+                                                       std::move(dst_[0]),
+                                                       std::move(tmp_wgt),
+                                                       std::move(tmp_edge_id),
+                                                       std::move(tmp_edge_type),
+                                                       std::move(tmp_edge_start_time),
+                                                       std::move(tmp_edge_end_time),
+                                                       store_transposed);
 
     if (tmp_wgt) ((*wgt_)[0]) = std::move(*tmp_wgt);
     if (tmp_edge_id) ((*edge_id_)[0]) = std::move(*tmp_edge_id);
