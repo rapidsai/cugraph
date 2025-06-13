@@ -144,13 +144,15 @@ struct update_e_value_t {
   EdgeValueOutputWrapper edge_partition_e_value_output{};
 
   __device__ void operator()(thrust::tuple<typename GraphViewType::vertex_type,
-                                           typename GraphViewType::vertex_type> edge) const
+                                           typename GraphViewType::vertex_type,
+                                           typename GraphViewType::edge_type> edge) const
   {
     using vertex_t = typename GraphViewType::vertex_type;
     using edge_t   = typename GraphViewType::edge_type;
 
-    auto major = thrust::get<0>(edge);
-    auto minor = thrust::get<1>(edge);
+    auto major            = thrust::get<0>(edge);
+    auto minor            = thrust::get<1>(edge);
+    auto multi_edge_index = thrust::get<2>(edge);
 
     auto major_offset = edge_partition.major_offset_from_major_nocheck(major);
     auto major_idx    = edge_partition.major_idx_from_major_nocheck(major);
@@ -162,28 +164,17 @@ struct update_e_value_t {
     edge_t edge_offset{};
     edge_t local_degree{};
     thrust::tie(indices, edge_offset, local_degree) = edge_partition.local_edges(*major_idx);
-    auto lower_it = thrust::lower_bound(thrust::seq, indices, indices + local_degree, minor);
-    auto upper_it = thrust::upper_bound(thrust::seq, lower_it, indices + local_degree, minor);
+    auto it =
+      thrust::lower_bound(thrust::seq, indices, indices + local_degree, minor) + multi_edge_index;
 
     auto src        = GraphViewType::is_storage_transposed ? minor : major;
     auto dst        = GraphViewType::is_storage_transposed ? major : minor;
     auto src_offset = GraphViewType::is_storage_transposed ? minor_offset : major_offset;
     auto dst_offset = GraphViewType::is_storage_transposed ? major_offset : minor_offset;
 
-    for (auto it = lower_it; it != upper_it; ++it) {
-      assert(*it == minor);
-      if constexpr (check_edge_mask) {
-        if (edge_partition_e_mask.get(edge_offset + cuda::std::distance(indices, it))) {
-          auto e_op_result =
-            e_op(src,
-                 dst,
-                 edge_partition_src_value_input.get(src_offset),
-                 edge_partition_dst_value_input.get(dst_offset),
-                 edge_partition_e_value_input.get(edge_offset + cuda::std::distance(indices, it)));
-          edge_partition_e_value_output.set(edge_offset + cuda::std::distance(indices, it),
-                                            e_op_result);
-        }
-      } else {
+    assert(*it == minor);
+    if constexpr (check_edge_mask) {
+      if (edge_partition_e_mask.get(edge_offset + cuda::std::distance(indices, it))) {
         auto e_op_result =
           e_op(src,
                dst,
@@ -193,6 +184,15 @@ struct update_e_value_t {
         edge_partition_e_value_output.set(edge_offset + cuda::std::distance(indices, it),
                                           e_op_result);
       }
+    } else {
+      auto e_op_result =
+        e_op(src,
+             dst,
+             edge_partition_src_value_input.get(src_offset),
+             edge_partition_dst_value_input.get(dst_offset),
+             edge_partition_e_value_input.get(edge_offset + cuda::std::distance(indices, it)));
+      edge_partition_e_value_output.set(edge_offset + cuda::std::distance(indices, it),
+                                        e_op_result);
     }
   }
 
@@ -289,8 +289,11 @@ void transform_e(raft::handle_t const& handle,
       typename EdgeDstValueInputWrapper::value_iterator,
       typename EdgeDstValueInputWrapper::value_type>>;
   using edge_partition_e_input_device_view_t = std::conditional_t<
-    std::is_same_v<typename EdgeValueInputWrapper::value_type, cuda::std::nullopt_t>,
-    detail::edge_partition_edge_dummy_property_device_view_t<vertex_t>,
+    std::is_same_v<typename EdgeValueInputWrapper::value_iterator, void*>,
+    std::conditional_t<
+      std::is_same_v<typename EdgeValueInputWrapper::value_type, cuda::std::nullopt_t>,
+      detail::edge_partition_edge_dummy_property_device_view_t<vertex_t>,
+      detail::edge_partition_edge_multi_index_property_device_view_t<edge_t, vertex_t>>,
     detail::edge_partition_edge_property_device_view_t<
       edge_t,
       typename EdgeValueInputWrapper::value_iterator,
@@ -462,8 +465,6 @@ void transform_e(raft::handle_t const& handle,
 
   static_assert(GraphViewType::is_storage_transposed != EdgeBucketType::is_src_major);
   static_assert(EdgeBucketType::is_sorted_unique);
-  static_assert(
-    std::is_same_v<typename EdgeBucketType::key_type, thrust::tuple<vertex_t, vertex_t>>);
 
   using edge_partition_src_input_device_view_t = std::conditional_t<
     std::is_same_v<typename EdgeSrcValueInputWrapper::value_type, cuda::std::nullopt_t>,
@@ -480,8 +481,11 @@ void transform_e(raft::handle_t const& handle,
       typename EdgeDstValueInputWrapper::value_iterator,
       typename EdgeDstValueInputWrapper::value_type>>;
   using edge_partition_e_input_device_view_t = std::conditional_t<
-    std::is_same_v<typename EdgeValueInputWrapper::value_type, cuda::std::nullopt_t>,
-    detail::edge_partition_edge_dummy_property_device_view_t<vertex_t>,
+    std::is_same_v<typename EdgeValueInputWrapper::value_iterator, void*>,
+    std::conditional_t<
+      std::is_same_v<typename EdgeValueInputWrapper::value_type, cuda::std::nullopt_t>,
+      detail::edge_partition_edge_dummy_property_device_view_t<vertex_t>,
+      detail::edge_partition_edge_multi_index_property_device_view_t<edge_t, vertex_t>>,
     detail::edge_partition_edge_property_device_view_t<
       edge_t,
       typename EdgeValueInputWrapper::value_iterator,
@@ -496,22 +500,51 @@ void transform_e(raft::handle_t const& handle,
   auto minor_first =
     GraphViewType::is_storage_transposed ? edge_list.src_begin() : edge_list.dst_begin();
 
-  auto edge_first = thrust::make_zip_iterator(major_first, minor_first);
+  auto pair_first             = thrust::make_zip_iterator(major_first, minor_first);
+  auto multi_edge_index_first = edge_list.multi_edge_index_begin();
+
+  CUGRAPH_EXPECTS(graph_view.is_multigraph() == multi_edge_index_first.has_value(),
+                  "Invalid input arguments: the edge list should include multi-edge index for a "
+                  "multi-graph (and should not for a non-multi-graph).");
+
+  auto edge_first = thrust::make_transform_iterator(
+    thrust::make_counting_iterator(size_t{0}),
+    cuda::proclaim_return_type<thrust::tuple<vertex_t, vertex_t, edge_t>>(
+      [pair_first,
+       multi_edge_index_first = multi_edge_index_first
+                                  ? cuda::std::make_optional(*multi_edge_index_first)
+                                  : cuda::std::nullopt] __device__(size_t i) {
+        auto pair = *(pair_first + i);
+        if (multi_edge_index_first) {
+          return thrust::make_tuple(
+            thrust::get<0>(pair), thrust::get<1>(pair), *(*multi_edge_index_first + i));
+        } else {
+          return thrust::make_tuple(thrust::get<0>(pair), thrust::get<1>(pair), edge_t{0});
+        }
+      }));
 
   if (do_expensive_check) {
     CUGRAPH_EXPECTS(
       thrust::is_sorted(handle.get_thrust_policy(), edge_first, edge_first + edge_list.size()),
       "Invalid input arguments: edge_list is not sorted.");
+    auto num_uniques = static_cast<size_t>(
+      thrust::count_if(handle.get_thrust_policy(),
+                       thrust::make_counting_iterator(size_t{0}),
+                       thrust::make_counting_iterator(edge_list.size()),
+                       detail::is_first_in_run_t<decltype(edge_first)>{edge_first}));
+    CUGRAPH_EXPECTS(num_uniques == edge_list.size(),
+                    "Invalid input arguments: edgelist has duplicates.");
   }
 
   std::vector<size_t> edge_partition_offsets(graph_view.number_of_local_edge_partitions() + 1, 0);
   if constexpr (GraphViewType::is_multi_gpu) {
     std::vector<vertex_t> h_major_range_lasts(graph_view.number_of_local_edge_partitions());
     for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
-      auto edge_partition =
-        edge_partition_device_view_t<vertex_t, edge_t, GraphViewType::is_multi_gpu>(
-          graph_view.local_edge_partition_view(i));
-      h_major_range_lasts[i] = edge_partition.major_range_last();
+      if constexpr (GraphViewType::is_storage_transposed) {
+        h_major_range_lasts[i] = graph_view.local_edge_partition_dst_range_last(i);
+      } else {
+        h_major_range_lasts[i] = graph_view.local_edge_partition_src_range_last(i);
+      }
     }
     rmm::device_uvector<vertex_t> d_major_range_lasts(h_major_range_lasts.size(),
                                                       handle.get_stream());
@@ -554,11 +587,11 @@ void transform_e(raft::handle_t const& handle,
           handle.get_thrust_policy(),
           edge_first + edge_partition_offsets[i],
           edge_first + edge_partition_offsets[i + 1],
-          [edge_partition,
-           edge_partition_e_mask] __device__(thrust::tuple<vertex_t, vertex_t> edge) {
-            auto major     = thrust::get<0>(edge);
-            auto minor     = thrust::get<1>(edge);
-            auto major_idx = edge_partition.major_idx_from_major_nocheck(major);
+          [edge_partition, edge_partition_e_mask] __device__(auto edge) {
+            auto major            = thrust::get<0>(edge);
+            auto minor            = thrust::get<1>(edge);
+            auto multi_edge_index = thrust::get<2>(edge);
+            auto major_idx        = edge_partition.major_idx_from_major_nocheck(major);
             if (!major_idx) { return true; }
             vertex_t const* indices{nullptr};
             edge_t edge_offset{};
@@ -567,13 +600,10 @@ void transform_e(raft::handle_t const& handle,
               edge_partition.local_edges(*major_idx);
             auto lower_it =
               thrust::lower_bound(thrust::seq, indices, indices + local_degree, minor);
-            if (*lower_it != minor) { return true; }
+            if (*(lower_it + multi_edge_index) != minor) { return true; }
             if (edge_partition_e_mask) {
-              auto upper_it =
-                thrust::upper_bound(thrust::seq, lower_it, indices + local_degree, minor);
-              if (detail::count_set_bits((*edge_partition_e_mask).value_first(),
-                                         edge_offset + cuda::std::distance(indices, lower_it),
-                                         cuda::std::distance(lower_it, upper_it)) == 0) {
+              if (edge_partition_e_mask->get(edge_offset + cuda::std::distance(indices, lower_it) +
+                                             multi_edge_index) == false) {
                 return true;
               }
             }
