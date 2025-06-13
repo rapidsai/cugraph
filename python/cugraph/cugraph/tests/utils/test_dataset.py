@@ -86,15 +86,20 @@ def is_symmetric(dataset):
 
 
 def test_modified_env_var(tmp_path):
-    # changing env var to tmp_path's location
+    orig_dir = os.environ.get("RAPIDS_DATASET_ROOT_DIR")
     os.environ["RAPIDS_DATASET_ROOT_DIR"] = str(tmp_path)
+
     # calling this with None will reset to whatever the env var is set to
     datasets.set_download_dir(None)
 
     assert datasets.get_download_dir() == tmp_path
 
+    # restore to the initial value
+    if orig_dir is None:
+        del os.environ["RAPIDS_DATASET_ROOT_DIR"]
+    else:
+        os.environ["RAPIDS_DATASET_ROOT_DIR"] = orig_dir
     # reset to default
-    os.environ["RAPIDS_DATASET_ROOT_DIR"] = str(Path.home()) + "/.cugraph/datasets"
     datasets.set_download_dir(None)
 
 
@@ -125,7 +130,6 @@ def test_download(dataset, tmp_path):
 
 @pytest.mark.mg
 @pytest.mark.parametrize("dataset", ALL_DATASETS)
-@pytest.mark.skip(reason="MG not supported on CI")
 @pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
 def test_download_dask(dask_client, dataset):
     E = dataset.get_dask_edgelist(download=True)
@@ -157,7 +161,6 @@ def test_reader(dataset):
 
 @pytest.mark.mg
 @pytest.mark.parametrize("dataset", SMALL_DATASETS)
-@pytest.mark.skip(reason="MG not supported on CI")
 @pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
 def test_reader_dask(dask_client, dataset):
     # using dask_cudf
@@ -177,7 +180,6 @@ def test_get_edgelist(dataset):
 
 @pytest.mark.mg
 @pytest.mark.parametrize("dataset", ALL_DATASETS)
-@pytest.mark.skip(reason="MG not supported on CI")
 @pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
 def test_get_dask_edgelist(dask_client, dataset):
     E = dataset.get_dask_edgelist()
@@ -196,7 +198,6 @@ def test_get_graph(dataset):
 
 @pytest.mark.mg
 @pytest.mark.parametrize("dataset", ALL_DATASETS[:1])
-@pytest.mark.skip(reason="MG not supported on CI")
 @pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
 def test_get_dask_graph(dask_client, dataset):
     G = dataset.get_dask_graph()
@@ -215,7 +216,6 @@ def test_metadata(dataset):
 
 @pytest.mark.parametrize("dataset", ALL_DATASETS)
 def test_get_path(dataset, tmp_path):
-    print(tmp_path)
     datasets.set_download_dir(tmp_path.name)
     dataset.get_edgelist(download=True)
 
@@ -235,7 +235,6 @@ def test_weights(dataset):
 
 @pytest.mark.mg
 @pytest.mark.parametrize("dataset", WEIGHTED_DATASETS)
-@pytest.mark.skip(reason="MG not supported on CI")
 @pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
 def test_weights_dask(dask_client, dataset):
     G = dataset.get_dask_graph()
@@ -262,7 +261,6 @@ def test_create_using(dataset):
 
 @pytest.mark.mg
 @pytest.mark.parametrize("dataset", SMALL_DATASETS)
-@pytest.mark.skip(reason="MG not supported on CI")
 @pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
 def test_create_using_dask(dask_client, dataset):
     G = dataset.get_dask_graph()
