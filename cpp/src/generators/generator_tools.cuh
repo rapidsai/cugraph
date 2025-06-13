@@ -205,59 +205,93 @@ template <typename vertex_t, typename weight_t>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>>
-symmetrize_edgelist_from_triangular(
-  raft::handle_t const& handle,
-  rmm::device_uvector<vertex_t>&& d_src_v,
-  rmm::device_uvector<vertex_t>&& d_dst_v,
-  std::optional<rmm::device_uvector<weight_t>>&& optional_d_weights_v,
-  bool check_diagonal)
+symmetrize_edgelist_from_triangular(raft::handle_t const& handle,
+                                    rmm::device_uvector<vertex_t>&& d_src_v,
+                                    rmm::device_uvector<vertex_t>&& d_dst_v,
+                                    std::optional<rmm::device_uvector<weight_t>>&& d_weight_v,
+                                    bool check_diagonal,
+                                    std::optional<large_buffer_type_t> large_buffer_type)
 {
-  auto num_strictly_triangular_edges = d_src_v.size();
+  CUGRAPH_EXPECTS(!large_buffer_type || large_buffer_manager::memory_buffer_initialized(),
+                  "Invalid input argument: large memory buffer is not initialized.");
+
+  std::optional<size_t> num_diagonals{std::nullopt};
   if (check_diagonal) {
-    if (optional_d_weights_v) {
-      auto edge_first = thrust::make_zip_iterator(
-        thrust::make_tuple(d_src_v.begin(), d_dst_v.begin(), (*optional_d_weights_v).begin()));
-      auto strictly_triangular_last = thrust::partition(
-        handle.get_thrust_policy(), edge_first, edge_first + d_src_v.size(), [] __device__(auto e) {
-          return thrust::get<0>(e) != thrust::get<1>(e);
-        });
-      num_strictly_triangular_edges =
-        static_cast<size_t>(cuda::std::distance(edge_first, strictly_triangular_last));
+    auto edge_first =
+      thrust::make_zip_iterator(thrust::make_tuple(d_src_v.begin(), d_dst_v.begin()));
+    num_diagonals = thrust::count_if(handle.get_thrust_policy(),
+                                     edge_first,
+                                     edge_first + d_src_v.size(),
+                                     cuda::proclaim_return_type<bool>([] __device__(auto e) {
+                                       return thrust::get<0>(e) == thrust::get<1>(e);
+                                     }));
+  }
+
+  auto old_size = d_src_v.size();
+  auto new_size = old_size * size_t{2} - (num_diagonals ? *num_diagonals : size_t{0});
+  auto new_srcs = large_buffer_type ? large_buffer_manager::allocate_memory_buffer<vertex_t>(
+                                        new_size, handle.get_stream())
+                                    : rmm::device_uvector<vertex_t>(new_size, handle.get_stream());
+  thrust::copy(handle.get_thrust_policy(), d_src_v.begin(), d_src_v.end(), new_srcs.begin());
+  d_src_v.resize(0, handle.get_stream());
+  d_src_v.shrink_to_fit(handle.get_stream());
+  auto new_dsts = large_buffer_type ? large_buffer_manager::allocate_memory_buffer<vertex_t>(
+                                        new_size, handle.get_stream())
+                                    : rmm::device_uvector<vertex_t>(new_size, handle.get_stream());
+  thrust::copy(handle.get_thrust_policy(), d_dst_v.begin(), d_dst_v.end(), new_dsts.begin());
+  d_dst_v.resize(0, handle.get_stream());
+  d_dst_v.shrink_to_fit(handle.get_stream());
+  auto new_weights =
+    d_weight_v
+      ? std::make_optional(
+          large_buffer_type
+            ? large_buffer_manager::allocate_memory_buffer<weight_t>(new_size, handle.get_stream())
+            : rmm::device_uvector<weight_t>(new_size, handle.get_stream()))
+      : std::nullopt;
+  if (new_weights) {
+    thrust::copy(
+      handle.get_thrust_policy(), d_weight_v->begin(), d_weight_v->end(), new_weights->begin());
+    d_weight_v = std::nullopt;
+  }
+
+  if (new_weights) {
+    auto edge_first = thrust::make_zip_iterator(
+      thrust::make_tuple(new_srcs.begin(), new_dsts.begin(), new_weights->begin()));
+    if (check_diagonal) {
+      thrust::copy_if(
+        handle.get_thrust_policy(),
+        edge_first,
+        edge_first + old_size,
+        thrust::make_zip_iterator(new_dsts.begin(), new_srcs.begin(), new_weights->begin()) +
+          old_size,
+        cuda::proclaim_return_type<bool>(
+          [] __device__(auto e) { return thrust::get<0>(e) != thrust::get<1>(e); }));
     } else {
-      auto edge_first =
-        thrust::make_zip_iterator(thrust::make_tuple(d_src_v.begin(), d_dst_v.begin()));
-      auto strictly_triangular_last = thrust::partition(
-        handle.get_thrust_policy(), edge_first, edge_first + d_src_v.size(), [] __device__(auto e) {
-          return thrust::get<0>(e) != thrust::get<1>(e);
-        });
-      num_strictly_triangular_edges =
-        static_cast<size_t>(cuda::std::distance(edge_first, strictly_triangular_last));
+      thrust::copy(
+        handle.get_thrust_policy(),
+        edge_first,
+        edge_first + old_size,
+        thrust::make_zip_iterator(new_dsts.begin(), new_srcs.begin(), new_weights->begin()) +
+          old_size);
+    }
+  } else {
+    auto edge_first = thrust::make_zip_iterator(new_srcs.begin(), new_dsts.begin());
+    if (check_diagonal) {
+      thrust::copy_if(handle.get_thrust_policy(),
+                      edge_first,
+                      edge_first + old_size,
+                      thrust::make_zip_iterator(new_dsts.begin(), new_srcs.begin()) + old_size,
+                      cuda::proclaim_return_type<bool>(
+                        [] __device__(auto e) { return thrust::get<0>(e) != thrust::get<1>(e); }));
+    } else {
+      thrust::copy(handle.get_thrust_policy(),
+                   edge_first,
+                   edge_first + old_size,
+                   thrust::make_zip_iterator(new_dsts.begin(), new_srcs.begin()) + old_size);
     }
   }
 
-  auto offset = d_src_v.size();
-  d_src_v.resize(offset + num_strictly_triangular_edges, handle.get_stream());
-  d_dst_v.resize(offset + num_strictly_triangular_edges, handle.get_stream());
-
-  thrust::copy(handle.get_thrust_policy(),
-               d_dst_v.begin(),
-               d_dst_v.begin() + num_strictly_triangular_edges,
-               d_src_v.begin() + offset);
-  thrust::copy(handle.get_thrust_policy(),
-               d_src_v.begin(),
-               d_src_v.begin() + num_strictly_triangular_edges,
-               d_dst_v.begin() + offset);
-  if (optional_d_weights_v) {
-    optional_d_weights_v->resize(d_src_v.size(), handle.get_stream());
-    thrust::copy(handle.get_thrust_policy(),
-                 optional_d_weights_v->begin(),
-                 optional_d_weights_v->begin() + num_strictly_triangular_edges,
-                 optional_d_weights_v->begin() + offset);
-  }
-
-  return std::make_tuple(std::move(d_src_v),
-                         std::move(d_dst_v),
-                         optional_d_weights_v ? std::move(optional_d_weights_v) : std::nullopt);
+  return std::make_tuple(std::move(new_srcs), std::move(new_dsts), std::move(new_weights));
 }
 
 }  // namespace cugraph

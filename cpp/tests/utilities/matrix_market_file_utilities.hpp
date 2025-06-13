@@ -100,7 +100,8 @@ read_edgelist_from_matrix_market_file(raft::handle_t const& handle,
                                       std::string const& graph_file_full_path,
                                       bool test_weighted,
                                       bool store_transposed,
-                                      bool multi_gpu);
+                                      bool multi_gpu,
+                                      bool shuffle = true);
 
 // renumber must be true if multi_gpu is true
 template <typename vertex_t,

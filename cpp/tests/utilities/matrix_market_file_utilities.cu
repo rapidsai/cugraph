@@ -273,7 +273,8 @@ read_edgelist_from_matrix_market_file(raft::handle_t const& handle,
                                       std::string const& graph_file_full_path,
                                       bool test_weighted,
                                       bool store_transposed,
-                                      bool multi_gpu)
+                                      bool multi_gpu,
+                                      bool shuffle)
 {
   MM_typecode mc{};
   vertex_t m{};
@@ -330,27 +331,36 @@ read_edgelist_from_matrix_market_file(raft::handle_t const& handle,
     auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
     auto const minor_comm_size = minor_comm.get_size();
 
-    auto vertex_key_func = cugraph::detail::compute_gpu_id_from_ext_vertex_t<vertex_t>{
-      comm_size, major_comm_size, minor_comm_size};
-    d_vertices.resize(
-      cuda::std::distance(d_vertices.begin(),
-                          thrust::remove_if(handle.get_thrust_policy(),
-                                            d_vertices.begin(),
-                                            d_vertices.end(),
-                                            [comm_rank, key_func = vertex_key_func] __device__(
-                                              auto val) { return key_func(val) != comm_rank; })),
-      handle.get_stream());
+    auto vertex_last = d_vertices.begin();
+    if (shuffle) {  // vertices are properly shuffled to the owning GPUs
+      auto vertex_key_func = cugraph::detail::compute_gpu_id_from_ext_vertex_t<vertex_t>{
+        comm_size, major_comm_size, minor_comm_size};
+      vertex_last = thrust::remove_if(handle.get_thrust_policy(),
+                                      d_vertices.begin(),
+                                      d_vertices.end(),
+                                      [comm_rank, key_func = vertex_key_func] __device__(auto val) {
+                                        return key_func(val) != comm_rank;
+                                      });
+    } else {  // vertices are arbitrarily distributed
+      vertex_last = thrust::remove_if(handle.get_thrust_policy(),
+                                      d_vertices.begin(),
+                                      d_vertices.end(),
+                                      [comm_rank, comm_size] __device__(auto val) {
+                                        return static_cast<int>(val % comm_size) != comm_rank;
+                                      });
+    }
+    d_vertices.resize(cuda::std::distance(d_vertices.begin(), vertex_last), handle.get_stream());
     d_vertices.shrink_to_fit(handle.get_stream());
 
     auto edge_key_func = cugraph::detail::compute_gpu_id_from_ext_edge_endpoints_t<vertex_t>{
       comm_size, major_comm_size, minor_comm_size};
     size_t number_of_local_edges{};
     if (d_edgelist_weights) {
-      auto edge_first       = thrust::make_zip_iterator(thrust::make_tuple(
+      auto edge_first = thrust::make_zip_iterator(thrust::make_tuple(
         d_edgelist_srcs.begin(), d_edgelist_dsts.begin(), (*d_edgelist_weights).begin()));
-      number_of_local_edges = cuda::std::distance(
-        edge_first,
-        thrust::remove_if(
+      auto edge_last  = edge_first;
+      if (shuffle) {  // edges are properly shuffled to the owning GPUs
+        edge_last = thrust::remove_if(
           handle.get_thrust_policy(),
           edge_first,
           edge_first + d_edgelist_srcs.size(),
@@ -359,13 +369,26 @@ read_edgelist_from_matrix_market_file(raft::handle_t const& handle,
             auto minor = thrust::get<1>(e);
             return store_transposed ? key_func(minor, major) != comm_rank
                                     : key_func(major, minor) != comm_rank;
-          }));
+          });
+      } else {  // edges are arbitrary distributed
+        edge_last = thrust::remove_if(
+          handle.get_thrust_policy(),
+          edge_first,
+          edge_first + d_edgelist_srcs.size(),
+          [comm_rank, comm_size] __device__(auto e) {
+            auto major = thrust::get<0>(e);
+            auto minor = thrust::get<1>(e);
+            return static_cast<int>(((major % comm_size) + (minor % comm_size)) % comm_size) !=
+                   comm_rank;
+          });
+      }
+      number_of_local_edges = cuda::std::distance(edge_first, edge_last);
     } else {
       auto edge_first = thrust::make_zip_iterator(
         thrust::make_tuple(d_edgelist_srcs.begin(), d_edgelist_dsts.begin()));
-      number_of_local_edges = cuda::std::distance(
-        edge_first,
-        thrust::remove_if(
+      auto edge_last = edge_first;
+      if (shuffle) {  // edges are properly shuffled to the owning GPUs
+        edge_last = thrust::remove_if(
           handle.get_thrust_policy(),
           edge_first,
           edge_first + d_edgelist_srcs.size(),
@@ -374,7 +397,20 @@ read_edgelist_from_matrix_market_file(raft::handle_t const& handle,
             auto minor = thrust::get<1>(e);
             return store_transposed ? key_func(minor, major) != comm_rank
                                     : key_func(major, minor) != comm_rank;
-          }));
+          });
+      } else {  // edges are arbitrary distributed
+        edge_last = thrust::remove_if(
+          handle.get_thrust_policy(),
+          edge_first,
+          edge_first + d_edgelist_srcs.size(),
+          [comm_rank, comm_size] __device__(auto e) {
+            auto major = thrust::get<0>(e);
+            auto minor = thrust::get<1>(e);
+            return static_cast<int>(((major % comm_size) + (minor % comm_size)) % comm_size) !=
+                   comm_rank;
+          });
+      }
+      number_of_local_edges = cuda::std::distance(edge_first, edge_last);
     }
 
     d_edgelist_srcs.resize(number_of_local_edges, handle.get_stream());
@@ -483,7 +519,8 @@ read_edgelist_from_matrix_market_file<int32_t, float>(raft::handle_t const& hand
                                                       std::string const& graph_file_full_path,
                                                       bool test_weighted,
                                                       bool store_transposed,
-                                                      bool multi_gpu);
+                                                      bool multi_gpu,
+                                                      bool shuffle);
 
 template std::tuple<cugraph::graph_t<int32_t, int32_t, false, false>,
                     std::optional<cugraph::edge_property_t<int32_t, float>>,

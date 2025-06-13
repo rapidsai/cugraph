@@ -15,6 +15,7 @@
  */
 #pragma once
 
+#include <cugraph/large_buffer_manager.hpp>
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/device_comm.hpp>
 
@@ -316,14 +317,21 @@ template <typename ValueIterator>
 void swap_partitions(ValueIterator value_first,
                      ValueIterator value_last,
                      size_t first_partition_size,
-                     rmm::cuda_stream_view stream_view)
+                     rmm::cuda_stream_view stream_view,
+                     std::optional<large_buffer_type_t> large_buffer_type = std::nullopt)
 {
+  using value_t = typename thrust::iterator_traits<ValueIterator>::value_type;
+
+  CUGRAPH_EXPECTS(!large_buffer_type || large_buffer_manager::memory_buffer_initialized(),
+                  "Invalid input argument: large memory buffer is not initialized.");
+
   auto num_elements          = static_cast<size_t>(cuda::std::distance(value_first, value_last));
   auto second_partition_size = num_elements - first_partition_size;
   if (first_partition_size >= second_partition_size) {
     auto tmp_value_buffer =
-      allocate_dataframe_buffer<typename thrust::iterator_traits<ValueIterator>::value_type>(
-        first_partition_size, stream_view);
+      large_buffer_type
+        ? large_buffer_manager::allocate_memory_buffer<value_t>(first_partition_size, stream_view)
+        : allocate_dataframe_buffer<value_t>(first_partition_size, stream_view);
 
     thrust::copy(rmm::exec_policy(stream_view),
                  value_first,
@@ -341,8 +349,9 @@ void swap_partitions(ValueIterator value_first,
                  value_first + second_partition_size);
   } else {
     auto tmp_value_buffer =
-      allocate_dataframe_buffer<typename thrust::iterator_traits<ValueIterator>::value_type>(
-        second_partition_size, stream_view);
+      large_buffer_type
+        ? large_buffer_manager::allocate_memory_buffer<value_t>(second_partition_size, stream_view)
+        : allocate_dataframe_buffer<value_t>(second_partition_size, stream_view);
 
     thrust::copy(rmm::exec_policy(stream_view),
                  value_first + first_partition_size,
@@ -366,17 +375,26 @@ void swap_partitions(KeyIterator key_first,
                      KeyIterator key_last,
                      ValueIterator value_first,
                      size_t first_partition_size,
-                     rmm::cuda_stream_view stream_view)
+                     rmm::cuda_stream_view stream_view,
+                     std::optional<large_buffer_type_t> large_buffer_type = std::nullopt)
 {
+  using key_t   = typename thrust::iterator_traits<KeyIterator>::value_type;
+  using value_t = typename thrust::iterator_traits<ValueIterator>::value_type;
+
+  CUGRAPH_EXPECTS(!large_buffer_type || large_buffer_manager::memory_buffer_initialized(),
+                  "Invalid input argument: large memory buffer is not initialized.");
+
   auto num_elements          = static_cast<size_t>(cuda::std::distance(key_first, key_last));
   auto second_partition_size = num_elements - first_partition_size;
   if (first_partition_size >= second_partition_size) {
     auto tmp_key_buffer =
-      allocate_dataframe_buffer<typename thrust::iterator_traits<KeyIterator>::value_type>(
-        first_partition_size, stream_view);
+      large_buffer_type
+        ? large_buffer_manager::allocate_memory_buffer<key_t>(first_partition_size, stream_view)
+        : allocate_dataframe_buffer<key_t>(first_partition_size, stream_view);
     auto tmp_value_buffer =
-      allocate_dataframe_buffer<typename thrust::iterator_traits<ValueIterator>::value_type>(
-        first_partition_size, stream_view);
+      large_buffer_type
+        ? large_buffer_manager::allocate_memory_buffer<value_t>(first_partition_size, stream_view)
+        : allocate_dataframe_buffer<value_t>(first_partition_size, stream_view);
 
     thrust::copy(rmm::exec_policy(stream_view),
                  key_first,
@@ -406,11 +424,13 @@ void swap_partitions(KeyIterator key_first,
                  value_first + second_partition_size);
   } else {
     auto tmp_key_buffer =
-      allocate_dataframe_buffer<typename thrust::iterator_traits<KeyIterator>::value_type>(
-        second_partition_size, stream_view);
+      large_buffer_type
+        ? large_buffer_manager::allocate_memory_buffer<key_t>(second_partition_size, stream_view)
+        : allocate_dataframe_buffer<key_t>(second_partition_size, stream_view);
     auto tmp_value_buffer =
-      allocate_dataframe_buffer<typename thrust::iterator_traits<ValueIterator>::value_type>(
-        second_partition_size, stream_view);
+      large_buffer_type
+        ? large_buffer_manager::allocate_memory_buffer<value_t>(second_partition_size, stream_view)
+        : allocate_dataframe_buffer<value_t>(second_partition_size, stream_view);
 
     thrust::copy(rmm::exec_policy(stream_view),
                  key_first + first_partition_size,
@@ -451,20 +471,26 @@ ValueIterator mem_frugal_partition(
   ValueIterator value_last,
   ValueToGroupIdOp value_to_group_id_op,
   int pivot,  // group id less than pivot goes to the first partition
-  rmm::cuda_stream_view stream_view)
+  rmm::cuda_stream_view stream_view,
+  std::optional<large_buffer_type_t> large_buffer_type = std::nullopt)
 {
+  using value_t = typename thrust::iterator_traits<ValueIterator>::value_type;
+
+  CUGRAPH_EXPECTS(!large_buffer_type || large_buffer_manager::memory_buffer_initialized(),
+                  "Invalid input argument: large memory buffer is not initialized.");
+
   auto num_elements = static_cast<size_t>(cuda::std::distance(value_first, value_last));
   auto first_size   = static_cast<size_t>(thrust::count_if(
     rmm::exec_policy(stream_view),
     value_first,
     value_last,
-    value_group_id_less_t<typename thrust::iterator_traits<ValueIterator>::value_type,
-                            ValueToGroupIdOp>{value_to_group_id_op, pivot}));
+    value_group_id_less_t<value_t, ValueToGroupIdOp>{value_to_group_id_op, pivot}));
   auto second_size  = num_elements - first_size;
 
   auto tmp_buffer =
-    allocate_dataframe_buffer<typename thrust::iterator_traits<ValueIterator>::value_type>(
-      second_size, stream_view);
+    large_buffer_type
+      ? large_buffer_manager::allocate_memory_buffer<value_t>(second_size, stream_view)
+      : allocate_dataframe_buffer<value_t>(second_size, stream_view);
 
   // to limit memory footprint (16 * 1024 * 1024 is a tuning parameter)
   // thrust::copy_if (1.15.0) also uses temporary buffer
@@ -506,23 +532,31 @@ std::tuple<KeyIterator, ValueIterator> mem_frugal_partition(
   ValueIterator value_first,
   KeyToGroupIdOp key_to_group_id_op,
   int pivot,  // group Id less than pivot goes to the first partition
-  rmm::cuda_stream_view stream_view)
+  rmm::cuda_stream_view stream_view,
+  std::optional<large_buffer_type_t> large_buffer_type = std::nullopt)
 {
+  using key_t   = typename thrust::iterator_traits<KeyIterator>::value_type;
+  using value_t = typename thrust::iterator_traits<ValueIterator>::value_type;
+
+  CUGRAPH_EXPECTS(!large_buffer_type || large_buffer_manager::memory_buffer_initialized(),
+                  "Invalid input argument: large memory buffer is not initialized.");
+
   auto num_elements = static_cast<size_t>(cuda::std::distance(key_first, key_last));
-  auto first_size   = static_cast<size_t>(thrust::count_if(
-    rmm::exec_policy(stream_view),
-    key_first,
-    key_last,
-    key_group_id_less_t<typename thrust::iterator_traits<KeyIterator>::value_type, KeyToGroupIdOp>{
-      key_to_group_id_op, pivot}));
-  auto second_size  = num_elements - first_size;
+  auto first_size   = static_cast<size_t>(
+    thrust::count_if(rmm::exec_policy(stream_view),
+                     key_first,
+                     key_last,
+                     key_group_id_less_t<key_t, KeyToGroupIdOp>{key_to_group_id_op, pivot}));
+  auto second_size = num_elements - first_size;
 
   auto tmp_key_buffer =
-    allocate_dataframe_buffer<typename thrust::iterator_traits<KeyIterator>::value_type>(
-      second_size, stream_view);
+    large_buffer_type
+      ? large_buffer_manager::allocate_memory_buffer<key_t>(second_size, stream_view)
+      : allocate_dataframe_buffer<key_t>(second_size, stream_view);
   auto tmp_value_buffer =
-    allocate_dataframe_buffer<typename thrust::iterator_traits<ValueIterator>::value_type>(
-      second_size, stream_view);
+    large_buffer_type
+      ? large_buffer_manager::allocate_memory_buffer<value_t>(second_size, stream_view)
+      : allocate_dataframe_buffer<value_t>(second_size, stream_view);
 
   // to limit memory footprint (16 * 1024 * 1024 is a tuning parameter)
   // thrust::copy_if (1.15.0) also uses temporary buffer
@@ -537,18 +571,14 @@ std::tuple<KeyIterator, ValueIterator> mem_frugal_partition(
       kv_pair_first + max_elements_per_iteration * i,
       kv_pair_first + std::min(max_elements_per_iteration * (i + 1), num_elements),
       output_chunk_first,
-      kv_pair_group_id_greater_equal_t<typename thrust::iterator_traits<KeyIterator>::value_type,
-                                       typename thrust::iterator_traits<ValueIterator>::value_type,
-                                       KeyToGroupIdOp>{key_to_group_id_op, pivot});
+      kv_pair_group_id_greater_equal_t<key_t, value_t, KeyToGroupIdOp>{key_to_group_id_op, pivot});
   }
 
   thrust::remove_if(
     rmm::exec_policy(stream_view),
     kv_pair_first,
     kv_pair_first + num_elements,
-    kv_pair_group_id_greater_equal_t<typename thrust::iterator_traits<KeyIterator>::value_type,
-                                     typename thrust::iterator_traits<ValueIterator>::value_type,
-                                     KeyToGroupIdOp>{key_to_group_id_op, pivot});
+    kv_pair_group_id_greater_equal_t<key_t, value_t, KeyToGroupIdOp>{key_to_group_id_op, pivot});
   thrust::copy(rmm::exec_policy(stream_view),
                get_dataframe_buffer_cbegin(tmp_key_buffer),
                get_dataframe_buffer_cend(tmp_key_buffer),
@@ -569,8 +599,12 @@ void mem_frugal_groupby(
   int num_groups,
   size_t mem_frugal_threshold,  // take the memory frugal approach (instead of thrust::sort) if #
                                 // elements to groupby is no smaller than this value
-  rmm::cuda_stream_view stream_view)
+  rmm::cuda_stream_view stream_view,
+  std::optional<large_buffer_type_t> large_buffer_type = std::nullopt)
 {
+  CUGRAPH_EXPECTS(!large_buffer_type || large_buffer_manager::memory_buffer_initialized(),
+                  "Invalid input argument: large memory buffer is not initialized.");
+
   std::vector<int> group_firsts{};
   std::vector<int> group_lasts{};
   std::vector<ValueIterator> value_firsts{};
@@ -624,12 +658,14 @@ void mem_frugal_groupby(
                                                                 value_firsts[i] + num_elements / 2,
                                                                 value_to_group_id_op,
                                                                 pivot,
-                                                                stream_view);
+                                                                stream_view,
+                                                                large_buffer_type);
         auto second_chunk_partition_first = mem_frugal_partition(value_firsts[i] + num_elements / 2,
                                                                  value_lasts[i],
                                                                  value_to_group_id_op,
                                                                  pivot,
-                                                                 stream_view);
+                                                                 stream_view,
+                                                                 large_buffer_type);
         auto no_less_size                 = static_cast<size_t>(
           cuda::std::distance(first_chunk_partition_first, value_firsts[i] + num_elements / 2));
         auto less_size = static_cast<size_t>(
@@ -637,7 +673,8 @@ void mem_frugal_groupby(
         swap_partitions(value_firsts[i] + (num_elements / 2 - no_less_size),
                         value_firsts[i] + (num_elements / 2 + less_size),
                         no_less_size,
-                        stream_view);
+                        stream_view,
+                        large_buffer_type);
 
         second_first = value_firsts[i] + ((num_elements / 2 - no_less_size) + less_size);
         if (pivot - group_firsts[i] > 1) {
@@ -668,8 +705,12 @@ void mem_frugal_groupby(
   int num_groups,
   size_t mem_frugal_threshold,  // take the memory frugal approach (instead of thrust::sort) if #
                                 // elements to groupby is no smaller than this value
-  rmm::cuda_stream_view stream_view)
+  rmm::cuda_stream_view stream_view,
+  std::optional<large_buffer_type_t> large_buffer_type = std::nullopt)
 {
+  CUGRAPH_EXPECTS(!large_buffer_type || large_buffer_manager::memory_buffer_initialized(),
+                  "Invalid input argument: large memory buffer is not initialized.");
+
   std::vector<int> group_firsts{};
   std::vector<int> group_lasts{};
   std::vector<KeyIterator> key_firsts{};
@@ -730,13 +771,15 @@ void mem_frugal_groupby(
                                                                 value_firsts[i],
                                                                 key_to_group_id_op,
                                                                 pivot,
-                                                                stream_view);
+                                                                stream_view,
+                                                                large_buffer_type);
         auto second_chunk_partition_first = mem_frugal_partition(key_firsts[i] + num_elements / 2,
                                                                  key_lasts[i],
                                                                  value_firsts[i] + num_elements / 2,
                                                                  key_to_group_id_op,
                                                                  pivot,
-                                                                 stream_view);
+                                                                 stream_view,
+                                                                 large_buffer_type);
         auto no_less_size                 = static_cast<size_t>(cuda::std::distance(
           std::get<0>(first_chunk_partition_first), key_firsts[i] + num_elements / 2));
         auto less_size                    = static_cast<size_t>(cuda::std::distance(
@@ -745,7 +788,8 @@ void mem_frugal_groupby(
                         key_firsts[i] + (num_elements / 2 + less_size),
                         value_firsts[i] + (num_elements / 2 - no_less_size),
                         no_less_size,
-                        stream_view);
+                        stream_view,
+                        large_buffer_type);
 
         second_first =
           std::make_tuple(key_firsts[i] + ((num_elements / 2 - no_less_size) + less_size),
@@ -774,19 +818,25 @@ void mem_frugal_groupby(
 }  // namespace detail
 
 template <typename ValueIterator, typename ValueToGroupIdOp>
-rmm::device_uvector<size_t> groupby_and_count(ValueIterator tx_value_first /* [INOUT */,
-                                              ValueIterator tx_value_last /* [INOUT */,
-                                              ValueToGroupIdOp value_to_group_id_op,
-                                              int num_groups,
-                                              size_t mem_frugal_threshold,
-                                              rmm::cuda_stream_view stream_view)
+rmm::device_uvector<size_t> groupby_and_count(
+  ValueIterator tx_value_first /* [INOUT */,
+  ValueIterator tx_value_last /* [INOUT */,
+  ValueToGroupIdOp value_to_group_id_op,
+  int num_groups,
+  size_t mem_frugal_threshold,
+  rmm::cuda_stream_view stream_view,
+  std::optional<large_buffer_type_t> large_buffer_type = std::nullopt)
 {
+  CUGRAPH_EXPECTS(!large_buffer_type || large_buffer_manager::memory_buffer_initialized(),
+                  "Invalid input argument: large memory buffer is not initialized.");
+
   detail::mem_frugal_groupby(tx_value_first,
                              tx_value_last,
                              value_to_group_id_op,
                              num_groups,
                              mem_frugal_threshold,
-                             stream_view);
+                             stream_view,
+                             large_buffer_type);
 
   auto group_id_first = thrust::make_transform_iterator(
     tx_value_first, cuda::proclaim_return_type<int>([value_to_group_id_op] __device__(auto value) {
@@ -807,21 +857,27 @@ rmm::device_uvector<size_t> groupby_and_count(ValueIterator tx_value_first /* [I
 }
 
 template <typename VertexIterator, typename ValueIterator, typename KeyToGroupIdOp>
-rmm::device_uvector<size_t> groupby_and_count(VertexIterator tx_key_first /* [INOUT */,
-                                              VertexIterator tx_key_last /* [INOUT */,
-                                              ValueIterator tx_value_first /* [INOUT */,
-                                              KeyToGroupIdOp key_to_group_id_op,
-                                              int num_groups,
-                                              size_t mem_frugal_threshold,
-                                              rmm::cuda_stream_view stream_view)
+rmm::device_uvector<size_t> groupby_and_count(
+  VertexIterator tx_key_first /* [INOUT */,
+  VertexIterator tx_key_last /* [INOUT */,
+  ValueIterator tx_value_first /* [INOUT */,
+  KeyToGroupIdOp key_to_group_id_op,
+  int num_groups,
+  size_t mem_frugal_threshold,
+  rmm::cuda_stream_view stream_view,
+  std::optional<large_buffer_type_t> large_buffer_type = std::nullopt)
 {
+  CUGRAPH_EXPECTS(!large_buffer_type || large_buffer_manager::memory_buffer_initialized(),
+                  "Invalid input argument: large memory buffer is not initialized.");
+
   detail::mem_frugal_groupby(tx_key_first,
                              tx_key_last,
                              tx_value_first,
                              key_to_group_id_op,
                              num_groups,
                              mem_frugal_threshold,
-                             stream_view);
+                             stream_view,
+                             large_buffer_type);
 
   auto group_id_first = thrust::make_transform_iterator(
     tx_key_first, cuda::proclaim_return_type<int>([key_to_group_id_op] __device__(auto key) {
@@ -845,9 +901,13 @@ template <typename TxValueIterator>
 auto shuffle_values(raft::comms::comms_t const& comm,
                     TxValueIterator tx_value_first,
                     raft::device_span<size_t const> d_tx_value_counts,
-                    rmm::cuda_stream_view stream_view)
+                    rmm::cuda_stream_view stream_view,
+                    std::optional<large_buffer_type_t> large_buffer_type = std::nullopt)
 {
   using value_t = typename thrust::iterator_traits<TxValueIterator>::value_type;
+
+  CUGRAPH_EXPECTS(!large_buffer_type || large_buffer_manager::memory_buffer_initialized(),
+                  "Invalid input argument: large memory buffer is not initialized.");
 
   auto const comm_size = comm.get_size();
 
@@ -860,8 +920,11 @@ auto shuffle_values(raft::comms::comms_t const& comm,
   std::tie(tx_counts, tx_displs, tx_dst_ranks, rx_counts, rx_displs, rx_src_ranks) =
     detail::compute_tx_rx_counts_displs_ranks(comm, d_tx_value_counts, true, stream_view);
 
-  auto rx_value_buffer = allocate_dataframe_buffer<value_t>(
-    rx_displs.size() > 0 ? rx_displs.back() + rx_counts.back() : size_t{0}, stream_view);
+  auto rx_buffer_size = rx_displs.size() > 0 ? rx_displs.back() + rx_counts.back() : size_t{0};
+  auto rx_value_buffer =
+    large_buffer_type
+      ? large_buffer_manager::allocate_memory_buffer<value_t>(rx_buffer_size, stream_view)
+      : allocate_dataframe_buffer<value_t>(rx_buffer_size, stream_view);
 
   // (if num_tx_dst_ranks == num_rx_src_ranks == comm_size).
   device_multicast_sendrecv(comm,
@@ -891,7 +954,8 @@ template <typename TxValueIterator>
 auto shuffle_values(raft::comms::comms_t const& comm,
                     TxValueIterator tx_value_first,
                     raft::host_span<size_t const> tx_value_counts,
-                    rmm::cuda_stream_view stream_view)
+                    rmm::cuda_stream_view stream_view,
+                    std::optional<large_buffer_type_t> large_buffer_type = std::nullopt)
 {
   using value_t = typename thrust::iterator_traits<TxValueIterator>::value_type;
 
@@ -905,7 +969,8 @@ auto shuffle_values(raft::comms::comms_t const& comm,
     comm,
     tx_value_first,
     raft::device_span<size_t const>{d_tx_value_counts.data(), d_tx_value_counts.size()},
-    stream_view);
+    stream_view,
+    large_buffer_type);
 }
 
 // Add gaps in the receive buffer to enforce that the sent data offset and the received data offset
@@ -918,9 +983,13 @@ auto shuffle_values(
   raft::host_span<size_t const> tx_value_counts,
   size_t alignment,  // # elements
   std::optional<typename thrust::iterator_traits<TxValueIterator>::value_type> fill_value,
-  rmm::cuda_stream_view stream_view)
+  rmm::cuda_stream_view stream_view,
+  std::optional<large_buffer_type_t> large_buffer_type = std::nullopt)
 {
   using value_t = typename thrust::iterator_traits<TxValueIterator>::value_type;
+
+  CUGRAPH_EXPECTS(!large_buffer_type || large_buffer_manager::memory_buffer_initialized(),
+                  "Invalid input argument: large memory buffer is not initialized.");
 
   auto const comm_size = comm.get_size();
 
@@ -1008,8 +1077,11 @@ auto shuffle_values(
     offset                      = rx_aligned_displacements[i] + rx_aligned_counts[i];
   }
 
-  auto rx_values = allocate_dataframe_buffer<value_t>(
-    rx_aligned_displacements.back() + rx_aligned_counts.back(), stream_view);
+  auto rx_buffer_size = rx_aligned_displacements.back() + rx_aligned_counts.back();
+  auto rx_values =
+    large_buffer_type
+      ? large_buffer_manager::allocate_memory_buffer<value_t>(rx_buffer_size, stream_view)
+      : allocate_dataframe_buffer<value_t>(rx_buffer_size, stream_view);
   if (fill_value) {
     thrust::fill(rmm::exec_policy_nosync(stream_view),
                  get_dataframe_buffer_begin(rx_values),
@@ -1058,14 +1130,20 @@ auto shuffle_and_unique_segment_sorted_values(
                                     // tx_value_counts[i], where i = [0, comm_size); and bettter be
                                     // unique to reduce communication volume
   raft::host_span<size_t const> tx_value_counts,
-  rmm::cuda_stream_view stream_view)
+  rmm::cuda_stream_view stream_view,
+  std::optional<large_buffer_type_t> large_buffer_type = std::nullopt)
 {
   using value_t = typename thrust::iterator_traits<TxValueIterator>::value_type;
+
+  CUGRAPH_EXPECTS(!large_buffer_type || large_buffer_manager::memory_buffer_initialized(),
+                  "Invalid input argument: large memory buffer is not initialized.");
 
   auto const comm_rank = comm.get_rank();
   auto const comm_size = comm.get_size();
 
-  auto sorted_unique_values = allocate_dataframe_buffer<value_t>(0, stream_view);
+  auto sorted_unique_values =
+    large_buffer_type ? large_buffer_manager::allocate_memory_buffer<value_t>(0, stream_view)
+                      : allocate_dataframe_buffer<value_t>(0, stream_view);
   if (comm_size == 1) {
     resize_dataframe_buffer(sorted_unique_values, tx_value_counts[comm_rank], stream_view);
     thrust::copy(rmm::exec_policy_nosync(stream_view),
@@ -1103,7 +1181,10 @@ auto shuffle_and_unique_segment_sorted_values(
       auto src =
         static_cast<int>((static_cast<size_t>(comm_rank) + static_cast<size_t>(comm_size - i)) %
                          static_cast<size_t>(comm_size));
-      auto rx_sorted_values = allocate_dataframe_buffer<value_t>(rx_counts[src], stream_view);
+      auto rx_sorted_values =
+        large_buffer_type
+          ? large_buffer_manager::allocate_memory_buffer<value_t>(rx_counts[src], stream_view)
+          : allocate_dataframe_buffer<value_t>(rx_counts[src], stream_view);
       device_sendrecv(comm,
                       segment_sorted_tx_value_first + tx_displs[dst],
                       tx_counts[dst],
@@ -1112,10 +1193,13 @@ auto shuffle_and_unique_segment_sorted_values(
                       rx_counts[src],
                       src,
                       stream_view);
-      auto merged_sorted_values = allocate_dataframe_buffer<value_t>(
+      auto merged_size =
         (i == 1 ? tx_counts[comm_rank] : size_dataframe_buffer(sorted_unique_values)) +
-          rx_counts[src],
-        stream_view);
+        rx_counts[src];
+      auto merged_sorted_values =
+        large_buffer_type
+          ? large_buffer_manager::allocate_memory_buffer<value_t>(merged_size, stream_view)
+          : allocate_dataframe_buffer<value_t>(merged_size, stream_view);
       if (i == 1) {
         thrust::merge(rmm::exec_policy_nosync(stream_view),
                       segment_sorted_tx_value_first + tx_displs[comm_rank],
@@ -1146,12 +1230,19 @@ auto shuffle_and_unique_segment_sorted_values(
 }
 
 template <typename ValueIterator, typename ValueToGPUIdOp>
-auto groupby_gpu_id_and_shuffle_values(raft::comms::comms_t const& comm,
-                                       ValueIterator tx_value_first /* [INOUT */,
-                                       ValueIterator tx_value_last /* [INOUT */,
-                                       ValueToGPUIdOp value_to_gpu_id_op,
-                                       rmm::cuda_stream_view stream_view)
+auto groupby_gpu_id_and_shuffle_values(
+  raft::comms::comms_t const& comm,
+  ValueIterator tx_value_first /* [INOUT */,
+  ValueIterator tx_value_last /* [INOUT */,
+  ValueToGPUIdOp value_to_gpu_id_op,
+  rmm::cuda_stream_view stream_view,
+  std::optional<large_buffer_type_t> large_buffer_type = std::nullopt)
 {
+  using value_t = typename thrust::iterator_traits<ValueIterator>::value_type;
+
+  CUGRAPH_EXPECTS(!large_buffer_type || large_buffer_manager::memory_buffer_initialized(),
+                  "Invalid input argument: large memory buffer is not initialized.");
+
   auto const comm_size = comm.get_size();
 
   auto d_tx_value_counts = groupby_and_count(tx_value_first,
@@ -1159,7 +1250,8 @@ auto groupby_gpu_id_and_shuffle_values(raft::comms::comms_t const& comm,
                                              value_to_gpu_id_op,
                                              comm.get_size(),
                                              std::numeric_limits<size_t>::max(),
-                                             stream_view);
+                                             stream_view,
+                                             large_buffer_type);
 
   std::vector<size_t> tx_counts{};
   std::vector<size_t> tx_displs{};
@@ -1174,9 +1266,11 @@ auto groupby_gpu_id_and_shuffle_values(raft::comms::comms_t const& comm,
       true,
       stream_view);
 
+  auto rx_buffer_size = rx_displs.size() > 0 ? rx_displs.back() + rx_counts.back() : size_t{0};
   auto rx_value_buffer =
-    allocate_dataframe_buffer<typename thrust::iterator_traits<ValueIterator>::value_type>(
-      rx_displs.size() > 0 ? rx_displs.back() + rx_counts.back() : size_t{0}, stream_view);
+    large_buffer_type
+      ? large_buffer_manager::allocate_memory_buffer<value_t>(rx_buffer_size, stream_view)
+      : allocate_dataframe_buffer<value_t>(rx_buffer_size, stream_view);
 
   // (if num_tx_dst_ranks == num_rx_src_ranks == comm_size).
   device_multicast_sendrecv(comm,
@@ -1202,13 +1296,21 @@ auto groupby_gpu_id_and_shuffle_values(raft::comms::comms_t const& comm,
 }
 
 template <typename VertexIterator, typename ValueIterator, typename KeyToGPUIdOp>
-auto groupby_gpu_id_and_shuffle_kv_pairs(raft::comms::comms_t const& comm,
-                                         VertexIterator tx_key_first /* [INOUT */,
-                                         VertexIterator tx_key_last /* [INOUT */,
-                                         ValueIterator tx_value_first /* [INOUT */,
-                                         KeyToGPUIdOp key_to_gpu_id_op,
-                                         rmm::cuda_stream_view stream_view)
+auto groupby_gpu_id_and_shuffle_kv_pairs(
+  raft::comms::comms_t const& comm,
+  VertexIterator tx_key_first /* [INOUT */,
+  VertexIterator tx_key_last /* [INOUT */,
+  ValueIterator tx_value_first /* [INOUT */,
+  KeyToGPUIdOp key_to_gpu_id_op,
+  rmm::cuda_stream_view stream_view,
+  std::optional<large_buffer_type_t> large_buffer_type = std::nullopt)
 {
+  using vertex_t = typename thrust::iterator_traits<VertexIterator>::value_type;
+  using value_t  = typename thrust::iterator_traits<ValueIterator>::value_type;
+
+  CUGRAPH_EXPECTS(!large_buffer_type || large_buffer_manager::memory_buffer_initialized(),
+                  "Invalid input argument: large memory buffer is not initialized.");
+
   auto const comm_size = comm.get_size();
 
   auto d_tx_value_counts = groupby_and_count(tx_key_first,
@@ -1217,7 +1319,8 @@ auto groupby_gpu_id_and_shuffle_kv_pairs(raft::comms::comms_t const& comm,
                                              key_to_gpu_id_op,
                                              comm.get_size(),
                                              std::numeric_limits<size_t>::max(),
-                                             stream_view);
+                                             stream_view,
+                                             large_buffer_type);
 
   std::vector<size_t> tx_counts{};
   std::vector<size_t> tx_displs{};
@@ -1232,11 +1335,14 @@ auto groupby_gpu_id_and_shuffle_kv_pairs(raft::comms::comms_t const& comm,
       true,
       stream_view);
 
-  rmm::device_uvector<typename thrust::iterator_traits<VertexIterator>::value_type> rx_keys(
-    rx_displs.size() > 0 ? rx_displs.back() + rx_counts.back() : size_t{0}, stream_view);
+  auto rx_buffer_size = rx_displs.size() > 0 ? rx_displs.back() + rx_counts.back() : size_t{0};
+  auto rx_keys        = large_buffer_type ? large_buffer_manager::allocate_memory_buffer<vertex_t>(
+                                       rx_buffer_size, stream_view)
+                                          : rmm::device_uvector<vertex_t>(rx_buffer_size, stream_view);
   auto rx_value_buffer =
-    allocate_dataframe_buffer<typename thrust::iterator_traits<ValueIterator>::value_type>(
-      rx_keys.size(), stream_view);
+    large_buffer_type
+      ? large_buffer_manager::allocate_memory_buffer<value_t>(rx_buffer_size, stream_view)
+      : allocate_dataframe_buffer<value_t>(rx_buffer_size, stream_view);
 
   // (if num_tx_dst_ranks == num_rx_src_ranks == comm_size).
   device_multicast_sendrecv(comm,
