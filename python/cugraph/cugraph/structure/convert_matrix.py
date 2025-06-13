@@ -389,7 +389,7 @@ def to_pandas_edgelist(G, source="src", destination="dst"):
     return pdf
 
 
-def from_pandas_adjacency(df, create_using=Graph):
+def from_pandas_adjacency(df, create_using=Graph, vertices=None):
     """
     Initializes the graph from pandas adjacency matrix.
 
@@ -401,6 +401,14 @@ def from_pandas_adjacency(df, create_using=Graph):
     create_using: cugraph.Graph (instance or class), optional (default=Graph)
         Specify the type of Graph to create. Can pass in an instance to create
         a Graph instance with specified 'directed' attribute.
+    
+    vertices : cudf.Series or List, optional (default=None)
+        A cudf.Series or list containing all vertices of the graph. This is
+        optional, but must be used if the graph contains isolated vertices
+        which cannot be represented in the source and destination arrays.
+        If specified, this array must contain every vertex identifier,
+        including vertex identifiers that are already included in the
+        source and destination arrays.
     """
     if create_using is None:
         G = Graph()
@@ -416,7 +424,7 @@ def from_pandas_adjacency(df, create_using=Graph):
             f"{type(create_using)}"
         )
 
-    G.from_pandas_adjacency(df)
+    G.from_pandas_adjacency(df, vertices=vertices)
     return G
 
 
@@ -469,7 +477,7 @@ def from_numpy_array(A, create_using=Graph, vertices=None):
             f"{type(create_using)}"
         )
 
-    G.from_numpy_array(A, vertices=vertices)
+    G.from_numpy_array(A, nodes=vertices)
     return G
 
 
