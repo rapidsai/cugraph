@@ -15,6 +15,7 @@ from cugraph.structure import graph_primtypes_wrapper
 from cugraph.structure.replicate_edgelist import replicate_cudf_dataframe
 from cugraph.structure.symmetrize import symmetrize as symmetrize_df
 from pylibcugraph import decompress_to_edgelist as pylibcugraph_decompress_to_edgelist
+from pylibcugraph import extract_vertex_list as pylibcugraph_extract_vertex_list
 from cugraph.structure.number_map import NumberMap
 import cugraph.dask.common.mg_utils as mg_utils
 import cudf
@@ -135,6 +136,7 @@ class simpleGraphImpl:
         renumber=True,
         store_transposed=False,
         symmetrize=None,
+        vertices=None,
     ):
 
         if self.properties.directed and symmetrize:
@@ -310,19 +312,33 @@ class simpleGraphImpl:
         if self.batch_enabled:
             self._replicate_edgelist()
 
+        if vertices is not None:
+            if self.properties.renumbered is True:
+                if isinstance(vertices, cudf.Series):
+                    vertices = self.lookup_internal_vertex_id(
+                        vertices, vertices.columns
+                    )
+                else:
+                    vertices = self.lookup_internal_vertex_id(cudf.Series(vertices))
+
+            if not isinstance(vertices, cudf.Series):
+                vertex_dtype = self.edgelist.edgelist_df[simpleGraphImpl.srcCol].dtype
+                vertices = cudf.Series(vertices, dtype=vertex_dtype)
+
         self._make_plc_graph(
             value_col=value_col,
             store_transposed=store_transposed,
             renumber=renumber,
             drop_multi_edges=not self.properties.multi_edge,
             symmetrize=symmetrize,
+            vertices=vertices,
         )
 
     def to_pandas_edgelist(
         self,
         source="src",
         destination="dst",
-        weight="weights",
+        weight="weight",
     ):
         """
         Returns the graph edge list as a Pandas DataFrame.
@@ -432,6 +448,7 @@ class simpleGraphImpl:
                 then containing the weight value for each edge
         """
         if self.edgelist is None:
+            # The graph must have an adjacency list or else the call below will fail
             src, dst, weights = graph_primtypes_wrapper.view_edge_list(self)
             self.edgelist = self.EdgeList(src, dst, weights)
 
@@ -444,6 +461,12 @@ class simpleGraphImpl:
         """
         use_initial_input_df = True
 
+        # Retrieve the renumbered edgelist if the upper triangular matrix
+        # needs to be extracted otherwised, retrieve the unrenumbered version.
+        # Only undirected graphs return the upper triangular matrix when calling
+        # the 'view_edge_list' method.
+        return_unrenumbered_edgelist = True
+
         if self.input_df is not None:
             if type(srcCol) is list and type(dstCol) is list:
                 if len(srcCol) == 1:
@@ -455,21 +478,38 @@ class simpleGraphImpl:
                     ] or self.input_df[dstCol].dtype not in [np.int32, np.int64]:
                         # hypergraph case
                         use_initial_input_df = False
+                        return_unrenumbered_edgelist = False
                 else:
                     use_initial_input_df = False
+                    return_unrenumbered_edgelist = False
 
             elif self.input_df[srcCol].dtype not in [
                 np.int32,
                 np.int64,
             ] or self.input_df[dstCol].dtype not in [np.int32, np.int64]:
                 use_initial_input_df = False
+                return_unrenumbered_edgelist = False
         else:
             use_initial_input_df = False
+            return_unrenumbered_edgelist = False
+
+        if self.properties.directed:
+            # If the graph is directed, no need for the renumbered edgelist
+            # to extract the upper triangular matrix
+            return_unrenumbered_edgelist = True
 
         if use_initial_input_df and self.properties.directed:
-            edgelist_df = self.input_df
+            edgelist_df = self.input_df  # Original input.
         else:
-            edgelist_df = self.edgelist.edgelist_df
+            edgelist_df = self.decompress_to_edgelist(
+                return_unrenumbered_edgelist=return_unrenumbered_edgelist
+            )
+
+            if self.properties.renumbered:
+                edgelist_df = edgelist_df.rename(
+                    columns=self.renumber_map.internal_to_external_col_names
+                )
+
             if srcCol is None and dstCol is None:
                 srcCol = simpleGraphImpl.srcCol
                 dstCol = simpleGraphImpl.dstCol
@@ -478,12 +518,6 @@ class simpleGraphImpl:
             # unrenumber before extracting the upper triangular part
             # case when the vertex column name is of size 1
             if self.properties.renumbered:
-                edgelist_df = self.renumber_map.unrenumber(
-                    edgelist_df, simpleGraphImpl.srcCol
-                )
-                edgelist_df = self.renumber_map.unrenumber(
-                    edgelist_df, simpleGraphImpl.dstCol
-                )
                 edgelist_df = edgelist_df.rename(
                     columns=self.renumber_map.internal_to_external_col_names
                 )
@@ -498,20 +532,28 @@ class simpleGraphImpl:
         elif not use_initial_input_df and self.properties.renumbered:
             # Do not unrenumber the vertices if the initial input df was used
             if not self.properties.directed:
+
+                edgelist_df = self.decompress_to_edgelist(
+                    return_unrenumbered_edgelist=return_unrenumbered_edgelist
+                )
+
+                # Need to leverage the renumbered edgelist to extract the upper
+                # triangular matrix for multi-column or string vertices
                 edgelist_df = edgelist_df[
                     edgelist_df[simpleGraphImpl.srcCol]
                     <= edgelist_df[simpleGraphImpl.dstCol]
                 ]
 
-            edgelist_df = self.renumber_map.unrenumber(
-                edgelist_df, simpleGraphImpl.srcCol
-            )
-            edgelist_df = self.renumber_map.unrenumber(
-                edgelist_df, simpleGraphImpl.dstCol
-            )
-            edgelist_df = edgelist_df.rename(
-                columns=self.renumber_map.internal_to_external_col_names
-            )
+                # unrenumber the edgelist
+                edgelist_df = self.renumber_map.unrenumber(
+                    edgelist_df, simpleGraphImpl.srcCol
+                )
+                edgelist_df = self.renumber_map.unrenumber(
+                    edgelist_df, simpleGraphImpl.dstCol
+                )
+                edgelist_df = edgelist_df.rename(
+                    columns=self.renumber_map.internal_to_external_col_names
+                )
 
         if self.vertex_columns is not None and len(self.vertex_columns) == 2:
             # single column vertices internally renamed to 'simpleGraphImpl.srcCol'
@@ -805,7 +847,7 @@ class simpleGraphImpl:
         ----------
         return_unrenumbered_edgelist : bool (default=True)
             Flag determining whether to return the original input edgelist
-            if 'True' or the renumbered one of 'False' and the edgelist was
+            if 'True' or the renumbered one if 'False' and the edgelist was
             renumbered.
 
         Returns
@@ -852,6 +894,56 @@ class simpleGraphImpl:
             df, _ = self.renumber_map.unrenumber(df, "dst", get_column_names=True)
 
         return df
+
+    def extract_vertex_list(
+        self, return_unrenumbered_vertices: bool = True
+    ) -> cudf.DataFrame:
+        """
+        Extract the vertices from a graph.
+
+        Parameters
+        ----------
+        return_unrenumbered_vertices : bool (default=True)
+            Flag determining whether to return the original input input vertices
+            if 'True' or the renumbered one if 'False' and the edgelist was
+            renumbered.
+
+        Returns
+        -------
+
+        series : cudf.Series
+            GPU Series containing all the vertices in the graph including
+            isolated vertices.
+
+        Examples
+        --------
+        >>> from cugraph.datasets import karate
+        >>> G = karate.get_graph(download=True)
+        >>> vertices = G.extract_vertex_list()
+
+        """
+
+        do_expensive_check = False
+        vertices = pylibcugraph_extract_vertex_list(
+            resource_handle=ResourceHandle(),
+            graph=self._plc_graph,
+            do_expensive_check=do_expensive_check,
+        )
+
+        vertices = cudf.Series(
+            vertices, dtype=self.edgelist.edgelist_df[simpleGraphImpl.srcCol].dtype
+        )
+
+        if self.properties.renumbered and return_unrenumbered_vertices:
+            df_ = cudf.DataFrame()
+            df_["vertex"] = vertices
+            df_ = self.renumber_map.unrenumber(df_, "vertex")
+            if len(df_.columns) > 1:
+                vertices = df_
+            else:
+                vertices = df_["vertex"]
+
+        return vertices.sort_values(ignore_index=True)
 
     def select_random_vertices(
         self,
@@ -921,18 +1013,19 @@ class simpleGraphImpl:
         """
         # TODO: Move to Outer graphs?
         if directed_edges and self.edgelist is not None:
-            return len(self.edgelist.edgelist_df)
+            return len(self.decompress_to_edgelist(return_unrenumbered_edgelist=False))
         if self.properties.edge_count is None:
             if self.edgelist is not None:
+                edgelist_df = self.decompress_to_edgelist()
                 if self.properties.directed is False:
                     self.properties.edge_count = len(
-                        self.edgelist.edgelist_df[
-                            self.edgelist.edgelist_df[simpleGraphImpl.srcCol]
-                            >= self.edgelist.edgelist_df[simpleGraphImpl.dstCol]
+                        edgelist_df[
+                            edgelist_df[simpleGraphImpl.srcCol]
+                            >= edgelist_df[simpleGraphImpl.dstCol]
                         ]
                     )
                 else:
-                    self.properties.edge_count = len(self.edgelist.edgelist_df)
+                    self.properties.edge_count = len(edgelist_df)
             elif self.adjlist is not None:
                 self.properties.edge_count = len(self.adjlist.indices)
             elif self.transposedadjlist is not None:
@@ -1222,7 +1315,9 @@ class simpleGraphImpl:
         renumber: bool = True,
         drop_multi_edges: bool = False,
         symmetrize: bool = False,
+        vertices: cudf.Series = None,
     ):
+
         """
         Parameters
         ----------
@@ -1242,6 +1337,8 @@ class simpleGraphImpl:
             Whether to drop multi edges
         symmetrize: bool (default=False)
             Whether to symmetrize
+        vertices: cudf.Series = None
+            vertices in the graph
         """
 
         if value_col is None:
@@ -1305,6 +1402,7 @@ class simpleGraphImpl:
             renumber=renumber,
             do_expensive_check=True,
             input_array_format=input_array_format,
+            vertices_array=vertices,
             drop_multi_edges=drop_multi_edges,
             symmetrize=symmetrize,
         )
@@ -1449,22 +1547,7 @@ class simpleGraphImpl:
         If multi columns vertices, return a cudf.DataFrame.
         """
         if self.edgelist is not None:
-            df = self.edgelist.edgelist_df
-            if self.properties.renumbered:
-                df = self.renumber_map.df_internal_to_external.drop(columns="id")
-
-                if len(df.columns) > 1:
-                    return df
-                else:
-                    return df[df.columns[0]]
-            else:
-                return (
-                    cudf.concat(
-                        [df[simpleGraphImpl.srcCol], df[simpleGraphImpl.dstCol]]
-                    )
-                    .drop_duplicates()
-                    .reset_index(drop=True)
-                )
+            return self.extract_vertex_list(return_unrenumbered_vertices=False)
         if self.adjlist is not None:
             return cudf.Series(np.arange(0, self.number_of_nodes()))
 

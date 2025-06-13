@@ -19,7 +19,6 @@ import numpy as np
 import networkx as nx
 
 import cudf
-import cupy
 import cugraph
 from cugraph.datasets import karate_disjoint
 from cugraph.testing import utils, SMALL_DATASETS
@@ -102,7 +101,7 @@ def calc_betweenness_centrality(
         Contains 'vertex' and  'cu_bc' 'ref_bc' columns,  where 'cu_bc'
         and 'ref_bc' are the two betweenness centrality scores to compare.
         The dataframe is expected to be sorted based on 'vertex', so that we
-        can use cupy.isclose to compare the scores.
+        can use np.isclose to compare the scores.
     """
     G = None
     Gnx = None
@@ -289,8 +288,15 @@ def _calc_bc_full(G, Gnx, normalized, weight, endpoints, k, seed, result_dtype):
 # i.e: sorted_df[idx][first_key] should be compared to
 #      sorted_df[idx][second_key]
 def compare_scores(sorted_df, first_key, second_key, epsilon=DEFAULT_EPSILON):
+    # Compare with numpy and pandas since presence of NaNs in cudf Series
+    # results in "ValueError: CuPy currently does not support masked arrays."
     errors = sorted_df[
-        ~cupy.isclose(sorted_df[first_key], sorted_df[second_key], rtol=epsilon)
+        ~np.isclose(
+            sorted_df[first_key].to_pandas(),
+            sorted_df[second_key].to_pandas(),
+            rtol=epsilon,
+            equal_nan=True,
+        )
     ]
     num_errors = len(errors)
     if num_errors > 0:
@@ -305,7 +311,10 @@ def compare_scores(sorted_df, first_key, second_key, epsilon=DEFAULT_EPSILON):
 # =============================================================================
 # Tests
 # =============================================================================
-@pytest.mark.skip(reason="https://github.com/networkx/networkx/pull/7908")
+@pytest.mark.skipif(
+    float(".".join(nx.__version__.split(".")[:2])) < 3.5,
+    reason="Requires networkx >= 3.5",
+)
 @pytest.mark.sg
 @pytest.mark.parametrize("graph_file", SMALL_DATASETS)
 @pytest.mark.parametrize("directed", [False, True])
@@ -542,17 +551,17 @@ def test_betweenness_centrality_nx(graph_file, directed, edgevals):
         (True, True, False, None, {0: 1.0, 1: 0.4, 2: 0.4, 3: 0.4, 4: 0.4}),
         (True, True, False, 1, {0: 1.0, 1: 1.0, 2: 0.25, 3: 0.25, 4: 0.25}),
         (True, False, True, None, {0: 1.0, 1: 0.0, 2: 0.0, 3: 0.0, 4: 0.0}),
-        (True, False, True, 1, {0: 1.0, 1: 0.0, 2: 0.0, 3: 0.0, 4: 0.0}),
+        (True, False, True, 1, {0: 1.0, 1: np.nan, 2: 0.0, 3: 0.0, 4: 0.0}),
         (True, False, False, None, {0: 1.0, 1: 0.0, 2: 0.0, 3: 0.0, 4: 0.0}),
-        (True, False, False, 1, {0: 1.0, 1: 0.0, 2: 0.0, 3: 0.0, 4: 0.0}),
+        (True, False, False, 1, {0: 1.0, 1: np.nan, 2: 0.0, 3: 0.0, 4: 0.0}),
         (False, True, True, None, {0: 20.0, 1: 8.0, 2: 8.0, 3: 8.0, 4: 8.0}),
         (False, True, True, 1, {0: 20.0, 1: 20.0, 2: 5.0, 3: 5.0, 4: 5.0}),
         (False, True, False, None, {0: 10.0, 1: 4.0, 2: 4.0, 3: 4.0, 4: 4.0}),
         (False, True, False, 1, {0: 10.0, 1: 10.0, 2: 2.5, 3: 2.5, 4: 2.5}),
         (False, False, True, None, {0: 12.0, 1: 0.0, 2: 0.0, 3: 0.0, 4: 0.0}),
-        (False, False, True, 1, {0: 12.0, 1: 0.0, 2: 0.0, 3: 0.0, 4: 0.0}),
+        (False, False, True, 1, {0: 12.0, 1: np.nan, 2: 0.0, 3: 0.0, 4: 0.0}),
         (False, False, False, None, {0: 6.0, 1: 0.0, 2: 0.0, 3: 0.0, 4: 0.0}),
-        (False, False, False, 1, {0: 6.0, 1: 0.0, 2: 0.0, 3: 0.0, 4: 0.0}),
+        (False, False, False, 1, {0: 6.0, 1: np.nan, 2: 0.0, 3: 0.0, 4: 0.0}),
     ],
 )
 def test_scale_with_k_on_star_graph(normalized, endpoints, is_directed, k, expected):

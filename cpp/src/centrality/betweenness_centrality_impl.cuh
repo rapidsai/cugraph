@@ -540,37 +540,57 @@ rmm::device_uvector<weight_t> betweenness_centrality(
                               do_expensive_check);
   }
 
-  std::optional<weight_t> scale_factor{std::nullopt};
+  std::optional<weight_t> scale_nonsource{std::nullopt};
+  std::optional<weight_t> scale_source{std::nullopt};
 
-  if (normalized) {
-    if (include_endpoints) {
-      if (graph_view.number_of_vertices() >= 2) {
-        scale_factor = static_cast<weight_t>(
-          std::min(static_cast<vertex_t>(num_sources), graph_view.number_of_vertices()) *
-          (graph_view.number_of_vertices() - 1));
-      }
-    } else if (graph_view.number_of_vertices() > 2) {
-      scale_factor = static_cast<weight_t>(
-        std::min(static_cast<vertex_t>(num_sources), graph_view.number_of_vertices() - 1) *
-        (graph_view.number_of_vertices() - 2));
+  weight_t num_vertices = static_cast<weight_t>(graph_view.number_of_vertices());
+  if (!include_endpoints) num_vertices = num_vertices - 1;
+
+  if ((static_cast<edge_t>(num_sources) == num_vertices) || include_endpoints) {
+    if (normalized) {
+      scale_nonsource = static_cast<weight_t>(num_sources * (num_vertices - 1));
+    } else if (graph_view.is_symmetric()) {
+      scale_nonsource =
+        static_cast<weight_t>(num_sources * 2) / static_cast<weight_t>(num_vertices);
+    } else {
+      scale_nonsource = static_cast<weight_t>(num_sources) / static_cast<weight_t>(num_vertices);
     }
-  } else if (num_sources < static_cast<size_t>(graph_view.number_of_vertices())) {
-    if ((graph_view.number_of_vertices() > 1) && (num_sources > 0))
-      scale_factor =
-        (graph_view.is_symmetric() ? weight_t{2} : weight_t{1}) *
-        static_cast<weight_t>(num_sources) /
-        (include_endpoints ? static_cast<weight_t>(graph_view.number_of_vertices())
-                           : static_cast<weight_t>(graph_view.number_of_vertices() - 1));
-  } else if (graph_view.is_symmetric()) {
-    scale_factor = weight_t{2};
+
+    scale_source = scale_nonsource;
+  } else if (normalized) {
+    scale_nonsource = static_cast<weight_t>(num_sources) * (num_vertices - 1);
+    scale_source    = static_cast<weight_t>(num_sources - 1) * (num_vertices - 1);
+  } else {
+    scale_nonsource = static_cast<weight_t>(num_sources) / num_vertices;
+    scale_source    = static_cast<weight_t>(num_sources - 1) / num_vertices;
+
+    if (graph_view.is_symmetric()) {
+      *scale_nonsource *= 2;
+      *scale_source *= 2;
+    }
   }
 
-  if (scale_factor) {
-    thrust::transform(handle.get_thrust_policy(),
-                      centralities.begin(),
-                      centralities.end(),
-                      centralities.begin(),
-                      [sf = *scale_factor] __device__(auto centrality) { return centrality / sf; });
+  if (scale_nonsource) {
+    auto iter = thrust::make_zip_iterator(
+      thrust::make_counting_iterator(graph_view.local_vertex_partition_range_first()),
+      centralities.begin());
+
+    thrust::transform(
+      handle.get_thrust_policy(),
+      iter,
+      iter + centralities.size(),
+      centralities.begin(),
+      [nonsource = *scale_nonsource,
+       source    = *scale_source,
+       vertices_begin,
+       vertices_end] __device__(auto t) {
+        vertex_t v          = thrust::get<0>(t);
+        weight_t centrality = thrust::get<1>(t);
+
+        return (thrust::find(thrust::seq, vertices_begin, vertices_end, v) == vertices_end)
+                 ? centrality / nonsource
+                 : centrality / source;
+      });
   }
 
   return centralities;

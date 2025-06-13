@@ -51,7 +51,7 @@ fixture_params = gen_fixture_params_product(
     (datasets, "graph_file"),
     (IS_DIRECTED, "directed"),
     ([False, True], "with_replacement"),
-    (["int32", "float32"], "indices_type"),
+    (["float32"], "indices_type"),
 )
 
 
@@ -168,7 +168,7 @@ def test_mg_uniform_neighbor_sample_simple(dask_client, input_combo):
             join2.sort_values([*result_nbr.columns])
             .compute()
             .to_pandas()
-            .query("src.isnull()", engine="python")
+            .query("majors.isnull()", engine="python")
         )
 
         invalid_edge = difference[difference.columns[:3]]
@@ -178,10 +178,10 @@ def test_mg_uniform_neighbor_sample_simple(dask_client, input_combo):
         )
 
     # Ensure the right indices type is returned
-    assert result_nbr["indices"].dtype == input_combo["indices_type"]
+    assert result_nbr["weight"].dtype == input_combo["indices_type"]
 
     sampled_vertex_result = (
-        dask_cudf.concat([result_nbr["sources"], result_nbr["destinations"]])
+        dask_cudf.concat([result_nbr["majors"], result_nbr["minors"]])
         .drop_duplicates()
         .compute()
         .reset_index(drop=True)
@@ -251,12 +251,12 @@ def test_mg_uniform_neighbor_sample_tree(dask_client, directed):
     # Since the validity of results have (probably) been tested at both the C++
     # and C layers, simply test that the python interface and conversions were
     # done correctly.
-    assert result_nbr["sources"].dtype == "int32"
-    assert result_nbr["destinations"].dtype == "int32"
-    assert result_nbr["indices"].dtype == "float32"
+    assert result_nbr["majors"].dtype == "int32"
+    assert result_nbr["minors"].dtype == "int32"
+    assert result_nbr["weight"].dtype == "float32"
 
     result_nbr_vertices = (
-        dask_cudf.concat([result_nbr["sources"], result_nbr["destinations"]])
+        dask_cudf.concat([result_nbr["majors"], result_nbr["minors"]])
         .drop_duplicates()
         .compute()
         .reset_index(drop=True)
@@ -294,12 +294,12 @@ def test_mg_uniform_neighbor_sample_unweighted(dask_client):
     )
 
     expected_src = [0, 0]
-    actual_src = sampling_results.sources
+    actual_src = sampling_results.majors
     actual_src = actual_src.compute().to_arrow().to_pylist()
     assert sorted(actual_src) == sorted(expected_src)
 
     expected_dst = [3, 1]
-    actual_dst = sampling_results.destinations
+    actual_dst = sampling_results.minors
     actual_dst = actual_dst.compute().to_arrow().to_pylist()
     assert sorted(actual_dst) == sorted(expected_dst)
 
@@ -369,7 +369,6 @@ def test_uniform_neighbor_sample_edge_properties(dask_client, return_offsets):
         ),
         fanout_vals=[-1, -1],
         with_replacement=False,
-        with_edge_properties=True,
         with_batch_ids=True,
         keep_batches_together=True,
         min_batch_id=0,
@@ -397,10 +396,10 @@ def test_uniform_neighbor_sample_edge_properties(dask_client, return_offsets):
                         len(dfp),
                     ]
 
-                    assert sorted(dfp.sources.values_host.tolist()) == (
+                    assert sorted(dfp.majors.values_host.tolist()) == (
                         [1, 1, 3, 3, 4, 4]
                     )
-                    assert sorted(dfp.destinations.values_host.tolist()) == (
+                    assert sorted(dfp.minors.values_host.tolist()) == (
                         [1, 2, 2, 3, 3, 4]
                     )
                 elif offsets_p.batch_id.iloc[0] == 0:
@@ -412,10 +411,10 @@ def test_uniform_neighbor_sample_edge_properties(dask_client, return_offsets):
                         len(dfp),
                     ]
 
-                    assert sorted(dfp.sources.values_host.tolist()) == (
+                    assert sorted(dfp.majors.values_host.tolist()) == (
                         [0, 0, 0, 1, 1, 2, 2, 2, 4, 4]
                     )
-                    assert sorted(dfp.destinations.values_host.tolist()) == (
+                    assert sorted(dfp.minors.values_host.tolist()) == (
                         [1, 1, 1, 2, 2, 3, 3, 4, 4, 4]
                     )
 
@@ -427,8 +426,8 @@ def test_uniform_neighbor_sample_edge_properties(dask_client, return_offsets):
     )
     assert (mdf.w == mdf.weight).all()
     assert (mdf.etp == mdf.edge_type).all()
-    assert (mdf.src == mdf.sources).all()
-    assert (mdf.dst == mdf.destinations).all()
+    assert (mdf.src == mdf.majors).all()
+    assert (mdf.dst == mdf.minors).all()
 
     assert sorted(sampling_results.compute()["hop_id"].values_host.tolist()) == [
         0,
@@ -486,12 +485,11 @@ def test_uniform_neighbor_sample_edge_properties_self_loops(dask_client):
         ),
         fanout_vals=[2, 2],
         with_replacement=False,
-        with_edge_properties=True,
         with_batch_ids=True,
     ).compute()
 
-    assert sorted(sampling_results.sources.values_host.tolist()) == [0, 0, 1, 1, 2, 2]
-    assert sorted(sampling_results.destinations.values_host.tolist()) == [
+    assert sorted(sampling_results.majors.values_host.tolist()) == [0, 0, 1, 1, 2, 2]
+    assert sorted(sampling_results.minors.values_host.tolist()) == [
         0,
         0,
         1,
@@ -533,7 +531,6 @@ def test_uniform_neighbor_sample_hop_id_order():
         cudf.Series([0, 1], dtype="int64"),
         fanout_vals=[2, 2, 2],
         with_replacement=False,
-        with_edge_properties=True,
     )
 
     for p in range(sampling_results.npartitions):
@@ -572,7 +569,6 @@ def test_uniform_neighbor_sample_hop_id_order_multi_batch():
         ),
         fanout_vals=[2, 2, 2],
         with_replacement=False,
-        with_edge_properties=True,
         with_batch_ids=True,
     )
 
@@ -632,7 +628,6 @@ def test_uniform_neighbor_edge_properties_sample_small_start_list(
         ),
         fanout_vals=[10, 25],
         with_replacement=with_replacement,
-        with_edge_properties=True,
         with_batch_ids=True,
     )
 
@@ -670,12 +665,11 @@ def test_uniform_neighbor_sample_without_dask_inputs(dask_client):
         ),
         fanout_vals=[2, 2],
         with_replacement=False,
-        with_edge_properties=True,
         with_batch_ids=True,
     ).compute()
 
-    assert sorted(sampling_results.sources.values_host.tolist()) == [0, 0, 1, 1, 2, 2]
-    assert sorted(sampling_results.destinations.values_host.tolist()) == [
+    assert sorted(sampling_results.majors.values_host.tolist()) == [0, 0, 1, 1, 2, 2]
+    assert sorted(sampling_results.minors.values_host.tolist()) == [
         0,
         0,
         1,
@@ -736,7 +730,6 @@ def test_uniform_neighbor_sample_batched(dask_client, dataset, input_df, max_bat
         start_list=input_vertices,
         fanout_vals=[5, 5],
         with_replacement=False,
-        with_edge_properties=True,
         with_batch_ids=True,
     )
 
@@ -745,7 +738,7 @@ def test_uniform_neighbor_sample_batched(dask_client, dataset, input_df, max_bat
             sampling_results[
                 (sampling_results.batch_id == batch_id) & (sampling_results.hop_id == 0)
             ]
-            .sources.nunique()
+            .majors.nunique()
             .compute()
         )
 
@@ -782,7 +775,6 @@ def test_uniform_neighbor_sample_exclude_sources_basic(dask_client):
             ),
             [2, 3, 3],
             with_replacement=False,
-            with_edge_properties=True,
             with_batch_ids=True,
             random_state=62,
             prior_sources_behavior="exclude",
@@ -793,21 +785,19 @@ def test_uniform_neighbor_sample_exclude_sources_basic(dask_client):
 
     expected_hop_0 = [1, 2, 1, 5, 2, 0]
     assert sorted(
-        sampling_results[sampling_results.hop_id == 0].destinations.values_host.tolist()
+        sampling_results[sampling_results.hop_id == 0].minors.values_host.tolist()
     ) == sorted(expected_hop_0)
 
     next_sources = set(
-        sampling_results[sampling_results.hop_id > 0].sources.values_host.tolist()
+        sampling_results[sampling_results.hop_id > 0].majors.values_host.tolist()
     )
     for v in [0, 4, 1]:
         assert v not in next_sources
 
     next_sources = set(
-        sampling_results[sampling_results.hop_id > 1].sources.values_host.tolist()
+        sampling_results[sampling_results.hop_id > 1].majors.values_host.tolist()
     )
-    for v in sampling_results[
-        sampling_results.hop_id == 1
-    ].sources.values_host.tolist():
+    for v in sampling_results[sampling_results.hop_id == 1].majors.values_host.tolist():
         assert v not in next_sources
 
 
@@ -825,19 +815,16 @@ def test_uniform_neighbor_sample_exclude_sources_email_eu_core(dask_client):
         seeds,
         [5, 4, 3, 2, 1],
         with_replacement=False,
-        with_edge_properties=True,
         with_batch_ids=False,
         prior_sources_behavior="exclude",
     ).compute()
 
     for hop in range(5):
         current_sources = set(
-            sampling_results[
-                sampling_results.hop_id == hop
-            ].sources.values_host.tolist()
+            sampling_results[sampling_results.hop_id == hop].majors.values_host.tolist()
         )
         future_sources = set(
-            sampling_results[sampling_results.hop_id > hop].sources.values_host.tolist()
+            sampling_results[sampling_results.hop_id > hop].majors.values_host.tolist()
         )
 
         for s in current_sources:
@@ -871,19 +858,18 @@ def test_uniform_neighbor_sample_carry_over_sources_basic(dask_client):
             ),
             [2, 3, 3],
             with_replacement=False,
-            with_edge_properties=True,
             with_batch_ids=True,
             random_state=62,
             prior_sources_behavior="carryover",
         )
-        .sort_values(by="hop_id")[["sources", "destinations", "hop_id"]]
+        .sort_values(by="hop_id")[["majors", "minors", "hop_id"]]
         .compute()
     )
 
     assert (
         len(
             sampling_results[
-                (sampling_results.hop_id == 2) & (sampling_results.sources == 6)
+                (sampling_results.hop_id == 2) & (sampling_results.majors == 6)
             ]
         )
         == 2
@@ -891,14 +877,12 @@ def test_uniform_neighbor_sample_carry_over_sources_basic(dask_client):
 
     for hop in range(2):
         sources_current_hop = set(
-            sampling_results[
-                sampling_results.hop_id == hop
-            ].sources.values_host.tolist()
+            sampling_results[sampling_results.hop_id == hop].majors.values_host.tolist()
         )
         sources_next_hop = set(
             sampling_results[
                 sampling_results.hop_id == (hop + 1)
-            ].sources.values_host.tolist()
+            ].majors.values_host.tolist()
         )
 
         for s in sources_current_hop:
@@ -919,21 +903,18 @@ def test_uniform_neighbor_sample_carry_over_sources_email_eu_core(dask_client):
         seeds,
         [5, 4, 3, 2, 1],
         with_replacement=False,
-        with_edge_properties=True,
         with_batch_ids=False,
         prior_sources_behavior="carryover",
     ).compute()
 
     for hop in range(4):
         sources_current_hop = set(
-            sampling_results[
-                sampling_results.hop_id == hop
-            ].sources.values_host.tolist()
+            sampling_results[sampling_results.hop_id == hop].majors.values_host.tolist()
         )
         sources_next_hop = set(
             sampling_results[
                 sampling_results.hop_id == (hop + 1)
-            ].sources.values_host.tolist()
+            ].majors.values_host.tolist()
         )
 
         for s in sources_current_hop:
@@ -954,7 +935,6 @@ def test_uniform_neighbor_sample_deduplicate_sources_email_eu_core(dask_client):
         seeds,
         [5, 4, 3, 2, 1],
         with_replacement=False,
-        with_edge_properties=True,
         with_batch_ids=False,
         deduplicate_sources=True,
     ).compute()
@@ -962,7 +942,7 @@ def test_uniform_neighbor_sample_deduplicate_sources_email_eu_core(dask_client):
     for hop in range(5):
         counts_current_hop = (
             sampling_results[sampling_results.hop_id == hop]
-            .sources.value_counts()
+            .majors.value_counts()
             .values_host.tolist()
         )
         for c in counts_current_hop:
@@ -990,7 +970,6 @@ def test_uniform_neighbor_sample_renumber(dask_client, hops):
         seeds,
         hops,
         with_replacement=False,
-        with_edge_properties=True,
         with_batch_ids=False,
         deduplicate_sources=True,
         renumber=True,
@@ -1004,14 +983,12 @@ def test_uniform_neighbor_sample_renumber(dask_client, hops):
 
     sources_hop_0 = sampling_results_renumbered[
         sampling_results_renumbered.hop_id == 0
-    ].sources
+    ].majors
 
     assert (renumber_map.batch_id == 0).all()
     assert (
         renumber_map.renumber_map.nunique()
-        == cudf.concat(
-            [sources_hop_0, sampling_results_renumbered.destinations]
-        ).nunique()
+        == cudf.concat([sources_hop_0, sampling_results_renumbered.minors]).nunique()
     )
 
 
@@ -1033,7 +1010,6 @@ def test_uniform_neighbor_sample_offset_renumber(dask_client, hops):
         seeds,
         hops,
         with_replacement=False,
-        with_edge_properties=True,
         with_batch_ids=False,
         deduplicate_sources=True,
         renumber=False,
@@ -1052,7 +1028,6 @@ def test_uniform_neighbor_sample_offset_renumber(dask_client, hops):
         seeds,
         hops,
         with_replacement=False,
-        with_edge_properties=True,
         with_batch_ids=False,
         deduplicate_sources=True,
         renumber=True,
@@ -1076,11 +1051,11 @@ def test_uniform_neighbor_sample_offset_renumber(dask_client, hops):
 
     sources_hop_0 = sampling_results_unrenumbered[
         sampling_results_unrenumbered.hop_id == 0
-    ].sources
+    ].majors
     for hop in range(len(hops)):
         destinations_hop = sampling_results_unrenumbered[
             sampling_results_unrenumbered.hop_id <= hop
-        ].destinations
+        ].minors
         expected_renumber_map = cudf.concat([sources_hop_0, destinations_hop]).unique()
 
         assert sorted(expected_renumber_map.values_host.tolist()) == sorted(
@@ -1094,7 +1069,9 @@ def test_uniform_neighbor_sample_offset_renumber(dask_client, hops):
     assert renumber_map_offsets.iloc[0] == 0
     assert renumber_map_offsets.iloc[-1] == len(renumber_map)
 
-    assert len(offsets_renumbered) == 2
+    assert (
+        len(offsets_renumbered) == len(sampling_results_renumbered.hop_id.unique()) + 1
+    )
 
 
 @pytest.mark.mg
@@ -1113,7 +1090,6 @@ def test_uniform_neighbor_sample_csr_csc_global(dask_client, hops, seed):
         seeds,
         hops,
         with_replacement=False,
-        with_edge_properties=True,
         with_batch_ids=False,
         deduplicate_sources=True,
         # carryover not valid because C++ sorts on (hop,src)
@@ -1121,10 +1097,8 @@ def test_uniform_neighbor_sample_csr_csc_global(dask_client, hops, seed):
         renumber=True,
         return_offsets=True,
         random_state=seed,
-        use_legacy_names=False,
         compress_per_hop=False,
         compression="CSR",
-        include_hop_column=False,
         keep_batches_together=True,
         min_batch_id=0,
         max_batch_id=0,
@@ -1173,17 +1147,14 @@ def test_uniform_neighbor_sample_csr_csc_local(dask_client, hops, seed):
         seeds,
         hops,
         with_replacement=False,
-        with_edge_properties=True,
         with_batch_ids=False,
         deduplicate_sources=True,
         prior_sources_behavior="carryover",
         renumber=True,
         return_offsets=True,
         random_state=seed,
-        use_legacy_names=False,
         compress_per_hop=True,
         compression="CSR",
-        include_hop_column=False,
         keep_batches_together=True,
         min_batch_id=0,
         max_batch_id=0,
