@@ -132,16 +132,16 @@ class Tests_MGHasEdgeAndComputeMultiplicity
         vertex_t,
         edge_t,
         weight_t,
-        edge_type_t,
-        edge_time_t>(*handle_,
-                     std::move(store_transposed ? d_mg_edge_dsts : d_mg_edge_srcs),
-                     std::move(store_transposed ? d_mg_edge_srcs : d_mg_edge_dsts),
-                     std::nullopt,
-                     std::nullopt,
-                     std::nullopt,
-                     std::nullopt,
-                     std::nullopt,
-                     mg_graph_view.vertex_partition_range_lasts());
+        int32_t,
+        int32_t>(*handle_,
+                 std::move(store_transposed ? d_mg_edge_dsts : d_mg_edge_srcs),
+                 std::move(store_transposed ? d_mg_edge_srcs : d_mg_edge_dsts),
+                 std::nullopt,
+                 std::nullopt,
+                 std::nullopt,
+                 std::nullopt,
+                 std::nullopt,
+                 mg_graph_view.vertex_partition_range_lasts());
 
     // 3. run MG has_edge & compute_multiplicity
 
