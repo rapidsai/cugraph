@@ -151,6 +151,8 @@ from pylibcugraph.force_atlas2 import force_atlas2
 
 from pylibcugraph.minimum_spanning_tree import minimum_spanning_tree
 
+from pylibcugraph.extract_vertex_list import extract_vertex_list
+
 
 from pylibcugraph import exceptions
 
