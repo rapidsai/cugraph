@@ -122,6 +122,7 @@ class Graph:
         renumber=True,
         store_transposed=False,
         symmetrize=None,
+        vertices=None,
     ):
         """
         Initialize a graph from the edge list. It is an error to call this
@@ -182,6 +183,14 @@ class Graph:
             known to be symmetric, this flag can be set to False to skip the
             symmetrization step for better performance.
 
+        vertices : cudf.Series or List, optional (default=None)
+            A cudf.Series or list containing all vertices of the graph. This is
+            optional, but must be used if the graph contains isolated vertices
+            which cannot be represented in the source and destination arrays.
+            If specified, this array must contain every vertex identifier,
+            including vertex identifiers that are already included in the
+            source and destination arrays.
+
         Examples
         --------
         >>> df = cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
@@ -200,6 +209,7 @@ class Graph:
             raise RuntimeError("Graph already has values")
         self._Impl._simpleGraphImpl__from_edgelist(
             input_df,
+            vertices=vertices,
             source=source,
             destination=destination,
             edge_attr=edge_attr,
@@ -380,6 +390,7 @@ class Graph:
         edge_id=None,
         edge_type=None,
         renumber=True,
+        vertices=None,
     ):
         """
         Initialize a graph from the edge list. It is an error to call this
@@ -425,6 +436,14 @@ class Graph:
             Indicate whether or not to renumber the source and destination
             vertex IDs.
 
+        vertices : cudf.Series or List, optional (default=None)
+            A cudf.Series or list containing all vertices of the graph. This is
+            optional, but must be used if the graph contains isolated vertices
+            which cannot be represented in the source and destination arrays.
+            If specified, this array must contain every vertex identifier,
+            including vertex identifiers that are already included in the
+            source and destination arrays.
+
         Examples
         --------
         >>> #  Download dataset from
@@ -451,6 +470,7 @@ class Graph:
             edge_id=edge_id,
             edge_type=edge_type,
             renumber=renumber,
+            vertices=vertices,
         )
 
     def from_pandas_adjacency(self, pdf):
@@ -469,7 +489,7 @@ class Graph:
         columns = pdf.columns
         self.from_numpy_array(np_array, columns)
 
-    def from_numpy_array(self, np_array, nodes=None):
+    def from_numpy_array(self, np_array, nodes=None, vertices=None):
         """
         Initializes the graph from numpy array containing adjacency matrix.
 
@@ -480,6 +500,14 @@ class Graph:
 
         nodes: array-like or None, optional (default=None)
             A list of column names, acting as labels for nodes
+
+        vertices : cudf.Series or List, optional (default=None)
+            A cudf.Series or list containing all vertices of the graph. This is
+            optional, but must be used if the graph contains isolated vertices
+            which cannot be represented in the source and destination arrays.
+            If specified, this array must contain every vertex identifier,
+            including vertex identifiers that are already included in the
+            source and destination arrays.
         """
         np_array = np.asarray(np_array)
         if len(np_array.shape) != 2:
@@ -495,7 +523,7 @@ class Graph:
             df["src"] = src
             df["dst"] = dst
         df["weight"] = weight
-        self.from_cudf_edgelist(df, "src", "dst", edge_attr="weight")
+        self.from_cudf_edgelist(df, "src", "dst", edge_attr="weight", vertices=vertices)
 
     def from_numpy_matrix(self, np_matrix):
         """
@@ -857,6 +885,7 @@ class NPartiteGraph(Graph):
         edge_attr=None,
         renumber=True,
         store_transposed=False,
+        vertices=None,
     ):
         """
         Initialize a graph from the edge list. It is an error to call this
@@ -896,6 +925,14 @@ class NPartiteGraph(Graph):
             If True, stores the transpose of the adjacency matrix.  Required
             for certain algorithms.
 
+        vertices : cudf.Series or List, optional (default=None)
+            A cudf.Series or list containing all vertices of the graph. This is
+            optional, but must be used if the graph contains isolated vertices
+            which cannot be represented in the source and destination arrays.
+            If specified, this array must contain every vertex identifier,
+            including vertex identifiers that are already included in the
+            source and destination arrays.
+
         Examples
         --------
         >>> df = cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
@@ -915,6 +952,7 @@ class NPartiteGraph(Graph):
             destination=destination,
             edge_attr=edge_attr,
             renumber=renumber,
+            vertices=vertices,
         )
 
     def from_dask_cudf_edgelist(
