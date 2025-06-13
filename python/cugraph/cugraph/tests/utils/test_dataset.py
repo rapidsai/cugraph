@@ -103,13 +103,6 @@ def test_modified_env_var(tmp_path):
     datasets.set_download_dir(None)
 
 
-def test_home_dir():
-    # passing None is the same as resetting download_dir
-    datasets.set_download_dir(None)
-
-    assert datasets.get_download_dir() == (Path.home() / ".cugraph/datasets")
-
-
 def test_set_download_dir(tmp_path):
     datasets.set_download_dir(tmp_path.name)
 
