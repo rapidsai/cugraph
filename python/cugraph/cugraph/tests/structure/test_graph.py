@@ -668,11 +668,8 @@ def test_vertex_list():
 
     # Vertex list including isolated vertices
     vertices = cudf.Series(cupy.arange(0, A.shape[0]))
-<<<<<<< HEAD
 
     # Graph from a numpy array
-=======
->>>>>>> upstream/branch-25.08
     cG = cugraph.from_numpy_array(nx.to_numpy_array(G), vertices=vertices)
 
     assert len(G.nodes()) == len(cG.nodes())
