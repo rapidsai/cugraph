@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2023-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,10 +17,10 @@
 #pragma once
 
 #include "c_api/capi_helper.hpp"
+#include "detail/shuffle_wrappers.hpp"
 #include "structure/detail/structure_utils.cuh"
 #include "utilities/collect_comm.cuh"
 
-#include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/utilities/misc_utils.cuh>
 
 #include <thrust/iterator/zip_iterator.h>

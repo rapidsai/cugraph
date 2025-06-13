@@ -18,18 +18,6 @@
 
 namespace cugraph {
 
-// deprecated
-template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<float>>
-shuffle_external_vertex_value_pairs(raft::handle_t const& handle,
-                                    rmm::device_uvector<int32_t>&& vertices,
-                                    rmm::device_uvector<float>&& values);
-
-// deprecated
-template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<double>>
-shuffle_external_vertex_value_pairs(raft::handle_t const& handle,
-                                    rmm::device_uvector<int32_t>&& vertices,
-                                    rmm::device_uvector<double>&& values);
-
 template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<float>>
 shuffle_ext_vertex_value_pairs(raft::handle_t const& handle,
                                rmm::device_uvector<int32_t>&& vertices,

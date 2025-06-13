@@ -21,10 +21,10 @@
 // FIXME: Only outstanding items preventing this becoming a .hpp file
 #include "community/detail/common_methods.hpp"
 #include "community/flatten_dendrogram.hpp"
+#include "detail/shuffle_wrappers.hpp"
 #include "prims/update_edge_src_dst_property.cuh"
 
 #include <cugraph/detail/collect_comm_wrapper.hpp>
-#include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>
