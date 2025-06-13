@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include "detail/shuffle_wrappers.hpp"
 #include "prims/per_v_pair_transform_dst_nbr_intersection.cuh"
 #include "prims/transform_e.cuh"
 #include "utilities/base_fixture.hpp"
@@ -23,7 +24,6 @@
 #include "utilities/property_generator_utilities.hpp"
 #include "utilities/test_graphs.hpp"
 
-#include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/edge_property.hpp>
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_functions.hpp>

@@ -15,6 +15,7 @@
  */
 
 #include "detail/graph_partition_utils.cuh"
+#include "detail/shuffle_wrappers.hpp"
 #include "nbr_unrenumber_cache.cuh"
 #include "prims/count_if_e.cuh"
 #include "prims/extract_transform_if_e.cuh"
@@ -32,7 +33,6 @@
 #include "utilities/thrust_wrapper.hpp"
 
 #include <cugraph/algorithms.hpp>
-#include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/edge_partition_endpoint_property_device_view.cuh>
 #include <cugraph/edge_property.hpp>
 #include <cugraph/edge_src_dst_property.hpp>
