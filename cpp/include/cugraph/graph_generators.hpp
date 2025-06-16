@@ -68,7 +68,7 @@ namespace cugraph {
  * @param scramble_vertex_ids Flag controlling whether to scramble vertex ID bits (if set to `true`)
  * or not (if set to `false`); scrambling vertex ID bits breaks correlation between vertex ID values
  * and vertex degrees.
- * @param large_buffer_type Dictates the large buffer type to use in generating and storing the edge
+ * @param large_buffer_type Flag indicating the large buffer type to use in generating and storing the edge
  * list (if the value is std::nullopt, the default RMM per-device memory resource is used).
  * @return std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> A tuple of
  * rmm::device_uvector objects for edge source vertex IDs and edge destination vertex IDs.
@@ -161,7 +161,7 @@ enum class generator_distribution_t { POWER_LAW = 0, UNIFORM };
  * @param scramble_vertex_ids Flag controlling whether to scramble vertex ID bits (if set to `true`)
  * or not (if set to `false`); scrambling vertex ID bits breaks correlation between vertex ID values
  * and vertex degrees.
- * @param large_buffer_type Dictates the large buffer type to use in generating and storing the edge
+ * @param large_buffer_type Flag indicating the large buffer type to use in generating and storing the edge
  * list (if the value is std::nullopt, the default RMM per-device memory resource is used).
  * @return A vector of std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> of
  *size @p n_edgelists, each vector element being a tuple of rmm::device_uvector objects for edge
@@ -360,7 +360,7 @@ generate_erdos_renyi_graph_edgelist_gnm(raft::handle_t const& handle,
  * @param d_weight_v Optional vector of edge weights
  * @param check_diagonal Flag indicating whether to check for diagonal edges or not. If set to true,
  * symmetrize only the edges with source != destination (to avoid duplicating every self-loops).
- * @param large_buffer_type Dictates the large buffer type to use in storing the symmetrized edge
+ * @param large_buffer_type Flag indicating the large buffer type to use in storing the symmetrized edge
  * list.
  * @return std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> A tuple of
  * rmm::device_uvector objects for edge source vertex IDs and edge destination vertex IDs.
