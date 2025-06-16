@@ -474,7 +474,7 @@ class Graph:
             vertices=vertices,
         )
 
-    def from_pandas_adjacency(self, pdf, vertices):
+    def from_pandas_adjacency(self, pdf, vertices=None):
         """
         Initializes the graph from pandas adjacency matrix.
 
