@@ -261,14 +261,13 @@ class File_Usecase : public detail::TranslateGraph_Usecase {
              std::optional<std::vector<rmm::device_uvector<weight_t>>>,
              std::optional<rmm::device_uvector<vertex_t>>,
              bool>
-  construct_edgelist(
-    raft::handle_t const& handle,
-    bool test_weighted,
-    bool store_transposed,
-    bool multi_gpu,
-    bool shuffle                                                = true,
-    std::optional<large_buffer_type_t> large_edge_buffer_type   = std::nullopt,
-    std::optional<large_buffer_type_t> large_vertex_buffer_type = std::nullopt) const
+  construct_edgelist(raft::handle_t const& handle,
+                     bool test_weighted,
+                     bool store_transposed,
+                     bool multi_gpu,
+                     bool shuffle                                                = true,
+                     std::optional<large_buffer_type_t> large_vertex_buffer_type = std::nullopt,
+                     std::optional<large_buffer_type_t> large_edge_buffer_type = std::nullopt) const
   {
     rmm::device_uvector<vertex_t> srcs(0, handle.get_stream());
     rmm::device_uvector<vertex_t> dsts(0, handle.get_stream());
