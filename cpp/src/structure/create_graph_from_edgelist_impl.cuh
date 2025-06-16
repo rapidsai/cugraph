@@ -465,6 +465,8 @@ create_graph_from_partitioned_edgelist(
     edge_partition_edgelist_edge_end_times,
   std::vector<std::vector<edge_t>> const& edgelist_intra_partition_segment_offset_vectors,
   graph_properties_t graph_properties,
+  std::optional<large_buffer_type_t> large_vertex_buffer_type,
+  std::optional<large_buffer_type_t> large_edge_buffer_type,
   bool renumber)
 {
   auto& major_comm           = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
@@ -949,6 +951,8 @@ create_graph_from_edgelist_impl(
   std::optional<rmm::device_uvector<edge_time_t>>&& edgelist_edge_end_times,
   graph_properties_t graph_properties,
   bool renumber,
+  std::optional<large_buffer_type_t> large_vertex_buffer_type,
+  std::optional<large_buffer_type_t> large_edge_buffer_type,
   bool do_expensive_check)
 {
   auto& major_comm           = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
@@ -1220,6 +1224,8 @@ create_graph_from_edgelist_impl(
   std::optional<std::vector<rmm::device_uvector<edge_time_t>>>&& edgelist_edge_end_times,
   graph_properties_t graph_properties,
   bool renumber,
+  std::optional<large_buffer_type_t> large_vertex_buffer_type,
+  std::optional<large_buffer_type_t> large_edge_buffer_type,
   bool do_expensive_check)
 {
   auto& major_comm           = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
@@ -1700,6 +1706,8 @@ create_graph_from_edgelist_impl(
   std::optional<rmm::device_uvector<edge_time_t>>&& edgelist_edge_end_times,
   graph_properties_t graph_properties,
   bool renumber,
+  std::optional<large_buffer_type_t> large_vertex_buffer_type,
+  std::optional<large_buffer_type_t> large_edge_buffer_type,
   bool do_expensive_check)
 {
   CUGRAPH_EXPECTS(
@@ -2057,6 +2065,8 @@ create_graph_from_edgelist_impl(
   std::optional<std::vector<rmm::device_uvector<edge_time_t>>>&& edgelist_edge_end_times,
   graph_properties_t graph_properties,
   bool renumber,
+  std::optional<large_buffer_type_t> large_vertex_buffer_type,
+  std::optional<large_buffer_type_t> large_edge_buffer_type,
   bool do_expensive_check)
 {
   CUGRAPH_EXPECTS(edgelist_srcs.size() == edgelist_dsts.size(),
@@ -2265,6 +2275,8 @@ create_graph_from_edgelist_impl(
                                                     std::move(aggregate_edgelist_edge_end_times),
                                                     graph_properties,
                                                     renumber,
+                                                    large_vertex_buffer_type,
+                                                    large_edge_buffer_type,
                                                     do_expensive_check);
 }
 
@@ -2290,6 +2302,8 @@ create_graph_from_edgelist(raft::handle_t const& handle,
                            std::optional<rmm::device_uvector<edge_type_t>>&& edgelist_edge_types,
                            graph_properties_t graph_properties,
                            bool renumber,
+                           std::optional<large_buffer_type_t> large_vertex_buffer_type,
+                           std::optional<large_buffer_type_t> large_edge_buffer_type,
                            bool do_expensive_check)
 {
   auto [graph, weights, edge_ids, edge_types, edge_start_times, edge_end_times, number_map] =
@@ -2310,6 +2324,8 @@ create_graph_from_edgelist(raft::handle_t const& handle,
                                                std::nullopt,
                                                graph_properties,
                                                renumber,
+                                               large_vertex_buffer_type,
+                                               large_edge_buffer_type,
                                                do_expensive_check);
 
   return std::make_tuple(std::move(graph),
@@ -2340,6 +2356,8 @@ create_graph_from_edgelist(
   std::optional<std::vector<rmm::device_uvector<edge_type_t>>>&& edgelist_edge_types,
   graph_properties_t graph_properties,
   bool renumber,
+  std::optional<large_buffer_type_t> large_vertex_buffer_type,
+  std::optional<large_buffer_type_t> large_edge_buffer_type,
   bool do_expensive_check)
 {
   auto [graph, weights, edge_ids, edge_types, edge_start_times, edge_end_times, number_map] =
@@ -2360,6 +2378,8 @@ create_graph_from_edgelist(
                                                std::nullopt,
                                                graph_properties,
                                                renumber,
+                                               large_vertex_buffer_type,
+                                               large_edge_buffer_type,
                                                do_expensive_check);
 
   return std::make_tuple(std::move(graph),
@@ -2395,6 +2415,8 @@ create_graph_from_edgelist(
   std::optional<rmm::device_uvector<edge_time_t>>&& edgelist_edge_end_times,
   graph_properties_t graph_properties,
   bool renumber,
+  std::optional<large_buffer_type_t> large_vertex_buffer_type,
+  std::optional<large_buffer_type_t> large_edge_buffer_type,
   bool do_expensive_check)
 {
   return create_graph_from_edgelist_impl<vertex_t,
@@ -2414,6 +2436,8 @@ create_graph_from_edgelist(
                                                     std::move(edgelist_edge_end_times),
                                                     graph_properties,
                                                     renumber,
+                                                    large_vertex_buffer_type,
+                                                    large_edge_buffer_type,
                                                     do_expensive_check);
 }
 
@@ -2443,6 +2467,8 @@ create_graph_from_edgelist(
   std::optional<std::vector<rmm::device_uvector<edge_time_t>>>&& edgelist_edge_end_times,
   graph_properties_t graph_properties,
   bool renumber,
+  std::optional<large_buffer_type_t> large_vertex_buffer_type,
+  std::optional<large_buffer_type_t> large_edge_buffer_type,
   bool do_expensive_check)
 {
   return create_graph_from_edgelist_impl<vertex_t,
@@ -2462,6 +2488,8 @@ create_graph_from_edgelist(
                                                     std::move(edgelist_edge_end_times),
                                                     graph_properties,
                                                     renumber,
+                                                    large_vertex_buffer_type,
+                                                    large_edge_buffer_type,
                                                     do_expensive_check);
 }
 
