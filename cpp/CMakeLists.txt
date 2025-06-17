@@ -247,8 +247,6 @@ set(CUGRAPH_SOURCES
     src/lookup/lookup_src_dst_mg_v64_e64.cu
     src/lookup/lookup_src_dst_sg_v32_e32.cu
     src/lookup/lookup_src_dst_sg_v64_e64.cu
-    src/sampling/random_walks_old_sg_v32_e32.cu
-    src/sampling/random_walks_old_sg_v64_e64.cu
     src/sampling/random_walks_sg_v64_e64.cu
     src/sampling/random_walks_sg_v32_e32.cu
     src/sampling/detail/prepare_next_frontier_sg_v64_e64.cu
