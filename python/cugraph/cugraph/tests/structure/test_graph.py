@@ -1173,3 +1173,16 @@ def test_graph_creation_edges_multi_col_vertices(graph_file, directed):
             input_df.sort_values(by=vertexCol).reset_index(drop=True),
             check_dtype=False,
         )
+
+
+def test_from_pandas_adjacency_string_columns():
+    data = {
+        "A": [0, 1, 1, 0],
+        "B": [1, 0, 0, 1],
+        "C": [1, 0, 0, 1],
+        "D": [0, 1, 1, 0],
+    }
+    df = pd.DataFrame(data, index=["A", "B", "C", "D"])
+    G = cugraph.Graph()
+    G.from_pandas_adjacency(adjacency_matrix)
+    assert not G.is_bipartite
