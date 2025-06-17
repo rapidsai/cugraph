@@ -723,7 +723,9 @@ construct_graph(
         edge_end_time_chunks ? std::make_optional(std::move((*edge_end_time_chunks)[0]))
                              : std::nullopt,
         cugraph::graph_properties_t{is_symmetric, drop_multi_edges ? false : true},
-        renumber);
+        renumber,
+        std::nullopt,
+        std::nullopt);
   } else {
     std::tie(
       graph, edge_weights, edge_ids, edge_types, edge_start_times, edge_end_times, renumber_map) =
@@ -744,7 +746,9 @@ construct_graph(
         std::move(edge_start_time_chunks),
         std::move(edge_end_time_chunks),
         cugraph::graph_properties_t{is_symmetric, drop_multi_edges ? false : true},
-        renumber);
+        renumber,
+        std::nullopt,
+        std::nullopt);
   }
 
   return std::make_tuple(std::move(graph),

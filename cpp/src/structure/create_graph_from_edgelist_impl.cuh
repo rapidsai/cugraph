@@ -465,9 +465,9 @@ create_graph_from_partitioned_edgelist(
     edge_partition_edgelist_edge_end_times,
   std::vector<std::vector<edge_t>> const& edgelist_intra_partition_segment_offset_vectors,
   graph_properties_t graph_properties,
+  bool renumber,
   std::optional<large_buffer_type_t> large_vertex_buffer_type,
-  std::optional<large_buffer_type_t> large_edge_buffer_type,
-  bool renumber)
+  std::optional<large_buffer_type_t> large_edge_buffer_type)
 {
   auto& major_comm           = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
   auto const major_comm_size = major_comm.get_size();
@@ -1194,7 +1194,9 @@ create_graph_from_edgelist_impl(
     std::move(edge_partition_edgelist_edge_end_times),
     edgelist_intra_partition_segment_offset_vectors,
     graph_properties,
-    renumber);
+    renumber,
+    large_vertex_buffer_type,
+    large_edge_buffer_type);
 }
 
 template <typename vertex_t,
@@ -1676,7 +1678,9 @@ create_graph_from_edgelist_impl(
     std::move(edge_partition_edgelist_edge_end_times),
     edge_partition_intra_partition_segment_offset_vectors,
     graph_properties,
-    renumber);
+    renumber,
+    large_vertex_buffer_type,
+    large_edge_buffer_type);
 }
 
 template <typename vertex_t,

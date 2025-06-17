@@ -38,8 +38,8 @@ create_graph_from_edgelist<int32_t, int32_t, float, int32_t, int64_t, false, fal
   std::optional<rmm::device_uvector<int64_t>>&& edgelist_edge_end_times,
   graph_properties_t graph_properties,
   bool renumber,
-  std::optional<large_buffer_type> large_vertex_buffer_type,
-  std::optional<large_buffer_type> large_edge_buffer_type,
+  std::optional<large_buffer_type_t> large_vertex_buffer_type,
+  std::optional<large_buffer_type_t> large_edge_buffer_type,
   bool do_expensive_check);
 
 template std::tuple<cugraph::graph_t<int32_t, int32_t, true, false>,
@@ -61,8 +61,8 @@ create_graph_from_edgelist<int32_t, int32_t, float, int32_t, int64_t, true, fals
   std::optional<rmm::device_uvector<int64_t>>&& edgelist_edge_end_times,
   graph_properties_t graph_properties,
   bool renumber,
-  std::optional<large_buffer_type> large_vertex_buffer_type,
-  std::optional<large_buffer_type> large_edge_buffer_type,
+  std::optional<large_buffer_type_t> large_vertex_buffer_type,
+  std::optional<large_buffer_type_t> large_edge_buffer_type,
   bool do_expensive_check);
 
 template std::tuple<cugraph::graph_t<int32_t, int32_t, false, false>,
@@ -84,8 +84,8 @@ create_graph_from_edgelist<int32_t, int32_t, double, int32_t, int64_t, false, fa
   std::optional<rmm::device_uvector<int64_t>>&& edgelist_edge_end_times,
   graph_properties_t graph_properties,
   bool renumber,
-  std::optional<large_buffer_type> large_vertex_buffer_type,
-  std::optional<large_buffer_type> large_edge_buffer_type,
+  std::optional<large_buffer_type_t> large_vertex_buffer_type,
+  std::optional<large_buffer_type_t> large_edge_buffer_type,
   bool do_expensive_check);
 
 template std::tuple<cugraph::graph_t<int32_t, int32_t, true, false>,
@@ -107,8 +107,8 @@ create_graph_from_edgelist<int32_t, int32_t, double, int32_t, int64_t, true, fal
   std::optional<rmm::device_uvector<int64_t>>&& edgelist_edge_end_times,
   graph_properties_t graph_properties,
   bool renumber,
-  std::optional<large_buffer_type> large_vertex_buffer_type,
-  std::optional<large_buffer_type> large_edge_buffer_type,
+  std::optional<large_buffer_type_t> large_vertex_buffer_type,
+  std::optional<large_buffer_type_t> large_edge_buffer_type,
   bool do_expensive_check);
 
 template std::tuple<cugraph::graph_t<int32_t, int32_t, false, false>,
@@ -130,8 +130,8 @@ create_graph_from_edgelist<int32_t, int32_t, float, int32_t, int64_t, false, fal
   std::optional<std::vector<rmm::device_uvector<int64_t>>>&& edgelist_edge_end_times,
   graph_properties_t graph_properties,
   bool renumber,
-  std::optional<large_buffer_type> large_vertex_buffer_type,
-  std::optional<large_buffer_type> large_edge_buffer_type,
+  std::optional<large_buffer_type_t> large_vertex_buffer_type,
+  std::optional<large_buffer_type_t> large_edge_buffer_type,
   bool do_expensive_check);
 
 template std::tuple<cugraph::graph_t<int32_t, int32_t, true, false>,
@@ -153,8 +153,8 @@ create_graph_from_edgelist<int32_t, int32_t, float, int32_t, int64_t, true, fals
   std::optional<std::vector<rmm::device_uvector<int64_t>>>&& edgelist_edge_end_times,
   graph_properties_t graph_properties,
   bool renumber,
-  std::optional<large_buffer_type> large_vertex_buffer_type,
-  std::optional<large_buffer_type> large_edge_buffer_type,
+  std::optional<large_buffer_type_t> large_vertex_buffer_type,
+  std::optional<large_buffer_type_t> large_edge_buffer_type,
   bool do_expensive_check);
 
 template std::tuple<cugraph::graph_t<int32_t, int32_t, false, false>,
@@ -176,8 +176,8 @@ create_graph_from_edgelist<int32_t, int32_t, double, int32_t, int64_t, false, fa
   std::optional<std::vector<rmm::device_uvector<int64_t>>>&& edgelist_edge_end_times,
   graph_properties_t graph_properties,
   bool renumber,
-  std::optional<large_buffer_type> large_vertex_buffer_type,
-  std::optional<large_buffer_type> large_edge_buffer_type,
+  std::optional<large_buffer_type_t> large_vertex_buffer_type,
+  std::optional<large_buffer_type_t> large_edge_buffer_type,
   bool do_expensive_check);
 
 template std::tuple<cugraph::graph_t<int32_t, int32_t, true, false>,
@@ -199,8 +199,8 @@ create_graph_from_edgelist<int32_t, int32_t, double, int32_t, int64_t, true, fal
   std::optional<std::vector<rmm::device_uvector<int64_t>>>&& edgelist_edge_end_times,
   graph_properties_t graph_properties,
   bool renumber,
-  std::optional<large_buffer_type> large_vertex_buffer_type,
-  std::optional<large_buffer_type> large_edge_buffer_type,
+  std::optional<large_buffer_type_t> large_vertex_buffer_type,
+  std::optional<large_buffer_type_t> large_edge_buffer_type,
   bool do_expensive_check);
 
 }  // namespace cugraph
