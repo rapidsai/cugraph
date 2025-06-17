@@ -1182,7 +1182,7 @@ def test_from_pandas_adjacency_string_columns():
         "C": [1, 0, 0, 1],
         "D": [0, 1, 1, 0],
     }
-    df = pd.DataFrame(data, index=["A", "B", "C", "D"])
+    adjacency_matrix = pd.DataFrame(data, index=["A", "B", "C", "D"])
     G = cugraph.Graph()
     G.from_pandas_adjacency(adjacency_matrix)
     assert not G.is_bipartite
