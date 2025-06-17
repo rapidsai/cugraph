@@ -19,7 +19,6 @@ from .graph_implementation import (
 )
 import cudf
 import dask_cudf
-import cupy
 
 from cugraph.utilities.utils import import_optional
 
@@ -521,13 +520,7 @@ class Graph:
         """
 
         if nodes is not None:
-            try:
-                nodes = cupy.array(nodes)
-            except ValueError:
-                nodes = np.array(nodes)
-            s_nodes = cudf.Series(nodes)
-        else:
-            s_nodes = None
+            nodes = cudf.Series(np.asarray(nodes))
 
         np_array = np.asarray(np_array)
         if len(np_array.shape) != 2:
@@ -543,7 +536,7 @@ class Graph:
             df["src"] = src
             df["dst"] = dst
         df["weight"] = weight
-        self.from_cudf_edgelist(df, "src", "dst", edge_attr="weight", vertices=s_nodes)
+        self.from_cudf_edgelist(df, "src", "dst", edge_attr="weight", vertices=nodes)
 
     def from_numpy_matrix(self, np_matrix):
         """
