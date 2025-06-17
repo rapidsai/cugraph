@@ -43,12 +43,6 @@ export LD_PRELOAD="${CONDA_PREFIX}/lib/libgomp.so.1"
 RAPIDS_DATASET_ROOT_DIR="$(realpath datasets)"
 export RAPIDS_DATASET_ROOT_DIR
 
-echo " === Debugging === "
-echo "Value of RDRD at beginning of test job"
-echo $RAPIDS_DATASET_ROOT_DIR
-ls $RAPIDS_DATASET_ROOT_DIR
-echo " === Debugging === "
-
 EXITCODE=0
 trap "EXITCODE=1" ERR
 set +e
