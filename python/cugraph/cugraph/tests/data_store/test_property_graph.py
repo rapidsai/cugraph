@@ -332,7 +332,6 @@ def cyber_PropertyGraph(request):
     dest_col_name = "dstip"
 
     df = cyber.get_edgelist()
-    print(cyber.get_path())
 
     if dataframe_type is pd.DataFrame:
         df = df.to_pandas()

@@ -207,14 +207,14 @@ def test_metadata(dataset):
     assert isinstance(M, dict)
 
 
-# @pytest.mark.parametrize("dataset", ALL_DATASETS)
-# def test_get_path(dataset, tmp_path):
-#     datasets.set_download_dir(tmp_path.name)
-#     dataset.get_edgelist(download=True)
+@pytest.mark.parametrize("dataset", ALL_DATASETS)
+def test_get_path(dataset, tmp_path):
+    datasets.set_download_dir(tmp_path.name)
+    dataset.get_edgelist(download=True)
 
-#     assert dataset.get_path().is_file()
+    assert dataset.get_path().is_file()
 
-#     datasets.set_download_dir(None)
+    datasets.set_download_dir(None)
 
 
 @pytest.mark.parametrize("dataset", WEIGHTED_DATASETS)
