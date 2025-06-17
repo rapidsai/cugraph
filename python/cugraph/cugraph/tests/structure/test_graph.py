@@ -1185,4 +1185,4 @@ def test_from_pandas_adjacency_string_columns():
     adjacency_matrix = pd.DataFrame(data, index=["A", "B", "C", "D"])
     G = cugraph.Graph()
     G.from_pandas_adjacency(adjacency_matrix)
-    assert not G.is_bipartite
+    assert G.is_bipartite

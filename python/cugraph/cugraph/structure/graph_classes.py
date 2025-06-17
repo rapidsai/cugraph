@@ -525,6 +525,9 @@ class Graph:
                 nodes = cupy.array(nodes)
             except ValueError:
                 nodes = np.array(nodes)
+            s_nodes = cudf.Series(nodes)
+        else:
+            s_nodes = None
 
         np_array = np.asarray(np_array)
         if len(np_array.shape) != 2:
@@ -540,7 +543,6 @@ class Graph:
             df["src"] = src
             df["dst"] = dst
         df["weight"] = weight
-        s_nodes = cudf.Series(nodes)
         self.from_cudf_edgelist(df, "src", "dst", edge_attr="weight", vertices=s_nodes)
 
     def from_numpy_matrix(self, np_matrix):

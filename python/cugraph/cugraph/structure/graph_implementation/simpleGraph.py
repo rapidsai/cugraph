@@ -315,8 +315,8 @@ class simpleGraphImpl:
         if vertices is not None:
             if self.properties.renumbered is True:
                 if isinstance(vertices, cudf.Series):
-                    vertices = self.lookup_internal_vertex_id(
-                        vertices, vertices.columns
+                    vertices = self.renumber_map.to_internal_vertex_id(
+                        vertices
                     )
                 else:
                     vertices = self.lookup_internal_vertex_id(cudf.Series(vertices))
