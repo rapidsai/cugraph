@@ -269,6 +269,13 @@ class File_Usecase : public detail::TranslateGraph_Usecase {
                      std::optional<large_buffer_type_t> large_vertex_buffer_type = std::nullopt,
                      std::optional<large_buffer_type_t> large_edge_buffer_type = std::nullopt) const
   {
+    CUGRAPH_EXPECTS(
+      !large_vertex_buffer_type || cugraph::large_buffer_manager::memory_buffer_initialized(),
+      "Invalid input argument: large memory buffer is not initialized.");
+    CUGRAPH_EXPECTS(
+      !large_edge_buffer_type || cugraph::large_buffer_manager::memory_buffer_initialized(),
+      "Invalid input argument: large memory buffer is not initialized.");
+
     rmm::device_uvector<vertex_t> srcs(0, handle.get_stream());
     rmm::device_uvector<vertex_t> dsts(0, handle.get_stream());
     std::optional<rmm::device_uvector<weight_t>> weights{};
@@ -277,11 +284,24 @@ class File_Usecase : public detail::TranslateGraph_Usecase {
     auto extension = graph_file_full_path_.substr(graph_file_full_path_.find_last_of(".") + 1);
     if (extension == "mtx") {
       std::tie(srcs, dsts, weights, vertices, is_symmetric) =
-        read_edgelist_from_matrix_market_file<vertex_t, weight_t>(
-          handle, graph_file_full_path_, test_weighted, store_transposed, multi_gpu, shuffle);
+        read_edgelist_from_matrix_market_file<vertex_t, weight_t>(handle,
+                                                                  graph_file_full_path_,
+                                                                  test_weighted,
+                                                                  store_transposed,
+                                                                  multi_gpu,
+                                                                  shuffle,
+                                                                  large_vertex_buffer_type,
+                                                                  large_edge_buffer_type);
     } else if (extension == "csv") {
-      std::tie(srcs, dsts, weights, is_symmetric) = read_edgelist_from_csv_file<vertex_t, weight_t>(
-        handle, graph_file_full_path_, test_weighted, store_transposed, multi_gpu, shuffle);
+      std::tie(srcs, dsts, weights, is_symmetric) =
+        read_edgelist_from_csv_file<vertex_t, weight_t>(handle,
+                                                        graph_file_full_path_,
+                                                        test_weighted,
+                                                        store_transposed,
+                                                        multi_gpu,
+                                                        shuffle,
+                                                        large_vertex_buffer_type,
+                                                        large_edge_buffer_type);
     }
 
     translate(handle, srcs, dsts);
