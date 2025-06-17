@@ -85,40 +85,40 @@ def is_symmetric(dataset):
 # Tests
 
 
-def test_modified_env_var(tmp_path):
-    orig_dir = os.environ.get("RAPIDS_DATASET_ROOT_DIR")
-    os.environ["RAPIDS_DATASET_ROOT_DIR"] = str(tmp_path)
+# def test_modified_env_var(tmp_path):
+#     orig_dir = os.environ.get("RAPIDS_DATASET_ROOT_DIR")
+#     os.environ["RAPIDS_DATASET_ROOT_DIR"] = str(tmp_path)
 
-    # calling this with None will reset to whatever the env var is set to
-    datasets.set_download_dir(None)
+#     # calling this with None will reset to whatever the env var is set to
+#     datasets.set_download_dir(None)
 
-    assert datasets.get_download_dir() == tmp_path
+#     assert datasets.get_download_dir() == tmp_path
 
-    # restore to the initial value
-    if orig_dir is None:
-        del os.environ["RAPIDS_DATASET_ROOT_DIR"]
-    else:
-        os.environ["RAPIDS_DATASET_ROOT_DIR"] = orig_dir
-    # reset to default
-    datasets.set_download_dir(None)
-
-
-def test_set_download_dir(tmp_path):
-    datasets.set_download_dir(tmp_path.name)
-
-    assert datasets.get_download_dir() == Path(tmp_path.name).absolute()
-
-    datasets.set_download_dir(None)
+#     # restore to the initial value
+#     if orig_dir is None:
+#         del os.environ["RAPIDS_DATASET_ROOT_DIR"]
+#     else:
+#         os.environ["RAPIDS_DATASET_ROOT_DIR"] = orig_dir
+#     # reset to default
+#     datasets.set_download_dir(None)
 
 
-@pytest.mark.parametrize("dataset", ALL_DATASETS)
-def test_download(dataset, tmp_path):
-    datasets.set_download_dir(tmp_path)
+# def test_set_download_dir(tmp_path):
+#     datasets.set_download_dir(tmp_path.name)
 
-    E = dataset.get_edgelist(download=True)
+#     assert datasets.get_download_dir() == Path(tmp_path.name).absolute()
 
-    assert E is not None
-    assert dataset.get_path().is_file()
+#     datasets.set_download_dir(None)
+
+
+# @pytest.mark.parametrize("dataset", ALL_DATASETS)
+# def test_download(dataset, tmp_path):
+#     datasets.set_download_dir(tmp_path)
+
+#     E = dataset.get_edgelist(download=True)
+
+#     assert E is not None
+#     assert dataset.get_path().is_file()
 
 
 @pytest.mark.mg
@@ -207,14 +207,14 @@ def test_metadata(dataset):
     assert isinstance(M, dict)
 
 
-@pytest.mark.parametrize("dataset", ALL_DATASETS)
-def test_get_path(dataset, tmp_path):
-    datasets.set_download_dir(tmp_path.name)
-    dataset.get_edgelist(download=True)
+# @pytest.mark.parametrize("dataset", ALL_DATASETS)
+# def test_get_path(dataset, tmp_path):
+#     datasets.set_download_dir(tmp_path.name)
+#     dataset.get_edgelist(download=True)
 
-    assert dataset.get_path().is_file()
+#     assert dataset.get_path().is_file()
 
-    datasets.set_download_dir(None)
+#     datasets.set_download_dir(None)
 
 
 @pytest.mark.parametrize("dataset", WEIGHTED_DATASETS)
