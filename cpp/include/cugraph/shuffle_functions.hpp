@@ -15,6 +15,8 @@
  */
 #pragma once
 
+#include <cugraph/large_buffer_manager.hpp>
+
 #include <raft/core/handle.hpp>
 #include <raft/core/host_span.hpp>
 
@@ -34,23 +36,6 @@ namespace cugraph {
  * @ingroup shuffle_functions_cpp
  * @brief Shuffle external vertex IDs to the owning GPUs (by vertex partitioning)
  *
- * @deprecated Replaced with shuffle_ext_vertices
- *
- * @tparam vertex_t    Type of vertex identifiers. Needs to be an integral type.
- *
- * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
- * handles to various CUDA libraries) to run graph algorithms.
- * @param vertices  List of vertex ids
- * @return Vector of vertex ids mapped to this GPU.
- */
-template <typename vertex_t>
-rmm::device_uvector<vertex_t> shuffle_external_vertices(raft::handle_t const& handle,
-                                                        rmm::device_uvector<vertex_t>&& vertices);
-
-/**
- * @ingroup shuffle_functions_cpp
- * @brief Shuffle external vertex IDs to the owning GPUs (by vertex partitioning)
- *
  * @tparam vertex_t    Type of vertex identifiers. Needs to be an integral type.
  *
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
@@ -59,30 +44,10 @@ rmm::device_uvector<vertex_t> shuffle_external_vertices(raft::handle_t const& ha
  * @return Vector of vertex ids mapped to this GPU.
  */
 template <typename vertex_t>
-rmm::device_uvector<vertex_t> shuffle_ext_vertices(raft::handle_t const& handle,
-                                                   rmm::device_uvector<vertex_t>&& vertices);
-
-/**
- * @ingroup shuffle_functions_cpp
- * @brief Shuffle external vertex ID & value pairs to the owning GPUs (by vertex partitioning)
- *
- * @deprecated Replaced with shuffle_ext_vertex_value_pairs
- *
- * @tparam vertex_t   Type of vertex identifiers. Needs to be an integral type.
- * @tparam value_t    Type of values. currently supported types are int32_t,
- * int64_t, size_t, float and double.
- *
- * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
- * handles to various CUDA libraries) to run graph algorithms.
- * @param vertices  List of vertex ids
- * @param values List of values
- * @return Tuple of vectors storing vertex ids and values mapped to this GPU.
- */
-template <typename vertex_t, typename value_t>
-std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<value_t>>
-shuffle_external_vertex_value_pairs(raft::handle_t const& handle,
-                                    rmm::device_uvector<vertex_t>&& vertices,
-                                    rmm::device_uvector<value_t>&& values);
+rmm::device_uvector<vertex_t> shuffle_ext_vertices(
+  raft::handle_t const& handle,
+  rmm::device_uvector<vertex_t>&& vertices,
+  std::optional<large_buffer_type_t> large_buffer_type = std::nullopt);
 
 /**
  * @ingroup shuffle_functions_cpp
@@ -102,7 +67,8 @@ template <typename vertex_t, typename value_t>
 std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<value_t>>
 shuffle_ext_vertex_value_pairs(raft::handle_t const& handle,
                                rmm::device_uvector<vertex_t>&& vertices,
-                               rmm::device_uvector<value_t>&& values);
+                               rmm::device_uvector<value_t>&& values,
+                               std::optional<large_buffer_type_t> large_buffer_type = std::nullopt);
 
 /**
  * @ingroup graph_functions_cpp
@@ -151,7 +117,8 @@ shuffle_ext_edges(raft::handle_t const& handle,
                   std::optional<rmm::device_uvector<edge_type_t>>&& edge_types,
                   std::optional<rmm::device_uvector<edge_time_t>>&& edge_start_times,
                   std::optional<rmm::device_uvector<edge_time_t>>&& edge_end_times,
-                  bool store_transposed);
+                  bool store_transposed,
+                  std::optional<large_buffer_type_t> large_buffer_type = std::nullopt);
 
 /**
  * @brief Shuffle local edge sources (already placed by edge partitioning) to the owning GPUs (by

@@ -19,6 +19,7 @@
 #include <cugraph/algorithms.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
+#include <cugraph/large_buffer_manager.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/packed_bool_utils.hpp>
 
@@ -27,7 +28,6 @@
 #include <raft/core/host_span.hpp>
 
 #include <rmm/device_uvector.hpp>
-#include <rmm/mr/pinned_host_memory_resource.hpp>
 
 #include <thrust/copy.h>
 #include <thrust/fill.h>
@@ -85,7 +85,7 @@ class nbr_unrenumber_cache_t {
                          rmm::device_uvector<vertex_t>&& vertex_partition_range_lasts,
                          vertex_t number_of_vertices,
                          vertex_t invalid_vertex,
-                         std::optional<rmm::host_device_async_resource_ref> pinned_host_mr)
+                         std::optional<cugraph::large_buffer_type_t> large_buffer_type)
     : dense_sorted_unique_nbr_segment_lasts_(0, handle.get_stream()),
       dense_sorted_unique_nbr_v_offset_lsbs_(0, handle.get_stream()),
       dense_unrenumbered_sorted_unique_nbrs_(0, handle.get_stream()),
@@ -101,14 +101,18 @@ class nbr_unrenumber_cache_t {
     init_key_cache(handle,
                    std::move(sorted_unique_nbrs),
                    std::move(unrenumbered_sorted_unique_nbrs),
-                   pinned_host_mr);
+                   large_buffer_type);
   }
 
   void init_key_cache(raft::handle_t const& handle,
                       rmm::device_uvector<vertex_t>&& sorted_unique_nbrs,
                       rmm::device_uvector<vertex_t>&& unrenumbered_sorted_unique_nbrs,
-                      std::optional<rmm::host_device_async_resource_ref> pinned_host_mr)
+                      std::optional<cugraph::large_buffer_type_t> large_buffer_type)
   {
+    CUGRAPH_EXPECTS(
+      !large_buffer_type || cugraph::large_buffer_manager::memory_buffer_initialized(),
+      "Invalid input argument: large memory buffer is not initialized.");
+
     size_t dense_sorted_unique_nbr_size{};
     size_t sparse_sorted_unique_nbr_size{};
     {
@@ -123,9 +127,9 @@ class nbr_unrenumber_cache_t {
       sparse_sorted_unique_nbr_size = sorted_unique_nbrs.size() - dense_sorted_unique_nbr_size;
 
       auto tmp_sorted_unique_nbrs =
-        pinned_host_mr
-          ? rmm::device_uvector<vertex_t>(
-              sorted_unique_nbrs.size(), handle.get_stream(), *pinned_host_mr)
+        large_buffer_type
+          ? cugraph::large_buffer_manager::allocate_memory_buffer<vertex_t>(
+              sorted_unique_nbrs.size(), handle.get_stream())
           : rmm::device_uvector<vertex_t>(sorted_unique_nbrs.size(), handle.get_stream());
       dense_unrenumbered_sorted_unique_nbrs_.resize(dense_sorted_unique_nbr_size,
                                                     handle.get_stream());
@@ -173,9 +177,9 @@ class nbr_unrenumber_cache_t {
                         sparse_sorted_unique_nbr_vertex_partition_range_lasts_.begin());
 
     auto sorted_unique_nbr_v_offsets =
-      pinned_host_mr
-        ? rmm::device_uvector<vertex_t>(
-            sorted_unique_nbrs.size(), handle.get_stream(), *pinned_host_mr)
+      large_buffer_type
+        ? cugraph::large_buffer_manager::allocate_memory_buffer<vertex_t>(sorted_unique_nbrs.size(),
+                                                                          handle.get_stream())
         : rmm::device_uvector<vertex_t>(sorted_unique_nbrs.size(), handle.get_stream());
     thrust::transform(handle.get_thrust_policy(),
                       sorted_unique_nbrs.begin(),
@@ -470,8 +474,11 @@ nbr_unrenumber_cache_t<vertex_t> build_nbr_unrenumber_cache(
   cugraph::graph_view_t<vertex_t, edge_t, false, true> const& mg_graph_view,
   raft::device_span<vertex_t const> renumber_map,
   vertex_t invalid_vertex,
-  std::optional<rmm::host_device_async_resource_ref> pinned_host_mr)
+  std::optional<cugraph::large_buffer_type_t> large_buffer_type)
 {
+  CUGRAPH_EXPECTS(!large_buffer_type || cugraph::large_buffer_manager::memory_buffer_initialized(),
+                  "Large memory buffer is not initialized.");
+
   auto& comm = handle.get_comms();
 
   auto h_vertex_partition_range_lasts = mg_graph_view.vertex_partition_range_lasts();
@@ -485,9 +492,9 @@ nbr_unrenumber_cache_t<vertex_t> build_nbr_unrenumber_cache(
   constexpr size_t num_k_hop_rounds      = 16;  // to cut peak memory usage
   constexpr size_t num_unrenumber_rounds = 8;   // to cut peak memory usage
 
-  auto nbrs = pinned_host_mr
-                ? rmm::device_uvector<vertex_t>(0, handle.get_stream(), *pinned_host_mr)
-                : rmm::device_uvector<vertex_t>(0, handle.get_stream());
+  auto nbrs = large_buffer_type ? cugraph::large_buffer_manager::allocate_memory_buffer<vertex_t>(
+                                    0, handle.get_stream())
+                                : rmm::device_uvector<vertex_t>(0, handle.get_stream());
   for (size_t r = 0; r < num_k_hop_rounds; ++r) {
     auto range_size = mg_graph_view.local_vertex_partition_range_size();
     auto num_seeds  = range_size / num_k_hop_rounds + (r < (range_size % num_k_hop_rounds) ? 1 : 0);
@@ -528,9 +535,9 @@ nbr_unrenumber_cache_t<vertex_t> build_nbr_unrenumber_cache(
                                                                new_nbrs.begin())),
                     handle.get_stream());
     auto merged_nbrs =
-      pinned_host_mr
-        ? rmm::device_uvector<vertex_t>(
-            nbrs.size() + new_nbrs.size(), handle.get_stream(), *pinned_host_mr)
+      large_buffer_type
+        ? cugraph::large_buffer_manager::allocate_memory_buffer<vertex_t>(
+            nbrs.size() + new_nbrs.size(), handle.get_stream())
         : rmm::device_uvector<vertex_t>(nbrs.size() + new_nbrs.size(), handle.get_stream());
     thrust::merge(handle.get_thrust_policy(),
                   nbrs.begin(),
@@ -541,10 +548,10 @@ nbr_unrenumber_cache_t<vertex_t> build_nbr_unrenumber_cache(
     nbrs = std::move(merged_nbrs);
   }
 
-  auto unrenumbered_nbrs =
-    pinned_host_mr
-      ? rmm::device_uvector<vertex_t>(nbrs.size(), handle.get_stream(), *pinned_host_mr)
-      : rmm::device_uvector<vertex_t>(nbrs.size(), handle.get_stream());
+  auto unrenumbered_nbrs = large_buffer_type
+                             ? cugraph::large_buffer_manager::allocate_memory_buffer<vertex_t>(
+                                 nbrs.size(), handle.get_stream())
+                             : rmm::device_uvector<vertex_t>(nbrs.size(), handle.get_stream());
   for (size_t r = 0; r < num_unrenumber_rounds; ++r) {
     auto chunk_size =
       (unrenumbered_nbrs.size() + (num_unrenumber_rounds - 1)) / num_unrenumber_rounds;
@@ -585,7 +592,7 @@ nbr_unrenumber_cache_t<vertex_t> build_nbr_unrenumber_cache(
                                 std::move(d_vertex_partition_range_lasts),
                                 mg_graph_view.number_of_vertices(),
                                 invalid_vertex,
-                                pinned_host_mr);
+                                large_buffer_type);
 }
 
 }  // namespace test
