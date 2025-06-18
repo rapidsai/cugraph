@@ -19,7 +19,6 @@ from .graph_implementation import (
 )
 import cudf
 import dask_cudf
-import cupy
 
 from cugraph.utilities.utils import import_optional
 
@@ -520,8 +519,8 @@ class Graph:
 
         """
 
-        if nodes is not None:
-            nodes = cupy.array(nodes)
+        if not (nodes is None or isinstance(nodes, cudf.Series)):
+            nodes = cudf.Series(np.asarray(nodes))
 
         np_array = np.asarray(np_array)
         if len(np_array.shape) != 2:
@@ -531,8 +530,8 @@ class Graph:
         weight = np_array[src, dst]
         df = cudf.DataFrame()
         if nodes is not None:
-            df["src"] = nodes[src]
-            df["dst"] = nodes[dst]
+            df["src"] = nodes[src].reset_index(drop=True)
+            df["dst"] = nodes[dst].reset_index(drop=True)
         else:
             df["src"] = src
             df["dst"] = dst
