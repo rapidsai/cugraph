@@ -519,7 +519,7 @@ class Graph:
 
         """
 
-        if nodes is not None:
+        if not (nodes is None or isinstance(nodes, cudf.Series)):
             nodes = cudf.Series(np.asarray(nodes))
 
         np_array = np.asarray(np_array)
@@ -530,8 +530,8 @@ class Graph:
         weight = np_array[src, dst]
         df = cudf.DataFrame()
         if nodes is not None:
-            df["src"] = nodes[src]
-            df["dst"] = nodes[dst]
+            df["src"] = nodes[src].reset_index(drop=True)
+            df["dst"] = nodes[dst].reset_index(drop=True)
         else:
             df["src"] = src
             df["dst"] = dst
