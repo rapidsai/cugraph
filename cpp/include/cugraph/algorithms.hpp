@@ -1563,51 +1563,6 @@ extract_ego(raft::handle_t const& handle,
 
 /**
 .* @ingroup sampling_cpp
- * @brief returns random walks (RW) from starting sources, where each path is of given maximum
- * length. Uniform distribution is assumed for the random engine.
- *
- * @deprecated This algorithm will be deprecated once all of the functionality is migrated
- *             to the newer APIS: uniform_random_walks(), biased_random_walks(), and
- *             node2vec_random_walks().
- *
- * @tparam graph_t Type of graph/view (typically, graph_view_t).
- * @tparam index_t Type used to store indexing and sizes.
- * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
- * handles to various CUDA libraries) to run graph algorithms.
- * @param graph Graph (view )object to generate RW on.
- * @param ptr_d_start Device pointer to set of starting vertex indices for the RW.
- * @param num_paths = number(paths).
- * @param max_depth maximum length of RWs.
- * @param use_padding (optional) specifies if return uses padded format (true), or coalesced
- * (compressed) format; when padding is used the output is a matrix of vertex paths and a matrix of
- * edges paths (weights); in this case the matrices are stored in row major order; the vertex path
- * matrix is padded with `num_vertices` values and the weight matrix is padded with `0` values;
- * @param sampling_strategy pointer for sampling strategy: uniform, biased, etc.; possible
- * values{0==uniform, 1==biased, 2==node2vec}; defaults to nullptr == uniform;
- * @return std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<weight_t>,
- * rmm::device_uvector<index_t>> Triplet of either padded or coalesced RW paths; in the coalesced
- * case (default), the return consists of corresponding vertex and edge weights for each, and
- * corresponding path sizes. This is meant to minimize the number of DF's to be passed to the Python
- * layer. The meaning of "coalesced" here is that a 2D array of paths of different sizes is
- * represented as a 1D contiguous array. In the padded case the return is a matrix of num_paths x
- * max_depth vertex paths; and num_paths x (max_depth-1) edge (weight) paths, with an empty array of
- * sizes. Note: if the graph is un-weighted the edge (weight) paths consists of `weight_t{1}`
- * entries;
- */
-template <typename vertex_t, typename edge_t, typename weight_t, typename index_t, bool multi_gpu>
-std::
-  tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<weight_t>, rmm::device_uvector<index_t>>
-  random_walks(raft::handle_t const& handle,
-               graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
-               std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
-               vertex_t const* ptr_d_start,
-               index_t num_paths,
-               index_t max_depth,
-               bool use_padding                                     = false,
-               std::unique_ptr<sampling_params_t> sampling_strategy = nullptr);
-
-/**
-.* @ingroup sampling_cpp
  * @brief returns uniform random walks from starting sources, where each path is of given
  * maximum length.
  *
