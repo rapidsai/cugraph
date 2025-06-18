@@ -754,6 +754,10 @@ if(BUILD_CUGRAPH_MG_TESTS)
     ConfigureTestMG(MG_TRANSFORM_E_TEST prims/mg_transform_e.cu)
 
     ###############################################################################################
+    # - MG PRIMS TRANSFORM_GATHER_E tests ---------------------------------------------------------
+    ConfigureTestMG(MG_TRANSFORM_GATHER_E_TEST prims/mg_transform_gather_e.cu)
+
+    ###############################################################################################
     # - MG PRIMS COUNT_IF_E tests -----------------------------------------------------------------
     ConfigureTestMG(MG_COUNT_IF_E_TEST prims/mg_count_if_e.cu)
 
