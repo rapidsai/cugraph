@@ -143,7 +143,7 @@ struct return_e_value_t {
  * destination, and edge and returns a value to be reduced.
  * @param gathered_value_output_first Iterator pointing the beginning of the gathered output buffer.
  * `gathered_value_output_last` (exclusive) is deduced as @p gathered_value_output_first + @p
- * edge_lsit.size().
+ * edge_list.size().
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  */
 template <typename GraphViewType,
