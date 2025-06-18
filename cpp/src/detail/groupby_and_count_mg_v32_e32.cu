@@ -15,8 +15,8 @@
  */
 #include "detail/graph_partition_utils.cuh"
 #include "detail/groupby_and_count.cuh"
+#include "detail/shuffle_wrappers.hpp"
 
-#include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>

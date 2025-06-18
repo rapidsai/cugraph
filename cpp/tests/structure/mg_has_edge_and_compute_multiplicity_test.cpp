@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include "detail/shuffle_wrappers.hpp"
 #include "utilities/base_fixture.hpp"
 #include "utilities/conversion_utilities.hpp"
 #include "utilities/device_comm_wrapper.hpp"
@@ -22,7 +23,6 @@
 #include "utilities/thrust_wrapper.hpp"
 
 #include <cugraph/algorithms.hpp>
-#include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
@@ -119,29 +119,18 @@ class Tests_MGHasEdgeAndComputeMultiplicity
                                          vertex_t{0},
                                          mg_graph_view.number_of_vertices(),
                                          rng_state);
+    std::vector<cugraph::arithmetic_device_uvector_t> edge_properties{};
 
     std::tie(store_transposed ? d_mg_edge_dsts : d_mg_edge_srcs,
              store_transposed ? d_mg_edge_srcs : d_mg_edge_dsts,
              std::ignore,
-             std::ignore,
-             std::ignore,
-             std::ignore,
-             std::ignore,
              std::ignore) =
-      cugraph::detail::shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<
-        vertex_t,
-        edge_t,
-        weight_t,
-        edge_type_t,
-        edge_time_t>(*handle_,
-                     std::move(store_transposed ? d_mg_edge_dsts : d_mg_edge_srcs),
-                     std::move(store_transposed ? d_mg_edge_srcs : d_mg_edge_dsts),
-                     std::nullopt,
-                     std::nullopt,
-                     std::nullopt,
-                     std::nullopt,
-                     std::nullopt,
-                     mg_graph_view.vertex_partition_range_lasts());
+      cugraph::detail::shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning(
+        *handle_,
+        std::move(store_transposed ? d_mg_edge_dsts : d_mg_edge_srcs),
+        std::move(store_transposed ? d_mg_edge_srcs : d_mg_edge_dsts),
+        std::move(edge_properties),
+        mg_graph_view.vertex_partition_range_lasts());
 
     // 3. run MG has_edge & compute_multiplicity
 
