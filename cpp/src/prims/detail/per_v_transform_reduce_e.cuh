@@ -3093,7 +3093,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                 graph_view.local_edge_partition_view(partition_idx));
             auto const& segment_offsets =
               graph_view.local_edge_partition_segment_offsets(partition_idx);
-            // check segment_offfsets->size() >= 2 to silence a compiler warning with GCC 14 (if
+            // check segment_offsets->size() >= 2 to silence a compiler warning with GCC 14 (if
             // segment_offsets.has_value() is true, segment_offsets->size() should always be larger
             // than 2, so this check shouldn't be necessary otherwise).
             buffer_size =
