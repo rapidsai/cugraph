@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include <cugraph/arithmetic_variant_types.hpp>
 #include <cugraph/sampling_functions.hpp>
 
 #include <raft/random/rng_state.hpp>
@@ -272,28 +273,31 @@ shuffle_sampling_results(raft::handle_t const& handle,
                          std::optional<rmm::device_uvector<label_t>>&& labels,
                          raft::device_span<int32_t const> label_to_output_gpu_mapping);
 
-template <typename vertex_t,
-          typename edge_t,
-          typename weight_t,
-          typename edge_type_t,
-          typename label_t>
-std::tuple<rmm::device_uvector<vertex_t>,
-           rmm::device_uvector<vertex_t>,
-           std::optional<rmm::device_uvector<weight_t>>,
-           std::optional<rmm::device_uvector<edge_t>>,
-           std::optional<rmm::device_uvector<edge_type_t>>,
+/**
+ * @brief Organize sampling results by shuffling to the proper GPU (if necessary as identified by
+ * labels and label_to_output_comm_rank) and sorting the vertices by label and hop
+ *
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param edges_with_properties vector of arithmetic device vectors of the edge data and the
+ * properties.  This should include the src and dst vertices, any edge properties that exist for the
+ * sampled edge and optionally the hop where the edge was sampled
+ * @param hop_index Optional value, if the hop was specified then this should specify with index
+ * that is located in the vector
+ * @param labels Optional labels associated with each edge.  If labels are not specified this
+ * function is a noop.
+ * @param label_to_output_comm_rank Optional map associating each label to a comm rank.  If
+ * specified this will result in shuffling the data, if not specified this will skip the shuffling
+ * step and only consider sorting the results
+ */
+std::tuple<std::vector<cugraph::arithmetic_device_uvector_t>,
            std::optional<rmm::device_uvector<int32_t>>,
-           std::optional<rmm::device_uvector<label_t>>,
            std::optional<rmm::device_uvector<size_t>>>
 shuffle_and_organize_output(
   raft::handle_t const& handle,
-  rmm::device_uvector<vertex_t>&& majors,
-  rmm::device_uvector<vertex_t>&& minors,
-  std::optional<rmm::device_uvector<weight_t>>&& weights,
-  std::optional<rmm::device_uvector<edge_t>>&& edge_ids,
-  std::optional<rmm::device_uvector<edge_type_t>>&& edge_types,
-  std::optional<rmm::device_uvector<int32_t>>&& hops,
-  std::optional<rmm::device_uvector<label_t>>&& labels,
+  std::vector<cugraph::arithmetic_device_uvector_t>&& edges_with_properties,
+  std::optional<size_t> hop_index,
+  std::optional<rmm::device_uvector<int32_t>>&& labels,
   std::optional<raft::device_span<int32_t const>> label_to_output_comm_rank);
 
 /**

@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+#include "detail/graph_partition_utils.cuh"
+
 #include <cugraph/arithmetic_variant_types.hpp>
 #include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/utilities/device_functors.cuh>
@@ -22,6 +24,8 @@
 
 #include <rmm/device_uvector.hpp>
 
+#include <thrust/count.h>
+#include <thrust/gather.h>
 #include <thrust/sort.h>
 
 #include <optional>
