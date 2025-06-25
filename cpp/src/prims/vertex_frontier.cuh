@@ -327,8 +327,14 @@ class key_bucket_t {
   {
     if (this != &other) {
       this->handle_ptr_ = other.handle_ptr_;
-      this->vertices_   = std::move(other.vertices_);
-      this->tags_       = std::move(other.tags_);
+      // to silence a compiler warning with GCC 14 (this->vertices_ = std::move(other.vertices_)
+      // should be sufficient, otherwise)
+      if (other.vertices_.index() == 0) {
+        this->vertices_ = std::move(std::get<0>(other.vertices_));
+      } else {
+        this->vertices_ = std::move(std::get<1>(other.vertices_));
+      }
+      this->tags_ = std::move(other.tags_);
     }
     return *this;
   }
