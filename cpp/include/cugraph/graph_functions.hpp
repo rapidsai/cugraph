@@ -115,7 +115,9 @@ renumber_edgelist(
   std::vector<edge_t> const& edgelist_edge_counts,
   std::optional<std::vector<std::vector<edge_t>>> const& edgelist_intra_partition_segment_offsets,
   bool store_transposed,
-  bool do_expensive_check = false);
+  std::optional<large_buffer_type_t> large_vertex_buffer_type = std::nullopt,
+  std::optional<large_buffer_type_t> large_edge_buffer_type   = std::nullopt,
+  bool do_expensive_check                                     = false);
 
 /**
  * @ingroup graph_functions_cpp
@@ -154,7 +156,9 @@ renumber_edgelist(raft::handle_t const& handle,
                   vertex_t* edgelist_dsts /* [INOUT] */,
                   edge_t num_edgelist_edges,
                   bool store_transposed,
-                  bool do_expensive_check = false);
+                  std::optional<large_buffer_type_t> large_vertex_buffer_type = std::nullopt,
+                  std::optional<large_buffer_type_t> large_edge_buffer_type   = std::nullopt,
+                  bool do_expensive_check                                     = false);
 
 /**
  * @ingroup graph_functions_cpp

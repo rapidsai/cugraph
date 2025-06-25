@@ -494,7 +494,9 @@ create_graph_from_partitioned_edgelist(
     dst_ptrs,
     edgelist_edge_counts,
     edgelist_intra_partition_segment_offset_vectors,
-    store_transposed);
+    store_transposed,
+    large_vertex_buffer_type,
+    large_edge_buffer_type);
 
   auto num_segments_per_vertex_partition =
     static_cast<size_t>(meta.edge_partition_segment_offsets.size() / minor_comm_size);
@@ -1768,6 +1770,7 @@ create_graph_from_edgelist_impl(
   }
 
   // 1. renumber
+
   auto renumber_map_labels =
     renumber ? std::make_optional<rmm::device_uvector<vertex_t>>(0, handle.get_stream())
              : std::nullopt;
@@ -1779,7 +1782,9 @@ create_graph_from_edgelist_impl(
       edgelist_srcs.data(),
       edgelist_dsts.data(),
       static_cast<edge_t>(edgelist_srcs.size()),
-      store_transposed);
+      store_transposed,
+      large_vertex_buffer_type,
+      large_edge_buffer_type);
   }
 
   vertex_t num_vertices{};

@@ -243,9 +243,10 @@ std::tuple<rmm::device_uvector<vertex_t>,
            vertex_t>
 compute_renumber_map(raft::handle_t const& handle,
                      std::optional<rmm::device_uvector<vertex_t>>&& local_vertices,
-                     std::vector<vertex_t const*> const& edgelist_majors,
-                     std::vector<vertex_t const*> const& edgelist_minors,
-                     std::vector<edge_t> const& edgelist_edge_counts)
+                     std::vector<raft::device_span<vertex_t const>> const& edgelist_majors,
+                     std::vector<raft::device_span<vertex_t const>> const& edgelist_minors,
+                     std::optional<large_buffer_type_t> large_vertex_buffer_type,
+                     std::optional<large_buffer_type_t> large_edge_buffer_type)
 {
   // 1. if local_vertices.has_value() is false, find unique vertices from edge majors & minors (to
   // construct local_vertices)
@@ -273,8 +274,8 @@ compute_renumber_map(raft::handle_t const& handle,
                      edge_t{0});
         thrust::for_each(
           handle.get_thrust_policy(),
-          edgelist_majors[i],
-          edgelist_majors[i] + edgelist_edge_counts[i],
+          edgelist_majors[i].begin(),
+          edgelist_majors[i].end(),
           [counts = raft::device_span<edge_t>(d_edge_major_counts.data(),
                                               d_edge_major_counts.size())] __device__(auto v) {
             cuco::detail::MurmurHash3_32<vertex_t> hash_func{hash_seed};
@@ -302,8 +303,8 @@ compute_renumber_map(raft::handle_t const& handle,
                      edge_t{0});
         thrust::for_each(
           handle.get_thrust_policy(),
-          edgelist_minors[i],
-          edgelist_minors[i] + edgelist_edge_counts[i],
+          edgelist_minors[i].begin(),
+          edgelist_minors[i].end(),
           [counts = raft::device_span<edge_t>(d_edge_minor_counts.data(),
                                               d_edge_minor_counts.size())] __device__(auto v) {
             cuco::detail::MurmurHash3_32<vertex_t> hash_func{hash_seed};
@@ -330,18 +331,18 @@ compute_renumber_map(raft::handle_t const& handle,
           if (num_bins > 1) {
             tmp_majors.resize((*edge_major_count_vectors)[j][i], handle.get_stream());
             thrust::copy_if(handle.get_thrust_policy(),
-                            edgelist_majors[j],
-                            edgelist_majors[j] + edgelist_edge_counts[j],
+                            edgelist_majors[j].begin(),
+                            edgelist_majors[j].end(),
                             tmp_majors.begin(),
                             [i] __device__(auto v) {
                               cuco::detail::MurmurHash3_32<vertex_t> hash_func{hash_seed};
                               return (static_cast<size_t>(hash_func(v) % num_bins) == i);
                             });
           } else {
-            tmp_majors.resize(edgelist_edge_counts[j], handle.get_stream());
+            tmp_majors.resize(edgelist_majors[j].size(), handle.get_stream());
             thrust::copy(handle.get_thrust_policy(),
-                         edgelist_majors[j],
-                         edgelist_majors[j] + edgelist_edge_counts[j],
+                         edgelist_majors[j].begin(),
+                         edgelist_majors[j].end(),
                          tmp_majors.begin());
           }
           thrust::sort(handle.get_thrust_policy(), tmp_majors.begin(), tmp_majors.end());
@@ -394,18 +395,18 @@ compute_renumber_map(raft::handle_t const& handle,
           if (num_bins > 1) {
             tmp_minors.resize((*edge_minor_count_vectors)[j][i], handle.get_stream());
             thrust::copy_if(handle.get_thrust_policy(),
-                            edgelist_minors[j],
-                            edgelist_minors[j] + edgelist_edge_counts[j],
+                            edgelist_minors[j].begin(),
+                            edgelist_minors[j].end(),
                             tmp_minors.begin(),
                             [i] __device__(auto v) {
                               cuco::detail::MurmurHash3_32<vertex_t> hash_func{hash_seed};
                               return (static_cast<size_t>(hash_func(v) % num_bins) == i);
                             });
           } else {
-            tmp_minors.resize(edgelist_edge_counts[j], handle.get_stream());
+            tmp_minors.resize(edgelist_minors[j].size(), handle.get_stream());
             thrust::copy(handle.get_thrust_policy(),
-                         edgelist_minors[j],
-                         edgelist_minors[j] + edgelist_edge_counts[j],
+                         edgelist_minors[j].begin(),
+                         edgelist_minors[j].end(),
                          tmp_minors.begin());
           }
           thrust::sort(handle.get_thrust_policy(), tmp_minors.begin(), tmp_minors.end());
@@ -575,8 +576,8 @@ compute_renumber_map(raft::handle_t const& handle,
 
       thrust::for_each(
         handle.get_thrust_policy(),
-        edgelist_majors[i],
-        edgelist_majors[i] + edgelist_edge_counts[i],
+        edgelist_majors[i].begin(),
+        edgelist_majors[i].end(),
         [sorted_majors =
            raft::device_span<vertex_t const>(sorted_majors.data(), sorted_majors.size()),
          sorted_major_degrees = raft::device_span<edge_t>(
@@ -608,8 +609,8 @@ compute_renumber_map(raft::handle_t const& handle,
                  edge_t{0});
 
     thrust::for_each(handle.get_thrust_policy(),
-                     edgelist_majors[0],
-                     edgelist_majors[0] + edgelist_edge_counts[0],
+                     edgelist_majors[0].begin(),
+                     edgelist_majors[0].end(),
                      [sorted_majors = raft::device_span<vertex_t const>(
                         sorted_local_vertices.data(), sorted_local_vertices.size()),
                       sorted_major_degrees = raft::device_span<edge_t>(
@@ -727,9 +728,8 @@ template <typename vertex_t, typename edge_t, bool multi_gpu>
 void expensive_check_edgelist(
   raft::handle_t const& handle,
   std::optional<rmm::device_uvector<vertex_t>> const& local_vertices,
-  std::vector<vertex_t const*> const& edgelist_majors,
-  std::vector<vertex_t const*> const& edgelist_minors,
-  std::vector<edge_t> const& edgelist_edge_counts,
+  std::vector<raft::device_span<vertex_t const>> const& edgelist_majors,
+  std::vector<raft::device_span<vertex_t const>> const& edgelist_minors,
   std::optional<std::vector<std::vector<edge_t>>> const& edgelist_intra_partition_segment_offsets)
 {
   std::optional<rmm::device_uvector<vertex_t>> sorted_local_vertices{std::nullopt};
@@ -768,13 +768,17 @@ void expensive_check_edgelist(
                     "edgelist_minors.size() should coincide with minor_comm_size.");
 
     for (size_t i = 0; i < edgelist_majors.size(); ++i) {
+      CUGRAPH_EXPECTS(edgelist_majors[i].size() == edgelist_minors[i].size(),
+                      "Invalid input argument: edgelist_majors[].size() and "
+                      "edgelist_minors[i].size() should coincide.");
+
       auto edge_first =
-        thrust::make_zip_iterator(thrust::make_tuple(edgelist_majors[i], edgelist_minors[i]));
+        thrust::make_zip_iterator(edgelist_majors[i].begin(), edgelist_minors[i].begin());
       CUGRAPH_EXPECTS(
         thrust::count_if(
           handle.get_thrust_policy(),
           edge_first,
-          edge_first + edgelist_edge_counts[i],
+          edge_first + edgelist_majors[i].size(),
           [comm_size,
            comm_rank,
            major_comm_rank,
@@ -798,8 +802,8 @@ void expensive_check_edgelist(
           CUGRAPH_EXPECTS(
             thrust::count_if(
               handle.get_thrust_policy(),
-              edgelist_minors[i] + (*edgelist_intra_partition_segment_offsets)[i][j],
-              edgelist_minors[i] + (*edgelist_intra_partition_segment_offsets)[i][j + 1],
+              edgelist_minors[i].begin() + (*edgelist_intra_partition_segment_offsets)[i][j],
+              edgelist_minors[i].begin() + (*edgelist_intra_partition_segment_offsets)[i][j + 1],
               [major_comm_size,
                minor_comm_rank,
                j,
@@ -860,13 +864,13 @@ void expensive_check_edgelist(
         }
 
         auto edge_first =
-          thrust::make_zip_iterator(thrust::make_tuple(edgelist_majors[i], edgelist_minors[i]));
+          thrust::make_zip_iterator(edgelist_majors[i].begin(), edgelist_minors[i].begin());
 
         CUGRAPH_EXPECTS(
           thrust::count_if(
             handle.get_thrust_policy(),
             edge_first,
-            edge_first + edgelist_edge_counts[i],
+            edge_first + edgelist_majors[i].size(),
             check_edge_src_and_dst_t<vertex_t>{
               raft::device_span<vertex_t const>(sorted_majors.data(),
                                                 static_cast<vertex_t>(sorted_majors.size())),
@@ -882,11 +886,11 @@ void expensive_check_edgelist(
 
     if (sorted_local_vertices) {
       auto edge_first =
-        thrust::make_zip_iterator(thrust::make_tuple(edgelist_majors[0], edgelist_minors[0]));
+        thrust::make_zip_iterator(edgelist_majors[0].begin(), edgelist_minors[0].begin());
       CUGRAPH_EXPECTS(
         thrust::count_if(handle.get_thrust_policy(),
                          edge_first,
-                         edge_first + edgelist_edge_counts[0],
+                         edge_first + edgelist_majors[0].size(),
                          check_edge_src_and_dst_t<vertex_t>{
                            raft::device_span<vertex_t const>(
                              (*sorted_local_vertices).data(),
@@ -944,6 +948,8 @@ renumber_edgelist(
   std::vector<edge_t> const& edgelist_edge_counts,
   std::optional<std::vector<std::vector<edge_t>>> const& edgelist_intra_partition_segment_offsets,
   bool store_transposed,
+  std::optional<large_buffer_type_t> large_vertex_buffer_type,
+  std::optional<large_buffer_type_t> large_edge_buffer_type,
   bool do_expensive_check)
 {
   auto edgelist_majors = store_transposed ? edgelist_dsts : edgelist_srcs;
@@ -987,11 +993,14 @@ renumber_edgelist(
     }
   }
 
-  std::vector<vertex_t const*> edgelist_const_majors(edgelist_majors.size());
-  std::vector<vertex_t const*> edgelist_const_minors(edgelist_const_majors.size());
+  std::vector<raft::device_span<vertex_t const>> edgelist_const_majors(edgelist_majors.size());
+  std::vector<raft::device_span<vertex_t const>> edgelist_const_minors(
+    edgelist_const_majors.size());
   for (size_t i = 0; i < edgelist_const_majors.size(); ++i) {
-    edgelist_const_majors[i] = edgelist_majors[i];
-    edgelist_const_minors[i] = edgelist_minors[i];
+    edgelist_const_majors[i] =
+      raft::device_span<vertex_t const>(edgelist_majors[i], edgelist_edge_counts[i]);
+    edgelist_const_minors[i] =
+      raft::device_span<vertex_t const>(edgelist_minors[i], edgelist_edge_counts[i]);
   }
 
   if (do_expensive_check) {
@@ -1000,7 +1009,6 @@ renumber_edgelist(
       local_vertices,
       edgelist_const_majors,
       edgelist_const_minors,
-      edgelist_edge_counts,
       edgelist_intra_partition_segment_offsets);
   }
 
@@ -1014,7 +1022,8 @@ renumber_edgelist(
                                                               std::move(local_vertices),
                                                               edgelist_const_majors,
                                                               edgelist_const_minors,
-                                                              edgelist_edge_counts);
+                                                              large_vertex_buffer_type,
+                                                              large_edge_buffer_type);
 
   // 2. initialize partition_t object, number_of_vertices, and number_of_edges
 
@@ -1192,6 +1201,8 @@ renumber_edgelist(raft::handle_t const& handle,
                   vertex_t* edgelist_dsts /* [INOUT] */,
                   edge_t num_edgelist_edges,
                   bool store_transposed,
+                  std::optional<large_buffer_type_t> large_vertex_buffer_type,
+                  std::optional<large_buffer_type_t> large_edge_buffer_type,
                   bool do_expensive_check)
 {
   auto edgelist_majors = store_transposed ? edgelist_dsts : edgelist_srcs;
@@ -1201,9 +1212,10 @@ renumber_edgelist(raft::handle_t const& handle,
     detail::expensive_check_edgelist<vertex_t, edge_t, multi_gpu>(
       handle,
       vertices,
-      std::vector<vertex_t const*>{edgelist_majors},
-      std::vector<vertex_t const*>{edgelist_minors},
-      std::vector<edge_t>{num_edgelist_edges},
+      std::vector<raft::device_span<vertex_t const>>{
+        raft::device_span<vertex_t const>(edgelist_majors, num_edgelist_edges)},
+      std::vector<raft::device_span<vertex_t const>>{
+        raft::device_span<vertex_t const>(edgelist_minors, num_edgelist_edges)},
       std::nullopt);
   }
 
@@ -1214,9 +1226,12 @@ renumber_edgelist(raft::handle_t const& handle,
     detail::compute_renumber_map<vertex_t, edge_t, multi_gpu>(
       handle,
       std::move(vertices),
-      std::vector<vertex_t const*>{edgelist_majors},
-      std::vector<vertex_t const*>{edgelist_minors},
-      std::vector<edge_t>{num_edgelist_edges});
+      std::vector<raft::device_span<vertex_t const>>{
+        raft::device_span<vertex_t const>(edgelist_majors, num_edgelist_edges)},
+      std::vector<raft::device_span<vertex_t const>>{
+        raft::device_span<vertex_t const>(edgelist_minors, num_edgelist_edges)},
+      large_vertex_buffer_type,
+      large_edge_buffer_type);
 
   kv_store_t<vertex_t, vertex_t, false> renumber_map(
     renumber_map_labels.begin(),
