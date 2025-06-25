@@ -318,7 +318,15 @@ class key_bucket_t {
   {
   }
 
-  ~key_bucket_t() = default;
+  ~key_bucket_t()
+  {
+    // to silence a compiler warning with GCC 14 (otherwise, the default destructor will be
+    // sufficient)
+    if (vertices_.index() == 1) {
+      std::get<1>(vertices_).resize(0, std::get<1>(vertices_).stream());
+      std::get<1>(vertices_).shrink_to_fit(std::get<1>(vertices_).stream());
+    }
+  }
 
   key_bucket_t& operator=(key_bucket_t const& other) = delete;
 
@@ -327,8 +335,8 @@ class key_bucket_t {
   {
     if (this != &other) {
       this->handle_ptr_ = other.handle_ptr_;
-      // to silence a compiler warning with GCC 14 (this->vertices_ = std::move(other.vertices_)
-      // should be sufficient, otherwise)
+      // to silence a compiler warning with GCC 14 (otherwise, the default destructor will be
+      // sufficient)
       if (other.vertices_.index() == 0) {
         this->vertices_ = std::move(std::get<0>(other.vertices_));
       } else {
