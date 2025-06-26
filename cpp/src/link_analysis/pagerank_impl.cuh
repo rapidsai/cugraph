@@ -182,7 +182,7 @@ centrality_algorithm_metadata_t pagerank(
 
       CUGRAPH_EXPECTS(
         static_cast<size_t>(num_uniques) == check_for_duplicates.size(),
-        "Invalid input argument: personalization vertices not contain duplicate entries.");
+        "Invalid input argument: personalization vertices should not contain duplicate entries.");
     }
   }
 

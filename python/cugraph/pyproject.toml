@@ -103,6 +103,3 @@ select = [
 
 # PyPI limit is 100 MiB, fail CI before we get too close to that
 max_allowed_size_compressed = '75M'
-
-[tool.coverage.run]
-disable_warnings = ["module-not-measured"]

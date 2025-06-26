@@ -76,20 +76,7 @@ rapids-logger "pytest cugraph (not mg, with xdist)"
   --numprocesses=8 \
   --dist=worksteal \
   -m "not mg" \
-  -k "not test_dataset and not test_bulk_sampler and not test_create_undirected_graph_from_asymmetric_adj_list and not test_uniform_neighbor_sample and not test_node2vec" \
-  --cov-config=../../.coveragerc \
-  --cov=cugraph \
-  --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph-coverage.xml" \
-  --cov-report=term
-
-# The datasets tests may modify global states and interfere with tests running on other workers
-# these tests are typically only limited by network speed and run fairly quickly, so they can be
-# run separately
-rapids-logger "pytest cugraph (datasets APIs)"
-./ci/run_cugraph_pytests.sh \
-  --verbose \
-  --junitxml="${RAPIDS_TESTS_DIR}/junit-cugraph.xml" \
-  -k "test_dataset" \
+  -k "not test_bulk_sampler and not test_create_undirected_graph_from_asymmetric_adj_list and not test_uniform_neighbor_sample and not test_node2vec" \
   --cov-config=../../.coveragerc \
   --cov=cugraph \
   --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph-coverage.xml" \
@@ -103,7 +90,7 @@ rapids-logger "pytest cugraph (mg, with xdist)"
   --numprocesses=8 \
   --dist=worksteal \
   -m "mg" \
-  -k "not test_dataset and not test_property_graph_mg and not test_dist_sampler_mg and not test_uniform_neighbor_sample_mg" \
+  -k "not test_property_graph_mg and not test_dist_sampler_mg and not test_uniform_neighbor_sample_mg" \
   --cov-config=../../.coveragerc \
   --cov=cugraph \
   --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph-coverage.xml" \
