@@ -16,8 +16,6 @@
 
 #pragma once
 
-#include "prims/update_edge_src_dst_property.cuh"  // ??
-#include "prims/vertex_frontier.cuh"
 #include "structure/detail/structure_utils.cuh"
 
 #include <cugraph/detail/shuffle_wrappers.hpp>
