@@ -15,6 +15,7 @@
  */
 #pragma once
 
+#include <cugraph/arithmetic_variant_types.hpp>
 #include <cugraph/utilities/dataframe_buffer.hpp>
 
 #include <raft/core/handle.hpp>
@@ -93,6 +94,8 @@ shuffle_ext_vertex_value_pairs(raft::handle_t const& handle,
  *          optional edge ids, optional edge types, optional edge start times, optional edge end
  * times mapped to this GPU and a vector storing the number of edges received from each GPU.
  */
+
+// TODO NEXT:  Migrate everything to use the properties version of this function and delete it
 template <typename vertex_t,
           typename edge_t,
           typename weight_t,
@@ -117,6 +120,58 @@ shuffle_ext_edges(raft::handle_t const& handle,
                   bool store_transposed);
 
 /**
+ * @ingroup graph_functions_cpp
+ * @brief Shuffle external edges to the owning GPUs (by edge partitioning)
+ *
+ * @tparam vertex_t    Type of vertex identifiers. Needs to be an integral type.
+ *
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param edge_srcs  Vector of source vertex ids
+ * @param edge_dsts  Vector of destination vertex ids
+ * @param edge_properties  Vector of edge properties, each element is an arithmetic device vector
+ * @param store_transposed Should be true if shuffled edges will be used with a cugraph::graph_t
+ * object with store_tranposed = true. Should be false otherwise.
+ * @return Tuple of vectors storing edge sources, destinations, and edge properties
+ */
+template <typename vertex_t>
+std::tuple<rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           std::vector<cugraph::arithmetic_device_uvector_t>,
+           std::vector<size_t>>
+shuffle_ext_edges(raft::handle_t const& handle,
+                  rmm::device_uvector<vertex_t>&& edge_srcs,
+                  rmm::device_uvector<vertex_t>&& edge_dsts,
+                  std::vector<cugraph::arithmetic_device_uvector_t>&& edge_properties,
+                  bool store_transposed);
+
+/**
+ * @ingroup graph_functions_cpp
+ * @brief Shuffle internal edges to the owning GPUs (by edge partitioning)
+ *
+ * @tparam vertex_t    Type of vertex identifiers. Needs to be an integral type.
+ *
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param edge_srcs  Vector of source vertex ids
+ * @param edge_dsts  Vector of destination vertex ids
+ * @param edge_properties  Vector of edge properties, each element is an arithmetic device vector
+ * @param store_transposed Should be true if shuffled edges will be used with a cugraph::graph_t
+ * object with store_tranposed = true. Should be false otherwise.
+ * @return Tuple of vectors storing edge sources, destinations, and edge properties
+ */
+template <typename vertex_t>
+std::tuple<rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           std::vector<cugraph::arithmetic_device_uvector_t>,
+           std::vector<size_t>>
+shuffle_int_edges(raft::handle_t const& handle,
+                  rmm::device_uvector<vertex_t>&& majors,
+                  rmm::device_uvector<vertex_t>&& minors,
+                  std::vector<cugraph::arithmetic_device_uvector_t>&& edge_properties,
+                  raft::host_span<vertex_t const> vertex_partition_range_lasts);
+
+/**
  * @brief Shuffle local edge sources (already placed by edge partitioning) to the owning GPUs (by
  * vertex partitioning).
  *
@@ -125,7 +180,8 @@ shuffle_ext_edges(raft::handle_t const& handle,
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param edge_srcs  Vector of local edge source IDs
- * @param vertex_partition_range_lasts  Span of vertex partition range lasts (size = number of GPUs)
+ * @param vertex_partition_range_lasts  Span of vertex partition range lasts (size = number of
+ * GPUs)
  * @param store_transposed Should be true if shuffled edges will be used with a cugraph::graph_t
  * object with store_tranposed = true. Should be false otherwise.
  * @return Vector of shuffled edge source vertex IDs (shuffled by vertex partitioning).

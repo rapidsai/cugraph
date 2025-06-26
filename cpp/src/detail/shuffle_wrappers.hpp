@@ -28,9 +28,6 @@
 namespace cugraph {
 namespace detail {
 
-// TODO (in this PR): move this file to the src/detail directory
-//  Make public APIs for anything that requires them and add those to shuffle_functions
-
 /** @defgroup shuffle_wrappers_cpp C++ Shuffle Wrappers
  */
 

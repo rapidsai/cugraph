@@ -115,4 +115,24 @@ shuffle_ext_edges(raft::handle_t const& handle,
                   std::optional<rmm::device_uvector<int64_t>>&& edge_end_times,
                   bool store_transposed);
 
+template std::tuple<rmm::device_uvector<int32_t>,
+                    rmm::device_uvector<int32_t>,
+                    std::vector<cugraph::arithmetic_device_uvector_t>,
+                    std::vector<size_t>>
+shuffle_ext_edges(raft::handle_t const& handle,
+                  rmm::device_uvector<int32_t>&& edge_srcs,
+                  rmm::device_uvector<int32_t>&& edge_dsts,
+                  std::vector<cugraph::arithmetic_device_uvector_t>&& edge_properties,
+                  bool store_transposed);
+
+template std::tuple<rmm::device_uvector<int32_t>,
+                    rmm::device_uvector<int32_t>,
+                    std::vector<cugraph::arithmetic_device_uvector_t>,
+                    std::vector<size_t>>
+shuffle_int_edges(raft::handle_t const& handle,
+                  rmm::device_uvector<int32_t>&& majors,
+                  rmm::device_uvector<int32_t>&& minors,
+                  std::vector<cugraph::arithmetic_device_uvector_t>&& edge_properties,
+                  raft::host_span<int32_t const> vertex_partition_range_lasts);
+
 }  // namespace cugraph
