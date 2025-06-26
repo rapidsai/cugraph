@@ -467,8 +467,9 @@ def test_renumber_vertices_by_type(client_with_property_csvs_loaded):
     assert re.start == [0, 5]
     assert re.stop == [4, 8]
     print(client.get_graph_vertex_data(property_keys=["old_vid"]))
-    sorted_old_vid = client.get_graph_vertex_data(
-        property_keys=["old_vid"])[:, -1].tolist()
+    sorted_old_vid = client.get_graph_vertex_data(property_keys=["old_vid"])[
+        :, -1
+    ].tolist()
     sorted_old_vid.sort()
 
     # Ensure that the original vertices are all represented in the
