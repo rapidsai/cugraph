@@ -760,24 +760,14 @@ class Tests_GRAPH500_MGBFS
             std::nullopt,
             std::nullopt);
 
-        std::tie(src_chunks[i],
-                 dst_chunks[i],
-                 std::ignore,
-                 std::ignore,
-                 std::ignore,
-                 std::ignore,
-                 std::ignore,
-                 std::ignore) =
-          cugraph::shuffle_ext_edges<vertex_t, edge_t, weight_t, edge_type_t, edge_time_t>(
-            *handle_,
-            std::move(src_chunks[i]),
-            std::move(dst_chunks[i]),
-            std::nullopt,
-            std::nullopt,
-            std::nullopt,
-            std::nullopt,
-            std::nullopt,
-            store_transposed);
+        std::vector<cugraph::arithmetic_device_uvector_t> dummy_edge_property_chunk{};
+
+        std::tie(src_chunks[i], dst_chunks[i], dummy_edge_property_chunk, std::ignore) =
+          cugraph::shuffle_ext_edges(*handle_,
+                                     std::move(src_chunks[i]),
+                                     std::move(dst_chunks[i]),
+                                     std::move(dummy_edge_property_chunk),
+                                     store_transposed);
       }
 
       std::tie(

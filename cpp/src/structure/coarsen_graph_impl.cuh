@@ -345,25 +345,19 @@ coarsen_graph(raft::handle_t const& handle,
         lower_triangular_only);
 
     // 1-2. globally shuffle
+    std::vector<cugraph::arithmetic_device_uvector_t> edgelist_edge_properties{};
+    if (edgelist_weights) edgelist_edge_properties.push_back(std::move(*edgelist_weights));
 
-    std::tie(edgelist_majors,
-             edgelist_minors,
-             edgelist_weights,
-             std::ignore,
-             std::ignore,
-             std::ignore,
-             std::ignore,
-             std::ignore) =
-      cugraph::shuffle_ext_edges<vertex_t, edge_t, weight_t, int32_t, int32_t>(
-        handle,
-        std::move(edgelist_majors),
-        std::move(edgelist_minors),
-        std::move(edgelist_weights),
-        std::nullopt,
-        std::nullopt,
-        std::nullopt,
-        std::nullopt,
-        false);
+    std::tie(edgelist_majors, edgelist_minors, edgelist_edge_properties, std::ignore) =
+      cugraph::shuffle_ext_edges(handle,
+                                 std::move(edgelist_majors),
+                                 std::move(edgelist_minors),
+                                 std::move(edgelist_edge_properties),
+                                 false);
+
+    if (edgelist_weights)
+      *edgelist_weights =
+        std::move(std::get<rmm::device_uvector<weight_t>>(edgelist_edge_properties[0]));
 
     // 1-3. groupby and coarsen again
 
@@ -475,24 +469,22 @@ coarsen_graph(raft::handle_t const& handle,
                                                                 reversed_edgelist_majors.begin())));
     }
 
+    std::vector<cugraph::arithmetic_device_uvector_t> reversed_edgelist_edge_properties{};
+    if (reversed_edgelist_weights)
+      reversed_edgelist_edge_properties.push_back(std::move(*reversed_edgelist_weights));
+
     std::tie(reversed_edgelist_majors,
              reversed_edgelist_minors,
-             reversed_edgelist_weights,
-             std::ignore,
-             std::ignore,
-             std::ignore,
-             std::ignore,
-             std::ignore) =
-      cugraph::shuffle_ext_edges<vertex_t, edge_t, weight_t, int32_t, int32_t>(
-        handle,
-        std::move(reversed_edgelist_majors),
-        std::move(reversed_edgelist_minors),
-        std::move(reversed_edgelist_weights),
-        std::nullopt,
-        std::nullopt,
-        std::nullopt,
-        std::nullopt,
-        false);
+             reversed_edgelist_edge_properties,
+             std::ignore) = cugraph::shuffle_ext_edges(handle,
+                                                       std::move(reversed_edgelist_majors),
+                                                       std::move(reversed_edgelist_minors),
+                                                       std::move(reversed_edgelist_edge_properties),
+                                                       false);
+
+    if (reversed_edgelist_weights)
+      *reversed_edgelist_weights =
+        std::move(std::get<rmm::device_uvector<weight_t>>(reversed_edgelist_edge_properties[0]));
 
     auto output_offset = concatenated_edgelist_majors.size();
 
