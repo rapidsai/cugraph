@@ -732,10 +732,14 @@ extract_induced_subgraphs(
  * and) edge list.
  * @param renumber Flag indicating whether to renumber vertices or not (must be true if @p multi_gpu
  * is true).
- * @param large_vertex_buffer_type Flag indicating the large buffer type to use in storing per
- * vertex data (if the value is std::nullopt, the default RMM per-device memory resource is used).
- * @param large_edge_buffer_type Flag indicating the large buffer type to use in storing per edge
- * data (if the value is std::nullopt, the default RMM per-device memory resource is used).
+ * @param large_vertex_buffer_type Flag indicating the large buffer type to use when we need to
+ * create a per-vertex device-accessible vector object (if the value is std::nullopt, the default
+ * RMM per-device memory resource is used). The per-vertex vectors in the created graph also be
+ * stored in the buffer type dictated by this parameter.
+ * @param large_edge_buffer_type Flag indicating the large buffer type to use when we need to create
+ * a per-edge device-accessible vector object (if the value is std::nullopt, the default RMM
+ * per-device memory resource is used). The per-edge vectors in the created graph also be stored in
+ * the buffer type dictated by this parameter.
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return Tuple of the generated graph and optional edge_property_t objects storing the provided
  * edge properties and a renumber map (if @p renumber is true).
@@ -800,10 +804,14 @@ create_graph_from_edgelist(
  * and) edge list.
  * @param renumber Flag indicating whether to renumber vertices or not (must be true if @p multi_gpu
  * is true).
- * @param large_vertex_buffer_type Flag indicating the large buffer type to use in storing per
- * vertex data (if the value is std::nullopt, the default RMM per-device memory resource is used).
- * @param large_edge_buffer_type Flag indicating the large buffer type to use in storing per edge
- * data (if the value is std::nullopt, the default RMM per-device memory resource is used).
+ * @param large_vertex_buffer_type Flag indicating the large buffer type to use when we need to
+ * create a per-vertex device-accessible vector object (if the value is std::nullopt, the default
+ * RMM per-device memory resource is used). The per-vertex vectors in the created graph also be
+ * stored in the buffer type dictated by this parameter.
+ * @param large_edge_buffer_type Flag indicating the large buffer type to use when we need to create
+ * a per-edge device-accessible vector object (if the value is std::nullopt, the default RMM
+ * per-device memory resource is used). The per-edge vectors in the created graph also be stored in
+ * the buffer type dictated by this parameter.
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return Tuple of the generated graph and optional edge_property_t objects storing the provided
  * edge properties and a renumber map (if @p renumber is true).
@@ -872,10 +880,14 @@ create_graph_from_edgelist(
  * and) edge list.
  * @param renumber Flag indicating whether to renumber vertices or not (must be true if @p multi_gpu
  * is true).
- * @param large_vertex_buffer_type Flag indicating the large buffer type to use in storing per
- * vertex data (if the value is std::nullopt, the default RMM per-device memory resource is used).
- * @param large_edge_buffer_type Flag indicating the large buffer type to use in storing per edge
- * data (if the value is std::nullopt, the default RMM per-device memory resource is used).
+ * @param large_vertex_buffer_type Flag indicating the large buffer type to use when we need to
+ * create a per-vertex device-accessible vector object (if the value is std::nullopt, the default
+ * RMM per-device memory resource is used). The per-vertex vectors in the created graph also be
+ * stored in the buffer type dictated by this parameter.
+ * @param large_edge_buffer_type Flag indicating the large buffer type to use when we need to create
+ * a per-edge device-accessible vector object (if the value is std::nullopt, the default RMM
+ * per-device memory resource is used). The per-edge vectors in the created graph also be stored in
+ * the buffer type dictated by this parameter.
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return Tuple of the generated graph and optional edge_property_t objects storing the provided
  * edge properties and a renumber map (if @p renumber is true).
@@ -941,11 +953,14 @@ create_graph_from_edgelist(
  * @param graph_properties Properties of the graph represented by the input (optional vertex list
  * and) edge list.
  * @param renumber Flag indicating whether to renumber vertices or not (must be true if @p multi_gpu
- * @param large_vertex_buffer_type Flag indicating the large buffer type to use in storing per
- * vertex data (if the value is std::nullopt, the default RMM per-device memory resource is used).
- * @param large_edge_buffer_type Flag indicating the large buffer type to use in storing per edge
- * data (if the value is std::nullopt, the default RMM per-device memory resource is used). is
- * true).
+ * @param large_vertex_buffer_type Flag indicating the large buffer type to use when we need to
+ * create a per-vertex device-accessible vector object (if the value is std::nullopt, the default
+ * RMM per-device memory resource is used). The per-vertex vectors in the created graph also be
+ * stored in the buffer type dictated by this parameter.
+ * @param large_edge_buffer_type Flag indicating the large buffer type to use when we need to create
+ * a per-edge device-accessible vector object (if the value is std::nullopt, the default RMM
+ * per-device memory resource is used). The per-edge vectors in the created graph also be stored in
+ * the buffer type dictated by this parameter.
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return Tuple of the generated graph and optional edge_property_t objects storing the provided
  * edge properties and a renumber map (if @p renumber is true).

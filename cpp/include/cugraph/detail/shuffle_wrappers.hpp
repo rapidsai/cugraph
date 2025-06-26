@@ -55,9 +55,10 @@ namespace detail {
  * @param[in] edge_types Optional vector of vertex pair edge type values.
  * @param[in] edge_start_times Optional vector of vertex pair edge start time values.
  * @param[in] edge_end_times Optional vector of vertex pair edge end time values.
- * @param[in] large_buffer_type Flag indicating the large buffer type to use in storing the shuffled
- * vertex value pairs (if the value is std::nullopt, the default RMM per-device memory resource is
- * used).
+ * @param[in] large_buffer_type Flag indicating the large buffer type to use when we need to create
+ * a large device-accessible vector object (if the value is std::nullopt, the default RMM per-device
+ * memory resource is used). The shuffled vertex pairs and values will also be stored in the buffer
+ * type dictated by this parameter.
  *
  * @return Tuple of vectors storing shuffled major vertices, minor vertices and optional weights,
  * edge ids and edge types
@@ -111,8 +112,10 @@ shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning(
  * @param[in] edge_end_times Optional vector of vertex pair edge end time values.
  * @param[in] vertex_partition_range_lasts Vector of each GPU's vertex partition range's last
  * (exclusive) vertex ID.
- * @param[in] large_buffer_type Flag indicating the large buffer type to use in storing the shuffled
- * vertex pairs (if the value is std::nullopt, the default RMM per-device memory resource is used).
+ * @param[in] large_buffer_type Flag indicating the large buffer type to use when we need to create
+ * a large device-accessible vector object (if the value is std::nullopt, the default RMM per-device
+ * memory resource is used). The shuffled vertex pairs and values will also be stored in the buffer
+ * type dictated by this parameter.
  *
  * @return Tuple of vectors storing shuffled major vertices, minor vertices and optional weights,
  * edge ids and edge types and rx counts
@@ -177,8 +180,10 @@ rmm::device_uvector<vertex_t> permute_range(raft::handle_t const& handle,
  * @param[in] vertices Vertices to shuffle.
  * @param[in] vertex_partition_range_lasts Vector of each GPU's vertex partition range's last
  * (exclusive) vertex ID.
- * @param[in] large_buffer_type Flag indicating the large buffer type to use in storing the shuffled
- * vertices (if the value is std::nullopt, the default RMM per-device memory resource is used).
+ * @param[in] large_buffer_type Flag indicating the large buffer type to use when we need to create
+ * a large device-accessible vector object (if the value is std::nullopt, the default RMM per-device
+ * memory resource is used). The shuffled vertices will also be stored in the buffer type dictated
+ * by this parameter.
  *
  * @return Vector of shuffled vertices.
  */
@@ -200,9 +205,10 @@ rmm::device_uvector<vertex_t> shuffle_int_vertices_to_local_gpu_by_vertex_partit
  * @param[in] vertices Vertex IDs to shuffle
  * @param[in] values Vertex Values to shuffle
  * @param[in] vertex_partition_range_lasts From graph view, vector of last vertex id for each gpu
- * @param[in] large_buffer_type Flag indicating the large buffer type to use in storing the shuffled
- * vertex value pairs (if the value is std::nullopt, the default RMM per-device memory resource is
- * used).
+ * @param[in] large_buffer_type Flag indicating the large buffer type to use when we need to create
+ * a large device-accessible vector object (if the value is std::nullopt, the default RMM per-device
+ * memory resource is used). The shuffled vertex value pairs will also be stored in the buffer type
+ * dictated by this parameter.
  *
  * @return tuple containing device vector of shuffled vertices and device vector of corresponding
  *         values
@@ -235,6 +241,9 @@ shuffle_int_vertex_value_pairs_to_local_gpu_by_vertex_partitioning(
  * based on (local partition ID, GPU ID) pairs (where GPU IDs are computed by applying the
  * compute_gpu_id_from_vertex_t function to the minor vertex ID). If set to false, groupby and count
  * edges by just local partition ID.
+ * @param[in] large_buffer_type Flag indicating the large buffer type to use when we need to create
+ * a large device-accessible vector object (if the value is std::nullopt, the default RMM per-device
+ * memory resource is used).
  *
  * @return A vector containing the number of edges in each local partition (if
  * groupby_and_count_local_partition is false) or in each segment with the same (local partition ID,
@@ -246,7 +255,8 @@ rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
   raft::device_span<vertex_t> edgelist_majors,
   raft::device_span<vertex_t> edgelist_minors,
   raft::host_span<arithmetic_device_span_t> edgelist_properties,
-  bool groupby_and_count_local_partition_by_minor = false);
+  bool groupby_and_count_local_partition_by_minor      = false,
+  std::optional<large_buffer_type_t> large_buffer_type = std::nullopt);
 
 /**
  * @ingroup shuffle_wrappers_cpp
@@ -301,6 +311,10 @@ rmm::device_uvector<value_t> collect_local_vertex_values_from_ext_vertex_value_p
  * @param[in] large_buffer_type Flag indicating the large buffer type to use in storing the shuffled
  * key value pairs (if the value is std::nullopt, the default RMM per-device memory resource is
  * used).
+ * @param[in] large_buffer_type Flag indicating the large buffer type to use when we need to create
+ * a large device-accessible vector object (if the value is std::nullopt, the default RMM per-device
+ * memory resource is used). The shuffled keys and property values will also be stored in the buffer
+ * type dictated by this parameter.
  *
  * @return tuple of device vector of keys and vector of device vector of properties associated with
  * the key.
@@ -321,9 +335,10 @@ shuffle_keys_with_properties(raft::handle_t const& handle,
  * and handles to various CUDA libraries) to run graph algorithms.
  * @param [in] gpu Device vector of gpu ids
  * @param [in] properties Vector of device vectors of properties
- * @param[in] large_buffer_type Flag indicating the large buffer type to use in storing the shuffled
- * property values (if the value is std::nullopt, the default RMM per-device memory resource is
- * used).
+ * @param[in] large_buffer_type Flag indicating the large buffer type to use when we need to create
+ * a large device-accessible vector object (if the value is std::nullopt, the default RMM per-device
+ * memory resource is used). The shuffled property values will also be stored in the buffer type
+ * dictated by this parameter.
  *
  * @return vector of device vector of properties shuffled to the proper GPU
  */
