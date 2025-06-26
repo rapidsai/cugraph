@@ -18,19 +18,11 @@ import cudf
 
 import cugraph
 from cugraph.structure import Graph
-from cugraph.utilities.utils import import_optional
-
-# FIXME: the networkx.Graph type used in the type annotation for subgraph() is
-# specified using a string literal to avoid depending on and importing
-# networkx. Instead, networkx is imported optionally, which may cause a problem
-# for a type checker if run in an environment where networkx is not installed.
-networkx = import_optional("networkx")
-
 
 def subgraph(
-    G: Union[Graph, "networkx.Graph"],
+    G: Graph,
     vertices: Union[cudf.Series, cudf.DataFrame],
-) -> Union[Graph, "networkx.Graph"]:
+) -> Graph:
     """
     Compute a subgraph of the existing graph including only the specified
     vertices.  This algorithm works with both directed and undirected graphs
@@ -43,13 +35,8 @@ def subgraph(
 
     Parameters
     ----------
-    G : cugraph.Graph or networkx.Graph
+    G : cugraph.Graph
         The current implementation only supports weighted graphs.
-
-        .. deprecated:: 24.12
-           Accepting a ``networkx.Graph`` is deprecated and will be removed in a
-           future version.  For ``networkx.Graph`` use networkx directly with
-           the ``nx-cugraph`` backend. See:  https://rapids.ai/nx-cugraph/
 
     vertices : cudf.Series or cudf.DataFrame
         Specifies the vertices of the induced subgraph. For multi-column
@@ -57,7 +44,7 @@ def subgraph(
 
     Returns
     -------
-    Sg : cugraph.Graph or networkx.Graph
+    Sg : cugraph.Graph
         A graph object containing the subgraph induced by the given vertex set.
 
     Examples

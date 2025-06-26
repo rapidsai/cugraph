@@ -119,26 +119,7 @@ def test_edge_cut_clustering_with_edgevals_nx(graph_file, partitions):
     )
 
     # Get the edge_cut score for partitioning versus random assignment
-    df = cugraph.spectralBalancedCutClustering(
-        G, partitions, num_eigen_vects=partitions
-    )
-
-    pdf = pd.DataFrame.from_dict(df, orient="index").reset_index()
-    pdf.columns = ["vertex", "cluster"]
-    gdf = cudf.from_pandas(pdf)
-
-    gdf = gdf.astype("int32")
-
-    cu_score = cugraph.analyzeClustering_edge_cut(
-        G, partitions, gdf, "vertex", "cluster"
-    )
-
-    df = set(gdf["vertex"].to_numpy())
-
-    Gcu = cugraph.utilities.convert_from_nx(G)
-    rand_vid, rand_score = random_call(Gcu, partitions)
-
-    # Assert that the partitioning has better edge_cut than the random
-    # assignment
-    print(cu_score, rand_score)
-    assert cu_score < rand_score
+    with pytest.raises(AttributeError):
+        df = cugraph.spectralBalancedCutClustering(
+            G, partitions, num_eigen_vects=partitions
+        )

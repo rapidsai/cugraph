@@ -510,26 +510,6 @@ def test_edge_betweenness_centrality_nx(graph_file, directed, edgevals, normaliz
     Gnx = utils.generate_nx_graph_from_file(dataset_path, directed, edgevals)
     assert nx.is_directed(Gnx) == directed
 
-    nx_bc = nx.edge_betweenness_centrality(Gnx, normalized=normalized)
-    cu_bc = cugraph.edge_betweenness_centrality(Gnx, normalized=normalized)
+    with pytest.raises(AttributeError):
+        cu_bc = cugraph.edge_betweenness_centrality(Gnx, normalized=normalized)
 
-    # Calculating mismatch
-    networkx_bc = sorted(nx_bc.items(), key=lambda x: x[0])
-    cugraph_bc = sorted(cu_bc.items(), key=lambda x: x[0])
-    err = 0
-
-    assert len(networkx_bc) == len(cugraph_bc)
-    for i in range(len(cugraph_bc)):
-        if (
-            abs(cugraph_bc[i][1] - networkx_bc[i][1]) > 0.01
-            and cugraph_bc[i][0] == networkx_bc[i][0]
-        ):
-            err = err + 1
-            print(
-                "type c_bc = ",
-                type(cugraph_bc[i][1]),
-                " type nx_bc = ",
-                type(networkx_bc[i][1]),
-            )
-    print("Mismatches:", err)
-    assert err < (0.01 * len(cugraph_bc))

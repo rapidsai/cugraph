@@ -12,13 +12,9 @@
 # limitations under the License.
 
 from pylibcugraph import katz_centrality as pylibcugraph_katz, ResourceHandle
-from cugraph.utilities import (
-    ensure_cugraph_obj_for_nx,
-    df_score_to_dictionary,
-)
+
 import cudf
 import warnings
-
 
 def katz_centrality(
     G, alpha=None, beta=1.0, max_iter=100, tol=1.0e-6, nstart=None, normalized=True
@@ -44,14 +40,9 @@ def katz_centrality(
 
     Parameters
     ----------
-    G : cuGraph.Graph or networkx.Graph
+    G : cuGraph.Graph
         cuGraph graph descriptor with connectivity information. The graph can
         contain either directed or undirected edges.
-
-        .. deprecated:: 24.12
-           Accepting a ``networkx.Graph`` is deprecated and will be removed in a
-           future version.  For ``networkx.Graph`` use networkx directly with
-           the ``nx-cugraph`` backend. See:  https://rapids.ai/nx-cugraph/
 
     alpha : float, optional (default=None)
         Attenuation factor defaulted to None. If alpha is not specified then
@@ -99,7 +90,7 @@ def katz_centrality(
 
     Returns
     -------
-    df : cudf.DataFrame or Dictionary if using NetworkX
+    df : cudf.DataFrame
         GPU data frame containing two cudf.Series of size V: the vertex
         identifiers and the corresponding katz centrality values.
 
@@ -115,8 +106,6 @@ def katz_centrality(
     >>> kc = cugraph.katz_centrality(G)
 
     """
-    G, isNx = ensure_cugraph_obj_for_nx(G, store_transposed=True)
-
     if G.store_transposed is False:
         warning_msg = (
             "Katz centrality expects the 'store_transposed' flag "
@@ -169,8 +158,4 @@ def katz_centrality(
     if G.renumbered:
         df = G.unrenumber(df, "vertex")
 
-    if isNx is True:
-        dict = df_score_to_dictionary(df, "katz_centrality")
-        return dict
-    else:
-        return df
+    return df

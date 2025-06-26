@@ -88,23 +88,13 @@ def test_katz_centrality_nx(graph_file):
         target="1",
     )
 
+
     G = cugraph.utilities.convert_from_nx(Gnx)
     degree_max = G.degree()["degree"].max()
     katz_alpha = 1 / (degree_max)
 
-    nk = nx.katz_centrality(Gnx, alpha=katz_alpha)
-    ck = cugraph.katz_centrality(Gnx, alpha=None, max_iter=1000)
-
-    # Calculating mismatch
-    nk = sorted(nk.items(), key=lambda x: x[0])
-    ck = sorted(ck.items(), key=lambda x: x[0])
-    err = 0
-    assert len(ck) == len(nk)
-    for i in range(len(ck)):
-        if abs(ck[i][1] - nk[i][1]) > 0.1 and ck[i][0] == nk[i][0]:
-            err = err + 1
-    print("Mismatches:", err)
-    assert err < (0.1 * len(ck))
+    with pytest.raises(AttributeError):
+        ck = cugraph.katz_centrality(Gnx, alpha=None, max_iter=1000)
 
 
 @pytest.mark.sg

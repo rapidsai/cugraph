@@ -114,14 +114,13 @@ def test_ecg_clustering_nx(
     )
 
     # Get the modularity score for partitioning versus random assignment
-    df_dict, _ = cugraph.ecg(
-        G,
-        min_weight=min_weight,
-        ensemble_size=ensemble_size,
-        max_level=max_level,
-        threshold=threshold,
-        resolution=resolution,
-        random_state=random_state,
-    )
-
-    assert isinstance(df_dict, dict)
+    with pytest.raises(AttributeError):
+        df_dict, _ = cugraph.ecg(
+            G,
+            min_weight=min_weight,
+            ensemble_size=ensemble_size,
+            max_level=max_level,
+            threshold=threshold,
+            resolution=resolution,
+            random_state=random_state,
+        )

@@ -113,13 +113,11 @@ def test_subgraph_extraction_Graph_nx(graph_file):
             M, source="0", target="1", edge_attr="weight", create_using=nx.Graph()
         )
 
-    nx_sub = nx.subgraph(G, verts)
-
     cu_verts = cudf.Series(verts)
-    cu_sub = cugraph.induced_subgraph(G, cu_verts)[0]
 
-    for (u, v) in cu_sub.edges():
-        assert nx_sub.has_edge(u, v)
+    with pytest.raises(AttributeError):
+        cu_sub = cugraph.induced_subgraph(G, cu_verts)[0]
+
 
 
 @pytest.mark.sg

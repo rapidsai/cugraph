@@ -16,22 +16,10 @@ from pylibcugraph import ResourceHandle
 from cugraph.structure import Graph
 import cudf
 from typing import Union, Tuple
-from cugraph.utilities import (
-    ensure_cugraph_obj_for_nx,
-    df_score_to_dictionary,
-)
-from cugraph.utilities.utils import import_optional
-
-# FIXME: the networkx.Graph type used in the type annotation for
-# leiden() is specified using a string literal to avoid depending on
-# and importing networkx. Instead, networkx is imported optionally, which may
-# cause a problem for a type checker if run in an environment where networkx is
-# not installed.
-networkx = import_optional("networkx")
 
 
 def leiden(
-    G: Union[Graph, "networkx.Graph"],
+    G: Graph,
     max_iter: int = 100,
     resolution: float = 1.0,
     random_state: int = None,
@@ -55,11 +43,6 @@ def leiden(
         The current implementation only supports undirected weighted graphs.
 
         The adjacency list will be computed if not already present.
-
-        .. deprecated:: 24.12
-           Accepting a ``networkx.Graph`` is deprecated and will be removed in a
-           future version.  For ``networkx.Graph`` use networkx directly with
-           the ``nx-cugraph`` backend. See:  https://rapids.ai/nx-cugraph/
 
     max_iter : integer, optional (default=100)
         This controls the maximum number of levels/iterations of the Leiden
@@ -104,7 +87,6 @@ def leiden(
     >>> parts, modularity_score = cugraph.leiden(G)
 
     """
-    G, isNx = ensure_cugraph_obj_for_nx(G)
 
     if G.is_directed():
         raise ValueError("input graph must be undirected")
@@ -127,8 +109,5 @@ def leiden(
         parts = G.unrenumber(df, "vertex")
     else:
         parts = df
-
-    if isNx is True:
-        parts = df_score_to_dictionary(df, "partition")
 
     return parts, modularity_score

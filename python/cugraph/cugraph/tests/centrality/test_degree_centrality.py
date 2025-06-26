@@ -46,24 +46,8 @@ def test_degree_centrality_nx(graph_file):
         target="1",
     )
 
-    G = cugraph.utilities.convert_from_nx(Gnx)
-
-    nk = nx.degree_centrality(Gnx)
-    ck = cugraph.degree_centrality(G)
-
-    # Calculating mismatch
-    nk = sorted(nk.items(), key=lambda x: x[0])
-    ck = ck.sort_values("vertex")
-    ck.index = ck["vertex"]
-    ck = ck["degree_centrality"]
-    err = 0
-
-    assert len(ck) == len(nk)
-    for i in range(len(ck)):
-        if abs(ck[i] - nk[i][1]) > 0.1 and ck.index[i] == nk[i][0]:
-            err = err + 1
-    print("Mismatches:", err)
-    assert err < (0.1 * len(ck))
+    with pytest.raises(AttributeError):
+        ck = cugraph.degree_centrality(Gnx)
 
 
 @pytest.mark.sg

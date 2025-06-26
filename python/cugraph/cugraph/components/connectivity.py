@@ -17,7 +17,6 @@ from cugraph.utilities import (
     ensure_cugraph_obj,
     is_matrix_type,
     is_cp_matrix_type,
-    is_nx_graph_type,
     cupy_package as cp,
 )
 from cugraph.structure import Graph

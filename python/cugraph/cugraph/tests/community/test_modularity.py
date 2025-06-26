@@ -92,17 +92,8 @@ def test_modularity_clustering_nx(graph_file, partitions):
     assert nx.is_directed(nxG) is False
     assert nx.is_weighted(nxG) is True
 
-    cuG, isNx = ensure_cugraph_obj_for_nx(nxG)
-    assert cugraph.is_directed(cuG) is False
-    assert cugraph.is_weighted(cuG) is True
-
-    # Get the modularity score for partitioning versus random assignment
-    cu_score = cugraph_call(cuG, partitions)
-    rand_score = random_call(cuG, partitions)
-
-    # Assert that the partitioning has better modularity than the random
-    # assignment
-    assert cu_score > rand_score
+    with pytest.raises(AttributeError):
+        cu_score = cugraph_call(nxG, partitions)
 
 
 @pytest.mark.sg

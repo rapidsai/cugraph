@@ -80,19 +80,8 @@ def test_eigenvector_centrality_nx(graph_file):
         target="1",
     )
 
-    nk = nx.eigenvector_centrality(Gnx)
-    ck = cugraph.eigenvector_centrality(Gnx)
-
-    # Calculating mismatch
-    nk = sorted(nk.items(), key=lambda x: x[0])
-    ck = sorted(ck.items(), key=lambda x: x[0])
-    err = 0
-    assert len(ck) == len(nk)
-    for i in range(len(ck)):
-        if abs(ck[i][1] - nk[i][1]) > 0.1 and ck[i][0] == nk[i][0]:
-            err = err + 1
-    print("Mismatches:", err)
-    assert err < (0.1 * len(ck))
+    with pytest.raises(AttributeError):
+        ck = cugraph.eigenvector_centrality(Gnx)
 
 
 # TODO: Uncomment this test when/if nstart is supported for eigen centrality

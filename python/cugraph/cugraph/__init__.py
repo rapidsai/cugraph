@@ -22,24 +22,6 @@ else:
     libcugraph.load_library()
     del libcugraph
 
-from cugraph.community import (
-    ecg,
-    induced_subgraph,
-    ktruss_subgraph,
-    k_truss,
-    louvain,
-    leiden,
-    spectralBalancedCutClustering,
-    spectralModularityMaximizationClustering,
-    analyzeClustering_modularity,
-    analyzeClustering_edge_cut,
-    analyzeClustering_ratio_cut,
-    subgraph,
-    triangle_count,
-    ego_graph,
-    batched_ego_graphs,
-)
-
 from cugraph.structure import (
     Graph,
     MultiGraph,
@@ -74,13 +56,30 @@ from cugraph.centrality import (
     eigenvector_centrality,
 )
 
-from cugraph.cores import core_number, k_core
+from cugraph.community import (
+    ecg,
+    induced_subgraph,
+    ktruss_subgraph,
+    k_truss,
+    louvain,
+    leiden,
+    spectralBalancedCutClustering,
+    spectralModularityMaximizationClustering,
+    analyzeClustering_modularity,
+    analyzeClustering_edge_cut,
+    analyzeClustering_ratio_cut,
+    subgraph,
+    triangle_count,
+    ego_graph,
+)
 
 from cugraph.components import (
     connected_components,
     weakly_connected_components,
     strongly_connected_components,
 )
+
+from cugraph.cores import core_number, k_core
 
 from cugraph.link_analysis import pagerank, hits
 
@@ -112,8 +111,6 @@ from cugraph.traversal import (
 
 from cugraph.tree import minimum_spanning_tree, maximum_spanning_tree
 
-from cugraph.utilities import utils
-
 from cugraph.linear_assignment import hungarian, dense_hungarian
 from cugraph.layout import force_atlas2
 
@@ -129,11 +126,12 @@ from cugraph.sampling import (
     heterogeneous_neighbor_sample,
 )
 
-
 from cugraph import experimental
 
 from cugraph import gnn
 
 from cugraph import exceptions
+
+from cugraph.utilities import utils
 
 from cugraph._version import __git_commit__, __version__

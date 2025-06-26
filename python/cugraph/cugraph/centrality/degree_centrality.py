@@ -11,34 +11,27 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import cudf
 
-from cugraph.utilities import (
-    ensure_cugraph_obj_for_nx,
-    df_score_to_dictionary,
-)
-
-
-def degree_centrality(G, normalized=True):
+def degree_centrality(
+    G, 
+    normalized=True
+    ) -> cudf.DataFrame:
     """
     Computes the degree centrality of each vertex of the input graph.
 
     Parameters
     ----------
-    G : cuGraph.Graph or networkx.Graph
+    G : cuGraph.Graph
         cuGraph graph descriptor with connectivity information. The graph can
         contain either directed or undirected edges.
-
-        .. deprecated:: 24.12
-           Accepting a ``networkx.Graph`` is deprecated and will be removed in a
-           future version.  For ``networkx.Graph`` use networkx directly with
-           the ``nx-cugraph`` backend. See:  https://rapids.ai/nx-cugraph/
 
     normalized : bool, optional, default=True
         If True normalize the resulting degree centrality values
 
     Returns
     -------
-    df : cudf.DataFrame or Dictionary if using NetworkX
+    df : cudf.DataFrame
         GPU data frame containing two cudf.Series of size V: the vertex
         identifiers and the corresponding degree centrality values.
 
@@ -55,16 +48,10 @@ def degree_centrality(G, normalized=True):
     >>> dc = cugraph.degree_centrality(G)
 
     """
-    G, isNx = ensure_cugraph_obj_for_nx(G)
-
     df = G.degree()
     df.rename(columns={"degree": "degree_centrality"}, inplace=True)
 
     if normalized:
         df["degree_centrality"] /= G.number_of_nodes() - 1
 
-    if isNx is True:
-        dict = df_score_to_dictionary(df, "degree_centrality")
-        return dict
-    else:
-        return df
+    return df

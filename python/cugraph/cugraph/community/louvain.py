@@ -13,24 +13,11 @@
 
 from typing import Union, Tuple
 from cugraph.structure import Graph
-from cugraph.utilities import (
-    is_nx_graph_type,
-    ensure_cugraph_obj_for_nx,
-    df_score_to_dictionary,
-)
 import cudf
 
 import warnings
 from pylibcugraph import louvain as pylibcugraph_louvain
 from pylibcugraph import ResourceHandle
-
-from cugraph.utilities.utils import import_optional
-
-# FIXME: the networkx.Graph type used in type annotations is specified
-# using a string literal to avoid depending on and importing networkx.
-# Instead, networkx is imported optionally, which may cause a problem
-# for a type checker if run in an environment where networkx is not installed.
-networkx = import_optional("networkx")
 
 VERTEX_COL_NAME = "vertex"
 CLUSTER_ID_COL_NAME = "partition"
@@ -38,12 +25,12 @@ CLUSTER_ID_COL_NAME = "partition"
 
 # FIXME: max_level should default to 100 once max_iter is removed
 def louvain(
-    G: Union[Graph, "networkx.Graph"],
+    G: Graph,
     max_level: Union[int, None] = None,
     max_iter: Union[int, None] = None,
     resolution: float = 1.0,
     threshold: float = 1e-7,
-) -> Tuple[Union[cudf.DataFrame, dict], float]:
+) -> Tuple[cudf.DataFrame, float]:
     """
     Compute the modularity optimizing partition of the input graph using the
     Louvain method
@@ -56,16 +43,11 @@ def louvain(
 
     Parameters
     ----------
-    G : cugraph.Graph or NetworkX Graph
+    G : cugraph.Graph
         The graph descriptor should contain the connectivity information
         and weights. The adjacency list will be computed if not already
         present.
         The current implementation only supports undirected graphs.
-
-        .. deprecated:: 24.12
-           Accepting a ``networkx.Graph`` is deprecated and will be removed in a
-           future version.  For ``networkx.Graph`` use networkx directly with
-           the ``nx-cugraph`` backend. See:  https://rapids.ai/nx-cugraph/
 
     max_level : integer, optional (default=100)
         This controls the maximum number of levels of the Louvain
@@ -96,7 +78,7 @@ def louvain(
 
     Returns
     -------
-    result: cudf.DataFrame or dict
+    result: cudf.DataFrame
         If input graph G is of type cugraph.Graph, a GPU dataframe
         with two columns.
 
@@ -104,9 +86,6 @@ def louvain(
                 Contains the vertex identifiers
             result[CLUSTER_ID_COL_NAME] : cudf.Series
                 Contains the partition assigned to the vertices
-
-        If input graph G is of type networkx.Graph, a dict
-        Dictionary of vertices and their partition ids.
 
     modularity_score : float
         A floating point number containing the global modularity score
@@ -125,13 +104,6 @@ def louvain(
     # no need to compute isolated vertices here.
 
     isolated_vertices = list()
-    if is_nx_graph_type(type(G)):
-        isolated_vertices = [v for v in range(G.number_of_nodes()) if G.degree[v] == 0]
-    else:
-        # FIXME: Gather isolated vertices of G
-        pass
-
-    G, isNx = ensure_cugraph_obj_for_nx(G)
 
     if G.is_directed():
         raise ValueError("input graph must be undirected")
@@ -187,8 +159,5 @@ def louvain(
 
     if G.renumbered and len(G.input_df) > 0:
         result = G.unrenumber(result, VERTEX_COL_NAME)
-
-    if isNx is True:
-        result = df_score_to_dictionary(result, CLUSTER_ID_COL_NAME)
 
     return result, modularity_score

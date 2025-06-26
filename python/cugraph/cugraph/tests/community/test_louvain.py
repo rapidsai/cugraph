@@ -139,12 +139,7 @@ def test_louvain_nx_graph_with_isolated_nodes():
     # Cluster IDs are expected to unique if all nodes are isolated
     G = nx.Graph()
     G.add_nodes_from(range(5))
-    result, _ = cugraph.louvain(G)
-    assert set(result.keys()) == set(G.nodes)
-    assert len(set(result.values())) == G.number_of_nodes()
+ 
+    with pytest.raises(AttributeError):
+        result, _ = cugraph.louvain(G)
 
-    # A graph with 5 nodes, where 3 of the nodes are isolated
-    G.add_edge(1, 2)
-    result, _ = cugraph.louvain(G)
-    assert set(result.keys()) == set(G.nodes)
-    assert len(set(result.values())) == G.number_of_nodes() - 1

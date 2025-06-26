@@ -85,10 +85,10 @@ def test_ktruss_subgraph_Graph_nx():
     G = nx.from_pandas_edgelist(
         M, source="0", target="1", edge_attr="weight", create_using=nx.Graph()
     )
-    k_subgraph = cugraph.k_truss(G, k)
-    k_truss_nx = nx.k_truss(G, k)
 
-    assert nx.is_isomorphic(k_subgraph, k_truss_nx)
+    with pytest.raises(AttributeError):
+        k_subgraph = cugraph.k_truss(G, k)
+
 
 
 @pytest.mark.sg
