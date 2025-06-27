@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -43,13 +43,16 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> generat
   double b,
   double c,
   bool clip_and_flip,
-  bool scramble_vertex_ids)
+  bool scramble_vertex_ids,
+  std::optional<large_buffer_type_t> large_buffer_type)
 {
   CUGRAPH_EXPECTS((size_t{1} << scale) <= static_cast<size_t>(std::numeric_limits<vertex_t>::max()),
                   "Invalid input argument: scale too large for vertex_t.");
   CUGRAPH_EXPECTS((a >= 0.0) && (b >= 0.0) && (c >= 0.0) && (a + b + c <= 1.0),
                   "Invalid input argument: a, b, c should be non-negative and a + b + c should not "
                   "be larger than 1.0.");
+  CUGRAPH_EXPECTS(!large_buffer_type || cugraph::large_buffer_manager::memory_buffer_initialized(),
+                  "Invalid input argument: large memory buffer is not initialized.");
 
   // to limit memory footprint (1024 is a tuning parameter)
   auto max_edges_to_generate_per_iteration =
@@ -57,8 +60,12 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> generat
   rmm::device_uvector<float> rands(
     std::min(num_edges, max_edges_to_generate_per_iteration) * 2 * scale, handle.get_stream());
 
-  rmm::device_uvector<vertex_t> srcs(num_edges, handle.get_stream());
-  rmm::device_uvector<vertex_t> dsts(num_edges, handle.get_stream());
+  auto srcs = large_buffer_type ? large_buffer_manager::allocate_memory_buffer<vertex_t>(
+                                    num_edges, handle.get_stream())
+                                : rmm::device_uvector<vertex_t>(num_edges, handle.get_stream());
+  auto dsts = large_buffer_type ? large_buffer_manager::allocate_memory_buffer<vertex_t>(
+                                    num_edges, handle.get_stream())
+                                : rmm::device_uvector<vertex_t>(num_edges, handle.get_stream());
 
   size_t num_edges_generated{0};
   while (num_edges_generated < num_edges) {
@@ -113,24 +120,6 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> generat
 }
 
 template <typename vertex_t>
-std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> generate_rmat_edgelist(
-  raft::handle_t const& handle,
-  size_t scale,
-  size_t num_edges,
-  double a,
-  double b,
-  double c,
-  uint64_t seed,
-  bool clip_and_flip,
-  bool scramble_vertex_ids)
-{
-  raft::random::RngState rng_state(seed);
-
-  return generate_rmat_edgelist<vertex_t>(
-    handle, rng_state, scale, num_edges, a, b, c, clip_and_flip, scramble_vertex_ids);
-}
-
-template <typename vertex_t>
 std::vector<std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>>>
 generate_rmat_edgelists(raft::handle_t const& handle,
                         raft::random::RngState& rng_state,
@@ -141,7 +130,8 @@ generate_rmat_edgelists(raft::handle_t const& handle,
                         generator_distribution_t size_distribution,
                         generator_distribution_t edge_distribution,
                         bool clip_and_flip,
-                        bool scramble_vertex_ids)
+                        bool scramble_vertex_ids,
+                        std::optional<large_buffer_type_t> large_buffer_type)
 {
   CUGRAPH_EXPECTS(min_scale > 0, "minimum graph scale is 1.");
   CUGRAPH_EXPECTS(
@@ -196,36 +186,10 @@ generate_rmat_edgelists(raft::handle_t const& handle,
                                                       b,
                                                       c,
                                                       clip_and_flip,
-                                                      scramble_vertex_ids));
+                                                      scramble_vertex_ids,
+                                                      large_buffer_type));
   }
   return output;
-}
-
-template <typename vertex_t>
-std::vector<std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>>>
-generate_rmat_edgelists(raft::handle_t const& handle,
-                        size_t n_edgelists,
-                        size_t min_scale,
-                        size_t max_scale,
-                        size_t edge_factor,
-                        generator_distribution_t size_distribution,
-                        generator_distribution_t edge_distribution,
-                        uint64_t seed,
-                        bool clip_and_flip,
-                        bool scramble_vertex_ids)
-{
-  raft::random::RngState rng_state(seed);
-
-  return generate_rmat_edgelists<vertex_t>(handle,
-                                           rng_state,
-                                           n_edgelists,
-                                           min_scale,
-                                           max_scale,
-                                           edge_factor,
-                                           size_distribution,
-                                           edge_distribution,
-                                           clip_and_flip,
-                                           scramble_vertex_ids);
 }
 
 }  // namespace cugraph
