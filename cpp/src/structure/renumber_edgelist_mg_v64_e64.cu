@@ -28,6 +28,8 @@ renumber_edgelist<int64_t, int64_t, true>(
   std::vector<int64_t> const& edgelist_edge_counts,
   std::optional<std::vector<std::vector<int64_t>>> const& edgelist_intra_partition_segment_offsets,
   bool store_transposed,
+  std::optional<large_buffer_type_t> large_vertex_buffer_type,
+  std::optional<large_buffer_type_t> large_edge_buffer_type,
   bool do_expensive_check);
 
 }  // namespace cugraph

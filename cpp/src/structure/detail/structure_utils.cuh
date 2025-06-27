@@ -58,10 +58,13 @@ rmm::device_uvector<edge_t> compute_sparse_offsets(
   typename thrust::iterator_traits<VertexIterator>::value_type major_range_first,
   typename thrust::iterator_traits<VertexIterator>::value_type major_range_last,
   bool edgelist_major_sorted,
-  rmm::cuda_stream_view stream_view)
+  rmm::cuda_stream_view stream_view,
+  std::optional<large_buffer_type_t> large_buffer_type = std::nullopt)
 {
-  rmm::device_uvector<edge_t> offsets(static_cast<size_t>(major_range_last - major_range_first) + 1,
-                                      stream_view);
+  auto offset_array_size = static_cast<size_t>(major_range_last - major_range_first) + 1;
+  auto offsets           = large_buffer_type ? large_buffer_manager::allocate_memory_buffer<edge_t>(
+                                       offset_array_size, stream_view)
+                                             : rmm::device_uvector<edge_t>(offset_array_size, stream_view);
   if (edgelist_major_sorted) {
     offsets.set_element_to_zero_async(0, stream_view);
     thrust::upper_bound(rmm::exec_policy(stream_view),
@@ -73,13 +76,13 @@ rmm::device_uvector<edge_t> compute_sparse_offsets(
   } else {
     thrust::fill(rmm::exec_policy(stream_view), offsets.begin(), offsets.end(), edge_t{0});
 
-    auto offset_view = raft::device_span<edge_t>(offsets.data(), offsets.size());
     thrust::for_each(rmm::exec_policy(stream_view),
                      edgelist_major_first,
                      edgelist_major_last,
-                     [offset_view, major_range_first] __device__(auto v) {
+                     [offsets = raft::device_span<edge_t>(offsets.data(), offsets.size()),
+                      major_range_first] __device__(auto v) {
                        cuda::atomic_ref<edge_t, cuda::thread_scope_device> atomic_counter(
-                         offset_view[v - major_range_first]);
+                         offsets[v - major_range_first]);
                        atomic_counter.fetch_add(edge_t{1}, cuda::std::memory_order_relaxed);
                      });
 
@@ -96,12 +99,16 @@ std::tuple<rmm::device_uvector<edge_t>, rmm::device_uvector<vertex_t>> compress_
   vertex_t major_range_first,
   vertex_t major_hypersparse_first,
   vertex_t major_range_last,
-  rmm::cuda_stream_view stream_view)
+  rmm::cuda_stream_view stream_view,
+  std::optional<large_buffer_type_t> large_buffer_type = std::nullopt)
 {
   auto constexpr invalid_vertex = invalid_vertex_id<vertex_t>::value;
 
-  rmm::device_uvector<vertex_t> dcs_nzd_vertices =
-    rmm::device_uvector<vertex_t>(major_range_last - major_hypersparse_first, stream_view);
+  auto dcs_nzd_vertices =
+    large_buffer_type
+      ? large_buffer_manager::allocate_memory_buffer<vertex_t>(
+          major_range_last - major_hypersparse_first, stream_view)
+      : rmm::device_uvector<vertex_t>(major_range_last - major_hypersparse_first, stream_view);
 
   thrust::transform(rmm::exec_policy(stream_view),
                     thrust::make_counting_iterator(major_hypersparse_first),
@@ -113,8 +120,8 @@ std::tuple<rmm::device_uvector<edge_t>, rmm::device_uvector<vertex_t>> compress_
                                                                                    : invalid_vertex;
                     });
 
-  auto pair_first = thrust::make_zip_iterator(thrust::make_tuple(
-    dcs_nzd_vertices.begin(), offsets.begin() + (major_hypersparse_first - major_range_first)));
+  auto pair_first = thrust::make_zip_iterator(
+    dcs_nzd_vertices.begin(), offsets.begin() + (major_hypersparse_first - major_range_first));
   CUGRAPH_EXPECTS(
     dcs_nzd_vertices.size() < static_cast<size_t>(std::numeric_limits<int32_t>::max()),
     "remove_if will fail (https://github.com/NVIDIA/thrust/issues/1302), work-around required.");
@@ -147,20 +154,26 @@ std::tuple<rmm::device_uvector<edge_t>, rmm::device_uvector<vertex_t>> compress_
 template <typename vertex_t, typename edge_t, typename edge_value_t, bool store_transposed>
 std::tuple<rmm::device_uvector<edge_t>,
            rmm::device_uvector<vertex_t>,
-           decltype(allocate_dataframe_buffer<edge_value_t>(size_t{0}, rmm::cuda_stream_view{})),
+           dataframe_buffer_type_t<edge_value_t>,
            std::optional<rmm::device_uvector<vertex_t>>>
 sort_and_compress_edgelist(
   rmm::device_uvector<vertex_t>&& edgelist_srcs,
   rmm::device_uvector<vertex_t>&& edgelist_dsts,
-  decltype(allocate_dataframe_buffer<edge_value_t>(0, rmm::cuda_stream_view{}))&& edgelist_values,
+  dataframe_buffer_type_t<edge_value_t>&& edgelist_values,
   vertex_t major_range_first,
   std::optional<vertex_t> major_hypersparse_first,
   vertex_t major_range_last,
   vertex_t /* minor_range_first */,
   vertex_t /* minor_range_last */,
   size_t mem_frugal_threshold,
-  rmm::cuda_stream_view stream_view)
+  rmm::cuda_stream_view stream_view,
+  std::optional<large_buffer_type_t> large_vertex_buffer_type = std::nullopt,
+  std::optional<large_buffer_type_t> large_edge_buffer_type   = std::nullopt)
 {
+  CUGRAPH_EXPECTS((!large_vertex_buffer_type && !large_edge_buffer_type) ||
+                    cugraph::large_buffer_manager::memory_buffer_initialized(),
+                  "Invalid input argument: large memory buffer is not initialized.");
+
   auto edgelist_majors = std::move(store_transposed ? edgelist_dsts : edgelist_srcs);
   auto edgelist_minors = std::move(store_transposed ? edgelist_srcs : edgelist_dsts);
 
@@ -174,7 +187,8 @@ sort_and_compress_edgelist(
                                              major_range_first,
                                              major_range_last,
                                              false,
-                                             stream_view);
+                                             stream_view,
+                                             large_vertex_buffer_type);
 
     auto pivot = major_range_first + static_cast<vertex_t>(cuda::std::distance(
                                        offsets.begin(),
@@ -188,7 +202,8 @@ sort_and_compress_edgelist(
                                    get_dataframe_buffer_begin(edgelist_values),
                                    thrust_tuple_get<thrust::tuple<vertex_t, vertex_t>, 0>{},
                                    pivot,
-                                   stream_view);
+                                   stream_view,
+                                   large_edge_buffer_type);
     thrust::sort_by_key(rmm::exec_policy(stream_view),
                         pair_first,
                         std::get<0>(second_first),
@@ -208,7 +223,8 @@ sort_and_compress_edgelist(
                                              major_range_first,
                                              major_range_last,
                                              true,
-                                             stream_view);
+                                             stream_view,
+                                             large_vertex_buffer_type);
   }
   indices = std::move(edgelist_minors);
   values  = std::move(edgelist_values);
@@ -222,7 +238,8 @@ sort_and_compress_edgelist(
                                                                        major_range_first,
                                                                        *major_hypersparse_first,
                                                                        major_range_last,
-                                                                       stream_view);
+                                                                       stream_view,
+                                                                       large_vertex_buffer_type);
   }
 
   return std::make_tuple(
@@ -234,15 +251,18 @@ template <typename vertex_t, typename edge_t, bool store_transposed>
 std::tuple<rmm::device_uvector<edge_t>,
            rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<vertex_t>>>
-sort_and_compress_edgelist(rmm::device_uvector<vertex_t>&& edgelist_srcs,
-                           rmm::device_uvector<vertex_t>&& edgelist_dsts,
-                           vertex_t major_range_first,
-                           std::optional<vertex_t> major_hypersparse_first,
-                           vertex_t major_range_last,
-                           vertex_t /* minor_range_first */,
-                           vertex_t /* minor_range_last */,
-                           size_t mem_frugal_threshold,
-                           rmm::cuda_stream_view stream_view)
+sort_and_compress_edgelist(
+  rmm::device_uvector<vertex_t>&& edgelist_srcs,
+  rmm::device_uvector<vertex_t>&& edgelist_dsts,
+  vertex_t major_range_first,
+  std::optional<vertex_t> major_hypersparse_first,
+  vertex_t major_range_last,
+  vertex_t /* minor_range_first */,
+  vertex_t /* minor_range_last */,
+  size_t mem_frugal_threshold,
+  rmm::cuda_stream_view stream_view,
+  std::optional<large_buffer_type_t> large_vertex_buffer_type = std::nullopt,
+  std::optional<large_buffer_type_t> large_edge_buffer_type   = std::nullopt)
 {
   auto edgelist_majors = std::move(store_transposed ? edgelist_dsts : edgelist_srcs);
   auto edgelist_minors = std::move(store_transposed ? edgelist_srcs : edgelist_dsts);
@@ -253,7 +273,10 @@ sort_and_compress_edgelist(rmm::device_uvector<vertex_t>&& edgelist_srcs,
     static_assert((sizeof(vertex_t) == 4) || (sizeof(vertex_t) == 8));
     if ((sizeof(vertex_t) == 8) && (static_cast<size_t>(major_range_last - major_range_first) <=
                                     static_cast<size_t>(std::numeric_limits<uint32_t>::max()))) {
-      rmm::device_uvector<uint32_t> edgelist_major_offsets(edgelist_majors.size(), stream_view);
+      auto edgelist_major_offsets =
+        large_edge_buffer_type ? large_buffer_manager::allocate_memory_buffer<uint32_t>(
+                                   edgelist_majors.size(), stream_view)
+                               : rmm::device_uvector<uint32_t>(edgelist_majors.size(), stream_view);
       thrust::transform(
         rmm::exec_policy_nosync(stream_view),
         edgelist_majors.begin(),
@@ -271,7 +294,8 @@ sort_and_compress_edgelist(rmm::device_uvector<vertex_t>&& edgelist_srcs,
                                        uint32_t{0},
                                        static_cast<uint32_t>(major_range_last - major_range_first),
                                        false,
-                                       stream_view);
+                                       stream_view,
+                                       large_vertex_buffer_type);
       std::array<uint32_t, 3> pivots{};
       for (size_t i = 0; i < 3; ++i) {
         pivots[i] = static_cast<uint32_t>(cuda::std::distance(
@@ -289,19 +313,22 @@ sort_and_compress_edgelist(rmm::device_uvector<vertex_t>&& edgelist_srcs,
                                      pair_first + edgelist_major_offsets.size(),
                                      thrust_tuple_get<thrust::tuple<uint32_t, vertex_t>, 0>{},
                                      pivots[1],
-                                     stream_view);
+                                     stream_view,
+                                     large_edge_buffer_type);
       auto second_quarter_first =
         detail::mem_frugal_partition(pair_first,
                                      second_half_first,
                                      thrust_tuple_get<thrust::tuple<uint32_t, vertex_t>, 0>{},
                                      pivots[0],
-                                     stream_view);
+                                     stream_view,
+                                     large_edge_buffer_type);
       auto last_quarter_first =
         detail::mem_frugal_partition(second_half_first,
                                      pair_first + edgelist_major_offsets.size(),
                                      thrust_tuple_get<thrust::tuple<uint32_t, vertex_t>, 0>{},
                                      pivots[2],
-                                     stream_view);
+                                     stream_view,
+                                     large_edge_buffer_type);
       thrust::sort(rmm::exec_policy(stream_view), pair_first, second_quarter_first);
       thrust::sort(rmm::exec_policy(stream_view), second_quarter_first, second_half_first);
       thrust::sort(rmm::exec_policy(stream_view), second_half_first, last_quarter_first);
@@ -314,7 +341,8 @@ sort_and_compress_edgelist(rmm::device_uvector<vertex_t>&& edgelist_srcs,
                                                major_range_first,
                                                major_range_last,
                                                false,
-                                               stream_view);
+                                               stream_view,
+                                               large_vertex_buffer_type);
       std::array<vertex_t, 3> pivots{};
       for (size_t i = 0; i < 3; ++i) {
         pivots[i] =
@@ -332,19 +360,22 @@ sort_and_compress_edgelist(rmm::device_uvector<vertex_t>&& edgelist_srcs,
                                      edge_first + edgelist_majors.size(),
                                      thrust_tuple_get<thrust::tuple<vertex_t, vertex_t>, 0>{},
                                      pivots[1],
-                                     stream_view);
+                                     stream_view,
+                                     large_edge_buffer_type);
       auto second_quarter_first =
         detail::mem_frugal_partition(edge_first,
                                      second_half_first,
                                      thrust_tuple_get<thrust::tuple<vertex_t, vertex_t>, 0>{},
                                      pivots[0],
-                                     stream_view);
+                                     stream_view,
+                                     large_edge_buffer_type);
       auto last_quarter_first =
         detail::mem_frugal_partition(second_half_first,
                                      edge_first + edgelist_majors.size(),
                                      thrust_tuple_get<thrust::tuple<vertex_t, vertex_t>, 0>{},
                                      pivots[2],
-                                     stream_view);
+                                     stream_view,
+                                     large_edge_buffer_type);
       thrust::sort(rmm::exec_policy(stream_view), edge_first, second_quarter_first);
       thrust::sort(rmm::exec_policy(stream_view), second_quarter_first, second_half_first);
       thrust::sort(rmm::exec_policy(stream_view), second_half_first, last_quarter_first);
@@ -361,7 +392,8 @@ sort_and_compress_edgelist(rmm::device_uvector<vertex_t>&& edgelist_srcs,
                                              major_range_first,
                                              major_range_last,
                                              true,
-                                             stream_view);
+                                             stream_view,
+                                             large_vertex_buffer_type);
     edgelist_majors.resize(0, stream_view);
     edgelist_majors.shrink_to_fit(stream_view);
   }
@@ -373,7 +405,8 @@ sort_and_compress_edgelist(rmm::device_uvector<vertex_t>&& edgelist_srcs,
                                                                        major_range_first,
                                                                        *major_hypersparse_first,
                                                                        major_range_last,
-                                                                       stream_view);
+                                                                       stream_view,
+                                                                       large_vertex_buffer_type);
   }
 
   return std::make_tuple(std::move(offsets), std::move(indices), std::move(dcs_nzd_vertices));
