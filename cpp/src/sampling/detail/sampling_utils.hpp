@@ -279,7 +279,7 @@ shuffle_sampling_results(raft::handle_t const& handle,
  *
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
- * @param edges_with_properties vector of arithmetic device vectors of the edge data and the
+ * @param property_edges vector of arithmetic device vectors of the edge data and the
  * properties.  This should include the src and dst vertices, any edge properties that exist for the
  * sampled edge and optionally the hop where the edge was sampled
  * @param hop_index Optional value, if the hop was specified then this should specify with index
@@ -295,7 +295,7 @@ std::tuple<std::vector<cugraph::arithmetic_device_uvector_t>,
            std::optional<rmm::device_uvector<size_t>>>
 shuffle_and_organize_output(
   raft::handle_t const& handle,
-  std::vector<cugraph::arithmetic_device_uvector_t>&& edges_with_properties,
+  std::vector<cugraph::arithmetic_device_uvector_t>&& property_edges,
   std::optional<size_t> hop_index,
   std::optional<rmm::device_uvector<int32_t>>&& labels,
   std::optional<raft::device_span<int32_t const>> label_to_output_comm_rank);

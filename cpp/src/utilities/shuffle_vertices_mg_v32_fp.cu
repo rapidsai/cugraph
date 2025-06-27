@@ -16,6 +16,8 @@
 
 #include "shuffle_vertices.cuh"
 
+#include <cugraph/utilities/device_functors.cuh>
+
 namespace cugraph {
 
 // deprecated
@@ -65,7 +67,7 @@ template std::tuple<rmm::device_uvector<int32_t>, std::vector<arithmetic_device_
 shuffle_keys_with_properties(raft::handle_t const& handle,
                              rmm::device_uvector<int32_t>&& keys,
                              std::vector<arithmetic_device_uvector_t>&& properties,
-                             cugraph::detail::shuffle_to_output_comm_rank_t<int32_t> key_to_gpu_op);
+                             cugraph::detail::indirection_t<int32_t, int32_t const*> key_to_gpu_op);
 
 std::vector<arithmetic_device_uvector_t> shuffle_properties(
   raft::handle_t const& handle,

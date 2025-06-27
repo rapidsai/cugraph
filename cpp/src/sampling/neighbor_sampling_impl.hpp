@@ -413,39 +413,37 @@ neighbor_sample_impl(raft::handle_t const& handle,
     }
   }
 
-  std::vector<cugraph::arithmetic_device_uvector_t> edges_with_properties{};
+  std::vector<cugraph::arithmetic_device_uvector_t> property_edges{};
   std::optional<size_t> hop_index{std::nullopt};
 
-  edges_with_properties.push_back(std::move(result_srcs));
-  edges_with_properties.push_back(std::move(result_dsts));
-  if (result_weights) edges_with_properties.push_back(std::move(*result_weights));
-  if (result_edge_ids) edges_with_properties.push_back(std::move(*result_edge_ids));
-  if (result_edge_types) edges_with_properties.push_back(std::move(*result_edge_types));
-  if (result_hops) edges_with_properties.push_back(std::move(*result_hops));
+  property_edges.push_back(std::move(result_srcs));
+  property_edges.push_back(std::move(result_dsts));
+  if (result_weights) property_edges.push_back(std::move(*result_weights));
+  if (result_edge_ids) property_edges.push_back(std::move(*result_edge_ids));
+  if (result_edge_types) property_edges.push_back(std::move(*result_edge_types));
+  if (result_hops) property_edges.push_back(std::move(*result_hops));
 
   std::optional<rmm::device_uvector<size_t>> result_offsets{std::nullopt};
 
-  std::tie(edges_with_properties, result_labels, result_offsets) = shuffle_and_organize_output(
+  std::tie(property_edges, result_labels, result_offsets) = shuffle_and_organize_output(
     handle,
-    std::move(edges_with_properties),
-    result_hops ? std::make_optional(edges_with_properties.size() - 1) : std::nullopt,
+    std::move(property_edges),
+    result_hops ? std::make_optional(property_edges.size() - 1) : std::nullopt,
     std::move(result_labels),
     label_to_output_comm_rank);
 
   size_t pos  = 0;
-  result_srcs = std::move(std::get<rmm::device_uvector<vertex_t>>(edges_with_properties[pos++]));
-  result_dsts = std::move(std::get<rmm::device_uvector<vertex_t>>(edges_with_properties[pos++]));
+  result_srcs = std::move(std::get<rmm::device_uvector<vertex_t>>(property_edges[pos++]));
+  result_dsts = std::move(std::get<rmm::device_uvector<vertex_t>>(property_edges[pos++]));
   if (result_weights)
-    result_weights =
-      std::move(std::get<rmm::device_uvector<weight_t>>(edges_with_properties[pos++]));
+    result_weights = std::move(std::get<rmm::device_uvector<weight_t>>(property_edges[pos++]));
   if (result_edge_ids)
-    result_edge_ids =
-      std::move(std::get<rmm::device_uvector<edge_t>>(edges_with_properties[pos++]));
+    result_edge_ids = std::move(std::get<rmm::device_uvector<edge_t>>(property_edges[pos++]));
   if (result_edge_types)
     result_edge_types =
-      std::move(std::get<rmm::device_uvector<edge_type_t>>(edges_with_properties[pos++]));
+      std::move(std::get<rmm::device_uvector<edge_type_t>>(property_edges[pos++]));
   if (result_hops)
-    result_hops = std::move(std::get<rmm::device_uvector<int32_t>>(edges_with_properties[pos++]));
+    result_hops = std::move(std::get<rmm::device_uvector<int32_t>>(property_edges[pos++]));
 
   return std::make_tuple(std::move(result_srcs),
                          std::move(result_dsts),

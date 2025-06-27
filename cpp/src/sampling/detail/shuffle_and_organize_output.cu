@@ -38,7 +38,7 @@ std::tuple<std::vector<cugraph::arithmetic_device_uvector_t>,
            std::optional<rmm::device_uvector<size_t>>>
 shuffle_and_organize_output(
   raft::handle_t const& handle,
-  std::vector<cugraph::arithmetic_device_uvector_t>&& edges_with_properties,
+  std::vector<cugraph::arithmetic_device_uvector_t>&& property_edges,
   std::optional<size_t> hop_index,
   std::optional<rmm::device_uvector<int32_t>>&& labels,
   std::optional<raft::device_span<int32_t const>> label_to_output_comm_rank)
@@ -47,11 +47,11 @@ shuffle_and_organize_output(
 
   if (labels) {
     if (label_to_output_comm_rank) {
-      std::tie(*labels, edges_with_properties) = cugraph::shuffle_keys_with_properties(
+      std::tie(*labels, property_edges) = cugraph::shuffle_keys_with_properties(
         handle,
         std::move(*labels),
-        std::move(edges_with_properties),
-        shuffle_to_output_comm_rank_t<int32_t>{*label_to_output_comm_rank});
+        std::move(property_edges),
+        indirection_t<int32_t, int32_t const*>{label_to_output_comm_rank->begin()});
     }
 
     // Sort the tuples by hop/label
@@ -60,7 +60,7 @@ shuffle_and_organize_output(
     rmm::device_uvector<int32_t> tmp_labels(indices.size(), handle.get_stream());
 
     if (hop_index) {
-      auto& hop_v = std::get<rmm::device_uvector<int32_t>>(edges_with_properties[*hop_index]);
+      auto& hop_v = std::get<rmm::device_uvector<int32_t>>(property_edges[*hop_index]);
       rmm::device_uvector<int32_t> tmp_hops(indices.size(), handle.get_stream());
 
       thrust::sort(
@@ -77,7 +77,7 @@ shuffle_and_organize_output(
                      indices.end(),
                      thrust::make_zip_iterator(labels->begin(), hop_v.begin()),
                      thrust::make_zip_iterator(tmp_labels.begin(), tmp_hops.begin()));
-      edges_with_properties[*hop_index] = std::move(tmp_hops);
+      property_edges[*hop_index] = std::move(tmp_hops);
     } else {
       thrust::sort(
         handle.get_thrust_policy(),
@@ -93,20 +93,19 @@ shuffle_and_organize_output(
     }
     *labels = std::move(tmp_labels);
 
-    for (size_t i = 0; i < edges_with_properties.size(); ++i) {
+    for (size_t i = 0; i < property_edges.size(); ++i) {
       if ((!hop_index) || (*hop_index != i)) {
-        cugraph::variant_type_dispatch(
-          edges_with_properties[i], [&handle, &indices](auto& edge_vector) {
-            using T = typename std::remove_reference<decltype(edge_vector)>::type::value_type;
-            rmm::device_uvector<T> tmp(indices.size(), handle.get_stream());
-            thrust::gather(handle.get_thrust_policy(),
-                           indices.begin(),
-                           indices.end(),
-                           edge_vector.begin(),
-                           tmp.begin());
+        cugraph::variant_type_dispatch(property_edges[i], [&handle, &indices](auto& edge_vector) {
+          using T = typename std::remove_reference<decltype(edge_vector)>::type::value_type;
+          rmm::device_uvector<T> tmp(indices.size(), handle.get_stream());
+          thrust::gather(handle.get_thrust_policy(),
+                         indices.begin(),
+                         indices.end(),
+                         edge_vector.begin(),
+                         tmp.begin());
 
-            edge_vector = std::move(tmp);
-          });
+          edge_vector = std::move(tmp);
+        });
       }
     }
 
@@ -131,7 +130,7 @@ shuffle_and_organize_output(
     labels = std::move(unique_labels);
   }
 
-  return std::make_tuple(std::move(edges_with_properties), std::move(labels), std::move(offsets));
+  return std::make_tuple(std::move(property_edges), std::move(labels), std::move(offsets));
 }
 
 }  // namespace detail
