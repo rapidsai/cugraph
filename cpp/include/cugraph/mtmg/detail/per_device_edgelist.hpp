@@ -317,20 +317,19 @@ class per_device_edgelist_t {
 
     size_t pos{0};
     if (wgt_)
-      ((*wgt_)[0]) =
-        std::move(std::get < rmm::device_uvector<weight_t>(tmp_edge_properties[pos++]));
+      ((*wgt_)[0]) = std::move(std::get<rmm::device_uvector<weight_t>>(tmp_edge_properties[pos++]));
     if (edge_id_)
       ((*edge_id_)[0]) =
-        std::move(std::get < rmm::device_uvector<edge_t>(tmp_edge_properties[pos++]));
+        std::move(std::get<rmm::device_uvector<edge_t>>(tmp_edge_properties[pos++]));
     if (edge_type_)
       ((*edge_type_)[0]) =
-        std::move(std::get < rmm::device_uvector<edge_type_t>(tmp_edge_properties[pos++]));
+        std::move(std::get<rmm::device_uvector<edge_type_t>>(tmp_edge_properties[pos++]));
     if (edge_start_time_)
       ((*edge_start_time_)[0]) =
-        std::move(std::get < rmm::device_uvector<edge_time_t>(tmp_edge_properties[pos++]));
+        std::move(std::get<rmm::device_uvector<edge_time_t>>(tmp_edge_properties[pos++]));
     if (edge_end_time_)
       ((*edge_end_time_)[0]) =
-        std::move(std::get < rmm::device_uvector<edge_time_t>(tmp_edge_properties[pos++]));
+        std::move(std::get<rmm::device_uvector<edge_time_t>>(tmp_edge_properties[pos++]));
   }
 
  private:
