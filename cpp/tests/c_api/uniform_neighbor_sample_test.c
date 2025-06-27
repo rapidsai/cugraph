@@ -762,6 +762,8 @@ int test_uniform_neighbor_sample_with_labels(const cugraph_resource_handle_t* ha
 
   cugraph_graph_free(graph);
   cugraph_error_free(ret_error);
+
+  return test_ret_value;
 }
 
 int test_uniform_neighbor_sample_clean(const cugraph_resource_handle_t* handle)
