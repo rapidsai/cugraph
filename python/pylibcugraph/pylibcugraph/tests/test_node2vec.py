@@ -15,7 +15,6 @@ import pytest
 import cupy as cp
 import numpy as np
 from pylibcugraph import ResourceHandle, GraphProperties, SGGraph, node2vec_random_walks
-from pylibcugraph.testing import utils
 
 
 # =============================================================================
