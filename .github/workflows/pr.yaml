@@ -205,7 +205,7 @@ jobs:
     uses: rapidsai/shared-workflows/.github/workflows/build-in-devcontainer.yaml@branch-25.08
     with:
       arch: '["amd64"]'
-      cuda: '["12.8"]'
+      cuda: '["12.9"]'
       node_type: cpu32
       build_command: |
         sccache -z;
