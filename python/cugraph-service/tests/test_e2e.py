@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2024, NVIDIA CORPORATION.
+# Copyright (c) 2022-2025, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -183,13 +183,15 @@ def test_node2vec(client_with_edgelist_csv_loaded):
     extracted_gid = client.extract_subgraph()
     start_vertices = 11
     max_depth = 2
-    (vertex_paths, edge_weights, path_sizes) = client.node2vec(
+    (vertex_paths, edge_weights, max_path_length) = client.node2vec_random_walks(
         start_vertices, max_depth, extracted_gid
     )
     # FIXME: consider a more thorough test
     assert isinstance(vertex_paths, list) and len(vertex_paths)
     assert isinstance(edge_weights, list) and len(edge_weights)
-    assert isinstance(path_sizes, list) and len(path_sizes)
+    assert isinstance(max_path_length, int)
+    assert (max_path_length == max_depth) and \
+        max_path_length == len(vertex_paths) - 1
 
 
 def test_extract_subgraph(client_with_edgelist_csv_loaded):

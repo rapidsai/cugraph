@@ -36,7 +36,7 @@ import rmm
 from cugraph import (
     batched_ego_graphs,
     uniform_neighbor_sample,
-    node2vec,
+    node2vec_random_walks,
     Graph,
     MultiGraph,
 )
@@ -1015,7 +1015,7 @@ class CugraphHandler:
 
         return batched_ego_graphs_result
 
-    def node2vec(self, start_vertices, max_depth, graph_id):
+    def node2vec_random_walks(self, start_vertices, max_depth, graph_id):
         """ """
         # FIXME: finish docstring above
         # FIXME: exception handling
@@ -1023,30 +1023,30 @@ class CugraphHandler:
         # FIXME: write test to catch an MGPropertyGraph being passed in
         if isinstance(G, PropertyGraph):
             raise CugraphServiceError(
-                "node2vec() cannot operate directly on "
+                "node2vec_random_walks() cannot operate directly on "
                 "a graph with properties, call "
                 "extract_subgraph() then call "
-                "node2vec() on the extracted subgraph "
+                "node2vec_random_walks() on the extracted subgraph "
                 "instead."
             )
 
         try:
             # FIXME: update this to use call_algo()
-            # FIXME: this should not be needed, need to update cugraph.node2vec
+            # FIXME: this should not be needed, need to update cugraph.node2vec_random_walks
             # to also accept a list
             start_vertices = cudf.Series(start_vertices, dtype="int32")
 
-            (paths, weights, path_sizes) = node2vec(G, start_vertices, max_depth)
+            (paths, weights, max_path_length) = node2vec_random_walks(G, start_vertices, max_depth)
 
-            node2vec_result = Node2vecResult(
+            node2vec_random_walks_result = Node2vecResult(
                 vertex_paths=paths.values_host,
                 edge_weights=weights.values_host,
-                path_sizes=path_sizes.values_host,
+                max_path_length=max_path_length,
             )
         except Exception:
             raise CugraphServiceError(f"{traceback.format_exc()}")
 
-        return node2vec_result
+        return node2vec_random_walks_result
 
     def uniform_neighbor_sample(
         self,
