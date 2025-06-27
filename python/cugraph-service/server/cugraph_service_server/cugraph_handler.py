@@ -1032,8 +1032,8 @@ class CugraphHandler:
 
         try:
             # FIXME: update this to use call_algo()
-            # FIXME: this should not be needed, need to update cugraph.node2vec_random_walks
-            # to also accept a list
+            # FIXME: this should not be needed, need to update
+            # cugraph.node2vec_random_walks to also accept a list
             start_vertices = cudf.Series(start_vertices, dtype="int32")
 
             (paths, weights, max_path_length) = node2vec_random_walks(
