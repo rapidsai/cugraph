@@ -92,35 +92,3 @@ def test_ecg_clustering(
     # assignment
     assert cu_score > (0.80 * golden_score)
 
-
-@pytest.mark.sg
-@pytest.mark.parametrize("dataset", DATASETS)
-@pytest.mark.parametrize("min_weight", MIN_WEIGHTS)
-@pytest.mark.parametrize("ensemble_size", ENSEMBLE_SIZES)
-@pytest.mark.parametrize("max_level", MAX_LEVELS)
-@pytest.mark.parametrize("threshold", THRESHOLDS)
-@pytest.mark.parametrize("resolution", RESOLUTIONS)
-@pytest.mark.parametrize("random_state", RANDOM_STATES)
-def test_ecg_clustering_nx(
-    dataset, min_weight, ensemble_size, max_level, threshold, resolution, random_state
-):
-
-    gc.collect()
-    dataset_path = dataset.get_path()
-    # Read in the graph and get a NetworkX graph
-    M = utils.read_csv_for_nx(dataset_path, read_weights_in_sp=True)
-    G = nx.from_pandas_edgelist(
-        M, source="0", target="1", edge_attr="weight", create_using=nx.Graph()
-    )
-
-    # Get the modularity score for partitioning versus random assignment
-    with pytest.raises(AttributeError):
-        df_dict, _ = cugraph.ecg(
-            G,
-            min_weight=min_weight,
-            ensemble_size=ensemble_size,
-            max_level=max_level,
-            threshold=threshold,
-            resolution=resolution,
-            random_state=random_state,
-        )

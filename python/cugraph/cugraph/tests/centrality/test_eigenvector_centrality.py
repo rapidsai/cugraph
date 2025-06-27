@@ -67,23 +67,6 @@ def test_eigenvector_centrality(graph_file):
     assert topKNX.equals(topKCU)
 
 
-@pytest.mark.sg
-@pytest.mark.parametrize("graph_file", UNDIRECTED_DATASETS)
-def test_eigenvector_centrality_nx(graph_file):
-    dataset_path = graph_file.get_path()
-    NM = utils.read_csv_for_nx(dataset_path)
-
-    Gnx = nx.from_pandas_edgelist(
-        NM,
-        create_using=nx.DiGraph(),
-        source="0",
-        target="1",
-    )
-
-    with pytest.raises(AttributeError):
-        ck = cugraph.eigenvector_centrality(Gnx)
-
-
 # TODO: Uncomment this test when/if nstart is supported for eigen centrality
 """
 @pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)

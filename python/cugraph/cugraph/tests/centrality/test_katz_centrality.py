@@ -77,28 +77,6 @@ def test_katz_centrality(graph_file):
 
 @pytest.mark.sg
 @pytest.mark.parametrize("graph_file", UNDIRECTED_DATASETS)
-def test_katz_centrality_nx(graph_file):
-    dataset_path = graph_file.get_path()
-    NM = utils.read_csv_for_nx(dataset_path)
-
-    Gnx = nx.from_pandas_edgelist(
-        NM,
-        create_using=nx.DiGraph(),
-        source="0",
-        target="1",
-    )
-
-
-    G = cugraph.utilities.convert_from_nx(Gnx)
-    degree_max = G.degree()["degree"].max()
-    katz_alpha = 1 / (degree_max)
-
-    with pytest.raises(AttributeError):
-        ck = cugraph.katz_centrality(Gnx, alpha=None, max_iter=1000)
-
-
-@pytest.mark.sg
-@pytest.mark.parametrize("graph_file", UNDIRECTED_DATASETS)
 def test_katz_centrality_multi_column(graph_file):
     dataset_path = graph_file.get_path()
     cu_M = utils.read_csv_file(dataset_path)

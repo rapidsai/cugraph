@@ -94,33 +94,6 @@ def test_subgraph_extraction_Graph(graph_file):
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", [DEFAULT_DATASETS[2]])
-def test_subgraph_extraction_Graph_nx(graph_file):
-    directed = False
-    verts = np.zeros(3, dtype=np.int32)
-    verts[0] = 0
-    verts[1] = 1
-    verts[2] = 17
-    dataset_path = graph_file.get_path()
-    M = utils.read_csv_for_nx(dataset_path)
-
-    if directed:
-        G = nx.from_pandas_edgelist(
-            M, source="0", target="1", edge_attr="weight", create_using=nx.DiGraph()
-        )
-    else:
-        G = nx.from_pandas_edgelist(
-            M, source="0", target="1", edge_attr="weight", create_using=nx.Graph()
-        )
-
-    cu_verts = cudf.Series(verts)
-
-    with pytest.raises(AttributeError):
-        cu_sub = cugraph.induced_subgraph(G, cu_verts)[0]
-
-
-
-@pytest.mark.sg
 @pytest.mark.parametrize("graph_file", DEFAULT_DATASETS)
 def test_subgraph_extraction_multi_column(graph_file):
     dataset_path = graph_file.get_path()

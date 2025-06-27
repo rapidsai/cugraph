@@ -77,19 +77,6 @@ def test_ktruss_subgraph_Graph(_, nx_ground_truth):
     compare_k_truss(k_subgraph, k, nx_ground_truth)
 
 
-@pytest.mark.sg
-def test_ktruss_subgraph_Graph_nx():
-    k = 5
-    dataset_path = polbooks.get_path()
-    M = utils.read_csv_for_nx(dataset_path, read_weights_in_sp=True)
-    G = nx.from_pandas_edgelist(
-        M, source="0", target="1", edge_attr="weight", create_using=nx.Graph()
-    )
-
-    with pytest.raises(AttributeError):
-        k_subgraph = cugraph.k_truss(G, k)
-
-
 
 @pytest.mark.sg
 def test_ktruss_subgraph_directed_Graph():

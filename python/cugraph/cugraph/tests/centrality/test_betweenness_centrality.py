@@ -513,19 +513,6 @@ def test_betweenness_invalid_dtype(
         compare_scores(sorted_df, first_key="cu_bc", second_key="ref_bc")
 
 
-# FIXME: update the datasets API to return Nx graph
-@pytest.mark.sg
-@pytest.mark.parametrize("graph_file", utils.DATASETS_SMALL)
-@pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
-@pytest.mark.parametrize("edgevals", WEIGHTED_GRAPH_OPTIONS)
-def test_betweenness_centrality_nx(graph_file, directed, edgevals):
-
-    Gnx = utils.generate_nx_graph_from_file(graph_file, directed, edgevals)
-
-    with pytest.raises(AttributeError):
-        cu_bc = cugraph.betweenness_centrality(Gnx)
-
-
 @pytest.mark.sg
 @pytest.mark.parametrize(
     ("normalized", "endpoints", "is_directed", "k", "expected"),

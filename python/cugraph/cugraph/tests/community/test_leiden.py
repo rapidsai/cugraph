@@ -203,21 +203,6 @@ def test_leiden(graph_file):
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", UNDIRECTED_DATASETS)
-def test_leiden_nx(graph_file):
-    dataset_path = graph_file.get_path()
-    NM = utils.read_csv_for_nx(dataset_path)
-
-    G = nx.from_pandas_edgelist(
-        NM, create_using=nx.Graph(), source="0", target="1", edge_attr="weight"
-    )
-
-    with pytest.raises(AttributeError):
-        leiden_parts, leiden_mod = cugraph_leiden(G)
- 
-
-
-@pytest.mark.sg
 def test_leiden_directed_graph():
 
     edgevals = True

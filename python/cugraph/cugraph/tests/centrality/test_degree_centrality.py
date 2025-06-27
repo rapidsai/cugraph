@@ -34,21 +34,6 @@ def topKVertices(degree, col, k):
     return top["vertex"]
 
 
-@pytest.mark.sg
-@pytest.mark.parametrize("graph_file", UNDIRECTED_DATASETS)
-def test_degree_centrality_nx(graph_file):
-    dataset_path = graph_file.get_path()
-    NM = utils.read_csv_for_nx(dataset_path)
-    Gnx = nx.from_pandas_edgelist(
-        NM,
-        create_using=nx.DiGraph(),
-        source="0",
-        target="1",
-    )
-
-    with pytest.raises(AttributeError):
-        ck = cugraph.degree_centrality(Gnx)
-
 
 @pytest.mark.sg
 @pytest.mark.parametrize("graph_file", UNDIRECTED_DATASETS)

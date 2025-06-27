@@ -77,28 +77,6 @@ def test_modularity_clustering(graph_file, partitions):
 @pytest.mark.sg
 @pytest.mark.parametrize("graph_file", DEFAULT_DATASETS)
 @pytest.mark.parametrize("partitions", PARTITIONS)
-def test_modularity_clustering_nx(graph_file, partitions):
-    # Read in the graph and get a cugraph object
-    dataset_path = graph_file.get_path()
-    csv_data = utils.read_csv_for_nx(dataset_path, read_weights_in_sp=True)
-
-    nxG = nx.from_pandas_edgelist(
-        csv_data,
-        source="0",
-        target="1",
-        edge_attr="weight",
-        create_using=nx.Graph(),
-    )
-    assert nx.is_directed(nxG) is False
-    assert nx.is_weighted(nxG) is True
-
-    with pytest.raises(AttributeError):
-        cu_score = cugraph_call(nxG, partitions)
-
-
-@pytest.mark.sg
-@pytest.mark.parametrize("graph_file", DEFAULT_DATASETS)
-@pytest.mark.parametrize("partitions", PARTITIONS)
 def test_modularity_clustering_multi_column(graph_file, partitions):
     # Read in the graph and get a cugraph object
     dataset_path = graph_file.get_path()

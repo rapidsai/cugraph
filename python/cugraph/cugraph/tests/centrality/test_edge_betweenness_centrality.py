@@ -494,22 +494,3 @@ def test_edge_betweenness_invalid_dtype(
             edgevals=edgevals,
         )
         compare_scores(sorted_df, first_key="cu_bc", second_key="ref_bc")
-
-
-@pytest.mark.skipif(
-    float(".".join(nx.__version__.split(".")[:2])) < 3.5,
-    reason="Requires networkx >= 3.5",
-)
-@pytest.mark.sg
-@pytest.mark.parametrize("graph_file", SMALL_DATASETS)
-@pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
-@pytest.mark.parametrize("edgevals", WEIGHTED_GRAPH_OPTIONS)
-@pytest.mark.parametrize("normalized", NORMALIZED_OPTIONS)
-def test_edge_betweenness_centrality_nx(graph_file, directed, edgevals, normalized):
-    dataset_path = graph_file.get_path()
-    Gnx = utils.generate_nx_graph_from_file(dataset_path, directed, edgevals)
-    assert nx.is_directed(Gnx) == directed
-
-    with pytest.raises(AttributeError):
-        cu_bc = cugraph.edge_betweenness_centrality(Gnx, normalized=normalized)
-

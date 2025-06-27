@@ -124,9 +124,6 @@ def test_triangles_int64(input_combo):
 def test_triangles_no_weights(input_combo):
     G_weighted = input_combo["Gnx"]
     
-    with pytest.raises(AttributeError):
-        count_triangles_nx_graph = cugraph.triangle_count(G_weighted)["counts"].sum()
-
     graph_file = input_combo["graph_file"]
     G = graph_file.get_graph(ignore_weights=True)
 

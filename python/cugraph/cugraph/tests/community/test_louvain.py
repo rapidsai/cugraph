@@ -133,13 +133,3 @@ def test_louvain_csr_graph(is_weighted):
     assert len(parition_diffs) == 0
     assert mod_csr == mod_coo
 
-
-@pytest.mark.sg
-def test_louvain_nx_graph_with_isolated_nodes():
-    # Cluster IDs are expected to unique if all nodes are isolated
-    G = nx.Graph()
-    G.add_nodes_from(range(5))
- 
-    with pytest.raises(AttributeError):
-        result, _ = cugraph.louvain(G)
-

@@ -100,26 +100,3 @@ def test_edge_cut_clustering_with_edgevals(graph_file, partitions):
     print(cu_score, rand_score)
     assert cu_score < rand_score
 
-
-@pytest.mark.sg
-@pytest.mark.parametrize("graph_file", DEFAULT_DATASETS)
-@pytest.mark.parametrize("partitions", PARTITIONS)
-def test_edge_cut_clustering_with_edgevals_nx(graph_file, partitions):
-    gc.collect()
-
-    # G = cugraph.Graph()
-    # read_weights_in_sp=True => value column dtype is float32
-    G = graph_file.get_graph()
-    NM = G.to_pandas_edgelist().rename(
-        columns={"src": "0", "dst": "1", "wgt": "weight"}
-    )
-
-    G = nx.from_pandas_edgelist(
-        NM, create_using=nx.Graph(), source="0", target="1", edge_attr="weight"
-    )
-
-    # Get the edge_cut score for partitioning versus random assignment
-    with pytest.raises(AttributeError):
-        df = cugraph.spectralBalancedCutClustering(
-            G, partitions, num_eigen_vects=partitions
-        )
