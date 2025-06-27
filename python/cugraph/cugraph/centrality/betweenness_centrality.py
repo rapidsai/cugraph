@@ -17,11 +17,6 @@ from pylibcugraph import (
     ResourceHandle,
 )
 
-from cugraph.utilities import (
-    df_edge_score_to_dictionary,
-    ensure_cugraph_obj_for_nx,
-    df_score_to_dictionary,
-)
 import cudf
 import warnings
 import numpy as np
@@ -37,7 +32,7 @@ def betweenness_centrality(
     seed: int = None,
     random_state: int = None,
     result_dtype: Union[np.float32, np.float64] = np.float64,
-) -> Union[cudf.DataFrame, dict]:
+) -> cudf.DataFrame:
     """
     Compute the betweenness centrality for all vertices of the graph G.
     Betweenness centrality is a measure of the number of shortest paths that
@@ -48,20 +43,15 @@ def betweenness_centrality(
     To improve performance. rather than doing an all-pair shortest path,
     a sample of k starting vertices can be used.
 
-    CuGraph does not currently support 'weight' parameters.
+    cuGraph does not currently support 'weight' parameters.
 
     Parameters
     ----------
-    G : cuGraph.Graph or networkx.Graph
+    G : cuGraph.Graph
         The graph can be either directed (Graph(directed=True)) or undirected.
         The current implementation uses a parallel variation of the Brandes
         Algorithm (2001) to compute exact or approximate betweenness.
         If weights are provided in the edgelist, they will not be used.
-
-        .. deprecated:: 24.12
-           Accepting a ``networkx.Graph`` is deprecated and will be removed in a
-           future version.  For ``networkx.Graph`` use networkx directly with
-           the ``nx-cugraph`` backend. See:  https://rapids.ai/nx-cugraph/
 
     k : int, list or cudf object or None, optional (default=None)
         If k is not None, use k node samples to estimate betweenness. Higher
@@ -112,11 +102,11 @@ def betweenness_centrality(
 
     Returns
     -------
-    df : cudf.DataFrame or Dictionary if using NetworkX
+    df : cudf.DataFrame
         GPU data frame containing two cudf.Series of size V: the vertex
         identifiers and the corresponding betweenness centrality values.
         Please note that the resulting the 'vertex' column might not be
-        in ascending order.  The Dictionary contains the same two columns
+        in ascending order.
 
         df['vertex'] : cudf.Series
             Contains the vertex identifiers
@@ -137,8 +127,6 @@ def betweenness_centrality(
             "in the next release. Use 'random_state' instead."
         )
         warnings.warn(warning_msg, UserWarning)
-
-    G, isNx = ensure_cugraph_obj_for_nx(G)
 
     if weight is not None:
         raise NotImplementedError(
@@ -195,11 +183,7 @@ def betweenness_centrality(
     if df["betweenness_centrality"].dtype != result_dtype:
         df["betweenness_centrality"] = df["betweenness_centrality"].astype(result_dtype)
 
-    if isNx is True:
-        dict = df_score_to_dictionary(df, "betweenness_centrality")
-        return dict
-    else:
-        return df
+    return df
 
 
 def edge_betweenness_centrality(
@@ -209,7 +193,7 @@ def edge_betweenness_centrality(
     weight: cudf.DataFrame = None,
     seed: int = None,
     result_dtype: Union[np.float32, np.float64] = np.float64,
-) -> Union[cudf.DataFrame, dict]:
+) -> cudf.DataFrame:
     """
     Compute the edge betweenness centrality for all edges of the graph G.
     Betweenness centrality is a measure of the number of shortest paths
@@ -224,15 +208,10 @@ def edge_betweenness_centrality(
 
     Parameters
     ----------
-    G : cuGraph.Graph or networkx.Graph
+    G : cuGraph.Graph
         The graph can be either directed (Graph(directed=True)) or undirected.
         The current implementation uses BFS traversals. Use weight parameter
         if weights need to be considered (currently not supported).
-
-        .. deprecated:: 24.12
-           Accepting a ``networkx.Graph`` is deprecated and will be removed in a
-           future version.  For ``networkx.Graph`` use networkx directly with
-           the ``nx-cugraph`` backend. See:  https://rapids.ai/nx-cugraph/
 
     k : int or list or None, optional (default=None)
         If k is not None, use k node samples to estimate betweenness. Higher
@@ -271,7 +250,7 @@ def edge_betweenness_centrality(
 
     Returns
     -------
-    df : cudf.DataFrame or Dictionary if using NetworkX
+    df : cudf.DataFrame
         GPU data frame containing three cudf.Series of size E: the vertex
         identifiers of the sources, the vertex identifies of the destinations
         and the corresponding betweenness centrality values.
@@ -305,8 +284,6 @@ def edge_betweenness_centrality(
         )
     if result_dtype not in [np.float32, np.float64]:
         raise TypeError("result type can only be np.float32 or np.float64")
-
-    G, isNx = ensure_cugraph_obj_for_nx(G)
 
     if not isinstance(k, (cudf.DataFrame, cudf.Series)):
         if isinstance(k, list):
@@ -363,7 +340,4 @@ def edge_betweenness_centrality(
         # symmeterized graph.
         df = df.groupby(by=["src", "dst"]).sum().reset_index()
 
-    if isNx is True:
-        return df_edge_score_to_dictionary(df, "betweenness_centrality")
-    else:
-        return df
+    return df

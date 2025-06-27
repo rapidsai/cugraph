@@ -19,18 +19,7 @@ from pylibcugraph import ResourceHandle
 from pylibcugraph import induced_subgraph as pylibcugraph_induced_subgraph
 
 from cugraph.structure import Graph
-from cugraph.utilities import (
-    ensure_cugraph_obj_for_nx,
-    cugraph_to_nx,
-)
 from cugraph.utilities.utils import import_optional
-
-# FIXME: the networkx.Graph type used in type annotations is specified
-# using a string literal to avoid depending on and importing networkx.
-# Instead, networkx is imported optionally, which may cause a problem
-# for a type checker if run in an environment where networkx is not installed.
-networkx = import_optional("networkx")
-
 
 # FIXME: Move this function to the utility module so that it can be
 # shared by other algos
@@ -52,10 +41,10 @@ def ensure_valid_dtype(input_graph: Graph, input: cudf.Series, input_name: str):
 
 
 def induced_subgraph(
-    G: Union[Graph, "networkx.Graph"],
+    G: Graph,
     vertices: Union[cudf.Series, cudf.DataFrame],
     offsets: Union[list, cudf.Series] = None,
-) -> Tuple[Union[Graph, "networkx.Graph"], cudf.Series]:
+) -> Tuple[Graph, cudf.Series]:
     """
     Compute a subgraph of the existing graph including only the specified
     vertices.  This algorithm works with both directed and undirected graphs
@@ -68,13 +57,8 @@ def induced_subgraph(
 
     Parameters
     ----------
-    G : cugraph.Graph or networkx.Graph
+    G : cugraph.Graph
         The current implementation only supports weighted graphs.
-
-        .. deprecated:: 24.12
-           Accepting a ``networkx.Graph`` is deprecated and will be removed in a
-           future version.  For ``networkx.Graph`` use networkx directly with
-           the ``nx-cugraph`` backend. See:  https://rapids.ai/nx-cugraph/
 
     vertices : cudf.Series or cudf.DataFrame
         Specifies the vertices of the induced subgraph. For multi-column
@@ -87,7 +71,7 @@ def induced_subgraph(
 
     Returns
     -------
-    Sg : cugraph.Graph or networkx.Graph
+    Sg : cugraph.Graph
         A graph object containing the subgraph induced by the given vertex set.
     seeds_offsets: cudf.Series
         A cudf Series containing the starting offset in the returned edge list
@@ -106,7 +90,6 @@ def induced_subgraph(
 
     """
 
-    G, isNx = ensure_cugraph_obj_for_nx(G)
     directed = G.is_directed()
 
     # FIXME: Hardcoded for now
@@ -162,8 +145,5 @@ def induced_subgraph(
         )
     else:
         result_graph.from_cudf_edgelist(df, source=src_names, destination=dst_names)
-
-    if isNx is True:
-        result_graph = cugraph_to_nx(result_graph)
 
     return result_graph, seeds_offsets
