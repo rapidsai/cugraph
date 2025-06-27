@@ -1226,7 +1226,9 @@ class CugraphServiceClient:
         )
 
     @__server_connection
-    def node2vec_random_walks(self, start_vertices, max_depth, graph_id=defaults.graph_id):
+    def node2vec_random_walks(
+        self, start_vertices, max_depth, graph_id=defaults.graph_id
+    ):
         """
         Computes random walks for each node in 'start_vertices', under the
         node2vec_random_walks sampling framework.
@@ -1256,12 +1258,14 @@ class CugraphServiceClient:
             start_vertices = [start_vertices]
         # FIXME: ensure list is a list of int32, since Thrift interface
         # specifies that?
-        node2vec_random_walks_result = self.__client.node2vec_random_walks(start_vertices, max_depth, graph_id)
-        
+        node2vec_random_walks_result = self.__client.node2vec_random_walks(
+            start_vertices, max_depth, graph_id
+        )
+
         return (
             node2vec_random_walks_result.vertex_paths,
             node2vec_random_walks_result.edge_weights,
-            node2vec_random_walks_result.max_path_length
+            node2vec_random_walks_result.max_path_length,
         )
 
     @__server_connection

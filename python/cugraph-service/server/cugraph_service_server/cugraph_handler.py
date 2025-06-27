@@ -1036,7 +1036,9 @@ class CugraphHandler:
             # to also accept a list
             start_vertices = cudf.Series(start_vertices, dtype="int32")
 
-            (paths, weights, max_path_length) = node2vec_random_walks(G, start_vertices, max_depth)
+            (paths, weights, max_path_length) = node2vec_random_walks(
+                G, start_vertices, max_depth
+            )
 
             node2vec_random_walks_result = Node2vecResult(
                 vertex_paths=paths.values_host,

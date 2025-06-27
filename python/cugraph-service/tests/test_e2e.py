@@ -190,8 +190,7 @@ def test_node2vec_random_walks(client_with_edgelist_csv_loaded):
     assert isinstance(vertex_paths, list) and len(vertex_paths)
     assert isinstance(edge_weights, list) and len(edge_weights)
     assert isinstance(max_path_length, int)
-    assert (max_path_length == max_depth) and \
-        max_path_length == len(vertex_paths) - 1
+    assert (max_path_length == max_depth) and max_path_length == len(vertex_paths) - 1
 
 
 def test_extract_subgraph(client_with_edgelist_csv_loaded):

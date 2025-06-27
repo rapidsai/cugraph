@@ -95,9 +95,7 @@ def _run_node2vec(
         do_expensive_check=True,
     )
 
-    (paths, weights) = node2vec_random_walks(
-        resource_handle, G, seeds, max_depth, p, q
-    )
+    (paths, weights) = node2vec_random_walks(resource_handle, G, seeds, max_depth, p, q)
 
     num_seeds = len(seeds)
 
@@ -152,6 +150,7 @@ def test_node2vec_short():
         src, dst, wgt, seeds, num_vertices, num_edges, max_depth, 0.8, 0.5, False
     )
 
+
 def test_node2vec_short_dense():
     num_edges = 8
     num_vertices = 6
@@ -164,6 +163,7 @@ def test_node2vec_short_dense():
     _run_node2vec(
         src, dst, wgt, seeds, num_vertices, num_edges, max_depth, 0.8, 0.5, False
     )
+
 
 @pytest.mark.parametrize(*_get_param_args("compress_result", [True, False]))
 @pytest.mark.parametrize(*_get_param_args("renumbered", [True, False]))
@@ -688,7 +688,6 @@ def test_node2vec(sg_graph_objs):
 
     result = node2vec_random_walks(resource_handle, g, seeds, max_depth, p, q)
 
-
     (actual_paths, actual_weights) = result
 
     assert actual_paths.dtype == expected_paths.dtype
@@ -733,9 +732,7 @@ def test_node2vec_renumber_cupy(renumber):
         do_expensive_check=True,
     )
 
-    (paths, _) = node2vec_random_walks(
-        resource_handle, G, seeds, max_depth, 0.8, 0.5
-    )
+    (paths, _) = node2vec_random_walks(resource_handle, G, seeds, max_depth, 0.8, 0.5)
 
     for i in range(num_seeds):
         if paths[i * (max_depth + 1)] != seeds[i]:
