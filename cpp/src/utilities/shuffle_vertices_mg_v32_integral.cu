@@ -48,28 +48,6 @@ shuffle_int_vertex_value_pairs_to_local_gpu_by_vertex_partitioning(
 
 }  // namespace detail
 
-// deprecated
-template rmm::device_uvector<int32_t> shuffle_external_vertices(
-  raft::handle_t const& handle, rmm::device_uvector<int32_t>&& d_vertices);
-
-// deprecated
-template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>>
-shuffle_external_vertex_value_pairs(raft::handle_t const& handle,
-                                    rmm::device_uvector<int32_t>&& vertices,
-                                    rmm::device_uvector<int32_t>&& values);
-
-// deprecated
-template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int64_t>>
-shuffle_external_vertex_value_pairs(raft::handle_t const& handle,
-                                    rmm::device_uvector<int32_t>&& vertices,
-                                    rmm::device_uvector<int64_t>&& values);
-
-// deprecated
-template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<size_t>>
-shuffle_external_vertex_value_pairs(raft::handle_t const& handle,
-                                    rmm::device_uvector<int32_t>&& vertices,
-                                    rmm::device_uvector<size_t>&& values);
-
 template rmm::device_uvector<int32_t> shuffle_ext_vertices(
   raft::handle_t const& handle, rmm::device_uvector<int32_t>&& d_vertices);
 

@@ -16,9 +16,9 @@
 
 #pragma once
 
+#include "detail/shuffle_wrappers.hpp"
 #include "structure/detail/structure_utils.cuh"
 
-#include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_view.hpp>

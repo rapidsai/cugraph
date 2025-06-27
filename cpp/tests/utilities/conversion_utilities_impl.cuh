@@ -15,12 +15,12 @@
  */
 #pragma once
 
+#include "detail/shuffle_wrappers.hpp"
 #include "structure/detail/structure_utils.cuh"
 #include "utilities/conversion_utilities.hpp"
 #include "utilities/device_comm_wrapper.hpp"
 #include "utilities/thrust_wrapper.hpp"
 
-#include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/partition_manager.hpp>
