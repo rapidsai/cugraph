@@ -178,7 +178,7 @@ def test_get_num_edges_nondefault_graph(client_with_edgelist_csv_loaded):
     )
 
 
-def test_node2vec(client_with_edgelist_csv_loaded):
+def test_node2vec_random_walks(client_with_edgelist_csv_loaded):
     (client, test_data) = client_with_edgelist_csv_loaded
     extracted_gid = client.extract_subgraph()
     start_vertices = 11
