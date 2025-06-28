@@ -123,7 +123,7 @@ shuffle_int_vertex_value_pairs_to_local_gpu_by_vertex_partitioning(
   raft::handle_t const& handle,
   rmm::device_uvector<vertex_t>&& vertices,
   value_vector_t&& values,
-  raft::host_span<vertex_t const> vertex_partition_range_lasts)
+  raft::host_span<vertex_t const> vertex_partition_range_lasts,
   std::optional<large_buffer_type_t> large_buffer_type)
 {
   rmm::device_uvector<vertex_t> d_vertex_partition_range_lasts(vertex_partition_range_lasts.size(),
