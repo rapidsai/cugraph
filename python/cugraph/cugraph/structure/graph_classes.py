@@ -473,7 +473,7 @@ class Graph:
             vertices=vertices,
         )
 
-    def from_pandas_adjacency(self, pdf):
+    def from_pandas_adjacency(self, pdf, vertices=None):
         """
         Initializes the graph from pandas adjacency matrix.
 
@@ -481,25 +481,6 @@ class Graph:
         ----------
         pdf : pandas.DataFrame
             A DataFrame that contains adjacency information
-        """
-        if not isinstance(pdf, pd.DataFrame):
-            raise TypeError("pdf input is not a Pandas DataFrame")
-
-        np_array = pdf.to_numpy()
-        columns = pdf.columns
-        self.from_numpy_array(np_array, columns)
-
-    def from_numpy_array(self, np_array, nodes=None, vertices=None):
-        """
-        Initializes the graph from numpy array containing adjacency matrix.
-
-        Parameters
-        ----------
-        np_array : numpy.array
-            A Numpy array that contains adjacency information
-
-        nodes: array-like or None, optional (default=None)
-            A list of column names, acting as labels for nodes
 
         vertices : cudf.Series or List, optional (default=None)
             A cudf.Series or list containing all vertices of the graph. This is
@@ -509,6 +490,38 @@ class Graph:
             including vertex identifiers that are already included in the
             source and destination arrays.
         """
+        if not isinstance(pdf, pd.DataFrame):
+            raise TypeError("pdf input is not a Pandas DataFrame")
+
+        np_array = pdf.to_numpy()
+        nodes = vertices
+        if nodes is None:
+            nodes = pdf.columns
+
+        self.from_numpy_array(np_array, nodes=nodes)
+
+    def from_numpy_array(self, np_array, nodes=None):
+        """
+        Initializes the graph from numpy array containing adjacency matrix.
+
+        Parameters
+        ----------
+        np_array : numpy.array
+            A Numpy array that contains adjacency information
+
+        nodes: array-like or None, optional (default=None)
+            A list of column names, acting as labels for all nodes in the
+            graph. This is optional, but must be used if the graph contains
+            isolated vertices which cannot be represented in the source and
+            destination arrays. If specified, this array must contain every
+            vertex identifier, including vertex identifiers that are already
+            included in the source and destination arrays.
+
+        """
+
+        if not (nodes is None or isinstance(nodes, cudf.Series)):
+            nodes = cudf.Series(np.asarray(nodes))
+
         np_array = np.asarray(np_array)
         if len(np_array.shape) != 2:
             raise ValueError("np_array is not a 2D matrix")
@@ -517,13 +530,13 @@ class Graph:
         weight = np_array[src, dst]
         df = cudf.DataFrame()
         if nodes is not None:
-            df["src"] = nodes[src]
-            df["dst"] = nodes[dst]
+            df["src"] = nodes[src].reset_index(drop=True)
+            df["dst"] = nodes[dst].reset_index(drop=True)
         else:
             df["src"] = src
             df["dst"] = dst
         df["weight"] = weight
-        self.from_cudf_edgelist(df, "src", "dst", edge_attr="weight", vertices=vertices)
+        self.from_cudf_edgelist(df, "src", "dst", edge_attr="weight", vertices=nodes)
 
     def from_numpy_matrix(self, np_matrix):
         """

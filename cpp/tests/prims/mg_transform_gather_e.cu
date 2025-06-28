@@ -14,11 +14,9 @@
  * limitations under the License.
  */
 
-#include "prims/count_if_e.cuh"
 #include "prims/edge_bucket.cuh"
 #include "prims/extract_transform_if_e.cuh"
-#include "prims/fill_edge_property.cuh"
-#include "prims/transform_e.cuh"
+#include "prims/transform_gather_e.cuh"
 #include "utilities/base_fixture.hpp"
 #include "utilities/device_comm_wrapper.hpp"
 #include "utilities/mg_utilities.hpp"
@@ -41,7 +39,10 @@
 #include <cuda/std/iterator>
 #include <cuda/std/optional>
 #include <thrust/count.h>
+#include <thrust/equal.h>
 #include <thrust/iterator/zip_iterator.h>
+#include <thrust/random.h>
+#include <thrust/shuffle.h>
 #include <thrust/tuple.h>
 
 #include <cuco/hash_functions.cuh>
@@ -51,16 +52,16 @@
 #include <random>
 
 struct Prims_Usecase {
-  bool use_edgelist{false};
+  bool use_sorted_unique_edgelist{false};
   bool edge_masking{false};
   bool check_correctness{true};
 };
 
 template <typename input_usecase_t>
-class Tests_MGTransformE
+class Tests_MGTransformGatherE
   : public ::testing::TestWithParam<std::tuple<Prims_Usecase, input_usecase_t>> {
  public:
-  Tests_MGTransformE() {}
+  Tests_MGTransformGatherE() {}
 
   static void SetUpTestCase() { handle_ = cugraph::test::initialize_mg_handle(); }
 
@@ -108,13 +109,10 @@ class Tests_MGTransformE
       mg_graph_view.attach_edge_mask((*edge_mask).view());
     }
 
-    // 2. run MG transform_e
+    // 2. run MG transform_gather_e
 
     const int hash_bin_count = 5;
-    const int initial_value  = 4;
 
-    auto property_initial_value =
-      cugraph::test::generate<decltype(mg_graph_view), result_t>::initial_value(initial_value);
     auto mg_vertex_prop =
       cugraph::test::generate<decltype(mg_graph_view), result_t>::vertex_property(
         *handle_, *mg_renumber_map, hash_bin_count);
@@ -123,25 +121,32 @@ class Tests_MGTransformE
     auto mg_dst_prop = cugraph::test::generate<decltype(mg_graph_view), result_t>::dst_property(
       *handle_, mg_graph_view, mg_vertex_prop);
 
-    cugraph::edge_bucket_t<vertex_t, edge_t, !store_transposed /* src_major */, true, true>
-      edge_list(*handle_, mg_graph_view.is_multigraph());
-    if (prims_usecase.use_edgelist) {
-      rmm::device_uvector<vertex_t> srcs(0, handle_->get_stream());
-      rmm::device_uvector<vertex_t> dsts(0, handle_->get_stream());
-      std::optional<rmm::device_uvector<edge_t>> multi_edge_indices{std::nullopt};
-
+    rmm::device_uvector<vertex_t> srcs(0, handle_->get_stream());
+    rmm::device_uvector<vertex_t> dsts(0, handle_->get_stream());
+    std::optional<rmm::device_uvector<edge_t>> multi_edge_indices{std::nullopt};
+    auto should_be_gathered_values =
+      cugraph::allocate_dataframe_buffer<result_t>(0, handle_->get_stream());
+    {
       if (mg_graph_view.is_multigraph()) {
         cugraph::edge_multi_index_property_t<edge_t, vertex_t> edge_multi_indices(*handle_,
                                                                                   mg_graph_view);
         auto ret = cugraph::extract_transform_if_e(
           *handle_,
           mg_graph_view,
-          cugraph::edge_src_dummy_property_t{}.view(),
-          cugraph::edge_dst_dummy_property_t{}.view(),
+          mg_src_prop.view(),
+          mg_dst_prop.view(),
           edge_multi_indices.view(),
-          cuda::proclaim_return_type<thrust::tuple<vertex_t, vertex_t, edge_t>>(
-            [] __device__(auto src, auto dst, auto, auto, auto multi_edge_index) {
-              return thrust::make_tuple(src, dst, multi_edge_index);
+          cuda::proclaim_return_type<decltype(cugraph::thrust_tuple_cat(
+            thrust::tuple<vertex_t, vertex_t, edge_t>{}, cugraph::to_thrust_tuple(result_t{})))>(
+            [] __device__(
+              auto src, auto dst, auto src_property, auto dst_property, auto multi_edge_index) {
+              if (src_property < dst_property) {
+                return cugraph::thrust_tuple_cat(thrust::make_tuple(src, dst, multi_edge_index),
+                                                 cugraph::to_thrust_tuple(src_property));
+              } else {
+                return cugraph::thrust_tuple_cat(thrust::make_tuple(src, dst, multi_edge_index),
+                                                 cugraph::to_thrust_tuple(dst_property));
+              }
             }),
           cuda::proclaim_return_type<bool>(
             [] __device__(auto src, auto dst, auto, auto, auto multi_edge_index) {
@@ -150,52 +155,95 @@ class Tests_MGTransformE
         srcs               = std::move(std::get<0>(ret));
         dsts               = std::move(std::get<1>(ret));
         multi_edge_indices = std::move(std::get<2>(ret));
-        auto triplet_first =
+        if constexpr (std::is_arithmetic_v<result_t>) {
+          should_be_gathered_values = std::move(std::get<3>(ret));
+        } else {
+          static_assert(std::tuple_size_v<result_t> == 2);
+          should_be_gathered_values =
+            std::make_tuple(std::move(std::get<3>(ret)), std::move(std::get<4>(ret)));
+        }
+        auto tuple_first =
           thrust::make_zip_iterator(store_transposed ? dsts.begin() : srcs.begin(),
                                     store_transposed ? srcs.begin() : dsts.begin(),
-                                    multi_edge_indices->begin());
-        thrust::sort(handle_->get_thrust_policy(), triplet_first, triplet_first + srcs.size());
+                                    multi_edge_indices->begin(),
+                                    cugraph::get_dataframe_buffer_begin(should_be_gathered_values));
+        if (prims_usecase.use_sorted_unique_edgelist) {
+          thrust::sort(handle_->get_thrust_policy(), tuple_first, tuple_first + srcs.size());
+        } else {
+          thrust::shuffle(handle_->get_thrust_policy(),
+                          tuple_first,
+                          tuple_first + srcs.size(),
+                          thrust::default_random_engine());
+        }
       } else {
         auto ret = cugraph::extract_transform_if_e(
           *handle_,
           mg_graph_view,
-          cugraph::edge_src_dummy_property_t{}.view(),
-          cugraph::edge_dst_dummy_property_t{}.view(),
+          mg_src_prop.view(),
+          mg_dst_prop.view(),
           cugraph::edge_dummy_property_t{}.view(),
-          cuda::proclaim_return_type<thrust::tuple<vertex_t, vertex_t>>(
-            [] __device__(auto src, auto dst, auto, auto, auto) {
-              return thrust::make_tuple(src, dst);
+          cuda::proclaim_return_type<decltype(cugraph::thrust_tuple_cat(
+            thrust::tuple<vertex_t, vertex_t>{}, cugraph::to_thrust_tuple(result_t{})))>(
+            [] __device__(
+              auto src, auto dst, auto src_property, auto dst_property, cuda::std::nullopt_t) {
+              if (src_property < dst_property) {
+                return cugraph::thrust_tuple_cat(thrust::make_tuple(src, dst),
+                                                 cugraph::to_thrust_tuple(src_property));
+              } else {
+                return cugraph::thrust_tuple_cat(thrust::make_tuple(src, dst),
+                                                 cugraph::to_thrust_tuple(dst_property));
+              }
             }),
           cuda::proclaim_return_type<bool>([] __device__(auto src, auto dst, auto, auto, auto) {
             return ((src + dst) % 2) == 0;
           }));
-        srcs            = std::move(std::get<0>(ret));
-        dsts            = std::move(std::get<1>(ret));
-        auto pair_first = thrust::make_zip_iterator(store_transposed ? dsts.begin() : srcs.begin(),
-                                                    store_transposed ? srcs.begin() : dsts.begin());
-        thrust::sort(handle_->get_thrust_policy(), pair_first, pair_first + srcs.size());
+        srcs = std::move(std::get<0>(ret));
+        dsts = std::move(std::get<1>(ret));
+        if constexpr (std::is_arithmetic_v<result_t>) {
+          should_be_gathered_values = std::move(std::get<2>(ret));
+        } else {
+          static_assert(std::tuple_size_v<result_t> == 2);
+          should_be_gathered_values =
+            std::make_tuple(std::move(std::get<2>(ret)), std::move(std::get<3>(ret)));
+        }
+        auto tuple_first =
+          thrust::make_zip_iterator(store_transposed ? dsts.begin() : srcs.begin(),
+                                    store_transposed ? srcs.begin() : dsts.begin(),
+                                    cugraph::get_dataframe_buffer_begin(should_be_gathered_values));
+        if (prims_usecase.use_sorted_unique_edgelist) {
+          thrust::sort(handle_->get_thrust_policy(), tuple_first, tuple_first + srcs.size());
+        } else {
+          thrust::shuffle(handle_->get_thrust_policy(),
+                          tuple_first,
+                          tuple_first + srcs.size(),
+                          thrust::default_random_engine());
+        }
       }
+    }
+
+    if (cugraph::test::g_perf) {
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      handle_->get_comms().barrier();
+      hr_timer.start("MG transform_gather_e");
+    }
+
+    auto gathered_values =
+      cugraph::allocate_dataframe_buffer<result_t>(srcs.size(), handle_->get_stream());
+    if (prims_usecase.use_sorted_unique_edgelist) {
+      cugraph::edge_bucket_t<vertex_t,
+                             edge_t,
+                             !store_transposed /* src_major */,
+                             true,
+                             true /* sorted_unique */>
+        edge_list(*handle_, mg_graph_view.is_multigraph());
 
       edge_list.insert(
         srcs.begin(),
         srcs.end(),
         dsts.begin(),
         multi_edge_indices ? std::make_optional(multi_edge_indices->begin()) : std::nullopt);
-    }
 
-    cugraph::edge_property_t<edge_t, result_t> edge_value_output(*handle_, mg_graph_view);
-
-    cugraph::fill_edge_property(
-      *handle_, mg_graph_view, edge_value_output.mutable_view(), property_initial_value);
-
-    if (cugraph::test::g_perf) {
-      RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      handle_->get_comms().barrier();
-      hr_timer.start("MG transform_e");
-    }
-
-    if (prims_usecase.use_edgelist) {
-      cugraph::transform_e(
+      cugraph::transform_gather_e(
         *handle_,
         mg_graph_view,
         edge_list,
@@ -211,11 +259,25 @@ class Tests_MGTransformE
               return dst_property;
             }
           }),
-        edge_value_output.mutable_view());
+        cugraph::get_dataframe_buffer_begin(gathered_values));
     } else {
-      cugraph::transform_e(
+      cugraph::edge_bucket_t<vertex_t,
+                             edge_t,
+                             !store_transposed /* src_major */,
+                             true,
+                             false /* sorted_unique */>
+        edge_list(*handle_, mg_graph_view.is_multigraph());
+
+      edge_list.insert(
+        srcs.begin(),
+        srcs.end(),
+        dsts.begin(),
+        multi_edge_indices ? std::make_optional(multi_edge_indices->begin()) : std::nullopt);
+
+      cugraph::transform_gather_e(
         *handle_,
         mg_graph_view,
+        edge_list,
         mg_src_prop.view(),
         mg_dst_prop.view(),
         cugraph::edge_dummy_property_t{}.view(),
@@ -228,7 +290,7 @@ class Tests_MGTransformE
               return dst_property;
             }
           }),
-        edge_value_output.mutable_view());
+        cugraph::get_dataframe_buffer_begin(gathered_values));
     }
 
     if (cugraph::test::g_perf) {
@@ -241,44 +303,10 @@ class Tests_MGTransformE
     // 3. validate MG results
 
     if (prims_usecase.check_correctness) {
-      size_t num_invalids{};
-      if (prims_usecase.use_edgelist) {
-        num_invalids = cugraph::count_if_e(
-          *handle_,
-          mg_graph_view,
-          mg_src_prop.view(),
-          mg_dst_prop.view(),
-          edge_value_output.view(),
-          [property_initial_value] __device__(
-            auto src, auto dst, auto src_property, auto dst_property, auto edge_property) {
-            if (((src + dst) % 2) == 0) {
-              if (src_property < dst_property) {
-                return edge_property != src_property;
-              } else {
-                return edge_property != dst_property;
-              }
-            } else {
-              return edge_property != property_initial_value;
-            }
-          });
-      } else {
-        num_invalids = cugraph::count_if_e(
-          *handle_,
-          mg_graph_view,
-          mg_src_prop.view(),
-          mg_dst_prop.view(),
-          edge_value_output.view(),
-          [property_initial_value] __device__(
-            auto src, auto dst, auto src_property, auto dst_property, auto edge_property) {
-            if (src_property < dst_property) {
-              return edge_property != src_property;
-            } else {
-              return edge_property != dst_property;
-            }
-          });
-      }
-
-      ASSERT_TRUE(num_invalids == 0);
+      ASSERT_TRUE(thrust::equal(handle_->get_thrust_policy(),
+                                cugraph::get_dataframe_buffer_begin(gathered_values),
+                                cugraph::get_dataframe_buffer_end(gathered_values),
+                                cugraph::get_dataframe_buffer_begin(should_be_gathered_values)));
     }
   }
 
@@ -287,19 +315,19 @@ class Tests_MGTransformE
 };
 
 template <typename input_usecase_t>
-std::unique_ptr<raft::handle_t> Tests_MGTransformE<input_usecase_t>::handle_ = nullptr;
+std::unique_ptr<raft::handle_t> Tests_MGTransformGatherE<input_usecase_t>::handle_ = nullptr;
 
-using Tests_MGTransformE_File = Tests_MGTransformE<cugraph::test::File_Usecase>;
-using Tests_MGTransformE_Rmat = Tests_MGTransformE<cugraph::test::Rmat_Usecase>;
+using Tests_MGTransformGatherE_File = Tests_MGTransformGatherE<cugraph::test::File_Usecase>;
+using Tests_MGTransformGatherE_Rmat = Tests_MGTransformGatherE<cugraph::test::Rmat_Usecase>;
 
-TEST_P(Tests_MGTransformE_File, CheckInt32Int32FloatTupleIntFloatTransposeFalse)
+TEST_P(Tests_MGTransformGatherE_File, CheckInt32Int32FloatTupleIntFloatTransposeFalse)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float, thrust::tuple<int, float>, false>(std::get<0>(param),
                                                                               std::get<1>(param));
 }
 
-TEST_P(Tests_MGTransformE_Rmat, CheckInt32Int32FloatTupleIntFloatTransposeFalse)
+TEST_P(Tests_MGTransformGatherE_Rmat, CheckInt32Int32FloatTupleIntFloatTransposeFalse)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float, thrust::tuple<int, float>, false>(
@@ -307,7 +335,7 @@ TEST_P(Tests_MGTransformE_Rmat, CheckInt32Int32FloatTupleIntFloatTransposeFalse)
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
 
-TEST_P(Tests_MGTransformE_Rmat, CheckInt64Int64FloatTupleIntFloatTransposeFalse)
+TEST_P(Tests_MGTransformGatherE_Rmat, CheckInt64Int64FloatTupleIntFloatTransposeFalse)
 {
   auto param = GetParam();
   run_current_test<int64_t, int64_t, float, thrust::tuple<int, float>, false>(
@@ -315,14 +343,14 @@ TEST_P(Tests_MGTransformE_Rmat, CheckInt64Int64FloatTupleIntFloatTransposeFalse)
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
 
-TEST_P(Tests_MGTransformE_File, CheckInt32Int32FloatTupleIntFloatTransposeTrue)
+TEST_P(Tests_MGTransformGatherE_File, CheckInt32Int32FloatTupleIntFloatTransposeTrue)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float, thrust::tuple<int, float>, true>(std::get<0>(param),
                                                                              std::get<1>(param));
 }
 
-TEST_P(Tests_MGTransformE_Rmat, CheckInt32Int32FloatTupleIntFloatTransposeTrue)
+TEST_P(Tests_MGTransformGatherE_Rmat, CheckInt32Int32FloatTupleIntFloatTransposeTrue)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float, thrust::tuple<int, float>, true>(
@@ -330,7 +358,7 @@ TEST_P(Tests_MGTransformE_Rmat, CheckInt32Int32FloatTupleIntFloatTransposeTrue)
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
 
-TEST_P(Tests_MGTransformE_Rmat, CheckInt64Int64FloatTupleIntFloatTransposeTrue)
+TEST_P(Tests_MGTransformGatherE_Rmat, CheckInt64Int64FloatTupleIntFloatTransposeTrue)
 {
   auto param = GetParam();
   run_current_test<int64_t, int64_t, float, thrust::tuple<int, float>, true>(
@@ -338,13 +366,13 @@ TEST_P(Tests_MGTransformE_Rmat, CheckInt64Int64FloatTupleIntFloatTransposeTrue)
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
 
-TEST_P(Tests_MGTransformE_File, CheckInt32Int32FloatIntTransposeFalse)
+TEST_P(Tests_MGTransformGatherE_File, CheckInt32Int32FloatIntTransposeFalse)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float, int, false>(std::get<0>(param), std::get<1>(param));
 }
 
-TEST_P(Tests_MGTransformE_Rmat, CheckInt32Int32FloatIntTransposeFalse)
+TEST_P(Tests_MGTransformGatherE_Rmat, CheckInt32Int32FloatIntTransposeFalse)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float, int, false>(
@@ -352,7 +380,7 @@ TEST_P(Tests_MGTransformE_Rmat, CheckInt32Int32FloatIntTransposeFalse)
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
 
-TEST_P(Tests_MGTransformE_Rmat, CheckInt64Int64FloatIntTransposeFalse)
+TEST_P(Tests_MGTransformGatherE_Rmat, CheckInt64Int64FloatIntTransposeFalse)
 {
   auto param = GetParam();
   run_current_test<int64_t, int64_t, float, int, false>(
@@ -360,13 +388,13 @@ TEST_P(Tests_MGTransformE_Rmat, CheckInt64Int64FloatIntTransposeFalse)
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
 
-TEST_P(Tests_MGTransformE_File, CheckInt32Int32FloatIntTransposeTrue)
+TEST_P(Tests_MGTransformGatherE_File, CheckInt32Int32FloatIntTransposeTrue)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float, int, true>(std::get<0>(param), std::get<1>(param));
 }
 
-TEST_P(Tests_MGTransformE_Rmat, CheckInt32Int32FloatIntTransposeTrue)
+TEST_P(Tests_MGTransformGatherE_Rmat, CheckInt32Int32FloatIntTransposeTrue)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float, int, true>(
@@ -374,7 +402,7 @@ TEST_P(Tests_MGTransformE_Rmat, CheckInt32Int32FloatIntTransposeTrue)
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
 
-TEST_P(Tests_MGTransformE_Rmat, CheckInt64Int64FloatIntTransposeTrue)
+TEST_P(Tests_MGTransformGatherE_Rmat, CheckInt64Int64FloatIntTransposeTrue)
 {
   auto param = GetParam();
   run_current_test<int64_t, int64_t, float, int, true>(
@@ -382,13 +410,13 @@ TEST_P(Tests_MGTransformE_Rmat, CheckInt64Int64FloatIntTransposeTrue)
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
 
-TEST_P(Tests_MGTransformE_File, CheckInt32Int32FloatBoolTransposeFalse)
+TEST_P(Tests_MGTransformGatherE_File, CheckInt32Int32FloatBoolTransposeFalse)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float, bool, false>(std::get<0>(param), std::get<1>(param));
 }
 
-TEST_P(Tests_MGTransformE_Rmat, CheckInt32Int32FloatBoolTransposeFalse)
+TEST_P(Tests_MGTransformGatherE_Rmat, CheckInt32Int32FloatBoolTransposeFalse)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float, bool, false>(
@@ -396,7 +424,7 @@ TEST_P(Tests_MGTransformE_Rmat, CheckInt32Int32FloatBoolTransposeFalse)
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
 
-TEST_P(Tests_MGTransformE_Rmat, CheckInt64Int64FloatBoolTransposeFalse)
+TEST_P(Tests_MGTransformGatherE_Rmat, CheckInt64Int64FloatBoolTransposeFalse)
 {
   auto param = GetParam();
   run_current_test<int64_t, int64_t, float, bool, false>(
@@ -404,13 +432,13 @@ TEST_P(Tests_MGTransformE_Rmat, CheckInt64Int64FloatBoolTransposeFalse)
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
 
-TEST_P(Tests_MGTransformE_File, CheckInt32Int32FloatBoolTransposeTrue)
+TEST_P(Tests_MGTransformGatherE_File, CheckInt32Int32FloatBoolTransposeTrue)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float, bool, true>(std::get<0>(param), std::get<1>(param));
 }
 
-TEST_P(Tests_MGTransformE_Rmat, CheckInt32Int32FloatBoolTransposeTrue)
+TEST_P(Tests_MGTransformGatherE_Rmat, CheckInt32Int32FloatBoolTransposeTrue)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float, bool, true>(
@@ -418,7 +446,7 @@ TEST_P(Tests_MGTransformE_Rmat, CheckInt32Int32FloatBoolTransposeTrue)
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
 
-TEST_P(Tests_MGTransformE_Rmat, CheckInt64Int64FloatBoolTransposeTrue)
+TEST_P(Tests_MGTransformGatherE_Rmat, CheckInt64Int64FloatBoolTransposeTrue)
 {
   auto param = GetParam();
   run_current_test<int64_t, int64_t, float, bool, true>(
@@ -428,7 +456,7 @@ TEST_P(Tests_MGTransformE_Rmat, CheckInt64Int64FloatBoolTransposeTrue)
 
 INSTANTIATE_TEST_SUITE_P(
   file_test,
-  Tests_MGTransformE_File,
+  Tests_MGTransformGatherE_File,
   ::testing::Combine(::testing::Values(Prims_Usecase{false, false, true},
                                        Prims_Usecase{false, true, true},
                                        Prims_Usecase{true, false, true},
@@ -437,7 +465,7 @@ INSTANTIATE_TEST_SUITE_P(
 
 INSTANTIATE_TEST_SUITE_P(
   file_large_test,
-  Tests_MGTransformE_File,
+  Tests_MGTransformGatherE_File,
   ::testing::Combine(
     ::testing::Values(Prims_Usecase{false, false, true},
                       Prims_Usecase{false, true, true},
@@ -448,7 +476,7 @@ INSTANTIATE_TEST_SUITE_P(
                       cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(rmat_small_test,
-                         Tests_MGTransformE_Rmat,
+                         Tests_MGTransformGatherE_Rmat,
                          ::testing::Combine(::testing::Values(Prims_Usecase{false, false, true},
                                                               Prims_Usecase{false, true, true},
                                                               Prims_Usecase{true, false, true},
@@ -462,7 +490,7 @@ INSTANTIATE_TEST_SUITE_P(
                           vertex & edge type combination) by command line arguments and do not
                           include more than one Rmat_Usecase that differ only in scale or edge
                           factor (to avoid running same benchmarks more than once) */
-  Tests_MGTransformE_Rmat,
+  Tests_MGTransformGatherE_Rmat,
   ::testing::Combine(
     ::testing::Values(Prims_Usecase{false, false, false},
                       Prims_Usecase{false, true, false},

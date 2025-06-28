@@ -21,6 +21,7 @@
 
 #include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
+#include <cugraph/large_buffer_manager.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
 
 #include <thrust/gather.h>
@@ -34,7 +35,9 @@ namespace detail {
 
 template <typename vertex_t>
 rmm::device_uvector<vertex_t> shuffle_ext_vertices_to_local_gpu_by_vertex_partitioning(
-  raft::handle_t const& handle, rmm::device_uvector<vertex_t>&& vertices)
+  raft::handle_t const& handle,
+  rmm::device_uvector<vertex_t>&& vertices,
+  std::optional<large_buffer_type_t> large_buffer_type)
 {
   auto const comm_size       = handle.get_comms().get_size();
   auto& major_comm           = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
@@ -48,7 +51,8 @@ rmm::device_uvector<vertex_t> shuffle_ext_vertices_to_local_gpu_by_vertex_partit
     vertices.end(),
     cugraph::detail::compute_gpu_id_from_ext_vertex_t<vertex_t>{
       comm_size, major_comm_size, minor_comm_size},
-    handle.get_stream());
+    handle.get_stream(),
+    large_buffer_type);
 
   return std::move(vertices);
 }
@@ -58,7 +62,8 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<value_t>>
 shuffle_ext_vertex_value_pairs_to_local_gpu_by_vertex_partitioning(
   raft::handle_t const& handle,
   rmm::device_uvector<vertex_t>&& vertices,
-  rmm::device_uvector<value_t>&& values)
+  rmm::device_uvector<value_t>&& values,
+  std::optional<large_buffer_type_t> large_buffer_type)
 {
   auto const comm_size       = handle.get_comms().get_size();
   auto& major_comm           = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
@@ -73,7 +78,8 @@ shuffle_ext_vertex_value_pairs_to_local_gpu_by_vertex_partitioning(
     get_dataframe_buffer_begin(values),
     cugraph::detail::compute_gpu_id_from_ext_vertex_t<vertex_t>{
       comm_size, major_comm_size, minor_comm_size},
-    handle.get_stream());
+    handle.get_stream(),
+    large_buffer_type);
 
   return std::make_tuple(std::move(vertices), std::move(values));
 }
@@ -82,7 +88,8 @@ template <typename vertex_t>
 rmm::device_uvector<vertex_t> shuffle_int_vertices_to_local_gpu_by_vertex_partitioning(
   raft::handle_t const& handle,
   rmm::device_uvector<vertex_t>&& vertices,
-  raft::host_span<vertex_t const> vertex_partition_range_lasts)
+  raft::host_span<vertex_t const> vertex_partition_range_lasts,
+  std::optional<large_buffer_type_t> large_buffer_type)
 {
   rmm::device_uvector<vertex_t> d_vertex_partition_range_lasts(vertex_partition_range_lasts.size(),
                                                                handle.get_stream());
@@ -104,7 +111,8 @@ rmm::device_uvector<vertex_t> shuffle_int_vertices_to_local_gpu_by_vertex_partit
                                         d_vertex_partition_range_lasts.size()),
       major_comm_size,
       minor_comm_size},
-    handle.get_stream());
+    handle.get_stream(),
+    large_buffer_type);
 
   return std::move(vertices);
 }
@@ -116,6 +124,7 @@ shuffle_int_vertex_value_pairs_to_local_gpu_by_vertex_partitioning(
   rmm::device_uvector<vertex_t>&& vertices,
   value_vector_t&& values,
   raft::host_span<vertex_t const> vertex_partition_range_lasts)
+  std::optional<large_buffer_type_t> large_buffer_type)
 {
   rmm::device_uvector<vertex_t> d_vertex_partition_range_lasts(vertex_partition_range_lasts.size(),
                                                                handle.get_stream());
@@ -138,7 +147,8 @@ shuffle_int_vertex_value_pairs_to_local_gpu_by_vertex_partitioning(
                                         d_vertex_partition_range_lasts.size()),
       major_comm_size,
       minor_comm_size},
-    handle.get_stream());
+    handle.get_stream(),
+    large_buffer_type);
 
   return std::make_tuple(std::move(vertices), std::move(values));
 }
@@ -146,41 +156,24 @@ shuffle_int_vertex_value_pairs_to_local_gpu_by_vertex_partitioning(
 }  // namespace detail
 
 template <typename vertex_t>
-rmm::device_uvector<vertex_t> shuffle_ext_vertices(raft::handle_t const& handle,
-                                                   rmm::device_uvector<vertex_t>&& vertices)
+rmm::device_uvector<vertex_t> shuffle_ext_vertices(
+  raft::handle_t const& handle,
+  rmm::device_uvector<vertex_t>&& vertices,
+  std::optional<large_buffer_type_t> large_buffer_type)
 {
-  return detail::shuffle_ext_vertices_to_local_gpu_by_vertex_partitioning(handle,
-                                                                          std::move(vertices));
-}
-
-// deprecated
-template <typename vertex_t>
-rmm::device_uvector<vertex_t> shuffle_external_vertices(raft::handle_t const& handle,
-                                                        rmm::device_uvector<vertex_t>&& vertices)
-{
-  return detail::shuffle_ext_vertices_to_local_gpu_by_vertex_partitioning(handle,
-                                                                          std::move(vertices));
-}
-
-// deprecated
-template <typename vertex_t, typename value_t>
-std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<value_t>>
-shuffle_external_vertex_value_pairs(raft::handle_t const& handle,
-                                    rmm::device_uvector<vertex_t>&& vertices,
-                                    rmm::device_uvector<value_t>&& values)
-{
-  return detail::shuffle_ext_vertex_value_pairs_to_local_gpu_by_vertex_partitioning(
-    handle, std::move(vertices), std::move(values));
+  return detail::shuffle_ext_vertices_to_local_gpu_by_vertex_partitioning(
+    handle, std::move(vertices), large_buffer_type);
 }
 
 template <typename vertex_t, typename value_t>
 std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<value_t>>
 shuffle_ext_vertex_value_pairs(raft::handle_t const& handle,
                                rmm::device_uvector<vertex_t>&& vertices,
-                               rmm::device_uvector<value_t>&& values)
+                               rmm::device_uvector<value_t>&& values,
+                               std::optional<large_buffer_type_t> large_buffer_type)
 {
   return detail::shuffle_ext_vertex_value_pairs_to_local_gpu_by_vertex_partitioning(
-    handle, std::move(vertices), std::move(values));
+    handle, std::move(vertices), std::move(values), large_buffer_type);
 }
 
 template <typename key_t, typename key_to_gpu_op_t>
@@ -188,21 +181,27 @@ std::tuple<rmm::device_uvector<key_t>, std::vector<arithmetic_device_uvector_t>>
 shuffle_keys_with_properties(raft::handle_t const& handle,
                              rmm::device_uvector<key_t>&& keys,
                              std::vector<arithmetic_device_uvector_t>&& properties,
-                             key_to_gpu_op_t key_to_gpu_op)
+                             key_to_gpu_op_t key_to_gpu_op,
+                             std::optional<large_buffer_type_t> large_buffer_type)
 {
   if (properties.size() == 0) {
-    std::tie(keys, std::ignore) = cugraph::groupby_gpu_id_and_shuffle_values(
-      handle.get_comms(), keys.begin(), keys.end(), key_to_gpu_op, handle.get_stream());
+    std::tie(keys, std::ignore) = cugraph::groupby_gpu_id_and_shuffle_values(handle.get_comms(),
+                                                                             keys.begin(),
+                                                                             keys.end(),
+                                                                             key_to_gpu_op,
+                                                                             handle.get_stream(),
+                                                                             large_buffer_type);
   } else if (properties.size() == 1) {
     std::tie(keys, properties[0]) = cugraph::variant_type_dispatch(
-      properties[0], [&handle, &keys, &key_to_gpu_op](auto& property) {
+      properties[0], [&handle, &keys, &key_to_gpu_op, large_buffer_type](auto& property) {
         std::tie(keys, property, std::ignore) =
           cugraph::groupby_gpu_id_and_shuffle_kv_pairs(handle.get_comms(),
                                                        keys.begin(),
                                                        keys.end(),
                                                        property.begin(),
                                                        key_to_gpu_op,
-                                                       handle.get_stream());
+                                                       handle.get_stream(),
+                                                       large_buffer_type);
         arithmetic_device_uvector_t property_variant = std::move(property);
         return std::make_tuple(std::move(keys), std::move(property_variant));
       });
@@ -218,7 +217,10 @@ shuffle_keys_with_properties(raft::handle_t const& handle,
     auto mem_frugal_threshold =
       static_cast<size_t>(static_cast<double>(total_global_mem / element_size) * mem_frugal_ratio);
 
-    rmm::device_uvector<size_t> property_position(keys.size(), handle.get_stream());
+    auto property_position =
+      large_buffer_type
+        ? large_buffer_manager::allocate_memory_buffer<size_t>(keys.size(), handle.get_stream())
+        : rmm::device_uvector<size_t>(keys.size(), handle.get_stream());
     detail::sequence_fill(
       handle.get_stream(), property_position.data(), property_position.size(), size_t{0});
 
@@ -228,22 +230,29 @@ shuffle_keys_with_properties(raft::handle_t const& handle,
                                                         key_to_gpu_op,
                                                         comm_size,
                                                         mem_frugal_threshold,
-                                                        handle.get_stream());
+                                                        handle.get_stream(),
+                                                        large_buffer_type);
 
     raft::device_span<size_t const> d_tx_value_counts_span{d_tx_value_counts.data(),
                                                            d_tx_value_counts.size()};
 
-    std::tie(keys, std::ignore) =
-      shuffle_values(handle.get_comms(), keys.begin(), d_tx_value_counts_span, handle.get_stream());
+    std::tie(keys, std::ignore) = shuffle_values(handle.get_comms(),
+                                                 keys.begin(),
+                                                 d_tx_value_counts_span,
+                                                 handle.get_stream(),
+                                                 large_buffer_type);
 
     std::for_each(
       properties.begin(),
       properties.end(),
-      [&handle, &property_position, d_tx_value_counts_span](auto& property) {
+      [&handle, &property_position, d_tx_value_counts_span, large_buffer_type](auto& property) {
         cugraph::variant_type_dispatch(
-          property, [&handle, &property_position, d_tx_value_counts_span](auto& prop) {
-            using T = typename std::remove_reference<decltype(prop)>::type::value_type;
-            rmm::device_uvector<T> tmp(prop.size(), handle.get_stream());
+          property,
+          [&handle, &property_position, d_tx_value_counts_span, large_buffer_type](auto& prop) {
+            using T  = typename std::remove_reference<decltype(prop)>::type::value_type;
+            auto tmp = large_buffer_type ? large_buffer_manager::allocate_memory_buffer<T>(
+                                             prop.size(), handle.get_stream())
+                                         : rmm::device_uvector<T>(prop.size(), handle.get_stream());
 
             thrust::gather(handle.get_thrust_policy(),
                            property_position.begin(),
@@ -251,8 +260,11 @@ shuffle_keys_with_properties(raft::handle_t const& handle,
                            prop.begin(),
                            tmp.begin());
 
-            std::tie(prop, std::ignore) = shuffle_values(
-              handle.get_comms(), tmp.begin(), d_tx_value_counts_span, handle.get_stream());
+            std::tie(prop, std::ignore) = shuffle_values(handle.get_comms(),
+                                                         tmp.begin(),
+                                                         d_tx_value_counts_span,
+                                                         handle.get_stream(),
+                                                         large_buffer_type);
           });
       });
   }

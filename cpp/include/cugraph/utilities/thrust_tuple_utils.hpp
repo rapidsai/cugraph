@@ -302,13 +302,21 @@ auto std_tuple_to_thrust_tuple(TupleType tup)
 }
 
 template <typename T>
-auto to_thrust_tuple(T scalar_value)
+#ifdef __CUDACC__
+__host__ __device__
+#endif
+  auto
+  to_thrust_tuple(T scalar_value)
 {
   return thrust::make_tuple(scalar_value);
 }
 
 template <typename... Ts>
-auto to_thrust_tuple(thrust::tuple<Ts...> tuple_value)
+#ifdef __CUDACC__
+__host__ __device__
+#endif
+  auto
+  to_thrust_tuple(thrust::tuple<Ts...> tuple_value)
 {
   return tuple_value;
 }

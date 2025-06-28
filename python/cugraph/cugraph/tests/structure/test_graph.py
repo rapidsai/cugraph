@@ -668,10 +668,26 @@ def test_vertex_list():
 
     # Vertex list including isolated vertices
     vertices = cudf.Series(cupy.arange(0, A.shape[0]))
+
+    # Graph from a numpy array
     cG = cugraph.from_numpy_array(nx.to_numpy_array(G), vertices=vertices)
 
     assert len(G.nodes()) == len(cG.nodes())
 
+    nx_nodes = cudf.Series([n for n in G.nodes()])
+    cG_nodes = cG.nodes().sort_values(ignore_index=True)
+
+    assert_series_equal(
+        nx_nodes,
+        cG_nodes,
+        check_names=False,
+        check_dtype=False,
+    )
+
+    # Graph from a pandas adjacency
+    cG = cugraph.from_pandas_adjacency(nx.to_pandas_adjacency(G))
+
+    assert len(G.nodes()) == len(cG.nodes())
     nx_nodes = cudf.Series([n for n in G.nodes()])
     cG_nodes = cG.nodes().sort_values(ignore_index=True)
 
@@ -1157,3 +1173,16 @@ def test_graph_creation_edges_multi_col_vertices(graph_file, directed):
             input_df.sort_values(by=vertexCol).reset_index(drop=True),
             check_dtype=False,
         )
+
+
+def test_from_pandas_adjacency_string_columns():
+    data = {
+        "A": [0, 1, 1, 0],
+        "B": [1, 0, 0, 1],
+        "C": [1, 0, 0, 1],
+        "D": [0, 1, 1, 0],
+    }
+    adjacency_matrix = pd.DataFrame(data, index=["A", "B", "C", "D"])
+    G = cugraph.Graph()
+    G.from_pandas_adjacency(adjacency_matrix)
+    assert G.is_bipartite
