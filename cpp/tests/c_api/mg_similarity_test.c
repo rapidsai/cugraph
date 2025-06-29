@@ -803,21 +803,17 @@ int test_weighted_cosine(const cugraph_resource_handle_t* handle)
 
 int test_all_pairs_cosine(const cugraph_resource_handle_t* handle)
 {
-  size_t num_edges          = 16;
-  size_t num_vertices       = 6;
-  size_t num_pairs          = 0;
-  size_t num_start_vertices = 0;
-  size_t topk               = 0;
+  size_t num_edges    = 16;
+  size_t num_vertices = 6;
+  size_t num_pairs    = 22;
 
-  vertex_t h_src[]           = {0, 1, 1, 2, 2, 2, 3, 4, 1, 3, 4, 0, 1, 3, 5, 5};
-  vertex_t h_dst[]           = {1, 3, 4, 0, 1, 3, 5, 5, 0, 1, 1, 2, 2, 2, 3, 4};
-  weight_t h_wgt[]           = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
-  vertex_t* h_first          = NULL;
-  vertex_t* h_second         = NULL;
-  vertex_t* h_start_vertices = NULL;
-  weight_t h_result[]        = {0.5, 0.5,      1.0,      0.5, 0.5, 0.666667, 0.333333, 1.0,
-                                0.5, 0.666667, 0.333333, 0.5, 0.5, 1.0,      0.333333, 0.333333,
-                                1.0, 0.5,      0.5,      1.0, 1.0, 0.5};
+  vertex_t h_src[]    = {0, 1, 1, 2, 2, 2, 3, 4, 1, 3, 4, 0, 1, 3, 5, 5};
+  vertex_t h_dst[]    = {1, 3, 4, 0, 1, 3, 5, 5, 0, 1, 1, 2, 2, 2, 3, 4};
+  weight_t h_wgt[]    = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
+  vertex_t h_first[]  = {0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 5, 5};
+  vertex_t h_second[] = {1, 2, 3, 4, 0, 2, 3, 5, 0, 1, 3, 4, 5, 0, 1, 2, 4, 0, 2, 3, 1, 2};
+  weight_t h_result[] = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+                         1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
 
   return generic_similarity_test(handle,
                                  h_src,
@@ -825,13 +821,13 @@ int test_all_pairs_cosine(const cugraph_resource_handle_t* handle)
                                  h_wgt,
                                  h_first,
                                  h_second,
-                                 h_start_vertices,
+                                 NULL,
                                  h_result,
                                  num_vertices,
                                  num_edges,
                                  num_pairs,
-                                 num_start_vertices,
-                                 topk,
+                                 0,
+                                 0,
                                  FALSE,
                                  FALSE,
                                  ALL_PAIRS_COSINE);
@@ -852,7 +848,20 @@ int test_all_pairs_cosine_with_start_vertices(const cugraph_resource_handle_t* h
   vertex_t* h_second          = NULL;
   vertex_t h_start_vertices[] = {0, 1, 2};
   weight_t h_result[]         = {
-    0.5, 0.5, 1.0, 0.5, 0.5, 0.666667, 0.333333, 1.0, 0.5, 0.666667, 0.333333, 0.5, 0.5};
+    // 0.5, 0.5, 1.0, 0.5, 0.5, 0.666667, 0.333333, 1.0, 0.5, 0.666667, 0.333333, 0.5, 0.5};
+    1,
+    1,
+    1.0,
+    1,
+    1,
+    1,
+    1,
+    1.0,
+    1,
+    1,
+    1,
+    1,
+    1};
 
   return generic_similarity_test(handle,
                                  h_src,

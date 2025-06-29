@@ -302,7 +302,7 @@ function(ConfigureCTestMG CMAKE_TEST_NAME)
              ${MPIEXEC_NUMPROC_FLAG}
              ${GPU_COUNT}
              ${MPIEXEC_PREFLAGS}
-             ${CMAKE_TEST_NAME}
+             "${CUGRAPH_BINARY_DIR}/gtests/${CMAKE_TEST_NAME}"
              ${MPIEXEC_POSTFLAGS}
         GPUS ${GPU_COUNT}
         PERCENT 100

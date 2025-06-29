@@ -269,8 +269,7 @@ set(CUGRAPH_SOURCES
     src/sampling/detail/sample_edges_sg_v32_e32.cu
     src/sampling/detail/sample_edges_mg_v64_e64.cu
     src/sampling/detail/sample_edges_mg_v32_e32.cu
-    src/sampling/detail/shuffle_and_organize_output_mg_v64_e64.cu
-    src/sampling/detail/shuffle_and_organize_output_mg_v32_e32.cu
+    src/sampling/detail/shuffle_and_organize_output.cu
     src/sampling/neighbor_sampling_mg_v32_e32.cu
     src/sampling/neighbor_sampling_mg_v64_e64.cu
     src/sampling/neighbor_sampling_sg_v32_e32.cu
