@@ -421,16 +421,15 @@ neighbor_sample_impl(raft::handle_t const& handle,
   if (result_weights) property_edges.push_back(std::move(*result_weights));
   if (result_edge_ids) property_edges.push_back(std::move(*result_edge_ids));
   if (result_edge_types) property_edges.push_back(std::move(*result_edge_types));
-  if (result_hops) property_edges.push_back(std::move(*result_hops));
 
   std::optional<rmm::device_uvector<size_t>> result_offsets{std::nullopt};
 
-  std::tie(property_edges, result_labels, result_offsets) = shuffle_and_organize_output(
-    handle,
-    std::move(property_edges),
-    result_hops ? std::make_optional(property_edges.size() - 1) : std::nullopt,
-    std::move(result_labels),
-    label_to_output_comm_rank);
+  std::tie(property_edges, result_labels, result_hops, result_offsets) =
+    shuffle_and_organize_output(handle,
+                                std::move(property_edges),
+                                std::move(result_labels),
+                                std::move(*result_hops),
+                                label_to_output_comm_rank);
 
   size_t pos  = 0;
   result_srcs = std::move(std::get<rmm::device_uvector<vertex_t>>(property_edges[pos++]));
@@ -442,8 +441,6 @@ neighbor_sample_impl(raft::handle_t const& handle,
   if (result_edge_types)
     result_edge_types =
       std::move(std::get<rmm::device_uvector<edge_type_t>>(property_edges[pos++]));
-  if (result_hops)
-    result_hops = std::move(std::get<rmm::device_uvector<int32_t>>(property_edges[pos++]));
 
   return std::make_tuple(std::move(result_srcs),
                          std::move(result_dsts),

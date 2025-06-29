@@ -282,22 +282,23 @@ shuffle_sampling_results(raft::handle_t const& handle,
  * @param property_edges vector of arithmetic device vectors of the edge data and the
  * properties.  This should include the src and dst vertices, any edge properties that exist for the
  * sampled edge and optionally the hop where the edge was sampled
- * @param hop_index Optional value, if the hop was specified then this should specify with index
- * that is located in the vector
  * @param labels Optional labels associated with each edge.  If labels are not specified this
  * function is a noop.
+ * @param hops Optional hops associated with each edge.  If hops are specified the result is sorted
+ * by label and hop
  * @param label_to_output_comm_rank Optional map associating each label to a comm rank.  If
  * specified this will result in shuffling the data, if not specified this will skip the shuffling
  * step and only consider sorting the results
  */
 std::tuple<std::vector<cugraph::arithmetic_device_uvector_t>,
            std::optional<rmm::device_uvector<int32_t>>,
+           std::optional<rmm::device_uvector<int32_t>>,
            std::optional<rmm::device_uvector<size_t>>>
 shuffle_and_organize_output(
   raft::handle_t const& handle,
   std::vector<cugraph::arithmetic_device_uvector_t>&& property_edges,
-  std::optional<size_t> hop_index,
   std::optional<rmm::device_uvector<int32_t>>&& labels,
+  std::optional<rmm::device_uvector<int32_t>>&& hops,
   std::optional<raft::device_span<int32_t const>> label_to_output_comm_rank);
 
 /**

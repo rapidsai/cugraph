@@ -18,6 +18,7 @@
 
 #include <cugraph/arithmetic_variant_types.hpp>
 #include <cugraph/detail/shuffle_wrappers.hpp>
+#include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/utilities/device_functors.cuh>
 
 #include <raft/core/handle.hpp>
@@ -35,78 +36,171 @@ namespace detail {
 
 std::tuple<std::vector<cugraph::arithmetic_device_uvector_t>,
            std::optional<rmm::device_uvector<int32_t>>,
+           std::optional<rmm::device_uvector<int32_t>>,
            std::optional<rmm::device_uvector<size_t>>>
 shuffle_and_organize_output(
   raft::handle_t const& handle,
-  std::vector<cugraph::arithmetic_device_uvector_t>&& property_edges,
-  std::optional<size_t> hop_index,
+  std::vector<cugraph::arithmetic_device_uvector_t>&& sampled_edges,
   std::optional<rmm::device_uvector<int32_t>>&& labels,
+  std::optional<rmm::device_uvector<int32_t>>&& hops,
   std::optional<raft::device_span<int32_t const>> label_to_output_comm_rank)
 {
   std::optional<rmm::device_uvector<size_t>> offsets{std::nullopt};
 
   if (labels) {
     if (label_to_output_comm_rank) {
-      std::tie(*labels, property_edges) = cugraph::shuffle_keys_with_properties(
-        handle,
-        std::move(*labels),
-        std::move(property_edges),
-        indirection_t<int32_t, int32_t const*>{label_to_output_comm_rank->begin()});
-    }
+      indirection_t<int32_t, int32_t const*> key_to_gpu_op{label_to_output_comm_rank->begin()};
 
-    // Sort the tuples by hop/label
-    rmm::device_uvector<size_t> indices(labels->size(), handle.get_stream());
-    thrust::sequence(handle.get_thrust_policy(), indices.begin(), indices.end(), size_t{0});
-    rmm::device_uvector<int32_t> tmp_labels(indices.size(), handle.get_stream());
+      if (sampled_edges.size() == 0) {
+        std::tie(*labels, std::ignore) = cugraph::groupby_gpu_id_and_shuffle_values(
+          handle.get_comms(), labels->begin(), labels->end(), key_to_gpu_op, handle.get_stream());
+      } else if (sampled_edges.size() == 1) {
+        cugraph::variant_type_dispatch(
+          sampled_edges[0], [&handle, &labels, &key_to_gpu_op](auto& property) {
+            using T        = typename std::remove_reference<decltype(property)>::type::value_type;
+            auto comm_size = handle.get_comms().get_size();
+            size_t element_size{sizeof(int32_t) + sizeof(T)};
+            auto total_global_mem = handle.get_device_properties().totalGlobalMem;
+            auto constexpr mem_frugal_ratio =
+              0.1;  // if the expected temporary buffer size exceeds the mem_frugal_ratio of the
+                    // total_global_mem, switch to the memory frugal approach (thrust::sort is used
+                    // to group-by by default, and thrust::sort requires temporary buffer comparable
+                    // to the input data size)
+            auto mem_frugal_threshold = static_cast<size_t>(
+              static_cast<double>(total_global_mem / element_size) * mem_frugal_ratio);
 
-    if (hop_index) {
-      auto& hop_v = std::get<rmm::device_uvector<int32_t>>(property_edges[*hop_index]);
-      rmm::device_uvector<int32_t> tmp_hops(indices.size(), handle.get_stream());
+            auto d_tx_value_counts = cugraph::groupby_and_count(labels->begin(),
+                                                                labels->end(),
+                                                                property.begin(),
+                                                                key_to_gpu_op,
+                                                                comm_size,
+                                                                mem_frugal_threshold,
+                                                                handle.get_stream());
 
-      thrust::sort(
-        handle.get_thrust_policy(),
-        indices.begin(),
-        indices.end(),
-        [labels = raft::device_span<int32_t const>(labels->data(), labels->size()),
-         hops   = raft::device_span<int32_t const>(hop_v.data(), hop_v.size())] __device__(size_t l,
-                                                                                         size_t r) {
-          return thrust::make_tuple(labels[l], hops[l]) < thrust::make_tuple(labels[r], hops[r]);
-        });
-      thrust::gather(handle.get_thrust_policy(),
-                     indices.begin(),
-                     indices.end(),
-                     thrust::make_zip_iterator(labels->begin(), hop_v.begin()),
-                     thrust::make_zip_iterator(tmp_labels.begin(), tmp_hops.begin()));
-      property_edges[*hop_index] = std::move(tmp_hops);
-    } else {
-      thrust::sort(
-        handle.get_thrust_policy(),
-        indices.begin(),
-        indices.end(),
-        [labels = raft::device_span<int32_t const>(labels->data(), labels->size())] __device__(
-          size_t l, size_t r) { return labels[l] < labels[r]; });
-      thrust::gather(handle.get_thrust_policy(),
-                     indices.begin(),
-                     indices.end(),
-                     labels->begin(),
-                     tmp_labels.begin());
-    }
-    *labels = std::move(tmp_labels);
+            raft::device_span<size_t const> d_tx_value_counts_span{d_tx_value_counts.data(),
+                                                                   d_tx_value_counts.size()};
 
-    for (size_t i = 0; i < property_edges.size(); ++i) {
-      if ((!hop_index) || (*hop_index != i)) {
-        cugraph::variant_type_dispatch(property_edges[i], [&handle, &indices](auto& edge_vector) {
-          using T = typename std::remove_reference<decltype(edge_vector)>::type::value_type;
-          rmm::device_uvector<T> tmp(indices.size(), handle.get_stream());
+            std::tie(*labels, std::ignore) = shuffle_values(
+              handle.get_comms(), labels->begin(), d_tx_value_counts_span, handle.get_stream());
+
+            std::tie(property, std::ignore) = shuffle_values(
+              handle.get_comms(), property.begin(), d_tx_value_counts_span, handle.get_stream());
+          });
+      } else {
+        auto comm_size = handle.get_comms().get_size();
+        size_t element_size{sizeof(int32_t) + sizeof(size_t)};
+        auto total_global_mem = handle.get_device_properties().totalGlobalMem;
+        auto constexpr mem_frugal_ratio =
+          0.1;  // if the expected temporary buffer size exceeds the mem_frugal_ratio of the
+                // total_global_mem, switch to the memory frugal approach (thrust::sort is used to
+                // group-by by default, and thrust::sort requires temporary buffer comparable to the
+                // input data size)
+        auto mem_frugal_threshold = static_cast<size_t>(
+          static_cast<double>(total_global_mem / element_size) * mem_frugal_ratio);
+
+        rmm::device_uvector<size_t> property_position(labels->size(), handle.get_stream());
+        detail::sequence_fill(
+          handle.get_stream(), property_position.data(), property_position.size(), size_t{0});
+
+        auto d_tx_value_counts = cugraph::groupby_and_count(labels->begin(),
+                                                            labels->end(),
+                                                            property_position.begin(),
+                                                            key_to_gpu_op,
+                                                            comm_size,
+                                                            mem_frugal_threshold,
+                                                            handle.get_stream());
+
+        raft::device_span<size_t const> d_tx_value_counts_span{d_tx_value_counts.data(),
+                                                               d_tx_value_counts.size()};
+
+        std::tie(labels, std::ignore) = shuffle_values(
+          handle.get_comms(), labels->begin(), d_tx_value_counts_span, handle.get_stream());
+
+        std::for_each(
+          sampled_edges.begin(),
+          sampled_edges.end(),
+          [&handle, &property_position, &d_tx_value_counts_span](auto& property) {
+            cugraph::variant_type_dispatch(
+              property, [&handle, &property_position, d_tx_value_counts_span](auto& prop) {
+                using T = typename std::remove_reference<decltype(prop)>::type::value_type;
+                rmm::device_uvector<T> tmp(prop.size(), handle.get_stream());
+
+                thrust::gather(handle.get_thrust_policy(),
+                               property_position.begin(),
+                               property_position.end(),
+                               prop.begin(),
+                               tmp.begin());
+
+                std::tie(prop, std::ignore) = shuffle_values(
+                  handle.get_comms(), tmp.begin(), d_tx_value_counts_span, handle.get_stream());
+              });
+          });
+
+        if (hops) {
+          rmm::device_uvector<int32_t> tmp(hops->size(), handle.get_stream());
           thrust::gather(handle.get_thrust_policy(),
-                         indices.begin(),
-                         indices.end(),
-                         edge_vector.begin(),
+                         property_position.begin(),
+                         property_position.end(),
+                         hops->begin(),
                          tmp.begin());
 
-          edge_vector = std::move(tmp);
-        });
+          std::tie(*hops, std::ignore) = shuffle_values(
+            handle.get_comms(), tmp.begin(), d_tx_value_counts_span, handle.get_stream());
+        }
       }
+
+      // Sort the tuples by hop/label
+      rmm::device_uvector<size_t> indices(labels->size(), handle.get_stream());
+      thrust::sequence(handle.get_thrust_policy(), indices.begin(), indices.end(), size_t{0});
+      rmm::device_uvector<int32_t> tmp_labels(indices.size(), handle.get_stream());
+
+      if (hops) {
+        rmm::device_uvector<int32_t> tmp_hops(indices.size(), handle.get_stream());
+
+        thrust::sort(handle.get_thrust_policy(),
+                     indices.begin(),
+                     indices.end(),
+                     [labels = raft::device_span<int32_t const>(labels->data(), labels->size()),
+                      hops   = raft::device_span<int32_t const>(
+                        hops->data(), hops->size())] __device__(size_t l, size_t r) {
+                       return thrust::make_tuple(labels[l], hops[l]) <
+                              thrust::make_tuple(labels[r], hops[r]);
+                     });
+        thrust::gather(handle.get_thrust_policy(),
+                       indices.begin(),
+                       indices.end(),
+                       thrust::make_zip_iterator(labels->begin(), hops->begin()),
+                       thrust::make_zip_iterator(tmp_labels.begin(), tmp_hops.begin()));
+        *hops = std::move(tmp_hops);
+      } else {
+        thrust::sort(
+          handle.get_thrust_policy(),
+          indices.begin(),
+          indices.end(),
+          [labels = raft::device_span<int32_t const>(labels->data(), labels->size())] __device__(
+            size_t l, size_t r) { return labels[l] < labels[r]; });
+        thrust::gather(handle.get_thrust_policy(),
+                       indices.begin(),
+                       indices.end(),
+                       labels->begin(),
+                       tmp_labels.begin());
+      }
+      *labels = std::move(tmp_labels);
+
+      std::for_each(
+        sampled_edges.begin(), sampled_edges.end(), [&handle, &indices](auto& property) {
+          cugraph::variant_type_dispatch(property, [&handle, &indices](auto& edge_vector) {
+            using T = typename std::remove_reference<decltype(edge_vector)>::type::value_type;
+            rmm::device_uvector<T> tmp(indices.size(), handle.get_stream());
+            thrust::gather(handle.get_thrust_policy(),
+                           indices.begin(),
+                           indices.end(),
+                           edge_vector.begin(),
+                           tmp.begin());
+
+            edge_vector = std::move(tmp);
+          });
+        });
     }
 
     size_t num_unique_labels =
@@ -130,7 +224,8 @@ shuffle_and_organize_output(
     labels = std::move(unique_labels);
   }
 
-  return std::make_tuple(std::move(property_edges), std::move(labels), std::move(offsets));
+  return std::make_tuple(
+    std::move(sampled_edges), std::move(labels), std::move(hops), std::move(offsets));
 }
 
 }  // namespace detail
