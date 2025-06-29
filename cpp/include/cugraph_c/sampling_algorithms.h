@@ -113,34 +113,6 @@ cugraph_error_code_t cugraph_node2vec_random_walks(
   cugraph_error_t** error);
 
 /**
- * @brief  Compute random walks using the node2vec framework.
- * @deprecated This call should be replaced with cugraph_node2vec_random_walks
- *
- * @param [in]  handle       Handle for accessing resources
- * @param [in]  graph        Pointer to graph.  NOTE: Graph might be modified if the storage
- *                           needs to be transposed
- * @param [in]  sources      Array of source vertices
- * @param [in]  max_depth    Maximum length of the generated path
- * @param [in]  compress_result If true, return the paths as a compressed sparse row matrix,
- *                              otherwise return as a dense matrix
- * @param [in]  p            The return parameter
- * @param [in]  q            The in/out parameter
- * @param [out]  result      Output from the node2vec call
- * @param [out] error        Pointer to an error object storing details of any error.  Will
- *                           be populated if error code is not CUGRAPH_SUCCESS
- * @return error code
- */
-cugraph_error_code_t cugraph_node2vec(const cugraph_resource_handle_t* handle,
-                                      cugraph_graph_t* graph,
-                                      const cugraph_type_erased_device_array_view_t* sources,
-                                      size_t max_depth,
-                                      bool_t compress_result,
-                                      double p,
-                                      double q,
-                                      cugraph_random_walk_result_t** result,
-                                      cugraph_error_t** error);
-
-/**
  * @ingroup samplingC
  * @brief     Get the max path length from random walk result
  *

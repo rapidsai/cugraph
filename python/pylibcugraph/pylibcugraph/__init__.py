@@ -46,8 +46,6 @@ from pylibcugraph.sssp import sssp
 
 from pylibcugraph.hits import hits
 
-from pylibcugraph.node2vec import node2vec
-
 from pylibcugraph.node2vec_random_walks import node2vec_random_walks
 
 from pylibcugraph.bfs import bfs

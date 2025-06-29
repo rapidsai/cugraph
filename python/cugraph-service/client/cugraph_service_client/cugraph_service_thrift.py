@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2023, NVIDIA CORPORATION.
+# Copyright (c) 2022-2025, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -54,7 +54,7 @@ struct BatchedEgoGraphsResult {
 struct Node2vecResult {
   1:list<i32> vertex_paths
   2:list<double> edge_weights
-  3:list<i32> path_sizes
+  3:i32 max_path_length
 }
 
 # FIXME: uniform_neighbor_sample may need to return indices as ints
@@ -222,7 +222,7 @@ service CugraphService {
                      ) throws (1:CugraphServiceError e),
 
   Node2vecResult
-  node2vec(1:list<i32> start_vertices,
+  node2vec_random_walks(1:list<i32> start_vertices,
            2:i32 max_depth,
            3:i32 graph_id
            ) throws (1:CugraphServiceError e),
