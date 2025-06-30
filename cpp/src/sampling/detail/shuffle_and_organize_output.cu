@@ -51,102 +51,65 @@ shuffle_and_organize_output(
     if (label_to_output_comm_rank) {
       indirection_t<int32_t, int32_t const*> key_to_gpu_op{label_to_output_comm_rank->begin()};
 
-      if (sampled_edges.size() == 0) {
-        std::tie(*labels, std::ignore) = cugraph::groupby_gpu_id_and_shuffle_values(
-          handle.get_comms(), labels->begin(), labels->end(), key_to_gpu_op, handle.get_stream());
-      } else if (sampled_edges.size() == 1) {
-        cugraph::variant_type_dispatch(
-          sampled_edges[0], [&handle, &labels, &key_to_gpu_op](auto& property) {
-            using T        = typename std::remove_reference<decltype(property)>::type::value_type;
-            auto comm_size = handle.get_comms().get_size();
-            size_t element_size{sizeof(int32_t) + sizeof(T)};
-            auto total_global_mem = handle.get_device_properties().totalGlobalMem;
-            auto constexpr mem_frugal_ratio =
-              0.1;  // if the expected temporary buffer size exceeds the mem_frugal_ratio of the
-                    // total_global_mem, switch to the memory frugal approach (thrust::sort is used
-                    // to group-by by default, and thrust::sort requires temporary buffer comparable
-                    // to the input data size)
-            auto mem_frugal_threshold = static_cast<size_t>(
-              static_cast<double>(total_global_mem / element_size) * mem_frugal_ratio);
+      auto comm_size = handle.get_comms().get_size();
+      size_t element_size{sizeof(int32_t) + sizeof(size_t)};
+      auto total_global_mem = handle.get_device_properties().totalGlobalMem;
+      auto constexpr mem_frugal_ratio =
+        0.1;  // if the expected temporary buffer size exceeds the mem_frugal_ratio of the
+              // total_global_mem, switch to the memory frugal approach (thrust::sort is used to
+              // group-by by default, and thrust::sort requires temporary buffer comparable to the
+              // input data size)
+      auto mem_frugal_threshold = static_cast<size_t>(
+        static_cast<double>(total_global_mem / element_size) * mem_frugal_ratio);
 
-            auto d_tx_value_counts = cugraph::groupby_and_count(labels->begin(),
-                                                                labels->end(),
-                                                                property.begin(),
-                                                                key_to_gpu_op,
-                                                                comm_size,
-                                                                mem_frugal_threshold,
-                                                                handle.get_stream());
+      rmm::device_uvector<size_t> property_position(labels->size(), handle.get_stream());
+      detail::sequence_fill(
+        handle.get_stream(), property_position.data(), property_position.size(), size_t{0});
 
-            raft::device_span<size_t const> d_tx_value_counts_span{d_tx_value_counts.data(),
-                                                                   d_tx_value_counts.size()};
+      auto d_tx_value_counts = cugraph::groupby_and_count(labels->begin(),
+                                                          labels->end(),
+                                                          property_position.begin(),
+                                                          key_to_gpu_op,
+                                                          comm_size,
+                                                          mem_frugal_threshold,
+                                                          handle.get_stream());
 
-            std::tie(*labels, std::ignore) = shuffle_values(
-              handle.get_comms(), labels->begin(), d_tx_value_counts_span, handle.get_stream());
+      raft::device_span<size_t const> d_tx_value_counts_span{d_tx_value_counts.data(),
+                                                             d_tx_value_counts.size()};
 
-            std::tie(property, std::ignore) = shuffle_values(
-              handle.get_comms(), property.begin(), d_tx_value_counts_span, handle.get_stream());
-          });
-      } else {
-        auto comm_size = handle.get_comms().get_size();
-        size_t element_size{sizeof(int32_t) + sizeof(size_t)};
-        auto total_global_mem = handle.get_device_properties().totalGlobalMem;
-        auto constexpr mem_frugal_ratio =
-          0.1;  // if the expected temporary buffer size exceeds the mem_frugal_ratio of the
-                // total_global_mem, switch to the memory frugal approach (thrust::sort is used to
-                // group-by by default, and thrust::sort requires temporary buffer comparable to the
-                // input data size)
-        auto mem_frugal_threshold = static_cast<size_t>(
-          static_cast<double>(total_global_mem / element_size) * mem_frugal_ratio);
+      std::tie(labels, std::ignore) = shuffle_values(
+        handle.get_comms(), labels->begin(), d_tx_value_counts_span, handle.get_stream());
 
-        rmm::device_uvector<size_t> property_position(labels->size(), handle.get_stream());
-        detail::sequence_fill(
-          handle.get_stream(), property_position.data(), property_position.size(), size_t{0});
+      std::for_each(
+        sampled_edges.begin(),
+        sampled_edges.end(),
+        [&handle, &property_position, &d_tx_value_counts_span](auto& property) {
+          cugraph::variant_type_dispatch(
+            property, [&handle, &property_position, d_tx_value_counts_span](auto& prop) {
+              using T = typename std::remove_reference<decltype(prop)>::type::value_type;
+              rmm::device_uvector<T> tmp(prop.size(), handle.get_stream());
 
-        auto d_tx_value_counts = cugraph::groupby_and_count(labels->begin(),
-                                                            labels->end(),
-                                                            property_position.begin(),
-                                                            key_to_gpu_op,
-                                                            comm_size,
-                                                            mem_frugal_threshold,
-                                                            handle.get_stream());
+              thrust::gather(handle.get_thrust_policy(),
+                             property_position.begin(),
+                             property_position.end(),
+                             prop.begin(),
+                             tmp.begin());
 
-        raft::device_span<size_t const> d_tx_value_counts_span{d_tx_value_counts.data(),
-                                                               d_tx_value_counts.size()};
+              std::tie(prop, std::ignore) = shuffle_values(
+                handle.get_comms(), tmp.begin(), d_tx_value_counts_span, handle.get_stream());
+            });
+        });
 
-        std::tie(labels, std::ignore) = shuffle_values(
-          handle.get_comms(), labels->begin(), d_tx_value_counts_span, handle.get_stream());
+      if (hops) {
+        rmm::device_uvector<int32_t> tmp(hops->size(), handle.get_stream());
+        thrust::gather(handle.get_thrust_policy(),
+                       property_position.begin(),
+                       property_position.end(),
+                       hops->begin(),
+                       tmp.begin());
 
-        std::for_each(
-          sampled_edges.begin(),
-          sampled_edges.end(),
-          [&handle, &property_position, &d_tx_value_counts_span](auto& property) {
-            cugraph::variant_type_dispatch(
-              property, [&handle, &property_position, d_tx_value_counts_span](auto& prop) {
-                using T = typename std::remove_reference<decltype(prop)>::type::value_type;
-                rmm::device_uvector<T> tmp(prop.size(), handle.get_stream());
-
-                thrust::gather(handle.get_thrust_policy(),
-                               property_position.begin(),
-                               property_position.end(),
-                               prop.begin(),
-                               tmp.begin());
-
-                std::tie(prop, std::ignore) = shuffle_values(
-                  handle.get_comms(), tmp.begin(), d_tx_value_counts_span, handle.get_stream());
-              });
-          });
-
-        if (hops) {
-          rmm::device_uvector<int32_t> tmp(hops->size(), handle.get_stream());
-          thrust::gather(handle.get_thrust_policy(),
-                         property_position.begin(),
-                         property_position.end(),
-                         hops->begin(),
-                         tmp.begin());
-
-          std::tie(*hops, std::ignore) = shuffle_values(
-            handle.get_comms(), tmp.begin(), d_tx_value_counts_span, handle.get_stream());
-        }
+        std::tie(*hops, std::ignore) = shuffle_values(
+          handle.get_comms(), tmp.begin(), d_tx_value_counts_span, handle.get_stream());
       }
     }
 
