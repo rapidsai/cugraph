@@ -16,7 +16,6 @@
 
 #pragma once
 
-#include "cugraph/arithmetic_variant_types.hpp"
 #include "detail/graph_partition_utils.cuh"
 
 #include <cugraph/arithmetic_variant_types.hpp>

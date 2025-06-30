@@ -428,7 +428,7 @@ neighbor_sample_impl(raft::handle_t const& handle,
     shuffle_and_organize_output(handle,
                                 std::move(property_edges),
                                 std::move(result_labels),
-                                std::move(*result_hops),
+                                std::move(result_hops),
                                 label_to_output_comm_rank);
 
   size_t pos  = 0;
