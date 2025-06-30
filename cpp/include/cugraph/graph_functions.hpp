@@ -94,6 +94,13 @@ struct renumber_meta_t<vertex_t, edge_t, multi_gpu, std::enable_if_t<!multi_gpu>
  * @param store_transposed Should be true if renumbered edges will be used to create a graph with
  * store_transposed = true. Should be false if the edges will be used to create a graph with
  * store_transposed = false.
+ * @param large_vertex_buffer_type Flag indicating the large buffer type to use when we need to
+ * create a per-vertex device-accessible vector object (if the value is std::nullopt, the default
+ * RMM per-device memory resource is used). The returned renumber map (storing vertex IDs before
+ * renumbering) will also be stored in the buffer type dictated by this parameter.
+ * @param large_edge_buffer_type Flag indicating the large buffer type to use when we need to create
+ * a per-edge device-accessible vector object (if the value is std::nullopt, the default RMM
+ * per-device memory resource is used).
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return std::tuple<rmm::device_uvector<vertex_t>, renumber_meta_t<vertex_t, edge_t, multi_gpu>>
  * Tuple of labels (vertex IDs before renumbering) for the entire set of vertices (assigned to this
@@ -139,6 +146,13 @@ renumber_edgelist(
  * @param store_transposed Should be true if renumbered edges will be used to create a graph with
  * store_transposed = true. Should be false if the edges will be used to create a graph with
  * store_transposed = false.
+ * @param large_vertex_buffer_type Flag indicating the large buffer type to use when we need to
+ * create a per-vertex device-accessible vector object (if the value is std::nullopt, the default
+ * RMM per-device memory resource is used). The returned renumber map (storing vertex IDs before
+ * renumbering) will also be stored in the buffer type dictated by this parameter.
+ * @param large_edge_buffer_type Flag indicating the large buffer type to use when we need to create
+ * a per-edge device-accessible vector object (if the value is std::nullopt, the default RMM
+ * per-device memory resource is used).
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return std::tuple<rmm::device_uvector<vertex_t>, renumber_meta_t<vertex_t, edge_t, multi_gpu>>
  * Tuple of labels (vertex IDs before renumbering) for the entire set of vertices and meta-data
@@ -734,12 +748,12 @@ extract_induced_subgraphs(
  * is true).
  * @param large_vertex_buffer_type Flag indicating the large buffer type to use when we need to
  * create a per-vertex device-accessible vector object (if the value is std::nullopt, the default
- * RMM per-device memory resource is used). The per-vertex vectors in the created graph also be
+ * RMM per-device memory resource is used). The per-vertex vectors in the created graph will also be
  * stored in the buffer type dictated by this parameter.
  * @param large_edge_buffer_type Flag indicating the large buffer type to use when we need to create
  * a per-edge device-accessible vector object (if the value is std::nullopt, the default RMM
- * per-device memory resource is used). The per-edge vectors in the created graph also be stored in
- * the buffer type dictated by this parameter.
+ * per-device memory resource is used). The per-edge vectors in the created graph will also be
+ * stored in the buffer type dictated by this parameter.
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return Tuple of the generated graph and optional edge_property_t objects storing the provided
  * edge properties and a renumber map (if @p renumber is true).
@@ -806,12 +820,12 @@ create_graph_from_edgelist(
  * is true).
  * @param large_vertex_buffer_type Flag indicating the large buffer type to use when we need to
  * create a per-vertex device-accessible vector object (if the value is std::nullopt, the default
- * RMM per-device memory resource is used). The per-vertex vectors in the created graph also be
+ * RMM per-device memory resource is used). The per-vertex vectors in the created graph will also be
  * stored in the buffer type dictated by this parameter.
  * @param large_edge_buffer_type Flag indicating the large buffer type to use when we need to create
  * a per-edge device-accessible vector object (if the value is std::nullopt, the default RMM
- * per-device memory resource is used). The per-edge vectors in the created graph also be stored in
- * the buffer type dictated by this parameter.
+ * per-device memory resource is used). The per-edge vectors in the created graph will also be
+ * stored in the buffer type dictated by this parameter.
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return Tuple of the generated graph and optional edge_property_t objects storing the provided
  * edge properties and a renumber map (if @p renumber is true).
@@ -882,12 +896,12 @@ create_graph_from_edgelist(
  * is true).
  * @param large_vertex_buffer_type Flag indicating the large buffer type to use when we need to
  * create a per-vertex device-accessible vector object (if the value is std::nullopt, the default
- * RMM per-device memory resource is used). The per-vertex vectors in the created graph also be
+ * RMM per-device memory resource is used). The per-vertex vectors in the created graph will also be
  * stored in the buffer type dictated by this parameter.
  * @param large_edge_buffer_type Flag indicating the large buffer type to use when we need to create
  * a per-edge device-accessible vector object (if the value is std::nullopt, the default RMM
- * per-device memory resource is used). The per-edge vectors in the created graph also be stored in
- * the buffer type dictated by this parameter.
+ * per-device memory resource is used). The per-edge vectors in the created graph will also be
+ * stored in the buffer type dictated by this parameter.
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return Tuple of the generated graph and optional edge_property_t objects storing the provided
  * edge properties and a renumber map (if @p renumber is true).
@@ -955,12 +969,12 @@ create_graph_from_edgelist(
  * @param renumber Flag indicating whether to renumber vertices or not (must be true if @p multi_gpu
  * @param large_vertex_buffer_type Flag indicating the large buffer type to use when we need to
  * create a per-vertex device-accessible vector object (if the value is std::nullopt, the default
- * RMM per-device memory resource is used). The per-vertex vectors in the created graph also be
+ * RMM per-device memory resource is used). The per-vertex vectors in the created graph will also be
  * stored in the buffer type dictated by this parameter.
  * @param large_edge_buffer_type Flag indicating the large buffer type to use when we need to create
  * a per-edge device-accessible vector object (if the value is std::nullopt, the default RMM
- * per-device memory resource is used). The per-edge vectors in the created graph also be stored in
- * the buffer type dictated by this parameter.
+ * per-device memory resource is used). The per-edge vectors in the created graph will also be
+ * stored in the buffer type dictated by this parameter.
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return Tuple of the generated graph and optional edge_property_t objects storing the provided
  * edge properties and a renumber map (if @p renumber is true).
@@ -1213,6 +1227,10 @@ rmm::device_uvector<vertex_t> select_random_vertices(
  * @param edgelist_edge_types  Optional list of edge types
  * @param edgelist_edge_start_times  Optional list of edge start times
  * @param edgelist_edge_end_times  Optional list of edge end times
+ * @param large_buffer_type Flag indicating the large buffer type to use when we need to create a
+ * large device-accessible vector object (if the value is std::nullopt, the default RMM per-device
+ * memory resource is used). The returned edge list will also be stored in the buffer type dictated
+ * by this parameter.
  * @return Tuple of vectors storing edge sources, destinations, optional weights, optional edge ids,
  * optional edge types, optional edge start times and optional edge end times.
  */
@@ -1235,7 +1253,8 @@ remove_self_loops(raft::handle_t const& handle,
                   std::optional<rmm::device_uvector<edge_t>>&& edgelist_edge_ids,
                   std::optional<rmm::device_uvector<edge_type_t>>&& edgelist_edge_types,
                   std::optional<rmm::device_uvector<edge_time_t>>&& edgelist_edge_start_times,
-                  std::optional<rmm::device_uvector<edge_time_t>>&& edgelist_edge_end_times);
+                  std::optional<rmm::device_uvector<edge_time_t>>&& edgelist_edge_end_times,
+                  std::optional<large_buffer_type_t> large_buffer_type = std::nullopt);
 
 /**
  * @ingroup graph_functions_cpp
@@ -1276,6 +1295,10 @@ remove_self_loops(raft::handle_t const& handle,
  * property values are compared in the order of weight (if valid), edge ID (if valid), edge type (if
  * valid), edge start time (if valid) and edge end time (if valid). Setting this to true incurs
  * performance overhead as this requires more comparisons.
+ * @param large_buffer_type Flag indicating the large buffer type to use when we need to create a
+ * large device-accessible vector object (if the value is std::nullopt, the default RMM per-device
+ * memory resource is used). The returned edge list will also be stored in the buffer type dictated
+ * by this parameter.
  * @return Tuple of rmm::device_uvector objects storing edge sources, destinations, optional
  * weights, optional edge ids, optional edge types, optional edge start times and optional edge end
  * times.
@@ -1300,7 +1323,8 @@ remove_multi_edges(raft::handle_t const& handle,
                    std::optional<rmm::device_uvector<edge_type_t>>&& edgelist_edge_types,
                    std::optional<rmm::device_uvector<edge_time_t>>&& edgelist_edge_start_times,
                    std::optional<rmm::device_uvector<edge_time_t>>&& edgelist_edge_edge_times,
-                   bool keep_min_value_edge = false);
+                   bool keep_min_value_edge                             = false,
+                   std::optional<large_buffer_type_t> large_buffer_type = std::nullopt);
 
 /**
  * @ingroup graph_functions_cpp

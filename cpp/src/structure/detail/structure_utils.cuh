@@ -610,12 +610,17 @@ void sort_adjacency_list(raft::handle_t const& handle,
 }
 
 template <typename comparison_t>
-std::tuple<size_t, rmm::device_uvector<uint32_t>> mark_entries(raft::handle_t const& handle,
-                                                               size_t num_entries,
-                                                               comparison_t comparison)
+std::tuple<size_t, rmm::device_uvector<uint32_t>> mark_entries(
+  raft::handle_t const& handle,
+  size_t num_entries,
+  comparison_t comparison,
+  std::optional<large_buffer_type_t> large_buffer_type = std::nullopt)
 {
-  rmm::device_uvector<uint32_t> marked_entries(cugraph::packed_bool_size(num_entries),
-                                               handle.get_stream());
+  auto marked_entries =
+    large_buffer_type
+      ? large_buffer_manager::allocate_memory_buffer<uint32_t>(
+          cugraph::packed_bool_size(num_entries), handle.get_stream())
+      : rmm::device_uvector<uint32_t>(cugraph::packed_bool_size(num_entries), handle.get_stream());
 
   thrust::tabulate(handle.get_thrust_policy(),
                    marked_entries.begin(),
@@ -641,12 +646,16 @@ std::tuple<size_t, rmm::device_uvector<uint32_t>> mark_entries(raft::handle_t co
 }
 
 template <typename T>
-rmm::device_uvector<T> keep_flagged_elements(raft::handle_t const& handle,
-                                             rmm::device_uvector<T>&& vector,
-                                             raft::device_span<uint32_t const> keep_flags,
-                                             size_t keep_count)
+rmm::device_uvector<T> keep_flagged_elements(
+  raft::handle_t const& handle,
+  rmm::device_uvector<T>&& vector,
+  raft::device_span<uint32_t const> keep_flags,
+  size_t keep_count,
+  std::optional<large_buffer_type_t> large_buffer_type = std::nullopt)
 {
-  rmm::device_uvector<T> result(keep_count, handle.get_stream());
+  auto result = large_buffer_type
+                  ? large_buffer_manager::allocate_memory_buffer<T>(keep_count, handle.get_stream())
+                  : rmm::device_uvector<T>(keep_count, handle.get_stream());
 
   detail::copy_if_mask_set(
     handle, vector.begin(), vector.end(), keep_flags.begin(), result.begin());
