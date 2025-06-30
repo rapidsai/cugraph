@@ -151,7 +151,8 @@ read_edgelist_from_csv_file(raft::handle_t const& handle,
                             std::string const& graph_file_full_path,
                             bool test_weighted,
                             bool store_transposed,
-                            bool multi_gpu)
+                            bool multi_gpu,
+                            bool shuffle)
 {
   std::ifstream file(graph_file_full_path);
   CUGRAPH_EXPECTS(file.is_open(), "File open (%s) failure.", graph_file_full_path.c_str());
@@ -257,11 +258,11 @@ read_edgelist_from_csv_file(raft::handle_t const& handle,
       comm_size, major_comm_size, minor_comm_size};
     size_t number_of_local_edges{};
     if (d_edgelist_weights) {
-      auto edge_first       = thrust::make_zip_iterator(thrust::make_tuple(
+      auto edge_first = thrust::make_zip_iterator(thrust::make_tuple(
         d_edgelist_srcs.begin(), d_edgelist_dsts.begin(), (*d_edgelist_weights).begin()));
-      number_of_local_edges = cuda::std::distance(
-        edge_first,
-        thrust::remove_if(
+      auto edge_last  = edge_first;
+      if (shuffle) {  // edges are properly shuffled to the owning GPUs
+        edge_last = thrust::remove_if(
           handle.get_thrust_policy(),
           edge_first,
           edge_first + d_edgelist_srcs.size(),
@@ -270,13 +271,26 @@ read_edgelist_from_csv_file(raft::handle_t const& handle,
             auto minor = thrust::get<1>(e);
             return store_transposed ? key_func(minor, major) != comm_rank
                                     : key_func(major, minor) != comm_rank;
-          }));
+          });
+      } else {  // edges are arbitrary distributed
+        edge_last = thrust::remove_if(
+          handle.get_thrust_policy(),
+          edge_first,
+          edge_first + d_edgelist_srcs.size(),
+          [comm_rank, comm_size] __device__(auto e) {
+            auto major = thrust::get<0>(e);
+            auto minor = thrust::get<1>(e);
+            return static_cast<int>(((major % comm_size) + (minor % comm_size)) % comm_size) !=
+                   comm_rank;
+          });
+      }
+      number_of_local_edges = cuda::std::distance(edge_first, edge_last);
     } else {
       auto edge_first = thrust::make_zip_iterator(
         thrust::make_tuple(d_edgelist_srcs.begin(), d_edgelist_dsts.begin()));
-      number_of_local_edges = cuda::std::distance(
-        edge_first,
-        thrust::remove_if(
+      auto edge_last = edge_first;
+      if (shuffle) {  // edges are properly shuffled to the owning GPUs
+        edge_last = thrust::remove_if(
           handle.get_thrust_policy(),
           edge_first,
           edge_first + d_edgelist_srcs.size(),
@@ -285,7 +299,20 @@ read_edgelist_from_csv_file(raft::handle_t const& handle,
             auto minor = thrust::get<1>(e);
             return store_transposed ? key_func(minor, major) != comm_rank
                                     : key_func(major, minor) != comm_rank;
-          }));
+          });
+      } else {
+        edge_last = thrust::remove_if(
+          handle.get_thrust_policy(),
+          edge_first,
+          edge_first + d_edgelist_srcs.size(),
+          [comm_rank, comm_size] __device__(auto e) {
+            auto major = thrust::get<0>(e);
+            auto minor = thrust::get<1>(e);
+            return static_cast<int>(((major % comm_size) + (minor % comm_size)) % comm_size) !=
+                   comm_rank;
+          });
+      }
+      number_of_local_edges = cuda::std::distance(edge_first, edge_last);
     }
 
     d_edgelist_srcs.resize(number_of_local_edges, handle.get_stream());
@@ -349,7 +376,8 @@ read_edgelist_from_csv_file<int32_t, float>(raft::handle_t const& handle,
                                             std::string const& graph_file_full_path,
                                             bool test_weighted,
                                             bool store_transposed,
-                                            bool multi_gpu);
+                                            bool multi_gpu,
+                                            bool shuffle);
 
 template std::tuple<cugraph::graph_t<int32_t, int32_t, false, false>,
                     std::optional<cugraph::edge_property_t<int32_t, float>>,
