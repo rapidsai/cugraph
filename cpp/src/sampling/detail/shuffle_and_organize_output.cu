@@ -148,60 +148,34 @@ shuffle_and_organize_output(
             handle.get_comms(), tmp.begin(), d_tx_value_counts_span, handle.get_stream());
         }
       }
-
-      // Sort the tuples by hop/label
-      rmm::device_uvector<size_t> indices(labels->size(), handle.get_stream());
-      thrust::sequence(handle.get_thrust_policy(), indices.begin(), indices.end(), size_t{0});
-      rmm::device_uvector<int32_t> tmp_labels(indices.size(), handle.get_stream());
-
-      if (hops) {
-        rmm::device_uvector<int32_t> tmp_hops(indices.size(), handle.get_stream());
-
-        thrust::sort(handle.get_thrust_policy(),
-                     indices.begin(),
-                     indices.end(),
-                     [labels = raft::device_span<int32_t const>(labels->data(), labels->size()),
-                      hops   = raft::device_span<int32_t const>(
-                        hops->data(), hops->size())] __device__(size_t l, size_t r) {
-                       return thrust::make_tuple(labels[l], hops[l]) <
-                              thrust::make_tuple(labels[r], hops[r]);
-                     });
-        thrust::gather(handle.get_thrust_policy(),
-                       indices.begin(),
-                       indices.end(),
-                       thrust::make_zip_iterator(labels->begin(), hops->begin()),
-                       thrust::make_zip_iterator(tmp_labels.begin(), tmp_hops.begin()));
-        *hops = std::move(tmp_hops);
-      } else {
-        thrust::sort(
-          handle.get_thrust_policy(),
-          indices.begin(),
-          indices.end(),
-          [labels = raft::device_span<int32_t const>(labels->data(), labels->size())] __device__(
-            size_t l, size_t r) { return labels[l] < labels[r]; });
-        thrust::gather(handle.get_thrust_policy(),
-                       indices.begin(),
-                       indices.end(),
-                       labels->begin(),
-                       tmp_labels.begin());
-      }
-      *labels = std::move(tmp_labels);
-
-      std::for_each(
-        sampled_edges.begin(), sampled_edges.end(), [&handle, &indices](auto& property) {
-          cugraph::variant_type_dispatch(property, [&handle, &indices](auto& edge_vector) {
-            using T = typename std::remove_reference<decltype(edge_vector)>::type::value_type;
-            rmm::device_uvector<T> tmp(indices.size(), handle.get_stream());
-            thrust::gather(handle.get_thrust_policy(),
-                           indices.begin(),
-                           indices.end(),
-                           edge_vector.begin(),
-                           tmp.begin());
-
-            edge_vector = std::move(tmp);
-          });
-        });
     }
+
+    // Sort the tuples by hop/label
+    rmm::device_uvector<size_t> indices(labels->size(), handle.get_stream());
+    thrust::sequence(handle.get_thrust_policy(), indices.begin(), indices.end(), size_t{0});
+    if (hops) {
+      thrust::sort_by_key(handle.get_thrust_policy(),
+                          thrust::make_zip_iterator(labels->begin(), hops->begin()),
+                          thrust::make_zip_iterator(labels->end(), hops->end()),
+                          indices.begin());
+    } else {
+      thrust::sort_by_key(
+        handle.get_thrust_policy(), labels->begin(), labels->end(), indices.begin());
+    }
+
+    std::for_each(sampled_edges.begin(), sampled_edges.end(), [&handle, &indices](auto& property) {
+      cugraph::variant_type_dispatch(property, [&handle, &indices](auto& edge_vector) {
+        using T = typename std::remove_reference<decltype(edge_vector)>::type::value_type;
+        rmm::device_uvector<T> tmp(indices.size(), handle.get_stream());
+        thrust::gather(handle.get_thrust_policy(),
+                       indices.begin(),
+                       indices.end(),
+                       edge_vector.begin(),
+                       tmp.begin());
+
+        edge_vector = std::move(tmp);
+      });
+    });
 
     size_t num_unique_labels =
       thrust::count_if(handle.get_thrust_policy(),
