@@ -1368,6 +1368,10 @@ remove_multi_edges(raft::handle_t const& handle,
  * property values are compared in the order of weight (if valid), edge ID (if valid), edge type (if
  * valid), edge start time (if valid) and edge end time (if valid). Setting this to true incurs
  * performance overhead as this requires more comparisons.
+ * @param large_buffer_type Flag indicating the large buffer type to use when we need to create a
+ * large device-accessible vector object (if the value is std::nullopt, the default RMM per-device
+ * memory resource is used). The returned edge list will also be stored in the buffer type dictated
+ * by this parameter.
  * @return Tuple of std::vector objects holding rmm::device_uvector objects (# device_uvector objets
  * per std::vector = # edge chunks) storing edge sources, destinations, optional weights, optional
  * edge ids, optional edge types, optional edge start times and optional edge end times.
@@ -1393,6 +1397,7 @@ remove_multi_edges(
   std::optional<std::vector<rmm::device_uvector<edge_type_t>>>&& edgelist_edge_types,
   std::optional<std::vector<rmm::device_uvector<edge_time_t>>>&& edgelist_edge_start_times,
   std::optional<std::vector<rmm::device_uvector<edge_time_t>>>&& edgelist_edge_edge_times,
-  bool keep_min_value_edge = false);
+  bool keep_min_value_edge                             = false,
+  std::optional<large_buffer_type_t> large_buffer_type = std::nullopt);
 
 }  // namespace cugraph
