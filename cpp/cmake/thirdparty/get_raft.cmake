@@ -68,7 +68,7 @@ endfunction()
 # CPM_raft_SOURCE=/path/to/local/raft
 find_and_configure_raft(VERSION    ${CUGRAPH_MIN_VERSION_raft}
                         FORK       aamijar
-                        PINNED_TAG raft-compile-time-invocation
+                        PINNED_TAG compile-time-invocation
 
                         # When PINNED_TAG above doesn't match cugraph,
                         # force local raft clone in build directory
