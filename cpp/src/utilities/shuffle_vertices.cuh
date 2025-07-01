@@ -16,9 +16,9 @@
 
 #pragma once
 
-#include "cugraph/arithmetic_variant_types.hpp"
 #include "detail/graph_partition_utils.cuh"
 
+#include <cugraph/arithmetic_variant_types.hpp>
 #include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/large_buffer_manager.hpp>
@@ -30,7 +30,6 @@
 #include <tuple>
 
 namespace cugraph {
-
 namespace detail {
 
 template <typename vertex_t>
