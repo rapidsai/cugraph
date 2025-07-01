@@ -221,7 +221,7 @@ int test_minimum_spanning_tree_no_weights()
 int main(int argc, char** argv)
 {
   int result = 0;
-  //result |= RUN_TEST(test_minimum_spanning_tree);
+  result |= RUN_TEST(test_minimum_spanning_tree);
   result |= RUN_TEST(test_minimum_spanning_tree_no_weights);
   return result;
 }
