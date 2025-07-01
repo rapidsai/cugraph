@@ -28,7 +28,8 @@ shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning(
   raft::handle_t const& handle,
   rmm::device_uvector<int64_t>&& majors,
   rmm::device_uvector<int64_t>&& minors,
-  std::vector<cugraph::arithmetic_device_uvector_t>&& edge_properties);
+  std::vector<cugraph::arithmetic_device_uvector_t>&& edge_properties,
+  std::optional<large_buffer_type_t> large_buffer_type);
 
 template std::tuple<rmm::device_uvector<int64_t>,
                     rmm::device_uvector<int64_t>,
@@ -39,7 +40,8 @@ shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning(
   rmm::device_uvector<int64_t>&& majors,
   rmm::device_uvector<int64_t>&& minors,
   std::vector<cugraph::arithmetic_device_uvector_t>&& edge_properties,
-  raft::host_span<int64_t const> vertex_partition_range_lasts);
+  raft::host_span<int64_t const> vertex_partition_range_lasts,
+  std::optional<large_buffer_type_t> large_buffer_type);
 
 }  // namespace detail
 
@@ -51,7 +53,8 @@ shuffle_ext_edges(raft::handle_t const& handle,
                   rmm::device_uvector<int64_t>&& edge_srcs,
                   rmm::device_uvector<int64_t>&& edge_dsts,
                   std::vector<cugraph::arithmetic_device_uvector_t>&& edge_properties,
-                  bool store_transposed);
+                  bool store_transposed,
+                  std::optional<large_buffer_type_t> large_buffer_type);
 
 template std::tuple<rmm::device_uvector<int64_t>,
                     rmm::device_uvector<int64_t>,
@@ -61,6 +64,8 @@ shuffle_int_edges(raft::handle_t const& handle,
                   rmm::device_uvector<int64_t>&& majors,
                   rmm::device_uvector<int64_t>&& minors,
                   std::vector<cugraph::arithmetic_device_uvector_t>&& edge_properties,
-                  raft::host_span<int64_t const> vertex_partition_range_lasts);
+                  bool store_transposed,
+                  raft::host_span<int64_t const> vertex_partition_range_lasts,
+                  std::optional<large_buffer_type_t> large_buffer_type);
 
 }  // namespace cugraph

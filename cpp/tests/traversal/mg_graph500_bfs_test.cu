@@ -39,6 +39,7 @@
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
+#include <cugraph/large_buffer_manager.hpp>
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/device_functors.cuh>
@@ -52,7 +53,6 @@
 
 #include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
-#include <rmm/mr/pinned_host_memory_resource.hpp>
 
 #include <cub/cub.cuh>
 #include <thrust/merge.h>
@@ -68,7 +68,7 @@
 struct Graph500_BFS_Usecase {
   bool use_pruned_graph_unrenumber_cache{
     false};  // use cache to locally unrenumber (at the expense of additional memory usage)
-  bool use_host_buffer{false};
+  bool use_large_buffer{false};
   bool validate{true};
 };
 
@@ -247,7 +247,7 @@ extract_forest_pruned_graph_and_isolated_trees(
   raft::device_span<vertex_t const> mg_renumber_map,
   raft::device_span<vertex_t const> parents,
   vertex_t invalid_vertex,
-  std::optional<rmm::host_device_async_resource_ref> pinned_host_mr)
+  std::optional<cugraph::large_buffer_type_t> large_buffer_type)
 {
   auto mg_graph_view = mg_graph.view();
 
@@ -258,7 +258,7 @@ extract_forest_pruned_graph_and_isolated_trees(
   {
     size_t constexpr num_chunks{
       8};  // extract in multiple chunks to reduce peak memory usage (temporaraily store the edge
-           // list in host pinned memory buffer if bfs_usecase.use use_host_buffer is set to true)
+           // list in large memory buffer if bfs_usecase.use_large_buffer is set to true)
     pruned_graph_src_chunks.reserve(num_chunks);
     pruned_graph_dst_chunks.reserve(num_chunks);
     for (size_t i = 0; i < num_chunks; ++i) {
@@ -315,11 +315,13 @@ extract_forest_pruned_graph_and_isolated_trees(
         std::make_optional<raft::device_span<vertex_t const>>(mg_renumber_map.data(),
                                                               mg_renumber_map.size()));
       mg_graph_view.clear_edge_mask();
-      if (pinned_host_mr) {
-        rmm::device_uvector<vertex_t> tmp_srcs(
-          std::get<0>(pruned_graph_edges).size(), handle.get_stream(), *pinned_host_mr);
-        rmm::device_uvector<vertex_t> tmp_dsts(
-          std::get<1>(pruned_graph_edges).size(), handle.get_stream(), *pinned_host_mr);
+      if (large_buffer_type) {
+        CUGRAPH_EXPECTS(cugraph::large_buffer_manager::memory_buffer_initialized(),
+                        "Large memory buffer is not initialized.");
+        auto tmp_srcs = cugraph::large_buffer_manager::allocate_memory_buffer<vertex_t>(
+          std::get<0>(pruned_graph_edges).size(), handle.get_stream());
+        auto tmp_dsts = cugraph::large_buffer_manager::allocate_memory_buffer<vertex_t>(
+          std::get<1>(pruned_graph_edges).size(), handle.get_stream());
         thrust::copy(handle.get_thrust_policy(),
                      std::get<0>(pruned_graph_edges).begin(),
                      std::get<0>(pruned_graph_edges).end(),
@@ -377,11 +379,13 @@ extract_forest_pruned_graph_and_isolated_trees(
         std::nullopt,
         std::make_optional<raft::device_span<vertex_t const>>(mg_renumber_map.data(),
                                                               mg_renumber_map.size()));
-    if (pinned_host_mr) {
-      rmm::device_uvector<vertex_t> tmp_srcs(
-        std::get<0>(isolated_tree_edges).size(), handle.get_stream(), *pinned_host_mr);
-      rmm::device_uvector<vertex_t> tmp_dsts(
-        std::get<1>(isolated_tree_edges).size(), handle.get_stream(), *pinned_host_mr);
+    if (large_buffer_type) {
+      CUGRAPH_EXPECTS(cugraph::large_buffer_manager::memory_buffer_initialized(),
+                      "Large memory buffer is not initialized.");
+      auto tmp_srcs = cugraph::large_buffer_manager::allocate_memory_buffer<vertex_t>(
+        std::get<0>(isolated_tree_edges).size(), handle.get_stream());
+      auto tmp_dsts = cugraph::large_buffer_manager::allocate_memory_buffer<vertex_t>(
+        std::get<1>(isolated_tree_edges).size(), handle.get_stream());
       thrust::copy(handle.get_thrust_policy(),
                    std::get<0>(isolated_tree_edges).begin(),
                    std::get<0>(isolated_tree_edges).end(),
@@ -611,7 +615,8 @@ class Tests_GRAPH500_MGBFS
            // than pool_size to avoid false dependency among different streams
     handle_ = cugraph::test::initialize_mg_handle(pool_size);
 
-    pinned_host_mr_ = std::make_shared<rmm::mr::pinned_host_memory_resource>();
+    cugraph::large_buffer_manager::init(
+      *handle_, cugraph::large_buffer_manager::create_memory_buffer_resource(), std::nullopt);
   }
 
   static void TearDownTestCase() { handle_.reset(); }
@@ -833,10 +838,12 @@ class Tests_GRAPH500_MGBFS
 
       std::optional<rmm::device_uvector<vertex_t>> tmp_components{std::nullopt};
       if (bfs_usecase
-            .use_host_buffer) {  // temporarily store components in host buffer to free up HBM
-                                 // before extracting sub-graphs (which uses a lot of HBM)
-        tmp_components = rmm::device_uvector<vertex_t>(
-          components.size(), handle_->get_stream(), pinned_host_mr_.get());
+            .use_large_buffer) {  // temporarily store components in host buffer to free up HBM
+                                  // before extracting sub-graphs (which uses a lot of HBM)
+        CUGRAPH_EXPECTS(cugraph::large_buffer_manager::memory_buffer_initialized(),
+                        "Large memory buffer is not initialized.");
+        tmp_components = cugraph::large_buffer_manager::allocate_memory_buffer<vertex_t>(
+          components.size(), handle_->get_stream());
         thrust::copy(handle_->get_thrust_policy(),
                      components.begin(),
                      components.end(),
@@ -865,11 +872,12 @@ class Tests_GRAPH500_MGBFS
           raft::device_span<vertex_t const>(mg_renumber_map.data(), mg_renumber_map.size()),
           raft::device_span<vertex_t const>(parents.data(), parents.size()),
           invalid_vertex,
-          bfs_usecase.use_host_buffer
-            ? std::make_optional<rmm::host_device_async_resource_ref>(pinned_host_mr_.get())
-            : std::nullopt);
+          bfs_usecase.use_large_buffer ? std::make_optional(cugraph::large_buffer_type_t::MEMORY)
+                                       : std::nullopt);
 
-      if (bfs_usecase.use_host_buffer) {
+      if (bfs_usecase.use_large_buffer) {
+        CUGRAPH_EXPECTS(cugraph::large_buffer_manager::memory_buffer_initialized(),
+                        "Large memory buffer is not initialized.");
         components.resize(tmp_components->size(), handle_->get_stream());
         thrust::copy(handle_->get_thrust_policy(),
                      tmp_components->begin(),
@@ -896,9 +904,8 @@ class Tests_GRAPH500_MGBFS
           raft::device_span<vertex_t const>(mg_pruned_graph_renumber_map.data(),
                                             mg_pruned_graph_renumber_map.size()),
           invalid_vertex,
-          bfs_usecase.use_host_buffer
-            ? std::make_optional<rmm::host_device_async_resource_ref>(pinned_host_mr_.get())
-            : std::nullopt);
+          bfs_usecase.use_large_buffer ? std::make_optional(cugraph::large_buffer_type_t::MEMORY)
+                                       : std::nullopt);
       }
 
       if (cugraph::test::g_perf) {
@@ -2026,15 +2033,10 @@ class Tests_GRAPH500_MGBFS
 
  private:
   static std::unique_ptr<raft::handle_t> handle_;
-  static std::shared_ptr<rmm::mr::pinned_host_memory_resource> pinned_host_mr_;
 };
 
 template <typename input_usecase_t>
 std::unique_ptr<raft::handle_t> Tests_GRAPH500_MGBFS<input_usecase_t>::handle_ = nullptr;
-
-template <typename input_usecase_t>
-std::shared_ptr<rmm::mr::pinned_host_memory_resource>
-  Tests_GRAPH500_MGBFS<input_usecase_t>::pinned_host_mr_ = nullptr;
 
 using Tests_GRAPH500_MGBFS_Rmat = Tests_GRAPH500_MGBFS<cugraph::test::Rmat_Usecase>;
 

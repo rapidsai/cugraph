@@ -21,41 +21,51 @@ namespace cugraph {
 template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<float>>
 shuffle_ext_vertex_value_pairs(raft::handle_t const& handle,
                                rmm::device_uvector<int32_t>&& vertices,
-                               rmm::device_uvector<float>&& values);
+                               rmm::device_uvector<float>&& values,
+                               std::optional<large_buffer_type_t> large_buffer_type);
 
 template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<double>>
 shuffle_ext_vertex_value_pairs(raft::handle_t const& handle,
                                rmm::device_uvector<int32_t>&& vertices,
-                               rmm::device_uvector<double>&& values);
+                               rmm::device_uvector<double>&& values,
+                               std::optional<large_buffer_type_t> large_buffer_type);
 
 template std::tuple<rmm::device_uvector<int32_t>, std::vector<arithmetic_device_uvector_t>>
 shuffle_keys_with_properties(
   raft::handle_t const& handle,
   rmm::device_uvector<int32_t>&& keys,
   std::vector<arithmetic_device_uvector_t>&& properties,
-  cugraph::detail::compute_gpu_id_from_int_vertex_t<int32_t> key_to_gpu_op);
+  cugraph::detail::compute_gpu_id_from_int_vertex_t<int32_t> key_to_gpu_op,
+  std::optional<large_buffer_type_t> large_buffer_type);
 
 template std::tuple<rmm::device_uvector<int32_t>, std::vector<arithmetic_device_uvector_t>>
 shuffle_keys_with_properties(
   raft::handle_t const& handle,
   rmm::device_uvector<int32_t>&& keys,
   std::vector<arithmetic_device_uvector_t>&& properties,
-  cugraph::detail::compute_gpu_id_from_ext_vertex_t<int32_t> key_to_gpu_op);
+  cugraph::detail::compute_gpu_id_from_ext_vertex_t<int32_t> key_to_gpu_op,
+  std::optional<large_buffer_type_t> large_buffer_type);
 
 template std::tuple<rmm::device_uvector<int32_t>, std::vector<arithmetic_device_uvector_t>>
 shuffle_keys_with_properties(
   raft::handle_t const& handle,
   rmm::device_uvector<int32_t>&& keys,
   std::vector<arithmetic_device_uvector_t>&& properties,
-  cugraph::detail::compute_gpu_id_from_ext_edge_id_t<int32_t> key_to_gpu_op);
+  cugraph::detail::compute_gpu_id_from_ext_edge_id_t<int32_t> key_to_gpu_op,
+  std::optional<large_buffer_type_t> large_buffer_type);
 
 std::vector<arithmetic_device_uvector_t> shuffle_properties(
   raft::handle_t const& handle,
   rmm::device_uvector<int>&& gpus,
-  std::vector<arithmetic_device_uvector_t>&& properties)
+  std::vector<arithmetic_device_uvector_t>&& properties,
+  std::optional<large_buffer_type_t> large_buffer_type)
 {
   std::tie(std::ignore, properties) = shuffle_keys_with_properties(
-    handle, std::move(gpus), std::move(properties), [] __device__(auto& x) { return x; });
+    handle,
+    std::move(gpus),
+    std::move(properties),
+    [] __device__(auto& x) { return x; },
+    large_buffer_type);
 
   return std::move(properties);
 }
