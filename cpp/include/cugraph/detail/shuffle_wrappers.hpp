@@ -16,6 +16,7 @@
 #pragma once
 
 #include <cugraph/arithmetic_variant_types.hpp>
+#include <cugraph/large_buffer_manager.hpp>
 
 #include <raft/core/handle.hpp>
 #include <raft/core/host_span.hpp>
@@ -54,6 +55,8 @@ namespace detail {
  * @param[in] edge_types Optional vector of vertex pair edge type values.
  * @param[in] edge_start_times Optional vector of vertex pair edge start time values.
  * @param[in] edge_end_times Optional vector of vertex pair edge end time values.
+ * @param[in] large_buffer_type Dictates the large buffer type to use in storing the shuffled vertex
+ * value pairs (if the value is std::nullopt, the default RMM per-device memory resource is used).
  *
  * @return Tuple of vectors storing shuffled major vertices, minor vertices and optional weights,
  * edge ids and edge types
@@ -79,7 +82,8 @@ shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning(
   std::optional<rmm::device_uvector<edge_t>>&& edge_ids,
   std::optional<rmm::device_uvector<edge_type_t>>&& edge_types,
   std::optional<rmm::device_uvector<edge_time_t>>&& edge_start_times,
-  std::optional<rmm::device_uvector<edge_time_t>>&& edge_end_times);
+  std::optional<rmm::device_uvector<edge_time_t>>&& edge_end_times,
+  std::optional<large_buffer_type_t> large_buffer_type = std::nullopt);
 
 /**
  * @ingroup shuffle_wrappers_cpp
@@ -104,9 +108,10 @@ shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning(
  * @param[in] edge_types Optional vector of vertex pair edge type values.
  * @param[in] edge_start_times Optional vector of vertex pair edge start time values.
  * @param[in] edge_end_times Optional vector of vertex pair edge end time values.
- *
  * @param[in] vertex_partition_range_lasts Vector of each GPU's vertex partition range's last
  * (exclusive) vertex ID.
+ * @param[in] large_buffer_type Dictates the large buffer type to use in storing the shuffled vertex
+ * pairs (if the value is std::nullopt, the default RMM per-device memory resource is used).
  *
  * @return Tuple of vectors storing shuffled major vertices, minor vertices and optional weights,
  * edge ids and edge types and rx counts
@@ -133,7 +138,8 @@ shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning(
   std::optional<rmm::device_uvector<edge_type_t>>&& edge_types,
   std::optional<rmm::device_uvector<edge_time_t>>&& edge_start_times,
   std::optional<rmm::device_uvector<edge_time_t>>&& edge_end_times,
-  raft::host_span<vertex_t const> vertex_partition_range_lasts);
+  raft::host_span<vertex_t const> vertex_partition_range_lasts,
+  std::optional<large_buffer_type_t> large_buffer_type = std::nullopt);
 
 /**
  * @ingroup shuffle_wrappers_cpp
@@ -170,6 +176,8 @@ rmm::device_uvector<vertex_t> permute_range(raft::handle_t const& handle,
  * @param[in] vertices Vertices to shuffle.
  * @param[in] vertex_partition_range_lasts Vector of each GPU's vertex partition range's last
  * (exclusive) vertex ID.
+ * @param[in] large_buffer_type Dictates the large buffer type to use in storing the shuffled
+ * vertices (if the value is std::nullopt, the default RMM per-device memory resource is used).
  *
  * @return Vector of shuffled vertices.
  */
@@ -177,7 +185,8 @@ template <typename vertex_t>
 rmm::device_uvector<vertex_t> shuffle_int_vertices_to_local_gpu_by_vertex_partitioning(
   raft::handle_t const& handle,
   rmm::device_uvector<vertex_t>&& vertices,
-  raft::host_span<vertex_t const> vertex_partition_range_lasts);
+  raft::host_span<vertex_t const> vertex_partition_range_lasts,
+  std::optional<large_buffer_type_t> large_buffer_type = std::nullopt);
 
 /**
  * @ingroup shuffle_wrappers_cpp
@@ -190,6 +199,8 @@ rmm::device_uvector<vertex_t> shuffle_int_vertices_to_local_gpu_by_vertex_partit
  * @param[in] vertices Vertex IDs to shuffle
  * @param[in] values Vertex Values to shuffle
  * @param[in] vertex_partition_range_lasts From graph view, vector of last vertex id for each gpu
+ * @param[in] large_buffer_type Dictates the large buffer type to use in storing the shuffled vertex
+ * value pairs (if the value is std::nullopt, the default RMM per-device memory resource is used).
  *
  * @return tuple containing device vector of shuffled vertices and device vector of corresponding
  *         values
@@ -200,7 +211,8 @@ shuffle_int_vertex_value_pairs_to_local_gpu_by_vertex_partitioning(
   raft::handle_t const& handle,
   rmm::device_uvector<vertex_t>&& vertices,
   rmm::device_uvector<value_t>&& values,
-  raft::host_span<vertex_t const> vertex_partition_range_lasts);
+  raft::host_span<vertex_t const> vertex_partition_range_lasts,
+  std::optional<large_buffer_type_t> large_buffer_type = std::nullopt);
 
 /**
  * @ingroup shuffle_wrappers_cpp
@@ -284,6 +296,8 @@ rmm::device_uvector<value_t> collect_local_vertex_values_from_ext_vertex_value_p
  * @param [in] key Device vector of keys
  * @param [in] properties Vector of device vectors of properties associated with each key
  * @param [in] key_to_gpu_op function converting key to a GPU id
+ * @param[in] large_buffer_type Dictates the large buffer type to use in storing the shuffled key
+ * value pairs (if the value is std::nullopt, the default RMM per-device memory resource is used).
  *
  * @return tuple of device vector of keys and vector of device vector of properties associated with
  * the key.
@@ -293,7 +307,8 @@ std::tuple<rmm::device_uvector<key_t>, std::vector<arithmetic_device_uvector_t>>
 shuffle_keys_with_properties(raft::handle_t const& handle,
                              rmm::device_uvector<key_t>&& keys,
                              std::vector<arithmetic_device_uvector_t>&& properties,
-                             key_to_gpu_op_t key_to_gpu_op);
+                             key_to_gpu_op_t key_to_gpu_op,
+                             std::optional<large_buffer_type_t> large_buffer_type = std::nullopt);
 
 /**
  * @ingroup shuffle_wrappers_cpp
@@ -303,12 +318,16 @@ shuffle_keys_with_properties(raft::handle_t const& handle,
  * and handles to various CUDA libraries) to run graph algorithms.
  * @param [in] gpu Device vector of gpu ids
  * @param [in] properties Vector of device vectors of properties
+ * @param[in] large_buffer_type Dictates the large buffer type to use in storing the shuffled
+ * property values (if the value is std::nullopt, the default RMM per-device memory resource is
+ * used).
  *
  * @return vector of device vector of properties shuffled to the proper GPU
  */
 std::vector<arithmetic_device_uvector_t> shuffle_properties(
   raft::handle_t const& handle,
   rmm::device_uvector<int>&& gpus,
-  std::vector<arithmetic_device_uvector_t>&& properties);
+  std::vector<arithmetic_device_uvector_t>&& properties,
+  std::optional<large_buffer_type_t> large_buffer_type = std::nullopt);
 
 }  // namespace cugraph
