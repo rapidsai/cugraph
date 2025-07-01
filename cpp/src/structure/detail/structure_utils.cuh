@@ -213,7 +213,10 @@ sort_and_compress_edgelist(
                         pair_first + edgelist_minors.size(),
                         std::get<1>(second_first));
   } else {
-    thrust::sort_by_key(rmm::exec_policy(stream_view),
+    auto exec_policy = large_edge_buffer_type
+                         ? rmm::exec_policy(stream_view, large_buffer_manager::memory_buffer_mr())
+                         : rmm::exec_policy(stream_view);
+    thrust::sort_by_key(exec_policy,
                         pair_first,
                         pair_first + edgelist_minors.size(),
                         get_dataframe_buffer_begin(edgelist_values));

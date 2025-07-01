@@ -544,13 +544,16 @@ create_graph_from_partitioned_edgelist(
 
   if (edge_property_count > 1) { element_size = sizeof(vertex_t) * 2 + sizeof(size_t); }
 
-  auto total_global_mem = handle.get_device_properties().totalGlobalMem;
-  auto constexpr mem_frugal_ratio =
-    0.5;  // if the aggregate edge data size exceeds the mem_frugal_ratio of the total_global_mem
-          // (in an approximate sense), switch to the memory frugal approach
-  auto mem_frugal_threshold =
-    static_cast<size_t>(static_cast<double>(total_global_mem / element_size) * mem_frugal_ratio) /
-    static_cast<size_t>(minor_comm_size);
+  auto mem_frugal_threshold = std::numeric_limits<size_t>::max();
+  if (!large_edge_buffer_type) {
+    auto total_global_mem = handle.get_device_properties().totalGlobalMem;
+    auto constexpr mem_frugal_ratio =
+      0.5;  // if the aggregate edge data size exceeds the mem_frugal_ratio of the total_global_mem
+            // (in an approximate sense), switch to the memory frugal approach
+    mem_frugal_threshold =
+      static_cast<size_t>(static_cast<double>(total_global_mem / element_size) * mem_frugal_ratio) /
+      static_cast<size_t>(minor_comm_size);
+  }
 
   std::vector<rmm::device_uvector<edge_t>> edge_partition_offsets;
   std::vector<rmm::device_uvector<vertex_t>> edge_partition_indices;
