@@ -3,9 +3,7 @@
 channels:
 - rapidsai
 - rapidsai-nightly
-- dask/label/dev
 - conda-forge
-- nvidia
 dependencies:
 - aiohttp
 - breathe>=4.35.0
