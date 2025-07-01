@@ -40,7 +40,7 @@ std::tuple<std::vector<cugraph::arithmetic_device_uvector_t>,
            std::optional<rmm::device_uvector<size_t>>>
 shuffle_and_organize_output(
   raft::handle_t const& handle,
-  std::vector<cugraph::arithmetic_device_uvector_t>&& sampled_edges,
+  std::vector<cugraph::arithmetic_device_uvector_t>&& property_edges,
   std::optional<rmm::device_uvector<int32_t>>&& labels,
   std::optional<rmm::device_uvector<int32_t>>&& hops,
   std::optional<raft::device_span<int32_t const>> label_to_output_comm_rank)
@@ -81,8 +81,8 @@ shuffle_and_organize_output(
         handle.get_comms(), labels->begin(), d_tx_value_counts_span, handle.get_stream());
 
       std::for_each(
-        sampled_edges.begin(),
-        sampled_edges.end(),
+        property_edges.begin(),
+        property_edges.end(),
         [&handle, &property_position, &d_tx_value_counts_span](auto& property) {
           cugraph::variant_type_dispatch(
             property, [&handle, &property_position, d_tx_value_counts_span](auto& prop) {
@@ -126,19 +126,20 @@ shuffle_and_organize_output(
         handle.get_thrust_policy(), labels->begin(), labels->end(), indices.begin());
     }
 
-    std::for_each(sampled_edges.begin(), sampled_edges.end(), [&handle, &indices](auto& property) {
-      cugraph::variant_type_dispatch(property, [&handle, &indices](auto& edge_vector) {
-        using T = typename std::remove_reference<decltype(edge_vector)>::type::value_type;
-        rmm::device_uvector<T> tmp(indices.size(), handle.get_stream());
-        thrust::gather(handle.get_thrust_policy(),
-                       indices.begin(),
-                       indices.end(),
-                       edge_vector.begin(),
-                       tmp.begin());
+    std::for_each(
+      property_edges.begin(), property_edges.end(), [&handle, &indices](auto& property) {
+        cugraph::variant_type_dispatch(property, [&handle, &indices](auto& edge_vector) {
+          using T = typename std::remove_reference<decltype(edge_vector)>::type::value_type;
+          rmm::device_uvector<T> tmp(indices.size(), handle.get_stream());
+          thrust::gather(handle.get_thrust_policy(),
+                         indices.begin(),
+                         indices.end(),
+                         edge_vector.begin(),
+                         tmp.begin());
 
-        edge_vector = std::move(tmp);
+          edge_vector = std::move(tmp);
+        });
       });
-    });
 
     size_t num_unique_labels =
       thrust::count_if(handle.get_thrust_policy(),
@@ -162,7 +163,7 @@ shuffle_and_organize_output(
   }
 
   return std::make_tuple(
-    std::move(sampled_edges), std::move(labels), std::move(hops), std::move(offsets));
+    std::move(property_edges), std::move(labels), std::move(hops), std::move(offsets));
 }
 
 }  // namespace detail

@@ -225,54 +225,6 @@ remove_visited_vertices_from_frontier(
   raft::device_span<vertex_t const> vertices_used_as_source,
   std::optional<raft::device_span<label_t const>> vertex_labels_used_as_source);
 
-// FIXME: Should this go in shuffle_wrappers.hpp?
-/**
- * @brief Shuffle sampling results to the desired GPU based on label_to_output_gpu_mapping[label[i]]
- *
- * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
- * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
- * @tparam weight_t Type of edge weights. Needs to be a floating point type.
- * @tparam edge_type_t Type of edge type. Needs to be an integral type.
- * @tparam label_t Type of label. Needs to be an integral type.
- *
- * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
- * handles to various CUDA libraries) to run graph algorithms.
- * @param majors Major vertices
- * @param minors Minor vertices
- * @param weights Optional edge weight
- * @param edge_ids Optional edge id
- * @param edge_types Optional edge type
- * @param hops Optional indicator of which hop the edge was found in
- * @param labels Label associated with the seed that resulted in this edge being part of the result
- * @param label_to_output_gpu_mapping Mapping that identifies the GPU that is associated with the
- * output label
- *
- * @return A tuple of device vectors containing the majors, minors, optional weights,
- *  optional edge ids, optional edge types, optional hops and optional labels after shuffling to
- *  the specified output GPU
- */
-template <typename vertex_t,
-          typename edge_t,
-          typename weight_t,
-          typename edge_type_t,
-          typename label_t>
-std::tuple<rmm::device_uvector<vertex_t>,
-           rmm::device_uvector<vertex_t>,
-           std::optional<rmm::device_uvector<weight_t>>,
-           std::optional<rmm::device_uvector<edge_t>>,
-           std::optional<rmm::device_uvector<edge_type_t>>,
-           std::optional<rmm::device_uvector<int32_t>>,
-           std::optional<rmm::device_uvector<label_t>>>
-shuffle_sampling_results(raft::handle_t const& handle,
-                         rmm::device_uvector<vertex_t>&& majors,
-                         rmm::device_uvector<vertex_t>&& minors,
-                         std::optional<rmm::device_uvector<weight_t>>&& weights,
-                         std::optional<rmm::device_uvector<edge_t>>&& edge_ids,
-                         std::optional<rmm::device_uvector<edge_type_t>>&& edge_types,
-                         std::optional<rmm::device_uvector<int32_t>>&& hops,
-                         std::optional<rmm::device_uvector<label_t>>&& labels,
-                         raft::device_span<int32_t const> label_to_output_gpu_mapping);
-
 /**
  * @brief Organize sampling results by shuffling to the proper GPU (if necessary as identified by
  * labels and label_to_output_comm_rank) and sorting the vertices by label and hop
