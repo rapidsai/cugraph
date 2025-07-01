@@ -124,7 +124,7 @@ namespace cugraph {
 namespace detail {
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> brandes_bfs(
+std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>, std::vector<rmm::device_uvector<vertex_t>>> brandes_bfs(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
@@ -167,6 +167,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> brandes_b
   }
 
   edge_t hop{0};
+  std::vector<rmm::device_uvector<vertex_t>> frontier_levels;
 
   while (true) {
     update_edge_src_property(handle, graph_view, sigmas.begin(), src_sigmas.mutable_view());
@@ -199,6 +200,16 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> brandes_b
                           cuda::std::make_optional(thrust::make_tuple(hop + 1, v_sigma)));
                       });
 
+    // Collect the current level's frontier
+    if (vertex_frontier.bucket(bucket_idx_cur).size() > 0) {
+      rmm::device_uvector<vertex_t> this_level_frontier(vertex_frontier.bucket(bucket_idx_cur).size(), handle.get_stream());
+      thrust::copy(handle.get_thrust_policy(),
+                   vertex_frontier.bucket(bucket_idx_cur).begin(),
+                   vertex_frontier.bucket(bucket_idx_cur).end(),
+                   this_level_frontier.begin());
+      frontier_levels.push_back(std::move(this_level_frontier));
+    }
+
     vertex_frontier.bucket(bucket_idx_cur).clear();
     vertex_frontier.bucket(bucket_idx_cur).shrink_to_fit();
     vertex_frontier.swap_buckets(bucket_idx_cur, bucket_idx_next);
@@ -207,7 +218,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> brandes_b
     ++hop;
   }
 
-  return std::make_tuple(std::move(distances), std::move(sigmas));
+  return std::make_tuple(std::move(distances), std::move(sigmas), std::move(frontier_levels));
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
@@ -218,6 +229,7 @@ void accumulate_vertex_results(
   raft::device_span<weight_t> centralities,
   rmm::device_uvector<vertex_t>&& distances,
   rmm::device_uvector<edge_t>&& sigmas,
+  std::vector<rmm::device_uvector<vertex_t>>&& frontier_levels,
   bool with_endpoints,
   bool do_expensive_check)
 {
@@ -275,24 +287,25 @@ void accumulate_vertex_results(
     thrust::make_zip_iterator(distances.begin(), sigmas.begin(), deltas.begin()),
     dst_properties.mutable_view());
 
-  // FIXME: To do this efficiently, I need a version of
-  //   per_v_transform_reduce_outgoing_e that takes a vertex list
-  //   so that we can iterate over the frontier stack.
-  //
-  //   For now this will do a O(E) pass over all edges over the diameter
-  //   of the graph.
-  //
+  // FIXME was here
+  // Use frontier levels for efficient backward pass
   // Based on Brandes algorithm, we want to follow back pointers in non-increasing
   // distance from S to compute delta
   //
-  for (vertex_t d = diameter; d > 1; --d) {
+  for (int level_idx = frontier_levels.size() - 1; level_idx >= 0; --level_idx) {
+    auto& frontier = frontier_levels[level_idx];
+    if (frontier.size() == 0) continue;
+    
+    cugraph::key_bucket_t<vertex_t, void, multi_gpu, true> vertex_list(handle, std::move(frontier));
+    
     per_v_transform_reduce_outgoing_e(
       handle,
       graph_view,
+      vertex_list,
       src_properties.view(),
       dst_properties.view(),
       cugraph::edge_dummy_property_t{}.view(),
-      [d] __device__(auto, auto, auto src_props, auto dst_props, auto) {
+      [d = static_cast<vertex_t>(level_idx + 1)] __device__(auto, auto, auto src_props, auto dst_props, auto) {
         if ((thrust::get<0>(dst_props) == d) && (thrust::get<0>(src_props) == (d - 1))) {
           auto sigma_v = static_cast<weight_t>(thrust::get<1>(src_props));
           auto sigma_w = static_cast<weight_t>(thrust::get<1>(dst_props));
@@ -556,7 +569,7 @@ rmm::device_uvector<weight_t> betweenness_centrality(
     // FIXME:  This has an inefficiency in early iterations, as it doesn't have enough work to
     //         keep the GPUs busy.  But we can't run too many at once or we will run out of
     //         memory. Need to investigate options to improve this performance
-    auto [distances, sigmas] =
+    auto [distances, sigmas, frontier_levels] =
       brandes_bfs(handle, graph_view, edge_weight_view, vertex_frontier, do_expensive_check);
     accumulate_vertex_results(handle,
                               graph_view,
@@ -564,6 +577,7 @@ rmm::device_uvector<weight_t> betweenness_centrality(
                               raft::device_span<weight_t>{centralities.data(), centralities.size()},
                               std::move(distances),
                               std::move(sigmas),
+                              std::move(frontier_levels),
                               include_endpoints,
                               do_expensive_check);
   }
@@ -715,7 +729,7 @@ edge_property_t<edge_t, weight_t> edge_betweenness_centrality(
     // FIXME:  This has an inefficiency in early iterations, as it doesn't have enough work to
     //         keep the GPUs busy.  But we can't run too many at once or we will run out of
     //         memory. Need to investigate options to improve this performance
-    auto [distances, sigmas] =
+    auto [distances, sigmas, frontier_levels] =
       brandes_bfs(handle, graph_view, edge_weight_view, vertex_frontier, do_expensive_check);
     accumulate_edge_results(handle,
                             graph_view,
