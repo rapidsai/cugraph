@@ -118,12 +118,9 @@ from cugraph.linear_assignment import hungarian, dense_hungarian
 from cugraph.layout import force_atlas2
 
 from cugraph.sampling import (
-    random_walks,
     uniform_random_walks,
     biased_random_walks,
     node2vec_random_walks,
-    rw_path,
-    node2vec,
     uniform_neighbor_sample,
     homogeneous_neighbor_sample,
     heterogeneous_neighbor_sample,
