@@ -15,7 +15,6 @@
  */
 #pragma once
 
-#include "detail/shuffle_wrappers.hpp"
 #include "prims/edge_bucket.cuh"
 #include "prims/extract_transform_if_e.cuh"
 #include "prims/fill_edge_property.cuh"
@@ -27,6 +26,7 @@
 #include <cugraph/algorithms.hpp>
 #include <cugraph/detail/collect_comm_wrapper.hpp>
 #include <cugraph/graph_functions.hpp>
+#include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/error.hpp>
 
 #include <raft/util/integer_utils.hpp>
@@ -463,13 +463,12 @@ k_truss(raft::handle_t const& handle,
         std::tie(std::get<0>(edgelist_to_update_count),
                  std::get<1>(edgelist_to_update_count),
                  std::ignore,
-                 std::ignore) =
-          detail::shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning(
-            handle,
-            std::move(std::get<0>(edgelist_to_update_count)),
-            std::move(std::get<1>(edgelist_to_update_count)),
-            std::move(edge_properties),
-            cur_graph_view.vertex_partition_range_lasts());
+                 std::ignore) = shuffle_int_edges(handle,
+                                                  std::move(std::get<0>(edgelist_to_update_count)),
+                                                  std::move(std::get<1>(edgelist_to_update_count)),
+                                                  std::move(edge_properties),
+                                                  false,
+                                                  cur_graph_view.vertex_partition_range_lasts());
       }
 
       thrust::sort(handle.get_thrust_policy(),
@@ -640,12 +639,12 @@ k_truss(raft::handle_t const& handle,
         std::vector<cugraph::arithmetic_device_uvector_t> edge_properties{};
 
         std::tie(weak_edgelist_dsts, weak_edgelist_srcs, std::ignore, std::ignore) =
-          detail::shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning(
-            handle,
-            std::move(weak_edgelist_dsts),
-            std::move(weak_edgelist_srcs),
-            std::move(edge_properties),
-            cur_graph_view.vertex_partition_range_lasts());
+          shuffle_int_edges(handle,
+                            std::move(weak_edgelist_dsts),
+                            std::move(weak_edgelist_srcs),
+                            std::move(edge_properties),
+                            false,
+                            cur_graph_view.vertex_partition_range_lasts());
       }
 
       thrust::sort(

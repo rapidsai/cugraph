@@ -15,7 +15,6 @@
  */
 #pragma once
 
-#include "detail/shuffle_wrappers.hpp"
 #include "prims/count_if_e.cuh"
 #include "prims/per_v_pair_transform_dst_nbr_intersection.cuh"
 #include "prims/per_v_transform_reduce_incoming_outgoing_e.cuh"
@@ -24,6 +23,7 @@
 
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
+#include <cugraph/shuffle_functions.hpp>
 
 #include <raft/core/device_span.hpp>
 #include <raft/core/handle.hpp>
@@ -425,12 +425,12 @@ all_pairs_similarity(raft::handle_t const& handle,
         std::vector<cugraph::arithmetic_device_uvector_t> edge_properties{};
 
         std::tie(v1, v2, std::ignore, std::ignore) =
-          detail::shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning(
-            handle,
-            std::move(v1),
-            std::move(v2),
-            std::move(edge_properties),
-            vertex_partition_range_lasts);
+          shuffle_int_edges(handle,
+                            std::move(v1),
+                            std::move(v2),
+                            std::move(edge_properties),
+                            false,
+                            vertex_partition_range_lasts);
       }
 
       auto score =
@@ -606,13 +606,12 @@ all_pairs_similarity(raft::handle_t const& handle,
       auto vertex_partition_range_lasts = graph_view.vertex_partition_range_lasts();
       std::vector<cugraph::arithmetic_device_uvector_t> edge_properties{};
 
-      std::tie(v1, v2, std::ignore, std::ignore) =
-        detail::shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning(
-          handle,
-          std::move(v1),
-          std::move(v2),
-          std::move(edge_properties),
-          vertex_partition_range_lasts);
+      std::tie(v1, v2, std::ignore, std::ignore) = shuffle_int_edges(handle,
+                                                                     std::move(v1),
+                                                                     std::move(v2),
+                                                                     std::move(edge_properties),
+                                                                     false,
+                                                                     vertex_partition_range_lasts);
     }
 
     auto score =

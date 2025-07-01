@@ -17,7 +17,6 @@
 #pragma once
 
 #include "detail/graph_partition_utils.cuh"
-#include "detail/shuffle_wrappers.hpp"
 #include "prims/edge_bucket.cuh"
 #include "prims/fill_edge_property.cuh"
 #include "prims/per_v_pair_dst_nbr_intersection.cuh"
@@ -25,6 +24,7 @@
 
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
+#include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/error.hpp>
 
 #include <raft/util/integer_utils.hpp>
@@ -277,12 +277,12 @@ edge_property_t<edge_t, edge_t> edge_triangle_count_impl(
 
       // There are still multiple copies here but is it worth sorting and reducing again?
       std::tie(pair_srcs, pair_dsts, pair_properties, std::ignore) =
-        shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning(
-          handle,
-          std::move(std::get<0>(vertex_pair_buffer)),
-          std::move(std::get<1>(vertex_pair_buffer)),
-          std::move(pair_properties),
-          cur_graph_view.vertex_partition_range_lasts());
+        shuffle_int_edges(handle,
+                          std::move(std::get<0>(vertex_pair_buffer)),
+                          std::move(std::get<1>(vertex_pair_buffer)),
+                          std::move(pair_properties),
+                          false,
+                          cur_graph_view.vertex_partition_range_lasts());
 
       pair_count = std::move(std::get<rmm::device_uvector<edge_t>>(pair_properties[0]));
       pair_properties.clear();

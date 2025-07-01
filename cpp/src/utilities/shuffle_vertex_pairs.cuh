@@ -229,151 +229,6 @@ shuffle_vertex_pairs_with_values_by_gpu_id_impl(
 
 }  // namespace
 
-namespace detail {
-
-template <typename vertex_t>
-std::tuple<rmm::device_uvector<vertex_t>,
-           rmm::device_uvector<vertex_t>,
-           std::vector<cugraph::arithmetic_device_uvector_t>,
-           std::vector<size_t>>
-shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning(
-  raft::handle_t const& handle,
-  rmm::device_uvector<vertex_t>&& majors,
-  rmm::device_uvector<vertex_t>&& minors,
-  std::vector<cugraph::arithmetic_device_uvector_t>&& edge_properties,
-  std::optional<large_buffer_type_t> large_buffer_type)
-{
-  auto& comm                 = handle.get_comms();
-  auto const comm_size       = comm.get_size();
-  auto& major_comm           = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
-  auto const major_comm_size = major_comm.get_size();
-  auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
-  auto const minor_comm_size = minor_comm.get_size();
-
-  return shuffle_vertex_pairs_with_values_by_gpu_id_impl(
-    handle,
-    std::move(majors),
-    std::move(minors),
-    std::move(edge_properties),
-    cugraph::detail::compute_gpu_id_from_ext_edge_endpoints_t<vertex_t>{
-      comm_size, major_comm_size, minor_comm_size},
-    large_buffer_type);
-}
-
-template <typename vertex_t>
-std::tuple<rmm::device_uvector<vertex_t>,
-           rmm::device_uvector<vertex_t>,
-           std::vector<cugraph::arithmetic_device_uvector_t>,
-           std::vector<size_t>>
-shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning(
-  raft::handle_t const& handle,
-  rmm::device_uvector<vertex_t>&& majors,
-  rmm::device_uvector<vertex_t>&& minors,
-  std::vector<cugraph::arithmetic_device_uvector_t>&& edge_properties,
-  raft::host_span<vertex_t const> vertex_partition_range_lasts,
-  std::optional<large_buffer_type_t> large_buffer_type)
-{
-  auto& comm                 = handle.get_comms();
-  auto const comm_size       = comm.get_size();
-  auto& major_comm           = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
-  auto const major_comm_size = major_comm.get_size();
-  auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
-  auto const minor_comm_size = minor_comm.get_size();
-
-  rmm::device_uvector<vertex_t> d_vertex_partition_range_lasts(vertex_partition_range_lasts.size(),
-                                                               handle.get_stream());
-  raft::update_device(d_vertex_partition_range_lasts.data(),
-                      vertex_partition_range_lasts.data(),
-                      vertex_partition_range_lasts.size(),
-                      handle.get_stream());
-
-  return shuffle_vertex_pairs_with_values_by_gpu_id_impl(
-    handle,
-    std::move(majors),
-    std::move(minors),
-    std::move(edge_properties),
-    cugraph::detail::compute_gpu_id_from_int_edge_endpoints_t<vertex_t>{
-      raft::device_span<vertex_t const>(d_vertex_partition_range_lasts.data(),
-                                        d_vertex_partition_range_lasts.size()),
-      comm_size,
-      major_comm_size,
-      minor_comm_size},
-    large_buffer_type);
-}
-
-}  // namespace detail
-
-#if 0
-template <typename vertex_t,
-          typename edge_t,
-          typename weight_t,
-          typename edge_type_t,
-          typename edge_time_t>
-std::tuple<rmm::device_uvector<vertex_t>,
-           rmm::device_uvector<vertex_t>,
-           std::optional<rmm::device_uvector<weight_t>>,
-           std::optional<rmm::device_uvector<edge_t>>,
-           std::optional<rmm::device_uvector<edge_type_t>>,
-           std::optional<rmm::device_uvector<edge_time_t>>,
-           std::optional<rmm::device_uvector<edge_time_t>>,
-           std::vector<size_t>>
-shuffle_ext_edges(raft::handle_t const& handle,
-                  rmm::device_uvector<vertex_t>&& edge_srcs,
-                  rmm::device_uvector<vertex_t>&& edge_dsts,
-                  std::optional<rmm::device_uvector<weight_t>>&& edge_weights,
-                  std::optional<rmm::device_uvector<edge_t>>&& edge_ids,
-                  std::optional<rmm::device_uvector<edge_type_t>>&& edge_types,
-                  std::optional<rmm::device_uvector<edge_time_t>>&& edge_start_times,
-                  std::optional<rmm::device_uvector<edge_time_t>>&& edge_end_times,
-                  bool store_transposed,
-                  std::optional<large_buffer_type_t> large_buffer_type)
-{
-  auto& comm           = handle.get_comms();
-  auto const comm_size = comm.get_size();
-
-  auto majors = store_transposed ? std::move(edge_dsts) : std::move(edge_srcs);
-  auto minors = store_transposed ? std::move(edge_srcs) : std::move(edge_dsts);
-
-  std::vector<cugraph::arithmetic_device_uvector_t>&& edge_properties{};
-  if (edge_weights) edge_properties.push_back(std::move(*edge_weights));
-  if (edge_ids) edge_properties.push_back(std::move(*edge_ids));
-  if (edge_types) edge_properties.push_back(std::move(*edge_types));
-  if (edge_start_times) edge_properties.push_back(std::move(*edge_start_times));
-  if (edge_end_times) edge_properties.push_back(std::move(*edge_end_times));
-
-  std::vector<size_t> rx_counts{};
-  std::tie(majors, minors, edge_properties, rx_counts) =
-    detail::shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning(
-      handle, std::move(majors), std::move(minors), std::move(edge_properties),
-      large_buffer_type);
-
-  edge_srcs = store_transposed ? std::move(minors) : std::move(majors);
-  edge_dsts = store_transposed ? std::move(majors) : std::move(minors);
-
-  size_t pos = 0;
-  if (edge_weights)
-    *edge_weights = std::move(std::get<rmm::device_uvector<weight_t>>(edge_properties[pos++]));
-  if (edge_ids)
-    *edge_ids = std::move(std::get<rmm::device_uvector<edge_t>>(edge_properties[pos++]));
-  if (edge_types)
-    *edge_types = std::move(std::get<rmm::device_uvector<edge_type_t>>(edge_properties[pos++]));
-  if (edge_start_times)
-    *edge_start_times =
-      std::move(std::get<rmm::device_uvector<edge_time_t>>(edge_properties[pos++]));
-  if (edge_end_times)
-    *edge_end_times = std::move(std::get<rmm::device_uvector<edge_time_t>>(edge_properties[pos++]));
-
-  return std::make_tuple(std::move(edge_srcs),
-                         std::move(edge_dsts),
-                         std::move(edge_weights),
-                         std::move(edge_ids),
-                         std::move(edge_types),
-                         std::move(edge_start_times),
-                         std::move(edge_end_times),
-                         std::move(rx_counts));
-}
-#endif
-
 template <typename vertex_t>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
@@ -386,16 +241,26 @@ shuffle_ext_edges(raft::handle_t const& handle,
                   bool store_transposed,
                   std::optional<large_buffer_type_t> large_buffer_type)
 {
-  auto& comm           = handle.get_comms();
-  auto const comm_size = comm.get_size();
+  auto& comm                 = handle.get_comms();
+  auto const comm_size       = comm.get_size();
+  auto& major_comm           = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
+  auto const major_comm_size = major_comm.get_size();
+  auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+  auto const minor_comm_size = minor_comm.get_size();
 
   auto majors = store_transposed ? std::move(edge_dsts) : std::move(edge_srcs);
   auto minors = store_transposed ? std::move(edge_srcs) : std::move(edge_dsts);
 
   std::vector<size_t> rx_counts{};
   std::tie(majors, minors, edge_properties, rx_counts) =
-    detail::shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning(
-      handle, std::move(majors), std::move(minors), std::move(edge_properties), large_buffer_type);
+    shuffle_vertex_pairs_with_values_by_gpu_id_impl(
+      handle,
+      std::move(majors),
+      std::move(minors),
+      std::move(edge_properties),
+      cugraph::detail::compute_gpu_id_from_ext_edge_endpoints_t<vertex_t>{
+        comm_size, major_comm_size, minor_comm_size},
+      large_buffer_type);
 
   edge_srcs = store_transposed ? std::move(minors) : std::move(majors);
   edge_dsts = store_transposed ? std::move(majors) : std::move(minors);
@@ -442,8 +307,12 @@ shuffle_int_edges(raft::handle_t const& handle,
       std::move(majors),
       std::move(minors),
       std::move(edge_properties),
-      cugraph::detail::compute_gpu_id_from_ext_edge_endpoints_t<vertex_t>{
-        comm_size, major_comm_size, minor_comm_size},
+      cugraph::detail::compute_gpu_id_from_int_edge_endpoints_t<vertex_t>{
+        raft::device_span<vertex_t const>(d_vertex_partition_range_lasts.data(),
+                                          d_vertex_partition_range_lasts.size()),
+        comm_size,
+        major_comm_size,
+        minor_comm_size},
       large_buffer_type);
 
   edge_srcs = store_transposed ? std::move(minors) : std::move(majors);

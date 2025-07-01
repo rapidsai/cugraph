@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-#include "detail/shuffle_wrappers.hpp"
 #include "link_prediction/similarity_compare.hpp"
 #include "utilities/base_fixture.hpp"
 #include "utilities/conversion_utilities.hpp"
@@ -24,6 +23,7 @@
 #include "utilities/thrust_wrapper.hpp"
 
 #include <cugraph/algorithms.hpp>
+#include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
 
 struct Weighted_Similarity_Usecase {
@@ -111,12 +111,12 @@ class Tests_MGSimilarity
     std::vector<cugraph::arithmetic_device_uvector_t> edge_properties{};
 
     std::tie(d_v1, d_v2, std::ignore, std::ignore) =
-      cugraph::detail::shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning(
-        *handle_,
-        std::move(d_v1),
-        std::move(d_v2),
-        std::move(edge_properties),
-        mg_graph_view.vertex_partition_range_lasts());
+      cugraph::shuffle_int_edges(*handle_,
+                                 std::move(d_v1),
+                                 std::move(d_v2),
+                                 std::move(edge_properties),
+                                 false,
+                                 mg_graph_view.vertex_partition_range_lasts());
 
     std::tuple<raft::device_span<vertex_t const>, raft::device_span<vertex_t const>> vertex_pairs{
       {d_v1.data(), d_v1.size()}, {d_v2.data(), d_v2.size()}};

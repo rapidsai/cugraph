@@ -2000,12 +2000,12 @@ class Tests_GRAPH500_MGBFS
           std::vector<cugraph::arithmetic_device_uvector_t> edge_properties{};
 
           std::tie(query_preds, query_vertices, std::ignore, std::ignore) =
-            cugraph::detail::shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning(
-              *handle_,
-              std::move(query_preds),
-              std::move(query_vertices),
-              std::move(edge_properties),
-              mg_subgraph_view.vertex_partition_range_lasts());
+            cugraph::shuffle_int_edges(*handle_,
+                                       std::move(query_preds),
+                                       std::move(query_vertices),
+                                       std::move(edge_properties),
+                                       store_transposed,
+                                       mg_subgraph_view.vertex_partition_range_lasts());
 
           auto flags = mg_subgraph_view.has_edge(
             *handle_,
