@@ -15,9 +15,11 @@
  */
 #pragma once
 
+#include "prims/count_if_e.cuh"
 #include "prims/count_if_v.cuh"
 #include "prims/edge_bucket.cuh"
 #include "prims/extract_transform_if_e.cuh"
+
 #include "prims/fill_edge_property.cuh"
 #include "prims/per_v_transform_reduce_incoming_outgoing_e.cuh"
 #include "prims/transform_e.cuh"
@@ -305,6 +307,28 @@ void accumulate_vertex_results(
     std::cout << "  WARNING: Distances array is empty or has null data pointer!" << std::endl;
   }
   std::cout << "DEBUG: Diameter: " << diameter << std::endl;
+  std::cout << "DEBUG: Initial deltas (first 10): ";
+  std::vector<weight_t> h_initial_deltas(deltas.size());
+  raft::copy(h_initial_deltas.data(), deltas.data(), deltas.size(), handle.get_stream());
+  handle.sync_stream();
+  for (size_t i = 0; i < std::min(size_t(10), h_initial_deltas.size()); ++i) {
+    std::cout << h_initial_deltas[i];
+    if (i < std::min(size_t(10), h_initial_deltas.size()) - 1) std::cout << ", ";
+  }
+  if (h_initial_deltas.size() > 10) std::cout << " ...";
+  std::cout << std::endl;
+  
+  std::cout << "DEBUG: Initial centralities (first 10): ";
+  std::vector<weight_t> h_initial_centralities(centralities.size());
+  raft::copy(h_initial_centralities.data(), centralities.data(), centralities.size(), handle.get_stream());
+  handle.sync_stream();
+  for (size_t i = 0; i < std::min(size_t(10), h_initial_centralities.size()); ++i) {
+    std::cout << h_initial_centralities[i];
+    if (i < std::min(size_t(10), h_initial_centralities.size()) - 1) std::cout << ", ";
+  }
+  if (h_initial_centralities.size() > 10) std::cout << " ...";
+  std::cout << std::endl;
+  std::cout << "DEBUG: Starting backward pass..." << std::endl;
 
   // Based on Brandes algorithm, we want to follow back pointers in non-increasing
   // distance from S to compute delta
@@ -312,7 +336,21 @@ void accumulate_vertex_results(
   for (vertex_t d = diameter; d > 1; --d) {
     std::cout << "DEBUG: Processing distance level d=" << d << std::endl;
     
-    // Count vertices at distance d-1
+    // Track delta values before processing this level
+    std::vector<weight_t> h_deltas_before(deltas.size());
+    raft::copy(h_deltas_before.data(), deltas.data(), deltas.size(), handle.get_stream());
+    handle.sync_stream();
+    
+    std::cout << "DEBUG: Delta values before processing level " << d << " (first 10): ";
+    for (size_t i = 0; i < std::min(size_t(10), h_deltas_before.size()); ++i) {
+      std::cout << h_deltas_before[i];
+      if (i < std::min(size_t(10), h_deltas_before.size()) - 1) std::cout << ", ";
+    }
+    if (h_deltas_before.size() > 10) std::cout << " ...";
+    std::cout << std::endl;
+    
+    // Create vertex list of vertices at distance d-1 (previous frontier)
+    // Count vertices at distance d-1 first
     auto num_vertices_at_distance = count_if_v(
       handle,
       graph_view,
@@ -320,42 +358,62 @@ void accumulate_vertex_results(
       [d] __device__(auto, auto distance) { return distance == (d - 1); },
       do_expensive_check);
     
-    std::cout << "DEBUG: Found " << num_vertices_at_distance << " vertices at distance " << (d-1) << std::endl;
+    // Create vertex list using thrust::copy_if
+    rmm::device_uvector<vertex_t> vertices_at_distance_d_minus_1(num_vertices_at_distance, handle.get_stream());
     
     if (num_vertices_at_distance > 0) {
-      // Create vertex list from vertices at distance d-1
-      rmm::device_uvector<vertex_t> vertices_at_distance(num_vertices_at_distance, handle.get_stream());
-      
-      // Copy vertices at distance d-1 using copy_if with proper indexing
+      auto v_first = graph_view.local_vertex_partition_range_first();
       thrust::copy_if(
         handle.get_thrust_policy(),
-        thrust::make_counting_iterator(graph_view.local_vertex_partition_range_first()),
+        thrust::make_counting_iterator(v_first),
         thrust::make_counting_iterator(graph_view.local_vertex_partition_range_last()),
-        distances.begin(),
-        vertices_at_distance.begin(),
-        [d] __device__(auto distance) {
-          return distance == (d - 1);  // Predicate: only vertices at distance d-1
+        vertices_at_distance_d_minus_1.begin(),
+        [distances = distances.begin(), d, v_first] __device__(vertex_t vertex) {
+          auto offset = vertex - v_first;
+          return distances[offset] == (d - 1);
         });
-      
-      // Print which vertices were selected
-      std::cout << "DEBUG: Vertices at distance " << (d-1) << " (count: " << vertices_at_distance.size() << "): ";
-      if (vertices_at_distance.size() > 0) {
-        std::vector<vertex_t> h_vertices_at_distance(vertices_at_distance.size());
-        raft::copy(h_vertices_at_distance.data(), vertices_at_distance.data(), vertices_at_distance.size(), handle.get_stream());
-        handle.sync_stream();
-        for (size_t i = 0; i < h_vertices_at_distance.size(); ++i) {
-          std::cout << h_vertices_at_distance[i];
-          if (i < h_vertices_at_distance.size() - 1) std::cout << ", ";
-        }
-      } else {
-        std::cout << "(none)";
+    }
+    
+    std::cout << "DEBUG: Found " << vertices_at_distance_d_minus_1.size() << " vertices at distance " << (d-1) << std::endl;
+    
+    // Print which vertices were selected
+    std::cout << "DEBUG: Vertices at distance " << (d-1) << " (count: " << vertices_at_distance_d_minus_1.size() << "): ";
+    if (vertices_at_distance_d_minus_1.size() > 0) {
+      std::vector<vertex_t> h_vertices_at_distance(vertices_at_distance_d_minus_1.size());
+      raft::copy(h_vertices_at_distance.data(), vertices_at_distance_d_minus_1.data(), vertices_at_distance_d_minus_1.size(), handle.get_stream());
+      handle.sync_stream();
+      for (size_t i = 0; i < h_vertices_at_distance.size(); ++i) {
+        std::cout << h_vertices_at_distance[i];
+        if (i < h_vertices_at_distance.size() - 1) std::cout << ", ";
       }
-      std::cout << std::endl;
+    } else {
+      std::cout << "(none)";
+    }
+    std::cout << std::endl;
+    
+    // Count edges that will be processed (where dst at distance d and src at distance d-1)
+    auto num_edges_to_process = count_if_e(
+      handle,
+      graph_view,
+      src_properties.view(),
+      dst_properties.view(),
+      edge_dummy_property_t{}.view(),
+      [d] __device__(auto, auto, auto src_props, auto dst_props, auto) {
+        return ((thrust::get<0>(dst_props) == d) && (thrust::get<0>(src_props) == (d - 1)));
+      },
+      do_expensive_check);
+    
+    std::cout << "DEBUG: Number of edges to process at level " << d << ": " << num_edges_to_process << std::endl;
+    
+    // Debug: Show what vertices the vertex list approach will process
+    std::cout << "DEBUG: Vertex list approach will process " << vertices_at_distance_d_minus_1.size() << " vertices at distance " << (d-1) << std::endl;
+    
+    if (vertices_at_distance_d_minus_1.size() > 0) {
+      // Create key_bucket_t from the vertex list
+      key_bucket_t<vertex_t, void, multi_gpu, true> vertex_list(
+        handle, std::move(vertices_at_distance_d_minus_1));
       
-      // Create vertex list for processing
-      auto vertex_list = key_bucket_t<vertex_t, void, multi_gpu, true>(handle, std::move(vertices_at_distance));
-      
-      // Process only vertices at distance d-1 using vertex list
+      // Use vertex list approach - only process vertices at distance d-1
       per_v_transform_reduce_outgoing_e(
         handle,
         graph_view,
@@ -368,7 +426,7 @@ void accumulate_vertex_results(
             auto sigma_v = static_cast<weight_t>(thrust::get<1>(src_props));
             auto sigma_w = static_cast<weight_t>(thrust::get<1>(dst_props));
             auto delta_w = thrust::get<2>(dst_props);
-
+            
             return (sigma_v / sigma_w) * (1 + delta_w);
           } else {
             return weight_t{0};
@@ -378,10 +436,43 @@ void accumulate_vertex_results(
         reduce_op::plus<weight_t>{},
         deltas.begin(),
         do_expensive_check);
-    } else {
-      std::cout << "DEBUG: No vertices found at distance " << (d-1) << ", skipping" << std::endl;
     }
+    
+    // Track delta values after processing this level
+    std::vector<weight_t> h_deltas_after(deltas.size());
+    raft::copy(h_deltas_after.data(), deltas.data(), deltas.size(), handle.get_stream());
+    handle.sync_stream();
+    
+    std::cout << "DEBUG: Delta values after processing level " << d << " (first 10): ";
+    for (size_t i = 0; i < std::min(size_t(10), h_deltas_after.size()); ++i) {
+      std::cout << h_deltas_after[i];
+      if (i < std::min(size_t(10), h_deltas_after.size()) - 1) std::cout << ", ";
+    }
+    if (h_deltas_after.size() > 10) std::cout << " ...";
+    std::cout << std::endl;
+    
+    // Calculate total delta change
+    weight_t total_delta_change = 0;
+    for (size_t i = 0; i < h_deltas_after.size(); ++i) {
+      total_delta_change += (h_deltas_after[i] - h_deltas_before[i]);
+    }
+    std::cout << "DEBUG: Total delta change at level " << d << ": " << total_delta_change << std::endl;
 
+    // Track centrality values before accumulation
+    std::vector<weight_t> h_centralities_before(centralities.size());
+    raft::copy(h_centralities_before.data(), centralities.data(), centralities.size(), handle.get_stream());
+    handle.sync_stream();
+    
+    std::cout << "DEBUG: Centrality values before accumulation at level " << d << " (first 10): ";
+    for (size_t i = 0; i < std::min(size_t(10), h_centralities_before.size()); ++i) {
+      std::cout << h_centralities_before[i];
+      if (i < std::min(size_t(10), h_centralities_before.size()) - 1) std::cout << ", ";
+    }
+    if (h_centralities_before.size() > 10) std::cout << " ...";
+    std::cout << std::endl;
+    
+    // Update edge properties with CURRENT deltas (the ones just computed)
+    std::cout << "DEBUG: Updating edge properties with current deltas..." << std::endl;
     update_edge_src_property(
       handle,
       graph_view,
@@ -392,14 +483,55 @@ void accumulate_vertex_results(
       graph_view,
       thrust::make_zip_iterator(distances.begin(), sigmas.begin(), deltas.begin()),
       dst_properties.mutable_view());
+    std::cout << "DEBUG: Edge properties updated" << std::endl;
 
+    // Accumulate deltas into centralities
     thrust::transform(handle.get_thrust_policy(),
                       centralities.begin(),
                       centralities.end(),
                       deltas.begin(),
                       centralities.begin(),
                       thrust::plus<weight_t>());
+    
+    // Track centrality values after accumulation
+    std::vector<weight_t> h_centralities_after(centralities.size());
+    raft::copy(h_centralities_after.data(), centralities.data(), centralities.size(), handle.get_stream());
+    handle.sync_stream();
+    
+    std::cout << "DEBUG: Centrality values after accumulation at level " << d << " (first 10): ";
+    for (size_t i = 0; i < std::min(size_t(10), h_centralities_after.size()); ++i) {
+      std::cout << h_centralities_after[i];
+      if (i < std::min(size_t(10), h_centralities_after.size()) - 1) std::cout << ", ";
+    }
+    if (h_centralities_after.size() > 10) std::cout << " ...";
+    std::cout << std::endl;
+    
+    // Calculate total centrality change
+    weight_t total_centrality_change = 0;
+    for (size_t i = 0; i < h_centralities_after.size(); ++i) {
+      total_centrality_change += (h_centralities_after[i] - h_centralities_before[i]);
+    }
+    std::cout << "DEBUG: Total centrality change at level " << d << ": " << total_centrality_change << std::endl;
+    std::cout << "DEBUG: --- End of level " << d << " ---" << std::endl;
   }
+  
+  // Print final results
+  std::cout << "DEBUG: Final centrality values (first 10): ";
+  std::vector<weight_t> h_final_centralities(centralities.size());
+  raft::copy(h_final_centralities.data(), centralities.data(), centralities.size(), handle.get_stream());
+  handle.sync_stream();
+  for (size_t i = 0; i < std::min(size_t(10), h_final_centralities.size()); ++i) {
+    std::cout << h_final_centralities[i];
+    if (i < std::min(size_t(10), h_final_centralities.size()) - 1) std::cout << ", ";
+  }
+  if (h_final_centralities.size() > 10) std::cout << " ...";
+  std::cout << std::endl;
+  
+  weight_t total_final_centrality = 0;
+  for (size_t i = 0; i < h_final_centralities.size(); ++i) {
+    total_final_centrality += h_final_centralities[i];
+  }
+  std::cout << "DEBUG: Total final centrality: " << total_final_centrality << std::endl;
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
