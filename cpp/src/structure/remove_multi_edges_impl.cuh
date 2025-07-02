@@ -26,7 +26,6 @@
 
 #include <raft/core/device_span.hpp>
 #include <raft/core/handle.hpp>
-#include <raft/util/device_atomics.cuh>
 
 #include <rmm/device_uvector.hpp>
 
