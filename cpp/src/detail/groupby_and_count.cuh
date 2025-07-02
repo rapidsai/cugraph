@@ -48,7 +48,8 @@ rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
   raft::device_span<vertex_t> edgelist_majors,
   raft::device_span<vertex_t> edgelist_minors,
   raft::host_span<cugraph::arithmetic_device_span_t> edgelist_properties,
-  bool groupby_and_count_local_partition_by_minor)
+  bool groupby_and_count_local_partition_by_minor,
+  std::optional<large_buffer_type_t> large_buffer_type)
 {
   auto& comm                 = handle.get_comms();
   auto const comm_size       = comm.get_size();
@@ -80,7 +81,7 @@ rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
   auto pair_first =
     thrust::make_zip_iterator(thrust::make_tuple(edgelist_majors.begin(), edgelist_minors.begin()));
 
-  rmm::device_uvector<size_t> result(0, handle.get_stream());
+  rmm::device_uvector<size_t> counts(0, handle.get_stream());
 
   auto local_edge_partition_include_minor_op =
     [major_comm_size,
@@ -105,24 +106,27 @@ rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
 
   if (edgelist_properties.size() == 0) {
     if (groupby_and_count_local_partition_by_minor) {
-      result = cugraph::groupby_and_count(pair_first,
+      counts = cugraph::groupby_and_count(pair_first,
                                           pair_first + edgelist_majors.size(),
                                           local_edge_partition_include_minor_op,
                                           comm_size,
                                           mem_frugal_threshold,
-                                          handle.get_stream());
+                                          handle.get_stream(),
+                                          large_buffer_type);
     } else {
-      result = cugraph::groupby_and_count(pair_first,
+      counts = cugraph::groupby_and_count(pair_first,
                                           pair_first + edgelist_majors.size(),
                                           local_edge_partition_op,
                                           comm_size,
                                           mem_frugal_threshold,
-                                          handle.get_stream());
+                                          handle.get_stream(),
+                                          large_buffer_type);
     }
   } else if (edgelist_properties.size() == 1) {
-    result = cugraph::variant_type_dispatch(
+    counts = cugraph::variant_type_dispatch(
       edgelist_properties[0],
       [&handle,
+       large_buffer_type,
        pair_first,
        size = edgelist_majors.size(),
        local_edge_partition_include_minor_op,
@@ -137,7 +141,8 @@ rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
                                             local_edge_partition_include_minor_op,
                                             comm_size,
                                             mem_frugal_threshold,
-                                            handle.get_stream());
+                                            handle.get_stream(),
+                                            large_buffer_type);
         } else {
           return cugraph::groupby_and_count(pair_first,
                                             pair_first + size,
@@ -145,52 +150,61 @@ rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
                                             local_edge_partition_op,
                                             comm_size,
                                             mem_frugal_threshold,
-                                            handle.get_stream());
+                                            handle.get_stream(),
+                                            large_buffer_type);
         }
       });
   } else {
-    rmm::device_uvector<size_t> property_position(edgelist_majors.size(), handle.get_stream());
+    auto property_positions =
+      large_buffer_type ? large_buffer_manager::allocate_memory_buffer<size_t>(
+                            edgelist_majors.size(), handle.get_stream())
+                        : rmm::device_uvector<size_t>(edgelist_majors.size(), handle.get_stream());
     detail::sequence_fill(
-      handle.get_stream(), property_position.data(), property_position.size(), size_t{0});
+      handle.get_stream(), property_positions.data(), property_positions.size(), size_t{0});
 
     if (groupby_and_count_local_partition_by_minor) {
-      result = cugraph::groupby_and_count(pair_first,
+      counts = cugraph::groupby_and_count(pair_first,
                                           pair_first + edgelist_majors.size(),
-                                          property_position.begin(),
+                                          property_positions.begin(),
                                           local_edge_partition_include_minor_op,
                                           comm_size,
                                           mem_frugal_threshold,
-                                          handle.get_stream());
+                                          handle.get_stream(),
+                                          large_buffer_type);
     } else {
-      result = cugraph::groupby_and_count(pair_first,
+      counts = cugraph::groupby_and_count(pair_first,
                                           pair_first + edgelist_majors.size(),
-                                          property_position.begin(),
+                                          property_positions.begin(),
                                           local_edge_partition_op,
                                           comm_size,
                                           mem_frugal_threshold,
-                                          handle.get_stream());
+                                          handle.get_stream(),
+                                          large_buffer_type);
     }
 
     std::for_each(
       edgelist_properties.begin(),
       edgelist_properties.end(),
-      [&property_position, &handle](auto& property) {
-        cugraph::variant_type_dispatch(property, [&handle, &property_position](auto& prop) {
-          using T = typename std::remove_reference<decltype(prop)>::type::value_type;
-          rmm::device_uvector<T> tmp(prop.size(), handle.get_stream());
+      [&handle, &property_positions, large_buffer_type](auto& property) {
+        cugraph::variant_type_dispatch(
+          property, [&handle, &property_positions, large_buffer_type](auto& prop) {
+            using T  = typename std::remove_reference<decltype(prop)>::type::value_type;
+            auto tmp = large_buffer_type ? large_buffer_manager::allocate_memory_buffer<T>(
+                                             prop.size(), handle.get_stream())
+                                         : rmm::device_uvector<T>(prop.size(), handle.get_stream());
 
-          thrust::gather(handle.get_thrust_policy(),
-                         property_position.begin(),
-                         property_position.end(),
-                         prop.begin(),
-                         tmp.begin());
+            thrust::gather(handle.get_thrust_policy(),
+                           property_positions.begin(),
+                           property_positions.end(),
+                           prop.begin(),
+                           tmp.begin());
 
-          thrust::copy(handle.get_thrust_policy(), tmp.begin(), tmp.end(), prop.begin());
-        });
+            thrust::copy(handle.get_thrust_policy(), tmp.begin(), tmp.end(), prop.begin());
+          });
       });
   }
 
-  return result;
+  return counts;
 }
 
 }  // namespace detail

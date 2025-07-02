@@ -570,7 +570,9 @@ coarsen_graph(raft::handle_t const& handle,
       std::nullopt,
       std::nullopt,
       graph_properties_t{graph_view.is_symmetric(), false},
-      true,
+      true /* renumber */,
+      std::nullopt,
+      std::nullopt,
       do_expensive_check);
 
   return std::make_tuple(std::move(coarsened_graph),
@@ -723,6 +725,8 @@ coarsen_graph(raft::handle_t const& handle,
       std::nullopt,
       graph_properties_t{graph_view.is_symmetric(), false},
       renumber,
+      std::nullopt,
+      std::nullopt,
       do_expensive_check);
 
   return std::make_tuple(
