@@ -124,7 +124,7 @@ namespace cugraph {
 namespace detail {
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>, std::vector<rmm::device_uvector<vertex_t>>> brandes_bfs(
+std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> brandes_bfs(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
@@ -167,7 +167,6 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>, std::vect
   }
 
   edge_t hop{0};
-  std::vector<rmm::device_uvector<vertex_t>> frontier_levels;
 
   while (true) {
     update_edge_src_property(handle, graph_view, sigmas.begin(), src_sigmas.mutable_view());
@@ -200,16 +199,6 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>, std::vect
                           cuda::std::make_optional(thrust::make_tuple(hop + 1, v_sigma)));
                       });
 
-    // Collect the current level's frontier
-    if (vertex_frontier.bucket(bucket_idx_cur).size() > 0) {
-      rmm::device_uvector<vertex_t> this_level_frontier(vertex_frontier.bucket(bucket_idx_cur).size(), handle.get_stream());
-      thrust::copy(handle.get_thrust_policy(),
-                   vertex_frontier.bucket(bucket_idx_cur).begin(),
-                   vertex_frontier.bucket(bucket_idx_cur).end(),
-                   this_level_frontier.begin());
-      frontier_levels.push_back(std::move(this_level_frontier));
-    }
-
     vertex_frontier.bucket(bucket_idx_cur).clear();
     vertex_frontier.bucket(bucket_idx_cur).shrink_to_fit();
     vertex_frontier.swap_buckets(bucket_idx_cur, bucket_idx_next);
@@ -218,7 +207,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>, std::vect
     ++hop;
   }
 
-  return std::make_tuple(std::move(distances), std::move(sigmas), std::move(frontier_levels));
+  return std::make_tuple(std::move(distances), std::move(sigmas));
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
@@ -229,7 +218,6 @@ void accumulate_vertex_results(
   raft::device_span<weight_t> centralities,
   rmm::device_uvector<vertex_t>&& distances,
   rmm::device_uvector<edge_t>&& sigmas,
-  std::vector<rmm::device_uvector<vertex_t>>&& frontier_levels,
   bool with_endpoints,
   bool do_expensive_check)
 {
@@ -287,39 +275,112 @@ void accumulate_vertex_results(
     thrust::make_zip_iterator(distances.begin(), sigmas.begin(), deltas.begin()),
     dst_properties.mutable_view());
 
-  // FIXME was here
-  // Use frontier levels for efficient backward pass
+  // Print distances array for debugging
+  std::cout << "DEBUG: Distances array size: " << distances.size() << std::endl;
+  std::cout << "DEBUG: Distances data pointer valid: " << (distances.data() != nullptr) << std::endl;
+  if (distances.size() > 0 && distances.data() != nullptr) {
+    try {
+      std::vector<vertex_t> h_distances(distances.size());
+      std::cout << "DEBUG: Created host distances vector, size: " << h_distances.size() << std::endl;
+      
+      raft::copy(h_distances.data(), distances.data(), distances.size(), handle.get_stream());
+      std::cout << "DEBUG: Copied distances to host" << std::endl;
+      handle.sync_stream();
+      std::cout << "DEBUG: Synced stream" << std::endl;
+      
+      // Try to access just the first element first
+      std::cout << "DEBUG: First vertex distance: " << h_distances[0] << std::endl;
+      
+      // Now try to access more elements
+      for (size_t i = 0; i < std::min(size_t(20), h_distances.size()); ++i) {
+        std::cout << "  Vertex " << i << ": distance " << h_distances[i] << std::endl;
+      }
+      if (h_distances.size() > 20) {
+        std::cout << "  ... (showing first 20 vertices)" << std::endl;
+      }
+    } catch (const std::exception& e) {
+      std::cout << "  ERROR copying distances: " << e.what() << std::endl;
+    }
+  } else {
+    std::cout << "  WARNING: Distances array is empty or has null data pointer!" << std::endl;
+  }
+  std::cout << "DEBUG: Diameter: " << diameter << std::endl;
+
   // Based on Brandes algorithm, we want to follow back pointers in non-increasing
   // distance from S to compute delta
   //
-  for (int level_idx = frontier_levels.size() - 1; level_idx >= 0; --level_idx) {
-    auto& frontier = frontier_levels[level_idx];
-    if (frontier.size() == 0) continue;
+  for (vertex_t d = diameter; d > 1; --d) {
+    std::cout << "DEBUG: Processing distance level d=" << d << std::endl;
     
-    cugraph::key_bucket_t<vertex_t, void, multi_gpu, true> vertex_list(handle, std::move(frontier));
-    
-    per_v_transform_reduce_outgoing_e(
+    // Count vertices at distance d-1
+    auto num_vertices_at_distance = count_if_v(
       handle,
       graph_view,
-      vertex_list,
-      src_properties.view(),
-      dst_properties.view(),
-      cugraph::edge_dummy_property_t{}.view(),
-      [d = static_cast<vertex_t>(level_idx + 1)] __device__(auto, auto, auto src_props, auto dst_props, auto) {
-        if ((thrust::get<0>(dst_props) == d) && (thrust::get<0>(src_props) == (d - 1))) {
-          auto sigma_v = static_cast<weight_t>(thrust::get<1>(src_props));
-          auto sigma_w = static_cast<weight_t>(thrust::get<1>(dst_props));
-          auto delta_w = thrust::get<2>(dst_props);
-
-          return (sigma_v / sigma_w) * (1 + delta_w);
-        } else {
-          return weight_t{0};
-        }
-      },
-      weight_t{0},
-      reduce_op::plus<weight_t>{},
-      deltas.begin(),
+      distances.begin(),
+      [d] __device__(auto, auto distance) { return distance == (d - 1); },
       do_expensive_check);
+    
+    std::cout << "DEBUG: Found " << num_vertices_at_distance << " vertices at distance " << (d-1) << std::endl;
+    
+    if (num_vertices_at_distance > 0) {
+      // Create vertex list from vertices at distance d-1
+      rmm::device_uvector<vertex_t> vertices_at_distance(num_vertices_at_distance, handle.get_stream());
+      
+      // Copy vertices at distance d-1 using copy_if with proper indexing
+      thrust::copy_if(
+        handle.get_thrust_policy(),
+        thrust::make_counting_iterator(graph_view.local_vertex_partition_range_first()),
+        thrust::make_counting_iterator(graph_view.local_vertex_partition_range_last()),
+        distances.begin(),
+        vertices_at_distance.begin(),
+        [d] __device__(auto distance) {
+          return distance == (d - 1);  // Predicate: only vertices at distance d-1
+        });
+      
+      // Print which vertices were selected
+      std::cout << "DEBUG: Vertices at distance " << (d-1) << " (count: " << vertices_at_distance.size() << "): ";
+      if (vertices_at_distance.size() > 0) {
+        std::vector<vertex_t> h_vertices_at_distance(vertices_at_distance.size());
+        raft::copy(h_vertices_at_distance.data(), vertices_at_distance.data(), vertices_at_distance.size(), handle.get_stream());
+        handle.sync_stream();
+        for (size_t i = 0; i < h_vertices_at_distance.size(); ++i) {
+          std::cout << h_vertices_at_distance[i];
+          if (i < h_vertices_at_distance.size() - 1) std::cout << ", ";
+        }
+      } else {
+        std::cout << "(none)";
+      }
+      std::cout << std::endl;
+      
+      // Create vertex list for processing
+      auto vertex_list = key_bucket_t<vertex_t, void, multi_gpu, true>(handle, std::move(vertices_at_distance));
+      
+      // Process only vertices at distance d-1 using vertex list
+      per_v_transform_reduce_outgoing_e(
+        handle,
+        graph_view,
+        vertex_list,
+        src_properties.view(),
+        dst_properties.view(),
+        cugraph::edge_dummy_property_t{}.view(),
+        [d] __device__(auto, auto, auto src_props, auto dst_props, auto) {
+          if ((thrust::get<0>(dst_props) == d) && (thrust::get<0>(src_props) == (d - 1))) {
+            auto sigma_v = static_cast<weight_t>(thrust::get<1>(src_props));
+            auto sigma_w = static_cast<weight_t>(thrust::get<1>(dst_props));
+            auto delta_w = thrust::get<2>(dst_props);
+
+            return (sigma_v / sigma_w) * (1 + delta_w);
+          } else {
+            return weight_t{0};
+          }
+        },
+        weight_t{0},
+        reduce_op::plus<weight_t>{},
+        deltas.begin(),
+        do_expensive_check);
+    } else {
+      std::cout << "DEBUG: No vertices found at distance " << (d-1) << ", skipping" << std::endl;
+    }
 
     update_edge_src_property(
       handle,
@@ -569,7 +630,7 @@ rmm::device_uvector<weight_t> betweenness_centrality(
     // FIXME:  This has an inefficiency in early iterations, as it doesn't have enough work to
     //         keep the GPUs busy.  But we can't run too many at once or we will run out of
     //         memory. Need to investigate options to improve this performance
-    auto [distances, sigmas, frontier_levels] =
+    auto [distances, sigmas] =
       brandes_bfs(handle, graph_view, edge_weight_view, vertex_frontier, do_expensive_check);
     accumulate_vertex_results(handle,
                               graph_view,
@@ -577,7 +638,6 @@ rmm::device_uvector<weight_t> betweenness_centrality(
                               raft::device_span<weight_t>{centralities.data(), centralities.size()},
                               std::move(distances),
                               std::move(sigmas),
-                              std::move(frontier_levels),
                               include_endpoints,
                               do_expensive_check);
   }
@@ -729,7 +789,7 @@ edge_property_t<edge_t, weight_t> edge_betweenness_centrality(
     // FIXME:  This has an inefficiency in early iterations, as it doesn't have enough work to
     //         keep the GPUs busy.  But we can't run too many at once or we will run out of
     //         memory. Need to investigate options to improve this performance
-    auto [distances, sigmas, frontier_levels] =
+    auto [distances, sigmas] =
       brandes_bfs(handle, graph_view, edge_weight_view, vertex_frontier, do_expensive_check);
     accumulate_edge_results(handle,
                             graph_view,
