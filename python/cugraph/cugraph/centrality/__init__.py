@@ -11,10 +11,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.centrality.katz_centrality import katz_centrality
 from cugraph.centrality.betweenness_centrality import (
     betweenness_centrality,
     edge_betweenness_centrality,
 )
+from cugraph.centrality.katz_centrality import katz_centrality
 from cugraph.centrality.degree_centrality import degree_centrality
 from cugraph.centrality.eigenvector_centrality import eigenvector_centrality
