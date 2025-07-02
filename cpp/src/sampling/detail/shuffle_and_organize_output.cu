@@ -17,8 +17,8 @@
 #include "detail/graph_partition_utils.cuh"
 
 #include <cugraph/arithmetic_variant_types.hpp>
-#include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
+#include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/device_functors.cuh>
 
 #include <raft/core/handle.hpp>

@@ -23,7 +23,7 @@
 #include "utilities/thrust_wrapper.hpp"
 
 #include <cugraph/algorithms.hpp>
-#include <cugraph/detail/shuffle_wrappers.hpp>
+#include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
 
 struct Similarity_Usecase {
@@ -147,23 +147,14 @@ class Tests_MGSimilarity
                                              true);
 
       std::tie(v1, v2) = cugraph::test::remove_self_loops(*handle_, std::move(v1), std::move(v2));
-
-      std::tie(
-        v1, v2, std::ignore, std::ignore, std::ignore, std::ignore, std::ignore, std::ignore) =
-        cugraph::detail::shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<
-          vertex_t,
-          edge_t,
-          weight_t,
-          int32_t,
-          int32_t>(*handle_,
-                   std::move(v1),
-                   std::move(v2),
-                   std::nullopt,
-                   std::nullopt,
-                   std::nullopt,
-                   std::nullopt,
-                   std::nullopt,
-                   mg_graph_view.vertex_partition_range_lasts());
+      std::vector<cugraph::arithmetic_device_uvector_t> edge_properties{};
+      std::tie(v1, v2, std::ignore, std::ignore) =
+        cugraph::shuffle_int_edges(*handle_,
+                                   std::move(v1),
+                                   std::move(v2),
+                                   std::move(edge_properties),
+                                   false,
+                                   mg_graph_view.vertex_partition_range_lasts());
 
       std::tuple<raft::device_span<vertex_t const>, raft::device_span<vertex_t const>> vertex_pairs{
         {v1.data(), v1.size()}, {v2.data(), v2.size()}};
