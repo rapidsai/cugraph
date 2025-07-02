@@ -307,17 +307,7 @@ void accumulate_vertex_results(
         });
     }
     
-    // Count edges that will be processed (where dst at distance d and src at distance d-1)
-    auto num_edges_to_process = count_if_e(
-      handle,
-      graph_view,
-      src_properties.view(),
-      dst_properties.view(),
-      edge_dummy_property_t{}.view(),
-      [d] __device__(auto, auto, auto src_props, auto dst_props, auto) {
-        return ((thrust::get<0>(dst_props) == d) && (thrust::get<0>(src_props) == (d - 1)));
-      },
-      do_expensive_check);
+
     
     if (vertices_at_distance_d_minus_1.size() > 0) {
       // Create key_bucket_t from the vertex list
