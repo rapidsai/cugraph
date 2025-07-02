@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 #pragma once
+#include "scramble.cuh"
+
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph_generators.hpp>
 #include <cugraph/utilities/error.hpp>
@@ -85,6 +87,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> generat
       // if a + b == 0.0, a_norm is irrelevant, if (1.0 - (a+b)) == 0.0, c_norm is irrelevant
       [scale,
        clip_and_flip,
+       scramble_vertex_ids,
        rands    = rands.data(),
        a_plus_b = a + b,
        a_norm   = (a + b) > 0.0 ? a / (a + b) : 0.0,
@@ -107,16 +110,16 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> generat
           src += src_bit_set ? static_cast<vertex_t>(vertex_t{1} << bit) : 0;
           dst += dst_bit_set ? static_cast<vertex_t>(vertex_t{1} << bit) : 0;
         }
+        if (scramble_vertex_ids) {
+          src = detail::scramble(src, scale);
+          dst = detail::scramble(dst, scale);
+        }
         return thrust::make_tuple(src, dst);
       });
     num_edges_generated += num_edges_to_generate;
   }
 
-  if (scramble_vertex_ids) {
-    return cugraph::scramble_vertex_ids<vertex_t>(handle, std::move(srcs), std::move(dsts), scale);
-  } else {
-    return std::make_tuple(std::move(srcs), std::move(dsts));
-  }
+  return std::make_tuple(std::move(srcs), std::move(dsts));
 }
 
 template <typename vertex_t>
