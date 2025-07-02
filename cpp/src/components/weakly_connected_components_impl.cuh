@@ -15,8 +15,6 @@
  */
 #pragma once
 
-#include "detail/shuffle_wrappers.hpp"
-#include "prims/extract_transform_if_e.cuh"
 #include "prims/fill_edge_property.cuh"
 #include "prims/fill_edge_src_dst_property.cuh"
 #include "prims/transform_e.cuh"

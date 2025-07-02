@@ -14,16 +14,7 @@
  * limitations under the License.
  */
 
-#include "c_api/capi_helper.hpp"
-#include "detail/collect_comm_wrapper.cuh"
-#include "detail/shuffle_wrappers.hpp"
-#include "structure/detail/structure_utils.cuh"
-#include "utilities/collect_comm.cuh"
-
-#include <cugraph/utilities/misc_utils.cuh>
-
-#include <thrust/iterator/zip_iterator.h>
-#include <thrust/sort.h>
+#include "collect_comm_wrapper.cuh"
 
 namespace cugraph {
 namespace detail {

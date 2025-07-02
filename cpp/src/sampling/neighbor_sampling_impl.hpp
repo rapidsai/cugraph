@@ -16,9 +16,6 @@
 
 #pragma once
 
-#include "detail/shuffle_wrappers.hpp"
-#include "prims/fill_edge_property.cuh"
-#include "prims/transform_e.cuh"
 #include "sampling/detail/sampling_utils.hpp"
 
 #include <cugraph/detail/utility_wrappers.hpp>

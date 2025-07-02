@@ -16,15 +16,7 @@
 
 #pragma once
 
-#include "c_api/capi_helper.hpp"
-#include "detail/shuffle_wrappers.hpp"
-#include "structure/detail/structure_utils.cuh"
 #include "utilities/collect_comm.cuh"
-
-#include <cugraph/utilities/misc_utils.cuh>
-
-#include <thrust/iterator/zip_iterator.h>
-#include <thrust/sort.h>
 
 namespace cugraph {
 namespace detail {

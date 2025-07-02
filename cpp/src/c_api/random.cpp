@@ -21,7 +21,6 @@
 #include "c_api/graph.hpp"
 #include "c_api/resource_handle.hpp"
 #include "c_api/utils.hpp"
-#include "detail/shuffle_wrappers.hpp"
 
 #include <cugraph_c/algorithms.h>
 

@@ -15,7 +15,6 @@
  */
 #pragma once
 
-#include "detail/shuffle_wrappers.hpp"
 #include "structure/detail/structure_utils.cuh"
 #include "utilities/conversion_utilities.hpp"
 #include "utilities/device_comm_wrapper.hpp"

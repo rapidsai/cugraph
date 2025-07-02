@@ -14,8 +14,6 @@
  * limitations under the License.
  */
 
-#include "detail/shuffle_wrappers.hpp"
-
 #include <cugraph_c/community_algorithms.h>
 
 #include <cugraph/algorithms.hpp>

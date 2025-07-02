@@ -19,7 +19,6 @@
 #include "c_api/induced_subgraph_result.hpp"
 #include "c_api/resource_handle.hpp"
 #include "c_api/utils.hpp"
-#include "detail/shuffle_wrappers.hpp"
 
 #include <cugraph_c/algorithms.h>
 

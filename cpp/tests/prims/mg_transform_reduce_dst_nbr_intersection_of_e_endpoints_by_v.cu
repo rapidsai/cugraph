@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-#include "detail/shuffle_wrappers.hpp"
 #include "prims/transform_e.cuh"
 #include "prims/transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v.cuh"
 #include "utilities/base_fixture.hpp"

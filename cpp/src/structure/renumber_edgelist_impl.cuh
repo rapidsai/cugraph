@@ -16,7 +16,6 @@
 #pragma once
 
 #include "detail/graph_partition_utils.cuh"
-#include "detail/shuffle_wrappers.hpp"
 #include "prims/kv_store.cuh"
 
 #include <cugraph/graph_functions.hpp>

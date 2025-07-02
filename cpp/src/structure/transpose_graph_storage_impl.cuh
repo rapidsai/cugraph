@@ -16,8 +16,6 @@
 
 #pragma once
 
-#include "detail/shuffle_wrappers.hpp"
-
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/shuffle_functions.hpp>
@@ -29,7 +27,6 @@
 
 #include <thrust/sequence.h>
 
-#include <algorithm>
 #include <optional>
 #include <tuple>
 #include <type_traits>

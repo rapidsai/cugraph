@@ -42,7 +42,6 @@
 #include <cuda/std/iterator>
 #include <cuda/std/optional>
 
-#include <algorithm>
 #include <limits>
 #include <numeric>
 #include <type_traits>
