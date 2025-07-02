@@ -1,4 +1,4 @@
-# Copyright (c) 2022, NVIDIA CORPORATION.
+# Copyright (c) 2022-2025, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -51,7 +51,7 @@ assert client.get_num_edges() == 10000
 extracted_gid = client.extract_subgraph(allow_multi_edges=True)
 start_vertices = 11
 max_depth = 2
-(vertex_paths, edge_weights, path_sizes) = client.node2vec(
+(vertex_paths, edge_weights, max_path_length) = client.node2vec_random_walks(
     start_vertices, max_depth, extracted_gid
 )
 

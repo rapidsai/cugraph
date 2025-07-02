@@ -413,15 +413,43 @@ neighbor_sample_impl(raft::handle_t const& handle,
     }
   }
 
-  return detail::shuffle_and_organize_output(handle,
-                                             std::move(result_srcs),
-                                             std::move(result_dsts),
-                                             std::move(result_weights),
-                                             std::move(result_edge_ids),
-                                             std::move(result_edge_types),
-                                             std::move(result_hops),
-                                             std::move(result_labels),
-                                             label_to_output_comm_rank);
+  std::vector<cugraph::arithmetic_device_uvector_t> property_edges{};
+  std::optional<size_t> hop_index{std::nullopt};
+
+  property_edges.push_back(std::move(result_srcs));
+  property_edges.push_back(std::move(result_dsts));
+  if (result_weights) property_edges.push_back(std::move(*result_weights));
+  if (result_edge_ids) property_edges.push_back(std::move(*result_edge_ids));
+  if (result_edge_types) property_edges.push_back(std::move(*result_edge_types));
+
+  std::optional<rmm::device_uvector<size_t>> result_offsets{std::nullopt};
+
+  std::tie(property_edges, result_labels, result_hops, result_offsets) =
+    shuffle_and_organize_output(handle,
+                                std::move(property_edges),
+                                std::move(result_labels),
+                                std::move(result_hops),
+                                label_to_output_comm_rank);
+
+  size_t pos  = 0;
+  result_srcs = std::move(std::get<rmm::device_uvector<vertex_t>>(property_edges[pos++]));
+  result_dsts = std::move(std::get<rmm::device_uvector<vertex_t>>(property_edges[pos++]));
+  if (result_weights)
+    result_weights = std::move(std::get<rmm::device_uvector<weight_t>>(property_edges[pos++]));
+  if (result_edge_ids)
+    result_edge_ids = std::move(std::get<rmm::device_uvector<edge_t>>(property_edges[pos++]));
+  if (result_edge_types)
+    result_edge_types =
+      std::move(std::get<rmm::device_uvector<edge_type_t>>(property_edges[pos++]));
+
+  return std::make_tuple(std::move(result_srcs),
+                         std::move(result_dsts),
+                         std::move(result_weights),
+                         std::move(result_edge_ids),
+                         std::move(result_edge_types),
+                         std::move(result_hops),
+                         std::move(result_labels),
+                         std::move(result_offsets));
 }
 
 }  // namespace detail
