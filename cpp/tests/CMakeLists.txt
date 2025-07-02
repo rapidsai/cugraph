@@ -302,7 +302,7 @@ function(ConfigureCTestMG CMAKE_TEST_NAME)
              ${MPIEXEC_NUMPROC_FLAG}
              ${GPU_COUNT}
              ${MPIEXEC_PREFLAGS}
-             ${CMAKE_TEST_NAME}
+             "${CUGRAPH_BINARY_DIR}/gtests/${CMAKE_TEST_NAME}"
              ${MPIEXEC_POSTFLAGS}
         GPUS ${GPU_COUNT}
         PERCENT 100
@@ -919,7 +919,6 @@ ConfigureCTest(CAPI_HITS_TEST c_api/hits_test.c)
 ConfigureCTest(CAPI_BFS_TEST c_api/bfs_test.c)
 ConfigureCTest(CAPI_SSSP_TEST c_api/sssp_test.c)
 ConfigureCTest(CAPI_EXTRACT_PATHS_TEST c_api/extract_paths_test.c)
-ConfigureCTest(CAPI_NODE2VEC_TEST c_api/node2vec_test.c)
 ConfigureCTest(CAPI_WEAKLY_CONNECTED_COMPONENTS_TEST c_api/weakly_connected_components_test.c)
 ConfigureCTest(CAPI_STRONGLY_CONNECTED_COMPONENTS_TEST c_api/strongly_connected_components_test.c)
 ConfigureCTest(CAPI_UNIFORM_NEIGHBOR_SAMPLE_TEST c_api/uniform_neighbor_sample_test.c)

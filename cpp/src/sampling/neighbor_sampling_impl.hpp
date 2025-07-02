@@ -16,12 +16,9 @@
 
 #pragma once
 
-#include "prims/fill_edge_property.cuh"
-#include "prims/transform_e.cuh"
 #include "sampling/detail/sampling_utils.hpp"
 #include "utilities/validation_checks.hpp"
 
-#include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>
@@ -413,32 +410,33 @@ neighbor_sample_impl(raft::handle_t const& handle,
     result_label_vectors = std::nullopt;
   }
 
-  std::optional<rmm::device_uvector<edge_time_t>> result_edge_start_times{std::nullopt};
-  std::optional<rmm::device_uvector<edge_time_t>> result_edge_end_times{std::nullopt};
+  std::vector<cugraph::arithmetic_device_uvector_t> property_edges{};
+
+  property_edges.push_back(std::move(result_srcs));
+  property_edges.push_back(std::move(result_dsts));
+  if (result_weights) property_edges.push_back(std::move(*result_weights));
+  if (result_edge_ids) property_edges.push_back(std::move(*result_edge_ids));
+  if (result_edge_types) property_edges.push_back(std::move(*result_edge_types));
+
   std::optional<rmm::device_uvector<size_t>> result_offsets{std::nullopt};
 
-  // FIXME: Should shuffle_and_organize_output just not return the labels?
-  //   seems like it.
-  std::tie(result_srcs,
-           result_dsts,
-           result_weights,
-           result_edge_ids,
-           result_edge_types,
-           result_edge_start_times,
-           result_edge_end_times,
-           result_hops,
-           result_labels,
-           result_offsets) = detail::shuffle_and_organize_output(handle,
-                                                                 std::move(result_srcs),
-                                                                 std::move(result_dsts),
-                                                                 std::move(result_weights),
-                                                                 std::move(result_edge_ids),
-                                                                 std::move(result_edge_types),
-                                                                 std::move(result_edge_start_times),
-                                                                 std::move(result_edge_end_times),
-                                                                 std::move(result_hops),
-                                                                 std::move(result_labels),
-                                                                 label_to_output_comm_rank);
+  std::tie(property_edges, result_labels, result_hops, result_offsets) =
+    shuffle_and_organize_output(handle,
+                                std::move(property_edges),
+                                std::move(result_labels),
+                                std::move(result_hops),
+                                label_to_output_comm_rank);
+
+  size_t pos  = 0;
+  result_srcs = std::move(std::get<rmm::device_uvector<vertex_t>>(property_edges[pos++]));
+  result_dsts = std::move(std::get<rmm::device_uvector<vertex_t>>(property_edges[pos++]));
+  if (result_weights)
+    result_weights = std::move(std::get<rmm::device_uvector<weight_t>>(property_edges[pos++]));
+  if (result_edge_ids)
+    result_edge_ids = std::move(std::get<rmm::device_uvector<edge_t>>(property_edges[pos++]));
+  if (result_edge_types)
+    result_edge_types =
+      std::move(std::get<rmm::device_uvector<edge_type_t>>(property_edges[pos++]));
 
   return std::make_tuple(std::move(result_srcs),
                          std::move(result_dsts),

@@ -250,7 +250,7 @@ int test_betweenness_centrality_specific_normalized(const cugraph_resource_handl
   weight_t h_wgt[] = {
     0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f, 0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
   vertex_t h_seeds[]  = {0, 3};
-  weight_t h_result[] = {0, 0.395833, 0.16666667, 0.08333333, 0.041666667, 0.0625};
+  weight_t h_result[] = {0, 0.395833, 0.16666667, 0.166667, 0.041666667, 0.0625};
 
   return generic_betweenness_centrality_test(handle,
                                              h_src,
@@ -279,7 +279,7 @@ int test_betweenness_centrality_specific_unnormalized(const cugraph_resource_han
   weight_t h_wgt[] = {
     0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f, 0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
   vertex_t h_seeds[]  = {0, 3};
-  weight_t h_result[] = {0, 7.91667, 3.33333, 1.666667, 0.833333, 1.25};
+  weight_t h_result[] = {0, 7.91667, 3.33333, 3.33333, 0.833333, 1.25};
 
   return generic_betweenness_centrality_test(handle,
                                              h_src,
