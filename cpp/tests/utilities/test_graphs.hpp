@@ -452,25 +452,20 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
       }
 
       if (multi_gpu && shuffle) {
-        std::tie(tmp_src_v,
-                 tmp_dst_v,
-                 tmp_weights_v,
-                 std::ignore,
-                 std::ignore,
-                 std::ignore,
-                 std::ignore,
-                 std::ignore) =
-          cugraph::shuffle_ext_edges<vertex_t, vertex_t, weight_t, int32_t, int32_t>(
-            handle,
-            std::move(tmp_src_v),
-            std::move(tmp_dst_v),
-            std::move(tmp_weights_v),
-            std::nullopt,
-            std::nullopt,
-            std::nullopt,
-            std::nullopt,
-            store_transposed,
-            large_edge_buffer_type);
+        std::vector<cugraph::arithmetic_device_uvector_t> tmp_edge_properties{};
+        if (tmp_weights_v) tmp_edge_properties.push_back(std::move(*tmp_weights_v));
+
+        std::tie(tmp_src_v, tmp_dst_v, tmp_edge_properties, std::ignore) =
+          cugraph::shuffle_ext_edges(handle,
+                                     std::move(tmp_src_v),
+                                     std::move(tmp_dst_v),
+                                     std::move(tmp_edge_properties),
+                                     store_transposed,
+                                     large_edge_buffer_type);
+
+        if (tmp_weights_v)
+          *tmp_weights_v =
+            std::move(std::get<rmm::device_uvector<weight_t>>(tmp_edge_properties[0]));
       }
 
       edge_src_chunks.push_back(std::move(tmp_src_v));

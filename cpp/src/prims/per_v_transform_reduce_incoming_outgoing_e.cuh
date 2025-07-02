@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,16 +16,12 @@
 #pragma once
 
 #include "prims/detail/per_v_transform_reduce_e.cuh"
-#include "prims/vertex_frontier.cuh"
 
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/utilities/error.hpp>
 
 #include <raft/core/handle.hpp>
-
-#include <numeric>
-#include <utility>
 
 namespace cugraph {
 

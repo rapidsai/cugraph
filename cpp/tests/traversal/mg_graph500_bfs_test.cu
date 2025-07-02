@@ -15,6 +15,7 @@
  */
 
 #include "detail/graph_partition_utils.cuh"
+#include "detail/shuffle_wrappers.hpp"
 #include "nbr_unrenumber_cache.cuh"
 #include "prims/count_if_e.cuh"
 #include "prims/extract_transform_if_e.cuh"
@@ -32,7 +33,6 @@
 #include "utilities/thrust_wrapper.hpp"
 
 #include <cugraph/algorithms.hpp>
-#include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/edge_partition_endpoint_property_device_view.cuh>
 #include <cugraph/edge_property.hpp>
 #include <cugraph/edge_src_dst_property.hpp>
@@ -765,24 +765,14 @@ class Tests_GRAPH500_MGBFS
             std::nullopt,
             std::nullopt);
 
-        std::tie(src_chunks[i],
-                 dst_chunks[i],
-                 std::ignore,
-                 std::ignore,
-                 std::ignore,
-                 std::ignore,
-                 std::ignore,
-                 std::ignore) =
-          cugraph::shuffle_ext_edges<vertex_t, edge_t, weight_t, edge_type_t, edge_time_t>(
-            *handle_,
-            std::move(src_chunks[i]),
-            std::move(dst_chunks[i]),
-            std::nullopt,
-            std::nullopt,
-            std::nullopt,
-            std::nullopt,
-            std::nullopt,
-            store_transposed);
+        std::vector<cugraph::arithmetic_device_uvector_t> dummy_edge_property_chunk{};
+
+        std::tie(src_chunks[i], dst_chunks[i], dummy_edge_property_chunk, std::ignore) =
+          cugraph::shuffle_ext_edges(*handle_,
+                                     std::move(src_chunks[i]),
+                                     std::move(dst_chunks[i]),
+                                     std::move(dummy_edge_property_chunk),
+                                     store_transposed);
       }
 
       std::tie(
@@ -1916,9 +1906,7 @@ class Tests_GRAPH500_MGBFS
                 handle_->get_stream());
               forest_edge_parents.resize(forest_edge_vertices.size(), handle_->get_stream());
               std::tie(forest_edge_parents, forest_edge_vertices) =
-                cugraph::detail::shuffle_int_vertex_value_pairs_to_local_gpu_by_vertex_partitioning<
-                  vertex_t,
-                  vertex_t>(
+                cugraph::detail::shuffle_int_vertex_value_pairs_to_local_gpu_by_vertex_partitioning(
                   *handle_,
                   std::move(forest_edge_parents) /* vertex in (vertex, value) pair */,
                   std::move(forest_edge_vertices) /* value in (vertex, value) pair */,
@@ -1974,8 +1962,8 @@ class Tests_GRAPH500_MGBFS
               auto v_offset = mg_graph_to_subgraph_map[v - v_first];
               return (v_offset != invalid_vertex) ? (subgraph_v_first + v_offset) : invalid_vertex;
             });
-          std::tie(query_preds, query_vertices) = cugraph::detail::
-            shuffle_int_vertex_value_pairs_to_local_gpu_by_vertex_partitioning<vertex_t, vertex_t>(
+          std::tie(query_preds, query_vertices) =
+            cugraph::detail::shuffle_int_vertex_value_pairs_to_local_gpu_by_vertex_partitioning(
               *handle_,
               std::move(query_preds) /* vertex in (vertex, value) pair */,
               std::move(query_vertices) /* value in (vertex, value) pair */,
@@ -2007,28 +1995,15 @@ class Tests_GRAPH500_MGBFS
             comm, num_invalids, raft::comms::op_t::SUM, handle_->get_stream());
           ASSERT_EQ(num_invalids, 0) << "predecessor->v missing in the input graph.";
 
-          std::tie(query_preds,
-                   query_vertices,
-                   std::ignore,
-                   std::ignore,
-                   std::ignore,
-                   std::ignore,
-                   std::ignore,
-                   std::ignore) =
-            cugraph::detail::shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<
-              vertex_t,
-              edge_t,
-              weight_t,
-              edge_type_t,
-              edge_time_t>(*handle_,
-                           std::move(query_preds),
-                           std::move(query_vertices),
-                           std::nullopt,
-                           std::nullopt,
-                           std::nullopt,
-                           std::nullopt,
-                           std::nullopt,
-                           mg_subgraph_view.vertex_partition_range_lasts());
+          std::vector<cugraph::arithmetic_device_uvector_t> edge_properties{};
+
+          std::tie(query_preds, query_vertices, std::ignore, std::ignore) =
+            cugraph::shuffle_int_edges(*handle_,
+                                       std::move(query_preds),
+                                       std::move(query_vertices),
+                                       std::move(edge_properties),
+                                       store_transposed,
+                                       mg_subgraph_view.vertex_partition_range_lasts());
 
           auto flags = mg_subgraph_view.has_edge(
             *handle_,

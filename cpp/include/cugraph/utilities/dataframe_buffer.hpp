@@ -187,8 +187,11 @@ template <typename BufferType>
 size_t size_dataframe_buffer(BufferType& buffer)
 {
   static_assert(is_std_tuple_of_arithmetic_vectors<std::remove_cv_t<BufferType>>::value ||
+                is_std_tuple_of_arithmetic_spans<std::remove_cv_t<BufferType>>::value ||
                 is_arithmetic_vector<std::remove_cv_t<BufferType>, rmm::device_uvector>::value);
   if constexpr (is_std_tuple_of_arithmetic_vectors<std::remove_cv_t<BufferType>>::value) {
+    return std::get<0>(buffer).size();
+  } else if constexpr (is_std_tuple_of_arithmetic_spans<std::remove_cv_t<BufferType>>::value) {
     return std::get<0>(buffer).size();
   } else {
     return buffer.size();
@@ -213,6 +216,15 @@ auto get_dataframe_buffer_begin(BufferType& buffer)
 }
 
 template <typename BufferType,
+          typename std::enable_if_t<
+            is_std_tuple_of_arithmetic_spans<std::remove_cv_t<BufferType>>::value>* = nullptr>
+auto get_dataframe_buffer_begin(BufferType& buffer)
+{
+  return detail::get_dataframe_buffer_begin_tuple_impl(
+    std::make_index_sequence<std::tuple_size<BufferType>::value>(), buffer);
+}
+
+template <typename BufferType,
           typename std::enable_if_t<is_arithmetic_vector<std::remove_cv_t<BufferType>,
                                                          rmm::device_uvector>::value>* = nullptr>
 auto get_dataframe_buffer_cbegin(BufferType& buffer)
@@ -223,6 +235,15 @@ auto get_dataframe_buffer_cbegin(BufferType& buffer)
 template <typename BufferType,
           typename std::enable_if_t<
             is_std_tuple_of_arithmetic_vectors<std::remove_cv_t<BufferType>>::value>* = nullptr>
+auto get_dataframe_buffer_cbegin(BufferType& buffer)
+{
+  return detail::get_dataframe_buffer_cbegin_tuple_impl(
+    std::make_index_sequence<std::tuple_size<BufferType>::value>(), buffer);
+}
+
+template <typename BufferType,
+          typename std::enable_if_t<
+            is_std_tuple_of_arithmetic_spans<std::remove_cv_t<BufferType>>::value>* = nullptr>
 auto get_dataframe_buffer_cbegin(BufferType& buffer)
 {
   return detail::get_dataframe_buffer_cbegin_tuple_impl(
@@ -257,6 +278,15 @@ auto get_dataframe_buffer_cend(BufferType& buffer)
 template <typename BufferType,
           typename std::enable_if_t<
             is_std_tuple_of_arithmetic_vectors<std::remove_cv_t<BufferType>>::value>* = nullptr>
+auto get_dataframe_buffer_cend(BufferType& buffer)
+{
+  return detail::get_dataframe_buffer_cend_tuple_impl(
+    std::make_index_sequence<std::tuple_size<BufferType>::value>(), buffer);
+}
+
+template <typename BufferType,
+          typename std::enable_if_t<
+            is_std_tuple_of_arithmetic_spans<std::remove_cv_t<BufferType>>::value>* = nullptr>
 auto get_dataframe_buffer_cend(BufferType& buffer)
 {
   return detail::get_dataframe_buffer_cend_tuple_impl(

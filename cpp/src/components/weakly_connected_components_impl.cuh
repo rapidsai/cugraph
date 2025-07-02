@@ -15,7 +15,6 @@
  */
 #pragma once
 
-#include "prims/extract_transform_if_e.cuh"
 #include "prims/fill_edge_property.cuh"
 #include "prims/fill_edge_src_dst_property.cuh"
 #include "prims/transform_e.cuh"
@@ -26,7 +25,6 @@
 #include "utilities/collect_comm.cuh"
 
 #include <cugraph/algorithms.hpp>
-#include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
@@ -858,24 +856,14 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
         handle.get_thrust_policy(), input_first, input_first + num_inserts, output_first);
 
       if (GraphViewType::is_multi_gpu) {
-        std::tie(std::get<0>(edge_buffer),
-                 std::get<1>(edge_buffer),
-                 std::ignore,
-                 std::ignore,
-                 std::ignore,
-                 std::ignore,
-                 std::ignore,
-                 std::ignore) =
-          shuffle_ext_edges<vertex_t, edge_t, weight_t, edge_type_t, int32_t>(
-            handle,
-            std::move(std::get<0>(edge_buffer)),
-            std::move(std::get<1>(edge_buffer)),
-            std::nullopt,
-            std::nullopt,
-            std::nullopt,
-            std::nullopt,
-            std::nullopt,
-            GraphViewType::is_storage_transposed);
+        std::vector<cugraph::arithmetic_device_uvector_t> edge_properties{};
+
+        std::tie(std::get<0>(edge_buffer), std::get<1>(edge_buffer), std::ignore, std::ignore) =
+          shuffle_ext_edges(handle,
+                            std::move(std::get<0>(edge_buffer)),
+                            std::move(std::get<1>(edge_buffer)),
+                            std::move(edge_properties),
+                            GraphViewType::is_storage_transposed);
         auto edge_first = get_dataframe_buffer_begin(edge_buffer);
         auto edge_last  = get_dataframe_buffer_end(edge_buffer);
         thrust::sort(handle.get_thrust_policy(), edge_first, edge_last);

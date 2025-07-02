@@ -16,16 +16,16 @@
 
 #pragma once
 
-#include "cugraph/detail/collect_comm_wrapper.hpp"
-#include "cugraph/utilities/device_comm.hpp"
 #include "prims/reduce_v.cuh"
 #include "prims/update_edge_src_dst_property.cuh"
 #include "thrust/iterator/zip_iterator.h"
 #include "utilities/collect_comm.cuh"
 
-#include <cugraph/detail/shuffle_wrappers.hpp>
+#include <cugraph/detail/collect_comm_wrapper.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/sampling_functions.hpp>
+#include <cugraph/shuffle_functions.hpp>
+#include <cugraph/utilities/device_comm.hpp>
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 
@@ -331,29 +331,15 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> negativ
 
     if constexpr (multi_gpu) {
       auto vertex_partition_range_lasts = graph_view.vertex_partition_range_lasts();
+      std::vector<cugraph::arithmetic_device_uvector_t> edge_properties{};
 
-      std::tie(batch_srcs,
-               batch_dsts,
-               std::ignore,
-               std::ignore,
-               std::ignore,
-               std::ignore,
-               std::ignore,
-               std::ignore) =
-        detail::shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<vertex_t,
-                                                                                       edge_t,
-                                                                                       weight_t,
-                                                                                       int32_t,
-                                                                                       int32_t>(
-          handle,
-          std::move(batch_srcs),
-          std::move(batch_dsts),
-          std::nullopt,
-          std::nullopt,
-          std::nullopt,
-          std::nullopt,
-          std::nullopt,
-          vertex_partition_range_lasts);
+      std::tie(batch_srcs, batch_dsts, std::ignore, std::ignore) =
+        shuffle_int_edges(handle,
+                          std::move(batch_srcs),
+                          std::move(batch_dsts),
+                          std::move(edge_properties),
+                          false,
+                          vertex_partition_range_lasts);
     }
 
     if (remove_existing_edges) {

@@ -15,6 +15,7 @@
  */
 #pragma once
 
+#include "detail/shuffle_wrappers.hpp"
 #include "prims/extract_transform_if_e.cuh"
 #include "prims/fill_edge_property.cuh"
 #include "prims/transform_e.cuh"
@@ -22,7 +23,6 @@
 #include "prims/update_edge_src_dst_property.cuh"
 
 #include <cugraph/algorithms.hpp>
-#include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/error.hpp>
@@ -443,17 +443,9 @@ void triangle_count(raft::handle_t const& handle,
                              extract_low_to_high_degree_edges_pred_op_t<vertex_t, edge_t>{});
 
     if constexpr (multi_gpu) {
-      std::tie(
-        srcs, dsts, std::ignore, std::ignore, std::ignore, std::ignore, std::ignore, std::ignore) =
-        shuffle_ext_edges<vertex_t, edge_t, weight_t, int32_t, int32_t>(handle,
-                                                                        std::move(srcs),
-                                                                        std::move(dsts),
-                                                                        std::nullopt,
-                                                                        std::nullopt,
-                                                                        std::nullopt,
-                                                                        std::nullopt,
-                                                                        std::nullopt,
-                                                                        false);
+      std::vector<arithmetic_device_uvector_t> edge_properties{};
+      std::tie(srcs, dsts, std::ignore, std::ignore) = shuffle_ext_edges(
+        handle, std::move(srcs), std::move(dsts), std::move(edge_properties), false);
     }
 
     std::tie(modified_graph, std::ignore, std::ignore, std::ignore, renumber_map) =

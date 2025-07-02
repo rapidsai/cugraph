@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2023-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 #include "c_api/random.hpp"
 
 #include "c_api/abstract_functor.hpp"
@@ -23,7 +24,6 @@
 
 #include <cugraph_c/algorithms.h>
 
-#include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 
 namespace {
