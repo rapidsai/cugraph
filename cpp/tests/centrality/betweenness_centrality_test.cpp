@@ -36,6 +36,9 @@
 #include <gtest/gtest.h>
 #include <iostream>
 #include <iomanip>
+#include <fstream>
+#include <sstream>
+#include <algorithm>
 
 struct BetweennessCentrality_Usecase {
   size_t num_seeds{std::numeric_limits<size_t>::max()};
@@ -103,17 +106,25 @@ class Tests_BetweennessCentrality
       graph_view.attach_edge_mask((*edge_mask).view());
     }
 
-    raft::random::RngState rng_state(0);
-    auto d_seeds = cugraph::select_random_vertices(
-      handle,
-      graph_view,
-      std::optional<raft::device_span<vertex_t const>>{std::nullopt},
-      rng_state,
-      betweenness_usecase.num_seeds,
-      false,
-      true);
-
-    std::cout << "DEBUG: Selected " << d_seeds.size() << " random vertices for seeds" << std::endl;
+    std::optional<raft::device_span<vertex_t const>> seeds_span{std::nullopt};
+    rmm::device_uvector<vertex_t> d_seeds(0, handle.get_stream());
+    if (betweenness_usecase.num_seeds == std::numeric_limits<size_t>::max()) {
+      // Use all vertices as sources (full betweenness centrality)
+      std::cout << "DEBUG: Using all vertices as sources (full betweenness centrality)" << std::endl;
+      // seeds_span remains std::nullopt, which signals to cugraph to use all vertices
+    } else {
+      raft::random::RngState rng_state(0);
+      d_seeds = cugraph::select_random_vertices(
+        handle,
+        graph_view,
+        std::optional<raft::device_span<vertex_t const>>{std::nullopt},
+        rng_state,
+        betweenness_usecase.num_seeds,
+        false,
+        true);
+      seeds_span = raft::device_span<vertex_t const>{d_seeds.data(), d_seeds.size()};
+      std::cout << "DEBUG: Selected " << d_seeds.size() << " random vertices for seeds" << std::endl;
+    }
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -124,8 +135,7 @@ class Tests_BetweennessCentrality
       handle,
       graph_view,
       edge_weight_view,
-      std::make_optional<raft::device_span<vertex_t const>>(
-        raft::device_span<vertex_t const>{d_seeds.data(), d_seeds.size()}),
+      seeds_span,
       betweenness_usecase.normalized,
       betweenness_usecase.include_endpoints,
       do_expensive_check);
@@ -141,6 +151,60 @@ class Tests_BetweennessCentrality
         std::cout << std::fixed << std::setprecision(6) << h_centralities_debug[i] << " ";
       }
       std::cout << std::endl;
+      
+      // Find max centrality vertex and print its coordinates
+      auto max_it = std::max_element(h_centralities_debug.begin(), h_centralities_debug.end());
+      if (max_it != h_centralities_debug.end()) {
+        size_t max_vertex_idx = std::distance(h_centralities_debug.begin(), max_it);
+        float max_centrality = *max_it;
+        
+        // Get the original vertex ID using the renumbering map
+        vertex_t original_vertex_id = max_vertex_idx;  // Default to index if no renumbering
+        if (renumber && d_renumber_map_labels.has_value()) {
+          auto h_renumber_map = cugraph::test::to_host(handle, (*d_renumber_map_labels));
+          if (max_vertex_idx < h_renumber_map.size()) {
+            original_vertex_id = h_renumber_map[max_vertex_idx];
+          }
+        }
+        
+        // Read node coordinates from CSV file
+        std::string node_file = "/home/nfs/howhuang/cugraph/manhattan_nodes.csv";
+        std::ifstream node_stream(node_file);
+        if (node_stream.is_open()) {
+          std::string line;
+          // Skip header
+          std::getline(node_stream, line);
+          
+          // Find the line with the matching vertex ID
+          bool found = false;
+          while (std::getline(node_stream, line)) {
+            std::stringstream ss(line);
+            std::string id_str, x_str, y_str;
+            std::getline(ss, id_str, ',');
+            std::getline(ss, x_str, ',');
+            std::getline(ss, y_str, ',');
+            
+            // Convert id_str to vertex_t for comparison
+            vertex_t csv_vertex_id;
+            std::stringstream id_ss(id_str);
+            id_ss >> csv_vertex_id;
+            
+            if (csv_vertex_id == original_vertex_id) {
+              std::cout << "DEBUG: Max centrality vertex: ID=" << id_str 
+                        << ", x=" << x_str << ", y=" << y_str 
+                        << ", centrality=" << std::fixed << std::setprecision(6) << max_centrality << std::endl;
+              found = true;
+              break;
+            }
+          }
+          if (!found) {
+            std::cout << "DEBUG: Could not find coordinates for vertex ID " << original_vertex_id 
+                      << " (renumbered index " << max_vertex_idx << ")" << std::endl;
+          }
+        } else {
+          std::cout << "DEBUG: Could not open node file: " << node_file << std::endl;
+        }
+      }
     }
 
     if (cugraph::test::g_perf) {
@@ -194,8 +258,13 @@ class Tests_BetweennessCentrality
 
       auto d_reference_centralities = cugraph::test::to_device(handle, h_reference_centralities);
 
-      cugraph::test::betweenness_centrality_validate(
-        handle, d_centralities, d_reference_centralities);
+      try {
+        cugraph::test::betweenness_centrality_validate(
+          handle, d_centralities, d_reference_centralities);
+      } catch (const std::exception& e) {
+        std::cout << "ERROR: Exception during betweenness centrality computation: " << e.what() << std::endl;
+        throw;
+      }
     }
   }
 };
@@ -204,9 +273,15 @@ using Tests_BetweennessCentrality_File = Tests_BetweennessCentrality<cugraph::te
 using Tests_BetweennessCentrality_Rmat = Tests_BetweennessCentrality<cugraph::test::Rmat_Usecase>;
 
 // FIXME: add tests for type combinations
-TEST_P(Tests_BetweennessCentrality_File, CheckInt32Int32FloatFloat)
+// TEST_P(Tests_BetweennessCentrality_File, CheckInt32Int32FloatFloat)
+// {
+//   run_current_test<int32_t, int32_t, float>(
+//     override_File_Usecase_with_cmd_line_arguments(GetParam()));
+// }
+
+TEST_P(Tests_BetweennessCentrality_File, CheckInt64Int64FloatFloat)
 {
-  run_current_test<int32_t, int32_t, float>(
+  run_current_test<int64_t, int64_t, float>(
     override_File_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
@@ -262,5 +337,16 @@ INSTANTIATE_TEST_SUITE_P(
                       BetweennessCentrality_Usecase{500, false, false, true, false, false},
                       BetweennessCentrality_Usecase{500, false, false, true, true, false}),
     ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false))));
+
+INSTANTIATE_TEST_SUITE_P(
+  manhattan_test_pass,
+  Tests_BetweennessCentrality_File,
+  ::testing::Combine(
+    // disable correctness checks for large dataset, use fewer seeds
+    ::testing::Values(BetweennessCentrality_Usecase{50, false, false, false, false, false},
+                      BetweennessCentrality_Usecase{100, false, false, false, false, false},
+                      BetweennessCentrality_Usecase{200, false, false, false, false, false},
+                      BetweennessCentrality_Usecase{std::numeric_limits<size_t>::max(), false, false, false, false, false}),
+    ::testing::Values(cugraph::test::File_Usecase("/home/nfs/howhuang/cugraph/manhattan.csv"))));
 
 CUGRAPH_TEST_PROGRAM_MAIN()
