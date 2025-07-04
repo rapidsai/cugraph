@@ -617,6 +617,7 @@ create_graph_from_partitioned_edgelist(
     if (edge_property_count == 0) {
       std::tie(offsets, indices, dcs_nzd_vertices) =
         detail::sort_and_compress_edgelist<vertex_t, edge_t, store_transposed>(
+          handle,
           std::move(edge_partition_edgelist_srcs[i]),
           std::move(edge_partition_edgelist_dsts[i]),
           major_range_first,
@@ -625,13 +626,13 @@ create_graph_from_partitioned_edgelist(
           minor_range_first,
           minor_range_last,
           mem_frugal_threshold,
-          handle.get_stream(),
           large_vertex_buffer_type,
           large_edge_buffer_type);
     } else if (edge_property_count == 1) {
       if (edge_partition_edgelist_weights) {
         std::tie(offsets, indices, weights, dcs_nzd_vertices) =
           detail::sort_and_compress_edgelist<vertex_t, edge_t, weight_t, store_transposed>(
+            handle,
             std::move(edge_partition_edgelist_srcs[i]),
             std::move(edge_partition_edgelist_dsts[i]),
             std::move((*edge_partition_edgelist_weights)[i]),
@@ -641,12 +642,12 @@ create_graph_from_partitioned_edgelist(
             minor_range_first,
             minor_range_last,
             mem_frugal_threshold,
-            handle.get_stream(),
             large_vertex_buffer_type,
             large_edge_buffer_type);
       } else if (edge_partition_edgelist_edge_ids) {
         std::tie(offsets, indices, edge_ids, dcs_nzd_vertices) =
           detail::sort_and_compress_edgelist<vertex_t, edge_t, edge_t, store_transposed>(
+            handle,
             std::move(edge_partition_edgelist_srcs[i]),
             std::move(edge_partition_edgelist_dsts[i]),
             std::move((*edge_partition_edgelist_edge_ids)[i]),
@@ -656,12 +657,12 @@ create_graph_from_partitioned_edgelist(
             minor_range_first,
             minor_range_last,
             mem_frugal_threshold,
-            handle.get_stream(),
             large_vertex_buffer_type,
             large_edge_buffer_type);
       } else if (edge_partition_edgelist_edge_types) {
         std::tie(offsets, indices, edge_types, dcs_nzd_vertices) =
           detail::sort_and_compress_edgelist<vertex_t, edge_t, edge_type_t, store_transposed>(
+            handle,
             std::move(edge_partition_edgelist_srcs[i]),
             std::move(edge_partition_edgelist_dsts[i]),
             std::move((*edge_partition_edgelist_edge_types)[i]),
@@ -671,12 +672,12 @@ create_graph_from_partitioned_edgelist(
             minor_range_first,
             minor_range_last,
             mem_frugal_threshold,
-            handle.get_stream(),
             large_vertex_buffer_type,
             large_edge_buffer_type);
       } else if (edge_partition_edgelist_edge_start_times) {
         std::tie(offsets, indices, edge_start_times, dcs_nzd_vertices) =
           detail::sort_and_compress_edgelist<vertex_t, edge_t, edge_time_t, store_transposed>(
+            handle,
             std::move(edge_partition_edgelist_srcs[i]),
             std::move(edge_partition_edgelist_dsts[i]),
             std::move((*edge_partition_edgelist_edge_start_times)[i]),
@@ -686,12 +687,12 @@ create_graph_from_partitioned_edgelist(
             minor_range_first,
             minor_range_last,
             mem_frugal_threshold,
-            handle.get_stream(),
             large_vertex_buffer_type,
             large_edge_buffer_type);
       } else if (edge_partition_edgelist_edge_end_times) {
         std::tie(offsets, indices, edge_end_times, dcs_nzd_vertices) =
           detail::sort_and_compress_edgelist<vertex_t, edge_t, edge_time_t, store_transposed>(
+            handle,
             std::move(edge_partition_edgelist_srcs[i]),
             std::move(edge_partition_edgelist_dsts[i]),
             std::move((*edge_partition_edgelist_edge_end_times)[i]),
@@ -701,7 +702,6 @@ create_graph_from_partitioned_edgelist(
             minor_range_first,
             minor_range_last,
             mem_frugal_threshold,
-            handle.get_stream(),
             large_vertex_buffer_type,
             large_edge_buffer_type);
       }
@@ -716,6 +716,7 @@ create_graph_from_partitioned_edgelist(
 
       std::tie(offsets, indices, property_positions, dcs_nzd_vertices) =
         detail::sort_and_compress_edgelist<vertex_t, edge_t, edge_t, store_transposed>(
+          handle,
           std::move(edge_partition_edgelist_srcs[i]),
           std::move(edge_partition_edgelist_dsts[i]),
           std::move(property_positions),
@@ -725,7 +726,6 @@ create_graph_from_partitioned_edgelist(
           minor_range_first,
           minor_range_last,
           mem_frugal_threshold,
-          handle.get_stream(),
           large_vertex_buffer_type,
           large_edge_buffer_type);
 
@@ -1990,6 +1990,7 @@ create_graph_from_edgelist_impl(
   if (edge_property_count == 0) {
     std::forward_as_tuple(offsets, indices, std::ignore) =
       detail::sort_and_compress_edgelist<vertex_t, edge_t, store_transposed>(
+        handle,
         std::move(edgelist_srcs),
         std::move(edgelist_dsts),
         vertex_t{0},
@@ -1998,13 +1999,13 @@ create_graph_from_edgelist_impl(
         vertex_t{0},
         num_vertices,
         mem_frugal_threshold,
-        handle.get_stream(),
         large_vertex_buffer_type,
         large_edge_buffer_type);
   } else if (edge_property_count == 1) {
     if (edgelist_weights) {
       std::forward_as_tuple(offsets, indices, weights, std::ignore) =
         detail::sort_and_compress_edgelist<vertex_t, edge_t, weight_t, store_transposed>(
+          handle,
           std::move(edgelist_srcs),
           std::move(edgelist_dsts),
           std::move(*edgelist_weights),
@@ -2014,12 +2015,12 @@ create_graph_from_edgelist_impl(
           vertex_t{0},
           num_vertices,
           mem_frugal_threshold,
-          handle.get_stream(),
           large_vertex_buffer_type,
           large_edge_buffer_type);
     } else if (edgelist_edge_ids) {
       std::forward_as_tuple(offsets, indices, ids, std::ignore) =
         detail::sort_and_compress_edgelist<vertex_t, edge_t, edge_t, store_transposed>(
+          handle,
           std::move(edgelist_srcs),
           std::move(edgelist_dsts),
           std::move(*edgelist_edge_ids),
@@ -2029,12 +2030,12 @@ create_graph_from_edgelist_impl(
           vertex_t{0},
           num_vertices,
           mem_frugal_threshold,
-          handle.get_stream(),
           large_vertex_buffer_type,
           large_edge_buffer_type);
     } else if (edgelist_edge_types) {
       std::forward_as_tuple(offsets, indices, types, std::ignore) =
         detail::sort_and_compress_edgelist<vertex_t, edge_t, edge_type_t, store_transposed>(
+          handle,
           std::move(edgelist_srcs),
           std::move(edgelist_dsts),
           std::move(*edgelist_edge_types),
@@ -2044,12 +2045,12 @@ create_graph_from_edgelist_impl(
           vertex_t{0},
           num_vertices,
           mem_frugal_threshold,
-          handle.get_stream(),
           large_vertex_buffer_type,
           large_edge_buffer_type);
     } else if (edgelist_edge_start_times) {
       std::forward_as_tuple(offsets, indices, start_times, std::ignore) =
         detail::sort_and_compress_edgelist<vertex_t, edge_t, edge_time_t, store_transposed>(
+          handle,
           std::move(edgelist_srcs),
           std::move(edgelist_dsts),
           std::move(*edgelist_edge_start_times),
@@ -2059,12 +2060,12 @@ create_graph_from_edgelist_impl(
           vertex_t{0},
           num_vertices,
           mem_frugal_threshold,
-          handle.get_stream(),
           large_vertex_buffer_type,
           large_edge_buffer_type);
     } else if (edgelist_edge_end_times) {
       std::forward_as_tuple(offsets, indices, end_times, std::ignore) =
         detail::sort_and_compress_edgelist<vertex_t, edge_t, edge_time_t, store_transposed>(
+          handle,
           std::move(edgelist_srcs),
           std::move(edgelist_dsts),
           std::move(*edgelist_edge_end_times),
@@ -2074,7 +2075,6 @@ create_graph_from_edgelist_impl(
           vertex_t{0},
           num_vertices,
           mem_frugal_threshold,
-          handle.get_stream(),
           large_vertex_buffer_type,
           large_edge_buffer_type);
     }
@@ -2089,6 +2089,7 @@ create_graph_from_edgelist_impl(
 
     std::tie(offsets, indices, property_positions, std::ignore) =
       detail::sort_and_compress_edgelist<vertex_t, edge_t, edge_t, store_transposed>(
+        handle,
         std::move(edgelist_srcs),
         std::move(edgelist_dsts),
         std::move(property_positions),
@@ -2098,7 +2099,6 @@ create_graph_from_edgelist_impl(
         vertex_t{0},
         num_vertices,
         mem_frugal_threshold,
-        handle.get_stream(),
         large_vertex_buffer_type,
         large_edge_buffer_type);
 

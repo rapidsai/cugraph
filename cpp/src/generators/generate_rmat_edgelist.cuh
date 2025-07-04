@@ -57,10 +57,10 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> generat
                   "Invalid input argument: large memory buffer is not initialized.");
 
   // to limit memory footprint (1024 is a tuning parameter)
-  auto max_edges_to_generate_per_iteration =
-    static_cast<size_t>(handle.get_device_properties().multiProcessorCount) * 1024;
-  rmm::device_uvector<float> rands(
-    std::min(num_edges, max_edges_to_generate_per_iteration) * 2 * scale, handle.get_stream());
+  auto max_edges_to_generate_per_iteration = std::min(
+    static_cast<size_t>(handle.get_device_properties().multiProcessorCount) * 1024, num_edges);
+  rmm::device_uvector<float> rands(max_edges_to_generate_per_iteration * 2 * scale,
+                                   handle.get_stream());
 
   auto srcs = large_buffer_type ? large_buffer_manager::allocate_memory_buffer<vertex_t>(
                                     num_edges, handle.get_stream())
