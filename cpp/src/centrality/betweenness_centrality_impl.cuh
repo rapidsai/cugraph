@@ -277,6 +277,37 @@ void accumulate_vertex_results(
     thrust::make_zip_iterator(distances.begin(), sigmas.begin(), deltas.begin()),
     dst_properties.mutable_view());
 
+  // Pre-compute: group vertices by distance for efficient lookup
+  std::vector<rmm::device_uvector<vertex_t>> vertices_by_distance;
+  vertices_by_distance.reserve(diameter + 1);
+  
+  // Pre-allocate vectors for each distance level (0 to diameter)
+  for (vertex_t d = 0; d <= diameter; ++d) {
+    auto count = count_if_v(
+      handle,
+      graph_view,
+      distances.begin(),
+      [d] __device__(auto, auto distance) { return distance == d; },
+      do_expensive_check);
+    
+    if (count > 0) {
+      rmm::device_uvector<vertex_t> vertices_at_d(count, handle.get_stream());
+      auto v_first = graph_view.local_vertex_partition_range_first();
+      thrust::copy_if(
+        handle.get_thrust_policy(),
+        thrust::make_counting_iterator(v_first),
+        thrust::make_counting_iterator(graph_view.local_vertex_partition_range_last()),
+        vertices_at_d.begin(),
+        [distances = distances.begin(), d, v_first] __device__(vertex_t vertex) {
+          auto offset = vertex - v_first;
+          return distances[offset] == d;
+        });
+      vertices_by_distance.push_back(std::move(vertices_at_d));
+    } else {
+      vertices_by_distance.push_back(rmm::device_uvector<vertex_t>(0, handle.get_stream()));
+    }
+  }
+
   // Based on Brandes algorithm, we want to follow back pointers in non-increasing
   // distance from S to compute delta
   //
@@ -285,30 +316,8 @@ void accumulate_vertex_results(
     // Clear deltas array for this iteration
     detail::scalar_fill(handle, deltas.data(), deltas.size(), weight_t{0});
     
-    // Create vertex list of vertices at distance d-1 (previous frontier)
-    // Count vertices at distance d-1 first
-    auto num_vertices_at_distance = count_if_v(
-      handle,
-      graph_view,
-      distances.begin(),
-      [d] __device__(auto, auto distance) { return distance == (d - 1); },
-      do_expensive_check);
-    
-    // Create vertex list using thrust::copy_if
-    rmm::device_uvector<vertex_t> vertices_at_distance_d_minus_1(num_vertices_at_distance, handle.get_stream());
-    
-    if (num_vertices_at_distance > 0) {
-      auto v_first = graph_view.local_vertex_partition_range_first();
-      thrust::copy_if(
-        handle.get_thrust_policy(),
-        thrust::make_counting_iterator(v_first),
-        thrust::make_counting_iterator(graph_view.local_vertex_partition_range_last()),
-        vertices_at_distance_d_minus_1.begin(),
-        [distances = distances.begin(), d, v_first] __device__(vertex_t vertex) {
-          auto offset = vertex - v_first;
-          return distances[offset] == (d - 1);
-        });
-    }
+    // Use pre-computed vertices at distance d-1
+    auto& vertices_at_distance_d_minus_1 = vertices_by_distance[d - 1];
     
 
     
