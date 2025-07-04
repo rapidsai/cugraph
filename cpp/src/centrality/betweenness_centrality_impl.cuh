@@ -15,9 +15,11 @@
  */
 #pragma once
 
+#include "prims/count_if_e.cuh"
 #include "prims/count_if_v.cuh"
 #include "prims/edge_bucket.cuh"
 #include "prims/extract_transform_if_e.cuh"
+
 #include "prims/fill_edge_property.cuh"
 #include "prims/per_v_transform_reduce_incoming_outgoing_e.cuh"
 #include "prims/transform_e.cuh"
@@ -275,39 +277,94 @@ void accumulate_vertex_results(
     thrust::make_zip_iterator(distances.begin(), sigmas.begin(), deltas.begin()),
     dst_properties.mutable_view());
 
-  // FIXME: To do this efficiently, I need a version of
-  //   per_v_transform_reduce_outgoing_e that takes a vertex list
-  //   so that we can iterate over the frontier stack.
-  //
-  //   For now this will do a O(E) pass over all edges over the diameter
-  //   of the graph.
-  //
+  // Pre-compute: group vertices by distance for efficient lookup
+  std::vector<rmm::device_uvector<vertex_t>> vertices_by_distance;
+  vertices_by_distance.reserve(diameter + 1);
+  
+  // Pre-allocate vectors for each distance level (0 to diameter)
+  for (vertex_t d = 0; d <= diameter; ++d) {
+    auto count = count_if_v(
+      handle,
+      graph_view,
+      distances.begin(),
+      [d] __device__(auto, auto distance) { return distance == d; },
+      do_expensive_check);
+    
+    if (count > 0) {
+      rmm::device_uvector<vertex_t> vertices_at_d(count, handle.get_stream());
+      auto v_first = graph_view.local_vertex_partition_range_first();
+      thrust::copy_if(
+        handle.get_thrust_policy(),
+        thrust::make_counting_iterator(v_first),
+        thrust::make_counting_iterator(graph_view.local_vertex_partition_range_last()),
+        vertices_at_d.begin(),
+        [distances = distances.begin(), d, v_first] __device__(vertex_t vertex) {
+          auto offset = vertex - v_first;
+          return distances[offset] == d;
+        });
+      vertices_by_distance.push_back(std::move(vertices_at_d));
+    } else {
+      vertices_by_distance.push_back(rmm::device_uvector<vertex_t>(0, handle.get_stream()));
+    }
+  }
+
   // Based on Brandes algorithm, we want to follow back pointers in non-increasing
   // distance from S to compute delta
   //
   for (vertex_t d = diameter; d > 1; --d) {
-    per_v_transform_reduce_outgoing_e(
-      handle,
-      graph_view,
-      src_properties.view(),
-      dst_properties.view(),
-      cugraph::edge_dummy_property_t{}.view(),
-      [d] __device__(auto, auto, auto src_props, auto dst_props, auto) {
-        if ((thrust::get<0>(dst_props) == d) && (thrust::get<0>(src_props) == (d - 1))) {
-          auto sigma_v = static_cast<weight_t>(thrust::get<1>(src_props));
-          auto sigma_w = static_cast<weight_t>(thrust::get<1>(dst_props));
-          auto delta_w = thrust::get<2>(dst_props);
+    
+    // Clear deltas array for this iteration
+    detail::scalar_fill(handle, deltas.data(), deltas.size(), weight_t{0});
+    
+    // Use pre-computed vertices at distance d-1
+    auto& vertices_at_distance_d_minus_1 = vertices_by_distance[d - 1];
+    
 
-          return (sigma_v / sigma_w) * (1 + delta_w);
-        } else {
-          return weight_t{0};
-        }
-      },
-      weight_t{0},
-      reduce_op::plus<weight_t>{},
-      deltas.begin(),
-      do_expensive_check);
-
+    
+    if (vertices_at_distance_d_minus_1.size() > 0) {
+      // Create key_bucket_t from the vertex list
+      key_bucket_t<vertex_t, void, multi_gpu, true> vertex_list(
+        handle, std::move(vertices_at_distance_d_minus_1));
+      
+      // Create temporary array for vertex list results
+      rmm::device_uvector<weight_t> vertex_list_deltas(vertex_list.size(), handle.get_stream());
+      
+      // Use vertex list approach - only process vertices at distance d-1
+      per_v_transform_reduce_outgoing_e(
+        handle,
+        graph_view,
+        vertex_list,
+        src_properties.view(),
+        dst_properties.view(),
+        cugraph::edge_dummy_property_t{}.view(),
+        [d] __device__(auto, auto, auto src_props, auto dst_props, auto) {
+          if ((thrust::get<0>(dst_props) == d) && (thrust::get<0>(src_props) == (d - 1))) {
+            auto sigma_v = static_cast<weight_t>(thrust::get<1>(src_props));
+            auto sigma_w = static_cast<weight_t>(thrust::get<1>(dst_props));
+            auto delta_w = thrust::get<2>(dst_props);
+            
+            return (sigma_v / sigma_w) * (1 + delta_w);
+          } else {
+            return weight_t{0};
+          }
+        },
+        weight_t{0},
+        reduce_op::plus<weight_t>{},
+        vertex_list_deltas.begin(),
+        do_expensive_check);
+      
+      // Scatter results back to correct positions in main deltas array
+      auto v_first = graph_view.local_vertex_partition_range_first();
+      thrust::scatter(
+        handle.get_thrust_policy(),
+        vertex_list_deltas.begin(),
+        vertex_list_deltas.end(),
+        vertex_list.begin(),
+        deltas.begin() + v_first
+      );
+    }
+    
+    // Update edge properties with CURRENT deltas (the ones just computed)
     update_edge_src_property(
       handle,
       graph_view,
@@ -319,6 +376,7 @@ void accumulate_vertex_results(
       thrust::make_zip_iterator(distances.begin(), sigmas.begin(), deltas.begin()),
       dst_properties.mutable_view());
 
+    // Accumulate deltas into centralities
     thrust::transform(handle.get_thrust_policy(),
                       centralities.begin(),
                       centralities.end(),
