@@ -202,7 +202,8 @@ class Tests_BetweennessCentrality
                       << " (renumbered index " << max_vertex_idx << ")" << std::endl;
           }
         } else {
-          std::cout << "DEBUG: Could not open node file: " << node_file << std::endl;
+          // For datasets without coordinates (like California), just print the vertex ID
+          std::cout << "DEBUG: Max centrality vertex: ID=" << original_vertex_id << " (renumbered index " << max_vertex_idx << ")" << ", centrality=" << std::fixed << std::setprecision(6) << max_centrality << std::endl;
         }
       }
     }
@@ -349,4 +350,25 @@ INSTANTIATE_TEST_SUITE_P(
                       BetweennessCentrality_Usecase{std::numeric_limits<size_t>::max(), false, false, false, false, false}),
     ::testing::Values(cugraph::test::File_Usecase("/home/nfs/howhuang/cugraph/manhattan.csv"))));
 
+INSTANTIATE_TEST_SUITE_P(
+  newyork_test_pass,
+  Tests_BetweennessCentrality_File,
+  ::testing::Combine(
+    // disable correctness checks for large dataset, use fewer seeds
+    ::testing::Values(BetweennessCentrality_Usecase{50, false, false, false, false, false},
+                      BetweennessCentrality_Usecase{100, false, false, false, false, false},
+                      BetweennessCentrality_Usecase{200, false, false, false, false, false},
+                      BetweennessCentrality_Usecase{std::numeric_limits<size_t>::max(), false, false, false, false, false}),
+    ::testing::Values(cugraph::test::File_Usecase("/home/nfs/howhuang/cugraph/newyork.csv"))));
+
+INSTANTIATE_TEST_SUITE_P(
+  california_test_pass,
+  Tests_BetweennessCentrality_File,
+  ::testing::Combine(
+    // disable correctness checks for large dataset, use fewer seeds
+    ::testing::Values(BetweennessCentrality_Usecase{50, false, false, false, false, false},
+                      BetweennessCentrality_Usecase{100, false, false, false, false, false},
+                      BetweennessCentrality_Usecase{200, false, false, false, false, false},
+                      BetweennessCentrality_Usecase{std::numeric_limits<size_t>::max(), false, false, false, false, false}),
+    ::testing::Values(cugraph::test::File_Usecase("roadNet-CA.csv"))));
 CUGRAPH_TEST_PROGRAM_MAIN()
