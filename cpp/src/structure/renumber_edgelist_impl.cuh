@@ -235,6 +235,92 @@ std::optional<vertex_t> find_locally_unused_ext_vertex_id(
            : std::nullopt /* if the entire range of vertex_t is used */;
 }
 
+// to be used when sorted_local_major_degrees is located on a large buffer (where atomic operations
+// are slow)
+template <typename vertex_t, typename edge_t>
+void compute_sorted_local_major_degrees_without_atomics(
+  raft::handle_t const& handle,
+  raft::device_span<vertex_t const> sorted_local_majors,
+  raft::device_span<vertex_t const> edgelist_majors,
+  raft::device_span<edge_t> sorted_local_major_degrees)
+{
+  thrust::fill(handle.get_thrust_policy(),
+               sorted_local_major_degrees.begin(),
+               sorted_local_major_degrees.end(),
+               edge_t{0});
+
+  auto max_edges_to_process_per_iteration =
+    std::min(static_cast<size_t>(handle.get_device_properties().multiProcessorCount) * 4096,
+             edgelist_majors.size());
+  auto max_cache_size =
+    std::min(static_cast<size_t>(handle.get_device_properties().multiProcessorCount) * (1 << 20),
+             sorted_local_majors.size());
+
+  rmm::device_uvector<vertex_t> indices(max_edges_to_process_per_iteration, handle.get_stream());
+  rmm::device_uvector<vertex_t> output_indices(max_edges_to_process_per_iteration,
+                                               handle.get_stream());
+  rmm::device_uvector<edge_t> output_counts(max_edges_to_process_per_iteration,
+                                            handle.get_stream());
+
+  auto cache_stride =
+    std::max((sorted_local_majors.size() + (max_cache_size - 1)) / max_cache_size, size_t{1});
+  rmm::device_uvector<vertex_t> sorted_local_major_cache(
+    (sorted_local_majors.size() + (cache_stride - 1)) / cache_stride, handle.get_stream());
+  auto gather_index_first = thrust::make_transform_iterator(
+    thrust::make_counting_iterator(size_t{0}), detail::multiplier_t<size_t>{cache_stride});
+  thrust::gather(handle.get_thrust_policy(),
+                 gather_index_first,
+                 gather_index_first + sorted_local_major_cache.size(),
+                 sorted_local_majors.begin(),
+                 sorted_local_major_cache.begin());
+
+  size_t num_edges_processed{0};
+  while (num_edges_processed < edgelist_majors.size()) {
+    auto num_edges_to_process =
+      std::min(edgelist_majors.size() - num_edges_processed, max_edges_to_process_per_iteration);
+    thrust::transform(
+      handle.get_thrust_policy(),
+      edgelist_majors.begin() + num_edges_processed,
+      edgelist_majors.begin() + (num_edges_processed + num_edges_to_process),
+      indices.begin(),
+      cuda::proclaim_return_type<vertex_t>(
+        [sorted_local_major_cache = raft::device_span<vertex_t const>(
+           sorted_local_major_cache.data(), sorted_local_major_cache.size()),
+         sorted_local_majors = raft::device_span<vertex_t const>(sorted_local_majors.data(),
+                                                                 sorted_local_majors.size()),
+         cache_stride] __device__(auto major) {
+          auto it    = thrust::upper_bound(thrust::seq,
+                                        sorted_local_major_cache.begin() + 1,
+                                        sorted_local_major_cache.end(),
+                                        major);
+          auto idx   = cuda::std::distance(sorted_local_major_cache.begin() + 1, it);
+          auto first = sorted_local_majors.begin() + idx * cache_stride;
+          auto last  = sorted_local_majors.begin() +
+                      cuda::std::min((idx + 1) * cache_stride, sorted_local_majors.size());
+          return static_cast<vertex_t>(cuda::std::distance(
+            sorted_local_majors.begin(), thrust::lower_bound(thrust::seq, first, last, major)));
+        }));
+    thrust::sort(
+      handle.get_thrust_policy(), indices.begin(), indices.begin() + num_edges_to_process);
+    auto it          = thrust::reduce_by_key(handle.get_thrust_policy(),
+                                    indices.begin(),
+                                    indices.begin() + num_edges_to_process,
+                                    thrust::make_constant_iterator(edge_t{1}),
+                                    output_indices.begin(),
+                                    output_counts.begin());
+    auto input_first = thrust::make_zip_iterator(output_indices.begin(), output_counts.begin());
+    thrust::for_each(handle.get_thrust_policy(),
+                     input_first,
+                     input_first + cuda::std::distance(output_indices.begin(), thrust::get<0>(it)),
+                     [degrees = raft::device_span<edge_t>(
+                        sorted_local_major_degrees.data(),
+                        sorted_local_major_degrees.size())] __device__(auto pair) {
+                       degrees[thrust::get<0>(pair)] += thrust::get<1>(pair);
+                     });
+    num_edges_processed += num_edges_to_process;
+  }
+}
+
 // returns renumber map, segment_offsets, and hypersparse_degree_offsets
 template <typename vertex_t, typename edge_t, bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>,
@@ -243,289 +329,198 @@ std::tuple<rmm::device_uvector<vertex_t>,
            vertex_t>
 compute_renumber_map(raft::handle_t const& handle,
                      std::optional<rmm::device_uvector<vertex_t>>&& local_vertices,
-                     std::vector<vertex_t const*> const& edgelist_majors,
-                     std::vector<vertex_t const*> const& edgelist_minors,
-                     std::vector<edge_t> const& edgelist_edge_counts)
+                     std::vector<raft::device_span<vertex_t const>> const& edgelist_majors,
+                     std::vector<raft::device_span<vertex_t const>> const& edgelist_minors,
+                     std::optional<large_buffer_type_t> large_vertex_buffer_type,
+                     std::optional<large_buffer_type_t> large_edge_buffer_type)
 {
+  CUGRAPH_EXPECTS((!large_vertex_buffer_type && !large_edge_buffer_type) ||
+                    cugraph::large_buffer_manager::memory_buffer_initialized(),
+                  "Invalid input argument: large memory buffer is not initialized.");
+
   // 1. if local_vertices.has_value() is false, find unique vertices from edge majors & minors (to
   // construct local_vertices)
 
-  rmm::device_uvector<vertex_t> sorted_local_vertices(0, handle.get_stream());
+  auto sorted_local_vertices =
+    large_vertex_buffer_type
+      ? large_buffer_manager::allocate_memory_buffer<vertex_t>(0, handle.get_stream())
+      : rmm::device_uvector<vertex_t>(0, handle.get_stream());
   if (!local_vertices) {
-    constexpr size_t num_bins{
-      8};  // increase the number of bins to cut peak memory usage (at the expense of additional
-           // computing), limit the maximum temporary memory usage to "size of local edge list
-           // majors|minors * 2 / # bins"
-    constexpr uint32_t hash_seed =
-      1;  // shouldn't be 0 (in that case this hash function will coincide with the hash function
-          // used to map vertices to GPUs, and we may not see the expected randomization)
-
-    auto edge_major_count_vectors = num_bins > 1
-                                      ? std::make_optional<std::vector<std::vector<edge_t>>>(
-                                          edgelist_majors.size(), std::vector<edge_t>(num_bins))
-                                      : std::nullopt;
-    if (edge_major_count_vectors) {
+    auto sorted_unique_majors =
+      large_edge_buffer_type
+        ? large_buffer_manager::allocate_memory_buffer<vertex_t>(0, handle.get_stream())
+        : rmm::device_uvector<vertex_t>(0, handle.get_stream());
+    {
+      std::vector<rmm::device_uvector<vertex_t>> edge_partition_tmp_majors{};
+      edge_partition_tmp_majors.reserve(edgelist_majors.size());
       for (size_t i = 0; i < edgelist_majors.size(); ++i) {
-        rmm::device_uvector<edge_t> d_edge_major_counts(num_bins, handle.get_stream());
-        thrust::fill(handle.get_thrust_policy(),
-                     d_edge_major_counts.begin(),
-                     d_edge_major_counts.end(),
-                     edge_t{0});
-        thrust::for_each(
-          handle.get_thrust_policy(),
-          edgelist_majors[i],
-          edgelist_majors[i] + edgelist_edge_counts[i],
-          [counts = raft::device_span<edge_t>(d_edge_major_counts.data(),
-                                              d_edge_major_counts.size())] __device__(auto v) {
-            cuco::detail::MurmurHash3_32<vertex_t> hash_func{hash_seed};
-            cuda::atomic_ref<edge_t, cuda::thread_scope_device> atomic_counter(
-              counts[hash_func(v) % num_bins]);
-            atomic_counter.fetch_add(edge_t{1}, cuda::std::memory_order_relaxed);
-          });
-        raft::update_host((*edge_major_count_vectors)[i].data(),
-                          d_edge_major_counts.data(),
-                          d_edge_major_counts.size(),
-                          handle.get_stream());
+        auto tmp_majors =
+          large_edge_buffer_type
+            ? large_buffer_manager::allocate_memory_buffer<vertex_t>(edgelist_majors[i].size(),
+                                                                     handle.get_stream())
+            : rmm::device_uvector<vertex_t>(edgelist_majors[i].size(), handle.get_stream());
+        thrust::copy(handle.get_thrust_policy(),
+                     edgelist_majors[i].begin(),
+                     edgelist_majors[i].end(),
+                     tmp_majors.begin());
+        thrust::sort(handle.get_thrust_policy(), tmp_majors.begin(), tmp_majors.end());
+        tmp_majors.resize(
+          cuda::std::distance(
+            tmp_majors.begin(),
+            thrust::unique(handle.get_thrust_policy(), tmp_majors.begin(), tmp_majors.end())),
+          handle.get_stream());
+        tmp_majors.shrink_to_fit(handle.get_stream());
+
+        edge_partition_tmp_majors.push_back(std::move(tmp_majors));
       }
-    }
-
-    auto edge_minor_count_vectors = num_bins > 1
-                                      ? std::make_optional<std::vector<std::vector<edge_t>>>(
-                                          edgelist_minors.size(), std::vector<edge_t>(num_bins))
-                                      : std::nullopt;
-    if (edge_minor_count_vectors) {
-      for (size_t i = 0; i < edgelist_minors.size(); ++i) {
-        rmm::device_uvector<edge_t> d_edge_minor_counts(num_bins, handle.get_stream());
-        thrust::fill(handle.get_thrust_policy(),
-                     d_edge_minor_counts.begin(),
-                     d_edge_minor_counts.end(),
-                     edge_t{0});
-        thrust::for_each(
-          handle.get_thrust_policy(),
-          edgelist_minors[i],
-          edgelist_minors[i] + edgelist_edge_counts[i],
-          [counts = raft::device_span<edge_t>(d_edge_minor_counts.data(),
-                                              d_edge_minor_counts.size())] __device__(auto v) {
-            cuco::detail::MurmurHash3_32<vertex_t> hash_func{hash_seed};
-            cuda::atomic_ref<edge_t, cuda::thread_scope_device> atomic_counter(
-              counts[hash_func(v) % num_bins]);
-            atomic_counter.fetch_add(edge_t{1}, cuda::std::memory_order_relaxed);
-          });
-        raft::update_host((*edge_minor_count_vectors)[i].data(),
-                          d_edge_minor_counts.data(),
-                          d_edge_minor_counts.size(),
-                          handle.get_stream());
-      }
-    }
-
-    handle.sync_stream();
-
-    for (size_t i = 0; i < num_bins; ++i) {
-      rmm::device_uvector<vertex_t> this_bin_sorted_unique_majors(0, handle.get_stream());
-      {
-        std::vector<rmm::device_uvector<vertex_t>> edge_partition_tmp_majors{};  // for bin "i"
-        edge_partition_tmp_majors.reserve(edgelist_majors.size());
-        for (size_t j = 0; j < edgelist_majors.size(); ++j) {
-          rmm::device_uvector<vertex_t> tmp_majors(0, handle.get_stream());
-          if (num_bins > 1) {
-            tmp_majors.resize((*edge_major_count_vectors)[j][i], handle.get_stream());
-            thrust::copy_if(handle.get_thrust_policy(),
-                            edgelist_majors[j],
-                            edgelist_majors[j] + edgelist_edge_counts[j],
-                            tmp_majors.begin(),
-                            [i] __device__(auto v) {
-                              cuco::detail::MurmurHash3_32<vertex_t> hash_func{hash_seed};
-                              return (static_cast<size_t>(hash_func(v) % num_bins) == i);
-                            });
-          } else {
-            tmp_majors.resize(edgelist_edge_counts[j], handle.get_stream());
-            thrust::copy(handle.get_thrust_policy(),
-                         edgelist_majors[j],
-                         edgelist_majors[j] + edgelist_edge_counts[j],
-                         tmp_majors.begin());
+      if constexpr (multi_gpu) {
+        auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+        auto const minor_comm_size = minor_comm.get_size();
+        if (minor_comm_size > 1) {
+          std::vector<size_t> tx_counts(minor_comm_size);
+          for (int i = 0; i < minor_comm_size; ++i) {
+            tx_counts[i] = edge_partition_tmp_majors[i].size();
           }
-          thrust::sort(handle.get_thrust_policy(), tmp_majors.begin(), tmp_majors.end());
-          tmp_majors.resize(
-            cuda::std::distance(
-              tmp_majors.begin(),
-              thrust::unique(handle.get_thrust_policy(), tmp_majors.begin(), tmp_majors.end())),
-            handle.get_stream());
-          tmp_majors.shrink_to_fit(handle.get_stream());
-
-          edge_partition_tmp_majors.push_back(std::move(tmp_majors));
-        }
-        if constexpr (multi_gpu) {
-          auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
-          auto const minor_comm_size = minor_comm.get_size();
-          if (minor_comm_size > 1) {
-            std::vector<size_t> tx_counts(minor_comm_size);
-            for (int j = 0; j < minor_comm_size; ++j) {
-              tx_counts[j] = edge_partition_tmp_majors[j].size();
-            }
-            this_bin_sorted_unique_majors.resize(std::reduce(tx_counts.begin(), tx_counts.end()),
-                                                 handle.get_stream());
-            size_t output_offset{0};
-            for (size_t j = 0; j < edge_partition_tmp_majors.size(); ++j) {
-              thrust::copy(handle.get_thrust_policy(),
-                           edge_partition_tmp_majors[j].begin(),
-                           edge_partition_tmp_majors[j].end(),
-                           this_bin_sorted_unique_majors.begin() + output_offset);
-              output_offset += edge_partition_tmp_majors[j].size();
-            }
-            this_bin_sorted_unique_majors = shuffle_and_unique_segment_sorted_values(
-              minor_comm,
-              this_bin_sorted_unique_majors.begin(),
-              raft::host_span<size_t const>(tx_counts.data(), tx_counts.size()),
-              handle.get_stream());
-          } else {
-            this_bin_sorted_unique_majors = std::move(edge_partition_tmp_majors[0]);
-          }
-        } else {
-          this_bin_sorted_unique_majors = std::move(edge_partition_tmp_majors[0]);
-        }
-      }
-
-      rmm::device_uvector<vertex_t> this_bin_sorted_unique_minors(0, handle.get_stream());
-      {
-        std::vector<rmm::device_uvector<vertex_t>> edge_partition_tmp_minors{};  // for bin "i"
-        edge_partition_tmp_minors.reserve(edgelist_minors.size());
-        for (size_t j = 0; j < edgelist_minors.size(); ++j) {
-          rmm::device_uvector<vertex_t> tmp_minors(0, handle.get_stream());
-          if (num_bins > 1) {
-            tmp_minors.resize((*edge_minor_count_vectors)[j][i], handle.get_stream());
-            thrust::copy_if(handle.get_thrust_policy(),
-                            edgelist_minors[j],
-                            edgelist_minors[j] + edgelist_edge_counts[j],
-                            tmp_minors.begin(),
-                            [i] __device__(auto v) {
-                              cuco::detail::MurmurHash3_32<vertex_t> hash_func{hash_seed};
-                              return (static_cast<size_t>(hash_func(v) % num_bins) == i);
-                            });
-          } else {
-            tmp_minors.resize(edgelist_edge_counts[j], handle.get_stream());
-            thrust::copy(handle.get_thrust_policy(),
-                         edgelist_minors[j],
-                         edgelist_minors[j] + edgelist_edge_counts[j],
-                         tmp_minors.begin());
-          }
-          thrust::sort(handle.get_thrust_policy(), tmp_minors.begin(), tmp_minors.end());
-          tmp_minors.resize(
-            cuda::std::distance(
-              tmp_minors.begin(),
-              thrust::unique(handle.get_thrust_policy(), tmp_minors.begin(), tmp_minors.end())),
-            handle.get_stream());
-          tmp_minors.shrink_to_fit(handle.get_stream());
-
-          edge_partition_tmp_minors.push_back(std::move(tmp_minors));
-        }
-        if (edge_partition_tmp_minors.size() == 1) {
-          this_bin_sorted_unique_minors = std::move(edge_partition_tmp_minors[0]);
-        } else {
-          edge_t aggregate_size{0};
-          for (size_t j = 0; j < edge_partition_tmp_minors.size(); ++j) {
-            aggregate_size += edge_partition_tmp_minors[j].size();
-          }
-          this_bin_sorted_unique_minors.resize(aggregate_size, handle.get_stream());
+          sorted_unique_majors.resize(std::reduce(tx_counts.begin(), tx_counts.end()),
+                                      handle.get_stream());
           size_t output_offset{0};
-          for (size_t j = 0; j < edge_partition_tmp_minors.size(); ++j) {
+          for (size_t i = 0; i < edge_partition_tmp_majors.size(); ++i) {
             thrust::copy(handle.get_thrust_policy(),
-                         edge_partition_tmp_minors[j].begin(),
-                         edge_partition_tmp_minors[j].end(),
-                         this_bin_sorted_unique_minors.begin() + output_offset);
-            output_offset += edge_partition_tmp_minors[j].size();
+                         edge_partition_tmp_majors[i].begin(),
+                         edge_partition_tmp_majors[i].end(),
+                         sorted_unique_majors.begin() + output_offset);
+            output_offset += edge_partition_tmp_majors[i].size();
           }
-          edge_partition_tmp_minors.clear();
-          thrust::sort(handle.get_thrust_policy(),
-                       this_bin_sorted_unique_minors.begin(),
-                       this_bin_sorted_unique_minors.end());
-          this_bin_sorted_unique_minors.resize(
-            cuda::std::distance(this_bin_sorted_unique_minors.begin(),
-                                thrust::unique(handle.get_thrust_policy(),
-                                               this_bin_sorted_unique_minors.begin(),
-                                               this_bin_sorted_unique_minors.end())),
-            handle.get_stream());
-          this_bin_sorted_unique_minors.shrink_to_fit(handle.get_stream());
+          edge_partition_tmp_majors.clear();
+          sorted_unique_majors = shuffle_and_unique_segment_sorted_values(
+            minor_comm,
+            sorted_unique_majors.begin(),
+            raft::host_span<size_t const>(tx_counts.data(), tx_counts.size()),
+            handle.get_stream(),
+            large_edge_buffer_type);
+        } else {
+          sorted_unique_majors = std::move(edge_partition_tmp_majors[0]);
         }
-        if constexpr (multi_gpu) {
-          auto& major_comm = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
-          auto const major_comm_size = major_comm.get_size();
-          if (major_comm_size > 1) {
-            auto& comm           = handle.get_comms();
-            auto const comm_size = comm.get_size();
-            auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
-            auto const minor_comm_size = minor_comm.get_size();
-            compute_gpu_id_from_ext_vertex_t<vertex_t> gpu_id_func{
-              comm_size, major_comm_size, minor_comm_size};
-            auto d_tx_counts = groupby_and_count(
-              this_bin_sorted_unique_minors.begin(),
-              this_bin_sorted_unique_minors.end(),
+      } else {
+        sorted_unique_majors = std::move(edge_partition_tmp_majors[0]);
+      }
+    }
+
+    auto sorted_unique_minors =
+      large_edge_buffer_type
+        ? large_buffer_manager::allocate_memory_buffer<vertex_t>(0, handle.get_stream())
+        : rmm::device_uvector<vertex_t>(0, handle.get_stream());
+    {
+      std::vector<rmm::device_uvector<vertex_t>> edge_partition_tmp_minors{};
+      edge_partition_tmp_minors.reserve(edgelist_minors.size());
+      for (size_t i = 0; i < edgelist_minors.size(); ++i) {
+        auto tmp_minors =
+          large_edge_buffer_type
+            ? large_buffer_manager::allocate_memory_buffer<vertex_t>(edgelist_minors[i].size(),
+                                                                     handle.get_stream())
+            : rmm::device_uvector<vertex_t>(edgelist_minors[i].size(), handle.get_stream());
+        thrust::copy(handle.get_thrust_policy(),
+                     edgelist_minors[i].begin(),
+                     edgelist_minors[i].end(),
+                     tmp_minors.begin());
+        thrust::sort(handle.get_thrust_policy(), tmp_minors.begin(), tmp_minors.end());
+        tmp_minors.resize(
+          cuda::std::distance(
+            tmp_minors.begin(),
+            thrust::unique(handle.get_thrust_policy(), tmp_minors.begin(), tmp_minors.end())),
+          handle.get_stream());
+        tmp_minors.shrink_to_fit(handle.get_stream());
+
+        edge_partition_tmp_minors.push_back(std::move(tmp_minors));
+      }
+      if (edge_partition_tmp_minors.size() == 1) {
+        sorted_unique_minors = std::move(edge_partition_tmp_minors[0]);
+      } else {
+        edge_t aggregate_size{0};
+        for (size_t i = 0; i < edge_partition_tmp_minors.size(); ++i) {
+          aggregate_size += edge_partition_tmp_minors[i].size();
+        }
+        sorted_unique_minors.resize(aggregate_size, handle.get_stream());
+        size_t output_offset{0};
+        for (size_t i = 0; i < edge_partition_tmp_minors.size(); ++i) {
+          thrust::copy(handle.get_thrust_policy(),
+                       edge_partition_tmp_minors[i].begin(),
+                       edge_partition_tmp_minors[i].end(),
+                       sorted_unique_minors.begin() + output_offset);
+          output_offset += edge_partition_tmp_minors[i].size();
+        }
+        edge_partition_tmp_minors.clear();
+        thrust::sort(
+          handle.get_thrust_policy(), sorted_unique_minors.begin(), sorted_unique_minors.end());
+        sorted_unique_minors.resize(cuda::std::distance(sorted_unique_minors.begin(),
+                                                        thrust::unique(handle.get_thrust_policy(),
+                                                                       sorted_unique_minors.begin(),
+                                                                       sorted_unique_minors.end())),
+                                    handle.get_stream());
+        sorted_unique_minors.shrink_to_fit(handle.get_stream());
+      }
+      if constexpr (multi_gpu) {
+        auto& major_comm = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
+        auto const major_comm_size = major_comm.get_size();
+        if (major_comm_size > 1) {
+          auto& comm           = handle.get_comms();
+          auto const comm_size = comm.get_size();
+          auto& minor_comm     = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+          auto const minor_comm_size = minor_comm.get_size();
+          compute_gpu_id_from_ext_vertex_t<vertex_t> gpu_id_func{
+            comm_size, major_comm_size, minor_comm_size};
+          auto d_tx_counts = groupby_and_count(
+            sorted_unique_minors.begin(),
+            sorted_unique_minors.end(),
+            cuda::proclaim_return_type<int>(
               [major_comm_size, minor_comm_size, gpu_id_func] __device__(auto v) {
                 return partition_manager::compute_major_comm_rank_from_global_comm_rank(
                   major_comm_size, minor_comm_size, gpu_id_func(v));
-              },
-              major_comm_size,
-              std::numeric_limits<size_t>::max(),
-              handle.get_stream());
-            std::vector<size_t> h_tx_counts(d_tx_counts.size());
-            raft::update_host(
-              h_tx_counts.data(), d_tx_counts.data(), d_tx_counts.size(), handle.get_stream());
-            handle.sync_stream();
-            std::vector<size_t> tx_displacements(h_tx_counts.size());
-            std::exclusive_scan(
-              h_tx_counts.begin(), h_tx_counts.end(), tx_displacements.begin(), size_t{0});
-            for (int j = 0; j < major_comm_size; ++j) {
-              thrust::sort(
-                handle.get_thrust_policy(),
-                this_bin_sorted_unique_minors.begin() + tx_displacements[j],
-                this_bin_sorted_unique_minors.begin() + (tx_displacements[j] + h_tx_counts[j]));
-            }
-            this_bin_sorted_unique_minors = shuffle_and_unique_segment_sorted_values(
-              major_comm,
-              this_bin_sorted_unique_minors.begin(),
-              raft::host_span<size_t const>(h_tx_counts.data(), h_tx_counts.size()),
-              handle.get_stream());
+              }),
+            major_comm_size,
+            std::numeric_limits<size_t>::max(),
+            handle.get_stream(),
+            large_edge_buffer_type);
+          std::vector<size_t> h_tx_counts(d_tx_counts.size());
+          raft::update_host(
+            h_tx_counts.data(), d_tx_counts.data(), d_tx_counts.size(), handle.get_stream());
+          handle.sync_stream();
+          std::vector<size_t> tx_displacements(h_tx_counts.size());
+          std::exclusive_scan(
+            h_tx_counts.begin(), h_tx_counts.end(), tx_displacements.begin(), size_t{0});
+          for (int j = 0; j < major_comm_size; ++j) {
+            thrust::sort(handle.get_thrust_policy(),
+                         sorted_unique_minors.begin() + tx_displacements[j],
+                         sorted_unique_minors.begin() + (tx_displacements[j] + h_tx_counts[j]));
           }
+          sorted_unique_minors = shuffle_and_unique_segment_sorted_values(
+            major_comm,
+            sorted_unique_minors.begin(),
+            raft::host_span<size_t const>(h_tx_counts.data(), h_tx_counts.size()),
+            handle.get_stream(),
+            large_edge_buffer_type);
         }
       }
-      rmm::device_uvector<vertex_t> this_bin_sorted_unique_vertices(0, handle.get_stream());
-      {
-        rmm::device_uvector<vertex_t> merged_vertices(
-          this_bin_sorted_unique_majors.size() + this_bin_sorted_unique_minors.size(),
-          handle.get_stream());
-        thrust::merge(handle.get_thrust_policy(),
-                      this_bin_sorted_unique_majors.begin(),
-                      this_bin_sorted_unique_majors.end(),
-                      this_bin_sorted_unique_minors.begin(),
-                      this_bin_sorted_unique_minors.end(),
-                      merged_vertices.begin());
-        this_bin_sorted_unique_majors.resize(0, handle.get_stream());
-        this_bin_sorted_unique_majors.shrink_to_fit(handle.get_stream());
-        this_bin_sorted_unique_minors.resize(0, handle.get_stream());
-        this_bin_sorted_unique_minors.shrink_to_fit(handle.get_stream());
-        merged_vertices.resize(cuda::std::distance(merged_vertices.begin(),
-                                                   thrust::unique(handle.get_thrust_policy(),
-                                                                  merged_vertices.begin(),
-                                                                  merged_vertices.end())),
-                               handle.get_stream());
-        merged_vertices.shrink_to_fit(handle.get_stream());
-        this_bin_sorted_unique_vertices = std::move(merged_vertices);
-      }
-      if (sorted_local_vertices.size() == 0) {
-        sorted_local_vertices = std::move(this_bin_sorted_unique_vertices);
-      } else {
-        rmm::device_uvector<vertex_t> merged_vertices(
-          sorted_local_vertices.size() + this_bin_sorted_unique_vertices.size(),
-          handle.get_stream());
-        thrust::merge(handle.get_thrust_policy(),
-                      sorted_local_vertices.begin(),
-                      sorted_local_vertices.end(),
-                      this_bin_sorted_unique_vertices.begin(),
-                      this_bin_sorted_unique_vertices.end(),
-                      merged_vertices.begin());  // merging two unique sets from different hash
-                                                 // bins, so the merged set can't have duplicates
-        sorted_local_vertices = std::move(merged_vertices);
-      }
     }
+
+    sorted_local_vertices.resize(sorted_unique_majors.size() + sorted_unique_minors.size(),
+                                 handle.get_stream());
+    thrust::merge(handle.get_thrust_policy(),
+                  sorted_unique_majors.begin(),
+                  sorted_unique_majors.end(),
+                  sorted_unique_minors.begin(),
+                  sorted_unique_minors.end(),
+                  sorted_local_vertices.begin());
+    sorted_unique_majors.resize(0, handle.get_stream());
+    sorted_unique_majors.shrink_to_fit(handle.get_stream());
+    sorted_unique_minors.resize(0, handle.get_stream());
+    sorted_unique_minors.shrink_to_fit(handle.get_stream());
+    sorted_local_vertices.resize(cuda::std::distance(sorted_local_vertices.begin(),
+                                                     thrust::unique(handle.get_thrust_policy(),
+                                                                    sorted_local_vertices.begin(),
+                                                                    sorted_local_vertices.end())),
+                                 handle.get_stream());
+    sorted_local_vertices.shrink_to_fit(handle.get_stream());
   } else {
     sorted_local_vertices = std::move(*local_vertices);
     thrust::sort(
@@ -544,8 +539,10 @@ compute_renumber_map(raft::handle_t const& handle,
 
   // 3. compute global degrees for the sorted local vertices
 
-  rmm::device_uvector<edge_t> sorted_local_vertex_degrees(0, handle.get_stream());
-
+  auto sorted_local_vertex_degrees =
+    large_vertex_buffer_type
+      ? large_buffer_manager::allocate_memory_buffer<vertex_t>(0, handle.get_stream())
+      : rmm::device_uvector<vertex_t>(0, handle.get_stream());
   if constexpr (multi_gpu) {
     auto& comm                 = handle.get_comms();
     auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
@@ -558,8 +555,11 @@ compute_renumber_map(raft::handle_t const& handle,
       host_scalar_allgather(minor_comm, sorted_local_vertices.size(), handle.get_stream());
 
     for (int i = 0; i < minor_comm_size; ++i) {
-      rmm::device_uvector<vertex_t> sorted_majors(edge_partition_major_range_sizes[i],
-                                                  handle.get_stream());
+      auto sorted_majors =
+        large_vertex_buffer_type
+          ? large_buffer_manager::allocate_memory_buffer<vertex_t>(
+              edge_partition_major_range_sizes[i], handle.get_stream())
+          : rmm::device_uvector<vertex_t>(edge_partition_major_range_sizes[i], handle.get_stream());
       device_bcast(minor_comm,
                    sorted_local_vertices.data(),
                    sorted_majors.data(),
@@ -567,27 +567,38 @@ compute_renumber_map(raft::handle_t const& handle,
                    i,
                    handle.get_stream());
 
-      rmm::device_uvector<edge_t> sorted_major_degrees(sorted_majors.size(), handle.get_stream());
-      thrust::fill(handle.get_thrust_policy(),
-                   sorted_major_degrees.begin(),
-                   sorted_major_degrees.end(),
-                   edge_t{0});
-
-      thrust::for_each(
-        handle.get_thrust_policy(),
-        edgelist_majors[i],
-        edgelist_majors[i] + edgelist_edge_counts[i],
-        [sorted_majors =
-           raft::device_span<vertex_t const>(sorted_majors.data(), sorted_majors.size()),
-         sorted_major_degrees = raft::device_span<edge_t>(
-           sorted_major_degrees.data(), sorted_major_degrees.size())] __device__(auto major) {
-          auto it =
-            thrust::lower_bound(thrust::seq, sorted_majors.begin(), sorted_majors.end(), major);
-          assert((it != sorted_majors.end()) && (*it == major));
-          cuda::atomic_ref<edge_t, cuda::thread_scope_device> atomic_counter(
-            sorted_major_degrees[cuda::std::distance(sorted_majors.begin(), it)]);
-          atomic_counter.fetch_add(edge_t{1}, cuda::std::memory_order_relaxed);
-        });
+      auto sorted_major_degrees =
+        large_vertex_buffer_type
+          ? large_buffer_manager::allocate_memory_buffer<edge_t>(sorted_majors.size(),
+                                                                 handle.get_stream())
+          : rmm::device_uvector<edge_t>(sorted_majors.size(), handle.get_stream());
+      if (large_vertex_buffer_type) {
+        compute_sorted_local_major_degrees_without_atomics(
+          handle,
+          raft::device_span<vertex_t const>(sorted_majors.data(), sorted_majors.size()),
+          raft::device_span<vertex_t const>(edgelist_majors[i].data(), edgelist_majors[i].size()),
+          raft::device_span<edge_t>(sorted_major_degrees.data(), sorted_major_degrees.size()));
+      } else {
+        thrust::fill(handle.get_thrust_policy(),
+                     sorted_major_degrees.begin(),
+                     sorted_major_degrees.end(),
+                     edge_t{0});
+        thrust::for_each(
+          handle.get_thrust_policy(),
+          edgelist_majors[i].begin(),
+          edgelist_majors[i].end(),
+          [sorted_majors =
+             raft::device_span<vertex_t const>(sorted_majors.data(), sorted_majors.size()),
+           sorted_major_degrees = raft::device_span<edge_t>(
+             sorted_major_degrees.data(), sorted_major_degrees.size())] __device__(auto major) {
+            auto it =
+              thrust::lower_bound(thrust::seq, sorted_majors.begin(), sorted_majors.end(), major);
+            assert((it != sorted_majors.end()) && (*it == major));
+            cuda::atomic_ref<edge_t, cuda::thread_scope_device> atomic_counter(
+              sorted_major_degrees[cuda::std::distance(sorted_majors.begin(), it)]);
+            atomic_counter.fetch_add(edge_t{1}, cuda::std::memory_order_relaxed);
+          });
+      }
 
       device_reduce(minor_comm,
                     sorted_major_degrees.begin(),
@@ -602,29 +613,38 @@ compute_renumber_map(raft::handle_t const& handle,
     assert(edgelist_majors.size() == 1);
 
     sorted_local_vertex_degrees.resize(sorted_local_vertices.size(), handle.get_stream());
-    thrust::fill(handle.get_thrust_policy(),
-                 sorted_local_vertex_degrees.begin(),
-                 sorted_local_vertex_degrees.end(),
-                 edge_t{0});
-
-    thrust::for_each(handle.get_thrust_policy(),
-                     edgelist_majors[0],
-                     edgelist_majors[0] + edgelist_edge_counts[0],
-                     [sorted_majors = raft::device_span<vertex_t const>(
-                        sorted_local_vertices.data(), sorted_local_vertices.size()),
-                      sorted_major_degrees = raft::device_span<edge_t>(
-                        sorted_local_vertex_degrees.data(),
-                        sorted_local_vertex_degrees.size())] __device__(auto major) {
-                       auto it = thrust::lower_bound(
-                         thrust::seq, sorted_majors.begin(), sorted_majors.end(), major);
-                       assert((it != sorted_majors.end()) && (*it == major));
-                       cuda::atomic_ref<edge_t, cuda::thread_scope_device> atomic_counter(
-                         sorted_major_degrees[cuda::std::distance(sorted_majors.begin(), it)]);
-                       atomic_counter.fetch_add(edge_t{1}, cuda::std::memory_order_relaxed);
-                     });
+    if (large_vertex_buffer_type) {
+      compute_sorted_local_major_degrees_without_atomics(
+        handle,
+        raft::device_span<vertex_t const>(sorted_local_vertices.data(),
+                                          sorted_local_vertices.size()),
+        raft::device_span<vertex_t const>(edgelist_majors[0].data(), edgelist_majors[0].size()),
+        raft::device_span<edge_t>(sorted_local_vertex_degrees.data(),
+                                  sorted_local_vertex_degrees.size()));
+    } else {
+      thrust::fill(handle.get_thrust_policy(),
+                   sorted_local_vertex_degrees.begin(),
+                   sorted_local_vertex_degrees.end(),
+                   edge_t{0});
+      thrust::for_each(handle.get_thrust_policy(),
+                       edgelist_majors[0].begin(),
+                       edgelist_majors[0].end(),
+                       [sorted_majors = raft::device_span<vertex_t const>(
+                          sorted_local_vertices.data(), sorted_local_vertices.size()),
+                        sorted_major_degrees = raft::device_span<edge_t>(
+                          sorted_local_vertex_degrees.data(),
+                          sorted_local_vertex_degrees.size())] __device__(auto major) {
+                         auto it = thrust::lower_bound(
+                           thrust::seq, sorted_majors.begin(), sorted_majors.end(), major);
+                         assert((it != sorted_majors.end()) && (*it == major));
+                         cuda::atomic_ref<edge_t, cuda::thread_scope_device> atomic_counter(
+                           sorted_major_degrees[cuda::std::distance(sorted_majors.begin(), it)]);
+                         atomic_counter.fetch_add(edge_t{1}, cuda::std::memory_order_relaxed);
+                       });
+    }
   }
 
-  // 5. sort local vertices by degree (descending)
+  // 4. sort local vertices by degree (descending)
 
   thrust::sort_by_key(handle.get_thrust_policy(),
                       sorted_local_vertex_degrees.begin(),
@@ -632,7 +652,7 @@ compute_renumber_map(raft::handle_t const& handle,
                       sorted_local_vertices.begin(),
                       thrust::greater<edge_t>());
 
-  // 6. compute segment_offsets
+  // 5. compute segment_offsets
 
   static_assert(detail::num_sparse_segments_per_vertex_partition == 3);
   static_assert((detail::low_degree_threshold <= detail::mid_degree_threshold) &&
@@ -727,9 +747,8 @@ template <typename vertex_t, typename edge_t, bool multi_gpu>
 void expensive_check_edgelist(
   raft::handle_t const& handle,
   std::optional<rmm::device_uvector<vertex_t>> const& local_vertices,
-  std::vector<vertex_t const*> const& edgelist_majors,
-  std::vector<vertex_t const*> const& edgelist_minors,
-  std::vector<edge_t> const& edgelist_edge_counts,
+  std::vector<raft::device_span<vertex_t const>> const& edgelist_majors,
+  std::vector<raft::device_span<vertex_t const>> const& edgelist_minors,
   std::optional<std::vector<std::vector<edge_t>>> const& edgelist_intra_partition_segment_offsets)
 {
   std::optional<rmm::device_uvector<vertex_t>> sorted_local_vertices{std::nullopt};
@@ -768,13 +787,17 @@ void expensive_check_edgelist(
                     "edgelist_minors.size() should coincide with minor_comm_size.");
 
     for (size_t i = 0; i < edgelist_majors.size(); ++i) {
+      CUGRAPH_EXPECTS(edgelist_majors[i].size() == edgelist_minors[i].size(),
+                      "Invalid input argument: edgelist_majors[].size() and "
+                      "edgelist_minors[i].size() should coincide.");
+
       auto edge_first =
-        thrust::make_zip_iterator(thrust::make_tuple(edgelist_majors[i], edgelist_minors[i]));
+        thrust::make_zip_iterator(edgelist_majors[i].begin(), edgelist_minors[i].begin());
       CUGRAPH_EXPECTS(
         thrust::count_if(
           handle.get_thrust_policy(),
           edge_first,
-          edge_first + edgelist_edge_counts[i],
+          edge_first + edgelist_majors[i].size(),
           [comm_size,
            comm_rank,
            major_comm_rank,
@@ -798,8 +821,8 @@ void expensive_check_edgelist(
           CUGRAPH_EXPECTS(
             thrust::count_if(
               handle.get_thrust_policy(),
-              edgelist_minors[i] + (*edgelist_intra_partition_segment_offsets)[i][j],
-              edgelist_minors[i] + (*edgelist_intra_partition_segment_offsets)[i][j + 1],
+              edgelist_minors[i].begin() + (*edgelist_intra_partition_segment_offsets)[i][j],
+              edgelist_minors[i].begin() + (*edgelist_intra_partition_segment_offsets)[i][j + 1],
               [major_comm_size,
                minor_comm_rank,
                j,
@@ -860,13 +883,13 @@ void expensive_check_edgelist(
         }
 
         auto edge_first =
-          thrust::make_zip_iterator(thrust::make_tuple(edgelist_majors[i], edgelist_minors[i]));
+          thrust::make_zip_iterator(edgelist_majors[i].begin(), edgelist_minors[i].begin());
 
         CUGRAPH_EXPECTS(
           thrust::count_if(
             handle.get_thrust_policy(),
             edge_first,
-            edge_first + edgelist_edge_counts[i],
+            edge_first + edgelist_majors[i].size(),
             check_edge_src_and_dst_t<vertex_t>{
               raft::device_span<vertex_t const>(sorted_majors.data(),
                                                 static_cast<vertex_t>(sorted_majors.size())),
@@ -882,11 +905,11 @@ void expensive_check_edgelist(
 
     if (sorted_local_vertices) {
       auto edge_first =
-        thrust::make_zip_iterator(thrust::make_tuple(edgelist_majors[0], edgelist_minors[0]));
+        thrust::make_zip_iterator(edgelist_majors[0].begin(), edgelist_minors[0].begin());
       CUGRAPH_EXPECTS(
         thrust::count_if(handle.get_thrust_policy(),
                          edge_first,
-                         edge_first + edgelist_edge_counts[0],
+                         edge_first + edgelist_majors[0].size(),
                          check_edge_src_and_dst_t<vertex_t>{
                            raft::device_span<vertex_t const>(
                              (*sorted_local_vertices).data(),
@@ -944,6 +967,8 @@ renumber_edgelist(
   std::vector<edge_t> const& edgelist_edge_counts,
   std::optional<std::vector<std::vector<edge_t>>> const& edgelist_intra_partition_segment_offsets,
   bool store_transposed,
+  std::optional<large_buffer_type_t> large_vertex_buffer_type,
+  std::optional<large_buffer_type_t> large_edge_buffer_type,
   bool do_expensive_check)
 {
   auto edgelist_majors = store_transposed ? edgelist_dsts : edgelist_srcs;
@@ -986,12 +1011,18 @@ renumber_edgelist(
         "edgelist_edge_counts[].");
     }
   }
+  CUGRAPH_EXPECTS((!large_vertex_buffer_type && !large_edge_buffer_type) ||
+                    cugraph::large_buffer_manager::memory_buffer_initialized(),
+                  "Invalid input argument: large memory buffer is not initialized.");
 
-  std::vector<vertex_t const*> edgelist_const_majors(edgelist_majors.size());
-  std::vector<vertex_t const*> edgelist_const_minors(edgelist_const_majors.size());
+  std::vector<raft::device_span<vertex_t const>> edgelist_const_majors(edgelist_majors.size());
+  std::vector<raft::device_span<vertex_t const>> edgelist_const_minors(
+    edgelist_const_majors.size());
   for (size_t i = 0; i < edgelist_const_majors.size(); ++i) {
-    edgelist_const_majors[i] = edgelist_majors[i];
-    edgelist_const_minors[i] = edgelist_minors[i];
+    edgelist_const_majors[i] =
+      raft::device_span<vertex_t const>(edgelist_majors[i], edgelist_edge_counts[i]);
+    edgelist_const_minors[i] =
+      raft::device_span<vertex_t const>(edgelist_minors[i], edgelist_edge_counts[i]);
   }
 
   if (do_expensive_check) {
@@ -1000,7 +1031,6 @@ renumber_edgelist(
       local_vertices,
       edgelist_const_majors,
       edgelist_const_minors,
-      edgelist_edge_counts,
       edgelist_intra_partition_segment_offsets);
   }
 
@@ -1014,7 +1044,8 @@ renumber_edgelist(
                                                               std::move(local_vertices),
                                                               edgelist_const_majors,
                                                               edgelist_const_minors,
-                                                              edgelist_edge_counts);
+                                                              large_vertex_buffer_type,
+                                                              large_edge_buffer_type);
 
   // 2. initialize partition_t object, number_of_vertices, and number_of_edges
 
@@ -1051,15 +1082,14 @@ renumber_edgelist(
   // 3. renumber edges
 
   {
-    vertex_t max_edge_partition_major_range_size{0};
-    for (size_t i = 0; i < edgelist_majors.size(); ++i) {
-      max_edge_partition_major_range_size = std::max(
-        max_edge_partition_major_range_size, partition.local_edge_partition_major_range_size(i));
-    }
-    rmm::device_uvector<vertex_t> renumber_map_major_labels(max_edge_partition_major_range_size,
-                                                            handle.get_stream());
     // FIXME: we may run this in parallel if memory is sufficient
     for (size_t i = 0; i < edgelist_majors.size(); ++i) {
+      auto major_range_size = partition.local_edge_partition_major_range_size(i);
+      auto renumber_map_major_labels =
+        large_vertex_buffer_type
+          ? large_buffer_manager::allocate_memory_buffer<vertex_t>(major_range_size,
+                                                                   handle.get_stream())
+          : rmm::device_uvector<vertex_t>(major_range_size, handle.get_stream());
       device_bcast(minor_comm,
                    renumber_map_labels.data(),
                    renumber_map_major_labels.data(),
@@ -1082,30 +1112,16 @@ renumber_edgelist(
     }
   }
 
-  double approx_mem_requirements =
-    static_cast<double>(partition.local_edge_partition_minor_range_size()) *
-    (static_cast<double>(
-       sizeof(vertex_t)) /* rmm::device_uvector<vertex_t> renumber_map_minor_labels */
-     +
-     static_cast<double>(sizeof(vertex_t) * 2) *
-       2.5 /* kv_store_t<vertex_t, vertex_t, false> renumber_map, * 2.5 to consider load factor */);
-  if ((approx_mem_requirements >
-       static_cast<double>(handle.get_device_properties().totalGlobalMem) * 0.05) &&
-      edgelist_intra_partition_segment_offsets) {
-    vertex_t max_segment_size{0};
-    for (int i = 0; i < major_comm_size; ++i) {
-      auto minor_range_vertex_partition_id =
-        detail::compute_local_edge_partition_minor_range_vertex_partition_id_t{
-          major_comm_size, minor_comm_size, major_comm_rank, minor_comm_rank}(i);
-      max_segment_size = std::max(
-        max_segment_size, partition.vertex_partition_range_size(minor_range_vertex_partition_id));
-    }
-    rmm::device_uvector<vertex_t> renumber_map_minor_labels(max_segment_size, handle.get_stream());
+  if (edgelist_intra_partition_segment_offsets) {
     for (int i = 0; i < major_comm_size; ++i) {
       auto minor_range_vertex_partition_id =
         detail::compute_local_edge_partition_minor_range_vertex_partition_id_t{
           major_comm_size, minor_comm_size, major_comm_rank, minor_comm_rank}(i);
       auto segment_size = partition.vertex_partition_range_size(minor_range_vertex_partition_id);
+      auto renumber_map_minor_labels =
+        large_vertex_buffer_type ? large_buffer_manager::allocate_memory_buffer<vertex_t>(
+                                     segment_size, handle.get_stream())
+                                 : rmm::device_uvector<vertex_t>(segment_size, handle.get_stream());
       device_bcast(major_comm,
                    renumber_map_labels.data(),
                    renumber_map_minor_labels.data(),
@@ -1115,7 +1131,7 @@ renumber_edgelist(
 
       kv_store_t<vertex_t, vertex_t, false> renumber_map(
         renumber_map_minor_labels.begin(),
-        renumber_map_minor_labels.begin() + segment_size,
+        renumber_map_minor_labels.end(),
         thrust::make_counting_iterator(
           partition.vertex_partition_range_first(minor_range_vertex_partition_id)),
         locally_unused_vertex_id,
@@ -1131,8 +1147,12 @@ renumber_edgelist(
       }
     }
   } else {
-    rmm::device_uvector<vertex_t> renumber_map_minor_labels(
-      partition.local_edge_partition_minor_range_size(), handle.get_stream());
+    auto minor_range_size = partition.local_edge_partition_minor_range_size();
+    auto renumber_map_minor_labels =
+      large_vertex_buffer_type
+        ? large_buffer_manager::allocate_memory_buffer<vertex_t>(minor_range_size,
+                                                                 handle.get_stream())
+        : rmm::device_uvector<vertex_t>(minor_range_size, handle.get_stream());
     std::vector<size_t> recvcounts(major_comm_size);
     for (int i = 0; i < major_comm_size; ++i) {
       auto minor_range_vertex_partition_id =
@@ -1192,8 +1212,14 @@ renumber_edgelist(raft::handle_t const& handle,
                   vertex_t* edgelist_dsts /* [INOUT] */,
                   edge_t num_edgelist_edges,
                   bool store_transposed,
+                  std::optional<large_buffer_type_t> large_vertex_buffer_type,
+                  std::optional<large_buffer_type_t> large_edge_buffer_type,
                   bool do_expensive_check)
 {
+  CUGRAPH_EXPECTS((!large_vertex_buffer_type && !large_edge_buffer_type) ||
+                    cugraph::large_buffer_manager::memory_buffer_initialized(),
+                  "Invalid input argument: large memory buffer is not initialized.");
+
   auto edgelist_majors = store_transposed ? edgelist_dsts : edgelist_srcs;
   auto edgelist_minors = store_transposed ? edgelist_srcs : edgelist_dsts;
 
@@ -1201,9 +1227,10 @@ renumber_edgelist(raft::handle_t const& handle,
     detail::expensive_check_edgelist<vertex_t, edge_t, multi_gpu>(
       handle,
       vertices,
-      std::vector<vertex_t const*>{edgelist_majors},
-      std::vector<vertex_t const*>{edgelist_minors},
-      std::vector<edge_t>{num_edgelist_edges},
+      std::vector<raft::device_span<vertex_t const>>{
+        raft::device_span<vertex_t const>(edgelist_majors, num_edgelist_edges)},
+      std::vector<raft::device_span<vertex_t const>>{
+        raft::device_span<vertex_t const>(edgelist_minors, num_edgelist_edges)},
       std::nullopt);
   }
 
@@ -1214,9 +1241,12 @@ renumber_edgelist(raft::handle_t const& handle,
     detail::compute_renumber_map<vertex_t, edge_t, multi_gpu>(
       handle,
       std::move(vertices),
-      std::vector<vertex_t const*>{edgelist_majors},
-      std::vector<vertex_t const*>{edgelist_minors},
-      std::vector<edge_t>{num_edgelist_edges});
+      std::vector<raft::device_span<vertex_t const>>{
+        raft::device_span<vertex_t const>(edgelist_majors, num_edgelist_edges)},
+      std::vector<raft::device_span<vertex_t const>>{
+        raft::device_span<vertex_t const>(edgelist_minors, num_edgelist_edges)},
+      large_vertex_buffer_type,
+      large_edge_buffer_type);
 
   kv_store_t<vertex_t, vertex_t, false> renumber_map(
     renumber_map_labels.begin(),

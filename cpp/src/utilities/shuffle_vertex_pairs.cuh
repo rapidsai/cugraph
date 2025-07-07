@@ -95,14 +95,17 @@ shuffle_vertex_pairs_with_values_by_gpu_id_impl(
 
   if (edge_property_count > 1) { element_size = sizeof(vertex_t) * 2 + sizeof(size_t); }
 
-  auto total_global_mem = handle.get_device_properties().totalGlobalMem;
-  auto constexpr mem_frugal_ratio =
-    0.05;  // if the expected temporary buffer size exceeds the mem_frugal_ratio of the
-           // total_global_mem, switch to the memory frugal approach (thrust::sort is used to
-           // group-by by default, and thrust::sort requires temporary buffer comparable to the
-           // input data size)
-  auto mem_frugal_threshold =
-    static_cast<size_t>(static_cast<double>(total_global_mem / element_size) * mem_frugal_ratio);
+  auto mem_frugal_threshold = std::numeric_limits<size_t>::max();
+  if (!large_buffer_type) {
+    auto total_global_mem = handle.get_device_properties().totalGlobalMem;
+    auto constexpr mem_frugal_ratio =
+      0.05;  // if the expected temporary buffer size exceeds the mem_frugal_ratio of the
+             // total_global_mem, switch to the memory frugal approach (thrust::sort is used to
+             // group-by by default, and thrust::sort requires temporary buffer comparable to the
+             // input data size)
+    mem_frugal_threshold =
+      static_cast<size_t>(static_cast<double>(total_global_mem / element_size) * mem_frugal_ratio);
+  }
 
   auto mem_frugal_flag =
     host_scalar_allreduce(comm,

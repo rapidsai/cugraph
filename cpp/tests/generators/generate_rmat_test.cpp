@@ -206,8 +206,8 @@ class Tests_GenerateRmat : public ::testing::TestWithParam<GenerateRmat_Usecase>
         configuration.clip_and_flip);
 
       if (scramble == 1) {
-        std::tie(d_srcs, d_dsts) = cugraph::scramble_vertex_ids(
-          handle, std::move(d_srcs), std::move(d_dsts), configuration.scale);
+        d_srcs = cugraph::scramble_vertex_ids(handle, std::move(d_srcs), configuration.scale);
+        d_dsts = cugraph::scramble_vertex_ids(handle, std::move(d_dsts), configuration.scale);
       }
 
       if (cugraph::test::g_perf) {
