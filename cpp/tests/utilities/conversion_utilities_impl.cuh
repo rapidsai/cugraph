@@ -20,7 +20,6 @@
 #include "utilities/device_comm_wrapper.hpp"
 #include "utilities/thrust_wrapper.hpp"
 
-#include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/partition_manager.hpp>
