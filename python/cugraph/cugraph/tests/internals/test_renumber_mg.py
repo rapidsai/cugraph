@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2024, NVIDIA CORPORATION.
+# Copyright (c) 2019-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -91,7 +91,7 @@ def test_mg_renumber(dataset, dask_client):
     gdf["dst"] = destinations + translate
 
     ddf = dask.dataframe.from_pandas(
-        gdf, npartitions=len(dask_client.scheduler_info()["workers"])
+        gdf, npartitions=dask_client.scheduler_info()["n_workers"]
     )
 
     # preserve_order is not supported for MG
@@ -140,7 +140,7 @@ def test_mg_renumber_add_internal_vertex_id(dataset, dask_client):
     gdf["weight"] = gdf.index.astype(np.float64)
 
     ddf = dask.dataframe.from_pandas(
-        gdf, npartitions=len(dask_client.scheduler_info()["workers"])
+        gdf, npartitions=dask_client.scheduler_info()["n_workers"]
     )
 
     ren2, num2 = NumberMap.renumber(ddf, ["src", "src_old"], ["dst", "dst_old"])
@@ -214,7 +214,7 @@ def test_mg_renumber_common_col_names(dataset, dask_client):
         }
     )
     ddf = dask.dataframe.from_pandas(
-        gdf, npartitions=len(dask_client.scheduler_info()["workers"])
+        gdf, npartitions=dask_client.scheduler_info()["n_workers"]
     )
 
     renumbered_df, renumber_map = NumberMap.renumber(
@@ -238,7 +238,7 @@ def test_mg_renumber_common_col_names(dataset, dask_client):
     )
 
     ddf = dask.dataframe.from_pandas(
-        gdf, npartitions=len(dask_client.scheduler_info()["workers"])
+        gdf, npartitions=dask_client.scheduler_info()["n_workers"]
     )
 
     renumbered_df, renumber_map = NumberMap.renumber(ddf, "col_a", "col_b")

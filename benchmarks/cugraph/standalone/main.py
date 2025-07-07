@@ -1,4 +1,4 @@
-# Copyright (c) 2021-2023, NVIDIA CORPORATION.
+# Copyright (c) 2021-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -113,7 +113,7 @@ def run(
     # If the number of GPUs is None, This is a MNMG run
     # Extract the number of gpus from the client
     if n_gpus is None:
-        n_gpus = len(setup_objs[0].scheduler_info()["workers"])
+        n_gpus = setup_objs[0].scheduler_info()["n_workers"]
     log("done.")
 
     try:
