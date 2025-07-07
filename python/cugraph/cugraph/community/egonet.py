@@ -15,7 +15,9 @@
 import warnings
 
 import cudf
-
+from cugraph.utilities import (
+    ensure_cugraph_obj
+)
 from pylibcugraph import ego_graph as pylibcugraph_ego_graph
 from pylibcugraph import ResourceHandle
 
@@ -70,7 +72,6 @@ def ego_graph(G, n, radius=1, center=True, undirected=None, distance=None):
     -------
     G_ego : cuGraph.Graph
         A graph descriptor with a minimum spanning tree or forest.
-        The networkx graph will not have all attributes copied over
 
     Examples
     --------
@@ -79,6 +80,8 @@ def ego_graph(G, n, radius=1, center=True, undirected=None, distance=None):
     >>> ego_graph = cugraph.ego_graph(G, 1, radius=2)
 
     """
+    (G, input_type) = ensure_cugraph_obj(G, nx_weight_attr="weight")
+    
     result_graph = type(G)(directed=G.is_directed())
 
     if undirected is not None:
@@ -136,4 +139,5 @@ def ego_graph(G, n, radius=1, center=True, undirected=None, distance=None):
         )
     else:
         result_graph.from_cudf_edgelist(df, source=src_names, destination=dst_names)
+
     return _convert_graph_to_output_type(result_graph, input_type)

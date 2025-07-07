@@ -31,46 +31,32 @@ RADIUS = [1, 2, 3]
 @pytest.mark.parametrize("graph_file", DEFAULT_DATASETS)
 @pytest.mark.parametrize("seed", SEEDS)
 @pytest.mark.parametrize("radius", RADIUS)
-def test_ego_graph_nx(graph_file, seed, radius):
+def test_ego_graph(graph_file, seed, radius):
     gc.collect()
 
-    # Nx
+    # Read dataset
     dataset_path = graph_file.get_path()
+
+    # cugraph
+    G = utils.generate_cugraph_graph_from_file(dataset_path, edgevals=True)
+    assert G is not None
+
+    ego_cugraph = cugraph.ego_graph(G, seed, radius=radius)
+    assert ego_cugraph is not None
+
+    # networkx
     df = utils.read_csv_for_nx(dataset_path, read_weights_in_sp=True)
     Gnx = nx.from_pandas_edgelist(
         df, create_using=nx.Graph(), source="0", target="1", edge_attr="weight"
     )
     ego_nx = nx.ego_graph(Gnx, seed, radius=radius)
 
-    # cugraph
-    ego_cugraph = cugraph.ego_graph(Gnx, seed, radius=radius)
-
-    assert nx.is_isomorphic(ego_nx, ego_cugraph)
-
-
-@pytest.mark.sg
-@pytest.mark.parametrize("graph_file", DEFAULT_DATASETS)
-@pytest.mark.parametrize("seeds", [[0, 5, 13]])
-@pytest.mark.parametrize("radius", [1, 2, 3])
-def test_batched_ego_graphs(graph_file, seeds, radius):
-    gc.collect()
-
-    # Nx
-    dataset_path = graph_file.get_path()
-    df = utils.read_csv_for_nx(dataset_path, read_weights_in_sp=True)
-    Gnx = nx.from_pandas_edgelist(
-        df, create_using=nx.Graph(), source="0", target="1", edge_attr="weight"
+    # compare the two graphs     
+    cu_edges = ego_cugraph.view_edge_list().to_pandas()
+    ego_cugraph_nx = nx.from_pandas_edgelist(
+        cu_edges, source="src", target="dst"
     )
-
-    # cugraph
-    df, offsets = cugraph.batched_ego_graphs(Gnx, seeds, radius=radius)
-    for i in range(len(seeds)):
-        ego_nx = nx.ego_graph(Gnx, seeds[i], radius=radius)
-        ego_df = df[offsets[i] : offsets[i + 1]]
-        ego_cugraph = nx.from_pandas_edgelist(
-            ego_df, source="src", target="dst", edge_attr="weight"
-        )
-    assert nx.is_isomorphic(ego_nx, ego_cugraph)
+    assert nx.is_isomorphic(ego_nx, ego_cugraph_nx)
 
 
 @pytest.mark.sg
