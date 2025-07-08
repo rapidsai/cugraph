@@ -182,11 +182,10 @@ def extract_two_hop(read_csv):
 
     return pairs
 
-#"""
 # Test
 @pytest.mark.sg
 @pytest.mark.parametrize("use_weight", [False, True])
-def test_cosine_0(benchmark, read_csv, extract_two_hop, use_weight):
+def test_cosine(benchmark, read_csv, extract_two_hop, use_weight):
     M, graph_file = read_csv
     pairs = extract_two_hop
 
@@ -247,7 +246,6 @@ def test_directed_graph_check(graph_file, use_weight):
             G1, vertex_pair, use_weight=use_weight
         )
 
-
 @pytest.mark.sg
 @pytest.mark.parametrize("graph_file", UNDIRECTED_DATASETS)
 @pytest.mark.parametrize("use_weight", [False, True])
@@ -296,7 +294,6 @@ def test_cosine_multi_column(graph_file, use_weight):
     expected = df_single_col_res.sort_values(VERTEX_PAIR_FIRST_COL).reset_index()
     assert_series_equal(actual[COSINE_COEFF_COL], expected[COSINE_COEFF_COL])
 
-
 @pytest.mark.sg
 def test_weighted_cosine():
     karate = UNDIRECTED_DATASETS[0]
@@ -304,7 +301,6 @@ def test_weighted_cosine():
     with pytest.raises(ValueError):
         # input_graph' must be weighted if 'use_weight=True'
         cugraph.cosine(G, use_weight=True)
-
 
 @pytest.mark.sg
 def test_all_pairs_cosine():
@@ -327,7 +323,6 @@ def test_all_pairs_cosine():
         check_dtype=False,
         check_like=True,
     )
-
 
 @pytest.mark.sg
 def test_all_pairs_cosine_with_topk():
