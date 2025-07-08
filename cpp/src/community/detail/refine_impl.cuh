@@ -17,16 +17,15 @@
 
 #include "common_methods.hpp"
 #include "detail/graph_partition_utils.cuh"
+#include "detail/shuffle_wrappers.hpp"
 #include "maximal_independent_moves.hpp"
 #include "prims/per_v_transform_reduce_dst_key_aggregated_outgoing_e.cuh"
 #include "prims/per_v_transform_reduce_incoming_outgoing_e.cuh"
 #include "prims/reduce_op.cuh"
-#include "prims/transform_reduce_e.cuh"
 #include "prims/transform_reduce_e_by_src_dst_key.cuh"
 #include "prims/update_edge_src_dst_property.cuh"
 #include "utilities/collect_comm.cuh"
 
-#include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_functions.hpp>
@@ -645,24 +644,18 @@ refine_clustering(
     std::optional<edge_property_t<edge_t, weight_t>> coarse_edge_weights{std::nullopt};
 
     if constexpr (multi_gpu) {
-      std::tie(d_srcs,
-               d_dsts,
-               d_weights,
-               std::ignore,
-               std::ignore,
-               std::ignore,
-               std::ignore,
-               std::ignore) =
-        cugraph::shuffle_ext_edges<vertex_t, vertex_t, weight_t, int32_t, int32_t>(
-          handle,
-          std::move(d_srcs),
-          std::move(d_dsts),
-          std::move(d_weights),
-          std::nullopt,
-          std::nullopt,
-          std::nullopt,
-          std::nullopt,
-          GraphViewType::is_storage_transposed);
+      std::vector<cugraph::arithmetic_device_uvector_t> edge_properties{};
+      if (d_weights) edge_properties.push_back(std::move(*d_weights));
+
+      std::tie(d_srcs, d_dsts, edge_properties, std::ignore) =
+        cugraph::shuffle_ext_edges(handle,
+                                   std::move(d_srcs),
+                                   std::move(d_dsts),
+                                   std::move(edge_properties),
+                                   GraphViewType::is_storage_transposed);
+
+      if (d_weights)
+        *d_weights = std::move(std::get<rmm::device_uvector<weight_t>>(edge_properties[0]));
     }
 
     std::tie(decision_graph, coarse_edge_weights, std::ignore, std::ignore, renumber_map) =

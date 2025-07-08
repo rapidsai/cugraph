@@ -15,6 +15,7 @@
  */
 #pragma once
 
+#include "detail/shuffle_wrappers.hpp"
 #include "prims/fill_edge_property.cuh"
 #include "prims/reduce_op.cuh"
 #include "prims/transform_e.cuh"
@@ -23,7 +24,6 @@
 #include "utilities/collect_comm.cuh"
 
 #include <cugraph/algorithms.hpp>
-#include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
 
 #include <raft/core/handle.hpp>
