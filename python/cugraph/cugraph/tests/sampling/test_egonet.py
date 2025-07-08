@@ -51,7 +51,7 @@ def test_ego_graph(graph_file, seed, radius):
     )
     ego_nx = nx.ego_graph(Gnx, seed, radius=radius)
 
-    # compare the two graphs     
+    # compare the two graphs
     cu_edges = ego_cugraph.view_edge_list().to_pandas()
     ego_cugraph_nx = nx.from_pandas_edgelist(
         cu_edges, source="src", target="dst"

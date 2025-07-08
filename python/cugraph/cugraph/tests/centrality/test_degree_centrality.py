@@ -14,7 +14,6 @@
 import gc
 
 import pytest
-import networkx as nx
 
 import cudf
 import cugraph
@@ -32,7 +31,6 @@ def topKVertices(degree, col, k):
     top = degree.nlargest(n=k, columns=col)
     top = top.sort_values(by=col, ascending=False)
     return top["vertex"]
-
 
 
 @pytest.mark.sg

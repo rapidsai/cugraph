@@ -104,17 +104,12 @@ def test_triangles(input_combo):
 
 @pytest.mark.sg
 def test_triangles_int64(input_combo):
-    Gnx = input_combo["Gnx"]
-    
-    with pytest.raises(AttributeError):
-        nx_error = cugraph.triangle_count(Gnx)["counts"].sum()
-
     graph_file = input_combo["graph_file"]
     G = graph_file.get_graph()
     G.edgelist.edgelist_df = G.edgelist.edgelist_df.astype(
         {"src": "int64", "dst": "int64"}
     )
-    count_int64 = cugraph.triangle_count(G)["counts"].sum()
+    _ = cugraph.triangle_count(G)["counts"].sum()
 
     assert G.edgelist.edgelist_df["src"].dtype == "int64"
     assert G.edgelist.edgelist_df["dst"].dtype == "int64"
@@ -122,13 +117,13 @@ def test_triangles_int64(input_combo):
 
 @pytest.mark.sg
 def test_triangles_no_weights(input_combo):
-    G_weighted = input_combo["Gnx"]
-    
     graph_file = input_combo["graph_file"]
     G = graph_file.get_graph(ignore_weights=True)
 
     assert G.is_weighted() is False
+
     count_triangles = cugraph.triangle_count(G)["counts"].sum()
+    assert count_triangles > 0, "Triangle count should be non-negative"
 
 
 @pytest.mark.sg

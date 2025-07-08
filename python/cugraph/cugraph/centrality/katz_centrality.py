@@ -16,6 +16,7 @@ from pylibcugraph import katz_centrality as pylibcugraph_katz, ResourceHandle
 import cudf
 import warnings
 
+
 def katz_centrality(
     G, alpha=None, beta=1.0, max_iter=100, tol=1.0e-6, nstart=None, normalized=True
 ):

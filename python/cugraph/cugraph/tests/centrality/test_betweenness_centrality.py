@@ -21,7 +21,7 @@ import networkx as nx
 import cudf
 import cugraph
 from cugraph.datasets import karate_disjoint
-from cugraph.testing import utils, SMALL_DATASETS
+from cugraph.testing import SMALL_DATASETS
 from cugraph.utilities import nx_factory
 
 

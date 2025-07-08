@@ -15,12 +15,11 @@ import gc
 import time
 
 import pytest
-import networkx as nx
 
 import cugraph
 import cudf
 from cudf.testing.testing import assert_series_equal
-from cugraph.testing import utils, UNDIRECTED_DATASETS
+from cugraph.testing import UNDIRECTED_DATASETS
 from cugraph.datasets import karate_asymmetric
 
 

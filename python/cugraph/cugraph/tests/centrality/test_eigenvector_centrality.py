@@ -17,7 +17,7 @@ import pytest
 import networkx as nx
 
 import cugraph
-from cugraph.testing import utils, UNDIRECTED_DATASETS, DEFAULT_DATASETS
+from cugraph.testing import utils, DEFAULT_DATASETS
 from cugraph.datasets import toy_graph, karate
 
 

@@ -15,7 +15,7 @@ from pylibcugraph import leiden as pylibcugraph_leiden
 from pylibcugraph import ResourceHandle
 from cugraph.structure import Graph
 import cudf
-from typing import Union, Tuple
+from typing import Tuple
 
 
 def leiden(

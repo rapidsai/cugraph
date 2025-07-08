@@ -132,4 +132,3 @@ def test_louvain_csr_graph(is_weighted):
 
     assert len(parition_diffs) == 0
     assert mod_csr == mod_coo
-

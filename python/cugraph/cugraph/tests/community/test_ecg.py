@@ -14,10 +14,8 @@
 import gc
 
 import pytest
-import networkx as nx
 
 import cugraph
-from cugraph.testing import utils
 from cugraph.datasets import karate, dolphins, netscience
 
 
@@ -91,4 +89,3 @@ def test_ecg_clustering(
     # Assert that the partitioning has better modularity than the random
     # assignment
     assert cu_score > (0.80 * golden_score)
-

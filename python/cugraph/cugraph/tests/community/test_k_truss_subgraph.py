@@ -77,7 +77,6 @@ def test_ktruss_subgraph_Graph(_, nx_ground_truth):
     compare_k_truss(k_subgraph, k, nx_ground_truth)
 
 
-
 @pytest.mark.sg
 def test_ktruss_subgraph_directed_Graph():
     k = 5

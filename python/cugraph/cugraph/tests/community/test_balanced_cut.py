@@ -15,8 +15,6 @@ import gc
 
 import random
 import pytest
-import networkx as nx
-import pandas as pd
 
 import cudf
 import cugraph
@@ -99,4 +97,3 @@ def test_edge_cut_clustering_with_edgevals(graph_file, partitions):
     # assignment
     print(cu_score, rand_score)
     assert cu_score < rand_score
-

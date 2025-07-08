@@ -19,6 +19,7 @@ import cudf
 import cugraph
 from cugraph.structure import Graph
 
+
 def subgraph(
     G: Graph,
     vertices: Union[cudf.Series, cudf.DataFrame],

@@ -19,7 +19,7 @@ from pylibcugraph import ResourceHandle
 from pylibcugraph import induced_subgraph as pylibcugraph_induced_subgraph
 
 from cugraph.structure import Graph
-from cugraph.utilities.utils import import_optional
+
 
 # FIXME: Move this function to the utility module so that it can be
 # shared by other algos

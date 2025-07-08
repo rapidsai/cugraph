@@ -11,15 +11,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Union
 
 import cudf
 from pylibcugraph import k_truss_subgraph as pylibcugraph_k_truss_subgraph
 from pylibcugraph import ResourceHandle
 from cugraph.structure.graph_classes import Graph
 
+
 def k_truss(
-    G: Graph, 
+    G: Graph,
     k: int
 ) -> Graph:
     """

@@ -13,10 +13,11 @@
 
 import cudf
 
+
 def degree_centrality(
-    G, 
+    G,
     normalized=True
-    ) -> cudf.DataFrame:
+) -> cudf.DataFrame:
     """
     Computes the degree centrality of each vertex of the input graph.
 
