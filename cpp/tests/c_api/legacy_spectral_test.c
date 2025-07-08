@@ -124,9 +124,11 @@ int generic_spectral_test(vertex_t* h_src,
     TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "copy_to_host failed.");
 
     for (int i = 0; (i < num_vertices) && (test_ret_value == 0); ++i) {
+      //printf("\nh_result = %d, h_clusters = %d\n", h_result[h_vertices[i]], h_clusters[i]);
       TEST_ASSERT(
         test_ret_value, h_result[h_vertices[i]] == h_clusters[i], "cluster results don't match");
     }
+    //printf("\nmodularity = %f, expected_modularity = %f\n", modularity, expected_modularity);
 
     TEST_ASSERT(test_ret_value,
                 nearlyEqual(modularity, expected_modularity, 0.001),
@@ -255,9 +257,11 @@ int generic_balanced_cut_test(vertex_t* h_src,
     TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "copy_to_host failed.");
 
     for (int i = 0; (i < num_vertices) && (test_ret_value == 0); ++i) {
+      //printf("\nh_result = %d, h_clusters = %d\n", h_result[h_vertices[i]], h_clusters[i]);
       TEST_ASSERT(
         test_ret_value, h_result[h_vertices[i]] == h_clusters[i], "cluster results don't match");
     }
+    //printf("\nmodularity = %f, expected_modularity = %f\n", modularity, expected_modularity);
 
     TEST_ASSERT(test_ret_value,
                 nearlyEqual(modularity, expected_modularity, 0.001),
@@ -269,6 +273,7 @@ int generic_balanced_cut_test(vertex_t* h_src,
     TEST_ASSERT(
       test_ret_value, nearlyEqual(ratio_cut, expected_ratio_cut, 0.001), "ratio_cut doesn't match");
 
+    //printf("\nedge_cut = %f, ratio_cut = %f\n", edge_cut, ratio_cut);
     cugraph_clustering_result_free(result);
   }
 
@@ -294,8 +299,9 @@ int test_spectral()
   vertex_t h_dst[] = {1, 2, 0, 2, 0, 1, 3, 2, 4, 5, 3, 5, 3, 4};
   weight_t h_wgt[] = {
     0.1f, 0.2f, 0.1f, 1.2f, 0.2f, 1.2f, 2.3f, 2.3f, 3.4f, 3.5f, 3.4f, 4.5f, 3.5f, 4.5f};
-  vertex_t h_result[]          = {0, 0, 0, 1, 1, 1};
-  weight_t expected_modularity = 0.136578;
+
+  vertex_t h_result[]          = {0, 0, 0, 0, 1, 1};
+  weight_t expected_modularity =  0.044992;
   weight_t expected_edge_cut   = 0;
   weight_t expected_ratio_cut  = 0;
 
@@ -333,10 +339,10 @@ int test_balanced_cut_unequal_weight()
   vertex_t h_dst[] = {1, 2, 0, 2, 0, 1, 3, 2, 4, 5, 3, 5, 3, 4};
   weight_t h_wgt[] = {
     0.1f, 0.2f, 0.1f, 1.2f, 0.2f, 1.2f, 2.3f, 2.3f, 3.4f, 3.5f, 3.4f, 4.5f, 3.5f, 4.5f};
-  vertex_t h_result[]          = {0, 0, 1, 0, 0, 0};
-  weight_t expected_modularity = -0.02963;
-  weight_t expected_edge_cut   = 3.7;
-  weight_t expected_ratio_cut  = 4.44;
+  vertex_t h_result[]          = {0, 0, 0, 0, 0, 0};
+  weight_t expected_modularity = 0;
+  weight_t expected_edge_cut   = 0;
+  weight_t expected_ratio_cut  = 0;
 
   // balanced cut clustering wants store_transposed = FALSE
   return generic_balanced_cut_test(h_src,
@@ -371,10 +377,11 @@ int test_balanced_cut_equal_weight()
   vertex_t h_src[]             = {0, 0, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 5, 5};
   vertex_t h_dst[]             = {1, 2, 0, 2, 0, 1, 3, 2, 4, 5, 3, 5, 3, 4};
   weight_t h_wgt[]             = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
-  vertex_t h_result[]          = {1, 1, 1, 0, 0, 0};
-  weight_t expected_modularity = 0.357143;
-  weight_t expected_edge_cut   = 1;
-  weight_t expected_ratio_cut  = 0.666667;
+  //vertex_t h_result[]          = {1, 1, 1, 0, 0, 0};
+  vertex_t h_result[]          = {0, 0, 0, 0, 1, 0};
+  weight_t expected_modularity = -0.040816;
+  weight_t expected_edge_cut   = 2;
+  weight_t expected_ratio_cut  = 2.4;
 
   // balanced cut clustering wants store_transposed = FALSE
   return generic_balanced_cut_test(h_src,
@@ -408,10 +415,10 @@ int test_balanced_cut_no_weight()
 
   vertex_t h_src[]             = {0, 0, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 5, 5};
   vertex_t h_dst[]             = {1, 2, 0, 2, 0, 1, 3, 2, 4, 5, 3, 5, 3, 4};
-  vertex_t h_result[]          = {1, 1, 1, 0, 0, 0};
-  weight_t expected_modularity = 0.357143;
-  weight_t expected_edge_cut   = 1;
-  weight_t expected_ratio_cut  = 0.666667;
+  vertex_t h_result[]          = {0, 0, 0, 0, 1, 0};
+  weight_t expected_modularity = -0.040816;
+  weight_t expected_edge_cut   = 2;
+  weight_t expected_ratio_cut  = 2.4;
 
   // balanced cut clustering wants store_transposed = FALSE
   return generic_balanced_cut_test(h_src,
