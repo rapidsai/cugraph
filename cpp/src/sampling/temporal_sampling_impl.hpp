@@ -16,7 +16,6 @@
 
 #pragma once
 
-#include "cugraph/utilities/host_scalar_comm.hpp"
 #include "detail/shuffle_wrappers.hpp"
 #include "sampling/detail/sampling_utils.hpp"
 #include "utilities/validation_checks.hpp"
@@ -26,6 +25,7 @@
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/sampling_functions.hpp>
 #include <cugraph/utilities/error.hpp>
+#include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/vertex_partition_view.hpp>
 
 #include <raft/core/device_span.hpp>
@@ -316,18 +316,28 @@ temporal_neighbor_sample_impl(
       }
 
       if (has_duplicates_size > 0) {
-        // need different sample_edges implementation to do set sampling bias to 0
-        auto [srcs, dsts, weights, edge_ids, edge_types, edge_start_times, edge_end_times, labels] =
-          temporal_sample_edges(
+        std::vector<edge_arithmetic_property_view_t<edge_t, vertex_t>> edge_property_views{};
+
+        if (edge_weight_view) edge_property_views.push_back(*edge_weight_view);
+        if (edge_id_view) edge_property_views.push_back(*edge_id_view);
+        if (edge_type_view) edge_property_views.push_back(*edge_type_view);
+        edge_property_views.push_back(edge_start_time_view);
+        if (edge_end_time_view) edge_property_views.push_back(*edge_end_time_view);
+
+        auto [srcs, dsts, sampled_edge_properties, labels] =
+          temporal_sample_edges<vertex_t, edge_t, edge_time_t, multi_gpu>(
             handle,
-            graph_view,
-            edge_weight_view,
-            edge_id_view,
-            edge_type_view,
-            std::make_optional(edge_start_time_view),
-            edge_end_time_view,
-            edge_bias_view,
             rng_state,
+            graph_view,
+            raft::host_span<edge_arithmetic_property_view_t<edge_t, vertex_t>>{
+              edge_property_views.data(), edge_property_views.size()},
+            edge_start_time_view,
+            edge_type_view ? std::make_optional<edge_arithmetic_property_view_t<edge_t, vertex_t>>(
+                               *edge_type_view)
+                           : std::nullopt,
+            edge_bias_view ? std::make_optional<edge_arithmetic_property_view_t<edge_t, vertex_t>>(
+                               *edge_bias_view)
+                           : std::nullopt,
             raft::device_span<vertex_t const>{frontier_vertices_has_duplicates.data(),
                                               frontier_vertices_has_duplicates.size()},
             raft::device_span<edge_time_t const>{frontier_vertex_times_has_duplicates.data(),
@@ -340,6 +350,29 @@ temporal_neighbor_sample_impl(
             raft::host_span<size_t const>(level_Ks->data(), level_Ks->size()),
             with_replacement);
 
+        size_t pos{0};
+        auto weights =
+          (edge_weight_view)
+            ? std::make_optional(
+                std::move(std::get<rmm::device_uvector<weight_t>>(sampled_edge_properties[pos++])))
+            : std::nullopt;
+        auto edge_ids =
+          (edge_id_view) ? std::make_optional(std::move(
+                             std::get<rmm::device_uvector<edge_t>>(sampled_edge_properties[pos++])))
+                         : std::nullopt;
+        auto edge_types =
+          (edge_type_view)
+            ? std::make_optional(std::move(
+                std::get<rmm::device_uvector<edge_type_t>>(sampled_edge_properties[pos++])))
+            : std::nullopt;
+        auto edge_start_times =
+          std::move(std::get<rmm::device_uvector<edge_time_t>>(sampled_edge_properties[pos++]));
+        auto edge_end_times =
+          (edge_end_time_view)
+            ? std::make_optional(std::move(
+                std::get<rmm::device_uvector<edge_time_t>>(sampled_edge_properties[pos++])))
+            : std::nullopt;
+
         if (srcs.size() > 0) {
           result_sizes.push_back(srcs.size());
           result_src_vectors.push_back(std::move(srcs));
@@ -348,9 +381,7 @@ temporal_neighbor_sample_impl(
           if (weights) { (*result_weight_vectors).push_back(std::move(*weights)); }
           if (edge_ids) { (*result_edge_id_vectors).push_back(std::move(*edge_ids)); }
           if (edge_types) { (*result_edge_type_vectors).push_back(std::move(*edge_types)); }
-          if (edge_start_times) {
-            (*result_edge_start_time_vectors).push_back(std::move(*edge_start_times));
-          }
+          (*result_edge_start_time_vectors).push_back(std::move(edge_start_times));
           if (edge_end_times) {
             (*result_edge_end_time_vectors).push_back(std::move(*edge_end_times));
           }

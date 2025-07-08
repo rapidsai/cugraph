@@ -14,12 +14,6 @@
  * limitations under the License.
  */
 
-#include "thrust/binary_search.h"
-#include "thrust/functional.h"
-#include "thrust/reduce.h"
-#include "utilities/test_graphs.hpp"
-#include "utilities/thrust_wrapper.hpp"
-
 #include <cugraph/algorithms.hpp>
 #include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/graph_functions.hpp>
@@ -34,12 +28,15 @@
 
 #include <cuda/std/functional>
 #include <cuda/std/iterator>
+#include <thrust/binary_search.h>
 #include <thrust/count.h>
 #include <thrust/equal.h>
 #include <thrust/extrema.h>
 #include <thrust/fill.h>
+#include <thrust/functional.h>
 #include <thrust/gather.h>
 #include <thrust/iterator/zip_iterator.h>
+#include <thrust/reduce.h>
 #include <thrust/set_operations.h>
 #include <thrust/sort.h>
 #include <thrust/transform.h>
@@ -63,7 +60,7 @@ namespace cugraph {
 namespace test {
 
 // FIXME: Consider moving this to thrust_tuple_utils and making it
-//        generic for any typle that supports < operator
+//        generic for any tuple that supports < operator
 struct ArithmeticZipLess {
   template <typename left_t, typename right_t>
   __device__ bool operator()(left_t const& left, right_t const& right)
@@ -87,7 +84,7 @@ struct ArithmeticZipLess {
 };
 
 // FIXME: Consider moving this to thrust_tuple_utils and making it
-//        generic for any typle that supports < operator
+//        generic for any tuple that supports < operator
 struct ArithmeticZipEqual {
   template <typename vertex_t, typename weight_t>
   __device__ bool operator()(thrust::tuple<vertex_t, vertex_t, weight_t> const& left,
@@ -129,8 +126,7 @@ bool validate_extracted_graph_is_subgraph(
     rmm::device_uvector<weight_t> wgt_v(wgt->size(), handle.get_stream());
     raft::copy(wgt_v.data(), wgt->data(), wgt->size(), handle.get_stream());
 
-    auto graph_iter =
-      thrust::make_zip_iterator(thrust::make_tuple(src_v.begin(), dst_v.begin(), wgt_v.begin()));
+    auto graph_iter = thrust::make_zip_iterator(src_v.begin(), dst_v.begin(), wgt_v.begin());
     thrust::sort(
       handle.get_thrust_policy(), graph_iter, graph_iter + src_v.size(), ArithmeticZipLess{});
     auto graph_iter_end = thrust::unique(
@@ -141,8 +137,8 @@ bool validate_extracted_graph_is_subgraph(
     dst_v.resize(new_size, handle.get_stream());
     wgt_v.resize(new_size, handle.get_stream());
 
-    auto subgraph_iter = thrust::make_zip_iterator(
-      thrust::make_tuple(subgraph_src.begin(), subgraph_dst.begin(), subgraph_wgt->begin()));
+    auto subgraph_iter =
+      thrust::make_zip_iterator(subgraph_src.begin(), subgraph_dst.begin(), subgraph_wgt->begin());
     num_invalids =
       thrust::count_if(handle.get_thrust_policy(),
                        subgraph_iter,
@@ -152,7 +148,7 @@ bool validate_extracted_graph_is_subgraph(
                                    thrust::seq, graph_iter, graph_iter + new_size, tup) == false);
                        });
   } else {
-    auto graph_iter = thrust::make_zip_iterator(thrust::make_tuple(src_v.begin(), dst_v.begin()));
+    auto graph_iter = thrust::make_zip_iterator(src_v.begin(), dst_v.begin());
     thrust::sort(
       handle.get_thrust_policy(), graph_iter, graph_iter + src_v.size(), ArithmeticZipLess{});
     auto graph_iter_end = thrust::unique(
@@ -162,8 +158,7 @@ bool validate_extracted_graph_is_subgraph(
     src_v.resize(new_size, handle.get_stream());
     dst_v.resize(new_size, handle.get_stream());
 
-    auto subgraph_iter =
-      thrust::make_zip_iterator(thrust::make_tuple(subgraph_src.begin(), subgraph_dst.begin()));
+    auto subgraph_iter = thrust::make_zip_iterator(subgraph_src.begin(), subgraph_dst.begin());
     num_invalids =
       thrust::count_if(handle.get_thrust_policy(),
                        subgraph_iter,
@@ -272,8 +267,7 @@ bool validate_sampling_depth(raft::handle_t const& handle,
                                               bool{false},
                                               vertex_t{max_depth});
 
-      auto tuple_iter = thrust::make_zip_iterator(
-        thrust::make_tuple(d_distances.begin(), d_local_distances.begin()));
+      auto tuple_iter = thrust::make_zip_iterator(d_distances.begin(), d_local_distances.begin());
 
       thrust::transform(handle.get_thrust_policy(),
                         tuple_iter,
@@ -363,14 +357,15 @@ bool validate_temporal_integrity(raft::handle_t const& handle,
 
   auto error_count = thrust::count_if(
     handle.get_thrust_policy(),
-    thrust::make_zip_iterator(srcs.begin(), edge_times.begin()),
-    thrust::make_zip_iterator(srcs.end(), edge_times.end()),
+    thrust::make_zip_iterator(srcs.begin(), dsts.begin(), edge_times.begin()),
+    thrust::make_zip_iterator(srcs.end(), dsts.end(), edge_times.end()),
     [min_dsts = raft::device_span<vertex_t const>{sorted_dsts.data(), sorted_dsts.size()},
      min_dst_times =
        raft::device_span<edge_time_t const>{sorted_dst_times.data(), sorted_dst_times.size()},
      source_vertices] __device__(auto t) {
       vertex_t src     = thrust::get<0>(t);
-      edge_time_t time = thrust::get<1>(t);
+      vertex_t dst     = thrust::get<1>(t);
+      edge_time_t time = thrust::get<2>(t);
 
       bool vertex_is_source =
         thrust::find(thrust::seq, source_vertices.begin(), source_vertices.end(), src) !=
@@ -379,8 +374,9 @@ bool validate_temporal_integrity(raft::handle_t const& handle,
       if (vertex_is_source) {
         return false;
       } else {
-        auto pos = thrust::lower_bound(thrust::seq, min_dsts.begin(), min_dsts.end(), src);
-        if ((pos == min_dsts.end()) || (*pos != src)) {
+        auto pos = thrust::lower_bound(thrust::seq, min_dsts.begin(), min_dsts.end(), dst);
+        if ((pos == min_dsts.end()) || (*pos != dst)) {
+          printf(". dst %d not found in min_dsts\n", (int)dst);
           return true;
         } else {
           return time < min_dst_times[thrust::distance(min_dsts.begin(), pos)];
