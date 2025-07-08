@@ -266,39 +266,69 @@ temporal_neighbor_sample_impl(
 
     if (level_Ks) {
       if ((hop == 0) || (no_duplicates_size > 0)) {
-        auto [srcs, dsts, weights, edge_ids, edge_types, edge_start_times, edge_end_times, labels] =
-          sample_edges(
-            handle,
-            temporal_graph_view,
-            edge_weight_view,
-            edge_id_view,
-            edge_type_view,
-            std::make_optional(edge_start_time_view),
-            edge_end_time_view,
-            edge_bias_view,
-            rng_state,
-            (hop == 0) ? starting_vertices
-                       : raft::device_span<vertex_t const>{frontier_vertices_no_duplicates.data(),
-                                                           frontier_vertices_no_duplicates.size()},
-            (hop == 0) ? starting_vertex_labels
-            : frontier_vertex_labels_no_duplicates
-              ? std::make_optional(
-                  raft::device_span<label_t const>{frontier_vertex_labels_no_duplicates->data(),
-                                                   frontier_vertex_labels_no_duplicates->size()})
-              : std::nullopt,
-            raft::host_span<size_t const>(level_Ks->data(), level_Ks->size()),
-            with_replacement);
+        std::vector<edge_arithmetic_property_view_t<edge_t, vertex_t>> edge_property_views{};
+
+        if (edge_weight_view) edge_property_views.push_back(*edge_weight_view);
+        if (edge_id_view) edge_property_views.push_back(*edge_id_view);
+        if (edge_type_view) edge_property_views.push_back(*edge_type_view);
+        edge_property_views.push_back(edge_start_time_view);
+        if (edge_end_time_view) edge_property_views.push_back(*edge_end_time_view);
+
+        auto [srcs, dsts, sampled_edge_properties, labels] = sample_edges(
+          handle,
+          rng_state,
+          temporal_graph_view,
+          raft::host_span<edge_arithmetic_property_view_t<edge_t, vertex_t>>{
+            edge_property_views.data(), edge_property_views.size()},
+          edge_type_view
+            ? std::make_optional<edge_arithmetic_property_view_t<edge_t, vertex_t>>(*edge_type_view)
+            : std::nullopt,
+          edge_bias_view
+            ? std::make_optional<edge_arithmetic_property_view_t<edge_t, vertex_t>>(*edge_bias_view)
+            : std::nullopt,
+          (hop == 0) ? starting_vertices
+                     : raft::device_span<vertex_t const>{frontier_vertices_no_duplicates.data(),
+                                                         frontier_vertices_no_duplicates.size()},
+          (hop == 0) ? starting_vertex_labels
+          : frontier_vertex_labels_no_duplicates
+            ? std::make_optional(
+                raft::device_span<label_t const>{frontier_vertex_labels_no_duplicates->data(),
+                                                 frontier_vertex_labels_no_duplicates->size()})
+            : std::nullopt,
+          raft::host_span<size_t const>(level_Ks->data(), level_Ks->size()),
+          with_replacement);
 
         result_sizes.push_back(srcs.size());
         result_src_vectors.push_back(std::move(srcs));
         result_dst_vectors.push_back(std::move(dsts));
 
+        size_t pos{0};
+        auto weights =
+          (edge_weight_view)
+            ? std::make_optional(
+                std::move(std::get<rmm::device_uvector<weight_t>>(sampled_edge_properties[pos++])))
+            : std::nullopt;
+        auto edge_ids =
+          (edge_id_view) ? std::make_optional(std::move(
+                             std::get<rmm::device_uvector<edge_t>>(sampled_edge_properties[pos++])))
+                         : std::nullopt;
+        auto edge_types =
+          (edge_type_view)
+            ? std::make_optional(std::move(
+                std::get<rmm::device_uvector<edge_type_t>>(sampled_edge_properties[pos++])))
+            : std::nullopt;
+        auto edge_start_times =
+          std::move(std::get<rmm::device_uvector<edge_time_t>>(sampled_edge_properties[pos++]));
+        auto edge_end_times =
+          (edge_end_time_view)
+            ? std::make_optional(std::move(
+                std::get<rmm::device_uvector<edge_time_t>>(sampled_edge_properties[pos++])))
+            : std::nullopt;
+
         if (weights) { (*result_weight_vectors).push_back(std::move(*weights)); }
         if (edge_ids) { (*result_edge_id_vectors).push_back(std::move(*edge_ids)); }
         if (edge_types) { (*result_edge_type_vectors).push_back(std::move(*edge_types)); }
-        if (edge_start_times) {
-          (*result_edge_start_time_vectors).push_back(std::move(*edge_start_times));
-        }
+        (*result_edge_start_time_vectors).push_back(std::move(edge_start_times));
         if (edge_end_times) {
           (*result_edge_end_time_vectors).push_back(std::move(*edge_end_times));
         }
