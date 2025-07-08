@@ -1439,8 +1439,11 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
       typename EdgeDstValueInputWrapper::value_iterator,
       typename EdgeDstValueInputWrapper::value_type>>;
   using edge_partition_e_input_device_view_t = std::conditional_t<
-    std::is_same_v<typename EdgeValueInputWrapper::value_type, cuda::std::nullopt_t>,
-    detail::edge_partition_edge_dummy_property_device_view_t<vertex_t>,
+    std::is_same_v<typename EdgeValueInputWrapper::value_iterator, void*>,
+    std::conditional_t<
+      std::is_same_v<typename EdgeValueInputWrapper::value_type, cuda::std::nullopt_t>,
+      detail::edge_partition_edge_dummy_property_device_view_t<vertex_t>,
+      detail::edge_partition_edge_multi_index_property_device_view_t<edge_t, vertex_t>>,
     detail::edge_partition_edge_property_device_view_t<
       edge_t,
       typename EdgeValueInputWrapper::value_iterator,
@@ -1456,7 +1459,8 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
 
   // 1. drop zero degree keys & compute key_segment_offsets
 
-  auto local_vertex_partition_segment_offsets = graph_view.local_vertex_partition_segment_offsets();
+  auto const& local_vertex_partition_segment_offsets =
+    graph_view.local_vertex_partition_segment_offsets();
 
   std::conditional_t<use_input_key, std::optional<std::vector<size_t>>, std::byte /* dummy */>
     key_segment_offsets{};
@@ -2954,7 +2958,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                 : handle.get_stream();
 
             if (process_local_edges[j]) {
-              auto& key_segment_offsets = (*key_segment_offset_vectors)[partition_idx];
+              auto const& key_segment_offsets = (*key_segment_offset_vectors)[partition_idx];
 
               auto& keys = edge_partition_key_buffers[j];
               if constexpr (try_bitmap) {
@@ -3089,10 +3093,14 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                 graph_view.local_edge_partition_view(partition_idx));
             auto const& segment_offsets =
               graph_view.local_edge_partition_segment_offsets(partition_idx);
-
+            // check segment_offsets->size() >= 2 to silence a compiler warning with GCC 14 (if
+            // segment_offsets.has_value() is true, segment_offsets->size() should always be larger
+            // than 2, so this check shouldn't be necessary otherwise).
             buffer_size =
               segment_offsets
-                ? *((*segment_offsets).rbegin() + 1) /* exclude the zero degree segment */
+                ? (segment_offsets->size() >= 2
+                     ? *(segment_offsets->rbegin() + 1) /* exclude the zero degree segment */
+                     : vertex_t{0})
                 : edge_partition.major_range_size();
           }
         }

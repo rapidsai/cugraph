@@ -3,9 +3,7 @@
 channels:
 - rapidsai
 - rapidsai-nightly
-- dask/label/dev
 - conda-forge
-- nvidia
 dependencies:
 - aiohttp
 - breathe>=4.35.0
@@ -17,11 +15,11 @@ dependencies:
 - cuda-nvtx-dev
 - cuda-profiler-api
 - cuda-python>=12.6.2,<13.0a0
-- cuda-version=12.8
+- cuda-version=12.9
 - cudf==25.8.*,>=0.0.0a0
 - cupy>=12.0.0
 - cxx-compiler
-- cython>=3.0.0,<3.1.0a0
+- cython>=3.1.2
 - dask-cuda==25.8.*,>=0.0.0a0
 - dask-cudf==25.8.*,>=0.0.0a0
 - doxygen
@@ -77,4 +75,4 @@ dependencies:
 - torchmetrics
 - ucx-py==0.45.*,>=0.0.0a0
 - wheel
-name: all_cuda-128_arch-x86_64
+name: all_cuda-129_arch-x86_64

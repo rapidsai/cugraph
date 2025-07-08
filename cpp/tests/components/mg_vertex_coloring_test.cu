@@ -123,13 +123,8 @@ class Tests_MGGraphColoring
       per_v_transform_reduce_outgoing_e(
         *handle_,
         mg_graph_view,
-        multi_gpu
-          ? src_color_cache.view()
-          : cugraph::detail::edge_endpoint_property_view_t<vertex_t, vertex_t const*>(
-              std::vector<vertex_t const*>{d_colors.data()}, std::vector<vertex_t>{vertex_t{0}}),
-        multi_gpu ? dst_color_cache.view()
-                  : cugraph::detail::edge_endpoint_property_view_t<vertex_t, vertex_t const*>(
-                      d_colors.data(), vertex_t{0}),
+        src_color_cache.view(),
+        dst_color_cache.view(),
         cugraph::edge_dummy_property_t{}.view(),
         [] __device__(auto src, auto dst, auto src_color, auto dst_color, cuda::std::nullopt_t) {
           if ((src != dst) && (src_color == dst_color)) {
@@ -161,12 +156,8 @@ class Tests_MGGraphColoring
       size_t nr_conflicts = cugraph::transform_reduce_e(
         *handle_,
         mg_graph_view,
-        multi_gpu ? src_color_cache.view()
-                  : cugraph::detail::edge_endpoint_property_view_t<vertex_t, vertex_t const*>(
-                      std::vector<vertex_t const*>{d_colors.begin()}, std::vector<vertex_t>{0}),
-        multi_gpu ? dst_color_cache.view()
-                  : cugraph::detail::edge_endpoint_property_view_t<vertex_t, vertex_t const*>(
-                      d_colors.begin(), vertex_t{0}),
+        src_color_cache.view(),
+        dst_color_cache.view(),
         cugraph::edge_dummy_property_t{}.view(),
         [renumber_map = (*mg_renumber_map).data()] __device__(
           auto src, auto dst, auto src_color, auto dst_color, cuda::std::nullopt_t) {

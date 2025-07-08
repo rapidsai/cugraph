@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -44,7 +44,8 @@ generate_rmat_edgelist<int64_t>(raft::handle_t const& handle,
                                 double b,
                                 double c,
                                 bool clip_and_flip,
-                                bool scramble_vertex_ids);
+                                bool scramble_vertex_ids,
+                                std::optional<large_buffer_type_t> large_buffer_type);
 
 template std::vector<std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<int64_t>>>
 generate_rmat_edgelists<int64_t>(raft::handle_t const& handle,
@@ -56,29 +57,7 @@ generate_rmat_edgelists<int64_t>(raft::handle_t const& handle,
                                  generator_distribution_t size_distribution,
                                  generator_distribution_t edge_distribution,
                                  bool clip_and_flip,
-                                 bool scramble_vertex_ids);
-
-template std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<int64_t>>
-generate_rmat_edgelist<int64_t>(raft::handle_t const& handle,
-                                size_t scale,
-                                size_t num_edges,
-                                double a,
-                                double b,
-                                double c,
-                                uint64_t seed,
-                                bool clip_and_flip,
-                                bool scramble_vertex_ids);
-
-template std::vector<std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<int64_t>>>
-generate_rmat_edgelists<int64_t>(raft::handle_t const& handle,
-                                 size_t n_edgelists,
-                                 size_t min_scale,
-                                 size_t max_scale,
-                                 size_t edge_factor,
-                                 generator_distribution_t size_distribution,
-                                 generator_distribution_t edge_distribution,
-                                 uint64_t seed,
-                                 bool clip_and_flip,
-                                 bool scramble_vertex_ids);
+                                 bool scramble_vertex_ids,
+                                 std::optional<large_buffer_type_t> large_buffer_type);
 
 }  // namespace cugraph

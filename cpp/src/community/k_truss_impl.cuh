@@ -25,8 +25,8 @@
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/detail/collect_comm_wrapper.hpp>
-#include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
+#include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/error.hpp>
 
 #include <raft/util/integer_utils.hpp>
@@ -296,8 +296,10 @@ k_truss(raft::handle_t const& handle,
     auto edge_triangle_counts =
       edge_triangle_count<vertex_t, edge_t, multi_gpu>(handle, cur_graph_view, false);
 
-    cugraph::edge_bucket_t<vertex_t, void, true, multi_gpu, true> edgelist_weak(handle);
-    cugraph::edge_bucket_t<vertex_t, void, true, multi_gpu, true> edges_to_decrement_count(handle);
+    cugraph::edge_bucket_t<vertex_t, edge_t, true, multi_gpu, true> edgelist_weak(
+      handle, false /* multigraph */);
+    cugraph::edge_bucket_t<vertex_t, edge_t, true, multi_gpu, true> edges_to_decrement_count(
+      handle, false /* multigraph */);
     size_t prev_chunk_size = 0;  // FIXME: Add support for chunking
 
     while (true) {
@@ -456,28 +458,17 @@ k_truss(raft::handle_t const& handle,
         });
 
       if constexpr (multi_gpu) {
+        std::vector<cugraph::arithmetic_device_uvector_t> edge_properties{};
+
         std::tie(std::get<0>(edgelist_to_update_count),
                  std::get<1>(edgelist_to_update_count),
                  std::ignore,
-                 std::ignore,
-                 std::ignore,
-                 std::ignore,
-                 std::ignore,
-                 std::ignore) =
-          detail::shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<vertex_t,
-                                                                                         edge_t,
-                                                                                         weight_t,
-                                                                                         int32_t,
-                                                                                         int32_t>(
-            handle,
-            std::move(std::get<0>(edgelist_to_update_count)),
-            std::move(std::get<1>(edgelist_to_update_count)),
-            std::nullopt,
-            std::nullopt,
-            std::nullopt,
-            std::nullopt,
-            std::nullopt,
-            cur_graph_view.vertex_partition_range_lasts());
+                 std::ignore) = shuffle_int_edges(handle,
+                                                  std::move(std::get<0>(edgelist_to_update_count)),
+                                                  std::move(std::get<1>(edgelist_to_update_count)),
+                                                  std::move(edge_properties),
+                                                  false,
+                                                  cur_graph_view.vertex_partition_range_lasts());
       }
 
       thrust::sort(handle.get_thrust_policy(),
@@ -573,7 +564,8 @@ k_truss(raft::handle_t const& handle,
 
       edges_to_decrement_count.insert(std::get<0>(vertex_pair_buffer_unique).begin(),
                                       std::get<0>(vertex_pair_buffer_unique).end(),
-                                      std::get<1>(vertex_pair_buffer_unique).begin());
+                                      std::get<1>(vertex_pair_buffer_unique).begin(),
+                                      std::optional<edge_t const*>{std::nullopt});
 
       cur_graph_view.clear_edge_mask();
       // Check for edge existance on the directed graph view
@@ -615,8 +607,10 @@ k_truss(raft::handle_t const& handle,
         thrust::make_zip_iterator(weak_edgelist_srcs.begin(), weak_edgelist_dsts.begin()),
         thrust::make_zip_iterator(weak_edgelist_srcs.end(), weak_edgelist_dsts.end()));
 
-      edgelist_weak.insert(
-        weak_edgelist_srcs.begin(), weak_edgelist_srcs.end(), weak_edgelist_dsts.begin());
+      edgelist_weak.insert(weak_edgelist_srcs.begin(),
+                           weak_edgelist_srcs.end(),
+                           weak_edgelist_dsts.begin(),
+                           std::optional<edge_t const*>{std::nullopt});
 
       // Get undirected graph view
       cur_graph_view.clear_edge_mask();
@@ -642,28 +636,15 @@ k_truss(raft::handle_t const& handle,
 
       // shuffle the edges if multi_gpu
       if constexpr (multi_gpu) {
-        std::tie(weak_edgelist_dsts,
-                 weak_edgelist_srcs,
-                 std::ignore,
-                 std::ignore,
-                 std::ignore,
-                 std::ignore,
-                 std::ignore,
-                 std::ignore) =
-          detail::shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<vertex_t,
-                                                                                         edge_t,
-                                                                                         weight_t,
-                                                                                         int32_t,
-                                                                                         int32_t>(
-            handle,
-            std::move(weak_edgelist_dsts),
-            std::move(weak_edgelist_srcs),
-            std::nullopt,
-            std::nullopt,
-            std::nullopt,
-            std::nullopt,
-            std::nullopt,
-            cur_graph_view.vertex_partition_range_lasts());
+        std::vector<cugraph::arithmetic_device_uvector_t> edge_properties{};
+
+        std::tie(weak_edgelist_dsts, weak_edgelist_srcs, std::ignore, std::ignore) =
+          shuffle_int_edges(handle,
+                            std::move(weak_edgelist_dsts),
+                            std::move(weak_edgelist_srcs),
+                            std::move(edge_properties),
+                            false,
+                            cur_graph_view.vertex_partition_range_lasts());
       }
 
       thrust::sort(
@@ -671,8 +652,10 @@ k_truss(raft::handle_t const& handle,
         thrust::make_zip_iterator(weak_edgelist_dsts.begin(), weak_edgelist_srcs.begin()),
         thrust::make_zip_iterator(weak_edgelist_dsts.end(), weak_edgelist_srcs.end()));
 
-      edgelist_weak.insert(
-        weak_edgelist_dsts.begin(), weak_edgelist_dsts.end(), weak_edgelist_srcs.begin());
+      edgelist_weak.insert(weak_edgelist_dsts.begin(),
+                           weak_edgelist_dsts.end(),
+                           weak_edgelist_srcs.begin(),
+                           std::optional<edge_t const*>{std::nullopt});
 
       cugraph::transform_e(
         handle,

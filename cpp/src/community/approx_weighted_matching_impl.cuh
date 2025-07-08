@@ -15,6 +15,7 @@
  */
 #pragma once
 
+#include "detail/shuffle_wrappers.hpp"
 #include "prims/fill_edge_property.cuh"
 #include "prims/reduce_op.cuh"
 #include "prims/transform_e.cuh"
@@ -23,7 +24,6 @@
 #include "utilities/collect_comm.cuh"
 
 #include <cugraph/algorithms.hpp>
-#include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
 
 #include <raft/core/handle.hpp>
@@ -142,8 +142,7 @@ std::tuple<rmm::device_uvector<vertex_t>, weight_t> approximate_weighted_matchin
     //
 
     if constexpr (multi_gpu) {
-      auto vertex_partition_range_lasts = current_graph_view.vertex_partition_range_lasts();
-
+      auto vertex_partition_range_lasts = graph_view.vertex_partition_range_lasts();
       rmm::device_uvector<vertex_t> d_vertex_partition_range_lasts(
         vertex_partition_range_lasts.size(), handle.get_stream());
 
@@ -152,26 +151,21 @@ std::tuple<rmm::device_uvector<vertex_t>, weight_t> approximate_weighted_matchin
                           vertex_partition_range_lasts.size(),
                           handle.get_stream());
 
-      auto& major_comm = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
-      auto const major_comm_size = major_comm.get_size();
-      auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
-      auto const minor_comm_size = minor_comm.get_size();
+      std::vector<cugraph::arithmetic_device_uvector_t> vertex_properties{};
+      vertex_properties.push_back(std::move(candidates));
+      vertex_properties.push_back(std::move(offers_from_candidates));
 
-      auto key_func = cugraph::detail::compute_gpu_id_from_int_vertex_t<vertex_t>{
-        raft::device_span<vertex_t const>(d_vertex_partition_range_lasts.data(),
-                                          d_vertex_partition_range_lasts.size()),
-        major_comm_size,
-        minor_comm_size};
+      std::tie(targets, vertex_properties) = shuffle_keys_with_properties(
+        handle,
+        std::move(targets),
+        std::move(vertex_properties),
+        cugraph::detail::compute_gpu_id_from_int_vertex_t<vertex_t>{
+          raft::device_span<vertex_t const>{d_vertex_partition_range_lasts.data(),
+                                            d_vertex_partition_range_lasts.size()}});
 
-      std::forward_as_tuple(std::tie(candidates, offers_from_candidates, targets), std::ignore) =
-        cugraph::groupby_gpu_id_and_shuffle_values(
-          handle.get_comms(),
-          thrust::make_zip_iterator(thrust::make_tuple(
-            candidates.begin(), offers_from_candidates.begin(), targets.begin())),
-          thrust::make_zip_iterator(
-            thrust::make_tuple(candidates.end(), offers_from_candidates.end(), targets.end())),
-          [key_func] __device__(auto val) { return key_func(thrust::get<2>(val)); },
-          handle.get_stream());
+      candidates = std::move(std::get<rmm::device_uvector<vertex_t>>(vertex_properties[0]));
+      offers_from_candidates =
+        std::move(std::get<rmm::device_uvector<weight_t>>(vertex_properties[1]));
     }
 
     auto itr_to_tuples = thrust::make_zip_iterator(

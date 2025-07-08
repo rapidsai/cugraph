@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2024, NVIDIA CORPORATION.
+# Copyright (c) 2022-2025, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -178,18 +178,19 @@ def test_get_num_edges_nondefault_graph(client_with_edgelist_csv_loaded):
     )
 
 
-def test_node2vec(client_with_edgelist_csv_loaded):
+def test_node2vec_random_walks(client_with_edgelist_csv_loaded):
     (client, test_data) = client_with_edgelist_csv_loaded
     extracted_gid = client.extract_subgraph()
     start_vertices = 11
     max_depth = 2
-    (vertex_paths, edge_weights, path_sizes) = client.node2vec(
+    (vertex_paths, edge_weights, max_path_length) = client.node2vec_random_walks(
         start_vertices, max_depth, extracted_gid
     )
     # FIXME: consider a more thorough test
     assert isinstance(vertex_paths, list) and len(vertex_paths)
     assert isinstance(edge_weights, list) and len(edge_weights)
-    assert isinstance(path_sizes, list) and len(path_sizes)
+    assert isinstance(max_path_length, int)
+    assert (max_path_length == max_depth) and max_path_length == len(vertex_paths) - 1
 
 
 def test_extract_subgraph(client_with_edgelist_csv_loaded):
@@ -467,16 +468,26 @@ def test_renumber_vertices_by_type(client_with_property_csvs_loaded):
     assert re.start == [0, 5]
     assert re.stop == [4, 8]
     print(client.get_graph_vertex_data(property_keys=["old_vid"]))
-    assert client.get_graph_vertex_data(property_keys=["old_vid"])[:, -1].tolist() == [
-        11,
+    sorted_old_vid = client.get_graph_vertex_data(property_keys=["old_vid"])[
+        :, -1
+    ].tolist()
+    sorted_old_vid.sort()
+
+    # Ensure that the original vertices are all represented in the
+    # vertex data property_keys "old_vid"
+
+    # TODO: add a more detailed test to the PG test suite for verifying
+    # contiguity within the vertex types
+    assert sorted_old_vid == [
         4,
-        21,
+        11,
         16,
+        21,
         86,
-        89021,
         32431,
-        89216,
         78634,
+        89021,
+        89216,
     ]
 
 
