@@ -20,7 +20,7 @@ import numpy as np
 import cupy
 import cudf
 
-from typing import Union, List, Dict, Tuple, Iterator, Optional
+from typing import Union, List, Dict, Tuple, Iterator, Optional, Any
 
 from cugraph.utilities.utils import import_optional, MissingModule
 from cugraph.gnn.comms import cugraph_comms_get_raft_handle
@@ -78,6 +78,7 @@ class DistSampler:
         batch_id_offsets: TensorType,
         random_state: int = 0,
         assume_equal_input_size: bool = False,
+        metadata: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, TensorType]:
         """
         For a single call group of seeds and associated batch ids, performs
@@ -97,7 +98,8 @@ class DistSampler:
             If True, will assume all ranks have the same number of inputs,
             and will skip the synchronization/gather steps to check for
             and handle uneven inputs.
-
+        metadata: Optional[Dict[str, Any]]
+            Metadata to be added to the minibatch dictionary.
         Returns
         -------
         A dictionary containing the sampling outputs (majors, minors, map, etc.)
@@ -166,6 +168,7 @@ class DistSampler:
         batches_per_call: int,
         random_state: int,
         assume_equal_input_size: bool,
+        metadata: Optional[Dict[str, Any]] = None,
     ) -> Union[None, Iterator[Tuple[Dict[str, "torch.Tensor"], int, int]]]:
         torch = import_optional("torch")
 
@@ -189,6 +192,7 @@ class DistSampler:
             seeds=current_seeds,
             batch_id_offsets=input_offsets,
             random_state=random_state,
+            metadata=metadata,
         )
 
         minibatch_dict["input_index"] = current_ix.cuda()
@@ -274,6 +278,7 @@ class DistSampler:
         random_state: int = 62,
         assume_equal_input_size: bool = False,
         input_id: Optional[TensorType] = None,
+        metadata: Optional[Dict[str, Any]] = None,
     ) -> Iterator[Tuple[Dict[str, "torch.Tensor"], int, int]]:
         """
         Performs node-based sampling.  Accepts a list of seed nodes, and batch size.
@@ -329,6 +334,7 @@ class DistSampler:
             batches_per_call,
             random_state,
             input_size_is_equal,
+            metadata,
         ]
 
         if self.__writer is None:
@@ -362,6 +368,7 @@ class DistSampler:
         batches_per_call: int,
         random_state: int,
         assume_equal_input_size: bool,
+        metadata: Optional[Dict[str, Any]] = None,
     ) -> Union[None, Iterator[Tuple[Dict[str, "torch.Tensor"], int, int]]]:
         torch = import_optional("torch")
 
@@ -478,6 +485,7 @@ class DistSampler:
             seeds=current_seeds,
             batch_id_offsets=current_batch_offsets,
             random_state=random_state,
+            metadata=metadata,
         )
         minibatch_dict["input_index"] = current_ix.cuda()
         minibatch_dict["input_label"] = current_label.cuda()
@@ -519,6 +527,7 @@ class DistSampler:
         assume_equal_input_size: bool = False,
         input_id: Optional[TensorType] = None,
         input_label: Optional[TensorType] = None,
+        metadata: Optional[Dict[str, Any]] = None,
     ) -> Iterator[Tuple[Dict[str, "torch.Tensor"], int, int]]:
         """
         Performs sampling starting from seed edges.
@@ -584,6 +593,7 @@ class DistSampler:
             batches_per_call,
             random_state,
             input_size_is_equal,
+            metadata,
         ]
 
         if self.__writer is None:
@@ -752,6 +762,7 @@ class NeighborSampler(DistSampler):
         seeds: TensorType,
         batch_id_offsets: TensorType,
         random_state: int = 0,
+        metadata: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, TensorType]:
         torch = import_optional("torch")
         rank = torch.distributed.get_rank() if self.is_multi_gpu else 0
@@ -771,4 +782,6 @@ class NeighborSampler(DistSampler):
 
         sampling_results_dict["fanout"] = cupy.array(self.__fanout, dtype="int32")
         sampling_results_dict["rank"] = rank
+        if metadata is not None:
+            sampling_results_dict.update(metadata)
         return sampling_results_dict
