@@ -28,6 +28,7 @@
 #include "prims/update_edge_src_dst_property.cuh"
 #include "prims/update_v_frontier.cuh"
 #include "prims/vertex_frontier.cuh"
+#include "prims/detail/prim_functors.cuh"
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
@@ -106,7 +107,8 @@ struct extract_edge_pred_op_t {
                              thrust::tuple<vertex_t, edge_t, weight_t> dst_props,
                              cuda::std::nullopt_t) const
   {
-    return ((thrust::get<0>(dst_props) == d) && (thrust::get<0>(src_props) == (d - 1)));
+    // For outgoing edges: we want edges where src is at distance d and dst is at distance d-1
+    return ((thrust::get<0>(src_props) == d) && (thrust::get<0>(dst_props) == (d - 1)));
   }
 
   template <typename edge_t, typename weight_t>
@@ -116,7 +118,8 @@ struct extract_edge_pred_op_t {
                              thrust::tuple<vertex_t, edge_t, weight_t> dst_props,
                              edge_t edge_multi_index) const
   {
-    return ((thrust::get<0>(dst_props) == d) && (thrust::get<0>(src_props) == (d - 1)));
+    // For outgoing edges: we want edges where src is at distance d and dst is at distance d-1
+    return ((thrust::get<0>(src_props) == d) && (thrust::get<0>(dst_props) == (d - 1)));
   }
 };
 
@@ -234,6 +237,8 @@ void accumulate_vertex_results(
     reduce_op::maximum<vertex_t>{},
     do_expensive_check);
 
+  std::cout << "DEBUG: diameter = " << diameter << std::endl;
+
   rmm::device_uvector<weight_t> deltas(sigmas.size(), handle.get_stream());
   detail::scalar_fill(handle, deltas.data(), deltas.size(), weight_t{0});
 
@@ -308,10 +313,17 @@ void accumulate_vertex_results(
     }
   }
 
+  std::cout << "DEBUG: vertices_by_distance sizes: ";
+  for (size_t i = 0; i < vertices_by_distance.size(); ++i) {
+    std::cout << vertices_by_distance[i].size() << " ";
+  }
+  std::cout << std::endl;
+
   // Based on Brandes algorithm, we want to follow back pointers in non-increasing
   // distance from S to compute delta
   //
   for (vertex_t d = diameter; d > 1; --d) {
+    std::cout << "DEBUG: Processing distance d = " << d << std::endl;
     
     // Clear deltas array for this iteration
     detail::scalar_fill(handle, deltas.data(), deltas.size(), weight_t{0});
@@ -319,21 +331,25 @@ void accumulate_vertex_results(
     // Use pre-computed vertices at distance d-1
     auto& vertices_at_distance_d_minus_1 = vertices_by_distance[d - 1];
     
-
+    std::cout << "DEBUG: vertices_at_distance_d_minus_1.size() = " << vertices_at_distance_d_minus_1.size() << std::endl;
+      
+        // Declare variables outside the if block
+    std::optional<key_bucket_t<vertex_t, void, multi_gpu, true>> vertex_list;
+    rmm::device_uvector<weight_t> vertex_list_deltas(0, handle.get_stream());
     
     if (vertices_at_distance_d_minus_1.size() > 0) {
       // Create key_bucket_t from the vertex list
-      key_bucket_t<vertex_t, void, multi_gpu, true> vertex_list(
+      vertex_list = key_bucket_t<vertex_t, void, multi_gpu, true>(
         handle, std::move(vertices_at_distance_d_minus_1));
       
       // Create temporary array for vertex list results
-      rmm::device_uvector<weight_t> vertex_list_deltas(vertex_list.size(), handle.get_stream());
-      
+      vertex_list_deltas = rmm::device_uvector<weight_t>(vertex_list->size(), handle.get_stream());
+
       // Use vertex list approach - only process vertices at distance d-1
       per_v_transform_reduce_outgoing_e(
         handle,
         graph_view,
-        vertex_list,
+        vertex_list.value(),
         src_properties.view(),
         dst_properties.view(),
         cugraph::edge_dummy_property_t{}.view(),
@@ -353,36 +369,125 @@ void accumulate_vertex_results(
         vertex_list_deltas.begin(),
         do_expensive_check);
       
+      // Debug: vertex_list_deltas size and values
+      std::cout << "DEBUG: vertex_list_deltas.size() = " << vertex_list_deltas.size() << std::endl;
+      
+      if (vertex_list_deltas.size() > 0) {
+        // Allocate host memory and copy from device
+        std::vector<weight_t> h_vertex_list_deltas(vertex_list_deltas.size());
+        cudaMemcpy(h_vertex_list_deltas.data(), 
+                   vertex_list_deltas.data(), 
+                   vertex_list_deltas.size() * sizeof(weight_t), 
+                   cudaMemcpyDeviceToHost);
+        
+        std::cout << "DEBUG: First 5 vertex_list_deltas: ";
+        for (size_t i = 0; i < std::min(size_t{5}, h_vertex_list_deltas.size()); ++i) {
+          std::cout << std::fixed << std::setprecision(6) << h_vertex_list_deltas[i] << " ";
+        }
+        std::cout << std::endl;
+      }
+      
       // Scatter results back to correct positions in main deltas array
+      // Convert vertex IDs to local offsets for scatter
       auto v_first = graph_view.local_vertex_partition_range_first();
+      rmm::device_uvector<vertex_t> vertex_offsets_for_scatter(vertex_list.value().size(), handle.get_stream());
+      thrust::transform(
+        handle.get_thrust_policy(),
+        vertex_list.value().begin(),
+        vertex_list.value().end(),
+        vertex_offsets_for_scatter.begin(),
+        [v_first] __device__(vertex_t vertex) {
+          return vertex - v_first;
+        }
+      );
+      
       thrust::scatter(
         handle.get_thrust_policy(),
         vertex_list_deltas.begin(),
         vertex_list_deltas.end(),
-        vertex_list.begin(),
-        deltas.begin() + v_first
+        vertex_offsets_for_scatter.begin(),
+        deltas.begin()
       );
     }
     
     // Update edge properties with CURRENT deltas (the ones just computed)
-    update_edge_src_property(
-      handle,
-      graph_view,
-      thrust::make_zip_iterator(distances.begin(), sigmas.begin(), deltas.begin()),
-      src_properties.mutable_view());
-    update_edge_dst_property(
-      handle,
-      graph_view,
-      thrust::make_zip_iterator(distances.begin(), sigmas.begin(), deltas.begin()),
-      dst_properties.mutable_view());
+    if (vertex_list.has_value()) {
+      update_edge_src_property(
+        handle,
+        graph_view,
+        vertex_list.value().begin(),
+        vertex_list.value().end(),
+        thrust::make_zip_iterator(distances.begin(), sigmas.begin(), deltas.begin()),
+        src_properties.mutable_view());
+      update_edge_dst_property(
+        handle,
+        graph_view,
+        vertex_list.value().begin(),
+        vertex_list.value().end(),
+        thrust::make_zip_iterator(distances.begin(), sigmas.begin(), deltas.begin()),
+        dst_properties.mutable_view());
+    }
 
-    // Accumulate deltas into centralities
-    thrust::transform(handle.get_thrust_policy(),
-                      centralities.begin(),
-                      centralities.end(),
-                      deltas.begin(),
-                      centralities.begin(),
-                      thrust::plus<weight_t>());
+    // Efficient frontier-only update:
+    if (vertex_list.value().size() > 0) {
+      // Step 1: Gather current centrality values for frontier vertices
+      rmm::device_uvector<weight_t> frontier_centralities(vertex_list.value().size(), handle.get_stream());
+      auto v_first = graph_view.local_vertex_partition_range_first();
+      
+      // Convert vertex IDs to local offsets for gather
+      rmm::device_uvector<vertex_t> vertex_offsets(vertex_list.value().size(), handle.get_stream());
+      thrust::transform(
+        handle.get_thrust_policy(),
+        vertex_list.value().begin(),
+        vertex_list.value().end(),
+        vertex_offsets.begin(),
+        [v_first] __device__(vertex_t vertex) {
+          return vertex - v_first;
+        }
+      );
+      
+      thrust::gather(
+        handle.get_thrust_policy(),
+        vertex_offsets.begin(),
+        vertex_offsets.end(),
+        centralities.begin(),
+        frontier_centralities.begin()
+      );
+      
+      // Step 2: Add deltas to frontier centralities
+      thrust::transform(
+        handle.get_thrust_policy(),
+        frontier_centralities.begin(),
+        frontier_centralities.end(),
+        vertex_list_deltas.begin(),
+        frontier_centralities.begin(),
+        thrust::plus<weight_t>()
+      );
+      
+      // Step 3: Scatter updated centralities back to main array
+      thrust::scatter(
+        handle.get_thrust_policy(),
+        frontier_centralities.begin(),
+        frontier_centralities.end(),
+        vertex_offsets.begin(),
+        centralities.begin()
+      );
+      
+      // Debug: check centrality values after update
+      if (centralities.size() > 0) {
+        std::vector<weight_t> h_centralities(centralities.size());
+        cudaMemcpy(h_centralities.data(), 
+                   centralities.data(), 
+                   centralities.size() * sizeof(weight_t), 
+                   cudaMemcpyDeviceToHost);
+        
+        std::cout << "DEBUG: After distance " << d << ", first 5 centralities: ";
+        for (size_t i = 0; i < std::min(size_t{5}, h_centralities.size()); ++i) {
+          std::cout << std::fixed << std::setprecision(6) << h_centralities[i] << " ";
+        }
+        std::cout << std::endl;
+      }
+    }
   }
 }
 

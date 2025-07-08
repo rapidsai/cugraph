@@ -40,6 +40,9 @@
 #include <sstream>
 #include <algorithm>
 
+// Debug flag - set to true to enable debug output
+#define DEBUG_BETWEENNESS_CENTRALITY 1
+
 struct BetweennessCentrality_Usecase {
   size_t num_seeds{std::numeric_limits<size_t>::max()};
   bool normalized{false};
@@ -70,6 +73,16 @@ class Tests_BetweennessCentrality
 
     auto [betweenness_usecase, input_usecase] = param;
 
+#if DEBUG_BETWEENNESS_CENTRALITY
+    std::cout << "\n=== BETWEENNESS CENTRALITY TEST START ===" << std::endl;
+    std::cout << "Parameters: num_seeds=" << betweenness_usecase.num_seeds 
+              << ", normalized=" << (betweenness_usecase.normalized ? "true" : "false")
+              << ", include_endpoints=" << (betweenness_usecase.include_endpoints ? "true" : "false")
+              << ", test_weighted=" << (betweenness_usecase.test_weighted ? "true" : "false")
+              << ", edge_masking=" << (betweenness_usecase.edge_masking ? "true" : "false")
+              << ", check_correctness=" << (betweenness_usecase.check_correctness ? "true" : "false") << std::endl;
+#endif
+
     raft::handle_t handle{};
     HighResTimer hr_timer{};
 
@@ -81,6 +94,15 @@ class Tests_BetweennessCentrality
     auto [graph, edge_weights, d_renumber_map_labels] =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, false>(
         handle, input_usecase, betweenness_usecase.test_weighted, renumber);
+
+#if DEBUG_BETWEENNESS_CENTRALITY
+    std::cout << "Graph construction completed." << std::endl;
+    std::cout << "  - Number of vertices: " << graph.number_of_vertices() << std::endl;
+    std::cout << "  - Number of edges: " << graph.number_of_edges() << std::endl;
+    std::cout << "  - Is symmetric: " << (graph.is_symmetric() ? "true" : "false") << std::endl;
+    std::cout << "  - Is multigraph: " << (graph.is_multigraph() ? "true" : "false") << std::endl;
+    std::cout << "  - Has edge weights: " << (edge_weights ? "true" : "false") << std::endl;
+#endif
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -104,6 +126,9 @@ class Tests_BetweennessCentrality
     if (betweenness_usecase.num_seeds == std::numeric_limits<size_t>::max()) {
       // Use all vertices as sources (full betweenness centrality)
       // seeds_span remains std::nullopt, which signals to cugraph to use all vertices
+#if DEBUG_BETWEENNESS_CENTRALITY
+      std::cout << "Seeds: all vertices" << std::endl;
+#endif
     } else {
       raft::random::RngState rng_state(0);
       d_seeds = cugraph::select_random_vertices(
@@ -115,6 +140,9 @@ class Tests_BetweennessCentrality
         false,
         true);
       seeds_span = raft::device_span<vertex_t const>{d_seeds.data(), d_seeds.size()};
+#if DEBUG_BETWEENNESS_CENTRALITY
+      std::cout << "Seeds: " << d_seeds.size() << " vertices" << std::endl;
+#endif
     }
 
     if (cugraph::test::g_perf) {
@@ -130,6 +158,23 @@ class Tests_BetweennessCentrality
       betweenness_usecase.normalized,
       betweenness_usecase.include_endpoints,
       do_expensive_check);
+
+#if DEBUG_BETWEENNESS_CENTRALITY
+    std::cout << "Centrality array size: " << d_centralities.size() << std::endl;
+    
+    // Print first few centrality values
+    if (d_centralities.size() > 0) {
+      auto h_centralities = cugraph::test::to_host(handle, d_centralities);
+      
+      std::cout << "First 5 centrality values: ";
+      for (size_t i = 0; i < std::min(size_t{5}, h_centralities.size()); ++i) {
+        std::cout << std::fixed << std::setprecision(6) << h_centralities[i];
+        if (i < std::min(size_t{4}, h_centralities.size() - 1)) std::cout << ", ";
+      }
+      if (h_centralities.size() > 5) std::cout << ", ...";
+      std::cout << std::endl;
+    }
+#endif
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -160,6 +205,7 @@ class Tests_BetweennessCentrality
       } else {
         h_seeds = cugraph::test::to_host(handle, d_seeds);
       }
+      
       auto h_reference_centralities =
         betweenness_centrality_reference(h_offsets,
                                           h_indices,
@@ -169,10 +215,27 @@ class Tests_BetweennessCentrality
                                           !graph_view.is_symmetric(),
                                           betweenness_usecase.normalized);
 
-      auto d_reference_centralities = cugraph::test::to_device(handle, h_reference_centralities);
+#if DEBUG_BETWEENNESS_CENTRALITY
+      // Print first few reference centrality values
+      if (h_reference_centralities.size() > 0) {
+        std::cout << "First 5 reference centrality values: ";
+        for (size_t i = 0; i < std::min(size_t{5}, h_reference_centralities.size()); ++i) {
+          std::cout << std::fixed << std::setprecision(6) << h_reference_centralities[i];
+          if (i < std::min(size_t{4}, h_reference_centralities.size() - 1)) std::cout << ", ";
+        }
+        if (h_reference_centralities.size() > 5) std::cout << ", ...";
+        std::cout << std::endl;
+      }
+#endif
 
+      auto d_reference_centralities = cugraph::test::to_device(handle, h_reference_centralities);
+      
       cugraph::test::betweenness_centrality_validate(handle, d_centralities, d_reference_centralities);
     }
+
+#if DEBUG_BETWEENNESS_CENTRALITY
+    std::cout << "=== BETWEENNESS CENTRALITY TEST END ===\n" << std::endl;
+#endif
   }
 };
 
