@@ -17,9 +17,9 @@
 #pragma once
 
 #include "detail/graph_partition_utils.cuh"
+#include "detail/shuffle_wrappers.hpp"
 
 #include <cugraph/arithmetic_variant_types.hpp>
-#include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/large_buffer_manager.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
@@ -171,8 +171,25 @@ shuffle_ext_vertex_value_pairs(raft::handle_t const& handle,
                                rmm::device_uvector<value_t>&& values,
                                std::optional<large_buffer_type_t> large_buffer_type)
 {
-  return detail::shuffle_ext_vertex_value_pairs_to_local_gpu_by_vertex_partitioning(
-    handle, std::move(vertices), std::move(values), large_buffer_type);
+  auto const comm_size       = handle.get_comms().get_size();
+  auto& major_comm           = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
+  auto const major_comm_size = major_comm.get_size();
+  auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+  auto const minor_comm_size = minor_comm.get_size();
+
+  std::vector<arithmetic_device_uvector_t> properties{};
+  properties.push_back(std::move(values));
+
+  std::tie(vertices, properties) =
+    shuffle_keys_with_properties(handle,
+                                 std::move(vertices),
+                                 std::move(properties),
+                                 cugraph::detail::compute_gpu_id_from_ext_vertex_t<vertex_t>{
+                                   comm_size, major_comm_size, minor_comm_size},
+                                 large_buffer_type);
+
+  return std::make_tuple(std::move(vertices),
+                         std::move(std::get<rmm::device_uvector<value_t>>(properties[0])));
 }
 
 template <typename key_t, typename key_to_gpu_op_t>
