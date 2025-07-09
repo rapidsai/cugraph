@@ -13,7 +13,6 @@
 
 from cugraph.community.louvain import louvain
 from cugraph.community.leiden import leiden
-
 from cugraph.community.ecg import ecg
 from cugraph.community.spectral_clustering import (
     spectralBalancedCutClustering,

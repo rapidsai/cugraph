@@ -77,11 +77,6 @@ def ecg(
         Random state to use when generating samples.  Optional argument,
         defaults to a hash of process id, time, and hostname.
 
-    weight : str, optional (default=None)
-        Deprecated.
-        This parameter is here for NetworkX compatibility and
-        represents which NetworkX data column represents Edge weights.
-
     Returns
     -------
     parts : cudf.DataFrame
@@ -104,11 +99,6 @@ def ecg(
     >>> parts, mod = cugraph.ecg(G)
 
     """
-    if weight is not None:
-        warning_msg = (
-            "This parameter is deprecated and will be removed in the next release."
-        )
-        warnings.warn(warning_msg, UserWarning)
 
     vertex, partition, modularity_score = pylibcugraph_ecg(
         resource_handle=ResourceHandle(),

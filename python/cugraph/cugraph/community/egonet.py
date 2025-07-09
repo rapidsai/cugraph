@@ -62,9 +62,6 @@ def ego_graph(G, n, radius=1, center=True, undirected=None, distance=None):
     center: bool, optional
         Defaults to True. False is not supported
 
-    undirected: bool, optional
-        This parameter is here for NetworkX compatibility and is ignored
-
     distance: key, optional (default=None)
         This parameter is here for NetworkX compatibility and is ignored
 
@@ -83,13 +80,6 @@ def ego_graph(G, n, radius=1, center=True, undirected=None, distance=None):
     (G, input_type) = ensure_cugraph_obj(G, nx_weight_attr="weight")
 
     result_graph = type(G)(directed=G.is_directed())
-
-    if undirected is not None:
-        warning_msg = (
-            "The parameter 'undirected' is deprecated and "
-            "will be removed in the next release"
-        )
-        warnings.warn(warning_msg, PendingDeprecationWarning)
 
     if isinstance(n, (int, list)):
         n = cudf.Series(n)
