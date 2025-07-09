@@ -53,9 +53,7 @@ def test_ego_graph(graph_file, seed, radius):
 
     # compare the two graphs
     cu_edges = ego_cugraph.view_edge_list().to_pandas()
-    ego_cugraph_nx = nx.from_pandas_edgelist(
-        cu_edges, source="src", target="dst"
-    )
+    ego_cugraph_nx = nx.from_pandas_edgelist(cu_edges, source="src", target="dst")
     assert nx.is_isomorphic(ego_nx, ego_cugraph_nx)
 
 

@@ -239,7 +239,7 @@ def generate_edgelist_rmat(
     """
     ddf = rmat(
         scale,
-        (2**scale) * edgefactor,
+        (2 ** scale) * edgefactor,
         0.57,  # from Graph500
         0.19,  # from Graph500
         0.19,  # from Graph500

@@ -18,10 +18,7 @@ from pylibcugraph import ResourceHandle
 from cugraph.structure.graph_classes import Graph
 
 
-def k_truss(
-    G: Graph,
-    k: int
-) -> Graph:
+def k_truss(G: Graph, k: int) -> Graph:
     """
     Returns the K-Truss subgraph of a graph for a specific k.
 

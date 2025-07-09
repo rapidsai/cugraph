@@ -13,9 +13,7 @@
 
 
 import cudf
-from cugraph.utilities import (
-    ensure_cugraph_obj
-)
+from cugraph.utilities import ensure_cugraph_obj
 from pylibcugraph import ego_graph as pylibcugraph_ego_graph
 from pylibcugraph import ResourceHandle
 
