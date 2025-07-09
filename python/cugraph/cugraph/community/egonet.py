@@ -12,8 +12,6 @@
 # limitations under the License.
 
 
-import warnings
-
 import cudf
 from cugraph.utilities import (
     ensure_cugraph_obj

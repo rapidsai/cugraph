@@ -15,7 +15,6 @@ from pylibcugraph import ecg as pylibcugraph_ecg
 from pylibcugraph import ResourceHandle
 
 import cudf
-import warnings
 
 
 def ecg(
