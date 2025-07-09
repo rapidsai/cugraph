@@ -204,7 +204,7 @@ extern "C" cugraph_error_code_t cugraph_generate_rmat_edgelist(
   auto& local_rng_state{
     reinterpret_cast<cugraph::c_api::cugraph_rng_state_t*>(rng_state)->rng_state_};
 
-  if (num_edges < pow(2, 31)) {
+  if (num_edges < std::numeric_limits<int32_t>::max()) {
     return cugraph_generate_rmat_edgelist<int32_t>(
       local_handle,
       local_rng_state,
