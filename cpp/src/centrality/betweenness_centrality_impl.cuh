@@ -237,8 +237,6 @@ void accumulate_vertex_results(
     reduce_op::maximum<vertex_t>{},
     do_expensive_check);
 
-  std::cout << "DEBUG: diameter = " << diameter << std::endl;
-
   rmm::device_uvector<weight_t> deltas(sigmas.size(), handle.get_stream());
   detail::scalar_fill(handle, deltas.data(), deltas.size(), weight_t{0});
 
@@ -282,74 +280,57 @@ void accumulate_vertex_results(
     thrust::make_zip_iterator(distances.begin(), sigmas.begin(), deltas.begin()),
     dst_properties.mutable_view());
 
-  // Pre-compute: group vertices by distance for efficient lookup
-  std::vector<rmm::device_uvector<vertex_t>> vertices_by_distance;
-  vertices_by_distance.reserve(diameter + 1);
+  // Pre-allocate reusable buffers to avoid repeated allocations
+  auto max_frontier_size = transform_reduce_v(
+    handle,
+    graph_view,
+    distances.begin(),
+    [] __device__(auto, auto d) { return (d == invalid_distance) ? vertex_t{0} : vertex_t{1}; },
+    vertex_t{0},
+    reduce_op::plus<vertex_t>{},
+    do_expensive_check);
   
-  // Pre-allocate vectors for each distance level (0 to diameter)
-  for (vertex_t d = 0; d <= diameter; ++d) {
-    auto count = count_if_v(
-      handle,
-      graph_view,
-      distances.begin(),
-      [d] __device__(auto, auto distance) { return distance == d; },
-      do_expensive_check);
-    
-    if (count > 0) {
-      rmm::device_uvector<vertex_t> vertices_at_d(count, handle.get_stream());
-      auto v_first = graph_view.local_vertex_partition_range_first();
-      thrust::copy_if(
-        handle.get_thrust_policy(),
-        thrust::make_counting_iterator(v_first),
-        thrust::make_counting_iterator(graph_view.local_vertex_partition_range_last()),
-        vertices_at_d.begin(),
-        [distances = distances.begin(), d, v_first] __device__(vertex_t vertex) {
-          auto offset = vertex - v_first;
-          return distances[offset] == d;
-        });
-      vertices_by_distance.push_back(std::move(vertices_at_d));
-    } else {
-      vertices_by_distance.push_back(rmm::device_uvector<vertex_t>(0, handle.get_stream()));
-    }
-  }
-
-  std::cout << "DEBUG: vertices_by_distance sizes: ";
-  for (size_t i = 0; i < vertices_by_distance.size(); ++i) {
-    std::cout << vertices_by_distance[i].size() << " ";
-  }
-  std::cout << std::endl;
+  rmm::device_uvector<vertex_t> reusable_vertex_buffer(max_frontier_size, handle.get_stream());
+  rmm::device_uvector<weight_t> reusable_delta_buffer(max_frontier_size, handle.get_stream());
+  rmm::device_uvector<weight_t> reusable_centrality_buffer(max_frontier_size, handle.get_stream());
 
   // Based on Brandes algorithm, we want to follow back pointers in non-increasing
   // distance from S to compute delta
   //
   for (vertex_t d = diameter; d > 1; --d) {
-    std::cout << "DEBUG: Processing distance d = " << d << std::endl;
-    
     // Clear deltas array for this iteration
     detail::scalar_fill(handle, deltas.data(), deltas.size(), weight_t{0});
     
-    // Use pre-computed vertices at distance d-1
-    auto& vertices_at_distance_d_minus_1 = vertices_by_distance[d - 1];
+    // Find vertices at distance d-1 (frontier vertices)
+    auto frontier_count = count_if_v(
+      handle,
+      graph_view,
+      distances.begin(),
+      [d] __device__(auto, auto distance) { return distance == (d - 1); },
+      do_expensive_check);
     
-    std::cout << "DEBUG: vertices_at_distance_d_minus_1.size() = " << vertices_at_distance_d_minus_1.size() << std::endl;
+    if (frontier_count > 0) {
+      // Extract frontier vertices
+      auto v_first = graph_view.local_vertex_partition_range_first();
+      thrust::copy_if(
+        handle.get_thrust_policy(),
+        thrust::make_counting_iterator(v_first),
+        thrust::make_counting_iterator(graph_view.local_vertex_partition_range_last()),
+        reusable_vertex_buffer.begin(),
+        [distances = distances.begin(), d, v_first] __device__(vertex_t vertex) {
+          auto offset = vertex - v_first;
+          return distances[offset] == (d - 1);
+        });
       
-        // Declare variables outside the if block
-    std::optional<key_bucket_t<vertex_t, void, multi_gpu, true>> vertex_list;
-    rmm::device_uvector<weight_t> vertex_list_deltas(0, handle.get_stream());
-    
-    if (vertices_at_distance_d_minus_1.size() > 0) {
-      // Create key_bucket_t from the vertex list
-      vertex_list = key_bucket_t<vertex_t, void, multi_gpu, true>(
-        handle, std::move(vertices_at_distance_d_minus_1));
-      
-      // Create temporary array for vertex list results
-      vertex_list_deltas = rmm::device_uvector<weight_t>(vertex_list->size(), handle.get_stream());
+      // Create key_bucket_t from the frontier vertices
+      key_bucket_t<vertex_t, void, multi_gpu, true> vertex_list(handle);
+      vertex_list.insert(reusable_vertex_buffer.begin(), reusable_vertex_buffer.begin() + frontier_count);
 
-      // Use vertex list approach - only process vertices at distance d-1
+      // Compute deltas for frontier vertices
       per_v_transform_reduce_outgoing_e(
         handle,
         graph_view,
-        vertex_list.value(),
+        vertex_list,
         src_properties.view(),
         dst_properties.view(),
         cugraph::edge_dummy_property_t{}.view(),
@@ -366,127 +347,59 @@ void accumulate_vertex_results(
         },
         weight_t{0},
         reduce_op::plus<weight_t>{},
-        vertex_list_deltas.begin(),
+        reusable_delta_buffer.begin(),
         do_expensive_check);
       
-      // Debug: vertex_list_deltas size and values
-      std::cout << "DEBUG: vertex_list_deltas.size() = " << vertex_list_deltas.size() << std::endl;
-      
-      if (vertex_list_deltas.size() > 0) {
-        // Allocate host memory and copy from device
-        std::vector<weight_t> h_vertex_list_deltas(vertex_list_deltas.size());
-        cudaMemcpy(h_vertex_list_deltas.data(), 
-                   vertex_list_deltas.data(), 
-                   vertex_list_deltas.size() * sizeof(weight_t), 
-                   cudaMemcpyDeviceToHost);
-        
-        std::cout << "DEBUG: First 5 vertex_list_deltas: ";
-        for (size_t i = 0; i < std::min(size_t{5}, h_vertex_list_deltas.size()); ++i) {
-          std::cout << std::fixed << std::setprecision(6) << h_vertex_list_deltas[i] << " ";
-        }
-        std::cout << std::endl;
-      }
-      
-      // Scatter results back to correct positions in main deltas array
-      // Convert vertex IDs to local offsets for scatter
-      auto v_first = graph_view.local_vertex_partition_range_first();
-      rmm::device_uvector<vertex_t> vertex_offsets_for_scatter(vertex_list.value().size(), handle.get_stream());
-      thrust::transform(
-        handle.get_thrust_policy(),
-        vertex_list.value().begin(),
-        vertex_list.value().end(),
-        vertex_offsets_for_scatter.begin(),
-        [v_first] __device__(vertex_t vertex) {
-          return vertex - v_first;
-        }
-      );
-      
+      // Scatter deltas back to main deltas array
       thrust::scatter(
         handle.get_thrust_policy(),
-        vertex_list_deltas.begin(),
-        vertex_list_deltas.end(),
-        vertex_offsets_for_scatter.begin(),
+        reusable_delta_buffer.begin(),
+        reusable_delta_buffer.begin() + frontier_count,
+        reusable_vertex_buffer.begin(),
         deltas.begin()
       );
-    }
-    
-    // Update edge properties with CURRENT deltas (the ones just computed)
-    if (vertex_list.has_value()) {
+      
+      // Update edge properties with current deltas
       update_edge_src_property(
         handle,
         graph_view,
-        vertex_list.value().begin(),
-        vertex_list.value().end(),
+        vertex_list.begin(),
+        vertex_list.end(),
         thrust::make_zip_iterator(distances.begin(), sigmas.begin(), deltas.begin()),
         src_properties.mutable_view());
       update_edge_dst_property(
         handle,
         graph_view,
-        vertex_list.value().begin(),
-        vertex_list.value().end(),
+        vertex_list.begin(),
+        vertex_list.end(),
         thrust::make_zip_iterator(distances.begin(), sigmas.begin(), deltas.begin()),
         dst_properties.mutable_view());
-    }
 
-    // Efficient frontier-only update:
-    if (vertex_list.value().size() > 0) {
-      // Step 1: Gather current centrality values for frontier vertices
-      rmm::device_uvector<weight_t> frontier_centralities(vertex_list.value().size(), handle.get_stream());
-      auto v_first = graph_view.local_vertex_partition_range_first();
-      
-      // Convert vertex IDs to local offsets for gather
-      rmm::device_uvector<vertex_t> vertex_offsets(vertex_list.value().size(), handle.get_stream());
-      thrust::transform(
-        handle.get_thrust_policy(),
-        vertex_list.value().begin(),
-        vertex_list.value().end(),
-        vertex_offsets.begin(),
-        [v_first] __device__(vertex_t vertex) {
-          return vertex - v_first;
-        }
-      );
-      
+      // Update centrality values for frontier vertices
       thrust::gather(
         handle.get_thrust_policy(),
-        vertex_offsets.begin(),
-        vertex_offsets.end(),
+        reusable_vertex_buffer.begin(),
+        reusable_vertex_buffer.begin() + frontier_count,
         centralities.begin(),
-        frontier_centralities.begin()
+        reusable_centrality_buffer.begin()
       );
       
-      // Step 2: Add deltas to frontier centralities
       thrust::transform(
         handle.get_thrust_policy(),
-        frontier_centralities.begin(),
-        frontier_centralities.end(),
-        vertex_list_deltas.begin(),
-        frontier_centralities.begin(),
+        reusable_centrality_buffer.begin(),
+        reusable_centrality_buffer.begin() + frontier_count,
+        reusable_delta_buffer.begin(),
+        reusable_centrality_buffer.begin(),
         thrust::plus<weight_t>()
       );
       
-      // Step 3: Scatter updated centralities back to main array
       thrust::scatter(
         handle.get_thrust_policy(),
-        frontier_centralities.begin(),
-        frontier_centralities.end(),
-        vertex_offsets.begin(),
+        reusable_centrality_buffer.begin(),
+        reusable_centrality_buffer.begin() + frontier_count,
+        reusable_vertex_buffer.begin(),
         centralities.begin()
       );
-      
-      // Debug: check centrality values after update
-      if (centralities.size() > 0) {
-        std::vector<weight_t> h_centralities(centralities.size());
-        cudaMemcpy(h_centralities.data(), 
-                   centralities.data(), 
-                   centralities.size() * sizeof(weight_t), 
-                   cudaMemcpyDeviceToHost);
-        
-        std::cout << "DEBUG: After distance " << d << ", first 5 centralities: ";
-        for (size_t i = 0; i < std::min(size_t{5}, h_centralities.size()); ++i) {
-          std::cout << std::fixed << std::setprecision(6) << h_centralities[i] << " ";
-        }
-        std::cout << std::endl;
-      }
     }
   }
 }
@@ -698,6 +611,27 @@ rmm::device_uvector<weight_t> betweenness_centrality(
   // expand from multiple sources concurrently. The challenge is managing
   // the memory explosion.
   //
+  
+  // Calculate and print diameter once for the entire graph
+  // We'll use a simple BFS from the first source to get an estimate
+  if (num_sources > 0) {
+    vertex_frontier_t<vertex_t, void, multi_gpu, true> temp_frontier(handle, 2);
+    if ((0 >= source_offsets[my_rank]) && (0 < source_offsets[my_rank + 1])) {
+      temp_frontier.bucket(0).insert(vertices_begin, vertices_begin + 1);
+    }
+    auto [temp_distances, temp_sigmas] = brandes_bfs(handle, graph_view, edge_weight_view, temp_frontier, do_expensive_check);
+    constexpr vertex_t invalid_distance = std::numeric_limits<vertex_t>::max();
+    vertex_t diameter = transform_reduce_v(
+      handle,
+      graph_view,
+      temp_distances.begin(),
+      [] __device__(auto, auto d) { return (d == invalid_distance) ? vertex_t{0} : d; },
+      vertex_t{0},
+      reduce_op::maximum<vertex_t>{},
+      do_expensive_check);
+    std::cout << "DEBUG: diameter = " << diameter << std::endl;
+  }
+  
   for (size_t source_idx = 0; source_idx < num_sources; ++source_idx) {
     //
     //  BFS
