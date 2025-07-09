@@ -124,11 +124,9 @@ int generic_spectral_test(vertex_t* h_src,
     TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "copy_to_host failed.");
 
     for (int i = 0; (i < num_vertices) && (test_ret_value == 0); ++i) {
-      //printf("\nh_result = %d, h_clusters = %d\n", h_result[h_vertices[i]], h_clusters[i]);
       TEST_ASSERT(
         test_ret_value, h_result[h_vertices[i]] == h_clusters[i], "cluster results don't match");
     }
-    //printf("\nmodularity = %f, expected_modularity = %f\n", modularity, expected_modularity);
 
     TEST_ASSERT(test_ret_value,
                 nearlyEqual(modularity, expected_modularity, 0.001),
@@ -257,11 +255,9 @@ int generic_balanced_cut_test(vertex_t* h_src,
     TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "copy_to_host failed.");
 
     for (int i = 0; (i < num_vertices) && (test_ret_value == 0); ++i) {
-      //printf("\nh_result = %d, h_clusters = %d\n", h_result[h_vertices[i]], h_clusters[i]);
       TEST_ASSERT(
         test_ret_value, h_result[h_vertices[i]] == h_clusters[i], "cluster results don't match");
     }
-    //printf("\nmodularity = %f, expected_modularity = %f\n", modularity, expected_modularity);
 
     TEST_ASSERT(test_ret_value,
                 nearlyEqual(modularity, expected_modularity, 0.001),
@@ -273,7 +269,6 @@ int generic_balanced_cut_test(vertex_t* h_src,
     TEST_ASSERT(
       test_ret_value, nearlyEqual(ratio_cut, expected_ratio_cut, 0.001), "ratio_cut doesn't match");
 
-    //printf("\nedge_cut = %f, ratio_cut = %f\n", edge_cut, ratio_cut);
     cugraph_clustering_result_free(result);
   }
 
