@@ -470,14 +470,10 @@ class simpleGraphImpl:
                 if len(srcCol) == 1:
                     srcCol = srcCol[0]
                     dstCol = dstCol[0]
-                    if (
-                        self.input_df[srcCol].dtype
-                        not in [
-                            np.int32,
-                            np.int64,
-                        ]
-                        or self.input_df[dstCol].dtype not in [np.int32, np.int64]
-                    ):
+                    if self.input_df[srcCol].dtype not in [
+                        np.int32,
+                        np.int64,
+                    ] or self.input_df[dstCol].dtype not in [np.int32, np.int64]:
                         # hypergraph case
                         use_initial_input_df = False
                         return_unrenumbered_edgelist = False
@@ -485,14 +481,10 @@ class simpleGraphImpl:
                     use_initial_input_df = False
                     return_unrenumbered_edgelist = False
 
-            elif (
-                self.input_df[srcCol].dtype
-                not in [
-                    np.int32,
-                    np.int64,
-                ]
-                or self.input_df[dstCol].dtype not in [np.int32, np.int64]
-            ):
+            elif self.input_df[srcCol].dtype not in [
+                np.int32,
+                np.int64,
+            ] or self.input_df[dstCol].dtype not in [np.int32, np.int64]:
                 use_initial_input_df = False
                 return_unrenumbered_edgelist = False
         else:
