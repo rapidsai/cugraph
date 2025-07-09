@@ -42,6 +42,13 @@
 #include <cuda/std/optional>
 #include <thrust/functional.h>
 #include <thrust/reduce.h>
+#include <thrust/sort.h>
+#include <thrust/transform.h>
+#include <thrust/copy.h>
+#include <thrust/iterator/zip_iterator.h>
+#include <thrust/iterator/counting_iterator.h>
+#include <thrust/device_vector.h>
+#include <thrust/execution_policy.h>
 
 //
 // The formula for BC(v) is the sum over all (s,t) where s != v != t of
@@ -280,16 +287,62 @@ void accumulate_vertex_results(
     thrust::make_zip_iterator(distances.begin(), sigmas.begin(), deltas.begin()),
     dst_properties.mutable_view());
 
-  // Pre-allocate reusable buffers to avoid repeated allocations
-  auto max_frontier_size = transform_reduce_v(
-    handle,
-    graph_view,
-    distances.begin(),
-    [] __device__(auto, auto d) { return (d == invalid_distance) ? vertex_t{0} : vertex_t{1}; },
-    vertex_t{0},
-    reduce_op::plus<vertex_t>{},
-    do_expensive_check);
+  // Pre-allocate reusable buffers to avoid repeated allocations (optimized for max frontier size)
+  // Use binary search method to find frontier boundaries more efficiently
   
+  // Create distance-vertex pairs and sort them
+  rmm::device_uvector<vertex_t> vertices_at_distance(graph_view.local_vertex_partition_range_size(), handle.get_stream());
+  thrust::copy(
+    handle.get_thrust_policy(),
+    thrust::make_counting_iterator(graph_view.local_vertex_partition_range_first()),
+    thrust::make_counting_iterator(graph_view.local_vertex_partition_range_last()),
+    vertices_at_distance.begin());
+  
+  // Create distance-vertex pairs for sorting
+  rmm::device_uvector<thrust::tuple<vertex_t, vertex_t>> distance_vertex_pairs(
+    graph_view.local_vertex_partition_range_size(), handle.get_stream());
+  
+  thrust::transform(
+    handle.get_thrust_policy(),
+    thrust::make_zip_iterator(distances.begin(), vertices_at_distance.begin()),
+    thrust::make_zip_iterator(distances.begin(), vertices_at_distance.begin()) + distances.size(),
+    distance_vertex_pairs.begin(),
+    [] __device__(auto pair) {
+      auto distance = thrust::get<0>(pair);
+      auto vertex = thrust::get<1>(pair);
+      return thrust::make_tuple(distance, vertex);
+    });
+  
+  // Sort by distance, then by vertex ID for stable ordering
+  thrust::sort(
+    handle.get_thrust_policy(),
+    distance_vertex_pairs.begin(),
+    distance_vertex_pairs.end());
+  
+  // Find max frontier size using binary search
+  vertex_t max_frontier_size = 0;
+  for (vertex_t d = 0; d <= diameter; ++d) {
+    // Find the first occurrence of distance d
+    auto first_d = thrust::lower_bound(
+      handle.get_thrust_policy(),
+      distance_vertex_pairs.begin(),
+      distance_vertex_pairs.end(),
+      thrust::make_tuple(d, std::numeric_limits<vertex_t>::min()),
+      thrust::less<thrust::tuple<vertex_t, vertex_t>>());
+    
+    // Find the first occurrence of distance d+1 (or end if d+1 doesn't exist)
+    auto first_d_plus_1 = thrust::lower_bound(
+      handle.get_thrust_policy(),
+      distance_vertex_pairs.begin(),
+      distance_vertex_pairs.end(),
+      thrust::make_tuple(d + 1, std::numeric_limits<vertex_t>::min()),
+      thrust::less<thrust::tuple<vertex_t, vertex_t>>());
+    
+    vertex_t frontier_count = thrust::distance(first_d, first_d_plus_1);
+    max_frontier_size = std::max(max_frontier_size, frontier_count);
+  }
+  std::cout << "DEBUG: Max distance (diameter): " << diameter << ", Max frontier size: " << max_frontier_size << std::endl;
+
   rmm::device_uvector<vertex_t> reusable_vertex_buffer(max_frontier_size, handle.get_stream());
   rmm::device_uvector<weight_t> reusable_delta_buffer(max_frontier_size, handle.get_stream());
   rmm::device_uvector<weight_t> reusable_centrality_buffer(max_frontier_size, handle.get_stream());
@@ -298,29 +351,38 @@ void accumulate_vertex_results(
   // distance from S to compute delta
   //
   for (vertex_t d = diameter; d > 1; --d) {
-    // Clear deltas array for this iteration
-    detail::scalar_fill(handle, deltas.data(), deltas.size(), weight_t{0});
+    // Find vertices at distance d-1 (frontier vertices) using binary search
+    auto first_d_minus_1 = thrust::lower_bound(
+      handle.get_thrust_policy(),
+      distance_vertex_pairs.begin(),
+      distance_vertex_pairs.end(),
+      thrust::make_tuple(d - 1, std::numeric_limits<vertex_t>::min()),
+      thrust::less<thrust::tuple<vertex_t, vertex_t>>());
     
-    // Find vertices at distance d-1 (frontier vertices)
-    auto frontier_count = count_if_v(
-      handle,
-      graph_view,
-      distances.begin(),
-      [d] __device__(auto, auto distance) { return distance == (d - 1); },
-      do_expensive_check);
+    auto first_d = thrust::lower_bound(
+      handle.get_thrust_policy(),
+      distance_vertex_pairs.begin(),
+      distance_vertex_pairs.end(),
+      thrust::make_tuple(d, std::numeric_limits<vertex_t>::min()),
+      thrust::less<thrust::tuple<vertex_t, vertex_t>>());
+    
+    vertex_t frontier_count = thrust::distance(first_d_minus_1, first_d);
     
     if (frontier_count > 0) {
-      // Extract frontier vertices
-      auto v_first = graph_view.local_vertex_partition_range_first();
-      thrust::copy_if(
+      // Clear deltas only for frontier vertices (optimization)
+      thrust::fill(
         handle.get_thrust_policy(),
-        thrust::make_counting_iterator(v_first),
-        thrust::make_counting_iterator(graph_view.local_vertex_partition_range_last()),
+        reusable_delta_buffer.begin(),
+        reusable_delta_buffer.begin() + frontier_count,
+        weight_t{0});
+      
+      // Extract frontier vertices from sorted pairs
+      thrust::transform(
+        handle.get_thrust_policy(),
+        first_d_minus_1,
+        first_d,
         reusable_vertex_buffer.begin(),
-        [distances = distances.begin(), d, v_first] __device__(vertex_t vertex) {
-          auto offset = vertex - v_first;
-          return distances[offset] == (d - 1);
-        });
+        [] __device__(auto pair) { return thrust::get<1>(pair); });
       
       // Create key_bucket_t from the frontier vertices
       key_bucket_t<vertex_t, void, multi_gpu, true> vertex_list(handle);
@@ -335,7 +397,7 @@ void accumulate_vertex_results(
         dst_properties.view(),
         cugraph::edge_dummy_property_t{}.view(),
         [d] __device__(auto, auto, auto src_props, auto dst_props, auto) {
-          if ((thrust::get<0>(dst_props) == d) && (thrust::get<0>(src_props) == (d - 1))) {
+          if (thrust::get<0>(dst_props) == d) {
             auto sigma_v = static_cast<weight_t>(thrust::get<1>(src_props));
             auto sigma_w = static_cast<weight_t>(thrust::get<1>(dst_props));
             auto delta_w = thrust::get<2>(dst_props);
