@@ -973,7 +973,6 @@ class CugraphHandler:
 
     ###########################################################################
     # Algos
-   
     def node2vec_random_walks(self, start_vertices, max_depth, graph_id):
         """ """
         # FIXME: finish docstring above
