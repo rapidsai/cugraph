@@ -26,7 +26,6 @@ from cugraph_service_client.cugraph_service_thrift import spec
 
 Value = spec.Value
 GraphVertexEdgeID = spec.GraphVertexEdgeID
-BatchedEgoGraphsResult = spec.BatchedEgoGraphsResult
 Node2vecResult = spec.Node2vecResult
 UniformNeighborSampleResult = spec.UniformNeighborSampleResult
 Offsets = spec.Offsets
