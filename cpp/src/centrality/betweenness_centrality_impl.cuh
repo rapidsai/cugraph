@@ -345,7 +345,6 @@ void accumulate_vertex_results(
 
   rmm::device_uvector<vertex_t> reusable_vertex_buffer(max_frontier_size, handle.get_stream());
   rmm::device_uvector<weight_t> reusable_delta_buffer(max_frontier_size, handle.get_stream());
-  rmm::device_uvector<weight_t> reusable_centrality_buffer(max_frontier_size, handle.get_stream());
 
   // Based on Brandes algorithm, we want to follow back pointers in non-increasing
   // distance from S to compute delta
@@ -437,31 +436,14 @@ void accumulate_vertex_results(
         thrust::make_zip_iterator(distances.begin(), sigmas.begin(), deltas.begin()),
         dst_properties.mutable_view());
 
-      // Update centrality values for frontier vertices
-      thrust::gather(
+      // Update centrality values for frontier vertices in a single operation
+      thrust::for_each(
         handle.get_thrust_policy(),
-        reusable_vertex_buffer.begin(),
-        reusable_vertex_buffer.begin() + frontier_count,
-        centralities.begin(),
-        reusable_centrality_buffer.begin()
-      );
-      
-      thrust::transform(
-        handle.get_thrust_policy(),
-        reusable_centrality_buffer.begin(),
-        reusable_centrality_buffer.begin() + frontier_count,
-        reusable_delta_buffer.begin(),
-        reusable_centrality_buffer.begin(),
-        thrust::plus<weight_t>()
-      );
-      
-      thrust::scatter(
-        handle.get_thrust_policy(),
-        reusable_centrality_buffer.begin(),
-        reusable_centrality_buffer.begin() + frontier_count,
-        reusable_vertex_buffer.begin(),
-        centralities.begin()
-      );
+        thrust::make_zip_iterator(reusable_vertex_buffer.begin(), reusable_delta_buffer.begin()),
+        thrust::make_zip_iterator(reusable_vertex_buffer.begin(), reusable_delta_buffer.begin()) + frontier_count,
+        [centralities = centralities.data()] __device__(auto pair) {
+          centralities[thrust::get<0>(pair)] += thrust::get<1>(pair);
+        });
     }
   }
 }
