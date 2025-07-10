@@ -203,7 +203,7 @@ class DistSampler:
             minibatch_dict["map"] = minibatch_dict["renumber_map"]
             del minibatch_dict["renumber_map"]
             minibatch_dict = {
-                k: k if isinstance(v, str) else torch.as_tensor(v, device="cuda")
+                k: v if isinstance(v, str) else torch.as_tensor(v, device="cuda")
                 for k, v in minibatch_dict.items()
                 if v is not None
             }
@@ -499,7 +499,7 @@ class DistSampler:
             minibatch_dict["map"] = minibatch_dict["renumber_map"]
             del minibatch_dict["renumber_map"]
             minibatch_dict = {
-                k: k if isinstance(v, str) else torch.as_tensor(v, device="cuda")
+                k: v if isinstance(v, str) else torch.as_tensor(v, device="cuda")
                 for k, v in minibatch_dict.items()
                 if v is not None
             }
