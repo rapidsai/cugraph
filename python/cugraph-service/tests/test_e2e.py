@@ -402,26 +402,6 @@ def test_get_graph_info(client_with_property_csvs_loaded):
     assert data == (17, 7)
 
 
-def test_batched_ego_graphs(client_with_edgelist_csv_loaded):
-    (client, test_data) = client_with_edgelist_csv_loaded
-
-    extracted_gid = client.extract_subgraph()
-
-    # These are known vertex IDs in the default graph loaded
-    seeds = [0, 1, 2]
-    results_lists = client.batched_ego_graphs(seeds, radius=1, graph_id=extracted_gid)
-
-    (srcs, dsts, weights, seeds_offsets) = results_lists
-
-    assert isinstance(srcs, Sequence)
-    assert isinstance(dsts, Sequence)
-    assert isinstance(weights, Sequence)
-    assert len(srcs) == len(dsts) == len(weights)
-
-    assert isinstance(seeds_offsets, Sequence)
-    assert len(srcs) == seeds_offsets[-1]
-
-
 def test_get_edge_IDs_for_vertices(client_with_edgelist_csv_loaded):
     (client, test_data) = client_with_edgelist_csv_loaded
 
