@@ -397,20 +397,15 @@ void accumulate_vertex_results(
     vertex_t frontier_count = first_d - first_d_minus_1;
 
     if (frontier_count > 0) {      
-      // Clear deltas only for frontier vertices (optimization)
-      thrust::fill(
-        handle.get_thrust_policy(),
-        reusable_delta_buffer.begin(),
-        reusable_delta_buffer.begin() + frontier_count,
-        weight_t{0});
-      
-      // Extract frontier vertices from sorted pairs
+      // Combined operation: clear deltas and extract frontier vertices in one kernel
       thrust::transform(
         handle.get_thrust_policy(),
         distance_vertex_pairs.begin() + first_d_minus_1,
         distance_vertex_pairs.begin() + first_d,
-        reusable_vertex_buffer.begin(),
-        [] __device__(auto pair) { return thrust::get<1>(pair); });
+        thrust::make_zip_iterator(reusable_vertex_buffer.begin(), reusable_delta_buffer.begin()),
+        [] __device__(auto pair) { 
+          return thrust::make_tuple(thrust::get<1>(pair), weight_t{0}); 
+        });
       
       // Create key_bucket_t from the frontier vertices
       key_bucket_t<vertex_t, void, multi_gpu, true> vertex_list(handle);
@@ -449,29 +444,34 @@ void accumulate_vertex_results(
         deltas.begin()
       );
       
-      // Update edge properties with current deltas
-      update_edge_src_property(
-        handle,
-        graph_view,
-        vertex_list.begin(),
-        vertex_list.end(),
-        thrust::make_zip_iterator(distances.begin(), sigmas.begin(), deltas.begin()),
-        src_properties.mutable_view());
-      update_edge_dst_property(
-        handle,
-        graph_view,
-        vertex_list.begin(),
-        vertex_list.end(),
-        thrust::make_zip_iterator(distances.begin(), sigmas.begin(), deltas.begin()),
-        dst_properties.mutable_view());
-
-      // Update centrality values for frontier vertices in a single operation
+      // Combined operation: update properties and accumulate centralities in one kernel
+      
+      // Get the property iterators outside the lambda (host-side)
+      auto src_props_first = src_properties.mutable_view().major_value_firsts()[0];  // Source properties are major
+      auto dst_props_first = dst_properties.mutable_view().minor_value_first();      // Destination properties are minor
+      
       thrust::for_each(
         handle.get_thrust_policy(),
         thrust::make_zip_iterator(reusable_vertex_buffer.begin(), reusable_delta_buffer.begin()),
         thrust::make_zip_iterator(reusable_vertex_buffer.begin(), reusable_delta_buffer.begin()) + frontier_count,
-        [centralities = centralities.data()] __device__(auto pair) {
-          centralities[thrust::get<0>(pair)] += thrust::get<1>(pair);
+        [distances = distances.begin(),
+         sigmas = sigmas.begin(),
+         deltas = deltas.begin(),
+         centralities = centralities.data(),
+         src_props_first,
+         dst_props_first,
+         d] __device__(auto pair) {
+          auto v = thrust::get<0>(pair);
+          auto delta = thrust::get<1>(pair);
+          
+          // Update source properties (major)
+          src_props_first[v] = thrust::make_tuple(distances[v], sigmas[v], deltas[v]);
+          
+          // Update destination properties (minor)
+          dst_props_first[v] = thrust::make_tuple(distances[v], sigmas[v], deltas[v]);
+          
+          // Accumulate centralities
+          centralities[v] += delta;
         });
     }
   }
