@@ -326,6 +326,7 @@ void accumulate_vertex_results(
 
   // Sort by distance, then by vertex ID for stable ordering
   auto sort_start = std::chrono::high_resolution_clock::now();
+  std::cout << "DEBUG: About to sort distance_vertex_pairs, size: " << distance_vertex_pairs.size() << std::endl;
   thrust::sort(
     handle.get_thrust_policy(),
     distance_vertex_pairs.begin(),
@@ -335,40 +336,44 @@ void accumulate_vertex_results(
   auto sort_duration = std::chrono::duration_cast<std::chrono::microseconds>(sort_end - sort_start);
   std::cout << "DEBUG: Sort time: " << sort_duration.count() << " microseconds" << std::endl;
 
-  // Find max frontier size using binary search
-  vertex_t max_frontier_size = 0;
-  uint64_t total_bsearch_time = 0;
+  // Single vectorized thrust call to compute all bounds for distances 0 to diameter
+  vertex_t max_distance = diameter;
+  std::cout << "DEBUG: Creating search_keys and bounds vectors with size: " << (max_distance + 1) << std::endl;
   
-  // Add safety check for empty distance_vertex_pairs
-  if (distance_vertex_pairs.size() == 0) {
-    std::cout << "DEBUG: distance_vertex_pairs is empty, skipping binary search" << std::endl;
-  } else {
-    std::cout << "DEBUG: distance_vertex_pairs size: " << distance_vertex_pairs.size() << std::endl;
-    std::cout << "DEBUG: diameter: " << diameter << std::endl;
-    
-    for (vertex_t d = 0; d <= diameter; ++d) {
-      auto bsearch_start = std::chrono::high_resolution_clock::now();
-      // Find the first occurrence of distance d
-      auto first_d = thrust::lower_bound(
-        handle.get_thrust_policy(),
-        distance_vertex_pairs.begin(),
-        distance_vertex_pairs.end(),
-        thrust::make_tuple(d, std::numeric_limits<vertex_t>::min()),
-        thrust::less<thrust::tuple<vertex_t, vertex_t>>());
-      // Find the first occurrence of distance d+1 (or end if d+1 doesn't exist)
-      auto first_d_plus_1 = thrust::lower_bound(
-        handle.get_thrust_policy(),
-        distance_vertex_pairs.begin(),
-        distance_vertex_pairs.end(),
-        thrust::make_tuple(d + 1, std::numeric_limits<vertex_t>::min()),
-        thrust::less<thrust::tuple<vertex_t, vertex_t>>());
-      auto bsearch_end = std::chrono::high_resolution_clock::now();
-      total_bsearch_time += std::chrono::duration_cast<std::chrono::microseconds>(bsearch_end - bsearch_start).count();
-      vertex_t frontier_count = thrust::distance(first_d, first_d_plus_1);
-      max_frontier_size = std::max(max_frontier_size, frontier_count);
-    }
+  rmm::device_uvector<vertex_t> search_keys(max_distance + 1, handle.get_stream());
+  
+  // Use thrust::copy with counting_iterator instead of thrust::sequence
+  thrust::copy(
+    handle.get_thrust_policy(),
+    thrust::make_counting_iterator<vertex_t>(0),
+    thrust::make_counting_iterator<vertex_t>(max_distance + 1),
+    search_keys.begin());
+  
+  rmm::device_uvector<vertex_t> bounds(max_distance + 1, handle.get_stream());
+  
+  // Vectorized lower_bound to compute all bounds at once
+  auto vertex_proj = [] __device__(auto pair) { return thrust::get<0>(pair); };
+  auto transform_begin = thrust::make_transform_iterator(distance_vertex_pairs.begin(), vertex_proj);
+  auto transform_end = thrust::make_transform_iterator(distance_vertex_pairs.end(), vertex_proj);
+  thrust::lower_bound(
+    handle.get_thrust_policy(),
+    transform_begin,
+    transform_end,
+    search_keys.begin(),
+    search_keys.end(),
+    bounds.data());
+  
+  // Copy bounds to host for use in delta loop
+  std::vector<vertex_t> h_bounds(bounds.size());
+  raft::update_host(h_bounds.data(), bounds.data(), bounds.size(), handle.get_stream());
+  handle.sync_stream();
+  
+  // Calculate max frontier size using the precomputed bounds
+  vertex_t max_frontier_size = 0;
+  for (vertex_t d = 0; d < h_bounds.size() - 1; ++d) {
+    vertex_t frontier_count = h_bounds[d + 1] - h_bounds[d];
+    max_frontier_size = std::max(max_frontier_size, frontier_count);
   }
-  std::cout << "DEBUG: Total binary search time: " << total_bsearch_time << " microseconds" << std::endl;
   std::cout << "DEBUG: Max distance (diameter): " << diameter << ", Max frontier size: " << max_frontier_size << std::endl;
   
   RAFT_CUDA_TRY(cudaDeviceSynchronize());
@@ -382,33 +387,16 @@ void accumulate_vertex_results(
   RAFT_CUDA_TRY(cudaDeviceSynchronize());
   auto delta_loop_start = std::chrono::high_resolution_clock::now();
   
-  // Add timer for binary search in delta computation loop
-  uint64_t total_delta_bsearch_time = 0;
   // Based on Brandes algorithm, we want to follow back pointers in non-increasing
   // distance from S to compute delta
   //
   for (vertex_t d = diameter; d > 1; --d) {
-    // Find vertices at distance d-1 (frontier vertices) using binary search
-    auto bsearch_start = std::chrono::high_resolution_clock::now();
-    auto first_d_minus_1 = thrust::lower_bound(
-      handle.get_thrust_policy(),
-      distance_vertex_pairs.begin(),
-      distance_vertex_pairs.end(),
-      thrust::make_tuple(d - 1, std::numeric_limits<vertex_t>::min()),
-      thrust::less<thrust::tuple<vertex_t, vertex_t>>());
-    
-    auto first_d = thrust::lower_bound(
-      handle.get_thrust_policy(),
-      distance_vertex_pairs.begin(),
-      distance_vertex_pairs.end(),
-      thrust::make_tuple(d, std::numeric_limits<vertex_t>::min()),
-      thrust::less<thrust::tuple<vertex_t, vertex_t>>());
-    auto bsearch_end = std::chrono::high_resolution_clock::now();
-    total_delta_bsearch_time += std::chrono::duration_cast<std::chrono::microseconds>(bsearch_end - bsearch_start).count();
-    
-    vertex_t frontier_count = thrust::distance(first_d_minus_1, first_d);
-    
-    if (frontier_count > 0) {
+    // Use precomputed bounds for O(1) lookup instead of binary search
+    vertex_t first_d_minus_1 = h_bounds[d - 1];
+    vertex_t first_d = h_bounds[d];
+    vertex_t frontier_count = first_d - first_d_minus_1;
+
+    if (frontier_count > 0) {      
       // Clear deltas only for frontier vertices (optimization)
       thrust::fill(
         handle.get_thrust_policy(),
@@ -419,8 +407,8 @@ void accumulate_vertex_results(
       // Extract frontier vertices from sorted pairs
       thrust::transform(
         handle.get_thrust_policy(),
-        first_d_minus_1,
-        first_d,
+        distance_vertex_pairs.begin() + first_d_minus_1,
+        distance_vertex_pairs.begin() + first_d,
         reusable_vertex_buffer.begin(),
         [] __device__(auto pair) { return thrust::get<1>(pair); });
       
@@ -491,7 +479,6 @@ void accumulate_vertex_results(
   auto delta_loop_end = std::chrono::high_resolution_clock::now();
   auto delta_loop_duration = std::chrono::duration_cast<std::chrono::microseconds>(delta_loop_end - delta_loop_start);
   std::cout << "DEBUG: Total delta computation loop time: " << delta_loop_duration.count() << " microseconds" << std::endl;
-  std::cout << "DEBUG: Total delta loop binary search time: " << total_delta_bsearch_time << " microseconds" << std::endl;
   
   if (diameter > 1) {
     vertex_t distance_level_count = diameter - 1;  // From diameter down to 2
