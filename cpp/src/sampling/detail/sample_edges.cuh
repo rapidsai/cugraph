@@ -57,45 +57,6 @@ struct return_edge_property_t {
 };
 
 template <typename vertex_t, typename edge_properties_t>
-struct old_sample_edges_op_t {
-  using edge_properties_tup_type =
-    std::conditional_t<std::is_same_v<edge_properties_t, cuda::std::nullopt_t>,
-                       cuda::std::tuple<>,
-                       std::conditional_t<std::is_arithmetic_v<edge_properties_t>,
-                                          cuda::std::tuple<edge_properties_t>,
-                                          edge_properties_t>>;
-
-  using return_type = decltype(cugraph::thrust_tuple_cat(cuda::std::tuple<vertex_t, vertex_t>{},
-                                                         edge_properties_tup_type{}));
-
-  template <typename key_t>
-  return_type __device__ operator()(key_t optionally_tagged_src,
-                                    vertex_t dst,
-                                    cuda::std::nullopt_t,
-                                    cuda::std::nullopt_t,
-                                    edge_properties_t edge_properties) const
-  {
-    vertex_t src{};
-
-    if constexpr (std::is_same_v<key_t, vertex_t>)
-      src = optionally_tagged_src;
-    else
-      src = thrust::get<0>(optionally_tagged_src);
-
-    edge_properties_tup_type edge_properties_tup{};
-
-    if constexpr (!std::is_same_v<edge_properties_t, cuda::std::nullopt_t>) {
-      if constexpr (std::is_arithmetic_v<edge_properties_t>) {
-        thrust::get<0>(edge_properties_tup) = edge_properties;
-      } else {
-        edge_properties_tup = edge_properties;
-      }
-    }
-    return thrust_tuple_cat(thrust::make_tuple(src, dst), edge_properties_tup);
-  }
-};
-
-template <typename vertex_t, typename edge_properties_t>
 struct sample_edges_op_t {
   using return_type = std::conditional_t<std::is_same_v<edge_properties_t, cuda::std::nullopt_t>,
                                          cuda::std::tuple<vertex_t, vertex_t>,
@@ -599,6 +560,7 @@ sample_edges(raft::handle_t const& handle,
 
     edge_properties.push_back(std::move(tmp));
   } else {
+    // FIXME:  Not sure this needs to be defined outside of the is_multigraph block...
     std::optional<cugraph::edge_multi_index_property_t<edge_t, vertex_t>> multi_edge_indices{
       std::nullopt};
     arithmetic_device_uvector_t tmp{std::monostate{}};
@@ -621,7 +583,7 @@ sample_edges(raft::handle_t const& handle,
                                  vertex_frontier,
                                  Ks,
                                  with_replacement);
-      *multi_edge_indices = std::move(multi_index_property);
+      multi_edge_indices = std::move(multi_index_property);
       edge_list.insert(
         majors.begin(),
         majors.end(),
@@ -1116,7 +1078,6 @@ temporal_sample_edges(
   } else {
     std::optional<cugraph::edge_multi_index_property_t<edge_t, vertex_t>> multi_edge_indices{
       std::nullopt};
-    arithmetic_device_uvector_t tmp{std::monostate{}};
 
     cugraph::edge_bucket_t<vertex_t, edge_t, !store_transposed, true, false> edge_list(
       handle, graph_view.is_multigraph());
@@ -1126,6 +1087,8 @@ temporal_sample_edges(
                                                                                   graph_view);
       cugraph::edge_arithmetic_property_view_t<edge_t, vertex_t> multi_index_property_view =
         multi_index_property.view();
+      arithmetic_device_uvector_t tmp{std::monostate{}};
+
       std::tie(majors, minors, tmp, sample_offsets) =
         temporal_sample_with_one_property(handle,
                                           rng_state,
@@ -1137,7 +1100,7 @@ temporal_sample_edges(
                                           vertex_frontier,
                                           Ks,
                                           with_replacement);
-      *multi_edge_indices = std::move(multi_index_property);
+      multi_edge_indices = std::move(multi_index_property);
       edge_list.insert(
         majors.begin(),
         majors.end(),
@@ -1146,7 +1109,7 @@ temporal_sample_edges(
     } else {
       cugraph::edge_arithmetic_property_view_t<edge_t, vertex_t> dummy_property_view =
         cugraph::edge_dummy_property_view_t{};
-      std::tie(majors, minors, tmp, sample_offsets) =
+      std::tie(majors, minors, std::ignore, sample_offsets) =
         temporal_sample_with_one_property(handle,
                                           rng_state,
                                           graph_view,

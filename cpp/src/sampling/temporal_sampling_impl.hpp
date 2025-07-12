@@ -431,7 +431,72 @@ temporal_neighbor_sample_impl(
     }
 
     if (gather_flags) {
+      rmm::device_uvector<uint8_t> d_gather_flags(gather_flags->size(), handle.get_stream());
+      raft::update_device(
+        d_gather_flags.data(), gather_flags->data(), gather_flags->size(), handle.get_stream());
+      auto gather_flags_span = gather_flags->size() > 1
+                                 ? std::make_optional(raft::device_span<uint8_t const>{
+                                     d_gather_flags.data(), d_gather_flags.size()})
+                                 : std::nullopt;
+
       if (no_duplicates_size > 0) {
+#if 1
+        std::vector<edge_arithmetic_property_view_t<edge_t, vertex_t>> edge_property_views{};
+
+        if (edge_weight_view) edge_property_views.push_back(*edge_weight_view);
+        if (edge_id_view) edge_property_views.push_back(*edge_id_view);
+        if (edge_type_view) edge_property_views.push_back(*edge_type_view);
+        edge_property_views.push_back(edge_start_time_view);
+        if (edge_end_time_view) edge_property_views.push_back(*edge_end_time_view);
+
+        auto [srcs, dsts, sampled_edge_properties, labels] = gather_one_hop_edgelist(
+          handle,
+          graph_view,
+          raft::host_span<edge_arithmetic_property_view_t<edge_t, vertex_t>>{
+            edge_property_views.data(), edge_property_views.size()},
+          edge_type_view,
+          raft::device_span<vertex_t const>{frontier_vertices_no_duplicates.data(),
+                                            frontier_vertices_no_duplicates.size()},
+          frontier_vertex_labels_no_duplicates
+            ? std::make_optional(
+                raft::device_span<label_t const>{frontier_vertex_labels_no_duplicates->data(),
+                                                 frontier_vertex_labels_no_duplicates->size()})
+            : std::nullopt,
+          gather_flags_span,
+          do_expensive_check);
+
+        if (srcs.size() > 0) {
+          result_sizes.push_back(srcs.size());
+          result_src_vectors.push_back(std::move(srcs));
+          result_dst_vectors.push_back(std::move(dsts));
+
+          size_t pos{0};
+          if (edge_weight_view) {
+            (*result_weight_vectors)
+              .push_back(
+                std::move(std::get<rmm::device_uvector<weight_t>>(sampled_edge_properties[pos++])));
+          }
+          if (edge_id_view) {
+            (*result_edge_id_vectors)
+              .push_back(
+                std::move(std::get<rmm::device_uvector<edge_t>>(sampled_edge_properties[pos++])));
+          }
+          if (edge_type_view) {
+            (*result_edge_type_vectors)
+              .push_back(std::move(
+                std::get<rmm::device_uvector<edge_type_t>>(sampled_edge_properties[pos++])));
+          }
+          (*result_edge_start_time_vectors)
+            .push_back(std::move(
+              std::get<rmm::device_uvector<edge_time_t>>(sampled_edge_properties[pos++])));
+          if (edge_end_time_view) {
+            (*result_edge_end_time_vectors)
+              .push_back(std::move(
+                std::get<rmm::device_uvector<edge_time_t>>(sampled_edge_properties[pos++])));
+          }
+          if (labels) { (*result_label_vectors).push_back(std::move(*labels)); }
+        }
+#else
         auto [srcs, dsts, weights, edge_ids, edge_types, edge_start_times, edge_end_times, labels] =
           gather_one_hop_edgelist(
             handle,
@@ -451,9 +516,7 @@ temporal_neighbor_sample_impl(
                   raft::device_span<label_t const>{frontier_vertex_labels_no_duplicates->data(),
                                                    frontier_vertex_labels_no_duplicates->size()})
               : std::nullopt,
-            num_edge_types ? std::make_optional<raft::host_span<uint8_t const>>(
-                               gather_flags->data(), gather_flags->size())
-                           : std::nullopt);
+            gather_flags_span);
 
         result_sizes.push_back(srcs.size());
         result_src_vectors.push_back(std::move(srcs));
@@ -469,6 +532,7 @@ temporal_neighbor_sample_impl(
           (*result_edge_end_time_vectors).push_back(std::move(*edge_end_times));
         }
         if (labels) { (*result_label_vectors).push_back(std::move(*labels)); }
+#endif
 
         next_frontier_vertex_spans.push_back(raft::device_span<vertex_t const>{
           result_dst_vectors.back().data(), result_dst_vectors.back().size()});
@@ -482,6 +546,67 @@ temporal_neighbor_sample_impl(
       }
 
       if (has_duplicates_size > 0) {
+#if 1
+        std::vector<edge_arithmetic_property_view_t<edge_t, vertex_t>> edge_property_views{};
+
+        if (edge_weight_view) edge_property_views.push_back(*edge_weight_view);
+        if (edge_id_view) edge_property_views.push_back(*edge_id_view);
+        if (edge_type_view) edge_property_views.push_back(*edge_type_view);
+        edge_property_views.push_back(edge_start_time_view);
+        if (edge_end_time_view) edge_property_views.push_back(*edge_end_time_view);
+
+        auto [srcs, dsts, sampled_edge_properties, labels] = temporal_gather_one_hop_edgelist(
+          handle,
+          graph_view,
+          raft::host_span<edge_arithmetic_property_view_t<edge_t, vertex_t>>{
+            edge_property_views.data(), edge_property_views.size()},
+          edge_start_time_view,
+          edge_type_view,
+          raft::device_span<vertex_t const>{frontier_vertices_has_duplicates.data(),
+                                            frontier_vertices_has_duplicates.size()},
+
+          raft::device_span<edge_time_t const>{frontier_vertex_times_has_duplicates.data(),
+                                               frontier_vertex_times_has_duplicates.size()},
+          frontier_vertex_labels_has_duplicates
+            ? std::make_optional(
+                raft::device_span<label_t const>{frontier_vertex_labels_has_duplicates->data(),
+                                                 frontier_vertex_labels_has_duplicates->size()})
+            : std::nullopt,
+          gather_flags_span,
+          do_expensive_check);
+
+        if (srcs.size() > 0) {
+          result_sizes.push_back(srcs.size());
+          result_src_vectors.push_back(std::move(srcs));
+          result_dst_vectors.push_back(std::move(dsts));
+
+          size_t pos{0};
+          if (edge_weight_view) {
+            (*result_weight_vectors)
+              .push_back(
+                std::move(std::get<rmm::device_uvector<weight_t>>(sampled_edge_properties[pos++])));
+          }
+          if (edge_id_view) {
+            (*result_edge_id_vectors)
+              .push_back(
+                std::move(std::get<rmm::device_uvector<edge_t>>(sampled_edge_properties[pos++])));
+          }
+          if (edge_type_view) {
+            (*result_edge_type_vectors)
+              .push_back(std::move(
+                std::get<rmm::device_uvector<edge_type_t>>(sampled_edge_properties[pos++])));
+          }
+          (*result_edge_start_time_vectors)
+            .push_back(std::move(
+              std::get<rmm::device_uvector<edge_time_t>>(sampled_edge_properties[pos++])));
+          if (edge_end_time_view) {
+            (*result_edge_end_time_vectors)
+              .push_back(std::move(
+                std::get<rmm::device_uvector<edge_time_t>>(sampled_edge_properties[pos++])));
+          }
+          if (labels) { (*result_label_vectors).push_back(std::move(*labels)); }
+        }
+#else
         auto [srcs, dsts, weights, edge_ids, edge_types, edge_start_times, edge_end_times, labels] =
           gather_one_hop_edgelist(
             handle,
@@ -501,9 +626,8 @@ temporal_neighbor_sample_impl(
                   raft::device_span<label_t const>{frontier_vertex_labels_has_duplicates->data(),
                                                    frontier_vertex_labels_has_duplicates->size()})
               : std::nullopt,
-            num_edge_types ? std::make_optional<raft::host_span<uint8_t const>>(
-                               gather_flags->data(), gather_flags->size())
-                           : std::nullopt);
+            gather_flags_span);
+        if (labels) { (*result_label_vectors).push_back(std::move(*labels)); }
 
         if (srcs.size() > 0) {
           result_sizes.push_back(srcs.size());
@@ -531,6 +655,7 @@ temporal_neighbor_sample_impl(
               result_label_vectors->back().data(), result_label_vectors->back().size()});
           }
         }
+#endif
       }
     }
 
