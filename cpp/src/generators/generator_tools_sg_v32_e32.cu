@@ -43,12 +43,6 @@ template rmm::device_uvector<int32_t> scramble_vertex_ids(raft::handle_t const& 
                                                           rmm::device_uvector<int32_t>&& vertices,
                                                           size_t lgN);
 
-template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>> scramble_vertex_ids(
-  raft::handle_t const& handle,
-  rmm::device_uvector<int32_t>&& srcs,
-  rmm::device_uvector<int32_t>&& dsts,
-  size_t lgN);
-
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
                     std::optional<rmm::device_uvector<float>>>

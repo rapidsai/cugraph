@@ -68,8 +68,10 @@ namespace cugraph {
  * @param scramble_vertex_ids Flag controlling whether to scramble vertex ID bits (if set to `true`)
  * or not (if set to `false`); scrambling vertex ID bits breaks correlation between vertex ID values
  * and vertex degrees.
- * @param large_buffer_type Dictates the large buffer type to use in generating and storing the edge
- * list (if the value is std::nullopt, the default RMM per-device memory resource is used).
+ * @param large_buffer_type Flag indicating the large buffer type to use when we need to create a
+ * large device-accessible vector object (if the value is std::nullopt, the default RMM per-device
+ * memory resource is used). The generated R-mat edgelist will also be stored in the buffer type
+ * dictated by this parameter.
  * @return std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> A tuple of
  * rmm::device_uvector objects for edge source vertex IDs and edge destination vertex IDs.
  */
@@ -161,8 +163,10 @@ enum class generator_distribution_t { POWER_LAW = 0, UNIFORM };
  * @param scramble_vertex_ids Flag controlling whether to scramble vertex ID bits (if set to `true`)
  * or not (if set to `false`); scrambling vertex ID bits breaks correlation between vertex ID values
  * and vertex degrees.
- * @param large_buffer_type Dictates the large buffer type to use in generating and storing the edge
- * list (if the value is std::nullopt, the default RMM per-device memory resource is used).
+ * @param large_buffer_type Flag indicating the large buffer type to use when we need to create a
+ *large device-accessible vector object (if the value is std::nullopt, the default RMM per-device
+ *memory resource is used). The generated R-mat edgelist will also be stored in the buffer type
+ *dictated by this parameter.
  * @return A vector of std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> of
  *size @p n_edgelists, each vector element being a tuple of rmm::device_uvector objects for edge
  *source vertex IDs and edge destination vertex IDs.
@@ -360,8 +364,10 @@ generate_erdos_renyi_graph_edgelist_gnm(raft::handle_t const& handle,
  * @param d_weight_v Optional vector of edge weights
  * @param check_diagonal Flag indicating whether to check for diagonal edges or not. If set to true,
  * symmetrize only the edges with source != destination (to avoid duplicating every self-loops).
- * @param large_buffer_type Dictates the large buffer type to use in storing the symmetrized edge
- * list.
+ * @param large_buffer_type Flag indicating the large buffer type to use when we need to create a
+ * large device-accessible vector object (if the value is std::nullopt, the default RMM per-device
+ * memory resource is used). The symmetrized edgelist will also be stored in the buffer type
+ * dictated by this parameter.
  * @return std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> A tuple of
  * rmm::device_uvector objects for edge source vertex IDs and edge destination vertex IDs.
  */
@@ -397,31 +403,6 @@ template <typename vertex_t>
 rmm::device_uvector<vertex_t> scramble_vertex_ids(raft::handle_t const& handle,
                                                   rmm::device_uvector<vertex_t>&& vertices,
                                                   size_t lgN);
-
-/**
- * @ingroup graph_generators_cpp
- * @brief scramble vertex ids in a graph
- *
- * Given an edge list for a graph, scramble the input vertex IDs.
- *
- * The scramble code here follows the algorithm in the Graph 500 reference
- * implementation version 3.0.0.
- *
- * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
- * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
- * handles to various CUDA libraries) to run graph algorithms.
- * @param d_src_v Vector of input source vertices
- * @param d_dst_v Vector of input destination vertices
- * @param lgN The input & output (scrambled) vertex IDs are assumed to be in [0, 2^lgN).
- * @return Tuple of two rmm::device_uvector objects storing scrambled source & destination vertex
- * IDs, respectively.
- */
-template <typename vertex_t>
-std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> scramble_vertex_ids(
-  raft::handle_t const& handle,
-  rmm::device_uvector<vertex_t>&& srcs,
-  rmm::device_uvector<vertex_t>&& dsts,
-  size_t lgN);
 
 /**
  * @ingroup graph_generators_cpp
