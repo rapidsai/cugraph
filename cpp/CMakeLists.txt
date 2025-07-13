@@ -57,6 +57,8 @@ option(BUILD_TESTS "Configure CMake to build tests" ON)
 option(USE_RAFT_STATIC "Build raft as a static library" OFF)
 option(CUGRAPH_COMPILE_RAFT_LIB "Compile the raft library instead of using it header-only" ON)
 option(CUDA_STATIC_RUNTIME "Statically link the CUDA toolkit runtime and libraries" OFF)
+#option(USE_CUVS_STATIC "Build and statically link the CUVS library" OFF)
+#option(CUGRAPH_COMPILE_CUVS_LIB "Compile the cuvs library instead of using it header-only" ON)
 
 message(VERBOSE "CUGRAPH: CUDA_STATIC_RUNTIME=${CUDA_STATIC_RUNTIME}")
 
@@ -121,7 +123,7 @@ rapids_cpm_init()
 # lags behind.
 ###
 
-# Need CCCL, then rmm, then cuCollections, then RAFT.
+# Need CCCL, then rmm, then cuCollections, then RAFT and CUVS.
 # This ensures that libraries can be overridden for testing.
 include(cmake/thirdparty/get_cccl.cmake)
 include(${rapids-cmake-dir}/cpm/rmm.cmake)
@@ -129,6 +131,7 @@ rapids_cpm_rmm(BUILD_EXPORT_SET cugraph-exports)
 include(${rapids-cmake-dir}/cpm/cuco.cmake)
 rapids_cpm_cuco(BUILD_EXPORT_SET cugraph-exports INSTALL_EXPORT_SET cugraph-exports)
 include(cmake/thirdparty/get_raft.cmake)
+include(cmake/thirdparty/get_cuvs.cmake)
 
 if (BUILD_CUGRAPH_MTMG_TESTS)
     if(NOT TARGET ucx::ucp)
@@ -487,15 +490,25 @@ if(CUGRAPH_COMPILE_RAFT_LIB)
   endif()
 endif()
 
+#set(COMPILED_CUVS_LIB )
+#if(CUGRAPH_COMPILE_CUVS_LIB)
+  #set(COMPILED_CUVS_LIB cuvs::compiled)
+  #if(USE_CUVS_STATIC)
+    #set(COMPILED_CUVS_LIB cuvs::cuvs_static)
+  #endif()
+#endif()
+
 ################################################################################
 # - link libraries -------------------------------------------------------------
 target_link_libraries(cugraph
     PUBLIC
         rmm::rmm
         raft::raft
+        cuvs::cuvs
         $<BUILD_LOCAL_INTERFACE:CUDA::toolkit>
     PRIVATE
         ${COMPILED_RAFT_LIB}
+        #${COMPILED_CUVS_LIB}
         cuco::cuco
     )
 
