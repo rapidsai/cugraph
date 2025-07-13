@@ -91,7 +91,7 @@ def sorensen(
         vertices. If provided, the Sorensen coefficient is computed for the
         given vertex pairs.  If the vertex_pair is not provided then the
         current implementation computes the Sorensen coefficient for all
-        vertices that are two hop apart in the graph.
+        vertices that are two hops apart in the graph.
 
     do_expensive_check : bool, optional (default=False)
         Deprecated.
@@ -217,7 +217,7 @@ def sorensen_coefficient(
 
         If provided, the Sorensen coefficient is computed for the given vertex
         pairs. Otherwise, the current implementation computes the sorensen
-        coefficient for all vertices that are two hop apart in the graph.
+        coefficient for all vertices that are two hops apart in the graph.
 
     do_expensive_check : bool, optional (default=False)
         Deprecated.
@@ -314,7 +314,7 @@ def all_pairs_sorensen(
     vertices : int or list or cudf.Series or cudf.DataFrame, optional (default=None)
         A GPU Series containing the input vertex list.  If the vertex list is not
         provided then the current implementation computes the sorensen coefficient for
-        all vertices that are two hop apart in the graph.
+        all vertices that are two hops apart in the graph.
 
     use_weight : bool, optional (default=False)
         Flag to indicate whether to compute weighted sorensen (if use_weight==True)

@@ -36,29 +36,8 @@ MULTI_COL_DST_1_COL = "dst_1"
 
 
 # =============================================================================
-# Pytest Setup / Teardown - called for each test function
-# =============================================================================
-def setup_function():
-    gc.collect()
-
-
-# =============================================================================
 # Helper functions
 # =============================================================================
-def compare_cosine(cu_coeff, cpu_coeff, epsilon=1.0e-6):
-    assert len(cu_coeff) == len(cpu_coeff)
-    for i in range(len(cu_coeff)):
-        if np.isnan(cpu_coeff[i]):
-            assert np.isnan(cu_coeff[i])
-        elif np.isnan(cu_coeff[i]):
-            assert cpu_coeff[i] == cu_coeff[i]
-        else:
-            diff = abs(cpu_coeff[i] - cu_coeff[i])
-            # Properly handle floating-point arithmetic
-            assert diff <= abs(cu_coeff[i]) if \
-                (abs(cpu_coeff[i]) < abs(cu_coeff[i])) else \
-                    (abs(cpu_coeff[i]) * epsilon)
-
 def cugraph_call(benchmark_callable, graph_file, pairs, use_weight=False):
     # Device data
     G = graph_file.get_graph(
@@ -75,9 +54,9 @@ def cugraph_call(benchmark_callable, graph_file, pairs, use_weight=False):
 
 
 def cosine(a, b, M):
-    # Retieve the out-degree of a
+    # Retrieve the out-degree of a
     out_degree_a = M.indices[M.indptr[a]:M.indptr[a+1]]
-    # Retieve the out-degree of a
+    # Retrieve the out-degree of b
     out_degree_b = M.indices[M.indptr[b]:M.indptr[b+1]]
     
     # Find the intersection of a and b
@@ -193,9 +172,6 @@ def test_cosine(benchmark, read_csv, extract_two_hop, use_weight):
         dataset_path = graph_file.get_path()
         Mnx = utils.read_csv_for_nx(dataset_path)
 
-        Mnx["weight"] = np.random.choice(
-            np.arange(0, 1, 0.001), size=len(Mnx), replace=False)
-
         N = max(max(Mnx[SRC_COL]), max(Mnx[DST_COL])) + 1
         M = scipy.sparse.csr_matrix(
             (Mnx.weight, (Mnx[SRC_COL], Mnx[DST_COL])), shape=(N, N)
@@ -220,8 +196,11 @@ def test_cosine(benchmark, read_csv, extract_two_hop, use_weight):
         cu_coeff = cugraph_call(benchmark, graph_file, pairs, use_weight=use_weight)
     
     cpu_coeff = cpu_call(M, pairs[VERTEX_PAIR_FIRST_COL], pairs[VERTEX_PAIR_SECOND_COL])
+    cpu_coeff = np.asarray(cpu_coeff, dtype=np.float64)
 
-    compare_cosine(cu_coeff, cpu_coeff)
+    assert len(cu_coeff) == len(cpu_coeff)
+    assert np.isclose(cu_coeff, cpu_coeff, equal_nan=True).all()
+
 
 @pytest.mark.sg
 @pytest.mark.parametrize("graph_file", UNDIRECTED_DATASETS)

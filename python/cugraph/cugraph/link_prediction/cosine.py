@@ -92,7 +92,7 @@ def cosine(
         vertices. If provided, the cosine coefficient is computed for the
         given vertex pairs.  If the vertex_pair is not provided then the
         current implementation computes the cosine coefficient for all
-        vertices that are two hop apart in the graph.
+        vertices that are two hops apart in the graph.
 
     use_weight : bool, optional (default=False)
         Flag to indicate whether to compute weighted cosine (if use_weight==True)
@@ -202,7 +202,7 @@ def cosine_coefficient(
 
         If provided, the Overlap coefficient is computed for the given vertex
         pairs. Otherwise, the current implementation computes the overlap
-        coefficient for all vertices that are two hop apart in the graph.
+        coefficient for all vertices that are two hops apart in the graph.
 
     Returns
     -------

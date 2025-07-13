@@ -111,7 +111,7 @@ def jaccard(input_graph, vertex_pair=None, use_weight=False):
         vertices. If provided, the jaccard coefficient is computed for the
         given vertex pairs.  If the vertex_pair is not provided then the
         current implementation computes the jaccard coefficient for all
-        vertices that are two hop apart in the graph.
+        vertices that are two hops apart in the graph.
 
     use_weight : bool, optional (default=False)
         Flag to indicate whether to compute weighted jaccard (if use_weight==True)
@@ -232,7 +232,7 @@ def all_pairs_jaccard(
     vertices : int or list or cudf.Series, dask_cudf.Series, optional (default=None)
         A GPU Series containing the input vertex list.  If the vertex list is not
         provided then the current implementation computes the jaccard coefficient for
-        all vertices that are two hop apart in the graph.
+        all vertices that are two hops apart in the graph.
 
     use_weight : bool, optional (default=False)
         Flag to indicate whether to compute weighted jaccard (if use_weight==True)
