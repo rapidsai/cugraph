@@ -211,6 +211,13 @@ template <typename... Ts>
 struct is_std_tuple<std::tuple<Ts...>> : std::true_type {};
 
 template <typename T, template <typename> typename Vector>
+struct is_byte_vector : std::false_type {};
+
+template <template <typename> typename Vector, typename T>
+struct is_byte_vector<Vector<T>, Vector>
+  : std::integral_constant<bool, std::is_same_v<T, std::byte>> {};
+
+template <typename T, template <typename> typename Vector>
 struct is_arithmetic_vector : std::false_type {};
 
 template <template <typename> typename Vector, typename T>

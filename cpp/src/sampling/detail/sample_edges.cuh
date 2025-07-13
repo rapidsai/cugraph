@@ -23,7 +23,6 @@
 #include "prims/transform_reduce_e.cuh"
 #include "prims/vertex_frontier.cuh"
 #include "structure/detail/structure_utils.cuh"
-#include "utilities/tuple_with_optionals_dispatching.hpp"
 
 #include <cugraph/arithmetic_variant_types.hpp>
 #include <cugraph/edge_property.hpp>
