@@ -11,8 +11,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import gc
-
 import pytest
 import numpy as np
 import scipy
@@ -52,13 +50,12 @@ def cugraph_call(benchmark_callable, graph_file, pairs, use_weight=False):
     return df[COSINE_COEFF_COL].to_numpy()
 
 
-
 def cosine(a, b, M):
     # Retrieve the out-degree of a
-    out_degree_a = M.indices[M.indptr[a]:M.indptr[a+1]]
+    out_degree_a = M.indices[M.indptr[a] : M.indptr[a + 1]]
     # Retrieve the out-degree of b
-    out_degree_b = M.indices[M.indptr[b]:M.indptr[b+1]]
-    
+    out_degree_b = M.indices[M.indptr[b] : M.indptr[b + 1]]
+
     # Find the intersection of a and b
     intersection_a_b = np.intersect1d(out_degree_a, out_degree_b)
 
@@ -69,10 +66,11 @@ def cosine(a, b, M):
     for dst in intersection_a_b:
         norm_a += pow(M[a, dst], 2)
         norm_b += pow(M[b, dst], 2)
-        a_dot_b += (pow(M[a, dst], 2) * pow(M[b, dst], 2))
+        a_dot_b += pow(M[a, dst], 2) * pow(M[b, dst], 2)
 
-    return a_dot_b / (pow(norm_a, 0.5) * pow(norm_b, 0.5)) if \
-        (norm_a * norm_b) != 0 else 0
+    return (
+        a_dot_b / (pow(norm_a, 0.5) * pow(norm_b, 0.5)) if (norm_a * norm_b) != 0 else 0
+    )
 
 
 def cpu_call(M, first, second):
@@ -161,6 +159,7 @@ def extract_two_hop(read_csv):
 
     return pairs
 
+
 # Test
 @pytest.mark.sg
 @pytest.mark.parametrize("use_weight", [False, True])
@@ -177,24 +176,24 @@ def test_cosine(benchmark, read_csv, extract_two_hop, use_weight):
             (Mnx.weight, (Mnx[SRC_COL], Mnx[DST_COL])), shape=(N, N)
         )
 
-        Mnx = Mnx.rename(columns={'0': 'src', '1': 'dst'})
+        Mnx = Mnx.rename(columns={"0": "src", "1": "dst"})
 
         df = cudf.from_pandas(Mnx)
 
         G = cugraph.Graph(directed=False)
-        G.from_cudf_edgelist(
-            df, source="src", destination="dst", edge_attr="weight")
+        G.from_cudf_edgelist(df, source="src", destination="dst", edge_attr="weight")
 
         # cugraph Cosine Call
         cu_coeff = benchmark(cugraph.cosine, G, pairs, use_weight=True)
-        cu_coeff = cu_coeff.sort_values(
-            by=[VERTEX_PAIR_FIRST_COL, VERTEX_PAIR_SECOND_COL]).reset_index(
-            drop=True
-        )[COSINE_COEFF_COL].to_numpy()
+        cu_coeff = (
+            cu_coeff.sort_values(by=[VERTEX_PAIR_FIRST_COL, VERTEX_PAIR_SECOND_COL])
+            .reset_index(drop=True)[COSINE_COEFF_COL]
+            .to_numpy()
+        )
 
     else:
         cu_coeff = cugraph_call(benchmark, graph_file, pairs, use_weight=use_weight)
-    
+
     cpu_coeff = cpu_call(M, pairs[VERTEX_PAIR_FIRST_COL], pairs[VERTEX_PAIR_SECOND_COL])
     cpu_coeff = np.asarray(cpu_coeff, dtype=np.float64)
 
@@ -221,9 +220,8 @@ def test_directed_graph_check(graph_file, use_weight):
 
     vertex_pair = vertex_pair[:5]
     with pytest.raises(ValueError):
-        cugraph.cosine(
-            G1, vertex_pair, use_weight=use_weight
-        )
+        cugraph.cosine(G1, vertex_pair, use_weight=use_weight)
+
 
 @pytest.mark.sg
 @pytest.mark.parametrize("graph_file", UNDIRECTED_DATASETS)
@@ -273,6 +271,7 @@ def test_cosine_multi_column(graph_file, use_weight):
     expected = df_single_col_res.sort_values(VERTEX_PAIR_FIRST_COL).reset_index()
     assert_series_equal(actual[COSINE_COEFF_COL], expected[COSINE_COEFF_COL])
 
+
 @pytest.mark.sg
 def test_weighted_cosine():
     karate = UNDIRECTED_DATASETS[0]
@@ -280,6 +279,7 @@ def test_weighted_cosine():
     with pytest.raises(ValueError):
         # input_graph' must be weighted if 'use_weight=True'
         cugraph.cosine(G, use_weight=True)
+
 
 @pytest.mark.sg
 def test_all_pairs_cosine():
@@ -302,6 +302,7 @@ def test_all_pairs_cosine():
         check_dtype=False,
         check_like=True,
     )
+
 
 @pytest.mark.sg
 def test_all_pairs_cosine_with_topk():
