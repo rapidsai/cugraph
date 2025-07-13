@@ -219,12 +219,12 @@ class Tests_MGInducedSubgraph
       }
 
       auto d_subgraph_edgelist_offsets =
-        cugraph::detail::compute_sparse_offsets<size_t>(graph_ids_v.begin(),
+        cugraph::detail::compute_sparse_offsets<size_t>(*handle_,
+                                                        graph_ids_v.begin(),
                                                         graph_ids_v.end(),
                                                         size_t{0},
                                                         size_t{d_subgraph_offsets.size() - 1},
-                                                        true,
-                                                        handle_->get_stream());
+                                                        true);
 
       cugraph::graph_t<vertex_t, edge_t, false, false> sg_graph(*handle_);
       std::optional<cugraph::edge_property_t<edge_t, weight_t>> sg_edge_weights{std::nullopt};

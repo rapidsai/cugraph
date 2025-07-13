@@ -668,8 +668,7 @@ refine_clustering(
         std::nullopt,
         std::nullopt,
         cugraph::graph_properties_t{false, false},
-        true,
-        false);
+        true /* renumber */);
 
     auto decision_graph_view = decision_graph.view();
 
