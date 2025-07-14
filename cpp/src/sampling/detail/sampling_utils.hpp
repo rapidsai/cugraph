@@ -60,57 +60,24 @@ std::tuple<size_t, size_t> check_edge_bias_values(
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
- * @tparam weight_t Type of edge weights. Needs to be a floating point type.
- * @tparam edge_type_t Type of edge type. Needs to be an integral type.
- * @tparam label_t Type of label. Needs to be an integral type.
  * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
  *
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Graph View object to generate neighbor sampling on.
- * @param edge_weight_view Optional view object holding edge weights for @p graph_view.
- * @param edge_id_view Optional view object holding edge ids for @p graph_view.
- * @param edge_type_view Optional view object holding edge types for @p graph_view.
+ * @param edge_property_views Span of property views holding edge properties for @p graph_view.  All
+ * types included in this span will be sampled and returned with the result.
+ * @param edge_type_view Optional view object holding edge types for @p graph_view.  If specified
+ * this view will be used for heterogeneous type filtering.  The edge type view should also be part
+ * of @p edge_property_views in order to be included in the sampled results.
  * @param active_majors Device vector containing all the vertex id that are processed by
  * gpus in the column communicator
  * @param active_major_labels Optional device vector containing labels for each device vector
  * @param gather_flags Optional host span indicating whether to gather edge or not for each edge
  * type. @p gather_flags.has_value() should coincide with @p edge_type_view.has_value().
- * @return A tuple of device vectors containing the majors, minors, optional weights,
- *  optional edge ids, optional edge types and optional label
+ * @return A tuple of device vectors containing the sampled majors, minors, edge properties and
+ * optional label
  */
-#if 0
-template <typename vertex_t,
-          typename edge_t,
-          typename weight_t,
-          typename edge_type_t,
-          typename edge_time_t,
-          typename label_t,
-          bool multi_gpu>
-std::tuple<rmm::device_uvector<vertex_t>,
-           rmm::device_uvector<vertex_t>,
-           std::optional<rmm::device_uvector<weight_t>>,
-           std::optional<rmm::device_uvector<edge_t>>,
-           std::optional<rmm::device_uvector<edge_type_t>>,
-           std::optional<rmm::device_uvector<edge_time_t>>,
-           std::optional<rmm::device_uvector<edge_time_t>>,
-           std::optional<rmm::device_uvector<label_t>>>
-gather_one_hop_edgelist(
-  raft::handle_t const& handle,
-  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
-  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
-  std::optional<edge_property_view_t<edge_t, edge_t const*>> edge_id_view,
-  std::optional<edge_property_view_t<edge_t, edge_type_t const*>> edge_type_view,
-  std::optional<edge_property_view_t<edge_t, edge_time_t const*>> edge_start_time_view,
-  std::optional<edge_property_view_t<edge_t, edge_time_t const*>> edge_end_time_view,
-  raft::device_span<vertex_t const> active_majors,
-  std::optional<raft::device_span<edge_time_t const>> active_major_times,
-  std::optional<raft::device_span<label_t const>> active_major_labels,
-  std::optional<raft::host_span<uint8_t const>> gather_flags,
-  bool do_expensive_check = false);
-#endif
-
-// TODO: Fix documentation
 template <typename vertex_t, typename edge_t, bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
@@ -126,7 +93,37 @@ gather_one_hop_edgelist(
   std::optional<raft::device_span<uint8_t const>> gather_flags,
   bool do_expensive_check);
 
-// TODO: Write documentation for this
+/**
+ * @brief Gather edge list for specified vertices with a temporal filter
+ *
+ * Collect all the edges that are present in the adjacency lists on the current gpu
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ *
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Graph View object to generate neighbor sampling on.
+ * @param edge_property_views Span of property views holding edge properties for @p graph_view.  All
+ * types included in this span will be sampled and returned with the result.
+ * @param edge_time_view View object holding edge times for @p graph_view that will be used for time
+ * filtering.  This edge time view should also be part of @p edge_property_views in order to be
+ * included in the sampled results.
+ * @param edge_type_view Optional view object holding edge types for @p graph_view.  If specified
+ * this view will be used for heterogeneous type filtering.  The edge type view should also be part
+ * of @p edge_property_views in order to be included in the sampled results.
+ * @param active_majors Device vector containing all the vertex id that are processed by
+ * gpus in the column communicator
+ * @param active_major_times Device vector containing timestamp associated with each active major.
+ * Gathered edges will include only those edges that occurred after this timestamp for the specified
+ * vertex.
+ * @param active_major_labels Optional device vector containing labels for each device vector
+ * @param gather_flags Optional host span indicating whether to gather edge or not for each edge
+ * type. @p gather_flags.has_value() should coincide with @p edge_type_view.has_value().
+ * @return A tuple of device vectors containing the sampled majors, minors, edge properties and
+ * optional label
+ */
 template <typename vertex_t, typename edge_t, typename edge_time_t, bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
