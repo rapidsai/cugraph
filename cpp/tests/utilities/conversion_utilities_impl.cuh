@@ -97,6 +97,7 @@ graph_to_host_compressed_sparse(
   if (d_wgt) {
     std::tie(d_offsets, d_dst, *d_wgt, std::ignore) =
       detail::sort_and_compress_edgelist<vertex_t, edge_t, weight_t, output_store_transposed>(
+        handle,
         std::move(d_src),
         std::move(d_dst),
         std::move(*d_wgt),
@@ -105,11 +106,11 @@ graph_to_host_compressed_sparse(
         graph_view.number_of_vertices(),
         vertex_t{0},
         graph_view.number_of_vertices(),
-        mem_frugal_threshold,
-        handle.get_stream());
+        mem_frugal_threshold);
   } else {
     std::tie(d_offsets, d_dst, std::ignore) =
       detail::sort_and_compress_edgelist<vertex_t, edge_t, output_store_transposed>(
+        handle,
         std::move(d_src),
         std::move(d_dst),
         vertex_t{0},
@@ -117,8 +118,7 @@ graph_to_host_compressed_sparse(
         graph_view.number_of_vertices(),
         vertex_t{0},
         graph_view.number_of_vertices(),
-        mem_frugal_threshold,
-        handle.get_stream());
+        mem_frugal_threshold);
   }
 
   return std::make_tuple(
