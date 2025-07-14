@@ -28,6 +28,8 @@
 #include <cugraph/arithmetic_variant_types.hpp>
 #include <cugraph/edge_property.hpp>
 
+#include <raft/util/cudart_utils.hpp>
+
 #include <variant>
 
 namespace cugraph {
@@ -228,13 +230,13 @@ gather_one_hop_edgelist(
     cugraph::edge_bucket_t<vertex_t, edge_t, !store_transposed, true, false> edge_list(
       handle, graph_view.is_multigraph());
 
+    std::optional<rmm::device_uvector<edge_t>> tmp_edge_indices{std::nullopt};
+
     if (graph_view.is_multigraph()) {
       cugraph::edge_multi_index_property_t<edge_t, vertex_t> multi_index_property(handle,
                                                                                   graph_view);
 
-      rmm::device_uvector<edge_t> indices(0, handle.get_stream());
-
-      std::tie(result_srcs, result_dsts, indices, result_labels) =
+      std::tie(result_srcs, result_dsts, tmp_edge_indices, result_labels) =
         simple_gather_one_hop_multigraph(handle,
                                          graph_view,
                                          multi_index_property.view(),
@@ -245,7 +247,7 @@ gather_one_hop_edgelist(
       edge_list.insert(result_srcs.begin(),
                        result_srcs.end(),
                        result_dsts.begin(),
-                       std::make_optional<edge_t const*>(indices.begin()));
+                       std::make_optional<edge_t const*>(tmp_edge_indices->begin()));
     } else {
       std::tie(result_srcs, result_dsts, result_labels) = simple_gather_one_hop_not_multigraph(
         handle, graph_view, active_majors, active_major_labels, do_expensive_check);
@@ -274,8 +276,8 @@ gather_one_hop_edgelist(
       auto [keep_count, marked_entries] = detail::mark_entries(
         handle,
         tmp.size(),
-        [d_tmp = tmp.data(), gather_flags = *gather_flags] __device__(auto type) {
-          return (gather_flags[cuda::std::get<0>(type)] == static_cast<uint8_t>(true));
+        [d_tmp = tmp.data(), gather_flags = *gather_flags] __device__(auto idx) {
+          return (gather_flags[d_tmp[idx]] == static_cast<uint8_t>(true));
         });
 
       raft::device_span<uint32_t const> marked_entry_span{marked_entries.data(),
@@ -300,6 +302,10 @@ gather_one_hop_edgelist(
         *result_labels = detail::keep_flagged_elements(
           handle, std::move(*result_labels), marked_entry_span, keep_count);
       }
+      if (tmp_edge_indices) {
+        *tmp_edge_indices = detail::keep_flagged_elements(
+          handle, std::move(*tmp_edge_indices), marked_entry_span, keep_count);
+      }
 
 #endif
 
@@ -307,7 +313,8 @@ gather_one_hop_edgelist(
       edge_list.insert(result_srcs.begin(),
                        result_srcs.end(),
                        result_dsts.begin(),
-                       std::optional<edge_t*>{std::nullopt});
+                       tmp_edge_indices ? std::optional<edge_t*>{tmp_edge_indices->begin()}
+                                        : std::optional<edge_t*>{std::nullopt});
     }
 
     std::for_each(edge_property_views.begin(),
@@ -337,6 +344,7 @@ gather_one_hop_edgelist(
                       });
                   });
   }
+
   return std::make_tuple(std::move(result_srcs),
                          std::move(result_dsts),
                          std::move(result_properties),
@@ -367,6 +375,8 @@ temporal_gather_one_hop_edgelist(
   std::vector<arithmetic_device_uvector_t> result_properties{};
   std::optional<rmm::device_uvector<int32_t>> result_labels{std::nullopt};
 
+  // FIXME:  Modify sampling to take raft::host_span of arithmetic edge property views directly
+  // rather than creating and unpacking them
   if (edge_property_views.size() == 0) {
     CUGRAPH_FAIL("Temporal requires at least one edge property - the time");
   } else {
@@ -427,11 +437,6 @@ temporal_gather_one_hop_edgelist(
                             minor_comm,
                             raft::device_span<label_t const>{active_major_labels->data(),
                                                              active_major_labels->size()});
-
-        // TODO: After testing this can be deleted.
-        CUGRAPH_EXPECTS(thrust::is_sorted(
-                          handle.get_thrust_policy(), all_minor_keys.begin(), all_minor_keys.end()),
-                        "need to SORT!");
 
         kv_store = kv_store_t<size_t, thrust::tuple<edge_time_t, label_t>, true>(
           all_minor_keys.begin(),
@@ -541,8 +546,8 @@ temporal_gather_one_hop_edgelist(
       auto [keep_count, marked_entries] = detail::mark_entries(
         handle,
         tmp.size(),
-        [d_tmp = tmp.data(), gather_flags = *gather_flags] __device__(auto type) {
-          return (gather_flags[cuda::std::get<0>(type)] == static_cast<uint8_t>(true));
+        [d_tmp = tmp.data(), gather_flags = *gather_flags] __device__(auto idx) {
+          return (gather_flags[d_tmp[idx]] == static_cast<uint8_t>(true));
         });
 
       raft::device_span<uint32_t const> marked_entry_span{marked_entries.data(),
@@ -567,6 +572,10 @@ temporal_gather_one_hop_edgelist(
         *result_labels = detail::keep_flagged_elements(
           handle, std::move(*result_labels), marked_entry_span, keep_count);
       }
+      if (tmp_edge_indices) {
+        *tmp_edge_indices = detail::keep_flagged_elements(
+          handle, std::move(*tmp_edge_indices), marked_entry_span, keep_count);
+      }
 
 #endif
 
@@ -574,7 +583,8 @@ temporal_gather_one_hop_edgelist(
       edge_list.insert(result_srcs.begin(),
                        result_srcs.end(),
                        result_dsts.begin(),
-                       std::optional<edge_t*>{std::nullopt});
+                       tmp_edge_indices ? std::optional<edge_t*>{tmp_edge_indices->begin()}
+                                        : std::optional<edge_t*>{std::nullopt});
     }
 
     // Filter by time
@@ -653,17 +663,11 @@ temporal_gather_one_hop_edgelist(
       });
 
     edge_list.clear();
-    if (graph_view.is_multigraph()) {
-      edge_list.insert(result_srcs.begin(),
-                       result_srcs.end(),
-                       result_dsts.begin(),
-                       std::make_optional<edge_t const*>(tmp_edge_indices->begin()));
-    } else {
-      edge_list.insert(result_srcs.begin(),
-                       result_srcs.end(),
-                       result_dsts.begin(),
-                       std::optional<edge_t*>{std::nullopt});
-    }
+    edge_list.insert(result_srcs.begin(),
+                     result_srcs.end(),
+                     result_dsts.begin(),
+                     tmp_edge_indices ? std::optional<edge_t*>{tmp_edge_indices->begin()}
+                                      : std::optional<edge_t*>{std::nullopt});
 
     std::for_each(edge_property_views.begin(),
                   edge_property_views.end(),
