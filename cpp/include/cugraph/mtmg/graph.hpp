@@ -132,6 +132,8 @@ void create_graph_from_edgelist(
       : std::nullopt,
     graph_properties,
     renumber,
+    std::nullopt,
+    std::nullopt,
     do_expensive_check);
 
   graph.set(handle, std::move(local_graph));

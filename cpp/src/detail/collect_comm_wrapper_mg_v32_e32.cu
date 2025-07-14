@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include "collect_comm_wrapper.cuh"
+#include "detail/collect_comm_wrapper.cuh"
 
 namespace cugraph {
 namespace detail {
