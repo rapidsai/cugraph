@@ -31,7 +31,8 @@ remove_self_loops(raft::handle_t const& handle,
                   std::optional<rmm::device_uvector<int32_t>>&& edgelist_edge_ids,
                   std::optional<rmm::device_uvector<int32_t>>&& edgelist_edge_types,
                   std::optional<rmm::device_uvector<int32_t>>&& edgelist_edge_start_times,
-                  std::optional<rmm::device_uvector<int32_t>>&& edgelist_edge_end_times);
+                  std::optional<rmm::device_uvector<int32_t>>&& edgelist_edge_end_times,
+                  std::optional<large_buffer_type_t> large_buffer_type);
 
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
@@ -47,7 +48,8 @@ remove_self_loops(raft::handle_t const& handle,
                   std::optional<rmm::device_uvector<int32_t>>&& edgelist_edge_ids,
                   std::optional<rmm::device_uvector<int32_t>>&& edgelist_edge_types,
                   std::optional<rmm::device_uvector<int32_t>>&& edgelist_edge_start_times,
-                  std::optional<rmm::device_uvector<int32_t>>&& edgelist_edge_end_times);
+                  std::optional<rmm::device_uvector<int32_t>>&& edgelist_edge_end_times,
+                  std::optional<large_buffer_type_t> large_buffer_type);
 
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
@@ -63,7 +65,8 @@ remove_self_loops(raft::handle_t const& handle,
                   std::optional<rmm::device_uvector<int32_t>>&& edgelist_edge_ids,
                   std::optional<rmm::device_uvector<int32_t>>&& edgelist_edge_types,
                   std::optional<rmm::device_uvector<int64_t>>&& edgelist_edge_start_times,
-                  std::optional<rmm::device_uvector<int64_t>>&& edgelist_edge_end_times);
+                  std::optional<rmm::device_uvector<int64_t>>&& edgelist_edge_end_times,
+                  std::optional<large_buffer_type_t> large_buffer_type);
 
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
@@ -79,6 +82,7 @@ remove_self_loops(raft::handle_t const& handle,
                   std::optional<rmm::device_uvector<int32_t>>&& edgelist_edge_ids,
                   std::optional<rmm::device_uvector<int32_t>>&& edgelist_edge_types,
                   std::optional<rmm::device_uvector<int64_t>>&& edgelist_edge_start_times,
-                  std::optional<rmm::device_uvector<int64_t>>&& edgelist_edge_end_times);
+                  std::optional<rmm::device_uvector<int64_t>>&& edgelist_edge_end_times,
+                  std::optional<large_buffer_type_t> large_buffer_type);
 
 }  // namespace cugraph

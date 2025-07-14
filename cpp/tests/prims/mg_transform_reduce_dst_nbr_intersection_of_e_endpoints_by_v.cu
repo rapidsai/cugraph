@@ -23,7 +23,6 @@
 #include "utilities/property_generator_utilities.hpp"
 #include "utilities/test_graphs.hpp"
 
-#include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/edge_property.hpp>
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_functions.hpp>

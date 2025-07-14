@@ -15,6 +15,7 @@ import gc
 
 import pytest
 import numpy as np
+import networkx as nx
 
 from cugraph.dask.common.mg_utils import is_single_gpu
 from cugraph.datasets import karate
@@ -55,7 +56,10 @@ def setup_function():
 # =============================================================================
 
 
-@pytest.mark.skip(reason="https://github.com/networkx/networkx/pull/7908")
+@pytest.mark.skipif(
+    float(".".join(nx.__version__.split(".")[:2])) < 3.5,
+    reason="Requires networkx >= 3.5",
+)
 @pytest.mark.mg
 @pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
 @pytest.mark.parametrize("dataset", DATASETS)

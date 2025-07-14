@@ -18,7 +18,6 @@
 
 #include "prims/per_v_random_select_transform_outgoing_e.cuh"
 #include "prims/vertex_frontier.cuh"
-#include "structure/detail/structure_utils.cuh"
 
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph.hpp>

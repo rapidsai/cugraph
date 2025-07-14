@@ -589,8 +589,8 @@ edge_t graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_i
   if (this->has_edge_mask()) {
     auto value_firsts = (*(this->edge_mask_view())).value_firsts();
     auto edge_counts  = (*(this->edge_mask_view())).edge_counts();
-    assert(value_firsts.size() == 0);
-    assert(edge_counts.size() == 0);
+    assert(value_firsts.size() == 1);
+    assert(edge_counts.size() == 1);
     return static_cast<edge_t>(detail::count_set_bits(handle, value_firsts[0], edge_counts[0]));
   } else {
     return this->number_of_edges_;

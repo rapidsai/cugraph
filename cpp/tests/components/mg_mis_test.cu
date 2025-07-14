@@ -153,13 +153,8 @@ class Tests_MGMaximalIndependentSet
       per_v_transform_reduce_outgoing_e(
         *handle_,
         mg_graph_view,
-        multi_gpu ? src_inclusion_cache.view()
-                  : cugraph::detail::edge_endpoint_property_view_t<vertex_t, vertex_t const*>(
-                      std::vector<vertex_t const*>{inclusiong_flags.data()},
-                      std::vector<vertex_t>{vertex_t{0}}),
-        multi_gpu ? dst_inclusion_cache.view()
-                  : cugraph::detail::edge_endpoint_property_view_t<vertex_t, vertex_t const*>(
-                      inclusiong_flags.data(), vertex_t{0}),
+        src_inclusion_cache.view(),
+        dst_inclusion_cache.view(),
         cugraph::edge_dummy_property_t{}.view(),
         [] __device__(auto src, auto dst, auto src_included, auto dst_included, auto wt) {
           return (src == dst) ? 0 : dst_included;

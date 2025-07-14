@@ -43,12 +43,6 @@ template rmm::device_uvector<int32_t> scramble_vertex_ids(raft::handle_t const& 
                                                           rmm::device_uvector<int32_t>&& vertices,
                                                           size_t lgN);
 
-template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>> scramble_vertex_ids(
-  raft::handle_t const& handle,
-  rmm::device_uvector<int32_t>&& srcs,
-  rmm::device_uvector<int32_t>&& dsts,
-  size_t lgN);
-
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
                     std::optional<rmm::device_uvector<float>>>
@@ -70,21 +64,21 @@ combine_edgelists(raft::handle_t const& handle,
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
                     std::optional<rmm::device_uvector<float>>>
-symmetrize_edgelist_from_triangular(
-  raft::handle_t const& handle,
-  rmm::device_uvector<int32_t>&& d_src_v,
-  rmm::device_uvector<int32_t>&& d_dst_v,
-  std::optional<rmm::device_uvector<float>>&& optional_d_weights_v,
-  bool check_diagonal);
+symmetrize_edgelist_from_triangular(raft::handle_t const& handle,
+                                    rmm::device_uvector<int32_t>&& d_src_v,
+                                    rmm::device_uvector<int32_t>&& d_dst_v,
+                                    std::optional<rmm::device_uvector<float>>&& d_weight_v,
+                                    bool check_diagonal,
+                                    std::optional<large_buffer_type_t> large_buffer_type);
 
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
                     std::optional<rmm::device_uvector<double>>>
-symmetrize_edgelist_from_triangular(
-  raft::handle_t const& handle,
-  rmm::device_uvector<int32_t>&& d_src_v,
-  rmm::device_uvector<int32_t>&& d_dst_v,
-  std::optional<rmm::device_uvector<double>>&& optional_d_weights_v,
-  bool check_diagonal);
+symmetrize_edgelist_from_triangular(raft::handle_t const& handle,
+                                    rmm::device_uvector<int32_t>&& d_src_v,
+                                    rmm::device_uvector<int32_t>&& d_dst_v,
+                                    std::optional<rmm::device_uvector<double>>&& d_weight_v,
+                                    bool check_diagonal,
+                                    std::optional<large_buffer_type_t> large_buffer_type);
 
 }  // namespace cugraph
