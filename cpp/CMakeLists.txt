@@ -270,10 +270,10 @@ set(CUGRAPH_SOURCES
     src/sampling/detail/check_edge_bias_values_mg_v32_e32.cu
     src/sampling/detail/temporal_partition_vertices_v64.cu
     src/sampling/detail/temporal_partition_vertices_v32.cu
-    src/sampling/detail/gather_one_hop_new_mg_v32_e32.cu
-    src/sampling/detail/gather_one_hop_new_mg_v64_e64.cu
-    src/sampling/detail/gather_one_hop_new_sg_v32_e32.cu
-    src/sampling/detail/gather_one_hop_new_sg_v64_e64.cu
+    src/sampling/detail/gather_one_hop_mg_v32_e32.cu
+    src/sampling/detail/gather_one_hop_mg_v64_e64.cu
+    src/sampling/detail/gather_one_hop_sg_v32_e32.cu
+    src/sampling/detail/gather_one_hop_sg_v64_e64.cu
     src/sampling/detail/sample_edges_sg_v64_e64.cu
     src/sampling/detail/sample_edges_sg_v32_e32.cu
     src/sampling/detail/sample_edges_mg_v64_e64.cu
