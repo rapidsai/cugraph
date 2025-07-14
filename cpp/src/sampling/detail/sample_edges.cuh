@@ -22,13 +22,13 @@
 #include "prims/transform_gather_e.cuh"
 #include "prims/transform_reduce_e.cuh"
 #include "prims/vertex_frontier.cuh"
-#include "structure/detail/structure_utils.cuh"
 
 #include <cugraph/arithmetic_variant_types.hpp>
 #include <cugraph/edge_property.hpp>
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_view.hpp>
+#include <cugraph/utilities/mask_utils.cuh>
 #include <cugraph/utilities/thrust_tuple_utils.hpp>
 
 #include <raft/core/handle.hpp>

@@ -22,11 +22,11 @@
 #include "prims/kv_store.cuh"
 #include "prims/transform_gather_e.cuh"
 #include "prims/vertex_frontier.cuh"
-#include "structure/detail/structure_utils.cuh"
 #include "utilities/collect_comm.cuh"
 
 #include <cugraph/arithmetic_variant_types.hpp>
 #include <cugraph/edge_property.hpp>
+#include <cugraph/utilities/mask_utils.cuh>
 
 #include <raft/util/cudart_utils.hpp>
 
@@ -283,8 +283,6 @@ gather_one_hop_edgelist(
       raft::device_span<uint32_t const> marked_entry_span{marked_entries.data(),
                                                           marked_entries.size()};
 
-#if 0
-      // keep_flagged_elements should become keep_marked_entries
       result_srcs =
         detail::keep_marked_entries(handle, std::move(result_srcs), marked_entry_span, keep_count);
       result_dsts =
@@ -293,21 +291,10 @@ gather_one_hop_edgelist(
         *result_labels = detail::keep_marked_entries(
           handle, std::move(*result_labels), marked_entry_span, keep_count);
       }
-#else
-      result_srcs = detail::keep_flagged_elements(
-        handle, std::move(result_srcs), marked_entry_span, keep_count);
-      result_dsts = detail::keep_flagged_elements(
-        handle, std::move(result_dsts), marked_entry_span, keep_count);
-      if (result_labels) {
-        *result_labels = detail::keep_flagged_elements(
-          handle, std::move(*result_labels), marked_entry_span, keep_count);
-      }
       if (tmp_edge_indices) {
-        *tmp_edge_indices = detail::keep_flagged_elements(
+        *tmp_edge_indices = detail::keep_marked_entries(
           handle, std::move(*tmp_edge_indices), marked_entry_span, keep_count);
       }
-
-#endif
 
       edge_list.clear();
       edge_list.insert(result_srcs.begin(),
@@ -553,8 +540,6 @@ temporal_gather_one_hop_edgelist(
       raft::device_span<uint32_t const> marked_entry_span{marked_entries.data(),
                                                           marked_entries.size()};
 
-#if 0
-      // keep_flagged_elements should become keep_marked_entries
       result_srcs =
         detail::keep_marked_entries(handle, std::move(result_srcs), marked_entry_span, keep_count);
       result_dsts =
@@ -563,21 +548,10 @@ temporal_gather_one_hop_edgelist(
         *result_labels = detail::keep_marked_entries(
           handle, std::move(*result_labels), marked_entry_span, keep_count);
       }
-#else
-      result_srcs = detail::keep_flagged_elements(
-        handle, std::move(result_srcs), marked_entry_span, keep_count);
-      result_dsts = detail::keep_flagged_elements(
-        handle, std::move(result_dsts), marked_entry_span, keep_count);
-      if (result_labels) {
-        *result_labels = detail::keep_flagged_elements(
-          handle, std::move(*result_labels), marked_entry_span, keep_count);
-      }
       if (tmp_edge_indices) {
-        *tmp_edge_indices = detail::keep_flagged_elements(
+        *tmp_edge_indices = detail::keep_marked_entries(
           handle, std::move(*tmp_edge_indices), marked_entry_span, keep_count);
       }
-
-#endif
 
       edge_list.clear();
       edge_list.insert(result_srcs.begin(),
@@ -615,7 +589,6 @@ temporal_gather_one_hop_edgelist(
     raft::device_span<uint32_t const> marked_entry_span{marked_entries.data(),
                                                         marked_entries.size()};
 
-#if 0
     result_srcs =
       detail::keep_marked_entries(handle, std::move(result_srcs), marked_entry_span, keep_count);
     result_dsts =
@@ -631,25 +604,7 @@ temporal_gather_one_hop_edgelist(
     if (tmp_positions) {
       *tmp_positions = detail::keep_marked_entries(
         handle, std::move(*tmp_positions), marked_entry_span, keep_count);
-      }
-#else
-    result_srcs =
-      detail::keep_flagged_elements(handle, std::move(result_srcs), marked_entry_span, keep_count);
-    result_dsts =
-      detail::keep_flagged_elements(handle, std::move(result_dsts), marked_entry_span, keep_count);
-    if (tmp_edge_indices) {
-      *tmp_edge_indices = detail::keep_flagged_elements(
-        handle, std::move(*tmp_edge_indices), marked_entry_span, keep_count);
     }
-    if (tmp_times) {
-      *tmp_times =
-        detail::keep_flagged_elements(handle, std::move(*tmp_times), marked_entry_span, keep_count);
-    }
-    if (tmp_positions) {
-      *tmp_positions = detail::keep_flagged_elements(
-        handle, std::move(*tmp_positions), marked_entry_span, keep_count);
-    }
-#endif
 
     result_labels = rmm::device_uvector<label_t>(keep_count, handle.get_stream());
     thrust::transform(

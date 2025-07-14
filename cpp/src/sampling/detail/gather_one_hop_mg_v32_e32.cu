@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include "gather_one_hop_new_impl.cuh"
+#include "gather_one_hop_impl.cuh"
 
 namespace cugraph {
 namespace detail {
