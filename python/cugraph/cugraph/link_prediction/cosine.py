@@ -1,4 +1,4 @@
-# Copyright (c) 2024, NVIDIA CORPORATION.
+# Copyright (c) 2024-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -92,7 +92,7 @@ def cosine(
         vertices. If provided, the cosine coefficient is computed for the
         given vertex pairs.  If the vertex_pair is not provided then the
         current implementation computes the cosine coefficient for all
-        adjacent vertices in the graph.
+        vertices that are two hops apart in the graph.
 
     use_weight : bool, optional (default=False)
         Flag to indicate whether to compute weighted cosine (if use_weight==True)
@@ -202,7 +202,7 @@ def cosine_coefficient(
 
         If provided, the Overlap coefficient is computed for the given vertex
         pairs. Otherwise, the current implementation computes the overlap
-        coefficient for all adjacent vertices in the graph.
+        coefficient for all vertices that are two hops apart in the graph.
 
     Returns
     -------
