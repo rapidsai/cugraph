@@ -49,7 +49,6 @@
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/device_vector.h>
 #include <thrust/execution_policy.h>
-#include <chrono>
 
 //
 // The formula for BC(v) is the sum over all (s,t) where s != v != t of
@@ -238,7 +237,6 @@ void accumulate_vertex_results(
   constexpr vertex_t invalid_distance = std::numeric_limits<vertex_t>::max();
 
   RAFT_CUDA_TRY(cudaDeviceSynchronize());
-  auto diameter_calc_start = std::chrono::high_resolution_clock::now();
   vertex_t diameter = transform_reduce_v(
     handle,
     graph_view,
@@ -247,10 +245,7 @@ void accumulate_vertex_results(
     vertex_t{0},
     reduce_op::maximum<vertex_t>{},
     do_expensive_check);
-  RAFT_CUDA_TRY(cudaDeviceSynchronize());
-  auto diameter_calc_end = std::chrono::high_resolution_clock::now();
-  auto diameter_calc_duration = std::chrono::duration_cast<std::chrono::microseconds>(diameter_calc_end - diameter_calc_start);
-  std::cout << "DEBUG: Accumulate diameter calculation time: " << diameter_calc_duration.count() << " microseconds" << std::endl;
+
 
   rmm::device_uvector<weight_t> deltas(sigmas.size(), handle.get_stream());
   detail::scalar_fill(handle, deltas.data(), deltas.size(), weight_t{0});
@@ -295,8 +290,7 @@ void accumulate_vertex_results(
     thrust::make_zip_iterator(distances.begin(), sigmas.begin(), deltas.begin()),
     dst_properties.mutable_view());
 
-  RAFT_CUDA_TRY(cudaDeviceSynchronize());
-  auto frontier_calc_start = std::chrono::high_resolution_clock::now();
+
   
   // Pre-allocate reusable buffers to avoid repeated allocations (optimized for max frontier size)
   // Use binary search method to find frontier boundaries more efficiently
@@ -325,20 +319,13 @@ void accumulate_vertex_results(
     });
 
   // Sort by distance, then by vertex ID for stable ordering
-  auto sort_start = std::chrono::high_resolution_clock::now();
-  std::cout << "DEBUG: About to sort distance_vertex_pairs, size: " << distance_vertex_pairs.size() << std::endl;
   thrust::sort(
     handle.get_thrust_policy(),
     distance_vertex_pairs.begin(),
     distance_vertex_pairs.end());
-  RAFT_CUDA_TRY(cudaDeviceSynchronize());
-  auto sort_end = std::chrono::high_resolution_clock::now();
-  auto sort_duration = std::chrono::duration_cast<std::chrono::microseconds>(sort_end - sort_start);
-  std::cout << "DEBUG: Sort time: " << sort_duration.count() << " microseconds" << std::endl;
 
   // Single vectorized thrust call to compute all bounds for distances 0 to diameter
   vertex_t max_distance = diameter;
-  std::cout << "DEBUG: Creating search_keys and bounds vectors with size: " << (max_distance + 1) << std::endl;
   
   rmm::device_uvector<vertex_t> search_keys(max_distance + 1, handle.get_stream());
   
@@ -374,18 +361,11 @@ void accumulate_vertex_results(
     vertex_t frontier_count = h_bounds[d + 1] - h_bounds[d];
     max_frontier_size = std::max(max_frontier_size, frontier_count);
   }
-  std::cout << "DEBUG: Max distance (diameter): " << diameter << ", Max frontier size: " << max_frontier_size << std::endl;
-  
-  RAFT_CUDA_TRY(cudaDeviceSynchronize());
-  auto frontier_calc_end = std::chrono::high_resolution_clock::now();
-  auto frontier_calc_duration = std::chrono::duration_cast<std::chrono::microseconds>(frontier_calc_end - frontier_calc_start);
-  std::cout << "DEBUG: Frontier calculation time (sort + bsearch): " << frontier_calc_duration.count() << " microseconds" << std::endl;
 
   rmm::device_uvector<vertex_t> reusable_vertex_buffer(max_frontier_size, handle.get_stream());
   rmm::device_uvector<weight_t> reusable_delta_buffer(max_frontier_size, handle.get_stream());
 
-  RAFT_CUDA_TRY(cudaDeviceSynchronize());
-  auto delta_loop_start = std::chrono::high_resolution_clock::now();
+
   
   // Based on Brandes algorithm, we want to follow back pointers in non-increasing
   // distance from S to compute delta
@@ -474,16 +454,6 @@ void accumulate_vertex_results(
           centralities[v] += delta;
         });
     }
-  }
-  RAFT_CUDA_TRY(cudaDeviceSynchronize());
-  auto delta_loop_end = std::chrono::high_resolution_clock::now();
-  auto delta_loop_duration = std::chrono::duration_cast<std::chrono::microseconds>(delta_loop_end - delta_loop_start);
-  std::cout << "DEBUG: Total delta computation loop time: " << delta_loop_duration.count() << " microseconds" << std::endl;
-  
-  if (diameter > 1) {
-    vertex_t distance_level_count = diameter - 1;  // From diameter down to 2
-    auto avg_distance_level_time = delta_loop_duration.count() / distance_level_count;
-    std::cout << "DEBUG: Average distance level processing time: " << avg_distance_level_time << " microseconds (" << distance_level_count << " levels)" << std::endl;
   }
 }
 
@@ -694,15 +664,7 @@ rmm::device_uvector<weight_t> betweenness_centrality(
   // expand from multiple sources concurrently. The challenge is managing
   // the memory explosion.
   //
-
-  
-  RAFT_CUDA_TRY(cudaDeviceSynchronize());
-  auto all_sources_start = std::chrono::high_resolution_clock::now();
-  
   for (size_t source_idx = 0; source_idx < num_sources; ++source_idx) {
-    RAFT_CUDA_TRY(cudaDeviceSynchronize());
-    auto single_source_start = std::chrono::high_resolution_clock::now();
-    
     //
     //  BFS
     //
@@ -723,17 +685,8 @@ rmm::device_uvector<weight_t> betweenness_centrality(
     // FIXME:  This has an inefficiency in early iterations, as it doesn't have enough work to
     //         keep the GPUs busy.  But we can't run too many at once or we will run out of
     //         memory. Need to investigate options to improve this performance
-    RAFT_CUDA_TRY(cudaDeviceSynchronize());
-    auto bfs_start = std::chrono::high_resolution_clock::now();
     auto [distances, sigmas] =
       brandes_bfs(handle, graph_view, edge_weight_view, vertex_frontier, do_expensive_check);
-    RAFT_CUDA_TRY(cudaDeviceSynchronize());
-    auto bfs_end = std::chrono::high_resolution_clock::now();
-    auto bfs_duration = std::chrono::duration_cast<std::chrono::microseconds>(bfs_end - bfs_start);
-    std::cout << "DEBUG: Source " << source_idx << " BFS time: " << bfs_duration.count() << " microseconds" << std::endl;
-    
-    RAFT_CUDA_TRY(cudaDeviceSynchronize());
-    auto accumulate_start = std::chrono::high_resolution_clock::now();
     accumulate_vertex_results(handle,
                               graph_view,
                               edge_weight_view,
@@ -742,21 +695,7 @@ rmm::device_uvector<weight_t> betweenness_centrality(
                               std::move(sigmas),
                               include_endpoints,
                               do_expensive_check);
-    RAFT_CUDA_TRY(cudaDeviceSynchronize());
-    auto accumulate_end = std::chrono::high_resolution_clock::now();
-    auto accumulate_duration = std::chrono::duration_cast<std::chrono::microseconds>(accumulate_end - accumulate_start);
-    std::cout << "DEBUG: Source " << source_idx << " accumulate time: " << accumulate_duration.count() << " microseconds" << std::endl;
-    
-    RAFT_CUDA_TRY(cudaDeviceSynchronize());
-    auto single_source_end = std::chrono::high_resolution_clock::now();
-    auto single_source_duration = std::chrono::duration_cast<std::chrono::microseconds>(single_source_end - single_source_start);
-    std::cout << "DEBUG: Source " << source_idx << " total time: " << single_source_duration.count() << " microseconds" << std::endl;
   }
-  
-  RAFT_CUDA_TRY(cudaDeviceSynchronize());
-  auto all_sources_end = std::chrono::high_resolution_clock::now();
-  auto all_sources_duration = std::chrono::duration_cast<std::chrono::microseconds>(all_sources_end - all_sources_start);
-  std::cout << "DEBUG: All sources processing time: " << all_sources_duration.count() << " microseconds" << std::endl;
 
   std::optional<weight_t> scale_nonsource{std::nullopt};
   std::optional<weight_t> scale_source{std::nullopt};
@@ -788,9 +727,6 @@ rmm::device_uvector<weight_t> betweenness_centrality(
     }
   }
 
-  RAFT_CUDA_TRY(cudaDeviceSynchronize());
-  auto scaling_start = std::chrono::high_resolution_clock::now();
-  
   if (scale_nonsource) {
     auto iter = thrust::make_zip_iterator(
       thrust::make_counting_iterator(graph_view.local_vertex_partition_range_first()),
@@ -813,11 +749,6 @@ rmm::device_uvector<weight_t> betweenness_centrality(
                  : centrality / source;
       });
   }
-  
-  RAFT_CUDA_TRY(cudaDeviceSynchronize());
-  auto scaling_end = std::chrono::high_resolution_clock::now();
-  auto scaling_duration = std::chrono::duration_cast<std::chrono::microseconds>(scaling_end - scaling_start);
-  std::cout << "DEBUG: Scaling phase time: " << scaling_duration.count() << " microseconds" << std::endl;
 
   return centralities;
 }
