@@ -33,6 +33,27 @@ torch = MissingModule("torch")
 TensorType = Union["torch.Tensor", cupy.ndarray, cudf.Series]
 
 
+def verify_metadata(metadata: Optional[Dict[str, Union[str, Tuple[str, str, str]]]]):
+    if metadata is not None:
+        for k, v in metadata.items():
+            assert isinstance(k, str), "Metadata keys must be strings."
+            if isinstance(v, tuple):
+                assert len(v) == 3, "Metadata tuples must be of length 3."
+                assert isinstance(
+                    v[0], str
+                ), "Metadata tuple must be of type (str, str, str)."
+                assert isinstance(
+                    v[1], str
+                ), "Metadata tuple must be of type (str, str, str)."
+                assert isinstance(
+                    v[2], str
+                ), "Metadata tuple must be of type (str, str, str)."
+            else:
+                assert isinstance(
+                    v, str
+                ), "Metadata values must be strings or tuples of strings."
+
+
 class DistSampler:
     def __init__(
         self,
@@ -309,6 +330,8 @@ class DistSampler:
         """
         torch = import_optional("torch")
 
+        verify_metadata(metadata)
+
         nodes = torch.as_tensor(nodes, device="cuda")
         num_seeds = nodes.numel()
 
@@ -564,26 +587,9 @@ class DistSampler:
             Metadata to be added to the minibatch dictionary.
         """
 
-        if metadata is not None:
-            for k, v in metadata.items():
-                assert isinstance(k, str), "Metadata keys must be strings."
-                if isinstance(v, tuple):
-                    assert len(v) == 3, "Metadata tuples must be of length 3."
-                    assert isinstance(
-                        v[0], str
-                    ), "Metadata tuple must be of type (str, str, str)."
-                    assert isinstance(
-                        v[1], str
-                    ), "Metadata tuple must be of type (str, str, str)."
-                    assert isinstance(
-                        v[2], str
-                    ), "Metadata tuple must be of type (str, str, str)."
-                else:
-                    assert isinstance(
-                        v, str
-                    ), "Metadata values must be strings or tuples of strings."
-
         torch = import_optional("torch")
+
+        verify_metadata(metadata)
 
         edges = torch.as_tensor(edges, device="cuda")
         num_seed_edges = edges.shape[-1]
