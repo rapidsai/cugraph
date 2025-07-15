@@ -192,9 +192,7 @@ class CugraphHandler:
         the number of GPUs accessible through dask.
         """
         return (
-            len(self.__dask_client.scheduler_info()["workers"])
-            if self.is_multi_gpu
-            else 1
+            self.__dask_client.scheduler_info()["n_workers"] if self.is_multi_gpu else 1
         )
 
     def uptime(self):

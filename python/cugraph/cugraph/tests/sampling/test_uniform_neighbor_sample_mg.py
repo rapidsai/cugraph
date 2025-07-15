@@ -127,7 +127,7 @@ def test_mg_uniform_neighbor_sample_simple(dask_client, input_combo):
     # Drop parallel edges for non MultiGraph
     # FIXME: Drop multi edges with the CAPI instead.
     vertex_col_name = ["src", "dst"]
-    workers = dask_client.scheduler_info()["workers"]
+    workers = dask_client.scheduler_info(n_workers=-1)["workers"]
     input_df = _memory_efficient_drop_duplicates(
         input_df, vertex_col_name, len(workers)
     )
@@ -333,7 +333,7 @@ def test_mg_uniform_neighbor_sample_ensure_no_duplicates(dask_client):
 @pytest.mark.mg
 @pytest.mark.parametrize("return_offsets", [True, False])
 def test_uniform_neighbor_sample_edge_properties(dask_client, return_offsets):
-    n_workers = len(dask_client.scheduler_info()["workers"])
+    n_workers = dask_client.scheduler_info()["n_workers"]
     if n_workers <= 1:
         pytest.skip("Test only valid for MG environments")
     edgelist_df = dask_cudf.from_cudf(
@@ -696,7 +696,7 @@ def test_uniform_neighbor_sample_without_dask_inputs(dask_client):
 @pytest.mark.parametrize("input_df", [cudf.DataFrame, dask_cudf.DataFrame])
 @pytest.mark.parametrize("max_batches", [2, 8, 16, 32])
 def test_uniform_neighbor_sample_batched(dask_client, dataset, input_df, max_batches):
-    num_workers = len(dask_client.scheduler_info()["workers"])
+    num_workers = dask_client.scheduler_info()["n_workers"]
 
     df = dataset.get_edgelist()
     df["eid"] = cupy.arange(len(df), dtype=df["src"].dtype)
@@ -1039,7 +1039,7 @@ def test_uniform_neighbor_sample_offset_renumber(dask_client, hops):
     )
 
     # can't use compute() since empty batches still get a partition
-    n_workers = len(dask_client.scheduler_info()["workers"])
+    n_workers = dask_client.scheduler_info()["n_workers"]
     for p in range(n_workers):
         partition = offsets_renumbered.get_partition(p).compute()
         if not pandas.isna(partition.batch_id.iloc[0]):
@@ -1105,7 +1105,7 @@ def test_uniform_neighbor_sample_csr_csc_global(dask_client, hops, seed):
     )
 
     # can't use compute() since empty batches still get a partition
-    n_workers = len(dask_client.scheduler_info()["workers"])
+    n_workers = dask_client.scheduler_info()["n_workers"]
     for p in range(n_workers):
         partition = offsets.get_partition(p).compute()
         if not pandas.isna(partition.batch_id.iloc[0]):
@@ -1161,7 +1161,7 @@ def test_uniform_neighbor_sample_csr_csc_local(dask_client, hops, seed):
     )
 
     # can't use compute() since empty batches still get a partition
-    n_workers = len(dask_client.scheduler_info()["workers"])
+    n_workers = dask_client.scheduler_info()["n_workers"]
     for p in range(n_workers):
         partition = offsets.get_partition(p).compute()
 
