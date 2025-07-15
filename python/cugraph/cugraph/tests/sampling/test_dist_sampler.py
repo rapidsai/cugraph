@@ -199,6 +199,7 @@ def test_dist_sampler_hetero_from_nodes():
     out = sampler.sample_from_nodes(
         nodes=cupy.array([4, 5]),
         input_id=cupy.array([5, 10]),
+        metadata={"some_key": "some_value"},
     )
 
     out = [z for z in out]
@@ -206,6 +207,7 @@ def test_dist_sampler_hetero_from_nodes():
     out, _, _ = out[0]
 
     lho = out["label_type_hop_offsets"]
+    assert out["metadata"] == {"some_key": "some_value"}
 
     # Edge type 0
     emap = out["edge_renumber_map"][
