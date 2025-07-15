@@ -280,7 +280,7 @@ class DistSampler:
         random_state: int = 62,
         assume_equal_input_size: bool = False,
         input_id: Optional[TensorType] = None,
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: Optional[Dict[str, Union[str, Tuple[str, str, str]]]] = None,
     ) -> Iterator[Tuple[Dict[str, "torch.Tensor"], int, int]]:
         """
         Performs node-based sampling.  Accepts a list of seed nodes, and batch size.
@@ -304,6 +304,8 @@ class DistSampler:
             Input ids corresponding to the original batch tensor, if it
             was permuted prior to calling this function.  If present,
             will be saved with the samples.
+        metadata: Optional[Dict[str, Union[str, Tuple[str, str, str]]]]
+            Metadata to be added to the minibatch dictionary.
         """
         torch = import_optional("torch")
 
@@ -531,7 +533,7 @@ class DistSampler:
         assume_equal_input_size: bool = False,
         input_id: Optional[TensorType] = None,
         input_label: Optional[TensorType] = None,
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: Optional[Dict[str, Union[str, Tuple[str, str, str]]]] = None,
     ) -> Iterator[Tuple[Dict[str, "torch.Tensor"], int, int]]:
         """
         Performs sampling starting from seed edges.
@@ -558,7 +560,28 @@ class DistSampler:
             Input labels corresponding to the input seeds.  Typically used
             for link prediction sampling.  If present, will be saved with
             the samples.  Generally not compatible with negative sampling.
+        metadata: Optional[Dict[str, Union[str, Tuple[str, str, str]]]]
+            Metadata to be added to the minibatch dictionary.
         """
+
+        if metadata is not None:
+            for k, v in metadata.items():
+                assert isinstance(k, str), "Metadata keys must be strings."
+                if isinstance(v, tuple):
+                    assert len(v) == 3, "Metadata tuples must be of length 3."
+                    assert isinstance(
+                        v[0], str
+                    ), "Metadata tuple must be of type (str, str, str)."
+                    assert isinstance(
+                        v[1], str
+                    ), "Metadata tuple must be of type (str, str, str)."
+                    assert isinstance(
+                        v[2], str
+                    ), "Metadata tuple must be of type (str, str, str)."
+                else:
+                    assert isinstance(
+                        v, str
+                    ), "Metadata values must be strings or tuples of strings."
 
         torch = import_optional("torch")
 

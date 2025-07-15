@@ -207,7 +207,7 @@ def test_dist_sampler_hetero_from_nodes():
     out, _, _ = out[0]
 
     lho = out["label_type_hop_offsets"]
-    assert out["metadata"] == {"some_key": "some_value"}
+    assert out["some_key"] == "some_value"
 
     # Edge type 0
     emap = out["edge_renumber_map"][
