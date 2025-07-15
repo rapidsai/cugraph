@@ -16,7 +16,6 @@
 
 #pragma once
 
-#include "common_utilities.cuh"
 #include "prims/edge_bucket.cuh"
 #include "prims/per_v_random_select_transform_outgoing_e.cuh"
 #include "prims/transform_gather_e.cuh"
@@ -76,9 +75,9 @@ struct sample_edges_op_t {
       src = thrust::get<0>(optionally_tagged_src);
 
     if constexpr (std::is_same_v<edge_properties_t, cuda::std::nullopt_t>) {
-      return thrust::make_tuple(src, dst);
+      return cuda::std::make_tuple(src, dst);
     } else {
-      return thrust::make_tuple(src, dst, edge_properties);
+      return cuda::std::make_tuple(src, dst, edge_properties);
     }
   }
 };
@@ -168,7 +167,7 @@ struct segmented_fill_t {
   }
 };
 
-template <typename vertex_t, typename edge_t, bool multi_gpu>
+template <typename vertex_t, typename edge_t, typename property_view_t, bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            arithmetic_device_uvector_t,
@@ -177,9 +176,9 @@ sample_with_one_property(
   raft::handle_t const& handle,
   raft::random::RngState& rng_state,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
-  edge_arithmetic_property_view_t<edge_t, vertex_t> edge_property_view,
-  std::optional<edge_arithmetic_property_view_t<edge_t, vertex_t>> edge_type_view,
-  std::optional<edge_arithmetic_property_view_t<edge_t, vertex_t>> edge_bias_view,
+  property_view_t edge_property_view,
+  std::optional<edge_arithmetic_property_view_t<edge_t>> edge_type_view,
+  std::optional<edge_arithmetic_property_view_t<edge_t>> edge_bias_view,
   cugraph::vertex_frontier_t<vertex_t, void, multi_gpu, false>& vertex_frontier,
   raft::host_span<size_t const> Ks,
   bool with_replacement)
@@ -188,7 +187,7 @@ sample_with_one_property(
 
   rmm::device_uvector<vertex_t> majors(0, handle.get_stream());
   rmm::device_uvector<vertex_t> minors(0, handle.get_stream());
-  arithmetic_device_uvector_t sampled_property{std::monostate{}};
+  arithmetic_device_uvector_t sampled_properties{std::monostate{}};
   std::optional<rmm::device_uvector<size_t>> sample_offsets{std::nullopt};
 
   if (edge_bias_view) {
@@ -196,306 +195,241 @@ sample_with_one_property(
           *edge_bias_view)) {
       using bias_t = float;
 
-      std::tie(majors, minors, sampled_property, sample_offsets) = cugraph::variant_type_dispatch(
-        edge_property_view,
-        [&handle,
-         &rng_state,
-         &graph_view,
-         &vertex_frontier,
-         &edge_bias_view,
-         &edge_type_view,
-         &Ks,
-         with_replacement](auto property_view) {
-          using T = typename decltype(property_view)::value_type;
+      using T = typename decltype(edge_property_view)::value_type;
 
-          if constexpr (std::is_same_v<T, cuda::std::nullopt_t>) {
-            auto [sample_offsets, sampled_values] =
-              (Ks.size() == 1)
-                ? cugraph::per_v_random_select_transform_outgoing_e(
-                    handle,
-                    graph_view,
-                    vertex_frontier.bucket(0),
-                    edge_src_dummy_property_t{}.view(),
-                    edge_dst_dummy_property_t{}.view(),
-                    std::get<cugraph::edge_property_view_t<edge_t, bias_t const*>>(*edge_bias_view),
-                    sample_edge_biases_op_t<vertex_t, bias_t>{},
-                    edge_src_dummy_property_t{}.view(),
-                    edge_dst_dummy_property_t{}.view(),
-                    property_view,
-                    sample_edges_op_t<vertex_t, T>{},
-                    rng_state,
-                    Ks[0],
-                    with_replacement,
-                    std::optional<cuda::std::tuple<vertex_t, vertex_t>>{std::nullopt},
-                    false)
-                : cugraph::per_v_random_select_transform_outgoing_e(
-                    handle,
-                    graph_view,
-                    vertex_frontier.bucket(0),
-                    edge_src_dummy_property_t{}.view(),
-                    edge_dst_dummy_property_t{}.view(),
-                    std::get<cugraph::edge_property_view_t<edge_t, bias_t const*>>(*edge_bias_view),
-                    sample_edge_biases_op_t<vertex_t, bias_t>{},
-                    edge_src_dummy_property_t{}.view(),
-                    edge_dst_dummy_property_t{}.view(),
-                    property_view,
-                    sample_edges_op_t<vertex_t, T>{},
-                    std::get<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>(
-                      *edge_type_view),
-                    rng_state,
-                    Ks,
-                    with_replacement,
-                    std::optional<cuda::std::tuple<vertex_t, vertex_t>>{std::nullopt},
-                    false);
-
-            arithmetic_device_uvector_t tmp{std::monostate{}};
-            return std::make_tuple(std::move(std::get<0>(sampled_values)),
-                                   std::move(std::get<1>(sampled_values)),
-                                   std::move(tmp),
-                                   std::move(sample_offsets));
-          } else {
-            auto [sample_offsets, sampled_values] =
-              (Ks.size() == 1)
-                ? cugraph::per_v_random_select_transform_outgoing_e(
-                    handle,
-                    graph_view,
-                    vertex_frontier.bucket(0),
-                    edge_src_dummy_property_t{}.view(),
-                    edge_dst_dummy_property_t{}.view(),
-                    std::get<cugraph::edge_property_view_t<edge_t, bias_t const*>>(*edge_bias_view),
-                    sample_edge_biases_op_t<vertex_t, bias_t>{},
-                    edge_src_dummy_property_t{}.view(),
-                    edge_dst_dummy_property_t{}.view(),
-                    property_view,
-                    sample_edges_op_t<vertex_t, T>{},
-                    rng_state,
-                    Ks[0],
-                    with_replacement,
-                    std::optional<cuda::std::tuple<vertex_t, vertex_t, T>>{std::nullopt},
-                    false)
-                : cugraph::per_v_random_select_transform_outgoing_e(
-                    handle,
-                    graph_view,
-                    vertex_frontier.bucket(0),
-                    edge_src_dummy_property_t{}.view(),
-                    edge_dst_dummy_property_t{}.view(),
-                    std::get<cugraph::edge_property_view_t<edge_t, bias_t const*>>(*edge_bias_view),
-                    sample_edge_biases_op_t<vertex_t, bias_t>{},
-                    edge_src_dummy_property_t{}.view(),
-                    edge_dst_dummy_property_t{}.view(),
-                    property_view,
-                    sample_edges_op_t<vertex_t, T>{},
-                    std::get<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>(
-                      *edge_type_view),
-                    rng_state,
-                    Ks,
-                    with_replacement,
-                    std::optional<cuda::std::tuple<vertex_t, vertex_t, T>>{std::nullopt},
-                    false);
-
-            arithmetic_device_uvector_t tmp = std::move(std::get<2>(sampled_values));
-            return std::make_tuple(std::move(std::get<0>(sampled_values)),
-                                   std::move(std::get<1>(sampled_values)),
-                                   std::move(tmp),
-                                   std::move(sample_offsets));
-          }
-        });
+      if constexpr (std::is_same_v<T, cuda::std::nullopt_t>) {
+        std::forward_as_tuple(sample_offsets, std::tie(majors, minors)) =
+          (Ks.size() == 1)
+            ? cugraph::per_v_random_select_transform_outgoing_e(
+                handle,
+                graph_view,
+                vertex_frontier.bucket(0),
+                edge_src_dummy_property_t{}.view(),
+                edge_dst_dummy_property_t{}.view(),
+                std::get<cugraph::edge_property_view_t<edge_t, bias_t const*>>(*edge_bias_view),
+                sample_edge_biases_op_t<vertex_t, bias_t>{},
+                edge_src_dummy_property_t{}.view(),
+                edge_dst_dummy_property_t{}.view(),
+                edge_property_view,
+                sample_edges_op_t<vertex_t, T>{},
+                rng_state,
+                Ks[0],
+                with_replacement,
+                std::optional<cuda::std::tuple<vertex_t, vertex_t>>{std::nullopt},
+                false)
+            : cugraph::per_v_random_select_transform_outgoing_e(
+                handle,
+                graph_view,
+                vertex_frontier.bucket(0),
+                edge_src_dummy_property_t{}.view(),
+                edge_dst_dummy_property_t{}.view(),
+                std::get<cugraph::edge_property_view_t<edge_t, bias_t const*>>(*edge_bias_view),
+                sample_edge_biases_op_t<vertex_t, bias_t>{},
+                edge_src_dummy_property_t{}.view(),
+                edge_dst_dummy_property_t{}.view(),
+                edge_property_view,
+                sample_edges_op_t<vertex_t, T>{},
+                std::get<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>(
+                  *edge_type_view),
+                rng_state,
+                Ks,
+                with_replacement,
+                std::optional<cuda::std::tuple<vertex_t, vertex_t>>{std::nullopt},
+                false);
+      } else {
+        std::forward_as_tuple(sample_offsets, std::tie(majors, minors, sampled_properties)) =
+          (Ks.size() == 1)
+            ? cugraph::per_v_random_select_transform_outgoing_e(
+                handle,
+                graph_view,
+                vertex_frontier.bucket(0),
+                edge_src_dummy_property_t{}.view(),
+                edge_dst_dummy_property_t{}.view(),
+                std::get<cugraph::edge_property_view_t<edge_t, bias_t const*>>(*edge_bias_view),
+                sample_edge_biases_op_t<vertex_t, bias_t>{},
+                edge_src_dummy_property_t{}.view(),
+                edge_dst_dummy_property_t{}.view(),
+                edge_property_view,
+                sample_edges_op_t<vertex_t, T>{},
+                rng_state,
+                Ks[0],
+                with_replacement,
+                std::optional<cuda::std::tuple<vertex_t, vertex_t, T>>{std::nullopt},
+                false)
+            : cugraph::per_v_random_select_transform_outgoing_e(
+                handle,
+                graph_view,
+                vertex_frontier.bucket(0),
+                edge_src_dummy_property_t{}.view(),
+                edge_dst_dummy_property_t{}.view(),
+                std::get<cugraph::edge_property_view_t<edge_t, bias_t const*>>(*edge_bias_view),
+                sample_edge_biases_op_t<vertex_t, bias_t>{},
+                edge_src_dummy_property_t{}.view(),
+                edge_dst_dummy_property_t{}.view(),
+                edge_property_view,
+                sample_edges_op_t<vertex_t, T>{},
+                std::get<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>(
+                  *edge_type_view),
+                rng_state,
+                Ks,
+                with_replacement,
+                std::optional<cuda::std::tuple<vertex_t, vertex_t, T>>{std::nullopt},
+                false);
+      }
     } else if (std::holds_alternative<cugraph::edge_property_view_t<edge_t, double const*>>(
                  *edge_bias_view)) {
       using bias_t = double;
 
-      std::tie(majors, minors, sampled_property, sample_offsets) = cugraph::variant_type_dispatch(
-        edge_property_view,
-        [&handle,
-         &rng_state,
-         &graph_view,
-         &vertex_frontier,
-         &edge_bias_view,
-         &edge_type_view,
-         &Ks,
-         with_replacement](auto property_view) {
-          using T = typename decltype(property_view)::value_type;
+      using T = typename decltype(edge_property_view)::value_type;
 
-          if constexpr (std::is_same_v<T, cuda::std::nullopt_t>) {
-            auto [sample_offsets, sampled_values] =
-              (Ks.size() == 1)
-                ? cugraph::per_v_random_select_transform_outgoing_e(
-                    handle,
-                    graph_view,
-                    vertex_frontier.bucket(0),
-                    edge_src_dummy_property_t{}.view(),
-                    edge_dst_dummy_property_t{}.view(),
-                    std::get<cugraph::edge_property_view_t<edge_t, bias_t const*>>(*edge_bias_view),
-                    sample_edge_biases_op_t<vertex_t, bias_t>{},
-                    edge_src_dummy_property_t{}.view(),
-                    edge_dst_dummy_property_t{}.view(),
-                    property_view,
-                    sample_edges_op_t<vertex_t, T>{},
-                    rng_state,
-                    Ks[0],
-                    with_replacement,
-                    std::optional<cuda::std::tuple<vertex_t, vertex_t>>{std::nullopt},
-                    false)
-                : cugraph::per_v_random_select_transform_outgoing_e(
-                    handle,
-                    graph_view,
-                    vertex_frontier.bucket(0),
-                    edge_src_dummy_property_t{}.view(),
-                    edge_dst_dummy_property_t{}.view(),
-                    std::get<cugraph::edge_property_view_t<edge_t, bias_t const*>>(*edge_bias_view),
-                    sample_edge_biases_op_t<vertex_t, bias_t>{},
-                    edge_src_dummy_property_t{}.view(),
-                    edge_dst_dummy_property_t{}.view(),
-                    property_view,
-                    sample_edges_op_t<vertex_t, T>{},
-                    std::get<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>(
-                      *edge_type_view),
-                    rng_state,
-                    Ks,
-                    with_replacement,
-                    std::optional<cuda::std::tuple<vertex_t, vertex_t>>{std::nullopt},
-                    false);
-
-            arithmetic_device_uvector_t tmp{std::monostate{}};
-            return std::make_tuple(std::move(std::get<0>(sampled_values)),
-                                   std::move(std::get<1>(sampled_values)),
-                                   std::move(tmp),
-                                   std::move(sample_offsets));
-          } else {
-            auto [sample_offsets, sampled_values] =
-              (Ks.size() == 1)
-                ? cugraph::per_v_random_select_transform_outgoing_e(
-                    handle,
-                    graph_view,
-                    vertex_frontier.bucket(0),
-                    edge_src_dummy_property_t{}.view(),
-                    edge_dst_dummy_property_t{}.view(),
-                    std::get<cugraph::edge_property_view_t<edge_t, bias_t const*>>(*edge_bias_view),
-                    sample_edge_biases_op_t<vertex_t, bias_t>{},
-                    edge_src_dummy_property_t{}.view(),
-                    edge_dst_dummy_property_t{}.view(),
-                    property_view,
-                    sample_edges_op_t<vertex_t, T>{},
-                    rng_state,
-                    Ks[0],
-                    with_replacement,
-                    std::optional<cuda::std::tuple<vertex_t, vertex_t, T>>{std::nullopt},
-                    false)
-                : cugraph::per_v_random_select_transform_outgoing_e(
-                    handle,
-                    graph_view,
-                    vertex_frontier.bucket(0),
-                    edge_src_dummy_property_t{}.view(),
-                    edge_dst_dummy_property_t{}.view(),
-                    std::get<cugraph::edge_property_view_t<edge_t, bias_t const*>>(*edge_bias_view),
-                    sample_edge_biases_op_t<vertex_t, bias_t>{},
-                    edge_src_dummy_property_t{}.view(),
-                    edge_dst_dummy_property_t{}.view(),
-                    property_view,
-                    sample_edges_op_t<vertex_t, T>{},
-                    std::get<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>(
-                      *edge_type_view),
-                    rng_state,
-                    Ks,
-                    with_replacement,
-                    std::optional<cuda::std::tuple<vertex_t, vertex_t, T>>{std::nullopt},
-                    false);
-
-            arithmetic_device_uvector_t tmp = std::move(std::get<2>(sampled_values));
-            return std::make_tuple(std::move(std::get<0>(sampled_values)),
-                                   std::move(std::get<1>(sampled_values)),
-                                   std::move(tmp),
-                                   std::move(sample_offsets));
-          }
-        });
+      if constexpr (std::is_same_v<T, cuda::std::nullopt_t>) {
+        std::forward_as_tuple(sample_offsets, std::tie(majors, minors)) =
+          (Ks.size() == 1)
+            ? cugraph::per_v_random_select_transform_outgoing_e(
+                handle,
+                graph_view,
+                vertex_frontier.bucket(0),
+                edge_src_dummy_property_t{}.view(),
+                edge_dst_dummy_property_t{}.view(),
+                std::get<cugraph::edge_property_view_t<edge_t, bias_t const*>>(*edge_bias_view),
+                sample_edge_biases_op_t<vertex_t, bias_t>{},
+                edge_src_dummy_property_t{}.view(),
+                edge_dst_dummy_property_t{}.view(),
+                edge_property_view,
+                sample_edges_op_t<vertex_t, T>{},
+                rng_state,
+                Ks[0],
+                with_replacement,
+                std::optional<cuda::std::tuple<vertex_t, vertex_t>>{std::nullopt},
+                false)
+            : cugraph::per_v_random_select_transform_outgoing_e(
+                handle,
+                graph_view,
+                vertex_frontier.bucket(0),
+                edge_src_dummy_property_t{}.view(),
+                edge_dst_dummy_property_t{}.view(),
+                std::get<cugraph::edge_property_view_t<edge_t, bias_t const*>>(*edge_bias_view),
+                sample_edge_biases_op_t<vertex_t, bias_t>{},
+                edge_src_dummy_property_t{}.view(),
+                edge_dst_dummy_property_t{}.view(),
+                edge_property_view,
+                sample_edges_op_t<vertex_t, T>{},
+                std::get<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>(
+                  *edge_type_view),
+                rng_state,
+                Ks,
+                with_replacement,
+                std::optional<cuda::std::tuple<vertex_t, vertex_t>>{std::nullopt},
+                false);
+      } else {
+        std::forward_as_tuple(sample_offsets, std::tie(majors, minors, sampled_properties)) =
+          (Ks.size() == 1)
+            ? cugraph::per_v_random_select_transform_outgoing_e(
+                handle,
+                graph_view,
+                vertex_frontier.bucket(0),
+                edge_src_dummy_property_t{}.view(),
+                edge_dst_dummy_property_t{}.view(),
+                std::get<cugraph::edge_property_view_t<edge_t, bias_t const*>>(*edge_bias_view),
+                sample_edge_biases_op_t<vertex_t, bias_t>{},
+                edge_src_dummy_property_t{}.view(),
+                edge_dst_dummy_property_t{}.view(),
+                edge_property_view,
+                sample_edges_op_t<vertex_t, T>{},
+                rng_state,
+                Ks[0],
+                with_replacement,
+                std::optional<cuda::std::tuple<vertex_t, vertex_t, T>>{std::nullopt},
+                false)
+            : cugraph::per_v_random_select_transform_outgoing_e(
+                handle,
+                graph_view,
+                vertex_frontier.bucket(0),
+                edge_src_dummy_property_t{}.view(),
+                edge_dst_dummy_property_t{}.view(),
+                std::get<cugraph::edge_property_view_t<edge_t, bias_t const*>>(*edge_bias_view),
+                sample_edge_biases_op_t<vertex_t, bias_t>{},
+                edge_src_dummy_property_t{}.view(),
+                edge_dst_dummy_property_t{}.view(),
+                edge_property_view,
+                sample_edges_op_t<vertex_t, T>{},
+                std::get<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>(
+                  *edge_type_view),
+                rng_state,
+                Ks,
+                with_replacement,
+                std::optional<cuda::std::tuple<vertex_t, vertex_t, T>>{std::nullopt},
+                false);
+      }
     }
   } else {
-    std::tie(majors, minors, sampled_property, sample_offsets) = cugraph::variant_type_dispatch(
-      edge_property_view,
-      [&handle, &rng_state, &graph_view, &vertex_frontier, &Ks, &edge_type_view, with_replacement](
-        auto property_view) {
-        using T = typename decltype(property_view)::value_type;
+    using T = typename decltype(edge_property_view)::value_type;
 
-        if constexpr (std::is_same_v<T, cuda::std::nullopt_t>) {
-          auto [sample_offsets, sampled_values] =
-            (Ks.size() == 1)
-              ? cugraph::per_v_random_select_transform_outgoing_e(
-                  handle,
-                  graph_view,
-                  vertex_frontier.bucket(0),
-                  edge_src_dummy_property_t{}.view(),
-                  edge_dst_dummy_property_t{}.view(),
-                  property_view,
-                  sample_edges_op_t<vertex_t, T>{},
-                  rng_state,
-                  Ks[0],
-                  with_replacement,
-                  std::optional<cuda::std::tuple<vertex_t, vertex_t>>{std::nullopt},
-                  false)
-              : cugraph::per_v_random_select_transform_outgoing_e(
-                  handle,
-                  graph_view,
-                  vertex_frontier.bucket(0),
-                  edge_src_dummy_property_t{}.view(),
-                  edge_dst_dummy_property_t{}.view(),
-                  property_view,
-                  sample_edges_op_t<vertex_t, T>{},
-                  std::get<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>(
-                    *edge_type_view),
-                  rng_state,
-                  Ks,
-                  with_replacement,
-                  std::optional<cuda::std::tuple<vertex_t, vertex_t>>{std::nullopt},
-                  false);
-
-          arithmetic_device_uvector_t tmp{std::monostate{}};
-          return std::make_tuple(std::move(std::get<0>(sampled_values)),
-                                 std::move(std::get<1>(sampled_values)),
-                                 std::move(tmp),
-                                 std::move(sample_offsets));
-        } else {
-          auto [sample_offsets, sampled_values] =
-            (Ks.size() == 1)
-              ? cugraph::per_v_random_select_transform_outgoing_e(
-                  handle,
-                  graph_view,
-                  vertex_frontier.bucket(0),
-                  edge_src_dummy_property_t{}.view(),
-                  edge_dst_dummy_property_t{}.view(),
-                  property_view,
-                  sample_edges_op_t<vertex_t, T>{},
-                  rng_state,
-                  Ks[0],
-                  with_replacement,
-                  std::optional<cuda::std::tuple<vertex_t, vertex_t, T>>{std::nullopt},
-                  false)
-              : cugraph::per_v_random_select_transform_outgoing_e(
-                  handle,
-                  graph_view,
-                  vertex_frontier.bucket(0),
-                  edge_src_dummy_property_t{}.view(),
-                  edge_dst_dummy_property_t{}.view(),
-                  property_view,
-                  sample_edges_op_t<vertex_t, T>{},
-                  std::get<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>(
-                    *edge_type_view),
-                  rng_state,
-                  Ks,
-                  with_replacement,
-                  std::optional<cuda::std::tuple<vertex_t, vertex_t, T>>{std::nullopt},
-                  false);
-
-          arithmetic_device_uvector_t tmp = std::move(std::get<2>(sampled_values));
-          return std::make_tuple(std::move(std::get<0>(sampled_values)),
-                                 std::move(std::get<1>(sampled_values)),
-                                 std::move(tmp),
-                                 std::move(sample_offsets));
-        }
-      });
+    if constexpr (std::is_same_v<T, cuda::std::nullopt_t>) {
+      std::forward_as_tuple(sample_offsets, std::tie(majors, minors)) =
+        (Ks.size() == 1)
+          ? cugraph::per_v_random_select_transform_outgoing_e(
+              handle,
+              graph_view,
+              vertex_frontier.bucket(0),
+              edge_src_dummy_property_t{}.view(),
+              edge_dst_dummy_property_t{}.view(),
+              edge_property_view,
+              sample_edges_op_t<vertex_t, T>{},
+              rng_state,
+              Ks[0],
+              with_replacement,
+              std::optional<cuda::std::tuple<vertex_t, vertex_t>>{std::nullopt},
+              false)
+          : cugraph::per_v_random_select_transform_outgoing_e(
+              handle,
+              graph_view,
+              vertex_frontier.bucket(0),
+              edge_src_dummy_property_t{}.view(),
+              edge_dst_dummy_property_t{}.view(),
+              edge_property_view,
+              sample_edges_op_t<vertex_t, T>{},
+              std::get<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>(*edge_type_view),
+              rng_state,
+              Ks,
+              with_replacement,
+              std::optional<cuda::std::tuple<vertex_t, vertex_t>>{std::nullopt},
+              false);
+    } else {
+      std::forward_as_tuple(sample_offsets, std::tie(majors, minors, sampled_properties)) =
+        (Ks.size() == 1)
+          ? cugraph::per_v_random_select_transform_outgoing_e(
+              handle,
+              graph_view,
+              vertex_frontier.bucket(0),
+              edge_src_dummy_property_t{}.view(),
+              edge_dst_dummy_property_t{}.view(),
+              edge_property_view,
+              sample_edges_op_t<vertex_t, T>{},
+              rng_state,
+              Ks[0],
+              with_replacement,
+              std::optional<cuda::std::tuple<vertex_t, vertex_t, T>>{std::nullopt},
+              false)
+          : cugraph::per_v_random_select_transform_outgoing_e(
+              handle,
+              graph_view,
+              vertex_frontier.bucket(0),
+              edge_src_dummy_property_t{}.view(),
+              edge_dst_dummy_property_t{}.view(),
+              edge_property_view,
+              sample_edges_op_t<vertex_t, T>{},
+              std::get<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>(*edge_type_view),
+              rng_state,
+              Ks,
+              with_replacement,
+              std::optional<cuda::std::tuple<vertex_t, vertex_t, T>>{std::nullopt},
+              false);
+    }
   }
 
   return std::make_tuple(
-    std::move(majors), std::move(minors), std::move(sampled_property), std::move(sample_offsets));
+    std::move(majors), std::move(minors), std::move(sampled_properties), std::move(sample_offsets));
 }
 
 template <typename vertex_t, typename edge_t, bool multi_gpu>
@@ -506,9 +440,9 @@ std::tuple<rmm::device_uvector<vertex_t>,
 sample_edges(raft::handle_t const& handle,
              raft::random::RngState& rng_state,
              graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
-             raft::host_span<edge_arithmetic_property_view_t<edge_t, vertex_t>> edge_property_views,
-             std::optional<edge_arithmetic_property_view_t<edge_t, vertex_t>> edge_type_view,
-             std::optional<edge_arithmetic_property_view_t<edge_t, vertex_t>> edge_bias_view,
+             raft::host_span<edge_arithmetic_property_view_t<edge_t>> edge_property_views,
+             std::optional<edge_arithmetic_property_view_t<edge_t>> edge_type_view,
+             std::optional<edge_arithmetic_property_view_t<edge_t>> edge_bias_view,
              raft::device_span<vertex_t const> active_majors,
              std::optional<raft::device_span<int32_t const>> active_major_labels,
              raft::host_span<size_t const> Ks,
@@ -532,30 +466,38 @@ sample_edges(raft::handle_t const& handle,
   std::optional<rmm::device_uvector<size_t>> sample_offsets{std::nullopt};
 
   if (edge_property_views.size() == 0) {
-    cugraph::edge_arithmetic_property_view_t<edge_t, vertex_t> dummy_property_view =
-      cugraph::edge_dummy_property_view_t{};
-
-    arithmetic_device_uvector_t tmp{std::monostate{}};
-    std::tie(majors, minors, tmp, sample_offsets) = sample_with_one_property(handle,
-                                                                             rng_state,
-                                                                             graph_view,
-                                                                             dummy_property_view,
-                                                                             edge_type_view,
-                                                                             edge_bias_view,
-                                                                             vertex_frontier,
-                                                                             Ks,
-                                                                             with_replacement);
+    std::tie(majors, minors, std::ignore, sample_offsets) =
+      sample_with_one_property(handle,
+                               rng_state,
+                               graph_view,
+                               cugraph::edge_dummy_property_view_t{},
+                               edge_type_view,
+                               edge_bias_view,
+                               vertex_frontier,
+                               Ks,
+                               with_replacement);
   } else if (edge_property_views.size() == 1) {
     arithmetic_device_uvector_t tmp{std::monostate{}};
-    std::tie(majors, minors, tmp, sample_offsets) = sample_with_one_property(handle,
-                                                                             rng_state,
-                                                                             graph_view,
-                                                                             edge_property_views[0],
-                                                                             edge_type_view,
-                                                                             edge_bias_view,
-                                                                             vertex_frontier,
-                                                                             Ks,
-                                                                             with_replacement);
+    std::tie(majors, minors, tmp, sample_offsets) =
+      cugraph::variant_type_dispatch(edge_property_views[0],
+                                     [&handle,
+                                      &rng_state,
+                                      &graph_view,
+                                      &edge_type_view,
+                                      &edge_bias_view,
+                                      &vertex_frontier,
+                                      &Ks,
+                                      with_replacement](auto edge_property_view) {
+                                       return sample_with_one_property(handle,
+                                                                       rng_state,
+                                                                       graph_view,
+                                                                       edge_property_view,
+                                                                       edge_type_view,
+                                                                       edge_bias_view,
+                                                                       vertex_frontier,
+                                                                       Ks,
+                                                                       with_replacement);
+                                     });
 
     edge_properties.push_back(std::move(tmp));
   } else {
@@ -570,13 +512,11 @@ sample_edges(raft::handle_t const& handle,
     if (graph_view.is_multigraph()) {
       cugraph::edge_multi_index_property_t<edge_t, vertex_t> multi_index_property(handle,
                                                                                   graph_view);
-      cugraph::edge_arithmetic_property_view_t<edge_t, vertex_t> multi_index_property_view =
-        multi_index_property.view();
       std::tie(majors, minors, tmp, sample_offsets) =
         sample_with_one_property(handle,
                                  rng_state,
                                  graph_view,
-                                 multi_index_property_view,
+                                 multi_index_property.view(),
                                  edge_type_view,
                                  edge_bias_view,
                                  vertex_frontier,
@@ -589,17 +529,16 @@ sample_edges(raft::handle_t const& handle,
         minors.begin(),
         std::make_optional<edge_t const*>(std::get<rmm::device_uvector<edge_t>>(tmp).begin()));
     } else {
-      cugraph::edge_arithmetic_property_view_t<edge_t, vertex_t> dummy_property_view =
-        cugraph::edge_dummy_property_view_t{};
-      std::tie(majors, minors, tmp, sample_offsets) = sample_with_one_property(handle,
-                                                                               rng_state,
-                                                                               graph_view,
-                                                                               dummy_property_view,
-                                                                               edge_type_view,
-                                                                               edge_bias_view,
-                                                                               vertex_frontier,
-                                                                               Ks,
-                                                                               with_replacement);
+      std::tie(majors, minors, tmp, sample_offsets) =
+        sample_with_one_property(handle,
+                                 rng_state,
+                                 graph_view,
+                                 cugraph::edge_dummy_property_view_t{},
+                                 edge_type_view,
+                                 edge_bias_view,
+                                 vertex_frontier,
+                                 Ks,
+                                 with_replacement);
       edge_list.insert(
         majors.begin(), majors.end(), minors.begin(), std::optional<edge_t*>{std::nullopt});
     }
@@ -648,7 +587,11 @@ sample_edges(raft::handle_t const& handle,
     std::move(majors), std::move(minors), std::move(edge_properties), std::move(labels));
 }
 
-template <typename vertex_t, typename edge_t, typename edge_time_t, bool multi_gpu>
+template <typename vertex_t,
+          typename edge_t,
+          typename property_view_t,
+          typename edge_time_t,
+          bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            arithmetic_device_uvector_t,
@@ -657,10 +600,10 @@ temporal_sample_with_one_property(
   raft::handle_t const& handle,
   raft::random::RngState& rng_state,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
-  edge_arithmetic_property_view_t<edge_t, vertex_t> edge_property_view,
+  property_view_t edge_property_view,
   edge_property_view_t<edge_t, edge_time_t const*> edge_time_view,
-  std::optional<edge_arithmetic_property_view_t<edge_t, vertex_t>> edge_type_view,
-  std::optional<edge_arithmetic_property_view_t<edge_t, vertex_t>> edge_bias_view,
+  std::optional<edge_arithmetic_property_view_t<edge_t>> edge_type_view,
+  std::optional<edge_arithmetic_property_view_t<edge_t>> edge_bias_view,
   cugraph::vertex_frontier_t<vertex_t, edge_time_t, multi_gpu, false>& vertex_frontier,
   raft::host_span<size_t const> Ks,
   bool with_replacement)
@@ -669,7 +612,7 @@ temporal_sample_with_one_property(
 
   rmm::device_uvector<vertex_t> majors(0, handle.get_stream());
   rmm::device_uvector<vertex_t> minors(0, handle.get_stream());
-  arithmetic_device_uvector_t sampled_property{std::monostate{}};
+  arithmetic_device_uvector_t sampled_properties{std::monostate{}};
   std::optional<rmm::device_uvector<size_t>> sample_offsets{std::nullopt};
 
   if (edge_bias_view) {
@@ -677,348 +620,276 @@ temporal_sample_with_one_property(
           *edge_bias_view)) {
       using bias_t = float;
 
-      std::tie(majors, minors, sampled_property, sample_offsets) = cugraph::variant_type_dispatch(
-        edge_property_view,
-        [&handle,
-         &rng_state,
-         &graph_view,
-         &vertex_frontier,
-         &edge_time_view,
-         &edge_bias_view,
-         &edge_type_view,
-         &Ks,
-         with_replacement](auto property_view) {
-          using T = typename decltype(property_view)::value_type;
+      using T = typename decltype(edge_property_view)::value_type;
 
-          if constexpr (std::is_same_v<T, cuda::std::nullopt_t>) {
-            auto [sample_offsets, sampled_values] =
-              (Ks.size() == 1)
-                ? cugraph::per_v_random_select_transform_outgoing_e(
-                    handle,
-                    graph_view,
-                    vertex_frontier.bucket(0),
-                    edge_src_dummy_property_t{}.view(),
-                    edge_dst_dummy_property_t{}.view(),
-                    view_concat(std::get<cugraph::edge_property_view_t<edge_t, bias_t const*>>(
-                                  *edge_bias_view),
-                                edge_time_view),
-                    temporal_sample_edge_biases_op_t<vertex_t, bias_t>{},
-                    edge_src_dummy_property_t{}.view(),
-                    edge_dst_dummy_property_t{}.view(),
-                    property_view,
-                    sample_edges_op_t<vertex_t, T>{},
-                    rng_state,
-                    Ks[0],
-                    with_replacement,
-                    std::optional<cuda::std::tuple<vertex_t, vertex_t>>{std::nullopt},
-                    false)
-                : cugraph::per_v_random_select_transform_outgoing_e(
-                    handle,
-                    graph_view,
-                    vertex_frontier.bucket(0),
-                    edge_src_dummy_property_t{}.view(),
-                    edge_dst_dummy_property_t{}.view(),
-                    view_concat(std::get<cugraph::edge_property_view_t<edge_t, bias_t const*>>(
-                                  *edge_bias_view),
-                                edge_time_view),
-                    temporal_sample_edge_biases_op_t<vertex_t, bias_t>{},
-                    edge_src_dummy_property_t{}.view(),
-                    edge_dst_dummy_property_t{}.view(),
-                    property_view,
-                    sample_edges_op_t<vertex_t, T>{},
-                    std::get<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>(
-                      *edge_type_view),
-                    rng_state,
-                    Ks,
-                    with_replacement,
-                    std::optional<cuda::std::tuple<vertex_t, vertex_t>>{std::nullopt},
-                    false);
-
-            arithmetic_device_uvector_t tmp{std::monostate{}};
-            return std::make_tuple(std::move(std::get<0>(sampled_values)),
-                                   std::move(std::get<1>(sampled_values)),
-                                   std::move(tmp),
-                                   std::move(sample_offsets));
-          } else {
-            auto [sample_offsets, sampled_values] =
-              (Ks.size() == 1)
-                ? cugraph::per_v_random_select_transform_outgoing_e(
-                    handle,
-                    graph_view,
-                    vertex_frontier.bucket(0),
-                    edge_src_dummy_property_t{}.view(),
-                    edge_dst_dummy_property_t{}.view(),
-                    view_concat(std::get<cugraph::edge_property_view_t<edge_t, bias_t const*>>(
-                                  *edge_bias_view),
-                                edge_time_view),
-                    temporal_sample_edge_biases_op_t<vertex_t, bias_t>{},
-                    edge_src_dummy_property_t{}.view(),
-                    edge_dst_dummy_property_t{}.view(),
-                    property_view,
-                    sample_edges_op_t<vertex_t, T>{},
-                    rng_state,
-                    Ks[0],
-                    with_replacement,
-                    std::optional<cuda::std::tuple<vertex_t, vertex_t, T>>{std::nullopt},
-                    false)
-                : cugraph::per_v_random_select_transform_outgoing_e(
-                    handle,
-                    graph_view,
-                    vertex_frontier.bucket(0),
-                    edge_src_dummy_property_t{}.view(),
-                    edge_dst_dummy_property_t{}.view(),
-                    view_concat(std::get<cugraph::edge_property_view_t<edge_t, bias_t const*>>(
-                                  *edge_bias_view),
-                                edge_time_view),
-                    temporal_sample_edge_biases_op_t<vertex_t, bias_t>{},
-                    edge_src_dummy_property_t{}.view(),
-                    edge_dst_dummy_property_t{}.view(),
-                    property_view,
-                    sample_edges_op_t<vertex_t, T>{},
-                    std::get<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>(
-                      *edge_type_view),
-                    rng_state,
-                    Ks,
-                    with_replacement,
-                    std::optional<cuda::std::tuple<vertex_t, vertex_t, T>>{std::nullopt},
-                    false);
-
-            arithmetic_device_uvector_t tmp = std::move(std::get<2>(sampled_values));
-            return std::make_tuple(std::move(std::get<0>(sampled_values)),
-                                   std::move(std::get<1>(sampled_values)),
-                                   std::move(tmp),
-                                   std::move(sample_offsets));
-          }
-        });
+      if constexpr (std::is_same_v<T, cuda::std::nullopt_t>) {
+        std::forward_as_tuple(sample_offsets, std::tie(majors, minors)) =
+          (Ks.size() == 1)
+            ? cugraph::per_v_random_select_transform_outgoing_e(
+                handle,
+                graph_view,
+                vertex_frontier.bucket(0),
+                edge_src_dummy_property_t{}.view(),
+                edge_dst_dummy_property_t{}.view(),
+                view_concat(
+                  std::get<cugraph::edge_property_view_t<edge_t, bias_t const*>>(*edge_bias_view),
+                  edge_time_view),
+                temporal_sample_edge_biases_op_t<vertex_t, bias_t>{},
+                edge_src_dummy_property_t{}.view(),
+                edge_dst_dummy_property_t{}.view(),
+                edge_property_view,
+                sample_edges_op_t<vertex_t, T>{},
+                rng_state,
+                Ks[0],
+                with_replacement,
+                std::optional<cuda::std::tuple<vertex_t, vertex_t>>{std::nullopt},
+                false)
+            : cugraph::per_v_random_select_transform_outgoing_e(
+                handle,
+                graph_view,
+                vertex_frontier.bucket(0),
+                edge_src_dummy_property_t{}.view(),
+                edge_dst_dummy_property_t{}.view(),
+                view_concat(
+                  std::get<cugraph::edge_property_view_t<edge_t, bias_t const*>>(*edge_bias_view),
+                  edge_time_view),
+                temporal_sample_edge_biases_op_t<vertex_t, bias_t>{},
+                edge_src_dummy_property_t{}.view(),
+                edge_dst_dummy_property_t{}.view(),
+                edge_property_view,
+                sample_edges_op_t<vertex_t, T>{},
+                std::get<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>(
+                  *edge_type_view),
+                rng_state,
+                Ks,
+                with_replacement,
+                std::optional<cuda::std::tuple<vertex_t, vertex_t>>{std::nullopt},
+                false);
+      } else {
+        std::forward_as_tuple(sample_offsets, std::tie(majors, minors, sampled_properties)) =
+          (Ks.size() == 1)
+            ? cugraph::per_v_random_select_transform_outgoing_e(
+                handle,
+                graph_view,
+                vertex_frontier.bucket(0),
+                edge_src_dummy_property_t{}.view(),
+                edge_dst_dummy_property_t{}.view(),
+                view_concat(
+                  std::get<cugraph::edge_property_view_t<edge_t, bias_t const*>>(*edge_bias_view),
+                  edge_time_view),
+                temporal_sample_edge_biases_op_t<vertex_t, bias_t>{},
+                edge_src_dummy_property_t{}.view(),
+                edge_dst_dummy_property_t{}.view(),
+                edge_property_view,
+                sample_edges_op_t<vertex_t, T>{},
+                rng_state,
+                Ks[0],
+                with_replacement,
+                std::optional<cuda::std::tuple<vertex_t, vertex_t, T>>{std::nullopt},
+                false)
+            : cugraph::per_v_random_select_transform_outgoing_e(
+                handle,
+                graph_view,
+                vertex_frontier.bucket(0),
+                edge_src_dummy_property_t{}.view(),
+                edge_dst_dummy_property_t{}.view(),
+                view_concat(
+                  std::get<cugraph::edge_property_view_t<edge_t, bias_t const*>>(*edge_bias_view),
+                  edge_time_view),
+                temporal_sample_edge_biases_op_t<vertex_t, bias_t>{},
+                edge_src_dummy_property_t{}.view(),
+                edge_dst_dummy_property_t{}.view(),
+                edge_property_view,
+                sample_edges_op_t<vertex_t, T>{},
+                std::get<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>(
+                  *edge_type_view),
+                rng_state,
+                Ks,
+                with_replacement,
+                std::optional<cuda::std::tuple<vertex_t, vertex_t, T>>{std::nullopt},
+                false);
+      }
     } else if (std::holds_alternative<cugraph::edge_property_view_t<edge_t, double const*>>(
                  *edge_bias_view)) {
       using bias_t = double;
 
-      std::tie(majors, minors, sampled_property, sample_offsets) = cugraph::variant_type_dispatch(
-        edge_property_view,
-        [&handle,
-         &rng_state,
-         &graph_view,
-         &vertex_frontier,
-         &edge_time_view,
-         &edge_bias_view,
-         &edge_type_view,
-         &Ks,
-         with_replacement](auto property_view) {
-          using T = typename decltype(property_view)::value_type;
+      using T = typename decltype(edge_property_view)::value_type;
 
-          if constexpr (std::is_same_v<T, cuda::std::nullopt_t>) {
-            auto [sample_offsets, sampled_values] =
-              (Ks.size() == 1)
-                ? cugraph::per_v_random_select_transform_outgoing_e(
-                    handle,
-                    graph_view,
-                    vertex_frontier.bucket(0),
-                    edge_src_dummy_property_t{}.view(),
-                    edge_dst_dummy_property_t{}.view(),
-                    view_concat(std::get<cugraph::edge_property_view_t<edge_t, bias_t const*>>(
-                                  *edge_bias_view),
-                                edge_time_view),
-                    temporal_sample_edge_biases_op_t<vertex_t, bias_t>{},
-                    edge_src_dummy_property_t{}.view(),
-                    edge_dst_dummy_property_t{}.view(),
-                    property_view,
-                    sample_edges_op_t<vertex_t, T>{},
-                    rng_state,
-                    Ks[0],
-                    with_replacement,
-                    std::optional<cuda::std::tuple<vertex_t, vertex_t>>{std::nullopt},
-                    false)
-                : cugraph::per_v_random_select_transform_outgoing_e(
-                    handle,
-                    graph_view,
-                    vertex_frontier.bucket(0),
-                    edge_src_dummy_property_t{}.view(),
-                    edge_dst_dummy_property_t{}.view(),
-                    view_concat(std::get<cugraph::edge_property_view_t<edge_t, bias_t const*>>(
-                                  *edge_bias_view),
-                                edge_time_view),
-                    temporal_sample_edge_biases_op_t<vertex_t, bias_t>{},
-                    edge_src_dummy_property_t{}.view(),
-                    edge_dst_dummy_property_t{}.view(),
-                    property_view,
-                    sample_edges_op_t<vertex_t, T>{},
-                    std::get<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>(
-                      *edge_type_view),
-                    rng_state,
-                    Ks,
-                    with_replacement,
-                    std::optional<cuda::std::tuple<vertex_t, vertex_t>>{std::nullopt},
-                    false);
+      if constexpr (std::is_same_v<T, cuda::std::nullopt_t>) {
+        std::forward_as_tuple(sample_offsets, std::tie(majors, minors)) =
+          (Ks.size() == 1)
+            ? cugraph::per_v_random_select_transform_outgoing_e(
+                handle,
+                graph_view,
+                vertex_frontier.bucket(0),
+                edge_src_dummy_property_t{}.view(),
+                edge_dst_dummy_property_t{}.view(),
+                view_concat(
+                  std::get<cugraph::edge_property_view_t<edge_t, bias_t const*>>(*edge_bias_view),
+                  edge_time_view),
+                temporal_sample_edge_biases_op_t<vertex_t, bias_t>{},
+                edge_src_dummy_property_t{}.view(),
+                edge_dst_dummy_property_t{}.view(),
+                edge_property_view,
+                sample_edges_op_t<vertex_t, T>{},
+                rng_state,
+                Ks[0],
+                with_replacement,
+                std::optional<cuda::std::tuple<vertex_t, vertex_t>>{std::nullopt},
+                false)
+            : cugraph::per_v_random_select_transform_outgoing_e(
+                handle,
+                graph_view,
+                vertex_frontier.bucket(0),
+                edge_src_dummy_property_t{}.view(),
+                edge_dst_dummy_property_t{}.view(),
+                view_concat(
+                  std::get<cugraph::edge_property_view_t<edge_t, bias_t const*>>(*edge_bias_view),
+                  edge_time_view),
+                temporal_sample_edge_biases_op_t<vertex_t, bias_t>{},
+                edge_src_dummy_property_t{}.view(),
+                edge_dst_dummy_property_t{}.view(),
+                edge_property_view,
+                sample_edges_op_t<vertex_t, T>{},
+                std::get<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>(
+                  *edge_type_view),
+                rng_state,
+                Ks,
+                with_replacement,
+                std::optional<cuda::std::tuple<vertex_t, vertex_t>>{std::nullopt},
+                false);
 
-            arithmetic_device_uvector_t tmp{std::monostate{}};
-            return std::make_tuple(std::move(std::get<0>(sampled_values)),
-                                   std::move(std::get<1>(sampled_values)),
-                                   std::move(tmp),
-                                   std::move(sample_offsets));
-          } else {
-            auto [sample_offsets, sampled_values] =
-              (Ks.size() == 1)
-                ? cugraph::per_v_random_select_transform_outgoing_e(
-                    handle,
-                    graph_view,
-                    vertex_frontier.bucket(0),
-                    edge_src_dummy_property_t{}.view(),
-                    edge_dst_dummy_property_t{}.view(),
-                    view_concat(std::get<cugraph::edge_property_view_t<edge_t, bias_t const*>>(
-                                  *edge_bias_view),
-                                edge_time_view),
-                    temporal_sample_edge_biases_op_t<vertex_t, bias_t>{},
-                    edge_src_dummy_property_t{}.view(),
-                    edge_dst_dummy_property_t{}.view(),
-                    property_view,
-                    sample_edges_op_t<vertex_t, T>{},
-                    rng_state,
-                    Ks[0],
-                    with_replacement,
-                    std::optional<cuda::std::tuple<vertex_t, vertex_t, T>>{std::nullopt},
-                    false)
-                : cugraph::per_v_random_select_transform_outgoing_e(
-                    handle,
-                    graph_view,
-                    vertex_frontier.bucket(0),
-                    edge_src_dummy_property_t{}.view(),
-                    edge_dst_dummy_property_t{}.view(),
-                    view_concat(std::get<cugraph::edge_property_view_t<edge_t, bias_t const*>>(
-                                  *edge_bias_view),
-                                edge_time_view),
-                    temporal_sample_edge_biases_op_t<vertex_t, bias_t>{},
-                    edge_src_dummy_property_t{}.view(),
-                    edge_dst_dummy_property_t{}.view(),
-                    property_view,
-                    sample_edges_op_t<vertex_t, T>{},
-                    std::get<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>(
-                      *edge_type_view),
-                    rng_state,
-                    Ks,
-                    with_replacement,
-                    std::optional<cuda::std::tuple<vertex_t, vertex_t, T>>{std::nullopt},
-                    false);
-
-            arithmetic_device_uvector_t tmp = std::move(std::get<2>(sampled_values));
-            return std::make_tuple(std::move(std::get<0>(sampled_values)),
-                                   std::move(std::get<1>(sampled_values)),
-                                   std::move(tmp),
-                                   std::move(sample_offsets));
-          }
-        });
+      } else {
+        std::forward_as_tuple(sample_offsets, std::tie(majors, minors, sampled_properties)) =
+          (Ks.size() == 1)
+            ? cugraph::per_v_random_select_transform_outgoing_e(
+                handle,
+                graph_view,
+                vertex_frontier.bucket(0),
+                edge_src_dummy_property_t{}.view(),
+                edge_dst_dummy_property_t{}.view(),
+                view_concat(
+                  std::get<cugraph::edge_property_view_t<edge_t, bias_t const*>>(*edge_bias_view),
+                  edge_time_view),
+                temporal_sample_edge_biases_op_t<vertex_t, bias_t>{},
+                edge_src_dummy_property_t{}.view(),
+                edge_dst_dummy_property_t{}.view(),
+                edge_property_view,
+                sample_edges_op_t<vertex_t, T>{},
+                rng_state,
+                Ks[0],
+                with_replacement,
+                std::optional<cuda::std::tuple<vertex_t, vertex_t, T>>{std::nullopt},
+                false)
+            : cugraph::per_v_random_select_transform_outgoing_e(
+                handle,
+                graph_view,
+                vertex_frontier.bucket(0),
+                edge_src_dummy_property_t{}.view(),
+                edge_dst_dummy_property_t{}.view(),
+                view_concat(
+                  std::get<cugraph::edge_property_view_t<edge_t, bias_t const*>>(*edge_bias_view),
+                  edge_time_view),
+                temporal_sample_edge_biases_op_t<vertex_t, bias_t>{},
+                edge_src_dummy_property_t{}.view(),
+                edge_dst_dummy_property_t{}.view(),
+                edge_property_view,
+                sample_edges_op_t<vertex_t, T>{},
+                std::get<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>(
+                  *edge_type_view),
+                rng_state,
+                Ks,
+                with_replacement,
+                std::optional<cuda::std::tuple<vertex_t, vertex_t, T>>{std::nullopt},
+                false);
+      }
     }
   } else {
     using bias_t = float;
 
-    std::tie(majors, minors, sampled_property, sample_offsets) = cugraph::variant_type_dispatch(
-      edge_property_view,
-      [&handle,
-       &rng_state,
-       &graph_view,
-       &vertex_frontier,
-       &Ks,
-       &edge_time_view,
-       &edge_type_view,
-       with_replacement](auto property_view) {
-        using T = typename decltype(property_view)::value_type;
+    using T = typename decltype(edge_property_view)::value_type;
 
-        if constexpr (std::is_same_v<T, cuda::std::nullopt_t>) {
-          auto [sample_offsets, sampled_values] =
-            (Ks.size() == 1)
-              ? cugraph::per_v_random_select_transform_outgoing_e(
-                  handle,
-                  graph_view,
-                  vertex_frontier.bucket(0),
-                  edge_src_dummy_property_t{}.view(),
-                  edge_dst_dummy_property_t{}.view(),
-                  edge_time_view,
-                  temporal_sample_edge_biases_op_t<vertex_t, bias_t>{},
-                  edge_src_dummy_property_t{}.view(),
-                  edge_dst_dummy_property_t{}.view(),
-                  property_view,
-                  sample_edges_op_t<vertex_t, T>{},
-                  rng_state,
-                  Ks[0],
-                  with_replacement,
-                  std::optional<cuda::std::tuple<vertex_t, vertex_t>>{std::nullopt},
-                  false)
-              : cugraph::per_v_random_select_transform_outgoing_e(
-                  handle,
-                  graph_view,
-                  vertex_frontier.bucket(0),
-                  edge_src_dummy_property_t{}.view(),
-                  edge_dst_dummy_property_t{}.view(),
-                  edge_time_view,
-                  temporal_sample_edge_biases_op_t<vertex_t, bias_t>{},
-                  edge_src_dummy_property_t{}.view(),
-                  edge_dst_dummy_property_t{}.view(),
-                  property_view,
-                  sample_edges_op_t<vertex_t, T>{},
-                  std::get<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>(
-                    *edge_type_view),
-                  rng_state,
-                  Ks,
-                  with_replacement,
-                  std::optional<cuda::std::tuple<vertex_t, vertex_t>>{std::nullopt},
-                  false);
-
-          arithmetic_device_uvector_t tmp{std::monostate{}};
-          return std::make_tuple(std::move(std::get<0>(sampled_values)),
-                                 std::move(std::get<1>(sampled_values)),
-                                 std::move(tmp),
-                                 std::move(sample_offsets));
-        } else {
-          auto [sample_offsets, sampled_values] =
-            (Ks.size() == 1)
-              ? cugraph::per_v_random_select_transform_outgoing_e(
-                  handle,
-                  graph_view,
-                  vertex_frontier.bucket(0),
-                  edge_src_dummy_property_t{}.view(),
-                  edge_dst_dummy_property_t{}.view(),
-                  edge_time_view,
-                  temporal_sample_edge_biases_op_t<vertex_t, bias_t>{},
-                  edge_src_dummy_property_t{}.view(),
-                  edge_dst_dummy_property_t{}.view(),
-                  property_view,
-                  sample_edges_op_t<vertex_t, T>{},
-                  rng_state,
-                  Ks[0],
-                  with_replacement,
-                  std::optional<cuda::std::tuple<vertex_t, vertex_t, T>>{std::nullopt},
-                  false)
-              : cugraph::per_v_random_select_transform_outgoing_e(
-                  handle,
-                  graph_view,
-                  vertex_frontier.bucket(0),
-                  edge_src_dummy_property_t{}.view(),
-                  edge_dst_dummy_property_t{}.view(),
-                  edge_time_view,
-                  temporal_sample_edge_biases_op_t<vertex_t, bias_t>{},
-                  edge_src_dummy_property_t{}.view(),
-                  edge_dst_dummy_property_t{}.view(),
-                  property_view,
-                  sample_edges_op_t<vertex_t, T>{},
-                  std::get<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>(
-                    *edge_type_view),
-                  rng_state,
-                  Ks,
-                  with_replacement,
-                  std::optional<cuda::std::tuple<vertex_t, vertex_t, T>>{std::nullopt},
-                  false);
-
-          arithmetic_device_uvector_t tmp = std::move(std::get<2>(sampled_values));
-          return std::make_tuple(std::move(std::get<0>(sampled_values)),
-                                 std::move(std::get<1>(sampled_values)),
-                                 std::move(tmp),
-                                 std::move(sample_offsets));
-        }
-      });
+    if constexpr (std::is_same_v<T, cuda::std::nullopt_t>) {
+      std::forward_as_tuple(sample_offsets, std::tie(majors, minors)) =
+        (Ks.size() == 1)
+          ? cugraph::per_v_random_select_transform_outgoing_e(
+              handle,
+              graph_view,
+              vertex_frontier.bucket(0),
+              edge_src_dummy_property_t{}.view(),
+              edge_dst_dummy_property_t{}.view(),
+              edge_time_view,
+              temporal_sample_edge_biases_op_t<vertex_t, bias_t>{},
+              edge_src_dummy_property_t{}.view(),
+              edge_dst_dummy_property_t{}.view(),
+              edge_property_view,
+              sample_edges_op_t<vertex_t, T>{},
+              rng_state,
+              Ks[0],
+              with_replacement,
+              std::optional<cuda::std::tuple<vertex_t, vertex_t>>{std::nullopt},
+              false)
+          : cugraph::per_v_random_select_transform_outgoing_e(
+              handle,
+              graph_view,
+              vertex_frontier.bucket(0),
+              edge_src_dummy_property_t{}.view(),
+              edge_dst_dummy_property_t{}.view(),
+              edge_time_view,
+              temporal_sample_edge_biases_op_t<vertex_t, bias_t>{},
+              edge_src_dummy_property_t{}.view(),
+              edge_dst_dummy_property_t{}.view(),
+              edge_property_view,
+              sample_edges_op_t<vertex_t, T>{},
+              std::get<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>(*edge_type_view),
+              rng_state,
+              Ks,
+              with_replacement,
+              std::optional<cuda::std::tuple<vertex_t, vertex_t>>{std::nullopt},
+              false);
+    } else {
+      std::forward_as_tuple(sample_offsets, std::tie(majors, minors, sampled_properties)) =
+        (Ks.size() == 1)
+          ? cugraph::per_v_random_select_transform_outgoing_e(
+              handle,
+              graph_view,
+              vertex_frontier.bucket(0),
+              edge_src_dummy_property_t{}.view(),
+              edge_dst_dummy_property_t{}.view(),
+              edge_time_view,
+              temporal_sample_edge_biases_op_t<vertex_t, bias_t>{},
+              edge_src_dummy_property_t{}.view(),
+              edge_dst_dummy_property_t{}.view(),
+              edge_property_view,
+              sample_edges_op_t<vertex_t, T>{},
+              rng_state,
+              Ks[0],
+              with_replacement,
+              std::optional<cuda::std::tuple<vertex_t, vertex_t, T>>{std::nullopt},
+              false)
+          : cugraph::per_v_random_select_transform_outgoing_e(
+              handle,
+              graph_view,
+              vertex_frontier.bucket(0),
+              edge_src_dummy_property_t{}.view(),
+              edge_dst_dummy_property_t{}.view(),
+              edge_time_view,
+              temporal_sample_edge_biases_op_t<vertex_t, bias_t>{},
+              edge_src_dummy_property_t{}.view(),
+              edge_dst_dummy_property_t{}.view(),
+              edge_property_view,
+              sample_edges_op_t<vertex_t, T>{},
+              std::get<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>(*edge_type_view),
+              rng_state,
+              Ks,
+              with_replacement,
+              std::optional<cuda::std::tuple<vertex_t, vertex_t, T>>{std::nullopt},
+              false);
+    }
   }
 
   return std::make_tuple(
-    std::move(majors), std::move(minors), std::move(sampled_property), std::move(sample_offsets));
+    std::move(majors), std::move(minors), std::move(sampled_properties), std::move(sample_offsets));
 }
 
 template <typename vertex_t, typename edge_t, typename edge_time_t, bool multi_gpu>
@@ -1026,23 +897,24 @@ std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            std::vector<arithmetic_device_uvector_t>,
            std::optional<rmm::device_uvector<int32_t>>>
-temporal_sample_edges(
-  raft::handle_t const& handle,
-  raft::random::RngState& rng_state,
-  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
-  raft::host_span<edge_arithmetic_property_view_t<edge_t, vertex_t>> edge_property_views,
-  edge_property_view_t<edge_t, edge_time_t const*> edge_time_view,
-  std::optional<edge_arithmetic_property_view_t<edge_t, vertex_t>> edge_type_view,
-  std::optional<edge_arithmetic_property_view_t<edge_t, vertex_t>> edge_bias_view,
-  raft::device_span<vertex_t const> active_majors,
-  raft::device_span<edge_time_t const> active_major_times,
-  std::optional<raft::device_span<int32_t const>> active_major_labels,
-  raft::host_span<size_t const> Ks,
-  bool with_replacement)
+temporal_sample_edges(raft::handle_t const& handle,
+                      raft::random::RngState& rng_state,
+                      graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+                      raft::host_span<edge_arithmetic_property_view_t<edge_t>> edge_property_views,
+                      edge_property_view_t<edge_t, edge_time_t const*> edge_time_view,
+                      std::optional<edge_arithmetic_property_view_t<edge_t>> edge_type_view,
+                      std::optional<edge_arithmetic_property_view_t<edge_t>> edge_bias_view,
+                      raft::device_span<vertex_t const> active_majors,
+                      raft::device_span<edge_time_t const> active_major_times,
+                      std::optional<raft::device_span<int32_t const>> active_major_labels,
+                      raft::host_span<size_t const> Ks,
+                      bool with_replacement)
 {
   CUGRAPH_EXPECTS(Ks.size() >= 1, "Must specify non-zero value for Ks");
   CUGRAPH_EXPECTS((Ks.size() == 1) || edge_type_view,
                   "If Ks has more than 1 element must specify types");
+  CUGRAPH_EXPECTS(edge_property_views.size() > 0,
+                  "Temporal sampling requires at least a time as a property");
 
   using tag_t                     = edge_time_t;
   constexpr bool store_transposed = false;
@@ -1062,16 +934,27 @@ temporal_sample_edges(
   if (edge_property_views.size() == 1) {
     arithmetic_device_uvector_t tmp{std::monostate{}};
     std::tie(majors, minors, tmp, sample_offsets) =
-      temporal_sample_with_one_property(handle,
-                                        rng_state,
-                                        graph_view,
-                                        edge_property_views[0],
-                                        edge_time_view,
-                                        edge_type_view,
-                                        edge_bias_view,
-                                        vertex_frontier,
-                                        Ks,
-                                        with_replacement);
+      cugraph::variant_type_dispatch(edge_property_views[0],
+                                     [&handle,
+                                      &rng_state,
+                                      &graph_view,
+                                      &edge_time_view,
+                                      &edge_type_view,
+                                      &edge_bias_view,
+                                      &vertex_frontier,
+                                      &Ks,
+                                      with_replacement](auto& edge_property_view) {
+                                       return temporal_sample_with_one_property(handle,
+                                                                                rng_state,
+                                                                                graph_view,
+                                                                                edge_property_view,
+                                                                                edge_time_view,
+                                                                                edge_type_view,
+                                                                                edge_bias_view,
+                                                                                vertex_frontier,
+                                                                                Ks,
+                                                                                with_replacement);
+                                     });
 
     edge_properties.push_back(std::move(tmp));
   } else {
@@ -1084,15 +967,13 @@ temporal_sample_edges(
     if (graph_view.is_multigraph()) {
       cugraph::edge_multi_index_property_t<edge_t, vertex_t> multi_index_property(handle,
                                                                                   graph_view);
-      cugraph::edge_arithmetic_property_view_t<edge_t, vertex_t> multi_index_property_view =
-        multi_index_property.view();
       arithmetic_device_uvector_t tmp{std::monostate{}};
 
       std::tie(majors, minors, tmp, sample_offsets) =
         temporal_sample_with_one_property(handle,
                                           rng_state,
                                           graph_view,
-                                          multi_index_property_view,
+                                          multi_index_property.view(),
                                           edge_time_view,
                                           edge_type_view,
                                           edge_bias_view,
@@ -1106,13 +987,11 @@ temporal_sample_edges(
         minors.begin(),
         std::make_optional<edge_t const*>(std::get<rmm::device_uvector<edge_t>>(tmp).begin()));
     } else {
-      cugraph::edge_arithmetic_property_view_t<edge_t, vertex_t> dummy_property_view =
-        cugraph::edge_dummy_property_view_t{};
       std::tie(majors, minors, std::ignore, sample_offsets) =
         temporal_sample_with_one_property(handle,
                                           rng_state,
                                           graph_view,
-                                          dummy_property_view,
+                                          cugraph::edge_dummy_property_view_t{},
                                           edge_time_view,
                                           edge_type_view,
                                           edge_bias_view,

@@ -100,11 +100,10 @@ prepare_next_frontier(
   std::for_each(sampled_dst_vertices.begin(),
                 sampled_dst_vertices.end(),
                 [&handle, &frontier_vertices, &current_pos](auto& list) {
-                  if (list.size() > 0)
-                    thrust::copy(handle.get_thrust_policy(),
-                                 list.begin(),
-                                 list.end(),
-                                 frontier_vertices.begin() + current_pos);
+                  thrust::copy(handle.get_thrust_policy(),
+                               list.begin(),
+                               list.end(),
+                               frontier_vertices.begin() + current_pos);
                   current_pos += list.size();
                 });
 
@@ -160,7 +159,8 @@ prepare_next_frontier(
           shuffle_int_vertex_value_pairs_to_local_gpu_by_vertex_partitioning(
             handle,
             std::move(frontier_vertices),
-            std::make_tuple(std::move(*frontier_vertex_labels), std::move(*frontier_vertex_times)),
+            std::move(std::make_tuple(std::move(*frontier_vertex_labels),
+                                      std::move(*frontier_vertex_times))),
             vertex_partition_range_lasts);
       } else {
         std::tie(frontier_vertices, *frontier_vertex_labels) =
@@ -186,17 +186,15 @@ prepare_next_frontier(
   }
 
   if (frontier_vertex_labels) {
+    auto begin_iter =
+      thrust::make_zip_iterator(frontier_vertices.begin(), frontier_vertex_labels->begin());
     if (frontier_vertex_times) {
-      auto begin_iter =
-        thrust::make_zip_iterator(frontier_vertices.begin(), frontier_vertex_labels->begin());
       thrust::sort_by_key(handle.get_thrust_policy(),
                           begin_iter,
                           begin_iter + frontier_vertices.size(),
                           frontier_vertex_times->begin());
 
     } else {
-      auto begin_iter =
-        thrust::make_zip_iterator(frontier_vertices.begin(), frontier_vertex_labels->begin());
       thrust::sort(handle.get_thrust_policy(), begin_iter, begin_iter + frontier_vertices.size());
     }
   } else {

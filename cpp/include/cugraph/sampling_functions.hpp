@@ -692,7 +692,7 @@ homogeneous_uniform_temporal_neighbor_sample(
 
 /**
  * @ingroup sampling_functions_cpp
- * @brief Heterogeneous Temporal Uniform Neighborhood Sampling.
+ * @brief Heterogeneous Uniform Temporal Neighborhood Sampling.
  *
  * This function traverses from a set of starting vertices, traversing outgoing edges and
  * randomly selects (uniformly) from these outgoing neighbors to extract a subgraph.
@@ -785,7 +785,7 @@ heterogeneous_uniform_temporal_neighbor_sample(
 
 /**
  * @ingroup sampling_functions_cpp
- * @brief Homogeneous Temporal Biased Neighborhood Sampling.
+ * @brief Homogeneous Biased Temporal Neighborhood Sampling.
  *
  * This function traverses from a set of starting vertices, traversing outgoing edges and
  * randomly selects (with edge biases) from these outgoing neighbors to extract a subgraph.
@@ -880,7 +880,7 @@ homogeneous_biased_temporal_neighbor_sample(
 
 /**
  * @ingroup sampling_functions_cpp
- * @brief Heterogeneous Temporal Biased Neighborhood Sampling.
+ * @brief Heterogeneous Biased Temporal Neighborhood Sampling.
  *
  * This function traverses from a set of starting vertices, traversing outgoing edges and
  * randomly selects (with edge biases) from these outgoing neighbors to extract a subgraph.

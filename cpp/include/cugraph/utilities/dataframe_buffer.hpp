@@ -279,6 +279,15 @@ auto get_dataframe_buffer_end(BufferType& buffer)
     std::make_index_sequence<std::tuple_size<BufferType>::value>(), buffer);
 }
 
+template <typename BufferType,
+          typename std::enable_if_t<
+            is_std_tuple_of_arithmetic_spans<std::remove_cv_t<BufferType>>::value>* = nullptr>
+auto get_dataframe_buffer_end(BufferType& buffer)
+{
+  return detail::get_dataframe_buffer_end_tuple_impl(
+    std::make_index_sequence<std::tuple_size<BufferType>::value>(), buffer);
+}
+
 template <
   typename BufferType,
   typename std::enable_if_t<

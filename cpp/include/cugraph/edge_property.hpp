@@ -29,19 +29,9 @@
 #include <thrust/iterator/iterator_traits.h>
 
 #include <optional>
-#include <tuple>
 #include <type_traits>
 
 namespace cugraph {
-namespace detail {
-
-template <typename... Ts, std::size_t... Is>
-auto view_concat_impl(std::tuple<Ts...> const& tuple, std::index_sequence<Is...>)
-{
-  return view_concat(std::get<Is>(tuple)...);
-}
-
-}  // namespace detail
 
 template <typename edge_t,
           typename ValueIterator,
@@ -281,12 +271,6 @@ auto view_concat(edge_property_view_t<edge_t, Iters, Types> const&... views)
 
   return edge_property_view_t<edge_t, concat_value_iterator, concat_value_type>(
     edge_partition_concat_value_firsts, first_view.edge_counts());
-}
-
-template <typename... Ts>
-auto view_concat(std::tuple<Ts...> const& tuple)
-{
-  return detail::view_concat_impl(tuple, std::index_sequence_for<Ts...>{});
 }
 
 }  // namespace cugraph

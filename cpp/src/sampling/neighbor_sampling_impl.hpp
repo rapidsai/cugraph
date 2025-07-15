@@ -199,7 +199,7 @@ neighbor_sample_impl(raft::handle_t const& handle,
       std::nullopt};
 
     if (level_Ks) {
-      std::vector<edge_arithmetic_property_view_t<edge_t, vertex_t>> edge_property_views{};
+      std::vector<edge_arithmetic_property_view_t<edge_t>> edge_property_views{};
 
       if (edge_weight_view) edge_property_views.push_back(*edge_weight_view);
       if (edge_id_view) edge_property_views.push_back(*edge_id_view);
@@ -211,13 +211,13 @@ neighbor_sample_impl(raft::handle_t const& handle,
         handle,
         rng_state,
         graph_view,
-        raft::host_span<edge_arithmetic_property_view_t<edge_t, vertex_t>>{
-          edge_property_views.data(), edge_property_views.size()},
+        raft::host_span<edge_arithmetic_property_view_t<edge_t>>{edge_property_views.data(),
+                                                                 edge_property_views.size()},
         edge_type_view
-          ? std::make_optional<edge_arithmetic_property_view_t<edge_t, vertex_t>>(*edge_type_view)
+          ? std::make_optional<edge_arithmetic_property_view_t<edge_t>>(*edge_type_view)
           : std::nullopt,
         edge_bias_view
-          ? std::make_optional<edge_arithmetic_property_view_t<edge_t, vertex_t>>(*edge_bias_view)
+          ? std::make_optional<edge_arithmetic_property_view_t<edge_t>>(*edge_bias_view)
           : std::nullopt,
         hop == 0
           ? starting_vertices
@@ -281,8 +281,7 @@ neighbor_sample_impl(raft::handle_t const& handle,
                                      d_gather_flags.data(), d_gather_flags.size()})
                                  : std::nullopt;
 
-#if 1
-      std::vector<edge_arithmetic_property_view_t<edge_t, vertex_t>> edge_property_views{};
+      std::vector<edge_arithmetic_property_view_t<edge_t>> edge_property_views{};
 
       if (edge_weight_view) edge_property_views.push_back(*edge_weight_view);
       if (edge_id_view) edge_property_views.push_back(*edge_id_view);
@@ -293,8 +292,8 @@ neighbor_sample_impl(raft::handle_t const& handle,
       auto [srcs, dsts, sampled_edge_properties, labels] = gather_one_hop_edgelist(
         handle,
         graph_view,
-        raft::host_span<edge_arithmetic_property_view_t<edge_t, vertex_t>>{
-          edge_property_views.data(), edge_property_views.size()},
+        raft::host_span<edge_arithmetic_property_view_t<edge_t>>{edge_property_views.data(),
+                                                                 edge_property_views.size()},
         edge_type_view,
         hop == 0
           ? starting_vertices
@@ -340,39 +339,6 @@ neighbor_sample_impl(raft::handle_t const& handle,
       if (edge_ids) { (*result_edge_id_vectors).push_back(std::move(*edge_ids)); }
       if (edge_types) { (*result_edge_type_vectors).push_back(std::move(*edge_types)); }
       if (labels) { (*result_label_vectors).push_back(std::move(*labels)); }
-
-#else
-      auto [srcs, dsts, weights, edge_ids, edge_types, edge_start_times, edge_end_times, labels] =
-        gather_one_hop_edgelist(
-          handle,
-          graph_view,
-          edge_weight_view,
-          edge_id_view,
-          edge_type_view,
-          edge_start_time_view,
-          edge_end_time_view,
-          hop == 0
-            ? starting_vertices
-            : raft::device_span<vertex_t const>(frontier_vertices.data(), frontier_vertices.size()),
-          std::optional<raft::device_span<edge_time_t const>>{std::nullopt},
-          hop == 0 ? starting_vertex_labels
-          : starting_vertex_labels
-            ? std::make_optional(raft::device_span<label_t const>(frontier_vertex_labels->data(),
-                                                                  frontier_vertex_labels->size()))
-            : std::nullopt,
-          num_edge_types ? std::make_optional<raft::host_span<uint8_t const>>(gather_flags->data(),
-                                                                              gather_flags->size())
-                         : std::nullopt);
-
-      result_sizes.push_back(srcs.size());
-      result_src_vectors.push_back(std::move(srcs));
-      result_dst_vectors.push_back(std::move(dsts));
-
-      if (weights) { (*result_weight_vectors).push_back(std::move(*weights)); }
-      if (edge_ids) { (*result_edge_id_vectors).push_back(std::move(*edge_ids)); }
-      if (edge_types) { (*result_edge_type_vectors).push_back(std::move(*edge_types)); }
-      if (labels) { (*result_label_vectors).push_back(std::move(*labels)); }
-#endif
 
       next_frontier_vertex_spans.push_back(raft::device_span<vertex_t const>{
         result_dst_vectors.back().data(), result_dst_vectors.back().size()});
