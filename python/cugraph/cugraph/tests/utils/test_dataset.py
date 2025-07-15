@@ -165,7 +165,7 @@ def test_reader_dask(dask_client, dataset):
 
 @pytest.mark.parametrize("dataset", ALL_DATASETS)
 def test_get_edgelist(dataset):
-    E = dataset.get_edgelist()
+    E = dataset.get_edgelist(download=True)
 
     assert E is not None
     assert isinstance(E, cudf.DataFrame)

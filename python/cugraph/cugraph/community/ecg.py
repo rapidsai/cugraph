@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2024, NVIDIA CORPORATION.
+# Copyright (c) 2019-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -15,8 +15,6 @@ from pylibcugraph import ecg as pylibcugraph_ecg
 from pylibcugraph import ResourceHandle
 
 import cudf
-import warnings
-from cugraph.utilities import ensure_cugraph_obj_for_nx, df_score_to_dictionary
 
 
 def ecg(
@@ -40,7 +38,7 @@ def ecg(
 
     Parameters
     ----------
-    input_graph : cugraph.Graph or NetworkX Graph
+    input_graph : cugraph.Graph
         The graph descriptor should contain the connectivity information
         and weights. The adjacency list will be computed if not already
         present.
@@ -78,14 +76,9 @@ def ecg(
         Random state to use when generating samples.  Optional argument,
         defaults to a hash of process id, time, and hostname.
 
-    weight : str, optional (default=None)
-        Deprecated.
-        This parameter is here for NetworkX compatibility and
-        represents which NetworkX data column represents Edge weights.
-
     Returns
     -------
-    parts : cudf.DataFrame or python dictionary
+    parts : cudf.DataFrame
         GPU data frame of size V containing two columns, the vertex id and
         the partition id it is assigned to.
 
@@ -106,21 +99,6 @@ def ecg(
 
     """
 
-    input_graph, isNx = ensure_cugraph_obj_for_nx(input_graph)
-
-    if isNx:
-        warning_msg = (
-            " We are deprecating support for handling "
-            "NetworkX types in the next release."
-        )
-        warnings.warn(warning_msg, UserWarning)
-
-    if weight is not None:
-        warning_msg = (
-            "This parameter is deprecated and will be removed in the next release."
-        )
-        warnings.warn(warning_msg, UserWarning)
-
     vertex, partition, modularity_score = pylibcugraph_ecg(
         resource_handle=ResourceHandle(),
         random_state=random_state,
@@ -139,8 +117,5 @@ def ecg(
 
     if input_graph.renumbered:
         parts = input_graph.unrenumber(parts, "vertex")
-
-    if isNx is True:
-        parts = df_score_to_dictionary(parts, "partition")
 
     return parts, modularity_score
