@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include "gather_sampled_properties.cuh"
 #include "prims/edge_bucket.cuh"
 #include "prims/extract_transform_if_v_frontier_outgoing_e.cuh"
 #include "prims/extract_transform_v_frontier_outgoing_e.cuh"
@@ -195,6 +196,57 @@ simple_gather_one_hop_without_multi_edge_indices(
   return std::make_tuple(std::move(srcs), std::move(dsts), std::move(labels));
 }
 
+template <typename vertex_t, typename edge_t, bool multi_gpu>
+std::tuple<rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           std::optional<rmm::device_uvector<edge_t>>,
+           std::optional<rmm::device_uvector<int32_t>>>
+filter_edge_by_type(raft::handle_t const& handle,
+                    graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+                    edge_property_view_t<edge_t, int32_t const*> edge_type_view,
+                    edge_bucket_t<vertex_t, edge_t, true, multi_gpu, false>& edge_list,
+                    rmm::device_uvector<vertex_t>&& srcs,
+                    rmm::device_uvector<vertex_t>&& dsts,
+                    std::optional<rmm::device_uvector<edge_t>>&& edge_indices,
+                    std::optional<rmm::device_uvector<int32_t>>&& labels,
+                    raft::device_span<uint8_t const> gather_flags)
+{
+  // Filter by type
+  using edge_type_t = int32_t;
+
+  rmm::device_uvector<edge_type_t> edge_type(srcs.size(), handle.get_stream());
+
+  cugraph::transform_gather_e(handle,
+                              graph_view,
+                              edge_list,
+                              edge_src_dummy_property_t{}.view(),
+                              edge_dst_dummy_property_t{}.view(),
+                              edge_type_view,
+                              return_edge_property_t{},
+                              edge_type.begin());
+
+  auto [keep_count, marked_entries] = detail::mark_entries(
+    handle, edge_type.size(), [d_edge_type = edge_type.data(), gather_flags] __device__(auto idx) {
+      return (gather_flags[d_edge_type[idx]] == static_cast<uint8_t>(true));
+    });
+
+  raft::device_span<uint32_t const> marked_entry_span{marked_entries.data(), marked_entries.size()};
+
+  srcs = detail::keep_marked_entries(handle, std::move(srcs), marked_entry_span, keep_count);
+  dsts = detail::keep_marked_entries(handle, std::move(dsts), marked_entry_span, keep_count);
+  if (edge_indices) {
+    *edge_indices =
+      detail::keep_marked_entries(handle, std::move(*edge_indices), marked_entry_span, keep_count);
+  }
+  if (labels) {
+    *labels =
+      detail::keep_marked_entries(handle, std::move(*labels), marked_entry_span, keep_count);
+  }
+
+  return std::make_tuple(
+    std::move(srcs), std::move(dsts), std::move(edge_indices), std::move(labels));
+}
+
 }  // namespace
 
 template <typename vertex_t, typename edge_t, bool multi_gpu>
@@ -228,7 +280,7 @@ gather_one_hop_edgelist(
       simple_gather_one_hop_without_multi_edge_indices(
         handle, graph_view, active_majors, active_major_labels, do_expensive_check);
   } else {
-    cugraph::edge_bucket_t<vertex_t, edge_t, !store_transposed, true, false> edge_list(
+    cugraph::edge_bucket_t<vertex_t, edge_t, !store_transposed, multi_gpu, false> edge_list(
       handle, graph_view.is_multigraph());
 
     std::optional<rmm::device_uvector<edge_t>> tmp_edge_indices{std::nullopt};
@@ -261,44 +313,16 @@ gather_one_hop_edgelist(
     }
 
     if (gather_flags) {
-      // TODO:  Make this a common function shared by simple and temporal variants
-
-      // Filter by type
-      using edge_type_t = int32_t;
-
-      rmm::device_uvector<edge_type_t> tmp(result_srcs.size(), handle.get_stream());
-
-      cugraph::transform_gather_e(handle,
-                                  graph_view,
-                                  edge_list,
-                                  edge_src_dummy_property_t{}.view(),
-                                  edge_dst_dummy_property_t{}.view(),
-                                  *edge_type_view,
-                                  return_edge_property_t{},
-                                  tmp.begin());
-
-      auto [keep_count, marked_entries] = detail::mark_entries(
-        handle,
-        tmp.size(),
-        [d_tmp = tmp.data(), gather_flags = *gather_flags] __device__(auto idx) {
-          return (gather_flags[d_tmp[idx]] == static_cast<uint8_t>(true));
-        });
-
-      raft::device_span<uint32_t const> marked_entry_span{marked_entries.data(),
-                                                          marked_entries.size()};
-
-      result_srcs =
-        detail::keep_marked_entries(handle, std::move(result_srcs), marked_entry_span, keep_count);
-      result_dsts =
-        detail::keep_marked_entries(handle, std::move(result_dsts), marked_entry_span, keep_count);
-      if (result_labels) {
-        *result_labels = detail::keep_marked_entries(
-          handle, std::move(*result_labels), marked_entry_span, keep_count);
-      }
-      if (tmp_edge_indices) {
-        *tmp_edge_indices = detail::keep_marked_entries(
-          handle, std::move(*tmp_edge_indices), marked_entry_span, keep_count);
-      }
+      std::tie(result_srcs, result_dsts, tmp_edge_indices, result_labels) =
+        filter_edge_by_type(handle,
+                            graph_view,
+                            *edge_type_view,
+                            edge_list,
+                            std::move(result_srcs),
+                            std::move(result_dsts),
+                            std::move(tmp_edge_indices),
+                            std::move(result_labels),
+                            *gather_flags);
 
       edge_list.clear();
       edge_list.insert(result_srcs.begin(),
@@ -308,33 +332,12 @@ gather_one_hop_edgelist(
                                         : std::optional<edge_t*>{std::nullopt});
     }
 
-    // TODO: Make this a common function, it's used in several places
-    std::for_each(edge_property_views.begin(),
-                  edge_property_views.end(),
-                  [&handle, &graph_view, &edge_list, &result_properties](auto edge_property_view) {
-                    cugraph::variant_type_dispatch(
-                      edge_property_view,
-                      [&handle, &graph_view, &edge_list, &result_properties](auto property_view) {
-                        using T = typename decltype(property_view)::value_type;
-
-                        if constexpr (std::is_same_v<T, cuda::std::nullopt_t>) {
-                          CUGRAPH_FAIL("Should not have a property of type cuda::std::nullopt");
-                        } else {
-                          rmm::device_uvector<T> tmp(edge_list.size(), handle.get_stream());
-
-                          cugraph::transform_gather_e(handle,
-                                                      graph_view,
-                                                      edge_list,
-                                                      edge_src_dummy_property_t{}.view(),
-                                                      edge_dst_dummy_property_t{}.view(),
-                                                      property_view,
-                                                      return_edge_property_t{},
-                                                      tmp.begin());
-
-                          result_properties.push_back(arithmetic_device_uvector_t{std::move(tmp)});
-                        }
-                      });
-                  });
+    result_properties =
+      gather_sampled_properties(handle,
+                                graph_view,
+                                edge_list,
+                                raft::host_span<edge_arithmetic_property_view_t<edge_t>>{
+                                  edge_property_views.data(), edge_property_views.size()});
   }
 
   return std::make_tuple(std::move(result_srcs),
@@ -373,7 +376,7 @@ temporal_gather_one_hop_edgelist(
                   "Temporal requires at least one edge property - the time");
   using label_t = int32_t;
 
-  cugraph::edge_bucket_t<vertex_t, edge_t, !store_transposed, true, false> edge_list(
+  cugraph::edge_bucket_t<vertex_t, edge_t, !store_transposed, multi_gpu, false> edge_list(
     handle, graph_view.is_multigraph());
 
   // Only used if active_major_labels is set
@@ -519,40 +522,16 @@ temporal_gather_one_hop_edgelist(
   }
 
   if (gather_flags) {
-    // Filter by type
-    using edge_type_t = int32_t;
-
-    rmm::device_uvector<edge_type_t> tmp(result_srcs.size(), handle.get_stream());
-
-    cugraph::transform_gather_e(handle,
-                                graph_view,
-                                edge_list,
-                                edge_src_dummy_property_t{}.view(),
-                                edge_dst_dummy_property_t{}.view(),
-                                *edge_type_view,
-                                return_edge_property_t{},
-                                tmp.begin());
-
-    auto [keep_count, marked_entries] = detail::mark_entries(
-      handle, tmp.size(), [d_tmp = tmp.data(), gather_flags = *gather_flags] __device__(auto idx) {
-        return (gather_flags[d_tmp[idx]] == static_cast<uint8_t>(true));
-      });
-
-    raft::device_span<uint32_t const> marked_entry_span{marked_entries.data(),
-                                                        marked_entries.size()};
-
-    result_srcs =
-      detail::keep_marked_entries(handle, std::move(result_srcs), marked_entry_span, keep_count);
-    result_dsts =
-      detail::keep_marked_entries(handle, std::move(result_dsts), marked_entry_span, keep_count);
-    if (result_labels) {
-      *result_labels = detail::keep_marked_entries(
-        handle, std::move(*result_labels), marked_entry_span, keep_count);
-    }
-    if (tmp_edge_indices) {
-      *tmp_edge_indices = detail::keep_marked_entries(
-        handle, std::move(*tmp_edge_indices), marked_entry_span, keep_count);
-    }
+    std::tie(result_srcs, result_dsts, tmp_edge_indices, result_labels) =
+      filter_edge_by_type(handle,
+                          graph_view,
+                          *edge_type_view,
+                          edge_list,
+                          std::move(result_srcs),
+                          std::move(result_dsts),
+                          std::move(tmp_edge_indices),
+                          std::move(result_labels),
+                          *gather_flags);
 
     edge_list.clear();
     edge_list.insert(result_srcs.begin(),
@@ -634,32 +613,12 @@ temporal_gather_one_hop_edgelist(
                    tmp_edge_indices ? std::optional<edge_t*>{tmp_edge_indices->begin()}
                                     : std::optional<edge_t*>{std::nullopt});
 
-  std::for_each(edge_property_views.begin(),
-                edge_property_views.end(),
-                [&handle, &graph_view, &edge_list, &result_properties](auto edge_property_view) {
-                  cugraph::variant_type_dispatch(
-                    edge_property_view,
-                    [&handle, &graph_view, &edge_list, &result_properties](auto property_view) {
-                      using T = typename decltype(property_view)::value_type;
-
-                      if constexpr (std::is_same_v<T, cuda::std::nullopt_t>) {
-                        CUGRAPH_FAIL("Should not have a property of type cuda::std::nullopt");
-                      } else {
-                        rmm::device_uvector<T> tmp(edge_list.size(), handle.get_stream());
-
-                        cugraph::transform_gather_e(handle,
-                                                    graph_view,
-                                                    edge_list,
-                                                    edge_src_dummy_property_t{}.view(),
-                                                    edge_dst_dummy_property_t{}.view(),
-                                                    property_view,
-                                                    return_edge_property_t{},
-                                                    tmp.begin());
-
-                        result_properties.push_back(arithmetic_device_uvector_t{std::move(tmp)});
-                      }
-                    });
-                });
+  result_properties =
+    gather_sampled_properties(handle,
+                              graph_view,
+                              edge_list,
+                              raft::host_span<edge_arithmetic_property_view_t<edge_t>>{
+                                edge_property_views.data(), edge_property_views.size()});
 
   return std::make_tuple(std::move(result_srcs),
                          std::move(result_dsts),

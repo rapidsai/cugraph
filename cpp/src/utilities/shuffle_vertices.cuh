@@ -116,12 +116,12 @@ rmm::device_uvector<vertex_t> shuffle_int_vertices_to_local_gpu_by_vertex_partit
   return std::move(vertices);
 }
 
-template <typename vertex_t, typename value_vector_t>
-std::tuple<rmm::device_uvector<vertex_t>, value_vector_t>
+template <typename vertex_t, typename value_t>
+std::tuple<rmm::device_uvector<vertex_t>, dataframe_buffer_type_t<value_t>>
 shuffle_int_vertex_value_pairs_to_local_gpu_by_vertex_partitioning(
   raft::handle_t const& handle,
   rmm::device_uvector<vertex_t>&& vertices,
-  value_vector_t&& values,
+  dataframe_buffer_type_t<value_t>&& values,
   raft::host_span<vertex_t const> vertex_partition_range_lasts,
   std::optional<large_buffer_type_t> large_buffer_type)
 {

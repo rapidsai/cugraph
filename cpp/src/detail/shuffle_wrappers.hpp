@@ -124,8 +124,8 @@ rmm::device_uvector<vertex_t> shuffle_int_vertices_to_local_gpu_by_vertex_partit
  * @brief Shuffle vertices using the internal vertex key function which returns the target GPU ID.
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
- * @tparam value_vector_t Vector of vertex values. Currently support rmm::device_uvector<int32_t>,
- * rmm::device_uvector<int64_t>, tuple of device vectors
+ * @tparam value_t Type of value. Currently support int32_t, int64_t, size_t,
+ * cuda::std::tuple<int32_t, int32_t and cuda::std::tuple<int32_t, int64_t>
  *
  * @param[in] handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator,
  * @param[in] vertices Vertex IDs to shuffle
@@ -139,12 +139,12 @@ rmm::device_uvector<vertex_t> shuffle_int_vertices_to_local_gpu_by_vertex_partit
  * @return tuple containing device vectors of shuffled vertices and corresponding
  *         values
  */
-template <typename vertex_t, typename value_vector_t>
-std::tuple<rmm::device_uvector<vertex_t>, value_vector_t>
+template <typename vertex_t, typename value_t>
+std::tuple<rmm::device_uvector<vertex_t>, dataframe_buffer_type_t<value_t>>
 shuffle_int_vertex_value_pairs_to_local_gpu_by_vertex_partitioning(
   raft::handle_t const& handle,
   rmm::device_uvector<vertex_t>&& vertices,
-  value_vector_t&& values,
+  dataframe_buffer_type_t<value_t>&& values,
   raft::host_span<vertex_t const> vertex_partition_range_lasts,
   std::optional<large_buffer_type_t> large_buffer_type = std::nullopt);
 

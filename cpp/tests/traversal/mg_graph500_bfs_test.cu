@@ -1906,7 +1906,9 @@ class Tests_GRAPH500_MGBFS
                 handle_->get_stream());
               forest_edge_parents.resize(forest_edge_vertices.size(), handle_->get_stream());
               std::tie(forest_edge_parents, forest_edge_vertices) =
-                cugraph::detail::shuffle_int_vertex_value_pairs_to_local_gpu_by_vertex_partitioning(
+                cugraph::detail::shuffle_int_vertex_value_pairs_to_local_gpu_by_vertex_partitioning<
+                  vertex_t,
+                  vertex_t>(
                   *handle_,
                   std::move(forest_edge_parents) /* vertex in (vertex, value) pair */,
                   std::move(forest_edge_vertices) /* value in (vertex, value) pair */,
@@ -1962,8 +1964,8 @@ class Tests_GRAPH500_MGBFS
               auto v_offset = mg_graph_to_subgraph_map[v - v_first];
               return (v_offset != invalid_vertex) ? (subgraph_v_first + v_offset) : invalid_vertex;
             });
-          std::tie(query_preds, query_vertices) =
-            cugraph::detail::shuffle_int_vertex_value_pairs_to_local_gpu_by_vertex_partitioning(
+          std::tie(query_preds, query_vertices) = cugraph::detail::
+            shuffle_int_vertex_value_pairs_to_local_gpu_by_vertex_partitioning<vertex_t, vertex_t>(
               *handle_,
               std::move(query_preds) /* vertex in (vertex, value) pair */,
               std::move(query_vertices) /* value in (vertex, value) pair */,

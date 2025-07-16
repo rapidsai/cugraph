@@ -156,15 +156,17 @@ prepare_next_frontier(
       if (frontier_vertex_times) {
         std::forward_as_tuple(frontier_vertices,
                               std::tie(*frontier_vertex_labels, *frontier_vertex_times)) =
-          shuffle_int_vertex_value_pairs_to_local_gpu_by_vertex_partitioning(
+          shuffle_int_vertex_value_pairs_to_local_gpu_by_vertex_partitioning<
+            vertex_t,
+            cuda::std::tuple<label_t, edge_time_t>>(
             handle,
             std::move(frontier_vertices),
-            std::move(std::make_tuple(std::move(*frontier_vertex_labels),
-                                      std::move(*frontier_vertex_times))),
+            std::tuple<rmm::device_uvector<label_t>, rmm::device_uvector<edge_time_t>>{
+              std::move(*frontier_vertex_labels), std::move(*frontier_vertex_times)},
             vertex_partition_range_lasts);
       } else {
         std::tie(frontier_vertices, *frontier_vertex_labels) =
-          shuffle_int_vertex_value_pairs_to_local_gpu_by_vertex_partitioning(
+          shuffle_int_vertex_value_pairs_to_local_gpu_by_vertex_partitioning<vertex_t, label_t>(
             handle,
             std::move(frontier_vertices),
             std::move(*frontier_vertex_labels),
@@ -173,7 +175,7 @@ prepare_next_frontier(
     } else {
       if (frontier_vertex_times) {
         std::tie(frontier_vertices, *frontier_vertex_times) =
-          shuffle_int_vertex_value_pairs_to_local_gpu_by_vertex_partitioning(
+          shuffle_int_vertex_value_pairs_to_local_gpu_by_vertex_partitioning<vertex_t, edge_time_t>(
             handle,
             std::move(frontier_vertices),
             std::move(*frontier_vertex_times),
