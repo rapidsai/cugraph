@@ -26,15 +26,6 @@
 
 namespace cugraph {
 
-enum class arithmetic_property_variant_index_t {
-  INVALID = 0,  // monostate
-  FLOAT   = 1,
-  DOUBLE  = 2,
-  INT32   = 3,
-  INT64   = 4,
-  UINT64  = 5
-};
-
 using arithmetic_device_uvector_t    = std::variant<std::monostate,
                                                     rmm::device_uvector<float>,
                                                     rmm::device_uvector<double>,
