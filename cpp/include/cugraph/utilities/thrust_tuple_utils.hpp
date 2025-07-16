@@ -15,6 +15,8 @@
  */
 #pragma once
 
+#include <raft/core/device_span.hpp>
+
 #include <rmm/device_uvector.hpp>
 
 #include <cuda/std/optional>
@@ -227,6 +229,14 @@ struct is_std_tuple_of_arithmetic_vectors : std::false_type {};
 
 template <typename... Ts>
 struct is_std_tuple_of_arithmetic_vectors<std::tuple<rmm::device_uvector<Ts>...>> {
+  static constexpr bool value = (... && std::is_arithmetic_v<Ts>);
+};
+
+template <typename T>
+struct is_std_tuple_of_arithmetic_spans : std::false_type {};
+
+template <typename... Ts>
+struct is_std_tuple_of_arithmetic_spans<std::tuple<raft::device_span<Ts>...>> {
   static constexpr bool value = (... && std::is_arithmetic_v<Ts>);
 };
 
