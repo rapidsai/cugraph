@@ -568,7 +568,6 @@ ConfigureTest(LOOKUP_SRC_DST_TEST lookup/lookup_src_dst_test.cpp)
 # - K-hop Neighbors tests -------------------------------------------------------------------------
 ConfigureTest(K_HOP_NBRS_TEST traversal/k_hop_nbrs_test.cpp)
 
-
 ###################################################################################################
 # - install tests ---------------------------------------------------------------------------------
 rapids_test_install_relocatable(INSTALL_COMPONENT_SET testing DESTINATION bin/gtests/libcugraph)
@@ -717,6 +716,10 @@ if(BUILD_CUGRAPH_MG_TESTS)
     ###############################################################################################
     # - MG INDUCED SUBGRAPH tests -----------------------------------------------------------------
     ConfigureTestMG(MG_INDUCED_SUBGRAPH_TEST structure/mg_induced_subgraph_test.cu)
+
+    ###################################################################################################
+    # - UPDATE EDGE SRC PROPERTY  tests ----------------------------------------------------------
+    ConfigureTestMG(UPDATE_EDGE_SRC_PROPERTY_TEST prims/update_edge_src_property_test.cu)
 
     ###############################################################################################
     # - MG PRIMS COUNT_IF_V tests -----------------------------------------------------------------
