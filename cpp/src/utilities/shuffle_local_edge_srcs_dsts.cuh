@@ -18,7 +18,6 @@
 
 #include "detail/graph_partition_utils.cuh"
 
-#include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
 
 #include <thrust/tuple.h>

@@ -17,6 +17,7 @@
 #pragma once
 
 #include "detail/graph_partition_utils.cuh"
+#include "detail/shuffle_wrappers.hpp"
 #include "prims/detail/nbr_intersection.cuh"
 #include "prims/per_v_random_select_transform_outgoing_e.cuh"
 #include "prims/property_op_utils.cuh"
@@ -24,7 +25,6 @@
 #include "prims/vertex_frontier.cuh"
 
 #include <cugraph/algorithms.hpp>
-#include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph.hpp>
@@ -42,7 +42,6 @@
 #include <cuda/std/iterator>
 #include <cuda/std/optional>
 
-#include <algorithm>
 #include <limits>
 #include <numeric>
 #include <type_traits>

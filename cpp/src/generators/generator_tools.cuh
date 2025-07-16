@@ -78,26 +78,6 @@ rmm::device_uvector<vertex_t> scramble_vertex_ids(raft::handle_t const& handle,
   return std::move(vertices);
 }
 
-template <typename vertex_t>
-std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> scramble_vertex_ids(
-  raft::handle_t const& handle,
-  rmm::device_uvector<vertex_t>&& srcs,
-  rmm::device_uvector<vertex_t>&& dsts,
-  size_t lgN)
-{
-  auto pair_first = thrust::make_zip_iterator(thrust::make_tuple(srcs.begin(), dsts.begin()));
-  thrust::transform(handle.get_thrust_policy(),
-                    pair_first,
-                    pair_first + srcs.size(),
-                    pair_first,
-                    [lgN] __device__(auto pair) {
-                      return thrust::make_tuple(detail::scramble(thrust::get<0>(pair), lgN),
-                                                detail::scramble(thrust::get<1>(pair), lgN));
-                    });
-
-  return std::make_tuple(std::move(srcs), std::move(dsts));
-}
-
 template <typename vertex_t, typename weight_t>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,

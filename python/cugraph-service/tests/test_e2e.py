@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from collections.abc import Sequence
 from pathlib import Path
 
 import pytest
@@ -178,18 +177,19 @@ def test_get_num_edges_nondefault_graph(client_with_edgelist_csv_loaded):
     )
 
 
-def test_node2vec(client_with_edgelist_csv_loaded):
+def test_node2vec_random_walks(client_with_edgelist_csv_loaded):
     (client, test_data) = client_with_edgelist_csv_loaded
     extracted_gid = client.extract_subgraph()
     start_vertices = 11
     max_depth = 2
-    (vertex_paths, edge_weights, path_sizes) = client.node2vec(
+    (vertex_paths, edge_weights, max_path_length) = client.node2vec_random_walks(
         start_vertices, max_depth, extracted_gid
     )
     # FIXME: consider a more thorough test
     assert isinstance(vertex_paths, list) and len(vertex_paths)
     assert isinstance(edge_weights, list) and len(edge_weights)
-    assert isinstance(path_sizes, list) and len(path_sizes)
+    assert isinstance(max_path_length, int)
+    assert (max_path_length == max_depth) and max_path_length == len(vertex_paths) - 1
 
 
 def test_extract_subgraph(client_with_edgelist_csv_loaded):
@@ -399,26 +399,6 @@ def test_get_graph_info(client_with_property_csvs_loaded):
     data = (info["num_edges"], info["num_edge_properties"])
     # FIXME: do not hardcode values, get them from the input data.
     assert data == (17, 7)
-
-
-def test_batched_ego_graphs(client_with_edgelist_csv_loaded):
-    (client, test_data) = client_with_edgelist_csv_loaded
-
-    extracted_gid = client.extract_subgraph()
-
-    # These are known vertex IDs in the default graph loaded
-    seeds = [0, 1, 2]
-    results_lists = client.batched_ego_graphs(seeds, radius=1, graph_id=extracted_gid)
-
-    (srcs, dsts, weights, seeds_offsets) = results_lists
-
-    assert isinstance(srcs, Sequence)
-    assert isinstance(dsts, Sequence)
-    assert isinstance(weights, Sequence)
-    assert len(srcs) == len(dsts) == len(weights)
-
-    assert isinstance(seeds_offsets, Sequence)
-    assert len(srcs) == seeds_offsets[-1]
 
 
 def test_get_edge_IDs_for_vertices(client_with_edgelist_csv_loaded):

@@ -1,4 +1,4 @@
-# Copyright (c) 2021-2023, NVIDIA CORPORATION.
+# Copyright (c) 2021-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -271,7 +271,7 @@ def _mg_rmat(
     each subsequent worker will receive seed+<worker num> as the seed value.
     """
     client = default_client()
-    worker_list = list(client.scheduler_info()["workers"].keys())
+    worker_list = list(client.scheduler_info(n_workers=-1)["workers"].keys())
     num_workers = len(worker_list)
     num_edges_list = _calc_num_edges_per_worker(num_workers, num_edges)
     result = []

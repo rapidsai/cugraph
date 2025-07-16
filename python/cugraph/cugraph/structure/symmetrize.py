@@ -148,7 +148,7 @@ def symmetrize_ddf(
     """
     # FIXME: Uncomment out the above (broken) example
     _client = default_client()
-    workers = _client.scheduler_info()["workers"]
+    workers = _client.scheduler_info(n_workers=-1)["workers"]
 
     if not isinstance(src_name, list):
         src_name = [src_name]

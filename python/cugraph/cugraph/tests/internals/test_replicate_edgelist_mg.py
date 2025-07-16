@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2024, NVIDIA CORPORATION.
+# Copyright (c) 2022-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -88,7 +88,7 @@ def test_mg_replicate_edgelist(
 
     if distributed:
         # Distribute the edges across all ranks
-        num_workers = len(dask_client.scheduler_info()["workers"])
+        num_workers = dask_client.scheduler_info()["n_workers"]
         df = dask_cudf.from_cudf(df, npartitions=num_workers)
     ddf = replicate_edgelist(
         df[columns], weight=weight, edge_id=edge_id, edge_type=edge_type

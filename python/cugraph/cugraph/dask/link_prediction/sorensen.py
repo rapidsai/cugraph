@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2024, NVIDIA CORPORATION.
+# Copyright (c) 2022-2025, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -109,7 +109,7 @@ def sorensen(input_graph, vertex_pair=None, use_weight=False):
         vertices. If provided, the sorensen coefficient is computed for the
         given vertex pairs.  If the vertex_pair is not provided then the
         current implementation computes the sorensen coefficient for all
-        adjacent vertices in the graph.
+        vertices that are two hops apart in the graph.
 
     use_weight : bool, optional (default=False)
         Flag to indicate whether to compute weighted sorensen (if use_weight==True)
@@ -230,7 +230,7 @@ def all_pairs_sorensen(
     vertices : int or list or cudf.Series, dask_cudf.Series, optional (default=None)
         A GPU Series containing the input vertex list.  If the vertex list is not
         provided then the current implementation computes the sorensen coefficient for
-        all adjacent vertices in the graph.
+        all vertices that are two hops apart in the graph.
 
     use_weight : bool, optional (default=False)
         Flag to indicate whether to compute weighted sorensen (if use_weight==True)

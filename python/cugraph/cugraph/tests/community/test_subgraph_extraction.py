@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2024, NVIDIA CORPORATION.
+# Copyright (c) 2019-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -91,35 +91,6 @@ def test_subgraph_extraction_Graph(graph_file):
     cu_sg = cugraph_call(M, verts, False)[0]
     nx_sg = nx_call(M, verts, False)
     assert compare_edges(cu_sg, nx_sg)
-
-
-@pytest.mark.sg
-@pytest.mark.parametrize("graph_file", [DEFAULT_DATASETS[2]])
-def test_subgraph_extraction_Graph_nx(graph_file):
-    directed = False
-    verts = np.zeros(3, dtype=np.int32)
-    verts[0] = 0
-    verts[1] = 1
-    verts[2] = 17
-    dataset_path = graph_file.get_path()
-    M = utils.read_csv_for_nx(dataset_path)
-
-    if directed:
-        G = nx.from_pandas_edgelist(
-            M, source="0", target="1", edge_attr="weight", create_using=nx.DiGraph()
-        )
-    else:
-        G = nx.from_pandas_edgelist(
-            M, source="0", target="1", edge_attr="weight", create_using=nx.Graph()
-        )
-
-    nx_sub = nx.subgraph(G, verts)
-
-    cu_verts = cudf.Series(verts)
-    cu_sub = cugraph.induced_subgraph(G, cu_verts)[0]
-
-    for (u, v) in cu_sub.edges():
-        assert nx_sub.has_edge(u, v)
 
 
 @pytest.mark.sg

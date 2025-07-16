@@ -234,7 +234,7 @@ class simpleDistributedGraphImpl:
         ddf_columns = s_col + d_col
         self.vertex_columns = ddf_columns.copy()
         _client = default_client()
-        workers = _client.scheduler_info()["workers"]
+        workers = _client.scheduler_info(n_workers=-1)["workers"]
         # Repartition to 2 partitions per GPU for memory efficient process
         input_ddf = input_ddf.repartition(npartitions=len(workers) * 2)
         # The dataframe will be symmetrized iff the graph is undirected
@@ -365,7 +365,7 @@ class simpleDistributedGraphImpl:
             is_symmetric=not self.properties.directed,
         )
         ddf = ddf.repartition(npartitions=len(workers) * 2)
-        workers = _client.scheduler_info()["workers"].keys()
+        workers = _client.scheduler_info(n_workers=-1)["workers"].keys()
         persisted_keys_d = persist_dask_df_equal_parts_per_worker(
             ddf, _client, return_type="dict"
         )
@@ -482,7 +482,7 @@ class simpleDistributedGraphImpl:
                 # Drop parallel edges for non MultiGraph
                 # FIXME: Drop multi edges with the CAPI instead.
                 _client = default_client()
-                workers = _client.scheduler_info()["workers"]
+                workers = _client.scheduler_info(n_workers=-1)["workers"]
                 edgelist_df = _memory_efficient_drop_duplicates(
                     edgelist_df, [srcCol, dstCol], len(workers)
                 )
