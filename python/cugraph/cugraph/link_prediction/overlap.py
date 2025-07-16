@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2024, NVIDIA CORPORATION.
+# Copyright (c) 2019-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -87,7 +87,7 @@ def overlap_coefficient(
 
         If provided, the Overlap coefficient is computed for the given vertex
         pairs. Otherwise, the current implementation computes the overlap
-        coefficient for all adjacent vertices in the graph.
+        coefficient for all vertices that are two hops apart in the graph.
 
     do_expensive_check : bool, optional (default=False)
         Deprecated.
@@ -317,7 +317,7 @@ def all_pairs_overlap(
     vertices : int or list or cudf.Series or cudf.DataFrame, optional (default=None)
         A GPU Series containing the input vertex list.  If the vertex list is not
         provided then the current implementation computes the overlap coefficient for
-        all adjacent vertices in the graph.
+        all vertices that are two hops apart in the graph.
 
     use_weight : bool, optional (default=False)
         Flag to indicate whether to compute weighted overlap (if use_weight==True)
