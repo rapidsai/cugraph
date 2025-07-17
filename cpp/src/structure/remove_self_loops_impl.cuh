@@ -63,13 +63,13 @@ remove_self_loops(raft::handle_t const& handle,
     large_buffer_type);
 
   if (keep_count < edgelist_srcs.size()) {
-    edgelist_srcs = detail::keep_flagged_elements(
+    edgelist_srcs = detail::keep_marked_entries(
       handle,
       std::move(edgelist_srcs),
       raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
       keep_count,
       large_buffer_type);
-    edgelist_dsts = detail::keep_flagged_elements(
+    edgelist_dsts = detail::keep_marked_entries(
       handle,
       std::move(edgelist_dsts),
       raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
@@ -77,7 +77,7 @@ remove_self_loops(raft::handle_t const& handle,
       large_buffer_type);
 
     if (edgelist_weights)
-      edgelist_weights = detail::keep_flagged_elements(
+      edgelist_weights = detail::keep_marked_entries(
         handle,
         std::move(*edgelist_weights),
         raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
@@ -85,7 +85,7 @@ remove_self_loops(raft::handle_t const& handle,
         large_buffer_type);
 
     if (edgelist_edge_ids)
-      edgelist_edge_ids = detail::keep_flagged_elements(
+      edgelist_edge_ids = detail::keep_marked_entries(
         handle,
         std::move(*edgelist_edge_ids),
         raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
@@ -93,7 +93,7 @@ remove_self_loops(raft::handle_t const& handle,
         large_buffer_type);
 
     if (edgelist_edge_types)
-      edgelist_edge_types = detail::keep_flagged_elements(
+      edgelist_edge_types = detail::keep_marked_entries(
         handle,
         std::move(*edgelist_edge_types),
         raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
@@ -101,7 +101,7 @@ remove_self_loops(raft::handle_t const& handle,
         large_buffer_type);
 
     if (edgelist_edge_start_times)
-      edgelist_edge_start_times = detail::keep_flagged_elements(
+      edgelist_edge_start_times = detail::keep_marked_entries(
         handle,
         std::move(*edgelist_edge_start_times),
         raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
@@ -109,7 +109,7 @@ remove_self_loops(raft::handle_t const& handle,
         large_buffer_type);
 
     if (edgelist_edge_end_times)
-      edgelist_edge_end_times = detail::keep_flagged_elements(
+      edgelist_edge_end_times = detail::keep_marked_entries(
         handle,
         std::move(*edgelist_edge_end_times),
         raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},

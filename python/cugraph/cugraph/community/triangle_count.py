@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2024, NVIDIA CORPORATION.
+# Copyright (c) 2019-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -11,7 +11,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.utilities import ensure_cugraph_obj_for_nx
 import cudf
 
 from pylibcugraph import triangle_count as pylibcugraph_triangle_count
@@ -49,15 +48,10 @@ def triangle_count(G, start_list=None):
 
     Parameters
     ----------
-    G : cugraph.graph or networkx.Graph
+    G : cugraph.graph
         cuGraph graph descriptor, should contain the connectivity information,
         (edge weights are not used in this algorithm).
         The current implementation only supports undirected graphs.
-
-        .. deprecated:: 24.12
-           Accepting a ``networkx.Graph`` is deprecated and will be removed in a
-           future version.  For ``networkx.Graph`` use networkx directly with
-           the ``nx-cugraph`` backend. See:  https://rapids.ai/nx-cugraph/
 
     start_list : list or cudf.Series
         list of vertices for triangle count. if None the entire set of vertices
@@ -84,8 +78,6 @@ def triangle_count(G, start_list=None):
     >>> count = cugraph.triangle_count(G)
 
     """
-    G, _ = ensure_cugraph_obj_for_nx(G)
-
     if G.is_directed():
         raise ValueError("input graph must be undirected")
 

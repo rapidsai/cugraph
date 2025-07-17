@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2023, NVIDIA CORPORATION.
+# Copyright (c) 2019-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -15,12 +15,10 @@ import gc
 
 import random
 import pytest
-import networkx as nx
 
 import cudf
 import cugraph
 from cugraph.testing import utils, DEFAULT_DATASETS
-from cugraph.utilities import ensure_cugraph_obj_for_nx
 
 
 def cugraph_call(G, partitions):
@@ -68,37 +66,6 @@ def test_modularity_clustering(graph_file, partitions):
     # Get the modularity score for partitioning versus random assignment
     cu_score = cugraph_call(G, partitions)
     rand_score = random_call(G, partitions)
-
-    # Assert that the partitioning has better modularity than the random
-    # assignment
-    assert cu_score > rand_score
-
-
-@pytest.mark.sg
-@pytest.mark.parametrize("graph_file", DEFAULT_DATASETS)
-@pytest.mark.parametrize("partitions", PARTITIONS)
-def test_modularity_clustering_nx(graph_file, partitions):
-    # Read in the graph and get a cugraph object
-    dataset_path = graph_file.get_path()
-    csv_data = utils.read_csv_for_nx(dataset_path, read_weights_in_sp=True)
-
-    nxG = nx.from_pandas_edgelist(
-        csv_data,
-        source="0",
-        target="1",
-        edge_attr="weight",
-        create_using=nx.Graph(),
-    )
-    assert nx.is_directed(nxG) is False
-    assert nx.is_weighted(nxG) is True
-
-    cuG, isNx = ensure_cugraph_obj_for_nx(nxG)
-    assert cugraph.is_directed(cuG) is False
-    assert cugraph.is_weighted(cuG) is True
-
-    # Get the modularity score for partitioning versus random assignment
-    cu_score = cugraph_call(cuG, partitions)
-    rand_score = random_call(cuG, partitions)
 
     # Assert that the partitioning has better modularity than the random
     # assignment

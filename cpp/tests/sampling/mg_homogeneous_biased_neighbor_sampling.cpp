@@ -249,13 +249,21 @@ class Tests_MGHomogeneous_Biased_Neighbor_Sampling
           : std::nullopt;
 
       if (handle_->get_comms().get_rank() == 0) {
-        cugraph::test::validate_extracted_graph_is_subgraph(*handle_,
-                                                            mg_aggregate_src_compare,
-                                                            mg_aggregate_dst_compare,
-                                                            mg_aggregate_wgt_compare,
-                                                            mg_aggregate_src,
-                                                            mg_aggregate_dst,
-                                                            mg_aggregate_wgt);
+        ASSERT_TRUE(cugraph::test::validate_extracted_graph_is_subgraph(
+          *handle_,
+          raft::device_span<vertex_t const>{mg_aggregate_src_compare.data(),
+                                            mg_aggregate_src_compare.size()},
+          raft::device_span<vertex_t const>{mg_aggregate_dst_compare.data(),
+                                            mg_aggregate_dst_compare.size()},
+          mg_aggregate_wgt_compare
+            ? std::make_optional(raft::device_span<weight_t const>{
+                mg_aggregate_wgt_compare->data(), mg_aggregate_wgt_compare->size()})
+            : std::nullopt,
+          raft::device_span<vertex_t const>{mg_aggregate_src.data(), mg_aggregate_src.size()},
+          raft::device_span<vertex_t const>{mg_aggregate_dst.data(), mg_aggregate_dst.size()},
+          mg_aggregate_wgt ? std::make_optional(raft::device_span<weight_t const>{
+                               mg_aggregate_wgt->data(), mg_aggregate_wgt->size()})
+                           : std::nullopt));
 
         if (random_sources.size() < 100) {
           // This validation is too expensive for large number of vertices

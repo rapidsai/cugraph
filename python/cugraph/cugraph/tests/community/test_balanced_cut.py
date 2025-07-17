@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2023, NVIDIA CORPORATION.
+# Copyright (c) 2019-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -15,8 +15,6 @@ import gc
 
 import random
 import pytest
-import networkx as nx
-import pandas as pd
 
 import cudf
 import cugraph
@@ -94,49 +92,6 @@ def test_edge_cut_clustering_with_edgevals(graph_file, partitions):
     # Get the edge_cut score for partitioning versus random assignment
     cu_vid, cu_score = cugraph_call(G_edge, partitions)
     rand_vid, rand_score = random_call(G_edge, partitions)
-
-    # Assert that the partitioning has better edge_cut than the random
-    # assignment
-    print(cu_score, rand_score)
-    assert cu_score < rand_score
-
-
-@pytest.mark.sg
-@pytest.mark.parametrize("graph_file", DEFAULT_DATASETS)
-@pytest.mark.parametrize("partitions", PARTITIONS)
-def test_edge_cut_clustering_with_edgevals_nx(graph_file, partitions):
-    gc.collect()
-
-    # G = cugraph.Graph()
-    # read_weights_in_sp=True => value column dtype is float32
-    G = graph_file.get_graph()
-    NM = G.to_pandas_edgelist().rename(
-        columns={"src": "0", "dst": "1", "wgt": "weight"}
-    )
-
-    G = nx.from_pandas_edgelist(
-        NM, create_using=nx.Graph(), source="0", target="1", edge_attr="weight"
-    )
-
-    # Get the edge_cut score for partitioning versus random assignment
-    df = cugraph.spectralBalancedCutClustering(
-        G, partitions, num_eigen_vects=partitions
-    )
-
-    pdf = pd.DataFrame.from_dict(df, orient="index").reset_index()
-    pdf.columns = ["vertex", "cluster"]
-    gdf = cudf.from_pandas(pdf)
-
-    gdf = gdf.astype("int32")
-
-    cu_score = cugraph.analyzeClustering_edge_cut(
-        G, partitions, gdf, "vertex", "cluster"
-    )
-
-    df = set(gdf["vertex"].to_numpy())
-
-    Gcu = cugraph.utilities.convert_from_nx(G)
-    rand_vid, rand_score = random_call(Gcu, partitions)
 
     # Assert that the partitioning has better edge_cut than the random
     # assignment
