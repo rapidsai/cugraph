@@ -1,0 +1,57 @@
+/*
+ * Copyright (c) 2022-2025, NVIDIA CORPORATION.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#include "sampling/detail/sample_edges.cuh"
+
+namespace cugraph {
+namespace detail {
+
+template std::tuple<rmm::device_uvector<int64_t>,
+                    rmm::device_uvector<int64_t>,
+                    std::vector<arithmetic_device_uvector_t>,
+                    std::optional<rmm::device_uvector<int32_t>>>
+temporal_sample_edges(raft::handle_t const& handle,
+                      raft::random::RngState& rng_state,
+                      graph_view_t<int64_t, int64_t, false, true> const& graph_view,
+                      raft::host_span<edge_arithmetic_property_view_t<int64_t>> edge_property_views,
+                      edge_property_view_t<int64_t, int32_t const*> edge_start_time_view,
+                      std::optional<edge_arithmetic_property_view_t<int64_t>> edge_type_view,
+                      std::optional<edge_arithmetic_property_view_t<int64_t>> edge_bias_view,
+                      raft::device_span<int64_t const> active_majors,
+                      raft::device_span<int32_t const> active_major_times,
+                      std::optional<raft::device_span<int32_t const>> active_major_labels,
+                      raft::host_span<size_t const> Ks,
+                      bool with_replacement);
+
+template std::tuple<rmm::device_uvector<int64_t>,
+                    rmm::device_uvector<int64_t>,
+                    std::vector<arithmetic_device_uvector_t>,
+                    std::optional<rmm::device_uvector<int32_t>>>
+temporal_sample_edges(raft::handle_t const& handle,
+                      raft::random::RngState& rng_state,
+                      graph_view_t<int64_t, int64_t, false, true> const& graph_view,
+                      raft::host_span<edge_arithmetic_property_view_t<int64_t>> edge_property_views,
+                      edge_property_view_t<int64_t, int64_t const*> edge_start_time_view,
+                      std::optional<edge_arithmetic_property_view_t<int64_t>> edge_type_view,
+                      std::optional<edge_arithmetic_property_view_t<int64_t>> edge_bias_view,
+                      raft::device_span<int64_t const> active_majors,
+                      raft::device_span<int64_t const> active_major_times,
+                      std::optional<raft::device_span<int32_t const>> active_major_labels,
+                      raft::host_span<size_t const> Ks,
+                      bool with_replacement);
+
+}  // namespace detail
+}  // namespace cugraph
