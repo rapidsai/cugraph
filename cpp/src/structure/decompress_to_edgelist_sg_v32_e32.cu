@@ -31,6 +31,7 @@ decompress_to_edgelist<int32_t, int32_t, float, int32_t, false, false>(
   std::optional<edge_property_view_t<int32_t, int32_t const*>> edge_id_view,
   std::optional<edge_property_view_t<int32_t, int32_t const*>> edge_type_view,
   std::optional<raft::device_span<int32_t const>> renumber_map,
+  std::optional<large_buffer_type_t> large_buffer_type,
   bool do_expensive_check);
 
 template std::tuple<rmm::device_uvector<int32_t>,
@@ -45,6 +46,7 @@ decompress_to_edgelist<int32_t, int32_t, float, int32_t, true, false>(
   std::optional<edge_property_view_t<int32_t, int32_t const*>> edge_id_view,
   std::optional<edge_property_view_t<int32_t, int32_t const*>> edge_type_view,
   std::optional<raft::device_span<int32_t const>> renumber_map,
+  std::optional<large_buffer_type_t> large_buffer_type,
   bool do_expensive_check);
 
 template std::tuple<rmm::device_uvector<int32_t>,
@@ -59,6 +61,7 @@ decompress_to_edgelist<int32_t, int32_t, double, int32_t, false, false>(
   std::optional<edge_property_view_t<int32_t, int32_t const*>> edge_id_view,
   std::optional<edge_property_view_t<int32_t, int32_t const*>> edge_type_view,
   std::optional<raft::device_span<int32_t const>> renumber_map,
+  std::optional<large_buffer_type_t> large_buffer_type,
   bool do_expensive_check);
 
 template std::tuple<rmm::device_uvector<int32_t>,
@@ -73,6 +76,7 @@ decompress_to_edgelist<int32_t, int32_t, double, int32_t, true, false>(
   std::optional<edge_property_view_t<int32_t, int32_t const*>> edge_id_view,
   std::optional<edge_property_view_t<int32_t, int32_t const*>> edge_type_view,
   std::optional<raft::device_span<int32_t const>> renumber_map,
+  std::optional<large_buffer_type_t> large_buffer_type,
   bool do_expensive_check);
 
 }  // namespace cugraph

@@ -65,6 +65,7 @@ decompress_to_edgelist_impl(
   std::optional<edge_property_view_t<edge_t, edge_t const*>> edge_id_view,
   std::optional<edge_property_view_t<edge_t, edge_type_t const*>> edge_type_view,
   std::optional<raft::device_span<vertex_t const>> renumber_map,
+  std::optional<large_buffer_type_t> large_buffer_type,
   bool do_expensive_check)
 {
   CUGRAPH_EXPECTS(!renumber_map.has_value() ||
@@ -72,6 +73,8 @@ decompress_to_edgelist_impl(
                      static_cast<size_t>(graph_view.local_vertex_partition_range_size())),
                   "Invalid input arguments: (*renumber_map).size() should match with the local "
                   "vertex partition range size.");
+  CUGRAPH_EXPECTS(!large_buffer_type || cugraph::large_buffer_manager::memory_buffer_initialized(),
+                  "Invalid input argument: large memory_buffer is not initialized.");
 
   if (do_expensive_check) { /* currently, nothing to do */
   }
@@ -94,17 +97,37 @@ decompress_to_edgelist_impl(
   auto number_of_local_edges =
     std::reduce(edgelist_edge_counts.begin(), edgelist_edge_counts.end());
 
-  rmm::device_uvector<vertex_t> edgelist_majors(number_of_local_edges, handle.get_stream());
-  rmm::device_uvector<vertex_t> edgelist_minors(edgelist_majors.size(), handle.get_stream());
-  auto edgelist_ids     = edge_id_view ? std::make_optional<rmm::device_uvector<edge_t>>(
-                                       edgelist_majors.size(), handle.get_stream())
-                                       : std::nullopt;
-  auto edgelist_weights = edge_weight_view ? std::make_optional<rmm::device_uvector<weight_t>>(
-                                               edgelist_majors.size(), handle.get_stream())
-                                           : std::nullopt;
-  auto edgelist_types   = edge_type_view ? std::make_optional<rmm::device_uvector<edge_type_t>>(
-                                           edgelist_majors.size(), handle.get_stream())
-                                         : std::nullopt;
+  auto edgelist_majors =
+    large_buffer_type ? large_buffer_manager::allocate_memory_buffer<vertex_t>(
+                          number_of_local_edges, handle.get_stream())
+                      : rmm::device_uvector<vertex_t>(number_of_local_edges, handle.get_stream());
+  auto edgelist_minors =
+    large_buffer_type ? large_buffer_manager::allocate_memory_buffer<vertex_t>(
+                          number_of_local_edges, handle.get_stream())
+                      : rmm::device_uvector<vertex_t>(number_of_local_edges, handle.get_stream());
+  auto edgelist_weights =
+    edge_weight_view
+      ? std::make_optional(
+          large_buffer_type
+            ? large_buffer_manager::allocate_memory_buffer<weight_t>(number_of_local_edges,
+                                                                     handle.get_stream())
+            : rmm::device_uvector<weight_t>(number_of_local_edges, handle.get_stream()))
+      : std::nullopt;
+  auto edgelist_ids =
+    edge_id_view
+      ? std::make_optional(large_buffer_type ? large_buffer_manager::allocate_memory_buffer<edge_t>(
+                                                 number_of_local_edges, handle.get_stream())
+                                             : rmm::device_uvector<edge_t>(number_of_local_edges,
+                                                                           handle.get_stream()))
+      : std::nullopt;
+  auto edgelist_types =
+    edge_type_view
+      ? std::make_optional(
+          large_buffer_type
+            ? large_buffer_manager::allocate_memory_buffer<edge_type_t>(number_of_local_edges,
+                                                                        handle.get_stream())
+            : rmm::device_uvector<edge_type_t>(number_of_local_edges, handle.get_stream()))
+      : std::nullopt;
 
   size_t cur_size{0};
   for (size_t i = 0; i < edgelist_edge_counts.size(); ++i) {
@@ -310,6 +333,7 @@ decompress_to_edgelist_impl(
   std::optional<edge_property_view_t<edge_t, edge_t const*>> edge_id_view,
   std::optional<edge_property_view_t<edge_t, edge_type_t const*>> edge_type_view,
   std::optional<raft::device_span<vertex_t const>> renumber_map,
+  std::optional<large_buffer_type_t> large_buffer_type,
   bool do_expensive_check)
 {
   CUGRAPH_EXPECTS(
@@ -317,6 +341,8 @@ decompress_to_edgelist_impl(
       (*renumber_map).size() == static_cast<size_t>(graph_view.local_vertex_partition_range_size()),
     "Invalid input arguments: if renumber_map.has_value() == true, (*renumber_map).size() should "
     "match with the local vertex partition range size.");
+  CUGRAPH_EXPECTS(!large_buffer_type || cugraph::large_buffer_manager::memory_buffer_initialized(),
+                  "Invalid input argument: large memory_buffer is not initialized.");
 
   if (do_expensive_check) { /* currently, nothing to do */
   }
@@ -327,18 +353,35 @@ decompress_to_edgelist_impl(
       detail::count_set_bits(handle, (*(graph_view.edge_mask_view())).value_firsts()[0], num_edges);
   }
 
-  rmm::device_uvector<vertex_t> edgelist_majors(num_edges, handle.get_stream());
-  rmm::device_uvector<vertex_t> edgelist_minors(edgelist_majors.size(), handle.get_stream());
-  auto edgelist_weights = edge_weight_view ? std::make_optional<rmm::device_uvector<weight_t>>(
-                                               edgelist_majors.size(), handle.get_stream())
-                                           : std::nullopt;
-  auto edgelist_ids     = edge_id_view ? std::make_optional<rmm::device_uvector<edge_t>>(
-                                       edgelist_majors.size(), handle.get_stream())
-                                       : std::nullopt;
-
-  auto edgelist_types = edge_type_view ? std::make_optional<rmm::device_uvector<edge_type_t>>(
-                                           edgelist_majors.size(), handle.get_stream())
-                                       : std::nullopt;
+  auto edgelist_majors =
+    large_buffer_type
+      ? large_buffer_manager::allocate_memory_buffer<vertex_t>(num_edges, handle.get_stream())
+      : rmm::device_uvector<vertex_t>(num_edges, handle.get_stream());
+  auto edgelist_minors =
+    large_buffer_type
+      ? large_buffer_manager::allocate_memory_buffer<vertex_t>(num_edges, handle.get_stream())
+      : rmm::device_uvector<vertex_t>(num_edges, handle.get_stream());
+  auto edgelist_weights =
+    edge_weight_view
+      ? std::make_optional(
+          large_buffer_type
+            ? large_buffer_manager::allocate_memory_buffer<weight_t>(num_edges, handle.get_stream())
+            : rmm::device_uvector<weight_t>(num_edges, handle.get_stream()))
+      : std::nullopt;
+  auto edgelist_ids =
+    edge_id_view
+      ? std::make_optional(
+          large_buffer_type
+            ? large_buffer_manager::allocate_memory_buffer<edge_t>(num_edges, handle.get_stream())
+            : rmm::device_uvector<edge_t>(num_edges, handle.get_stream()))
+      : std::nullopt;
+  auto edgelist_types =
+    edge_type_view
+      ? std::make_optional(large_buffer_type
+                             ? large_buffer_manager::allocate_memory_buffer<edge_type_t>(
+                                 num_edges, handle.get_stream())
+                             : rmm::device_uvector<edge_type_t>(num_edges, handle.get_stream()))
+      : std::nullopt;
 
   detail::decompress_edge_partition_to_edgelist<vertex_t, edge_t, weight_t, int32_t, multi_gpu>(
     handle,
@@ -414,6 +457,7 @@ decompress_to_edgelist(
   std::optional<edge_property_view_t<edge_t, edge_t const*>> edge_id_view,
   std::optional<edge_property_view_t<edge_t, edge_type_t const*>> edge_type_view,
   std::optional<raft::device_span<vertex_t const>> renumber_map,
+  std::optional<large_buffer_type_t> large_buffer_type,
   bool do_expensive_check)
 {
   return decompress_to_edgelist_impl<vertex_t,
@@ -427,6 +471,7 @@ decompress_to_edgelist(
                                                 edge_id_view,
                                                 edge_type_view,
                                                 renumber_map,
+                                                large_buffer_type,
                                                 do_expensive_check);
 }
 
