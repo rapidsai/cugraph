@@ -5194,11 +5194,9 @@ heterogeneous_uniform_sample_and_compute_local_nbr_indices(
   using edge_type_t = typename EdgeTypeInputWrapper::value_type;
   using bias_t      = double;
 
-  int minor_comm_rank{0};
   int minor_comm_size{1};
   if constexpr (GraphViewType::is_multi_gpu) {
     auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
-    minor_comm_rank  = minor_comm.get_rank();
     minor_comm_size  = minor_comm.get_size();
   }
   assert(minor_comm_size == graph_view.number_of_local_edge_partitions());
@@ -5545,11 +5543,9 @@ homogeneous_biased_sample_and_compute_local_nbr_indices(
                                                    BiasEdgeOp>::type;
   using edge_type_t = int32_t;  // dummy
 
-  int minor_comm_rank{0};
   int minor_comm_size{1};
   if constexpr (GraphViewType::is_multi_gpu) {
     auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
-    minor_comm_rank  = minor_comm.get_rank();
     minor_comm_size  = minor_comm.get_size();
   }
   assert(minor_comm_size == graph_view.number_of_local_edge_partitions());
@@ -5736,11 +5732,9 @@ heterogeneous_biased_sample_and_compute_local_nbr_indices(
                                                    BiasEdgeOp>::type;
   using edge_type_t = typename EdgeTypeInputWrapper::value_type;
 
-  int minor_comm_rank{0};
   int minor_comm_size{1};
   if constexpr (GraphViewType::is_multi_gpu) {
     auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
-    minor_comm_rank  = minor_comm.get_rank();
     minor_comm_size  = minor_comm.get_size();
   }
   assert(minor_comm_size == graph_view.number_of_local_edge_partitions());

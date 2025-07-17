@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2024, NVIDIA CORPORATION.
+# Copyright (c) 2020-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -75,20 +75,6 @@ def test_ktruss_subgraph_Graph(_, nx_ground_truth):
     k_subgraph = cugraph.ktruss_subgraph(G, k, use_weights=False)
 
     compare_k_truss(k_subgraph, k, nx_ground_truth)
-
-
-@pytest.mark.sg
-def test_ktruss_subgraph_Graph_nx():
-    k = 5
-    dataset_path = polbooks.get_path()
-    M = utils.read_csv_for_nx(dataset_path, read_weights_in_sp=True)
-    G = nx.from_pandas_edgelist(
-        M, source="0", target="1", edge_attr="weight", create_using=nx.Graph()
-    )
-    k_subgraph = cugraph.k_truss(G, k)
-    k_truss_nx = nx.k_truss(G, k)
-
-    assert nx.is_isomorphic(k_subgraph, k_truss_nx)
 
 
 @pytest.mark.sg

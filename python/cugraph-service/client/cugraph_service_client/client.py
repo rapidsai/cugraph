@@ -1198,34 +1198,6 @@ class CugraphServiceClient:
     ###########################################################################
     # Algos
     @__server_connection
-    def batched_ego_graphs(self, seeds, radius=1, graph_id=defaults.graph_id):
-        """
-        Parameters
-        ----------
-
-        Returns
-        -------
-
-        Examples
-        --------
-        >>>
-        """
-        # FIXME: finish docstring above
-
-        if not isinstance(seeds, list):
-            seeds = [seeds]
-        batched_ego_graphs_result = self.__client.batched_ego_graphs(
-            seeds, radius, graph_id
-        )
-
-        return (
-            batched_ego_graphs_result.src_verts,
-            batched_ego_graphs_result.dst_verts,
-            batched_ego_graphs_result.edge_weights,
-            batched_ego_graphs_result.seeds_offsets,
-        )
-
-    @__server_connection
     def node2vec_random_walks(
         self, start_vertices, max_depth, graph_id=defaults.graph_id
     ):
