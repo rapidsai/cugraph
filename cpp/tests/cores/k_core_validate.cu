@@ -72,8 +72,7 @@ void check_correctness(
       edge_weight_view,
       std::optional<edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
       std::optional<cugraph::edge_property_view_t<edge_t, int32_t const*>>{std::nullopt},
-      std::optional<raft::device_span<vertex_t const>>{std::nullopt},
-      false);
+      std::optional<raft::device_span<vertex_t const>>{std::nullopt});
 
   // Now we'll count how many edges should be in the subgraph
   auto expected_edge_count =
