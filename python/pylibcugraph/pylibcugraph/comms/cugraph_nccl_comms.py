@@ -19,7 +19,7 @@ from raft_dask.common.comms_utils import inject_comms_on_handle_coll_only
 from pylibraft.common.handle import Handle
 from rmm._cuda.gpu import getDevice, setDevice
 
-from cugraph.dask.comms.comms_wrapper import init_subcomms
+from comms_wrapper import init_subcomms
 
 __nccl_comms = None
 __raft_handle = None
