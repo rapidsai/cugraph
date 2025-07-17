@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2024, NVIDIA CORPORATION.
+# Copyright (c) 2019-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -11,10 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.utilities import (
-    ensure_cugraph_obj_for_nx,
-    df_score_to_dictionary,
-)
+
 from pylibcugraph import (
     balanced_cut_clustering as pylibcugraph_balanced_cut_clustering,
     spectral_modularity_maximization as pylibcugraph_spectral_modularity_maximization,
@@ -42,13 +39,8 @@ def spectralBalancedCutClustering(
 
     Parameters
     ----------
-    G : cugraph.Graph or networkx.Graph
+    G : cugraph.Graph
         Graph descriptor
-
-        .. deprecated:: 24.12
-           Accepting a ``networkx.Graph`` is deprecated and will be removed in a
-           future version.  For ``networkx.Graph`` use networkx directly with
-           the ``nx-cugraph`` backend. See:  https://rapids.ai/nx-cugraph/
 
     num_clusters : integer
         Specifies the number of clusters to find, must be greater than 1
@@ -94,7 +86,6 @@ def spectralBalancedCutClustering(
 
     # Error checking in C++ code
 
-    G, isNx = ensure_cugraph_obj_for_nx(G)
     # Check if vertex type is "int32"
     if (
         G.edgelist.edgelist_df.dtypes.iloc[0] != np.int32
@@ -123,9 +114,6 @@ def spectralBalancedCutClustering(
     if G.renumbered:
         df = G.unrenumber(df, "vertex")
 
-    if isNx is True:
-        df = df_score_to_dictionary(df, "cluster")
-
     return df
 
 
@@ -144,13 +132,8 @@ def spectralModularityMaximizationClustering(
 
     Parameters
     ----------
-    G : cugraph.Graph or networkx.Graph
+    G : cugraph.Graph
         cuGraph graph descriptor. This graph should have edge weights.
-
-        .. deprecated:: 24.12
-           Accepting a ``networkx.Graph`` is deprecated and will be removed in a
-           future version.  For ``networkx.Graph`` use networkx directly with
-           the ``nx-cugraph`` backend. See:  https://rapids.ai/nx-cugraph/
 
     num_clusters : integer
         Specifies the number of clusters to find
@@ -194,7 +177,6 @@ def spectralModularityMaximizationClustering(
 
     """
 
-    G, isNx = ensure_cugraph_obj_for_nx(G)
     if (
         G.edgelist.edgelist_df.dtypes.iloc[0] != np.int32
         or G.edgelist.edgelist_df.dtypes.iloc[1] != np.int32
@@ -223,9 +205,6 @@ def spectralModularityMaximizationClustering(
     if G.renumbered:
         df = G.unrenumber(df, "vertex")
 
-    if isNx is True:
-        df = df_score_to_dictionary(df, "cluster")
-
     return df
 
 
@@ -240,13 +219,8 @@ def analyzeClustering_modularity(
 
     Parameters
     ----------
-    G : cugraph.Graph or networkx.Graph
+    G : cugraph.Graph
         graph descriptor. This graph should have edge weights.
-
-        .. deprecated:: 24.12
-           Accepting a ``networkx.Graph`` is deprecated and will be removed in a
-           future version.  For ``networkx.Graph`` use networkx directly with
-           the ``nx-cugraph`` backend. See:  https://rapids.ai/nx-cugraph/
 
     n_clusters : integer
         Specifies the number of clusters in the given clustering
@@ -284,7 +258,6 @@ def analyzeClustering_modularity(
     if type(cluster_col_name) is not str:
         raise Exception("cluster_col_name must be a string")
 
-    G, isNx = ensure_cugraph_obj_for_nx(G)
     if (
         G.edgelist.edgelist_df.dtypes.iloc[0] != np.int32
         or G.edgelist.edgelist_df.dtypes.iloc[1] != np.int32
@@ -365,8 +338,6 @@ def analyzeClustering_edge_cut(
 
     if type(cluster_col_name) is not str:
         raise Exception("cluster_col_name must be a string")
-
-    G, isNx = ensure_cugraph_obj_for_nx(G)
 
     if (
         G.edgelist.edgelist_df.dtypes.iloc[0] != np.int32

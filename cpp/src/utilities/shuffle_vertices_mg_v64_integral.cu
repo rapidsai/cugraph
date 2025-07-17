@@ -26,28 +26,62 @@ template rmm::device_uvector<int64_t> shuffle_int_vertices_to_local_gpu_by_verte
   raft::host_span<int64_t const> vertex_partition_range_lasts,
   std::optional<large_buffer_type_t> large_buffer_type);
 
-template std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<int32_t>>
-shuffle_int_vertex_value_pairs_to_local_gpu_by_vertex_partitioning(
+template std::tuple<rmm::device_uvector<int64_t>, dataframe_buffer_type_t<int32_t>>
+shuffle_int_vertex_value_pairs_to_local_gpu_by_vertex_partitioning<int64_t, int32_t>(
   raft::handle_t const& handle,
   rmm::device_uvector<int64_t>&& d_vertices,
-  rmm::device_uvector<int32_t>&& d_values,
+  dataframe_buffer_type_t<int32_t>&& d_values,
   raft::host_span<int64_t const> vertex_partition_range_lasts,
+  std::optional<large_buffer_type_t> large_buffer_type);
+
+template std::tuple<rmm::device_uvector<int64_t>, dataframe_buffer_type_t<int64_t>>
+shuffle_int_vertex_value_pairs_to_local_gpu_by_vertex_partitioning<int64_t, int64_t>(
+  raft::handle_t const& handle,
+  rmm::device_uvector<int64_t>&& d_vertices,
+  dataframe_buffer_type_t<int64_t>&& d_values,
+  raft::host_span<int64_t const> vertex_partition_range_lasts,
+  std::optional<large_buffer_type_t> large_buffer_type);
+
+template std::tuple<rmm::device_uvector<int64_t>, dataframe_buffer_type_t<size_t>>
+shuffle_int_vertex_value_pairs_to_local_gpu_by_vertex_partitioning<int64_t, size_t>(
+  raft::handle_t const& handle,
+  rmm::device_uvector<int64_t>&& d_vertices,
+  dataframe_buffer_type_t<size_t>&& d_values,
+  raft::host_span<int64_t const> vertex_partition_range_lasts,
+  std::optional<large_buffer_type_t> large_buffer_type);
+
+template std::tuple<rmm::device_uvector<int64_t>,
+                    dataframe_buffer_type_t<cuda::std::tuple<int32_t, int32_t>>>
+shuffle_int_vertex_value_pairs_to_local_gpu_by_vertex_partitioning<
+  int64_t,
+  cuda::std::tuple<int32_t, int32_t>>(
+  raft::handle_t const& handle,
+  rmm::device_uvector<int64_t>&& d_vertices,
+  dataframe_buffer_type_t<cuda::std::tuple<int32_t, int32_t>>&& d_values,
+  raft::host_span<int64_t const> vertex_partition_range_lasts,
+  std::optional<large_buffer_type_t> large_buffer_type);
+
+template std::tuple<rmm::device_uvector<int64_t>,
+                    dataframe_buffer_type_t<cuda::std::tuple<int32_t, int64_t>>>
+shuffle_int_vertex_value_pairs_to_local_gpu_by_vertex_partitioning<
+  int64_t,
+  cuda::std::tuple<int32_t, int64_t>>(
+  raft::handle_t const& handle,
+  rmm::device_uvector<int64_t>&& d_vertices,
+  dataframe_buffer_type_t<cuda::std::tuple<int32_t, int64_t>>&& d_values,
+  raft::host_span<int64_t const> vertex_partition_range_lasts,
+  std::optional<large_buffer_type_t> large_buffer_type);
+
+template rmm::device_uvector<int64_t> shuffle_ext_vertices_to_local_gpu_by_vertex_partitioning(
+  raft::handle_t const& handle,
+  rmm::device_uvector<int64_t>&& d_vertices,
   std::optional<large_buffer_type_t> large_buffer_type);
 
 template std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<int64_t>>
-shuffle_int_vertex_value_pairs_to_local_gpu_by_vertex_partitioning(
+shuffle_ext_vertex_value_pairs_to_local_gpu_by_vertex_partitioning(
   raft::handle_t const& handle,
-  rmm::device_uvector<int64_t>&& d_vertices,
-  rmm::device_uvector<int64_t>&& d_values,
-  raft::host_span<int64_t const> vertex_partition_range_lasts,
-  std::optional<large_buffer_type_t> large_buffer_type);
-
-template std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<size_t>>
-shuffle_int_vertex_value_pairs_to_local_gpu_by_vertex_partitioning(
-  raft::handle_t const& handle,
-  rmm::device_uvector<int64_t>&& d_vertices,
-  rmm::device_uvector<size_t>&& d_values,
-  raft::host_span<int64_t const> vertex_partition_range_lasts,
+  rmm::device_uvector<int64_t>&& vertices,
+  rmm::device_uvector<int64_t>&& values,
   std::optional<large_buffer_type_t> large_buffer_type);
 
 }  // namespace detail

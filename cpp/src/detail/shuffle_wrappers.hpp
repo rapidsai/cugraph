@@ -124,7 +124,8 @@ rmm::device_uvector<vertex_t> shuffle_int_vertices_to_local_gpu_by_vertex_partit
  * @brief Shuffle vertices using the internal vertex key function which returns the target GPU ID.
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
- * @tparam value_t Type of vertex values. Needs to be an integral type.
+ * @tparam value_t Type of value. Currently support int32_t, int64_t, size_t,
+ * cuda::std::tuple<int32_t, int32_t and cuda::std::tuple<int32_t, int64_t>
  *
  * @param[in] handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator,
  * @param[in] vertices Vertex IDs to shuffle
@@ -135,22 +136,22 @@ rmm::device_uvector<vertex_t> shuffle_int_vertices_to_local_gpu_by_vertex_partit
  * memory resource is used). The shuffled vertex value pairs will also be stored in the buffer type
  * dictated by this parameter.
  *
- * @return tuple containing device vector of shuffled vertices and device vector of corresponding
+ * @return tuple containing device vectors of shuffled vertices and corresponding
  *         values
  */
 template <typename vertex_t, typename value_t>
-std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<value_t>>
+std::tuple<rmm::device_uvector<vertex_t>, dataframe_buffer_type_t<value_t>>
 shuffle_int_vertex_value_pairs_to_local_gpu_by_vertex_partitioning(
   raft::handle_t const& handle,
   rmm::device_uvector<vertex_t>&& vertices,
-  rmm::device_uvector<value_t>&& values,
+  dataframe_buffer_type_t<value_t>&& values,
   raft::host_span<vertex_t const> vertex_partition_range_lasts,
   std::optional<large_buffer_type_t> large_buffer_type = std::nullopt);
 
 /**
  * @ingroup shuffle_wrappers_cpp
- * @brief Groupby and count edgelist using the key function which returns the target local partition
- * ID for an edge.  The specified spans are reordered in place.
+ * @brief Groupby and count edgelist using the key function which returns the target local
+ * partition ID for an edge.  The specified spans are reordered in place.
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  *
@@ -171,8 +172,8 @@ shuffle_int_vertex_value_pairs_to_local_gpu_by_vertex_partitioning(
  * memory resource is used).
  *
  * @return A vector containing the number of edges in each local partition (if
- * groupby_and_count_local_partition is false) or in each segment with the same (local partition ID,
- * GPU ID) pair.
+ * groupby_and_count_local_partition is false) or in each segment with the same (local partition
+ * ID, GPU ID) pair.
  */
 template <typename vertex_t>
 rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
@@ -241,8 +242,8 @@ rmm::device_uvector<value_t> collect_local_vertex_values_from_ext_vertex_value_p
  * memory resource is used). The shuffled keys and property values will also be stored in the buffer
  * type dictated by this parameter.
  *
- * @return tuple of device vector of keys and vector of device vector of properties associated with
- * the key.
+ * @return tuple of device vector of keys and vector of device vector of properties associated
+ * with the key.
  */
 template <typename key_t, typename key_to_gpu_op_t>
 std::tuple<rmm::device_uvector<key_t>, std::vector<arithmetic_device_uvector_t>>
