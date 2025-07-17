@@ -259,8 +259,6 @@ extract_forest_pruned_graph_and_isolated_trees(
     size_t constexpr num_chunks{
       8};  // extract in multiple chunks to reduce peak memory usage (temporaraily store the edge
            // list in large memory buffer if bfs_usecase.use_large_buffer is set to true)
-    pruned_graph_src_chunks.reserve(num_chunks);
-    pruned_graph_dst_chunks.reserve(num_chunks);
     for (size_t i = 0; i < num_chunks; ++i) {
       pruned_graph_src_chunks.emplace_back(0, handle.get_stream());
       pruned_graph_dst_chunks.emplace_back(0, handle.get_stream());
@@ -313,29 +311,11 @@ extract_forest_pruned_graph_and_isolated_trees(
         std::nullopt,
         std::nullopt,
         std::make_optional<raft::device_span<vertex_t const>>(mg_renumber_map.data(),
-                                                              mg_renumber_map.size()));
+                                                              mg_renumber_map.size()),
+        large_buffer_type);
       mg_graph_view.clear_edge_mask();
-      if (large_buffer_type) {
-        CUGRAPH_EXPECTS(cugraph::large_buffer_manager::memory_buffer_initialized(),
-                        "Large memory buffer is not initialized.");
-        auto tmp_srcs = cugraph::large_buffer_manager::allocate_memory_buffer<vertex_t>(
-          std::get<0>(pruned_graph_edges).size(), handle.get_stream());
-        auto tmp_dsts = cugraph::large_buffer_manager::allocate_memory_buffer<vertex_t>(
-          std::get<1>(pruned_graph_edges).size(), handle.get_stream());
-        thrust::copy(handle.get_thrust_policy(),
-                     std::get<0>(pruned_graph_edges).begin(),
-                     std::get<0>(pruned_graph_edges).end(),
-                     tmp_srcs.begin());
-        thrust::copy(handle.get_thrust_policy(),
-                     std::get<1>(pruned_graph_edges).begin(),
-                     std::get<1>(pruned_graph_edges).end(),
-                     tmp_dsts.begin());
-        pruned_graph_src_chunks[i] = std::move(tmp_srcs);
-        pruned_graph_dst_chunks[i] = std::move(tmp_dsts);
-      } else {
-        pruned_graph_src_chunks[i] = std::move(std::get<0>(pruned_graph_edges));
-        pruned_graph_dst_chunks[i] = std::move(std::get<1>(pruned_graph_edges));
-      }
+      pruned_graph_src_chunks[i] = std::move(std::get<0>(pruned_graph_edges));
+      pruned_graph_dst_chunks[i] = std::move(std::get<1>(pruned_graph_edges));
     }
   }
 
@@ -378,28 +358,10 @@ extract_forest_pruned_graph_and_isolated_trees(
         std::nullopt,
         std::nullopt,
         std::make_optional<raft::device_span<vertex_t const>>(mg_renumber_map.data(),
-                                                              mg_renumber_map.size()));
-    if (large_buffer_type) {
-      CUGRAPH_EXPECTS(cugraph::large_buffer_manager::memory_buffer_initialized(),
-                      "Large memory buffer is not initialized.");
-      auto tmp_srcs = cugraph::large_buffer_manager::allocate_memory_buffer<vertex_t>(
-        std::get<0>(isolated_tree_edges).size(), handle.get_stream());
-      auto tmp_dsts = cugraph::large_buffer_manager::allocate_memory_buffer<vertex_t>(
-        std::get<1>(isolated_tree_edges).size(), handle.get_stream());
-      thrust::copy(handle.get_thrust_policy(),
-                   std::get<0>(isolated_tree_edges).begin(),
-                   std::get<0>(isolated_tree_edges).end(),
-                   tmp_srcs.begin());
-      thrust::copy(handle.get_thrust_policy(),
-                   std::get<1>(isolated_tree_edges).begin(),
-                   std::get<1>(isolated_tree_edges).end(),
-                   tmp_dsts.begin());
-      isolated_tree_edge_srcs = std::move(tmp_srcs);
-      isolated_tree_edge_dsts = std::move(tmp_dsts);
-    } else {
-      isolated_tree_edge_srcs = std::move(std::get<0>(isolated_tree_edges));
-      isolated_tree_edge_dsts = std::move(std::get<1>(isolated_tree_edges));
-    }
+                                                              mg_renumber_map.size()),
+        large_buffer_type);
+    isolated_tree_edge_srcs = std::move(std::get<0>(isolated_tree_edges));
+    isolated_tree_edge_dsts = std::move(std::get<1>(isolated_tree_edges));
   }
 
   // clear mg_graph
@@ -840,8 +802,6 @@ class Tests_GRAPH500_MGBFS
       if (bfs_usecase
             .use_large_buffer) {  // temporarily store components in host buffer to free up HBM
                                   // before extracting sub-graphs (which uses a lot of HBM)
-        CUGRAPH_EXPECTS(cugraph::large_buffer_manager::memory_buffer_initialized(),
-                        "Large memory buffer is not initialized.");
         tmp_components = cugraph::large_buffer_manager::allocate_memory_buffer<vertex_t>(
           components.size(), handle_->get_stream());
         thrust::copy(handle_->get_thrust_policy(),
@@ -876,8 +836,6 @@ class Tests_GRAPH500_MGBFS
                                        : std::nullopt);
 
       if (bfs_usecase.use_large_buffer) {
-        CUGRAPH_EXPECTS(cugraph::large_buffer_manager::memory_buffer_initialized(),
-                        "Large memory buffer is not initialized.");
         components.resize(tmp_components->size(), handle_->get_stream());
         thrust::copy(handle_->get_thrust_policy(),
                      tmp_components->begin(),
