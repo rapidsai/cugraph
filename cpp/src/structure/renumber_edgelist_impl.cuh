@@ -116,6 +116,85 @@ struct search_and_increment_degree_t {
 };
 
 template <typename vertex_t>
+rmm::device_uvector<vertex_t> find_uniques(raft::handle_t const& handle,
+                                           raft::device_span<vertex_t const> vertices,
+                                           size_t mem_frugal_threshold,
+                                           std::optional<large_buffer_type_t> large_buffer_type)
+{
+  if (vertices.size() > mem_frugal_threshold) {  // halve the temporary memory usage compared to the
+                                                 // simple copy & sort & unqiue approach
+    size_t first_half_size = vertices.size() / 2;
+
+    /* find uqniues in the firs half */
+
+    rmm::device_uvector<vertex_t> first_half_uniques(first_half_size, handle.get_stream());
+    thrust::copy(handle.get_thrust_policy(),
+                 vertices.begin(),
+                 vertices.begin() + first_half_size,
+                 first_half_uniques.begin());
+    thrust::sort(handle.get_thrust_policy(), first_half_uniques.begin(), first_half_uniques.end());
+    first_half_uniques.resize(cuda::std::distance(first_half_uniques.begin(),
+                                                  thrust::unique(handle.get_thrust_policy(),
+                                                                 first_half_uniques.begin(),
+                                                                 first_half_uniques.end())),
+                              handle.get_stream());
+    first_half_uniques.shrink_to_fit(handle.get_stream());
+
+    /* find uqniues in the second half */
+
+    rmm::device_uvector<vertex_t> second_half_uniques(vertices.size() - first_half_size,
+                                                      handle.get_stream());
+    thrust::copy(handle.get_thrust_policy(),
+                 vertices.begin() + first_half_size,
+                 vertices.end(),
+                 second_half_uniques.begin());
+    thrust::sort(
+      handle.get_thrust_policy(), second_half_uniques.begin(), second_half_uniques.end());
+    second_half_uniques.resize(cuda::std::distance(second_half_uniques.begin(),
+                                                   thrust::unique(handle.get_thrust_policy(),
+                                                                  second_half_uniques.begin(),
+                                                                  second_half_uniques.end())),
+                               handle.get_stream());
+    second_half_uniques.shrink_to_fit(handle.get_stream());
+
+    /* find the final uqniues */
+
+    rmm::device_uvector<vertex_t> uniques(first_half_uniques.size() + second_half_uniques.size(),
+                                          handle.get_stream());
+    thrust::copy(handle.get_thrust_policy(),
+                 first_half_uniques.begin(),
+                 first_half_uniques.end(),
+                 uniques.begin());
+    thrust::copy(handle.get_thrust_policy(),
+                 second_half_uniques.begin(),
+                 second_half_uniques.end(),
+                 uniques.begin() + first_half_uniques.size());
+    thrust::sort(handle.get_thrust_policy(), uniques.begin(), uniques.end());
+    uniques.resize(cuda::std::distance(
+                     uniques.begin(),
+                     thrust::unique(handle.get_thrust_policy(), uniques.begin(), uniques.end())),
+                   handle.get_stream());
+    uniques.shrink_to_fit(handle.get_stream());
+
+    return uniques;
+  } else {
+    auto uniques = large_buffer_type
+                     ? large_buffer_manager::allocate_memory_buffer<vertex_t>(vertices.size(),
+                                                                              handle.get_stream())
+                     : rmm::device_uvector<vertex_t>(vertices.size(), handle.get_stream());
+    thrust::copy(handle.get_thrust_policy(), vertices.begin(), vertices.end(), uniques.begin());
+    thrust::sort(handle.get_thrust_policy(), uniques.begin(), uniques.end());
+    uniques.resize(cuda::std::distance(
+                     uniques.begin(),
+                     thrust::unique(handle.get_thrust_policy(), uniques.begin(), uniques.end())),
+                   handle.get_stream());
+    uniques.shrink_to_fit(handle.get_stream());
+
+    return uniques;
+  }
+}
+
+template <typename vertex_t>
 std::optional<vertex_t> find_locally_unused_ext_vertex_id(
   raft::handle_t const& handle,
   raft::device_span<vertex_t const> sorted_local_vertices,
@@ -350,26 +429,26 @@ compute_renumber_map(raft::handle_t const& handle,
         ? large_buffer_manager::allocate_memory_buffer<vertex_t>(0, handle.get_stream())
         : rmm::device_uvector<vertex_t>(0, handle.get_stream());
     {
+      auto mem_frugal_threshold = std::numeric_limits<size_t>::max();
+      if (!large_edge_buffer_type) {
+        auto total_global_mem = handle.get_device_properties().totalGlobalMem;
+        auto constexpr mem_frugal_ratio =
+          0.1;  // if expected temporary buffer size exceeds the mem_Frugal_ratio of the
+                // total_global_mem, switch to the memory frugal approach
+        mem_frugal_threshold =
+          static_cast<size_t>(static_cast<double>(total_global_mem / sizeof(vertex_t)) *
+                              mem_frugal_ratio) /
+          2 /* tmp_minors & temporary memory use in sort */;
+      }
+
       std::vector<rmm::device_uvector<vertex_t>> edge_partition_tmp_majors{};
       edge_partition_tmp_majors.reserve(edgelist_majors.size());
       for (size_t i = 0; i < edgelist_majors.size(); ++i) {
-        auto tmp_majors =
-          large_edge_buffer_type
-            ? large_buffer_manager::allocate_memory_buffer<vertex_t>(edgelist_majors[i].size(),
-                                                                     handle.get_stream())
-            : rmm::device_uvector<vertex_t>(edgelist_majors[i].size(), handle.get_stream());
-        thrust::copy(handle.get_thrust_policy(),
-                     edgelist_majors[i].begin(),
-                     edgelist_majors[i].end(),
-                     tmp_majors.begin());
-        thrust::sort(handle.get_thrust_policy(), tmp_majors.begin(), tmp_majors.end());
-        tmp_majors.resize(
-          cuda::std::distance(
-            tmp_majors.begin(),
-            thrust::unique(handle.get_thrust_policy(), tmp_majors.begin(), tmp_majors.end())),
-          handle.get_stream());
-        tmp_majors.shrink_to_fit(handle.get_stream());
-
+        auto tmp_majors = find_uniques(
+          handle,
+          raft::device_span<vertex_t const>(edgelist_majors[i].data(), edgelist_majors[i].size()),
+          mem_frugal_threshold,
+          large_edge_buffer_type);
         edge_partition_tmp_majors.push_back(std::move(tmp_majors));
       }
       if constexpr (multi_gpu) {
@@ -410,26 +489,26 @@ compute_renumber_map(raft::handle_t const& handle,
         ? large_buffer_manager::allocate_memory_buffer<vertex_t>(0, handle.get_stream())
         : rmm::device_uvector<vertex_t>(0, handle.get_stream());
     {
+      auto mem_frugal_threshold = std::numeric_limits<size_t>::max();
+      if (!large_edge_buffer_type) {
+        auto total_global_mem = handle.get_device_properties().totalGlobalMem;
+        auto constexpr mem_frugal_ratio =
+          0.1;  // if expected temporary buffer size exceeds the mem_Frugal_ratio of the
+                // total_global_mem, switch to the memory frugal approach
+        mem_frugal_threshold =
+          static_cast<size_t>(static_cast<double>(total_global_mem / sizeof(vertex_t)) *
+                              mem_frugal_ratio) /
+          2 /* tmp_minors & temporary memory use in sort */;
+      }
+
       std::vector<rmm::device_uvector<vertex_t>> edge_partition_tmp_minors{};
       edge_partition_tmp_minors.reserve(edgelist_minors.size());
       for (size_t i = 0; i < edgelist_minors.size(); ++i) {
-        auto tmp_minors =
-          large_edge_buffer_type
-            ? large_buffer_manager::allocate_memory_buffer<vertex_t>(edgelist_minors[i].size(),
-                                                                     handle.get_stream())
-            : rmm::device_uvector<vertex_t>(edgelist_minors[i].size(), handle.get_stream());
-        thrust::copy(handle.get_thrust_policy(),
-                     edgelist_minors[i].begin(),
-                     edgelist_minors[i].end(),
-                     tmp_minors.begin());
-        thrust::sort(handle.get_thrust_policy(), tmp_minors.begin(), tmp_minors.end());
-        tmp_minors.resize(
-          cuda::std::distance(
-            tmp_minors.begin(),
-            thrust::unique(handle.get_thrust_policy(), tmp_minors.begin(), tmp_minors.end())),
-          handle.get_stream());
-        tmp_minors.shrink_to_fit(handle.get_stream());
-
+        auto tmp_minors = find_uniques(
+          handle,
+          raft::device_span<vertex_t const>(edgelist_minors[i].data(), edgelist_minors[i].size()),
+          mem_frugal_threshold,
+          large_edge_buffer_type);
         edge_partition_tmp_minors.push_back(std::move(tmp_minors));
       }
       if (edge_partition_tmp_minors.size() == 1) {
