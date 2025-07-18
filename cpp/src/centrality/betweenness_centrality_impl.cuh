@@ -246,7 +246,6 @@ void accumulate_vertex_results(
     reduce_op::maximum<vertex_t>{},
     do_expensive_check);
 
-
   rmm::device_uvector<weight_t> deltas(sigmas.size(), handle.get_stream());
   detail::scalar_fill(handle, deltas.data(), deltas.size(), weight_t{0});
 
@@ -295,65 +294,43 @@ void accumulate_vertex_results(
   // Pre-allocate reusable buffers to avoid repeated allocations (optimized for max frontier size)
   // Use binary search method to find frontier boundaries more efficiently
   
-  // Create distance-vertex pairs and sort them
-  rmm::device_uvector<vertex_t> vertices_at_distance(graph_view.local_vertex_partition_range_size(), handle.get_stream());
-  thrust::copy(
-    handle.get_thrust_policy(),
-    thrust::make_counting_iterator(graph_view.local_vertex_partition_range_first()),
-    thrust::make_counting_iterator(graph_view.local_vertex_partition_range_last()),
-    vertices_at_distance.begin());
+  std::vector<vertex_t> h_bounds{};
+  // Create separate arrays for sorting (preserve original distances)
+  rmm::device_uvector<vertex_t> distance_keys(distances.size(), handle.get_stream());
+  rmm::device_uvector<vertex_t> vertices_sorted(distances.size(), handle.get_stream());
   
-  // Create distance-vertex pairs for sorting
-  rmm::device_uvector<thrust::tuple<vertex_t, vertex_t>> distance_vertex_pairs(
-    graph_view.local_vertex_partition_range_size(), handle.get_stream());
-  
-  thrust::transform(
-    handle.get_thrust_policy(),
-    thrust::make_zip_iterator(distances.begin(), vertices_at_distance.begin()),
-    thrust::make_zip_iterator(distances.begin(), vertices_at_distance.begin()) + distances.size(),
-    distance_vertex_pairs.begin(),
-    [] __device__(auto pair) {
-      auto distance = thrust::get<0>(pair);
-      auto vertex = thrust::get<1>(pair);
-      return thrust::make_tuple(distance, vertex);
-    });
+  // Copy distances for sorting (preserve original)
+  raft::copy(distance_keys.data(), distances.data(), distances.size(), handle.get_stream());
 
-  // Sort by distance, then by vertex ID for stable ordering
-  thrust::sort(
+  // Use thrust::sequence instead of thrust::copy for vertices
+  thrust::sequence(handle.get_thrust_policy(),
+                   vertices_sorted.begin(), vertices_sorted.end(),
+                   graph_view.local_vertex_partition_range_first());
+  
+  // Sort vertices by distance using stable_sort_by_key
+  thrust::stable_sort_by_key(
     handle.get_thrust_policy(),
-    distance_vertex_pairs.begin(),
-    distance_vertex_pairs.end());
-
-  // Single vectorized thrust call to compute all bounds for distances 0 to diameter
-  vertex_t max_distance = diameter;
+    distance_keys.begin(), distance_keys.end(),   // keys (copied distances)
+    vertices_sorted.begin()                       // values (vertices)
+  );
   
-  rmm::device_uvector<vertex_t> search_keys(max_distance + 1, handle.get_stream());
-  
-  // Use thrust::copy with counting_iterator instead of thrust::sequence
-  thrust::copy(
-    handle.get_thrust_policy(),
-    thrust::make_counting_iterator<vertex_t>(0),
-    thrust::make_counting_iterator<vertex_t>(max_distance + 1),
-    search_keys.begin());
-  
-  rmm::device_uvector<vertex_t> bounds(max_distance + 1, handle.get_stream());
-  
-  // Vectorized lower_bound to compute all bounds at once
-  auto vertex_proj = [] __device__(auto pair) { return thrust::get<0>(pair); };
-  auto transform_begin = thrust::make_transform_iterator(distance_vertex_pairs.begin(), vertex_proj);
-  auto transform_end = thrust::make_transform_iterator(distance_vertex_pairs.end(), vertex_proj);
-  thrust::lower_bound(
-    handle.get_thrust_policy(),
-    transform_begin,
-    transform_end,
-    search_keys.begin(),
-    search_keys.end(),
-    bounds.data());
-  
-  // Copy bounds to host for use in delta loop
-  std::vector<vertex_t> h_bounds(bounds.size());
-  raft::update_host(h_bounds.data(), bounds.data(), bounds.size(), handle.get_stream());
-  handle.sync_stream();
+  {
+    // Single vectorized thrust call to compute all bounds for distances 0 to diameter
+    rmm::device_uvector<vertex_t> d_bounds(diameter + 1, handle.get_stream());
+    
+    // Vectorized lower_bound to compute all bounds at once
+    thrust::lower_bound(
+      handle.get_thrust_policy(),
+      distance_keys.begin(), distance_keys.end(),   // sorted distances
+      thrust::make_counting_iterator<vertex_t>(0),  // search keys: [0, 1, 2, 3, ...]
+      thrust::make_counting_iterator<vertex_t>(diameter + 1),
+      d_bounds.data());
+    
+    // Copy bounds to host for use in delta loop
+    h_bounds.resize(d_bounds.size());
+    raft::update_host(h_bounds.data(), d_bounds.data(), d_bounds.size(), handle.get_stream());
+    handle.sync_stream();
+  }
   
   // Calculate max frontier size using the precomputed bounds
   vertex_t max_frontier_size = 0;
@@ -362,34 +339,25 @@ void accumulate_vertex_results(
     max_frontier_size = std::max(max_frontier_size, frontier_count);
   }
 
-  rmm::device_uvector<vertex_t> reusable_vertex_buffer(max_frontier_size, handle.get_stream());
   rmm::device_uvector<weight_t> reusable_delta_buffer(max_frontier_size, handle.get_stream());
 
-
-  
   // Based on Brandes algorithm, we want to follow back pointers in non-increasing
   // distance from S to compute delta
   //
   for (vertex_t d = diameter; d > 1; --d) {
-    // Use precomputed bounds for O(1) lookup instead of binary search
-    vertex_t first_d_minus_1 = h_bounds[d - 1];
-    vertex_t first_d = h_bounds[d];
-    vertex_t frontier_count = first_d - first_d_minus_1;
+    // Use precomputed bounds for O(1) lookup
+    if (d - 1 >= h_bounds.size() || d >= h_bounds.size()) {
+      continue;  // Skip if bounds are out of range
+    }
+    vertex_t frontier_count = h_bounds[d] - h_bounds[d - 1];
 
     if (frontier_count > 0) {      
-      // Combined operation: clear deltas and extract frontier vertices in one kernel
-      thrust::transform(
-        handle.get_thrust_policy(),
-        distance_vertex_pairs.begin() + first_d_minus_1,
-        distance_vertex_pairs.begin() + first_d,
-        thrust::make_zip_iterator(reusable_vertex_buffer.begin(), reusable_delta_buffer.begin()),
-        [] __device__(auto pair) { 
-          return thrust::make_tuple(thrust::get<1>(pair), weight_t{0}); 
-        });
+      // Reset reusable_delta_buffer to zero
+      thrust::fill(handle.get_thrust_policy(), reusable_delta_buffer.begin(), reusable_delta_buffer.begin() + frontier_count, weight_t{0});
       
-      // Create key_bucket_t from the frontier vertices
+      // Create key_bucket_t from the frontier vertices directly
       key_bucket_t<vertex_t, void, multi_gpu, true> vertex_list(handle);
-      vertex_list.insert(reusable_vertex_buffer.begin(), reusable_vertex_buffer.begin() + frontier_count);
+      vertex_list.insert(vertices_sorted.begin() + h_bounds[d - 1], vertices_sorted.begin() + h_bounds[d]);
 
       // Compute deltas for frontier vertices
       per_v_transform_reduce_outgoing_e(
@@ -420,7 +388,7 @@ void accumulate_vertex_results(
         handle.get_thrust_policy(),
         reusable_delta_buffer.begin(),
         reusable_delta_buffer.begin() + frontier_count,
-        reusable_vertex_buffer.begin(),
+        vertices_sorted.begin() + h_bounds[d - 1],
         deltas.begin()
       );
       
@@ -432,8 +400,8 @@ void accumulate_vertex_results(
       
       thrust::for_each(
         handle.get_thrust_policy(),
-        thrust::make_zip_iterator(reusable_vertex_buffer.begin(), reusable_delta_buffer.begin()),
-        thrust::make_zip_iterator(reusable_vertex_buffer.begin(), reusable_delta_buffer.begin()) + frontier_count,
+        thrust::make_zip_iterator(vertices_sorted.begin() + h_bounds[d - 1], reusable_delta_buffer.begin()),
+        thrust::make_zip_iterator(vertices_sorted.begin() + h_bounds[d], reusable_delta_buffer.begin()),
         [distances = distances.begin(),
          sigmas = sigmas.begin(),
          deltas = deltas.begin(),
