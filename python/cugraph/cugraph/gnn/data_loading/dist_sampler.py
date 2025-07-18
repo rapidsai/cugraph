@@ -20,7 +20,7 @@ import numpy as np
 import cupy
 import cudf
 
-from typing import Union, List, Dict, Tuple, Iterator, Optional
+from typing import Union, List, Dict, Tuple, Iterator, Optional, Any
 
 from cugraph.utilities.utils import import_optional, MissingModule
 from cugraph.gnn.comms import cugraph_comms_get_raft_handle
@@ -31,6 +31,27 @@ from cugraph.gnn.data_loading.dist_io import DistSampleWriter
 
 torch = MissingModule("torch")
 TensorType = Union["torch.Tensor", cupy.ndarray, cudf.Series]
+
+
+def verify_metadata(metadata: Optional[Dict[str, Union[str, Tuple[str, str, str]]]]):
+    if metadata is not None:
+        for k, v in metadata.items():
+            assert isinstance(k, str), "Metadata keys must be strings."
+            if isinstance(v, tuple):
+                assert len(v) == 3, "Metadata tuples must be of length 3."
+                assert isinstance(
+                    v[0], str
+                ), "Metadata tuple must be of type (str, str, str)."
+                assert isinstance(
+                    v[1], str
+                ), "Metadata tuple must be of type (str, str, str)."
+                assert isinstance(
+                    v[2], str
+                ), "Metadata tuple must be of type (str, str, str)."
+            else:
+                assert isinstance(
+                    v, str
+                ), "Metadata values must be strings or tuples of strings."
 
 
 class DistSampler:
@@ -78,6 +99,7 @@ class DistSampler:
         batch_id_offsets: TensorType,
         random_state: int = 0,
         assume_equal_input_size: bool = False,
+        metadata: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, TensorType]:
         """
         For a single call group of seeds and associated batch ids, performs
@@ -97,7 +119,8 @@ class DistSampler:
             If True, will assume all ranks have the same number of inputs,
             and will skip the synchronization/gather steps to check for
             and handle uneven inputs.
-
+        metadata: Optional[Dict[str, Any]]
+            Metadata to be added to the minibatch dictionary.
         Returns
         -------
         A dictionary containing the sampling outputs (majors, minors, map, etc.)
@@ -166,6 +189,7 @@ class DistSampler:
         batches_per_call: int,
         random_state: int,
         assume_equal_input_size: bool,
+        metadata: Optional[Dict[str, Any]] = None,
     ) -> Union[None, Iterator[Tuple[Dict[str, "torch.Tensor"], int, int]]]:
         torch = import_optional("torch")
 
@@ -189,6 +213,7 @@ class DistSampler:
             seeds=current_seeds,
             batch_id_offsets=input_offsets,
             random_state=random_state,
+            metadata=metadata,
         )
 
         minibatch_dict["input_index"] = current_ix.cuda()
@@ -199,7 +224,9 @@ class DistSampler:
             minibatch_dict["map"] = minibatch_dict["renumber_map"]
             del minibatch_dict["renumber_map"]
             minibatch_dict = {
-                k: torch.as_tensor(v, device="cuda")
+                k: v
+                if isinstance(v, (str, tuple))
+                else torch.as_tensor(v, device="cuda")
                 for k, v in minibatch_dict.items()
                 if v is not None
             }
@@ -274,6 +301,7 @@ class DistSampler:
         random_state: int = 62,
         assume_equal_input_size: bool = False,
         input_id: Optional[TensorType] = None,
+        metadata: Optional[Dict[str, Union[str, Tuple[str, str, str]]]] = None,
     ) -> Iterator[Tuple[Dict[str, "torch.Tensor"], int, int]]:
         """
         Performs node-based sampling.  Accepts a list of seed nodes, and batch size.
@@ -297,8 +325,12 @@ class DistSampler:
             Input ids corresponding to the original batch tensor, if it
             was permuted prior to calling this function.  If present,
             will be saved with the samples.
+        metadata: Optional[Dict[str, Union[str, Tuple[str, str, str]]]]
+            Metadata to be added to the minibatch dictionary.
         """
         torch = import_optional("torch")
+
+        verify_metadata(metadata)
 
         nodes = torch.as_tensor(nodes, device="cuda")
         num_seeds = nodes.numel()
@@ -329,6 +361,7 @@ class DistSampler:
             batches_per_call,
             random_state,
             input_size_is_equal,
+            metadata,
         ]
 
         if self.__writer is None:
@@ -362,6 +395,7 @@ class DistSampler:
         batches_per_call: int,
         random_state: int,
         assume_equal_input_size: bool,
+        metadata: Optional[Dict[str, Any]] = None,
     ) -> Union[None, Iterator[Tuple[Dict[str, "torch.Tensor"], int, int]]]:
         torch = import_optional("torch")
 
@@ -478,6 +512,7 @@ class DistSampler:
             seeds=current_seeds,
             batch_id_offsets=current_batch_offsets,
             random_state=random_state,
+            metadata=metadata,
         )
         minibatch_dict["input_index"] = current_ix.cuda()
         minibatch_dict["input_label"] = current_label.cuda()
@@ -491,7 +526,9 @@ class DistSampler:
             minibatch_dict["map"] = minibatch_dict["renumber_map"]
             del minibatch_dict["renumber_map"]
             minibatch_dict = {
-                k: torch.as_tensor(v, device="cuda")
+                k: v
+                if isinstance(v, (str, tuple))
+                else torch.as_tensor(v, device="cuda")
                 for k, v in minibatch_dict.items()
                 if v is not None
             }
@@ -519,6 +556,7 @@ class DistSampler:
         assume_equal_input_size: bool = False,
         input_id: Optional[TensorType] = None,
         input_label: Optional[TensorType] = None,
+        metadata: Optional[Dict[str, Union[str, Tuple[str, str, str]]]] = None,
     ) -> Iterator[Tuple[Dict[str, "torch.Tensor"], int, int]]:
         """
         Performs sampling starting from seed edges.
@@ -545,9 +583,13 @@ class DistSampler:
             Input labels corresponding to the input seeds.  Typically used
             for link prediction sampling.  If present, will be saved with
             the samples.  Generally not compatible with negative sampling.
+        metadata: Optional[Dict[str, Union[str, Tuple[str, str, str]]]]
+            Metadata to be added to the minibatch dictionary.
         """
 
         torch = import_optional("torch")
+
+        verify_metadata(metadata)
 
         edges = torch.as_tensor(edges, device="cuda")
         num_seed_edges = edges.shape[-1]
@@ -584,6 +626,7 @@ class DistSampler:
             batches_per_call,
             random_state,
             input_size_is_equal,
+            metadata,
         ]
 
         if self.__writer is None:
@@ -752,6 +795,7 @@ class NeighborSampler(DistSampler):
         seeds: TensorType,
         batch_id_offsets: TensorType,
         random_state: int = 0,
+        metadata: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, TensorType]:
         torch = import_optional("torch")
         rank = torch.distributed.get_rank() if self.is_multi_gpu else 0
@@ -771,4 +815,6 @@ class NeighborSampler(DistSampler):
 
         sampling_results_dict["fanout"] = cupy.array(self.__fanout, dtype="int32")
         sampling_results_dict["rank"] = rank
+        if metadata is not None:
+            sampling_results_dict.update(metadata)
         return sampling_results_dict

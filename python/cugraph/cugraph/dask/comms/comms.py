@@ -1,4 +1,4 @@
-# Copyright (c) 2018-2024, NVIDIA CORPORATION.
+# Copyright (c) 2018-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -269,7 +269,7 @@ def rank_to_worker(client):
     """
     Return a mapping of ranks to dask workers.
     """
-    workers = client.scheduler_info()["workers"].keys()
+    workers = client.scheduler_info(n_workers=-1)["workers"].keys()
     worker_info = __instance.worker_info(workers)
     rank_to_worker = {}
     for w in worker_info:
