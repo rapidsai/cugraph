@@ -273,11 +273,11 @@ void accumulate_vertex_results(
                       });
   }
 
-  edge_src_property_t<vertex_t, thrust::tuple<vertex_t, edge_t, weight_t>> src_properties(
-    handle, graph_view);
-  edge_dst_property_t<vertex_t, thrust::tuple<vertex_t, edge_t, weight_t>> dst_properties(
-    handle, graph_view);
+  // Create property objects for distances, sigmas, and deltas (all 3 values)
+  edge_src_property_t<vertex_t, thrust::tuple<vertex_t, edge_t, weight_t>> src_properties(handle, graph_view);
+  edge_dst_property_t<vertex_t, thrust::tuple<vertex_t, edge_t, weight_t>> dst_properties(handle, graph_view);
 
+  // Update all properties initially (deltas start as 0)
   update_edge_src_property(
     handle,
     graph_view,
@@ -288,8 +288,6 @@ void accumulate_vertex_results(
     graph_view,
     thrust::make_zip_iterator(distances.begin(), sigmas.begin(), deltas.begin()),
     dst_properties.mutable_view());
-
-
   
   // Pre-allocate reusable buffers to avoid repeated allocations (optimized for max frontier size)
   // Use binary search method to find frontier boundaries more efficiently
@@ -345,10 +343,6 @@ void accumulate_vertex_results(
   // distance from S to compute delta
   //
   for (vertex_t d = diameter; d > 1; --d) {
-    // Use precomputed bounds for O(1) lookup
-    if (d - 1 >= h_bounds.size() || d >= h_bounds.size()) {
-      continue;  // Skip if bounds are out of range
-    }
     vertex_t frontier_count = h_bounds[d] - h_bounds[d - 1];
 
     if (frontier_count > 0) {      
@@ -372,7 +366,6 @@ void accumulate_vertex_results(
             auto sigma_v = static_cast<weight_t>(thrust::get<1>(src_props));
             auto sigma_w = static_cast<weight_t>(thrust::get<1>(dst_props));
             auto delta_w = thrust::get<2>(dst_props);
-            
             return (sigma_v / sigma_w) * (1 + delta_w);
           } else {
             return weight_t{0};
@@ -392,33 +385,18 @@ void accumulate_vertex_results(
         deltas.begin()
       );
       
-      // Combined operation: update properties and accumulate centralities in one kernel
+      // Update properties for vertices in vertex_list
+      update_edge_src_property(handle, graph_view, vertex_list.begin(), vertex_list.end(), thrust::make_zip_iterator(distances.begin(), sigmas.begin(), deltas.begin()), src_properties.mutable_view());
+      update_edge_dst_property(handle, graph_view, vertex_list.begin(), vertex_list.end(), thrust::make_zip_iterator(distances.begin(), sigmas.begin(), deltas.begin()), dst_properties.mutable_view());
       
-      // Get the property iterators outside the lambda (host-side)
-      auto src_props_first = src_properties.mutable_view().major_value_firsts()[0];  // Source properties are major
-      auto dst_props_first = dst_properties.mutable_view().minor_value_first();      // Destination properties are minor
-      
+      // Update centralities - both vertices_sorted and centralities use local vertex IDs
       thrust::for_each(
         handle.get_thrust_policy(),
         thrust::make_zip_iterator(vertices_sorted.begin() + h_bounds[d - 1], reusable_delta_buffer.begin()),
         thrust::make_zip_iterator(vertices_sorted.begin() + h_bounds[d], reusable_delta_buffer.begin()),
-        [distances = distances.begin(),
-         sigmas = sigmas.begin(),
-         deltas = deltas.begin(),
-         centralities = centralities.data(),
-         src_props_first,
-         dst_props_first,
-         d] __device__(auto pair) {
+        [centralities = centralities.data()] __device__(auto pair) {
           auto v = thrust::get<0>(pair);
           auto delta = thrust::get<1>(pair);
-          
-          // Update source properties (major)
-          src_props_first[v] = thrust::make_tuple(distances[v], sigmas[v], deltas[v]);
-          
-          // Update destination properties (minor)
-          dst_props_first[v] = thrust::make_tuple(distances[v], sigmas[v], deltas[v]);
-          
-          // Accumulate centralities
           centralities[v] += delta;
         });
     }
@@ -454,6 +432,8 @@ void accumulate_edge_results(
   edge_dst_property_t<vertex_t, thrust::tuple<vertex_t, edge_t, weight_t>> dst_properties(
     handle, graph_view);
 
+  // Note: deltas are included here even though they start as 0, because the original approach
+  // updates all properties at once. Deltas will be overwritten iteratively in the delta loop.
   update_edge_src_property(
     handle,
     graph_view,
