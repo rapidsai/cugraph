@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2023, NVIDIA CORPORATION.
+# Copyright (c) 2022-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -17,7 +17,7 @@ import pytest
 import networkx as nx
 
 import cugraph
-from cugraph.testing import utils, UNDIRECTED_DATASETS, DEFAULT_DATASETS
+from cugraph.testing import utils, DEFAULT_DATASETS
 from cugraph.datasets import toy_graph, karate
 
 
@@ -65,34 +65,6 @@ def test_eigenvector_centrality(graph_file):
     topKCU = topKVertices(eigen_scores, "cu_eigen", 10)
 
     assert topKNX.equals(topKCU)
-
-
-@pytest.mark.sg
-@pytest.mark.parametrize("graph_file", UNDIRECTED_DATASETS)
-def test_eigenvector_centrality_nx(graph_file):
-    dataset_path = graph_file.get_path()
-    NM = utils.read_csv_for_nx(dataset_path)
-
-    Gnx = nx.from_pandas_edgelist(
-        NM,
-        create_using=nx.DiGraph(),
-        source="0",
-        target="1",
-    )
-
-    nk = nx.eigenvector_centrality(Gnx)
-    ck = cugraph.eigenvector_centrality(Gnx)
-
-    # Calculating mismatch
-    nk = sorted(nk.items(), key=lambda x: x[0])
-    ck = sorted(ck.items(), key=lambda x: x[0])
-    err = 0
-    assert len(ck) == len(nk)
-    for i in range(len(ck)):
-        if abs(ck[i][1] - nk[i][1]) > 0.1 and ck[i][0] == nk[i][0]:
-            err = err + 1
-    print("Mismatches:", err)
-    assert err < (0.1 * len(ck))
 
 
 # TODO: Uncomment this test when/if nstart is supported for eigen centrality

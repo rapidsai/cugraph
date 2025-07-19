@@ -15,12 +15,11 @@ import gc
 import time
 
 import pytest
-import networkx as nx
 
 import cugraph
 import cudf
 from cudf.testing.testing import assert_series_equal
-from cugraph.testing import utils, UNDIRECTED_DATASETS
+from cugraph.testing import UNDIRECTED_DATASETS
 from cugraph.datasets import karate_asymmetric
 
 
@@ -198,36 +197,6 @@ def test_leiden(graph_file):
     # Ensure Leiden cluster's ID are numbered consecutively
     assert_series_equal(unique_parts, idx_col, check_dtype=False, check_names=False)
 
-    # Leiden modularity score is smaller than Louvain's
-    assert leiden_mod >= (0.75 * louvain_mod)
-
-
-@pytest.mark.sg
-@pytest.mark.parametrize("graph_file", UNDIRECTED_DATASETS)
-def test_leiden_nx(graph_file):
-    dataset_path = graph_file.get_path()
-    NM = utils.read_csv_for_nx(dataset_path)
-
-    G = nx.from_pandas_edgelist(
-        NM, create_using=nx.Graph(), source="0", target="1", edge_attr="weight"
-    )
-
-    leiden_parts, leiden_mod = cugraph_leiden(G)
-    louvain_parts, louvain_mod = cugraph_louvain(G)
-
-    unique_parts = (
-        cudf.Series(leiden_parts.values())
-        .drop_duplicates()
-        .sort_values(ascending=True)
-        .reset_index(drop=True)
-    )
-
-    idx_col = cudf.Series(unique_parts.index)
-
-    # Ensure Leiden cluster's ID are numbered consecutively
-    assert_series_equal(unique_parts, idx_col, check_dtype=False, check_names=False)
-
-    # Calculating modularity scores for comparison
     # Leiden modularity score is smaller than Louvain's
     assert leiden_mod >= (0.75 * louvain_mod)
 

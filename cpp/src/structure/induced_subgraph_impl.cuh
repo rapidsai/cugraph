@@ -196,12 +196,12 @@ extract_induced_subgraphs(
                  thrust::make_zip_iterator(graph_ids_v.end(), dst_subgraph_vertices_v.end()));
 
     dst_subgraph_offsets_v =
-      detail::compute_sparse_offsets<size_t>(graph_ids_v.begin(),
+      detail::compute_sparse_offsets<size_t>(handle,
+                                             graph_ids_v.begin(),
                                              graph_ids_v.end(),
                                              size_t{0},
                                              size_t{subgraph_offsets.size() - 1},
-                                             true,
-                                             handle.get_stream());
+                                             true);
 
     dst_subgraph_offsets =
       raft::device_span<size_t const>(dst_subgraph_offsets_v.data(), dst_subgraph_offsets_v.size());
@@ -286,12 +286,12 @@ extract_induced_subgraphs(
   }
 
   auto subgraph_edge_offsets =
-    detail::compute_sparse_offsets<size_t>(subgraph_edge_graph_ids.begin(),
+    detail::compute_sparse_offsets<size_t>(handle,
+                                           subgraph_edge_graph_ids.begin(),
                                            subgraph_edge_graph_ids.end(),
                                            size_t{0},
                                            size_t{subgraph_offsets.size() - 1},
-                                           true,
-                                           handle.get_stream());
+                                           true);
 
   return std::make_tuple(std::move(edge_majors),
                          std::move(edge_minors),

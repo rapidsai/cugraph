@@ -66,148 +66,78 @@ using edge_arithmetic_property_mutable_view_t =
 template <typename func_t>
 auto variant_type_dispatch(arithmetic_device_uvector_t& property, func_t func)
 {
-  if (std::holds_alternative<rmm::device_uvector<float>>(property)) {
-    auto& prop = std::get<rmm::device_uvector<float>>(property);
-    return func(prop);
-  } else if (std::holds_alternative<rmm::device_uvector<double>>(property)) {
-    auto& prop = std::get<rmm::device_uvector<double>>(property);
-    return func(prop);
-  } else if (std::holds_alternative<rmm::device_uvector<int32_t>>(property)) {
-    auto& prop = std::get<rmm::device_uvector<int32_t>>(property);
-    return func(prop);
-  } else if (std::holds_alternative<rmm::device_uvector<int64_t>>(property)) {
-    auto& prop = std::get<rmm::device_uvector<int64_t>>(property);
-    return func(prop);
-  } else {
-    CUGRAPH_EXPECTS(std::holds_alternative<rmm::device_uvector<size_t>>(property),
-                    "unsupported variant type -- shouldn't happen");
-
-    auto& prop = std::get<rmm::device_uvector<size_t>>(property);
-    return func(prop);
+  switch (property.index()) {
+    case 1: return func(std::get<1>(property));
+    case 2: return func(std::get<2>(property));
+    case 3: return func(std::get<3>(property));
+    case 4: return func(std::get<4>(property));
+    case 5: return func(std::get<5>(property));
+    default: CUGRAPH_FAIL("Variant not initialized");
   }
 }
 
 template <typename func_t>
 auto variant_type_dispatch(arithmetic_device_uvector_t const& property, func_t func)
 {
-  if (std::holds_alternative<rmm::device_uvector<float>>(property)) {
-    auto& prop = std::get<rmm::device_uvector<float>>(property);
-    return func(prop);
-  } else if (std::holds_alternative<rmm::device_uvector<double>>(property)) {
-    auto& prop = std::get<rmm::device_uvector<double>>(property);
-    return func(prop);
-  } else if (std::holds_alternative<rmm::device_uvector<int32_t>>(property)) {
-    auto& prop = std::get<rmm::device_uvector<int32_t>>(property);
-    return func(prop);
-  } else if (std::holds_alternative<rmm::device_uvector<int64_t>>(property)) {
-    auto& prop = std::get<rmm::device_uvector<int64_t>>(property);
-    return func(prop);
-  } else {
-    CUGRAPH_EXPECTS(std::holds_alternative<rmm::device_uvector<size_t>>(property),
-                    "unsupported variant type -- shouldn't happen");
-    auto& prop = std::get<rmm::device_uvector<size_t>>(property);
-    return func(prop);
+  switch (property.index()) {
+    case 1: return func(std::get<1>(property));
+    case 2: return func(std::get<2>(property));
+    case 3: return func(std::get<3>(property));
+    case 4: return func(std::get<4>(property));
+    case 5: return func(std::get<5>(property));
+    default: CUGRAPH_FAIL("Variant not initialized");
   }
 }
 
 template <typename func_t>
 auto variant_type_dispatch(arithmetic_device_span_t& property, func_t func)
 {
-  if (std::holds_alternative<raft::device_span<float>>(property)) {
-    auto& prop = std::get<raft::device_span<float>>(property);
-    return func(prop);
-  } else if (std::holds_alternative<raft::device_span<double>>(property)) {
-    auto& prop = std::get<raft::device_span<double>>(property);
-    return func(prop);
-  } else if (std::holds_alternative<raft::device_span<int32_t>>(property)) {
-    auto& prop = std::get<raft::device_span<int32_t>>(property);
-    return func(prop);
-  } else if (std::holds_alternative<raft::device_span<int64_t>>(property)) {
-    auto& prop = std::get<raft::device_span<int64_t>>(property);
-    return func(prop);
-  } else {
-    CUGRAPH_EXPECTS(std::holds_alternative<raft::device_span<size_t>>(property),
-                    "unsupported variant type -- shouldn't happen");
-
-    auto& prop = std::get<raft::device_span<size_t>>(property);
-    return func(prop);
+  switch (property.index()) {
+    case 1: return func(std::get<1>(property));
+    case 2: return func(std::get<2>(property));
+    case 3: return func(std::get<3>(property));
+    case 4: return func(std::get<4>(property));
+    case 5: return func(std::get<5>(property));
+    default: CUGRAPH_FAIL("Variant not initialized");
   }
 }
 
 template <typename func_t>
 auto variant_type_dispatch(const_arithmetic_device_span_t& property, func_t func)
 {
-  if (std::holds_alternative<raft::device_span<float const>>(property)) {
-    auto& prop = std::get<raft::device_span<float const>>(property);
-    return func(prop);
-  } else if (std::holds_alternative<raft::device_span<double const>>(property)) {
-    auto& prop = std::get<raft::device_span<double const>>(property);
-    return func(prop);
-  } else if (std::holds_alternative<raft::device_span<int32_t const>>(property)) {
-    auto& prop = std::get<raft::device_span<int32_t const>>(property);
-    return func(prop);
-  } else if (std::holds_alternative<raft::device_span<int64_t const>>(property)) {
-    auto& prop = std::get<raft::device_span<int64_t const>>(property);
-    return func(prop);
-  } else {
-    CUGRAPH_EXPECTS(std::holds_alternative<raft::device_span<size_t const>>(property),
-                    "unsupported variant type -- shouldn't happen");
-
-    auto& prop = std::get<raft::device_span<size_t const>>(property);
-    return func(prop);
+  switch (property.index()) {
+    case 1: return func(std::get<1>(property));
+    case 2: return func(std::get<2>(property));
+    case 3: return func(std::get<3>(property));
+    case 4: return func(std::get<4>(property));
+    case 5: return func(std::get<5>(property));
+    default: CUGRAPH_FAIL("Variant not initialized");
   }
 }
 
 template <typename edge_t, typename func_t>
 auto variant_type_dispatch(edge_arithmetic_property_view_t<edge_t>& property, func_t func)
 {
-  if (std::holds_alternative<cugraph::edge_property_view_t<edge_t, float const*>>(property)) {
-    auto& prop = std::get<cugraph::edge_property_view_t<edge_t, float const*>>(property);
-    return func(prop);
-  } else if (std::holds_alternative<cugraph::edge_property_view_t<edge_t, double const*>>(
-               property)) {
-    auto& prop = std::get<cugraph::edge_property_view_t<edge_t, double const*>>(property);
-    return func(prop);
-  } else if (std::holds_alternative<cugraph::edge_property_view_t<edge_t, int32_t const*>>(
-               property)) {
-    auto& prop = std::get<cugraph::edge_property_view_t<edge_t, int32_t const*>>(property);
-    return func(prop);
-  } else if (std::holds_alternative<cugraph::edge_property_view_t<edge_t, int64_t const*>>(
-               property)) {
-    auto& prop = std::get<cugraph::edge_property_view_t<edge_t, int64_t const*>>(property);
-    return func(prop);
-  } else {
-    CUGRAPH_EXPECTS(
-      (std::holds_alternative<cugraph::edge_property_view_t<edge_t, size_t const*>>(property)),
-      "unsupported variant type -- shouldn't happen");
-
-    auto& prop = std::get<cugraph::edge_property_view_t<edge_t, size_t const*>>(property);
-    return func(prop);
+  switch (property.index()) {
+    case 1: return func(std::get<1>(property));
+    case 2: return func(std::get<2>(property));
+    case 3: return func(std::get<3>(property));
+    case 4: return func(std::get<4>(property));
+    case 5: return func(std::get<5>(property));
+    default: CUGRAPH_FAIL("Variant not initialized");
   }
 }
 
 template <typename edge_t, typename func_t>
 auto variant_type_dispatch(edge_arithmetic_property_mutable_view_t<edge_t>& property, func_t func)
 {
-  if (std::holds_alternative<cugraph::edge_property_view_t<edge_t, float*>>(property)) {
-    auto& prop = std::get<cugraph::edge_property_view_t<edge_t, float*>>(property);
-    return func(prop);
-  } else if (std::holds_alternative<cugraph::edge_property_view_t<edge_t, double*>>(property)) {
-    auto& prop = std::get<cugraph::edge_property_view_t<edge_t, double*>>(property);
-    return func(prop);
-  } else if (std::holds_alternative<cugraph::edge_property_view_t<edge_t, int32_t*>>(property)) {
-    auto& prop = std::get<cugraph::edge_property_view_t<edge_t, int32_t*>>(property);
-    return func(prop);
-  } else if (std::holds_alternative<cugraph::edge_property_view_t<edge_t, int64_t*>>(property)) {
-    auto& prop = std::get<cugraph::edge_property_view_t<edge_t, int64_t*>>(property);
-    return func(prop);
-  } else {
-    CUGRAPH_EXPECTS(
-      (std::holds_alternative<cugraph::edge_property_view_t<edge_t, size_t*>>(property)),
-      "unsupported variant type -- shouldn't happen");
-
-    auto& prop = std::get<cugraph::edge_property_view_t<edge_t, size_t const*>>(property);
-    return func(prop);
+  switch (property.index()) {
+    case 1: return func(std::get<1>(property));
+    case 2: return func(std::get<2>(property));
+    case 3: return func(std::get<3>(property));
+    case 4: return func(std::get<4>(property));
+    case 5: return func(std::get<5>(property));
+    default: CUGRAPH_FAIL("Variant not initialized");
   }
 }
 
