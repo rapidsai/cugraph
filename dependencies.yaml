@@ -192,6 +192,7 @@ files:
       - depends_on_cupy
       - depends_on_libcugraph
       - depends_on_pylibraft
+      - depends_on_raft_dask
       - depends_on_rmm
       - python_run_pylibcugraph
   py_test_pylibcugraph:
