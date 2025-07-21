@@ -180,7 +180,7 @@ files:
       - depends_on_libcugraph
       - depends_on_libraft
       - depends_on_librmm
-      - depends_on_pylibraft
+      - depends_on_raft_dask
       - depends_on_rmm
       - python_build_cythonize
   py_run_pylibcugraph:
