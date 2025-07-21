@@ -13,13 +13,28 @@
 
 import math
 
-from raft_dask.common.nccl import nccl
-from raft_dask.common.comms_utils import inject_comms_on_handle_coll_only
-
 from pylibraft.common.handle import Handle
 from rmm._cuda.gpu import getDevice, setDevice
 
 from pylibcugraph.comms import init_subcomms
+
+try:
+    from raft_dask.common.nccl import nccl
+    from raft_dask.common.comms_utils import inject_comms_on_handle_coll_only
+except ImportError as err:
+    # Generalize since err.name is arr when
+    # libnuma.so.1 is not available
+    if err.name == "ucp" or err.name == "arr":
+
+        class MissingUCXPy:
+            def __call__(self, *args, **kwargs):
+                raise ModuleNotFoundError(
+                    "ucx-py could not be imported but is required for MG operations"
+                )
+
+        raise MissingUCXPy()
+    else:
+        raise err
 
 __nccl_comms = None
 __raft_handle = None
