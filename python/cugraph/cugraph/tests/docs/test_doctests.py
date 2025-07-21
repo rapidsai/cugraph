@@ -130,12 +130,12 @@ def skip_docstring(docstring_obj):
 
     "currently not available on CUDA <version> systems"
 
-    where <version> is a major.minor version string, such as 11.4, that matches
+    where <version> is a major.minor version string, such as 12.0, that matches
     the version of CUDA on the system running the test.  An example of a line
     in a docstring that would result in a reason string from this function
-    running on a CUDA 11.4 system is:
+    running on a CUDA 12.0 system is:
 
-    NOTE: this function is currently not available on CUDA 11.4 systems.
+    NOTE: this function is currently not available on CUDA 12.0 systems.
     """
     docstring = docstring_obj.docstring
     cuda_version_string = _get_cuda_version_string()
