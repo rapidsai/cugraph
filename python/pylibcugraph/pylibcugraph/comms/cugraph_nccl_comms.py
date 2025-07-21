@@ -21,7 +21,7 @@ from pylibcugraph.comms import init_subcomms
 try:
     from raft_dask.common.nccl import nccl
     from raft_dask.common.comms_utils import inject_comms_on_handle_coll_only
-except (ImportError, ModuleNotFoundError):
+except ImportError:
 
     class MissingUCXPy:
         def __call__(self, *args, **kwargs):
