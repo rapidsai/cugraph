@@ -26,7 +26,8 @@ except ImportError:
     class MissingUCXPy:
         def __call__(self, *args, **kwargs):
             raise ModuleNotFoundError(
-                "ucx-py could not be imported but is required for MG operations"
+                "raft-dask and/or ucx-py could not be imported"
+                " but are required for MG operations"
             )
 
     nccl = MissingUCXPy()
