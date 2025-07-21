@@ -242,7 +242,7 @@ void per_v_pair_transform_dst_nbr_intersection(
   using vertex_t   = typename GraphViewType::vertex_type;
   using edge_t     = typename GraphViewType::edge_type;
   using property_t = typename thrust::iterator_traits<VertexValueInputIterator>::value_type;
-  using edge_property_value_t = typename EdgeValueInputIterator::value_type;
+  using edge_property_value_t = typename EdgeValueInputWrapper::value_type;
   using result_t = typename thrust::iterator_traits<VertexPairValueOutputIterator>::value_type;
 
   if (do_expensive_check) {

@@ -196,7 +196,7 @@ void sssp(raft::handle_t const& handle,
         vertex_frontier.bucket(bucket_idx_cur_near).size(), handle.get_stream());
       auto map_first = thrust::make_transform_iterator(
         vertex_frontier.bucket(bucket_idx_cur_near).begin(),
-        shift_left_t<vertex_t>{graph_view.local_vertex_partition_range_first()});
+        shift_left_t<vertex_t>{push_graph_view.local_vertex_partition_range_first()});
       thrust::gather(handle.get_thrust_policy(),
                      map_first,
                      map_first + vertex_frontier.bucket(bucket_idx_cur_near).size(),

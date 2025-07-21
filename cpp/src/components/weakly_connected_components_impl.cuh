@@ -30,6 +30,7 @@
 #include <cugraph/graph_view.hpp>
 #include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/device_comm.hpp>
+#include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
 
@@ -47,6 +48,7 @@
 #include <thrust/iterator/constant_iterator.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/discard_iterator.h>
+#include <thrust/iterator/transform_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/merge.h>
 #include <thrust/partition.h>
@@ -702,9 +704,9 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
         if constexpr (GraphViewType::is_multi_gpu) {
           rmm::device_uvector<vertex_t> gathered_level_components(
             vertex_frontier.bucket(bucket_idx_cur).size(), handle.get_stream());
-          auto map_first = thrust::make_transfrom_iterator(
+          auto map_first = thrust::make_transform_iterator(
             thrust::get<0>(vertex_frontier.bucket(bucket_idx_cur).begin().get_iterator_tuple()),
-            shift_left_t<vertex_t>{graph_view.local_vertex_partition_range_first()});
+            detail::shift_left_t<vertex_t>{level_graph_view.local_vertex_partition_range_first()});
           thrust::gather(handle.get_thrust_policy(),
                          map_first,
                          map_first + vertex_frontier.bucket(bucket_idx_cur).size(),
