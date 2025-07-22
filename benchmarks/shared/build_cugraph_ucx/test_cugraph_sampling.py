@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2023, NVIDIA CORPORATION.
+# Copyright (c) 2022-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -89,8 +89,12 @@ def run_sampling_test(ddf, start_list):
 
 
 if __name__ == "__main__":
+    import os
+
+    CUDA_VISIBLE_DEVICES = os.environ.get("CUDA_VISIBLE_DEVICES", "0,1,2,3,4,5,6,7")
+
     cluster = LocalCUDACluster(
-        protocol="ucx", rmm_pool_size="15GB", CUDA_VISIBLE_DEVICES="1,2,3,4,5,6,7,8"
+        protocol="ucx", rmm_pool_size="15GB", CUDA_VISIBLE_DEVICES=CUDA_VISIBLE_DEVICES
     )
     client = Client(cluster)
     Comms.initialize(p2p=True)

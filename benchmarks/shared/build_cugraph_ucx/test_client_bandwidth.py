@@ -76,8 +76,12 @@ def run_bandwidth_test(ddf, n):
 
 
 if __name__ == "__main__":
+    import os
+
+    CUDA_VISIBLE_DEVICES = os.environ.get("CUDA_VISIBLE_DEVICES", "1,2,3")
+
     cluster = LocalCUDACluster(
-        protocol="ucx", rmm_pool_size="15GB", CUDA_VISIBLE_DEVICES="1,2,3"
+        protocol="ucx", rmm_pool_size="15GB", CUDA_VISIBLE_DEVICES=CUDA_VISIBLE_DEVICES
     )
     client = Client(cluster)
     rmm.reinitialize(pool_allocator=True)
