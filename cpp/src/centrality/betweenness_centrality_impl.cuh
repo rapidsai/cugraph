@@ -233,10 +233,8 @@ void accumulate_vertex_results(
   bool with_endpoints,
   bool do_expensive_check)
 {
-  
   constexpr vertex_t invalid_distance = std::numeric_limits<vertex_t>::max();
 
-  RAFT_CUDA_TRY(cudaDeviceSynchronize());
   vertex_t diameter = transform_reduce_v(
     handle,
     graph_view,
@@ -288,31 +286,28 @@ void accumulate_vertex_results(
     graph_view,
     thrust::make_zip_iterator(distances.begin(), sigmas.begin(), deltas.begin()),
     dst_properties.mutable_view());
-  
-  // Pre-allocate reusable buffers to avoid repeated allocations (optimized for max frontier size)
-  // Use binary search method to find frontier boundaries more efficiently
-  
-  std::vector<vertex_t> h_bounds{};
-  // Create separate arrays for sorting (preserve original distances)
-  rmm::device_uvector<vertex_t> distance_keys(distances.size(), handle.get_stream());
-  rmm::device_uvector<vertex_t> vertices_sorted(distances.size(), handle.get_stream());
-  
-  // Copy distances for sorting (preserve original)
-  raft::copy(distance_keys.data(), distances.data(), distances.size(), handle.get_stream());
 
-  // Use thrust::sequence instead of thrust::copy for vertices
-  thrust::sequence(handle.get_thrust_policy(),
-                   vertices_sorted.begin(), vertices_sorted.end(),
-                   graph_view.local_vertex_partition_range_first());
-  
-  // Sort vertices by distance using stable_sort_by_key
-  thrust::stable_sort_by_key(
-    handle.get_thrust_policy(),
-    distance_keys.begin(), distance_keys.end(),   // keys (copied distances)
-    vertices_sorted.begin()                       // values (vertices)
-  );
-  
+  // Use binary search method to find frontier boundaries more efficiently
+  std::vector<vertex_t> h_bounds{};
+  rmm::device_uvector<vertex_t> vertices_sorted(distances.size(), handle.get_stream());
   {
+    // Create distance_keys for sorting
+    rmm::device_uvector<vertex_t> distance_keys(distances.size(), handle.get_stream());
+    
+    // Copy distances for sorting (preserve original)
+    raft::copy(distance_keys.data(), distances.data(), distances.size(), handle.get_stream());
+
+    // Use thrust::sequence instead of thrust::copy for vertices
+    thrust::sequence(handle.get_thrust_policy(),
+                    vertices_sorted.begin(), vertices_sorted.end(),
+                    graph_view.local_vertex_partition_range_first());
+    
+    // Sort vertices by distance using stable_sort_by_key
+    thrust::stable_sort_by_key(
+      handle.get_thrust_policy(),
+      distance_keys.begin(), distance_keys.end(),   // keys (copied distances)
+      vertices_sorted.begin()                       // values (vertices)
+    );
     // Single vectorized thrust call to compute all bounds for distances 0 to diameter
     rmm::device_uvector<vertex_t> d_bounds(diameter + 1, handle.get_stream());
     
@@ -337,13 +332,17 @@ void accumulate_vertex_results(
     max_frontier_size = std::max(max_frontier_size, frontier_count);
   }
 
+  // Pre-allocate reusable buffers to avoid repeated allocations (optimized for max frontier size)
   rmm::device_uvector<weight_t> reusable_delta_buffer(max_frontier_size, handle.get_stream());
 
   // Based on Brandes algorithm, we want to follow back pointers in non-increasing
   // distance from S to compute delta
-  //
   for (vertex_t d = diameter; d > 1; --d) {
     vertex_t frontier_count = h_bounds[d] - h_bounds[d - 1];
+    if constexpr (multi_gpu) {
+      frontier_count = host_scalar_allreduce(
+        handle.get_comms(), frontier_count, raft::comms::op_t::SUM, handle.get_stream());
+    }
 
     if (frontier_count > 0) {      
       // Reset reusable_delta_buffer to zero
@@ -390,14 +389,16 @@ void accumulate_vertex_results(
       update_edge_dst_property(handle, graph_view, vertex_list.begin(), vertex_list.end(), thrust::make_zip_iterator(distances.begin(), sigmas.begin(), deltas.begin()), dst_properties.mutable_view());
       
       // Update centralities - both vertices_sorted and centralities use local vertex IDs
+      auto v_first = graph_view.local_vertex_partition_range_first();
       thrust::for_each(
         handle.get_thrust_policy(),
         thrust::make_zip_iterator(vertices_sorted.begin() + h_bounds[d - 1], reusable_delta_buffer.begin()),
         thrust::make_zip_iterator(vertices_sorted.begin() + h_bounds[d], reusable_delta_buffer.begin()),
-        [centralities = centralities.data()] __device__(auto pair) {
+        [centralities = centralities.data(), v_first] __device__(auto pair) {
           auto v = thrust::get<0>(pair);
           auto delta = thrust::get<1>(pair);
-          centralities[v] += delta;
+          auto v_offset = v - v_first;
+          centralities[v_offset] += delta;
         });
     }
   }
