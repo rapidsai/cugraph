@@ -20,14 +20,17 @@ import cudf
 
 from typing import Any
 
-from cugraph.datasets import karate
-from cugraph.gnn import (
-    UniformNeighborSampler,
-    DistSampleWriter,
+from pylibcugraph.comms import (
     cugraph_comms_create_unique_id,
     cugraph_comms_get_raft_handle,
     cugraph_comms_init,
     cugraph_comms_shutdown,
+)
+
+from cugraph.datasets import karate
+from cugraph.gnn import (
+    UniformNeighborSampler,
+    DistSampleWriter,
 )
 from cugraph.gnn.data_loading.bulk_sampler_io import create_df_from_disjoint_arrays
 from pylibcugraph import MGGraph, ResourceHandle, GraphProperties
