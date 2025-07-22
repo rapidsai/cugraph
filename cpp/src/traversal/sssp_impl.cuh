@@ -192,11 +192,21 @@ void sssp(raft::handle_t const& handle,
   auto near_far_threshold = delta;
   while (true) {
     if (GraphViewType::is_multi_gpu) {
+      rmm::device_uvector<weight_t> gathered_distances(
+        vertex_frontier.bucket(bucket_idx_cur_near).size(), handle.get_stream());
+      auto map_first = thrust::make_transform_iterator(
+        vertex_frontier.bucket(bucket_idx_cur_near).begin(),
+        shift_left_t<vertex_t>{push_graph_view.local_vertex_partition_range_first()});
+      thrust::gather(handle.get_thrust_policy(),
+                     map_first,
+                     map_first + vertex_frontier.bucket(bucket_idx_cur_near).size(),
+                     distances,
+                     gathered_distances.begin());
       update_edge_src_property(handle,
                                push_graph_view,
                                vertex_frontier.bucket(bucket_idx_cur_near).begin(),
                                vertex_frontier.bucket(bucket_idx_cur_near).end(),
-                               distances,
+                               gathered_distances.begin(),
                                edge_src_distances.mutable_view());
     }
 
