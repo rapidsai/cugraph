@@ -28,8 +28,8 @@ rapids_cuda_init_architectures(CUGRAPH_ETL)
 project(CUGRAPH_ETL VERSION "${RAPIDS_VERSION}" LANGUAGES C CXX CUDA)
 
 if(CMAKE_CUDA_COMPILER_ID STREQUAL "NVIDIA" AND
-   CMAKE_CUDA_COMPILER_VERSION VERSION_LESS 11.0)
-    message(FATAL_ERROR "CUDA compiler version must be at least 11.0")
+   CMAKE_CUDA_COMPILER_VERSION VERSION_LESS 12.0)
+    message(FATAL_ERROR "CUDA compiler version must be at least 12.0")
 endif()
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND
