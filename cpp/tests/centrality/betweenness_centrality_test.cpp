@@ -40,9 +40,6 @@
 #include <sstream>
 #include <algorithm>
 
-// Debug flag - set to true to enable debug output
-#define DEBUG_BETWEENNESS_CENTRALITY 1
-
 struct BetweennessCentrality_Usecase {
   size_t num_seeds{std::numeric_limits<size_t>::max()};
   bool normalized{false};

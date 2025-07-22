@@ -278,13 +278,17 @@ void accumulate_vertex_results(
   edge_dst_property_t<vertex_t, edge_t> dst_sigmas(handle, graph_view);
   edge_dst_property_t<vertex_t, weight_t> dst_deltas(handle, graph_view);
 
-  // Update distances and sigmas initially (deltas start as 0)
-  update_edge_src_property(handle, graph_view, distances.begin(), src_distances.mutable_view());
-  update_edge_src_property(handle, graph_view, sigmas.begin(), src_sigmas.mutable_view());
-  update_edge_dst_property(handle, graph_view, distances.begin(), dst_distances.mutable_view());
-  update_edge_dst_property(handle, graph_view, sigmas.begin(), dst_sigmas.mutable_view());
-  update_edge_src_property(handle, graph_view, deltas.begin(), src_deltas.mutable_view());
-  update_edge_dst_property(handle, graph_view, deltas.begin(), dst_deltas.mutable_view());
+  // Update all 3 properties initially (deltas start as 0)
+  update_edge_src_property(
+    handle,
+    graph_view,
+    thrust::make_zip_iterator(distances.begin(), sigmas.begin(), deltas.begin()),
+    view_concat(src_distances.mutable_view(), src_sigmas.mutable_view(), src_deltas.mutable_view()));
+  update_edge_dst_property(
+    handle,
+    graph_view,
+    thrust::make_zip_iterator(distances.begin(), sigmas.begin(), deltas.begin()),
+    view_concat(dst_distances.mutable_view(), dst_sigmas.mutable_view(), dst_deltas.mutable_view()));
 
   // Use binary search method to find frontier boundaries more efficiently
   std::vector<vertex_t> h_bounds{};
@@ -388,12 +392,11 @@ void accumulate_vertex_results(
       update_edge_dst_property(handle, graph_view, vertex_list.begin(), vertex_list.end(), deltas.begin(), dst_deltas.mutable_view());
       
       // Update centralities - both vertices_sorted and centralities use local vertex IDs
-      auto v_first = graph_view.local_vertex_partition_range_first();
       thrust::for_each(
         handle.get_thrust_policy(),
         thrust::make_zip_iterator(vertices_sorted.begin() + h_bounds[d - 1], reusable_delta_buffer.begin()),
         thrust::make_zip_iterator(vertices_sorted.begin() + h_bounds[d], reusable_delta_buffer.begin()),
-        [centralities = centralities.data(), v_first] __device__(auto pair) {
+        [centralities = centralities.data(), v_first = graph_view.local_vertex_partition_range_first()] __device__(auto pair) {
           auto v = thrust::get<0>(pair);
           auto delta = thrust::get<1>(pair);
           auto v_offset = v - v_first;
