@@ -390,6 +390,10 @@ void renumber_local_ext_vertices(raft::handle_t const& handle,
  * @param edge_type_view Optional view object holding edge types for @p graph_view.
  * @param renumber_map If valid, return the renumbered edge list based on the provided @p
  * renumber_map
+ * @param large_buffer_type Flag indicating the large buffer type to use when we need to create a
+ * large device-accessible vector object (if the value is std::nullopt, the default RMM per-device
+ * memory resource is used). The returned edge list will also be stored in the buffer type dictated
+ * by this parameter.
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return Tuple of edge sources, destinations, (optional) edge weights (if
  * @p edge_weight_view.has_value() is true) and (optional) edge ids (if
@@ -413,7 +417,8 @@ decompress_to_edgelist(
   std::optional<edge_property_view_t<edge_t, edge_t const*>> edge_id_view,
   std::optional<edge_property_view_t<edge_t, edge_type_t const*>> edge_type_view,
   std::optional<raft::device_span<vertex_t const>> renumber_map,
-  bool do_expensive_check = false);
+  std::optional<large_buffer_type_t> large_buffer_type = std::nullopt,
+  bool do_expensive_check                              = false);
 
 /**
  * @ingroup graph_functions_cpp
