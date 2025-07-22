@@ -271,21 +271,20 @@ void accumulate_vertex_results(
                       });
   }
 
-  // Create property objects for distances, sigmas, and deltas (all 3 values)
-  edge_src_property_t<vertex_t, thrust::tuple<vertex_t, edge_t, weight_t>> src_properties(handle, graph_view);
-  edge_dst_property_t<vertex_t, thrust::tuple<vertex_t, edge_t, weight_t>> dst_properties(handle, graph_view);
+  edge_src_property_t<vertex_t, vertex_t> src_distances(handle, graph_view);
+  edge_src_property_t<vertex_t, edge_t> src_sigmas(handle, graph_view);
+  edge_src_property_t<vertex_t, weight_t> src_deltas(handle, graph_view);
+  edge_dst_property_t<vertex_t, vertex_t> dst_distances(handle, graph_view);
+  edge_dst_property_t<vertex_t, edge_t> dst_sigmas(handle, graph_view);
+  edge_dst_property_t<vertex_t, weight_t> dst_deltas(handle, graph_view);
 
-  // Update all properties initially (deltas start as 0)
-  update_edge_src_property(
-    handle,
-    graph_view,
-    thrust::make_zip_iterator(distances.begin(), sigmas.begin(), deltas.begin()),
-    src_properties.mutable_view());
-  update_edge_dst_property(
-    handle,
-    graph_view,
-    thrust::make_zip_iterator(distances.begin(), sigmas.begin(), deltas.begin()),
-    dst_properties.mutable_view());
+  // Update distances and sigmas initially (deltas start as 0)
+  update_edge_src_property(handle, graph_view, distances.begin(), src_distances.mutable_view());
+  update_edge_src_property(handle, graph_view, sigmas.begin(), src_sigmas.mutable_view());
+  update_edge_dst_property(handle, graph_view, distances.begin(), dst_distances.mutable_view());
+  update_edge_dst_property(handle, graph_view, sigmas.begin(), dst_sigmas.mutable_view());
+  update_edge_src_property(handle, graph_view, deltas.begin(), src_deltas.mutable_view());
+  update_edge_dst_property(handle, graph_view, deltas.begin(), dst_deltas.mutable_view());
 
   // Use binary search method to find frontier boundaries more efficiently
   std::vector<vertex_t> h_bounds{};
@@ -308,10 +307,10 @@ void accumulate_vertex_results(
       distance_keys.begin(), distance_keys.end(),   // keys (copied distances)
       vertices_sorted.begin()                       // values (vertices)
     );
-    // Single vectorized thrust call to compute all bounds for distances 0 to diameter
+
     rmm::device_uvector<vertex_t> d_bounds(diameter + 1, handle.get_stream());
     
-    // Vectorized lower_bound to compute all bounds at once
+    // Single vectorized thrust call to compute all bounds for distances 0 to diameter
     thrust::lower_bound(
       handle.get_thrust_policy(),
       distance_keys.begin(), distance_keys.end(),   // sorted distances
@@ -357,8 +356,8 @@ void accumulate_vertex_results(
         handle,
         graph_view,
         vertex_list,
-        src_properties.view(),
-        dst_properties.view(),
+        view_concat(src_distances.view(), src_sigmas.view(), src_deltas.view()),
+        view_concat(dst_distances.view(), dst_sigmas.view(), dst_deltas.view()),
         cugraph::edge_dummy_property_t{}.view(),
         [d] __device__(auto, auto, auto src_props, auto dst_props, auto) {
           if (thrust::get<0>(dst_props) == d) {
@@ -384,9 +383,9 @@ void accumulate_vertex_results(
         deltas.begin()
       );
       
-      // Update properties for vertices in vertex_list
-      update_edge_src_property(handle, graph_view, vertex_list.begin(), vertex_list.end(), thrust::make_zip_iterator(distances.begin(), sigmas.begin(), deltas.begin()), src_properties.mutable_view());
-      update_edge_dst_property(handle, graph_view, vertex_list.begin(), vertex_list.end(), thrust::make_zip_iterator(distances.begin(), sigmas.begin(), deltas.begin()), dst_properties.mutable_view());
+      // Only update deltas for vertices in vertex_list
+      update_edge_src_property(handle, graph_view, vertex_list.begin(), vertex_list.end(), deltas.begin(), src_deltas.mutable_view());
+      update_edge_dst_property(handle, graph_view, vertex_list.begin(), vertex_list.end(), deltas.begin(), dst_deltas.mutable_view());
       
       // Update centralities - both vertices_sorted and centralities use local vertex IDs
       auto v_first = graph_view.local_vertex_partition_range_first();
