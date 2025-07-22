@@ -10,6 +10,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+#
+# This file contains various functions required for managing NCCL comms
+# with Dask.
 
 # FIXME: these raft imports break the library if ucx-py is
 # not available. They are necessary only when doing MG work.
@@ -27,7 +30,7 @@ except ImportError as err:
     else:
         raise
 from pylibraft.common.handle import Handle
-from cugraph.dask.comms.comms_wrapper import init_subcomms as c_init_subcomms
+from pylibcugraph.comms import init_subcomms
 from dask.distributed import default_client, get_worker
 from cugraph.dask.common import read_utils
 import math
@@ -83,7 +86,7 @@ def subcomm_init(prows, pcols, partition_type):
 
 def _subcomm_init(sID, partition_row_size, dask_worker=None):
     handle = get_handle(sID, dask_worker)
-    c_init_subcomms(handle, partition_row_size)
+    init_subcomms(handle, partition_row_size)
 
 
 def initialize(comms=None, p2p=False, prows=None, pcols=None, partition_type=1):
