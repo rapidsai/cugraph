@@ -11,8 +11,6 @@ Vertex IDs are expected to be contiguous integers starting from 0.  If your data
 
 Additionally, when using the auto-renumbering feature, vertices are automatically un-renumbered in results.
 
-cuGraph is constantly being updated and improved. Please see the [Transition Guide](TRANSITIONGUIDE.md) if errors are encountered with newer versions
-
 ## Graph Sizes and GPU Memory Size
 The amount of memory required is dependent on the graph structure and the analytics being executed.  As a simple rule of thumb, the amount of GPU memory should be about twice the size of the data size.  That gives overhead for the CSV reader and other transform functions.  There are ways around the rule but using smaller data chunks.
 
