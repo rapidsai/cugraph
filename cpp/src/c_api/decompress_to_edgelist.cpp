@@ -99,6 +99,7 @@ struct decompress_to_edgelist_functor : public cugraph::c_api::abstract_functor 
           (number_map != nullptr) ? std::make_optional<raft::device_span<vertex_t const>>(
                                       number_map->data(), number_map->size())
                                   : std::nullopt,
+          std::nullopt,
           do_expensive_check_);
 
       result_ = new cugraph::c_api::cugraph_edgelist_t{
