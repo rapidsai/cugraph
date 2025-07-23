@@ -624,10 +624,6 @@ rmm::device_uvector<weight_t> betweenness_centrality(
     // FIXME:  This has an inefficiency in early iterations, as it doesn't have enough work to
     //         keep the GPUs busy.  But we can't run too many at once or we will run out of
     //         memory. Need to investigate options to improve this performance
-#if 1
-RAFT_CUDA_TRY(cudaDeviceSynchronize());
-auto start = std::chrono::steady_clock::now();
-#endif
     auto [distances, sigmas] =
       brandes_bfs(handle, graph_view, edge_weight_view, vertex_frontier, do_expensive_check);
     accumulate_vertex_results(handle,
@@ -638,12 +634,6 @@ auto start = std::chrono::steady_clock::now();
                               std::move(sigmas),
                               include_endpoints,
                               do_expensive_check);
-#if 1
-RAFT_CUDA_TRY(cudaDeviceSynchronize());
-auto end = std::chrono::steady_clock::now();
-std::chrono::duration<double> dur = end - start;
-std::cout << "source_idx=" << source_idx << " accumulate_vertex_results took " << dur.count() << std::endl;
-#endif
   }
 
   std::optional<weight_t> scale_nonsource{std::nullopt};
