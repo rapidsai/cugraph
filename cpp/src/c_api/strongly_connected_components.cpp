@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2023-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -51,6 +51,7 @@ struct scc_functor : public cugraph::c_api::abstract_functor {
             typename edge_t,
             typename weight_t,
             typename edge_type_type_t,
+            typename edge_time_t,
             bool store_transposed,
             bool multi_gpu>
   void operator()()
