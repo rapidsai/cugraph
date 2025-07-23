@@ -330,7 +330,7 @@ void accumulate_vertex_results(
   
   // Calculate max frontier size using the precomputed bounds
   vertex_t max_frontier_size = 0;
-  for (vertex_t d = 0; d < h_bounds.size() - 1; ++d) {
+  for (size_t d = 0; d < h_bounds.size() - 1; ++d) {
     vertex_t frontier_count = h_bounds[d + 1] - h_bounds[d];
     max_frontier_size = std::max(max_frontier_size, frontier_count);
   }
