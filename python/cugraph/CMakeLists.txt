@@ -34,7 +34,6 @@ include(rapids-cython-core)
 rapids_cython_init()
 
 add_subdirectory(cugraph/components)
-add_subdirectory(cugraph/dask/comms)
 add_subdirectory(cugraph/dask/structure)
 add_subdirectory(cugraph/internals)
 add_subdirectory(cugraph/layout)
