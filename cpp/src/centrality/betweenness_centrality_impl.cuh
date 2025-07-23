@@ -49,6 +49,8 @@
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/device_vector.h>
 #include <thrust/execution_policy.h>
+#include <chrono>
+#include <iostream>
 
 //
 // The formula for BC(v) is the sum over all (s,t) where s != v != t of
@@ -244,9 +246,6 @@ void accumulate_vertex_results(
     reduce_op::maximum<vertex_t>{},
     do_expensive_check);
 
-  rmm::device_uvector<weight_t> deltas(sigmas.size(), handle.get_stream());
-  detail::scalar_fill(handle, deltas.data(), deltas.size(), weight_t{0});
-
   if (with_endpoints) {
     vertex_t count = count_if_v(
       handle,
@@ -271,9 +270,7 @@ void accumulate_vertex_results(
                       });
   }
 
-  edge_src_property_t<vertex_t, vertex_t> src_distances(handle, graph_view);
   edge_src_property_t<vertex_t, edge_t> src_sigmas(handle, graph_view);
-  edge_src_property_t<vertex_t, weight_t> src_deltas(handle, graph_view);
   edge_dst_property_t<vertex_t, vertex_t> dst_distances(handle, graph_view);
   edge_dst_property_t<vertex_t, edge_t> dst_sigmas(handle, graph_view);
   edge_dst_property_t<vertex_t, weight_t> dst_deltas(handle, graph_view);
@@ -282,13 +279,18 @@ void accumulate_vertex_results(
   update_edge_src_property(
     handle,
     graph_view,
-    thrust::make_zip_iterator(distances.begin(), sigmas.begin(), deltas.begin()),
-    view_concat(src_distances.mutable_view(), src_sigmas.mutable_view(), src_deltas.mutable_view()));
+    sigmas.begin(),
+    src_sigmas.mutable_view());
   update_edge_dst_property(
     handle,
     graph_view,
-    thrust::make_zip_iterator(distances.begin(), sigmas.begin(), deltas.begin()),
-    view_concat(dst_distances.mutable_view(), dst_sigmas.mutable_view(), dst_deltas.mutable_view()));
+    thrust::make_zip_iterator(distances.begin(), sigmas.begin()),
+    view_concat(dst_distances.mutable_view(), dst_sigmas.mutable_view()));
+  fill_edge_dst_property(
+    handle,
+    graph_view,
+    dst_deltas.mutable_view(),
+    weight_t{0.0});
 
   // Use binary search method to find frontier boundaries more efficiently
   std::vector<vertex_t> h_bounds{};
@@ -348,24 +350,20 @@ void accumulate_vertex_results(
     }
 
     if (frontier_count > 0) {      
-      // Reset reusable_delta_buffer to zero
-      thrust::fill(handle.get_thrust_policy(), reusable_delta_buffer.begin(), reusable_delta_buffer.begin() + frontier_count, weight_t{0});
-      
       // Create key_bucket_t from the frontier vertices directly
-      key_bucket_t<vertex_t, void, multi_gpu, true> vertex_list(handle);
-      vertex_list.insert(vertices_sorted.begin() + h_bounds[d - 1], vertices_sorted.begin() + h_bounds[d]);
+      key_bucket_t<vertex_t, void, multi_gpu, true> vertex_list(handle, raft::device_span<vertex_t const>(vertices_sorted.data() + h_bounds[d - 1], h_bounds[d] - h_bounds[d - 1]));
 
       // Compute deltas for frontier vertices
       per_v_transform_reduce_outgoing_e(
         handle,
         graph_view,
         vertex_list,
-        view_concat(src_distances.view(), src_sigmas.view(), src_deltas.view()),
+        src_sigmas.view(),
         view_concat(dst_distances.view(), dst_sigmas.view(), dst_deltas.view()),
         cugraph::edge_dummy_property_t{}.view(),
-        [d] __device__(auto, auto, auto src_props, auto dst_props, auto) {
+        [d] __device__(auto, auto, auto src_sigma, auto dst_props, auto) {
           if (thrust::get<0>(dst_props) == d) {
-            auto sigma_v = static_cast<weight_t>(thrust::get<1>(src_props));
+            auto sigma_v = src_sigma;
             auto sigma_w = static_cast<weight_t>(thrust::get<1>(dst_props));
             auto delta_w = thrust::get<2>(dst_props);
             return (sigma_v / sigma_w) * (1 + delta_w);
@@ -378,18 +376,8 @@ void accumulate_vertex_results(
         reusable_delta_buffer.begin(),
         do_expensive_check);
       
-      // Scatter deltas back to main deltas array
-      thrust::scatter(
-        handle.get_thrust_policy(),
-        reusable_delta_buffer.begin(),
-        reusable_delta_buffer.begin() + frontier_count,
-        vertices_sorted.begin() + h_bounds[d - 1],
-        deltas.begin()
-      );
-      
       // Only update deltas for vertices in vertex_list
-      update_edge_src_property(handle, graph_view, vertex_list.begin(), vertex_list.end(), deltas.begin(), src_deltas.mutable_view());
-      update_edge_dst_property(handle, graph_view, vertex_list.begin(), vertex_list.end(), deltas.begin(), dst_deltas.mutable_view());
+      update_edge_dst_property(handle, graph_view, vertex_list.cbegin(), vertex_list.cend(), reusable_delta_buffer.begin(), dst_deltas.mutable_view());
       
       // Update centralities - both vertices_sorted and centralities use local vertex IDs
       thrust::for_each(
@@ -636,6 +624,10 @@ rmm::device_uvector<weight_t> betweenness_centrality(
     // FIXME:  This has an inefficiency in early iterations, as it doesn't have enough work to
     //         keep the GPUs busy.  But we can't run too many at once or we will run out of
     //         memory. Need to investigate options to improve this performance
+#if 1
+RAFT_CUDA_TRY(cudaDeviceSynchronize());
+auto start = std::chrono::steady_clock::now();
+#endif
     auto [distances, sigmas] =
       brandes_bfs(handle, graph_view, edge_weight_view, vertex_frontier, do_expensive_check);
     accumulate_vertex_results(handle,
@@ -646,6 +638,12 @@ rmm::device_uvector<weight_t> betweenness_centrality(
                               std::move(sigmas),
                               include_endpoints,
                               do_expensive_check);
+#if 1
+RAFT_CUDA_TRY(cudaDeviceSynchronize());
+auto end = std::chrono::steady_clock::now();
+std::chrono::duration<double> dur = end - start;
+std::cout << "source_idx=" << source_idx << " accumulate_vertex_results took " << dur.count() << std::endl;
+#endif
   }
 
   std::optional<weight_t> scale_nonsource{std::nullopt};
