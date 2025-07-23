@@ -47,10 +47,7 @@
 #include <thrust/copy.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/iterator/counting_iterator.h>
-#include <thrust/device_vector.h>
 #include <thrust/execution_policy.h>
-#include <chrono>
-#include <iostream>
 
 //
 // The formula for BC(v) is the sum over all (s,t) where s != v != t of
@@ -116,8 +113,7 @@ struct extract_edge_pred_op_t {
                              thrust::tuple<vertex_t, edge_t, weight_t> dst_props,
                              cuda::std::nullopt_t) const
   {
-    // For outgoing edges: we want edges where src is at distance d and dst is at distance d-1
-    return ((thrust::get<0>(src_props) == d) && (thrust::get<0>(dst_props) == (d - 1)));
+    return ((thrust::get<0>(src_props) == (d - 1)) && (thrust::get<0>(dst_props) == d));
   }
 
   template <typename edge_t, typename weight_t>
@@ -127,8 +123,7 @@ struct extract_edge_pred_op_t {
                              thrust::tuple<vertex_t, edge_t, weight_t> dst_props,
                              edge_t edge_multi_index) const
   {
-    // For outgoing edges: we want edges where src is at distance d and dst is at distance d-1
-    return ((thrust::get<0>(src_props) == d) && (thrust::get<0>(dst_props) == (d - 1)));
+    return ((thrust::get<0>(src_props) == (d - 1)) && (thrust::get<0>(dst_props) == d));
   }
 };
 
