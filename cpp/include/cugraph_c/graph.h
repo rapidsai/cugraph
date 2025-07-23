@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -82,6 +82,68 @@ cugraph_error_code_t cugraph_graph_create_sg(
   const cugraph_type_erased_device_array_view_t* weights,
   const cugraph_type_erased_device_array_view_t* edge_ids,
   const cugraph_type_erased_device_array_view_t* edge_type_ids,
+  bool_t store_transposed,
+  bool_t renumber,
+  bool_t drop_self_loops,
+  bool_t drop_multi_edges,
+  bool_t symmetrize,
+  bool_t do_expensive_check,
+  cugraph_graph_t** graph,
+  cugraph_error_t** error);
+
+/**
+ * @brief     Construct an SG graph
+ *
+ * @param [in]  handle         Handle for accessing resources
+ * @param [in]  properties     Properties of the constructed graph
+ * @param [in]  vertices       Optional device array containing a list of vertex ids
+ *                             (specify NULL if we should create vertex ids from the
+ *                             unique contents of @p src and @p dst)
+ * @param [in]  src            Device array containing the source vertex ids.
+ * @param [in]  dst            Device array containing the destination vertex ids
+ * @param [in]  weights        Device array containing the edge weights.  Note that an unweighted
+ *                             graph can be created by passing weights == NULL.
+ * @param [in]  edge_ids       Device array containing the edge ids for each edge.  Optional
+                               argument that can be NULL if edge ids are not used.
+ * @param [in]  edge_type_ids  Device array containing the edge types for each edge.  Optional
+                               argument that can be NULL if edge types are not used.
+ * @param [in]  edge_start_time_ids   Device array containing the edge start times for each
+ * edge. Optional argument that can be NULL if edge start times are not used.
+ * @param [in]  edge_end_time_ids   Device array containing the edge end times for each
+ * edge. Optional argument that can be NULL if edge end times are not used.
+ * @param [in]  store_transposed If true create the graph initially in transposed format
+ * @param [in]  renumber       If true, renumber vertices to make an efficient data structure.
+ *    If false, do not renumber.  Renumbering enables some significant optimizations within
+ *    the graph primitives library, so it is strongly encouraged.  Renumbering is required if
+ *    the vertices are not sequential integer values from 0 to num_vertices.
+ * @param [in]  drop_self_loops  If true, drop any self loops that exist in the provided edge list.
+ * @param [in]  drop_multi_edges If true, drop any multi edges that exist in the provided edge list.
+ *    Note that setting this flag will arbitrarily select one instance of a multi edge to be the
+ *    edge that survives.  If the edges have properties that should be honored (e.g. sum the
+ weights,
+ *    or take the maximum weight), the caller should remove specific edges themselves and not rely
+ *    on this flag.
+ * @param [in] symmetrize      If true, symmetrize the edgelist. The symmetrization of edges
+ * with edge_ids and/or edge_type_ids is currently not supported.
+ * @param [in]  do_expensive_check    If true, do expensive checks to validate the input data
+ *    is consistent with software assumptions.  If false bypass these checks.
+ * @param [out] graph          A pointer to the graph object
+ * @param [out] error          Pointer to an error object storing details of any error.  Will
+ *                             be populated if error code is not CUGRAPH_SUCCESS
+ *
+ * @return error code
+ */
+cugraph_error_code_t cugraph_graph_create_with_times_sg(
+  const cugraph_resource_handle_t* handle,
+  const cugraph_graph_properties_t* properties,
+  const cugraph_type_erased_device_array_view_t* vertices,
+  const cugraph_type_erased_device_array_view_t* src,
+  const cugraph_type_erased_device_array_view_t* dst,
+  const cugraph_type_erased_device_array_view_t* weights,
+  const cugraph_type_erased_device_array_view_t* edge_ids,
+  const cugraph_type_erased_device_array_view_t* edge_type_ids,
+  const cugraph_type_erased_device_array_view_t* edge_start_time_ids,
+  const cugraph_type_erased_device_array_view_t* edge_end_time_ids,
   bool_t store_transposed,
   bool_t renumber,
   bool_t drop_self_loops,
@@ -188,6 +250,80 @@ cugraph_error_code_t cugraph_graph_create_mg(
   cugraph_type_erased_device_array_view_t const* const* weights,
   cugraph_type_erased_device_array_view_t const* const* edge_ids,
   cugraph_type_erased_device_array_view_t const* const* edge_type_ids,
+  bool_t store_transposed,
+  size_t num_arrays,
+  bool_t drop_self_loops,
+  bool_t drop_multi_edges,
+  bool_t symmetrize,
+  bool_t do_expensive_check,
+  cugraph_graph_t** graph,
+  cugraph_error_t** error);
+
+/**
+ * @brief     Construct an MG graph
+ *
+ * @param [in]  handle          Handle for accessing resources
+ * @param [in]  properties      Properties of the constructed graph
+ * @param [in]  vertices        List of device arrays containing the unique vertex ids.
+ *                              If NULL we will construct this internally using the unique
+ *                              entries specified in src and dst
+ *                              All entries in this list will be concatenated on this GPU
+ *                              into a single array.
+ * @param [in]  src             List of device array containing the source vertex ids
+ *                              All entries in this list will be concatenated on this GPU
+ *                              into a single array.
+ * @param [in]  dst             List of device array containing the destination vertex ids
+ *                              All entries in this list will be concatenated on this GPU
+ *                              into a single array.
+ * @param [in]  weights         List of device array containing the edge weights.  Note that an
+ * unweighted graph can be created by passing weights == NULL.  If a weighted graph is to be
+ * created, the weights device array should be created on each rank, but the pointer can be NULL and
+ * the size 0 if there are no inputs provided by this rank All entries in this list will be
+ * concatenated on this GPU into a single array.
+ * @param [in]  edge_ids        List of device array containing the edge ids for each edge. Optional
+ *                              argument that can be NULL if edge ids are not used.
+ *                              All entries in this list will be concatenated on this GPU
+ *                              into a single array.
+ * @param [in]  edge_type_ids   List of device array containing the edge types for each edge.
+ * Optional argument that can be NULL if edge types are not used. All entries in this list will be
+ * concatenated on this GPU into a single array.
+ * @param [in]  edge_type_ids   List of device array containing the edge types for each edge.
+ * Optional argument that can be NULL if edge types are not used. All entries in this list will be
+ * concatenated on this GPU into a single array.
+ * @param [in]  edge_start_time_ids   List of device array containing the edge start times for each
+ * edge. Optional argument that can be NULL if edge start times are not used. All entries in this
+ * list will be concatenated on this GPU into a single array.
+ * @param [in]  edge_end_time_ids   List of device array containing the edge end times for each
+ * edge. Optional argument that can be NULL if edge end times are not used. All entries in this list
+ * will be concatenated on this GPU into a single array.
+ * @param [in]  store_transposed If true create the graph initially in transposed format
+ * @param [in]  num_arrays      The number of arrays specified in @p vertices, @p src, @p dst, @p
+ *                              weights, @p edge_ids and @p edge_type_ids
+ * @param [in]  drop_self_loops  If true, drop any self loops that exist in the provided edge list.
+ * @param [in]  drop_multi_edges If true, drop any multi edges that exist in the provided edge list.
+ *    Note that setting this flag will arbitrarily select one instance of a multi edge to be the
+ *    edge that survives.  If the edges have properties that should be honored (e.g. sum the
+ * weights, or take the maximum weight), the caller should do that on not rely on this flag.
+ * @param [in]  symmetrize      If true, symmetrize the edgelist. The symmetrization of edges
+ * with edge_ids and/or edge_type_ids is currently not supported.
+ * @param [in]  do_expensive_check  If true, do expensive checks to validate the input data
+ *    is consistent with software assumptions.  If false bypass these checks.
+ * @param [out] graph           A pointer to the graph object
+ * @param [out] error           Pointer to an error object storing details of any error.  Will
+ *                              be populated if error code is not CUGRAPH_SUCCESS
+ * @return error code
+ */
+cugraph_error_code_t cugraph_graph_create_with_times_mg(
+  cugraph_resource_handle_t const* handle,
+  cugraph_graph_properties_t const* properties,
+  cugraph_type_erased_device_array_view_t const* const* vertices,
+  cugraph_type_erased_device_array_view_t const* const* src,
+  cugraph_type_erased_device_array_view_t const* const* dst,
+  cugraph_type_erased_device_array_view_t const* const* weights,
+  cugraph_type_erased_device_array_view_t const* const* edge_ids,
+  cugraph_type_erased_device_array_view_t const* const* edge_type_ids,
+  cugraph_type_erased_device_array_view_t const* const* edge_start_time_ids,
+  cugraph_type_erased_device_array_view_t const* const* edge_end_time_ids,
   bool_t store_transposed,
   size_t num_arrays,
   bool_t drop_self_loops,
