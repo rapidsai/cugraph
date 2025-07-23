@@ -1,14 +1,11 @@
 name: pr
-
 on:
   push:
     branches:
       - "pull-request/[0-9]+"
-
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
-
 jobs:
   # Please keep pr-builder as the top job here
   pr-builder:
@@ -39,7 +36,7 @@ jobs:
     runs-on: ubuntu-latest
     continue-on-error: true
     env:
-        OTEL_SERVICE_NAME: "pr-cugraph"
+      OTEL_SERVICE_NAME: "pr-cugraph"
     steps:
       - name: Telemetry setup
         if: ${{ vars.TELEMETRY_ENABLED == 'true' }}
@@ -219,3 +216,5 @@ jobs:
     steps:
       - name: Telemetry summarize
         uses: rapidsai/shared-actions/telemetry-dispatch-summarize@main
+    env:
+      GH_TOKEN: ${{ github.token }}
