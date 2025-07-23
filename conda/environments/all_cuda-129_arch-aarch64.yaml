@@ -55,7 +55,7 @@ dependencies:
 - pytest-cov
 - pytest-xdist
 - python-louvain
-- pytorch>=2.3,<2.5a0
+- pytorch>=2.3
 - raft-dask==25.8.*,>=0.0.0a0
 - rapids-build-backend>=0.3.1,<0.4.0.dev0
 - rapids-dask-dependency==25.8.*,>=0.0.0a0

@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2022, NVIDIA CORPORATION.
+# Copyright (c) 2019-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -11,10 +11,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.centrality.katz_centrality import katz_centrality
 from cugraph.centrality.betweenness_centrality import (
     betweenness_centrality,
     edge_betweenness_centrality,
 )
+from cugraph.centrality.katz_centrality import katz_centrality
 from cugraph.centrality.degree_centrality import degree_centrality
 from cugraph.centrality.eigenvector_centrality import eigenvector_centrality

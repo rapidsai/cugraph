@@ -22,6 +22,8 @@ else:
     libcugraph.load_library()
     del libcugraph
 
+import pylibcugraph.comms
+
 from pylibcugraph.components._connectivity import (
     strongly_connected_components,
 )

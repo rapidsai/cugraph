@@ -17,6 +17,7 @@
 
 #include "detail/optional_dataframe_buffer.hpp"
 #include "detail/prim_utils.cuh"
+#include "prims/property_op_utils.cuh"
 
 #include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/edge_partition_edge_property_device_view.cuh>

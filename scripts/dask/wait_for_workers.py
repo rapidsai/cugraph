@@ -57,7 +57,7 @@ def wait_for_workers(
             sys.stdout.flush()
             break
         with Client(scheduler_file=scheduler_file_path) as client:
-            num_workers = len(client.scheduler_info()["workers"])
+            num_workers = client.scheduler_info()["n_workers"]
             if num_workers < num_expected_workers:
                 print(
                     f"wait_for_workers.py expected {num_expected_workers} but got {num_workers}, waiting..."

@@ -105,10 +105,8 @@ class Tests_SGGraphColoring
       per_v_transform_reduce_outgoing_e(
         handle,
         sg_graph_view,
-        cugraph::detail::edge_endpoint_property_view_t<vertex_t, vertex_t const*>(
-          std::vector<vertex_t const*>{d_colors.data()}, std::vector<vertex_t>{vertex_t{0}}),
-        cugraph::detail::edge_endpoint_property_view_t<vertex_t, vertex_t const*>(d_colors.data(),
-                                                                                  vertex_t{0}),
+        cugraph::make_edge_src_property_view<vertex_t, vertex_t>(sg_graph_view, d_colors.data(), 1),
+        cugraph::make_edge_dst_property_view<vertex_t, vertex_t>(sg_graph_view, d_colors.data(), 1),
         cugraph::edge_dummy_property_t{}.view(),
         [] __device__(auto src, auto dst, auto src_color, auto dst_color, cuda::std::nullopt_t) {
           if ((src != dst) && (src_color == dst_color)) {
@@ -140,10 +138,8 @@ class Tests_SGGraphColoring
       edge_t nr_conflicts = cugraph::transform_reduce_e(
         handle,
         sg_graph_view,
-        cugraph::detail::edge_endpoint_property_view_t<vertex_t, vertex_t const*>(
-          std::vector<vertex_t const*>{d_colors.begin()}, std::vector<vertex_t>{vertex_t{0}}),
-        cugraph::detail::edge_endpoint_property_view_t<vertex_t, vertex_t const*>(d_colors.begin(),
-                                                                                  vertex_t{0}),
+        cugraph::make_edge_src_property_view<vertex_t, vertex_t>(sg_graph_view, d_colors.data(), 1),
+        cugraph::make_edge_dst_property_view<vertex_t, vertex_t>(sg_graph_view, d_colors.data(), 1),
         cugraph::edge_dummy_property_t{}.view(),
         [renumber_map = (*sg_renumber_map).data()] __device__(
           auto src, auto dst, auto src_color, auto dst_color, cuda::std::nullopt_t) {

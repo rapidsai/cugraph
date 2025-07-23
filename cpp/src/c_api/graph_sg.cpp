@@ -286,6 +286,8 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
         std::move(edgelist_edge_end_times),
         cugraph::graph_properties_t{properties_->is_symmetric, properties_->is_multigraph},
         renumber_,
+        std::nullopt,
+        std::nullopt,
         do_expensive_check_);
 
       if (renumber_) {
@@ -548,6 +550,8 @@ struct create_graph_csr_functor : public cugraph::c_api::abstract_functor {
         std::move(edgelist_edge_end_times),
         cugraph::graph_properties_t{properties_->is_symmetric, properties_->is_multigraph},
         renumber_,
+        std::nullopt,
+        std::nullopt,
         do_expensive_check_);
 
       if (renumber_) {

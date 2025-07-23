@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 #include "c_api/random.hpp"
 
 #include "c_api/abstract_functor.hpp"
@@ -23,7 +24,6 @@
 
 #include <cugraph_c/algorithms.h>
 
-#include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 
 namespace {

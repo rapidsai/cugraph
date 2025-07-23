@@ -25,7 +25,6 @@
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/detail/collect_comm_wrapper.hpp>
-#include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
 

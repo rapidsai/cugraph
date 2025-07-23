@@ -21,9 +21,9 @@
 #include "prims/update_edge_src_dst_property.cuh"
 #include "utilities/error_check_utils.cuh"
 
-#include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
+#include <cugraph/shuffle_functions.hpp>
 
 #include <raft/core/device_span.hpp>
 #include <raft/core/handle.hpp>
@@ -422,23 +422,15 @@ all_pairs_similarity(raft::handle_t const& handle,
       if constexpr (multi_gpu) {
         // shuffle vertex pairs
         auto vertex_partition_range_lasts = graph_view.vertex_partition_range_lasts();
+        std::vector<cugraph::arithmetic_device_uvector_t> edge_properties{};
 
-        std::tie(
-          v1, v2, std::ignore, std::ignore, std::ignore, std::ignore, std::ignore, std::ignore) =
-          detail::shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<vertex_t,
-                                                                                         edge_t,
-                                                                                         weight_t,
-                                                                                         int32_t,
-                                                                                         int32_t>(
-            handle,
-            std::move(v1),
-            std::move(v2),
-            std::nullopt,
-            std::nullopt,
-            std::nullopt,
-            std::nullopt,
-            std::nullopt,
-            vertex_partition_range_lasts);
+        std::tie(v1, v2, std::ignore, std::ignore) =
+          shuffle_int_edges(handle,
+                            std::move(v1),
+                            std::move(v2),
+                            std::move(edge_properties),
+                            false,
+                            vertex_partition_range_lasts);
       }
 
       auto score =
@@ -612,23 +604,14 @@ all_pairs_similarity(raft::handle_t const& handle,
     if constexpr (multi_gpu) {
       // shuffle vertex pairs
       auto vertex_partition_range_lasts = graph_view.vertex_partition_range_lasts();
+      std::vector<cugraph::arithmetic_device_uvector_t> edge_properties{};
 
-      std::tie(
-        v1, v2, std::ignore, std::ignore, std::ignore, std::ignore, std::ignore, std::ignore) =
-        detail::shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<vertex_t,
-                                                                                       edge_t,
-                                                                                       weight_t,
-                                                                                       int32_t,
-                                                                                       int32_t>(
-          handle,
-          std::move(v1),
-          std::move(v2),
-          std::nullopt,
-          std::nullopt,
-          std::nullopt,
-          std::nullopt,
-          std::nullopt,
-          vertex_partition_range_lasts);
+      std::tie(v1, v2, std::ignore, std::ignore) = shuffle_int_edges(handle,
+                                                                     std::move(v1),
+                                                                     std::move(v2),
+                                                                     std::move(edge_properties),
+                                                                     false,
+                                                                     vertex_partition_range_lasts);
     }
 
     auto score =

@@ -130,18 +130,36 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
       rmm::device_uvector<vertex_t> edgelist_dsts =
         concatenate<vertex_t>(handle_, dst_, num_arrays_);
 
-      std::optional<rmm::device_uvector<weight_t>> edgelist_weights =
-        weights_ ? std::make_optional(concatenate<weight_t>(handle_, weights_, num_arrays_))
+      std::vector<cugraph::arithmetic_device_uvector_t> edgelist_edge_properties{};
+
+      if (weights_)
+        edgelist_edge_properties.push_back(concatenate<weight_t>(handle_, weights_, num_arrays_));
+      if (edge_ids_)
+        edgelist_edge_properties.push_back(concatenate<edge_t>(handle_, edge_ids_, num_arrays_));
+      if (edge_type_ids_)
+        edgelist_edge_properties.push_back(
+          concatenate<edge_type_t>(handle_, edge_type_ids_, num_arrays_));
+
+      std::tie(edgelist_srcs, edgelist_dsts, edgelist_edge_properties, std::ignore) =
+        cugraph::shuffle_ext_edges(handle_,
+                                   std::move(edgelist_srcs),
+                                   std::move(edgelist_dsts),
+                                   std::move(edgelist_edge_properties),
+                                   store_transposed);
+
+      size_t pos{0};
+      auto edgelist_weights =
+        weights_ ? std::make_optional(std::move(
+                     std::get<rmm::device_uvector<weight_t>>(edgelist_edge_properties[pos++])))
                  : std::nullopt;
-
-      std::optional<rmm::device_uvector<edge_t>> edgelist_edge_ids =
-        edge_ids_ ? std::make_optional(concatenate<edge_t>(handle_, edge_ids_, num_arrays_))
+      auto edgelist_edge_ids =
+        edge_ids_ ? std::make_optional(std::move(
+                      std::get<rmm::device_uvector<edge_t>>(edgelist_edge_properties[pos++])))
                   : std::nullopt;
-
-      std::optional<rmm::device_uvector<edge_type_t>> edgelist_edge_types =
-        edge_type_ids_
-          ? std::make_optional(concatenate<edge_type_t>(handle_, edge_type_ids_, num_arrays_))
-          : std::nullopt;
+      auto edgelist_edge_types =
+        edge_type_ids_ ? std::make_optional(std::move(std::get<rmm::device_uvector<edge_type_t>>(
+                           edgelist_edge_properties[pos++])))
+                       : std::nullopt;
 
       std::optional<rmm::device_uvector<edge_time_t>> edgelist_edge_start_times =
         edge_start_times_
@@ -152,23 +170,6 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
         edge_end_times_
           ? std::make_optional(concatenate<edge_time_t>(handle_, edge_end_times_, num_arrays_))
           : std::nullopt;
-
-      std::tie(edgelist_srcs,
-               edgelist_dsts,
-               edgelist_weights,
-               edgelist_edge_ids,
-               edgelist_edge_types,
-               edgelist_edge_start_times,
-               edgelist_edge_end_times,
-               std::ignore) = cugraph::shuffle_ext_edges(handle_,
-                                                         std::move(edgelist_srcs),
-                                                         std::move(edgelist_dsts),
-                                                         std::move(edgelist_weights),
-                                                         std::move(edgelist_edge_ids),
-                                                         std::move(edgelist_edge_types),
-                                                         std::move(edgelist_edge_start_times),
-                                                         std::move(edgelist_edge_end_times),
-                                                         store_transposed);
 
       if (vertex_list) {
         vertex_list = cugraph::shuffle_ext_vertices(handle_, std::move(*vertex_list));
@@ -274,6 +275,8 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
         std::move(edgelist_edge_end_times),
         cugraph::graph_properties_t{properties_->is_symmetric, properties_->is_multigraph},
         true,
+        std::nullopt,
+        std::nullopt,
         do_expensive_check_);
 
       rmm::device_uvector<vertex_t>* number_map =
