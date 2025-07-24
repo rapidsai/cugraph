@@ -59,7 +59,7 @@ struct create_allgather_functor : public cugraph::c_api::abstract_functor {
   template <typename vertex_t,
             typename edge_t,
             typename weight_t,
-            typename edge_type_type_t,
+            typename edge_type_t,
             typename edge_time_t,
             bool store_transposed,
             bool multi_gpu>
@@ -95,12 +95,12 @@ struct create_allgather_functor : public cugraph::c_api::abstract_functor {
         edgelist_ids->data(), edge_ids_->as_type<edge_t>(), edge_ids_->size_, handle_.get_stream());
     }
 
-    std::optional<rmm::device_uvector<edge_type_type_t>> edgelist_type_ids{std::nullopt};
+    std::optional<rmm::device_uvector<edge_type_t>> edgelist_type_ids{std::nullopt};
     if (edge_type_ids_) {
       edgelist_type_ids =
-        rmm::device_uvector<edge_type_type_t>(edge_type_ids_->size_, handle_.get_stream());
+        rmm::device_uvector<edge_type_t>(edge_type_ids_->size_, handle_.get_stream());
       raft::copy(edgelist_type_ids->data(),
-                 edge_type_ids_->as_type<edge_type_type_t>(),
+                 edge_type_ids_->as_type<edge_type_t>(),
                  edge_type_ids_->size_,
                  handle_.get_stream());
     }
@@ -143,11 +143,10 @@ struct create_allgather_functor : public cugraph::c_api::abstract_functor {
     }
 
     if (edgelist_type_ids) {
-      edgelist_type_ids =
-        cugraph::detail::device_allgatherv(handle_,
-                                           comm,
-                                           raft::device_span<edge_type_type_t const>(
-                                             edgelist_type_ids->data(), edgelist_type_ids->size()));
+      edgelist_type_ids = cugraph::detail::device_allgatherv(
+        handle_,
+        comm,
+        raft::device_span<edge_type_t const>(edgelist_type_ids->data(), edgelist_type_ids->size()));
     }
 
     result = new cugraph::c_api::cugraph_induced_subgraph_result_t{

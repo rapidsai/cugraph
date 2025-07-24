@@ -52,7 +52,7 @@ struct decompress_to_edgelist_functor : public cugraph::c_api::abstract_functor 
   template <typename vertex_t,
             typename edge_t,
             typename weight_t,
-            typename edge_type_type_t,
+            typename edge_type_t,
             typename edge_time_t,
             bool store_transposed,
             bool multi_gpu>
@@ -81,7 +81,7 @@ struct decompress_to_edgelist_functor : public cugraph::c_api::abstract_functor 
         reinterpret_cast<cugraph::edge_property_t<edge_t, edge_t>*>(graph_->edge_ids_);
 
       auto edge_types =
-        reinterpret_cast<cugraph::edge_property_t<edge_t, edge_type_type_t>*>(graph_->edge_types_);
+        reinterpret_cast<cugraph::edge_property_t<edge_t, edge_type_t>*>(graph_->edge_types_);
 
       auto number_map = reinterpret_cast<rmm::device_uvector<vertex_t>*>(graph_->number_map_);
 
@@ -89,7 +89,7 @@ struct decompress_to_edgelist_functor : public cugraph::c_api::abstract_functor 
         cugraph::decompress_to_edgelist<vertex_t,
                                         edge_t,
                                         weight_t,
-                                        edge_type_type_t,
+                                        edge_type_t,
                                         store_transposed,
                                         multi_gpu>(
           handle_,
