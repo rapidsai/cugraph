@@ -916,7 +916,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> multisour
            auto origin = thrust::get<1>(tagged_src);
            auto src_offset = vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(src);
            auto src_idx = origin * num_vertices + src_offset;
-           auto src_sigma = d_sigma_2d[src_idx];
+           auto src_sigma = static_cast<edge_t>(d_sigma_2d[src_idx]);
            return thrust::make_tuple(thrust::make_tuple(dst, origin), src_sigma);
          },
          // PREDICATE: only process edges to unvisited vertices
