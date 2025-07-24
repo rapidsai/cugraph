@@ -17,6 +17,7 @@
 #pragma once
 
 #include "detail/graph_partition_utils.cuh"
+#include "detail/shuffle_wrappers.hpp"
 #include "prims/detail/nbr_intersection.cuh"
 #include "prims/per_v_random_select_transform_outgoing_e.cuh"
 #include "prims/property_op_utils.cuh"
@@ -24,7 +25,6 @@
 #include "prims/vertex_frontier.cuh"
 
 #include <cugraph/algorithms.hpp>
-#include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph.hpp>
@@ -42,7 +42,6 @@
 #include <cuda/std/iterator>
 #include <cuda/std/optional>
 
-#include <algorithm>
 #include <limits>
 #include <numeric>
 #include <type_traits>
@@ -270,13 +269,24 @@ struct biased_selector {
 
     vertex_frontier.bucket(0).insert(current_vertices.begin(), current_vertices.end());
 
+    // FIXME: we need to compute weight sums only for the vertices in vertex_frontier.bucket(0)
     auto vertex_weight_sum = compute_out_weight_sums(handle, graph_view, *edge_weight_view);
+    rmm::device_uvector<weight_t> gathered_weight_sums(vertex_frontier.bucket(0).size(),
+                                                       handle.get_stream());
+    auto map_first = thrust::make_transform_iterator(
+      vertex_frontier.bucket(0).begin(),
+      shift_left_t<vertex_t>{graph_view.local_vertex_partition_range_first()});
+    thrust::gather(handle.get_thrust_policy(),
+                   map_first,
+                   map_first + vertex_frontier.bucket(0).size(),
+                   vertex_weight_sum.begin(),
+                   gathered_weight_sums.begin());
     edge_src_property_t<vertex_t, weight_t> edge_src_out_weight_sums(handle, graph_view);
     update_edge_src_property(handle,
                              graph_view,
                              vertex_frontier.bucket(0).begin(),
                              vertex_frontier.bucket(0).end(),
-                             vertex_weight_sum.data(),
+                             gathered_weight_sums.begin(),
                              edge_src_out_weight_sums.mutable_view());
     auto [sample_offsets, sample_e_op_results] = cugraph::per_v_random_select_transform_outgoing_e(
       handle,

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,6 +28,8 @@ renumber_edgelist<int32_t, int32_t, true>(
   std::vector<int32_t> const& edgelist_edge_counts,
   std::optional<std::vector<std::vector<int32_t>>> const& edgelist_intra_partition_segment_offsets,
   bool store_transposed,
+  std::optional<large_buffer_type_t> large_vertex_buffer_type,
+  std::optional<large_buffer_type_t> large_edge_buffer_type,
   bool do_expensive_check);
 
 }  // namespace cugraph

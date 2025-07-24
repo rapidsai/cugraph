@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2023, NVIDIA CORPORATION.
+# Copyright (c) 2022-2025, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -254,7 +254,7 @@ class CugraphServiceClient:
         >>> # part of a server API call until close() is called. This is
         >>> # normally not necessary and shown here for demonstration purposes.
         >>> client.hold_open = True
-        >>> client.node2vec([0,1], 2)
+        >>> client.node2vec_random_walks([0,1], 2)
         >>> # close the connection so other clients can connect
         >>> client.close()
         >>> # go back to automatic open/close mode (safer)
@@ -1198,38 +1198,12 @@ class CugraphServiceClient:
     ###########################################################################
     # Algos
     @__server_connection
-    def batched_ego_graphs(self, seeds, radius=1, graph_id=defaults.graph_id):
-        """
-        Parameters
-        ----------
-
-        Returns
-        -------
-
-        Examples
-        --------
-        >>>
-        """
-        # FIXME: finish docstring above
-
-        if not isinstance(seeds, list):
-            seeds = [seeds]
-        batched_ego_graphs_result = self.__client.batched_ego_graphs(
-            seeds, radius, graph_id
-        )
-
-        return (
-            batched_ego_graphs_result.src_verts,
-            batched_ego_graphs_result.dst_verts,
-            batched_ego_graphs_result.edge_weights,
-            batched_ego_graphs_result.seeds_offsets,
-        )
-
-    @__server_connection
-    def node2vec(self, start_vertices, max_depth, graph_id=defaults.graph_id):
+    def node2vec_random_walks(
+        self, start_vertices, max_depth, graph_id=defaults.graph_id
+    ):
         """
         Computes random walks for each node in 'start_vertices', under the
-        node2vec sampling framework.
+        node2vec_random_walks sampling framework.
 
         Parameters
         ----------
@@ -1256,11 +1230,14 @@ class CugraphServiceClient:
             start_vertices = [start_vertices]
         # FIXME: ensure list is a list of int32, since Thrift interface
         # specifies that?
-        node2vec_result = self.__client.node2vec(start_vertices, max_depth, graph_id)
+        node2vec_random_walks_result = self.__client.node2vec_random_walks(
+            start_vertices, max_depth, graph_id
+        )
+
         return (
-            node2vec_result.vertex_paths,
-            node2vec_result.edge_weights,
-            node2vec_result.path_sizes,
+            node2vec_random_walks_result.vertex_paths,
+            node2vec_random_walks_result.edge_weights,
+            node2vec_random_walks_result.max_path_length,
         )
 
     @__server_connection

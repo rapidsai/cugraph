@@ -398,7 +398,9 @@ class Tests_Multithreaded
                                                    std::nullopt,
                                                    std::nullopt,
                                                    cugraph::graph_properties_t{is_symmetric, true},
-                                                   true);
+                                                   true,
+                                                   std::nullopt,
+                                                   std::nullopt);
 
       auto [sg_pageranks, meta] = cugraph::pagerank<vertex_t, edge_t, weight_t, weight_t, false>(
         handle,

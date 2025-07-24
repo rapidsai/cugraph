@@ -23,11 +23,11 @@
 #include "utilities/property_generator_utilities.hpp"
 #include "utilities/test_graphs.hpp"
 
-#include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/edge_property.hpp>
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
+#include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
@@ -148,28 +148,18 @@ class Tests_MGPerVPairTransformDstNbrIntersection
       });
 
     auto h_vertex_partition_range_lasts = mg_graph_view.vertex_partition_range_lasts();
+    std::vector<cugraph::arithmetic_device_uvector_t> edge_properties{};
+
     std::tie(std::get<0>(mg_vertex_pair_buffer),
              std::get<1>(mg_vertex_pair_buffer),
              std::ignore,
-             std::ignore,
-             std::ignore,
-             std::ignore,
-             std::ignore,
              std::ignore) =
-      cugraph::detail::shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<
-        vertex_t,
-        edge_t,
-        weight_t,
-        int32_t,
-        int32_t>(*handle_,
-                 std::move(std::get<0>(mg_vertex_pair_buffer)),
-                 std::move(std::get<1>(mg_vertex_pair_buffer)),
-                 std::nullopt,
-                 std::nullopt,
-                 std::nullopt,
-                 std::nullopt,
-                 std::nullopt,
-                 h_vertex_partition_range_lasts);
+      cugraph::shuffle_int_edges(*handle_,
+                                 std::move(std::get<0>(mg_vertex_pair_buffer)),
+                                 std::move(std::get<1>(mg_vertex_pair_buffer)),
+                                 std::move(edge_properties),
+                                 false,
+                                 h_vertex_partition_range_lasts);
 
     auto mg_result_buffer = cugraph::allocate_dataframe_buffer<thrust::tuple<edge_t, edge_t>>(
       cugraph::size_dataframe_buffer(mg_vertex_pair_buffer), handle_->get_stream());

@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2023, NVIDIA CORPORATION.
+# Copyright (c) 2022-2025, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -44,17 +44,10 @@ exception CugraphServiceError {
   1:string message
 }
 
-struct BatchedEgoGraphsResult {
-  1:list<i32> src_verts
-  2:list<i32> dst_verts
-  3:list<double> edge_weights
-  4:list<i32> seeds_offsets
-}
-
 struct Node2vecResult {
   1:list<i32> vertex_paths
   2:list<double> edge_weights
-  3:list<i32> path_sizes
+  3:i32 max_path_length
 }
 
 # FIXME: uniform_neighbor_sample may need to return indices as ints
@@ -215,14 +208,8 @@ service CugraphService {
                     2:i32 graph_id) throws (1:CugraphServiceError e),
   ##############################################################################
   # Algos
-  BatchedEgoGraphsResult
-  batched_ego_graphs(1:list<i32> seeds,
-                     2:i32 radius,
-                     3:i32 graph_id
-                     ) throws (1:CugraphServiceError e),
-
   Node2vecResult
-  node2vec(1:list<i32> start_vertices,
+  node2vec_random_walks(1:list<i32> start_vertices,
            2:i32 max_depth,
            3:i32 graph_id
            ) throws (1:CugraphServiceError e),

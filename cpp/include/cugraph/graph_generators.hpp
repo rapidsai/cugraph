@@ -15,6 +15,8 @@
  */
 #pragma once
 
+#include <cugraph/large_buffer_manager.hpp>
+
 #include <raft/core/handle.hpp>
 #include <raft/random/rng_state.hpp>
 
@@ -28,65 +30,6 @@
  */
 
 namespace cugraph {
-
-/**
- * @ingroup graph_generators_cpp
- * @brief generate an edge list for an R-mat graph.
- * @deprecated  This function will be deprectated and should be replaced with the version that takes
- * raft::random::RngState as a parameter
- *
- * This function allows multi-edges and self-loops similar to the Graph 500 reference
- * implementation.
- *
- * NOTE: The scramble_vertex_ids function needs to be called in order to generate a
- * graph conforming to the Graph 500 specification (note that scrambling does not
- * affect cuGraph's graph construction performance, so this is generally unnecessary).
- * If `edge_factor` is given (e.g. Graph 500), set @p num_edges to
- * (size_t{1} << @p scale) * `edge_factor`. To generate an undirected graph, set @p b == @p c and @p
- * clip_and_flip = true. All the resulting edges will be placed in the lower triangular part
- * (including the diagonal) of the graph adjacency matrix.
- *
- * For multi-GPU generation with `P` GPUs, @p seed should be set to different values in different
- * GPUs to avoid every GPU generating the same set of edges. @p num_edges should be adjusted as
- * well; e.g. assuming `edge_factor` is given, set @p num_edges = (size_t{1} << @p scale) *
- * `edge_factor` / `P` + (rank < (((size_t{1} << @p scale) * `edge_factor`) % P) ? 1 : 0).
- *
- * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
- * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
- * handles to various CUDA libraries) to run graph algorithms.
- * @param scale Scale factor to set the number of verties in the graph. Vertex IDs have values in
- * [0, V), where V = 1 << @p scale.
- * @param num_edges Number of edges to generate.
- * @param a a, b, c, d (= 1.0 - (a + b + c)) in the R-mat graph generator (vist https://graph500.org
- * for additional details). a, b, c, d should be non-negative and a + b + c should be no larger
- * than 1.0.
- * @param b a, b, c, d (= 1.0 - (a + b + c)) in the R-mat graph generator (vist https://graph500.org
- * for additional details). a, b, c, d should be non-negative and a + b + c should be no larger
- * than 1.0.
- * @param c a, b, c, d (= 1.0 - (a + b + c)) in the R-mat graph generator (vist https://graph500.org
- * for additional details). a, b, c, d should be non-negative and a + b + c should be no larger
- * than 1.0.
- * @param seed Seed value for the random number generator.
- * @param clip_and_flip Flag controlling whether to generate edges only in the lower triangular part
- * (including the diagonal) of the graph adjacency matrix (if set to `true`) or not (if set to
- * `false`).
- * @param scramble_vertex_ids Flag controlling whether to scramble vertex ID bits (if set to `true`)
- * or not (if set to `false`); scrambling vertex ID bits breaks correlation between vertex ID values
- * and vertex degrees.
- * @return std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> A tuple of
- * rmm::device_uvector objects for edge source vertex IDs and edge destination vertex IDs.
- */
-template <typename vertex_t>
-std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> generate_rmat_edgelist(
-  raft::handle_t const& handle,
-  size_t scale,
-  size_t num_edges,
-  double a                 = 0.57,
-  double b                 = 0.19,
-  double c                 = 0.19,
-  uint64_t seed            = 0,
-  bool clip_and_flip       = false,
-  bool scramble_vertex_ids = false);
 
 /**
  * @ingroup graph_generators_cpp
@@ -125,6 +68,10 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> generat
  * @param scramble_vertex_ids Flag controlling whether to scramble vertex ID bits (if set to `true`)
  * or not (if set to `false`); scrambling vertex ID bits breaks correlation between vertex ID values
  * and vertex degrees.
+ * @param large_buffer_type Flag indicating the large buffer type to use when we need to create a
+ * large device-accessible vector object (if the value is std::nullopt, the default RMM per-device
+ * memory resource is used). The generated R-mat edgelist will also be stored in the buffer type
+ * dictated by this parameter.
  * @return std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> A tuple of
  * rmm::device_uvector objects for edge source vertex IDs and edge destination vertex IDs.
  */
@@ -134,11 +81,12 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> generat
   raft::random::RngState& rng_state,
   size_t scale,
   size_t num_edges,
-  double a                 = 0.57,
-  double b                 = 0.19,
-  double c                 = 0.19,
-  bool clip_and_flip       = false,
-  bool scramble_vertex_ids = false);
+  double a                                             = 0.57,
+  double b                                             = 0.19,
+  double c                                             = 0.19,
+  bool clip_and_flip                                   = false,
+  bool scramble_vertex_ids                             = false,
+  std::optional<large_buffer_type_t> large_buffer_type = std::nullopt);
 
 /**
  * @ingroup graph_generators_cpp
@@ -185,59 +133,6 @@ enum class generator_distribution_t { POWER_LAW = 0, UNIFORM };
 /**
  * @ingroup graph_generators_cpp
  * @brief generate multiple edge lists using the R-mat graph generator.
- * @deprecated  This function will be deprectated and should be replaced with the version that takes
- *raft::random::RngState as a parameter
- *
- * This function allows multi-edges and self-loops similar to the Graph 500 reference
- * implementation.
- *
- * NOTE: The scramble_vertex_ids function needs to be called in order to generate a
- * graph conforming to the Graph 500 specification (note that scrambling does not
- * affect cuGraph's graph construction performance, so this is generally unnecessary).
- * If `edge_factor` is given (e.g. Graph 500), set @p num_edges to
- * (size_t{1} << @p scale) * `edge_factor`. To generate an undirected graph, set @p b == @p c and @p
- * clip_and_flip = true. All the resulting edges will be placed in the lower triangular part
- * (including the diagonal) of the graph adjacency matrix.
- *
- * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
- * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
- * handles to various CUDA libraries) to run graph algorithms.
- * @param n_edgelists Number of edge lists (graphs) to generate
- * @param min_scale Scale factor to set the minimum number of verties in the graph.
- * @param max_scale Scale factor to set the maximum number of verties in the graph.
- * @param edge_factor Average number of edges per vertex to generate.
- * @param size_distribution Distribution of the graph sizes, impacts the scale parameter of the
- * R-MAT generator
- * @param edge_distribution Edges distribution for each graph, impacts how R-MAT parameters a,b,c,d,
- * are set.
- * @param seed Seed value for the random number generator.
- * @param clip_and_flip Flag controlling whether to generate edges only in the lower triangular part
- * (including the diagonal) of the graph adjacency matrix (if set to `true`) or not (if set to
- * `false`).
- * @param scramble_vertex_ids Flag controlling whether to scramble vertex ID bits (if set to `true`)
- * or not (if set to `false`); scrambling vertex ID bits breaks correlation between vertex ID values
- * and vertex degrees.
- * @return A vector of std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> of
- *size @p n_edgelists, each vector element being a tuple of rmm::device_uvector objects for edge
- *source vertex IDs and edge destination vertex IDs.
- */
-template <typename vertex_t>
-std::vector<std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>>>
-generate_rmat_edgelists(
-  raft::handle_t const& handle,
-  size_t n_edgelists,
-  size_t min_scale,
-  size_t max_scale,
-  size_t edge_factor                         = 16,
-  generator_distribution_t size_distribution = generator_distribution_t::POWER_LAW,
-  generator_distribution_t edge_distribution = generator_distribution_t::POWER_LAW,
-  uint64_t seed                              = 0,
-  bool clip_and_flip                         = false,
-  bool scramble_vertex_ids                   = false);
-
-/**
- * @ingroup graph_generators_cpp
- * @brief generate multiple edge lists using the R-mat graph generator.
  *
  * This function allows multi-edges and self-loops similar to the Graph 500 reference
  * implementation.
@@ -268,6 +163,10 @@ generate_rmat_edgelists(
  * @param scramble_vertex_ids Flag controlling whether to scramble vertex ID bits (if set to `true`)
  * or not (if set to `false`); scrambling vertex ID bits breaks correlation between vertex ID values
  * and vertex degrees.
+ * @param large_buffer_type Flag indicating the large buffer type to use when we need to create a
+ *large device-accessible vector object (if the value is std::nullopt, the default RMM per-device
+ *memory resource is used). The generated R-mat edgelist will also be stored in the buffer type
+ *dictated by this parameter.
  * @return A vector of std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> of
  *size @p n_edgelists, each vector element being a tuple of rmm::device_uvector objects for edge
  *source vertex IDs and edge destination vertex IDs.
@@ -280,11 +179,12 @@ generate_rmat_edgelists(
   size_t n_edgelists,
   size_t min_scale,
   size_t max_scale,
-  size_t edge_factor                         = 16,
-  generator_distribution_t size_distribution = generator_distribution_t::POWER_LAW,
-  generator_distribution_t edge_distribution = generator_distribution_t::POWER_LAW,
-  bool clip_and_flip                         = false,
-  bool scramble_vertex_ids                   = false);
+  size_t edge_factor                                   = 16,
+  generator_distribution_t size_distribution           = generator_distribution_t::POWER_LAW,
+  generator_distribution_t edge_distribution           = generator_distribution_t::POWER_LAW,
+  bool clip_and_flip                                   = false,
+  bool scramble_vertex_ids                             = false,
+  std::optional<large_buffer_type_t> large_buffer_type = std::nullopt);
 
 /**
  * @ingroup graph_generators_cpp
@@ -461,9 +361,13 @@ generate_erdos_renyi_graph_edgelist_gnm(raft::handle_t const& handle,
  * handles to various CUDA libraries) to run graph algorithms.
  * @param d_src_v Vector of source vertices
  * @param d_dst_v Vector of destination vertices
- * @param d_weights_v Optional vector of edge weights
+ * @param d_weight_v Optional vector of edge weights
  * @param check_diagonal Flag indicating whether to check for diagonal edges or not. If set to true,
  * symmetrize only the edges with source != destination (to avoid duplicating every self-loops).
+ * @param large_buffer_type Flag indicating the large buffer type to use when we need to create a
+ * large device-accessible vector object (if the value is std::nullopt, the default RMM per-device
+ * memory resource is used). The symmetrized edgelist will also be stored in the buffer type
+ * dictated by this parameter.
  * @return std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> A tuple of
  * rmm::device_uvector objects for edge source vertex IDs and edge destination vertex IDs.
  */
@@ -475,8 +379,9 @@ symmetrize_edgelist_from_triangular(
   raft::handle_t const& handle,
   rmm::device_uvector<vertex_t>&& d_src_v,
   rmm::device_uvector<vertex_t>&& d_dst_v,
-  std::optional<rmm::device_uvector<weight_t>>&& optional_d_weights_v,
-  bool check_diagonal = false);
+  std::optional<rmm::device_uvector<weight_t>>&& d_weight_v,
+  bool check_diagonal                                  = false,
+  std::optional<large_buffer_type_t> large_buffer_type = std::nullopt);
 
 /**
  * @ingroup graph_generators_cpp
@@ -498,31 +403,6 @@ template <typename vertex_t>
 rmm::device_uvector<vertex_t> scramble_vertex_ids(raft::handle_t const& handle,
                                                   rmm::device_uvector<vertex_t>&& vertices,
                                                   size_t lgN);
-
-/**
- * @ingroup graph_generators_cpp
- * @brief scramble vertex ids in a graph
- *
- * Given an edge list for a graph, scramble the input vertex IDs.
- *
- * The scramble code here follows the algorithm in the Graph 500 reference
- * implementation version 3.0.0.
- *
- * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
- * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
- * handles to various CUDA libraries) to run graph algorithms.
- * @param d_src_v Vector of input source vertices
- * @param d_dst_v Vector of input destination vertices
- * @param lgN The input & output (scrambled) vertex IDs are assumed to be in [0, 2^lgN).
- * @return Tuple of two rmm::device_uvector objects storing scrambled source & destination vertex
- * IDs, respectively.
- */
-template <typename vertex_t>
-std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> scramble_vertex_ids(
-  raft::handle_t const& handle,
-  rmm::device_uvector<vertex_t>&& srcs,
-  rmm::device_uvector<vertex_t>&& dsts,
-  size_t lgN);
 
 /**
  * @ingroup graph_generators_cpp

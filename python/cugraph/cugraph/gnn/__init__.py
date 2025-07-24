@@ -11,6 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import warnings
 
 from .data_loading import (
     DistSampler,
@@ -20,9 +21,5 @@ from .data_loading import (
     UniformNeighborSampler,
     BiasedNeighborSampler,
 )
-from .comms.cugraph_nccl_comms import (
-    cugraph_comms_init,
-    cugraph_comms_shutdown,
-    cugraph_comms_create_unique_id,
-    cugraph_comms_get_raft_handle,
-)
+
+from .comms import *

@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2023, NVIDIA CORPORATION.
+# Copyright (c) 2022-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -46,7 +46,7 @@ def create_dataframe(client):
         }
     )
     ddf = dask_cudf.from_cudf(
-        df, npartitions=len(client.scheduler_info()["workers"])
+        df, npartitions=client.scheduler_info()["n_workers"]
     ).persist()
     client.rebalance(ddf)
     del df
@@ -76,8 +76,12 @@ def run_bandwidth_test(ddf, n):
 
 
 if __name__ == "__main__":
+    import os
+
+    CUDA_VISIBLE_DEVICES = os.environ.get("CUDA_VISIBLE_DEVICES", "1,2,3")
+
     cluster = LocalCUDACluster(
-        protocol="ucx", rmm_pool_size="15GB", CUDA_VISIBLE_DEVICES="1,2,3"
+        protocol="ucx", rmm_pool_size="15GB", CUDA_VISIBLE_DEVICES=CUDA_VISIBLE_DEVICES
     )
     client = Client(cluster)
     rmm.reinitialize(pool_allocator=True)
