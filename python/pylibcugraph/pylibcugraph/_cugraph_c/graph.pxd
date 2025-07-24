@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2024, NVIDIA CORPORATION.
+# Copyright (c) 2022-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -59,8 +59,27 @@ cdef extern from "cugraph_c/graph.h":
              cugraph_graph_t** graph,
              cugraph_error_t** error)
 
-    # FIXME: Might want to delete 'cugraph_sg_graph_free' and replace
-    # 'cugraph_mg_graph_free' by 'cugraph_graph_free'
+    cdef cugraph_error_code_t \
+        cugraph_graph_create_with_times_sg(
+            const cugraph_resource_handle_t* handle,
+            const cugraph_graph_properties_t* properties,
+            const cugraph_type_erased_device_array_view_t* vertices,
+            const cugraph_type_erased_device_array_view_t* src,
+            const cugraph_type_erased_device_array_view_t* dst,
+            const cugraph_type_erased_device_array_view_t* weights,
+            const cugraph_type_erased_device_array_view_t* edge_ids,
+            const cugraph_type_erased_device_array_view_t* edge_type_ids,
+            const cugraph_type_erased_device_array_view_t* edge_start_time_ids,
+            const cugraph_type_erased_device_array_view_t* edge_end_time_ids,
+            bool_t store_transposed,
+            bool_t renumber,
+            bool_t drop_self_loops,
+            bool_t drop_multi_edges,
+            bool_t symmetrize,
+            bool_t do_expensive_check,
+            cugraph_graph_t** graph,
+            cugraph_error_t** error);
+
     cdef void \
         cugraph_graph_free(
             cugraph_graph_t* graph
@@ -93,6 +112,27 @@ cdef extern from "cugraph_c/graph.h":
             const cugraph_type_erased_device_array_view_t** weights,
             const cugraph_type_erased_device_array_view_t** edge_ids,
             const cugraph_type_erased_device_array_view_t** edge_type_ids,
+            bool_t store_transposed,
+            size_t num_arrays,
+            bool_t drop_self_loops,
+            bool_t drop_multi_edges,
+            bool_t symmetrize,
+            bool_t do_expensive_check,
+            cugraph_graph_t** graph,
+            cugraph_error_t** error)
+
+    cdef cugraph_error_code_t \
+        cugraph_graph_create_with_times_mg(
+            cugraph_resource_handle_t const* handle,
+            cugraph_graph_properties_t const* properties,
+            cugraph_type_erased_device_array_view_t const* const* vertices,
+            cugraph_type_erased_device_array_view_t const* const* src,
+            cugraph_type_erased_device_array_view_t const* const* dst,
+            cugraph_type_erased_device_array_view_t const* const* weights,
+            cugraph_type_erased_device_array_view_t const* const* edge_ids,
+            cugraph_type_erased_device_array_view_t const* const* edge_type_ids,
+            cugraph_type_erased_device_array_view_t const* const* edge_start_time_ids,
+            cugraph_type_erased_device_array_view_t const* const* edge_end_time_ids,
             bool_t store_transposed,
             size_t num_arrays,
             bool_t drop_self_loops,

@@ -38,6 +38,8 @@ typedef struct {
 /**
  * @brief     Construct an SG graph
  *
+ * @deprecated Use cugraph_graph_create_with_times_mg instead
+ *
  * @param [in]  handle         Handle for accessing resources
  * @param [in]  properties     Properties of the constructed graph
  * @param [in]  vertices       Optional device array containing a list of vertex ids
@@ -198,6 +200,8 @@ cugraph_error_code_t cugraph_graph_create_sg_from_csr(
 
 /**
  * @brief     Construct an MG graph
+ *
+ * @deprecated Use cugraph_graph_create_with_times_mg instead
  *
  * @param [in]  handle          Handle for accessing resources
  * @param [in]  properties      Properties of the constructed graph
