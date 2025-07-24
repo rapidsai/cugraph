@@ -897,57 +897,63 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> multisour
 
    while (vertex_frontier.bucket(bucket_idx_cur).aggregate_size() > 0) {
      // Step 1: Extract ALL edges from frontier (no filtering)
-     auto new_frontier_tagged_vertex_buffer = 
-       allocate_dataframe_buffer<thrust::tuple<vertex_t, origin_t>>(0, handle.get_stream());
-     auto new_sigma_buffer = 
-       allocate_dataframe_buffer<edge_t>(0, handle.get_stream());
+     using bfs_edge_tuple_t = thrust::tuple<vertex_t, origin_t, edge_t>;
      
-     std::tie(new_frontier_tagged_vertex_buffer, new_sigma_buffer) = detail::
-       extract_transform_if_v_frontier_e<false, thrust::tuple<vertex_t, origin_t>, edge_t>(
+     auto result = detail::
+       extract_transform_if_v_frontier_e<false, bfs_edge_tuple_t, void>(
          handle,
          graph_view,
          vertex_frontier.bucket(bucket_idx_cur),
          edge_src_dummy_property_t{}.view(),
          edge_dst_dummy_property_t{}.view(),
          edge_dummy_property_t{}.view(),
-         [d_sigma_2d = sigmas_2d.begin(), num_vertices, vertex_partition] 
+         cuda::proclaim_return_type<bfs_edge_tuple_t>([d_sigma_2d = sigmas_2d.begin(), num_vertices, vertex_partition] 
          __device__(auto tagged_src, auto dst, auto, auto, auto) {
            auto src = thrust::get<0>(tagged_src);
            auto origin = thrust::get<1>(tagged_src);
            auto src_offset = vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(src);
            auto src_idx = origin * num_vertices + src_offset;
            auto src_sigma = static_cast<edge_t>(d_sigma_2d[src_idx]);
-           return thrust::make_tuple(thrust::make_tuple(dst, origin), src_sigma);
-         },
+           return thrust::make_tuple(dst, origin, src_sigma);
+         }),
          // PREDICATE: only process edges to unvisited vertices
-         [d_distances_2d = distances_2d.begin(), num_vertices, vertex_partition, invalid_distance] 
+         cuda::proclaim_return_type<bool>([d_distances_2d = distances_2d.begin(), num_vertices, vertex_partition, invalid_distance] 
          __device__(auto tagged_src, auto dst, auto, auto, auto) {
            auto origin = thrust::get<1>(tagged_src);
            auto dst_offset = vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(dst);
            auto dst_idx = origin * num_vertices + dst_offset;
            return d_distances_2d[dst_idx] == invalid_distance;
-         });
+         }));
      
-     // Step 2: Convert buffers to device vectors
-     rmm::device_uvector<thrust::tuple<vertex_t, origin_t>> frontier_vertices(
+     // Step 2: Convert buffers to device vectors and extract components
+     auto new_frontier_tagged_vertex_buffer = std::move(std::get<0>(result));
+     
+     rmm::device_uvector<bfs_edge_tuple_t> frontier_tuples(
        size_dataframe_buffer(new_frontier_tagged_vertex_buffer), handle.get_stream());
-     rmm::device_uvector<edge_t> sigmas(
-       size_dataframe_buffer(new_sigma_buffer), handle.get_stream());
      
      thrust::copy(handle.get_thrust_policy(),
                   get_dataframe_buffer_begin(new_frontier_tagged_vertex_buffer),
                   get_dataframe_buffer_end(new_frontier_tagged_vertex_buffer),
-                  frontier_vertices.begin());
-     thrust::copy(handle.get_thrust_policy(),
-                  get_dataframe_buffer_begin(new_sigma_buffer),
-                  get_dataframe_buffer_end(new_sigma_buffer),
-                  sigmas.begin());
+                  frontier_tuples.begin());
+     
+     // Extract (vertex, origin) pairs and sigmas for sorting and reduction
+     rmm::device_uvector<vertex_t> frontier_vertices(frontier_tuples.size(), handle.get_stream());
+     rmm::device_uvector<origin_t> frontier_origins(frontier_tuples.size(), handle.get_stream());
+     rmm::device_uvector<edge_t> sigmas(frontier_tuples.size(), handle.get_stream());
+     
+     thrust::transform(handle.get_thrust_policy(),
+                       frontier_tuples.begin(),
+                       frontier_tuples.end(),
+                       thrust::make_zip_iterator(frontier_vertices.begin(), frontier_origins.begin(), sigmas.begin()),
+                       [] __device__(auto tuple) {
+                         return thrust::make_tuple(thrust::get<0>(tuple), thrust::get<1>(tuple), thrust::get<2>(tuple));
+                       });
      
      // Step 3: Reduce by (destination, origin) - sums sigmas for multiple paths
      // Sort by (destination, origin) pairs
      thrust::sort_by_key(handle.get_thrust_policy(),
-                         frontier_vertices.begin(),
-                         frontier_vertices.end(),
+                         thrust::make_zip_iterator(frontier_vertices.begin(), frontier_origins.begin()),
+                         thrust::make_zip_iterator(frontier_vertices.end(), frontier_origins.end()),
                          sigmas.begin());
      
      // Reduce by key to sum sigmas for identical (destination, origin) pairs
@@ -955,18 +961,21 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> multisour
        handle.get_thrust_policy(),
        thrust::make_counting_iterator(size_t{0}),
        thrust::make_counting_iterator(frontier_vertices.size()),
-       [vertices = frontier_vertices.data()] __device__(size_t i) {
-         return (i == 0) || (vertices[i] != vertices[i - 1]);
+       [vertices = frontier_vertices.data(), origins = frontier_origins.data()] __device__(size_t i) {
+         return (i == 0) || 
+                (vertices[i] != vertices[i - 1]) || 
+                (origins[i] != origins[i - 1]);
        });
      
-     rmm::device_uvector<thrust::tuple<vertex_t, origin_t>> unique_vertices(num_unique, handle.get_stream());
+     rmm::device_uvector<vertex_t> unique_vertices(num_unique, handle.get_stream());
+     rmm::device_uvector<origin_t> unique_origins(num_unique, handle.get_stream());
      rmm::device_uvector<edge_t> unique_sigmas(num_unique, handle.get_stream());
      
      thrust::reduce_by_key(handle.get_thrust_policy(),
-                           frontier_vertices.begin(),
-                           frontier_vertices.end(),
+                           thrust::make_zip_iterator(frontier_vertices.begin(), frontier_origins.begin()),
+                           thrust::make_zip_iterator(frontier_vertices.end(), frontier_origins.end()),
                            sigmas.begin(),
-                           unique_vertices.begin(),
+                           thrust::make_zip_iterator(unique_vertices.begin(), unique_origins.begin()),
                            unique_sigmas.begin(),
                            thrust::equal_to<thrust::tuple<vertex_t, origin_t>>{},
                            thrust::plus<edge_t>{});
@@ -974,14 +983,13 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> multisour
      // Step 4: Manual array updates (all vertices in unique_vertices are unvisited due to predicate)
      thrust::for_each(
        handle.get_thrust_policy(),
-       thrust::make_zip_iterator(unique_vertices.begin(), unique_sigmas.begin()),
-       thrust::make_zip_iterator(unique_vertices.end(), unique_sigmas.end()),
+       thrust::make_zip_iterator(unique_vertices.begin(), unique_origins.begin(), unique_sigmas.begin()),
+       thrust::make_zip_iterator(unique_vertices.end(), unique_origins.end(), unique_sigmas.end()),
        [d_distances_2d = distances_2d.begin(), d_sigmas_2d = sigmas_2d.begin(),
         num_vertices, hop, vertex_partition] __device__(auto tuple) {
-         auto tagged_v = thrust::get<0>(tuple);
-         auto sigma = thrust::get<1>(tuple);
-         auto v = thrust::get<0>(tagged_v);
-         auto origin = thrust::get<1>(tagged_v);
+         auto v = thrust::get<0>(tuple);
+         auto origin = thrust::get<1>(tuple);
+         auto sigma = thrust::get<2>(tuple);
          auto offset = vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(v);
          auto idx = origin * num_vertices + offset;
          
@@ -991,22 +999,10 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> multisour
        });
      
      // Step 5: Update frontier for next iteration (all vertices in unique_vertices are newly discovered)
-     // Extract vertices and origins from tuples for frontier insertion
-     rmm::device_uvector<vertex_t> next_vertices(unique_vertices.size(), handle.get_stream());
-     rmm::device_uvector<origin_t> next_origins(unique_vertices.size(), handle.get_stream());
-     
-     thrust::transform(handle.get_thrust_policy(),
-                       unique_vertices.begin(),
-                       unique_vertices.end(),
-                       thrust::make_zip_iterator(next_vertices.begin(), next_origins.begin()),
-                       [](auto tagged_v) {
-                         return thrust::make_tuple(thrust::get<0>(tagged_v), thrust::get<1>(tagged_v));
-                       });
-     
      vertex_frontier.bucket(bucket_idx_cur).clear();
      vertex_frontier.bucket(bucket_idx_next).insert(
-       thrust::make_zip_iterator(next_vertices.begin(), next_origins.begin()),
-       thrust::make_zip_iterator(next_vertices.end(), next_origins.end()));
+       thrust::make_zip_iterator(unique_vertices.begin(), unique_origins.begin()),
+       thrust::make_zip_iterator(unique_vertices.end(), unique_origins.end()));
      
      vertex_frontier.swap_buckets(bucket_idx_cur, bucket_idx_next);
      ++hop;
