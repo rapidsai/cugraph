@@ -611,36 +611,16 @@ rmm::device_uvector<weight_t> betweenness_centrality(
                                                    raft::device_span<vertex_t const>{sources_buffer.data(), sources_buffer.size()},
                                                    do_expensive_check);
   
-  // For now, use existing single-source accumulation phase for testing
-  // Extract each source's data and process separately
-  for (size_t source_idx = 0; source_idx < num_sources; ++source_idx) {
-    // Extract single-source distances and sigmas from 2D arrays
-    auto local_vertex_count = graph_view.local_vertex_partition_range_size();
-    rmm::device_uvector<vertex_t> single_distances(local_vertex_count, handle.get_stream());
-    rmm::device_uvector<edge_t> single_sigmas(local_vertex_count, handle.get_stream());
-    
-    // Copy data for this source from 2D arrays
-    thrust::copy(
-      handle.get_thrust_policy(),
-      distances_2d.begin() + source_idx * local_vertex_count,
-      distances_2d.begin() + (source_idx + 1) * local_vertex_count,
-      single_distances.begin());
-    thrust::copy(
-      handle.get_thrust_policy(),
-      sigmas_2d.begin() + source_idx * local_vertex_count,
-      sigmas_2d.begin() + (source_idx + 1) * local_vertex_count,
-      single_sigmas.begin());
-    
-    // Use existing single-source backward pass
-    accumulate_vertex_results(handle,
-                              graph_view,
-                              edge_weight_view,
-                              raft::device_span<weight_t>{centralities.data(), centralities.size()},
-                              std::move(single_distances),
-                              std::move(single_sigmas),
-                              include_endpoints,
-                              do_expensive_check);
-  }
+  // Use parallel multisource backward pass for better performance
+  multisource_backward_pass(handle,
+                            graph_view,
+                            edge_weight_view,
+                            raft::device_span<weight_t>{centralities.data(), centralities.size()},
+                            std::move(distances_2d),
+                            std::move(sigmas_2d),
+                            raft::device_span<vertex_t const>{sources_buffer.data(), sources_buffer.size()},
+                            include_endpoints,
+                            do_expensive_check);
 
   std::optional<weight_t> scale_nonsource{std::nullopt};
   std::optional<weight_t> scale_source{std::nullopt};
@@ -894,6 +874,12 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> multisour
    }
 
    edge_t hop{0};
+   
+   // Debug: Print initial frontier size to show multiple sources
+   if (hop == 0) {
+     printf("DEBUG: Starting multi-source BFS with %zu sources, initial frontier size: %zu\n", 
+            num_sources, vertex_frontier.bucket(bucket_idx_cur).aggregate_size());
+   }
 
    while (vertex_frontier.bucket(bucket_idx_cur).aggregate_size() > 0) {
      // Step 1: Extract ALL edges from frontier (no filtering)
@@ -914,6 +900,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> multisour
            auto src_offset = vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(src);
            auto src_idx = origin * num_vertices + src_offset;
            auto src_sigma = static_cast<edge_t>(d_sigma_2d[src_idx]);
+           
            return thrust::make_tuple(dst, origin, src_sigma);
          }),
          // PREDICATE: only process edges to unvisited vertices
@@ -1011,6 +998,89 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> multisour
    return std::make_tuple(std::move(distances_2d), std::move(sigmas_2d));
  }
 
+// Add a device functor for the backward pass
+
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+struct multisource_backward_pass_functor {
+  vertex_t const* distances_2d;
+  edge_t const* sigmas_2d;
+  weight_t* centralities; // Final centrality array
+  weight_t* dependency_buffer; // Buffer for dependency calculations [num_vertices]
+  edge_t const* offsets;
+  vertex_t const* indices;
+  vertex_t const* sources; // Array of source vertices
+  std::optional<detail::edge_partition_edge_property_device_view_t<edge_t, uint32_t const*, bool>> edge_mask_view;
+  size_t num_vertices;
+  size_t num_sources;
+  bool with_endpoints;
+  bool do_expensive_check;
+
+  __device__ void operator()(size_t source_idx) const {
+    constexpr vertex_t invalid_distance = std::numeric_limits<vertex_t>::max();
+    const vertex_t* distances = distances_2d + source_idx * num_vertices;
+    const edge_t* sigmas = sigmas_2d + source_idx * num_vertices;
+    
+    // Get dependency buffer for this thread
+    weight_t* dependency = dependency_buffer + source_idx * num_vertices;
+    
+    // Get the source vertex for this source index
+    vertex_t source = sources[source_idx];
+
+    // 1. Find maximum distance reached by this source
+    vertex_t max_distance_from_source = 0;
+    for (size_t i = 0; i < num_vertices; ++i) {
+      if (distances[i] != invalid_distance && distances[i] > max_distance_from_source) max_distance_from_source = distances[i];
+      dependency[i] = 0; // initialize
+    }
+
+    // 2. Backward pass: for each distance level, process vertices in non-increasing order
+    for (vertex_t d = max_distance_from_source; d > 0; --d) {
+      for (vertex_t v = 0; v < num_vertices; ++v) {
+        if (distances[v] == d) {
+          weight_t delta = 0;
+          // For all neighbors w of v
+          edge_t row_start = offsets[v];
+          edge_t row_end = offsets[v + 1];
+          for (edge_t e = row_start; e < row_end; ++e) {
+            // Check edge mask if it exists
+            if (edge_mask_view && !edge_mask_view->get(e)) continue; // Skip masked edges
+            
+            vertex_t w = indices[e];
+            if (distances[w] == d + 1 && sigmas[w] > 0) {
+              delta += (static_cast<weight_t>(sigmas[v]) / static_cast<weight_t>(sigmas[w])) * (1.0 + dependency[w]);
+            }
+          }
+          dependency[v] += delta;
+        }
+      }
+    }
+    
+    // 3. Handle endpoint contributions for non-source vertices
+    for (vertex_t v = 0; v < num_vertices; ++v) {
+      if (v != source && distances[v] != invalid_distance) {
+        weight_t contribution = dependency[v];
+        if (with_endpoints) {
+          contribution += 1.0; // Add endpoint contribution
+        }
+        atomicAdd(&centralities[v], contribution);
+      }
+    }
+    
+    // 4. Handle source vertex contribution for include_endpoints
+    if (with_endpoints) {
+      weight_t source_contribution = 0;
+      for (vertex_t v = 0; v < num_vertices; ++v) {
+        if (v != source && distances[v] != invalid_distance) {
+          source_contribution += 1.0; // Count reachable vertices from source
+        }
+      }
+      atomicAdd(&centralities[source], source_contribution);
+    }
+  }
+};
+
+// Parallelized backward pass
+
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 void multisource_backward_pass(
   raft::handle_t const& handle,
@@ -1023,42 +1093,48 @@ void multisource_backward_pass(
   bool include_endpoints,
   bool do_expensive_check)
 {
-  //
-  // Multi-source backward pass for betweenness centrality
-  // Processes all sources concurrently using 2D arrays
-  //
-  auto num_vertices = graph_view.local_vertex_partition_range_size();
+  auto num_vertices = static_cast<size_t>(graph_view.local_vertex_partition_range_size());
   auto num_sources = sources.size();
   
-  // For now, use a simplified approach that processes each source separately
-  // This maintains the concurrent BFS benefit while using existing backward pass logic
-  for (size_t source_idx = 0; source_idx < num_sources; ++source_idx) {
-    // Extract single-source distances and sigmas from 2D arrays
-    rmm::device_uvector<vertex_t> single_distances(num_vertices, handle.get_stream());
-    rmm::device_uvector<edge_t> single_sigmas(num_vertices, handle.get_stream());
-    
-    // Copy data for this source from 2D arrays
-    thrust::copy(
-      handle.get_thrust_policy(),
-      distances_2d.begin() + source_idx * num_vertices,
-      distances_2d.begin() + (source_idx + 1) * num_vertices,
-      single_distances.begin());
-    thrust::copy(
-      handle.get_thrust_policy(),
-      sigmas_2d.begin() + source_idx * num_vertices,
-      sigmas_2d.begin() + (source_idx + 1) * num_vertices,
-      single_sigmas.begin());
-    
-    // Use existing single-source backward pass
-    detail::accumulate_vertex_results(handle,
-                                      graph_view,
-                                      edge_weight_view,
-                                      centralities,
-                                      std::move(single_distances),
-                                      std::move(single_sigmas),
-                                      include_endpoints,
-                                      do_expensive_check);
+  // Allocate dependency buffer for all sources
+  rmm::device_uvector<weight_t> dependency_buffer(num_sources * num_vertices, handle.get_stream());
+  
+  // Get graph data for device access
+  auto offsets = graph_view.local_edge_partition_offsets(0);
+  auto indices = graph_view.local_edge_partition_indices(0);
+  
+  // Get edge mask if it exists
+  std::optional<detail::edge_partition_edge_property_device_view_t<edge_t, uint32_t const*, bool>> edge_mask_view_opt;
+  if (graph_view.has_edge_mask()) {
+    auto edge_mask_view = graph_view.edge_mask_view();
+    if (edge_mask_view.has_value()) {
+      edge_mask_view_opt = detail::edge_partition_edge_property_device_view_t<edge_t, uint32_t const*, bool>(
+        edge_mask_view.value(), 0);
+    }
   }
+  
+  // Initialize centrality array to zero
+  thrust::fill(handle.get_thrust_policy(), centralities.begin(), centralities.end(), weight_t{0});
+  
+  // Launch parallel backward pass
+  thrust::for_each(
+    handle.get_thrust_policy(),
+    thrust::make_counting_iterator<size_t>(0),
+    thrust::make_counting_iterator<size_t>(num_sources),
+    multisource_backward_pass_functor<vertex_t, edge_t, weight_t, multi_gpu>{
+      distances_2d.data(),
+      sigmas_2d.data(),
+      centralities.data(),
+      dependency_buffer.data(),
+      offsets.data(),
+      indices.data(),
+      sources.data(),
+      edge_mask_view_opt,
+      num_vertices,
+      num_sources,
+      include_endpoints,
+      do_expensive_check
+    });
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
