@@ -205,6 +205,25 @@ def get_traversed_path_list(df, id):
     return answer
 
 
+def ensure_valid_dtype(input_graph, vertex_pair, func_name):
+    vertex_dtype = input_graph.edgelist.edgelist_df.dtypes.iloc[0]
+    vertex_pair_dtypes = vertex_pair.dtypes
+
+    if (
+        vertex_pair_dtypes.iloc[0] != vertex_dtype
+        or vertex_pair_dtypes.iloc[1] != vertex_dtype
+    ):
+        warning_msg = (
+            f"{func_name} requires 'vertex_pair' to match the graph's 'vertex' type. "
+            f"input graph's vertex type is: {vertex_dtype} and got "
+            f"'vertex_pair' of type: {vertex_pair_dtypes}."
+        )
+        warn(warning_msg, UserWarning)
+        vertex_pair = vertex_pair.astype(vertex_dtype)
+
+    return vertex_pair
+
+
 # FIXME: if G is a Nx type, the weight attribute is assumed to be "weight", if
 # set. An additional optional parameter for the weight attr name when accepting
 # Nx graphs may be needed.  From the Nx docs:
@@ -503,3 +522,4 @@ def create_directory_with_overwrite(directory):
     if os.path.exists(directory):
         shutil.rmtree(directory)
     os.makedirs(directory)
+

@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2024, NVIDIA CORPORATION.
+# Copyright (c) 2019-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -12,7 +12,7 @@
 # limitations under the License.
 
 import warnings
-
+from cugraph.structure import Graph
 import cudf
 import numpy as np
 
@@ -23,10 +23,6 @@ from pylibcugraph import (
     ResourceHandle,
 )
 
-from cugraph.utilities import (
-    ensure_cugraph_obj_for_nx,
-    df_score_to_dictionary,
-)
 from cugraph.exceptions import FailedToConvergeError
 
 
@@ -81,7 +77,7 @@ def ensure_valid_dtype(input_graph, input_df, input_df_name):
 
 
 def pagerank(
-    G,
+    G: Graph,
     alpha=0.85,
     personalization=None,
     precomputed_vertex_out_weight=None,
@@ -91,7 +87,7 @@ def pagerank(
     weight=None,
     dangling=None,
     fail_on_nonconvergence=True,
-):
+) -> cudf.DataFrame:
     """Find the PageRank score for every vertex in a graph. cuGraph computes an
     approximation of the Pagerank eigenvector using the power method. The
     number of iterations depends on the properties of the network itself; it
@@ -102,15 +98,10 @@ def pagerank(
 
     Parameters
     ----------
-    G : cugraph.Graph or networkx.Graph
+    G : cugraph.Graph
         cuGraph graph descriptor, should contain the connectivity information
         as an edge list.
         The transposed adjacency list will be computed if not already present.
-
-        .. deprecated:: 24.12
-           Accepting a ``networkx.Graph`` is deprecated and will be removed in a
-           future version.  For ``networkx.Graph`` use networkx directly with
-           the ``nx-cugraph`` backend. See:  https://rapids.ai/nx-cugraph/
 
     alpha : float, optional (default=0.85)
         The damping factor alpha represents the probability to follow an
@@ -222,7 +213,6 @@ def pagerank(
     pre_vtx_o_wgt_vertices = None
     pre_vtx_o_wgt_sums = None
 
-    G, isNx = ensure_cugraph_obj_for_nx(G, weight, store_transposed=True)
     if G.store_transposed is False:
         warning_msg = (
             "Pagerank expects the 'store_transposed' flag "
@@ -303,9 +293,6 @@ def pagerank(
 
     if G.renumbered:
         df = G.unrenumber(df, "vertex")
-
-    if isNx is True:
-        df = df_score_to_dictionary(df, "pagerank")
 
     if fail_on_nonconvergence:
         return df
