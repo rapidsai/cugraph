@@ -142,6 +142,7 @@ def jaccard(
 
     return df
 
+
 @deprecated("deprecated as of 25.10. This function was to match "
             "NetworkX which is no longer needed, use networkx directly with"
             "the ``nx-cugraph`` backend. See:  https://rapids.ai/nx-cugraph/")
