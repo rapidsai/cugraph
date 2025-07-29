@@ -3,8 +3,6 @@
 
 set -euo pipefail
 
-DGL_CHANNEL="dglteam/label/th23_cu121"
-
 rapids-logger "Downloading artifacts from previous jobs"
 CPP_CHANNEL=$(rapids-download-conda-from-github cpp)
 PYTHON_CHANNEL=$(rapids-download-conda-from-github python)
@@ -26,7 +24,6 @@ rapids-dependency-file-generator \
   --prepend-channel "${CPP_CHANNEL}" \
   --prepend-channel "${PYTHON_CHANNEL}" \
   --prepend-channel conda-forge \
-  --prepend-channel "${DGL_CHANNEL}" \
   | tee env.yaml
 
 rapids-mamba-retry env create --yes -f env.yaml -n docs
