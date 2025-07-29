@@ -51,16 +51,6 @@ except ModuleNotFoundError:
 
 scipy_package = sp
 
-try:
-    import networkx as nx
-
-    __nx_graph_types = [nx.Graph, nx.DiGraph]
-except ModuleNotFoundError:
-    nx = None
-    __nx_graph_types = []
-
-nx_package = nx
-
 
 def get_traversed_path(df, id):
     """
@@ -224,7 +214,6 @@ def ensure_valid_dtype(input_graph, vertex_pair, func_name):
     return vertex_pair
 
 
-
 def ensure_cugraph_obj(obj, matrix_graph_type=None):
 
     """
@@ -283,47 +272,6 @@ def ensure_cugraph_obj(obj, matrix_graph_type=None):
         raise TypeError(f"obj of type {input_type} is not supported.")
 
 
-# FIXME: if G is a Nx type, the weight attribute is assumed to be "weight", if
-# set. An additional optional parameter for the weight attr name when accepting
-# Nx graphs may be needed.  From the Nx docs:
-# |      Many NetworkX algorithms designed for weighted graphs use
-# |      an edge attribute (by default `weight`) to hold a numerical value.
-def ensure_cugraph_obj_for_nx(
-    obj, nx_weight_attr="weight", store_transposed=False, vertex_type="int32"
-):
-    """
-    Ensures a cuGraph Graph-type obj is returned for either cuGraph or Nx
-    Graph-type objs. If obj is a Nx type,
-    """
-    # FIXME: importing here to avoid circular import
-    from cugraph.utilities.nx_factory import convert_from_nx
-
-    input_type = type(obj)
-    if is_nx_graph_type(input_type):
-        warn(
-            "Support for accepting and returning NetworkX objects is "
-            "deprecated. Please use NetworkX with the nx-cugraph backend",
-            DeprecationWarning,
-            2,
-        )
-        return (
-            convert_from_nx(
-                obj,
-                weight=nx_weight_attr,
-                store_transposed=store_transposed,
-                vertex_type=vertex_type,
-            ),
-            True,
-        )
-    elif is_cugraph_graph_type(input_type):
-        return (obj, False)
-    else:
-        raise TypeError(
-            "input must be either a cuGraph or NetworkX graph "
-            f"type, got {input_type}"
-        )
-
-
 def is_cp_matrix_type(m):
     return m in __cp_matrix_types
 
@@ -334,10 +282,6 @@ def is_sp_matrix_type(m):
 
 def is_matrix_type(m):
     return is_cp_matrix_type(m) or is_sp_matrix_type(m)
-
-
-def is_nx_graph_type(graph_type):
-    return graph_type in __nx_graph_types
 
 
 def is_cugraph_graph_type(g):
@@ -514,4 +458,3 @@ def create_directory_with_overwrite(directory):
     if os.path.exists(directory):
         shutil.rmtree(directory)
     os.makedirs(directory)
-

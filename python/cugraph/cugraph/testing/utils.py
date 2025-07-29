@@ -110,14 +110,6 @@ MATRIX_INPUT_TYPES = [
 ]
 
 
-#NX_INPUT_TYPES = [
-#    pytest.param(nx.Graph, marks=pytest.mark.nx_types, id="nx.Graph"),
-#]
-
-#NX_DIR_INPUT_TYPES = [
-#    pytest.param(nx.Graph, marks=pytest.mark.nx_types, id="nx.DiGraph"),
-#]
-
 CUGRAPH_INPUT_TYPES = [
     pytest.param(cugraph.Graph(), marks=pytest.mark.cugraph_types, id="cugraph.Graph"),
 ]

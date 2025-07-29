@@ -143,16 +143,14 @@ def cosine(
     return df
 
 
-
+@deprecated("deprecated as of 25.10. This function was to match "
+            "NetworkX which is no longer needed, use networkx directly with"
+            "the ``nx-cugraph`` backend. See:  https://rapids.ai/nx-cugraph/")
 def cosine_coefficient(
     G: Graph,
     ebunch: cudf.DataFrame = None,
 ) -> cudf.DataFrame:
     """
-    .. deprecated:: 25.10
-    This function was to match NetworkX which is no longer needed.  
-    Use networkx directly with the ``nx-cugraph`` backend.
-    See:  https://rapids.ai/nx-cugraph/
 
     Parameters
     ----------

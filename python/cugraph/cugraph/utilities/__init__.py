@@ -13,18 +13,13 @@
 
 # from cugraph.utilities.grmat import grmat_gen
 # from cugraph.utilities.pointer_utils import device_of_gpu_pointer
-from cugraph.utilities.nx_factory import convert_from_nx
-from cugraph.utilities.nx_factory import df_score_to_dictionary
-from cugraph.utilities.nx_factory import df_edge_score_to_dictionary
-from cugraph.utilities.nx_factory import cugraph_to_nx
+
 from cugraph.utilities.utils import (
     import_optional,
     ensure_cugraph_obj,
-    ensure_cugraph_obj_for_nx,
     is_matrix_type,
     is_cp_matrix_type,
     is_sp_matrix_type,
-    is_nx_graph_type,
     renumber_vertex_pair,
     cupy_package,
     ensure_valid_dtype,
