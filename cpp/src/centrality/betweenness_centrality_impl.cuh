@@ -879,9 +879,28 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> multisour
    if (hop == 0) {
      printf("DEBUG: Starting multi-source BFS with %zu sources, initial frontier size: %zu\n", 
             num_sources, vertex_frontier.bucket(bucket_idx_cur).aggregate_size());
+     
+     // Debug: Print first few source vertices
+     if (sources.size() > 0) {
+       // Copy first few sources to host for printing
+       std::vector<vertex_t> host_sources(std::min(size_t{3}, sources.size()));
+       raft::update_host(host_sources.data(), sources.data(), host_sources.size(), handle.get_stream());
+       handle.sync_stream();
+       
+       printf("DEBUG: First 3 source vertices: ");
+       for (size_t i = 0; i < host_sources.size(); ++i) {
+         printf("%ld ", host_sources[i]);
+       }
+       printf("\n");
+     }
    }
 
    while (vertex_frontier.bucket(bucket_idx_cur).aggregate_size() > 0) {
+     // Debug: Print frontier size for first few iterations
+     if (hop < 3) {
+       printf("DEBUG: BFS hop %d, frontier size: %zu\n", hop, vertex_frontier.bucket(bucket_idx_cur).aggregate_size());
+     }
+     
      // Step 1: Extract ALL edges from frontier (no filtering)
      using bfs_edge_tuple_t = thrust::tuple<vertex_t, origin_t, edge_t>;
      
@@ -995,6 +1014,25 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> multisour
      ++hop;
    }
 
+        // Debug: Print final BFS results for first few sources
+     printf("DEBUG: BFS completed in %d hops\n", hop);
+     
+     // Copy first few distance values to host for printing
+     for (size_t s = 0; s < std::min(size_t{3}, num_sources); ++s) {
+       std::vector<vertex_t> host_distances(std::min(size_t{5}, static_cast<size_t>(num_vertices)));
+       raft::update_host(host_distances.data(), 
+                        distances_2d.data() + s * num_vertices, 
+                        host_distances.size(), 
+                        handle.get_stream());
+       handle.sync_stream();
+       
+       printf("DEBUG: Source %zu distances: ", s);
+       for (size_t v = 0; v < host_distances.size(); ++v) {
+         printf("%ld ", host_distances[v]);
+       }
+       printf("...\n");
+     }
+
    return std::make_tuple(std::move(distances_2d), std::move(sigmas_2d));
  }
 
@@ -1012,10 +1050,11 @@ struct multisource_backward_pass_functor {
   std::optional<detail::edge_partition_edge_property_device_view_t<edge_t, uint32_t const*, bool>> edge_mask_view;
   size_t num_vertices;
   size_t num_sources;
+  size_t batch_start;  // Add batch offset
   bool with_endpoints;
   bool do_expensive_check;
 
-  __device__ void operator()(size_t source_idx) const {
+    __device__ void operator()(size_t source_idx) const {
     constexpr vertex_t invalid_distance = std::numeric_limits<vertex_t>::max();
     const vertex_t* distances = distances_2d + source_idx * num_vertices;
     const edge_t* sigmas = sigmas_2d + source_idx * num_vertices;
@@ -1024,20 +1063,66 @@ struct multisource_backward_pass_functor {
     weight_t* dependency = dependency_buffer + source_idx * num_vertices;
     
     // Get the source vertex for this source index
-    vertex_t source = sources[source_idx];
-
-    // 1. Find maximum distance reached by this source
-    vertex_t max_distance_from_source = 0;
-    for (size_t i = 0; i < num_vertices; ++i) {
-      if (distances[i] != invalid_distance && distances[i] > max_distance_from_source) max_distance_from_source = distances[i];
-      dependency[i] = 0; // initialize
+    vertex_t source_vertex = sources[source_idx];
+    
+    // Debug: Print thread info (only for first few sources to avoid spam)
+    if (source_idx < 3) {
+      printf("DEBUG: Thread %lu (block %lu, thread %lu) processing source_idx %lu -> source_vertex %ld\n", 
+             threadIdx.x + blockIdx.x * blockDim.x, blockIdx.x, threadIdx.x, source_idx, source_vertex);
+      printf("DEBUG: Source_idx %lu: array_index=%lu\n", 
+             source_idx, source_idx);
+      
+      // Debug: Print first few sources array values
+      printf("DEBUG: Source_idx %lu sources array: ", source_idx);
+      for (size_t i = 0; i < std::min(size_t{5}, num_sources); ++i) {
+        printf("%ld ", sources[i]);
+      }
+      printf("\n");
+    }
+    
+    // Debug: Print thread start time for parallelization verification
+    if (source_idx < 3) {
+      printf("DEBUG: Thread %lu (source %lu) START at time: %lu\n", 
+             threadIdx.x + blockIdx.x * blockDim.x, source_idx, clock64());
     }
 
-    // 2. Backward pass: for each distance level, process vertices in non-increasing order
+    // 1. Find maximum distance for this source
+    vertex_t max_distance_from_source = 0;
+    for (size_t i = 0; i < num_vertices; ++i) {
+      if (distances[i] != invalid_distance && distances[i] > max_distance_from_source) {
+        max_distance_from_source = distances[i];
+      }
+      dependency[i] = 0; // initialize
+    }
+    
+        // Debug: Print max distance for first few sources
+    if (source_idx < 3) {
+      printf("DEBUG: Source %lu (vertex %ld) has max distance %ld\n", source_idx, source_vertex, max_distance_from_source);
+      
+      // Debug: Print first few distance values for this source
+      printf("DEBUG: Source %lu first 5 distances: ", source_idx);
+      for (size_t i = 0; i < std::min(size_t{5}, static_cast<size_t>(num_vertices)); ++i) {
+        printf("%ld ", distances[i]);
+      }
+      printf("\n");
+      
+      // Debug: Check if all distances are invalid
+      size_t valid_distances = 0;
+      for (size_t i = 0; i < num_vertices; ++i) {
+        if (distances[i] != invalid_distance) {
+          valid_distances++;
+        }
+      }
+      printf("DEBUG: Source %lu has %lu valid distances out of %lu vertices\n", source_idx, valid_distances, num_vertices);
+    }
+
+    // 2. Backward pass: process vertices by distance level
     for (vertex_t d = max_distance_from_source; d > 0; --d) {
+      // Process all vertices at distance d
       for (vertex_t v = 0; v < num_vertices; ++v) {
         if (distances[v] == d) {
           weight_t delta = 0;
+          
           // For all neighbors w of v
           edge_t row_start = offsets[v];
           edge_t row_end = offsets[v + 1];
@@ -1057,7 +1142,7 @@ struct multisource_backward_pass_functor {
     
     // 3. Handle endpoint contributions for non-source vertices
     for (vertex_t v = 0; v < num_vertices; ++v) {
-      if (v != source && distances[v] != invalid_distance) {
+      if (v != source_vertex && distances[v] != invalid_distance) {
         weight_t contribution = dependency[v];
         if (with_endpoints) {
           contribution += 1.0; // Add endpoint contribution
@@ -1070,11 +1155,22 @@ struct multisource_backward_pass_functor {
     if (with_endpoints) {
       weight_t source_contribution = 0;
       for (vertex_t v = 0; v < num_vertices; ++v) {
-        if (v != source && distances[v] != invalid_distance) {
+        if (v != source_vertex && distances[v] != invalid_distance) {
           source_contribution += 1.0; // Count reachable vertices from source
         }
       }
-      atomicAdd(&centralities[source], source_contribution);
+      atomicAdd(&centralities[source_vertex], source_contribution);
+    }
+    
+    // Debug: Print completion for first few sources
+    if (source_idx < 3) {
+      printf("DEBUG: Source %lu (vertex %ld) processing completed\n", source_idx, source_vertex);
+    }
+    
+    // Debug: Print thread end time for parallelization verification
+    if (source_idx < 3) {
+      printf("DEBUG: Thread %lu (source %lu) END at time: %lu\n", 
+             threadIdx.x + blockIdx.x * blockDim.x, source_idx, clock64());
     }
   }
 };
@@ -1096,8 +1192,7 @@ void multisource_backward_pass(
   auto num_vertices = static_cast<size_t>(graph_view.local_vertex_partition_range_size());
   auto num_sources = sources.size();
   
-  // Allocate dependency buffer for all sources
-  rmm::device_uvector<weight_t> dependency_buffer(num_sources * num_vertices, handle.get_stream());
+  printf("DEBUG: Starting multisource backward pass with %zu sources, %zu vertices\n", num_sources, num_vertices);
   
   // Get graph data for device access
   auto offsets = graph_view.local_edge_partition_offsets(0);
@@ -1116,7 +1211,38 @@ void multisource_backward_pass(
   // Initialize centrality array to zero
   thrust::fill(handle.get_thrust_policy(), centralities.begin(), centralities.end(), weight_t{0});
   
-  // Launch parallel backward pass
+  // Process all sources at once (temporarily remove batching)
+  printf("DEBUG: Processing all %zu sources at once\n", num_sources);
+  
+  auto start_time = std::chrono::high_resolution_clock::now();
+  
+  // Allocate dependency buffer for all sources
+  size_t dependency_buffer_size = num_sources * num_vertices * sizeof(weight_t);
+  rmm::device_uvector<weight_t> dependency_buffer(num_sources * num_vertices, handle.get_stream());
+  
+  printf("DEBUG: Allocated dependency buffer: %zu bytes (%.2f MB)\n", 
+         dependency_buffer_size, dependency_buffer_size / (1024.0 * 1024.0));
+  
+  printf("DEBUG: Launching parallel for_each with %zu threads\n", num_sources);
+  
+  // Debug: Check pointer validity
+  printf("DEBUG: distances_2d.data() = %p\n", static_cast<const void*>(distances_2d.data()));
+  printf("DEBUG: sigmas_2d.data() = %p\n", static_cast<const void*>(sigmas_2d.data()));
+  printf("DEBUG: sources.data() = %p\n", static_cast<const void*>(sources.data()));
+  
+  // Debug: Print first few source vertices
+  printf("DEBUG: First 5 source vertices: ");
+  // Copy first few sources to host for printing
+  std::vector<vertex_t> host_sources(std::min(size_t{5}, sources.size()));
+  raft::update_host(host_sources.data(), sources.data(), host_sources.size(), handle.get_stream());
+  handle.sync_stream();
+  
+  for (size_t i = 0; i < host_sources.size(); ++i) {
+    printf("%ld ", host_sources[i]);
+  }
+  printf("\n");
+  
+  // Launch parallel backward pass for all sources
   thrust::for_each(
     handle.get_thrust_policy(),
     thrust::make_counting_iterator<size_t>(0),
@@ -1128,13 +1254,25 @@ void multisource_backward_pass(
       dependency_buffer.data(),
       offsets.data(),
       indices.data(),
-      sources.data(),
+      static_cast<vertex_t const*>(sources.data()),  // Cast to proper device pointer
       edge_mask_view_opt,
       num_vertices,
       num_sources,
+      0,  // batch_start = 0 for all sources
       include_endpoints,
       do_expensive_check
     });
+  
+  auto end_time = std::chrono::high_resolution_clock::now();
+  auto total_duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
+  
+  printf("DEBUG: Multisource backward pass completed in %.3f ms\n", total_duration.count() / 1000.0);
+  
+  printf("DEBUG: Multisource backward pass completed:\n");
+  printf("  - Total time: %.3f ms\n", total_duration.count() / 1000.0);
+  printf("  - Total memory allocated: %zu bytes (%.2f MB)\n", 
+         dependency_buffer_size, dependency_buffer_size / (1024.0 * 1024.0));
+  printf("  - Processed %zu sources\n", num_sources);
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
