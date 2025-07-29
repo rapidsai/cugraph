@@ -224,12 +224,8 @@ def ensure_valid_dtype(input_graph, vertex_pair, func_name):
     return vertex_pair
 
 
-# FIXME: if G is a Nx type, the weight attribute is assumed to be "weight", if
-# set. An additional optional parameter for the weight attr name when accepting
-# Nx graphs may be needed.  From the Nx docs:
-# |      Many NetworkX algorithms designed for weighted graphs use
-# |      an edge attribute (by default `weight`) to hold a numerical value.
-def ensure_cugraph_obj(obj, nx_weight_attr=None, matrix_graph_type=None):
+
+def ensure_cugraph_obj(obj, matrix_graph_type=None):
 
     """
     Convert the input obj - if possible - to a cuGraph Graph-type obj (Graph,
@@ -239,14 +235,10 @@ def ensure_cugraph_obj(obj, nx_weight_attr=None, matrix_graph_type=None):
     """
     # FIXME: importing here to avoid circular import
     from cugraph.structure import Graph
-    from cugraph.utilities.nx_factory import convert_from_nx
 
     input_type = type(obj)
     if is_cugraph_graph_type(input_type):
         return (obj, input_type)
-
-    elif is_nx_graph_type(input_type):
-        return (convert_from_nx(obj, weight=nx_weight_attr), input_type)
 
     elif (input_type in __cp_matrix_types) or (input_type in __sp_matrix_types):
         if matrix_graph_type is None:
@@ -283,7 +275,7 @@ def ensure_cugraph_obj(obj, nx_weight_attr=None, matrix_graph_type=None):
             G = matrix_graph_type
         else:
             G = matrix_graph_type()
-        G.from_cudf_edgelist(df, edge_attr="weight", renumber=True)
+        G.from_cudf_edgelist(df, renumber=True)
 
         return (G, input_type)
 

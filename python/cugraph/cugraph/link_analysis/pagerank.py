@@ -84,7 +84,6 @@ def pagerank(
     max_iter=100,
     tol=1.0e-5,
     nstart=None,
-    weight=None,
     dangling=None,
     fail_on_nonconvergence=True,
 ) -> cudf.DataFrame:
@@ -154,11 +153,6 @@ def pagerank(
 
         nstart['values'] : cudf.Series
             Pagerank values for vertices
-
-    weight: str, optional (default=None)
-        The attribute column to be used as edge weights if Graph is a NetworkX
-        Graph. This parameter is here for NetworkX compatibility and is ignored
-        in case of a cugraph.Graph
 
     dangling : dict, optional (default=None)
         This parameter is here for NetworkX compatibility and ignored

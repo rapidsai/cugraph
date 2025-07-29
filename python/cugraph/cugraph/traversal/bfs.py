@@ -22,7 +22,7 @@ from cugraph.utilities import (
     ensure_cugraph_obj,
     is_matrix_type,
     is_cp_matrix_type,
-    is_nx_graph_type,
+    #is_nx_graph_type,
     cupy_package as cp,
 )
 
@@ -42,8 +42,9 @@ def _ensure_args(G, start, i_start, directed):
     start = start if start is not None else i_start
 
     G_type = type(G)
+
     # Check for Graph-type inputs
-    if G_type is Graph or is_nx_graph_type(G_type):
+    if G_type is Graph:
         if directed is not None:
             raise TypeError("'directed' cannot be specified for a " "Graph-type input")
 
@@ -60,9 +61,6 @@ def _convert_df_to_output_type(df, input_type):
     """
     if input_type is Graph:
         return df
-
-    elif is_nx_graph_type(input_type):
-        return df.to_pandas()
 
     elif is_matrix_type(input_type):
         # A CuPy/SciPy input means the return value will be a 2-tuple of:
@@ -95,15 +93,10 @@ def bfs(
 
     Parameters
     ----------
-    G : cugraph.Graph, networkx.Graph, CuPy or SciPy sparse matrix
+    G : cugraph.Graph, CuPy or SciPy sparse matrix
         Graph or matrix object, which should contain the connectivity
         information. Edge weights, if present, should be single or double
         precision floating point values.
-
-        .. deprecated:: 24.12
-           Accepting a ``networkx.Graph`` is deprecated and will be removed in a
-           future version.  For ``networkx.Graph`` use networkx directly with
-           the ``nx-cugraph`` backend. See:  https://rapids.ai/nx-cugraph/
 
     start : Integer or list, optional (default=None)
         The id of the graph vertex from which the traversal begins, or
@@ -143,11 +136,6 @@ def bfs(
           df['predecessor'] for each i'th position in the column, the vertex ID
           immediately preceding the vertex at position i in the 'vertex' column
 
-    If G is a networkx.Graph, returns:
-
-       pandas.DataFrame with contents equivalent to the cudf.DataFrame
-       described above.
-
     If G is a CuPy or SciPy matrix, returns:
        a 2-tuple of CuPy ndarrays (if CuPy matrix input) or Numpy ndarrays (if
        SciPy matrix input) representing:
@@ -176,7 +164,7 @@ def bfs(
 
     # FIXME: allow nx_weight_attr to be specified
     (G, input_type) = ensure_cugraph_obj(
-        G, nx_weight_attr="weight", matrix_graph_type=Graph(directed=directed)
+        G, matrix_graph_type=Graph(directed=directed)
     )
 
     # The BFS C++ extension assumes the start vertex is a cudf.Series object,
@@ -230,15 +218,10 @@ def bfs_edges(G, source, reverse=False, depth_limit=None, sort_neighbors=None):
 
     Parameters
     ----------
-    G : cugraph.Graph, networkx.Graph, CuPy or SciPy sparse matrix
+    G : cugraph.Graph, CuPy or SciPy sparse matrix
         Graph or matrix object, which should contain the connectivity
         information. Edge weights, if present, should be single or double
         precision floating point values.
-
-        .. deprecated:: 24.12
-           Accepting a ``networkx.Graph`` is deprecated and will be removed in a
-           future version.  For ``networkx.Graph`` use networkx directly with
-           the ``nx-cugraph`` backend. See:  https://rapids.ai/nx-cugraph/
 
     source : Integer
         The starting vertex index
@@ -265,11 +248,6 @@ def bfs_edges(G, source, reverse=False, depth_limit=None, sort_neighbors=None):
 
           df['predecessor'] for each i'th position in the column, the vertex ID
           immediately preceding the vertex at position i in the 'vertex' column
-
-    If G is a networkx.Graph, returns:
-
-       pandas.DataFrame with contents equivalent to the cudf.DataFrame
-       described above.
 
     If G is a CuPy or SciPy matrix, returns:
        a 2-tuple of CuPy ndarrays (if CuPy matrix input) or Numpy ndarrays (if

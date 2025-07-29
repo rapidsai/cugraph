@@ -26,7 +26,6 @@ from cupyx.scipy.sparse import csc_matrix as cp_csc_matrix
 from scipy.sparse import coo_matrix as sp_coo_matrix
 from scipy.sparse import csr_matrix as sp_csr_matrix
 from scipy.sparse import csc_matrix as sp_csc_matrix
-from cugraph.utilities import is_nx_graph_type
 
 import cudf
 import cugraph
@@ -43,8 +42,6 @@ print("Networkx version : {} ".format(nx.__version__))
 # connected_components calls.
 cuGraph_input_output_map = {
     cugraph.Graph: cudf.DataFrame,
-    nx.Graph: dict,
-    nx.DiGraph: dict,
     cp_coo_matrix: tuple,
     cp_csr_matrix: tuple,
     cp_csc_matrix: tuple,
@@ -299,16 +296,13 @@ def test_weak_cc(benchmark, dataset_nxresults_weak, cugraph_input_type):
         api_type,
     ) = dataset_nxresults_weak
 
-    # cuGraph or nx 'input_type' should have this parameter set to None
+    # cuGraph 'input_type' should have this parameter set to None
     directed = None
     if not isinstance(cugraph_input_type, cugraph.Graph):
         input_G_or_matrix = utils.create_obj_from_csv(
             dataset_path, cugraph_input_type, edgevals=True
         )
-        if not is_nx_graph_type(cugraph_input_type):
-            # directed should be set to False when creating a cuGraph from
-            # neither a cuGraph nor nx type
-            directed = False
+        directed = False
     else:
         input_G_or_matrix = G
     cugraph_labels = cugraph_call(
@@ -344,7 +338,7 @@ def test_weak_cc(benchmark, dataset_nxresults_weak, cugraph_input_type):
 
 @pytest.mark.sg
 @pytest.mark.parametrize(
-    "cugraph_input_type", utils.NX_DIR_INPUT_TYPES + utils.MATRIX_INPUT_TYPES
+    "cugraph_input_type", utils.MATRIX_INPUT_TYPES
 )
 def test_weak_cc_nonnative_inputs(
     benchmark, single_dataset_nxresults_weak, cugraph_input_type
@@ -410,7 +404,7 @@ def test_strong_cc(benchmark, dataset_nxresults_strong, cugraph_input_type):
 
 @pytest.mark.sg
 @pytest.mark.parametrize(
-    "cugraph_input_type", utils.NX_DIR_INPUT_TYPES + utils.MATRIX_INPUT_TYPES
+    "cugraph_input_type", utils.MATRIX_INPUT_TYPES
 )
 def test_strong_cc_nonnative_inputs(
     benchmark, single_dataset_nxresults_strong, cugraph_input_type

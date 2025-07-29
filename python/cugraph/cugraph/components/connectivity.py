@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2024, NVIDIA CORPORATION.
+# Copyright (c) 2019-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -13,11 +13,9 @@
 
 
 from cugraph.utilities import (
-    df_score_to_dictionary,
     ensure_cugraph_obj,
     is_matrix_type,
     is_cp_matrix_type,
-    is_nx_graph_type,
     cupy_package as cp,
 )
 from cugraph.structure import Graph
@@ -35,7 +33,7 @@ def _ensure_args(api_name, G, directed, connection, return_labels):
     """
     G_type = type(G)
     # Check for Graph-type inputs and set defaults if unset
-    if (G_type in [Graph]) or is_nx_graph_type(G_type):
+    if (G_type == Graph):
         exc_value = "'%s' cannot be specified for a Graph-type input"
         if directed is not None:
             raise TypeError(exc_value % "directed")
@@ -71,11 +69,8 @@ def _convert_df_to_output_type(df, input_type, return_labels):
     graph algos in this module, based on input_type.
     return_labels is only used for return values from cupy/scipy input types.
     """
-    if input_type in [Graph]:
+    if input_type == Graph:
         return df
-
-    elif is_nx_graph_type(input_type):
-        return df_score_to_dictionary(df, "labels", "vertex")
 
     elif is_matrix_type(input_type):
         # Convert DF of 2 columns (labels, vertices) to the SciPy-style return
@@ -106,7 +101,7 @@ def weakly_connected_components(G, directed=None, connection=None, return_labels
 
     Parameters
     ----------
-    G : cugraph.Graph, networkx.Graph, CuPy or SciPy sparse matrix
+    G : cugraph.Graph, CuPy or SciPy sparse matrix
 
         Graph or matrix object, which should contain the connectivity
         information (edge weights are not used for this algorithm). If using a
@@ -114,11 +109,6 @@ def weakly_connected_components(G, directed=None, connection=None, return_labels
         undirected edge is represented by a directed edge in both directions.
         The adjacency list will be computed if not already present. The number
         of vertices should fit into a 32b int.
-
-        .. deprecated:: 24.12
-           Accepting a ``networkx.Graph`` is deprecated and will be removed in a
-           future version.  For ``networkx.Graph`` use networkx directly with
-           the ``nx-cugraph`` backend. See:  https://rapids.ai/nx-cugraph/
 
     directed : bool, optional (default=None)
 
@@ -161,11 +151,6 @@ def weakly_connected_components(G, directed=None, connection=None, return_labels
            df['labels']
                The component identifier
 
-    If G is a networkx.Graph, returns:
-
-       python dictionary, where keys are vertices and values are the component
-       identifiers.
-
     If G is a CuPy or SciPy matrix, returns:
 
        CuPy ndarray (if CuPy matrix input) or Numpy ndarray (if SciPy matrix
@@ -183,9 +168,8 @@ def weakly_connected_components(G, directed=None, connection=None, return_labels
         "weakly_connected_components", G, directed, connection, return_labels
     )
 
-    # FIXME: allow nx_weight_attr to be specified
     (G, input_type) = ensure_cugraph_obj(
-        G, nx_weight_attr="weight", matrix_graph_type=Graph(directed=directed)
+        G, matrix_graph_type=Graph(directed=directed)
     )
 
     if G.is_directed():
@@ -220,7 +204,7 @@ def strongly_connected_components(
 
     Parameters
     ----------
-    G : cugraph.Graph, networkx.Graph, CuPy or SciPy sparse matrix
+    G : cugraph.Graph, CuPy or SciPy sparse matrix
 
         Graph or matrix object, which should contain the connectivity
         information (edge weights are not used for this algorithm). If using a
@@ -228,11 +212,6 @@ def strongly_connected_components(
         undirected edge is represented by a directed edge in both directions.
         The adjacency list will be computed if not already present.  The number
         of vertices should fit into a 32b int.
-
-        .. deprecated:: 24.12
-           Accepting a ``networkx.Graph`` is deprecated and will be removed in a
-           future version.  For ``networkx.Graph`` use networkx directly with
-           the ``nx-cugraph`` backend. See:  https://rapids.ai/nx-cugraph/
 
     directed : bool, optional (default=True)
 
@@ -275,11 +254,6 @@ def strongly_connected_components(
            df['labels']
                The component identifier
 
-    If G is a networkx.Graph, returns:
-
-       python dictionary, where keys are vertices and values are the component
-       identifiers.
-
     If G is a CuPy or SciPy matrix, returns:
 
        CuPy ndarray (if CuPy matrix input) or Numpy ndarray (if SciPy matrix
@@ -297,10 +271,10 @@ def strongly_connected_components(
         "strongly_connected_components", G, directed, connection, return_labels
     )
 
-    # FIXME: allow nx_weight_attr to be specified
     (G, input_type) = ensure_cugraph_obj(
-        G, nx_weight_attr="weight", matrix_graph_type=Graph(directed=directed)
+        G, matrix_graph_type=Graph(directed=directed)
     )
+
     # Renumber the vertices so that they are contiguous (required)
     # FIXME: Remove 'renumbering' once the algo leverage the CAPI graph
     if not G.renumbered:
@@ -331,7 +305,7 @@ def connected_components(G, directed=None, connection="weak", return_labels=None
 
     Parameters
     ----------
-    G : cugraph.Graph, networkx.Graph, CuPy or SciPy sparse matrix
+    G : cugraph.Graph, CuPy or SciPy sparse matrix
 
         Graph or matrix object, which should contain the connectivity
         information (edge weights are not used for this algorithm). If using a
@@ -339,11 +313,6 @@ def connected_components(G, directed=None, connection="weak", return_labels=None
         undirected edge is represented by a directed edge in both directions.
         The adjacency list will be computed if not already present.  The number
         of vertices should fit into a 32b int.
-
-        .. deprecated:: 24.12
-           Accepting a ``networkx.Graph`` is deprecated and will be removed in a
-           future version.  For ``networkx.Graph`` use networkx directly with
-           the ``nx-cugraph`` backend. See:  https://rapids.ai/nx-cugraph/
 
     directed : bool, optional (default=True)
 
@@ -388,11 +357,6 @@ def connected_components(G, directed=None, connection="weak", return_labels=None
                Contains the vertex identifier
            df['labels']
                The component identifier
-
-    If G is a networkx.Graph, returns:
-
-       python dictionary, where keys are vertices and values are the component
-       identifiers.
 
     If G is a CuPy or SciPy matrix, returns:
 
