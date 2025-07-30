@@ -37,13 +37,11 @@ function(find_and_configure_cudf)
 endfunction()
 
 set(CUGRAPH_ETL_MIN_VERSION_cudf "${CUGRAPH_ETL_VERSION_MAJOR}.${CUGRAPH_ETL_VERSION_MINOR}.00")
-set(CUGRAPH_ETL_BRANCH_VERSION_cudf "${CUGRAPH_ETL_VERSION_MAJOR}.${CUGRAPH_ETL_VERSION_MINOR}")
-
 
 # Change pinned tag and fork here to test a commit in CI
 # To use a different cuDF locally, set the CMake variable
 # CPM_cudf_SOURCE=/path/to/local/cudf
 find_and_configure_cudf(VERSION    ${CUGRAPH_ETL_MIN_VERSION_cudf}
                         FORK       rapidsai
-                        PINNED_TAG branch-${CUGRAPH_ETL_BRANCH_VERSION_cudf}
+                        PINNED_TAG ${rapids-cmake-checkout-tag}
                         )
