@@ -526,22 +526,24 @@ int create_test_graph_with_edge_ids(const cugraph_resource_handle_t* p_handle,
   ret_code = cugraph_type_erased_device_array_view_as_type(ids, weight_tid, &wgt_view, ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "wgt cast from ids failed.");
 
-  ret_code = cugraph_graph_create_sg(p_handle,
-                                     &properties,
-                                     NULL,
-                                     src_view,
-                                     dst_view,
-                                     wgt_view,
-                                     NULL,
-                                     NULL,
-                                     store_transposed,
-                                     renumber,
-                                     FALSE,
-                                     FALSE,
-                                     FALSE,
-                                     FALSE,
-                                     p_graph,
-                                     ret_error);
+  ret_code = cugraph_graph_create_with_times_sg(p_handle,
+                                                &properties,
+                                                NULL,
+                                                src_view,
+                                                dst_view,
+                                                wgt_view,
+                                                NULL,
+                                                NULL,
+                                                NULL,
+                                                NULL,
+                                                store_transposed,
+                                                renumber,
+                                                FALSE,
+                                                FALSE,
+                                                FALSE,
+                                                FALSE,
+                                                p_graph,
+                                                ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "graph creation failed.");
 
   cugraph_type_erased_device_array_view_free(wgt_view);
