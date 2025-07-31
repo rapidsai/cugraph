@@ -928,6 +928,8 @@ int test_uniform_neighbor_sample_alex_bug(const cugraph_resource_handle_t* handl
 
   cugraph_graph_free(graph);
   cugraph_error_free(ret_error);
+
+  return test_ret_value;
 }
 
 int test_uniform_neighbor_sample_sort_by_hop(const cugraph_resource_handle_t* handle)
@@ -1202,6 +1204,8 @@ int test_uniform_neighbor_sample_sort_by_hop(const cugraph_resource_handle_t* ha
 
   cugraph_graph_free(graph);
   cugraph_error_free(ret_error);
+
+  return test_ret_value;
 }
 
 int test_uniform_neighbor_sample_dedupe_sources(const cugraph_resource_handle_t* handle)

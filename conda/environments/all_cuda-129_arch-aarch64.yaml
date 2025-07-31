@@ -24,7 +24,7 @@ dependencies:
 - dask-cudf==25.10.*,>=0.0.0a0
 - doxygen
 - fsspec>=0.6.0
-- gcc_linux-aarch64=13.*
+- gcc_linux-aarch64=14.*
 - graphviz
 - ipython
 - libcublas-dev

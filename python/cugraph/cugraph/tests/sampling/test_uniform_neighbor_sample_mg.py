@@ -954,7 +954,7 @@ def test_uniform_neighbor_sample_deduplicate_sources_email_eu_core(dask_client):
 def test_uniform_neighbor_sample_renumber(dask_client, hops):
     # FIXME This test is not very good because there is a lot of
     # non-deterministic behavior that still exists despite passing
-    # a random seed. Right now, there are tests in cuGraph-DGL and
+    # a random seed. Right now, there are tests in
     # cuGraph-PyG that provide better coverage, but a better test
     # should eventually be written to augment or replace this one.
 
