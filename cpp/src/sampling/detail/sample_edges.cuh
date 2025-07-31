@@ -453,8 +453,7 @@ sample_edges(raft::handle_t const& handle,
   CUGRAPH_EXPECTS((Ks.size() == 1) || edge_type_view,
                   "If Ks has more than 1 element must specify types");
 
-  using tag_t                     = void;
-  constexpr bool store_transposed = false;
+  using tag_t = void;
 
   cugraph::vertex_frontier_t<vertex_t, tag_t, multi_gpu, false> vertex_frontier(handle, 1);
 
@@ -502,18 +501,12 @@ sample_edges(raft::handle_t const& handle,
 
     edge_properties.push_back(std::move(tmp));
   } else {
-    // FIXME:  Not sure this needs to be defined outside of the is_multigraph block...
-    std::optional<cugraph::edge_multi_index_property_t<edge_t, vertex_t>> multi_edge_indices{
-      std::nullopt};
-    arithmetic_device_uvector_t tmp{std::monostate{}};
-
-    cugraph::edge_bucket_t<vertex_t, edge_t, !store_transposed, multi_gpu, false> edge_list(
-      handle, graph_view.is_multigraph());
+    arithmetic_device_uvector_t multi_index{std::monostate{}};
 
     if (graph_view.is_multigraph()) {
       cugraph::edge_multi_index_property_t<edge_t, vertex_t> multi_index_property(handle,
                                                                                   graph_view);
-      std::tie(majors, minors, tmp, sample_offsets) =
+      std::tie(majors, minors, multi_index, sample_offsets) =
         sample_with_one_property(handle,
                                  rng_state,
                                  graph_view,
@@ -523,14 +516,9 @@ sample_edges(raft::handle_t const& handle,
                                  vertex_frontier,
                                  Ks,
                                  with_replacement);
-      multi_edge_indices = std::move(multi_index_property);
-      edge_list.insert(
-        majors.begin(),
-        majors.end(),
-        minors.begin(),
-        std::make_optional<edge_t const*>(std::get<rmm::device_uvector<edge_t>>(tmp).begin()));
+
     } else {
-      std::tie(majors, minors, tmp, sample_offsets) =
+      std::tie(majors, minors, std::ignore, sample_offsets) =
         sample_with_one_property(handle,
                                  rng_state,
                                  graph_view,
@@ -540,14 +528,14 @@ sample_edges(raft::handle_t const& handle,
                                  vertex_frontier,
                                  Ks,
                                  with_replacement);
-      edge_list.insert(
-        majors.begin(), majors.end(), minors.begin(), std::optional<edge_t*>{std::nullopt});
     }
 
-    edge_properties =
+    std::tie(majors, minors, edge_properties) =
       gather_sampled_properties(handle,
                                 graph_view,
-                                edge_list,
+                                std::move(majors),
+                                std::move(minors),
+                                std::move(multi_index),
                                 raft::host_span<edge_arithmetic_property_view_t<edge_t>>{
                                   edge_property_views.data(), edge_property_views.size()});
   }
@@ -897,8 +885,7 @@ temporal_sample_edges(raft::handle_t const& handle,
   CUGRAPH_EXPECTS(edge_property_views.size() > 0,
                   "Temporal sampling requires at least a time as a property");
 
-  using tag_t                     = edge_time_t;
-  constexpr bool store_transposed = false;
+  using tag_t = edge_time_t;
 
   cugraph::vertex_frontier_t<vertex_t, tag_t, multi_gpu, false> vertex_frontier(handle, 1);
 
@@ -939,18 +926,13 @@ temporal_sample_edges(raft::handle_t const& handle,
 
     edge_properties.push_back(std::move(tmp));
   } else {
-    std::optional<cugraph::edge_multi_index_property_t<edge_t, vertex_t>> multi_edge_indices{
-      std::nullopt};
-
-    cugraph::edge_bucket_t<vertex_t, edge_t, !store_transposed, multi_gpu, false> edge_list(
-      handle, graph_view.is_multigraph());
+    arithmetic_device_uvector_t multi_index{std::monostate{}};
 
     if (graph_view.is_multigraph()) {
       cugraph::edge_multi_index_property_t<edge_t, vertex_t> multi_index_property(handle,
                                                                                   graph_view);
-      arithmetic_device_uvector_t tmp{std::monostate{}};
 
-      std::tie(majors, minors, tmp, sample_offsets) =
+      std::tie(majors, minors, multi_index, sample_offsets) =
         temporal_sample_with_one_property(handle,
                                           rng_state,
                                           graph_view,
@@ -961,12 +943,7 @@ temporal_sample_edges(raft::handle_t const& handle,
                                           vertex_frontier,
                                           Ks,
                                           with_replacement);
-      multi_edge_indices = std::move(multi_index_property);
-      edge_list.insert(
-        majors.begin(),
-        majors.end(),
-        minors.begin(),
-        std::make_optional<edge_t const*>(std::get<rmm::device_uvector<edge_t>>(tmp).begin()));
+
     } else {
       std::tie(majors, minors, std::ignore, sample_offsets) =
         temporal_sample_with_one_property(handle,
@@ -979,36 +956,14 @@ temporal_sample_edges(raft::handle_t const& handle,
                                           vertex_frontier,
                                           Ks,
                                           with_replacement);
-      edge_list.insert(
-        majors.begin(), majors.end(), minors.begin(), std::optional<edge_t*>{std::nullopt});
     }
 
-    std::for_each(edge_property_views.begin(),
-                  edge_property_views.end(),
-                  [&handle, &graph_view, &edge_list, &edge_properties](auto edge_property_view) {
-                    cugraph::variant_type_dispatch(
-                      edge_property_view,
-                      [&handle, &graph_view, &edge_list, &edge_properties](auto property_view) {
-                        using T = typename decltype(property_view)::value_type;
-
-                        if constexpr (std::is_same_v<T, cuda::std::nullopt_t>) {
-                          CUGRAPH_FAIL("Should not have a property of type cuda::std::nullopt");
-                        } else {
-                          rmm::device_uvector<T> tmp(edge_list.size(), handle.get_stream());
-
-                          cugraph::transform_gather_e(handle,
-                                                      graph_view,
-                                                      edge_list,
-                                                      edge_src_dummy_property_t{}.view(),
-                                                      edge_dst_dummy_property_t{}.view(),
-                                                      property_view,
-                                                      return_edge_property_t{},
-                                                      tmp.begin());
-
-                          edge_properties.push_back(arithmetic_device_uvector_t{std::move(tmp)});
-                        }
-                      });
-                  });
+    std::tie(majors, minors, edge_properties) = gather_sampled_properties(handle,
+                                                                          graph_view,
+                                                                          std::move(majors),
+                                                                          std::move(minors),
+                                                                          std::move(multi_index),
+                                                                          edge_property_views);
   }
 
   if (active_major_labels) {
