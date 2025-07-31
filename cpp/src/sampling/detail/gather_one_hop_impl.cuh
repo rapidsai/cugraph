@@ -213,7 +213,7 @@ filter_edge_by_type(raft::handle_t const& handle,
   // Filter by type
   using edge_type_t = int32_t;
 
-  const bool store_transposed = false;
+  constexpr bool store_transposed = false;
 
   rmm::device_uvector<edge_type_t> edge_type(srcs.size(), handle.get_stream());
 
@@ -575,15 +575,11 @@ temporal_gather_one_hop_edgelist(
     }
 
     result_labels = rmm::device_uvector<label_t>(keep_count, handle.get_stream());
-    thrust::transform(
-      handle.get_thrust_policy(),
+    kv_store.view().find(
       tmp_positions->begin(),
       tmp_positions->end(),
-      result_labels->begin(),
-      [kv_store_view = kv_binary_search_store_device_view_t<decltype(kv_store.view())>{
-         kv_store.view()}] __device__(auto pos) {
-        return cuda::std::get<1>(kv_store_view.find(pos));
-      });
+      thrust::make_zip_iterator(thrust::make_discard_iterator(), result_labels->begin()),
+      handle.get_stream());
   }
 
   std::tie(result_srcs, result_dsts, result_properties) =
