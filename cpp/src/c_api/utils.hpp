@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -36,6 +36,7 @@ cugraph_error_code_t run_algorithm(::cugraph_graph_t const* graph,
                                       p_graph->edge_type_,
                                       p_graph->weight_type_,
                                       p_graph->edge_type_id_type_,
+                                      p_graph->edge_time_type_,
                                       p_graph->store_transposed_,
                                       p_graph->multi_gpu_,
                                       functor);

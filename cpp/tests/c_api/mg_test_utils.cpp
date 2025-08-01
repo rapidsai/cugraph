@@ -189,22 +189,24 @@ extern "C" int create_mg_test_graph(const cugraph_resource_handle_t* handle,
     handle, wgt_view, (byte_t*)h_wgt, ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "wgt copy_from_host failed.");
 
-  ret_code = cugraph_graph_create_mg(handle,
-                                     &properties,
-                                     NULL,
-                                     &src_view,
-                                     &dst_view,
-                                     wgt_view == nullptr ? NULL : &wgt_view,
-                                     NULL,
-                                     NULL,
-                                     store_transposed,
-                                     1,
-                                     FALSE,
-                                     FALSE,
-                                     FALSE,
-                                     FALSE,
-                                     p_graph,
-                                     ret_error);
+  ret_code = cugraph_graph_create_with_times_mg(handle,
+                                                &properties,
+                                                NULL,
+                                                &src_view,
+                                                &dst_view,
+                                                wgt_view == nullptr ? NULL : &wgt_view,
+                                                NULL,
+                                                NULL,
+                                                NULL,
+                                                NULL,
+                                                store_transposed,
+                                                1,
+                                                FALSE,
+                                                FALSE,
+                                                FALSE,
+                                                FALSE,
+                                                p_graph,
+                                                ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "graph creation failed.");
 
   cugraph_type_erased_device_array_view_free(wgt_view);
@@ -285,22 +287,24 @@ extern "C" int create_mg_test_graph_double(const cugraph_resource_handle_t* hand
     handle, wgt_view, (byte_t*)h_wgt, ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "wgt copy_from_host failed.");
 
-  ret_code = cugraph_graph_create_mg(handle,
-                                     &properties,
-                                     NULL,
-                                     &src_view,
-                                     &dst_view,
-                                     wgt_view == nullptr ? NULL : &wgt_view,
-                                     NULL,
-                                     NULL,
-                                     store_transposed,
-                                     1,
-                                     FALSE,
-                                     FALSE,
-                                     FALSE,
-                                     FALSE,
-                                     p_graph,
-                                     ret_error);
+  ret_code = cugraph_graph_create_with_times_mg(handle,
+                                                &properties,
+                                                NULL,
+                                                &src_view,
+                                                &dst_view,
+                                                wgt_view == nullptr ? NULL : &wgt_view,
+                                                NULL,
+                                                NULL,
+                                                NULL,
+                                                NULL,
+                                                store_transposed,
+                                                1,
+                                                FALSE,
+                                                FALSE,
+                                                FALSE,
+                                                FALSE,
+                                                p_graph,
+                                                ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "graph creation failed.");
 
   cugraph_type_erased_device_array_view_free(wgt_view);
@@ -375,22 +379,24 @@ extern "C" int create_mg_test_graph_with_edge_ids(const cugraph_resource_handle_
     handle, idx_view, (byte_t*)h_idx, ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "wgt copy_from_host failed.");
 
-  ret_code = cugraph_graph_create_mg(handle,
-                                     &properties,
-                                     NULL,
-                                     &src_view,
-                                     &dst_view,
-                                     NULL,
-                                     idx_view == nullptr ? NULL : &idx_view,
-                                     NULL,
-                                     store_transposed,
-                                     1,
-                                     FALSE,
-                                     FALSE,
-                                     FALSE,
-                                     FALSE,
-                                     p_graph,
-                                     ret_error);
+  ret_code = cugraph_graph_create_with_times_mg(handle,
+                                                &properties,
+                                                NULL,
+                                                &src_view,
+                                                &dst_view,
+                                                NULL,
+                                                idx_view == nullptr ? NULL : &idx_view,
+                                                NULL,
+                                                NULL,
+                                                NULL,
+                                                store_transposed,
+                                                1,
+                                                FALSE,
+                                                FALSE,
+                                                FALSE,
+                                                FALSE,
+                                                p_graph,
+                                                ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "graph creation failed.");
 
   cugraph_type_erased_device_array_view_free(idx_view);
@@ -500,22 +506,24 @@ extern "C" int create_mg_test_graph_with_properties(const cugraph_resource_handl
     TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "wgt copy_from_host failed.");
   }
 
-  ret_code = cugraph_graph_create_mg(handle,
-                                     &properties,
-                                     NULL,
-                                     &src_view,
-                                     &dst_view,
-                                     wgt_view == nullptr ? NULL : &wgt_view,
-                                     idx_view == nullptr ? NULL : &idx_view,
-                                     type_view == nullptr ? NULL : &type_view,
-                                     store_transposed,
-                                     1,
-                                     FALSE,
-                                     FALSE,
-                                     FALSE,
-                                     FALSE,
-                                     p_graph,
-                                     ret_error);
+  ret_code = cugraph_graph_create_with_times_mg(handle,
+                                                &properties,
+                                                NULL,
+                                                &src_view,
+                                                &dst_view,
+                                                wgt_view == nullptr ? NULL : &wgt_view,
+                                                idx_view == nullptr ? NULL : &idx_view,
+                                                type_view == nullptr ? NULL : &type_view,
+                                                NULL,
+                                                NULL,
+                                                store_transposed,
+                                                1,
+                                                FALSE,
+                                                FALSE,
+                                                FALSE,
+                                                FALSE,
+                                                p_graph,
+                                                ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "graph creation failed.");
 
   cugraph_type_erased_device_array_view_free(wgt_view);
@@ -543,6 +551,9 @@ int create_mg_test_graph_new(const cugraph_resource_handle_t* handle,
                              void* h_edge_type,
                              cugraph_data_type_id_t edge_id_tid,
                              void* h_edge_id,
+                             cugraph_data_type_id_t edge_time_tid,
+                             void* h_edge_start_times,
+                             void* h_edge_end_times,
                              size_t num_edges,
                              bool_t store_transposed,
                              bool_t renumber,
@@ -558,16 +569,21 @@ int create_mg_test_graph_new(const cugraph_resource_handle_t* handle,
   properties.is_symmetric  = is_symmetric;
   properties.is_multigraph = is_multigraph;
 
-  cugraph_type_erased_device_array_t* src                 = NULL;
-  cugraph_type_erased_device_array_t* dst                 = NULL;
-  cugraph_type_erased_device_array_t* wgt                 = NULL;
-  cugraph_type_erased_device_array_t* edge_type           = NULL;
-  cugraph_type_erased_device_array_t* edge_id             = NULL;
-  cugraph_type_erased_device_array_view_t* src_view       = NULL;
-  cugraph_type_erased_device_array_view_t* dst_view       = NULL;
-  cugraph_type_erased_device_array_view_t* wgt_view       = NULL;
-  cugraph_type_erased_device_array_view_t* edge_type_view = NULL;
-  cugraph_type_erased_device_array_view_t* edge_id_view   = NULL;
+  cugraph_type_erased_device_array_t* src              = NULL;
+  cugraph_type_erased_device_array_t* dst              = NULL;
+  cugraph_type_erased_device_array_t* wgt              = NULL;
+  cugraph_type_erased_device_array_t* edge_type        = NULL;
+  cugraph_type_erased_device_array_t* edge_id          = NULL;
+  cugraph_type_erased_device_array_t* edge_start_times = NULL;
+  cugraph_type_erased_device_array_t* edge_end_times   = NULL;
+
+  cugraph_type_erased_device_array_view_t* src_view              = NULL;
+  cugraph_type_erased_device_array_view_t* dst_view              = NULL;
+  cugraph_type_erased_device_array_view_t* wgt_view              = NULL;
+  cugraph_type_erased_device_array_view_t* edge_type_view        = NULL;
+  cugraph_type_erased_device_array_view_t* edge_id_view          = NULL;
+  cugraph_type_erased_device_array_view_t* edge_start_times_view = NULL;
+  cugraph_type_erased_device_array_view_t* edge_end_times_view   = NULL;
 
   int rank = 0;
 
@@ -596,7 +612,6 @@ int create_mg_test_graph_new(const cugraph_resource_handle_t* handle,
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "dst copy_from_host failed.");
 
   if (h_wgt != NULL) {
-    std::cout << "has edge weight" << std::endl;
     ret_code =
       cugraph_type_erased_device_array_create(handle, num_edges, weight_tid, &wgt, ret_error);
     TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "wgt create failed.");
@@ -609,7 +624,6 @@ int create_mg_test_graph_new(const cugraph_resource_handle_t* handle,
   }
 
   if (h_edge_type != NULL) {
-    std::cout << "has edge type" << std::endl;
     ret_code = cugraph_type_erased_device_array_create(
       handle, num_edges, edge_type_tid, &edge_type, ret_error);
     TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "edge_type create failed.");
@@ -622,7 +636,6 @@ int create_mg_test_graph_new(const cugraph_resource_handle_t* handle,
   }
 
   if (h_edge_id != NULL) {
-    std::cout << "has edge id" << std::endl;
     ret_code =
       cugraph_type_erased_device_array_create(handle, num_edges, edge_id_tid, &edge_id, ret_error);
     TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "edge_id create failed.");
@@ -634,25 +647,62 @@ int create_mg_test_graph_new(const cugraph_resource_handle_t* handle,
     TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "edge_id copy_from_host failed.");
   }
 
-  std::cout << "calling cugraph_graph_create_mg" << std::endl;
-  ret_code = cugraph_graph_create_mg(handle,
-                                     &properties,
-                                     NULL,
-                                     &src_view,
-                                     &dst_view,
-                                     wgt_view == nullptr ? NULL : &wgt_view,
-                                     edge_id_view == nullptr ? NULL : &edge_id_view,
-                                     edge_type_view == nullptr ? NULL : &edge_type_view,
-                                     store_transposed,
-                                     1,
-                                     FALSE,
-                                     FALSE,
-                                     FALSE,
-                                     TRUE,
-                                     graph,
-                                     ret_error);
-  std::cout << "ret_code = " << ret_code << std::endl;
+  if (h_edge_start_times != NULL) {
+    ret_code = cugraph_type_erased_device_array_create(
+      handle, num_edges, edge_time_tid, &edge_start_times, ret_error);
+    TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "edge_start_times create failed.");
+
+    edge_start_times_view = cugraph_type_erased_device_array_view(edge_start_times);
+
+    ret_code = cugraph_type_erased_device_array_view_copy_from_host(
+      handle, edge_start_times_view, (byte_t*)h_edge_start_times, ret_error);
+    TEST_ASSERT(
+      test_ret_value, ret_code == CUGRAPH_SUCCESS, "edge_start_times copy_from_host failed.");
+  }
+
+  if (h_edge_end_times != NULL) {
+    ret_code = cugraph_type_erased_device_array_create(
+      handle, num_edges, edge_time_tid, &edge_end_times, ret_error);
+    TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "edge_end_times create failed.");
+
+    edge_end_times_view = cugraph_type_erased_device_array_view(edge_end_times);
+
+    ret_code = cugraph_type_erased_device_array_view_copy_from_host(
+      handle, edge_end_times_view, (byte_t*)h_edge_end_times, ret_error);
+    TEST_ASSERT(
+      test_ret_value, ret_code == CUGRAPH_SUCCESS, "edge_end_times copy_from_host failed.");
+  }
+
+  ret_code = cugraph_graph_create_with_times_mg(
+    handle,
+    &properties,
+    NULL,
+    &src_view,
+    &dst_view,
+    wgt_view == nullptr ? NULL : &wgt_view,
+    edge_id_view == nullptr ? NULL : &edge_id_view,
+    edge_type_view == nullptr ? NULL : &edge_type_view,
+    edge_start_times_view == nullptr ? NULL : &edge_start_times_view,
+    edge_end_times_view == nullptr ? NULL : &edge_end_times_view,
+    store_transposed,
+    1,
+    FALSE,
+    FALSE,
+    FALSE,
+    TRUE,
+    graph,
+    ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "graph creation failed.");
+
+  if (edge_end_times != NULL) {
+    cugraph_type_erased_device_array_view_free(edge_end_times_view);
+    cugraph_type_erased_device_array_free(edge_end_times);
+  }
+
+  if (edge_start_times != NULL) {
+    cugraph_type_erased_device_array_view_free(edge_start_times_view);
+    cugraph_type_erased_device_array_free(edge_start_times);
+  }
 
   if (edge_id != NULL) {
     cugraph_type_erased_device_array_view_free(edge_id_view);
