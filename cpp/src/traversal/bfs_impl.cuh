@@ -372,7 +372,9 @@ void bfs(raft::handle_t const& handle,
 
   vertex_frontier_t<vertex_t, void, GraphViewType::is_multi_gpu, true> vertex_frontier(handle,
                                                                                        num_buckets);
-  vertex_frontier.bucket(bucket_idx_cur).insert(sources, sources + n_sources);
+  vertex_frontier.bucket(bucket_idx_cur) =
+    key_bucket_t<vertex_t, void, GraphViewType::is_multi_gpu, true>(
+      handle, raft::device_span<vertex_t const>(sources, n_sources));
 
   // 5. initialize BFS temporary state data
 
@@ -384,8 +386,8 @@ void bfs(raft::handle_t const& handle,
   fill_edge_dst_property(handle, graph_view, dst_visited_flags.mutable_view(), false);
   fill_edge_dst_property(handle,
                          graph_view,
-                         vertex_frontier.bucket(bucket_idx_cur).begin(),
-                         vertex_frontier.bucket(bucket_idx_cur).end(),
+                         vertex_frontier.bucket(bucket_idx_cur).cbegin(),
+                         vertex_frontier.bucket(bucket_idx_cur).cend(),
                          prev_dst_visited_flags.mutable_view(),
                          true);
 
@@ -438,8 +440,8 @@ void bfs(raft::handle_t const& handle,
 
       fill_edge_dst_property(handle,
                              graph_view,
-                             vertex_frontier.bucket(bucket_idx_next).begin(),
-                             vertex_frontier.bucket(bucket_idx_next).end(),
+                             vertex_frontier.bucket(bucket_idx_next).cbegin(),
+                             vertex_frontier.bucket(bucket_idx_next).cend(),
                              prev_dst_visited_flags.mutable_view(),
                              true);
 
@@ -447,8 +449,8 @@ void bfs(raft::handle_t const& handle,
         if (vertex_frontier.bucket(bucket_idx_next).size() > 0) {
           thrust::for_each(
             handle.get_thrust_policy(),
-            vertex_frontier.bucket(bucket_idx_next).begin(),
-            vertex_frontier.bucket(bucket_idx_next).end(),
+            vertex_frontier.bucket(bucket_idx_next).cbegin(),
+            vertex_frontier.bucket(bucket_idx_next).cend(),
             [bitmap  = raft::device_span<uint32_t>((*aux_info).visited_bitmap.data(),
                                                   (*aux_info).visited_bitmap.size()),
              v_first = graph_view.local_vertex_partition_range_first()] __device__(auto v) {
@@ -469,8 +471,8 @@ void bfs(raft::handle_t const& handle,
             partition_size             = static_cast<size_t>(minor_comm_size);
           }
 
-          auto f_vertex_first = vertex_frontier.bucket(bucket_idx_next).begin();
-          auto f_vertex_last  = vertex_frontier.bucket(bucket_idx_next).end();
+          auto f_vertex_first = vertex_frontier.bucket(bucket_idx_next).cbegin();
+          auto f_vertex_last  = vertex_frontier.bucket(bucket_idx_next).cend();
 
           if (segment_offsets) {
             // FIXME: this actually over-estimates for graphs with power-law degree distribution
@@ -479,8 +481,8 @@ void bfs(raft::handle_t const& handle,
             auto approx_hypersparse_segment_degree =
               static_cast<double>(partition_size) * hypersparse_threshold_ratio * 0.5;
             auto f_segment_offsets = compute_key_segment_offsets(
-              vertex_frontier.bucket(bucket_idx_next).begin(),
-              vertex_frontier.bucket(bucket_idx_next).end(),
+              vertex_frontier.bucket(bucket_idx_next).cbegin(),
+              vertex_frontier.bucket(bucket_idx_next).cend(),
               raft::host_span<vertex_t const>((*segment_offsets).data(), (*segment_offsets).size()),
               graph_view.local_vertex_partition_range_first(),
               handle.get_stream());

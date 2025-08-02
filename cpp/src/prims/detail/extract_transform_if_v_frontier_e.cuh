@@ -1096,13 +1096,15 @@ extract_transform_if_v_frontier_e(raft::handle_t const& handle,
   size_t num_streams_per_loop{1};
   if (graph_view.local_vertex_partition_segment_offsets() &&
       (handle.get_stream_pool_size() >= max_segments)) {
+    constexpr size_t cuda_device_max_connections =
+      8;  // Note that "CUDA_DEVICE_MAX_CONNECTIONS (default: 8, can be set to [1, 32])" sets the
+          // number of queues, if the total number of streams exceeds this number, jobs on different
+          // streams can be sent to one queue leading to false dependency.
     num_streams_per_loop = std::max(
-      std::min(size_t{8} / graph_view.number_of_local_edge_partitions(), max_segments),
+      std::min(cuda_device_max_connections / graph_view.number_of_local_edge_partitions(),
+               max_segments),
       size_t{
-        1});  // Note that "CUDA_DEVICE_MAX_CONNECTIONS (default: 8, can be set to [1, 32])" sets
-              // the number of queues, if the total number of streams exceeds this number, jobs on
-              // different streams can be sent to one queue leading to false dependency. Setting
-              // num_concurrent_loops above the number of queues has some benefits in NCCL
+        1});  // Setting num_concurrent_loops above the number of queues has some benefits in NCCL
               // communications but creating too many streams just for compute may not help.
   }
   std::optional<std::vector<size_t>> stream_pool_indices{std::nullopt};
@@ -1404,6 +1406,17 @@ extract_transform_if_v_frontier_e(raft::handle_t const& handle,
       }
     }
 
+    for (size_t j = 0; j < loop_count; ++j) {
+      auto loop_stream = loop_stream_pool_indices
+                           ? handle.get_stream_from_stream_pool((*loop_stream_pool_indices)[j])
+                           : handle.get_stream();
+
+      output_key_buffers.push_back(allocate_optional_dataframe_buffer<output_key_t>(
+        edge_partition_max_push_counts[j], loop_stream));
+      output_value_buffers.push_back(allocate_optional_dataframe_buffer<output_value_t>(
+        edge_partition_max_push_counts[j], loop_stream));
+    }
+
     if (key_segment_offset_vectors) {
       for (size_t j = 0; j < loop_count; ++j) {
         auto partition_idx = i + j;
@@ -1462,33 +1475,22 @@ extract_transform_if_v_frontier_e(raft::handle_t const& handle,
                                  key_local_degree_first + key_segment_offsets[1],
                                  high_segment_key_local_degree_offsets.begin() + 1);
         }
-        raft::update_host((*high_segment_edge_counts).data() + j,
-                          high_segment_key_local_degree_offsets.data() + key_segment_offsets[1],
-                          1,
-                          loop_stream);
+        thrust::copy(rmm::exec_policy_nosync(loop_stream),
+                     high_segment_key_local_degree_offsets.begin() + key_segment_offsets[1],
+                     high_segment_key_local_degree_offsets.begin() + (key_segment_offsets[1] + 1),
+                     counters.begin() + j);
         (*high_segment_key_local_degree_offset_vectors)
           .push_back(std::move(high_segment_key_local_degree_offsets));
       }
 
-      // to ensure that *high_segment_edge_counts[] is valid
-      if (loop_stream_pool_indices) {
-        handle.sync_stream_pool(*loop_stream_pool_indices);
-      } else {
-        handle.sync_stream();
-      }
+      if (loop_stream_pool_indices) { handle.sync_stream_pool(*loop_stream_pool_indices); }
+      raft::update_host(
+        high_segment_edge_counts->data(), counters.data(), loop_count, handle.get_stream());
+      handle.sync_stream();
     }
-
-    for (size_t j = 0; j < loop_count; ++j) {
-      auto loop_stream = loop_stream_pool_indices
-                           ? handle.get_stream_from_stream_pool((*loop_stream_pool_indices)[j])
-                           : handle.get_stream();
-
-      output_key_buffers.push_back(allocate_optional_dataframe_buffer<output_key_t>(
-        edge_partition_max_push_counts[j], loop_stream));
-      output_value_buffers.push_back(allocate_optional_dataframe_buffer<output_value_t>(
-        edge_partition_max_push_counts[j], loop_stream));
+    else {
+      if (loop_stream_pool_indices) { handle.sync_stream_pool(*loop_stream_pool_indices); }
     }
-    if (loop_stream_pool_indices) { handle.sync_stream_pool(*loop_stream_pool_indices); }
 
     thrust::fill(
       handle.get_thrust_policy(), counters.begin(), counters.begin() + loop_count, size_t{0});
