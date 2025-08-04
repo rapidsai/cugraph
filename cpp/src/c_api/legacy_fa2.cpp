@@ -62,6 +62,7 @@ struct force_atlas2_functor : public cugraph::c_api::abstract_functor {
   double scaling_ratio_{};
   bool strong_gravity_mode_{};
   double gravity_{};
+  cugraph::c_api::cugraph_type_erased_device_array_view_t* mobility_{};
   bool verbose_{};
   bool do_expensive_check_{};
   cugraph::c_api::cugraph_layout_result_t* result_{};
@@ -85,6 +86,7 @@ struct force_atlas2_functor : public cugraph::c_api::abstract_functor {
                        double scaling_ratio,
                        bool strong_gravity_mode,
                        double gravity,
+                       ::cugraph_type_erased_device_array_view_t* mobility,
                        bool verbose,
                        bool do_expensive_check)
     : abstract_functor(),
@@ -106,6 +108,7 @@ struct force_atlas2_functor : public cugraph::c_api::abstract_functor {
       scaling_ratio_(scaling_ratio),
       strong_gravity_mode_(strong_gravity_mode),
       gravity_(gravity),
+      mobility_(reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t*>(mobility)),
       verbose_(verbose),
       do_expensive_check_(do_expensive_check)
   {
@@ -220,6 +223,29 @@ struct force_atlas2_functor : public cugraph::c_api::abstract_functor {
           raft::device_span<float>{vertex_radius_->as_type<float>(), vertex_radius_->size_});
       }
 
+      if (mobility_ != nullptr) {
+        // re-order mobility based on internal vertex IDs
+        cp_number_map = rmm::device_uvector<vertex_t>{number_map->size(), handle_.get_stream()};
+
+        raft::copy(
+          cp_number_map->data(), number_map->data(), number_map->size(), handle_.get_stream());
+
+        number_map_pos = rmm::device_uvector<vertex_t>{number_map->size(), handle_.get_stream()};
+
+        cugraph::detail::sequence_fill(
+          handle_.get_stream(), number_map_pos->begin(), number_map_pos->size(), vertex_t{0});
+
+        cugraph::c_api::detail::sort_by_key(
+          handle_,
+          raft::device_span<vertex_t>{cp_number_map->data(), cp_number_map->size()},
+          raft::device_span<vertex_t>{number_map_pos->data(), number_map_pos->size()});
+
+        cugraph::c_api::detail::sort_by_key(
+          handle_,
+          raft::device_span<vertex_t>{number_map_pos->data(), number_map_pos->size()},
+          raft::device_span<float>{mobility_->as_type<float>(), mobility_->size_});
+      }
+
       cugraph::force_atlas2<vertex_t, edge_t, weight_t>(
         handle_,
         // rng_state_->rng_state_, # FIXME: Add support
@@ -240,6 +266,7 @@ struct force_atlas2_functor : public cugraph::c_api::abstract_functor {
         scaling_ratio_,
         strong_gravity_mode_,
         gravity_,
+        mobility_ != nullptr ? mobility_->as_type<float>() : nullptr,
         verbose_,
         callback);
 
@@ -321,6 +348,7 @@ extern "C" cugraph_error_code_t cugraph_force_atlas2(
   double scaling_ratio,
   bool_t strong_gravity_mode,
   double gravity,
+  cugraph_type_erased_device_array_view_t* mobility,
   bool_t verbose,
   bool_t do_expensive_check,
   cugraph::c_api::cugraph_layout_result_t** result,
@@ -361,6 +389,7 @@ extern "C" cugraph_error_code_t cugraph_force_atlas2(
                                scaling_ratio,
                                strong_gravity_mode,
                                gravity,
+                               mobility,
                                verbose,
                                do_expensive_check);
 

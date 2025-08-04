@@ -32,6 +32,7 @@ def force_atlas2(
     scaling_ratio=2.0,
     strong_gravity_mode=False,
     gravity=1.0,
+    mobility=None,
     verbose=False,
     callback=None,
 ):
@@ -110,6 +111,11 @@ def force_atlas2(
     gravity : float, optional (default=1.0)
         Attracts nodes to the center. Prevents islands from drifting away.
 
+    mobility: cudf.DataFrame, optional (default=None)
+        Data frame containing the mobility of each vertex in the graph.
+        Mobility is a scaling factor on the speed of the vertex.
+        Must contain two columns 'vertex' and 'mobility'.
+
     verbose: bool, optional (default=False)
         Output convergence info at each interation.
 
@@ -174,6 +180,21 @@ def force_atlas2(
                 vertex_radius,
                 "vertex",
                 cols)
+    
+    if mobility is not None:
+        if not isinstance(mobility, cudf.DataFrame):
+            raise TypeError("mobility must be a cudf.DataFrame")
+        if set(mobility.columns) != set(["vertex", "mobility"]):
+            raise ValueError("mobility has wrong column names")
+        if input_graph.renumbered is True:
+            if input_graph.vertex_column_size() > 1:
+                cols = mobility.columns[:-2].to_list()
+            else:
+                cols = "vertex"
+            mobility = input_graph.add_internal_vertex_id(
+                mobility,
+                "vertex",
+                cols)
 
     if input_graph.is_directed():
         input_graph = input_graph.to_undirected()
@@ -194,6 +215,7 @@ def force_atlas2(
         scaling_ratio=scaling_ratio,
         strong_gravity_mode=strong_gravity_mode,
         gravity=gravity,
+        mobility=mobility,
         verbose=verbose,
         callback=callback,
     )

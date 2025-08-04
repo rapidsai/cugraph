@@ -39,6 +39,7 @@ void force_atlas2(raft::handle_t const& handle,
                   const float scaling_ratio,
                   bool strong_gravity_mode,
                   const float gravity,
+                  float* mobility,
                   bool verbose,
                   internals::GraphBasedDimRedCallback* callback)
 {
@@ -62,6 +63,7 @@ void force_atlas2(raft::handle_t const& handle,
                                                            scaling_ratio,
                                                            strong_gravity_mode,
                                                            gravity,
+                                                           mobility,
                                                            verbose,
                                                            callback);
   } else {
@@ -82,6 +84,7 @@ void force_atlas2(raft::handle_t const& handle,
                                                             scaling_ratio,
                                                             strong_gravity_mode,
                                                             gravity,
+                                                            mobility,
                                                             verbose,
                                                             callback);
   }
@@ -107,6 +110,7 @@ template void force_atlas2<int, int, float>(
   const float scaling_ratio,
   bool strong_gravity_mode,
   const float gravity,
+  float* mobility,
   bool verbose,
   internals::GraphBasedDimRedCallback* callback);
 
@@ -130,6 +134,7 @@ template void force_atlas2<int, int, double>(
   const float scaling_ratio,
   bool strong_gravity_mode,
   const float gravity,
+  float* mobility,
   bool verbose,
   internals::GraphBasedDimRedCallback* callback);
 

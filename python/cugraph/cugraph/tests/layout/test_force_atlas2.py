@@ -63,7 +63,7 @@ def cugraph_call(
     lin_log_mode,
     prevent_overlapping,
     vertex_radius,
-    overlap_scaling_ratio
+    overlap_scaling_ratio,
     edge_weight_influence,
     jitter_tolerance,
     barnes_hut_theta,
@@ -71,6 +71,7 @@ def cugraph_call(
     scaling_ratio,
     strong_gravity_mode,
     gravity,
+    mobility,
     callback=None,
     renumber=False,
 ):
@@ -100,6 +101,7 @@ def cugraph_call(
         scaling_ratio=scaling_ratio,
         strong_gravity_mode=strong_gravity_mode,
         gravity=gravity,
+        mobility=mobility,
         callback=callback,
     )
     t2 = time.time() - t1
@@ -166,6 +168,7 @@ def test_force_atlas2(graph_file, score, max_iter, barnes_hut_optimize):
         scaling_ratio=2.0,
         strong_gravity_mode=False,
         gravity=1.0,
+        mobility=None,
         callback=test_callback,
     )
     """

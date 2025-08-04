@@ -80,6 +80,7 @@ cdef extern from "cugraph_c/layout_algorithms.h":
         double scaling_ratio,
         bool_t strong_gravity_mode,
         double gravity,
+        cugraph_type_erased_device_array_view_t* mobility,
         bool_t verbose,
         bool_t do_expensive_check,
         cugraph_layout_result_t** result,

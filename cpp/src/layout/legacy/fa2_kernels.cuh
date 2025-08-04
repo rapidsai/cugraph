@@ -225,6 +225,7 @@ __global__ static void local_speed_kernel(const float* restrict repel_x,
                                           const int* restrict mass,
                                           float* restrict swinging,
                                           float* restrict traction,
+                                          float* restrict mobility,
                                           const vertex_t n)
 {
   // For every node.
@@ -248,6 +249,7 @@ void compute_local_speed(const float* restrict repel_x,
                          const int* restrict mass,
                          float* restrict swinging,
                          float* restrict traction,
+                         float* restrict mobility,
                          const vertex_t n,
                          cudaStream_t stream)
 {
@@ -260,7 +262,7 @@ void compute_local_speed(const float* restrict repel_x,
   nblocks.z  = 1;
 
   local_speed_kernel<<<nblocks, nthreads, 0, stream>>>(
-    repel_x, repel_y, attract_x, attract_y, old_dx, old_dy, mass, swinging, traction, n);
+    repel_x, repel_y, attract_x, attract_y, old_dx, old_dy, mass, swinging, traction, mobility, n);
   RAFT_CHECK_CUDA(stream);
 }
 
@@ -310,14 +312,16 @@ __global__ static void update_positions_kernel(float* restrict x_pos,
                                                float* restrict old_dx,
                                                float* restrict old_dy,
                                                const float* restrict swinging,
+                                               const float* restrict mobility,
                                                const float speed,
                                                const vertex_t n)
 {
   // For every node.
   for (int i = threadIdx.x + blockIdx.x * blockDim.x; i < n; i += gridDim.x * blockDim.x) {
-    const float factor = speed / (1.0 + sqrt(speed * swinging[i]));
-    const float dx     = (repel_x[i] + attract_x[i]);
-    const float dy     = (repel_y[i] + attract_y[i]);
+    const float mobility_factor = mobility ? mobility[i] : 1.0f;
+    const float factor          = mobility_factor * speed / (1.0 + sqrt(speed * swinging[i]));
+    const float dx              = (repel_x[i] + attract_x[i]);
+    const float dy              = (repel_y[i] + attract_y[i]);
 
     x_pos[i] += dx * factor;
     y_pos[i] += dy * factor;
@@ -336,6 +340,7 @@ void apply_forces(float* restrict x_pos,
                   float* restrict old_dx,
                   float* restrict old_dy,
                   const float* restrict swinging,
+                  const float* restrict mobility,
                   const float speed,
                   const vertex_t n,
                   cudaStream_t stream)
@@ -349,7 +354,7 @@ void apply_forces(float* restrict x_pos,
   nblocks.z  = 1;
 
   update_positions_kernel<vertex_t><<<nblocks, nthreads, 0, stream>>>(
-    x_pos, y_pos, repel_x, repel_y, attract_x, attract_y, old_dx, old_dy, swinging, speed, n);
+    x_pos, y_pos, repel_x, repel_y, attract_x, attract_y, old_dx, old_dy, swinging, mobility, speed, n);
   RAFT_CHECK_CUDA(stream);
 }
 

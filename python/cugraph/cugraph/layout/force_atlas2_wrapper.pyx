@@ -44,6 +44,7 @@ def force_atlas2(input_graph,
                  scaling_ratio=1.0,
                  strong_gravity_mode=False,
                  gravity=1.0,
+                 mobility=None,
                  verbose=False,
                  callback=None):
 
@@ -107,6 +108,14 @@ def force_atlas2(input_graph,
         vertex_radius['radius'][vertex_radius['vertex']] = vertex_radius['radius']
         vertex_radius_arr = vertex_radius['radius'].__cuda_array_interface__['data'][0]
 
+    cdef uintptr_t mobility_arr = <uintptr_t>NULL
+    if mobility is not None:
+        if len(mobility) != num_verts:
+            raise ValueError('mobility must have values for all vertices')
+        mobility['mobility'] = mobility['mobility'].astype(np.float32)
+        mobility['mobility'][mobility['vertex']] = mobility['mobility']
+        mobility_arr = mobility['mobility'].__cuda_array_interface__['data'][0]
+
     cdef uintptr_t callback_ptr = 0
     if callback:
         callback_ptr = callback.get_native_callback()
@@ -143,6 +152,7 @@ def force_atlas2(input_graph,
                         <float>scaling_ratio,
                         <bool> strong_gravity_mode,
                         <float>gravity,
+                        <float*>mobility_arr,
                         <bool> verbose,
                         <GraphBasedDimRedCallback*>callback_ptr)
     else:
@@ -167,6 +177,7 @@ def force_atlas2(input_graph,
                 <float>scaling_ratio,
                 <bool> strong_gravity_mode,
                 <float>gravity,
+                <float*>mobility_arr,
                 <bool> verbose,
                 <GraphBasedDimRedCallback*>callback_ptr)
 

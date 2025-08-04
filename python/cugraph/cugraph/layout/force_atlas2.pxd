@@ -43,5 +43,6 @@ cdef extern from "cugraph/algorithms.hpp" namespace "cugraph":
         const float scaling_ratio,
         bool strong_gravity_mode,
         const float gravity,
+        float *mobility,
         bool verbose,
         GraphBasedDimRedCallback *callback) except +

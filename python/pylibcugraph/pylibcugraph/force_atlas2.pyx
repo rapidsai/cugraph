@@ -80,6 +80,7 @@ def force_atlas2(ResourceHandle resource_handle,
                  double scaling_ratio,
                  bool_t strong_gravity_mode,
                  double gravity,
+                 mobility,
                  bool_t verbose,
                  bool_t do_expensive_check,
                 ):
@@ -155,6 +156,10 @@ def force_atlas2(ResourceHandle resource_handle,
     gravity : double
         Attracts nodes to the center. Prevents islands from drifting away.
 
+    mobility : device array type, optional (default=None)
+        Mobility of each vertex, scaling its speed in each iteration.
+        If not provided, all vertices will have a mobility of 1.0.
+
     verbose : bool_t
         Output convergence info at each interation.
 
@@ -219,6 +224,13 @@ def force_atlas2(ResourceHandle resource_handle,
             create_cugraph_type_erased_device_array_view_from_py_obj(
                 vertex_radius)
 
+    assert_CAI_type(mobility, "mobility", True)
+
+    cdef cugraph_type_erased_device_array_view_t* \
+        mobility_view_ptr = \
+            create_cugraph_type_erased_device_array_view_from_py_obj(
+                mobility)
+
     cdef cugraph_layout_result_t* result_ptr
     cdef cugraph_error_code_t error_code
     cdef cugraph_error_t* error_ptr
@@ -245,6 +257,7 @@ def force_atlas2(ResourceHandle resource_handle,
                                       scaling_ratio,
                                       strong_gravity_mode,
                                       gravity,
+                                      mobility_view_ptr,
                                       verbose,
                                       do_expensive_check,
                                       &result_ptr,
