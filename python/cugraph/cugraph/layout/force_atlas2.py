@@ -161,9 +161,6 @@ def force_atlas2(
             pos_list = input_graph.add_internal_vertex_id(pos_list, "vertex", cols)
 
     if prevent_overlapping:
-        if barnes_hut_optimize:
-            raise ValueError("prevent_overlapping can only be enabled when "
-                             "barnes_hut_optimize is set to False")
         if vertex_radius is None:
             raise ValueError("vertex_radius must be provided when "
                              "prevent_overlapping is enabled")
