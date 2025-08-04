@@ -225,7 +225,6 @@ __global__ static void local_speed_kernel(const float* restrict repel_x,
                                           const int* restrict mass,
                                           float* restrict swinging,
                                           float* restrict traction,
-                                          float* restrict mobility,
                                           const vertex_t n)
 {
   // For every node.
@@ -249,7 +248,6 @@ void compute_local_speed(const float* restrict repel_x,
                          const int* restrict mass,
                          float* restrict swinging,
                          float* restrict traction,
-                         float* restrict mobility,
                          const vertex_t n,
                          cudaStream_t stream)
 {
@@ -262,7 +260,7 @@ void compute_local_speed(const float* restrict repel_x,
   nblocks.z  = 1;
 
   local_speed_kernel<<<nblocks, nthreads, 0, stream>>>(
-    repel_x, repel_y, attract_x, attract_y, old_dx, old_dy, mass, swinging, traction, mobility, n);
+    repel_x, repel_y, attract_x, attract_y, old_dx, old_dy, mass, swinging, traction, n);
   RAFT_CHECK_CUDA(stream);
 }
 
