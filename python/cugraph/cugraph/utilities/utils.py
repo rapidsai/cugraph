@@ -264,7 +264,7 @@ def ensure_cugraph_obj(obj, matrix_graph_type=None):
             G = matrix_graph_type
         else:
             G = matrix_graph_type()
-        G.from_cudf_edgelist(df, renumber=True)
+        G.from_cudf_edgelist(df, weight="weight", renumber=True)
 
         return (G, input_type)
 

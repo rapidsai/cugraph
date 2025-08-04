@@ -432,6 +432,7 @@ def test_sssp_golden_edge_attr(load_traversal_results):
 
 
 @pytest.mark.sg
+@pytest.mark.filterwarnings("ignore::DeprecationWarning")
 def test_scipy_api_compat():
     graph_file = SMALL_DATASETS[0]
     dataset_path = graph_file.get_path()
