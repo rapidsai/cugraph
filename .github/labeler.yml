@@ -3,24 +3,32 @@
 # Labels culled from https://github.com/rapidsai/cugraph/labels
 
 python:
-  - 'python/**'
-  - 'notebooks/**'
-
+  - changed-files:
+      any-glob-to-any-file:
+        - 'python/**'
+        - 'notebooks/**'
 benchmarks:
-  - 'benchmarks/**'
-
+  - changed-files:
+      any-glob-to-any-file:
+        - 'benchmarks/**'
 datasets:
-  - 'datasets/**'
-
+  - changed-files:
+      any-glob-to-any-file:
+        - 'datasets/**'
 cuGraph:
-  - 'cpp/**'
-
+  - changed-files:
+      any-glob-to-any-file:
+        - 'cpp/**'
 CMake:
-  - '**/CMakeLists.txt'
-  - '**/cmake/**'
-
+  - changed-files:
+      any-glob-to-any-file:
+        - '**/CMakeLists.txt'
+        - '**/cmake/**'
 ci:
-   - 'ci/**'
-
+  - changed-files:
+      any-glob-to-any-file:
+        - 'ci/**'
 conda:
-  - 'conda/**'
+  - changed-files:
+      any-glob-to-any-file:
+        - 'conda/**'
