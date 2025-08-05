@@ -191,8 +191,8 @@ void overlap_list(legacy::GraphCSRView<VT, ET, WT> const& graph,
  * @tparam weight_t                                   Type of edge weights. Supported values : float
  * or double.
  *
- * @param[in] handle                          Library handle (RAFT). If a communicator is set in the
- * handle, the multi GPU version will be selected.
+ * @param[in] handle                            Library handle (RAFT). If a communicator is set in
+ * the handle, the multi GPU version will be selected.
  * @param[in] graph                             cuGraph graph descriptor, should contain the
  * connectivity information as a COO. Graph is considered undirected. Edge weights are used for this
  * algorithm and set to 1 by default.
@@ -236,6 +236,7 @@ void overlap_list(legacy::GraphCSRView<VT, ET, WT> const& graph,
  */
 template <typename vertex_t, typename edge_t, typename weight_t>
 void force_atlas2(raft::handle_t const& handle,
+                  // raft::random::RngState& rng_state,
                   legacy::GraphCOOView<vertex_t, edge_t, weight_t>& graph,
                   float* pos,
                   const int max_iter                            = 500,
@@ -427,8 +428,7 @@ rmm::device_uvector<weight_t> betweenness_centrality(
  * @return edge_property_t containing the centralities.
  */
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-edge_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, weight_t>
-edge_betweenness_centrality(
+edge_property_t<edge_t, weight_t> edge_betweenness_centrality(
   const raft::handle_t& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
@@ -445,7 +445,6 @@ enum class cugraph_cc_t {
  * @ingroup components_cpp
  * @brief      Compute connected components.
  *
- * The weak version (for undirected graphs, only) was imported from cuML.
  * This implementation comes from [1] and solves component labeling problem in
  * parallel on CSR-indexes based upon the vertex degree and adjacency graph.
  *
@@ -1573,51 +1572,6 @@ extract_ego(raft::handle_t const& handle,
 
 /**
 .* @ingroup sampling_cpp
- * @brief returns random walks (RW) from starting sources, where each path is of given maximum
- * length. Uniform distribution is assumed for the random engine.
- *
- * @deprecated This algorithm will be deprecated once all of the functionality is migrated
- *             to the newer APIS: uniform_random_walks(), biased_random_walks(), and
- *             node2vec_random_walks().
- *
- * @tparam graph_t Type of graph/view (typically, graph_view_t).
- * @tparam index_t Type used to store indexing and sizes.
- * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
- * handles to various CUDA libraries) to run graph algorithms.
- * @param graph Graph (view )object to generate RW on.
- * @param ptr_d_start Device pointer to set of starting vertex indices for the RW.
- * @param num_paths = number(paths).
- * @param max_depth maximum length of RWs.
- * @param use_padding (optional) specifies if return uses padded format (true), or coalesced
- * (compressed) format; when padding is used the output is a matrix of vertex paths and a matrix of
- * edges paths (weights); in this case the matrices are stored in row major order; the vertex path
- * matrix is padded with `num_vertices` values and the weight matrix is padded with `0` values;
- * @param sampling_strategy pointer for sampling strategy: uniform, biased, etc.; possible
- * values{0==uniform, 1==biased, 2==node2vec}; defaults to nullptr == uniform;
- * @return std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<weight_t>,
- * rmm::device_uvector<index_t>> Triplet of either padded or coalesced RW paths; in the coalesced
- * case (default), the return consists of corresponding vertex and edge weights for each, and
- * corresponding path sizes. This is meant to minimize the number of DF's to be passed to the Python
- * layer. The meaning of "coalesced" here is that a 2D array of paths of different sizes is
- * represented as a 1D contiguous array. In the padded case the return is a matrix of num_paths x
- * max_depth vertex paths; and num_paths x (max_depth-1) edge (weight) paths, with an empty array of
- * sizes. Note: if the graph is un-weighted the edge (weight) paths consists of `weight_t{1}`
- * entries;
- */
-template <typename vertex_t, typename edge_t, typename weight_t, typename index_t, bool multi_gpu>
-std::
-  tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<weight_t>, rmm::device_uvector<index_t>>
-  random_walks(raft::handle_t const& handle,
-               graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
-               std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
-               vertex_t const* ptr_d_start,
-               index_t num_paths,
-               index_t max_depth,
-               bool use_padding                                     = false,
-               std::unique_ptr<sampling_params_t> sampling_strategy = nullptr);
-
-/**
-.* @ingroup sampling_cpp
  * @brief returns uniform random walks from starting sources, where each path is of given
  * maximum length.
  *
@@ -1791,8 +1745,8 @@ enum class k_core_degree_type_t { IN = 0, OUT = 1, INOUT = 2 };
 .* @ingroup core_cpp
  * @brief   Compute core numbers of individual vertices from K-Core decomposition.
  *
- * The input graph should not have self-loops nor multi-edges. Currently, only undirected graphs are
- * supported.
+ * This algorithms does not support multi-graphs. Self-loops are excluded in computing core
+nuumbers.
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
@@ -1823,7 +1777,9 @@ void core_number(raft::handle_t const& handle,
 .* @ingroup core_cpp
  * @brief   Extract K-Core of a graph
  *
- * @throws     cugraph::logic_error when an error occurs.
+ * This function internally calls core_number (if @p core_numbers.has_value() is false). core_number
+does not support multi-graphs. Self-loops are excluded in computing core nuumbers. Note that the
+extracted K-Core can still include self-loops.
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
@@ -1860,6 +1816,9 @@ k_core(raft::handle_t const& handle,
  * Compute triangle counts for the entire set of vertices (if @p vertices is std::nullopt) or the
  * given vertices (@p vertices.has_value() is true).
  *
+ * This algorithms does not support multi-graphs. Self-loops are excluded in computing triangle
+ * counts.
+ *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
  * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
@@ -1886,6 +1845,9 @@ void triangle_count(raft::handle_t const& handle,
  *
  * Compute edge triangle counts for the entire set of edges.
  *
+ * This algorithms does not support multi-graphs. Self-loops are excluded in computing edge triangle
+counts (they will have a triangle count of 0).
+ *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
  * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
@@ -1898,7 +1860,7 @@ void triangle_count(raft::handle_t const& handle,
  * @return edge_property_t containing the edge triangle count
  */
 template <typename vertex_t, typename edge_t, bool multi_gpu>
-edge_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, edge_t> edge_triangle_count(
+edge_property_t<edge_t, edge_t> edge_triangle_count(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   bool do_expensive_check = false);
@@ -1908,6 +1870,8 @@ edge_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, edge_t> edge_t
  * @brief Compute K-Truss.
  *
  * Extract the K-Truss subgraph of a graph
+ *
+ * This algorithms does not support multi-graphs. Self-loops are excluded in computing K-Truss.
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.

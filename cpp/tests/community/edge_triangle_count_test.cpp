@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -57,20 +57,6 @@ class Tests_EdgeTriangleCount
   virtual void SetUp() {}
   virtual void TearDown() {}
 
-  // FIXME: There is an utility equivalent functor not
-  // supporting host vectors.
-  template <typename type_t>
-  struct host_nearly_equal {
-    const type_t threshold_ratio;
-    const type_t threshold_magnitude;
-
-    bool operator()(type_t lhs, type_t rhs) const
-    {
-      return std::abs(lhs - rhs) <
-             std::max(std::max(lhs, rhs) * threshold_ratio, threshold_magnitude);
-    }
-  };
-
   template <typename vertex_t, typename edge_t>
   std::vector<edge_t> edge_triangle_count_reference(std::vector<vertex_t> h_srcs,
                                                     std::vector<vertex_t> h_dsts)
@@ -80,8 +66,10 @@ class Tests_EdgeTriangleCount
 
     for (int i = 0; i < h_srcs.size(); ++i) {  // edge centric implementation
       // for each edge, find the intersection
-      auto src          = h_srcs[i];
-      auto dst          = h_dsts[i];
+      auto src = h_srcs[i];
+      auto dst = h_dsts[i];
+      if (src == dst) continue;  // exclude self-loops
+
       auto it_src_start = std::lower_bound(h_srcs.begin(), h_srcs.end(), src);
       auto src_start    = std::distance(h_srcs.begin(), it_src_start);
 
@@ -101,12 +89,10 @@ class Tests_EdgeTriangleCount
                             std::inserter(nbr_intersection, nbr_intersection.end()));
       // Find the supporting edges
       for (auto v : nbr_intersection) {
+        if ((v == src) || (v == dst)) continue;  // exclude self-loops
         auto it_edge  = std::lower_bound(h_dsts.begin() + src_start, h_dsts.begin() + src_end, v);
         auto idx_edge = std::distance(h_dsts.begin(), it_edge);
         edge_triangle_counts[idx_edge] += 1;
-
-        it_edge  = std::lower_bound(h_dsts.begin() + dst_start, h_dsts.begin() + dst_end, v);
-        idx_edge = std::distance(h_dsts.begin(), it_edge);
       }
     }
 
@@ -133,7 +119,12 @@ class Tests_EdgeTriangleCount
 
     auto [graph, edge_weight, d_renumber_map_labels] =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, false>(
-        handle, input_usecase, false, renumber, true, true);
+        handle,
+        input_usecase,
+        false,
+        renumber,
+        false /* drop_self_loops */,
+        true /* drop_multi_edges */);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -143,7 +134,7 @@ class Tests_EdgeTriangleCount
 
     auto graph_view = graph.view();
 
-    std::optional<cugraph::edge_property_t<decltype(graph_view), bool>> edge_mask{std::nullopt};
+    std::optional<cugraph::edge_property_t<edge_t, bool>> edge_mask{std::nullopt};
     if (edge_triangle_count_usecase.edge_masking_) {
       edge_mask =
         cugraph::test::generate<decltype(graph_view), bool>::edge_property(handle, graph_view, 2);

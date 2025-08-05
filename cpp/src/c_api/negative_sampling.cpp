@@ -20,11 +20,11 @@
 #include "c_api/random.hpp"
 #include "c_api/resource_handle.hpp"
 #include "c_api/utils.hpp"
+#include "detail/shuffle_wrappers.hpp"
 
 #include <cugraph_c/sampling_algorithms.h>
 
 #include <cugraph/algorithms.hpp>
-#include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/sampling_functions.hpp>
 
@@ -79,6 +79,7 @@ struct negative_sampling_functor : public cugraph::c_api::abstract_functor {
             typename edge_t,
             typename weight_t,
             typename edge_type_t,
+            typename edge_time_t,
             bool store_transposed,
             bool multi_gpu>
   void operator()()

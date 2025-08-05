@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2024, NVIDIA CORPORATION.
+# Copyright (c) 2022-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -13,8 +13,8 @@
 
 import os
 import gc
+import importlib
 from pathlib import Path
-from tempfile import TemporaryDirectory
 
 import pandas
 import pytest
@@ -24,7 +24,6 @@ import cugraph
 import dask_cudf
 from cugraph import datasets
 from cugraph.dask.common.mg_utils import is_single_gpu
-from cugraph.datasets import karate
 from cugraph.structure import Graph
 from cugraph.structure.symmetrize import symmetrize
 from cugraph.testing import (
@@ -36,61 +35,21 @@ from cugraph.testing import (
 )
 
 
-# Add the sg marker to all tests in this module.
-pytestmark = pytest.mark.sg
-
-
-###############################################################################
-# Fixtures
-###############################################################################
-
-
-# module fixture - called once for this module
-@pytest.fixture(scope="module")
-def tmpdir():
-    """
-    Create a tmp dir for downloads, etc., run a test, then cleanup when the
-    test is done.
-    """
-    tmpd = TemporaryDirectory()
-    yield tmpd
-    # teardown
-    tmpd.cleanup()
-
-
-# function fixture - called once for each function in this module
-@pytest.fixture(scope="function", autouse=True)
-def setup(tmpdir):
-    """
-    Fixture used for individual test setup and teardown. This ensures each
-    Dataset object starts with the same state and cleans up when the test is
-    done.
-    """
-    # FIXME: this relies on dataset features (unload) which themselves are
-    # being tested in this module.
-    for dataset in ALL_DATASETS:
-        dataset.unload()
-    gc.collect()
-
-    datasets.set_download_dir(tmpdir.name)
-
-    yield
-
-    # teardown
-    for dataset in ALL_DATASETS:
-        dataset.unload()
+# =============================================================================
+# Pytest Setup / Teardown - called for each test function
+# =============================================================================
+def setup_function():
     gc.collect()
 
 
 ###############################################################################
 # Helpers
 
-
 # check if there is a row where src == dst
 def has_selfloop(dataset):
     if not dataset.metadata["is_directed"]:
         return False
-    df = dataset.get_edgelist(download=True)
+    df = dataset.get_edgelist()
     df.rename(columns={df.columns[0]: "src", df.columns[1]: "dst"}, inplace=True)
     res = df.where(df["src"] == df["dst"])
 
@@ -103,7 +62,7 @@ def is_symmetric(dataset):
     if not dataset.metadata["is_directed"]:
         return True
     else:
-        df = dataset.get_edgelist(download=True)
+        df = dataset.get_edgelist()
         df.rename(columns={df.columns[0]: "src", df.columns[1]: "dst"}, inplace=True)
         df_a = df.sort_values("src")
 
@@ -126,44 +85,45 @@ def is_symmetric(dataset):
 # Tests
 
 
-# setting download_dir to None effectively re-initialized the default
-def test_env_var():
-    os.environ["RAPIDS_DATASET_ROOT_DIR"] = "custom_storage_location"
+def test_modified_env_var(tmp_path):
+    orig_dir = os.environ.get("RAPIDS_DATASET_ROOT_DIR")
+    os.environ["RAPIDS_DATASET_ROOT_DIR"] = str(tmp_path)
+
+    # calling this with None will reset to whatever the env var is set to
     datasets.set_download_dir(None)
 
-    expected_path = Path("custom_storage_location").absolute()
-    assert datasets.get_download_dir() == expected_path
+    assert datasets.get_download_dir() == tmp_path
 
-    del os.environ["RAPIDS_DATASET_ROOT_DIR"]
-
-
-def test_home_dir():
+    # restore to the initial value
+    if orig_dir is None:
+        del os.environ["RAPIDS_DATASET_ROOT_DIR"]
+    else:
+        os.environ["RAPIDS_DATASET_ROOT_DIR"] = orig_dir
+    # reset to default
     datasets.set_download_dir(None)
-    expected_path = Path.home() / ".cugraph/datasets"
-
-    assert datasets.get_download_dir() == expected_path
 
 
-def test_set_download_dir():
-    tmpd = TemporaryDirectory()
-    datasets.set_download_dir(tmpd.name)
+def test_set_download_dir(tmp_path):
+    datasets.set_download_dir(tmp_path.name)
 
-    assert datasets.get_download_dir() == Path(tmpd.name).absolute()
+    assert datasets.get_download_dir() == Path(tmp_path.name).absolute()
 
-    tmpd.cleanup()
+    datasets.set_download_dir(None)
 
 
 @pytest.mark.parametrize("dataset", ALL_DATASETS)
-def test_download(dataset):
+def test_download(dataset, tmp_path):
+    datasets.set_download_dir(tmp_path)
+
     E = dataset.get_edgelist(download=True)
 
     assert E is not None
     assert dataset.get_path().is_file()
 
 
-@pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
-@pytest.mark.skip(reason="MG not supported on CI")
+@pytest.mark.mg
 @pytest.mark.parametrize("dataset", ALL_DATASETS)
+@pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
 def test_download_dask(dask_client, dataset):
     E = dataset.get_dask_edgelist(download=True)
 
@@ -174,7 +134,7 @@ def test_download_dask(dask_client, dataset):
 @pytest.mark.parametrize("dataset", SMALL_DATASETS)
 def test_reader(dataset):
     # defaults to using cudf
-    E = dataset.get_edgelist(download=True)
+    E = dataset.get_edgelist()
 
     assert E is not None
     assert isinstance(E, cudf.DataFrame)
@@ -192,16 +152,15 @@ def test_reader(dataset):
         dataset.get_edgelist(reader=None)
 
 
-@pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
-@pytest.mark.skip(reason="MG not supported on CI")
+@pytest.mark.mg
 @pytest.mark.parametrize("dataset", SMALL_DATASETS)
+@pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
 def test_reader_dask(dask_client, dataset):
     # using dask_cudf
-    E = dataset.get_dask_edgelist(download=True)
+    E = dataset.get_dask_edgelist()
 
     assert E is not None
     assert isinstance(E, dask_cudf.DataFrame)
-    dataset.unload()
 
 
 @pytest.mark.parametrize("dataset", ALL_DATASETS)
@@ -212,11 +171,11 @@ def test_get_edgelist(dataset):
     assert isinstance(E, cudf.DataFrame)
 
 
-@pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
-@pytest.mark.skip(reason="MG not supported on CI")
+@pytest.mark.mg
 @pytest.mark.parametrize("dataset", ALL_DATASETS)
+@pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
 def test_get_dask_edgelist(dask_client, dataset):
-    E = dataset.get_dask_edgelist(download=True)
+    E = dataset.get_dask_edgelist()
 
     assert E is not None
     assert isinstance(E, dask_cudf.DataFrame)
@@ -224,16 +183,18 @@ def test_get_dask_edgelist(dask_client, dataset):
 
 @pytest.mark.parametrize("dataset", ALL_DATASETS)
 def test_get_graph(dataset):
-    G = dataset.get_graph(download=True)
+    G = dataset.get_graph()
+
     assert G is not None
     assert isinstance(G, cugraph.Graph)
 
 
+@pytest.mark.mg
+@pytest.mark.parametrize("dataset", ALL_DATASETS[:1])
 @pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
-@pytest.mark.skip(reason="MG not supported on CI")
-@pytest.mark.parametrize("dataset", ALL_DATASETS)
 def test_get_dask_graph(dask_client, dataset):
-    G = dataset.get_dask_graph(download=True)
+    G = dataset.get_dask_graph()
+
     assert G is not None
     # TODO Check G is a DistributedGraph
 
@@ -241,66 +202,70 @@ def test_get_dask_graph(dask_client, dataset):
 @pytest.mark.parametrize("dataset", ALL_DATASETS)
 def test_metadata(dataset):
     M = dataset.metadata
+
     assert M is not None
     assert isinstance(M, dict)
 
 
 @pytest.mark.parametrize("dataset", ALL_DATASETS)
-def test_get_path(dataset):
-    tmpd = TemporaryDirectory()
-    datasets.set_download_dir(tmpd.name)
+def test_get_path(dataset, tmp_path):
+    datasets.set_download_dir(tmp_path.name)
     dataset.get_edgelist(download=True)
 
     assert dataset.get_path().is_file()
-    tmpd.cleanup()
+
+    datasets.set_download_dir(None)
 
 
 @pytest.mark.parametrize("dataset", WEIGHTED_DATASETS)
 def test_weights(dataset):
-    G = dataset.get_graph(download=True)
+    G = dataset.get_graph()
     assert G.is_weighted()
-    G = dataset.get_graph(download=True, ignore_weights=True)
+
+    G = dataset.get_graph(ignore_weights=True)
     assert not G.is_weighted()
 
 
-@pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
-@pytest.mark.skip(reason="MG not supported on CI")
+@pytest.mark.mg
 @pytest.mark.parametrize("dataset", WEIGHTED_DATASETS)
+@pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
 def test_weights_dask(dask_client, dataset):
-    G = dataset.get_dask_graph(download=True)
+    G = dataset.get_dask_graph()
     assert G.is_weighted()
-    G = dataset.get_dask_graph(download=True, ignore_weights=True)
+    G = dataset.get_dask_graph(ignore_weights=True)
     assert not G.is_weighted()
 
 
 @pytest.mark.parametrize("dataset", SMALL_DATASETS)
 def test_create_using(dataset):
-    G = dataset.get_graph(download=True)
+    G = dataset.get_graph()
     assert not G.is_directed()
-    G = dataset.get_graph(download=True, create_using=Graph)
+
+    G = dataset.get_graph(create_using=Graph)
     assert not G.is_directed()
-    G = dataset.get_graph(download=True, create_using=Graph(directed=True))
+
+    G = dataset.get_graph(create_using=Graph(directed=True))
     assert G.is_directed()
 
     # using a non-Graph type should raise an error
     with pytest.raises(TypeError):
-        dataset.get_graph(download=True, create_using=set)
+        dataset.get_graph(create_using=set)
 
 
-@pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
-@pytest.mark.skip(reason="MG not supported on CI")
+@pytest.mark.mg
 @pytest.mark.parametrize("dataset", SMALL_DATASETS)
+@pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
 def test_create_using_dask(dask_client, dataset):
-    G = dataset.get_dask_graph(download=True)
+    G = dataset.get_dask_graph()
     assert not G.is_directed()
-    G = dataset.get_dask_graph(download=True, create_using=Graph)
+    G = dataset.get_dask_graph(create_using=Graph)
     assert not G.is_directed()
-    G = dataset.get_dask_graph(download=True, create_using=Graph(directed=True))
+    G = dataset.get_dask_graph(create_using=Graph(directed=True))
     assert G.is_directed()
 
     # using a non-Graph type should raise an error
     with pytest.raises(TypeError):
-        dataset.get_dask_graph(download=True, create_using=set)
+        dataset.get_dask_graph(create_using=set)
 
 
 def test_ctor_with_datafile():
@@ -359,27 +324,27 @@ def test_ctor_with_datafile():
     assert ds.get_path() == karate_csv
 
 
-@pytest.mark.parametrize("dataset", [karate])
-def test_unload(dataset):
-    assert dataset._edgelist is None
+def test_unload():
+    importlib.reload(datasets)
+    test_obj = datasets.karate
 
-    dataset.get_edgelist()
-    assert dataset._edgelist is not None
-    dataset.unload()
-    assert dataset._edgelist is None
+    assert test_obj._edgelist is None
 
-    dataset.get_graph()
-    assert dataset._edgelist is not None
-    dataset.unload()
-    assert dataset._edgelist is None
+    test_obj.get_edgelist(download=True)
+    assert test_obj._edgelist is not None
+    test_obj.unload()
+    assert test_obj._edgelist is None
+
+    test_obj.get_graph()
+    assert test_obj._edgelist is not None
+    test_obj.unload()
+    assert test_obj._edgelist is None
 
 
 @pytest.mark.parametrize("dataset", ALL_DATASETS)
 def test_node_and_edge_count(dataset):
     dataset_is_directed = dataset.metadata["is_directed"]
-    G = dataset.get_graph(
-        download=True, create_using=Graph(directed=dataset_is_directed)
-    )
+    G = dataset.get_graph(create_using=Graph(directed=dataset_is_directed))
 
     df = cudf.DataFrame()
     if "weights" in G.edgelist.edgelist_df:
@@ -411,9 +376,7 @@ def test_node_and_edge_count(dataset):
 @pytest.mark.parametrize("dataset", ALL_DATASETS)
 def test_is_directed(dataset):
     dataset_is_directed = dataset.metadata["is_directed"]
-    G = dataset.get_graph(
-        download=True, create_using=Graph(directed=dataset_is_directed)
-    )
+    G = dataset.get_graph(create_using=Graph(directed=dataset_is_directed))
 
     assert G.is_directed() == dataset.metadata["is_directed"]
 
@@ -430,7 +393,7 @@ def test_is_symmetric(dataset):
 
 @pytest.mark.parametrize("dataset", ALL_DATASETS)
 def test_is_multigraph(dataset):
-    G = dataset.get_graph(download=True)
+    G = dataset.get_graph()
 
     assert G.is_multigraph() == dataset.metadata["is_multigraph"]
 
@@ -450,8 +413,6 @@ def test_benchmarking_datasets(dataset):
     assert has_selfloop(dataset) == dataset.metadata["has_loop"]
     assert is_symmetric(dataset) == dataset.metadata["is_symmetric"]
     assert G.is_multigraph() == dataset.metadata["is_multigraph"]
-
-    dataset.unload()
 
 
 @pytest.mark.parametrize("dataset", ALL_DATASETS)

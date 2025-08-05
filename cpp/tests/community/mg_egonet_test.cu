@@ -201,9 +201,7 @@ class Tests_MGEgonet
       }
 
       cugraph::graph_t<vertex_t, edge_t, false, false> sg_graph(*handle_);
-      std::optional<
-        cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, false, false>, weight_t>>
-        sg_edge_weights{std::nullopt};
+      std::optional<cugraph::edge_property_t<edge_t, weight_t>> sg_edge_weights{std::nullopt};
       std::tie(sg_graph, sg_edge_weights, std::ignore, std::ignore, std::ignore) =
         cugraph::test::mg_graph_to_sg_graph(
           *handle_,
@@ -217,12 +215,12 @@ class Tests_MGEgonet
 
       if (handle_->get_comms().get_rank() == 0) {
         auto d_mg_aggregate_edgelist_offsets =
-          cugraph::detail::compute_sparse_offsets<size_t>(graph_ids_v.begin(),
+          cugraph::detail::compute_sparse_offsets<size_t>(*handle_,
+                                                          graph_ids_v.begin(),
                                                           graph_ids_v.end(),
                                                           size_t{0},
                                                           d_mg_edgelist_offsets.size() - 1,
-                                                          true,
-                                                          handle_->get_stream());
+                                                          true);
 
         auto [d_reference_src, d_reference_dst, d_reference_wgt, d_reference_offsets] =
           cugraph::extract_ego(

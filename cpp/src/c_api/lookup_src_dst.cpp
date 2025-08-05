@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, NVIDIA CORPORATION.
+ * Copyright (c) 2024-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,7 +25,6 @@
 #include <cugraph_c/algorithms.h>
 
 #include <cugraph/algorithms.hpp>
-#include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/sampling_functions.hpp>
@@ -51,7 +50,8 @@ struct build_lookup_map_functor : public cugraph::c_api::abstract_functor {
   template <typename vertex_t,
             typename edge_t,
             typename weight_t,
-            typename edge_type_type_t,
+            typename edge_type_t,
+            typename edge_time_t,
             bool store_transposed,
             bool multi_gpu>
   void operator()()
@@ -72,17 +72,15 @@ struct build_lookup_map_functor : public cugraph::c_api::abstract_functor {
 
       auto graph_view = graph->view();
 
-      auto edge_ids = reinterpret_cast<
-        cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, false, multi_gpu>,
-                                 edge_t>*>(graph_->edge_ids_);
+      auto edge_ids =
+        reinterpret_cast<cugraph::edge_property_t<edge_t, edge_t>*>(graph_->edge_ids_);
 
-      auto edge_types = reinterpret_cast<
-        cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, false, multi_gpu>,
-                                 edge_type_type_t>*>(graph_->edge_types_);
+      auto edge_types =
+        reinterpret_cast<cugraph::edge_property_t<edge_t, edge_type_t>*>(graph_->edge_types_);
 
       auto renumber_map = reinterpret_cast<rmm::device_uvector<vertex_t>*>(graph_->number_map_);
 
-      auto lookup_container = new cugraph::lookup_container_t<edge_t, edge_type_type_t, vertex_t>();
+      auto lookup_container = new cugraph::lookup_container_t<edge_t, edge_type_t, vertex_t>();
 
       *lookup_container = std::move(cugraph::build_edge_id_and_type_to_src_dst_lookup_map(
         handle_, graph_view, edge_ids->view(), edge_types->view()));
@@ -124,7 +122,8 @@ struct lookup_using_edge_ids_of_single_type_functor : public cugraph::c_api::abs
   template <typename vertex_t,
             typename edge_t,
             typename weight_t,
-            typename edge_type_type_t,
+            typename edge_type_t,
+            typename edge_time_t,
             bool store_transposed,
             bool multi_gpu>
   void operator()()
@@ -147,16 +146,14 @@ struct lookup_using_edge_ids_of_single_type_functor : public cugraph::c_api::abs
 
       assert(edge_ids_to_lookup_);
 
-      auto result = cugraph::lookup_endpoints_from_edge_ids_and_single_type<vertex_t,
-                                                                            edge_t,
-                                                                            edge_type_type_t,
-                                                                            multi_gpu>(
-        handle_,
-        *(reinterpret_cast<cugraph::lookup_container_t<edge_t, edge_type_type_t, vertex_t>*>(
-          lookup_container_->lookup_container_)),
-        raft::device_span<edge_t const>(edge_ids_to_lookup_->as_type<edge_t>(),
-                                        edge_ids_to_lookup_->size_),
-        edge_type_to_lookup_);
+      auto result = cugraph::
+        lookup_endpoints_from_edge_ids_and_single_type<vertex_t, edge_t, edge_type_t, multi_gpu>(
+          handle_,
+          *(reinterpret_cast<cugraph::lookup_container_t<edge_t, edge_type_t, vertex_t>*>(
+            lookup_container_->lookup_container_)),
+          raft::device_span<edge_t const>(edge_ids_to_lookup_->as_type<edge_t>(),
+                                          edge_ids_to_lookup_->size_),
+          edge_type_to_lookup_);
 
       auto renumber_map = reinterpret_cast<rmm::device_uvector<vertex_t>*>(graph_->number_map_);
 
@@ -219,7 +216,8 @@ struct lookup_using_edge_ids_and_types_functor : public cugraph::c_api::abstract
   template <typename vertex_t,
             typename edge_t,
             typename weight_t,
-            typename edge_type_type_t,
+            typename edge_type_t,
+            typename edge_time_t,
             bool store_transposed,
             bool multi_gpu>
   void operator()()
@@ -243,15 +241,15 @@ struct lookup_using_edge_ids_and_types_functor : public cugraph::c_api::abstract
       assert(edge_ids_to_lookup_);
       assert(edge_types_to_lookup_);
 
-      auto result = cugraph::
-        lookup_endpoints_from_edge_ids_and_types<vertex_t, edge_t, edge_type_type_t, multi_gpu>(
+      auto result =
+        cugraph::lookup_endpoints_from_edge_ids_and_types<vertex_t, edge_t, edge_type_t, multi_gpu>(
           handle_,
-          *(reinterpret_cast<cugraph::lookup_container_t<edge_t, edge_type_type_t, vertex_t>*>(
+          *(reinterpret_cast<cugraph::lookup_container_t<edge_t, edge_type_t, vertex_t>*>(
             lookup_container_->lookup_container_)),
           raft::device_span<edge_t const>(edge_ids_to_lookup_->as_type<edge_t>(),
                                           edge_ids_to_lookup_->size_),
-          raft::device_span<edge_type_type_t const>(
-            edge_types_to_lookup_->as_type<edge_type_type_t>(), edge_types_to_lookup_->size_));
+          raft::device_span<edge_type_t const>(edge_types_to_lookup_->as_type<edge_type_t>(),
+                                               edge_types_to_lookup_->size_));
 
       auto renumber_map = reinterpret_cast<rmm::device_uvector<vertex_t>*>(graph_->number_map_);
 

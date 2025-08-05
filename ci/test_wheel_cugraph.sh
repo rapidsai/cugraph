@@ -3,17 +3,18 @@
 
 set -eoxu pipefail
 
+source rapids-init-pip
+
 # Download the packages built in the previous step
-mkdir -p ./dist
 RAPIDS_PY_CUDA_SUFFIX="$(rapids-wheel-ctk-name-gen "${RAPIDS_CUDA_VERSION}")"
-RAPIDS_PY_WHEEL_NAME="cugraph_${RAPIDS_PY_CUDA_SUFFIX}" rapids-download-wheels-from-s3 python ./dist
-RAPIDS_PY_WHEEL_NAME="libcugraph_${RAPIDS_PY_CUDA_SUFFIX}" rapids-download-wheels-from-s3 cpp ./local-libcugraph-dep
-RAPIDS_PY_WHEEL_NAME="pylibcugraph_${RAPIDS_PY_CUDA_SUFFIX}" rapids-download-wheels-from-s3 python ./local-pylibcugraph-dep
+CUGRAPH_WHEELHOUSE=$(RAPIDS_PY_WHEEL_NAME="cugraph_${RAPIDS_PY_CUDA_SUFFIX}" rapids-download-wheels-from-github python)
+LIBCUGRAPH_WHEELHOUSE=$(RAPIDS_PY_WHEEL_NAME="libcugraph_${RAPIDS_PY_CUDA_SUFFIX}" rapids-download-wheels-from-github cpp)
+PYLIBCUGRAPH_WHEELHOUSE=$(RAPIDS_PY_WHEEL_NAME="pylibcugraph_${RAPIDS_PY_CUDA_SUFFIX}" rapids-download-wheels-from-github python)
 
 # echo to expand wildcard before adding `[extra]` requires for pip
 rapids-pip-retry install \
-    "$(echo ./dist/cugraph*.whl)[test]" \
-    ./local-pylibcugraph-dep/pylibcugraph*.whl \
-    ./local-libcugraph-dep/libcugraph*.whl
+    "$(echo "${CUGRAPH_WHEELHOUSE}"/cugraph*.whl)[test]" \
+    "${PYLIBCUGRAPH_WHEELHOUSE}"/pylibcugraph*.whl \
+    "${LIBCUGRAPH_WHEELHOUSE}"/libcugraph*.whl
 
 ./ci/test_wheel.sh cugraph

@@ -21,10 +21,10 @@
 // FIXME: Only outstanding items preventing this becoming a .hpp file
 #include "community/detail/common_methods.hpp"
 #include "community/flatten_dendrogram.hpp"
+#include "detail/shuffle_wrappers.hpp"
 #include "prims/update_edge_src_dst_property.cuh"
 
 #include <cugraph/detail/collect_comm_wrapper.hpp>
-#include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>
@@ -64,7 +64,7 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
   std::unique_ptr<Dendrogram<vertex_t>> dendrogram = std::make_unique<Dendrogram<vertex_t>>();
   graph_t current_graph(handle);
   graph_view_t current_graph_view(graph_view);
-  std::optional<edge_property_t<graph_view_t, weight_t>> current_edge_weights(handle);
+  std::optional<edge_property_t<edge_t, weight_t>> current_edge_weights(handle);
   std::optional<edge_property_view_t<edge_t, weight_t const*>> current_edge_weight_view(
     edge_weight_view);
 
@@ -76,9 +76,9 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
   rmm::device_uvector<weight_t> cluster_weights_v(0, handle.get_stream());
   rmm::device_uvector<weight_t> vertex_weights_v(0, handle.get_stream());
   rmm::device_uvector<vertex_t> next_clusters_v(0, handle.get_stream());
-  edge_src_property_t<graph_view_t, weight_t> src_vertex_weights_cache(handle);
-  edge_src_property_t<graph_view_t, vertex_t> src_clusters_cache(handle);
-  edge_dst_property_t<graph_view_t, vertex_t> dst_clusters_cache(handle);
+  edge_src_property_t<vertex_t, weight_t> src_vertex_weights_cache(handle);
+  edge_src_property_t<vertex_t, vertex_t> src_clusters_cache(handle);
+  edge_dst_property_t<vertex_t, vertex_t> dst_clusters_cache(handle);
 
   while (dendrogram->num_levels() < max_level) {
     //
@@ -137,7 +137,7 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
         handle, std::move(cluster_keys_v), std::move(cluster_weights_v));
 
       src_vertex_weights_cache =
-        edge_src_property_t<graph_view_t, weight_t>(handle, current_graph_view);
+        edge_src_property_t<vertex_t, weight_t>(handle, current_graph_view);
       update_edge_src_property(handle,
                                current_graph_view,
                                vertex_weights_v.begin(),
@@ -167,10 +167,10 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
                handle.get_stream());
 
     if constexpr (multi_gpu) {
-      src_clusters_cache = edge_src_property_t<graph_view_t, vertex_t>(handle, current_graph_view);
+      src_clusters_cache = edge_src_property_t<vertex_t, vertex_t>(handle, current_graph_view);
       update_edge_src_property(
         handle, current_graph_view, next_clusters_v.begin(), src_clusters_cache.mutable_view());
-      dst_clusters_cache = edge_dst_property_t<graph_view_t, vertex_t>(handle, current_graph_view);
+      dst_clusters_cache = edge_dst_property_t<vertex_t, vertex_t>(handle, current_graph_view);
       update_edge_dst_property(
         handle, current_graph_view, next_clusters_v.begin(), dst_clusters_cache.mutable_view());
     }
@@ -262,9 +262,9 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
     cluster_weights_v.shrink_to_fit(handle.get_stream());
     vertex_weights_v.shrink_to_fit(handle.get_stream());
     next_clusters_v.shrink_to_fit(handle.get_stream());
-    src_vertex_weights_cache.clear(handle);
-    src_clusters_cache.clear(handle);
-    dst_clusters_cache.clear(handle);
+    src_vertex_weights_cache.clear();
+    src_clusters_cache.clear();
+    dst_clusters_cache.clear();
 
     std::tie(current_graph, current_edge_weights) = cugraph::detail::graph_contraction(
       handle,

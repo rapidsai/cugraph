@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2023-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -44,9 +44,11 @@ refine_clustering(
   rmm::device_uvector<typename graph_view_t::vertex_type>&& cluster_keys_v,
   rmm::device_uvector<weight_t>&& cluster_weights_v,
   rmm::device_uvector<typename graph_view_t::vertex_type>&& next_clusters_v,
-  edge_src_property_t<graph_view_t, weight_t> const& src_vertex_weights_cache,
-  edge_src_property_t<graph_view_t, typename graph_view_t::vertex_type> const& src_clusters_cache,
-  edge_dst_property_t<graph_view_t, typename graph_view_t::vertex_type> const& dst_clusters_cache);
+  edge_src_property_t<typename graph_view_t::vertex_type, weight_t> const& src_vertex_weights_cache,
+  edge_src_property_t<typename graph_view_t::vertex_type, typename graph_view_t::vertex_type> const&
+    src_clusters_cache,
+  edge_dst_property_t<typename graph_view_t::vertex_type, typename graph_view_t::vertex_type> const&
+    dst_clusters_cache);
 
 }
 }  // namespace cugraph

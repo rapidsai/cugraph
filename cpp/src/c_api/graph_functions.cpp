@@ -25,7 +25,6 @@
 #include <cugraph_c/graph_functions.h>
 
 #include <cugraph/algorithms.hpp>
-#include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/shuffle_functions.hpp>
@@ -56,7 +55,8 @@ struct create_vertex_pairs_functor : public cugraph::c_api::abstract_functor {
   template <typename vertex_t,
             typename edge_t,
             typename weight_t,
-            typename edge_type_type_t,
+            typename edge_type_t,
+            typename edge_time_t,
             bool store_transposed,
             bool multi_gpu>
   void operator()()
@@ -73,27 +73,14 @@ struct create_vertex_pairs_functor : public cugraph::c_api::abstract_functor {
         second_copy.data(), second_->as_type<vertex_t>(), second_->size_, handle_.get_stream());
 
       if constexpr (multi_gpu) {
-        std::tie(first_copy,
-                 second_copy,
-                 std::ignore,
-                 std::ignore,
-                 std::ignore,
-                 std::ignore,
-                 std::ignore,
-                 std::ignore) =
-          cugraph::detail::shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<
-            vertex_t,
-            edge_t,
-            weight_t,
-            edge_type_type_t,
-            int32_t>(handle_,
-                     std::move(first_copy),
-                     std::move(second_copy),
-                     std::nullopt,
-                     std::nullopt,
-                     std::nullopt,
-                     std::nullopt,
-                     std::nullopt);
+        std::vector<cugraph::arithmetic_device_uvector_t> edge_properties{};
+
+        std::tie(first_copy, second_copy, std::ignore, std::ignore) =
+          cugraph::shuffle_ext_edges(handle_,
+                                     std::move(first_copy),
+                                     std::move(second_copy),
+                                     std::move(edge_properties),
+                                     false);
       }
       // FIXME: use std::tuple (template) instead.
       result_ = new cugraph::c_api::cugraph_vertex_pairs_t{
@@ -127,7 +114,8 @@ struct two_hop_neighbors_functor : public cugraph::c_api::abstract_functor {
   template <typename vertex_t,
             typename edge_t,
             typename weight_t,
-            typename edge_type_type_t,
+            typename edge_type_t,
+            typename edge_time_t,
             bool store_transposed,
             bool multi_gpu>
   void operator()()
@@ -242,7 +230,8 @@ struct count_multi_edges_functor : public cugraph::c_api::abstract_functor {
   template <typename vertex_t,
             typename edge_t,
             typename weight_t,
-            typename edge_type_type_t,
+            typename edge_type_t,
+            typename edge_time_t,
             bool store_transposed,
             bool multi_gpu>
   void operator()()
@@ -284,7 +273,8 @@ struct has_vertex_functor : public cugraph::c_api::abstract_functor {
   template <typename vertex_t,
             typename edge_t,
             typename weight_t,
-            typename edge_type_type_t,
+            typename edge_type_t,
+            typename edge_time_t,
             bool store_transposed,
             bool multi_gpu>
   void operator()()

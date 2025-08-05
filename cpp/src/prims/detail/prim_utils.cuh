@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, NVIDIA CORPORATION.
+ * Copyright (c) 2024-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,12 +15,44 @@
  */
 #pragma once
 
+#include <cugraph/edge_partition_device_view.cuh>
+#include <cugraph/edge_partition_edge_property_device_view.cuh>
+
 #include <limits>
 #include <type_traits>
 
 namespace cugraph {
 
 namespace detail {
+
+template <typename vertex_t, typename edge_t, bool multi_gpu>
+struct edge_exists_t {
+  edge_partition_device_view_t<vertex_t, edge_t, multi_gpu> edge_partition{};
+  cuda::std::optional<edge_partition_edge_property_device_view_t<edge_t, uint32_t const*, bool>>
+    edge_partition_e_mask{};
+
+  __device__ bool operator()(thrust::tuple<vertex_t, vertex_t, edge_t> edge) const
+  {
+    auto major            = thrust::get<0>(edge);
+    auto minor            = thrust::get<1>(edge);
+    auto multi_edge_index = thrust::get<2>(edge);
+    auto major_idx        = edge_partition.major_idx_from_major_nocheck(major);
+    if (!major_idx) { return true; }
+    vertex_t const* indices{nullptr};
+    edge_t edge_offset{};
+    edge_t local_degree{};
+    thrust::tie(indices, edge_offset, local_degree) = edge_partition.local_edges(*major_idx);
+    auto lower_it = thrust::lower_bound(thrust::seq, indices, indices + local_degree, minor);
+    if (*(lower_it + multi_edge_index) != minor) { return true; }
+    if (edge_partition_e_mask) {
+      if (edge_partition_e_mask->get(edge_offset + cuda::std::distance(indices, lower_it) +
+                                     multi_edge_index) == false) {
+        return true;
+      }
+    }
+    return false;
+  }
+};
 
 template <typename vertex_t, typename priority_t>
 __host__ __device__ priority_t

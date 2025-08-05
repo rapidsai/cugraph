@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2019-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 #pragma once
 
 #include <cugraph/graph.hpp>
+#include <cugraph/large_buffer_manager.hpp>
 #include <cugraph/legacy/graph.hpp>
 
 #include <raft/core/handle.hpp>
@@ -96,11 +97,15 @@ std::tuple<rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>,
            rmm::device_uvector<vertex_t>,
            bool>
-read_edgelist_from_matrix_market_file(raft::handle_t const& handle,
-                                      std::string const& graph_file_full_path,
-                                      bool test_weighted,
-                                      bool store_transposed,
-                                      bool multi_gpu);
+read_edgelist_from_matrix_market_file(
+  raft::handle_t const& handle,
+  std::string const& graph_file_full_path,
+  bool test_weighted,
+  bool store_transposed,
+  bool multi_gpu,
+  bool shuffle                                                = true,
+  std::optional<large_buffer_type_t> large_vertex_buffer_type = std::nullopt,
+  std::optional<large_buffer_type_t> large_edge_buffer_type   = std::nullopt);
 
 // renumber must be true if multi_gpu is true
 template <typename vertex_t,
@@ -109,14 +114,15 @@ template <typename vertex_t,
           bool store_transposed,
           bool multi_gpu>
 std::tuple<cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu>,
-           std::optional<
-             cugraph::edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
-                                      weight_t>>,
+           std::optional<cugraph::edge_property_t<edge_t, weight_t>>,
            std::optional<rmm::device_uvector<vertex_t>>>
-read_graph_from_matrix_market_file(raft::handle_t const& handle,
-                                   std::string const& graph_file_full_path,
-                                   bool test_weighted,
-                                   bool renumber);
+read_graph_from_matrix_market_file(
+  raft::handle_t const& handle,
+  std::string const& graph_file_full_path,
+  bool test_weighted,
+  bool renumber,
+  std::optional<large_buffer_type_t> large_vertex_buffer_type = std::nullopt,
+  std::optional<large_buffer_type_t> large_edge_buffer_type   = std::nullopt);
 
 }  // namespace test
 }  // namespace cugraph

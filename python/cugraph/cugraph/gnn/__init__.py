@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2024, NVIDIA CORPORATION.
+# Copyright (c) 2022-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -11,8 +11,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .feature_storage.feat_storage import FeatureStore
-from .data_loading.bulk_sampler import BulkSampler
+import warnings
+
 from .data_loading import (
     DistSampler,
     DistSampleWriter,
@@ -21,9 +21,5 @@ from .data_loading import (
     UniformNeighborSampler,
     BiasedNeighborSampler,
 )
-from .comms.cugraph_nccl_comms import (
-    cugraph_comms_init,
-    cugraph_comms_shutdown,
-    cugraph_comms_create_unique_id,
-    cugraph_comms_get_raft_handle,
-)
+
+from .comms import *

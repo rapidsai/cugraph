@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,51 +19,40 @@ namespace cugraph {
 
 // SG instantiation
 
-template std::tuple<
-  graph_t<int32_t, int32_t, false, false>,
-  std::optional<edge_property_t<graph_view_t<int32_t, int32_t, false, false>, float>>,
-  std::optional<rmm::device_uvector<int32_t>>>
-transpose_graph_storage(
-  raft::handle_t const& handle,
-  graph_t<int32_t, int32_t, true, false>&& graph,
-  std::optional<edge_property_t<graph_view_t<int32_t, int32_t, true, false>, float>>&& edge_weights,
-  std::optional<rmm::device_uvector<int32_t>>&& renumber_map,
-  bool do_expensive_check);
+template std::tuple<graph_t<int32_t, int32_t, false, false>,
+                    std::optional<edge_property_t<int32_t, float>>,
+                    std::optional<rmm::device_uvector<int32_t>>>
+transpose_graph_storage(raft::handle_t const& handle,
+                        graph_t<int32_t, int32_t, true, false>&& graph,
+                        std::optional<edge_property_t<int32_t, float>>&& edge_weights,
+                        std::optional<rmm::device_uvector<int32_t>>&& renumber_map,
+                        bool do_expensive_check);
 
-template std::tuple<
-  graph_t<int32_t, int32_t, true, false>,
-  std::optional<edge_property_t<graph_view_t<int32_t, int32_t, true, false>, float>>,
-  std::optional<rmm::device_uvector<int32_t>>>
-transpose_graph_storage(
-  raft::handle_t const& handle,
-  graph_t<int32_t, int32_t, false, false>&& graph,
-  std::optional<edge_property_t<graph_view_t<int32_t, int32_t, false, false>, float>>&&
-    edge_weights,
-  std::optional<rmm::device_uvector<int32_t>>&& renumber_map,
-  bool do_expensive_check);
+template std::tuple<graph_t<int32_t, int32_t, true, false>,
+                    std::optional<edge_property_t<int32_t, float>>,
+                    std::optional<rmm::device_uvector<int32_t>>>
+transpose_graph_storage(raft::handle_t const& handle,
+                        graph_t<int32_t, int32_t, false, false>&& graph,
+                        std::optional<edge_property_t<int32_t, float>>&& edge_weights,
+                        std::optional<rmm::device_uvector<int32_t>>&& renumber_map,
+                        bool do_expensive_check);
 
-template std::tuple<
-  graph_t<int32_t, int32_t, false, false>,
-  std::optional<edge_property_t<graph_view_t<int32_t, int32_t, false, false>, double>>,
-  std::optional<rmm::device_uvector<int32_t>>>
-transpose_graph_storage(
-  raft::handle_t const& handle,
-  graph_t<int32_t, int32_t, true, false>&& graph,
-  std::optional<edge_property_t<graph_view_t<int32_t, int32_t, true, false>, double>>&&
-    edge_weights,
-  std::optional<rmm::device_uvector<int32_t>>&& renumber_map,
-  bool do_expensive_check);
+template std::tuple<graph_t<int32_t, int32_t, false, false>,
+                    std::optional<edge_property_t<int32_t, double>>,
+                    std::optional<rmm::device_uvector<int32_t>>>
+transpose_graph_storage(raft::handle_t const& handle,
+                        graph_t<int32_t, int32_t, true, false>&& graph,
+                        std::optional<edge_property_t<int32_t, double>>&& edge_weights,
+                        std::optional<rmm::device_uvector<int32_t>>&& renumber_map,
+                        bool do_expensive_check);
 
-template std::tuple<
-  graph_t<int32_t, int32_t, true, false>,
-  std::optional<edge_property_t<graph_view_t<int32_t, int32_t, true, false>, double>>,
-  std::optional<rmm::device_uvector<int32_t>>>
-transpose_graph_storage(
-  raft::handle_t const& handle,
-  graph_t<int32_t, int32_t, false, false>&& graph,
-  std::optional<edge_property_t<graph_view_t<int32_t, int32_t, false, false>, double>>&&
-    edge_weights,
-  std::optional<rmm::device_uvector<int32_t>>&& renumber_map,
-  bool do_expensive_check);
+template std::tuple<graph_t<int32_t, int32_t, true, false>,
+                    std::optional<edge_property_t<int32_t, double>>,
+                    std::optional<rmm::device_uvector<int32_t>>>
+transpose_graph_storage(raft::handle_t const& handle,
+                        graph_t<int32_t, int32_t, false, false>&& graph,
+                        std::optional<edge_property_t<int32_t, double>>&& edge_weights,
+                        std::optional<rmm::device_uvector<int32_t>>&& renumber_map,
+                        bool do_expensive_check);
 
 }  // namespace cugraph

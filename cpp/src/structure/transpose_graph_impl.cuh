@@ -16,7 +16,6 @@
 
 #pragma once
 
-#include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/shuffle_functions.hpp>
@@ -28,7 +27,6 @@
 
 #include <thrust/sequence.h>
 
-#include <algorithm>
 #include <optional>
 #include <tuple>
 #include <type_traits>
@@ -43,20 +41,15 @@ template <typename vertex_t,
           typename weight_t,
           bool store_transposed,
           bool multi_gpu>
-std::enable_if_t<
-  multi_gpu,
-  std::tuple<
-    graph_t<vertex_t, edge_t, store_transposed, multi_gpu>,
-    std::optional<
-      edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, weight_t>>,
-    std::optional<rmm::device_uvector<vertex_t>>>>
-transpose_graph_impl(
-  raft::handle_t const& handle,
-  graph_t<vertex_t, edge_t, store_transposed, multi_gpu>&& graph,
-  std::optional<edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
-                                weight_t>>&& edge_weights,
-  std::optional<rmm::device_uvector<vertex_t>>&& renumber_map,
-  bool do_expensive_check)
+std::enable_if_t<multi_gpu,
+                 std::tuple<graph_t<vertex_t, edge_t, store_transposed, multi_gpu>,
+                            std::optional<edge_property_t<edge_t, weight_t>>,
+                            std::optional<rmm::device_uvector<vertex_t>>>>
+transpose_graph_impl(raft::handle_t const& handle,
+                     graph_t<vertex_t, edge_t, store_transposed, multi_gpu>&& graph,
+                     std::optional<edge_property_t<edge_t, weight_t>>&& edge_weights,
+                     std::optional<rmm::device_uvector<vertex_t>>&& renumber_map,
+                     bool do_expensive_check)
 {
   auto graph_view = graph.view();
 
@@ -93,28 +86,22 @@ transpose_graph_impl(
                                                             (*renumber_map).size()));
   graph = graph_t<vertex_t, edge_t, store_transposed, multi_gpu>(handle);
 
-  std::tie(edgelist_dsts,
-           edgelist_srcs,
-           edgelist_weights,
-           std::ignore,
-           std::ignore,
-           std::ignore,
-           std::ignore,
-           std::ignore) =
-    shuffle_ext_edges<vertex_t, edge_t, weight_t, int32_t, int32_t>(handle,
-                                                                    std::move(edgelist_dsts),
-                                                                    std::move(edgelist_srcs),
-                                                                    std::move(edgelist_weights),
-                                                                    std::nullopt,
-                                                                    std::nullopt,
-                                                                    std::nullopt,
-                                                                    std::nullopt,
-                                                                    store_transposed);
+  std::vector<cugraph::arithmetic_device_uvector_t> edgelist_edge_properties{};
+  if (edgelist_weights) edgelist_edge_properties.push_back(std::move(*edgelist_weights));
+
+  std::tie(edgelist_dsts, edgelist_srcs, edgelist_edge_properties, std::ignore) =
+    shuffle_ext_edges(handle,
+                      std::move(edgelist_dsts),
+                      std::move(edgelist_srcs),
+                      std::move(edgelist_edge_properties),
+                      store_transposed);
+
+  if (edgelist_weights)
+    *edgelist_weights =
+      std::move(std::get<rmm::device_uvector<weight_t>>(edgelist_edge_properties[0]));
 
   graph_t<vertex_t, edge_t, store_transposed, multi_gpu> transposed_graph(handle);
-  std::optional<
-    edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, weight_t>>
-    transposed_edge_weights{};
+  std::optional<edge_property_t<edge_t, weight_t>> transposed_edge_weights{};
   std::optional<rmm::device_uvector<vertex_t>> new_renumber_map{std::nullopt};
   std::tie(transposed_graph, transposed_edge_weights, std::ignore, std::ignore, new_renumber_map) =
     create_graph_from_edgelist<vertex_t, edge_t, weight_t, int32_t, store_transposed, multi_gpu>(
@@ -137,20 +124,15 @@ template <typename vertex_t,
           typename weight_t,
           bool store_transposed,
           bool multi_gpu>
-std::enable_if_t<
-  !multi_gpu,
-  std::tuple<
-    graph_t<vertex_t, edge_t, store_transposed, multi_gpu>,
-    std::optional<
-      edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, weight_t>>,
-    std::optional<rmm::device_uvector<vertex_t>>>>
-transpose_graph_impl(
-  raft::handle_t const& handle,
-  graph_t<vertex_t, edge_t, store_transposed, multi_gpu>&& graph,
-  std::optional<edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
-                                weight_t>>&& edge_weights,
-  std::optional<rmm::device_uvector<vertex_t>>&& renumber_map,
-  bool do_expensive_check)
+std::enable_if_t<!multi_gpu,
+                 std::tuple<graph_t<vertex_t, edge_t, store_transposed, multi_gpu>,
+                            std::optional<edge_property_t<edge_t, weight_t>>,
+                            std::optional<rmm::device_uvector<vertex_t>>>>
+transpose_graph_impl(raft::handle_t const& handle,
+                     graph_t<vertex_t, edge_t, store_transposed, multi_gpu>&& graph,
+                     std::optional<edge_property_t<edge_t, weight_t>>&& edge_weights,
+                     std::optional<rmm::device_uvector<vertex_t>>&& renumber_map,
+                     bool do_expensive_check)
 {
   auto graph_view = graph.view();
 
@@ -197,9 +179,7 @@ transpose_graph_impl(
   }
 
   graph_t<vertex_t, edge_t, store_transposed, multi_gpu> transposed_graph(handle);
-  std::optional<
-    edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, weight_t>>
-    transposed_edge_weights{};
+  std::optional<edge_property_t<edge_t, weight_t>> transposed_edge_weights{};
   std::optional<rmm::device_uvector<vertex_t>> new_renumber_map{std::nullopt};
   std::tie(transposed_graph, transposed_edge_weights, std::ignore, std::ignore, new_renumber_map) =
     create_graph_from_edgelist<vertex_t, edge_t, weight_t, int32_t, store_transposed, multi_gpu>(
@@ -224,18 +204,14 @@ template <typename vertex_t,
           typename weight_t,
           bool store_transposed,
           bool multi_gpu>
-std::tuple<
-  graph_t<vertex_t, edge_t, store_transposed, multi_gpu>,
-  std::optional<
-    edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, weight_t>>,
-  std::optional<rmm::device_uvector<vertex_t>>>
-transpose_graph(
-  raft::handle_t const& handle,
-  graph_t<vertex_t, edge_t, store_transposed, multi_gpu>&& graph,
-  std::optional<edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
-                                weight_t>>&& edge_weights,
-  std::optional<rmm::device_uvector<vertex_t>>&& renumber_map,
-  bool do_expensive_check)
+std::tuple<graph_t<vertex_t, edge_t, store_transposed, multi_gpu>,
+           std::optional<edge_property_t<edge_t, weight_t>>,
+           std::optional<rmm::device_uvector<vertex_t>>>
+transpose_graph(raft::handle_t const& handle,
+                graph_t<vertex_t, edge_t, store_transposed, multi_gpu>&& graph,
+                std::optional<edge_property_t<edge_t, weight_t>>&& edge_weights,
+                std::optional<rmm::device_uvector<vertex_t>>&& renumber_map,
+                bool do_expensive_check)
 {
   return transpose_graph_impl(
 

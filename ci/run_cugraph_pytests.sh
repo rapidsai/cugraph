@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright (c) 2024, NVIDIA CORPORATION.
+# Copyright (c) 2024-2025, NVIDIA CORPORATION.
 
 set -euo pipefail
 
@@ -11,6 +11,5 @@ DASK_DISTRIBUTED__SCHEDULER__WORKER_TTL="${DASK_DISTRIBUTED__SCHEDULER__WORKER_T
 DASK_DISTRIBUTED__COMM__TIMEOUTS__CONNECT="${DASK_DISTRIBUTED__COMM__TIMEOUTS__CONNECT:-1000s}" \
 DASK_CUDA_WAIT_WORKERS_MIN_TIMEOUT="${DASK_CUDA_WAIT_WORKERS_MIN_TIMEOUT:-1000s}" \
 pytest --cache-clear --import-mode=append --benchmark-disable \
-  -k "not test_property_graph_mg and not test_bulk_sampler_io" \
   "$@" \
   tests

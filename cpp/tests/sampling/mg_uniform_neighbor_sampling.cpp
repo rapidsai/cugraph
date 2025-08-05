@@ -15,13 +15,13 @@
  */
 
 #include "detail/nbr_sampling_validate.hpp"
+#include "detail/shuffle_wrappers.hpp"
 #include "utilities/base_fixture.hpp"
 #include "utilities/device_comm_wrapper.hpp"
 #include "utilities/mg_utilities.hpp"
 #include "utilities/property_generator_utilities.hpp"
 #include "utilities/test_graphs.hpp"
 
-#include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/sampling_functions.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
 
@@ -85,7 +85,7 @@ class Tests_MGUniform_Neighbor_Sampling
     auto mg_edge_weight_view =
       mg_edge_weights ? std::make_optional((*mg_edge_weights).view()) : std::nullopt;
 
-    std::optional<cugraph::edge_property_t<decltype(mg_graph_view), bool>> edge_mask{std::nullopt};
+    std::optional<cugraph::edge_property_t<edge_t, bool>> edge_mask{std::nullopt};
     if (uniform_neighbor_sampling_usecase.edge_masking) {
       edge_mask = cugraph::test::generate<decltype(mg_graph_view), bool>::edge_property(
         *handle_, mg_graph_view, 2);
@@ -250,13 +250,21 @@ class Tests_MGUniform_Neighbor_Sampling
           : std::nullopt;
 
       if (handle_->get_comms().get_rank() == 0) {
-        cugraph::test::validate_extracted_graph_is_subgraph(*handle_,
-                                                            mg_aggregate_src_compare,
-                                                            mg_aggregate_dst_compare,
-                                                            mg_aggregate_wgt_compare,
-                                                            mg_aggregate_src,
-                                                            mg_aggregate_dst,
-                                                            mg_aggregate_wgt);
+        ASSERT_TRUE(cugraph::test::validate_extracted_graph_is_subgraph(
+          *handle_,
+          raft::device_span<vertex_t const>{mg_aggregate_src_compare.data(),
+                                            mg_aggregate_src_compare.size()},
+          raft::device_span<vertex_t const>{mg_aggregate_dst_compare.data(),
+                                            mg_aggregate_dst_compare.size()},
+          mg_aggregate_wgt_compare
+            ? std::make_optional(raft::device_span<weight_t const>{
+                mg_aggregate_wgt_compare->data(), mg_aggregate_wgt_compare->size()})
+            : std::nullopt,
+          raft::device_span<vertex_t const>{mg_aggregate_src.data(), mg_aggregate_src.size()},
+          raft::device_span<vertex_t const>{mg_aggregate_dst.data(), mg_aggregate_dst.size()},
+          mg_aggregate_wgt ? std::make_optional(raft::device_span<weight_t const>{
+                               mg_aggregate_wgt->data(), mg_aggregate_wgt->size()})
+                           : std::nullopt));
 
         if (random_sources.size() < 100) {
           // This validation is too expensive for large number of vertices

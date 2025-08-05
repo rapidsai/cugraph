@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -87,7 +87,7 @@ class Tests_BetweennessCentrality
     auto edge_weight_view =
       edge_weights ? std::make_optional((*edge_weights).view()) : std::nullopt;
 
-    std::optional<cugraph::edge_property_t<decltype(graph_view), bool>> edge_mask{std::nullopt};
+    std::optional<cugraph::edge_property_t<edge_t, bool>> edge_mask{std::nullopt};
     if (betweenness_usecase.edge_masking) {
       edge_mask =
         cugraph::test::generate<decltype(graph_view), bool>::edge_property(handle, graph_view, 2);
@@ -173,6 +173,12 @@ using Tests_BetweennessCentrality_Rmat = Tests_BetweennessCentrality<cugraph::te
 TEST_P(Tests_BetweennessCentrality_File, CheckInt32Int32FloatFloat)
 {
   run_current_test<int32_t, int32_t, float>(
+    override_File_Usecase_with_cmd_line_arguments(GetParam()));
+}
+
+TEST_P(Tests_BetweennessCentrality_File, CheckInt64Int64FloatFloat)
+{
+  run_current_test<int64_t, int64_t, float>(
     override_File_Usecase_with_cmd_line_arguments(GetParam()));
 }
 

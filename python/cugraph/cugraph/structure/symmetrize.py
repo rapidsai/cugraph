@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2024, NVIDIA CORPORATION.
+# Copyright (c) 2019-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -15,7 +15,6 @@ from cugraph.structure import graph_classes as csg
 import cudf
 import dask_cudf
 from dask.distributed import default_client
-import warnings
 
 
 def symmetrize_df(
@@ -55,13 +54,7 @@ def symmetrize_df(
         Name of the column in the data frame containing the weight ids
 
     multi : bool, optional (default=False)
-        [Deprecated,  Multi will be removed in future version,  and the removal
-        of multi edges will no longer be supported from 'symmetrize'.
-        Multi edges will be removed upon  creation of graph instance directly
-        based on if the graph is `curgaph.MultiGraph` or `cugraph.Graph`.]
-
-        Set to True if graph is a Multi(Di)Graph. This allows multiple
-        edges instead of dropping them.
+        Multi edges will be dropped if set to True.
 
     symmetrize : bool, optional (default=True)
         Default is True to perform symmetrization. If False only duplicate
@@ -89,12 +82,6 @@ def symmetrize_df(
     if multi:
         return result
     else:
-        warnings.warn(
-            "Multi is deprecated and the removal of multi edges will no longer be "
-            "supported from 'symmetrize'. Multi edges will be removed upon creation "
-            "of graph instance.",
-            FutureWarning,
-        )
         vertex_col_name = src_name + dst_name
         result = result.groupby(by=[*vertex_col_name], as_index=False).min()
         return result
@@ -139,13 +126,7 @@ def symmetrize_ddf(
         Name of the column in the data frame containing the weight ids
 
     multi : bool, optional (default=False)
-        [Deprecated,  Multi will be removed in future version,  and the removal
-        of multi edges will no longer be supported from 'symmetrize'.
-        Multi edges will be removed upon  creation of graph instance directly
-        based on if the graph is `curgaph.MultiGraph` or `cugraph.Graph`.]
-
-        Set to True if graph is a Multi(Di)Graph. This allows multiple
-        edges instead of dropping them.
+        Multi edges will be dropped if set to True.
 
     symmetrize : bool, optional (default=True)
         Default is True to perform symmetrization. If False only duplicate
@@ -167,7 +148,7 @@ def symmetrize_ddf(
     """
     # FIXME: Uncomment out the above (broken) example
     _client = default_client()
-    workers = _client.scheduler_info()["workers"]
+    workers = _client.scheduler_info(n_workers=-1)["workers"]
 
     if not isinstance(src_name, list):
         src_name = [src_name]
@@ -184,12 +165,6 @@ def symmetrize_ddf(
         result = result.reset_index(drop=True).repartition(npartitions=len(workers) * 2)
         return result
     else:
-        warnings.warn(
-            "Multi is deprecated and the removal of multi edges will no longer be "
-            "supported from 'symmetrize'. Multi edges will be removed upon creation "
-            "of graph instance.",
-            FutureWarning,
-        )
         vertex_col_name = src_name + dst_name
         result = _memory_efficient_drop_duplicates(
             result, vertex_col_name, len(workers)
@@ -232,13 +207,7 @@ def symmetrize(
         weights column name.
 
     multi : bool, optional (default=False)
-        [Deprecated,  Multi will be removed in future version,  and the removal
-        of multi edges will no longer be supported from 'symmetrize'.
-        Multi edges will be removed upon  creation of graph instance directly
-        based on if the graph is `curgaph.MultiGraph` or `cugraph.Graph`.]
-
-        Set to True if graph is a Multi(Di)Graph. This allows multiple
-        edges instead of dropping them.
+        Multi edges will be dropped if set to True.
 
     symmetrize : bool, optional
         Default is True to perform symmetrization. If False only duplicate
@@ -257,13 +226,7 @@ def symmetrize(
     >>> df['values'] = cudf.Series(M['2'])
     >>> src, dst, val = symmetrize(df, 'sources', 'destinations', 'values', multi=True)
     """
-    warnings.warn(
-        "This method is deprecated and will no longer be supported. The symmetrization "
-        "of the edges are only supported by setting the 'symmetrize' flag to 'True'",
-        FutureWarning,
-    )
 
-    # FIXME: Redundant check that should be done at the graph creation
     if "edge_id" in input_df.columns and symmetrize:
         raise ValueError("Edge IDs are not supported on undirected graphs")
 

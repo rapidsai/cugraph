@@ -18,12 +18,13 @@
 
 #include "detail/graph_partition_utils.cuh"
 #include "prims/edge_bucket.cuh"
+#include "prims/fill_edge_property.cuh"
 #include "prims/per_v_pair_dst_nbr_intersection.cuh"
 #include "prims/transform_e.cuh"
 
-#include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
+#include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/error.hpp>
 
 #include <raft/util/integer_utils.hpp>
@@ -124,17 +125,43 @@ struct extract_q_r {
 };
 
 template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
-edge_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, edge_t> edge_triangle_count_impl(
+edge_property_t<edge_t, edge_t> edge_triangle_count_impl(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
   bool do_expensive_check)
 {
   using weight_t = float;
+
+  CUGRAPH_EXPECTS(
+    !graph_view.is_multigraph(),
+    "Invalid input argument: edge triangle count currently does not support multi-graphs.");
+
+  // Exclude self-loops
+
+  std::optional<cugraph::edge_property_t<edge_t, bool>> self_loop_edge_mask{std::nullopt};
+  auto cur_graph_view = graph_view;
+  if (cur_graph_view.count_self_loops(handle) > edge_t{0}) {
+    self_loop_edge_mask = cugraph::edge_property_t<edge_t, bool>(handle, cur_graph_view);
+    if (cur_graph_view.has_edge_mask()) { cur_graph_view.clear_edge_mask(); }
+    cugraph::fill_edge_property(handle, cur_graph_view, self_loop_edge_mask->mutable_view(), false);
+
+    transform_e(handle,
+                graph_view,
+                edge_src_dummy_property_t{}.view(),
+                edge_dst_dummy_property_t{}.view(),
+                edge_dummy_property_t{}.view(),
+                cuda::proclaim_return_type<bool>(
+                  [] __device__(auto src, auto dst, auto, auto, auto) { return src != dst; }),
+                self_loop_edge_mask->mutable_view());
+
+    cur_graph_view.attach_edge_mask(self_loop_edge_mask->view());
+  }
+
   rmm::device_uvector<vertex_t> edgelist_srcs(0, handle.get_stream());
   rmm::device_uvector<vertex_t> edgelist_dsts(0, handle.get_stream());
   std::tie(edgelist_srcs, edgelist_dsts, std::ignore, std::ignore, std::ignore) =
     decompress_to_edgelist<vertex_t, edge_t, weight_t, int32_t>(
-      handle, graph_view, std::nullopt, std::nullopt, std::nullopt, std::nullopt);
+      handle, cur_graph_view, std::nullopt, std::nullopt, std::nullopt, std::nullopt);
 
   auto edge_first = thrust::make_zip_iterator(edgelist_srcs.begin(), edgelist_dsts.begin());
 
@@ -162,7 +189,7 @@ edge_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, edge_t> edge_t
     // Perform 'nbr_intersection' in chunks to reduce peak memory.
     auto [intersection_offsets, intersection_indices] =
       per_v_pair_dst_nbr_intersection(handle,
-                                      graph_view,
+                                      cur_graph_view,
                                       edge_first + prev_chunk_size,
                                       edge_first + prev_chunk_size + chunk_size,
                                       do_expensive_check);
@@ -239,40 +266,26 @@ edge_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, edge_t> edge_t
 
       rmm::device_uvector<vertex_t> pair_srcs(0, handle.get_stream());
       rmm::device_uvector<vertex_t> pair_dsts(0, handle.get_stream());
-      std::optional<rmm::device_uvector<edge_t>> pair_count{std::nullopt};
+      std::vector<cugraph::arithmetic_device_uvector_t> pair_properties{};
 
-      std::optional<rmm::device_uvector<edge_t>> opt_increase_count =
-        std::make_optional(rmm::device_uvector<edge_t>(increase_count.size(), handle.get_stream()));
+      rmm::device_uvector<edge_t> pair_count(increase_count.size(), handle.get_stream());
 
-      raft::copy<edge_t>((*opt_increase_count).begin(),
-                         increase_count.begin(),
-                         increase_count.size(),
-                         handle.get_stream());
+      raft::copy(
+        pair_count.begin(), increase_count.begin(), increase_count.size(), handle.get_stream());
+
+      pair_properties.push_back(std::move(pair_count));
 
       // There are still multiple copies here but is it worth sorting and reducing again?
-      std::tie(pair_srcs,
-               pair_dsts,
-               std::ignore,
-               pair_count,
-               std::ignore,
-               std::ignore,
-               std::ignore,
-               std::ignore) =
-        shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<vertex_t,
-                                                                               edge_t,
-                                                                               weight_t,
-                                                                               int32_t,
-                                                                               int32_t>(
-          handle,
-          std::move(std::get<0>(vertex_pair_buffer)),
-          std::move(std::get<1>(vertex_pair_buffer)),
-          std::nullopt,
-          // FIXME: Add general purpose function for shuffling vertex pairs and arbitrary attributes
-          std::move(opt_increase_count),
-          std::nullopt,
-          std::nullopt,
-          std::nullopt,
-          graph_view.vertex_partition_range_lasts());
+      std::tie(pair_srcs, pair_dsts, pair_properties, std::ignore) =
+        shuffle_int_edges(handle,
+                          std::move(std::get<0>(vertex_pair_buffer)),
+                          std::move(std::get<1>(vertex_pair_buffer)),
+                          std::move(pair_properties),
+                          false,
+                          cur_graph_view.vertex_partition_range_lasts());
+
+      pair_count = std::move(std::get<rmm::device_uvector<edge_t>>(pair_properties[0]));
+      pair_properties.clear();
 
       thrust::for_each(
         handle.get_thrust_policy(),
@@ -282,7 +295,7 @@ edge_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, edge_t> edge_t
          num_triangles = num_triangles.data(),
          pair_srcs     = pair_srcs.data(),
          pair_dsts     = pair_dsts.data(),
-         pair_count    = (*pair_count).data(),
+         pair_count    = pair_count.data(),
          edge_first] __device__(auto idx) {
           auto src          = pair_srcs[idx];
           auto dst          = pair_dsts[idx];
@@ -335,17 +348,23 @@ edge_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, edge_t> edge_t
     prev_chunk_size += chunk_size;
   }
 
-  cugraph::edge_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, edge_t> counts(
-    handle, graph_view);
+  cugraph::edge_property_t<edge_t, edge_t> counts(handle, cur_graph_view);
+  {
+    auto unmasked_graph_view = cur_graph_view;
+    if (unmasked_graph_view.has_edge_mask()) { unmasked_graph_view.clear_edge_mask(); }
+    cugraph::fill_edge_property(handle, unmasked_graph_view, counts.mutable_view(), edge_t{0});
+  }
 
-  cugraph::edge_bucket_t<vertex_t, void, true, multi_gpu, true> valid_edges(handle);
-  valid_edges.insert(edgelist_srcs.begin(), edgelist_srcs.end(), edgelist_dsts.begin());
-
-  auto cur_graph_view = graph_view;
+  cugraph::edge_bucket_t<vertex_t, edge_t, true, multi_gpu, true> valid_edges(
+    handle, false /* multigraph */);
+  valid_edges.insert(edgelist_srcs.begin(),
+                     edgelist_srcs.end(),
+                     edgelist_dsts.begin(),
+                     std::optional<edge_t const*>{std::nullopt});
 
   cugraph::transform_e(
     handle,
-    graph_view,
+    cur_graph_view,
     valid_edges,
     cugraph::edge_src_dummy_property_t{}.view(),
     cugraph::edge_dst_dummy_property_t{}.view(),
@@ -374,7 +393,7 @@ edge_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, edge_t> edge_t
 }  // namespace detail
 
 template <typename vertex_t, typename edge_t, bool multi_gpu>
-edge_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, edge_t> edge_triangle_count(
+edge_property_t<edge_t, edge_t> edge_triangle_count(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   bool do_expensive_check)

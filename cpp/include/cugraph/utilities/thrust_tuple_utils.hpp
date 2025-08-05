@@ -15,8 +15,11 @@
  */
 #pragma once
 
+#include <raft/core/device_span.hpp>
+
 #include <rmm/device_uvector.hpp>
 
+#include <cuda/std/optional>
 #include <thrust/iterator/iterator_traits.h>
 #include <thrust/tuple.h>
 
@@ -90,6 +93,50 @@ auto std_tuple_to_thrust_tuple(TupleType tup, std::index_sequence<Is...>)
   return thrust::make_tuple(std::get<Is>(tup)...);
 }
 
+template <typename... Ts, typename... Us, std::size_t... I0, std::size_t... I1>
+#ifdef __CUDACC__
+__host__ __device__
+#endif
+  auto
+  thrust_tuple_cat_impl(thrust::tuple<Ts...> tup0,
+                        thrust::tuple<Us...> tup1,
+                        std::index_sequence<I0...>,
+                        std::index_sequence<I1...>)
+{
+  return thrust::make_tuple(thrust::get<I0>(tup0)..., thrust::get<I1>(tup1)...);
+}
+
+template <typename... Ts, typename... Us>
+#ifdef __CUDACC__
+__host__ __device__
+#endif
+  auto
+  thrust_tuple_cat_impl(thrust::tuple<Ts...> tup0, thrust::tuple<Us...> tup1)
+{
+  return thrust_tuple_cat_impl(
+    tup0, tup1, std::index_sequence_for<Ts...>{}, std::index_sequence_for<Us...>{});
+}
+
+template <typename TupleType>
+#ifdef __CUDACC__
+__host__ __device__
+#endif
+  auto
+  thrust_tuple_cat_impl(TupleType tup)
+{
+  return tup;
+}
+
+template <typename TupleType0, typename TupleType1, typename... RemainingTupleTypes>
+#ifdef __CUDACC__
+__host__ __device__
+#endif
+  auto
+  thrust_tuple_cat_impl(TupleType0 tup0, TupleType1 tup1, RemainingTupleTypes... tups)
+{
+  return thrust_tuple_cat_impl(thrust_tuple_cat_impl(tup0, tup1), tups...);
+}
+
 template <typename TupleType, size_t F, size_t... Is>
 #ifdef __CUDACC__
 __host__ __device__
@@ -122,7 +169,10 @@ struct is_thrust_tuple : std::false_type {};
 template <typename... Ts>
 struct is_thrust_tuple<thrust::tuple<Ts...>> : std::true_type {};
 
-template <typename TupleType>
+template <typename T>
+constexpr bool is_thrust_tuple_v = is_thrust_tuple<T>::value;
+
+template <typename T>
 struct is_thrust_tuple_of_arithmetic : std::false_type {};
 
 template <typename... Ts>
@@ -135,7 +185,10 @@ struct is_thrust_tuple_of_arithmetic<thrust::tuple<Ts...>> {
   static constexpr bool value = (... && is_valid<Ts>);
 };
 
-template <typename TupleType>
+template <typename T>
+constexpr bool is_thrust_tuple_of_arithmetic_v = is_thrust_tuple_of_arithmetic<T>::value;
+
+template <typename T>
 struct is_thrust_tuple_of_integral : std::false_type {};
 
 template <typename... Ts>
@@ -149,10 +202,20 @@ struct is_thrust_tuple_of_integral<thrust::tuple<Ts...>> {
 };
 
 template <typename T>
+constexpr bool is_thrust_tuple_of_integral_v = is_thrust_tuple_of_integral<T>::value;
+
+template <typename T>
 struct is_std_tuple : std::false_type {};
 
 template <typename... Ts>
 struct is_std_tuple<std::tuple<Ts...>> : std::true_type {};
+
+template <typename T, template <typename> typename Vector>
+struct is_byte_vector : std::false_type {};
+
+template <template <typename> typename Vector, typename T>
+struct is_byte_vector<Vector<T>, Vector>
+  : std::integral_constant<bool, std::is_same_v<T, std::byte>> {};
 
 template <typename T, template <typename> typename Vector>
 struct is_arithmetic_vector : std::false_type {};
@@ -170,12 +233,24 @@ struct is_std_tuple_of_arithmetic_vectors<std::tuple<rmm::device_uvector<Ts>...>
 };
 
 template <typename T>
+struct is_std_tuple_of_arithmetic_spans : std::false_type {};
+
+template <typename... Ts>
+struct is_std_tuple_of_arithmetic_spans<std::tuple<raft::device_span<Ts>...>> {
+  static constexpr bool value = (... && std::is_arithmetic_v<Ts>);
+};
+
+template <typename T>
 struct is_arithmetic_or_thrust_tuple_of_arithmetic
   : std::integral_constant<bool, std::is_arithmetic_v<T>> {};
 
 template <typename... Ts>
 struct is_arithmetic_or_thrust_tuple_of_arithmetic<thrust::tuple<Ts...>>
   : std::integral_constant<bool, is_thrust_tuple_of_arithmetic<thrust::tuple<Ts...>>::value> {};
+
+template <typename T>
+constexpr bool is_arithmetic_or_thrust_tuple_of_arithmetic_v =
+  is_arithmetic_or_thrust_tuple_of_arithmetic<T>::value;
 
 template <typename T>
 struct thrust_tuple_size_or_one : std::integral_constant<size_t, 1> {};
@@ -234,13 +309,21 @@ auto std_tuple_to_thrust_tuple(TupleType tup)
 }
 
 template <typename T>
-auto to_thrust_tuple(T scalar_value)
+#ifdef __CUDACC__
+__host__ __device__
+#endif
+  auto
+  to_thrust_tuple(T scalar_value)
 {
   return thrust::make_tuple(scalar_value);
 }
 
 template <typename... Ts>
-auto to_thrust_tuple(thrust::tuple<Ts...> tuple_value)
+#ifdef __CUDACC__
+__host__ __device__
+#endif
+  auto
+  to_thrust_tuple(thrust::tuple<Ts...> tuple_value)
 {
   return tuple_value;
 }
@@ -309,12 +392,16 @@ __host__ __device__
   return thrust::get<I>(val.get_iterator_tuple());
 }
 
-// a temporary function to emulate thrust::tuple_cat (not supported) using std::tuple_cat (should
-// retire once thrust::tuple is replaced with cuda::std::tuple)
+// a temporary function to emulate thrust::tuple_cat (should retire once thrust::tuple is replaced
+// with cuda::std::tuple)
 template <typename... TupleTypes>
-auto thrust_tuple_cat(TupleTypes... tups)
+#ifdef __CUDACC__
+__host__ __device__
+#endif
+  auto
+  thrust_tuple_cat(TupleTypes... tups)
 {
-  return std_tuple_to_thrust_tuple(std::tuple_cat(thrust_tuple_to_std_tuple(tups)...));
+  return detail::thrust_tuple_cat_impl(tups...);
 }
 
 template <typename TupleType, size_t F /* first (inclusive) */, size_t L /* last (exclusive) */>

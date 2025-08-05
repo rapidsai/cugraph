@@ -201,14 +201,16 @@ struct call_intersection_op_t {
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Non-owning graph object.
+ * @param edge_value_input Wrapper used to access edge input property values (for the edges assigned
+ * to this process in multi-GPU). Use either cugraph::edge_property_t::view() (if @p e_op needs to
+ * access edge property values) or cugraph::edge_dummy_property_t::view() (if @p e_op does not
+ * access edge property values).
  * @param vertex_pair_first Iterator pointing to the first (inclusive) input vertex pair.
  * @param vertex_pair_last Iterator pointing to the last (exclusive) input vertex pair.
- * @param vertex_src_value_input Wrapper used to access vertex input property values (for the
- * vertices assigned to this process in multi-GPU).
- * @param edge_value_input Wrapper used to access edge input property values (for the edges assigned
- * to this process in multi-GPU). Use either cugraph::edge_property_t::view() (if @p intersection_op
- * needs to access edge property values) or cugraph::edge_dummy_property_t::view() (if @p
- * intersection_op does not access edge property values).
+ * @param vertex_value_input_first Iterator pointing to the vertex property value for the first
+ * (inclusive) vertex (of the vertex partition assigned to this process in multi-GPU).
+ * `vertex_value_input_last` (exclusive) is deduced as @p vertex_value_input_first + @p
+ * graph_view.local_vertex_partition_range_size().
  * @param intersection_op quinary operator takes first vertex of the pair, second vertex of the
  * pair, property values for the first vertex, property values for the second vertex, and a list of
  * vertices in the intersection of the first & second vertices' destination neighbors and returns an
@@ -216,18 +218,18 @@ struct call_intersection_op_t {
  * @param vertex_pair_value_output_first Iterator pointing to the vertex pair property variables for
  * the first vertex pair (inclusive). `vertex_pair_value_output_last` (exclusive) is deduced as @p
  * vertex_pair_value_output_first + @p cuda::std::distance(vertex_pair_first, vertex_pair_last).
- * @param A flag to run expensive checks for input arguments (if set to `true`).
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  */
 template <typename GraphViewType,
           typename VertexPairIterator,
           typename VertexValueInputIterator,
-          typename EdgeValueInputIterator,
+          typename EdgeValueInputWrapper,
           typename IntersectionOp,
           typename VertexPairValueOutputIterator>
 void per_v_pair_transform_dst_nbr_intersection(
   raft::handle_t const& handle,
   GraphViewType const& graph_view,
-  EdgeValueInputIterator edge_value_input,
+  EdgeValueInputWrapper edge_value_input,
   VertexPairIterator vertex_pair_first,
   VertexPairIterator vertex_pair_last,
   VertexValueInputIterator vertex_value_input_first,
@@ -240,7 +242,7 @@ void per_v_pair_transform_dst_nbr_intersection(
   using vertex_t   = typename GraphViewType::vertex_type;
   using edge_t     = typename GraphViewType::edge_type;
   using property_t = typename thrust::iterator_traits<VertexValueInputIterator>::value_type;
-  using edge_property_value_t = typename EdgeValueInputIterator::value_type;
+  using edge_property_value_t = typename EdgeValueInputWrapper::value_type;
   using result_t = typename thrust::iterator_traits<VertexPairValueOutputIterator>::value_type;
 
   if (do_expensive_check) {
@@ -287,13 +289,12 @@ void per_v_pair_transform_dst_nbr_intersection(
               handle.get_stream());
 
     property_buffer_for_sorted_unique_vertices = collect_values_for_sorted_unique_int_vertices(
-      comm,
+      handle,
       raft::device_span<vertex_t const>((*sorted_unique_vertices).data(),
                                         (*sorted_unique_vertices).size()),
       vertex_value_input_first,
       graph_view.vertex_partition_range_lasts(),
-      graph_view.local_vertex_partition_range_first(),
-      handle.get_stream());
+      graph_view.local_vertex_partition_range_first());
   }
 
   rmm::device_uvector<size_t> vertex_pair_indices(num_input_pairs, handle.get_stream());
@@ -390,9 +391,9 @@ void per_v_pair_transform_dst_nbr_intersection(
       rmm::device_uvector<size_t> intersection_offsets(size_t{0}, handle.get_stream());
       rmm::device_uvector<vertex_t> intersection_indices(size_t{0}, handle.get_stream());
       [[maybe_unused]] rmm::device_uvector<edge_property_value_t>
-        r_nbr_intersection_property_values0(size_t{0}, handle.get_stream());
+      r_nbr_intersection_property_values0(size_t{0}, handle.get_stream());
       [[maybe_unused]] rmm::device_uvector<edge_property_value_t>
-        r_nbr_intersection_property_values1(size_t{0}, handle.get_stream());
+      r_nbr_intersection_property_values1(size_t{0}, handle.get_stream());
 
       if constexpr (!std::is_same_v<edge_property_value_t, cuda::std::nullopt_t>) {
         std::tie(intersection_offsets,

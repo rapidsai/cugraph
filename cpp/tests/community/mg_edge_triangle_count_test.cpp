@@ -79,7 +79,12 @@ class Tests_MGEdgeTriangleCount
     std::optional<rmm::device_uvector<vertex_t>> mg_renumber_map{std::nullopt};
     std::tie(mg_graph, std::ignore, mg_renumber_map) =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, true>(
-        *handle_, input_usecase, false, true, false, true);
+        *handle_,
+        input_usecase,
+        false,
+        true,
+        false /* drop_self_loops */,
+        true /* drop_multi_edges */);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -90,7 +95,7 @@ class Tests_MGEdgeTriangleCount
 
     auto mg_graph_view = mg_graph.view();
 
-    std::optional<cugraph::edge_property_t<decltype(mg_graph_view), bool>> edge_mask{std::nullopt};
+    std::optional<cugraph::edge_property_t<edge_t, bool>> edge_mask{std::nullopt};
     if (edge_triangle_count_usecase.edge_masking_) {
       edge_mask = cugraph::test::generate<decltype(mg_graph_view), bool>::edge_property(
         *handle_, mg_graph_view, 2);
@@ -121,9 +126,7 @@ class Tests_MGEdgeTriangleCount
       // 3-1. Convert to SG graph
 
       cugraph::graph_t<vertex_t, edge_t, false, false> sg_graph(*handle_);
-      std::optional<
-        cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, false, false>, edge_t>>
-        d_sg_cugraph_results{std::nullopt};
+      std::optional<cugraph::edge_property_t<edge_t, edge_t>> d_sg_cugraph_results{std::nullopt};
       std::tie(sg_graph, std::ignore, d_sg_cugraph_results, std::ignore, std::ignore) =
         cugraph::test::mg_graph_to_sg_graph(
           *handle_,

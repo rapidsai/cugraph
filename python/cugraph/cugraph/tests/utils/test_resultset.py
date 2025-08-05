@@ -1,4 +1,4 @@
-# Copyright (c) 2023, NVIDIA CORPORATION.
+# Copyright (c) 2023-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -11,61 +11,77 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import gc
 import os
 
-from pathlib import Path
-from tempfile import TemporaryDirectory
-
 import cudf
-from cugraph.datasets.dataset import (
-    set_download_dir,
-    get_download_dir,
-)
+from cugraph.datasets.dataset import set_download_dir
 from cugraph.testing.resultset import load_resultset, default_resultset_download_dir
 
+# FIXME: default_resultset_download_dir is an Object of the DefaultDownloadDir class
+# that's defined in dataset.py. In resultset.py, we use both the default_download_dir
+# object from dataset.py and ANOTHER copy of it that we instantialize locally.. This
+# is totally incorrect and should be merged into using a singular object.
+
+# =============================================================================
+# Pytest Setup / Teardown - called for each test function
+# =============================================================================
+
+
+def setup_function():
+    gc.collect()
+
+
 ###############################################################################
+# Tests
 
 
-def test_load_resultset():
-    with TemporaryDirectory() as tmpd:
+def test_load_resultset(tmp_path):
+    temp_results_path = tmp_path / "tests" / "resultsets"
+    temp_results_path.mkdir(parents=True, exist_ok=True)
 
-        set_download_dir(Path(tmpd))
-        default_resultset_download_dir.path = Path(tmpd) / "tests" / "resultsets"
-        default_resultset_download_dir.path.mkdir(parents=True, exist_ok=True)
+    assert temp_results_path.exists()
 
-        datasets_download_dir = get_download_dir()
-        resultsets_download_dir = default_resultset_download_dir.path
-        assert "tests" in os.listdir(datasets_download_dir)
-        assert "resultsets.tar.gz" not in os.listdir(datasets_download_dir / "tests")
-        assert "traversal_mappings.csv" not in os.listdir(resultsets_download_dir)
+    # FIXME: shouldn't have to use this behavior
+    set_download_dir(tmp_path)
+    default_resultset_download_dir.path = temp_results_path
 
-        load_resultset(
-            "traversal", "https://data.rapids.ai/cugraph/results/resultsets.tar.gz"
-        )
+    assert "tests" in os.listdir(tmp_path)
+    assert "resultsets.tar.gz" not in os.listdir(tmp_path / "tests")
+    assert "traversal_mappings.csv" not in os.listdir(tmp_path)
 
-        assert "resultsets.tar.gz" in os.listdir(datasets_download_dir / "tests")
-        assert "traversal_mappings.csv" in os.listdir(resultsets_download_dir)
+    load_resultset(
+        "traversal", "https://data.rapids.ai/cugraph/results/resultsets.tar.gz"
+    )
+    # reset to default
+    set_download_dir(None)
+
+    assert "resultsets.tar.gz" in os.listdir(tmp_path / "tests")
+    assert "traversal_mappings.csv" in os.listdir(temp_results_path)
 
 
-def test_verify_resultset_load():
+def test_verify_resultset_load(tmp_path):
     # This test is more detailed than test_load_resultset, where for each module,
     # we check that every single resultset file is included along with the
     # corresponding mapping file.
-    with TemporaryDirectory() as tmpd:
-        set_download_dir(Path(tmpd))
-        default_resultset_download_dir.path = Path(tmpd) / "tests" / "resultsets"
-        default_resultset_download_dir.path.mkdir(parents=True, exist_ok=True)
+    set_download_dir(tmp_path)
+    temp_results_path = tmp_path / "tests" / "resultsets"
+    temp_results_path.mkdir(parents=True, exist_ok=True)
 
-        resultsets_download_dir = default_resultset_download_dir.path
+    # FIXME: shouldn't have to use this behavior
+    set_download_dir(tmp_path)
+    default_resultset_download_dir.path = temp_results_path
 
-        load_resultset(
-            "traversal", "https://data.rapids.ai/cugraph/results/resultsets.tar.gz"
-        )
+    load_resultset(
+        "traversal", "https://data.rapids.ai/cugraph/results/resultsets.tar.gz"
+    )
+    # reset to default
+    set_download_dir(None)
 
-        resultsets = os.listdir(resultsets_download_dir)
-        downloaded_results = cudf.read_csv(
-            resultsets_download_dir / "traversal_mappings.csv", sep=" "
-        )
-        downloaded_uuids = downloaded_results["#UUID"].values
-        for resultset_uuid in downloaded_uuids:
-            assert str(resultset_uuid) + ".csv" in resultsets
+    resultsets = os.listdir(temp_results_path)
+    downloaded_results = cudf.read_csv(
+        temp_results_path / "traversal_mappings.csv", sep=" "
+    )
+    downloaded_uuids = downloaded_results["#UUID"].values
+    for resultset_uuid in downloaded_uuids:
+        assert str(resultset_uuid) + ".csv" in resultsets

@@ -17,6 +17,7 @@
 
 #include "c_api/array.hpp"
 #include "c_api/error.hpp"
+#include "cugraph_c/types.h"
 
 #include <cugraph_c/graph.h>
 
@@ -28,31 +29,47 @@
 namespace cugraph {
 namespace c_api {
 
+template <typename T>
+struct data_type_id {
+  static const cugraph_data_type_id_t id{NTYPES};
+};
+
+template <>
+struct data_type_id<int32_t> {
+  static const cugraph_data_type_id_t id{INT32};
+};
+
+template <>
+struct data_type_id<int64_t> {
+  static const cugraph_data_type_id_t id{INT64};
+};
+
+template <>
+struct data_type_id<float> {
+  static const cugraph_data_type_id_t id{FLOAT32};
+};
+
+template <>
+struct data_type_id<double> {
+  static const cugraph_data_type_id_t id{FLOAT64};
+};
+
 struct cugraph_graph_t {
   cugraph_data_type_id_t vertex_type_;
   cugraph_data_type_id_t edge_type_;
   cugraph_data_type_id_t weight_type_;
   cugraph_data_type_id_t edge_type_id_type_;
+  cugraph_data_type_id_t edge_time_type_;
   bool store_transposed_;
   bool multi_gpu_;
 
   void* graph_;             // graph_t<...>*
   void* number_map_;        // rmm::device_uvector<vertex_t>*
-  void* edge_weights_;      // edge_property_t<
-                            //    graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
-                            //    weight_t>*
-  void* edge_ids_;          // edge_property_t<
-                            //    graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
-                            //    edge_t>*
-  void* edge_types_;        // edge_property_t<
-                            //    graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
-                            //    edge_type_t>*
-  void* edge_start_times_;  // edge_property_t<
-                            //    graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
-                            //    edge_time_t>*
-  void* edge_end_times_;    // edge_property_t<
-                            //    graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
-                            //    edge_time_t>*
+  void* edge_weights_;      // edge_property_t<edge_t, weight_t>*
+  void* edge_ids_;          // edge_property_t<edge_t, edge_t>*
+  void* edge_types_;        // edge_property_t<edge_t, edge_type_t>*
+  void* edge_start_times_;  // edge_property_t<edge_t, edge_time_t>*
+  void* edge_end_times_;    // edge_property_t<edge_t, edge_time_t>*
 };
 
 template <typename vertex_t,
@@ -77,14 +94,11 @@ cugraph_error_code_t transpose_storage(raft::handle_t const& handle,
 
     auto number_map = reinterpret_cast<rmm::device_uvector<vertex_t>*>(graph->number_map_);
 
-    auto optional_edge_weights = std::optional<
-      edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, weight_t>>(
-      std::nullopt);
+    auto optional_edge_weights = std::optional<edge_property_t<edge_t, weight_t>>(std::nullopt);
 
     if (graph->edge_weights_ != nullptr) {
-      auto edge_weights = reinterpret_cast<
-        edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, weight_t>*>(
-        graph->edge_weights_);
+      auto edge_weights =
+        reinterpret_cast<edge_property_t<edge_t, weight_t>*>(graph->edge_weights_);
       optional_edge_weights = std::make_optional(std::move(*edge_weights));
       delete edge_weights;
     }
@@ -94,9 +108,7 @@ cugraph_error_code_t transpose_storage(raft::handle_t const& handle,
 
     std::optional<rmm::device_uvector<vertex_t>> new_number_map{std::nullopt};
 
-    auto new_optional_edge_weights = std::optional<
-      edge_property_t<graph_view_t<vertex_t, edge_t, !store_transposed, multi_gpu>, weight_t>>(
-      std::nullopt);
+    auto new_optional_edge_weights = std::optional<edge_property_t<edge_t, weight_t>>(std::nullopt);
 
     std::tie(*graph_transposed, new_optional_edge_weights, new_number_map) =
       cugraph::transpose_graph_storage(
@@ -110,9 +122,7 @@ cugraph_error_code_t transpose_storage(raft::handle_t const& handle,
     delete p_graph;
 
     if (new_optional_edge_weights) {
-      auto new_edge_weights = new cugraph::edge_property_t<
-        cugraph::graph_view_t<vertex_t, edge_t, !store_transposed, multi_gpu>,
-        weight_t>(handle);
+      auto new_edge_weights = new cugraph::edge_property_t<edge_t, weight_t>(handle);
 
       *new_edge_weights    = std::move(new_optional_edge_weights.value());
       graph->edge_weights_ = new_edge_weights;

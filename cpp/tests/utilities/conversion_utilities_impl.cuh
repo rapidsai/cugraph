@@ -20,7 +20,6 @@
 #include "utilities/device_comm_wrapper.hpp"
 #include "utilities/thrust_wrapper.hpp"
 
-#include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/partition_manager.hpp>
@@ -98,6 +97,7 @@ graph_to_host_compressed_sparse(
   if (d_wgt) {
     std::tie(d_offsets, d_dst, *d_wgt, std::ignore) =
       detail::sort_and_compress_edgelist<vertex_t, edge_t, weight_t, output_store_transposed>(
+        handle,
         std::move(d_src),
         std::move(d_dst),
         std::move(*d_wgt),
@@ -106,11 +106,11 @@ graph_to_host_compressed_sparse(
         graph_view.number_of_vertices(),
         vertex_t{0},
         graph_view.number_of_vertices(),
-        mem_frugal_threshold,
-        handle.get_stream());
+        mem_frugal_threshold);
   } else {
     std::tie(d_offsets, d_dst, std::ignore) =
       detail::sort_and_compress_edgelist<vertex_t, edge_t, output_store_transposed>(
+        handle,
         std::move(d_src),
         std::move(d_dst),
         vertex_t{0},
@@ -118,8 +118,7 @@ graph_to_host_compressed_sparse(
         graph_view.number_of_vertices(),
         vertex_t{0},
         graph_view.number_of_vertices(),
-        mem_frugal_threshold,
-        handle.get_stream());
+        mem_frugal_threshold);
   }
 
   return std::make_tuple(
@@ -284,13 +283,11 @@ template <typename vertex_t,
           typename weight_t,
           typename edge_type_t,
           bool store_transposed>
-std::tuple<
-  cugraph::graph_t<vertex_t, edge_t, store_transposed, false>,
-  std::optional<edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, false>, weight_t>>,
-  std::optional<edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, false>, edge_t>>,
-  std::optional<
-    edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, false>, edge_type_t>>,
-  std::optional<rmm::device_uvector<vertex_t>>>
+std::tuple<cugraph::graph_t<vertex_t, edge_t, store_transposed, false>,
+           std::optional<edge_property_t<edge_t, weight_t>>,
+           std::optional<edge_property_t<edge_t, edge_t>>,
+           std::optional<edge_property_t<edge_t, edge_type_t>>,
+           std::optional<rmm::device_uvector<vertex_t>>>
 mg_graph_to_sg_graph(
   raft::handle_t const& handle,
   cugraph::graph_view_t<vertex_t, edge_t, store_transposed, true> const& graph_view,
@@ -327,13 +324,9 @@ mg_graph_to_sg_graph(
   if (renumber_map) { vertices = cugraph::test::device_gatherv(handle, *renumber_map); }
 
   graph_t<vertex_t, edge_t, store_transposed, false> sg_graph(handle);
-  std::optional<edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, false>, weight_t>>
-    sg_edge_weights{std::nullopt};
-  std::optional<edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, false>, edge_t>>
-    sg_edge_ids{std::nullopt};
-  std::optional<
-    edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, false>, edge_type_t>>
-    sg_edge_types{std::nullopt};
+  std::optional<edge_property_t<edge_t, weight_t>> sg_edge_weights{std::nullopt};
+  std::optional<edge_property_t<edge_t, edge_t>> sg_edge_ids{std::nullopt};
+  std::optional<edge_property_t<edge_t, edge_type_t>> sg_edge_types{std::nullopt};
   std::optional<rmm::device_uvector<vertex_t>> sg_number_map;
   if (handle.get_comms().get_rank() == 0) {
     if (!renumber_map) {

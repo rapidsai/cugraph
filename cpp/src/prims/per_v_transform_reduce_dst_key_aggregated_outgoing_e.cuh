@@ -304,8 +304,11 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
       vertex_t,
       typename EdgeDstKeyInputWrapper::value_iterator>;
   using edge_partition_e_input_device_view_t = std::conditional_t<
-    std::is_same_v<typename EdgeValueInputWrapper::value_type, cuda::std::nullopt_t>,
-    detail::edge_partition_edge_dummy_property_device_view_t<vertex_t>,
+    std::is_same_v<typename EdgeValueInputWrapper::value_iterator, void*>,
+    std::conditional_t<
+      std::is_same_v<typename EdgeValueInputWrapper::value_type, cuda::std::nullopt_t>,
+      detail::edge_partition_edge_dummy_property_device_view_t<vertex_t>,
+      detail::edge_partition_edge_multi_index_property_device_view_t<edge_t, vertex_t>>,
     detail::edge_partition_edge_property_device_view_t<
       edge_t,
       typename EdgeValueInputWrapper::value_iterator,
@@ -615,7 +618,7 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
                  true /* use binary search as we can't set empty value sentinel for cuco */>>
       multi_gpu_major_value_map_ptr{
         nullptr};  // relevant only when GraphViewType::is_multi_gpu &&
-                   // edge_src_value_input.keys().has_value() == true (in this case,
+                   // edge_src_value_input.major_keys().has_value() == true (in this case,
                    // edge_src_value_input does not store value if local degree is 0, so no
                    // gaurantee that we can retrieve this value after shuffle)
     if constexpr (GraphViewType::is_multi_gpu) {
@@ -662,7 +665,7 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
                         handle.get_stream());
       handle.sync_stream();
 
-      if (edge_src_value_input.keys()) {
+      if (edge_src_value_input.major_keys()) {
         rmm::device_uvector<vertex_t> majors(tmp_majors.size(), handle.get_stream());
         std::vector<size_t> tx_edge_major_value_counts(minor_comm_size);
         {
@@ -974,7 +977,7 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
       allocate_dataframe_buffer<T>(tmp_majors.size(), handle.get_stream());
 
     auto major_value_map_device_view =
-      (GraphViewType::is_multi_gpu && edge_src_value_input.keys())
+      (GraphViewType::is_multi_gpu && edge_src_value_input.major_keys())
         ? cuda::std::make_optional<detail::kv_binary_search_store_device_view_t<
             decltype(multi_gpu_major_value_map_ptr->view())>>(multi_gpu_major_value_map_ptr->view())
         : cuda::std::nullopt;

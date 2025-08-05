@@ -312,7 +312,10 @@ def generate_upper_triangle(dataframe):
     return dataframe
 
 
-@pytest.mark.skip(reason="https://github.com/networkx/networkx/pull/7908")
+@pytest.mark.skipif(
+    float(".".join(nx.__version__.split(".")[:2])) < 3.5,
+    reason="Requires networkx >= 3.5",
+)
 @pytest.mark.sg
 @pytest.mark.parametrize("graph_file", SMALL_DATASETS)
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
@@ -343,7 +346,10 @@ def test_edge_betweenness_centrality(
     compare_scores(sorted_df, first_key="cu_bc", second_key="ref_bc")
 
 
-@pytest.mark.skip(reason="https://github.com/networkx/networkx/pull/7908")
+@pytest.mark.skipif(
+    float(".".join(nx.__version__.split(".")[:2])) < 3.5,
+    reason="Requires networkx >= 3.5",
+)
 @pytest.mark.sg
 @pytest.mark.parametrize("graph_file", SMALL_DATASETS)
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
@@ -383,7 +389,10 @@ def test_edge_betweenness_centrality_k_full(
 #       the function operating the comparison inside is first proceeding
 #       to a random sampling over the number of vertices (thus direct offsets)
 #       in the graph structure instead of actual vertices identifiers
-@pytest.mark.skip(reason="https://github.com/networkx/networkx/pull/7908")
+@pytest.mark.skipif(
+    float(".".join(nx.__version__.split(".")[:2])) < 3.5,
+    reason="Requires networkx >= 3.5",
+)
 @pytest.mark.sg
 @pytest.mark.parametrize("graph_file", [karate_disjoint])
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
@@ -485,39 +494,3 @@ def test_edge_betweenness_invalid_dtype(
             edgevals=edgevals,
         )
         compare_scores(sorted_df, first_key="cu_bc", second_key="ref_bc")
-
-
-@pytest.mark.skip(reason="https://github.com/networkx/networkx/pull/7908")
-@pytest.mark.sg
-@pytest.mark.parametrize("graph_file", SMALL_DATASETS)
-@pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
-@pytest.mark.parametrize("edgevals", WEIGHTED_GRAPH_OPTIONS)
-@pytest.mark.parametrize("normalized", NORMALIZED_OPTIONS)
-def test_edge_betweenness_centrality_nx(graph_file, directed, edgevals, normalized):
-    dataset_path = graph_file.get_path()
-    Gnx = utils.generate_nx_graph_from_file(dataset_path, directed, edgevals)
-    assert nx.is_directed(Gnx) == directed
-
-    nx_bc = nx.edge_betweenness_centrality(Gnx, normalized=normalized)
-    cu_bc = cugraph.edge_betweenness_centrality(Gnx, normalized=normalized)
-
-    # Calculating mismatch
-    networkx_bc = sorted(nx_bc.items(), key=lambda x: x[0])
-    cugraph_bc = sorted(cu_bc.items(), key=lambda x: x[0])
-    err = 0
-
-    assert len(networkx_bc) == len(cugraph_bc)
-    for i in range(len(cugraph_bc)):
-        if (
-            abs(cugraph_bc[i][1] - networkx_bc[i][1]) > 0.01
-            and cugraph_bc[i][0] == networkx_bc[i][0]
-        ):
-            err = err + 1
-            print(
-                "type c_bc = ",
-                type(cugraph_bc[i][1]),
-                " type nx_bc = ",
-                type(networkx_bc[i][1]),
-            )
-    print("Mismatches:", err)
-    assert err < (0.01 * len(cugraph_bc))

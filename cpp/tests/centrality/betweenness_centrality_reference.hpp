@@ -18,6 +18,7 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <limits>
 #include <optional>
 #include <queue>
@@ -130,40 +131,53 @@ void ref_edge_accumulation(std::vector<weight_t>& result,
   }
 }
 
-template <typename result_t>
+template <typename vertex_t, typename result_t>
 void reference_rescale(result_t* result,
+                       vertex_t const* sources,
                        bool directed,
                        bool normalize,
                        bool endpoints,
                        size_t const number_of_vertices,
                        size_t const number_of_sources)
 {
-  result_t rescale_factor            = static_cast<result_t>(1);
   result_t casted_number_of_sources  = static_cast<result_t>(number_of_sources);
   result_t casted_number_of_vertices = static_cast<result_t>(number_of_vertices);
+  if (!endpoints) casted_number_of_vertices = casted_number_of_vertices - 1;
 
-  if (normalize) {
-    if (number_of_vertices > 2) {
-      if (endpoints) {
-        rescale_factor /=
-          (number_of_sources > 0 ? casted_number_of_sources
-                                 : casted_number_of_vertices * (casted_number_of_vertices - 1));
-      } else {
-        rescale_factor /= (number_of_sources > 0
-                             ? casted_number_of_sources
-                             : (casted_number_of_vertices - 1) * (casted_number_of_vertices - 2));
-      }
+  if ((number_of_sources == number_of_vertices) || endpoints) {
+    result_t rescale_factor = static_cast<result_t>(1);
+
+    if (normalize) {
+      rescale_factor = result_t{1} / (casted_number_of_sources * (casted_number_of_vertices - 1));
+    } else if (!directed) {
+      rescale_factor = casted_number_of_vertices / (2 * casted_number_of_sources);
+    } else {
+      rescale_factor = casted_number_of_vertices / casted_number_of_sources;
     }
-  } else if (number_of_sources < number_of_vertices) {
-    rescale_factor = (endpoints ? casted_number_of_vertices : casted_number_of_vertices - 1) /
-                     (directed ? casted_number_of_sources : 2 * casted_number_of_sources);
-  } else if (!directed) {
-    rescale_factor = 2;
-  }
 
-  if (rescale_factor != result_t{1}) {
-    for (auto idx = 0; idx < number_of_vertices; ++idx) {
+    for (vertex_t idx = 0; idx < number_of_vertices; ++idx) {
       result[idx] *= rescale_factor;
+    }
+  } else {
+    result_t rescale_source     = static_cast<result_t>(1);
+    result_t rescale_non_source = static_cast<result_t>(1);
+
+    if (normalize) {
+      rescale_source     = 1 / ((casted_number_of_sources - 1) * (casted_number_of_vertices - 1));
+      rescale_non_source = 1 / (casted_number_of_sources * (casted_number_of_vertices - 1));
+    } else if (directed) {
+      rescale_source     = casted_number_of_vertices / (casted_number_of_sources - 1);
+      rescale_non_source = casted_number_of_vertices / casted_number_of_sources;
+    } else {
+      rescale_source     = casted_number_of_vertices / (2 * (casted_number_of_sources - 1));
+      rescale_non_source = casted_number_of_vertices / (2 * casted_number_of_sources);
+    }
+
+    for (vertex_t idx = 0; idx < number_of_vertices; ++idx) {
+      if (std::find(sources, sources + number_of_sources, idx) == (sources + number_of_sources))
+        result[idx] *= rescale_non_source;
+      else
+        result[idx] *= rescale_source;
     }
   }
 }
@@ -235,8 +249,13 @@ std::vector<weight_t> betweenness_centrality_reference(
     }
   }
 
-  reference_rescale(
-    result.data(), directed, normalize, include_endpoints, offsets.size() - 1, seeds.size());
+  reference_rescale(result.data(),
+                    seeds.data(),
+                    directed,
+                    normalize,
+                    include_endpoints,
+                    offsets.size() - 1,
+                    seeds.size());
 
   return result;
 }

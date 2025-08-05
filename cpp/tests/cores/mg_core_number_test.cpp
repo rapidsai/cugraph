@@ -84,7 +84,7 @@ class Tests_MGCoreNumber
     std::optional<rmm::device_uvector<vertex_t>> mg_renumber_map{std::nullopt};
     std::tie(mg_graph, std::ignore, mg_renumber_map) =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, true>(
-        *handle_, input_usecase, false, true, true, true);
+        *handle_, input_usecase, false, true, false, true);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -95,7 +95,7 @@ class Tests_MGCoreNumber
 
     auto mg_graph_view = mg_graph.view();
 
-    std::optional<cugraph::edge_property_t<decltype(mg_graph_view), bool>> edge_mask{std::nullopt};
+    std::optional<cugraph::edge_property_t<edge_t, bool>> edge_mask{std::nullopt};
     if (core_number_usecase.edge_masking) {
       edge_mask = cugraph::test::generate<decltype(mg_graph_view), bool>::edge_property(
         *handle_, mg_graph_view, 2);

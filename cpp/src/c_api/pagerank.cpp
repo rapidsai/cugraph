@@ -19,11 +19,11 @@
 #include "c_api/graph.hpp"
 #include "c_api/resource_handle.hpp"
 #include "c_api/utils.hpp"
+#include "detail/shuffle_wrappers.hpp"
 
 #include <cugraph_c/algorithms.h>
 
 #include <cugraph/algorithms.hpp>
-#include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/shuffle_functions.hpp>
@@ -93,7 +93,8 @@ struct pagerank_functor : public cugraph::c_api::abstract_functor {
   template <typename vertex_t,
             typename edge_t,
             typename weight_t,
-            typename edge_type_type_t,
+            typename edge_type_t,
+            typename edge_time_t,
             bool store_transposed,
             bool multi_gpu>
   void operator()()
@@ -115,9 +116,8 @@ struct pagerank_functor : public cugraph::c_api::abstract_functor {
 
       auto graph_view = graph->view();
 
-      auto edge_weights = reinterpret_cast<
-        cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, true, multi_gpu>,
-                                 weight_t>*>(graph_->edge_weights_);
+      auto edge_weights =
+        reinterpret_cast<cugraph::edge_property_t<edge_t, weight_t>*>(graph_->edge_weights_);
 
       auto number_map = reinterpret_cast<rmm::device_uvector<vertex_t>*>(graph_->number_map_);
 

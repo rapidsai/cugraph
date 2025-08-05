@@ -132,6 +132,7 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
             typename edge_t,
             typename weight_t,
             typename edge_type_t,
+            typename edge_time_t,
             bool store_transposed,
             bool multi_gpu>
   void operator()()
@@ -155,17 +156,14 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
 
       auto graph_view = graph->view();
 
-      auto edge_weights = reinterpret_cast<
-        cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, true, multi_gpu>,
-                                 weight_t>*>(graph_->edge_weights_);
+      auto edge_weights =
+        reinterpret_cast<cugraph::edge_property_t<edge_t, weight_t>*>(graph_->edge_weights_);
 
-      auto edge_ids = reinterpret_cast<
-        cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, true, multi_gpu>,
-                                 edge_t>*>(graph_->edge_ids_);
+      auto edge_ids =
+        reinterpret_cast<cugraph::edge_property_t<edge_t, edge_t>*>(graph_->edge_ids_);
 
-      auto edge_types = reinterpret_cast<
-        cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, true, multi_gpu>,
-                                 edge_type_t>*>(graph_->edge_types_);
+      auto edge_types =
+        reinterpret_cast<cugraph::edge_property_t<edge_t, edge_type_t>*>(graph_->edge_types_);
 
       auto number_map = reinterpret_cast<rmm::device_uvector<vertex_t>*>(graph_->number_map_);
 
@@ -477,6 +475,7 @@ struct biased_neighbor_sampling_functor : public cugraph::c_api::abstract_functo
             typename edge_t,
             typename weight_t,
             typename edge_type_t,
+            typename edge_time_t,
             bool store_transposed,
             bool multi_gpu>
   void operator()()
@@ -500,17 +499,14 @@ struct biased_neighbor_sampling_functor : public cugraph::c_api::abstract_functo
 
       auto graph_view = graph->view();
 
-      auto edge_weights = reinterpret_cast<
-        cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, true, multi_gpu>,
-                                 weight_t>*>(graph_->edge_weights_);
+      auto edge_weights =
+        reinterpret_cast<cugraph::edge_property_t<edge_t, weight_t>*>(graph_->edge_weights_);
 
-      auto edge_ids = reinterpret_cast<
-        cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, true, multi_gpu>,
-                                 edge_t>*>(graph_->edge_ids_);
+      auto edge_ids =
+        reinterpret_cast<cugraph::edge_property_t<edge_t, edge_t>*>(graph_->edge_ids_);
 
-      auto edge_types = reinterpret_cast<
-        cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, true, multi_gpu>,
-                                 edge_type_t>*>(graph_->edge_types_);
+      auto edge_types =
+        reinterpret_cast<cugraph::edge_property_t<edge_t, edge_type_t>*>(graph_->edge_types_);
 
       auto number_map = reinterpret_cast<rmm::device_uvector<vertex_t>*>(graph_->number_map_);
 
@@ -825,6 +821,7 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
             typename edge_t,
             typename weight_t,
             typename edge_type_t,
+            typename edge_time_t,
             bool store_transposed,
             bool multi_gpu>
   void operator()()
@@ -848,17 +845,14 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
 
       auto graph_view = graph->view();
 
-      auto edge_weights = reinterpret_cast<
-        cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, true, multi_gpu>,
-                                 weight_t>*>(graph_->edge_weights_);
+      auto edge_weights =
+        reinterpret_cast<cugraph::edge_property_t<edge_t, weight_t>*>(graph_->edge_weights_);
 
-      auto edge_ids = reinterpret_cast<
-        cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, true, multi_gpu>,
-                                 edge_t>*>(graph_->edge_ids_);
+      auto edge_ids =
+        reinterpret_cast<cugraph::edge_property_t<edge_t, edge_t>*>(graph_->edge_ids_);
 
-      auto edge_types = reinterpret_cast<
-        cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, true, multi_gpu>,
-                                 edge_type_t>*>(graph_->edge_types_);
+      auto edge_types =
+        reinterpret_cast<cugraph::edge_property_t<edge_t, edge_type_t>*>(graph_->edge_types_);
 
       auto number_map = reinterpret_cast<rmm::device_uvector<vertex_t>*>(graph_->number_map_);
 

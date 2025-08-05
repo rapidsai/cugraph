@@ -15,6 +15,7 @@
  */
 #pragma once
 
+#include "detail/shuffle_wrappers.hpp"
 #include "prims/extract_transform_if_e.cuh"
 #include "prims/fill_edge_property.cuh"
 #include "prims/transform_e.cuh"
@@ -22,7 +23,6 @@
 #include "prims/update_edge_src_dst_property.cuh"
 
 #include <cugraph/algorithms.hpp>
-#include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/error.hpp>
@@ -200,11 +200,10 @@ void triangle_count(raft::handle_t const& handle,
   // 2. Mask out the edges that has source or destination that cannot be reached from vertices
   // within two hop (if vertices.has_value() is true).
 
-  cugraph::edge_property_t<decltype(cur_graph_view), bool> edge_mask(handle);
+  cugraph::edge_property_t<edge_t, bool> edge_mask(handle);
 
   if (vertices) {
-    cugraph::edge_property_t<decltype(cur_graph_view), bool> within_two_hop_edge_mask(
-      handle, cur_graph_view);
+    cugraph::edge_property_t<edge_t, bool> within_two_hop_edge_mask(handle, cur_graph_view);
     cugraph::fill_edge_property(
       handle, unmasked_cur_graph_view, within_two_hop_edge_mask.mutable_view(), false);
 
@@ -330,10 +329,8 @@ void triangle_count(raft::handle_t const& handle,
     unique_two_hop_nbrs.resize(0, handle.get_stream());
     unique_two_hop_nbrs.shrink_to_fit(handle.get_stream());
 
-    edge_src_property_t<decltype(cur_graph_view), bool> edge_src_within_two_hop_flags(
-      handle, cur_graph_view);
-    edge_dst_property_t<decltype(cur_graph_view), bool> edge_dst_within_two_hop_flags(
-      handle, cur_graph_view);
+    edge_src_property_t<vertex_t, bool> edge_src_within_two_hop_flags(handle, cur_graph_view);
+    edge_dst_property_t<vertex_t, bool> edge_dst_within_two_hop_flags(handle, cur_graph_view);
     update_edge_src_property(handle,
                              cur_graph_view,
                              within_two_hop_flags.begin(),
@@ -361,20 +358,19 @@ void triangle_count(raft::handle_t const& handle,
 
   // 3. Exclude self-loops
 
-  {
-    cugraph::edge_property_t<decltype(cur_graph_view), bool> self_loop_edge_mask(handle,
-                                                                                 cur_graph_view);
+  if (cur_graph_view.count_self_loops(handle) > edge_t{0}) {
+    cugraph::edge_property_t<edge_t, bool> self_loop_edge_mask(handle, cur_graph_view);
     cugraph::fill_edge_property(
       handle, unmasked_cur_graph_view, self_loop_edge_mask.mutable_view(), false);
 
-    transform_e(
-      handle,
-      cur_graph_view,
-      edge_src_dummy_property_t{}.view(),
-      edge_dst_dummy_property_t{}.view(),
-      edge_dummy_property_t{}.view(),
-      [] __device__(auto src, auto dst, auto, auto, auto) { return src != dst; },
-      self_loop_edge_mask.mutable_view());
+    transform_e(handle,
+                cur_graph_view,
+                edge_src_dummy_property_t{}.view(),
+                edge_dst_dummy_property_t{}.view(),
+                edge_dummy_property_t{}.view(),
+                cuda::proclaim_return_type<bool>(
+                  [] __device__(auto src, auto dst, auto, auto, auto) { return src != dst; }),
+                self_loop_edge_mask.mutable_view());
 
     edge_mask = std::move(self_loop_edge_mask);
     if (cur_graph_view.has_edge_mask()) { cur_graph_view.clear_edge_mask(); }
@@ -384,8 +380,7 @@ void triangle_count(raft::handle_t const& handle,
   // 4. Find 2-core and exclude edges that do not belong to 2-core add masking support).
 
   {
-    cugraph::edge_property_t<decltype(cur_graph_view), bool> in_two_core_edge_mask(handle,
-                                                                                   cur_graph_view);
+    cugraph::edge_property_t<edge_t, bool> in_two_core_edge_mask(handle, cur_graph_view);
     cugraph::fill_edge_property(
       handle, unmasked_cur_graph_view, in_two_core_edge_mask.mutable_view(), false);
 
@@ -394,10 +389,8 @@ void triangle_count(raft::handle_t const& handle,
     core_number(
       handle, cur_graph_view, core_numbers.data(), k_core_degree_type_t::OUT, size_t{2}, size_t{2});
 
-    edge_src_property_t<decltype(cur_graph_view), bool> edge_src_in_two_cores(handle,
-                                                                              cur_graph_view);
-    edge_dst_property_t<decltype(cur_graph_view), bool> edge_dst_in_two_cores(handle,
-                                                                              cur_graph_view);
+    edge_src_property_t<vertex_t, bool> edge_src_in_two_cores(handle, cur_graph_view);
+    edge_dst_property_t<vertex_t, bool> edge_dst_in_two_cores(handle, cur_graph_view);
     auto in_two_core_first =
       thrust::make_transform_iterator(core_numbers.begin(), is_two_or_greater_t<edge_t>{});
     rmm::device_uvector<bool> in_two_core_flags(core_numbers.size(), handle.get_stream());
@@ -434,10 +427,8 @@ void triangle_count(raft::handle_t const& handle,
   {
     auto out_degrees = cur_graph_view.compute_out_degrees(handle);
 
-    edge_src_property_t<decltype(cur_graph_view), edge_t> edge_src_out_degrees(handle,
-                                                                               cur_graph_view);
-    edge_dst_property_t<decltype(cur_graph_view), edge_t> edge_dst_out_degrees(handle,
-                                                                               cur_graph_view);
+    edge_src_property_t<vertex_t, edge_t> edge_src_out_degrees(handle, cur_graph_view);
+    edge_dst_property_t<vertex_t, edge_t> edge_dst_out_degrees(handle, cur_graph_view);
     update_edge_src_property(
       handle, cur_graph_view, out_degrees.begin(), edge_src_out_degrees.mutable_view());
     update_edge_dst_property(
@@ -452,17 +443,9 @@ void triangle_count(raft::handle_t const& handle,
                              extract_low_to_high_degree_edges_pred_op_t<vertex_t, edge_t>{});
 
     if constexpr (multi_gpu) {
-      std::tie(
-        srcs, dsts, std::ignore, std::ignore, std::ignore, std::ignore, std::ignore, std::ignore) =
-        shuffle_ext_edges<vertex_t, edge_t, weight_t, int32_t, int32_t>(handle,
-                                                                        std::move(srcs),
-                                                                        std::move(dsts),
-                                                                        std::nullopt,
-                                                                        std::nullopt,
-                                                                        std::nullopt,
-                                                                        std::nullopt,
-                                                                        std::nullopt,
-                                                                        false);
+      std::vector<arithmetic_device_uvector_t> edge_properties{};
+      std::tie(srcs, dsts, std::ignore, std::ignore) = shuffle_ext_edges(
+        handle, std::move(srcs), std::move(dsts), std::move(edge_properties), false);
     }
 
     std::tie(modified_graph, std::ignore, std::ignore, std::ignore, renumber_map) =

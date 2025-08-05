@@ -15,6 +15,7 @@
 add_subdirectory(components)
 add_subdirectory(internal_types)
 add_subdirectory(testing)
+add_subdirectory(comms)
 
 set(cython_sources
     analyze_clustering_edge_cut.pyx
@@ -43,7 +44,6 @@ set(cython_sources
     katz_centrality.pyx
     leiden.pyx
     louvain.pyx
-    node2vec.pyx
     node2vec_random_walks.pyx
     pagerank.pyx
     personalized_pagerank.pyx
@@ -76,6 +76,8 @@ set(cython_sources
     renumber_arbitrary_edgelist.pyx
     has_vertex.pyx
     force_atlas2.pyx
+    minimum_spanning_tree.pyx
+    extract_vertex_list.pyx
 )
 set(linked_libraries cugraph::cugraph;cugraph::cugraph_c)
 

@@ -9,8 +9,8 @@ cd "$(dirname "$(realpath "${BASH_SOURCE[0]}")")"/../
 . /opt/conda/etc/profile.d/conda.sh
 
 rapids-logger "Downloading artifacts from previous jobs"
-CPP_CHANNEL=$(rapids-download-conda-from-s3 cpp)
-PYTHON_CHANNEL=$(rapids-download-conda-from-s3 python)
+CPP_CHANNEL=$(rapids-download-conda-from-github cpp)
+PYTHON_CHANNEL=$(rapids-download-conda-from-github python)
 
 rapids-logger "Generate Python testing dependencies"
 rapids-dependency-file-generator \
@@ -51,6 +51,8 @@ rapids-logger "pytest pylibcugraph"
 ./ci/run_pylibcugraph_pytests.sh \
   --verbose \
   --junitxml="${RAPIDS_TESTS_DIR}/junit-pylibcugraph.xml" \
+  --numprocesses=8 \
+  --dist=worksteal \
   --cov-config=../../.coveragerc \
   --cov=pylibcugraph \
   --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/pylibcugraph-coverage.xml" \
@@ -67,15 +69,43 @@ rapids-logger "pytest pylibcugraph"
 #
 # FIXME: TEMPORARILY disable MG PropertyGraph tests (experimental) tests and
 # bulk sampler IO tests (hangs in CI)
-rapids-logger "pytest cugraph"
+rapids-logger "pytest cugraph (not mg, with xdist)"
 ./ci/run_cugraph_pytests.sh \
   --verbose \
   --junitxml="${RAPIDS_TESTS_DIR}/junit-cugraph.xml" \
+  --numprocesses=8 \
+  --dist=worksteal \
+  -m "not mg" \
+  -k "not test_bulk_sampler and not test_create_undirected_graph_from_asymmetric_adj_list and not test_uniform_neighbor_sample and not test_node2vec and not(test_property_graph.py and cyber)" \
   --cov-config=../../.coveragerc \
   --cov=cugraph \
   --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph-coverage.xml" \
   --cov-report=term
 
+# excludes known failures that will always fail when run in combination
+rapids-logger "pytest cugraph (mg, with xdist)"
+./ci/run_cugraph_pytests.sh \
+  --verbose \
+  --junitxml="${RAPIDS_TESTS_DIR}/junit-cugraph.xml" \
+  --numprocesses=8 \
+  --dist=worksteal \
+  -m "mg" \
+  -k "not test_property_graph_mg and not test_dist_sampler_mg and not test_uniform_neighbor_sample_mg" \
+  --cov-config=../../.coveragerc \
+  --cov=cugraph \
+  --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph-coverage.xml" \
+  --cov-report=term
+
+rapids-logger "pytest cugraph (mg dist_sampler and uns)"
+./ci/run_cugraph_pytests.sh \
+  --verbose \
+  --junitxml="${RAPIDS_TESTS_DIR}/junit-cugraph.xml" \
+  -m "mg" \
+  -k "test_dist_sampler_mg or test_uniform_neighbor_sample_mg" \
+  --cov-config=../../.coveragerc \
+  --cov=cugraph \
+  --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph-coverage.xml" \
+  --cov-report=term
 
 rapids-logger "pytest cugraph benchmarks (run as tests)"
 ./ci/run_cugraph_benchmark_pytests.sh --verbose
