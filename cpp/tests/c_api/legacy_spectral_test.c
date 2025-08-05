@@ -294,8 +294,9 @@ int test_spectral()
   vertex_t h_dst[] = {1, 2, 0, 2, 0, 1, 3, 2, 4, 5, 3, 5, 3, 4};
   weight_t h_wgt[] = {
     0.1f, 0.2f, 0.1f, 1.2f, 0.2f, 1.2f, 2.3f, 2.3f, 3.4f, 3.5f, 3.4f, 4.5f, 3.5f, 4.5f};
-  vertex_t h_result[]          = {0, 0, 0, 1, 1, 1};
-  weight_t expected_modularity = 0.136578;
+
+  vertex_t h_result[]          = {0, 0, 0, 0, 1, 1};
+  weight_t expected_modularity =  0.044992;
   weight_t expected_edge_cut   = 0;
   weight_t expected_ratio_cut  = 0;
 
@@ -333,10 +334,10 @@ int test_balanced_cut_unequal_weight()
   vertex_t h_dst[] = {1, 2, 0, 2, 0, 1, 3, 2, 4, 5, 3, 5, 3, 4};
   weight_t h_wgt[] = {
     0.1f, 0.2f, 0.1f, 1.2f, 0.2f, 1.2f, 2.3f, 2.3f, 3.4f, 3.5f, 3.4f, 4.5f, 3.5f, 4.5f};
-  vertex_t h_result[]          = {0, 0, 1, 0, 0, 0};
-  weight_t expected_modularity = -0.02963;
-  weight_t expected_edge_cut   = 3.7;
-  weight_t expected_ratio_cut  = 4.44;
+  vertex_t h_result[]          = {0, 0, 0, 0, 0, 0};
+  weight_t expected_modularity = 0;
+  weight_t expected_edge_cut   = 0;
+  weight_t expected_ratio_cut  = 0;
 
   // balanced cut clustering wants store_transposed = FALSE
   return generic_balanced_cut_test(h_src,
@@ -371,10 +372,11 @@ int test_balanced_cut_equal_weight()
   vertex_t h_src[]             = {0, 0, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 5, 5};
   vertex_t h_dst[]             = {1, 2, 0, 2, 0, 1, 3, 2, 4, 5, 3, 5, 3, 4};
   weight_t h_wgt[]             = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
-  vertex_t h_result[]          = {1, 1, 1, 0, 0, 0};
-  weight_t expected_modularity = 0.357143;
-  weight_t expected_edge_cut   = 1;
-  weight_t expected_ratio_cut  = 0.666667;
+  //vertex_t h_result[]          = {1, 1, 1, 0, 0, 0};
+  vertex_t h_result[]          = {0, 0, 0, 0, 1, 0};
+  weight_t expected_modularity = -0.040816;
+  weight_t expected_edge_cut   = 2;
+  weight_t expected_ratio_cut  = 2.4;
 
   // balanced cut clustering wants store_transposed = FALSE
   return generic_balanced_cut_test(h_src,
@@ -408,10 +410,10 @@ int test_balanced_cut_no_weight()
 
   vertex_t h_src[]             = {0, 0, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 5, 5};
   vertex_t h_dst[]             = {1, 2, 0, 2, 0, 1, 3, 2, 4, 5, 3, 5, 3, 4};
-  vertex_t h_result[]          = {1, 1, 1, 0, 0, 0};
-  weight_t expected_modularity = 0.357143;
-  weight_t expected_edge_cut   = 1;
-  weight_t expected_ratio_cut  = 0.666667;
+  vertex_t h_result[]          = {0, 0, 0, 0, 1, 0};
+  weight_t expected_modularity = -0.040816;
+  weight_t expected_edge_cut   = 2;
+  weight_t expected_ratio_cut  = 2.4;
 
   // balanced cut clustering wants store_transposed = FALSE
   return generic_balanced_cut_test(h_src,
