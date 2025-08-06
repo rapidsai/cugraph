@@ -76,9 +76,20 @@ struct extract_edge_e_op_t {
     vertex_t dst,
     thrust::tuple<vertex_t, edge_t, weight_t> src_props,
     thrust::tuple<vertex_t, edge_t, weight_t> dst_props,
-    weight_t) const
+    cuda::std::nullopt_t) const
   {
     return thrust::make_tuple(src, dst);
+  }
+
+  template <typename edge_t, typename weight_t>
+  __device__ thrust::tuple<vertex_t, vertex_t, edge_t> operator()(
+    vertex_t src,
+    vertex_t dst,
+    thrust::tuple<vertex_t, edge_t, weight_t> src_props,
+    thrust::tuple<vertex_t, edge_t, weight_t> dst_props,
+    edge_t edge_multi_index) const
+  {
+    return thrust::make_tuple(src, dst, edge_multi_index);
   }
 };
 
@@ -91,7 +102,17 @@ struct extract_edge_pred_op_t {
                              vertex_t dst,
                              thrust::tuple<vertex_t, edge_t, weight_t> src_props,
                              thrust::tuple<vertex_t, edge_t, weight_t> dst_props,
-                             weight_t) const
+                             cuda::std::nullopt_t) const
+  {
+    return ((thrust::get<0>(dst_props) == d) && (thrust::get<0>(src_props) == (d - 1)));
+  }
+
+  template <typename edge_t, typename weight_t>
+  __device__ bool operator()(vertex_t src,
+                             vertex_t dst,
+                             thrust::tuple<vertex_t, edge_t, weight_t> src_props,
+                             thrust::tuple<vertex_t, edge_t, weight_t> dst_props,
+                             edge_t edge_multi_index) const
   {
     return ((thrust::get<0>(dst_props) == d) && (thrust::get<0>(src_props) == (d - 1)));
   }
@@ -359,34 +380,41 @@ void accumulate_edge_results(
     //  Populate edge_list with edges where `thrust::get<0>(dst_props) == d`
     //  and `thrust::get<0>(dst_props) == (d-1)`
     //
-    cugraph::edge_bucket_t<vertex_t, void, true, multi_gpu, true> edge_list(handle);
+    cugraph::edge_bucket_t<vertex_t, edge_t, true, multi_gpu, true> edge_list(
+      handle, graph_view.is_multigraph());
 
-    {
-      auto [src, dst] = extract_transform_if_e(handle,
-                                               graph_view,
-                                               src_properties.view(),
-                                               dst_properties.view(),
-                                               centralities_view,
-                                               extract_edge_e_op_t<vertex_t>{},
-                                               extract_edge_pred_op_t<vertex_t>{d},
-                                               do_expensive_check);
+    rmm::device_uvector<vertex_t> srcs(0, handle.get_stream());
+    rmm::device_uvector<vertex_t> dsts(0, handle.get_stream());
+    std::optional<rmm::device_uvector<edge_t>> indices{std::nullopt};
+    if (graph_view.is_multigraph()) {
+      edge_multi_index_property_t<edge_t, vertex_t> edge_multi_indices(handle, graph_view);
+      std::tie(srcs, dsts, indices) = extract_transform_if_e(handle,
+                                                             graph_view,
+                                                             src_properties.view(),
+                                                             dst_properties.view(),
+                                                             edge_multi_indices.view(),
+                                                             extract_edge_e_op_t<vertex_t>{},
+                                                             extract_edge_pred_op_t<vertex_t>{d},
+                                                             do_expensive_check);
 
-      thrust::sort(handle.get_thrust_policy(),
-                   thrust::make_zip_iterator(src.begin(), dst.begin()),
-                   thrust::make_zip_iterator(src.end(), dst.end()));
-
-      // Eliminate duplicates in case of a multi-graph
-      auto new_edgelist_end = thrust::unique(handle.get_thrust_policy(),
-                                             thrust::make_zip_iterator(src.begin(), dst.begin()),
-                                             thrust::make_zip_iterator(src.end(), dst.end()));
-
-      src.resize(
-        cuda::std::distance(thrust::make_zip_iterator(src.begin(), dst.begin()), new_edgelist_end),
-        handle.get_stream());
-      dst.resize(src.size(), handle.get_stream());
-
-      edge_list.insert(src.begin(), src.end(), dst.begin());
+      auto triplet_first = thrust::make_zip_iterator(srcs.begin(), dsts.begin(), indices->begin());
+      thrust::sort(handle.get_thrust_policy(), triplet_first, triplet_first + srcs.size());
+    } else {
+      std::tie(srcs, dsts) = extract_transform_if_e(handle,
+                                                    graph_view,
+                                                    src_properties.view(),
+                                                    dst_properties.view(),
+                                                    edge_dummy_property_t{}.view(),
+                                                    extract_edge_e_op_t<vertex_t>{},
+                                                    extract_edge_pred_op_t<vertex_t>{d},
+                                                    do_expensive_check);
+      auto pair_first      = thrust::make_zip_iterator(srcs.begin(), dsts.begin());
+      thrust::sort(handle.get_thrust_policy(), pair_first, pair_first + srcs.size());
     }
+    edge_list.insert(srcs.begin(),
+                     srcs.end(),
+                     dsts.begin(),
+                     indices ? std::make_optional(indices->begin()) : std::nullopt);
 
     transform_e(
       handle,
@@ -540,37 +568,57 @@ rmm::device_uvector<weight_t> betweenness_centrality(
                               do_expensive_check);
   }
 
-  std::optional<weight_t> scale_factor{std::nullopt};
+  std::optional<weight_t> scale_nonsource{std::nullopt};
+  std::optional<weight_t> scale_source{std::nullopt};
 
-  if (normalized) {
-    if (include_endpoints) {
-      if (graph_view.number_of_vertices() >= 2) {
-        scale_factor = static_cast<weight_t>(
-          std::min(static_cast<vertex_t>(num_sources), graph_view.number_of_vertices()) *
-          (graph_view.number_of_vertices() - 1));
-      }
-    } else if (graph_view.number_of_vertices() > 2) {
-      scale_factor = static_cast<weight_t>(
-        std::min(static_cast<vertex_t>(num_sources), graph_view.number_of_vertices() - 1) *
-        (graph_view.number_of_vertices() - 2));
+  weight_t num_vertices = static_cast<weight_t>(graph_view.number_of_vertices());
+  if (!include_endpoints) num_vertices = num_vertices - 1;
+
+  if ((static_cast<edge_t>(num_sources) == num_vertices) || include_endpoints) {
+    if (normalized) {
+      scale_nonsource = static_cast<weight_t>(num_sources * (num_vertices - 1));
+    } else if (graph_view.is_symmetric()) {
+      scale_nonsource =
+        static_cast<weight_t>(num_sources * 2) / static_cast<weight_t>(num_vertices);
+    } else {
+      scale_nonsource = static_cast<weight_t>(num_sources) / static_cast<weight_t>(num_vertices);
     }
-  } else if (num_sources < static_cast<size_t>(graph_view.number_of_vertices())) {
-    if ((graph_view.number_of_vertices() > 1) && (num_sources > 0))
-      scale_factor =
-        (graph_view.is_symmetric() ? weight_t{2} : weight_t{1}) *
-        static_cast<weight_t>(num_sources) /
-        (include_endpoints ? static_cast<weight_t>(graph_view.number_of_vertices())
-                           : static_cast<weight_t>(graph_view.number_of_vertices() - 1));
-  } else if (graph_view.is_symmetric()) {
-    scale_factor = weight_t{2};
+
+    scale_source = scale_nonsource;
+  } else if (normalized) {
+    scale_nonsource = static_cast<weight_t>(num_sources) * (num_vertices - 1);
+    scale_source    = static_cast<weight_t>(num_sources - 1) * (num_vertices - 1);
+  } else {
+    scale_nonsource = static_cast<weight_t>(num_sources) / num_vertices;
+    scale_source    = static_cast<weight_t>(num_sources - 1) / num_vertices;
+
+    if (graph_view.is_symmetric()) {
+      *scale_nonsource *= 2;
+      *scale_source *= 2;
+    }
   }
 
-  if (scale_factor) {
-    thrust::transform(handle.get_thrust_policy(),
-                      centralities.begin(),
-                      centralities.end(),
-                      centralities.begin(),
-                      [sf = *scale_factor] __device__(auto centrality) { return centrality / sf; });
+  if (scale_nonsource) {
+    auto iter = thrust::make_zip_iterator(
+      thrust::make_counting_iterator(graph_view.local_vertex_partition_range_first()),
+      centralities.begin());
+
+    thrust::transform(
+      handle.get_thrust_policy(),
+      iter,
+      iter + centralities.size(),
+      centralities.begin(),
+      [nonsource = *scale_nonsource,
+       source    = *scale_source,
+       vertices_begin,
+       vertices_end] __device__(auto t) {
+        vertex_t v          = thrust::get<0>(t);
+        weight_t centrality = thrust::get<1>(t);
+
+        return (thrust::find(thrust::seq, vertices_begin, vertices_end, v) == vertices_end)
+                 ? centrality / nonsource
+                 : centrality / source;
+      });
   }
 
   return centralities;

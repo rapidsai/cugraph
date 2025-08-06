@@ -27,11 +27,6 @@ rapids_cuda_init_architectures(CUGRAPH)
 
 project(CUGRAPH VERSION "${RAPIDS_VERSION}" LANGUAGES C CXX CUDA)
 
-if(CMAKE_CUDA_COMPILER_ID STREQUAL "NVIDIA" AND
-   CMAKE_CUDA_COMPILER_VERSION VERSION_LESS 11.0)
-    message(FATAL_ERROR "CUDA compiler version must be at least 11.0")
-endif()
-
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND
    CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9.3)
     message(FATAL_ERROR "GCC compiler must be at least 9.3")
@@ -153,10 +148,19 @@ endif()
 #       which should give us a better parallel schedule.
 
 set(CUGRAPH_SOURCES
+    src/sampling/temporal_sampling_sg_v32_e32.cu
+    src/sampling/temporal_sampling_sg_v64_e64.cu
+    src/sampling/temporal_sampling_mg_v32_e32.cu
+    src/sampling/temporal_sampling_mg_v64_e64.cu
+    src/sampling/detail/update_temporal_edge_mask_sg_v32_e32.cu
+    src/sampling/detail/update_temporal_edge_mask_sg_v64_e64.cu
+    src/sampling/detail/update_temporal_edge_mask_mg_v32_e32.cu
+    src/sampling/detail/update_temporal_edge_mask_mg_v64_e64.cu
     src/utilities/shuffle_vertices_mg_v32_fp.cu
     src/utilities/shuffle_vertices_mg_v32_integral.cu
     src/utilities/shuffle_vertices_mg_v64_fp.cu
     src/utilities/shuffle_vertices_mg_v64_integral.cu
+    src/utilities/validation_checks.cu
     src/detail/permute_range_v32.cu
     src/detail/permute_range_v64.cu
     src/utilities/shuffle_vertex_pairs_mg_v32_e32.cu
@@ -247,30 +251,34 @@ set(CUGRAPH_SOURCES
     src/lookup/lookup_src_dst_mg_v64_e64.cu
     src/lookup/lookup_src_dst_sg_v32_e32.cu
     src/lookup/lookup_src_dst_sg_v64_e64.cu
-    src/sampling/random_walks_old_sg_v32_e32.cu
-    src/sampling/random_walks_old_sg_v64_e64.cu
     src/sampling/random_walks_sg_v64_e64.cu
     src/sampling/random_walks_sg_v32_e32.cu
     src/sampling/detail/prepare_next_frontier_sg_v64_e64.cu
     src/sampling/detail/prepare_next_frontier_sg_v32_e32.cu
     src/sampling/detail/prepare_next_frontier_mg_v64_e64.cu
     src/sampling/detail/prepare_next_frontier_mg_v32_e32.cu
-    src/sampling/detail/gather_one_hop_edgelist_sg_v64_e64.cu
-    src/sampling/detail/gather_one_hop_edgelist_sg_v32_e32.cu
-    src/sampling/detail/gather_one_hop_edgelist_mg_v64_e64.cu
-    src/sampling/detail/gather_one_hop_edgelist_mg_v32_e32.cu
     src/sampling/detail/remove_visited_vertices_from_frontier_sg_v32_e32.cu
     src/sampling/detail/remove_visited_vertices_from_frontier_sg_v64_e64.cu
     src/sampling/detail/check_edge_bias_values_sg_v64_e64.cu
     src/sampling/detail/check_edge_bias_values_sg_v32_e32.cu
     src/sampling/detail/check_edge_bias_values_mg_v64_e64.cu
     src/sampling/detail/check_edge_bias_values_mg_v32_e32.cu
+    src/sampling/detail/temporal_partition_vertices_v64.cu
+    src/sampling/detail/temporal_partition_vertices_v32.cu
+    src/sampling/detail/gather_one_hop_mg_v32_e32.cu
+    src/sampling/detail/gather_one_hop_mg_v64_e64.cu
+    src/sampling/detail/gather_one_hop_sg_v32_e32.cu
+    src/sampling/detail/gather_one_hop_sg_v64_e64.cu
+    src/sampling/detail/gather_sampled_properties.cu
     src/sampling/detail/sample_edges_sg_v64_e64.cu
     src/sampling/detail/sample_edges_sg_v32_e32.cu
     src/sampling/detail/sample_edges_mg_v64_e64.cu
     src/sampling/detail/sample_edges_mg_v32_e32.cu
-    src/sampling/detail/shuffle_and_organize_output_mg_v64_e64.cu
-    src/sampling/detail/shuffle_and_organize_output_mg_v32_e32.cu
+    src/sampling/detail/temporal_sample_edges_sg_v64_e64.cu
+    src/sampling/detail/temporal_sample_edges_sg_v32_e32.cu
+    src/sampling/detail/temporal_sample_edges_mg_v64_e64.cu
+    src/sampling/detail/temporal_sample_edges_mg_v32_e32.cu
+    src/sampling/detail/shuffle_and_organize_output.cu
     src/sampling/neighbor_sampling_mg_v32_e32.cu
     src/sampling/neighbor_sampling_mg_v64_e64.cu
     src/sampling/neighbor_sampling_sg_v32_e32.cu
@@ -555,6 +563,7 @@ add_library(cugraph_c
         src/c_api/renumber_arbitrary_edgelist.cu
         src/c_api/legacy_fa2.cpp
         src/c_api/legacy_mst.cpp
+        src/c_api/extract_vertex_list.cpp
         )
 add_library(cugraph::cugraph_c ALIAS cugraph_c)
 

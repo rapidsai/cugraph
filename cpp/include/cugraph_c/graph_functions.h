@@ -484,6 +484,24 @@ cugraph_error_code_t cugraph_decompress_to_edgelist(const cugraph_resource_handl
                                                     cugraph_error_t** error);
 
 /**
+ * @brief       Extract the vertex list from the graph view object.
+ *
+ * @param [in]  handle              Handle for accessing resources
+ * @param [in]  graph               Graph to operate on
+ * @param [in]  do_expensive_check  A flag to run expensive checks for input arguments (if set to
+ * true)
+ * @param [out] result              Opaque pointer to vertex list
+ * @param [out] error               Pointer to an error object storing details of any error.  Will
+ *                                  be populated if error code is not CUGRAPH_SUCCESS
+ * @return error code
+ */
+cugraph_error_code_t cugraph_extract_vertex_list(const cugraph_resource_handle_t* handle,
+                                                 cugraph_graph_t* graph,
+                                                 bool_t do_expensive_check,
+                                                 cugraph_type_erased_device_array_t** result,
+                                                 cugraph_error_t** error);
+
+/**
  * @brief     Renumber arbitrary edgelist
  *
  * This function is designed to assist renumbering graph vertices in the case where the

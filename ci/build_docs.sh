@@ -3,12 +3,6 @@
 
 set -euo pipefail
 
-if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
-  DGL_CHANNEL="dglteam/label/th23_cu118"
-else
-  DGL_CHANNEL="dglteam/label/th23_cu121"
-fi
-
 rapids-logger "Downloading artifacts from previous jobs"
 CPP_CHANNEL=$(rapids-download-conda-from-github cpp)
 PYTHON_CHANNEL=$(rapids-download-conda-from-github python)
@@ -30,8 +24,6 @@ rapids-dependency-file-generator \
   --prepend-channel "${CPP_CHANNEL}" \
   --prepend-channel "${PYTHON_CHANNEL}" \
   --prepend-channel conda-forge \
-  --prepend-channel nvidia \
-  --prepend-channel "${DGL_CHANNEL}" \
   | tee env.yaml
 
 rapids-mamba-retry env create --yes -f env.yaml -n docs

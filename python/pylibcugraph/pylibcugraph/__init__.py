@@ -22,6 +22,8 @@ else:
     libcugraph.load_library()
     del libcugraph
 
+import pylibcugraph.comms
+
 from pylibcugraph.components._connectivity import (
     strongly_connected_components,
 )
@@ -45,8 +47,6 @@ from pylibcugraph.personalized_pagerank import personalized_pagerank
 from pylibcugraph.sssp import sssp
 
 from pylibcugraph.hits import hits
-
-from pylibcugraph.node2vec import node2vec
 
 from pylibcugraph.node2vec_random_walks import node2vec_random_walks
 
@@ -150,6 +150,8 @@ from pylibcugraph.has_vertex import has_vertex
 from pylibcugraph.force_atlas2 import force_atlas2
 
 from pylibcugraph.minimum_spanning_tree import minimum_spanning_tree
+
+from pylibcugraph.extract_vertex_list import extract_vertex_list
 
 
 from pylibcugraph import exceptions

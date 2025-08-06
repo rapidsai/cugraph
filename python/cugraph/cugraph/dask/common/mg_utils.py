@@ -56,7 +56,7 @@ def is_single_gpu():
     status, count = runtime.cudaGetDeviceCount()
     if status != runtime.cudaError_t.cudaSuccess:
         raise RuntimeError("Could not get CUDA device count.")
-    return count > 1
+    return count == 1
 
 
 def get_visible_devices():

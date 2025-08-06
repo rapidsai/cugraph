@@ -23,9 +23,9 @@
 #include <cugraph_c/algorithms.h>
 
 #include <cugraph/algorithms.hpp>
-#include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
+#include <cugraph/shuffle_functions.hpp>
 
 #include <optional>
 
@@ -131,7 +131,8 @@ struct similarity_functor : public cugraph::c_api::abstract_functor {
                          graph_view,
                          use_weight_ ? std::make_optional(edge_weights->view()) : std::nullopt,
                          std::make_tuple(raft::device_span<vertex_t const>{v1.data(), v1.size()},
-                                         raft::device_span<vertex_t const>{v2.data(), v2.size()}));
+                                         raft::device_span<vertex_t const>{v2.data(), v2.size()}),
+                         do_expensive_check_);
 
       result_ = new cugraph::c_api::cugraph_similarity_result_t{
         new cugraph::c_api::cugraph_type_erased_device_array_t(similarity_coefficients,
@@ -201,14 +202,40 @@ struct all_pairs_similarity_functor : public cugraph::c_api::abstract_functor {
 
       auto number_map = reinterpret_cast<rmm::device_uvector<vertex_t>*>(graph_->number_map_);
 
-      auto [v1, v2, similarity_coefficients] =
-        call_similarity_(handle_,
-                         graph_view,
-                         use_weight_ ? std::make_optional(edge_weights->view()) : std::nullopt,
-                         vertices_ ? std::make_optional(raft::device_span<vertex_t const>{
-                                       vertices_->as_type<vertex_t const>(), vertices_->size_})
-                                   : std::nullopt,
-                         topk_ != SIZE_MAX ? std::make_optional(topk_) : std::nullopt);
+      std::optional<rmm::device_uvector<vertex_t>> vertices{std::nullopt};
+
+      if (vertices_ != nullptr) {
+        vertices = rmm::device_uvector<vertex_t>{vertices_->size_, handle_.get_stream()};
+
+        raft::copy(
+          vertices->data(), vertices_->as_type<vertex_t>(), vertices_->size_, handle_.get_stream());
+
+        if constexpr (multi_gpu) {
+          vertices = cugraph::shuffle_ext_vertices(handle_, std::move(*vertices));
+        }
+
+        //
+        // Need to renumber vertices
+        //
+        cugraph::renumber_ext_vertices<vertex_t, multi_gpu>(
+          handle_,
+          vertices->data(),
+          vertices->size(),
+          number_map->data(),
+          graph_view.local_vertex_partition_range_first(),
+          graph_view.local_vertex_partition_range_last(),
+          do_expensive_check_);
+      }
+
+      auto [v1, v2, similarity_coefficients] = call_similarity_(
+        handle_,
+        graph_view,
+        use_weight_ ? std::make_optional(edge_weights->view()) : std::nullopt,
+        vertices_ != nullptr ? std::make_optional(raft::device_span<vertex_t const>{
+                                 vertices->data(), vertices->size()})
+                             : std::nullopt,
+        topk_ != SIZE_MAX ? std::make_optional(topk_) : std::nullopt,
+        do_expensive_check_);
 
       cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(
         handle_,
@@ -216,7 +243,7 @@ struct all_pairs_similarity_functor : public cugraph::c_api::abstract_functor {
         v1.size(),
         number_map->data(),
         graph_view.vertex_partition_range_lasts(),
-        false);
+        do_expensive_check_);
 
       cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(
         handle_,
@@ -224,7 +251,7 @@ struct all_pairs_similarity_functor : public cugraph::c_api::abstract_functor {
         v2.size(),
         number_map->data(),
         graph_view.vertex_partition_range_lasts(),
-        false);
+        do_expensive_check_);
 
       result_ = new cugraph::c_api::cugraph_similarity_result_t{
         new cugraph::c_api::cugraph_type_erased_device_array_t(similarity_coefficients,
@@ -242,9 +269,11 @@ struct jaccard_functor {
     raft::handle_t const& handle,
     cugraph::graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
     std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
-    std::tuple<raft::device_span<vertex_t const>, raft::device_span<vertex_t const>> vertex_pairs)
+    std::tuple<raft::device_span<vertex_t const>, raft::device_span<vertex_t const>> vertex_pairs,
+    bool do_expensive_check)
   {
-    return cugraph::jaccard_coefficients(handle, graph_view, edge_weight_view, vertex_pairs);
+    return cugraph::jaccard_coefficients(
+      handle, graph_view, edge_weight_view, vertex_pairs, do_expensive_check);
   }
 
   template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
@@ -255,10 +284,11 @@ struct jaccard_functor {
              cugraph::graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
              std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
              std::optional<raft::device_span<vertex_t const>> vertices,
-             std::optional<size_t> topk)
+             std::optional<size_t> topk,
+             bool do_expensive_check)
   {
     return cugraph::jaccard_all_pairs_coefficients(
-      handle, graph_view, edge_weight_view, vertices, topk);
+      handle, graph_view, edge_weight_view, vertices, topk, do_expensive_check);
   }
 };
 
@@ -268,9 +298,11 @@ struct sorensen_functor {
     raft::handle_t const& handle,
     cugraph::graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
     std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
-    std::tuple<raft::device_span<vertex_t const>, raft::device_span<vertex_t const>> vertex_pairs)
+    std::tuple<raft::device_span<vertex_t const>, raft::device_span<vertex_t const>> vertex_pairs,
+    bool do_expensive_check)
   {
-    return cugraph::sorensen_coefficients(handle, graph_view, edge_weight_view, vertex_pairs);
+    return cugraph::sorensen_coefficients(
+      handle, graph_view, edge_weight_view, vertex_pairs, do_expensive_check);
   }
 
   template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
@@ -281,10 +313,11 @@ struct sorensen_functor {
              cugraph::graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
              std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
              std::optional<raft::device_span<vertex_t const>> vertices,
-             std::optional<size_t> topk)
+             std::optional<size_t> topk,
+             bool do_expensive_check)
   {
     return cugraph::sorensen_all_pairs_coefficients(
-      handle, graph_view, edge_weight_view, vertices, topk);
+      handle, graph_view, edge_weight_view, vertices, topk, do_expensive_check);
   }
 };
 
@@ -294,10 +327,11 @@ struct cosine_functor {
     raft::handle_t const& handle,
     cugraph::graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
     std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
-    std::tuple<raft::device_span<vertex_t const>, raft::device_span<vertex_t const>> vertex_pairs)
+    std::tuple<raft::device_span<vertex_t const>, raft::device_span<vertex_t const>> vertex_pairs,
+    bool do_expensive_check)
   {
     return cugraph::cosine_similarity_coefficients(
-      handle, graph_view, edge_weight_view, vertex_pairs);
+      handle, graph_view, edge_weight_view, vertex_pairs, do_expensive_check);
   }
 
   template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
@@ -308,10 +342,11 @@ struct cosine_functor {
              cugraph::graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
              std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
              std::optional<raft::device_span<vertex_t const>> vertices,
-             std::optional<size_t> topk)
+             std::optional<size_t> topk,
+             bool do_expensive_check)
   {
     return cugraph::cosine_similarity_all_pairs_coefficients(
-      handle, graph_view, edge_weight_view, vertices, topk);
+      handle, graph_view, edge_weight_view, vertices, topk, do_expensive_check);
   }
 };
 
@@ -321,9 +356,11 @@ struct overlap_functor {
     raft::handle_t const& handle,
     cugraph::graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
     std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
-    std::tuple<raft::device_span<vertex_t const>, raft::device_span<vertex_t const>> vertex_pairs)
+    std::tuple<raft::device_span<vertex_t const>, raft::device_span<vertex_t const>> vertex_pairs,
+    bool do_expensive_check)
   {
-    return cugraph::overlap_coefficients(handle, graph_view, edge_weight_view, vertex_pairs);
+    return cugraph::overlap_coefficients(
+      handle, graph_view, edge_weight_view, vertex_pairs, do_expensive_check);
   }
 
   template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
@@ -334,10 +371,11 @@ struct overlap_functor {
              cugraph::graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
              std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
              std::optional<raft::device_span<vertex_t const>> vertices,
-             std::optional<size_t> topk)
+             std::optional<size_t> topk,
+             bool do_expensive_check)
   {
     return cugraph::overlap_all_pairs_coefficients(
-      handle, graph_view, edge_weight_view, vertices, topk);
+      handle, graph_view, edge_weight_view, vertices, topk, do_expensive_check);
   }
 };
 
@@ -347,10 +385,11 @@ struct cosine_similarity_functor {
     raft::handle_t const& handle,
     cugraph::graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
     std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
-    std::tuple<raft::device_span<vertex_t const>, raft::device_span<vertex_t const>> vertex_pairs)
+    std::tuple<raft::device_span<vertex_t const>, raft::device_span<vertex_t const>> vertex_pairs,
+    bool do_expensive_check)
   {
     return cugraph::cosine_similarity_coefficients(
-      handle, graph_view, edge_weight_view, vertex_pairs);
+      handle, graph_view, edge_weight_view, vertex_pairs, do_expensive_check);
   }
 
   template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
@@ -361,10 +400,11 @@ struct cosine_similarity_functor {
              cugraph::graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
              std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
              std::optional<raft::device_span<vertex_t const>> vertices,
-             std::optional<size_t> topk)
+             std::optional<size_t> topk,
+             bool do_expensive_check)
   {
     return cugraph::cosine_similarity_all_pairs_coefficients(
-      handle, graph_view, edge_weight_view, vertices, topk);
+      handle, graph_view, edge_weight_view, vertices, topk, do_expensive_check);
   }
 };
 
@@ -568,7 +608,7 @@ extern "C" cugraph_error_code_t cugraph_all_pairs_cosine_similarity_coefficients
       *error);
   }
   all_pairs_similarity_functor functor(
-    handle, graph, vertices, overlap_functor{}, use_weight, topk, do_expensive_check);
+    handle, graph, vertices, cosine_functor{}, use_weight, topk, true);
 
   return cugraph::c_api::run_algorithm(graph, functor, result, error);
 }

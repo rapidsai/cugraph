@@ -15,7 +15,6 @@
  */
 #pragma once
 
-#include "prims/extract_transform_if_e.cuh"
 #include "prims/fill_edge_property.cuh"
 #include "prims/fill_edge_src_dst_property.cuh"
 #include "prims/transform_e.cuh"
@@ -26,12 +25,12 @@
 #include "utilities/collect_comm.cuh"
 
 #include <cugraph/algorithms.hpp>
-#include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/device_comm.hpp>
+#include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
 
@@ -49,6 +48,7 @@
 #include <thrust/iterator/constant_iterator.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/discard_iterator.h>
+#include <thrust/iterator/transform_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/merge.h>
 #include <thrust/partition.h>
@@ -702,12 +702,22 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
         if (vertex_frontier.bucket(bucket_idx_cur).aggregate_size() == 0) { break; }
 
         if constexpr (GraphViewType::is_multi_gpu) {
+          rmm::device_uvector<vertex_t> gathered_level_components(
+            vertex_frontier.bucket(bucket_idx_cur).size(), handle.get_stream());
+          auto map_first = thrust::make_transform_iterator(
+            thrust::get<0>(vertex_frontier.bucket(bucket_idx_cur).begin().get_iterator_tuple()),
+            detail::shift_left_t<vertex_t>{level_graph_view.local_vertex_partition_range_first()});
+          thrust::gather(handle.get_thrust_policy(),
+                         map_first,
+                         map_first + vertex_frontier.bucket(bucket_idx_cur).size(),
+                         level_components,
+                         gathered_level_components.begin());
           update_edge_dst_property(
             handle,
             level_graph_view,
             thrust::get<0>(vertex_frontier.bucket(bucket_idx_cur).begin().get_iterator_tuple()),
             thrust::get<0>(vertex_frontier.bucket(bucket_idx_cur).end().get_iterator_tuple()),
-            level_components,
+            gathered_level_components.begin(),
             edge_dst_components.mutable_view());
         }
 
@@ -858,24 +868,14 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
         handle.get_thrust_policy(), input_first, input_first + num_inserts, output_first);
 
       if (GraphViewType::is_multi_gpu) {
-        std::tie(std::get<0>(edge_buffer),
-                 std::get<1>(edge_buffer),
-                 std::ignore,
-                 std::ignore,
-                 std::ignore,
-                 std::ignore,
-                 std::ignore,
-                 std::ignore) =
-          shuffle_ext_edges<vertex_t, edge_t, weight_t, edge_type_t, int32_t>(
-            handle,
-            std::move(std::get<0>(edge_buffer)),
-            std::move(std::get<1>(edge_buffer)),
-            std::nullopt,
-            std::nullopt,
-            std::nullopt,
-            std::nullopt,
-            std::nullopt,
-            GraphViewType::is_storage_transposed);
+        std::vector<cugraph::arithmetic_device_uvector_t> edge_properties{};
+
+        std::tie(std::get<0>(edge_buffer), std::get<1>(edge_buffer), std::ignore, std::ignore) =
+          shuffle_ext_edges(handle,
+                            std::move(std::get<0>(edge_buffer)),
+                            std::move(std::get<1>(edge_buffer)),
+                            std::move(edge_properties),
+                            GraphViewType::is_storage_transposed);
         auto edge_first = get_dataframe_buffer_begin(edge_buffer);
         auto edge_last  = get_dataframe_buffer_end(edge_buffer);
         thrust::sort(handle.get_thrust_policy(), edge_first, edge_last);

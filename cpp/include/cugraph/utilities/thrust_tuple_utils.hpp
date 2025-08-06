@@ -15,6 +15,8 @@
  */
 #pragma once
 
+#include <raft/core/device_span.hpp>
+
 #include <rmm/device_uvector.hpp>
 
 #include <cuda/std/optional>
@@ -209,6 +211,13 @@ template <typename... Ts>
 struct is_std_tuple<std::tuple<Ts...>> : std::true_type {};
 
 template <typename T, template <typename> typename Vector>
+struct is_byte_vector : std::false_type {};
+
+template <template <typename> typename Vector, typename T>
+struct is_byte_vector<Vector<T>, Vector>
+  : std::integral_constant<bool, std::is_same_v<T, std::byte>> {};
+
+template <typename T, template <typename> typename Vector>
 struct is_arithmetic_vector : std::false_type {};
 
 template <template <typename> typename Vector, typename T>
@@ -220,6 +229,14 @@ struct is_std_tuple_of_arithmetic_vectors : std::false_type {};
 
 template <typename... Ts>
 struct is_std_tuple_of_arithmetic_vectors<std::tuple<rmm::device_uvector<Ts>...>> {
+  static constexpr bool value = (... && std::is_arithmetic_v<Ts>);
+};
+
+template <typename T>
+struct is_std_tuple_of_arithmetic_spans : std::false_type {};
+
+template <typename... Ts>
+struct is_std_tuple_of_arithmetic_spans<std::tuple<raft::device_span<Ts>...>> {
   static constexpr bool value = (... && std::is_arithmetic_v<Ts>);
 };
 
@@ -292,13 +309,21 @@ auto std_tuple_to_thrust_tuple(TupleType tup)
 }
 
 template <typename T>
-auto to_thrust_tuple(T scalar_value)
+#ifdef __CUDACC__
+__host__ __device__
+#endif
+  auto
+  to_thrust_tuple(T scalar_value)
 {
   return thrust::make_tuple(scalar_value);
 }
 
 template <typename... Ts>
-auto to_thrust_tuple(thrust::tuple<Ts...> tuple_value)
+#ifdef __CUDACC__
+__host__ __device__
+#endif
+  auto
+  to_thrust_tuple(thrust::tuple<Ts...> tuple_value)
 {
   return tuple_value;
 }

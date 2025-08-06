@@ -217,7 +217,7 @@ function(ConfigureTestMG CMAKE_TEST_NAME)
              ${MPIEXEC_NUMPROC_FLAG}
              ${GPU_COUNT}
              ${MPIEXEC_PREFLAGS}
-             ${CMAKE_TEST_NAME}
+             "${CUGRAPH_BINARY_DIR}/gtests/${CMAKE_TEST_NAME}"
              ${MPIEXEC_POSTFLAGS}
         GPUS ${GPU_COUNT}
         PERCENT 100
@@ -302,7 +302,7 @@ function(ConfigureCTestMG CMAKE_TEST_NAME)
              ${MPIEXEC_NUMPROC_FLAG}
              ${GPU_COUNT}
              ${MPIEXEC_PREFLAGS}
-             ${CMAKE_TEST_NAME}
+             "${CUGRAPH_BINARY_DIR}/gtests/${CMAKE_TEST_NAME}"
              ${MPIEXEC_POSTFLAGS}
         GPUS ${GPU_COUNT}
         PERCENT 100
@@ -520,6 +520,12 @@ ConfigureTest(
 # - HETEROGENEOUS BIASED NBR SAMPLING tests -------------------------------------------------------
 ConfigureTest(
     HETEROGENEOUS_BIASED_NEIGHBOR_SAMPLING_TESTT sampling/heterogeneous_biased_neighbor_sampling.cpp
+        GPUS 1 PERCENT 75)
+
+###################################################################################################
+# - TEMPORAL NBR SAMPLING tests -------------------------------------------------------------------
+ConfigureTest(
+    TEMPORAL_NEIGHBOR_SAMPLING_TEST sampling/temporal_neighbor_sampling.cpp
         GPUS 1 PERCENT 75)
 
 ###################################################################################################
@@ -754,6 +760,10 @@ if(BUILD_CUGRAPH_MG_TESTS)
     ConfigureTestMG(MG_TRANSFORM_E_TEST prims/mg_transform_e.cu)
 
     ###############################################################################################
+    # - MG PRIMS TRANSFORM_GATHER_E tests ---------------------------------------------------------
+    ConfigureTestMG(MG_TRANSFORM_GATHER_E_TEST prims/mg_transform_gather_e.cu)
+
+    ###############################################################################################
     # - MG PRIMS COUNT_IF_E tests -----------------------------------------------------------------
     ConfigureTestMG(MG_COUNT_IF_E_TEST prims/mg_count_if_e.cu)
 
@@ -833,10 +843,14 @@ if(BUILD_CUGRAPH_MG_TESTS)
     # - MG BIASED NBR SAMPLING tests --------------------------------------------------------------
     ConfigureTestMG(MG_BIASED_NEIGHBOR_SAMPLING_TEST sampling/mg_biased_neighbor_sampling.cpp)
 
+    ###############################################################################################
+    # - MG TEMPORAL NBR SAMPLING tests --------------------------------------------------------------
+    ConfigureTestMG(
+        MG_TEMPORAL_NEIGHBOR_SAMPLING_TEST sampling/mg_temporal_neighbor_sampling.cpp)
+
     ###################################################################################################
     # - NEGATIVE SAMPLING tests --------------------------------------------------------------------
     ConfigureTestMG(MG_NEGATIVE_SAMPLING_TEST sampling/mg_negative_sampling.cpp)
-
 
     ###############################################################################################
     # - MG RANDOM_WALKS tests ---------------------------------------------------------------------
@@ -905,7 +919,6 @@ ConfigureCTest(CAPI_HITS_TEST c_api/hits_test.c)
 ConfigureCTest(CAPI_BFS_TEST c_api/bfs_test.c)
 ConfigureCTest(CAPI_SSSP_TEST c_api/sssp_test.c)
 ConfigureCTest(CAPI_EXTRACT_PATHS_TEST c_api/extract_paths_test.c)
-ConfigureCTest(CAPI_NODE2VEC_TEST c_api/node2vec_test.c)
 ConfigureCTest(CAPI_WEAKLY_CONNECTED_COMPONENTS_TEST c_api/weakly_connected_components_test.c)
 ConfigureCTest(CAPI_STRONGLY_CONNECTED_COMPONENTS_TEST c_api/strongly_connected_components_test.c)
 ConfigureCTest(CAPI_UNIFORM_NEIGHBOR_SAMPLE_TEST c_api/uniform_neighbor_sample_test.c)

@@ -56,7 +56,7 @@ vertex_t remove_duplicates(raft::handle_t const& handle, rmm::device_uvector<ver
   input_array.resize(nr_unique_elements, handle.get_stream());
 
   if constexpr (multi_gpu) {
-    input_array = shuffle_ext_vertices(handle, std::move(input_array));
+    input_array = shuffle_ext_vertices(handle, std::move(input_array), std::nullopt);
 
     thrust::sort(handle.get_thrust_policy(), input_array.begin(), input_array.end());
 
