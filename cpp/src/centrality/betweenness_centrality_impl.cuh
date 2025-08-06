@@ -1307,10 +1307,12 @@
      }
    }
    
-   // Handle source vertex contributions if include_endpoints is true
+   // Handle source and destination vertex contributions if include_endpoints is true
    if (include_endpoints) {
-     printf("DEBUG: Computing source vertex contributions\n");
+     printf("DEBUG: Computing source and destination vertex contributions\n");
      auto v_first = graph_view.local_vertex_partition_range_first();
+     
+     // Handle source vertex contributions
      thrust::for_each(
        handle.get_thrust_policy(),
        thrust::make_counting_iterator<size_t>(0),
@@ -1332,6 +1334,28 @@
          // Convert global vertex ID to local offset
          auto source_offset = source_vertex - v_first;
          atomicAdd(&centralities[source_offset], source_contribution);
+       });
+     
+     // Handle destination vertex contributions
+     thrust::for_each(
+       handle.get_thrust_policy(),
+       thrust::make_counting_iterator<size_t>(0),
+       thrust::make_counting_iterator<size_t>(num_sources),
+       [distances_2d = distances_2d.data(), sigmas_2d = sigmas_2d.data(), sources = sources.data(), 
+        centralities = centralities.data(), num_vertices, v_first] __device__(size_t source_idx) {
+         
+         const vertex_t* distances = distances_2d + source_idx * num_vertices;
+         const edge_t* sigmas = sigmas_2d + source_idx * num_vertices;
+         vertex_t source_vertex = sources[source_idx];
+         
+         // Destination vertex contributions: each reachable vertex contributes to its own centrality
+         for (vertex_t v = 0; v < num_vertices; ++v) {
+           if (v != source_vertex && distances[v] != std::numeric_limits<vertex_t>::max()) {
+             // Each destination vertex contributes 1 to its own centrality
+             auto dest_offset = v - v_first;
+             atomicAdd(&centralities[dest_offset], 1.0);
+           }
+         }
        });
    }
    
