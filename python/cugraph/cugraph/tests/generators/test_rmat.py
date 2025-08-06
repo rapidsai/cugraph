@@ -121,7 +121,7 @@ def test_rmat_edge_weights(
 
     """
     scale = 2
-    num_edges = (2 ** scale) * 4
+    num_edges = (2**scale) * 4
     create_using = None  # Returns the edgelist from RMAT
     minimum_weight, maximum_weight = min_max_weight
 
@@ -201,7 +201,7 @@ def test_rmat_edge_ids(scale, include_edge_ids, scramble_vertex_ids):
     Verifies that the edge ids returned by rmat() are valid.
 
     """
-    num_edges = (2 ** scale) * 4
+    num_edges = (2**scale) * 4
     create_using = None  # Returns the edgelist from RMAT
     df = _call_rmat(
         scale,
@@ -244,7 +244,7 @@ def test_rmat_edge_types(
 
     """
     scale = 2
-    num_edges = (2 ** scale) * 4
+    num_edges = (2**scale) * 4
     create_using = None  # Returns the edgelist from RMAT
     min_edge_type_value, max_edge_type_value = min_max_edge_type_value
 
@@ -308,7 +308,7 @@ def test_rmat_clip_and_flip(scale, include_edge_weights, clip_and_flip):
     both flags should not be set to 'True' in order to test the former
 
     """
-    num_edges = (2 ** scale) * 4
+    num_edges = (2**scale) * 4
     create_using = None  # Returns the edgelist from RMAT
     minimum_weight = 0
     maximum_weight = 1
@@ -355,7 +355,7 @@ def test_rmat_return_type(graph_type):
 
     """
     scale = 2
-    num_edges = (2 ** scale) * 4
+    num_edges = (2**scale) * 4
 
     if graph_type not in [cugraph.Graph, None]:
         with pytest.raises(TypeError):
