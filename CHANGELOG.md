@@ -1,3 +1,88 @@
+# cugraph 25.08.00 (6 Aug 2025)
+
+## 🚨 Breaking Changes
+
+- Move `gnn.comms` to PLC ([#5166](https://github.com/rapidsai/cugraph/pull/5166)) [@nv-rliu](https://github.com/nv-rliu)
+- Update decompress_to_edgelist to take an optional large buffer type as an input parameter. ([#5165](https://github.com/rapidsai/cugraph/pull/5165)) [@seunghwak](https://github.com/seunghwak)
+- Optionally create a graph object in a large memory buffer ([#5148](https://github.com/rapidsai/cugraph/pull/5148)) [@seunghwak](https://github.com/seunghwak)
+- Compile Optimizations - batch 3 ([#5119](https://github.com/rapidsai/cugraph/pull/5119)) [@ChuckHastings](https://github.com/ChuckHastings)
+- Optionally store the generated edge list in pinned memory buffer ([#5116](https://github.com/rapidsai/cugraph/pull/5116)) [@seunghwak](https://github.com/seunghwak)
+- Resolve inconsistencies in algorithms that do not support self-loops &amp; multi-edges. ([#5109](https://github.com/rapidsai/cugraph/pull/5109)) [@seunghwak](https://github.com/seunghwak)
+- Use `pytest-xdist` on Python Tests ([#5102](https://github.com/rapidsai/cugraph/pull/5102)) [@nv-rliu](https://github.com/nv-rliu)
+- Remove CUDA 11 from dependencies.yaml ([#5101](https://github.com/rapidsai/cugraph/pull/5101)) [@KyleFromNVIDIA](https://github.com/KyleFromNVIDIA)
+- stop uploading packages to downloads.rapids.ai ([#5096](https://github.com/rapidsai/cugraph/pull/5096)) [@jameslamb](https://github.com/jameslamb)
+
+## 🐛 Bug Fixes
+
+- [HOTFIX] Skips PG benchmarks for cyber datasets ([#5209](https://github.com/rapidsai/cugraph/pull/5209)) [@rlratzel](https://github.com/rlratzel)
+- Fix sampling bug introduced by compile time optimizations ([#5199](https://github.com/rapidsai/cugraph/pull/5199)) [@ChuckHastings](https://github.com/ChuckHastings)
+- [BUG] Fix Broken gnn.comms Import ([#5183](https://github.com/rapidsai/cugraph/pull/5183)) [@alexbarghi-nv](https://github.com/alexbarghi-nv)
+- Bug fix in assert() ([#5142](https://github.com/rapidsai/cugraph/pull/5142)) [@seunghwak](https://github.com/seunghwak)
+- Fix build error with gcc 14. ([#5127](https://github.com/rapidsai/cugraph/pull/5127)) [@seunghwak](https://github.com/seunghwak)
+- Fix Resultset Tests for Compat with `xdist` ([#5125](https://github.com/rapidsai/cugraph/pull/5125)) [@nv-rliu](https://github.com/nv-rliu)
+- Allow Graph.from_numpy_array to accept nodes that are types not supported by cupy ([#5123](https://github.com/rapidsai/cugraph/pull/5123)) [@mroeschke](https://github.com/mroeschke)
+- Adding GH_TOKEN pass-through to summarize job ([#5118](https://github.com/rapidsai/cugraph/pull/5118)) [@msarahan](https://github.com/msarahan)
+- [BUG] Fix Comms Shutdown Function ([#5115](https://github.com/rapidsai/cugraph/pull/5115)) [@alexbarghi-nv](https://github.com/alexbarghi-nv)
+- Add support for isolated vertices and fix bug in the link prediction algorithms ([#5110](https://github.com/rapidsai/cugraph/pull/5110)) [@jnke2016](https://github.com/jnke2016)
+- Update BC computation to address normalization edge conditions ([#5105](https://github.com/rapidsai/cugraph/pull/5105)) [@ChuckHastings](https://github.com/ChuckHastings)
+- Fix pylibcudf dependency ([#5085](https://github.com/rapidsai/cugraph/pull/5085)) [@vyasr](https://github.com/vyasr)
+
+## 📖 Documentation
+
+- remove references to DGL ([#5197](https://github.com/rapidsai/cugraph/pull/5197)) [@jameslamb](https://github.com/jameslamb)
+- redirecting GNN content to the docs pages and fixed libcugraph link ([#5168](https://github.com/rapidsai/cugraph/pull/5168)) [@acostadon](https://github.com/acostadon)
+- [DOC] Remove DGL Reference from README ([#5167](https://github.com/rapidsai/cugraph/pull/5167)) [@alexbarghi-nv](https://github.com/alexbarghi-nv)
+- removed cuda 11 reference ([#5163](https://github.com/rapidsai/cugraph/pull/5163)) [@acostadon](https://github.com/acostadon)
+- add docs on CI workflow inputs ([#5139](https://github.com/rapidsai/cugraph/pull/5139)) [@jameslamb](https://github.com/jameslamb)
+
+## 🚀 New Features
+
+- Optionally create a graph object in a large memory buffer ([#5148](https://github.com/rapidsai/cugraph/pull/5148)) [@seunghwak](https://github.com/seunghwak)
+- Optionally store the generated edge list in pinned memory buffer ([#5116](https://github.com/rapidsai/cugraph/pull/5116)) [@seunghwak](https://github.com/seunghwak)
+- Implement transform_gather_e ([#5106](https://github.com/rapidsai/cugraph/pull/5106)) [@seunghwak](https://github.com/seunghwak)
+- Add edge_multi_index_property_t ([#5104](https://github.com/rapidsai/cugraph/pull/5104)) [@seunghwak](https://github.com/seunghwak)
+- added new benchmark nb to run mg or sg with more algorithms ([#4933](https://github.com/rapidsai/cugraph/pull/4933)) [@acostadon](https://github.com/acostadon)
+
+## 🛠️ Improvements
+
+- Drop old CUDA pre-10 logic ([#5187](https://github.com/rapidsai/cugraph/pull/5187)) [@jakirkham](https://github.com/jakirkham)
+- Disable codecov comments ([#5185](https://github.com/rapidsai/cugraph/pull/5185)) [@bdice](https://github.com/bdice)
+- Updates UCX test scripts and Dockerfile for CUDA 12.x ([#5174](https://github.com/rapidsai/cugraph/pull/5174)) [@rlratzel](https://github.com/rlratzel)
+- Update update_edge_src|dst_property behavior (with vertex list) ([#5173](https://github.com/rapidsai/cugraph/pull/5173)) [@seunghwak](https://github.com/seunghwak)
+- Move `gnn.comms` to PLC ([#5166](https://github.com/rapidsai/cugraph/pull/5166)) [@nv-rliu](https://github.com/nv-rliu)
+- Update decompress_to_edgelist to take an optional large buffer type as an input parameter. ([#5165](https://github.com/rapidsai/cugraph/pull/5165)) [@seunghwak](https://github.com/seunghwak)
+- fix(docker): use versioned `-latest` tag for all `rapidsai` images ([#5164](https://github.com/rapidsai/cugraph/pull/5164)) [@gforsyth](https://github.com/gforsyth)
+- Remove cuda11 reference from CMake file ([#5162](https://github.com/rapidsai/cugraph/pull/5162)) [@ChuckHastings](https://github.com/ChuckHastings)
+- Relax PyTorch pinning to &gt;=2.3. ([#5159](https://github.com/rapidsai/cugraph/pull/5159)) [@bdice](https://github.com/bdice)
+- [IMP] Allow Metadata Specification in Distributed Sampler ([#5152](https://github.com/rapidsai/cugraph/pull/5152)) [@alexbarghi-nv](https://github.com/alexbarghi-nv)
+- Add test for Cosine Similarity algorithm ([#5150](https://github.com/rapidsai/cugraph/pull/5150)) [@jnke2016](https://github.com/jnke2016)
+- Fix calls to Client.scheduler_info ([#5147](https://github.com/rapidsai/cugraph/pull/5147)) [@TomAugspurger](https://github.com/TomAugspurger)
+- Update MST test ([#5143](https://github.com/rapidsai/cugraph/pull/5143)) [@jnke2016](https://github.com/jnke2016)
+- Use CUDA 12.9 in Conda, Devcontainers, Spark, GHA, etc. ([#5137](https://github.com/rapidsai/cugraph/pull/5137)) [@jakirkham](https://github.com/jakirkham)
+- Correct C API test for uniform neighborhood sampling ([#5136](https://github.com/rapidsai/cugraph/pull/5136)) [@ChuckHastings](https://github.com/ChuckHastings)
+- Re-enable cugraph service test ([#5134](https://github.com/rapidsai/cugraph/pull/5134)) [@jnke2016](https://github.com/jnke2016)
+- First set of updates - Centrality and community ([#5133](https://github.com/rapidsai/cugraph/pull/5133)) [@BradReesWork](https://github.com/BradReesWork)
+- Compile Optimizations - batch 4 ([#5132](https://github.com/rapidsai/cugraph/pull/5132)) [@ChuckHastings](https://github.com/ChuckHastings)
+- Remove nvidia and dask channels ([#5129](https://github.com/rapidsai/cugraph/pull/5129)) [@vyasr](https://github.com/vyasr)
+- Temporarily Disable Cugraph Service test ([#5128](https://github.com/rapidsai/cugraph/pull/5128)) [@jnke2016](https://github.com/jnke2016)
+- refactor(rattler): remove cuda11 options and general cleanup ([#5126](https://github.com/rapidsai/cugraph/pull/5126)) [@gforsyth](https://github.com/gforsyth)
+- Remove the deprecated random walks API ([#5122](https://github.com/rapidsai/cugraph/pull/5122)) [@jnke2016](https://github.com/jnke2016)
+- Remove deprecation warning when symmetrizing the edgelist ([#5121](https://github.com/rapidsai/cugraph/pull/5121)) [@jnke2016](https://github.com/jnke2016)
+- Compile Optimizations - batch 3 ([#5119](https://github.com/rapidsai/cugraph/pull/5119)) [@ChuckHastings](https://github.com/ChuckHastings)
+- Compile optimizations - batch 2 ([#5117](https://github.com/rapidsai/cugraph/pull/5117)) [@ChuckHastings](https://github.com/ChuckHastings)
+- Refactor `cugraph.datasets` tests to be `xdist` compatible ([#5114](https://github.com/rapidsai/cugraph/pull/5114)) [@nv-rliu](https://github.com/nv-rliu)
+- Compilation optimizations - batch 1 ([#5112](https://github.com/rapidsai/cugraph/pull/5112)) [@ChuckHastings](https://github.com/ChuckHastings)
+- Resolve inconsistencies in algorithms that do not support self-loops &amp; multi-edges. ([#5109](https://github.com/rapidsai/cugraph/pull/5109)) [@seunghwak](https://github.com/seunghwak)
+- Use `pytest-xdist` on Python Tests ([#5102](https://github.com/rapidsai/cugraph/pull/5102)) [@nv-rliu](https://github.com/nv-rliu)
+- Remove CUDA 11 from dependencies.yaml ([#5101](https://github.com/rapidsai/cugraph/pull/5101)) [@KyleFromNVIDIA](https://github.com/KyleFromNVIDIA)
+- Remove CUDA 11 devcontainers and update CI scripts ([#5100](https://github.com/rapidsai/cugraph/pull/5100)) [@bdice](https://github.com/bdice)
+- Require Cython&gt;=3.1.2 ([#5097](https://github.com/rapidsai/cugraph/pull/5097)) [@vyasr](https://github.com/vyasr)
+- stop uploading packages to downloads.rapids.ai ([#5096](https://github.com/rapidsai/cugraph/pull/5096)) [@jameslamb](https://github.com/jameslamb)
+- Branch 25.08 merge 25.06 ([#5090](https://github.com/rapidsai/cugraph/pull/5090)) [@rlratzel](https://github.com/rlratzel)
+- Forward-merge branch-25.06 into branch-25.08 ([#5079](https://github.com/rapidsai/cugraph/pull/5079)) [@gforsyth](https://github.com/gforsyth)
+- Forward-merge branch-25.06 into branch-25.08 ([#5062](https://github.com/rapidsai/cugraph/pull/5062)) [@gforsyth](https://github.com/gforsyth)
+- Temporal sampling implementation ([#4994](https://github.com/rapidsai/cugraph/pull/4994)) [@ChuckHastings](https://github.com/ChuckHastings)
+
 # cugraph 25.06.00 (5 Jun 2025)
 
 ## 🚨 Breaking Changes
