@@ -50,7 +50,8 @@ struct select_random_vertices_functor : public cugraph::c_api::abstract_functor 
   template <typename vertex_t,
             typename edge_t,
             typename weight_t,
-            typename edge_type_type_t,
+            typename edge_type_t,
+            typename edge_time_t,
             bool store_transposed,
             bool multi_gpu>
   void operator()()

@@ -24,8 +24,8 @@ from pylibcugraph._cugraph_c.array cimport (
     cugraph_type_erased_device_array_view_free,
 )
 from pylibcugraph._cugraph_c.graph cimport (
-    cugraph_graph_create_sg,
-    cugraph_graph_create_mg,
+    cugraph_graph_create_with_times_sg,
+    cugraph_graph_create_with_times_mg,
     cugraph_graph_create_sg_from_csr,
     cugraph_graph_free,
 )
@@ -114,6 +114,16 @@ cdef class SGGraph(_GPUGraph):
         match the ordering of the src/dst/edge_id arrays.  Optional (may be
         null).  If provided, edge_id_array must be provided.
 
+    edge_start_time_array : device array type
+        Device array containing the edge start times of each directed edge.  Must
+        match the ordering of the src/dst/edge_id arrays.  Optional (may be
+        null).
+
+    edge_end_time_array : device array type
+        Device array containing the edge end times of each directed edge.  Must
+        match the ordering of the src/dst/edge_id arrays.  Optional (may be
+        null).
+
     input_array_format: str, optional (default='COO')
         Input representation used to construct a graph
             COO: arrays represent src_array and dst_array
@@ -159,6 +169,8 @@ cdef class SGGraph(_GPUGraph):
                   do_expensive_check=False,
                   edge_id_array=None,
                   edge_type_array=None,
+                  edge_start_time_array=None,
+                  edge_end_time_array=None,
                   input_array_format="COO",
                   vertices_array=None,
                   drop_self_loops=False,
@@ -181,6 +193,8 @@ cdef class SGGraph(_GPUGraph):
         assert_CAI_type(weight_array, "weight_array", True)
         assert_CAI_type(edge_id_array, "edge_id_array", True)
         assert_CAI_type(edge_type_array, "edge_type_array", True)
+        assert_CAI_type(edge_start_time_array, "edge_start_time_array", True)
+        assert_CAI_type(edge_end_time_array, "edge_end_time_array", True)
 
         # FIXME: assert that src_or_offset_array and dst_or_index_array have
         # the same type
@@ -214,9 +228,17 @@ cdef class SGGraph(_GPUGraph):
             create_cugraph_type_erased_device_array_view_from_py_obj(
                 edge_type_array
             )
+        cdef cugraph_type_erased_device_array_view_t* edge_start_time_view_ptr = \
+            create_cugraph_type_erased_device_array_view_from_py_obj(
+                edge_start_time_array
+            )
+        cdef cugraph_type_erased_device_array_view_t* edge_end_time_view_ptr = \
+            create_cugraph_type_erased_device_array_view_from_py_obj(
+                edge_end_time_array
+            )
 
         if input_array_format == "COO":
-            error_code = cugraph_graph_create_sg(
+            error_code = cugraph_graph_create_with_times_sg(
                 resource_handle.c_resource_handle_ptr,
                 &(graph_properties.c_graph_properties),
                 vertices_view_ptr,
@@ -225,6 +247,8 @@ cdef class SGGraph(_GPUGraph):
                 self.weights_view_ptr,
                 self.edge_id_view_ptr,
                 edge_type_view_ptr,
+                edge_start_time_view_ptr,
+                edge_end_time_view_ptr,
                 store_transposed,
                 renumber,
                 drop_self_loops,
@@ -234,7 +258,7 @@ cdef class SGGraph(_GPUGraph):
                 &(self.c_graph_ptr),
                 &error_ptr)
             assert_success(error_code, error_ptr,
-                       "cugraph_graph_create_sg()")
+                       "cugraph_graph_create_with_times_sg()")
 
         elif input_array_format == "CSR":
             error_code = cugraph_graph_create_sg_from_csr(
@@ -334,6 +358,16 @@ cdef class MGGraph(_GPUGraph):
         match the ordering of the src/dst/edge_id arrays.  Optional (may be
         null).  If provided, edge_id_array must be provided.
 
+    edge_start_time_array : device array type
+        Device array containing the edge start times of each directed edge.  Must
+        match the ordering of the src/dst/edge_id arrays.  Optional (may be
+        null).
+
+    edge_end_time_array : device array type
+        Device array containing the edge end times of each directed edge.  Must
+        match the ordering of the src/dst/edge_id arrays.  Optional (may be
+        null).
+
     drop_self_loops : bool, optional (default='False')
         If true, drop any self loops that exist in the provided edge list.
 
@@ -354,6 +388,8 @@ cdef class MGGraph(_GPUGraph):
                   do_expensive_check=False, # default to False
                   edge_id_array=None,
                   edge_type_array=None,
+                  edge_start_time_array=None,
+                  edge_end_time_array=None,
                   vertices_array=None,
                   size_t num_arrays=1, # default value to not break users
                   drop_self_loops=False,
@@ -397,6 +433,16 @@ cdef class MGGraph(_GPUGraph):
             if not any(edge_type_array):
                 edge_type_array = edge_type_array * num_arrays
 
+        if not isinstance(edge_start_time_array, list):
+            edge_start_time_array = [edge_start_time_array]
+            if not any(edge_start_time_array):
+                edge_start_time_array = edge_start_time_array * num_arrays
+
+        if not isinstance(edge_end_time_array, list):
+            edge_end_time_array = [edge_end_time_array]
+            if not any(edge_end_time_array):
+                edge_end_time_array = edge_end_time_array * num_arrays
+
         if not isinstance(vertices_array, list):
             vertices_array = [vertices_array]
             if not any(vertices_array):
@@ -406,6 +452,8 @@ cdef class MGGraph(_GPUGraph):
         cdef cugraph_type_erased_device_array_view_t** dsts_view_ptr_ptr  = NULL
         cdef cugraph_type_erased_device_array_view_t** vertices_view_ptr_ptr = NULL
         cdef cugraph_type_erased_device_array_view_t** edge_type_view_ptr_ptr = NULL
+        cdef cugraph_type_erased_device_array_view_t** edge_start_time_view_ptr_ptr = NULL
+        cdef cugraph_type_erased_device_array_view_t** edge_end_time_view_ptr_ptr = NULL
 
         for i in range(num_arrays):
             if do_expensive_check:
@@ -476,7 +524,23 @@ cdef class MGGraph(_GPUGraph):
                 edge_type_view_ptr_ptr[i] = \
                     create_cugraph_type_erased_device_array_view_from_py_obj(edge_type_array[i])
 
-        error_code = cugraph_graph_create_mg(
+            if edge_start_time_array[i] is not None:
+                if i == 0:
+                    edge_start_time_view_ptr_ptr = \
+                        <cugraph_type_erased_device_array_view_t **>malloc(
+                            num_arrays * sizeof(cugraph_type_erased_device_array_view_t*))
+                edge_start_time_view_ptr_ptr[i] = \
+                    create_cugraph_type_erased_device_array_view_from_py_obj(edge_start_time_array[i])
+
+            if edge_end_time_array[i] is not None:
+                if i == 0:
+                    edge_end_time_view_ptr_ptr = \
+                        <cugraph_type_erased_device_array_view_t **>malloc(
+                            num_arrays * sizeof(cugraph_type_erased_device_array_view_t*))
+                edge_end_time_view_ptr_ptr[i] = \
+                    create_cugraph_type_erased_device_array_view_from_py_obj(edge_end_time_array[i])
+
+        error_code = cugraph_graph_create_with_times_mg(
             resource_handle.c_resource_handle_ptr,
             &(graph_properties.c_graph_properties),
             vertices_view_ptr_ptr,
@@ -485,6 +549,8 @@ cdef class MGGraph(_GPUGraph):
             self.weights_view_ptr_ptr,
             self.edge_id_view_ptr_ptr,
             edge_type_view_ptr_ptr,
+            edge_start_time_view_ptr_ptr,
+            edge_end_time_view_ptr_ptr,
             store_transposed,
             num_arrays,
             drop_self_loops,
@@ -508,6 +574,10 @@ cdef class MGGraph(_GPUGraph):
                 cugraph_type_erased_device_array_view_free(self.edge_id_view_ptr_ptr[i])
             if edge_type_view_ptr_ptr is not NULL:
                 cugraph_type_erased_device_array_view_free(edge_type_view_ptr_ptr[i])
+            if edge_end_time_view_ptr_ptr is not NULL:
+                cugraph_type_erased_device_array_view_free(edge_end_time_view_ptr_ptr[i])
+            if edge_end_time_view_ptr_ptr is not NULL:
+                cugraph_type_erased_device_array_view_free(edge_end_time_view_ptr_ptr[i])
 
     def __dealloc__(self):
         if self.c_graph_ptr is not NULL:
