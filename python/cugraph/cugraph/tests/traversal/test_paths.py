@@ -12,7 +12,6 @@
 # limitations under the License.
 
 import sys
-from tempfile import NamedTemporaryFile
 import math
 
 import numpy as np
@@ -27,18 +26,18 @@ from cupyx.scipy.sparse import coo_matrix as cupy_coo_matrix
 
 
 CONNECTED_GRAPH = [
-[1,5,3],
-[1,4,1],
-[1,2,1],
-[1,6,2],
-[1,7,2],
-[4,5,1],
-[2,3,1],
-[7,6,2],
+    [1, 5, 3],
+    [1, 4, 1],
+    [1, 2, 1],
+    [1, 6, 2],
+    [1, 7, 2],
+    [4, 5, 1],
+    [2, 3, 1],
+    [7, 6, 2],
 ]
 
 
-DISCONNECTED_GRAPH = CONNECTED_GRAPH + [[8,9,4]]
+DISCONNECTED_GRAPH = CONNECTED_GRAPH + [[8, 9, 4]]
 
 
 # Single value or callable golden results are not added as a Resultset
@@ -69,7 +68,7 @@ def graphs(request):
 
     matrix = np.matrix(request.param)
     array = np.asarray(matrix)
- 
+
     cudf_df = cudf.DataFrame(array, columns=["src", "dst", "data"])
     cudf_df["src"] = cudf_df["src"].astype("int32")
     cudf_df["dst"] = cudf_df["dst"].astype("int32")

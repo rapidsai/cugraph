@@ -136,7 +136,7 @@ def maximum_spanning_tree(G, weight=None, algorithm="boruvka", ignore_nan=False)
 
     Returns
     -------
-    G_mst : cuGraph.Graph or networkx.Graph
+    G_mst : cuGraph.Graph
         A graph descriptor with a maximum spanning tree or forest.
 
     Examples
