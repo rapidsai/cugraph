@@ -83,10 +83,13 @@ def homogeneous_neighbor_sample(
     start_list : list or cudf.Series
         a list of starting vertices for sampling
 
-    starting_vertex_label_offsets: list or cudf.Series
+    starting_vertex_label_offsets: list or cudf.Series (default=None)
         Offsets of each label within the start_list. Expanding
         'starting_vertex_label_offsets' must lead to an array of
         len(start_list)
+
+        If None, all svertices from the 'start_list' will have the same
+        label 0.
 
     fanout_vals : list
         List of branching out (fan-out) degrees per starting vertex for each
@@ -229,9 +232,17 @@ def homogeneous_neighbor_sample(
         start_list = cudf.Series(
             start_list, dtype=G.edgelist.edgelist_df[G.srcCol].dtype
         )
-
+    
+    if starting_vertex_label_offsets is None:
+        # Add the same default label for all vertices
+        starting_vertex_label_offsets = cudf.Series(
+            [0 for _ in range(len(start_list))],
+            dtype=G.edgelist.edgelist_df[G.srcCol].dtype)
+        
     if isinstance(starting_vertex_label_offsets, list):
-        starting_vertex_label_offsets = cudf.Series(starting_vertex_label_offsets)
+        starting_vertex_label_offsets = cudf.Series(
+            starting_vertex_label_offsets,
+            dtype=G.edgelist.edgelist_df[G.srcCol].dtype)
 
     # fanout_vals must be passed to pylibcugraph as a host array
     if isinstance(fanout_vals, numpy.ndarray):

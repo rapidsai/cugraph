@@ -217,6 +217,12 @@ def heterogeneous_neighbor_sample(
 
     """
 
+    warning_msg = (
+        "heterogeneous_neighbor_sample is deprecated and will only be supported "
+        "through cuGraph GNN and the Pylibcugraph API in future releases."
+    )
+    warnings.warn(warning_msg, FutureWarning)
+
     if compression not in ["COO", "CSR", "CSC", "DCSR", "DCSC"]:
         raise ValueError("compression must be one of COO, CSR, CSC, DCSR, or DCSC")
 
