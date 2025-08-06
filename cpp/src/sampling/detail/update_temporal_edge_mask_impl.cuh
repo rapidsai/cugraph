@@ -52,22 +52,6 @@ void update_temporal_edge_mask(
   // for each value so that we can reset everything back more efficiently.
   fill_edge_src_property(handle, graph_view, edge_src_times.mutable_view(), STARTING_TIME);
 
-  rmm::device_uvector<edge_time_t> local_frontier_vertex_times(
-    graph_view.local_vertex_partition_range_size(), handle.get_stream());
-
-  thrust::scatter(
-    handle.get_thrust_policy(),
-    vertex_times.begin(),
-    vertex_times.end(),
-    thrust::make_transform_iterator(
-      vertices.begin(),
-      cuda::proclaim_return_type<vertex_t>(
-        [vertex_partition = vertex_partition_device_view_t<vertex_t, multi_gpu>(
-           graph_view.local_vertex_partition_view())] __device__(auto v) {
-          return vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(v);
-        })),
-    local_frontier_vertex_times.begin());
-
   update_edge_src_property(handle,
                            graph_view,
                            vertices.begin(),
