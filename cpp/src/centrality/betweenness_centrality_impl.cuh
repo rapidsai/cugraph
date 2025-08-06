@@ -15,10 +15,10 @@
  */
  #pragma once
 
- #include "prims/count_if_e.cuh"
  #include "prims/count_if_v.cuh"
  #include "prims/edge_bucket.cuh"
  #include "prims/extract_transform_if_e.cuh"
+ #include "prims/extract_transform_if_v_frontier_outgoing_e.cuh"
  
  #include "prims/fill_edge_property.cuh"
  #include "prims/per_v_transform_reduce_incoming_outgoing_e.cuh"
@@ -1055,32 +1055,23 @@
    auto num_vertices = static_cast<size_t>(graph_view.local_vertex_partition_range_size());
    auto num_sources = sources.size();
    
-   printf("DEBUG: Starting multisource backward pass with %zu sources, %zu vertices\n", num_sources, num_vertices);
+   printf("DEBUG: Starting multisource backward pass with %zu sources\n", num_sources);
    
    // Initialize centrality array to zero
    thrust::fill(handle.get_thrust_policy(), centralities.begin(), centralities.end(), weight_t{0});
    
-   // Allocate dependency buffer for all sources
-   size_t dependency_buffer_size = num_sources * num_vertices * sizeof(weight_t);
-   rmm::device_uvector<weight_t> dependency_buffer(num_sources * num_vertices, handle.get_stream());
-   thrust::fill(handle.get_thrust_policy(), dependency_buffer.begin(), dependency_buffer.end(), weight_t{0});
+   // Allocate delta accumulation buffer for all sources
+   // This tracks accumulated deltas per vertex per source: deltas[source_idx][vertex]
+   size_t delta_buffer_size = num_sources * num_vertices * sizeof(weight_t);
+   rmm::device_uvector<weight_t> delta_buffer(num_sources * num_vertices, handle.get_stream());
+   thrust::fill(handle.get_thrust_policy(), delta_buffer.begin(), delta_buffer.end(), weight_t{0});
    
-   printf("DEBUG: Allocated dependency buffer: %zu bytes (%.2f MB)\n", 
-          dependency_buffer_size, dependency_buffer_size / (1024.0 * 1024.0));
+   printf("DEBUG: Allocated delta buffer: %zu bytes (%.2f MB)\n", 
+          delta_buffer_size, delta_buffer_size / (1024.0 * 1024.0));
+   
+
    
    auto start_time = std::chrono::high_resolution_clock::now();
-   
-   // Create edge properties for all sources
-   edge_src_property_t<vertex_t, edge_t> src_sigmas(handle, graph_view);
-   edge_dst_property_t<vertex_t, vertex_t> dst_distances(handle, graph_view);
-   edge_dst_property_t<vertex_t, edge_t> dst_sigmas(handle, graph_view);
-   edge_dst_property_t<vertex_t, weight_t> dst_deltas(handle, graph_view);
-   
-   // Update edge properties for all sources
-   update_edge_src_property(handle, graph_view, sigmas_2d.data(), src_sigmas.mutable_view());
-   update_edge_dst_property(handle, graph_view, distances_2d.data(), dst_distances.mutable_view());
-   update_edge_dst_property(handle, graph_view, sigmas_2d.data(), dst_sigmas.mutable_view());
-   update_edge_dst_property(handle, graph_view, dependency_buffer.data(), dst_deltas.mutable_view());
    
    // Find global maximum distance across all sources
    constexpr vertex_t invalid_distance = std::numeric_limits<vertex_t>::max();
@@ -1104,301 +1095,245 @@
    
    printf("DEBUG: Global max distance: %ld\n", static_cast<long>(global_max_distance));
    
-   // Process all sources simultaneously using tagged vertices (like BFS)
-   printf("DEBUG: Processing all %zu sources simultaneously using tagged vertices\n", num_sources);
-  
-  using origin_t = uint32_t;  // Source index type
-  
-  // Use the same efficient O(1) lookup method as single-source, but for all sources
-  printf("DEBUG: Precomputing frontiers using efficient O(1) lookup method\n");
-  
-  // Create a single device array to hold all sorted vertices for all sources
-  // Layout: [source_0_vertices, source_1_vertices, ..., source_n_vertices]
-  rmm::device_uvector<vertex_t> all_vertices_sorted(num_sources * num_vertices, handle.get_stream());
-  
-  // Create a single device array to hold all bounds for all sources
-  // Layout: [source_0_bounds, source_1_bounds, ..., source_n_bounds]
-  // Each source's bounds are stored contiguously
-  std::vector<size_t> max_bounds_sizes(num_sources);
-  size_t total_bounds_size = 0;
-  
-  // First pass: calculate total bounds size
-  for (size_t source_idx = 0; source_idx < num_sources; ++source_idx) {
-    const vertex_t* distances = distances_2d.data() + source_idx * num_vertices;
-    
-    // Find diameter for this source
-    vertex_t diameter = thrust::reduce(
-      handle.get_thrust_policy(),
-      distances,
-      distances + num_vertices,
-      vertex_t{0},
-      [invalid_distance] __device__(vertex_t a, vertex_t b) -> vertex_t {
-        if (a == invalid_distance && b == invalid_distance) return invalid_distance;
-        if (a == invalid_distance) return b;
-        if (b == invalid_distance) return a;
-        return thrust::max(a, b);
-      });
-    
-    max_bounds_sizes[source_idx] = (diameter > 0) ? (diameter + 1) : 0;
-    total_bounds_size += max_bounds_sizes[source_idx];
-  }
-  
-  rmm::device_uvector<vertex_t> all_bounds(total_bounds_size, handle.get_stream());
-  std::vector<size_t> bounds_offsets(num_sources + 1);
-  bounds_offsets[0] = 0;
-  for (size_t i = 0; i < num_sources; ++i) {
-    bounds_offsets[i + 1] = bounds_offsets[i] + max_bounds_sizes[i];
-  }
-  
-  for (size_t source_idx = 0; source_idx < num_sources; ++source_idx) {
-    const vertex_t* distances = distances_2d.data() + source_idx * num_vertices;
-    const edge_t* sigmas = sigmas_2d.data() + source_idx * num_vertices;
-    
-    if (max_bounds_sizes[source_idx] > 0) {
-      // Create distance_keys for sorting (like single-source)
-      rmm::device_uvector<vertex_t> distance_keys(num_vertices, handle.get_stream());
-      raft::copy(distance_keys.data(), distances, num_vertices, handle.get_stream());
-      
-      // Create sorted vertices for this source
-      rmm::device_uvector<vertex_t> vertices_sorted(num_vertices, handle.get_stream());
-      thrust::sequence(handle.get_thrust_policy(),
-                      vertices_sorted.begin(),
-                      vertices_sorted.end(),
-                      graph_view.local_vertex_partition_range_first());
-      
-      // Sort vertices by distance (like single-source)
-      thrust::stable_sort_by_key(
-        handle.get_thrust_policy(),
-        distance_keys.begin(), distance_keys.end(),
-        vertices_sorted.begin()
-      );
-      
-      // Copy sorted vertices to the global array
-      thrust::copy(handle.get_thrust_policy(),
-                  vertices_sorted.begin(),
-                  vertices_sorted.end(),
-                  all_vertices_sorted.begin() + source_idx * num_vertices);
-      
-      // Compute bounds using lower_bound (like single-source)
-      vertex_t* source_bounds = all_bounds.data() + bounds_offsets[source_idx];
-      thrust::lower_bound(
-        handle.get_thrust_policy(),
-        distance_keys.begin(), distance_keys.end(),
-        thrust::make_counting_iterator<vertex_t>(0),
-        thrust::make_counting_iterator<vertex_t>(max_bounds_sizes[source_idx]),
-        source_bounds);
-    }
-  }
-  handle.sync_stream();
-  
-  printf("DEBUG: Precomputed bounds for all %zu sources\n", num_sources);
-  
-  // Process distance levels using efficient O(1) lookup (like single-source)
-  for (vertex_t d = global_max_distance; d > 1; --d) {
-    printf("DEBUG: Processing distance level %ld for all sources\n", static_cast<long>(d));
-    
-    // Use device-side parallel processing to collect all vertices at distance d-1
-    // This replaces the sequential host-side loop
-    
-    // First, count total vertices at distance d-1 across all sources
-    size_t total_vertices_at_d_minus_1 = 0;
-    
-    // Count vertices at distance d-1 for each source in parallel
-    rmm::device_uvector<size_t> vertex_counts_per_source(num_sources, handle.get_stream());
-    thrust::fill(handle.get_thrust_policy(), vertex_counts_per_source.begin(), vertex_counts_per_source.end(), size_t{0});
-    
-    thrust::for_each(
-      handle.get_thrust_policy(),
-      thrust::make_counting_iterator<size_t>(0),
-      thrust::make_counting_iterator<size_t>(num_sources),
-      [d, all_bounds = all_bounds.data(), bounds_offsets = bounds_offsets.data(), max_bounds_sizes = max_bounds_sizes.data(),
-       num_vertices, vertex_counts_per_source = vertex_counts_per_source.data()] __device__(size_t source_idx) {
-        if (d - 1 < max_bounds_sizes[source_idx]) {
-          vertex_t* source_bounds = all_bounds + bounds_offsets[source_idx];
-          size_t start_pos = source_bounds[d - 1];
-          size_t end_pos = (d < max_bounds_sizes[source_idx]) ? 
-                           source_bounds[d] : 
-                           num_vertices;
-          vertex_counts_per_source[source_idx] = end_pos - start_pos;
-        }
-      });
-    
-    // Compute prefix sum to get starting positions for each source
-    rmm::device_uvector<size_t> prefix_sums(num_sources + 1, handle.get_stream());
-    thrust::exclusive_scan(handle.get_thrust_policy(), 
-                          vertex_counts_per_source.begin(), vertex_counts_per_source.end(), 
-                          prefix_sums.begin());
-    
-    // Get total count
-    raft::update_host(&total_vertices_at_d_minus_1, prefix_sums.data() + num_sources, 1, handle.get_stream());
-    handle.sync_stream();
-    
-    printf("DEBUG: Found %zu vertices at distance %ld across all sources\n", 
-           total_vertices_at_d_minus_1, static_cast<long>(d - 1));
-    
-    if (total_vertices_at_d_minus_1 > 0) {
-      // Allocate device buffers for all vertices at distance d-1
-      rmm::device_uvector<vertex_t> d_vertices_d_minus_1(total_vertices_at_d_minus_1, handle.get_stream());
-      rmm::device_uvector<origin_t> d_origins_d_minus_1(total_vertices_at_d_minus_1, handle.get_stream());
-      
-      // Fill buffers in parallel using all sources
-      thrust::for_each(
-        handle.get_thrust_policy(),
-        thrust::make_counting_iterator<size_t>(0),
-        thrust::make_counting_iterator<size_t>(num_sources),
-        [d, all_bounds = all_bounds.data(), bounds_offsets = bounds_offsets.data(), max_bounds_sizes = max_bounds_sizes.data(),
-         all_vertices_sorted = all_vertices_sorted.data(), num_vertices, prefix_sums = prefix_sums.data(), 
-         d_vertices_d_minus_1 = d_vertices_d_minus_1.data(), d_origins_d_minus_1 = d_origins_d_minus_1.data()] 
-        __device__(size_t source_idx) {
-          if (d - 1 < max_bounds_sizes[source_idx]) {
-            vertex_t* source_bounds = all_bounds + bounds_offsets[source_idx];
-            size_t start_pos = source_bounds[d - 1];
-            size_t end_pos = (d < max_bounds_sizes[source_idx]) ? 
-                             source_bounds[d] : 
-                             num_vertices;
-            size_t num_vertices_at_d_minus_1 = end_pos - start_pos;
-            
-            if (num_vertices_at_d_minus_1 > 0) {
-              size_t global_start = prefix_sums[source_idx];
-              vertex_t* source_vertices = all_vertices_sorted + source_idx * num_vertices;
-              
-              // Copy vertices for this source to global buffer
-              for (size_t i = 0; i < num_vertices_at_d_minus_1; ++i) {
-                d_vertices_d_minus_1[global_start + i] = source_vertices[start_pos + i];
-                d_origins_d_minus_1[global_start + i] = static_cast<origin_t>(source_idx);
-              }
-            }
-          }
-        });
-      
-      // Create tagged frontier with (vertex, origin) pairs (like BFS)
-      vertex_frontier_t<vertex_t, origin_t, multi_gpu, true> vertex_frontier(handle, 1);
-      vertex_frontier.bucket(0).insert(
-        thrust::make_zip_iterator(d_vertices_d_minus_1.begin(), d_origins_d_minus_1.begin()),
-        thrust::make_zip_iterator(d_vertices_d_minus_1.end(), d_origins_d_minus_1.end()));
-      
-      printf("DEBUG: Created frontier with %zu tagged vertices for distance %ld\n", 
-             vertex_frontier.bucket(0).aggregate_size(), static_cast<long>(d - 1));
-      
-      // Create key_bucket_t directly from the tagged vertices to avoid copy constructor issues
-      key_bucket_t<vertex_t, origin_t, multi_gpu, true> key_bucket(
-        handle,
-        rmm::device_uvector<vertex_t>(d_vertices_d_minus_1.begin(), d_vertices_d_minus_1.end(), handle.get_stream()),
-        rmm::device_uvector<origin_t>(d_origins_d_minus_1.begin(), d_origins_d_minus_1.end(), handle.get_stream()));
-      
-      // Use per_v_transform_reduce_outgoing_e for ALL sources simultaneously
-      // This computes per-vertex deltas for vertices at distance d-1
-      rmm::device_uvector<weight_t> vertex_deltas(key_bucket.size(), handle.get_stream());
-      
-      per_v_transform_reduce_outgoing_e(
-        handle,
-        graph_view,
-        key_bucket,  // ✅ Pass key_bucket_t directly (not vertex_frontier.bucket(0))
-        edge_src_dummy_property_t{}.view(),
-        edge_dst_dummy_property_t{}.view(),
-        edge_dummy_property_t{}.view(),
-        cuda::proclaim_return_type<weight_t>([d, distances_2d = distances_2d.data(), 
-         sigmas_2d = sigmas_2d.data(), dependency_buffer = dependency_buffer.data(), num_vertices] 
-        __device__(auto tagged_src, auto dst, auto, auto, auto) {
-          auto src = thrust::get<0>(tagged_src);
-          auto origin = thrust::get<1>(tagged_src);
-          
-          // Check if dst is at distance d for this source
-          const vertex_t* distances = distances_2d + origin * num_vertices;
-          if (distances[dst] == d) {
-            const edge_t* sigmas = sigmas_2d + origin * num_vertices;
-            weight_t* dependency = dependency_buffer + origin * num_vertices;
-            
-            auto sigma_v = static_cast<weight_t>(sigmas[src]);  // sigma[v] where v is at distance d-1
-            auto sigma_w = static_cast<weight_t>(sigmas[dst]);  // sigma[w] where w is at distance d
-            auto delta_w = dependency[dst];  // delta[w]
-            weight_t delta = (sigma_v / sigma_w) * (1 + delta_w);
-            
-            // Return delta for reduction (don't use atomicAdd here)
-            return delta;
-          } else {
-            return weight_t{0};
-          }
-        }),
-        weight_t{0},  // init value
-        reduce_op::plus<weight_t>{},
-        vertex_deltas.begin());  // ✅ Output to vertex deltas buffer
-      
-      // Now update dependencies using the computed vertex deltas
-      thrust::for_each(
-        handle.get_thrust_policy(),
-        thrust::make_zip_iterator(key_bucket.begin(), vertex_deltas.begin()),
-        thrust::make_zip_iterator(key_bucket.end(), vertex_deltas.end()),
-        [d, distances_2d = distances_2d.data(), dependency_buffer = dependency_buffer.data(), 
-         num_vertices] __device__(auto tuple) {
-          auto tagged_vertex = thrust::get<0>(tuple);
-          auto delta = thrust::get<1>(tuple);
-          
-          auto vertex = thrust::get<0>(tagged_vertex);
-          auto origin = thrust::get<1>(tagged_vertex);
-          
-          // Find all destinations at distance d for this source
-          const vertex_t* distances = distances_2d + origin * num_vertices;
-          weight_t* dependency = dependency_buffer + origin * num_vertices;
-          
-          // Update dependencies for all destinations at distance d
-          for (vertex_t dst = 0; dst < num_vertices; ++dst) {
-            if (distances[dst] == d) {
-              atomicAdd(&dependency[dst], delta);
-            }
-          }
-        });
-      
-      printf("DEBUG: Completed delta computation for distance level %ld\n", static_cast<long>(d));
-    }
-  }
-  
-  // Update centralities for all vertices from all sources
-  thrust::for_each(
-    handle.get_thrust_policy(),
-    thrust::make_counting_iterator<size_t>(0),
-    thrust::make_counting_iterator<size_t>(num_vertices),
-    [centralities = centralities.data(), dependency_buffer = dependency_buffer.data(), 
-     sources = sources.data(), num_sources, num_vertices, include_endpoints] __device__(size_t vertex_idx) {
-      vertex_t vertex = static_cast<vertex_t>(vertex_idx);
-      
-      for (size_t source_idx = 0; source_idx < num_sources; ++source_idx) {
-        vertex_t source_vertex = sources[source_idx];
-        weight_t* dependency = dependency_buffer + source_idx * num_vertices;
+   // Process distance levels using parallel edge enumeration as recommended
+   for (vertex_t d = global_max_distance; d > 1; --d) {
+     // Step 1: Create vertex frontier with all vertices at distance d-1 for all sources
+     // Use tagged vertices with (vertex, source_idx) pairs
+     using tagged_vertex_t = thrust::tuple<vertex_t, size_t>;
+     
+     // Count total vertices at distance d-1 across all sources
+     size_t total_vertices_at_d_minus_1 = 0;
+     std::vector<size_t> vertices_per_source(num_sources);
+     
+     for (size_t source_idx = 0; source_idx < num_sources; ++source_idx) {
+       const vertex_t* distances = distances_2d.data() + source_idx * num_vertices;
+       size_t count = thrust::count_if(
+         handle.get_thrust_policy(),
+         distances,
+         distances + num_vertices,
+         [d] __device__(vertex_t dist) { return dist == d - 1; });
+       vertices_per_source[source_idx] = count;
+       total_vertices_at_d_minus_1 += count;
+     }
+     
+     if (total_vertices_at_d_minus_1 > 0) {
+       // Step 2: Create tagged vertex frontier with (vertex, source_idx) pairs
+       rmm::device_uvector<vertex_t> frontier_vertices(total_vertices_at_d_minus_1, handle.get_stream());
+       rmm::device_uvector<size_t> frontier_sources(total_vertices_at_d_minus_1, handle.get_stream());
+       
+       size_t offset = 0;
+       for (size_t source_idx = 0; source_idx < num_sources; ++source_idx) {
+         const vertex_t* distances = distances_2d.data() + source_idx * num_vertices;
+         
+         if (vertices_per_source[source_idx] > 0) {
+           // Extract vertices at distance d-1 for this source
+           rmm::device_uvector<vertex_t> source_vertices(vertices_per_source[source_idx], handle.get_stream());
+           
+           // Capture vertex partition range values to avoid host function calls in device lambdas
+           auto v_first = graph_view.local_vertex_partition_range_first();
+           auto v_last = graph_view.local_vertex_partition_range_last();
+           
+           thrust::copy_if(
+             handle.get_thrust_policy(),
+             thrust::make_counting_iterator(v_first),
+             thrust::make_counting_iterator(v_last),
+             source_vertices.begin(),
+             [distances, d, v_first] __device__(vertex_t v) { return distances[v - v_first] == d - 1; });
+           
+           // Copy to global frontier
+           thrust::copy(handle.get_thrust_policy(),
+                       source_vertices.begin(),
+                       source_vertices.end(),
+                       frontier_vertices.begin() + offset);
+           
+           // Fill source indices
+           thrust::fill(handle.get_thrust_policy(),
+                       frontier_sources.begin() + offset,
+                       frontier_sources.begin() + offset + vertices_per_source[source_idx],
+                       source_idx);
+           
+           offset += vertices_per_source[source_idx];
+         }
+       }
+       
+        // Step 3: Use extract_transform_if_v_frontier_e to enumerate all qualifying edges
+        // This extracts (src, tag, dst) triplets as recommended
         
-        if (vertex != source_vertex) {
-          weight_t contribution = dependency[vertex];
-          if (include_endpoints) {
-            contribution += 1.0;
-          }
-          atomicAdd(&centralities[vertex], contribution);
-        }
-      }
-    });
+        // Capture the vertex partition range values to avoid host function calls in device lambdas
+        auto v_first = graph_view.local_vertex_partition_range_first();
+        
+        // Create a proper frontier object for the tagged vertices
+        vertex_frontier_t<vertex_t, size_t, multi_gpu, true> frontier(handle, 1);
+        
+        // Create tagged vertices and insert them into the frontier
+        rmm::device_uvector<thrust::tuple<vertex_t, size_t>> tagged_vertices(frontier_vertices.size(), handle.get_stream());
+        thrust::transform(handle.get_thrust_policy(),
+                        frontier_vertices.begin(), frontier_vertices.end(),
+                        frontier_sources.begin(),
+                        tagged_vertices.begin(),
+                        [] __device__(auto vertex, auto source) {
+                          return thrust::make_tuple(vertex, source);
+                        });
+        
+        frontier.bucket(0).insert(tagged_vertices.begin(), tagged_vertices.end());
+        
+        auto result = detail::extract_transform_if_v_frontier_e<false, thrust::tuple<vertex_t, size_t, vertex_t, weight_t>, void>(
+          handle,
+          graph_view,
+          frontier.bucket(0),
+          edge_src_dummy_property_t{}.view(),
+          edge_dst_dummy_property_t{}.view(),
+          edge_dummy_property_t{}.view(),
+          cuda::proclaim_return_type<thrust::tuple<vertex_t, size_t, vertex_t, weight_t>>([d, distances_2d = distances_2d.data(), 
+          sigmas_2d = sigmas_2d.data(), delta_buffer = delta_buffer.data(), num_vertices, invalid_distance, v_first] 
+          __device__(auto tagged_src, auto dst, auto, auto, auto) {
+            auto src = thrust::get<0>(tagged_src);
+            auto source_idx = thrust::get<1>(tagged_src);
+            
+            // Check if dst is at distance d for this source
+            const vertex_t* distances = distances_2d + source_idx * num_vertices;
+            const edge_t* sigmas = sigmas_2d + source_idx * num_vertices;
+            const weight_t* deltas = delta_buffer + source_idx * num_vertices;
+            
+            auto src_offset = src - v_first;
+            auto dst_offset = dst - v_first;
+           
+           if (distances[dst_offset] == d) {
+             // Calculate delta using Brandes formula with accumulated deltas
+             auto sigma_v = static_cast<weight_t>(sigmas[src_offset]);
+             auto sigma_w = static_cast<weight_t>(sigmas[dst_offset]);
+             
+             // Get accumulated delta for destination vertex
+             weight_t delta_w = deltas[dst_offset];
+             weight_t delta = (sigma_v / sigma_w) * (1 + delta_w);
+             
+             return thrust::make_tuple(src, source_idx, dst, delta);
+           } else {
+             return thrust::make_tuple(src, source_idx, dst, weight_t{0});
+           }
+         }),
+         // PREDICATE: only process edges where dst is at distance d
+         cuda::proclaim_return_type<bool>([d, distances_2d = distances_2d.data(), num_vertices, v_first] 
+         __device__(auto tagged_src, auto dst, auto, auto, auto) {
+           auto source_idx = thrust::get<1>(tagged_src);
+           const vertex_t* distances = distances_2d + source_idx * num_vertices;
+           auto dst_offset = dst - v_first;
+           return distances[dst_offset] == d;
+         }));
+       
+         // Step 4: Extract edge tuples and perform reduction by (src, tag)
+         auto edge_tuples_buffer = std::move(std::get<0>(result));
+         
+         // Work directly with the buffer without using dataframe buffer functions
+         size_t num_edges = size_dataframe_buffer(edge_tuples_buffer);
+        
+        if (num_edges > 0) {
+          // Extract components directly from the buffer
+          rmm::device_uvector<vertex_t> edge_srcs(num_edges, handle.get_stream());
+          rmm::device_uvector<size_t> edge_sources(num_edges, handle.get_stream());
+          rmm::device_uvector<vertex_t> edge_dsts(num_edges, handle.get_stream());
+          rmm::device_uvector<weight_t> edge_deltas(num_edges, handle.get_stream());
+          
+          // Extract components from the buffer using transform
+          thrust::transform(handle.get_thrust_policy(),
+                          get_dataframe_buffer_begin(edge_tuples_buffer),
+                          get_dataframe_buffer_end(edge_tuples_buffer),
+                          thrust::make_zip_iterator(edge_srcs.begin(), edge_sources.begin(), 
+                                                  edge_dsts.begin(), edge_deltas.begin()),
+                          [] __device__(auto tuple) {
+                            return thrust::make_tuple(thrust::get<0>(tuple), thrust::get<1>(tuple),
+                                                    thrust::get<2>(tuple), thrust::get<3>(tuple));
+                          });
+         
+         // Step 5: Sort by (src, tag) for reduction
+         thrust::sort_by_key(handle.get_thrust_policy(),
+                            thrust::make_zip_iterator(edge_srcs.begin(), edge_sources.begin()),
+                            thrust::make_zip_iterator(edge_srcs.end(), edge_sources.end()),
+                            edge_deltas.begin());
+         
+         // Step 6: Count unique (src, tag) pairs first
+         size_t num_unique = thrust::count_if(
+           handle.get_thrust_policy(),
+           thrust::make_counting_iterator(size_t{0}),
+           thrust::make_counting_iterator(edge_srcs.size()),
+           [srcs = edge_srcs.data(), sources = edge_sources.data()] __device__(size_t i) {
+             return (i == 0) || 
+                    (srcs[i] != srcs[i - 1]) || 
+                    (sources[i] != sources[i - 1]);
+           });
+         
+         // Step 7: Reduce by (src, tag) - sum deltas for each (src, tag) pair
+         auto unique_count = thrust::reduce_by_key(
+           handle.get_thrust_policy(),
+           thrust::make_zip_iterator(edge_srcs.begin(), edge_sources.begin()),
+           thrust::make_zip_iterator(edge_srcs.end(), edge_sources.end()),
+           edge_deltas.begin(),
+           thrust::make_zip_iterator(edge_srcs.begin(), edge_sources.begin()),
+           edge_deltas.begin());
+         thrust::for_each(
+           handle.get_thrust_policy(),
+           thrust::make_zip_iterator(edge_srcs.begin(), edge_sources.begin(), edge_deltas.begin()),
+           thrust::make_zip_iterator(edge_srcs.begin() + num_unique, 
+                                   edge_sources.begin() + num_unique,
+                                   edge_deltas.begin() + num_unique),
+           [centralities = centralities.data(), v_first = graph_view.local_vertex_partition_range_first()] 
+           __device__(auto tuple) {
+             auto src = thrust::get<0>(tuple);
+             auto delta = thrust::get<2>(tuple);
+             auto src_offset = src - v_first;
+             atomicAdd(&centralities[src_offset], delta);
+           });
+         
+         // Step 8: Accumulate deltas for the next iteration (Brandes algorithm requirement)
+         // For each vertex at distance d-1, accumulate deltas from its outgoing edges
+         thrust::for_each(
+           handle.get_thrust_policy(),
+           thrust::make_zip_iterator(edge_srcs.begin(), edge_sources.begin(), edge_deltas.begin()),
+           thrust::make_zip_iterator(edge_srcs.begin() + num_unique, 
+                                   edge_sources.begin() + num_unique,
+                                   edge_deltas.begin() + num_unique),
+           [delta_buffer = delta_buffer.data(), num_vertices, v_first] 
+           __device__(auto tuple) {
+             auto src = thrust::get<0>(tuple);
+             auto source_idx = thrust::get<1>(tuple);
+             auto delta = thrust::get<2>(tuple);
+             
+             // Accumulate delta for the source vertex (which is at distance d-1)
+             auto src_offset = src - v_first;
+             weight_t* source_deltas = delta_buffer + source_idx * num_vertices;
+             atomicAdd(&source_deltas[src_offset], delta);
+           });
+       }
+     }
+   }
    
-  // Handle source vertex contributions if include_endpoints is true
-  if (include_endpoints) {
-    printf("DEBUG: Computing source vertex contributions\n");
-    thrust::for_each(
-      handle.get_thrust_policy(),
-      thrust::make_counting_iterator<size_t>(0),
-      thrust::make_counting_iterator<size_t>(num_sources),
-      [distances_2d = distances_2d.data(), sources = sources.data(), 
-       centralities = centralities.data(), num_vertices] __device__(size_t source_idx) {
-        
-        const vertex_t* distances = distances_2d + source_idx * num_vertices;
-        vertex_t source_vertex = sources[source_idx];
-        
-        // Handle source vertex contribution
-        weight_t source_contribution = 0;
-        for (vertex_t v = 0; v < num_vertices; ++v) {
-          if (v != source_vertex && distances[v] != std::numeric_limits<vertex_t>::max()) {
-            source_contribution += 1.0;
-          }
-        }
-        atomicAdd(&centralities[source_vertex], source_contribution);
-      });
-  }
+   // Handle source vertex contributions if include_endpoints is true
+   if (include_endpoints) {
+     printf("DEBUG: Computing source vertex contributions\n");
+     auto v_first = graph_view.local_vertex_partition_range_first();
+     thrust::for_each(
+       handle.get_thrust_policy(),
+       thrust::make_counting_iterator<size_t>(0),
+       thrust::make_counting_iterator<size_t>(num_sources),
+       [distances_2d = distances_2d.data(), sigmas_2d = sigmas_2d.data(), sources = sources.data(), 
+        centralities = centralities.data(), num_vertices, v_first] __device__(size_t source_idx) {
+         
+         const vertex_t* distances = distances_2d + source_idx * num_vertices;
+         const edge_t* sigmas = sigmas_2d + source_idx * num_vertices;
+         vertex_t source_vertex = sources[source_idx];
+         
+         // Source vertex contribution: count of reachable vertices (excluding self)
+         weight_t source_contribution = 0;
+         for (vertex_t v = 0; v < num_vertices; ++v) {
+           if (v != source_vertex && distances[v] != std::numeric_limits<vertex_t>::max()) {
+             source_contribution += 1.0;
+           }
+         }
+         // Convert global vertex ID to local offset
+         auto source_offset = source_vertex - v_first;
+         atomicAdd(&centralities[source_offset], source_contribution);
+       });
+   }
    
    auto end_time = std::chrono::high_resolution_clock::now();
    auto total_duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
@@ -1407,8 +1342,10 @@
    printf("DEBUG: Multisource backward pass completed:\n");
    printf("  - Total time: %.3f ms\n", total_duration.count() / 1000.0);
    printf("  - Total memory allocated: %zu bytes (%.2f MB)\n", 
-          dependency_buffer_size, dependency_buffer_size / (1024.0 * 1024.0));
-   printf("  - Processed %zu sources simultaneously using tagged vertices\n", num_sources);
+          delta_buffer_size, delta_buffer_size / (1024.0 * 1024.0));
+   printf("  - Processed %zu sources simultaneously using edge enumeration\n", num_sources);
+   
+   printf("DEBUG: Multisource backward pass completed for all %zu sources\n", num_sources);
  }
  
  template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
