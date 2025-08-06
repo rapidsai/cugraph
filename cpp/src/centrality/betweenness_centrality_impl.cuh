@@ -1072,6 +1072,16 @@
 
    
    auto start_time = std::chrono::high_resolution_clock::now();
+   auto total_count_vertices_time = std::chrono::microseconds{0};
+   auto total_create_frontier_arrays_time = std::chrono::microseconds{0};
+   auto total_create_tagged_vertices_time = std::chrono::microseconds{0};
+   auto total_edge_enumeration_time = std::chrono::microseconds{0};
+   auto total_extraction_time = std::chrono::microseconds{0};
+   auto total_sort_time = std::chrono::microseconds{0};
+   auto total_count_unique_time = std::chrono::microseconds{0};
+   auto total_reduce_by_key_time = std::chrono::microseconds{0};
+   auto total_centrality_update_time = std::chrono::microseconds{0};
+   auto total_delta_accumulation_time = std::chrono::microseconds{0};
    
    // Find global maximum distance across all sources
    constexpr vertex_t invalid_distance = std::numeric_limits<vertex_t>::max();
@@ -1097,74 +1107,104 @@
    
    // Process distance levels using parallel edge enumeration as recommended
    for (vertex_t d = global_max_distance; d > 1; --d) {
+     auto distance_start_time = std::chrono::high_resolution_clock::now();
      // Step 1: Create vertex frontier with all vertices at distance d-1 for all sources
      // Use tagged vertices with (vertex, source_idx) pairs
      using tagged_vertex_t = thrust::tuple<vertex_t, size_t>;
      
-     // Count total vertices at distance d-1 across all sources
-     size_t total_vertices_at_d_minus_1 = 0;
+     auto count_vertices_start_time = std::chrono::high_resolution_clock::now();
+     // Count total vertices at distance d-1 across all sources - PARALLEL VERSION
+     rmm::device_uvector<size_t> vertices_per_source_device(num_sources, handle.get_stream());
+     
+     // Parallel count for all sources at once - USING THRUST::COUNT_IF
+     thrust::for_each(
+       handle.get_thrust_policy(),
+       thrust::make_counting_iterator<size_t>(0),
+       thrust::make_counting_iterator<size_t>(num_sources),
+       [distances_2d = distances_2d.data(), num_vertices, d, vertices_per_source = vertices_per_source_device.data()] 
+       __device__(size_t source_idx) {
+         const vertex_t* distances = distances_2d + source_idx * num_vertices;
+         // Use thrust::count_if for each source (more efficient than manual loop)
+         size_t count = thrust::count_if(
+           thrust::seq,  // Use sequential execution within each thread
+           distances,
+           distances + num_vertices,
+           [d] __device__(vertex_t dist) { return dist == d - 1; });
+         vertices_per_source[source_idx] = count;
+       });
+     
+     // Copy back to host and compute total
      std::vector<size_t> vertices_per_source(num_sources);
      
-     for (size_t source_idx = 0; source_idx < num_sources; ++source_idx) {
-       const vertex_t* distances = distances_2d.data() + source_idx * num_vertices;
-       size_t count = thrust::count_if(
-         handle.get_thrust_policy(),
-         distances,
-         distances + num_vertices,
-         [d] __device__(vertex_t dist) { return dist == d - 1; });
-       vertices_per_source[source_idx] = count;
-       total_vertices_at_d_minus_1 += count;
+     // Use explicit device-to-host copy
+     cudaMemcpy(vertices_per_source.data(), 
+                vertices_per_source_device.data(),
+                num_sources * sizeof(size_t),
+                cudaMemcpyDeviceToHost);
+     
+     size_t total_vertices_at_d_minus_1 = 0;
+     for (size_t i = 0; i < num_sources; ++i) {
+       total_vertices_at_d_minus_1 += vertices_per_source[i];
      }
      
+     auto count_vertices_end_time = std::chrono::high_resolution_clock::now();
+     total_count_vertices_time += std::chrono::duration_cast<std::chrono::microseconds>(count_vertices_end_time - count_vertices_start_time);
+     
      if (total_vertices_at_d_minus_1 > 0) {
-       // Step 2: Create tagged vertex frontier with (vertex, source_idx) pairs
+       auto create_frontier_arrays_start_time = std::chrono::high_resolution_clock::now();
+       // Step 2: Create tagged vertex frontier with (vertex, source_idx) pairs - PARALLEL VERSION
        rmm::device_uvector<vertex_t> frontier_vertices(total_vertices_at_d_minus_1, handle.get_stream());
        rmm::device_uvector<size_t> frontier_sources(total_vertices_at_d_minus_1, handle.get_stream());
        
-       size_t offset = 0;
-       for (size_t source_idx = 0; source_idx < num_sources; ++source_idx) {
-         const vertex_t* distances = distances_2d.data() + source_idx * num_vertices;
-         
-         if (vertices_per_source[source_idx] > 0) {
-           // Extract vertices at distance d-1 for this source
-           rmm::device_uvector<vertex_t> source_vertices(vertices_per_source[source_idx], handle.get_stream());
-           
-           // Capture vertex partition range values to avoid host function calls in device lambdas
-           auto v_first = graph_view.local_vertex_partition_range_first();
-           auto v_last = graph_view.local_vertex_partition_range_last();
-           
-           thrust::copy_if(
-             handle.get_thrust_policy(),
-             thrust::make_counting_iterator(v_first),
-             thrust::make_counting_iterator(v_last),
-             source_vertices.begin(),
-             [distances, d, v_first] __device__(vertex_t v) { return distances[v - v_first] == d - 1; });
-           
-           // Copy to global frontier
-           thrust::copy(handle.get_thrust_policy(),
-                       source_vertices.begin(),
-                       source_vertices.end(),
-                       frontier_vertices.begin() + offset);
-           
-           // Fill source indices
-           thrust::fill(handle.get_thrust_policy(),
-                       frontier_sources.begin() + offset,
-                       frontier_sources.begin() + offset + vertices_per_source[source_idx],
-                       source_idx);
-           
-           offset += vertices_per_source[source_idx];
-         }
-       }
+       // Pre-compute offsets for each source
+       rmm::device_uvector<size_t> source_offsets(num_sources + 1, handle.get_stream());
+       thrust::exclusive_scan(handle.get_thrust_policy(),
+                             vertices_per_source_device.begin(),
+                             vertices_per_source_device.end(),
+                             source_offsets.begin());
+       
+       // Capture vertex partition range values
+       auto v_first = graph_view.local_vertex_partition_range_first();
+       auto v_last = graph_view.local_vertex_partition_range_last();
+       
+       // Parallel frontier creation for all sources - SAFER VERSION
+       thrust::for_each(
+         handle.get_thrust_policy(),
+         thrust::make_counting_iterator<size_t>(0),
+         thrust::make_counting_iterator<size_t>(num_sources),
+         [distances_2d = distances_2d.data(), num_vertices, d, v_first, v_last,
+          vertices_per_source = vertices_per_source_device.data(),
+          source_offsets = source_offsets.data(),
+          frontier_vertices = frontier_vertices.data(),
+          frontier_sources = frontier_sources.data()] 
+         __device__(size_t source_idx) {
+           size_t vertex_count = vertices_per_source[source_idx];
+           if (vertex_count > 0) {
+             const vertex_t* distances = distances_2d + source_idx * num_vertices;
+             size_t offset = source_offsets[source_idx];
+             size_t count = 0;
+             
+             // Extract vertices at distance d-1 for this source
+             for (vertex_t v = v_first; v < v_last && count < vertex_count; ++v) {
+               if (distances[v - v_first] == d - 1) {
+                 frontier_vertices[offset + count] = v;
+                 frontier_sources[offset + count] = source_idx;
+                 count++;
+               }
+             }
+           }
+         });
+       
+       auto create_frontier_arrays_end_time = std::chrono::high_resolution_clock::now();
+       total_create_frontier_arrays_time += std::chrono::duration_cast<std::chrono::microseconds>(create_frontier_arrays_end_time - create_frontier_arrays_start_time);
        
         // Step 3: Use extract_transform_if_v_frontier_e to enumerate all qualifying edges
         // This extracts (src, tag, dst) triplets as recommended
         
-        // Capture the vertex partition range values to avoid host function calls in device lambdas
-        auto v_first = graph_view.local_vertex_partition_range_first();
-        
         // Create a proper frontier object for the tagged vertices
         vertex_frontier_t<vertex_t, size_t, multi_gpu, true> frontier(handle, 1);
         
+        auto create_tagged_vertices_start_time = std::chrono::high_resolution_clock::now();
         // Create tagged vertices and insert them into the frontier
         rmm::device_uvector<thrust::tuple<vertex_t, size_t>> tagged_vertices(frontier_vertices.size(), handle.get_stream());
         thrust::transform(handle.get_thrust_policy(),
@@ -1177,6 +1217,12 @@
         
         frontier.bucket(0).insert(tagged_vertices.begin(), tagged_vertices.end());
         
+                               auto create_tagged_vertices_end_time = std::chrono::high_resolution_clock::now();
+        total_create_tagged_vertices_time += std::chrono::duration_cast<std::chrono::microseconds>(create_tagged_vertices_end_time - create_tagged_vertices_start_time);
+        
+
+        
+        auto edge_enumeration_start_time = std::chrono::high_resolution_clock::now();
         auto result = detail::extract_transform_if_v_frontier_e<false, thrust::tuple<vertex_t, size_t, vertex_t, weight_t>, void>(
           handle,
           graph_view,
@@ -1221,6 +1267,9 @@
            return distances[dst_offset] == d;
          }));
        
+         auto edge_enumeration_end_time = std::chrono::high_resolution_clock::now();
+         total_edge_enumeration_time += std::chrono::duration_cast<std::chrono::microseconds>(edge_enumeration_end_time - edge_enumeration_start_time);
+         
          // Step 4: Extract edge tuples and perform reduction by (src, tag)
          auto edge_tuples_buffer = std::move(std::get<0>(result));
          
@@ -1228,6 +1277,7 @@
          size_t num_edges = size_dataframe_buffer(edge_tuples_buffer);
         
         if (num_edges > 0) {
+          auto extraction_start_time = std::chrono::high_resolution_clock::now();
           // Extract components directly from the buffer
           rmm::device_uvector<vertex_t> edge_srcs(num_edges, handle.get_stream());
           rmm::device_uvector<size_t> edge_sources(num_edges, handle.get_stream());
@@ -1245,12 +1295,20 @@
                                                     thrust::get<2>(tuple), thrust::get<3>(tuple));
                           });
          
+         auto extraction_end_time = std::chrono::high_resolution_clock::now();
+         total_extraction_time += std::chrono::duration_cast<std::chrono::microseconds>(extraction_end_time - extraction_start_time);
+         
+         auto sort_start_time = std::chrono::high_resolution_clock::now();
          // Step 5: Sort by (src, tag) for reduction
          thrust::sort_by_key(handle.get_thrust_policy(),
                             thrust::make_zip_iterator(edge_srcs.begin(), edge_sources.begin()),
                             thrust::make_zip_iterator(edge_srcs.end(), edge_sources.end()),
                             edge_deltas.begin());
          
+         auto sort_end_time = std::chrono::high_resolution_clock::now();
+         total_sort_time += std::chrono::duration_cast<std::chrono::microseconds>(sort_end_time - sort_start_time);
+         
+         auto count_unique_start_time = std::chrono::high_resolution_clock::now();
          // Step 6: Count unique (src, tag) pairs first
          size_t num_unique = thrust::count_if(
            handle.get_thrust_policy(),
@@ -1262,6 +1320,11 @@
                     (sources[i] != sources[i - 1]);
            });
          
+         auto reduction_start_time = std::chrono::high_resolution_clock::now();
+         auto count_unique_end_time = std::chrono::high_resolution_clock::now();
+         total_count_unique_time += std::chrono::duration_cast<std::chrono::microseconds>(count_unique_end_time - count_unique_start_time);
+         
+         auto reduce_by_key_start_time = std::chrono::high_resolution_clock::now();
          // Step 7: Reduce by (src, tag) - sum deltas for each (src, tag) pair
          auto unique_count = thrust::reduce_by_key(
            handle.get_thrust_policy(),
@@ -1270,6 +1333,10 @@
            edge_deltas.begin(),
            thrust::make_zip_iterator(edge_srcs.begin(), edge_sources.begin()),
            edge_deltas.begin());
+         auto reduce_by_key_end_time = std::chrono::high_resolution_clock::now();
+         total_reduce_by_key_time += std::chrono::duration_cast<std::chrono::microseconds>(reduce_by_key_end_time - reduce_by_key_start_time);
+         
+         auto centrality_update_start_time = std::chrono::high_resolution_clock::now();
          thrust::for_each(
            handle.get_thrust_policy(),
            thrust::make_zip_iterator(edge_srcs.begin(), edge_sources.begin(), edge_deltas.begin()),
@@ -1284,6 +1351,10 @@
              atomicAdd(&centralities[src_offset], delta);
            });
          
+         auto centrality_update_end_time = std::chrono::high_resolution_clock::now();
+         total_centrality_update_time += std::chrono::duration_cast<std::chrono::microseconds>(centrality_update_end_time - centrality_update_start_time);
+         
+         auto delta_accumulation_start_time = std::chrono::high_resolution_clock::now();
          // Step 8: Accumulate deltas for the next iteration (Brandes algorithm requirement)
          // For each vertex at distance d-1, accumulate deltas from its outgoing edges
          thrust::for_each(
@@ -1303,8 +1374,13 @@
              weight_t* source_deltas = delta_buffer + source_idx * num_vertices;
              atomicAdd(&source_deltas[src_offset], delta);
            });
+         auto delta_accumulation_end_time = std::chrono::high_resolution_clock::now();
+         total_delta_accumulation_time += std::chrono::duration_cast<std::chrono::microseconds>(delta_accumulation_end_time - delta_accumulation_start_time);
        }
      }
+     
+     auto distance_end_time = std::chrono::high_resolution_clock::now();
+     auto distance_duration = std::chrono::duration_cast<std::chrono::microseconds>(distance_end_time - distance_start_time);
    }
    
    // Handle source and destination vertex contributions if include_endpoints is true
@@ -1365,6 +1441,16 @@
    printf("DEBUG: Multisource backward pass completed in %.3f ms\n", total_duration.count() / 1000.0);
    printf("DEBUG: Multisource backward pass completed:\n");
    printf("  - Total time: %.3f ms\n", total_duration.count() / 1000.0);
+   printf("  - Count vertices at d-1: %.3f ms\n", total_count_vertices_time.count() / 1000.0);
+   printf("  - Create frontier arrays: %.3f ms\n", total_create_frontier_arrays_time.count() / 1000.0);
+   printf("  - Create tagged vertices: %.3f ms\n", total_create_tagged_vertices_time.count() / 1000.0);
+   printf("  - Edge enumeration: %.3f ms\n", total_edge_enumeration_time.count() / 1000.0);
+   printf("  - Buffer extraction: %.3f ms\n", total_extraction_time.count() / 1000.0);
+   printf("  - Sorting: %.3f ms\n", total_sort_time.count() / 1000.0);
+   printf("  - Count unique pairs: %.3f ms\n", total_count_unique_time.count() / 1000.0);
+   printf("  - Reduce by key: %.3f ms\n", total_reduce_by_key_time.count() / 1000.0);
+   printf("  - Centrality updates: %.3f ms\n", total_centrality_update_time.count() / 1000.0);
+   printf("  - Delta accumulation: %.3f ms\n", total_delta_accumulation_time.count() / 1000.0);
    printf("  - Total memory allocated: %zu bytes (%.2f MB)\n", 
           delta_buffer_size, delta_buffer_size / (1024.0 * 1024.0));
    printf("  - Processed %zu sources simultaneously using edge enumeration\n", num_sources);
