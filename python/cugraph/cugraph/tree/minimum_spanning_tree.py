@@ -75,7 +75,7 @@ def _maximum_spanning_tree_subgraph(G):
 
 
 def minimum_spanning_tree(
-        G: Graph, weight=None, algorithm="boruvka", ignore_nan=False
+    G: Graph, weight=None, algorithm="boruvka", ignore_nan=False
 ) -> Graph:
     """
     Returns a minimum spanning tree (MST) or forest (MSF) on an undirected

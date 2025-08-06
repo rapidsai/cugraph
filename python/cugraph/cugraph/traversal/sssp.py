@@ -193,9 +193,7 @@ def sssp(
         G, source, method, directed, return_predecessors, unweighted, overwrite, indices
     )
 
-    (G, input_type) = ensure_cugraph_obj(
-        G, matrix_graph_type=Graph(directed=directed)
-    )
+    (G, input_type) = ensure_cugraph_obj(G, matrix_graph_type=Graph(directed=directed))
 
     if not G.is_weighted():
         err_msg = (
@@ -272,9 +270,11 @@ def filter_unreachable(df):
         raise TypeError("distance type unsupported")
 
 
-@deprecated("deprecated as of 25.10. This function was to match "
-            "NetworkX which is no longer needed, use networkx directly with"
-            "the ``nx-cugraph`` backend. See:  https://rapids.ai/nx-cugraph/")
+@deprecated(
+    "deprecated as of 25.10. This function was to match "
+    "NetworkX which is no longer needed, use networkx directly with"
+    "the ``nx-cugraph`` backend. See:  https://rapids.ai/nx-cugraph/"
+)
 def shortest_path(
     G,
     source=None,

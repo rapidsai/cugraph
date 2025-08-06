@@ -33,7 +33,7 @@ def _ensure_args(api_name, G, directed, connection, return_labels):
     """
     G_type = type(G)
     # Check for Graph-type inputs and set defaults if unset
-    if (G_type == Graph):
+    if G_type == Graph:
         exc_value = "'%s' cannot be specified for a Graph-type input"
         if directed is not None:
             raise TypeError(exc_value % "directed")
@@ -168,9 +168,7 @@ def weakly_connected_components(G, directed=None, connection=None, return_labels
         "weakly_connected_components", G, directed, connection, return_labels
     )
 
-    (G, input_type) = ensure_cugraph_obj(
-        G, matrix_graph_type=Graph(directed=directed)
-    )
+    (G, input_type) = ensure_cugraph_obj(G, matrix_graph_type=Graph(directed=directed))
 
     if G.is_directed():
         raise ValueError("input graph must be undirected")
@@ -271,9 +269,7 @@ def strongly_connected_components(
         "strongly_connected_components", G, directed, connection, return_labels
     )
 
-    (G, input_type) = ensure_cugraph_obj(
-        G, matrix_graph_type=Graph(directed=directed)
-    )
+    (G, input_type) = ensure_cugraph_obj(G, matrix_graph_type=Graph(directed=directed))
 
     # Renumber the vertices so that they are contiguous (required)
     # FIXME: Remove 'renumbering' once the algo leverage the CAPI graph

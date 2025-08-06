@@ -11,10 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.utilities import (
-    renumber_vertex_pair,
-    ensure_valid_dtype
-)
+from cugraph.utilities import renumber_vertex_pair, ensure_valid_dtype
 import cudf
 from warnings import deprecated
 
@@ -143,9 +140,11 @@ def cosine(
     return df
 
 
-@deprecated("deprecated as of 25.10. This function was to match "
-            "NetworkX which is no longer needed, use networkx directly with"
-            "the ``nx-cugraph`` backend. See:  https://rapids.ai/nx-cugraph/")
+@deprecated(
+    "deprecated as of 25.10. This function was to match "
+    "NetworkX which is no longer needed, use networkx directly with"
+    "the ``nx-cugraph`` backend. See:  https://rapids.ai/nx-cugraph/"
+)
 def cosine_coefficient(
     G: Graph,
     ebunch: cudf.DataFrame = None,

@@ -20,11 +20,7 @@ import warnings
 
 
 def hits(
-        G: Graph,
-        max_iter=100,
-        tol=1.0e-5,
-        nstart=None,
-        normalized=True
+    G: Graph, max_iter=100, tol=1.0e-5, nstart=None, normalized=True
 ) -> cudf.DataFrame:
     """
     Compute HITS hubs and authorities values for each vertex

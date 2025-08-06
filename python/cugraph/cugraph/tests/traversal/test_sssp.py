@@ -353,9 +353,7 @@ def test_sssp_edgevals(
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize(
-    "cugraph_input_type", utils.MATRIX_INPUT_TYPES
-)
+@pytest.mark.parametrize("cugraph_input_type", utils.MATRIX_INPUT_TYPES)
 def test_sssp_edgevals_nonnative_inputs(
     benchmark, single_dataset_source_goldenresults_weighted, cugraph_input_type
 ):

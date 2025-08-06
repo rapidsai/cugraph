@@ -162,9 +162,7 @@ def bfs(
     (start, directed) = _ensure_args(G, start, i_start, directed)
 
     # FIXME: allow nx_weight_attr to be specified
-    (G, input_type) = ensure_cugraph_obj(
-        G, matrix_graph_type=Graph(directed=directed)
-    )
+    (G, input_type) = ensure_cugraph_obj(G, matrix_graph_type=Graph(directed=directed))
 
     # The BFS C++ extension assumes the start vertex is a cudf.Series object,
     # and operates on internal vertex IDs if renumbered.

@@ -337,9 +337,7 @@ def test_weak_cc(benchmark, dataset_nxresults_weak, cugraph_input_type):
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize(
-    "cugraph_input_type", utils.MATRIX_INPUT_TYPES
-)
+@pytest.mark.parametrize("cugraph_input_type", utils.MATRIX_INPUT_TYPES)
 def test_weak_cc_nonnative_inputs(
     benchmark, single_dataset_nxresults_weak, cugraph_input_type
 ):
@@ -403,9 +401,7 @@ def test_strong_cc(benchmark, dataset_nxresults_strong, cugraph_input_type):
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize(
-    "cugraph_input_type", utils.MATRIX_INPUT_TYPES
-)
+@pytest.mark.parametrize("cugraph_input_type", utils.MATRIX_INPUT_TYPES)
 def test_strong_cc_nonnative_inputs(
     benchmark, single_dataset_nxresults_strong, cugraph_input_type
 ):

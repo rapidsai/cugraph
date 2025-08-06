@@ -268,9 +268,7 @@ def test_directed_graph_check(read_csv, use_weight):
 
     vertex_pair = vertex_pair[:5]
     with pytest.raises(ValueError):
-        cugraph.sorensen(
-            G1, vertex_pair, use_weight=use_weight
-        )
+        cugraph.sorensen(G1, vertex_pair, use_weight=use_weight)
 
 
 @pytest.mark.sg
