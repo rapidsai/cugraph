@@ -1116,22 +1116,45 @@
      // Count total vertices at distance d-1 across all sources - PARALLEL VERSION
      rmm::device_uvector<size_t> vertices_per_source_device(num_sources, handle.get_stream());
      
-     // Parallel count for all sources at once - USING THRUST::COUNT_IF
-     thrust::for_each(
-       handle.get_thrust_policy(),
-       thrust::make_counting_iterator<size_t>(0),
-       thrust::make_counting_iterator<size_t>(num_sources),
-       [distances_2d = distances_2d.data(), num_vertices, d, vertices_per_source = vertices_per_source_device.data()] 
-       __device__(size_t source_idx) {
-         const vertex_t* distances = distances_2d + source_idx * num_vertices;
-         // Use thrust::count_if for each source (more efficient than manual loop)
-         size_t count = thrust::count_if(
-           thrust::seq,  // Use sequential execution within each thread
-           distances,
-           distances + num_vertices,
-           [d] __device__(vertex_t dist) { return dist == d - 1; });
-         vertices_per_source[source_idx] = count;
-       });
+      // TRUE VERTEX-LEVEL PARALLELISM: Each thread processes exactly 1 vertex
+      // Create temporary buffer for vertex-level results
+      rmm::device_uvector<int> vertex_results(num_sources * num_vertices, handle.get_stream());
+      
+      // Transform: Each thread processes 1 vertex for 1 source
+      thrust::transform(
+        handle.get_thrust_policy(),
+        thrust::make_counting_iterator<size_t>(0),
+        thrust::make_counting_iterator<size_t>(num_sources * num_vertices),
+        vertex_results.begin(),
+        [distances_2d = distances_2d.data(), num_vertices, d] __device__(size_t global_idx) {
+          size_t source_idx = global_idx / num_vertices;
+          vertex_t v = global_idx % num_vertices;
+          const vertex_t* distances = distances_2d + source_idx * num_vertices;
+          return (distances[v] == d - 1) ? 1 : 0;
+        });
+      
+      // SIMPLER APPROACH: Use for_each with atomic operations instead of reduce_by_key
+      // Initialize counts to zero
+      thrust::fill(handle.get_thrust_policy(),
+                   vertices_per_source_device.begin(),
+                   vertices_per_source_device.end(),
+                   0);
+      
+      // Count vertices at distance d-1 for each source using atomic operations
+      thrust::for_each(
+        handle.get_thrust_policy(),
+        thrust::make_counting_iterator<size_t>(0),
+        thrust::make_counting_iterator<size_t>(num_sources * num_vertices),
+        [distances_2d = distances_2d.data(), num_vertices, d,
+         vertices_per_source = vertices_per_source_device.data()] 
+        __device__(size_t global_idx) {
+          size_t source_idx = global_idx / num_vertices;
+          vertex_t v = global_idx % num_vertices;
+          const vertex_t* distances = distances_2d + source_idx * num_vertices;
+          if (distances[v] == d - 1) {
+            atomicAdd(&vertices_per_source[source_idx], size_t(1));
+          }
+        });
      
      // Copy back to host and compute total
      std::vector<size_t> vertices_per_source(num_sources);
