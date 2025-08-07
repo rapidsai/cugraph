@@ -132,6 +132,7 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
             typename edge_t,
             typename weight_t,
             typename edge_type_t,
+            typename edge_time_t,
             bool store_transposed,
             bool multi_gpu>
   void operator()()
@@ -474,6 +475,7 @@ struct biased_neighbor_sampling_functor : public cugraph::c_api::abstract_functo
             typename edge_t,
             typename weight_t,
             typename edge_type_t,
+            typename edge_time_t,
             bool store_transposed,
             bool multi_gpu>
   void operator()()
@@ -819,6 +821,7 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
             typename edge_t,
             typename weight_t,
             typename edge_type_t,
+            typename edge_time_t,
             bool store_transposed,
             bool multi_gpu>
   void operator()()
