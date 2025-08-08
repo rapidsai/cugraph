@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -624,6 +624,7 @@ __global__ static __launch_bounds__(THREADS6,
                                                                   float* restrict old_dx,
                                                                   float* restrict old_dy,
                                                                   const float* restrict swinging,
+                                                                  const float* restrict mobility,
                                                                   const float speed,
                                                                   const int n)
 {
@@ -636,7 +637,8 @@ __global__ static __launch_bounds__(THREADS6,
     old_dy[i]      = dy;
 
     // Update positions
-    float factor = speed / (1.0 + sqrt(speed * swinging[i]));
+    float mobility_factor = mobility ? mobility[i] : 1.0f;
+    float factor          = mobility_factor * speed / (1.0 + sqrt(speed * swinging[i]));
     Y_x[i] += dx * factor;
     Y_y[i] += dy * factor;
   }

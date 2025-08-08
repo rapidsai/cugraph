@@ -46,11 +46,14 @@ void exact_fa2(raft::handle_t const& handle,
                bool outbound_attraction_distribution         = true,
                bool lin_log_mode                             = false,
                bool prevent_overlapping                      = false,
+               float* vertex_radius                          = nullptr,
+               const float overlap_scaling_ratio             = 100.0,
                const float edge_weight_influence             = 1.0,
                const float jitter_tolerance                  = 1.0,
                const float scaling_ratio                     = 2.0,
                bool strong_gravity_mode                      = false,
                const float gravity                           = 1.0,
+               float* mobility                               = nullptr,
                bool verbose                                  = false,
                internals::GraphBasedDimRedCallback* callback = nullptr)
 {
@@ -126,8 +129,17 @@ void exact_fa2(raft::handle_t const& handle,
     thrust::fill(handle.get_thrust_policy(), traction.begin(), traction.end(), 0.f);
 
     // Exact repulsion
-    apply_repulsion<vertex_t>(
-      pos, pos + n, d_repel, d_repel + n, d_mass, scaling_ratio, n, stream_view.value());
+    apply_repulsion<vertex_t>(pos,
+                              pos + n,
+                              d_repel,
+                              d_repel + n,
+                              d_mass,
+                              scaling_ratio,
+                              prevent_overlapping,
+                              vertex_radius,
+                              overlap_scaling_ratio,
+                              n,
+                              stream_view.value());
 
     apply_gravity<vertex_t>(pos,
                             pos + n,
@@ -153,6 +165,8 @@ void exact_fa2(raft::handle_t const& handle,
                                                  lin_log_mode,
                                                  edge_weight_influence,
                                                  outbound_att_compensation,
+                                                 prevent_overlapping,
+                                                 vertex_radius,
                                                  stream_view.value());
 
     compute_local_speed(d_repel,
@@ -182,6 +196,7 @@ void exact_fa2(raft::handle_t const& handle,
                            d_old_forces,
                            d_old_forces + n,
                            d_swinging,
+                           mobility,
                            speed,
                            n,
                            stream_view.value());

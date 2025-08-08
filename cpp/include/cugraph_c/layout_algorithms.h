@@ -62,6 +62,11 @@ typedef struct {
  *                               Makes clusters more tight.
  * @param [in]   prevent_overlapping
  *                               Prevent nodes to overlap.
+ * @param [in]   vertex_radius
+ *                               Radius of each vertex, used when prevent_overlapping is set.
+ * @param [in]   overlap_scaling_ratio
+ *                               When prevent_overlapping is set, scales the repulsion force
+ * between two nodes that are overlapping.
  * @param [in]   edge_weight_influence
  *                               How much influence you give to the edges weight.
  *                               0 is “no influence” and 1 is “normal”.
@@ -83,6 +88,8 @@ typedef struct {
  *                               center more. It is so strong that it can sometimes dominate other
  * forces.
  * @param [in]   gravity         Attracts nodes to the center. Prevents islands from drifting away.
+ * @param [in]   mobility        Mobility of each vertex, used to scale the displacement at each
+ * iteration.
  * @param [in]   verbose         Output convergence info at each interation.
  * @param [in]   do_expensive_check
  *                               A flag to run expensive checks for input arguments (if set to true)
@@ -100,6 +107,8 @@ cugraph_error_code_t cugraph_force_atlas2(const cugraph_resource_handle_t* handl
                                           bool_t outbound_attraction_distribution,
                                           bool_t lin_log_mode,
                                           bool_t prevent_overlapping,
+                                          cugraph_type_erased_device_array_view_t* vertex_radius,
+                                          double overlap_scaling_ratio,
                                           double edge_weight_influence,
                                           double jitter_tolerance,
                                           bool_t barnes_hut_optimize,
@@ -107,6 +116,7 @@ cugraph_error_code_t cugraph_force_atlas2(const cugraph_resource_handle_t* handl
                                           double scaling_ratio,
                                           bool_t strong_gravity_mode,
                                           double gravity,
+                                          cugraph_type_erased_device_array_view_t* mobility,
                                           bool_t verbose,
                                           bool_t do_expensive_check,
                                           cugraph_layout_result_t** result,
