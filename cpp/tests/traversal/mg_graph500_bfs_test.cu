@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include "detail/graph500_forest_pruning_utils.cuh"
 #include "detail/graph_partition_utils.cuh"
 #include "detail/shuffle_wrappers.hpp"
 #include "nbr_unrenumber_cache.cuh"
@@ -54,11 +55,11 @@
 #include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
 
-#include <cub/cub.cuh>
 #include <thrust/merge.h>
 #include <thrust/set_operations.h>
 #include <thrust/sort.h>
 #include <thrust/tabulate.h>
+#include <thrust/transform.h>
 #include <thrust/unique.h>
 
 #include <gtest/gtest.h>
@@ -72,495 +73,7 @@ struct Graph500_BFS_Usecase {
   bool validate{true};
 };
 
-template <typename vertex_t>
-struct hash_vertex_pair_t {
-  using result_type = typename cuco::murmurhash3_32<vertex_t>::result_type;
-
-  __device__ result_type operator()(thrust::tuple<vertex_t, vertex_t> const& pair) const
-  {
-    cuco::murmurhash3_32<vertex_t> hash_func{};
-    auto hash0 = hash_func(thrust::get<0>(pair));
-    auto hash1 = hash_func(thrust::get<1>(pair));
-    return hash0 + hash1;
-  }
-};
-
 void init_nccl_env_variables() {}
-
-// for vertices that belong to a 2-core, parents[v] = v
-// for vertices that do not belong to any 2-core but reachable from 2-cores, parents[v] is updated
-// to the parent of v in the tree spanning from a vertex in a 2-core. for vertices unreachable
-// from any 2-core, parents[v] = invalid_vertex
-template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
-rmm::device_uvector<vertex_t> find_trees_from_2cores(
-  raft::handle_t const& handle,
-  cugraph::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& mg_graph_view,
-  vertex_t invalid_vertex)
-{
-  auto& comm = handle.get_comms();
-
-  rmm::device_uvector<vertex_t> parents(mg_graph_view.local_vertex_partition_range_size(),
-                                        handle.get_stream());
-  thrust::fill(handle.get_thrust_policy(), parents.begin(), parents.end(), invalid_vertex);
-
-  rmm::device_uvector<bool> in_2cores(mg_graph_view.local_vertex_partition_range_size(),
-                                      handle.get_stream());
-  {
-    rmm::device_uvector<edge_t> core_numbers(mg_graph_view.local_vertex_partition_range_size(),
-                                             handle.get_stream());
-    cugraph::core_number(handle,
-                         mg_graph_view,
-                         core_numbers.data(),
-                         cugraph::k_core_degree_type_t::OUT,
-                         size_t{2},
-                         size_t{2});
-    thrust::transform(handle.get_thrust_policy(),
-                      core_numbers.begin(),
-                      core_numbers.end(),
-                      in_2cores.begin(),
-                      cuda::proclaim_return_type<bool>(
-                        [] __device__(auto core_number) { return core_number >= 2; }));
-  }
-  thrust::transform_if(
-    handle.get_thrust_policy(),
-    thrust::make_counting_iterator(mg_graph_view.local_vertex_partition_range_first()),
-    thrust::make_counting_iterator(mg_graph_view.local_vertex_partition_range_last()),
-    in_2cores.begin(),
-    parents.begin(),
-    cuda::proclaim_return_type<vertex_t>([] __device__(auto v) { return v; }),
-    cuda::proclaim_return_type<bool>([] __device__(auto in_2core) { return in_2core; }));
-
-  assert(mg_graph_view.has_edge_mask() == false);
-  cugraph::edge_src_property_t<vertex_t, bool> edge_src_reachable_from_2cores(handle,
-                                                                              mg_graph_view);
-  cugraph::update_edge_src_property(
-    handle, mg_graph_view, in_2cores.begin(), edge_src_reachable_from_2cores.mutable_view());
-  cugraph::edge_dst_property_t<vertex_t, bool> edge_dst_reachable_from_2cores(handle,
-                                                                              mg_graph_view);
-  cugraph::update_edge_dst_property(
-    handle, mg_graph_view, in_2cores.begin(), edge_dst_reachable_from_2cores.mutable_view());
-  in_2cores.resize(0, handle.get_stream());
-  in_2cores.shrink_to_fit(handle.get_stream());
-
-  cugraph::edge_property_t<edge_t, bool> edge_mask(handle, mg_graph_view);
-  cugraph::transform_e(
-    handle,
-    mg_graph_view,
-    edge_src_reachable_from_2cores.view(),
-    edge_dst_reachable_from_2cores.view(),
-    cugraph::edge_dummy_property_t{}.view(),
-    cuda::proclaim_return_type<bool>(
-      [] __device__(auto, auto, auto src_reachable, auto dst_reachable, auto) {
-        return !src_reachable ||
-               !dst_reachable;  // mask-out the edges in 2-cores (for faster iteration)
-      }),
-    edge_mask.mutable_view());
-  auto tmp_graph_view = mg_graph_view;
-  tmp_graph_view.attach_edge_mask(edge_mask.view());
-
-  while (true) {
-    auto vertex_pairs = cugraph::extract_transform_if_e(
-      handle,
-      tmp_graph_view,
-      edge_src_reachable_from_2cores.view(),
-      edge_dst_reachable_from_2cores.view(),
-      cugraph::edge_dummy_property_t{}.view(),
-      cuda::proclaim_return_type<thrust::tuple<vertex_t, vertex_t>>(
-        [] __device__(auto src, auto dst, auto, auto, auto) {
-          return thrust::make_tuple(src, dst);
-        }),
-      cuda::proclaim_return_type<bool>(
-        [] __device__(auto, auto, auto src_reachable, auto dst_reachable, auto) {
-          return (src_reachable == false) && (dst_reachable == true);
-        }));
-    auto tot_vertex_pair_count =
-      cugraph::host_scalar_allreduce(comm,
-                                     cugraph::size_dataframe_buffer(vertex_pairs),
-                                     raft::comms::op_t::SUM,
-                                     handle.get_stream());
-    if (tot_vertex_pair_count > 0) {
-      vertex_pairs = cugraph::shuffle_local_edge_src_value_pairs<vertex_t, vertex_t>(
-        handle,
-        std::move(std::get<0>(vertex_pairs)),
-        std::move(std::get<1>(vertex_pairs)),
-        tmp_graph_view.vertex_partition_range_lasts(),
-        store_transposed);  // note std::get<0>(vertex_pairs) can't have duplicates as these
-                            // vertices belong to a forest
-      thrust::for_each(
-        handle.get_thrust_policy(),
-        cugraph::get_dataframe_buffer_begin(vertex_pairs),
-        cugraph::get_dataframe_buffer_end(vertex_pairs),
-        cuda::proclaim_return_type<void>(
-          [parents = raft::device_span<vertex_t>(parents.data(), parents.size()),
-           v_first = tmp_graph_view.local_vertex_partition_range_first()] __device__(auto pair) {
-            parents[thrust::get<0>(pair) - v_first] = thrust::get<1>(pair);
-          }));
-      std::get<1>(vertex_pairs).resize(0, handle.get_stream());
-      std::get<1>(vertex_pairs).shrink_to_fit(handle.get_stream());
-
-      auto new_reachable_vertices = std::move(std::get<0>(vertex_pairs));
-      thrust::sort(
-        handle.get_thrust_policy(), new_reachable_vertices.begin(), new_reachable_vertices.end());
-      fill_edge_src_property(handle,
-                             tmp_graph_view,
-                             new_reachable_vertices.begin(),
-                             new_reachable_vertices.end(),
-                             edge_src_reachable_from_2cores.mutable_view(),
-                             true);
-      fill_edge_dst_property(handle,
-                             tmp_graph_view,
-                             new_reachable_vertices.begin(),
-                             new_reachable_vertices.end(),
-                             edge_dst_reachable_from_2cores.mutable_view(),
-                             true);
-    } else {
-      break;
-    }
-  }
-
-  return parents;
-}
-
-template <typename vertex_t,
-          typename edge_t,
-          typename weight_t,
-          typename edge_type_t,
-          typename edge_time_t,
-          bool store_transposed,
-          bool multi_gpu>
-std::tuple<cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu>,
-           rmm::device_uvector<vertex_t>,  // mg_pruned_graph_renumber_map
-           rmm::device_uvector<vertex_t>,  // mg_graph_to_pruned_graph_map (mg_graph v_offset to
-                                           // mg_pruned_graph v_offset)
-           rmm::device_uvector<vertex_t>,  // mg_pruned_graph_to_graph_map (mg_pruned_graph
-                                           // v_offset to mg_graph v_offset)
-           cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu>,
-           rmm::device_uvector<vertex_t>,  // mg_isolated_trees_renumber_map
-           rmm::device_uvector<vertex_t>,  // mg_graph_to_isolated_trees_map (mg_graph v_offset to
-                                           // mg_isolated_trees v_offset)
-           rmm::device_uvector<
-             vertex_t>>  // mg_isolated_trees_to_graph_map (mg_isolated_trees v_offset to mg_graph
-                         // v_offset)
-extract_forest_pruned_graph_and_isolated_trees(
-  raft::handle_t const& handle,
-  cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu>&& mg_graph,
-  raft::device_span<vertex_t const> mg_renumber_map,
-  raft::device_span<vertex_t const> parents,
-  vertex_t invalid_vertex,
-  std::optional<cugraph::large_buffer_type_t> large_buffer_type)
-{
-  auto mg_graph_view = mg_graph.view();
-
-  // extract pruned graph edges
-
-  std::vector<rmm::device_uvector<vertex_t>> pruned_graph_src_chunks{};
-  std::vector<rmm::device_uvector<vertex_t>> pruned_graph_dst_chunks{};
-  {
-    size_t constexpr num_chunks{
-      8};  // extract in multiple chunks to reduce peak memory usage (temporaraily store the edge
-           // list in large memory buffer if bfs_usecase.use_large_buffer is set to true)
-    for (size_t i = 0; i < num_chunks; ++i) {
-      pruned_graph_src_chunks.emplace_back(0, handle.get_stream());
-      pruned_graph_dst_chunks.emplace_back(0, handle.get_stream());
-    }
-    cugraph::edge_src_property_t<vertex_t, bool> edge_src_in_2cores(handle, mg_graph_view);
-    cugraph::edge_dst_property_t<vertex_t, bool> edge_dst_in_2cores(handle, mg_graph_view);
-    {
-      rmm::device_uvector<bool> in_2cores(mg_graph_view.local_vertex_partition_range_size(),
-                                          handle.get_stream());
-      auto pair_first = thrust::make_zip_iterator(
-        thrust::make_counting_iterator(mg_graph_view.local_vertex_partition_range_first()),
-        parents.begin());
-      thrust::transform(handle.get_thrust_policy(),
-                        pair_first,
-                        pair_first + mg_graph_view.local_vertex_partition_range_size(),
-                        in_2cores.begin(),
-                        cuda::proclaim_return_type<bool>([] __device__(auto pair) {
-                          return thrust::get<0>(pair) == thrust::get<1>(pair);
-                        }));
-      cugraph::update_edge_src_property(
-        handle, mg_graph_view, in_2cores.begin(), edge_src_in_2cores.mutable_view());
-      cugraph::update_edge_dst_property(
-        handle, mg_graph_view, in_2cores.begin(), edge_dst_in_2cores.mutable_view());
-    }
-    for (size_t i = 0; i < num_chunks; ++i) {
-      cugraph::edge_property_t<edge_t, bool> edge_mask(handle, mg_graph_view);
-      cugraph::transform_e(
-        handle,
-        mg_graph_view,
-        edge_src_in_2cores.view(),
-        edge_dst_in_2cores.view(),
-        cugraph::edge_dummy_property_t{}.view(),
-        cuda::proclaim_return_type<bool>(
-          [i, num_chunks, hash_func = hash_vertex_pair_t<vertex_t>{}] __device__(
-            auto src, auto dst, auto src_in_2cores, auto dst_in_2cores, auto) {
-            return (src_in_2cores && dst_in_2cores) &&
-                   (static_cast<size_t>(hash_func(thrust::make_tuple(src, dst)) % num_chunks) == i);
-          }),
-        edge_mask.mutable_view());
-      mg_graph_view.attach_edge_mask(edge_mask.view());
-      auto pruned_graph_edges = cugraph::decompress_to_edgelist<vertex_t,
-                                                                edge_t,
-                                                                weight_t,
-                                                                edge_type_t,
-                                                                store_transposed,
-                                                                multi_gpu>(
-        handle,
-        mg_graph_view,
-        std::nullopt,
-        std::nullopt,
-        std::nullopt,
-        std::make_optional<raft::device_span<vertex_t const>>(mg_renumber_map.data(),
-                                                              mg_renumber_map.size()),
-        large_buffer_type);
-      mg_graph_view.clear_edge_mask();
-      pruned_graph_src_chunks[i] = std::move(std::get<0>(pruned_graph_edges));
-      pruned_graph_dst_chunks[i] = std::move(std::get<1>(pruned_graph_edges));
-    }
-  }
-
-  // extract isolated trees
-
-  rmm::device_uvector<vertex_t> isolated_tree_edge_srcs(0, handle.get_stream());
-  rmm::device_uvector<vertex_t> isolated_tree_edge_dsts(0, handle.get_stream());
-  {
-    rmm::device_uvector<bool> reachable_from_2cores(
-      mg_graph_view.local_vertex_partition_range_size(), handle.get_stream());
-    thrust::transform(handle.get_thrust_policy(),
-                      parents.begin(),
-                      parents.end(),
-                      reachable_from_2cores.begin(),
-                      cuda::proclaim_return_type<bool>([invalid_vertex] __device__(auto parent) {
-                        return parent != invalid_vertex;
-                      }));
-    cugraph::edge_src_property_t<vertex_t, bool> edge_src_reachable_from_2cores(handle,
-                                                                                mg_graph_view);
-    cugraph::update_edge_src_property(handle,
-                                      mg_graph_view,
-                                      reachable_from_2cores.begin(),
-                                      edge_src_reachable_from_2cores.mutable_view());
-    cugraph::edge_property_t<edge_t, bool> edge_mask(handle, mg_graph_view);
-    cugraph::transform_e(
-      handle,
-      mg_graph_view,
-      edge_src_reachable_from_2cores.view(),
-      cugraph::edge_dst_dummy_property_t{}.view(),
-      cugraph::edge_dummy_property_t{}.view(),
-      cuda::proclaim_return_type<bool>(
-        [] __device__(auto, auto, auto src_reachable, auto, auto) { return !src_reachable; }),
-      edge_mask.mutable_view());
-    mg_graph_view.attach_edge_mask(edge_mask.view());
-    auto isolated_tree_edges = cugraph::
-      decompress_to_edgelist<vertex_t, edge_t, weight_t, edge_type_t, store_transposed, multi_gpu>(
-        handle,
-        mg_graph_view,
-        std::nullopt,
-        std::nullopt,
-        std::nullopt,
-        std::make_optional<raft::device_span<vertex_t const>>(mg_renumber_map.data(),
-                                                              mg_renumber_map.size()),
-        large_buffer_type);
-    isolated_tree_edge_srcs = std::move(std::get<0>(isolated_tree_edges));
-    isolated_tree_edge_dsts = std::move(std::get<1>(isolated_tree_edges));
-  }
-
-  // clear mg_graph
-
-  mg_graph = cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu>(handle);
-
-  // create the forest pruned graph
-
-  cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu> mg_pruned_graph(handle);
-  rmm::device_uvector<vertex_t> mg_pruned_graph_renumber_map(0, handle.get_stream());
-  {
-    std::optional<rmm::device_uvector<vertex_t>> tmp{};
-    std::tie(
-      mg_pruned_graph, std::ignore, std::ignore, std::ignore, std::ignore, std::ignore, tmp) =
-      cugraph::create_graph_from_edgelist<vertex_t,
-                                          edge_t,
-                                          weight_t,
-                                          edge_type_t,
-                                          edge_time_t,
-                                          store_transposed,
-                                          multi_gpu>(
-        handle,
-        std::nullopt,
-        std::move(pruned_graph_src_chunks),
-        std::move(pruned_graph_dst_chunks),
-        std::nullopt,
-        std::nullopt,
-        std::nullopt,
-        std::nullopt,
-        std::nullopt,
-        cugraph::graph_properties_t{true /* symmetric */, false /* multi-graph */},
-        true);
-    mg_pruned_graph_renumber_map = std::move(*tmp);
-  }
-
-  // create the isolated trees graph
-
-  cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu> mg_isolated_trees(handle);
-  rmm::device_uvector<vertex_t> mg_isolated_trees_renumber_map(0, handle.get_stream());
-  {
-    std::optional<rmm::device_uvector<vertex_t>> tmp{};
-    std::tie(
-      mg_isolated_trees, std::ignore, std::ignore, std::ignore, std::ignore, std::ignore, tmp) =
-      cugraph::create_graph_from_edgelist<vertex_t,
-                                          edge_t,
-                                          weight_t,
-                                          edge_type_t,
-                                          edge_time_t,
-                                          store_transposed,
-                                          multi_gpu>(
-        handle,
-        std::nullopt,
-        std::move(isolated_tree_edge_srcs),
-        std::move(isolated_tree_edge_dsts),
-        std::nullopt,
-        std::nullopt,
-        std::nullopt,
-        std::nullopt,
-        std::nullopt,
-        cugraph::graph_properties_t{true /* symmetric */, false /* multi-graph */},
-        true);
-    mg_graph_view.clear_edge_mask();
-    mg_isolated_trees_renumber_map = std::move(*tmp);
-  }
-
-  // update v_offset mappings between mg_graph and mg_isolated_trees & mg_pruned_graph
-
-  rmm::device_uvector<vertex_t> mg_graph_to_isolated_trees_map(0, handle.get_stream());
-  rmm::device_uvector<vertex_t> mg_isolated_trees_to_graph_map(0, handle.get_stream());
-  {
-    // mg_graph_to_isolated_trees_map
-
-    rmm::device_uvector<vertex_t> sorted_vertices(mg_isolated_trees_renumber_map.size(),
-                                                  handle.get_stream());
-    thrust::copy(handle.get_thrust_policy(),
-                 mg_isolated_trees_renumber_map.begin(),
-                 mg_isolated_trees_renumber_map.end(),
-                 sorted_vertices.begin());
-    rmm::device_uvector<vertex_t> indices(sorted_vertices.size(), handle.get_stream());
-    thrust::sequence(handle.get_thrust_policy(), indices.begin(), indices.end(), vertex_t{0});
-    thrust::sort_by_key(
-      handle.get_thrust_policy(), sorted_vertices.begin(), sorted_vertices.end(), indices.begin());
-    mg_graph_to_isolated_trees_map.resize(mg_renumber_map.size(), handle.get_stream());
-    thrust::transform(handle.get_thrust_policy(),
-                      mg_renumber_map.begin(),
-                      mg_renumber_map.end(),
-                      mg_graph_to_isolated_trees_map.begin(),
-                      [sorted_vertices = raft::device_span<vertex_t const>(sorted_vertices.data(),
-                                                                           sorted_vertices.size()),
-                       indices = raft::device_span<vertex_t const>(indices.data(), indices.size()),
-                       invalid_vertex] __device__(auto v) {
-                        auto it = thrust::lower_bound(
-                          thrust::seq, sorted_vertices.begin(), sorted_vertices.end(), v);
-                        if ((it == sorted_vertices.end()) || (*it != v)) {
-                          return invalid_vertex;
-                        } else {
-                          return indices[thrust::distance(sorted_vertices.begin(), it)];
-                        }
-                      });
-
-    // mg_isolated_trees_to_graph_map
-
-    sorted_vertices.resize(mg_renumber_map.size(), handle.get_stream());
-    thrust::copy(handle.get_thrust_policy(),
-                 mg_renumber_map.begin(),
-                 mg_renumber_map.end(),
-                 sorted_vertices.begin());
-    indices.resize(sorted_vertices.size(), handle.get_stream());
-    thrust::sequence(handle.get_thrust_policy(), indices.begin(), indices.end(), vertex_t{0});
-    thrust::sort_by_key(
-      handle.get_thrust_policy(), sorted_vertices.begin(), sorted_vertices.end(), indices.begin());
-    mg_isolated_trees_to_graph_map.resize(mg_isolated_trees_renumber_map.size(),
-                                          handle.get_stream());
-    thrust::transform(
-      handle.get_thrust_policy(),
-      mg_isolated_trees_renumber_map.begin(),
-      mg_isolated_trees_renumber_map.end(),
-      mg_isolated_trees_to_graph_map.begin(),
-      [sorted_vertices =
-         raft::device_span<vertex_t const>(sorted_vertices.data(), sorted_vertices.size()),
-       indices =
-         raft::device_span<vertex_t const>(indices.data(), indices.size())] __device__(auto v) {
-        auto it =
-          thrust::lower_bound(thrust::seq, sorted_vertices.begin(), sorted_vertices.end(), v);
-        assert((it != sorted_vertices.end()) && (*it == v));
-        return indices[thrust::distance(sorted_vertices.begin(), it)];
-      });
-  }
-
-  rmm::device_uvector<vertex_t> mg_graph_to_pruned_graph_map(0, handle.get_stream());
-  rmm::device_uvector<vertex_t> mg_pruned_graph_to_graph_map(0, handle.get_stream());
-  {
-    // mg_graph_to_pruned_graph_map
-
-    rmm::device_uvector<vertex_t> sorted_vertices(mg_pruned_graph_renumber_map.size(),
-                                                  handle.get_stream());
-    thrust::copy(handle.get_thrust_policy(),
-                 mg_pruned_graph_renumber_map.begin(),
-                 mg_pruned_graph_renumber_map.end(),
-                 sorted_vertices.begin());
-    rmm::device_uvector<vertex_t> indices(sorted_vertices.size(), handle.get_stream());
-    thrust::sequence(handle.get_thrust_policy(), indices.begin(), indices.end(), vertex_t{0});
-    thrust::sort_by_key(
-      handle.get_thrust_policy(), sorted_vertices.begin(), sorted_vertices.end(), indices.begin());
-    mg_graph_to_pruned_graph_map.resize(mg_renumber_map.size(), handle.get_stream());
-    thrust::transform(handle.get_thrust_policy(),
-                      mg_renumber_map.begin(),
-                      mg_renumber_map.end(),
-                      mg_graph_to_pruned_graph_map.begin(),
-                      [sorted_vertices = raft::device_span<vertex_t const>(sorted_vertices.data(),
-                                                                           sorted_vertices.size()),
-                       indices = raft::device_span<vertex_t const>(indices.data(), indices.size()),
-                       invalid_vertex] __device__(auto v) {
-                        auto it = thrust::lower_bound(
-                          thrust::seq, sorted_vertices.begin(), sorted_vertices.end(), v);
-                        if ((it == sorted_vertices.end()) || (*it != v)) {
-                          return invalid_vertex;
-                        } else {
-                          return indices[thrust::distance(sorted_vertices.begin(), it)];
-                        }
-                      });
-
-    // mg_pruned_graph_to_graph_map
-
-    sorted_vertices.resize(mg_renumber_map.size(), handle.get_stream());
-    thrust::copy(handle.get_thrust_policy(),
-                 mg_renumber_map.begin(),
-                 mg_renumber_map.end(),
-                 sorted_vertices.begin());
-    indices.resize(sorted_vertices.size(), handle.get_stream());
-    thrust::sequence(handle.get_thrust_policy(), indices.begin(), indices.end(), vertex_t{0});
-    thrust::sort_by_key(
-      handle.get_thrust_policy(), sorted_vertices.begin(), sorted_vertices.end(), indices.begin());
-    mg_pruned_graph_to_graph_map.resize(mg_pruned_graph_renumber_map.size(), handle.get_stream());
-    thrust::transform(
-      handle.get_thrust_policy(),
-      mg_pruned_graph_renumber_map.begin(),
-      mg_pruned_graph_renumber_map.end(),
-      mg_pruned_graph_to_graph_map.begin(),
-      [sorted_vertices =
-         raft::device_span<vertex_t const>(sorted_vertices.data(), sorted_vertices.size()),
-       indices =
-         raft::device_span<vertex_t const>(indices.data(), indices.size())] __device__(auto v) {
-        auto it =
-          thrust::lower_bound(thrust::seq, sorted_vertices.begin(), sorted_vertices.end(), v);
-        assert((it != sorted_vertices.end()) && (*it == v));
-        return indices[thrust::distance(sorted_vertices.begin(), it)];
-      });
-  }
-
-  return std::make_tuple(std::move(mg_pruned_graph),
-                         std::move(mg_pruned_graph_renumber_map),
-                         std::move(mg_graph_to_pruned_graph_map),
-                         std::move(mg_pruned_graph_to_graph_map),
-                         std::move(mg_isolated_trees),
-                         std::move(mg_isolated_trees_renumber_map),
-                         std::move(mg_graph_to_isolated_trees_map),
-                         std::move(mg_isolated_trees_to_graph_map));
-}
 
 template <typename input_usecase_t>
 class Tests_GRAPH500_MGBFS
@@ -573,7 +86,7 @@ class Tests_GRAPH500_MGBFS
     init_nccl_env_variables();
 
     size_t pool_size =
-      16;  // note that CUDA_DEVICE_MAX_CONNECTIONS (default: 8) should be set to a value larger
+      12;  // note that CUDA_DEVICE_MAX_CONNECTIONS (default: 8) should be set to a value larger
            // than pool_size to avoid false dependency among different streams
     handle_ = cugraph::test::initialize_mg_handle(pool_size);
 
@@ -641,7 +154,7 @@ class Tests_GRAPH500_MGBFS
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       comm.barrier();
       hr_timer.stop();
-      hr_timer.display_and_clear(std::cerr);
+      hr_timer.display_and_clear(std::cout);
     }
 
     // 2. create a graph & meta data
@@ -691,7 +204,7 @@ class Tests_GRAPH500_MGBFS
         RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
         comm.barrier();
         hr_timer.stop();
-        hr_timer.display_and_clear(std::cerr);
+        hr_timer.display_and_clear(std::cout);
       }
 
       num_input_edges = 0;
@@ -701,7 +214,7 @@ class Tests_GRAPH500_MGBFS
       num_input_edges = cugraph::host_scalar_allreduce(
         comm, num_input_edges, raft::comms::op_t::SUM, handle_->get_stream());
 
-      // 3. create an MG graph
+      // 2-2. create an MG graph
 
       if (cugraph::test::g_perf) {
         RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -758,8 +271,8 @@ class Tests_GRAPH500_MGBFS
         comm, num_edges, raft::comms::op_t::SUM, handle_->get_stream());
 
       cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu> mg_graph(*handle_);
-      std::optional<rmm::device_uvector<vertex_t>> tmp{};
-      std::tie(mg_graph, std::ignore, std::ignore, std::ignore, std::ignore, std::ignore, tmp) =
+      std::optional<rmm::device_uvector<vertex_t>> tmp_map{};
+      std::tie(mg_graph, std::ignore, std::ignore, std::ignore, std::ignore, std::ignore, tmp_map) =
         cugraph::create_graph_from_edgelist<vertex_t,
                                             edge_t,
                                             weight_t,
@@ -778,7 +291,7 @@ class Tests_GRAPH500_MGBFS
           std::nullopt,
           cugraph::graph_properties_t{true /* symmetric */, false /* multi-graph */},
           renumber);
-      mg_renumber_map = std::move(*tmp);
+      mg_renumber_map = std::move(*tmp_map);
       {
         auto mg_graph_view = mg_graph.view();
         auto offsets       = mg_graph_view.vertex_partition_range_offsets();
@@ -787,7 +300,7 @@ class Tests_GRAPH500_MGBFS
         local_vertex_partition_range_last  = mg_graph_view.local_vertex_partition_range_last();
       }
 
-      // 4. Forest pruning
+      // 2-3. Forest pruning
 
       {
         auto mg_graph_view = mg_graph.view();
@@ -813,10 +326,12 @@ class Tests_GRAPH500_MGBFS
       }
 
       std::tie(mg_pruned_graph,
+               std::ignore,
                mg_pruned_graph_renumber_map,
                mg_graph_to_pruned_graph_map,
                mg_pruned_graph_to_graph_map,
                mg_isolated_trees,
+               std::ignore,
                mg_isolated_trees_renumber_map,
                mg_graph_to_isolated_trees_map,
                mg_isolated_trees_to_graph_map) =
@@ -829,6 +344,7 @@ class Tests_GRAPH500_MGBFS
                                                        multi_gpu>(
           *handle_,
           std::move(mg_graph),
+          std::nullopt,
           raft::device_span<vertex_t const>(mg_renumber_map.data(), mg_renumber_map.size()),
           raft::device_span<vertex_t const>(parents.data(), parents.size()),
           invalid_vertex,
@@ -870,7 +386,7 @@ class Tests_GRAPH500_MGBFS
         RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
         comm.barrier();
         hr_timer.stop();
-        hr_timer.display_and_clear(std::cerr);
+        hr_timer.display_and_clear(std::cout);
       }
 
       std::cout << "num_input_edges=" << num_input_edges
@@ -921,7 +437,11 @@ class Tests_GRAPH500_MGBFS
                                                                  handle_->get_stream());
 
     double total_elapsed{0.0};
+    double tteps_sum{0.0};
+    double one_over_tteps_sum{0.0};  // to compute harmonic mean
     for (size_t i = 0; i < (num_warmup_starting_vertices + num_timed_starting_vertices); ++i) {
+      double elapsed{0.0};
+
       thrust::fill(handle_->get_thrust_policy(),
                    d_mg_distances.begin(),
                    d_mg_distances.end(),
@@ -986,64 +506,61 @@ class Tests_GRAPH500_MGBFS
       int subgraph_starting_vertex_vertex_partition_id{starting_vertex_vertex_partition_id};
       vertex_t subgraph_starting_vertex_distance{0};
       vertex_t unrenumbered_subgraph_starting_vertex_parent{};
-      if (reachable_from_2cores && !in_2cores) {
-        if (reachable_from_2cores &&
-            !in_2cores) {  // find the path from starting_vertex to a 2-core
-          if (starting_vertex_vertex_partition_id == vertex_partition_id) {
+      if (reachable_from_2cores && !in_2cores) {  // find the path from starting_vertex to a 2-core
+        if (starting_vertex_vertex_partition_id == vertex_partition_id) {
+          d_mg_unrenumbered_predecessors.set_element_async(
+            starting_vertex - local_vertex_partition_range_first,
+            unrenumbered_starting_vertex,  // Graph 500 requires the predecessor of a starting
+                                           // vertex to be itself
+            handle_->get_stream());
+          d_mg_distances.set_element_to_zero_async(
+            starting_vertex - local_vertex_partition_range_first, handle_->get_stream());
+          handle_->sync_stream();
+        }
+
+        auto unrenumbered_v = unrenumbered_starting_vertex;
+        auto n = starting_vertex_parent;  // reverse the parent child relationship till we reach
+                                          // a 2-core
+        while (true) {
+          assert(v != n);  // in this case, v is already a 2-core vertex
+          ++subgraph_starting_vertex_distance;
+          auto n_vertex_partition_id = static_cast<int>(
+            std::distance(vertex_partition_range_offsets.begin() + 1,
+                          std::upper_bound(vertex_partition_range_offsets.begin() + 1,
+                                           vertex_partition_range_offsets.end(),
+                                           n)));
+          vertex_t unrenumbered_n{};
+          vertex_t nn{};
+          if (n_vertex_partition_id == vertex_partition_id) {
+            unrenumbered_n = mg_renumber_map.element(n - local_vertex_partition_range_first,
+                                                     handle_->get_stream());
+            nn = parents.element(n - local_vertex_partition_range_first, handle_->get_stream());
+          }
+          thrust::tie(unrenumbered_n, nn) = cugraph::host_scalar_bcast(
+            comm,
+            thrust::make_tuple(unrenumbered_n, nn),
+            cugraph::partition_manager::compute_global_comm_rank_from_vertex_partition_id(
+              major_comm_size, minor_comm_size, n_vertex_partition_id),
+            handle_->get_stream());
+
+          if (n == nn) {  // reached a 2-core
+            subgraph_starting_vertex                     = n;
+            subgraph_starting_vertex_vertex_partition_id = n_vertex_partition_id;
+            unrenumbered_subgraph_starting_vertex_parent = unrenumbered_v;
+            break;
+          }
+
+          if (n_vertex_partition_id == vertex_partition_id) {
             d_mg_unrenumbered_predecessors.set_element_async(
-              starting_vertex - local_vertex_partition_range_first,
-              unrenumbered_starting_vertex,  // Graph 500 requires the predecessor of a starting
-                                             // vertex to be itself
-              handle_->get_stream());
-            d_mg_distances.set_element_to_zero_async(
-              starting_vertex - local_vertex_partition_range_first, handle_->get_stream());
+              n - local_vertex_partition_range_first, unrenumbered_v, handle_->get_stream());
+            d_mg_distances.set_element_async(n - local_vertex_partition_range_first,
+                                             subgraph_starting_vertex_distance,
+                                             handle_->get_stream());
             handle_->sync_stream();
           }
 
-          auto unrenumbered_v = unrenumbered_starting_vertex;
-          auto n = starting_vertex_parent;  // reverse the parent child relationship till we reach
-                                            // a 2-core
-          while (true) {
-            assert(v != n);  // in this case, v is already a 2-core vertex
-            ++subgraph_starting_vertex_distance;
-            auto n_vertex_partition_id = static_cast<int>(
-              std::distance(vertex_partition_range_offsets.begin() + 1,
-                            std::upper_bound(vertex_partition_range_offsets.begin() + 1,
-                                             vertex_partition_range_offsets.end(),
-                                             n)));
-            vertex_t unrenumbered_n{};
-            vertex_t nn{};
-            if (n_vertex_partition_id == vertex_partition_id) {
-              unrenumbered_n = mg_renumber_map.element(n - local_vertex_partition_range_first,
-                                                       handle_->get_stream());
-              nn = parents.element(n - local_vertex_partition_range_first, handle_->get_stream());
-            }
-            thrust::tie(unrenumbered_n, nn) = cugraph::host_scalar_bcast(
-              comm,
-              thrust::make_tuple(unrenumbered_n, nn),
-              cugraph::partition_manager::compute_global_comm_rank_from_vertex_partition_id(
-                major_comm_size, minor_comm_size, n_vertex_partition_id),
-              handle_->get_stream());
-
-            if (n == nn) {  // reached a 2-core
-              subgraph_starting_vertex                     = n;
-              subgraph_starting_vertex_vertex_partition_id = n_vertex_partition_id;
-              unrenumbered_subgraph_starting_vertex_parent = unrenumbered_v;
-              break;
-            }
-
-            if (n_vertex_partition_id == vertex_partition_id) {
-              d_mg_unrenumbered_predecessors.set_element_async(
-                n - local_vertex_partition_range_first, unrenumbered_v, handle_->get_stream());
-              d_mg_distances.set_element_async(n - local_vertex_partition_range_first,
-                                               subgraph_starting_vertex_distance,
-                                               handle_->get_stream());
-              handle_->sync_stream();
-            }
-
-            unrenumbered_v = unrenumbered_n;
-            n              = nn;
-          }
+          unrenumbered_v = unrenumbered_n;
+          n              = nn;
         }
       }
 
@@ -1124,15 +641,15 @@ class Tests_GRAPH500_MGBFS
       if (cugraph::test::g_perf) {
         RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
         comm.barrier();
-        auto elapsed = hr_timer.stop();
+        elapsed = hr_timer.stop();
         if (i >= num_warmup_starting_vertices) { total_elapsed += elapsed; }
-        hr_timer.display_and_clear(std::cerr);
+        hr_timer.display_and_clear(std::cout);
       }
 
       // update d_mg_distances (for validation, Graph 500 doesn't require computing distances)
 
       if (reachable_from_2cores) {
-        if (subgraph_starting_vertex_distance > 0) {
+        if (subgraph_starting_vertex_distance > vertex_t{0}) {
           thrust::transform(handle_->get_thrust_policy(),
                             d_mg_bfs_distances.begin(),
                             d_mg_bfs_distances.end(),
@@ -1271,7 +788,15 @@ class Tests_GRAPH500_MGBFS
             comm, num_visited, raft::comms::op_t::SUM, handle_->get_stream());
           tot_edge_count = tot_num_visited - 1;  // # edges in a tree is # vertices - 1
         }
-        std::cout << "# visited undirected edges=" << tot_edge_count << std::endl;
+        auto tteps = (static_cast<double>(tot_edge_count) / 1e12) / elapsed;
+        if (i >= num_warmup_starting_vertices) {
+          tteps_sum += tteps;
+          one_over_tteps_sum +=
+            (tteps > 0.0) ? 1.0 / tteps : std::numeric_limits<double>::infinity();
+        }
+        std::cout << "# visited undirected edges=" << tot_edge_count
+                  << " TTEPS=" << (static_cast<double>(tot_edge_count) / 1e12) / elapsed
+                  << std::endl;
       }
 
       if (bfs_usecase.validate) {
@@ -1314,7 +839,7 @@ class Tests_GRAPH500_MGBFS
           RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
           comm.barrier();
           hr_timer.stop();
-          hr_timer.display_and_clear(std::cerr);
+          hr_timer.display_and_clear(std::cout);
         }
 
         /* check for cycles (update predecessor to predecessor's predecessor till reaching the
@@ -1397,7 +922,7 @@ class Tests_GRAPH500_MGBFS
           RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
           comm.barrier();
           hr_timer.stop();
-          hr_timer.display_and_clear(std::cerr);
+          hr_timer.display_and_clear(std::cout);
         }
 
         /* check that distance(v) = distance(predecssor(v)) + 1 */
@@ -1475,7 +1000,7 @@ class Tests_GRAPH500_MGBFS
           RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
           comm.barrier();
           hr_timer.stop();
-          hr_timer.display_and_clear(std::cerr);
+          hr_timer.display_and_clear(std::cout);
         }
 
         if (cugraph::test::g_perf) {
@@ -1742,7 +1267,7 @@ class Tests_GRAPH500_MGBFS
           RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
           comm.barrier();
           hr_timer.stop();
-          hr_timer.display_and_clear(std::cerr);
+          hr_timer.display_and_clear(std::cout);
         }
 
         /* all the reachable vertices are in the same connected component, all the unreachable
@@ -1781,7 +1306,7 @@ class Tests_GRAPH500_MGBFS
           RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
           comm.barrier();
           hr_timer.stop();
-          hr_timer.display_and_clear(std::cerr);
+          hr_timer.display_and_clear(std::cout);
         }
 
         /* check that predecessor->v edges exist in the input graph */
@@ -1980,12 +1505,17 @@ class Tests_GRAPH500_MGBFS
           RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
           comm.barrier();
           hr_timer.stop();
-          hr_timer.display_and_clear(std::cerr);
+          hr_timer.display_and_clear(std::cout);
         }
       }
     }
 
-    std::cerr << "average MG BFS (Kernel 2) time: " << (total_elapsed / num_timed_starting_vertices)
+    std::cout << "average MG BFS (Kernel 2) time: " << (total_elapsed / num_timed_starting_vertices)
+              << " TTEPS (arithmetic mean)=" << tteps_sum / num_timed_starting_vertices
+              << " TTEPS (harmonic_mean)="
+              << (one_over_tteps_sum > 0.0
+                    ? static_cast<double>(num_timed_starting_vertices) / one_over_tteps_sum
+                    : std::numeric_limits<double>::infinity())
               << std::endl;
   }
 
