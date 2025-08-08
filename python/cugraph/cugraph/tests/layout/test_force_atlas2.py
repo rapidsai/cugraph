@@ -246,7 +246,7 @@ def test_force_atlas2_noverlap(graph_file, radius, max_overlaps, max_iter):
     vertex_radius = cudf.DataFrame(
         {
             "vertex": G.nodes() if G.is_renumbered() else range(G.nodes().max() + 1),
-            "radius": radius
+            "radius": radius,
         }
     )
 

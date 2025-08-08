@@ -175,7 +175,8 @@ def force_atlas2(
             else:
                 cols = "vertex"
             vertex_radius = input_graph.add_internal_vertex_id(
-                vertex_radius, "vertex", cols)
+                vertex_radius, "vertex", cols
+            )
 
     if mobility is not None:
         if not isinstance(mobility, cudf.DataFrame):
