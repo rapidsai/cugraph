@@ -100,6 +100,7 @@ class simpleDistributedGraphImpl:
         edge_type_id,
         drop_multi_edges,
         symmetrize,
+        drop_self_loops
     ):
         weights = None
         edge_ids = None
@@ -156,6 +157,7 @@ class simpleDistributedGraphImpl:
             symmetrize=symmetrize,
             do_expensive_check=False,
             drop_multi_edges=drop_multi_edges,
+            drop_self_loops=drop_self_loops
         )
         del edata_x
         gc.collect()
@@ -175,6 +177,7 @@ class simpleDistributedGraphImpl:
         renumber=True,
         store_transposed=False,
         symmetrize=None,
+        drop_self_loops=False
     ):
         if not isinstance(input_ddf, dask_cudf.DataFrame):
             raise TypeError("input should be a dask_cudf dataFrame")
@@ -385,6 +388,7 @@ class simpleDistributedGraphImpl:
                 self.edge_type_id_type,
                 not self.properties.multi_edge,
                 not self.properties.directed,
+                drop_self_loops
             )
             for w, edata in persisted_keys_d.items()
         }

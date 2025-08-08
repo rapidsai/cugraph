@@ -24,7 +24,7 @@ import cupy as cp
 
 from pylibcugraph import ResourceHandle
 
-from pylibcugraph import uniform_neighbor_sample as pylibcugraph_uniform_neighbor_sample
+from pylibcugraph import homogeneous_neighbor_sample as pylibcugraph_homogeneous_neighbor_sample
 
 from cugraph.dask.comms import comms as Comms
 from cugraph.dask import get_n_workers
@@ -146,7 +146,7 @@ def __get_label_to_output_comm_rank(min_batch_id, max_batch_id, n_workers):
     return z
 
 
-def _call_plc_uniform_neighbor_sample(
+def _call_plc_homogeneous_neighbor_sample(
     sID,
     mg_graph_x,
     st_x,
@@ -178,7 +178,7 @@ def _call_plc_uniform_neighbor_sample(
             min_batch_id, max_batch_id, n_workers
         )
 
-    cupy_array_dict = pylibcugraph_uniform_neighbor_sample(
+    cupy_array_dict = pylibcugraph_homogeneous_neighbor_sample(
         resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
         input_graph=mg_graph_x,
         start_list=start_list_x,
@@ -211,7 +211,7 @@ def _call_plc_uniform_neighbor_sample(
     )
 
 
-def _mg_call_plc_uniform_neighbor_sample(
+def _mg_call_plc_homogeneous_neighbor_sample(
     client,
     session_id,
     input_graph,
@@ -243,7 +243,7 @@ def _mg_call_plc_uniform_neighbor_sample(
 
     result = [
         client.submit(
-            _call_plc_uniform_neighbor_sample,
+            _call_plc_homogeneous_neighbor_sample,
             session_id,
             input_graph._plc_graph[w],
             starts,
@@ -318,7 +318,7 @@ def _mg_call_plc_uniform_neighbor_sample(
         return tuple(return_dfs)
 
 
-def uniform_neighbor_sample(
+def homogeneous_neighbor_sample(
     input_graph: Graph,
     start_list: Sequence,
     fanout_vals: List[int],
@@ -469,7 +469,7 @@ def uniform_neighbor_sample(
     """
 
     warning_msg = (
-        "uniform_neighbor_sample is deprecated in favor of "
+        "homogeneous_neighbor_sample is deprecated in favor of "
         "homogeneous_neighbor_sample."
     )
     warnings.warn(warning_msg, FutureWarning)
@@ -531,7 +531,7 @@ def uniform_neighbor_sample(
         )
     if renumber and not keep_batches_together:
         raise ValueError(
-            "mg uniform_neighbor_sample requires that keep_batches_together=True "
+            "mg homogeneous_neighbor_sample requires that keep_batches_together=True "
             "when performing renumbering."
         )
 
@@ -612,7 +612,7 @@ def uniform_neighbor_sample(
         lock = Lock("plc_graph_access")
         if lock.acquire(timeout=100):
             try:
-                ddf = _mg_call_plc_uniform_neighbor_sample(**sample_call_kwargs)
+                ddf = _mg_call_plc_homogeneous_neighbor_sample(**sample_call_kwargs)
             finally:
                 lock.release()
         else:
@@ -620,7 +620,7 @@ def uniform_neighbor_sample(
                 "Failed to acquire lock(plc_graph_access) while trying to sampling"
             )
     else:
-        ddf = _mg_call_plc_uniform_neighbor_sample(**sample_call_kwargs)
+        ddf = _mg_call_plc_homogeneous_neighbor_sample(**sample_call_kwargs)
 
     if return_offsets:
         if renumber:
