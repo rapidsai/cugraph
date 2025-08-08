@@ -310,29 +310,6 @@ def test_jaccard_two_hop(read_csv, use_weight):
 
 
 @pytest.mark.sg
-def test_jaccard_nx(read_csv):
-    M_cu, M, _ = read_csv
-    Gnx = nx.from_pandas_edgelist(
-        M, source=SRC_COL, target=DST_COL, create_using=nx.Graph()
-    )
-
-    nx_j = nx.jaccard_coefficient(Gnx)
-    nv_js = sorted(nx_j, key=len, reverse=True)
-
-    ebunch = M_cu.rename(
-        columns={SRC_COL: VERTEX_PAIR_FIRST_COL, DST_COL: VERTEX_PAIR_SECOND_COL}
-    )
-    ebunch = ebunch[[VERTEX_PAIR_FIRST_COL, VERTEX_PAIR_SECOND_COL]]
-    cg_j = cugraph.jaccard_coefficient(Gnx, ebunch=ebunch)
-
-    assert len(nv_js) > len(cg_j)
-
-    # FIXME:  Nx does a full all-pair Jaccard.
-    # cuGraph does a limited 1-hop Jaccard
-    # assert nx_j == cg_j
-
-
-@pytest.mark.sg
 @pytest.mark.parametrize("graph_file", UNDIRECTED_DATASETS)
 @pytest.mark.parametrize("use_weight", [False, True])
 def test_jaccard_multi_column(graph_file, use_weight):

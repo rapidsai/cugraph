@@ -141,6 +141,7 @@ class TestDoctests:
     @pytest.mark.parametrize(
         "docstring", _fetch_doctests(), ids=lambda docstring: docstring.name
     )
+    @pytest.mark.filterwarnings("ignore::DeprecationWarning")
     def test_docstring(self, docstring):
         # We ignore differences in whitespace in the doctest output, and enable
         # the use of an ellipsis "..." to match any string in the doctest

@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2024, NVIDIA CORPORATION.
+# Copyright (c) 2020-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -11,13 +11,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from cugraph.structure import Graph
 from cugraph.layout import force_atlas2_wrapper
-from cugraph.utilities import ensure_cugraph_obj_for_nx
 import cudf
 
 
 def force_atlas2(
-    input_graph,
+    input_graph: Graph,
     max_iter=500,
     pos_list=None,
     outbound_attraction_distribution=True,
@@ -129,8 +129,6 @@ def force_atlas2(
     >>> pos = cugraph.force_atlas2(G)
 
     """
-    input_graph, isNx = ensure_cugraph_obj_for_nx(input_graph)
-
     if pos_list is not None:
         if not isinstance(pos_list, cudf.DataFrame):
             raise TypeError("pos_list should be a cudf.DataFrame")
