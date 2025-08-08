@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -638,7 +638,7 @@ __global__ static __launch_bounds__(THREADS6,
 
     // Update positions
     float mobility_factor = mobility ? mobility[i] : 1.0f;
-    float factor = mobility_factor * speed / (1.0 + sqrt(speed * swinging[i]));
+    float factor          = mobility_factor * speed / (1.0 + sqrt(speed * swinging[i]));
     Y_x[i] += dx * factor;
     Y_y[i] += dy * factor;
   }

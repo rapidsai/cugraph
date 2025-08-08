@@ -99,7 +99,8 @@ struct force_atlas2_functor : public cugraph::c_api::abstract_functor {
       outbound_attraction_distribution_(outbound_attraction_distribution),
       lin_log_mode_(lin_log_mode),
       prevent_overlapping_(prevent_overlapping),
-      vertex_radius_(reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t*>(vertex_radius)),
+      vertex_radius_(
+        reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t*>(vertex_radius)),
       overlap_scaling_ratio_(overlap_scaling_ratio),
       edge_weight_influence_(edge_weight_influence),
       jitter_tolerance_(jitter_tolerance),
@@ -108,7 +109,8 @@ struct force_atlas2_functor : public cugraph::c_api::abstract_functor {
       scaling_ratio_(scaling_ratio),
       strong_gravity_mode_(strong_gravity_mode),
       gravity_(gravity),
-      mobility_(reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t*>(mobility)),
+      mobility_(
+        reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t*>(mobility)),
       verbose_(verbose),
       do_expensive_check_(do_expensive_check)
   {

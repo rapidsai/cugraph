@@ -51,7 +51,7 @@ __global__ static void repulsion_kernel(const float* restrict x_pos,
         } else {
           // Non-overlapping
           float distance_inter = distance - radius_i - radius_j + FLT_EPSILON;
-          factor = scaling_ratio * mass[i] * mass[j] / (distance * distance_inter);
+          factor               = scaling_ratio * mass[i] * mass[j] / (distance * distance_inter);
         }
       } else {
         factor = scaling_ratio * mass[i] * mass[j] / distance_sq;
@@ -82,17 +82,16 @@ void apply_repulsion(const float* restrict x_pos,
   dim3 nblocks(min((n + nthreads.x - 1) / nthreads.x, CUDA_MAX_BLOCKS_2D),
                min((n + nthreads.y - 1) / nthreads.y, CUDA_MAX_BLOCKS_2D));
 
-  repulsion_kernel<vertex_t>
-    <<<nblocks, nthreads, 0, stream>>>(x_pos,
-                                       y_pos,
-                                       repel_x,
-                                       repel_y,
-                                       mass,
-                                       scaling_ratio,
-                                       prevent_overlapping,
-                                       vertex_radius,
-                                       overlap_scaling_ratio,
-                                       n);
+  repulsion_kernel<vertex_t><<<nblocks, nthreads, 0, stream>>>(x_pos,
+                                                               y_pos,
+                                                               repel_x,
+                                                               repel_y,
+                                                               mass,
+                                                               scaling_ratio,
+                                                               prevent_overlapping,
+                                                               vertex_radius,
+                                                               overlap_scaling_ratio,
+                                                               n);
   RAFT_CHECK_CUDA(stream);
 }
 

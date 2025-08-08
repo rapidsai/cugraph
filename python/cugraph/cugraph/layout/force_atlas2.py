@@ -162,8 +162,9 @@ def force_atlas2(
 
     if prevent_overlapping:
         if vertex_radius is None:
-            raise ValueError("vertex_radius must be provided when "
-                             "prevent_overlapping is enabled")
+            raise ValueError(
+                "vertex_radius must be provided when prevent_overlapping is enabled"
+            )
         if not isinstance(vertex_radius, cudf.DataFrame):
             raise TypeError("vertex_radius must be a cudf.DataFrame")
         if set(vertex_radius.columns) != set(["vertex", "radius"]):
@@ -174,10 +175,8 @@ def force_atlas2(
             else:
                 cols = "vertex"
             vertex_radius = input_graph.add_internal_vertex_id(
-                vertex_radius,
-                "vertex",
-                cols)
-    
+                vertex_radius, "vertex", cols)
+
     if mobility is not None:
         if not isinstance(mobility, cudf.DataFrame):
             raise TypeError("mobility must be a cudf.DataFrame")
@@ -188,10 +187,7 @@ def force_atlas2(
                 cols = mobility.columns[:-2].to_list()
             else:
                 cols = "vertex"
-            mobility = input_graph.add_internal_vertex_id(
-                mobility,
-                "vertex",
-                cols)
+            mobility = input_graph.add_internal_vertex_id(mobility, "vertex", cols)
 
     if input_graph.is_directed():
         input_graph = input_graph.to_undirected()

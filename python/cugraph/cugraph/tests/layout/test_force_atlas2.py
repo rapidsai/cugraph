@@ -146,6 +146,7 @@ MAX_ITERATIONS = [500]
 BARNES_HUT_OPTIMIZE = [False, True]
 MOBILITY_FIXED_CNT = [5, 12]
 
+
 class ExampleCallback(GraphBasedDimRedCallback):
     def __init__(self):
         super().__init__()
@@ -222,20 +223,21 @@ def test_force_atlas2(graph_file, score, max_iter, barnes_hut_optimize):
 @pytest.mark.parametrize("max_iter", MAX_ITERATIONS)
 def test_force_atlas2_noverlap(graph_file, radius, max_overlaps, max_iter):
     """
-        All vertices are given the same radius. After running FA2 with
-        prevent_overlapping enabled, the number of pairs of overlapping
-        vertices should be very low.
-        Radii and thresholds have been picked such that
-        99.9% of runs with prevent_overlapping would pass, and
-        99.9% of runs without prevent_overlapping would fail
+    All vertices are given the same radius. After running FA2 with
+    prevent_overlapping enabled, the number of pairs of overlapping
+    vertices should be very low.
+    Radii and thresholds have been picked such that
+    99.9% of runs with prevent_overlapping would pass, and
+    99.9% of runs without prevent_overlapping would fail
     """
+
     def count_overlaps(cu_pos, radius):
-        pairs = cu_pos.merge(cu_pos, how='cross', suffixes=('_1', '_2'))
-        pairs = pairs[pairs['vertex_1'] < pairs['vertex_2']]
+        pairs = cu_pos.merge(cu_pos, how="cross", suffixes=("_1", "_2"))
+        pairs = pairs[pairs["vertex_1"] < pairs["vertex_2"]]
         # Calculate pairwise distances and find overlapping vertices
         overlaps = pairs[
-            ((pairs['x_1'] - pairs['x_2']) ** 2 +
-             (pairs['y_1'] - pairs['y_2']) ** 2) < (2 * radius) ** 2
+            ((pairs["x_1"] - pairs["x_2"]) ** 2 + (pairs["y_1"] - pairs["y_2"]) ** 2)
+            < (2 * radius) ** 2
         ]
         return len(overlaps)
 
@@ -243,8 +245,8 @@ def test_force_atlas2_noverlap(graph_file, radius, max_overlaps, max_iter):
     G = graph_file.get_graph()
     vertex_radius = cudf.DataFrame(
         {
-            'vertex': G.nodes() if G.is_renumbered() else range(G.nodes().max()+1),
-            'radius': radius
+            "vertex": G.nodes() if G.is_renumbered() else range(G.nodes().max() + 1),
+            "radius": radius
         }
     )
 
@@ -267,20 +269,20 @@ def test_force_atlas2_noverlap(graph_file, radius, max_overlaps, max_iter):
         mobility=None,
         callback=None,
     )
-    
+
     overlap_cnt = count_overlaps(cu_pos, radius)
     assert overlap_cnt < max_overlaps
-    
-    
+
+
 @pytest.mark.sg
 @pytest.mark.parametrize("graph_file", DATASETS_MOBILITY)
 @pytest.mark.parametrize("max_iter", MAX_ITERATIONS)
 @pytest.mark.parametrize("fixed_node_cnt", MOBILITY_FIXED_CNT)
 def test_force_atlas2_mobility(graph_file, max_iter, fixed_node_cnt):
     """
-        After an initial layout, we freeze `fixed_node_cnt` random
-        vertices with mobility=0.0, and run FA2 again with mobility enabled.
-        In the final layout, the selected vertices should not have moved.
+    After an initial layout, we freeze `fixed_node_cnt` random
+    vertices with mobility=0.0, and run FA2 again with mobility enabled.
+    In the final layout, the selected vertices should not have moved.
     """
     cu_M = graph_file.get_edgelist(download=True)
     G = graph_file.get_graph()
@@ -293,12 +295,7 @@ def test_force_atlas2_mobility(graph_file, max_iter, fixed_node_cnt):
     mobility += [1.0] * (len(vertices) - fixed_node_cnt)
     random.shuffle(mobility)
 
-    mobility_df = cudf.DataFrame(
-        {
-            'vertex': vertices,
-            'mobility': mobility
-        }
-    )
+    mobility_df = cudf.DataFrame({"vertex": vertices, "mobility": mobility})
 
     # Initial layout without mobility
     pos_1 = cugraph_call(
@@ -341,19 +338,16 @@ def test_force_atlas2_mobility(graph_file, max_iter, fixed_node_cnt):
         mobility=mobility_df,
         callback=None,
     )
-    
-    pos_difference = pos_1.merge(
-        pos_2, on='vertex', suffixes=('_1', '_2')
-    ).merge(
-        mobility_df, on='vertex', how='left'
+
+    pos_difference = pos_1.merge(pos_2, on="vertex", suffixes=("_1", "_2")).merge(
+        mobility_df, on="vertex", how="left"
     )
 
-    pos_difference['move_dist'] = (
-        abs(pos_difference['x_1'] - pos_difference['x_2']) +
-        abs(pos_difference['y_1'] - pos_difference['y_2'])
-    )
-    
-    fixed_nodes = pos_difference['mobility'] == 0.0
+    pos_difference["move_dist"] = abs(
+        pos_difference["x_1"] - pos_difference["x_2"]
+    ) + abs(pos_difference["y_1"] - pos_difference["y_2"])
+
+    fixed_nodes = pos_difference["mobility"] == 0.0
     assert fixed_nodes.sum() == fixed_node_cnt
-    assert (pos_difference.loc[fixed_nodes, 'move_dist'] == 0.0).all()
-    assert (pos_difference.loc[~fixed_nodes, 'move_dist'] > 0.0).all()
+    assert (pos_difference.loc[fixed_nodes, "move_dist"] == 0.0).all()
+    assert (pos_difference.loc[~fixed_nodes, "move_dist"] > 0.0).all()

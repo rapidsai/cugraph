@@ -59,8 +59,8 @@ __global__ static void attraction_kernel(const vertex_t* restrict row,
     float factor = -coef * weight;
 
     if (prevent_overlapping) {
-      float radius_src = vertex_radius[src];
-      float radius_dst = vertex_radius[dst];
+      float radius_src  = vertex_radius[src];
+      float radius_dst  = vertex_radius[dst];
       float distance_sq = x_dist * x_dist + y_dist * y_dist;
       if (distance_sq <= pow(radius_src + radius_dst, 2)) {
         // Overlapping, force is 0
@@ -69,7 +69,7 @@ __global__ static void attraction_kernel(const vertex_t* restrict row,
         // Not overlapping, force is based on d' instead of d
         float distance = pow(x_dist, 2) + pow(y_dist, 2);
         distance += FLT_EPSILON;
-        distance = sqrt(distance);
+        distance             = sqrt(distance);
         float distance_inter = distance - radius_src - radius_dst;
         if (lin_log_mode) {
           factor *= log(1 + distance_inter) / distance;
@@ -351,8 +351,18 @@ void apply_forces(float* restrict x_pos,
   nblocks.y  = 1;
   nblocks.z  = 1;
 
-  update_positions_kernel<vertex_t><<<nblocks, nthreads, 0, stream>>>(
-    x_pos, y_pos, repel_x, repel_y, attract_x, attract_y, old_dx, old_dy, swinging, mobility, speed, n);
+  update_positions_kernel<vertex_t><<<nblocks, nthreads, 0, stream>>>(x_pos,
+                                                                      y_pos,
+                                                                      repel_x,
+                                                                      repel_y,
+                                                                      attract_x,
+                                                                      attract_y,
+                                                                      old_dx,
+                                                                      old_dy,
+                                                                      swinging,
+                                                                      mobility,
+                                                                      speed,
+                                                                      n);
   RAFT_CHECK_CUDA(stream);
 }
 
