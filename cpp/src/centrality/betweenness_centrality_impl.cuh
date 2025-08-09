@@ -1088,8 +1088,9 @@
    auto first_quarter_time = std::chrono::microseconds{0};
    auto second_quarter_time = std::chrono::microseconds{0};
 
-   auto total_frontier_creation_time = std::chrono::microseconds{0};
-   auto total_frontier_insertion_time = std::chrono::microseconds{0};
+  auto total_frontier_creation_time = std::chrono::microseconds{0};
+  auto total_frontier_insertion_time = std::chrono::microseconds{0};
+  auto total_distance_partitioning_time = std::chrono::microseconds{0};
    vertex_t midpoint = 0;
    
    // Find global maximum distance across all sources - OPTIMIZED VERSION
@@ -1118,7 +1119,114 @@
    
    printf("DEBUG: Global max distance: %ld\n", static_cast<long>(global_max_distance));
   
-  // Process distance levels using parallel edge enumeration as recommended
+  // PRE-COMPUTE: Partition all (vertex, source) pairs by distance ONCE
+  // This eliminates the need to scan the distance array global_max_distance times
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
+  auto partitioning_start_time = std::chrono::high_resolution_clock::now();
+  
+  // Create buckets for each distance level
+  std::vector<rmm::device_uvector<vertex_t>> distance_buckets_vertices;
+  std::vector<rmm::device_uvector<size_t>> distance_buckets_sources;
+  
+  // Reserve space and create empty buckets
+  distance_buckets_vertices.reserve(global_max_distance + 1);
+  distance_buckets_sources.reserve(global_max_distance + 1);
+  
+  for (vertex_t d = 0; d <= global_max_distance; ++d) {
+    distance_buckets_vertices.emplace_back(0, handle.get_stream());
+    distance_buckets_sources.emplace_back(0, handle.get_stream());
+  }
+  
+  // Count vertices at each distance level first
+  rmm::device_uvector<size_t> distance_counts(global_max_distance + 1, handle.get_stream());
+  thrust::fill(handle.get_thrust_policy(), distance_counts.begin(), distance_counts.end(), size_t{0});
+  
+  // Count vertices at each distance using IDENTICAL conditions as population pass
+  thrust::for_each_n(handle.get_thrust_policy(),
+    thrust::make_counting_iterator<size_t>(0),
+    num_sources * num_vertices,
+    [distances_2d = distances_2d.data(), num_vertices, distance_counts = distance_counts.data(), global_max_distance] 
+    __device__(size_t global_idx) {
+      size_t source_idx = global_idx / num_vertices;
+      vertex_t v_offset = global_idx % num_vertices;
+      const vertex_t* distances = distances_2d + source_idx * num_vertices;
+      vertex_t dist = distances[v_offset];
+      // Use EXACT same conditions as population pass
+      if (dist >= 0 && dist <= global_max_distance) {
+        atomicAdd(&distance_counts[dist], size_t{1});
+      }
+    }
+  );
+  
+  // Copy counts to host and allocate buckets
+  std::vector<size_t> host_distance_counts(global_max_distance + 1);
+  raft::update_host(host_distance_counts.data(), distance_counts.data(), global_max_distance + 1, handle.get_stream());
+  handle.sync_stream();
+  
+  // Allocate exact-sized buckets
+  for (vertex_t d = 0; d <= global_max_distance; ++d) {
+    if (host_distance_counts[d] > 0) {
+      distance_buckets_vertices[d].resize(host_distance_counts[d], handle.get_stream());
+      distance_buckets_sources[d].resize(host_distance_counts[d], handle.get_stream());
+    }
+  }
+  
+
+  
+  // Reset counts for use as offsets
+  thrust::fill(handle.get_thrust_policy(), distance_counts.begin(), distance_counts.end(), size_t{0});
+  
+  auto v_first = graph_view.local_vertex_partition_range_first();
+  
+  // Create arrays of raw pointers for device access
+  std::vector<vertex_t*> host_bucket_vertices_ptrs(global_max_distance + 1);
+  std::vector<size_t*> host_bucket_sources_ptrs(global_max_distance + 1);
+  
+  for (vertex_t d = 0; d <= global_max_distance; ++d) {
+    host_bucket_vertices_ptrs[d] = distance_buckets_vertices[d].data();
+    host_bucket_sources_ptrs[d] = distance_buckets_sources[d].data();
+  }
+  
+  // Copy pointer arrays to device
+  rmm::device_uvector<vertex_t*> device_bucket_vertices_ptrs(global_max_distance + 1, handle.get_stream());
+  rmm::device_uvector<size_t*> device_bucket_sources_ptrs(global_max_distance + 1, handle.get_stream());
+  
+  raft::update_device(device_bucket_vertices_ptrs.data(), host_bucket_vertices_ptrs.data(), global_max_distance + 1, handle.get_stream());
+  raft::update_device(device_bucket_sources_ptrs.data(), host_bucket_sources_ptrs.data(), global_max_distance + 1, handle.get_stream());
+  
+  // Ensure pointer arrays are copied before kernel launch
+  handle.sync_stream();
+  
+  // Populate buckets - single scan of distance array
+  thrust::for_each_n(handle.get_thrust_policy(),
+    thrust::make_counting_iterator<size_t>(0),
+    num_sources * num_vertices,
+    [distances_2d = distances_2d.data(), num_vertices, distance_counts = distance_counts.data(),
+     bucket_vertices_ptrs = device_bucket_vertices_ptrs.data(),
+     bucket_sources_ptrs = device_bucket_sources_ptrs.data(),
+     v_first, global_max_distance] 
+    __device__(size_t global_idx) {
+      size_t source_idx = global_idx / num_vertices;
+      vertex_t v_offset = global_idx % num_vertices;
+      const vertex_t* distances = distances_2d + source_idx * num_vertices;
+      vertex_t dist = distances[v_offset];
+      
+      // Use EXACT same conditions as counting pass
+      if (dist >= 0 && dist <= global_max_distance) {
+        size_t offset = atomicAdd(&distance_counts[dist], size_t{1});
+        bucket_vertices_ptrs[dist][offset] = v_first + v_offset;
+        bucket_sources_ptrs[dist][offset] = source_idx;
+      }
+    }
+  );
+  
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
+  auto partitioning_end_time = std::chrono::high_resolution_clock::now();
+  auto partitioning_time = std::chrono::duration_cast<std::chrono::microseconds>(partitioning_end_time - partitioning_start_time);
+  total_distance_partitioning_time += partitioning_time;
+  printf("DEBUG: Distance partitioning completed in %.3f ms\n", partitioning_time.count() / 1000.0);
+  
+  // Process distance levels using pre-computed buckets (NO MORE SCANNING!)
   for (vertex_t d = global_max_distance; d > 1; --d) {
      RAFT_CUDA_TRY(cudaDeviceSynchronize());
      auto distance_start_time = std::chrono::high_resolution_clock::now();
@@ -1126,24 +1234,14 @@
      // Use tagged vertices with (vertex, source_idx) pairs
      using tagged_vertex_t = thrust::tuple<vertex_t, size_t>;
      
+     // NO MORE SCANNING! Use pre-computed buckets
      RAFT_CUDA_TRY(cudaDeviceSynchronize());
      auto count_vertices_start_time = std::chrono::high_resolution_clock::now();
      
-     // Quick check: count total vertices at distance d-1 across all sources
-     size_t total_vertices_at_d_minus_1 = thrust::transform_reduce(
-       handle.get_thrust_policy(),
-       thrust::make_counting_iterator<size_t>(0),
-       thrust::make_counting_iterator<size_t>(num_sources * num_vertices),
-       cuda::proclaim_return_type<size_t>([distances_2d = distances_2d.data(), num_vertices, d] 
-       __device__(size_t global_idx) {
-         size_t source_idx = global_idx / num_vertices;
-         vertex_t v = global_idx % num_vertices;
-         const vertex_t* distances = distances_2d + source_idx * num_vertices;
-         return (distances[v] == d - 1) ? size_t{1} : size_t{0};
-       }),
-       size_t{0},
-       thrust::plus<size_t>{}
-     );
+     // Get vertices at distance d-1 from pre-computed buckets (O(1) lookup!)
+     auto& frontier_vertices = distance_buckets_vertices[d - 1];
+     auto& frontier_sources = distance_buckets_sources[d - 1];
+     size_t total_vertices_at_d_minus_1 = frontier_vertices.size();
      
      auto count_vertices_end_time = std::chrono::high_resolution_clock::now();
      total_count_vertices_time += std::chrono::duration_cast<std::chrono::microseconds>(count_vertices_end_time - count_vertices_start_time);
@@ -1154,46 +1252,11 @@
       auto first_quarter_start = std::chrono::high_resolution_clock::now();
       auto first_half_start = std::chrono::high_resolution_clock::now();
       
+      // NO MORE FRONTIER CREATION! Data already pre-computed
       RAFT_CUDA_TRY(cudaDeviceSynchronize());
       auto create_frontier_arrays_start_time = std::chrono::high_resolution_clock::now();
       
-      // Use direct extraction instead of expensive per-source iteration
-      rmm::device_uvector<vertex_t> frontier_vertices(total_vertices_at_d_minus_1, handle.get_stream());
-      rmm::device_uvector<size_t> frontier_sources(total_vertices_at_d_minus_1, handle.get_stream());
-      
-      auto v_first = graph_view.local_vertex_partition_range_first();
-      
-      // Use two-step approach: first extract indices, then transform to (vertex, source) pairs
-      rmm::device_uvector<size_t> temp_indices(total_vertices_at_d_minus_1, handle.get_stream());
-      
-      // Step 1: Extract indices of all (source, vertex) pairs where vertex is at distance d-1
-      auto indices_end = thrust::copy_if(
-        handle.get_thrust_policy(),
-        thrust::make_counting_iterator<size_t>(0),
-        thrust::make_counting_iterator<size_t>(num_sources * num_vertices),
-        temp_indices.begin(),
-        [distances_2d = distances_2d.data(), num_vertices, d] 
-        __device__(size_t global_idx) {
-          size_t source_idx = global_idx / num_vertices;
-          vertex_t v_offset = global_idx % num_vertices;
-          const vertex_t* distances = distances_2d + source_idx * num_vertices;
-          return distances[v_offset] == d - 1;
-        }
-      );
-      
-      // Step 2: Transform indices to (vertex, source) pairs
-      thrust::transform(
-        handle.get_thrust_policy(),
-        temp_indices.begin(),
-        indices_end,
-        thrust::make_zip_iterator(frontier_vertices.begin(), frontier_sources.begin()),
-        [num_vertices, v_first] __device__(size_t global_idx) {
-          size_t source_idx = global_idx / num_vertices;
-          vertex_t v_offset = global_idx % num_vertices;
-          vertex_t vertex = v_first + v_offset;
-          return thrust::make_tuple(vertex, source_idx);
-        }
-      );
+      // frontier_vertices and frontier_sources are already populated from buckets
       
       auto create_frontier_arrays_end_time = std::chrono::high_resolution_clock::now();
       total_create_frontier_arrays_time += std::chrono::duration_cast<std::chrono::microseconds>(create_frontier_arrays_end_time - create_frontier_arrays_start_time);
@@ -1492,7 +1555,8 @@
    printf("DEBUG: Multisource backward pass completed in %.3f ms\n", total_duration.count() / 1000.0);
    printf("DEBUG: Multisource backward pass completed:\n");
    printf("  - Total time: %.3f ms\n", total_duration.count() / 1000.0);
-   printf("  - Global max distance calculation: %.3f ms\n", total_global_max_distance_time.count() / 1000.0);
+  printf("  - Distance partitioning: %.3f ms\n", total_distance_partitioning_time.count() / 1000.0);
+  printf("  - Global max distance calculation: %.3f ms\n", total_global_max_distance_time.count() / 1000.0);
    printf("  - Count vertices at d-1: %.3f ms\n", total_count_vertices_time.count() / 1000.0);
    printf("  - Create frontier arrays: %.3f ms\n", total_create_frontier_arrays_time.count() / 1000.0);
    printf("  - Create tagged vertices: %.3f ms\n", total_create_tagged_vertices_time.count() / 1000.0);
