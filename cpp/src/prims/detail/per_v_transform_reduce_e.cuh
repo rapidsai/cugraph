@@ -1643,16 +1643,18 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
     auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
     auto const minor_comm_size = minor_comm.get_size();
 
-    int num_gpus_per_node{};
-    RAFT_CUDA_TRY(cudaGetDeviceCount(&num_gpus_per_node));
-    if (comm_size <= num_gpus_per_node) {
+    int num_gpus_per_domain{};  // domain: a group of GPUs that can communicate fast (e.g. NVLink
+                                // domain)
+    RAFT_CUDA_TRY(cudaGetDeviceCount(&num_gpus_per_domain));
+    num_gpus_per_domain = std::min(num_gpus_per_domain, comm_size);
+    if (comm_size == num_gpus_per_domain) {
       subgroup_size = minor_comm_size;
     } else {
       auto& major_comm = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
       auto const major_comm_size = major_comm.get_size();
       subgroup_size              = partition_manager::map_major_comm_to_gpu_row_comm
-                                     ? std::max(num_gpus_per_node / major_comm_size, int{1})
-                                     : std::min(minor_comm_size, num_gpus_per_node);
+                                     ? std::max(num_gpus_per_domain / major_comm_size, int{1})
+                                     : std::min(minor_comm_size, num_gpus_per_domain);
     }
   }
 
@@ -1883,9 +1885,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
       avg_fill_ratio /= static_cast<double>(minor_comm_size);
       double threshold_ratio =
         2.0 /* tuning parameter (consider that we need to reprodce vertex list from bitmap)*/ /
-        static_cast<double>(
-          (v_compressible ? sizeof(uint32_t) : sizeof(vertex_t)) *
-          8);
+        static_cast<double>((v_compressible ? sizeof(uint32_t) : sizeof(vertex_t)) * 8);
       auto avg_key_list_size =
         std::reduce(local_key_list_sizes.begin(), local_key_list_sizes.end()) /
         static_cast<vertex_t>(minor_comm_size);
@@ -1926,7 +1926,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
   bool uint32_key_output_offset = false;
   if constexpr (GraphViewType::is_multi_gpu && update_major &&
                 std::is_same_v<ReduceOp, reduce_op::any<T>>) {
-    size_t max_key_offset_size = std::numeric_limits<size_t>::max();
+    size_t max_key_offset_size{0};
     if constexpr (filter_input_key) {
       max_key_offset_size = std::reduce(
         local_key_list_sizes.begin(), local_key_list_sizes.end(), size_t{0}, [](auto l, auto r) {
@@ -2235,7 +2235,11 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
             if (edge_partition_bitmap_buffers) { allocate_new_key_buffer = false; }
           }
           if (allocate_new_key_buffer) {  // allocate new key buffers and copy the sparse segment
-                                          // keys to the new key buffers
+                                          // keys to the new key buffers (the cost of this copy is
+                                          // mostly moderate as key_segment_offsets[4] -
+                                          // key_segment_offsets[3] is mostly significantly larger
+                                          // than  key_segment_offsets[3] once we filter out the
+                                          // vertices that have valid local edges)
             if constexpr (try_bitmap) {
               edge_partition_new_key_buffers = std::vector<
                 std::variant<rmm::device_uvector<uint32_t>, rmm::device_uvector<vertex_t>>>{};
@@ -2711,8 +2715,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                       output_count_offsets.begin() + (output_count_offsets.size() - 1),
                       output_count_offsets.end(),
                       counters.data() + j,
-                      typecast_t<vertex_t,
-                                 size_t>{});
+                      typecast_t<vertex_t, size_t>{});
                   } else {
                     thrust::fill(rmm::exec_policy_nosync(loop_stream),
                                  counters.data() + j,
@@ -2725,7 +2728,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
               }
             }
           }
-          if (edge_partition_new_key_buffers) {  // if there is no bitmap buffer
+          if (edge_partition_new_key_buffers) {  // if (!try_bitmap || !v_list_bitmap)
             for (size_t j = 0; j < loop_count; ++j) {
               auto partition_idx = i + j;
               auto loop_stream =
