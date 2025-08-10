@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 set -ex
 
-UCX_VERSION_TAG=${1:-"v1.14.x"}
+UCX_VERSION_TAG=${1:-"v1.18.1"}
 CUDA_HOME=${2:-"/usr/local/cuda"}
 # Send any remaining arguments to configure
 CONFIGURE_ARGS=("${@:2}")

@@ -23,7 +23,7 @@ import cudf
 from typing import Union, List, Dict, Tuple, Iterator, Optional, Any
 
 from cugraph.utilities.utils import import_optional, MissingModule
-from cugraph.gnn.comms import cugraph_comms_get_raft_handle
+from pylibcugraph.comms import cugraph_comms_get_raft_handle
 
 
 from cugraph.gnn.data_loading.dist_io import BufferedSampleReader

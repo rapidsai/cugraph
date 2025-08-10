@@ -35,7 +35,6 @@ function(find_and_configure_cugraph)
 endfunction()
 
 set(CUGRAPH_ETL_MIN_VERSION_cugraph "${CUGRAPH_ETL_VERSION_MAJOR}.${CUGRAPH_ETL_VERSION_MINOR}.00")
-set(CUGRAPH_ETL_BRANCH_VERSION_cugraph "${CUGRAPH_ETL_VERSION_MAJOR}.${CUGRAPH_ETL_VERSION_MINOR}")
 
 
 # Change pinned tag and fork here to test a commit in CI
@@ -43,5 +42,5 @@ set(CUGRAPH_ETL_BRANCH_VERSION_cugraph "${CUGRAPH_ETL_VERSION_MAJOR}.${CUGRAPH_E
 # CPM_cugraph_SOURCE=/path/to/local/cugraph
 find_and_configure_cugraph(VERSION    ${CUGRAPH_ETL_MIN_VERSION_cugraph}
                            FORK       rapidsai
-                           PINNED_TAG branch-${CUGRAPH_ETL_BRANCH_VERSION_cugraph}
+                           PINNED_TAG ${rapids-cmake-checkout-tag}
                            )

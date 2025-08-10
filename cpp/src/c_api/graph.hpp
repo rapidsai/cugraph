@@ -17,6 +17,7 @@
 
 #include "c_api/array.hpp"
 #include "c_api/error.hpp"
+#include "cugraph_c/types.h"
 
 #include <cugraph_c/graph.h>
 
@@ -28,11 +29,37 @@
 namespace cugraph {
 namespace c_api {
 
+template <typename T>
+struct data_type_id {
+  static const cugraph_data_type_id_t id{NTYPES};
+};
+
+template <>
+struct data_type_id<int32_t> {
+  static const cugraph_data_type_id_t id{INT32};
+};
+
+template <>
+struct data_type_id<int64_t> {
+  static const cugraph_data_type_id_t id{INT64};
+};
+
+template <>
+struct data_type_id<float> {
+  static const cugraph_data_type_id_t id{FLOAT32};
+};
+
+template <>
+struct data_type_id<double> {
+  static const cugraph_data_type_id_t id{FLOAT64};
+};
+
 struct cugraph_graph_t {
   cugraph_data_type_id_t vertex_type_;
   cugraph_data_type_id_t edge_type_;
   cugraph_data_type_id_t weight_type_;
   cugraph_data_type_id_t edge_type_id_type_;
+  cugraph_data_type_id_t edge_time_type_;
   bool store_transposed_;
   bool multi_gpu_;
 

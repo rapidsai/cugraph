@@ -15,6 +15,7 @@
 add_subdirectory(components)
 add_subdirectory(internal_types)
 add_subdirectory(testing)
+add_subdirectory(comms)
 
 set(cython_sources
     analyze_clustering_edge_cut.pyx
