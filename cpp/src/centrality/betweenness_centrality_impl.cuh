@@ -1114,6 +1114,7 @@
      thrust::maximum<vertex_t>()
    );
    
+   RAFT_CUDA_TRY(cudaDeviceSynchronize());
    auto global_max_distance_end_time = std::chrono::high_resolution_clock::now();
    total_global_max_distance_time += std::chrono::duration_cast<std::chrono::microseconds>(global_max_distance_end_time - global_max_distance_start_time);
    
@@ -1243,6 +1244,7 @@
      auto& frontier_sources = distance_buckets_sources[d - 1];
      size_t total_vertices_at_d_minus_1 = frontier_vertices.size();
      
+     RAFT_CUDA_TRY(cudaDeviceSynchronize());
      auto count_vertices_end_time = std::chrono::high_resolution_clock::now();
      total_count_vertices_time += std::chrono::duration_cast<std::chrono::microseconds>(count_vertices_end_time - count_vertices_start_time);
      
@@ -1258,6 +1260,7 @@
       
       // frontier_vertices and frontier_sources are already populated from buckets
       
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());
       auto create_frontier_arrays_end_time = std::chrono::high_resolution_clock::now();
       total_create_frontier_arrays_time += std::chrono::duration_cast<std::chrono::microseconds>(create_frontier_arrays_end_time - create_frontier_arrays_start_time);
        
@@ -1354,6 +1357,7 @@
            return distances[dst_offset] == d;
          }));
        
+         RAFT_CUDA_TRY(cudaDeviceSynchronize());
          auto edge_enumeration_end_time = std::chrono::high_resolution_clock::now();
          total_edge_enumeration_time += std::chrono::duration_cast<std::chrono::microseconds>(edge_enumeration_end_time - edge_enumeration_start_time);
         
@@ -1393,6 +1397,7 @@
                                                     thrust::get<2>(tuple), thrust::get<3>(tuple));
                           });
          
+         RAFT_CUDA_TRY(cudaDeviceSynchronize());
          auto extraction_end_time = std::chrono::high_resolution_clock::now();
          total_extraction_time += std::chrono::duration_cast<std::chrono::microseconds>(extraction_end_time - extraction_start_time);
          
@@ -1404,6 +1409,7 @@
                             thrust::make_zip_iterator(edge_srcs.end(), edge_sources.end()),
                             edge_deltas.begin());
          
+         RAFT_CUDA_TRY(cudaDeviceSynchronize());
          auto sort_end_time = std::chrono::high_resolution_clock::now();
          total_sort_time += std::chrono::duration_cast<std::chrono::microseconds>(sort_end_time - sort_start_time);
          
@@ -1434,6 +1440,7 @@
            edge_deltas.begin(),
            thrust::make_zip_iterator(edge_srcs.begin(), edge_sources.begin()),
            edge_deltas.begin());
+         RAFT_CUDA_TRY(cudaDeviceSynchronize());
          auto reduce_by_key_end_time = std::chrono::high_resolution_clock::now();
          total_reduce_by_key_time += std::chrono::duration_cast<std::chrono::microseconds>(reduce_by_key_end_time - reduce_by_key_start_time);
          
@@ -1453,6 +1460,7 @@
              atomicAdd(&centralities[src_offset], delta);
            });
          
+         RAFT_CUDA_TRY(cudaDeviceSynchronize());
          auto centrality_update_end_time = std::chrono::high_resolution_clock::now();
          total_centrality_update_time += std::chrono::duration_cast<std::chrono::microseconds>(centrality_update_end_time - centrality_update_start_time);
          
@@ -1477,6 +1485,7 @@
              weight_t* source_deltas = delta_buffer + source_idx * num_vertices;
              atomicAdd(&source_deltas[src_offset], delta);
            });
+         RAFT_CUDA_TRY(cudaDeviceSynchronize());
          auto delta_accumulation_end_time = std::chrono::high_resolution_clock::now();
          total_delta_accumulation_time += std::chrono::duration_cast<std::chrono::microseconds>(delta_accumulation_end_time - delta_accumulation_start_time);
          
@@ -1545,10 +1554,12 @@
          }
        });
      
+     RAFT_CUDA_TRY(cudaDeviceSynchronize());
      auto include_endpoints_end_time = std::chrono::high_resolution_clock::now();
      total_include_endpoints_time += std::chrono::duration_cast<std::chrono::microseconds>(include_endpoints_end_time - include_endpoints_start_time);
    }
    
+   RAFT_CUDA_TRY(cudaDeviceSynchronize());
    auto end_time = std::chrono::high_resolution_clock::now();
    auto total_duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
    
