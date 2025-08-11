@@ -13,7 +13,7 @@
 
 from cugraph.utilities import renumber_vertex_pair, ensure_valid_dtype
 import cudf
-from warnings import deprecated
+import warnings
 
 from pylibcugraph import (
     cosine_coefficients as pylibcugraph_cosine_coefficients,
@@ -140,11 +140,6 @@ def cosine(
     return df
 
 
-@deprecated(
-    "deprecated as of 25.10. This function was to match "
-    "NetworkX which is no longer needed, use networkx directly with"
-    "the ``nx-cugraph`` backend. See:  https://rapids.ai/nx-cugraph/"
-)
 def cosine_coefficient(
     G: Graph,
     ebunch: cudf.DataFrame = None,
@@ -190,6 +185,12 @@ def cosine_coefficient(
     >>> df = cosine_coefficient(G)
 
     """
+    warnings.warn(
+        "deprecated as of 25.10. This function was to match "
+        "NetworkX which is no longer needed, use networkx directly with"
+        "the ``nx-cugraph`` backend. See:  https://rapids.ai/nx-cugraph/",
+        warnings.DeprecationWarning,
+    )
 
     df = cosine(G, ebunch)
 

@@ -16,7 +16,7 @@ from cugraph.utilities import (
     ensure_valid_dtype,
 )
 import cudf
-from warnings import deprecated
+import warnings
 
 from pylibcugraph import (
     sorensen_coefficients as pylibcugraph_sorensen_coefficients,
@@ -142,11 +142,6 @@ def sorensen(
     return df
 
 
-@deprecated(
-    "deprecated as of 25.10. This function was to match "
-    "NetworkX which is no longer needed, use networkx directly with"
-    "the ``nx-cugraph`` backend. See:  https://rapids.ai/nx-cugraph/"
-)
 def sorensen_coefficient(
     G: Graph,
     ebunch: cudf.DataFrame = None,
@@ -197,6 +192,12 @@ def sorensen_coefficient(
     >>> df = sorensen_coefficient(G)
 
     """
+    warnings.warn(
+        "deprecated as of 25.10. This function was to match "
+        "NetworkX which is no longer needed, use networkx directly with"
+        "the ``nx-cugraph`` backend. See:  https://rapids.ai/nx-cugraph/",
+        warnings.DeprecationWarning,
+    )
 
     vertex_pair = ebunch
 

@@ -12,7 +12,7 @@
 # limitations under the License.
 
 import numpy as np
-from warnings import deprecated
+import warnings
 
 import cudf
 from cugraph.structure import Graph, MultiGraph
@@ -270,11 +270,6 @@ def filter_unreachable(df):
         raise TypeError("distance type unsupported")
 
 
-@deprecated(
-    "deprecated as of 25.10. This function was to match "
-    "NetworkX which is no longer needed, use networkx directly with"
-    "the ``nx-cugraph`` backend. See:  https://rapids.ai/nx-cugraph/"
-)
 def shortest_path(
     G,
     source=None,
@@ -289,6 +284,13 @@ def shortest_path(
     Alias for sssp(), provided for API compatibility with NetworkX. See sssp()
     for details.
     """
+    warnings.warn(
+        "deprecated as of 25.10. This function was to match "
+        "NetworkX which is no longer needed, use networkx directly with"
+        "the ``nx-cugraph`` backend. See:  https://rapids.ai/nx-cugraph/",
+        warnings.DeprecationWarning,
+    )
+
     return sssp(
         G, source, method, directed, return_predecessors, unweighted, overwrite, indices
     )

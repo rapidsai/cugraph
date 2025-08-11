@@ -17,7 +17,6 @@ from cugraph.utilities import (
 )
 import cudf
 import warnings
-from warnings import deprecated
 
 from pylibcugraph import (
     overlap_coefficients as pylibcugraph_overlap_coefficients,
@@ -28,11 +27,6 @@ from pylibcugraph import ResourceHandle
 from cugraph.structure import Graph
 
 
-@deprecated(
-    "deprecated as of 25.10. This function was to match "
-    "NetworkX which is no longer needed, use networkx directly with"
-    "the ``nx-cugraph`` backend. See:  https://rapids.ai/nx-cugraph/"
-)
 def overlap_coefficient(
     G: Graph,
     ebunch: cudf.DataFrame = None,
@@ -91,6 +85,13 @@ def overlap_coefficient(
     >>> G = karate.get_graph(download=True, ignore_weights=True)
     >>> df = overlap_coefficient(G)
     """
+    warnings.warn(
+        "deprecated as of 25.10. This function was to match "
+        "NetworkX which is no longer needed, use networkx directly with"
+        "the ``nx-cugraph`` backend. See:  https://rapids.ai/nx-cugraph/",
+        warnings.DeprecationWarning,
+    )
+
     if do_expensive_check:
         warnings.warn(
             "do_expensive_check is deprecated since vertex IDs are no longer "

@@ -11,7 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from warnings import deprecated
+import warnings
 
 from cugraph.utilities import (
     renumber_vertex_pair,
@@ -143,11 +143,6 @@ def jaccard(
     return df
 
 
-@deprecated(
-    "deprecated as of 25.10. This function was to match "
-    "NetworkX which is no longer needed, use networkx directly with"
-    "the ``nx-cugraph`` backend. See:  https://rapids.ai/nx-cugraph/"
-)
 def jaccard_coefficient(
     G: Graph,
     ebunch: cudf.DataFrame = None,
@@ -195,6 +190,12 @@ def jaccard_coefficient(
     >>> df = jaccard_coefficient(G)
 
     """
+    warnings.warn(
+        "deprecated as of 25.10. This function was to match "
+        "NetworkX which is no longer needed, use networkx directly with"
+        "the ``nx-cugraph`` backend. See:  https://rapids.ai/nx-cugraph/",
+        warnings.DeprecationWarning,
+    )
 
     vertex_pair = ebunch
 
