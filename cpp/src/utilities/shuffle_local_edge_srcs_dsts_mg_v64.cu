@@ -18,64 +18,18 @@
 
 namespace cugraph {
 
-template rmm::device_uvector<int64_t> shuffle_local_edge_srcs(
-  raft::handle_t const& handle,
-  rmm::device_uvector<int64_t>&& edge_srcs,
-  raft::host_span<int64_t const> vertex_partition_range_lasts,
-  bool store_transposed);
+template std::tuple<rmm::device_uvector<int64_t>, std::vector<cugraph::arithmetic_device_uvector_t>>
+shuffle_local_edge_srcs(raft::handle_t const& handle,
+                        rmm::device_uvector<int64_t>&& edge_srcs,
+                        std::vector<cugraph::arithmetic_device_uvector_t>&& edge_src_properties,
+                        raft::host_span<int64_t const> vertex_partition_range_lasts,
+                        bool store_transposed);
 
-template std::tuple<rmm::device_uvector<int64_t>, dataframe_buffer_type_t<int32_t>>
-shuffle_local_edge_src_value_pairs<int64_t, int32_t>(
-  raft::handle_t const& handle,
-  rmm::device_uvector<int64_t>&& edge_srcs,
-  dataframe_buffer_type_t<int32_t>&& edge_values,
-  raft::host_span<int64_t const> vertex_partition_range_lasts,
-  bool store_transposed);
-
-template std::tuple<rmm::device_uvector<int64_t>, dataframe_buffer_type_t<int64_t>>
-shuffle_local_edge_src_value_pairs<int64_t, int64_t>(
-  raft::handle_t const& handle,
-  rmm::device_uvector<int64_t>&& edge_srcs,
-  dataframe_buffer_type_t<int64_t>&& edge_values,
-  raft::host_span<int64_t const> vertex_partition_range_lasts,
-  bool store_transposed);
-
-template std::tuple<rmm::device_uvector<int64_t>, dataframe_buffer_type_t<size_t>>
-shuffle_local_edge_src_value_pairs<int64_t, size_t>(
-  raft::handle_t const& handle,
-  rmm::device_uvector<int64_t>&& edge_srcs,
-  dataframe_buffer_type_t<size_t>&& edge_values,
-  raft::host_span<int64_t const> vertex_partition_range_lasts,
-  bool store_transposed);
-
-template rmm::device_uvector<int64_t> shuffle_local_edge_dsts(
-  raft::handle_t const& handle,
-  rmm::device_uvector<int64_t>&& edge_dsts,
-  raft::host_span<int64_t const> vertex_partition_range_lasts,
-  bool store_transposed);
-
-template std::tuple<rmm::device_uvector<int64_t>, dataframe_buffer_type_t<int32_t>>
-shuffle_local_edge_dst_value_pairs<int64_t, int32_t>(
-  raft::handle_t const& handle,
-  rmm::device_uvector<int64_t>&& edge_dsts,
-  dataframe_buffer_type_t<int32_t>&& edge_values,
-  raft::host_span<int64_t const> vertex_partition_range_lasts,
-  bool store_transposed);
-
-template std::tuple<rmm::device_uvector<int64_t>, dataframe_buffer_type_t<int64_t>>
-shuffle_local_edge_dst_value_pairs<int64_t, int64_t>(
-  raft::handle_t const& handle,
-  rmm::device_uvector<int64_t>&& edge_dsts,
-  dataframe_buffer_type_t<int64_t>&& edge_values,
-  raft::host_span<int64_t const> vertex_partition_range_lasts,
-  bool store_transposed);
-
-template std::tuple<rmm::device_uvector<int64_t>, dataframe_buffer_type_t<size_t>>
-shuffle_local_edge_dst_value_pairs<int64_t, size_t>(
-  raft::handle_t const& handle,
-  rmm::device_uvector<int64_t>&& edge_dsts,
-  dataframe_buffer_type_t<size_t>&& edge_values,
-  raft::host_span<int64_t const> vertex_partition_range_lasts,
-  bool store_transposed);
+template std::tuple<rmm::device_uvector<int64_t>, std::vector<cugraph::arithmetic_device_uvector_t>>
+shuffle_local_edge_dsts(raft::handle_t const& handle,
+                        rmm::device_uvector<int64_t>&& edge_dsts,
+                        std::vector<cugraph::arithmetic_device_uvector_t>&& edge_dst_properties,
+                        raft::host_span<int64_t const> vertex_partition_range_lasts,
+                        bool store_transposed);
 
 }  // namespace cugraph
