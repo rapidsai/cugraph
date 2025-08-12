@@ -605,11 +605,20 @@
    thrust::copy(handle.get_thrust_policy(), vertices_begin, vertices_end, sources_buffer.begin());
    
    // Run concurrent multi-source BFS
+   printf("Starting multi-source BFS for %zu sources...\n", num_sources);
+   auto bfs_start_time = std::chrono::high_resolution_clock::now();
+   
    auto [distances_2d, sigmas_2d] = multisource_bfs(handle,
                                                     graph_view,
                                                     edge_weight_view,
                                                     raft::device_span<vertex_t const>{sources_buffer.data(), sources_buffer.size()},
                                                     do_expensive_check);
+   
+   RAFT_CUDA_TRY(cudaDeviceSynchronize());
+   auto bfs_end_time = std::chrono::high_resolution_clock::now();
+   auto bfs_duration = std::chrono::duration_cast<std::chrono::microseconds>(bfs_end_time - bfs_start_time);
+   printf("Multi-source BFS completed in %.3f ms (%.3f seconds)\n", 
+          bfs_duration.count() / 1000.0, bfs_duration.count() / 1000000.0);
    
    // Use parallel multisource backward pass for better performance
    multisource_backward_pass(handle,
