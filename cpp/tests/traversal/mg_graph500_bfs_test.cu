@@ -179,13 +179,18 @@ rmm::device_uvector<vertex_t> find_trees_from_2cores(
                                      raft::comms::op_t::SUM,
                                      handle.get_stream());
     if (tot_vertex_pair_count > 0) {
-      vertex_pairs = cugraph::shuffle_local_edge_src_value_pairs<vertex_t, vertex_t>(
+      auto srcs = std::move(std::get<0>(vertex_pairs));
+      std::vector<cugraph::arithmetic_device_uvector_t> src_properties{};
+      src_properties.push_back(std::move(std::get<1>(vertex_pairs)));
+      std::tie(srcs, src_properties) = cugraph::shuffle_local_edge_srcs<vertex_t>(
         handle,
         std::move(std::get<0>(vertex_pairs)),
-        std::move(std::get<1>(vertex_pairs)),
+        std::move(src_properties),
         tmp_graph_view.vertex_partition_range_lasts(),
         store_transposed);  // note std::get<0>(vertex_pairs) can't have duplicates as these
                             // vertices belong to a forest
+      vertex_pairs = std::make_tuple(
+        std::move(srcs), std::move(std::get<rmm::device_uvector<vertex_t>>(src_properties[0])));
       thrust::for_each(
         handle.get_thrust_policy(),
         cugraph::get_dataframe_buffer_begin(vertex_pairs),

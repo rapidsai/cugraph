@@ -128,28 +128,6 @@ shuffle_int_edges(raft::handle_t const& handle,
                   std::optional<large_buffer_type_t> large_buffer_type = std::nullopt);
 
 /**
- * @brief Shuffle local edge sources (already placed by edge partitioning) to the owning GPUs (by
- * vertex partitioning).
- *
- * @tparam vertex_t    Type of vertex identifiers. Needs to be an integral type.
- *
- * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
- * handles to various CUDA libraries) to run graph algorithms.
- * @param edge_srcs  Vector of local edge source IDs
- * @param vertex_partition_range_lasts  Span of vertex partition range lasts (size = number of
- * GPUs)
- * @param store_transposed Should be true if shuffled edges will be used with a cugraph::graph_t
- * object with store_tranposed = true. Should be false otherwise.
- * @return Vector of shuffled edge source vertex IDs (shuffled by vertex partitioning).
- */
-template <typename vertex_t>
-rmm::device_uvector<vertex_t> shuffle_local_edge_srcs(
-  raft::handle_t const& handle,
-  rmm::device_uvector<vertex_t>&& edge_srcs,
-  raft::host_span<vertex_t const> vertex_partition_range_lasts,
-  bool store_transposed);
-
-/**
  * @brief Shuffle local edge source & value pairs (already placed by edge partitioning) to the
  * owning GPUs (by vertex partitioning).
  *
@@ -158,41 +136,21 @@ rmm::device_uvector<vertex_t> shuffle_local_edge_srcs(
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param edge_srcs  Vector of local edge source IDs
- * @param edge_values  Vector of edge values
+ * @param edge_src_properties  Vector of local edge source properties, each element is an arithmetic
+ * device vector
  * @param vertex_partition_range_lasts  Span of vertex partition range lasts (size = number of GPUs)
  * @param store_transposed Should be true if shuffled edges will be used with a cugraph::graph_t
  * object with store_tranposed = true. Should be false otherwise.
  * @return Tuple of vectors storing shuffled edge source vertex IDs and values (shuffled by vertex
  * partitioning).
  */
-template <typename vertex_t, typename value_t>
-std::tuple<rmm::device_uvector<vertex_t>, dataframe_buffer_type_t<value_t>>
-shuffle_local_edge_src_value_pairs(raft::handle_t const& handle,
-                                   rmm::device_uvector<vertex_t>&& edge_srcs,
-                                   dataframe_buffer_type_t<value_t>&& edge_values,
-                                   raft::host_span<vertex_t const> vertex_partition_range_lasts,
-                                   bool store_transposed);
-
-/**
- * @brief Shuffle local edge destinations (already placed by edge partitioning) to the owning GPUs
- * (by vertex partitioning).
- *
- * @tparam vertex_t    Type of vertex identifiers. Needs to be an integral type.
- *
- * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
- * handles to various CUDA libraries) to run graph algorithms.
- * @param edge_dsts  Vector of local edge destination IDs
- * @param vertex_partition_range_lasts  Span of vertex partition range lasts (size = number of GPUs)
- * @param store_transposed Should be true if shuffled edges will be used with a cugraph::graph_t
- * object with store_tranposed = true. Should be false otherwise.
- * @return Vector of shuffled edge destination vertex IDs (shuffled by vertex partitioning).
- */
 template <typename vertex_t>
-rmm::device_uvector<vertex_t> shuffle_local_edge_dsts(
-  raft::handle_t const& handle,
-  rmm::device_uvector<vertex_t>&& edge_dsts,
-  raft::host_span<vertex_t const> vertex_partition_range_lasts,
-  bool store_transposed);
+std::tuple<rmm::device_uvector<vertex_t>, std::vector<cugraph::arithmetic_device_uvector_t>>
+shuffle_local_edge_srcs(raft::handle_t const& handle,
+                        rmm::device_uvector<vertex_t>&& edge_srcs,
+                        std::vector<cugraph::arithmetic_device_uvector_t>&& edge_src_properties,
+                        raft::host_span<vertex_t const> vertex_partition_range_lasts,
+                        bool store_transposed);
 
 /**
  * @brief Shuffle local edge destination & value pairs (already placed by edge partitioning) to the
@@ -203,19 +161,20 @@ rmm::device_uvector<vertex_t> shuffle_local_edge_dsts(
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param edge_dsts  Vector of local edge destination IDs
- * @param edge_values  Vector of edge values
+ * @param edge_dst_properties  Vector of local edge destination properties, each element is an
+ * arithmetic device vector
  * @param vertex_partition_range_lasts  Span of vertex partition range lasts (size = number of GPUs)
  * @param store_transposed Should be true if shuffled edges will be used with a cugraph::graph_t
  * object with store_tranposed = true. Should be false otherwise.
  * @return Tuple of vectors storing shuffled edge destination vertex IDs and values (shuffled by
  * vertex partitioning).
  */
-template <typename vertex_t, typename value_t>
-std::tuple<rmm::device_uvector<vertex_t>, dataframe_buffer_type_t<value_t>>
-shuffle_local_edge_dst_value_pairs(raft::handle_t const& handle,
-                                   rmm::device_uvector<vertex_t>&& edge_dsts,
-                                   dataframe_buffer_type_t<value_t>&& edge_values,
-                                   raft::host_span<vertex_t const> vertex_partition_range_lasts,
-                                   bool store_transposed);
+template <typename vertex_t>
+std::tuple<rmm::device_uvector<vertex_t>, std::vector<cugraph::arithmetic_device_uvector_t>>
+shuffle_local_edge_dsts(raft::handle_t const& handle,
+                        rmm::device_uvector<vertex_t>&& edge_dsts,
+                        std::vector<cugraph::arithmetic_device_uvector_t>&& edge_dst_properties,
+                        raft::host_span<vertex_t const> vertex_partition_range_lasts,
+                        bool store_transposed);
 
 }  // namespace cugraph
