@@ -1056,7 +1056,7 @@
   rmm::device_uvector<size_t> distance_counts(global_max_distance + 1, handle.get_stream());
   thrust::fill(handle.get_thrust_policy(), distance_counts.begin(), distance_counts.end(), size_t{0});
   
-  // Count vertices at each distance using IDENTICAL conditions as population pass
+  // Step 1: Count vertices at each distance level
   thrust::for_each_n(handle.get_thrust_policy(),
     thrust::make_counting_iterator<size_t>(0),
     num_sources * num_vertices,
@@ -1066,7 +1066,7 @@
       vertex_t v_offset = global_idx % num_vertices;
       const vertex_t* distances = distances_2d + source_idx * num_vertices;
       vertex_t dist = distances[v_offset];
-      // Use EXACT same conditions as population pass
+      
       if (dist >= 0 && dist <= global_max_distance) {
         atomicAdd(&distance_counts[dist], size_t{1});
       }
@@ -1124,7 +1124,6 @@
       const vertex_t* distances = distances_2d + source_idx * num_vertices;
       vertex_t dist = distances[v_offset];
       
-      // Use EXACT same conditions as counting pass
       if (dist >= 0 && dist <= global_max_distance) {
         size_t offset = atomicAdd(&distance_counts[dist], size_t{1});
         bucket_vertices_ptrs[dist][offset] = v_first + v_offset;
@@ -1249,7 +1248,7 @@
            });
          
          // Step 7: Reduce by (src, tag) - sum deltas for each (src, tag) pair
-         auto unique_count = thrust::reduce_by_key(
+         thrust::reduce_by_key(
            handle.get_thrust_policy(),
            thrust::make_zip_iterator(edge_srcs.begin(), edge_sources.begin()),
            thrust::make_zip_iterator(edge_srcs.end(), edge_sources.end()),
@@ -1257,39 +1256,27 @@
            thrust::make_zip_iterator(edge_srcs.begin(), edge_sources.begin()),
            edge_deltas.begin());
          
+           // Step 8: Combined centrality update and delta accumulation in single for_each
            thrust::for_each(
-           handle.get_thrust_policy(),
-           thrust::make_zip_iterator(edge_srcs.begin(), edge_sources.begin(), edge_deltas.begin()),
-           thrust::make_zip_iterator(edge_srcs.begin() + num_unique, 
-                                   edge_sources.begin() + num_unique,
-                                   edge_deltas.begin() + num_unique),
-           [centralities = centralities.data(), v_first = graph_view.local_vertex_partition_range_first()] 
-           __device__(auto tuple) {
-             auto src = thrust::get<0>(tuple);
-             auto delta = thrust::get<2>(tuple);
-             auto src_offset = src - v_first;
-             atomicAdd(&centralities[src_offset], delta);
-           });
-         
-         // Step 8: Accumulate deltas for the next iteration (Brandes algorithm requirement)
-         // For each vertex at distance d-1, accumulate deltas from its outgoing edges
-         thrust::for_each(
-           handle.get_thrust_policy(),
-           thrust::make_zip_iterator(edge_srcs.begin(), edge_sources.begin(), edge_deltas.begin()),
-           thrust::make_zip_iterator(edge_srcs.begin() + num_unique, 
-                                   edge_sources.begin() + num_unique,
-                                   edge_deltas.begin() + num_unique),
-           [delta_buffer = delta_buffer.data(), num_vertices, v_first] 
-           __device__(auto tuple) {
-             auto src = thrust::get<0>(tuple);
-             auto source_idx = thrust::get<1>(tuple);
-             auto delta = thrust::get<2>(tuple);
-             
-             // Accumulate delta for the source vertex (which is at distance d-1)
-             auto src_offset = src - v_first;
-             weight_t* source_deltas = delta_buffer + source_idx * num_vertices;
-             atomicAdd(&source_deltas[src_offset], delta);
-           });
+             handle.get_thrust_policy(),
+             thrust::make_zip_iterator(edge_srcs.begin(), edge_sources.begin(), edge_deltas.begin()),
+             thrust::make_zip_iterator(edge_srcs.begin() + num_unique, 
+                                     edge_sources.begin() + num_unique,
+                                     edge_deltas.begin() + num_unique),
+             [centralities = centralities.data(), delta_buffer = delta_buffer.data(), 
+              num_vertices, v_first = graph_view.local_vertex_partition_range_first()] __device__(auto tuple) {
+               auto src = thrust::get<0>(tuple);
+               auto source_idx = thrust::get<1>(tuple);
+               auto delta = thrust::get<2>(tuple);
+               
+               // Update centrality
+               auto src_offset = src - v_first;
+               atomicAdd(&centralities[src_offset], delta);
+               
+               // Accumulate delta for next iteration
+               weight_t* source_deltas = delta_buffer + source_idx * num_vertices;
+               atomicAdd(&source_deltas[src_offset], delta);
+             });
        }
      }
    }
