@@ -196,6 +196,19 @@ typedef enum cugraph_prior_sources_behavior_t {
 } cugraph_prior_sources_behavior_t;
 
 /**
+ * @brief   Enumeration for temporal comparison options
+ */
+typedef enum {
+  STRICTLY_INCREASING = 0,  /** Time strictly increasing (each time is after the previous one) */
+  MONOTONICALLY_INCREASING, /** Time monotonically increasing (could have multiple edges with same
+                              time) */
+  STRICTLY_DECREASING,      /** Time strictly decreasing (each time is before the previous one) */
+  MONOTONICALLY_DECREASING, /** Time monotonically decreasing (could have multiple edges with same
+                                time) */
+  LAST                      /** Support last n behavior */
+} cugraph_temporal_sampling_comparison_t;
+
+/**
  * @brief Selects the type of compression to use for the output samples.
  */
 typedef enum cugraph_compression_type_t {
@@ -296,6 +309,16 @@ void cugraph_sampling_set_prior_sources_behavior(cugraph_sampling_options_t* opt
  * @param value - Boolean value to assign to the option
  */
 void cugraph_sampling_set_dedupe_sources(cugraph_sampling_options_t* options, bool_t value);
+
+/**
+ * @ingroup samplingC
+ * @brief Set temporal sampling to use associated comparision.
+ *
+ * @param options - opaque pointer to the sampling options
+ * @param comparison - Comparison value to assign to the option
+ */
+void cugraph_sampling_set_temporal_sampling_comparison(
+  cugraph_sampling_options_t* options, cugraph_temporal_sampling_comparison_t comparison);
 
 /**
  * @ingroup samplingC
@@ -605,6 +628,240 @@ cugraph_error_code_t cugraph_heterogeneous_biased_neighbor_sample(
   const cugraph_type_erased_host_array_view_t* fan_out,
   int num_edge_types,
   const cugraph_sampling_options_t* options,
+  bool_t do_expensive_check,
+  cugraph_sample_result_t** result,
+  cugraph_error_t** error);
+
+/**
+ * @brief     Homogeneous Uniform Temporal Neighborhood Sampling
+ *
+ * Returns a sample of the neighborhood around specified start vertices and fan_out.
+ * The neighborhood is sampled uniformly.
+ *
+ * Temporal sampling considers the time associated with the edges.  For example, if we start at
+ * vertex v1 and sample an edge that takes us to vertex v2 at time t1, when we sample in the next
+ * hop from vertex v2, we want to consider only edges that occur after time t1.
+ *
+ * Optionally, each start vertex can be associated with a label, allowing the caller to specify
+ * multiple batches of sampling requests in the same function call - which should improve GPU
+ * utilization.
+ *
+ * If label is NULL then all start vertices will be considered part of the same batch and the
+ * return value will not have a label column.
+ *
+ * @param [in]  handle       Handle for accessing resources
+ * @param [in,out] rng_state State of the random number generator, updated with each call
+ * @param [in]  graph        Pointer to graph.  NOTE: Graph might be modified if the storage
+ *                           needs to be transposed
+ * @param [in]  temporal_property_name Name associated with the edge property in the graph that
+ * should be used as the time.  Currently unused.
+ * @param [in]  start_vertices Device array of start vertices for the sampling
+ * @param [in]  starting_vertex_label_offsets Device array of the offsets for each label in
+ * the seed list. This parameter is only used with the retain_seeds option.
+ * @param [in]  fan_out       Host array defining the fan out at each step in the sampling
+ * algorithm. We only support fan_out values of type INT32
+ * @param [in]  sampling_options
+ *                           Opaque pointer defining the sampling options.
+ * @param [in]  temporal_sampling_comparison
+ *                           Comparison rule.  Currently STRICTLY_INCREASING is the only supported
+ * option.
+ * @param [in]  do_expensive_check
+ *                           A flag to run expensive checks for input arguments (if set to true)
+ * @param [out]  result      Output from the uniform_neighbor_sample call
+ * @param [out] error        Pointer to an error object storing details of any error.  Will
+ *                           be populated if error code is not CUGRAPH_SUCCESS
+ * @return error code
+ */
+cugraph_error_code_t cugraph_homogeneous_uniform_temporal_neighbor_sample(
+  const cugraph_resource_handle_t* handle,
+  cugraph_rng_state_t* rng_state,
+  cugraph_graph_t* graph,
+  const char* temporal_property_name,
+  const cugraph_type_erased_device_array_view_t* start_vertices,
+  const cugraph_type_erased_device_array_view_t* starting_vertex_label_offsets,
+  const cugraph_type_erased_host_array_view_t* fan_out,
+  const cugraph_sampling_options_t* sampling_options,
+  const cugraph_temporal_sampling_comparison_t* temporal_sampling_comparison,
+  bool_t do_expensive_check,
+  cugraph_sample_result_t** result,
+  cugraph_error_t** error);
+
+/**
+ * @brief     Homogeneous Biased Temporal Neighborhood Sampling
+ *
+ * Returns a sample of the neighborhood around specified start vertices and fan_out.
+ * The neighborhood is sampled uniformly.
+ *
+ * Temporal sampling considers the time associated with the edges.  For example, if we start at
+ * vertex v1 and sample an edge that takes us to vertex v2 at time t1, when we sample in the next
+ * hop from vertex v2, we want to consider only edges that occur after time t1.
+ *
+ * Optionally, each start vertex can be associated with a label, allowing the caller to specify
+ * multiple batches of sampling requests in the same function call - which should improve GPU
+ * utilization.
+ *
+ * If label is NULL then all start vertices will be considered part of the same batch and the
+ * return value will not have a label column.
+ *
+ * @param [in]  handle       Handle for accessing resources
+ * @param [in,out] rng_state State of the random number generator, updated with each call
+ * @param [in]  graph        Pointer to graph.  NOTE: Graph might be modified if the storage
+ *                           needs to be transposed
+ * @param [in]  temporal_property_name Name associated with the edge property in the graph that
+ * should be used as the time.  Currently unused.
+ * @param [in]  edge_biases  Device array of edge biases to use for sampling.  If NULL
+ * use the edge weight as the bias. If set to NULL, edges will be sampled uniformly.
+ * @param [in]  start_vertices Device array of start vertices for the sampling
+ * @param [in]  starting_vertex_label_offsets Device array of the offsets for each label in
+ * the seed list. This parameter is only used with the retain_seeds option.
+ * @param [in]  fan_out       Host array defining the fan out at each step in the sampling
+ * algorithm. We only support fan_out values of type INT32
+ * @param [in]  sampling_options
+ *                           Opaque pointer defining the sampling options.
+ * @param [in]  temporal_sampling_comparison
+ *                           Comparison rule.  Currently STRICTLY_INCREASING is the only supported
+ * option.
+ * @param [in]  do_expensive_check
+ *                           A flag to run expensive checks for input arguments (if set to true)
+ * @param [out]  result      Output from the uniform_neighbor_sample call
+ * @param [out] error        Pointer to an error object storing details of any error.  Will
+ *                           be populated if error code is not CUGRAPH_SUCCESS
+ * @return error code
+ */
+cugraph_error_code_t cugraph_homogeneous_biased_temporal_neighbor_sample(
+  const cugraph_resource_handle_t* handle,
+  cugraph_rng_state_t* rng_state,
+  cugraph_graph_t* graph,
+  const char* temporal_property_name,
+  const cugraph_edge_property_view_t* edge_biases,
+  const cugraph_type_erased_device_array_view_t* start_vertices,
+  const cugraph_type_erased_device_array_view_t* starting_vertex_label_offsets,
+  const cugraph_type_erased_host_array_view_t* fan_out,
+  const cugraph_sampling_options_t* sampling_options,
+  const cugraph_temporal_sampling_comparison_t* temporal_sampling_comparison,
+  bool_t do_expensive_check,
+  cugraph_sample_result_t** result,
+  cugraph_error_t** error);
+
+/**
+ * @brief     Heterogeneous Uniform Temporal Neighborhood Sampling
+ *
+ * Returns a sample of the neighborhood around specified start vertices and fan_out.
+ * The neighborhood is sampled uniformly.
+ *
+ * Temporal sampling considers the time associated with the edges.  For example, if we start at
+ * vertex v1 and sample an edge that takes us to vertex v2 at time t1, when we sample in the next
+ * hop from vertex v2, we want to consider only edges that occur after time t1.
+ *
+ * Optionally, each start vertex can be associated with a label, allowing the caller to specify
+ * multiple batches of sampling requests in the same function call - which should improve GPU
+ * utilization.
+ *
+ * If label is NULL then all start vertices will be considered part of the same batch and the
+ * return value will not have a label column.
+ *
+ * @param [in]  handle       Handle for accessing resources
+ * @param [in,out] rng_state State of the random number generator, updated with each call
+ * @param [in]  graph        Pointer to graph.  NOTE: Graph might be modified if the storage
+ *                           needs to be transposed
+ * @param [in]  temporal_property_name Name associated with the edge property in the graph that
+ * should be used as the time.  Currently unused.
+ * @param [in]  start_vertices Device array of start vertices for the sampling
+ * @param [in]  starting_vertex_label_offsets Device array of the offsets for each label in
+ * the seed list. This parameter is only used with the retain_seeds option.
+ * @param [in]  vertex_type_offsets Device array of the offsets for each vertex type in the
+ * graph.
+ * @param [in]  fan_out       Host array defining the fan out at each step in the sampling
+ * algorithm. We only support fan_out values of type INT32
+ * @param [in]  num_edge_types Number of edge types where a value of 1 translates to homogeneous
+ * neighbor sample whereas a value greater than 1 translates to heterogeneous neighbor sample.
+ * @param [in]  sampling_options
+ *                           Opaque pointer defining the sampling options.
+ * @param [in]  temporal_sampling_comparison
+ *                           Comparison rule.  Currently STRICTLY_INCREASING is the only supported
+ * option.
+ * @param [in]  do_expensive_check
+ *                           A flag to run expensive checks for input arguments (if set to true)
+ * @param [out]  result      Output from the uniform_neighbor_sample call
+ * @param [out] error        Pointer to an error object storing details of any error.  Will
+ *                           be populated if error code is not CUGRAPH_SUCCESS
+ * @return error code
+ */
+cugraph_error_code_t cugraph_heterogeneous_uniform_temporal_neighbor_sample(
+  const cugraph_resource_handle_t* handle,
+  cugraph_rng_state_t* rng_state,
+  cugraph_graph_t* graph,
+  const char* temporal_property_name,
+  const cugraph_type_erased_device_array_view_t* start_vertices,
+  const cugraph_type_erased_device_array_view_t* starting_vertex_label_offsets,
+  const cugraph_type_erased_device_array_view_t* vertex_type_offsets,
+  const cugraph_type_erased_host_array_view_t* fan_out,
+  int num_edge_types,
+  const cugraph_sampling_options_t* sampling_options,
+  const cugraph_temporal_sampling_comparison_t* temporal_sampling_comparison,
+  bool_t do_expensive_check,
+  cugraph_sample_result_t** result,
+  cugraph_error_t** error);
+
+/**
+ * @brief     Heterogeneous Biased Temporal Neighborhood Sampling
+ *
+ * Returns a sample of the neighborhood around specified start vertices and fan_out.
+ * The neighborhood is sampled uniformly.
+ *
+ * Temporal sampling considers the time associated with the edges.  For example, if we start at
+ * vertex v1 and sample an edge that takes us to vertex v2 at time t1, when we sample in the next
+ * hop from vertex v2, we want to consider only edges that occur after time t1.
+ *
+ * Optionally, each start vertex can be associated with a label, allowing the caller to specify
+ * multiple batches of sampling requests in the same function call - which should improve GPU
+ * utilization.
+ *
+ * If label is NULL then all start vertices will be considered part of the same batch and the
+ * return value will not have a label column.
+ *
+ * @param [in]  handle       Handle for accessing resources
+ * @param [in,out] rng_state State of the random number generator, updated with each call
+ * @param [in]  graph        Pointer to graph.  NOTE: Graph might be modified if the storage
+ *                           needs to be transposed
+ * @param [in]  temporal_property_name Name associated with the edge property in the graph that
+ * should be used as the time.  Currently unused.
+ * @param [in]  edge_biases  Device array of edge biases to use for sampling.  If NULL
+ * use the edge weight as the bias. If set to NULL, edges will be sampled uniformly.
+ * @param [in]  start_vertices Device array of start vertices for the sampling
+ * @param [in]  starting_vertex_label_offsets Device array of the offsets for each label in
+ * the seed list. This parameter is only used with the retain_seeds option.
+ * @param [in]  vertex_type_offsets Device array of the offsets for each vertex type in the
+ * graph.
+ * @param [in]  fan_out       Host array defining the fan out at each step in the sampling
+ * algorithm. We only support fan_out values of type INT32
+ * @param [in]  num_edge_types Number of edge types where a value of 1 translates to homogeneous
+ * neighbor sample whereas a value greater than 1 translates to heterogeneous neighbor sample.
+ * @param [in]  sampling_options
+ *                           Opaque pointer defining the sampling options.
+ * @param [in]  temporal_sampling_comparison
+ *                           Comparison rule.  Currently STRICTLY_INCREASING is the only supported
+ * option.
+ * @param [in]  do_expensive_check
+ *                           A flag to run expensive checks for input arguments (if set to true)
+ * @param [out]  result      Output from the uniform_neighbor_sample call
+ * @param [out] error        Pointer to an error object storing details of any error.  Will
+ *                           be populated if error code is not CUGRAPH_SUCCESS
+ * @return error code
+ */
+cugraph_error_code_t cugraph_heterogeneous_biased_temporal_neighbor_sample(
+  const cugraph_resource_handle_t* handle,
+  cugraph_rng_state_t* rng_state,
+  cugraph_graph_t* graph,
+  const char* temporal_property_name,
+  const cugraph_edge_property_view_t* edge_biases,
+  const cugraph_type_erased_device_array_view_t* start_vertices,
+  const cugraph_type_erased_device_array_view_t* starting_vertex_label_offsets,
+  const cugraph_type_erased_device_array_view_t* vertex_type_offsets,
+  const cugraph_type_erased_host_array_view_t* fan_out,
+  int num_edge_types,
+  const cugraph_sampling_options_t* sampling_options,
+  const cugraph_temporal_sampling_comparison_t* temporal_sampling_comparison,
   bool_t do_expensive_check,
   cugraph_sample_result_t** result,
   cugraph_error_t** error);
