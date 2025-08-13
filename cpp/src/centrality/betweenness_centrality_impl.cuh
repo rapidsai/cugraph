@@ -108,20 +108,20 @@ struct extract_edge_pred_op_t {
 
   template <typename edge_t, typename weight_t>
   __device__ bool operator()(vertex_t src,
-                            vertex_t dst,
-                            thrust::tuple<vertex_t, edge_t, weight_t> src_props,
-                            thrust::tuple<vertex_t, edge_t, weight_t> dst_props,
-                            cuda::std::nullopt_t) const
+                             vertex_t dst,
+                             thrust::tuple<vertex_t, edge_t, weight_t> src_props,
+                             thrust::tuple<vertex_t, edge_t, weight_t> dst_props,
+                             cuda::std::nullopt_t) const
   {
     return ((thrust::get<0>(src_props) == (d - 1)) && (thrust::get<0>(dst_props) == d));
   }
 
   template <typename edge_t, typename weight_t>
   __device__ bool operator()(vertex_t src,
-                            vertex_t dst,
-                            thrust::tuple<vertex_t, edge_t, weight_t> src_props,
-                            thrust::tuple<vertex_t, edge_t, weight_t> dst_props,
-                            edge_t edge_multi_index) const
+                             vertex_t dst,
+                             thrust::tuple<vertex_t, edge_t, weight_t> src_props,
+                             thrust::tuple<vertex_t, edge_t, weight_t> dst_props,
+                             edge_t edge_multi_index) const
   {
     return ((thrust::get<0>(src_props) == (d - 1)) && (thrust::get<0>(dst_props) == d));
   }
@@ -150,7 +150,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> brandes_b
   constexpr size_t bucket_idx_next{1};
 
   rmm::device_uvector<edge_t> sigmas(graph_view.local_vertex_partition_range_size(),
-                                    handle.get_stream());
+                                     handle.get_stream());
   rmm::device_uvector<vertex_t> distances(graph_view.local_vertex_partition_range_size(),
                                           handle.get_stream());
   detail::scalar_fill(handle, distances.data(), distances.size(), invalid_distance);
@@ -299,8 +299,8 @@ void accumulate_vertex_results(
 
     // Use thrust::sequence instead of thrust::copy for vertices
     thrust::sequence(handle.get_thrust_policy(),
-                    vertices_sorted.begin(), vertices_sorted.end(),
-                    graph_view.local_vertex_partition_range_first());
+                     vertices_sorted.begin(), vertices_sorted.end(),
+                     graph_view.local_vertex_partition_range_first());
     
     // Sort vertices by distance using stable_sort_by_key
     thrust::stable_sort_by_key(
@@ -452,13 +452,13 @@ void accumulate_edge_results(
     if (graph_view.is_multigraph()) {
       edge_multi_index_property_t<edge_t, vertex_t> edge_multi_indices(handle, graph_view);
       std::tie(srcs, dsts, indices) = extract_transform_if_e(handle,
-                                                            graph_view,
-                                                            src_properties.view(),
-                                                            dst_properties.view(),
-                                                            edge_multi_indices.view(),
-                                                            extract_edge_e_op_t<vertex_t>{},
-                                                            extract_edge_pred_op_t<vertex_t>{d},
-                                                            do_expensive_check);
+                                                             graph_view,
+                                                             src_properties.view(),
+                                                             dst_properties.view(),
+                                                             edge_multi_indices.view(),
+                                                             extract_edge_e_op_t<vertex_t>{},
+                                                             extract_edge_pred_op_t<vertex_t>{d},
+                                                             do_expensive_check);
 
       auto triplet_first = thrust::make_zip_iterator(srcs.begin(), dsts.begin(), indices->begin());
       thrust::sort(handle.get_thrust_policy(), triplet_first, triplet_first + srcs.size());
@@ -475,9 +475,9 @@ void accumulate_edge_results(
       thrust::sort(handle.get_thrust_policy(), pair_first, pair_first + srcs.size());
     }
     edge_list.insert(srcs.begin(),
-                    srcs.end(),
-                    dsts.begin(),
-                    indices ? std::make_optional(indices->begin()) : std::nullopt);
+                     srcs.end(),
+                     dsts.begin(),
+                     indices ? std::make_optional(indices->begin()) : std::nullopt);
 
     transform_e(
       handle,
@@ -558,10 +558,10 @@ rmm::device_uvector<weight_t> betweenness_centrality(
       vertex_partition_device_view_t<vertex_t, multi_gpu>(graph_view.local_vertex_partition_view());
     auto num_invalid_vertices =
       thrust::count_if(handle.get_thrust_policy(),
-                      vertices_begin,
-                      vertices_end,
-                      [vertex_partition] __device__(auto val) {
-                        return !(vertex_partition.is_valid_vertex(val) &&
+                       vertices_begin,
+                       vertices_end,
+                       [vertex_partition] __device__(auto val) {
+                         return !(vertex_partition.is_valid_vertex(val) &&
                                   vertex_partition.in_local_vertex_partition_range_nocheck(val));
                       });
     if constexpr (multi_gpu) {
@@ -573,7 +573,7 @@ rmm::device_uvector<weight_t> betweenness_centrality(
   }
 
   rmm::device_uvector<weight_t> centralities(graph_view.local_vertex_partition_range_size(),
-                                            handle.get_stream());
+                                             handle.get_stream());
   detail::scalar_fill(handle, centralities.data(), centralities.size(), weight_t{0});
 
   size_t num_sources = cuda::std::distance(vertices_begin, vertices_end);
@@ -663,9 +663,9 @@ rmm::device_uvector<weight_t> betweenness_centrality(
       iter + centralities.size(),
       centralities.begin(),
       [nonsource = *scale_nonsource,
-      source    = *scale_source,
-      vertices_begin,
-      vertices_end] __device__(auto t) {
+       source    = *scale_source,
+       vertices_begin,
+       vertices_end] __device__(auto t) {
         vertex_t v          = thrust::get<0>(t);
         weight_t centrality = thrust::get<1>(t);
 
@@ -700,10 +700,10 @@ edge_property_t<edge_t, weight_t> edge_betweenness_centrality(
       vertex_partition_device_view_t<vertex_t, multi_gpu>(graph_view.local_vertex_partition_view());
     auto num_invalid_vertices =
       thrust::count_if(handle.get_thrust_policy(),
-                      vertices_begin,
-                      vertices_end,
-                      [vertex_partition] __device__(auto val) {
-                        return !(vertex_partition.is_valid_vertex(val) &&
+                       vertices_begin,
+                       vertices_end,
+                       [vertex_partition] __device__(auto val) {
+                         return !(vertex_partition.is_valid_vertex(val) &&
                                   vertex_partition.in_local_vertex_partition_range_nocheck(val));
                       });
     if constexpr (multi_gpu) {
@@ -793,7 +793,7 @@ edge_property_t<edge_t, weight_t> edge_betweenness_centrality(
     if (graph_view.number_of_vertices() > 1) {
       if (static_cast<vertex_t>(num_sources) < graph_view.number_of_vertices()) {
         (*scale_factor) *= static_cast<weight_t>(num_sources) /
-                          static_cast<weight_t>(graph_view.number_of_vertices());
+                           static_cast<weight_t>(graph_view.number_of_vertices());
       }
 
       auto firsts         = centralities.view().value_firsts();
@@ -1368,12 +1368,12 @@ edge_property_t<edge_t, weight_t> edge_betweenness_centrality(
 {
   if (vertices) {
     return detail::edge_betweenness_centrality(handle,
-                                              graph_view,
-                                              edge_weight_view,
-                                              vertices->begin(),
-                                              vertices->end(),
-                                              normalized,
-                                              do_expensive_check);
+                                               graph_view,
+                                               edge_weight_view,
+                                               vertices->begin(),
+                                               vertices->end(),
+                                               normalized,
+                                               do_expensive_check);
   } else {
     return detail::edge_betweenness_centrality(
       handle,
