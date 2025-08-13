@@ -477,7 +477,7 @@ target_include_directories(MIS_TEST PRIVATE "${CUGRAPH_SOURCE_DIR}/src")
 ###################################################################################################
 # - VERTEX COLORING tests ----------------------------------------------------------------------
 ConfigureTest(VERTEX_COLORING_TEST components/vertex_coloring_test.cu)
-# target_include_directories(VERTEX_COLORING_TEST PRIVATE "${CUGRAPH_SOURCE_DIR}/src")
+target_include_directories(VERTEX_COLORING_TEST PRIVATE "${CUGRAPH_SOURCE_DIR}/src")
 
 ###################################################################################################
 # - SIMILARITY tests ------------------------------------------------------------------------------
@@ -518,9 +518,9 @@ ConfigureTest(
 
 ###################################################################################################
 # - HETEROGENEOUS BIASED NBR SAMPLING tests -------------------------------------------------------
-# ConfigureTest(
-#     HETEROGENEOUS_BIASED_NEIGHBOR_SAMPLING_TESTT sampling/heterogeneous_biased_neighbor_sampling.cpp
-#         GPUS 1 PERCENT 75)
+ConfigureTest(
+    HETEROGENEOUS_BIASED_NEIGHBOR_SAMPLING_TESTT sampling/heterogeneous_biased_neighbor_sampling.cpp
+        GPUS 1 PERCENT 75)
 
 ###################################################################################################
 # - TEMPORAL NBR SAMPLING tests -------------------------------------------------------------------
@@ -535,8 +535,8 @@ ConfigureTest(SAMPLING_POST_PROCESSING_TEST sampling/sampling_post_processing_te
 ###################################################################################################
 # - SAMPLING_HETEROGENEOUS_POST_PROCESSING tests --------------------------------------------------
 # FIXME: Failing for CCCL 2.8.x, disabling for now
-ConfigureTest(SAMPLING_HETEROGENEOUS_POST_PROCESSING_TEST
-              sampling/sampling_heterogeneous_post_processing_test.cpp)
+#ConfigureTest(SAMPLING_HETEROGENEOUS_POST_PROCESSING_TEST
+#              sampling/sampling_heterogeneous_post_processing_test.cpp)
 
 ###################################################################################################
 # - NEGATIVE SAMPLING tests --------------------------------------------------------------------
@@ -609,12 +609,12 @@ if(BUILD_CUGRAPH_MG_TESTS)
     ###############################################################################################
     # - MG Count self-loops and multi-edges tests -------------------------------------------------
     ConfigureTestMG(MG_COUNT_SELF_LOOPS_AND_MULTI_EDGES_TEST
-      "structure/mg_count_self_loops_and_multi_edges_test.cpp")
+          "structure/mg_count_self_loops_and_multi_edges_test.cpp")
 
     ###############################################################################################
     # - MG Query edge existence and multiplicity tests --------------------------------------------
     ConfigureTestMG(MG_HAS_EDGE_AND_COMPUTE_MULTIPLICITY_TEST
-      "structure/mg_has_edge_and_compute_multiplicity_test.cpp")
+          "structure/mg_has_edge_and_compute_multiplicity_test.cpp")
 
     ###############################################################################################
     # - MG PAGERANK tests -------------------------------------------------------------------------
@@ -649,7 +649,7 @@ if(BUILD_CUGRAPH_MG_TESTS)
     ###############################################################################################
     # - Extract BFS Paths tests -------------------------------------------------------------------
     ConfigureTestMG(MG_EXTRACT_BFS_PATHS_TEST
-                traversal/mg_extract_bfs_paths_test.cu)
+                    traversal/mg_extract_bfs_paths_test.cu)
 
     ###############################################################################################
     # - MG SSSP tests -----------------------------------------------------------------------------
@@ -690,7 +690,7 @@ if(BUILD_CUGRAPH_MG_TESTS)
     ###############################################################################################
     # - MG WEAKLY CONNECTED COMPONENTS tests ------------------------------------------------------
     ConfigureTestMG(MG_WEAKLY_CONNECTED_COMPONENTS_TEST
-                components/mg_weakly_connected_components_test.cpp)
+                    components/mg_weakly_connected_components_test.cpp)
 
     ###############################################################################################
     # - MG EDGE SOURCE DESTINATION LOOKUP tests ---------------------------------------------------
@@ -731,12 +731,12 @@ if(BUILD_CUGRAPH_MG_TESTS)
     ###############################################################################################
     # - MG PRIMS TRANSFORM_REDUCE_V_FRONTIER_OUTGOING_E_BY_DST tests ------------------------------
     ConfigureTestMG(MG_TRANSFORM_REDUCE_V_FRONTIER_OUTGOING_E_BY_DST_TEST
-                prims/mg_transform_reduce_v_frontier_outgoing_e_by_dst.cu)
+                    prims/mg_transform_reduce_v_frontier_outgoing_e_by_dst.cu)
 
     ###############################################################################################
     # - MG PRIMS TRANSFORM_REDUCE_IF_V_FRONTIER_OUTGOING_E_BY_DST tests ---------------------------
     ConfigureTestMG(MG_TRANSFORM_REDUCE_IF_V_FRONTIER_OUTGOING_E_BY_DST_TEST
-                prims/mg_transform_reduce_if_v_frontier_outgoing_e_by_dst.cu)
+                    prims/mg_transform_reduce_if_v_frontier_outgoing_e_by_dst.cu)
 
     ###############################################################################################
     # - MG PRIMS REDUCE_V tests -------------------------------------------------------------------
@@ -753,7 +753,7 @@ if(BUILD_CUGRAPH_MG_TESTS)
     ###############################################################################################
     # - MG PRIMS TRANSFORM_REDUCE_E _BY_SRC_DST_KEY tests -----------------------------------------
     ConfigureTestMG(MG_TRANSFORM_REDUCE_E_BY_SRC_DST_KEY_TEST
-                prims/mg_transform_reduce_e_by_src_dst_key.cu)
+                    prims/mg_transform_reduce_e_by_src_dst_key.cu)
 
     ###############################################################################################
     # - MG PRIMS TRANSFORM_E tests ----------------------------------------------------------------
@@ -770,12 +770,12 @@ if(BUILD_CUGRAPH_MG_TESTS)
     ###############################################################################################
     # - MG PRIMS PER_V_TRANSFORM_REDUCE_INCOMING_OUTGOING_E tests ---------------------------------
     ConfigureTestMG(MG_PER_V_TRANSFORM_REDUCE_INCOMING_OUTGOING_E_TEST
-  prims/mg_per_v_transform_reduce_incoming_outgoing_e.cu)
+      prims/mg_per_v_transform_reduce_incoming_outgoing_e.cu)
 
     ###############################################################################################
     # - MG PRIMS PER_V_TRANSFORM_REDUCE_DST_KEY_AGGREGATED_OUTGOING_E tests -----------------------
     ConfigureTestMG(MG_PER_V_TRANSFORM_REDUCE_DST_KEY_AGGREGATED_OUTGOING_E_TEST
-  prims/mg_per_v_transform_reduce_dst_key_aggregated_outgoing_e.cu)
+      prims/mg_per_v_transform_reduce_dst_key_aggregated_outgoing_e.cu)
 
     ###############################################################################################
     # - MG PRIMS EXTRACT_TRANSFORM_E tests --------------------------------------------------------
@@ -788,32 +788,32 @@ if(BUILD_CUGRAPH_MG_TESTS)
     ###############################################################################################
     # - MG PRIMS EXTRACT_TRANSFORM_V_FRONTIER_OUTGOING_E tests ------------------------------------
     ConfigureTestMG(MG_EXTRACT_TRANSFORM_V_FRONTIER_OUTGOING_E_TEST
-                prims/mg_extract_transform_v_frontier_outgoing_e.cu)
+                    prims/mg_extract_transform_v_frontier_outgoing_e.cu)
 
     ###############################################################################################
     # - MG PRIMS EXTRACT_TRANSFORM_IF_V_FRONTIER_OUTGOING_E tests ---------------------------------
     ConfigureTestMG(MG_EXTRACT_TRANSFORM_IF_V_FRONTIER_OUTGOING_E_TEST
-                prims/mg_extract_transform_if_v_frontier_outgoing_e.cu)
+                    prims/mg_extract_transform_if_v_frontier_outgoing_e.cu)
 
     ###############################################################################################
     # - MG PRIMS PER_V_RANDOM_SELECT_TRANSFORM_OUTGOING_E tests -----------------------------------
     ConfigureTestMG(MG_PER_V_RANDOM_SELECT_TRANSFORM_OUTGOING_E_TEST
-                prims/mg_per_v_random_select_transform_outgoing_e.cu)
+                    prims/mg_per_v_random_select_transform_outgoing_e.cu)
 
     ###############################################################################################
     # - MG PRIMS PER_V_PAIR_TRANSFORM_DST_NBR_INTERSECTION tests ----------------------------------
     ConfigureTestMG(MG_PER_V_PAIR_TRANSFORM_DST_NBR_INTERSECTION_TEST
-                prims/mg_per_v_pair_transform_dst_nbr_intersection.cu)
+                    prims/mg_per_v_pair_transform_dst_nbr_intersection.cu)
 
     ###############################################################################################
     # - MG PRIMS TRANSFORM_REDUCE_DST_NBR_INTERSECTION OF_E_ENDPOINTS_BY_V tests ------------------
     ConfigureTestMG(MG_TRANSFORM_REDUCE_DST_NBR_INTERSECTION_BY_E_ENDPOINTS_BY_V_TEST
-                prims/mg_transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v.cu)
+                    prims/mg_transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v.cu)
 
     ###############################################################################################
     # - MG PRIMS PER_V_PAIR_TRANSFORM_DST_NBR_WEIGHTED_INTERSECTION tests -------------------------
     ConfigureTestMG(MG_PER_V_PAIR_TRANSFORM_DST_NBR_WEIGHTED_INTERSECTION_TEST
-                prims/mg_per_v_pair_transform_dst_nbr_weighted_intersection.cu)
+                    prims/mg_per_v_pair_transform_dst_nbr_weighted_intersection.cu)
 
     ###############################################################################################
     # - MG UNIFORM NBR SAMPLING tests -------------------------------------------------------------
@@ -822,22 +822,22 @@ if(BUILD_CUGRAPH_MG_TESTS)
     ###############################################################################################
     # - MG HOMOGENEOUS UNIFORM NBR SAMPLING tests -------------------------------------------------
     ConfigureTestMG(
-    MG_HOMOGENEOUS_UNIFORM_NEIGHBOR_SAMPLING_TEST sampling/mg_homogeneous_uniform_neighbor_sampling.cpp)
+        MG_HOMOGENEOUS_UNIFORM_NEIGHBOR_SAMPLING_TEST sampling/mg_homogeneous_uniform_neighbor_sampling.cpp)
 
     ###############################################################################################
     # - MG HETEROGENEOUS UNIFORM NBR SAMPLING tests -------------------------------------------------
     ConfigureTestMG(
-    MG_HETEROGENEOUS_UNIFORM_NEIGHBOR_SAMPLING_TEST sampling/mg_heterogeneous_uniform_neighbor_sampling.cpp)
+        MG_HETEROGENEOUS_UNIFORM_NEIGHBOR_SAMPLING_TEST sampling/mg_heterogeneous_uniform_neighbor_sampling.cpp)
 
     ###############################################################################################
     # - MG HOMOGENEOUS BIASED NBR SAMPLING tests --------------------------------------------------
     ConfigureTestMG(
-    MG_HOMOGENEOUS_BIASED_NEIGHBOR_SAMPLING_TEST sampling/mg_homogeneous_biased_neighbor_sampling.cpp)
+        MG_HOMOGENEOUS_BIASED_NEIGHBOR_SAMPLING_TEST sampling/mg_homogeneous_biased_neighbor_sampling.cpp)
 
     ###############################################################################################
     # - MG HETEROGENEOUS BIASED NBR SAMPLING tests --------------------------------------------------
     ConfigureTestMG(
-    MG_HETEROGENEOUS_BIASED_NEIGHBOR_SAMPLING_TEST sampling/mg_heterogeneous_biased_neighbor_sampling.cpp)
+        MG_HETEROGENEOUS_BIASED_NEIGHBOR_SAMPLING_TEST sampling/mg_heterogeneous_biased_neighbor_sampling.cpp)
 
     ###############################################################################################
     # - MG BIASED NBR SAMPLING tests --------------------------------------------------------------
@@ -846,7 +846,7 @@ if(BUILD_CUGRAPH_MG_TESTS)
     ###############################################################################################
     # - MG TEMPORAL NBR SAMPLING tests --------------------------------------------------------------
     ConfigureTestMG(
-    MG_TEMPORAL_NEIGHBOR_SAMPLING_TEST sampling/mg_temporal_neighbor_sampling.cpp)
+        MG_TEMPORAL_NEIGHBOR_SAMPLING_TEST sampling/mg_temporal_neighbor_sampling.cpp)
 
     ###################################################################################################
     # - NEGATIVE SAMPLING tests --------------------------------------------------------------------
@@ -938,7 +938,7 @@ ConfigureCTest(CAPI_RENUMBER_ARBITRARY_EDGELIST_TEST c_api/renumber_arbitrary_ed
 # xref: https://github.com/rapidsai/cugraph/issues/4173                     #
 # xref: https://github.com/rapidsai/raft/issues/2186                        #
 #############################################################################
-ConfigureCTest(CAPI_LEGACY_SPECTRAL_TEST c_api/legacy_spectral_test.c)
+# ConfigureCTest(CAPI_LEGACY_SPECTRAL_TEST c_api/legacy_spectral_test.c)
 ConfigureCTest(CAPI_CORE_NUMBER_TEST c_api/core_number_test.c)
 ConfigureCTest(CAPI_SIMILARITY_TEST c_api/similarity_test.c)
 ConfigureCTest(CAPI_K_CORE_TEST c_api/k_core_test.c)
@@ -954,40 +954,7 @@ if (BUILD_CUGRAPH_MTMG_TESTS)
     ###################################################################################################
     # - MTMG tests -------------------------------------------------------------------------
     ConfigureTest(MTMG_TEST mtmg/threaded_test.cpp)
-    # target_link_libraries(MTMG_TEST
-    #                       PRIVATE
-    #                       cugraphmgtestutil
-    #                       ${COMPILED_RAFT_LIB}
-    #                       ucx::ucp
-    #                       ucx::ucs
-    #                       ucxx::ucxx
-    #                      )
-
-    ConfigureTest(MTMG_LOUVAIN_TEST mtmg/threaded_test_louvain.cpp)
-    # target_link_libraries(MTMG_LOUVAIN_TEST
-    #                       PRIVATE
-    #                       cugraphmgtestutil
-    #                       ${COMPILED_RAFT_LIB}
-    #                       ucx::ucp
-    #                       ucx::ucs
-    #                       ucxx::ucxx
-    #                      )
-
-    ConfigureTest(MTMG_JACCARD_TEST mtmg/threaded_test_jaccard.cpp)
-    # target_link_libraries(MTMG_JACCARD_TEST
-    #                       PRIVATE
-    #                       cugraphmgtestutil
-    #                       ${COMPILED_RAFT_LIB}
-    #                       ucx::ucp
-    #                       ucx::ucs
-    #                       ucxx::ucxx
-    #                      )
-
-    if(BUILD_CUGRAPH_MG_TESTS)
-    ###############################################################################################
-    # - Multi-node MTMG tests ---------------------------------------------------------------------
-    ConfigureTest(MTMG_MULTINODE_TEST mtmg/multi_node_threaded_test.cpp utilities/mg_utilities.cpp)
-    target_link_libraries(MTMG_MULTINODE_TEST
+    target_link_libraries(MTMG_TEST
                           PRIVATE
                           cugraphmgtestutil
                           ${COMPILED_RAFT_LIB}
@@ -995,7 +962,40 @@ if (BUILD_CUGRAPH_MTMG_TESTS)
                           ucx::ucs
                           ucxx::ucxx
                          )
-endif(BUILD_CUGRAPH_MG_TESTS)
+
+    ConfigureTest(MTMG_LOUVAIN_TEST mtmg/threaded_test_louvain.cpp)
+    target_link_libraries(MTMG_LOUVAIN_TEST
+                          PRIVATE
+                          cugraphmgtestutil
+                          ${COMPILED_RAFT_LIB}
+                          ucx::ucp
+                          ucx::ucs
+                          ucxx::ucxx
+                         )
+
+    ConfigureTest(MTMG_JACCARD_TEST mtmg/threaded_test_jaccard.cpp)
+    target_link_libraries(MTMG_JACCARD_TEST
+                          PRIVATE
+                          cugraphmgtestutil
+                          ${COMPILED_RAFT_LIB}
+                          ucx::ucp
+                          ucx::ucs
+                          ucxx::ucxx
+                         )
+
+    if(BUILD_CUGRAPH_MG_TESTS)
+        ###############################################################################################
+        # - Multi-node MTMG tests ---------------------------------------------------------------------
+        ConfigureTest(MTMG_MULTINODE_TEST mtmg/multi_node_threaded_test.cpp utilities/mg_utilities.cpp)
+        target_link_libraries(MTMG_MULTINODE_TEST
+                              PRIVATE
+                              cugraphmgtestutil
+                              ${COMPILED_RAFT_LIB}
+                              ucx::ucp
+                              ucx::ucs
+                              ucxx::ucxx
+                             )
+    endif(BUILD_CUGRAPH_MG_TESTS)
 endif(BUILD_CUGRAPH_MTMG_TESTS)
 
 rapids_test_install_relocatable(INSTALL_COMPONENT_SET testing_c DESTINATION bin/gtests/libcugraph_c)
