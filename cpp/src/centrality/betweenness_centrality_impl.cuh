@@ -1230,31 +1230,24 @@
                                                     thrust::get<2>(tuple), thrust::get<3>(tuple));
                           });
          
-         // Step 5: Sort by (src, tag) for reduction
+         // Step 5-7: Combined sort and reduce operations
+         // Sort by (src, tag) for reduction
          thrust::sort_by_key(handle.get_thrust_policy(),
                             thrust::make_zip_iterator(edge_srcs.begin(), edge_sources.begin()),
                             thrust::make_zip_iterator(edge_srcs.end(), edge_sources.end()),
                             edge_deltas.begin());
          
-         // Step 6: Count unique (src, tag) pairs first
-         size_t num_unique = thrust::count_if(
-           handle.get_thrust_policy(),
-           thrust::make_counting_iterator(size_t{0}),
-           thrust::make_counting_iterator(edge_srcs.size()),
-           [srcs = edge_srcs.data(), sources = edge_sources.data()] __device__(size_t i) {
-             return (i == 0) || 
-                    (srcs[i] != srcs[i - 1]) || 
-                    (sources[i] != sources[i - 1]);
-           });
-         
-         // Step 7: Reduce by (src, tag) - sum deltas for each (src, tag) pair
-         thrust::reduce_by_key(
+         // Reduce by key and get count in one operation
+         auto reduced_result = thrust::reduce_by_key(
            handle.get_thrust_policy(),
            thrust::make_zip_iterator(edge_srcs.begin(), edge_sources.begin()),
            thrust::make_zip_iterator(edge_srcs.end(), edge_sources.end()),
            edge_deltas.begin(),
            thrust::make_zip_iterator(edge_srcs.begin(), edge_sources.begin()),
            edge_deltas.begin());
+         
+         // Get num_unique from the result
+         size_t num_unique = reduced_result.second - edge_deltas.begin();
          
            // Step 8: Combined centrality update and delta accumulation in single for_each
            thrust::for_each(
