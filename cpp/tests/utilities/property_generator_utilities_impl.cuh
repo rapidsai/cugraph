@@ -30,10 +30,10 @@
 #include <rmm/device_uvector.hpp>
 
 #include <cuda/std/iterator>
+#include <cuda/std/tuple>
 #include <thrust/functional.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/transform.h>
-#include <thrust/tuple.h>
 
 #include <cuco/hash_functions.cuh>
 

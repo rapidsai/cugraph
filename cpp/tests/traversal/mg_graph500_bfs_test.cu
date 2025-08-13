@@ -76,11 +76,11 @@ template <typename vertex_t>
 struct hash_vertex_pair_t {
   using result_type = typename cuco::murmurhash3_32<vertex_t>::result_type;
 
-  __device__ result_type operator()(thrust::tuple<vertex_t, vertex_t> const& pair) const
+  __device__ result_type operator()(cuda::std::tuple<vertex_t, vertex_t> const& pair) const
   {
     cuco::murmurhash3_32<vertex_t> hash_func{};
-    auto hash0 = hash_func(thrust::get<0>(pair));
-    auto hash1 = hash_func(thrust::get<1>(pair));
+    auto hash0 = hash_func(cuda::std::get<0>(pair));
+    auto hash1 = hash_func(cuda::std::get<1>(pair));
     return hash0 + hash1;
   }
 };
@@ -165,9 +165,9 @@ rmm::device_uvector<vertex_t> find_trees_from_2cores(
       edge_src_reachable_from_2cores.view(),
       edge_dst_reachable_from_2cores.view(),
       cugraph::edge_dummy_property_t{}.view(),
-      cuda::proclaim_return_type<thrust::tuple<vertex_t, vertex_t>>(
+      cuda::proclaim_return_type<cuda::std::tuple<vertex_t, vertex_t>>(
         [] __device__(auto src, auto dst, auto, auto, auto) {
-          return thrust::make_tuple(src, dst);
+          return cuda::std::make_tuple(src, dst);
         }),
       cuda::proclaim_return_type<bool>(
         [] __device__(auto, auto, auto src_reachable, auto dst_reachable, auto) {
@@ -193,7 +193,7 @@ rmm::device_uvector<vertex_t> find_trees_from_2cores(
         cuda::proclaim_return_type<void>(
           [parents = raft::device_span<vertex_t>(parents.data(), parents.size()),
            v_first = tmp_graph_view.local_vertex_partition_range_first()] __device__(auto pair) {
-            parents[thrust::get<0>(pair) - v_first] = thrust::get<1>(pair);
+            parents[cuda::std::get<0>(pair) - v_first] = cuda::std::get<1>(pair);
           }));
       std::get<1>(vertex_pairs).resize(0, handle.get_stream());
       std::get<1>(vertex_pairs).shrink_to_fit(handle.get_stream());
@@ -278,7 +278,7 @@ extract_forest_pruned_graph_and_isolated_trees(
                         pair_first + mg_graph_view.local_vertex_partition_range_size(),
                         in_2cores.begin(),
                         cuda::proclaim_return_type<bool>([] __device__(auto pair) {
-                          return thrust::get<0>(pair) == thrust::get<1>(pair);
+                          return cuda::std::get<0>(pair) == cuda::std::get<1>(pair);
                         }));
       cugraph::update_edge_src_property(
         handle, mg_graph_view, in_2cores.begin(), edge_src_in_2cores.mutable_view());
@@ -297,7 +297,8 @@ extract_forest_pruned_graph_and_isolated_trees(
           [i, num_chunks, hash_func = hash_vertex_pair_t<vertex_t>{}] __device__(
             auto src, auto dst, auto src_in_2cores, auto dst_in_2cores, auto) {
             return (src_in_2cores && dst_in_2cores) &&
-                   (static_cast<size_t>(hash_func(thrust::make_tuple(src, dst)) % num_chunks) == i);
+                   (static_cast<size_t>(hash_func(cuda::std::make_tuple(src, dst)) % num_chunks) ==
+                    i);
           }),
         edge_mask.mutable_view());
       mg_graph_view.attach_edge_mask(edge_mask.view());
@@ -996,7 +997,7 @@ class Tests_GRAPH500_MGBFS
       thrust::tie(unrenumbered_starting_vertex, starting_vertex_parent, starting_vertex_component) =
         cugraph::host_scalar_bcast(
           comm,
-          thrust::make_tuple(
+          cuda::std::make_tuple(
             unrenumbered_starting_vertex, starting_vertex_parent, starting_vertex_component),
           cugraph::partition_manager::compute_global_comm_rank_from_vertex_partition_id(
             major_comm_size, minor_comm_size, starting_vertex_vertex_partition_id),
@@ -1062,7 +1063,7 @@ class Tests_GRAPH500_MGBFS
             }
             thrust::tie(unrenumbered_n, nn) = cugraph::host_scalar_bcast(
               comm,
-              thrust::make_tuple(unrenumbered_n, nn),
+              cuda::std::make_tuple(unrenumbered_n, nn),
               cugraph::partition_manager::compute_global_comm_rank_from_vertex_partition_id(
                 major_comm_size, minor_comm_size, n_vertex_partition_id),
               handle_->get_stream());
@@ -1205,8 +1206,8 @@ class Tests_GRAPH500_MGBFS
                             thrust::make_zip_iterator(components.begin(), d_mg_distances.begin()),
                             remaining_vertices.begin(),
                             [starting_vertex_component, invalid_distance] __device__(auto pair) {
-                              return thrust::get<0>(pair) == starting_vertex_component &&
-                                     thrust::get<1>(pair) == invalid_distance;
+                              return cuda::std::get<0>(pair) == starting_vertex_component &&
+                                     cuda::std::get<1>(pair) == invalid_distance;
                             })),
           handle_->get_stream());
         while (true) {
@@ -1235,7 +1236,7 @@ class Tests_GRAPH500_MGBFS
             handle_->get_thrust_policy(),
             pair_first,
             pair_first + remaining_vertices.size(),
-            [] __device__(auto pair) { return thrust::get<1>(pair) == invalid_distance; });
+            [] __device__(auto pair) { return cuda::std::get<1>(pair) == invalid_distance; });
           auto new_size = thrust::distance(pair_first, remaining_last);
           auto dist_first =
             thrust::make_transform_iterator(
@@ -1297,8 +1298,8 @@ class Tests_GRAPH500_MGBFS
             thrust::make_zip_iterator(d_mg_distances.begin(), mg_graph_to_pruned_graph_map.begin()),
             thrust::make_zip_iterator(d_mg_distances.end(), mg_graph_to_pruned_graph_map.end()),
             [invalid_distance, invalid_vertex] __device__(auto pair) {
-              return (thrust::get<0>(pair) != invalid_distance /* reachable */) &&
-                     (thrust::get<1>(pair) == invalid_vertex /* not in the pruned graph */);
+              return (cuda::std::get<0>(pair) != invalid_distance /* reachable */) &&
+                     (cuda::std::get<1>(pair) == invalid_vertex /* not in the pruned graph */);
             });  // # vertices reachable from 2-cores but not in 2-cores
           forest_edge_count = cugraph::host_scalar_allreduce(
             comm, forest_edge_count, raft::comms::op_t::SUM, handle_->get_stream());
@@ -1466,8 +1467,8 @@ class Tests_GRAPH500_MGBFS
                               output_pair_first,
                               cuda::proclaim_return_type<bool>(
                                 [starting_vertex, invalid_vertex] __device__(auto pair) {
-                                  auto pred = thrust::get<0>(pair);
-                                  auto v    = thrust::get<1>(pair);
+                                  auto pred = cuda::std::get<0>(pair);
+                                  auto v    = cuda::std::get<1>(pair);
                                   return (pred != invalid_vertex) && (v != starting_vertex);
                                 }))),
             handle_->get_stream());
@@ -1502,8 +1503,8 @@ class Tests_GRAPH500_MGBFS
                              dist_pair_first,
                              dist_pair_first + tree_src_dists.size(),
                              cuda::proclaim_return_type<bool>([] __device__(auto pair) {
-                               auto src_dist = thrust::get<0>(pair);
-                               auto dst_dist = thrust::get<1>(pair);
+                               auto src_dist = cuda::std::get<0>(pair);
+                               auto dst_dist = cuda::std::get<1>(pair);
                                return (src_dist + 1) != dst_dist;
                              }));
           num_invalids = cugraph::host_scalar_allreduce(
@@ -1573,8 +1574,8 @@ class Tests_GRAPH500_MGBFS
                                 pair_first,
                                 subgraph_level_v_offsets.begin(),
                                 [level, invalid_distance] __device__(auto pair) {
-                                  auto d = thrust::get<1>(pair);
-                                  return (thrust::get<0>(pair) !=
+                                  auto d = cuda::std::get<1>(pair);
+                                  return (cuda::std::get<0>(pair) !=
                                           invalid_vertex /* in the subgraph */) &&
                                          (d == level);
                                 })),
@@ -1592,8 +1593,8 @@ class Tests_GRAPH500_MGBFS
                   pair_first,
                   subgraph_adjacent_level_v_offsets.begin(),
                   cuda::proclaim_return_type<bool>([level, invalid_distance] __device__(auto pair) {
-                    auto d = thrust::get<1>(pair);
-                    return (thrust::get<0>(pair) != invalid_vertex /* in the subgraph */) &&
+                    auto d = cuda::std::get<1>(pair);
+                    return (cuda::std::get<0>(pair) != invalid_vertex /* in the subgraph */) &&
                            (((d >= level) ? (d - level) : (level - d)) <= 1);
                   }))),
               handle_->get_stream());
@@ -1670,8 +1671,8 @@ class Tests_GRAPH500_MGBFS
                   unreachable_v_offsets.begin(),
                   cuda::proclaim_return_type<bool>(
                     [invalid_vertex, invalid_distance] __device__(auto pair) {
-                      return (thrust::get<0>(pair) != invalid_vertex /* in the subgraph */) &&
-                             (thrust::get<1>(pair) == invalid_distance /* unreachable */);
+                      return (cuda::std::get<0>(pair) != invalid_vertex /* in the subgraph */) &&
+                             (cuda::std::get<1>(pair) == invalid_distance /* unreachable */);
                     }))),
               handle_->get_stream());
             auto unreachable_vs = std::move(unreachable_v_offsets);
@@ -1733,8 +1734,8 @@ class Tests_GRAPH500_MGBFS
                                 input_first + forest_edge_parents.size(),
                                 output_first,
                                 cuda::proclaim_return_type<bool>([] __device__(auto pair) {
-                                  auto p = thrust::get<0>(pair);
-                                  auto v = thrust::get<1>(pair);
+                                  auto p = cuda::std::get<0>(pair);
+                                  auto v = cuda::std::get<1>(pair);
                                   return (p != invalid_vertex /* reachable from 2-cores */) &&
                                          (p != v /* not in a 2-core */);
                                 }))),
@@ -1763,8 +1764,8 @@ class Tests_GRAPH500_MGBFS
                                dist_pair_first,
                                dist_pair_first + forest_edge_src_dists.size(),
                                cuda::proclaim_return_type<bool>([] __device__(auto pair) {
-                                 auto src_dist = thrust::get<0>(pair);
-                                 auto dst_dist = thrust::get<1>(pair);
+                                 auto src_dist = cuda::std::get<0>(pair);
+                                 auto dst_dist = cuda::std::get<1>(pair);
                                  if (src_dist == invalid_distance) {
                                    return dst_dist != invalid_distance;
                                  } else {
@@ -1805,8 +1806,8 @@ class Tests_GRAPH500_MGBFS
                              pair_first + components.size(),
                              cuda::proclaim_return_type<bool>(
                                [starting_vertex_component, invalid_vertex] __device__(auto pair) {
-                                 auto c    = thrust::get<0>(pair);
-                                 auto pred = thrust::get<1>(pair);
+                                 auto c    = cuda::std::get<0>(pair);
+                                 auto pred = cuda::std::get<1>(pair);
                                  if (c == starting_vertex_component) {
                                    return pred == invalid_vertex;
                                  } else {
@@ -1852,8 +1853,8 @@ class Tests_GRAPH500_MGBFS
                               output_edge_first,
                               cuda::proclaim_return_type<bool>(
                                 [invalid_vertex, starting_vertex] __device__(auto pair) {
-                                  auto pred = thrust::get<0>(pair);
-                                  auto v    = thrust::get<1>(pair);
+                                  auto pred = cuda::std::get<0>(pair);
+                                  auto v    = cuda::std::get<1>(pair);
                                   return (pred != invalid_vertex /* reachable */) &&
                                          (v != starting_vertex);
                                 }))),
@@ -1872,8 +1873,8 @@ class Tests_GRAPH500_MGBFS
                   cuda::proclaim_return_type<bool>(
                     [parents = raft::device_span<vertex_t const>(parents.data(), parents.size()),
                      v_first = local_vertex_partition_range_first] __device__(auto pair) {
-                      auto pred   = thrust::get<0>(pair);
-                      auto v      = thrust::get<1>(pair);
+                      auto pred   = cuda::std::get<0>(pair);
+                      auto v      = cuda::std::get<1>(pair);
                       auto parent = parents[v - v_first];
                       return parent == pred;  // the query edge exists in the forest
                     }))),
@@ -1898,8 +1899,8 @@ class Tests_GRAPH500_MGBFS
                                   input_first + mg_renumber_map.size(),
                                   output_first,
                                   cuda::proclaim_return_type<bool>([] __device__(auto pair) {
-                                    auto v      = thrust::get<0>(pair);
-                                    auto parent = thrust::get<1>(pair);
+                                    auto v      = cuda::std::get<0>(pair);
+                                    auto parent = cuda::std::get<1>(pair);
                                     return (parent != invalid_vertex /* reachable */) &&
                                            (parent != v /* v is not in 2-cores */);
                                   }))),
@@ -1932,9 +1933,9 @@ class Tests_GRAPH500_MGBFS
                       [forest_edge_first,
                        forest_edge_last =
                          forest_edge_first + forest_edge_vertices.size()] __device__(auto pair) {
-                        auto pred = thrust::get<0>(pair);
-                        auto v    = thrust::get<1>(pair);
-                        auto key  = thrust::make_tuple(pred, v);
+                        auto pred = cuda::std::get<0>(pair);
+                        auto v    = cuda::std::get<1>(pair);
+                        auto key  = cuda::std::make_tuple(pred, v);
                         auto it   = thrust::lower_bound(
                           thrust::seq, forest_edge_first, forest_edge_last, key);
                         return (it != forest_edge_last) && (*it == key);

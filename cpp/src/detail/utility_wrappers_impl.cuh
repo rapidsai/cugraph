@@ -26,6 +26,7 @@
 
 #include <cuda/functional>
 #include <cuda/std/iterator>
+#include <cuda/std/tuple>
 #include <thrust/count.h>
 #include <thrust/equal.h>
 #include <thrust/functional.h>
@@ -36,7 +37,6 @@
 #include <thrust/sort.h>
 #include <thrust/transform.h>
 #include <thrust/transform_reduce.h>
-#include <thrust/tuple.h>
 #include <thrust/unique.h>
 
 namespace cugraph {
@@ -156,8 +156,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> filter_de
   rmm::device_uvector<vertex_t>&& d_vertices,
   rmm::device_uvector<edge_t>&& d_out_degs)
 {
-  auto zip_iter =
-    thrust::make_zip_iterator(thrust::make_tuple(d_vertices.begin(), d_out_degs.begin()));
+  auto zip_iter = thrust::make_zip_iterator(d_vertices.begin(), d_out_degs.begin());
 
   CUGRAPH_EXPECTS(d_vertices.size() < static_cast<size_t>(std::numeric_limits<int32_t>::max()),
                   "remove_if will fail, d_vertices.size() is too large");

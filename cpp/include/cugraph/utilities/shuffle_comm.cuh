@@ -29,6 +29,7 @@
 #include <cuda/atomic>
 #include <cuda/functional>
 #include <cuda/std/iterator>
+#include <cuda/std/tuple>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
 #include <thrust/count.h>
@@ -43,7 +44,6 @@
 #include <thrust/scatter.h>
 #include <thrust/sort.h>
 #include <thrust/tabulate.h>
-#include <thrust/tuple.h>
 #include <thrust/unique.h>
 
 #include <algorithm>
@@ -61,15 +61,15 @@ struct compute_group_id_count_pair_t {
   GroupIdIterator group_id_first{};
   GroupIdIterator group_id_last{};
 
-  __device__ thrust::tuple<int, size_t> operator()(size_t i) const
+  __device__ cuda::std::tuple<int, size_t> operator()(size_t i) const
   {
     static_assert(
       std::is_same_v<typename thrust::iterator_traits<GroupIdIterator>::value_type, int>);
     auto lower_it =
       thrust::lower_bound(thrust::seq, group_id_first, group_id_last, static_cast<int>(i));
     auto upper_it = thrust::upper_bound(thrust::seq, lower_it, group_id_last, static_cast<int>(i));
-    return thrust::make_tuple(static_cast<int>(i),
-                              static_cast<size_t>(cuda::std::distance(lower_it, upper_it)));
+    return cuda::std::make_tuple(static_cast<int>(i),
+                                 static_cast<size_t>(cuda::std::distance(lower_it, upper_it)));
   }
 };
 
@@ -164,9 +164,9 @@ template <typename key_type, typename value_type, typename KeyToGroupIdOp>
 struct kv_pair_group_id_less_t {
   KeyToGroupIdOp key_to_group_id_op;
   int pivot{};
-  __device__ bool operator()(thrust::tuple<key_type, value_type> t) const
+  __device__ bool operator()(cuda::std::tuple<key_type, value_type> t) const
   {
-    return key_to_group_id_op(thrust::get<0>(t)) < pivot;
+    return key_to_group_id_op(cuda::std::get<0>(t)) < pivot;
   }
 };
 
@@ -181,9 +181,9 @@ template <typename key_type, typename value_type, typename KeyToGroupIdOp>
 struct kv_pair_group_id_greater_equal_t {
   KeyToGroupIdOp key_to_group_id_op;
   int pivot{};
-  __device__ bool operator()(thrust::tuple<key_type, value_type> t) const
+  __device__ bool operator()(cuda::std::tuple<key_type, value_type> t) const
   {
-    return key_to_group_id_op(thrust::get<0>(t)) >= pivot;
+    return key_to_group_id_op(cuda::std::get<0>(t)) >= pivot;
   }
 };
 
@@ -210,12 +210,12 @@ void multi_partition(ValueIterator value_first,
     value_first,
     value_last,
     thrust::make_zip_iterator(
-      thrust::make_tuple(group_id_offsets.begin(), intra_partition_displs.begin())),
-    cuda::proclaim_return_type<thrust::tuple<gid_offset_t, offset_t>>(
+      cuda::std::make_tuple(group_id_offsets.begin(), intra_partition_displs.begin())),
+    cuda::proclaim_return_type<cuda::std::tuple<gid_offset_t, offset_t>>(
       [value_to_group_id_op, group_first, counts = counts.data()] __device__(auto value) {
         auto group_id_offset = static_cast<gid_offset_t>(value_to_group_id_op(value) - group_first);
         cuda::std::atomic_ref<size_t> counter(counts[group_id_offset]);
-        return thrust::make_tuple(
+        return cuda::std::make_tuple(
           group_id_offset,
           static_cast<offset_t>(counter.fetch_add(size_t{1}, cuda::std::memory_order_relaxed)));
       }));
@@ -237,7 +237,8 @@ void multi_partition(ValueIterator value_first,
       cuda::proclaim_return_type<size_t>(
         [displacements = raft::device_span<size_t const>(
            displacements.data(), displacements.size())] __device__(auto pair) {
-          return displacements[thrust::get<0>(pair)] + static_cast<size_t>(thrust::get<1>(pair));
+          return displacements[cuda::std::get<0>(pair)] +
+                 static_cast<size_t>(cuda::std::get<1>(pair));
         })),
     tmp_value_first);
   thrust::copy(
@@ -269,12 +270,12 @@ void multi_partition(KeyIterator key_first,
     key_first,
     key_last,
     thrust::make_zip_iterator(
-      thrust::make_tuple(group_id_offsets.begin(), intra_partition_displs.begin())),
-    cuda::proclaim_return_type<thrust::tuple<gid_offset_t, offset_t>>(
+      cuda::std::make_tuple(group_id_offsets.begin(), intra_partition_displs.begin())),
+    cuda::proclaim_return_type<cuda::std::tuple<gid_offset_t, offset_t>>(
       [key_to_group_id_op, group_first, counts = counts.data()] __device__(auto key) {
         auto group_id_offset = static_cast<gid_offset_t>(key_to_group_id_op(key) - group_first);
         cuda::std::atomic_ref<size_t> counter(counts[group_id_offset]);
-        return thrust::make_tuple(
+        return cuda::std::make_tuple(
           group_id_offset,
           static_cast<offset_t>(counter.fetch_add(size_t{1}, cuda::std::memory_order_relaxed)));
       }));
@@ -285,11 +286,11 @@ void multi_partition(KeyIterator key_first,
 
   auto map_first = thrust::make_transform_iterator(
     thrust::make_zip_iterator(group_id_offsets.begin(), intra_partition_displs.begin()),
-    cuda::proclaim_return_type<size_t>(
-      [displacements = raft::device_span<size_t const>(
-         displacements.data(), displacements.size())] __device__(auto pair) {
-        return displacements[thrust::get<0>(pair)] + static_cast<size_t>(thrust::get<1>(pair));
-      }));
+    cuda::proclaim_return_type<size_t>([displacements = raft::device_span<size_t const>(
+                                          displacements.data(),
+                                          displacements.size())] __device__(auto pair) {
+      return displacements[cuda::std::get<0>(pair)] + static_cast<size_t>(cuda::std::get<1>(pair));
+    }));
   {
     auto tmp_key_buffer =
       allocate_dataframe_buffer<typename thrust::iterator_traits<KeyIterator>::value_type>(
@@ -562,8 +563,8 @@ std::tuple<KeyIterator, ValueIterator> mem_frugal_partition(
   // thrust::copy_if (1.15.0) also uses temporary buffer
   auto max_elements_per_iteration = size_t{16} * 1024 * 1024;
   auto num_chunks    = (num_elements + max_elements_per_iteration - 1) / max_elements_per_iteration;
-  auto kv_pair_first = thrust::make_zip_iterator(thrust::make_tuple(key_first, value_first));
-  auto output_chunk_first = thrust::make_zip_iterator(thrust::make_tuple(
+  auto kv_pair_first = thrust::make_zip_iterator(cuda::std::make_tuple(key_first, value_first));
+  auto output_chunk_first = thrust::make_zip_iterator(cuda::std::make_tuple(
     get_dataframe_buffer_begin(tmp_key_buffer), get_dataframe_buffer_begin(tmp_value_buffer)));
   for (size_t i = 0; i < num_chunks; ++i) {
     output_chunk_first = thrust::copy_if(
@@ -733,7 +734,7 @@ void mem_frugal_groupby(
           mem_frugal_threshold) {
         if (group_lasts[i] - group_firsts[i] == 2) {
           auto kv_pair_first =
-            thrust::make_zip_iterator(thrust::make_tuple(key_firsts[i], value_firsts[i]));
+            thrust::make_zip_iterator(cuda::std::make_tuple(key_firsts[i], value_firsts[i]));
           thrust::partition(
             rmm::exec_policy(stream_view),
             kv_pair_first,
@@ -845,7 +846,7 @@ rmm::device_uvector<size_t> groupby_and_count(
   rmm::device_uvector<int> d_tx_dst_ranks(num_groups, stream_view);
   rmm::device_uvector<size_t> d_tx_value_counts(d_tx_dst_ranks.size(), stream_view);
   auto rank_count_pair_first = thrust::make_zip_iterator(
-    thrust::make_tuple(d_tx_dst_ranks.begin(), d_tx_value_counts.begin()));
+    cuda::std::make_tuple(d_tx_dst_ranks.begin(), d_tx_value_counts.begin()));
   thrust::tabulate(
     rmm::exec_policy(stream_view),
     rank_count_pair_first,
@@ -886,7 +887,7 @@ rmm::device_uvector<size_t> groupby_and_count(
   rmm::device_uvector<int> d_tx_dst_ranks(num_groups, stream_view);
   rmm::device_uvector<size_t> d_tx_value_counts(d_tx_dst_ranks.size(), stream_view);
   auto rank_count_pair_first = thrust::make_zip_iterator(
-    thrust::make_tuple(d_tx_dst_ranks.begin(), d_tx_value_counts.begin()));
+    cuda::std::make_tuple(d_tx_dst_ranks.begin(), d_tx_value_counts.begin()));
   thrust::tabulate(
     rmm::exec_policy(stream_view),
     rank_count_pair_first,

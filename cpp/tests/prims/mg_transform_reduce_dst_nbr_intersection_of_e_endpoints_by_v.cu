@@ -39,9 +39,9 @@
 
 #include <rmm/device_uvector.hpp>
 
+#include <cuda/std/tuple>
 #include <thrust/equal.h>
 #include <thrust/iterator/counting_iterator.h>
-#include <thrust/tuple.h>
 
 #include <gtest/gtest.h>
 
@@ -49,14 +49,14 @@
 
 template <typename vertex_t, typename edge_t>
 struct intersection_op_t {
-  __device__ thrust::tuple<edge_t, edge_t, edge_t> operator()(
+  __device__ cuda::std::tuple<edge_t, edge_t, edge_t> operator()(
     vertex_t v0,
     vertex_t v1,
     edge_t v0_prop,
     edge_t v1_prop,
     raft::device_span<vertex_t const> intersection) const
   {
-    return thrust::make_tuple(
+    return cuda::std::make_tuple(
       v0_prop + v1_prop, v0_prop + v1_prop, static_cast<edge_t>(intersection.size()));
   }
 };
