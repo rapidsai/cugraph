@@ -171,7 +171,7 @@ def force_atlas2(
             raise ValueError("vertex_radius has wrong column names")
         if input_graph.renumbered is True:
             if input_graph.vertex_column_size() > 1:
-                cols = pos_list.columns[:-2].to_list()
+                cols = vertex_radius.columns[:-1].to_list()
             else:
                 cols = "vertex"
             vertex_radius = input_graph.add_internal_vertex_id(
@@ -185,7 +185,7 @@ def force_atlas2(
             raise ValueError("mobility has wrong column names")
         if input_graph.renumbered is True:
             if input_graph.vertex_column_size() > 1:
-                cols = mobility.columns[:-2].to_list()
+                cols = mobility.columns[:-1].to_list()
             else:
                 cols = "vertex"
             mobility = input_graph.add_internal_vertex_id(mobility, "vertex", cols)
