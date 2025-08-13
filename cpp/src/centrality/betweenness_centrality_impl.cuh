@@ -1213,64 +1213,63 @@
          size_t num_edges = size_dataframe_buffer(edge_tuples_buffer);
         
         if (num_edges > 0) {
-          // Extract components directly from the buffer
-          rmm::device_uvector<vertex_t> edge_srcs(num_edges, handle.get_stream());
-          rmm::device_uvector<size_t> edge_sources(num_edges, handle.get_stream());
-          rmm::device_uvector<vertex_t> edge_dsts(num_edges, handle.get_stream());
+          // Extract only the components we need for sorting and reduction
+          // edge_keys[i] = (vertex_id, origin tag) that this edge came from
+          rmm::device_uvector<thrust::tuple<vertex_t, size_t>> edge_keys(num_edges, handle.get_stream());
           rmm::device_uvector<weight_t> edge_deltas(num_edges, handle.get_stream());
           
-          // Extract components from the buffer using transform
+          // Extract keys and values in one transform operation
           thrust::transform(handle.get_thrust_policy(),
                           get_dataframe_buffer_begin(edge_tuples_buffer),
                           get_dataframe_buffer_end(edge_tuples_buffer),
-                          thrust::make_zip_iterator(edge_srcs.begin(), edge_sources.begin(), 
-                                                  edge_dsts.begin(), edge_deltas.begin()),
+                          thrust::make_zip_iterator(edge_keys.begin(), edge_deltas.begin()),
                           [] __device__(auto tuple) {
-                            return thrust::make_tuple(thrust::get<0>(tuple), thrust::get<1>(tuple),
-                                                    thrust::get<2>(tuple), thrust::get<3>(tuple));
+                            return thrust::make_tuple(
+                              thrust::make_tuple(thrust::get<0>(tuple), thrust::get<1>(tuple)), // (src, source_idx)
+                              thrust::get<3>(tuple)  // delta
+                            );
                           });
-         
-         // Step 5-7: Combined sort and reduce operations
-         // Sort by (src, tag) for reduction
-         thrust::sort_by_key(handle.get_thrust_policy(),
-                            thrust::make_zip_iterator(edge_srcs.begin(), edge_sources.begin()),
-                            thrust::make_zip_iterator(edge_srcs.end(), edge_sources.end()),
-                            edge_deltas.begin());
-         
-         // Reduce by key and get count in one operation
-         auto reduced_result = thrust::reduce_by_key(
-           handle.get_thrust_policy(),
-           thrust::make_zip_iterator(edge_srcs.begin(), edge_sources.begin()),
-           thrust::make_zip_iterator(edge_srcs.end(), edge_sources.end()),
-           edge_deltas.begin(),
-           thrust::make_zip_iterator(edge_srcs.begin(), edge_sources.begin()),
-           edge_deltas.begin());
-         
-         // Get num_unique from the result
-         size_t num_unique = reduced_result.second - edge_deltas.begin();
-         
-           // Step 8: Combined centrality update and delta accumulation in single for_each
-           thrust::for_each(
-             handle.get_thrust_policy(),
-             thrust::make_zip_iterator(edge_srcs.begin(), edge_sources.begin(), edge_deltas.begin()),
-             thrust::make_zip_iterator(edge_srcs.begin() + num_unique, 
-                                     edge_sources.begin() + num_unique,
-                                     edge_deltas.begin() + num_unique),
-             [centralities = centralities.data(), delta_buffer = delta_buffer.data(), 
-              num_vertices, v_first = graph_view.local_vertex_partition_range_first()] __device__(auto tuple) {
-               auto src = thrust::get<0>(tuple);
-               auto source_idx = thrust::get<1>(tuple);
-               auto delta = thrust::get<2>(tuple);
-               
-               // Update centrality
-               auto src_offset = src - v_first;
-               atomicAdd(&centralities[src_offset], delta);
-               
-               // Accumulate delta for next iteration
-               weight_t* source_deltas = delta_buffer + source_idx * num_vertices;
-               atomicAdd(&source_deltas[src_offset], delta);
-             });
-       }
+          
+          // Step 5-7: Combined sort and reduce operations
+          // Sort by (src, source_idx) for reduction
+          thrust::sort_by_key(handle.get_thrust_policy(),
+                             edge_keys.begin(), edge_keys.end(),
+                             edge_deltas.begin());
+          
+          // Reduce by key and get count in one operation
+          auto reduced_result = thrust::reduce_by_key(
+            handle.get_thrust_policy(),
+            edge_keys.begin(), edge_keys.end(),
+            edge_deltas.begin(),
+            edge_keys.begin(),   // Output keys (overwrite input)
+            edge_deltas.begin(), // Output values (overwrite input)
+            thrust::equal_to<thrust::tuple<vertex_t, size_t>>{},  // BinaryPredicate: compare keys
+            thrust::plus<weight_t>{}); // BinaryFunction: sum values
+          
+          // Get num_unique from the result
+          size_t num_unique = reduced_result.second - edge_deltas.begin();
+          
+          // Step 8: Combined centrality update and delta accumulation
+          thrust::for_each(
+            handle.get_thrust_policy(),
+            thrust::make_zip_iterator(edge_keys.begin(), edge_deltas.begin()),
+            thrust::make_zip_iterator(edge_keys.begin() + num_unique, edge_deltas.begin() + num_unique),
+            [centralities = centralities.data(), delta_buffer = delta_buffer.data(), 
+             num_vertices, v_first = graph_view.local_vertex_partition_range_first()] __device__(auto tuple) {
+              auto key = thrust::get<0>(tuple);
+              auto delta = thrust::get<1>(tuple);
+              auto src = thrust::get<0>(key);
+              auto source_idx = thrust::get<1>(key);
+              
+              // Update centrality
+              auto src_offset = src - v_first;
+              atomicAdd(&centralities[src_offset], delta);
+              
+              // Accumulate delta for next iteration
+              weight_t* source_deltas = delta_buffer + source_idx * num_vertices;
+              atomicAdd(&source_deltas[src_offset], delta);
+            });
+        }
      }
    }
    
