@@ -543,6 +543,201 @@ template <typename vertex_t,
           typename weight_t,
           bool multi_gpu,
           typename VertexIterator>
+std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> multisource_bfs(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+  VertexIterator vertex_first,
+  VertexIterator vertex_last,
+  bool do_expensive_check)
+{
+  constexpr vertex_t invalid_distance = std::numeric_limits<vertex_t>::max();
+  constexpr size_t bucket_idx_cur     = 0;
+  constexpr size_t bucket_idx_next    = 1;
+  constexpr size_t num_buckets        = 2;
+
+  using origin_t = uint32_t;  // Source index type
+
+  // Use 2D arrays to track per-source distances and sigmas
+  // Layout: [source_idx * num_vertices + vertex_idx]
+  auto num_vertices = graph_view.local_vertex_partition_range_size();
+  auto num_sources  = cuda::std::distance(vertex_first, vertex_last);
+
+  rmm::device_uvector<edge_t> sigmas_2d(num_sources * num_vertices, handle.get_stream());
+  rmm::device_uvector<vertex_t> distances_2d(num_sources * num_vertices, handle.get_stream());
+  detail::scalar_fill(handle, distances_2d.data(), distances_2d.size(), invalid_distance);
+  detail::scalar_fill(handle, sigmas_2d.data(), sigmas_2d.size(), edge_t{0});
+
+  // Create tagged frontier with origin indices
+  vertex_frontier_t<vertex_t, origin_t, multi_gpu, true> vertex_frontier(handle, num_buckets);
+
+  auto vertex_partition =
+    vertex_partition_device_view_t<vertex_t, multi_gpu>(graph_view.local_vertex_partition_view());
+
+  // Initialize sources with their origins using zip iterator approach
+  if (num_sources > 0) {
+    // Create zip iterator for (vertex, origin) pairs
+    auto pair_first =
+      thrust::make_zip_iterator(vertex_first, thrust::make_counting_iterator(origin_t{0}));
+    auto pair_last =
+      thrust::make_zip_iterator(vertex_last, thrust::make_counting_iterator(origin_t{num_sources}));
+
+    // Insert tagged sources into frontier
+    vertex_frontier.bucket(bucket_idx_cur).insert(pair_first, pair_last);
+
+    // Initialize distances and sigmas for sources
+    thrust::for_each(handle.get_thrust_policy(),
+                     pair_first,
+                     pair_last,
+                     [d_sigma_2d    = sigmas_2d.begin(),
+                      d_distance_2d = distances_2d.begin(),
+                      vertex_partition,
+                      num_vertices] __device__(auto tagged_source) {
+                       auto v      = thrust::get<0>(tagged_source);
+                       auto origin = thrust::get<1>(tagged_source);
+                       auto offset =
+                         vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(v);
+                       auto idx           = origin * num_vertices + offset;
+                       d_distance_2d[idx] = 0;
+                       d_sigma_2d[idx]    = 1;
+                     });
+  }
+
+  edge_t hop{0};
+
+  while (vertex_frontier.bucket(bucket_idx_cur).aggregate_size() > 0) {
+    // Step 1: Extract ALL edges from frontier (filtered by unvisited vertices)
+    using bfs_edge_tuple_t = thrust::tuple<vertex_t, origin_t, edge_t>;
+
+    auto result = detail::extract_transform_if_v_frontier_e<false, bfs_edge_tuple_t, void>(
+      handle,
+      graph_view,
+      vertex_frontier.bucket(bucket_idx_cur),
+      edge_src_dummy_property_t{}.view(),
+      edge_dst_dummy_property_t{}.view(),
+      edge_dummy_property_t{}.view(),
+      cuda::proclaim_return_type<bfs_edge_tuple_t>(
+        [d_sigma_2d = sigmas_2d.begin(), num_vertices, vertex_partition] __device__(
+          auto tagged_src, auto dst, auto, auto, auto) {
+          auto src        = thrust::get<0>(tagged_src);
+          auto origin     = thrust::get<1>(tagged_src);
+          auto src_offset = vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(src);
+          auto src_idx    = origin * num_vertices + src_offset;
+          auto src_sigma  = static_cast<edge_t>(d_sigma_2d[src_idx]);
+
+          return thrust::make_tuple(dst, origin, src_sigma);
+        }),
+      // PREDICATE: only process edges to unvisited vertices
+      cuda::proclaim_return_type<bool>(
+        [d_distances_2d = distances_2d.begin(),
+         num_vertices,
+         vertex_partition,
+         invalid_distance] __device__(auto tagged_src, auto dst, auto, auto, auto) {
+          auto origin     = thrust::get<1>(tagged_src);
+          auto dst_offset = vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(dst);
+          auto dst_idx    = origin * num_vertices + dst_offset;
+          return d_distances_2d[dst_idx] == invalid_distance;
+        }));
+
+    // Step 2: Convert buffers to device vectors and extract components
+    auto new_frontier_tagged_vertex_buffer = std::move(std::get<0>(result));
+
+    rmm::device_uvector<bfs_edge_tuple_t> frontier_tuples(
+      size_dataframe_buffer(new_frontier_tagged_vertex_buffer), handle.get_stream());
+
+    thrust::copy(handle.get_thrust_policy(),
+                 get_dataframe_buffer_begin(new_frontier_tagged_vertex_buffer),
+                 get_dataframe_buffer_end(new_frontier_tagged_vertex_buffer),
+                 frontier_tuples.begin());
+
+    // Extract (vertex, origin) pairs and sigmas for sorting and reduction
+    rmm::device_uvector<vertex_t> frontier_vertices(frontier_tuples.size(), handle.get_stream());
+    rmm::device_uvector<origin_t> frontier_origins(frontier_tuples.size(), handle.get_stream());
+    rmm::device_uvector<edge_t> sigmas(frontier_tuples.size(), handle.get_stream());
+
+    thrust::transform(handle.get_thrust_policy(),
+                      frontier_tuples.begin(),
+                      frontier_tuples.end(),
+                      thrust::make_zip_iterator(
+                        frontier_vertices.begin(), frontier_origins.begin(), sigmas.begin()),
+                      [] __device__(auto tuple) {
+                        return thrust::make_tuple(
+                          thrust::get<0>(tuple), thrust::get<1>(tuple), thrust::get<2>(tuple));
+                      });
+
+    // Step 3: Reduce by (destination, origin) - sums sigmas for multiple paths
+    // Sort by (destination, origin) pairs
+    thrust::sort_by_key(
+      handle.get_thrust_policy(),
+      thrust::make_zip_iterator(frontier_vertices.begin(), frontier_origins.begin()),
+      thrust::make_zip_iterator(frontier_vertices.end(), frontier_origins.end()),
+      sigmas.begin());
+
+    // Reduce by key to sum sigmas for identical (destination, origin) pairs
+    auto num_unique = thrust::count_if(handle.get_thrust_policy(),
+                                       thrust::make_counting_iterator(size_t{0}),
+                                       thrust::make_counting_iterator(frontier_vertices.size()),
+                                       [vertices = frontier_vertices.data(),
+                                        origins  = frontier_origins.data()] __device__(size_t i) {
+                                         return (i == 0) || (vertices[i] != vertices[i - 1]) ||
+                                                (origins[i] != origins[i - 1]);
+                                       });
+
+    rmm::device_uvector<vertex_t> unique_vertices(num_unique, handle.get_stream());
+    rmm::device_uvector<origin_t> unique_origins(num_unique, handle.get_stream());
+    rmm::device_uvector<edge_t> unique_sigmas(num_unique, handle.get_stream());
+
+    thrust::reduce_by_key(
+      handle.get_thrust_policy(),
+      thrust::make_zip_iterator(frontier_vertices.begin(), frontier_origins.begin()),
+      thrust::make_zip_iterator(frontier_vertices.end(), frontier_origins.end()),
+      sigmas.begin(),
+      thrust::make_zip_iterator(unique_vertices.begin(), unique_origins.begin()),
+      unique_sigmas.begin(),
+      thrust::equal_to<thrust::tuple<vertex_t, origin_t>>{},
+      thrust::plus<edge_t>{});
+
+    // Step 4: Manual array updates (all vertices in unique_vertices are unvisited due to predicate)
+    thrust::for_each(
+      handle.get_thrust_policy(),
+      thrust::make_zip_iterator(
+        unique_vertices.begin(), unique_origins.begin(), unique_sigmas.begin()),
+      thrust::make_zip_iterator(unique_vertices.end(), unique_origins.end(), unique_sigmas.end()),
+      [d_distances_2d = distances_2d.begin(),
+       d_sigmas_2d    = sigmas_2d.begin(),
+       num_vertices,
+       hop,
+       vertex_partition] __device__(auto tuple) {
+        auto v      = thrust::get<0>(tuple);
+        auto origin = thrust::get<1>(tuple);
+        auto sigma  = thrust::get<2>(tuple);
+        auto offset = vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(v);
+        auto idx    = origin * num_vertices + offset;
+
+        // Direct assignment - no atomics needed because reduction already handled duplicates
+        d_distances_2d[idx] = hop + 1;
+        d_sigmas_2d[idx]    = sigma;
+      });
+
+    // Step 5: Update frontier for next iteration (all vertices in unique_vertices are newly
+    // discovered)
+    vertex_frontier.bucket(bucket_idx_cur).clear();
+    vertex_frontier.bucket(bucket_idx_next)
+      .insert(thrust::make_zip_iterator(unique_vertices.begin(), unique_origins.begin()),
+              thrust::make_zip_iterator(unique_vertices.end(), unique_origins.end()));
+
+    vertex_frontier.swap_buckets(bucket_idx_cur, bucket_idx_next);
+    ++hop;
+  }
+
+  return std::make_tuple(std::move(distances_2d), std::move(sigmas_2d));
+}
+
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool multi_gpu,
+          typename VertexIterator>
 rmm::device_uvector<weight_t> betweenness_centrality(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
@@ -594,38 +789,21 @@ rmm::device_uvector<weight_t> betweenness_centrality(
     my_rank = handle.get_comms().get_rank();
   }
 
-  //
-  // FIXME: This could be more efficient using something akin to the
-  // technique in WCC.  Take the entire set of sources, insert them into
-  // a tagged frontier (tagging each source with itself).  Then we can
-  // expand from multiple sources concurrently. The challenge is managing
-  // the memory explosion.
-  //
-  // Use multisource_bfs for concurrent processing of all sources
-  //
-  // Convert vertex iterators to a device span for multisource_bfs
-  rmm::device_uvector<vertex_t> sources_buffer(num_sources, handle.get_stream());
-  thrust::copy(handle.get_thrust_policy(), vertices_begin, vertices_end, sources_buffer.begin());
-
-  // Run concurrent multi-source BFS
-  auto [distances_2d, sigmas_2d] =
-    multisource_bfs(handle,
-                    graph_view,
-                    edge_weight_view,
-                    raft::device_span<vertex_t const>{sources_buffer.data(), sources_buffer.size()},
-                    do_expensive_check);
+  // Run concurrent multi-source BFS directly with iterators
+  auto [distances_2d, sigmas_2d] = detail::multisource_bfs(
+    handle, graph_view, edge_weight_view, vertices_begin, vertices_end, do_expensive_check);
 
   // Use parallel multisource backward pass for better performance
-  multisource_backward_pass(
-    handle,
-    graph_view,
-    edge_weight_view,
-    raft::device_span<weight_t>{centralities.data(), centralities.size()},
-    std::move(distances_2d),
-    std::move(sigmas_2d),
-    raft::device_span<vertex_t const>{sources_buffer.data(), sources_buffer.size()},
-    include_endpoints,
-    do_expensive_check);
+  multisource_backward_pass(handle,
+                            graph_view,
+                            edge_weight_view,
+                            raft::device_span<weight_t>{centralities.data(), centralities.size()},
+                            std::move(distances_2d),
+                            std::move(sigmas_2d),
+                            vertices_begin,
+                            vertices_end,
+                            include_endpoints,
+                            do_expensive_check);
 
   std::optional<weight_t> scale_nonsource{std::nullopt};
   std::optional<weight_t> scale_source{std::nullopt};
@@ -820,201 +998,15 @@ edge_property_t<edge_t, weight_t> edge_betweenness_centrality(
 
 }  // namespace detail
 
-template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> multisource_bfs(
-  raft::handle_t const& handle,
-  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
-  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
-  raft::device_span<vertex_t const> sources,
-  bool do_expensive_check)
-{
-  constexpr vertex_t invalid_distance = std::numeric_limits<vertex_t>::max();
-  constexpr size_t bucket_idx_cur{0};
-  constexpr size_t bucket_idx_next{1};
-
-  using origin_t = uint32_t;  // Source index type
-
-  // Use 2D arrays to track per-source distances and sigmas
-  // Layout: [source_idx * num_vertices + vertex_idx]
-  auto num_vertices = graph_view.local_vertex_partition_range_size();
-  auto num_sources  = sources.size();
-
-  rmm::device_uvector<edge_t> sigmas_2d(num_sources * num_vertices, handle.get_stream());
-  rmm::device_uvector<vertex_t> distances_2d(num_sources * num_vertices, handle.get_stream());
-  detail::scalar_fill(handle, distances_2d.data(), distances_2d.size(), invalid_distance);
-  detail::scalar_fill(handle, sigmas_2d.data(), sigmas_2d.size(), edge_t{0});
-
-  // Create tagged frontier with origin indices
-  vertex_frontier_t<vertex_t, origin_t, multi_gpu, true> vertex_frontier(handle, 2);
-
-  auto vertex_partition =
-    vertex_partition_device_view_t<vertex_t, multi_gpu>(graph_view.local_vertex_partition_view());
-
-  // Initialize sources with their origins
-  if (sources.size() > 0) {
-    rmm::device_uvector<origin_t> origins(sources.size(), handle.get_stream());
-
-    // Create origins
-    thrust::sequence(handle.get_thrust_policy(), origins.begin(), origins.end(), origin_t{0});
-
-    // Insert tagged sources into frontier
-    vertex_frontier.bucket(bucket_idx_cur)
-      .insert(thrust::make_zip_iterator(sources.begin(), origins.begin()),
-              thrust::make_zip_iterator(sources.end(), origins.end()));
-
-    // Initialize distances and sigmas for sources
-    thrust::for_each(handle.get_thrust_policy(),
-                     thrust::make_zip_iterator(sources.begin(), origins.begin()),
-                     thrust::make_zip_iterator(sources.end(), origins.end()),
-                     [d_sigma_2d    = sigmas_2d.begin(),
-                      d_distance_2d = distances_2d.begin(),
-                      vertex_partition,
-                      num_vertices] __device__(auto tagged_source) {
-                       auto v      = thrust::get<0>(tagged_source);
-                       auto origin = thrust::get<1>(tagged_source);
-                       auto offset =
-                         vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(v);
-                       auto idx           = origin * num_vertices + offset;
-                       d_distance_2d[idx] = 0;
-                       d_sigma_2d[idx]    = 1;
-                     });
-  }
-
-  edge_t hop{0};
-
-  while (vertex_frontier.bucket(bucket_idx_cur).aggregate_size() > 0) {
-    // Step 1: Extract ALL edges from frontier (no filtering)
-    using bfs_edge_tuple_t = thrust::tuple<vertex_t, origin_t, edge_t>;
-
-    auto result = detail::extract_transform_if_v_frontier_e<false, bfs_edge_tuple_t, void>(
-      handle,
-      graph_view,
-      vertex_frontier.bucket(bucket_idx_cur),
-      edge_src_dummy_property_t{}.view(),
-      edge_dst_dummy_property_t{}.view(),
-      edge_dummy_property_t{}.view(),
-      cuda::proclaim_return_type<bfs_edge_tuple_t>(
-        [d_sigma_2d = sigmas_2d.begin(), num_vertices, vertex_partition] __device__(
-          auto tagged_src, auto dst, auto, auto, auto) {
-          auto src        = thrust::get<0>(tagged_src);
-          auto origin     = thrust::get<1>(tagged_src);
-          auto src_offset = vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(src);
-          auto src_idx    = origin * num_vertices + src_offset;
-          auto src_sigma  = static_cast<edge_t>(d_sigma_2d[src_idx]);
-
-          return thrust::make_tuple(dst, origin, src_sigma);
-        }),
-      // PREDICATE: only process edges to unvisited vertices
-      cuda::proclaim_return_type<bool>(
-        [d_distances_2d = distances_2d.begin(),
-         num_vertices,
-         vertex_partition,
-         invalid_distance] __device__(auto tagged_src, auto dst, auto, auto, auto) {
-          auto origin     = thrust::get<1>(tagged_src);
-          auto dst_offset = vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(dst);
-          auto dst_idx    = origin * num_vertices + dst_offset;
-          return d_distances_2d[dst_idx] == invalid_distance;
-        }));
-
-    // Step 2: Convert buffers to device vectors and extract components
-    auto new_frontier_tagged_vertex_buffer = std::move(std::get<0>(result));
-
-    rmm::device_uvector<bfs_edge_tuple_t> frontier_tuples(
-      size_dataframe_buffer(new_frontier_tagged_vertex_buffer), handle.get_stream());
-
-    thrust::copy(handle.get_thrust_policy(),
-                 get_dataframe_buffer_begin(new_frontier_tagged_vertex_buffer),
-                 get_dataframe_buffer_end(new_frontier_tagged_vertex_buffer),
-                 frontier_tuples.begin());
-
-    // Extract (vertex, origin) pairs and sigmas for sorting and reduction
-    rmm::device_uvector<vertex_t> frontier_vertices(frontier_tuples.size(), handle.get_stream());
-    rmm::device_uvector<origin_t> frontier_origins(frontier_tuples.size(), handle.get_stream());
-    rmm::device_uvector<edge_t> sigmas(frontier_tuples.size(), handle.get_stream());
-
-    thrust::transform(handle.get_thrust_policy(),
-                      frontier_tuples.begin(),
-                      frontier_tuples.end(),
-                      thrust::make_zip_iterator(
-                        frontier_vertices.begin(), frontier_origins.begin(), sigmas.begin()),
-                      [] __device__(auto tuple) {
-                        return thrust::make_tuple(
-                          thrust::get<0>(tuple), thrust::get<1>(tuple), thrust::get<2>(tuple));
-                      });
-
-    // Step 3: Reduce by (destination, origin) - sums sigmas for multiple paths
-    // Sort by (destination, origin) pairs
-    thrust::sort_by_key(
-      handle.get_thrust_policy(),
-      thrust::make_zip_iterator(frontier_vertices.begin(), frontier_origins.begin()),
-      thrust::make_zip_iterator(frontier_vertices.end(), frontier_origins.end()),
-      sigmas.begin());
-
-    // Reduce by key to sum sigmas for identical (destination, origin) pairs
-    auto num_unique = thrust::count_if(handle.get_thrust_policy(),
-                                       thrust::make_counting_iterator(size_t{0}),
-                                       thrust::make_counting_iterator(frontier_vertices.size()),
-                                       [vertices = frontier_vertices.data(),
-                                        origins  = frontier_origins.data()] __device__(size_t i) {
-                                         return (i == 0) || (vertices[i] != vertices[i - 1]) ||
-                                                (origins[i] != origins[i - 1]);
-                                       });
-
-    rmm::device_uvector<vertex_t> unique_vertices(num_unique, handle.get_stream());
-    rmm::device_uvector<origin_t> unique_origins(num_unique, handle.get_stream());
-    rmm::device_uvector<edge_t> unique_sigmas(num_unique, handle.get_stream());
-
-    thrust::reduce_by_key(
-      handle.get_thrust_policy(),
-      thrust::make_zip_iterator(frontier_vertices.begin(), frontier_origins.begin()),
-      thrust::make_zip_iterator(frontier_vertices.end(), frontier_origins.end()),
-      sigmas.begin(),
-      thrust::make_zip_iterator(unique_vertices.begin(), unique_origins.begin()),
-      unique_sigmas.begin(),
-      thrust::equal_to<thrust::tuple<vertex_t, origin_t>>{},
-      thrust::plus<edge_t>{});
-
-    // Step 4: Manual array updates (all vertices in unique_vertices are unvisited due to predicate)
-    thrust::for_each(
-      handle.get_thrust_policy(),
-      thrust::make_zip_iterator(
-        unique_vertices.begin(), unique_origins.begin(), unique_sigmas.begin()),
-      thrust::make_zip_iterator(unique_vertices.end(), unique_origins.end(), unique_sigmas.end()),
-      [d_distances_2d = distances_2d.begin(),
-       d_sigmas_2d    = sigmas_2d.begin(),
-       num_vertices,
-       hop,
-       vertex_partition] __device__(auto tuple) {
-        auto v      = thrust::get<0>(tuple);
-        auto origin = thrust::get<1>(tuple);
-        auto sigma  = thrust::get<2>(tuple);
-        auto offset = vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(v);
-        auto idx    = origin * num_vertices + offset;
-
-        // Direct assignment - no atomics needed because reduction already handled duplicates
-        d_distances_2d[idx] = hop + 1;
-        d_sigmas_2d[idx]    = sigma;
-      });
-
-    // Step 5: Update frontier for next iteration (all vertices in unique_vertices are newly
-    // discovered)
-    vertex_frontier.bucket(bucket_idx_cur).clear();
-    vertex_frontier.bucket(bucket_idx_next)
-      .insert(thrust::make_zip_iterator(unique_vertices.begin(), unique_origins.begin()),
-              thrust::make_zip_iterator(unique_vertices.end(), unique_origins.end()));
-
-    vertex_frontier.swap_buckets(bucket_idx_cur, bucket_idx_next);
-    ++hop;
-  }
-
-  return std::make_tuple(std::move(distances_2d), std::move(sigmas_2d));
-}
-
 // Remove the problematic device functor - use simpler lambda approach instead
 
 // Parallelized backward pass
 
-template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool multi_gpu,
+          typename VertexIterator>
 void multisource_backward_pass(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
@@ -1022,12 +1014,13 @@ void multisource_backward_pass(
   raft::device_span<weight_t> centralities,
   rmm::device_uvector<vertex_t>&& distances_2d,
   rmm::device_uvector<edge_t>&& sigmas_2d,
-  raft::device_span<vertex_t const> sources,
+  VertexIterator sources_first,
+  VertexIterator sources_last,
   bool include_endpoints,
   bool do_expensive_check)
 {
   auto num_vertices = static_cast<size_t>(graph_view.local_vertex_partition_range_size());
-  auto num_sources  = sources.size();
+  auto num_sources  = cuda::std::distance(sources_first, sources_last);
 
   // Initialize centrality array to zero
   thrust::fill(handle.get_thrust_policy(), centralities.begin(), centralities.end(), weight_t{0});
@@ -1320,6 +1313,10 @@ void multisource_backward_pass(
   if (include_endpoints) {
     auto v_first = graph_view.local_vertex_partition_range_first();
 
+    // Create small temporary buffer for source vertex access (needed for 2D array indexing)
+    rmm::device_uvector<vertex_t> sources_buffer(num_sources, handle.get_stream());
+    thrust::copy(handle.get_thrust_policy(), sources_first, sources_last, sources_buffer.begin());
+
     // Handle source vertex contributions
     thrust::for_each(
       handle.get_thrust_policy(),
@@ -1327,7 +1324,7 @@ void multisource_backward_pass(
       thrust::make_counting_iterator<size_t>(num_sources),
       [distances_2d = distances_2d.data(),
        sigmas_2d    = sigmas_2d.data(),
-       sources      = sources.data(),
+       sources      = sources_buffer.data(),
        centralities = centralities.data(),
        num_vertices,
        v_first] __device__(size_t source_idx) {
@@ -1354,7 +1351,7 @@ void multisource_backward_pass(
       thrust::make_counting_iterator<size_t>(num_sources),
       [distances_2d = distances_2d.data(),
        sigmas_2d    = sigmas_2d.data(),
-       sources      = sources.data(),
+       sources      = sources_buffer.data(),
        centralities = centralities.data(),
        num_vertices,
        v_first] __device__(size_t source_idx) {
