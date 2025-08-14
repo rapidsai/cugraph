@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2024, NVIDIA CORPORATION.
+# Copyright (c) 2022-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -12,15 +12,25 @@
 # limitations under the License.
 
 import os
-import pandas as pd
 import yaml
 from pathlib import Path
 from urllib.request import urlretrieve
 
 import cudf
 import cugraph.dask as dcg
+import cupy as cp
 import dask_cudf
 from cugraph.structure.graph_classes import Graph
+import pandas as pd
+
+
+_has_cuda_gpu = False
+try:
+    _has_cuda_gpu = cp.cuda.is_available()
+except cp.cuda.runtime.CUDARuntimeError:
+    # Treat errors as no GPU available.
+    # xref: https://github.com/cupy/cupy/issues/9091
+    pass
 
 
 class DefaultDownloadDir:
@@ -162,7 +172,7 @@ class Dataset:
         """
         self._edgelist = None
 
-    def get_edgelist(self, download=False, reader="cudf"):
+    def get_edgelist(self, download=False, reader=None):
         """
         Return an Edgelist.
 
@@ -172,8 +182,10 @@ class Dataset:
             Automatically download the dataset from the 'url' location within
             the YAML file.
 
-        reader : 'cudf' or 'pandas' (default='cudf')
+        reader : 'cudf', 'pandas', or None (default=None)
             The library used to read a CSV and return an edgelist DataFrame.
+            If None, the reader will be determined based on the availability of
+            a GPU.
         """
         if self._edgelist is None or not isinstance(self._edgelist, cudf.DataFrame):
             full_path = self.get_path()
@@ -191,17 +203,22 @@ class Dataset:
             if isinstance(self.metadata["header"], int):
                 header = self.metadata["header"]
 
-            if reader == "cudf":
-                self.__reader = cudf.read_csv
+            if reader is None:
+                if _has_cuda_gpu:
+                    csv_reader = cudf.read_csv
+                else:
+                    csv_reader = pd.read_csv
+            elif reader == "cudf":
+                csv_reader = cudf.read_csv
             elif reader == "pandas":
-                self.__reader = pd.read_csv
+                csv_reader = pd.read_csv
             else:
                 raise ValueError(
                     "reader must be a module with a read_csv function compatible with \
                      cudf.read_csv"
                 )
 
-            self._edgelist = self.__reader(
+            self._edgelist = csv_reader(
                 filepath_or_buffer=full_path,
                 delimiter=self.metadata["delim"],
                 names=self.metadata["col_names"],
