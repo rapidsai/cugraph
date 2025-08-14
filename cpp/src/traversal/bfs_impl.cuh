@@ -32,6 +32,7 @@
 
 #include <cuda/std/iterator>
 #include <cuda/std/optional>
+#include <cuda/std/tuple>
 #include <thrust/copy.h>
 #include <thrust/count.h>
 #include <thrust/fill.h>
@@ -43,7 +44,6 @@
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/set_operations.h>
 #include <thrust/transform.h>
-#include <thrust/tuple.h>
 
 #include <limits>
 #include <type_traits>
