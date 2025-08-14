@@ -30,6 +30,7 @@
 
 #include <cuda/std/iterator>
 #include <cuda/std/optional>
+#include <cuda/std/tuple>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
 #include <thrust/count.h>
@@ -39,7 +40,6 @@
 #include <thrust/scatter.h>
 #include <thrust/sort.h>
 #include <thrust/transform.h>
-#include <thrust/tuple.h>
 
 namespace cugraph {
 
@@ -65,13 +65,13 @@ struct is_two_or_greater_t {
 
 template <typename vertex_t, typename edge_t>
 struct extract_low_to_high_degree_edges_e_op_t {
-  __device__ thrust::tuple<vertex_t, vertex_t> operator()(vertex_t src,
-                                                          vertex_t dst,
-                                                          edge_t src_out_degree,
-                                                          edge_t dst_out_degree,
-                                                          cuda::std::nullopt_t) const
+  __device__ cuda::std::tuple<vertex_t, vertex_t> operator()(vertex_t src,
+                                                             vertex_t dst,
+                                                             edge_t src_out_degree,
+                                                             edge_t dst_out_degree,
+                                                             cuda::std::nullopt_t) const
   {
-    return thrust::make_tuple(src, dst);
+    return cuda::std::make_tuple(src, dst);
   }
 };
 
@@ -93,16 +93,16 @@ struct extract_low_to_high_degree_edges_pred_op_t {
 
 template <typename vertex_t, typename edge_t>
 struct intersection_op_t {
-  __device__ thrust::tuple<edge_t, edge_t, edge_t> operator()(
+  __device__ cuda::std::tuple<edge_t, edge_t, edge_t> operator()(
     vertex_t,
     vertex_t,
     cuda::std::nullopt_t,
     cuda::std::nullopt_t,
     raft::device_span<vertex_t const> intersection) const
   {
-    return thrust::make_tuple(static_cast<edge_t>(intersection.size()),
-                              static_cast<edge_t>(intersection.size()),
-                              edge_t{1});
+    return cuda::std::make_tuple(static_cast<edge_t>(intersection.size()),
+                                 static_cast<edge_t>(intersection.size()),
+                                 edge_t{1});
   }
 };
 

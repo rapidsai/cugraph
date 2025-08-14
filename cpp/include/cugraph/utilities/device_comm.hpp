@@ -23,13 +23,13 @@
 #include <rmm/cuda_stream_view.hpp>
 #include <rmm/device_uvector.hpp>
 
+#include <cuda/std/tuple>
 #include <thrust/detail/type_traits/iterator/is_discard_iterator.h>
 #include <thrust/device_ptr.h>
 #include <thrust/iterator/detail/any_assign.h>
 #include <thrust/iterator/detail/normal_iterator.h>
 #include <thrust/iterator/iterator_traits.h>
 #include <thrust/memory.h>
-#include <thrust/tuple.h>
 
 #include <type_traits>
 
@@ -92,7 +92,7 @@ struct device_isend_tuple_iterator_element_impl {
   {
     using output_value_t = typename thrust::
       tuple_element<I, typename std::iterator_traits<OutputIterator>::value_type>::type;
-    auto tuple_element_input_first = thrust::get<I>(input_first.get_iterator_tuple());
+    auto tuple_element_input_first = cuda::std::get<I>(input_first.get_iterator_tuple());
     device_isend_impl<decltype(tuple_element_input_first), output_value_t>(
       comm, tuple_element_input_first, count, dst, static_cast<int>(base_tag + I), requests + I);
     device_isend_tuple_iterator_element_impl<InputIterator, OutputIterator, I + 1, N>().run(
@@ -152,7 +152,7 @@ struct device_irecv_tuple_iterator_element_impl {
   {
     using input_value_t = typename thrust::
       tuple_element<I, typename std::iterator_traits<InputIterator>::value_type>::type;
-    auto tuple_element_output_first = thrust::get<I>(output_first.get_iterator_tuple());
+    auto tuple_element_output_first = cuda::std::get<I>(output_first.get_iterator_tuple());
     device_irecv_impl<input_value_t, decltype(tuple_element_output_first)>(
       comm, tuple_element_output_first, count, src, static_cast<int>(base_tag + I), requests + I);
     device_irecv_tuple_iterator_element_impl<InputIterator, OutputIterator, I + 1, N>().run(
@@ -224,8 +224,8 @@ struct device_sendrecv_tuple_iterator_element_impl {
   {
     using output_value_t = typename thrust::
       tuple_element<I, typename std::iterator_traits<OutputIterator>::value_type>::type;
-    auto tuple_element_input_first  = thrust::get<I>(input_first.get_iterator_tuple());
-    auto tuple_element_output_first = thrust::get<I>(output_first.get_iterator_tuple());
+    auto tuple_element_input_first  = cuda::std::get<I>(input_first.get_iterator_tuple());
+    auto tuple_element_output_first = cuda::std::get<I>(output_first.get_iterator_tuple());
     device_sendrecv_impl<decltype(tuple_element_input_first), decltype(tuple_element_output_first)>(
       comm,
       tuple_element_input_first,
@@ -314,8 +314,8 @@ struct device_multicast_sendrecv_tuple_iterator_element_impl {
   {
     using output_value_t = typename thrust::
       tuple_element<I, typename std::iterator_traits<OutputIterator>::value_type>::type;
-    auto tuple_element_input_first  = thrust::get<I>(input_first.get_iterator_tuple());
-    auto tuple_element_output_first = thrust::get<I>(output_first.get_iterator_tuple());
+    auto tuple_element_input_first  = cuda::std::get<I>(input_first.get_iterator_tuple());
+    auto tuple_element_output_first = cuda::std::get<I>(output_first.get_iterator_tuple());
     device_multicast_sendrecv_impl<decltype(tuple_element_input_first),
                                    decltype(tuple_element_output_first)>(comm,
                                                                          tuple_element_input_first,
@@ -396,8 +396,8 @@ struct device_bcast_tuple_iterator_element_impl {
            rmm::cuda_stream_view stream_view) const
   {
     device_bcast_impl(comm,
-                      thrust::get<I>(input_first.get_iterator_tuple()),
-                      thrust::get<I>(output_first.get_iterator_tuple()),
+                      cuda::std::get<I>(input_first.get_iterator_tuple()),
+                      cuda::std::get<I>(output_first.get_iterator_tuple()),
                       count,
                       root,
                       stream_view);
@@ -457,8 +457,8 @@ struct device_allreduce_tuple_iterator_element_impl {
            rmm::cuda_stream_view stream_view) const
   {
     device_allreduce_impl(comm,
-                          thrust::get<I>(input_first.get_iterator_tuple()),
-                          thrust::get<I>(output_first.get_iterator_tuple()),
+                          cuda::std::get<I>(input_first.get_iterator_tuple()),
+                          cuda::std::get<I>(output_first.get_iterator_tuple()),
                           count,
                           op,
                           stream_view);
@@ -525,8 +525,8 @@ struct device_reduce_tuple_iterator_element_impl {
            rmm::cuda_stream_view stream_view) const
   {
     device_reduce_impl(comm,
-                       thrust::get<I>(input_first.get_iterator_tuple()),
-                       thrust::get<I>(output_first.get_iterator_tuple()),
+                       cuda::std::get<I>(input_first.get_iterator_tuple()),
+                       cuda::std::get<I>(output_first.get_iterator_tuple()),
                        count,
                        op,
                        root,
@@ -585,8 +585,8 @@ struct device_allgather_tuple_iterator_element_impl {
            rmm::cuda_stream_view stream_view) const
   {
     device_allgather_impl(comm,
-                          thrust::get<I>(input_first.get_iterator_tuple()),
-                          thrust::get<I>(output_first.get_iterator_tuple()),
+                          cuda::std::get<I>(input_first.get_iterator_tuple()),
+                          cuda::std::get<I>(output_first.get_iterator_tuple()),
                           sendcount,
                           stream_view);
     device_allgather_tuple_iterator_element_impl<InputIterator, OutputIterator, I + 1, N>().run(
@@ -647,8 +647,8 @@ struct device_allgatherv_tuple_iterator_element_impl {
            rmm::cuda_stream_view stream_view) const
   {
     device_allgatherv_impl(comm,
-                           thrust::get<I>(input_first.get_iterator_tuple()),
-                           thrust::get<I>(output_first.get_iterator_tuple()),
+                           cuda::std::get<I>(input_first.get_iterator_tuple()),
+                           cuda::std::get<I>(output_first.get_iterator_tuple()),
                            recvcounts,
                            displacements,
                            stream_view);
@@ -719,8 +719,8 @@ struct device_gatherv_tuple_iterator_element_impl {
            rmm::cuda_stream_view stream_view) const
   {
     device_gatherv_impl(comm,
-                        thrust::get<I>(input_first.get_iterator_tuple()),
-                        thrust::get<I>(output_first.get_iterator_tuple()),
+                        cuda::std::get<I>(input_first.get_iterator_tuple()),
+                        cuda::std::get<I>(output_first.get_iterator_tuple()),
                         sendcount,
                         recvcounts,
                         displacements,
@@ -776,11 +776,11 @@ device_isend(raft::comms::comms_t const& comm,
              raft::comms::request_t* requests)
 {
   static_assert(
-    thrust::tuple_size<typename thrust::iterator_traits<InputIterator>::value_type>::value ==
-    thrust::tuple_size<typename thrust::iterator_traits<OutputIterator>::value_type>::value);
+    cuda::std::tuple_size<typename thrust::iterator_traits<InputIterator>::value_type>::value ==
+    cuda::std::tuple_size<typename thrust::iterator_traits<OutputIterator>::value_type>::value);
 
   size_t constexpr tuple_size =
-    thrust::tuple_size<typename thrust::iterator_traits<InputIterator>::value_type>::value;
+    cuda::std::tuple_size<typename thrust::iterator_traits<InputIterator>::value_type>::value;
 
   detail::
     device_isend_tuple_iterator_element_impl<InputIterator, OutputIterator, size_t{0}, tuple_size>()
@@ -815,11 +815,11 @@ device_irecv(raft::comms::comms_t const& comm,
              raft::comms::request_t* requests)
 {
   static_assert(
-    thrust::tuple_size<typename thrust::iterator_traits<InputIterator>::value_type>::value ==
-    thrust::tuple_size<typename thrust::iterator_traits<OutputIterator>::value_type>::value);
+    cuda::std::tuple_size<typename thrust::iterator_traits<InputIterator>::value_type>::value ==
+    cuda::std::tuple_size<typename thrust::iterator_traits<OutputIterator>::value_type>::value);
 
   size_t constexpr tuple_size =
-    thrust::tuple_size<typename thrust::iterator_traits<InputIterator>::value_type>::value;
+    cuda::std::tuple_size<typename thrust::iterator_traits<InputIterator>::value_type>::value;
 
   detail::
     device_irecv_tuple_iterator_element_impl<InputIterator, OutputIterator, size_t{0}, tuple_size>()
@@ -858,11 +858,11 @@ device_sendrecv(raft::comms::comms_t const& comm,
                 rmm::cuda_stream_view stream_view)
 {
   static_assert(
-    thrust::tuple_size<typename thrust::iterator_traits<InputIterator>::value_type>::value ==
-    thrust::tuple_size<typename thrust::iterator_traits<OutputIterator>::value_type>::value);
+    cuda::std::tuple_size<typename thrust::iterator_traits<InputIterator>::value_type>::value ==
+    cuda::std::tuple_size<typename thrust::iterator_traits<OutputIterator>::value_type>::value);
 
   size_t constexpr tuple_size =
-    thrust::tuple_size<typename thrust::iterator_traits<InputIterator>::value_type>::value;
+    cuda::std::tuple_size<typename thrust::iterator_traits<InputIterator>::value_type>::value;
 
   detail::device_sendrecv_tuple_iterator_element_impl<InputIterator,
                                                       OutputIterator,
@@ -915,11 +915,11 @@ device_multicast_sendrecv(raft::comms::comms_t const& comm,
                           rmm::cuda_stream_view stream_view)
 {
   static_assert(
-    thrust::tuple_size<typename thrust::iterator_traits<InputIterator>::value_type>::value ==
-    thrust::tuple_size<typename thrust::iterator_traits<OutputIterator>::value_type>::value);
+    cuda::std::tuple_size<typename thrust::iterator_traits<InputIterator>::value_type>::value ==
+    cuda::std::tuple_size<typename thrust::iterator_traits<OutputIterator>::value_type>::value);
 
   size_t constexpr tuple_size =
-    thrust::tuple_size<typename thrust::iterator_traits<InputIterator>::value_type>::value;
+    cuda::std::tuple_size<typename thrust::iterator_traits<InputIterator>::value_type>::value;
 
   detail::device_multicast_sendrecv_tuple_iterator_element_impl<InputIterator,
                                                                 OutputIterator,
@@ -964,11 +964,11 @@ device_bcast(raft::comms::comms_t const& comm,
              rmm::cuda_stream_view stream_view)
 {
   static_assert(
-    thrust::tuple_size<typename thrust::iterator_traits<InputIterator>::value_type>::value ==
-    thrust::tuple_size<typename thrust::iterator_traits<OutputIterator>::value_type>::value);
+    cuda::std::tuple_size<typename thrust::iterator_traits<InputIterator>::value_type>::value ==
+    cuda::std::tuple_size<typename thrust::iterator_traits<OutputIterator>::value_type>::value);
 
   size_t constexpr tuple_size =
-    thrust::tuple_size<typename thrust::iterator_traits<InputIterator>::value_type>::value;
+    cuda::std::tuple_size<typename thrust::iterator_traits<InputIterator>::value_type>::value;
 
   detail::
     device_bcast_tuple_iterator_element_impl<InputIterator, OutputIterator, size_t{0}, tuple_size>()
@@ -1002,11 +1002,11 @@ device_allreduce(raft::comms::comms_t const& comm,
                  rmm::cuda_stream_view stream_view)
 {
   static_assert(
-    thrust::tuple_size<typename thrust::iterator_traits<InputIterator>::value_type>::value ==
-    thrust::tuple_size<typename thrust::iterator_traits<OutputIterator>::value_type>::value);
+    cuda::std::tuple_size<typename thrust::iterator_traits<InputIterator>::value_type>::value ==
+    cuda::std::tuple_size<typename thrust::iterator_traits<OutputIterator>::value_type>::value);
 
   size_t constexpr tuple_size =
-    thrust::tuple_size<typename thrust::iterator_traits<InputIterator>::value_type>::value;
+    cuda::std::tuple_size<typename thrust::iterator_traits<InputIterator>::value_type>::value;
 
   detail::device_allreduce_tuple_iterator_element_impl<InputIterator,
                                                        OutputIterator,
@@ -1044,11 +1044,11 @@ device_reduce(raft::comms::comms_t const& comm,
               rmm::cuda_stream_view stream_view)
 {
   static_assert(
-    thrust::tuple_size<typename thrust::iterator_traits<InputIterator>::value_type>::value ==
-    thrust::tuple_size<typename thrust::iterator_traits<OutputIterator>::value_type>::value);
+    cuda::std::tuple_size<typename thrust::iterator_traits<InputIterator>::value_type>::value ==
+    cuda::std::tuple_size<typename thrust::iterator_traits<OutputIterator>::value_type>::value);
 
   size_t constexpr tuple_size =
-    thrust::tuple_size<typename thrust::iterator_traits<InputIterator>::value_type>::value;
+    cuda::std::tuple_size<typename thrust::iterator_traits<InputIterator>::value_type>::value;
 
   detail::device_reduce_tuple_iterator_element_impl<InputIterator,
                                                     OutputIterator,
@@ -1082,11 +1082,11 @@ device_allgather(raft::comms::comms_t const& comm,
                  rmm::cuda_stream_view stream_view)
 {
   static_assert(
-    thrust::tuple_size<typename thrust::iterator_traits<InputIterator>::value_type>::value ==
-    thrust::tuple_size<typename thrust::iterator_traits<OutputIterator>::value_type>::value);
+    cuda::std::tuple_size<typename thrust::iterator_traits<InputIterator>::value_type>::value ==
+    cuda::std::tuple_size<typename thrust::iterator_traits<OutputIterator>::value_type>::value);
 
   size_t constexpr tuple_size =
-    thrust::tuple_size<typename thrust::iterator_traits<InputIterator>::value_type>::value;
+    cuda::std::tuple_size<typename thrust::iterator_traits<InputIterator>::value_type>::value;
 
   detail::device_allgather_tuple_iterator_element_impl<InputIterator,
                                                        OutputIterator,
@@ -1123,11 +1123,11 @@ device_allgatherv(raft::comms::comms_t const& comm,
                   rmm::cuda_stream_view stream_view)
 {
   static_assert(
-    thrust::tuple_size<typename thrust::iterator_traits<InputIterator>::value_type>::value ==
-    thrust::tuple_size<typename thrust::iterator_traits<OutputIterator>::value_type>::value);
+    cuda::std::tuple_size<typename thrust::iterator_traits<InputIterator>::value_type>::value ==
+    cuda::std::tuple_size<typename thrust::iterator_traits<OutputIterator>::value_type>::value);
 
   size_t constexpr tuple_size =
-    thrust::tuple_size<typename thrust::iterator_traits<InputIterator>::value_type>::value;
+    cuda::std::tuple_size<typename thrust::iterator_traits<InputIterator>::value_type>::value;
 
   detail::device_allgatherv_tuple_iterator_element_impl<InputIterator,
                                                         OutputIterator,
@@ -1168,11 +1168,11 @@ device_gatherv(raft::comms::comms_t const& comm,
                rmm::cuda_stream_view stream_view)
 {
   static_assert(
-    thrust::tuple_size<typename thrust::iterator_traits<InputIterator>::value_type>::value ==
-    thrust::tuple_size<typename thrust::iterator_traits<OutputIterator>::value_type>::value);
+    cuda::std::tuple_size<typename thrust::iterator_traits<InputIterator>::value_type>::value ==
+    cuda::std::tuple_size<typename thrust::iterator_traits<OutputIterator>::value_type>::value);
 
   size_t constexpr tuple_size =
-    thrust::tuple_size<typename thrust::iterator_traits<InputIterator>::value_type>::value;
+    cuda::std::tuple_size<typename thrust::iterator_traits<InputIterator>::value_type>::value;
 
   detail::device_gatherv_tuple_iterator_element_impl<InputIterator,
                                                      OutputIterator,

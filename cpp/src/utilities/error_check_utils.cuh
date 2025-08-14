@@ -45,10 +45,10 @@ struct is_invalid_input_vertex_pair_t {
   vertex_t edge_partition_minor_range_first{};
   vertex_t edge_partition_minor_range_last{};
 
-  __device__ bool operator()(thrust::tuple<vertex_t, vertex_t> pair) const
+  __device__ bool operator()(cuda::std::tuple<vertex_t, vertex_t> pair) const
   {
-    auto major = thrust::get<0>(pair);
-    auto minor = thrust::get<1>(pair);
+    auto major = cuda::std::get<0>(pair);
+    auto minor = cuda::std::get<1>(pair);
     if (!is_valid_vertex(num_vertices, major) || !is_valid_vertex(num_vertices, minor)) {
       return true;
     }

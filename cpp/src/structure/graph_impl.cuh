@@ -35,6 +35,7 @@
 
 #include <cub/cub.cuh>
 #include <cuda/std/iterator>
+#include <cuda/std/tuple>
 #include <thrust/adjacent_difference.h>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
@@ -52,7 +53,6 @@
 #include <thrust/sequence.h>
 #include <thrust/sort.h>
 #include <thrust/transform.h>
-#include <thrust/tuple.h>
 #include <thrust/unique.h>
 
 #include <algorithm>
@@ -71,10 +71,10 @@ struct out_of_range_t {
   vertex_t minor_range_first{};
   vertex_t minor_range_last{};
 
-  __device__ bool operator()(thrust::tuple<vertex_t, vertex_t> t) const
+  __device__ bool operator()(cuda::std::tuple<vertex_t, vertex_t> t) const
   {
-    auto major = thrust::get<0>(t);
-    auto minor = thrust::get<1>(t);
+    auto major = cuda::std::get<0>(t);
+    auto minor = cuda::std::get<1>(t);
     return (major < major_range_first) || (major >= major_range_last) ||
            (minor < minor_range_first) || (minor >= minor_range_last);
   }

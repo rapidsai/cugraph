@@ -20,8 +20,8 @@
 #include <rmm/device_uvector.hpp>
 
 #include <cuda/std/optional>
+#include <cuda/std/tuple>
 #include <thrust/iterator/iterator_traits.h>
-#include <thrust/tuple.h>
 
 #include <array>
 #include <type_traits>
@@ -31,58 +31,58 @@ namespace cugraph {
 namespace detail {
 
 template <typename TupleType, size_t I, size_t N>
-struct is_thrust_tuple_of_arithemetic_impl {
+struct is_thrust_tuple_of_arithmetic_impl {
   constexpr bool evaluate() const
   {
-    if (!std::is_arithmetic_v<typename thrust::tuple_element<I, TupleType>::type>) {
+    if (!std::is_arithmetic_v<typename cuda::std::tuple_element<I, TupleType>::type>) {
       return false;
     } else {
-      return is_thrust_tuple_of_arithemetic_impl<TupleType, I + 1, N>().evaluate();
+      return is_thrust_tuple_of_arithmetic_impl<TupleType, I + 1, N>().evaluate();
     }
   }
 };
 
 template <typename TupleType, size_t I>
-struct is_thrust_tuple_of_arithemetic_impl<TupleType, I, I> {
+struct is_thrust_tuple_of_arithmetic_impl<TupleType, I, I> {
   constexpr bool evaluate() const { return true; }
 };
 
 template <typename TupleType, size_t I, size_t N>
 struct compute_thrust_tuple_element_sizes_impl {
-  void compute(std::array<size_t, thrust::tuple_size<TupleType>::value>& arr) const
+  void compute(std::array<size_t, cuda::std::tuple_size<TupleType>::value>& arr) const
   {
-    arr[I] = sizeof(typename thrust::tuple_element<I, TupleType>::type);
+    arr[I] = sizeof(typename cuda::std::tuple_element<I, TupleType>::type);
     compute_thrust_tuple_element_sizes_impl<TupleType, I + 1, N>().compute(arr);
   }
 };
 
 template <typename TupleType, size_t I>
 struct compute_thrust_tuple_element_sizes_impl<TupleType, I, I> {
-  void compute(std::array<size_t, thrust::tuple_size<TupleType>::value>& arr) const {}
+  void compute(std::array<size_t, cuda::std::tuple_size<TupleType>::value>& arr) const {}
 };
 
 template <typename TupleType, std::size_t... Is>
 size_t sum_thrust_tuple_element_sizes(std::index_sequence<Is...>)
 {
-  return (... + sizeof(typename thrust::tuple_element<Is, TupleType>::type));
+  return (... + sizeof(typename cuda::std::tuple_element<Is, TupleType>::type));
 }
 
 template <typename TupleType, std::size_t... Is>
 size_t min_thrust_tuple_element_sizes(std::index_sequence<Is...>)
 {
-  return std::min(sizeof(typename thrust::tuple_element<Is, TupleType>::type)...);
+  return std::min(sizeof(typename cuda::std::tuple_element<Is, TupleType>::type)...);
 }
 
 template <typename TupleType, std::size_t... Is>
 size_t max_thrust_tuple_element_sizes(std::index_sequence<Is...>)
 {
-  return std::max(sizeof(typename thrust::tuple_element<Is, TupleType>::type)...);
+  return std::max(sizeof(typename cuda::std::tuple_element<Is, TupleType>::type)...);
 }
 
 template <typename TupleType, std::size_t... Is>
 auto thrust_tuple_to_std_tuple(TupleType tup, std::index_sequence<Is...>)
 {
-  return std::make_tuple(thrust::get<Is>(tup)...);
+  return std::make_tuple(cuda::std::get<Is>(tup)...);
 }
 
 template <typename TupleType, std::size_t... Is>
@@ -90,7 +90,7 @@ auto std_tuple_to_thrust_tuple(TupleType tup, std::index_sequence<Is...>)
 {
   constexpr size_t maximum_thrust_tuple_size = 10;
   static_assert(std::tuple_size_v<TupleType> <= maximum_thrust_tuple_size);
-  return thrust::make_tuple(std::get<Is>(tup)...);
+  return cuda::std::make_tuple(std::get<Is>(tup)...);
 }
 
 template <typename... Ts, typename... Us, std::size_t... I0, std::size_t... I1>
@@ -98,12 +98,12 @@ template <typename... Ts, typename... Us, std::size_t... I0, std::size_t... I1>
 __host__ __device__
 #endif
   auto
-  thrust_tuple_cat_impl(thrust::tuple<Ts...> tup0,
-                        thrust::tuple<Us...> tup1,
+  thrust_tuple_cat_impl(cuda::std::tuple<Ts...> tup0,
+                        cuda::std::tuple<Us...> tup1,
                         std::index_sequence<I0...>,
                         std::index_sequence<I1...>)
 {
-  return thrust::make_tuple(thrust::get<I0>(tup0)..., thrust::get<I1>(tup1)...);
+  return cuda::std::make_tuple(cuda::std::get<I0>(tup0)..., cuda::std::get<I1>(tup1)...);
 }
 
 template <typename... Ts, typename... Us>
@@ -111,7 +111,7 @@ template <typename... Ts, typename... Us>
 __host__ __device__
 #endif
   auto
-  thrust_tuple_cat_impl(thrust::tuple<Ts...> tup0, thrust::tuple<Us...> tup1)
+  thrust_tuple_cat_impl(cuda::std::tuple<Ts...> tup0, cuda::std::tuple<Us...> tup1)
 {
   return thrust_tuple_cat_impl(
     tup0, tup1, std::index_sequence_for<Ts...>{}, std::index_sequence_for<Us...>{});
@@ -144,21 +144,21 @@ __host__ __device__
   auto
   thrust_tuple_slice_impl(TupleType tup, std::index_sequence<Is...>)
 {
-  return thrust::make_tuple(thrust::get<F + Is>(tup)...);
+  return cuda::std::make_tuple(cuda::std::get<F + Is>(tup)...);
 }
 
 template <typename TupleType, std::size_t... Is>
 constexpr TupleType thrust_tuple_of_arithmetic_numeric_limits_lowest(std::index_sequence<Is...>)
 {
-  return thrust::make_tuple(
-    std::numeric_limits<typename thrust::tuple_element<Is, TupleType>::type>::lowest()...);
+  return cuda::std::make_tuple(
+    std::numeric_limits<typename cuda::std::tuple_element<Is, TupleType>::type>::lowest()...);
 }
 
 template <typename TupleType, std::size_t... Is>
 constexpr TupleType thrust_tuple_of_arithmetic_numeric_limits_max(std::index_sequence<Is...>)
 {
-  return thrust::make_tuple(
-    std::numeric_limits<typename thrust::tuple_element<Is, TupleType>::type>::max()...);
+  return cuda::std::make_tuple(
+    std::numeric_limits<typename cuda::std::tuple_element<Is, TupleType>::type>::max()...);
 }
 
 }  // namespace detail
@@ -167,7 +167,7 @@ template <typename T>
 struct is_thrust_tuple : std::false_type {};
 
 template <typename... Ts>
-struct is_thrust_tuple<thrust::tuple<Ts...>> : std::true_type {};
+struct is_thrust_tuple<cuda::std::tuple<Ts...>> : std::true_type {};
 
 template <typename T>
 constexpr bool is_thrust_tuple_v = is_thrust_tuple<T>::value;
@@ -176,7 +176,7 @@ template <typename T>
 struct is_thrust_tuple_of_arithmetic : std::false_type {};
 
 template <typename... Ts>
-struct is_thrust_tuple_of_arithmetic<thrust::tuple<Ts...>> {
+struct is_thrust_tuple_of_arithmetic<cuda::std::tuple<Ts...>> {
  private:
   template <typename T>
   static constexpr bool is_valid = std::is_arithmetic_v<T>;
@@ -192,7 +192,7 @@ template <typename T>
 struct is_thrust_tuple_of_integral : std::false_type {};
 
 template <typename... Ts>
-struct is_thrust_tuple_of_integral<thrust::tuple<Ts...>> {
+struct is_thrust_tuple_of_integral<cuda::std::tuple<Ts...>> {
  private:
   template <typename T>
   static constexpr bool is_valid = std::is_integral_v<T>;
@@ -245,8 +245,8 @@ struct is_arithmetic_or_thrust_tuple_of_arithmetic
   : std::integral_constant<bool, std::is_arithmetic_v<T>> {};
 
 template <typename... Ts>
-struct is_arithmetic_or_thrust_tuple_of_arithmetic<thrust::tuple<Ts...>>
-  : std::integral_constant<bool, is_thrust_tuple_of_arithmetic<thrust::tuple<Ts...>>::value> {};
+struct is_arithmetic_or_thrust_tuple_of_arithmetic<cuda::std::tuple<Ts...>>
+  : std::integral_constant<bool, is_thrust_tuple_of_arithmetic<cuda::std::tuple<Ts...>>::value> {};
 
 template <typename T>
 constexpr bool is_arithmetic_or_thrust_tuple_of_arithmetic_v =
@@ -256,14 +256,14 @@ template <typename T>
 struct thrust_tuple_size_or_one : std::integral_constant<size_t, 1> {};
 
 template <typename... Ts>
-struct thrust_tuple_size_or_one<thrust::tuple<Ts...>>
-  : std::integral_constant<size_t, thrust::tuple_size<thrust::tuple<Ts...>>::value> {};
+struct thrust_tuple_size_or_one<cuda::std::tuple<Ts...>>
+  : std::integral_constant<size_t, cuda::std::tuple_size<cuda::std::tuple<Ts...>>::value> {};
 
 template <typename TupleType>
 struct compute_thrust_tuple_element_sizes {
   auto operator()() const
   {
-    size_t constexpr tuple_size = thrust::tuple_size<TupleType>::value;
+    size_t constexpr tuple_size = cuda::std::tuple_size<TupleType>::value;
     std::array<size_t, tuple_size> ret;
     detail::compute_thrust_tuple_element_sizes_impl<TupleType, size_t{0}, tuple_size>().compute(
       ret);
@@ -275,28 +275,28 @@ template <typename TupleType>
 constexpr size_t sum_thrust_tuple_element_sizes()
 {
   return detail::sum_thrust_tuple_element_sizes<TupleType>(
-    std::make_index_sequence<thrust::tuple_size<TupleType>::value>());
+    std::make_index_sequence<cuda::std::tuple_size<TupleType>::value>());
 }
 
 template <typename TupleType>
 constexpr size_t min_thrust_tuple_element_sizes()
 {
   return detail::min_thrust_tuple_element_sizes<TupleType>(
-    std::make_index_sequence<thrust::tuple_size<TupleType>::value>());
+    std::make_index_sequence<cuda::std::tuple_size<TupleType>::value>());
 }
 
 template <typename TupleType>
 constexpr size_t max_thrust_tuple_element_sizes()
 {
   return detail::max_thrust_tuple_element_sizes<TupleType>(
-    std::make_index_sequence<thrust::tuple_size<TupleType>::value>());
+    std::make_index_sequence<cuda::std::tuple_size<TupleType>::value>());
 }
 
 template <typename TupleType>
 auto thrust_tuple_to_std_tuple(TupleType tup)
 {
   return detail::thrust_tuple_to_std_tuple(
-    tup, std::make_index_sequence<thrust::tuple_size<TupleType>::value>{});
+    tup, std::make_index_sequence<cuda::std::tuple_size<TupleType>::value>{});
 }
 
 template <typename TupleType>
@@ -315,7 +315,7 @@ __host__ __device__
   auto
   to_thrust_tuple(T scalar_value)
 {
-  return thrust::make_tuple(scalar_value);
+  return cuda::std::make_tuple(scalar_value);
 }
 
 template <typename... Ts>
@@ -323,7 +323,7 @@ template <typename... Ts>
 __host__ __device__
 #endif
   auto
-  to_thrust_tuple(thrust::tuple<Ts...> tuple_value)
+  to_thrust_tuple(cuda::std::tuple<Ts...> tuple_value)
 {
   return tuple_value;
 }
@@ -333,7 +333,7 @@ template <typename Iterator,
             std::is_arithmetic_v<typename std::iterator_traits<Iterator>::value_type>>* = nullptr>
 auto to_thrust_iterator_tuple(Iterator iter)
 {
-  return thrust::make_tuple(iter);
+  return cuda::std::make_tuple(iter);
 }
 
 template <typename Iterator,
@@ -363,7 +363,7 @@ __host__ __device__
   auto
   thrust_tuple_get_or_identity(T val)
 {
-  return thrust::get<I>(val);
+  return cuda::std::get<I>(val);
 }
 
 template <typename Iterator,
@@ -389,11 +389,11 @@ __host__ __device__
   auto
   thrust_tuple_get_or_identity(Iterator val)
 {
-  return thrust::get<I>(val.get_iterator_tuple());
+  return cuda::std::get<I>(val.get_iterator_tuple());
 }
 
-// a temporary function to emulate thrust::tuple_cat (should retire once thrust::tuple is replaced
-// with cuda::std::tuple)
+// a temporary function to emulate std::tuple_cat
+// FIXME: replace with cuda::std::tuple_cat if/when that works
 template <typename... TupleTypes>
 #ifdef __CUDACC__
 __host__ __device__
@@ -419,21 +419,21 @@ template <typename TupleType>
 constexpr TupleType thrust_tuple_of_arithmetic_numeric_limits_lowest()
 {
   return detail::thrust_tuple_of_arithmetic_numeric_limits_lowest<TupleType>(
-    std::make_index_sequence<thrust::tuple_size<TupleType>::value>());
+    std::make_index_sequence<cuda::std::tuple_size<TupleType>::value>());
 }
 
 template <typename TupleType>
 constexpr TupleType thrust_tuple_of_arithmetic_numeric_limits_max()
 {
   return detail::thrust_tuple_of_arithmetic_numeric_limits_max<TupleType>(
-    std::make_index_sequence<thrust::tuple_size<TupleType>::value>());
+    std::make_index_sequence<cuda::std::tuple_size<TupleType>::value>());
 }
 
 template <typename TupleType, size_t I>
 struct thrust_tuple_get {
-  __device__ typename thrust::tuple_element<I, TupleType>::type operator()(TupleType tup) const
+  __device__ typename cuda::std::tuple_element<I, TupleType>::type operator()(TupleType tup) const
   {
-    return thrust::get<I>(tup);
+    return cuda::std::get<I>(tup);
   }
 };
 

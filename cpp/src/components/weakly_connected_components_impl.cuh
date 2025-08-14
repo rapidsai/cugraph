@@ -41,6 +41,7 @@
 #include <cuda/functional>
 #include <cuda/std/iterator>
 #include <cuda/std/optional>
+#include <cuda/std/tuple>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
 #include <thrust/for_each.h>
@@ -59,7 +60,6 @@
 #include <thrust/sort.h>
 #include <thrust/transform.h>
 #include <thrust/transform_reduce.h>
-#include <thrust/tuple.h>
 #include <thrust/unique.h>
 
 #include <algorithm>
@@ -112,10 +112,9 @@ accumulate_new_roots(raft::handle_t const& handle,
 
     rmm::device_uvector<vertex_t> tmp_new_roots(scan_size, handle.get_stream());
     rmm::device_uvector<vertex_t> tmp_indices(tmp_new_roots.size(), handle.get_stream());
-    auto input_pair_first = thrust::make_zip_iterator(thrust::make_tuple(
-      candidate_first + num_scanned, thrust::make_counting_iterator(vertex_t{0})));
-    auto output_pair_first =
-      thrust::make_zip_iterator(thrust::make_tuple(tmp_new_roots.begin(), tmp_indices.begin()));
+    auto input_pair_first  = thrust::make_zip_iterator(candidate_first + num_scanned,
+                                                      thrust::make_counting_iterator(vertex_t{0}));
+    auto output_pair_first = thrust::make_zip_iterator(tmp_new_roots.begin(), tmp_indices.begin());
     tmp_new_roots.resize(
       static_cast<vertex_t>(cuda::std::distance(
         output_pair_first,
@@ -125,7 +124,7 @@ accumulate_new_roots(raft::handle_t const& handle,
           input_pair_first + scan_size,
           output_pair_first,
           [vertex_partition, components] __device__(auto pair) {
-            auto v = thrust::get<0>(pair);
+            auto v = cuda::std::get<0>(pair);
             return (
               components[vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(v)] ==
               invalid_component_id<vertex_t>::value);
@@ -191,13 +190,13 @@ accumulate_new_roots(raft::handle_t const& handle,
 
 template <typename vertex_t, typename EdgeIterator>
 struct e_op_t {
-  __device__ vertex_t operator()(thrust::tuple<vertex_t, vertex_t> tagged_src,
+  __device__ vertex_t operator()(cuda::std::tuple<vertex_t, vertex_t> tagged_src,
                                  vertex_t dst,
                                  cuda::std::nullopt_t,
                                  cuda::std::nullopt_t,
                                  cuda::std::nullopt_t) const
   {
-    auto tag = thrust::get<1>(tagged_src);
+    auto tag = cuda::std::get<1>(tagged_src);
     return tag;
   }
 };
@@ -209,13 +208,13 @@ struct pred_op_t {
   EdgeIterator edge_buffer_first{};
   size_t* num_edge_inserts{};
 
-  __device__ bool operator()(thrust::tuple<vertex_t, vertex_t> tagged_src,
+  __device__ bool operator()(cuda::std::tuple<vertex_t, vertex_t> tagged_src,
                              vertex_t dst,
                              cuda::std::nullopt_t,
                              cuda::std::nullopt_t,
                              cuda::std::nullopt_t) const
   {
-    auto tag        = thrust::get<1>(tagged_src);
+    auto tag        = cuda::std::get<1>(tagged_src);
     auto dst_offset = dst - dst_first;
     auto old =
       dst_components.elementwise_atomic_cas(dst_offset, invalid_component_id<vertex_t>::value, tag);
@@ -225,7 +224,7 @@ struct pred_op_t {
                                 static_cast<unsigned long long int>(1));
       // keep only the edges in the lower triangular part
       *(edge_buffer_first + edge_idx) =
-        tag >= old ? thrust::make_tuple(tag, old) : thrust::make_tuple(old, tag);
+        tag >= old ? cuda::std::make_tuple(tag, old) : cuda::std::make_tuple(old, tag);
     }
     return old == invalid_component_id<vertex_t>::value;
   }
@@ -244,20 +243,20 @@ struct v_op_t {
   template <bool multi_gpu = GraphViewType::is_multi_gpu>
   __device__
     std::enable_if_t<multi_gpu,
-                     thrust::tuple<cuda::std::optional<size_t>, cuda::std::optional<std::byte>>>
-    operator()(thrust::tuple<vertex_type, vertex_type> tagged_v, int /* v_val */) const
+                     cuda::std::tuple<cuda::std::optional<size_t>, cuda::std::optional<std::byte>>>
+    operator()(cuda::std::tuple<vertex_type, vertex_type> tagged_v, int /* v_val */) const
   {
-    auto tag = thrust::get<1>(tagged_v);
-    auto v_offset =
-      vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(thrust::get<0>(tagged_v));
+    auto tag      = cuda::std::get<1>(tagged_v);
+    auto v_offset = vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(
+      cuda::std::get<0>(tagged_v));
     cuda::atomic_ref<vertex_type> v_component(*(level_components + v_offset));
     auto old     = invalid_component_id<vertex_type>::value;
     bool success = v_component.compare_exchange_strong(old, tag, cuda::std::memory_order_relaxed);
     if (!success && (old != tag)) {  // conflict
-      return thrust::make_tuple(cuda::std::optional<size_t>{bucket_idx_conflict},
-                                cuda::std::optional<std::byte>{std::byte{0}} /* dummy */);
+      return cuda::std::make_tuple(cuda::std::optional<size_t>{bucket_idx_conflict},
+                                   cuda::std::optional<std::byte>{std::byte{0}} /* dummy */);
     } else {
-      return thrust::make_tuple(
+      return cuda::std::make_tuple(
         success ? cuda::std::optional<size_t>{bucket_idx_next} : cuda::std::nullopt,
         success ? cuda::std::optional<std::byte>{std::byte{0}} /* dummy */ : cuda::std::nullopt);
     }
@@ -266,11 +265,11 @@ struct v_op_t {
   template <bool multi_gpu = GraphViewType::is_multi_gpu>
   __device__
     std::enable_if_t<!multi_gpu,
-                     thrust::tuple<cuda::std::optional<size_t>, cuda::std::optional<std::byte>>>
-    operator()(thrust::tuple<vertex_type, vertex_type> /* tagged_v */, int /* v_val */) const
+                     cuda::std::tuple<cuda::std::optional<size_t>, cuda::std::optional<std::byte>>>
+    operator()(cuda::std::tuple<vertex_type, vertex_type> /* tagged_v */, int /* v_val */) const
   {
-    return thrust::make_tuple(cuda::std::optional<size_t>{bucket_idx_next},
-                              cuda::std::optional<std::byte>{std::byte{0}} /* dummy */);
+    return cuda::std::make_tuple(cuda::std::optional<size_t>{bucket_idx_next},
+                                 cuda::std::optional<std::byte>{std::byte{0}} /* dummy */);
   }
 };
 
@@ -355,16 +354,16 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
 
     // 2-1. filter out isolated vertices
 
-    auto pair_first = thrust::make_zip_iterator(thrust::make_tuple(
+    auto pair_first = thrust::make_zip_iterator(
       thrust::make_counting_iterator(level_graph_view.local_vertex_partition_range_first()),
-      degrees.begin()));
+      degrees.begin());
     thrust::transform(handle.get_thrust_policy(),
                       pair_first,
                       pair_first + level_graph_view.local_vertex_partition_range_size(),
                       level_components,
                       [] __device__(auto pair) {
-                        auto v      = thrust::get<0>(pair);
-                        auto degree = thrust::get<1>(pair);
+                        auto v      = cuda::std::get<0>(pair);
+                        auto degree = cuda::std::get<1>(pair);
                         return degree > 0 ? invalid_component_id<vertex_t>::value : v;
                       });
 
@@ -409,7 +408,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
     }
 
     auto edge_buffer =
-      allocate_dataframe_buffer<thrust::tuple<vertex_t, vertex_t>>(0, handle.get_stream());
+      allocate_dataframe_buffer<cuda::std::tuple<vertex_t, vertex_t>>(0, handle.get_stream());
     rmm::device_scalar<size_t> num_edge_inserts(size_t{0}, handle.get_stream());
 
     // 2-3. run BFS or multi-root expansion
@@ -457,8 +456,8 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
                            level_components,
                            cuda::proclaim_return_type<vertex_t>(
                              [start_vertex = *bfs_start_vertex] __device__(auto pair) {
-                               auto v       = thrust::get<0>(pair);
-                               auto visited = thrust::get<1>(pair);
+                               auto v       = cuda::std::get<0>(pair);
+                               auto visited = cuda::std::get<1>(pair);
                                return visited ? start_vertex : v;
                              }),
                            cuda::proclaim_return_type<bool>([] __device__(auto d) {
@@ -694,8 +693,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
               components[vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(c)] = c;
             });
 
-          auto pair_first =
-            thrust::make_zip_iterator(thrust::make_tuple(new_roots.begin(), new_roots.begin()));
+          auto pair_first = thrust::make_zip_iterator(new_roots.begin(), new_roots.begin());
           vertex_frontier.bucket(bucket_idx_cur).insert(pair_first, pair_first + new_roots.size());
         }
 
@@ -705,7 +703,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
           rmm::device_uvector<vertex_t> gathered_level_components(
             vertex_frontier.bucket(bucket_idx_cur).size(), handle.get_stream());
           auto map_first = thrust::make_transform_iterator(
-            thrust::get<0>(vertex_frontier.bucket(bucket_idx_cur).begin().get_iterator_tuple()),
+            cuda::std::get<0>(vertex_frontier.bucket(bucket_idx_cur).begin().get_iterator_tuple()),
             detail::shift_left_t<vertex_t>{level_graph_view.local_vertex_partition_range_first()});
           thrust::gather(handle.get_thrust_policy(),
                          map_first,
@@ -715,8 +713,8 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
           update_edge_dst_property(
             handle,
             level_graph_view,
-            thrust::get<0>(vertex_frontier.bucket(bucket_idx_cur).begin().get_iterator_tuple()),
-            thrust::get<0>(vertex_frontier.bucket(bucket_idx_cur).end().get_iterator_tuple()),
+            cuda::std::get<0>(vertex_frontier.bucket(bucket_idx_cur).begin().get_iterator_tuple()),
+            cuda::std::get<0>(vertex_frontier.bucket(bucket_idx_cur).end().get_iterator_tuple()),
             gathered_level_components.begin(),
             edge_dst_components.mutable_view());
         }
@@ -785,15 +783,15 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
              edge_buffer_first = get_dataframe_buffer_begin(edge_buffer),
              num_edge_inserts  = num_edge_inserts.data()] __device__(auto tagged_v) {
               auto v_offset = vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(
-                thrust::get<0>(tagged_v));
+                cuda::std::get<0>(tagged_v));
               auto old = *(level_components + v_offset);
-              auto tag = thrust::get<1>(tagged_v);
+              auto tag = cuda::std::get<1>(tagged_v);
               static_assert(sizeof(unsigned long long int) == sizeof(size_t));
               auto edge_idx = atomicAdd(reinterpret_cast<unsigned long long int*>(num_edge_inserts),
                                         static_cast<unsigned long long int>(1));
               // keep only the edges in the lower triangular part
               *(edge_buffer_first + edge_idx) =
-                tag >= old ? thrust::make_tuple(tag, old) : thrust::make_tuple(old, tag);
+                tag >= old ? cuda::std::make_tuple(tag, old) : cuda::std::make_tuple(old, tag);
             });
           conflict_bucket.clear();
         }
@@ -807,7 +805,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
                        edge_first + old_num_edge_inserts,
                        edge_first + new_num_edge_inserts);
           if (old_num_edge_inserts > 0) {
-            auto tmp_edge_buffer = allocate_dataframe_buffer<thrust::tuple<vertex_t, vertex_t>>(
+            auto tmp_edge_buffer = allocate_dataframe_buffer<cuda::std::tuple<vertex_t, vertex_t>>(
               new_num_edge_inserts, handle.get_stream());
             auto tmp_edge_first = get_dataframe_buffer_begin(tmp_edge_buffer);
             thrust::merge(handle.get_thrust_policy(),
@@ -833,8 +831,8 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
         vertex_frontier.swap_buckets(bucket_idx_cur, bucket_idx_next);
         edge_count = thrust::transform_reduce(
           handle.get_thrust_policy(),
-          thrust::get<0>(vertex_frontier.bucket(bucket_idx_cur).begin().get_iterator_tuple()),
-          thrust::get<0>(vertex_frontier.bucket(bucket_idx_cur).end().get_iterator_tuple()),
+          cuda::std::get<0>(vertex_frontier.bucket(bucket_idx_cur).begin().get_iterator_tuple()),
+          cuda::std::get<0>(vertex_frontier.bucket(bucket_idx_cur).end().get_iterator_tuple()),
           cuda::proclaim_return_type<edge_t>(
             [vertex_partition, degrees = degrees.data()] __device__(auto v) {
               return degrees[vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(v)];
@@ -860,9 +858,9 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
       resize_dataframe_buffer(
         edge_buffer, static_cast<size_t>(num_inserts * 2), handle.get_stream());
       auto input_first  = get_dataframe_buffer_begin(edge_buffer);
-      auto output_first = thrust::make_zip_iterator(
-                            thrust::make_tuple(thrust::get<1>(input_first.get_iterator_tuple()),
-                                               thrust::get<0>(input_first.get_iterator_tuple()))) +
+      auto output_first = thrust::make_zip_iterator(cuda::std::make_tuple(
+                            cuda::std::get<1>(input_first.get_iterator_tuple()),
+                            cuda::std::get<0>(input_first.get_iterator_tuple()))) +
                           num_inserts;
       thrust::copy(
         handle.get_thrust_policy(), input_first, input_first + num_inserts, output_first);
@@ -976,7 +974,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
                             kv_pair_first + unique_keys.size(),
                             cuda::proclaim_return_type<bool>(
                               [invalid_value = invalid_vertex_id_v<vertex_t>] __device__(
-                                auto pair) { return thrust::get<1>(pair) == invalid_value; }))),
+                                auto pair) { return cuda::std::get<1>(pair) == invalid_value; }))),
         handle.get_stream());
       values_for_unique_keys.resize(unique_keys.size(), handle.get_stream());
       next_level_kv_store      = kv_store_t<vertex_t, vertex_t, true>(std::move(unique_keys),
