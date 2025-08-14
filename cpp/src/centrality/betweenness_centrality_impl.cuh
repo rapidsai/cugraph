@@ -738,275 +738,6 @@ template <typename vertex_t,
           typename weight_t,
           bool multi_gpu,
           typename VertexIterator>
-rmm::device_uvector<weight_t> betweenness_centrality(
-  raft::handle_t const& handle,
-  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
-  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
-  VertexIterator vertices_begin,
-  VertexIterator vertices_end,
-  bool const normalized,
-  bool const include_endpoints,
-  bool const do_expensive_check)
-{
-  //
-  // Betweenness Centrality algorithm based on the Brandes Algorithm (2001)
-  //
-  if (do_expensive_check) {
-    auto vertex_partition =
-      vertex_partition_device_view_t<vertex_t, multi_gpu>(graph_view.local_vertex_partition_view());
-    auto num_invalid_vertices =
-      thrust::count_if(handle.get_thrust_policy(),
-                       vertices_begin,
-                       vertices_end,
-                       [vertex_partition] __device__(auto val) {
-                         return !(vertex_partition.is_valid_vertex(val) &&
-                                  vertex_partition.in_local_vertex_partition_range_nocheck(val));
-                       });
-    if constexpr (multi_gpu) {
-      num_invalid_vertices = host_scalar_allreduce(
-        handle.get_comms(), num_invalid_vertices, raft::comms::op_t::SUM, handle.get_stream());
-    }
-    CUGRAPH_EXPECTS(num_invalid_vertices == 0,
-                    "Invalid input argument: sources have invalid vertex IDs.");
-  }
-
-  rmm::device_uvector<weight_t> centralities(graph_view.local_vertex_partition_range_size(),
-                                             handle.get_stream());
-  detail::scalar_fill(handle, centralities.data(), centralities.size(), weight_t{0});
-
-  size_t num_sources = cuda::std::distance(vertices_begin, vertices_end);
-  std::vector<size_t> source_offsets{{0, num_sources}};
-  int my_rank = 0;
-
-  if constexpr (multi_gpu) {
-    auto source_counts =
-      host_scalar_allgather(handle.get_comms(), num_sources, handle.get_stream());
-
-    num_sources = std::accumulate(source_counts.begin(), source_counts.end(), 0);
-    source_offsets.resize(source_counts.size() + 1);
-    source_offsets[0] = 0;
-    std::inclusive_scan(source_counts.begin(), source_counts.end(), source_offsets.begin() + 1);
-    my_rank = handle.get_comms().get_rank();
-  }
-
-  // Run concurrent multi-source BFS directly with iterators
-  auto [distances_2d, sigmas_2d] = detail::multisource_bfs(
-    handle, graph_view, edge_weight_view, vertices_begin, vertices_end, do_expensive_check);
-
-  // Use parallel multisource backward pass for better performance
-  multisource_backward_pass(handle,
-                            graph_view,
-                            edge_weight_view,
-                            raft::device_span<weight_t>{centralities.data(), centralities.size()},
-                            std::move(distances_2d),
-                            std::move(sigmas_2d),
-                            vertices_begin,
-                            vertices_end,
-                            include_endpoints,
-                            do_expensive_check);
-
-  std::optional<weight_t> scale_nonsource{std::nullopt};
-  std::optional<weight_t> scale_source{std::nullopt};
-
-  weight_t num_vertices = static_cast<weight_t>(graph_view.number_of_vertices());
-  if (!include_endpoints) num_vertices = num_vertices - 1;
-
-  if ((static_cast<edge_t>(num_sources) == num_vertices) || include_endpoints) {
-    if (normalized) {
-      scale_nonsource = static_cast<weight_t>(num_sources * (num_vertices - 1));
-    } else if (graph_view.is_symmetric()) {
-      scale_nonsource =
-        static_cast<weight_t>(num_sources * 2) / static_cast<weight_t>(num_vertices);
-    } else {
-      scale_nonsource = static_cast<weight_t>(num_sources) / static_cast<weight_t>(num_vertices);
-    }
-
-    scale_source = scale_nonsource;
-  } else if (normalized) {
-    scale_nonsource = static_cast<weight_t>(num_sources) * (num_vertices - 1);
-    scale_source    = static_cast<weight_t>(num_sources - 1) * (num_vertices - 1);
-  } else {
-    scale_nonsource = static_cast<weight_t>(num_sources) / num_vertices;
-    scale_source    = static_cast<weight_t>(num_sources - 1) / num_vertices;
-
-    if (graph_view.is_symmetric()) {
-      *scale_nonsource *= 2;
-      *scale_source *= 2;
-    }
-  }
-
-  if (scale_nonsource) {
-    auto iter = thrust::make_zip_iterator(
-      thrust::make_counting_iterator(graph_view.local_vertex_partition_range_first()),
-      centralities.begin());
-
-    thrust::transform(
-      handle.get_thrust_policy(),
-      iter,
-      iter + centralities.size(),
-      centralities.begin(),
-      [nonsource = *scale_nonsource,
-       source    = *scale_source,
-       vertices_begin,
-       vertices_end] __device__(auto t) {
-        vertex_t v          = thrust::get<0>(t);
-        weight_t centrality = thrust::get<1>(t);
-
-        return (thrust::find(thrust::seq, vertices_begin, vertices_end, v) == vertices_end)
-                 ? centrality / nonsource
-                 : centrality / source;
-      });
-  }
-
-  return centralities;
-}
-
-template <typename vertex_t,
-          typename edge_t,
-          typename weight_t,
-          bool multi_gpu,
-          typename VertexIterator>
-edge_property_t<edge_t, weight_t> edge_betweenness_centrality(
-  const raft::handle_t& handle,
-  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
-  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
-  VertexIterator vertices_begin,
-  VertexIterator vertices_end,
-  bool const normalized,
-  bool const do_expensive_check)
-{
-  //
-  // Betweenness Centrality algorithm based on the Brandes Algorithm (2001)
-  //
-  if (do_expensive_check) {
-    auto vertex_partition =
-      vertex_partition_device_view_t<vertex_t, multi_gpu>(graph_view.local_vertex_partition_view());
-    auto num_invalid_vertices =
-      thrust::count_if(handle.get_thrust_policy(),
-                       vertices_begin,
-                       vertices_end,
-                       [vertex_partition] __device__(auto val) {
-                         return !(vertex_partition.is_valid_vertex(val) &&
-                                  vertex_partition.in_local_vertex_partition_range_nocheck(val));
-                       });
-    if constexpr (multi_gpu) {
-      num_invalid_vertices = host_scalar_allreduce(
-        handle.get_comms(), num_invalid_vertices, raft::comms::op_t::SUM, handle.get_stream());
-    }
-    CUGRAPH_EXPECTS(num_invalid_vertices == 0,
-                    "Invalid input argument: sources have invalid vertex IDs.");
-  }
-
-  edge_property_t<edge_t, weight_t> centralities(handle, graph_view);
-
-  if (graph_view.has_edge_mask()) {
-    auto unmasked_graph_view = graph_view;
-    unmasked_graph_view.clear_edge_mask();
-    fill_edge_property(
-      handle, unmasked_graph_view, centralities.mutable_view(), weight_t{0}, do_expensive_check);
-  } else {
-    fill_edge_property(
-      handle, graph_view, centralities.mutable_view(), weight_t{0}, do_expensive_check);
-  }
-
-  size_t num_sources = cuda::std::distance(vertices_begin, vertices_end);
-  std::vector<size_t> source_offsets{{0, num_sources}};
-  int my_rank = 0;
-
-  if constexpr (multi_gpu) {
-    auto source_counts =
-      host_scalar_allgather(handle.get_comms(), num_sources, handle.get_stream());
-
-    num_sources = std::accumulate(source_counts.begin(), source_counts.end(), 0);
-    source_offsets.resize(source_counts.size() + 1);
-    source_offsets[0] = 0;
-    std::inclusive_scan(source_counts.begin(), source_counts.end(), source_offsets.begin() + 1);
-    my_rank = handle.get_comms().get_rank();
-  }
-
-  //
-  // FIXME: This could be more efficient using something akin to the
-  // technique in WCC.  Take the entire set of sources, insert them into
-  // a tagged frontier (tagging each source with itself).  Then we can
-  // expand from multiple sources concurrently. The challenge is managing
-  // the memory explosion.
-  //
-  for (size_t source_idx = 0; source_idx < num_sources; ++source_idx) {
-    //
-    //  BFS
-    //
-    constexpr size_t bucket_idx_cur = 0;
-    constexpr size_t num_buckets    = 2;
-
-    vertex_frontier_t<vertex_t, void, multi_gpu, true> vertex_frontier(handle, num_buckets);
-
-    if ((source_idx >= source_offsets[my_rank]) && (source_idx < source_offsets[my_rank + 1])) {
-      vertex_frontier.bucket(bucket_idx_cur)
-        .insert(vertices_begin + (source_idx - source_offsets[my_rank]),
-                vertices_begin + (source_idx - source_offsets[my_rank]) + 1);
-    }
-
-    //
-    //  Now we need to do modified BFS
-    //
-    // FIXME:  This has an inefficiency in early iterations, as it doesn't have enough work to
-    //         keep the GPUs busy.  But we can't run too many at once or we will run out of
-    //         memory. Need to investigate options to improve this performance
-    auto [distances, sigmas] =
-      brandes_bfs(handle, graph_view, edge_weight_view, vertex_frontier, do_expensive_check);
-    accumulate_edge_results(handle,
-                            graph_view,
-                            edge_weight_view,
-                            centralities.mutable_view(),
-                            std::move(distances),
-                            std::move(sigmas),
-                            do_expensive_check);
-  }
-
-  std::optional<weight_t> scale_factor{std::nullopt};
-
-  if (normalized) {
-    weight_t n   = static_cast<weight_t>(graph_view.number_of_vertices());
-    scale_factor = n * (n - 1);
-  } else if (graph_view.is_symmetric()) {
-    scale_factor = weight_t{2};
-  }
-
-  if (scale_factor) {
-    if (graph_view.number_of_vertices() > 1) {
-      if (static_cast<vertex_t>(num_sources) < graph_view.number_of_vertices()) {
-        (*scale_factor) *= static_cast<weight_t>(num_sources) /
-                           static_cast<weight_t>(graph_view.number_of_vertices());
-      }
-
-      auto firsts         = centralities.view().value_firsts();
-      auto counts         = centralities.view().edge_counts();
-      auto mutable_firsts = centralities.mutable_view().value_firsts();
-      for (size_t k = 0; k < counts.size(); k++) {
-        thrust::transform(
-          handle.get_thrust_policy(),
-          firsts[k],
-          firsts[k] + counts[k],
-          mutable_firsts[k],
-          [sf = *scale_factor] __device__(auto centrality) { return centrality / sf; });
-      }
-    }
-  }
-
-  return centralities;
-}
-
-}  // namespace detail
-
-// Remove the problematic device functor - use simpler lambda approach instead
-
-// Parallelized backward pass
-
-template <typename vertex_t,
-          typename edge_t,
-          typename weight_t,
-          bool multi_gpu,
-          typename VertexIterator>
 void multisource_backward_pass(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
@@ -1370,6 +1101,272 @@ void multisource_backward_pass(
       });
   }
 }
+
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool multi_gpu,
+          typename VertexIterator>
+rmm::device_uvector<weight_t> betweenness_centrality(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+  VertexIterator vertices_begin,
+  VertexIterator vertices_end,
+  bool const normalized,
+  bool const include_endpoints,
+  bool const do_expensive_check)
+{
+  //
+  // Betweenness Centrality algorithm based on the Brandes Algorithm (2001)
+  //
+  if (do_expensive_check) {
+    auto vertex_partition =
+      vertex_partition_device_view_t<vertex_t, multi_gpu>(graph_view.local_vertex_partition_view());
+    auto num_invalid_vertices =
+      thrust::count_if(handle.get_thrust_policy(),
+                       vertices_begin,
+                       vertices_end,
+                       [vertex_partition] __device__(auto val) {
+                         return !(vertex_partition.is_valid_vertex(val) &&
+                                  vertex_partition.in_local_vertex_partition_range_nocheck(val));
+                       });
+    if constexpr (multi_gpu) {
+      num_invalid_vertices = host_scalar_allreduce(
+        handle.get_comms(), num_invalid_vertices, raft::comms::op_t::SUM, handle.get_stream());
+    }
+    CUGRAPH_EXPECTS(num_invalid_vertices == 0,
+                    "Invalid input argument: sources have invalid vertex IDs.");
+  }
+
+  rmm::device_uvector<weight_t> centralities(graph_view.local_vertex_partition_range_size(),
+                                             handle.get_stream());
+  detail::scalar_fill(handle, centralities.data(), centralities.size(), weight_t{0});
+
+  size_t num_sources = cuda::std::distance(vertices_begin, vertices_end);
+  std::vector<size_t> source_offsets{{0, num_sources}};
+  int my_rank = 0;
+
+  if constexpr (multi_gpu) {
+    auto source_counts =
+      host_scalar_allgather(handle.get_comms(), num_sources, handle.get_stream());
+
+    num_sources = std::accumulate(source_counts.begin(), source_counts.end(), 0);
+    source_offsets.resize(source_counts.size() + 1);
+    source_offsets[0] = 0;
+    std::inclusive_scan(source_counts.begin(), source_counts.end(), source_offsets.begin() + 1);
+    my_rank = handle.get_comms().get_rank();
+  }
+
+  // Run concurrent multi-source BFS directly with iterators
+  auto [distances_2d, sigmas_2d] = detail::multisource_bfs(
+    handle, graph_view, edge_weight_view, vertices_begin, vertices_end, do_expensive_check);
+
+  // Use parallel multisource backward pass for better performance
+  detail::multisource_backward_pass(
+    handle,
+    graph_view,
+    edge_weight_view,
+    raft::device_span<weight_t>{centralities.data(), centralities.size()},
+    std::move(distances_2d),
+    std::move(sigmas_2d),
+    vertices_begin,
+    vertices_end,
+    include_endpoints,
+    do_expensive_check);
+
+  std::optional<weight_t> scale_nonsource{std::nullopt};
+  std::optional<weight_t> scale_source{std::nullopt};
+
+  weight_t num_vertices = static_cast<weight_t>(graph_view.number_of_vertices());
+  if (!include_endpoints) num_vertices = num_vertices - 1;
+
+  if ((static_cast<edge_t>(num_sources) == num_vertices) || include_endpoints) {
+    if (normalized) {
+      scale_nonsource = static_cast<weight_t>(num_sources * (num_vertices - 1));
+    } else if (graph_view.is_symmetric()) {
+      scale_nonsource =
+        static_cast<weight_t>(num_sources * 2) / static_cast<weight_t>(num_vertices);
+    } else {
+      scale_nonsource = static_cast<weight_t>(num_sources) / static_cast<weight_t>(num_vertices);
+    }
+
+    scale_source = scale_nonsource;
+  } else if (normalized) {
+    scale_nonsource = static_cast<weight_t>(num_sources) * (num_vertices - 1);
+    scale_source    = static_cast<weight_t>(num_sources - 1) * (num_vertices - 1);
+  } else {
+    scale_nonsource = static_cast<weight_t>(num_sources) / num_vertices;
+    scale_source    = static_cast<weight_t>(num_sources - 1) / num_vertices;
+
+    if (graph_view.is_symmetric()) {
+      *scale_nonsource *= 2;
+      *scale_source *= 2;
+    }
+  }
+
+  if (scale_nonsource) {
+    auto iter = thrust::make_zip_iterator(
+      thrust::make_counting_iterator(graph_view.local_vertex_partition_range_first()),
+      centralities.begin());
+
+    thrust::transform(
+      handle.get_thrust_policy(),
+      iter,
+      iter + centralities.size(),
+      centralities.begin(),
+      [nonsource = *scale_nonsource,
+       source    = *scale_source,
+       vertices_begin,
+       vertices_end] __device__(auto t) {
+        vertex_t v          = thrust::get<0>(t);
+        weight_t centrality = thrust::get<1>(t);
+
+        return (thrust::find(thrust::seq, vertices_begin, vertices_end, v) == vertices_end)
+                 ? centrality / nonsource
+                 : centrality / source;
+      });
+  }
+
+  return centralities;
+}
+
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool multi_gpu,
+          typename VertexIterator>
+edge_property_t<edge_t, weight_t> edge_betweenness_centrality(
+  const raft::handle_t& handle,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+  VertexIterator vertices_begin,
+  VertexIterator vertices_end,
+  bool const normalized,
+  bool const do_expensive_check)
+{
+  //
+  // Betweenness Centrality algorithm based on the Brandes Algorithm (2001)
+  //
+  if (do_expensive_check) {
+    auto vertex_partition =
+      vertex_partition_device_view_t<vertex_t, multi_gpu>(graph_view.local_vertex_partition_view());
+    auto num_invalid_vertices =
+      thrust::count_if(handle.get_thrust_policy(),
+                       vertices_begin,
+                       vertices_end,
+                       [vertex_partition] __device__(auto val) {
+                         return !(vertex_partition.is_valid_vertex(val) &&
+                                  vertex_partition.in_local_vertex_partition_range_nocheck(val));
+                       });
+    if constexpr (multi_gpu) {
+      num_invalid_vertices = host_scalar_allreduce(
+        handle.get_comms(), num_invalid_vertices, raft::comms::op_t::SUM, handle.get_stream());
+    }
+    CUGRAPH_EXPECTS(num_invalid_vertices == 0,
+                    "Invalid input argument: sources have invalid vertex IDs.");
+  }
+
+  edge_property_t<edge_t, weight_t> centralities(handle, graph_view);
+
+  if (graph_view.has_edge_mask()) {
+    auto unmasked_graph_view = graph_view;
+    unmasked_graph_view.clear_edge_mask();
+    fill_edge_property(
+      handle, unmasked_graph_view, centralities.mutable_view(), weight_t{0}, do_expensive_check);
+  } else {
+    fill_edge_property(
+      handle, graph_view, centralities.mutable_view(), weight_t{0}, do_expensive_check);
+  }
+
+  size_t num_sources = cuda::std::distance(vertices_begin, vertices_end);
+  std::vector<size_t> source_offsets{{0, num_sources}};
+  int my_rank = 0;
+
+  if constexpr (multi_gpu) {
+    auto source_counts =
+      host_scalar_allgather(handle.get_comms(), num_sources, handle.get_stream());
+
+    num_sources = std::accumulate(source_counts.begin(), source_counts.end(), 0);
+    source_offsets.resize(source_counts.size() + 1);
+    source_offsets[0] = 0;
+    std::inclusive_scan(source_counts.begin(), source_counts.end(), source_offsets.begin() + 1);
+    my_rank = handle.get_comms().get_rank();
+  }
+
+  //
+  // FIXME: This could be more efficient using something akin to the
+  // technique in WCC.  Take the entire set of sources, insert them into
+  // a tagged frontier (tagging each source with itself).  Then we can
+  // expand from multiple sources concurrently. The challenge is managing
+  // the memory explosion.
+  //
+  for (size_t source_idx = 0; source_idx < num_sources; ++source_idx) {
+    //
+    //  BFS
+    //
+    constexpr size_t bucket_idx_cur = 0;
+    constexpr size_t num_buckets    = 2;
+
+    vertex_frontier_t<vertex_t, void, multi_gpu, true> vertex_frontier(handle, num_buckets);
+
+    if ((source_idx >= source_offsets[my_rank]) && (source_idx < source_offsets[my_rank + 1])) {
+      vertex_frontier.bucket(bucket_idx_cur)
+        .insert(vertices_begin + (source_idx - source_offsets[my_rank]),
+                vertices_begin + (source_idx - source_offsets[my_rank]) + 1);
+    }
+
+    //
+    //  Now we need to do modified BFS
+    //
+    // FIXME:  This has an inefficiency in early iterations, as it doesn't have enough work to
+    //         keep the GPUs busy.  But we can't run too many at once or we will run out of
+    //         memory. Need to investigate options to improve this performance
+    auto [distances, sigmas] =
+      brandes_bfs(handle, graph_view, edge_weight_view, vertex_frontier, do_expensive_check);
+    accumulate_edge_results(handle,
+                            graph_view,
+                            edge_weight_view,
+                            centralities.mutable_view(),
+                            std::move(distances),
+                            std::move(sigmas),
+                            do_expensive_check);
+  }
+
+  std::optional<weight_t> scale_factor{std::nullopt};
+
+  if (normalized) {
+    weight_t n   = static_cast<weight_t>(graph_view.number_of_vertices());
+    scale_factor = n * (n - 1);
+  } else if (graph_view.is_symmetric()) {
+    scale_factor = weight_t{2};
+  }
+
+  if (scale_factor) {
+    if (graph_view.number_of_vertices() > 1) {
+      if (static_cast<vertex_t>(num_sources) < graph_view.number_of_vertices()) {
+        (*scale_factor) *= static_cast<weight_t>(num_sources) /
+                           static_cast<weight_t>(graph_view.number_of_vertices());
+      }
+
+      auto firsts         = centralities.view().value_firsts();
+      auto counts         = centralities.view().edge_counts();
+      auto mutable_firsts = centralities.mutable_view().value_firsts();
+      for (size_t k = 0; k < counts.size(); k++) {
+        thrust::transform(
+          handle.get_thrust_policy(),
+          firsts[k],
+          firsts[k] + counts[k],
+          mutable_firsts[k],
+          [sf = *scale_factor] __device__(auto centrality) { return centrality / sf; });
+      }
+    }
+  }
+
+  return centralities;
+}
+
+}  // namespace detail
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 rmm::device_uvector<weight_t> betweenness_centrality(
