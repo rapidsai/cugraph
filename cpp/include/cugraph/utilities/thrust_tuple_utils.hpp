@@ -392,8 +392,8 @@ __host__ __device__
   return cuda::std::get<I>(val.get_iterator_tuple());
 }
 
-// a temporary function to emulate cuda::std::tuple_cat (should retire once cuda::std::tuple is
-// replaced with cuda::std::tuple)
+// a temporary function to emulate std::tuple_cat
+// FIXME: replace with cuda::std::tuple_cat if/when that works
 template <typename... TupleTypes>
 #ifdef __CUDACC__
 __host__ __device__
