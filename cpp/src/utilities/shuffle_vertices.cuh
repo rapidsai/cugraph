@@ -24,8 +24,8 @@
 #include <cugraph/large_buffer_manager.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
 
+#include <cuda/std/tuple>
 #include <thrust/gather.h>
-#include <thrust/tuple.h>
 
 #include <tuple>
 

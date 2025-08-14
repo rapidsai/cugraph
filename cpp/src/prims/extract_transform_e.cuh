@@ -31,9 +31,9 @@
 #include <raft/core/handle.hpp>
 
 #include <cuda/std/iterator>
+#include <cuda/std/tuple>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/remove.h>
-#include <thrust/tuple.h>
 
 #include <cstdint>
 #include <numeric>

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,13 +22,13 @@
 #include <rmm/device_uvector.hpp>
 
 #include <cuda/functional>
+#include <cuda/std/tuple>
 #include <thrust/copy.h>
 #include <thrust/count.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/transform_output_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/random.h>
-#include <thrust/tuple.h>
 
 namespace cugraph {
 
@@ -72,10 +72,10 @@ generate_erdos_renyi_graph_edgelist_gnp(raft::handle_t const& handle,
                   thrust::make_counting_iterator<size_t>(max_num_edges),
                   thrust::make_transform_output_iterator(
                     thrust::make_zip_iterator(src_v.begin(), dst_v.begin()),
-                    cuda::proclaim_return_type<thrust::tuple<vertex_t, vertex_t>>(
+                    cuda::proclaim_return_type<cuda::std::tuple<vertex_t, vertex_t>>(
                       [num_vertices] __device__(size_t index) {
-                        return thrust::make_tuple(static_cast<vertex_t>(index / num_vertices),
-                                                  static_cast<vertex_t>(index % num_vertices));
+                        return cuda::std::make_tuple(static_cast<vertex_t>(index / num_vertices),
+                                                     static_cast<vertex_t>(index % num_vertices));
                       })),
                   [generate_random_value, p] __device__(size_t index) {
                     return generate_random_value(index) < p;

@@ -32,13 +32,13 @@
 
 #include <cuda/std/iterator>
 #include <cuda/std/optional>
+#include <cuda/std/tuple>
 #include <thrust/count.h>
 #include <thrust/fill.h>
 #include <thrust/iterator/constant_iterator.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/transform_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
-#include <thrust/tuple.h>
 
 #include <limits>
 #include <type_traits>
@@ -49,13 +49,13 @@ namespace {
 
 template <typename vertex_t>
 struct e_op_t {
-  __device__ size_t operator()(thrust::tuple<vertex_t, size_t> tagged_src,
+  __device__ size_t operator()(cuda::std::tuple<vertex_t, size_t> tagged_src,
                                vertex_t,
                                cuda::std::nullopt_t,
                                cuda::std::nullopt_t,
                                cuda::std::nullopt_t) const
   {
-    return thrust::get<1>(tagged_src);
+    return cuda::std::get<1>(tagged_src);
   }
 };
 

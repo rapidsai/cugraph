@@ -22,6 +22,7 @@
 #include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
 
+#include <cuda/std/tuple>
 #include <thrust/binary_search.h>
 #include <thrust/gather.h>
 #include <thrust/sort.h>

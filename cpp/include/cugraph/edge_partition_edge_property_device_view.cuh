@@ -61,7 +61,7 @@ class edge_partition_edge_property_device_view_t {
   __device__ value_t get(edge_t offset) const
   {
     if constexpr (has_packed_bool_element) {
-      static_assert(is_packed_bool, "unimplemented for thrust::tuple types.");
+      static_assert(is_packed_bool, "unimplemented for cuda::std::tuple types.");
       auto mask = cugraph::packed_bool_mask(offset);
       return static_cast<bool>(*(value_first_ + cugraph::packed_bool_offset(offset)) & mask);
     } else {
@@ -76,7 +76,7 @@ class edge_partition_edge_property_device_view_t {
   set(edge_t offset, value_t val) const
   {
     if constexpr (has_packed_bool_element) {
-      static_assert(is_packed_bool, "unimplemented for thrust::tuple types.");
+      static_assert(is_packed_bool, "unimplemented for cuda::std::tuple types.");
       auto mask = cugraph::packed_bool_mask(offset);
       if (val) {
         atomicOr(value_first_ + cugraph::packed_bool_offset(offset), mask);
@@ -95,7 +95,7 @@ class edge_partition_edge_property_device_view_t {
   atomic_and(edge_t offset, value_t val) const
   {
     if constexpr (has_packed_bool_element) {
-      static_assert(is_packed_bool, "unimplemented for thrust::tuple types.");
+      static_assert(is_packed_bool, "unimplemented for cuda::std::tuple types.");
       auto mask = cugraph::packed_bool_mask(offset);
       auto old  = atomicAnd(value_first_ + cugraph::packed_bool_offset(offset),
                            val ? uint32_t{0xffffffff} : ~mask);
@@ -112,7 +112,7 @@ class edge_partition_edge_property_device_view_t {
   atomic_or(edge_t offset, value_t val) const
   {
     if constexpr (has_packed_bool_element) {
-      static_assert(is_packed_bool, "unimplemented for thrust::tuple types.");
+      static_assert(is_packed_bool, "unimplemented for cuda::std::tuple types.");
       auto mask = cugraph::packed_bool_mask(offset);
       auto old =
         atomicOr(value_first_ + cugraph::packed_bool_offset(offset), val ? mask : uint32_t{0});
@@ -139,7 +139,7 @@ class edge_partition_edge_property_device_view_t {
   elementwise_atomic_cas(edge_t offset, value_t compare, value_t val) const
   {
     if constexpr (has_packed_bool_element) {
-      static_assert(is_packed_bool, "unimplemented for thrust::tuple types.");
+      static_assert(is_packed_bool, "unimplemented for cuda::std::tuple types.");
       cuda::atomic_ref<uint32_t, cuda::thread_scope_device> word(
         *(value_first_ + cugraph::packed_bool_offset(offset)));
       auto mask = cugraph::packed_bool_mask(offset);

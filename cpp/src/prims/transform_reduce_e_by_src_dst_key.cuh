@@ -32,12 +32,12 @@
 #include <raft/core/handle.hpp>
 
 #include <cuda/std/optional>
+#include <cuda/std/tuple>
 #include <thrust/copy.h>
 #include <thrust/count.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/reduce.h>
 #include <thrust/sort.h>
-#include <thrust/tuple.h>
 
 #include <type_traits>
 
@@ -841,8 +841,8 @@ transform_reduce_e_by_src_dst_key(raft::handle_t const& handle,
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return std::tuple Tuple of rmm::device_uvector<typename GraphView::vertex_type> and
  * rmm::device_uvector<T> (if T is arithmetic scalar) or a tuple of rmm::device_uvector objects (if
- * T is a thrust::tuple type of arithmetic scalar types, one rmm::device_uvector object per scalar
- * type).
+ * T is a cuda::std::tuple type of arithmetic scalar types, one rmm::device_uvector object per
+ * scalar type).
  */
 template <typename GraphViewType,
           typename EdgeSrcValueInputWrapper,
@@ -929,8 +929,8 @@ auto transform_reduce_e_by_src_key(raft::handle_t const& handle,
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return std::tuple Tuple of rmm::device_uvector<typename GraphView::vertex_type> and
  * rmm::device_uvector<T> (if T is arithmetic scalar) or a tuple of rmm::device_uvector objects (if
- * T is a thrust::tuple type of arithmetic scalar types, one rmm::device_uvector object per scalar
- * type).
+ * T is a cuda::std::tuple type of arithmetic scalar types, one rmm::device_uvector object per
+ * scalar type).
  */
 template <typename GraphViewType,
           typename EdgeSrcValueInputWrapper,
