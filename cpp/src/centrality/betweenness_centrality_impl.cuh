@@ -901,31 +901,23 @@ void multisource_backward_pass(
       // This extracts (src, tag, dst) triplets as recommended
 
       // Create a proper frontier object for the tagged vertices
-      vertex_frontier_t<vertex_t, size_t, multi_gpu, true> frontier(handle, 1);
+      vertex_frontier_t<vertex_t, origin_t, multi_gpu, true> frontier(handle, 1);
 
-      // Create tagged vertices and insert them into the frontier
-      rmm::device_uvector<thrust::tuple<vertex_t, size_t>> tagged_vertices(frontier_vertices.size(),
-                                                                           handle.get_stream());
-      thrust::transform(
-        handle.get_thrust_policy(),
-        frontier_vertices.begin(),
-        frontier_vertices.end(),
-        frontier_sources.begin(),
-        tagged_vertices.begin(),
-        [] __device__(auto vertex, auto source) { return thrust::make_tuple(vertex, source); });
-
-      frontier.bucket(0).insert(tagged_vertices.begin(), tagged_vertices.end());
+      // Insert tagged vertices directly using zip iterator (no temporary needed)
+      auto pair_first =
+        thrust::make_zip_iterator(frontier_vertices.begin(), frontier_sources.begin());
+      frontier.bucket(0).insert(pair_first, pair_first + frontier_vertices.size());
 
       auto result = detail::extract_transform_if_v_frontier_e<
         false,
-        thrust::tuple<vertex_t, size_t, vertex_t, weight_t>,
+        thrust::tuple<vertex_t, origin_t, vertex_t, weight_t>,
         void>(handle,
               graph_view,
               frontier.bucket(0),
               edge_src_dummy_property_t{}.view(),
               edge_dst_dummy_property_t{}.view(),
               edge_dummy_property_t{}.view(),
-              cuda::proclaim_return_type<thrust::tuple<vertex_t, size_t, vertex_t, weight_t>>(
+              cuda::proclaim_return_type<thrust::tuple<vertex_t, origin_t, vertex_t, weight_t>>(
                 [d,
                  distances_2d = distances_2d.data(),
                  sigmas_2d    = sigmas_2d.data(),
@@ -936,7 +928,7 @@ void multisource_backward_pass(
                   auto src        = thrust::get<0>(tagged_src);
                   auto source_idx = thrust::get<1>(tagged_src);
 
-                  // Check if dst is at distance d for this source
+                  // Calculate delta using Brandes formula with accumulated deltas
                   const vertex_t* distances = distances_2d + source_idx * num_vertices;
                   const edge_t* sigmas      = sigmas_2d + source_idx * num_vertices;
                   const weight_t* deltas    = delta_buffer + source_idx * num_vertices;
@@ -944,19 +936,15 @@ void multisource_backward_pass(
                   auto src_offset = src - v_first;
                   auto dst_offset = dst - v_first;
 
-                  if (distances[dst_offset] == d) {
-                    // Calculate delta using Brandes formula with accumulated deltas
-                    auto sigma_v = static_cast<weight_t>(sigmas[src_offset]);
-                    auto sigma_w = static_cast<weight_t>(sigmas[dst_offset]);
+                  // Calculate delta using Brandes formula with accumulated deltas
+                  auto sigma_v = static_cast<weight_t>(sigmas[src_offset]);
+                  auto sigma_w = static_cast<weight_t>(sigmas[dst_offset]);
 
-                    // Get accumulated delta for destination vertex
-                    weight_t delta_w = deltas[dst_offset];
-                    weight_t delta   = (sigma_v / sigma_w) * (1 + delta_w);
+                  // Get accumulated delta for destination vertex
+                  weight_t delta_w = deltas[dst_offset];
+                  weight_t delta   = (sigma_v / sigma_w) * (1 + delta_w);
 
-                    return thrust::make_tuple(src, source_idx, dst, delta);
-                  } else {
-                    return thrust::make_tuple(src, source_idx, dst, weight_t{0});
-                  }
+                  return thrust::make_tuple(src, source_idx, dst, delta);
                 }),
               // PREDICATE: only process edges where dst is at distance d
               cuda::proclaim_return_type<bool>(
@@ -968,11 +956,9 @@ void multisource_backward_pass(
                   return distances[dst_offset] == d;
                 }));
 
-      // Step 4: Extract edge tuples and perform reduction by (src, tag)
+      // Step 4: Work directly with the result buffer (no temporaries needed)
       auto edge_tuples_buffer = std::move(std::get<0>(result));
-
-      // Work directly with the buffer without using dataframe buffer functions
-      size_t num_edges = size_dataframe_buffer(edge_tuples_buffer);
+      size_t num_edges        = size_dataframe_buffer(edge_tuples_buffer);
 
       if (num_edges > 0) {
         // Extract only the components we need for sorting and reduction
