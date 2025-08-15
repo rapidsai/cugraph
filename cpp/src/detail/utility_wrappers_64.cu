@@ -26,6 +26,7 @@
 
 #include <cuda/functional>
 #include <cuda/std/iterator>
+#include <cuda/std/tuple>
 #include <thrust/count.h>
 #include <thrust/functional.h>
 #include <thrust/iterator/zip_iterator.h>
@@ -35,7 +36,6 @@
 #include <thrust/sort.h>
 #include <thrust/transform.h>
 #include <thrust/transform_reduce.h>
-#include <thrust/tuple.h>
 
 namespace cugraph {
 namespace detail {

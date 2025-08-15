@@ -34,6 +34,7 @@
 
 #include <cuda/std/iterator>
 #include <cuda/std/optional>
+#include <cuda/std/tuple>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
 #include <thrust/count.h>
@@ -48,7 +49,6 @@
 #include <thrust/reduce.h>
 #include <thrust/sort.h>
 #include <thrust/tabulate.h>
-#include <thrust/tuple.h>
 
 #include <type_traits>
 

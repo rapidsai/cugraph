@@ -43,9 +43,9 @@
 
 #include <cuda/std/iterator>
 #include <cuda/std/optional>
+#include <cuda/std/tuple>
 #include <thrust/adjacent_difference.h>
 #include <thrust/iterator/counting_iterator.h>
-#include <thrust/tuple.h>
 
 #include <gtest/gtest.h>
 
@@ -62,7 +62,7 @@ struct e_bias_op_t {
 
 template <typename vertex_t, typename weight_t, typename edge_type_t, typename property_t>
 struct e_op_t {
-  using result_t = decltype(cugraph::thrust_tuple_cat(thrust::tuple<vertex_t, vertex_t>{},
+  using result_t = decltype(cugraph::thrust_tuple_cat(cuda::std::tuple<vertex_t, vertex_t>{},
                                                       cugraph::to_thrust_tuple(property_t{}),
                                                       cugraph::to_thrust_tuple(property_t{}),
                                                       cugraph::to_thrust_tuple(edge_type_t{})));
@@ -74,16 +74,16 @@ struct e_op_t {
                                  cuda::std::nullopt_t) const
   {
     if constexpr (cugraph::is_thrust_tuple_of_arithmetic<property_t>::value) {
-      static_assert(thrust::tuple_size<property_t>::value == size_t{2});
-      return thrust::make_tuple(src,
-                                dst,
-                                thrust::get<0>(src_prop),
-                                thrust::get<1>(src_prop),
-                                thrust::get<0>(dst_prop),
-                                thrust::get<1>(dst_prop),
-                                edge_type_t{0});
+      static_assert(cuda::std::tuple_size<property_t>::value == size_t{2});
+      return cuda::std::make_tuple(src,
+                                   dst,
+                                   cuda::std::get<0>(src_prop),
+                                   cuda::std::get<1>(src_prop),
+                                   cuda::std::get<0>(dst_prop),
+                                   cuda::std::get<1>(dst_prop),
+                                   edge_type_t{0});
     } else {
-      return thrust::make_tuple(src, dst, src_prop, dst_prop, edge_type_t{0});
+      return cuda::std::make_tuple(src, dst, src_prop, dst_prop, edge_type_t{0});
     }
   }
 
@@ -91,16 +91,16 @@ struct e_op_t {
     vertex_t src, vertex_t dst, property_t src_prop, property_t dst_prop, edge_type_t type) const
   {
     if constexpr (cugraph::is_thrust_tuple_of_arithmetic<property_t>::value) {
-      static_assert(thrust::tuple_size<property_t>::value == size_t{2});
-      return thrust::make_tuple(src,
-                                dst,
-                                thrust::get<0>(src_prop),
-                                thrust::get<1>(src_prop),
-                                thrust::get<0>(dst_prop),
-                                thrust::get<1>(dst_prop),
-                                type);
+      static_assert(cuda::std::tuple_size<property_t>::value == size_t{2});
+      return cuda::std::make_tuple(src,
+                                   dst,
+                                   cuda::std::get<0>(src_prop),
+                                   cuda::std::get<1>(src_prop),
+                                   cuda::std::get<0>(dst_prop),
+                                   cuda::std::get<1>(dst_prop),
+                                   type);
     } else {
-      return thrust::make_tuple(src, dst, src_prop, dst_prop, type);
+      return cuda::std::make_tuple(src, dst, src_prop, dst_prop, type);
     }
   }
 };
@@ -231,16 +231,16 @@ class Tests_MGPerVRandomSelectTransformOutgoingE
       .insert(cugraph::get_dataframe_buffer_begin(mg_vertex_buffer),
               cugraph::get_dataframe_buffer_end(mg_vertex_buffer));
 
-    using result_t = decltype(cugraph::thrust_tuple_cat(thrust::tuple<vertex_t, vertex_t>{},
+    using result_t = decltype(cugraph::thrust_tuple_cat(cuda::std::tuple<vertex_t, vertex_t>{},
                                                         cugraph::to_thrust_tuple(property_t{}),
                                                         cugraph::to_thrust_tuple(property_t{}),
                                                         cugraph::to_thrust_tuple(edge_type_t{})));
 
     std::optional<result_t> invalid_value{std::nullopt};
     if (prims_usecase.use_invalid_value) {
-      invalid_value                  = result_t{};
-      thrust::get<0>(*invalid_value) = cugraph::invalid_vertex_id<vertex_t>::value;
-      thrust::get<1>(*invalid_value) = cugraph::invalid_vertex_id<vertex_t>::value;
+      invalid_value                     = result_t{};
+      cuda::std::get<0>(*invalid_value) = cugraph::invalid_vertex_id<vertex_t>::value;
+      cuda::std::get<1>(*invalid_value) = cugraph::invalid_vertex_id<vertex_t>::value;
     }
 
     if (cugraph::test::g_perf) {
@@ -555,7 +555,8 @@ class Tests_MGPerVRandomSelectTransformOutgoingE
                 }
                 for (auto offset = offset_first; offset < offset_last; ++offset) {
                   auto e_op_result = *(sample_e_op_result_first + offset);
-                  auto type = thrust::get<thrust::tuple_size<result_t>::value - 1>(e_op_result);
+                  auto type =
+                    cuda::std::get<cuda::std::tuple_size<result_t>::value - 1>(e_op_result);
                   if (type >= c * array_size &&
                       type < cuda::std::min((c + 1) * array_size, num_edge_types)) {
                     ++per_type_sample_counts[type - c * array_size];
@@ -608,8 +609,8 @@ class Tests_MGPerVRandomSelectTransformOutgoingE
 
             for (size_t j = offset_first; j < offset_last; ++j) {
               auto e_op_result  = *(sample_e_op_result_first + j);
-              auto sg_src       = thrust::get<0>(e_op_result);
-              auto sg_dst       = thrust::get<1>(e_op_result);
+              auto sg_src       = cuda::std::get<0>(e_op_result);
+              auto sg_dst       = cuda::std::get<1>(e_op_result);
               auto sg_nbr_first = sg_indices + *(sg_graph_offsets + sg_src);
               auto sg_nbr_last  = sg_indices + *(sg_graph_offsets + (sg_src + vertex_t{1}));
               auto sg_nbr_bias_first =
@@ -643,22 +644,22 @@ class Tests_MGPerVRandomSelectTransformOutgoingE
               property_t src_val{};
               property_t dst_val{};
               if constexpr (cugraph::is_thrust_tuple_of_arithmetic<property_t>::value) {
-                src_val =
-                  thrust::make_tuple(thrust::get<2>(e_op_result), thrust::get<3>(e_op_result));
-                dst_val =
-                  thrust::make_tuple(thrust::get<4>(e_op_result), thrust::get<5>(e_op_result));
+                src_val = cuda::std::make_tuple(cuda::std::get<2>(e_op_result),
+                                                cuda::std::get<3>(e_op_result));
+                dst_val = cuda::std::make_tuple(cuda::std::get<4>(e_op_result),
+                                                cuda::std::get<5>(e_op_result));
               } else {
-                src_val = thrust::get<2>(e_op_result);
-                dst_val = thrust::get<3>(e_op_result);
+                src_val = cuda::std::get<2>(e_op_result);
+                dst_val = cuda::std::get<3>(e_op_result);
               }
               if (src_val != property_transform(sg_src)) { return true; }
               if (dst_val != property_transform(sg_dst)) { return true; }
 
               if (!with_replacement) {
                 auto sg_dst_first =
-                  thrust::get<1>(sample_e_op_result_first.get_iterator_tuple()) + offset_first;
+                  cuda::std::get<1>(sample_e_op_result_first.get_iterator_tuple()) + offset_first;
                 auto sg_dst_last =
-                  thrust::get<1>(sample_e_op_result_first.get_iterator_tuple()) + offset_last;
+                  cuda::std::get<1>(sample_e_op_result_first.get_iterator_tuple()) + offset_last;
                 auto dst_count = thrust::count(thrust::seq, sg_dst_first, sg_dst_last, sg_dst);
                 auto lower_it =
                   thrust::lower_bound(thrust::seq,
@@ -706,14 +707,14 @@ using Tests_MGPerVRandomSelectTransformOutgoingE_Rmat =
 TEST_P(Tests_MGPerVRandomSelectTransformOutgoingE_File, CheckInt32Int32FloatTupleIntFloat)
 {
   auto param = GetParam();
-  run_current_test<int32_t, int32_t, float, thrust::tuple<int, float>>(std::get<0>(param),
-                                                                       std::get<1>(param));
+  run_current_test<int32_t, int32_t, float, cuda::std::tuple<int, float>>(std::get<0>(param),
+                                                                          std::get<1>(param));
 }
 
 TEST_P(Tests_MGPerVRandomSelectTransformOutgoingE_Rmat, CheckInt32Int32FloatTupleIntFloat)
 {
   auto param = GetParam();
-  run_current_test<int32_t, int32_t, float, thrust::tuple<int, float>>(
+  run_current_test<int32_t, int32_t, float, cuda::std::tuple<int, float>>(
     std::get<0>(param),
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
@@ -721,7 +722,7 @@ TEST_P(Tests_MGPerVRandomSelectTransformOutgoingE_Rmat, CheckInt32Int32FloatTupl
 TEST_P(Tests_MGPerVRandomSelectTransformOutgoingE_Rmat, CheckInt64Int64FloatTupleIntFloat)
 {
   auto param = GetParam();
-  run_current_test<int64_t, int64_t, float, thrust::tuple<int, float>>(
+  run_current_test<int64_t, int64_t, float, cuda::std::tuple<int, float>>(
     std::get<0>(param),
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }

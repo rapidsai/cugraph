@@ -34,6 +34,7 @@
 
 #include <rmm/exec_policy.hpp>
 
+#include <cuda/std/tuple>
 #include <thrust/copy.h>
 #include <thrust/count.h>
 #include <thrust/fill.h>
@@ -42,7 +43,6 @@
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/reduce.h>
 #include <thrust/transform.h>
-#include <thrust/tuple.h>
 
 namespace cugraph {
 namespace detail {
@@ -302,10 +302,10 @@ centrality_algorithm_metadata_t pagerank(
         pull_graph_view.local_vertex_partition_view());
       thrust::for_each(
         handle.get_thrust_policy(),
-        thrust::make_zip_iterator(thrust::make_tuple(std::get<0>(*personalization).begin(),
-                                                     std::get<1>(*personalization).begin())),
-        thrust::make_zip_iterator(thrust::make_tuple(std::get<0>(*personalization).end(),
-                                                     std::get<1>(*personalization).end())),
+        thrust::make_zip_iterator(std::get<0>(*personalization).begin(),
+                                  std::get<1>(*personalization).begin()),
+        thrust::make_zip_iterator(std::get<0>(*personalization).end(),
+                                  std::get<1>(*personalization).end()),
         [vertex_partition,
          pageranks = pageranks.data(),
          dangling_sum,
@@ -322,7 +322,7 @@ centrality_algorithm_metadata_t pagerank(
     auto diff_sum = transform_reduce_v(
       handle,
       pull_graph_view,
-      thrust::make_zip_iterator(thrust::make_tuple(pageranks.begin(), old_pageranks.begin())),
+      thrust::make_zip_iterator(pageranks.begin(), old_pageranks.begin()),
       [] __device__(auto, auto val) { return std::abs(thrust::get<0>(val) - thrust::get<1>(val)); },
       result_t{0.0});
 

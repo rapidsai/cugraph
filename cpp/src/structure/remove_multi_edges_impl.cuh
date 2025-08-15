@@ -31,10 +31,10 @@
 
 #include <cuda/std/cstddef>
 #include <cuda/std/iterator>
+#include <cuda/std/tuple>
 #include <thrust/binary_search.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/sort.h>
-#include <thrust/tuple.h>
 #include <thrust/unique.h>
 
 #include <cuco/hash_functions.cuh>
@@ -50,11 +50,11 @@ template <typename vertex_t>
 struct hash_src_dst_pair_t {
   using result_type = typename cuco::murmurhash3_32<vertex_t>::result_type;
 
-  __device__ result_type operator()(thrust::tuple<vertex_t, vertex_t> pair) const
+  __device__ result_type operator()(cuda::std::tuple<vertex_t, vertex_t> pair) const
   {
     cuco::murmurhash3_32<vertex_t> hash_func{};
-    auto hash0 = hash_func(thrust::get<0>(pair));
-    auto hash1 = hash_func(thrust::get<1>(pair));
+    auto hash0 = hash_func(cuda::std::get<0>(pair));
+    auto hash1 = hash_func(cuda::std::get<1>(pair));
     return hash0 + hash1;
   }
 };
@@ -63,11 +63,11 @@ template <typename vertex_t>
 struct hash_and_mod_src_dst_pair_t {
   int mod{};
 
-  __device__ int operator()(thrust::tuple<vertex_t, vertex_t> pair) const
+  __device__ int operator()(cuda::std::tuple<vertex_t, vertex_t> pair) const
   {
     vertex_t buf[2];
-    buf[0] = thrust::get<0>(pair);
-    buf[1] = thrust::get<1>(pair);
+    buf[0] = cuda::std::get<0>(pair);
+    buf[1] = cuda::std::get<1>(pair);
     std::conditional_t<sizeof(vertex_t) == 8, cuco::xxhash_64<vertex_t>, cuco::xxhash_32<vertex_t>>
       hash_func{};
     return static_cast<int>(
@@ -279,7 +279,7 @@ std::vector<rmm::device_uvector<bool>> compute_multi_edge_flags(
         [unique_possibly_multi_edge_hashes = raft::device_span<hash_result_type const>(
            unique_possibly_multi_edge_hashes.data(), unique_possibly_multi_edge_hashes.size()),
          hash_func =
-           hash_src_dst_pair_t<vertex_t>{}] __device__(thrust::tuple<vertex_t, vertex_t> pair) {
+           hash_src_dst_pair_t<vertex_t>{}] __device__(cuda::std::tuple<vertex_t, vertex_t> pair) {
           auto hash = hash_func(pair);
           return thrust::binary_search(thrust::seq,
                                        unique_possibly_multi_edge_hashes.begin(),
@@ -372,12 +372,12 @@ void sort_multi_edges(
   auto pair_first = thrust::make_zip_iterator(edgelist_srcs.begin(), edgelist_dsts.begin());
   if (keep_min_value_edge) {
     auto edge_compare = [edge_value_compare] __device__(
-                          thrust::tuple<vertex_t, vertex_t, size_t> lhs,
-                          thrust::tuple<vertex_t, vertex_t, size_t> rhs) {
-      auto l_pair = thrust::make_tuple(thrust::get<0>(lhs), thrust::get<1>(lhs));
-      auto r_pair = thrust::make_tuple(thrust::get<0>(rhs), thrust::get<1>(rhs));
+                          cuda::std::tuple<vertex_t, vertex_t, size_t> lhs,
+                          cuda::std::tuple<vertex_t, vertex_t, size_t> rhs) {
+      auto l_pair = cuda::std::make_tuple(cuda::std::get<0>(lhs), cuda::std::get<1>(lhs));
+      auto r_pair = cuda::std::make_tuple(cuda::std::get<0>(rhs), cuda::std::get<1>(rhs));
       if (l_pair == r_pair) {
-        return edge_value_compare(thrust::get<2>(lhs), thrust::get<2>(rhs));
+        return edge_value_compare(cuda::std::get<2>(lhs), cuda::std::get<2>(rhs));
       } else {
         return l_pair < r_pair;
       }

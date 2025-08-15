@@ -31,11 +31,11 @@ struct edge_exists_t {
   cuda::std::optional<edge_partition_edge_property_device_view_t<edge_t, uint32_t const*, bool>>
     edge_partition_e_mask{};
 
-  __device__ bool operator()(thrust::tuple<vertex_t, vertex_t, edge_t> edge) const
+  __device__ bool operator()(cuda::std::tuple<vertex_t, vertex_t, edge_t> edge) const
   {
-    auto major            = thrust::get<0>(edge);
-    auto minor            = thrust::get<1>(edge);
-    auto multi_edge_index = thrust::get<2>(edge);
+    auto major            = cuda::std::get<0>(edge);
+    auto minor            = cuda::std::get<1>(edge);
+    auto multi_edge_index = cuda::std::get<2>(edge);
     auto major_idx        = edge_partition.major_idx_from_major_nocheck(major);
     if (!major_idx) { return true; }
     vertex_t const* indices{nullptr};

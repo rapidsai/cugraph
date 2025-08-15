@@ -27,13 +27,13 @@
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_view.hpp>
 
+#include <cuda/std/tuple>
 #include <thrust/copy.h>
 #include <thrust/fill.h>
 #include <thrust/functional.h>
 #include <thrust/iterator/constant_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/transform.h>
-#include <thrust/tuple.h>
 
 namespace cugraph {
 namespace detail {
@@ -163,7 +163,7 @@ std::tuple<result_t, size_t> hits(raft::handle_t const& handle,
     diff_sum = transform_reduce_v(
       handle,
       graph_view,
-      thrust::make_zip_iterator(thrust::make_tuple(curr_hubs, prev_hubs)),
+      thrust::make_zip_iterator(curr_hubs, prev_hubs),
       [] __device__(auto, auto val) { return std::abs(thrust::get<0>(val) - thrust::get<1>(val)); },
       result_t{0});
 

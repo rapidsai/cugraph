@@ -119,7 +119,7 @@ std::tuple<rmm::device_uvector<vertex_t>, weight_t> approximate_weighted_matchin
     rmm::device_uvector<vertex_t> targets(0, handle.get_stream());
 
     // FIXME: This can be implemented more efficiently if per_v_transform_reduce_incoming|outgoing_e
-    // is updated to support reduction on thrust::tuple.
+    // is updated to support reduction on cuda::std::tuple.
     std::forward_as_tuple(candidates, std::tie(offers_from_candidates, targets)) =
       cugraph::transform_reduce_e_by_src_key(
         handle,
@@ -131,10 +131,10 @@ std::tuple<rmm::device_uvector<vertex_t>, weight_t> approximate_weighted_matchin
                   : make_edge_src_property_view<vertex_t, vertex_t>(
                       current_graph_view, local_vertices.begin(), local_vertices.size()),
         [] __device__(auto, auto dst, cuda::std::nullopt_t, cuda::std::nullopt_t, auto wt) {
-          return thrust::make_tuple(wt, dst);
+          return cuda::std::make_tuple(wt, dst);
         },
-        thrust::make_tuple(weight_t{0.0}, invalid_partner),
-        reduce_op::maximum<thrust::tuple<weight_t, vertex_t>>{},
+        cuda::std::make_tuple(weight_t{0.0}, invalid_partner),
+        reduce_op::maximum<cuda::std::tuple<weight_t, vertex_t>>{},
         true);
 
     //
@@ -168,8 +168,8 @@ std::tuple<rmm::device_uvector<vertex_t>, weight_t> approximate_weighted_matchin
         std::move(std::get<rmm::device_uvector<weight_t>>(vertex_properties[1]));
     }
 
-    auto itr_to_tuples = thrust::make_zip_iterator(
-      thrust::make_tuple(offers_from_candidates.begin(), candidates.begin()));
+    auto itr_to_tuples =
+      thrust::make_zip_iterator(offers_from_candidates.begin(), candidates.begin());
 
     thrust::sort_by_key(handle.get_thrust_policy(), targets.begin(), targets.end(), itr_to_tuples);
 
@@ -182,8 +182,8 @@ std::tuple<rmm::device_uvector<vertex_t>, weight_t> approximate_weighted_matchin
     rmm::device_uvector<weight_t> best_offers_to_targets(nr_unique_targets, handle.get_stream());
     rmm::device_uvector<vertex_t> best_candidates(nr_unique_targets, handle.get_stream());
 
-    auto itr_to_reduced_tuples = thrust::make_zip_iterator(
-      thrust::make_tuple(best_offers_to_targets.begin(), best_candidates.begin()));
+    auto itr_to_reduced_tuples =
+      thrust::make_zip_iterator(best_offers_to_targets.begin(), best_candidates.begin());
 
     auto new_end = thrust::reduce_by_key(
       handle.get_thrust_policy(),
@@ -263,24 +263,24 @@ std::tuple<rmm::device_uvector<vertex_t>, weight_t> approximate_weighted_matchin
 
     thrust::for_each(
       handle.get_thrust_policy(),
-      thrust::make_zip_iterator(thrust::make_tuple(candidates_of_candidates.begin(),
-                                                   targets.begin(),
-                                                   candidates.begin(),
-                                                   offers_from_candidates.begin())),
-      thrust::make_zip_iterator(thrust::make_tuple(candidates_of_candidates.end(),
-                                                   targets.end(),
-                                                   candidates.end(),
-                                                   offers_from_candidates.end())),
+      thrust::make_zip_iterator(candidates_of_candidates.begin(),
+                                targets.begin(),
+                                candidates.begin(),
+                                offers_from_candidates.begin()),
+      thrust::make_zip_iterator(candidates_of_candidates.end(),
+                                targets.end(),
+                                candidates.end(),
+                                offers_from_candidates.end()),
       [partners             = partners.begin(),
        offers_from_partners = offers_from_partners.begin(),
        is_vertex_matched =
          raft::device_span<bool>(is_vertex_matched.data(), is_vertex_matched.size()),
        v_first =
          current_graph_view.local_vertex_partition_range_first()] __device__(auto msrc_tgt) {
-        auto candidate_of_candidate = thrust::get<0>(msrc_tgt);
-        auto tgt                    = thrust::get<1>(msrc_tgt);
-        auto candiate               = thrust::get<2>(msrc_tgt);
-        auto offer_value            = thrust::get<3>(msrc_tgt);
+        auto candidate_of_candidate = cuda::std::get<0>(msrc_tgt);
+        auto tgt                    = cuda::std::get<1>(msrc_tgt);
+        auto candiate               = cuda::std::get<2>(msrc_tgt);
+        auto offer_value            = cuda::std::get<3>(msrc_tgt);
 
         if (candidate_of_candidate != invalid_partner && candidate_of_candidate == tgt) {
           auto tgt_offset                  = tgt - v_first;
