@@ -14,16 +14,11 @@ Manipulation of the data before or after the graph analytic is not covered here.
 |Core Number   | [core-number](core-number.ipynb)   | Computes the core number for every vertex of a graph G. The core number of a vertex is a maximal subgraph that contains only that vertex and others of degree k or more. |
 |K-Cores | [kcore](kcore.ipynb)               |Find the k-core of a graph which is a maximal subgraph that contains nodes of degree k or more.|
 
-[System Requirements](../../README.md#requirements)
-
-| Author Credit |    Date    |  Update          | cuGraph Version |  Test Hardware |
-| --------------|------------|------------------|-----------------|----------------|
-| Brad Rees     | 04/19/2021 | created          | 0.19            | GV100, CUDA 11.0
-| Don Acosta    | 07/21/2022 | tested / updated | 22.08 nightly   | DGX Tesla V100 CUDA 11.5
+[System Requirements](https://docs.rapids.ai/install/#system-req)
 
 ## Copyright
 
-Copyright (c) 2019-2022, NVIDIA CORPORATION.  All rights reserved.
+Copyright (c) 2019-2025, NVIDIA CORPORATION.  All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");  you may not use this file except in compliance with the License.  You may obtain a copy of the License at
 
