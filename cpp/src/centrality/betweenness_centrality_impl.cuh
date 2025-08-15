@@ -579,8 +579,8 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> multisour
     // Create zip iterator for (vertex, origin) pairs
     auto pair_first =
       thrust::make_zip_iterator(vertex_first, thrust::make_counting_iterator(origin_t{0}));
-    auto pair_last =
-      thrust::make_zip_iterator(vertex_last, thrust::make_counting_iterator(origin_t{num_sources}));
+    auto pair_last = thrust::make_zip_iterator(
+      vertex_last, thrust::make_counting_iterator(origin_t{static_cast<uint32_t>(num_sources)}));
 
     // Insert tagged sources into frontier
     vertex_frontier.bucket(bucket_idx_cur).insert(pair_first, pair_last);
@@ -674,14 +674,11 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> multisour
       sigmas.begin());
 
     // Reduce by key to sum sigmas for identical (destination, origin) pairs
-    auto num_unique = thrust::count_if(handle.get_thrust_policy(),
-                                       thrust::make_counting_iterator(size_t{0}),
-                                       thrust::make_counting_iterator(frontier_vertices.size()),
-                                       [vertices = frontier_vertices.data(),
-                                        origins  = frontier_origins.data()] __device__(size_t i) {
-                                         return (i == 0) || (vertices[i] != vertices[i - 1]) ||
-                                                (origins[i] != origins[i - 1]);
-                                       });
+    auto num_unique = thrust::unique_count(
+      handle.get_thrust_policy(),
+      thrust::make_zip_iterator(frontier_vertices.begin(), frontier_origins.begin()),
+      thrust::make_zip_iterator(frontier_vertices.end(), frontier_origins.end()),
+      [] __device__(auto const& a, auto const& b) { return a == b; });
 
     rmm::device_uvector<vertex_t> unique_vertices(num_unique, handle.get_stream());
     rmm::device_uvector<origin_t> unique_origins(num_unique, handle.get_stream());
@@ -753,6 +750,8 @@ void multisource_backward_pass(
   auto num_vertices = static_cast<size_t>(graph_view.local_vertex_partition_range_size());
   auto num_sources  = cuda::std::distance(sources_first, sources_last);
 
+  using origin_t = uint32_t;  // Source index type
+
   // Initialize centrality array to zero
   thrust::fill(handle.get_thrust_policy(), centralities.begin(), centralities.end(), weight_t{0});
 
@@ -779,7 +778,7 @@ void multisource_backward_pass(
 
   // Create buckets for each distance level
   std::vector<rmm::device_uvector<vertex_t>> distance_buckets_vertices;
-  std::vector<rmm::device_uvector<size_t>> distance_buckets_sources;
+  std::vector<rmm::device_uvector<origin_t>> distance_buckets_sources;
 
   // Reserve space and create empty buckets
   distance_buckets_vertices.reserve(global_max_distance + 1);
@@ -809,7 +808,7 @@ void multisource_backward_pass(
                        vertex_t dist             = distances[v_offset];
 
                        if (dist >= 0 && dist <= global_max_distance) {
-                         atomicAdd(&distance_counts[dist], size_t{1});
+                         cuda::atomic_ref<size_t>(distance_counts[dist]).fetch_add(size_t{1});
                        }
                      });
 
@@ -837,7 +836,7 @@ void multisource_backward_pass(
 
   // Create arrays of raw pointers for device access
   std::vector<vertex_t*> host_bucket_vertices_ptrs(global_max_distance + 1);
-  std::vector<size_t*> host_bucket_sources_ptrs(global_max_distance + 1);
+  std::vector<origin_t*> host_bucket_sources_ptrs(global_max_distance + 1);
 
   for (vertex_t d = 0; d <= global_max_distance; ++d) {
     host_bucket_vertices_ptrs[d] = distance_buckets_vertices[d].data();
@@ -847,8 +846,8 @@ void multisource_backward_pass(
   // Copy pointer arrays to device
   rmm::device_uvector<vertex_t*> device_bucket_vertices_ptrs(global_max_distance + 1,
                                                              handle.get_stream());
-  rmm::device_uvector<size_t*> device_bucket_sources_ptrs(global_max_distance + 1,
-                                                          handle.get_stream());
+  rmm::device_uvector<origin_t*> device_bucket_sources_ptrs(global_max_distance + 1,
+                                                            handle.get_stream());
 
   raft::update_device(device_bucket_vertices_ptrs.data(),
                       host_bucket_vertices_ptrs.data(),
@@ -879,7 +878,8 @@ void multisource_backward_pass(
                        vertex_t dist             = distances[v_offset];
 
                        if (dist >= 0 && dist <= global_max_distance) {
-                         size_t offset = atomicAdd(&distance_counts[dist], size_t{1});
+                         size_t offset =
+                           cuda::atomic_ref<size_t>(distance_counts[dist]).fetch_add(size_t{1});
                          bucket_vertices_ptrs[dist][offset] = v_first + v_offset;
                          bucket_sources_ptrs[dist][offset]  = source_idx;
                        }
@@ -1030,11 +1030,11 @@ void multisource_backward_pass(
 
             // Update centrality
             auto src_offset = src - v_first;
-            atomicAdd(&centralities[src_offset], delta);
+            cuda::atomic_ref<weight_t>(centralities[src_offset]).fetch_add(delta);
 
             // Accumulate delta for next iteration
             weight_t* source_deltas = delta_buffer + source_idx * num_vertices;
-            atomicAdd(&source_deltas[src_offset], delta);
+            cuda::atomic_ref<weight_t>(source_deltas[src_offset]).fetch_add(delta);
           });
       }
     }
@@ -1072,7 +1072,7 @@ void multisource_backward_pass(
         }
         // Convert global vertex ID to local offset
         auto source_offset = source_vertex - v_first;
-        atomicAdd(&centralities[source_offset], source_contribution);
+        cuda::atomic_ref<weight_t>(centralities[source_offset]).fetch_add(source_contribution);
       });
 
     // Handle destination vertex contributions
@@ -1095,7 +1095,7 @@ void multisource_backward_pass(
           if (v != source_vertex && distances[v] != std::numeric_limits<vertex_t>::max()) {
             // Each destination vertex contributes 1 to its own centrality
             auto dest_offset = v - v_first;
-            atomicAdd(&centralities[dest_offset], 1.0);
+            cuda::atomic_ref<weight_t>(centralities[dest_offset]).fetch_add(1.0);
           }
         }
       });
