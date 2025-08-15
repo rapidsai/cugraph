@@ -33,6 +33,7 @@
 
 #include <cuda/std/iterator>
 #include <cuda/std/optional>
+#include <cuda/std/tuple>
 #include <cuda/std/utility>
 #include <thrust/copy.h>
 #include <thrust/count.h>
@@ -40,7 +41,6 @@
 #include <thrust/iterator/transform_iterator.h>
 #include <thrust/sort.h>
 #include <thrust/transform.h>
-#include <thrust/tuple.h>
 
 namespace cugraph {
 
@@ -58,15 +58,15 @@ struct extract_triangles_endpoints {
   raft::device_span<vertex_t const> weak_srcs{};
   raft::device_span<vertex_t const> weak_dsts{};
 
-  __device__ thrust::tuple<vertex_t, vertex_t, vertex_t> operator()(edge_t i) const
+  __device__ cuda::std::tuple<vertex_t, vertex_t, vertex_t> operator()(edge_t i) const
   {
     auto itr = thrust::upper_bound(
       thrust::seq, intersection_offsets.begin() + 1, intersection_offsets.end(), i);
     auto idx = cuda::std::distance(intersection_offsets.begin() + 1, itr);
 
-    auto endpoints = thrust::make_tuple(weak_srcs[chunk_start + idx],  // p
-                                        weak_dsts[chunk_start + idx],  // q
-                                        intersection_indices[i]        // r
+    auto endpoints = cuda::std::make_tuple(weak_srcs[chunk_start + idx],  // p
+                                           weak_dsts[chunk_start + idx],  // q
+                                           intersection_indices[i]        // r
     );
 
     auto p = weak_srcs[chunk_start + idx];
@@ -80,7 +80,7 @@ struct extract_triangles_endpoints {
     if (p > r) cuda::std::swap(p, r);
     if (q > r) cuda::std::swap(q, r);
 
-    return thrust::make_tuple(p, q, r);
+    return cuda::std::make_tuple(p, q, r);
   }
 };
 
@@ -88,7 +88,7 @@ namespace {
 
 template <typename vertex_t>
 struct exclude_self_loop_t {
-  __device__ cuda::std::optional<thrust::tuple<vertex_t, vertex_t>> operator()(
+  __device__ cuda::std::optional<cuda::std::tuple<vertex_t, vertex_t>> operator()(
     vertex_t src,
     vertex_t dst,
     cuda::std::nullopt_t,
@@ -96,7 +96,8 @@ struct exclude_self_loop_t {
     cuda::std::nullopt_t) const
   {
     return src != dst
-             ? cuda::std::optional<thrust::tuple<vertex_t, vertex_t>>{thrust::make_tuple(src, dst)}
+             ? cuda::std::optional<cuda::std::tuple<vertex_t, vertex_t>>{cuda::std::make_tuple(src,
+                                                                                               dst)}
              : cuda::std::nullopt;
   }
 };
@@ -106,28 +107,28 @@ struct extract_low_to_high_degree_edges_from_endpoints_e_op_t {
   raft::device_span<vertex_t const> srcs{};
   raft::device_span<vertex_t const> dsts{};
   raft::device_span<edge_t const> count{};
-  __device__ thrust::tuple<vertex_t, vertex_t, edge_t> operator()(vertex_t src,
-                                                                  vertex_t dst,
-                                                                  edge_t src_out_degree,
-                                                                  edge_t dst_out_degree,
-                                                                  cuda::std::nullopt_t) const
+  __device__ cuda::std::tuple<vertex_t, vertex_t, edge_t> operator()(vertex_t src,
+                                                                     vertex_t dst,
+                                                                     edge_t src_out_degree,
+                                                                     edge_t dst_out_degree,
+                                                                     cuda::std::nullopt_t) const
   {
     auto itr = thrust::lower_bound(thrust::seq,
                                    thrust::make_zip_iterator(srcs.begin(), dsts.begin()),
                                    thrust::make_zip_iterator(srcs.end(), dsts.end()),
-                                   thrust::make_tuple(src, dst));
+                                   cuda::std::make_tuple(src, dst));
 
     auto idx = cuda::std::distance(thrust::make_zip_iterator(srcs.begin(), dsts.begin()), itr);
 
     if (src_out_degree < dst_out_degree) {
-      return thrust::make_tuple(src, dst, count[idx]);
+      return cuda::std::make_tuple(src, dst, count[idx]);
     } else if (dst_out_degree < src_out_degree) {
-      return thrust::make_tuple(dst, src, count[idx]);
+      return cuda::std::make_tuple(dst, src, count[idx]);
     } else {  // src_out_degree == dst_out_degree
       if (src < dst /* tie-breaking using vertex ID */) {
-        return thrust::make_tuple(src, dst, count[idx]);
+        return cuda::std::make_tuple(src, dst, count[idx]);
       } else {
-        return thrust::make_tuple(dst, src, count[idx]);
+        return cuda::std::make_tuple(dst, src, count[idx]);
       }
     }
   }
@@ -142,7 +143,7 @@ struct extract_low_to_high_degree_edges_from_endpoints_pred_op_t {
     return thrust::binary_search(thrust::seq,
                                  thrust::make_zip_iterator(srcs.begin(), dsts.begin()),
                                  thrust::make_zip_iterator(srcs.end(), dsts.end()),
-                                 thrust::make_tuple(src, dst));
+                                 cuda::std::make_tuple(src, dst));
   }
 };
 
@@ -310,9 +311,9 @@ k_truss(raft::handle_t const& handle,
         edge_src_dummy_property_t{}.view(),
         edge_dst_dummy_property_t{}.view(),
         edge_triangle_counts.view(),
-        cuda::proclaim_return_type<thrust::tuple<vertex_t, vertex_t>>(
+        cuda::proclaim_return_type<cuda::std::tuple<vertex_t, vertex_t>>(
           [] __device__(vertex_t src, vertex_t dst, auto, auto, auto) {
-            return thrust::make_tuple(src, dst);
+            return cuda::std::make_tuple(src, dst);
           }),
         cuda::proclaim_return_type<bool>([k] __device__(auto, auto, auto, auto, edge_t count) {
           return ((count < k - 2) && (count != 0));
@@ -338,7 +339,7 @@ k_truss(raft::handle_t const& handle,
       // This array stores (p, q, r) which are endpoints for the triangles with weak edges
 
       auto triangles_endpoints =
-        allocate_dataframe_buffer<thrust::tuple<vertex_t, vertex_t, vertex_t>>(
+        allocate_dataframe_buffer<cuda::std::tuple<vertex_t, vertex_t, vertex_t>>(
           intersection_indices.size(), handle.get_stream());
 
       // Extract endpoints for triangles with weak edges
@@ -403,7 +404,7 @@ k_truss(raft::handle_t const& handle,
                comm_size,
                major_comm_size,
                minor_comm_size}] __device__(auto val) {
-            return key_func(thrust::get<0>(val), thrust::get<1>(val));
+            return key_func(cuda::std::get<0>(val), cuda::std::get<1>(val));
           },
           handle.get_stream());
 
@@ -420,8 +421,9 @@ k_truss(raft::handle_t const& handle,
         resize_dataframe_buffer(triangles_endpoints, num_unique_triangles, handle.get_stream());
       }
 
-      auto edgelist_to_update_count = allocate_dataframe_buffer<thrust::tuple<vertex_t, vertex_t>>(
-        3 * num_unique_triangles, handle.get_stream());
+      auto edgelist_to_update_count =
+        allocate_dataframe_buffer<cuda::std::tuple<vertex_t, vertex_t>>(3 * num_unique_triangles,
+                                                                        handle.get_stream());
 
       // The order no longer matters since duplicated triangles have been removed
       // Flatten the endpoints to a list of egdes.
@@ -440,21 +442,21 @@ k_truss(raft::handle_t const& handle,
           vertex_t dst;
 
           if (idx_vertex_in_triangle == 0) {
-            src = *(thrust::get<0>(triangle));
-            dst = *(thrust::get<1>(triangle));
+            src = *(cuda::std::get<0>(triangle));
+            dst = *(cuda::std::get<1>(triangle));
           }
 
           if (idx_vertex_in_triangle == 1) {
-            src = *(thrust::get<0>(triangle));
-            dst = *(thrust::get<2>(triangle));
+            src = *(cuda::std::get<0>(triangle));
+            dst = *(cuda::std::get<2>(triangle));
           }
 
           if (idx_vertex_in_triangle == 2) {
-            src = *(thrust::get<1>(triangle));
-            dst = *(thrust::get<2>(triangle));
+            src = *(cuda::std::get<1>(triangle));
+            dst = *(cuda::std::get<2>(triangle));
           }
 
-          return thrust::make_tuple(src, dst);
+          return cuda::std::make_tuple(src, dst);
         });
 
       if constexpr (multi_gpu) {
@@ -480,8 +482,9 @@ k_truss(raft::handle_t const& handle,
                              get_dataframe_buffer_begin(edgelist_to_update_count),
                              get_dataframe_buffer_end(edgelist_to_update_count));
 
-      auto vertex_pair_buffer_unique = allocate_dataframe_buffer<thrust::tuple<vertex_t, vertex_t>>(
-        unique_pair_count, handle.get_stream());
+      auto vertex_pair_buffer_unique =
+        allocate_dataframe_buffer<cuda::std::tuple<vertex_t, vertex_t>>(unique_pair_count,
+                                                                        handle.get_stream());
 
       rmm::device_uvector<edge_t> decrease_count(unique_pair_count, handle.get_stream());
 
@@ -491,7 +494,7 @@ k_truss(raft::handle_t const& handle,
                             thrust::make_constant_iterator(size_t{1}),
                             get_dataframe_buffer_begin(vertex_pair_buffer_unique),
                             decrease_count.begin(),
-                            thrust::equal_to<thrust::tuple<vertex_t, vertex_t>>{});
+                            thrust::equal_to<cuda::std::tuple<vertex_t, vertex_t>>{});
 
       std::tie(std::get<0>(vertex_pair_buffer_unique),
                std::get<1>(vertex_pair_buffer_unique),
@@ -549,7 +552,7 @@ k_truss(raft::handle_t const& handle,
                  comm_size,
                  major_comm_size,
                  minor_comm_size}] __device__(auto val) {
-              return key_func(thrust::get<0>(val), thrust::get<1>(val));
+              return key_func(cuda::std::get<0>(val), cuda::std::get<1>(val));
             },
             handle.get_stream());
       }
@@ -591,7 +594,7 @@ k_truss(raft::handle_t const& handle,
                                                                      cuda::std::nullopt_t,
                                                                      edge_t count) {
           auto itr_pair = thrust::lower_bound(
-            thrust::seq, edge_buffer_first, edge_buffer_last, thrust::make_tuple(src, dst));
+            thrust::seq, edge_buffer_first, edge_buffer_last, cuda::std::make_tuple(src, dst));
           auto idx_pair = cuda::std::distance(edge_buffer_first, itr_pair);
           count -= decrease_count[idx_pair];
 

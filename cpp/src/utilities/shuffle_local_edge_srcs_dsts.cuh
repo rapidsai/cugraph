@@ -20,7 +20,7 @@
 
 #include <cugraph/utilities/shuffle_comm.cuh>
 
-#include <thrust/tuple.h>
+#include <cuda/std/tuple>
 
 #include <tuple>
 

@@ -20,10 +20,10 @@
 
 #include <cugraph/graph_generators.hpp>
 
+#include <cuda/std/tuple>
 #include <thrust/execution_policy.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/sort.h>
-#include <thrust/tuple.h>
 
 #include <random>
 
