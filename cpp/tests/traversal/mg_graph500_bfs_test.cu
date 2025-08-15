@@ -1911,15 +1911,18 @@ class Tests_GRAPH500_MGBFS
                                   }))),
                 handle_->get_stream());
               forest_edge_parents.resize(forest_edge_vertices.size(), handle_->get_stream());
-              std::tie(forest_edge_parents, forest_edge_vertices) =
-                cugraph::detail::shuffle_int_vertex_value_pairs_to_local_gpu_by_vertex_partitioning<
-                  vertex_t,
-                  vertex_t>(
+              {
+                std::vector<cugraph::arithmetic_device_uvector_t> vertex_properties{};
+                vertex_properties.push_back(std::move(forest_edge_vertices));
+                std::tie(forest_edge_parents, vertex_properties) = cugraph::shuffle_int_vertices(
                   *handle_,
-                  std::move(forest_edge_parents) /* vertex in (vertex, value) pair */,
-                  std::move(forest_edge_vertices) /* value in (vertex, value) pair */,
+                  std::move(forest_edge_parents),
+                  std::move(vertex_properties),
                   raft::host_span<vertex_t const>(vertex_partition_range_offsets.data() + 1,
                                                   vertex_partition_range_offsets.size() - 1));
+                forest_edge_vertices =
+                  std::move(std::get<rmm::device_uvector<vertex_t>>(vertex_properties[0]));
+              }
               auto forest_edge_first = thrust::make_zip_iterator(forest_edge_vertices.begin(),
                                                                  forest_edge_parents.begin());
               thrust::sort(handle_->get_thrust_policy(),
@@ -1970,13 +1973,18 @@ class Tests_GRAPH500_MGBFS
               auto v_offset = mg_graph_to_subgraph_map[v - v_first];
               return (v_offset != invalid_vertex) ? (subgraph_v_first + v_offset) : invalid_vertex;
             });
-          std::tie(query_preds, query_vertices) = cugraph::detail::
-            shuffle_int_vertex_value_pairs_to_local_gpu_by_vertex_partitioning<vertex_t, vertex_t>(
+          {
+            std::vector<cugraph::arithmetic_device_uvector_t> vertex_properties{};
+            vertex_properties.push_back(std::move(query_vertices));
+            std::tie(query_preds, vertex_properties) = cugraph::shuffle_int_vertices(
               *handle_,
-              std::move(query_preds) /* vertex in (vertex, value) pair */,
-              std::move(query_vertices) /* value in (vertex, value) pair */,
+              std::move(query_preds),
+              std::move(vertex_properties),
               raft::host_span<vertex_t const>(vertex_partition_range_offsets.data() + 1,
                                               vertex_partition_range_offsets.size() - 1));
+            query_vertices =
+              std::move(std::get<rmm::device_uvector<vertex_t>>(vertex_properties[0]));
+          }
           thrust::transform(
             handle_->get_thrust_policy(),
             query_preds.begin(),

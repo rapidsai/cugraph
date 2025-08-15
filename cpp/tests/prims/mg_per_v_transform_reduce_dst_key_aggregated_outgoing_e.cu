@@ -158,7 +158,8 @@ class Tests_MGPerVTransformReduceDstKeyAggregatedOutgoingE
                                                    handle_->get_stream());
     thrust::sequence(
       handle_->get_thrust_policy(), mg_kv_store_keys.begin(), mg_kv_store_keys.end(), vertex_t{0});
-    mg_kv_store_keys = cugraph::shuffle_ext_vertices(*handle_, std::move(mg_kv_store_keys));
+    std::tie(mg_kv_store_keys, std::ignore) = cugraph::shuffle_ext_vertices(
+      *handle_, std::move(mg_kv_store_keys), std::vector<cugraph::arithmetic_device_uvector_t>{});
     auto mg_kv_store_values =
       cugraph::test::generate<decltype(mg_graph_view), result_t>::vertex_property(
         *handle_, mg_kv_store_keys, key_prop_hash_bin_count);
