@@ -15,6 +15,7 @@
  */
 #pragma once
 
+#include <cugraph/arithmetic_variant_types.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/src_dst_lookup_container.hpp>
 
@@ -772,7 +773,7 @@ heterogeneous_uniform_temporal_neighbor_sample(
   graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   std::optional<edge_property_view_t<edge_t, edge_t const*>> edge_id_view,
-  std::optional<edge_property_view_t<edge_t, edge_type_t const*>> edge_type_view,
+  edge_property_view_t<edge_t, edge_type_t const*> edge_type_view,
   edge_property_view_t<edge_t, edge_time_t const*> edge_start_time_view,
   std::optional<edge_property_view_t<edge_t, edge_time_t const*>> edge_end_time_view,
   raft::device_span<vertex_t const> starting_vertices,
@@ -918,7 +919,7 @@ homogeneous_biased_temporal_neighbor_sample(
  * @param graph_view Graph View object to generate NBR Sampling on.
  * @param edge_weight_view Optional view object holding edge weights for @p graph_view.
  * @param edge_id_view Optional view object holding edge ids for @p graph_view.
- * @param edge_type_view Optional view object holding edge types for @p graph_view.
+ * @param edge_type_view Object holding edge types for @p graph_view.
  * @param edge_start_time_view Object holding edge start times for @p graph_view.
  * @param edge_end_time_view Optional view object holding edge end times for @p graph_view.
  * @param edge_bias_view View object holding edge biases (to be used in biased sampling) for @p
@@ -966,8 +967,8 @@ heterogeneous_biased_temporal_neighbor_sample(
   graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   std::optional<edge_property_view_t<edge_t, edge_t const*>> edge_id_view,
-  std::optional<edge_property_view_t<edge_t, edge_type_t const*>> edge_type_view,
-  std::optional<edge_property_view_t<edge_t, edge_time_t const*>> edge_start_time_view,
+  edge_property_view_t<edge_t, edge_type_t const*> edge_type_view,
+  edge_property_view_t<edge_t, edge_time_t const*> edge_start_time_view,
   std::optional<edge_property_view_t<edge_t, edge_time_t const*>> edge_end_time_view,
   edge_property_view_t<edge_t, bias_t const*> edge_bias_view,
   raft::device_span<vertex_t const> starting_vertices,
@@ -1073,14 +1074,11 @@ heterogeneous_biased_temporal_neighbor_sample(
  * edgelist_label_offsets.has_value() is true).
  */
 template <typename vertex_t,
-          typename weight_t,
-          typename edge_id_t,
           typename edge_type_t>
 std::tuple<std::optional<rmm::device_uvector<vertex_t>>,     // dcsr/dcsc major vertices
            rmm::device_uvector<size_t>,                      // (d)csr/(d)csc offset values
            rmm::device_uvector<vertex_t>,                    // minor vertices
-           std::optional<rmm::device_uvector<weight_t>>,     // weights
-           std::optional<rmm::device_uvector<edge_id_t>>,    // edge IDs
+           std::vector<arithmetic_device_uvector_t>,         // edge properties
            std::optional<rmm::device_uvector<edge_type_t>>,  // edge types
            std::optional<rmm::device_uvector<size_t>>,  // (label, hop) offsets to the (d)csr/(d)csc
                                                         // offset array
@@ -1090,8 +1088,7 @@ renumber_and_compress_sampled_edgelist(
   raft::handle_t const& handle,
   rmm::device_uvector<vertex_t>&& edgelist_srcs,
   rmm::device_uvector<vertex_t>&& edgelist_dsts,
-  std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights,
-  std::optional<rmm::device_uvector<edge_id_t>>&& edgelist_edge_ids,
+  std::vector<arithmetic_device_uvector_t>&& edgelist_edge_properties,
   std::optional<rmm::device_uvector<edge_type_t>>&& edgelist_edge_types,
   std::optional<rmm::device_uvector<int32_t>>&& edgelist_hops,
   std::optional<raft::device_span<vertex_t const>> seed_vertices,
@@ -1108,9 +1105,9 @@ renumber_and_compress_sampled_edgelist(
  * @ingroup sampling_functions_cpp
  * @brief renumber sampled edge list and sort the renumbered edges.
  *
- * This function renumbers sampling function (e.g. uniform_neighbor_sample) output edges fulfilling
- * the following requirements. Assume major = source if @p src_is_major is true, major = destination
- * if @p src_is_major is false.
+ * This function renumbers sampling function (e.g. homogeneousuniform_neighbor_sample) output edges
+ * fulfilling the following requirements. Assume major = source if @p src_is_major is true, major =
+ * destination if @p src_is_major is false.
  *
  * 1. If @p edgelist_hops is valid, we can consider (vertex ID, hop, flag=major) triplets for each
  * vertex ID in edge majors (@p edgelist_srcs if @p src_is_major is true, @p edgelist_dsts if false)
@@ -1136,21 +1133,13 @@ renumber_and_compress_sampled_edgelist(
  * This function is single-GPU only (we are not aware of any practical multi-GPU use cases).
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
- * @tparam weight_t Type of edge weight.  Needs to be floating point type
- * @tparam edge_id_t Type of edge id.  Needs to be an integral type
- * @tparam edge_type_t Type of edge type.  Needs to be an integral type, currently only int32_t is
- * supported
  * @param  handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param edgelist_srcs A vector storing edgelist source vertices.
  * @param edgelist_dsts A vector storing edgelist destination vertices (size = @p
  * edgelist_srcs.size()).
- * @param edgelist_weights An optional vector storing edgelist weights (size = @p
- * edgelist_srcs.size() if valid).
- * @param edgelist_edge_ids An optional vector storing edgelist edge IDs (size = @p
- * edgelist_srcs.size() if valid).
- * @param edgelist_edge_types An optional vector storing edgelist edge types (size = @p
- * edgelist_srcs.size() if valid).
+ * @param edgelist_edge_properties A vector storing edgelist edge properties (size = @p
+ * edgelist_srcs.size()).
  * @param edgelist_hops An optional vector storing edge list hop numbers (size = @p
  * edgelist_srcs.size() if valid). @p edgelist_hops should be valid if @p num_hops >= 2.
  * @param seed_vertices An optional pointer to the array storing seed vertices in hop 0.
@@ -1167,35 +1156,25 @@ renumber_and_compress_sampled_edgelist(
  * @param src_is_major A flag to determine whether to use the source or destination as the
  * major key in renumbering and sorting.
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
- * @return Tuple of vectors storing edge sources, edge destinations, optional edge weights (valid
- * only if @p edgelist_weights.has_value() is true), optional edge IDs (valid only if @p
- * edgelist_edge_ids.has_value() is true), optional edge types (valid only if @p
- * edgelist_edge_types.has_value() is true), optional (label, hop) offset values to the renumbered
- * and sorted edges (size = @p num_labels * @p num_hops + 1, valid only when @p
- * edgelist_hops.has_value() or @p edgelist_label_offsetes.has_value() is true), renumber_map to
- * query original vertices (size = # unique or aggregate # unique vertices for each label), and
- * label offsets to the renumber map (size = @p num_labels + 1, valid only if @p
- * edgelist_label_offsets.has_value() is true).
+ * @return Tuple of vectors storing edge sources, edge destinations, edge properties, optional
+ * (label, hop) offset values to the renumbered and sorted edges (size = @p num_labels * @p num_hops
+ * + 1, valid only when @p edgelist_hops.has_value() or @p edgelist_label_offsetes.has_value() is
+ * true), renumber_map to query original vertices (size = # unique or aggregate # unique vertices
+ * for each label), and label offsets to the renumber map (size = @p num_labels + 1, valid only if
+ * @p edgelist_label_offsets.has_value() is true).
  */
-template <typename vertex_t,
-          typename weight_t,
-          typename edge_id_t,
-          typename edge_type_t>
-std::tuple<rmm::device_uvector<vertex_t>,                    // srcs
-           rmm::device_uvector<vertex_t>,                    // dsts
-           std::optional<rmm::device_uvector<weight_t>>,     // weights
-           std::optional<rmm::device_uvector<edge_id_t>>,    // edge IDs
-           std::optional<rmm::device_uvector<edge_type_t>>,  // edge types
-           std::optional<rmm::device_uvector<size_t>>,       // (label, hop) offsets to the edges
-           rmm::device_uvector<vertex_t>,                    // renumber map
-           std::optional<rmm::device_uvector<size_t>>>       // label offsets to the renumber map
+template <typename vertex_t>
+std::tuple<rmm::device_uvector<vertex_t>,               // srcs
+           rmm::device_uvector<vertex_t>,               // dsts
+           std::vector<arithmetic_device_uvector_t>,    // edge properties
+           std::optional<rmm::device_uvector<size_t>>,  // (label, hop) offsets to the edges
+           rmm::device_uvector<vertex_t>,               // renumber map
+           std::optional<rmm::device_uvector<size_t>>>  // label offsets to the renumber map
 renumber_and_sort_sampled_edgelist(
   raft::handle_t const& handle,
   rmm::device_uvector<vertex_t>&& edgelist_srcs,
   rmm::device_uvector<vertex_t>&& edgelist_dsts,
-  std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights,
-  std::optional<rmm::device_uvector<edge_id_t>>&& edgelist_edge_ids,
-  std::optional<rmm::device_uvector<edge_type_t>>&& edgelist_edge_types,
+  std::vector<arithmetic_device_uvector_t>&& edgelist_edge_properties,
   std::optional<rmm::device_uvector<int32_t>>&& edgelist_hops,
   std::optional<raft::device_span<vertex_t const>> seed_vertices,
   std::optional<raft::device_span<size_t const>> seed_vertex_label_offsets,
@@ -1272,8 +1251,7 @@ renumber_and_sort_sampled_edgelist(
  * @param edgelist_srcs A vector storing edgelist source vertices.
  * @param edgelist_dsts A vector storing edgelist destination vertices (size = @p
  * edgelist_srcs.size()).
- * @param edgelist_weights An optional vector storing edgelist weights (size = @p
- * edgelist_srcs.size() if valid).
+ * @param edgelist_edge_properties An optional vector storing edgelist edge properties
  * @param edgelist_edge_ids An optional vector storing edgelist edge IDs (size = @p
  * edgelist_srcs.size() if valid).
  * @param edgelist_edge_types An optional vector storing edgelist edge types (size = @p
@@ -1299,29 +1277,28 @@ renumber_and_sort_sampled_edgelist(
  * @param src_is_major A flag to determine whether to use the source or destination as the
  * major key in renumbering and sorting.
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
- * @return Tuple of vectors storing renumbered edge sources, renumbered edge destinations, optional
- * edge weights (valid only if @p edgelist_weights.has_value() is true), optional renumbered edge
- * IDs (valid only if @p edgelist_edge_ids.has_value() is true), optional (label, edge type, hop)
- * offset values to the renumbered and sorted edges (size = @p num_labels * @p num_edge_types * @p
- * num_hops + 1, valid only when @p edgelist_edge_types.has_value(), @p edgelist_hops.has_value(),
- * or @p edgelist_label_offsetes.has_value() is true), renumber_map to query original vertices (size
- * = # unique or aggregate # unique vertices for each label), (label, vertex type) offsets to the
- * vertex renumber map (size = @p num_labels * @p num_vertex_types + 1), optional renumber_map to
- * query original edge IDs (size = # unique (edge_type, edge ID) pairs, valid only if @p
- * edgelist_edge_ids.has_value() is true), and optional (label, edge type) offsets to the edge ID
- * renumber map (size = @p num_labels + @p num_edge_types + 1, valid only if @p
+ * @return Tuple of vectors storing renumbered edge sources, renumbered edge destinations,
+ * edge properties (valid only if @p edgelist_edge_properties.has_value() is true), optional
+ * renumbered edge IDs (valid only if @p edgelist_edge_ids.has_value() is true), optional (label,
+ * edge type, hop) offset values to the renumbered and sorted edges (size = @p num_labels * @p
+ * num_edge_types * @p num_hops + 1, valid only when @p edgelist_edge_types.has_value(), @p
+ * edgelist_hops.has_value(), or @p edgelist_label_offsetes.has_value() is true), renumber_map to
+ * query original vertices (size = # unique or aggregate # unique vertices for each label), (label,
+ * vertex type) offsets to the vertex renumber map (size = @p num_labels * @p num_vertex_types + 1),
+ * optional renumber_map to query original edge IDs (size = # unique (edge_type, edge ID) pairs,
+ * valid only if @p edgelist_edge_ids.has_value() is true), and optional (label, edge type) offsets
+ * to the edge ID renumber map (size = @p num_labels + @p num_edge_types + 1, valid only if @p
  * edgelist_edge_ids.has_value() is true). We do not explicitly return edge source & destination
  * vertex types as we assume that source & destination vertex type are implicilty determined for a
  * given edge type.
  */
 template <typename vertex_t,
-          typename weight_t,
           typename edge_id_t,
           typename edge_type_t>
 std::tuple<
   rmm::device_uvector<vertex_t>,                  // srcs
   rmm::device_uvector<vertex_t>,                  // dsts
-  std::optional<rmm::device_uvector<weight_t>>,   // weights
+  std::vector<arithmetic_device_uvector_t>,       // edge properties
   std::optional<rmm::device_uvector<edge_id_t>>,  // edge IDs
   std::optional<rmm::device_uvector<size_t>>,     // (label, edge type, hop) offsets to the edges
   rmm::device_uvector<vertex_t>,                  // vertex renumber map
@@ -1333,7 +1310,7 @@ heterogeneous_renumber_and_sort_sampled_edgelist(
   raft::handle_t const& handle,
   rmm::device_uvector<vertex_t>&& edgelist_srcs,
   rmm::device_uvector<vertex_t>&& edgelist_dsts,
-  std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights,
+  std::vector<arithmetic_device_uvector_t>&& edgelist_edge_properties,
   std::optional<rmm::device_uvector<edge_id_t>>&& edgelist_edge_ids,
   std::optional<rmm::device_uvector<edge_type_t>>&& edgelist_edge_types,
   std::optional<rmm::device_uvector<int32_t>>&& edgelist_hops,
@@ -1394,22 +1371,15 @@ heterogeneous_renumber_and_sort_sampled_edgelist(
  * edges (size = @p num_labels * @p num_hops + 1, valid only when @p edgelist_hops.has_value() or @p
  * edgelist_label_offsets.has_value() is true).
  */
-template <typename vertex_t,
-          typename weight_t,
-          typename edge_id_t,
-          typename edge_type_t>
-std::tuple<rmm::device_uvector<vertex_t>,                    // srcs
-           rmm::device_uvector<vertex_t>,                    // dsts
-           std::optional<rmm::device_uvector<weight_t>>,     // weights
-           std::optional<rmm::device_uvector<edge_id_t>>,    // edge IDs
-           std::optional<rmm::device_uvector<edge_type_t>>,  // edge types
-           std::optional<rmm::device_uvector<size_t>>>       // (label, hop) offsets to the edges
+template <typename vertex_t>
+std::tuple<rmm::device_uvector<vertex_t>,               // srcs
+           rmm::device_uvector<vertex_t>,               // dsts
+           std::vector<arithmetic_device_uvector_t>,    // edge properties
+           std::optional<rmm::device_uvector<size_t>>>  // (label, hop) offsets to the edges
 sort_sampled_edgelist(raft::handle_t const& handle,
                       rmm::device_uvector<vertex_t>&& edgelist_srcs,
                       rmm::device_uvector<vertex_t>&& edgelist_dsts,
-                      std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights,
-                      std::optional<rmm::device_uvector<edge_id_t>>&& edgelist_edge_ids,
-                      std::optional<rmm::device_uvector<edge_type_t>>&& edgelist_edge_types,
+                      std::vector<arithmetic_device_uvector_t>&& edgelist_edge_properties,
                       std::optional<rmm::device_uvector<int32_t>>&& edgelist_hops,
                       std::optional<raft::device_span<size_t const>> edgelist_label_offsets,
                       size_t num_labels,
