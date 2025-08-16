@@ -681,7 +681,7 @@ cugraph_error_code_t cugraph_homogeneous_uniform_temporal_neighbor_sample(
   const cugraph_type_erased_device_array_view_t* starting_vertex_label_offsets,
   const cugraph_type_erased_host_array_view_t* fan_out,
   const cugraph_sampling_options_t* sampling_options,
-  const cugraph_temporal_sampling_comparison_t* temporal_sampling_comparison,
+  const cugraph_temporal_sampling_comparison_t temporal_sampling_comparison,
   bool_t do_expensive_check,
   cugraph_sample_result_t** result,
   cugraph_error_t** error);
@@ -738,7 +738,7 @@ cugraph_error_code_t cugraph_homogeneous_biased_temporal_neighbor_sample(
   const cugraph_type_erased_device_array_view_t* starting_vertex_label_offsets,
   const cugraph_type_erased_host_array_view_t* fan_out,
   const cugraph_sampling_options_t* sampling_options,
-  const cugraph_temporal_sampling_comparison_t* temporal_sampling_comparison,
+  const cugraph_temporal_sampling_comparison_t temporal_sampling_comparison,
   bool_t do_expensive_check,
   cugraph_sample_result_t** result,
   cugraph_error_t** error);
@@ -798,7 +798,7 @@ cugraph_error_code_t cugraph_heterogeneous_uniform_temporal_neighbor_sample(
   const cugraph_type_erased_host_array_view_t* fan_out,
   int num_edge_types,
   const cugraph_sampling_options_t* sampling_options,
-  const cugraph_temporal_sampling_comparison_t* temporal_sampling_comparison,
+  const cugraph_temporal_sampling_comparison_t temporal_sampling_comparison,
   bool_t do_expensive_check,
   cugraph_sample_result_t** result,
   cugraph_error_t** error);
@@ -861,7 +861,7 @@ cugraph_error_code_t cugraph_heterogeneous_biased_temporal_neighbor_sample(
   const cugraph_type_erased_host_array_view_t* fan_out,
   int num_edge_types,
   const cugraph_sampling_options_t* sampling_options,
-  const cugraph_temporal_sampling_comparison_t* temporal_sampling_comparison,
+  const cugraph_temporal_sampling_comparison_t temporal_sampling_comparison,
   bool_t do_expensive_check,
   cugraph_sample_result_t** result,
   cugraph_error_t** error);

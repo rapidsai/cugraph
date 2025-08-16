@@ -18,6 +18,7 @@
 
 #include "prims/kv_store.cuh"
 
+#include <cugraph/arithmetic_variant_types.hpp>
 #include <cugraph/sampling_functions.hpp>
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/error.hpp>
@@ -158,18 +159,12 @@ struct optionally_compute_label_index_t {
   }
 };
 
-template <typename label_index_t,
-          typename vertex_t,
-          typename vertex_type_t,
-          typename weight_t,
-          typename edge_id_t,
-          typename edge_type_t>
+template <typename label_index_t, typename vertex_t, typename vertex_type_t>
 void check_input_edges(raft::handle_t const& handle,
                        rmm::device_uvector<vertex_t> const& edgelist_majors,
                        rmm::device_uvector<vertex_t> const& edgelist_minors,
-                       std::optional<rmm::device_uvector<weight_t>> const& edgelist_weights,
-                       std::optional<rmm::device_uvector<edge_id_t>> const& edgelist_edge_ids,
-                       std::optional<rmm::device_uvector<edge_type_t>> const& edgelist_edge_types,
+                       std::vector<arithmetic_device_uvector_t> const& edgelist_edge_properties,
+                       std::optional<const_arithmetic_device_span_t> edgelist_edge_types,
                        std::optional<rmm::device_uvector<int32_t>> const& edgelist_hops,
                        std::optional<raft::device_span<vertex_t const>> seed_vertices,
                        std::optional<raft::device_span<size_t const>> seed_vertex_label_offsets,
@@ -184,21 +179,25 @@ void check_input_edges(raft::handle_t const& handle,
   CUGRAPH_EXPECTS(
     edgelist_majors.size() == edgelist_minors.size(),
     "Invalid input arguments: edgelist_srcs.size() and edgelist_dsts.size() should coincide.");
+
+  for (size_t i = 0; i < edgelist_edge_properties.size(); ++i) {
+    CUGRAPH_EXPECTS(cugraph::variant_type_dispatch(edgelist_edge_properties[i],
+                                                   [](auto const& edgelist_edge_property) {
+                                                     return edgelist_edge_property.size();
+                                                   }) == edgelist_majors.size(),
+                    "Invalid input arguments: edgelist_edge_properties[%d].size() and "
+                    "edgelist_(srcs|dsts).size() should coincide.",
+                    i);
+  }
+
   CUGRAPH_EXPECTS(
-    !edgelist_weights.has_value() || (edgelist_majors.size() == (*edgelist_weights).size()),
-    "Invalid input arguments: if edgelist_weights is valid, (*edgelist_weights).size() and "
-    "edgelist_(srcs|dsts).size() should coincide.");
-  CUGRAPH_EXPECTS(
-    !edgelist_edge_ids.has_value() || (edgelist_majors.size() == (*edgelist_edge_ids).size()),
-    "Invalid input arguments: if edgelist_edge_ids is valid, (*edgelist_edge_ids).size() and "
-    "edgelist_(srcs|dsts).size() should coincide.");
-  CUGRAPH_EXPECTS(
-    !edgelist_edge_types.has_value() || (edgelist_majors.size() == (*edgelist_edge_types).size()),
+    !edgelist_edge_types.has_value() ||
+      (edgelist_majors.size() ==
+       cugraph::variant_type_dispatch(
+         *edgelist_edge_types,
+         [](auto const& edgelist_edge_types) { return edgelist_edge_types.size(); })),
     "Invalid input arguments: if edgelist_edge_types is valid, (*edgelist_edge_types).size() and "
     "edgelist_(srcs|dsts).size() should coincide.");
-  CUGRAPH_EXPECTS(!edgelist_hops.has_value() || (edgelist_majors.size() == (*edgelist_hops).size()),
-                  "Invalid input arguments: if edgelist_hops is valid, (*edgelist_hops).size() and "
-                  "edgelist_(srcs|dsts).size() should coincide.");
 
   CUGRAPH_EXPECTS(
     !edgelist_label_offsets.has_value() || ((*edgelist_label_offsets).size() == num_labels + 1),
@@ -276,17 +275,23 @@ void check_input_edges(raft::handle_t const& handle,
 
     if (edgelist_edge_types && num_edge_types) {
       CUGRAPH_EXPECTS(
+        std::holds_alternative<raft::device_span<int32_t const>>(*edgelist_edge_types),
+        "Invalid input arguments: edgelist_edge_types should be a device_span<int32_t const>");
+      using edge_type_t = int32_t;
+
+      auto const& edge_types = std::get<raft::device_span<int32_t const>>(*edgelist_edge_types);
+      CUGRAPH_EXPECTS(
         thrust::count_if(handle.get_thrust_policy(),
-                         (*edgelist_edge_types).begin(),
-                         (*edgelist_edge_types).end(),
+                         edge_types.begin(),
+                         edge_types.end(),
                          [num_edge_types = static_cast<edge_type_t>(*num_edge_types)] __device__(
                            edge_type_t edge_type) { return edge_type >= num_edge_types; }) == 0,
         "Invalid input arguments: edgelist_edge_type is valid but contains out-of-range edge type "
         "values.");
       if constexpr (std::is_signed_v<edge_type_t>) {
         CUGRAPH_EXPECTS(thrust::count_if(handle.get_thrust_policy(),
-                                         (*edgelist_edge_types).begin(),
-                                         (*edgelist_edge_types).end(),
+                                         edge_types.begin(),
+                                         edge_types.end(),
                                          [] __device__(edge_type_t edge_type) {
                                            return edge_type < edge_type_t{0};
                                          }) == 0,
@@ -340,13 +345,18 @@ void check_input_edges(raft::handle_t const& handle,
                    edgelist_minors.begin(),
                    edgelist_minors.end(),
                    tmp_minors.begin());
+
       if (edgelist_edge_types) {
-        rmm::device_uvector<edge_type_t> tmp_edge_types((*edgelist_edge_types).size(),
-                                                        handle.get_stream());
-        thrust::copy(handle.get_thrust_policy(),
-                     (*edgelist_edge_types).begin(),
-                     (*edgelist_edge_types).end(),
-                     tmp_edge_types.begin());
+        CUGRAPH_EXPECTS(
+          std::holds_alternative<raft::device_span<int32_t const>>(*edgelist_edge_types),
+          "Invalid input arguments: edgelist_edge_types should be a device_span<int32_t const>");
+        using edge_type_t = int32_t;
+
+        auto const& edge_types = std::get<raft::device_span<int32_t const>>(*edgelist_edge_types);
+
+        rmm::device_uvector<edge_type_t> tmp_edge_types(edge_types.size(), handle.get_stream());
+        thrust::copy(
+          handle.get_thrust_policy(), edge_types.begin(), edge_types.end(), tmp_edge_types.begin());
         auto triplet_first =
           thrust::make_zip_iterator(tmp_edge_types.begin(), tmp_majors.begin(), tmp_minors.begin());
         thrust::sort(handle.get_thrust_policy(), triplet_first, triplet_first + tmp_majors.size());
@@ -2473,23 +2483,29 @@ void permute_array(raft::handle_t const& handle,
 // key:
 // ((label), (edge type), (hop), major, minor) if use_edge_type_as_sort_key is true
 // ((label), (hop), major, minor) if use_edge_type_as_sort_key is false
-template <typename vertex_t, typename weight_t, typename edge_id_t, typename edge_type_t>
+template <typename vertex_t>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
-           std::optional<rmm::device_uvector<weight_t>>,
-           std::optional<rmm::device_uvector<edge_id_t>>,
-           std::optional<rmm::device_uvector<edge_type_t>>,
+           std::vector<arithmetic_device_uvector_t>,
+           std::optional<arithmetic_device_uvector_t>,
            std::optional<rmm::device_uvector<int32_t>>>
 sort_sampled_edge_tuples(raft::handle_t const& handle,
                          rmm::device_uvector<vertex_t>&& edgelist_majors,
                          rmm::device_uvector<vertex_t>&& edgelist_minors,
-                         std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights,
-                         std::optional<rmm::device_uvector<edge_id_t>>&& edgelist_edge_ids,
-                         std::optional<rmm::device_uvector<edge_type_t>>&& edgelist_edge_types,
+                         std::vector<arithmetic_device_uvector_t>&& edgelist_edge_properties,
+                         std::optional<arithmetic_device_uvector_t>&& edgelist_edge_types,
                          std::optional<rmm::device_uvector<int32_t>>&& edgelist_hops,
                          std::optional<raft::device_span<size_t const>> edgelist_label_offsets,
                          bool use_edge_type_as_sort_key)
 {
+  using edge_type_t = int32_t;
+  CUGRAPH_EXPECTS(
+    !edgelist_edge_types.has_value() ||
+      std::holds_alternative<rmm::device_uvector<int32_t>>(*edgelist_edge_types),
+    "Invalid input arguments: edgelist_edge_types should be a rmm::device_uvector<int32_t>");
+
+  using edge_type_t = int32_t;
+
   std::vector<size_t> h_label_offsets{};
   std::vector<size_t> h_edge_offsets{};
 
@@ -2517,7 +2533,8 @@ sort_sampled_edge_tuples(raft::handle_t const& handle,
                              : cuda::std::nullopt,
       edgelist_edge_types && use_edge_type_as_sort_key
         ? cuda::std::make_optional<raft::device_span<edge_type_t const>>(
-            (*edgelist_edge_types).data() + h_edge_offsets[i], indices.size())
+            std::get<rmm::device_uvector<int32_t>>(*edgelist_edge_types).data() + h_edge_offsets[i],
+            indices.size())
         : cuda::std::nullopt,
       edgelist_hops ? cuda::std::make_optional<raft::device_span<int32_t const>>(
                         (*edgelist_hops).data() + h_edge_offsets[i], indices.size())
@@ -2533,31 +2550,33 @@ sort_sampled_edge_tuples(raft::handle_t const& handle,
                   thrust::make_zip_iterator(edgelist_majors.begin(), edgelist_minors.begin()) +
                     h_edge_offsets[i]);
 
-    if (edgelist_weights) {
-      permute_array(
-        handle, indices.begin(), indices.end(), (*edgelist_weights).begin() + h_edge_offsets[i]);
-    }
-
-    if (edgelist_edge_ids) {
-      permute_array(
-        handle, indices.begin(), indices.end(), (*edgelist_edge_ids).begin() + h_edge_offsets[i]);
-    }
-
     if (edgelist_edge_types) {
+      CUGRAPH_EXPECTS(
+        std::holds_alternative<rmm::device_uvector<int32_t>>(*edgelist_edge_types),
+        "Invalid input arguments: edgelist_edge_types should be a rmm::device_uvector<int32_t>");
+
       permute_array(
-        handle, indices.begin(), indices.end(), (*edgelist_edge_types).begin() + h_edge_offsets[i]);
+        handle,
+        indices.begin(),
+        indices.end(),
+        std::get<rmm::device_uvector<int32_t>>(*edgelist_edge_types).begin() + h_edge_offsets[i]);
     }
 
-    if (edgelist_hops) {
-      permute_array(
-        handle, indices.begin(), indices.end(), (*edgelist_hops).begin() + h_edge_offsets[i]);
-    }
+    std::for_each(
+      edgelist_edge_properties.begin(),
+      edgelist_edge_properties.end(),
+      [&handle, &indices, &h_edge_offsets, i](auto& edge_property) {
+        cugraph::variant_type_dispatch(
+          edge_property, [&handle, &indices, &h_edge_offsets, i](auto& edge_property) {
+            permute_array(
+              handle, indices.begin(), indices.end(), edge_property.begin() + h_edge_offsets[i]);
+          });
+      });
   }
 
   return std::make_tuple(std::move(edgelist_majors),
                          std::move(edgelist_minors),
-                         std::move(edgelist_weights),
-                         std::move(edgelist_edge_ids),
+                         std::move(edgelist_edge_properties),
                          std::move(edgelist_edge_types),
                          std::move(edgelist_hops));
 }
@@ -2565,14 +2584,11 @@ sort_sampled_edge_tuples(raft::handle_t const& handle,
 }  // namespace
 
 template <typename vertex_t,
-          typename weight_t,
-          typename edge_id_t,
           typename edge_type_t>
 std::tuple<std::optional<rmm::device_uvector<vertex_t>>,     // dcsr/dcsc major vertices
            rmm::device_uvector<size_t>,                      // (d)csr/(d)csc offset values
            rmm::device_uvector<vertex_t>,                    // minor vertices
-           std::optional<rmm::device_uvector<weight_t>>,     // weights
-           std::optional<rmm::device_uvector<edge_id_t>>,    // edge IDs
+           std::vector<arithmetic_device_uvector_t>,         // edge properties
            std::optional<rmm::device_uvector<edge_type_t>>,  // edge types
            std::optional<rmm::device_uvector<size_t>>,       // (label, hop) offsets to the
                                                              // (d)csr/(d)csc offset array
@@ -2582,8 +2598,7 @@ renumber_and_compress_sampled_edgelist(
   raft::handle_t const& handle,
   rmm::device_uvector<vertex_t>&& edgelist_srcs,
   rmm::device_uvector<vertex_t>&& edgelist_dsts,
-  std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights,
-  std::optional<rmm::device_uvector<edge_id_t>>&& edgelist_edge_ids,
+  std::vector<arithmetic_device_uvector_t>&& edgelist_edge_properties,
   std::optional<rmm::device_uvector<edge_type_t>>&& edgelist_edge_types,
   std::optional<rmm::device_uvector<int32_t>>&& edgelist_hops,
   std::optional<raft::device_span<vertex_t const>> seed_vertices,
@@ -2604,22 +2619,27 @@ renumber_and_compress_sampled_edgelist(
 
   // 1. check input arguments
 
-  check_input_edges<label_index_t, vertex_t, vertex_type_t>(handle,
-                                                            edgelist_majors,
-                                                            edgelist_minors,
-                                                            edgelist_weights,
-                                                            edgelist_edge_ids,
-                                                            edgelist_edge_types,
-                                                            edgelist_hops,
-                                                            seed_vertices,
-                                                            seed_vertex_label_offsets,
-                                                            edgelist_label_offsets,
-                                                            std::nullopt,
-                                                            num_labels,
-                                                            num_hops,
-                                                            size_t{1},
-                                                            std::optional<size_t>{std::nullopt},
-                                                            do_expensive_check);
+  check_input_edges<label_index_t, vertex_t, vertex_type_t>(
+    handle,
+    edgelist_majors,
+    edgelist_minors,
+    edgelist_edge_properties,
+    // edgelist_edge_types ?
+    // std::make_optional(make_const_arithmetic_device_span(*edgelist_edge_types)) : std::nullopt,
+    edgelist_edge_types
+      ? std::make_optional<const_arithmetic_device_span_t>(raft::device_span<edge_type_t const>{
+          edgelist_edge_types->data(), edgelist_edge_types->size()})
+      : std::nullopt,
+    edgelist_hops,
+    seed_vertices,
+    seed_vertex_label_offsets,
+    edgelist_label_offsets,
+    std::nullopt,
+    num_labels,
+    num_hops,
+    size_t{1},
+    std::optional<size_t>{std::nullopt},
+    do_expensive_check);
 
   CUGRAPH_EXPECTS(
     !doubly_compress || !compress_per_hop,
@@ -2660,21 +2680,25 @@ renumber_and_compress_sampled_edgelist(
       do_expensive_check);
 
   // 3. sort by ((l), (h), major, minor)
-
-  std::tie(edgelist_majors,
-           edgelist_minors,
-           edgelist_weights,
-           edgelist_edge_ids,
-           edgelist_edge_types,
-           edgelist_hops) = sort_sampled_edge_tuples(handle,
-                                                     std::move(edgelist_majors),
-                                                     std::move(edgelist_minors),
-                                                     std::move(edgelist_weights),
-                                                     std::move(edgelist_edge_ids),
-                                                     std::move(edgelist_edge_types),
-                                                     std::move(edgelist_hops),
-                                                     edgelist_label_offsets,
-                                                     false);
+  {
+    std::optional<arithmetic_device_uvector_t> edgelist_edge_types_tmp{std::nullopt};
+    std::tie(edgelist_majors,
+             edgelist_minors,
+             edgelist_edge_properties,
+             edgelist_edge_types_tmp,
+             edgelist_hops) = sort_sampled_edge_tuples(handle,
+                                                       std::move(edgelist_majors),
+                                                       std::move(edgelist_minors),
+                                                       std::move(edgelist_edge_properties),
+                                                       std::move(edgelist_edge_types),
+                                                       std::move(edgelist_hops),
+                                                       edgelist_label_offsets,
+                                                       false);
+    if (edgelist_edge_types_tmp) {
+      edgelist_edge_types =
+        std::move(std::get<rmm::device_uvector<edge_type_t>>(*edgelist_edge_types_tmp));
+    }
+  }
 
   if (renumbered_seed_vertices) {
     if (seed_vertex_label_offsets) {
@@ -3200,33 +3224,25 @@ renumber_and_compress_sampled_edgelist(
     doubly_compress ? std::make_optional(std::move(compressed_nzd_vertices)) : std::nullopt,
     std::move(compressed_offsets),
     std::move(edgelist_minors),
-    std::move(edgelist_weights),
-    std::move(edgelist_edge_ids),
+    std::move(edgelist_edge_properties),
     std::move(edgelist_edge_types),
     std::move(compressed_offset_label_hop_offsets),
     std::move(renumber_map),
     std::move(renumber_map_label_offsets));
 }
 
-template <typename vertex_t,
-          typename weight_t,
-          typename edge_id_t,
-          typename edge_type_t>
-std::tuple<rmm::device_uvector<vertex_t>,                    // srcs
-           rmm::device_uvector<vertex_t>,                    // dsts
-           std::optional<rmm::device_uvector<weight_t>>,     // weights
-           std::optional<rmm::device_uvector<edge_id_t>>,    // edge IDs
-           std::optional<rmm::device_uvector<edge_type_t>>,  // edge types
-           std::optional<rmm::device_uvector<size_t>>,       // (label, hop) offsets to the edges
-           rmm::device_uvector<vertex_t>,                    // renumber map
-           std::optional<rmm::device_uvector<size_t>>>       // label offsets to the renumber map
+template <typename vertex_t>
+std::tuple<rmm::device_uvector<vertex_t>,               // srcs
+           rmm::device_uvector<vertex_t>,               // dsts
+           std::vector<arithmetic_device_uvector_t>,    // edge properties
+           std::optional<rmm::device_uvector<size_t>>,  // (label, hop) offsets to the edges
+           rmm::device_uvector<vertex_t>,               // renumber map
+           std::optional<rmm::device_uvector<size_t>>>  // label offsets to the renumber map
 renumber_and_sort_sampled_edgelist(
   raft::handle_t const& handle,
   rmm::device_uvector<vertex_t>&& edgelist_srcs,
   rmm::device_uvector<vertex_t>&& edgelist_dsts,
-  std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights,
-  std::optional<rmm::device_uvector<edge_id_t>>&& edgelist_edge_ids,
-  std::optional<rmm::device_uvector<edge_type_t>>&& edgelist_edge_types,
+  std::vector<arithmetic_device_uvector_t>&& edgelist_edge_properties,
   std::optional<rmm::device_uvector<int32_t>>&& edgelist_hops,
   std::optional<raft::device_span<vertex_t const>> seed_vertices,
   std::optional<raft::device_span<size_t const>> seed_vertex_label_offsets,
@@ -3247,9 +3263,8 @@ renumber_and_sort_sampled_edgelist(
   check_input_edges<label_index_t, vertex_t, vertex_type_t>(handle,
                                                             edgelist_majors,
                                                             edgelist_minors,
-                                                            edgelist_weights,
-                                                            edgelist_edge_ids,
-                                                            edgelist_edge_types,
+                                                            edgelist_edge_properties,
+                                                            std::nullopt,
                                                             edgelist_hops,
                                                             seed_vertices,
                                                             seed_vertex_label_offsets,
@@ -3291,20 +3306,15 @@ renumber_and_sort_sampled_edgelist(
 
   // 3. sort by ((l), (h), major, minor)
 
-  std::tie(edgelist_majors,
-           edgelist_minors,
-           edgelist_weights,
-           edgelist_edge_ids,
-           edgelist_edge_types,
-           edgelist_hops) = sort_sampled_edge_tuples(handle,
-                                                     std::move(edgelist_majors),
-                                                     std::move(edgelist_minors),
-                                                     std::move(edgelist_weights),
-                                                     std::move(edgelist_edge_ids),
-                                                     std::move(edgelist_edge_types),
-                                                     std::move(edgelist_hops),
-                                                     edgelist_label_offsets,
-                                                     false);
+  std::tie(edgelist_majors, edgelist_minors, edgelist_edge_properties, std::ignore, edgelist_hops) =
+    sort_sampled_edge_tuples(handle,
+                             std::move(edgelist_majors),
+                             std::move(edgelist_minors),
+                             std::move(edgelist_edge_properties),
+                             std::nullopt,
+                             std::move(edgelist_hops),
+                             edgelist_label_offsets,
+                             false);
 
   // 4. compute edgelist_label_hop_offsets
 
@@ -3365,34 +3375,31 @@ renumber_and_sort_sampled_edgelist(
 
   return std::make_tuple(std::move(src_is_major ? edgelist_majors : edgelist_minors),
                          std::move(src_is_major ? edgelist_minors : edgelist_majors),
-                         std::move(edgelist_weights),
-                         std::move(edgelist_edge_ids),
-                         std::move(edgelist_edge_types),
+                         std::move(edgelist_edge_properties),
                          std::move(edgelist_label_hop_offsets),
                          std::move(renumber_map),
                          std::move(renumber_map_label_offsets));
 }
 
 template <typename vertex_t,
-          typename weight_t,
           typename edge_id_t,
           typename edge_type_t>
 std::tuple<rmm::device_uvector<vertex_t>,                  // srcs
            rmm::device_uvector<vertex_t>,                  // dsts
-           std::optional<rmm::device_uvector<weight_t>>,   // weights
+           std::vector<arithmetic_device_uvector_t>,       // edge properties
            std::optional<rmm::device_uvector<edge_id_t>>,  // edge IDs
            std::optional<rmm::device_uvector<size_t>>,     // (label, edge type, hop) offsets to the
                                                            // edges
            rmm::device_uvector<vertex_t>,                  // vertex renumber map
            rmm::device_uvector<size_t>,  // (label, vertex type) offsets to the vertex renumber map
            std::optional<rmm::device_uvector<edge_id_t>>,  // edge ID renumber map
-           std::optional<
-             rmm::device_uvector<size_t>>>  // (label, edge type) offsets to the vertex renumber map
+           std::optional<rmm::device_uvector<
+             size_t>>>  // (label, edge type) offsets to the edge ID renumber map
 heterogeneous_renumber_and_sort_sampled_edgelist(
   raft::handle_t const& handle,
   rmm::device_uvector<vertex_t>&& edgelist_srcs,
   rmm::device_uvector<vertex_t>&& edgelist_dsts,
-  std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights,
+  std::vector<arithmetic_device_uvector_t>&& edgelist_edge_properties,
   std::optional<rmm::device_uvector<edge_id_t>>&& edgelist_edge_ids,
   std::optional<rmm::device_uvector<edge_type_t>>&& edgelist_edge_types,
   std::optional<rmm::device_uvector<int32_t>>&& edgelist_hops,
@@ -3414,24 +3421,35 @@ heterogeneous_renumber_and_sort_sampled_edgelist(
   auto edgelist_minors = src_is_major ? std::move(edgelist_dsts) : std::move(edgelist_srcs);
 
   // 1. check input arguments
+  {
+    if (edgelist_edge_ids) { edgelist_edge_properties.push_back(std::move(*edgelist_edge_ids)); }
 
-  check_input_edges<label_index_t, vertex_t, vertex_type_t>(handle,
-                                                            edgelist_majors,
-                                                            edgelist_minors,
-                                                            edgelist_weights,
-                                                            edgelist_edge_ids,
-                                                            edgelist_edge_types,
-                                                            edgelist_hops,
-                                                            seed_vertices,
-                                                            seed_vertex_label_offsets,
-                                                            edgelist_label_offsets,
-                                                            vertex_type_offsets,
-                                                            num_labels,
-                                                            num_hops,
-                                                            num_vertex_types,
-                                                            std::optional<size_t>{num_edge_types},
-                                                            do_expensive_check);
+    check_input_edges<label_index_t, vertex_t, vertex_type_t>(
+      handle,
+      edgelist_majors,
+      edgelist_minors,
+      edgelist_edge_properties,
+      edgelist_edge_types
+        ? std::make_optional<const_arithmetic_device_span_t>(raft::device_span<edge_type_t const>{
+            edgelist_edge_types->data(), edgelist_edge_types->size()})
+        : std::nullopt,
+      edgelist_hops,
+      seed_vertices,
+      seed_vertex_label_offsets,
+      edgelist_label_offsets,
+      vertex_type_offsets,
+      num_labels,
+      num_hops,
+      num_vertex_types,
+      std::optional<size_t>{num_edge_types},
+      do_expensive_check);
 
+    if (edgelist_edge_ids) {
+      edgelist_edge_ids =
+        std::move(std::get<rmm::device_uvector<edge_id_t>>(edgelist_edge_properties.back()));
+      edgelist_edge_properties.pop_back();
+    }
+  }
   // 2. renumber
 
   std::optional<rmm::device_uvector<vertex_t>> renumbered_seed_vertices{std::nullopt};
@@ -3480,21 +3498,34 @@ heterogeneous_renumber_and_sort_sampled_edgelist(
       do_expensive_check);
 
   // 3. sort by ((label), (edge type), (hop), major, minor)
+  {
+    if (edgelist_edge_ids) { edgelist_edge_properties.push_back(std::move(*edgelist_edge_ids)); }
 
-  std::tie(edgelist_majors,
-           edgelist_minors,
-           edgelist_weights,
-           edgelist_edge_ids,
-           edgelist_edge_types,
-           edgelist_hops) = sort_sampled_edge_tuples(handle,
-                                                     std::move(edgelist_majors),
-                                                     std::move(edgelist_minors),
-                                                     std::move(edgelist_weights),
-                                                     std::move(edgelist_edge_ids),
-                                                     std::move(edgelist_edge_types),
-                                                     std::move(edgelist_hops),
-                                                     edgelist_label_offsets,
-                                                     true);
+    std::optional<arithmetic_device_uvector_t> edgelist_edge_types_tmp{std::nullopt};
+    std::tie(edgelist_majors,
+             edgelist_minors,
+             edgelist_edge_properties,
+             edgelist_edge_types_tmp,
+             edgelist_hops) = sort_sampled_edge_tuples(handle,
+                                                       std::move(edgelist_majors),
+                                                       std::move(edgelist_minors),
+                                                       std::move(edgelist_edge_properties),
+                                                       std::move(edgelist_edge_types),
+                                                       std::move(edgelist_hops),
+                                                       edgelist_label_offsets,
+                                                       true);
+
+    if (edgelist_edge_types_tmp) {
+      edgelist_edge_types =
+        std::move(std::get<rmm::device_uvector<edge_type_t>>(*edgelist_edge_types_tmp));
+    }
+
+    if (edgelist_edge_ids) {
+      edgelist_edge_ids =
+        std::move(std::get<rmm::device_uvector<edge_id_t>>(edgelist_edge_properties.back()));
+      edgelist_edge_properties.pop_back();
+    }
+  }
 
   // 4. compute edgelist (label, edge type, hop) offsets
 
@@ -3577,7 +3608,7 @@ heterogeneous_renumber_and_sort_sampled_edgelist(
 
   return std::make_tuple(std::move(src_is_major ? edgelist_majors : edgelist_minors),
                          std::move(src_is_major ? edgelist_minors : edgelist_majors),
-                         std::move(edgelist_weights),
+                         std::move(edgelist_edge_properties),
                          std::move(edgelist_edge_ids),
                          std::move(edgelist_label_type_hop_offsets),
                          std::move(vertex_renumber_map),
@@ -3586,22 +3617,15 @@ heterogeneous_renumber_and_sort_sampled_edgelist(
                          std::move(edge_id_renumber_map_label_type_offsets));
 }
 
-template <typename vertex_t,
-          typename weight_t,
-          typename edge_id_t,
-          typename edge_type_t>
-std::tuple<rmm::device_uvector<vertex_t>,                    // srcs
-           rmm::device_uvector<vertex_t>,                    // dsts
-           std::optional<rmm::device_uvector<weight_t>>,     // weights
-           std::optional<rmm::device_uvector<edge_id_t>>,    // edge IDs
-           std::optional<rmm::device_uvector<edge_type_t>>,  // edge types
-           std::optional<rmm::device_uvector<size_t>>>       // (label, hop) offsets to the edges
+template <typename vertex_t>
+std::tuple<rmm::device_uvector<vertex_t>,               // srcs
+           rmm::device_uvector<vertex_t>,               // dsts
+           std::vector<arithmetic_device_uvector_t>,    // edge properties
+           std::optional<rmm::device_uvector<size_t>>>  // (label, hop) offsets to the edges
 sort_sampled_edgelist(raft::handle_t const& handle,
                       rmm::device_uvector<vertex_t>&& edgelist_srcs,
                       rmm::device_uvector<vertex_t>&& edgelist_dsts,
-                      std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights,
-                      std::optional<rmm::device_uvector<edge_id_t>>&& edgelist_edge_ids,
-                      std::optional<rmm::device_uvector<edge_type_t>>&& edgelist_edge_types,
+                      std::vector<arithmetic_device_uvector_t>&& edgelist_edge_properties,
                       std::optional<rmm::device_uvector<int32_t>>&& edgelist_hops,
                       std::optional<raft::device_span<size_t const>> edgelist_label_offsets,
                       size_t num_labels,
@@ -3620,9 +3644,8 @@ sort_sampled_edgelist(raft::handle_t const& handle,
   check_input_edges<label_index_t, vertex_t, vertex_type_t>(handle,
                                                             edgelist_majors,
                                                             edgelist_minors,
-                                                            edgelist_weights,
-                                                            edgelist_edge_ids,
-                                                            edgelist_edge_types,
+                                                            edgelist_edge_properties,
+                                                            std::nullopt,
                                                             edgelist_hops,
                                                             std::nullopt,
                                                             std::nullopt,
@@ -3636,20 +3659,15 @@ sort_sampled_edgelist(raft::handle_t const& handle,
 
   // 2. sort by ((l), (h), major, minor)
 
-  std::tie(edgelist_majors,
-           edgelist_minors,
-           edgelist_weights,
-           edgelist_edge_ids,
-           edgelist_edge_types,
-           edgelist_hops) = sort_sampled_edge_tuples(handle,
-                                                     std::move(edgelist_majors),
-                                                     std::move(edgelist_minors),
-                                                     std::move(edgelist_weights),
-                                                     std::move(edgelist_edge_ids),
-                                                     std::move(edgelist_edge_types),
-                                                     std::move(edgelist_hops),
-                                                     edgelist_label_offsets,
-                                                     false);
+  std::tie(edgelist_majors, edgelist_minors, edgelist_edge_properties, std::ignore, edgelist_hops) =
+    sort_sampled_edge_tuples(handle,
+                             std::move(edgelist_majors),
+                             std::move(edgelist_minors),
+                             std::move(edgelist_edge_properties),
+                             std::nullopt,
+                             std::move(edgelist_hops),
+                             edgelist_label_offsets,
+                             false);
 
   // 3. compute edgelist_label_hop_offsets
 
@@ -3661,6 +3679,7 @@ sort_sampled_edgelist(raft::handle_t const& handle,
                  (*edgelist_label_hop_offsets).begin(),
                  (*edgelist_label_hop_offsets).end(),
                  size_t{0});
+
     thrust::transform(
       handle.get_thrust_policy(),
       thrust::make_counting_iterator(size_t{0}),
@@ -3700,19 +3719,18 @@ sort_sampled_edgelist(raft::handle_t const& handle,
 
           return end_offset - start_offset;
         }));
+
     thrust::exclusive_scan(handle.get_thrust_policy(),
                            (*edgelist_label_hop_offsets).begin(),
                            (*edgelist_label_hop_offsets).end(),
                            (*edgelist_label_hop_offsets).begin());
-  }
 
-  edgelist_hops = std::nullopt;
+    edgelist_hops = std::nullopt;
+  }
 
   return std::make_tuple(std::move(src_is_major ? edgelist_majors : edgelist_minors),
                          std::move(src_is_major ? edgelist_minors : edgelist_majors),
-                         std::move(edgelist_weights),
-                         std::move(edgelist_edge_ids),
-                         std::move(edgelist_edge_types),
+                         std::move(edgelist_edge_properties),
                          std::move(edgelist_label_hop_offsets));
 }
 
