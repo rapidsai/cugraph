@@ -961,58 +961,58 @@ void multisource_backward_pass(
       size_t num_edges        = size_dataframe_buffer(edge_tuples_buffer);
 
       if (num_edges > 0) {
-        // Extract only the components we need for sorting and reduction
-        // edge_keys[i] = (vertex_id, origin tag) that this edge came from
-        rmm::device_uvector<thrust::tuple<vertex_t, size_t>> edge_keys(num_edges,
-                                                                       handle.get_stream());
-        rmm::device_uvector<weight_t> edge_deltas(num_edges, handle.get_stream());
+        // Step 5: Access individual vectors directly to avoid transform iterator issues
+        auto& srcs           = std::get<0>(edge_tuples_buffer);
+        auto& source_indices = std::get<1>(edge_tuples_buffer);
+        auto& dsts           = std::get<2>(edge_tuples_buffer);
+        auto& deltas         = std::get<3>(edge_tuples_buffer);
 
-        // Extract keys and values in one transform operation
-        thrust::transform(handle.get_thrust_policy(),
-                          get_dataframe_buffer_begin(edge_tuples_buffer),
-                          get_dataframe_buffer_end(edge_tuples_buffer),
-                          thrust::make_zip_iterator(edge_keys.begin(), edge_deltas.begin()),
-                          [] __device__(auto tuple) {
-                            return thrust::make_tuple(
-                              thrust::make_tuple(thrust::get<0>(tuple),
-                                                 thrust::get<1>(tuple)),  // (src, source_idx)
-                              thrust::get<3>(tuple)                       // delta
-                            );
-                          });
+        // Sort using thrust::sort_by_key to maintain memory alignment
+        // First sort by source vertices (stable sort preserves order)
+        thrust::stable_sort_by_key(
+          handle.get_thrust_policy(),
+          srcs.begin(),
+          srcs.end(),
+          thrust::make_zip_iterator(source_indices.begin(), deltas.begin()));
 
-        // Step 5-7: Combined sort and reduce operations
-        // Sort by (src, source_idx) for reduction
-        thrust::sort_by_key(
-          handle.get_thrust_policy(), edge_keys.begin(), edge_keys.end(), edge_deltas.begin());
+        // Then sort by source indices within each source group (stable sort preserves source order)
+        thrust::stable_sort_by_key(handle.get_thrust_policy(),
+                                   source_indices.begin(),
+                                   source_indices.end(),
+                                   thrust::make_zip_iterator(srcs.begin(), deltas.begin()));
 
-        // Reduce by key and get count in one operation
+        // Step 6: Use reduce_by_key with in-place reduction (no temporaries needed)
+
+        // Reduce by key and get count in one operation - overwrite input buffers
         auto reduced_result = thrust::reduce_by_key(
           handle.get_thrust_policy(),
-          edge_keys.begin(),
-          edge_keys.end(),
-          edge_deltas.begin(),
-          edge_keys.begin(),                                    // Output keys (overwrite input)
-          edge_deltas.begin(),                                  // Output values (overwrite input)
-          thrust::equal_to<thrust::tuple<vertex_t, size_t>>{},  // BinaryPredicate: compare keys
-          thrust::plus<weight_t>{});                            // BinaryFunction: sum values
+          thrust::make_zip_iterator(srcs.begin(), source_indices.begin()),
+          thrust::make_zip_iterator(srcs.end(), source_indices.end()),
+          deltas.begin(),
+          thrust::make_zip_iterator(srcs.begin(),
+                                    source_indices.begin()),      // Output keys (overwrite input)
+          deltas.begin(),                                         // Output values (overwrite input)
+          thrust::equal_to<thrust::tuple<vertex_t, origin_t>>{},  // BinaryPredicate: compare keys
+          thrust::plus<weight_t>{});                              // BinaryFunction: sum values
 
         // Get num_unique from the result
-        size_t num_unique = reduced_result.second - edge_deltas.begin();
+        size_t num_unique = reduced_result.second - deltas.begin();
 
-        // Step 8: Combined centrality update and delta accumulation
+        // Step 7: Update centralities and deltas from the in-place reduced results
         thrust::for_each(
           handle.get_thrust_policy(),
-          thrust::make_zip_iterator(edge_keys.begin(), edge_deltas.begin()),
-          thrust::make_zip_iterator(edge_keys.begin() + num_unique,
-                                    edge_deltas.begin() + num_unique),
-          [centralities = centralities.data(),
-           delta_buffer = delta_buffer.data(),
+          thrust::make_counting_iterator<size_t>(0),
+          thrust::make_counting_iterator<size_t>(num_unique),
+          [srcs           = srcs.data(),
+           source_indices = source_indices.data(),
+           deltas         = deltas.data(),
+           centralities   = centralities.data(),
+           delta_buffer   = delta_buffer.data(),
            num_vertices,
-           v_first = graph_view.local_vertex_partition_range_first()] __device__(auto tuple) {
-            auto key        = thrust::get<0>(tuple);
-            auto delta      = thrust::get<1>(tuple);
-            auto src        = thrust::get<0>(key);
-            auto source_idx = thrust::get<1>(key);
+           v_first = graph_view.local_vertex_partition_range_first()] __device__(size_t i) {
+            auto src        = srcs[i];
+            auto source_idx = source_indices[i];
+            auto delta      = deltas[i];
 
             // Update centrality
             auto src_offset = src - v_first;
