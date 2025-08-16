@@ -103,11 +103,6 @@ template int32_t compute_maximum_vertex_id(rmm::cuda_stream_view const& stream_v
                                            int32_t const* d_edgelist_dsts,
                                            size_t num_edges);
 
-template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>>
-filter_degree_0_vertices(raft::handle_t const& handle,
-                         rmm::device_uvector<int32_t>&& d_vertices,
-                         rmm::device_uvector<int32_t>&& d_out_degs);
-
 template bool is_sorted(raft::handle_t const& handle, raft::device_span<int32_t> span);
 template bool is_sorted(raft::handle_t const& handle, raft::device_span<int32_t const> span);
 

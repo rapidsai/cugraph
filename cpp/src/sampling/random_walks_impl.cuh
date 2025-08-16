@@ -31,6 +31,7 @@
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/partition_manager.hpp>
+#include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
 
@@ -634,14 +635,11 @@ random_walk_impl(raft::handle_t const& handle,
 
       if (previous_vertices) vertex_properties.push_back(std::move(*previous_vertices));
 
-      std::tie(current_vertices, vertex_properties) = cugraph::shuffle_keys_with_properties(
-        handle,
-        std::move(current_vertices),
-        std::move(vertex_properties),
-        cugraph::detail::compute_gpu_id_from_int_vertex_t<vertex_t>{
-          {vertex_partition_range_lasts.begin(), vertex_partition_range_lasts.size()},
-          major_comm_size,
-          minor_comm_size});
+      std::tie(current_vertices, vertex_properties) =
+        cugraph::shuffle_int_vertices(handle,
+                                      std::move(current_vertices),
+                                      std::move(vertex_properties),
+                                      graph_view.vertex_partition_range_lasts());
 
       current_gpu      = std::move(std::get<rmm::device_uvector<int>>(vertex_properties[0]));
       current_position = std::move(std::get<rmm::device_uvector<size_t>>(vertex_properties[1]));

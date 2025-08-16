@@ -524,7 +524,8 @@ coarsen_graph(raft::handle_t const& handle,
       thrust::unique(handle.get_thrust_policy(), unique_labels.begin(), unique_labels.end())),
     handle.get_stream());
 
-  unique_labels = cugraph::shuffle_ext_vertices(handle, std::move(unique_labels));
+  std::tie(unique_labels, std::ignore) = cugraph::shuffle_ext_vertices(
+    handle, std::move(unique_labels), std::vector<cugraph::arithmetic_device_uvector_t>{});
 
   thrust::sort(handle.get_thrust_policy(), unique_labels.begin(), unique_labels.end());
   unique_labels.resize(

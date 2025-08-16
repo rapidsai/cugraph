@@ -172,7 +172,8 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
           : std::nullopt;
 
       if (vertex_list) {
-        vertex_list = cugraph::shuffle_ext_vertices(handle_, std::move(*vertex_list));
+        std::tie(vertex_list, std::ignore) = cugraph::shuffle_ext_vertices(
+          handle_, std::move(*vertex_list), std::vector<cugraph::arithmetic_device_uvector_t>{});
       }
 
       if (drop_self_loops_) {

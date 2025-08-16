@@ -108,8 +108,11 @@ struct extract_ego_functor : public cugraph::c_api::abstract_functor {
                                        (*source_indices).size(),
                                        displacements[handle_.get_comms().get_rank()]);
 
-        std::tie(source_vertices, source_indices) = cugraph::shuffle_ext_vertex_value_pairs(
-          handle_, std::move(source_vertices), std::move(*source_indices));
+        std::vector<cugraph::arithmetic_device_uvector_t> vertex_properties{};
+        vertex_properties.push_back(std::move(*source_indices));
+        std::tie(source_vertices, vertex_properties) = cugraph::shuffle_ext_vertices(
+          handle_, std::move(source_vertices), std::move(vertex_properties));
+        source_indices = std::move(std::get<rmm::device_uvector<size_t>>(vertex_properties[0]));
       }
 
       cugraph::renumber_ext_vertices<vertex_t, multi_gpu>(
