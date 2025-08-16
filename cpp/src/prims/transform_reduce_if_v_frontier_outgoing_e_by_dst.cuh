@@ -776,7 +776,11 @@ transform_reduce_if_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
           int subgroup_size{};
           int num_gpus_per_domain{};  // domain a group of GPUs that can communicate fast (e.g.
                                       // NVLink domain)
+#if 1  // SK: we should get this from NCCL (once NCCL is updated to provide this information)
+          num_gpus_per_domain = 72;
+#else
           RAFT_CUDA_TRY(cudaGetDeviceCount(&num_gpus_per_domain));
+#endif
           num_gpus_per_domain = std::min(num_gpus_per_domain, comm_size);
           if (comm_size == num_gpus_per_domain) {
             subgroup_size = major_comm_size;
@@ -803,6 +807,10 @@ transform_reduce_if_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
               std::min(allreduce_size_per_rank, static_cast<size_t>(min_vertex_partition_size));
           }
 
+          // SK: if major_comm_size > std::numeric_limits<uint8_t>::max() but major_comm_size <= 508
+          // ((2^8 - 1) * 2), we can perform allreduce using 16 bit per element (if the priority is
+          // no larger than 254, set priority in the first byte, otherwise, set priority in the
+          // second byte); note that NCCL currently does not support reduction on 16 bit integer
           if (major_comm_size <= std::numeric_limits<uint8_t>::max()) {  // priority = uint8_t
             unique_prefix_vertex_range_size = allreduce_size_per_rank / sizeof(uint8_t);
             std::tie(key_buffer, payload_buffer) =

@@ -17,14 +17,6 @@
 #include "detail/graph500_forest_pruning_utils.cuh"
 #include "detail/graph500_nbr_unrenumber_cache.cuh"
 #include "detail/graph500_validation_utils.cuh"
-#include "detail/graph_partition_utils.cuh"
-#include "detail/shuffle_wrappers.hpp"
-#include "prims/count_if_e.cuh"
-#include "prims/extract_transform_if_e.cuh"
-#include "prims/fill_edge_src_dst_property.cuh"
-#include "prims/kv_store.cuh"
-#include "prims/transform_e.cuh"
-#include "prims/update_edge_src_dst_property.cuh"
 #include "utilities/base_fixture.hpp"
 #include "utilities/collect_comm.cuh"
 #include "utilities/conversion_utilities.hpp"
@@ -309,7 +301,9 @@ class Tests_GRAPH500_MGBFS
         components.resize(mg_graph_view.local_vertex_partition_range_size(), handle_->get_stream());
         cugraph::weakly_connected_components(
           *handle_, mg_graph_view, components.data(), components.size());
-        parents = find_trees_from_2cores(*handle_, mg_graph_view, invalid_vertex);
+        std::tie(parents, std::ignore) =
+          find_trees_from_2cores<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
+            *handle_, mg_graph_view, std::nullopt, invalid_vertex, std::nullopt);
       }
 
       std::optional<rmm::device_uvector<vertex_t>> tmp_components{std::nullopt};
@@ -432,7 +426,7 @@ class Tests_GRAPH500_MGBFS
 
     rmm::device_uvector<vertex_t> d_mg_distances(
       mg_renumber_map.size(),
-      handle_->get_stream());  // Graph500 doesn't require computing distances (so we can update
+      handle_->get_stream());  // Graph500 BFS doesn't require computing distances (so we can update
                                // this outside the timed region)
     rmm::device_uvector<vertex_t> d_mg_unrenumbered_predecessors(mg_renumber_map.size(),
                                                                  handle_->get_stream());
@@ -489,13 +483,14 @@ class Tests_GRAPH500_MGBFS
                           unrenumbered_parents.end(),
                           components.begin(),
                           d_mg_unrenumbered_predecessors.begin(),
-                          [starting_vertex_component, invalid_vertex] __device__(auto p, auto c) {
-                            return (c == starting_vertex_component)
-                                     ? p /* for the vertices in 2-cores (or the vertices in the
-                                            path from the starting vertex to the first reachable
-                                            2-core vertex), this will be over-written */
-                                     : invalid_vertex;
-                          });
+                          cuda::proclaim_return_type<vertex_t>(
+                            [starting_vertex_component, invalid_vertex] __device__(auto p, auto c) {
+                              return (c == starting_vertex_component)
+                                       ? p /* for the vertices in 2-cores (or the vertices in the
+                                              path from the starting vertex to the first reachable
+                                              2-core vertex), this will be over-written */
+                                       : invalid_vertex;
+                            }));
       } else {
         thrust::fill(handle_->get_thrust_policy(),
                      d_mg_unrenumbered_predecessors.begin(),
@@ -511,7 +506,8 @@ class Tests_GRAPH500_MGBFS
         std::tie(subgraph_starting_vertex,
                  subgraph_starting_vertex_vertex_partition_id,
                  subgraph_starting_vertex_distance,
-                 unrenumbered_subgraph_starting_vertex_parent) =
+                 unrenumbered_subgraph_starting_vertex_parent,
+                 std::ignore) =
           traverse_to_pruned_graph<vertex_t, vertex_t>(
             *handle_,
             raft::device_span<vertex_t const>(parents.data(), parents.size()),
@@ -522,6 +518,7 @@ class Tests_GRAPH500_MGBFS
             raft::device_span<vertex_t>(d_mg_unrenumbered_predecessors.data(),
                                         d_mg_unrenumbered_predecessors.size()),
             raft::device_span<vertex_t>(d_mg_distances.data(), d_mg_distances.size()),
+            std::nullopt,
             starting_vertex,
             unrenumbered_starting_vertex,
             starting_vertex_vertex_partition_id,
@@ -621,13 +618,14 @@ class Tests_GRAPH500_MGBFS
                             d_mg_bfs_distances.begin(),
                             d_mg_bfs_distances.end(),
                             d_mg_bfs_distances.begin(),
-                            [delta = subgraph_starting_vertex_distance] __device__(auto d) {
-                              if (d != invalid_distance) {
-                                return d + delta;
-                              } else {
-                                return invalid_distance;
-                              }
-                            });
+                            cuda::proclaim_return_type<vertex_t>(
+                              [delta = subgraph_starting_vertex_distance] __device__(auto d) {
+                                if (d != invalid_distance) {
+                                  return d + delta;
+                                } else {
+                                  return invalid_distance;
+                                }
+                              }));
         }
         thrust::scatter(handle_->get_thrust_policy(),
                         d_mg_bfs_distances.begin(),
@@ -782,14 +780,14 @@ class Tests_GRAPH500_MGBFS
           hr_timer.display_and_clear(std::cout);
         }
 
+        /* for every edge e = (u, v), abs(dist(u) - dist(v)) <= 1 or dist(u) == dist(v) ==
+         * invalid_distance */
+
         if (cugraph::test::g_perf) {
           RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
           comm.barrier();
           hr_timer.start("validate (graph distances)");
         }
-
-        /* for every edge e = (u, v), abs(dist(u) - dist(v)) <= 1 or dist(u) == dist(v) ==
-         * invalid_distance */
 
         {
           bool test_passed = check_edge_endpoint_distances<vertex_t, edge_t, vertex_t>(

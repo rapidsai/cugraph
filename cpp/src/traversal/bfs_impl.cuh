@@ -25,6 +25,7 @@
 #include <cugraph/edge_property.hpp>
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_view.hpp>
+#include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/vertex_partition_device_view.cuh>
 
@@ -255,7 +256,7 @@ void bfs(raft::handle_t const& handle,
     (graph_view.number_of_vertices() > 0)
       ? ((static_cast<double>(graph_view.compute_number_of_edges(handle)) /
           static_cast<double>(graph_view.number_of_vertices())) *
-         (1.0 / 3.75) /* tuning parametger */)
+         (partition_manager::map_major_comm_to_gpu_row_comm ? 0.267 : 0.533 /* tuning parameter */))
       : double{1.0};
   constexpr vertex_t direction_optimizing_beta = 24;  // tuning parameter
 
@@ -436,7 +437,9 @@ void bfs(raft::handle_t const& handle,
 
       next_aggregate_frontier_size =
         static_cast<vertex_t>(vertex_frontier.bucket(bucket_idx_next).aggregate_size());
-      if (next_aggregate_frontier_size == 0) { break; }
+      if (next_aggregate_frontier_size == 0) {
+        break;
+      }
 
       fill_edge_dst_property(handle,
                              graph_view,
@@ -708,7 +711,9 @@ void bfs(raft::handle_t const& handle,
         aggregate_nzd_unvisited_vertices = thrust::get<1>(tmp);
       }
 
-      if (next_aggregate_frontier_size == 0) { break; }
+      if (next_aggregate_frontier_size == 0) {
+        break;
+      }
 
       fill_edge_dst_property(handle,
                              graph_view,

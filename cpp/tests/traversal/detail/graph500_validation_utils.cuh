@@ -15,6 +15,7 @@
  */
 
 #include "detail/shuffle_wrappers.hpp"
+#include "graph500_misc.cuh"
 #include "prims/count_if_e.cuh"
 #include "prims/extract_transform_if_e.cuh"
 #include "prims/fill_edge_src_dst_property.cuh"
@@ -196,14 +197,15 @@ bool is_valid_predecessor_tree(raft::handle_t const& handle,
 // BFS: distance(v) = distance(parents(v)) + 1
 // SSSP: distance(v) = distance(parents(v)) + w
 template <typename vertex_t, typename distance_t>
-bool check_distance_from_parents(raft::handle_t const& handle,
-                                 raft::device_span<vertex_t const> mg_predecessors,
-                                 raft::device_span<distance_t const> mg_distances,
-                                 std::optional<raft::device_span<distance_t const>> mg_weights,
-                                 raft::host_span<vertex_t const> vertex_partition_range_offsets,
-                                 vertex_t starting_vertex,
-                                 vertex_t local_vertex_partition_range_first,
-                                 vertex_t invalid_vertex)
+bool check_distance_from_parents(
+  raft::handle_t const& handle,
+  raft::device_span<vertex_t const> mg_predecessors,
+  raft::device_span<distance_t const> mg_distances,
+  std::optional<raft::device_span<distance_t const>> mg_w_to_predecessors,
+  raft::host_span<vertex_t const> vertex_partition_range_offsets,
+  vertex_t starting_vertex,
+  vertex_t local_vertex_partition_range_first,
+  vertex_t invalid_vertex)
 {
   auto& comm = handle.get_comms();
 
@@ -252,23 +254,23 @@ bool check_distance_from_parents(raft::handle_t const& handle,
     std::nullopt};  // this assumes that the distance to the parent is identical to the distance
                     // from the parent (this is true as Graph 500 assumes an undirected graph)
 
-  if (mg_weights) {
+  if (mg_w_to_predecessors) {
     tree_edge_weights = rmm::device_uvector<distance_t>(tree_dsts.size(), handle.get_stream());
-    thrust::transform(
-      handle.get_thrust_policy(),
-      tree_dsts.begin(),
-      tree_dsts.end(),
-      tree_edge_weights->begin(),
-      cuda::proclaim_return_type<distance_t>(
-        [weights = raft::device_span<distance_t const>(mg_weights->data(), mg_weights->size()),
-         v_first = local_vertex_partition_range_first] __device__(auto v) {
-          return weights[v - v_first];
-        }));
+    thrust::transform(handle.get_thrust_policy(),
+                      tree_dsts.begin(),
+                      tree_dsts.end(),
+                      tree_edge_weights->begin(),
+                      cuda::proclaim_return_type<distance_t>(
+                        [weights = raft::device_span<distance_t const>(
+                           mg_w_to_predecessors->data(), mg_w_to_predecessors->size()),
+                         v_first = local_vertex_partition_range_first] __device__(auto v) {
+                          return weights[v - v_first];
+                        }));
   }
 
   if (tree_src_dists.size() != tree_dst_dists.size()) { return false; }
   size_t num_invalids{0};
-  if (tree_edge_weights) {  // SSSP
+  if constexpr (std::is_floating_point_v<distance_t>) {  // SSSP
     auto triplet_first = thrust::make_zip_iterator(
       tree_src_dists.begin(), tree_dst_dists.begin(), tree_edge_weights->begin());
     num_invalids = static_cast<size_t>(thrust::count_if(
@@ -311,7 +313,7 @@ template <typename vertex_t, typename edge_t, typename distance_t>
 bool check_edge_endpoint_distances(
   raft::handle_t const& handle,
   raft::device_span<vertex_t const> parents /* found in forest pruning */,
-  std::optional<raft::device_span<distance_t const>> weights /* to the parent vertex */,
+  std::optional<raft::device_span<distance_t const>> w_to_parents,
   raft::device_span<distance_t const> mg_distances,
   cugraph::graph_view_t<vertex_t, edge_t, false, true> const& mg_pruned_graph_view,
   std::optional<cugraph::edge_property_view_t<edge_t, distance_t const*>> const&
@@ -327,6 +329,8 @@ bool check_edge_endpoint_distances(
   distance_t invalid_distance,
   bool reachable_from_2cores)
 {
+  using edge_type_t = int32_t;  // dummy
+
   assert(mg_pruned_graph_edge_weight_view.has_value() ==
          mg_isolated_trees_edge_weight_view.has_value());
 
@@ -339,8 +343,95 @@ bool check_edge_endpoint_distances(
 
   // first, validate the traversed edges in the subgraph
 
-  if (mg_pruned_graph_edge_weight_view) {  // SSSP
-    CUGRAPH_FAIL("unimplemented.");
+  if constexpr (std::is_floating_point_v<distance_t>) {  // SSSP
+    auto tmp_mg_subgraph_view = mg_subgraph_view;
+    auto const& mg_subgraph_edge_weight_view =
+      reachable_from_2cores ? mg_pruned_graph_edge_weight_view : mg_isolated_trees_edge_weight_view;
+
+    rmm::device_uvector<distance_t> mg_subgraph_distances(
+      tmp_mg_subgraph_view.local_vertex_partition_range_size(), handle.get_stream());
+    auto pair_first =
+      thrust::make_zip_iterator(reachable_from_2cores ? mg_graph_to_pruned_graph_map.begin()
+                                                      : mg_graph_to_isolated_trees_map.begin(),
+                                mg_distances.begin());
+    thrust::for_each(handle.get_thrust_policy(),
+                     pair_first,
+                     pair_first + mg_distances.size(),
+                     [mg_subgraph_distances = raft::device_span<distance_t>(
+                        mg_subgraph_distances.data(), mg_subgraph_distances.size()),
+                      invalid_vertex,
+                      invalid_distance] __device__(auto pair) {
+                       auto idx  = cuda::std::get<0>(pair);
+                       auto dist = cuda::std::get<1>(pair);
+                       if (idx != invalid_vertex) {  // in the subgraph
+                         mg_subgraph_distances[idx] = dist;
+                       }
+                     });
+
+    constexpr size_t num_rounds = 16;  // validate in multiple rounds to cut peak memory usage
+    for (size_t i = 0; i < num_rounds; ++i) {
+      cugraph::edge_property_t<edge_t, bool> edge_mask(handle, tmp_mg_subgraph_view);
+      cugraph::transform_e(
+        handle,
+        tmp_mg_subgraph_view,
+        cugraph::edge_src_dummy_property_t{}.view(),
+        cugraph::edge_dst_dummy_property_t{}.view(),
+        cugraph::edge_dummy_property_t{}.view(),
+        cuda::proclaim_return_type<bool>(
+          [i, num_rounds, hash_func = hash_vertex_pair_t<vertex_t>{}] __device__(
+            auto src, auto dst, auto, auto, auto) {
+            return (static_cast<size_t>(hash_func(thrust::make_tuple(src, dst)) % num_rounds) == i);
+          }),
+        edge_mask.mutable_view());
+      tmp_mg_subgraph_view.attach_edge_mask(edge_mask.view());
+      auto subgraph_edges =
+        cugraph::decompress_to_edgelist<vertex_t, edge_t, distance_t, edge_type_t, false, true>(
+          handle,
+          tmp_mg_subgraph_view,
+          mg_subgraph_edge_weight_view,
+          std::nullopt,
+          std::nullopt,
+          std::nullopt);
+      tmp_mg_subgraph_view.clear_edge_mask();
+
+      auto srcs      = std::move(std::get<0>(subgraph_edges));
+      auto dsts      = std::move(std::get<1>(subgraph_edges));
+      auto weights   = std::move(*(std::get<2>(subgraph_edges)));
+      auto src_dists = cugraph::collect_values_for_int_vertices(
+        handle,
+        srcs.begin(),
+        srcs.end(),
+        mg_subgraph_distances.begin(),
+        tmp_mg_subgraph_view.vertex_partition_range_lasts(),
+        tmp_mg_subgraph_view.local_vertex_partition_range_first());
+      auto dst_dists = cugraph::collect_values_for_int_vertices(
+        handle,
+        dsts.begin(),
+        dsts.end(),
+        mg_subgraph_distances.begin(),
+        tmp_mg_subgraph_view.vertex_partition_range_lasts(),
+        tmp_mg_subgraph_view.local_vertex_partition_range_first());
+      auto triplet_first =
+        thrust::make_zip_iterator(src_dists.begin(), dst_dists.begin(), weights.begin());
+      auto num_invalids = thrust::count_if(
+        handle.get_thrust_policy(),
+        triplet_first,
+        triplet_first + src_dists.size(),
+        cuda::proclaim_return_type<bool>([invalid_distance] __device__(auto triplet) {
+          auto src_dist = cuda::std::get<0>(triplet);
+          auto dst_dist = cuda::std::get<1>(triplet);
+          auto w        = cuda::std::get<2>(triplet);
+          if (src_dist == invalid_distance) {
+            return dst_dist != invalid_distance;
+          } else {
+            auto diff = cuda::std::abs(src_dist - dst_dist);
+            return (diff > w + 1e-12) &&
+                   (diff > w * (1.0 + 1e-6));  // 1e-12 & 1e-6 to consider limited floating point
+                                               // arithmetic resolution
+          }
+        }));
+      if (num_invalids > 0) { return false; }
+    }
   } else {  // BFS
     auto max_distance = thrust::transform_reduce(
       handle.get_thrust_policy(),
@@ -531,13 +622,13 @@ bool check_edge_endpoint_distances(
     rmm::device_uvector<vertex_t> forest_edge_vertices(forest_edge_parents.size(),
                                                        handle.get_stream());
     std::optional<rmm::device_uvector<distance_t>> forest_edge_weights{std::nullopt};
-    if (weights) {  // SSSP
+    if constexpr (std::is_floating_point_v<distance_t>) {  // SSSP
       forest_edge_weights =
         rmm::device_uvector<distance_t>(forest_edge_parents.size(), handle.get_stream());
       auto input_first = thrust::make_zip_iterator(
         parents.begin(),
         thrust::make_counting_iterator(local_vertex_partition_range_first),
-        weights->begin());
+        w_to_parents->begin());
       auto output_first = thrust::make_zip_iterator(
         forest_edge_parents.begin(), forest_edge_vertices.begin(), forest_edge_weights->begin());
       forest_edge_parents.resize(thrust::distance(
@@ -577,7 +668,7 @@ bool check_edge_endpoint_distances(
     forest_edge_vertices.resize(forest_edge_parents.size(), handle.get_stream());
     forest_edge_parents.shrink_to_fit(handle.get_stream());
     forest_edge_vertices.shrink_to_fit(handle.get_stream());
-    if (weights) {
+    if (w_to_parents) {
       forest_edge_weights->resize(forest_edge_parents.size(), handle.get_stream());
       forest_edge_weights->shrink_to_fit(handle.get_stream());
     }
@@ -599,7 +690,7 @@ bool check_edge_endpoint_distances(
                                       vertex_partition_range_offsets.size() - 1),
       local_vertex_partition_range_first);
     size_t num_invalids{};
-    if (forest_edge_weights) {  // SSSP
+    if constexpr (std::is_floating_point_v<distance_t>) {  // SSSP
       auto triplet_first = thrust::make_zip_iterator(
         forest_edge_src_dists.begin(), forest_edge_dst_dists.begin(), forest_edge_weights->begin());
       num_invalids = static_cast<size_t>(thrust::count_if(
@@ -884,4 +975,3 @@ bool check_has_edge_from_parents(
 
   return true;
 }
-
