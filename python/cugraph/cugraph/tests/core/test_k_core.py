@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2023, NVIDIA CORPORATION.
+# Copyright (c) 2019-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -68,18 +68,6 @@ def test_k_core_Graph(graph_file):
     cu_kcore, nx_kcore = calc_k_cores(graph_file, False)
 
     assert compare_edges(cu_kcore, nx_kcore)
-
-
-@pytest.mark.sg
-@pytest.mark.parametrize("graph_file", UNDIRECTED_DATASETS)
-def test_k_core_Graph_nx(graph_file):
-    dataset_path = graph_file.get_path()
-    NM = utils.read_csv_for_nx(dataset_path)
-    Gnx = nx.from_pandas_edgelist(NM, source="0", target="1", create_using=nx.Graph())
-    nc = nx.k_core(Gnx)
-    cc = cugraph.k_core(Gnx)
-
-    assert nx.is_isomorphic(nc, cc)
 
 
 @pytest.mark.sg

@@ -19,7 +19,6 @@ import pytest
 import cudf
 import cugraph
 from cudf.testing.testing import assert_frame_equal
-from cugraph.utilities import ensure_cugraph_obj_for_nx
 from cugraph.testing import SMALL_DATASETS, DEFAULT_DATASETS
 
 
@@ -45,7 +44,7 @@ def calc_biased_random_walks(G, max_depth=None):
 
     parameters
     ----------
-    G : cuGraph.Graph or networkx.Graph
+    G : cuGraph.Graph
         The graph can be either directed or undirected.
         Weights in the graph are ignored.
         Use weight parameter if weights need to be considered
@@ -68,8 +67,6 @@ def calc_biased_random_walks(G, max_depth=None):
     """
     assert G is not None
 
-    G, _ = ensure_cugraph_obj_for_nx(G, nx_weight_attr="wgt")
-
     k = random.randint(1, 6)
 
     start_vertices = G.select_random_vertices(num_vertices=k)
@@ -90,7 +87,6 @@ def check_biased_random_walks(G, path_data, seeds, max_depth):
     e_wgt_paths = path_data[1]
     e_wgt_idx = 0
 
-    G, _ = ensure_cugraph_obj_for_nx(G, nx_weight_attr="wgt")
     df_G = G.input_df
 
     if "weight" in df_G.columns:

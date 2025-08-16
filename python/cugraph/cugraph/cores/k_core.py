@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2024, NVIDIA CORPORATION.
+# Copyright (c) 2019-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -11,17 +11,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from cugraph.structure import Graph
 import cudf
 
 from pylibcugraph import (
     core_number as pylibcugraph_core_number,
     k_core as pylibcugraph_k_core,
     ResourceHandle,
-)
-
-from cugraph.utilities import (
-    ensure_cugraph_obj_for_nx,
-    cugraph_to_nx,
 )
 
 
@@ -39,7 +35,7 @@ def _call_plc_core_number(G, degree_type):
     return df
 
 
-def k_core(G, k=None, core_number=None, degree_type="bidirectional"):
+def k_core(G: Graph, k=None, core_number=None, degree_type="bidirectional") -> Graph:
     """
     Compute the k-core of the graph G based on the out degree of its nodes. A
     k-core of a graph is a maximal subgraph that contains nodes of degree k or
@@ -48,17 +44,12 @@ def k_core(G, k=None, core_number=None, degree_type="bidirectional"):
 
     Parameters
     ----------
-    G : cuGraph.Graph or networkx.Graph
+    G : cuGraph.Graph
         cuGraph graph descriptor with connectivity information. The graph
         should contain undirected edges where undirected edges are represented
         as directed edges in both directions. While this graph can contain edge
         weights, they don't participate in the calculation of the k-core.
         The current implementation only supports undirected graphs.
-
-        .. deprecated:: 24.12
-           Accepting a ``networkx.Graph`` is deprecated and will be removed in a
-           future version.  For ``networkx.Graph`` use networkx directly with
-           the ``nx-cugraph`` backend. See:  https://rapids.ai/nx-cugraph/
 
     k : int, optional (default=None)
         Order of the core. This value must not be negative. If set to None, the
@@ -92,8 +83,6 @@ def k_core(G, k=None, core_number=None, degree_type="bidirectional"):
     >>> KCoreGraph = cugraph.k_core(G)
 
     """
-
-    G, isNx = ensure_cugraph_obj_for_nx(G)
 
     if degree_type not in ["incoming", "outgoing", "bidirectional"]:
         raise ValueError(
@@ -156,8 +145,5 @@ def k_core(G, k=None, core_number=None, degree_type="bidirectional"):
             source=src_names,
             destination=dst_names,
         )
-
-    if isNx is True:
-        KCoreGraph = cugraph_to_nx(KCoreGraph)
 
     return KCoreGraph

@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2023, NVIDIA CORPORATION.
+# Copyright (c) 2022-2025, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,16 +13,15 @@
 # limitations under the License.
 #
 
-from cugraph.utilities import (
-    ensure_cugraph_obj_for_nx,
-    df_score_to_dictionary,
-)
+from cugraph.structure import Graph
 from pylibcugraph import ResourceHandle, hits as pylibcugraph_hits
 import cudf
 import warnings
 
 
-def hits(G, max_iter=100, tol=1.0e-5, nstart=None, normalized=True):
+def hits(
+    G: Graph, max_iter=100, tol=1.0e-5, nstart=None, normalized=True
+) -> cudf.DataFrame:
     """
     Compute HITS hubs and authorities values for each vertex
 
@@ -81,7 +80,6 @@ def hits(G, max_iter=100, tol=1.0e-5, nstart=None, normalized=True):
 
     """
 
-    G, isNx = ensure_cugraph_obj_for_nx(G, store_transposed=True)
     if G.store_transposed is False:
         warning_msg = (
             "HITS expects the 'store_transposed' flag "
@@ -112,11 +110,6 @@ def hits(G, max_iter=100, tol=1.0e-5, nstart=None, normalized=True):
     results["vertex"] = cudf.Series(vertices)
     results["hubs"] = cudf.Series(hubs)
     results["authorities"] = cudf.Series(authorities)
-
-    if isNx is True:
-        d1 = df_score_to_dictionary(results[["vertex", "hubs"]], "hubs")
-        d2 = df_score_to_dictionary(results[["vertex", "authorities"]], "authorities")
-        results = (d1, d2)
 
     if G.renumbered:
         results = G.unrenumber(results, "vertex")

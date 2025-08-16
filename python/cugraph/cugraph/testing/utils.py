@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2024, NVIDIA CORPORATION.
+# Copyright (c) 2020-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -109,13 +109,6 @@ MATRIX_INPUT_TYPES = [
     pytest.param(cp_csc_matrix, marks=pytest.mark.matrix_types, id="CuPy.csc_matrix"),
 ]
 
-NX_INPUT_TYPES = [
-    pytest.param(nx.Graph, marks=pytest.mark.nx_types, id="nx.Graph"),
-]
-
-NX_DIR_INPUT_TYPES = [
-    pytest.param(nx.Graph, marks=pytest.mark.nx_types, id="nx.DiGraph"),
-]
 
 CUGRAPH_INPUT_TYPES = [
     pytest.param(cugraph.Graph(), marks=pytest.mark.cugraph_types, id="cugraph.Graph"),
