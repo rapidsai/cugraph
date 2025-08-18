@@ -639,31 +639,13 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> multisour
           return d_distances_2d[dst_idx] == invalid_distance;
         }));
 
-    // Step 2: Convert buffers to device vectors and extract components
+    // Step 2: Work directly with the dataframe buffer components (no temporaries needed)
     auto new_frontier_tagged_vertex_buffer = std::move(std::get<0>(result));
 
-    rmm::device_uvector<bfs_edge_tuple_t> frontier_tuples(
-      size_dataframe_buffer(new_frontier_tagged_vertex_buffer), handle.get_stream());
-
-    thrust::copy(handle.get_thrust_policy(),
-                 get_dataframe_buffer_begin(new_frontier_tagged_vertex_buffer),
-                 get_dataframe_buffer_end(new_frontier_tagged_vertex_buffer),
-                 frontier_tuples.begin());
-
-    // Extract (vertex, origin) pairs and sigmas for sorting and reduction
-    rmm::device_uvector<vertex_t> frontier_vertices(frontier_tuples.size(), handle.get_stream());
-    rmm::device_uvector<origin_t> frontier_origins(frontier_tuples.size(), handle.get_stream());
-    rmm::device_uvector<edge_t> sigmas(frontier_tuples.size(), handle.get_stream());
-
-    thrust::transform(handle.get_thrust_policy(),
-                      frontier_tuples.begin(),
-                      frontier_tuples.end(),
-                      thrust::make_zip_iterator(
-                        frontier_vertices.begin(), frontier_origins.begin(), sigmas.begin()),
-                      [] __device__(auto tuple) {
-                        return thrust::make_tuple(
-                          thrust::get<0>(tuple), thrust::get<1>(tuple), thrust::get<2>(tuple));
-                      });
+    // Access individual vectors directly to avoid transform iterator issues
+    auto& frontier_vertices = std::get<0>(new_frontier_tagged_vertex_buffer);
+    auto& frontier_origins  = std::get<1>(new_frontier_tagged_vertex_buffer);
+    auto& sigmas            = std::get<2>(new_frontier_tagged_vertex_buffer);
 
     // Step 3: Reduce by (destination, origin) - sums sigmas for multiple paths
     // Sort by (destination, origin) pairs
@@ -680,48 +662,51 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> multisour
       thrust::make_zip_iterator(frontier_vertices.end(), frontier_origins.end()),
       [] __device__(auto const& a, auto const& b) { return a == b; });
 
-    rmm::device_uvector<vertex_t> unique_vertices(num_unique, handle.get_stream());
-    rmm::device_uvector<origin_t> unique_origins(num_unique, handle.get_stream());
-    rmm::device_uvector<edge_t> unique_sigmas(num_unique, handle.get_stream());
-
-    thrust::reduce_by_key(
+    // Use in-place reduction to avoid temporaries
+    auto reduced_result = thrust::reduce_by_key(
       handle.get_thrust_policy(),
       thrust::make_zip_iterator(frontier_vertices.begin(), frontier_origins.begin()),
       thrust::make_zip_iterator(frontier_vertices.end(), frontier_origins.end()),
       sigmas.begin(),
-      thrust::make_zip_iterator(unique_vertices.begin(), unique_origins.begin()),
-      unique_sigmas.begin(),
+      thrust::make_zip_iterator(frontier_vertices.begin(),
+                                frontier_origins.begin()),  // Output keys (overwrite input)
+      sigmas.begin(),                                       // Output values (overwrite input)
       thrust::equal_to<thrust::tuple<vertex_t, origin_t>>{},
       thrust::plus<edge_t>{});
 
-    // Step 4: Manual array updates (all vertices in unique_vertices are unvisited due to predicate)
-    thrust::for_each(
-      handle.get_thrust_policy(),
-      thrust::make_zip_iterator(
-        unique_vertices.begin(), unique_origins.begin(), unique_sigmas.begin()),
-      thrust::make_zip_iterator(unique_vertices.end(), unique_origins.end(), unique_sigmas.end()),
-      [d_distances_2d = distances_2d.begin(),
-       d_sigmas_2d    = sigmas_2d.begin(),
-       num_vertices,
-       hop,
-       vertex_partition] __device__(auto tuple) {
-        auto v      = thrust::get<0>(tuple);
-        auto origin = thrust::get<1>(tuple);
-        auto sigma  = thrust::get<2>(tuple);
-        auto offset = vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(v);
-        auto idx    = origin * num_vertices + offset;
+    // Step 4: Manual array updates using in-place reduced data
+    // Get count from the values output since keys output is a zip iterator
+    size_t num_reduced = thrust::distance(sigmas.begin(), reduced_result.second);
+    thrust::for_each(handle.get_thrust_policy(),
+                     thrust::make_zip_iterator(
+                       frontier_vertices.begin(), frontier_origins.begin(), sigmas.begin()),
+                     thrust::make_zip_iterator(frontier_vertices.begin() + num_reduced,
+                                               frontier_origins.begin() + num_reduced,
+                                               sigmas.begin() + num_reduced),
+                     [d_distances_2d = distances_2d.begin(),
+                      d_sigmas_2d    = sigmas_2d.begin(),
+                      num_vertices,
+                      hop,
+                      vertex_partition] __device__(auto tuple) {
+                       auto v      = thrust::get<0>(tuple);
+                       auto origin = thrust::get<1>(tuple);
+                       auto sigma  = thrust::get<2>(tuple);
+                       auto offset =
+                         vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(v);
+                       auto idx = origin * num_vertices + offset;
 
-        // Direct assignment - no atomics needed because reduction already handled duplicates
-        d_distances_2d[idx] = hop + 1;
-        d_sigmas_2d[idx]    = sigma;
-      });
+                       // Direct assignment - no atomics needed because reduction already handled
+                       // duplicates
+                       d_distances_2d[idx] = hop + 1;
+                       d_sigmas_2d[idx]    = sigma;
+                     });
 
-    // Step 5: Update frontier for next iteration (all vertices in unique_vertices are newly
-    // discovered)
+    // Step 5: Update frontier for next iteration using in-place reduced data
     vertex_frontier.bucket(bucket_idx_cur).clear();
     vertex_frontier.bucket(bucket_idx_next)
-      .insert(thrust::make_zip_iterator(unique_vertices.begin(), unique_origins.begin()),
-              thrust::make_zip_iterator(unique_vertices.end(), unique_origins.end()));
+      .insert(thrust::make_zip_iterator(frontier_vertices.begin(), frontier_origins.begin()),
+              thrust::make_zip_iterator(frontier_vertices.begin() + num_reduced,
+                                        frontier_origins.begin() + num_reduced));
 
     vertex_frontier.swap_buckets(bucket_idx_cur, bucket_idx_next);
     ++hop;
@@ -808,7 +793,7 @@ void multisource_backward_pass(
                        vertex_t dist             = distances[v_offset];
 
                        if (dist >= 0 && dist <= global_max_distance) {
-                         cuda::atomic_ref<size_t>(distance_counts[dist]).fetch_add(size_t{1});
+                         atomicAdd(&distance_counts[dist], size_t{1});
                        }
                      });
 
@@ -878,8 +863,7 @@ void multisource_backward_pass(
                        vertex_t dist             = distances[v_offset];
 
                        if (dist >= 0 && dist <= global_max_distance) {
-                         size_t offset =
-                           cuda::atomic_ref<size_t>(distance_counts[dist]).fetch_add(size_t{1});
+                         size_t offset = atomicAdd(&distance_counts[dist], size_t{1});
                          bucket_vertices_ptrs[dist][offset] = v_first + v_offset;
                          bucket_sources_ptrs[dist][offset]  = source_idx;
                        }
@@ -1014,13 +998,13 @@ void multisource_backward_pass(
             auto source_idx = source_indices[i];
             auto delta      = deltas[i];
 
-            // Update centrality
+            // Update centrality using atomicAdd for floating point
             auto src_offset = src - v_first;
-            cuda::atomic_ref<weight_t>(centralities[src_offset]).fetch_add(delta);
+            atomicAdd(&centralities[src_offset], delta);
 
-            // Accumulate delta for next iteration
+            // Accumulate delta for next iteration using atomicAdd for floating point
             weight_t* source_deltas = delta_buffer + source_idx * num_vertices;
-            cuda::atomic_ref<weight_t>(source_deltas[src_offset]).fetch_add(delta);
+            atomicAdd(&source_deltas[src_offset], delta);
           });
       }
     }
@@ -1058,7 +1042,7 @@ void multisource_backward_pass(
         }
         // Convert global vertex ID to local offset
         auto source_offset = source_vertex - v_first;
-        cuda::atomic_ref<weight_t>(centralities[source_offset]).fetch_add(source_contribution);
+        atomicAdd(&centralities[source_offset], source_contribution);
       });
 
     // Handle destination vertex contributions
@@ -1081,7 +1065,7 @@ void multisource_backward_pass(
           if (v != source_vertex && distances[v] != std::numeric_limits<vertex_t>::max()) {
             // Each destination vertex contributes 1 to its own centrality
             auto dest_offset = v - v_first;
-            cuda::atomic_ref<weight_t>(centralities[dest_offset]).fetch_add(1.0);
+            atomicAdd(&centralities[dest_offset], 1.0);
           }
         }
       });
