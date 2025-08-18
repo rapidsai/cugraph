@@ -158,7 +158,6 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
           shuffle_ext_vertices(handle, std::move(cluster_keys), std::move(vertex_properties));
         cluster_weights = std::move(std::get<rmm::device_uvector<weight_t>>(vertex_properties[0]));
       }
-
     } else {
       rmm::device_uvector<weight_t> tmp_weights_buffer(vertex_weights.size(),
                                                        handle.get_stream());  // #C
@@ -208,7 +207,7 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
           vertex_properties.push_back(std::move(cluster_weights));
           std::tie(tmp_keys_buffer, vertex_properties) =
             shuffle_ext_vertices(handle, std::move(cluster_keys), std::move(vertex_properties));
-          cluster_weights =
+          tmp_weights_buffer =
             std::move(std::get<rmm::device_uvector<weight_t>>(vertex_properties[0]));
         }
 
