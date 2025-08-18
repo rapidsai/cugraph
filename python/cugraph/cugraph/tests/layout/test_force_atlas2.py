@@ -130,7 +130,6 @@ DATASETS_NOVERLAP = [
     (polbooks, 10.0, 90),
     (dolphins, 10.0, 60),
     (netscience, 10.0, 1100),
-    (dining_prefs, 10.0, 20),
 ]
 
 DATASETS_MOBILITY = [
@@ -138,7 +137,6 @@ DATASETS_MOBILITY = [
     polbooks,
     dolphins,
     netscience,
-    dining_prefs,
 ]
 
 
