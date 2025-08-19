@@ -37,6 +37,7 @@
 
 #include <raft/core/handle.hpp>
 
+#include <cuda/atomic>
 #include <cuda/std/iterator>
 #include <cuda/std/optional>
 #include <thrust/copy.h>
@@ -1034,22 +1035,24 @@ void multisource_backward_pass(
     handle.get_thrust_policy(), distance_counts.begin(), distance_counts.end(), size_t{0});
 
   // Step 1: Count vertices at each distance level
-  thrust::for_each_n(handle.get_thrust_policy(),
-                     thrust::make_counting_iterator<size_t>(0),
-                     num_sources * num_vertices,
-                     [distances_2d = distances_2d.data(),
-                      num_vertices,
-                      distance_counts = distance_counts.data(),
-                      global_max_distance] __device__(size_t global_idx) {
-                       size_t source_idx         = global_idx / num_vertices;
-                       vertex_t v_offset         = global_idx % num_vertices;
-                       const vertex_t* distances = distances_2d + source_idx * num_vertices;
-                       vertex_t dist             = distances[v_offset];
+  thrust::for_each_n(
+    handle.get_thrust_policy(),
+    thrust::make_counting_iterator<size_t>(0),
+    num_sources * num_vertices,
+    [distances_2d = distances_2d.data(),
+     num_vertices,
+     distance_counts = distance_counts.data(),
+     global_max_distance] __device__(size_t global_idx) {
+      size_t source_idx         = global_idx / num_vertices;
+      vertex_t v_offset         = global_idx % num_vertices;
+      const vertex_t* distances = distances_2d + source_idx * num_vertices;
+      vertex_t dist             = distances[v_offset];
 
-                       if (dist >= 0 && dist <= global_max_distance) {
-                         atomicAdd(&distance_counts[dist], size_t{1});
-                       }
-                     });
+      if (dist >= 0 && dist <= global_max_distance) {
+        cuda::atomic_ref<size_t, cuda::thread_scope_device> counter(distance_counts[dist]);
+        counter.fetch_add(size_t{1}, cuda::std::memory_order_relaxed);
+      }
+    });
 
   // Copy counts to host and allocate buckets
   std::vector<size_t> host_distance_counts(global_max_distance + 1);
@@ -1101,27 +1104,29 @@ void multisource_backward_pass(
   handle.sync_stream();
 
   // Populate buckets - single scan of distance array
-  thrust::for_each_n(handle.get_thrust_policy(),
-                     thrust::make_counting_iterator<size_t>(0),
-                     num_sources * num_vertices,
-                     [distances_2d = distances_2d.data(),
-                      num_vertices,
-                      distance_counts      = distance_counts.data(),
-                      bucket_vertices_ptrs = device_bucket_vertices_ptrs.data(),
-                      bucket_sources_ptrs  = device_bucket_sources_ptrs.data(),
-                      v_first,
-                      global_max_distance] __device__(size_t global_idx) {
-                       size_t source_idx         = global_idx / num_vertices;
-                       vertex_t v_offset         = global_idx % num_vertices;
-                       const vertex_t* distances = distances_2d + source_idx * num_vertices;
-                       vertex_t dist             = distances[v_offset];
+  thrust::for_each_n(
+    handle.get_thrust_policy(),
+    thrust::make_counting_iterator<size_t>(0),
+    num_sources * num_vertices,
+    [distances_2d = distances_2d.data(),
+     num_vertices,
+     distance_counts      = distance_counts.data(),
+     bucket_vertices_ptrs = device_bucket_vertices_ptrs.data(),
+     bucket_sources_ptrs  = device_bucket_sources_ptrs.data(),
+     v_first,
+     global_max_distance] __device__(size_t global_idx) {
+      size_t source_idx         = global_idx / num_vertices;
+      vertex_t v_offset         = global_idx % num_vertices;
+      const vertex_t* distances = distances_2d + source_idx * num_vertices;
+      vertex_t dist             = distances[v_offset];
 
-                       if (dist >= 0 && dist <= global_max_distance) {
-                         size_t offset = atomicAdd(&distance_counts[dist], size_t{1});
-                         bucket_vertices_ptrs[dist][offset] = v_first + v_offset;
-                         bucket_sources_ptrs[dist][offset]  = source_idx;
-                       }
-                     });
+      if (dist >= 0 && dist <= global_max_distance) {
+        cuda::atomic_ref<size_t, cuda::thread_scope_device> counter(distance_counts[dist]);
+        size_t offset = counter.fetch_add(size_t{1}, cuda::std::memory_order_relaxed);
+        bucket_vertices_ptrs[dist][offset] = v_first + v_offset;
+        bucket_sources_ptrs[dist][offset]  = source_idx;
+      }
+    });
 
   // Process distance levels using pre-computed buckets
   for (vertex_t d = global_max_distance; d > 1; --d) {
@@ -1252,11 +1257,15 @@ void multisource_backward_pass(
 
             // Update centrality using atomicAdd for floating point
             auto src_offset = src - v_first;
-            atomicAdd(&centralities[src_offset], delta);
+            cuda::atomic_ref<weight_t, cuda::thread_scope_device> centrality_counter(
+              centralities[src_offset]);
+            centrality_counter.fetch_add(delta, cuda::std::memory_order_relaxed);
 
             // Accumulate delta for next iteration using atomicAdd for floating point
             weight_t* source_deltas = delta_buffer + source_idx * num_vertices;
-            atomicAdd(&source_deltas[src_offset], delta);
+            cuda::atomic_ref<weight_t, cuda::thread_scope_device> delta_counter(
+              source_deltas[src_offset]);
+            delta_counter.fetch_add(delta, cuda::std::memory_order_relaxed);
           });
       }
     }
@@ -1294,7 +1303,9 @@ void multisource_backward_pass(
         }
         // Convert global vertex ID to local offset
         auto source_offset = source_vertex - v_first;
-        atomicAdd(&centralities[source_offset], source_contribution);
+        cuda::atomic_ref<weight_t, cuda::thread_scope_device> centrality_counter(
+          centralities[source_offset]);
+        centrality_counter.fetch_add(source_contribution, cuda::std::memory_order_relaxed);
       });
 
     // Handle destination vertex contributions
@@ -1317,7 +1328,9 @@ void multisource_backward_pass(
           if (v != source_vertex && distances[v] != std::numeric_limits<vertex_t>::max()) {
             // Each destination vertex contributes 1 to its own centrality
             auto dest_offset = v - v_first;
-            atomicAdd(&centralities[dest_offset], 1.0);
+            cuda::atomic_ref<weight_t, cuda::thread_scope_device> centrality_counter(
+              centralities[dest_offset]);
+            centrality_counter.fetch_add(1.0, cuda::std::memory_order_relaxed);
           }
         }
       });
