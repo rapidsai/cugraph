@@ -25,6 +25,7 @@
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
+#include <cugraph/shuffle_functions.hpp>
 
 #include <raft/core/handle.hpp>
 
@@ -142,26 +143,15 @@ std::tuple<rmm::device_uvector<vertex_t>, weight_t> approximate_weighted_matchin
     //
 
     if constexpr (multi_gpu) {
-      auto vertex_partition_range_lasts = graph_view.vertex_partition_range_lasts();
-      rmm::device_uvector<vertex_t> d_vertex_partition_range_lasts(
-        vertex_partition_range_lasts.size(), handle.get_stream());
-
-      raft::update_device(d_vertex_partition_range_lasts.data(),
-                          vertex_partition_range_lasts.data(),
-                          vertex_partition_range_lasts.size(),
-                          handle.get_stream());
-
       std::vector<cugraph::arithmetic_device_uvector_t> vertex_properties{};
       vertex_properties.push_back(std::move(candidates));
       vertex_properties.push_back(std::move(offers_from_candidates));
 
-      std::tie(targets, vertex_properties) = shuffle_keys_with_properties(
-        handle,
-        std::move(targets),
-        std::move(vertex_properties),
-        cugraph::detail::compute_gpu_id_from_int_vertex_t<vertex_t>{
-          raft::device_span<vertex_t const>{d_vertex_partition_range_lasts.data(),
-                                            d_vertex_partition_range_lasts.size()}});
+      std::tie(targets, vertex_properties) =
+        shuffle_int_vertices(handle,
+                             std::move(targets),
+                             std::move(vertex_properties),
+                             graph_view.vertex_partition_range_lasts());
 
       candidates = std::move(std::get<rmm::device_uvector<vertex_t>>(vertex_properties[0]));
       offers_from_candidates =

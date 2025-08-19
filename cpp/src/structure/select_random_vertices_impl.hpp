@@ -19,6 +19,7 @@
 
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
+#include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
@@ -238,8 +239,11 @@ rmm::device_uvector<vertex_t> select_random_vertices(
   }
 
   if constexpr (multi_gpu) {
-    mg_sample_buffer = cugraph::detail::shuffle_int_vertices_to_local_gpu_by_vertex_partitioning(
-      handle, std::move(mg_sample_buffer), partition_range_lasts);
+    std::tie(mg_sample_buffer, std::ignore) =
+      cugraph::shuffle_int_vertices(handle,
+                                    std::move(mg_sample_buffer),
+                                    std::vector<cugraph::arithmetic_device_uvector_t>{},
+                                    partition_range_lasts);
   }
 
   if (given_set) {
