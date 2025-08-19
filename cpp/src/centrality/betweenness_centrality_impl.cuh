@@ -159,6 +159,8 @@ class AdaptiveBFSBatcher {
     }
     last_batch_size_ = current_batch_size_;
 
+    // CRITICAL FIX: Always get fresh memory measurements on each call
+    // This prevents the oscillation stage from getting stuck with stale memory readings
     MemoryInfo mem_info       = MemoryInfo::get_device_memory();
     double memory_usage_ratio = static_cast<double>(mem_info.used_memory) / mem_info.total_memory;
 
@@ -171,15 +173,24 @@ class AdaptiveBFSBatcher {
           if (oom_batches_ > 0) {
             // OOMs detected - use 1.5x instead of doubling
             size_t new_batch_size = static_cast<size_t>(current_batch_size_ * 1.5);
-            if (new_batch_size <= max_batch_size_) { current_batch_size_ = new_batch_size; }
+            if (new_batch_size <= max_batch_size_) {
+              current_batch_size_ = new_batch_size;
+              printf("[Adaptive] RAMP_UP: OOMs detected, conservative increase to %zu (1.5x)\n",
+                     current_batch_size_);
+            }
           } else {
             // No OOMs - safe to double
             size_t new_batch_size = current_batch_size_ * 2;
-            if (new_batch_size <= max_batch_size_) { current_batch_size_ = new_batch_size; }
+            if (new_batch_size <= max_batch_size_) {
+              current_batch_size_ = new_batch_size;
+              printf("[Adaptive] RAMP_UP: Safe doubling to %zu\n", current_batch_size_);
+            }
           }
         } else {
           // Hit ceiling - transition to oscillation stage
           current_stage_ = Stage::OSCILLATION;
+          printf("[Adaptive] RAMP_UP → OSCILLATION: Hit memory ceiling at %zu sources\n",
+                 current_batch_size_);
         }
         break;
       }
@@ -193,6 +204,10 @@ class AdaptiveBFSBatcher {
           if (new_batch_size < current_batch_size_) {
             current_batch_size_      = new_batch_size;
             last_throttle_direction_ = 1;  // Down
+            printf("[Adaptive] OSCILLATION: Memory %.1f%% > %.1f%%, throttling down to %zu\n",
+                   memory_usage_ratio * 100.0,
+                   memory_threshold_ * 100.0,
+                   current_batch_size_);
           }
         } else {
           // Memory < 85%: Throttle up
@@ -203,12 +218,21 @@ class AdaptiveBFSBatcher {
             // Check if this completes a down→up cycle
             if (last_throttle_direction_ == 1) {  // Previous was down
               oscillation_count_++;
+              printf("[Adaptive] OSCILLATION: Completed down→up cycle %zu/3\n", oscillation_count_);
 
               // Check if we've converged
-              if (oscillation_count_ >= 3) { current_stage_ = Stage::CONVERGED; }
+              if (oscillation_count_ >= 3) {
+                current_stage_ = Stage::CONVERGED;
+                printf("[Adaptive] OSCILLATION → CONVERGED: Converged after %zu cycles\n",
+                       oscillation_count_);
+              }
             }
 
             last_throttle_direction_ = 2;  // Up
+            printf("[Adaptive] OSCILLATION: Memory %.1f%% < %.1f%%, throttling up to %zu\n",
+                   memory_usage_ratio * 100.0,
+                   memory_threshold_ * 100.0,
+                   current_batch_size_);
           }
         }
         break;
@@ -217,6 +241,7 @@ class AdaptiveBFSBatcher {
       case Stage::CONVERGED: {
         // Stage 3: We've converged, transition to fine-tuning
         current_stage_ = Stage::FINE_TUNE;
+        printf("[Adaptive] CONVERGED → FINE_TUNE: Starting fine-tuning phase\n");
         break;
       }
 
@@ -224,7 +249,15 @@ class AdaptiveBFSBatcher {
         // Stage 4: Slowly add +5 until close to 98%
         if (memory_usage_ratio < 0.98) {  // Below 98% memory usage
           size_t new_batch_size = current_batch_size_ + 5;
-          if (new_batch_size <= max_batch_size_) { current_batch_size_ = new_batch_size; }
+          if (new_batch_size <= max_batch_size_) {
+            current_batch_size_ = new_batch_size;
+            printf("[Adaptive] FINE_TUNE: Memory %.1f%% < 98%%, increasing to %zu (+5)\n",
+                   memory_usage_ratio * 100.0,
+                   current_batch_size_);
+          }
+        } else {
+          printf("[Adaptive] FINE_TUNE: Memory %.1f%% >= 98%%, fine-tuning complete\n",
+                 memory_usage_ratio * 100.0);
         }
         break;
       }
