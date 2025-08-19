@@ -150,33 +150,6 @@ vertex_t compute_maximum_vertex_id(rmm::cuda_stream_view const& stream_view,
                         thrust::maximum<vertex_t>{});
 }
 
-template <typename vertex_t, typename edge_t>
-std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> filter_degree_0_vertices(
-  raft::handle_t const& handle,
-  rmm::device_uvector<vertex_t>&& d_vertices,
-  rmm::device_uvector<edge_t>&& d_out_degs)
-{
-  auto zip_iter = thrust::make_zip_iterator(d_vertices.begin(), d_out_degs.begin());
-
-  CUGRAPH_EXPECTS(d_vertices.size() < static_cast<size_t>(std::numeric_limits<int32_t>::max()),
-                  "remove_if will fail, d_vertices.size() is too large");
-
-  // FIXME: remove_if has a 32-bit overflow issue (https://github.com/NVIDIA/thrust/issues/1302)
-  // Seems unlikely here so not going to work around this for now.
-  auto zip_iter_end =
-    thrust::remove_if(handle.get_thrust_policy(),
-                      zip_iter,
-                      zip_iter + d_vertices.size(),
-                      zip_iter,
-                      [] __device__(auto pair) { return thrust::get<1>(pair) == 0; });
-
-  auto new_size = cuda::std::distance(zip_iter, zip_iter_end);
-  d_vertices.resize(new_size, handle.get_stream());
-  d_out_degs.resize(new_size, handle.get_stream());
-
-  return std::make_tuple(std::move(d_vertices), std::move(d_out_degs));
-}
-
 template <typename data_t>
 bool is_sorted(raft::handle_t const& handle, raft::device_span<data_t> span)
 {

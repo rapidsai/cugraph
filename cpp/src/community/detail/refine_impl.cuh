@@ -705,8 +705,11 @@ refine_clustering(
     (*renumber_map).shrink_to_fit(handle.get_stream());
 
     if (GraphViewType::is_multi_gpu) {
-      vertices_in_mis = cugraph::detail::shuffle_int_vertices_to_local_gpu_by_vertex_partitioning(
-        handle, std::move(vertices_in_mis), graph_view.vertex_partition_range_lasts());
+      std::tie(vertices_in_mis, std::ignore) =
+        cugraph::shuffle_int_vertices(handle,
+                                      std::move(vertices_in_mis),
+                                      std::vector<cugraph::arithmetic_device_uvector_t>{},
+                                      graph_view.vertex_partition_range_lasts());
     }
 
     //
@@ -760,8 +763,11 @@ refine_clustering(
 
     // Shuffle dst vertices to owner GPU, according to vetex partitioning
     if constexpr (GraphViewType::is_multi_gpu) {
-      dst_vertices = cugraph::detail::shuffle_int_vertices_to_local_gpu_by_vertex_partitioning(
-        handle, std::move(dst_vertices), graph_view.vertex_partition_range_lasts());
+      std::tie(dst_vertices, std::ignore) =
+        cugraph::shuffle_int_vertices(handle,
+                                      std::move(dst_vertices),
+                                      std::vector<cugraph::arithmetic_device_uvector_t>{},
+                                      graph_view.vertex_partition_range_lasts());
 
       thrust::sort(handle.get_thrust_policy(), dst_vertices.begin(), dst_vertices.end());
 
@@ -822,9 +828,11 @@ refine_clustering(
   leiden_keys_to_read_louvain.resize(nr_unique_leiden_clusters, handle.get_stream());
 
   if constexpr (GraphViewType::is_multi_gpu) {
-    leiden_keys_to_read_louvain =
-      cugraph::detail::shuffle_int_vertices_to_local_gpu_by_vertex_partitioning(
-        handle, std::move(leiden_keys_to_read_louvain), graph_view.vertex_partition_range_lasts());
+    std::tie(leiden_keys_to_read_louvain, std::ignore) =
+      cugraph::shuffle_int_vertices(handle,
+                                    std::move(leiden_keys_to_read_louvain),
+                                    std::vector<cugraph::arithmetic_device_uvector_t>{},
+                                    graph_view.vertex_partition_range_lasts());
 
     thrust::sort(handle.get_thrust_policy(),
                  leiden_keys_to_read_louvain.begin(),
