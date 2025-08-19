@@ -609,7 +609,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> multisour
     // Step 1: Extract ALL edges from frontier (filtered by unvisited vertices)
     using bfs_edge_tuple_t = thrust::tuple<vertex_t, origin_t, edge_t>;
 
-    auto result = detail::extract_transform_if_v_frontier_e<false, bfs_edge_tuple_t, void>(
+    auto result = extract_transform_if_v_frontier_outgoing_e(
       handle,
       graph_view,
       vertex_frontier.bucket(bucket_idx_cur),
@@ -640,7 +640,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> multisour
         }));
 
     // Step 2: Work directly with the dataframe buffer components (no temporaries needed)
-    auto new_frontier_tagged_vertex_buffer = std::move(std::get<0>(result));
+    auto new_frontier_tagged_vertex_buffer = std::move(result);
 
     // Access individual vectors directly to avoid transform iterator issues
     auto& frontier_vertices = std::get<0>(new_frontier_tagged_vertex_buffer);
@@ -892,56 +892,54 @@ void multisource_backward_pass(
         thrust::make_zip_iterator(frontier_vertices.begin(), frontier_sources.begin());
       frontier.bucket(0).insert(pair_first, pair_first + frontier_vertices.size());
 
-      auto result = detail::extract_transform_if_v_frontier_e<
-        false,
-        thrust::tuple<vertex_t, origin_t, vertex_t, weight_t>,
-        void>(handle,
-              graph_view,
-              frontier.bucket(0),
-              edge_src_dummy_property_t{}.view(),
-              edge_dst_dummy_property_t{}.view(),
-              edge_dummy_property_t{}.view(),
-              cuda::proclaim_return_type<thrust::tuple<vertex_t, origin_t, vertex_t, weight_t>>(
-                [d,
-                 distances_2d = distances_2d.data(),
-                 sigmas_2d    = sigmas_2d.data(),
-                 delta_buffer = delta_buffer.data(),
-                 num_vertices,
-                 invalid_distance,
-                 v_first] __device__(auto tagged_src, auto dst, auto, auto, auto) {
-                  auto src        = thrust::get<0>(tagged_src);
-                  auto source_idx = thrust::get<1>(tagged_src);
+      auto result = extract_transform_if_v_frontier_outgoing_e(
+        handle,
+        graph_view,
+        frontier.bucket(0),
+        edge_src_dummy_property_t{}.view(),
+        edge_dst_dummy_property_t{}.view(),
+        edge_dummy_property_t{}.view(),
+        cuda::proclaim_return_type<thrust::tuple<vertex_t, origin_t, vertex_t, weight_t>>(
+          [d,
+           distances_2d = distances_2d.data(),
+           sigmas_2d    = sigmas_2d.data(),
+           delta_buffer = delta_buffer.data(),
+           num_vertices,
+           invalid_distance,
+           v_first] __device__(auto tagged_src, auto dst, auto, auto, auto) {
+            auto src        = thrust::get<0>(tagged_src);
+            auto source_idx = thrust::get<1>(tagged_src);
 
-                  // Calculate delta using Brandes formula with accumulated deltas
-                  const vertex_t* distances = distances_2d + source_idx * num_vertices;
-                  const edge_t* sigmas      = sigmas_2d + source_idx * num_vertices;
-                  const weight_t* deltas    = delta_buffer + source_idx * num_vertices;
+            // Calculate delta using Brandes formula with accumulated deltas
+            const vertex_t* distances = distances_2d + source_idx * num_vertices;
+            const edge_t* sigmas      = sigmas_2d + source_idx * num_vertices;
+            const weight_t* deltas    = delta_buffer + source_idx * num_vertices;
 
-                  auto src_offset = src - v_first;
-                  auto dst_offset = dst - v_first;
+            auto src_offset = src - v_first;
+            auto dst_offset = dst - v_first;
 
-                  // Calculate delta using Brandes formula with accumulated deltas
-                  auto sigma_v = static_cast<weight_t>(sigmas[src_offset]);
-                  auto sigma_w = static_cast<weight_t>(sigmas[dst_offset]);
+            // Calculate delta using Brandes formula with accumulated deltas
+            auto sigma_v = static_cast<weight_t>(sigmas[src_offset]);
+            auto sigma_w = static_cast<weight_t>(sigmas[dst_offset]);
 
-                  // Get accumulated delta for destination vertex
-                  weight_t delta_w = deltas[dst_offset];
-                  weight_t delta   = (sigma_v / sigma_w) * (1 + delta_w);
+            // Get accumulated delta for destination vertex
+            weight_t delta_w = deltas[dst_offset];
+            weight_t delta   = (sigma_v / sigma_w) * (1 + delta_w);
 
-                  return thrust::make_tuple(src, source_idx, dst, delta);
-                }),
-              // PREDICATE: only process edges where dst is at distance d
-              cuda::proclaim_return_type<bool>(
-                [d, distances_2d = distances_2d.data(), num_vertices, v_first] __device__(
-                  auto tagged_src, auto dst, auto, auto, auto) {
-                  auto source_idx           = thrust::get<1>(tagged_src);
-                  const vertex_t* distances = distances_2d + source_idx * num_vertices;
-                  auto dst_offset           = dst - v_first;
-                  return distances[dst_offset] == d;
-                }));
+            return thrust::make_tuple(src, source_idx, dst, delta);
+          }),
+        // PREDICATE: only process edges where dst is at distance d
+        cuda::proclaim_return_type<bool>(
+          [d, distances_2d = distances_2d.data(), num_vertices, v_first] __device__(
+            auto tagged_src, auto dst, auto, auto, auto) {
+            auto source_idx           = thrust::get<1>(tagged_src);
+            const vertex_t* distances = distances_2d + source_idx * num_vertices;
+            auto dst_offset           = dst - v_first;
+            return distances[dst_offset] == d;
+          }));
 
       // Step 4: Work directly with the result buffer (no temporaries needed)
-      auto edge_tuples_buffer = std::move(std::get<0>(result));
+      auto edge_tuples_buffer = std::move(result);
       size_t num_edges        = size_dataframe_buffer(edge_tuples_buffer);
 
       if (num_edges > 0) {
