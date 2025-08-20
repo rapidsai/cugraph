@@ -14,7 +14,7 @@
 
 set(CPM_DOWNLOAD_cuco ON)
 set(rapids-cmake-repo PointKernel/rapids-cmake)
-set(rapids-cmake-branch device-retrieve-fix)
+set(rapids-cmake-branch fetch-bitmap)
 
 file(READ "${CMAKE_CURRENT_LIST_DIR}/../VERSION" _rapids_version)
 if(_rapids_version MATCHES [[^([0-9][0-9])\.([0-9][0-9])\.([0-9][0-9])]])
