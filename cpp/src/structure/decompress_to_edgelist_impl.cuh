@@ -30,11 +30,11 @@
 
 #include <rmm/device_uvector.hpp>
 
+#include <cuda/std/tuple>
 #include <thrust/binary_search.h>
 #include <thrust/functional.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/sort.h>
-#include <thrust/tuple.h>
 
 #include <algorithm>
 #include <optional>
@@ -194,11 +194,10 @@ decompress_to_edgelist_impl(
       if (edgelist_weights) {
         if (edgelist_ids) {
           if (edgelist_types) {
-            auto zip_itr =
-              thrust::make_zip_iterator(thrust::make_tuple(major_ptrs[i],
-                                                           (*edgelist_weights).data() + cur_size,
-                                                           (*edgelist_ids).data() + cur_size,
-                                                           (*edgelist_types).data() + cur_size));
+            auto zip_itr = thrust::make_zip_iterator(major_ptrs[i],
+                                                     (*edgelist_weights).data() + cur_size,
+                                                     (*edgelist_ids).data() + cur_size,
+                                                     (*edgelist_types).data() + cur_size);
 
             thrust::sort_by_key(handle.get_thrust_policy(),
                                 minor_ptrs[i],
@@ -206,10 +205,9 @@ decompress_to_edgelist_impl(
                                 zip_itr);
 
           } else {
-            auto zip_itr =
-              thrust::make_zip_iterator(thrust::make_tuple(major_ptrs[i],
-                                                           (*edgelist_weights).data() + cur_size,
-                                                           (*edgelist_ids).data() + cur_size));
+            auto zip_itr = thrust::make_zip_iterator(major_ptrs[i],
+                                                     (*edgelist_weights).data() + cur_size,
+                                                     (*edgelist_ids).data() + cur_size);
 
             thrust::sort_by_key(handle.get_thrust_policy(),
                                 minor_ptrs[i],
@@ -218,10 +216,9 @@ decompress_to_edgelist_impl(
           }
         } else {
           if (edgelist_types) {
-            auto zip_itr =
-              thrust::make_zip_iterator(thrust::make_tuple(major_ptrs[i],
-                                                           (*edgelist_weights).data() + cur_size,
-                                                           (*edgelist_types).data() + cur_size));
+            auto zip_itr = thrust::make_zip_iterator(major_ptrs[i],
+                                                     (*edgelist_weights).data() + cur_size,
+                                                     (*edgelist_types).data() + cur_size);
 
             thrust::sort_by_key(handle.get_thrust_policy(),
                                 minor_ptrs[i],
@@ -229,8 +226,8 @@ decompress_to_edgelist_impl(
                                 zip_itr);
 
           } else {
-            auto zip_itr = thrust::make_zip_iterator(
-              thrust::make_tuple(major_ptrs[i], (*edgelist_weights).data() + cur_size));
+            auto zip_itr =
+              thrust::make_zip_iterator(major_ptrs[i], (*edgelist_weights).data() + cur_size);
 
             thrust::sort_by_key(handle.get_thrust_policy(),
                                 minor_ptrs[i],
@@ -241,10 +238,9 @@ decompress_to_edgelist_impl(
       } else {
         if (edgelist_ids) {
           if (edgelist_types) {
-            auto zip_itr =
-              thrust::make_zip_iterator(thrust::make_tuple(major_ptrs[i],
-                                                           (*edgelist_ids).data() + cur_size,
-                                                           (*edgelist_types).data() + cur_size));
+            auto zip_itr = thrust::make_zip_iterator(major_ptrs[i],
+                                                     (*edgelist_ids).data() + cur_size,
+                                                     (*edgelist_types).data() + cur_size);
 
             thrust::sort_by_key(handle.get_thrust_policy(),
                                 minor_ptrs[i],

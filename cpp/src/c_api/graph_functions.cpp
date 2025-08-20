@@ -147,7 +147,10 @@ struct two_hop_neighbors_functor : public cugraph::c_api::abstract_functor {
                    handle_.get_stream());
 
         if constexpr (multi_gpu) {
-          start_vertices = cugraph::shuffle_ext_vertices(handle_, std::move(start_vertices));
+          std::tie(start_vertices, std::ignore) =
+            cugraph::shuffle_ext_vertices(handle_,
+                                          std::move(start_vertices),
+                                          std::vector<cugraph::arithmetic_device_uvector_t>{});
         }
 
         cugraph::renumber_ext_vertices<vertex_t, multi_gpu>(

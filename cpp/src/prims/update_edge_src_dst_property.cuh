@@ -126,7 +126,7 @@ void update_edge_major_property(raft::handle_t const& handle,
                                      typename EdgeMajorPropertyOutputWrapper::value_type>();
   static_assert(!contains_packed_bool_element ||
                   std::is_arithmetic_v<typename EdgeMajorPropertyOutputWrapper::value_type>,
-                "unimplemented for thrust::tuple types with a packed bool element.");
+                "unimplemented for cuda::std::tuple types with a packed bool element.");
 
   auto edge_partition_value_firsts = edge_major_property_output.major_value_firsts();
   if constexpr (GraphViewType::is_multi_gpu) {
@@ -277,7 +277,7 @@ void update_edge_major_property(
                                      typename EdgeMajorPropertyOutputWrapper::value_type>();
   static_assert(!contains_packed_bool_element ||
                   std::is_arithmetic_v<typename EdgeMajorPropertyOutputWrapper::value_type>,
-                "unimplemented for thrust::tuple types with a packed bool element.");
+                "unimplemented for cuda::std::tuple types with a packed bool element.");
 
   using vertex_t = typename GraphViewType::vertex_type;
   using edge_t   = typename GraphViewType::edge_type;
@@ -419,8 +419,8 @@ void update_edge_major_property(
         pair_first,
         pair_first + cuda::std::distance(sorted_unique_vertex_first, sorted_unique_vertex_last),
         [output_value_first = edge_partition_value_firsts[0]] __device__(auto pair) {
-          auto v   = thrust::get<0>(pair);
-          auto val = static_cast<bool>(thrust::get<1>(pair));
+          auto v   = cuda::std::get<0>(pair);
+          auto val = static_cast<bool>(cuda::std::get<1>(pair));
           packed_bool_atomic_set(output_value_first, v, val);
         });
     } else {
@@ -447,7 +447,7 @@ void update_edge_minor_property(raft::handle_t const& handle,
                                      typename EdgeMinorPropertyOutputWrapper::value_type>();
   static_assert(!contains_packed_bool_element ||
                   std::is_arithmetic_v<typename EdgeMinorPropertyOutputWrapper::value_type>,
-                "unimplemented for thrust::tuple types with a packed bool element.");
+                "unimplemented for cuda::std::tuple types with a packed bool element.");
 
   auto edge_partition_value_first = edge_minor_property_output.minor_value_first();
   if constexpr (GraphViewType::is_multi_gpu) {
@@ -690,7 +690,7 @@ void update_edge_minor_property(
                                      typename EdgeMinorPropertyOutputWrapper::value_type>();
   static_assert(!contains_packed_bool_element ||
                   std::is_arithmetic_v<typename EdgeMinorPropertyOutputWrapper::value_type>,
-                "unimplemented for thrust::tuple types with a packed bool element.");
+                "unimplemented for cuda::std::tuple types with a packed bool element.");
 
   using vertex_t = typename GraphViewType::vertex_type;
   using edge_t   = typename GraphViewType::edge_type;
@@ -886,8 +886,8 @@ void update_edge_minor_property(
         pair_first,
         pair_first + cuda::std::distance(sorted_unique_vertex_first, sorted_unique_vertex_last),
         [output_value_first = edge_partition_value_first] __device__(auto pair) {
-          auto v   = thrust::get<0>(pair);
-          auto val = static_cast<bool>(thrust::get<1>(pair));
+          auto v   = cuda::std::get<0>(pair);
+          auto val = static_cast<bool>(cuda::std::get<1>(pair));
           packed_bool_atomic_set(output_value_first, v, val);
         });
     } else {
