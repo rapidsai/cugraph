@@ -225,9 +225,9 @@ class edge_major_property_t {
   {
     static_assert(std::is_same_v<vertex_t, typename GraphViewType::vertex_type>);
 
-    auto key_chunk_size_ = GraphViewType::is_storage_transposed
-                             ? graph_view.local_sorted_unique_edge_dst_chunk_size()
-                             : graph_view.local_sorted_unique_edge_src_chunk_size();
+    key_chunk_size_ = GraphViewType::is_storage_transposed
+                        ? graph_view.local_sorted_unique_edge_dst_chunk_size()
+                        : graph_view.local_sorted_unique_edge_src_chunk_size();
     buffers_.reserve(graph_view.number_of_local_edge_partitions());
     edge_partition_major_range_firsts_.resize(graph_view.number_of_local_edge_partitions());
     if (key_chunk_size_) {
