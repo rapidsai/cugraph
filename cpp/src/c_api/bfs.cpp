@@ -98,7 +98,10 @@ struct bfs_functor : public abstract_functor {
       raft::copy(
         sources.data(), sources_->as_type<vertex_t>(), sources_->size_, handle_.get_stream());
 
-      if constexpr (multi_gpu) { sources = shuffle_ext_vertices(handle_, std::move(sources)); }
+      if constexpr (multi_gpu) {
+        std::tie(sources, std::ignore) = shuffle_ext_vertices(
+          handle_, std::move(sources), std::vector<cugraph::arithmetic_device_uvector_t>{});
+      }
 
       //
       // Need to renumber sources

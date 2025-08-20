@@ -114,7 +114,8 @@ class Tests_MGEgonet
       }
     }
 
-    d_mg_sources = cugraph::shuffle_ext_vertices(*handle_, std::move(d_mg_sources));
+    std::tie(d_mg_sources, std::ignore) = cugraph::shuffle_ext_vertices(
+      *handle_, std::move(d_mg_sources), std::vector<cugraph::arithmetic_device_uvector_t>{});
 
     cugraph::renumber_ext_vertices<vertex_t, true>(
       *handle_,
