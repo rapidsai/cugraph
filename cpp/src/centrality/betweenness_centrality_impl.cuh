@@ -1139,22 +1139,57 @@ rmm::device_uvector<weight_t> betweenness_centrality(
     my_rank = handle.get_comms().get_rank();
   }
 
-  // Run concurrent multi-source BFS directly with iterators
-  auto [distances_2d, sigmas_2d] = detail::multisource_bfs(
-    handle, graph_view, edge_weight_view, vertices_begin, vertices_end, do_expensive_check);
+  if constexpr (multi_gpu) {
+    // Multi-GPU: Use sequential brandes_bfs (more reliable for cross-GPU)
+    printf("[DEBUG] Running SEQUENTIAL version (multi-GPU mode)\n");
 
-  // Use parallel multisource backward pass for better performance
-  detail::multisource_backward_pass(
-    handle,
-    graph_view,
-    edge_weight_view,
-    raft::device_span<weight_t>{centralities.data(), centralities.size()},
-    std::move(distances_2d),
-    std::move(sigmas_2d),
-    vertices_begin,
-    vertices_end,
-    include_endpoints,
-    do_expensive_check);
+    // Process each source individually using brandes_bfs
+    for (size_t source_idx = 0; source_idx < num_sources; ++source_idx) {
+      //
+      //  BFS
+      //
+      constexpr size_t bucket_idx_cur = 0;
+      constexpr size_t num_buckets    = 2;
+
+      vertex_frontier_t<vertex_t, void, multi_gpu, true> vertex_frontier(handle, num_buckets);
+
+      if ((source_idx >= source_offsets[my_rank]) && (source_idx < source_offsets[my_rank + 1])) {
+        vertex_frontier.bucket(bucket_idx_cur)
+          .insert(vertices_begin + (source_idx - source_offsets[my_rank]),
+                  vertices_begin + (source_idx - source_offsets[my_rank]) + 1);
+      }
+
+      auto [distances, sigmas] = detail::brandes_bfs(
+        handle, graph_view, edge_weight_view, vertex_frontier, do_expensive_check);
+      detail::accumulate_vertex_results(
+        handle,
+        graph_view,
+        edge_weight_view,
+        raft::device_span<weight_t>{centralities.data(), centralities.size()},
+        std::move(distances),
+        std::move(sigmas),
+        include_endpoints,
+        do_expensive_check);
+    }
+  } else {
+    // Single-GPU: Use parallel multisource_bfs (faster)
+    printf("[DEBUG] Running MULTISOURCE version (single-GPU mode)\n");
+    auto [distances_2d, sigmas_2d] = detail::multisource_bfs(
+      handle, graph_view, edge_weight_view, vertices_begin, vertices_end, do_expensive_check);
+
+    // Use parallel multisource backward pass for better performance
+    detail::multisource_backward_pass(
+      handle,
+      graph_view,
+      edge_weight_view,
+      raft::device_span<weight_t>{centralities.data(), centralities.size()},
+      std::move(distances_2d),
+      std::move(sigmas_2d),
+      vertices_begin,
+      vertices_end,
+      include_endpoints,
+      do_expensive_check);
+  }
 
   std::optional<weight_t> scale_nonsource{std::nullopt};
   std::optional<weight_t> scale_source{std::nullopt};
