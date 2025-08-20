@@ -954,19 +954,12 @@ void multisource_backward_pass(
         auto& dsts           = std::get<2>(edge_tuples_buffer);
         auto& deltas         = std::get<3>(edge_tuples_buffer);
 
-        // Step 4: Sort using thrust::sort_by_key to maintain memory alignment
-        // First sort by source vertices (stable sort preserves order)
+        // Step 4: Sort using (src, source_index) as composite key for efficient reduction
         thrust::stable_sort_by_key(
           handle.get_thrust_policy(),
-          srcs.begin(),
-          srcs.end(),
-          thrust::make_zip_iterator(source_indices.begin(), deltas.begin()));
-
-        // Then sort by source indices within each source group (stable sort preserves source order)
-        thrust::stable_sort_by_key(handle.get_thrust_policy(),
-                                   source_indices.begin(),
-                                   source_indices.end(),
-                                   thrust::make_zip_iterator(srcs.begin(), deltas.begin()));
+          thrust::make_zip_iterator(srcs.begin(), source_indices.begin()),  // Composite key
+          thrust::make_zip_iterator(srcs.end(), source_indices.end()),
+          deltas.begin());  // Values to sort
 
         // Step 5: Use reduce_by_key with in-place reduction (no temporaries needed)
 
