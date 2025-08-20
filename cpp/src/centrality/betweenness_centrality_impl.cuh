@@ -559,6 +559,11 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> multisour
 
   using origin_t = uint32_t;  // Source index type
 
+  // Check that number of sources doesn't overflow origin_t
+  CUGRAPH_EXPECTS(
+    cuda::std::distance(vertex_first, vertex_last) <= std::numeric_limits<origin_t>::max(),
+    "Number of sources exceeds maximum value for origin_t (uint32_t), would cause overflow");
+
   // Use 2D arrays to track per-source distances and sigmas
   // Layout: [source_idx * num_vertices + vertex_idx]
   auto num_vertices = graph_view.local_vertex_partition_range_size();
@@ -566,8 +571,8 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> multisour
 
   rmm::device_uvector<edge_t> sigmas_2d(num_sources * num_vertices, handle.get_stream());
   rmm::device_uvector<vertex_t> distances_2d(num_sources * num_vertices, handle.get_stream());
-  detail::scalar_fill(handle, distances_2d.data(), distances_2d.size(), invalid_distance);
   detail::scalar_fill(handle, sigmas_2d.data(), sigmas_2d.size(), edge_t{0});
+  detail::scalar_fill(handle, distances_2d.data(), distances_2d.size(), invalid_distance);
 
   // Create tagged frontier with origin indices
   vertex_frontier_t<vertex_t, origin_t, multi_gpu, true> vertex_frontier(handle, num_buckets);
@@ -580,8 +585,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> multisour
     // Create zip iterator for (vertex, origin) pairs
     auto pair_first =
       thrust::make_zip_iterator(vertex_first, thrust::make_counting_iterator(origin_t{0}));
-    auto pair_last = thrust::make_zip_iterator(
-      vertex_last, thrust::make_counting_iterator(origin_t{static_cast<uint32_t>(num_sources)}));
+    auto pair_last = pair_first + num_sources;
 
     // Insert tagged sources into frontier
     vertex_frontier.bucket(bucket_idx_cur).insert(pair_first, pair_last);
@@ -610,7 +614,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> multisour
     // Step 1: Extract ALL edges from frontier (filtered by unvisited vertices)
     using bfs_edge_tuple_t = thrust::tuple<vertex_t, origin_t, edge_t>;
 
-    auto result = extract_transform_if_v_frontier_outgoing_e(
+    auto new_frontier_tagged_vertex_buffer = extract_transform_if_v_frontier_outgoing_e(
       handle,
       graph_view,
       vertex_frontier.bucket(bucket_idx_cur),
@@ -640,15 +644,12 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> multisour
           return d_distances_2d[dst_idx] == invalid_distance;
         }));
 
-    // Step 2: Work directly with the dataframe buffer components (no temporaries needed)
-    auto new_frontier_tagged_vertex_buffer = std::move(result);
-
     // Access individual vectors directly to avoid transform iterator issues
     auto& frontier_vertices = std::get<0>(new_frontier_tagged_vertex_buffer);
     auto& frontier_origins  = std::get<1>(new_frontier_tagged_vertex_buffer);
     auto& sigmas            = std::get<2>(new_frontier_tagged_vertex_buffer);
 
-    // Step 3: Reduce by (destination, origin) - sums sigmas for multiple paths
+    // Step 2: Reduce by (destination, origin) - sums sigmas for multiple paths
     // Sort by (destination, origin) pairs
     thrust::sort_by_key(
       handle.get_thrust_policy(),
@@ -675,7 +676,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> multisour
       thrust::equal_to<thrust::tuple<vertex_t, origin_t>>{},
       thrust::plus<edge_t>{});
 
-    // Step 4: Manual array updates using in-place reduced data
+    // Step 3: Manual array updates using in-place reduced data
     // Get count from the values output since keys output is a zip iterator
     size_t num_reduced = thrust::distance(sigmas.begin(), reduced_result.second);
     thrust::for_each(handle.get_thrust_policy(),
@@ -702,7 +703,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> multisour
                        d_sigmas_2d[idx]    = sigma;
                      });
 
-    // Step 5: Update frontier for next iteration using in-place reduced data
+    // Step 4: Update frontier for next iteration using in-place reduced data
     vertex_frontier.bucket(bucket_idx_cur).clear();
     vertex_frontier.bucket(bucket_idx_next)
       .insert(thrust::make_zip_iterator(frontier_vertices.begin(), frontier_origins.begin()),
@@ -897,7 +898,7 @@ void multisource_backward_pass(
         thrust::make_zip_iterator(frontier_vertices.begin(), frontier_sources.begin());
       frontier.bucket(0).insert(pair_first, pair_first + frontier_vertices.size());
 
-      auto result = extract_transform_if_v_frontier_outgoing_e(
+      auto edge_tuples_buffer = extract_transform_if_v_frontier_outgoing_e(
         handle,
         graph_view,
         frontier.bucket(0),
@@ -943,18 +944,17 @@ void multisource_backward_pass(
             return distances[dst_offset] == d;
           }));
 
-      // Step 4: Work directly with the result buffer (no temporaries needed)
-      auto edge_tuples_buffer = std::move(result);
-      size_t num_edges        = size_dataframe_buffer(edge_tuples_buffer);
+      // Work directly with the result buffer (no temporaries needed)
+      size_t num_edges = size_dataframe_buffer(edge_tuples_buffer);
 
       if (num_edges > 0) {
-        // Step 5: Access individual vectors directly to avoid transform iterator issues
+        // Access individual vectors directly to avoid transform iterator issues
         auto& srcs           = std::get<0>(edge_tuples_buffer);
         auto& source_indices = std::get<1>(edge_tuples_buffer);
         auto& dsts           = std::get<2>(edge_tuples_buffer);
         auto& deltas         = std::get<3>(edge_tuples_buffer);
 
-        // Sort using thrust::sort_by_key to maintain memory alignment
+        // Step 4: Sort using thrust::sort_by_key to maintain memory alignment
         // First sort by source vertices (stable sort preserves order)
         thrust::stable_sort_by_key(
           handle.get_thrust_policy(),
@@ -968,7 +968,7 @@ void multisource_backward_pass(
                                    source_indices.end(),
                                    thrust::make_zip_iterator(srcs.begin(), deltas.begin()));
 
-        // Step 6: Use reduce_by_key with in-place reduction (no temporaries needed)
+        // Step 5: Use reduce_by_key with in-place reduction (no temporaries needed)
 
         // Reduce by key and get count in one operation - overwrite input buffers
         auto reduced_result = thrust::reduce_by_key(
@@ -985,7 +985,7 @@ void multisource_backward_pass(
         // Get num_unique from the result
         size_t num_unique = reduced_result.second - deltas.begin();
 
-        // Step 7: Update centralities and deltas from the in-place reduced results
+        // Step 6: Update centralities and deltas from the in-place reduced results
         thrust::for_each(
           handle.get_thrust_policy(),
           thrust::make_counting_iterator<size_t>(0),
