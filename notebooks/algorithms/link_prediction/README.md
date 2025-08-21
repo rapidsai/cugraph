@@ -1,7 +1,7 @@
 # Vertex Similarity
 ----
 
-In this folder we will explore and compare the various vertex similarity metrics available in cuGraph.  [Vertex similarity](https://en.wikipedia.org/wiki/Similarity_(network_science)), as the name implies, is a measure how similar two vertices are.
+In this folder we will explore and compare the various vertex similarity metrics available in cuGraph.  [Vertex similarity](https://en.wikipedia.org/wiki/Similarity_(network_science)), as the name implies, measures the similaritu between the two vertices.
 
 |Algorithm          |Notebooks Containing                                                     |Description                                                  |
 | --------------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
@@ -12,7 +12,7 @@ In this folder we will explore and compare the various vertex similarity metrics
 Currently, cuGraph supports the following similarity metrics:
 - Jaccard Similarity (also called the Jaccard Index)
 - Overlap Coefficient
-- Weight Jaccard
+- Weighed Jaccard
 
 Similarity can be between neighboring vertices (default) or second hop neighbors
 
