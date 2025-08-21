@@ -36,6 +36,7 @@
 
 #include <cuda/std/iterator>
 #include <cuda/std/optional>
+#include <cuda/std/tuple>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
 #include <thrust/count.h>
@@ -48,7 +49,6 @@
 #include <thrust/scan.h>
 #include <thrust/sort.h>
 #include <thrust/transform.h>
-#include <thrust/tuple.h>
 
 #include <tuple>
 
@@ -58,15 +58,15 @@ namespace detail {
 
 template <typename vertex_t, typename weight_t, typename property_t>
 struct induced_subgraph_weighted_edge_op {
-  thrust::tuple<vertex_t, vertex_t, weight_t, size_t> __device__
-  operator()(thrust::tuple<vertex_t, size_t> tagged_src,
+  cuda::std::tuple<vertex_t, vertex_t, weight_t, size_t> __device__
+  operator()(cuda::std::tuple<vertex_t, size_t> tagged_src,
              vertex_t dst,
              property_t sv,
              property_t dv,
              weight_t wgt) const
   {
-    size_t subgraph = thrust::get<1>(tagged_src);
-    return thrust::make_tuple(thrust::get<0>(tagged_src), dst, wgt, subgraph);
+    size_t subgraph = cuda::std::get<1>(tagged_src);
+    return cuda::std::make_tuple(cuda::std::get<0>(tagged_src), dst, wgt, subgraph);
   }
 };
 
@@ -75,13 +75,13 @@ struct induced_subgraph_weighted_pred_op {
   raft::device_span<size_t const> dst_subgraph_offsets;
   raft::device_span<vertex_t const> dst_subgraph_vertices;
 
-  bool __device__ operator()(thrust::tuple<vertex_t, size_t> tagged_src,
+  bool __device__ operator()(cuda::std::tuple<vertex_t, size_t> tagged_src,
                              vertex_t dst,
                              property_t sv,
                              property_t dv,
                              weight_t wgt) const
   {
-    size_t subgraph = thrust::get<1>(tagged_src);
+    size_t subgraph = cuda::std::get<1>(tagged_src);
     return thrust::binary_search(thrust::seq,
                                  dst_subgraph_vertices.data() + dst_subgraph_offsets[subgraph],
                                  dst_subgraph_vertices.data() + dst_subgraph_offsets[subgraph + 1],
@@ -91,15 +91,15 @@ struct induced_subgraph_weighted_pred_op {
 
 template <typename vertex_t, typename property_t>
 struct induced_subgraph_unweighted_edge_op {
-  thrust::tuple<vertex_t, vertex_t, size_t> __device__
-  operator()(thrust::tuple<vertex_t, size_t> tagged_src,
+  cuda::std::tuple<vertex_t, vertex_t, size_t> __device__
+  operator()(cuda::std::tuple<vertex_t, size_t> tagged_src,
              vertex_t dst,
              property_t sv,
              property_t dv,
              cuda::std::nullopt_t) const
   {
-    size_t subgraph = thrust::get<1>(tagged_src);
-    return thrust::make_tuple(thrust::get<0>(tagged_src), dst, subgraph);
+    size_t subgraph = cuda::std::get<1>(tagged_src);
+    return cuda::std::make_tuple(cuda::std::get<0>(tagged_src), dst, subgraph);
   }
 };
 
@@ -108,13 +108,13 @@ struct induced_subgraph_unweighted_pred_op {
   raft::device_span<size_t const> dst_subgraph_offsets;
   raft::device_span<vertex_t const> dst_subgraph_vertices;
 
-  bool __device__ operator()(thrust::tuple<vertex_t, size_t> tagged_src,
+  bool __device__ operator()(cuda::std::tuple<vertex_t, size_t> tagged_src,
                              vertex_t dst,
                              property_t sv,
                              property_t dv,
                              cuda::std::nullopt_t) const
   {
-    size_t subgraph = thrust::get<1>(tagged_src);
+    size_t subgraph = cuda::std::get<1>(tagged_src);
     return thrust::binary_search(thrust::seq,
                                  dst_subgraph_vertices.data() + dst_subgraph_offsets[subgraph],
                                  dst_subgraph_vertices.data() + dst_subgraph_offsets[subgraph + 1],

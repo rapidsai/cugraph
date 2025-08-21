@@ -22,6 +22,7 @@
 #include <rmm/exec_policy.hpp>
 
 #include <cuda/std/iterator>
+#include <cuda/std/tuple>
 #include <thrust/copy.h>
 #include <thrust/equal.h>
 #include <thrust/extrema.h>
@@ -35,7 +36,6 @@
 #include <thrust/sort.h>
 #include <thrust/tabulate.h>
 #include <thrust/transform.h>
-#include <thrust/tuple.h>
 #include <thrust/unique.h>
 
 namespace cugraph {
@@ -199,14 +199,14 @@ sort_by_key<int64_t, int64_t>(raft::handle_t const& handle,
 
 template std::tuple<rmm::device_uvector<int32_t>,
                     std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<float>>>
-sort_by_key<int32_t, thrust::tuple<int32_t, float>>(
+sort_by_key<int32_t, cuda::std::tuple<int32_t, float>>(
   raft::handle_t const& handle,
   rmm::device_uvector<int32_t> const& keys,
   std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<float>> const& values);
 
 template std::tuple<rmm::device_uvector<int64_t>,
                     std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<float>>>
-sort_by_key<int64_t, thrust::tuple<int32_t, float>>(
+sort_by_key<int64_t, cuda::std::tuple<int32_t, float>>(
   raft::handle_t const& handle,
   rmm::device_uvector<int64_t> const& keys,
   std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<float>> const& values);
@@ -494,7 +494,7 @@ std::
      pred_values_end =
        cugraph::get_dataframe_buffer_end(pred_values)] __device__(auto pair_key_value) {
       return thrust::binary_search(
-        thrust::seq, pred_values_begin, pred_values_end, thrust::get<1>(pair_key_value));
+        thrust::seq, pred_values_begin, pred_values_end, cuda::std::get<1>(pair_key_value));
     });
 
   size_t first_parition_size =
@@ -722,7 +722,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> remove_
       handle.get_thrust_policy(),
       thrust::make_zip_iterator(v1.begin(), v2.begin()),
       thrust::make_zip_iterator(v1.end(), v2.end()),
-      [] __device__(auto tuple) { return thrust::get<0>(tuple) == thrust::get<1>(tuple); }));
+      [] __device__(auto tuple) { return cuda::std::get<0>(tuple) == cuda::std::get<1>(tuple); }));
 
   v1.resize(new_size, handle.get_stream());
   v2.resize(new_size, handle.get_stream());

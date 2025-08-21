@@ -25,7 +25,6 @@
 #include <thrust/binary_search.h>
 #include <thrust/gather.h>
 #include <thrust/sort.h>
-#include <thrust/tuple.h>
 
 #include <tuple>
 

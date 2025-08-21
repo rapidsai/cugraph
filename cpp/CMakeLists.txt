@@ -154,10 +154,9 @@ set(CUGRAPH_SOURCES
     src/sampling/detail/update_temporal_edge_mask_sg_v64_e64.cu
     src/sampling/detail/update_temporal_edge_mask_mg_v32_e32.cu
     src/sampling/detail/update_temporal_edge_mask_mg_v64_e64.cu
-    src/utilities/shuffle_vertices_mg_v32_fp.cu
-    src/utilities/shuffle_vertices_mg_v32_integral.cu
-    src/utilities/shuffle_vertices_mg_v64_fp.cu
-    src/utilities/shuffle_vertices_mg_v64_integral.cu
+    src/utilities/shuffle_vertices_mg_v32.cu
+    src/utilities/shuffle_vertices_mg_v64.cu
+    src/utilities/shuffle_properties_mg.cu
     src/utilities/validation_checks.cu
     src/detail/permute_range_v32.cu
     src/detail/permute_range_v64.cu

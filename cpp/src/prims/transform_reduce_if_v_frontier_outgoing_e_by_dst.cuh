@@ -45,6 +45,7 @@
 #include <cub/cub.cuh>
 #include <cuda/std/iterator>
 #include <cuda/std/optional>
+#include <cuda/std/tuple>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
 #include <thrust/count.h>
@@ -59,7 +60,6 @@
 #include <thrust/sort.h>
 #include <thrust/transform.h>
 #include <thrust/transform_reduce.h>
-#include <thrust/tuple.h>
 #include <thrust/type_traits/integer_sequence.h>
 #include <thrust/unique.h>
 
@@ -88,7 +88,7 @@ struct transform_reduce_if_v_frontier_call_e_op_t {
   EdgeOp e_op{};
 
   __device__ std::conditional_t<!std::is_same_v<key_t, void> && !std::is_same_v<payload_t, void>,
-                                thrust::tuple<key_t, payload_t>,
+                                cuda::std::tuple<key_t, payload_t>,
                                 std::conditional_t<!std::is_same_v<key_t, void>, key_t, payload_t>>
   operator()(key_t key, vertex_t dst, src_value_t sv, dst_value_t dv, e_value_t ev) const
   {
@@ -97,14 +97,14 @@ struct transform_reduce_if_v_frontier_call_e_op_t {
       return reduce_by;
     } else if constexpr (std::is_same_v<key_t, vertex_t> && !std::is_same_v<payload_t, void>) {
       auto e_op_result = e_op(key, dst, sv, dv, ev);  // payload
-      return thrust::make_tuple(reduce_by, e_op_result);
+      return cuda::std::make_tuple(reduce_by, e_op_result);
     } else if constexpr (!std::is_same_v<key_t, vertex_t> && std::is_same_v<payload_t, void>) {
       auto e_op_result = e_op(key, dst, sv, dv, ev);  // tag
-      return thrust::make_tuple(reduce_by, e_op_result);
+      return cuda::std::make_tuple(reduce_by, e_op_result);
     } else {
       auto e_op_result = e_op(key, dst, sv, dv, ev);  // (tag, payload)
-      return thrust::make_tuple(thrust::make_tuple(reduce_by, thrust::get<0>(e_op_result)),
-                                thrust::get<1>(e_op_result));
+      return cuda::std::make_tuple(cuda::std::make_tuple(reduce_by, cuda::std::get<0>(e_op_result)),
+                                   cuda::std::get<1>(e_op_result));
     }
   }
 };
@@ -926,8 +926,8 @@ transform_reduce_if_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
             invalid_key = invalid_vertex_id_v<vertex_t>;
           }
         } else {
-          invalid_key                  = key_t{};
-          thrust::get<0>(*invalid_key) = invalid_vertex_id_v<vertex_t>;
+          invalid_key                     = key_t{};
+          cuda::std::get<0>(*invalid_key) = invalid_vertex_id_v<vertex_t>;
         }
 
         if constexpr (try_compression) {

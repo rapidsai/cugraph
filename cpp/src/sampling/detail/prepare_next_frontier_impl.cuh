@@ -22,6 +22,7 @@
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/sampling_functions.hpp>
+#include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/thrust_tuple_utils.hpp>
 
 #include <raft/core/handle.hpp>
@@ -30,8 +31,8 @@
 #include <rmm/device_uvector.hpp>
 
 #include <cuda/std/iterator>
+#include <cuda/std/tuple>
 #include <thrust/sort.h>
-#include <thrust/tuple.h>
 #include <thrust/unique.h>
 
 #include <algorithm>
@@ -154,35 +155,46 @@ prepare_next_frontier(
   if (multi_gpu) {
     if (frontier_vertex_labels) {
       if (frontier_vertex_times) {
-        std::forward_as_tuple(frontier_vertices,
-                              std::tie(*frontier_vertex_labels, *frontier_vertex_times)) =
-          shuffle_int_vertex_value_pairs_to_local_gpu_by_vertex_partitioning<
-            vertex_t,
-            cuda::std::tuple<label_t, edge_time_t>>(
-            handle,
-            std::move(frontier_vertices),
-            std::tuple<rmm::device_uvector<label_t>, rmm::device_uvector<edge_time_t>>{
-              std::move(*frontier_vertex_labels), std::move(*frontier_vertex_times)},
-            vertex_partition_range_lasts);
+        std::vector<cugraph::arithmetic_device_uvector_t> vertex_properties{};
+        vertex_properties.push_back(std::move(*frontier_vertex_labels));
+        vertex_properties.push_back(std::move(*frontier_vertex_times));
+        std::tie(frontier_vertices, vertex_properties) =
+          shuffle_int_vertices(handle,
+                               std::move(frontier_vertices),
+                               std::move(vertex_properties),
+                               vertex_partition_range_lasts);
+        frontier_vertex_labels =
+          std::move(std::get<rmm::device_uvector<label_t>>(vertex_properties[0]));
+        frontier_vertex_times =
+          std::move(std::get<rmm::device_uvector<edge_time_t>>(vertex_properties[1]));
       } else {
-        std::tie(frontier_vertices, *frontier_vertex_labels) =
-          shuffle_int_vertex_value_pairs_to_local_gpu_by_vertex_partitioning<vertex_t, label_t>(
-            handle,
-            std::move(frontier_vertices),
-            std::move(*frontier_vertex_labels),
-            vertex_partition_range_lasts);
+        std::vector<cugraph::arithmetic_device_uvector_t> vertex_properties{};
+        vertex_properties.push_back(std::move(*frontier_vertex_labels));
+        std::tie(frontier_vertices, vertex_properties) =
+          shuffle_int_vertices(handle,
+                               std::move(frontier_vertices),
+                               std::move(vertex_properties),
+                               vertex_partition_range_lasts);
+        frontier_vertex_labels =
+          std::move(std::get<rmm::device_uvector<label_t>>(vertex_properties[0]));
       }
     } else {
       if (frontier_vertex_times) {
-        std::tie(frontier_vertices, *frontier_vertex_times) =
-          shuffle_int_vertex_value_pairs_to_local_gpu_by_vertex_partitioning<vertex_t, edge_time_t>(
-            handle,
-            std::move(frontier_vertices),
-            std::move(*frontier_vertex_times),
-            vertex_partition_range_lasts);
+        std::vector<cugraph::arithmetic_device_uvector_t> vertex_properties{};
+        vertex_properties.push_back(std::move(*frontier_vertex_times));
+        std::tie(frontier_vertices, vertex_properties) =
+          shuffle_int_vertices(handle,
+                               std::move(frontier_vertices),
+                               std::move(vertex_properties),
+                               vertex_partition_range_lasts);
+        frontier_vertex_times =
+          std::move(std::get<rmm::device_uvector<edge_time_t>>(vertex_properties[0]));
       } else {
-        frontier_vertices = shuffle_int_vertices_to_local_gpu_by_vertex_partitioning(
-          handle, std::move(frontier_vertices), vertex_partition_range_lasts);
+        std::tie(frontier_vertices, std::ignore) =
+          shuffle_int_vertices(handle,
+                               std::move(frontier_vertices),
+                               std::vector<cugraph::arithmetic_device_uvector_t>{},
+                               vertex_partition_range_lasts);
       }
     }
   }

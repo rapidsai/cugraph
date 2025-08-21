@@ -48,6 +48,7 @@
 #include <cuda/functional>
 #include <cuda/std/iterator>
 #include <cuda/std/optional>
+#include <cuda/std/tuple>
 #include <thrust/copy.h>
 #include <thrust/execution_policy.h>
 #include <thrust/fill.h>
@@ -57,7 +58,6 @@
 #include <thrust/scatter.h>
 #include <thrust/set_operations.h>
 #include <thrust/transform_reduce.h>
-#include <thrust/tuple.h>
 #include <thrust/type_traits/integer_sequence.h>
 
 #include <numeric>
