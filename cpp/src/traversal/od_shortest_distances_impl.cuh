@@ -705,7 +705,7 @@ rmm::device_uvector<weight_t> od_shortest_distances(
           std::move(distance_buffer),
           reduce_op::minimum<weight_t>(),
           std::make_tuple(vertex_t{0}, graph_view.number_of_vertices()),
-          std::nullopt,
+          key_t{0},
           std::nullopt);
     }
     vertex_frontier.bucket(bucket_idx_near).clear();
