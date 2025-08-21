@@ -39,6 +39,7 @@
 
 #include <rmm/device_uvector.hpp>
 
+#include <cuda/std/tuple>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
 #include <thrust/fill.h>
@@ -48,7 +49,6 @@
 #include <thrust/sequence.h>
 #include <thrust/sort.h>
 #include <thrust/transform.h>
-#include <thrust/tuple.h>
 
 #include <gtest/gtest.h>
 
@@ -93,8 +93,8 @@ edge_t compute_number_of_visited_undirected_edges(
       thrust::make_zip_iterator(mg_distances.begin(), mg_graph_to_pruned_graph_map.begin()),
       thrust::make_zip_iterator(mg_distances.end(), mg_graph_to_pruned_graph_map.end()),
       [invalid_distance, invalid_vertex] __device__(auto pair) {
-        return (thrust::get<0>(pair) != invalid_distance /* reachable */) &&
-               (thrust::get<1>(pair) == invalid_vertex /* not in the pruned graph */);
+        return (cuda::std::get<0>(pair) != invalid_distance /* reachable */) &&
+               (cuda::std::get<1>(pair) == invalid_vertex /* not in the pruned graph */);
       });  // # vertices reachable from 2-cores but not in 2-cores
     forest_edge_count = cugraph::host_scalar_allreduce(
       comm, forest_edge_count, raft::comms::op_t::SUM, handle.get_stream());
@@ -222,8 +222,8 @@ bool check_distance_from_parents(
                                      output_pair_first,
                                      cuda::proclaim_return_type<bool>(
                                        [starting_vertex, invalid_vertex] __device__(auto pair) {
-                                         auto pred = thrust::get<0>(pair);
-                                         auto v    = thrust::get<1>(pair);
+                                         auto pred = cuda::std::get<0>(pair);
+                                         auto v    = cuda::std::get<1>(pair);
                                          return (pred != invalid_vertex) && (v != starting_vertex);
                                        }))),
                    handle.get_stream());
@@ -279,9 +279,9 @@ bool check_distance_from_parents(
       triplet_first,
       triplet_first + tree_src_dists.size(),
       cuda::proclaim_return_type<bool>([] __device__(auto triplet) {
-        auto src_dist = thrust::get<0>(triplet);
-        auto dst_dist = thrust::get<1>(triplet);
-        auto w        = thrust::get<2>(triplet);
+        auto src_dist = cuda::std::get<0>(triplet);
+        auto dst_dist = cuda::std::get<1>(triplet);
+        auto w        = cuda::std::get<2>(triplet);
         auto diff     = cuda::std::abs((src_dist + w) - dst_dist);
         return diff >
                cuda::std::max(
@@ -295,8 +295,8 @@ bool check_distance_from_parents(
                        pair_first,
                        pair_first + tree_src_dists.size(),
                        cuda::proclaim_return_type<bool>([] __device__(auto pair) {
-                         auto src_dist = thrust::get<0>(pair);
-                         auto dst_dist = thrust::get<1>(pair);
+                         auto src_dist = cuda::std::get<0>(pair);
+                         auto dst_dist = cuda::std::get<1>(pair);
                          return (src_dist + 1) != dst_dist;
                        })));
   }
@@ -381,7 +381,8 @@ bool check_edge_endpoint_distances(
         cuda::proclaim_return_type<bool>(
           [i, num_rounds, hash_func = hash_vertex_pair_t<vertex_t>{}] __device__(
             auto src, auto dst, auto, auto, auto) {
-            return (static_cast<size_t>(hash_func(thrust::make_tuple(src, dst)) % num_rounds) == i);
+            return (static_cast<size_t>(hash_func(cuda::std::make_tuple(src, dst)) % num_rounds) ==
+                    i);
           }),
         edge_mask.mutable_view());
       tmp_mg_subgraph_view.attach_edge_mask(edge_mask.view());
@@ -470,8 +471,9 @@ bool check_edge_endpoint_distances(
                           pair_first,
                           subgraph_level_v_offsets.begin(),
                           [level, invalid_vertex, invalid_distance] __device__(auto pair) {
-                            auto d = thrust::get<1>(pair);
-                            return (thrust::get<0>(pair) != invalid_vertex /* in the subgraph */) &&
+                            auto d = cuda::std::get<1>(pair);
+                            return (cuda::std::get<0>(pair) !=
+                                    invalid_vertex /* in the subgraph */) &&
                                    (d == level);
                           })),
         handle.get_stream());
@@ -488,8 +490,8 @@ bool check_edge_endpoint_distances(
                           subgraph_adjacent_level_v_offsets.begin(),
                           cuda::proclaim_return_type<bool>(
                             [level, invalid_vertex, invalid_distance] __device__(auto pair) {
-                              auto d = thrust::get<1>(pair);
-                              return (thrust::get<0>(pair) !=
+                              auto d = cuda::std::get<1>(pair);
+                              return (cuda::std::get<0>(pair) !=
                                       invalid_vertex /* in the subgraph */) &&
                                      (((d >= level) ? (d - level) : (level - d)) <= 1);
                             }))),
@@ -574,8 +576,9 @@ bool check_edge_endpoint_distances(
                         unreachable_v_offsets.begin(),
                         cuda::proclaim_return_type<bool>(
                           [invalid_vertex, invalid_distance] __device__(auto pair) {
-                            return (thrust::get<0>(pair) != invalid_vertex /* in the subgraph */) &&
-                                   (thrust::get<1>(pair) == invalid_distance /* unreachable */);
+                            return (cuda::std::get<0>(pair) !=
+                                    invalid_vertex /* in the subgraph */) &&
+                                   (cuda::std::get<1>(pair) == invalid_distance /* unreachable */);
                           }))),
       handle.get_stream());
     auto unreachable_vs = std::move(unreachable_v_offsets);
@@ -640,8 +643,8 @@ bool check_edge_endpoint_distances(
                                                    output_first,
                                                    cuda::proclaim_return_type<bool>(
                                                      [invalid_vertex] __device__(auto triplet) {
-                                                       auto p = thrust::get<0>(triplet);
-                                                       auto v = thrust::get<1>(triplet);
+                                                       auto p = cuda::std::get<0>(triplet);
+                                                       auto v = cuda::std::get<1>(triplet);
                                                        return (p != invalid_vertex /* reachable from 2-cores */) &&
                                  (p != v /* not in a 2-core */);
                                                      }))),
@@ -659,8 +662,8 @@ bool check_edge_endpoint_distances(
                           input_first + forest_edge_parents.size(),
                           output_first,
                           cuda::proclaim_return_type<bool>([invalid_vertex] __device__(auto pair) {
-                            auto p = thrust::get<0>(pair);
-                            auto v = thrust::get<1>(pair);
+                            auto p = cuda::std::get<0>(pair);
+                            auto v = cuda::std::get<1>(pair);
                             return (p != invalid_vertex /* reachable from 2-cores */) &&
                                    (p != v /* not in a 2-core */);
                           }))),
@@ -699,9 +702,9 @@ bool check_edge_endpoint_distances(
         triplet_first,
         triplet_first + forest_edge_src_dists.size(),
         cuda::proclaim_return_type<bool>([invalid_distance] __device__(auto triplet) {
-          auto src_dist = thrust::get<0>(triplet);
-          auto dst_dist = thrust::get<1>(triplet);
-          auto w        = thrust::get<2>(triplet);
+          auto src_dist = cuda::std::get<0>(triplet);
+          auto dst_dist = cuda::std::get<1>(triplet);
+          auto w        = cuda::std::get<2>(triplet);
           if (src_dist == invalid_distance) {
             return dst_dist != invalid_distance;
           } else {
@@ -724,8 +727,8 @@ bool check_edge_endpoint_distances(
         pair_first,
         pair_first + forest_edge_src_dists.size(),
         cuda::proclaim_return_type<bool>([invalid_distance] __device__(auto pair) {
-          auto src_dist = thrust::get<0>(pair);
-          auto dst_dist = thrust::get<1>(pair);
+          auto src_dist = cuda::std::get<0>(pair);
+          auto dst_dist = cuda::std::get<1>(pair);
           if (src_dist == invalid_distance) {
             return dst_dist != invalid_distance;
           } else {
@@ -762,8 +765,8 @@ bool check_connected_components(raft::handle_t const& handle,
                      pair_first + components.size(),
                      cuda::proclaim_return_type<bool>(
                        [starting_vertex_component, invalid_vertex] __device__(auto pair) {
-                         auto c    = thrust::get<0>(pair);
-                         auto pred = thrust::get<1>(pair);
+                         auto c    = cuda::std::get<0>(pair);
+                         auto pred = cuda::std::get<1>(pair);
                          if (c == starting_vertex_component) {
                            return pred == invalid_vertex;
                          } else {
@@ -813,8 +816,8 @@ bool check_has_edge_from_parents(
         input_edge_first + mg_predecessors.size(),
         output_edge_first,
         cuda::proclaim_return_type<bool>([invalid_vertex, starting_vertex] __device__(auto pair) {
-          auto pred = thrust::get<0>(pair);
-          auto v    = thrust::get<1>(pair);
+          auto pred = cuda::std::get<0>(pair);
+          auto v    = cuda::std::get<1>(pair);
           return (pred != invalid_vertex /* reachable */) && (v != starting_vertex);
         }))),
     handle.get_stream());
@@ -831,8 +834,8 @@ bool check_has_edge_from_parents(
           cuda::proclaim_return_type<bool>(
             [parents = raft::device_span<vertex_t const>(parents.data(), parents.size()),
              v_first = local_vertex_partition_range_first] __device__(auto pair) {
-              auto pred   = thrust::get<0>(pair);
-              auto v      = thrust::get<1>(pair);
+              auto pred   = cuda::std::get<0>(pair);
+              auto v      = cuda::std::get<1>(pair);
               auto parent = parents[v - v_first];
               return parent == pred;  // the query edge exists in the forest
             }))),
@@ -855,8 +858,8 @@ bool check_has_edge_from_parents(
                           input_first + mg_predecessors.size(),
                           output_first,
                           cuda::proclaim_return_type<bool>([invalid_vertex] __device__(auto pair) {
-                            auto v      = thrust::get<0>(pair);
-                            auto parent = thrust::get<1>(pair);
+                            auto v      = cuda::std::get<0>(pair);
+                            auto parent = cuda::std::get<1>(pair);
                             return (parent != invalid_vertex /* reachable */) &&
                                    (parent != v /* v is not in 2-cores */);
                           }))),
@@ -886,9 +889,9 @@ bool check_has_edge_from_parents(
                                               forest_edge_last =
                                                 forest_edge_first +
                                                 forest_edge_vertices.size()] __device__(auto pair) {
-              auto pred = thrust::get<0>(pair);
-              auto v    = thrust::get<1>(pair);
-              auto key  = thrust::make_tuple(pred, v);
+              auto pred = cuda::std::get<0>(pair);
+              auto v    = cuda::std::get<1>(pair);
+              auto key  = cuda::std::make_tuple(pred, v);
               auto it = thrust::lower_bound(thrust::seq, forest_edge_first, forest_edge_last, key);
               return (it != forest_edge_last) && (*it == key);
             }))),

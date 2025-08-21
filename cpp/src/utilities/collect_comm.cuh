@@ -117,14 +117,14 @@ dataframe_buffer_type_t<typename KVStoreViewType::value_type> collect_values_for
                                                               false /* key_sorted */,
                                                               stream_view);
   } else {
-    auto kv_pair_first = thrust::make_zip_iterator(
-      thrust::make_tuple(unique_keys.begin(), get_dataframe_buffer_begin(values_for_unique_keys)));
+    auto kv_pair_first = thrust::make_zip_iterator(cuda::std::make_tuple(
+      unique_keys.begin(), get_dataframe_buffer_begin(values_for_unique_keys)));
     auto valid_kv_pair_last =
       thrust::remove_if(rmm::exec_policy(stream_view),
                         kv_pair_first,
                         kv_pair_first + unique_keys.size(),
                         [invalid_value = kv_store_view.invalid_value()] __device__(auto pair) {
-                          return thrust::get<1>(pair) == invalid_value;
+                          return cuda::std::get<1>(pair) == invalid_value;
                         });  // remove (k,v) pairs with unmatched keys (it is invalid to insert a
                              // (k,v) pair with v = empty_key_sentinel)
     auto num_valid_pairs =

@@ -119,7 +119,7 @@ class edge_bucket_t {
       thrust::fill(handle_ptr_->get_thrust_policy(),
                    pair_first,
                    pair_first + 1,
-                   thrust::make_tuple(major, minor));
+                   cuda::std::make_tuple(major, minor));
       if (multi_edge_index) {
         multi_edge_indices_->resize(1, handle_ptr_->get_stream());
         thrust::fill(handle_ptr_->get_thrust_policy(),

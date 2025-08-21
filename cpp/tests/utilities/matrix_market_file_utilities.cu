@@ -378,36 +378,8 @@ read_edgelist_from_matrix_market_file(raft::handle_t const& handle,
       comm_size, major_comm_size, minor_comm_size};
     size_t number_of_local_edges{};
     if (d_edgelist_weights) {
-      auto edge_first = thrust::make_zip_iterator(thrust::make_tuple(
-        d_edgelist_srcs.begin(), d_edgelist_dsts.begin(), (*d_edgelist_weights).begin()));
-      auto edge_last  = edge_first;
-      if (shuffle) {  // edges are properly shuffled to the owning GPUs
-        edge_last = thrust::remove_if(
-          handle.get_thrust_policy(),
-          edge_first,
-          edge_first + d_edgelist_srcs.size(),
-          [store_transposed, comm_rank, key_func = edge_key_func] __device__(auto e) {
-            auto major = thrust::get<0>(e);
-            auto minor = thrust::get<1>(e);
-            return store_transposed ? key_func(minor, major) != comm_rank
-                                    : key_func(major, minor) != comm_rank;
-          });
-      } else {  // edges are arbitrary distributed
-        edge_last = thrust::remove_if(
-          handle.get_thrust_policy(),
-          edge_first,
-          edge_first + d_edgelist_srcs.size(),
-          [comm_rank, comm_size] __device__(auto e) {
-            auto major = thrust::get<0>(e);
-            auto minor = thrust::get<1>(e);
-            return static_cast<int>(((major % comm_size) + (minor % comm_size)) % comm_size) !=
-                   comm_rank;
-          });
-      }
-      number_of_local_edges = cuda::std::distance(edge_first, edge_last);
-    } else {
       auto edge_first = thrust::make_zip_iterator(
-        thrust::make_tuple(d_edgelist_srcs.begin(), d_edgelist_dsts.begin()));
+        d_edgelist_srcs.begin(), d_edgelist_dsts.begin(), (*d_edgelist_weights).begin());
       auto edge_last = edge_first;
       if (shuffle) {  // edges are properly shuffled to the owning GPUs
         edge_last = thrust::remove_if(
@@ -415,8 +387,8 @@ read_edgelist_from_matrix_market_file(raft::handle_t const& handle,
           edge_first,
           edge_first + d_edgelist_srcs.size(),
           [store_transposed, comm_rank, key_func = edge_key_func] __device__(auto e) {
-            auto major = thrust::get<0>(e);
-            auto minor = thrust::get<1>(e);
+            auto major = cuda::std::get<0>(e);
+            auto minor = cuda::std::get<1>(e);
             return store_transposed ? key_func(minor, major) != comm_rank
                                     : key_func(major, minor) != comm_rank;
           });
@@ -426,8 +398,35 @@ read_edgelist_from_matrix_market_file(raft::handle_t const& handle,
           edge_first,
           edge_first + d_edgelist_srcs.size(),
           [comm_rank, comm_size] __device__(auto e) {
-            auto major = thrust::get<0>(e);
-            auto minor = thrust::get<1>(e);
+            auto major = cuda::std::get<0>(e);
+            auto minor = cuda::std::get<1>(e);
+            return static_cast<int>(((major % comm_size) + (minor % comm_size)) % comm_size) !=
+                   comm_rank;
+          });
+      }
+      number_of_local_edges = cuda::std::distance(edge_first, edge_last);
+    } else {
+      auto edge_first = thrust::make_zip_iterator(d_edgelist_srcs.begin(), d_edgelist_dsts.begin());
+      auto edge_last  = edge_first;
+      if (shuffle) {  // edges are properly shuffled to the owning GPUs
+        edge_last = thrust::remove_if(
+          handle.get_thrust_policy(),
+          edge_first,
+          edge_first + d_edgelist_srcs.size(),
+          [store_transposed, comm_rank, key_func = edge_key_func] __device__(auto e) {
+            auto major = cuda::std::get<0>(e);
+            auto minor = cuda::std::get<1>(e);
+            return store_transposed ? key_func(minor, major) != comm_rank
+                                    : key_func(major, minor) != comm_rank;
+          });
+      } else {  // edges are arbitrary distributed
+        edge_last = thrust::remove_if(
+          handle.get_thrust_policy(),
+          edge_first,
+          edge_first + d_edgelist_srcs.size(),
+          [comm_rank, comm_size] __device__(auto e) {
+            auto major = cuda::std::get<0>(e);
+            auto minor = cuda::std::get<1>(e);
             return static_cast<int>(((major % comm_size) + (minor % comm_size)) % comm_size) !=
                    comm_rank;
           });

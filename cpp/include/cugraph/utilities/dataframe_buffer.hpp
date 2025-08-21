@@ -22,8 +22,8 @@
 #include <rmm/cuda_stream_view.hpp>
 #include <rmm/device_uvector.hpp>
 
+#include <cuda/std/tuple>
 #include <thrust/iterator/zip_iterator.h>
-#include <thrust/tuple.h>
 
 #include <type_traits>
 

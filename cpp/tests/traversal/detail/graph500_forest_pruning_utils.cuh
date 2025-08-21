@@ -37,6 +37,7 @@
 
 #include <rmm/device_uvector.hpp>
 
+#include <cuda/std/tuple>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
 #include <thrust/fill.h>
@@ -46,7 +47,6 @@
 #include <thrust/sequence.h>
 #include <thrust/sort.h>
 #include <thrust/transform.h>
-#include <thrust/tuple.h>
 
 #include <gtest/gtest.h>
 
@@ -112,8 +112,8 @@ find_trees_from_2cores(
       thrust::make_counting_iterator(mg_graph_view.local_vertex_partition_range_last()),
       in_2cores.begin(),
       thrust::make_zip_iterator(parents.begin(), w_to_parents->begin()),
-      cuda::proclaim_return_type<thrust::tuple<vertex_t, weight_t>>(
-        [] __device__(auto v) { return thrust::make_tuple(v, weight_t{0.0}); }),
+      cuda::proclaim_return_type<cuda::std::tuple<vertex_t, weight_t>>(
+        [] __device__(auto v) { return cuda::std::make_tuple(v, weight_t{0.0}); }),
       cuda::proclaim_return_type<bool>([] __device__(auto in_2core) { return in_2core; }));
   } else {
     thrust::transform_if(
@@ -165,9 +165,9 @@ find_trees_from_2cores(
         edge_src_reachable_from_2cores.view(),
         edge_dst_reachable_from_2cores.view(),
         *mg_edge_weight_view,
-        cuda::proclaim_return_type<thrust::tuple<vertex_t, vertex_t, weight_t>>(
+        cuda::proclaim_return_type<cuda::std::tuple<vertex_t, vertex_t, weight_t>>(
           [] __device__(auto src, auto dst, auto, auto, auto w) {
-            return thrust::make_tuple(src, dst, w);
+            return cuda::std::make_tuple(src, dst, w);
           }),
         cuda::proclaim_return_type<bool>(
           [] __device__(auto, auto, auto src_reachable, auto dst_reachable, auto) {
@@ -180,9 +180,9 @@ find_trees_from_2cores(
         edge_src_reachable_from_2cores.view(),
         edge_dst_reachable_from_2cores.view(),
         cugraph::edge_dummy_property_t{}.view(),
-        cuda::proclaim_return_type<thrust::tuple<vertex_t, vertex_t>>(
+        cuda::proclaim_return_type<cuda::std::tuple<vertex_t, vertex_t>>(
           [] __device__(auto src, auto dst, auto, auto, auto) {
-            return thrust::make_tuple(src, dst);
+            return cuda::std::make_tuple(src, dst);
           }),
         cuda::proclaim_return_type<bool>(
           [] __device__(auto, auto, auto src_reachable, auto dst_reachable, auto) {
@@ -216,9 +216,9 @@ find_trees_from_2cores(
              w_to_parents = raft::device_span<weight_t>(w_to_parents->data(), w_to_parents->size()),
              v_first =
                tmp_graph_view.local_vertex_partition_range_first()] __device__(auto triplet) {
-              auto v_offset          = thrust::get<0>(triplet) - v_first;
-              parents[v_offset]      = thrust::get<1>(triplet);
-              w_to_parents[v_offset] = thrust::get<2>(triplet);
+              auto v_offset          = cuda::std::get<0>(triplet) - v_first;
+              parents[v_offset]      = cuda::std::get<1>(triplet);
+              w_to_parents[v_offset] = cuda::std::get<2>(triplet);
             }));
       } else {
         std::vector<cugraph::arithmetic_device_uvector_t> src_properties{};
@@ -239,8 +239,8 @@ find_trees_from_2cores(
           cuda::proclaim_return_type<void>(
             [parents = raft::device_span<vertex_t>(parents.data(), parents.size()),
              v_first = tmp_graph_view.local_vertex_partition_range_first()] __device__(auto pair) {
-              auto v_offset     = thrust::get<0>(pair) - v_first;
-              parents[v_offset] = thrust::get<1>(pair);
+              auto v_offset     = cuda::std::get<0>(pair) - v_first;
+              parents[v_offset] = cuda::std::get<1>(pair);
             }));
       }
       dsts.resize(0, handle.get_stream());
@@ -337,7 +337,7 @@ extract_forest_pruned_graph_and_isolated_trees(
                         pair_first + mg_graph_view.local_vertex_partition_range_size(),
                         in_2cores.begin(),
                         cuda::proclaim_return_type<bool>([] __device__(auto pair) {
-                          return thrust::get<0>(pair) == thrust::get<1>(pair);
+                          return cuda::std::get<0>(pair) == cuda::std::get<1>(pair);
                         }));
       cugraph::update_edge_src_property(
         handle, mg_graph_view, in_2cores.begin(), edge_src_in_2cores.mutable_view());
@@ -356,7 +356,8 @@ extract_forest_pruned_graph_and_isolated_trees(
           [i, num_chunks, hash_func = hash_vertex_pair_t<vertex_t>{}] __device__(
             auto src, auto dst, auto src_in_2cores, auto dst_in_2cores, auto) {
             return (src_in_2cores && dst_in_2cores) &&
-                   (static_cast<size_t>(hash_func(thrust::make_tuple(src, dst)) % num_chunks) == i);
+                   (static_cast<size_t>(hash_func(cuda::std::make_tuple(src, dst)) % num_chunks) ==
+                    i);
           }),
         edge_mask.mutable_view());
       mg_graph_view.attach_edge_mask(edge_mask.view());
@@ -744,14 +745,14 @@ std::tuple<vertex_t, int, distance_t, vertex_t, std::optional<distance_t>> trave
     if constexpr (std::is_floating_point_v<distance_t>) {  // SSSP
       thrust::tie(unrenumbered_n, nn, w_to_n) = cugraph::host_scalar_bcast(
         comm,
-        thrust::make_tuple(unrenumbered_n, nn, *w_to_n),
+        cuda::std::make_tuple(unrenumbered_n, nn, *w_to_n),
         cugraph::partition_manager::compute_global_comm_rank_from_vertex_partition_id(
           major_comm_size, minor_comm_size, n_vertex_partition_id),
         handle.get_stream());
     } else {  // BFS
       thrust::tie(unrenumbered_n, nn) = cugraph::host_scalar_bcast(
         comm,
-        thrust::make_tuple(unrenumbered_n, nn),
+        cuda::std::make_tuple(unrenumbered_n, nn),
         cugraph::partition_manager::compute_global_comm_rank_from_vertex_partition_id(
           major_comm_size, minor_comm_size, n_vertex_partition_id),
         handle.get_stream());
@@ -824,8 +825,8 @@ void update_unvisited_vertex_distances(
                       thrust::make_zip_iterator(components.begin(), mg_distances.begin()),
                       remaining_vertices.begin(),
                       [starting_vertex_component, invalid_distance] __device__(auto pair) {
-                        return thrust::get<0>(pair) == starting_vertex_component &&
-                               thrust::get<1>(pair) == invalid_distance;
+                        return cuda::std::get<0>(pair) == starting_vertex_component &&
+                               cuda::std::get<1>(pair) == invalid_distance;
                       })),
     handle.get_stream());
   while (true) {
@@ -856,7 +857,7 @@ void update_unvisited_vertex_distances(
                                             pair_first,
                                             pair_first + remaining_vertices.size(),
                                             [invalid_distance] __device__(auto pair) {
-                                              return thrust::get<1>(pair) == invalid_distance;
+                                              return cuda::std::get<1>(pair) == invalid_distance;
                                             });
     auto new_size       = thrust::distance(pair_first, remaining_last);
     auto scatter_offset_first =
@@ -871,11 +872,11 @@ void update_unvisited_vertex_distances(
           [weights =
              raft::device_span<distance_t const>(w_to_parents->data(), w_to_parents->size()),
            local_vertex_partition_range_first] __device__(auto pair) {
-            auto v_offset = thrust::get<0>(pair) - local_vertex_partition_range_first;
+            auto v_offset = cuda::std::get<0>(pair) - local_vertex_partition_range_first;
             auto w        = weights[v_offset];  // this assumes that the distance to the parent is
                                          // identical to the distance from the parent (this is true
                                          // as Graph 500 assumes an undirected graph)
-            return thrust::get<1>(pair) + w;
+            return cuda::std::get<1>(pair) + w;
           }));
       thrust::scatter(handle.get_thrust_policy(),
                       dist_first,

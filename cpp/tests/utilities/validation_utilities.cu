@@ -428,7 +428,7 @@ size_t count_edges_on_wrong_int_gpu(raft::handle_t const& handle,
        handle.get_subcomm(cugraph::partition_manager::major_comm_name()).get_size(),
        handle.get_subcomm(cugraph::partition_manager::minor_comm_name())
          .get_size()}] __device__(auto e) {
-      return (gpu_id_key_func(thrust::get<0>(e), thrust::get<1>(e)) != comm_rank);
+      return (gpu_id_key_func(cuda::std::get<0>(e), cuda::std::get<1>(e)) != comm_rank);
     });
 }
 

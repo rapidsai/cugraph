@@ -31,6 +31,7 @@
 #include <rmm/device_uvector.hpp>
 
 #include <cuda/std/iterator>
+#include <cuda/std/tuple>
 
 #include <optional>
 #include <tuple>
@@ -112,15 +113,15 @@ rmm::device_uvector<weight_t> similarity(
             pair_first,
             pair_first + intersected_properties_a.size(),
             [] __device__(auto property_pair) {
-              auto prop_a = thrust::get<0>(property_pair);
-              auto prop_b = thrust::get<1>(property_pair);
-              return thrust::make_tuple(prop_a * prop_a, prop_b * prop_b, prop_a * prop_b);
+              auto prop_a = cuda::std::get<0>(property_pair);
+              auto prop_b = cuda::std::get<1>(property_pair);
+              return cuda::std::make_tuple(prop_a * prop_a, prop_b * prop_b, prop_a * prop_b);
             },
-            thrust::make_tuple(weight_t{0}, weight_t{0}, weight_t{0}),
+            cuda::std::make_tuple(weight_t{0}, weight_t{0}, weight_t{0}),
             [] __device__(auto lhs, auto rhs) {
-              return thrust::make_tuple(thrust::get<0>(lhs) + thrust::get<0>(rhs),
-                                        thrust::get<1>(lhs) + thrust::get<1>(rhs),
-                                        thrust::get<2>(lhs) + thrust::get<2>(rhs));
+              return cuda::std::make_tuple(cuda::std::get<0>(lhs) + cuda::std::get<0>(rhs),
+                                           cuda::std::get<1>(lhs) + cuda::std::get<1>(rhs),
+                                           cuda::std::get<2>(lhs) + cuda::std::get<2>(rhs));
             });
 
           return functor.compute_score(static_cast<weight_t>(sqrt(norm_a)),
@@ -145,16 +146,17 @@ rmm::device_uvector<weight_t> similarity(
               pair_first,
               pair_first + intersected_properties_a.size(),
               [] __device__(auto property_pair) {
-                auto prop_a = thrust::get<0>(property_pair);
-                auto prop_b = thrust::get<1>(property_pair);
-                return thrust::make_tuple(min(prop_a, prop_b), max(prop_a, prop_b), prop_a, prop_b);
+                auto prop_a = cuda::std::get<0>(property_pair);
+                auto prop_b = cuda::std::get<1>(property_pair);
+                return cuda::std::make_tuple(
+                  min(prop_a, prop_b), max(prop_a, prop_b), prop_a, prop_b);
               },
-              thrust::make_tuple(weight_t{0}, weight_t{0}, weight_t{0}, weight_t{0}),
+              cuda::std::make_tuple(weight_t{0}, weight_t{0}, weight_t{0}, weight_t{0}),
               [] __device__(auto lhs, auto rhs) {
-                return thrust::make_tuple(thrust::get<0>(lhs) + thrust::get<0>(rhs),
-                                          thrust::get<1>(lhs) + thrust::get<1>(rhs),
-                                          thrust::get<2>(lhs) + thrust::get<2>(rhs),
-                                          thrust::get<3>(lhs) + thrust::get<3>(rhs));
+                return cuda::std::make_tuple(cuda::std::get<0>(lhs) + cuda::std::get<0>(rhs),
+                                             cuda::std::get<1>(lhs) + cuda::std::get<1>(rhs),
+                                             cuda::std::get<2>(lhs) + cuda::std::get<2>(rhs),
+                                             cuda::std::get<3>(lhs) + cuda::std::get<3>(rhs));
               });
 
           weight_t sum_of_uniq_a = weight_a - sum_of_intersected_a;
@@ -410,11 +412,12 @@ all_pairs_similarity(raft::handle_t const& handle,
 
       auto new_size = cuda::std::distance(
         thrust::make_zip_iterator(v1.begin(), v2.begin()),
-        thrust::remove_if(
-          handle.get_thrust_policy(),
-          thrust::make_zip_iterator(v1.begin(), v2.begin()),
-          thrust::make_zip_iterator(v1.end(), v2.end()),
-          [] __device__(auto tuple) { return thrust::get<0>(tuple) == thrust::get<1>(tuple); }));
+        thrust::remove_if(handle.get_thrust_policy(),
+                          thrust::make_zip_iterator(v1.begin(), v2.begin()),
+                          thrust::make_zip_iterator(v1.end(), v2.end()),
+                          [] __device__(auto tuple) {
+                            return cuda::std::get<0>(tuple) == cuda::std::get<1>(tuple);
+                          }));
 
       v1.resize(new_size, handle.get_stream());
       v2.resize(new_size, handle.get_stream());
@@ -450,7 +453,7 @@ all_pairs_similarity(raft::handle_t const& handle,
                           thrust::make_zip_iterator(score.begin(), v1.begin(), v2.begin()),
                           thrust::make_zip_iterator(score.end(), v1.end(), v2.end()),
                           [similarity_threshold] __device__(auto tuple) {
-                            return thrust::get<0>(tuple) < similarity_threshold;
+                            return cuda::std::get<0>(tuple) < similarity_threshold;
                           }));
 
       score.resize(new_size, handle.get_stream());
@@ -592,11 +595,12 @@ all_pairs_similarity(raft::handle_t const& handle,
 
     auto new_size = cuda::std::distance(
       thrust::make_zip_iterator(v1.begin(), v2.begin()),
-      thrust::remove_if(
-        handle.get_thrust_policy(),
-        thrust::make_zip_iterator(v1.begin(), v2.begin()),
-        thrust::make_zip_iterator(v1.end(), v2.end()),
-        [] __device__(auto tuple) { return thrust::get<0>(tuple) == thrust::get<1>(tuple); }));
+      thrust::remove_if(handle.get_thrust_policy(),
+                        thrust::make_zip_iterator(v1.begin(), v2.begin()),
+                        thrust::make_zip_iterator(v1.end(), v2.end()),
+                        [] __device__(auto tuple) {
+                          return cuda::std::get<0>(tuple) == cuda::std::get<1>(tuple);
+                        }));
 
     v1.resize(new_size, handle.get_stream());
     v2.resize(new_size, handle.get_stream());

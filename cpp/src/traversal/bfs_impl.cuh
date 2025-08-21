@@ -552,7 +552,7 @@ void bfs(raft::handle_t const& handle,
         auto aggregate_m_u = m_u;
         if constexpr (GraphViewType::is_multi_gpu) {
           auto tmp      = host_scalar_allreduce(handle.get_comms(),
-                                           thrust::make_tuple(m_f, m_u),
+                                           cuda::std::make_tuple(m_f, m_u),
                                            raft::comms::op_t::SUM,
                                            handle.get_stream());
           aggregate_m_f = cuda::std::get<0>(tmp);
@@ -704,7 +704,7 @@ void bfs(raft::handle_t const& handle,
       if constexpr (GraphViewType::is_multi_gpu) {
         auto tmp = host_scalar_allreduce(
           handle.get_comms(),
-          thrust::make_tuple(next_aggregate_frontier_size, aggregate_nzd_unvisited_vertices),
+          cuda::std::make_tuple(next_aggregate_frontier_size, aggregate_nzd_unvisited_vertices),
           raft::comms::op_t::SUM,
           handle.get_stream());
         next_aggregate_frontier_size     = cuda::std::get<0>(tmp);
