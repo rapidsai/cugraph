@@ -555,8 +555,8 @@ void bfs(raft::handle_t const& handle,
                                            thrust::make_tuple(m_f, m_u),
                                            raft::comms::op_t::SUM,
                                            handle.get_stream());
-          aggregate_m_f = thrust::get<0>(tmp);
-          aggregate_m_u = thrust::get<1>(tmp);
+          aggregate_m_f = cuda::std::get<0>(tmp);
+          aggregate_m_u = cuda::std::get<1>(tmp);
         }
         if ((aggregate_m_f * direction_optimizing_alpha > aggregate_m_u) &&
             (next_aggregate_frontier_size >= cur_aggregate_frontier_size)) {
@@ -707,8 +707,8 @@ void bfs(raft::handle_t const& handle,
           thrust::make_tuple(next_aggregate_frontier_size, aggregate_nzd_unvisited_vertices),
           raft::comms::op_t::SUM,
           handle.get_stream());
-        next_aggregate_frontier_size     = thrust::get<0>(tmp);
-        aggregate_nzd_unvisited_vertices = thrust::get<1>(tmp);
+        next_aggregate_frontier_size     = cuda::std::get<0>(tmp);
+        aggregate_nzd_unvisited_vertices = cuda::std::get<1>(tmp);
       }
 
       if (next_aggregate_frontier_size == 0) {

@@ -180,7 +180,7 @@ class nbr_unrenumber_cache_t {
              vertex_partition_range_lasts_.data(), vertex_partition_range_lasts_.size()),
            consecutive_size_per_vertex_partition =
              consecutive_size_per_vertex_partition_] __device__(auto pair) {
-            auto v                   = thrust::get<0>(pair);
+            auto v                   = cuda::std::get<0>(pair);
             auto vertex_partition_id = static_cast<int>(
               cuda::std::distance(vertex_partition_range_lasts.begin(),
                                   thrust::upper_bound(thrust::seq,
@@ -213,7 +213,7 @@ class nbr_unrenumber_cache_t {
                       thrust::make_zip_iterator(tmp_sorted_unique_nbrs.begin(),
                                                 dense_unrenumbered_sorted_unique_nbrs_.begin()),
                       cuda::proclaim_return_type<bool>([in_dense_func] __device__(auto pair) {
-                        return in_dense_func(thrust::get<0>(pair));
+                        return in_dense_func(cuda::std::get<0>(pair));
                       }));
       thrust::copy_if(
         handle.get_thrust_policy(),
@@ -221,8 +221,9 @@ class nbr_unrenumber_cache_t {
         pair_first + sorted_unique_nbrs.size(),
         thrust::make_zip_iterator(tmp_sorted_unique_nbrs.begin() + dense_sorted_unique_nbr_size,
                                   sparse_unrenumbered_sorted_unique_nbrs_.begin()),
-        cuda::proclaim_return_type<bool>(
-          [in_sparse_func] __device__(auto pair) { return in_sparse_func(thrust::get<0>(pair)); }));
+        cuda::proclaim_return_type<bool>([in_sparse_func] __device__(auto pair) {
+          return in_sparse_func(cuda::std::get<0>(pair));
+        }));
 
       sorted_unique_nbrs = std::move(tmp_sorted_unique_nbrs);
       unrenumbered_sorted_unique_nbrs.resize(0, handle.get_stream());

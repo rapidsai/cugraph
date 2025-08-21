@@ -290,7 +290,7 @@ sort_and_reduce_buffer_elements(
               [threshold,
                invalid_key = invalid_key ? cuda::std::optional(*invalid_key)
                                          : cuda::std::nullopt] __device__(auto pair) {
-                auto key = thrust::get<0>(pair);
+                auto key = cuda::std::get<0>(pair);
                 if (invalid_key && key == *invalid_key) { return false; }
                 return key < threshold;
               }))));
@@ -319,7 +319,7 @@ sort_and_reduce_buffer_elements(
         pair_first + num_unique_prefix_elements,
         pair_first + size_dataframe_buffer(key_buffer),
         cuda::proclaim_return_type<bool>([invalid_key = *invalid_key] __device__(auto pair) {
-          return thrust::get<0>(pair) != invalid_key;
+          return cuda::std::get<0>(pair) != invalid_key;
         }));
       valid_size = static_cast<size_t>(cuda::std::distance(pair_first, valid_pair_last));
     }
@@ -530,7 +530,7 @@ sort_and_reduce_buffer_elements(
         output_key_buffer,
         cuda::std::distance(
           get_dataframe_buffer_begin(output_key_buffer),
-          thrust::get<0>(thrust::unique_by_key_copy(
+          cuda::std::get<0>(thrust::unique_by_key_copy(
             handle.get_thrust_policy(),
             input_key_first + num_unique_prefix_elements,
             input_key_first + size_dataframe_buffer(key_buffer),
@@ -546,7 +546,7 @@ sort_and_reduce_buffer_elements(
         key_buffer,
         cuda::std::distance(
           get_dataframe_buffer_begin(key_buffer),
-          thrust::get<0>(thrust::unique_by_key(
+          cuda::std::get<0>(thrust::unique_by_key(
             handle.get_thrust_policy(),
             get_dataframe_buffer_begin(key_buffer) + num_unique_prefix_elements,
             get_dataframe_buffer_end(key_buffer),
@@ -776,11 +776,7 @@ transform_reduce_if_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
           int subgroup_size{};
           int num_gpus_per_domain{};  // domain a group of GPUs that can communicate fast (e.g.
                                       // NVLink domain)
-#if 1  // SK: we should get this from NCCL (once NCCL is updated to provide this information)
-          num_gpus_per_domain = 72;
-#else
           RAFT_CUDA_TRY(cudaGetDeviceCount(&num_gpus_per_domain));
-#endif
           num_gpus_per_domain = std::min(num_gpus_per_domain, comm_size);
           if (comm_size == num_gpus_per_domain) {
             subgroup_size = major_comm_size;
