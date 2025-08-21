@@ -32,10 +32,14 @@
 #include <cugraph/algorithms.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/edge_src_dst_property.hpp>
+#include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/error.hpp>
+#include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/vertex_partition_device_view.cuh>
 
 #include <raft/core/handle.hpp>
+
+#include <rmm/mr/device/device_memory_resource.hpp>
 
 #include <cuda/atomic>
 #include <cuda/std/iterator>
@@ -49,12 +53,312 @@
 #include <thrust/sort.h>
 #include <thrust/transform.h>
 
+#include <cuda_runtime_api.h>
+
+#include <algorithm>
+#include <cstdio>
+#include <numeric>
+#include <stdexcept>
+#include <string>
+#include <vector>
+
 //
 // The formula for BC(v) is the sum over all (s,t) where s != v != t of
 // sigma_st(v) / sigma_st.  Sigma_st(v) is the number of shortest paths
 // that pass through vertex v, whereas sigma_st is the total number of shortest
 // paths.
 namespace {
+
+// Memory measurement utilities
+struct MemoryInfo {
+  size_t free_memory;
+  size_t used_memory;
+  size_t total_memory;
+
+  static MemoryInfo get_device_memory()
+  {
+    size_t free, total;
+    cudaMemGetInfo(&free, &total);
+    return {free, total - free, total};
+  }
+
+  void print(const char* label) const
+  {
+    double memory_usage = static_cast<double>(used_memory) / total_memory;
+    printf("[Memory] %s: Free: %.1fGB, Used: %.1fGB, Total: %.1fGB (%.1f%%)\n",
+           label,
+           free_memory / (1024.0 * 1024.0 * 1024.0),
+           used_memory / (1024.0 * 1024.0 * 1024.0),
+           total_memory / (1024.0 * 1024.0 * 1024.0),
+           memory_usage * 100.0);
+  }
+};
+
+// 4-Stage Memory Allocation Strategy
+enum class MemoryStage {
+  RAMP_UP,      // Stage 1: Double until ceiling
+  OSCILLATION,  // Stage 2: Throttle down/up until convergence
+  FINE_TUNE,    // Stage 3: Slowly add +5 until 98%
+  CONVERGED     // Stage 4: Locked in constant batch size
+};
+
+class AdaptiveMemoryManager {
+ private:
+  MemoryStage current_stage;
+  size_t current_batch_size;
+  size_t min_batch_size;
+  size_t max_batch_size;
+  size_t successful_batches;
+  size_t oom_batches;
+  size_t total_batches;
+  double memory_threshold;
+  size_t oscillation_count;
+  size_t last_throttle_direction;        // 0 = none, 1 = down, 2 = up
+  size_t converged_batch_size;           // Locked-in constant batch size once converged
+  size_t consecutive_same_size_batches;  // Track stuck detection
+  size_t last_batch_size;                // Track stuck detection
+  static constexpr size_t CONVERGENCE_THRESHOLD = 3;
+  static constexpr size_t STUCK_THRESHOLD       = 5;  // Force transition if stuck
+
+ public:
+  AdaptiveMemoryManager(size_t initial_batch_size = 50,
+                        size_t min_batch          = 10,
+                        size_t max_batch          = 1000,
+                        double threshold          = 0.85)
+    : current_stage(MemoryStage::RAMP_UP),
+      current_batch_size(initial_batch_size),
+      min_batch_size(min_batch),
+      max_batch_size(max_batch),
+      successful_batches(0),
+      oom_batches(0),
+      total_batches(0),
+      memory_threshold(threshold),
+      oscillation_count(0),
+      last_throttle_direction(0),
+      converged_batch_size(0),
+      consecutive_same_size_batches(0),
+      last_batch_size(initial_batch_size)
+  {
+  }
+
+  size_t get_batch_size() const { return current_batch_size; }
+  MemoryStage get_stage() const { return current_stage; }
+
+  // Record batch result and handle OOMs immediately
+  void record_batch_result(bool success)
+  {
+    total_batches++;
+
+    if (success) {
+      successful_batches++;
+      oom_batches = 0;  // Reset OOM counter on success
+    } else {
+      oom_batches++;
+      // If we hit OOM, reduce batch size immediately (regardless of stage)
+      current_batch_size = std::max(current_batch_size / 2, min_batch_size);
+      printf("[OOM] Batch size halved to %zu\n", current_batch_size);
+    }
+  }
+
+  void update_batch_size(bool success, const MemoryInfo& mem_info)
+  {
+    // Note: OOM handling is now done in record_batch_result()
+    // This method only handles stage transitions and success-based increases
+
+    double memory_usage = static_cast<double>(mem_info.used_memory) / mem_info.total_memory;
+
+    // 4-stage adaptive batch sizing logic
+    switch (current_stage) {
+      case MemoryStage::RAMP_UP: {
+        // Stage 1: Double until ceiling, but use 1.5x if we've had OOMs
+        if (memory_usage < memory_threshold) {
+          // If we've had OOMs, be more conservative with 1.5x instead of doubling
+          if (oom_batches > 0) {
+            // OOMs detected - use 1.5x instead of doubling
+            size_t new_batch_size = static_cast<size_t>(current_batch_size * 1.5);
+            if (new_batch_size <= max_batch_size) {
+              current_batch_size = new_batch_size;
+              printf("RAMP_UP: OOMs detected, conservative increase to %zu (1.5x)\n",
+                     current_batch_size);
+            }
+          } else {
+            // No OOMs - safe to double
+            size_t new_batch_size = current_batch_size * 2;
+            if (new_batch_size <= max_batch_size) {
+              current_batch_size = new_batch_size;
+              printf("RAMP_UP: Safe doubling to %zu\n", current_batch_size);
+            }
+          }
+        } else {
+          // Hit ceiling - transition to oscillation stage
+          current_stage = MemoryStage::OSCILLATION;
+          printf("RAMP_UP → OSCILLATION: Hit memory ceiling at %zu sources\n", current_batch_size);
+        }
+        break;
+      }
+
+      case MemoryStage::OSCILLATION: {
+        // Stage 2: Throttle down/up until convergence using single 85% threshold
+
+        // Update stuck detection tracking
+        if (current_batch_size == last_batch_size) {
+          consecutive_same_size_batches++;
+        } else {
+          consecutive_same_size_batches = 0;
+        }
+        last_batch_size = current_batch_size;
+
+        // Check if we're stuck (same batch size for too long)
+        if (consecutive_same_size_batches >= STUCK_THRESHOLD) {
+          current_stage = MemoryStage::FINE_TUNE;
+          printf(
+            "OSCILLATION → FINE_TUNE: Forced transition due to stuck at batch size %zu for %zu "
+            "consecutive batches\n",
+            current_batch_size,
+            consecutive_same_size_batches);
+          break;
+        }
+
+        if (memory_usage > memory_threshold) {
+          // Memory > 85%: Throttle down
+          size_t new_batch_size =
+            std::max(static_cast<size_t>(current_batch_size * 0.8), min_batch_size);
+          if (new_batch_size < current_batch_size) {
+            current_batch_size      = new_batch_size;
+            last_throttle_direction = 1;  // Down
+            printf("OSCILLATION: Memory %.1f%% > %.1f%%, throttling down to %zu (0.8x)\n",
+                   memory_usage * 100.0,
+                   memory_threshold * 100.0,
+                   current_batch_size);
+          }
+        } else {
+          // Memory < 85%: Throttle up
+          size_t new_batch_size = static_cast<size_t>(current_batch_size * 1.2);
+          if (new_batch_size <= max_batch_size) {
+            current_batch_size = new_batch_size;
+
+            // Check if this completes a down→up cycle
+            if (last_throttle_direction == 1) {  // Previous was down
+              oscillation_count++;
+
+              // Check if we've converged
+              if (oscillation_count >= CONVERGENCE_THRESHOLD) {
+                current_stage = MemoryStage::FINE_TUNE;
+                printf(
+                  "OSCILLATION → FINE_TUNE: %zu down→up cycles completed, starting fine-tuning\n",
+                  oscillation_count);
+              }
+            }
+
+            last_throttle_direction = 2;  // Up
+            printf("OSCILLATION: Memory %.1f%% < %.1f%%, throttling up to %zu (1.2x)\n",
+                   memory_usage * 100.0,
+                   memory_threshold * 100.0,
+                   current_batch_size);
+          }
+        }
+        break;
+      }
+
+      case MemoryStage::FINE_TUNE: {
+        // Stage 3: Slowly add +5 until close to 98%
+        if (memory_usage < 0.98) {  // Below 98% memory usage
+          size_t new_batch_size = current_batch_size + 5;
+          if (new_batch_size <= max_batch_size) {
+            current_batch_size = new_batch_size;
+            printf("FINE_TUNE: Memory %.1f%% < 98%%, increasing to %zu (+5)\n",
+                   memory_usage * 100.0,
+                   current_batch_size);
+          }
+        } else {
+          // Hit 98% memory usage - lock in this batch size as constant maximum
+          converged_batch_size = current_batch_size;
+          current_stage        = MemoryStage::CONVERGED;
+          printf(
+            "FINE_TUNE → CONVERGED: Hit 98%% memory usage, locked in constant batch size: %zu\n",
+            converged_batch_size);
+        }
+        break;
+      }
+
+      case MemoryStage::CONVERGED: {
+        // Stage 4: Use locked-in constant batch size for all future processing
+        // This is the ultimate maximum - never change it
+        if (converged_batch_size > 0 && converged_batch_size <= max_batch_size) {
+          current_batch_size = converged_batch_size;
+        } else {
+          // Safety fallback - if converged_batch_size is invalid, reset to oscillation
+          printf("CONVERGED: Invalid converged batch size %zu, falling back to oscillation\n",
+                 converged_batch_size);
+          current_stage        = MemoryStage::OSCILLATION;
+          current_batch_size   = std::min(current_batch_size, max_batch_size / 2);
+          converged_batch_size = 0;
+        }
+        break;
+      }
+    }
+  }
+
+  void print_stats() const
+  {
+    printf(
+      "Performance Stats: Total=%zu, Successful=%zu, OOM=%zu, "
+      "Success Rate=%.1f%%, Stage=%s, Oscillations=%zu\n",
+      total_batches,
+      successful_batches,
+      oom_batches,
+      (total_batches > 0) ? (100.0 * successful_batches / total_batches) : 0.0,
+      stage_to_string(current_stage).c_str(),
+      oscillation_count);
+
+    if (current_stage == MemoryStage::CONVERGED) {
+      printf("CONVERGED: Using locked-in constant batch size: %zu (ultimate maximum)\n",
+             converged_batch_size);
+    }
+  }
+
+ private:
+  static std::string stage_to_string(MemoryStage stage)
+  {
+    switch (stage) {
+      case MemoryStage::RAMP_UP: return "RAMP_UP";
+      case MemoryStage::OSCILLATION: return "OSCILLATION";
+      case MemoryStage::FINE_TUNE: return "FINE_TUNE";
+      case MemoryStage::CONVERGED: return "CONVERGED";
+      default: return "UNKNOWN";
+    }
+  }
+};
+
+// Memory cleanup utilities
+struct MemoryCleanup {
+  static void cleanup_batch_memory(raft::handle_t const& handle)
+  {
+    handle.sync_stream();
+
+    // Try to free memory from RMM pools
+    auto* current_resource = rmm::mr::get_current_device_resource();
+    if (current_resource) { current_resource->deallocate(nullptr, 0, handle.get_stream()); }
+
+    // Synchronize CUDA operations
+    cudaDeviceSynchronize();
+
+    // Try to free any cached memory
+    cudaFree(0);
+  }
+
+  static void cleanup_test_memory(raft::handle_t const& handle)
+  {
+    handle.sync_stream();
+
+    // More aggressive cleanup for test completion
+    auto* current_resource = rmm::mr::get_current_device_resource();
+    if (current_resource) { current_resource->deallocate(nullptr, 0, handle.get_stream()); }
+
+    cudaDeviceSynchronize();
+    cudaFree(0);
+  }
+};
 
 template <typename vertex_t>
 struct brandes_e_op_t {
@@ -1132,6 +1436,14 @@ rmm::device_uvector<weight_t> betweenness_centrality(
     my_rank = handle.get_comms().get_rank();
   }
 
+  // Initialize memory management and measurement
+  MemoryInfo initial_mem = MemoryInfo::get_device_memory();
+  initial_mem.print("Before BFS processing");
+
+  AdaptiveMemoryManager memory_manager(100, 10, 10000, 0.85);
+  size_t processed_sources = 0;
+  size_t batch_number      = 0;
+
   if constexpr (multi_gpu) {
     // Multi-GPU: Use sequential brandes_bfs (more reliable for cross-GPU)
     printf("[DEBUG] Running SEQUENTIAL version (multi-GPU mode)\n");
@@ -1165,24 +1477,103 @@ rmm::device_uvector<weight_t> betweenness_centrality(
         do_expensive_check);
     }
   } else {
-    // Single-GPU: Use parallel multisource_bfs (faster)
-    printf("[DEBUG] Running MULTISOURCE version (single-GPU mode)\n");
-    auto [distances_2d, sigmas_2d] = detail::multisource_bfs(
-      handle, graph_view, edge_weight_view, vertices_begin, vertices_end, do_expensive_check);
+    // Single-GPU: Use parallel multisource_bfs with adaptive batching
+    printf("[DEBUG] Running MULTISOURCE version (single-GPU mode) with adaptive batching\n");
 
-    // Use parallel multisource backward pass for better performance
-    detail::multisource_backward_pass(
-      handle,
-      graph_view,
-      edge_weight_view,
-      raft::device_span<weight_t>{centralities.data(), centralities.size()},
-      std::move(distances_2d),
-      std::move(sigmas_2d),
-      vertices_begin,
-      vertices_end,
-      include_endpoints,
-      do_expensive_check);
+    while (processed_sources < num_sources) {
+      size_t current_batch_size = memory_manager.get_batch_size();
+      size_t remaining_sources  = num_sources - processed_sources;
+      size_t actual_batch_size  = std::min(current_batch_size, remaining_sources);
+
+      printf("[Attempt] Processing %zu sources (processed: %zu/%zu, remaining: %zu)\n",
+             actual_batch_size,
+             processed_sources,
+             num_sources,
+             remaining_sources);
+      printf("[Stage: %s]\n",
+             (memory_manager.get_stage() == MemoryStage::RAMP_UP)       ? "RAMP_UP"
+             : (memory_manager.get_stage() == MemoryStage::OSCILLATION) ? "OSCILLATION"
+             : (memory_manager.get_stage() == MemoryStage::FINE_TUNE)   ? "FINE_TUNE"
+                                                                        : "CONVERGED");
+
+      bool batch_success          = true;
+      MemoryInfo mem_before_batch = MemoryInfo::get_device_memory();
+
+      try {
+        // Create iterators for current batch
+        auto batch_begin = vertices_begin + processed_sources;
+        auto batch_end   = vertices_begin + processed_sources + actual_batch_size;
+
+        auto [distances_2d, sigmas_2d] = detail::multisource_bfs(
+          handle, graph_view, edge_weight_view, batch_begin, batch_end, do_expensive_check);
+
+        // Use parallel multisource backward pass for better performance
+        detail::multisource_backward_pass(
+          handle,
+          graph_view,
+          edge_weight_view,
+          raft::device_span<weight_t>{centralities.data(), centralities.size()},
+          std::move(distances_2d),
+          std::move(sigmas_2d),
+          batch_begin,
+          batch_end,
+          include_endpoints,
+          do_expensive_check);
+
+        processed_sources += actual_batch_size;
+        batch_success = true;
+        batch_number++;  // Only increment on success
+
+      } catch (const std::exception& e) {
+        printf("[ERROR] Attempt failed: %s\n", e.what());
+        batch_success = false;
+      }
+
+      // Update memory manager and cleanup
+      MemoryInfo mem_after_batch = MemoryInfo::get_device_memory();
+      {
+        std::string label =
+          batch_success
+            ? "After processing " + std::to_string(actual_batch_size) + " sources"
+            : "After failed attempt to process " + std::to_string(actual_batch_size) + " sources";
+        mem_after_batch.print(label.c_str());
+      }
+
+      // Record batch result first (handles OOMs immediately)
+      memory_manager.record_batch_result(batch_success);
+
+      // Then update stage logic
+      memory_manager.update_batch_size(batch_success, mem_after_batch);
+
+      // Print clean, separated stats
+      printf("\n");
+      memory_manager.print_stats();
+      printf("\n");
+
+      // Cleanup batch memory
+      MemoryCleanup::cleanup_batch_memory(handle);
+
+      // Check if we need to throttle due to memory pressure
+      double memory_usage =
+        static_cast<double>(mem_after_batch.used_memory) / mem_after_batch.total_memory;
+      if (memory_usage > 0.95) {
+        printf("[WARNING] High memory usage (%.1f%%), forcing cleanup\n", memory_usage * 100.0);
+        MemoryCleanup::cleanup_test_memory(handle);
+      }
+    }
+
+    printf("[Memory] Completed %zu sources in %zu batches\n", processed_sources, batch_number);
   }
+
+  // Final memory cleanup and measurement
+  MemoryCleanup::cleanup_test_memory(handle);
+  MemoryInfo final_mem = MemoryInfo::get_device_memory();
+  final_mem.print("After completion");
+
+  printf("[Memory] Memory change: %.1fGB -> %.1fGB (delta: %.1fGB)\n",
+         initial_mem.used_memory / (1024.0 * 1024.0 * 1024.0),
+         final_mem.used_memory / (1024.0 * 1024.0 * 1024.0),
+         (final_mem.used_memory - initial_mem.used_memory) / (1024.0 * 1024.0 * 1024.0));
 
   std::optional<weight_t> scale_nonsource{std::nullopt};
   std::optional<weight_t> scale_source{std::nullopt};
