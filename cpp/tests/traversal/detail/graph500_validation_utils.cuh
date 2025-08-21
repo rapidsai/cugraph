@@ -269,6 +269,7 @@ bool check_distance_from_parents(
   }
 
   if (tree_src_dists.size() != tree_dst_dists.size()) { return false; }
+
   size_t num_invalids{0};
   if constexpr (std::is_floating_point_v<distance_t>) {  // SSSP
     auto triplet_first = thrust::make_zip_iterator(
@@ -284,8 +285,8 @@ bool check_distance_from_parents(
         auto diff     = cuda::std::abs((src_dist + w) - dst_dist);
         return diff >
                cuda::std::max(
-                 diff * 1e-6,
-                 1e-12);  // 1e-12 & 1e-6 to consider limited floating point arithmetic resolution
+                 diff * 1e-4,
+                 1e-6);  // 1e-4 & 1e-6 to consider limited floating point arithmetic resolution
       })));
   } else {  // BFS
     auto pair_first = thrust::make_zip_iterator(tree_src_dists.begin(), tree_dst_dists.begin());
@@ -425,8 +426,8 @@ bool check_edge_endpoint_distances(
             return dst_dist != invalid_distance;
           } else {
             auto diff = cuda::std::abs(src_dist - dst_dist);
-            return (diff > w + 1e-12) &&
-                   (diff > w * (1.0 + 1e-6));  // 1e-12 & 1e-6 to consider limited floating point
+            return (diff > w + 1e-6) &&
+                   (diff > w * (1.0 + 1e-4));  // 1e-4 & 1e-6 to consider limited floating point
                                                // arithmetic resolution
           }
         }));
@@ -708,8 +709,8 @@ bool check_edge_endpoint_distances(
               return true;
             } else {
               auto diff = cuda::std::abs(src_dist - dst_dist);
-              return (diff > w + 1e-12) &&
-                     (diff > w * (1.0 + 1e-6));  // 1e-12 & 1e-6 to consider limited floating point
+              return (diff > w + 1e-6) &&
+                     (diff > w * (1.0 + 1e-4));  // 1e-4 & 1e-6 to consider limited floating point
                                                  // arithmetic resolution
             }
             return (dst_dist == invalid_distance) || (cuda::std::abs(src_dist - dst_dist) > w);

@@ -786,6 +786,7 @@ std::tuple<vertex_t, int, distance_t, vertex_t, std::optional<distance_t>> trave
 
     unrenumbered_v = unrenumbered_n;
     n              = nn;
+    w_to_v         = w_to_n;
   }
 
   return std::make_tuple(subgraph_starting_vertex,
