@@ -524,28 +524,28 @@ compute_renumber_map(raft::handle_t const& handle,
       }
       sorted_unique_minors = std::move(edge_partition_tmp_minors[0]);
       for (size_t i = 1; i < edge_partition_tmp_minors.size(); ++i) {
-          auto merged_minors =
-            large_edge_buffer_type
-              ? large_buffer_manager::allocate_memory_buffer<vertex_t>(
-                  sorted_unique_minors.size() + edge_partition_tmp_minors[i].size(),
-                  handle.get_stream())
-              : rmm::device_uvector<vertex_t>(
-                  sorted_unique_minors.size() + edge_partition_tmp_minors[i].size(),
-                  handle.get_stream());
-          thrust::merge(handle.get_thrust_policy(),
-                        sorted_unique_minors.begin(),
-                        sorted_unique_minors.end(),
-                        edge_partition_tmp_minors[i].begin(),
-                        edge_partition_tmp_minors[i].end(),
-                        merged_minors.begin());
-          edge_partition_tmp_minors[i].resize(0, handle.get_stream());
-          edge_partition_tmp_minors[i].shrink_to_fit(handle.get_stream());
-          merged_minors.resize(cuda::std::distance(merged_minors.begin(),
-                                                   thrust::unique(handle.get_thrust_policy(),
-                                                                  merged_minors.begin(),
-                                                                  merged_minors.end())),
-                               handle.get_stream());
-          sorted_unique_minors = std::move(merged_minors);
+        auto merged_minors =
+          large_edge_buffer_type
+            ? large_buffer_manager::allocate_memory_buffer<vertex_t>(
+                sorted_unique_minors.size() + edge_partition_tmp_minors[i].size(),
+                handle.get_stream())
+            : rmm::device_uvector<vertex_t>(
+                sorted_unique_minors.size() + edge_partition_tmp_minors[i].size(),
+                handle.get_stream());
+        thrust::merge(handle.get_thrust_policy(),
+                      sorted_unique_minors.begin(),
+                      sorted_unique_minors.end(),
+                      edge_partition_tmp_minors[i].begin(),
+                      edge_partition_tmp_minors[i].end(),
+                      merged_minors.begin());
+        edge_partition_tmp_minors[i].resize(0, handle.get_stream());
+        edge_partition_tmp_minors[i].shrink_to_fit(handle.get_stream());
+        merged_minors.resize(
+          cuda::std::distance(
+            merged_minors.begin(),
+            thrust::unique(handle.get_thrust_policy(), merged_minors.begin(), merged_minors.end())),
+          handle.get_stream());
+        sorted_unique_minors = std::move(merged_minors);
       }
       edge_partition_tmp_minors.clear();
       if constexpr (multi_gpu) {

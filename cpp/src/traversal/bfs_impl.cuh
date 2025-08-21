@@ -437,9 +437,7 @@ void bfs(raft::handle_t const& handle,
 
       next_aggregate_frontier_size =
         static_cast<vertex_t>(vertex_frontier.bucket(bucket_idx_next).aggregate_size());
-      if (next_aggregate_frontier_size == 0) {
-        break;
-      }
+      if (next_aggregate_frontier_size == 0) { break; }
 
       fill_edge_dst_property(handle,
                              graph_view,
@@ -711,9 +709,7 @@ void bfs(raft::handle_t const& handle,
         aggregate_nzd_unvisited_vertices = cuda::std::get<1>(tmp);
       }
 
-      if (next_aggregate_frontier_size == 0) {
-        break;
-      }
+      if (next_aggregate_frontier_size == 0) { break; }
 
       fill_edge_dst_property(handle,
                              graph_view,

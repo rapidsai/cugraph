@@ -1487,8 +1487,7 @@ extract_transform_if_v_frontier_e(raft::handle_t const& handle,
       raft::update_host(
         high_segment_edge_counts->data(), counters.data(), loop_count, handle.get_stream());
       handle.sync_stream();
-    }
-    else {
+    } else {
       if (loop_stream_pool_indices) { handle.sync_stream_pool(*loop_stream_pool_indices); }
     }
 
