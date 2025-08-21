@@ -116,9 +116,9 @@ rmm::device_uvector<edge_t> compute_sparse_offsets(
         thrust::for_each(
           handle.get_thrust_policy(),
           input_first,
-          input_first + cuda::std::distance(output_indices.begin(), thrust::get<0>(it)),
+          input_first + cuda::std::distance(output_indices.begin(), cuda::std::get<0>(it)),
           [offsets = raft::device_span<edge_t>(offsets.data(), offsets.size())] __device__(
-            auto pair) { offsets[thrust::get<0>(pair)] += thrust::get<1>(pair); });
+            auto pair) { offsets[cuda::std::get<0>(pair)] += cuda::std::get<1>(pair); });
       }
     } else {
       thrust::for_each(handle.get_thrust_policy(),
@@ -177,7 +177,7 @@ std::tuple<rmm::device_uvector<edge_t>, rmm::device_uvector<vertex_t>> compress_
                                           pair_first,
                                           pair_first + dcs_nzd_vertices.size(),
                                           [] __device__(auto pair) {
-                                            return thrust::get<0>(pair) == invalid_vertex;
+                                            return cuda::std::get<0>(pair) == invalid_vertex;
                                           })),
     handle.get_stream());
   dcs_nzd_vertices.shrink_to_fit(handle.get_stream());
@@ -246,7 +246,7 @@ sort_and_compress_edgelist(
       detail::mem_frugal_partition(pair_first,
                                    pair_first + edgelist_minors.size(),
                                    get_dataframe_buffer_begin(edgelist_values),
-                                   thrust_tuple_get<thrust::tuple<vertex_t, vertex_t>, 0>{},
+                                   thrust_tuple_get<cuda::std::tuple<vertex_t, vertex_t>, 0>{},
                                    pivot,
                                    handle.get_stream(),
                                    large_edge_buffer_type);
@@ -362,21 +362,21 @@ sort_and_compress_edgelist(
       auto second_half_first =
         detail::mem_frugal_partition(pair_first,
                                      pair_first + edgelist_major_offsets.size(),
-                                     thrust_tuple_get<thrust::tuple<uint32_t, vertex_t>, 0>{},
+                                     thrust_tuple_get<cuda::std::tuple<uint32_t, vertex_t>, 0>{},
                                      pivots[1],
                                      handle.get_stream(),
                                      large_edge_buffer_type);
       auto second_quarter_first =
         detail::mem_frugal_partition(pair_first,
                                      second_half_first,
-                                     thrust_tuple_get<thrust::tuple<uint32_t, vertex_t>, 0>{},
+                                     thrust_tuple_get<cuda::std::tuple<uint32_t, vertex_t>, 0>{},
                                      pivots[0],
                                      handle.get_stream(),
                                      large_edge_buffer_type);
       auto last_quarter_first =
         detail::mem_frugal_partition(second_half_first,
                                      pair_first + edgelist_major_offsets.size(),
-                                     thrust_tuple_get<thrust::tuple<uint32_t, vertex_t>, 0>{},
+                                     thrust_tuple_get<cuda::std::tuple<uint32_t, vertex_t>, 0>{},
                                      pivots[2],
                                      handle.get_stream(),
                                      large_edge_buffer_type);
@@ -408,21 +408,21 @@ sort_and_compress_edgelist(
       auto second_half_first =
         detail::mem_frugal_partition(edge_first,
                                      edge_first + edgelist_majors.size(),
-                                     thrust_tuple_get<thrust::tuple<vertex_t, vertex_t>, 0>{},
+                                     thrust_tuple_get<cuda::std::tuple<vertex_t, vertex_t>, 0>{},
                                      pivots[1],
                                      handle.get_stream(),
                                      large_edge_buffer_type);
       auto second_quarter_first =
         detail::mem_frugal_partition(edge_first,
                                      second_half_first,
-                                     thrust_tuple_get<thrust::tuple<vertex_t, vertex_t>, 0>{},
+                                     thrust_tuple_get<cuda::std::tuple<vertex_t, vertex_t>, 0>{},
                                      pivots[0],
                                      handle.get_stream(),
                                      large_edge_buffer_type);
       auto last_quarter_first =
         detail::mem_frugal_partition(second_half_first,
                                      edge_first + edgelist_majors.size(),
-                                     thrust_tuple_get<thrust::tuple<vertex_t, vertex_t>, 0>{},
+                                     thrust_tuple_get<cuda::std::tuple<vertex_t, vertex_t>, 0>{},
                                      pivots[2],
                                      handle.get_stream(),
                                      large_edge_buffer_type);

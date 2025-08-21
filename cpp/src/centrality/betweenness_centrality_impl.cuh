@@ -80,25 +80,25 @@ struct brandes_pred_op_t {
 template <typename vertex_t>
 struct extract_edge_e_op_t {
   template <typename edge_t, typename weight_t>
-  __device__ thrust::tuple<vertex_t, vertex_t> operator()(
+  __device__ cuda::std::tuple<vertex_t, vertex_t> operator()(
     vertex_t src,
     vertex_t dst,
-    thrust::tuple<vertex_t, edge_t, weight_t> src_props,
-    thrust::tuple<vertex_t, edge_t, weight_t> dst_props,
+    cuda::std::tuple<vertex_t, edge_t, weight_t> src_props,
+    cuda::std::tuple<vertex_t, edge_t, weight_t> dst_props,
     cuda::std::nullopt_t) const
   {
-    return thrust::make_tuple(src, dst);
+    return cuda::std::make_tuple(src, dst);
   }
 
   template <typename edge_t, typename weight_t>
-  __device__ thrust::tuple<vertex_t, vertex_t, edge_t> operator()(
+  __device__ cuda::std::tuple<vertex_t, vertex_t, edge_t> operator()(
     vertex_t src,
     vertex_t dst,
-    thrust::tuple<vertex_t, edge_t, weight_t> src_props,
-    thrust::tuple<vertex_t, edge_t, weight_t> dst_props,
+    cuda::std::tuple<vertex_t, edge_t, weight_t> src_props,
+    cuda::std::tuple<vertex_t, edge_t, weight_t> dst_props,
     edge_t edge_multi_index) const
   {
-    return thrust::make_tuple(src, dst, edge_multi_index);
+    return cuda::std::make_tuple(src, dst, edge_multi_index);
   }
 };
 
@@ -109,21 +109,21 @@ struct extract_edge_pred_op_t {
   template <typename edge_t, typename weight_t>
   __device__ bool operator()(vertex_t src,
                              vertex_t dst,
-                             thrust::tuple<vertex_t, edge_t, weight_t> src_props,
-                             thrust::tuple<vertex_t, edge_t, weight_t> dst_props,
+                             cuda::std::tuple<vertex_t, edge_t, weight_t> src_props,
+                             cuda::std::tuple<vertex_t, edge_t, weight_t> dst_props,
                              cuda::std::nullopt_t) const
   {
-    return ((thrust::get<0>(src_props) == (d - 1)) && (thrust::get<0>(dst_props) == d));
+    return ((cuda::std::get<0>(src_props) == (d - 1)) && (cuda::std::get<0>(dst_props) == d));
   }
 
   template <typename edge_t, typename weight_t>
   __device__ bool operator()(vertex_t src,
                              vertex_t dst,
-                             thrust::tuple<vertex_t, edge_t, weight_t> src_props,
-                             thrust::tuple<vertex_t, edge_t, weight_t> dst_props,
+                             cuda::std::tuple<vertex_t, edge_t, weight_t> src_props,
+                             cuda::std::tuple<vertex_t, edge_t, weight_t> dst_props,
                              edge_t edge_multi_index) const
   {
-    return ((thrust::get<0>(src_props) == (d - 1)) && (thrust::get<0>(dst_props) == d));
+    return ((cuda::std::get<0>(src_props) == (d - 1)) && (cuda::std::get<0>(dst_props) == d));
   }
 };
 
@@ -203,9 +203,9 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> brandes_b
                       thrust::make_zip_iterator(distances.begin(), sigmas.begin()),
                       thrust::make_zip_iterator(distances.begin(), sigmas.begin()),
                       [hop] __device__(auto v, auto old_values, auto v_sigma) {
-                        return thrust::make_tuple(
+                        return cuda::std::make_tuple(
                           cuda::std::make_optional(bucket_idx_next),
-                          cuda::std::make_optional(thrust::make_tuple(hop + 1, v_sigma)));
+                          cuda::std::make_optional(cuda::std::make_tuple(hop + 1, v_sigma)));
                       });
 
     vertex_frontier.bucket(bucket_idx_cur).clear();
@@ -353,10 +353,10 @@ void accumulate_vertex_results(
         view_concat(dst_distances.view(), dst_sigmas.view(), dst_deltas.view()),
         cugraph::edge_dummy_property_t{}.view(),
         [d] __device__(auto, auto, auto src_sigma, auto dst_props, auto) {
-          if (thrust::get<0>(dst_props) == d) {
+          if (cuda::std::get<0>(dst_props) == d) {
             auto sigma_v = src_sigma;
-            auto sigma_w = static_cast<weight_t>(thrust::get<1>(dst_props));
-            auto delta_w = thrust::get<2>(dst_props);
+            auto sigma_w = static_cast<weight_t>(cuda::std::get<1>(dst_props));
+            auto delta_w = cuda::std::get<2>(dst_props);
             return (sigma_v / sigma_w) * (1 + delta_w);
           } else {
             return weight_t{0};
@@ -384,8 +384,8 @@ void accumulate_vertex_results(
                                   reusable_delta_buffer.begin()),
         [centralities = centralities.data(),
          v_first      = graph_view.local_vertex_partition_range_first()] __device__(auto pair) {
-          auto v        = thrust::get<0>(pair);
-          auto delta    = thrust::get<1>(pair);
+          auto v        = cuda::std::get<0>(pair);
+          auto delta    = cuda::std::get<1>(pair);
           auto v_offset = v - v_first;
           centralities[v_offset] += delta;
         });
@@ -417,9 +417,9 @@ void accumulate_edge_results(
   rmm::device_uvector<weight_t> deltas(sigmas.size(), handle.get_stream());
   detail::scalar_fill(handle, deltas.data(), deltas.size(), weight_t{0});
 
-  edge_src_property_t<vertex_t, thrust::tuple<vertex_t, edge_t, weight_t>> src_properties(
+  edge_src_property_t<vertex_t, cuda::std::tuple<vertex_t, edge_t, weight_t>> src_properties(
     handle, graph_view);
-  edge_dst_property_t<vertex_t, thrust::tuple<vertex_t, edge_t, weight_t>> dst_properties(
+  edge_dst_property_t<vertex_t, cuda::std::tuple<vertex_t, edge_t, weight_t>> dst_properties(
     handle, graph_view);
 
   // Note: deltas are included here even though they start as 0, because the original approach
@@ -444,8 +444,8 @@ void accumulate_edge_results(
   //
   for (vertex_t d = diameter; d > 0; --d) {
     //
-    //  Populate edge_list with edges where `thrust::get<0>(dst_props) == d`
-    //  and `thrust::get<0>(dst_props) == (d-1)`
+    //  Populate edge_list with edges where `cuda::std::get<0>(dst_props) == d`
+    //  and `cuda::std::get<0>(dst_props) == (d-1)`
     //
     cugraph::edge_bucket_t<vertex_t, edge_t, true, multi_gpu, true> edge_list(
       handle, graph_view.is_multigraph());
@@ -491,10 +491,10 @@ void accumulate_edge_results(
       dst_properties.view(),
       centralities_view,
       [d] __device__(auto src, auto dst, auto src_props, auto dst_props, auto edge_centrality) {
-        if ((thrust::get<0>(dst_props) == d) && (thrust::get<0>(src_props) == (d - 1))) {
-          auto sigma_v = static_cast<weight_t>(thrust::get<1>(src_props));
-          auto sigma_w = static_cast<weight_t>(thrust::get<1>(dst_props));
-          auto delta_w = thrust::get<2>(dst_props);
+        if ((cuda::std::get<0>(dst_props) == d) && (cuda::std::get<0>(src_props) == (d - 1))) {
+          auto sigma_v = static_cast<weight_t>(cuda::std::get<1>(src_props));
+          auto sigma_w = static_cast<weight_t>(cuda::std::get<1>(dst_props));
+          auto delta_w = cuda::std::get<2>(dst_props);
 
           return edge_centrality + (sigma_v / sigma_w) * (1 + delta_w);
         } else {
@@ -511,10 +511,10 @@ void accumulate_edge_results(
       dst_properties.view(),
       cugraph::edge_dummy_property_t{}.view(),
       [d] __device__(auto, auto, auto src_props, auto dst_props, auto) {
-        if ((thrust::get<0>(dst_props) == d) && (thrust::get<0>(src_props) == (d - 1))) {
-          auto sigma_v = static_cast<weight_t>(thrust::get<1>(src_props));
-          auto sigma_w = static_cast<weight_t>(thrust::get<1>(dst_props));
-          auto delta_w = thrust::get<2>(dst_props);
+        if ((cuda::std::get<0>(dst_props) == d) && (cuda::std::get<0>(src_props) == (d - 1))) {
+          auto sigma_v = static_cast<weight_t>(cuda::std::get<1>(src_props));
+          auto sigma_w = static_cast<weight_t>(cuda::std::get<1>(dst_props));
+          auto delta_w = cuda::std::get<2>(dst_props);
 
           return (sigma_v / sigma_w) * (1 + delta_w);
         } else {
@@ -1228,8 +1228,8 @@ rmm::device_uvector<weight_t> betweenness_centrality(
        source    = *scale_source,
        vertices_begin,
        vertices_end] __device__(auto t) {
-        vertex_t v          = thrust::get<0>(t);
-        weight_t centrality = thrust::get<1>(t);
+        vertex_t v          = cuda::std::get<0>(t);
+        weight_t centrality = cuda::std::get<1>(t);
 
         return (thrust::find(thrust::seq, vertices_begin, vertices_end, v) == vertices_end)
                  ? centrality / nonsource

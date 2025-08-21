@@ -26,9 +26,9 @@
 #include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
 
+#include <cuda/std/tuple>
 #include <thrust/gather.h>
 #include <thrust/iterator/zip_iterator.h>
-#include <thrust/tuple.h>
 
 #include <tuple>
 

@@ -32,6 +32,7 @@
 #include <rmm/mr/device/polymorphic_allocator.hpp>
 
 #include <cuda/std/iterator>
+#include <cuda/std/tuple>
 #include <thrust/adjacent_difference.h>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
@@ -42,7 +43,6 @@
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/sort.h>
 #include <thrust/transform.h>
-#include <thrust/tuple.h>
 #include <thrust/unique.h>
 
 #include <iterator>
