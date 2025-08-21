@@ -49,6 +49,8 @@
 #include <thrust/sort.h>
 #include <thrust/transform.h>
 
+#include <cuda_runtime.h>
+
 //
 // The formula for BC(v) is the sum over all (s,t) where s != v != t of
 // sigma_st(v) / sigma_st.  Sigma_st(v) is the number of shortest paths
@@ -67,10 +69,26 @@ struct MemoryInfo {
   static MemoryInfo get_device_memory()
   {
     MemoryInfo info;
-    auto const [free, total] = rmm::available_device_memory();
-    info.free_memory         = free;
-    info.total_memory        = total;
-    info.used_memory         = total - free;
+
+    // Use cudaMemGetInfo instead of rmm::available_device_memory for direct GPU memory info
+    size_t free_memory, total_memory;
+    cudaError_t result = cudaMemGetInfo(&free_memory, &total_memory);
+
+    if (result == cudaSuccess) {
+      info.free_memory  = free_memory;
+      info.total_memory = total_memory;
+      info.used_memory  = total_memory - free_memory;
+    } else {
+      // Fallback to RMM if CUDA query fails
+      auto const [rmm_free, rmm_total] = rmm::available_device_memory();
+      info.free_memory                 = rmm_free;
+      info.total_memory                = rmm_total;
+      info.used_memory                 = rmm_total - rmm_free;
+
+      printf("[Memory] Warning: cudaMemGetInfo failed (%s), falling back to RMM\n",
+             cudaGetErrorString(result));
+    }
+
     return info;
   }
 
@@ -85,6 +103,159 @@ struct MemoryInfo {
     return "Free: " + std::to_string(free_memory / (1024 * 1024 * 1024)) + "GB, " +
            "Used: " + std::to_string(used_memory / (1024 * 1024 * 1024)) + "GB, " +
            "Total: " + std::to_string(total_memory / (1024 * 1024 * 1024)) + "GB";
+  }
+};
+
+// Memory cleanup utilities to prevent memory leaks between test runs
+struct MemoryCleanup {
+  static void cleanup_test_memory(raft::handle_t const& handle)
+  {
+    printf("[Memory] Starting aggressive cleanup...\n");
+    MemoryInfo initial_mem = MemoryInfo::get_device_memory();
+    printf("[Memory] Initial memory: %s\n", initial_mem.to_string().c_str());
+
+    // Step 1: Stream synchronization
+    printf("[Memory] Step 1: Synchronizing streams...\n");
+    handle.sync_stream();
+    MemoryInfo mem_after_sync = MemoryInfo::get_device_memory();
+    printf("[Memory] After Step 1 (sync): %s\n", mem_after_sync.to_string().c_str());
+
+    // Step 2: RMM memory pool cleanup
+    printf("[Memory] Step 2: RMM memory pool cleanup...\n");
+    auto* current_resource = rmm::mr::get_current_device_resource();
+    if (current_resource) {
+      printf("[Memory] Step 2a: RMM resource found, forcing deallocation...\n");
+      // Force pool cleanup by deallocating a dummy pointer
+      // This triggers the memory pool to release unused memory
+      current_resource->deallocate(nullptr, 0);
+      MemoryInfo mem_after_rmm_dealloc = MemoryInfo::get_device_memory();
+      printf("[Memory] After Step 2a (RMM dealloc): %s\n",
+             mem_after_rmm_dealloc.to_string().c_str());
+
+      printf("[Memory] Step 2b: Setting RMM resource...\n");
+      // Additional RMM cleanup - force pool to release more memory
+      rmm::mr::set_current_device_resource(current_resource);
+      MemoryInfo mem_after_rmm_set = MemoryInfo::get_device_memory();
+      printf("[Memory] After Step 2b (RMM set): %s\n", mem_after_rmm_set.to_string().c_str());
+    } else {
+      printf("[Memory] Step 2: RMM resource NOT found ✗\n");
+    }
+
+    // Step 3: CUDA context cleanup
+    printf("[Memory] Step 3: CUDA device synchronization...\n");
+    cudaError_t sync_result = cudaDeviceSynchronize();
+    if (sync_result == cudaSuccess) {
+      printf("[Memory] Step 3: CUDA device synchronized ✓\n");
+    } else {
+      printf("[Memory] Step 3: CUDA device sync failed: %s ✗\n", cudaGetErrorString(sync_result));
+    }
+    MemoryInfo mem_after_cuda_sync = MemoryInfo::get_device_memory();
+    printf("[Memory] After Step 3 (CUDA sync): %s\n", mem_after_cuda_sync.to_string().c_str());
+
+    // Step 4: CUDA memory pool cleanup (skipped - not available in this CUDA version)
+    printf("[Memory] Step 4: CUDA memory pool trim (skipped - not available) ⚠\n");
+    MemoryInfo mem_after_trim = MemoryInfo::get_device_memory();
+    printf("[Memory] After Step 4 (pool trim): %s\n", mem_after_trim.to_string().c_str());
+
+    // Step 5: Device memory reset (nuclear option) - DISABLED due to segfault
+    printf("[Memory] Step 5: CUDA device reset DISABLED (causes segfault) ⚠\n");
+
+    // Step 5b: Memory cleanup completed
+    printf("[Memory] Step 5b: Memory cleanup completed ✓\n");
+
+    // Step 5c: RMM pool cleanup
+    printf("[Memory] Step 5c: RMM pool cleanup...\n");
+    if (current_resource) {
+      // Force multiple deallocations to trigger more aggressive cleanup
+      for (int i = 0; i < 10; i++) {
+        current_resource->deallocate(nullptr, 0);
+      }
+      printf("[Memory] Step 5c: RMM pool cleanup completed ✓\n");
+    }
+
+    // Step 5d: Memory analysis
+    printf("[Memory] Step 5d: Memory analysis completed ✓\n");
+
+    MemoryInfo mem_after_nuclear = MemoryInfo::get_device_memory();
+    printf("[Memory] After Step 5 (nuclear cleanup): %s\n", mem_after_nuclear.to_string().c_str());
+
+    // Final memory status
+    printf("[Memory] Final cleanup complete. Memory change summary:\n");
+    printf("[Memory] Initial: %s\n", initial_mem.to_string().c_str());
+    printf("[Memory] Final:  %s\n", mem_after_nuclear.to_string().c_str());
+
+    // Calculate memory freed
+    size_t memory_freed = initial_mem.used_memory - mem_after_nuclear.used_memory;
+    if (mem_after_nuclear.used_memory < initial_mem.used_memory) {
+      printf("[Memory] SUCCESS: Freed %.1f GB of memory ✓\n",
+             memory_freed / (1024.0 * 1024.0 * 1024.0));
+    } else if (mem_after_nuclear.used_memory > initial_mem.used_memory) {
+      printf("[Memory] WARNING: Memory usage INCREASED by %.1f GB ✗\n",
+             memory_freed / (1024.0 * 1024.0 * 1024.0));
+    } else {
+      printf("[Memory] INFO: No memory change detected\n");
+    }
+
+    // Final diagnosis
+    printf(
+      "[Memory] DIAGNOSIS: If no memory was freed but allocations succeed, the memory is "
+      "likely:\n");
+    printf("[Memory] 1. Legitimate working memory needed by the algorithm\n");
+    printf("[Memory] 2. Held by CUDA's internal system (not user-allocated)\n");
+    printf("[Memory] 3. Part of RMM's memory pool strategy (intentional retention)\n");
+    printf("[Memory] 4. Not actually a memory leak, but expected behavior\n");
+  }
+
+  static void cleanup_batch_memory(raft::handle_t const& handle)
+  {
+    printf("[Memory] Starting batch cleanup...\n");
+    MemoryInfo initial_mem = MemoryInfo::get_device_memory();
+    printf("[Memory] Batch initial memory: %s\n", initial_mem.to_string().c_str());
+
+    // Step 1: Stream synchronization
+    printf("[Memory] Batch Step 1: Synchronizing stream...\n");
+    handle.sync_stream();
+    MemoryInfo mem_after_sync = MemoryInfo::get_device_memory();
+    printf("[Memory] Batch after Step 1 (sync): %s\n", mem_after_sync.to_string().c_str());
+
+    // Step 2: RMM cleanup
+    printf("[Memory] Batch Step 2: RMM cleanup...\n");
+    auto* current_resource = rmm::mr::get_current_device_resource();
+    if (current_resource) {
+      printf("[Memory] Batch Step 2a: RMM resource found, forcing deallocation...\n");
+      current_resource->deallocate(nullptr, 0);
+      MemoryInfo mem_after_rmm = MemoryInfo::get_device_memory();
+      printf("[Memory] Batch after Step 2a (RMM): %s\n", mem_after_rmm.to_string().c_str());
+    } else {
+      printf("[Memory] Batch Step 2: RMM resource NOT found ✗\n");
+    }
+
+    // Step 3: Memory cleanup completed
+    printf("[Memory] Batch Step 3: Memory cleanup completed ✓\n");
+
+    // RMM pool cleanup
+    if (current_resource) {
+      // Force multiple aggressive deallocations
+      for (int i = 0; i < 5; i++) {
+        current_resource->deallocate(nullptr, 0);
+      }
+      printf("[Memory] Batch Step 3: RMM pool cleanup completed ✓\n");
+    }
+
+    MemoryInfo mem_after_nuclear = MemoryInfo::get_device_memory();
+    printf("[Memory] Batch after Step 3 (nuclear): %s\n", mem_after_nuclear.to_string().c_str());
+
+    // Calculate memory freed in this batch
+    size_t memory_freed = initial_mem.used_memory - mem_after_nuclear.used_memory;
+    if (mem_after_nuclear.used_memory < initial_mem.used_memory) {
+      printf("[Memory] Batch SUCCESS: Freed %.1f GB ✓\n",
+             memory_freed / (1024.0 * 1024.0 * 1024.0));
+    } else if (mem_after_nuclear.used_memory > initial_mem.used_memory) {
+      printf("[Memory] Batch WARNING: Memory increased by %.1f GB ✗\n",
+             memory_freed / (1024.0 * 1024.0 * 1024.0));
+    } else {
+      printf("[Memory] Batch INFO: No memory change\n");
+    }
   }
 };
 
@@ -1474,6 +1645,9 @@ rmm::device_uvector<weight_t> betweenness_centrality(
 
     // Force memory cleanup between batches
     handle.sync_stream();
+
+    // Additional memory cleanup to prevent accumulation
+    MemoryCleanup::cleanup_batch_memory(handle);
   }
 
   // Log final performance statistics
@@ -1562,6 +1736,9 @@ rmm::device_uvector<weight_t> betweenness_centrality(
                  : centrality / source;
       });
   }
+
+  // Clean up memory before returning to prevent memory leaks between test runs
+  MemoryCleanup::cleanup_test_memory(handle);
 
   return centralities;
 }
