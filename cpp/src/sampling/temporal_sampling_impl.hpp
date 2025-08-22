@@ -241,8 +241,10 @@ temporal_neighbor_sample_impl(
           raft::device_span<vertex_t const>{frontier_vertices.data(), frontier_vertices.size()},
           raft::device_span<edge_time_t const>{frontier_vertex_times->data(),
                                                frontier_vertex_times->size()},
-          std::make_optional(raft::device_span<label_t const>{frontier_vertex_labels->data(),
-                                                              frontier_vertex_labels->size()}));
+          frontier_vertex_labels
+            ? std::make_optional(raft::device_span<label_t const>{frontier_vertex_labels->data(),
+                                                                  frontier_vertex_labels->size()})
+            : std::nullopt);
 
       no_duplicates_size  = frontier_vertices_no_duplicates.size();
       has_duplicates_size = frontier_vertices_has_duplicates.size();
@@ -251,7 +253,7 @@ temporal_neighbor_sample_impl(
         no_duplicates_size = host_scalar_allreduce(
           handle.get_comms(), no_duplicates_size, raft::comms::op_t::SUM, handle.get_stream());
         has_duplicates_size = host_scalar_allreduce(
-          handle.get_comms(), no_duplicates_size, raft::comms::op_t::SUM, handle.get_stream());
+          handle.get_comms(), has_duplicates_size, raft::comms::op_t::SUM, handle.get_stream());
       }
 
       if (no_duplicates_size > 0) {

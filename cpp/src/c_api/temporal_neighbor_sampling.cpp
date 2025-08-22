@@ -50,7 +50,6 @@ struct temporal_neighbor_sampling_functor : public cugraph::c_api::abstract_func
   cugraph::c_api::cugraph_type_erased_host_array_view_t const* fan_out_{nullptr};
   int num_edge_types_{};
   cugraph::c_api::cugraph_sampling_options_t options_{};
-  cugraph_temporal_sampling_comparison_t temporal_strategy_{};
   bool is_biased_{false};
   bool do_expensive_check_{false};
   cugraph::c_api::cugraph_sample_result_t* result_{nullptr};
@@ -69,7 +68,6 @@ struct temporal_neighbor_sampling_functor : public cugraph::c_api::abstract_func
     cugraph_type_erased_host_array_view_t const* fan_out,
     int num_edge_types,
     cugraph::c_api::cugraph_sampling_options_t options,
-    cugraph_temporal_sampling_comparison_t temporal_strategy,
     bool is_biased,
     bool do_expensive_check)
     : abstract_functor(),
@@ -93,8 +91,7 @@ struct temporal_neighbor_sampling_functor : public cugraph::c_api::abstract_func
       options_(options),
       is_biased_(is_biased),
       do_expensive_check_(do_expensive_check),
-      temporal_column_name_(temporal_column_name),
-      temporal_strategy_(temporal_strategy)
+      temporal_column_name_(temporal_column_name)
   {
   }
 
@@ -859,7 +856,6 @@ cugraph_error_code_t cugraph_heterogeneous_uniform_temporal_neighbor_sample(
   const cugraph_type_erased_host_array_view_t* fan_out,
   int num_edge_types,
   const cugraph_sampling_options_t* options,
-  cugraph_temporal_sampling_comparison_t temporal_strategy,
   bool_t do_expensive_check,
   cugraph_sample_result_t** result,
   cugraph_error_t** error)
@@ -906,7 +902,6 @@ cugraph_error_code_t cugraph_heterogeneous_uniform_temporal_neighbor_sample(
                                              fan_out,
                                              num_edge_types,
                                              std::move(options_cpp),
-                                             temporal_strategy,
                                              FALSE,
                                              do_expensive_check};
   return cugraph::c_api::run_algorithm(graph, functor, result, error);
@@ -924,7 +919,6 @@ cugraph_error_code_t cugraph_heterogeneous_biased_temporal_neighbor_sample(
   const cugraph_type_erased_host_array_view_t* fan_out,
   int num_edge_types,
   const cugraph_sampling_options_t* options,
-  cugraph_temporal_sampling_comparison_t temporal_strategy,
   bool_t do_expensive_check,
   cugraph_sample_result_t** result,
   cugraph_error_t** error)
@@ -978,7 +972,6 @@ cugraph_error_code_t cugraph_heterogeneous_biased_temporal_neighbor_sample(
                                              fan_out,
                                              num_edge_types,
                                              std::move(options_cpp),
-                                             temporal_strategy,
                                              TRUE,
                                              do_expensive_check};
   return cugraph::c_api::run_algorithm(graph, functor, result, error);
@@ -993,7 +986,6 @@ extern "C" cugraph_error_code_t cugraph_homogeneous_uniform_temporal_neighbor_sa
   const cugraph_type_erased_device_array_view_t* starting_vertex_label_offsets,
   const cugraph_type_erased_host_array_view_t* fan_out,
   const cugraph_sampling_options_t* options,
-  cugraph_temporal_sampling_comparison_t temporal_strategy,
   bool_t do_expensive_check,
   cugraph_sample_result_t** result,
   cugraph_error_t** error)
@@ -1040,7 +1032,6 @@ extern "C" cugraph_error_code_t cugraph_homogeneous_uniform_temporal_neighbor_sa
                                              fan_out,
                                              1,  // num_edge_types
                                              std::move(options_cpp),
-                                             temporal_strategy,
                                              FALSE,
                                              do_expensive_check};
   return cugraph::c_api::run_algorithm(graph, functor, result, error);
@@ -1056,7 +1047,6 @@ extern "C" cugraph_error_code_t cugraph_homogeneous_biased_temporal_neighbor_sam
   const cugraph_type_erased_device_array_view_t* starting_vertex_label_offsets,
   const cugraph_type_erased_host_array_view_t* fan_out,
   const cugraph_sampling_options_t* options,
-  cugraph_temporal_sampling_comparison_t temporal_strategy,
   bool_t do_expensive_check,
   cugraph_sample_result_t** result,
   cugraph_error_t** error)
@@ -1110,7 +1100,6 @@ extern "C" cugraph_error_code_t cugraph_homogeneous_biased_temporal_neighbor_sam
                                              fan_out,
                                              1,  // num_edge_types
                                              std::move(options_cpp),
-                                             temporal_strategy,
                                              TRUE,
                                              do_expensive_check};
   return cugraph::c_api::run_algorithm(graph, functor, result, error);

@@ -1605,6 +1605,13 @@ extern "C" void cugraph_sampling_set_dedupe_sources(cugraph_sampling_options_t* 
   internal_pointer->dedupe_sources_ = value;
 }
 
+extern "C" void cugraph_sampling_set_temporal_sampling_comparison(
+  cugraph_sampling_options_t* options, cugraph_temporal_sampling_comparison_t value)
+{
+  auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_sampling_options_t*>(options);
+  internal_pointer->temporal_sampling_comparison_ = value;
+}
+
 extern "C" void cugraph_sampling_options_free(cugraph_sampling_options_t* options)
 {
   auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_sampling_options_t*>(options);
@@ -1692,6 +1699,26 @@ extern "C" cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_ed
   return internal_pointer->wgt_ != nullptr
            ? reinterpret_cast<cugraph_type_erased_device_array_view_t*>(
                internal_pointer->wgt_->view())
+           : NULL;
+}
+
+extern "C" cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_edge_start_time(
+  const cugraph_sample_result_t* result)
+{
+  auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_sample_result_t const*>(result);
+  return internal_pointer->edge_start_time_ != nullptr
+           ? reinterpret_cast<cugraph_type_erased_device_array_view_t*>(
+               internal_pointer->edge_start_time_->view())
+           : NULL;
+}
+
+extern "C" cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_edge_end_time(
+  const cugraph_sample_result_t* result)
+{
+  auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_sample_result_t const*>(result);
+  return internal_pointer->edge_end_time_ != nullptr
+           ? reinterpret_cast<cugraph_type_erased_device_array_view_t*>(
+               internal_pointer->edge_end_time_->view())
            : NULL;
 }
 

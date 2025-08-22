@@ -662,9 +662,6 @@ cugraph_error_code_t cugraph_heterogeneous_biased_neighbor_sample(
  * algorithm. We only support fan_out values of type INT32
  * @param [in]  sampling_options
  *                           Opaque pointer defining the sampling options.
- * @param [in]  temporal_sampling_comparison
- *                           Comparison rule.  Currently STRICTLY_INCREASING is the only supported
- * option.
  * @param [in]  do_expensive_check
  *                           A flag to run expensive checks for input arguments (if set to true)
  * @param [out]  result      Output from the uniform_neighbor_sample call
@@ -681,7 +678,6 @@ cugraph_error_code_t cugraph_homogeneous_uniform_temporal_neighbor_sample(
   const cugraph_type_erased_device_array_view_t* starting_vertex_label_offsets,
   const cugraph_type_erased_host_array_view_t* fan_out,
   const cugraph_sampling_options_t* sampling_options,
-  const cugraph_temporal_sampling_comparison_t temporal_sampling_comparison,
   bool_t do_expensive_check,
   cugraph_sample_result_t** result,
   cugraph_error_t** error);
@@ -718,9 +714,6 @@ cugraph_error_code_t cugraph_homogeneous_uniform_temporal_neighbor_sample(
  * algorithm. We only support fan_out values of type INT32
  * @param [in]  sampling_options
  *                           Opaque pointer defining the sampling options.
- * @param [in]  temporal_sampling_comparison
- *                           Comparison rule.  Currently STRICTLY_INCREASING is the only supported
- * option.
  * @param [in]  do_expensive_check
  *                           A flag to run expensive checks for input arguments (if set to true)
  * @param [out]  result      Output from the uniform_neighbor_sample call
@@ -738,7 +731,6 @@ cugraph_error_code_t cugraph_homogeneous_biased_temporal_neighbor_sample(
   const cugraph_type_erased_device_array_view_t* starting_vertex_label_offsets,
   const cugraph_type_erased_host_array_view_t* fan_out,
   const cugraph_sampling_options_t* sampling_options,
-  const cugraph_temporal_sampling_comparison_t temporal_sampling_comparison,
   bool_t do_expensive_check,
   cugraph_sample_result_t** result,
   cugraph_error_t** error);
@@ -777,9 +769,6 @@ cugraph_error_code_t cugraph_homogeneous_biased_temporal_neighbor_sample(
  * neighbor sample whereas a value greater than 1 translates to heterogeneous neighbor sample.
  * @param [in]  sampling_options
  *                           Opaque pointer defining the sampling options.
- * @param [in]  temporal_sampling_comparison
- *                           Comparison rule.  Currently STRICTLY_INCREASING is the only supported
- * option.
  * @param [in]  do_expensive_check
  *                           A flag to run expensive checks for input arguments (if set to true)
  * @param [out]  result      Output from the uniform_neighbor_sample call
@@ -798,7 +787,6 @@ cugraph_error_code_t cugraph_heterogeneous_uniform_temporal_neighbor_sample(
   const cugraph_type_erased_host_array_view_t* fan_out,
   int num_edge_types,
   const cugraph_sampling_options_t* sampling_options,
-  const cugraph_temporal_sampling_comparison_t temporal_sampling_comparison,
   bool_t do_expensive_check,
   cugraph_sample_result_t** result,
   cugraph_error_t** error);
@@ -839,9 +827,6 @@ cugraph_error_code_t cugraph_heterogeneous_uniform_temporal_neighbor_sample(
  * neighbor sample whereas a value greater than 1 translates to heterogeneous neighbor sample.
  * @param [in]  sampling_options
  *                           Opaque pointer defining the sampling options.
- * @param [in]  temporal_sampling_comparison
- *                           Comparison rule.  Currently STRICTLY_INCREASING is the only supported
- * option.
  * @param [in]  do_expensive_check
  *                           A flag to run expensive checks for input arguments (if set to true)
  * @param [out]  result      Output from the uniform_neighbor_sample call
@@ -861,7 +846,6 @@ cugraph_error_code_t cugraph_heterogeneous_biased_temporal_neighbor_sample(
   const cugraph_type_erased_host_array_view_t* fan_out,
   int num_edge_types,
   const cugraph_sampling_options_t* sampling_options,
-  const cugraph_temporal_sampling_comparison_t temporal_sampling_comparison,
   bool_t do_expensive_check,
   cugraph_sample_result_t** result,
   cugraph_error_t** error);
@@ -954,6 +938,26 @@ cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_edge_type(
  * @return type erased array pointing to the edge_weight
  */
 cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_edge_weight(
+  const cugraph_sample_result_t* result);
+
+/**
+ * @ingroup samplingC
+ * @brief     Get the edge_start_time from the sampling algorithm result
+ *
+ * @param [in]   result   The result from a sampling algorithm
+ * @return type erased array pointing to the edge_start_time
+ */
+cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_edge_start_time(
+  const cugraph_sample_result_t* result);
+
+/**
+ * @ingroup samplingC
+ * @brief     Get the edge_end_time from the sampling algorithm result
+ *
+ * @param [in]   result   The result from a sampling algorithm
+ * @return type erased array pointing to the edge_end_time
+ */
+cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_edge_end_time(
   const cugraph_sample_result_t* result);
 
 /**

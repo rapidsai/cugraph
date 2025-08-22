@@ -32,6 +32,8 @@ struct cugraph_sampling_options_t {
   cugraph_compression_type_t compression_type_{cugraph_compression_type_t::COO};
   bool_t compress_per_hop_{FALSE};
   bool_t retain_seeds_{FALSE};
+  cugraph_temporal_sampling_comparison_t temporal_sampling_comparison_{
+    cugraph_temporal_sampling_comparison_t::STRICTLY_INCREASING};
 };
 
 struct sampling_flags_t {

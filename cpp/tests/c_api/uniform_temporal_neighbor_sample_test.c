@@ -116,7 +116,7 @@ int generic_uniform_temporal_neighbor_sample_test(
     handle, d_start_view, (byte_t*)h_start, &ret_error);
 
   ret_code = cugraph_type_erased_device_array_create(
-    handle, num_start_vertices + 1, SIZE_T, &d_start_label_offsets, &ret_error);
+    handle, num_start_labels, SIZE_T, &d_start_label_offsets, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "d_start_labels create failed.");
 
   d_start_label_offsets_view = cugraph_type_erased_device_array_view(d_start_label_offsets);
@@ -124,7 +124,8 @@ int generic_uniform_temporal_neighbor_sample_test(
   ret_code = cugraph_type_erased_device_array_view_copy_from_host(
     handle, d_start_label_offsets_view, (byte_t*)h_start_vertex_label_offsets, &ret_error);
 
-  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "start_labels copy_from_host failed.");
+  TEST_ASSERT(
+    test_ret_value, ret_code == CUGRAPH_SUCCESS, "start_labels_offsets copy_from_host failed.");
 
   h_fan_out_view = cugraph_type_erased_host_array_view_create(fan_out, fan_out_size, INT32);
 
@@ -142,6 +143,7 @@ int generic_uniform_temporal_neighbor_sample_test(
   cugraph_sampling_set_prior_sources_behavior(sampling_options, prior_sources_behavior);
   cugraph_sampling_set_dedupe_sources(sampling_options, dedupe_sources);
   cugraph_sampling_set_renumber_results(sampling_options, renumber_results);
+  cugraph_sampling_set_temporal_sampling_comparison(sampling_options, STRICTLY_INCREASING);
 
   ret_code = cugraph_homogeneous_uniform_temporal_neighbor_sample(handle,
                                                                   rng_state,
@@ -151,7 +153,6 @@ int generic_uniform_temporal_neighbor_sample_test(
                                                                   d_start_label_offsets_view,
                                                                   h_fan_out_view,
                                                                   sampling_options,
-                                                                  STRICTLY_INCREASING,
                                                                   FALSE,
                                                                   &result,
                                                                   &ret_error);
@@ -167,6 +168,8 @@ int generic_uniform_temporal_neighbor_sample_test(
   cugraph_type_erased_device_array_view_t* result_edge_id;
   cugraph_type_erased_device_array_view_t* result_weights;
   cugraph_type_erased_device_array_view_t* result_edge_types;
+  cugraph_type_erased_device_array_view_t* result_edge_start_times;
+  cugraph_type_erased_device_array_view_t* result_edge_end_times;
   cugraph_type_erased_device_array_view_t* result_hops;
   cugraph_type_erased_device_array_view_t* result_offsets;
   cugraph_type_erased_device_array_view_t* result_labels;
@@ -178,6 +181,8 @@ int generic_uniform_temporal_neighbor_sample_test(
   result_edge_id              = cugraph_sample_result_get_edge_id(result);
   result_weights              = cugraph_sample_result_get_edge_weight(result);
   result_edge_types           = cugraph_sample_result_get_edge_type(result);
+  result_edge_start_times     = cugraph_sample_result_get_edge_start_time(result);
+  result_edge_end_times       = cugraph_sample_result_get_edge_end_time(result);
   result_hops                 = cugraph_sample_result_get_hop(result);
   result_hops                 = cugraph_sample_result_get_hop(result);
   result_offsets              = cugraph_sample_result_get_offsets(result);
@@ -186,11 +191,20 @@ int generic_uniform_temporal_neighbor_sample_test(
   result_renumber_map_offsets = cugraph_sample_result_get_renumber_map_offsets(result);
 
   size_t result_size         = cugraph_type_erased_device_array_view_size(result_srcs);
-  size_t result_offsets_size = cugraph_type_erased_device_array_view_size(result_offsets);
+  size_t result_offsets_size = 2;
   size_t renumber_map_size   = 0;
 
   if (renumber_results) {
     renumber_map_size = cugraph_type_erased_device_array_view_size(result_renumber_map);
+  }
+
+  if (result_offsets != NULL) {
+    result_offsets_size = cugraph_type_erased_device_array_view_size(result_offsets);
+  }
+
+  if (d_start_label_offsets != NULL) {
+    result_offsets = cugraph_sample_result_get_offsets(result);
+    result_labels  = cugraph_sample_result_get_start_labels(result);
   }
 
   vertex_t h_result_srcs[result_size];
@@ -198,11 +212,16 @@ int generic_uniform_temporal_neighbor_sample_test(
   edge_t h_result_edge_id[result_size];
   weight_t h_result_weight[result_size];
   int32_t h_result_edge_types[result_size];
-  int32_t h_result_hops[result_size];
+  edge_time_t h_result_edge_start_times[result_size];
+  edge_time_t h_result_edge_end_times[result_size];
   size_t h_result_offsets[result_offsets_size];
-  int h_result_labels[num_start_labels];
   vertex_t h_renumber_map[renumber_map_size];
   size_t h_renumber_map_offsets[result_offsets_size];
+
+  if (result_offsets_size == 2) {
+    h_result_offsets[0] = 0;
+    h_result_offsets[1] = result_size;
+  }
 
   ret_code = cugraph_type_erased_device_array_view_copy_to_host(
     handle, (byte_t*)h_result_srcs, result_srcs, &ret_error);
@@ -224,30 +243,19 @@ int generic_uniform_temporal_neighbor_sample_test(
     handle, (byte_t*)h_result_edge_types, result_edge_types, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "copy_to_host failed.");
 
+  ret_code = cugraph_type_erased_device_array_view_copy_to_host(
+    handle, (byte_t*)h_result_edge_start_times, result_edge_start_times, &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "copy_to_host failed.");
+
+  ret_code = cugraph_type_erased_device_array_view_copy_to_host(
+    handle, (byte_t*)h_result_edge_end_times, result_edge_end_times, &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "copy_to_host failed.");
+
   TEST_ASSERT(test_ret_value, result_hops == NULL, "hops was not empty");
 
   ret_code = cugraph_type_erased_device_array_view_copy_to_host(
     handle, (byte_t*)h_result_offsets, result_offsets, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "copy_to_host failed.");
-
-  ret_code = cugraph_type_erased_device_array_view_copy_to_host(
-    handle, (byte_t*)h_result_labels, result_labels, &ret_error);
-  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "copy_to_host failed.");
-
-  for (int k = 0; k < result_offsets_size - 1; k += fan_out_size) {
-    for (int h = 0; h < fan_out_size; ++h) {
-      int hop_start = h_result_offsets[k + h];
-      int hop_end   = h_result_offsets[k + h + 1];
-      for (int i = hop_start; i < hop_end; ++i) {
-        h_result_hops[i] = h;
-      }
-    }
-  }
-
-  for (int k = 0; k < num_start_labels + 1; ++k) {
-    h_result_offsets[k] = h_result_offsets[k * fan_out_size];
-  }
-  result_offsets_size = num_start_labels + 1;
 
   if (renumber_results) {
     ret_code = cugraph_type_erased_device_array_view_copy_to_host(
@@ -263,50 +271,103 @@ int generic_uniform_temporal_neighbor_sample_test(
   weight_t M_w[num_vertices][num_vertices];
   edge_t M_edge_id[num_vertices][num_vertices];
   int32_t M_edge_type[num_vertices][num_vertices];
+  edge_time_t M_edge_start_time[num_vertices][num_vertices];
+  edge_time_t M_edge_end_time[num_vertices][num_vertices];
 
   for (int i = 0; i < num_vertices; ++i)
     for (int j = 0; j < num_vertices; ++j) {
-      M_w[i][j]         = 0.0;
-      M_edge_id[i][j]   = -1;
-      M_edge_type[i][j] = -1;
+      M_w[i][j]               = 0.0;
+      M_edge_id[i][j]         = -1;
+      M_edge_type[i][j]       = -1;
+      M_edge_start_time[i][j] = -1;
+      M_edge_end_time[i][j]   = -1;
     }
 
   for (int i = 0; i < num_edges; ++i) {
-    M_w[h_src[i]][h_dst[i]]         = h_wgt[i];
-    M_edge_id[h_src[i]][h_dst[i]]   = h_edge_ids[i];
-    M_edge_type[h_src[i]][h_dst[i]] = h_edge_types[i];
+    if (h_wgt != NULL)
+      M_w[h_src[i]][h_dst[i]] = h_wgt[i];
+    else
+      M_w[h_src[i]][h_dst[i]] = 1.0;
+
+    if (h_edge_ids != NULL) M_edge_id[h_src[i]][h_dst[i]] = h_edge_ids[i];
+    if (h_edge_types != NULL) M_edge_type[h_src[i]][h_dst[i]] = h_edge_types[i];
+    if (h_edge_start_times != NULL) M_edge_start_time[h_src[i]][h_dst[i]] = h_edge_start_times[i];
+    if (h_edge_end_times != NULL) M_edge_end_time[h_src[i]][h_dst[i]] = h_edge_end_times[i];
   }
 
   if (renumber_results) {
-    for (int label_id = 0; label_id < (result_offsets_size - 1); ++label_id) {
-      for (size_t i = h_result_offsets[label_id];
-           (i < h_result_offsets[label_id + 1]) && (test_ret_value == 0);
+    for (int label_id = 0; label_id < (num_start_labels - 1); ++label_id) {
+      for (size_t i = h_result_offsets[label_id * fan_out_size];
+           (i < h_result_offsets[(label_id + 1) * fan_out_size]) && (test_ret_value == 0);
            ++i) {
         vertex_t src = h_renumber_map[h_renumber_map_offsets[label_id] + h_result_srcs[i]];
         vertex_t dst = h_renumber_map[h_renumber_map_offsets[label_id] + h_result_dsts[i]];
 
-        TEST_ASSERT(test_ret_value,
-                    M_w[src][dst] == h_result_weight[i],
-                    "uniform_temporal_neighbor_sample got edge that doesn't exist");
-        TEST_ASSERT(test_ret_value,
-                    M_edge_id[src][dst] == h_result_edge_id[i],
-                    "uniform_temporal_neighbor_sample got edge that doesn't exist");
-        TEST_ASSERT(test_ret_value,
-                    M_edge_type[src][dst] == h_result_edge_types[i],
-                    "uniform_temporal_neighbor_sample got edge that doesn't exist");
+        if (h_wgt != NULL) {
+          TEST_ASSERT(test_ret_value,
+                      M_w[src][dst] == h_result_weight[i],
+                      "uniform_temporal_neighbor_sample got edge that doesn't exist");
+        } else {
+          TEST_ASSERT(test_ret_value,
+                      M_w[src][dst] == 1.0,
+                      "uniform_temporal_neighbor_sample got edge that doesn't exist");
+        }
+
+        if (h_edge_ids != NULL) {
+          TEST_ASSERT(test_ret_value,
+                      M_edge_id[src][dst] == h_result_edge_id[i],
+                      "uniform_temporal_neighbor_sample got edge that doesn't exist");
+        }
+
+        if (h_edge_types != NULL) {
+          TEST_ASSERT(test_ret_value,
+                      M_edge_type[src][dst] == h_result_edge_types[i],
+                      "uniform_temporal_neighbor_sample got edge that doesn't exist");
+        }
+
+        if (h_edge_start_times != NULL) {
+          TEST_ASSERT(test_ret_value,
+                      M_edge_start_time[src][dst] == h_result_edge_start_times[i],
+                      "uniform_temporal_neighbor_sample got edge that doesn't exist");
+        }
+
+        if (h_edge_end_times != NULL) {
+          TEST_ASSERT(test_ret_value,
+                      M_edge_end_time[src][dst] == h_result_edge_end_times[i],
+                      "uniform_temporal_neighbor_sample got edge that doesn't exist");
+        }
       }
     }
   } else {
     for (int i = 0; (i < result_size) && (test_ret_value == 0); ++i) {
-      TEST_ASSERT(test_ret_value,
-                  M_w[h_result_srcs[i]][h_result_dsts[i]] == h_result_weight[i],
-                  "uniform_temporal_neighbor_sample got edge that doesn't exist");
-      TEST_ASSERT(test_ret_value,
-                  M_edge_id[h_result_srcs[i]][h_result_dsts[i]] == h_result_edge_id[i],
-                  "uniform_temporal_neighbor_sample got edge that doesn't exist");
-      TEST_ASSERT(test_ret_value,
-                  M_edge_type[h_result_srcs[i]][h_result_dsts[i]] == h_result_edge_types[i],
-                  "uniform_temporal_neighbor_sample got edge that doesn't exist");
+      if (h_wgt != NULL) {
+        TEST_ASSERT(test_ret_value,
+                    M_w[h_result_srcs[i]][h_result_dsts[i]] == h_result_weight[i],
+                    "uniform_neighbor_sample got edge that doesn't exist");
+      } else {
+        TEST_ASSERT(test_ret_value,
+                    M_w[h_result_srcs[i]][h_result_dsts[i]] == 1.0,
+                    "uniform_neighbor_sample got edge that doesn't exist");
+      }
+
+      if (h_edge_ids != NULL)
+        TEST_ASSERT(test_ret_value,
+                    M_edge_id[h_result_srcs[i]][h_result_dsts[i]] == h_result_edge_id[i],
+                    "uniform_neighbor_sample got edge that doesn't exist");
+      if (h_edge_types != NULL)
+        TEST_ASSERT(test_ret_value,
+                    M_edge_type[h_result_srcs[i]][h_result_dsts[i]] == h_result_edge_types[i],
+                    "uniform_neighbor_sample got edge that doesn't exist");
+      if (h_edge_start_times != NULL)
+        TEST_ASSERT(
+          test_ret_value,
+          M_edge_start_time[h_result_srcs[i]][h_result_dsts[i]] == h_result_edge_start_times[i],
+          "uniform_neighbor_sample got edge that doesn't exist");
+      if (h_edge_end_times != NULL)
+        TEST_ASSERT(
+          test_ret_value,
+          M_edge_end_time[h_result_srcs[i]][h_result_dsts[i]] == h_result_edge_end_times[i],
+          "uniform_neighbor_sample got edge that doesn't exist");
     }
   }
 
@@ -327,47 +388,64 @@ int generic_uniform_temporal_neighbor_sample_test(
     degree[h_src[i]]++;
   }
 
-  for (int label_id = 0; label_id < (result_offsets_size - 1); ++label_id) {
-    check_sources[0]         = h_start[label_id];
-    size_t sources_size      = 1;
-    size_t destinations_size = 0;
+  if (num_start_labels > 1) {
+    for (size_t label_id = 0; label_id < (num_start_labels - 1); ++label_id) {
+      vertex_t check_v1[result_size];
+      vertex_t check_v2[result_size];
+      vertex_t* check_sources      = check_v1;
+      vertex_t* check_destinations = check_v2;
 
-    if (renumber_results) {
-      size_t num_vertex_ids = 2 * (h_result_offsets[label_id + 1] - h_result_offsets[label_id]);
-      vertex_t vertex_ids[num_vertex_ids];
+      for (size_t i = 0; i < result_size; ++i) {
+        check_v1[i] = 0;
+        check_v2[i] = 0;
+      }
 
-      for (size_t i = 0; (i < (h_result_offsets[label_id + 1] - h_result_offsets[label_id])) &&
-                         (test_ret_value == 0);
+      for (size_t i = h_start_vertex_label_offsets[label_id];
+           i < h_start_vertex_label_offsets[label_id + 1];
            ++i) {
-        vertex_ids[2 * i]     = h_result_srcs[h_result_offsets[label_id] + i];
-        vertex_ids[2 * i + 1] = h_result_dsts[h_result_offsets[label_id] + i];
+        check_sources[i - h_start_vertex_label_offsets[label_id]] = h_start[i];
       }
+      size_t sources_size =
+        h_start_vertex_label_offsets[label_id + 1] - h_start_vertex_label_offsets[label_id];
+      size_t destinations_size = 0;
 
-      qsort(vertex_ids, num_vertex_ids, sizeof(vertex_t), vertex_id_compare_function);
+      if (renumber_results) {
+        size_t num_vertex_ids = 2 * (h_result_offsets[(label_id + 1) * fan_out_size] -
+                                     h_result_offsets[label_id * fan_out_size]);
+        vertex_t vertex_ids[num_vertex_ids];
 
-      vertex_t current_v = 0;
-      for (size_t i = 0; (i < num_vertex_ids) && (test_ret_value == 0); ++i) {
-        if (vertex_ids[i] == current_v)
-          ++current_v;
-        else
-          TEST_ASSERT(test_ret_value,
-                      vertex_ids[i] == (current_v - 1),
-                      "vertices are not properly renumbered");
-      }
-    }
+        for (size_t i = 0; (i < (h_result_offsets[(label_id + 1) * fan_out_size] -
+                                 h_result_offsets[label_id * fan_out_size])) &&
+                           (test_ret_value == 0);
+             ++i) {
+          vertex_ids[2 * i]     = h_result_srcs[h_result_offsets[label_id * fan_out_size] + i];
+          vertex_ids[2 * i + 1] = h_result_dsts[h_result_offsets[label_id * fan_out_size] + i];
+        }
 
-    for (int hop = 0; hop < fan_out_size; ++hop) {
-      if (prior_sources_behavior == CARRY_OVER) {
-        destinations_size = sources_size;
-        for (size_t i = 0; i < sources_size; ++i) {
-          check_destinations[i] = check_sources[i];
+        qsort(vertex_ids, num_vertex_ids, sizeof(vertex_t), vertex_id_compare_function);
+
+        vertex_t current_v = 0;
+        for (size_t i = 0; (i < num_vertex_ids) && (test_ret_value == 0); ++i) {
+          if (vertex_ids[i] == current_v)
+            ++current_v;
+          else
+            TEST_ASSERT(test_ret_value,
+                        vertex_ids[i] == (current_v - 1),
+                        "vertices are not properly renumbered");
         }
       }
 
-      for (size_t i = h_result_offsets[label_id];
-           (i < h_result_offsets[label_id + 1]) && (test_ret_value == 0);
-           ++i) {
-        if (h_result_hops[i] == hop) {
+      for (int hop = 0; hop < fan_out_size; ++hop) {
+        if (prior_sources_behavior == CARRY_OVER) {
+          destinations_size = sources_size;
+          for (size_t i = 0; i < sources_size; ++i) {
+            check_destinations[i] = check_sources[i];
+          }
+        }
+
+        for (size_t i = h_result_offsets[label_id * fan_out_size + hop];
+             (i < h_result_offsets[label_id * fan_out_size + hop + 1]) && (test_ret_value == 0);
+             ++i) {
           bool found = false;
           for (size_t j = 0; (!found) && (j < sources_size); ++j) {
             found = renumber_results
@@ -379,101 +457,115 @@ int generic_uniform_temporal_neighbor_sample_test(
           TEST_ASSERT(test_ret_value,
                       found,
                       "encountered source vertex that was not part of previous frontier");
-        }
 
-        if (prior_sources_behavior == CARRY_OVER) {
-          // Make sure destination isn't already in the source list
-          bool found = false;
-          for (size_t j = 0; (!found) && (j < destinations_size); ++j) {
-            found = renumber_results
-                      ? (h_renumber_map[h_renumber_map_offsets[label_id] + h_result_dsts[i]] ==
-                         check_destinations[j])
-                      : (h_result_dsts[i] == check_destinations[j]);
-          }
+          if (prior_sources_behavior == CARRY_OVER) {
+            // Make sure destination isn't already in the source list
+            bool found = false;
+            for (size_t j = 0; (!found) && (j < destinations_size); ++j) {
+              found = renumber_results
+                        ? (h_renumber_map[h_renumber_map_offsets[label_id] + h_result_dsts[i]] ==
+                           check_destinations[j])
+                        : (h_result_dsts[i] == check_destinations[j]);
+            }
 
-          if (!found) {
+            if (!found) {
+              check_destinations[destinations_size] =
+                renumber_results
+                  ? h_renumber_map[h_renumber_map_offsets[label_id] + h_result_dsts[i]]
+                  : h_result_dsts[i];
+              ++destinations_size;
+            }
+          } else {
             check_destinations[destinations_size] =
               renumber_results ? h_renumber_map[h_renumber_map_offsets[label_id] + h_result_dsts[i]]
                                : h_result_dsts[i];
             ++destinations_size;
           }
-        } else {
-          check_destinations[destinations_size] =
-            renumber_results ? h_renumber_map[h_renumber_map_offsets[label_id] + h_result_dsts[i]]
-                             : h_result_dsts[i];
-          ++destinations_size;
         }
+
+        vertex_t* tmp      = check_sources;
+        check_sources      = check_destinations;
+        check_destinations = tmp;
+        sources_size       = destinations_size;
+        destinations_size  = 0;
       }
 
-      vertex_t* tmp      = check_sources;
-      check_sources      = check_destinations;
-      check_destinations = tmp;
-      sources_size       = destinations_size;
-      destinations_size  = 0;
-    }
-
-    if (prior_sources_behavior == EXCLUDE) {
-      // Make sure vertex v only appears as source in the first hop after it is encountered
-      for (size_t i = h_result_offsets[label_id];
-           (i < h_result_offsets[label_id + 1]) && (test_ret_value == 0);
-           ++i) {
-        for (size_t j = i + 1; (j < h_result_offsets[label_id + 1]) && (test_ret_value == 0); ++j) {
-          if (h_result_srcs[i] == h_result_srcs[j]) {
-            TEST_ASSERT(test_ret_value,
-                        h_result_hops[i] == h_result_hops[j],
-                        "source vertex should not have been used in diferent hops");
+      if (prior_sources_behavior == EXCLUDE) {
+        // Make sure vertex v only appears as source in the first hop after it is encountered
+        for (int hop = 1; hop < fan_out_size; ++hop) {
+          for (size_t i = h_result_offsets[label_id * fan_out_size + hop];
+               (i < h_result_offsets[label_id * fan_out_size + hop + 1]) && (test_ret_value == 0);
+               ++i) {
+            // Check hops prior to this one
+            for (size_t j = h_result_offsets[label_id * fan_out_size];
+                 (j < h_result_offsets[label_id * fan_out_size + hop]) && (test_ret_value == 0);
+                 ++j) {
+              TEST_ASSERT(test_ret_value,
+                          h_result_srcs[i] != h_result_srcs[j],
+                          "source vertex should not have been used in different hops");
+            }
+            // Check hops after this one
+            for (size_t j = h_result_offsets[label_id * fan_out_size + hop + 1];
+                 (j < h_result_offsets[label_id * fan_out_size + fan_out_size]) &&
+                 (test_ret_value == 0);
+                 ++j) {
+              TEST_ASSERT(test_ret_value,
+                          h_result_srcs[i] != h_result_srcs[j],
+                          "source vertex should not have been used in different hops");
+            }
           }
         }
       }
-    }
 
-    if (dedupe_sources) {
-      // Make sure vertex v only appears as source once for each edge after it appears as
-      // destination Externally test this by verifying that vertex v only appears in <= hop
-      // size/degree
-      for (size_t i = h_result_offsets[label_id];
-           (i < h_result_offsets[label_id + 1]) && (test_ret_value == 0);
-           ++i) {
-        if (h_result_hops[i] > 0) {
-          size_t num_occurrences = 1;
-          for (size_t j = i + 1; j < h_result_offsets[label_id + 1]; ++j) {
-            if ((h_result_srcs[j] == h_result_srcs[i]) && (h_result_hops[j] == h_result_hops[i]))
-              num_occurrences++;
-          }
+      if (dedupe_sources) {
+        // Make sure vertex v only appears as source once for each edge after it appears as
+        // destination. We test this by verifying that vertex v only appears in <= hop size/degree
+        for (int hop = 1; hop < fan_out_size; ++hop) {
+          for (size_t i = h_result_offsets[label_id * fan_out_size + hop];
+               (i < h_result_offsets[label_id * fan_out_size + hop + 1]) && (test_ret_value == 0);
+               ++i) {
+            size_t num_occurrences = 0;
+            for (size_t j = h_result_offsets[label_id * fan_out_size + hop];
+                 (j < h_result_offsets[label_id * fan_out_size + hop + 1]) && (test_ret_value == 0);
+                 ++j) {
+              if (h_result_srcs[j] == h_result_srcs[i]) num_occurrences++;
+            }
 
-          if (fan_out[h_result_hops[i]] < 0) {
-            TEST_ASSERT(test_ret_value,
-                        num_occurrences <= degree[h_result_srcs[i]],
-                        "source vertex used in too many return edges");
-          } else {
-            TEST_ASSERT(test_ret_value,
-                        num_occurrences < fan_out[h_result_hops[i]],
-                        "source vertex used in too many return edges");
+            if (fan_out[hop] < 0) {
+              TEST_ASSERT(test_ret_value,
+                          num_occurrences <= degree[h_result_srcs[i]],
+                          "source vertex used in too many return edges");
+            } else {
+              TEST_ASSERT(test_ret_value,
+                          num_occurrences < fan_out[hop],
+                          "source vertex used in too many return edges");
+            }
           }
         }
       }
-    }
 
-    // Check that the edge times are strictly increasing
-    edge_time_t max_vertex_times[num_vertices];
-    for (size_t i = 0; i < num_vertices; ++i)
-      max_vertex_times[i] = -1;
+      // Check that the edge times are strictly increasing
+      edge_time_t previous_vertex_times[num_vertices];
+      for (size_t i = 0; i < num_vertices; ++i)
+        previous_vertex_times[i] = -1;
 
-    for (size_t hop = 0; hop < fan_out_size; ++hop) {
-      for (size_t i = h_result_offsets[label_id];
-           (i < h_result_offsets[label_id + 1]) && (test_ret_value == 0);
-           ++i) {
-        if (h_result_hops[i] == hop) {
+      for (size_t hop = 0; hop < fan_out_size; ++hop) {
+        for (size_t i = h_result_offsets[label_id * fan_out_size + hop];
+             (i < h_result_offsets[label_id * fan_out_size + hop + 1]) && (test_ret_value == 0);
+             ++i) {
           TEST_ASSERT(test_ret_value,
-                      h_edge_start_times[i] > max_vertex_times[h_result_srcs[i]],
+                      h_result_edge_start_times[i] > previous_vertex_times[h_result_srcs[i]],
                       "edge times are not strictly increasing");
         }
-      }
 
-      for (size_t i = h_result_offsets[label_id];
-           (i < h_result_offsets[label_id + 1]) && (test_ret_value == 0);
-           ++i) {
-        if (h_result_hops[i] == hop) { max_vertex_times[h_result_dsts[i]] = h_edge_start_times[i]; }
+        for (size_t i = h_result_offsets[label_id * fan_out_size + hop];
+             (i < h_result_offsets[label_id * fan_out_size + hop + 1]) && (test_ret_value == 0);
+             ++i) {
+          if ((previous_vertex_times[h_result_dsts[i]] == -1) ||
+              (previous_vertex_times[h_result_dsts[i]] > h_result_edge_start_times[i])) {
+            previous_vertex_times[h_result_dsts[i]] = h_result_edge_start_times[i];
+          }
+        }
       }
     }
   }
@@ -592,6 +684,7 @@ int test_uniform_temporal_neighbor_sample_with_labels(const cugraph_resource_han
   cugraph_sampling_set_renumber_results(sampling_options, renumber_results);
   cugraph_sampling_set_compression_type(sampling_options, compression);
   cugraph_sampling_set_compress_per_hop(sampling_options, compress_per_hop);
+  cugraph_sampling_set_temporal_sampling_comparison(sampling_options, STRICTLY_INCREASING);
 
   ret_code = cugraph_homogeneous_uniform_temporal_neighbor_sample(handle,
                                                                   rng_state,
@@ -601,7 +694,6 @@ int test_uniform_temporal_neighbor_sample_with_labels(const cugraph_resource_han
                                                                   d_start_label_offsets_view,
                                                                   h_fan_out_view,
                                                                   sampling_options,
-                                                                  STRICTLY_INCREASING,
                                                                   FALSE,
                                                                   &result,
                                                                   &ret_error);
@@ -716,7 +808,7 @@ int test_uniform_temporal_neighbor_sample_clean(const cugraph_resource_handle_t*
   size_t num_vertices     = 6;
   size_t fan_out_size     = 3;
   size_t num_starts       = 2;
-  size_t num_start_labels = 2;
+  size_t num_start_labels = 3;
 
   vertex_t src[]                      = {0, 0, 1, 1, 2, 2, 2, 3, 4};
   vertex_t dst[]                      = {1, 3, 3, 4, 0, 1, 3, 5, 5};
@@ -774,7 +866,7 @@ int test_uniform_temporal_neighbor_sample_dedupe_sources(const cugraph_resource_
   size_t num_vertices     = 6;
   size_t fan_out_size     = 3;
   size_t num_starts       = 2;
-  size_t num_start_labels = 2;
+  size_t num_start_labels = 3;
 
   vertex_t src[]                      = {0, 0, 1, 1, 2, 2, 2, 3, 4};
   vertex_t dst[]                      = {1, 3, 3, 4, 0, 1, 3, 5, 5};
@@ -832,7 +924,7 @@ int test_uniform_temporal_neighbor_sample_unique_sources(const cugraph_resource_
   size_t num_vertices     = 6;
   size_t fan_out_size     = 3;
   size_t num_starts       = 2;
-  size_t num_start_labels = 2;
+  size_t num_start_labels = 3;
 
   vertex_t src[]                      = {0, 0, 1, 1, 2, 2, 2, 3, 4};
   vertex_t dst[]                      = {1, 2, 3, 4, 0, 1, 3, 5, 5};
@@ -891,7 +983,7 @@ int test_uniform_temporal_neighbor_sample_carry_over_sources(
   size_t num_vertices     = 6;
   size_t fan_out_size     = 3;
   size_t num_starts       = 2;
-  size_t num_start_labels = 2;
+  size_t num_start_labels = 3;
 
   vertex_t src[]                      = {0, 0, 1, 1, 2, 2, 2, 3, 4};
   vertex_t dst[]                      = {1, 2, 3, 4, 0, 1, 3, 5, 5};
@@ -949,7 +1041,7 @@ int test_uniform_temporal_neighbor_sample_renumber_results(const cugraph_resourc
   size_t num_vertices     = 6;
   size_t fan_out_size     = 3;
   size_t num_starts       = 2;
-  size_t num_start_labels = 2;
+  size_t num_start_labels = 3;
 
   vertex_t src[]                      = {0, 0, 1, 1, 2, 2, 2, 3, 4};
   vertex_t dst[]                      = {1, 2, 3, 4, 0, 1, 3, 5, 5};
