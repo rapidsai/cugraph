@@ -61,7 +61,6 @@ DEPENDENCIES=(
   librmm
   pylibcudf
   pylibcugraph
-  pylibwholegraph
   pylibraft
   pyraft
   raft-dask
