@@ -96,14 +96,11 @@ struct MemoryInfo {
   }
 };
 
-// Memory cleanup utilities - simplified for --rmm_mode=cuda
+// Memory cleanup utilities
 struct MemoryCleanup {
   static void cleanup_batch_memory(raft::handle_t const& handle)
   {
     handle.sync_stream();
-
-    // Simple cleanup that works with --rmm_mode=cuda
-    cudaFree(0);
     cudaDeviceSynchronize();
   }
 };
@@ -1184,6 +1181,11 @@ rmm::device_uvector<weight_t> betweenness_centrality(
     my_rank = handle.get_comms().get_rank();
   }
 
+  // Check environment variables for batch mode configuration
+  std::string batch_mode = std::getenv("BATCH_MODE") ? std::getenv("BATCH_MODE") : "dynamic";
+  size_t fixed_batch_size =
+    std::getenv("FIXED_BATCH_SIZE") ? std::stoul(std::getenv("FIXED_BATCH_SIZE")) : 1000;
+
   // Initialize memory management and measurement
   MemoryInfo initial_mem = MemoryInfo::get_device_memory();
   initial_mem.print("Before BFS processing");
@@ -1194,16 +1196,37 @@ rmm::device_uvector<weight_t> betweenness_centrality(
 
   // Check if we're using CUDA memory resource (--rmm_mode=cuda)
   if (dynamic_cast<rmm::mr::cuda_memory_resource*>(current_rmm_resource)) {
-    printf("[DEBUG] ✓ Using CUDA memory resource (--rmm_mode=cuda)\n");
+    printf("[DEBUG] Using CUDA memory resource (--rmm_mode=cuda)\n");
   } else {
     printf("[DEBUG] ? Using unknown RMM memory resource type\n");
   }
 
-  // Binary search for optimal batch size
+  // Debug: Print environment variable status
+  printf("[DEBUG] Environment check:\n");
+  printf("[DEBUG]   BATCH_MODE=%s\n",
+         std::getenv("BATCH_MODE") ? std::getenv("BATCH_MODE") : "NOT SET");
+  printf("[DEBUG]   FIXED_BATCH_SIZE=%s\n",
+         std::getenv("FIXED_BATCH_SIZE") ? std::getenv("FIXED_BATCH_SIZE") : "NOT SET");
+  printf(
+    "[DEBUG] Final values: batch_mode=%s, fixed_size=%zu\n", batch_mode.c_str(), fixed_batch_size);
+
+  printf("[DEBUG] Batch mode: %s", batch_mode.c_str());
+
+  // Initialize batch size variables based on mode
   size_t min_batch_size     = 10;    // Minimum batch size
   size_t max_batch_size     = 2000;  // Maximum batch size to try
   size_t current_batch_size = 100;   // Start with reasonable size
   size_t optimal_batch_size = 0;     // Will store the best size found
+
+  if (batch_mode == "fixed") {
+    // Fixed mode: use the specified batch size
+    current_batch_size = fixed_batch_size;
+    optimal_batch_size = fixed_batch_size;
+    printf("[DEBUG] Using fixed batch size: %zu sources\n", fixed_batch_size);
+  } else {
+    // Dynamic mode: use binary search to find optimal size
+    printf("[DEBUG] Using dynamic batch size with binary search\n");
+  }
 
   size_t processed_sources = 0;
   size_t batch_number      = 0;
@@ -1241,7 +1264,7 @@ rmm::device_uvector<weight_t> betweenness_centrality(
         do_expensive_check);
     }
   } else {
-    // Single-GPU: Use parallel multisource_bfs with adaptive batching
+    // Single-GPU: Use adaptive batching
     printf("[DEBUG] Running MULTISOURCE version (single-GPU mode) with adaptive batching\n");
 
     while (processed_sources < num_sources) {
@@ -1320,55 +1343,59 @@ rmm::device_uvector<weight_t> betweenness_centrality(
         mem_after_batch.print(label.c_str());
       }
 
-      // Record batch result and update binary search
-      if (batch_success) {
-        // This batch size worked, try larger
-        optimal_batch_size = current_batch_size;      // Remember this working size
-        min_batch_size     = current_batch_size + 1;  // Search in upper half
+      // Record batch result and update binary search (only in dynamic mode)
+      if (batch_mode == "dynamic") {
+        if (batch_success) {
+          // This batch size worked, try larger
+          optimal_batch_size = current_batch_size;      // Remember this working size
+          min_batch_size     = current_batch_size + 1;  // Search in upper half
 
-        if (min_batch_size <= max_batch_size) {
-          current_batch_size = (min_batch_size + max_batch_size) / 2;  // Binary search
-          printf("[BinarySearch] SUCCESS at %zu sources, trying %zu next (range: %zu-%zu)\n",
-                 actual_batch_size,
-                 current_batch_size,
-                 min_batch_size,
-                 max_batch_size);
+          if (min_batch_size <= max_batch_size) {
+            current_batch_size = (min_batch_size + max_batch_size) / 2;  // Binary search
+            printf("[BinarySearch] SUCCESS at %zu sources, trying %zu next (range: %zu-%zu)\n",
+                   actual_batch_size,
+                   current_batch_size,
+                   min_batch_size,
+                   max_batch_size);
+          } else {
+            printf("[BinarySearch] CONVERGED: Optimal batch size = %zu sources\n",
+                   optimal_batch_size);
+            current_batch_size = optimal_batch_size;  // Use the best size found
+          }
         } else {
-          printf("[BinarySearch] CONVERGED: Optimal batch size = %zu sources\n",
-                 optimal_batch_size);
-          current_batch_size = optimal_batch_size;  // Use the best size found
+          // This batch size failed, try smaller
+          max_batch_size = current_batch_size - 1;  // Search in lower half
+
+          if (min_batch_size <= max_batch_size) {
+            current_batch_size = (min_batch_size + max_batch_size) / 2;  // Binary search
+            printf("[BinarySearch] FAILED at %zu sources, trying %zu next (range: %zu-%zu)\n",
+                   actual_batch_size,
+                   current_batch_size,
+                   min_batch_size,
+                   max_batch_size);
+          } else {
+            printf("[BinarySearch] CONVERGED: Optimal batch size = %zu sources\n",
+                   optimal_batch_size);
+            current_batch_size = optimal_batch_size;  // Use the best size found
+          }
         }
+
+        // Print clean, separated stats
+        printf("\n");
+        printf(
+          "[BinarySearch] Stats: Total=%zu, Successful=%zu, OOM=%zu, Success Rate=%.1f%%, Optimal "
+          "Size=%zu\n",
+          batch_number,
+          processed_sources,
+          batch_number - processed_sources,
+          (double)processed_sources / batch_number * 100.0,
+          optimal_batch_size);
+        printf("\n");
       } else {
-        // This batch size failed, try smaller
-        max_batch_size = current_batch_size - 1;  // Search in lower half
-
-        if (min_batch_size <= max_batch_size) {
-          current_batch_size = (min_batch_size + max_batch_size) / 2;  // Binary search
-          printf("[BinarySearch] FAILED at %zu sources, trying %zu next (range: %zu-%zu)\n",
-                 actual_batch_size,
-                 current_batch_size,
-                 min_batch_size,
-                 max_batch_size);
-        } else {
-          printf("[BinarySearch] CONVERGED: Optimal batch size = %zu sources\n",
-                 optimal_batch_size);
-          current_batch_size = optimal_batch_size;  // Use the best size found
-        }
+        // Fixed mode: just print simple progress
+        printf("[FixedBatch] Completed batch %zu: %zu sources\n", batch_number, actual_batch_size);
       }
-
-      // Print clean, separated stats
-      printf("\n");
-      printf(
-        "[BinarySearch] Stats: Total=%zu, Successful=%zu, OOM=%zu, Success Rate=%.1f%%, Optimal "
-        "Size=%zu\n",
-        batch_number,
-        processed_sources,
-        batch_number - processed_sources,
-        (double)processed_sources / batch_number * 100.0,
-        optimal_batch_size);
-      printf("\n");
-    }
-
+    }  // End of while loop
     printf("[Memory] Completed %zu sources in %zu batches\n", processed_sources, batch_number);
   }
 
