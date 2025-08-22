@@ -517,8 +517,11 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
     translate(handle, vertex_v);
 
     if (multi_gpu && shuffle) {
-      vertex_v =
-        cugraph::shuffle_ext_vertices(handle, std::move(vertex_v), large_vertex_buffer_type);
+      std::tie(vertex_v, std::ignore) =
+        cugraph::shuffle_ext_vertices(handle,
+                                      std::move(vertex_v),
+                                      std::vector<cugraph::arithmetic_device_uvector_t>{},
+                                      large_vertex_buffer_type);
     }
 
     return std::make_tuple(std::move(edge_src_chunks),

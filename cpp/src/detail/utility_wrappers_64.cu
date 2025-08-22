@@ -26,6 +26,7 @@
 
 #include <cuda/functional>
 #include <cuda/std/iterator>
+#include <cuda/std/tuple>
 #include <thrust/count.h>
 #include <thrust/functional.h>
 #include <thrust/iterator/zip_iterator.h>
@@ -35,7 +36,6 @@
 #include <thrust/sort.h>
 #include <thrust/transform.h>
 #include <thrust/transform_reduce.h>
-#include <thrust/tuple.h>
 
 namespace cugraph {
 namespace detail {
@@ -100,16 +100,6 @@ template int64_t compute_maximum_vertex_id(rmm::cuda_stream_view const& stream_v
                                            int64_t const* d_edgelist_srcs,
                                            int64_t const* d_edgelist_dsts,
                                            size_t num_edges);
-
-template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int64_t>>
-filter_degree_0_vertices(raft::handle_t const& handle,
-                         rmm::device_uvector<int32_t>&& d_vertices,
-                         rmm::device_uvector<int64_t>&& d_out_degs);
-
-template std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<int64_t>>
-filter_degree_0_vertices(raft::handle_t const& handle,
-                         rmm::device_uvector<int64_t>&& d_vertices,
-                         rmm::device_uvector<int64_t>&& d_out_degs);
 
 template bool is_sorted(raft::handle_t const& handle, raft::device_span<int64_t> span);
 template bool is_sorted(raft::handle_t const& handle, raft::device_span<int64_t const> span);

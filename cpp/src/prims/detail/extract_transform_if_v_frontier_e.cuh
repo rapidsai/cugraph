@@ -42,6 +42,7 @@
 #include <cub/cub.cuh>
 #include <cuda/std/iterator>
 #include <cuda/std/optional>
+#include <cuda/std/tuple>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
 #include <thrust/count.h>
@@ -49,7 +50,6 @@
 #include <thrust/functional.h>
 #include <thrust/iterator/iterator_traits.h>
 #include <thrust/sort.h>
-#include <thrust/tuple.h>
 
 #include <algorithm>
 #include <cstdlib>
@@ -82,8 +82,8 @@ __device__ void push_buffer_element(BufferKeyOutputIterator buffer_key_output_fi
 
   static_assert(!std::is_same_v<output_key_t, void> || !std::is_same_v<output_value_t, void>);
   if constexpr (!std::is_same_v<output_key_t, void> && !std::is_same_v<output_value_t, void>) {
-    *(buffer_key_output_first + buffer_idx)   = thrust::get<0>(*e_op_result);
-    *(buffer_value_output_first + buffer_idx) = thrust::get<1>(*e_op_result);
+    *(buffer_key_output_first + buffer_idx)   = cuda::std::get<0>(*e_op_result);
+    *(buffer_value_output_first + buffer_idx) = cuda::std::get<1>(*e_op_result);
   } else if constexpr (!std::is_same_v<output_key_t, void>) {
     *(buffer_key_output_first + buffer_idx) = *e_op_result;
   } else {
@@ -758,7 +758,7 @@ extract_transform_if_v_frontier_e(raft::handle_t const& handle,
       e_op_result_t,
       std::conditional_t<
         !std::is_same_v<output_key_t, void> && !std::is_same_v<output_value_t, void>,
-        thrust::tuple<output_key_t, output_value_t>,
+        cuda::std::tuple<output_key_t, output_value_t>,
         std::conditional_t<!std::is_same_v<output_key_t, void>, output_key_t, output_value_t>>>);
 
   constexpr bool try_bitmap = GraphViewType::is_multi_gpu && std::is_same_v<key_t, vertex_t> &&
