@@ -23,16 +23,11 @@
 | Subgraph Extraction                                         | [Subgraph Extraction](./Subgraph-Extraction.ipynb)   | Create a subgraph of the existing graph including only the specified vertices |
 | Triangle Counting                                           | [Triangle Counting](./Triangle-Counting.ipynb)       | Count the number of size three cliques in a graph                      |
 
-[System Requirements](../../README.md#requirements)
-
-| Author Credit |    Date    |  Update          | cuGraph Version |  Test Hardware |
-| --------------|------------|------------------|-----------------|----------------|
-| Brad Rees     | 04/19/2021 | created          | 0.19            | GV100, CUDA 11.0
-| Don Acosta    | 07/11/2022 | tested / updated | 22.08 nightly   | DGX Tesla V100 CUDA 11.5
+[System Requirements](https://docs.rapids.ai/install/#system-req)
 
 ## Copyright
 
-Copyright (c) 2019-2022, NVIDIA CORPORATION.  All rights reserved.
+Copyright (c) 2019-2025, NVIDIA CORPORATION.  All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");  you may not use this file except in compliance with the License.  You may obtain a copy of the License at
 
