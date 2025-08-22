@@ -665,7 +665,7 @@ std::tuple<vertex_t, int, distance_t, vertex_t, std::optional<distance_t>> trave
   vertex_t local_vertex_partition_range_first,
   int vertex_partition_id)
 {
-  // note that updaing mg_w_to_predecessors can happen outside the timed part (as this is just used
+  // note that updating mg_w_to_predecessors can happen outside the timed part (as this is just used
   // for validation), but we are performing this in this function for simplicity (and this doesn't
   // noticeably increase the execution time).
 
@@ -843,7 +843,7 @@ void update_unvisited_vertex_distances(
                    gather_offset_first + remaining_vertices.size(),
                    parents.begin(),
                    remaining_vertex_parents.begin());
-    auto remaing_vertex_parent_dists = cugraph::collect_values_for_int_vertices(
+    auto remaining_vertex_parent_dists = cugraph::collect_values_for_int_vertices(
       handle,
       remaining_vertex_parents.begin(),
       remaining_vertex_parents.end(),
@@ -852,7 +852,7 @@ void update_unvisited_vertex_distances(
                                       vertex_partition_range_offsets.size() - 1),
       local_vertex_partition_range_first);
     auto pair_first =
-      thrust::make_zip_iterator(remaining_vertices.begin(), remaing_vertex_parent_dists.begin());
+      thrust::make_zip_iterator(remaining_vertices.begin(), remaining_vertex_parent_dists.begin());
     auto remaining_last = thrust::partition(handle.get_thrust_policy(),
                                             pair_first,
                                             pair_first + remaining_vertices.size(),
@@ -885,7 +885,7 @@ void update_unvisited_vertex_distances(
                       mg_distances.begin());
     } else {  // BFS
       auto dist_first =
-        thrust::make_transform_iterator(remaing_vertex_parent_dists.begin() + new_size,
+        thrust::make_transform_iterator(remaining_vertex_parent_dists.begin() + new_size,
                                         cuda::proclaim_return_type<distance_t>(
                                           [] __device__(auto d) { return d + distance_t{1}; }));
       thrust::scatter(handle.get_thrust_policy(),

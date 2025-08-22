@@ -122,10 +122,10 @@ rmm::device_uvector<vertex_t> find_uniques(raft::handle_t const& handle,
                                            std::optional<large_buffer_type_t> large_buffer_type)
 {
   if (vertices.size() > mem_frugal_threshold) {  // halve the temporary memory usage compared to the
-                                                 // simple copy & sort & unqiue approach
+                                                 // simple copy & sort & unique approach
     size_t first_half_size = vertices.size() / 2;
 
-    /* find uqniues in the firs half */
+    /* find unique in the first half */
 
     auto first_half_uniques =
       large_buffer_type ? large_buffer_manager::allocate_memory_buffer<vertex_t>(
@@ -143,7 +143,7 @@ rmm::device_uvector<vertex_t> find_uniques(raft::handle_t const& handle,
                               handle.get_stream());
     first_half_uniques.shrink_to_fit(handle.get_stream());
 
-    /* find uqniues in the second half */
+    /* find uniques in the second half */
 
     auto second_half_uniques =
       large_buffer_type
@@ -163,7 +163,7 @@ rmm::device_uvector<vertex_t> find_uniques(raft::handle_t const& handle,
                                handle.get_stream());
     second_half_uniques.shrink_to_fit(handle.get_stream());
 
-    /* find the final uqniues */
+    /* find the final uniques */
 
     auto uniques =
       large_buffer_type
