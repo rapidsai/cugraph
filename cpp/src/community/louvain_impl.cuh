@@ -133,8 +133,14 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
                handle.get_stream());
 
     if constexpr (graph_view_t::is_multi_gpu) {
-      std::tie(cluster_keys_v, cluster_weights_v) = shuffle_ext_vertex_value_pairs(
-        handle, std::move(cluster_keys_v), std::move(cluster_weights_v));
+      {
+        std::vector<cugraph::arithmetic_device_uvector_t> vertex_properties{};
+        vertex_properties.push_back(std::move(cluster_weights_v));
+        std::tie(cluster_keys_v, vertex_properties) =
+          shuffle_ext_vertices(handle, std::move(cluster_keys_v), std::move(vertex_properties));
+        cluster_weights_v =
+          std::move(std::get<rmm::device_uvector<weight_t>>(vertex_properties[0]));
+      }
 
       src_vertex_weights_cache =
         edge_src_property_t<vertex_t, weight_t>(handle, current_graph_view);

@@ -25,6 +25,7 @@
 #include <cugraph/edge_property.hpp>
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_view.hpp>
+#include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/vertex_partition_device_view.cuh>
 
@@ -255,7 +256,7 @@ void bfs(raft::handle_t const& handle,
     (graph_view.number_of_vertices() > 0)
       ? ((static_cast<double>(graph_view.compute_number_of_edges(handle)) /
           static_cast<double>(graph_view.number_of_vertices())) *
-         (1.0 / 3.75) /* tuning parametger */)
+         (partition_manager::map_major_comm_to_gpu_row_comm ? 0.267 : 0.533 /* tuning parameter */))
       : double{1.0};
   constexpr vertex_t direction_optimizing_beta = 24;  // tuning parameter
 
@@ -372,7 +373,9 @@ void bfs(raft::handle_t const& handle,
 
   vertex_frontier_t<vertex_t, void, GraphViewType::is_multi_gpu, true> vertex_frontier(handle,
                                                                                        num_buckets);
-  vertex_frontier.bucket(bucket_idx_cur).insert(sources, sources + n_sources);
+  vertex_frontier.bucket(bucket_idx_cur) =
+    key_bucket_t<vertex_t, void, GraphViewType::is_multi_gpu, true>(
+      handle, raft::device_span<vertex_t const>(sources, n_sources));
 
   // 5. initialize BFS temporary state data
 
@@ -384,8 +387,8 @@ void bfs(raft::handle_t const& handle,
   fill_edge_dst_property(handle, graph_view, dst_visited_flags.mutable_view(), false);
   fill_edge_dst_property(handle,
                          graph_view,
-                         vertex_frontier.bucket(bucket_idx_cur).begin(),
-                         vertex_frontier.bucket(bucket_idx_cur).end(),
+                         vertex_frontier.bucket(bucket_idx_cur).cbegin(),
+                         vertex_frontier.bucket(bucket_idx_cur).cend(),
                          prev_dst_visited_flags.mutable_view(),
                          true);
 
@@ -438,8 +441,8 @@ void bfs(raft::handle_t const& handle,
 
       fill_edge_dst_property(handle,
                              graph_view,
-                             vertex_frontier.bucket(bucket_idx_next).begin(),
-                             vertex_frontier.bucket(bucket_idx_next).end(),
+                             vertex_frontier.bucket(bucket_idx_next).cbegin(),
+                             vertex_frontier.bucket(bucket_idx_next).cend(),
                              prev_dst_visited_flags.mutable_view(),
                              true);
 
@@ -447,8 +450,8 @@ void bfs(raft::handle_t const& handle,
         if (vertex_frontier.bucket(bucket_idx_next).size() > 0) {
           thrust::for_each(
             handle.get_thrust_policy(),
-            vertex_frontier.bucket(bucket_idx_next).begin(),
-            vertex_frontier.bucket(bucket_idx_next).end(),
+            vertex_frontier.bucket(bucket_idx_next).cbegin(),
+            vertex_frontier.bucket(bucket_idx_next).cend(),
             [bitmap  = raft::device_span<uint32_t>((*aux_info).visited_bitmap.data(),
                                                   (*aux_info).visited_bitmap.size()),
              v_first = graph_view.local_vertex_partition_range_first()] __device__(auto v) {
@@ -469,8 +472,8 @@ void bfs(raft::handle_t const& handle,
             partition_size             = static_cast<size_t>(minor_comm_size);
           }
 
-          auto f_vertex_first = vertex_frontier.bucket(bucket_idx_next).begin();
-          auto f_vertex_last  = vertex_frontier.bucket(bucket_idx_next).end();
+          auto f_vertex_first = vertex_frontier.bucket(bucket_idx_next).cbegin();
+          auto f_vertex_last  = vertex_frontier.bucket(bucket_idx_next).cend();
 
           if (segment_offsets) {
             // FIXME: this actually over-estimates for graphs with power-law degree distribution
@@ -479,8 +482,8 @@ void bfs(raft::handle_t const& handle,
             auto approx_hypersparse_segment_degree =
               static_cast<double>(partition_size) * hypersparse_threshold_ratio * 0.5;
             auto f_segment_offsets = compute_key_segment_offsets(
-              vertex_frontier.bucket(bucket_idx_next).begin(),
-              vertex_frontier.bucket(bucket_idx_next).end(),
+              vertex_frontier.bucket(bucket_idx_next).cbegin(),
+              vertex_frontier.bucket(bucket_idx_next).cend(),
               raft::host_span<vertex_t const>((*segment_offsets).data(), (*segment_offsets).size()),
               graph_view.local_vertex_partition_range_first(),
               handle.get_stream());
@@ -547,11 +550,11 @@ void bfs(raft::handle_t const& handle,
         auto aggregate_m_u = m_u;
         if constexpr (GraphViewType::is_multi_gpu) {
           auto tmp      = host_scalar_allreduce(handle.get_comms(),
-                                           thrust::make_tuple(m_f, m_u),
+                                           cuda::std::make_tuple(m_f, m_u),
                                            raft::comms::op_t::SUM,
                                            handle.get_stream());
-          aggregate_m_f = thrust::get<0>(tmp);
-          aggregate_m_u = thrust::get<1>(tmp);
+          aggregate_m_f = cuda::std::get<0>(tmp);
+          aggregate_m_u = cuda::std::get<1>(tmp);
         }
         if ((aggregate_m_f * direction_optimizing_alpha > aggregate_m_u) &&
             (next_aggregate_frontier_size >= cur_aggregate_frontier_size)) {
@@ -699,11 +702,11 @@ void bfs(raft::handle_t const& handle,
       if constexpr (GraphViewType::is_multi_gpu) {
         auto tmp = host_scalar_allreduce(
           handle.get_comms(),
-          thrust::make_tuple(next_aggregate_frontier_size, aggregate_nzd_unvisited_vertices),
+          cuda::std::make_tuple(next_aggregate_frontier_size, aggregate_nzd_unvisited_vertices),
           raft::comms::op_t::SUM,
           handle.get_stream());
-        next_aggregate_frontier_size     = thrust::get<0>(tmp);
-        aggregate_nzd_unvisited_vertices = thrust::get<1>(tmp);
+        next_aggregate_frontier_size     = cuda::std::get<0>(tmp);
+        aggregate_nzd_unvisited_vertices = cuda::std::get<1>(tmp);
       }
 
       if (next_aggregate_frontier_size == 0) { break; }

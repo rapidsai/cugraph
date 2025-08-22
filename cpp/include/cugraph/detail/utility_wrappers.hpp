@@ -226,24 +226,6 @@ vertex_t compute_maximum_vertex_id(rmm::cuda_stream_view const& stream_view,
 
 /**
  * @ingroup utility_wrappers_cpp
- * @brief Filter zero degree vertices from this frontier
- *
- * @tparam vertex_t vertex type
- * @tparam edge_t edge type
- * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
- * handles to various CUDA libraries) to run graph algorithms.
- * @param d_vertices The input list of vertices
- * @param d_out_degs The output degree of each vertex
- * @return A tuple of device vectors the updated list of vertices and output degrees
- */
-template <typename vertex_t, typename edge_t>
-std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> filter_degree_0_vertices(
-  raft::handle_t const& handle,
-  rmm::device_uvector<vertex_t>&& d_vertices,
-  rmm::device_uvector<edge_t>&& d_out_degs);
-
-/**
- * @ingroup utility_wrappers_cpp
  * @brief Check if device span is sorted
  *
  * @tparam data_t type of data in span

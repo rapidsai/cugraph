@@ -380,33 +380,21 @@ k_truss(raft::handle_t const& handle,
 
         auto vertex_partition_range_lasts = cur_graph_view.vertex_partition_range_lasts();
 
-        rmm::device_uvector<vertex_t> d_vertex_partition_range_lasts(
-          vertex_partition_range_lasts.size(), handle.get_stream());
-
-        raft::update_device(d_vertex_partition_range_lasts.data(),
-                            vertex_partition_range_lasts.data(),
-                            vertex_partition_range_lasts.size(),
-                            handle.get_stream());
-
-        // Shuffle the edges with respect to the undirected graph view to the GPU
-        // owning edge (p, q). Remember that the triplet (p, q, r) is ordered based on the
-        // vertex ID and not the degree so (p, q) might not be an edge in the DODG but is
-        // surely an edge in the undirected graph
-        std::tie(triangles_endpoints, std::ignore) = groupby_gpu_id_and_shuffle_values(
-          handle.get_comms(),
-          get_dataframe_buffer_begin(triangles_endpoints),
-          get_dataframe_buffer_end(triangles_endpoints),
-
-          [key_func =
-             cugraph::detail::compute_gpu_id_from_int_edge_endpoints_t<vertex_t>{
-               raft::device_span<vertex_t const>(d_vertex_partition_range_lasts.data(),
-                                                 d_vertex_partition_range_lasts.size()),
-               comm_size,
-               major_comm_size,
-               minor_comm_size}] __device__(auto val) {
-            return key_func(cuda::std::get<0>(val), cuda::std::get<1>(val));
-          },
-          handle.get_stream());
+        {
+          std::vector<cugraph::arithmetic_device_uvector_t> edge_properties{};
+          edge_properties.push_back(std::move(std::get<2>(triangles_endpoints)));
+          std::tie(std::get<0>(triangles_endpoints),
+                   std::get<1>(triangles_endpoints),
+                   edge_properties,
+                   std::ignore) = shuffle_int_edges(handle,
+                                                    std::move(std::get<0>(triangles_endpoints)),
+                                                    std::move(std::get<1>(triangles_endpoints)),
+                                                    std::move(edge_properties),
+                                                    false /* store_transposed */,
+                                                    vertex_partition_range_lasts);
+          std::get<2>(triangles_endpoints) =
+            std::move(std::get<rmm::device_uvector<vertex_t>>(edge_properties[0]));
+        }
 
         thrust::sort(handle.get_thrust_policy(),
                      get_dataframe_buffer_begin(triangles_endpoints),
@@ -526,35 +514,18 @@ k_truss(raft::handle_t const& handle,
         auto const minor_comm_size        = minor_comm.get_size();
         auto vertex_partition_range_lasts = cur_graph_view.vertex_partition_range_lasts();
 
-        rmm::device_uvector<vertex_t> d_vertex_partition_range_lasts(
-          vertex_partition_range_lasts.size(), handle.get_stream());
-        raft::update_device(d_vertex_partition_range_lasts.data(),
-                            vertex_partition_range_lasts.data(),
-                            vertex_partition_range_lasts.size(),
-                            handle.get_stream());
-
-        std::forward_as_tuple(std::tie(std::get<0>(vertex_pair_buffer_unique),
-                                       std::get<1>(vertex_pair_buffer_unique),
-                                       decrease_count),
-                              std::ignore) =
-          groupby_gpu_id_and_shuffle_values(
-            handle.get_comms(),
-            thrust::make_zip_iterator(std::get<0>(vertex_pair_buffer_unique).begin(),
-                                      std::get<1>(vertex_pair_buffer_unique).begin(),
-                                      decrease_count.begin()),
-            thrust::make_zip_iterator(std::get<0>(vertex_pair_buffer_unique).end(),
-                                      std::get<1>(vertex_pair_buffer_unique).end(),
-                                      decrease_count.end()),
-            [key_func =
-               cugraph::detail::compute_gpu_id_from_int_edge_endpoints_t<vertex_t>{
-                 raft::device_span<vertex_t const>(d_vertex_partition_range_lasts.data(),
-                                                   d_vertex_partition_range_lasts.size()),
-                 comm_size,
-                 major_comm_size,
-                 minor_comm_size}] __device__(auto val) {
-              return key_func(cuda::std::get<0>(val), cuda::std::get<1>(val));
-            },
-            handle.get_stream());
+        std::vector<cugraph::arithmetic_device_uvector_t> edge_properties{};
+        edge_properties.push_back(std::move(decrease_count));
+        std::tie(std::get<0>(vertex_pair_buffer_unique),
+                 std::get<1>(vertex_pair_buffer_unique),
+                 edge_properties,
+                 std::ignore) = shuffle_int_edges(handle,
+                                                  std::move(std::get<0>(vertex_pair_buffer_unique)),
+                                                  std::move(std::get<1>(vertex_pair_buffer_unique)),
+                                                  std::move(edge_properties),
+                                                  false /* store_transposed */,
+                                                  vertex_partition_range_lasts);
+        decrease_count = std::move(std::get<rmm::device_uvector<edge_t>>(edge_properties[0]));
       }
 
       thrust::sort_by_key(handle.get_thrust_policy(),

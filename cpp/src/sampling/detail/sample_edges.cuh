@@ -73,7 +73,7 @@ struct sample_edges_op_t {
     if constexpr (std::is_same_v<key_t, vertex_t>)
       src = optionally_tagged_src;
     else
-      src = thrust::get<0>(optionally_tagged_src);
+      src = cuda::std::get<0>(optionally_tagged_src);
 
     if constexpr (std::is_same_v<edge_properties_t, cuda::std::nullopt_t>) {
       return cuda::std::make_tuple(src, dst);
@@ -113,7 +113,7 @@ struct temporal_sample_edge_biases_op_t {
                                cuda::std::nullopt_t,
                                edge_time_t edge_time) const
   {
-    return (thrust::get<1>(tagged_src) < edge_time) ? bias_t{1} : bias_t{0};
+    return (cuda::std::get<1>(tagged_src) < edge_time) ? bias_t{1} : bias_t{0};
   }
 
   template <typename edge_time_t>
@@ -137,7 +137,8 @@ struct temporal_sample_edge_biases_op_t {
                                cuda::std::nullopt_t,
                                cuda::std::tuple<edge_time_t, edge_type_t> time_and_type) const
   {
-    return (thrust::get<1>(tagged_src) < thrust::get<0>(time_and_type)) ? bias_t{1} : bias_t{0};
+    return (cuda::std::get<1>(tagged_src) < cuda::std::get<0>(time_and_type)) ? bias_t{1}
+                                                                              : bias_t{0};
   }
 
   template <typename edge_time_t, typename edge_type_t>
@@ -148,8 +149,8 @@ struct temporal_sample_edge_biases_op_t {
              cuda::std::nullopt_t,
              cuda::std::tuple<bias_t, edge_time_t, edge_type_t> bias_time_and_type) const
   {
-    return (thrust::get<1>(tagged_src) < thrust::get<1>(bias_time_and_type))
-             ? thrust::get<0>(bias_time_and_type)
+    return (cuda::std::get<1>(tagged_src) < cuda::std::get<1>(bias_time_and_type))
+             ? cuda::std::get<0>(bias_time_and_type)
              : bias_t{0};
   }
 };

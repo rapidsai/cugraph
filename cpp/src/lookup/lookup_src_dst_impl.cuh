@@ -24,6 +24,7 @@
 #include <cugraph/detail/decompress_edge_partition.cuh>
 #include <cugraph/edge_property.hpp>
 #include <cugraph/graph.hpp>
+#include <cugraph/shuffle_functions.hpp>
 #include <cugraph/src_dst_lookup_container.hpp>
 #include <cugraph/utilities/mask_utils.cuh>
 #include <cugraph/utilities/misc_utils.cuh>
@@ -640,21 +641,17 @@ EdgeTypeAndIdToSrcDstLookupContainerType build_edge_id_and_type_to_src_dst_looku
       auto const minor_comm_size = minor_comm.get_size();
 
       // Shuffle to the proper GPUs
-      std::vector<cugraph::arithmetic_device_uvector_t> edgelist_values{};
-      edgelist_values.push_back(std::move(edgelist_majors));
-      edgelist_values.push_back(std::move(edgelist_minors));
-      edgelist_values.push_back(std::move(edgelist_types));
+      std::vector<cugraph::arithmetic_device_uvector_t> vertex_values{};
+      vertex_values.push_back(std::move(edgelist_majors));
+      vertex_values.push_back(std::move(edgelist_minors));
+      vertex_values.push_back(std::move(edgelist_types));
 
-      std::tie(edgelist_ids, edgelist_values) = cugraph::shuffle_keys_with_properties(
-        handle,
-        std::move(edgelist_ids),
-        std::move(edgelist_values),
-        cugraph::detail::compute_gpu_id_from_ext_edge_id_t<edge_t>{
-          comm_size, major_comm_size, minor_comm_size});
+      std::tie(edgelist_ids, vertex_values) =
+        cugraph::shuffle_ext_vertices(handle, std::move(edgelist_ids), std::move(vertex_values));
 
-      edgelist_majors = std::move(std::get<rmm::device_uvector<vertex_t>>(edgelist_values[0]));
-      edgelist_minors = std::move(std::get<rmm::device_uvector<vertex_t>>(edgelist_values[1]));
-      edgelist_types  = std::move(std::get<rmm::device_uvector<edge_type_t>>(edgelist_values[2]));
+      edgelist_majors = std::move(std::get<rmm::device_uvector<vertex_t>>(vertex_values[0]));
+      edgelist_minors = std::move(std::get<rmm::device_uvector<vertex_t>>(vertex_values[1]));
+      edgelist_types  = std::move(std::get<rmm::device_uvector<edge_type_t>>(vertex_values[2]));
     }
 
     //

@@ -109,41 +109,6 @@ struct transform_reduce_if_v_frontier_call_e_op_t {
   }
 };
 
-template <typename InputKeyIterator, typename key_t>
-struct update_keep_flag_t {
-  using input_key_t =
-    typename thrust::iterator_traits<InputKeyIterator>::value_type;  // uint32_t (compressed) or
-                                                                     // key_t (i.e. vertex_t)
-
-  raft::device_span<uint32_t> bitmap{};
-  raft::device_span<uint32_t> keep_flags{};
-  key_t v_range_first{};
-  InputKeyIterator input_key_first{};
-  cuda::std::optional<input_key_t> invalid_input_key{};
-
-  __device__ void operator()(size_t i) const
-  {
-    auto v = *(input_key_first + i);
-    if (invalid_input_key && (v == *invalid_input_key)) {
-      return;  // just discard
-    }
-    input_key_t v_offset{};
-    if constexpr ((sizeof(key_t) == 8) && std::is_same_v<input_key_t, uint32_t>) {
-      v_offset = v;
-    } else {
-      v_offset = v - v_range_first;
-    }
-    cuda::atomic_ref<uint32_t, cuda::thread_scope_device> bitmap_word(
-      bitmap[packed_bool_offset(v_offset)]);
-    auto old = bitmap_word.fetch_or(packed_bool_mask(v_offset), cuda::std::memory_order_relaxed);
-    if ((old & packed_bool_mask(v_offset)) == packed_bool_empty_mask()) {
-      cuda::atomic_ref<uint32_t, cuda::thread_scope_device> keep_flag_word(
-        keep_flags[packed_bool_offset(i)]);
-      keep_flag_word.fetch_or(packed_bool_mask(i), cuda::std::memory_order_relaxed);
-    }
-  }
-};
-
 template <typename priority_t, typename vertex_t, typename payload_t>
 std::tuple<rmm::device_uvector<vertex_t>, optional_dataframe_buffer_type_t<payload_t>>
 filter_buffer_elements(
@@ -277,6 +242,10 @@ sort_and_reduce_buffer_elements(
   ReduceOp reduce_op,
   std::conditional_t<std::is_integral_v<key_t>, std::tuple<key_t, key_t>, std::byte /* dummy */>
     vertex_range,
+  std::conditional_t<std::is_integral_v<key_t>, key_t, std::byte /* dummy */>
+    unique_prefix_vertex_range_size,  // no duplicate keys in [std::get<0>(vertex_range),
+                                      // std::get<0>(vertex_range) +
+                                      // unique_prefix_vertex_range_size)
   std::optional<input_key_t> invalid_key /* drop (key, (payload)) pairs with invalid key */)
 {
   constexpr bool compressed =
@@ -285,32 +254,132 @@ sort_and_reduce_buffer_elements(
                                             // type (i.e. vertex_t)
   static_assert(compressed || std::is_same_v<input_key_t, key_t>);
 
+  size_t num_unique_prefix_elements{0};
+  if constexpr (std::is_integral_v<key_t>) {
+    if (unique_prefix_vertex_range_size > 0) {
+      auto threshold =
+        (compressed ? key_t{0} : std::get<0>(vertex_range)) + unique_prefix_vertex_range_size;
+      if constexpr (std::is_same_v<payload_t, void>) {
+        num_unique_prefix_elements = static_cast<size_t>(cuda::std::distance(
+          get_dataframe_buffer_begin(key_buffer),
+          thrust::partition(
+            handle.get_thrust_policy(),
+            get_dataframe_buffer_begin(key_buffer),
+            get_dataframe_buffer_end(key_buffer),
+            cuda::proclaim_return_type<bool>(
+              [threshold,
+               invalid_key = invalid_key ? cuda::std::optional(*invalid_key)
+                                         : cuda::std::nullopt] __device__(auto key) {
+                if (invalid_key && key == *invalid_key) { return false; }
+                return key < threshold;
+              }))));
+        thrust::sort(handle.get_thrust_policy(),
+                     get_dataframe_buffer_begin(key_buffer),
+                     get_dataframe_buffer_begin(key_buffer) + num_unique_prefix_elements);
+
+      } else {
+        auto pair_first = thrust::make_zip_iterator(get_dataframe_buffer_begin(key_buffer),
+                                                    get_dataframe_buffer_begin(payload_buffer));
+        num_unique_prefix_elements = static_cast<size_t>(cuda::std::distance(
+          pair_first,
+          thrust::partition(
+            handle.get_thrust_policy(),
+            pair_first,
+            pair_first + size_dataframe_buffer(key_buffer),
+            cuda::proclaim_return_type<bool>(
+              [threshold,
+               invalid_key = invalid_key ? cuda::std::optional(*invalid_key)
+                                         : cuda::std::nullopt] __device__(auto pair) {
+                auto key = cuda::std::get<0>(pair);
+                if (invalid_key && key == *invalid_key) { return false; }
+                return key < threshold;
+              }))));
+        thrust::sort_by_key(handle.get_thrust_policy(),
+                            get_dataframe_buffer_begin(key_buffer),
+                            get_dataframe_buffer_begin(key_buffer) + num_unique_prefix_elements,
+                            get_dataframe_buffer_begin(payload_buffer));
+      }
+    }
+  }
+
+  if (invalid_key) {
+    size_t valid_size{0};
+    if constexpr (std::is_same_v<payload_t, void>) {
+      auto key_first      = get_dataframe_buffer_begin(key_buffer);
+      auto valid_key_last = thrust::remove(handle.get_thrust_policy(),
+                                           key_first + num_unique_prefix_elements,
+                                           key_first + size_dataframe_buffer(key_buffer),
+                                           *invalid_key);
+      valid_size          = static_cast<size_t>(cuda::std::distance(key_first, valid_key_last));
+    } else {
+      auto pair_first      = thrust::make_zip_iterator(get_dataframe_buffer_begin(key_buffer),
+                                                  get_dataframe_buffer_begin(payload_buffer));
+      auto valid_pair_last = thrust::partition(
+        handle.get_thrust_policy(),
+        pair_first + num_unique_prefix_elements,
+        pair_first + size_dataframe_buffer(key_buffer),
+        cuda::proclaim_return_type<bool>([invalid_key = *invalid_key] __device__(auto pair) {
+          return cuda::std::get<0>(pair) != invalid_key;
+        }));
+      valid_size = static_cast<size_t>(cuda::std::distance(pair_first, valid_pair_last));
+    }
+    resize_dataframe_buffer(key_buffer, valid_size, handle.get_stream());
+    if constexpr (!std::is_same_v<payload_t, void>) {
+      resize_dataframe_buffer(payload_buffer, valid_size, handle.get_stream());
+    }
+  }
+
   if constexpr (std::is_integral_v<key_t> &&
                 (std::is_same_v<payload_t, void> ||
                  std::is_same_v<ReduceOp,
                                 reduce_op::any<typename ReduceOp::value_type>>)) {  // try to use
                                                                                     // bitmap for
                                                                                     // filtering
-    key_t range_size = std::get<1>(vertex_range) - std::get<0>(vertex_range);
-    if (static_cast<double>(size_dataframe_buffer(key_buffer)) >=
+    key_t range_size =
+      std::get<1>(vertex_range) - (std::get<0>(vertex_range) + unique_prefix_vertex_range_size);
+    if (static_cast<double>(size_dataframe_buffer(key_buffer) - num_unique_prefix_elements) >=
         static_cast<double>(range_size) *
           0.125 /* tuning parameter */) {  // use bitmap for filtering
       rmm::device_uvector<uint32_t> bitmap(packed_bool_size(range_size), handle.get_stream());
-      rmm::device_uvector<uint32_t> keep_flags(packed_bool_size(size_dataframe_buffer(key_buffer)),
-                                               handle.get_stream());
+      rmm::device_uvector<uint32_t> keep_flags(
+        packed_bool_size(size_dataframe_buffer(key_buffer) - num_unique_prefix_elements),
+        handle.get_stream());
       thrust::fill(
         handle.get_thrust_policy(), bitmap.begin(), bitmap.end(), packed_bool_empty_mask());
-      thrust::fill(
-        handle.get_thrust_policy(), keep_flags.begin(), keep_flags.end(), packed_bool_empty_mask());
-      thrust::for_each(handle.get_thrust_policy(),
-                       thrust::make_counting_iterator(size_t{0}),
-                       thrust::make_counting_iterator(size_dataframe_buffer(key_buffer)),
-                       update_keep_flag_t<decltype(get_dataframe_buffer_begin(key_buffer)), key_t>{
-                         raft::device_span<uint32_t>(bitmap.data(), bitmap.size()),
-                         raft::device_span<uint32_t>(keep_flags.data(), keep_flags.size()),
-                         std::get<0>(vertex_range),
-                         get_dataframe_buffer_begin(key_buffer),
-                         to_thrust_optional(invalid_key)});
+      thrust::for_each(
+        handle.get_thrust_policy(),
+        thrust::make_counting_iterator(size_t{0}),
+        thrust::make_counting_iterator(keep_flags.size()),
+        cuda::proclaim_return_type<void>(
+          [bitmap          = raft::device_span<uint32_t>(bitmap.data(), bitmap.size()),
+           keep_flags      = raft::device_span<uint32_t>(keep_flags.data(), keep_flags.size()),
+           input_key_first = get_dataframe_buffer_begin(key_buffer) + num_unique_prefix_elements,
+           shift_left_amt =
+             (compressed ? key_t{0} : std::get<0>(vertex_range)) + unique_prefix_vertex_range_size,
+           num_keys =
+             size_dataframe_buffer(key_buffer) - num_unique_prefix_elements] __device__(auto i) {
+            auto keep_flag_word = packed_bool_empty_mask();
+            for (size_t j = i * packed_bools_per_word();
+                 j < cuda::std::min((i + 1) * packed_bools_per_word(), num_keys);
+                 ++j) {
+              auto v             = *(input_key_first + j);
+              input_key_t offset = v - shift_left_amt;
+              cuda::atomic_ref<uint32_t, cuda::thread_scope_device> bitmap_word(
+                bitmap[packed_bool_offset(offset)]);
+              auto old =
+                bitmap_word.fetch_or(packed_bool_mask(offset), cuda::std::memory_order_relaxed);
+              if ((old & packed_bool_mask(offset)) == packed_bool_empty_mask()) {
+                keep_flag_word |= packed_bool_mask(j);
+              }
+            }
+            keep_flags[i] = keep_flag_word;
+          }));
+      auto count_first = thrust::make_transform_iterator(
+        keep_flags.begin(), cuda::proclaim_return_type<size_t>([] __device__(auto word) {
+          return static_cast<size_t>(__popc(word));
+        }));
+      auto num_valids =
+        thrust::reduce(handle.get_thrust_policy(), count_first, count_first + keep_flags.size());
       auto stencil_first = thrust::make_transform_iterator(
         thrust::make_counting_iterator(size_t{0}),
         cuda::proclaim_return_type<bool>(
@@ -320,40 +389,54 @@ sort_and_reduce_buffer_elements(
                    packed_bool_empty_mask();
           }));
       if constexpr (std::is_same_v<payload_t, void>) {
-        resize_dataframe_buffer(
-          key_buffer,
-          cuda::std::distance(get_dataframe_buffer_begin(key_buffer),
-                              thrust::remove_if(handle.get_thrust_policy(),
-                                                get_dataframe_buffer_begin(key_buffer),
-                                                get_dataframe_buffer_end(key_buffer),
-                                                stencil_first,
-                                                is_not_equal_t<bool>{true})),
-          handle.get_stream());
-        shrink_to_fit_dataframe_buffer(key_buffer, handle.get_stream());
+        auto tmp_key_buffer = allocate_dataframe_buffer<input_key_t>(
+          num_unique_prefix_elements + num_valids, handle.get_stream());
+        if (num_unique_prefix_elements > 0) {
+          thrust::copy(handle.get_thrust_policy(),
+                       get_dataframe_buffer_begin(key_buffer),
+                       get_dataframe_buffer_begin(key_buffer) + num_unique_prefix_elements,
+                       get_dataframe_buffer_begin(tmp_key_buffer));
+        }
+        thrust::copy_if(handle.get_thrust_policy(),
+                        get_dataframe_buffer_begin(key_buffer) + num_unique_prefix_elements,
+                        get_dataframe_buffer_end(key_buffer),
+                        stencil_first,
+                        get_dataframe_buffer_begin(tmp_key_buffer) + num_unique_prefix_elements,
+                        is_equal_t<bool>{true});
+        key_buffer = std::move(tmp_key_buffer);
         thrust::sort(handle.get_thrust_policy(),
-                     get_dataframe_buffer_begin(key_buffer),
+                     get_dataframe_buffer_begin(key_buffer) + num_unique_prefix_elements,
                      get_dataframe_buffer_end(key_buffer));
       } else {
         static_assert(std::is_same_v<ReduceOp, reduce_op::any<typename ReduceOp::value_type>>);
-        auto pair_first = thrust::make_zip_iterator(get_dataframe_buffer_begin(key_buffer),
-                                                    get_dataframe_buffer_begin(payload_buffer));
-        resize_dataframe_buffer(
-          key_buffer,
-          cuda::std::distance(pair_first,
-                              thrust::remove_if(handle.get_thrust_policy(),
-                                                pair_first,
-                                                pair_first + size_dataframe_buffer(key_buffer),
-                                                stencil_first,
-                                                is_not_equal_t<bool>{true})),
-          handle.get_stream());
-        resize_dataframe_buffer(
-          payload_buffer, size_dataframe_buffer(key_buffer), handle.get_stream());
-        shrink_to_fit_dataframe_buffer(key_buffer, handle.get_stream());
-        shrink_to_fit_dataframe_buffer(payload_buffer, handle.get_stream());
-        thrust::sort_by_key(handle.get_thrust_policy(),
-                            get_dataframe_buffer_begin(key_buffer),
-                            get_dataframe_buffer_end(key_buffer),
-                            get_dataframe_buffer_begin(payload_buffer));
+        auto tmp_key_buffer = allocate_dataframe_buffer<input_key_t>(
+          num_unique_prefix_elements + num_valids, handle.get_stream());
+        auto tmp_payload_buffer = allocate_dataframe_buffer<payload_t>(
+          num_unique_prefix_elements + num_valids, handle.get_stream());
+        auto input_pair_first = thrust::make_zip_iterator(
+          get_dataframe_buffer_begin(key_buffer), get_dataframe_buffer_begin(payload_buffer));
+        auto output_pair_first =
+          thrust::make_zip_iterator(get_dataframe_buffer_begin(tmp_key_buffer),
+                                    get_dataframe_buffer_begin(tmp_payload_buffer));
+        if (num_unique_prefix_elements > 0) {
+          thrust::copy(handle.get_thrust_policy(),
+                       input_pair_first,
+                       input_pair_first + num_unique_prefix_elements,
+                       output_pair_first);
+        }
+        thrust::copy_if(handle.get_thrust_policy(),
+                        input_pair_first + num_unique_prefix_elements,
+                        input_pair_first + size_dataframe_buffer(key_buffer),
+                        stencil_first,
+                        output_pair_first + num_unique_prefix_elements,
+                        is_equal_t<bool>{true});
+        key_buffer     = std::move(tmp_key_buffer);
+        payload_buffer = std::move(tmp_payload_buffer);
+        thrust::sort_by_key(
+          handle.get_thrust_policy(),
+          get_dataframe_buffer_begin(key_buffer) + num_unique_prefix_elements,
+          get_dataframe_buffer_end(key_buffer),
+          get_dataframe_buffer_begin(payload_buffer) + num_unique_prefix_elements);
       }
 
       if constexpr (compressed) {
@@ -375,13 +458,13 @@ sort_and_reduce_buffer_elements(
 
   if constexpr (std::is_same_v<payload_t, void>) {
     thrust::sort(handle.get_thrust_policy(),
-                 get_dataframe_buffer_begin(key_buffer),
+                 get_dataframe_buffer_begin(key_buffer) + num_unique_prefix_elements,
                  get_dataframe_buffer_end(key_buffer));
   } else {
     thrust::sort_by_key(handle.get_thrust_policy(),
-                        get_dataframe_buffer_begin(key_buffer),
+                        get_dataframe_buffer_begin(key_buffer) + num_unique_prefix_elements,
                         get_dataframe_buffer_end(key_buffer),
-                        get_optional_dataframe_buffer_begin<payload_t>(payload_buffer));
+                        get_dataframe_buffer_begin(payload_buffer) + num_unique_prefix_elements);
   }
 
   auto output_key_buffer = allocate_dataframe_buffer<key_t>(0, handle.get_stream());
@@ -395,49 +478,29 @@ sort_and_reduce_buffer_elements(
           [v_first = std::get<0>(vertex_range)] __device__(auto v_offset) {
             return static_cast<key_t>(v_first + v_offset);
           }));
+      if (num_unique_prefix_elements > 0) {
+        thrust::copy(handle.get_thrust_policy(),
+                     input_key_first,
+                     input_key_first + num_unique_prefix_elements,
+                     get_dataframe_buffer_begin(output_key_buffer));
+      }
       resize_dataframe_buffer(
         output_key_buffer,
-        cuda::std::distance(
-          get_dataframe_buffer_begin(output_key_buffer),
-          thrust::copy_if(handle.get_thrust_policy(),
-                          input_key_first,
-                          input_key_first + size_dataframe_buffer(key_buffer),
-                          thrust::make_counting_iterator(size_t{0}),
-                          get_dataframe_buffer_begin(output_key_buffer),
-                          cuda::proclaim_return_type<bool>(
-                            [key_first   = get_dataframe_buffer_begin(key_buffer),
-                             invalid_key = to_thrust_optional(invalid_key)] __device__(size_t i) {
-                              auto key = *(key_first + i);
-                              if (invalid_key && (key == *invalid_key)) {
-                                return false;
-                              } else if ((i != 0) && (key == *(key_first + (i - 1)))) {
-                                return false;
-                              } else {
-                                return true;
-                              }
-                            }))),
+        cuda::std::distance(get_dataframe_buffer_begin(output_key_buffer),
+                            thrust::unique_copy(handle.get_thrust_policy(),
+                                                input_key_first + num_unique_prefix_elements,
+                                                input_key_first + size_dataframe_buffer(key_buffer),
+                                                get_dataframe_buffer_begin(output_key_buffer) +
+                                                  num_unique_prefix_elements)),
         handle.get_stream());
     } else {
       resize_dataframe_buffer(
         key_buffer,
         cuda::std::distance(
           get_dataframe_buffer_begin(key_buffer),
-          thrust::remove_if(handle.get_thrust_policy(),
-                            get_dataframe_buffer_begin(key_buffer),
-                            get_dataframe_buffer_end(key_buffer),
-                            thrust::make_counting_iterator(size_t{0}),
-                            cuda::proclaim_return_type<bool>(
-                              [key_first   = get_dataframe_buffer_begin(key_buffer),
-                               invalid_key = to_thrust_optional(invalid_key)] __device__(size_t i) {
-                                auto key = *(key_first + i);
-                                if (invalid_key && (key == *invalid_key)) {
-                                  return true;
-                                } else if ((i != 0) && (key == *(key_first + (i - 1)))) {
-                                  return true;
-                                } else {
-                                  return false;
-                                }
-                              }))),
+          thrust::unique(handle.get_thrust_policy(),
+                         get_dataframe_buffer_begin(key_buffer) + num_unique_prefix_elements,
+                         get_dataframe_buffer_end(key_buffer))),
         handle.get_stream());
       output_key_buffer = std::move(key_buffer);
     }
@@ -454,59 +517,40 @@ sort_and_reduce_buffer_elements(
           }));
       auto tmp_payload_buffer = allocate_dataframe_buffer<payload_t>(
         size_dataframe_buffer(payload_buffer), handle.get_stream());
-      auto input_pair_first =
-        thrust::make_zip_iterator(input_key_first, get_dataframe_buffer_begin(payload_buffer));
-      auto output_pair_first =
-        thrust::make_zip_iterator(get_dataframe_buffer_begin(output_key_buffer),
-                                  get_dataframe_buffer_begin(tmp_payload_buffer));
+      if (num_unique_prefix_elements > 0) {
+        auto input_pair_first =
+          thrust::make_zip_iterator(input_key_first, get_dataframe_buffer_begin(payload_buffer));
+        thrust::copy(handle.get_thrust_policy(),
+                     input_pair_first,
+                     input_pair_first + num_unique_prefix_elements,
+                     thrust::make_zip_iterator(get_dataframe_buffer_begin(output_key_buffer),
+                                               get_dataframe_buffer_begin(tmp_payload_buffer)));
+      }
       resize_dataframe_buffer(
         output_key_buffer,
         cuda::std::distance(
-          output_pair_first,
-          thrust::copy_if(handle.get_thrust_policy(),
-                          input_pair_first,
-                          input_pair_first + size_dataframe_buffer(key_buffer),
-                          thrust::make_counting_iterator(size_t{0}),
-                          output_pair_first,
-                          cuda::proclaim_return_type<bool>(
-                            [key_first   = get_dataframe_buffer_begin(key_buffer),
-                             invalid_key = to_thrust_optional(invalid_key)] __device__(size_t i) {
-                              auto key = *(key_first + i);
-                              if (invalid_key && (key == *invalid_key)) {
-                                return false;
-                              } else if ((i != 0) && (key == *(key_first + (i - 1)))) {
-                                return false;
-                              } else {
-                                return true;
-                              }
-                            }))),
+          get_dataframe_buffer_begin(output_key_buffer),
+          cuda::std::get<0>(thrust::unique_by_key_copy(
+            handle.get_thrust_policy(),
+            input_key_first + num_unique_prefix_elements,
+            input_key_first + size_dataframe_buffer(key_buffer),
+            get_dataframe_buffer_begin(payload_buffer) + num_unique_prefix_elements,
+            get_dataframe_buffer_begin(output_key_buffer) + num_unique_prefix_elements,
+            get_dataframe_buffer_begin(tmp_payload_buffer) + num_unique_prefix_elements))),
         handle.get_stream());
       resize_dataframe_buffer(
         tmp_payload_buffer, size_dataframe_buffer(output_key_buffer), handle.get_stream());
       payload_buffer = std::move(tmp_payload_buffer);
     } else {
-      auto pair_first = thrust::make_zip_iterator(get_dataframe_buffer_begin(key_buffer),
-                                                  get_dataframe_buffer_begin(payload_buffer));
       resize_dataframe_buffer(
         key_buffer,
         cuda::std::distance(
-          pair_first,
-          thrust::remove_if(handle.get_thrust_policy(),
-                            pair_first,
-                            pair_first + size_dataframe_buffer(key_buffer),
-                            thrust::make_counting_iterator(size_t{0}),
-                            cuda::proclaim_return_type<bool>(
-                              [key_first   = get_dataframe_buffer_begin(key_buffer),
-                               invalid_key = to_thrust_optional(invalid_key)] __device__(size_t i) {
-                                auto key = *(key_first + i);
-                                if (invalid_key && (key == *invalid_key)) {
-                                  return true;
-                                } else if ((i != 0) && (key == *(key_first + (i - 1)))) {
-                                  return true;
-                                } else {
-                                  return false;
-                                }
-                              }))),
+          get_dataframe_buffer_begin(key_buffer),
+          cuda::std::get<0>(thrust::unique_by_key(
+            handle.get_thrust_policy(),
+            get_dataframe_buffer_begin(key_buffer) + num_unique_prefix_elements,
+            get_dataframe_buffer_end(key_buffer),
+            get_dataframe_buffer_begin(payload_buffer) + num_unique_prefix_elements))),
         handle.get_stream());
       resize_dataframe_buffer(
         payload_buffer, size_dataframe_buffer(key_buffer), handle.get_stream());
@@ -515,30 +559,14 @@ sort_and_reduce_buffer_elements(
     shrink_to_fit_dataframe_buffer(output_key_buffer, handle.get_stream());
     shrink_to_fit_dataframe_buffer(payload_buffer, handle.get_stream());
   } else {
-    if (invalid_key) {
-      auto pair_first = thrust::make_zip_iterator(get_dataframe_buffer_begin(key_buffer),
-                                                  get_dataframe_buffer_begin(payload_buffer));
-      resize_dataframe_buffer(
-        key_buffer,
-        cuda::std::distance(pair_first,
-                            thrust::remove_if(handle.get_thrust_policy(),
-                                              pair_first,
-                                              pair_first + size_dataframe_buffer(key_buffer),
-                                              cuda::proclaim_return_type<bool>(
-                                                [invalid_key = *invalid_key] __device__(auto kv) {
-                                                  auto key = cuda::std::get<0>(kv);
-                                                  return key == invalid_key;
-                                                }))),
-        handle.get_stream());
-      resize_dataframe_buffer(
-        payload_buffer, size_dataframe_buffer(key_buffer), handle.get_stream());
-    }
     auto num_uniques =
+      num_unique_prefix_elements +
       thrust::count_if(handle.get_thrust_policy(),
                        thrust::make_counting_iterator(size_t{0}),
-                       thrust::make_counting_iterator(size_dataframe_buffer(key_buffer)),
-                       is_first_in_run_t<decltype(get_dataframe_buffer_begin(key_buffer))>{
-                         get_dataframe_buffer_begin(key_buffer)});
+                       thrust::make_counting_iterator(size_dataframe_buffer(key_buffer) -
+                                                      num_unique_prefix_elements),
+                       is_first_in_run_t<dataframe_buffer_iterator_type_t<input_key_t>>{
+                         get_dataframe_buffer_begin(key_buffer) + num_unique_prefix_elements});
 
     auto new_key_buffer = allocate_dataframe_buffer<key_t>(num_uniques, handle.get_stream());
     auto new_payload_buffer =
@@ -634,6 +662,7 @@ transform_reduce_if_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
                                                                        e_op_wrapper,
                                                                        pred_op,
                                                                        do_expensive_check);
+
   // 2. reduce the buffer
 
   std::vector<vertex_t> vertex_partition_range_offsets{};
@@ -660,9 +689,12 @@ transform_reduce_if_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
   }
   std::conditional_t<std::is_integral_v<key_t>, std::tuple<key_t, key_t>, std::byte /* dummy */>
     vertex_range{};
+  std::conditional_t<std::is_integral_v<key_t>, key_t, std::byte /* dummy */>
+    unique_prefix_vertex_range_size{};
   if constexpr (std::is_integral_v<key_t>) {
-    vertex_range = std::make_tuple(vertex_partition_range_offsets.front(),
+    vertex_range                    = std::make_tuple(vertex_partition_range_offsets.front(),
                                    vertex_partition_range_offsets.back());
+    unique_prefix_vertex_range_size = 0;
   }
   std::tie(key_buffer, payload_buffer) =
     detail::sort_and_reduce_buffer_elements<key_t, key_t, payload_t, ReduceOp>(
@@ -671,16 +703,20 @@ transform_reduce_if_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
       std::move(payload_buffer),
       reduce_op,
       vertex_range,
+      unique_prefix_vertex_range_size,
       std::nullopt);
+
   if constexpr (GraphViewType::is_multi_gpu) {
     auto& major_comm           = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
     auto const major_comm_size = major_comm.get_size();
-    if (major_comm_size > 1) {
-      size_t local_key_buffer_size = size_dataframe_buffer(key_buffer);
-      auto avg_key_buffer_size =
-        host_scalar_allreduce(
-          major_comm, local_key_buffer_size, raft::comms::op_t::SUM, handle.get_stream()) /
-        major_comm_size;
+    size_t local_key_buffer_size = size_dataframe_buffer(key_buffer);
+    auto aggregate_key_buffer_size =
+      (major_comm_size > 1)
+        ? host_scalar_allreduce(
+            major_comm, local_key_buffer_size, raft::comms::op_t::SUM, handle.get_stream())
+        : local_key_buffer_size;
+    if ((major_comm_size > 1) && (aggregate_key_buffer_size > 0)) {
+      auto avg_key_buffer_size = aggregate_key_buffer_size / major_comm_size;
 
       rmm::device_uvector<vertex_t> d_vertex_partition_range_offsets(
         vertex_partition_range_offsets.size(), handle.get_stream());
@@ -712,12 +748,12 @@ transform_reduce_if_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
         auto segment_offsets = graph_view.local_vertex_partition_segment_offsets();
         auto& comm           = handle.get_comms();
         auto const comm_size = comm.get_size();
+
         if (segment_offsets &&
             (static_cast<double>(avg_key_buffer_size) >
              static_cast<double>(graph_view.number_of_vertices() / comm_size) *
                double{0.2})) {  // duplicates expected for high in-degree vertices (and we assume
-                                // correlation between in-degrees & out-degrees)  // FIXME: we need
-                                // a better criterion
+                                // correlation between in-degrees & out-degrees)
           size_t key_size{0};
           size_t payload_size{0};
           if constexpr (try_compression) {
@@ -727,11 +763,7 @@ transform_reduce_if_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
               key_size = sizeof(key_t);
             }
           } else {
-            if constexpr (std::is_arithmetic_v<key_t>) {
-              key_size = sizeof(key_t);
-            } else {
-              key_size = sum_thrust_tuple_element_sizes<key_t>();
-            }
+            key_size = sizeof(key_t);
           }
           if constexpr (!std::is_same_v<payload_t, void>) {
             if constexpr (std::is_arithmetic_v<payload_t>) {
@@ -742,25 +774,41 @@ transform_reduce_if_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
           }
 
           int subgroup_size{};
-          int num_gpus_per_node{};
-          RAFT_CUDA_TRY(cudaGetDeviceCount(&num_gpus_per_node));
-          if (comm_size <= num_gpus_per_node) {
+          int num_gpus_per_domain{};  // domain a group of GPUs that can communicate fast (e.g.
+                                      // NVLink domain)
+          RAFT_CUDA_TRY(cudaGetDeviceCount(&num_gpus_per_domain));
+          num_gpus_per_domain = std::min(num_gpus_per_domain, comm_size);
+          if (comm_size == num_gpus_per_domain) {
             subgroup_size = major_comm_size;
           } else {
             auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
             auto const minor_comm_size = minor_comm.get_size();
             subgroup_size              = partition_manager::map_major_comm_to_gpu_row_comm
-                                           ? std::min(major_comm_size, num_gpus_per_node)
-                                           : std::max(num_gpus_per_node / minor_comm_size, int{1});
+                                           ? std::min(major_comm_size, num_gpus_per_domain)
+                                           : std::max(num_gpus_per_domain / minor_comm_size, int{1});
           }
 
-          auto p2p_size_per_rank       = avg_key_buffer_size * (key_size + payload_size);
-          auto p2p_size_per_node       = p2p_size_per_rank * std::min(num_gpus_per_node, comm_size);
-          auto allreduce_size_per_node = p2p_size_per_node / 16 /* tuning parameter */;
-          auto allreduce_size_per_rank =
-            allreduce_size_per_node / (major_comm_size * (num_gpus_per_node / subgroup_size));
+          size_t allreduce_size_per_rank{0};
+          {
+            auto p2p_size_per_rank   = avg_key_buffer_size * (key_size + payload_size);
+            auto p2p_size_per_domain = p2p_size_per_rank * num_gpus_per_domain;
+            allreduce_size_per_rank =
+              ((p2p_size_per_domain / (major_comm_size * num_gpus_per_domain)) * subgroup_size) /
+              16 /* tuning parameter */;
+            // allreduce size per domain = allreduce_size_per_rank * (major_comm_size *
+            // num_gpus_per_domain) / subgroup_size, this should be smaller than the
+            // p2p_size_per_domain to justify the filtering cost, also note that filtering will be
+            // more effective in high & mid degree segments than the hypersparse region
+            allreduce_size_per_rank =
+              std::min(allreduce_size_per_rank, static_cast<size_t>(min_vertex_partition_size));
+          }
 
+          // SK: if major_comm_size > std::numeric_limits<uint8_t>::max() but major_comm_size <= 508
+          // ((2^8 - 1) * 2), we can perform allreduce using 16 bit per element (if the priority is
+          // no larger than 254, set priority in the first byte, otherwise, set priority in the
+          // second byte); note that NCCL currently does not support reduction on 16 bit integer
           if (major_comm_size <= std::numeric_limits<uint8_t>::max()) {  // priority = uint8_t
+            unique_prefix_vertex_range_size = allreduce_size_per_rank / sizeof(uint8_t);
             std::tie(key_buffer, payload_buffer) =
               filter_buffer_elements<uint8_t, key_t, payload_t>(
                 handle,
@@ -768,10 +816,10 @@ transform_reduce_if_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
                 std::move(payload_buffer),
                 raft::device_span<vertex_t const>(d_vertex_partition_range_offsets.data(),
                                                   d_vertex_partition_range_offsets.size()),
-                std::min(static_cast<vertex_t>(allreduce_size_per_rank / sizeof(uint8_t)),
-                         min_vertex_partition_size),
+                unique_prefix_vertex_range_size,
                 subgroup_size);
           } else {  // priority = uint32_t
+            unique_prefix_vertex_range_size = allreduce_size_per_rank / sizeof(uint32_t);
             std::tie(key_buffer, payload_buffer) =
               filter_buffer_elements<uint32_t, key_t, payload_t>(
                 handle,
@@ -779,8 +827,7 @@ transform_reduce_if_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
                 std::move(payload_buffer),
                 raft::device_span<vertex_t const>(d_vertex_partition_range_offsets.data(),
                                                   d_vertex_partition_range_offsets.size()),
-                std::min(static_cast<vertex_t>(allreduce_size_per_rank / sizeof(uint32_t)),
-                         min_vertex_partition_size),
+                unique_prefix_vertex_range_size,
                 subgroup_size);
           }
         }
@@ -1004,6 +1051,7 @@ transform_reduce_if_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
               std::move(payload_buffer),
               reduce_op,
               vertex_range,
+              unique_prefix_vertex_range_size,
               invalid_key ? std::make_optional(std::get<1>(*invalid_key)) : std::nullopt);
         } else {
           std::tie(key_buffer, payload_buffer) =
@@ -1013,6 +1061,7 @@ transform_reduce_if_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
               std::move(payload_buffer),
               reduce_op,
               vertex_range,
+              unique_prefix_vertex_range_size,
               invalid_key ? std::make_optional(std::get<0>(*invalid_key)) : std::nullopt);
         }
       } else {
@@ -1023,6 +1072,7 @@ transform_reduce_if_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
             std::move(payload_buffer),
             reduce_op,
             vertex_range,
+            unique_prefix_vertex_range_size,
             invalid_key);
       }
     }

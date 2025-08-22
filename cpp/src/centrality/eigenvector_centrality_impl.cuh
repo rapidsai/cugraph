@@ -149,7 +149,9 @@ rmm::device_uvector<weight_t> eigenvector_centrality(
       handle,
       pull_graph_view,
       thrust::make_zip_iterator(centralities.begin(), old_centralities.data()),
-      [] __device__(auto, auto val) { return std::abs(thrust::get<0>(val) - thrust::get<1>(val)); },
+      [] __device__(auto, auto val) {
+        return cuda::std::abs(cuda::std::get<0>(val) - cuda::std::get<1>(val));
+      },
       weight_t{0.0});
 
     iter++;
