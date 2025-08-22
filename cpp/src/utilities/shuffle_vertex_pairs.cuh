@@ -43,7 +43,7 @@ struct vertex_pair_groupby_functor_t {
   template <typename TupleType>
   auto __device__ operator()(TupleType tup) const
   {
-    return func_(thrust::get<0>(tup), thrust::get<1>(tup));
+    return func_(cuda::std::get<0>(tup), cuda::std::get<1>(tup));
   }
 };
 

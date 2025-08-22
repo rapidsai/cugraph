@@ -117,8 +117,8 @@ partition_v_frontier_per_value_idx(
                    index_pair_first,
                    index_pair_last,
                    [num_values_per_key] __device__(size_t i) {
-                     return thrust::make_tuple(i / num_values_per_key,
-                                               static_cast<value_idx_t>(i % num_values_per_key));
+                     return cuda::std::make_tuple(i / num_values_per_key,
+                                                  static_cast<value_idx_t>(i % num_values_per_key));
                    });
 
   auto num_partitions = thresholds.size() / num_values_per_key + 1;
@@ -140,8 +140,8 @@ partition_v_frontier_per_value_idx(
        num_values_per_key,
        num_partitions,
        true_partition_idx = i] __device__(auto pair) {
-        auto key_idx   = thrust::get<0>(pair);
-        auto value_idx = thrust::get<1>(pair);
+        auto key_idx   = cuda::std::get<0>(pair);
+        auto value_idx = cuda::std::get<1>(pair);
         return *(frontier_value_first + key_idx * num_values_per_key + value_idx) <
                thresholds[value_idx * (num_partitions - 1) + true_partition_idx];
       });

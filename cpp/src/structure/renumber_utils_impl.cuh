@@ -432,8 +432,8 @@ void renumber_ext_vertices(raft::handle_t const& handle,
                                      vc_pair_first,
                                      vc_pair_first + num_vertices,
                                      [] __device__(auto pair) {
-                                       auto v = thrust::get<0>(pair);
-                                       auto c = thrust::get<1>(pair);
+                                       auto v = cuda::std::get<0>(pair);
+                                       auto c = cuda::std::get<1>(pair);
                                        return v == invalid_vertex_id<vertex_t>::value
                                                 ? (c == true)
                                                 : (c == false);
@@ -485,8 +485,8 @@ void renumber_local_ext_vertices(raft::handle_t const& handle,
                                      vc_pair_first,
                                      vc_pair_first + num_vertices,
                                      [] __device__(auto pair) {
-                                       auto v = thrust::get<0>(pair);
-                                       auto c = thrust::get<1>(pair);
+                                       auto v = cuda::std::get<0>(pair);
+                                       auto c = cuda::std::get<1>(pair);
                                        return v == invalid_vertex_id<vertex_t>::value
                                                 ? (c == true)
                                                 : (c == false);

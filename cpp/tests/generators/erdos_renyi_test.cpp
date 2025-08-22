@@ -39,13 +39,12 @@ void test_symmetric(std::vector<vertex_t>& h_src_v, std::vector<vertex_t>& h_dst
   std::copy(h_dst_v.begin(), h_dst_v.end(), reverse_src_v.begin());
 
   thrust::sort(thrust::host,
-               thrust::make_zip_iterator(thrust::make_tuple(h_src_v.begin(), h_dst_v.begin())),
-               thrust::make_zip_iterator(thrust::make_tuple(h_src_v.end(), h_dst_v.end())));
+               thrust::make_zip_iterator(h_src_v.begin(), h_dst_v.begin()),
+               thrust::make_zip_iterator(h_src_v.end(), h_dst_v.end()));
 
-  thrust::sort(
-    thrust::host,
-    thrust::make_zip_iterator(thrust::make_tuple(reverse_src_v.begin(), reverse_dst_v.begin())),
-    thrust::make_zip_iterator(thrust::make_tuple(reverse_src_v.end(), reverse_dst_v.end())));
+  thrust::sort(thrust::host,
+               thrust::make_zip_iterator(reverse_src_v.begin(), reverse_dst_v.begin()),
+               thrust::make_zip_iterator(reverse_src_v.end(), reverse_dst_v.end()));
 
   EXPECT_EQ(reverse_src_v, h_src_v);
   EXPECT_EQ(reverse_dst_v, h_dst_v);

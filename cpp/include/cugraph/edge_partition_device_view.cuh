@@ -173,7 +173,7 @@ class edge_partition_device_view_base_t {
     auto edge_offset  = offsets_[major_idx];
     auto local_degree = offsets_[major_idx + 1] - edge_offset;
     auto indices      = indices_.data() + edge_offset;
-    return thrust::make_tuple(indices, edge_offset, local_degree);
+    return cuda::std::make_tuple(indices, edge_offset, local_degree);
   }
 
   // major_idx == major offset if CSR/CSC, major_offset != major_idx if DCSR/DCSC

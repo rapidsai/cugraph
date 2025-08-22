@@ -138,11 +138,11 @@ vertex_t compute_maximum_vertex_id(rmm::cuda_stream_view const& stream_view,
                                    vertex_t const* d_edgelist_dsts,
                                    size_t num_edges)
 {
-  auto max_v_first =
-    thrust::make_transform_iterator(thrust::make_zip_iterator(d_edgelist_srcs, d_edgelist_dsts),
-                                    cuda::proclaim_return_type<vertex_t>([] __device__(auto e) {
-                                      return cuda::std::max(thrust::get<0>(e), thrust::get<1>(e));
-                                    }));
+  auto max_v_first = thrust::make_transform_iterator(
+    thrust::make_zip_iterator(d_edgelist_srcs, d_edgelist_dsts),
+    cuda::proclaim_return_type<vertex_t>([] __device__(auto e) {
+      return cuda::std::max(cuda::std::get<0>(e), cuda::std::get<1>(e));
+    }));
   return thrust::reduce(rmm::exec_policy(stream_view),
                         max_v_first,
                         max_v_first + num_edges,

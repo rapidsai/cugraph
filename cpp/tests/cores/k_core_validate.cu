@@ -80,8 +80,8 @@ void check_correctness(
                      thrust::make_zip_iterator(graph_src.begin(), graph_dst.begin()),
                      thrust::make_zip_iterator(graph_src.end(), graph_dst.end()),
                      [k, d_core_numbers = core_numbers.data()] __device__(auto tuple) {
-                       vertex_t src = thrust::get<0>(tuple);
-                       vertex_t dst = thrust::get<1>(tuple);
+                       vertex_t src = cuda::std::get<0>(tuple);
+                       vertex_t dst = cuda::std::get<1>(tuple);
                        return ((d_core_numbers[src] >= k) && (d_core_numbers[dst] >= k));
                      });
 
