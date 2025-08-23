@@ -763,19 +763,6 @@ void multisource_backward_pass(
   // PRE-COMPUTE: Partition all (vertex, source) pairs by distance ONCE
   // This eliminates the need to scan the distance array global_max_distance times
 
-  // Create buckets for each distance level
-  std::vector<rmm::device_uvector<vertex_t>> distance_buckets_vertices;
-  std::vector<rmm::device_uvector<origin_t>> distance_buckets_sources;
-
-  // Reserve space and create empty buckets
-  distance_buckets_vertices.reserve(global_max_distance + 1);
-  distance_buckets_sources.reserve(global_max_distance + 1);
-
-  for (vertex_t d = 0; d <= global_max_distance; ++d) {
-    distance_buckets_vertices.emplace_back(0, handle.get_stream());
-    distance_buckets_sources.emplace_back(0, handle.get_stream());
-  }
-
   // Count vertices at each distance level first
   rmm::device_uvector<size_t> distance_counts(global_max_distance + 1, handle.get_stream());
   thrust::fill(
@@ -809,11 +796,22 @@ void multisource_backward_pass(
                     handle.get_stream());
   handle.sync_stream();
 
+  // Create buckets for each distance level
+  std::vector<rmm::device_uvector<vertex_t>> distance_buckets_vertices;
+  std::vector<rmm::device_uvector<origin_t>> distance_buckets_sources;
+
+  // Reserve space for all distance levels
+  distance_buckets_vertices.reserve(global_max_distance + 1);
+  distance_buckets_sources.reserve(global_max_distance + 1);
+
   // Allocate exact-sized buckets
   for (vertex_t d = 0; d <= global_max_distance; ++d) {
     if (host_distance_counts[d] > 0) {
-      distance_buckets_vertices[d].resize(host_distance_counts[d], handle.get_stream());
-      distance_buckets_sources[d].resize(host_distance_counts[d], handle.get_stream());
+      distance_buckets_vertices.emplace_back(host_distance_counts[d], handle.get_stream());
+      distance_buckets_sources.emplace_back(host_distance_counts[d], handle.get_stream());
+    } else {
+      distance_buckets_vertices.emplace_back(0, handle.get_stream());
+      distance_buckets_sources.emplace_back(0, handle.get_stream());
     }
   }
 
