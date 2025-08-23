@@ -18,10 +18,9 @@ import pytest
 import cupy
 import cudf
 import cugraph
-from cugraph import uniform_neighbor_sample
+from cugraph import homogeneous_neighbor_sample
 from cugraph.testing import UNDIRECTED_DATASETS
 from cugraph.datasets import email_Eu_core, small_tree
-from cugraph.structure.symmetrize import symmetrize
 from pylibcugraph.testing.utils import gen_fixture_params_product
 
 
@@ -44,6 +43,7 @@ fixture_params = gen_fixture_params_product(
     (IS_DIRECTED, "directed"),
     ([False, True], "with_replacement"),
     (["float32"], "indices_type"),
+    ([False, True], "with_biases")
 )
 
 
@@ -85,7 +85,8 @@ def input_combo(request):
 
     vertices = cudf.concat([srcs, dsts]).drop_duplicates()
 
-    start_list = vertices.sample(k).astype("int32")
+    seed = 123 
+    start_list = G.select_random_vertices(seed, k)
 
     # Generate a random fanout_vals list of length random(1, k)
     fanout_vals = [random.randint(1, k) for _ in range(random.randint(1, k))]
@@ -104,7 +105,7 @@ def input_combo(request):
 @pytest.fixture(scope="module")
 def simple_unweighted_input_expected_output(request):
     """
-    Fixture for providing the input for a uniform_neighbor_sample test using a
+    Fixture for providing the input for a neighbor_sample test using a
     small/simple unweighted graph and the corresponding expected output.
     """
     test_data = {}
@@ -130,38 +131,31 @@ def simple_unweighted_input_expected_output(request):
 # Tests
 # =============================================================================
 @pytest.mark.sg
-def test_uniform_neighbor_sample_simple(input_combo):
+def test_neighbor_sample_simple(input_combo):
 
     G = input_combo["Graph"]
 
-    #
-    # Make sure the old C++ renumbering was skipped because:
-    #    1) Pylibcugraph already does renumbering
-    #    2) Uniform neighborhood sampling allows int32 weights
-    #       which are not supported by the C++ renumbering
-    # This should be 'True' only for string vertices and multi columns vertices
-    #
 
+    # This should be 'True' only for string vertices and multi columns vertices
     assert G.renumbered is False
     # Retrieve the input dataframe.
     # FIXME: in simpleGraph and simpleDistributedGraph, G.edgelist.edgelist_df
     # should be 'None' if the datasets was never renumbered
-    input_df = G.edgelist.edgelist_df
+    input_df = G.decompress_to_edgelist(return_unrenumbered_edgelist=True)
 
-    # FIXME: Uses the deprecated implementation of symmetrize.
-    source_col, dest_col = symmetrize(
-        input_df, "src", "dst", symmetrize=not G.is_directed()
-    )
+    source_col = input_df["src"]
+    dest_col   = input_df["dst"]
 
     input_df = cudf.DataFrame()
     input_df["src"] = source_col
     input_df["dst"] = dest_col
 
-    result_nbr = uniform_neighbor_sample(
+    result_nbr = homogeneous_neighbor_sample(
         G,
-        input_combo["start_list"],
-        input_combo["fanout_vals"],
+        start_list=input_combo["start_list"],
+        fanout_vals=input_combo["fanout_vals"],
         with_replacement=input_combo["with_replacement"],
+        with_biases=input_combo["with_biases"]
     )
 
     print(input_df)
@@ -229,7 +223,8 @@ def test_uniform_neighbor_sample_simple(input_combo):
 
 @pytest.mark.sg
 @pytest.mark.parametrize("directed", IS_DIRECTED)
-def test_uniform_neighbor_sample_tree(directed):
+@pytest.mark.parametrize("with_biases", [True, False])
+def test_neighbor_sample_tree(directed, with_biases):
 
     input_data_path = small_tree.get_path()
 
@@ -243,27 +238,13 @@ def test_uniform_neighbor_sample_tree(directed):
     G = cugraph.Graph(directed=directed)
     G.from_cudf_edgelist(df, "src", "dst", "value")
 
-    # FIXME: Uses the deprecated implementation of symmetrize.
-    source_col, dest_col, value_col = symmetrize(
-        G.edgelist.edgelist_df, "src", "dst", "weights", symmetrize=not G.is_directed()
-    )
-
     # Retrieve the input dataframe.
     # input_df != df if 'directed = False' because df will be symmetrized
     # internally.
-    input_df = cudf.DataFrame()
-    input_df["src"] = source_col
-    input_df["dst"] = dest_col
-    input_df["value"] = value_col
+    input_df = G.decompress_to_edgelist(return_unrenumbered_edgelist=True)
 
-    #
-    # Make sure the old C++ renumbering was skipped because:
-    #    1) Pylibcugraph already does renumbering
-    #    2) Uniform neighborhood sampling allows int32 weights
-    #       which are not supported by the C++ renumbering
+
     # This should be 'True' only for string vertices and multi columns vertices
-    #
-
     assert G.renumbered is False
 
     # TODO: Incomplete, include more testing for tree graph as well as
@@ -271,8 +252,12 @@ def test_uniform_neighbor_sample_tree(directed):
     start_list = cudf.Series([0, 0], dtype="int32")
     fanout_vals = [4, 1, 3]
     with_replacement = True
-    result_nbr = uniform_neighbor_sample(
-        G, start_list, fanout_vals, with_replacement=with_replacement
+    result_nbr = homogeneous_neighbor_sample(
+        G,
+        start_list=start_list,
+        fanout_vals=fanout_vals,
+        with_replacement=with_replacement,
+        with_biases=with_biases
     )
 
     result_nbr = result_nbr.drop_duplicates()
@@ -299,14 +284,17 @@ def test_uniform_neighbor_sample_tree(directed):
 
 
 @pytest.mark.sg
-def test_uniform_neighbor_sample_unweighted(simple_unweighted_input_expected_output):
+@pytest.mark.parametrize("with_biases", [True, False])
+def test_neighbor_sample_unweighted(simple_unweighted_input_expected_output, with_biases):
     test_data = simple_unweighted_input_expected_output
 
-    sampling_results = uniform_neighbor_sample(
+    sampling_results = homogeneous_neighbor_sample(
         test_data["Graph"],
-        test_data["start_list"].astype("int64"),
-        test_data["fanout_vals"],
+        start_list=test_data["start_list"].astype("int64"),
+        fanout_vals=test_data["fanout_vals"],
         with_replacement=test_data["with_replacement"],
+        with_biases=with_biases
+
     )
 
     actual_src = sampling_results.majors
@@ -320,7 +308,8 @@ def test_uniform_neighbor_sample_unweighted(simple_unweighted_input_expected_out
 
 @pytest.mark.sg
 @pytest.mark.parametrize("return_offsets", [True, False])
-def test_uniform_neighbor_sample_edge_properties(return_offsets):
+@pytest.mark.parametrize("with_biases", [True, False])
+def test_neighbor_sample_edge_properties(return_offsets, with_biases):
     edgelist_df = cudf.DataFrame(
         {
             "src": cudf.Series([0, 1, 2, 3, 4, 3, 4, 2, 0, 1, 0, 2], dtype="int32"),
@@ -346,11 +335,12 @@ def test_uniform_neighbor_sample_edge_properties(return_offsets):
         edge_attr=["w", "eid", "etp"],
     )
 
-    sampling_results = uniform_neighbor_sample(
+    sampling_results = homogeneous_neighbor_sample(
         G,
         start_list=start_df,
         fanout_vals=[2, 2],
         with_replacement=False,
+        with_biases=with_biases,
         with_batch_ids=True,
         return_offsets=return_offsets,
     )
@@ -392,7 +382,8 @@ def test_uniform_neighbor_sample_edge_properties(return_offsets):
 
 
 @pytest.mark.sg
-def test_uniform_neighbor_sample_edge_properties_self_loops():
+@pytest.mark.parametrize("with_biases", [True, False])
+def test_homogeneous_neighbor_sample_edge_properties_self_loops(with_biases):
     df = cudf.DataFrame(
         {
             "src": [0, 1, 2],
@@ -411,7 +402,7 @@ def test_uniform_neighbor_sample_edge_properties_self_loops():
         edge_attr=["w", "eid", "etp"],
     )
 
-    sampling_results = cugraph.uniform_neighbor_sample(
+    sampling_results = cugraph.homogeneous_neighbor_sample(
         G,
         start_list=cudf.DataFrame(
             {
@@ -421,6 +412,7 @@ def test_uniform_neighbor_sample_edge_properties_self_loops():
         ),
         fanout_vals=[2, 2],
         with_replacement=False,
+        with_biases=with_biases,
         with_batch_ids=True,
         random_state=80,
     )
@@ -449,7 +441,8 @@ def test_uniform_neighbor_sample_edge_properties_self_loops():
 
 
 @pytest.mark.sg
-def test_uniform_neighbor_sample_hop_id_order():
+@pytest.mark.parametrize("with_biases", [True, False])
+def test_homogeneous_neighbor_sample_hop_id_order(with_biases):
     df = cudf.DataFrame(
         {
             "src": [0, 1, 2, 3, 3, 6],
@@ -460,11 +453,12 @@ def test_uniform_neighbor_sample_hop_id_order():
     G = cugraph.Graph(directed=True)
     G.from_cudf_edgelist(df, source="src", destination="dst")
 
-    sampling_results = cugraph.uniform_neighbor_sample(
+    sampling_results = cugraph.homogeneous_neighbor_sample(
         G,
         cudf.Series([0, 1], dtype="int64"),
         fanout_vals=[2, 2, 2],
         with_replacement=False,
+        with_biases=with_biases,
     )
 
     assert (
@@ -474,7 +468,8 @@ def test_uniform_neighbor_sample_hop_id_order():
 
 
 @pytest.mark.sg
-def test_uniform_neighbor_sample_hop_id_order_multi_batch():
+@pytest.mark.parametrize("with_biases", [True, False])
+def test_homogeneous_neighbor_sample_hop_id_order_multi_batch(with_biases):
     df = cudf.DataFrame(
         {
             "src": [0, 1, 2, 3, 3, 6],
@@ -485,7 +480,7 @@ def test_uniform_neighbor_sample_hop_id_order_multi_batch():
     G = cugraph.Graph(directed=True)
     G.from_cudf_edgelist(df, source="src", destination="dst")
 
-    sampling_results = cugraph.uniform_neighbor_sample(
+    sampling_results = cugraph.homogeneous_neighbor_sample(
         G,
         start_list=cudf.DataFrame(
             {
@@ -495,6 +490,7 @@ def test_uniform_neighbor_sample_hop_id_order_multi_batch():
         ),
         fanout_vals=[2, 2, 2],
         with_replacement=False,
+        with_biases=with_biases,
         with_batch_ids=True,
     )
 
@@ -512,7 +508,8 @@ def test_uniform_neighbor_sample_hop_id_order_multi_batch():
 
 
 @pytest.mark.sg
-def test_uniform_neighbor_sample_empty_start_list():
+@pytest.mark.parametrize("with_biases", [True, False])
+def test_homogeneous_neighbor_sample_empty_start_list(with_biases):
     df = cudf.DataFrame(
         {
             "src": [0, 1, 2],
@@ -531,7 +528,7 @@ def test_uniform_neighbor_sample_empty_start_list():
         edge_attr=["w", "eid", "etp"],
     )
 
-    sampling_results = cugraph.uniform_neighbor_sample(
+    sampling_results = cugraph.homogeneous_neighbor_sample(
         G,
         start_list=cudf.DataFrame(
             {
@@ -541,6 +538,7 @@ def test_uniform_neighbor_sample_empty_start_list():
         ),
         fanout_vals=[2, 2],
         with_replacement=False,
+        with_biases=with_biases,
         with_batch_ids=True,
         random_state=32,
     )
@@ -549,7 +547,8 @@ def test_uniform_neighbor_sample_empty_start_list():
 
 
 @pytest.mark.sg
-def test_uniform_neighbor_sample_exclude_sources_basic():
+@pytest.mark.parametrize("with_biases", [True, False])
+def test_homogeneous_neighbor_sample_exclude_sources_basic(with_biases):
     df = cudf.DataFrame(
         {
             "src": [0, 4, 1, 2, 3, 5, 4, 1, 0],
@@ -561,7 +560,7 @@ def test_uniform_neighbor_sample_exclude_sources_basic():
     G = cugraph.MultiGraph(directed=True)
     G.from_cudf_edgelist(df, source="src", destination="dst", edge_id="eid")
 
-    sampling_results = cugraph.uniform_neighbor_sample(
+    sampling_results = cugraph.homogeneous_neighbor_sample(
         G,
         cudf.DataFrame(
             {
@@ -571,6 +570,7 @@ def test_uniform_neighbor_sample_exclude_sources_basic():
         ),
         [2, 3, 3],
         with_replacement=False,
+        with_biases=with_biases,
         with_batch_ids=True,
         random_state=62,
         prior_sources_behavior="exclude",
@@ -595,7 +595,8 @@ def test_uniform_neighbor_sample_exclude_sources_basic():
 
 
 @pytest.mark.sg
-def test_uniform_neighbor_sample_exclude_sources_email_eu_core():
+@pytest.mark.parametrize("with_biases", [True, False])
+def test_homogeneous_neighbor_sample_exclude_sources_email_eu_core(with_biases):
     el = email_Eu_core.get_edgelist()
 
     G = cugraph.Graph(directed=True)
@@ -603,11 +604,12 @@ def test_uniform_neighbor_sample_exclude_sources_email_eu_core():
 
     seeds = G.select_random_vertices(62, int(0.001 * len(el)))
 
-    sampling_results = cugraph.uniform_neighbor_sample(
+    sampling_results = cugraph.homogeneous_neighbor_sample(
         G,
         seeds,
         [5, 4, 3, 2, 1],
         with_replacement=False,
+        with_biases=with_biases,
         with_batch_ids=False,
         prior_sources_behavior="exclude",
     )
@@ -625,7 +627,8 @@ def test_uniform_neighbor_sample_exclude_sources_email_eu_core():
 
 
 @pytest.mark.sg
-def test_uniform_neighbor_sample_carry_over_sources_basic():
+@pytest.mark.parametrize("with_biases", [True, False])
+def test_homogeneous_neighbor_sample_carry_over_sources_basic(with_biases):
     df = cudf.DataFrame(
         {
             "src": [0, 4, 1, 2, 3, 5, 4, 1, 0, 6],
@@ -637,7 +640,7 @@ def test_uniform_neighbor_sample_carry_over_sources_basic():
     G = cugraph.MultiGraph(directed=True)
     G.from_cudf_edgelist(df, source="src", destination="dst", edge_id="eid")
 
-    sampling_results = cugraph.uniform_neighbor_sample(
+    sampling_results = cugraph.homogeneous_neighbor_sample(
         G,
         cudf.DataFrame(
             {
@@ -647,6 +650,7 @@ def test_uniform_neighbor_sample_carry_over_sources_basic():
         ),
         [2, 3, 3],
         with_replacement=False,
+        with_biases=with_biases,
         with_batch_ids=True,
         random_state=62,
         prior_sources_behavior="carryover",
@@ -676,7 +680,8 @@ def test_uniform_neighbor_sample_carry_over_sources_basic():
 
 
 @pytest.mark.sg
-def test_uniform_neighbor_sample_carry_over_sources_email_eu_core():
+@pytest.mark.parametrize("with_biases", [True, False])
+def test_homogeneous_neighbor_sample_carry_over_sources_email_eu_core(with_biases):
     el = email_Eu_core.get_edgelist()
 
     G = cugraph.Graph(directed=True)
@@ -684,11 +689,12 @@ def test_uniform_neighbor_sample_carry_over_sources_email_eu_core():
 
     seeds = G.select_random_vertices(62, int(0.001 * len(el)))
 
-    sampling_results = cugraph.uniform_neighbor_sample(
+    sampling_results = cugraph.homogeneous_neighbor_sample(
         G,
         seeds,
         [5, 4, 3, 2, 1],
         with_replacement=False,
+        with_biases=with_biases,
         with_batch_ids=False,
         prior_sources_behavior="carryover",
     )
@@ -708,7 +714,8 @@ def test_uniform_neighbor_sample_carry_over_sources_email_eu_core():
 
 
 @pytest.mark.sg
-def test_uniform_neighbor_sample_deduplicate_sources_email_eu_core():
+@pytest.mark.parametrize("with_biases", [True, False])
+def test_homogeneous_neighbor_sample_deduplicate_sources_email_eu_core(with_biases):
     el = email_Eu_core.get_edgelist()
 
     G = cugraph.Graph(directed=True)
@@ -716,11 +723,12 @@ def test_uniform_neighbor_sample_deduplicate_sources_email_eu_core():
 
     seeds = G.select_random_vertices(62, int(0.001 * len(el)))
 
-    sampling_results = cugraph.uniform_neighbor_sample(
+    sampling_results = cugraph.homogeneous_neighbor_sample(
         G,
         seeds,
         [5, 4, 3, 2, 1],
         with_replacement=False,
+        with_biases=with_biases,
         with_batch_ids=False,
         deduplicate_sources=True,
     )
@@ -737,7 +745,8 @@ def test_uniform_neighbor_sample_deduplicate_sources_email_eu_core():
 
 @pytest.mark.sg
 @pytest.mark.parametrize("hops", [[5], [5, 5], [5, 5, 5]])
-def test_uniform_neighbor_sample_renumber(hops):
+@pytest.mark.parametrize("with_biases", [True, False])
+def test_homogeneous_neighbor_sample_renumber(hops, with_biases):
     el = email_Eu_core.get_edgelist()
 
     G = cugraph.Graph(directed=True)
@@ -745,22 +754,24 @@ def test_uniform_neighbor_sample_renumber(hops):
 
     seeds = G.select_random_vertices(62, int(0.0001 * len(el)))
 
-    sampling_results_unrenumbered = cugraph.uniform_neighbor_sample(
+    sampling_results_unrenumbered = cugraph.homogeneous_neighbor_sample(
         G,
         seeds,
         hops,
         with_replacement=False,
+        with_biases=with_biases,
         with_batch_ids=False,
         deduplicate_sources=True,
         renumber=False,
         random_state=62,
     )
 
-    sampling_results_renumbered, renumber_map = cugraph.uniform_neighbor_sample(
+    sampling_results_renumbered, renumber_map = cugraph.homogeneous_neighbor_sample(
         G,
         seeds,
         hops,
         with_replacement=False,
+        with_biases=with_biases,
         with_batch_ids=False,
         deduplicate_sources=True,
         renumber=True,
@@ -786,7 +797,8 @@ def test_uniform_neighbor_sample_renumber(hops):
 
 @pytest.mark.sg
 @pytest.mark.parametrize("hops", [[5], [5, 5], [5, 5, 5]])
-def test_uniform_neighbor_sample_offset_renumber(hops):
+@pytest.mark.parametrize("with_biases", [True, False])
+def test_homogeneous_neighbor_sample_offset_renumber(hops, with_biases):
     el = email_Eu_core.get_edgelist()
 
     G = cugraph.Graph(directed=True)
@@ -797,11 +809,12 @@ def test_uniform_neighbor_sample_offset_renumber(hops):
     (
         sampling_results_unrenumbered,
         offsets_unrenumbered,
-    ) = cugraph.uniform_neighbor_sample(
+    ) = cugraph.homogeneous_neighbor_sample(
         G,
         seeds,
         hops,
         with_replacement=False,
+        with_biases=with_biases,
         with_batch_ids=False,
         deduplicate_sources=True,
         renumber=False,
@@ -813,11 +826,12 @@ def test_uniform_neighbor_sample_offset_renumber(hops):
         sampling_results_renumbered,
         offsets_renumbered,
         renumber_map,
-    ) = cugraph.uniform_neighbor_sample(
+    ) = cugraph.homogeneous_neighbor_sample(
         G,
         seeds,
         hops,
         with_replacement=False,
+        with_biases=with_biases,
         with_batch_ids=False,
         deduplicate_sources=True,
         renumber=True,
@@ -853,7 +867,8 @@ def test_uniform_neighbor_sample_offset_renumber(hops):
 @pytest.mark.sg
 @pytest.mark.parametrize("hops", [[5], [5, 5], [5, 5, 5]])
 @pytest.mark.parametrize("seed", [62, 66, 68])
-def test_uniform_neighbor_sample_csr_csc_global(hops, seed):
+@pytest.mark.parametrize("with_biases", [True, False])
+def test_homogeneous_neighbor_sample_csr_csc_global(hops, seed, with_biases):
     el = email_Eu_core.get_edgelist()
 
     G = cugraph.Graph(directed=True)
@@ -861,11 +876,12 @@ def test_uniform_neighbor_sample_csr_csc_global(hops, seed):
 
     seeds = G.select_random_vertices(seed, int(0.0001 * len(el)))
 
-    sampling_results, offsets, renumber_map = cugraph.uniform_neighbor_sample(
+    sampling_results, offsets, renumber_map = cugraph.homogeneous_neighbor_sample(
         G,
         seeds,
         hops,
         with_replacement=False,
+        with_biases=with_biases,
         with_batch_ids=False,
         deduplicate_sources=True,
         # carryover not valid because C++ sorts on (hop,src)
@@ -894,7 +910,8 @@ def test_uniform_neighbor_sample_csr_csc_global(hops, seed):
 @pytest.mark.sg
 @pytest.mark.parametrize("seed", [62, 66, 68])
 @pytest.mark.parametrize("hops", [[5], [5, 5], [5, 5, 5]])
-def test_uniform_neighbor_sample_csr_csc_local(hops, seed):
+@pytest.mark.parametrize("with_biases", [True, False])
+def test_homogeneous_neighbor_sample_csr_csc_local(hops, seed, with_biases):
     el = email_Eu_core.get_edgelist(download=True)
 
     G = cugraph.Graph(directed=True)
@@ -904,11 +921,12 @@ def test_uniform_neighbor_sample_csr_csc_local(hops, seed):
         [49, 71], dtype="int32"
     )  # hardcoded to ensure out-degree is high enough
 
-    sampling_results, offsets, renumber_map = cugraph.uniform_neighbor_sample(
+    sampling_results, offsets, renumber_map = cugraph.homogeneous_neighbor_sample(
         G,
         seeds,
         hops,
         with_replacement=False,
+        with_biases=with_biases,
         with_batch_ids=False,
         deduplicate_sources=True,
         prior_sources_behavior="carryover",
@@ -937,8 +955,9 @@ def test_uniform_neighbor_sample_csr_csc_local(hops, seed):
         for i in range(len(majors)):
             assert 1 == len(el[(el.src == majors.iloc[i]) & (el.dst == minors.iloc[i])])
 
-
-def test_uniform_neighbor_sample_retain_seeds():
+@pytest.mark.sg
+@pytest.mark.parametrize("with_biases", [True, False])
+def test_homogeneous_neighbor_sample_retain_seeds(with_biases):
     src = cupy.array([0, 1, 2, 3, 4, 5], dtype="int64")
     dst = cupy.array([2, 3, 1, 7, 5, 6], dtype="int64")
 
@@ -955,11 +974,12 @@ def test_uniform_neighbor_sample_retain_seeds():
 
     batch_df = cudf.DataFrame({"seeds": seeds, "batch": batch})
     batch_offsets_s = cudf.Series(batch_offsets, name="batch_offsets")
-    results, offsets, renumber_map = cugraph.uniform_neighbor_sample(
+    results, offsets, renumber_map = cugraph.homogeneous_neighbor_sample(
         G,
         batch_df,
         fanout,
         with_replacement=False,
+        with_biases=with_biases,
         with_batch_ids=True,
         random_state=62,
         return_offsets=True,
@@ -979,13 +999,13 @@ def test_uniform_neighbor_sample_retain_seeds():
 
 @pytest.mark.sg
 @pytest.mark.skip(reason="needs to be written!")
-def test_uniform_neighbor_sample_dcsr_dcsc_global():
+def test_homogeneous_neighbor_sample_dcsr_dcsc_global():
     raise NotImplementedError
 
 
 @pytest.mark.sg
 @pytest.mark.skip(reason="needs to be written!")
-def test_uniform_neighbor_sample_dcsr_dcsc_local():
+def test_homogeneous_neighbor_sample_dcsr_dcsc_local():
     raise NotImplementedError
 
 
