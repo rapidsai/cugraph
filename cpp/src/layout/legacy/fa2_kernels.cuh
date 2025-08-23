@@ -37,6 +37,8 @@ __global__ static void attraction_kernel(const vertex_t* restrict row,
                                          bool outbound_attraction_distribution,
                                          bool lin_log_mode,
                                          const float edge_weight_influence,
+                                         bool prevent_overlapping,
+                                         const float* restrict vertex_radius,
                                          const float coef)
 {
   vertex_t i, src, dst;
@@ -53,11 +55,32 @@ __global__ static void attraction_kernel(const vertex_t* restrict row,
     float y_dist = y_pos[src] - y_pos[dst];
     float factor = -coef * weight;
 
-    if (lin_log_mode) {
-      float distance = pow(x_dist, 2) + pow(y_dist, 2);
-      distance += FLT_EPSILON;
-      distance = sqrt(distance);
-      factor *= log(1 + distance) / distance;
+    if (prevent_overlapping) {
+      float radius_src  = vertex_radius[src];
+      float radius_dst  = vertex_radius[dst];
+      float distance_sq = x_dist * x_dist + y_dist * y_dist;
+      if (distance_sq <= pow(radius_src + radius_dst, 2)) {
+        // Overlapping, force is 0
+        continue;
+      } else {
+        // Not overlapping, force is based on d' instead of d
+        float distance = pow(x_dist, 2) + pow(y_dist, 2);
+        distance += FLT_EPSILON;
+        distance             = sqrt(distance);
+        float distance_inter = distance - radius_src - radius_dst;
+        if (lin_log_mode) {
+          factor *= log(1 + distance_inter) / distance;
+        } else {
+          factor *= distance_inter / distance;
+        }
+      }
+    } else {
+      if (lin_log_mode) {
+        float distance = pow(x_dist, 2) + pow(y_dist, 2);
+        distance += FLT_EPSILON;
+        distance = sqrt(distance);
+        factor *= log(1 + distance) / distance;
+      }
     }
     if (outbound_attraction_distribution) factor /= mass[src];
 
@@ -83,6 +106,8 @@ void apply_attraction(const vertex_t* restrict row,
                       bool lin_log_mode,
                       const float edge_weight_influence,
                       const float coef,
+                      bool prevent_overlapping,
+                      const float* restrict vertex_radius,
                       cudaStream_t stream)
 {
   // 0 edge graph.
@@ -109,6 +134,8 @@ void apply_attraction(const vertex_t* restrict row,
                                        outbound_attraction_distribution,
                                        lin_log_mode,
                                        edge_weight_influence,
+                                       prevent_overlapping,
+                                       vertex_radius,
                                        coef);
 
   RAFT_CHECK_CUDA(stream);
@@ -280,14 +307,16 @@ __global__ static void update_positions_kernel(float* restrict x_pos,
                                                float* restrict old_dx,
                                                float* restrict old_dy,
                                                const float* restrict swinging,
+                                               const float* restrict mobility,
                                                const float speed,
                                                const vertex_t n)
 {
   // For every node.
   for (int i = threadIdx.x + blockIdx.x * blockDim.x; i < n; i += gridDim.x * blockDim.x) {
-    const float factor = speed / (1.0 + sqrt(speed * swinging[i]));
-    const float dx     = (repel_x[i] + attract_x[i]);
-    const float dy     = (repel_y[i] + attract_y[i]);
+    const float mobility_factor = mobility ? mobility[i] : 1.0f;
+    const float factor          = mobility_factor * speed / (1.0 + sqrt(speed * swinging[i]));
+    const float dx              = (repel_x[i] + attract_x[i]);
+    const float dy              = (repel_y[i] + attract_y[i]);
 
     x_pos[i] += dx * factor;
     y_pos[i] += dy * factor;
@@ -306,6 +335,7 @@ void apply_forces(float* restrict x_pos,
                   float* restrict old_dx,
                   float* restrict old_dy,
                   const float* restrict swinging,
+                  const float* restrict mobility,
                   const float speed,
                   const vertex_t n,
                   cudaStream_t stream)
@@ -318,8 +348,18 @@ void apply_forces(float* restrict x_pos,
   nblocks.y  = 1;
   nblocks.z  = 1;
 
-  update_positions_kernel<vertex_t><<<nblocks, nthreads, 0, stream>>>(
-    x_pos, y_pos, repel_x, repel_y, attract_x, attract_y, old_dx, old_dy, swinging, speed, n);
+  update_positions_kernel<vertex_t><<<nblocks, nthreads, 0, stream>>>(x_pos,
+                                                                      y_pos,
+                                                                      repel_x,
+                                                                      repel_y,
+                                                                      attract_x,
+                                                                      attract_y,
+                                                                      old_dx,
+                                                                      old_dy,
+                                                                      swinging,
+                                                                      mobility,
+                                                                      speed,
+                                                                      n);
   RAFT_CHECK_CUDA(stream);
 }
 
