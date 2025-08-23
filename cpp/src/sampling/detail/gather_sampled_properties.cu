@@ -28,8 +28,6 @@
 
 #include <rmm/device_uvector.hpp>
 
-#include <variant>
-
 namespace cugraph {
 namespace detail {
 
@@ -73,11 +71,18 @@ gather_sampled_properties(
   // save this shuffle (and the one that follows transform_gather_e).  It's not clear that sampling
   // benefits from gathering the sampled edges in this way.
 
+  rmm::device_uvector<size_t> original_positions(0, handle.get_stream());
   //
   // Shuffle majors/minors/multi-index
   //
   if constexpr (multi_gpu) {
     std::vector<cugraph::arithmetic_device_uvector_t> edge_properties{};
+
+    original_positions.resize(majors.size(), handle.get_stream());
+    detail::sequence_fill(
+      handle.get_stream(), original_positions.data(), original_positions.size(), size_t{0});
+    edge_properties.push_back(std::move(original_positions));
+
     if (std::holds_alternative<rmm::device_uvector<edge_t>>(multi_index))
       edge_properties.push_back(std::move(multi_index));
 
@@ -89,7 +94,9 @@ gather_sampled_properties(
                         store_transposed,
                         graph_view.vertex_partition_range_lasts(),
                         std::nullopt);
-    if (edge_properties.size() > 0) multi_index = std::move(edge_properties[0]);
+
+    original_positions = std::move(std::get<rmm::device_uvector<size_t>>(edge_properties[0]));
+    if (edge_properties.size() > 1) multi_index = std::move(edge_properties[1]);
   }
 
   edge_list.insert(
@@ -191,6 +198,19 @@ gather_sampled_properties(
         shuffle_values(comm, tmp.begin(), d_tx_value_counts_span, handle.get_stream());
     }
 
+    {
+      rmm::device_uvector<size_t> tmp(original_positions.size(), handle.get_stream());
+
+      thrust::gather(handle.get_thrust_policy(),
+                     property_position.begin(),
+                     property_position.end(),
+                     original_positions.begin(),
+                     tmp.begin());
+
+      std::tie(original_positions, std::ignore) =
+        shuffle_values(comm, tmp.begin(), d_tx_value_counts_span, handle.get_stream());
+    }
+
     std::for_each(
       result_properties.begin(),
       result_properties.end(),
@@ -210,6 +230,57 @@ gather_sampled_properties(
               shuffle_values(comm, tmp.begin(), d_tx_value_counts_span, handle.get_stream());
           });
       });
+
+    property_position.resize(majors.size(), handle.get_stream());
+    detail::sequence_fill(
+      handle.get_stream(), property_position.data(), property_position.size(), size_t{0});
+    thrust::sort_by_key(handle.get_thrust_policy(),
+                        original_positions.begin(),
+                        original_positions.end(),
+                        property_position.begin());
+
+    {
+      rmm::device_uvector<vertex_t> tmp(majors.size(), handle.get_stream());
+
+      thrust::gather(handle.get_thrust_policy(),
+                     property_position.begin(),
+                     property_position.end(),
+                     majors.begin(),
+                     tmp.begin());
+
+      majors = std::move(tmp);
+    }
+
+    {
+      rmm::device_uvector<vertex_t> tmp(minors.size(), handle.get_stream());
+
+      thrust::gather(handle.get_thrust_policy(),
+                     property_position.begin(),
+                     property_position.end(),
+                     minors.begin(),
+                     tmp.begin());
+
+      minors = std::move(tmp);
+    }
+
+    std::for_each(result_properties.begin(),
+                  result_properties.end(),
+                  [&handle, &comm, &property_position, d_tx_value_counts_span](auto& property) {
+                    cugraph::variant_type_dispatch(
+                      property,
+                      [&handle, &comm, &property_position, d_tx_value_counts_span](auto& prop) {
+                        using T = typename std::remove_reference<decltype(prop)>::type::value_type;
+                        rmm::device_uvector<T> tmp(prop.size(), handle.get_stream());
+
+                        thrust::gather(handle.get_thrust_policy(),
+                                       property_position.begin(),
+                                       property_position.end(),
+                                       prop.begin(),
+                                       tmp.begin());
+
+                        prop = std::move(tmp);
+                      });
+                  });
   }
 
   return std::make_tuple(std::move(majors), std::move(minors), std::move(result_properties));
