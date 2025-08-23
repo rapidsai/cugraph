@@ -1215,7 +1215,7 @@ rmm::device_uvector<weight_t> betweenness_centrality(
   // Initialize batch size variables based on mode
   size_t min_batch_size     = 10;    // Minimum batch size
   size_t max_batch_size     = 2000;  // Maximum batch size to try
-  size_t current_batch_size = 100;   // Start with reasonable size
+  size_t current_batch_size = 500;   // Start with reasonable size
   size_t optimal_batch_size = 0;     // Will store the best size found
 
   if (batch_mode == "fixed") {
