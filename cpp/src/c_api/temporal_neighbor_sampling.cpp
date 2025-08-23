@@ -236,12 +236,23 @@ struct temporal_neighbor_sampling_functor : public cugraph::c_api::abstract_func
             raft::host_span<size_t const>(displacements.data(), displacements.size()),
             handle_.get_stream());
 
-          std::tie(start_vertices, *start_vertex_labels) = cugraph::shuffle_ext_vertex_value_pairs(
-            handle_, std::move(start_vertices), std::move(*start_vertex_labels));
+          std::vector<cugraph::arithmetic_device_uvector_t> vertex_properties{};
+          if (start_vertex_labels) { vertex_properties.push_back(std::move(*start_vertex_labels)); }
+
+          std::tie(start_vertices, vertex_properties) = cugraph::shuffle_ext_vertices(
+            handle_, std::move(start_vertices), std::move(vertex_properties));
+
+          if (start_vertex_labels) {
+            start_vertex_labels =
+              std::move(std::get<rmm::device_uvector<label_t>>(vertex_properties[0]));
+          }
         }
       } else {
         if constexpr (multi_gpu) {
-          start_vertices = cugraph::shuffle_ext_vertices(handle_, std::move(start_vertices));
+          std::tie(start_vertices, std::ignore) =
+            cugraph::shuffle_ext_vertices(handle_,
+                                          std::move(start_vertices),
+                                          std::vector<cugraph::arithmetic_device_uvector_t>{});
         }
       }
 
