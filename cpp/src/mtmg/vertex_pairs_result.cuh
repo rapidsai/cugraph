@@ -24,6 +24,7 @@
 #include <cugraph/vertex_partition_device_view.cuh>
 
 #include <cuda/std/iterator>
+#include <cuda/std/tuple>
 #include <thrust/functional.h>
 #include <thrust/gather.h>
 
@@ -124,7 +125,7 @@ std::
                       [v1_check = raft::device_span<vertex_t const>{
                          local_vertices.data(), local_vertices.size()}] __device__(auto tuple) {
                         return thrust::binary_search(
-                          thrust::seq, v1_check.begin(), v1_check.end(), thrust::get<0>(tuple));
+                          thrust::seq, v1_check.begin(), v1_check.end(), cuda::std::get<0>(tuple));
                       });
 
   v1.resize(

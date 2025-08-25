@@ -249,7 +249,7 @@ decompress_to_edgelist_impl(
 
           } else {
             auto zip_itr = thrust::make_zip_iterator(
-              thrust::make_tuple(major_ptrs[i], (*edgelist_ids).data() + cur_size));
+              cuda::std::make_tuple(major_ptrs[i], (*edgelist_ids).data() + cur_size));
 
             thrust::sort_by_key(handle.get_thrust_policy(),
                                 minor_ptrs[i],
@@ -259,7 +259,7 @@ decompress_to_edgelist_impl(
         } else {
           if (edgelist_types) {
             auto zip_itr = thrust::make_zip_iterator(
-              thrust::make_tuple(major_ptrs[i], (*edgelist_types).data() + cur_size));
+              cuda::std::make_tuple(major_ptrs[i], (*edgelist_types).data() + cur_size));
 
             thrust::sort_by_key(handle.get_thrust_policy(),
                                 minor_ptrs[i],

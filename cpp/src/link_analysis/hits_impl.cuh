@@ -164,7 +164,9 @@ std::tuple<result_t, size_t> hits(raft::handle_t const& handle,
       handle,
       graph_view,
       thrust::make_zip_iterator(curr_hubs, prev_hubs),
-      [] __device__(auto, auto val) { return std::abs(thrust::get<0>(val) - thrust::get<1>(val)); },
+      [] __device__(auto, auto val) {
+        return std::abs(cuda::std::get<0>(val) - cuda::std::get<1>(val));
+      },
       result_t{0});
 
     update_edge_src_property(handle, graph_view, curr_hubs, prev_src_hubs.mutable_view());

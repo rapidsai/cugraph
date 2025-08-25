@@ -511,25 +511,6 @@ dependencies:
             packages:
               - cugraph-cu12==25.10.*,>=0.0.0a0
           - {matrix: null, packages: [*cugraph_unsuffixed]}
-  depends_on_cugraph_pyg:
-    common:
-      - output_types: conda
-        packages:
-          - &cugraph_pyg_unsuffixed cugraph-pyg==25.10.*,>=0.0.0a0
-      - output_types: requirements
-        packages:
-          # pip recognizes the index as a global option for the requirements.txt file
-          - --extra-index-url=https://pypi.nvidia.com
-          - --extra-index-url=https://pypi.anaconda.org/rapidsai-wheels-nightly/simple
-    specific:
-      - output_types: [requirements, pyproject]
-        matrices:
-          - matrix:
-              cuda: "12.*"
-              cuda_suffixed: "true"
-            packages:
-              - cugraph-pyg-cu12==25.10.*,>=0.0.0a0
-          - {matrix: null, packages: [*cugraph_pyg_unsuffixed]}
   depends_on_cugraph_service_client:
     common:
       - output_types: [conda, requirements, pyproject]
@@ -583,25 +564,6 @@ dependencies:
               - &pytorch_pip torch>=2.3
               - &tensordict tensordict>=0.1.2
           - {matrix: null, packages: [*pytorch_pip, *tensordict]}
-  depends_on_pylibwholegraph:
-    common:
-      - output_types: conda
-        packages:
-          - &pylibwholegraph_unsuffixed pylibwholegraph==25.10.*,>=0.0.0a0
-      - output_types: requirements
-        packages:
-          # pip recognizes the index as a global option for the requirements.txt file
-          - --extra-index-url=https://pypi.nvidia.com
-          - --extra-index-url=https://pypi.anaconda.org/rapidsai-wheels-nightly/simple
-    specific:
-      - output_types: [requirements, pyproject]
-        matrices:
-          - matrix:
-              cuda: "12.*"
-              cuda_suffixed: "true"
-            packages:
-              - pylibwholegraph-cu12==25.10.*,>=0.0.0a0
-          - {matrix: null, packages: [*pylibwholegraph_unsuffixed]}
   depends_on_libcudf:
     common:
       - output_types: conda

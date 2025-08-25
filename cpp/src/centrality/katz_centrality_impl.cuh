@@ -143,8 +143,8 @@ void katz_centrality(
                         val_first + pull_graph_view.local_vertex_partition_range_size(),
                         new_katz_centralities,
                         [] __device__(auto val) {
-                          auto const katz_centrality = thrust::get<0>(val);
-                          auto const beta            = thrust::get<1>(val);
+                          auto const katz_centrality = cuda::std::get<0>(val);
+                          auto const beta            = cuda::std::get<1>(val);
                           return katz_centrality + beta;
                         });
     }
@@ -153,7 +153,9 @@ void katz_centrality(
       handle,
       pull_graph_view,
       thrust::make_zip_iterator(new_katz_centralities, old_katz_centralities),
-      [] __device__(auto, auto val) { return std::abs(thrust::get<0>(val) - thrust::get<1>(val)); },
+      [] __device__(auto, auto val) {
+        return std::abs(cuda::std::get<0>(val) - cuda::std::get<1>(val));
+      },
       result_t{0.0});
 
     iter++;

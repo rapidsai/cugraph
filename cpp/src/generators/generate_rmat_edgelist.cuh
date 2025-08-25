@@ -113,7 +113,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> generat
           src = detail::scramble(src, scale);
           dst = detail::scramble(dst, scale);
         }
-        return thrust::make_tuple(src, dst);
+        return cuda::std::make_tuple(src, dst);
       });
     num_edges_generated += num_edges_to_generate;
   }
