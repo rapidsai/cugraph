@@ -23,7 +23,7 @@ files:
       - depends_on_pytorch
       - depends_on_raft_dask
       - depends_on_rmm
-      - depends_on_ucx_py
+      - depends_on_ucxx
       - docs
       - python_build_cythonize
       - python_build_skbuild
@@ -125,7 +125,7 @@ files:
       - depends_on_pylibraft
       - depends_on_raft_dask
       - depends_on_rmm
-      - depends_on_ucx_py
+      - depends_on_ucxx
       - python_run_cugraph
   py_test_cugraph:
     output: pyproject
@@ -251,7 +251,7 @@ files:
       - depends_on_dask_cuda
       - depends_on_dask_cudf
       - depends_on_rmm
-      - depends_on_ucx_py
+      - depends_on_ucxx
       - python_run_cugraph_service_server
   py_test_cugraph_service_server:
     output: pyproject
@@ -784,11 +784,11 @@ dependencies:
             packages: &cupy_packages_cu12
               - cupy-cuda12x>=12.0.0
           - {matrix: null, packages: *cupy_packages_cu12}
-  depends_on_ucx_py:
+  depends_on_ucxx:
     common:
       - output_types: conda
         packages:
-          - &ucx_py_unsuffixed ucx-py==0.46.*,>=0.0.0a0
+          - &ucxx_unsuffixed ucxx==0.46.*,>=0.0.0a0
       - output_types: requirements
         packages:
           # pip recognizes the index as a global option for the requirements.txt file
@@ -801,5 +801,5 @@ dependencies:
               cuda: "12.*"
               cuda_suffixed: "true"
             packages:
-              - ucx-py-cu12==0.46.*,>=0.0.0a0
-          - {matrix: null, packages: [*ucx_py_unsuffixed]}
+              - ucxx-cu12==0.46.*,>=0.0.0a0
+          - {matrix: null, packages: [*ucxx_unsuffixed]}
