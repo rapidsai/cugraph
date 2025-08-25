@@ -889,7 +889,7 @@ void multisource_backward_pass(
       // This extracts (src, tag, dst) triplets as recommended
 
       // Create a proper frontier object for the tagged vertices
-      vertex_frontier_t<vertex_t, origin_t, multi_gpu, true> frontier(handle, 1);
+      vertex_frontier_t<vertex_t, origin_t, multi_gpu, false> frontier(handle, 1);
 
       // Insert tagged vertices directly using zip iterator (no temporary needed)
       auto pair_first =
