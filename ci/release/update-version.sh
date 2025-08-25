@@ -68,7 +68,7 @@ DEPENDENCIES=(
 )
 UCXX_DEPENDENCIES=(
   libucxx
-  ucx-py
+  ucxx
 )
 for FILE in dependencies.yaml conda/environments/*.yaml; do
   for DEP in "${DEPENDENCIES[@]}"; do
@@ -87,10 +87,10 @@ for FILE in python/**/pyproject.toml python/**/**/pyproject.toml; do
   done
 done
 
-# ucx-py version
+# ucxx version
 for FILE in conda/recipes/*/conda_build_config.yaml; do
   sed_runner "/^libucxx_version:$/ {n;s/.*/  - \"${NEXT_UCXX_SHORT_TAG_PEP440}.*\"/}" "${FILE}"
-  sed_runner "/^ucx_py_version:$/ {n;s/.*/  - \"${NEXT_UCXX_SHORT_TAG_PEP440}.*\"/}" "${FILE}"
+  sed_runner "/^ucxx_version:$/ {n;s/.*/  - \"${NEXT_UCXX_SHORT_TAG_PEP440}.*\"/}" "${FILE}"
 done
 
 # CI files
