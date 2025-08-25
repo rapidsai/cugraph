@@ -46,8 +46,8 @@ def get_chunksize(input_path):
     return chunksize
 
 
-class MissingUCXPy:
+class MissingUCXX:
     def __call__(self, *args, **kwargs):
         raise ModuleNotFoundError(
-            "ucx-py could not be imported but is required for MG operations"
+            "ucxx could not be imported but is required for MG operations"
         )

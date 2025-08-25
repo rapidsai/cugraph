@@ -16,17 +16,17 @@ import gc
 from cuda.bindings import runtime
 
 
-# FIXME: this raft import breaks the library if ucx-py is
+# FIXME: this raft import breaks the library if ucxx is
 # not available. They are necessary only when doing MG work.
-from cugraph.dask.common.read_utils import MissingUCXPy
+from cugraph.dask.common.read_utils import MissingUCXX
 
 try:
     from raft_dask.common.utils import default_client
 except ImportError as err:
     # FIXME: Generalize since err.name is arr when
     # libnuma.so.1 is not available
-    if err.name == "ucp" or err.name == "arr":
-        default_client = MissingUCXPy()
+    if err.name == "ucxx" or err.name == "arr":
+        default_client = MissingUCXX()
     else:
         raise
 

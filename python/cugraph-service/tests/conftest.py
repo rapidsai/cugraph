@@ -1,4 +1,4 @@
-# Copyright (c) 2022, NVIDIA CORPORATION.
+# Copyright (c) 2022-2025, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -217,8 +217,8 @@ def my_extension(arg1, arg2, server):
     edge_df = pG.get_edge_data()
     values = cupy.array(edge_df[pG.edge_id_col_name] + arg1 + arg2)
 
-    # UCX-Py transfers require cupy types, and cupy types are converted to host
-    # for non-UCX-Py transfers.
+    # UCXX transfers require cupy types, and cupy types are converted to host
+    # for non-UCXX transfers.
     pG_gid = cupy.int8(pG_gid)
 
     return (pG_gid, values)

@@ -14,9 +14,9 @@
 # This file contains various functions required for managing NCCL comms
 # with Dask.
 
-# FIXME: these raft imports break the library if ucx-py is
+# FIXME: these raft imports break the library if ucxx is
 # not available. They are necessary only when doing MG work.
-from cugraph.dask.common.read_utils import MissingUCXPy
+from cugraph.dask.common.read_utils import MissingUCXX
 
 try:
     from raft_dask.common.comms import Comms as raftComms
@@ -24,9 +24,9 @@ try:
 except ImportError as err:
     # FIXME: Generalize since err.name is arr when
     # libnuma.so.1 is not available
-    if err.name == "ucp" or err.name == "arr":
-        raftComms = MissingUCXPy()
-        get_raft_comm_state = MissingUCXPy()
+    if err.name == "ucxx" or err.name == "arr":
+        raftComms = MissingUCXX()
+        get_raft_comm_state = MissingUCXX()
     else:
         raise
 from pylibraft.common.handle import Handle
