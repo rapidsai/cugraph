@@ -110,7 +110,7 @@ generate_bipartite_rmat_edgelist(raft::handle_t const& handle,
               dst_bit_set ? static_cast<vertex_t>(vertex_t{1} << (dst_scale - (level + 1))) : 0;
           }
         }
-        return thrust::make_tuple(src, dst);
+        return cuda::std::make_tuple(src, dst);
       });
     num_edges_generated += num_edges_to_generate;
   }

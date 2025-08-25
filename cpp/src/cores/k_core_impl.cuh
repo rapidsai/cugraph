@@ -68,7 +68,7 @@ k_core(raft::handle_t const& handle,
       thrust::make_counting_iterator(graph_view.local_vertex_partition_range_last()),
       core_numbers->end()),
     thrust::make_zip_iterator(subgraph_vertices.begin(), thrust::make_discard_iterator()),
-    [k] __device__(auto tuple) { return (k <= thrust::get<1>(tuple)); });
+    [k] __device__(auto tuple) { return (k <= cuda::std::get<1>(tuple)); });
 
   subgraph_vertices.resize(
     cuda::std::distance(

@@ -241,8 +241,8 @@ centrality_algorithm_metadata_t pagerank(
       pull_graph_view,
       thrust::make_zip_iterator(pageranks.begin(), vertex_out_weight_sums),
       [] __device__(auto, auto val) {
-        auto const pagerank       = thrust::get<0>(val);
-        auto const out_weight_sum = thrust::get<1>(val);
+        auto const pagerank       = cuda::std::get<0>(val);
+        auto const out_weight_sum = cuda::std::get<1>(val);
         return out_weight_sum == result_t{0.0} ? pagerank : result_t{0.0};
       },
       result_t{0.0});
@@ -255,8 +255,8 @@ centrality_algorithm_metadata_t pagerank(
         vertex_out_weight_sums + pull_graph_view.local_vertex_partition_range_size()),
       pageranks.begin(),
       [] __device__(auto val) {
-        auto const pagerank       = thrust::get<0>(val);
-        auto const out_weight_sum = thrust::get<1>(val);
+        auto const pagerank       = cuda::std::get<0>(val);
+        auto const out_weight_sum = cuda::std::get<1>(val);
         auto const divisor = out_weight_sum == result_t{0.0} ? result_t{1.0} : out_weight_sum;
         return pagerank / divisor;
       });
@@ -311,8 +311,8 @@ centrality_algorithm_metadata_t pagerank(
          dangling_sum,
          personalization_sum,
          alpha] __device__(auto val) {
-          auto v     = thrust::get<0>(val);
-          auto value = thrust::get<1>(val);
+          auto v     = cuda::std::get<0>(val);
+          auto value = cuda::std::get<1>(val);
           *(pageranks + vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(v)) +=
             (dangling_sum * alpha + static_cast<result_t>(1.0 - alpha)) *
             (value / personalization_sum);
@@ -323,7 +323,9 @@ centrality_algorithm_metadata_t pagerank(
       handle,
       pull_graph_view,
       thrust::make_zip_iterator(pageranks.begin(), old_pageranks.begin()),
-      [] __device__(auto, auto val) { return std::abs(thrust::get<0>(val) - thrust::get<1>(val)); },
+      [] __device__(auto, auto val) {
+        return std::abs(cuda::std::get<0>(val) - cuda::std::get<1>(val));
+      },
       result_t{0.0});
 
     iter++;
