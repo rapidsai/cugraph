@@ -22,8 +22,6 @@ import cudf
 import cugraph
 from cugraph.datasets import karate_disjoint
 from cugraph.testing import SMALL_DATASETS
-from cugraph.utilities import nx_factory
-
 
 # =============================================================================
 # Parameters
@@ -303,8 +301,8 @@ def compare_scores(sorted_df, first_key, second_key, epsilon=DEFAULT_EPSILON):
         print(errors)
     assert (
         num_errors == 0
-    ), "Mismatch were found when comparing '{}' and '{}' (rtol = {})".format(
-        first_key, second_key, epsilon
+    ), "Mismatch were found when comparing '{}' and '{}' (rtol = {}) and df {}".format(
+        first_key, second_key, epsilon, sorted_df
     )
 
 
@@ -542,7 +540,23 @@ def test_scale_with_k_on_star_graph(normalized, endpoints, is_directed, k, expec
     if is_directed:
         Gnx = Gnx.to_directed()
 
-    G = nx_factory.convert_from_nx(Gnx)
+    _edges = Gnx.edges(data=False)
+    src = [s for s, _ in _edges]
+    dst = [d for _, d in _edges]
+
+    _gdf = cudf.DataFrame()
+    _gdf["src"] = cudf.Series(src)
+    _gdf["dst"] = cudf.Series(dst)
+
+    G = cugraph.Graph(directed=is_directed)
+    G.from_cudf_edgelist(
+        _gdf,
+        source="src",
+        destination="dst",
+        edge_attr=None,
+        renumber=False,
+        store_transposed=False,
+    )
 
     if k:
         sorted_df = _calc_bc_subset(

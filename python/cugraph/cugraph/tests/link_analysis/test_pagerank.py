@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2023, NVIDIA CORPORATION.
+# Copyright (c) 2019-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -208,51 +208,6 @@ def test_pagerank(
             and cugraph_pr[i][0] == networkx_pr[i][0]
         ):
             err = err + 1
-    print("Mismatches:", err)
-    assert err < (0.01 * len(cugraph_pr))
-
-
-@pytest.mark.sg
-@pytest.mark.parametrize("graph_file", DEFAULT_DATASETS)
-@pytest.mark.parametrize("max_iter", MAX_ITERATIONS)
-@pytest.mark.parametrize("tol", TOLERANCE)
-@pytest.mark.parametrize("alpha", ALPHA)
-@pytest.mark.parametrize("personalization_perc", PERSONALIZATION_PERC)
-@pytest.mark.parametrize("has_guess", HAS_GUESS)
-def test_pagerank_nx(graph_file, max_iter, tol, alpha, personalization_perc, has_guess):
-
-    # NetworkX PageRank
-    dataset_path = graph_file.get_path()
-    M = utils.read_csv_for_nx(dataset_path)
-    nnz_vtx = np.unique(M[["0", "1"]])
-    Gnx = nx.from_pandas_edgelist(M, source="0", target="1", create_using=nx.DiGraph())
-
-    networkx_pr, networkx_prsn = networkx_call(
-        Gnx, max_iter, tol, alpha, personalization_perc, nnz_vtx
-    )
-
-    cu_nstart = None
-    if has_guess == 1:
-        cu_nstart = cudify(networkx_pr)
-        max_iter = 20
-    cu_prsn = cudify(networkx_prsn)
-
-    # cuGraph PageRank with Nx Graph
-    cugraph_pr = nx_cugraph_call(Gnx, max_iter, tol, alpha, cu_prsn, cu_nstart)
-
-    # Calculating mismatch
-    networkx_pr = sorted(networkx_pr.items(), key=lambda x: x[0])
-    cugraph_pr = sorted(cugraph_pr.items(), key=lambda x: x[0])
-    err = 0
-    assert len(cugraph_pr) == len(networkx_pr)
-
-    for i in range(len(cugraph_pr)):
-        if (
-            abs(cugraph_pr[i][1] - networkx_pr[i][1]) > tol * 1.1
-            and cugraph_pr[i][0] == networkx_pr[i][0]
-        ):
-            err = err + 1
-            print(f"{cugraph_pr[i][1]} and {cugraph_pr[i][1]}")
     print("Mismatches:", err)
     assert err < (0.01 * len(cugraph_pr))
 

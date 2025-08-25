@@ -15,12 +15,10 @@ import gc
 import random
 
 import pytest
-import networkx as nx
 
 import cudf
 import cugraph
 from cudf.testing.testing import assert_frame_equal
-from cugraph.utilities import ensure_cugraph_obj_for_nx
 from cugraph.testing import SMALL_DATASETS, DEFAULT_DATASETS
 
 
@@ -57,7 +55,7 @@ def calc_uniform_random_walks(G, max_depth=None):
 
     Returns
     -------
-    vertex_paths : cudf.Series or cudf.DataFrame
+    vertex_paths : cudf.Series
         Series containing the vertices of edges/paths in the random walk.
 
     edge_weight_paths: cudf.Series
@@ -68,8 +66,6 @@ def calc_uniform_random_walks(G, max_depth=None):
         The path size in case of coalesced paths.
     """
     assert G is not None
-
-    G, _ = ensure_cugraph_obj_for_nx(G, nx_weight_attr="wgt")
 
     k = random.randint(1, 6)
 
@@ -91,7 +87,6 @@ def check_uniform_random_walks(G, path_data, seeds, max_depth):
     e_wgt_paths = path_data[1]
     e_wgt_idx = 0
 
-    G, _ = ensure_cugraph_obj_for_nx(G, nx_weight_attr="wgt")
     df_G = G.input_df
 
     if "weight" in df_G.columns:
@@ -224,30 +219,6 @@ def test_uniform_random_walks(graph_file, directed):
     path_data, seeds = calc_uniform_random_walks(input_graph, max_depth=max_depth)
 
     check_uniform_random_walks(input_graph, path_data, seeds, max_depth)
-
-
-@pytest.mark.sg
-@pytest.mark.parametrize("graph_file", SMALL_DATASETS)
-def test_uniform_random_walks_nx(graph_file):
-    G = graph_file.get_graph(create_using=cugraph.Graph(directed=True))
-
-    M = G.to_pandas_edgelist()
-
-    source = G.source_columns
-    target = G.destination_columns
-    edge_attr = G.weight_column
-
-    Gnx = nx.from_pandas_edgelist(
-        M,
-        source=source,
-        target=target,
-        edge_attr=edge_attr,
-        create_using=nx.DiGraph(),
-    )
-    max_depth = random.randint(2, 10)
-    path_data, seeds = calc_uniform_random_walks(Gnx, max_depth=max_depth)
-
-    check_uniform_random_walks(Gnx, path_data, seeds, max_depth)
 
 
 @pytest.mark.sg

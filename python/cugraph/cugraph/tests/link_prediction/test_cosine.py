@@ -130,7 +130,7 @@ def compare(src1, dst1, val1, src2, dst2, val2):
 @pytest.fixture(scope="module", params=UNDIRECTED_DATASETS)
 def read_csv(request):
     """
-    Read csv file for both networkx and cugraph
+    Read csv file into a SciPy sparse matrix and return it along with the graph file.
     """
     graph_file = request.param
     dataset_path = graph_file.get_path()
