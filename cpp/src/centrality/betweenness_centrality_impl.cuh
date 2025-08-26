@@ -49,6 +49,9 @@
 #include <thrust/sort.h>
 #include <thrust/transform.h>
 
+// Add CUB include for better sorting performance
+#include <cub/cub.cuh>
+
 //
 // The formula for BC(v) is the sum over all (s,t) where s != v != t of
 // sigma_st(v) / sigma_st.  Sigma_st(v) is the number of shortest paths
@@ -887,9 +890,34 @@ void multisource_backward_pass(
     if (total_vertices_at_d_minus_1 > 0) {
       // Step 3: Use extract_transform_if_v_frontier_e to enumerate all qualifying edges
       // This extracts (src, tag, dst) triplets as recommended
+      // CUB SORT: Sort frontier vertices by vertex ID for better processing order
+      size_t frontier_size = frontier_vertices.size();
+      if (frontier_size > 0) {
+        // Use CUB sort for frontier vertices and sources together
+        size_t tmp_storage_bytes{0};
+        cub::DeviceRadixSort::SortPairs(nullptr,
+                                        tmp_storage_bytes,
+                                        frontier_vertices.data(),
+                                        frontier_vertices.data(),
+                                        frontier_sources.data(),
+                                        frontier_sources.data(),
+                                        frontier_size);
+
+        // Allocate temporary storage
+        rmm::device_uvector<std::byte> tmp_storage(tmp_storage_bytes, handle.get_stream());
+
+        // Perform CUB sort - sorts vertices and keeps sources aligned
+        cub::DeviceRadixSort::SortPairs(tmp_storage.data(),
+                                        tmp_storage_bytes,
+                                        frontier_vertices.data(),
+                                        frontier_vertices.data(),
+                                        frontier_sources.data(),
+                                        frontier_sources.data(),
+                                        frontier_size);
+      }
 
       // Create a proper frontier object for the tagged vertices
-      vertex_frontier_t<vertex_t, origin_t, multi_gpu, false> frontier(handle, 1);
+      vertex_frontier_t<vertex_t, origin_t, multi_gpu, true> frontier(handle, 1);
 
       // Insert tagged vertices directly using zip iterator (no temporary needed)
       auto pair_first =
