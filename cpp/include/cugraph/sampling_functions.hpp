@@ -1035,10 +1035,7 @@ heterogeneous_biased_temporal_neighbor_sample(
  * @param edgelist_srcs A vector storing edgelist source vertices.
  * @param edgelist_dsts A vector storing edgelist destination vertices (size = @p
  * edgelist_srcs.size()).
- * @param edgelist_weights An optional vector storing edgelist weights (size = @p
- * edgelist_srcs.size() if valid).
- * @param edgelist_edge_ids An optional vector storing edgelist edge IDs (size = @p
- * edgelist_srcs.size() if valid).
+ * @param edgelist_edge_properties A vector storing edgelist edge properties
  * @param edgelist_edge_types An optional vector storing edgelist edge types (size = @p
  * edgelist_srcs.size() if valid).
  * @param edgelist_hops An optional vector storing edge list hop numbers (size = @p
@@ -1063,10 +1060,8 @@ heterogeneous_biased_temporal_neighbor_sample(
  * or the DCSR/DCSC format (if true).
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return Tuple of vectors storing optional DCSR/DCSC major vertex IDs with one or more neighbors,
- * (D)CSR|(D)CSC offset values, edge minor vertex IDs, optional edge weights (valid only if @p
- * edgelist_weights.has_value() is true), optional edge IDs (valid only if @p
- * edgelist_edge_ids.has_value() is true), optional edge types (valid only if @p
- * edgelist_edge_types.has_value() is true), optional (label, hop) offset values to the
+ * (D)CSR|(D)CSC offset values, edge minor vertex IDs, edge properties, optional edge types (valid
+ * only if @p edgelist_edge_types.has_value() is true), optional (label, hop) offset values to the
  * (D)CSR|(D)CSC offset array (size = @p num_labels * @p num_hops + 1, valid only when @p
  * edgelist_hops.has_value() or @p edgelist_label_offsets.has_value() is true), renumber_map to
  * query original vertices (size = # unique or aggregate # unique_vertices for each label), and
@@ -1347,12 +1342,7 @@ heterogeneous_renumber_and_sort_sampled_edgelist(
  * @param edgelist_srcs A vector storing edgelist source vertices.
  * @param edgelist_dsts A vector storing edgelist destination vertices (size = @p
  * edgelist_srcs.size()).
- * @param edgelist_weights An optional vector storing edgelist weights (size = @p
- * edgelist_srcs.size() if valid).
- * @param edgelist_edge_ids An optional vector storing edgelist edge IDs (size = @p
- * edgelist_srcs.size() if valid).
- * @param edgelist_edge_types An optional vector storing edgelist edge types (size = @p
- * edgelist_srcs.size() if valid).
+ * @param edgelist_edge_properties A vector storing edgelist edge properties
  * @param edgelist_hops An optional vector storing edge list hop numbers (size = @p
  * edgelist_srcs.size() if valid). @p edgelist_hops must be valid if @p num_hops >= 2.
  * @param edgelist_label_offsets An optional pointer to the array storing label offsets to the input
@@ -1364,12 +1354,9 @@ heterogeneous_renumber_and_sort_sampled_edgelist(
  * @param src_is_major A flag to determine whether to use the source or destination as the
  * major key in renumbering and sorting.
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
- * @return Tuple of vectors storing edge sources, edge destinations, optional edge weights (valid
- * only if @p edgelist_weights.has_value() is true), optional edge IDs (valid only if @p
- * edgelist_edge_ids.has_value() is true), optional edge types (valid only if @p
- * edgelist_edge_types.has_value() is true), and optional (label, hop) offset values to the sorted
- * edges (size = @p num_labels * @p num_hops + 1, valid only when @p edgelist_hops.has_value() or @p
- * edgelist_label_offsets.has_value() is true).
+ * @return Tuple of vectors storing edge sources, edge destinations, edge properties,  and optional
+ * (label, hop) offset values to the sorted edges (size = @p num_labels * @p num_hops + 1, valid
+ * only when @p edgelist_hops.has_value() or @p edgelist_label_offsets.has_value() is true).
  */
 template <typename vertex_t>
 std::tuple<rmm::device_uvector<vertex_t>,               // srcs
