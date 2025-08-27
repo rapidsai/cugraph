@@ -23,15 +23,15 @@ try:
     from raft_dask.common.comms_utils import inject_comms_on_handle_coll_only
 except ImportError:
 
-    class MissingUCXPy:
+    class MissingUCXX:
         def __call__(self, *args, **kwargs):
             raise ModuleNotFoundError(
-                "raft-dask and/or ucx-py could not be imported"
+                "raft-dask and/or ucxx could not be imported"
                 " but are required for MG operations"
             )
 
-    nccl = MissingUCXPy()
-    inject_comms_on_handle_coll_only = MissingUCXPy()
+    nccl = MissingUCXX()
+    inject_comms_on_handle_coll_only = MissingUCXX()
 
 __nccl_comms = None
 __raft_handle = None
