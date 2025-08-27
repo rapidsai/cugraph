@@ -102,7 +102,7 @@ def cosine(
 
     if isinstance(vertex_pair, cudf.DataFrame):
         vertex_pair = renumber_vertex_pair(input_graph, vertex_pair)
-        vertex_pair = ensure_valid_dtype(input_graph, vertex_pair, "Cosine")
+        vertex_pair = ensure_valid_dtype(input_graph, vertex_pair)
         src_col_name = vertex_pair.columns[0]
         dst_col_name = vertex_pair.columns[1]
         first = vertex_pair[src_col_name]
@@ -186,9 +186,9 @@ def cosine_coefficient(
 
     """
     warnings.warn(
-        "deprecated as of 25.10. This function was to match "
-        "NetworkX which is no longer needed, use networkx directly with"
-        "the ``nx-cugraph`` backend. See:  https://rapids.ai/nx-cugraph/",
+        "deprecated as of 25.10. Use `cosine()` instead. "
+        "If calling with a NetworkX Graph object, use networkx with the "
+        "nx-cugraph backend. See: https://rapids.ai/nx-cugraph",
         DeprecationWarning,
     )
 

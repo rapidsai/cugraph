@@ -31,9 +31,8 @@ def _ensure_args(api_name, G, directed, connection, return_labels):
     args with proper defaults if not specified, or raises TypeError or
     ValueError if incorrectly specified.
     """
-    G_type = type(G)
     # Check for Graph-type inputs and set defaults if unset
-    if G_type == Graph:
+    if isinstance(G, Graph):
         exc_value = "'%s' cannot be specified for a Graph-type input"
         if directed is not None:
             raise TypeError(exc_value % "directed")
