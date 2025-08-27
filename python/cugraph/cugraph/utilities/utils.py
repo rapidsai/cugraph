@@ -197,6 +197,7 @@ def get_traversed_path_list(df, id):
 
 def ensure_valid_dtype(input_graph, vertex_pair):
     import inspect
+
     func_name = inspect.stack()[1].function
 
     vertex_dtype = input_graph.edgelist.edgelist_df.dtypes.iloc[0]
