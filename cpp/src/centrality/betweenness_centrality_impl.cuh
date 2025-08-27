@@ -737,10 +737,19 @@ void multisource_backward_pass(
   bool include_endpoints,
   bool do_expensive_check)
 {
+  printf("DEBUG: Entering multisource_backward_pass function\n");
   auto num_vertices = static_cast<size_t>(graph_view.local_vertex_partition_range_size());
   auto num_sources  = cuda::std::distance(sources_first, sources_last);
 
   using origin_t = uint32_t;  // Source index type
+
+  printf("DEBUG: Type sizes - vertex_t: %zu bytes, origin_t: %zu bytes, size_t: %zu bytes\n",
+         sizeof(vertex_t),
+         sizeof(origin_t),
+         sizeof(size_t));
+  printf("DEBUG: vertex_t max: %ld, origin_t max: %u\n",
+         (long)std::numeric_limits<vertex_t>::max(),
+         std::numeric_limits<origin_t>::max());
 
   // Initialize centrality array to zero
   thrust::fill(handle.get_thrust_policy(), centralities.begin(), centralities.end(), weight_t{0});
@@ -876,7 +885,587 @@ void multisource_backward_pass(
       }
     });
 
-  // Process distance levels using pre-computed buckets
+  // Count total vertices across all distance levels
+  size_t total_vertices = 0;
+  for (vertex_t d = 1; d <= global_max_distance; ++d) {
+    total_vertices += distance_buckets_vertices[d].size();
+  }
+
+  printf("DEBUG: Total vertices across all distance levels: %zu\n", total_vertices);
+
+  if (total_vertices > 0) {
+    // Create segmented arrays for CUB segmented sort
+    // Use size_t for origins to ensure consistent 8-byte type sizes in CUB sort
+    rmm::device_uvector<vertex_t> segmented_vertices(total_vertices, handle.get_stream());
+    rmm::device_uvector<size_t> segmented_origins_as_size_t(total_vertices, handle.get_stream());
+    // Cast vertex IDs to int32_t for CUB sort (workaround for CUB int64_t bug)
+    rmm::device_uvector<int32_t> segmented_vertices_as_int32(total_vertices, handle.get_stream());
+
+    printf("DEBUG: Segmented arrays created successfully\n");
+
+    // Copy vertices and origins from each distance level
+    size_t current_offset = 0;
+    for (vertex_t d = 1; d <= global_max_distance; ++d) {
+      printf("DEBUG: Processing distance level %d\n", d);
+
+      if (d < distance_buckets_vertices.size() && d < distance_buckets_sources.size()) {
+        auto& vertices_at_d      = distance_buckets_vertices[d];
+        auto& sources_at_d       = distance_buckets_sources[d];
+        size_t num_vertices_at_d = vertices_at_d.size();
+
+        if (num_vertices_at_d > 0) {
+          printf("DEBUG: Copying %zu vertices from distance level %d\n", num_vertices_at_d, d);
+
+          thrust::copy(handle.get_thrust_policy(),
+                       vertices_at_d.begin(),
+                       vertices_at_d.end(),
+                       segmented_vertices.begin() + current_offset);
+
+          // Copy origins with type conversion to size_t
+          thrust::transform(handle.get_thrust_policy(),
+                            sources_at_d.begin(),
+                            sources_at_d.end(),
+                            segmented_origins_as_size_t.begin() + current_offset,
+                            [] __device__(origin_t origin) { return static_cast<size_t>(origin); });
+
+          // Copy vertices with type conversion to int32_t (workaround for CUB int64_t bug)
+          thrust::transform(
+            handle.get_thrust_policy(),
+            vertices_at_d.begin(),
+            vertices_at_d.end(),
+            segmented_vertices_as_int32.begin() + current_offset,
+            [] __device__(vertex_t vertex) { return static_cast<int32_t>(vertex); });
+
+          current_offset += num_vertices_at_d;
+          printf("DEBUG: Successfully processed distance level %d, current_offset = %zu\n",
+                 d,
+                 current_offset);
+        }
+      }
+    }
+
+    printf("DEBUG: Creating segment offsets array with size %ld\n",
+           (long)(global_max_distance + 1));
+
+    // Create segment offsets for each distance level
+    // CUB expects: [0, seg1_end, seg2_end, seg3_end, ..., total]
+    std::vector<size_t> host_segment_offsets(global_max_distance + 1);
+    host_segment_offsets[0] = 0;  // Always starts at 0
+
+    current_offset = 0;
+    for (vertex_t d = 1; d <= global_max_distance; ++d) {
+      if (d < distance_buckets_vertices.size()) {
+        current_offset += distance_buckets_vertices[d].size();
+        host_segment_offsets[d] = current_offset;
+        printf("DEBUG: Segment offset[%d] = %zu (cumulative)\n", d, current_offset);
+      }
+    }
+
+    // Print all segment offsets for debugging
+    printf("DEBUG: All segment offsets: ");
+    for (int i = 0; i <= global_max_distance; ++i) {
+      printf("[%d]=%zu ", i, host_segment_offsets[i]);
+    }
+    printf("\n");
+
+    // Validate segment offsets for memory safety
+    printf("DEBUG: Validating segment offsets for CUB segmented sort:\n");
+    printf("DEBUG:   num_segments = %d\n", global_max_distance);
+    printf("DEBUG:   segment_offsets array size = %d\n", (int)(global_max_distance + 1));
+    printf("DEBUG:   total_vertices = %zu\n", total_vertices);
+    printf("DEBUG:   last segment offset = %zu (should equal total_vertices)\n",
+           host_segment_offsets[global_max_distance]);
+
+    if (host_segment_offsets[global_max_distance] != total_vertices) {
+      printf("ERROR: Last segment offset mismatch! Expected %zu, got %zu\n",
+             total_vertices,
+             host_segment_offsets[global_max_distance]);
+    }
+
+    // Check for empty segments
+    for (int i = 1; i <= global_max_distance; ++i) {
+      if (host_segment_offsets[i] == host_segment_offsets[i - 1]) {
+        printf("DEBUG: Empty segment detected at distance level %d\n", i);
+      }
+    }
+
+    // Calculate actual number of non-empty segments
+    int actual_num_segments = 0;
+    for (vertex_t d = 1; d <= global_max_distance; ++d) {
+      if (d < distance_buckets_vertices.size() && distance_buckets_vertices[d].size() > 0) {
+        actual_num_segments++;
+      }
+    }
+
+    printf("DEBUG: Actual non-empty segments: %d (vs global_max_distance: %d)\n",
+           actual_num_segments,
+           global_max_distance);
+
+    // Print BEFORE sorting - show first few vertices in each distance level
+    printf("DEBUG: BEFORE sorting - showing first few vertices in each distance level:\n");
+    current_offset = 0;
+    for (vertex_t d = 1; d <= global_max_distance; ++d) {
+      if (d < distance_buckets_vertices.size() && distance_buckets_vertices[d].size() > 0) {
+        size_t num_vertices_at_d = distance_buckets_vertices[d].size();
+        size_t show_count        = std::min(size_t(5), num_vertices_at_d);
+
+        // Read first few vertices from segmented array (BEFORE sorting)
+        std::vector<vertex_t> h_vertices(show_count);
+        std::vector<size_t> h_origins_as_size_t(show_count);
+        raft::update_host(h_vertices.data(),
+                          segmented_vertices.data() + current_offset,
+                          show_count,
+                          handle.get_stream());
+        raft::update_host(h_origins_as_size_t.data(),
+                          segmented_origins_as_size_t.data() + current_offset,
+                          show_count,
+                          handle.get_stream());
+        handle.sync_stream();
+
+        printf("DEBUG:   Distance %d (%zu total): vertices=[", d, num_vertices_at_d);
+        for (size_t i = 0; i < show_count; ++i) {
+          printf("%d", h_vertices[i]);
+          if (i < show_count - 1) printf(",");
+        }
+        printf("], origins=[");
+        for (size_t i = 0; i < show_count; ++i) {
+          printf("%zu", h_origins_as_size_t[i]);
+          if (i < show_count - 1) printf(",");
+        }
+        printf("]\n");
+
+        current_offset += num_vertices_at_d;
+      }
+    }
+
+    // Use CUB DeviceSegmentedSort to sort vertices by vertex ID within each distance level
+    // Both keys and values are now 8-byte types to ensure consistent size
+
+    // Create corrected segment offsets for only non-empty segments
+    std::vector<size_t> corrected_segment_offsets;
+    corrected_segment_offsets.push_back(0);  // Always start at 0
+
+    current_offset = 0;
+    for (vertex_t d = 1; d <= global_max_distance; ++d) {
+      if (d < distance_buckets_vertices.size() && distance_buckets_vertices[d].size() > 0) {
+        current_offset += distance_buckets_vertices[d].size();
+        corrected_segment_offsets.push_back(current_offset);
+        printf("DEBUG: Corrected segment end: %zu\n", current_offset);
+      }
+    }
+
+    printf("DEBUG: Corrected segment offsets: ");
+    for (size_t i = 0; i < corrected_segment_offsets.size(); ++i) {
+      printf("[%zu]=%zu ", i, corrected_segment_offsets[i]);
+    }
+    printf("\n");
+
+    // Copy corrected offsets to device
+    rmm::device_uvector<size_t> corrected_offsets(corrected_segment_offsets.size(),
+                                                  handle.get_stream());
+    raft::update_device(corrected_offsets.data(),
+                        corrected_segment_offsets.data(),
+                        corrected_segment_offsets.size(),
+                        handle.get_stream());
+
+    // Try CUB segmented sort with corrected parameters
+    size_t cub_tmp_storage_bytes{0};
+    cub::DeviceSegmentedSort::SortPairs(
+      nullptr,
+      cub_tmp_storage_bytes,
+      segmented_vertices_as_int32.data(),
+      segmented_vertices_as_int32.data(),
+      segmented_origins_as_size_t.data(),
+      segmented_origins_as_size_t.data(),
+      total_vertices,
+      actual_num_segments,           // Use actual count, not global_max_distance
+      corrected_offsets.data(),      // begin_offsets
+      corrected_offsets.data() + 1,  // end_offsets
+      handle.get_stream());
+
+    rmm::device_uvector<std::byte> cub_tmp_storage(cub_tmp_storage_bytes, handle.get_stream());
+
+    printf("DEBUG: Attempting CUB segmented sort with corrected parameters:\n");
+    printf("DEBUG:   total_vertices: %zu\n", total_vertices);
+    printf("DEBUG:   actual_num_segments: %d\n", actual_num_segments);
+    printf("DEBUG:   corrected_offsets size: %zu\n", corrected_segment_offsets.size());
+
+    // Before CUB sort, verify the data is correct
+    printf("DEBUG: Verifying segmented array data before CUB sort:\n");
+    // Print first few elements of distance 2 segment
+    size_t d2_start = 616;  // Distance 2 starts at offset 616
+    size_t d2_count = std::min(size_t(10), size_t(11088));
+    std::vector<vertex_t> h_vertices_d2(d2_count);
+    std::vector<size_t> h_origins_d2(d2_count);
+    raft::update_host(
+      h_vertices_d2.data(), segmented_vertices.data() + d2_start, d2_count, handle.get_stream());
+    raft::update_host(h_origins_d2.data(),
+                      segmented_origins_as_size_t.data() + d2_start,
+                      d2_count,
+                      handle.get_stream());
+    handle.sync_stream();
+
+    printf("DEBUG: Distance 2 segment before CUB sort: ");
+    for (size_t i = 0; i < d2_count; ++i) {
+      printf("(v=%d,o=%zu) ", h_vertices_d2[i], h_origins_d2[i]);
+    }
+    printf("\n");
+
+    // Comprehensive endianness and type testing
+    printf("DEBUG: ===== ENDIANNESS AND TYPE ANALYSIS =====\n");
+
+    // Test system endianness
+    uint32_t endian_test  = 0x12345678;
+    uint8_t* endian_bytes = (uint8_t*)&endian_test;
+    printf("DEBUG: System endianness test: %02X %02X %02X %02X ",
+           endian_bytes[0],
+           endian_bytes[1],
+           endian_bytes[2],
+           endian_bytes[3]);
+    if (endian_bytes[0] == 0x12) {
+      printf("(BIG-ENDIAN)\n");
+    } else {
+      printf("(LITTLE-ENDIAN)\n");
+    }
+
+    // Test vertex_t size and interpretation
+    printf("DEBUG: vertex_t size = %zu bytes, origin_t size = %zu bytes\n",
+           sizeof(vertex_t),
+           sizeof(origin_t));
+
+    // Test standard vertex values in current vertex_t type
+    printf("DEBUG: Standard vertex values in current vertex_t type:\n");
+    vertex_t test_vertices[] = {0, 1, 2, 63, 192, 197, 831};
+    for (int i = 0; i < 7; ++i) {
+      printf("DEBUG:   Vertex %d = 0x", (int)test_vertices[i]);
+      uint8_t* bytes = (uint8_t*)&test_vertices[i];
+      for (int j = 0; j < sizeof(vertex_t); ++j) {
+        printf("%02X", bytes[j]);
+      }
+      printf(" (%zu bytes)\n", sizeof(vertex_t));
+    }
+
+    // Test how these same values look as int32_t
+    printf("DEBUG: Same values as int32_t:\n");
+    for (int i = 0; i < 7; ++i) {
+      int32_t val32 = (int32_t)test_vertices[i];
+      printf("DEBUG:   Vertex %d = 0x", (int)val32);
+      uint8_t* bytes = (uint8_t*)&val32;
+      for (int j = 0; j < sizeof(int32_t); ++j) {
+        printf("%02X", bytes[j]);
+      }
+      printf(" (4 bytes)\n");
+    }
+
+    // Check what's actually in the segmented vertices array for distance 3
+    printf("DEBUG: Raw vertex data at distance 3 start (first 10 vertices):\n");
+    size_t d3_start  = 11704;  // Distance 3 starts here
+    size_t d3_sample = std::min(size_t(10), size_t(14990));
+    std::vector<vertex_t> h_vertices_d3(d3_sample);
+    raft::update_host(
+      h_vertices_d3.data(), segmented_vertices.data() + d3_start, d3_sample, handle.get_stream());
+    handle.sync_stream();
+
+    for (size_t i = 0; i < d3_sample; ++i) {
+      printf("DEBUG:   d3[%zu] = %d (0x", i, (int)h_vertices_d3[i]);
+      uint8_t* bytes = (uint8_t*)&h_vertices_d3[i];
+      for (int j = 0; j < sizeof(vertex_t); ++j) {
+        printf("%02X", bytes[j]);
+      }
+      printf(")\n");
+    }
+
+    // Capture byte representation of data BEFORE CUB sort
+    printf("DEBUG: ===== BEFORE CUB SEGMENTED SORT =====\n");
+    printf("DEBUG: First 5 vertices in Distance 3 segment (raw bytes):\n");
+    for (size_t i = 0; i < std::min(size_t(5), d3_sample); ++i) {
+      printf("DEBUG:   CUB input[%zu] = %d (0x", i, (int)h_vertices_d3[i]);
+      uint8_t* bytes = (uint8_t*)&h_vertices_d3[i];
+      for (int j = 0; j < sizeof(vertex_t); ++j) {
+        printf("%02X", bytes[j]);
+      }
+      printf(")\n");
+    }
+
+    cub::DeviceSegmentedSort::SortPairs(cub_tmp_storage.data(),
+                                        cub_tmp_storage_bytes,
+                                        segmented_vertices_as_int32.data(),
+                                        segmented_vertices_as_int32.data(),
+                                        segmented_origins_as_size_t.data(),
+                                        segmented_origins_as_size_t.data(),
+                                        total_vertices,
+                                        actual_num_segments,
+                                        corrected_offsets.data(),
+                                        corrected_offsets.data() + 1,
+                                        handle.get_stream());
+
+    handle.sync_stream();
+    printf("DEBUG: CUB segmented sort completed successfully!\n");
+
+    // DEBUG: Compare CUB sort vs Thrust sort results
+    printf("DEBUG: Comparing CUB vs Thrust sort results...\n");
+
+    // Create backup of CUB sorted results
+    rmm::device_uvector<vertex_t> cub_sorted_vertices(total_vertices, handle.get_stream());
+    rmm::device_uvector<size_t> cub_sorted_origins(total_vertices, handle.get_stream());
+    // Convert int32_t CUB results back to vertex_t for comparison
+    thrust::transform(handle.get_thrust_policy(),
+                      segmented_vertices_as_int32.begin(),
+                      segmented_vertices_as_int32.end(),
+                      cub_sorted_vertices.begin(),
+                      [] __device__(int32_t vertex32) { return static_cast<vertex_t>(vertex32); });
+    thrust::copy(handle.get_thrust_policy(),
+                 segmented_origins_as_size_t.begin(),
+                 segmented_origins_as_size_t.end(),
+                 cub_sorted_origins.begin());
+
+    // Reset to original unsorted data (copy from distance buckets again)
+    current_offset = 0;
+    for (vertex_t d = 1; d <= global_max_distance; ++d) {
+      if (d < distance_buckets_vertices.size() && distance_buckets_vertices[d].size() > 0) {
+        auto& vertices_at_d      = distance_buckets_vertices[d];
+        auto& sources_at_d       = distance_buckets_sources[d];
+        size_t num_vertices_at_d = vertices_at_d.size();
+
+        if (num_vertices_at_d > 0) {
+          thrust::copy(handle.get_thrust_policy(),
+                       vertices_at_d.begin(),
+                       vertices_at_d.end(),
+                       segmented_vertices.begin() + current_offset);
+
+          thrust::transform(handle.get_thrust_policy(),
+                            sources_at_d.begin(),
+                            sources_at_d.end(),
+                            segmented_origins_as_size_t.begin() + current_offset,
+                            [] __device__(origin_t origin) { return static_cast<size_t>(origin); });
+
+          current_offset += num_vertices_at_d;
+        }
+      }
+    }
+
+    // Apply Thrust sort for comparison
+    printf("DEBUG: ===== BEFORE THRUST SORT =====\n");
+    printf("DEBUG: Applying Thrust sort for comparison...\n");
+
+    // Capture byte representation of same data BEFORE Thrust sort
+    printf("DEBUG: First 5 vertices in Distance 3 segment (raw bytes for Thrust):\n");
+    std::vector<vertex_t> h_vertices_d3_thrust(d3_sample);
+    raft::update_host(h_vertices_d3_thrust.data(),
+                      segmented_vertices.data() + d3_start,
+                      d3_sample,
+                      handle.get_stream());
+    handle.sync_stream();
+
+    for (size_t i = 0; i < std::min(size_t(5), d3_sample); ++i) {
+      printf("DEBUG:   Thrust input[%zu] = %d (0x", i, (int)h_vertices_d3_thrust[i]);
+      uint8_t* bytes = (uint8_t*)&h_vertices_d3_thrust[i];
+      for (int j = 0; j < sizeof(vertex_t); ++j) {
+        printf("%02X", bytes[j]);
+      }
+      printf(")\n");
+    }
+
+    current_offset = 0;
+    for (vertex_t d = 1; d <= global_max_distance; ++d) {
+      if (d < distance_buckets_vertices.size() && distance_buckets_vertices[d].size() > 0) {
+        size_t num_vertices_at_d = distance_buckets_vertices[d].size();
+
+        thrust::sort_by_key(handle.get_thrust_policy(),
+                            segmented_vertices.begin() + current_offset,
+                            segmented_vertices.begin() + current_offset + num_vertices_at_d,
+                            segmented_origins_as_size_t.begin() + current_offset);
+
+        current_offset += num_vertices_at_d;
+      }
+    }
+
+    // Compare first 50 elements of each distance level
+    printf("DEBUG: Detailed comparison of CUB vs Thrust results:\n");
+    current_offset         = 0;
+    bool differences_found = false;
+    for (vertex_t d = 1; d <= global_max_distance; ++d) {
+      if (d < distance_buckets_vertices.size() && distance_buckets_vertices[d].size() > 0) {
+        size_t num_vertices_at_d = distance_buckets_vertices[d].size();
+        size_t compare_count     = std::min(size_t(20), num_vertices_at_d);  // Compare first 20
+
+        std::vector<vertex_t> cub_vertices(compare_count), thrust_vertices(compare_count);
+        std::vector<size_t> cub_origins(compare_count), thrust_origins(compare_count);
+
+        raft::update_host(cub_vertices.data(),
+                          cub_sorted_vertices.data() + current_offset,
+                          compare_count,
+                          handle.get_stream());
+        raft::update_host(cub_origins.data(),
+                          cub_sorted_origins.data() + current_offset,
+                          compare_count,
+                          handle.get_stream());
+        raft::update_host(thrust_vertices.data(),
+                          segmented_vertices.data() + current_offset,
+                          compare_count,
+                          handle.get_stream());
+        raft::update_host(thrust_origins.data(),
+                          segmented_origins_as_size_t.data() + current_offset,
+                          compare_count,
+                          handle.get_stream());
+        handle.sync_stream();
+
+        printf("DEBUG: Distance %d comparison (first %zu elements):\n", d, compare_count);
+        for (size_t i = 0; i < compare_count; ++i) {
+          if (cub_vertices[i] != thrust_vertices[i] || cub_origins[i] != thrust_origins[i]) {
+            printf("DEBUG:   [%zu] DIFF: CUB(v=%d,o=%zu) vs Thrust(v=%d,o=%zu)\n",
+                   i,
+                   cub_vertices[i],
+                   cub_origins[i],
+                   thrust_vertices[i],
+                   thrust_origins[i]);
+            differences_found = true;
+          } else {
+            printf("DEBUG:   [%zu] SAME: v=%d,o=%zu\n", i, cub_vertices[i], cub_origins[i]);
+          }
+        }
+
+        current_offset += num_vertices_at_d;
+      }
+    }
+
+    if (!differences_found) {
+      printf("DEBUG: No differences found between CUB and Thrust sort results!\n");
+    }
+
+    // Restore CUB sorted results for the actual algorithm
+    thrust::copy(handle.get_thrust_policy(),
+                 cub_sorted_vertices.begin(),
+                 cub_sorted_vertices.end(),
+                 segmented_vertices.begin());
+    thrust::copy(handle.get_thrust_policy(),
+                 cub_sorted_origins.begin(),
+                 cub_sorted_origins.end(),
+                 segmented_origins_as_size_t.begin());
+
+    // Synchronize after CUB sort to catch any errors immediately
+    handle.sync_stream();
+    printf("DEBUG: Device synchronized after CUB segmented sort - no errors\n");
+
+    printf(
+      "DEBUG: CUB segmented sort completed - vertices now in vertex ID order within each distance "
+      "level\n");
+
+    // Print AFTER sorting - show first few vertices in each distance level
+    printf("DEBUG: AFTER sorting - showing first few vertices in each distance level:\n");
+    current_offset = 0;
+    for (vertex_t d = 1; d <= global_max_distance; ++d) {
+      if (d < distance_buckets_vertices.size() && distance_buckets_vertices[d].size() > 0) {
+        size_t num_vertices_at_d = distance_buckets_vertices[d].size();
+        size_t show_count        = std::min(size_t(5), num_vertices_at_d);
+
+        // Read first few vertices from segmented array (AFTER sorting)
+        std::vector<int32_t> h_vertices_int32(show_count);
+        std::vector<size_t> h_origins_as_size_t(show_count);
+        raft::update_host(h_vertices_int32.data(),
+                          segmented_vertices_as_int32.data() + current_offset,
+                          show_count,
+                          handle.get_stream());
+        raft::update_host(h_origins_as_size_t.data(),
+                          segmented_origins_as_size_t.data() + current_offset,
+                          show_count,
+                          handle.get_stream());
+        handle.sync_stream();
+
+        printf("DEBUG:   Distance %d (%zu total): vertices=[", d, num_vertices_at_d);
+        for (size_t i = 0; i < show_count; ++i) {
+          printf("%d", h_vertices_int32[i]);
+          if (i < show_count - 1) printf(",");
+        }
+        printf("], origins=[");
+        for (size_t i = 0; i < show_count; ++i) {
+          printf("%zu", h_origins_as_size_t[i]);
+          if (i < show_count - 1) printf(",");
+        }
+        printf("]\n");
+
+        current_offset += num_vertices_at_d;
+      }
+    }
+
+    // Copy sorted results back to distance buckets
+    current_offset = 0;
+    for (vertex_t d = 1; d <= global_max_distance; ++d) {
+      if (d < distance_buckets_vertices.size() && d < distance_buckets_sources.size()) {
+        auto& vertices_at_d      = distance_buckets_vertices[d];
+        auto& sources_at_d       = distance_buckets_sources[d];
+        size_t num_vertices_at_d = vertices_at_d.size();
+
+        if (num_vertices_at_d > 0) {
+          printf(
+            "DEBUG: Copying back sorted distance level %d (%zu vertices)\n", d, num_vertices_at_d);
+
+          // Copy sorted vertices with type conversion back to vertex_t (from int32_t workaround)
+          thrust::transform(
+            handle.get_thrust_policy(),
+            segmented_vertices_as_int32.begin() + current_offset,
+            segmented_vertices_as_int32.begin() + current_offset + num_vertices_at_d,
+            vertices_at_d.begin(),
+            [] __device__(int32_t vertex32) { return static_cast<vertex_t>(vertex32); });
+
+          // Copy aligned sources with type conversion back to origin_t
+          thrust::transform(
+            handle.get_thrust_policy(),
+            segmented_origins_as_size_t.begin() + current_offset,
+            segmented_origins_as_size_t.begin() + current_offset + num_vertices_at_d,
+            sources_at_d.begin(),
+            [] __device__(size_t origin_as_size_t) {
+              return static_cast<origin_t>(origin_as_size_t);
+            });
+
+          current_offset += num_vertices_at_d;
+        }
+      }
+    }
+
+    printf(
+      "DEBUG: All distance levels now have vertices in vertex ID order (matching single-source)\n");
+
+    // Print FINAL state - show first few vertices in each distance bucket after copy-back
+    printf("DEBUG: FINAL STATE - showing first few vertices in each distance bucket:\n");
+    for (vertex_t d = 1; d <= global_max_distance; ++d) {
+      if (d < distance_buckets_vertices.size() && distance_buckets_vertices[d].size() > 0) {
+        auto& vertices_at_d      = distance_buckets_vertices[d];
+        auto& sources_at_d       = distance_buckets_sources[d];
+        size_t num_vertices_at_d = vertices_at_d.size();
+        size_t show_count        = std::min(size_t(5), num_vertices_at_d);
+
+        // Read first few vertices from distance bucket (FINAL)
+        std::vector<vertex_t> h_vertices(show_count);
+        std::vector<origin_t> h_origins(show_count);
+        raft::update_host(h_vertices.data(), vertices_at_d.data(), show_count, handle.get_stream());
+        raft::update_host(h_origins.data(), sources_at_d.data(), show_count, handle.get_stream());
+        handle.sync_stream();
+
+        printf("DEBUG:   Distance %d bucket (%zu total): vertices=[", d, num_vertices_at_d);
+        for (size_t i = 0; i < show_count; ++i) {
+          printf("%d", h_vertices[i]);
+          if (i < show_count - 1) printf(",");
+        }
+        printf("], origins=[");
+        for (size_t i = 0; i < show_count; ++i) {
+          printf("%u", h_origins[i]);
+          if (i < show_count - 1) printf(",");
+        }
+        printf("]\n");
+      }
+    }
+
+    // Verify distance level sizes haven't changed
+    printf("DEBUG: Verifying distance level sizes after sorting:\n");
+    for (vertex_t d = 1; d <= global_max_distance; ++d) {
+      if (d < distance_buckets_vertices.size()) {
+        printf("DEBUG:   Distance %d: %zu vertices\n", d, distance_buckets_vertices[d].size());
+      }
+    }
+  }
+
+  // Process distance levels using pre-computed buckets (now with sorted vertices)
   for (vertex_t d = global_max_distance; d > 1; --d) {
     // Step 1: Create vertex frontier with all vertices at distance d-1 for all sources
     // Use tagged vertices with (vertex, source_idx) pairs
@@ -892,28 +1481,11 @@ void multisource_backward_pass(
       // This extracts (src, tag, dst) triplets as recommended
       // CUB SORT: Sort frontier vertices by vertex ID for better processing order
       size_t frontier_size = frontier_vertices.size();
+      printf("DEBUG: About to process frontier with size %zu\n", frontier_size);
       if (frontier_size > 0) {
-        // Use CUB sort for frontier vertices and sources together
-        size_t tmp_storage_bytes{0};
-        cub::DeviceRadixSort::SortPairs(nullptr,
-                                        tmp_storage_bytes,
-                                        frontier_vertices.data(),
-                                        frontier_vertices.data(),
-                                        frontier_sources.data(),
-                                        frontier_sources.data(),
-                                        frontier_size);
-
-        // Allocate temporary storage
-        rmm::device_uvector<std::byte> tmp_storage(tmp_storage_bytes, handle.get_stream());
-
-        // Perform CUB sort - sorts vertices and keeps sources aligned
-        cub::DeviceRadixSort::SortPairs(tmp_storage.data(),
-                                        tmp_storage_bytes,
-                                        frontier_vertices.data(),
-                                        frontier_vertices.data(),
-                                        frontier_sources.data(),
-                                        frontier_sources.data(),
-                                        frontier_size);
+        // Vertices are sorted by (source, source_idx) composite key for efficient processing
+        printf("DEBUG: Processing frontier with size %zu (sorted by composite key)\n",
+               frontier_size);
       }
 
       // Create a proper frontier object for the tagged vertices
@@ -923,6 +1495,23 @@ void multisource_backward_pass(
       auto pair_first =
         thrust::make_zip_iterator(frontier_vertices.begin(), frontier_sources.begin());
       frontier.bucket(0).insert(pair_first, pair_first + frontier_vertices.size());
+
+      printf("DEBUG: About to extract edges for frontier size %zu\n", frontier_vertices.size());
+      printf("DEBUG: frontier_vertices.data() pointer: %p\n", (void*)frontier_vertices.data());
+      printf("DEBUG: frontier_vertices.size() = %zu\n", frontier_vertices.size());
+
+      if (frontier_vertices.size() > 0) {
+        // Check for invalid vertex indices
+        auto v_first = graph_view.local_vertex_partition_range_first();
+        auto v_last  = graph_view.local_vertex_partition_range_last();
+        printf("DEBUG: Graph vertex range: [%d, %d)\n", v_first, v_last);
+        printf("DEBUG: frontier_vertices.size() = %zu\n", frontier_vertices.size());
+      } else {
+        printf("DEBUG: frontier_vertices is empty!\n");
+      }
+
+      printf("DEBUG: About to call extract_transform_if_v_frontier_outgoing_e\n");
+      printf("DEBUG: frontier.bucket(0).size() = %zu\n", frontier.bucket(0).size());
 
       auto edge_tuples_buffer = extract_transform_if_v_frontier_outgoing_e(
         handle,
@@ -971,6 +1560,8 @@ void multisource_backward_pass(
           }));
 
       // Work directly with the result buffer (no temporaries needed)
+      printf("DEBUG: Edge extraction completed, num_edges = %zu\n",
+             size_dataframe_buffer(edge_tuples_buffer));
       size_t num_edges = size_dataframe_buffer(edge_tuples_buffer);
 
       if (num_edges > 0) {
@@ -989,6 +1580,12 @@ void multisource_backward_pass(
 
         // Step 5: Use reduce_by_key with in-place reduction (no temporaries needed)
 
+        printf("DEBUG: About to perform reduce_by_key with %zu edges\n", num_edges);
+        printf("DEBUG: srcs.size() = %zu, source_indices.size() = %zu, deltas.size() = %zu\n",
+               srcs.size(),
+               source_indices.size(),
+               deltas.size());
+
         // Reduce by key and get count in one operation - overwrite input buffers
         auto reduced_result = thrust::reduce_by_key(
           handle.get_thrust_policy(),
@@ -1000,6 +1597,8 @@ void multisource_backward_pass(
           deltas.begin(),                                         // Output values (overwrite input)
           thrust::equal_to<thrust::tuple<vertex_t, origin_t>>{},  // BinaryPredicate: compare keys
           thrust::plus<weight_t>{});                              // BinaryFunction: sum values
+
+        printf("DEBUG: reduce_by_key completed successfully\n");
 
         // Get num_unique from the result
         size_t num_unique = reduced_result.second - deltas.begin();
@@ -1032,6 +1631,8 @@ void multisource_backward_pass(
               source_deltas[src_offset]);
             delta_counter.fetch_add(delta, cuda::std::memory_order_relaxed);
           });
+
+        printf("DEBUG: for_each atomic updates completed successfully\n");
       }
     }
   }
