@@ -198,8 +198,6 @@ def get_traversed_path_list(df, id):
 def ensure_valid_dtype(input_graph, vertex_pair):
     import inspect
 
-    func_name = inspect.stack()[1].function
-
     vertex_dtype = input_graph.edgelist.edgelist_df.dtypes.iloc[0]
     vertex_pair_dtypes = vertex_pair.dtypes
 
@@ -207,6 +205,8 @@ def ensure_valid_dtype(input_graph, vertex_pair):
         vertex_pair_dtypes.iloc[0] != vertex_dtype
         or vertex_pair_dtypes.iloc[1] != vertex_dtype
     ):
+        func_name = inspect.stack()[1].function
+
         warning_msg = (
             f"{func_name} requires 'vertex_pair' to match the graph's 'vertex' type. "
             f"input graph's vertex type is: {vertex_dtype} and got "
