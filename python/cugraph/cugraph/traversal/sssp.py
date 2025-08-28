@@ -12,6 +12,7 @@
 # limitations under the License.
 
 import numpy as np
+import warnings
 
 import cudf
 from cugraph.structure import Graph, MultiGraph
@@ -19,7 +20,6 @@ from cugraph.utilities import (
     ensure_cugraph_obj,
     is_matrix_type,
     is_cp_matrix_type,
-    is_nx_graph_type,
     cupy_package as cp,
 )
 from pylibcugraph import sssp as pylibcugraph_sssp, ResourceHandle
@@ -45,7 +45,7 @@ def _ensure_args(
 
     G_type = type(G)
     # Check for Graph-type inputs
-    if G_type is Graph or is_nx_graph_type(G_type):
+    if G_type is Graph:
         # FIXME: Improve Graph-type checking
         exc_value = "'%s' cannot be specified for a Graph-type input"
         if directed is not None:
@@ -56,13 +56,6 @@ def _ensure_args(
             raise TypeError(exc_value % "unweighted")
         if overwrite is not None:
             raise TypeError(exc_value % "overwrite")
-
-        # Ensure source vertex is valid
-        invalid_vertex_err = ValueError(
-            f"Vertex {source} is not valid for the NetworkX Graph"
-        )
-        if is_nx_graph_type(G_type) and source not in G:
-            raise invalid_vertex_err
 
         directed = False
 
@@ -96,9 +89,6 @@ def _convert_df_to_output_type(df, input_type, return_predecessors):
     """
     if input_type in [Graph, MultiGraph]:
         return df
-
-    elif is_nx_graph_type(input_type):
-        return df.to_pandas()
 
     elif is_matrix_type(input_type):
         # A CuPy/SciPy input means the return value will be a 2-tuple of:
@@ -135,7 +125,6 @@ def sssp(
     overwrite=None,
     indices=None,
     cutoff=None,
-    edge_attr="weight",
 ):
     """
     Compute the distance and predecessors for shortest paths from the specified
@@ -151,25 +140,16 @@ def sssp(
 
     Parameters
     ----------
-    graph : cugraph.Graph, networkx.Graph, CuPy or SciPy sparse matrix Graph or
+    graph : cugraph.Graph, CuPy or SciPy sparse matrix Graph or
         matrix object, which should contain the connectivity information. Edge
         weights, if present, should be single or double precision floating
         point values.
         The current implementation only supports weighted graphs.
 
-        .. deprecated:: 24.12
-           Accepting a ``networkx.Graph`` is deprecated and will be removed in a
-           future version.  For ``networkx.Graph`` use networkx directly with
-           the ``nx-cugraph`` backend. See:  https://rapids.ai/nx-cugraph/
-
     source : int
         Index of the source vertex.
     cutoff : double, optional (default=None)
         Maximum edge weight sum considered by the algorithm
-    edge_attr : str, optional (default='weight')
-        The name of the edge attribute that represents the weight of an edge.
-        This currently applies only when G is a NetworkX Graph.
-        Default value is 'weight', which follows NetworkX convention.
 
     Returns
     -------
@@ -185,11 +165,6 @@ def sssp(
 
           df['predecessor']
               the vertex it was reached from
-
-    If G is a networkx.Graph, returns:
-
-       pandas.DataFrame with contents equivalent to the cudf.DataFrame
-       described above.
 
     If G is a CuPy or SciPy matrix, returns:
        a 2-tuple of CuPy ndarrays (if CuPy matrix input) or Numpy ndarrays (if
@@ -218,9 +193,7 @@ def sssp(
         G, source, method, directed, return_predecessors, unweighted, overwrite, indices
     )
 
-    (G, input_type) = ensure_cugraph_obj(
-        G, nx_weight_attr=edge_attr, matrix_graph_type=Graph(directed=directed)
-    )
+    (G, input_type) = ensure_cugraph_obj(G, matrix_graph_type=Graph(directed=directed))
 
     if not G.is_weighted():
         err_msg = (
@@ -311,6 +284,13 @@ def shortest_path(
     Alias for sssp(), provided for API compatibility with NetworkX. See sssp()
     for details.
     """
+    warnings.warn(
+        "deprecated as of 25.10. Use `sssp()` instead. "
+        "If calling with a NetworkX Graph object, use networkx with the "
+        "nx-cugraph backend. See: https://rapids.ai/nx-cugraph",
+        DeprecationWarning,
+    )
+
     return sssp(
         G, source, method, directed, return_predecessors, unweighted, overwrite, indices
     )
@@ -323,30 +303,20 @@ def shortest_path_length(G, source, target=None):
 
     Parameters
     ----------
-    graph : cuGraph.Graph, NetworkX.Graph, or CuPy sparse COO matrix
+    graph : cuGraph.Graph or CuPy sparse COO matrix
         cuGraph graph descriptor with connectivity information. Edge weights,
         if present, should be single or double precision floating point values.
 
-        .. deprecated:: 24.12
-           Accepting a ``networkx.Graph`` is deprecated and will be removed in a
-           future version.  For ``networkx.Graph`` use networkx directly with
-           the ``nx-cugraph`` backend. See:  https://rapids.ai/nx-cugraph/
-
     source : Dependant on graph type. Index of the source vertex.
 
-    If graph is an instance of cuGraph.Graph or CuPy sparse COO matrix:
-        int
-
-    If graph is an instance of a NetworkX.Graph:
-        str
+        If graph is an instance of cuGraph.Graph or CuPy sparse COO matrix:
+            int
 
     target: Dependant on graph type. Vertex to find distance to.
 
-    If graph is an instance of cuGraph.Graph or CuPy sparse COO matrix:
-        int
+        If graph is an instance of cuGraph.Graph or CuPy sparse COO matrix:
+            int
 
-    If graph is an instance of a NetworkX.Graph:
-        str
 
     Returns
     -------
@@ -374,7 +344,7 @@ def shortest_path_length(G, source, target=None):
             if target < 0 or target >= max(as_matrix.shape[0], as_matrix.shape[1]):
                 raise ValueError("Graph does not contain target vertex")
         elif not G.has_node(target):
-            # G is an instance of cugraph or networkx graph
+            # G is an instance of cugraph
             raise ValueError("Graph does not contain target vertex")
 
     df = sssp(G, source)
@@ -389,7 +359,7 @@ def shortest_path_length(G, source, target=None):
         return results
 
     else:
-        # cugraph and networkx path
+        # cugraph path
         if target:
             target_distance = df.loc[df["vertex"] == target]
             return target_distance.iloc[0]["distance"]
