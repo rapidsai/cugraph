@@ -55,10 +55,7 @@ Running the example in these notebooks requires:
 * The latest version of RAPIDS with cuGraph.
   * Download via Docker, Conda (See [__Getting Started__](https://rapids.ai/start.html))
 
-* cuGraph is dependent on the latest version of cuDF.  Please install all components of RAPIDS
-* Python 3.10+
-* A system with an NVIDIA GPU: Volta architecture or newer
-* CUDA 12.0+
+[System Requirements](https://docs.rapids.ai/install/#system-req)
 
 ### QuickStart
 
