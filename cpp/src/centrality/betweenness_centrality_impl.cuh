@@ -882,96 +882,172 @@ void multisource_backward_pass(
     total_vertices += distance_buckets_vertices[d].size();
   }
 
-  // Sort vertices by vertex ID within each distance level using CUB segmented sort
+  // Sort vertices by vertex ID within each distance level using chunked CUB segmented sort
   if (total_vertices > 0) {
-    // Create virtual contiguous arrays for CUB segmented sort (handles non-contiguous buckets)
-    rmm::device_uvector<int32_t> virtual_vertices_int32(total_vertices, handle.get_stream());
-    rmm::device_uvector<origin_t> virtual_sources(total_vertices, handle.get_stream());
+    // Calculate target chunk size based on GPU hardware (like manager's code)
+    auto approx_vertices_to_sort_per_iteration =
+      static_cast<size_t>(handle.get_device_properties().multiProcessorCount) * (1 << 20);
 
-    // Build segment offsets and gather data into contiguous arrays
-    std::vector<size_t> segment_offsets;
-    segment_offsets.push_back(0);
+    printf("DEBUG: GPU has %d SMs, target chunk size: %zu vertices\n",
+           handle.get_device_properties().multiProcessorCount,
+           approx_vertices_to_sort_per_iteration);
 
-    size_t write_offset = 0;
-    int num_segments    = 0;
+    // Build distance level offsets array for chunking
+    std::vector<size_t> distance_level_offsets;
+    distance_level_offsets.push_back(0);
 
+    size_t cumulative_vertices = 0;
     for (vertex_t d = 1; d <= global_max_distance; ++d) {
       if (d < distance_buckets_vertices.size() && distance_buckets_vertices[d].size() > 0) {
-        size_t seg_size = distance_buckets_vertices[d].size();
-
-        // Copy segment to virtual contiguous array with int32_t conversion
-        thrust::transform(handle.get_thrust_policy(),
-                          distance_buckets_vertices[d].begin(),
-                          distance_buckets_vertices[d].end(),
-                          virtual_vertices_int32.begin() + write_offset,
-                          [] __device__(vertex_t v) { return static_cast<int32_t>(v); });
-
-        thrust::copy(handle.get_thrust_policy(),
-                     distance_buckets_sources[d].begin(),
-                     distance_buckets_sources[d].end(),
-                     virtual_sources.begin() + write_offset);
-
-        write_offset += seg_size;
-        segment_offsets.push_back(write_offset);
-        num_segments++;
+        cumulative_vertices += distance_buckets_vertices[d].size();
+        distance_level_offsets.push_back(cumulative_vertices);
       }
     }
 
-    if (num_segments > 0) {
-      // Copy segment offsets to device
-      rmm::device_uvector<size_t> d_segment_offsets(segment_offsets.size(), handle.get_stream());
-      raft::update_device(d_segment_offsets.data(),
-                          segment_offsets.data(),
-                          segment_offsets.size(),
+    if (distance_level_offsets.size() > 1) {
+      // Copy offsets to device for chunking function
+      rmm::device_uvector<size_t> d_distance_level_offsets(distance_level_offsets.size(),
+                                                           handle.get_stream());
+      raft::update_device(d_distance_level_offsets.data(),
+                          distance_level_offsets.data(),
+                          distance_level_offsets.size(),
                           handle.get_stream());
 
-      // Use CUB segmented sort on virtual contiguous arrays
-      size_t temp_storage_bytes = 0;
-      cub::DeviceSegmentedSort::SortPairs(nullptr,
-                                          temp_storage_bytes,
-                                          virtual_vertices_int32.data(),
-                                          virtual_vertices_int32.data(),
-                                          virtual_sources.data(),
-                                          virtual_sources.data(),
-                                          total_vertices,
-                                          num_segments,
-                                          d_segment_offsets.data(),
-                                          d_segment_offsets.data() + 1,
-                                          handle.get_stream());
+      // Use intelligent chunking (like manager's approach)
+      auto [h_distance_level_chunk_offsets, h_vertex_chunk_offsets] =
+        detail::compute_offset_aligned_element_chunks(
+          handle,
+          raft::device_span<size_t const>(d_distance_level_offsets.data(),
+                                          d_distance_level_offsets.size()),
+          total_vertices,
+          approx_vertices_to_sort_per_iteration);
 
-      rmm::device_uvector<std::byte> temp_storage(temp_storage_bytes, handle.get_stream());
+      auto num_chunks = h_distance_level_chunk_offsets.size() - 1;
+      printf("DEBUG: Created %zu chunks for distance levels\n", num_chunks);
 
-      cub::DeviceSegmentedSort::SortPairs(temp_storage.data(),
-                                          temp_storage_bytes,
-                                          virtual_vertices_int32.data(),
-                                          virtual_vertices_int32.data(),
-                                          virtual_sources.data(),
-                                          virtual_sources.data(),
-                                          total_vertices,
-                                          num_segments,
-                                          d_segment_offsets.data(),
-                                          d_segment_offsets.data() + 1,
-                                          handle.get_stream());
+      // Find max chunk size for memory allocation
+      size_t max_chunk_size = 0;
+      for (size_t i = 0; i < num_chunks; ++i) {
+        max_chunk_size =
+          std::max(max_chunk_size,
+                   static_cast<size_t>(h_vertex_chunk_offsets[i + 1] - h_vertex_chunk_offsets[i]));
+      }
+      printf("DEBUG: Max chunk size: %zu vertices\n", max_chunk_size);
 
-      // Scatter sorted results back to original bucket arrays
-      size_t read_offset = 0;
-      for (vertex_t d = 1; d <= global_max_distance; ++d) {
-        if (d < distance_buckets_vertices.size() && distance_buckets_vertices[d].size() > 0) {
-          size_t seg_size = distance_buckets_vertices[d].size();
+      // Allocate reusable arrays for chunks
+      rmm::device_uvector<int32_t> chunk_vertices_int32(max_chunk_size, handle.get_stream());
+      rmm::device_uvector<origin_t> chunk_sources(max_chunk_size, handle.get_stream());
+      rmm::device_uvector<std::byte> d_tmp_storage(0, handle.get_stream());
 
-          // Convert back to vertex_t and copy to original bucket
+      // Process each chunk
+      for (size_t chunk_i = 0; chunk_i < num_chunks; ++chunk_i) {
+        size_t chunk_vertex_start    = h_vertex_chunk_offsets[chunk_i];
+        size_t chunk_vertex_end      = h_vertex_chunk_offsets[chunk_i + 1];
+        size_t chunk_distance_start  = h_distance_level_chunk_offsets[chunk_i];
+        size_t chunk_distance_end    = h_distance_level_chunk_offsets[chunk_i + 1];
+        size_t chunk_size            = chunk_vertex_end - chunk_vertex_start;
+        size_t num_segments_in_chunk = chunk_distance_end - chunk_distance_start;
+
+        printf("DEBUG: Processing chunk %zu: %zu vertices, %zu distance levels\n",
+               chunk_i,
+               chunk_size,
+               num_segments_in_chunk);
+
+        // Gather data for this chunk from original bucket arrays
+        size_t write_offset = 0;
+        std::vector<size_t> chunk_segment_offsets;
+        chunk_segment_offsets.push_back(0);
+
+        // Map distance level indices to actual distance values
+        std::vector<vertex_t> distance_levels_in_chunk;
+        for (vertex_t d = 1; d <= global_max_distance; ++d) {
+          if (d < distance_buckets_vertices.size() && distance_buckets_vertices[d].size() > 0) {
+            distance_levels_in_chunk.push_back(d);
+          }
+        }
+
+        // Copy data for distance levels in this chunk
+        for (size_t level_idx = chunk_distance_start; level_idx < chunk_distance_end; ++level_idx) {
+          vertex_t d        = distance_levels_in_chunk[level_idx];
+          size_t level_size = distance_buckets_vertices[d].size();
+
+          // Copy vertices with int32_t conversion
           thrust::transform(handle.get_thrust_policy(),
-                            virtual_vertices_int32.begin() + read_offset,
-                            virtual_vertices_int32.begin() + read_offset + seg_size,
                             distance_buckets_vertices[d].begin(),
-                            [] __device__(int32_t v32) { return static_cast<vertex_t>(v32); });
+                            distance_buckets_vertices[d].end(),
+                            chunk_vertices_int32.begin() + write_offset,
+                            [] __device__(vertex_t v) { return static_cast<int32_t>(v); });
 
+          // Copy sources
           thrust::copy(handle.get_thrust_policy(),
-                       virtual_sources.begin() + read_offset,
-                       virtual_sources.begin() + read_offset + seg_size,
-                       distance_buckets_sources[d].begin());
+                       distance_buckets_sources[d].begin(),
+                       distance_buckets_sources[d].end(),
+                       chunk_sources.begin() + write_offset);
 
-          read_offset += seg_size;
+          write_offset += level_size;
+          chunk_segment_offsets.push_back(write_offset);
+        }
+
+        if (num_segments_in_chunk > 0) {
+          // Copy segment offsets to device
+          rmm::device_uvector<size_t> d_chunk_segment_offsets(chunk_segment_offsets.size(),
+                                                              handle.get_stream());
+          raft::update_device(d_chunk_segment_offsets.data(),
+                              chunk_segment_offsets.data(),
+                              chunk_segment_offsets.size(),
+                              handle.get_stream());
+
+          // CUB segmented sort for this chunk
+          size_t temp_storage_bytes = 0;
+          cub::DeviceSegmentedSort::SortPairs(nullptr,
+                                              temp_storage_bytes,
+                                              chunk_vertices_int32.data(),
+                                              chunk_vertices_int32.data(),
+                                              chunk_sources.data(),
+                                              chunk_sources.data(),
+                                              chunk_size,
+                                              num_segments_in_chunk,
+                                              d_chunk_segment_offsets.data(),
+                                              d_chunk_segment_offsets.data() + 1,
+                                              handle.get_stream());
+
+          if (temp_storage_bytes > d_tmp_storage.size()) {
+            d_tmp_storage = rmm::device_uvector<std::byte>(temp_storage_bytes, handle.get_stream());
+          }
+
+          cub::DeviceSegmentedSort::SortPairs(d_tmp_storage.data(),
+                                              temp_storage_bytes,
+                                              chunk_vertices_int32.data(),
+                                              chunk_vertices_int32.data(),
+                                              chunk_sources.data(),
+                                              chunk_sources.data(),
+                                              chunk_size,
+                                              num_segments_in_chunk,
+                                              d_chunk_segment_offsets.data(),
+                                              d_chunk_segment_offsets.data() + 1,
+                                              handle.get_stream());
+
+          // Scatter results back to original bucket arrays
+          size_t read_offset = 0;
+          for (size_t level_idx = chunk_distance_start; level_idx < chunk_distance_end;
+               ++level_idx) {
+            vertex_t d        = distance_levels_in_chunk[level_idx];
+            size_t level_size = distance_buckets_vertices[d].size();
+
+            // Convert back to vertex_t and copy to original bucket
+            thrust::transform(handle.get_thrust_policy(),
+                              chunk_vertices_int32.begin() + read_offset,
+                              chunk_vertices_int32.begin() + read_offset + level_size,
+                              distance_buckets_vertices[d].begin(),
+                              [] __device__(int32_t v32) { return static_cast<vertex_t>(v32); });
+
+            thrust::copy(handle.get_thrust_policy(),
+                         chunk_sources.begin() + read_offset,
+                         chunk_sources.begin() + read_offset + level_size,
+                         distance_buckets_sources[d].begin());
+
+            read_offset += level_size;
+          }
         }
       }
     }
