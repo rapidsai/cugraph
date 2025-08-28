@@ -23,7 +23,7 @@ files:
       - depends_on_pytorch
       - depends_on_raft_dask
       - depends_on_rmm
-      - depends_on_ucx_py
+      - depends_on_ucxx
       - docs
       - python_build_cythonize
       - python_build_skbuild
@@ -125,7 +125,7 @@ files:
       - depends_on_pylibraft
       - depends_on_raft_dask
       - depends_on_rmm
-      - depends_on_ucx_py
+      - depends_on_ucxx
       - python_run_cugraph
   py_test_cugraph:
     output: pyproject
@@ -251,7 +251,7 @@ files:
       - depends_on_dask_cuda
       - depends_on_dask_cudf
       - depends_on_rmm
-      - depends_on_ucx_py
+      - depends_on_ucxx
       - python_run_cugraph_service_server
   py_test_cugraph_service_server:
     output: pyproject
@@ -561,15 +561,30 @@ dependencies:
     specific:
       - output_types: [requirements]
         matrices:
-          - matrix: {cuda: "12.*"}
+          - matrix:
+              cuda: "12.*"
             packages:
               - --extra-index-url=https://download.pytorch.org/whl/cu121
+          - matrix:
+              cuda: "13.*"
+            packages:
+              # TODO: switch from nightlies to releases when there are pytorch CUDA 13 released packages
+              #  ref: https://github.com/pytorch/pytorch/issues/159779
+              - --extra-index-url=https://download.pytorch.org/whl/nightly/cu130
           - {matrix: null, packages: null}
       - output_types: [requirements, pyproject]
         matrices:
-          - matrix: {cuda: "12.*"}
+          - matrix:
+              cuda: "12.*"
             packages:
-              - &pytorch_pip torch>=2.3
+              - torch>=2.3
+              - tensordict>=0.1.2
+          - matrix:
+              cuda: "12.*"
+            packages:
+              # TODO: remove this 'a0' (which allows nightlies) once there are pytorch CUDA 13 released packages
+              #  ref: https://github.com/pytorch/pytorch/issues/159779
+              - &pytorch_pip torch>=2.9.0a0
               - &tensordict tensordict>=0.1.2
           - {matrix: null, packages: [*pytorch_pip, *tensordict]}
   depends_on_libcudf:
@@ -846,11 +861,11 @@ dependencies:
           - matrix:
             packages:
               - cupy-cuda13x>=13.6.0
-  depends_on_ucx_py:
+  depends_on_ucxx:
     common:
       - output_types: conda
         packages:
-          - &ucx_py_unsuffixed ucx-py==0.46.*,>=0.0.0a0
+          - &ucxx_unsuffixed ucxx==0.46.*,>=0.0.0a0
       - output_types: requirements
         packages:
           # pip recognizes the index as a global option for the requirements.txt file
@@ -863,10 +878,10 @@ dependencies:
               cuda: "12.*"
               cuda_suffixed: "true"
             packages:
-              - ucx-py-cu12==0.46.*,>=0.0.0a0
+              - ucxx-cu12==0.46.*,>=0.0.0a0
           - matrix:
               cuda: "13.*"
               cuda_suffixed: "true"
             packages:
-              - ucx-py-cu13==0.46.*,>=0.0.0a0
-          - {matrix: null, packages: [*ucx_py_unsuffixed]}
+              - ucxx-cu13==0.46.*,>=0.0.0a0
+          - {matrix: null, packages: [*ucxx_unsuffixed]}

@@ -84,7 +84,7 @@ requirements:
     - raft-dask =${{ minor_version }}
     - rapids-dask-dependency =${{ minor_version }}
     - requests
-    - ucx-py ${{ ucx_py_version }}
+    - ucxx ${{ ucxx_version }}
     - cuda-cudart
     - if: cuda_major == "12"
       then: cuda-python >=12.9.2,<13.0a0
