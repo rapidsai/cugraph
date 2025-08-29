@@ -35,6 +35,8 @@ def force_atlas2(input_graph,
                  outbound_attraction_distribution=True,
                  lin_log_mode=False,
                  prevent_overlapping=False,
+                 vertex_radius=None,
+                 overlap_scaling_ratio=100.0,
                  edge_weight_influence=1.0,
                  jitter_tolerance=1.0,
                  barnes_hut_optimize=True,
@@ -42,6 +44,7 @@ def force_atlas2(input_graph,
                  scaling_ratio=1.0,
                  strong_gravity_mode=False,
                  gravity=1.0,
+                 mobility=None,
                  verbose=False,
                  callback=None):
 
@@ -97,6 +100,22 @@ def force_atlas2(input_graph,
         x_start = pos_list['x'].__cuda_array_interface__['data'][0]
         y_start = pos_list['y'].__cuda_array_interface__['data'][0]
 
+    cdef uintptr_t vertex_radius_arr = <uintptr_t>NULL
+    if prevent_overlapping:
+        if vertex_radius is None or len(vertex_radius) != num_verts:
+            raise ValueError('vertex_radius must be provided for all vertices')
+        vertex_radius['radius'] = vertex_radius['radius'].astype(np.float32)
+        vertex_radius['radius'][vertex_radius['vertex']] = vertex_radius['radius']
+        vertex_radius_arr = vertex_radius['radius'].__cuda_array_interface__['data'][0]
+
+    cdef uintptr_t mobility_arr = <uintptr_t>NULL
+    if mobility is not None:
+        if len(mobility) != num_verts:
+            raise ValueError('mobility must have values for all vertices')
+        mobility['mobility'] = mobility['mobility'].astype(np.float32)
+        mobility['mobility'][mobility['vertex']] = mobility['mobility']
+        mobility_arr = mobility['mobility'].__cuda_array_interface__['data'][0]
+
     cdef uintptr_t callback_ptr = 0
     if callback:
         callback_ptr = callback.get_native_callback()
@@ -124,6 +143,8 @@ def force_atlas2(input_graph,
                         <bool>outbound_attraction_distribution,
                         <bool>lin_log_mode,
                         <bool>prevent_overlapping,
+                        <float*>vertex_radius_arr,
+                        <float>overlap_scaling_ratio,
                         <float>edge_weight_influence,
                         <float>jitter_tolerance,
                         <bool>barnes_hut_optimize,
@@ -131,6 +152,7 @@ def force_atlas2(input_graph,
                         <float>scaling_ratio,
                         <bool> strong_gravity_mode,
                         <float>gravity,
+                        <float*>mobility_arr,
                         <bool> verbose,
                         <GraphBasedDimRedCallback*>callback_ptr)
     else:
@@ -146,6 +168,8 @@ def force_atlas2(input_graph,
                 <bool>outbound_attraction_distribution,
                 <bool>lin_log_mode,
                 <bool>prevent_overlapping,
+                <float*>vertex_radius_arr,
+                <float>overlap_scaling_ratio,
                 <float>edge_weight_influence,
                 <float>jitter_tolerance,
                 <bool>barnes_hut_optimize,
@@ -153,6 +177,7 @@ def force_atlas2(input_graph,
                 <float>scaling_ratio,
                 <bool> strong_gravity_mode,
                 <float>gravity,
+                <float*>mobility_arr,
                 <bool> verbose,
                 <GraphBasedDimRedCallback*>callback_ptr)
 

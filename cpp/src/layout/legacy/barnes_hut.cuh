@@ -46,12 +46,15 @@ void barnes_hut(raft::handle_t const& handle,
                 bool outbound_attraction_distribution         = true,
                 bool lin_log_mode                             = false,
                 bool prevent_overlapping                      = false,
+                float* vertex_radius                          = nullptr,
+                const float overlap_scaling_ratio             = 100.0,
                 const float edge_weight_influence             = 1.0,
                 const float jitter_tolerance                  = 1.0,
                 const float theta                             = 0.5,
                 const float scaling_ratio                     = 2.0,
                 bool strong_gravity_mode                      = false,
                 const float gravity                           = 1.0,
+                float* mobility                               = nullptr,
                 bool verbose                                  = false,
                 internals::GraphBasedDimRedCallback* callback = nullptr)
 {
@@ -290,6 +293,8 @@ void barnes_hut(raft::handle_t const& handle,
                                                  lin_log_mode,
                                                  edge_weight_influence,
                                                  outbound_att_compensation,
+                                                 prevent_overlapping,
+                                                 vertex_radius,
                                                  stream_view.value());
 
     compute_local_speed(rep_forces,
@@ -324,6 +329,7 @@ void barnes_hut(raft::handle_t const& handle,
                                                                             old_forces,
                                                                             old_forces + n,
                                                                             swinging,
+                                                                            mobility,
                                                                             speed,
                                                                             n);
 
