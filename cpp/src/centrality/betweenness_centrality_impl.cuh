@@ -949,15 +949,9 @@ void multisource_backward_pass(
         std::vector<size_t> chunk_segment_offsets;
         chunk_segment_offsets.push_back(0);
 
-        // Map distance level indices to actual distance values
-        std::vector<vertex_t> distance_levels_in_chunk;
-        for (vertex_t d = 1; d <= global_max_distance; ++d) {
-          if (distance_buckets_vertices[d].size() > 0) { distance_levels_in_chunk.push_back(d); }
-        }
-
         // Copy data for distance levels in this chunk
         for (size_t level_idx = chunk_distance_start; level_idx < chunk_distance_end; ++level_idx) {
-          vertex_t d        = distance_levels_in_chunk[level_idx];
+          vertex_t d        = level_idx;
           size_t level_size = distance_buckets_vertices[d].size();
 
           // Copy vertices with int32_t conversion
@@ -1020,7 +1014,7 @@ void multisource_backward_pass(
           size_t read_offset = 0;
           for (size_t level_idx = chunk_distance_start; level_idx < chunk_distance_end;
                ++level_idx) {
-            vertex_t d        = distance_levels_in_chunk[level_idx];
+            vertex_t d        = level_idx;
             size_t level_size = distance_buckets_vertices[d].size();
 
             // Convert back to vertex_t and copy to original bucket
