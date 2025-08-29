@@ -37,6 +37,7 @@
 
 #include <raft/core/handle.hpp>
 
+#include <cub/cub.cuh>
 #include <cuda/atomic>
 #include <cuda/std/iterator>
 #include <cuda/std/optional>
@@ -48,9 +49,6 @@
 #include <thrust/reduce.h>
 #include <thrust/sort.h>
 #include <thrust/transform.h>
-
-// Add CUB include for better sorting performance
-#include <cub/cub.cuh>
 
 //
 // The formula for BC(v) is the sum over all (s,t) where s != v != t of
@@ -809,13 +807,8 @@ void multisource_backward_pass(
 
   // Allocate exact-sized buckets
   for (vertex_t d = 0; d <= global_max_distance; ++d) {
-    if (host_distance_counts[d] > 0) {
-      distance_buckets_vertices.emplace_back(host_distance_counts[d], handle.get_stream());
-      distance_buckets_sources.emplace_back(host_distance_counts[d], handle.get_stream());
-    } else {
-      distance_buckets_vertices.emplace_back(0, handle.get_stream());
-      distance_buckets_sources.emplace_back(0, handle.get_stream());
-    }
+    distance_buckets_vertices.emplace_back(host_distance_counts[d], handle.get_stream());
+    distance_buckets_sources.emplace_back(host_distance_counts[d], handle.get_stream());
   }
 
   // Reset counts for use as offsets
@@ -847,9 +840,6 @@ void multisource_backward_pass(
                       host_bucket_sources_ptrs.data(),
                       global_max_distance + 1,
                       handle.get_stream());
-
-  // Ensure pointer arrays are copied before kernel launch
-  handle.sync_stream();
 
   // Populate buckets - single scan of distance array
   thrust::for_each_n(
@@ -884,9 +874,10 @@ void multisource_backward_pass(
 
   // Sort vertices by vertex ID within each distance level using chunked CUB segmented sort
   if (total_vertices > 0) {
-    // Calculate target chunk size based on GPU hardware (like manager's code)
+    // Calculate target chunk size based on GPU hardware
     auto approx_vertices_to_sort_per_iteration =
-      static_cast<size_t>(handle.get_device_properties().multiProcessorCount) * (1 << 20);
+      static_cast<size_t>(handle.get_device_properties().multiProcessorCount) *
+      (1 << 20); /* tuning parameter */
 
     printf("DEBUG: GPU has %d SMs, target chunk size: %zu vertices\n",
            handle.get_device_properties().multiProcessorCount,
@@ -898,7 +889,7 @@ void multisource_backward_pass(
 
     size_t cumulative_vertices = 0;
     for (vertex_t d = 1; d <= global_max_distance; ++d) {
-      if (d < distance_buckets_vertices.size() && distance_buckets_vertices[d].size() > 0) {
+      if (distance_buckets_vertices[d].size() > 0) {
         cumulative_vertices += distance_buckets_vertices[d].size();
         distance_level_offsets.push_back(cumulative_vertices);
       }
@@ -913,7 +904,7 @@ void multisource_backward_pass(
                           distance_level_offsets.size(),
                           handle.get_stream());
 
-      // Use intelligent chunking (like manager's approach)
+      // Use intelligent chunking
       auto [h_distance_level_chunk_offsets, h_vertex_chunk_offsets] =
         detail::compute_offset_aligned_element_chunks(
           handle,
@@ -961,9 +952,7 @@ void multisource_backward_pass(
         // Map distance level indices to actual distance values
         std::vector<vertex_t> distance_levels_in_chunk;
         for (vertex_t d = 1; d <= global_max_distance; ++d) {
-          if (d < distance_buckets_vertices.size() && distance_buckets_vertices[d].size() > 0) {
-            distance_levels_in_chunk.push_back(d);
-          }
+          if (distance_buckets_vertices[d].size() > 0) { distance_levels_in_chunk.push_back(d); }
         }
 
         // Copy data for distance levels in this chunk
