@@ -714,14 +714,30 @@ dependencies:
           - {matrix: null, packages: [*cudf_unsuffixed]}
   depends_on_dask_cuda:
     common:
-      - output_types: [conda, pyproject, requirements]
+      - output_types: conda
         packages:
-          - dask-cuda==25.10.*,>=0.0.0a0
+          - &dask_cuda_unsuffixed dask-cuda==25.10.*,>=0.0.0a0
       - output_types: requirements
         packages:
           # pip recognizes the index as a global option for the requirements.txt file
           - --extra-index-url=https://pypi.nvidia.com
           - --extra-index-url=https://pypi.anaconda.org/rapidsai-wheels-nightly/simple
+    specific:
+      - output_types: [requirements, pyproject]
+        matrices:
+          - matrix:
+              cuda: "12.*"
+              cuda_suffixed: "true"
+            packages:
+              - dask-cuda[cu12]==25.10.*,>=0.0.0a0
+          - matrix:
+              cuda: "13.*"
+              cuda_suffixed: "true"
+            packages:
+              - dask-cuda[cu13]==25.10.*,>=0.0.0a0
+          - matrix:
+            packages:
+              - *dask_cuda_unsuffixed
   depends_on_dask_cudf:
     common:
       - output_types: conda
