@@ -27,11 +27,6 @@ rapids_cuda_init_architectures(CUGRAPH)
 
 project(CUGRAPH VERSION "${RAPIDS_VERSION}" LANGUAGES C CXX CUDA)
 
-if(CMAKE_CUDA_COMPILER_ID STREQUAL "NVIDIA" AND
-   CMAKE_CUDA_COMPILER_VERSION VERSION_LESS 11.0)
-    message(FATAL_ERROR "CUDA compiler version must be at least 11.0")
-endif()
-
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND
    CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9.3)
     message(FATAL_ERROR "GCC compiler must be at least 9.3")
@@ -87,10 +82,8 @@ message("-- Building for GPU_ARCHS = ${CMAKE_CUDA_ARCHITECTURES}")
 list(APPEND CUGRAPH_CUDA_FLAGS --expt-extended-lambda --expt-relaxed-constexpr)
 list(APPEND CUGRAPH_CUDA_FLAGS -Werror=cross-execution-space-call -Wno-deprecated-declarations -DRAFT_HIDE_DEPRECATION_WARNINGS -Xptxas=--disable-warnings)
 list(APPEND CUGRAPH_CUDA_FLAGS -Xcompiler=-Wall,-Wno-error=sign-compare,-Wno-error=unused-but-set-variable)
-list(APPEND CUGRAPH_CUDA_FLAGS -Xfatbin=-compress-all)
-if(CMAKE_CUDA_COMPILER_ID STREQUAL "NVIDIA" AND (CMAKE_CUDA_COMPILER_VERSION VERSION_GREATER_EQUAL 12.9 AND CMAKE_CUDA_COMPILER_VERSION VERSION_LESS 13.0))
-  list(APPEND CUGRAPH_CUDA_FLAGS -Xfatbin=--compress-level=3)
-endif()
+include(${rapids-cmake-dir}/cuda/enable_fatbin_compression.cmake)
+rapids_cuda_enable_fatbin_compression(VARIABLE CUGRAPH_CUDA_FLAGS TUNE_FOR rapids)
 
 # Option to enable line info in CUDA device compilation to allow introspection when profiling /
 # memchecking
@@ -156,18 +149,24 @@ endif()
 #       which should give us a better parallel schedule.
 
 set(CUGRAPH_SOURCES
-    src/utilities/shuffle_vertices_mg_v32_fp.cu
-    src/utilities/shuffle_vertices_mg_v32_integral.cu
-    src/utilities/shuffle_vertices_mg_v64_fp.cu
-    src/utilities/shuffle_vertices_mg_v64_integral.cu
+    src/sampling/temporal_sampling_sg_v32_e32.cu
+    src/sampling/temporal_sampling_sg_v64_e64.cu
+    src/sampling/temporal_sampling_mg_v32_e32.cu
+    src/sampling/temporal_sampling_mg_v64_e64.cu
+    src/sampling/detail/update_temporal_edge_mask_sg_v32_e32.cu
+    src/sampling/detail/update_temporal_edge_mask_sg_v64_e64.cu
+    src/sampling/detail/update_temporal_edge_mask_mg_v32_e32.cu
+    src/sampling/detail/update_temporal_edge_mask_mg_v64_e64.cu
+    src/utilities/shuffle_vertices_mg_v32.cu
+    src/utilities/shuffle_vertices_mg_v64.cu
+    src/utilities/shuffle_properties_mg.cu
+    src/utilities/validation_checks.cu
     src/detail/permute_range_v32.cu
     src/detail/permute_range_v64.cu
     src/utilities/shuffle_vertex_pairs_mg_v32_e32.cu
     src/utilities/shuffle_vertex_pairs_mg_v64_e64.cu
-    src/utilities/shuffle_local_edge_srcs_dsts_mg_v32_fp.cu
-    src/utilities/shuffle_local_edge_srcs_dsts_mg_v32_integral.cu
-    src/utilities/shuffle_local_edge_srcs_dsts_mg_v64_fp.cu
-    src/utilities/shuffle_local_edge_srcs_dsts_mg_v64_integral.cu
+    src/utilities/shuffle_local_edge_srcs_dsts_mg_v32.cu
+    src/utilities/shuffle_local_edge_srcs_dsts_mg_v64.cu
     src/detail/collect_local_vertex_values_sg_v32_e32.cu
     src/detail/collect_local_vertex_values_sg_v64_e64.cu
     src/detail/collect_local_vertex_values_mg_v32_e32.cu
@@ -256,20 +255,27 @@ set(CUGRAPH_SOURCES
     src/sampling/detail/prepare_next_frontier_sg_v32_e32.cu
     src/sampling/detail/prepare_next_frontier_mg_v64_e64.cu
     src/sampling/detail/prepare_next_frontier_mg_v32_e32.cu
-    src/sampling/detail/gather_one_hop_edgelist_sg_v64_e64.cu
-    src/sampling/detail/gather_one_hop_edgelist_sg_v32_e32.cu
-    src/sampling/detail/gather_one_hop_edgelist_mg_v64_e64.cu
-    src/sampling/detail/gather_one_hop_edgelist_mg_v32_e32.cu
     src/sampling/detail/remove_visited_vertices_from_frontier_sg_v32_e32.cu
     src/sampling/detail/remove_visited_vertices_from_frontier_sg_v64_e64.cu
     src/sampling/detail/check_edge_bias_values_sg_v64_e64.cu
     src/sampling/detail/check_edge_bias_values_sg_v32_e32.cu
     src/sampling/detail/check_edge_bias_values_mg_v64_e64.cu
     src/sampling/detail/check_edge_bias_values_mg_v32_e32.cu
+    src/sampling/detail/temporal_partition_vertices_v64.cu
+    src/sampling/detail/temporal_partition_vertices_v32.cu
+    src/sampling/detail/gather_one_hop_mg_v32_e32.cu
+    src/sampling/detail/gather_one_hop_mg_v64_e64.cu
+    src/sampling/detail/gather_one_hop_sg_v32_e32.cu
+    src/sampling/detail/gather_one_hop_sg_v64_e64.cu
+    src/sampling/detail/gather_sampled_properties.cu
     src/sampling/detail/sample_edges_sg_v64_e64.cu
     src/sampling/detail/sample_edges_sg_v32_e32.cu
     src/sampling/detail/sample_edges_mg_v64_e64.cu
     src/sampling/detail/sample_edges_mg_v32_e32.cu
+    src/sampling/detail/temporal_sample_edges_sg_v64_e64.cu
+    src/sampling/detail/temporal_sample_edges_sg_v32_e32.cu
+    src/sampling/detail/temporal_sample_edges_mg_v64_e64.cu
+    src/sampling/detail/temporal_sample_edges_mg_v32_e32.cu
     src/sampling/detail/shuffle_and_organize_output.cu
     src/sampling/neighbor_sampling_mg_v32_e32.cu
     src/sampling/neighbor_sampling_mg_v64_e64.cu

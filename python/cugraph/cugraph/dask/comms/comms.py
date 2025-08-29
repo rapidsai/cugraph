@@ -1,4 +1,4 @@
-# Copyright (c) 2018-2024, NVIDIA CORPORATION.
+# Copyright (c) 2018-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -10,10 +10,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+#
+# This file contains various functions required for managing NCCL comms
+# with Dask.
 
-# FIXME: these raft imports break the library if ucx-py is
+# FIXME: these raft imports break the library if ucxx is
 # not available. They are necessary only when doing MG work.
-from cugraph.dask.common.read_utils import MissingUCXPy
+from cugraph.dask.common.read_utils import MissingUCXX
 
 try:
     from raft_dask.common.comms import Comms as raftComms
@@ -21,13 +24,13 @@ try:
 except ImportError as err:
     # FIXME: Generalize since err.name is arr when
     # libnuma.so.1 is not available
-    if err.name == "ucp" or err.name == "arr":
-        raftComms = MissingUCXPy()
-        get_raft_comm_state = MissingUCXPy()
+    if err.name == "ucxx" or err.name == "arr":
+        raftComms = MissingUCXX()
+        get_raft_comm_state = MissingUCXX()
     else:
         raise
 from pylibraft.common.handle import Handle
-from cugraph.dask.comms.comms_wrapper import init_subcomms as c_init_subcomms
+from pylibcugraph.comms import init_subcomms
 from dask.distributed import default_client, get_worker
 from cugraph.dask.common import read_utils
 import math
@@ -83,7 +86,7 @@ def subcomm_init(prows, pcols, partition_type):
 
 def _subcomm_init(sID, partition_row_size, dask_worker=None):
     handle = get_handle(sID, dask_worker)
-    c_init_subcomms(handle, partition_row_size)
+    init_subcomms(handle, partition_row_size)
 
 
 def initialize(comms=None, p2p=False, prows=None, pcols=None, partition_type=1):
@@ -269,7 +272,7 @@ def rank_to_worker(client):
     """
     Return a mapping of ranks to dask workers.
     """
-    workers = client.scheduler_info()["workers"].keys()
+    workers = client.scheduler_info(n_workers=-1)["workers"].keys()
     worker_info = __instance.worker_info(workers)
     rank_to_worker = {}
     for w in worker_info:

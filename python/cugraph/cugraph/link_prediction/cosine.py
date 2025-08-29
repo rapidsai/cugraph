@@ -1,4 +1,4 @@
-# Copyright (c) 2024, NVIDIA CORPORATION.
+# Copyright (c) 2024-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -11,14 +11,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.utilities import (
-    ensure_cugraph_obj_for_nx,
-    df_edge_score_to_dictionary,
-    renumber_vertex_pair,
-)
+from cugraph.utilities import renumber_vertex_pair, ensure_valid_dtype
 import cudf
 import warnings
-from typing import Union, Iterable
 
 from pylibcugraph import (
     cosine_coefficients as pylibcugraph_cosine_coefficients,
@@ -27,41 +22,13 @@ from pylibcugraph import (
 from pylibcugraph import ResourceHandle
 
 from cugraph.structure import Graph
-from cugraph.utilities.utils import import_optional
-
-# FIXME: the networkx.Graph type used in type annotations is specified
-# using a string literal to avoid depending on and importing networkx.
-# Instead, networkx is imported optionally, which may cause a problem
-# for a type checker if run in an environment where networkx is not installed.
-networkx = import_optional("networkx")
-
-
-# FIXME: Move this function to the utility module so that it can be
-# shared by other algos
-def ensure_valid_dtype(input_graph, vertex_pair):
-    vertex_dtype = input_graph.edgelist.edgelist_df.dtypes.iloc[0]
-    vertex_pair_dtypes = vertex_pair.dtypes
-
-    if (
-        vertex_pair_dtypes.iloc[0] != vertex_dtype
-        or vertex_pair_dtypes.iloc[1] != vertex_dtype
-    ):
-        warning_msg = (
-            "Cosine requires 'vertex_pair' to match the graph's 'vertex' type. "
-            f"input graph's vertex type is: {vertex_dtype} and got "
-            f"'vertex_pair' of type: {vertex_pair_dtypes}."
-        )
-        warnings.warn(warning_msg, UserWarning)
-        vertex_pair = vertex_pair.astype(vertex_dtype)
-
-    return vertex_pair
 
 
 def cosine(
     input_graph: Graph,
     vertex_pair: cudf.DataFrame = None,
     use_weight: bool = False,
-):
+) -> cudf.DataFrame:
     """
     Compute the Cosine similarity between each pair of vertices connected by
     an edge, or between arbitrary pairs of vertices specified by the user.
@@ -92,7 +59,7 @@ def cosine(
         vertices. If provided, the cosine coefficient is computed for the
         given vertex pairs.  If the vertex_pair is not provided then the
         current implementation computes the cosine coefficient for all
-        adjacent vertices in the graph.
+        vertices that are two hops apart in the graph.
 
     use_weight : bool, optional (default=False)
         Flag to indicate whether to compute weighted cosine (if use_weight==True)
@@ -174,35 +141,24 @@ def cosine(
 
 
 def cosine_coefficient(
-    G: Union[Graph, "networkx.Graph"],
-    ebunch: Union[cudf.DataFrame, Iterable[Union[int, str, float]]] = None,
-):
+    G: Graph,
+    ebunch: cudf.DataFrame = None,
+) -> cudf.DataFrame:
     """
-    Note: No NetworkX equivalent.
 
     Parameters
     ----------
-    G : cugraph.Graph or NetworkX.Graph
-        cuGraph or NetworkX Graph instance, should contain the connectivity
+    G : cugraph.Graph
+        cuGraph instance, should contain the connectivity
         information as an edge list. The graph should be undirected where an
         undirected edge is represented by a directed edge in both direction.
         The adjacency list will be computed if not already present.
 
         This implementation only supports undirected, non-multi Graphs.
 
-        .. deprecated:: 24.12
-           Accepting a ``networkx.Graph`` is deprecated and will be removed in a
-           future version.  For ``networkx.Graph`` use networkx directly with
-           the ``nx-cugraph`` backend. See:  https://rapids.ai/nx-cugraph/
-
-    ebunch : cudf.DataFrame or iterable of node pairs, optional (default=None)
+    ebunch : cudf.DataFrame, optional (default=None)
         A GPU dataframe consisting of two columns representing pairs of
-        vertices or iterable of 2-tuples (u, v) where u and v are nodes in
-        the graph.
-
-        If provided, the Overlap coefficient is computed for the given vertex
-        pairs. Otherwise, the current implementation computes the overlap
-        coefficient for all adjacent vertices in the graph.
+        vertices (u, v) where u and v are nodes in the graph.
 
     Returns
     -------
@@ -229,19 +185,14 @@ def cosine_coefficient(
     >>> df = cosine_coefficient(G)
 
     """
-    vertex_pair = None
+    warnings.warn(
+        "deprecated as of 25.10. Use `cosine()` instead. "
+        "If calling with a NetworkX Graph object, use networkx with the "
+        "nx-cugraph backend. See: https://rapids.ai/nx-cugraph",
+        DeprecationWarning,
+    )
 
-    G, isNx = ensure_cugraph_obj_for_nx(G)
-
-    if isNx is True and ebunch is not None:
-        vertex_pair = cudf.DataFrame(ebunch)
-
-    df = cosine(G, vertex_pair)
-
-    if isNx is True:
-        df = df_edge_score_to_dictionary(
-            df, k="cosine_coeff", src="first", dst="second"
-        )
+    df = cosine(G, ebunch)
 
     return df
 
@@ -251,7 +202,7 @@ def all_pairs_cosine(
     vertices: cudf.Series = None,
     use_weight: bool = False,
     topk: int = None,
-):
+) -> cudf.DataFrame:
     """
     Compute the All Pairs Cosine similarity between all pairs of vertices specified.
     The Cosine similarity weight of each edge represents the strength of connection

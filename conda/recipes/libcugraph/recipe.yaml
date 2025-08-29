@@ -62,28 +62,14 @@ cache:
       - libucxx ${{ libucxx_version }}
       - nccl ${{ nccl_version }}
       - openmpi <5.0.3 # Required for building cpp-mgtests (multi-GPU tests)
-      - rapids-build-backend >=0.3.1,<0.4.0.dev0
-      - if: cuda_major == "11"
-        then:
-          - cudatoolkit
-          - cuda-nvtx =${{ cuda_version }}
-          - cuda-profiler-api ${{ cuda11_cuda_profiler_api_host_version }}
-          - libcublas ${{ cuda11_libcublas_host_version }}
-          - libcublas-dev ${{ cuda11_libcublas_host_version }}
-          - libcurand ${{ cuda11_libcurand_host_version }}
-          - libcurand-dev ${{ cuda11_libcurand_host_version }}
-          - libcusolver ${{ cuda11_libcusolver_host_version }}
-          - libcusolver-dev ${{ cuda11_libcusolver_host_version }}
-          - libcusparse ${{ cuda11_libcusparse_host_version }}
-          - libcusparse-dev ${{ cuda11_libcusparse_host_version }}
-        else:
-          - cuda-nvtx-dev
-          - cuda-profiler-api
-          - cuda-cudart-dev
-          - libcublas-dev
-          - libcurand-dev
-          - libcusolver-dev
-          - libcusparse-dev
+      - rapids-build-backend >=0.4.0,<0.5.0.dev0
+      - cuda-nvtx-dev
+      - cuda-profiler-api
+      - cuda-cudart-dev
+      - libcublas-dev
+      - libcurand-dev
+      - libcusolver-dev
+      - libcusparse-dev
 
 outputs:
   - package:
@@ -109,39 +95,22 @@ outputs:
         - cuda-version =${{ cuda_version }}
         - librmm =${{ minor_version }}
         - rapids-logger =0.1
-        - if: cuda_major == "11"
-          then:
-            - cudatoolkit
-            - libcublas-dev ${{ cuda11_libcublas_host_version }}
-            - libcurand-dev ${{ cuda11_libcurand_host_version }}
-            - libcusolver-dev ${{ cuda11_libcusolver_host_version }}
-            - libcusparse-dev ${{ cuda11_libcusparse_host_version }}
-          else:
-            - cuda-cudart-dev
-            - libcublas-dev
-            - libcurand-dev
-            - libcusolver-dev
-            - libcusparse-dev
+        - cuda-cudart-dev
+        - libcublas-dev
+        - libcurand-dev
+        - libcusolver-dev
+        - libcusparse-dev
       run:
         - ${{ pin_compatible("cuda-version", upper_bound="x", lower_bound="x") }}
         - libraft =${{ minor_version }}
         - librmm =${{ minor_version }}
         - nccl ${{ nccl_version }}
-        - if: cuda_major == "11"
-          then:
-            - cudatoolkit
-            - cuda-profiler-api ${{ cuda11_cuda_profiler_api_run_version }}
-            - libcublas ${{ cuda11_libcublas_run_version }}
-            - libcurand ${{ cuda11_libcurand_run_version }}
-            - libcusolver ${{ cuda11_libcusolver_run_version }}
-            - libcusparse ${{ cuda11_libcusparse_run_version }}
-          else:
-            - cuda-profiler-api
-            - cuda-cudart
-            - libcublas
-            - libcurand
-            - libcusolver
-            - libcusparse
+        - cuda-profiler-api
+        - cuda-cudart
+        - libcublas
+        - libcurand
+        - libcusolver
+        - libcusparse
       ignore_run_exports:
         by_name:
           - cuda-cudart
@@ -156,8 +125,6 @@ outputs:
           - libucxx
           - nccl
           - openmpi
-          - if: cuda_major == "11"
-            then: cudatoolkit
     about:
       homepage: ${{ load_from_file("python/libcugraph/pyproject.toml").project.urls.Homepage }}
       license: ${{ load_from_file("python/libcugraph/pyproject.toml").project.license.text }}
@@ -185,17 +152,13 @@ outputs:
         - cuda-version =${{ cuda_version }}
         - libcudf =${{ minor_version }}
         - librmm =${{ minor_version }}
-        - if: cuda_major == "11"
-          then: cudatoolkit
-          else: cuda-cudart-dev
+        - cuda-cudart-dev
       run:
         - ${{ pin_compatible("cuda-version", upper_bound="x", lower_bound="x") }}
         - ${{ pin_subpackage("libcugraph", exact=True) }}
         - libcudf =${{ minor_version }}
         - librmm =${{ minor_version }}
-        - if: cuda_major == "11"
-          then: cudatoolkit
-          else: cuda-cudart
+        - cuda-cudart
       ignore_run_exports:
         by_name:
           - cuda-cudart
@@ -210,8 +173,6 @@ outputs:
           - libucxx
           - nccl
           - openmpi
-          - if: cuda_major == "11"
-            then: cudatoolkit
     about:
       homepage: ${{ load_from_file("python/libcugraph/pyproject.toml").project.urls.Homepage }}
       license: ${{ load_from_file("python/libcugraph/pyproject.toml").project.license.text }}
@@ -240,16 +201,12 @@ outputs:
         - nccl ${{ nccl_version }}
         - openmpi <5.0.3 # Required for building cpp-mgtests (multi-GPU tests)
         - rapids-logger =0.1
-        - if: cuda_major == "11"
-          then: cudatoolkit
-          else: cuda-cudart-dev
+        - cuda-cudart-dev
       run:
         - ${{ pin_compatible("cuda-version", upper_bound="x", lower_bound="x") }}
         - ${{ pin_subpackage("libcugraph", exact=True) }}
         - ${{ pin_subpackage("libcugraph_etl", exact=True) }}
-        - if: cuda_major == "11"
-          then: cudatoolkit
-          else: cuda-cudart
+        - cuda-cudart
       ignore_run_exports:
         by_name:
           - cuda-cudart
@@ -264,8 +221,6 @@ outputs:
           - libucxx
           - nccl
           - openmpi
-          - if: cuda_major == "11"
-            then: cudatoolkit
     about:
       homepage: ${{ load_from_file("python/libcugraph/pyproject.toml").project.urls.Homepage }}
       license: ${{ load_from_file("python/libcugraph/pyproject.toml").project.license.text }}

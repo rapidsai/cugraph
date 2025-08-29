@@ -72,7 +72,8 @@ struct similarity_functor : public cugraph::c_api::abstract_functor {
   template <typename vertex_t,
             typename edge_t,
             typename weight_t,
-            typename edge_type_type_t,
+            typename edge_type_t,
+            typename edge_time_t,
             bool store_transposed,
             bool multi_gpu>
   void operator()()
@@ -176,7 +177,8 @@ struct all_pairs_similarity_functor : public cugraph::c_api::abstract_functor {
   template <typename vertex_t,
             typename edge_t,
             typename weight_t,
-            typename edge_type_type_t,
+            typename edge_type_t,
+            typename edge_time_t,
             bool store_transposed,
             bool multi_gpu>
   void operator()()
@@ -211,7 +213,8 @@ struct all_pairs_similarity_functor : public cugraph::c_api::abstract_functor {
           vertices->data(), vertices_->as_type<vertex_t>(), vertices_->size_, handle_.get_stream());
 
         if constexpr (multi_gpu) {
-          vertices = cugraph::shuffle_ext_vertices(handle_, std::move(*vertices));
+          std::tie(vertices, std::ignore) = cugraph::shuffle_ext_vertices(
+            handle_, std::move(*vertices), std::vector<cugraph::arithmetic_device_uvector_t>{});
         }
 
         //

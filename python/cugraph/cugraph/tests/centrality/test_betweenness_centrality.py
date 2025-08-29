@@ -21,9 +21,7 @@ import networkx as nx
 import cudf
 import cugraph
 from cugraph.datasets import karate_disjoint
-from cugraph.testing import utils, SMALL_DATASETS
-from cugraph.utilities import nx_factory
-
+from cugraph.testing import SMALL_DATASETS
 
 # =============================================================================
 # Parameters
@@ -303,8 +301,8 @@ def compare_scores(sorted_df, first_key, second_key, epsilon=DEFAULT_EPSILON):
         print(errors)
     assert (
         num_errors == 0
-    ), "Mismatch were found when comparing '{}' and '{}' (rtol = {})".format(
-        first_key, second_key, epsilon
+    ), "Mismatch were found when comparing '{}' and '{}' (rtol = {}) and df {}".format(
+        first_key, second_key, epsilon, sorted_df
     )
 
 
@@ -513,35 +511,6 @@ def test_betweenness_invalid_dtype(
         compare_scores(sorted_df, first_key="cu_bc", second_key="ref_bc")
 
 
-# FIXME: update the datasets API to return Nx graph
-@pytest.mark.sg
-@pytest.mark.parametrize("graph_file", utils.DATASETS_SMALL)
-@pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
-@pytest.mark.parametrize("edgevals", WEIGHTED_GRAPH_OPTIONS)
-def test_betweenness_centrality_nx(graph_file, directed, edgevals):
-
-    Gnx = utils.generate_nx_graph_from_file(graph_file, directed, edgevals)
-
-    nx_bc = nx.betweenness_centrality(Gnx)
-    cu_bc = cugraph.betweenness_centrality(Gnx)
-
-    # Calculating mismatch
-    networkx_bc = sorted(nx_bc.items(), key=lambda x: x[0])
-    cugraph_bc = sorted(cu_bc.items(), key=lambda x: x[0])
-    err = 0
-    assert len(cugraph_bc) == len(networkx_bc)
-    for i in range(len(cugraph_bc)):
-        if (
-            abs(cugraph_bc[i][1] - networkx_bc[i][1]) > 0.01
-            and cugraph_bc[i][0] == networkx_bc[i][0]
-        ):
-            err = err + 1
-            print(f"{cugraph_bc[i][1]} and {networkx_bc[i][1]}")
-            print(f"{cugraph_bc[i][0]} and {networkx_bc[i][0]}")
-    print("Mismatches:", err)
-    assert err < (0.01 * len(cugraph_bc))
-
-
 @pytest.mark.sg
 @pytest.mark.parametrize(
     ("normalized", "endpoints", "is_directed", "k", "expected"),
@@ -571,7 +540,23 @@ def test_scale_with_k_on_star_graph(normalized, endpoints, is_directed, k, expec
     if is_directed:
         Gnx = Gnx.to_directed()
 
-    G = nx_factory.convert_from_nx(Gnx)
+    _edges = Gnx.edges(data=False)
+    src = [s for s, _ in _edges]
+    dst = [d for _, d in _edges]
+
+    _gdf = cudf.DataFrame()
+    _gdf["src"] = cudf.Series(src)
+    _gdf["dst"] = cudf.Series(dst)
+
+    G = cugraph.Graph(directed=is_directed)
+    G.from_cudf_edgelist(
+        _gdf,
+        source="src",
+        destination="dst",
+        edge_attr=None,
+        renumber=False,
+        store_transposed=False,
+    )
 
     if k:
         sorted_df = _calc_bc_subset(

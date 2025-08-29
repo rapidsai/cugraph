@@ -29,12 +29,11 @@ from cugraph.utilities.utils import import_optional
 
 import numpy as np
 import cupy as cp
-import ucp
+import ucxx
 import cudf
 import dask_cudf
 import rmm
 from cugraph import (
-    batched_ego_graphs,
     uniform_neighbor_sample,
     node2vec_random_walks,
     Graph,
@@ -58,7 +57,6 @@ from cugraph_service_client import (
 )
 from cugraph_service_client.exceptions import CugraphServiceError
 from cugraph_service_client.types import (
-    BatchedEgoGraphsResult,
     Node2vecResult,
     UniformNeighborSampleResult,
     ValueWrapper,
@@ -192,9 +190,7 @@ class CugraphHandler:
         the number of GPUs accessible through dask.
         """
         return (
-            len(self.__dask_client.scheduler_info()["workers"])
-            if self.is_multi_gpu
-            else 1
+            self.__dask_client.scheduler_info()["n_workers"] if self.is_multi_gpu else 1
         )
 
     def uptime(self):
@@ -975,46 +971,6 @@ class CugraphHandler:
 
     ###########################################################################
     # Algos
-    def batched_ego_graphs(self, seeds, radius, graph_id):
-        """ """
-        # FIXME: finish docstring above
-        # FIXME: exception handling
-        G = self._get_graph(graph_id)
-        # FIXME: write test to catch an MGPropertyGraph being passed in
-        if isinstance(G, PropertyGraph):
-            raise CugraphServiceError(
-                "batched_ego_graphs() cannot operate "
-                "directly on a graph with properties, "
-                "call extract_subgraph() then call "
-                "batched_ego_graphs() on the extracted "
-                "subgraph instead."
-            )
-        try:
-            # FIXME: update this to use call_algo()
-            # FIXME: this should not be needed, need to update
-            # cugraph.batched_ego_graphs to also accept a list
-            seeds = cudf.Series(seeds, dtype="int32")
-            (ego_edge_list, seeds_offsets) = batched_ego_graphs(G, seeds, radius)
-
-            # batched_ego_graphs_result = BatchedEgoGraphsResult(
-            #     src_verts=ego_edge_list["src"].values_host.tobytes(), #i32
-            #     dst_verts=ego_edge_list["dst"].values_host.tobytes(), #i32
-            #     edge_weights=ego_edge_list["weight"].values_host.tobytes(),
-            #                                                             #f64
-            #     seeds_offsets=seeds_offsets.values_host.tobytes() #i64
-            # )
-            batched_ego_graphs_result = BatchedEgoGraphsResult(
-                src_verts=ego_edge_list["src"].values_host,
-                dst_verts=ego_edge_list["dst"].values_host,
-                edge_weights=ego_edge_list["weight"].values_host,
-                seeds_offsets=seeds_offsets.values_host,
-            )
-            return batched_ego_graphs_result
-        except Exception:
-            raise CugraphServiceError(f"{traceback.format_exc()}")
-
-        return batched_ego_graphs_result
-
     def node2vec_random_walks(self, start_vertices, max_depth, graph_id):
         """ """
         # FIXME: finish docstring above
@@ -1153,7 +1109,7 @@ class CugraphHandler:
     def receive_test_array_to_device(self, test_array_id, result_host, result_port):
         """
         Returns the test array identified by test_array_id to the client via
-        UCX-Py listening on result_host/result_port.
+        UCXX listening on result_host/result_port.
 
         This can be used to verify transfer speeds from server to client are
         performing as expected.
@@ -1275,7 +1231,7 @@ class CugraphHandler:
     async def __ucx_send_results(self, result_host, result_port, *results):
         # The cugraph_service_client should have set up a UCX listener waiting
         # for the result. Create an endpoint, send results, and close.
-        ep = await ucp.create_endpoint(result_host, result_port)
+        ep = await ucxx.create_endpoint(result_host, result_port)
         for r in results:
             await ep.send_obj(r)
         await ep.close()

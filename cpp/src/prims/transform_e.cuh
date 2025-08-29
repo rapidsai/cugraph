@@ -145,16 +145,16 @@ struct update_e_value_t {
   EdgeOp e_op{};
   EdgeValueOutputWrapper edge_partition_e_value_output{};
 
-  __device__ void operator()(thrust::tuple<typename GraphViewType::vertex_type,
-                                           typename GraphViewType::vertex_type,
-                                           typename GraphViewType::edge_type> edge) const
+  __device__ void operator()(cuda::std::tuple<typename GraphViewType::vertex_type,
+                                              typename GraphViewType::vertex_type,
+                                              typename GraphViewType::edge_type> edge) const
   {
     using vertex_t = typename GraphViewType::vertex_type;
     using edge_t   = typename GraphViewType::edge_type;
 
-    auto major            = thrust::get<0>(edge);
-    auto minor            = thrust::get<1>(edge);
-    auto multi_edge_index = thrust::get<2>(edge);
+    auto major            = cuda::std::get<0>(edge);
+    auto minor            = cuda::std::get<1>(edge);
+    auto multi_edge_index = cuda::std::get<2>(edge);
 
     auto major_offset = edge_partition.major_offset_from_major_nocheck(major);
     auto major_idx    = edge_partition.major_idx_from_major_nocheck(major);
@@ -336,7 +336,7 @@ void transform_e(raft::handle_t const& handle,
     auto num_edges = edge_partition.number_of_edges();
     if constexpr (edge_partition_e_output_device_view_t::has_packed_bool_element) {
       static_assert(edge_partition_e_output_device_view_t::is_packed_bool,
-                    "unimplemented for thrust::tuple types.");
+                    "unimplemented for cuda::std::tuple types.");
       if (edge_partition.number_of_edges() > edge_t{0}) {
         raft::grid_1d_thread_t update_grid(num_edges,
                                            detail::transform_e_kernel_block_size,
@@ -511,17 +511,17 @@ void transform_e(raft::handle_t const& handle,
 
   auto edge_first = thrust::make_transform_iterator(
     thrust::make_counting_iterator(size_t{0}),
-    cuda::proclaim_return_type<thrust::tuple<vertex_t, vertex_t, edge_t>>(
+    cuda::proclaim_return_type<cuda::std::tuple<vertex_t, vertex_t, edge_t>>(
       [pair_first,
        multi_edge_index_first = multi_edge_index_first
                                   ? cuda::std::make_optional(*multi_edge_index_first)
                                   : cuda::std::nullopt] __device__(size_t i) {
         auto pair = *(pair_first + i);
         if (multi_edge_index_first) {
-          return thrust::make_tuple(
-            thrust::get<0>(pair), thrust::get<1>(pair), *(*multi_edge_index_first + i));
+          return cuda::std::make_tuple(
+            cuda::std::get<0>(pair), cuda::std::get<1>(pair), *(*multi_edge_index_first + i));
         } else {
-          return thrust::make_tuple(thrust::get<0>(pair), thrust::get<1>(pair), edge_t{0});
+          return cuda::std::make_tuple(cuda::std::get<0>(pair), cuda::std::get<1>(pair), edge_t{0});
         }
       }));
 
@@ -590,9 +590,9 @@ void transform_e(raft::handle_t const& handle,
           edge_first + edge_partition_offsets[i],
           edge_first + edge_partition_offsets[i + 1],
           [edge_partition, edge_partition_e_mask] __device__(auto edge) {
-            auto major            = thrust::get<0>(edge);
-            auto minor            = thrust::get<1>(edge);
-            auto multi_edge_index = thrust::get<2>(edge);
+            auto major            = cuda::std::get<0>(edge);
+            auto minor            = cuda::std::get<1>(edge);
+            auto multi_edge_index = cuda::std::get<2>(edge);
             auto major_idx        = edge_partition.major_idx_from_major_nocheck(major);
             if (!major_idx) { return true; }
             vertex_t const* indices{nullptr};

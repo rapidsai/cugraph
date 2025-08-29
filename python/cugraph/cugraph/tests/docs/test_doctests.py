@@ -25,21 +25,11 @@ import pytest
 import cugraph
 import pylibcugraph
 import cudf
-from cuda.bindings import runtime
 from cugraph.testing import utils
 
 
 modules_to_skip = ["dask", "proto", "raft"]
 datasets = utils.RAPIDS_DATASET_ROOT_DIR_PATH
-
-
-def _get_cuda_version_string():
-    status, version = runtime.getLocalRuntimeVersion()
-    if status != runtime.cudaError_t.cudaSuccess:
-        raise RuntimeError("Could not get CUDA runtime version.")
-    major = version // 1000
-    minor = (version % 1000) // 10
-    return f"{major}.{minor}"
 
 
 def _is_public_name(name):
@@ -124,25 +114,9 @@ def skip_docstring(docstring_obj):
     Returns a string indicating why the doctest example string should not be
     tested, or None if it should be tested.  This string can be used as the
     "reason" arg to pytest.skip().
-
-    Currently, this function will return a reason string if the docstring
-    contains a line with the following text:
-
-    "currently not available on CUDA <version> systems"
-
-    where <version> is a major.minor version string, such as 11.4, that matches
-    the version of CUDA on the system running the test.  An example of a line
-    in a docstring that would result in a reason string from this function
-    running on a CUDA 11.4 system is:
-
-    NOTE: this function is currently not available on CUDA 11.4 systems.
     """
     docstring = docstring_obj.docstring
-    cuda_version_string = _get_cuda_version_string()
-
     for line in docstring.splitlines():
-        if f"currently not available on CUDA {cuda_version_string} systems" in line:
-            return f"docstring example not supported on CUDA {cuda_version_string}"
         if "random_walks" in line:
             return (
                 "docstring example not supported for random walks"
@@ -167,6 +141,7 @@ class TestDoctests:
     @pytest.mark.parametrize(
         "docstring", _fetch_doctests(), ids=lambda docstring: docstring.name
     )
+    @pytest.mark.filterwarnings("ignore::DeprecationWarning")
     def test_docstring(self, docstring):
         # We ignore differences in whitespace in the doctest output, and enable
         # the use of an ellipsis "..." to match any string in the doctest

@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2022, NVIDIA CORPORATION.
+# Copyright (c) 2019-2025, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@ def get_n_workers():
     from dask.distributed import default_client
 
     client = default_client()
-    return len(client.scheduler_info()["workers"])
+    return client.scheduler_info()["n_workers"]
 
 
 def get_chunksize(input_path):
@@ -46,8 +46,8 @@ def get_chunksize(input_path):
     return chunksize
 
 
-class MissingUCXPy:
+class MissingUCXX:
     def __call__(self, *args, **kwargs):
         raise ModuleNotFoundError(
-            "ucx-py could not be imported but is required for MG operations"
+            "ucxx could not be imported but is required for MG operations"
         )

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,12 +20,12 @@
 
 #include <raft/util/device_atomics.cuh>
 
+#include <cuda/std/tuple>
 #include <thrust/detail/type_traits/iterator/is_discard_iterator.h>
 #include <thrust/iterator/detail/any_assign.h>
 #include <thrust/iterator/discard_iterator.h>
 #include <thrust/iterator/iterator_traits.h>
 #include <thrust/memory.h>
-#include <thrust/tuple.h>
 
 namespace cugraph {
 
@@ -36,8 +36,8 @@ __device__ constexpr TupleType thrust_tuple_atomic_and(Iterator iter,
                                                        TupleType tup,
                                                        std::index_sequence<Is...>)
 {
-  return thrust::make_tuple(
-    atomicAnd(&(thrust::raw_reference_cast(thrust::get<Is>(*iter))), thrust::get<Is>(tup))...);
+  return cuda::std::make_tuple(atomicAnd(&(thrust::raw_reference_cast(cuda::std::get<Is>(*iter))),
+                                         cuda::std::get<Is>(tup))...);
 }
 
 template <typename Iterator, typename TupleType, std::size_t... Is>
@@ -45,8 +45,8 @@ __device__ constexpr TupleType thrust_tuple_atomic_or(Iterator iter,
                                                       TupleType tup,
                                                       std::index_sequence<Is...>)
 {
-  return thrust::make_tuple(
-    atomicOr(&(thrust::raw_reference_cast(thrust::get<Is>(*iter))), thrust::get<Is>(tup))...);
+  return cuda::std::make_tuple(
+    atomicOr(&(thrust::raw_reference_cast(cuda::std::get<Is>(*iter))), cuda::std::get<Is>(tup))...);
 }
 
 template <typename Iterator, typename TupleType, std::size_t... Is>
@@ -54,8 +54,8 @@ __device__ constexpr TupleType thrust_tuple_atomic_add(Iterator iter,
                                                        TupleType tup,
                                                        std::index_sequence<Is...>)
 {
-  return thrust::make_tuple(
-    atomicAdd(&(thrust::raw_reference_cast(thrust::get<Is>(*iter))), thrust::get<Is>(tup))...);
+  return cuda::std::make_tuple(atomicAdd(&(thrust::raw_reference_cast(cuda::std::get<Is>(*iter))),
+                                         cuda::std::get<Is>(tup))...);
 }
 
 template <typename Iterator, typename TupleType, std::size_t... Is>
@@ -64,9 +64,9 @@ __device__ constexpr TupleType thrust_tuple_elementwise_atomic_cas(Iterator iter
                                                                    TupleType val_tup,
                                                                    std::index_sequence<Is...>)
 {
-  return thrust::make_tuple(atomicCAS(&(thrust::raw_reference_cast(thrust::get<Is>(*iter))),
-                                      thrust::get<Is>(comp_tup),
-                                      thrust::get<Is>(val_tup))...);
+  return cuda::std::make_tuple(atomicCAS(&(thrust::raw_reference_cast(cuda::std::get<Is>(*iter))),
+                                         cuda::std::get<Is>(comp_tup),
+                                         cuda::std::get<Is>(val_tup))...);
 }
 
 template <typename Iterator, typename TupleType, std::size_t... Is>
@@ -74,8 +74,8 @@ __device__ constexpr TupleType thrust_tuple_elementwise_atomic_min(Iterator iter
                                                                    TupleType tup,
                                                                    std::index_sequence<Is...>)
 {
-  return thrust::make_tuple(
-    atomicMin(&(thrust::raw_reference_cast(thrust::get<Is>(*iter))), thrust::get<Is>(tup))...);
+  return cuda::std::make_tuple(atomicMin(&(thrust::raw_reference_cast(cuda::std::get<Is>(*iter))),
+                                         cuda::std::get<Is>(tup))...);
 }
 
 template <typename Iterator, typename TupleType, std::size_t... Is>
@@ -83,8 +83,8 @@ __device__ constexpr TupleType thrust_tuple_elementwise_atomic_max(Iterator iter
                                                                    TupleType tup,
                                                                    std::index_sequence<Is...>)
 {
-  return thrust::make_tuple(
-    atomicMax(&(thrust::raw_reference_cast(thrust::get<Is>(*iter))), thrust::get<Is>(tup))...);
+  return cuda::std::make_tuple(atomicMax(&(thrust::raw_reference_cast(cuda::std::get<Is>(*iter))),
+                                         cuda::std::get<Is>(tup))...);
 }
 
 }  // namespace detail
@@ -114,7 +114,7 @@ __device__
   atomic_and(Iterator iter, T value)
 {
   return detail::thrust_tuple_atomic_and(
-    iter, value, std::make_index_sequence<thrust::tuple_size<T>::value>{});
+    iter, value, std::make_index_sequence<cuda::std::tuple_size<T>::value>{});
 }
 
 template <typename Iterator, typename T>
@@ -142,7 +142,7 @@ __device__
   atomic_or(Iterator iter, T value)
 {
   return detail::thrust_tuple_atomic_or(
-    iter, value, std::make_index_sequence<thrust::tuple_size<T>::value>{});
+    iter, value, std::make_index_sequence<cuda::std::tuple_size<T>::value>{});
 }
 
 template <typename Iterator, typename T>
@@ -169,10 +169,11 @@ __device__
                    T>
   atomic_add(Iterator iter, T value)
 {
-  static_assert(thrust::tuple_size<typename thrust::iterator_traits<Iterator>::value_type>::value ==
-                thrust::tuple_size<T>::value);
+  static_assert(
+    cuda::std::tuple_size<typename thrust::iterator_traits<Iterator>::value_type>::value ==
+    cuda::std::tuple_size<T>::value);
   return detail::thrust_tuple_atomic_add(
-    iter, value, std::make_index_sequence<thrust::tuple_size<T>::value>{});
+    iter, value, std::make_index_sequence<cuda::std::tuple_size<T>::value>{});
 }
 
 template <typename Iterator, typename T>
@@ -193,7 +194,7 @@ __device__
   elementwise_atomic_cas(Iterator iter, T compare, T value)
 {
   return detail::thrust_tuple_elementwise_atomic_cas(
-    iter, compare, value, std::make_index_sequence<thrust::tuple_size<T>::value>{});
+    iter, compare, value, std::make_index_sequence<cuda::std::tuple_size<T>::value>{});
 }
 
 template <typename Iterator, typename T>
@@ -220,10 +221,11 @@ __device__
                    T>
   elementwise_atomic_min(Iterator iter, T const& value)
 {
-  static_assert(thrust::tuple_size<typename thrust::iterator_traits<Iterator>::value_type>::value ==
-                thrust::tuple_size<T>::value);
+  static_assert(
+    cuda::std::tuple_size<typename thrust::iterator_traits<Iterator>::value_type>::value ==
+    cuda::std::tuple_size<T>::value);
   return detail::thrust_tuple_elementwise_atomic_min(
-    iter, value, std::make_index_sequence<thrust::tuple_size<T>::value>{});
+    iter, value, std::make_index_sequence<cuda::std::tuple_size<T>::value>{});
 }
 
 template <typename Iterator, typename T>
@@ -250,10 +252,11 @@ __device__
                    T>
   elementwise_atomic_max(Iterator iter, T const& value)
 {
-  static_assert(thrust::tuple_size<typename thrust::iterator_traits<Iterator>::value_type>::value ==
-                thrust::tuple_size<T>::value);
+  static_assert(
+    cuda::std::tuple_size<typename thrust::iterator_traits<Iterator>::value_type>::value ==
+    cuda::std::tuple_size<T>::value);
   return detail::thrust_tuple_elementwise_atomic_max(
-    iter, value, std::make_index_sequence<thrust::tuple_size<T>::value>{});
+    iter, value, std::make_index_sequence<cuda::std::tuple_size<T>::value>{});
 }
 
 template <typename Iterator, typename T>

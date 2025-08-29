@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2024, NVIDIA CORPORATION.
+# Copyright (c) 2019-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -12,13 +12,11 @@
 # limitations under the License.
 
 from cugraph.utilities import (
-    ensure_cugraph_obj_for_nx,
-    df_edge_score_to_dictionary,
+    ensure_valid_dtype,
     renumber_vertex_pair,
 )
 import cudf
 import warnings
-from typing import Union, Iterable
 
 from pylibcugraph import (
     overlap_coefficients as pylibcugraph_overlap_coefficients,
@@ -27,67 +25,33 @@ from pylibcugraph import (
 from pylibcugraph import ResourceHandle
 
 from cugraph.structure import Graph
-from cugraph.utilities.utils import import_optional
-
-# FIXME: the networkx.Graph type used in type annotations is specified
-# using a string literal to avoid depending on and importing networkx.
-# Instead, networkx is imported optionally, which may cause a problem
-# for a type checker if run in an environment where networkx is not installed.
-networkx = import_optional("networkx")
-
-
-# FIXME: Move this function to the utility module so that it can be
-# shared by other algos
-def ensure_valid_dtype(input_graph, vertex_pair):
-    vertex_dtype = input_graph.edgelist.edgelist_df.dtypes.iloc[0]
-    vertex_pair_dtypes = vertex_pair.dtypes
-
-    if (
-        vertex_pair_dtypes.iloc[0] != vertex_dtype
-        or vertex_pair_dtypes.iloc[1] != vertex_dtype
-    ):
-        warning_msg = (
-            "Overlap requires 'vertex_pair' to match the graph's 'vertex' type. "
-            f"input graph's vertex type is: {vertex_dtype} and got "
-            f"'vertex_pair' of type: {vertex_pair_dtypes}."
-        )
-        warnings.warn(warning_msg, UserWarning)
-        vertex_pair = vertex_pair.astype(vertex_dtype)
-
-    return vertex_pair
 
 
 def overlap_coefficient(
-    G: Union[Graph, "networkx.Graph"],
-    ebunch: Union[cudf.DataFrame, Iterable[Union[int, str, float]]] = None,
+    G: Graph,
+    ebunch: cudf.DataFrame = None,
     do_expensive_check: bool = False,  # deprecated
-):
+) -> cudf.DataFrame:
     """
     Compute overlap coefficient.
 
     Parameters
     ----------
-    G : cugraph.Graph or NetworkX.Graph
-        cuGraph or NetworkX Graph instance, should contain the connectivity
+    G : cugraph.Graph
+        cuGraph Graph instance, should contain the connectivity
         information as an edge list. The graph should be undirected where an
         undirected edge is represented by a directed edge in both direction.
         The adjacency list will be computed if not already present.
 
         This implementation only supports undirected, non-multi edge Graph.
 
-        .. deprecated:: 24.12
-           Accepting a ``networkx.Graph`` is deprecated and will be removed in a
-           future version.  For ``networkx.Graph`` use networkx directly with
-           the ``nx-cugraph`` backend. See:  https://rapids.ai/nx-cugraph/
-
-    ebunch : cudf.DataFrame or iterable of node pairs, optional (default=None)
+    ebunch : cudf.DataFrame of node pairs, optional (default=None)
         A GPU dataframe consisting of two columns representing pairs of
-        vertices or iterable of 2-tuples (u, v) where u and v are nodes in
-        the graph.
+        vertices (u, v) where u and v are nodes in the graph.
 
         If provided, the Overlap coefficient is computed for the given vertex
         pairs. Otherwise, the current implementation computes the overlap
-        coefficient for all adjacent vertices in the graph.
+        coefficient for all vertices that are two hops apart in the graph.
 
     do_expensive_check : bool, optional (default=False)
         Deprecated.
@@ -121,6 +85,13 @@ def overlap_coefficient(
     >>> G = karate.get_graph(download=True, ignore_weights=True)
     >>> df = overlap_coefficient(G)
     """
+    warnings.warn(
+        "deprecated as of 25.10. Use `overlap()` instead. "
+        "If calling with a NetworkX Graph object, use networkx with the "
+        "nx-cugraph backend. See: https://rapids.ai/nx-cugraph",
+        DeprecationWarning,
+    )
+
     if do_expensive_check:
         warnings.warn(
             "do_expensive_check is deprecated since vertex IDs are no longer "
@@ -128,21 +99,9 @@ def overlap_coefficient(
             FutureWarning,
         )
 
-    vertex_pair = None
-
-    G, isNx = ensure_cugraph_obj_for_nx(G)
-
-    # FIXME: What is the logic behind this since the docstrings mention that 'G' and
-    # 'ebunch'(if not None) are respectively of type cugraph.Graph and cudf.DataFrame?
-    if isNx is True and ebunch is not None:
-        vertex_pair = cudf.DataFrame(ebunch)
+    vertex_pair = ebunch
 
     df = overlap(G, vertex_pair)
-
-    if isNx is True:
-        df = df_edge_score_to_dictionary(
-            df, k="overlap_coeff", src="first", dst="second"
-        )
 
     return df
 
@@ -150,9 +109,8 @@ def overlap_coefficient(
 def overlap(
     input_graph: Graph,
     vertex_pair: cudf.DataFrame = None,
-    do_expensive_check: bool = False,  # deprecated
     use_weight: bool = False,
-):
+) -> cudf.DataFrame:
     """
     Compute the Overlap Coefficient between each pair of vertices connected by
     an edge, or between arbitrary pairs of vertices specified by the user.
@@ -178,24 +136,16 @@ def overlap(
         present.
 
         This implementation only supports undirected, non-multi edge Graph.
+
     vertex_pair : cudf.DataFrame, optional (default=None)
         A GPU dataframe consisting of two columns representing pairs of
         vertices. If provided, the overlap coefficient is computed for the
         given vertex pairs, else, it is computed for all vertex pairs.
 
-    do_expensive_check : bool, optional (default=False)
-        Deprecated.
-        This option added a check to ensure integer vertex IDs are sequential
-        values from 0 to V-1. That check is now redundant because cugraph
-        unconditionally renumbers and un-renumbers integer vertex IDs for
-        optimal performance, therefore this option is deprecated and will be
-        removed in a future version.
-
     use_weight : bool, optional (default=False)
         Flag to indicate whether to compute weighted overlap (if use_weight==True)
         or un-weighted overlap (if use_weight==False).
         'input_graph' must be weighted if 'use_weight=True'.
-
 
 
     Returns
@@ -223,12 +173,6 @@ def overlap(
     >>> df = overlap(input_graph)
 
     """
-    if do_expensive_check:
-        warnings.warn(
-            "do_expensive_check is deprecated since vertex IDs are no longer "
-            "required to be consecutively numbered",
-            FutureWarning,
-        )
 
     if input_graph.is_directed():
         raise ValueError("Input must be an undirected Graph.")
@@ -284,7 +228,7 @@ def all_pairs_overlap(
     vertices: cudf.Series = None,
     use_weight: bool = False,
     topk: int = None,
-):
+) -> cudf.DataFrame:
     """
     Compute the All Pairs Overlap Coefficient between each pair of vertices connected
     by an edge, or between arbitrary pairs of vertices specified by the user.
@@ -317,7 +261,7 @@ def all_pairs_overlap(
     vertices : int or list or cudf.Series or cudf.DataFrame, optional (default=None)
         A GPU Series containing the input vertex list.  If the vertex list is not
         provided then the current implementation computes the overlap coefficient for
-        all adjacent vertices in the graph.
+        all vertices that are two hops apart in the graph.
 
     use_weight : bool, optional (default=False)
         Flag to indicate whether to compute weighted overlap (if use_weight==True)

@@ -212,8 +212,11 @@ class Tests_MGHomogeneous_Biased_Neighbor_Sampling
       vertices = cugraph::test::sort<vertex_t>(*handle_, std::move(vertices));
       vertices = cugraph::test::unique<vertex_t>(*handle_, std::move(vertices));
 
-      vertices = cugraph::detail::shuffle_int_vertices_to_local_gpu_by_vertex_partitioning(
-        *handle_, std::move(vertices), mg_graph_view.vertex_partition_range_lasts());
+      std::tie(vertices, std::ignore) =
+        cugraph::shuffle_int_vertices(*handle_,
+                                      std::move(vertices),
+                                      std::vector<cugraph::arithmetic_device_uvector_t>{},
+                                      mg_graph_view.vertex_partition_range_lasts());
 
       vertices = cugraph::test::sort<vertex_t>(*handle_, std::move(vertices));
       vertices = cugraph::test::unique<vertex_t>(*handle_, std::move(vertices));
@@ -249,13 +252,21 @@ class Tests_MGHomogeneous_Biased_Neighbor_Sampling
           : std::nullopt;
 
       if (handle_->get_comms().get_rank() == 0) {
-        cugraph::test::validate_extracted_graph_is_subgraph(*handle_,
-                                                            mg_aggregate_src_compare,
-                                                            mg_aggregate_dst_compare,
-                                                            mg_aggregate_wgt_compare,
-                                                            mg_aggregate_src,
-                                                            mg_aggregate_dst,
-                                                            mg_aggregate_wgt);
+        ASSERT_TRUE(cugraph::test::validate_extracted_graph_is_subgraph(
+          *handle_,
+          raft::device_span<vertex_t const>{mg_aggregate_src_compare.data(),
+                                            mg_aggregate_src_compare.size()},
+          raft::device_span<vertex_t const>{mg_aggregate_dst_compare.data(),
+                                            mg_aggregate_dst_compare.size()},
+          mg_aggregate_wgt_compare
+            ? std::make_optional(raft::device_span<weight_t const>{
+                mg_aggregate_wgt_compare->data(), mg_aggregate_wgt_compare->size()})
+            : std::nullopt,
+          raft::device_span<vertex_t const>{mg_aggregate_src.data(), mg_aggregate_src.size()},
+          raft::device_span<vertex_t const>{mg_aggregate_dst.data(), mg_aggregate_dst.size()},
+          mg_aggregate_wgt ? std::make_optional(raft::device_span<weight_t const>{
+                               mg_aggregate_wgt->data(), mg_aggregate_wgt->size()})
+                           : std::nullopt));
 
         if (random_sources.size() < 100) {
           // This validation is too expensive for large number of vertices

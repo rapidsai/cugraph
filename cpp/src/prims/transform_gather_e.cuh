@@ -17,6 +17,7 @@
 
 #include "detail/optional_dataframe_buffer.hpp"
 #include "detail/prim_utils.cuh"
+#include "prims/property_op_utils.cuh"
 
 #include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/edge_partition_edge_property_device_view.cuh>
@@ -68,16 +69,17 @@ struct return_e_value_t {
   EdgePartitionEdgeValueInputWrapper edge_partition_e_value_input{};
   EdgeOp e_op{};
 
-  __device__ e_op_result_t operator()(thrust::tuple<typename GraphViewType::vertex_type,
-                                                    typename GraphViewType::vertex_type,
-                                                    typename GraphViewType::edge_type> edge) const
+  __device__ e_op_result_t
+  operator()(cuda::std::tuple<typename GraphViewType::vertex_type,
+                              typename GraphViewType::vertex_type,
+                              typename GraphViewType::edge_type> edge) const
   {
     using vertex_t = typename GraphViewType::vertex_type;
     using edge_t   = typename GraphViewType::edge_type;
 
-    auto major            = thrust::get<0>(edge);
-    auto minor            = thrust::get<1>(edge);
-    auto multi_edge_index = thrust::get<2>(edge);
+    auto major            = cuda::std::get<0>(edge);
+    auto minor            = cuda::std::get<1>(edge);
+    auto multi_edge_index = cuda::std::get<2>(edge);
 
     auto major_offset = edge_partition.major_offset_from_major_nocheck(major);
     auto major_idx    = edge_partition.major_idx_from_major_nocheck(major);
@@ -207,14 +209,14 @@ void transform_gather_e(raft::handle_t const& handle,
 
   auto edge_first = thrust::make_transform_iterator(
     thrust::make_counting_iterator(size_t{0}),
-    cuda::proclaim_return_type<thrust::tuple<vertex_t, vertex_t, edge_t>>(
+    cuda::proclaim_return_type<cuda::std::tuple<vertex_t, vertex_t, edge_t>>(
       [pair_first, multi_edge_index_first] __device__(size_t i) {
         auto pair = *(pair_first + i);
         if (multi_edge_index_first) {
-          return thrust::make_tuple(
-            thrust::get<0>(pair), thrust::get<1>(pair), *(*multi_edge_index_first + i));
+          return cuda::std::make_tuple(
+            cuda::std::get<0>(pair), cuda::std::get<1>(pair), *(*multi_edge_index_first + i));
         } else {
-          return thrust::make_tuple(thrust::get<0>(pair), thrust::get<1>(pair), edge_t{0});
+          return cuda::std::make_tuple(cuda::std::get<0>(pair), cuda::std::get<1>(pair), edge_t{0});
         }
       }));
 

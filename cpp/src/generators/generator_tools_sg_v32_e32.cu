@@ -25,6 +25,7 @@
 #include <rmm/device_uvector.hpp>
 
 #include <cuda/std/iterator>
+#include <cuda/std/tuple>
 #include <thrust/copy.h>
 #include <thrust/execution_policy.h>
 #include <thrust/for_each.h>
@@ -32,7 +33,6 @@
 #include <thrust/partition.h>
 #include <thrust/sort.h>
 #include <thrust/transform.h>
-#include <thrust/tuple.h>
 #include <thrust/unique.h>
 
 #include <numeric>
@@ -42,12 +42,6 @@ namespace cugraph {
 template rmm::device_uvector<int32_t> scramble_vertex_ids(raft::handle_t const& handle,
                                                           rmm::device_uvector<int32_t>&& vertices,
                                                           size_t lgN);
-
-template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>> scramble_vertex_ids(
-  raft::handle_t const& handle,
-  rmm::device_uvector<int32_t>&& srcs,
-  rmm::device_uvector<int32_t>&& dsts,
-  size_t lgN);
 
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,

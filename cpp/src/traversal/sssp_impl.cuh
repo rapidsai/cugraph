@@ -33,12 +33,12 @@
 #include <raft/util/cudart_utils.hpp>
 
 #include <cuda/std/optional>
+#include <cuda/std/tuple>
 #include <thrust/fill.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/discard_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/transform.h>
-#include <thrust/tuple.h>
 
 #include <limits>
 
@@ -48,11 +48,11 @@ namespace {
 
 template <typename vertex_t, typename weight_t>
 struct e_op_t {
-  __device__ thrust::tuple<weight_t, vertex_t> operator()(
+  __device__ cuda::std::tuple<weight_t, vertex_t> operator()(
     vertex_t src, vertex_t dst, weight_t src_val, cuda::std::nullopt_t, weight_t w) const
   {
     auto new_distance = src_val + w;
-    return thrust::make_tuple(new_distance, src);
+    return cuda::std::make_tuple(new_distance, src);
   }
 };
 
@@ -130,7 +130,7 @@ void sssp(raft::handle_t const& handle,
   auto constexpr invalid_distance = std::numeric_limits<weight_t>::max();
   auto constexpr invalid_vertex   = invalid_vertex_id<vertex_t>::value;
 
-  auto val_first = thrust::make_zip_iterator(thrust::make_tuple(distances, predecessor_first));
+  auto val_first = thrust::make_zip_iterator(distances, predecessor_first);
   thrust::transform(
     handle.get_thrust_policy(),
     thrust::make_counting_iterator(push_graph_view.local_vertex_partition_range_first()),
@@ -139,7 +139,7 @@ void sssp(raft::handle_t const& handle,
     [source_vertex] __device__(auto val) {
       auto distance = invalid_distance;
       if (val == source_vertex) { distance = weight_t{0.0}; }
-      return thrust::make_tuple(distance, invalid_vertex);
+      return cuda::std::make_tuple(distance, invalid_vertex);
     });
 
   if (num_edges == 0) { return; }
@@ -155,9 +155,9 @@ void sssp(raft::handle_t const& handle,
     edge_dst_dummy_property_t{}.view(),
     edge_weight_view,
     [] __device__(vertex_t, vertex_t, auto, auto, weight_t w) {
-      return thrust::make_tuple(weight_t{1.0}, w);
+      return cuda::std::make_tuple(weight_t{1.0}, w);
     },
-    thrust::make_tuple(weight_t{0.0}, weight_t{0.0}));
+    cuda::std::make_tuple(weight_t{0.0}, weight_t{0.0}));
   average_vertex_degree /= static_cast<weight_t>(num_vertices);
   average_edge_weight /= static_cast<weight_t>(num_edges);
   auto delta =
@@ -192,11 +192,21 @@ void sssp(raft::handle_t const& handle,
   auto near_far_threshold = delta;
   while (true) {
     if (GraphViewType::is_multi_gpu) {
+      rmm::device_uvector<weight_t> gathered_distances(
+        vertex_frontier.bucket(bucket_idx_cur_near).size(), handle.get_stream());
+      auto map_first = thrust::make_transform_iterator(
+        vertex_frontier.bucket(bucket_idx_cur_near).begin(),
+        shift_left_t<vertex_t>{push_graph_view.local_vertex_partition_range_first()});
+      thrust::gather(handle.get_thrust_policy(),
+                     map_first,
+                     map_first + vertex_frontier.bucket(bucket_idx_cur_near).size(),
+                     distances,
+                     gathered_distances.begin());
       update_edge_src_property(handle,
                                push_graph_view,
                                vertex_frontier.bucket(bucket_idx_cur_near).begin(),
                                vertex_frontier.bucket(bucket_idx_cur_near).end(),
-                               distances,
+                               gathered_distances.begin(),
                                edge_src_distances.mutable_view());
     }
 
@@ -215,7 +225,7 @@ void sssp(raft::handle_t const& handle,
         edge_dst_dummy_property_t{}.view(),
         edge_weight_view,
         e_op_t<vertex_t, weight_t>{},
-        reduce_op::minimum<thrust::tuple<weight_t, vertex_t>>(),
+        reduce_op::minimum<cuda::std::tuple<weight_t, vertex_t>>(),
         pred_op_t<vertex_t, weight_t, GraphViewType::is_multi_gpu>{
           vertex_partition, distances, cutoff});
 
@@ -229,15 +239,15 @@ void sssp(raft::handle_t const& handle,
       raft::host_span<size_t const>(next_frontier_bucket_indices.data(),
                                     next_frontier_bucket_indices.size()),
       distances,
-      thrust::make_zip_iterator(thrust::make_tuple(distances, predecessor_first)),
+      thrust::make_zip_iterator(distances, predecessor_first),
       [near_far_threshold] __device__(auto v, auto v_val, auto pushed_val) {
-        auto new_dist = thrust::get<0>(pushed_val);
+        auto new_dist = cuda::std::get<0>(pushed_val);
         auto update   = (new_dist < v_val);
-        return thrust::make_tuple(
+        return cuda::std::make_tuple(
           update ? cuda::std::optional<size_t>{new_dist < near_far_threshold ? bucket_idx_next_near
                                                                              : bucket_idx_far}
                  : cuda::std::nullopt,
-          update ? cuda::std::optional<thrust::tuple<weight_t, vertex_t>>{pushed_val}
+          update ? cuda::std::optional<cuda::std::tuple<weight_t, vertex_t>>{pushed_val}
                  : cuda::std::nullopt);
       });
 

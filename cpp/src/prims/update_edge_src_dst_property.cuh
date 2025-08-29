@@ -126,7 +126,7 @@ void update_edge_major_property(raft::handle_t const& handle,
                                      typename EdgeMajorPropertyOutputWrapper::value_type>();
   static_assert(!contains_packed_bool_element ||
                   std::is_arithmetic_v<typename EdgeMajorPropertyOutputWrapper::value_type>,
-                "unimplemented for thrust::tuple types with a packed bool element.");
+                "unimplemented for cuda::std::tuple types with a packed bool element.");
 
   auto edge_partition_value_firsts = edge_major_property_output.major_value_firsts();
   if constexpr (GraphViewType::is_multi_gpu) {
@@ -264,19 +264,20 @@ template <typename GraphViewType,
           typename VertexIterator,
           typename VertexPropertyInputIterator,
           typename EdgeMajorPropertyOutputWrapper>
-void update_edge_major_property(raft::handle_t const& handle,
-                                GraphViewType const& graph_view,
-                                VertexIterator sorted_unique_vertex_first,
-                                VertexIterator sorted_unique_vertex_last,
-                                VertexPropertyInputIterator vertex_property_input_first,
-                                EdgeMajorPropertyOutputWrapper edge_major_property_output)
+void update_edge_major_property(
+  raft::handle_t const& handle,
+  GraphViewType const& graph_view,
+  VertexIterator sorted_unique_vertex_first,
+  VertexIterator sorted_unique_vertex_last,
+  VertexPropertyInputIterator sorted_unique_vertex_property_input_first,
+  EdgeMajorPropertyOutputWrapper edge_major_property_output)
 {
   constexpr bool contains_packed_bool_element =
     cugraph::has_packed_bool_element<typename EdgeMajorPropertyOutputWrapper::value_iterator,
                                      typename EdgeMajorPropertyOutputWrapper::value_type>();
   static_assert(!contains_packed_bool_element ||
                   std::is_arithmetic_v<typename EdgeMajorPropertyOutputWrapper::value_type>,
-                "unimplemented for thrust::tuple types with a packed bool element.");
+                "unimplemented for cuda::std::tuple types with a packed bool element.");
 
   using vertex_t = typename GraphViewType::vertex_type;
   using edge_t   = typename GraphViewType::edge_type;
@@ -318,34 +319,17 @@ void update_edge_major_property(raft::handle_t const& handle,
           vertex_partition_device_view_t<vertex_t, GraphViewType::is_multi_gpu>(
             graph_view.local_vertex_partition_view());
         if constexpr (contains_packed_bool_element) {
-          auto bool_first = thrust::make_transform_iterator(
-            sorted_unique_vertex_first,
-            cuda::proclaim_return_type<bool>([vertex_property_input_first,
-                                              vertex_partition] __device__(auto v) {
-              auto v_offset = vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(v);
-              return static_cast<bool>(
-                *(vertex_property_input_first + packed_bool_offset(v_offset)) &
-                packed_bool_mask(v_offset));
-            }));
-          pack_bools(
-            handle,
-            bool_first,
-            bool_first + cuda::std::distance(sorted_unique_vertex_first, sorted_unique_vertex_last),
-            rx_value_first);
+          pack_bools(handle,
+                     sorted_unique_vertex_property_input_first,
+                     sorted_unique_vertex_property_input_first +
+                       cuda::std::distance(sorted_unique_vertex_first, sorted_unique_vertex_last),
+                     rx_value_first);
         } else {
-          auto map_first = thrust::make_transform_iterator(
-            sorted_unique_vertex_first,
-            cuda::proclaim_return_type<vertex_t>([vertex_partition] __device__(auto v) {
-              return vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(v);
-            }));
-          // FIXME: this gather (and temporary buffer) is unnecessary if NCCL directly takes a
-          // permutation iterator (and directly gathers to the internal buffer)
-          thrust::gather(
-            handle.get_thrust_policy(),
-            map_first,
-            map_first + cuda::std::distance(sorted_unique_vertex_first, sorted_unique_vertex_last),
-            vertex_property_input_first,
-            rx_value_first);
+          thrust::copy(handle.get_thrust_policy(),
+                       sorted_unique_vertex_property_input_first,
+                       sorted_unique_vertex_property_input_first +
+                         cuda::std::distance(sorted_unique_vertex_first, sorted_unique_vertex_last),
+                       rx_value_first);
         }
       }
 
@@ -428,23 +412,24 @@ void update_edge_major_property(raft::handle_t const& handle,
              : graph_view.local_edge_partition_src_range_size());
     assert(edge_partition_value_firsts.size() == size_t{1});
     if constexpr (contains_packed_bool_element) {
-      thrust::for_each(handle.get_thrust_policy(),
-                       sorted_unique_vertex_first,
-                       sorted_unique_vertex_last,
-                       [vertex_property_input_first,
-                        output_value_first = edge_partition_value_firsts[0]] __device__(auto v) {
-                         bool val = static_cast<bool>(*(vertex_property_input_first + v));
-                         packed_bool_atomic_set(output_value_first, v, val);
-                       });
-    } else {
-      auto val_first =
-        thrust::make_permutation_iterator(vertex_property_input_first, sorted_unique_vertex_first);
-      thrust::scatter(
+      auto pair_first = thrust::make_zip_iterator(sorted_unique_vertex_first,
+                                                  sorted_unique_vertex_property_input_first);
+      thrust::for_each(
         handle.get_thrust_policy(),
-        val_first,
-        val_first + cuda::std::distance(sorted_unique_vertex_first, sorted_unique_vertex_last),
-        sorted_unique_vertex_first,
-        edge_partition_value_firsts[0]);
+        pair_first,
+        pair_first + cuda::std::distance(sorted_unique_vertex_first, sorted_unique_vertex_last),
+        [output_value_first = edge_partition_value_firsts[0]] __device__(auto pair) {
+          auto v   = cuda::std::get<0>(pair);
+          auto val = static_cast<bool>(cuda::std::get<1>(pair));
+          packed_bool_atomic_set(output_value_first, v, val);
+        });
+    } else {
+      thrust::scatter(handle.get_thrust_policy(),
+                      sorted_unique_vertex_property_input_first,
+                      sorted_unique_vertex_property_input_first +
+                        cuda::std::distance(sorted_unique_vertex_first, sorted_unique_vertex_last),
+                      sorted_unique_vertex_first,
+                      edge_partition_value_firsts[0]);
     }
   }
 }
@@ -462,7 +447,7 @@ void update_edge_minor_property(raft::handle_t const& handle,
                                      typename EdgeMinorPropertyOutputWrapper::value_type>();
   static_assert(!contains_packed_bool_element ||
                   std::is_arithmetic_v<typename EdgeMinorPropertyOutputWrapper::value_type>,
-                "unimplemented for thrust::tuple types with a packed bool element.");
+                "unimplemented for cuda::std::tuple types with a packed bool element.");
 
   auto edge_partition_value_first = edge_minor_property_output.minor_value_first();
   if constexpr (GraphViewType::is_multi_gpu) {
@@ -692,19 +677,20 @@ template <typename GraphViewType,
           typename VertexIterator,
           typename VertexPropertyInputIterator,
           typename EdgeMinorPropertyOutputWrapper>
-void update_edge_minor_property(raft::handle_t const& handle,
-                                GraphViewType const& graph_view,
-                                VertexIterator sorted_unique_vertex_first,
-                                VertexIterator sorted_unique_vertex_last,
-                                VertexPropertyInputIterator vertex_property_input_first,
-                                EdgeMinorPropertyOutputWrapper edge_minor_property_output)
+void update_edge_minor_property(
+  raft::handle_t const& handle,
+  GraphViewType const& graph_view,
+  VertexIterator sorted_unique_vertex_first,
+  VertexIterator sorted_unique_vertex_last,
+  VertexPropertyInputIterator sorted_unique_vertex_property_input_first,
+  EdgeMinorPropertyOutputWrapper edge_minor_property_output)
 {
   constexpr bool contains_packed_bool_element =
     cugraph::has_packed_bool_element<typename EdgeMinorPropertyOutputWrapper::value_iterator,
                                      typename EdgeMinorPropertyOutputWrapper::value_type>();
   static_assert(!contains_packed_bool_element ||
                   std::is_arithmetic_v<typename EdgeMinorPropertyOutputWrapper::value_type>,
-                "unimplemented for thrust::tuple types with a packed bool element.");
+                "unimplemented for cuda::std::tuple types with a packed bool element.");
 
   using vertex_t = typename GraphViewType::vertex_type;
   using edge_t   = typename GraphViewType::edge_type;
@@ -788,34 +774,17 @@ void update_edge_minor_property(raft::handle_t const& handle,
           vertex_partition_device_view_t<vertex_t, GraphViewType::is_multi_gpu>(
             graph_view.local_vertex_partition_view());
         if constexpr (contains_packed_bool_element) {
-          auto bool_first = thrust::make_transform_iterator(
-            sorted_unique_vertex_first,
-            cuda::proclaim_return_type<bool>([vertex_property_input_first,
-                                              vertex_partition] __device__(auto v) {
-              auto v_offset = vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(v);
-              return static_cast<bool>(
-                *(vertex_property_input_first + packed_bool_offset(v_offset)) &
-                packed_bool_mask(v_offset));
-            }));
-          pack_bools(
-            handle,
-            bool_first,
-            bool_first + cuda::std::distance(sorted_unique_vertex_first, sorted_unique_vertex_last),
-            rx_value_first);
+          pack_bools(handle,
+                     sorted_unique_vertex_property_input_first,
+                     sorted_unique_vertex_property_input_first +
+                       cuda::std::distance(sorted_unique_vertex_first, sorted_unique_vertex_last),
+                     rx_value_first);
         } else {
-          auto map_first = thrust::make_transform_iterator(
-            sorted_unique_vertex_first,
-            cuda::proclaim_return_type<vertex_t>([vertex_partition] __device__(auto v) {
-              return vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(v);
-            }));
-          // FIXME: this gather (and temporary buffer) is unnecessary if NCCL directly takes a
-          // permutation iterator (and directly gathers to the internal buffer)
-          thrust::gather(
-            handle.get_thrust_policy(),
-            map_first,
-            map_first + cuda::std::distance(sorted_unique_vertex_first, sorted_unique_vertex_last),
-            vertex_property_input_first,
-            rx_value_first);
+          thrust::copy(handle.get_thrust_policy(),
+                       sorted_unique_vertex_property_input_first,
+                       sorted_unique_vertex_property_input_first +
+                         cuda::std::distance(sorted_unique_vertex_first, sorted_unique_vertex_last),
+                       rx_value_first);
         }
       }
 
@@ -910,23 +879,24 @@ void update_edge_minor_property(raft::handle_t const& handle,
     assert(graph_view.local_vertex_partition_range_size() ==
            graph_view.local_edge_partition_src_range_size());
     if constexpr (contains_packed_bool_element) {
-      thrust::for_each(handle.get_thrust_policy(),
-                       sorted_unique_vertex_first,
-                       sorted_unique_vertex_last,
-                       [vertex_property_input_first,
-                        output_value_first = edge_partition_value_first] __device__(auto v) {
-                         bool val = static_cast<bool>(*(vertex_property_input_first + v));
-                         packed_bool_atomic_set(output_value_first, v, val);
-                       });
-    } else {
-      auto val_first =
-        thrust::make_permutation_iterator(vertex_property_input_first, sorted_unique_vertex_first);
-      thrust::scatter(
+      auto pair_first = thrust::make_zip_iterator(sorted_unique_vertex_first,
+                                                  sorted_unique_vertex_property_input_first);
+      thrust::for_each(
         handle.get_thrust_policy(),
-        val_first,
-        val_first + cuda::std::distance(sorted_unique_vertex_first, sorted_unique_vertex_last),
-        sorted_unique_vertex_first,
-        edge_partition_value_first);
+        pair_first,
+        pair_first + cuda::std::distance(sorted_unique_vertex_first, sorted_unique_vertex_last),
+        [output_value_first = edge_partition_value_first] __device__(auto pair) {
+          auto v   = cuda::std::get<0>(pair);
+          auto val = static_cast<bool>(cuda::std::get<1>(pair));
+          packed_bool_atomic_set(output_value_first, v, val);
+        });
+    } else {
+      thrust::scatter(handle.get_thrust_policy(),
+                      sorted_unique_vertex_property_input_first,
+                      sorted_unique_vertex_property_input_first +
+                        cuda::std::distance(sorted_unique_vertex_first, sorted_unique_vertex_last),
+                      sorted_unique_vertex_first,
+                      edge_partition_value_first);
     }
   }
 }
@@ -995,10 +965,11 @@ void update_edge_src_property(raft::handle_t const& handle,
  * multi-GPU), otherwise undefined behavior.
  * @param sorted_unique_vertex_last Iterator pointing to the last (exclusive) vertex with a new
  * value.
- * @param vertex_property_input_first Iterator pointing to the vertex property value for the first
- * (inclusive) vertex (of the vertex partition assigned to this process in multi-GPU).
- * `vertex_property_input_last` (exclusive) is deduced as @p vertex_property_input_first + @p
- * graph_view.local_vertex_partition_range_size().
+ * @param sorted_unique_vertex_property_input_first Iterator pointing to the vertex property values
+ * for the first (inclusive) vertex in [@p sorted_unique_vertex_first, @psorted_unique_vertex_last).
+ * `sorted_unique_vertex_property_input_last` (exclusive) is deduced as @p
+ * sorted_unique_vertex_property_input_first + cuda::std::distance(@p sorted_unique_vertex_first, @p
+ * sorted_unique_vertex_last).
  * @param edge_partition_src_property_output edge_src_property_view_t class object to store source
  * property values (for the edge sources assigned to this process in multi-GPU).
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
@@ -1011,7 +982,7 @@ void update_edge_src_property(raft::handle_t const& handle,
                               GraphViewType const& graph_view,
                               VertexIterator sorted_unique_vertex_first,
                               VertexIterator sorted_unique_vertex_last,
-                              VertexPropertyInputIterator vertex_property_input_first,
+                              VertexPropertyInputIterator sorted_unique_vertex_property_input_first,
                               EdgeSrcValueOutputWrapper edge_src_property_output,
                               bool do_expensive_check = false)
 {
@@ -1040,14 +1011,14 @@ void update_edge_src_property(raft::handle_t const& handle,
                                        graph_view,
                                        sorted_unique_vertex_first,
                                        sorted_unique_vertex_last,
-                                       vertex_property_input_first,
+                                       sorted_unique_vertex_property_input_first,
                                        edge_src_property_output);
   } else {
     detail::update_edge_major_property(handle,
                                        graph_view,
                                        sorted_unique_vertex_first,
                                        sorted_unique_vertex_last,
-                                       vertex_property_input_first,
+                                       sorted_unique_vertex_property_input_first,
                                        edge_src_property_output);
   }
 }
@@ -1116,10 +1087,11 @@ void update_edge_dst_property(raft::handle_t const& handle,
  * multi-GPU), otherwise undefined behavior.
  * @param sorted_unique_vertex_last Iterator pointing to the last (exclusive) vertex with a new
  * value.
- * @param vertex_property_input_first Iterator pointing to the vertex property value for the first
- * (inclusive) vertex (of the vertex partition assigned to this process in multi-GPU).
- * `vertex_property_input_last` (exclusive) is deduced as @p vertex_property_input_first + @p
- * graph_view.local_vertex_partition_range_size().
+ * @param sorted_unique_vertex_property_input_first Iterator pointing to the vertex property values
+ * for the first (inclusive) vertex in [@p sorted_unique_vertex_first, @psorted_unique_vertex_last).
+ * `sorted_unique_vertex_property_input_last` (exclusive) is deduced as @p
+ * sorted_unique_vertex_property_input_first + cuda::std::distance(@p sorted_unique_vertex_first, @p
+ * sorted_unique_vertex_last).
  * @param edge_partition_dst_property_output edge_dst_property_view_t class object to store
  * destination property values (for the edge destinations assigned to this process in multi-GPU).
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
@@ -1132,7 +1104,7 @@ void update_edge_dst_property(raft::handle_t const& handle,
                               GraphViewType const& graph_view,
                               VertexIterator sorted_unique_vertex_first,
                               VertexIterator sorted_unique_vertex_last,
-                              VertexPropertyInputIterator vertex_property_input_first,
+                              VertexPropertyInputIterator sorted_unique_vertex_property_input_first,
                               EdgeDstValueOutputWrapper edge_dst_property_output,
                               bool do_expensive_check = false)
 {
@@ -1161,14 +1133,14 @@ void update_edge_dst_property(raft::handle_t const& handle,
                                        graph_view,
                                        sorted_unique_vertex_first,
                                        sorted_unique_vertex_last,
-                                       vertex_property_input_first,
+                                       sorted_unique_vertex_property_input_first,
                                        edge_dst_property_output);
   } else {
     detail::update_edge_minor_property(handle,
                                        graph_view,
                                        sorted_unique_vertex_first,
                                        sorted_unique_vertex_last,
-                                       vertex_property_input_first,
+                                       sorted_unique_vertex_property_input_first,
                                        edge_dst_property_output);
   }
 }

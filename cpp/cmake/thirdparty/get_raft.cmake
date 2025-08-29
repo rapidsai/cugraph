@@ -15,14 +15,13 @@
 #=============================================================================
 
 set(CUGRAPH_MIN_VERSION_raft "${CUGRAPH_VERSION_MAJOR}.${CUGRAPH_VERSION_MINOR}.00")
-set(CUGRAPH_BRANCH_VERSION_raft "${CUGRAPH_VERSION_MAJOR}.${CUGRAPH_VERSION_MINOR}")
 
 function(find_and_configure_raft)
 
     set(oneValueArgs VERSION FORK PINNED_TAG CLONE_ON_PIN USE_RAFT_STATIC COMPILE_RAFT_LIB)
     cmake_parse_arguments(PKG "" "${oneValueArgs}" "" ${ARGN} )
 
-    if(PKG_CLONE_ON_PIN AND NOT PKG_PINNED_TAG STREQUAL "branch-${CUGRAPH_BRANCH_VERSION_raft}")
+    if(PKG_CLONE_ON_PIN AND NOT PKG_PINNED_TAG STREQUAL "${rapids-cmake-checkout-tag}")
         message("Pinned tag found: ${PKG_PINNED_TAG}. Cloning raft locally.")
         set(CPM_DOWNLOAD_raft ON)
     elseif(PKG_USE_RAFT_STATIC AND (NOT CPM_raft_SOURCE))
@@ -68,7 +67,7 @@ endfunction()
 # CPM_raft_SOURCE=/path/to/local/raft
 find_and_configure_raft(VERSION    ${CUGRAPH_MIN_VERSION_raft}
                         FORK       rapidsai
-                        PINNED_TAG branch-${CUGRAPH_BRANCH_VERSION_raft}
+                        PINNED_TAG ${rapids-cmake-checkout-tag}
 
                         # When PINNED_TAG above doesn't match cugraph,
                         # force local raft clone in build directory

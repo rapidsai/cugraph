@@ -19,7 +19,7 @@ import numpy as np
 from functools import wraps
 from collections.abc import Sequence
 import pickle
-import ucp
+import ucxx
 import asyncio
 import threading
 
@@ -1198,34 +1198,6 @@ class CugraphServiceClient:
     ###########################################################################
     # Algos
     @__server_connection
-    def batched_ego_graphs(self, seeds, radius=1, graph_id=defaults.graph_id):
-        """
-        Parameters
-        ----------
-
-        Returns
-        -------
-
-        Examples
-        --------
-        >>>
-        """
-        # FIXME: finish docstring above
-
-        if not isinstance(seeds, list):
-            seeds = [seeds]
-        batched_ego_graphs_result = self.__client.batched_ego_graphs(
-            seeds, radius, graph_id
-        )
-
-        return (
-            batched_ego_graphs_result.src_verts,
-            batched_ego_graphs_result.dst_verts,
-            batched_ego_graphs_result.edge_weights,
-            batched_ego_graphs_result.seeds_offsets,
-        )
-
-    @__server_connection
     def node2vec_random_walks(
         self, start_vertices, max_depth, graph_id=defaults.graph_id
     ):
@@ -1395,7 +1367,7 @@ class CugraphServiceClient:
             await endpoint.close()
             listener.close()
 
-        listener = ucp.create_listener(receiver, self.results_port)
+        listener = ucxx.create_listener(receiver, self.results_port)
 
         # This sends a one-way request to the server and returns
         # immediately. The server will create and send the array back to the
@@ -1433,7 +1405,7 @@ class CugraphServiceClient:
             await endpoint.close()
             listener.close()
 
-        listener = ucp.create_listener(receiver, self.results_port)
+        listener = ucxx.create_listener(receiver, self.results_port)
 
         # Use an excepthook to store an exception on the thread object if one is
         # raised in the thread.
@@ -1503,7 +1475,7 @@ class CugraphServiceClient:
             await endpoint.close()
             listener.close()
 
-        listener = ucp.create_listener(receiver, self.results_port)
+        listener = ucxx.create_listener(receiver, self.results_port)
 
         # Use an excepthook to store an exception on the thread object if one is
         # raised in the thread.

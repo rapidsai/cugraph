@@ -61,7 +61,8 @@ struct betweenness_centrality_functor : public cugraph::c_api::abstract_functor 
   template <typename vertex_t,
             typename edge_t,
             typename weight_t,
-            typename edge_type_type_t,
+            typename edge_type_t,
+            typename edge_time_t,
             bool store_transposed,
             bool multi_gpu>
   void operator()()
@@ -99,7 +100,10 @@ struct betweenness_centrality_functor : public cugraph::c_api::abstract_functor 
                    handle_.get_stream());
 
         if constexpr (multi_gpu) {
-          local_vertices = cugraph::shuffle_ext_vertices(handle_, std::move(local_vertices));
+          std::tie(local_vertices, std::ignore) =
+            cugraph::shuffle_ext_vertices(handle_,
+                                          std::move(local_vertices),
+                                          std::vector<cugraph::arithmetic_device_uvector_t>{});
         }
 
         cugraph::renumber_ext_vertices<vertex_t, multi_gpu>(
@@ -161,7 +165,8 @@ struct edge_betweenness_centrality_functor : public cugraph::c_api::abstract_fun
   template <typename vertex_t,
             typename edge_t,
             typename weight_t,
-            typename edge_type_type_t,
+            typename edge_type_t,
+            typename edge_time_t,
             bool store_transposed,
             bool multi_gpu>
   void operator()()
@@ -202,7 +207,10 @@ struct edge_betweenness_centrality_functor : public cugraph::c_api::abstract_fun
                    handle_.get_stream());
 
         if constexpr (multi_gpu) {
-          local_vertices = cugraph::shuffle_ext_vertices(handle_, std::move(local_vertices));
+          std::tie(local_vertices, std::ignore) =
+            cugraph::shuffle_ext_vertices(handle_,
+                                          std::move(local_vertices),
+                                          std::vector<cugraph::arithmetic_device_uvector_t>{});
         }
 
         cugraph::renumber_ext_vertices<vertex_t, multi_gpu>(

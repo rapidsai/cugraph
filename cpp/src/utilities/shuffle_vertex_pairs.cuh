@@ -26,9 +26,9 @@
 #include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
 
+#include <cuda/std/tuple>
 #include <thrust/gather.h>
 #include <thrust/iterator/zip_iterator.h>
-#include <thrust/tuple.h>
 
 #include <tuple>
 
@@ -43,7 +43,7 @@ struct vertex_pair_groupby_functor_t {
   template <typename TupleType>
   auto __device__ operator()(TupleType tup) const
   {
-    return func_(thrust::get<0>(tup), thrust::get<1>(tup));
+    return func_(cuda::std::get<0>(tup), cuda::std::get<1>(tup));
   }
 };
 
@@ -75,14 +75,17 @@ shuffle_vertex_pairs_with_values_by_gpu_id_impl(
     element_size += sizeof(size_t);
   }
 
-  auto total_global_mem = handle.get_device_properties().totalGlobalMem;
-  auto constexpr mem_frugal_ratio =
-    0.05;  // if the expected temporary buffer size exceeds the mem_frugal_ratio of the
-           // total_global_mem, switch to the memory frugal approach (thrust::sort is used to
-           // group-by by default, and thrust::sort requires temporary buffer comparable to the
-           // input data size)
-  auto mem_frugal_threshold =
-    static_cast<size_t>(static_cast<double>(total_global_mem / element_size) * mem_frugal_ratio);
+  auto mem_frugal_threshold = std::numeric_limits<size_t>::max();
+  if (!large_buffer_type) {
+    auto total_global_mem = handle.get_device_properties().totalGlobalMem;
+    auto constexpr mem_frugal_ratio =
+      0.05;  // if the expected temporary buffer size exceeds the mem_frugal_ratio of the
+             // total_global_mem, switch to the memory frugal approach (thrust::sort is used to
+             // group-by by default, and thrust::sort requires temporary buffer comparable to the
+             // input data size)
+    mem_frugal_threshold =
+      static_cast<size_t>(static_cast<double>(total_global_mem / element_size) * mem_frugal_ratio);
+  }
 
   auto mem_frugal_flag =
     host_scalar_allreduce(comm,

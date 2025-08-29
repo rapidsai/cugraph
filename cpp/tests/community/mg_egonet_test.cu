@@ -114,7 +114,8 @@ class Tests_MGEgonet
       }
     }
 
-    d_mg_sources = cugraph::shuffle_ext_vertices(*handle_, std::move(d_mg_sources));
+    std::tie(d_mg_sources, std::ignore) = cugraph::shuffle_ext_vertices(
+      *handle_, std::move(d_mg_sources), std::vector<cugraph::arithmetic_device_uvector_t>{});
 
     cugraph::renumber_ext_vertices<vertex_t, true>(
       *handle_,
@@ -215,12 +216,12 @@ class Tests_MGEgonet
 
       if (handle_->get_comms().get_rank() == 0) {
         auto d_mg_aggregate_edgelist_offsets =
-          cugraph::detail::compute_sparse_offsets<size_t>(graph_ids_v.begin(),
+          cugraph::detail::compute_sparse_offsets<size_t>(*handle_,
+                                                          graph_ids_v.begin(),
                                                           graph_ids_v.end(),
                                                           size_t{0},
                                                           d_mg_edgelist_offsets.size() - 1,
-                                                          true,
-                                                          handle_->get_stream());
+                                                          true);
 
         auto [d_reference_src, d_reference_dst, d_reference_wgt, d_reference_offsets] =
           cugraph::extract_ego(

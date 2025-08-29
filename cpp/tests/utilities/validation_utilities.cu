@@ -409,41 +409,6 @@ size_t count_intersection(raft::handle_t const& handle,
                                                       iter2,
                                                       iter2 + srcs2.size(),
                                                       output_iter));
-#if 0
-  // OLD Approach
-  return thrust::count_if(
-    handle.get_thrust_policy(),
-    thrust::make_zip_iterator(src_out.begin(), dst_out.begin()),
-    thrust::make_zip_iterator(src_out.end(), dst_out.end()),
-    cuda::proclaim_return_type<size_t>(
-      [src = raft::device_span<vertex_t const>{graph_src.data(), graph_src.size()},
-       dst = raft::device_span<vertex_t const>{graph_dst.data(),
-                                               graph_dst.size()}] __device__(auto tuple) {
-#if 0
-        // FIXME: This fails on rocky linux CUDA 11.8, works on CUDA 12
-        return thrust::binary_search(thrust::seq,
-                                     thrust::make_zip_iterator(src.begin(), dst.begin()),
-                                     thrust::make_zip_iterator(src.end(), dst.end()),
-                                     tuple) ? size_t{1} : size_t{0};
-#else
-        auto lb = cuda::std::distance(
-          src.begin(),
-          thrust::lower_bound(thrust::seq, src.begin(), src.end(), thrust::get<0>(tuple)));
-        auto ub = cuda::std::distance(
-          src.begin(),
-          thrust::upper_bound(thrust::seq, src.begin(), src.end(), thrust::get<0>(tuple)));
-
-        if (src.data()[lb] == thrust::get<0>(tuple)) {
-          return thrust::binary_search(
-            thrust::seq, dst.begin() + lb, dst.begin() + ub, thrust::get<1>(tuple))
-              ? size_t{1}
-              : size_t{0};
-        } else {
-          return size_t{0};
-        }
-#endif
-      }));
-#endif
 }
 
 template <typename vertex_t>
@@ -463,7 +428,7 @@ size_t count_edges_on_wrong_int_gpu(raft::handle_t const& handle,
        handle.get_subcomm(cugraph::partition_manager::major_comm_name()).get_size(),
        handle.get_subcomm(cugraph::partition_manager::minor_comm_name())
          .get_size()}] __device__(auto e) {
-      return (gpu_id_key_func(thrust::get<0>(e), thrust::get<1>(e)) != comm_rank);
+      return (gpu_id_key_func(cuda::std::get<0>(e), cuda::std::get<1>(e)) != comm_rank);
     });
 }
 

@@ -20,6 +20,8 @@
 #include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/misc_utils.cuh>
 
+#include <rmm/device_uvector.hpp>
+
 #include <cuda/std/iterator>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/sort.h>
@@ -36,15 +38,18 @@ shuffle_vertex_ids_and_offsets(raft::handle_t const& handle,
 {
   auto ids = cugraph::detail::expand_sparse_offsets(offsets, vertex_t{0}, handle.get_stream());
 
-  std::tie(vertices, ids) =
-    cugraph::shuffle_ext_vertex_value_pairs(handle, std::move(vertices), std::move(ids));
+  std::vector<cugraph::arithmetic_device_uvector_t> vertex_properties{};
+  vertex_properties.push_back(std::move(ids));
+  std::tie(vertices, vertex_properties) =
+    cugraph::shuffle_ext_vertices(handle, std::move(vertices), std::move(vertex_properties));
+  ids = std::move(std::get<rmm::device_uvector<vertex_t>>(vertex_properties[0]));
 
   thrust::sort(handle.get_thrust_policy(),
                thrust::make_zip_iterator(ids.begin(), vertices.begin()),
                thrust::make_zip_iterator(ids.end(), vertices.end()));
 
   auto return_offsets = cugraph::detail::compute_sparse_offsets<size_t>(
-    ids.begin(), ids.end(), size_t{0}, size_t{offsets.size() - 1}, true, handle.get_stream());
+    handle, ids.begin(), ids.end(), size_t{0}, size_t{offsets.size() - 1}, true);
 
   return std::make_tuple(std::move(vertices), std::move(return_offsets));
 }

@@ -47,7 +47,6 @@ NEXT_UCXX_SHORT_TAG_PEP440=$(python -c "from packaging.version import Version; p
 DEPENDENCIES=(
   cudf
   cugraph
-  cugraph-pyg
   cugraph-service-server
   cugraph-service-client
   cuxfilter
@@ -61,7 +60,6 @@ DEPENDENCIES=(
   librmm
   pylibcudf
   pylibcugraph
-  pylibwholegraph
   pylibraft
   pyraft
   raft-dask
@@ -70,7 +68,7 @@ DEPENDENCIES=(
 )
 UCXX_DEPENDENCIES=(
   libucxx
-  ucx-py
+  ucxx
 )
 for FILE in dependencies.yaml conda/environments/*.yaml; do
   for DEP in "${DEPENDENCIES[@]}"; do
@@ -89,10 +87,10 @@ for FILE in python/**/pyproject.toml python/**/**/pyproject.toml; do
   done
 done
 
-# ucx-py version
+# ucxx version
 for FILE in conda/recipes/*/conda_build_config.yaml; do
   sed_runner "/^libucxx_version:$/ {n;s/.*/  - \"${NEXT_UCXX_SHORT_TAG_PEP440}.*\"/}" "${FILE}"
-  sed_runner "/^ucx_py_version:$/ {n;s/.*/  - \"${NEXT_UCXX_SHORT_TAG_PEP440}.*\"/}" "${FILE}"
+  sed_runner "/^ucxx_version:$/ {n;s/.*/  - \"${NEXT_UCXX_SHORT_TAG_PEP440}.*\"/}" "${FILE}"
 done
 
 # CI files
@@ -100,6 +98,7 @@ for FILE in .github/workflows/*.yaml; do
   sed_runner "/shared-workflows/ s/@.*/@branch-${NEXT_SHORT_TAG}/g" "${FILE}"
   # Wheel builds install dask-cuda from source, update its branch
   sed_runner "s/dask-cuda.git@branch-[0-9][0-9].[0-9][0-9]/dask-cuda.git@branch-${NEXT_SHORT_TAG}/g" "${FILE}"
+  sed_runner "s/:[0-9]*\\.[0-9]*-/:${NEXT_SHORT_TAG}-/g" "${FILE}"
 done
 
 # .devcontainer files
