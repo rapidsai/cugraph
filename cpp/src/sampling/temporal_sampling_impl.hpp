@@ -179,7 +179,8 @@ temporal_neighbor_sample_impl(
       std::make_optional<rmm::device_uvector<edge_time_t>>(0, handle.get_stream())));
   }
 
-  std::vector<size_t> result_sizes{};
+  std::vector<size_t> result_vector_sizes{};
+  std::vector<int32_t> result_vector_hops{};
 
   graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> temporal_graph_view{graph_view};
 
@@ -240,8 +241,10 @@ temporal_neighbor_sample_impl(
           raft::device_span<vertex_t const>{frontier_vertices.data(), frontier_vertices.size()},
           raft::device_span<edge_time_t const>{frontier_vertex_times->data(),
                                                frontier_vertex_times->size()},
-          std::make_optional(raft::device_span<label_t const>{frontier_vertex_labels->data(),
-                                                              frontier_vertex_labels->size()}));
+          frontier_vertex_labels
+            ? std::make_optional(raft::device_span<label_t const>{frontier_vertex_labels->data(),
+                                                                  frontier_vertex_labels->size()})
+            : std::nullopt);
 
       no_duplicates_size  = frontier_vertices_no_duplicates.size();
       has_duplicates_size = frontier_vertices_has_duplicates.size();
@@ -250,7 +253,7 @@ temporal_neighbor_sample_impl(
         no_duplicates_size = host_scalar_allreduce(
           handle.get_comms(), no_duplicates_size, raft::comms::op_t::SUM, handle.get_stream());
         has_duplicates_size = host_scalar_allreduce(
-          handle.get_comms(), no_duplicates_size, raft::comms::op_t::SUM, handle.get_stream());
+          handle.get_comms(), has_duplicates_size, raft::comms::op_t::SUM, handle.get_stream());
       }
 
       if (no_duplicates_size > 0) {
@@ -302,7 +305,8 @@ temporal_neighbor_sample_impl(
           raft::host_span<size_t const>(level_Ks->data(), level_Ks->size()),
           with_replacement);
 
-        result_sizes.push_back(srcs.size());
+        result_vector_sizes.push_back(srcs.size());
+        result_vector_hops.push_back(hop);
         result_src_vectors.push_back(std::move(srcs));
         result_dst_vectors.push_back(std::move(dsts));
 
@@ -408,7 +412,8 @@ temporal_neighbor_sample_impl(
             : std::nullopt;
 
         if (srcs.size() > 0) {
-          result_sizes.push_back(srcs.size());
+          result_vector_sizes.push_back(srcs.size());
+          result_vector_hops.push_back(hop);
           result_src_vectors.push_back(std::move(srcs));
           result_dst_vectors.push_back(std::move(dsts));
 
@@ -443,7 +448,7 @@ temporal_neighbor_sample_impl(
                                      d_gather_flags.data(), d_gather_flags.size()})
                                  : std::nullopt;
 
-      if (no_duplicates_size > 0) {
+      if ((hop == 0) || (no_duplicates_size > 0)) {
         std::vector<edge_arithmetic_property_view_t<edge_t>> edge_property_views{};
 
         if (edge_weight_view) edge_property_views.push_back(*edge_weight_view);
@@ -454,13 +459,15 @@ temporal_neighbor_sample_impl(
 
         auto [srcs, dsts, sampled_edge_properties, labels] = gather_one_hop_edgelist(
           handle,
-          graph_view,
+          temporal_graph_view,
           raft::host_span<edge_arithmetic_property_view_t<edge_t>>{edge_property_views.data(),
                                                                    edge_property_views.size()},
           edge_type_view,
-          raft::device_span<vertex_t const>{frontier_vertices_no_duplicates.data(),
-                                            frontier_vertices_no_duplicates.size()},
-          frontier_vertex_labels_no_duplicates
+          hop == 0 ? starting_vertices
+                   : raft::device_span<vertex_t const>{frontier_vertices_no_duplicates.data(),
+                                                       frontier_vertices_no_duplicates.size()},
+          hop == 0 ? starting_vertex_labels
+          : frontier_vertex_labels_no_duplicates
             ? std::make_optional(
                 raft::device_span<label_t const>{frontier_vertex_labels_no_duplicates->data(),
                                                  frontier_vertex_labels_no_duplicates->size()})
@@ -469,7 +476,8 @@ temporal_neighbor_sample_impl(
           do_expensive_check);
 
         if (srcs.size() > 0) {
-          result_sizes.push_back(srcs.size());
+          result_vector_sizes.push_back(srcs.size());
+          result_vector_hops.push_back(hop);
           result_src_vectors.push_back(std::move(srcs));
           result_dst_vectors.push_back(std::move(dsts));
 
@@ -498,16 +506,16 @@ temporal_neighbor_sample_impl(
                 std::get<rmm::device_uvector<edge_time_t>>(sampled_edge_properties[pos++])));
           }
           if (labels) { (*result_label_vectors).push_back(std::move(*labels)); }
-        }
 
-        next_frontier_vertex_spans.push_back(raft::device_span<vertex_t const>{
-          result_dst_vectors.back().data(), result_dst_vectors.back().size()});
-        next_frontier_vertex_time_spans->push_back(
-          raft::device_span<edge_time_t const>{result_edge_start_time_vectors->back().data(),
-                                               result_edge_start_time_vectors->back().size()});
-        if (next_frontier_vertex_label_spans) {
-          next_frontier_vertex_label_spans->push_back(raft::device_span<label_t const>{
-            result_label_vectors->back().data(), result_label_vectors->back().size()});
+          next_frontier_vertex_spans.push_back(raft::device_span<vertex_t const>{
+            result_dst_vectors.back().data(), result_dst_vectors.back().size()});
+          next_frontier_vertex_time_spans->push_back(
+            raft::device_span<edge_time_t const>{result_edge_start_time_vectors->back().data(),
+                                                 result_edge_start_time_vectors->back().size()});
+          if (next_frontier_vertex_label_spans) {
+            next_frontier_vertex_label_spans->push_back(raft::device_span<label_t const>{
+              result_label_vectors->back().data(), result_label_vectors->back().size()});
+          }
         }
       }
 
@@ -541,7 +549,8 @@ temporal_neighbor_sample_impl(
           do_expensive_check);
 
         if (srcs.size() > 0) {
-          result_sizes.push_back(srcs.size());
+          result_vector_sizes.push_back(srcs.size());
+          result_vector_hops.push_back(hop);
           result_src_vectors.push_back(std::move(srcs));
           result_dst_vectors.push_back(std::move(dsts));
 
@@ -604,7 +613,7 @@ temporal_neighbor_sample_impl(
         do_expensive_check);
   }
 
-  auto result_size = std::reduce(result_sizes.begin(), result_sizes.end());
+  auto result_size = std::reduce(result_vector_sizes.begin(), result_vector_sizes.end());
   size_t output_offset{};
 
   rmm::device_uvector<vertex_t> result_srcs(result_size, handle.get_stream());
@@ -612,9 +621,9 @@ temporal_neighbor_sample_impl(
   for (size_t i = 0; i < result_src_vectors.size(); ++i) {
     raft::copy(result_srcs.begin() + output_offset,
                result_src_vectors[i].begin(),
-               result_sizes[i],
+               result_vector_sizes[i],
                handle.get_stream());
-    output_offset += result_sizes[i];
+    output_offset += result_vector_sizes[i];
   }
   result_src_vectors.clear();
   result_src_vectors.shrink_to_fit();
@@ -624,9 +633,9 @@ temporal_neighbor_sample_impl(
   for (size_t i = 0; i < result_dst_vectors.size(); ++i) {
     raft::copy(result_dsts.begin() + output_offset,
                result_dst_vectors[i].begin(),
-               result_sizes[i],
+               result_vector_sizes[i],
                handle.get_stream());
-    output_offset += result_sizes[i];
+    output_offset += result_vector_sizes[i];
   }
   result_dst_vectors.clear();
   result_dst_vectors.shrink_to_fit();
@@ -640,9 +649,9 @@ temporal_neighbor_sample_impl(
     for (size_t i = 0; i < (*result_weight_vectors).size(); ++i) {
       raft::copy((*result_weights).begin() + output_offset,
                  (*result_weight_vectors)[i].begin(),
-                 result_sizes[i],
+                 result_vector_sizes[i],
                  handle.get_stream());
-      output_offset += result_sizes[i];
+      output_offset += result_vector_sizes[i];
     }
     result_weight_vectors = std::nullopt;
   }
@@ -656,9 +665,9 @@ temporal_neighbor_sample_impl(
     for (size_t i = 0; i < (*result_edge_id_vectors).size(); ++i) {
       raft::copy((*result_edge_ids).begin() + output_offset,
                  (*result_edge_id_vectors)[i].begin(),
-                 result_sizes[i],
+                 result_vector_sizes[i],
                  handle.get_stream());
-      output_offset += result_sizes[i];
+      output_offset += result_vector_sizes[i];
     }
     result_edge_id_vectors = std::nullopt;
   }
@@ -672,9 +681,9 @@ temporal_neighbor_sample_impl(
     for (size_t i = 0; i < (*result_edge_type_vectors).size(); ++i) {
       raft::copy((*result_edge_types).begin() + output_offset,
                  (*result_edge_type_vectors)[i].begin(),
-                 result_sizes[i],
+                 result_vector_sizes[i],
                  handle.get_stream());
-      output_offset += result_sizes[i];
+      output_offset += result_vector_sizes[i];
     }
     result_edge_type_vectors = std::nullopt;
   }
@@ -688,9 +697,9 @@ temporal_neighbor_sample_impl(
     for (size_t i = 0; i < (*result_edge_start_time_vectors).size(); ++i) {
       raft::copy((*result_edge_start_times).begin() + output_offset,
                  (*result_edge_start_time_vectors)[i].begin(),
-                 result_sizes[i],
+                 result_vector_sizes[i],
                  handle.get_stream());
-      output_offset += result_sizes[i];
+      output_offset += result_vector_sizes[i];
     }
     result_edge_start_time_vectors = std::nullopt;
   }
@@ -704,9 +713,9 @@ temporal_neighbor_sample_impl(
     for (size_t i = 0; i < (*result_edge_end_time_vectors).size(); ++i) {
       raft::copy((*result_edge_end_times).begin() + output_offset,
                  (*result_edge_end_time_vectors)[i].begin(),
-                 result_sizes[i],
+                 result_vector_sizes[i],
                  handle.get_stream());
-      output_offset += result_sizes[i];
+      output_offset += result_vector_sizes[i];
     }
     result_edge_end_time_vectors = std::nullopt;
   }
@@ -714,12 +723,14 @@ temporal_neighbor_sample_impl(
   std::optional<rmm::device_uvector<int32_t>> result_hops{std::nullopt};
 
   if (return_hops) {
+    // FIX THIS!!!  It's possible for some labels to end before num_hops values... so we need to
+    // Populate the result_hops vector some other way...
     result_hops   = rmm::device_uvector<int32_t>(result_size, handle.get_stream());
     output_offset = 0;
-    for (size_t i = 0; i < num_hops; ++i) {
+    for (size_t i = 0; i < result_vector_hops.size(); ++i) {
       scalar_fill(
-        handle, result_hops->data() + output_offset, result_sizes[i], static_cast<int32_t>(i));
-      output_offset += result_sizes[i];
+        handle, result_hops->data() + output_offset, result_vector_sizes[i], result_vector_hops[i]);
+      output_offset += result_vector_sizes[i];
     }
   }
 
@@ -732,9 +743,9 @@ temporal_neighbor_sample_impl(
     for (size_t i = 0; i < (*result_label_vectors).size(); ++i) {
       raft::copy((*result_labels).begin() + output_offset,
                  (*result_label_vectors)[i].begin(),
-                 result_sizes[i],
+                 result_vector_sizes[i],
                  handle.get_stream());
-      output_offset += result_sizes[i];
+      output_offset += result_vector_sizes[i];
     }
     result_label_vectors = std::nullopt;
   }

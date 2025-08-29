@@ -139,6 +139,12 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
       if (edge_type_ids_)
         edgelist_edge_properties.push_back(
           concatenate<edge_type_t>(handle_, edge_type_ids_, num_arrays_));
+      if (edge_start_times_)
+        edgelist_edge_properties.push_back(
+          concatenate<edge_time_t>(handle_, edge_start_times_, num_arrays_));
+      if (edge_end_times_)
+        edgelist_edge_properties.push_back(
+          concatenate<edge_time_t>(handle_, edge_end_times_, num_arrays_));
 
       std::tie(edgelist_srcs, edgelist_dsts, edgelist_edge_properties, std::ignore) =
         cugraph::shuffle_ext_edges(handle_,
@@ -160,16 +166,14 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
         edge_type_ids_ ? std::make_optional(std::move(std::get<rmm::device_uvector<edge_type_t>>(
                            edgelist_edge_properties[pos++])))
                        : std::nullopt;
-
-      std::optional<rmm::device_uvector<edge_time_t>> edgelist_edge_start_times =
-        edge_start_times_
-          ? std::make_optional(concatenate<edge_time_t>(handle_, edge_start_times_, num_arrays_))
-          : std::nullopt;
-
-      std::optional<rmm::device_uvector<edge_time_t>> edgelist_edge_end_times =
-        edge_end_times_
-          ? std::make_optional(concatenate<edge_time_t>(handle_, edge_end_times_, num_arrays_))
-          : std::nullopt;
+      auto edgelist_edge_start_times =
+        edge_start_times_ ? std::make_optional(std::move(std::get<rmm::device_uvector<edge_time_t>>(
+                              edgelist_edge_properties[pos++])))
+                          : std::nullopt;
+      auto edgelist_edge_end_times =
+        edge_end_times_ ? std::make_optional(std::move(std::get<rmm::device_uvector<edge_time_t>>(
+                            edgelist_edge_properties[pos++])))
+                        : std::nullopt;
 
       if (vertex_list) {
         std::tie(vertex_list, std::ignore) = cugraph::shuffle_ext_vertices(
@@ -839,8 +843,8 @@ extern "C" cugraph_error_code_t cugraph_graph_create_with_times_mg(
                                p_weights,
                                p_edge_ids,
                                p_edge_type_ids,
-                               nullptr,
-                               nullptr,
+                               p_edge_start_times,
+                               p_edge_end_times,
                                num_arrays,
                                drop_self_loops,
                                drop_multi_edges,
