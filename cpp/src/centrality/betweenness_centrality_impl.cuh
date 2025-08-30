@@ -972,13 +972,10 @@ void multisource_backward_pass(
         }
 
         if (num_segments_in_chunk > 0) {
-          // Copy segment offsets to device
-          rmm::device_uvector<size_t> d_chunk_segment_offsets(chunk_segment_offsets.size(),
-                                                              handle.get_stream());
-          raft::update_device(d_chunk_segment_offsets.data(),
-                              chunk_segment_offsets.data(),
-                              chunk_segment_offsets.size(),
-                              handle.get_stream());
+          // Use distance_level_offsets directly with proper offset shifting for CUB segmented sort
+          auto offset_first = thrust::make_transform_iterator(
+            distance_level_offsets.data() + chunk_distance_start,
+            [chunk_vertex_start] __device__(size_t offset) { return offset - chunk_vertex_start; });
 
           // CUB segmented sort for this chunk
           size_t temp_storage_bytes = 0;
@@ -990,8 +987,8 @@ void multisource_backward_pass(
                                               chunk_sources.data(),
                                               chunk_size,
                                               num_segments_in_chunk,
-                                              d_chunk_segment_offsets.data(),
-                                              d_chunk_segment_offsets.data() + 1,
+                                              offset_first,
+                                              offset_first + 1,
                                               handle.get_stream());
 
           if (temp_storage_bytes > d_tmp_storage.size()) {
@@ -1006,8 +1003,8 @@ void multisource_backward_pass(
                                               chunk_sources.data(),
                                               chunk_size,
                                               num_segments_in_chunk,
-                                              d_chunk_segment_offsets.data(),
-                                              d_chunk_segment_offsets.data() + 1,
+                                              offset_first,
+                                              offset_first + 1,
                                               handle.get_stream());
 
           // Scatter results back to original bucket arrays
