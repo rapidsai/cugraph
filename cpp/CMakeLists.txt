@@ -52,8 +52,6 @@ option(BUILD_TESTS "Configure CMake to build tests" ON)
 option(USE_RAFT_STATIC "Build raft as a static library" OFF)
 option(CUGRAPH_COMPILE_RAFT_LIB "Compile the raft library instead of using it header-only" ON)
 option(CUDA_STATIC_RUNTIME "Statically link the CUDA toolkit runtime and libraries" OFF)
-#option(USE_CUVS_STATIC "Build and statically link the CUVS library" OFF)
-#option(CUGRAPH_COMPILE_CUVS_LIB "Compile the cuvs library instead of using it header-only" ON)
 
 message(VERBOSE "CUGRAPH: CUDA_STATIC_RUNTIME=${CUDA_STATIC_RUNTIME}")
 
@@ -82,8 +80,10 @@ message("-- Building for GPU_ARCHS = ${CMAKE_CUDA_ARCHITECTURES}")
 list(APPEND CUGRAPH_CUDA_FLAGS --expt-extended-lambda --expt-relaxed-constexpr)
 list(APPEND CUGRAPH_CUDA_FLAGS -Werror=cross-execution-space-call -Wno-deprecated-declarations -DRAFT_HIDE_DEPRECATION_WARNINGS -Xptxas=--disable-warnings)
 list(APPEND CUGRAPH_CUDA_FLAGS -Xcompiler=-Wall,-Wno-error=sign-compare,-Wno-error=unused-but-set-variable)
-include(${rapids-cmake-dir}/cuda/enable_fatbin_compression.cmake)
-rapids_cuda_enable_fatbin_compression(VARIABLE CUGRAPH_CUDA_FLAGS TUNE_FOR rapids)
+list(APPEND CUGRAPH_CUDA_FLAGS -Xfatbin=-compress-all)
+if(CMAKE_CUDA_COMPILER_ID STREQUAL "NVIDIA" AND (CMAKE_CUDA_COMPILER_VERSION VERSION_GREATER_EQUAL 12.9 AND CMAKE_CUDA_COMPILER_VERSION VERSION_LESS 13.0))
+  list(APPEND CUGRAPH_CUDA_FLAGS -Xfatbin=--compress-level=3)
+endif()
 
 # Option to enable line info in CUDA device compilation to allow introspection when profiling /
 # memchecking
@@ -116,7 +116,7 @@ rapids_cpm_init()
 # lags behind.
 ###
 
-# Need CCCL, then rmm, then cuCollections, then RAFT and CUVS.
+# Need CCCL, then rmm, then cuCollections, then RAFT.
 # This ensures that libraries can be overridden for testing.
 include(cmake/thirdparty/get_cccl.cmake)
 include(${rapids-cmake-dir}/cpm/rmm.cmake)
@@ -124,7 +124,6 @@ rapids_cpm_rmm(BUILD_EXPORT_SET cugraph-exports)
 include(${rapids-cmake-dir}/cpm/cuco.cmake)
 rapids_cpm_cuco(BUILD_EXPORT_SET cugraph-exports INSTALL_EXPORT_SET cugraph-exports)
 include(cmake/thirdparty/get_raft.cmake)
-include(cmake/thirdparty/get_cuvs.cmake)
 
 if (BUILD_CUGRAPH_MTMG_TESTS)
     if(NOT TARGET ucx::ucp)
@@ -157,16 +156,19 @@ set(CUGRAPH_SOURCES
     src/sampling/detail/update_temporal_edge_mask_sg_v64_e64.cu
     src/sampling/detail/update_temporal_edge_mask_mg_v32_e32.cu
     src/sampling/detail/update_temporal_edge_mask_mg_v64_e64.cu
-    src/utilities/shuffle_vertices_mg_v32.cu
-    src/utilities/shuffle_vertices_mg_v64.cu
-    src/utilities/shuffle_properties_mg.cu
+    src/utilities/shuffle_vertices_mg_v32_fp.cu
+    src/utilities/shuffle_vertices_mg_v32_integral.cu
+    src/utilities/shuffle_vertices_mg_v64_fp.cu
+    src/utilities/shuffle_vertices_mg_v64_integral.cu
     src/utilities/validation_checks.cu
     src/detail/permute_range_v32.cu
     src/detail/permute_range_v64.cu
     src/utilities/shuffle_vertex_pairs_mg_v32_e32.cu
     src/utilities/shuffle_vertex_pairs_mg_v64_e64.cu
-    src/utilities/shuffle_local_edge_srcs_dsts_mg_v32.cu
-    src/utilities/shuffle_local_edge_srcs_dsts_mg_v64.cu
+    src/utilities/shuffle_local_edge_srcs_dsts_mg_v32_fp.cu
+    src/utilities/shuffle_local_edge_srcs_dsts_mg_v32_integral.cu
+    src/utilities/shuffle_local_edge_srcs_dsts_mg_v64_fp.cu
+    src/utilities/shuffle_local_edge_srcs_dsts_mg_v64_integral.cu
     src/detail/collect_local_vertex_values_sg_v32_e32.cu
     src/detail/collect_local_vertex_values_sg_v64_e64.cu
     src/detail/collect_local_vertex_values_mg_v32_e32.cu
@@ -496,25 +498,15 @@ if(CUGRAPH_COMPILE_RAFT_LIB)
   endif()
 endif()
 
-#set(COMPILED_CUVS_LIB )
-#if(CUGRAPH_COMPILE_CUVS_LIB)
-  #set(COMPILED_CUVS_LIB cuvs::compiled)
-  #if(USE_CUVS_STATIC)
-    #set(COMPILED_CUVS_LIB cuvs::cuvs_static)
-  #endif()
-#endif()
-
 ################################################################################
 # - link libraries -------------------------------------------------------------
 target_link_libraries(cugraph
     PUBLIC
         rmm::rmm
         raft::raft
-        cuvs::cuvs
         $<BUILD_LOCAL_INTERFACE:CUDA::toolkit>
     PRIVATE
         ${COMPILED_RAFT_LIB}
-        #${COMPILED_CUVS_LIB}
         cuco::cuco
     )
 
