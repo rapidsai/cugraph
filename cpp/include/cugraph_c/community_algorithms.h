@@ -271,6 +271,7 @@ typedef struct {
  * available in Single GPU implementation.
  *
  * @param [in]  handle          Handle for accessing resources
+ * @param [in,out] rng_state  State of the random number generator, updated with each call
  * @param [in]  graph           Pointer to graph.  NOTE: Graph might be modified if the storage
  *                              needs to be transposed
  * @param [in]  n_clusters      The desired number of clusters
@@ -287,6 +288,7 @@ typedef struct {
  * @return error code
  */
 cugraph_error_code_t cugraph_balanced_cut_clustering(const cugraph_resource_handle_t* handle,
+                                                     cugraph_rng_state_t* rng_state,
                                                      cugraph_graph_t* graph,
                                                      size_t n_clusters,
                                                      size_t n_eigenvectors,
@@ -305,6 +307,7 @@ cugraph_error_code_t cugraph_balanced_cut_clustering(const cugraph_resource_hand
  * available in Single GPU implementation.
  *
  * @param [in]  handle          Handle for accessing resources
+ * @param [in,out] rng_state  State of the random number generator, updated with each call
  * @param [in]  graph           Pointer to graph.  NOTE: Graph might be modified if the storage
  *                              needs to be transposed
  * @param [in]  n_clusters      The desired number of clusters
@@ -322,6 +325,7 @@ cugraph_error_code_t cugraph_balanced_cut_clustering(const cugraph_resource_hand
  */
 cugraph_error_code_t cugraph_spectral_modularity_maximization(
   const cugraph_resource_handle_t* handle,
+  cugraph_rng_state_t* rng_state,
   cugraph_graph_t* graph,
   size_t n_clusters,
   size_t n_eigenvectors,
