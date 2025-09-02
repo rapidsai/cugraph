@@ -19,6 +19,7 @@ import pytest
 import cudf
 import cugraph
 from cugraph.testing import DEFAULT_DATASETS
+from cugraph.datasets import karate_asymmetric
 
 
 def cugraph_call(G, partitions):
@@ -97,3 +98,13 @@ def test_edge_cut_clustering_with_edgevals(graph_file, partitions):
     # assignment
     print(cu_score, rand_score)
     assert cu_score < rand_score
+
+
+@pytest.mark.sg
+@pytest.mark.parametrize("partitions", PARTITIONS)
+def test_edge_cut_clustering_directed_graph(partitions):
+    G_edge = karate_asymmetric.get_graph(
+        create_using=cugraph.Graph(directed=True),
+        ignore_weights=True)
+    with pytest.raises(ValueError):
+        cugraph_call(G_edge, partitions)
