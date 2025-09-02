@@ -795,13 +795,16 @@ class vertex_frontier_t {
                        handle_ptr_->get_stream());
       d_counts.resize(d_indices.size(), handle_ptr_->get_stream());
       std::vector<uint8_t> h_indices(d_indices.size());
-      std::vector<size_t> h_counts(h_indices.size());
+      std::vector<size_t> h_counts(d_counts.size());
       raft::update_host(
         h_indices.data(), d_indices.data(), d_indices.size(), handle_ptr_->get_stream());
       raft::update_host(
         h_counts.data(), d_counts.data(), d_counts.size(), handle_ptr_->get_stream());
       handle_ptr_->sync_stream();
 
+      insert_bucket_indices.resize(h_indices.size());
+      insert_offsets.resize(h_indices.size());
+      insert_sizes.resize(h_indices.size());
       size_t offset{0};
       for (size_t i = 0; i < h_indices.size(); ++i) {
         insert_bucket_indices[i] = static_cast<size_t>(h_indices[i]);
