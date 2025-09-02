@@ -868,16 +868,17 @@ void multisource_backward_pass(
 
   // Count total vertices across all distance levels
   size_t total_vertices = 0;
-  for (vertex_t d = 1; d <= global_max_distance; ++d) {
+  for (vertex_t d = 0; d <= global_max_distance; ++d) {
     total_vertices += distance_buckets_vertices[d].size();
   }
 
   // Sort vertices by vertex ID within each distance level using chunked CUB segmented sort
   if (total_vertices > 0) {
     // Calculate target chunk size based on GPU hardware
+    // Reduced from (1 << 20) to (1 << 16) to avoid memory issues with large graphs
     auto approx_vertices_to_sort_per_iteration =
       static_cast<size_t>(handle.get_device_properties().multiProcessorCount) *
-      (1 << 20); /* tuning parameter */
+      (1 << 16); /* tuning parameter - 64K vertices per SM */
 
     printf("DEBUG: GPU has %d SMs, target chunk size: %zu vertices\n",
            handle.get_device_properties().multiProcessorCount,
@@ -888,7 +889,7 @@ void multisource_backward_pass(
     distance_level_offsets.push_back(0);
 
     size_t cumulative_vertices = 0;
-    for (vertex_t d = 1; d <= global_max_distance; ++d) {
+    for (vertex_t d = 0; d <= global_max_distance; ++d) {
       if (distance_buckets_vertices[d].size() > 0) {
         cumulative_vertices += distance_buckets_vertices[d].size();
         distance_level_offsets.push_back(cumulative_vertices);
@@ -905,13 +906,19 @@ void multisource_backward_pass(
                           handle.get_stream());
 
       // Use intelligent chunking
+      printf("DEBUG: Chunking inputs:\n");
+      printf("DEBUG:   total_vertices: %zu\n", total_vertices);
+      printf("DEBUG:   approx_vertices_to_sort_per_iteration: %zu\n",
+             approx_vertices_to_sort_per_iteration);
+      printf("DEBUG:   distance_level_offsets.size(): %zu\n", distance_level_offsets.size());
+
       auto [h_distance_level_chunk_offsets, h_vertex_chunk_offsets] =
         detail::compute_offset_aligned_element_chunks(
           handle,
           raft::device_span<size_t const>(d_distance_level_offsets.data(),
                                           d_distance_level_offsets.size()),
           total_vertices,
-          approx_vertices_to_sort_per_iteration);
+          static_cast<vertex_t>(approx_vertices_to_sort_per_iteration));
 
       auto num_chunks = h_distance_level_chunk_offsets.size() - 1;
       printf("DEBUG: Created %zu chunks for distance levels\n", num_chunks);
@@ -926,7 +933,7 @@ void multisource_backward_pass(
       printf("DEBUG: Max chunk size: %zu vertices\n", max_chunk_size);
 
       // Allocate reusable arrays for chunks
-      rmm::device_uvector<int32_t> chunk_vertices_int32(max_chunk_size, handle.get_stream());
+      rmm::device_uvector<vertex_t> chunk_vertices_int32(max_chunk_size, handle.get_stream());
       rmm::device_uvector<origin_t> chunk_sources(max_chunk_size, handle.get_stream());
       rmm::device_uvector<std::byte> d_tmp_storage(0, handle.get_stream());
 
@@ -949,11 +956,43 @@ void multisource_backward_pass(
         std::vector<size_t> chunk_segment_offsets;
         chunk_segment_offsets.push_back(0);
 
+        printf("DEBUG:   Starting data gathering for chunk %zu\n", chunk_i);
+        printf("DEBUG:   chunk_vertices_int32.size(): %zu\n", chunk_vertices_int32.size());
+        printf("DEBUG:   chunk_sources.size(): %zu\n", chunk_sources.size());
+        printf("DEBUG:   chunk_size: %zu\n", chunk_size);
+
         // Copy data for distance levels in this chunk
         for (size_t level_idx = chunk_distance_start; level_idx < chunk_distance_end; ++level_idx) {
-          vertex_t d        = level_idx;
+          vertex_t d        = level_idx;  // Include distance level 0
           size_t level_size = distance_buckets_vertices[d].size();
 
+          printf("DEBUG:   Processing level %zu (distance %zu): %zu vertices\n",
+                 level_idx,
+                 d,
+                 level_size);
+          printf("DEBUG:     write_offset: %zu, write_offset + level_size: %zu\n",
+                 write_offset,
+                 write_offset + level_size);
+          printf("DEBUG:     distance_buckets_vertices[%zu].size(): %zu\n",
+                 d,
+                 distance_buckets_vertices[d].size());
+          printf("DEBUG:     distance_buckets_sources[%zu].size(): %zu\n",
+                 d,
+                 distance_buckets_sources[d].size());
+
+          // Check bounds before copying
+          if (write_offset + level_size > chunk_vertices_int32.size()) {
+            printf("ERROR: write_offset + level_size (%zu) > chunk_vertices_int32.size() (%zu)\n",
+                   write_offset + level_size,
+                   chunk_vertices_int32.size());
+          }
+          if (write_offset + level_size > chunk_sources.size()) {
+            printf("ERROR: write_offset + level_size (%zu) > chunk_sources.size() (%zu)\n",
+                   write_offset + level_size,
+                   chunk_sources.size());
+          }
+
+          printf("DEBUG:     About to copy vertices...\n");
           // Copy vertices with int32_t conversion
           thrust::transform(handle.get_thrust_policy(),
                             distance_buckets_vertices[d].begin(),
@@ -961,6 +1000,7 @@ void multisource_backward_pass(
                             chunk_vertices_int32.begin() + write_offset,
                             [] __device__(vertex_t v) { return static_cast<int32_t>(v); });
 
+          printf("DEBUG:     About to copy sources...\n");
           // Copy sources
           thrust::copy(handle.get_thrust_policy(),
                        distance_buckets_sources[d].begin(),
@@ -969,15 +1009,56 @@ void multisource_backward_pass(
 
           write_offset += level_size;
           chunk_segment_offsets.push_back(write_offset);
+          printf(
+            "DEBUG:     Completed level %zu, new write_offset: %zu\n", level_idx, write_offset);
         }
 
         if (num_segments_in_chunk > 0) {
           // Use distance_level_offsets directly with proper offset shifting for CUB segmented sort
+
+          // DEBUG: Print offset information
+          printf("DEBUG: Chunk %zu offset details:\n", chunk_i);
+          printf("DEBUG:   chunk_distance_start: %zu, chunk_distance_end: %zu\n",
+                 chunk_distance_start,
+                 chunk_distance_end);
+          printf("DEBUG:   chunk_vertex_start: %zu, chunk_vertex_end: %zu\n",
+                 chunk_vertex_start,
+                 chunk_vertex_end);
+          printf("DEBUG:   num_segments_in_chunk: %zu\n", num_segments_in_chunk);
+
+          // DEBUG: Print the distance_level_offsets values we're using
+          printf("DEBUG:   distance_level_offsets values:\n");
+          for (size_t i = chunk_distance_start; i <= chunk_distance_end; ++i) {
+            printf("DEBUG:     [%zu] = %zu\n", i, distance_level_offsets[i]);
+          }
+
+          // DEBUG: Print what the transform will produce
+          printf("DEBUG:   Transformed offsets (offset - chunk_vertex_start):\n");
+          for (size_t i = chunk_distance_start; i <= chunk_distance_end; ++i) {
+            size_t transformed = distance_level_offsets[i] - chunk_vertex_start;
+            printf("DEBUG:     %zu - %zu = %zu\n",
+                   distance_level_offsets[i],
+                   chunk_vertex_start,
+                   transformed);
+          }
+
           auto offset_first = thrust::make_transform_iterator(
             distance_level_offsets.data() + chunk_distance_start,
             [chunk_vertex_start] __device__(size_t offset) { return offset - chunk_vertex_start; });
 
+          // DEBUG: Print CUB segmented sort parameters
+          printf("DEBUG:   CUB segmented sort parameters:\n");
+          printf("DEBUG:     chunk_size: %zu\n", chunk_size);
+          printf("DEBUG:     num_segments_in_chunk: %zu\n", num_segments_in_chunk);
+          printf("DEBUG:     offset_first points to: distance_level_offsets[%zu] = %zu\n",
+                 chunk_distance_start,
+                 distance_level_offsets[chunk_distance_start]);
+          printf("DEBUG:     offset_first + 1 points to: distance_level_offsets[%zu] = %zu\n",
+                 chunk_distance_start + 1,
+                 distance_level_offsets[chunk_distance_start + 1]);
+
           // CUB segmented sort for this chunk
+          printf("DEBUG:   About to call CUB segmented sort (first call)...\n");
           size_t temp_storage_bytes = 0;
           cub::DeviceSegmentedSort::SortPairs(nullptr,
                                               temp_storage_bytes,
@@ -991,10 +1072,15 @@ void multisource_backward_pass(
                                               offset_first + 1,
                                               handle.get_stream());
 
+          printf("DEBUG:   CUB temp_storage_bytes: %zu\n", temp_storage_bytes);
+          printf("DEBUG:   Current d_tmp_storage.size(): %zu\n", d_tmp_storage.size());
+
           if (temp_storage_bytes > d_tmp_storage.size()) {
+            printf("DEBUG:   Allocating new temp storage: %zu bytes\n", temp_storage_bytes);
             d_tmp_storage = rmm::device_uvector<std::byte>(temp_storage_bytes, handle.get_stream());
           }
 
+          printf("DEBUG:   About to call CUB segmented sort (second call)...\n");
           cub::DeviceSegmentedSort::SortPairs(d_tmp_storage.data(),
                                               temp_storage_bytes,
                                               chunk_vertices_int32.data(),
@@ -1006,14 +1092,37 @@ void multisource_backward_pass(
                                               offset_first,
                                               offset_first + 1,
                                               handle.get_stream());
+          printf("DEBUG:   CUB segmented sort completed successfully\n");
 
           // Scatter results back to original bucket arrays
+          printf("DEBUG:   Starting scatter operation...\n");
           size_t read_offset = 0;
           for (size_t level_idx = chunk_distance_start; level_idx < chunk_distance_end;
                ++level_idx) {
-            vertex_t d        = level_idx;
+            vertex_t d        = level_idx;  // Include distance level 0
             size_t level_size = distance_buckets_vertices[d].size();
 
+            printf("DEBUG:   Scattering level %zu (distance %zu): %zu vertices\n",
+                   level_idx,
+                   d,
+                   level_size);
+            printf("DEBUG:     read_offset: %zu, read_offset + level_size: %zu\n",
+                   read_offset,
+                   read_offset + level_size);
+
+            // Check bounds before copying back
+            if (read_offset + level_size > chunk_vertices_int32.size()) {
+              printf("ERROR: read_offset + level_size (%zu) > chunk_vertices_int32.size() (%zu)\n",
+                     read_offset + level_size,
+                     chunk_vertices_int32.size());
+            }
+            if (read_offset + level_size > chunk_sources.size()) {
+              printf("ERROR: read_offset + level_size (%zu) > chunk_sources.size() (%zu)\n",
+                     read_offset + level_size,
+                     chunk_sources.size());
+            }
+
+            printf("DEBUG:     About to copy sorted vertices back...\n");
             // Convert back to vertex_t and copy to original bucket
             thrust::transform(handle.get_thrust_policy(),
                               chunk_vertices_int32.begin() + read_offset,
@@ -1021,13 +1130,18 @@ void multisource_backward_pass(
                               distance_buckets_vertices[d].begin(),
                               [] __device__(int32_t v32) { return static_cast<vertex_t>(v32); });
 
+            printf("DEBUG:     About to copy sorted sources back...\n");
             thrust::copy(handle.get_thrust_policy(),
                          chunk_sources.begin() + read_offset,
                          chunk_sources.begin() + read_offset + level_size,
                          distance_buckets_sources[d].begin());
 
             read_offset += level_size;
+            printf("DEBUG:     Completed scattering level %zu, new read_offset: %zu\n",
+                   level_idx,
+                   read_offset);
           }
+          printf("DEBUG:   Scatter operation completed successfully\n");
         }
       }
     }

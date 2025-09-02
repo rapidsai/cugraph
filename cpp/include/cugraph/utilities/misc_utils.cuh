@@ -45,13 +45,32 @@ std::tuple<std::vector<vertex_t>, std::vector<offset_t>> compute_offset_aligned_
   offset_t num_elements,
   vertex_t approx_element_chunk_size)
 {
+  // DEBUG: Print chunking function inputs
+  printf("DEBUG: compute_offset_aligned_element_chunks inputs:\n");
+  printf("DEBUG:   num_elements: %zu\n", static_cast<size_t>(num_elements));
+  printf("DEBUG:   approx_element_chunk_size: %zu\n",
+         static_cast<size_t>(approx_element_chunk_size));
+  printf("DEBUG:   offsets.size(): %zu\n", offsets.size());
+
   auto search_offset_first = thrust::make_transform_iterator(
     thrust::make_counting_iterator(size_t{1}),
     cuda::proclaim_return_type<size_t>(
       [approx_element_chunk_size] __device__(auto i) { return i * approx_element_chunk_size; }));
-  auto num_chunks = (num_elements + approx_element_chunk_size - 1) / approx_element_chunk_size;
+  // Ensure proper type promotion for division
+  printf("DEBUG:   About to calculate num_chunks:\n");
+  printf("DEBUG:     numerator: %zu\n",
+         static_cast<size_t>(num_elements + approx_element_chunk_size - 1));
+  printf("DEBUG:     denominator: %zu\n", static_cast<size_t>(approx_element_chunk_size));
+
+  auto num_chunks = static_cast<size_t>(
+    (static_cast<size_t>(num_elements) + static_cast<size_t>(approx_element_chunk_size) - 1) /
+    static_cast<size_t>(approx_element_chunk_size));
+
+  printf("DEBUG:     division result: %zu\n", static_cast<size_t>(num_chunks));
+  printf("DEBUG:   calculated num_chunks: %zu\n", static_cast<size_t>(num_chunks));
 
   if (num_chunks > 1) {
+    printf("DEBUG:   Taking multi-chunk path (num_chunks > 1)\n");
     rmm::device_uvector<vertex_t> d_chunk_offsets(num_chunks - 1, handle.get_stream());
     thrust::lower_bound(handle.get_thrust_policy(),
                         offsets.begin(),
@@ -82,6 +101,7 @@ std::tuple<std::vector<vertex_t>, std::vector<offset_t>> compute_offset_aligned_
 
     return std::make_tuple(h_chunk_offsets, h_element_offsets);
   } else {
+    printf("DEBUG:   Taking single-chunk path (num_chunks <= 1)\n");
     return std::make_tuple(std::vector<vertex_t>{{0, static_cast<vertex_t>(offsets.size() - 1)}},
                            std::vector<offset_t>{{0, num_elements}});
   }
