@@ -17,8 +17,8 @@
 #include "c_api/abstract_functor.hpp"
 #include "c_api/capi_helper.hpp"
 #include "c_api/graph.hpp"
-#include "c_api/resource_handle.hpp"
 #include "c_api/random.hpp"
+#include "c_api/resource_handle.hpp"
 #include "c_api/utils.hpp"
 
 #include <cugraph_c/algorithms.h>
@@ -688,7 +688,7 @@ extern "C" cugraph_error_code_t cugraph_balanced_cut_clustering(
                                           do_expensive_check);
 
   return cugraph::c_api::run_algorithm(graph, functor, result, error);
-  //return 0;
+  // return 0;
 }
 
 extern "C" cugraph_error_code_t cugraph_spectral_modularity_maximization(

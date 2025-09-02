@@ -1,4 +1,4 @@
-# Copyright (c) 2023-2024, NVIDIA CORPORATION.
+# Copyright (c) 2023-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -103,7 +103,7 @@ def balanced_cut_clustering(ResourceHandle resource_handle,
     do_expensive_check : bool_t
         If True, performs more extensive tests on the inputs to ensure
         validitity, at the expense of increased run time.
-    
+
     random_state: int (Optional)
         Random state to use when generating samples.  Optional argument,
         defaults to a hash of process id, time, and hostname.

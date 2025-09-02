@@ -104,7 +104,7 @@ def test_edge_cut_clustering_with_edgevals(graph_file, partitions):
 @pytest.mark.parametrize("partitions", PARTITIONS)
 def test_edge_cut_clustering_directed_graph(partitions):
     G_edge = karate_asymmetric.get_graph(
-        create_using=cugraph.Graph(directed=True),
-        ignore_weights=True)
+        create_using=cugraph.Graph(directed=True), ignore_weights=True
+    )
     with pytest.raises(ValueError):
         cugraph_call(G_edge, partitions)

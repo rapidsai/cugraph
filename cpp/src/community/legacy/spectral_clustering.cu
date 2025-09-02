@@ -15,13 +15,13 @@
  */
 
 #include <cugraph/algorithms.hpp>
+#include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/legacy/graph.hpp>
 #include <cugraph/utilities/error.hpp>
-#include <cugraph/detail/utility_wrappers.hpp>
 
+#include <raft/random/rng_state.hpp>
 #include <raft/spectral/modularity_maximization.cuh>
 #include <raft/spectral/partition.cuh>
-#include <raft/random/rng_state.hpp>
 
 #include <rmm/device_vector.hpp>
 #include <rmm/exec_policy.hpp>
@@ -85,7 +85,7 @@ void balancedCutClustering_impl(raft::handle_t const& handle,
 
   // FIXME: These should be parameters (and a raft::random::rng_state)
   unsigned long long seed1{0};
-  
+
   // FIXME: Both 'eigen_solver_config_t' and 'cluster_solver_config_t do not take
   // and rng_state as an input. Once a cugraph's primitive based implementation
   // is available, the rng_state will already be supported by both the C and PLC API.
@@ -96,7 +96,7 @@ void balancedCutClustering_impl(raft::handle_t const& handle,
 
   raft::update_host(&seed1, d_seed.data(), d_seed.size(), handle.get_stream());
   unsigned long long seed2 = seed1 + 1;
-  
+
   bool reorthog{false};
 
   using index_type = vertex_t;
@@ -105,7 +105,7 @@ void balancedCutClustering_impl(raft::handle_t const& handle,
 
   raft::spectral::matrix::sparse_matrix_t<index_type, value_type, nnz_type> const r_csr_m{handle,
                                                                                           graph};
- 
+
   raft::spectral::eigen_solver_config_t<index_type, value_type, nnz_type> eig_cfg{
     n_eig_vects, evs_max_it, restartIter_lanczos, evs_tol, reorthog, seed1};
   raft::spectral::lanczos_solver_t<index_type, value_type, nnz_type> eig_solver{eig_cfg};
@@ -168,7 +168,7 @@ void spectralModularityMaximization_impl(
 
   // FIXME: These should be parameters (and a raft::random::rng_state)
   unsigned long long seed1{0};
-  
+
   // FIXME: Both 'eigen_solver_config_t' and 'cluster_solver_config_t do not take
   // and rng_state as an input. Once a cugraph's primitive based implementation
   // is available, the rng_state will already be supported by both the C and PLC API.
@@ -347,26 +347,84 @@ void analyzeClustering_ratio_cut(raft::handle_t const& handle,
   detail::analyzeBalancedCut_impl(handle, graph, n_clusters, clustering, &dummy, score);
 }
 
-template void balancedCutClustering<int, int, float>(
-  raft::handle_t const& handle, raft::random::RngState& , legacy::GraphCSRView<int, int, float> const&, int, int, float, int, float, int, int*);
-template void balancedCutClustering<int, int, double>(
-  raft::handle_t const& handle, raft::random::RngState& , legacy::GraphCSRView<int, int, double> const&, int, int, double, int, double, int, int*);
+template void balancedCutClustering<int, int, float>(raft::handle_t const& handle,
+                                                     raft::random::RngState&,
+                                                     legacy::GraphCSRView<int, int, float> const&,
+                                                     int,
+                                                     int,
+                                                     float,
+                                                     int,
+                                                     float,
+                                                     int,
+                                                     int*);
+template void balancedCutClustering<int, int, double>(raft::handle_t const& handle,
+                                                      raft::random::RngState&,
+                                                      legacy::GraphCSRView<int, int, double> const&,
+                                                      int,
+                                                      int,
+                                                      double,
+                                                      int,
+                                                      double,
+                                                      int,
+                                                      int*);
 template void spectralModularityMaximization<int, int, float>(
-  raft::handle_t const& handle, raft::random::RngState& , legacy::GraphCSRView<int, int, float> const&, int, int, float, int, float, int, int*);
+  raft::handle_t const& handle,
+  raft::random::RngState&,
+  legacy::GraphCSRView<int, int, float> const&,
+  int,
+  int,
+  float,
+  int,
+  float,
+  int,
+  int*);
 template void spectralModularityMaximization<int, int, double>(
-  raft::handle_t const& handle, raft::random::RngState& , legacy::GraphCSRView<int, int, double> const&, int, int, double, int, double, int, int*);
+  raft::handle_t const& handle,
+  raft::random::RngState&,
+  legacy::GraphCSRView<int, int, double> const&,
+  int,
+  int,
+  double,
+  int,
+  double,
+  int,
+  int*);
 template void analyzeClustering_modularity<int, int, float>(
-  raft::handle_t const& handle, legacy::GraphCSRView<int, int, float> const&, int, int const*, float*);
+  raft::handle_t const& handle,
+  legacy::GraphCSRView<int, int, float> const&,
+  int,
+  int const*,
+  float*);
 template void analyzeClustering_modularity<int, int, double>(
-  raft::handle_t const& handle, legacy::GraphCSRView<int, int, double> const&, int, int const*, double*);
+  raft::handle_t const& handle,
+  legacy::GraphCSRView<int, int, double> const&,
+  int,
+  int const*,
+  double*);
 template void analyzeClustering_edge_cut<int, int, float>(
-  raft::handle_t const& handle, legacy::GraphCSRView<int, int, float> const&, int, int const*, float*);
+  raft::handle_t const& handle,
+  legacy::GraphCSRView<int, int, float> const&,
+  int,
+  int const*,
+  float*);
 template void analyzeClustering_edge_cut<int, int, double>(
-  raft::handle_t const& handle, legacy::GraphCSRView<int, int, double> const&, int, int const*, double*);
+  raft::handle_t const& handle,
+  legacy::GraphCSRView<int, int, double> const&,
+  int,
+  int const*,
+  double*);
 template void analyzeClustering_ratio_cut<int, int, float>(
-  raft::handle_t const& handle, legacy::GraphCSRView<int, int, float> const&, int, int const*, float*);
+  raft::handle_t const& handle,
+  legacy::GraphCSRView<int, int, float> const&,
+  int,
+  int const*,
+  float*);
 template void analyzeClustering_ratio_cut<int, int, double>(
-  raft::handle_t const& handle, legacy::GraphCSRView<int, int, double> const&, int, int const*, double*);
+  raft::handle_t const& handle,
+  legacy::GraphCSRView<int, int, double> const&,
+  int,
+  int const*,
+  double*);
 
 }  // namespace ext_raft
 }  // namespace cugraph

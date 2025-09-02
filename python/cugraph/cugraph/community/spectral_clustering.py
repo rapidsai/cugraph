@@ -65,7 +65,7 @@ def spectralBalancedCutClustering(
     kmean_max_iter: integer, optional
         Specifies the maximum number of iterations for the k-means solver.
         Default is 100
-    
+
     random_state: int, optional
         Random seed to use when making sampling calls.
 
@@ -87,7 +87,7 @@ def spectralBalancedCutClustering(
     >>> df = cugraph.spectralBalancedCutClustering(G, 5)
 
     """
-    
+
     if G.is_directed():
         raise ValueError("input graph must be undirected")
 
@@ -112,7 +112,7 @@ def spectralBalancedCutClustering(
         kmean_tolerance,
         kmean_max_iter,
         do_expensive_check=False,
-        random_state=random_state
+        random_state=random_state,
     )
 
     df = cudf.DataFrame()
@@ -166,7 +166,7 @@ def spectralModularityMaximizationClustering(
     kmean_max_iter: integer, optional
         Specifies the maximum number of iterations for the k-means solver.
         Default is 100
-    
+
     random_state: int, optional
         Random seed to use when making sampling calls.
 
@@ -210,7 +210,7 @@ def spectralModularityMaximizationClustering(
         kmean_tolerance,
         kmean_max_iter,
         do_expensive_check=False,
-        random_state=random_state
+        random_state=random_state,
     )
 
     df = cudf.DataFrame()

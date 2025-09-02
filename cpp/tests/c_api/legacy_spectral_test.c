@@ -79,9 +79,9 @@ int generic_spectral_test(vertex_t* h_src,
                                   FALSE,
                                   &graph,
                                   &ret_error);
-  
+
   cugraph_rng_state_t* rng_state = NULL;
-  ret_code = cugraph_rng_state_create(handle, seed, &rng_state, &ret_error);
+  ret_code                       = cugraph_rng_state_create(handle, seed, &rng_state, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "rng_state create failed.");
 
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "create_test_graph failed.");
@@ -108,7 +108,7 @@ int generic_spectral_test(vertex_t* h_src,
     cugraph_type_erased_device_array_view_t* vertices;
     cugraph_type_erased_device_array_view_t* clusters;
     double modularity;
-    double edge_cut = 0;
+    double edge_cut  = 0;
     double ratio_cut = 0;
 
     vertices = cugraph_clustering_result_get_vertices(result);
@@ -147,7 +147,6 @@ int generic_spectral_test(vertex_t* h_src,
 
   return test_ret_value;
 }
-
 
 int generic_balanced_cut_test(vertex_t* h_src,
                               vertex_t* h_dst,
@@ -203,14 +202,14 @@ int generic_balanced_cut_test(vertex_t* h_src,
                                   FALSE,
                                   &graph,
                                   &ret_error);
-  
+
   cugraph_rng_state_t* rng_state = NULL;
-  ret_code = cugraph_rng_state_create(handle, seed, &rng_state, &ret_error);
+  ret_code                       = cugraph_rng_state_create(handle, seed, &rng_state, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "rng_state create failed.");
 
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "create_test_graph failed.");
   TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
-  
+
   ret_code = cugraph_balanced_cut_clustering(handle,
                                              rng_state,
                                              graph,
@@ -251,7 +250,7 @@ int generic_balanced_cut_test(vertex_t* h_src,
     TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
 
     TEST_ASSERT(test_ret_value, edge_cut < max_edge_cut, "invalid edge_cut");
-    
+
     // FIXME: Random algorithm hence the is no were to guarantee consistent results
     // across all architectures
     /*
@@ -272,7 +271,6 @@ int generic_balanced_cut_test(vertex_t* h_src,
   return test_ret_value;
 }
 
-
 int test_spectral()
 {
   size_t num_clusters        = 2;
@@ -283,13 +281,13 @@ int test_spectral()
   int evs_max_iterations     = 100;
   double k_means_tolerance   = 0.001;
   int k_means_max_iterations = 100;
-  size_t seed = 10;
+  size_t seed                = 10;
 
   vertex_t h_src[] = {0, 0, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 5, 5};
   vertex_t h_dst[] = {1, 2, 0, 2, 0, 1, 3, 2, 4, 5, 3, 5, 3, 4};
   weight_t h_wgt[] = {
     0.1f, 0.2f, 0.1f, 1.2f, 0.2f, 1.2f, 2.3f, 2.3f, 3.4f, 3.5f, 3.4f, 4.5f, 3.5f, 4.5f};
-  
+
   weight_t max_edge_cut = 55;
 
   // spectral clustering wants store_transposed = FALSE
@@ -309,7 +307,6 @@ int test_spectral()
                                FALSE);
 }
 
-
 int test_balanced_cut_unequal_weight()
 {
   size_t num_clusters        = 2;
@@ -320,7 +317,7 @@ int test_balanced_cut_unequal_weight()
   int evs_max_iterations     = 100;
   double k_means_tolerance   = 0.001;
   int k_means_max_iterations = 100;
-  size_t seed = 10;
+  size_t seed                = 10;
 
   vertex_t h_src[] = {0, 0, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 5, 5};
   vertex_t h_dst[] = {1, 2, 0, 2, 0, 1, 3, 2, 4, 5, 3, 5, 3, 4};
@@ -361,7 +358,7 @@ int test_balanced_cut_equal_weight()
   int evs_max_iterations     = 100;
   double k_means_tolerance   = 0.001;
   int k_means_max_iterations = 100;
-  size_t seed = 10;
+  size_t seed                = 10;
 
   vertex_t h_src[]             = {0, 0, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 5, 5};
   vertex_t h_dst[]             = {1, 2, 0, 2, 0, 1, 3, 2, 4, 5, 3, 5, 3, 4};
@@ -400,7 +397,7 @@ int test_balanced_cut_no_weight()
   int evs_max_iterations     = 100;
   double k_means_tolerance   = 0.001;
   int k_means_max_iterations = 100;
-  size_t seed = 15;
+  size_t seed                = 15;
 
   vertex_t h_src[]             = {0, 0, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 5, 5};
   vertex_t h_dst[]             = {1, 2, 0, 2, 0, 1, 3, 2, 4, 5, 3, 5, 3, 4};
