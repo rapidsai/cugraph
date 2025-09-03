@@ -1246,7 +1246,7 @@ renumber_and_sort_sampled_edgelist(
  * @param edgelist_srcs A vector storing edgelist source vertices.
  * @param edgelist_dsts A vector storing edgelist destination vertices (size = @p
  * edgelist_srcs.size()).
- * @param edgelist_edge_properties An optional vector storing edgelist edge properties
+ * @param edgelist_edge_additional_properties An optional vector storing edgelist edge properties
  * @param edgelist_edge_ids An optional vector storing edgelist edge IDs (size = @p
  * edgelist_srcs.size() if valid).
  * @param edgelist_edge_types An optional vector storing edgelist edge types (size = @p
@@ -1305,7 +1305,7 @@ heterogeneous_renumber_and_sort_sampled_edgelist(
   raft::handle_t const& handle,
   rmm::device_uvector<vertex_t>&& edgelist_srcs,
   rmm::device_uvector<vertex_t>&& edgelist_dsts,
-  std::vector<arithmetic_device_uvector_t>&& edgelist_edge_properties,
+  std::vector<arithmetic_device_uvector_t>&& edgelist_edge_additional_properties,
   std::optional<rmm::device_uvector<edge_id_t>>&& edgelist_edge_ids,
   std::optional<rmm::device_uvector<edge_type_t>>&& edgelist_edge_types,
   std::optional<rmm::device_uvector<int32_t>>&& edgelist_hops,

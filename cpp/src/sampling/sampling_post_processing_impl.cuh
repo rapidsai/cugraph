@@ -3404,7 +3404,7 @@ heterogeneous_renumber_and_sort_sampled_edgelist(
   raft::handle_t const& handle,
   rmm::device_uvector<vertex_t>&& edgelist_srcs,
   rmm::device_uvector<vertex_t>&& edgelist_dsts,
-  std::vector<arithmetic_device_uvector_t>&& edgelist_edge_properties,
+  std::vector<arithmetic_device_uvector_t>&& edgelist_edge_additional_properties,
   std::optional<rmm::device_uvector<edge_id_t>>&& edgelist_edge_ids,
   std::optional<rmm::device_uvector<edge_type_t>>&& edgelist_edge_types,
   std::optional<rmm::device_uvector<int32_t>>&& edgelist_hops,
@@ -3427,13 +3427,15 @@ heterogeneous_renumber_and_sort_sampled_edgelist(
 
   // 1. check input arguments
   {
-    if (edgelist_edge_ids) { edgelist_edge_properties.push_back(std::move(*edgelist_edge_ids)); }
+    if (edgelist_edge_ids) {
+      edgelist_edge_additional_properties.push_back(std::move(*edgelist_edge_ids));
+    }
 
     check_input_edges<label_index_t, vertex_t, vertex_type_t>(
       handle,
       edgelist_majors,
       edgelist_minors,
-      edgelist_edge_properties,
+      edgelist_edge_additional_properties,
       edgelist_edge_types
         ? std::make_optional<const_arithmetic_device_span_t>(raft::device_span<edge_type_t const>{
             edgelist_edge_types->data(), edgelist_edge_types->size()})
@@ -3450,9 +3452,9 @@ heterogeneous_renumber_and_sort_sampled_edgelist(
       do_expensive_check);
 
     if (edgelist_edge_ids) {
-      edgelist_edge_ids =
-        std::move(std::get<rmm::device_uvector<edge_id_t>>(edgelist_edge_properties.back()));
-      edgelist_edge_properties.pop_back();
+      edgelist_edge_ids = std::move(
+        std::get<rmm::device_uvector<edge_id_t>>(edgelist_edge_additional_properties.back()));
+      edgelist_edge_additional_properties.pop_back();
     }
   }
   // 2. renumber
@@ -3504,21 +3506,24 @@ heterogeneous_renumber_and_sort_sampled_edgelist(
 
   // 3. sort by ((label), (edge type), (hop), major, minor)
   {
-    if (edgelist_edge_ids) { edgelist_edge_properties.push_back(std::move(*edgelist_edge_ids)); }
+    if (edgelist_edge_ids) {
+      edgelist_edge_additional_properties.push_back(std::move(*edgelist_edge_ids));
+    }
 
     std::optional<arithmetic_device_uvector_t> edgelist_edge_types_tmp{std::nullopt};
     std::tie(edgelist_majors,
              edgelist_minors,
-             edgelist_edge_properties,
+             edgelist_edge_additional_properties,
              edgelist_edge_types_tmp,
-             edgelist_hops) = sort_sampled_edge_tuples(handle,
-                                                       std::move(edgelist_majors),
-                                                       std::move(edgelist_minors),
-                                                       std::move(edgelist_edge_properties),
-                                                       std::move(edgelist_edge_types),
-                                                       std::move(edgelist_hops),
-                                                       edgelist_label_offsets,
-                                                       true);
+             edgelist_hops) =
+      sort_sampled_edge_tuples(handle,
+                               std::move(edgelist_majors),
+                               std::move(edgelist_minors),
+                               std::move(edgelist_edge_additional_properties),
+                               std::move(edgelist_edge_types),
+                               std::move(edgelist_hops),
+                               edgelist_label_offsets,
+                               true);
 
     if (edgelist_edge_types_tmp) {
       edgelist_edge_types =
@@ -3526,9 +3531,9 @@ heterogeneous_renumber_and_sort_sampled_edgelist(
     }
 
     if (edgelist_edge_ids) {
-      edgelist_edge_ids =
-        std::move(std::get<rmm::device_uvector<edge_id_t>>(edgelist_edge_properties.back()));
-      edgelist_edge_properties.pop_back();
+      edgelist_edge_ids = std::move(
+        std::get<rmm::device_uvector<edge_id_t>>(edgelist_edge_additional_properties.back()));
+      edgelist_edge_additional_properties.pop_back();
     }
   }
 
@@ -3613,7 +3618,7 @@ heterogeneous_renumber_and_sort_sampled_edgelist(
 
   return std::make_tuple(std::move(src_is_major ? edgelist_majors : edgelist_minors),
                          std::move(src_is_major ? edgelist_minors : edgelist_majors),
-                         std::move(edgelist_edge_properties),
+                         std::move(edgelist_edge_additional_properties),
                          std::move(edgelist_edge_ids),
                          std::move(edgelist_label_type_hop_offsets),
                          std::move(vertex_renumber_map),
