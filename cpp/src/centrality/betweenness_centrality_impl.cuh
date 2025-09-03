@@ -1187,9 +1187,7 @@ rmm::device_uvector<weight_t> betweenness_centrality(
   }
 
   if constexpr (multi_gpu) {
-    // Multi-GPU: Use sequential brandes_bfs (more reliable for cross-GPU)
-
-    // Process each source individually using brandes_bfs
+    // Multi-GPU: Use sequential version
     for (size_t source_idx = 0; source_idx < num_sources; ++source_idx) {
       //
       //  BFS
@@ -1218,23 +1216,39 @@ rmm::device_uvector<weight_t> betweenness_centrality(
         do_expensive_check);
     }
   } else {
-    // Single-GPU: Use parallel multisource_bfs (faster)
+    // Single-GPU: Use parallel version
+    // Process sources in batches to respect origin_t (uint16_t) limit
+    constexpr size_t max_sources_per_batch = std::numeric_limits<uint16_t>::max();
 
-    auto [distances_2d, sigmas_2d] = detail::multisource_bfs(
-      handle, graph_view, edge_weight_view, vertices_begin, vertices_end, do_expensive_check);
+    size_t num_sources = cuda::std::distance(vertices_begin, vertices_end);
+    size_t num_batches = (num_sources + max_sources_per_batch - 1) / max_sources_per_batch;
 
-    // Use parallel multisource backward pass for better performance
-    detail::multisource_backward_pass(
-      handle,
-      graph_view,
-      edge_weight_view,
-      raft::device_span<weight_t>{centralities.data(), centralities.size()},
-      std::move(distances_2d),
-      std::move(sigmas_2d),
-      vertices_begin,
-      vertices_end,
-      include_endpoints,
-      do_expensive_check);
+    for (size_t batch_idx = 0; batch_idx < num_batches; ++batch_idx) {
+      size_t batch_start = batch_idx * max_sources_per_batch;
+      size_t batch_end   = std::min(batch_start + max_sources_per_batch, num_sources);
+
+      auto batch_vertices_begin = vertices_begin + batch_start;
+      auto batch_vertices_end   = vertices_begin + batch_end;
+
+      auto [distances_2d, sigmas_2d] = detail::multisource_bfs(handle,
+                                                               graph_view,
+                                                               edge_weight_view,
+                                                               batch_vertices_begin,
+                                                               batch_vertices_end,
+                                                               do_expensive_check);
+
+      detail::multisource_backward_pass(
+        handle,
+        graph_view,
+        edge_weight_view,
+        raft::device_span<weight_t>{centralities.data(), centralities.size()},
+        std::move(distances_2d),
+        std::move(sigmas_2d),
+        batch_vertices_begin,
+        batch_vertices_end,
+        include_endpoints,
+        do_expensive_check);
+    }
   }
 
   std::optional<weight_t> scale_nonsource{std::nullopt};
