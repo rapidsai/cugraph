@@ -754,7 +754,7 @@ void multisource_backward_pass(
                                                 vertex_t{0},
                                                 thrust::maximum<vertex_t>());
 
-  // PRE-COMPUTE: Partition all (vertex, source) pairs by distance ONCE
+  // Pre-compute: Partition all (vertex, source) pairs by distance once
   // This eliminates the need to scan the distance array global_max_distance times
   rmm::device_uvector<size_t> distance_counts(global_max_distance + 1, handle.get_stream());
   thrust::fill(
@@ -999,7 +999,7 @@ void multisource_backward_pass(
             return distances[dst_offset] == d;
           }));
 
-      // Work directly with the result buffer (no temporaries needed)
+      // Work directly with the result buffer
       size_t num_edges = size_dataframe_buffer(edge_tuples_buffer);
 
       if (num_edges > 0) {
@@ -1016,7 +1016,7 @@ void multisource_backward_pass(
           thrust::make_zip_iterator(srcs.end(), source_indices.end()),
           deltas.begin());  // Values to sort
 
-        // Step 4: Use reduce_by_key with in-place reduction (no temporaries needed)
+        // Step 4: Use reduce_by_key with in-place reduction
         // Reduce by key and get count in one operation - overwrite input buffers
         auto reduced_result = thrust::reduce_by_key(
           handle.get_thrust_policy(),
