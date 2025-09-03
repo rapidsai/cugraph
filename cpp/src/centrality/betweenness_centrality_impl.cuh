@@ -558,17 +558,15 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> multisour
   constexpr size_t bucket_idx_next    = 1;
   constexpr size_t num_buckets        = 2;
 
-  using origin_t = uint32_t;  // Source index type
-
-  // Check that number of sources doesn't overflow origin_t
-  CUGRAPH_EXPECTS(
-    cuda::std::distance(vertex_first, vertex_last) <= std::numeric_limits<origin_t>::max(),
-    "Number of sources exceeds maximum value for origin_t (uint32_t), would cause overflow");
-
   // Use 2D arrays to track per-source distances and sigmas
   // Layout: [source_idx * num_vertices + vertex_idx]
   auto num_vertices = graph_view.local_vertex_partition_range_size();
   auto num_sources  = cuda::std::distance(vertex_first, vertex_last);
+
+  using origin_t = uint16_t;
+  CUGRAPH_EXPECTS(
+    num_sources <= std::numeric_limits<origin_t>::max(),
+    "Number of sources exceeds maximum value for origin_t (uint16_t), would cause overflow");
 
   rmm::device_uvector<edge_t> sigmas_2d(num_sources * num_vertices, handle.get_stream());
   rmm::device_uvector<vertex_t> distances_2d(num_sources * num_vertices, handle.get_stream());
@@ -599,8 +597,8 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> multisour
                       d_distance_2d = distances_2d.begin(),
                       vertex_partition,
                       num_vertices] __device__(auto tagged_source) {
-                       auto v      = thrust::get<0>(tagged_source);
-                       auto origin = thrust::get<1>(tagged_source);
+                       auto v      = cuda::std::get<0>(tagged_source);
+                       auto origin = cuda::std::get<1>(tagged_source);
                        auto offset =
                          vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(v);
                        auto idx           = origin * num_vertices + offset;
@@ -613,7 +611,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> multisour
 
   while (vertex_frontier.bucket(bucket_idx_cur).aggregate_size() > 0) {
     // Step 1: Extract ALL edges from frontier (filtered by unvisited vertices)
-    using bfs_edge_tuple_t = thrust::tuple<vertex_t, origin_t, edge_t>;
+    using bfs_edge_tuple_t = cuda::std::tuple<vertex_t, origin_t, edge_t>;
 
     auto new_frontier_tagged_vertex_buffer = extract_transform_if_v_frontier_outgoing_e(
       handle,
@@ -625,13 +623,13 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> multisour
       cuda::proclaim_return_type<bfs_edge_tuple_t>(
         [d_sigma_2d = sigmas_2d.begin(), num_vertices, vertex_partition] __device__(
           auto tagged_src, auto dst, auto, auto, auto) {
-          auto src        = thrust::get<0>(tagged_src);
-          auto origin     = thrust::get<1>(tagged_src);
+          auto src        = cuda::std::get<0>(tagged_src);
+          auto origin     = cuda::std::get<1>(tagged_src);
           auto src_offset = vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(src);
           auto src_idx    = origin * num_vertices + src_offset;
           auto src_sigma  = static_cast<edge_t>(d_sigma_2d[src_idx]);
 
-          return thrust::make_tuple(dst, origin, src_sigma);
+          return cuda::std::make_tuple(dst, origin, src_sigma);
         }),
       // PREDICATE: only process edges to unvisited vertices
       cuda::proclaim_return_type<bool>(
@@ -639,7 +637,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> multisour
          num_vertices,
          vertex_partition,
          invalid_distance] __device__(auto tagged_src, auto dst, auto, auto, auto) {
-          auto origin     = thrust::get<1>(tagged_src);
+          auto origin     = cuda::std::get<1>(tagged_src);
           auto dst_offset = vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(dst);
           auto dst_idx    = origin * num_vertices + dst_offset;
           return d_distances_2d[dst_idx] == invalid_distance;
@@ -658,13 +656,6 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> multisour
       thrust::make_zip_iterator(frontier_vertices.end(), frontier_origins.end()),
       sigmas.begin());
 
-    // Reduce by key to sum sigmas for identical (destination, origin) pairs
-    auto num_unique = thrust::unique_count(
-      handle.get_thrust_policy(),
-      thrust::make_zip_iterator(frontier_vertices.begin(), frontier_origins.begin()),
-      thrust::make_zip_iterator(frontier_vertices.end(), frontier_origins.end()),
-      [] __device__(auto const& a, auto const& b) { return a == b; });
-
     // Use in-place reduction to avoid temporaries
     auto reduced_result = thrust::reduce_by_key(
       handle.get_thrust_policy(),
@@ -674,7 +665,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> multisour
       thrust::make_zip_iterator(frontier_vertices.begin(),
                                 frontier_origins.begin()),  // Output keys (overwrite input)
       sigmas.begin(),                                       // Output values (overwrite input)
-      thrust::equal_to<thrust::tuple<vertex_t, origin_t>>{},
+      thrust::equal_to<cuda::std::tuple<vertex_t, origin_t>>{},
       thrust::plus<edge_t>{});
 
     // Step 3: Manual array updates using in-place reduced data
@@ -683,17 +674,17 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> multisour
     thrust::for_each(handle.get_thrust_policy(),
                      thrust::make_zip_iterator(
                        frontier_vertices.begin(), frontier_origins.begin(), sigmas.begin()),
-                     thrust::make_zip_iterator(frontier_vertices.begin() + num_reduced,
-                                               frontier_origins.begin() + num_reduced,
-                                               sigmas.begin() + num_reduced),
+                     thrust::make_zip_iterator(
+                       frontier_vertices.begin(), frontier_origins.begin(), sigmas.begin()) +
+                       num_reduced,
                      [d_distances_2d = distances_2d.begin(),
                       d_sigmas_2d    = sigmas_2d.begin(),
                       num_vertices,
                       hop,
                       vertex_partition] __device__(auto tuple) {
-                       auto v      = thrust::get<0>(tuple);
-                       auto origin = thrust::get<1>(tuple);
-                       auto sigma  = thrust::get<2>(tuple);
+                       auto v      = cuda::std::get<0>(tuple);
+                       auto origin = cuda::std::get<1>(tuple);
+                       auto sigma  = cuda::std::get<2>(tuple);
                        auto offset =
                          vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(v);
                        auto idx = origin * num_vertices + offset;
@@ -708,8 +699,8 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> multisour
     vertex_frontier.bucket(bucket_idx_cur).clear();
     vertex_frontier.bucket(bucket_idx_next)
       .insert(thrust::make_zip_iterator(frontier_vertices.begin(), frontier_origins.begin()),
-              thrust::make_zip_iterator(frontier_vertices.begin() + num_reduced,
-                                        frontier_origins.begin() + num_reduced));
+              thrust::make_zip_iterator(frontier_vertices.begin(), frontier_origins.begin()) +
+                num_reduced);
 
     vertex_frontier.swap_buckets(bucket_idx_cur, bucket_idx_next);
     ++hop;
@@ -738,7 +729,10 @@ void multisource_backward_pass(
   auto num_vertices = static_cast<size_t>(graph_view.local_vertex_partition_range_size());
   auto num_sources  = cuda::std::distance(sources_first, sources_last);
 
-  using origin_t = uint32_t;
+  using origin_t = uint16_t;
+  CUGRAPH_EXPECTS(
+    num_sources <= std::numeric_limits<origin_t>::max(),
+    "Number of sources exceeds maximum value for origin_t (uint16_t), would cause overflow");
 
   thrust::fill(handle.get_thrust_policy(), centralities.begin(), centralities.end(), weight_t{0});
 
@@ -882,134 +876,129 @@ void multisource_backward_pass(
 
     size_t cumulative_vertices = 0;
     for (vertex_t d = 0; d <= global_max_distance; ++d) {
-      if (distance_buckets_vertices[d].size() > 0) {
-        cumulative_vertices += distance_buckets_vertices[d].size();
-        distance_level_offsets.push_back(cumulative_vertices);
-      }
+      cumulative_vertices += distance_buckets_vertices[d].size();
+      distance_level_offsets.push_back(cumulative_vertices);
     }
 
-    if (distance_level_offsets.size() > 1) {
-      // Copy offsets to device for chunking function
-      rmm::device_uvector<size_t> d_distance_level_offsets(distance_level_offsets.size(),
-                                                           handle.get_stream());
-      raft::update_device(d_distance_level_offsets.data(),
-                          distance_level_offsets.data(),
-                          distance_level_offsets.size(),
-                          handle.get_stream());
+    // Copy offsets to device for chunking function
+    rmm::device_uvector<size_t> d_distance_level_offsets(distance_level_offsets.size(),
+                                                         handle.get_stream());
+    raft::update_device(d_distance_level_offsets.data(),
+                        distance_level_offsets.data(),
+                        distance_level_offsets.size(),
+                        handle.get_stream());
 
-      auto [h_distance_level_chunk_offsets, h_vertex_chunk_offsets] =
-        detail::compute_offset_aligned_element_chunks(
-          handle,
-          raft::device_span<size_t const>(d_distance_level_offsets.data(),
-                                          d_distance_level_offsets.size()),
-          total_vertices,
-          approx_vertices_to_sort_per_iteration);
+    auto [h_distance_level_chunk_offsets, h_vertex_chunk_offsets] =
+      detail::compute_offset_aligned_element_chunks(
+        handle,
+        raft::device_span<size_t const>(d_distance_level_offsets.data(),
+                                        d_distance_level_offsets.size()),
+        total_vertices,
+        approx_vertices_to_sort_per_iteration);
 
-      auto num_chunks = h_distance_level_chunk_offsets.size() - 1;
+    auto num_chunks = h_distance_level_chunk_offsets.size() - 1;
 
-      // Find max chunk size for memory allocation
-      size_t max_chunk_size = 0;
-      for (size_t i = 0; i < num_chunks; ++i) {
-        max_chunk_size =
-          std::max(max_chunk_size,
-                   static_cast<size_t>(h_vertex_chunk_offsets[i + 1] - h_vertex_chunk_offsets[i]));
+    // Find max chunk size for memory allocation
+    size_t max_chunk_size = 0;
+    for (size_t i = 0; i < num_chunks; ++i) {
+      max_chunk_size =
+        std::max(max_chunk_size,
+                 static_cast<size_t>(h_vertex_chunk_offsets[i + 1] - h_vertex_chunk_offsets[i]));
+    }
+
+    // Allocate reusable arrays for chunks
+    rmm::device_uvector<vertex_t> chunk_vertices(max_chunk_size, handle.get_stream());
+    rmm::device_uvector<origin_t> chunk_sources(max_chunk_size, handle.get_stream());
+    rmm::device_uvector<std::byte> d_tmp_storage(0, handle.get_stream());
+
+    // Process each chunk
+    for (size_t chunk_i = 0; chunk_i < num_chunks; ++chunk_i) {
+      size_t chunk_vertex_start    = h_vertex_chunk_offsets[chunk_i];
+      size_t chunk_vertex_end      = h_vertex_chunk_offsets[chunk_i + 1];
+      size_t chunk_distance_start  = h_distance_level_chunk_offsets[chunk_i];
+      size_t chunk_distance_end    = h_distance_level_chunk_offsets[chunk_i + 1];
+      size_t chunk_size            = chunk_vertex_end - chunk_vertex_start;
+      size_t num_segments_in_chunk = chunk_distance_end - chunk_distance_start;
+
+      // Gather data for this chunk from original bucket arrays
+      size_t write_offset = 0;
+      std::vector<size_t> chunk_segment_offsets;
+      chunk_segment_offsets.push_back(0);
+
+      // Copy data for distance levels in this chunk
+      for (size_t level_idx = chunk_distance_start; level_idx < chunk_distance_end; ++level_idx) {
+        vertex_t d        = level_idx;
+        size_t level_size = distance_buckets_vertices[d].size();
+
+        // Copy vertices
+        thrust::copy(handle.get_thrust_policy(),
+                     distance_buckets_vertices[d].begin(),
+                     distance_buckets_vertices[d].end(),
+                     chunk_vertices.begin() + write_offset);
+
+        // Copy sources
+        thrust::copy(handle.get_thrust_policy(),
+                     distance_buckets_sources[d].begin(),
+                     distance_buckets_sources[d].end(),
+                     chunk_sources.begin() + write_offset);
+
+        write_offset += level_size;
+        chunk_segment_offsets.push_back(write_offset);
       }
 
-      // Allocate reusable arrays for chunks
-      rmm::device_uvector<vertex_t> chunk_vertices(max_chunk_size, handle.get_stream());
-      rmm::device_uvector<origin_t> chunk_sources(max_chunk_size, handle.get_stream());
-      rmm::device_uvector<std::byte> d_tmp_storage(0, handle.get_stream());
+      if (num_segments_in_chunk > 0) {
+        auto offset_first = thrust::make_transform_iterator(
+          distance_level_offsets.data() + chunk_distance_start,
+          [chunk_vertex_start] __device__(size_t offset) { return offset - chunk_vertex_start; });
 
-      // Process each chunk
-      for (size_t chunk_i = 0; chunk_i < num_chunks; ++chunk_i) {
-        size_t chunk_vertex_start    = h_vertex_chunk_offsets[chunk_i];
-        size_t chunk_vertex_end      = h_vertex_chunk_offsets[chunk_i + 1];
-        size_t chunk_distance_start  = h_distance_level_chunk_offsets[chunk_i];
-        size_t chunk_distance_end    = h_distance_level_chunk_offsets[chunk_i + 1];
-        size_t chunk_size            = chunk_vertex_end - chunk_vertex_start;
-        size_t num_segments_in_chunk = chunk_distance_end - chunk_distance_start;
+        // CUB segmented sort for this chunk
+        size_t temp_storage_bytes = 0;
+        cub::DeviceSegmentedSort::SortPairs(nullptr,
+                                            temp_storage_bytes,
+                                            chunk_vertices.data(),
+                                            chunk_vertices.data(),
+                                            chunk_sources.data(),
+                                            chunk_sources.data(),
+                                            chunk_size,
+                                            num_segments_in_chunk,
+                                            offset_first,
+                                            offset_first + 1,
+                                            handle.get_stream());
 
-        // Gather data for this chunk from original bucket arrays
-        size_t write_offset = 0;
-        std::vector<size_t> chunk_segment_offsets;
-        chunk_segment_offsets.push_back(0);
+        if (temp_storage_bytes > d_tmp_storage.size()) {
+          d_tmp_storage = rmm::device_uvector<std::byte>(temp_storage_bytes, handle.get_stream());
+        }
 
-        // Copy data for distance levels in this chunk
+        cub::DeviceSegmentedSort::SortPairs(d_tmp_storage.data(),
+                                            temp_storage_bytes,
+                                            chunk_vertices.data(),
+                                            chunk_vertices.data(),
+                                            chunk_sources.data(),
+                                            chunk_sources.data(),
+                                            chunk_size,
+                                            num_segments_in_chunk,
+                                            offset_first,
+                                            offset_first + 1,
+                                            handle.get_stream());
+
+        // Scatter results back to original bucket arrays
+        size_t read_offset = 0;
         for (size_t level_idx = chunk_distance_start; level_idx < chunk_distance_end; ++level_idx) {
           vertex_t d        = level_idx;
           size_t level_size = distance_buckets_vertices[d].size();
 
-          // Copy vertices
+          // Copy sorted vertices back to original bucket
           thrust::copy(handle.get_thrust_policy(),
-                       distance_buckets_vertices[d].begin(),
-                       distance_buckets_vertices[d].end(),
-                       chunk_vertices.begin() + write_offset);
+                       chunk_vertices.begin() + read_offset,
+                       chunk_vertices.begin() + read_offset + level_size,
+                       distance_buckets_vertices[d].begin());
 
-          // Copy sources
           thrust::copy(handle.get_thrust_policy(),
-                       distance_buckets_sources[d].begin(),
-                       distance_buckets_sources[d].end(),
-                       chunk_sources.begin() + write_offset);
+                       chunk_sources.begin() + read_offset,
+                       chunk_sources.begin() + read_offset + level_size,
+                       distance_buckets_sources[d].begin());
 
-          write_offset += level_size;
-          chunk_segment_offsets.push_back(write_offset);
-        }
-
-        if (num_segments_in_chunk > 0) {
-          auto offset_first = thrust::make_transform_iterator(
-            distance_level_offsets.data() + chunk_distance_start,
-            [chunk_vertex_start] __device__(size_t offset) { return offset - chunk_vertex_start; });
-
-          // CUB segmented sort for this chunk
-          size_t temp_storage_bytes = 0;
-          cub::DeviceSegmentedSort::SortPairs(nullptr,
-                                              temp_storage_bytes,
-                                              chunk_vertices.data(),
-                                              chunk_vertices.data(),
-                                              chunk_sources.data(),
-                                              chunk_sources.data(),
-                                              chunk_size,
-                                              num_segments_in_chunk,
-                                              offset_first,
-                                              offset_first + 1,
-                                              handle.get_stream());
-
-          if (temp_storage_bytes > d_tmp_storage.size()) {
-            d_tmp_storage = rmm::device_uvector<std::byte>(temp_storage_bytes, handle.get_stream());
-          }
-
-          cub::DeviceSegmentedSort::SortPairs(d_tmp_storage.data(),
-                                              temp_storage_bytes,
-                                              chunk_vertices.data(),
-                                              chunk_vertices.data(),
-                                              chunk_sources.data(),
-                                              chunk_sources.data(),
-                                              chunk_size,
-                                              num_segments_in_chunk,
-                                              offset_first,
-                                              offset_first + 1,
-                                              handle.get_stream());
-
-          // Scatter results back to original bucket arrays
-          size_t read_offset = 0;
-          for (size_t level_idx = chunk_distance_start; level_idx < chunk_distance_end;
-               ++level_idx) {
-            vertex_t d        = level_idx;
-            size_t level_size = distance_buckets_vertices[d].size();
-
-            // Copy sorted vertices back to original bucket
-            thrust::copy(handle.get_thrust_policy(),
-                         chunk_vertices.begin() + read_offset,
-                         chunk_vertices.begin() + read_offset + level_size,
-                         distance_buckets_vertices[d].begin());
-
-            thrust::copy(handle.get_thrust_policy(),
-                         chunk_sources.begin() + read_offset,
-                         chunk_sources.begin() + read_offset + level_size,
-                         distance_buckets_sources[d].begin());
-
-            read_offset += level_size;
-          }
+          read_offset += level_size;
         }
       }
     }
@@ -1019,7 +1008,7 @@ void multisource_backward_pass(
   for (vertex_t d = global_max_distance; d > 1; --d) {
     // Step 1: Create vertex frontier with all vertices at distance d-1 for all sources
     // Use tagged vertices with (vertex, source_idx) pairs
-    using tagged_vertex_t = thrust::tuple<vertex_t, size_t>;
+    using tagged_vertex_t = cuda::std::tuple<vertex_t, size_t>;
 
     // Get vertices at distance d-1 from pre-computed buckets (O(1) lookup)
     auto& frontier_vertices            = distance_buckets_vertices[d - 1];
@@ -1046,7 +1035,7 @@ void multisource_backward_pass(
         edge_src_dummy_property_t{}.view(),
         edge_dst_dummy_property_t{}.view(),
         edge_dummy_property_t{}.view(),
-        cuda::proclaim_return_type<thrust::tuple<vertex_t, origin_t, vertex_t, weight_t>>(
+        cuda::proclaim_return_type<cuda::std::tuple<vertex_t, origin_t, vertex_t, weight_t>>(
           [d,
            distances_2d = distances_2d.data(),
            sigmas_2d    = sigmas_2d.data(),
@@ -1054,8 +1043,8 @@ void multisource_backward_pass(
            num_vertices,
            invalid_distance,
            v_first] __device__(auto tagged_src, auto dst, auto, auto, auto) {
-            auto src        = thrust::get<0>(tagged_src);
-            auto source_idx = thrust::get<1>(tagged_src);
+            auto src        = cuda::std::get<0>(tagged_src);
+            auto source_idx = cuda::std::get<1>(tagged_src);
 
             // Calculate delta using Brandes formula with accumulated deltas
             const vertex_t* distances = distances_2d + source_idx * num_vertices;
@@ -1072,13 +1061,13 @@ void multisource_backward_pass(
             weight_t delta_w = deltas[dst_offset];
             weight_t delta   = (sigma_v / sigma_w) * (1 + delta_w);
 
-            return thrust::make_tuple(src, source_idx, dst, delta);
+            return cuda::std::make_tuple(src, source_idx, dst, delta);
           }),
         // PREDICATE: only process edges where dst is at distance d
         cuda::proclaim_return_type<bool>(
           [d, distances_2d = distances_2d.data(), num_vertices, v_first] __device__(
             auto tagged_src, auto dst, auto, auto, auto) {
-            auto source_idx           = thrust::get<1>(tagged_src);
+            auto source_idx           = cuda::std::get<1>(tagged_src);
             const vertex_t* distances = distances_2d + source_idx * num_vertices;
             auto dst_offset           = dst - v_first;
             return distances[dst_offset] == d;
@@ -1111,7 +1100,7 @@ void multisource_backward_pass(
           thrust::make_zip_iterator(srcs.begin(),
                                     source_indices.begin()),  // Output keys (overwrite input)
           deltas.begin(),                                     // Output values (overwrite input)
-          thrust::equal_to<thrust::tuple<vertex_t, origin_t>>{},
+          thrust::equal_to<cuda::std::tuple<vertex_t, origin_t>>{},
           thrust::plus<weight_t>{});
 
         // Get num_unique from the result
