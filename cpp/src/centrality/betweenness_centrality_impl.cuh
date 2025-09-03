@@ -738,9 +738,8 @@ void multisource_backward_pass(
   auto num_vertices = static_cast<size_t>(graph_view.local_vertex_partition_range_size());
   auto num_sources  = cuda::std::distance(sources_first, sources_last);
 
-  using origin_t = uint32_t;  // Source index type
+  using origin_t = uint32_t;
 
-  // Initialize centrality array to zero
   thrust::fill(handle.get_thrust_policy(), centralities.begin(), centralities.end(), weight_t{0});
 
   // Allocate delta accumulation buffer for all sources
@@ -763,8 +762,6 @@ void multisource_backward_pass(
 
   // PRE-COMPUTE: Partition all (vertex, source) pairs by distance ONCE
   // This eliminates the need to scan the distance array global_max_distance times
-
-  // Count vertices at each distance level first
   rmm::device_uvector<size_t> distance_counts(global_max_distance + 1, handle.get_stream());
   thrust::fill(
     handle.get_thrust_policy(), distance_counts.begin(), distance_counts.end(), size_t{0});
@@ -872,13 +869,12 @@ void multisource_backward_pass(
     total_vertices += distance_buckets_vertices[d].size();
   }
 
-  // Sort vertices by vertex ID within each distance level using chunked CUB segmented sort
+  // CUB segmented sort: Sort vertices by vertex ID within each distance level
   if (total_vertices > 0) {
     // Calculate target chunk size based on GPU hardware
-    // Reduced from (1 << 20) to (1 << 16) to avoid memory issues with large graphs
     auto approx_vertices_to_sort_per_iteration =
       static_cast<size_t>(handle.get_device_properties().multiProcessorCount) *
-      (1 << 20); /* tuning parameter - 64K vertices per SM */
+      (1 << 20); /* tuning parameter */
 
     // Build distance level offsets array for chunking
     std::vector<size_t> distance_level_offsets;
@@ -1031,9 +1027,8 @@ void multisource_backward_pass(
     size_t total_vertices_at_d_minus_1 = frontier_vertices.size();
 
     if (total_vertices_at_d_minus_1 > 0) {
-      // Step 3: Use extract_transform_if_v_frontier_e to enumerate all qualifying edges
+      // Step 2: Use extract_transform_if_v_frontier_e to enumerate all qualifying edges
       // This extracts (src, tag, dst) triplets as recommended
-      // CUB SORT: Sort frontier vertices by vertex ID for better processing order
       size_t frontier_size = frontier_vertices.size();
 
       // Create a proper frontier object for the tagged vertices
@@ -1070,7 +1065,6 @@ void multisource_backward_pass(
             auto src_offset = src - v_first;
             auto dst_offset = dst - v_first;
 
-            // Calculate delta using Brandes formula with accumulated deltas
             auto sigma_v = static_cast<weight_t>(sigmas[src_offset]);
             auto sigma_w = static_cast<weight_t>(sigmas[dst_offset]);
 
@@ -1091,7 +1085,6 @@ void multisource_backward_pass(
           }));
 
       // Work directly with the result buffer (no temporaries needed)
-
       size_t num_edges = size_dataframe_buffer(edge_tuples_buffer);
 
       if (num_edges > 0) {
@@ -1101,14 +1094,14 @@ void multisource_backward_pass(
         auto& dsts           = std::get<2>(edge_tuples_buffer);
         auto& deltas         = std::get<3>(edge_tuples_buffer);
 
-        // Step 4: Sort using (src, source_index) as composite key for efficient reduction
+        // Step 3: Sort using (src, source_index) as composite key for efficient reduction
         thrust::stable_sort_by_key(
           handle.get_thrust_policy(),
           thrust::make_zip_iterator(srcs.begin(), source_indices.begin()),  // Composite key
           thrust::make_zip_iterator(srcs.end(), source_indices.end()),
           deltas.begin());  // Values to sort
 
-        // Step 5: Use reduce_by_key with in-place reduction (no temporaries needed)
+        // Step 4: Use reduce_by_key with in-place reduction (no temporaries needed)
         // Reduce by key and get count in one operation - overwrite input buffers
         auto reduced_result = thrust::reduce_by_key(
           handle.get_thrust_policy(),
@@ -1116,15 +1109,15 @@ void multisource_backward_pass(
           thrust::make_zip_iterator(srcs.end(), source_indices.end()),
           deltas.begin(),
           thrust::make_zip_iterator(srcs.begin(),
-                                    source_indices.begin()),      // Output keys (overwrite input)
-          deltas.begin(),                                         // Output values (overwrite input)
-          thrust::equal_to<thrust::tuple<vertex_t, origin_t>>{},  // BinaryPredicate: compare keys
-          thrust::plus<weight_t>{});                              // BinaryFunction: sum values
+                                    source_indices.begin()),  // Output keys (overwrite input)
+          deltas.begin(),                                     // Output values (overwrite input)
+          thrust::equal_to<thrust::tuple<vertex_t, origin_t>>{},
+          thrust::plus<weight_t>{});
 
         // Get num_unique from the result
         size_t num_unique = reduced_result.second - deltas.begin();
 
-        // Step 6: Update centralities and deltas from the in-place reduced results
+        // Step 5: Update centralities and deltas from the in-place reduced results
         thrust::for_each(
           handle.get_thrust_policy(),
           thrust::make_counting_iterator<size_t>(0),
