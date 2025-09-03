@@ -73,7 +73,7 @@ def ego_graph(G, n, radius=1, center=True, undirected=None, distance=None):
     >>> ego_graph = cugraph.ego_graph(G, 1, radius=2)
 
     """
-    (G, input_type) = ensure_cugraph_obj(G, nx_weight_attr="weight")
+    (G, input_type) = ensure_cugraph_obj(G)
 
     result_graph = type(G)(directed=G.is_directed())
 

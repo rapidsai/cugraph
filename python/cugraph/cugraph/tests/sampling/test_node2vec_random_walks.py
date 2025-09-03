@@ -15,12 +15,10 @@ import gc
 import random
 
 import pytest
-import networkx as nx
 
 import cudf
 import cugraph
 from cudf.testing.testing import assert_frame_equal
-from cugraph.utilities import ensure_cugraph_obj_for_nx
 from cugraph.testing import SMALL_DATASETS, DEFAULT_DATASETS
 
 
@@ -46,7 +44,7 @@ def calc_node2vec_random_walks(G, max_depth=None):
 
     parameters
     ----------
-    G : cuGraph.Graph or networkx.Graph
+    G : cuGraph.Graph
         The graph can be either directed or undirected.
         Weights in the graph are ignored.
         Use weight parameter if weights need to be considered
@@ -69,8 +67,6 @@ def calc_node2vec_random_walks(G, max_depth=None):
     """
     assert G is not None
 
-    G, _ = ensure_cugraph_obj_for_nx(G, nx_weight_attr="wgt")
-
     k = random.randint(1, 6)
 
     start_vertices = G.select_random_vertices(num_vertices=k)
@@ -91,7 +87,6 @@ def check_node2vec_random_walks(G, path_data, seeds, max_depth):
     e_wgt_paths = path_data[1]
     e_wgt_idx = 0
 
-    G, _ = ensure_cugraph_obj_for_nx(G, nx_weight_attr="wgt")
     df_G = G.input_df
 
     if "weight" in df_G.columns:
@@ -224,30 +219,6 @@ def test_node2vec_random_walks(graph_file, directed):
     path_data, seeds = calc_node2vec_random_walks(input_graph, max_depth=max_depth)
 
     check_node2vec_random_walks(input_graph, path_data, seeds, max_depth)
-
-
-@pytest.mark.sg
-@pytest.mark.parametrize("graph_file", SMALL_DATASETS)
-def test_node2vec_random_walks_nx(graph_file):
-    G = graph_file.get_graph(create_using=cugraph.Graph(directed=True))
-
-    M = G.to_pandas_edgelist()
-
-    source = G.source_columns
-    target = G.destination_columns
-    edge_attr = G.weight_column
-
-    Gnx = nx.from_pandas_edgelist(
-        M,
-        source=source,
-        target=target,
-        edge_attr=edge_attr,
-        create_using=nx.DiGraph(),
-    )
-    max_depth = random.randint(2, 10)
-    path_data, seeds = calc_node2vec_random_walks(Gnx, max_depth=max_depth)
-
-    check_node2vec_random_walks(Gnx, path_data, seeds, max_depth)
 
 
 @pytest.mark.sg
