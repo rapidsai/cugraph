@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2024, NVIDIA CORPORATION.
+# Copyright (c) 2022-2025, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -63,7 +63,7 @@ def eigenvector_centrality(input_graph, max_iter=100, tol=1.0e-6):
 
     Parameters
     ----------
-    input_graph : cuGraph.Graph or networkx.Graph
+    input_graph : cuGraph.Graph
         cuGraph graph descriptor with connectivity information. The graph can
         contain either directed or undirected edges.
 

@@ -100,9 +100,9 @@ combine_edgelists(raft::handle_t const& handle,
       thrust::make_zip_iterator(sources.begin(), dests.begin(), optional_d_weights.value().begin()),
       sources.size(),
       [](auto tuple) {
-        CUGRAPH_EXPECTS(thrust::get<0>(tuple).size() != thrust::get<1>(tuple).size(),
+        CUGRAPH_EXPECTS(cuda::std::get<0>(tuple).size() != cuda::std::get<1>(tuple).size(),
                         "source vertex and dest vertex uvectors must be same size");
-        CUGRAPH_EXPECTS(thrust::get<0>(tuple).size() != thrust::get<2>(tuple).size(),
+        CUGRAPH_EXPECTS(cuda::std::get<0>(tuple).size() != cuda::std::get<2>(tuple).size(),
                         "source vertex and weights uvectors must be same size");
       });
   } else {
@@ -111,7 +111,7 @@ combine_edgelists(raft::handle_t const& handle,
                        sources.size(),
                        [](auto tuple) {
                          CUGRAPH_EXPECTS(
-                           thrust::get<0>(tuple).size() == thrust::get<1>(tuple).size(),
+                           cuda::std::get<0>(tuple).size() == cuda::std::get<1>(tuple).size(),
                            "source vertex and dest vertex uvectors must be same size");
                        });
   }
@@ -141,7 +141,7 @@ combine_edgelists(raft::handle_t const& handle,
       auto end_iter   = thrust::unique_by_key(
         handle.get_thrust_policy(), pair_first, pair_first + srcs_v.size(), weights_v.begin());
 
-      number_of_edges = cuda::std::distance(pair_first, thrust::get<0>(end_iter));
+      number_of_edges = cuda::std::distance(pair_first, cuda::std::get<0>(end_iter));
     } else {
       thrust::sort(handle.get_thrust_policy(),
                    thrust::make_zip_iterator(srcs_v.begin(), dsts_v.begin()),
@@ -196,7 +196,7 @@ symmetrize_edgelist_from_triangular(raft::handle_t const& handle,
                                      edge_first,
                                      edge_first + d_src_v.size(),
                                      cuda::proclaim_return_type<bool>([] __device__(auto e) {
-                                       return thrust::get<0>(e) == thrust::get<1>(e);
+                                       return cuda::std::get<0>(e) == cuda::std::get<1>(e);
                                      }));
   }
 
@@ -238,7 +238,7 @@ symmetrize_edgelist_from_triangular(raft::handle_t const& handle,
         thrust::make_zip_iterator(new_dsts.begin(), new_srcs.begin(), new_weights->begin()) +
           old_size,
         cuda::proclaim_return_type<bool>(
-          [] __device__(auto e) { return thrust::get<0>(e) != thrust::get<1>(e); }));
+          [] __device__(auto e) { return cuda::std::get<0>(e) != cuda::std::get<1>(e); }));
     } else {
       thrust::copy(
         handle.get_thrust_policy(),
@@ -254,8 +254,9 @@ symmetrize_edgelist_from_triangular(raft::handle_t const& handle,
                       edge_first,
                       edge_first + old_size,
                       thrust::make_zip_iterator(new_dsts.begin(), new_srcs.begin()) + old_size,
-                      cuda::proclaim_return_type<bool>(
-                        [] __device__(auto e) { return thrust::get<0>(e) != thrust::get<1>(e); }));
+                      cuda::proclaim_return_type<bool>([] __device__(auto e) {
+                        return cuda::std::get<0>(e) != cuda::std::get<1>(e);
+                      }));
     } else {
       thrust::copy(handle.get_thrust_policy(),
                    edge_first,

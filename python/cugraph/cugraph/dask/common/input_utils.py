@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2024, NVIDIA CORPORATION.
+# Copyright (c) 2020-2025, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -20,17 +20,17 @@ from dask_cudf import Series as daskSeries
 
 import cugraph.dask.comms.comms as Comms
 
-# FIXME: this raft import breaks the library if ucx-py is
+# FIXME: this raft import breaks the library if ucxx is
 # not available. They are necessary only when doing MG work.
-from cugraph.dask.common.read_utils import MissingUCXPy
+from cugraph.dask.common.read_utils import MissingUCXX
 
 try:
     from raft_dask.common.utils import get_client
 except ImportError as err:
     # FIXME: Generalize since err.name is arr when
     # libnuma.so.1 is not available
-    if err.name == "ucp" or err.name == "arr":
-        get_client = MissingUCXPy()
+    if err.name == "ucxx" or err.name == "arr":
+        get_client = MissingUCXX()
     else:
         raise
 from cugraph.dask.common.part_utils import _extract_partitions

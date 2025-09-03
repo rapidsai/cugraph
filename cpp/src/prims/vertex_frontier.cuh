@@ -139,39 +139,36 @@ rmm::device_uvector<uint32_t> compute_vertex_list_bitmap_info(
 
   auto bitmap = rmm::device_uvector<uint32_t>(
     packed_bool_size(vertex_range_last - vertex_range_first), stream_view);
-  rmm::device_uvector<vertex_t> lasts(bitmap.size(), stream_view);
-  auto bdry_first = thrust::make_transform_iterator(
-    thrust::make_counting_iterator(vertex_t{1}),
-    cuda::proclaim_return_type<vertex_t>(
-      [vertex_range_first,
-       vertex_range_size = vertex_range_last - vertex_range_first] __device__(vertex_t i) {
-        return vertex_range_first +
-               static_cast<vertex_t>(
-                 std::min(packed_bools_per_word() * i, static_cast<size_t>(vertex_range_size)));
-      }));
-  thrust::lower_bound(rmm::exec_policy_nosync(stream_view),
-                      sorted_unique_vertex_first,
-                      sorted_unique_vertex_last,
-                      bdry_first,
-                      bdry_first + bitmap.size(),
-                      lasts.begin());
   thrust::tabulate(
     rmm::exec_policy_nosync(stream_view),
     bitmap.begin(),
     bitmap.end(),
-    cuda::proclaim_return_type<uint32_t>(
-      [sorted_unique_vertex_first,
-       vertex_range_first,
-       lasts = raft::device_span<vertex_t const>(lasts.data(), lasts.size())] __device__(size_t i) {
-        auto offset_first = (i != 0) ? lasts[i - 1] : vertex_t{0};
-        auto offset_last  = lasts[i];
-        auto ret          = packed_bool_empty_mask();
-        for (auto j = offset_first; j < offset_last; ++j) {
-          auto v_offset = *(sorted_unique_vertex_first + j) - vertex_range_first;
+    cuda::proclaim_return_type<uint32_t>([sorted_unique_vertex_first,
+                                          sorted_unique_vertex_last,
+                                          vertex_range_first,
+                                          vertex_range_last] __device__(size_t i) {
+      auto min_v = vertex_range_first + static_cast<vertex_t>(packed_bools_per_word() * i);
+      auto max_v =
+        min_v + static_cast<vertex_t>(cuda::std::min(
+                  packed_bools_per_word(), static_cast<size_t>(vertex_range_last - min_v)));
+      auto this_word_sorted_unique_vertex_first = thrust::lower_bound(
+        thrust::seq, sorted_unique_vertex_first, sorted_unique_vertex_last, min_v);
+      auto max_checks = static_cast<int>(
+        cuda::std::min(packed_bools_per_word(),
+                       static_cast<size_t>(cuda::std::distance(this_word_sorted_unique_vertex_first,
+                                                               sorted_unique_vertex_last))));
+      auto ret = packed_bool_empty_mask();
+      for (int i = 0; i < max_checks; ++i) {
+        auto v = *(this_word_sorted_unique_vertex_first + i);
+        if (v < max_v) {
+          auto v_offset = v - vertex_range_first;
           ret |= packed_bool_mask(v_offset);
+        } else {
+          break;
         }
-        return ret;
-      }));
+      }
+      return ret;
+    }));
 
   return bitmap;
 }
