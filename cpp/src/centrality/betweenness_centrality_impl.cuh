@@ -880,20 +880,10 @@ void multisource_backward_pass(
 
     auto num_chunks = h_distance_level_chunk_offsets.size() - 1;
 
-    // Find max chunk size for memory allocation
-    size_t max_chunk_size = 0;
-    for (size_t i = 0; i < num_chunks; ++i) {
-      max_chunk_size =
-        std::max(max_chunk_size,
-                 static_cast<size_t>(h_vertex_chunk_offsets[i + 1] - h_vertex_chunk_offsets[i]));
-    }
-
-    // Allocate reusable arrays for chunks
-    rmm::device_uvector<vertex_t> chunk_vertices(max_chunk_size, handle.get_stream());
-    rmm::device_uvector<origin_t> chunk_sources(max_chunk_size, handle.get_stream());
+    // Allocate temporary storage for CUB segmented sort
     rmm::device_uvector<std::byte> d_tmp_storage(0, handle.get_stream());
 
-    // Process each chunk - now we copy from consecutive arrays instead of separate bucket arrays
+    // Process each chunk - sort consecutive arrays directly in-place
     for (size_t chunk_i = 0; chunk_i < num_chunks; ++chunk_i) {
       size_t chunk_vertex_start    = h_vertex_chunk_offsets[chunk_i];
       size_t chunk_vertex_end      = h_vertex_chunk_offsets[chunk_i + 1];
@@ -902,30 +892,19 @@ void multisource_backward_pass(
       size_t chunk_size            = chunk_vertex_end - chunk_vertex_start;
       size_t num_segments_in_chunk = chunk_distance_end - chunk_distance_start;
 
-      // Copy data from consecutive arrays to chunk arrays
-      thrust::copy(handle.get_thrust_policy(),
-                   all_vertices.begin() + chunk_vertex_start,
-                   all_vertices.begin() + chunk_vertex_end,
-                   chunk_vertices.begin());
-
-      thrust::copy(handle.get_thrust_policy(),
-                   all_sources.begin() + chunk_vertex_start,
-                   all_sources.begin() + chunk_vertex_end,
-                   chunk_sources.begin());
-
       if (num_segments_in_chunk > 0) {
         auto offset_first = thrust::make_transform_iterator(
-          distance_level_offsets.data() + chunk_distance_start,
+          h_distance_offsets.data() + chunk_distance_start,
           [chunk_vertex_start] __device__(size_t offset) { return offset - chunk_vertex_start; });
 
-        // CUB segmented sort for this chunk
+        // CUB segmented sort directly on consecutive arrays - no copy needed!
         size_t temp_storage_bytes = 0;
         cub::DeviceSegmentedSort::SortPairs(nullptr,
                                             temp_storage_bytes,
-                                            chunk_vertices.data(),
-                                            chunk_vertices.data(),
-                                            chunk_sources.data(),
-                                            chunk_sources.data(),
+                                            all_vertices.data() + chunk_vertex_start,
+                                            all_vertices.data() + chunk_vertex_start,
+                                            all_sources.data() + chunk_vertex_start,
+                                            all_sources.data() + chunk_vertex_start,
                                             chunk_size,
                                             num_segments_in_chunk,
                                             offset_first,
@@ -938,26 +917,15 @@ void multisource_backward_pass(
 
         cub::DeviceSegmentedSort::SortPairs(d_tmp_storage.data(),
                                             temp_storage_bytes,
-                                            chunk_vertices.data(),
-                                            chunk_vertices.data(),
-                                            chunk_sources.data(),
-                                            chunk_sources.data(),
+                                            all_vertices.data() + chunk_vertex_start,
+                                            all_vertices.data() + chunk_vertex_start,
+                                            all_sources.data() + chunk_vertex_start,
+                                            all_sources.data() + chunk_vertex_start,
                                             chunk_size,
                                             num_segments_in_chunk,
                                             offset_first,
                                             offset_first + 1,
                                             handle.get_stream());
-
-        // Copy sorted results back to consecutive arrays
-        thrust::copy(handle.get_thrust_policy(),
-                     chunk_vertices.begin(),
-                     chunk_vertices.begin() + chunk_size,
-                     all_vertices.begin() + chunk_vertex_start);
-
-        thrust::copy(handle.get_thrust_policy(),
-                     chunk_sources.begin(),
-                     chunk_sources.begin() + chunk_size,
-                     all_sources.begin() + chunk_vertex_start);
       }
     }
   }
