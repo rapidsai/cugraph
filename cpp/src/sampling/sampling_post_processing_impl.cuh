@@ -2572,6 +2572,11 @@ sort_sampled_edge_tuples(raft::handle_t const& handle,
               handle, indices.begin(), indices.end(), edge_property.begin() + h_edge_offsets[i]);
           });
       });
+
+    if (edgelist_hops) {
+      permute_array(
+        handle, indices.begin(), indices.end(), (*edgelist_hops).begin() + h_edge_offsets[i]);
+    }
   }
 
   return std::make_tuple(std::move(edgelist_majors),
