@@ -582,9 +582,9 @@ dependencies:
           - matrix:
               cuda: "13.*"
             packages:
-              # TODO: remove this 'a0' (which allows nightlies) once there are pytorch CUDA 13 released packages
+              # TODO: remove this '.dev0' (which allows nightlies) once there are pytorch CUDA 13 released packages
               #  ref: https://github.com/pytorch/pytorch/issues/159779
-              - &pytorch_pip torch>=2.9.0a0
+              - &pytorch_pip torch>=2.9.0.dev0
               - &tensordict tensordict>=0.1.2
           - {matrix: null, packages: [*pytorch_pip, *tensordict]}
   depends_on_libcudf:
