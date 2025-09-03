@@ -549,8 +549,8 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> multisour
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
-  VertexIterator vertex_first,
-  VertexIterator vertex_last,
+  VertexIterator sources_first,
+  VertexIterator sources_last,
   bool do_expensive_check)
 {
   constexpr vertex_t invalid_distance = std::numeric_limits<vertex_t>::max();
@@ -561,7 +561,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> multisour
   // Use 2D arrays to track per-source distances and sigmas
   // Layout: [source_idx * num_vertices + vertex_idx]
   auto num_vertices = graph_view.local_vertex_partition_range_size();
-  auto num_sources  = cuda::std::distance(vertex_first, vertex_last);
+  auto num_sources  = cuda::std::distance(sources_first, sources_last);
 
   using origin_t = uint16_t;
   CUGRAPH_EXPECTS(
@@ -583,7 +583,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> multisour
   if (num_sources > 0) {
     // Create zip iterator for (vertex, origin) pairs
     auto pair_first =
-      thrust::make_zip_iterator(vertex_first, thrust::make_counting_iterator(origin_t{0}));
+      thrust::make_zip_iterator(sources_first, thrust::make_counting_iterator(origin_t{0}));
     auto pair_last = pair_first + num_sources;
 
     // Insert tagged sources into frontier
