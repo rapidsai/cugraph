@@ -582,7 +582,7 @@ temporal_sample_with_one_property(
 
   rmm::device_uvector<vertex_t> majors(0, handle.get_stream());
   rmm::device_uvector<vertex_t> minors(0, handle.get_stream());
-  arithmetic_device_uvector_t sampled_properties{std::monostate{}};
+  arithmetic_device_uvector_t sampled_property{std::monostate{}};
   std::optional<rmm::device_uvector<size_t>> sample_offsets{std::nullopt};
 
   if (edge_bias_view) {
@@ -636,7 +636,7 @@ temporal_sample_with_one_property(
                 std::optional<cuda::std::tuple<vertex_t, vertex_t>>{std::nullopt},
                 false);
       } else {
-        std::forward_as_tuple(sample_offsets, std::tie(majors, minors, sampled_properties)) =
+        std::forward_as_tuple(sample_offsets, std::tie(majors, minors, sampled_property)) =
           (Ks.size() == 1)
             ? cugraph::per_v_random_select_transform_outgoing_e(
                 handle,
@@ -730,7 +730,7 @@ temporal_sample_with_one_property(
                 false);
 
       } else {
-        std::forward_as_tuple(sample_offsets, std::tie(majors, minors, sampled_properties)) =
+        std::forward_as_tuple(sample_offsets, std::tie(majors, minors, sampled_property)) =
           (Ks.size() == 1)
             ? cugraph::per_v_random_select_transform_outgoing_e(
                 handle,
@@ -818,7 +818,7 @@ temporal_sample_with_one_property(
               std::optional<cuda::std::tuple<vertex_t, vertex_t>>{std::nullopt},
               false);
     } else {
-      std::forward_as_tuple(sample_offsets, std::tie(majors, minors, sampled_properties)) =
+      std::forward_as_tuple(sample_offsets, std::tie(majors, minors, sampled_property)) =
         (Ks.size() == 1)
           ? cugraph::per_v_random_select_transform_outgoing_e(
               handle,
@@ -859,7 +859,7 @@ temporal_sample_with_one_property(
   }
 
   return std::make_tuple(
-    std::move(majors), std::move(minors), std::move(sampled_properties), std::move(sample_offsets));
+    std::move(majors), std::move(minors), std::move(sampled_property), std::move(sample_offsets));
 }
 
 template <typename vertex_t, typename edge_t, typename edge_time_t, bool multi_gpu>

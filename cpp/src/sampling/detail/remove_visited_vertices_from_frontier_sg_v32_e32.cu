@@ -29,11 +29,25 @@
 namespace cugraph {
 namespace detail {
 
-template std::tuple<rmm::device_uvector<int32_t>, std::optional<rmm::device_uvector<int32_t>>>
+template std::tuple<rmm::device_uvector<int32_t>,
+                    std::optional<rmm::device_uvector<int32_t>>,
+                    std::optional<rmm::device_uvector<int32_t>>>
 remove_visited_vertices_from_frontier(
   raft::handle_t const& handle,
   rmm::device_uvector<int32_t>&& frontier_vertices,
   std::optional<rmm::device_uvector<int32_t>>&& frontier_vertex_labels,
+  std::optional<rmm::device_uvector<int32_t>>&& frontier_vertex_times,
+  raft::device_span<int32_t const> vertices_used_as_source,
+  std::optional<raft::device_span<int32_t const>> vertex_labels_used_as_source);
+
+template std::tuple<rmm::device_uvector<int32_t>,
+                    std::optional<rmm::device_uvector<int32_t>>,
+                    std::optional<rmm::device_uvector<int64_t>>>
+remove_visited_vertices_from_frontier(
+  raft::handle_t const& handle,
+  rmm::device_uvector<int32_t>&& frontier_vertices,
+  std::optional<rmm::device_uvector<int32_t>>&& frontier_vertex_labels,
+  std::optional<rmm::device_uvector<int64_t>>&& frontier_vertex_times,
   raft::device_span<int32_t const> vertices_used_as_source,
   std::optional<raft::device_span<int32_t const>> vertex_labels_used_as_source);
 
