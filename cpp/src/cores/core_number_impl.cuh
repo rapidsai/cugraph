@@ -32,6 +32,7 @@
 
 #include <cuda/std/iterator>
 #include <cuda/std/optional>
+#include <cuda/std/tuple>
 #include <thrust/copy.h>
 #include <thrust/for_each.h>
 #include <thrust/functional.h>
@@ -42,7 +43,6 @@
 #include <thrust/reduce.h>
 #include <thrust/remove.h>
 #include <thrust/transform.h>
-#include <thrust/tuple.h>
 
 #include <cstddef>
 
@@ -133,15 +133,15 @@ void core_number(raft::handle_t const& handle,
       thrust::copy(
         handle.get_thrust_policy(), out_degrees.begin(), out_degrees.end(), core_numbers);
     } else {
-      auto in_degrees  = cur_graph_view.compute_in_degrees(handle);
-      auto out_degrees = cur_graph_view.compute_out_degrees(handle);
-      auto degree_pair_first =
-        thrust::make_zip_iterator(thrust::make_tuple(in_degrees.begin(), out_degrees.begin()));
-      thrust::transform(handle.get_thrust_policy(),
-                        degree_pair_first,
-                        degree_pair_first + in_degrees.size(),
-                        core_numbers,
-                        [] __device__(auto p) { return thrust::get<0>(p) + thrust::get<1>(p); });
+      auto in_degrees        = cur_graph_view.compute_in_degrees(handle);
+      auto out_degrees       = cur_graph_view.compute_out_degrees(handle);
+      auto degree_pair_first = thrust::make_zip_iterator(in_degrees.begin(), out_degrees.begin());
+      thrust::transform(
+        handle.get_thrust_policy(),
+        degree_pair_first,
+        degree_pair_first + in_degrees.size(),
+        core_numbers,
+        [] __device__(auto p) { return cuda::std::get<0>(p) + cuda::std::get<1>(p); });
     }
   }
 
@@ -292,8 +292,8 @@ void core_number(raft::handle_t const& handle,
               auto new_core_number = v_val >= pushed_val ? v_val - pushed_val : edge_t{0};
               new_core_number      = new_core_number < (k - delta) ? (k - delta) : new_core_number;
               new_core_number      = new_core_number < k_first ? edge_t{0} : new_core_number;
-              return thrust::make_tuple(cuda::std::optional<size_t>{bucket_idx_next},
-                                        cuda::std::optional<edge_t>{new_core_number});
+              return cuda::std::make_tuple(cuda::std::optional<size_t>{bucket_idx_next},
+                                           cuda::std::optional<edge_t>{new_core_number});
             });
         }
 

@@ -184,4 +184,23 @@ inline std::vector<arithmetic_device_span_t> make_arithmetic_device_span_vector(
   return results;
 }
 
+inline const_arithmetic_device_span_t make_const_arithmetic_device_span(
+  arithmetic_device_uvector_t& v)
+{
+  return variant_type_dispatch(v, [](auto& v) {
+    using T = typename std::remove_reference<decltype(v)>::type::value_type;
+    return const_arithmetic_device_span_t(raft::device_span<T const>(v.data(), v.size()));
+  });
+}
+
+inline std::vector<const_arithmetic_device_span_t> make_const_arithmetic_device_span_vector(
+  std::vector<arithmetic_device_uvector_t>& v)
+{
+  std::vector<const_arithmetic_device_span_t> results(v.size());
+  std::transform(v.begin(), v.end(), results.begin(), [](auto& c) {
+    return make_const_arithmetic_device_span(c);
+  });
+  return results;
+}
+
 }  // namespace cugraph

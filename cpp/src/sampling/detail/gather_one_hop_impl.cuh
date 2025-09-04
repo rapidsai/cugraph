@@ -371,7 +371,7 @@ temporal_gather_one_hop_edgelist(
   using label_t = int32_t;
 
   // Only used if active_major_labels is set
-  kv_store_t<size_t, thrust::tuple<edge_time_t, label_t>, true> kv_store{handle.get_stream()};
+  kv_store_t<size_t, cuda::std::tuple<edge_time_t, label_t>, true> kv_store{handle.get_stream()};
   std::optional<rmm::device_uvector<size_t>> tmp_positions{std::nullopt};
 
   // Only used if active_major_labels is not set
@@ -421,21 +421,21 @@ temporal_gather_one_hop_edgelist(
         minor_comm,
         raft::device_span<label_t const>{active_major_labels->data(), active_major_labels->size()});
 
-      kv_store = kv_store_t<size_t, thrust::tuple<edge_time_t, label_t>, true>(
+      kv_store = kv_store_t<size_t, cuda::std::tuple<edge_time_t, label_t>, true>(
         all_minor_keys.begin(),
         all_minor_keys.end(),
         thrust::make_zip_iterator(all_minor_times.begin(), all_minor_labels.begin()),
-        thrust::make_tuple(edge_time_t{-1}, label_t{-1}),
+        cuda::std::make_tuple(edge_time_t{-1}, label_t{-1}),
         true,
         handle.get_stream());
 
     } else {
-      kv_store = kv_store_t<size_t, thrust::tuple<edge_time_t, label_t>, true>(
+      kv_store = kv_store_t<size_t, cuda::std::tuple<edge_time_t, label_t>, true>(
         vertex_label_time_positions.begin(),
         vertex_label_time_positions.end(),
         thrust::make_zip_iterator(active_major_times.begin(),
                                   active_major_labels->begin()),  // multi_gpu is different
-        thrust::make_tuple(edge_time_t{-1}, label_t{-1}),
+        cuda::std::make_tuple(edge_time_t{-1}, label_t{-1}),
         true,
         handle.get_stream());
     }

@@ -56,7 +56,8 @@ vertex_t remove_duplicates(raft::handle_t const& handle, rmm::device_uvector<ver
   input_array.resize(nr_unique_elements, handle.get_stream());
 
   if constexpr (multi_gpu) {
-    input_array = shuffle_ext_vertices(handle, std::move(input_array), std::nullopt);
+    std::tie(input_array, std::ignore) = shuffle_ext_vertices(
+      handle, std::move(input_array), std::vector<cugraph::arithmetic_device_uvector_t>{});
 
     thrust::sort(handle.get_thrust_policy(), input_array.begin(), input_array.end());
 
@@ -151,10 +152,12 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
                  handle.get_stream());
 
       if constexpr (graph_view_t::is_multi_gpu) {
-        std::tie(cluster_keys, cluster_weights) = shuffle_ext_vertex_value_pairs(
-          handle, std::move(cluster_keys), std::move(cluster_weights));
+        std::vector<cugraph::arithmetic_device_uvector_t> vertex_properties{};
+        vertex_properties.push_back(std::move(cluster_weights));
+        std::tie(cluster_keys, vertex_properties) =
+          shuffle_ext_vertices(handle, std::move(cluster_keys), std::move(vertex_properties));
+        cluster_weights = std::move(std::get<rmm::device_uvector<weight_t>>(vertex_properties[0]));
       }
-
     } else {
       rmm::device_uvector<weight_t> tmp_weights_buffer(vertex_weights.size(),
                                                        handle.get_stream());  // #C
@@ -199,8 +202,14 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
       if constexpr (graph_view_t::is_multi_gpu) {
         rmm::device_uvector<vertex_t> tmp_keys_buffer(0, handle.get_stream());  // #C
 
-        std::tie(tmp_keys_buffer, tmp_weights_buffer) = shuffle_ext_vertex_value_pairs(
-          handle, std::move(cluster_keys), std::move(cluster_weights));
+        {
+          std::vector<cugraph::arithmetic_device_uvector_t> vertex_properties{};
+          vertex_properties.push_back(std::move(cluster_weights));
+          std::tie(tmp_keys_buffer, vertex_properties) =
+            shuffle_ext_vertices(handle, std::move(cluster_keys), std::move(vertex_properties));
+          tmp_weights_buffer =
+            std::move(std::get<rmm::device_uvector<weight_t>>(vertex_properties[0]));
+        }
 
         thrust::sort_by_key(handle.get_thrust_policy(),
                             tmp_keys_buffer.begin(),
@@ -541,8 +550,14 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
         numeric_sequence.resize(new_size, handle.get_stream());
 
         if constexpr (multi_gpu) {
-          std::tie(*numbering_map, numeric_sequence) = shuffle_ext_vertex_value_pairs(
-            handle, std::move(*numbering_map), std::move(numeric_sequence));
+          {
+            std::vector<cugraph::arithmetic_device_uvector_t> vertex_properties{};
+            vertex_properties.push_back(std::move(numeric_sequence));
+            std::tie(*numbering_map, vertex_properties) =
+              shuffle_ext_vertices(handle, std::move(*numbering_map), std::move(vertex_properties));
+            numeric_sequence =
+              std::move(std::get<rmm::device_uvector<vertex_t>>(vertex_properties[0]));
+          }
 
           thrust::sort(handle.get_thrust_policy(),
                        thrust::make_zip_iterator(numbering_map->begin(), numeric_sequence.begin()),

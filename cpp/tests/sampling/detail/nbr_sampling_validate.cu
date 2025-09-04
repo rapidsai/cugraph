@@ -28,6 +28,7 @@
 
 #include <cuda/std/functional>
 #include <cuda/std/iterator>
+#include <cuda/std/tuple>
 #include <thrust/binary_search.h>
 #include <thrust/count.h>
 #include <thrust/equal.h>
@@ -40,7 +41,6 @@
 #include <thrust/set_operations.h>
 #include <thrust/sort.h>
 #include <thrust/transform.h>
-#include <thrust/tuple.h>
 #include <thrust/unique.h>
 
 #include <functional>
@@ -66,16 +66,16 @@ struct ArithmeticZipLess {
   __device__ bool operator()(left_t const& left, right_t const& right)
   {
     if constexpr (cugraph::is_thrust_tuple_of_arithmetic<left_t>::value) {
-      // Need a more generic solution, for now I can just check thrust::tuple_size
-      if (thrust::get<0>(left) < thrust::get<0>(right)) return true;
-      if (thrust::get<0>(right) < thrust::get<0>(left)) return false;
+      // Need a more generic solution, for now I can just check cuda::std::tuple_size
+      if (cuda::std::get<0>(left) < cuda::std::get<0>(right)) return true;
+      if (cuda::std::get<0>(right) < cuda::std::get<0>(left)) return false;
 
-      if constexpr (thrust::tuple_size<left_t>::value > 2) {
-        if (thrust::get<1>(left) < thrust::get<1>(right)) return true;
-        if (thrust::get<1>(right) < thrust::get<1>(left)) return false;
-        return thrust::get<2>(left) < thrust::get<2>(right);
+      if constexpr (cuda::std::tuple_size<left_t>::value > 2) {
+        if (cuda::std::get<1>(left) < cuda::std::get<1>(right)) return true;
+        if (cuda::std::get<1>(right) < cuda::std::get<1>(left)) return false;
+        return cuda::std::get<2>(left) < cuda::std::get<2>(right);
       } else {
-        return thrust::get<1>(left) < thrust::get<1>(right);
+        return cuda::std::get<1>(left) < cuda::std::get<1>(right);
       }
     } else {
       return false;
@@ -87,20 +87,20 @@ struct ArithmeticZipLess {
 //        generic for any tuple that supports < operator
 struct ArithmeticZipEqual {
   template <typename vertex_t, typename weight_t>
-  __device__ bool operator()(thrust::tuple<vertex_t, vertex_t, weight_t> const& left,
-                             thrust::tuple<vertex_t, vertex_t, weight_t> const& right)
+  __device__ bool operator()(cuda::std::tuple<vertex_t, vertex_t, weight_t> const& left,
+                             cuda::std::tuple<vertex_t, vertex_t, weight_t> const& right)
   {
-    return (thrust::get<0>(left) == thrust::get<0>(right)) &&
-           (thrust::get<1>(left) == thrust::get<1>(right)) &&
-           (thrust::get<2>(left) == thrust::get<2>(right));
+    return (cuda::std::get<0>(left) == cuda::std::get<0>(right)) &&
+           (cuda::std::get<1>(left) == cuda::std::get<1>(right)) &&
+           (cuda::std::get<2>(left) == cuda::std::get<2>(right));
   }
 
   template <typename vertex_t>
-  __device__ bool operator()(thrust::tuple<vertex_t, vertex_t> const& left,
-                             thrust::tuple<vertex_t, vertex_t> const& right)
+  __device__ bool operator()(cuda::std::tuple<vertex_t, vertex_t> const& left,
+                             cuda::std::tuple<vertex_t, vertex_t> const& right)
   {
-    return (thrust::get<0>(left) == thrust::get<0>(right)) &&
-           (thrust::get<1>(left) == thrust::get<1>(right));
+    return (cuda::std::get<0>(left) == cuda::std::get<0>(right)) &&
+           (cuda::std::get<1>(left) == cuda::std::get<1>(right));
   }
 };
 
@@ -272,7 +272,7 @@ bool validate_sampling_depth(raft::handle_t const& handle,
                         tuple_iter + d_distances.size(),
                         d_distances.begin(),
                         [] __device__(auto tuple) {
-                          return cuda::std::min(thrust::get<0>(tuple), thrust::get<1>(tuple));
+                          return cuda::std::min(cuda::std::get<0>(tuple), cuda::std::get<1>(tuple));
                         });
     }
   }
@@ -345,9 +345,9 @@ bool validate_temporal_integrity(raft::handle_t const& handle,
      min_dst_times =
        raft::device_span<edge_time_t const>{sorted_dst_times.data(), sorted_dst_times.size()},
      source_vertices] __device__(auto t) {
-      vertex_t src     = thrust::get<0>(t);
-      vertex_t dst     = thrust::get<1>(t);
-      edge_time_t time = thrust::get<2>(t);
+      vertex_t src     = cuda::std::get<0>(t);
+      vertex_t dst     = cuda::std::get<1>(t);
+      edge_time_t time = cuda::std::get<2>(t);
 
       bool vertex_is_source =
         thrust::find(thrust::seq, source_vertices.begin(), source_vertices.end(), src) !=

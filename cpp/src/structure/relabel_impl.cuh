@@ -31,6 +31,7 @@
 #include <rmm/mr/device/polymorphic_allocator.hpp>
 
 #include <cuda/std/iterator>
+#include <cuda/std/tuple>
 #include <thrust/copy.h>
 #include <thrust/count.h>
 #include <thrust/functional.h>
@@ -38,7 +39,6 @@
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/sort.h>
 #include <thrust/transform.h>
-#include <thrust/tuple.h>
 #include <thrust/unique.h>
 
 #include <algorithm>

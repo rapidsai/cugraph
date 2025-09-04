@@ -16,5 +16,5 @@ c_stdlib:
 c_stdlib_version:
   - "2.28"
 
-ucx_py_version:
+ucxx_version:
   - "0.46.*"

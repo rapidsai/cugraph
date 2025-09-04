@@ -52,7 +52,7 @@
    ```
 
 ### Debugging
-#### UCX-Py related variables:
+#### UCXX related variables:
 `UCX_TLS` - set the transports to use, in priority order. Example:
 ```
 UCX_TLS=tcp,cuda_copy,cuda_ipc
@@ -67,7 +67,7 @@ UCX_LOG_LEVEL=ERROR
 ```
 
 #### UCX performance checks:
-Because cugraph-service uses UCX-Py for direct-to-client GPU data transfers when specified, it can be helpful to understand the various UCX performance chacks available to ensure cugraph-service is transfering results as efficiently as the system is capable of.
+Because cugraph-service uses UCXX for direct-to-client GPU data transfers when specified, it can be helpful to understand the various UCX performance chacks available to ensure cugraph-service is transfering results as efficiently as the system is capable of.
 ```
 ucx_perftest -m cuda -t tag_bw -n 100 -s 16000 &
 ucx_perftest -m cuda -t tag_bw -n 100 -s 16000 localhost

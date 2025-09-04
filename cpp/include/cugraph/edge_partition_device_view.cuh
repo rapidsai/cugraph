@@ -28,11 +28,11 @@
 
 #include <cuda/std/iterator>
 #include <cuda/std/optional>
+#include <cuda/std/tuple>
 #include <thrust/binary_search.h>
 #include <thrust/execution_policy.h>
 #include <thrust/transform.h>
 #include <thrust/transform_reduce.h>
-#include <thrust/tuple.h>
 
 #include <cassert>
 #include <optional>
@@ -167,13 +167,13 @@ class edge_partition_device_view_base_t {
   }
 
   // major_idx == major offset if CSR/CSC, major_offset != major_idx if DCSR/DCSC
-  __device__ thrust::tuple<vertex_t const*, edge_t, edge_t> local_edges(
+  __device__ cuda::std::tuple<vertex_t const*, edge_t, edge_t> local_edges(
     vertex_t major_idx) const noexcept
   {
     auto edge_offset  = offsets_[major_idx];
     auto local_degree = offsets_[major_idx + 1] - edge_offset;
     auto indices      = indices_.data() + edge_offset;
-    return thrust::make_tuple(indices, edge_offset, local_degree);
+    return cuda::std::make_tuple(indices, edge_offset, local_degree);
   }
 
   // major_idx == major offset if CSR/CSC, major_offset != major_idx if DCSR/DCSC

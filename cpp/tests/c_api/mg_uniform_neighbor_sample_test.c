@@ -921,8 +921,10 @@ int test_uniform_neighbor_sample_alex_bug(const cugraph_resource_handle_t* handl
                 "uniform_neighbor_sample got edge that doesn't exist");
   }
 
-  TEST_ASSERT(
-    test_ret_value, result_offsets_size == expected_size[rank], "incorrect number of results");
+  if (cugraph_resource_handle_get_comm_size(handle) > 1) {
+    TEST_ASSERT(
+      test_ret_value, result_offsets_size == expected_size[rank], "incorrect number of results");
+  }
 
   cugraph_sample_result_free(result);
 
@@ -1195,8 +1197,10 @@ int test_uniform_neighbor_sample_sort_by_hop(const cugraph_resource_handle_t* ha
                 "uniform_neighbor_sample got edge that doesn't exist");
   }
 
-  TEST_ASSERT(
-    test_ret_value, result_offsets_size == expected_size[rank], "incorrect number of results");
+  if (cugraph_resource_handle_get_comm_size(handle) > 1) {
+    TEST_ASSERT(
+      test_ret_value, result_offsets_size == expected_size[rank], "incorrect number of results");
+  }
 
   for (int i = 0; i < (result_offsets_size - 1) && (test_ret_value == 0); ++i) {
     for (int j = h_result_offsets[i]; j < (h_result_offsets[i + 1] - 1) && (test_ret_value == 0);

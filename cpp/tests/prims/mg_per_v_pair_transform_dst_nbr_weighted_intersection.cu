@@ -41,9 +41,9 @@
 #include <rmm/device_uvector.hpp>
 #include <rmm/exec_policy.hpp>
 
+#include <cuda/std/tuple>
 #include <thrust/equal.h>
 #include <thrust/iterator/counting_iterator.h>
-#include <thrust/tuple.h>
 
 #include <gtest/gtest.h>
 
@@ -51,7 +51,7 @@
 
 template <typename vertex_t, typename edge_t, typename weight_t>
 struct intersection_op_t {
-  __device__ thrust::tuple<weight_t, weight_t> operator()(
+  __device__ cuda::std::tuple<weight_t, weight_t> operator()(
     vertex_t a,
     vertex_t b,
     weight_t weight_a /* weighted out degree */,
@@ -79,7 +79,7 @@ struct intersection_op_t {
 
     max_weight_a_intersect_b += sum_of_uniq_a + sum_of_uniq_b;
 
-    return thrust::make_tuple(min_weight_a_intersect_b, max_weight_a_intersect_b);
+    return cuda::std::make_tuple(min_weight_a_intersect_b, max_weight_a_intersect_b);
   }
 };
 
@@ -156,7 +156,7 @@ class Tests_MGPerVPairTransformDstNbrIntersection
       vertex_t{0});  // the code below to generate vertex pairs is invalid for an empty graph.
 
     auto mg_vertex_pair_buffer =
-      cugraph::allocate_dataframe_buffer<thrust::tuple<vertex_t, vertex_t>>(
+      cugraph::allocate_dataframe_buffer<cuda::std::tuple<vertex_t, vertex_t>>(
         prims_usecase.num_vertex_pairs / comm_size +
           (static_cast<size_t>(comm_rank) < prims_usecase.num_vertex_pairs % comm_size ? 1 : 0),
         handle_->get_stream());
@@ -170,7 +170,7 @@ class Tests_MGPerVPairTransformDstNbrIntersection
           hash_func{};  // use hash_func to generate arbitrary vertex pairs
         auto v0 = static_cast<vertex_t>(hash_func(i + comm_rank) % num_vertices);
         auto v1 = static_cast<vertex_t>(hash_func(i + num_vertices + comm_rank) % num_vertices);
-        return thrust::make_tuple(v0, v1);
+        return cuda::std::make_tuple(v0, v1);
       });
 
     auto h_vertex_partition_range_lasts = mg_graph_view.vertex_partition_range_lasts();
@@ -187,8 +187,9 @@ class Tests_MGPerVPairTransformDstNbrIntersection
                                  store_transposed,
                                  h_vertex_partition_range_lasts);
 
-    auto mg_result_buffer = cugraph::allocate_dataframe_buffer<thrust::tuple<weight_t, weight_t>>(
-      cugraph::size_dataframe_buffer(mg_vertex_pair_buffer), handle_->get_stream());
+    auto mg_result_buffer =
+      cugraph::allocate_dataframe_buffer<cuda::std::tuple<weight_t, weight_t>>(
+        cugraph::size_dataframe_buffer(mg_vertex_pair_buffer), handle_->get_stream());
     auto mg_out_weight_sums = compute_out_weight_sums(*handle_, mg_graph_view, mg_edge_weight_view);
 
     if (cugraph::test::g_perf) {
@@ -231,7 +232,7 @@ class Tests_MGPerVPairTransformDstNbrIntersection
         h_vertex_partition_range_lasts);
 
       auto mg_aggregate_vertex_pair_buffer =
-        cugraph::allocate_dataframe_buffer<thrust::tuple<vertex_t, vertex_t>>(
+        cugraph::allocate_dataframe_buffer<cuda::std::tuple<vertex_t, vertex_t>>(
           0, handle_->get_stream());
       std::get<0>(mg_aggregate_vertex_pair_buffer) =
         cugraph::test::device_gatherv(*handle_,
@@ -243,7 +244,7 @@ class Tests_MGPerVPairTransformDstNbrIntersection
                                       std::get<1>(mg_vertex_pair_buffer).size());
 
       auto mg_aggregate_result_buffer =
-        cugraph::allocate_dataframe_buffer<thrust::tuple<weight_t, weight_t>>(
+        cugraph::allocate_dataframe_buffer<cuda::std::tuple<weight_t, weight_t>>(
           0, handle_->get_stream());
       std::get<0>(mg_aggregate_result_buffer) = cugraph::test::device_gatherv(
         *handle_, std::get<0>(mg_result_buffer).data(), std::get<0>(mg_result_buffer).size());
@@ -270,7 +271,7 @@ class Tests_MGPerVPairTransformDstNbrIntersection
       if (handle_->get_comms().get_rank() == 0) {
         auto sg_graph_view = sg_graph.view();
         auto sg_result_buffer =
-          cugraph::allocate_dataframe_buffer<thrust::tuple<weight_t, weight_t>>(
+          cugraph::allocate_dataframe_buffer<cuda::std::tuple<weight_t, weight_t>>(
             cugraph::size_dataframe_buffer(mg_aggregate_vertex_pair_buffer), handle_->get_stream());
 
         rmm::device_uvector<weight_t> sg_out_weight_sums =
@@ -289,11 +290,11 @@ class Tests_MGPerVPairTransformDstNbrIntersection
         auto threshold_ratio     = weight_t{1e-4};
         auto threshold_magnitude = std::numeric_limits<weight_t>::min();
         auto nearly_equal = [threshold_ratio, threshold_magnitude] __device__(auto lhs, auto rhs) {
-          return (fabs(thrust::get<0>(lhs) - thrust::get<0>(rhs)) <
-                  max(max(thrust::get<0>(lhs), thrust::get<0>(rhs)) * threshold_ratio,
+          return (fabs(cuda::std::get<0>(lhs) - cuda::std::get<0>(rhs)) <
+                  max(max(cuda::std::get<0>(lhs), cuda::std::get<0>(rhs)) * threshold_ratio,
                       threshold_magnitude)) &&
-                 (fabs(thrust::get<1>(lhs) - thrust::get<1>(rhs)) <
-                  max(max(thrust::get<1>(lhs), thrust::get<1>(rhs)) * threshold_ratio,
+                 (fabs(cuda::std::get<1>(lhs) - cuda::std::get<1>(rhs)) <
+                  max(max(cuda::std::get<1>(lhs), cuda::std::get<1>(rhs)) * threshold_ratio,
                       threshold_magnitude));
         };
         bool valid = thrust::equal(handle_->get_thrust_policy(),

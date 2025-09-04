@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -41,7 +41,7 @@ namespace cugraph {
  * @tparam GraphViewType Type of the passed non-owning graph object.
  * @tparam ReduceOp Type of the binary reduction operator.
  * @tparam VertexValueInputIterator Type of the iterator for vertex property values.
- * @tparam T Type of the initial value. T should be an arithmetic type or thrust::tuple of
+ * @tparam T Type of the initial value. T should be an arithmetic type or cuda::std::tuple of
  * arithmetic types.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
@@ -184,7 +184,7 @@ T reduce_v(raft::handle_t const& handle,
  * @tparam GraphViewType Type of the passed non-owning graph object.
  * @tparam ReduceOp Type of the binary reduction operator.
  * @tparam VertexValueInputIterator Type of the iterator for vertex property values.
- * @tparam T Type of the initial value. T should be an arithmetic type or thrust::tuple of
+ * @tparam T Type of the initial value. T should be an arithmetic type or cuda::std::tuple of
  * arithmetic types.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
@@ -217,7 +217,7 @@ T reduce_v(raft::handle_t const& handle,
  *
  * @tparam GraphViewType Type of the passed non-owning graph object.
  * @tparam VertexValueInputIterator Type of the iterator for vertex property values.
- * @tparam T Type of the initial value. T should be an arithmetic type or thrust::tuple of
+ * @tparam T Type of the initial value. T should be an arithmetic type or cuda::std::tuple of
  * arithmetic types.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.

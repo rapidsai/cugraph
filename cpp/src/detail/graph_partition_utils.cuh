@@ -124,13 +124,15 @@ struct compute_gpu_id_from_ext_edge_endpoints_t {
   }
 
   __host__ __device__ int operator()(
-    thrust::tuple<vertex_t, vertex_t> pair /* major, minor */) const
+    cuda::std::tuple<vertex_t, vertex_t> pair /* major, minor */) const
   {
     cuco::murmurhash3_32<vertex_t> hash_func{};
-    auto major_vertex_partition_id = static_cast<int>(hash_func(thrust::get<0>(pair)) % comm_size);
-    auto minor_vertex_partition_id = static_cast<int>(hash_func(thrust::get<1>(pair)) % comm_size);
-    auto major_comm_rank           = major_vertex_partition_id % major_comm_size;
-    auto minor_comm_rank           = minor_vertex_partition_id / major_comm_size;
+    auto major_vertex_partition_id =
+      static_cast<int>(hash_func(cuda::std::get<0>(pair)) % comm_size);
+    auto minor_vertex_partition_id =
+      static_cast<int>(hash_func(cuda::std::get<1>(pair)) % comm_size);
+    auto major_comm_rank = major_vertex_partition_id % major_comm_size;
+    auto minor_comm_rank = minor_vertex_partition_id / major_comm_size;
     return partition_manager::compute_global_comm_rank_from_graph_subcomm_ranks(
       major_comm_size, minor_comm_size, major_comm_rank, minor_comm_rank);
   }
@@ -163,20 +165,20 @@ struct compute_gpu_id_from_int_edge_endpoints_t {
       major_comm_size, minor_comm_size, major_comm_rank, minor_comm_rank);
   }
 
-  __device__ int operator()(thrust::tuple<vertex_t, vertex_t> pair /* major, minor */) const
+  __device__ int operator()(cuda::std::tuple<vertex_t, vertex_t> pair /* major, minor */) const
   {
     auto major_vertex_partition_id =
       static_cast<int>(cuda::std::distance(vertex_partition_range_lasts.begin(),
                                            thrust::upper_bound(thrust::seq,
                                                                vertex_partition_range_lasts.begin(),
                                                                vertex_partition_range_lasts.end(),
-                                                               thrust::get<0>(pair))));
+                                                               cuda::std::get<0>(pair))));
     auto minor_vertex_partition_id =
       static_cast<int>(cuda::std::distance(vertex_partition_range_lasts.begin(),
                                            thrust::upper_bound(thrust::seq,
                                                                vertex_partition_range_lasts.begin(),
                                                                vertex_partition_range_lasts.end(),
-                                                               thrust::get<1>(pair))));
+                                                               cuda::std::get<1>(pair))));
     auto major_comm_rank = major_vertex_partition_id % major_comm_size;
     auto minor_comm_rank = minor_vertex_partition_id / major_comm_size;
     return partition_manager::compute_global_comm_rank_from_graph_subcomm_ranks(
@@ -198,11 +200,11 @@ struct compute_edge_partition_id_from_ext_edge_endpoints_t {
   }
 
   __host__ __device__ int operator()(
-    thrust::tuple<vertex_t, vertex_t> pair /* major, minor */) const
+    cuda::std::tuple<vertex_t, vertex_t> pair /* major, minor */) const
   {
     cuco::murmurhash3_32<vertex_t> hash_func{};
-    return (hash_func(thrust::get<0>(pair)) % comm_size) * minor_comm_size +
-           (hash_func(thrust::get<1>(pair)) % comm_size) / major_comm_size;
+    return (hash_func(cuda::std::get<0>(pair)) % comm_size) * minor_comm_size +
+           (hash_func(cuda::std::get<1>(pair)) % comm_size) / major_comm_size;
   }
 };
 
@@ -230,20 +232,20 @@ struct compute_edge_partition_id_from_int_edge_endpoints_t {
            (minor_vertex_partition_id) / major_comm_size;
   }
 
-  __device__ int operator()(thrust::tuple<vertex_t, vertex_t> pair /* major, minor */) const
+  __device__ int operator()(cuda::std::tuple<vertex_t, vertex_t> pair /* major, minor */) const
   {
     auto major_vertex_partition_id =
       static_cast<int>(cuda::std::distance(vertex_partition_range_lasts.begin(),
                                            thrust::upper_bound(thrust::seq,
                                                                vertex_partition_range_lasts.begin(),
                                                                vertex_partition_range_lasts.end(),
-                                                               thrust::get<0>(pair))));
+                                                               cuda::std::get<0>(pair))));
     auto minor_vertex_partition_id =
       static_cast<int>(cuda::std::distance(vertex_partition_range_lasts.begin(),
                                            thrust::upper_bound(thrust::seq,
                                                                vertex_partition_range_lasts.begin(),
                                                                vertex_partition_range_lasts.end(),
-                                                               thrust::get<1>(pair))));
+                                                               cuda::std::get<1>(pair))));
     return (major_vertex_partition_id)*minor_comm_size +
            (minor_vertex_partition_id) / major_comm_size;
   }
@@ -264,11 +266,11 @@ struct compute_local_edge_partition_id_from_ext_edge_endpoints_t {
   }
 
   __host__ __device__ int operator()(
-    thrust::tuple<vertex_t, vertex_t> pair /* major, minor */) const
+    cuda::std::tuple<vertex_t, vertex_t> pair /* major, minor */) const
   {
     return compute_edge_partition_id_from_ext_edge_endpoints_t<vertex_t>{
-             comm_size, major_comm_size, minor_comm_size}(thrust::get<0>(pair),
-                                                          thrust::get<1>(pair)) /
+             comm_size, major_comm_size, minor_comm_size}(cuda::std::get<0>(pair),
+                                                          cuda::std::get<1>(pair)) /
            comm_size;
   }
 };
@@ -287,11 +289,11 @@ struct compute_local_edge_partition_id_from_int_edge_endpoints_t {
            static_cast<int>(vertex_partition_range_lasts.size());
   }
 
-  __device__ int operator()(thrust::tuple<vertex_t, vertex_t> pair /* major, minor */) const
+  __device__ int operator()(cuda::std::tuple<vertex_t, vertex_t> pair /* major, minor */) const
   {
     return compute_edge_partition_id_from_int_edge_endpoints_t<vertex_t>{
-             vertex_partition_range_lasts, major_comm_size, minor_comm_size}(thrust::get<0>(pair),
-                                                                             thrust::get<1>(pair)) /
+             vertex_partition_range_lasts, major_comm_size, minor_comm_size}(
+             cuda::std::get<0>(pair), cuda::std::get<1>(pair)) /
            static_cast<int>(vertex_partition_range_lasts.size());
   }
 };
