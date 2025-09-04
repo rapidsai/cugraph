@@ -38,7 +38,7 @@ typedef struct {
 /**
  * @brief     Construct an SG graph
  *
- * @deprecated Use cugraph_graph_create_with_times_mg instead
+ * @deprecated Use cugraph_graph_create_with_times_sg instead
  *
  * @param [in]  handle         Handle for accessing resources
  * @param [in]  properties     Properties of the constructed graph

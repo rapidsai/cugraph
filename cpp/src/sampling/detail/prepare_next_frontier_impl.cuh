@@ -301,13 +301,16 @@ prepare_next_frontier(
     }
 
     // Now with the updated verts/labels we can filter the next frontier
-    std::tie(frontier_vertices, frontier_vertex_labels) = remove_visited_vertices_from_frontier(
-      handle,
-      std::move(frontier_vertices),
-      std::move(frontier_vertex_labels),
-      raft::device_span<vertex_t const>{verts.data(), verts.size()},
-      labels ? std::make_optional(raft::device_span<label_t const>{labels->data(), labels->size()})
-             : std::nullopt);
+    std::tie(frontier_vertices, frontier_vertex_labels, frontier_vertex_times) =
+      remove_visited_vertices_from_frontier(
+        handle,
+        std::move(frontier_vertices),
+        std::move(frontier_vertex_labels),
+        std::move(frontier_vertex_times),
+        raft::device_span<vertex_t const>{verts.data(), verts.size()},
+        labels
+          ? std::make_optional(raft::device_span<label_t const>{labels->data(), labels->size()})
+          : std::nullopt);
   }
 
   if (dedupe_sources) {
