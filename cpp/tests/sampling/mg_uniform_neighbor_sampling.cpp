@@ -272,7 +272,6 @@ class Tests_MGUniform_Neighbor_Sampling
             cugraph::test::validate_sampling_depth(*handle_,
                                                    std::move(mg_aggregate_src),
                                                    std::move(mg_aggregate_dst),
-                                                   std::move(mg_aggregate_wgt),
                                                    std::move(mg_start_src),
                                                    uniform_neighbor_sampling_usecase.fanout.size());
           }

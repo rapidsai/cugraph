@@ -478,30 +478,30 @@ read_graph_from_matrix_market_file(raft::handle_t const& handle,
                                                               large_edge_buffer_type);
 
   graph_t<vertex_t, edge_t, store_transposed, multi_gpu> graph(handle);
+  std::vector<cugraph::edge_arithmetic_property_t<edge_t>> edge_properties{};
+  std::vector<cugraph::arithmetic_device_uvector_t> edgelist_edge_properties{};
+  if (d_edgelist_weights) { edgelist_edge_properties.push_back(std::move(*d_edgelist_weights)); }
   std::optional<cugraph::edge_property_t<edge_t, weight_t>> edge_weights{std::nullopt};
   std::optional<rmm::device_uvector<vertex_t>> renumber_map{std::nullopt};
-  std::tie(graph, edge_weights, std::ignore, std::ignore, std::ignore, std::ignore, renumber_map) =
-    cugraph::create_graph_from_edgelist<vertex_t,
-                                        edge_t,
-                                        weight_t,
-                                        int32_t,
-                                        int32_t,
-                                        store_transposed,
-                                        multi_gpu>(handle,
-                                                   std::move(d_vertices),
-                                                   std::move(d_edgelist_srcs),
-                                                   std::move(d_edgelist_dsts),
-                                                   std::move(d_edgelist_weights),
-                                                   std::nullopt,
-                                                   std::nullopt,
-                                                   std::nullopt,
-                                                   std::nullopt,
-                                                   cugraph::graph_properties_t{is_symmetric, false},
-                                                   renumber,
-                                                   large_vertex_buffer_type,
-                                                   large_edge_buffer_type);
+  std::tie(graph, edge_properties, renumber_map) =
+    cugraph::create_graph_from_edgelist<vertex_t, edge_t, store_transposed, multi_gpu>(
+      handle,
+      std::move(d_vertices),
+      std::move(d_edgelist_srcs),
+      std::move(d_edgelist_dsts),
+      std::move(edgelist_edge_properties),
+      cugraph::graph_properties_t{is_symmetric, false},
+      renumber,
+      large_vertex_buffer_type,
+      large_edge_buffer_type);
 
-  return std::make_tuple(std::move(graph), std::move(edge_weights), std::move(renumber_map));
+  return std::make_tuple(
+    std::move(graph),
+    d_edgelist_weights
+      ? std::make_optional<cugraph::edge_property_t<edge_t, weight_t>>(std::move(
+          std::get<cugraph::edge_property_t<edge_t, weight_t>>(std::move(edge_properties[0]))))
+      : std::nullopt,
+    std::move(renumber_map));
 }
 
 // explicit instantiations

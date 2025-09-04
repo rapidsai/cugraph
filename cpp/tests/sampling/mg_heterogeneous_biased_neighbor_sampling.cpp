@@ -281,7 +281,6 @@ class Tests_MGHeterogeneous_Biased_Neighbor_Sampling
               *handle_,
               std::move(mg_aggregate_src),
               std::move(mg_aggregate_dst),
-              std::move(mg_aggregate_wgt),
               std::move(mg_start_src),
               heterogeneous_biased_neighbor_sampling_usecase.fanout.size());
           }

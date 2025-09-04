@@ -20,7 +20,7 @@ namespace cugraph {
 // explicit instantiations
 
 template std::tuple<graph_t<int32_t, int32_t, false, true>,
-                    std::vector<edge_arithmetic_property_view_t<int32_t>>,
+                    std::vector<edge_arithmetic_property_t<int32_t>>,
                     std::optional<rmm::device_uvector<int32_t>>>
 create_graph_from_edgelist<int32_t, int32_t, false, true>(
   raft::handle_t const& handle,
@@ -35,7 +35,7 @@ create_graph_from_edgelist<int32_t, int32_t, false, true>(
   bool do_expensive_check);
 
 template std::tuple<graph_t<int32_t, int32_t, true, true>,
-                    std::vector<edge_arithmetic_property_view_t<int32_t>>,
+                    std::vector<edge_arithmetic_property_t<int32_t>>,
                     std::optional<rmm::device_uvector<int32_t>>>
 create_graph_from_edgelist<int32_t, int32_t, true, true>(
   raft::handle_t const& handle,
@@ -50,7 +50,7 @@ create_graph_from_edgelist<int32_t, int32_t, true, true>(
   bool do_expensive_check);
 
 template std::tuple<graph_t<int32_t, int32_t, false, true>,
-                    std::vector<edge_arithmetic_property_view_t<int32_t>>,
+                    std::vector<edge_arithmetic_property_t<int32_t>>,
                     std::optional<rmm::device_uvector<int32_t>>>
 create_graph_from_edgelist<int32_t, int32_t, false, true>(
   raft::handle_t const& handle,
@@ -65,7 +65,7 @@ create_graph_from_edgelist<int32_t, int32_t, false, true>(
   bool do_expensive_check);
 
 template std::tuple<graph_t<int32_t, int32_t, true, true>,
-                    std::vector<edge_arithmetic_property_view_t<int32_t>>,
+                    std::vector<edge_arithmetic_property_t<int32_t>>,
                     std::optional<rmm::device_uvector<int32_t>>>
 create_graph_from_edgelist<int32_t, int32_t, true, true>(
   raft::handle_t const& handle,

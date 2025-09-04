@@ -412,24 +412,13 @@ extract_forest_pruned_graph_and_isolated_trees(
   rmm::device_uvector<vertex_t> mg_pruned_graph_renumber_map(0, handle.get_stream());
   {
     std::optional<rmm::device_uvector<vertex_t>> tmp{};
-    std::tie(
-      mg_pruned_graph, std::ignore, std::ignore, std::ignore, std::ignore, std::ignore, tmp) =
-      cugraph::create_graph_from_edgelist<vertex_t,
-                                          edge_t,
-                                          weight_t,
-                                          edge_type_t,
-                                          edge_time_t,
-                                          store_transposed,
-                                          multi_gpu>(
+    std::tie(mg_pruned_graph, std::ignore, tmp) =
+      cugraph::create_graph_from_edgelist<vertex_t, edge_t, store_transposed, multi_gpu>(
         handle,
         std::nullopt,
         std::move(pruned_graph_src_chunks),
         std::move(pruned_graph_dst_chunks),
-        std::nullopt,
-        std::nullopt,
-        std::nullopt,
-        std::nullopt,
-        std::nullopt,
+        std::vector<std::vector<cugraph::arithmetic_device_uvector_t>>{},
         cugraph::graph_properties_t{true /* symmetric */, false /* multi-graph */},
         true);
     mg_pruned_graph_renumber_map = std::move(*tmp);
@@ -441,24 +430,13 @@ extract_forest_pruned_graph_and_isolated_trees(
   rmm::device_uvector<vertex_t> mg_isolated_trees_renumber_map(0, handle.get_stream());
   {
     std::optional<rmm::device_uvector<vertex_t>> tmp{};
-    std::tie(
-      mg_isolated_trees, std::ignore, std::ignore, std::ignore, std::ignore, std::ignore, tmp) =
-      cugraph::create_graph_from_edgelist<vertex_t,
-                                          edge_t,
-                                          weight_t,
-                                          edge_type_t,
-                                          edge_time_t,
-                                          store_transposed,
-                                          multi_gpu>(
+    std::tie(mg_isolated_trees, std::ignore, tmp) =
+      cugraph::create_graph_from_edgelist<vertex_t, edge_t, store_transposed, multi_gpu>(
         handle,
         std::nullopt,
         std::move(isolated_tree_edge_srcs),
         std::move(isolated_tree_edge_dsts),
-        std::nullopt,
-        std::nullopt,
-        std::nullopt,
-        std::nullopt,
-        std::nullopt,
+        std::vector<cugraph::arithmetic_device_uvector_t>{},
         cugraph::graph_properties_t{true /* symmetric */, false /* multi-graph */},
         true);
     mg_graph_view.clear_edge_mask();
@@ -797,23 +775,13 @@ class Tests_GRAPH500_MGBFS
 
       cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu> mg_graph(*handle_);
       std::optional<rmm::device_uvector<vertex_t>> tmp{};
-      std::tie(mg_graph, std::ignore, std::ignore, std::ignore, std::ignore, std::ignore, tmp) =
-        cugraph::create_graph_from_edgelist<vertex_t,
-                                            edge_t,
-                                            weight_t,
-                                            edge_type_t,
-                                            edge_time_t,
-                                            store_transposed,
-                                            multi_gpu>(
+      std::tie(mg_graph, std::ignore, tmp) =
+        cugraph::create_graph_from_edgelist<vertex_t, edge_t, store_transposed, multi_gpu>(
           *handle_,
           std::nullopt,
           std::move(src_chunks),
           std::move(dst_chunks),
-          std::nullopt,
-          std::nullopt,
-          std::nullopt,
-          std::nullopt,
-          std::nullopt,
+          std::vector<std::vector<cugraph::arithmetic_device_uvector_t>>{},
           cugraph::graph_properties_t{true /* symmetric */, false /* multi-graph */},
           renumber);
       mg_renumber_map = std::move(*tmp);

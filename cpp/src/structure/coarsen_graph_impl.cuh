@@ -541,7 +541,7 @@ coarsen_graph(raft::handle_t const& handle,
   // 4. create a graph
 
   graph_t<vertex_t, edge_t, store_transposed, multi_gpu> coarsened_graph(handle);
-  std::vector<edge_arithmetic_property_view_t<edge_t>> edge_properties{};
+  std::vector<edge_arithmetic_property_t<edge_t>> edge_properties{};
   std::optional<rmm::device_uvector<vertex_t>> renumber_map{std::nullopt};
 
   std::vector<arithmetic_device_uvector_t> concatenated_edgelist_edge_properties{};
@@ -549,8 +549,8 @@ coarsen_graph(raft::handle_t const& handle,
     concatenated_edgelist_edge_properties.push_back(std::move(*concatenated_edgelist_weights));
   }
 
-  std::tie(coarsened_graph, edge_properties, std::ignore, std::ignore, renumber_map) =
-    create_graph_from_edgelist<vertex_t, edge_t, weight_t, int32_t, store_transposed, multi_gpu>(
+  std::tie(coarsened_graph, edge_properties, renumber_map) =
+    create_graph_from_edgelist<vertex_t, edge_t, store_transposed, multi_gpu>(
       handle,
       std::move(unique_labels),
       store_transposed ? std::move(concatenated_edgelist_minors)
@@ -564,13 +564,11 @@ coarsen_graph(raft::handle_t const& handle,
       std::nullopt,
       do_expensive_check);
 
-  std::optional<edge_property_t<edge_t, weight_t>> edge_weights{std::nullopt};
-  if (concatenated_edgelist_weights) {
-    edge_weights = std::move(std::get<edge_property_t<edge_t, weight_t>>(edge_properties[0]));
-  }
-
   return std::make_tuple(std::move(coarsened_graph),
-                         std::move(edge_weights),
+                         concatenated_edgelist_weights
+                           ? std::make_optional<edge_property_t<edge_t, weight_t>>(std::move(
+                               std::get<edge_property_t<edge_t, weight_t>>(edge_properties[0])))
+                           : std::nullopt,
                          std::optional<rmm::device_uvector<vertex_t>>{std::move(*renumber_map)});
 }
 
@@ -710,9 +708,9 @@ coarsen_graph(raft::handle_t const& handle,
     coarsened_edgelist_edge_properties.push_back(std::move(*coarsened_edgelist_weights));
   }
 
-  std::vector<edge_arithmetic_property_view_t<edge_t>> edge_properties{};
-  std::tie(coarsened_graph, edge_properties, std::ignore, std::ignore, renumber_map) =
-    create_graph_from_edgelist<vertex_t, edge_t, weight_t, int32_t, store_transposed, multi_gpu>(
+  std::vector<edge_arithmetic_property_t<edge_t>> edge_properties{};
+  std::tie(coarsened_graph, edge_properties, renumber_map) =
+    create_graph_from_edgelist<vertex_t, edge_t, store_transposed, multi_gpu>(
       handle,
       std::optional<rmm::device_uvector<vertex_t>>{std::move(vertices)},
       store_transposed ? std::move(coarsened_edgelist_minors)
@@ -720,21 +718,18 @@ coarsen_graph(raft::handle_t const& handle,
       store_transposed ? std::move(coarsened_edgelist_majors)
                        : std::move(coarsened_edgelist_minors),
       std::move(coarsened_edgelist_edge_properties),
-      std::nullopt,
-      std::nullopt,
       graph_properties_t{graph_view.is_symmetric(), false},
       renumber,
       std::nullopt,
       std::nullopt,
       do_expensive_check);
 
-  std::optional<edge_property_t<edge_t, weight_t>> edge_weights{std::nullopt};
-  if (coarsened_edgelist_weights) {
-    edge_weights = std::move(std::get<edge_property_t<edge_t, weight_t>>(edge_properties[0]));
-  }
-
-  return std::make_tuple(
-    std::move(coarsened_graph), std::move(edge_weights), std::move(*renumber_map));
+  return std::make_tuple(std::move(coarsened_graph),
+                         coarsened_edgelist_weights
+                           ? std::make_optional<edge_property_t<edge_t, weight_t>>(std::move(
+                               std::get<edge_property_t<edge_t, weight_t>>(edge_properties[0])))
+                           : std::nullopt,
+                         std::move(*renumber_map));
 }
 
 }  // namespace detail

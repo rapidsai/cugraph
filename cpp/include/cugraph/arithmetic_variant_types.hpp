@@ -46,6 +46,14 @@ using const_arithmetic_device_span_t = std::variant<std::monostate,
                                                     raft::device_span<size_t const>>;
 
 template <typename edge_t>
+using edge_arithmetic_property_t = std::variant<std::monostate,
+                                                cugraph::edge_property_t<edge_t, float>,
+                                                cugraph::edge_property_t<edge_t, double>,
+                                                cugraph::edge_property_t<edge_t, int32_t>,
+                                                cugraph::edge_property_t<edge_t, int64_t>,
+                                                cugraph::edge_property_t<edge_t, size_t>>;
+
+template <typename edge_t>
 using edge_arithmetic_property_view_t =
   std::variant<std::monostate,
                cugraph::edge_property_view_t<edge_t, float const*>,

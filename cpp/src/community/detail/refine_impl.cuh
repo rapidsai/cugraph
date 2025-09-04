@@ -564,7 +564,7 @@ refine_clustering(
     refined_community_cuts.shrink_to_fit(handle.get_stream());
 
     //
-    // Create edgelist from (source, target community, modulraity gain) tuple
+    // Create edgelist from (source, target community, modularity gain) tuple
     //
 
     vertex_t num_vertices   = graph_view.local_vertex_partition_range_size();
@@ -641,32 +641,23 @@ refine_clustering(
     cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu> decision_graph(handle);
 
     std::optional<rmm::device_uvector<vertex_t>> renumber_map{std::nullopt};
-    std::optional<edge_property_t<edge_t, weight_t>> coarse_edge_weights{std::nullopt};
 
     if constexpr (multi_gpu) {
-      std::vector<cugraph::arithmetic_device_uvector_t> edge_properties{};
-      if (d_weights) edge_properties.push_back(std::move(*d_weights));
-
-      std::tie(d_srcs, d_dsts, edge_properties, std::ignore) =
+      std::tie(d_srcs, d_dsts, std::ignore, std::ignore) =
         cugraph::shuffle_ext_edges(handle,
                                    std::move(d_srcs),
                                    std::move(d_dsts),
-                                   std::move(edge_properties),
+                                   std::vector<arithmetic_device_uvector_t>{},
                                    GraphViewType::is_storage_transposed);
-
-      if (d_weights)
-        *d_weights = std::move(std::get<rmm::device_uvector<weight_t>>(edge_properties[0]));
     }
 
-    std::tie(decision_graph, coarse_edge_weights, std::ignore, std::ignore, renumber_map) =
-      create_graph_from_edgelist<vertex_t, edge_t, weight_t, int32_t, store_transposed, multi_gpu>(
+    std::tie(decision_graph, std::ignore, renumber_map) =
+      create_graph_from_edgelist<vertex_t, edge_t, store_transposed, multi_gpu>(
         handle,
         std::nullopt,
         std::move(d_srcs),
         std::move(d_dsts),
-        std::move(d_weights),
-        std::nullopt,
-        std::nullopt,
+        std::vector<arithmetic_device_uvector_t>{},
         cugraph::graph_properties_t{false, false},
         true /* renumber */);
 

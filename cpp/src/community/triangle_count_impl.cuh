@@ -443,22 +443,26 @@ void triangle_count(raft::handle_t const& handle,
                              extract_low_to_high_degree_edges_pred_op_t<vertex_t, edge_t>{});
 
     if constexpr (multi_gpu) {
-      std::vector<arithmetic_device_uvector_t> edge_properties{};
-      std::tie(srcs, dsts, std::ignore, std::ignore) = shuffle_ext_edges(
-        handle, std::move(srcs), std::move(dsts), std::move(edge_properties), false);
+      std::tie(srcs, dsts, std::ignore, std::ignore) =
+        shuffle_ext_edges(handle,
+                          std::move(srcs),
+                          std::move(dsts),
+                          std::vector<arithmetic_device_uvector_t>{},
+                          false);
     }
 
-    std::tie(modified_graph, std::ignore, std::ignore, std::ignore, renumber_map) =
-      create_graph_from_edgelist<vertex_t, edge_t, weight_t, int32_t, false, multi_gpu>(
+    std::tie(modified_graph, std::ignore, renumber_map) =
+      create_graph_from_edgelist<vertex_t, edge_t, false, multi_gpu>(
         handle,
         std::nullopt,
         std::move(srcs),
         std::move(dsts),
-        std::nullopt,
-        std::nullopt,
-        std::nullopt,
+        std::vector<arithmetic_device_uvector_t>{},
         cugraph::graph_properties_t{false /* now asymmetric */, cur_graph_view.is_multigraph()},
-        true);
+        true,
+        std::nullopt,
+        std::nullopt,
+        do_expensive_check);
   }
 
   cur_graph_view = modified_graph.view();
