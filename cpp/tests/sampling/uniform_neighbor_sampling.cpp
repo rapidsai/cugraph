@@ -209,7 +209,6 @@ class Tests_Uniform_Neighbor_Sampling
           cugraph::test::validate_sampling_depth(handle,
                                                  std::move(src_out),
                                                  std::move(dst_out),
-                                                 std::move(wgt_out),
                                                  std::move(random_sources),
                                                  uniform_neighbor_sampling_usecase.fanout.size()));
       }

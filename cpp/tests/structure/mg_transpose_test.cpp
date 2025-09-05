@@ -120,7 +120,7 @@ class Tests_MGTranspose
       hr_timer.display_and_clear(std::cout);
     }
 
-    // 4. copmare SG & MG results
+    // 4. compare SG & MG results
 
     if (transpose_usecase.check_correctness) {
       // 4-1. decompress MG results

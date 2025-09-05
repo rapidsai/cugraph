@@ -265,23 +265,13 @@ class Tests_GRAPH500_MGBFS
 
       cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu> mg_graph(*handle_);
       std::optional<rmm::device_uvector<vertex_t>> tmp_map{};
-      std::tie(mg_graph, std::ignore, std::ignore, std::ignore, std::ignore, std::ignore, tmp_map) =
-        cugraph::create_graph_from_edgelist<vertex_t,
-                                            edge_t,
-                                            weight_t,
-                                            edge_type_t,
-                                            edge_time_t,
-                                            store_transposed,
-                                            multi_gpu>(
+      std::tie(mg_graph, std::ignore, tmp_map) =
+        cugraph::create_graph_from_edgelist<vertex_t, edge_t, store_transposed, multi_gpu>(
           *handle_,
           std::nullopt,
           std::move(src_chunks),
           std::move(dst_chunks),
-          std::nullopt,
-          std::nullopt,
-          std::nullopt,
-          std::nullopt,
-          std::nullopt,
+          std::vector<std::vector<cugraph::arithmetic_device_uvector_t>>{},
           cugraph::graph_properties_t{true /* symmetric */, false /* multi-graph */},
           renumber);
       mg_renumber_map = std::move(*tmp_map);

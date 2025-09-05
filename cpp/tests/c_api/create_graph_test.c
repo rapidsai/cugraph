@@ -106,7 +106,7 @@ int test_create_sg_graph_simple()
                                                 FALSE,
                                                 FALSE,
                                                 FALSE,
-                                                FALSE,
+                                                TRUE,
                                                 &graph,
                                                 &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "graph creation failed.");

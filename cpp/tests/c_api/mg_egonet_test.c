@@ -25,6 +25,13 @@ typedef int32_t vertex_t;
 typedef int32_t edge_t;
 typedef float weight_t;
 
+cugraph_data_type_id_t vertex_tid    = INT32;
+cugraph_data_type_id_t edge_tid      = INT32;
+cugraph_data_type_id_t weight_tid    = FLOAT32;
+cugraph_data_type_id_t edge_id_tid   = INT32;
+cugraph_data_type_id_t edge_type_tid = INT32;
+cugraph_data_type_id_t edge_time_tid = INT32;
+
 int generic_egonet_test(const cugraph_resource_handle_t* resource_handle,
                         vertex_t* h_src,
                         vertex_t* h_dst,
@@ -51,17 +58,27 @@ int generic_egonet_test(const cugraph_resource_handle_t* resource_handle,
 
   int rank = cugraph_resource_handle_get_rank(resource_handle);
 
-  ret_code = create_mg_test_graph_with_properties(resource_handle,
-                                                  h_src,
-                                                  h_dst,
-                                                  NULL,
-                                                  NULL,
-                                                  h_wgt,
-                                                  num_edges,
-                                                  store_transposed,
-                                                  FALSE,
-                                                  &graph,
-                                                  &ret_error);
+  ret_code = create_mg_test_graph_new(resource_handle,
+                                      vertex_tid,
+                                      edge_tid,
+                                      h_src,
+                                      h_dst,
+                                      weight_tid,
+                                      h_wgt,
+                                      edge_type_tid,
+                                      NULL,
+                                      edge_id_tid,
+                                      NULL,
+                                      edge_time_tid,
+                                      NULL,
+                                      NULL,
+                                      num_edges,
+                                      store_transposed,
+                                      TRUE,
+                                      FALSE,
+                                      FALSE,
+                                      &graph,
+                                      &ret_error);
 
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "create_test_graph failed.");
   TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
@@ -122,15 +139,13 @@ int generic_egonet_test(const cugraph_resource_handle_t* resource_handle,
       resource_handle, (byte_t*)h_result_offsets, offsets, &ret_error);
     TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "copy_to_host failed.");
 
-    printf("rank = %d, num_result_offsets = %lu, num_seeds = %lu\n",
-           rank,
-           num_result_offsets,
-           num_seeds);
-
     TEST_ASSERT(
       test_ret_value, (num_seeds + 1) == num_result_offsets, "number of offsets doesn't match");
 
 #if 0
+    // FIXME: This test is failing on MG if comm_size > 1.  The result offsets will be based on
+    // the local number of results for this GPU.  Need to come up with a different test for
+    // this that supports arbitrary comm_size.
     for (int i = 0; (i < num_result_offsets) && (test_ret_value == 0); ++i) {
       TEST_ASSERT(
         test_ret_value, h_result_offsets[i] == h_expected_offsets[i], "offsets don't match");

@@ -262,33 +262,55 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
         std::nullopt};
       std::optional<cugraph::edge_property_t<edge_t, edge_time_t>> new_edge_end_times{std::nullopt};
 
-      std::tie(*graph,
-               new_edge_weights,
-               new_edge_ids,
-               new_edge_types,
-               new_edge_start_times,
-               new_edge_end_times,
-               new_number_map) = cugraph::create_graph_from_edgelist<vertex_t,
-                                                                     edge_t,
-                                                                     weight_t,
-                                                                     edge_type_t,
-                                                                     edge_time_t,
-                                                                     store_transposed,
-                                                                     multi_gpu>(
-        handle_,
-        std::move(vertex_list),
-        std::move(edgelist_srcs),
-        std::move(edgelist_dsts),
-        std::move(edgelist_weights),
-        std::move(edgelist_edge_ids),
-        std::move(edgelist_edge_types),
-        std::move(edgelist_edge_start_times),
-        std::move(edgelist_edge_end_times),
-        cugraph::graph_properties_t{properties_->is_symmetric, properties_->is_multigraph},
-        renumber_,
-        std::nullopt,
-        std::nullopt,
-        do_expensive_check_);
+      std::vector<cugraph::arithmetic_device_uvector_t> edgelist_edge_properties{};
+      if (edgelist_weights) edgelist_edge_properties.push_back(std::move(*edgelist_weights));
+      if (edgelist_edge_ids) edgelist_edge_properties.push_back(std::move(*edgelist_edge_ids));
+      if (edgelist_edge_types) edgelist_edge_properties.push_back(std::move(*edgelist_edge_types));
+      if (edgelist_edge_start_times)
+        edgelist_edge_properties.push_back(std::move(*edgelist_edge_start_times));
+      if (edgelist_edge_end_times)
+        edgelist_edge_properties.push_back(std::move(*edgelist_edge_end_times));
+
+      std::vector<cugraph::edge_arithmetic_property_t<edge_t>> new_edge_properties{};
+
+      std::tie(*graph, new_edge_properties, new_number_map) =
+        cugraph::create_graph_from_edgelist<vertex_t, edge_t, store_transposed, multi_gpu>(
+          handle_,
+          std::move(vertex_list),
+          std::move(edgelist_srcs),
+          std::move(edgelist_dsts),
+          std::move(edgelist_edge_properties),
+          cugraph::graph_properties_t{properties_->is_symmetric, properties_->is_multigraph},
+          renumber_,
+          std::nullopt,
+          std::nullopt,
+          do_expensive_check_);
+
+      size_t pos = 0;
+      if (edgelist_weights) {
+        new_edge_weights = std::move(
+          std::get<cugraph::edge_property_t<edge_t, weight_t>>(new_edge_properties[pos++]));
+      }
+
+      if (edgelist_edge_ids) {
+        new_edge_ids =
+          std::move(std::get<cugraph::edge_property_t<edge_t, edge_t>>(new_edge_properties[pos++]));
+      }
+
+      if (edgelist_edge_types) {
+        new_edge_types = std::move(
+          std::get<cugraph::edge_property_t<edge_t, edge_type_t>>(new_edge_properties[pos++]));
+      }
+
+      if (edgelist_edge_start_times) {
+        new_edge_start_times = std::move(
+          std::get<cugraph::edge_property_t<edge_t, edge_time_t>>(new_edge_properties[pos++]));
+      }
+
+      if (edgelist_edge_end_times) {
+        new_edge_end_times = std::move(
+          std::get<cugraph::edge_property_t<edge_t, edge_time_t>>(new_edge_properties[pos++]));
+      }
 
       if (renumber_) {
         *number_map = std::move(new_number_map.value());
@@ -526,33 +548,32 @@ struct create_graph_csr_functor : public cugraph::c_api::abstract_functor {
                                                   false);
       }
 
-      std::tie(*graph,
-               new_edge_weights,
-               new_edge_ids,
-               new_edge_types,
-               std::ignore,
-               std::ignore,
-               new_number_map) = cugraph::create_graph_from_edgelist<vertex_t,
-                                                                     edge_t,
-                                                                     weight_t,
-                                                                     edge_type_t,
-                                                                     edge_time_t,
-                                                                     store_transposed,
-                                                                     multi_gpu>(
-        handle_,
-        std::move(vertex_list),
-        std::move(edgelist_srcs),
-        std::move(edgelist_dsts),
-        std::move(edgelist_weights),
-        std::move(edgelist_edge_ids),
-        std::move(edgelist_edge_types),
-        std::move(edgelist_edge_start_times),
-        std::move(edgelist_edge_end_times),
-        cugraph::graph_properties_t{properties_->is_symmetric, properties_->is_multigraph},
-        renumber_,
-        std::nullopt,
-        std::nullopt,
-        do_expensive_check_);
+      std::vector<cugraph::arithmetic_device_uvector_t> edgelist_edge_properties{};
+      if (edgelist_weights) { edgelist_edge_properties.push_back(std::move(*edgelist_weights)); }
+      if (edgelist_edge_ids) { edgelist_edge_properties.push_back(std::move(*edgelist_edge_ids)); }
+      if (edgelist_edge_types) {
+        edgelist_edge_properties.push_back(std::move(*edgelist_edge_types));
+      }
+      if (edgelist_edge_start_times) {
+        edgelist_edge_properties.push_back(std::move(*edgelist_edge_start_times));
+      }
+      if (edgelist_edge_end_times) {
+        edgelist_edge_properties.push_back(std::move(*edgelist_edge_end_times));
+      }
+
+      std::vector<cugraph::edge_arithmetic_property_t<edge_t>> new_edge_properties{};
+      std::tie(*graph, new_edge_properties, new_number_map) =
+        cugraph::create_graph_from_edgelist<vertex_t, edge_t, store_transposed, multi_gpu>(
+          handle_,
+          std::move(vertex_list),
+          std::move(edgelist_srcs),
+          std::move(edgelist_dsts),
+          std::move(edgelist_edge_properties),
+          cugraph::graph_properties_t{properties_->is_symmetric, properties_->is_multigraph},
+          renumber_,
+          std::nullopt,
+          std::nullopt,
+          do_expensive_check_);
 
       if (renumber_) {
         *number_map = std::move(new_number_map.value());
@@ -564,9 +585,39 @@ struct create_graph_csr_functor : public cugraph::c_api::abstract_functor {
                                        graph->view().local_vertex_partition_range_first());
       }
 
-      if (new_edge_weights) { *edge_weights = std::move(new_edge_weights.value()); }
-      if (new_edge_ids) { *edge_ids = std::move(new_edge_ids.value()); }
-      if (new_edge_types) { *edge_types = std::move(new_edge_types.value()); }
+      cugraph::edge_property_t<edge_t, weight_t>* edge_weights_property{nullptr};
+      cugraph::edge_property_t<edge_t, edge_t>* edge_ids_property{nullptr};
+      cugraph::edge_property_t<edge_t, edge_type_t>* edge_types_property{nullptr};
+      cugraph::edge_property_t<edge_t, edge_time_t>* edge_start_times_property{nullptr};
+      cugraph::edge_property_t<edge_t, edge_time_t>* edge_end_times_property{nullptr};
+
+      {
+        size_t pos = 0;
+        if (edgelist_weights) {
+          edge_weights_property = new cugraph::edge_property_t<edge_t, weight_t>(std::move(
+            std::get<cugraph::edge_property_t<edge_t, weight_t>>(new_edge_properties[pos++])));
+        }
+
+        if (edgelist_edge_ids) {
+          edge_ids_property = new cugraph::edge_property_t<edge_t, edge_t>(std::move(
+            std::get<cugraph::edge_property_t<edge_t, edge_t>>(new_edge_properties[pos++])));
+        }
+
+        if (edgelist_edge_types) {
+          edge_types_property = new cugraph::edge_property_t<edge_t, edge_type_t>(std::move(
+            std::get<cugraph::edge_property_t<edge_t, edge_type_t>>(new_edge_properties[pos++])));
+        }
+
+        if (edgelist_edge_start_times) {
+          edge_start_times_property = new cugraph::edge_property_t<edge_t, edge_time_t>(std::move(
+            std::get<cugraph::edge_property_t<edge_t, edge_time_t>>(new_edge_properties[pos++])));
+        }
+
+        if (edgelist_edge_end_times) {
+          edge_end_times_property = new cugraph::edge_property_t<edge_t, edge_time_t>(std::move(
+            std::get<cugraph::edge_property_t<edge_t, edge_time_t>>(new_edge_properties[pos++])));
+        }
+      }
 
       // Set up return
       auto result = new cugraph::c_api::cugraph_graph_t{
@@ -579,9 +630,11 @@ struct create_graph_csr_functor : public cugraph::c_api::abstract_functor {
         multi_gpu,
         graph,
         number_map,
-        new_edge_weights ? edge_weights : nullptr,
-        new_edge_ids ? edge_ids : nullptr,
-        new_edge_types ? edge_types : nullptr};
+        edge_weights_property,
+        edge_ids_property,
+        edge_types_property,
+        edge_start_times_property,
+        edge_end_times_property};
 
       result_ = reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(result);
     }
