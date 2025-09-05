@@ -944,8 +944,6 @@ void multisource_backward_pass(
     if (total_vertices_at_d_minus_1 > 0) {
       // Step 2: Use extract_transform_if_v_frontier_e to enumerate all qualifying edges
       // This extracts (src, tag, dst) triplets as recommended
-      size_t frontier_size = total_vertices_at_d_minus_1;
-
       // Create a proper frontier object for the tagged vertices
       vertex_frontier_t<vertex_t, origin_t, multi_gpu, true> frontier(handle, 1);
 
