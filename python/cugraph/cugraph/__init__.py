@@ -68,7 +68,6 @@ from cugraph.community import (
     analyzeClustering_modularity,
     analyzeClustering_edge_cut,
     analyzeClustering_ratio_cut,
-    subgraph,
     triangle_count,
     ego_graph,
 )

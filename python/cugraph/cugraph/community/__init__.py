@@ -21,7 +21,6 @@ from cugraph.community.spectral_clustering import (
     analyzeClustering_edge_cut,
     analyzeClustering_ratio_cut,
 )
-from cugraph.community.subgraph_extraction import subgraph
 from cugraph.community.induced_subgraph import induced_subgraph
 from cugraph.community.triangle_count import triangle_count
 from cugraph.community.ktruss_subgraph import ktruss_subgraph
