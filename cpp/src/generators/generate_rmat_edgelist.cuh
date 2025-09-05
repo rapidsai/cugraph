@@ -26,10 +26,10 @@
 #include <rmm/detail/error.hpp>
 #include <rmm/device_uvector.hpp>
 
+#include <cuda/std/tuple>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/transform.h>
-#include <thrust/tuple.h>
 
 #include <tuple>
 
@@ -73,8 +73,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> generat
   while (num_edges_generated < num_edges) {
     auto num_edges_to_generate =
       std::min(num_edges - num_edges_generated, max_edges_to_generate_per_iteration);
-    auto pair_first = thrust::make_zip_iterator(thrust::make_tuple(srcs.begin(), dsts.begin())) +
-                      num_edges_generated;
+    auto pair_first = thrust::make_zip_iterator(srcs.begin(), dsts.begin()) + num_edges_generated;
 
     detail::uniform_random_fill(
       handle.get_stream(), rands.data(), num_edges_to_generate * 2 * scale, 0.0f, 1.0f, rng_state);
@@ -114,7 +113,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> generat
           src = detail::scramble(src, scale);
           dst = detail::scramble(dst, scale);
         }
-        return thrust::make_tuple(src, dst);
+        return cuda::std::make_tuple(src, dst);
       });
     num_edges_generated += num_edges_to_generate;
   }

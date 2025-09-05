@@ -109,7 +109,14 @@ temporal_partition_vertices(raft::handle_t const& handle,
   size_t num_unique_vertices =
     detail::count_set_bits(handle, vertex_partition_mask.begin(), vertices_p1.size());
 
-  if (num_unique_vertices < vertices_p1.size()) {
+  if (num_unique_vertices == 0) {
+    return std::make_tuple(std::move(vertices_p2),
+                           std::move(vertex_times_p2),
+                           std::move(vertex_labels_p2),
+                           std::move(vertices_p1),
+                           std::move(vertex_times_p1),
+                           std::move(vertex_labels_p1));
+  } else if (num_unique_vertices < vertices_p1.size()) {
     vertices_p2.resize(vertices_p1.size() - num_unique_vertices, handle.get_stream());
     vertex_times_p2.resize(vertices_p1.size() - num_unique_vertices, handle.get_stream());
 
@@ -153,7 +160,6 @@ temporal_partition_vertices(raft::handle_t const& handle,
         vertex_partition_mask.begin(),
         thrust::make_zip_iterator(
           vertices_p2.begin(), vertex_times_p2.begin(), vertex_labels_p2->begin()));
-
       vertices_p1.resize(
         thrust::distance(
           thrust::make_zip_iterator(

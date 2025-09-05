@@ -29,7 +29,7 @@ from cugraph.utilities.utils import import_optional
 
 import numpy as np
 import cupy as cp
-import ucp
+import ucxx
 import cudf
 import dask_cudf
 import rmm
@@ -1109,7 +1109,7 @@ class CugraphHandler:
     def receive_test_array_to_device(self, test_array_id, result_host, result_port):
         """
         Returns the test array identified by test_array_id to the client via
-        UCX-Py listening on result_host/result_port.
+        UCXX listening on result_host/result_port.
 
         This can be used to verify transfer speeds from server to client are
         performing as expected.
@@ -1231,7 +1231,7 @@ class CugraphHandler:
     async def __ucx_send_results(self, result_host, result_port, *results):
         # The cugraph_service_client should have set up a UCX listener waiting
         # for the result. Create an endpoint, send results, and close.
-        ep = await ucp.create_endpoint(result_host, result_port)
+        ep = await ucxx.create_endpoint(result_host, result_port)
         for r in results:
             await ep.send_obj(r)
         await ep.close()

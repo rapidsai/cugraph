@@ -36,8 +36,8 @@
 #include <rmm/device_uvector.hpp>
 
 #include <cuda/std/optional>
+#include <cuda/std/tuple>
 #include <thrust/sort.h>
-#include <thrust/tuple.h>
 
 #include <optional>
 #include <tuple>
@@ -73,7 +73,7 @@ struct sample_edges_op_t {
     if constexpr (std::is_same_v<key_t, vertex_t>)
       src = optionally_tagged_src;
     else
-      src = thrust::get<0>(optionally_tagged_src);
+      src = cuda::std::get<0>(optionally_tagged_src);
 
     if constexpr (std::is_same_v<edge_properties_t, cuda::std::nullopt_t>) {
       return cuda::std::make_tuple(src, dst);
@@ -113,7 +113,7 @@ struct temporal_sample_edge_biases_op_t {
                                cuda::std::nullopt_t,
                                edge_time_t edge_time) const
   {
-    return (thrust::get<1>(tagged_src) < edge_time) ? bias_t{1} : bias_t{0};
+    return (cuda::std::get<1>(tagged_src) < edge_time) ? bias_t{1} : bias_t{0};
   }
 
   template <typename edge_time_t>
@@ -137,7 +137,8 @@ struct temporal_sample_edge_biases_op_t {
                                cuda::std::nullopt_t,
                                cuda::std::tuple<edge_time_t, edge_type_t> time_and_type) const
   {
-    return (thrust::get<1>(tagged_src) < thrust::get<0>(time_and_type)) ? bias_t{1} : bias_t{0};
+    return (cuda::std::get<1>(tagged_src) < cuda::std::get<0>(time_and_type)) ? bias_t{1}
+                                                                              : bias_t{0};
   }
 
   template <typename edge_time_t, typename edge_type_t>
@@ -148,8 +149,8 @@ struct temporal_sample_edge_biases_op_t {
              cuda::std::nullopt_t,
              cuda::std::tuple<bias_t, edge_time_t, edge_type_t> bias_time_and_type) const
   {
-    return (thrust::get<1>(tagged_src) < thrust::get<1>(bias_time_and_type))
-             ? thrust::get<0>(bias_time_and_type)
+    return (cuda::std::get<1>(tagged_src) < cuda::std::get<1>(bias_time_and_type))
+             ? cuda::std::get<0>(bias_time_and_type)
              : bias_t{0};
   }
 };
@@ -581,7 +582,7 @@ temporal_sample_with_one_property(
 
   rmm::device_uvector<vertex_t> majors(0, handle.get_stream());
   rmm::device_uvector<vertex_t> minors(0, handle.get_stream());
-  arithmetic_device_uvector_t sampled_properties{std::monostate{}};
+  arithmetic_device_uvector_t sampled_property{std::monostate{}};
   std::optional<rmm::device_uvector<size_t>> sample_offsets{std::nullopt};
 
   if (edge_bias_view) {
@@ -635,7 +636,7 @@ temporal_sample_with_one_property(
                 std::optional<cuda::std::tuple<vertex_t, vertex_t>>{std::nullopt},
                 false);
       } else {
-        std::forward_as_tuple(sample_offsets, std::tie(majors, minors, sampled_properties)) =
+        std::forward_as_tuple(sample_offsets, std::tie(majors, minors, sampled_property)) =
           (Ks.size() == 1)
             ? cugraph::per_v_random_select_transform_outgoing_e(
                 handle,
@@ -729,7 +730,7 @@ temporal_sample_with_one_property(
                 false);
 
       } else {
-        std::forward_as_tuple(sample_offsets, std::tie(majors, minors, sampled_properties)) =
+        std::forward_as_tuple(sample_offsets, std::tie(majors, minors, sampled_property)) =
           (Ks.size() == 1)
             ? cugraph::per_v_random_select_transform_outgoing_e(
                 handle,
@@ -817,7 +818,7 @@ temporal_sample_with_one_property(
               std::optional<cuda::std::tuple<vertex_t, vertex_t>>{std::nullopt},
               false);
     } else {
-      std::forward_as_tuple(sample_offsets, std::tie(majors, minors, sampled_properties)) =
+      std::forward_as_tuple(sample_offsets, std::tie(majors, minors, sampled_property)) =
         (Ks.size() == 1)
           ? cugraph::per_v_random_select_transform_outgoing_e(
               handle,
@@ -858,7 +859,7 @@ temporal_sample_with_one_property(
   }
 
   return std::make_tuple(
-    std::move(majors), std::move(minors), std::move(sampled_properties), std::move(sample_offsets));
+    std::move(majors), std::move(minors), std::move(sampled_property), std::move(sample_offsets));
 }
 
 template <typename vertex_t, typename edge_t, typename edge_time_t, bool multi_gpu>

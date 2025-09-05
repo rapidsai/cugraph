@@ -25,6 +25,7 @@
 #include <rmm/device_uvector.hpp>
 
 #include <cuda/std/iterator>
+#include <cuda/std/tuple>
 #include <thrust/copy.h>
 #include <thrust/fill.h>
 #include <thrust/iterator/constant_iterator.h>
@@ -35,7 +36,6 @@
 #include <thrust/remove.h>
 #include <thrust/sort.h>
 #include <thrust/transform.h>
-#include <thrust/tuple.h>
 #include <thrust/unique.h>
 
 #include <cinttypes>
@@ -115,12 +115,11 @@ class edge_bucket_t {
       auto minor = src_major ? dst : src;
       majors_.resize(1, handle_ptr_->get_stream());
       minors_.resize(1, handle_ptr_->get_stream());
-      auto pair_first =
-        thrust::make_zip_iterator(thrust::make_tuple(majors_.data(), minors_.data()));
+      auto pair_first = thrust::make_zip_iterator(majors_.data(), minors_.data());
       thrust::fill(handle_ptr_->get_thrust_policy(),
                    pair_first,
                    pair_first + 1,
-                   thrust::make_tuple(major, minor));
+                   cuda::std::make_tuple(major, minor));
       if (multi_edge_index) {
         multi_edge_indices_->resize(1, handle_ptr_->get_stream());
         thrust::fill(handle_ptr_->get_thrust_policy(),
@@ -192,12 +191,10 @@ class edge_bucket_t {
                                                merged_triplet_first,
                                                merged_triplet_first + merged_majors.size())));
         } else {
-          auto new_pair_first =
-            thrust::make_zip_iterator(thrust::make_tuple(major_first, minor_first));
-          auto old_pair_first =
-            thrust::make_zip_iterator(thrust::make_tuple(majors_.begin(), minors_.begin()));
-          auto merged_pair_first = thrust::make_zip_iterator(
-            thrust::make_tuple(merged_majors.begin(), merged_minors.begin()));
+          auto new_pair_first = thrust::make_zip_iterator(major_first, minor_first);
+          auto old_pair_first = thrust::make_zip_iterator(majors_.begin(), minors_.begin());
+          auto merged_pair_first =
+            thrust::make_zip_iterator(merged_majors.begin(), merged_minors.begin());
           thrust::merge(handle_ptr_->get_thrust_policy(),
                         old_pair_first,
                         old_pair_first + majors_.size(),
@@ -222,18 +219,15 @@ class edge_bucket_t {
           multi_edge_indices_ = std::move(merged_multi_edge_indices);
         }
       } else {
-        auto new_pair_first =
-          thrust::make_zip_iterator(thrust::make_tuple(major_first, minor_first));
-        auto cur_size = majors_.size();
+        auto new_pair_first = thrust::make_zip_iterator(major_first, minor_first);
+        auto cur_size       = majors_.size();
         majors_.resize(cur_size + cuda::std::distance(major_first, major_last),
                        handle_ptr_->get_stream());
         minors_.resize(majors_.size(), handle_ptr_->get_stream());
-        thrust::copy(
-          handle_ptr_->get_thrust_policy(),
-          new_pair_first,
-          new_pair_first + cuda::std::distance(major_first, major_last),
-          thrust::make_zip_iterator(thrust::make_tuple(majors_.begin(), minors_.begin())) +
-            cur_size);
+        thrust::copy(handle_ptr_->get_thrust_policy(),
+                     new_pair_first,
+                     new_pair_first + cuda::std::distance(major_first, major_last),
+                     thrust::make_zip_iterator(majors_.begin(), minors_.begin()) + cur_size);
         if (multi_edge_index_first) {
           multi_edge_indices_->resize(majors_.size(), handle_ptr_->get_stream());
           thrust::copy(handle_ptr_->get_thrust_policy(),
@@ -243,13 +237,13 @@ class edge_bucket_t {
         }
       }
     } else {
-      auto new_pair_first = thrust::make_zip_iterator(thrust::make_tuple(major_first, minor_first));
+      auto new_pair_first = thrust::make_zip_iterator(major_first, minor_first);
       majors_.resize(cuda::std::distance(major_first, major_last), handle_ptr_->get_stream());
       minors_.resize(majors_.size(), handle_ptr_->get_stream());
       thrust::copy(handle_ptr_->get_thrust_policy(),
                    new_pair_first,
                    new_pair_first + cuda::std::distance(major_first, major_last),
-                   thrust::make_zip_iterator(thrust::make_tuple(majors_.begin(), minors_.begin())));
+                   thrust::make_zip_iterator(majors_.begin(), minors_.begin()));
       if (multi_edge_index_first) {
         multi_edge_indices_->resize(majors_.size(), handle_ptr_->get_stream());
         thrust::copy(handle_ptr_->get_thrust_policy(),

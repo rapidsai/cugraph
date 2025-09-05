@@ -20,6 +20,7 @@
 #include <cugraph/algorithms.hpp>
 
 #include <cuda/std/iterator>
+#include <cuda/std/tuple>
 #include <thrust/binary_search.h>
 #include <thrust/count.h>
 #include <thrust/equal.h>
@@ -124,7 +125,7 @@ egonet_reference(
                                     d_reference_wgt->begin() + old_size),
           [frontier_begin = frontier.begin(),
            frontier_end   = frontier.end()] __device__(auto tuple) {
-            vertex_t src = thrust::get<0>(tuple);
+            vertex_t src = cuda::std::get<0>(tuple);
             return thrust::binary_search(thrust::seq, frontier_begin, frontier_end, src);
           });
       } else {
@@ -135,7 +136,7 @@ egonet_reference(
                                                   d_reference_dst.begin() + old_size),
                         [frontier_begin = frontier.begin(),
                          frontier_end   = frontier.end()] __device__(auto tuple) {
-                          vertex_t src = thrust::get<0>(tuple);
+                          vertex_t src = cuda::std::get<0>(tuple);
                           return thrust::binary_search(
                             thrust::seq, frontier_begin, frontier_end, src);
                         });
@@ -175,8 +176,8 @@ egonet_reference(
          frontier_end   = frontier.end(),
          visited_begin  = visited.begin(),
          visited_end    = visited.end()] __device__(auto tuple) {
-          vertex_t src = thrust::get<0>(tuple);
-          vertex_t dst = thrust::get<1>(tuple);
+          vertex_t src = cuda::std::get<0>(tuple);
+          vertex_t dst = cuda::std::get<1>(tuple);
           return thrust::binary_search(thrust::seq, frontier_begin, frontier_end, src) &&
                  thrust::binary_search(thrust::seq, visited_begin, visited_end, dst);
         });
@@ -200,8 +201,8 @@ egonet_reference(
            frontier_end   = frontier.end(),
            visited_begin  = visited.begin(),
            visited_end    = visited.end()] __device__(auto tuple) {
-            vertex_t src = thrust::get<0>(tuple);
-            vertex_t dst = thrust::get<1>(tuple);
+            vertex_t src = cuda::std::get<0>(tuple);
+            vertex_t dst = cuda::std::get<1>(tuple);
             return thrust::binary_search(thrust::seq, frontier_begin, frontier_end, src) &&
                    thrust::binary_search(thrust::seq, visited_begin, visited_end, dst);
           });
@@ -216,8 +217,8 @@ egonet_reference(
            frontier_end   = frontier.end(),
            visited_begin  = visited.begin(),
            visited_end    = visited.end()] __device__(auto tuple) {
-            vertex_t src = thrust::get<0>(tuple);
-            vertex_t dst = thrust::get<1>(tuple);
+            vertex_t src = cuda::std::get<0>(tuple);
+            vertex_t dst = cuda::std::get<1>(tuple);
             return thrust::binary_search(thrust::seq, frontier_begin, frontier_end, src) &&
                    thrust::binary_search(thrust::seq, visited_begin, visited_end, dst);
           });
@@ -299,12 +300,12 @@ void egonet_validate(raft::handle_t const& handle,
                                                           d_cugraph_egonet_wgt->begin()) +
                                   h_offsets[i],
                                 [] __device__(auto left, auto right) {
-                                  auto l0 = thrust::get<0>(left);
-                                  auto l1 = thrust::get<1>(left);
-                                  auto l2 = thrust::get<2>(left);
-                                  auto r0 = thrust::get<0>(right);
-                                  auto r1 = thrust::get<1>(right);
-                                  auto r2 = thrust::get<2>(right);
+                                  auto l0 = cuda::std::get<0>(left);
+                                  auto l1 = cuda::std::get<1>(left);
+                                  auto l2 = cuda::std::get<2>(left);
+                                  auto r0 = cuda::std::get<0>(right);
+                                  auto r1 = cuda::std::get<1>(right);
+                                  auto r2 = cuda::std::get<2>(right);
                                   if (!((l0 == r0) && (l1 == r1) && (l2 == r2)))
                                     printf("edge mismatch: (%d,%d,%g) != (%d,%d,%g)\n",
                                            (int)l0,
@@ -340,10 +341,10 @@ void egonet_validate(raft::handle_t const& handle,
         thrust::make_zip_iterator(d_cugraph_egonet_src.begin(), d_cugraph_egonet_dst.begin()) +
           h_offsets[i],
         [] __device__(auto left, auto right) {
-          auto l0 = thrust::get<0>(left);
-          auto l1 = thrust::get<1>(left);
-          auto r0 = thrust::get<0>(right);
-          auto r1 = thrust::get<1>(right);
+          auto l0 = cuda::std::get<0>(left);
+          auto l1 = cuda::std::get<1>(left);
+          auto r0 = cuda::std::get<0>(right);
+          auto r1 = cuda::std::get<1>(right);
           if (!((l0 == r0) && (l1 == r1)))
             printf("edge mismatch: (%d,%d) != (%d,%d)\n", (int)l0, (int)l1, (int)r0, (int)r1);
           return (l0 == r0) && (l1 == r1);

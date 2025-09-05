@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2024, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2017-2025, NVIDIA CORPORATION.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,6 +26,7 @@
 
 #include <rmm/cuda_stream_view.hpp>
 #include <rmm/mr/device/polymorphic_allocator.hpp>
+#include <rmm/prefetch.hpp>
 
 #include <cuda/atomic>
 #include <thrust/pair.h>
@@ -472,10 +473,10 @@ class concurrent_unordered_map {
     cudaError_t status = cudaPointerGetAttributes(&hashtbl_values_ptr_attributes, m_hashtbl_values);
 
     if (cudaSuccess == status && isPtrManaged(hashtbl_values_ptr_attributes)) {
-      RAFT_CUDA_TRY(cudaMemPrefetchAsync(
-        m_hashtbl_values, m_capacity * sizeof(value_type), dev_id, stream.value()));
+      rmm::prefetch(
+        m_hashtbl_values, m_capacity * sizeof(value_type), rmm::cuda_device_id{dev_id}, stream);
     }
-    RAFT_CUDA_TRY(cudaMemPrefetchAsync(this, sizeof(*this), dev_id, stream.value()));
+    rmm::prefetch(this, sizeof(*this), rmm::cuda_device_id{dev_id}, stream);
   }
 
   /**
@@ -545,8 +546,8 @@ class concurrent_unordered_map {
       if (cudaSuccess == status && isPtrManaged(hashtbl_values_ptr_attributes)) {
         int dev_id = 0;
         RAFT_CUDA_TRY(cudaGetDevice(&dev_id));
-        RAFT_CUDA_TRY(cudaMemPrefetchAsync(
-          m_hashtbl_values, m_capacity * sizeof(value_type), dev_id, stream.value()));
+        rmm::prefetch(
+          m_hashtbl_values, m_capacity * sizeof(value_type), rmm::cuda_device_id{dev_id}, stream);
       }
     }
 
