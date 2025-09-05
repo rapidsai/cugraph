@@ -630,8 +630,8 @@ compute_renumber_map(raft::handle_t const& handle,
 
   auto sorted_local_vertex_degrees =
     large_vertex_buffer_type
-      ? large_buffer_manager::allocate_memory_buffer<vertex_t>(0, handle.get_stream())
-      : rmm::device_uvector<vertex_t>(0, handle.get_stream());
+      ? large_buffer_manager::allocate_memory_buffer<edge_t>(0, handle.get_stream())
+      : rmm::device_uvector<edge_t>(0, handle.get_stream());
   if constexpr (multi_gpu) {
     auto& comm                 = handle.get_comms();
     auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());

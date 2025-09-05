@@ -32,6 +32,7 @@ def spectralBalancedCutClustering(
     evs_max_iter=100,
     kmean_tolerance=0.00001,
     kmean_max_iter=100,
+    random_state: int = None,
 ):
     """
     Compute a clustering/partitioning of the given graph using the spectral
@@ -65,6 +66,9 @@ def spectralBalancedCutClustering(
         Specifies the maximum number of iterations for the k-means solver.
         Default is 100
 
+    random_state: int, optional
+        Random seed to use when making sampling calls.
+
     Returns
     -------
     df : cudf.DataFrame
@@ -83,6 +87,9 @@ def spectralBalancedCutClustering(
     >>> df = cugraph.spectralBalancedCutClustering(G, 5)
 
     """
+
+    if G.is_directed():
+        raise ValueError("input graph must be undirected")
 
     # Error checking in C++ code
 
@@ -105,6 +112,7 @@ def spectralBalancedCutClustering(
         kmean_tolerance,
         kmean_max_iter,
         do_expensive_check=False,
+        random_state=random_state,
     )
 
     df = cudf.DataFrame()
@@ -125,6 +133,7 @@ def spectralModularityMaximizationClustering(
     evs_max_iter=100,
     kmean_tolerance=0.00001,
     kmean_max_iter=100,
+    random_state: int = None,
 ):
     """
     Compute a clustering/partitioning of the given graph using the spectral
@@ -158,6 +167,9 @@ def spectralModularityMaximizationClustering(
         Specifies the maximum number of iterations for the k-means solver.
         Default is 100
 
+    random_state: int, optional
+        Random seed to use when making sampling calls.
+
     Returns
     -------
     df : cudf.DataFrame
@@ -176,6 +188,8 @@ def spectralModularityMaximizationClustering(
     >>> df = cugraph.spectralModularityMaximizationClustering(G, 5)
 
     """
+    if G.is_directed():
+        raise ValueError("input graph must be undirected")
 
     if (
         G.edgelist.edgelist_df.dtypes.iloc[0] != np.int32
@@ -196,6 +210,7 @@ def spectralModularityMaximizationClustering(
         kmean_tolerance,
         kmean_max_iter,
         do_expensive_check=False,
+        random_state=random_state,
     )
 
     df = cudf.DataFrame()
@@ -249,6 +264,9 @@ def analyzeClustering_modularity(
     >>> score = cugraph.analyzeClustering_modularity(G, 5, df)
 
     """
+    if G.is_directed():
+        raise ValueError("input graph must be undirected")
+
     if type(vertex_col_name) is list:
         if not all(isinstance(name, str) for name in vertex_col_name):
             raise Exception("vertex_col_name must be list of string")
@@ -330,6 +348,9 @@ def analyzeClustering_edge_cut(
     >>> score = cugraph.analyzeClustering_edge_cut(G, 5, df)
 
     """
+    if G.is_directed():
+        raise ValueError("input graph must be undirected")
+
     if type(vertex_col_name) is list:
         if not all(isinstance(name, str) for name in vertex_col_name):
             raise Exception("vertex_col_name must be list of string")
@@ -409,6 +430,9 @@ def analyzeClustering_ratio_cut(
     ...                                             'cluster')
 
     """
+    if G.is_directed():
+        raise ValueError("input graph must be undirected")
+
     if type(vertex_col_name) is list:
         if not all(isinstance(name, str) for name in vertex_col_name):
             raise Exception("vertex_col_name must be list of string")

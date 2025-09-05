@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2024, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2019-2025, NVIDIA CORPORATION.  All rights reserved.
  *
  * NVIDIA CORPORATION and its licensors retain all intellectual property
  * and proprietary rights in and to this software, related documentation
@@ -60,7 +60,14 @@ TEST(balanced_edge, success)
   int kmean_max_iter{100};
   float score;
 
-  cugraph::ext_raft::balancedCutClustering(G,
+  constexpr uint64_t seed{0};
+  raft::random::RngState rng_state(seed);
+
+  raft::handle_t handle{};
+
+  cugraph::ext_raft::balancedCutClustering(handle,
+                                           rng_state,
+                                           G,
                                            num_clusters,
                                            num_eigenvectors,
                                            evs_tolerance,
@@ -68,7 +75,8 @@ TEST(balanced_edge, success)
                                            kmean_tolerance,
                                            kmean_max_iter,
                                            result_v.data().get());
-  cugraph::ext_raft::analyzeClustering_edge_cut(G, num_clusters, result_v.data().get(), &score);
+  cugraph::ext_raft::analyzeClustering_edge_cut(
+    handle, G, num_clusters, result_v.data().get(), &score);
 
   std::cout << "score = " << score << std::endl;
   ASSERT_LT(score, float{55.0});
