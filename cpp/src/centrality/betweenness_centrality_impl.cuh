@@ -15,11 +15,11 @@
  */
 #pragma once
 
-#include "prims/count_if_e.cuh"
 #include "prims/count_if_v.cuh"
 #include "prims/detail/prim_functors.cuh"
 #include "prims/edge_bucket.cuh"
 #include "prims/extract_transform_if_e.cuh"
+#include "prims/extract_transform_if_v_frontier_outgoing_e.cuh"
 #include "prims/fill_edge_property.cuh"
 #include "prims/per_v_transform_reduce_incoming_outgoing_e.cuh"
 #include "prims/transform_e.cuh"
@@ -37,6 +37,8 @@
 
 #include <raft/core/handle.hpp>
 
+#include <cub/cub.cuh>
+#include <cuda/atomic>
 #include <cuda/std/iterator>
 #include <cuda/std/optional>
 #include <thrust/copy.h>
@@ -543,6 +545,594 @@ template <typename vertex_t,
           typename weight_t,
           bool multi_gpu,
           typename VertexIterator>
+std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> multisource_bfs(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+  VertexIterator sources_first,
+  VertexIterator sources_last,
+  bool do_expensive_check)
+{
+  constexpr vertex_t invalid_distance = std::numeric_limits<vertex_t>::max();
+  constexpr size_t bucket_idx_cur     = 0;
+  constexpr size_t bucket_idx_next    = 1;
+  constexpr size_t num_buckets        = 2;
+
+  // Use 2D arrays to track per-source distances and sigmas
+  // Layout: [source_idx * num_vertices + vertex_idx]
+  auto num_vertices = graph_view.local_vertex_partition_range_size();
+  auto num_sources  = cuda::std::distance(sources_first, sources_last);
+
+  using origin_t = uint16_t;
+  CUGRAPH_EXPECTS(
+    num_sources <= std::numeric_limits<origin_t>::max(),
+    "Number of sources exceeds maximum value for origin_t (uint16_t), would cause overflow");
+
+  rmm::device_uvector<edge_t> sigmas_2d(num_sources * num_vertices, handle.get_stream());
+  rmm::device_uvector<vertex_t> distances_2d(num_sources * num_vertices, handle.get_stream());
+  detail::scalar_fill(handle, sigmas_2d.data(), sigmas_2d.size(), edge_t{0});
+  detail::scalar_fill(handle, distances_2d.data(), distances_2d.size(), invalid_distance);
+
+  // Create tagged frontier with origin indices
+  vertex_frontier_t<vertex_t, origin_t, multi_gpu, true> vertex_frontier(handle, num_buckets);
+
+  auto vertex_partition =
+    vertex_partition_device_view_t<vertex_t, multi_gpu>(graph_view.local_vertex_partition_view());
+
+  // Initialize sources with their origins using zip iterator approach
+  if (num_sources > 0) {
+    // Create zip iterator for (vertex, origin) pairs
+    auto pair_first =
+      thrust::make_zip_iterator(sources_first, thrust::make_counting_iterator(origin_t{0}));
+    auto pair_last = pair_first + num_sources;
+
+    // Insert tagged sources into frontier
+    vertex_frontier.bucket(bucket_idx_cur).insert(pair_first, pair_last);
+
+    // Initialize distances and sigmas for sources
+    thrust::for_each(handle.get_thrust_policy(),
+                     pair_first,
+                     pair_last,
+                     [d_sigma_2d    = sigmas_2d.begin(),
+                      d_distance_2d = distances_2d.begin(),
+                      vertex_partition,
+                      num_vertices] __device__(auto tagged_source) {
+                       auto v      = cuda::std::get<0>(tagged_source);
+                       auto origin = cuda::std::get<1>(tagged_source);
+                       auto offset =
+                         vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(v);
+                       auto idx           = origin * num_vertices + offset;
+                       d_distance_2d[idx] = 0;
+                       d_sigma_2d[idx]    = 1;
+                     });
+  }
+
+  edge_t hop{0};
+
+  while (vertex_frontier.bucket(bucket_idx_cur).aggregate_size() > 0) {
+    // Step 1: Extract ALL edges from frontier (filtered by unvisited vertices)
+    using bfs_edge_tuple_t = cuda::std::tuple<vertex_t, origin_t, edge_t>;
+
+    auto new_frontier_tagged_vertex_buffer = extract_transform_if_v_frontier_outgoing_e(
+      handle,
+      graph_view,
+      vertex_frontier.bucket(bucket_idx_cur),
+      edge_src_dummy_property_t{}.view(),
+      edge_dst_dummy_property_t{}.view(),
+      edge_dummy_property_t{}.view(),
+      cuda::proclaim_return_type<bfs_edge_tuple_t>(
+        [d_sigma_2d = sigmas_2d.begin(), num_vertices, vertex_partition] __device__(
+          auto tagged_src, auto dst, auto, auto, auto) {
+          auto src        = cuda::std::get<0>(tagged_src);
+          auto origin     = cuda::std::get<1>(tagged_src);
+          auto src_offset = vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(src);
+          auto src_idx    = origin * num_vertices + src_offset;
+          auto src_sigma  = static_cast<edge_t>(d_sigma_2d[src_idx]);
+
+          return cuda::std::make_tuple(dst, origin, src_sigma);
+        }),
+      // PREDICATE: only process edges to unvisited vertices
+      cuda::proclaim_return_type<bool>(
+        [d_distances_2d = distances_2d.begin(),
+         num_vertices,
+         vertex_partition,
+         invalid_distance] __device__(auto tagged_src, auto dst, auto, auto, auto) {
+          auto origin     = cuda::std::get<1>(tagged_src);
+          auto dst_offset = vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(dst);
+          auto dst_idx    = origin * num_vertices + dst_offset;
+          return d_distances_2d[dst_idx] == invalid_distance;
+        }));
+
+    // Access individual vectors directly to avoid transform iterator issues
+    auto& frontier_vertices = std::get<0>(new_frontier_tagged_vertex_buffer);
+    auto& frontier_origins  = std::get<1>(new_frontier_tagged_vertex_buffer);
+    auto& sigmas            = std::get<2>(new_frontier_tagged_vertex_buffer);
+
+    // Step 2: Reduce by (destination, origin) - sums sigmas for multiple paths
+    // Sort by (destination, origin) pairs
+    thrust::sort_by_key(
+      handle.get_thrust_policy(),
+      thrust::make_zip_iterator(frontier_vertices.begin(), frontier_origins.begin()),
+      thrust::make_zip_iterator(frontier_vertices.end(), frontier_origins.end()),
+      sigmas.begin());
+
+    // Use in-place reduction to avoid temporaries
+    auto reduced_result = thrust::reduce_by_key(
+      handle.get_thrust_policy(),
+      thrust::make_zip_iterator(frontier_vertices.begin(), frontier_origins.begin()),
+      thrust::make_zip_iterator(frontier_vertices.end(), frontier_origins.end()),
+      sigmas.begin(),
+      thrust::make_zip_iterator(frontier_vertices.begin(),
+                                frontier_origins.begin()),  // Output keys (overwrite input)
+      sigmas.begin(),                                       // Output values (overwrite input)
+      thrust::equal_to<cuda::std::tuple<vertex_t, origin_t>>{},
+      thrust::plus<edge_t>{});
+
+    // Step 3: Manual array updates using in-place reduced data
+    // Get count from the values output since keys output is a zip iterator
+    size_t num_reduced = thrust::distance(sigmas.begin(), reduced_result.second);
+    thrust::for_each(handle.get_thrust_policy(),
+                     thrust::make_zip_iterator(
+                       frontier_vertices.begin(), frontier_origins.begin(), sigmas.begin()),
+                     thrust::make_zip_iterator(
+                       frontier_vertices.begin(), frontier_origins.begin(), sigmas.begin()) +
+                       num_reduced,
+                     [d_distances_2d = distances_2d.begin(),
+                      d_sigmas_2d    = sigmas_2d.begin(),
+                      num_vertices,
+                      hop,
+                      vertex_partition] __device__(auto tuple) {
+                       auto v      = cuda::std::get<0>(tuple);
+                       auto origin = cuda::std::get<1>(tuple);
+                       auto sigma  = cuda::std::get<2>(tuple);
+                       auto offset =
+                         vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(v);
+                       auto idx = origin * num_vertices + offset;
+
+                       // Direct assignment - no atomics needed because reduction already handled
+                       // duplicates
+                       d_distances_2d[idx] = hop + 1;
+                       d_sigmas_2d[idx]    = sigma;
+                     });
+
+    // Step 4: Update frontier for next iteration using in-place reduced data
+    vertex_frontier.bucket(bucket_idx_cur).clear();
+    vertex_frontier.bucket(bucket_idx_next)
+      .insert(thrust::make_zip_iterator(frontier_vertices.begin(), frontier_origins.begin()),
+              thrust::make_zip_iterator(frontier_vertices.begin(), frontier_origins.begin()) +
+                num_reduced);
+
+    vertex_frontier.swap_buckets(bucket_idx_cur, bucket_idx_next);
+    ++hop;
+  }
+
+  return std::make_tuple(std::move(distances_2d), std::move(sigmas_2d));
+}
+
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool multi_gpu,
+          typename VertexIterator>
+void multisource_backward_pass(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+  raft::device_span<weight_t> centralities,
+  rmm::device_uvector<vertex_t>&& distances_2d,
+  rmm::device_uvector<edge_t>&& sigmas_2d,
+  VertexIterator sources_first,
+  VertexIterator sources_last,
+  bool include_endpoints,
+  bool do_expensive_check)
+{
+  auto num_vertices = static_cast<size_t>(graph_view.local_vertex_partition_range_size());
+  auto num_sources  = cuda::std::distance(sources_first, sources_last);
+
+  using origin_t = uint16_t;
+  CUGRAPH_EXPECTS(
+    num_sources <= std::numeric_limits<origin_t>::max(),
+    "Number of sources exceeds maximum value for origin_t (uint16_t), would cause overflow");
+
+  thrust::fill(handle.get_thrust_policy(), centralities.begin(), centralities.end(), weight_t{0});
+
+  // Allocate delta accumulation buffer for all sources
+  // This tracks accumulated deltas per vertex per source: deltas[source_idx][vertex]
+  rmm::device_uvector<weight_t> delta_buffer(num_sources * num_vertices, handle.get_stream());
+  thrust::fill(handle.get_thrust_policy(), delta_buffer.begin(), delta_buffer.end(), weight_t{0});
+
+  // Find global maximum distance across all sources
+  constexpr vertex_t invalid_distance = std::numeric_limits<vertex_t>::max();
+
+  auto d_first = thrust::make_transform_iterator(
+    distances_2d.begin(),
+    cuda::proclaim_return_type<vertex_t>(
+      [invalid_distance] __device__(auto d) { return d == invalid_distance ? vertex_t{0} : d; }));
+  vertex_t global_max_distance = thrust::reduce(handle.get_thrust_policy(),
+                                                d_first,
+                                                d_first + distances_2d.size(),
+                                                vertex_t{0},
+                                                thrust::maximum<vertex_t>());
+
+  // Pre-compute: Partition all (vertex, source) pairs by distance once
+  // This eliminates the need to scan the distance array global_max_distance times
+  rmm::device_uvector<size_t> distance_counts(global_max_distance + 1, handle.get_stream());
+  thrust::fill(
+    handle.get_thrust_policy(), distance_counts.begin(), distance_counts.end(), size_t{0});
+
+  // Step 1: Count vertices at each distance level
+  thrust::for_each_n(
+    handle.get_thrust_policy(),
+    thrust::make_counting_iterator<size_t>(0),
+    num_sources * num_vertices,
+    [distances_2d = distances_2d.data(),
+     num_vertices,
+     distance_counts = distance_counts.data(),
+     global_max_distance] __device__(size_t global_idx) {
+      size_t source_idx         = global_idx / num_vertices;
+      vertex_t v_offset         = global_idx % num_vertices;
+      const vertex_t* distances = distances_2d + source_idx * num_vertices;
+      vertex_t dist             = distances[v_offset];
+
+      if (dist >= 0 && dist <= global_max_distance) {
+        cuda::atomic_ref<size_t, cuda::thread_scope_device> counter(distance_counts[dist]);
+        counter.fetch_add(size_t{1}, cuda::std::memory_order_relaxed);
+      }
+    });
+
+  // Copy counts to host and allocate buckets
+  std::vector<size_t> host_distance_counts(global_max_distance + 1);
+  raft::update_host(host_distance_counts.data(),
+                    distance_counts.data(),
+                    global_max_distance + 1,
+                    handle.get_stream());
+  handle.sync_stream();
+
+  // Create single consecutive array of (vertex, origin) pairs
+  // This eliminates the need for copy operations during chunking
+  size_t total_vertices = 0;
+  for (vertex_t d = 0; d <= global_max_distance; ++d) {
+    total_vertices += host_distance_counts[d];
+  }
+
+  rmm::device_uvector<vertex_t> all_vertices(total_vertices, handle.get_stream());
+  rmm::device_uvector<origin_t> all_sources(total_vertices, handle.get_stream());
+
+  // Reset counts for use as offsets
+  thrust::fill(
+    handle.get_thrust_policy(), distance_counts.begin(), distance_counts.end(), size_t{0});
+
+  auto v_first = graph_view.local_vertex_partition_range_first();
+
+  // Calculate offsets for each distance level in the consecutive arrays
+  std::vector<size_t> h_distance_offsets(global_max_distance + 1);
+  size_t offset = 0;
+  for (vertex_t d = 0; d <= global_max_distance; ++d) {
+    h_distance_offsets[d] = offset;
+    offset += host_distance_counts[d];
+  }
+
+  // Copy offsets to device for kernel access
+  rmm::device_uvector<size_t> d_distance_offsets(global_max_distance + 1, handle.get_stream());
+  raft::update_device(d_distance_offsets.data(),
+                      h_distance_offsets.data(),
+                      global_max_distance + 1,
+                      handle.get_stream());
+
+  // Populate consecutive arrays - single scan of distance array
+  thrust::for_each_n(
+    handle.get_thrust_policy(),
+    thrust::make_counting_iterator<size_t>(0),
+    num_sources * num_vertices,
+    [distances_2d = distances_2d.data(),
+     num_vertices,
+     distance_counts  = distance_counts.data(),
+     all_vertices     = all_vertices.data(),
+     all_sources      = all_sources.data(),
+     distance_offsets = d_distance_offsets.data(),
+     v_first,
+     global_max_distance] __device__(size_t global_idx) {
+      size_t source_idx         = global_idx / num_vertices;
+      vertex_t v_offset         = global_idx % num_vertices;
+      const vertex_t* distances = distances_2d + source_idx * num_vertices;
+      vertex_t dist             = distances[v_offset];
+
+      if (dist >= 0 && dist <= global_max_distance) {
+        cuda::atomic_ref<size_t, cuda::thread_scope_device> counter(distance_counts[dist]);
+        size_t local_offset         = counter.fetch_add(size_t{1}, cuda::std::memory_order_relaxed);
+        size_t global_offset        = distance_offsets[dist] + local_offset;
+        all_vertices[global_offset] = v_first + v_offset;
+        all_sources[global_offset]  = source_idx;
+      }
+    });
+  // CUB segmented sort: Sort vertices by vertex ID within each distance level
+  if (total_vertices > 0) {
+    // Calculate target chunk size based on GPU hardware
+    auto approx_vertices_to_sort_per_iteration =
+      static_cast<size_t>(handle.get_device_properties().multiProcessorCount) *
+      (1 << 20); /* tuning parameter */
+
+    // Build distance level offsets array for chunking
+    std::vector<size_t> distance_level_offsets;
+    distance_level_offsets.push_back(0);
+
+    size_t cumulative_vertices = 0;
+    for (vertex_t d = 0; d <= global_max_distance; ++d) {
+      cumulative_vertices += host_distance_counts[d];
+      distance_level_offsets.push_back(cumulative_vertices);
+    }
+
+    // Copy offsets to device for chunking function
+    rmm::device_uvector<size_t> d_distance_level_offsets(distance_level_offsets.size(),
+                                                         handle.get_stream());
+    raft::update_device(d_distance_level_offsets.data(),
+                        distance_level_offsets.data(),
+                        distance_level_offsets.size(),
+                        handle.get_stream());
+
+    auto [h_distance_level_chunk_offsets, h_vertex_chunk_offsets] =
+      detail::compute_offset_aligned_element_chunks(
+        handle,
+        raft::device_span<size_t const>(d_distance_level_offsets.data(),
+                                        d_distance_level_offsets.size()),
+        total_vertices,
+        approx_vertices_to_sort_per_iteration);
+
+    auto num_chunks = h_distance_level_chunk_offsets.size() - 1;
+
+    // Allocate temporary storage for CUB segmented sort
+    rmm::device_uvector<std::byte> d_tmp_storage(0, handle.get_stream());
+
+    // Process each chunk - sort consecutive arrays directly in-place
+    for (size_t chunk_i = 0; chunk_i < num_chunks; ++chunk_i) {
+      size_t chunk_vertex_start    = h_vertex_chunk_offsets[chunk_i];
+      size_t chunk_vertex_end      = h_vertex_chunk_offsets[chunk_i + 1];
+      size_t chunk_distance_start  = h_distance_level_chunk_offsets[chunk_i];
+      size_t chunk_distance_end    = h_distance_level_chunk_offsets[chunk_i + 1];
+      size_t chunk_size            = chunk_vertex_end - chunk_vertex_start;
+      size_t num_segments_in_chunk = chunk_distance_end - chunk_distance_start;
+
+      if (num_segments_in_chunk > 0) {
+        auto offset_first = thrust::make_transform_iterator(
+          h_distance_offsets.data() + chunk_distance_start,
+          [chunk_vertex_start] __device__(size_t offset) { return offset - chunk_vertex_start; });
+
+        // CUB segmented sort directly on consecutive arrays - no copy needed!
+        size_t temp_storage_bytes = 0;
+        cub::DeviceSegmentedSort::SortPairs(nullptr,
+                                            temp_storage_bytes,
+                                            all_vertices.data() + chunk_vertex_start,
+                                            all_vertices.data() + chunk_vertex_start,
+                                            all_sources.data() + chunk_vertex_start,
+                                            all_sources.data() + chunk_vertex_start,
+                                            chunk_size,
+                                            num_segments_in_chunk,
+                                            offset_first,
+                                            offset_first + 1,
+                                            handle.get_stream());
+
+        if (temp_storage_bytes > d_tmp_storage.size()) {
+          d_tmp_storage = rmm::device_uvector<std::byte>(temp_storage_bytes, handle.get_stream());
+        }
+
+        cub::DeviceSegmentedSort::SortPairs(d_tmp_storage.data(),
+                                            temp_storage_bytes,
+                                            all_vertices.data() + chunk_vertex_start,
+                                            all_vertices.data() + chunk_vertex_start,
+                                            all_sources.data() + chunk_vertex_start,
+                                            all_sources.data() + chunk_vertex_start,
+                                            chunk_size,
+                                            num_segments_in_chunk,
+                                            offset_first,
+                                            offset_first + 1,
+                                            handle.get_stream());
+      }
+    }
+  }
+
+  // Process distance levels using pre-computed buckets (now with sorted vertices)
+  for (vertex_t d = global_max_distance; d > 1; --d) {
+    // Step 1: Create vertex frontier with all vertices at distance d-1 for all sources
+    // Use tagged vertices with (vertex, source_idx) pairs
+    using tagged_vertex_t = cuda::std::tuple<vertex_t, size_t>;
+
+    // Get vertices at distance d-1 from consecutive arrays (O(1) lookup)
+    size_t start_offset                = h_distance_offsets[d - 1];
+    size_t end_offset                  = h_distance_offsets[d];
+    size_t total_vertices_at_d_minus_1 = end_offset - start_offset;
+
+    if (total_vertices_at_d_minus_1 > 0) {
+      // Step 2: Use extract_transform_if_v_frontier_e to enumerate all qualifying edges
+      // This extracts (src, tag, dst) triplets as recommended
+      // Create a proper frontier object for the tagged vertices
+      vertex_frontier_t<vertex_t, origin_t, multi_gpu, true> frontier(handle, 1);
+
+      // Insert tagged vertices directly using zip iterator (no temporary needed)
+      auto pair_first = thrust::make_zip_iterator(all_vertices.begin() + start_offset,
+                                                  all_sources.begin() + start_offset);
+      frontier.bucket(0).insert(pair_first, pair_first + total_vertices_at_d_minus_1);
+
+      auto edge_tuples_buffer = extract_transform_if_v_frontier_outgoing_e(
+        handle,
+        graph_view,
+        frontier.bucket(0),
+        edge_src_dummy_property_t{}.view(),
+        edge_dst_dummy_property_t{}.view(),
+        edge_dummy_property_t{}.view(),
+        cuda::proclaim_return_type<cuda::std::tuple<vertex_t, origin_t, vertex_t, weight_t>>(
+          [d,
+           distances_2d = distances_2d.data(),
+           sigmas_2d    = sigmas_2d.data(),
+           delta_buffer = delta_buffer.data(),
+           num_vertices,
+           invalid_distance,
+           v_first] __device__(auto tagged_src, auto dst, auto, auto, auto) {
+            auto src        = cuda::std::get<0>(tagged_src);
+            auto source_idx = cuda::std::get<1>(tagged_src);
+
+            // Calculate delta using Brandes formula with accumulated deltas
+            const vertex_t* distances = distances_2d + source_idx * num_vertices;
+            const edge_t* sigmas      = sigmas_2d + source_idx * num_vertices;
+            const weight_t* deltas    = delta_buffer + source_idx * num_vertices;
+
+            auto src_offset = src - v_first;
+            auto dst_offset = dst - v_first;
+
+            auto sigma_v = static_cast<weight_t>(sigmas[src_offset]);
+            auto sigma_w = static_cast<weight_t>(sigmas[dst_offset]);
+
+            // Get accumulated delta for destination vertex
+            weight_t delta_w = deltas[dst_offset];
+            weight_t delta   = (sigma_v / sigma_w) * (1 + delta_w);
+
+            return cuda::std::make_tuple(src, source_idx, dst, delta);
+          }),
+        // PREDICATE: only process edges where dst is at distance d
+        cuda::proclaim_return_type<bool>(
+          [d, distances_2d = distances_2d.data(), num_vertices, v_first] __device__(
+            auto tagged_src, auto dst, auto, auto, auto) {
+            auto source_idx           = cuda::std::get<1>(tagged_src);
+            const vertex_t* distances = distances_2d + source_idx * num_vertices;
+            auto dst_offset           = dst - v_first;
+            return distances[dst_offset] == d;
+          }));
+
+      // Work directly with the result buffer
+      size_t num_edges = size_dataframe_buffer(edge_tuples_buffer);
+
+      if (num_edges > 0) {
+        // Access individual vectors directly to avoid transform iterator issues
+        auto& srcs           = std::get<0>(edge_tuples_buffer);
+        auto& source_indices = std::get<1>(edge_tuples_buffer);
+        auto& dsts           = std::get<2>(edge_tuples_buffer);
+        auto& deltas         = std::get<3>(edge_tuples_buffer);
+
+        // Step 3: Sort using (src, source_index) as composite key for efficient reduction
+        thrust::stable_sort_by_key(
+          handle.get_thrust_policy(),
+          thrust::make_zip_iterator(srcs.begin(), source_indices.begin()),  // Composite key
+          thrust::make_zip_iterator(srcs.end(), source_indices.end()),
+          deltas.begin());  // Values to sort
+
+        // Step 4: Use reduce_by_key with in-place reduction
+        // Reduce by key and get count in one operation - overwrite input buffers
+        auto reduced_result = thrust::reduce_by_key(
+          handle.get_thrust_policy(),
+          thrust::make_zip_iterator(srcs.begin(), source_indices.begin()),
+          thrust::make_zip_iterator(srcs.end(), source_indices.end()),
+          deltas.begin(),
+          thrust::make_zip_iterator(srcs.begin(),
+                                    source_indices.begin()),  // Output keys (overwrite input)
+          deltas.begin(),                                     // Output values (overwrite input)
+          thrust::equal_to<cuda::std::tuple<vertex_t, origin_t>>{},
+          thrust::plus<weight_t>{});
+
+        // Get num_unique from the result
+        size_t num_unique = reduced_result.second - deltas.begin();
+
+        // Step 5: Update centralities and deltas from the in-place reduced results
+        thrust::for_each(
+          handle.get_thrust_policy(),
+          thrust::make_counting_iterator<size_t>(0),
+          thrust::make_counting_iterator<size_t>(num_unique),
+          [srcs           = srcs.data(),
+           source_indices = source_indices.data(),
+           deltas         = deltas.data(),
+           centralities   = centralities.data(),
+           delta_buffer   = delta_buffer.data(),
+           num_vertices,
+           v_first = graph_view.local_vertex_partition_range_first()] __device__(size_t i) {
+            auto src        = srcs[i];
+            auto source_idx = source_indices[i];
+            auto delta      = deltas[i];
+
+            // Update centrality using atomic for floating point
+            auto src_offset = src - v_first;
+            cuda::atomic_ref<weight_t, cuda::thread_scope_device> centrality_counter(
+              centralities[src_offset]);
+            centrality_counter.fetch_add(delta, cuda::std::memory_order_relaxed);
+
+            // Accumulate delta for next iteration using atomic for floating point
+            weight_t* source_deltas = delta_buffer + source_idx * num_vertices;
+            cuda::atomic_ref<weight_t, cuda::thread_scope_device> delta_counter(
+              source_deltas[src_offset]);
+            delta_counter.fetch_add(delta, cuda::std::memory_order_relaxed);
+          });
+      }
+    }
+  }
+
+  // Handle source and destination vertex contributions if include_endpoints is true
+  if (include_endpoints) {
+    auto v_first = graph_view.local_vertex_partition_range_first();
+
+    // Create small temporary buffer for source vertex access (needed for 2D array indexing)
+    rmm::device_uvector<vertex_t> sources_buffer(num_sources, handle.get_stream());
+    thrust::copy(handle.get_thrust_policy(), sources_first, sources_last, sources_buffer.begin());
+
+    // Handle source vertex contributions
+    thrust::for_each(
+      handle.get_thrust_policy(),
+      thrust::make_counting_iterator<size_t>(0),
+      thrust::make_counting_iterator<size_t>(num_sources),
+      [distances_2d = distances_2d.data(),
+       sigmas_2d    = sigmas_2d.data(),
+       sources      = sources_buffer.data(),
+       centralities = centralities.data(),
+       num_vertices,
+       v_first] __device__(size_t source_idx) {
+        const vertex_t* distances = distances_2d + source_idx * num_vertices;
+        const edge_t* sigmas      = sigmas_2d + source_idx * num_vertices;
+        vertex_t source_vertex    = sources[source_idx];
+
+        // Source vertex contribution: count of reachable vertices (excluding self)
+        weight_t source_contribution = 0;
+        for (vertex_t v = 0; v < num_vertices; ++v) {
+          if (v != source_vertex && distances[v] != std::numeric_limits<vertex_t>::max()) {
+            source_contribution += 1.0;
+          }
+        }
+        // Convert global vertex ID to local offset
+        auto source_offset = source_vertex - v_first;
+        cuda::atomic_ref<weight_t, cuda::thread_scope_device> centrality_counter(
+          centralities[source_offset]);
+        centrality_counter.fetch_add(source_contribution, cuda::std::memory_order_relaxed);
+      });
+
+    // Handle destination vertex contributions
+    thrust::for_each(
+      handle.get_thrust_policy(),
+      thrust::make_counting_iterator<size_t>(0),
+      thrust::make_counting_iterator<size_t>(num_sources),
+      [distances_2d = distances_2d.data(),
+       sigmas_2d    = sigmas_2d.data(),
+       sources      = sources_buffer.data(),
+       centralities = centralities.data(),
+       num_vertices,
+       v_first] __device__(size_t source_idx) {
+        const vertex_t* distances = distances_2d + source_idx * num_vertices;
+        const edge_t* sigmas      = sigmas_2d + source_idx * num_vertices;
+        vertex_t source_vertex    = sources[source_idx];
+
+        // Destination vertex contributions: each reachable vertex contributes to its own centrality
+        for (vertex_t v = 0; v < num_vertices; ++v) {
+          if (v != source_vertex && distances[v] != std::numeric_limits<vertex_t>::max()) {
+            // Each destination vertex contributes 1 to its own centrality
+            auto dest_offset = v - v_first;
+            cuda::atomic_ref<weight_t, cuda::thread_scope_device> centrality_counter(
+              centralities[dest_offset]);
+            centrality_counter.fetch_add(1.0, cuda::std::memory_order_relaxed);
+          }
+        }
+      });
+  }
+}
+
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool multi_gpu,
+          typename VertexIterator>
 rmm::device_uvector<weight_t> betweenness_centrality(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
@@ -594,44 +1184,69 @@ rmm::device_uvector<weight_t> betweenness_centrality(
     my_rank = handle.get_comms().get_rank();
   }
 
-  //
-  // FIXME: This could be more efficient using something akin to the
-  // technique in WCC.  Take the entire set of sources, insert them into
-  // a tagged frontier (tagging each source with itself).  Then we can
-  // expand from multiple sources concurrently. The challenge is managing
-  // the memory explosion.
-  //
-  for (size_t source_idx = 0; source_idx < num_sources; ++source_idx) {
-    //
-    //  BFS
-    //
-    constexpr size_t bucket_idx_cur = 0;
-    constexpr size_t num_buckets    = 2;
+  if constexpr (multi_gpu) {
+    // Multi-GPU: Use sequential version
+    for (size_t source_idx = 0; source_idx < num_sources; ++source_idx) {
+      //
+      //  BFS
+      //
+      constexpr size_t bucket_idx_cur = 0;
+      constexpr size_t num_buckets    = 2;
 
-    vertex_frontier_t<vertex_t, void, multi_gpu, true> vertex_frontier(handle, num_buckets);
+      vertex_frontier_t<vertex_t, void, multi_gpu, true> vertex_frontier(handle, num_buckets);
 
-    if ((source_idx >= source_offsets[my_rank]) && (source_idx < source_offsets[my_rank + 1])) {
-      vertex_frontier.bucket(bucket_idx_cur)
-        .insert(vertices_begin + (source_idx - source_offsets[my_rank]),
-                vertices_begin + (source_idx - source_offsets[my_rank]) + 1);
+      if ((source_idx >= source_offsets[my_rank]) && (source_idx < source_offsets[my_rank + 1])) {
+        vertex_frontier.bucket(bucket_idx_cur)
+          .insert(vertices_begin + (source_idx - source_offsets[my_rank]),
+                  vertices_begin + (source_idx - source_offsets[my_rank]) + 1);
+      }
+
+      auto [distances, sigmas] = detail::brandes_bfs(
+        handle, graph_view, edge_weight_view, vertex_frontier, do_expensive_check);
+      detail::accumulate_vertex_results(
+        handle,
+        graph_view,
+        edge_weight_view,
+        raft::device_span<weight_t>{centralities.data(), centralities.size()},
+        std::move(distances),
+        std::move(sigmas),
+        include_endpoints,
+        do_expensive_check);
     }
+  } else {
+    // Single-GPU: Use parallel version
+    // Process sources in batches to respect origin_t (uint16_t) limit
+    constexpr size_t max_sources_per_batch = std::numeric_limits<uint16_t>::max();
 
-    //
-    //  Now we need to do modified BFS
-    //
-    // FIXME:  This has an inefficiency in early iterations, as it doesn't have enough work to
-    //         keep the GPUs busy.  But we can't run too many at once or we will run out of
-    //         memory. Need to investigate options to improve this performance
-    auto [distances, sigmas] =
-      brandes_bfs(handle, graph_view, edge_weight_view, vertex_frontier, do_expensive_check);
-    accumulate_vertex_results(handle,
-                              graph_view,
-                              edge_weight_view,
-                              raft::device_span<weight_t>{centralities.data(), centralities.size()},
-                              std::move(distances),
-                              std::move(sigmas),
-                              include_endpoints,
-                              do_expensive_check);
+    size_t num_sources = cuda::std::distance(vertices_begin, vertices_end);
+    size_t num_batches = (num_sources + max_sources_per_batch - 1) / max_sources_per_batch;
+
+    for (size_t batch_idx = 0; batch_idx < num_batches; ++batch_idx) {
+      size_t batch_start = batch_idx * max_sources_per_batch;
+      size_t batch_end   = std::min(batch_start + max_sources_per_batch, num_sources);
+
+      auto batch_vertices_begin = vertices_begin + batch_start;
+      auto batch_vertices_end   = vertices_begin + batch_end;
+
+      auto [distances_2d, sigmas_2d] = detail::multisource_bfs(handle,
+                                                               graph_view,
+                                                               edge_weight_view,
+                                                               batch_vertices_begin,
+                                                               batch_vertices_end,
+                                                               do_expensive_check);
+
+      detail::multisource_backward_pass(
+        handle,
+        graph_view,
+        edge_weight_view,
+        raft::device_span<weight_t>{centralities.data(), centralities.size()},
+        std::move(distances_2d),
+        std::move(sigmas_2d),
+        batch_vertices_begin,
+        batch_vertices_end,
+        include_endpoints,
+        do_expensive_check);
+    }
   }
 
   std::optional<weight_t> scale_nonsource{std::nullopt};
