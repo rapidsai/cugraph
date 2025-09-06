@@ -1486,6 +1486,18 @@ create_graph_from_edgelist_impl(
     }
   }
 
+  auto tmp_splitted_compressed_edge_endpoint_buffer_type = large_edge_buffer_type;
+  if (compressed_v_size < sizeof(vertex_t)) {
+    if (!large_edge_buffer_type &&
+        cugraph::large_buffer_manager::
+          memory_buffer_initialized()) {  // use the large memory buffer to store temporary splitted
+                                          // data (right before decompression) if we compress vertex
+                                          // IDs (i.e. we expect device memory allocation will fail
+                                          // without compression)
+      tmp_splitted_compressed_edge_endpoint_buffer_type = large_buffer_type_t::MEMORY;
+    }
+  }
+
   // 2. groupby each edge chunks to their target local adjacency matrix partition (and further
   // groupby within the local partition by applying the compute_gpu_id_from_vertex_t to minor vertex
   // IDs).
@@ -1659,7 +1671,7 @@ create_graph_from_edgelist_impl(
         edge_partition_intra_partition_segment_offset_vectors,
         edge_partition_intra_segment_copy_output_displacement_vectors,
         compressed_v_size,
-        large_edge_buffer_type);
+        tmp_splitted_compressed_edge_endpoint_buffer_type);
 
     edge_partition_edgelist_compressed_dsts =
       split_edge_chunk_compressed_elements_to_local_edge_partitions<edge_t>(
@@ -1670,7 +1682,7 @@ create_graph_from_edgelist_impl(
         edge_partition_intra_partition_segment_offset_vectors,
         edge_partition_intra_segment_copy_output_displacement_vectors,
         compressed_v_size,
-        large_edge_buffer_type);
+        tmp_splitted_compressed_edge_endpoint_buffer_type);
   } else {
     edge_partition_edgelist_srcs =
       split_edge_chunk_elements_to_local_edge_partitions<edge_t, vertex_t>(
