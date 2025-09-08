@@ -1079,7 +1079,10 @@ bool check_vertex_renumber_map_invariants(
                                                   this_label_unique_minors.end(),
                                                   (*this_label_unique_minor_hops).begin()))),
         handle.get_stream());
-      (*this_label_unique_minor_hops).resize(this_label_unique_minors.size(), handle.get_stream());
+      if (this_label_unique_minor_hops) {
+        (*this_label_unique_minor_hops)
+          .resize(this_label_unique_minors.size(), handle.get_stream());
+      }
     } else {
       thrust::sort(handle.get_thrust_policy(),
                    this_label_unique_minors.begin(),
@@ -1169,8 +1172,10 @@ bool check_vertex_renumber_map_invariants(
                                        vertex_type;
                               })),
             handle.get_stream());
-          (*this_type_unique_major_hops)
-            .resize(this_type_unique_majors.size(), handle.get_stream());
+          if (this_type_unique_major_hops) {
+            (*this_type_unique_major_hops)
+              .resize(this_type_unique_majors.size(), handle.get_stream());
+          }
 
           input_pair_first  = thrust::make_zip_iterator(this_label_unique_minors.begin(),
                                                        (*this_label_unique_minor_hops).begin());
@@ -1194,8 +1199,10 @@ bool check_vertex_renumber_map_invariants(
                                        vertex_type;
                               })),
             handle.get_stream());
-          (*this_type_unique_minor_hops)
-            .resize(this_type_unique_minors.size(), handle.get_stream());
+          if (this_type_unique_minor_hops) {
+            (*this_type_unique_minor_hops)
+              .resize(this_type_unique_minors.size(), handle.get_stream());
+          }
         } else {
           auto input_pair_first = thrust::make_zip_iterator(
             this_label_unique_majors.begin(), (*this_label_unique_major_hops).begin());
@@ -1352,8 +1359,10 @@ bool check_vertex_renumber_map_invariants(
                                                                    v))) == vertex_type;
                 })),
             handle.get_stream());
-          (*this_type_unique_minor_hops)
-            .resize(this_type_unique_minors.size(), handle.get_stream());
+          if (this_type_unique_minor_hops) {
+            (*this_type_unique_minor_hops)
+              .resize(this_type_unique_minors.size(), handle.get_stream());
+          }
         } else {
           thrust::copy(handle.get_thrust_policy(),
                        this_label_unique_majors.begin(),

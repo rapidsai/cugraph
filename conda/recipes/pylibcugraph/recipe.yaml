@@ -59,7 +59,7 @@ requirements:
     - cuda-cudart-dev
   run:
     - ${{ pin_compatible("cuda-version", upper_bound="x", lower_bound="x") }}
-    - cupy >=12.0.0
+    - cupy >=13.6.0
     - libcugraph =${{ version }}
     - numpy>=1.23,<3.0a0
     - pylibraft =${{ minor_version }}

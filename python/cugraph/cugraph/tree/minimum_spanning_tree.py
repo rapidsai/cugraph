@@ -17,10 +17,6 @@ from cugraph.tree import minimum_spanning_tree_wrapper
 from pylibcugraph import minimum_spanning_tree as pylibcugraph_minimum_spanning_tree
 from pylibcugraph import ResourceHandle
 from cugraph.structure.graph_classes import Graph
-from cugraph.utilities import (
-    ensure_cugraph_obj_for_nx,
-    cugraph_to_nx,
-)
 
 
 def _minimum_spanning_tree_subgraph(G):
@@ -78,20 +74,17 @@ def _maximum_spanning_tree_subgraph(G):
     return mst_subgraph
 
 
-def minimum_spanning_tree(G, weight=None, algorithm="boruvka", ignore_nan=False):
+def minimum_spanning_tree(
+    G: Graph, weight=None, algorithm="boruvka", ignore_nan=False
+) -> Graph:
     """
     Returns a minimum spanning tree (MST) or forest (MSF) on an undirected
     graph
 
     Parameters
     ----------
-    G : cuGraph.Graph or networkx.Graph
+    G : cuGraph.Graph
         cuGraph graph descriptor with connectivity information.
-
-        .. deprecated:: 24.12
-           Accepting a ``networkx.Graph`` is deprecated and will be removed in a
-           future version.  For ``networkx.Graph`` use networkx directly with
-           the ``nx-cugraph`` backend. See:  https://rapids.ai/nx-cugraph/
 
     weight : string
         default to the weights in the graph, if the graph edges do not have a
@@ -106,9 +99,8 @@ def minimum_spanning_tree(G, weight=None, algorithm="boruvka", ignore_nan=False)
 
     Returns
     -------
-    G_mst : cuGraph.Graph or networkx.Graph
+    G_mst : cuGraph.Graph
         A graph descriptor with a minimum spanning tree or forest.
-        The networkx graph will not have all attributes copied over
 
     Examples
     --------
@@ -117,13 +109,8 @@ def minimum_spanning_tree(G, weight=None, algorithm="boruvka", ignore_nan=False)
     >>> G_mst = cugraph.minimum_spanning_tree(G)
 
     """
-    G, isNx = ensure_cugraph_obj_for_nx(G)
 
-    if isNx is True:
-        mst = _minimum_spanning_tree_subgraph(G)
-        return cugraph_to_nx(mst)
-    else:
-        return _minimum_spanning_tree_subgraph(G)
+    return _minimum_spanning_tree_subgraph(G)
 
 
 def maximum_spanning_tree(G, weight=None, algorithm="boruvka", ignore_nan=False):
@@ -133,13 +120,8 @@ def maximum_spanning_tree(G, weight=None, algorithm="boruvka", ignore_nan=False)
 
     Parameters
     ----------
-    G : cuGraph.Graph or networkx.Graph
+    G : cuGraph.Graph
         cuGraph graph descriptor with connectivity information.
-
-        .. deprecated:: 24.12
-           Accepting a ``networkx.Graph`` is deprecated and will be removed in a
-           future version.  For ``networkx.Graph`` use networkx directly with
-           the ``nx-cugraph`` backend. See:  https://rapids.ai/nx-cugraph/
 
     weight : string
         default to the weights in the graph, if the graph edges do not have a
@@ -154,9 +136,8 @@ def maximum_spanning_tree(G, weight=None, algorithm="boruvka", ignore_nan=False)
 
     Returns
     -------
-    G_mst : cuGraph.Graph or networkx.Graph
+    G_mst : cuGraph.Graph
         A graph descriptor with a maximum spanning tree or forest.
-        The networkx graph will not have all attributes copied over
 
     Examples
     --------
@@ -165,10 +146,5 @@ def maximum_spanning_tree(G, weight=None, algorithm="boruvka", ignore_nan=False)
     >>> G_mst = cugraph.maximum_spanning_tree(G)
 
     """
-    G, isNx = ensure_cugraph_obj_for_nx(G)
 
-    if isNx is True:
-        mst = _maximum_spanning_tree_subgraph(G)
-        return cugraph_to_nx(mst)
-    else:
-        return _maximum_spanning_tree_subgraph(G)
+    return _maximum_spanning_tree_subgraph(G)
