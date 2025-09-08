@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2024, NVIDIA CORPORATION.
+# Copyright (c) 2022-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -51,6 +51,7 @@ from pylibcugraph._cugraph_c.properties cimport (
 cdef extern from "cugraph_c/sampling_algorithms.h":
     ###########################################################################
 
+    # uniform neighbor sampling
     cdef cugraph_error_code_t cugraph_uniform_neighbor_sample(
         const cugraph_resource_handle_t* handle,
         cugraph_graph_t* graph,
@@ -67,6 +68,7 @@ cdef extern from "cugraph_c/sampling_algorithms.h":
         cugraph_error_t** error
     )
 
+    # heterogeneous uniform neighbor sampling
     cdef cugraph_error_code_t cugraph_heterogeneous_uniform_neighbor_sample(
         const cugraph_resource_handle_t* handle,
         cugraph_rng_state_t* rng_state,
@@ -82,6 +84,7 @@ cdef extern from "cugraph_c/sampling_algorithms.h":
         cugraph_error_t** error
     )
 
+    # heterogeneous biased neighbor sampling
     cdef cugraph_error_code_t cugraph_heterogeneous_biased_neighbor_sample(
         const cugraph_resource_handle_t* handle,
         cugraph_rng_state_t* rng_state,
@@ -98,6 +101,7 @@ cdef extern from "cugraph_c/sampling_algorithms.h":
         cugraph_error_t** error
     )
 
+    # homogeneous uniform neighbor sampling
     cdef cugraph_error_code_t cugraph_homogeneous_uniform_neighbor_sample(
         const cugraph_resource_handle_t* handle,
         cugraph_rng_state_t* rng_state,
@@ -111,6 +115,7 @@ cdef extern from "cugraph_c/sampling_algorithms.h":
         cugraph_error_t** error
     )
 
+    # homogeneous biased neighbor sampling
     cdef cugraph_error_code_t cugraph_homogeneous_biased_neighbor_sample(
         const cugraph_resource_handle_t* handle,
         cugraph_rng_state_t* rng_state,
@@ -125,6 +130,7 @@ cdef extern from "cugraph_c/sampling_algorithms.h":
         cugraph_error_t** error
     )
 
+    # biased neighbor sampling
     cdef cugraph_error_code_t cugraph_biased_neighbor_sample(
         const cugraph_resource_handle_t* handle,
         cugraph_graph_t* graph,
@@ -142,6 +148,7 @@ cdef extern from "cugraph_c/sampling_algorithms.h":
         cugraph_error_t** error
     )
 
+    # create test uniform neighbor sampling result
     cdef cugraph_error_code_t cugraph_test_uniform_neighborhood_sample_result_create(
         const cugraph_resource_handle_t* handle,
         const cugraph_type_erased_device_array_view_t* srcs,
@@ -183,3 +190,69 @@ cdef extern from "cugraph_c/sampling_algorithms.h":
             cugraph_coo_t **result,
             cugraph_error_t **error
         )
+    
+    # homogeneous uniform temporal neighbor sampling
+    cdef cugraph_error_code_t \
+        cugraph_homogeneous_uniform_temporal_neighbor_sample(
+            const cugraph_resource_handle_t* handle,
+            cugraph_rng_state_t* rng_state,
+            cugraph_graph_t* graph,
+            const char* temporal_property_name,
+            const cugraph_type_erased_device_array_view_t* start_vertices,
+            const cugraph_type_erased_device_array_view_t* starting_vertex_label_offsets,
+            const cugraph_type_erased_host_array_view_t* fan_out,
+            const cugraph_sampling_options_t* sampling_options,
+            bool_t do_expensive_check,
+            cugraph_sample_result_t** result,
+            cugraph_error_t** error);
+    
+    # homogeneous biased temporal neighbor sampling
+    cdef cugraph_error_code_t \
+        cugraph_homogeneous_biased_temporal_neighbor_sample(
+            const cugraph_resource_handle_t* handle,
+            cugraph_rng_state_t* rng_state,
+            cugraph_graph_t* graph,
+            const char* temporal_property_name,
+            const cugraph_edge_property_view_t* edge_biases,
+            const cugraph_type_erased_device_array_view_t* start_vertices,
+            const cugraph_type_erased_device_array_view_t* starting_vertex_label_offsets,
+            const cugraph_type_erased_host_array_view_t* fan_out,
+            const cugraph_sampling_options_t* sampling_options,
+            bool_t do_expensive_check,
+            cugraph_sample_result_t** result,
+            cugraph_error_t** error);
+    
+    # heterogeneous uniform temporal neighbor sampling
+    cdef cugraph_error_code_t \
+        cugraph_heterogeneous_uniform_temporal_neighbor_sample(
+            const cugraph_resource_handle_t* handle,
+            cugraph_rng_state_t* rng_state,
+            cugraph_graph_t* graph,
+            const char* temporal_property_name,
+            const cugraph_type_erased_device_array_view_t* start_vertices,
+            const cugraph_type_erased_device_array_view_t* starting_vertex_label_offsets,
+            const cugraph_type_erased_device_array_view_t* vertex_type_offsets,
+            const cugraph_type_erased_host_array_view_t* fan_out,
+            int num_edge_types,
+            const cugraph_sampling_options_t* sampling_options,
+            bool_t do_expensive_check,
+            cugraph_sample_result_t** result,
+            cugraph_error_t** error);
+    
+    # heterogeneous biased temporal neighbor sampling
+    cdef cugraph_error_code_t \
+        cugraph_heterogeneous_biased_temporal_neighbor_sample(
+            const cugraph_resource_handle_t* handle,
+            cugraph_rng_state_t* rng_state,
+            cugraph_graph_t* graph,
+            const char* temporal_property_name,
+            const cugraph_edge_property_view_t* edge_biases,
+            const cugraph_type_erased_device_array_view_t* start_vertices,
+            const cugraph_type_erased_device_array_view_t* starting_vertex_label_offsets,
+            const cugraph_type_erased_device_array_view_t* vertex_type_offsets,
+            const cugraph_type_erased_host_array_view_t* fan_out,
+            int num_edge_types,
+            const cugraph_sampling_options_t* sampling_options,
+            bool_t do_expensive_check,
+            cugraph_sample_result_t** result,
+            cugraph_error_t** error);
