@@ -190,7 +190,7 @@ cdef extern from "cugraph_c/sampling_algorithms.h":
             cugraph_coo_t **result,
             cugraph_error_t **error
         )
-    
+
     # homogeneous uniform temporal neighbor sampling
     cdef cugraph_error_code_t \
         cugraph_homogeneous_uniform_temporal_neighbor_sample(
@@ -205,7 +205,7 @@ cdef extern from "cugraph_c/sampling_algorithms.h":
             bool_t do_expensive_check,
             cugraph_sample_result_t** result,
             cugraph_error_t** error);
-    
+
     # homogeneous biased temporal neighbor sampling
     cdef cugraph_error_code_t \
         cugraph_homogeneous_biased_temporal_neighbor_sample(
@@ -221,7 +221,7 @@ cdef extern from "cugraph_c/sampling_algorithms.h":
             bool_t do_expensive_check,
             cugraph_sample_result_t** result,
             cugraph_error_t** error);
-    
+
     # heterogeneous uniform temporal neighbor sampling
     cdef cugraph_error_code_t \
         cugraph_heterogeneous_uniform_temporal_neighbor_sample(
@@ -238,7 +238,7 @@ cdef extern from "cugraph_c/sampling_algorithms.h":
             bool_t do_expensive_check,
             cugraph_sample_result_t** result,
             cugraph_error_t** error);
-    
+
     # heterogeneous biased temporal neighbor sampling
     cdef cugraph_error_code_t \
         cugraph_heterogeneous_biased_temporal_neighbor_sample(

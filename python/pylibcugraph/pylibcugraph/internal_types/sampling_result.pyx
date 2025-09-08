@@ -182,7 +182,7 @@ cdef class SamplingResult:
 
         return create_cupy_array_view_for_device_ptr(device_array_view_ptr,
                                                      self)
-    
+
     def get_edge_start_time(self):
         if self.c_sample_result_ptr is NULL:
             raise ValueError("pointer not set, must call set_ptr() with a "
@@ -196,7 +196,7 @@ cdef class SamplingResult:
 
         return create_cupy_array_view_for_device_ptr(device_array_view_ptr,
                                                      self)
-    
+
     def get_edge_end_time(self):
         if self.c_sample_result_ptr is NULL:
             raise ValueError("pointer not set, must call set_ptr() with a "

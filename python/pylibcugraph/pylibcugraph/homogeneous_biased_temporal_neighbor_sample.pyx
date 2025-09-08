@@ -104,12 +104,12 @@ def homogeneous_biased_temporal_neighbor_sample(ResourceHandle resource_handle,
     Performs biased temporal neighborhood sampling, which samples nodes from
     a graph based on the current node's neighbors, with a corresponding fan_out
     value at each hop. The edges are sampled with biases.
-    
+
     Temporal sampling considers the time associated with the edges.  For example,
     if we start at vertex v1 and sample an edge that takes us to vertex v2 at
     time t1, when we sample in the next hop from vertex v2, we want to consider
     only edges that occur after time t1.
-    
+
     Homogeneous neighborhood sampling translates to 1 edge type.
 
     Parameters
@@ -120,11 +120,11 @@ def homogeneous_biased_temporal_neighbor_sample(ResourceHandle resource_handle,
 
     input_graph : SGGraph or MGGraph
         The input graph, for either Single or Multi-GPU operations.
-    
+
     temporal_property_name : char
         Name associated with the edge property in the graph that should be used
         as the time.  Currently unused.
-    
+
     edge_biases: not supported.
 
     start_vertex_list: device array type
