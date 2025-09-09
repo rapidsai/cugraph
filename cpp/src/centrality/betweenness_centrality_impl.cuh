@@ -32,10 +32,15 @@
 #include <cugraph/algorithms.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/edge_src_dst_property.hpp>
+#include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/error.hpp>
+#include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/vertex_partition_device_view.cuh>
 
 #include <raft/core/handle.hpp>
+
+#include <rmm/mr/device/cuda_memory_resource.hpp>
+#include <rmm/mr/device/per_device_resource.hpp>
 
 #include <cub/cub.cuh>
 #include <cuda/atomic>
@@ -50,12 +55,56 @@
 #include <thrust/sort.h>
 #include <thrust/transform.h>
 
+#include <cuda_runtime_api.h>
+
+#include <algorithm>
+#include <cstdio>
+#include <cstdlib>
+#include <numeric>
+#include <stdexcept>
+#include <string>
+#include <vector>
+
 //
 // The formula for BC(v) is the sum over all (s,t) where s != v != t of
 // sigma_st(v) / sigma_st.  Sigma_st(v) is the number of shortest paths
 // that pass through vertex v, whereas sigma_st is the total number of shortest
 // paths.
 namespace {
+
+// Memory measurement utilities
+struct MemoryInfo {
+  size_t free_memory;
+  size_t used_memory;
+  size_t total_memory;
+
+  static MemoryInfo get_device_memory()
+  {
+    size_t free, total;
+    cudaMemGetInfo(&free, &total);
+    return {free, total - free, total};
+  }
+
+  void print(const char* label) const
+  {
+    double memory_usage = static_cast<double>(used_memory) / total_memory;
+    printf("[Memory] %s: Free: %.1fGB, Used: %.1fGB, Total: %.1fGB (%.1f%%)\n",
+           label,
+           free_memory / (1024.0 * 1024.0 * 1024.0),
+           used_memory / (1024.0 * 1024.0 * 1024.0),
+           total_memory / (1024.0 * 1024.0 * 1024.0),
+           memory_usage * 100.0);
+  }
+};
+
+// Memory cleanup utilities
+struct MemoryCleanup {
+  static void cleanup_batch_memory(raft::handle_t const& handle)
+  {
+    handle.sync_stream();
+    cudaDeviceSynchronize();
+  }
+};
 
 template <typename vertex_t>
 struct brandes_e_op_t {
@@ -1184,8 +1233,61 @@ rmm::device_uvector<weight_t> betweenness_centrality(
     my_rank = handle.get_comms().get_rank();
   }
 
+  // Check environment variables for batch mode configuration
+  std::string batch_mode = std::getenv("BATCH_MODE") ? std::getenv("BATCH_MODE") : "dynamic";
+  size_t fixed_batch_size =
+    std::getenv("FIXED_BATCH_SIZE") ? std::stoul(std::getenv("FIXED_BATCH_SIZE")) : 1000;
+
+  // Initialize memory management and measurement
+  MemoryInfo initial_mem = MemoryInfo::get_device_memory();
+  initial_mem.print("Before BFS processing");
+
+  // Debug: Print RMM configuration
+  auto* current_rmm_resource = rmm::mr::get_current_device_resource();
+  printf("[DEBUG] RMM Memory Resource Type: %s\n", typeid(*current_rmm_resource).name());
+
+  // Check if we're using CUDA memory resource (--rmm_mode=cuda)
+  if (dynamic_cast<rmm::mr::cuda_memory_resource*>(current_rmm_resource)) {
+    printf("[DEBUG] Using CUDA memory resource (--rmm_mode=cuda)\n");
+  } else {
+    printf("[DEBUG] ? Using unknown RMM memory resource type\n");
+  }
+
+  // Debug: Print environment variable status
+  printf("[DEBUG] Environment check:\n");
+  printf("[DEBUG]   BATCH_MODE=%s\n",
+         std::getenv("BATCH_MODE") ? std::getenv("BATCH_MODE") : "NOT SET");
+  printf("[DEBUG]   FIXED_BATCH_SIZE=%s\n",
+         std::getenv("FIXED_BATCH_SIZE") ? std::getenv("FIXED_BATCH_SIZE") : "NOT SET");
+  printf(
+    "[DEBUG] Final values: batch_mode=%s, fixed_size=%zu\n", batch_mode.c_str(), fixed_batch_size);
+
+  printf("[DEBUG] Batch mode: %s", batch_mode.c_str());
+
+  // Initialize batch size variables based on mode
+  size_t min_batch_size     = 10;    // Minimum batch size
+  size_t max_batch_size     = 2000;  // Maximum batch size to try
+  size_t current_batch_size = 500;   // Start with reasonable size
+  size_t optimal_batch_size = 0;     // Will store the best size found
+
+  if (batch_mode == "fixed") {
+    // Fixed mode: use the specified batch size
+    current_batch_size = fixed_batch_size;
+    optimal_batch_size = fixed_batch_size;
+    printf("[DEBUG] Using fixed batch size: %zu sources\n", fixed_batch_size);
+  } else {
+    // Dynamic mode: use binary search to find optimal size
+    printf("[DEBUG] Using dynamic batch size with binary search\n");
+  }
+
+  size_t processed_sources = 0;
+  size_t batch_number      = 0;
+
   if constexpr (multi_gpu) {
-    // Multi-GPU: Use sequential version
+    // Multi-GPU: Use sequential brandes_bfs (more reliable for cross-GPU)
+    printf("[DEBUG] Running SEQUENTIAL version (multi-GPU mode)\n");
+
+    // Process each source individually using brandes_bfs
     for (size_t source_idx = 0; source_idx < num_sources; ++source_idx) {
       //
       //  BFS
@@ -1214,40 +1316,149 @@ rmm::device_uvector<weight_t> betweenness_centrality(
         do_expensive_check);
     }
   } else {
-    // Single-GPU: Use parallel version
-    // Process sources in batches to respect origin_t (uint16_t) limit
-    constexpr size_t max_sources_per_batch = std::numeric_limits<uint16_t>::max();
+    // Single-GPU: Use adaptive batching
+    printf("[DEBUG] Running MULTISOURCE version (single-GPU mode) with adaptive batching\n");
 
-    size_t num_sources = cuda::std::distance(vertices_begin, vertices_end);
-    size_t num_batches = (num_sources + max_sources_per_batch - 1) / max_sources_per_batch;
+    while (processed_sources < num_sources) {
+      size_t actual_batch_size = std::min(current_batch_size, num_sources - processed_sources);
 
-    for (size_t batch_idx = 0; batch_idx < num_batches; ++batch_idx) {
-      size_t batch_start = batch_idx * max_sources_per_batch;
-      size_t batch_end   = std::min(batch_start + max_sources_per_batch, num_sources);
+      printf("[Attempt] Processing %zu sources (processed: %zu/%zu, remaining: %zu)\n",
+             actual_batch_size,
+             processed_sources,
+             num_sources,
+             num_sources - processed_sources);
+      printf("[BinarySearch] Current batch size: %zu, Optimal found: %zu\n",
+             current_batch_size,
+             optimal_batch_size);
 
-      auto batch_vertices_begin = vertices_begin + batch_start;
-      auto batch_vertices_end   = vertices_begin + batch_end;
+      bool batch_success          = true;
+      MemoryInfo mem_before_batch = MemoryInfo::get_device_memory();
 
-      auto [distances_2d, sigmas_2d] = detail::multisource_bfs(handle,
-                                                               graph_view,
-                                                               edge_weight_view,
-                                                               batch_vertices_begin,
-                                                               batch_vertices_end,
-                                                               do_expensive_check);
+      try {
+        // Create iterators for current batch
+        auto batch_begin = vertices_begin + processed_sources;
+        auto batch_end   = vertices_begin + processed_sources + actual_batch_size;
 
-      detail::multisource_backward_pass(
-        handle,
-        graph_view,
-        edge_weight_view,
-        raft::device_span<weight_t>{centralities.data(), centralities.size()},
-        std::move(distances_2d),
-        std::move(sigmas_2d),
-        batch_vertices_begin,
-        batch_vertices_end,
-        include_endpoints,
-        do_expensive_check);
-    }
+        // Debug: Show memory before multisource_bfs
+        MemoryInfo mem_before_bfs = MemoryInfo::get_device_memory();
+        printf("[DEBUG] Memory before multisource_bfs: %.1fMB free\n",
+               mem_before_bfs.free_memory / (1024.0 * 1024.0));
+
+        auto [distances_2d, sigmas_2d] = detail::multisource_bfs(
+          handle, graph_view, edge_weight_view, batch_begin, batch_end, do_expensive_check);
+
+        // Debug: Show memory after multisource_bfs allocation
+        MemoryInfo mem_after_bfs  = MemoryInfo::get_device_memory();
+        size_t memory_used_by_bfs = mem_before_bfs.free_memory - mem_after_bfs.free_memory;
+        printf("[DEBUG] Memory after multisource_bfs: %.1fMB free (used: %.1fMB)\n",
+               mem_after_bfs.free_memory / (1024.0 * 1024.0),
+               memory_used_by_bfs / (1024.0 * 1024.0));
+
+        // Use parallel multisource backward pass for better performance
+        detail::multisource_backward_pass(
+          handle,
+          graph_view,
+          edge_weight_view,
+          raft::device_span<weight_t>{centralities.data(), centralities.size()},
+          std::move(distances_2d),
+          std::move(sigmas_2d),
+          batch_begin,
+          batch_end,
+          include_endpoints,
+          do_expensive_check);
+
+        // Debug: Show memory after backward pass (before cleanup)
+        MemoryInfo mem_after_backward = MemoryInfo::get_device_memory();
+        printf("[DEBUG] Memory after backward pass: %.1fMB free\n",
+               mem_after_backward.free_memory / (1024.0 * 1024.0));
+
+        // RAII objects (distances_2d, sigmas_2d) go out of scope here and are automatically freed
+        // Now run explicit cleanup to ensure any remaining memory is freed
+        MemoryCleanup::cleanup_batch_memory(handle);
+
+        processed_sources += actual_batch_size;
+        batch_success = true;
+        batch_number++;  // Only increment on success
+
+      } catch (const std::exception& e) {
+        printf("[ERROR] Attempt failed: %s\n", e.what());
+        batch_success = false;
+      }
+
+      // Update memory manager and cleanup
+      MemoryInfo mem_after_batch = MemoryInfo::get_device_memory();
+      {
+        std::string label =
+          batch_success
+            ? "After processing " + std::to_string(actual_batch_size) + " sources"
+            : "After failed attempt to process " + std::to_string(actual_batch_size) + " sources";
+        mem_after_batch.print(label.c_str());
+      }
+
+      // Record batch result and update binary search (only in dynamic mode)
+      if (batch_mode == "dynamic") {
+        if (batch_success) {
+          // This batch size worked, try larger
+          optimal_batch_size = current_batch_size;      // Remember this working size
+          min_batch_size     = current_batch_size + 1;  // Search in upper half
+
+          if (min_batch_size <= max_batch_size) {
+            current_batch_size = (min_batch_size + max_batch_size) / 2;  // Binary search
+            printf("[BinarySearch] SUCCESS at %zu sources, trying %zu next (range: %zu-%zu)\n",
+                   actual_batch_size,
+                   current_batch_size,
+                   min_batch_size,
+                   max_batch_size);
+          } else {
+            printf("[BinarySearch] CONVERGED: Optimal batch size = %zu sources\n",
+                   optimal_batch_size);
+            current_batch_size = optimal_batch_size;  // Use the best size found
+          }
+        } else {
+          // This batch size failed, try smaller
+          max_batch_size = current_batch_size - 1;  // Search in lower half
+
+          if (min_batch_size <= max_batch_size) {
+            current_batch_size = (min_batch_size + max_batch_size) / 2;  // Binary search
+            printf("[BinarySearch] FAILED at %zu sources, trying %zu next (range: %zu-%zu)\n",
+                   actual_batch_size,
+                   current_batch_size,
+                   min_batch_size,
+                   max_batch_size);
+          } else {
+            printf("[BinarySearch] CONVERGED: Optimal batch size = %zu sources\n",
+                   optimal_batch_size);
+            current_batch_size = optimal_batch_size;  // Use the best size found
+          }
+        }
+
+        // Print clean, separated stats
+        printf("\n");
+        printf(
+          "[BinarySearch] Stats: Total=%zu, Successful=%zu, OOM=%zu, Success Rate=%.1f%%, Optimal "
+          "Size=%zu\n",
+          batch_number,
+          processed_sources,
+          batch_number - processed_sources,
+          (double)processed_sources / batch_number * 100.0,
+          optimal_batch_size);
+        printf("\n");
+      } else {
+        // Fixed mode: just print simple progress
+        printf("[FixedBatch] Completed batch %zu: %zu sources\n", batch_number, actual_batch_size);
+      }
+    }  // End of while loop
+    printf("[Memory] Completed %zu sources in %zu batches\n", processed_sources, batch_number);
   }
+
+  // Final memory measurement
+  MemoryInfo final_mem = MemoryInfo::get_device_memory();
+  final_mem.print("After completion");
+
+  printf("[Memory] Memory change: %.1fGB -> %.1fGB (delta: %.1fGB)\n",
+         initial_mem.used_memory / (1024.0 * 1024.0 * 1024.0),
+         final_mem.used_memory / (1024.0 * 1024.0 * 1024.0),
+         (final_mem.used_memory - initial_mem.used_memory) / (1024.0 * 1024.0 * 1024.0));
 
   std::optional<weight_t> scale_nonsource{std::nullopt};
   std::optional<weight_t> scale_source{std::nullopt};
