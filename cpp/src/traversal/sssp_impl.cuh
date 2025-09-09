@@ -89,7 +89,7 @@ weight_t compute_subpartition_start(weight_t old_near_far_threshold,
 }
 
 template <typename vertex_t, typename weight_t, bool multi_gpu>
-std::tuple<size_t, size_t> compute_new_near_nar_partition_range(
+std::tuple<size_t, size_t> compute_new_near_near_partition_range(
   raft::handle_t const& handle,
   key_bucket_t<vertex_t, void, multi_gpu, true> const& key_bucket,
   vertex_partition_device_view_t<vertex_t, multi_gpu> const& vertex_partition,
@@ -154,19 +154,18 @@ std::tuple<size_t, size_t> compute_new_near_nar_partition_range(
   }
 
   size_t new_first_near_near_subpartition_idx = first_subpartition_idx + zero_runs;
-  size_t new_last_near_neasr_subpartition_idx = first_subpartition_idx + (zero_runs + 1);
+  size_t new_last_near_near_subpartition_idx  = first_subpartition_idx + (zero_runs + 1);
   vertex_t q_size                             = h_counts[zero_runs];
   for (size_t i = (zero_runs + 1); i < h_counts.size(); ++i) {
     if (q_size + h_counts[i] <= max_near_near_q_size) {
       q_size += h_counts[i];
-      ++new_last_near_neasr_subpartition_idx;
+      ++new_last_near_near_subpartition_idx;
     } else {
       break;
     }
   }
 
-  return std::make_tuple(new_first_near_near_subpartition_idx,
-                         new_last_near_neasr_subpartition_idx);
+  return std::make_tuple(new_first_near_near_subpartition_idx, new_last_near_near_subpartition_idx);
 }
 
 }  // namespace
@@ -539,7 +538,7 @@ void sssp(raft::handle_t const& handle,
       }
 
       std::tie(first_near_near_subpartition_idx, last_near_near_subpartition_idx) =
-        compute_new_near_nar_partition_range<vertex_t, weight_t, GraphViewType::is_multi_gpu>(
+        compute_new_near_near_partition_range<vertex_t, weight_t, GraphViewType::is_multi_gpu>(
           handle,
           vertex_frontier.bucket(this_bucket_idx),
           vertex_partition,
