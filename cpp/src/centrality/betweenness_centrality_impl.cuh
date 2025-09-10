@@ -1354,7 +1354,7 @@ rmm::device_uvector<weight_t> betweenness_centrality(
     }  // End of while loop
   }
 
-  // Final memory measurement (without debug output)
+  // Final memory measurement
   MemoryInfo final_mem = MemoryInfo::get_device_memory();
 
   std::optional<weight_t> scale_nonsource{std::nullopt};
