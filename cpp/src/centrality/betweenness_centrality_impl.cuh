@@ -1301,7 +1301,6 @@ rmm::device_uvector<weight_t> betweenness_centrality(
         auto [distances_2d, sigmas_2d] = detail::multisource_bfs(
           handle, graph_view, edge_weight_view, batch_begin, batch_end, do_expensive_check);
 
-        // Use parallel multisource backward pass for better performance
         detail::multisource_backward_pass(
           handle,
           graph_view,
@@ -1349,7 +1348,7 @@ rmm::device_uvector<weight_t> betweenness_centrality(
           }
         }
       }
-    }  // End of while loop
+    }
   }
 
   // Final memory measurement
