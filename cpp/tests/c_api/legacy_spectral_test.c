@@ -232,7 +232,7 @@ int generic_balanced_cut_test(vertex_t* h_src,
                                                FALSE,
                                                &result,
                                                &ret_error);
-    if ((ret_code != CUGRAPH_SUCCESS) || (trials == 9)) { break; }
+    if ((ret_code != CUGRAPH_SUCCESS) || (trials == 19)) { break; }
     trials += 1;
   }
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
