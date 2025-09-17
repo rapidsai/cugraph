@@ -90,7 +90,6 @@ int generic_spectral_test(vertex_t* h_src,
   while (1) {
     ret_code = cugraph_rng_state_create(handle, seed + trials, &rng_state, &ret_error);
     TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "rng_state create failed.");
-
     ret_code = cugraph_spectral_modularity_maximization(handle,
                                                         rng_state,
                                                         graph,
