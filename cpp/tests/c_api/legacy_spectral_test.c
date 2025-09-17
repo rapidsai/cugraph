@@ -442,8 +442,8 @@ int main(int argc, char** argv)
 {
   int result = 0;
   result |= RUN_TEST(test_spectral);
-  //result |= RUN_TEST(test_balanced_cut_equal_weight);
-  //result |= RUN_TEST(test_balanced_cut_unequal_weight);
-  //result |= RUN_TEST(test_balanced_cut_no_weight);
+  result |= RUN_TEST(test_balanced_cut_equal_weight);
+  result |= RUN_TEST(test_balanced_cut_unequal_weight);
+  result |= RUN_TEST(test_balanced_cut_no_weight);
   return result;
 }
