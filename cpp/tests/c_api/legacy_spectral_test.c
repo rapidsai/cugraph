@@ -88,7 +88,7 @@ int generic_spectral_test(vertex_t* h_src,
   // FIXME: Update this once we have better error messaging report so that non-convergence easily
   // errors can easily be captured and ignored.
   while (1) {
-    ret_code                       = cugraph_rng_state_create(handle, seed + trials, &rng_state, &ret_error);
+    ret_code = cugraph_rng_state_create(handle, seed + trials, &rng_state, &ret_error);
     TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "rng_state create failed.");
 
     ret_code = cugraph_spectral_modularity_maximization(handle,
@@ -104,9 +104,7 @@ int generic_spectral_test(vertex_t* h_src,
                                                         &result,
                                                         &ret_error);
     
-    if ((ret_code != CUGRAPH_SUCCESS) || (trials == 10)) {
-      break;
-    }
+    if ((ret_code != CUGRAPH_SUCCESS) || (trials == 10)) { break; }
     trials += 1;
   }
 
