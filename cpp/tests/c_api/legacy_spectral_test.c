@@ -84,7 +84,7 @@ int generic_spectral_test(vertex_t* h_src,
   TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
   cugraph_rng_state_t* rng_state = NULL;
 
-  size_t trials = 1;
+  size_t trials = 0;
   // FIXME: Update this once we have better error messaging report so that non-convergence easily
   // errors can easily be captured and ignored.
   while (1) {
@@ -102,7 +102,7 @@ int generic_spectral_test(vertex_t* h_src,
                                                         FALSE,
                                                         &result,
                                                         &ret_error);
-    if ((ret_code != CUGRAPH_SUCCESS) || (trials == 10)) { break; }
+    if ((ret_code != CUGRAPH_SUCCESS) || (trials == 9)) { break; }
     trials += 1;
   }
 
@@ -214,7 +214,7 @@ int generic_balanced_cut_test(vertex_t* h_src,
   TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
   cugraph_rng_state_t* rng_state = NULL;
 
-  size_t trials = 1;
+  size_t trials = 0;
   // FIXME: Update this once we have better error messaging report so that non-convergence easily
   // errors can easily be captured and ignored.
   while (1) {
@@ -232,7 +232,7 @@ int generic_balanced_cut_test(vertex_t* h_src,
                                                FALSE,
                                                &result,
                                                &ret_error);
-    if ((ret_code != CUGRAPH_SUCCESS) || (trials == 10)) { break; }
+    if ((ret_code != CUGRAPH_SUCCESS) || (trials == 9)) { break; }
     trials += 1;
   }
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
