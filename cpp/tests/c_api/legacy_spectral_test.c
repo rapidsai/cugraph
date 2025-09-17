@@ -103,7 +103,6 @@ int generic_spectral_test(vertex_t* h_src,
                                                         FALSE,
                                                         &result,
                                                         &ret_error);
-    
     if ((ret_code != CUGRAPH_SUCCESS) || (trials == 10)) { break; }
     trials += 1;
   }
