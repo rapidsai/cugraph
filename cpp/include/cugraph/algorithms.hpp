@@ -917,6 +917,7 @@ void balancedCutClustering(raft::handle_t const& handle,
  * @tparam WT                        Type of edge weights. Supported values : float or double.
  *
  * @param[in]  handle                Library handle (RAFT). If a communicator is set in the handle,
+ * @param[in]  rng_state         The RngState instance holding pseudo-random number generator state.
  * @param[in]  graph                 input graph object (CSR)
  * @param[in]  num_clusters          The desired number of clusters
  * @param[in]  num_eigen_vects       The number of eigenvectors to use
