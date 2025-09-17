@@ -59,14 +59,26 @@ from pylibcugraph.biased_neighbor_sample import biased_neighbor_sample
 from pylibcugraph.homogeneous_uniform_neighbor_sample import (
     homogeneous_uniform_neighbor_sample,
 )
+from pylibcugraph.homogeneous_uniform_temporal_neighbor_sample import (
+    homogeneous_uniform_temporal_neighbor_sample,
+)
 from pylibcugraph.homogeneous_biased_neighbor_sample import (
     homogeneous_biased_neighbor_sample,
+)
+from pylibcugraph.homogeneous_biased_temporal_neighbor_sample import (
+    homogeneous_biased_temporal_neighbor_sample,
 )
 from pylibcugraph.heterogeneous_uniform_neighbor_sample import (
     heterogeneous_uniform_neighbor_sample,
 )
+from pylibcugraph.heterogeneous_uniform_temporal_neighbor_sample import (
+    heterogeneous_uniform_temporal_neighbor_sample,
+)
 from pylibcugraph.heterogeneous_biased_neighbor_sample import (
     heterogeneous_biased_neighbor_sample,
+)
+from pylibcugraph.heterogeneous_biased_temporal_neighbor_sample import (
+    heterogeneous_biased_temporal_neighbor_sample,
 )
 
 from pylibcugraph.negative_sampling import negative_sampling
