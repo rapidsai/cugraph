@@ -236,8 +236,7 @@ int generic_balanced_cut_test(vertex_t* h_src,
     trials += 1;
   }
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
-  TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS,
-                     "cugraph_balanced_cut_clustering failed.");
+  TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, "cugraph_balanced_cut_clustering failed.");
 
   if (test_ret_value == 0) {
     cugraph_type_erased_device_array_view_t* vertices;
