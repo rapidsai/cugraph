@@ -221,17 +221,17 @@ int generic_balanced_cut_test(vertex_t* h_src,
     ret_code = cugraph_rng_state_create(handle, seed + trials, &rng_state, &ret_error);
     TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "rng_state create failed.");
     ret_code = cugraph_balanced_cut_clustering(handle,
-                                              rng_state,
-                                              graph,
-                                              num_clusters,
-                                              num_eigenvectors,
-                                              evs_tolerance,
-                                              evs_max_iterations,
-                                              k_means_tolerance,
-                                              k_means_max_iterations,
-                                              FALSE,
-                                              &result,
-                                              &ret_error);
+                                               rng_state,
+                                               graph,
+                                               num_clusters,
+                                               num_eigenvectors,
+                                               evs_tolerance,
+                                               evs_max_iterations,
+                                               k_means_tolerance,
+                                               k_means_max_iterations,
+                                               FALSE,
+                                               &result,
+                                               &ret_error);
     if ((ret_code != CUGRAPH_SUCCESS) || (trials == 10)) { break; }
     trials += 1;
   }
