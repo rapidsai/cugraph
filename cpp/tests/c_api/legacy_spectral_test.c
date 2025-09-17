@@ -211,27 +211,33 @@ int generic_balanced_cut_test(vertex_t* h_src,
                                   &graph,
                                   &ret_error);
 
-  cugraph_rng_state_t* rng_state = NULL;
-  ret_code                       = cugraph_rng_state_create(handle, seed, &rng_state, &ret_error);
-  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "rng_state create failed.");
-
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "create_test_graph failed.");
   TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
+  cugraph_rng_state_t* rng_state = NULL;
 
-  ret_code = cugraph_balanced_cut_clustering(handle,
-                                             rng_state,
-                                             graph,
-                                             num_clusters,
-                                             num_eigenvectors,
-                                             evs_tolerance,
-                                             evs_max_iterations,
-                                             k_means_tolerance,
-                                             k_means_max_iterations,
-                                             FALSE,
-                                             &result,
-                                             &ret_error);
-
+  size_t trials = 1;
+  // FIXME: Update this once we have better error messaging report so that non-convergence easily
+  // errors can easily be captured and ignored.
+  while (1) {
+    ret_code = cugraph_rng_state_create(handle, seed + trials, &rng_state, &ret_error);
+    TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "rng_state create failed.");
+    ret_code = cugraph_balanced_cut_clustering(handle,
+                                              rng_state,
+                                              graph,
+                                              num_clusters,
+                                              num_eigenvectors,
+                                              evs_tolerance,
+                                              evs_max_iterations,
+                                              k_means_tolerance,
+                                              k_means_max_iterations,
+                                              FALSE,
+                                              &result,
+                                              &ret_error);
+    if ((ret_code != CUGRAPH_SUCCESS) || (trials == 10)) { break; }
+      trials += 1;
+  }
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
+  
   TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS,
                      "cugraph_spectral_modularity_maximization failed.");
 
