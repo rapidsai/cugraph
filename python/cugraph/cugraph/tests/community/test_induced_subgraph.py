@@ -67,7 +67,7 @@ def nx_call(M, verts, directed=True):
 ###############################################################################
 @pytest.mark.sg
 @pytest.mark.parametrize("graph_file", DEFAULT_DATASETS)
-def test_subgraph_extraction_DiGraph(graph_file):
+def test_induced_subgraph_DiGraph(graph_file):
     dataset_path = graph_file.get_path()
     M = utils.read_csv_for_nx(dataset_path)
     verts = np.zeros(3, dtype=np.int32)
@@ -81,7 +81,7 @@ def test_subgraph_extraction_DiGraph(graph_file):
 
 @pytest.mark.sg
 @pytest.mark.parametrize("graph_file", DEFAULT_DATASETS)
-def test_subgraph_extraction_Graph(graph_file):
+def test_induced_subgraph_Graph(graph_file):
     dataset_path = graph_file.get_path()
     M = utils.read_csv_for_nx(dataset_path)
     verts = np.zeros(3, dtype=np.int32)
@@ -95,7 +95,7 @@ def test_subgraph_extraction_Graph(graph_file):
 
 @pytest.mark.sg
 @pytest.mark.parametrize("graph_file", DEFAULT_DATASETS)
-def test_subgraph_extraction_multi_column(graph_file):
+def test_induced_subgraph_multi_column(graph_file):
     dataset_path = graph_file.get_path()
     M = utils.read_csv_for_nx(dataset_path)
 
@@ -140,7 +140,7 @@ def test_subgraph_extraction_multi_column(graph_file):
 # FIXME: Drop this test as 'subgraph_extraction' requires renumbering
 @pytest.mark.sg
 @pytest.mark.skip("obsolete")
-def test_subgraph_extraction_graph_not_renumbered():
+def test_induced_subgraph_graph_not_renumbered():
     """
     Ensure subgraph() works with a Graph that has not been renumbered
     """
