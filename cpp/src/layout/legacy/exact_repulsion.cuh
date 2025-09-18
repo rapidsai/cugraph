@@ -79,8 +79,8 @@ void apply_repulsion(const float* restrict x_pos,
                      cudaStream_t stream)
 {
   dim3 nthreads(TPB_X, TPB_Y);
-  dim3 nblocks(min((n + nthreads.x - 1) / nthreads.x, CUDA_MAX_BLOCKS_2D),
-               min((n + nthreads.y - 1) / nthreads.y, CUDA_MAX_BLOCKS_2D));
+  dim3 nblocks(min((static_cast<int>(n) + nthreads.x - 1) / nthreads.x, CUDA_MAX_BLOCKS_2D),
+               min((static_cast<int>(n) + nthreads.y - 1) / nthreads.y, CUDA_MAX_BLOCKS_2D));
 
   repulsion_kernel<vertex_t><<<nblocks, nthreads, 0, stream>>>(x_pos,
                                                                y_pos,

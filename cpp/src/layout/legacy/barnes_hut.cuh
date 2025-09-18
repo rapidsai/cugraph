@@ -37,7 +37,7 @@ namespace detail {
 
 template <typename vertex_t, typename edge_t, typename weight_t>
 void barnes_hut(raft::handle_t const& handle,
-                // raft::random::RngState& rng_state, FIXME: add support for rng state
+                raft::random::RngState& rng_state,
                 legacy::GraphCOOView<vertex_t, edge_t, weight_t>& graph,
                 float* pos,
                 const int max_iter                            = 500,
@@ -96,7 +96,8 @@ void barnes_hut(raft::handle_t const& handle,
   rmm::device_uvector<int> d_childl((nnodes + 1) * 4, stream_view);
   // FA2 requires degree + 1
   rmm::device_uvector<int> d_massl(nnodes + 1, stream_view);
-  thrust::fill(handle.get_thrust_policy(), d_massl.begin(), d_massl.end(), 1);
+  rmm::device_uvector<edge_t> d_massl_et(nnodes + 1, stream_view);
+  thrust::fill(handle.get_thrust_policy(), d_massl_et.begin(), d_massl_et.end(), 1);
 
   rmm::device_uvector<float> d_maxxl(blocks * FACTOR1, stream_view);
   rmm::device_uvector<float> d_maxyl(blocks * FACTOR1, stream_view);
@@ -104,9 +105,10 @@ void barnes_hut(raft::handle_t const& handle,
   rmm::device_uvector<float> d_minyl(blocks * FACTOR1, stream_view);
 
   // Actual mallocs
-  int* startl = d_startl.data();
-  int* childl = d_childl.data();
-  int* massl  = d_massl.data();
+  int* startl      = d_startl.data();
+  int* childl      = d_childl.data();
+  int* massl       = d_massl.data();
+  edge_t* massl_et = d_massl_et.data();
 
   float* maxxl = d_maxxl.data();
   float* maxyl = d_maxyl.data();
@@ -131,14 +133,12 @@ void barnes_hut(raft::handle_t const& handle,
   rmm::device_uvector<float> d_nodes_pos((nnodes + 1) * 2, stream_view);
   float* nodes_pos = d_nodes_pos.data();
 
-  // Initialize positions with random values
-  raft::random::RngState rng_state{0};
-
   // Copy start x and y positions.
   if (x_start && y_start) {
     raft::copy(nodes_pos, x_start, n, stream_view.value());
     raft::copy(nodes_pos + nnodes + 1, y_start, n, stream_view.value());
   } else {
+    // Initialize positions with random values
     uniform_random_fill(
       handle.get_stream(), nodes_pos, (nnodes + 1) * 2, -100.0f, 100.0f, rng_state);
   }
@@ -165,8 +165,18 @@ void barnes_hut(raft::handle_t const& handle,
   sort(graph, stream_view.value());
   RAFT_CHECK_CUDA(stream_view.value());
 
-  graph.degree(massl, cugraph::legacy::DegreeDirection::OUT);
+  graph.degree(massl_et, cugraph::legacy::DegreeDirection::OUT);
   RAFT_CHECK_CUDA(stream_view.value());
+
+  // Cast massl from edge_t to int.
+  // ERIK: this is a bandaid since `graph.degree` uses edge_t and other
+  //       functions use int. Is this worth trying to clean up?
+  thrust::transform(
+    handle.get_thrust_policy(),
+    d_massl_et.begin(),
+    d_massl_et.end(),
+    d_massl.begin(),
+    cuda::proclaim_return_type<int>([] __device__(edge_t x) { return static_cast<int>(x); }));
 
   const vertex_t* row = graph.src_indices;
   const vertex_t* col = graph.dst_indices;

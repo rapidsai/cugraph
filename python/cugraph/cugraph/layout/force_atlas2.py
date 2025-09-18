@@ -12,8 +12,21 @@
 # limitations under the License.
 
 from cugraph.structure import Graph
-from cugraph.layout import force_atlas2_wrapper
 import cudf
+
+from pylibcugraph import (
+    force_atlas2 as plc_force_atlas2,
+    ResourceHandle,
+)
+
+
+def renumber_vertices(input_graph, input_df, num_data_cols=1):
+    if len(input_graph.renumber_map.implementation.col_names) > 1:
+        cols = input_df.columns[:-num_data_cols].to_list()
+    else:
+        cols = "vertex"
+    input_df = input_graph.add_internal_vertex_id(input_df, "vertex", cols)
+    return input_df
 
 
 def force_atlas2(
@@ -35,6 +48,8 @@ def force_atlas2(
     mobility=None,
     verbose=False,
     callback=None,
+    *,
+    random_state=None,
 ):
 
     """
@@ -120,18 +135,16 @@ def force_atlas2(
         Output convergence info at each interation.
 
     callback: GraphBasedDimRedCallback, optional (default=None)
-        An instance of GraphBasedDimRedCallback class to intercept
-        the internal state of positions while they are being trained.
+        .. versionremoved:: 25.10
+            Support for the callback argument was removed in version 25.10.
+            The last version of cugraph that supports it is 25.08.
+            We apologize for not having a normal deprecation cycle.
+            If you want this to be supported, please leave an issue:
+            https://github.com/rapidsai/cugraph/issues
 
-        Example of callback usage:
-            from cugraph.internals import GraphBasedDimRedCallback
-                class CustomCallback(GraphBasedDimRedCallback):
-                    def on_preprocess_end(self, positions):
-                        print(positions.copy_to_host())
-                    def on_epoch_end(self, positions):
-                        print(positions.copy_to_host())
-                    def on_train_end(self, positions):
-                        print(positions.copy_to_host())
+    random_state: int, optional (default=None)
+        Random state to use when generating samples. Optional argument,
+        defaults to a hash of process id, time, and hostname.
 
     Returns
     -------
@@ -146,59 +159,85 @@ def force_atlas2(
     >>> pos = cugraph.force_atlas2(G)
 
     """
+
+    if callback is not None:
+        raise RuntimeError(
+            "Support for the callback argument was removed in version 25.10. "
+            "The last version of cugraph that supports it is 25.08. "
+            "We apologize for not having a normal deprecation cycle. "
+            "If you want this to be supported, please leave an issue: "
+            "https://github.com/rapidsai/cugraph/issues"
+        )
+    initial_pos_vertices = None
+    initial_pos_x = None
+    initial_pos_y = None
+    vertex_radius_vertices = None
+    vertex_radius_values = None
+    mobility_vertices = None
+    mobility_values = None
+    do_expensive_check = False
+
     if pos_list is not None:
         if not isinstance(pos_list, cudf.DataFrame):
             raise TypeError("pos_list should be a cudf.DataFrame")
-        if set(pos_list.columns) != set(["x", "y", "vertex"]):
+
+        if set(pos_list.columns) != {"x", "y", "vertex"}:
             raise ValueError("pos_list has wrong column names")
-        if input_graph.renumbered is True:
-            if input_graph.vertex_column_size() > 1:
-                cols = pos_list.columns[:-2].to_list()
-            else:
-                cols = "vertex"
-            pos_list = input_graph.add_internal_vertex_id(pos_list, "vertex", cols)
+
+        if input_graph.renumbered:
+            pos_list = renumber_vertices(input_graph, pos_list, 2)
+        # TODO: ensure_valid_dtype(input_graph, pos_list, "pos_list")
+        initial_pos_vertices = pos_list["vertex"]
+        initial_pos_x = pos_list["x"]
+        initial_pos_y = pos_list["y"]
 
     if prevent_overlapping:
         if vertex_radius is None:
             raise ValueError(
                 "vertex_radius must be provided when prevent_overlapping is enabled"
             )
+
         if not isinstance(vertex_radius, cudf.DataFrame):
             raise TypeError("vertex_radius must be a cudf.DataFrame")
-        if set(vertex_radius.columns) != set(["vertex", "radius"]):
+
+        if set(vertex_radius.columns) != {"vertex", "radius"}:
             raise ValueError("vertex_radius has wrong column names")
-        if input_graph.renumbered is True:
-            if input_graph.vertex_column_size() > 1:
-                cols = vertex_radius.columns[:-1].to_list()
-            else:
-                cols = "vertex"
-            vertex_radius = input_graph.add_internal_vertex_id(
-                vertex_radius, "vertex", cols
-            )
+
+        if input_graph.renumbered:
+            vertex_radius = renumber_vertices(input_graph, vertex_radius)
+        # TODO: ensure_valid_dtype(input_graph, vertex_radius, "vertex_radius")
+        vertex_radius_vertices = vertex_radius["vertex"]
+        vertex_radius_values = vertex_radius["radius"]
 
     if mobility is not None:
         if not isinstance(mobility, cudf.DataFrame):
             raise TypeError("mobility must be a cudf.DataFrame")
-        if set(mobility.columns) != set(["vertex", "mobility"]):
+
+        if set(mobility.columns) != {"vertex", "mobility"}:
             raise ValueError("mobility has wrong column names")
-        if input_graph.renumbered is True:
-            if input_graph.vertex_column_size() > 1:
-                cols = mobility.columns[:-1].to_list()
-            else:
-                cols = "vertex"
-            mobility = input_graph.add_internal_vertex_id(mobility, "vertex", cols)
+
+        if input_graph.renumbered:
+            mobility = renumber_vertices(input_graph, mobility)
+        # TODO: ensure_valid_dtype(input_graph, mobility, "mobility")
+        mobility_vertices = mobility["vertex"]
+        mobility_values = mobility["mobility"]
 
     if input_graph.is_directed():
         input_graph = input_graph.to_undirected()
 
-    pos = force_atlas2_wrapper.force_atlas2(
-        input_graph,
+    vertices, x_axis, y_axis = plc_force_atlas2(
+        resource_handle=ResourceHandle(),
+        random_state=random_state,
+        graph=input_graph._plc_graph,
         max_iter=max_iter,
-        pos_list=pos_list,
+        start_vertices=initial_pos_vertices,
+        x_start=initial_pos_x,
+        y_start=initial_pos_y,
         outbound_attraction_distribution=outbound_attraction_distribution,
         lin_log_mode=lin_log_mode,
         prevent_overlapping=prevent_overlapping,
-        vertex_radius=vertex_radius,
+        vertex_radius_vertices=vertex_radius_vertices,
+        vertex_radius_values=vertex_radius_values,
         overlap_scaling_ratio=overlap_scaling_ratio,
         edge_weight_influence=edge_weight_influence,
         jitter_tolerance=jitter_tolerance,
@@ -207,12 +246,12 @@ def force_atlas2(
         scaling_ratio=scaling_ratio,
         strong_gravity_mode=strong_gravity_mode,
         gravity=gravity,
-        mobility=mobility,
+        mobility_vertices=mobility_vertices,
+        mobility_values=mobility_values,
         verbose=verbose,
-        callback=callback,
+        do_expensive_check=do_expensive_check,
     )
-
+    pos = cudf.DataFrame({"vertex": vertices, "x": x_axis, "y": y_axis})
     if input_graph.renumbered:
         pos = input_graph.unrenumber(pos, "vertex")
-
     return pos

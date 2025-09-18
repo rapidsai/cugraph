@@ -37,7 +37,7 @@ namespace detail {
 
 template <typename vertex_t, typename edge_t, typename weight_t>
 void exact_fa2(raft::handle_t const& handle,
-               // raft::random::RngState& rng_state,
+               raft::random::RngState& rng_state,
                legacy::GraphCOOView<vertex_t, edge_t, weight_t>& graph,
                float* pos,
                const int max_iter                            = 500,
@@ -65,6 +65,7 @@ void exact_fa2(raft::handle_t const& handle,
   float* d_attract{nullptr};
   float* d_old_forces{nullptr};
   int* d_mass{nullptr};
+  edge_t* d_mass_et{nullptr};
   float* d_swinging{nullptr};
   float* d_traction{nullptr};
 
@@ -74,7 +75,8 @@ void exact_fa2(raft::handle_t const& handle,
   thrust::fill(handle.get_thrust_policy(), old_forces.begin(), old_forces.end(), 0.f);
   // FA2 requires degree + 1.
   rmm::device_uvector<int> mass(n, stream_view);
-  thrust::fill(handle.get_thrust_policy(), mass.begin(), mass.end(), 1);
+  rmm::device_uvector<edge_t> mass_et(n, stream_view);
+  thrust::fill(handle.get_thrust_policy(), mass_et.begin(), mass_et.end(), 1);
   rmm::device_uvector<float> swinging(n, stream_view);
   rmm::device_uvector<float> traction(n, stream_view);
 
@@ -82,12 +84,11 @@ void exact_fa2(raft::handle_t const& handle,
   d_attract    = attract.data();
   d_old_forces = old_forces.data();
   d_mass       = mass.data();
+  d_mass_et    = mass_et.data();
   d_swinging   = swinging.data();
   d_traction   = traction.data();
 
   // Initialize positions with random values
-  raft::random::RngState rng_state{0};
-
   uniform_random_fill(handle.get_stream(), pos, n * 2, -100.0f, 100.0f, rng_state);
 
   if (x_start && y_start) {
@@ -99,8 +100,18 @@ void exact_fa2(raft::handle_t const& handle,
   sort(graph, stream_view.value());
   RAFT_CHECK_CUDA(stream_view.value());
 
-  graph.degree(d_mass, cugraph::legacy::DegreeDirection::OUT);
+  graph.degree(d_mass_et, cugraph::legacy::DegreeDirection::OUT);
   RAFT_CHECK_CUDA(stream_view.value());
+
+  // Cast mass from edge_t to int.
+  // ERIK: this is a bandaid since `graph.degree` uses edge_t and other
+  //       functions use int. Is this worth trying to clean up?
+  thrust::transform(
+    handle.get_thrust_policy(),
+    mass_et.begin(),
+    mass_et.end(),
+    mass.begin(),
+    cuda::proclaim_return_type<int>([] __device__(edge_t x) { return static_cast<int>(x); }));
 
   const vertex_t* row = graph.src_indices;
   const vertex_t* col = graph.dst_indices;

@@ -192,7 +192,8 @@ void overlap_list(legacy::GraphCSRView<VT, ET, WT> const& graph,
  * or double.
  *
  * @param[in] handle                            Library handle (RAFT). If a communicator is set in
- * the handle, the multi GPU version will be selected.
+ * @param[in] rng_state                         The RngState instance holding pseudo-random number
+ * generator state. the handle, the multi GPU version will be selected.
  * @param[in] graph                             cuGraph graph descriptor, should contain the
  * connectivity information as a COO. Graph is considered undirected. Edge weights are used for this
  * algorithm and set to 1 by default.
@@ -207,7 +208,7 @@ void overlap_list(legacy::GraphCSRView<VT, ET, WT> const& graph,
  * @param[in] lin_log_mode                      Switch ForceAtlas’ model from lin-lin to lin-log
  * (tribute to Andreas Noack). Makes clusters more tight.
  * @param[in] prevent_overlapping               Prevent nodes from overlapping.
- * @param[in] vertex_radius                     Radius of each vertex, used when prevent_overlapping
+ * @param[in] vertex_radius_values              Radius of each vertex, used when prevent_overlapping
  * is set.
  * @param[in] overlap_scaling_ratio             When prevent_overlapping is set, scales the
  * repulsion force between two nodes that are overlapping.
@@ -227,7 +228,7 @@ void overlap_list(legacy::GraphCSRView<VT, ET, WT> const& graph,
  * sometimes dominate other forces.
  * @param[in] gravity                          Attracts nodes to the center. Prevents islands from
  * drifting away.
- * @param[in] mobility                         Device array containing mobility of each vertex
+ * @param[in] mobility_values                  Device array containing mobility of each vertex
  * (scaling factor for the displacement at each iteration).
  * @param[in] verbose                          Output convergence info at each interation.
  * @param[in] callback                         An instance of GraphBasedDimRedCallback class to
@@ -236,7 +237,7 @@ void overlap_list(legacy::GraphCSRView<VT, ET, WT> const& graph,
  */
 template <typename vertex_t, typename edge_t, typename weight_t>
 void force_atlas2(raft::handle_t const& handle,
-                  // raft::random::RngState& rng_state,
+                  raft::random::RngState& rng_state,
                   legacy::GraphCOOView<vertex_t, edge_t, weight_t>& graph,
                   float* pos,
                   const int max_iter                            = 500,
@@ -245,7 +246,7 @@ void force_atlas2(raft::handle_t const& handle,
                   bool outbound_attraction_distribution         = true,
                   bool lin_log_mode                             = false,
                   bool prevent_overlapping                      = false,
-                  float* vertex_radius                          = nullptr,
+                  float* vertex_radius_values                   = nullptr,
                   const float overlap_scaling_ratio             = 100.0,
                   const float edge_weight_influence             = 1.0,
                   const float jitter_tolerance                  = 1.0,
@@ -254,7 +255,7 @@ void force_atlas2(raft::handle_t const& handle,
                   const float scaling_ratio                     = 2.0,
                   bool strong_gravity_mode                      = false,
                   const float gravity                           = 1.0,
-                  float* mobility                               = nullptr,
+                  float* mobility_values                        = nullptr,
                   bool verbose                                  = false,
                   internals::GraphBasedDimRedCallback* callback = nullptr);
 

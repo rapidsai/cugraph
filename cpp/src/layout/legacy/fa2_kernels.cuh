@@ -114,10 +114,10 @@ void apply_attraction(const vertex_t* restrict row,
   if (!e) return;
 
   dim3 nthreads, nblocks;
-  nthreads.x = min(e, CUDA_MAX_KERNEL_THREADS);
+  nthreads.x = min(static_cast<int>(e), CUDA_MAX_KERNEL_THREADS);
   nthreads.y = 1;
   nthreads.z = 1;
-  nblocks.x  = min((e + nthreads.x - 1) / nthreads.x, CUDA_MAX_BLOCKS);
+  nblocks.x  = min((static_cast<int>(e) + nthreads.x - 1) / nthreads.x, CUDA_MAX_BLOCKS);
   nblocks.y  = 1;
   nblocks.z  = 1;
 
@@ -195,10 +195,10 @@ void apply_gravity(const float* restrict x_pos,
                    cudaStream_t stream)
 {
   dim3 nthreads, nblocks;
-  nthreads.x = min(n, CUDA_MAX_KERNEL_THREADS);
+  nthreads.x = min(static_cast<int>(n), CUDA_MAX_KERNEL_THREADS);
   nthreads.y = 1;
   nthreads.z = 1;
-  nblocks.x  = min((n + nthreads.x - 1) / nthreads.x, CUDA_MAX_BLOCKS);
+  nblocks.x  = min((static_cast<int>(n) + nthreads.x - 1) / nthreads.x, CUDA_MAX_BLOCKS);
   nblocks.y  = 1;
   nblocks.z  = 1;
 
@@ -249,10 +249,10 @@ void compute_local_speed(const float* restrict repel_x,
                          cudaStream_t stream)
 {
   dim3 nthreads, nblocks;
-  nthreads.x = min(n, CUDA_MAX_KERNEL_THREADS);
+  nthreads.x = min(static_cast<int>(n), CUDA_MAX_KERNEL_THREADS);
   nthreads.y = 1;
   nthreads.z = 1;
-  nblocks.x  = min((n + nthreads.x - 1) / nthreads.x, CUDA_MAX_BLOCKS);
+  nblocks.x  = min((static_cast<int>(n) + nthreads.x - 1) / nthreads.x, CUDA_MAX_BLOCKS);
   nblocks.y  = 1;
   nblocks.z  = 1;
 
@@ -341,10 +341,10 @@ void apply_forces(float* restrict x_pos,
                   cudaStream_t stream)
 {
   dim3 nthreads, nblocks;
-  nthreads.x = min(n, CUDA_MAX_KERNEL_THREADS);
+  nthreads.x = min(static_cast<int>(n), CUDA_MAX_KERNEL_THREADS);
   nthreads.y = 1;
   nthreads.z = 1;
-  nblocks.x  = min((n + nthreads.x - 1) / nthreads.x, CUDA_MAX_BLOCKS);
+  nblocks.x  = min((static_cast<int>(n) + nthreads.x - 1) / nthreads.x, CUDA_MAX_BLOCKS);
   nblocks.y  = 1;
   nblocks.z  = 1;
 
