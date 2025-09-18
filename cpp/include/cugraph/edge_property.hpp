@@ -110,8 +110,7 @@ class edge_property_t {
   using edge_type  = edge_t;
   using value_type = T;
   using buffer_type =
-    decltype(allocate_dataframe_buffer<std::conditional_t<std::is_same_v<T, bool>, uint32_t, T>>(
-      size_t{0}, rmm::cuda_stream_view{}));
+    dataframe_buffer_type_t<std::conditional_t<std::is_same_v<T, bool>, uint32_t, T>>;
 
   edge_property_t(raft::handle_t const& handle) {}
 
