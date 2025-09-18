@@ -15,9 +15,11 @@
  */
 
 #include <cugraph/algorithms.hpp>
+#include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/legacy/graph.hpp>
 #include <cugraph/utilities/error.hpp>
 
+#include <raft/random/rng_state.hpp>
 #include <raft/spectral/modularity_maximization.cuh>
 #include <raft/spectral/partition.cuh>
 
@@ -35,7 +37,9 @@ namespace ext_raft {
 namespace detail {
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-void balancedCutClustering_impl(legacy::GraphCSRView<vertex_t, edge_t, weight_t> const& graph,
+void balancedCutClustering_impl(raft::handle_t const& handle,
+                                raft::random::RngState& rng_state,
+                                legacy::GraphCSRView<vertex_t, edge_t, weight_t> const& graph,
                                 vertex_t n_clusters,
                                 vertex_t n_eig_vects,
                                 weight_t evs_tolerance,
@@ -64,8 +68,6 @@ void balancedCutClustering_impl(legacy::GraphCSRView<vertex_t, edge_t, weight_t>
   RAFT_EXPECTS(eig_vals != nullptr, "API error, must specify valid eigenvalues");
   RAFT_EXPECTS(eig_vects != nullptr, "API error, must specify valid eigenvectors");
 
-  raft::handle_t handle;
-
   int evs_max_it{4000};
   int kmean_max_it{200};
   weight_t evs_tol{1.0E-3};
@@ -82,8 +84,19 @@ void balancedCutClustering_impl(legacy::GraphCSRView<vertex_t, edge_t, weight_t>
   int restartIter_lanczos = 15 + n_eig_vects;
 
   // FIXME: These should be parameters (and a raft::random::rng_state)
-  unsigned long long seed1{1234567};
-  unsigned long long seed2{12345678};
+  unsigned long long seed1{0};
+
+  // FIXME: Both 'eigen_solver_config_t' and 'cluster_solver_config_t do not take
+  // and rng_state as an input. Once a cugraph's primitive based implementation
+  // is available, the rng_state will already be supported by both the C and PLC API.
+  rmm::device_uvector<unsigned long long> d_seed(1, handle.get_stream());
+
+  raft::random::uniformInt<unsigned long long>(
+    rng_state, d_seed.data(), 1, 0, std::numeric_limits<vertex_t>::max() - 1, handle.get_stream());
+
+  raft::update_host(&seed1, d_seed.data(), d_seed.size(), handle.get_stream());
+  unsigned long long seed2 = seed1 + 1;
+
   bool reorthog{false};
 
   using index_type = vertex_t;
@@ -107,6 +120,8 @@ void balancedCutClustering_impl(legacy::GraphCSRView<vertex_t, edge_t, weight_t>
 
 template <typename vertex_t, typename edge_t, typename weight_t>
 void spectralModularityMaximization_impl(
+  raft::handle_t const& handle,
+  raft::random::RngState& rng_state,
   legacy::GraphCSRView<vertex_t, edge_t, weight_t> const& graph,
   vertex_t n_clusters,
   vertex_t n_eig_vects,
@@ -136,8 +151,6 @@ void spectralModularityMaximization_impl(
   RAFT_EXPECTS(eig_vals != nullptr, "API error, must specify valid eigenvalues");
   RAFT_EXPECTS(eig_vects != nullptr, "API error, must specify valid eigenvectors");
 
-  raft::handle_t handle;
-
   int evs_max_it{4000};
   int kmean_max_it{200};
   weight_t evs_tol{1.0E-3};
@@ -154,8 +167,19 @@ void spectralModularityMaximization_impl(
   int restartIter_lanczos = 15 + n_eig_vects;
 
   // FIXME: These should be parameters (and a raft::random::rng_state)
-  unsigned long long seed1{123456};
-  unsigned long long seed2{1234569};
+  unsigned long long seed1{0};
+
+  // FIXME: Both 'eigen_solver_config_t' and 'cluster_solver_config_t do not take
+  // and rng_state as an input. Once a cugraph's primitive based implementation
+  // is available, the rng_state will already be supported by both the C and PLC API.
+  rmm::device_uvector<unsigned long long> d_seed(1, handle.get_stream());
+
+  raft::random::uniformInt<unsigned long long>(
+    rng_state, d_seed.data(), 1, 0, std::numeric_limits<vertex_t>::max() - 1, handle.get_stream());
+
+  raft::update_host(&seed1, d_seed.data(), d_seed.size(), handle.get_stream());
+  unsigned long long seed2 = seed1 + 1;
+
   bool reorthog{false};
 
   using index_type = vertex_t;
@@ -185,13 +209,12 @@ void spectralModularityMaximization_impl(
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-void analyzeModularityClustering_impl(legacy::GraphCSRView<vertex_t, edge_t, weight_t> const& graph,
+void analyzeModularityClustering_impl(raft::handle_t const& handle,
+                                      legacy::GraphCSRView<vertex_t, edge_t, weight_t> const& graph,
                                       int n_clusters,
                                       vertex_t const* clustering,
                                       weight_t* modularity)
 {
-  raft::handle_t handle;
-
   using index_type = vertex_t;
   using value_type = weight_t;
   using nnz_type   = edge_t;
@@ -205,14 +228,13 @@ void analyzeModularityClustering_impl(legacy::GraphCSRView<vertex_t, edge_t, wei
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-void analyzeBalancedCut_impl(legacy::GraphCSRView<vertex_t, edge_t, weight_t> const& graph,
+void analyzeBalancedCut_impl(raft::handle_t const& handle,
+                             legacy::GraphCSRView<vertex_t, edge_t, weight_t> const& graph,
                              vertex_t n_clusters,
                              vertex_t const* clustering,
                              weight_t* edgeCut,
                              weight_t* ratioCut)
 {
-  raft::handle_t handle;
-
   RAFT_EXPECTS(n_clusters <= graph.number_of_vertices,
                "API error: number of clusters must be <= number of vertices");
   RAFT_EXPECTS(n_clusters > 0, "API error: number of clusters must be > 0)");
@@ -236,7 +258,9 @@ void analyzeBalancedCut_impl(legacy::GraphCSRView<vertex_t, edge_t, weight_t> co
 }  // namespace detail
 
 template <typename VT, typename ET, typename WT>
-void balancedCutClustering(legacy::GraphCSRView<VT, ET, WT> const& graph,
+void balancedCutClustering(raft::handle_t const& handle,
+                           raft::random::RngState& rng_state,
+                           legacy::GraphCSRView<VT, ET, WT> const& graph,
                            VT num_clusters,
                            VT num_eigen_vects,
                            WT evs_tolerance,
@@ -248,7 +272,9 @@ void balancedCutClustering(legacy::GraphCSRView<VT, ET, WT> const& graph,
   rmm::device_vector<WT> eig_vals(num_eigen_vects);
   rmm::device_vector<WT> eig_vects(num_eigen_vects * graph.number_of_vertices);
 
-  detail::balancedCutClustering_impl(graph,
+  detail::balancedCutClustering_impl(handle,
+                                     rng_state,
+                                     graph,
                                      num_clusters,
                                      num_eigen_vects,
                                      evs_tolerance,
@@ -261,7 +287,9 @@ void balancedCutClustering(legacy::GraphCSRView<VT, ET, WT> const& graph,
 }
 
 template <typename VT, typename ET, typename WT>
-void spectralModularityMaximization(legacy::GraphCSRView<VT, ET, WT> const& graph,
+void spectralModularityMaximization(raft::handle_t const& handle,
+                                    raft::random::RngState& rng_state,
+                                    legacy::GraphCSRView<VT, ET, WT> const& graph,
                                     VT n_clusters,
                                     VT n_eigen_vects,
                                     WT evs_tolerance,
@@ -273,7 +301,9 @@ void spectralModularityMaximization(legacy::GraphCSRView<VT, ET, WT> const& grap
   rmm::device_vector<WT> eig_vals(n_eigen_vects);
   rmm::device_vector<WT> eig_vects(n_eigen_vects * graph.number_of_vertices);
 
-  detail::spectralModularityMaximization_impl(graph,
+  detail::spectralModularityMaximization_impl(handle,
+                                              rng_state,
+                                              graph,
                                               n_clusters,
                                               n_eigen_vects,
                                               evs_tolerance,
@@ -286,54 +316,115 @@ void spectralModularityMaximization(legacy::GraphCSRView<VT, ET, WT> const& grap
 }
 
 template <typename VT, typename ET, typename WT>
-void analyzeClustering_modularity(legacy::GraphCSRView<VT, ET, WT> const& graph,
+void analyzeClustering_modularity(raft::handle_t const& handle,
+                                  legacy::GraphCSRView<VT, ET, WT> const& graph,
                                   int n_clusters,
                                   VT const* clustering,
                                   WT* score)
 {
-  detail::analyzeModularityClustering_impl(graph, n_clusters, clustering, score);
+  detail::analyzeModularityClustering_impl(handle, graph, n_clusters, clustering, score);
 }
 
 template <typename VT, typename ET, typename WT>
-void analyzeClustering_edge_cut(legacy::GraphCSRView<VT, ET, WT> const& graph,
+void analyzeClustering_edge_cut(raft::handle_t const& handle,
+                                legacy::GraphCSRView<VT, ET, WT> const& graph,
                                 int n_clusters,
                                 VT const* clustering,
                                 WT* score)
 {
   WT dummy{0.0};
-  detail::analyzeBalancedCut_impl(graph, n_clusters, clustering, score, &dummy);
+  detail::analyzeBalancedCut_impl(handle, graph, n_clusters, clustering, score, &dummy);
 }
 
 template <typename VT, typename ET, typename WT>
-void analyzeClustering_ratio_cut(legacy::GraphCSRView<VT, ET, WT> const& graph,
+void analyzeClustering_ratio_cut(raft::handle_t const& handle,
+                                 legacy::GraphCSRView<VT, ET, WT> const& graph,
                                  int n_clusters,
                                  VT const* clustering,
                                  WT* score)
 {
   WT dummy{0.0};
-  detail::analyzeBalancedCut_impl(graph, n_clusters, clustering, &dummy, score);
+  detail::analyzeBalancedCut_impl(handle, graph, n_clusters, clustering, &dummy, score);
 }
 
-template void balancedCutClustering<int, int, float>(
-  legacy::GraphCSRView<int, int, float> const&, int, int, float, int, float, int, int*);
-template void balancedCutClustering<int, int, double>(
-  legacy::GraphCSRView<int, int, double> const&, int, int, double, int, double, int, int*);
+template void balancedCutClustering<int, int, float>(raft::handle_t const& handle,
+                                                     raft::random::RngState&,
+                                                     legacy::GraphCSRView<int, int, float> const&,
+                                                     int,
+                                                     int,
+                                                     float,
+                                                     int,
+                                                     float,
+                                                     int,
+                                                     int*);
+template void balancedCutClustering<int, int, double>(raft::handle_t const& handle,
+                                                      raft::random::RngState&,
+                                                      legacy::GraphCSRView<int, int, double> const&,
+                                                      int,
+                                                      int,
+                                                      double,
+                                                      int,
+                                                      double,
+                                                      int,
+                                                      int*);
 template void spectralModularityMaximization<int, int, float>(
-  legacy::GraphCSRView<int, int, float> const&, int, int, float, int, float, int, int*);
+  raft::handle_t const& handle,
+  raft::random::RngState&,
+  legacy::GraphCSRView<int, int, float> const&,
+  int,
+  int,
+  float,
+  int,
+  float,
+  int,
+  int*);
 template void spectralModularityMaximization<int, int, double>(
-  legacy::GraphCSRView<int, int, double> const&, int, int, double, int, double, int, int*);
+  raft::handle_t const& handle,
+  raft::random::RngState&,
+  legacy::GraphCSRView<int, int, double> const&,
+  int,
+  int,
+  double,
+  int,
+  double,
+  int,
+  int*);
 template void analyzeClustering_modularity<int, int, float>(
-  legacy::GraphCSRView<int, int, float> const&, int, int const*, float*);
+  raft::handle_t const& handle,
+  legacy::GraphCSRView<int, int, float> const&,
+  int,
+  int const*,
+  float*);
 template void analyzeClustering_modularity<int, int, double>(
-  legacy::GraphCSRView<int, int, double> const&, int, int const*, double*);
+  raft::handle_t const& handle,
+  legacy::GraphCSRView<int, int, double> const&,
+  int,
+  int const*,
+  double*);
 template void analyzeClustering_edge_cut<int, int, float>(
-  legacy::GraphCSRView<int, int, float> const&, int, int const*, float*);
+  raft::handle_t const& handle,
+  legacy::GraphCSRView<int, int, float> const&,
+  int,
+  int const*,
+  float*);
 template void analyzeClustering_edge_cut<int, int, double>(
-  legacy::GraphCSRView<int, int, double> const&, int, int const*, double*);
+  raft::handle_t const& handle,
+  legacy::GraphCSRView<int, int, double> const&,
+  int,
+  int const*,
+  double*);
 template void analyzeClustering_ratio_cut<int, int, float>(
-  legacy::GraphCSRView<int, int, float> const&, int, int const*, float*);
+  raft::handle_t const& handle,
+  legacy::GraphCSRView<int, int, float> const&,
+  int,
+  int const*,
+  float*);
 template void analyzeClustering_ratio_cut<int, int, double>(
-  legacy::GraphCSRView<int, int, double> const&, int, int const*, double*);
+  raft::handle_t const& handle,
+  legacy::GraphCSRView<int, int, double> const&,
+  int,
+  int const*,
+  double*);
 
 }  // namespace ext_raft
 }  // namespace cugraph
