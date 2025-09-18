@@ -225,6 +225,16 @@ cdef extern from "cugraph_c/algorithms.h":
         )
 
     cdef cugraph_type_erased_device_array_view_t* \
+        cugraph_sample_result_get_edge_start_time(
+            const cugraph_sample_result_t* result
+        )
+
+    cdef cugraph_type_erased_device_array_view_t* \
+        cugraph_sample_result_get_edge_end_time(
+            const cugraph_sample_result_t* result
+        )
+
+    cdef cugraph_type_erased_device_array_view_t* \
         cugraph_sample_result_get_hop(
             const cugraph_sample_result_t* result
         )

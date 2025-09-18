@@ -940,7 +940,7 @@ ConfigureCTest(CAPI_RENUMBER_ARBITRARY_EDGELIST_TEST c_api/renumber_arbitrary_ed
 # xref: https://github.com/rapidsai/cugraph/issues/4173                     #
 # xref: https://github.com/rapidsai/raft/issues/2186                        #
 #############################################################################
-# ConfigureCTest(CAPI_LEGACY_SPECTRAL_TEST c_api/legacy_spectral_test.c)
+ConfigureCTest(CAPI_LEGACY_SPECTRAL_TEST c_api/legacy_spectral_test.c)
 ConfigureCTest(CAPI_CORE_NUMBER_TEST c_api/core_number_test.c)
 ConfigureCTest(CAPI_SIMILARITY_TEST c_api/similarity_test.c)
 ConfigureCTest(CAPI_K_CORE_TEST c_api/k_core_test.c)

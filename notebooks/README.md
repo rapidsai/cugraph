@@ -20,7 +20,7 @@ This repository contains a collection of Jupyter Notebooks that outline how to r
 |                 | [ECG](algorithms/community/ECG.ipynb)                                   | Identify clusters in a graph using the Ensemble Clustering for Graph |
 |                 | [K-Truss](algorithms/community/ktruss.ipynb)                                | Extracts the K-Truss cluster                                 |
 |                 | [Spectral-Clustering](algorithms/community/Spectral-Clustering.ipynb)   | Identify clusters in a  graph using Spectral Clustering with both<br> - Balanced Cut<br> - Modularity Modularity |
-|                 | [Subgraph Extraction](algorithms/community/Subgraph-Extraction.ipynb)   | Compute a subgraph of the existing graph including only the specified vertices |
+|                 | [Induced Subgraph](algorithms/community/Induced-Subgraph.ipynb)   | Compute a subgraph of the existing graph including only the specified vertices |
 |                 | [Triangle Counting](algorithms/community/Triangle-Counting.ipynb)       | Count the number of Triangle in a graph                      |
 | Components      |                                                              |                                                              |
 |                 | [Connected Components](algorithms/components/ConnectedComponents.ipynb) | Find weakly and strongly connected components in a graph     |

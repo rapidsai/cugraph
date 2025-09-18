@@ -540,6 +540,7 @@ add_library(cugraph_c
         src/c_api/louvain.cpp
         src/c_api/triangle_count.cpp
         src/c_api/neighbor_sampling.cpp
+        src/c_api/sampling_result.cpp
         src/c_api/temporal_neighbor_sampling.cpp
         src/c_api/negative_sampling.cpp
         src/c_api/labeling_result.cpp
