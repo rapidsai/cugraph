@@ -1206,7 +1206,7 @@ symmetrize_edgelist(raft::handle_t const& handle,
            edgelist_edge_types,
            edgelist_edge_start_times,
            edgelist_edge_end_times) =
-    detail::symmetrize_edgelist<vertex_t, vertex_t, weight_t, edge_type_t, edge_time_t, multi_gpu>(
+    detail::symmetrize_edgelist<vertex_t, edge_t, weight_t, edge_type_t, edge_time_t, multi_gpu>(
       handle,
       std::move(edgelist_majors),
       std::move(edgelist_minors),
