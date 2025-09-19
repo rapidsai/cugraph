@@ -20,10 +20,10 @@ import time
 
 class Timer:
     """
-    Context manager to make timing blocks of code easier and cleaner.
+    Context manager to time blocks of code.
     """
 
-    def __init__(self, name):
+    def __init__(self, name=""):
         self.name = name
 
     def __enter__(self):
@@ -67,8 +67,12 @@ def get_edgelist():
 
 
 if __name__ == "__main__":
+    # Dependencies installed using conda (mamba)
+    # mamba install -c conda-forge -c rapidsai-nightly graspologic python-igraph leidenalg cdlib scikit-network cugraph nx-cugraph
+
     import networkx as nx
 
+    # Enable logging to inspect NetworkX dispatching behavior
     # import logging; logging.basicConfig(level=logging.DEBUG)
 
     pandas_edgelist = get_edgelist()
@@ -84,9 +88,6 @@ if __name__ == "__main__":
     with Timer("leiden_communities using NetworkX+nx-cugraph"):
         c = nx.community.leiden_communities(G)
     print(f"Number of communities: {len(c)}")
-    # Run a NX algo to ensure Graph needs no conversion to native NX Graph when timing leiden from other libs.
-    # Update: doesn't seem to affect perf.
-    # nx.pagerank(G)  #; print("pagerank done")
 
     ###############################################################################
     # cuGraph
@@ -238,3 +239,52 @@ if __name__ == "__main__":
     with Timer("leiden using cdlib (on igraph graph)"):
         c = cdlib.algorithms.leiden(Gig)
     print(f"Number of communities: {len(c.communities)}")
+
+
+"""
+Output from session used for NVIDIA Tech Blog
+"How to Accelerate Community Detection in Python Using GPU-Powered Leiden"
+
+bash$> NX_CUGRAPH_AUTOCONFIG=True python leiden_benchmarks.py
+downloading https://snap.stanford.edu/data/cit-Patents.txt.gz...done
+unzipping cit-Patents.txt.gz...done
+reading csv to dataframe...
+Graph created with 3774768 nodes and 16518948 edges.
+Starting "leiden_communities using NetworkX+nx-cugraph"...done. Time was 4.142 s
+Number of communities: 3687
+Starting "cugraph graph from pandas edgelist"...done. Time was 0.1493 s
+Starting "leiden using cuGraph"...done. Time was 3.051 s
+Number of communities: 3675
+Starting "PLC graph from pandas edgelist"...done. Time was 0.05988 s
+Starting "leiden using pylibcugraph"...done. Time was 3.029 s
+Number of communities: 3675
+Starting "leiden using Graspologic"...done. Time was 145 s
+Number of communities: 3682
+Starting "hierarchical_leiden using Graspologic"...done. Time was 195.2 s
+Number of communities: 29811
+Starting "creating igraph graph from networkx graph"...done. Time was 28.6 s
+Starting "leiden using igraph"...done. Time was 27 s
+Number of communities: 3676
+Starting "leiden using leidenalg"...done. Time was 86.61 s
+Number of communities: 3719
+Starting "louvain using sknetwork"...done. Time was 37 s
+Number of communities: 3685
+Note: to be able to use all crisp methods, you need to install some additional packages:  {'wurlitzer', 'infomap', 'bayanpy', 'graph_tool'}
+Note: to be able to use all crisp methods, you need to install some additional packages:  {'pyclustering', 'ASLPAw'}
+Note: to be able to use all crisp methods, you need to install some additional packages:  {'wurlitzer', 'infomap'}
+Starting "leiden using cdlib (on NetworkX graph)"...done. Time was 190.3 s
+Number of communities: 3706
+Starting "leiden using cdlib (on igraph graph)"...done. Time was 86 s
+Number of communities: 3712
+
+bash$> lscpu | grep "Model name"
+Model name:                           Intel(R) Xeon(R) Platinum 8480CL
+
+bash$> free -h
+               total        used        free      shared  buff/cache   available
+Mem:           2.0Ti       397Gi       448Gi       757Mi       1.1Ti       1.6Ti
+Swap:             0B          0B          0B
+
+bash$> nvidia-smi --query-gpu "name" --format="noheader,csv" --id=0
+NVIDIA H100 80GB HBM3
+"""
