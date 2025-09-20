@@ -219,7 +219,7 @@ struct force_atlas2_functor : public cugraph::c_api::abstract_functor {
         raft::copy(
           y_start.data(), y_start_->as_type<float>(), y_start_->size_, handle_.get_stream());
 
-        cugraph::renumber_ext_vertices<vertex_t, multi_gpu>(  // renumber_local_ext_vertices?
+        cugraph::renumber_ext_vertices<vertex_t, multi_gpu>(
           handle_,
           start_vertices.data(),
           start_vertices.size(),
@@ -278,7 +278,6 @@ struct force_atlas2_functor : public cugraph::c_api::abstract_functor {
                    mobility_values_->size_,
                    handle_.get_stream());
 
-        // cugraph::renumber_local_ext_vertices<vertex_t, multi_gpu>(  // ERIK: this instead?
         cugraph::renumber_ext_vertices<vertex_t, multi_gpu>(
           handle_,
           mobility_vertices.data(),

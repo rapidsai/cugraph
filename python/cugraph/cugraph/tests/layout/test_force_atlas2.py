@@ -19,7 +19,6 @@ import cudf
 import cugraph
 from cugraph.structure import number_map
 from cugraph.internals import GraphBasedDimRedCallback
-from sklearn.manifold import trustworthiness
 import scipy.io
 from cugraph.datasets import (
     karate,
@@ -169,25 +168,26 @@ class ExampleCallback(GraphBasedDimRedCallback):
 def test_force_atlas2(graph_file, score, max_iter, barnes_hut_optimize):
     cu_M = graph_file.get_edgelist(download=True)
     test_callback = ExampleCallback()
-    cu_pos = cugraph_call(
-        cu_M,
-        max_iter=max_iter,
-        pos_list=None,
-        outbound_attraction_distribution=True,
-        lin_log_mode=False,
-        prevent_overlapping=False,
-        vertex_radius=None,
-        overlap_scaling_ratio=100.0,
-        edge_weight_influence=1.0,
-        jitter_tolerance=1.0,
-        barnes_hut_optimize=False,
-        barnes_hut_theta=0.5,
-        scaling_ratio=2.0,
-        strong_gravity_mode=False,
-        gravity=1.0,
-        mobility=None,
-        callback=test_callback,
-    )
+    with pytest.raises(RuntimeError, match="callback argument was removed"):
+        cugraph_call(
+            cu_M,
+            max_iter=max_iter,
+            pos_list=None,
+            outbound_attraction_distribution=True,
+            lin_log_mode=False,
+            prevent_overlapping=False,
+            vertex_radius=None,
+            overlap_scaling_ratio=100.0,
+            edge_weight_influence=1.0,
+            jitter_tolerance=1.0,
+            barnes_hut_optimize=False,
+            barnes_hut_theta=0.5,
+            scaling_ratio=2.0,
+            strong_gravity_mode=False,
+            gravity=1.0,
+            mobility=None,
+            callback=test_callback,
+        )
     """
         Trustworthiness score can be used for Force Atlas 2 as the algorithm
         optimizes modularity. The final layout will result in
@@ -199,12 +199,14 @@ def test_force_atlas2(graph_file, score, max_iter, barnes_hut_optimize):
         Thresholds are based on the best score that is achived after 500
         iterations on a given graph.
     """
-
+    # Uncomment the below if the callback becomes supported again
+    """
     if "string" in graph_file.metadata["col_types"]:
         df = renumbered_edgelist(graph_file.get_edgelist(download=True))
         M = get_coo_array(df)
     else:
         M = get_coo_array(graph_file.get_edgelist(download=True))
+    # from sklearn.manifold import trustworthiness
     cu_trust = trustworthiness(M, cu_pos[["x", "y"]].to_pandas())
     print(cu_trust, score)
     assert cu_trust > score
@@ -214,6 +216,7 @@ def test_force_atlas2(graph_file, score, max_iter, barnes_hut_optimize):
     assert test_callback.on_epoch_end_called_count == max_iter
     # verify `on_train_end` was only called once
     assert test_callback.on_train_end_called_count == 1
+    """
 
 
 @pytest.mark.sg

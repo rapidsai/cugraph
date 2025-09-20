@@ -192,8 +192,9 @@ void overlap_list(legacy::GraphCSRView<VT, ET, WT> const& graph,
  * or double.
  *
  * @param[in] handle                            Library handle (RAFT). If a communicator is set in
+ * the handle, the multi GPU version will be selected.
  * @param[in] rng_state                         The RngState instance holding pseudo-random number
- * generator state. the handle, the multi GPU version will be selected.
+ * generator state.
  * @param[in] graph                             cuGraph graph descriptor, should contain the
  * connectivity information as a COO. Graph is considered undirected. Edge weights are used for this
  * algorithm and set to 1 by default.

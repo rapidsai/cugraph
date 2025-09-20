@@ -11,8 +11,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import warnings
 from cugraph.structure import Graph
 import cudf
+import numpy as np
 
 from pylibcugraph import (
     force_atlas2 as plc_force_atlas2,
@@ -27,6 +29,32 @@ def renumber_vertices(input_graph, input_df, num_data_cols=1):
         cols = "vertex"
     input_df = input_graph.add_internal_vertex_id(input_df, "vertex", cols)
     return input_df
+
+
+def ensure_float32_dtype(input_series, input_series_name):
+    if input_series.dtype != np.float32:
+        warning_msg = (
+            f"force_atlas2 requires '{input_series_name}' dtype to be "
+            f"float32, but it is of type {input_series.dtype}. "
+            f"Converting '{input_series_name}' to float32."
+        )
+        warnings.warn(warning_msg, UserWarning, stacklevel=3)
+        input_series = input_series.astype(np.float32)
+    return input_series
+
+
+def ensure_vertex_dtype(input_graph, input_series, input_series_name):
+    vertex_dtype = input_graph.edgelist.edgelist_df.dtypes.iloc[0]
+    if input_series.dtype != vertex_dtype:
+        warning_msg = (
+            f"force_atlas2 requires '{input_series_name}' to match "
+            "the graph's 'vertex' type. The input graph's vertex type is: "
+            f"{vertex_dtype} and got '{input_series_name}' of type: "
+            f"'{input_series.dtype}'. Converting."
+        )
+        warnings.warn(warning_msg, UserWarning, stacklevel=3)
+        input_series = input_series.astype(vertex_dtype)
+    return input_series
 
 
 def force_atlas2(
@@ -186,10 +214,12 @@ def force_atlas2(
 
         if input_graph.renumbered:
             pos_list = renumber_vertices(input_graph, pos_list, 2)
-        # TODO: ensure_valid_dtype(input_graph, pos_list, "pos_list")
-        initial_pos_vertices = pos_list["vertex"]
-        initial_pos_x = pos_list["x"]
-        initial_pos_y = pos_list["y"]
+        # Ensure dtypes are valid, warn if we need to cast
+        initial_pos_vertices = ensure_vertex_dtype(
+            input_graph, pos_list["vertex"], 'pos_list["vertex"]'
+        )
+        initial_pos_x = ensure_float32_dtype(pos_list["x"], 'pos_list["x"]')
+        initial_pos_y = ensure_float32_dtype(pos_list["y"], 'pos_list["y"]')
 
     if prevent_overlapping:
         if vertex_radius is None:
@@ -205,9 +235,13 @@ def force_atlas2(
 
         if input_graph.renumbered:
             vertex_radius = renumber_vertices(input_graph, vertex_radius)
-        # TODO: ensure_valid_dtype(input_graph, vertex_radius, "vertex_radius")
-        vertex_radius_vertices = vertex_radius["vertex"]
-        vertex_radius_values = vertex_radius["radius"]
+        # Ensure dtypes are valid, warn if we need to cast
+        vertex_radius_vertices = ensure_vertex_dtype(
+            input_graph, vertex_radius["vertex"], 'vertex_radius["vertex"]'
+        )
+        vertex_radius_values = ensure_float32_dtype(
+            vertex_radius["radius"], 'vertex_radius["radius"]'
+        )
 
     if mobility is not None:
         if not isinstance(mobility, cudf.DataFrame):
@@ -218,9 +252,13 @@ def force_atlas2(
 
         if input_graph.renumbered:
             mobility = renumber_vertices(input_graph, mobility)
-        # TODO: ensure_valid_dtype(input_graph, mobility, "mobility")
-        mobility_vertices = mobility["vertex"]
-        mobility_values = mobility["mobility"]
+        # Ensure dtypes are valid, warn if we need to cast
+        mobility_vertices = ensure_vertex_dtype(
+            input_graph, mobility["vertex"], 'mobility["vertex"]'
+        )
+        mobility_values = ensure_float32_dtype(
+            mobility["mobility"], 'mobility["mobility"]'
+        )
 
     if input_graph.is_directed():
         input_graph = input_graph.to_undirected()
