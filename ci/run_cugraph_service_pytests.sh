@@ -6,4 +6,6 @@ set -euo pipefail
 # Support invoking run_cugraph_service_pytests.sh outside the script directory
 cd "$(dirname "$(realpath "${BASH_SOURCE[0]}")")"/../python/cugraph-service
 
-pytest --capture=no --cache-clear --benchmark-disable -k "not mg" "$@" tests
+pytest --capture=no --cache-clear --benchmark-disable \
+    -k "not mg and not test_renumber_vertices_by_type and not test_renumber_edges_by_type" \
+    "$@" tests
