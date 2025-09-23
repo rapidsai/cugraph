@@ -15,6 +15,7 @@
 from cugraph_service_client.remote_graph_utils import import_optional, MissingModule
 
 import numpy as np
+import warnings
 
 from functools import wraps
 from collections.abc import Sequence
@@ -158,6 +159,13 @@ class CugraphServiceClient:
         >>> from cugraph_service_client import CugraphServiceClient
         >>> client = CugraphServiceClient()
         """
+        warnings.warn(
+            "deprecated as of 25.10 and will be remove in release 25.12. "
+            "If cugraph_service is critical for your work, please submit a GitHub "
+            "issue at https://github.com/rapidsai/cugraph/issues",
+            DeprecationWarning,
+        )
+
         self.host = host
         self.port = port
         self.results_port = results_port
