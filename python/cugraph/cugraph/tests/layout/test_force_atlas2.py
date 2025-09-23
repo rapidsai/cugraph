@@ -246,7 +246,7 @@ def test_force_atlas2_noverlap(graph_file, radius, max_overlaps, max_iter):
     G = graph_file.get_graph()
     vertex_radius = cudf.DataFrame(
         {
-            "vertex": G.nodes() if G.is_renumbered() else range(G.nodes().max() + 1),
+            "vertex": G.nodes(),
             "radius": radius,
         }
     )
@@ -287,10 +287,7 @@ def test_force_atlas2_mobility(graph_file, max_iter, fixed_node_cnt):
     """
     cu_M = graph_file.get_edgelist(download=True)
     G = graph_file.get_graph()
-    if G.is_renumbered():
-        vertices = G.nodes()
-    else:
-        vertices = range(G.nodes().max() + 1)
+    vertices = G.nodes()
 
     mobility = [0.0] * fixed_node_cnt
     mobility += [1.0] * (len(vertices) - fixed_node_cnt)
