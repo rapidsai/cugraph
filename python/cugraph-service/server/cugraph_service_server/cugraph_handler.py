@@ -663,7 +663,6 @@ class CugraphHandler:
             )
 
     def renumber_edges_by_type(self, prev_id_column: str, graph_id: int) -> Offsets:
-        # breakpoint()
         G = self._get_graph(graph_id)
         if isinstance(G, (PropertyGraph, MGPropertyGraph)):
             if prev_id_column == "":
