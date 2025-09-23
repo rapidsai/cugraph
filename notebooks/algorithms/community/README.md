@@ -20,7 +20,7 @@
 | K-Truss                                                     | [K-Truss](./ktruss.ipynb)                                | Extracts relaxed(based on parameter) cliques which include each vertex. |
 | Spectral Clustering with Balanced Cut                       | [Clustering](./Community-Clustering.ipynb),[ Spectral-Clustering](./Spectral-Clustering.ipynb)   | Identify clusters using eigenvalues and the graph Laplacian    |
 | Spectral Clustering with Modularity Maximization            | [Clustering](./Community-Clustering.ipynb),[ Spectral-Clustering](./Spectral-Clustering.ipynb)   | Identify clusters using eigenvalues and the graph Laplacian  |
-| Subgraph Extraction                                         | [Subgraph Extraction](./Subgraph-Extraction.ipynb)   | Create a subgraph of the existing graph including only the specified vertices |
+| Induced Subgraph                                            | [Induced Subgraph](./Induced-Subgraph.ipynb)   | Create a subgraph of the existing graph including only the specified vertices |
 | Triangle Counting                                           | [Triangle Counting](./Triangle-Counting.ipynb)       | Count the number of size three cliques in a graph                      |
 
 [System Requirements](https://docs.rapids.ai/install/#system-req)

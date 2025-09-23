@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2024, NVIDIA CORPORATION.
+# Copyright (c) 2022-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -195,6 +195,7 @@ cdef extern from "cugraph_c/community_algorithms.h":
     cdef cugraph_error_code_t \
         cugraph_balanced_cut_clustering(
             const cugraph_resource_handle_t* handle,
+            cugraph_rng_state_t* rng_state,
             cugraph_graph_t* graph,
             size_t n_clusters,
             size_t n_eigenvectors,
@@ -211,6 +212,7 @@ cdef extern from "cugraph_c/community_algorithms.h":
     cdef cugraph_error_code_t \
         cugraph_spectral_modularity_maximization(
             const cugraph_resource_handle_t* handle,
+            cugraph_rng_state_t* rng_state,
             cugraph_graph_t* graph,
             size_t n_clusters,
             size_t n_eigenvectors,

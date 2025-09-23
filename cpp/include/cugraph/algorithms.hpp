@@ -890,6 +890,8 @@ std::unique_ptr<legacy::GraphCOO<VT, ET, WT>> extract_subgraph_vertex(
  * 32-bit)
  * @tparam WT                        Type of edge weights. Supported values : float or double.
  *
+ * @param[in]  handle                Library handle (RAFT). If a communicator is set in the handle,
+ * @param[in]  rng_state         The RngState instance holding pseudo-random number generator state.
  * @param[in]  graph                 input graph object (CSR)
  * @param[in]  num_clusters          The desired number of clusters
  * @param[in]  num_eigen_vects       The number of eigenvectors to use
@@ -903,7 +905,9 @@ std::unique_ptr<legacy::GraphCOO<VT, ET, WT>> extract_subgraph_vertex(
 
 namespace ext_raft {
 template <typename VT, typename ET, typename WT>
-void balancedCutClustering(legacy::GraphCSRView<VT, ET, WT> const& graph,
+void balancedCutClustering(raft::handle_t const& handle,
+                           raft::random::RngState& rng_state,
+                           legacy::GraphCSRView<VT, ET, WT> const& graph,
                            VT num_clusters,
                            VT num_eigen_vects,
                            WT evs_tolerance,
@@ -924,6 +928,8 @@ void balancedCutClustering(legacy::GraphCSRView<VT, ET, WT> const& graph,
  * 32-bit)
  * @tparam WT                        Type of edge weights. Supported values : float or double.
  *
+ * @param[in]  handle                Library handle (RAFT). If a communicator is set in the handle,
+ * @param[in]  rng_state         The RngState instance holding pseudo-random number generator state.
  * @param[in]  graph                 input graph object (CSR)
  * @param[in]  num_clusters          The desired number of clusters
  * @param[in]  num_eigen_vects       The number of eigenvectors to use
@@ -935,7 +941,9 @@ void balancedCutClustering(legacy::GraphCSRView<VT, ET, WT> const& graph,
  * be stored
  */
 template <typename VT, typename ET, typename WT>
-void spectralModularityMaximization(legacy::GraphCSRView<VT, ET, WT> const& graph,
+void spectralModularityMaximization(raft::handle_t const& handle,
+                                    raft::random::RngState& rng_state,
+                                    legacy::GraphCSRView<VT, ET, WT> const& graph,
                                     VT n_clusters,
                                     VT n_eig_vects,
                                     WT evs_tolerance,
@@ -956,13 +964,15 @@ void spectralModularityMaximization(legacy::GraphCSRView<VT, ET, WT> const& grap
  * 32-bit)
  * @tparam WT                        Type of edge weights. Supported values : float or double.
  *
+ * @param[in]  handle                Library handle (RAFT). If a communicator is set in the handle,
  * @param[in]  graph                 input graph object (CSR)
  * @param[in]  n_clusters            Number of clusters in the clustering
  * @param[in]  clustering            Pointer to device array containing the clustering to analyze
  * @param[out] score                 Pointer to a float in which the result will be written
  */
 template <typename VT, typename ET, typename WT>
-void analyzeClustering_modularity(legacy::GraphCSRView<VT, ET, WT> const& graph,
+void analyzeClustering_modularity(raft::handle_t const& handle,
+                                  legacy::GraphCSRView<VT, ET, WT> const& graph,
                                   int n_clusters,
                                   VT const* clustering,
                                   WT* score);
@@ -979,13 +989,15 @@ void analyzeClustering_modularity(legacy::GraphCSRView<VT, ET, WT> const& graph,
  * 32-bit)
  * @tparam WT                        Type of edge weights. Supported values : float or double.
  *
+ * @param[in]  handle                Library handle (RAFT). If a communicator is set in the handle,
  * @param[in]  graph                 input graph object (CSR)
  * @param[in]  n_clusters            Number of clusters in the clustering
  * @param[in]  clustering            Pointer to device array containing the clustering to analyze
  * @param[out] score                 Pointer to a float in which the result will be written
  */
 template <typename VT, typename ET, typename WT>
-void analyzeClustering_edge_cut(legacy::GraphCSRView<VT, ET, WT> const& graph,
+void analyzeClustering_edge_cut(raft::handle_t const& handle,
+                                legacy::GraphCSRView<VT, ET, WT> const& graph,
                                 int n_clusters,
                                 VT const* clustering,
                                 WT* score);
@@ -1002,13 +1014,15 @@ void analyzeClustering_edge_cut(legacy::GraphCSRView<VT, ET, WT> const& graph,
  * 32-bit)
  * @tparam WT                        Type of edge weights. Supported values : float or double.
  *
+ * @param[in]  handle                Library handle (RAFT). If a communicator is set in the handle,
  * @param[in]  graph                 input graph object (CSR)
  * @param[in]  n_clusters            Number of clusters in the clustering
  * @param[in]  clustering            Pointer to device array containing the clustering to analyze
  * @param[out] score                 Pointer to a float in which the result will be written
  */
 template <typename VT, typename ET, typename WT>
-void analyzeClustering_ratio_cut(legacy::GraphCSRView<VT, ET, WT> const& graph,
+void analyzeClustering_ratio_cut(raft::handle_t const& handle,
+                                 legacy::GraphCSRView<VT, ET, WT> const& graph,
                                  int n_clusters,
                                  VT const* clustering,
                                  WT* score);
