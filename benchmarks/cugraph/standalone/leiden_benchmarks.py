@@ -109,24 +109,6 @@ if __name__ == "__main__":
     import pylibcugraph as plc
     import cupy as cp
 
-    # with Timer("PLC graph from NX graph"):
-    #     edges = G.edges(data=False)
-    #     (srcs, dsts) = zip(*edges)
-    #     resource_handle = plc.ResourceHandle()
-    #     graph_props = plc.GraphProperties(is_symmetric=True, is_multigraph=False)
-    #     Gplc = plc.SGGraph(resource_handle,
-    #                        graph_props,
-    #                        src_or_offset_array=cp.asarray(srcs, dtype="int32"),
-    #                        dst_or_index_array=cp.asarray(dsts, dtype="int32"),
-    #                        weight_array=cp.ones(len(srcs), dtype="float32"),
-    #                        store_transposed=False,
-    #                        renumber=True,
-    #                        do_expensive_check=False,
-    #                        vertices_array=cp.asarray(list(set(srcs + dsts)), dtype="int32"),
-    #                        drop_multi_edges=True,
-    #                        symmetrize=True,
-    #                        input_array_format="COO",
-    #                        )
     with Timer("PLC graph from pandas edgelist"):
         srcs = cp.asarray(pandas_edgelist["src"], dtype="int32")
         dsts = cp.asarray(pandas_edgelist["dst"], dtype="int32")
