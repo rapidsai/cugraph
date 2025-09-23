@@ -44,6 +44,7 @@ from pylibcugraph.utils cimport (
     get_c_type_from_numpy_type,
     create_cugraph_type_erased_device_array_view_from_py_obj,
 )
+from pylibcugraph.utilities.api_tools import ensure_valid_dtype
 from libc.stdlib cimport malloc
 
 
@@ -196,8 +197,11 @@ cdef class SGGraph(_GPUGraph):
         assert_CAI_type(edge_start_time_array, "edge_start_time_array", True)
         assert_CAI_type(edge_end_time_array, "edge_end_time_array", True)
 
-        # FIXME: assert that src_or_offset_array and dst_or_index_array have
-        # the same type
+        # Ensure valid dtype
+        vertices_array, src_or_offset_array, dst_or_index_array, edge_id_array, \
+            edge_start_time_array, edge_end_time_array = ensure_valid_dtype(
+                vertices_array, src_or_offset_array, dst_or_index_array,
+                    edge_id_array, edge_start_time_array, edge_end_time_array)
 
         cdef cugraph_error_t* error_ptr
         cdef cugraph_error_code_t error_code
@@ -461,8 +465,9 @@ cdef class MGGraph(_GPUGraph):
                 assert_CAI_type(dst_array[i], "dst_array")
                 assert_CAI_type(weight_array[i], "weight_array", True)
                 assert_CAI_type(vertices_array[i], "vertices_array", True)
-
                 assert_CAI_type(edge_id_array[i], "edge_id_array", True)
+                assert_CAI_type(edge_start_time_array[i], "edge_start_time_array", True)
+                assert_CAI_type(edge_end_time_array[i], "edge_end_time_array", True)
 
                 if edge_id_array is not None and len(edge_id_array[i]) != len(src_array[i]):
                     raise ValueError('Edge id array must be same length as edgelist')
@@ -470,35 +475,41 @@ cdef class MGGraph(_GPUGraph):
                 assert_CAI_type(edge_type_array[i], "edge_type_array", True)
                 if edge_type_array[i] is not None and len(edge_type_array[i]) != len(src_array[i]):
                     raise ValueError('Edge type array must be same length as edgelist')
+                
+            # Ensure valid dtype
+            vertices_array, src_array, dst_array, edge_id_array, \
+                edge_start_time_array, edge_end_time_array = ensure_valid_dtype(
+                    vertices_array[i], src_array[i], dst_array[i],
+                        edge_id_array[i], edge_start_time_array[i], edge_end_time_array[i])
 
-            if src_array[i] is not None:
+            if src_array is not None:
                 if i == 0:
                     srcs_view_ptr_ptr = \
                         <cugraph_type_erased_device_array_view_t **>malloc(
                             num_arrays * sizeof(cugraph_type_erased_device_array_view_t*))
 
                 srcs_view_ptr_ptr[i] = \
-                    create_cugraph_type_erased_device_array_view_from_py_obj(src_array[i])
+                    create_cugraph_type_erased_device_array_view_from_py_obj(src_array)
 
                 if i == 0:
                     self.vertex_type = cugraph_type_erased_device_array_view_type(
                         srcs_view_ptr_ptr[0])
 
-            if dst_array[i] is not None:
+            if dst_array is not None:
                 if i == 0:
                     dsts_view_ptr_ptr = \
                         <cugraph_type_erased_device_array_view_t **>malloc(
                             num_arrays * sizeof(cugraph_type_erased_device_array_view_t*))
                 dsts_view_ptr_ptr[i] = \
-                    create_cugraph_type_erased_device_array_view_from_py_obj(dst_array[i])
+                    create_cugraph_type_erased_device_array_view_from_py_obj(dst_array)
 
-            if vertices_array[i] is not None:
+            if vertices_array is not None:
                 if i == 0:
                     vertices_view_ptr_ptr = \
                         <cugraph_type_erased_device_array_view_t **>malloc(
                             num_arrays * sizeof(cugraph_type_erased_device_array_view_t*))
                 vertices_view_ptr_ptr[i] = \
-                    create_cugraph_type_erased_device_array_view_from_py_obj(vertices_array[i])
+                    create_cugraph_type_erased_device_array_view_from_py_obj(vertices_array)
 
             if weight_array[i] is not None:
                 if i == 0:
@@ -508,13 +519,13 @@ cdef class MGGraph(_GPUGraph):
                 self.weights_view_ptr_ptr[i] = \
                     create_cugraph_type_erased_device_array_view_from_py_obj(weight_array[i])
 
-            if edge_id_array[i] is not None:
+            if edge_id_array is not None:
                 if i == 0:
                     self.edge_id_view_ptr_ptr = \
                         <cugraph_type_erased_device_array_view_t **>malloc(
                             num_arrays * sizeof(cugraph_type_erased_device_array_view_t*))
                 self.edge_id_view_ptr_ptr[i] = \
-                    create_cugraph_type_erased_device_array_view_from_py_obj(edge_id_array[i])
+                    create_cugraph_type_erased_device_array_view_from_py_obj(edge_id_array)
 
             if edge_type_array[i] is not None:
                 if i == 0:
@@ -524,21 +535,21 @@ cdef class MGGraph(_GPUGraph):
                 edge_type_view_ptr_ptr[i] = \
                     create_cugraph_type_erased_device_array_view_from_py_obj(edge_type_array[i])
 
-            if edge_start_time_array[i] is not None:
+            if edge_start_time_array is not None:
                 if i == 0:
                     edge_start_time_view_ptr_ptr = \
                         <cugraph_type_erased_device_array_view_t **>malloc(
                             num_arrays * sizeof(cugraph_type_erased_device_array_view_t*))
                 edge_start_time_view_ptr_ptr[i] = \
-                    create_cugraph_type_erased_device_array_view_from_py_obj(edge_start_time_array[i])
+                    create_cugraph_type_erased_device_array_view_from_py_obj(edge_start_time_array)
 
-            if edge_end_time_array[i] is not None:
+            if edge_end_time_array is not None:
                 if i == 0:
                     edge_end_time_view_ptr_ptr = \
                         <cugraph_type_erased_device_array_view_t **>malloc(
                             num_arrays * sizeof(cugraph_type_erased_device_array_view_t*))
                 edge_end_time_view_ptr_ptr[i] = \
-                    create_cugraph_type_erased_device_array_view_from_py_obj(edge_end_time_array[i])
+                    create_cugraph_type_erased_device_array_view_from_py_obj(edge_end_time_array)
 
         error_code = cugraph_graph_create_with_times_mg(
             resource_handle.c_resource_handle_ptr,
