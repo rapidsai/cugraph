@@ -175,9 +175,13 @@ struct force_atlas2_functor : public cugraph::c_api::abstract_functor {
           (edge_weights != nullptr) ? std::make_optional(edge_weights->view()) : std::nullopt,
           std::nullopt,
           std::nullopt,
-          (number_map != nullptr) ? std::make_optional(raft::device_span<vertex_t const>{
-                                      number_map->data(), number_map->size()})
-                                  : std::nullopt);
+
+          // ERIK: we want srcs and dsts to be renumbered, but providing the number_map
+          //       appears to unrenumber them. Is not passing number_map okay?
+          std::nullopt);  // ERIK:option 1
+      //(number_map != nullptr) ? std::make_optional(raft::device_span<vertex_t const>{
+      //                            number_map->data(), number_map->size()})
+      //                        : std::nullopt);
 
       cugraph::legacy::GraphCOOView<vertex_t, edge_t, weight_t> legacy_coo_graph_view(
         const_cast<vertex_t*>(srcs.data()),
@@ -185,6 +189,26 @@ struct force_atlas2_functor : public cugraph::c_api::abstract_functor {
         (edge_weights == nullptr) ? tmp_weights.data() : const_cast<weight_t*>(wgts->data()),
         graph->number_of_vertices(),
         edge_partition_view.number_of_edges());
+
+      // ERIK: option 2 for srcs and dsts to be renumbered
+      /*
+      cugraph::renumber_ext_vertices<vertex_t, multi_gpu>(
+        handle_,
+        srcs.data(),
+        srcs.size(),
+        number_map->data(),
+        graph_view.local_vertex_partition_range_first(),
+        graph_view.local_vertex_partition_range_last(),
+        do_expensive_check_);
+      cugraph::renumber_ext_vertices<vertex_t, multi_gpu>(
+        handle_,
+        dsts.data(),
+        dsts.size(),
+        number_map->data(),
+        graph_view.local_vertex_partition_range_first(),
+        graph_view.local_vertex_partition_range_last(),
+        do_expensive_check_);
+      */
 
       cugraph::internals::GraphBasedDimRedCallback* callback = nullptr;
 
@@ -228,7 +252,6 @@ struct force_atlas2_functor : public cugraph::c_api::abstract_functor {
           graph_view.local_vertex_partition_range_last(),
           do_expensive_check_);
 
-        // ERIK: double check this!
         cugraph::c_api::detail::sort_tuple_by_key(
           handle_,
           raft::device_span<vertex_t>{start_vertices.data(), start_vertices.size()},
@@ -258,7 +281,6 @@ struct force_atlas2_functor : public cugraph::c_api::abstract_functor {
           graph_view.local_vertex_partition_range_last(),
           do_expensive_check_);
 
-        // ERIK: double check this!
         cugraph::c_api::detail::sort_by_key(
           handle_,
           raft::device_span<vertex_t>{vertex_radius_vertices.data(), vertex_radius_vertices.size()},
@@ -287,7 +309,6 @@ struct force_atlas2_functor : public cugraph::c_api::abstract_functor {
           graph_view.local_vertex_partition_range_last(),
           do_expensive_check_);
 
-        // ERIK: double check this!
         cugraph::c_api::detail::sort_by_key(
           handle_,
           raft::device_span<vertex_t>{mobility_vertices.data(), mobility_vertices.size()},
