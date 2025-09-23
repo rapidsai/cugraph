@@ -23,7 +23,7 @@ import asyncio
 import tempfile
 
 # FIXME This optional import is required to support graph creation
-# extensions that use OGB.  It should be removed when a better
+# extensions that use OGB. It should be removed when a better
 # workaround is found.
 from cugraph.utilities.utils import import_optional
 
@@ -186,7 +186,7 @@ class CugraphHandler:
     @cached_property
     def num_gpus(self):
         """
-        If dask is not available, this returns "1".  Otherwise it returns
+        If dask is not available, this returns "1". Otherwise it returns
         the number of GPUs accessible through dask.
         """
         return (
@@ -297,7 +297,7 @@ class CugraphHandler:
     ):
         """
         Calls the graph creation extension function func_name and passes it the
-        eval'd func_args_repr and func_kwargs_repr objects.  If successful, it
+        eval'd func_args_repr and func_kwargs_repr objects. If successful, it
         associates the graph returned by the extension function with a new graph
         ID and returns it.
 
@@ -738,7 +738,7 @@ class CugraphHandler:
     ):
         """
         Returns the vertex data as a serialized numpy array for the given
-        id_or_ids.  null_replacement_value must be provided if the data
+        id_or_ids. null_replacement_value must be provided if the data
         contains NA values, since NA values cannot be serialized.
 
         If the graph is a structural graph (a graph without properties),
@@ -813,7 +813,7 @@ class CugraphHandler:
     ):
         """
         Returns the edge data as a serialized numpy array for the given
-        id_or_ids.  null_replacement_value must be provided if the data
+        id_or_ids. null_replacement_value must be provided if the data
         contains NA values, since NA values cannot be serialized.
         """
         G = self._get_graph(graph_id)
