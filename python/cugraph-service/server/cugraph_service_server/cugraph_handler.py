@@ -649,10 +649,9 @@ class CugraphHandler:
             offset_df = G.renumber_vertices_by_type(prev_id_column=prev_id_column)
             if self.is_multi_gpu:
                 offset_df = offset_df.compute()
-
-            # type needs be converted twice due to cudf bug
+            # type needs be converted for start and stop
             offsets_obj = Offsets(
-                type=offset_df.index.values_host.to_numpy(),
+                type=offset_df.index.values_host,
                 start=offset_df.start.to_numpy(),
                 stop=offset_df.stop.to_numpy(),
             )
@@ -664,6 +663,7 @@ class CugraphHandler:
             )
 
     def renumber_edges_by_type(self, prev_id_column: str, graph_id: int) -> Offsets:
+        # breakpoint()
         G = self._get_graph(graph_id)
         if isinstance(G, (PropertyGraph, MGPropertyGraph)):
             if prev_id_column == "":
@@ -673,9 +673,9 @@ class CugraphHandler:
             if self.is_multi_gpu:
                 offset_df = offset_df.compute()
 
-            # type needs be converted twice due to cudf bug
+            # type needs be converted for start and stop
             offsets_obj = Offsets(
-                type=offset_df.index.values_host.to_numpy(),
+                type=offset_df.index.values_host,
                 start=offset_df.start.to_numpy(),
                 stop=offset_df.stop.to_numpy(),
             )
