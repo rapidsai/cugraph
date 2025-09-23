@@ -475,7 +475,7 @@ cdef class MGGraph(_GPUGraph):
                 assert_CAI_type(edge_type_array[i], "edge_type_array", True)
                 if edge_type_array[i] is not None and len(edge_type_array[i]) != len(src_array[i]):
                     raise ValueError('Edge type array must be same length as edgelist')
-                
+
             # Ensure valid dtype
             vertices_array, src_array, dst_array, edge_id_array, \
                 edge_start_time_array, edge_end_time_array = ensure_valid_dtype(

@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2024, NVIDIA CORPORATION.
+# Copyright (c) 2022-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -239,18 +239,20 @@ def deprecated_warning_wrapper(obj, obj_namespace_name=None):
 
     return warning_wrapper_function
 
+
 def ensure_valid_dtype(
-        vertices_array=None,
-        src_or_offset_array=None,
-        dst_or_index_array=None,
-        edge_id_array=None,
-        edge_start_time_array=None,
-        edge_end_time_array=None):
-    
+    vertices_array=None,
+    src_or_offset_array=None,
+    dst_or_index_array=None,
+    edge_id_array=None,
+    edge_start_time_array=None,
+    edge_end_time_array=None,
+):
+
     # FIXME: When exposing the expensive check , treat these warning
     # as errors if do_expensive_check = True
 
-    if (src_or_offset_array.dtype != dst_or_index_array.dtype):
+    if src_or_offset_array.dtype != dst_or_index_array.dtype:
         warning_msg = (
             "The graph requires the 'src_or_offset_array' values "
             "to match the 'dst_or_index_array' type. "
@@ -260,16 +262,16 @@ def ensure_valid_dtype(
         warnings.warn(warning_msg, UserWarning)
         src_or_offset_array = src_or_offset_array.astype(np.int64)
         dst_or_index_array = dst_or_index_array.astype(np.int64)
-        
+
         if vertices_array is not None:
             vertices_array = vertices_array.astype(np.int64)
-        
+
         if edge_id_array is not None:
             edge_id_array = edge_id_array.astype(np.int64)
-    
+
     # If reaches here, src and dst array have the same type
     if vertices_array is not None:
-        if (vertices_array.dtype != src_or_offset_array.dtype):
+        if vertices_array.dtype != src_or_offset_array.dtype:
             warning_msg = (
                 "The graph requires the 'vertices_array' values "
                 "to match the 'src_or_offset_array' type. "
@@ -283,7 +285,7 @@ def ensure_valid_dtype(
                 edge_id_array = edge_id_array.astype(np.int64)
 
     if edge_id_array is not None:
-        if (edge_id_array.dtype != src_or_offset_array.dtype):
+        if edge_id_array.dtype != src_or_offset_array.dtype:
             warning_msg = (
                 "The graph requires the 'edge_id_array' values "
                 "to match the 'src_or_offset_array' type. "
@@ -293,12 +295,12 @@ def ensure_valid_dtype(
             warnings.warn(warning_msg, UserWarning)
             src_or_offset_array = src_or_offset_array.astype(np.int64)
             dst_or_index_array = dst_or_index_array.astype(np.int64)
-            
+
             if vertices_array is not None:
                 vertices_array = vertices_array.astype(np.int64)
-    
+
     if edge_start_time_array is not None:
-        if (edge_start_time_array.dtype != edge_end_time_array.dtype):
+        if edge_start_time_array.dtype != edge_end_time_array.dtype:
             warning_msg = (
                 "The graph requires the 'edge_start_time_array' values "
                 "to match the 'edge_end_time_array' type. "
@@ -308,7 +310,12 @@ def ensure_valid_dtype(
             warnings.warn(warning_msg, UserWarning)
             edge_start_time_array = edge_start_time_array.astype(np.int64)
             edge_end_time_array = edge_end_time_array.astype(np.int64)
-    
+
     return (
-        vertices_array, src_or_offset_array, dst_or_index_array,
-        edge_id_array, edge_start_time_array, edge_end_time_array) 
+        vertices_array,
+        src_or_offset_array,
+        dst_or_index_array,
+        edge_id_array,
+        edge_start_time_array,
+        edge_end_time_array,
+    )
