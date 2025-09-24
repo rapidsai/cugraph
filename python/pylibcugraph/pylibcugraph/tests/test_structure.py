@@ -104,7 +104,7 @@ def test_type_combinations():
             renumber=True,
             vertices_array=device_vertices,
         )
-    
+
     device_edge_ids = device_edge_ids.astype(dtype=np.int32)
 
     device_edge_start_times = cp.asarray(
