@@ -160,10 +160,10 @@ class CugraphServiceClient:
         >>> client = CugraphServiceClient()
         """
         warnings.warn(
-            "deprecated as of 25.10 and will be remove in release 25.12. "
+            "cugraph-service-client is deprecated and will be removed in a future release. "
             "If cugraph_service is critical for your work, please submit a GitHub "
             "issue at https://github.com/rapidsai/cugraph/issues",
-            DeprecationWarning,
+            FutureWarning,
         )
 
         self.host = host
