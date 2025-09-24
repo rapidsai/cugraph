@@ -129,6 +129,7 @@ DATASETS_NOVERLAP = [
     (polbooks, 10.0, 90),
     (dolphins, 10.0, 60),
     (netscience, 10.0, 1100),
+    (dining_prefs, 10.0, 20),
 ]
 
 DATASETS_MOBILITY = [
@@ -136,6 +137,7 @@ DATASETS_MOBILITY = [
     polbooks,
     dolphins,
     netscience,
+    dining_prefs,
 ]
 
 
@@ -246,7 +248,7 @@ def test_force_atlas2_noverlap(graph_file, radius, max_overlaps, max_iter):
     G = graph_file.get_graph()
     vertex_radius = cudf.DataFrame(
         {
-            "vertex": G.nodes(),
+            "vertex": G.extract_vertex_list(return_unrenumbered_vertices=True),
             "radius": radius,
         }
     )
@@ -287,7 +289,7 @@ def test_force_atlas2_mobility(graph_file, max_iter, fixed_node_cnt):
     """
     cu_M = graph_file.get_edgelist(download=True)
     G = graph_file.get_graph()
-    vertices = G.nodes()
+    vertices = G.extract_vertex_list(return_unrenumbered_vertices=True)
 
     mobility = [0.0] * fixed_node_cnt
     mobility += [1.0] * (len(vertices) - fixed_node_cnt)
