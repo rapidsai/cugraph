@@ -429,10 +429,13 @@ def heterogeneous_biased_temporal_neighbor_sample(ResourceHandle resource_handle
     cupy_edge_end_time = result.get_edge_end_time()
     cupy_batch_ids = result.get_batch_ids()
     cupy_label_hop_offsets = result.get_label_hop_offsets()
+    cupy_label_type_hop_offsets = result.get_label_type_hop_offsets()
 
     if renumber:
         cupy_renumber_map = result.get_renumber_map()
         cupy_renumber_map_offsets = result.get_renumber_map_offsets()
+        cupy_edge_renumber_map = result.get_edge_renumber_map()
+        cupy_edge_renumber_map_offsets = result.get_edge_renumber_map_offsets()
 
         sampling_results = {
             'major_offsets': cupy_major_offsets,
@@ -445,9 +448,12 @@ def heterogeneous_biased_temporal_neighbor_sample(ResourceHandle resource_handle
             'edge_end_time': cupy_edge_end_time,
             'batch_id': cupy_batch_ids,
             'label_hop_offsets': cupy_label_hop_offsets,
-            'hop_id': None, # FIXME: Needs to be remove as 'label_hop_offsets' contains informations about the hop_id
+            'label_type_hop_offsets': cupy_label_type_hop_offsets,
+            'hop_id': None,
             'renumber_map': cupy_renumber_map,
-            'renumber_map_offsets': cupy_renumber_map_offsets
+            'renumber_map_offsets': cupy_renumber_map_offsets,
+            'edge_renumber_map' : cupy_edge_renumber_map,
+            'edge_renumber_map_offsets' : cupy_edge_renumber_map_offsets
         }
 
     else:
@@ -462,6 +468,7 @@ def heterogeneous_biased_temporal_neighbor_sample(ResourceHandle resource_handle
             'edge_end_time': cupy_edge_end_time,
             'batch_id': cupy_batch_ids,
             'label_hop_offsets': cupy_label_hop_offsets,
+            'label_type_hop_offsets': cupy_label_type_hop_offsets,
         }
 
     # Return everything that isn't null
