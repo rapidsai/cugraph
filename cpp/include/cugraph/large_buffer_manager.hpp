@@ -35,13 +35,19 @@ namespace detail {
 class large_memory_buffer_resource_t {
  public:
   large_memory_buffer_resource_t() = delete;
-  large_memory_buffer_resource_t(std::shared_ptr<rmm::mr::pinned_memory_resource> mr) : mr_(mr) {}
+  large_memory_buffer_resource_t(std::shared_ptr<rmm::mr::pinned_memory_resource> mr)
+    : mr_(std::move(mr))
+  {
+  }
 
   rmm::mr::pinned_memory_resource* get() const { return mr_.get(); }
 
  private:
   std::shared_ptr<rmm::mr::pinned_memory_resource>
-    mr_{};  // currently, large memory buffer is backed by CUDA (rmm) pinned host memory
+    mr_{};  // currently, large memory buffer is backed by pinned memory only, in the future, we may
+            // support different memory resources, in that case, we may update mr_ to a
+            // std::shared_ptr of a std::variant type, and add additional constructors taking
+            // different memory resources.
 };
 
 // storage buffer does not support pointer based load & store operations and requries special
@@ -91,10 +97,10 @@ class large_buffer_manager {
     storage_buffer_resource() = storage_resource;
   }
 
-  static detail::large_memory_buffer_resource_t create_memory_buffer_resource()
+  static detail::large_memory_buffer_resource_t create_memory_buffer_resource(
+    std::shared_ptr<rmm::mr::pinned_memory_resource> mr)
   {
-    return detail::large_memory_buffer_resource_t(
-      std::make_shared<rmm::mr::pinned_memory_resource>());
+    return detail::large_memory_buffer_resource_t(std::move(mr));
   }
 
   static detail::large_storage_buffer_resource_t create_storage_buffer_resource()

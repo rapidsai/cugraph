@@ -47,6 +47,7 @@
 
 #include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
+#include <rmm/mr/host/pinned_memory_resource.hpp>
 
 #include <thrust/merge.h>
 #include <thrust/set_operations.h>
@@ -81,10 +82,13 @@ class Tests_GRAPH500_MGBFS
     size_t pool_size =
       12;  // note that CUDA_DEVICE_MAX_CONNECTIONS (default: 8) should be set to a value larger
            // than pool_size to avoid false dependency among different streams
-    handle_ = cugraph::test::initialize_mg_handle(pool_size);
+    handle_    = cugraph::test::initialize_mg_handle(pool_size);
+    pinned_mr_ = std::make_shared<rmm::mr::pinned_memory_resource>();
 
     cugraph::large_buffer_manager::init(
-      *handle_, cugraph::large_buffer_manager::create_memory_buffer_resource(), std::nullopt);
+      *handle_,
+      cugraph::large_buffer_manager::create_memory_buffer_resource(pinned_mr_),
+      std::nullopt);
   }
 
   static void TearDownTestCase() { handle_.reset(); }
@@ -240,7 +244,10 @@ class Tests_GRAPH500_MGBFS
                                      std::move(src_chunks[i]),
                                      std::move(dst_chunks[i]),
                                      std::move(dummy_edge_property_chunk),
-                                     store_transposed);
+                                     store_transposed,
+                                     bfs_usecase.use_large_buffer
+                                       ? std::make_optional(cugraph::large_buffer_type_t::MEMORY)
+                                       : std::nullopt);
       }
 
       std::tie(
@@ -897,10 +904,14 @@ class Tests_GRAPH500_MGBFS
 
  private:
   static std::unique_ptr<raft::handle_t> handle_;
+  static std::shared_ptr<rmm::mr::pinned_memory_resource> pinned_mr_;
 };
 
 template <typename input_usecase_t>
 std::unique_ptr<raft::handle_t> Tests_GRAPH500_MGBFS<input_usecase_t>::handle_ = nullptr;
+template <typename input_usecase_t>
+std::shared_ptr<rmm::mr::pinned_memory_resource> Tests_GRAPH500_MGBFS<input_usecase_t>::pinned_mr_ =
+  nullptr;
 
 using Tests_GRAPH500_MGBFS_Rmat = Tests_GRAPH500_MGBFS<cugraph::test::Rmat_Usecase>;
 
