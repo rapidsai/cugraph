@@ -163,10 +163,10 @@ class CugraphHandler:
 
     def __init__(self):
         warnings.warn(
-            "deprecated as of 25.10 and will be remove in release 25.12. "
+            "cugraph-service-server is deprecated and will be removed in a future release. "
             "If cugraph_service is critical for your work, please submit a GitHub "
             "issue at https://github.com/rapidsai/cugraph/issues",
-            DeprecationWarning,
+            FutureWarning,
         )
         self.__next_graph_id = defaults.graph_id + 1
         self.__graph_objs = {}
