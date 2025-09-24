@@ -274,9 +274,10 @@ def ensure_valid_dtype(
         if vertices_array.dtype != src_or_offset_array.dtype:
             warning_msg = (
                 "The graph requires the 'vertices_array' values "
-                "to match the 'src_or_offset_array' type. "
-                f"'src_or_offset_array' type is: {vertices_array.dtype} and "
-                f"'dst_or_index_array' type is : {src_or_offset_array.dtype}."
+                "to match the 'src_or_offset_array' and 'dst_or_index_array'. "
+                f"'vertices_array' type is: {vertices_array.dtype} "
+                f"'src_or_offset_array' type is: {src_or_offset_array.dtype} and "
+                f"'dst_or_index_array' type is : {dst_or_index_array.dtype}."
             )
             warnings.warn(warning_msg, UserWarning)
             src_or_offset_array = src_or_offset_array.astype(np.int64)
@@ -288,9 +289,10 @@ def ensure_valid_dtype(
         if edge_id_array.dtype != src_or_offset_array.dtype:
             warning_msg = (
                 "The graph requires the 'edge_id_array' values "
-                "to match the 'src_or_offset_array' type. "
-                f"'src_or_offset_array' type is: {edge_id_array.dtype} and "
-                f"'dst_or_index_array' type is : {src_or_offset_array.dtype}."
+                "to match the 'src_or_offset_array' and 'dst_or_index_array'. "
+                f"'edge_id_array' type is: {edge_id_array.dtype} "
+                f"'src_or_offset_array' type is: {src_or_offset_array.dtype} and "
+                f"'dst_or_index_array' type is : {dst_or_index_array.dtype}."
             )
             warnings.warn(warning_msg, UserWarning)
             src_or_offset_array = src_or_offset_array.astype(np.int64)
