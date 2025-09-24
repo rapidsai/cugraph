@@ -1,8 +1,8 @@
 # cugraph_service
 
-## NOTICE: cuGraph Service is deprecated
+## NOTICE: cugraph-service is deprecated
 
-cugraph_service, both client and server, is deprecated and will be remove in release 25.12
+The cugraph-service client and server are deprecated and will be removed in a future release.
 If cugraph_service is critical for your work, please submit a GitHub
 issue at https://github.com/rapidsai/cugraph/issues
 
