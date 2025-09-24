@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import warnings
+
 from functools import cached_property
 from pathlib import Path
 import importlib
@@ -160,6 +162,12 @@ class CugraphHandler:
     __server_facade_extension_param_name = "server"
 
     def __init__(self):
+        warnings.warn(
+            "cugraph-service-server is deprecated and will be removed in a future "
+            "release. If cugraph_service is critical for your work, please submit "
+            "a GitHub issue at https://github.com/rapidsai/cugraph/issues",
+            FutureWarning,
+        )
         self.__next_graph_id = defaults.graph_id + 1
         self.__graph_objs = {}
         self.__graph_creation_extensions = {}
