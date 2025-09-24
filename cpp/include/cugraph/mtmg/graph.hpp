@@ -28,11 +28,11 @@ namespace mtmg {
 /**
  * @brief Graph object for each GPU
  */
-template <typename vertex_t, bool store_transposed, bool multi_gpu>
+template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
 class graph_t : public detail::device_shared_wrapper_t<
                   cugraph::graph_t<vertex_t, vertex_t, store_transposed, multi_gpu>> {
   using parent_t = detail::device_shared_wrapper_t<
-    cugraph::graph_t<vertex_t, vertex_t, store_transposed, multi_gpu>>;
+    cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu>>;
 
  public:
   /**
@@ -42,7 +42,7 @@ class graph_t : public detail::device_shared_wrapper_t<
   {
     std::lock_guard<std::mutex> lock(parent_t::lock_);
 
-    cugraph::mtmg::graph_view_t<vertex_t, store_transposed, multi_gpu> result;
+    cugraph::mtmg::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> result;
 
     std::for_each(parent_t::objects_.begin(), parent_t::objects_.end(), [&result](auto& p) {
       result.set(p.first, std::move(p.second.view()));
@@ -65,13 +65,13 @@ class graph_t : public detail::device_shared_wrapper_t<
  * @param[in]  do_expensive_check A flag to run expensive checks for input arguments (if set to
  * `true`).
  */
-template <typename vertex_t, bool store_transposed, bool multi_gpu>
+template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
 void create_graph_from_edgelist(
   handle_t const& handle,
   cugraph::mtmg::edgelist_t<vertex_t>& edgelist,
   graph_properties_t graph_properties,
   bool renumber,
-  cugraph::mtmg::graph_t<vertex_t, store_transposed, multi_gpu>& graph,
+  cugraph::mtmg::graph_t<vertex_t, edge_t, store_transposed, multi_gpu>& graph,
   std::vector<cugraph::mtmg::edge_property_t<vertex_t>>& edge_properties,
   std::optional<cugraph::mtmg::renumber_map_t<vertex_t>>& renumber_map,
   bool do_expensive_check = false)
@@ -87,7 +87,7 @@ void create_graph_from_edgelist(
   CUGRAPH_EXPECTS(my_edgelist.get_src().size() == 1,
                   "Must consolidate edges into a single list before creating graph");
 
-  std::vector<cugraph::arithmetic_device_uvector_t> edge_properties_buffers;
+  std::vector<cugraph::arithmetic_device_uvector_t> edge_properties_buffers{};
   edge_properties_buffers.reserve(my_edgelist.get_edge_property_buffers().size());
 
   for (size_t i = 0; i < my_edgelist.get_edge_property_buffers().size(); ++i) {
@@ -95,7 +95,7 @@ void create_graph_from_edgelist(
   }
 
   auto [local_graph, local_edge_properties, local_renumber_map] =
-    cugraph::create_graph_from_edgelist<vertex_t, vertex_t, store_transposed, multi_gpu>(
+    cugraph::create_graph_from_edgelist<vertex_t, edge_t, store_transposed, multi_gpu>(
       handle.raft_handle(),
       std::nullopt,
       std::move(my_edgelist.get_src()[0]),

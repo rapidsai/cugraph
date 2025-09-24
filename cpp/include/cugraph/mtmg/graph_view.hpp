@@ -26,9 +26,9 @@ namespace mtmg {
 /**
  * @brief Graph view for each GPU
  */
-template <typename vertex_t, bool store_transposed, bool multi_gpu>
+template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
 class graph_view_t : public detail::device_shared_wrapper_t<
-                       cugraph::graph_view_t<vertex_t, vertex_t, store_transposed, multi_gpu>> {
+                       cugraph::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>> {
  public:
   /**
    * @brief Get the vertex_partition_view for this graph

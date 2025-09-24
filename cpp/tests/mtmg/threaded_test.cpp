@@ -112,8 +112,8 @@ class Tests_Multithreaded
       resource_manager.registered_ranks(), instance_manager_id, num_threads_per_gpu);
 
     cugraph::mtmg::edgelist_t<edge_t> edgelist;
-    cugraph::mtmg::graph_t<vertex_t, store_transposed, multi_gpu> graph;
-    cugraph::mtmg::graph_view_t<vertex_t, store_transposed, multi_gpu> graph_view;
+    cugraph::mtmg::graph_t<vertex_t, edge_t, store_transposed, multi_gpu> graph;
+    cugraph::mtmg::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> graph_view;
     cugraph::mtmg::vertex_result_t<result_t> pageranks;
     std::optional<cugraph::mtmg::renumber_map_t<vertex_t>> renumber_map =
       std::make_optional<cugraph::mtmg::renumber_map_t<vertex_t>>();
@@ -245,7 +245,7 @@ class Tests_Multithreaded
         edgelist.finalize_buffer(thread_handle);
         edgelist.consolidate_and_shuffle(thread_handle, store_transposed);
 
-        cugraph::mtmg::create_graph_from_edgelist<vertex_t, store_transposed, multi_gpu>(
+        cugraph::mtmg::create_graph_from_edgelist<vertex_t, edge_t, store_transposed, multi_gpu>(
           thread_handle,
           edgelist,
           cugraph::graph_properties_t{is_symmetric, true},
