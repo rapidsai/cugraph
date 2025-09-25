@@ -202,7 +202,6 @@ class Tests_Homogeneous_Uniform_Neighbor_Sampling
           handle,
           std::move(src_out),
           std::move(dst_out),
-          std::move(wgt_out),
           std::move(random_sources),
           homogeneous_uniform_neighbor_sampling_usecase.fanout.size()));
       }

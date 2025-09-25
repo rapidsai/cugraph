@@ -565,7 +565,7 @@ refine_clustering(
     refined_community_cuts.shrink_to_fit(handle.get_stream());
 
     //
-    // Create edgelist from (source, target community, modulraity gain) tuple
+    // Create edgelist from (source, target community, modularity gain) tuple
     //
 
     vertex_t num_vertices   = graph_view.local_vertex_partition_range_size();
@@ -604,31 +604,21 @@ refine_clustering(
 
     rmm::device_uvector<vertex_t> d_srcs(nr_valid_tuples, handle.get_stream());
     rmm::device_uvector<vertex_t> d_dsts(nr_valid_tuples, handle.get_stream());
-    std::optional<rmm::device_uvector<weight_t>> d_weights =
-      std::make_optional(rmm::device_uvector<weight_t>(nr_valid_tuples, handle.get_stream()));
 
-    auto d_src_dst_gain_iterator =
-      thrust::make_zip_iterator(d_srcs.begin(), d_dsts.begin(), (*d_weights).begin());
-
-    // edge (src, dst, gain)
-    auto edge_begin =
-      thrust::make_zip_iterator(vertex_begin,
-                                cuda::std::get<1>(gain_and_dst_first.get_iterator_tuple()),
-                                cuda::std::get<0>(gain_and_dst_first.get_iterator_tuple()));
-    auto edge_end =
-      thrust::make_zip_iterator(vertex_end,
-                                cuda::std::get<1>(gain_and_dst_last.get_iterator_tuple()),
-                                cuda::std::get<0>(gain_and_dst_last.get_iterator_tuple()));
+    auto d_src_dst_iterator = thrust::make_zip_iterator(d_srcs.begin(), d_dsts.begin());
+    auto edge_begin         = thrust::make_zip_iterator(
+      vertex_begin, cuda::std::get<1>(gain_and_dst_first.get_iterator_tuple()));
+    auto edge_end = thrust::make_zip_iterator(
+      vertex_end, cuda::std::get<1>(gain_and_dst_last.get_iterator_tuple()));
 
     thrust::copy_if(handle.get_thrust_policy(),
                     edge_begin,
                     edge_end,
-                    d_src_dst_gain_iterator,
-                    [] __device__(cuda::std::tuple<vertex_t, vertex_t, weight_t> src_dst_gain) {
-                      vertex_t src  = cuda::std::get<0>(src_dst_gain);
-                      vertex_t dst  = cuda::std::get<1>(src_dst_gain);
-                      weight_t gain = cuda::std::get<2>(src_dst_gain);
-
+                    gain_and_dst_first,
+                    d_src_dst_iterator,
+                    [] __device__(auto pair) {
+                      auto gain = cuda::std::get<0>(pair);
+                      auto dst  = cuda::std::get<1>(pair);
                       return (gain > POSITIVE_GAIN) && (dst >= 0);
                     });
 
@@ -642,32 +632,23 @@ refine_clustering(
     cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu> decision_graph(handle);
 
     std::optional<rmm::device_uvector<vertex_t>> renumber_map{std::nullopt};
-    std::optional<edge_property_t<edge_t, weight_t>> coarse_edge_weights{std::nullopt};
 
     if constexpr (multi_gpu) {
-      std::vector<cugraph::arithmetic_device_uvector_t> edge_properties{};
-      if (d_weights) edge_properties.push_back(std::move(*d_weights));
-
-      std::tie(d_srcs, d_dsts, edge_properties, std::ignore) =
+      std::tie(d_srcs, d_dsts, std::ignore, std::ignore) =
         cugraph::shuffle_ext_edges(handle,
                                    std::move(d_srcs),
                                    std::move(d_dsts),
-                                   std::move(edge_properties),
+                                   std::vector<arithmetic_device_uvector_t>{},
                                    GraphViewType::is_storage_transposed);
-
-      if (d_weights)
-        *d_weights = std::move(std::get<rmm::device_uvector<weight_t>>(edge_properties[0]));
     }
 
-    std::tie(decision_graph, coarse_edge_weights, std::ignore, std::ignore, renumber_map) =
-      create_graph_from_edgelist<vertex_t, edge_t, weight_t, int32_t, store_transposed, multi_gpu>(
+    std::tie(decision_graph, std::ignore, renumber_map) =
+      create_graph_from_edgelist<vertex_t, edge_t, store_transposed, multi_gpu>(
         handle,
         std::nullopt,
         std::move(d_srcs),
         std::move(d_dsts),
-        std::move(d_weights),
-        std::nullopt,
-        std::nullopt,
+        std::vector<arithmetic_device_uvector_t>{},
         cugraph::graph_properties_t{false, false},
         true /* renumber */);
 
