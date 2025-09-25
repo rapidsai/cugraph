@@ -7,5 +7,5 @@ set -euo pipefail
 cd "$(dirname "$(realpath "${BASH_SOURCE[0]}")")"/../python/cugraph-service
 
 pytest --capture=no --cache-clear --benchmark-disable \
-    -k "not mg and not test_renumber_vertices_by_type and not test_renumber_edges_by_type" \
+    -k "not mg" \
     "$@" tests
