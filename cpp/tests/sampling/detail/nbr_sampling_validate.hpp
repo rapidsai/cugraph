@@ -16,6 +16,8 @@
 
 #pragma once
 
+#include <cugraph/sampling_functions.hpp>
+
 #include <raft/core/device_span.hpp>
 #include <raft/core/handle.hpp>
 
@@ -47,11 +49,13 @@ bool validate_sampling_depth(raft::handle_t const& handle,
                              int max_depth);
 
 template <typename vertex_t, typename edge_time_t>
-bool validate_temporal_integrity(raft::handle_t const& handle,
-                                 raft::device_span<vertex_t const> srcs,
-                                 raft::device_span<vertex_t const> dsts,
-                                 raft::device_span<edge_time_t const> edge_times,
-                                 raft::device_span<vertex_t const> source_vertices);
+bool validate_temporal_integrity(
+  raft::handle_t const& handle,
+  raft::device_span<vertex_t const> srcs,
+  raft::device_span<vertex_t const> dsts,
+  raft::device_span<edge_time_t const> edge_times,
+  raft::device_span<vertex_t const> source_vertices,
+  cugraph::temporal_sampling_comparison_t temporal_sampling_comparison);
 
 }  // namespace test
 }  // namespace cugraph

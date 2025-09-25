@@ -25,7 +25,8 @@ template void update_temporal_edge_mask(
   edge_property_view_t<int64_t, int32_t const*> edge_start_time_view,
   raft::device_span<int64_t const> vertices,
   raft::device_span<int32_t const> vertex_times,
-  edge_property_view_t<int64_t, uint32_t*, bool> edge_time_mask_view);
+  edge_property_view_t<int64_t, uint32_t*, bool> edge_time_mask_view,
+  temporal_sampling_comparison_t temporal_sampling_comparison);
 
 template void update_temporal_edge_mask(
   raft::handle_t const& handle,
@@ -33,7 +34,8 @@ template void update_temporal_edge_mask(
   edge_property_view_t<int64_t, int64_t const*> edge_start_time_view,
   raft::device_span<int64_t const> vertices,
   raft::device_span<int64_t const> vertex_times,
-  edge_property_view_t<int64_t, uint32_t*, bool> edge_time_mask_view);
+  edge_property_view_t<int64_t, uint32_t*, bool> edge_time_mask_view,
+  temporal_sampling_comparison_t temporal_sampling_comparison);
 
 }  // namespace detail
 }  // namespace cugraph
