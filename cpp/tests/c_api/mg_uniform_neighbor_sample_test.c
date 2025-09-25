@@ -936,6 +936,11 @@ int test_uniform_neighbor_sample_alex_bug(const cugraph_resource_handle_t* handl
 
 int test_uniform_neighbor_sample_sort_by_hop(const cugraph_resource_handle_t* handle)
 {
+  if (cugraph_resource_handle_get_comm_size(handle) < 2) {
+    // This test is only valid for multi-gpu with at least 2 ranks
+    return 0;
+  }
+
   size_t num_edges    = 156;
   size_t num_vertices = 34;
   size_t fan_out_size = 2;

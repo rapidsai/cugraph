@@ -25,7 +25,11 @@ typedef int32_t vertex_t;
 typedef int32_t edge_t;
 typedef float weight_t;
 
-int generic_core_number_test(const cugraph_resource_handle_t* p_handle,
+cugraph_data_type_id_t vertex_tid = INT32;
+cugraph_data_type_id_t edge_tid   = INT32;
+cugraph_data_type_id_t weight_tid = FLOAT32;
+
+int generic_core_number_test(const cugraph_resource_handle_t* handle,
                              vertex_t* h_src,
                              vertex_t* h_dst,
                              weight_t* h_wgt,
@@ -39,25 +43,43 @@ int generic_core_number_test(const cugraph_resource_handle_t* p_handle,
   cugraph_error_code_t ret_code = CUGRAPH_SUCCESS;
   cugraph_error_t* ret_error;
 
-  cugraph_graph_t* p_graph        = NULL;
-  cugraph_core_result_t* p_result = NULL;
+  cugraph_graph_t* graph        = NULL;
+  cugraph_core_result_t* result = NULL;
 
-  ret_code = create_mg_test_graph(
-    p_handle, h_src, h_dst, h_wgt, num_edges, store_transposed, TRUE, &p_graph, &ret_error);
+  ret_code = create_mg_test_graph_new(handle,
+                                      vertex_tid,
+                                      edge_tid,
+                                      h_src,
+                                      h_dst,
+                                      weight_tid,
+                                      h_wgt,
+                                      INT32,
+                                      NULL,
+                                      edge_tid,
+                                      NULL,
+                                      INT32,
+                                      NULL,
+                                      NULL,
+                                      num_edges,
+                                      store_transposed,
+                                      TRUE,
+                                      TRUE,
+                                      FALSE,
+                                      &graph,
+                                      &ret_error);
 
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "create_test_graph failed.");
   TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
 
-  ret_code =
-    cugraph_core_number(p_handle, p_graph, K_CORE_DEGREE_TYPE_IN, FALSE, &p_result, &ret_error);
+  ret_code = cugraph_core_number(handle, graph, K_CORE_DEGREE_TYPE_IN, FALSE, &result, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "cugraph_core_number failed.");
   TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
 
   cugraph_type_erased_device_array_view_t* vertices;
   cugraph_type_erased_device_array_view_t* core_numbers;
 
-  vertices     = cugraph_core_result_get_vertices(p_result);
-  core_numbers = cugraph_core_result_get_core_numbers(p_result);
+  vertices     = cugraph_core_result_get_vertices(result);
+  core_numbers = cugraph_core_result_get_core_numbers(result);
 
   size_t num_local_vertices = cugraph_type_erased_device_array_view_size(vertices);
 
@@ -65,11 +87,11 @@ int generic_core_number_test(const cugraph_resource_handle_t* p_handle,
   vertex_t h_core_numbers[num_local_vertices];
 
   ret_code = cugraph_type_erased_device_array_view_copy_to_host(
-    p_handle, (byte_t*)h_vertices, vertices, &ret_error);
+    handle, (byte_t*)h_vertices, vertices, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "copy_to_host failed.");
 
   ret_code = cugraph_type_erased_device_array_view_copy_to_host(
-    p_handle, (byte_t*)h_core_numbers, core_numbers, &ret_error);
+    handle, (byte_t*)h_core_numbers, core_numbers, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "copy_to_host failed.");
 
   for (int i = 0; (i < num_local_vertices) && (test_ret_value == 0); ++i) {
@@ -78,14 +100,14 @@ int generic_core_number_test(const cugraph_resource_handle_t* p_handle,
                 "core number results don't match");
   }
 
-  cugraph_core_result_free(p_result);
-  cugraph_graph_free(p_graph);
+  cugraph_core_result_free(result);
+  cugraph_graph_free(graph);
   cugraph_error_free(ret_error);
 
   return test_ret_value;
 }
 
-int test_core_number(const cugraph_resource_handle_t* p_handle)
+int test_core_number(const cugraph_resource_handle_t* handle)
 {
   size_t num_edges    = 22;
   size_t num_vertices = 7;
@@ -97,7 +119,7 @@ int test_core_number(const cugraph_resource_handle_t* p_handle)
   vertex_t h_result[] = {2, 3, 2, 3, 3, 3, 1};
 
   return generic_core_number_test(
-    p_handle, h_src, h_dst, h_wgt, h_result, num_vertices, num_edges, FALSE);
+    handle, h_src, h_dst, h_wgt, h_result, num_vertices, num_edges, FALSE);
 }
 
 /******************************************************************************/

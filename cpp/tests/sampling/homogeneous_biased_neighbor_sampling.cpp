@@ -197,7 +197,6 @@ class Tests_Homogeneous_Biased_Neighbor_Sampling
           handle,
           std::move(src_out),
           std::move(dst_out),
-          std::move(wgt_out),
           std::move(random_sources),
           homogeneous_biased_neighbor_sampling_usecase.fanout.size()));
       }
