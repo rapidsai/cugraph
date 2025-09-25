@@ -33,6 +33,7 @@
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
+#include <cugraph/host_staging_buffer_manager.hpp>
 #include <cugraph/large_buffer_manager.hpp>
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/shuffle_functions.hpp>
@@ -89,6 +90,12 @@ class Tests_GRAPH500_MGBFS
       *handle_,
       cugraph::large_buffer_manager::create_memory_buffer_resource(pinned_mr_),
       std::nullopt);
+    std::vector<rmm::cuda_stream_view> streams{};
+    streams.push_back(handle_->get_stream());
+    for (size_t i = 0; i < handle_->get_stream_pool_size(); ++i) {
+      streams.push_back(handle_->get_stream_from_stream_pool(i));
+    }
+    cugraph::host_staging_buffer_manager::init(*handle_, streams, pinned_mr_);
   }
 
   static void TearDownTestCase() { handle_.reset(); }
@@ -466,12 +473,32 @@ class Tests_GRAPH500_MGBFS
       vertex_t starting_vertex_parent{starting_vertex};
       vertex_t starting_vertex_component{};
       if (starting_vertex_vertex_partition_id == vertex_partition_id) {
-        unrenumbered_starting_vertex = mg_renumber_map.element(
-          starting_vertex - local_vertex_partition_range_first, handle_->get_stream());
-        starting_vertex_parent = parents.element(
-          starting_vertex - local_vertex_partition_range_first, handle_->get_stream());
-        starting_vertex_component = components.element(
-          starting_vertex - local_vertex_partition_range_first, handle_->get_stream());
+        static_assert(cugraph::host_staging_buffer_manager::staging_buffer_size >=
+                      sizeof(vertex_t) * 3);
+        static_assert(
+          (cugraph::host_staging_buffer_manager::minimum_alignment % sizeof(vertex_t)) == 0);
+        vertex_t* staging_buffer =
+          static_cast<vertex_t*>(cugraph::host_staging_buffer_manager::buffer_ptr(
+                                   sizeof(vertex_t) * 3, handle_->get_stream())
+                                   .value());
+        raft::update_host(
+          std::addressof(staging_buffer[0]),
+          mg_renumber_map.data() + (starting_vertex - local_vertex_partition_range_first),
+          size_t{1},
+          handle_->get_stream());
+        raft::update_host(std::addressof(staging_buffer[1]),
+                          parents.data() + (starting_vertex - local_vertex_partition_range_first),
+                          size_t{1},
+                          handle_->get_stream());
+        raft::update_host(
+          std::addressof(staging_buffer[2]),
+          components.data() + (starting_vertex - local_vertex_partition_range_first),
+          size_t{1},
+          handle_->get_stream());
+        handle_->sync_stream();
+        unrenumbered_starting_vertex = staging_buffer[0];
+        starting_vertex_parent       = staging_buffer[1];
+        starting_vertex_component    = staging_buffer[2];
       }
       thrust::tie(unrenumbered_starting_vertex, starting_vertex_parent, starting_vertex_component) =
         cugraph::host_scalar_bcast(
