@@ -1284,6 +1284,9 @@ create_graph_from_edgelist_impl(
       edgelist_srcs.begin(), edgelist_srcs.end(), [&tmp_edgelist_srcs](auto&& edgelist_src) {
         tmp_edgelist_srcs.push_back(std::move(edgelist_src));
       });
+    edgelist_srcs.clear();
+    edgelist_srcs.shrink_to_fit();
+
     tmp_edgelist_srcs = split_edge_chunk_elements_to_local_edge_partitions<edge_t>(
       handle,
       std::move(tmp_edgelist_srcs),
@@ -1300,12 +1303,18 @@ create_graph_from_edgelist_impl(
                       std::move(std::get<rmm::device_uvector<vertex_t>>(edgelist_src)));
                   });
 
+    tmp_edgelist_srcs.clear();
+    tmp_edgelist_srcs.shrink_to_fit();
+
     std::vector<arithmetic_device_uvector_t> tmp_edgelist_dsts{};
     tmp_edgelist_dsts.reserve(edgelist_dsts.size());
     std::for_each(
       edgelist_dsts.begin(), edgelist_dsts.end(), [&tmp_edgelist_dsts](auto&& edgelist_dst) {
         tmp_edgelist_dsts.push_back(std::move(edgelist_dst));
       });
+    edgelist_dsts.clear();
+    edgelist_dsts.shrink_to_fit();
+
     tmp_edgelist_dsts = split_edge_chunk_elements_to_local_edge_partitions<edge_t>(
       handle,
       std::move(tmp_edgelist_dsts),
@@ -1321,6 +1330,9 @@ create_graph_from_edgelist_impl(
                     edge_partition_edgelist_dsts.push_back(
                       std::move(std::get<rmm::device_uvector<vertex_t>>(edgelist_dst)));
                   });
+
+    tmp_edgelist_dsts.clear();
+    tmp_edgelist_dsts.shrink_to_fit();
   }
 
   edge_partition_edgelist_edge_properties.reserve(edgelist_edge_properties.size());
