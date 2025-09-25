@@ -80,6 +80,7 @@ class Tests_Multithreaded
     using edge_time_t = int32_t;
 
     constexpr bool renumber           = true;
+    constexpr bool store_transposed   = true;
     constexpr bool do_expensive_check = false;
 
     auto [multithreaded_usecase, input_usecase] = param;
@@ -110,16 +111,21 @@ class Tests_Multithreaded
     auto instance_manager = resource_manager.create_instance_manager(
       resource_manager.registered_ranks(), instance_manager_id, num_threads_per_gpu);
 
-    cugraph::mtmg::edgelist_t<vertex_t, weight_t, edge_t, edge_type_t, edge_time_t> edgelist;
-    cugraph::mtmg::graph_t<vertex_t, edge_t, true, multi_gpu> graph;
-    cugraph::mtmg::graph_view_t<vertex_t, edge_t, true, multi_gpu> graph_view;
+    cugraph::mtmg::edgelist_t<edge_t> edgelist;
+    cugraph::mtmg::graph_t<vertex_t, edge_t, store_transposed, multi_gpu> graph;
+    cugraph::mtmg::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> graph_view;
     cugraph::mtmg::vertex_result_t<result_t> pageranks;
     std::optional<cugraph::mtmg::renumber_map_t<vertex_t>> renumber_map =
       std::make_optional<cugraph::mtmg::renumber_map_t<vertex_t>>();
 
-    auto edge_weights = multithreaded_usecase.test_weighted
-                          ? std::make_optional<cugraph::mtmg::edge_property_t<edge_t, weight_t>>()
-                          : std::nullopt;
+    std::vector<cugraph::arithmetic_type_t> edge_property_types{};
+    if (multithreaded_usecase.test_weighted) {
+      edge_property_types.push_back(cugraph::arithmetic_type_t{weight_t{}});
+    }
+    std::vector<cugraph::mtmg::edge_property_t<edge_t>> edge_properties{};
+    if (multithreaded_usecase.test_weighted) {
+      edge_properties.push_back(cugraph::mtmg::edge_property_t<edge_t>());
+    }
 
     //
     // Simulate graph creation by spawning threads to walk through the
@@ -129,24 +135,12 @@ class Tests_Multithreaded
 
     //  Initialize shared edgelist object, one per GPU
     for (int i = 0; i < num_gpus; ++i) {
-      running_threads.emplace_back([&instance_manager,
-                                    &edgelist,
-                                    device_buffer_size,
-                                    use_weight          = true,
-                                    use_edge_id         = false,
-                                    use_edge_type       = false,
-                                    use_edge_start_time = false,
-                                    use_edge_end_time   = false]() {
-        auto thread_handle = instance_manager->get_handle();
+      running_threads.emplace_back(
+        [&instance_manager, &edgelist, device_buffer_size, edge_property_types]() {
+          auto thread_handle = instance_manager->get_handle();
 
-        edgelist.set(thread_handle,
-                     device_buffer_size,
-                     use_weight,
-                     use_edge_id,
-                     use_edge_type,
-                     use_edge_start_time,
-                     use_edge_end_time);
-      });
+          edgelist.set(thread_handle, device_buffer_size, edge_property_types);
+        });
     }
 
     // Wait for CPU threads to complete
@@ -158,6 +152,9 @@ class Tests_Multithreaded
     rmm::device_uvector<vertex_t> d_src_v(0, handle.get_stream());
     rmm::device_uvector<vertex_t> d_dst_v(0, handle.get_stream());
     std::optional<rmm::device_uvector<weight_t>> d_weights_v{std::nullopt};
+    if (multithreaded_usecase.test_weighted) {
+      d_weights_v = std::make_optional(rmm::device_uvector<weight_t>(0, handle.get_stream()));
+    }
     std::optional<rmm::device_uvector<vertex_t>> d_vertices_v{std::nullopt};
     bool is_symmetric{};
     {
@@ -210,18 +207,15 @@ class Tests_Multithreaded
                                     i,
                                     num_threads]() {
         auto thread_handle = instance_manager->get_handle();
-        cugraph::mtmg::per_thread_edgelist_t<vertex_t, weight_t, edge_t, edge_type_t, edge_time_t>
-          per_thread_edgelist(edgelist.get(thread_handle), thread_buffer_size);
+        cugraph::mtmg::per_thread_edgelist_t<vertex_t> per_thread_edgelist(
+          edgelist.get(thread_handle), thread_buffer_size);
 
         for (size_t j = i; j < h_src_v.size(); j += num_threads) {
           per_thread_edgelist.append(
             h_src_v[j],
             h_dst_v[j],
-            h_weights_v ? std::make_optional((*h_weights_v)[j]) : std::nullopt,
-            std::nullopt,
-            std::nullopt,
-            std::nullopt,
-            std::nullopt,
+            h_weights_v ? std::vector<cugraph::arithmetic_type_t>{{(*h_weights_v)[j]}}
+                        : std::vector<cugraph::arithmetic_type_t>{},
             thread_handle.get_stream());
         }
 
@@ -237,7 +231,7 @@ class Tests_Multithreaded
     for (int i = 0; i < num_gpus; ++i) {
       running_threads.emplace_back([&instance_manager,
                                     &graph,
-                                    &edge_weights,
+                                    &edge_properties,
                                     &edgelist,
                                     &renumber_map,
                                     &pageranks,
@@ -248,33 +242,16 @@ class Tests_Multithreaded
 
         if (thread_handle.get_thread_rank() > 0) return;
 
-        std::optional<cugraph::mtmg::edge_property_t<edge_t, edge_t>> edge_ids{std::nullopt};
-        std::optional<cugraph::mtmg::edge_property_t<edge_t, edge_type_t>> edge_types{std::nullopt};
-        std::optional<cugraph::mtmg::edge_property_t<edge_t, edge_time_t>> edge_start_times{
-          std::nullopt};
-        std::optional<cugraph::mtmg::edge_property_t<edge_t, edge_time_t>> edge_end_times{
-          std::nullopt};
-
         edgelist.finalize_buffer(thread_handle);
-        edgelist.consolidate_and_shuffle(thread_handle, true);
+        edgelist.consolidate_and_shuffle(thread_handle, store_transposed);
 
-        cugraph::mtmg::create_graph_from_edgelist<vertex_t,
-                                                  edge_t,
-                                                  weight_t,
-                                                  edge_type_t,
-                                                  edge_time_t,
-                                                  true,
-                                                  multi_gpu>(
+        cugraph::mtmg::create_graph_from_edgelist<vertex_t, edge_t, store_transposed, multi_gpu>(
           thread_handle,
           edgelist,
           cugraph::graph_properties_t{is_symmetric, true},
           renumber,
           graph,
-          edge_weights,
-          edge_ids,
-          edge_types,
-          edge_start_times,
-          edge_end_times,
+          edge_properties,
           renumber_map,
           do_expensive_check);
       });
@@ -289,7 +266,7 @@ class Tests_Multithreaded
 
     for (int i = 0; i < num_threads; ++i) {
       running_threads.emplace_back(
-        [&instance_manager, &graph_view, &edge_weights, &pageranks, alpha, epsilon]() {
+        [&instance_manager, &graph_view, &edge_properties, &pageranks, alpha, epsilon]() {
           auto thread_handle = instance_manager->get_handle();
 
           if (thread_handle.get_thread_rank() > 0) return;
@@ -298,8 +275,11 @@ class Tests_Multithreaded
             cugraph::pagerank<vertex_t, edge_t, weight_t, weight_t, true>(
               thread_handle.raft_handle(),
               graph_view.get(thread_handle),
-              edge_weights ? std::make_optional(edge_weights->get(thread_handle).view())
-                           : std::nullopt,
+              edge_properties.size() > 0
+                ? std::make_optional(std::get<cugraph::edge_property_t<edge_t, weight_t>>(
+                                       edge_properties[0].get(thread_handle))
+                                       .view())
+                : std::nullopt,
               std::nullopt,
               std::nullopt,
               std::nullopt,
@@ -358,7 +338,6 @@ class Tests_Multithreaded
         auto d_my_pageranks = pageranks_view.gather(
           thread_handle,
           raft::device_span<vertex_t const>{d_my_vertex_list.data(), d_my_vertex_list.size()},
-          graph_view.get_vertex_partition_range_lasts(thread_handle),
           graph_view.get_vertex_partition_view(thread_handle),
           renumber_map_view);
 
@@ -383,29 +362,27 @@ class Tests_Multithreaded
 
     if (multithreaded_usecase.check_correctness) {
       // Want to compare the results in computed_pageranks_v with SG results
-      cugraph::graph_t<vertex_t, edge_t, true, false> sg_graph(handle);
+      cugraph::graph_t<vertex_t, edge_t, store_transposed, false> sg_graph(handle);
+      std::vector<cugraph::edge_arithmetic_property_t<edge_t>> sg_edge_properties{};
       std::optional<cugraph::edge_property_t<edge_t, weight_t>> sg_edge_weights{std::nullopt};
       std::optional<rmm::device_uvector<vertex_t>> sg_renumber_map{std::nullopt};
+      std::vector<cugraph::arithmetic_device_uvector_t> d_edge_properties{};
+      if (d_weights_v) d_edge_properties.push_back(std::move(*d_weights_v));
 
-      std::tie(sg_graph,
-               sg_edge_weights,
-               std::ignore,
-               std::ignore,
-               std::ignore,
-               std::ignore,
-               sg_renumber_map) = cugraph::
-        create_graph_from_edgelist<vertex_t, edge_t, weight_t, edge_t, int32_t, true, false>(
+      std::tie(sg_graph, sg_edge_properties, sg_renumber_map) =
+        cugraph::create_graph_from_edgelist<vertex_t, edge_t, store_transposed, false>(
           handle,
           std::nullopt,
           std::move(d_src_v),
           std::move(d_dst_v),
-          std::move(d_weights_v),
-          std::nullopt,
-          std::nullopt,
-          std::nullopt,
-          std::nullopt,
+          std::move(d_edge_properties),
           cugraph::graph_properties_t{is_symmetric, true},
           true);
+
+      if (sg_edge_properties.size() > 0) {
+        sg_edge_weights =
+          std::move(std::get<cugraph::edge_property_t<edge_t, weight_t>>(sg_edge_properties[0]));
+      }
 
       auto [sg_pageranks, meta] = cugraph::pagerank<vertex_t, edge_t, weight_t, weight_t, false>(
         handle,
