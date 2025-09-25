@@ -175,13 +175,7 @@ struct force_atlas2_functor : public cugraph::c_api::abstract_functor {
           (edge_weights != nullptr) ? std::make_optional(edge_weights->view()) : std::nullopt,
           std::nullopt,
           std::nullopt,
-
-          // ERIK: we want srcs and dsts to be renumbered, but providing the number_map
-          //       appears to unrenumber them. Is not passing number_map okay?
-          std::nullopt);  // ERIK:option 1
-      //(number_map != nullptr) ? std::make_optional(raft::device_span<vertex_t const>{
-      //                            number_map->data(), number_map->size()})
-      //                        : std::nullopt);
+          std::nullopt);  // Renumber srcs and dsts to internal IDs by not passing number_map
 
       cugraph::legacy::GraphCOOView<vertex_t, edge_t, weight_t> legacy_coo_graph_view(
         const_cast<vertex_t*>(srcs.data()),
@@ -189,26 +183,6 @@ struct force_atlas2_functor : public cugraph::c_api::abstract_functor {
         (edge_weights == nullptr) ? tmp_weights.data() : const_cast<weight_t*>(wgts->data()),
         graph->number_of_vertices(),
         edge_partition_view.number_of_edges());
-
-      // ERIK: option 2 for srcs and dsts to be renumbered
-      /*
-      cugraph::renumber_ext_vertices<vertex_t, multi_gpu>(
-        handle_,
-        srcs.data(),
-        srcs.size(),
-        number_map->data(),
-        graph_view.local_vertex_partition_range_first(),
-        graph_view.local_vertex_partition_range_last(),
-        do_expensive_check_);
-      cugraph::renumber_ext_vertices<vertex_t, multi_gpu>(
-        handle_,
-        dsts.data(),
-        dsts.size(),
-        number_map->data(),
-        graph_view.local_vertex_partition_range_first(),
-        graph_view.local_vertex_partition_range_last(),
-        do_expensive_check_);
-      */
 
       cugraph::internals::GraphBasedDimRedCallback* callback = nullptr;
 
@@ -446,12 +420,53 @@ extern "C" cugraph_error_code_t cugraph_force_atlas2(
   if (x_start != nullptr) {
     CAPI_EXPECTS(
       reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(x_start)
-          ->type_ ==
-        reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(y_start)
-          ->type_,
+          ->type_ == FLOAT32,
       CUGRAPH_INVALID_INPUT,
-      "Both x_start and y_start type  must match when provided",
+      "x_start should be of type float32",
       *error);
+    CAPI_EXPECTS(
+      reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(y_start)
+          ->type_ == FLOAT32,
+      CUGRAPH_INVALID_INPUT,
+      "y_start should be of type float32",
+      *error);
+    CAPI_EXPECTS(reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)->vertex_type_ ==
+                   reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
+                     start_vertices)
+                     ->type_,
+                 CUGRAPH_INVALID_INPUT,
+                 "vertex type of graph and start_vertices must match",
+                 *error);
+  }
+  if (vertex_radius_values != nullptr) {
+    CAPI_EXPECTS(reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
+                   vertex_radius_values)
+                     ->type_ == FLOAT32,
+                 CUGRAPH_INVALID_INPUT,
+                 "vertex_radius_values should be of type float32",
+                 *error);
+    CAPI_EXPECTS(reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)->vertex_type_ ==
+                   reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
+                     vertex_radius_vertices)
+                     ->type_,
+                 CUGRAPH_INVALID_INPUT,
+                 "vertex type of graph and vertex_radius_vertices must match",
+                 *error);
+  }
+  if (mobility_values != nullptr) {
+    CAPI_EXPECTS(reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
+                   mobility_values)
+                     ->type_ == FLOAT32,
+                 CUGRAPH_INVALID_INPUT,
+                 "mobility_values should be of type float32",
+                 *error);
+    CAPI_EXPECTS(reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)->vertex_type_ ==
+                   reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
+                     mobility_vertices)
+                     ->type_,
+                 CUGRAPH_INVALID_INPUT,
+                 "vertex type of graph and mobility_vertices must match",
+                 *error);
   }
 
   force_atlas2_functor functor(handle,

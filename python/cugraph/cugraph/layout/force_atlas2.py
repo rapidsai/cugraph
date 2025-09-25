@@ -209,8 +209,10 @@ def force_atlas2(
         if not isinstance(pos_list, cudf.DataFrame):
             raise TypeError("pos_list should be a cudf.DataFrame")
 
-        if set(pos_list.columns) != {"x", "y", "vertex"}:
-            raise ValueError("pos_list has wrong column names")
+        if len(pos_list.columns.intersection({"x", "y", "vertex"})) != 3:
+            raise ValueError(
+                "pos_list has wrong column names. It must have 'vertex', 'x', 'y'"
+            )
 
         if input_graph.renumbered:
             pos_list = renumber_vertices(input_graph, pos_list, 2)
@@ -230,8 +232,11 @@ def force_atlas2(
         if not isinstance(vertex_radius, cudf.DataFrame):
             raise TypeError("vertex_radius must be a cudf.DataFrame")
 
-        if set(vertex_radius.columns) != {"vertex", "radius"}:
-            raise ValueError("vertex_radius has wrong column names")
+        if len(vertex_radius.columns.intersection({"vertex", "radius"})) != 2:
+            raise ValueError(
+                "vertex_radius has wrong column names. It must have 'vertex' "
+                "and 'radius'"
+            )
 
         if input_graph.renumbered:
             vertex_radius = renumber_vertices(input_graph, vertex_radius)
@@ -247,8 +252,10 @@ def force_atlas2(
         if not isinstance(mobility, cudf.DataFrame):
             raise TypeError("mobility must be a cudf.DataFrame")
 
-        if set(mobility.columns) != {"vertex", "mobility"}:
-            raise ValueError("mobility has wrong column names")
+        if len(mobility.columns.intersection({"vertex", "mobility"})) != 2:
+            raise ValueError(
+                "mobility has wrong column names. It must have 'vertex' and 'mobility'"
+            )
 
         if input_graph.renumbered:
             mobility = renumber_vertices(input_graph, mobility)
