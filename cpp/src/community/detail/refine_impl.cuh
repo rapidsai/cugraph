@@ -604,31 +604,21 @@ refine_clustering(
 
     rmm::device_uvector<vertex_t> d_srcs(nr_valid_tuples, handle.get_stream());
     rmm::device_uvector<vertex_t> d_dsts(nr_valid_tuples, handle.get_stream());
-    std::optional<rmm::device_uvector<weight_t>> d_weights =
-      std::make_optional(rmm::device_uvector<weight_t>(nr_valid_tuples, handle.get_stream()));
 
-    auto d_src_dst_gain_iterator =
-      thrust::make_zip_iterator(d_srcs.begin(), d_dsts.begin(), (*d_weights).begin());
-
-    // edge (src, dst, gain)
-    auto edge_begin =
-      thrust::make_zip_iterator(vertex_begin,
-                                cuda::std::get<1>(gain_and_dst_first.get_iterator_tuple()),
-                                cuda::std::get<0>(gain_and_dst_first.get_iterator_tuple()));
-    auto edge_end =
-      thrust::make_zip_iterator(vertex_end,
-                                cuda::std::get<1>(gain_and_dst_last.get_iterator_tuple()),
-                                cuda::std::get<0>(gain_and_dst_last.get_iterator_tuple()));
+    auto d_src_dst_iterator = thrust::make_zip_iterator(d_srcs.begin(), d_dsts.begin());
+    auto edge_begin         = thrust::make_zip_iterator(
+      vertex_begin, cuda::std::get<1>(gain_and_dst_first.get_iterator_tuple()));
+    auto edge_end = thrust::make_zip_iterator(
+      vertex_end, cuda::std::get<1>(gain_and_dst_last.get_iterator_tuple()));
 
     thrust::copy_if(handle.get_thrust_policy(),
                     edge_begin,
                     edge_end,
-                    d_src_dst_gain_iterator,
-                    [] __device__(cuda::std::tuple<vertex_t, vertex_t, weight_t> src_dst_gain) {
-                      vertex_t src  = cuda::std::get<0>(src_dst_gain);
-                      vertex_t dst  = cuda::std::get<1>(src_dst_gain);
-                      weight_t gain = cuda::std::get<2>(src_dst_gain);
-
+                    gain_and_dst_first,
+                    d_src_dst_iterator,
+                    [] __device__(auto pair) {
+                      auto gain = cuda::std::get<0>(pair);
+                      auto dst  = cuda::std::get<1>(pair);
                       return (gain > POSITIVE_GAIN) && (dst >= 0);
                     });
 

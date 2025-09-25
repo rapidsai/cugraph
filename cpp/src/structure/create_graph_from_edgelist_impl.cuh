@@ -316,9 +316,9 @@ bool check_no_parallel_edge(raft::handle_t const& handle,
 }
 
 template <typename edge_t, typename T>
-std::vector<rmm::device_uvector<T>> split_edge_chunk_elements_to_local_edge_partitions(
+std::vector<T> split_edge_chunk_elements_to_local_edge_partitions(
   raft::handle_t const& handle,
-  std::vector<rmm::device_uvector<T>>&& edgelist_elements,
+  std::vector<T>&& edgelist_elements,
   std::vector<std::vector<edge_t>> const& edgelist_edge_offset_vectors,
   std::vector<edge_t> const& edge_partition_edge_counts,
   std::vector<std::vector<edge_t>> const& edge_partition_intra_partition_segment_offset_vectors,
@@ -327,10 +327,10 @@ std::vector<rmm::device_uvector<T>> split_edge_chunk_elements_to_local_edge_part
   std::optional<size_t> const element_size,
   std::optional<large_buffer_type_t> large_buffer_type)
 {
-  if constexpr (std::is_same_v<T, std::byte>) {
+  if constexpr (std::is_same_v<T, rmm::device_uvector<std::byte>>) {
     CUGRAPH_EXPECTS(element_size.has_value(), "Invalid input argument: element_size is not set.");
-  } else {
-    static_assert(std::is_arithmetic_v<T>);  // otherwise, unimplemented.
+  } else if constexpr (!std::is_same_v<T, arithmetic_device_uvector_t>) {
+    static_assert(std::is_arithmetic_v<typename T::value_type>);  // otherwise, unimplemented.
   }
 
   auto num_chunks          = edgelist_elements.size();
@@ -340,15 +340,35 @@ std::vector<rmm::device_uvector<T>> split_edge_chunk_elements_to_local_edge_part
     assert(edge_partition_intra_partition_segment_offset_vectors[i].size() == (num_segments + 1));
   }
 
-  std::vector<rmm::device_uvector<T>> edge_partition_elements{};
+  std::vector<T> edge_partition_elements{};
   edge_partition_elements.reserve(num_edge_partitions);
   for (size_t i = 0; i < num_edge_partitions; ++i) {
     size_t allocated_size = edge_partition_edge_counts[i];
-    if constexpr (std::is_same_v<T, std::byte>) { allocated_size *= element_size.value(); }
-    edge_partition_elements.push_back(
-      large_buffer_type
-        ? large_buffer_manager::allocate_memory_buffer<T>(allocated_size, handle.get_stream())
-        : rmm::device_uvector<T>(allocated_size, handle.get_stream()));
+
+    if constexpr (std::is_same_v<T, arithmetic_device_uvector_t>) {
+      variant_type_dispatch(
+        edgelist_elements[0],
+        [&handle, &edge_partition_elements, allocated_size, large_buffer_type](
+          auto const& edgelist_element) {
+          using edge_partition_buffer_type =
+            typename std::decay_t<decltype(edgelist_element)>::value_type;
+          edge_partition_elements.push_back(
+            large_buffer_type
+              ? large_buffer_manager::allocate_memory_buffer<edge_partition_buffer_type>(
+                  allocated_size, handle.get_stream())
+              : rmm::device_uvector<edge_partition_buffer_type>(allocated_size,
+                                                                handle.get_stream()));
+        });
+    } else {
+      if constexpr (std::is_same_v<T, rmm::device_uvector<std::byte>>) {
+        allocated_size *= element_size.value();
+      }
+      edge_partition_elements.push_back(
+        large_buffer_type
+          ? large_buffer_manager::allocate_memory_buffer<typename T::value_type>(
+              allocated_size, handle.get_stream())
+          : rmm::device_uvector<typename T::value_type>(allocated_size, handle.get_stream()));
+    }
   }
 
   for (size_t i = 0; i < num_edge_partitions; ++i) {
@@ -361,12 +381,27 @@ std::vector<rmm::device_uvector<T>> split_edge_chunk_elements_to_local_edge_part
           edge_partition_intra_partition_segment_offset_vectors[i][j] +
           edge_partition_intra_segment_copy_output_displacement_vectors[i][j * num_chunks + k];
 
-        if constexpr (std::is_same_v<T, std::byte>) {
+        if constexpr (std::is_same_v<T, rmm::device_uvector<std::byte>>) {
           thrust::copy(
             handle.get_thrust_policy(),
             edgelist_elements[k].begin() + segment_offset * element_size.value(),
             edgelist_elements[k].begin() + (segment_offset + segment_size) * element_size.value(),
             edge_partition_elements[i].begin() + output_offset * element_size.value());
+        } else if constexpr (std::is_same_v<T, arithmetic_device_uvector_t>) {
+          variant_type_dispatch(
+            edgelist_elements[k],
+            [&handle, &edge_partition_elements, segment_offset, segment_size, output_offset, i](
+              auto const& edgelist_element) {
+              using edge_partition_buffer_type =
+                typename std::decay_t<decltype(edgelist_element)>::value_type;
+              thrust::copy(handle.get_thrust_policy(),
+                           edgelist_element.begin() + segment_offset,
+                           edgelist_element.begin() + (segment_offset + segment_size),
+                           std::get<rmm::device_uvector<edge_partition_buffer_type>>(
+                             edge_partition_elements[i])
+                               .begin() +
+                             output_offset);
+            });
         } else {
           thrust::copy(handle.get_thrust_policy(),
                        edgelist_elements[k].begin() + segment_offset,
@@ -381,6 +416,7 @@ std::vector<rmm::device_uvector<T>> split_edge_chunk_elements_to_local_edge_part
   return edge_partition_elements;
 }
 
+#if 0
 template <typename edge_t>
 std::vector<arithmetic_device_uvector_t> split_edge_chunk_elements_to_local_edge_partitions(
   raft::handle_t const& handle,
@@ -453,6 +489,7 @@ std::vector<arithmetic_device_uvector_t> split_edge_chunk_elements_to_local_edge
 
   return edge_partition_elements;
 }
+#endif
 
 template <typename vertex_t>
 void decompress_vertices(raft::handle_t const& handle,
@@ -1296,27 +1333,25 @@ create_graph_from_edgelist_impl(
         std::optional<size_t>{compressed_v_size},
         tmp_splitted_compressed_edge_endpoint_buffer_type);
   } else {
-    edge_partition_edgelist_srcs =
-      split_edge_chunk_elements_to_local_edge_partitions<edge_t, vertex_t>(
-        handle,
-        std::move(edgelist_srcs),
-        edgelist_edge_offset_vectors,
-        edge_partition_edge_counts,
-        edge_partition_intra_partition_segment_offset_vectors,
-        edge_partition_intra_segment_copy_output_displacement_vectors,
-        std::nullopt,
-        large_edge_buffer_type);
+    edge_partition_edgelist_srcs = split_edge_chunk_elements_to_local_edge_partitions<edge_t>(
+      handle,
+      std::move(edgelist_srcs),
+      edgelist_edge_offset_vectors,
+      edge_partition_edge_counts,
+      edge_partition_intra_partition_segment_offset_vectors,
+      edge_partition_intra_segment_copy_output_displacement_vectors,
+      std::nullopt,
+      large_edge_buffer_type);
 
-    edge_partition_edgelist_dsts =
-      split_edge_chunk_elements_to_local_edge_partitions<edge_t, vertex_t>(
-        handle,
-        std::move(edgelist_dsts),
-        edgelist_edge_offset_vectors,
-        edge_partition_edge_counts,
-        edge_partition_intra_partition_segment_offset_vectors,
-        edge_partition_intra_segment_copy_output_displacement_vectors,
-        std::nullopt,
-        large_edge_buffer_type);
+    edge_partition_edgelist_dsts = split_edge_chunk_elements_to_local_edge_partitions<edge_t>(
+      handle,
+      std::move(edgelist_dsts),
+      edgelist_edge_offset_vectors,
+      edge_partition_edge_counts,
+      edge_partition_intra_partition_segment_offset_vectors,
+      edge_partition_intra_segment_copy_output_displacement_vectors,
+      std::nullopt,
+      large_edge_buffer_type);
   }
 
   edge_partition_edgelist_edge_properties.reserve(edgelist_edge_properties.size());
@@ -1337,6 +1372,7 @@ create_graph_from_edgelist_impl(
                       edge_partition_edge_counts,
                       edge_partition_intra_partition_segment_offset_vectors,
                       edge_partition_intra_segment_copy_output_displacement_vectors,
+                      std::nullopt,
                       large_edge_buffer_type));
                 });
 
