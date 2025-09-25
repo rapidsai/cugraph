@@ -72,16 +72,16 @@ void update_temporal_edge_mask(
       bool result = false;
       switch (temporal_sampling_comparison) {
         case temporal_sampling_comparison_t::STRICTLY_INCREASING:
-          result = (edge_start_time >= src_time);
-          break;
-        case temporal_sampling_comparison_t::MONOTONICALLY_INCREASING:
           result = (edge_start_time > src_time);
           break;
+        case temporal_sampling_comparison_t::MONOTONICALLY_INCREASING:
+          result = (edge_start_time >= src_time);
+          break;
         case temporal_sampling_comparison_t::STRICTLY_DECREASING:
-          result = (edge_start_time <= src_time);
+          result = (edge_start_time < src_time);
           break;
         case temporal_sampling_comparison_t::MONOTONICALLY_DECREASING:
-          result = (edge_start_time < src_time);
+          result = (edge_start_time <= src_time);
           break;
       }
       return result;

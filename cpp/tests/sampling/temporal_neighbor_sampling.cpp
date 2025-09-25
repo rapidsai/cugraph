@@ -188,25 +188,64 @@ class Tests_Temporal_Neighbor_Sampling
     std::optional<rmm::device_uvector<int32_t>> hop{std::nullopt};
     std::optional<rmm::device_uvector<size_t>> offsets{std::nullopt};
 
-    std::tie(
-      src_out, dst_out, wgt_out, edge_id, edge_type, edge_start_time, edge_end_time, hop, offsets) =
-      homogeneous_uniform_temporal_neighbor_sample(
-        handle,
-        rng_state,
-        graph_view,
-        edge_weights_view,
-        edge_ids_view,
-        edge_types_view,
-        *edge_start_times_view,
-        edge_end_times_view,
-        raft::device_span<vertex_t const>{random_sources_copy.data(), random_sources.size()},
-        batch_number ? std::make_optional(raft::device_span<int32_t const>{batch_number->data(),
-                                                                           batch_number->size()})
-                     : std::nullopt,
-        label_to_output_comm_rank_mapping,
-        raft::host_span<int32_t const>(temporal_neighbor_sampling_usecase.fanout.data(),
-                                       temporal_neighbor_sampling_usecase.fanout.size()),
-        sampling_flags);
+    if (temporal_neighbor_sampling_usecase.biased) {
+      ASSERT_TRUE(edge_weights_view.has_value());
+
+      std::tie(src_out,
+               dst_out,
+               wgt_out,
+               edge_id,
+               edge_type,
+               edge_start_time,
+               edge_end_time,
+               hop,
+               offsets) =
+        homogeneous_biased_temporal_neighbor_sample(
+          handle,
+          rng_state,
+          graph_view,
+          edge_weights_view,
+          edge_ids_view,
+          edge_types_view,
+          *edge_start_times_view,
+          edge_end_times_view,
+          *edge_weights_view,
+          raft::device_span<vertex_t const>{random_sources_copy.data(), random_sources.size()},
+          batch_number ? std::make_optional(raft::device_span<int32_t const>{batch_number->data(),
+                                                                             batch_number->size()})
+                       : std::nullopt,
+          label_to_output_comm_rank_mapping,
+          raft::host_span<int32_t const>(temporal_neighbor_sampling_usecase.fanout.data(),
+                                         temporal_neighbor_sampling_usecase.fanout.size()),
+          sampling_flags);
+    } else {
+      std::tie(src_out,
+               dst_out,
+               wgt_out,
+               edge_id,
+               edge_type,
+               edge_start_time,
+               edge_end_time,
+               hop,
+               offsets) =
+        homogeneous_uniform_temporal_neighbor_sample(
+          handle,
+          rng_state,
+          graph_view,
+          edge_weights_view,
+          edge_ids_view,
+          edge_types_view,
+          *edge_start_times_view,
+          edge_end_times_view,
+          raft::device_span<vertex_t const>{random_sources_copy.data(), random_sources.size()},
+          batch_number ? std::make_optional(raft::device_span<int32_t const>{batch_number->data(),
+                                                                             batch_number->size()})
+                       : std::nullopt,
+          label_to_output_comm_rank_mapping,
+          raft::host_span<int32_t const>(temporal_neighbor_sampling_usecase.fanout.data(),
+                                         temporal_neighbor_sampling_usecase.fanout.size()),
+          sampling_flags);
+    }
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -538,6 +577,62 @@ INSTANTIATE_TEST_SUITE_P(
         true,
         true,
         cugraph::temporal_sampling_comparison_t::MONOTONICALLY_INCREASING}),
+    ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false, 0))));
+
+INSTANTIATE_TEST_SUITE_P(
+  rmat_small_test_decreasing,
+  Tests_Temporal_Neighbor_Sampling_Rmat,
+  ::testing::Combine(
+    ::testing::Values(
+      Temporal_Neighbor_Sampling_Usecase{
+        {4, -1, 10},
+        128,
+        false,
+        false,
+        true,
+        cugraph::temporal_sampling_comparison_t::MONOTONICALLY_DECREASING},
+      Temporal_Neighbor_Sampling_Usecase{
+        {4, -1, 10},
+        128,
+        true,
+        false,
+        false,
+        cugraph::temporal_sampling_comparison_t::MONOTONICALLY_DECREASING},
+      Temporal_Neighbor_Sampling_Usecase{
+        {4, -1, 10},
+        128,
+        true,
+        false,
+        true,
+        cugraph::temporal_sampling_comparison_t::MONOTONICALLY_DECREASING},
+      Temporal_Neighbor_Sampling_Usecase{
+        {4, -1, 10},
+        128,
+        false,
+        true,
+        false,
+        cugraph::temporal_sampling_comparison_t::MONOTONICALLY_DECREASING},
+      Temporal_Neighbor_Sampling_Usecase{
+        {4, -1, 10},
+        128,
+        false,
+        true,
+        true,
+        cugraph::temporal_sampling_comparison_t::MONOTONICALLY_DECREASING},
+      Temporal_Neighbor_Sampling_Usecase{
+        {4, -1, 10},
+        128,
+        true,
+        true,
+        false,
+        cugraph::temporal_sampling_comparison_t::MONOTONICALLY_DECREASING},
+      Temporal_Neighbor_Sampling_Usecase{
+        {4, -1, 10},
+        128,
+        true,
+        true,
+        true,
+        cugraph::temporal_sampling_comparison_t::MONOTONICALLY_DECREASING}),
     ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false, 0))));
 
 INSTANTIATE_TEST_SUITE_P(
