@@ -618,19 +618,19 @@ __global__ static __launch_bounds__(
   }
 }
 
-__global__ static __launch_bounds__(THREADS6,
-                                    FACTOR6) void apply_forces_bh(float* restrict Y_x,
-                                                                  float* restrict Y_y,
-                                                                  const float* restrict attract_x,
-                                                                  const float* restrict attract_y,
-                                                                  const float* restrict repel_x,
-                                                                  const float* restrict repel_y,
-                                                                  float* restrict old_dx,
-                                                                  float* restrict old_dy,
-                                                                  const float* restrict swinging,
-                                                                  const float* restrict mobility,
-                                                                  const float speed,
-                                                                  const int n)
+__global__ static __launch_bounds__(THREADS6, FACTOR6) void apply_forces_bh(
+  float* restrict Y_x,
+  float* restrict Y_y,
+  const float* restrict attract_x,
+  const float* restrict attract_y,
+  const float* restrict repel_x,
+  const float* restrict repel_y,
+  float* restrict old_dx,
+  float* restrict old_dy,
+  const float* restrict swinging,
+  const float* restrict vertex_mobility,
+  const float speed,
+  const int n)
 {
   // For evrery vertex
   for (int i = threadIdx.x + blockIdx.x * blockDim.x; i < n; i += gridDim.x * blockDim.x) {
@@ -641,7 +641,7 @@ __global__ static __launch_bounds__(THREADS6,
     old_dy[i]      = dy;
 
     // Update positions
-    float mobility_factor = mobility ? mobility[i] : 1.0f;
+    float mobility_factor = vertex_mobility ? vertex_mobility[i] : 1.0f;
     float factor          = mobility_factor * speed / (1.0 + sqrt(speed * swinging[i]));
     Y_x[i] += dx * factor;
     Y_y[i] += dy * factor;

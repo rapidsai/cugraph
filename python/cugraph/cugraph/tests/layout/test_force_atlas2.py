@@ -72,7 +72,7 @@ def cugraph_call(
     scaling_ratio,
     strong_gravity_mode,
     gravity,
-    mobility,
+    vertex_mobility,
     callback=None,
     renumber=False,
 ):
@@ -102,7 +102,7 @@ def cugraph_call(
         scaling_ratio=scaling_ratio,
         strong_gravity_mode=strong_gravity_mode,
         gravity=gravity,
-        mobility=mobility,
+        vertex_mobility=vertex_mobility,
         callback=callback,
     )
     t2 = time.time() - t1
@@ -187,7 +187,7 @@ def test_force_atlas2(graph_file, score, max_iter, barnes_hut_optimize):
             scaling_ratio=2.0,
             strong_gravity_mode=False,
             gravity=1.0,
-            mobility=None,
+            vertex_mobility=None,
             callback=test_callback,
         )
     """
@@ -269,7 +269,7 @@ def test_force_atlas2_noverlap(graph_file, radius, max_overlaps, max_iter):
         scaling_ratio=2.0,
         strong_gravity_mode=False,
         gravity=1.0,
-        mobility=None,
+        vertex_mobility=None,
         callback=None,
     )
 
@@ -314,7 +314,7 @@ def test_force_atlas2_mobility(graph_file, max_iter, fixed_node_cnt):
         scaling_ratio=2.0,
         strong_gravity_mode=False,
         gravity=1.0,
-        mobility=None,
+        vertex_mobility=None,
         callback=None,
     )
 
@@ -335,7 +335,7 @@ def test_force_atlas2_mobility(graph_file, max_iter, fixed_node_cnt):
         scaling_ratio=2.0,
         strong_gravity_mode=False,
         gravity=1.0,
-        mobility=mobility_df,
+        vertex_mobility=mobility_df,
         callback=None,
     )
 

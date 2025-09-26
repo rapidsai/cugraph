@@ -313,13 +313,13 @@ __global__ static void update_positions_kernel(float* restrict x_pos,
                                                float* restrict old_dx,
                                                float* restrict old_dy,
                                                const float* restrict swinging,
-                                               const float* restrict mobility,
+                                               const float* restrict vertex_mobility,
                                                const float speed,
                                                const vertex_t n)
 {
   // For every node.
   for (int i = threadIdx.x + blockIdx.x * blockDim.x; i < n; i += gridDim.x * blockDim.x) {
-    const float mobility_factor = mobility ? mobility[i] : 1.0f;
+    const float mobility_factor = vertex_mobility ? vertex_mobility[i] : 1.0f;
     const float factor          = mobility_factor * speed / (1.0 + sqrt(speed * swinging[i]));
     const float dx              = (repel_x[i] + attract_x[i]);
     const float dy              = (repel_y[i] + attract_y[i]);
@@ -341,7 +341,7 @@ void apply_forces(float* restrict x_pos,
                   float* restrict old_dx,
                   float* restrict old_dy,
                   const float* restrict swinging,
-                  const float* restrict mobility,
+                  const float* restrict vertex_mobility,
                   const float speed,
                   const vertex_t n,
                   cudaStream_t stream)
@@ -365,7 +365,7 @@ void apply_forces(float* restrict x_pos,
                                                                       old_dx,
                                                                       old_dy,
                                                                       swinging,
-                                                                      mobility,
+                                                                      vertex_mobility,
                                                                       speed,
                                                                       n);
   RAFT_CHECK_CUDA(stream);

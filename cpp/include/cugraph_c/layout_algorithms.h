@@ -90,9 +90,9 @@ typedef struct {
  *                               center more. It is so strong that it can sometimes dominate other
  * forces.
  * @param [in]   gravity         Attracts nodes to the center. Prevents islands from drifting away.
- * @param [in]   mobility_vertices
+ * @param [in]   vertex_mobility_vertices
  *                               Vertex identities for vertex mobility.
- * @param [in]   mobility_values
+ * @param [in]   vertex_mobility_values
  *                               Mobility of each vertex, used to scale the displacement at each
  *                               iteration.
  * @param [in]   verbose         Output convergence info at each interation.
@@ -124,8 +124,8 @@ cugraph_error_code_t cugraph_force_atlas2(
   double scaling_ratio,
   bool_t strong_gravity_mode,
   double gravity,
-  cugraph_type_erased_device_array_view_t* mobility_vertices,
-  cugraph_type_erased_device_array_view_t* mobility_values,
+  cugraph_type_erased_device_array_view_t* vertex_mobility_vertices,
+  cugraph_type_erased_device_array_view_t* vertex_mobility_values,
   bool_t verbose,
   bool_t do_expensive_check,
   cugraph_layout_result_t** result,

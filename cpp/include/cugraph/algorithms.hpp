@@ -229,7 +229,7 @@ void overlap_list(legacy::GraphCSRView<VT, ET, WT> const& graph,
  * sometimes dominate other forces.
  * @param[in] gravity                          Attracts nodes to the center. Prevents islands from
  * drifting away.
- * @param[in] mobility_values                  Device array containing mobility of each vertex
+ * @param[in] vertex_mobility_values           Device array containing mobility of each vertex
  * (scaling factor for the displacement at each iteration).
  * @param[in] verbose                          Output convergence info at each interation.
  * @param[in] callback                         An instance of GraphBasedDimRedCallback class to
@@ -256,7 +256,7 @@ void force_atlas2(raft::handle_t const& handle,
                   const float scaling_ratio                     = 2.0,
                   bool strong_gravity_mode                      = false,
                   const float gravity                           = 1.0,
-                  float* mobility_values                        = nullptr,
+                  float* vertex_mobility_values                 = nullptr,
                   bool verbose                                  = false,
                   internals::GraphBasedDimRedCallback* callback = nullptr);
 

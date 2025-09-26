@@ -82,8 +82,8 @@ def force_atlas2(ResourceHandle resource_handle,
                  double scaling_ratio,
                  bool_t strong_gravity_mode,
                  double gravity,
-                 mobility_vertices,
-                 mobility_values,
+                 vertex_mobility_vertices,
+                 vertex_mobility_values,
                  bool_t verbose,
                  bool_t do_expensive_check,
                 ):
@@ -163,10 +163,10 @@ def force_atlas2(ResourceHandle resource_handle,
     gravity : double
         Attracts nodes to the center. Prevents islands from drifting away.
 
-    mobility_vertices : device array type, optional (default=None)
-        Vertices of graph for mobility_values.
+    vertex_mobility_vertices : device array type, optional (default=None)
+        Vertices of graph for vertex_mobility_values.
 
-    mobility_values : device array type, optional (default=None)
+    vertex_mobility_values : device array type, optional (default=None)
         Mobility of each vertex, scaling its speed in each iteration.
         If not provided, all vertices will have a mobility of 1.0.
 
@@ -248,19 +248,19 @@ def force_atlas2(ResourceHandle resource_handle,
             create_cugraph_type_erased_device_array_view_from_py_obj(
                 vertex_radius_values)
 
-    assert_CAI_type(mobility_vertices, "mobility_vertices", True)
+    assert_CAI_type(vertex_mobility_vertices, "vertex_mobility_vertices", True)
 
     cdef cugraph_type_erased_device_array_view_t* \
-        mobility_vertices_view_ptr = \
+        vertex_mobility_vertices_view_ptr = \
             create_cugraph_type_erased_device_array_view_from_py_obj(
-                mobility_vertices)
+                vertex_mobility_vertices)
 
-    assert_CAI_type(mobility_values, "mobility_values", True)
+    assert_CAI_type(vertex_mobility_values, "vertex_mobility_values", True)
 
     cdef cugraph_type_erased_device_array_view_t* \
-        mobility_values_view_ptr = \
+        vertex_mobility_values_view_ptr = \
             create_cugraph_type_erased_device_array_view_from_py_obj(
-                mobility_values)
+                vertex_mobility_values)
 
     cdef cugraph_layout_result_t* result_ptr
     cdef cugraph_error_code_t error_code
@@ -290,8 +290,8 @@ def force_atlas2(ResourceHandle resource_handle,
                                       scaling_ratio,
                                       strong_gravity_mode,
                                       gravity,
-                                      mobility_vertices_view_ptr,
-                                      mobility_values_view_ptr,
+                                      vertex_mobility_vertices_view_ptr,
+                                      vertex_mobility_values_view_ptr,
                                       verbose,
                                       do_expensive_check,
                                       &result_ptr,

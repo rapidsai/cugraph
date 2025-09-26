@@ -156,7 +156,7 @@ class Tests_Force_Atlas2 : public ::testing::TestWithParam<Force_Atlas2_Usecase>
     const float scaling_ratio             = 2.0;
     bool strong_gravity_mode              = false;
     const float gravity                   = 1.0;
-    float* mobility                       = nullptr;
+    float* vertex_mobility                = nullptr;
     bool verbose                          = false;
 
     unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
@@ -184,7 +184,7 @@ class Tests_Force_Atlas2 : public ::testing::TestWithParam<Force_Atlas2_Usecase>
                                            scaling_ratio,
                                            strong_gravity_mode,
                                            gravity,
-                                           mobility,
+                                           vertex_mobility,
                                            verbose);
         cudaDeviceSynchronize();
       }
@@ -211,7 +211,7 @@ class Tests_Force_Atlas2 : public ::testing::TestWithParam<Force_Atlas2_Usecase>
                                          scaling_ratio,
                                          strong_gravity_mode,
                                          gravity,
-                                         mobility,
+                                         vertex_mobility,
                                          verbose);
       cudaProfilerStop();
       cudaDeviceSynchronize();

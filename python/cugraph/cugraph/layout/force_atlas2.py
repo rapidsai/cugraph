@@ -73,7 +73,7 @@ def force_atlas2(
     scaling_ratio=2.0,
     strong_gravity_mode=False,
     gravity=1.0,
-    mobility=None,
+    vertex_mobility=None,
     verbose=False,
     callback=None,
     *,
@@ -154,7 +154,7 @@ def force_atlas2(
     gravity : float, optional (default=1.0)
         Attracts nodes to the center. Prevents islands from drifting away.
 
-    mobility: cudf.DataFrame, optional (default=None)
+    vertex_mobility: cudf.DataFrame, optional (default=None)
         Data frame containing the mobility of each vertex in the graph.
         Mobility is a scaling factor on the speed of the vertex.
         Must contain two columns 'vertex' and 'mobility'.
@@ -201,8 +201,8 @@ def force_atlas2(
     initial_pos_y = None
     vertex_radius_vertices = None
     vertex_radius_values = None
-    mobility_vertices = None
-    mobility_values = None
+    vertex_mobility_vertices = None
+    vertex_mobility_values = None
     do_expensive_check = False
 
     if pos_list is not None:
@@ -248,23 +248,24 @@ def force_atlas2(
             vertex_radius["radius"], 'vertex_radius["radius"]'
         )
 
-    if mobility is not None:
-        if not isinstance(mobility, cudf.DataFrame):
-            raise TypeError("mobility must be a cudf.DataFrame")
+    if vertex_mobility is not None:
+        if not isinstance(vertex_mobility, cudf.DataFrame):
+            raise TypeError("vertex_mobility must be a cudf.DataFrame")
 
-        if len(mobility.columns.intersection({"vertex", "mobility"})) != 2:
+        if len(vertex_mobility.columns.intersection({"vertex", "mobility"})) != 2:
             raise ValueError(
-                "mobility has wrong column names. It must have 'vertex' and 'mobility'"
+                "vertex_mobility has wrong column names. It must have 'vertex' "
+                "and 'mobility'"
             )
 
         if input_graph.renumbered:
-            mobility = renumber_vertices(input_graph, mobility)
+            vertex_mobility = renumber_vertices(input_graph, vertex_mobility)
         # Ensure dtypes are valid, warn if we need to cast
-        mobility_vertices = ensure_vertex_dtype(
-            input_graph, mobility["vertex"], 'mobility["vertex"]'
+        vertex_mobility_vertices = ensure_vertex_dtype(
+            input_graph, vertex_mobility["vertex"], 'vertex_mobility["vertex"]'
         )
-        mobility_values = ensure_float32_dtype(
-            mobility["mobility"], 'mobility["mobility"]'
+        vertex_mobility_values = ensure_float32_dtype(
+            vertex_mobility["mobility"], 'vertex_mobility["mobility"]'
         )
 
     if input_graph.is_directed():
@@ -291,8 +292,8 @@ def force_atlas2(
         scaling_ratio=scaling_ratio,
         strong_gravity_mode=strong_gravity_mode,
         gravity=gravity,
-        mobility_vertices=mobility_vertices,
-        mobility_values=mobility_values,
+        vertex_mobility_vertices=vertex_mobility_vertices,
+        vertex_mobility_values=vertex_mobility_values,
         verbose=verbose,
         do_expensive_check=do_expensive_check,
     )

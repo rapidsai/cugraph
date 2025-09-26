@@ -54,7 +54,7 @@ void barnes_hut(raft::handle_t const& handle,
                 const float scaling_ratio                     = 2.0,
                 bool strong_gravity_mode                      = false,
                 const float gravity                           = 1.0,
-                float* mobility                               = nullptr,
+                float* vertex_mobility                        = nullptr,
                 bool verbose                                  = false,
                 internals::GraphBasedDimRedCallback* callback = nullptr)
 {
@@ -327,7 +327,7 @@ void barnes_hut(raft::handle_t const& handle,
                                                                             old_forces,
                                                                             old_forces + n,
                                                                             swinging,
-                                                                            mobility,
+                                                                            vertex_mobility,
                                                                             speed,
                                                                             n);
 
