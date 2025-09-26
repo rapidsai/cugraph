@@ -18,6 +18,7 @@
 
 #include <cugraph_c/graph.h>
 #include <cugraph_c/graph_functions.h>
+#include <cugraph_c/types.h>
 
 #include <stdio.h>
 
@@ -170,7 +171,6 @@ int test_degrees(const cugraph_resource_handle_t* handle)
   vertex_t h_in_degrees[]  = {1, 2, 0, 2, 1, 2};
   vertex_t h_out_degrees[] = {1, 2, 3, 1, 1, 0};
 
-  // Pagerank wants store_transposed = TRUE
   return generic_degrees_test(handle,
                               h_src,
                               h_dst,
@@ -237,7 +237,7 @@ int test_in_degrees(const cugraph_resource_handle_t* handle)
                               TRUE,
                               FALSE,
                               FALSE,
-                              TRUE,
+                              FALSE,
                               h_in_degrees,
                               NULL);
 }
@@ -263,7 +263,7 @@ int test_out_degrees(const cugraph_resource_handle_t* handle)
                               FALSE,
                               TRUE,
                               FALSE,
-                              TRUE,
+                              FALSE,
                               NULL,
                               h_out_degrees);
 }
@@ -350,7 +350,7 @@ int test_in_degrees_subset(const cugraph_resource_handle_t* handle)
                               TRUE,
                               FALSE,
                               FALSE,
-                              TRUE,
+                              FALSE,
                               h_in_degrees,
                               NULL);
 }
@@ -378,7 +378,7 @@ int test_out_degrees_subset(const cugraph_resource_handle_t* handle)
                               FALSE,
                               TRUE,
                               FALSE,
-                              TRUE,
+                              FALSE,
                               NULL,
                               h_out_degrees);
 }

@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include <cugraph/arithmetic_variant_types.hpp>
 #include <cugraph/mtmg/handle.hpp>
 #include <cugraph/shuffle_functions.hpp>
 
@@ -26,6 +27,21 @@
 
 namespace cugraph {
 namespace mtmg {
+
+using arithmetic_host_vector_t = std::variant<std::monostate,
+                                              std::vector<float>,
+                                              std::vector<double>,
+                                              std::vector<int32_t>,
+                                              std::vector<int64_t>,
+                                              std::vector<size_t>>;
+
+using arithmetic_const_host_span_t = std::variant<std::monostate,
+                                                  raft::host_span<float const>,
+                                                  raft::host_span<double const>,
+                                                  raft::host_span<int32_t const>,
+                                                  raft::host_span<int64_t const>,
+                                                  raft::host_span<size_t const>>;
+
 namespace detail {
 
 /**
@@ -47,15 +63,11 @@ namespace detail {
  * These two phases are expected to be disjoint.  The calling process is expected to
  * manage some barrier so that all threads are guaranteed to be completed before changing
  * phases.  If an append() call (part of the filling phase) overlaps with calls to
- * finalize_buffer(), consolidate_and_shuffle(), get_src(), get_dst(), get_wgt(),
- * get_edge_id() and get_edge_type() then the behavior is undefined (data might change
+ * finalize_buffer(), consolidate_and_shuffle(), get_src(), get_dst(), get_edge_property_buffers(),
+ * then the behavior is undefined (data might change
  * in some non-deterministic way).
  */
-template <typename vertex_t,
-          typename weight_t,
-          typename edge_t,
-          typename edge_type_t,
-          typename edge_time_t>
+template <typename vertex_t>
 class per_device_edgelist_t {
  public:
   per_device_edgelist_t()                                        = delete;
@@ -67,44 +79,21 @@ class per_device_edgelist_t {
    * @brief Construct a new per device edgelist t object
    *
    * @param device_buffer_size  Number of edges to store in each device buffer
-   * @param use_weight          Whether or not the edgelist will have weights
-   * @param use_edge_id         Whether or not the edgelist will have edge ids
-   * @param use_edge_type       Whether or not the edgelist will have edge types
-   * @param use_edge_start_time Whether or not the edgelist will have edge start times
-   * @param use_edge_end_time   Whether or not the edgelist will have edge end times
+   * @param edge_property_types  List of types of edge properties to store
    * @param stream_view         CUDA stream view
    */
   per_device_edgelist_t(size_t device_buffer_size,
-                        bool use_weight,
-                        bool use_edge_id,
-                        bool use_edge_type,
-                        bool use_edge_start_time,
-                        bool use_edge_end_time,
+                        std::vector<arithmetic_type_t> const& edge_property_types,
                         rmm::cuda_stream_view stream_view)
     : device_buffer_size_{device_buffer_size},
       current_pos_{0},
       src_{},
       dst_{},
-      wgt_{std::nullopt},
-      edge_id_{std::nullopt},
-      edge_type_{std::nullopt},
-      edge_start_time_{std::nullopt},
-      edge_end_time_{std::nullopt}
+      edge_property_types_{edge_property_types},
+      edge_property_buffers_{}
   {
-    if (use_weight) { wgt_ = std::make_optional(std::vector<rmm::device_uvector<weight_t>>()); }
-
-    if (use_edge_id) { edge_id_ = std::make_optional(std::vector<rmm::device_uvector<edge_t>>()); }
-
-    if (use_edge_type) {
-      edge_type_ = std::make_optional(std::vector<rmm::device_uvector<edge_type_t>>());
-    }
-
-    if (use_edge_start_time) {
-      edge_start_time_ = std::make_optional(std::vector<rmm::device_uvector<edge_time_t>>());
-    }
-
-    if (use_edge_end_time) {
-      edge_end_time_ = std::make_optional(std::vector<rmm::device_uvector<edge_time_t>>());
+    for (auto const& edge_property_type : edge_property_types_) {
+      edge_property_buffers_.emplace_back(std::vector<cugraph::arithmetic_device_uvector_t>());
     }
 
     create_new_buffers(stream_view);
@@ -120,11 +109,8 @@ class per_device_edgelist_t {
       current_pos_{other.current_pos_},
       src_{std::move(other.src_)},
       dst_{std::move(other.dst_)},
-      wgt_{std::move(other.wgt_)},
-      edge_id_{std::move(other.edge_id_)},
-      edge_type_{std::move(other.edge_type_)},
-      edge_start_time_{std::move(other.edge_start_time_)},
-      edge_end_time_{std::move(other.edge_end_time_)}
+      edge_property_types_{std::move(other.edge_property_types_)},
+      edge_property_buffers_{std::move(other.edge_property_buffers_)}
   {
   }
 
@@ -133,22 +119,22 @@ class per_device_edgelist_t {
    *
    * @param src             Source vertex id
    * @param dst             Destination vertex id
-   * @param wgt             Edge weight
-   * @param edge_id         Edge id
-   * @param edge_type       Edge type
-   * @param edge_start_time Edge start time
-   * @param edge_end_time   Edge end time
+   * @param edge_properties Edge properties
    * @param stream_view     CUDA stream view
    */
   void append(raft::host_span<vertex_t const> src,
               raft::host_span<vertex_t const> dst,
-              std::optional<raft::host_span<weight_t const>> wgt,
-              std::optional<raft::host_span<edge_t const>> edge_id,
-              std::optional<raft::host_span<edge_type_t const>> edge_type,
-              std::optional<raft::host_span<edge_time_t const>> edge_start_time,
-              std::optional<raft::host_span<edge_time_t const>> edge_end_time,
+              raft::host_span<arithmetic_const_host_span_t> edge_properties,
               rmm::cuda_stream_view stream_view)
   {
+    CUGRAPH_EXPECTS(edge_properties.size() == edge_property_buffers_.size(),
+                    "Edge property count mismatch");
+
+    for (size_t i = 0; i < edge_properties.size(); ++i) {
+      CUGRAPH_EXPECTS(edge_properties[i].index() == edge_property_buffers_[i][0].index(),
+                      "Edge property type mismatch");
+    }
+
     std::vector<std::tuple<size_t, size_t, size_t, size_t>> copy_positions;
 
     {
@@ -170,65 +156,47 @@ class per_device_edgelist_t {
       }
     }
 
-    std::for_each(copy_positions.begin(),
-                  copy_positions.end(),
-                  [&stream_view,
-                   &this_src = src_,
-                   &src,
-                   &this_dst = dst_,
-                   &dst,
-                   &this_wgt = wgt_,
-                   &wgt,
-                   &this_edge_id = edge_id_,
-                   &edge_id,
-                   &this_edge_type = edge_type_,
-                   &edge_type,
-                   &this_edge_start_time = edge_start_time_,
-                   &edge_start_time,
-                   &this_edge_end_time = edge_end_time_,
-                   &edge_end_time](auto tuple) {
-                    auto [buffer_idx, buffer_pos, input_pos, copy_count] = tuple;
+    std::for_each(
+      copy_positions.begin(),
+      copy_positions.end(),
+      [&stream_view,
+       &this_src = src_,
+       &src,
+       &this_dst = dst_,
+       &dst,
+       &edge_property_buffers = edge_property_buffers_,
+       &edge_properties](auto const& tuple) {
+        auto [buffer_idx, buffer_pos, input_pos, copy_count] = tuple;
 
-                    raft::update_device(this_src[buffer_idx].begin() + buffer_pos,
-                                        src.begin() + input_pos,
-                                        copy_count,
-                                        stream_view);
+        raft::update_device(this_src[buffer_idx].begin() + buffer_pos,
+                            src.begin() + input_pos,
+                            copy_count,
+                            stream_view);
 
-                    raft::update_device(this_dst[buffer_idx].begin() + buffer_pos,
-                                        dst.begin() + input_pos,
-                                        copy_count,
-                                        stream_view);
+        raft::update_device(this_dst[buffer_idx].begin() + buffer_pos,
+                            dst.begin() + input_pos,
+                            copy_count,
+                            stream_view);
 
-                    if (this_wgt)
-                      raft::update_device((*this_wgt)[buffer_idx].begin() + buffer_pos,
-                                          wgt->begin() + input_pos,
-                                          copy_count,
-                                          stream_view);
-
-                    if (this_edge_id)
-                      raft::update_device((*this_edge_id)[buffer_idx].begin() + buffer_pos,
-                                          edge_id->begin() + input_pos,
-                                          copy_count,
-                                          stream_view);
-
-                    if (this_edge_type)
-                      raft::update_device((*this_edge_type)[buffer_idx].begin() + buffer_pos,
-                                          edge_type->begin() + input_pos,
-                                          copy_count,
-                                          stream_view);
-
-                    if (this_edge_start_time)
-                      raft::update_device((*this_edge_start_time)[buffer_idx].begin() + buffer_pos,
-                                          edge_start_time->begin() + input_pos,
-                                          copy_count,
-                                          stream_view);
-
-                    if (this_edge_end_time)
-                      raft::update_device((*this_edge_end_time)[buffer_idx].begin() + buffer_pos,
-                                          edge_end_time->begin() + input_pos,
-                                          copy_count,
-                                          stream_view);
-                  });
+        for (size_t i = 0; i < edge_properties.size(); ++i) {
+          auto& edge_property_buffer = edge_property_buffers[i][buffer_idx];
+          auto& edge_property_value  = edge_properties[i];
+          variant_type_dispatch(
+            edge_property_value,
+            [&edge_property_buffer,
+             buffer_pos  = buffer_pos,
+             input_pos   = input_pos,
+             copy_count  = copy_count,
+             stream_view = stream_view](auto edge_property_value) {
+              using T = typename std::decay_t<decltype(edge_property_value)>::value_type;
+              raft::update_device(
+                std::get<rmm::device_uvector<T>>(edge_property_buffer).begin() + buffer_pos,
+                edge_property_value.begin() + input_pos,
+                copy_count,
+                stream_view);
+            });
+        }
+      });
   }
 
   /**
@@ -240,41 +208,50 @@ class per_device_edgelist_t {
   {
     src_.back().resize(current_pos_, stream_view);
     dst_.back().resize(current_pos_, stream_view);
-    if (wgt_) wgt_->back().resize(current_pos_, stream_view);
-    if (edge_id_) edge_id_->back().resize(current_pos_, stream_view);
-    if (edge_type_) edge_type_->back().resize(current_pos_, stream_view);
-    if (edge_start_time_) edge_start_time_->back().resize(current_pos_, stream_view);
-    if (edge_end_time_) edge_end_time_->back().resize(current_pos_, stream_view);
+
+    std::for_each(edge_property_buffers_.begin(),
+                  edge_property_buffers_.end(),
+                  [current_pos = current_pos_, stream_view](auto& edge_property_buffer) {
+                    cugraph::variant_type_dispatch(
+                      edge_property_buffer.back(),
+                      [current_pos, stream_view](auto& edge_property_buffer) {
+                        edge_property_buffer.resize(current_pos, stream_view);
+                      });
+                  });
   }
 
-  bool use_weight() const { return wgt_.has_value(); }
-
-  bool use_edge_id() const { return edge_id_.has_value(); }
-
-  bool use_edge_type() const { return edge_type_.has_value(); }
-
-  bool use_edge_start_time() const { return edge_start_time_.has_value(); }
-
-  bool use_edge_end_time() const { return edge_end_time_.has_value(); }
-
+  /**
+   * @brief Get the source vertices
+   *
+   * @return std::vector<rmm::device_uvector<vertex_t>>&
+   */
   std::vector<rmm::device_uvector<vertex_t>>& get_src() { return src_; }
+
+  /**
+   * @brief Get the destination vertices
+   *
+   * @return std::vector<rmm::device_uvector<vertex_t>>&
+   */
   std::vector<rmm::device_uvector<vertex_t>>& get_dst() { return dst_; }
-  std::optional<std::vector<rmm::device_uvector<weight_t>>>& get_wgt() { return wgt_; }
-  std::optional<std::vector<rmm::device_uvector<edge_t>>>& get_edge_id() { return edge_id_; }
 
-  std::optional<std::vector<rmm::device_uvector<edge_type_t>>>& get_edge_type()
+  /**
+   * @brief Get the edge property types
+   *
+   * @return std::vector<arithmetic_type_t>&
+   */
+  std::vector<arithmetic_type_t> const& get_edge_property_types() const
   {
-    return edge_type_;
+    return edge_property_types_;
   }
 
-  std::optional<std::vector<rmm::device_uvector<edge_type_t>>>& get_edge_start_time()
+  /**
+   * @brief Get the edge property buffers
+   *
+   * @return std::vector<std::vector<rmm::device_uvector<arithmetic_type_t>>>&
+   */
+  std::vector<std::vector<cugraph::arithmetic_device_uvector_t>>& get_edge_property_buffers()
   {
-    return edge_start_time_;
-  }
-
-  std::optional<std::vector<rmm::device_uvector<edge_type_t>>>& get_edge_end_time()
-  {
-    return edge_end_time_;
+    return edge_property_buffers_;
   }
 
   /**
@@ -284,6 +261,7 @@ class per_device_edgelist_t {
    */
   void consolidate_and_shuffle(cugraph::mtmg::handle_t const& handle, bool store_transposed)
   {
+    std::vector<cugraph::arithmetic_device_uvector_t> consolidated_edge_property_buffers{};
     if (src_.size() > 1) {
       auto stream = handle.raft_handle().get_stream();
 
@@ -292,65 +270,76 @@ class per_device_edgelist_t {
           return d_vector.size();
         });
 
-      resize_and_copy_buffers(src_, total_size, stream);
-      resize_and_copy_buffers(dst_, total_size, stream);
-      if (wgt_) resize_and_copy_buffers(*wgt_, total_size, stream);
-      if (edge_id_) resize_and_copy_buffers(*edge_id_, total_size, stream);
-      if (edge_type_) resize_and_copy_buffers(*edge_type_, total_size, stream);
-      if (edge_start_time_) resize_and_copy_buffers(*edge_start_time_, total_size, stream);
-      if (edge_end_time_) resize_and_copy_buffers(*edge_end_time_, total_size, stream);
+      src_ = resize_and_copy_buffers(std::move(src_), total_size, stream);
+      dst_ = resize_and_copy_buffers(std::move(dst_), total_size, stream);
+
+      for (size_t i = 0; i < edge_property_buffers_.size(); ++i) {
+        auto buffer =
+          resize_and_copy_buffers(std::move(edge_property_buffers_[i]), total_size, stream);
+        consolidated_edge_property_buffers.push_back(std::move(buffer[0]));
+      }
+    } else {
+      for (size_t i = 0; i < edge_property_buffers_.size(); ++i) {
+        consolidated_edge_property_buffers.push_back(std::move(edge_property_buffers_[i][0]));
+      }
     }
 
-    std::vector<cugraph::arithmetic_device_uvector_t> tmp_edge_properties{};
-    if (wgt_) tmp_edge_properties.push_back(std::move((*wgt_)[0]));
-    if (edge_id_) tmp_edge_properties.push_back(std::move((*edge_id_)[0]));
-    if (edge_type_) tmp_edge_properties.push_back(std::move((*edge_type_)[0]));
-    if (edge_start_time_) tmp_edge_properties.push_back(std::move((*edge_start_time_)[0]));
-    if (edge_end_time_) tmp_edge_properties.push_back(std::move((*edge_end_time_)[0]));
-
-    std::tie(src_[0], dst_[0], tmp_edge_properties, std::ignore) =
+    std::tie(src_[0], dst_[0], consolidated_edge_property_buffers, std::ignore) =
       cugraph::shuffle_ext_edges(handle.raft_handle(),
                                  std::move(src_[0]),
                                  std::move(dst_[0]),
-                                 std::move(tmp_edge_properties),
+                                 std::move(consolidated_edge_property_buffers),
                                  store_transposed);
 
-    size_t pos{0};
-    if (wgt_)
-      ((*wgt_)[0]) = std::move(std::get<rmm::device_uvector<weight_t>>(tmp_edge_properties[pos++]));
-    if (edge_id_)
-      ((*edge_id_)[0]) =
-        std::move(std::get<rmm::device_uvector<edge_t>>(tmp_edge_properties[pos++]));
-    if (edge_type_)
-      ((*edge_type_)[0]) =
-        std::move(std::get<rmm::device_uvector<edge_type_t>>(tmp_edge_properties[pos++]));
-    if (edge_start_time_)
-      ((*edge_start_time_)[0]) =
-        std::move(std::get<rmm::device_uvector<edge_time_t>>(tmp_edge_properties[pos++]));
-    if (edge_end_time_)
-      ((*edge_end_time_)[0]) =
-        std::move(std::get<rmm::device_uvector<edge_time_t>>(tmp_edge_properties[pos++]));
+    for (size_t i = 0; i < edge_property_buffers_.size(); ++i) {
+      edge_property_buffers_[i] = std::vector<cugraph::arithmetic_device_uvector_t>{};
+      edge_property_buffers_[i].push_back(std::move(consolidated_edge_property_buffers[i]));
+    }
   }
 
  private:
-  template <typename T>
-  void resize_and_copy_buffers(std::vector<rmm::device_uvector<T>>& buffer,
-                               size_t total_size,
-                               rmm::cuda_stream_view stream)
+  std::vector<cugraph::arithmetic_device_uvector_t> resize_and_copy_buffers(
+    std::vector<cugraph::arithmetic_device_uvector_t>&& buffer,
+    size_t total_size,
+    rmm::cuda_stream_view stream)
   {
-    size_t pos = buffer[0].size();
-    buffer[0].resize(total_size, stream);
+    return cugraph::variant_type_dispatch(buffer[0], [&buffer, total_size, stream](auto& buffer0) {
+      using T = typename std::decay_t<decltype(buffer0)>::value_type;
 
-    for (size_t i = 1; i < buffer.size(); ++i) {
-      raft::copy(buffer[0].data() + pos, buffer[i].data(), buffer[i].size(), stream);
-      pos += buffer[i].size();
-      buffer[i].resize(0, stream);
-      buffer[i].shrink_to_fit(stream);
-    }
+      rmm::device_uvector<T> new_buffer(total_size, stream);
 
-    std::vector<rmm::device_uvector<T>> new_buffer;
-    new_buffer.push_back(std::move(buffer[0]));
-    buffer = std::move(new_buffer);
+      size_t pos{0};
+      std::for_each(buffer.begin(), buffer.end(), [&new_buffer, &pos, stream](auto& bufferi) {
+        auto& buffer = std::get<rmm::device_uvector<T>>(bufferi);
+        raft::copy(new_buffer.data() + pos, buffer.data(), buffer.size(), stream);
+        pos += buffer.size();
+        buffer.resize(0, stream);
+        buffer.shrink_to_fit(stream);
+      });
+
+      std::vector<cugraph::arithmetic_device_uvector_t> result{};
+      result.push_back(std::move(new_buffer));
+      return result;
+    });
+  }
+
+  template <typename T>
+  std::vector<rmm::device_uvector<T>> resize_and_copy_buffers(
+    std::vector<rmm::device_uvector<T>>&& buffer, size_t total_size, rmm::cuda_stream_view stream)
+  {
+    rmm::device_uvector<T> new_buffer(total_size, stream);
+
+    size_t pos{0};
+    std::for_each(buffer.begin(), buffer.end(), [&new_buffer, &pos, stream](auto& bufferi) {
+      raft::copy(new_buffer.data() + pos, bufferi.data(), bufferi.size(), stream);
+      pos += bufferi.size();
+      bufferi.resize(0, stream);
+      bufferi.shrink_to_fit(stream);
+    });
+
+    std::vector<rmm::device_uvector<T>> result{};
+    result.push_back(std::move(new_buffer));
+    return result;
   }
 
   void create_new_buffers(rmm::cuda_stream_view stream_view)
@@ -358,15 +347,18 @@ class per_device_edgelist_t {
     src_.emplace_back(device_buffer_size_, stream_view);
     dst_.emplace_back(device_buffer_size_, stream_view);
 
-    if (wgt_) { wgt_->emplace_back(device_buffer_size_, stream_view); }
-
-    if (edge_id_) { edge_id_->emplace_back(device_buffer_size_, stream_view); }
-
-    if (edge_type_) { edge_type_->emplace_back(device_buffer_size_, stream_view); }
-
-    if (edge_start_time_) { edge_start_time_->emplace_back(device_buffer_size_, stream_view); }
-
-    if (edge_end_time_) { edge_end_time_->emplace_back(device_buffer_size_, stream_view); }
+    for (size_t i = 0; i < edge_property_types_.size(); ++i) {
+      cugraph::variant_type_dispatch(
+        edge_property_types_[i],
+        [device_buffer_size = device_buffer_size_,
+         i,
+         stream_view,
+         &edge_property_buffers = edge_property_buffers_](auto& edge_property_type) {
+          using T = std::decay_t<decltype(edge_property_type)>;
+          rmm::device_uvector<T> edge_property_buffer(device_buffer_size, stream_view);
+          edge_property_buffers[i].push_back(std::move(edge_property_buffer));
+        });
+    }
 
     current_pos_ = 0;
   }
@@ -378,11 +370,8 @@ class per_device_edgelist_t {
 
   std::vector<rmm::device_uvector<vertex_t>> src_{};
   std::vector<rmm::device_uvector<vertex_t>> dst_{};
-  std::optional<std::vector<rmm::device_uvector<weight_t>>> wgt_{};
-  std::optional<std::vector<rmm::device_uvector<edge_t>>> edge_id_{};
-  std::optional<std::vector<rmm::device_uvector<edge_type_t>>> edge_type_{};
-  std::optional<std::vector<rmm::device_uvector<edge_time_t>>> edge_start_time_{};
-  std::optional<std::vector<rmm::device_uvector<edge_time_t>>> edge_end_time_{};
+  std::vector<arithmetic_type_t> edge_property_types_{};
+  std::vector<std::vector<cugraph::arithmetic_device_uvector_t>> edge_property_buffers_{};
 };
 
 }  // namespace detail

@@ -218,7 +218,8 @@ all_pairs_similarity(raft::handle_t const& handle,
                      coefficient_t coeff,
                      bool do_expensive_check = false)
 {
-  using GraphViewType = graph_view_t<vertex_t, edge_t, false, multi_gpu>;
+  constexpr bool store_transposed = false;
+  using GraphViewType             = graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>;
 
   CUGRAPH_EXPECTS(graph_view.is_symmetric(),
                   "similarity algorithms require an undirected(symmetric) graph");
@@ -607,15 +608,13 @@ all_pairs_similarity(raft::handle_t const& handle,
 
     if constexpr (multi_gpu) {
       // shuffle vertex pairs
-      auto vertex_partition_range_lasts = graph_view.vertex_partition_range_lasts();
-      std::vector<cugraph::arithmetic_device_uvector_t> edge_properties{};
-
-      std::tie(v1, v2, std::ignore, std::ignore) = shuffle_int_edges(handle,
-                                                                     std::move(v1),
-                                                                     std::move(v2),
-                                                                     std::move(edge_properties),
-                                                                     false,
-                                                                     vertex_partition_range_lasts);
+      std::tie(v1, v2, std::ignore, std::ignore) =
+        shuffle_int_edges(handle,
+                          std::move(v1),
+                          std::move(v2),
+                          std::vector<cugraph::arithmetic_device_uvector_t>{},
+                          store_transposed,
+                          graph_view.vertex_partition_range_lasts());
     }
 
     auto score =
