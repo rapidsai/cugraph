@@ -59,11 +59,9 @@ def test_type_combinations():
     )
 
     warning_msg = (
-        "The graph requires the 'vertices_array' values "
-        "to match the 'src_or_offset_array' and 'dst_or_index_array'. "
-        f"'vertices_array' type is: {device_vertices.dtype} "
-        f"'src_or_offset_array' type is: {device_srcs.dtype} and "
-        f"'dst_or_index_array' type is : {device_dsts.dtype}."
+        "The graph requires 'src_or_offset_array', 'dst_or_index_array' "
+        "'vertices_array' and 'edge_id_array' to match. "
+        "Those will be widened to 64-bit."
     )
 
     with pytest.warns(UserWarning, match=warning_msg):
@@ -82,14 +80,6 @@ def test_type_combinations():
 
     device_edge_ids = cp.asarray(
         [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15], dtype=np.int64
-    )
-
-    warning_msg = (
-        "The graph requires the 'edge_id_array' values "
-        "to match the 'src_or_offset_array' and 'dst_or_index_array'. "
-        f"'edge_id_array' type is: {device_edge_ids.dtype} "
-        f"'src_or_offset_array' type is: {device_srcs.dtype} and "
-        f"'dst_or_index_array' type is : {device_dsts.dtype}."
     )
 
     with pytest.warns(UserWarning, match=warning_msg):
@@ -116,10 +106,8 @@ def test_type_combinations():
     )
 
     warning_msg = (
-        "The graph requires the 'edge_start_time_array' values "
-        "to match the 'edge_end_time_array' type. "
-        f"'edge_start_time_array' type is: {device_edge_start_times.dtype} and "
-        f"'edge_end_time_array' type is : {device_edge_end_times.dtype}."
+        "The graph requires 'edge_start_time_array' and 'edge_end_time_array' "
+        "to match. Those will be widened to 64-bit."
     )
 
     with pytest.warns(UserWarning, match=warning_msg):
