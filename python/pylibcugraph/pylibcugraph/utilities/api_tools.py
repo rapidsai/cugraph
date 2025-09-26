@@ -15,7 +15,6 @@ import functools
 import warnings
 import inspect
 import types
-import numpy as np
 
 experimental_prefix = "EXPERIMENTAL"
 
@@ -240,84 +239,37 @@ def deprecated_warning_wrapper(obj, obj_namespace_name=None):
     return warning_wrapper_function
 
 
-def ensure_valid_dtype(
-    vertices_array=None,
-    src_or_offset_array=None,
-    dst_or_index_array=None,
-    edge_id_array=None,
-    edge_start_time_array=None,
-    edge_end_time_array=None,
-):
+def ensure_valid_dtypes(*args):
 
-    # FIXME: When exposing the expensive check , treat these warning
-    # as errors if do_expensive_check = True
+    """
+    Returns a warning if unsupported type combinations are provided. All vertex
+    types which are 'vertices_array', 'src_or_offset_array', 'dst_or_index_array'
+    and 'edge_id_array' should match (which are the first 4 arguments).
+    All temporal type if provided should also match which are the last two arguments:
+    'edge_start_time_array' and 'edge_end_time_array'
 
-    if src_or_offset_array.dtype != dst_or_index_array.dtype:
+    """
+    vertex_args = []
+    temporal_args = []
+    [
+        vertex_args.append(arg) if idx < 4 else temporal_args.append(arg)
+        for idx, arg in enumerate(args)
+    ]
+
+    vertex_types = {arg.dtype for arg in vertex_args if arg is not None}
+    temporal_types = {arg.dtype for arg in temporal_args if arg is not None}
+
+    if len(vertex_types) > 1:
         warning_msg = (
-            "The graph requires the 'src_or_offset_array' values "
-            "to match the 'dst_or_index_array' type. "
-            f"'src_or_offset_array' type is: {src_or_offset_array.dtype} and "
-            f"'dst_or_index_array' type is : {dst_or_index_array.dtype}."
+            "The graph requires 'src_or_offset_array', 'dst_or_index_array' "
+            "'vertices_array' and 'edge_id_array' to match. "
+            "Those will be widened to 64-bit."
         )
         warnings.warn(warning_msg, UserWarning)
-        src_or_offset_array = src_or_offset_array.astype(np.int64)
-        dst_or_index_array = dst_or_index_array.astype(np.int64)
 
-        if vertices_array is not None:
-            vertices_array = vertices_array.astype(np.int64)
-
-        if edge_id_array is not None:
-            edge_id_array = edge_id_array.astype(np.int64)
-
-    # If reaches here, src and dst array have the same type
-    if vertices_array is not None:
-        if vertices_array.dtype != src_or_offset_array.dtype:
-            warning_msg = (
-                "The graph requires the 'vertices_array' values "
-                "to match the 'src_or_offset_array' and 'dst_or_index_array'. "
-                f"'vertices_array' type is: {vertices_array.dtype} "
-                f"'src_or_offset_array' type is: {src_or_offset_array.dtype} and "
-                f"'dst_or_index_array' type is : {dst_or_index_array.dtype}."
-            )
-            warnings.warn(warning_msg, UserWarning)
-            src_or_offset_array = src_or_offset_array.astype(np.int64)
-            dst_or_index_array = dst_or_index_array.astype(np.int64)
-            if edge_id_array is not None:
-                edge_id_array = edge_id_array.astype(np.int64)
-
-    if edge_id_array is not None:
-        if edge_id_array.dtype != src_or_offset_array.dtype:
-            warning_msg = (
-                "The graph requires the 'edge_id_array' values "
-                "to match the 'src_or_offset_array' and 'dst_or_index_array'. "
-                f"'edge_id_array' type is: {edge_id_array.dtype} "
-                f"'src_or_offset_array' type is: {src_or_offset_array.dtype} and "
-                f"'dst_or_index_array' type is : {dst_or_index_array.dtype}."
-            )
-            warnings.warn(warning_msg, UserWarning)
-            src_or_offset_array = src_or_offset_array.astype(np.int64)
-            dst_or_index_array = dst_or_index_array.astype(np.int64)
-
-            if vertices_array is not None:
-                vertices_array = vertices_array.astype(np.int64)
-
-    if edge_start_time_array is not None:
-        if edge_start_time_array.dtype != edge_end_time_array.dtype:
-            warning_msg = (
-                "The graph requires the 'edge_start_time_array' values "
-                "to match the 'edge_end_time_array' type. "
-                f"'edge_start_time_array' type is: {edge_start_time_array.dtype} and "
-                f"'edge_end_time_array' type is : {edge_end_time_array.dtype}."
-            )
-            warnings.warn(warning_msg, UserWarning)
-            edge_start_time_array = edge_start_time_array.astype(np.int64)
-            edge_end_time_array = edge_end_time_array.astype(np.int64)
-
-    return (
-        vertices_array,
-        src_or_offset_array,
-        dst_or_index_array,
-        edge_id_array,
-        edge_start_time_array,
-        edge_end_time_array,
-    )
+    if len(temporal_types) > 1:
+        warning_msg = (
+            "The graph requires 'edge_start_time_array' and 'edge_end_time_array' "
+            "to match. Those will be widened to 64-bit."
+        )
+        warnings.warn(warning_msg, UserWarning)
