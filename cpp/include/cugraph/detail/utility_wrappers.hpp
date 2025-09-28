@@ -118,6 +118,23 @@ void transform_increment_ints(raft::device_span<value_t> values,
 
 /**
  * @ingroup utility_wrappers_cpp
+ * @brief    Cast the values of a device span to the new type
+ *
+ * @tparam      new_vertex_t     type of the value to operate on. Must be either int32_t or int64_t.
+ * @tparam      old_vertex_t     type of the value to operate on. Must be either int32_t or int64_t.
+ *
+ * @param[out]  new_vertices      device span to update with new data type
+ * @param[in]   old_vertices      device span with initial data type
+ * @param[in]   stream_view  stream view
+ *
+ */
+template <typename new_vertex_t, typename old_vertex_t>
+void transform_cast_ints(raft::device_span<new_vertex_t> new_vertices,
+                         raft::device_span<old_vertex_t> old_vertices,
+                         rmm::cuda_stream_view const& stream_view);
+
+/**
+ * @ingroup utility_wrappers_cpp
  * @brief    Update the values of device span to 0 if it matches the compare value or 1
  *
  * @tparam      value_t      type of the value to operate on. Must be either int32_t or int64_t.

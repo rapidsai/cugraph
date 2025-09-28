@@ -102,6 +102,20 @@ void transform_increment_ints(raft::device_span<value_t> values,
                     }));
 }
 
+template <typename new_vertex_t, typename old_vertex_t>
+void transform_cast_ints(raft::device_span<new_vertex_t> new_vertices,
+                         raft::device_span<old_vertex_t> old_vertices,
+                         rmm::cuda_stream_view const& stream_view)
+{
+  thrust::transform(rmm::exec_policy(stream_view),
+                    old_vertices.begin(),
+                    old_vertices.end(),
+                    new_vertices.begin(),
+                    cuda::proclaim_return_type<new_vertex_t>([] __device__(old_vertex_t value) {
+                      return static_cast<new_vertex_t>(value);
+                    }));
+}
+
 template <typename value_t>
 void transform_not_equal(raft::device_span<value_t> values,
                          raft::device_span<bool> result,
