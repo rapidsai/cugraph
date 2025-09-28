@@ -476,8 +476,8 @@ cdef class MGGraph(_GPUGraph):
 
             # Ensure valid dtypes
             ensure_valid_dtypes(
-                    src_array, dst_array, vertices_array,
-                        edge_id_array, edge_start_time_array, edge_end_time_array)
+                    src_array[i], dst_array[i], vertices_array[i],
+                        edge_id_array[i], edge_start_time_array[i], edge_end_time_array[i])
 
             if src_array[i] is not None:
                 if i == 0:
