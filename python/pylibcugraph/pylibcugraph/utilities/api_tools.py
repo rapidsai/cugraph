@@ -239,23 +239,28 @@ def deprecated_warning_wrapper(obj, obj_namespace_name=None):
     return warning_wrapper_function
 
 
-def ensure_valid_dtypes(*args):
+def ensure_valid_dtypes(
+    src_or_offset_array,
+    dst_or_index_array,
+    vertices_array,
+    edge_id_array,
+    edge_start_time_array,
+    edge_stop_time_array,
+):
 
     """
     Returns a warning if unsupported type combinations are provided. All vertex
     types which are 'vertices_array', 'src_or_offset_array', 'dst_or_index_array'
-    and 'edge_id_array' should match (which are the first 4 arguments).
-    All temporal type if provided should also match which are the last two arguments:
-    'edge_start_time_array' and 'edge_end_time_array'
+    and 'edge_id_array' should match. All temporal type if provided should also match
 
     """
-    vertex_args = []
-    temporal_args = []
-    [
-        vertex_args.append(arg) if idx < 4 else temporal_args.append(arg)
-        for idx, arg in enumerate(args)
+    vertex_args = [
+        src_or_offset_array,
+        dst_or_index_array,
+        vertices_array,
+        edge_id_array,
     ]
-
+    temporal_args = [edge_start_time_array, edge_stop_time_array]
     vertex_types = {arg.dtype for arg in vertex_args if arg is not None}
     temporal_types = {arg.dtype for arg in temporal_args if arg is not None}
 
