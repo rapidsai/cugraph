@@ -404,14 +404,6 @@ set(CUGRAPH_SOURCES
     src/structure/create_graph_from_edgelist_sg_v32_e32.cu
     src/structure/create_graph_from_edgelist_mg_v64_e64.cu
     src/structure/create_graph_from_edgelist_mg_v32_e32.cu
-    src/structure/create_graph_from_edgelist_sg_v64_e64_t32.cu
-    src/structure/create_graph_from_edgelist_sg_v32_e32_t32.cu
-    src/structure/create_graph_from_edgelist_mg_v64_e64_t32.cu
-    src/structure/create_graph_from_edgelist_mg_v32_e32_t32.cu
-    src/structure/create_graph_from_edgelist_sg_v64_e64_t64.cu
-    src/structure/create_graph_from_edgelist_sg_v32_e32_t64.cu
-    src/structure/create_graph_from_edgelist_mg_v64_e64_t64.cu
-    src/structure/create_graph_from_edgelist_mg_v32_e32_t64.cu
     src/structure/symmetrize_edgelist_sg_v64_e64.cu
     src/structure/symmetrize_edgelist_sg_v32_e32.cu
     src/structure/symmetrize_edgelist_mg_v64_e64.cu
