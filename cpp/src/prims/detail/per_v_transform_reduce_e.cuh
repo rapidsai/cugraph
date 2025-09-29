@@ -30,6 +30,7 @@
 #include <cugraph/edge_partition_endpoint_property_device_view.cuh>
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_view.hpp>
+#include <cugraph/host_staging_buffer_manager.hpp>
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/device_comm.hpp>
@@ -1457,6 +1458,25 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
   [[maybe_unused]] constexpr auto max_segments =
     detail::num_sparse_segments_per_vertex_partition + size_t{1};
 
+  // we should consider reducing the life-time of this variable
+  // oncermm::rm::pool_memory_resource<rmm::mr::pinned_memory_resource> is updated to honor stream
+  // semantics (github.com/rapidsai/rmm/issues/2053)
+  rmm::device_uvector<int64_t> h_staging_buffer(0, handle.get_stream());
+  {
+    size_t staging_buffer_size{};  // should be large enough to cover all update_host &
+                                   // update_device calls in this primitive
+    if (GraphViewType::is_multi_gpu) {
+      auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+      auto const minor_comm_size = minor_comm.get_size();
+      staging_buffer_size        = static_cast<size_t>(minor_comm_size) *
+                            std::max(size_t{16}, static_cast<size_t>(minor_comm_size));
+    } else {
+      staging_buffer_size = size_t{16};
+    }
+    h_staging_buffer = host_staging_buffer_manager::allocate_staging_buffer<int64_t>(
+      staging_buffer_size, handle.get_stream());
+  }
+
   // 1. drop zero degree keys & compute key_segment_offsets
 
   auto const& local_vertex_partition_segment_offsets =
@@ -1781,9 +1801,11 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                      });
     if constexpr (use_input_key) {
       if (key_segment_offsets) {
+        auto h_staging_buffer_ptr = reinterpret_cast<size_t*>(h_staging_buffer.data());
+        std::copy(key_segment_offsets->begin(), key_segment_offsets->end(), h_staging_buffer_ptr);
         raft::update_device(d_aggregate_tmps.data() + (num_scalars * minor_comm_rank +
                                                        num_scalars_less_key_segment_offsets),
-                            key_segment_offsets->data(),
+                            h_staging_buffer_ptr,
                             key_segment_offsets->size(),
                             handle.get_stream());
       }
@@ -1797,11 +1819,10 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                        handle.get_stream());
     }
 
-    std::vector<size_t> h_aggregate_tmps(d_aggregate_tmps.size());
-    raft::update_host(h_aggregate_tmps.data(),
-                      d_aggregate_tmps.data(),
-                      d_aggregate_tmps.size(),
-                      handle.get_stream());
+    auto h_aggregate_tmps = reinterpret_cast<size_t*>(h_staging_buffer.data());
+    assert(h_staging_buffer.size() >= d_aggregate_tmps.size());
+    raft::update_host(
+      h_aggregate_tmps, d_aggregate_tmps.data(), d_aggregate_tmps.size(), handle.get_stream());
     handle.sync_stream();
     max_tmp_buffer_sizes                    = std::vector<size_t>(minor_comm_size);
     tmp_buffer_size_per_loop_approximations = std::vector<size_t>(minor_comm_size);
@@ -1829,10 +1850,9 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
         }
         if (key_segment_offsets) {
           (*key_segment_offset_vectors)
-            .emplace_back(
-              h_aggregate_tmps.begin() + i * num_scalars + num_scalars_less_key_segment_offsets,
-              h_aggregate_tmps.begin() + i * num_scalars + num_scalars_less_key_segment_offsets +
-                (*key_segment_offsets).size());
+            .emplace_back(h_aggregate_tmps + i * num_scalars + num_scalars_less_key_segment_offsets,
+                          h_aggregate_tmps + i * num_scalars +
+                            num_scalars_less_key_segment_offsets + (*key_segment_offsets).size());
         }
       }
     }
@@ -2911,8 +2931,9 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
           }
           if (edge_partition_bitmap_buffers) { edge_partition_bitmap_buffers->clear(); }
 
-          std::vector<size_t> h_counts(loop_count);
-          raft::update_host(h_counts.data(), counters.data(), loop_count, handle.get_stream());
+          auto h_counts = reinterpret_cast<size_t*>(h_staging_buffer.data());
+          assert(h_staging_buffer.size() >= loop_count);
+          raft::update_host(h_counts, counters.data(), loop_count, handle.get_stream());
           handle.sync_stream();
 
           for (size_t j = 0; j < loop_count; ++j) {
@@ -3485,8 +3506,9 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
         }
         if (loop_stream_pool_indices) { handle.sync_stream_pool(*loop_stream_pool_indices); }
 
-        std::vector<size_t> copy_sizes(loop_count);
-        raft::update_host(copy_sizes.data(), counters.data(), loop_count, handle.get_stream());
+        auto copy_sizes = reinterpret_cast<size_t*>(h_staging_buffer.data());
+        assert(h_staging_buffer.size() >= loop_count);
+        raft::update_host(copy_sizes, counters.data(), loop_count, handle.get_stream());
         handle.sync_stream();
 
         for (size_t j = 0; j < loop_count; ++j) {
@@ -3511,16 +3533,18 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
         std::optional<std::vector<size_t>> rx_value_displs{};
         std::optional<dataframe_buffer_type_t<T>> rx_values{};
 
+        static_assert(sizeof(size_t) == sizeof(int64_t));
         {
+          auto h_buffer_sizes = reinterpret_cast<size_t*>(h_staging_buffer.data());
+          assert(h_staging_buffer.size() >= loop_count);
           rmm::device_uvector<size_t> d_aggregate_buffer_sizes(minor_comm_size * loop_count,
                                                                handle.get_stream());
-          std::vector<size_t> h_buffer_sizes(loop_count);
           for (size_t j = 0; j < loop_count; ++j) {
             h_buffer_sizes[j] = size_dataframe_buffer(edge_partition_values[j]);
           }
           raft::update_device(d_aggregate_buffer_sizes.data() + minor_comm_rank * loop_count,
-                              h_buffer_sizes.data(),
-                              h_buffer_sizes.size(),
+                              h_buffer_sizes,
+                              loop_count,
                               handle.get_stream());
           device_allgather(minor_comm,
                            d_aggregate_buffer_sizes.data() + minor_comm_rank * loop_count,
@@ -3529,8 +3553,9 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                            handle.get_stream());
           if (static_cast<size_t>(minor_comm_rank / num_concurrent_loops) ==
               (i / num_concurrent_loops)) {
-            std::vector<size_t> h_aggregate_buffer_sizes(d_aggregate_buffer_sizes.size());
-            raft::update_host(h_aggregate_buffer_sizes.data(),
+            auto h_aggregate_buffer_sizes = reinterpret_cast<size_t*>(h_staging_buffer.data());
+            assert(h_staging_buffer.size() >= d_aggregate_buffer_sizes.size());
+            raft::update_host(h_aggregate_buffer_sizes,
                               d_aggregate_buffer_sizes.data(),
                               d_aggregate_buffer_sizes.size(),
                               handle.get_stream());
@@ -3586,7 +3611,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
           }
         }
         device_group_end(minor_comm);
-        handle.sync_stream();  // this is required before edge_partition_values.clear();
+        handle.sync_stream();  // this is required before edge_partition_values.clear()
         edge_partition_values.clear();
         if (loop_stream_pool_indices) {
           handle.sync_stream_pool(*loop_stream_pool_indices);
@@ -3600,24 +3625,30 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
               packed_bool_size(size_dataframe_buffer(*rx_values)), handle.get_stream());
             thrust::fill(
               handle.get_thrust_policy(), bitmap.begin(), bitmap.end(), packed_bool_empty_mask());
-            rmm::device_uvector<size_t> d_displs((*rx_value_displs).size(), handle.get_stream());
-            rmm::device_uvector<size_t> d_sizes((*rx_value_sizes).size(), handle.get_stream());
-            raft::update_device(d_displs.data(),
-                                (*rx_value_displs).data(),
-                                (*rx_value_displs).size(),
-                                handle.get_stream());
-            raft::update_device(d_sizes.data(),
-                                (*rx_value_sizes).data(),
-                                (*rx_value_sizes).size(),
-                                handle.get_stream());
+            rmm::device_uvector<size_t> d_tmp_vars(rx_value_displs->size() + rx_value_sizes->size(),
+                                                   handle.get_stream());
+            {
+              static_assert(sizeof(size_t) == 8);
+              auto h_staging_buffer_ptr = reinterpret_cast<size_t*>(h_staging_buffer.data());
+              assert(h_staging_buffer.size() >= d_tmp_vars.size());
+              std::copy(rx_value_displs->begin(), rx_value_displs->end(), h_staging_buffer_ptr);
+              std::copy(rx_value_sizes->begin(),
+                        rx_value_sizes->end(),
+                        h_staging_buffer_ptr + rx_value_displs->size());
+              raft::update_device(
+                d_tmp_vars.data(), h_staging_buffer_ptr, d_tmp_vars.size(), handle.get_stream());
+            }
+            raft::device_span<size_t> d_displs(d_tmp_vars.data(), rx_value_displs->size());
+            raft::device_span<size_t> d_sizes(d_tmp_vars.data() + rx_value_displs->size(),
+                                              rx_value_sizes->size());
             thrust::for_each(
               handle.get_thrust_policy(),
               thrust::make_counting_iterator(size_t{0}),
               thrust::make_counting_iterator(static_cast<size_t>(minor_comm_size - 1) *
                                              value_alignment),
               [bitmap    = raft::device_span<uint32_t>(bitmap.data(), bitmap.size()),
-               displs    = raft::device_span<size_t const>(d_displs.data(), d_displs.size()),
-               sizes     = raft::device_span<size_t const>(d_sizes.data(), d_sizes.size()),
+               displs    = d_displs,
+               sizes     = d_sizes,
                alignment = value_alignment] __device__(size_t i) {
                 auto rank  = static_cast<int>(i / alignment);
                 auto first = displs[rank] + sizes[rank];
@@ -3707,7 +3738,8 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                             tmp_vertex_value_output_first);
           }
         }
-        handle.sync_stream();
+        handle.sync_stream();  // this is necessary to ensure the above update_device calls to
+                               // finish before h_staging_buffer goes out-of-scope
       } else {
         device_group_start(minor_comm);
         for (size_t j = 0; j < loop_count; ++j) {

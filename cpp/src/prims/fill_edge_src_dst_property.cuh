@@ -89,11 +89,11 @@ __device__ void fill_scalar_or_thrust_tuple(Iterator iter, size_t offset, T valu
 template <typename vertex_t>
 struct within_valid_range_t {
   raft::device_span<vertex_t const> local_v_list_sizes{};
-  vertex_t max_local_v_list_size{};
+  vertex_t max_padded_local_v_list_size{};
   __device__ bool operator()(vertex_t i) const
   {
-    auto loop_idx = i / max_local_v_list_size;
-    auto offset   = i % max_local_v_list_size;
+    auto loop_idx = i / max_padded_local_v_list_size;
+    auto offset   = i % max_padded_local_v_list_size;
     return offset < local_v_list_sizes[loop_idx];
   }
 };
@@ -431,18 +431,19 @@ void fill_edge_minor_property(raft::handle_t const& handle,
     std::optional<rmm::device_uvector<uint32_t>> compressed_v_list{std::nullopt};
     std::optional<rmm::device_uvector<vertex_t>> padded_v_list{std::nullopt};
     vertex_t aggregate_local_v_list_size{0};
-    vertex_t max_local_v_list_size{
-      0};  // if we don't directly broadcast to the array pointed by edge_minor_value_first, use
-           // allgather instead of allgatherv (v_list_bitmap, comprssed_v_list, and padded_v_list
-           // will be sized based on max_local_v_list_size if we are not directly copying)
     if (major_comm_size > 1) {
       aggregate_local_v_list_size =
         std::reduce(local_v_list_sizes.begin(), local_v_list_sizes.end());
-      max_local_v_list_size =
-        std::reduce(local_v_list_sizes.begin() + 1,
-                    local_v_list_sizes.end(),
-                    local_v_list_sizes[0],
-                    [](vertex_t lhs, vertex_t rhs) { return std::max(lhs, rhs); });
+      vertex_t max_local_v_list_size = std::reduce(
+        local_v_list_sizes.begin() + 1,
+        local_v_list_sizes.end(),
+        local_v_list_sizes[0],
+        [](vertex_t lhs, vertex_t rhs) {
+          return std::max(lhs, rhs);
+        });  // if we don't directly broadcast to the array pointed by edge_minor_value_first, use
+             // allgather instead of allgatherv (v_list_bitmap, comprssed_v_list, and padded_v_list
+             // will be sized based on max_local_v_list_size + additional padding for cache line
+             // alignment if we are not directly copying)
       vertex_t max_local_v_list_range_size{0};
       for (int i = 0; i < major_comm_size; ++i) {
         auto range_size             = local_v_list_range_lasts[i] - local_v_list_range_firsts[i];
@@ -559,22 +560,27 @@ void fill_edge_minor_property(raft::handle_t const& handle,
             sorted_unique_vertex_last,
             local_v_list_range_firsts[major_comm_rank],
             local_v_list_range_firsts[major_comm_rank] +
-              max_local_v_list_range_size,  // this instead of
-                                            // local_v_list_range_lasts[major_comm_rank] to ensure
-                                            // that the buffer size is identical in every
-                                            // major_comm_rank (to use devcie_allgather)
-            handle.get_stream());
+              raft::round_up_safe(
+                max_local_v_list_range_size,
+                static_cast<vertex_t>((128 / sizeof(uint32_t)) * packed_bools_per_word())),
+            handle.get_stream());  // use the maximum padded size instead of
+                                   // (local_v_list_range_lasts[major_comm_rank] -
+                                   // local_v_list_range_firsts[major_comm_rank]) to ensure that the
+                                   // buffer size is identical in every major_comm_rank (to use
+                                   // devcie_allgather) and cache line aligned
+          assert(retinerpret_cast<uintptr_t>(v_list_bitmap.data()) % 128 == 0);
         }
       } else {
         if (aggregate_local_v_list_size >=
             vertex_t{4 * 1024} /* tuning parameter */ * static_cast<vertex_t>(major_comm_size)) {
           if (v_compressible) {
             rmm::device_uvector<uint32_t> tmps(
-              max_local_v_list_size,
-              handle.get_stream());  // max_local_v_list_size instead of
+              raft::round_up_safe(max_local_v_list_size,
+                                  static_cast<vertex_t>(128 / sizeof(uint32_t))),
+              handle.get_stream());  // use the maximum padded size instead of
                                      // local_v_list_sizes[major_comm_rank] to ensure that the
                                      // buffer size is identical in every major_comm_rank (to use
-                                     // device_allgather)
+                                     // device_allgather) and cache line aligned
             thrust::transform(
               handle.get_thrust_policy(),
               sorted_unique_vertex_first,
@@ -583,34 +589,33 @@ void fill_edge_minor_property(raft::handle_t const& handle,
               cuda::proclaim_return_type<uint32_t>(
                 [range_first = local_v_list_range_firsts[major_comm_rank]] __device__(auto v) {
                   return static_cast<uint32_t>(v - range_first);
-                }));  // last max_local_v_list_size - local_v_list_sizes[major_comm_rank] elements
+                }));  // last tmps.size() - local_v_list_sizes[major_comm_rank] elements
                       // have garbage values (this is OK as we won't use them)
             compressed_v_list = std::move(tmps);
+            assert(retinerpret_cast<uintptr_t>(compressed_v_list->data()) % 128 == 0);
           }
         }
         if (!compressed_v_list) {
           rmm::device_uvector<vertex_t> tmps(
-            max_local_v_list_size,
-            handle
-              .get_stream());  // max_local_v_list_size instead of
-                               // local_v_list_sizes[major_comm_rank] to ensure that the buffer size
-                               // is identical in every major_comm_rank (to use device_allgather)
+            raft::round_up_safe(max_local_v_list_size,
+                                static_cast<vertex_t>(128 / sizeof(vertex_t))),
+            handle.get_stream());  // use the maximum padded size instead of
+                                   // local_v_list_sizes[major_comm_rank] to ensure that the buffer
+                                   // size is identical in every major_comm_rank (to use
+                                   // device_allgather) and cache line aligned
           thrust::copy(
             handle.get_thrust_policy(),
             sorted_unique_vertex_first,
             sorted_unique_vertex_last,
-            tmps.begin());  // last max_local_v_list_size - local_v_list_sizes[major_comm_rank]
+            tmps.begin());  // last tmps.size() - local_v_list_sizes[major_comm_rank]
                             // elements have garbage values (this is OK as we won't use them)
           padded_v_list = std::move(tmps);
+          assert(retinerpret_cast<uintptr_t>(padded_v_list->data()) % 128 == 0);
         }
       }
     }
 
     if (aggregate_local_v_list_size == 0) {
-      std::chrono::duration<double> dur0 = t1 - t0;
-      std::chrono::duration<double> dur1 = t2 - t1;
-      std::cout << "fill_edge_minor took (" << dur0.count() << "," << dur1.count()
-                << ") aggregate_local_v_list_size=0" << std::endl;
       return;
     }
 
@@ -893,46 +898,42 @@ void fill_edge_minor_property(raft::handle_t const& handle,
                 auto stencil_first = thrust::make_counting_iterator(vertex_t{0});
                 if (compressed_v_list_size) {
                   auto map_first = thrust::make_transform_iterator(
-                    std::get<1>(allgather_buffer).begin() + *compressed_v_list_size * i,
+                    rx_compressed_vertex_first,
                     cuda::proclaim_return_type<vertex_t>(
                       [minor_range_first,
                        range_first = local_v_list_range_firsts[i]] __device__(auto v_offset) {
                         return static_cast<vertex_t>(v_offset + (range_first - minor_range_first));
                       }));
                   auto val_first = thrust::make_constant_iterator(input);
-                  thrust::scatter_if(
-                    rmm::exec_policy_nosync(loop_stream),
-                    val_first,
-                    val_first + local_v_list_sizes[i],
-                    map_first,
-                    stencil_first,
-                    edge_partition_value_first,
-                    within_valid_range_t<vertex_t>{d_local_v_list_sizes, max_local_v_list_size});
+                  thrust::scatter(rmm::exec_policy_nosync(loop_stream),
+                                  val_first,
+                                  val_first + local_v_list_sizes[i],
+                                  map_first,
+                                  edge_partition_value_first);
                 } else {
                   auto map_first = thrust::make_transform_iterator(
-                    std::get<0>(allgather_buffer).begin() + *padded_v_list_size * i,
+                    rx_vertex_first,
                     cuda::proclaim_return_type<vertex_t>(
                       [minor_range_first] __device__(auto v) { return v - minor_range_first; }));
                   auto val_first = thrust::make_constant_iterator(input);
-                  thrust::scatter_if(
-                    rmm::exec_policy_nosync(loop_stream),
-                    val_first,
-                    val_first + local_v_list_sizes[i],
-                    map_first,
-                    stencil_first,
-                    edge_partition_value_first,
-                    within_valid_range_t<vertex_t>{d_local_v_list_sizes, max_local_v_list_size});
+                  thrust::scatter(rmm::exec_policy_nosync(loop_stream),
+                                  val_first,
+                                  val_first + local_v_list_sizes[i],
+                                  map_first,
+                                  edge_partition_value_first);
                 }
               }
             }
           }
           if (stream_pool_indices) { handle.sync_stream_pool(*stream_pool_indices); }
         } else {  // kernel fusion
+          auto max_padded_local_v_list_size =
+            compressed_v_list_size ? *compressed_v_list_size : *padded_v_list_size;
           if constexpr (contains_packed_bool_element) {
             thrust::for_each(
               handle.get_thrust_policy(),
               thrust::make_counting_iterator(vertex_t{0}),
-              thrust::make_counting_iterator(max_local_v_list_size *
+              thrust::make_counting_iterator(max_padded_local_v_list_size *
                                              static_cast<vertex_t>(major_comm_size)),
               [local_v_list_sizes        = d_local_v_list_sizes,
                local_v_list_range_firsts = d_local_v_list_range_firsts,
@@ -943,9 +944,9 @@ void fill_edge_minor_property(raft::handle_t const& handle,
                compressed                = compressed_v_list_size.has_value(),
                minor_range_first,
                input,
-               max_local_v_list_size] __device__(auto i) {
-                auto loop_idx = i / max_local_v_list_size;
-                auto offset   = i % max_local_v_list_size;
+               max_padded_local_v_list_size] __device__(auto i) {
+                auto loop_idx = i / max_padded_local_v_list_size;
+                auto offset   = i % max_padded_local_v_list_size;
                 if (offset < local_v_list_sizes[loop_idx]) {
                   vertex_t minor{};
                   if (compressed) {
@@ -969,9 +970,9 @@ void fill_edge_minor_property(raft::handle_t const& handle,
                    local_v_list_range_firsts = d_local_v_list_range_firsts,
                    rx_first                  = std::get<1>(allgather_buffer).begin(),
                    minor_range_first,
-                   max_local_v_list_size] __device__(auto i) {
-                    auto loop_idx = i / max_local_v_list_size;
-                    auto offset   = i % max_local_v_list_size;
+                   max_padded_local_v_list_size] __device__(auto i) {
+                    auto loop_idx = i / max_padded_local_v_list_size;
+                    auto offset   = i % max_padded_local_v_list_size;
                     if (offset < local_v_list_sizes[loop_idx]) {
                       auto minor = local_v_list_range_firsts[loop_idx] + *(rx_first + i);
                       return minor - minor_range_first;
@@ -982,36 +983,36 @@ void fill_edge_minor_property(raft::handle_t const& handle,
               thrust::scatter_if(
                 handle.get_thrust_policy(),
                 val_first,
-                val_first + (max_local_v_list_size * major_comm_size),
+                val_first + (max_padded_local_v_list_size * major_comm_size),
                 map_first,
                 stencil_first,
                 edge_partition_value_first,
-                within_valid_range_t<vertex_t>{d_local_v_list_sizes, max_local_v_list_size});
+                within_valid_range_t<vertex_t>{d_local_v_list_sizes, max_padded_local_v_list_size});
             } else {
-              auto map_first =
-                thrust::make_transform_iterator(thrust::make_counting_iterator(vertex_t{0}),
-                                                cuda::proclaim_return_type<vertex_t>(
-                                                  [local_v_list_sizes = d_local_v_list_sizes,
-                                                   rx_first = std::get<0>(allgather_buffer).begin(),
-                                                   minor_range_first,
-                                                   max_local_v_list_size] __device__(auto i) {
-                                                    auto loop_idx = i / max_local_v_list_size;
-                                                    auto offset   = i % max_local_v_list_size;
-                                                    if (offset < local_v_list_sizes[loop_idx]) {
-                                                      auto minor = *(rx_first + i);
-                                                      return minor - minor_range_first;
-                                                    } else {
-                                                      return vertex_t{0};  // dummy
-                                                    }
-                                                  }));
+              auto map_first = thrust::make_transform_iterator(
+                thrust::make_counting_iterator(vertex_t{0}),
+                cuda::proclaim_return_type<vertex_t>(
+                  [local_v_list_sizes = d_local_v_list_sizes,
+                   rx_first           = std::get<0>(allgather_buffer).begin(),
+                   minor_range_first,
+                   max_padded_local_v_list_size] __device__(auto i) {
+                    auto loop_idx = i / max_padded_local_v_list_size;
+                    auto offset   = i % max_padded_local_v_list_size;
+                    if (offset < local_v_list_sizes[loop_idx]) {
+                      auto minor = *(rx_first + i);
+                      return minor - minor_range_first;
+                    } else {
+                      return vertex_t{0};  // dummy
+                    }
+                  }));
               thrust::scatter_if(
                 handle.get_thrust_policy(),
                 val_first,
-                val_first + (max_local_v_list_size * major_comm_size),
+                val_first + (max_padded_local_v_list_size * major_comm_size),
                 map_first,
                 stencil_first,
                 edge_partition_value_first,
-                within_valid_range_t<vertex_t>{d_local_v_list_sizes, max_local_v_list_size});
+                within_valid_range_t<vertex_t>{d_local_v_list_sizes, max_padded_local_v_list_size});
             }
           }
         }
