@@ -861,7 +861,7 @@ extern "C" cugraph_error_code_t cugraph_graph_create_sg(
   }
 
   bool cast_vertex_t                 = false;
-  cugraph_data_type_id_t vertex_type = cugraph_data_type_id_t::INT32;
+  cugraph_data_type_id_t vertex_type = p_src->type_;
 
   if (!((p_vertices == nullptr) || (p_src->type_ == p_vertices->type_))) { cast_vertex_t = true; }
 
@@ -1005,7 +1005,7 @@ cugraph_error_code_t cugraph_graph_create_with_times_sg(
   }
 
   bool cast_vertex_t                 = false;
-  cugraph_data_type_id_t vertex_type = cugraph_data_type_id_t::INT32;
+  cugraph_data_type_id_t vertex_type = p_src->type_;
 
   if (!((p_vertices == nullptr) || (p_src->type_ == p_vertices->type_))) { cast_vertex_t = true; }
 
@@ -1015,15 +1015,17 @@ cugraph_error_code_t cugraph_graph_create_with_times_sg(
 
   if (cast_vertex_t) { vertex_type = cugraph_data_type_id_t::INT64; }
 
-  bool cast_edge_time_t                 = false;
   cugraph_data_type_id_t edge_time_type = cugraph_data_type_id_t::INT32;
 
+  if (p_edge_start_times != nullptr) {
+    edge_time_type = p_edge_start_times->type_;
+  }
+  
   if (!((p_edge_start_times == nullptr) ||
         (p_edge_start_times->type_ == p_edge_end_times->type_))) {
-    cast_edge_time_t = true;
+    cugraph_data_type_id_t edge_time_type = p_edge_start_times->type_;
+    edge_time_type = cugraph_data_type_id_t::INT64;
   }
-
-  if (cast_edge_time_t) { edge_time_type = cugraph_data_type_id_t::INT64; }
 
   CAPI_EXPECTS(p_src->size_ == p_dst->size_,
                CUGRAPH_INVALID_INPUT,
