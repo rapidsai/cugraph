@@ -19,44 +19,29 @@
 #include <cugraph/mtmg/detail/device_shared_wrapper.hpp>
 #include <cugraph/mtmg/detail/per_device_edgelist.hpp>
 
+#include <vector>
+
 namespace cugraph {
 namespace mtmg {
 
 /**
  * @brief Edgelist object for each GPU
  */
-template <typename vertex_t,
-          typename weight_t,
-          typename edge_t,
-          typename edge_type_t,
-          typename edge_time_t>
-class edgelist_t
-  : public detail::device_shared_wrapper_t<
-      detail::per_device_edgelist_t<vertex_t, weight_t, edge_t, edge_type_t, edge_time_t>> {
+template <typename vertex_t>
+class edgelist_t : public detail::device_shared_wrapper_t<detail::per_device_edgelist_t<vertex_t>> {
  public:
   /**
    * @brief Create a per_device_edgelist for this GPU
    */
   void set(handle_t const& handle,
            size_t device_buffer_size,
-           bool use_weight,
-           bool use_edge_id,
-           bool use_edge_type,
-           bool use_edge_start_time,
-           bool use_edge_end_time)
+           std::vector<cugraph::arithmetic_type_t> const& edge_property_types)
   {
-    detail::per_device_edgelist_t<vertex_t, weight_t, edge_t, edge_type_t, edge_time_t> tmp(
-      device_buffer_size,
-      use_weight,
-      use_edge_id,
-      use_edge_type,
-      use_edge_start_time,
-      use_edge_end_time,
-      handle.get_stream());
+    detail::per_device_edgelist_t<vertex_t> tmp(
+      device_buffer_size, edge_property_types, handle.get_stream());
 
-    detail::device_shared_wrapper_t<
-      detail::per_device_edgelist_t<vertex_t, weight_t, edge_t, edge_type_t, edge_time_t>>::
-      set(handle, std::move(tmp));
+    detail::device_shared_wrapper_t<detail::per_device_edgelist_t<vertex_t>>::set(handle,
+                                                                                  std::move(tmp));
   }
 
   /**

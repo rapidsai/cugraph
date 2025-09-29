@@ -141,7 +141,7 @@ extern "C" int create_mg_test_graph(const cugraph_resource_handle_t* handle,
   cugraph_graph_properties_t properties;
 
   properties.is_symmetric  = is_symmetric;
-  properties.is_multigraph = FALSE;
+  properties.is_multigraph = TRUE;
 
   cugraph_data_type_id_t vertex_tid = INT32;
   cugraph_data_type_id_t edge_tid   = INT32;
@@ -239,7 +239,7 @@ extern "C" int create_mg_test_graph_double(const cugraph_resource_handle_t* hand
   cugraph_graph_properties_t properties;
 
   properties.is_symmetric  = is_symmetric;
-  properties.is_multigraph = FALSE;
+  properties.is_multigraph = TRUE;
 
   cugraph_data_type_id_t vertex_tid = INT32;
   cugraph_data_type_id_t edge_tid   = INT32;
@@ -332,7 +332,7 @@ extern "C" int create_mg_test_graph_with_edge_ids(const cugraph_resource_handle_
   cugraph_graph_properties_t properties;
 
   properties.is_symmetric  = is_symmetric;
-  properties.is_multigraph = FALSE;
+  properties.is_multigraph = TRUE;
 
   cugraph_data_type_id_t vertex_tid = INT32;
   cugraph_data_type_id_t edge_tid   = INT32;
@@ -426,7 +426,7 @@ extern "C" int create_mg_test_graph_with_properties(const cugraph_resource_handl
   cugraph_graph_properties_t properties;
 
   properties.is_symmetric  = is_symmetric;
-  properties.is_multigraph = FALSE;
+  properties.is_multigraph = TRUE;
 
   cugraph_data_type_id_t vertex_tid = INT32;
   cugraph_data_type_id_t edge_tid   = INT32;

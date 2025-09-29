@@ -15,6 +15,7 @@
 from cugraph_service_client.remote_graph_utils import import_optional, MissingModule
 
 import numpy as np
+import warnings
 
 from functools import wraps
 from collections.abc import Sequence
@@ -69,7 +70,7 @@ class RunAsyncioThread(threading.Thread):
     def run(self):
         """
         Runs this thread's previously-provided function inside
-        a new event loop.  Returns the result.
+        a new event loop. Returns the result.
 
         Returns
         -------
@@ -82,7 +83,7 @@ def run_async(func, *args, **kwargs):
     """
     If no loop is running on the current thread,
     this method calls func using a new event
-    loop using asyncio.run.  If a loop is running, this
+    loop using asyncio.run. If a loop is running, this
     method starts a new thread, and calls func on a new
     event loop in the new thread.
 
@@ -158,6 +159,13 @@ class CugraphServiceClient:
         >>> from cugraph_service_client import CugraphServiceClient
         >>> client = CugraphServiceClient()
         """
+        warnings.warn(
+            "cugraph-service-client is deprecated and will be removed in a future "
+            "release. If cugraph_service is critical for your work, please submit "
+            "a GitHub issue at https://github.com/rapidsai/cugraph/issues",
+            FutureWarning,
+        )
+
         self.host = host
         self.port = port
         self.results_port = results_port
@@ -876,7 +884,7 @@ class CugraphServiceClient:
     ):
         """
         Renumbers the vertices in the graph referenced by graph id to be contiguous
-        by vertex type.  Returns the start and end vertex id ranges for each type.
+        by vertex type. Returns the start and end vertex id ranges for each type.
         """
         if prev_id_column is None:
             prev_id_column = ""
@@ -886,7 +894,7 @@ class CugraphServiceClient:
     def renumber_edges_by_type(self, prev_id_column=None, graph_id=defaults.graph_id):
         """
         Renumbers the edges in the graph referenced by graph id to be contiguous
-        by edge type.  Returns the start and end edge id ranges for each type.
+        by edge type. Returns the start and end edge id ranges for each type.
         """
         if prev_id_column is None:
             prev_id_column = ""
@@ -988,11 +996,11 @@ class CugraphServiceClient:
         null_replacement_value : number or string (default 0)
 
         property_keys : list of strings (default [])
-            The keys (names) of properties to retrieve.  If omitted, returns
+            The keys (names) of properties to retrieve. If omitted, returns
             the whole dataframe.
 
         types : list of strings (default [])
-            The vertex types to include in the query.  If ommitted, returns
+            The vertex types to include in the query. If ommitted, returns
             properties for all types.
 
         graph_id : int, default is defaults.graph_id
@@ -1042,11 +1050,11 @@ class CugraphServiceClient:
         null_replacement_value : number or string (default 0)
 
         property_keys : list of strings (default [])
-            The keys (names) of properties to retrieve.  If omitted, returns
+            The keys (names) of properties to retrieve. If omitted, returns
             the whole dataframe.
 
         types : list of strings (default [])
-            The types of edges to include in the query.  If ommitted, returns
+            The types of edges to include in the query. If ommitted, returns
             data for all edge types.
 
         graph_id : int, default is defaults.graph_id

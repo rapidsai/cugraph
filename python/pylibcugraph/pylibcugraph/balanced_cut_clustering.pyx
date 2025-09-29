@@ -1,4 +1,4 @@
-# Copyright (c) 2023-2024, NVIDIA CORPORATION.
+# Copyright (c) 2023-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -45,6 +45,12 @@ from pylibcugraph.resource_handle cimport (
 from pylibcugraph.graphs cimport (
     _GPUGraph,
 )
+from pylibcugraph._cugraph_c.random cimport (
+    cugraph_rng_state_t
+)
+from pylibcugraph.random cimport (
+    CuGraphRandomState
+)
 from pylibcugraph.utils cimport (
     assert_success,
     copy_to_cupy_array,
@@ -59,7 +65,8 @@ def balanced_cut_clustering(ResourceHandle resource_handle,
                             evs_max_iter,
                             kmean_tolerance,
                             kmean_max_iter,
-                            bool_t do_expensive_check
+                            bool_t do_expensive_check,
+                            random_state=None
                             ):
     """
     Compute a clustering/partitioning of the given graph using the spectral
@@ -97,6 +104,11 @@ def balanced_cut_clustering(ResourceHandle resource_handle,
         If True, performs more extensive tests on the inputs to ensure
         validitity, at the expense of increased run time.
 
+    random_state: int (Optional)
+        Random state to use when generating samples.  Optional argument,
+        defaults to a hash of process id, time, and hostname.
+        (See pylibcugraph.random.CuGraphRandomState)
+
     Returns
     -------
     A tuple containing the clustering vertices, clusters
@@ -131,7 +143,13 @@ def balanced_cut_clustering(ResourceHandle resource_handle,
     cdef cugraph_error_code_t error_code
     cdef cugraph_error_t* error_ptr
 
+    cg_rng_state = CuGraphRandomState(resource_handle, random_state)
+
+    cdef cugraph_rng_state_t* rng_state_ptr = \
+        cg_rng_state.rng_state_ptr
+
     error_code = cugraph_balanced_cut_clustering(c_resource_handle_ptr,
+                                                 rng_state_ptr,
                                                  c_graph_ptr,
                                                  num_clusters,
                                                  num_eigen_vects,
