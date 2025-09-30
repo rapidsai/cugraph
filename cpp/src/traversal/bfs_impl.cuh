@@ -161,6 +161,20 @@ void bfs(raft::handle_t const& handle,
   auto const num_vertices = graph_view.number_of_vertices();
   if (num_vertices == 0) { return; }
 
+  // we should consider reducing the life-time of this variable once
+  // rmm::rm::pool_memory_resource<rmm::mr::pinned_memory_resource> is updated to honor stream
+  // semantics (github.com/rapidsai/rmm/issues/2053)
+  rmm::device_uvector<int64_t> h_staging_buffer(0, handle.get_stream());
+  rmm::device_uvector<int64_t> d_staging_buffer(0, handle.get_stream());
+  {
+    size_t staging_buffer_size =
+      std::max(size_t{2}, n_sources);  // should be large enough to cover all update_host &
+                                       // update_device calls in this function
+    h_staging_buffer = host_staging_buffer_manager::allocate_staging_buffer<int64_t>(
+      staging_buffer_size, handle.get_stream());
+    d_staging_buffer = rmm::device_uvector<int64_t>(staging_buffer_size, handle.get_stream());
+  }
+
   // 1. check input arguments
 
   CUGRAPH_EXPECTS((n_sources == 0) || (sources != nullptr),
@@ -256,7 +270,7 @@ void bfs(raft::handle_t const& handle,
     (graph_view.number_of_vertices() > 0)
       ? ((static_cast<double>(graph_view.compute_number_of_edges(handle)) /
           static_cast<double>(graph_view.number_of_vertices())) *
-         (partition_manager::map_major_comm_to_gpu_row_comm ? 0.267 : 0.533 /* tuning parameter */))
+         (partition_manager::map_major_comm_to_gpu_row_comm ? 0.267 : 0.7 /* tuning parameter */))
       : double{1.0};
   constexpr vertex_t direction_optimizing_beta = 24;  // tuning parameter
 
@@ -341,10 +355,11 @@ void bfs(raft::handle_t const& handle,
         num_nzd_unvisited_hypersparse_vertices = (*segment_offsets)[4] - (*segment_offsets)[3];
       }
       if (n_sources > 0) {
-        std::vector<vertex_t> h_sources(n_sources);
-        raft::update_host(h_sources.data(), sources, n_sources, handle.get_stream());
+        auto h_sources = reinterpret_cast<vertex_t*>(h_staging_buffer.data());
+        assert(h_staging_buffer.size() >= n_sources);
+        raft::update_host(h_sources, sources, n_sources, handle.get_stream());
         handle.sync_stream();
-        for (size_t i = 0; i < h_sources.size(); ++i) {
+        for (size_t i = 0; i < n_sources; ++i) {
           auto v_offset = h_sources[i] - graph_view.local_vertex_partition_range_first();
           if ((v_offset >= (*segment_offsets)[2]) && (v_offset < (*segment_offsets)[3])) {
             --(*num_nzd_unvisited_low_degree_vertices);
@@ -394,9 +409,24 @@ void bfs(raft::handle_t const& handle,
 
   // 6. BFS iteration
   vertex_t depth{0};
-  bool topdown = true;
-  auto cur_aggregate_frontier_size =
-    static_cast<vertex_t>(vertex_frontier.bucket(bucket_idx_cur).aggregate_size());
+  bool topdown                         = true;
+  vertex_t cur_aggregate_frontier_size = vertex_frontier.bucket(bucket_idx_cur).size();
+  if constexpr (GraphViewType::is_multi_gpu) {
+    vertex_t* h_staging_buffer_ptr = reinterpret_cast<vertex_t*>(h_staging_buffer.data());
+    vertex_t* d_staging_buffer_ptr = reinterpret_cast<vertex_t*>(d_staging_buffer.data());
+    assert(h_staging_buffer.size() >= 1);
+    h_staging_buffer_ptr[0] = cur_aggregate_frontier_size;
+    raft::update_device(d_staging_buffer_ptr, h_staging_buffer_ptr, size_t{1}, handle.get_stream());
+    device_allreduce(handle.get_comms(),
+                     d_staging_buffer_ptr,
+                     d_staging_buffer_ptr,
+                     size_t{1},
+                     raft::comms::op_t::SUM,
+                     handle.get_stream());
+    raft::update_host(h_staging_buffer_ptr, d_staging_buffer_ptr, size_t{1}, handle.get_stream());
+    handle.sync_stream();
+    cur_aggregate_frontier_size = h_staging_buffer_ptr[0];
+  }
   while (true) {
     vertex_t next_aggregate_frontier_size{};
     if (topdown) {
@@ -435,8 +465,25 @@ void bfs(raft::handle_t const& handle,
         key_bucket_t<vertex_t, void, GraphViewType::is_multi_gpu, true>(
           handle, std::move(new_frontier_vertex_buffer));
 
-      next_aggregate_frontier_size =
-        static_cast<vertex_t>(vertex_frontier.bucket(bucket_idx_next).aggregate_size());
+      next_aggregate_frontier_size = vertex_frontier.bucket(bucket_idx_next).size();
+      if constexpr (GraphViewType::is_multi_gpu) {
+        vertex_t* h_staging_buffer_ptr = reinterpret_cast<vertex_t*>(h_staging_buffer.data());
+        vertex_t* d_staging_buffer_ptr = reinterpret_cast<vertex_t*>(d_staging_buffer.data());
+        assert(h_staging_buffer.size() >= 1);
+        h_staging_buffer_ptr[0] = next_aggregate_frontier_size;
+        raft::update_device(
+          d_staging_buffer_ptr, h_staging_buffer_ptr, size_t{1}, handle.get_stream());
+        device_allreduce(handle.get_comms(),
+                         d_staging_buffer_ptr,
+                         d_staging_buffer_ptr,
+                         size_t{1},
+                         raft::comms::op_t::SUM,
+                         handle.get_stream());
+        raft::update_host(
+          h_staging_buffer_ptr, d_staging_buffer_ptr, size_t{1}, handle.get_stream());
+        handle.sync_stream();
+        next_aggregate_frontier_size = h_staging_buffer_ptr[0];
+      }
       if (next_aggregate_frontier_size == 0) { break; }
 
       fill_edge_dst_property(handle,
@@ -549,12 +596,24 @@ void bfs(raft::handle_t const& handle,
         auto aggregate_m_f = m_f;
         auto aggregate_m_u = m_u;
         if constexpr (GraphViewType::is_multi_gpu) {
-          auto tmp      = host_scalar_allreduce(handle.get_comms(),
-                                           cuda::std::make_tuple(m_f, m_u),
-                                           raft::comms::op_t::SUM,
-                                           handle.get_stream());
-          aggregate_m_f = cuda::std::get<0>(tmp);
-          aggregate_m_u = cuda::std::get<1>(tmp);
+          double* h_staging_buffer_ptr = reinterpret_cast<double*>(h_staging_buffer.data());
+          double* d_staging_buffer_ptr = reinterpret_cast<double*>(d_staging_buffer.data());
+          assert(h_staging_buffer.size() >= 2);
+          h_staging_buffer_ptr[0] = m_f;
+          h_staging_buffer_ptr[1] = m_u;
+          raft::update_device(
+            d_staging_buffer_ptr, h_staging_buffer_ptr, size_t{2}, handle.get_stream());
+          device_allreduce(handle.get_comms(),
+                           d_staging_buffer_ptr,
+                           d_staging_buffer_ptr,
+                           size_t{2},
+                           raft::comms::op_t::SUM,
+                           handle.get_stream());
+          raft::update_host(
+            h_staging_buffer_ptr, d_staging_buffer_ptr, size_t{2}, handle.get_stream());
+          handle.sync_stream();
+          aggregate_m_f = h_staging_buffer_ptr[0];
+          aggregate_m_u = h_staging_buffer_ptr[1];
         }
         if ((aggregate_m_f * direction_optimizing_alpha > aggregate_m_u) &&
             (next_aggregate_frontier_size >= cur_aggregate_frontier_size)) {
@@ -621,8 +680,7 @@ void bfs(raft::handle_t const& handle,
                                              invalid_vertex,
                                              reduce_op::any<vertex_t>(),
                                              pred_op,
-                                             predecessor_buffer.begin(),
-                                             true);
+                                             predecessor_buffer.begin());
         auto input_pair_first = thrust::make_zip_iterator(thrust::make_constant_iterator(depth + 1),
                                                           predecessor_buffer.begin());
 
@@ -700,14 +758,26 @@ void bfs(raft::handle_t const& handle,
       auto aggregate_nzd_unvisited_vertices =
         static_cast<vertex_t>((*((*aux_info).nzd_unvisited_vertices)).size());
       if constexpr (GraphViewType::is_multi_gpu) {
-        auto tmp = host_scalar_allreduce(
-          handle.get_comms(),
-          cuda::std::make_tuple(next_aggregate_frontier_size, aggregate_nzd_unvisited_vertices),
-          raft::comms::op_t::SUM,
-          handle.get_stream());
-        next_aggregate_frontier_size     = cuda::std::get<0>(tmp);
-        aggregate_nzd_unvisited_vertices = cuda::std::get<1>(tmp);
+        vertex_t* h_staging_buffer_ptr = reinterpret_cast<vertex_t*>(h_staging_buffer.data());
+        vertex_t* d_staging_buffer_ptr = reinterpret_cast<vertex_t*>(d_staging_buffer.data());
+        assert(h_staging_buffer.size() >= 2);
+        h_staging_buffer_ptr[0] = next_aggregate_frontier_size;
+        h_staging_buffer_ptr[1] = aggregate_nzd_unvisited_vertices;
+        raft::update_device(
+          d_staging_buffer_ptr, h_staging_buffer_ptr, size_t{2}, handle.get_stream());
+        device_allreduce(handle.get_comms(),
+                         d_staging_buffer_ptr,
+                         d_staging_buffer_ptr,
+                         size_t{2},
+                         raft::comms::op_t::SUM,
+                         handle.get_stream());
+        raft::update_host(
+          h_staging_buffer_ptr, d_staging_buffer_ptr, size_t{2}, handle.get_stream());
+        handle.sync_stream();
+        next_aggregate_frontier_size     = h_staging_buffer_ptr[0];
+        aggregate_nzd_unvisited_vertices = h_staging_buffer_ptr[1];
       }
+
 
       if (next_aggregate_frontier_size == 0) { break; }
 

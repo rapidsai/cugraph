@@ -26,6 +26,7 @@
 #include <cugraph/edge_partition_endpoint_property_device_view.cuh>
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_view.hpp>
+#include <cugraph/host_staging_buffer_manager.hpp>
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/device_comm.hpp>
@@ -787,6 +788,24 @@ extract_transform_if_v_frontier_e(raft::handle_t const& handle,
   [[maybe_unused]] constexpr auto max_segments =
     detail::num_sparse_segments_per_vertex_partition + size_t{1};
 
+  // we should consider reducing the life-time of this variable
+  // oncermm::rm::pool_memory_resource<rmm::mr::pinned_memory_resource> is updated to honor stream
+  // semantics (github.com/rapidsai/rmm/issues/2053)
+  rmm::device_uvector<int64_t> h_staging_buffer(0, handle.get_stream());
+  {
+    size_t staging_buffer_size{};  // should be large enough to cover all update_host &
+                                   // update_device calls in this primitive
+    if (GraphViewType::is_multi_gpu) {
+      auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+      auto const minor_comm_size = minor_comm.get_size();
+      staging_buffer_size        = minor_comm_size * size_t{16};
+    } else {
+      staging_buffer_size = size_t{16};
+    }
+    h_staging_buffer = host_staging_buffer_manager::allocate_staging_buffer<int64_t>(
+      staging_buffer_size, handle.get_stream());
+  }
+
   // 1. pre-process frontier data
 
   auto frontier_key_first = frontier.begin();
@@ -965,11 +984,16 @@ extract_transform_if_v_frontier_e(raft::handle_t const& handle,
         assert(false);
         return size_t{0};
       });
+
+    auto h_staging_buffer_ptr = reinterpret_cast<size_t*>(h_staging_buffer.data());
+
     if (key_segment_offsets) {
+      assert(h_staging_buffer.size() >= key_segment_offsets->size());
+      std::copy(key_segment_offsets->begin(), key_segment_offsets->end(), h_staging_buffer_ptr);
       raft::update_device(
         d_aggregate_tmps.data() + (minor_comm_rank * num_scalars + (try_bitmap ? 5 : 3)),
-        (*key_segment_offsets).data(),
-        (*key_segment_offsets).size(),
+        h_staging_buffer_ptr,
+        key_segment_offsets->size(),
         handle.get_stream());
     }
 
@@ -981,11 +1005,9 @@ extract_transform_if_v_frontier_e(raft::handle_t const& handle,
                        handle.get_stream());
     }
 
-    std::vector<size_t> h_aggregate_tmps(d_aggregate_tmps.size());
-    raft::update_host(h_aggregate_tmps.data(),
-                      d_aggregate_tmps.data(),
-                      d_aggregate_tmps.size(),
-                      handle.get_stream());
+    assert(h_staging_buffer.size() >= d_aggregate_tmps.size());
+    raft::update_host(
+      h_staging_buffer_ptr, d_aggregate_tmps.data(), d_aggregate_tmps.size(), handle.get_stream());
     handle.sync_stream();
     local_frontier_sizes                    = std::vector<size_t>(minor_comm_size);
     max_tmp_buffer_sizes                    = std::vector<size_t>(minor_comm_size);
@@ -999,19 +1021,19 @@ extract_transform_if_v_frontier_e(raft::handle_t const& handle,
       (*key_segment_offset_vectors).reserve(minor_comm_size);
     }
     for (int i = 0; i < minor_comm_size; ++i) {
-      local_frontier_sizes[i]                    = h_aggregate_tmps[i * num_scalars];
-      max_tmp_buffer_sizes[i]                    = h_aggregate_tmps[i * num_scalars + 1];
-      tmp_buffer_size_per_loop_approximations[i] = h_aggregate_tmps[i * num_scalars + 2];
+      local_frontier_sizes[i]                    = h_staging_buffer_ptr[i * num_scalars];
+      max_tmp_buffer_sizes[i]                    = h_staging_buffer_ptr[i * num_scalars + 1];
+      tmp_buffer_size_per_loop_approximations[i] = h_staging_buffer_ptr[i * num_scalars + 2];
       if constexpr (try_bitmap) {
         local_frontier_range_firsts[i] =
-          static_cast<vertex_t>(h_aggregate_tmps[i * num_scalars + 3]);
+          static_cast<vertex_t>(h_staging_buffer_ptr[i * num_scalars + 3]);
         local_frontier_range_lasts[i] =
-          static_cast<vertex_t>(h_aggregate_tmps[i * num_scalars + 4]);
+          static_cast<vertex_t>(h_staging_buffer_ptr[i * num_scalars + 4]);
       }
       if (key_segment_offsets) {
         (*key_segment_offset_vectors)
-          .emplace_back(h_aggregate_tmps.begin() + (i * num_scalars + (try_bitmap ? 5 : 3)),
-                        h_aggregate_tmps.begin() +
+          .emplace_back(h_staging_buffer_ptr + (i * num_scalars + (try_bitmap ? 5 : 3)),
+                        h_staging_buffer_ptr +
                           (i * num_scalars + (try_bitmap ? 5 : 3) + (*key_segment_offsets).size()));
       }
     }
@@ -1396,9 +1418,13 @@ extract_transform_if_v_frontier_e(raft::handle_t const& handle,
           }
         }
         if (loop_stream_pool_indices) { handle.sync_stream_pool(*loop_stream_pool_indices); }
-        raft::update_host(
-          edge_partition_max_push_counts.data(), counters.data(), loop_count, handle.get_stream());
+        auto h_staging_buffer_ptr = reinterpret_cast<size_t*>(h_staging_buffer.data());
+        assert(h_staging_buffer.size() >= loop_count);
+        raft::update_host(h_staging_buffer_ptr, counters.data(), loop_count, handle.get_stream());
         handle.sync_stream();
+        std::copy(h_staging_buffer_ptr,
+                  h_staging_buffer_ptr + loop_count,
+                  edge_partition_max_push_counts.data());
         if (static_cast<size_t>(minor_comm_rank / num_concurrent_loops) ==
             (i / num_concurrent_loops)) {
           edge_partition_max_push_counts[minor_comm_rank % num_concurrent_loops] = local_max_pushes;
@@ -1484,9 +1510,12 @@ extract_transform_if_v_frontier_e(raft::handle_t const& handle,
       }
 
       if (loop_stream_pool_indices) { handle.sync_stream_pool(*loop_stream_pool_indices); }
-      raft::update_host(
-        high_segment_edge_counts->data(), counters.data(), loop_count, handle.get_stream());
+      auto h_staging_buffer_ptr = reinterpret_cast<size_t*>(h_staging_buffer.data());
+      assert(h_staging_buffer.size() >= loop_count);
+      raft::update_host(h_staging_buffer_ptr, counters.data(), loop_count, handle.get_stream());
       handle.sync_stream();
+      std::copy(
+        h_staging_buffer_ptr, h_staging_buffer_ptr + loop_count, high_segment_edge_counts->data());
     } else {
       if (loop_stream_pool_indices) { handle.sync_stream_pool(*loop_stream_pool_indices); }
     }
@@ -1616,8 +1645,13 @@ extract_transform_if_v_frontier_e(raft::handle_t const& handle,
     if (stream_pool_indices) { handle.sync_stream_pool(*stream_pool_indices); }
 
     std::vector<size_t> h_counts(loop_count);
-    raft::update_host(h_counts.data(), counters.data(), loop_count, handle.get_stream());
-    handle.sync_stream();
+    {
+      auto h_staging_buffer_ptr = reinterpret_cast<size_t*>(h_staging_buffer.data());
+      assert(h_staging_buffer.size() >= loop_count);
+      raft::update_host(h_staging_buffer_ptr, counters.data(), loop_count, handle.get_stream());
+      handle.sync_stream();
+      std::copy(h_staging_buffer_ptr, h_staging_buffer_ptr + loop_count, h_counts.data());
+    }
 
     for (size_t j = 0; j < loop_count; ++j) {
       auto loop_stream = loop_stream_pool_indices

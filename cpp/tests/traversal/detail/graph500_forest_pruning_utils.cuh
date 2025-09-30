@@ -669,6 +669,9 @@ std::tuple<vertex_t, int, distance_t, vertex_t, std::optional<distance_t>> trave
   // for validation), but we are performing this in this function for simplicity (and this doesn't
   // noticeably increase the execution time).
 
+  auto h_staging_buffer =
+    cugraph::host_staging_buffer_manager::allocate_staging_buffer<int64_t>(3, handle.get_stream());
+
   assert(w_to_parents.has_value() == mg_w_to_predecessors.has_value());
   assert(w_to_parents.has_value() == w_to_starting_vertex_parent.has_value());
   auto& comm                 = handle.get_comms();
@@ -681,23 +684,25 @@ std::tuple<vertex_t, int, distance_t, vertex_t, std::optional<distance_t>> trave
   int subgraph_starting_vertex_vertex_partition_id{starting_vertex_vertex_partition_id};
   distance_t subgraph_starting_vertex_distance{0};
   if (starting_vertex_vertex_partition_id == vertex_partition_id) {
-    distance_t zero{0};
+    vertex_t* p0 = reinterpret_cast<vertex_t*>(h_staging_buffer.data());
+    *p0          = unrenumbered_starting_vertex;
     raft::update_device(
       mg_unrenumbered_predecessors.data() + (starting_vertex - local_vertex_partition_range_first),
-      std::addressof(unrenumbered_starting_vertex),
+      p0,
       size_t{1},
       handle.get_stream());  // Graph 500 requires the predecessor of a starting vertex to be itself
-    raft::update_device(
-      mg_distances.data() + (starting_vertex - local_vertex_partition_range_first),
-      std::addressof(subgraph_starting_vertex_distance /* zero */),
-      size_t{1},
-      handle.get_stream());
+    RAFT_CUDA_TRY(
+      cudaMemsetAsync(mg_distances.data() + (starting_vertex - local_vertex_partition_range_first),
+                      0,
+                      sizeof(distance_t),
+                      handle.get_stream()));  // note that all 0 bits are zero in both integers and
+                                              // floating point numbers
     if constexpr (std::is_floating_point_v<distance_t>) {  // SSSP
-      raft::update_device(
+      RAFT_CUDA_TRY(cudaMemsetAsync(
         mg_w_to_predecessors->data() + (starting_vertex - local_vertex_partition_range_first),
-        std::addressof(subgraph_starting_vertex_distance /* zero */),
-        size_t{1},
-        handle.get_stream());
+        0,
+        sizeof(distance_t),
+        handle.get_stream()));
     }
     handle.sync_stream();
   }
@@ -724,22 +729,31 @@ std::tuple<vertex_t, int, distance_t, vertex_t, std::optional<distance_t>> trave
     vertex_t nn{};
     auto w_to_n = w_to_v;  // w(nn->n)
     if (n_vertex_partition_id == vertex_partition_id) {
-      raft::update_host(std::addressof(unrenumbered_n),
+      vertex_t* p0 = reinterpret_cast<vertex_t*>(h_staging_buffer.data());
+      vertex_t* p1 = reinterpret_cast<vertex_t*>(h_staging_buffer.data() + 1);
+      raft::update_host(p0,
                         mg_renumber_map.data() + (n - local_vertex_partition_range_first),
                         size_t{1},
                         handle.get_stream());
-      raft::update_host(std::addressof(nn),
+      raft::update_host(p1,
                         parents.data() + (n - local_vertex_partition_range_first),
                         size_t{1},
                         handle.get_stream());
       if constexpr (std::is_floating_point_v<distance_t>) {  // SSSP
+        distance_t* p2 = reinterpret_cast<distance_t*>(h_staging_buffer.data() + 2);
         raft::update_host(
-          std::addressof(*w_to_n),
+          p2,
           w_to_parents->data() + (n - local_vertex_partition_range_first),
           size_t{1},
           handle.get_stream());  // assumes that the input graph is symmetric w(nn->n) == w(n->nn)
       }
       handle.sync_stream();
+      unrenumbered_n = *p0;
+      nn             = *p1;
+      if constexpr (std::is_floating_point_v<distance_t>) {  // SSSP
+        distance_t* p2 = reinterpret_cast<distance_t*>(h_staging_buffer.data() + 2);
+        *w_to_n        = *p2;
+      }
     }
 
     if constexpr (std::is_floating_point_v<distance_t>) {  // SSSP
@@ -767,18 +781,24 @@ std::tuple<vertex_t, int, distance_t, vertex_t, std::optional<distance_t>> trave
     }
 
     if (n_vertex_partition_id == vertex_partition_id) {
+      vertex_t* p0   = reinterpret_cast<vertex_t*>(h_staging_buffer.data());
+      distance_t* p1 = reinterpret_cast<distance_t*>(h_staging_buffer.data() + 1);
+      distance_t* p2 = reinterpret_cast<distance_t*>(h_staging_buffer.data() + 2);
+      *p0            = unrenumbered_v;
+      *p1            = subgraph_starting_vertex_distance;
+      if (w_to_v) { *p2 = *w_to_v; }
       raft::update_device(
         mg_unrenumbered_predecessors.data() + (n - local_vertex_partition_range_first),
-        std::addressof(unrenumbered_v),
+        p0,
         size_t{1},
         handle.get_stream());
       raft::update_device(mg_distances.data() + (n - local_vertex_partition_range_first),
-                          std::addressof(subgraph_starting_vertex_distance),
+                          p1,
                           size_t{1},
                           handle.get_stream());
       if (w_to_v) {
         raft::update_device(mg_w_to_predecessors->data() + (n - local_vertex_partition_range_first),
-                            std::addressof(*w_to_v),
+                            p2,
                             size_t{1},
                             handle.get_stream());
       }

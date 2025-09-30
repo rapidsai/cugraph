@@ -69,7 +69,7 @@ class nbr_unrenumber_cache_t {
 
   static size_t constexpr dense_lsb_bits   = 8;
   using dense_lsb_t                        = uint8_t;
-  static size_t constexpr dense_total_bits = 25;
+  static size_t constexpr dense_total_bits = 24;
   using dense_offset_t                     = uint32_t;
 
   static size_t constexpr sparse_lsb_bits = 16;
@@ -565,7 +565,7 @@ nbr_unrenumber_cache_t<vertex_t> build_nbr_unrenumber_cache(
                       h_vertex_partition_range_lasts.size(),
                       handle.get_stream());
 
-  constexpr size_t num_k_hop_rounds      = 16;  // to cut peak memory usage
+  constexpr size_t num_k_hop_rounds      = 24;  // to cut peak memory usage
   constexpr size_t num_unrenumber_rounds = 8;   // to cut peak memory usage
 
   auto nbrs = large_buffer_type ? cugraph::large_buffer_manager::allocate_memory_buffer<vertex_t>(

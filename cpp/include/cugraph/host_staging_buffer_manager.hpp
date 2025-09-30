@@ -22,6 +22,8 @@
 
 #include <rmm/cuda_stream_view.hpp>
 #include <rmm/device_uvector.hpp>
+#include <rmm/mr/device/owning_wrapper.hpp>
+#include <rmm/mr/device/pool_memory_resource.hpp>
 #include <rmm/mr/host/pinned_memory_resource.hpp>
 
 #include <cstddef>
@@ -32,66 +34,34 @@ namespace cugraph {
 
 class host_staging_buffer_manager {
  public:
-  using buffer_element_t =
-    uint64_t;  // use uint64_t to ensure 8B alignment (this might be redundant as the underlying rmm
-               // pinned_memory_resource already guarantees this but to be more future proof)
-  static constexpr size_t minimum_alignment =
-    sizeof(uint64_t);  // guarantees alignment by at least minimum_alginment (more likely to be at
-                       // least 256B alignmened, but this is not guaranteed by the API)
-  static constexpr size_t staging_buffer_size =
-    size_t{16384} /* # GPUs */ * 10 /* tuple size */ * sizeof(int64_t);
-  static_assert((staging_buffer_size % sizeof(buffer_element_t)) == 0);
+  static constexpr size_t init_staging_buffer_size = size_t{1024} * size_t{1024};  // 1MB
+  static constexpr size_t max_staging_buffer_size =
+    size_t{1024} * size_t{1024} * size_t{1024};  // 1 GB
 
   static void init(raft::handle_t const& handle,
-                   std::vector<rmm::cuda_stream_view> const& streams,
                    std::shared_ptr<rmm::mr::pinned_memory_resource> pinned_mr)
   {
     auto& s = state();
-    CUGRAPH_EXPECTS(s.initialized == false, "staging buffer is already initialized.");
-    s.initialized = true;
-    for (size_t i = 0; i < streams.size(); ++i) {
-      s.stream_to_idx_map.insert({streams[i], i});
-    }
-    s.pinned_mr = std::move(pinned_mr);
-    s.bufs.reserve(streams.size());
-    for (size_t i = 0; i < streams.size(); ++i) {
-      s.bufs.emplace_back(
-        staging_buffer_size / sizeof(buffer_element_t), handle.get_stream(), s.pinned_mr.get());
-    }
-    RAFT_CUDA_TRY(cudaDeviceSynchronize());  // now ready for use by every registered stream
+    CUGRAPH_EXPECTS(s.initialized == false, "host_staging_buffer_manager is already initialized.");
+    s.initialized    = true;
+    s.pinned_pool_mr = rmm::mr::make_owning_wrapper<rmm::mr::pool_memory_resource>(
+      std::move(pinned_mr), init_staging_buffer_size, max_staging_buffer_size);
   }
 
-  static std::optional<void*> buffer_ptr(size_t req_size, rmm::cuda_stream_view stream)
+  template <typename T>
+  static rmm::device_uvector<T> allocate_staging_buffer(size_t size, rmm::cuda_stream_view stream)
   {
-    if (req_size >= staging_buffer_size) { return std::nullopt; }
     auto& s = state();
-    if (s.initialized == false) { return std::nullopt; }
-    auto it = s.stream_to_idx_map.find(stream);
-    if (it == s.stream_to_idx_map.end()) { return std::nullopt; }
-    return std::make_optional(static_cast<void*>(s.bufs[it->second].data()));
+    return rmm::device_uvector<T>(size, stream, s.pinned_pool_mr.get());
   }
 
  private:
-  struct stream_hash_t {
-    std::size_t operator()(rmm::cuda_stream_view stream) const noexcept
-    {
-      return std::hash<cudaStream_t>{}(stream.value());
-    }
-  };
-
-  struct stream_eqaul_t {
-    bool operator()(rmm::cuda_stream_view lhs, rmm::cuda_stream_view rhs) const noexcept
-    {
-      return lhs.value() == rhs.value();
-    }
-  };
-
   struct state_t {
     bool initialized = false;
-    std::unordered_map<rmm::cuda_stream_view, size_t, stream_hash_t, stream_eqaul_t>
-      stream_to_idx_map{};
-    std::shared_ptr<rmm::mr::pinned_memory_resource> pinned_mr{};
-    std::vector<rmm::device_uvector<buffer_element_t>> bufs{};
+    std::shared_ptr<
+      rmm::mr::owning_wrapper<rmm::mr::pool_memory_resource<rmm::mr::pinned_memory_resource>,
+                              rmm::mr::pinned_memory_resource>>
+      pinned_pool_mr{};
   };
 
   static state_t& state()
