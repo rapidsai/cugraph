@@ -112,9 +112,9 @@ def test_hits(benchmark, input_expected_output):
     # Update the cugraph HITS results with Nx results for easy comparison using
     # cuDF DataFrame methods.
     pdf = pd.DataFrame.from_dict(nx_hubs, orient="index").sort_index()
-    cugraph_hits["nx_hubs"] = cudf.Series.from_pandas(pdf[0])
+    cugraph_hits["nx_hubs"] = cudf.Series(pdf[0])
     pdf = pd.DataFrame.from_dict(nx_authorities, orient="index").sort_index()
-    cugraph_hits["nx_authorities"] = cudf.Series.from_pandas(pdf[0])
+    cugraph_hits["nx_authorities"] = cudf.Series(pdf[0])
     hubs_diffs1 = cugraph_hits.query("hubs - nx_hubs > 0.00001")
     hubs_diffs2 = cugraph_hits.query("hubs - nx_hubs < -0.00001")
     authorities_diffs1 = cugraph_hits.query("authorities - nx_authorities > 0.0001")
