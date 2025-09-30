@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2024, NVIDIA CORPORATION.
+# Copyright (c) 2020-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -43,7 +43,7 @@ from cudf.testing.testing import assert_frame_equal
 import cugraph
 
 
-simple_df = cudf.DataFrame.from_pandas(
+simple_df = cudf.DataFrame(
     pd.DataFrame(
         {
             "id": ["a", "b", "c"],
@@ -54,7 +54,7 @@ simple_df = cudf.DataFrame.from_pandas(
     )
 )
 
-hyper_df = cudf.DataFrame.from_pandas(
+hyper_df = cudf.DataFrame(
     pd.DataFrame({"aa": [0, 1, 2], "bb": ["a", "b", "c"], "cc": ["b", "0", "1"]})
 )
 
@@ -102,7 +102,7 @@ def test_complex_df():
             # print('could not make categorical', c)
             pass
 
-    complex_df = cudf.DataFrame.from_pandas(complex_df)
+    complex_df = cudf.DataFrame(complex_df)
 
     cugraph.hypergraph(complex_df)
 
@@ -234,7 +234,7 @@ def test_drop_edge_attrs(categorical_metadata):
 
     assert len(h.keys()) == len(["entities", "nodes", "edges", "events", "graph"])
 
-    edges = cudf.DataFrame.from_pandas(
+    edges = cudf.DataFrame(
         pd.DataFrame(
             {
                 "event_id": [
@@ -289,7 +289,7 @@ def test_drop_edge_attrs_direct(categorical_metadata):
 
     assert len(h.keys()) == len(["entities", "nodes", "edges", "events", "graph"])
 
-    edges = cudf.DataFrame.from_pandas(
+    edges = cudf.DataFrame(
         pd.DataFrame(
             {
                 "event_id": [
@@ -320,7 +320,7 @@ def test_drop_edge_attrs_direct(categorical_metadata):
 @pytest.mark.sg
 def test_skip_hyper():
 
-    df = cudf.DataFrame.from_pandas(
+    df = cudf.DataFrame(
         pd.DataFrame({"a": ["a", None, "b"], "b": ["a", "b", "c"], "c": [1, 2, 3]})
     )
 
@@ -333,7 +333,7 @@ def test_skip_hyper():
 @pytest.mark.sg
 def test_skip_drop_na_hyper():
 
-    df = cudf.DataFrame.from_pandas(
+    df = cudf.DataFrame(
         pd.DataFrame({"a": ["a", None, "b"], "b": ["a", "b", "c"], "c": [1, 2, 3]})
     )
 
@@ -346,7 +346,7 @@ def test_skip_drop_na_hyper():
 @pytest.mark.sg
 def test_skip_direct():
 
-    df = cudf.DataFrame.from_pandas(
+    df = cudf.DataFrame(
         pd.DataFrame({"a": ["a", None, "b"], "b": ["a", "b", "c"], "c": [1, 2, 3]})
     )
 
@@ -359,7 +359,7 @@ def test_skip_direct():
 @pytest.mark.sg
 def test_skip_drop_na_direct():
 
-    df = cudf.DataFrame.from_pandas(
+    df = cudf.DataFrame(
         pd.DataFrame({"a": ["a", None, "b"], "b": ["a", "b", "c"], "c": [1, 2, 3]})
     )
 
@@ -372,9 +372,7 @@ def test_skip_drop_na_direct():
 @pytest.mark.sg
 def test_drop_na_hyper():
 
-    df = cudf.DataFrame.from_pandas(
-        pd.DataFrame({"a": ["a", None, "c"], "i": [1, 2, None]})
-    )
+    df = cudf.DataFrame(pd.DataFrame({"a": ["a", None, "c"], "i": [1, 2, None]}))
 
     hg = cugraph.hypergraph(df, dropna=True)
 
@@ -385,9 +383,7 @@ def test_drop_na_hyper():
 @pytest.mark.sg
 def test_drop_na_direct():
 
-    df = cudf.DataFrame.from_pandas(
-        pd.DataFrame({"a": ["a", None, "a"], "i": [1, 1, None]})
-    )
+    df = cudf.DataFrame(pd.DataFrame({"a": ["a", None, "a"], "i": [1, 1, None]}))
 
     hg = cugraph.hypergraph(df, dropna=True, direct=True)
 
@@ -398,7 +394,7 @@ def test_drop_na_direct():
 @pytest.mark.sg
 def test_skip_na_hyperedge():
 
-    nans_df = cudf.DataFrame.from_pandas(
+    nans_df = cudf.DataFrame(
         pd.DataFrame({"x": ["a", "b", "c"], "y": ["aa", None, "cc"]})
     )
 
@@ -415,9 +411,7 @@ def test_skip_na_hyperedge():
 @pytest.mark.sg
 def test_hyper_to_pa_vanilla():
 
-    df = cudf.DataFrame.from_pandas(
-        pd.DataFrame({"x": ["a", "b", "c"], "y": ["d", "e", "f"]})
-    )
+    df = cudf.DataFrame(pd.DataFrame({"x": ["a", "b", "c"], "y": ["d", "e", "f"]}))
 
     hg = cugraph.hypergraph(df)
     nodes_arr = hg["graph"].nodes().to_arrow()
@@ -429,9 +423,7 @@ def test_hyper_to_pa_vanilla():
 @pytest.mark.sg
 def test_hyper_to_pa_mixed():
 
-    df = cudf.DataFrame.from_pandas(
-        pd.DataFrame({"x": ["a", "b", "c"], "y": [1, 2, 3]})
-    )
+    df = cudf.DataFrame(pd.DataFrame({"x": ["a", "b", "c"], "y": [1, 2, 3]}))
 
     hg = cugraph.hypergraph(df)
     nodes_arr = hg["graph"].nodes().to_arrow()
@@ -443,9 +435,7 @@ def test_hyper_to_pa_mixed():
 @pytest.mark.sg
 def test_hyper_to_pa_na():
 
-    df = cudf.DataFrame.from_pandas(
-        pd.DataFrame({"x": ["a", None, "c"], "y": [1, 2, None]})
-    )
+    df = cudf.DataFrame(pd.DataFrame({"x": ["a", None, "c"], "y": [1, 2, None]}))
 
     hg = cugraph.hypergraph(df, dropna=False)
     print(hg["graph"].nodes())
