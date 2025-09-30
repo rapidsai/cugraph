@@ -180,7 +180,9 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
                                          edgelist_edge_start_times->size()},
           edge_start_times_,
           handle_.get_stream());
+      }
 
+      if (edgelist_edge_end_times){
         cugraph::c_api::copy_or_transform(
           raft::device_span<edge_time_t>{edgelist_edge_end_times->data(),
                                          edgelist_edge_end_times->size()},
