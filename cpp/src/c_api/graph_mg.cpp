@@ -19,6 +19,7 @@
 #include "c_api/error.hpp"
 #include "c_api/generic_cascaded_dispatch.hpp"
 #include "c_api/graph.hpp"
+#include "c_api/graph_helper.hpp"
 #include "c_api/resource_handle.hpp"
 #include "cugraph/utilities/host_scalar_comm.hpp"
 #include "cugraph_c/types.h"
@@ -46,9 +47,9 @@ rmm::device_uvector<value_t> concatenate(
   size_t concat_pos{0};
 
   for (size_t i = 0; i < num_arrays; ++i) {
-    cugraph::detail::copy_or_transform(
+    cugraph::c_api::copy_or_transform(
       raft::device_span<value_t>{results.data(), results.size()},
-      reinterpret_cast<cugraph_type_erased_device_array_view_t const*>(values[i]),
+      values[i],
       handle.get_stream());
     concat_pos += values[i]->size_;
   }

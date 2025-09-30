@@ -109,23 +109,23 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
                   : std::nullopt;
 
       if (vertex_list) {
-        cugraph::detail::copy_or_transform(
+        cugraph::c_api::copy_or_transform(
           raft::device_span<vertex_t>{(*vertex_list).data(), (*vertex_list).size()},
-          reinterpret_cast<cugraph_type_erased_device_array_view_t const*>(vertices_),
+          vertices_,
           handle_.get_stream());
       }
 
       rmm::device_uvector<vertex_t> edgelist_srcs(src_->size_, handle_.get_stream());
       rmm::device_uvector<vertex_t> edgelist_dsts(dst_->size_, handle_.get_stream());
 
-      cugraph::detail::copy_or_transform(
+      cugraph::c_api::copy_or_transform(
         raft::device_span<vertex_t>{edgelist_srcs.data(), edgelist_srcs.size()},
-        reinterpret_cast<cugraph_type_erased_device_array_view_t const*>(src_),
+        src_,
         handle_.get_stream());
 
-      cugraph::detail::copy_or_transform(
+      cugraph::c_api::copy_or_transform(
         raft::device_span<vertex_t>{edgelist_dsts.data(), edgelist_dsts.size()},
-        reinterpret_cast<cugraph_type_erased_device_array_view_t const*>(dst_),
+        dst_,
         handle_.get_stream());
 
       std::optional<rmm::device_uvector<weight_t>> edgelist_weights =
@@ -146,9 +146,9 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
           : std::nullopt;
 
       if (edgelist_edge_ids) {
-        cugraph::detail::copy_or_transform(
+        cugraph::c_api::copy_or_transform(
           raft::device_span<vertex_t>{edgelist_edge_ids->data(), edgelist_edge_ids->size()},
-          reinterpret_cast<cugraph_type_erased_device_array_view_t const*>(edge_ids_),
+          edge_ids_,
           handle_.get_stream());
       }
 
@@ -175,16 +175,16 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
                         : std::nullopt;
 
       if (edgelist_edge_start_times) {
-        cugraph::detail::copy_or_transform(
+        cugraph::c_api::copy_or_transform(
           raft::device_span<edge_time_t>{edgelist_edge_start_times->data(),
                                          edgelist_edge_start_times->size()},
-          reinterpret_cast<cugraph_type_erased_device_array_view_t const*>(edge_start_times_),
+          edge_start_times_,
           handle_.get_stream());
 
-        cugraph::detail::copy_or_transform(
+        cugraph::c_api::copy_or_transform(
           raft::device_span<edge_time_t>{edgelist_edge_end_times->data(),
                                          edgelist_edge_end_times->size()},
-          reinterpret_cast<cugraph_type_erased_device_array_view_t const*>(edge_end_times_),
+          edge_end_times_,
           handle_.get_stream());
       }
 
