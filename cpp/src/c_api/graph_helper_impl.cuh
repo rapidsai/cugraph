@@ -15,10 +15,10 @@
  */
 #pragma once
 
+#include "c_api/array.hpp"
 #include "prims/fill_edge_property.cuh"
 
 #include <cugraph/utilities/misc_utils.cuh>
-#include "c_api/array.hpp"
 
 namespace cugraph {
 namespace c_api {
@@ -41,7 +41,6 @@ edge_property_t<typename GraphViewType::edge_type, T> create_constant_edge_prope
 
   return edge_property;
 }
-
 
 template <typename new_type_t>
 void copy_or_transform(raft::device_span<new_type_t> output,
