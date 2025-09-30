@@ -48,9 +48,7 @@ rmm::device_uvector<value_t> concatenate(
 
   for (size_t i = 0; i < num_arrays; ++i) {
     cugraph::c_api::copy_or_transform(
-      raft::device_span<value_t>{results.data(), results.size()},
-      values[i],
-      handle.get_stream());
+      raft::device_span<value_t>{results.data(), results.size()}, values[i], handle.get_stream());
     concat_pos += values[i]->size_;
   }
 

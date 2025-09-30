@@ -15,10 +15,10 @@
  */
 #pragma once
 
+#include "c_api/array.hpp"
 #include "prims/fill_edge_property.cuh"
 
 #include <cugraph/utilities/misc_utils.cuh>
-#include "c_api/array.hpp"
 
 namespace cugraph {
 namespace c_api {
@@ -42,7 +42,6 @@ edge_property_t<typename GraphViewType::edge_type, T> create_constant_edge_prope
   return edge_property;
 }
 
-
 template <typename new_type_t>
 void copy_or_transform(raft::device_span<new_type_t> output,
                        cugraph_type_erased_device_array_view_t const* input,
@@ -51,11 +50,9 @@ void copy_or_transform(raft::device_span<new_type_t> output,
   if (((input->type_ == cugraph_data_type_id_t::INT32) && (std::is_same_v<new_type_t, int32_t>)) ||
       ((input->type_ == cugraph_data_type_id_t::INT64) && (std::is_same_v<new_type_t, int64_t>)) ||
       ((input->type_ == cugraph_data_type_id_t::FLOAT32) && (std::is_same_v<new_type_t, float>)) ||
-      ((input->type_ == cugraph_data_type_id_t::FLOAT64) &&
-       (std::is_same_v<new_type_t, double>))) {
+      ((input->type_ == cugraph_data_type_id_t::FLOAT64) && (std::is_same_v<new_type_t, double>))) {
     // dtype match so just perform a copy
-    raft::copy<new_type_t>(
-      output.data(), input->as_type<new_type_t>(), input->size_, stream_view);
+    raft::copy<new_type_t>(output.data(), input->as_type<new_type_t>(), input->size_, stream_view);
   }
 
   else {
