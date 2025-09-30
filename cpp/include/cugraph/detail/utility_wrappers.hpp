@@ -104,6 +104,21 @@ size_t unique_ints(raft::handle_t const& handle, raft::device_span<value_t> valu
 
 /**
  * @ingroup utility_wrappers_cpp
+ * @brief    Increment the values of a device span by a constant value
+ *
+ * @tparam      value_t      type of the value to operate on. Must be either int32_t or int64_t.
+ *
+ * @param[out]  values       device span to update
+ * @param[in]   value        value to be added to each element of the buffer
+ * @param[in]   stream_view  stream view
+ *
+ */
+template <typename value_t>
+void transform_increment_ints(raft::device_span<value_t> values,
+                              value_t value,
+                              rmm::cuda_stream_view const& stream_view);
+/**
+ * @ingroup utility_wrappers_cpp
  * @brief    Cast the values of a cugraph_type_erased_device_array_view_t to the new type
  *
  * @tparam      new_type_t     type of the value to operate on. Must be either int32_t or int64_t.
@@ -113,7 +128,6 @@ size_t unique_ints(raft::handle_t const& handle, raft::device_span<value_t> valu
  * @param[in]   stream_view  stream view
  *
  */
-
 template <typename new_type_t>
 void copy_or_transform(raft::device_span<new_type_t> output,
                        cugraph_type_erased_device_array_view_t const* input,
