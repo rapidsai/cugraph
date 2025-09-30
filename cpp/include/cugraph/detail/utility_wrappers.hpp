@@ -15,8 +15,6 @@
  */
 #pragma once
 
-#include <cugraph_c/array.h>
-
 #include <raft/core/device_span.hpp>
 #include <raft/core/handle.hpp>
 #include <raft/random/rng_state.hpp>
@@ -117,21 +115,6 @@ template <typename value_t>
 void transform_increment_ints(raft::device_span<value_t> values,
                               value_t value,
                               rmm::cuda_stream_view const& stream_view);
-/**
- * @ingroup utility_wrappers_cpp
- * @brief    Cast the values of a cugraph_type_erased_device_array_view_t to the new type
- *
- * @tparam      new_type_t     type of the value to operate on. Must be either int32_t or int64_t.
- *
- * @param[out]  output      device span to update with new data type
- * @param[in]   input       cugraph_type_erased_device_array_view_t with initial data type
- * @param[in]   stream_view  stream view
- *
- */
-template <typename new_type_t>
-void copy_or_transform(raft::device_span<new_type_t> output,
-                       cugraph_type_erased_device_array_view_t const* input,
-                       rmm::cuda_stream_view const& stream_view);
 
 /**
  * @ingroup utility_wrappers_cpp

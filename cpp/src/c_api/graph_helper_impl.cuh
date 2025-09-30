@@ -18,6 +18,7 @@
 #include "prims/fill_edge_property.cuh"
 
 #include <cugraph/utilities/misc_utils.cuh>
+#include "c_api/array.hpp"
 
 namespace cugraph {
 namespace c_api {
@@ -39,6 +40,56 @@ edge_property_t<typename GraphViewType::edge_type, T> create_constant_edge_prope
   cugraph::fill_edge_property(handle, graph_view, edge_property.mutable_view(), constant_value);
 
   return edge_property;
+}
+
+
+template <typename new_type_t>
+void copy_or_transform(raft::device_span<new_type_t> output,
+                       cugraph_type_erased_device_array_view_t const* input_,
+                       rmm::cuda_stream_view const& stream_view)
+{
+  if (((input_->type_ == cugraph_data_type_id_t::INT32) && (std::is_same_v<new_type_t, int32_t>)) ||
+      ((input_->type_ == cugraph_data_type_id_t::INT64) && (std::is_same_v<new_type_t, int64_t>)) ||
+      ((input_->type_ == cugraph_data_type_id_t::FLOAT32) && (std::is_same_v<new_type_t, float>)) ||
+      ((input_->type_ == cugraph_data_type_id_t::FLOAT64) &&
+       (std::is_same_v<new_type_t, double>))) {
+    // dtype match so just perform a copy
+    raft::copy<new_type_t>(
+      output.data(), input_->as_type<new_type_t>(), input_->size_, stream_view);
+  }
+
+  else {
+    // There is a dtype mismatch
+    if (input_->type_ == cugraph_data_type_id_t::INT32) {
+      thrust::transform(rmm::exec_policy(stream_view),
+                        input_->as_type<int32_t>(),
+                        input_->as_type<int32_t>() + input_->size_,
+                        output.begin(),
+                        cuda::proclaim_return_type<new_type_t>(
+                          [] __device__(auto value) { return static_cast<new_type_t>(value); }));
+    } else if (input_->type_ == cugraph_data_type_id_t::INT64) {
+      thrust::transform(rmm::exec_policy(stream_view),
+                        input_->as_type<int64_t>(),
+                        input_->as_type<int64_t>() + input_->size_,
+                        output.begin(),
+                        cuda::proclaim_return_type<new_type_t>(
+                          [] __device__(auto value) { return static_cast<new_type_t>(value); }));
+    } else if (input_->type_ == cugraph_data_type_id_t::FLOAT32) {
+      thrust::transform(rmm::exec_policy(stream_view),
+                        input_->as_type<float>(),
+                        input_->as_type<float>() + input_->size_,
+                        output.begin(),
+                        cuda::proclaim_return_type<new_type_t>(
+                          [] __device__(auto value) { return static_cast<new_type_t>(value); }));
+    } else if (input_->type_ == cugraph_data_type_id_t::FLOAT64) {
+      thrust::transform(rmm::exec_policy(stream_view),
+                        input_->as_type<double>(),
+                        input_->as_type<double>() + input_->size_,
+                        output.begin(),
+                        cuda::proclaim_return_type<new_type_t>(
+                          [] __device__(auto value) { return static_cast<new_type_t>(value); }));
+    }
+  }
 }
 
 }  // namespace c_api
