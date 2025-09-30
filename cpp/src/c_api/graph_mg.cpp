@@ -785,7 +785,7 @@ extern "C" cugraph_error_code_t cugraph_graph_create_with_times_mg(
                  CUGRAPH_INVALID_INPUT,
                  "Invalid input arguments: src size != edge start time prop size",
                  *error);
-    
+
     CAPI_EXPECTS((edge_end_times == nullptr) || (p_edge_end_times[i]->size_ == p_src[i]->size_),
                  CUGRAPH_INVALID_INPUT,
                  "Invalid input arguments: src size != edge end time prop size",
