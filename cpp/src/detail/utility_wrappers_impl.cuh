@@ -16,6 +16,8 @@
 
 #pragma once
 
+#include "c_api/array.hpp"
+
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
@@ -102,18 +104,55 @@ void transform_increment_ints(raft::device_span<value_t> values,
                     }));
 }
 
-template <typename new_vertex_t, typename old_vertex_t>
-void transform_cast_ints(raft::device_span<new_vertex_t> new_vertices,
-                         raft::device_span<old_vertex_t> old_vertices,
-                         rmm::cuda_stream_view const& stream_view)
+template <typename new_type_t>
+void copy_or_transform(raft::device_span<new_type_t> output,
+                       cugraph_type_erased_device_array_view_t const* input,
+                       rmm::cuda_stream_view const& stream_view)
 {
-  thrust::transform(rmm::exec_policy(stream_view),
-                    old_vertices.begin(),
-                    old_vertices.end(),
-                    new_vertices.begin(),
-                    cuda::proclaim_return_type<new_vertex_t>([] __device__(old_vertex_t value) {
-                      return static_cast<new_vertex_t>(value);
-                    }));
+  auto input_ =
+    reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(input);
+  if (((input_->type_ == cugraph_data_type_id_t::INT32) && (std::is_same_v<new_type_t, int32_t>)) ||
+      ((input_->type_ == cugraph_data_type_id_t::INT64) && (std::is_same_v<new_type_t, int64_t>)) ||
+      ((input_->type_ == cugraph_data_type_id_t::FLOAT32) && (std::is_same_v<new_type_t, float>)) ||
+      ((input_->type_ == cugraph_data_type_id_t::FLOAT64) &&
+       (std::is_same_v<new_type_t, double>))) {
+    // dtype match so just perform a copy
+    raft::copy<new_type_t>(
+      output.data(), input_->as_type<new_type_t>(), input_->size_, stream_view);
+  }
+
+  else {
+    // There is a dtype mismatch
+    if (input_->type_ == cugraph_data_type_id_t::INT32) {
+      thrust::transform(rmm::exec_policy(stream_view),
+                        input_->as_type<int32_t>(),
+                        input_->as_type<int32_t>() + input_->size_,
+                        output.begin(),
+                        cuda::proclaim_return_type<new_type_t>(
+                          [] __device__(auto value) { return static_cast<new_type_t>(value); }));
+    } else if (input_->type_ == cugraph_data_type_id_t::INT64) {
+      thrust::transform(rmm::exec_policy(stream_view),
+                        input_->as_type<int64_t>(),
+                        input_->as_type<int64_t>() + input_->size_,
+                        output.begin(),
+                        cuda::proclaim_return_type<new_type_t>(
+                          [] __device__(auto value) { return static_cast<new_type_t>(value); }));
+    } else if (input_->type_ == cugraph_data_type_id_t::FLOAT32) {
+      thrust::transform(rmm::exec_policy(stream_view),
+                        input_->as_type<float>(),
+                        input_->as_type<float>() + input_->size_,
+                        output.begin(),
+                        cuda::proclaim_return_type<new_type_t>(
+                          [] __device__(auto value) { return static_cast<new_type_t>(value); }));
+    } else if (input_->type_ == cugraph_data_type_id_t::FLOAT64) {
+      thrust::transform(rmm::exec_policy(stream_view),
+                        input_->as_type<double>(),
+                        input_->as_type<double>() + input_->size_,
+                        output.begin(),
+                        cuda::proclaim_return_type<new_type_t>(
+                          [] __device__(auto value) { return static_cast<new_type_t>(value); }));
+    }
+  }
 }
 
 template <typename value_t>

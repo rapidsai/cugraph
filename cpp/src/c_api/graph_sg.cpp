@@ -109,74 +109,24 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
                   : std::nullopt;
 
       if (vertex_list) {
-        if (((vertices_->type_ == cugraph_data_type_id_t::INT32) &&
-             (std::is_same_v<vertex_t, int32_t>)) ||
-            ((vertices_->type_ == cugraph_data_type_id_t::INT64) &&
-             (std::is_same_v<vertex_t, int64_t>))) {
-          // dtype match so just perform a copy
-          raft::copy<vertex_t>(vertex_list->data(),
-                               vertices_->as_type<vertex_t>(),
-                               vertices_->size_,
-                               handle_.get_stream());
-        } else {
-          // There is a dtype mismatch
-          if (vertices_->type_ == cugraph_data_type_id_t::INT32) {
-            cugraph::detail::transform_cast_ints(
-              raft::device_span<vertex_t>{(*vertex_list).data(), (*vertex_list).size()},
-              raft::device_span<int32_t const>{vertices_->as_type<int32_t>(), vertices_->size_},
-              handle_.get_stream());
-          } else {
-            cugraph::detail::transform_cast_ints(
-              raft::device_span<vertex_t>{(*vertex_list).data(), (*vertex_list).size()},
-              raft::device_span<int64_t const>{vertices_->as_type<int64_t>(), vertices_->size_},
-              handle_.get_stream());
-          }
-        }
+        cugraph::detail::copy_or_transform(
+          raft::device_span<vertex_t>{(*vertex_list).data(), (*vertex_list).size()},
+          reinterpret_cast<cugraph_type_erased_device_array_view_t const*>(vertices_),
+          handle_.get_stream());
       }
 
       rmm::device_uvector<vertex_t> edgelist_srcs(src_->size_, handle_.get_stream());
       rmm::device_uvector<vertex_t> edgelist_dsts(dst_->size_, handle_.get_stream());
 
-      if (((src_->type_ == cugraph_data_type_id_t::INT32) && (std::is_same_v<vertex_t, int32_t>)) ||
-          ((src_->type_ == cugraph_data_type_id_t::INT64) && (std::is_same_v<vertex_t, int64_t>))) {
-        // dtype match so just perform a copy
-        raft::copy<vertex_t>(
-          edgelist_srcs.data(), src_->as_type<vertex_t>(), src_->size_, handle_.get_stream());
-      } else {
-        // There is a dtype mismatch
-        if (src_->type_ == cugraph_data_type_id_t::INT32) {
-          cugraph::detail::transform_cast_ints(
-            raft::device_span<vertex_t>{edgelist_srcs.data(), edgelist_srcs.size()},
-            raft::device_span<int32_t const>{src_->as_type<int32_t>(), src_->size_},
-            handle_.get_stream());
-        } else {
-          cugraph::detail::transform_cast_ints(
-            raft::device_span<vertex_t>{edgelist_srcs.data(), edgelist_srcs.size()},
-            raft::device_span<int64_t const>{src_->as_type<int64_t>(), src_->size_},
-            handle_.get_stream());
-        }
-      }
+      cugraph::detail::copy_or_transform(
+        raft::device_span<vertex_t>{edgelist_srcs.data(), edgelist_srcs.size()},
+        reinterpret_cast<cugraph_type_erased_device_array_view_t const*>(src_),
+        handle_.get_stream());
 
-      if (((dst_->type_ == cugraph_data_type_id_t::INT32) && (std::is_same_v<vertex_t, int32_t>)) ||
-          ((dst_->type_ == cugraph_data_type_id_t::INT64) && (std::is_same_v<vertex_t, int64_t>))) {
-        // There is a dtype mismatch
-        raft::copy<vertex_t>(
-          edgelist_dsts.data(), dst_->as_type<vertex_t>(), dst_->size_, handle_.get_stream());
-
-      } else {
-        // There is a dtype mismatch
-        if (dst_->type_ == cugraph_data_type_id_t::INT32) {
-          cugraph::detail::transform_cast_ints(
-            raft::device_span<vertex_t>{edgelist_dsts.data(), edgelist_dsts.size()},
-            raft::device_span<int32_t const>{dst_->as_type<int32_t>(), dst_->size_},
-            handle_.get_stream());
-        } else {
-          cugraph::detail::transform_cast_ints(
-            raft::device_span<vertex_t>{edgelist_dsts.data(), edgelist_dsts.size()},
-            raft::device_span<int64_t const>{dst_->as_type<int64_t>(), dst_->size_},
-            handle_.get_stream());
-        }
-      }
+      cugraph::detail::copy_or_transform(
+        raft::device_span<vertex_t>{edgelist_dsts.data(), edgelist_dsts.size()},
+        reinterpret_cast<cugraph_type_erased_device_array_view_t const*>(dst_),
+        handle_.get_stream());
 
       std::optional<rmm::device_uvector<weight_t>> edgelist_weights =
         weights_
@@ -196,29 +146,10 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
           : std::nullopt;
 
       if (edgelist_edge_ids) {
-        if (((edge_ids_->type_ == cugraph_data_type_id_t::INT32) &&
-             (std::is_same_v<vertex_t, int32_t>)) ||
-            ((edge_ids_->type_ == cugraph_data_type_id_t::INT64) &&
-             (std::is_same_v<vertex_t, int64_t>))) {
-          // dtype match so just perform a copy
-          raft::copy<vertex_t>(edgelist_edge_ids->data(),
-                               edge_ids_->as_type<vertex_t>(),
-                               edge_ids_->size_,
-                               handle_.get_stream());
-        } else {
-          // There is a dtype mismatch
-          if (edge_ids_->type_ == cugraph_data_type_id_t::INT32) {
-            cugraph::detail::transform_cast_ints(
-              raft::device_span<vertex_t>{edgelist_edge_ids->data(), edgelist_edge_ids->size()},
-              raft::device_span<int32_t const>{edge_ids_->as_type<int32_t>(), edge_ids_->size_},
-              handle_.get_stream());
-          } else {
-            cugraph::detail::transform_cast_ints(
-              raft::device_span<vertex_t>{edgelist_edge_ids->data(), edgelist_edge_ids->size()},
-              raft::device_span<int64_t const>{edge_ids_->as_type<int64_t>(), edge_ids_->size_},
-              handle_.get_stream());
-          }
-        }
+        cugraph::detail::copy_or_transform(
+          raft::device_span<vertex_t>{edgelist_edge_ids->data(), edgelist_edge_ids->size()},
+          reinterpret_cast<cugraph_type_erased_device_array_view_t const*>(edge_ids_),
+          handle_.get_stream());
       }
 
       std::optional<rmm::device_uvector<edge_type_t>> edgelist_edge_types =
@@ -238,69 +169,23 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
                               edge_start_times_->size_, handle_.get_stream()))
                           : std::nullopt;
 
-      if (edgelist_edge_start_times) {
-        if (((edge_start_times_->type_ == cugraph_data_type_id_t::INT32) &&
-             (std::is_same_v<vertex_t, int32_t>)) ||
-            ((edge_start_times_->type_ == cugraph_data_type_id_t::INT64) &&
-             (std::is_same_v<vertex_t, int64_t>))) {
-          // dtype match so just perform a copy
-          raft::copy<edge_time_t>(edgelist_edge_start_times->data(),
-                                  edge_start_times_->as_type<edge_time_t>(),
-                                  edge_start_times_->size_,
-                                  handle_.get_stream());
-        } else {
-          // There is a dtype mismatch
-          if (edge_start_times_->type_ == cugraph_data_type_id_t::INT32) {
-            cugraph::detail::transform_cast_ints(
-              raft::device_span<edge_time_t>{edgelist_edge_start_times->data(),
-                                             edgelist_edge_start_times->size()},
-              raft::device_span<int32_t const>{edge_start_times_->as_type<int32_t>(),
-                                               edge_start_times_->size_},
-              handle_.get_stream());
-          } else {
-            cugraph::detail::transform_cast_ints(
-              raft::device_span<edge_time_t>{edgelist_edge_start_times->data(),
-                                             edgelist_edge_start_times->size()},
-              raft::device_span<int64_t const>{edge_start_times_->as_type<int64_t>(),
-                                               edge_start_times_->size_},
-              handle_.get_stream());
-          }
-        }
-      }
-
       std::optional<rmm::device_uvector<edge_time_t>> edgelist_edge_end_times =
         edge_end_times_ ? std::make_optional(rmm::device_uvector<edge_time_t>(
                             edge_end_times_->size_, handle_.get_stream()))
                         : std::nullopt;
 
-      if (edgelist_edge_end_times) {
-        if (((edge_end_times_->type_ == cugraph_data_type_id_t::INT32) &&
-             (std::is_same_v<vertex_t, int32_t>)) ||
-            ((edge_end_times_->type_ == cugraph_data_type_id_t::INT64) &&
-             (std::is_same_v<vertex_t, int64_t>))) {
-          // dtype match so just perform a copy
-          raft::copy<edge_time_t>(edgelist_edge_end_times->data(),
-                                  edge_end_times_->as_type<edge_time_t>(),
-                                  edge_end_times_->size_,
-                                  handle_.get_stream());
-        } else {
-          // There is a dtype mismatch
-          if (edge_end_times_->type_ == cugraph_data_type_id_t::INT32) {
-            cugraph::detail::transform_cast_ints(
-              raft::device_span<edge_time_t>{edgelist_edge_end_times->data(),
-                                             edgelist_edge_end_times->size()},
-              raft::device_span<int32_t const>{edge_end_times_->as_type<int32_t>(),
-                                               edge_end_times_->size_},
-              handle_.get_stream());
-          } else {
-            cugraph::detail::transform_cast_ints(
-              raft::device_span<edge_time_t>{edgelist_edge_end_times->data(),
-                                             edgelist_edge_end_times->size()},
-              raft::device_span<int64_t const>{edge_end_times_->as_type<int64_t>(),
-                                               edge_end_times_->size_},
-              handle_.get_stream());
-          }
-        }
+      if (edgelist_edge_start_times) {
+        cugraph::detail::copy_or_transform(
+          raft::device_span<edge_time_t>{edgelist_edge_start_times->data(),
+                                         edgelist_edge_start_times->size()},
+          reinterpret_cast<cugraph_type_erased_device_array_view_t const*>(edge_start_times_),
+          handle_.get_stream());
+
+        cugraph::detail::copy_or_transform(
+          raft::device_span<edge_time_t>{edgelist_edge_end_times->data(),
+                                         edgelist_edge_end_times->size()},
+          reinterpret_cast<cugraph_type_erased_device_array_view_t const*>(edge_end_times_),
+          handle_.get_stream());
       }
 
       if (drop_self_loops_) {

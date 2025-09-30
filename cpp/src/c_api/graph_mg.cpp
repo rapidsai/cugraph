@@ -34,51 +34,6 @@
 namespace {
 
 template <typename value_t>
-rmm::device_uvector<value_t> concatenate_cast(
-  raft::handle_t const& handle,
-  cugraph::c_api::cugraph_type_erased_device_array_view_t const* const* values,
-  size_t num_arrays)
-{
-  // FIXME: need to create a separate function to concatenate because all type
-  // combination not supported. Only use this function on edge major, minor, id
-  // start_time and end_time.
-  size_t num_values = std::transform_reduce(
-    values, values + num_arrays, size_t{0}, std::plus{}, [](auto p) { return p->size_; });
-
-  rmm::device_uvector<value_t> results(num_values, handle.get_stream());
-  size_t concat_pos{0};
-
-  for (size_t i = 0; i < num_arrays; ++i) {
-    if (((values[i]->type_ == cugraph_data_type_id_t::INT32) &&
-         (std::is_same_v<value_t, int32_t>)) ||
-        ((values[i]->type_ == cugraph_data_type_id_t::INT64) &&
-         (std::is_same_v<value_t, int64_t>))) {
-      // dtype match so just perform a copy
-      raft::copy<value_t>(results.data() + concat_pos,
-                          values[i]->as_type<value_t>(),
-                          values[i]->size_,
-                          handle.get_stream());
-      concat_pos += values[i]->size_;
-    } else {
-      // There is a dtype mismatch
-      if (values[i]->type_ == cugraph_data_type_id_t::INT32) {
-        cugraph::detail::transform_cast_ints(
-          raft::device_span<value_t>{results.data(), results.size()},
-          raft::device_span<int32_t const>{values[i]->as_type<int32_t>(), values[i]->size_},
-          handle.get_stream());
-      } else {
-        cugraph::detail::transform_cast_ints(
-          raft::device_span<value_t>{results.data(), results.size()},
-          raft::device_span<int64_t const>{values[i]->as_type<int64_t>(), values[i]->size_},
-          handle.get_stream());
-      }
-    }
-  }
-
-  return results;
-}
-
-template <typename value_t>
 rmm::device_uvector<value_t> concatenate(
   raft::handle_t const& handle,
   cugraph::c_api::cugraph_type_erased_device_array_view_t const* const* values,
@@ -91,10 +46,10 @@ rmm::device_uvector<value_t> concatenate(
   size_t concat_pos{0};
 
   for (size_t i = 0; i < num_arrays; ++i) {
-    raft::copy<value_t>(results.data() + concat_pos,
-                        values[i]->as_type<value_t>(),
-                        values[i]->size_,
-                        handle.get_stream());
+    cugraph::detail::copy_or_transform(
+      raft::device_span<value_t>{results.data(), results.size()},
+      reinterpret_cast<cugraph_type_erased_device_array_view_t const*>(values[i]),
+      handle.get_stream());
     concat_pos += values[i]->size_;
   }
 
@@ -167,30 +122,29 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
       unsupported();
     } else {
       std::optional<rmm::device_uvector<vertex_t>> vertex_list =
-        vertices_ ? std::make_optional(concatenate_cast<vertex_t>(handle_, vertices_, num_arrays_))
+        vertices_ ? std::make_optional(concatenate<vertex_t>(handle_, vertices_, num_arrays_))
                   : std::nullopt;
 
       rmm::device_uvector<vertex_t> edgelist_srcs =
-        concatenate_cast<vertex_t>(handle_, src_, num_arrays_);
+        concatenate<vertex_t>(handle_, src_, num_arrays_);
       rmm::device_uvector<vertex_t> edgelist_dsts =
-        concatenate_cast<vertex_t>(handle_, dst_, num_arrays_);
+        concatenate<vertex_t>(handle_, dst_, num_arrays_);
 
       std::vector<cugraph::arithmetic_device_uvector_t> edgelist_edge_properties{};
 
       if (weights_)
         edgelist_edge_properties.push_back(concatenate<weight_t>(handle_, weights_, num_arrays_));
       if (edge_ids_)
-        edgelist_edge_properties.push_back(
-          concatenate_cast<edge_t>(handle_, edge_ids_, num_arrays_));
+        edgelist_edge_properties.push_back(concatenate<edge_t>(handle_, edge_ids_, num_arrays_));
       if (edge_type_ids_)
         edgelist_edge_properties.push_back(
           concatenate<edge_type_t>(handle_, edge_type_ids_, num_arrays_));
       if (edge_start_times_)
         edgelist_edge_properties.push_back(
-          concatenate_cast<edge_time_t>(handle_, edge_start_times_, num_arrays_));
+          concatenate<edge_time_t>(handle_, edge_start_times_, num_arrays_));
       if (edge_end_times_)
         edgelist_edge_properties.push_back(
-          concatenate_cast<edge_time_t>(handle_, edge_end_times_, num_arrays_));
+          concatenate<edge_time_t>(handle_, edge_end_times_, num_arrays_));
 
       std::tie(edgelist_srcs, edgelist_dsts, edgelist_edge_properties, std::ignore) =
         cugraph::shuffle_ext_edges(handle_,

@@ -15,6 +15,8 @@
  */
 #pragma once
 
+#include <cugraph_c/array.h>
+
 #include <raft/core/device_span.hpp>
 #include <raft/core/handle.hpp>
 #include <raft/random/rng_state.hpp>
@@ -102,36 +104,20 @@ size_t unique_ints(raft::handle_t const& handle, raft::device_span<value_t> valu
 
 /**
  * @ingroup utility_wrappers_cpp
- * @brief    Increment the values of a device span by a constant value
+ * @brief    Cast the values of a cugraph_type_erased_device_array_view_t to the new type
  *
- * @tparam      value_t      type of the value to operate on. Must be either int32_t or int64_t.
+ * @tparam      new_type_t     type of the value to operate on. Must be either int32_t or int64_t.
  *
- * @param[out]  values       device span to update
- * @param[in]   value        value to be added to each element of the buffer
+ * @param[out]  output      device span to update with new data type
+ * @param[in]   input       cugraph_type_erased_device_array_view_t with initial data type
  * @param[in]   stream_view  stream view
  *
  */
-template <typename value_t>
-void transform_increment_ints(raft::device_span<value_t> values,
-                              value_t value,
-                              rmm::cuda_stream_view const& stream_view);
 
-/**
- * @ingroup utility_wrappers_cpp
- * @brief    Cast the values of a device span to the new type
- *
- * @tparam      new_vertex_t     type of the value to operate on. Must be either int32_t or int64_t.
- * @tparam      old_vertex_t     type of the value to operate on. Must be either int32_t or int64_t.
- *
- * @param[out]  new_vertices      device span to update with new data type
- * @param[in]   old_vertices      device span with initial data type
- * @param[in]   stream_view  stream view
- *
- */
-template <typename new_vertex_t, typename old_vertex_t>
-void transform_cast_ints(raft::device_span<new_vertex_t> new_vertices,
-                         raft::device_span<old_vertex_t> old_vertices,
-                         rmm::cuda_stream_view const& stream_view);
+template <typename new_type_t>
+void copy_or_transform(raft::device_span<new_type_t> output,
+                       cugraph_type_erased_device_array_view_t const* input,
+                       rmm::cuda_stream_view const& stream_view);
 
 /**
  * @ingroup utility_wrappers_cpp

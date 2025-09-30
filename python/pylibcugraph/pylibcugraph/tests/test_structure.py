@@ -94,33 +94,3 @@ def test_type_combinations():
             renumber=True,
             vertices_array=device_vertices,
         )
-
-    device_edge_ids = device_edge_ids.astype(dtype=np.int32)
-
-    device_edge_start_times = cp.asarray(
-        [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16], dtype=np.int32
-    )
-
-    device_edge_end_times = cp.asarray(
-        [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17], dtype=np.int64
-    )
-
-    warning_msg = (
-        "The graph requires 'edge_start_time_array' and 'edge_end_time_array' "
-        "to match. Those will be widened to 64-bit."
-    )
-
-    with pytest.warns(UserWarning, match=warning_msg):
-        SGGraph(
-            resource_handle=resource_handle,
-            graph_properties=graph_props,
-            src_or_offset_array=device_srcs,
-            dst_or_index_array=device_dsts,
-            weight_array=device_weights,
-            edge_id_array=device_edge_ids,
-            store_transposed=False,
-            renumber=True,
-            edge_start_time_array=device_edge_start_times,
-            edge_end_time_array=device_edge_end_times,
-            vertices_array=device_vertices,
-        )

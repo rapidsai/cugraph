@@ -81,13 +81,18 @@ template void transform_increment_ints(raft::device_span<int32_t> values,
                                        int32_t value,
                                        rmm::cuda_stream_view const& stream_view);
 
-template void transform_cast_ints(raft::device_span<int32_t> new_vertices,
-                                  raft::device_span<int32_t const> old_vertices,
-                                  rmm::cuda_stream_view const& stream_view);
+template void copy_or_transform(raft::device_span<int32_t> output,
+                                cugraph_type_erased_device_array_view_t const* input,
+                                rmm::cuda_stream_view const& stream_view);
 
-template void transform_cast_ints(raft::device_span<int32_t> new_vertices,
-                                  raft::device_span<int64_t const> old_vertices,
-                                  rmm::cuda_stream_view const& stream_view);
+template void copy_or_transform(raft::device_span<int64_t> output,
+                                cugraph_type_erased_device_array_view_t const* input,
+                                rmm::cuda_stream_view const& stream_view);
+
+template <typename int32_t>
+void copy_or_transform(raft::device_span<int32_t> output,
+                       cugraph_type_erased_device_array_view_t const* input,
+                       rmm::cuda_stream_view const& stream_view);
 
 template void transform_not_equal(raft::device_span<int32_t> values,
                                   raft::device_span<bool> result,
