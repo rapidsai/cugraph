@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2023, NVIDIA CORPORATION.
+# Copyright (c) 2019-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -78,7 +78,7 @@ def test_renumber_negative_col():
 
     df = pd.DataFrame({"source_list": source_list, "dest_list": dest_list})
 
-    gdf = cudf.DataFrame.from_pandas(df[["source_list", "dest_list"]])
+    gdf = cudf.DataFrame(df[["source_list", "dest_list"]])
     gdf["original_src"] = gdf["source_list"]
     gdf["original_dst"] = gdf["dest_list"]
 
