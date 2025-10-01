@@ -499,8 +499,8 @@ void bfs(raft::handle_t const& handle,
             handle.get_thrust_policy(),
             vertex_frontier.bucket(bucket_idx_next).cbegin(),
             vertex_frontier.bucket(bucket_idx_next).cend(),
-            [bitmap  = raft::device_span<uint32_t>((*aux_info).visited_bitmap.data(),
-                                                  (*aux_info).visited_bitmap.size()),
+            [bitmap  = raft::device_span<uint32_t>(aux_info->visited_bitmap.data(),
+                                                  aux_info->visited_bitmap.size()),
              v_first = graph_view.local_vertex_partition_range_first()] __device__(auto v) {
               auto v_offset = v - v_first;
               cuda::atomic_ref<uint32_t, cuda::thread_scope_device> word(
@@ -534,10 +534,10 @@ void bfs(raft::handle_t const& handle,
               raft::host_span<vertex_t const>((*segment_offsets).data(), (*segment_offsets).size()),
               graph_view.local_vertex_partition_range_first(),
               handle.get_stream());
-            *((*aux_info).num_nzd_unvisited_low_degree_vertices) -=
+            *(aux_info->num_nzd_unvisited_low_degree_vertices) -=
               (f_segment_offsets[3] - f_segment_offsets[2]);
             if (graph_view.use_dcs()) {
-              *((*aux_info).num_nzd_unvisited_hypersparse_vertices) -=
+              *(aux_info->num_nzd_unvisited_hypersparse_vertices) -=
                 (f_segment_offsets[4] - f_segment_offsets[3]);
             }
             f_vertex_last = f_vertex_first + f_segment_offsets[2];
@@ -548,10 +548,10 @@ void bfs(raft::handle_t const& handle,
                      approx_hypersparse_segment_degree;
             }
 
-            m_u = static_cast<double>(*((*aux_info).num_nzd_unvisited_low_degree_vertices)) *
+            m_u = static_cast<double>(*(aux_info->num_nzd_unvisited_low_degree_vertices)) *
                   approx_low_segment_degree;
             if (graph_view.use_dcs()) {
-              m_u += static_cast<double>(*((*aux_info).num_nzd_unvisited_hypersparse_vertices)) *
+              m_u += static_cast<double>(*(aux_info->num_nzd_unvisited_hypersparse_vertices)) *
                      approx_hypersparse_segment_degree;
             }
           }
@@ -561,8 +561,8 @@ void bfs(raft::handle_t const& handle,
             f_vertex_first,
             f_vertex_last,
             cuda::proclaim_return_type<edge_t>(
-              [out_degrees = raft::device_span<edge_t const>((*aux_info).approx_out_degrees.data(),
-                                                             (*aux_info).approx_out_degrees.size()),
+              [out_degrees = raft::device_span<edge_t const>((aux_info->approx_out_degrees).data(),
+                                                             (aux_info->approx_out_degrees).size()),
                v_first = graph_view.local_vertex_partition_range_first()] __device__(vertex_t v) {
                 auto v_offset = v - v_first;
                 return out_degrees[v_offset];
@@ -577,11 +577,11 @@ void bfs(raft::handle_t const& handle,
                                              ? (*segment_offsets)[2]
                                              : graph_view.local_vertex_partition_range_size()),
             cuda::proclaim_return_type<edge_t>(
-              [out_degrees = raft::device_span<edge_t const>((*aux_info).approx_out_degrees.data(),
-                                                             (*aux_info).approx_out_degrees.size()),
+              [out_degrees = raft::device_span<edge_t const>(aux_info->approx_out_degrees.data(),
+                                                             aux_info->approx_out_degrees.size()),
                bitmap      = raft::device_span<uint32_t const>(
-                 (*aux_info).visited_bitmap.data(),
-                 (*aux_info).visited_bitmap.size())] __device__(vertex_t v_offset) {
+                 aux_info->visited_bitmap.data(),
+                 aux_info->visited_bitmap.size())] __device__(vertex_t v_offset) {
                 auto word = bitmap[packed_bool_offset(v_offset)];
                 if ((word & packed_bool_mask(v_offset)) != packed_bool_empty_mask()) {  // visited
                   return edge_t{0};
@@ -617,15 +617,15 @@ void bfs(raft::handle_t const& handle,
         }
         if ((aggregate_m_f * direction_optimizing_alpha > aggregate_m_u) &&
             (next_aggregate_frontier_size >= cur_aggregate_frontier_size)) {
-          topdown                            = false;
-          (*aux_info).nzd_unvisited_vertices = rmm::device_uvector<vertex_t>(
+          topdown                          = false;
+          aux_info->nzd_unvisited_vertices = rmm::device_uvector<vertex_t>(
             segment_offsets ? *((*segment_offsets).rbegin() + 1)
                             : graph_view.local_vertex_partition_range_size(),
             handle.get_stream());
-          (*((*aux_info).nzd_unvisited_vertices))
-            .resize(
+          (aux_info->nzd_unvisited_vertices)
+            ->resize(
               cuda::std::distance(
-                (*((*aux_info).nzd_unvisited_vertices)).begin(),
+                (aux_info->nzd_unvisited_vertices)->begin(),
                 thrust::copy_if(
                   handle.get_thrust_policy(),
                   thrust::make_counting_iterator(graph_view.local_vertex_partition_range_first()),
@@ -633,9 +633,9 @@ void bfs(raft::handle_t const& handle,
                     segment_offsets ? graph_view.local_vertex_partition_range_first() +
                                         *((*segment_offsets).rbegin() + 1)
                                     : graph_view.local_vertex_partition_range_last()),
-                  (*((*aux_info).nzd_unvisited_vertices)).begin(),
-                  [bitmap  = raft::device_span<uint32_t const>((*aux_info).visited_bitmap.data(),
-                                                              (*aux_info).visited_bitmap.size()),
+                  (aux_info->nzd_unvisited_vertices)->begin(),
+                  [bitmap  = raft::device_span<uint32_t const>(aux_info->visited_bitmap.data(),
+                                                              aux_info->visited_bitmap.size()),
                    v_first = graph_view.local_vertex_partition_range_first()] __device__(auto v) {
                     auto v_offset = v - v_first;
                     auto word     = bitmap[packed_bool_offset(v_offset)];
@@ -653,8 +653,8 @@ void bfs(raft::handle_t const& handle,
         vertex_frontier.bucket(bucket_idx_cur) =
           key_bucket_t<vertex_t, void, GraphViewType::is_multi_gpu, true>(
             handle,
-            raft::device_span<vertex_t const>((*((*aux_info).nzd_unvisited_vertices)).data(),
-                                              (*((*aux_info).nzd_unvisited_vertices)).size()));
+            raft::device_span<vertex_t const>((aux_info->nzd_unvisited_vertices)->data(),
+                                              (aux_info->nzd_unvisited_vertices)->size()));
         vertex_frontier.bucket(bucket_idx_next) =
           key_bucket_t<vertex_t, void, GraphViewType::is_multi_gpu, true>(handle);
       }
@@ -713,24 +713,24 @@ void bfs(raft::handle_t const& handle,
           handle.get_thrust_policy(),
           new_frontier_vertex_buffer.begin(),
           new_frontier_vertex_buffer.end(),
-          [bitmap  = raft::device_span<uint32_t>((*aux_info).visited_bitmap.data(),
-                                                (*aux_info).visited_bitmap.size()),
+          [bitmap  = raft::device_span<uint32_t>(aux_info->visited_bitmap.data(),
+                                                aux_info->visited_bitmap.size()),
            v_first = graph_view.local_vertex_partition_range_first()] __device__(auto v) {
             auto v_offset = v - v_first;
             cuda::atomic_ref<uint32_t, cuda::thread_scope_device> word(
               bitmap[packed_bool_offset(v_offset)]);
             word.fetch_or(packed_bool_mask(v_offset), cuda::std::memory_order_relaxed);
           });
-        (*((*aux_info).nzd_unvisited_vertices))
-          .resize(
+        (aux_info->nzd_unvisited_vertices)
+          ->resize(
             cuda::std::distance(
-              (*((*aux_info).nzd_unvisited_vertices)).begin(),
+              (aux_info->nzd_unvisited_vertices)->begin(),
               thrust::remove_if(
                 handle.get_thrust_policy(),
-                (*((*aux_info).nzd_unvisited_vertices)).begin(),
-                (*((*aux_info).nzd_unvisited_vertices)).end(),
-                [bitmap  = raft::device_span<uint32_t const>((*aux_info).visited_bitmap.data(),
-                                                            (*aux_info).visited_bitmap.size()),
+                (aux_info->nzd_unvisited_vertices)->begin(),
+                (aux_info->nzd_unvisited_vertices)->end(),
+                [bitmap  = raft::device_span<uint32_t const>(aux_info->visited_bitmap.data(),
+                                                            aux_info->visited_bitmap.size()),
                  v_first = graph_view.local_vertex_partition_range_first()] __device__(auto v) {
                   auto v_offset = v - v_first;
                   auto word     = bitmap[packed_bool_offset(v_offset)];
@@ -745,10 +745,10 @@ void bfs(raft::handle_t const& handle,
             raft::host_span<vertex_t const>((*segment_offsets).data(), (*segment_offsets).size()),
             graph_view.local_vertex_partition_range_first(),
             handle.get_stream());
-          *((*aux_info).num_nzd_unvisited_low_degree_vertices) -=
+          *(aux_info->num_nzd_unvisited_low_degree_vertices) -=
             key_segment_offsets[3] - key_segment_offsets[2];
           if (graph_view.use_dcs()) {
-            *((*aux_info).num_nzd_unvisited_hypersparse_vertices) -=
+            *(aux_info->num_nzd_unvisited_hypersparse_vertices) -=
               key_segment_offsets[4] - key_segment_offsets[3];
           }
         }
@@ -756,7 +756,7 @@ void bfs(raft::handle_t const& handle,
 
       next_aggregate_frontier_size = static_cast<vertex_t>(new_frontier_vertex_buffer.size());
       auto aggregate_nzd_unvisited_vertices =
-        static_cast<vertex_t>((*((*aux_info).nzd_unvisited_vertices)).size());
+        static_cast<vertex_t>((aux_info->nzd_unvisited_vertices)->size());
       if constexpr (GraphViewType::is_multi_gpu) {
         vertex_t* h_staging_buffer_ptr = reinterpret_cast<vertex_t*>(h_staging_buffer.data());
         vertex_t* d_staging_buffer_ptr = reinterpret_cast<vertex_t*>(d_staging_buffer.data());
@@ -777,7 +777,6 @@ void bfs(raft::handle_t const& handle,
         next_aggregate_frontier_size     = h_staging_buffer_ptr[0];
         aggregate_nzd_unvisited_vertices = h_staging_buffer_ptr[1];
       }
-
 
       if (next_aggregate_frontier_size == 0) { break; }
 
@@ -802,8 +801,8 @@ void bfs(raft::handle_t const& handle,
         vertex_frontier.bucket(bucket_idx_cur) =
           key_bucket_t<vertex_t, void, GraphViewType::is_multi_gpu, true>(
             handle,
-            raft::device_span<vertex_t const>((*((*aux_info).nzd_unvisited_vertices)).data(),
-                                              ((*(*aux_info).nzd_unvisited_vertices)).size()));
+            raft::device_span<vertex_t const>((aux_info->nzd_unvisited_vertices)->data(),
+                                              (aux_info->nzd_unvisited_vertices)->size()));
       }
     }
     cur_aggregate_frontier_size = next_aggregate_frontier_size;
