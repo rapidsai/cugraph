@@ -646,9 +646,9 @@ __global__ static __launch_bounds__(THREADS6, FACTOR6) void apply_forces_bh(
     float factor          = speed / (1.0 + sqrt(speed * swinging[i]));
 
     if (prevent_overlapping) {
-      factor = 0.1 * factor;
+      factor   = 0.1 * factor;
       float df = sqrt(dx * dx + dy * dy);
-      factor = min(factor * df, 10.0f) / df;
+      factor   = min(factor * df, 10.0f) / df;
     }
 
     Y_x[i] += dx * mobility_factor * factor;

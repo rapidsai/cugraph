@@ -327,9 +327,9 @@ __global__ static void update_positions_kernel(float* restrict x_pos,
     float factor = speed / (1.0 + sqrt(speed * swinging[i]));
 
     if (prevent_overlapping) {
-      factor = 0.1 * factor;
+      factor   = 0.1 * factor;
       float df = sqrt(dx * dx + dy * dy);
-      factor = min(factor * df, 10.0f) / df;
+      factor   = min(factor * df, 10.0f) / df;
     }
 
     x_pos[i] += dx * mobility_factor * factor;
