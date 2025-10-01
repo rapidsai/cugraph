@@ -231,6 +231,7 @@ void overlap_list(legacy::GraphCSRView<VT, ET, WT> const& graph,
  * drifting away.
  * @param[in] vertex_mobility_values           Device array containing mobility of each vertex
  * (scaling factor for the displacement at each iteration).
+ * @param[in] vertex_mass_values               Device array containing mass of each vertex
  * @param[in] verbose                          Output convergence info at each interation.
  * @param[in] callback                         An instance of GraphBasedDimRedCallback class to
  * intercept the internal state of positions while they are being trained.
@@ -257,6 +258,7 @@ void force_atlas2(raft::handle_t const& handle,
                   bool strong_gravity_mode                      = false,
                   const float gravity                           = 1.0,
                   float* vertex_mobility_values                 = nullptr,
+                  float* vertex_mass_values                     = nullptr,
                   bool verbose                                  = false,
                   internals::GraphBasedDimRedCallback* callback = nullptr);
 

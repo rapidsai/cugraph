@@ -33,7 +33,7 @@ __global__ static void attraction_kernel(const vertex_t* restrict row,
                                          const float* restrict y_pos,
                                          float* restrict attract_x,
                                          float* restrict attract_y,
-                                         const edge_t* restrict mass,
+                                         const float* restrict mass,
                                          bool outbound_attraction_distribution,
                                          bool lin_log_mode,
                                          const float edge_weight_influence,
@@ -101,7 +101,7 @@ void apply_attraction(const vertex_t* restrict row,
                       const float* restrict y_pos,
                       float* restrict attract_x,
                       float* restrict attract_y,
-                      const edge_t* restrict mass,
+                      const float* restrict mass,
                       bool outbound_attraction_distribution,
                       bool lin_log_mode,
                       const float edge_weight_influence,
@@ -143,12 +143,12 @@ void apply_attraction(const vertex_t* restrict row,
   RAFT_CHECK_CUDA(stream);
 }
 
-template <typename vertex_t, typename edge_t>
+template <typename vertex_t>
 __global__ static void linear_gravity_kernel(const float* restrict x_pos,
                                              const float* restrict y_pos,
                                              float* restrict attract_x,
                                              float* restrict attract_y,
-                                             const edge_t* restrict mass,
+                                             const float* restrict mass,
                                              const float gravity,
                                              const vertex_t n)
 {
@@ -163,12 +163,12 @@ __global__ static void linear_gravity_kernel(const float* restrict x_pos,
   }
 }
 
-template <typename vertex_t, typename edge_t>
+template <typename vertex_t>
 __global__ static void strong_gravity_kernel(const float* restrict x_pos,
                                              const float* restrict y_pos,
                                              float* restrict attract_x,
                                              float* restrict attract_y,
-                                             const edge_t* restrict mass,
+                                             const float* restrict mass,
                                              const float gravity,
                                              const float scaling_ratio,
                                              const vertex_t n)
@@ -184,12 +184,12 @@ __global__ static void strong_gravity_kernel(const float* restrict x_pos,
   }
 }
 
-template <typename vertex_t, typename edge_t>
+template <typename vertex_t>
 void apply_gravity(const float* restrict x_pos,
                    const float* restrict y_pos,
                    float* restrict attract_x,
                    float* restrict attract_y,
-                   const edge_t* restrict mass,
+                   const float* restrict mass,
                    const float gravity,
                    bool strong_gravity_mode,
                    const float scaling_ratio,
@@ -207,23 +207,23 @@ void apply_gravity(const float* restrict x_pos,
   nblocks.z = 1;
 
   if (strong_gravity_mode) {
-    strong_gravity_kernel<vertex_t, edge_t><<<nblocks, nthreads, 0, stream>>>(
+    strong_gravity_kernel<vertex_t><<<nblocks, nthreads, 0, stream>>>(
       x_pos, y_pos, attract_x, attract_y, mass, gravity, scaling_ratio, n);
   } else {
-    linear_gravity_kernel<vertex_t, edge_t>
+    linear_gravity_kernel<vertex_t>
       <<<nblocks, nthreads, 0, stream>>>(x_pos, y_pos, attract_x, attract_y, mass, gravity, n);
   }
   RAFT_CHECK_CUDA(stream);
 }
 
-template <typename vertex_t, typename edge_t>
+template <typename vertex_t>
 __global__ static void local_speed_kernel(const float* restrict repel_x,
                                           const float* restrict repel_y,
                                           const float* restrict attract_x,
                                           const float* restrict attract_y,
                                           const float* restrict old_dx,
                                           const float* restrict old_dy,
-                                          const edge_t* restrict mass,
+                                          const float* restrict mass,
                                           float* restrict swinging,
                                           float* restrict traction,
                                           const vertex_t n)
@@ -239,14 +239,14 @@ __global__ static void local_speed_kernel(const float* restrict repel_x,
   }
 }
 
-template <typename vertex_t, typename edge_t>
+template <typename vertex_t>
 void compute_local_speed(const float* restrict repel_x,
                          const float* restrict repel_y,
                          const float* restrict attract_x,
                          const float* restrict attract_y,
                          float* restrict old_dx,
                          float* restrict old_dy,
-                         const edge_t* restrict mass,
+                         const float* restrict mass,
                          float* restrict swinging,
                          float* restrict traction,
                          const vertex_t n,
@@ -262,7 +262,7 @@ void compute_local_speed(const float* restrict repel_x,
   nblocks.y = 1;
   nblocks.z = 1;
 
-  local_speed_kernel<vertex_t, edge_t><<<nblocks, nthreads, 0, stream>>>(
+  local_speed_kernel<vertex_t><<<nblocks, nthreads, 0, stream>>>(
     repel_x, repel_y, attract_x, attract_y, old_dx, old_dy, mass, swinging, traction, n);
   RAFT_CHECK_CUDA(stream);
 }

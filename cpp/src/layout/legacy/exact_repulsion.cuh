@@ -21,12 +21,12 @@
 namespace cugraph {
 namespace detail {
 
-template <typename vertex_t, typename edge_t>
+template <typename vertex_t>
 __global__ static void repulsion_kernel(const float* restrict x_pos,
                                         const float* restrict y_pos,
                                         float* restrict repel_x,
                                         float* restrict repel_y,
-                                        const edge_t* restrict mass,
+                                        const float* restrict mass,
                                         const float scaling_ratio,
                                         bool prevent_overlapping,
                                         const float* restrict vertex_radius,
@@ -65,12 +65,12 @@ __global__ static void repulsion_kernel(const float* restrict x_pos,
   }
 }
 
-template <typename vertex_t, typename edge_t, int TPB_X = 32, int TPB_Y = 32>
+template <typename vertex_t, int TPB_X = 32, int TPB_Y = 32>
 void apply_repulsion(const float* restrict x_pos,
                      const float* restrict y_pos,
                      float* restrict repel_x,
                      float* restrict repel_y,
-                     const edge_t* restrict mass,
+                     const float* restrict mass,
                      const float scaling_ratio,
                      bool prevent_overlapping,
                      const float* restrict vertex_radius,
@@ -86,16 +86,16 @@ void apply_repulsion(const float* restrict x_pos,
                  min(n + static_cast<vertex_t>(nthreads.y) - 1 / static_cast<vertex_t>(nthreads.y),
                      static_cast<vertex_t>(CUDA_MAX_BLOCKS_2D))));
 
-  repulsion_kernel<vertex_t, edge_t><<<nblocks, nthreads, 0, stream>>>(x_pos,
-                                                                       y_pos,
-                                                                       repel_x,
-                                                                       repel_y,
-                                                                       mass,
-                                                                       scaling_ratio,
-                                                                       prevent_overlapping,
-                                                                       vertex_radius,
-                                                                       overlap_scaling_ratio,
-                                                                       n);
+  repulsion_kernel<vertex_t><<<nblocks, nthreads, 0, stream>>>(x_pos,
+                                                               y_pos,
+                                                               repel_x,
+                                                               repel_y,
+                                                               mass,
+                                                               scaling_ratio,
+                                                               prevent_overlapping,
+                                                               vertex_radius,
+                                                               overlap_scaling_ratio,
+                                                               n);
   RAFT_CHECK_CUDA(stream);
 }
 

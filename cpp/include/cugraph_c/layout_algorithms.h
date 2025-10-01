@@ -95,6 +95,12 @@ typedef struct {
  * @param [in]   vertex_mobility_values
  *                               Mobility of each vertex, used to scale the displacement at each
  *                               iteration.
+ * @param [in]   vertex_mass_vertices
+ *                               Vertex identities for vertex mass.
+ * @param [in]   vertex_mass_values
+ *                               Mass of each vertex, which controls the attraction to other
+ *                               vertices. If not provided, the mass of each vertex will be its
+ *                               degree plus one.
  * @param [in]   verbose         Output convergence info at each interation.
  * @param [in]   do_expensive_check
  *                               A flag to run expensive checks for input arguments (if set to true)
@@ -126,6 +132,8 @@ cugraph_error_code_t cugraph_force_atlas2(
   double gravity,
   cugraph_type_erased_device_array_view_t* vertex_mobility_vertices,
   cugraph_type_erased_device_array_view_t* vertex_mobility_values,
+  cugraph_type_erased_device_array_view_t* vertex_mass_vertices,
+  cugraph_type_erased_device_array_view_t* vertex_mass_values,
   bool_t verbose,
   bool_t do_expensive_check,
   cugraph_layout_result_t** result,

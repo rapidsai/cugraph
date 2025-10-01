@@ -66,6 +66,8 @@ struct force_atlas2_functor : public cugraph::c_api::abstract_functor {
   double gravity_{};
   cugraph::c_api::cugraph_type_erased_device_array_view_t const* vertex_mobility_vertices_{};
   cugraph::c_api::cugraph_type_erased_device_array_view_t const* vertex_mobility_values_{};
+  cugraph::c_api::cugraph_type_erased_device_array_view_t const* vertex_mass_vertices_{};
+  cugraph::c_api::cugraph_type_erased_device_array_view_t const* vertex_mass_values_{};
   bool verbose_{};
   bool do_expensive_check_{};
   cugraph::c_api::cugraph_layout_result_t* result_{};
@@ -93,6 +95,8 @@ struct force_atlas2_functor : public cugraph::c_api::abstract_functor {
                        double gravity,
                        ::cugraph_type_erased_device_array_view_t const* vertex_mobility_vertices,
                        ::cugraph_type_erased_device_array_view_t const* vertex_mobility_values,
+                       ::cugraph_type_erased_device_array_view_t const* vertex_mass_vertices,
+                       ::cugraph_type_erased_device_array_view_t const* vertex_mass_values,
                        bool verbose,
                        bool do_expensive_check)
     : abstract_functor(),
@@ -130,6 +134,12 @@ struct force_atlas2_functor : public cugraph::c_api::abstract_functor {
       vertex_mobility_values_(
         reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
           vertex_mobility_values)),
+      vertex_mass_vertices_(
+        reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
+          vertex_mass_vertices)),
+      vertex_mass_values_(
+        reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
+          vertex_mass_values)),
       verbose_(verbose),
       do_expensive_check_(do_expensive_check)
   {
@@ -202,6 +212,9 @@ struct force_atlas2_functor : public cugraph::c_api::abstract_functor {
 
       rmm::device_uvector<vertex_t> vertex_mobility_vertices(0, handle_.get_stream());
       rmm::device_uvector<float> vertex_mobility_values(0, handle_.get_stream());
+
+      rmm::device_uvector<vertex_t> vertex_mass_vertices(0, handle_.get_stream());
+      rmm::device_uvector<float> vertex_mass_values(0, handle_.get_stream());
 
       if (x_start_ != nullptr) {
         // re-order x_start and y_start based on internal vertex IDs
@@ -290,6 +303,34 @@ struct force_atlas2_functor : public cugraph::c_api::abstract_functor {
           raft::device_span<float>{vertex_mobility_values.data(), vertex_mobility_values.size()});
       }
 
+      if (vertex_mass_values_ != nullptr) {
+        // re-order vertex_mass based on internal vertex IDs
+        vertex_mass_vertices.resize(vertex_mass_vertices_->size_, handle_.get_stream());
+        vertex_mass_values.resize(vertex_mass_values_->size_, handle_.get_stream());
+        raft::copy(vertex_mass_vertices.data(),
+                   vertex_mass_vertices_->as_type<vertex_t>(),
+                   vertex_mass_vertices_->size_,
+                   handle_.get_stream());
+        raft::copy(vertex_mass_values.data(),
+                   vertex_mass_values_->as_type<float>(),
+                   vertex_mass_values_->size_,
+                   handle_.get_stream());
+
+        cugraph::renumber_ext_vertices<vertex_t, multi_gpu>(
+          handle_,
+          vertex_mass_vertices.data(),
+          vertex_mass_vertices.size(),
+          number_map->data(),
+          graph_view.local_vertex_partition_range_first(),
+          graph_view.local_vertex_partition_range_last(),
+          do_expensive_check_);
+
+        cugraph::c_api::detail::sort_by_key(
+          handle_,
+          raft::device_span<vertex_t>{vertex_mass_vertices.data(), vertex_mass_vertices.size()},
+          raft::device_span<float>{vertex_mass_values.data(), vertex_mass_values.size()});
+      }
+
       cugraph::force_atlas2<vertex_t, edge_t, weight_t>(
         handle_,
         rng_state_->rng_state_,
@@ -311,6 +352,7 @@ struct force_atlas2_functor : public cugraph::c_api::abstract_functor {
         strong_gravity_mode_,
         gravity_,
         vertex_mobility_values_ != nullptr ? vertex_mobility_values.data() : nullptr,
+        vertex_mass_values_ != nullptr ? vertex_mass_values.data() : nullptr,
         verbose_,
         callback);
 
@@ -396,6 +438,8 @@ extern "C" cugraph_error_code_t cugraph_force_atlas2(
   double gravity,
   const cugraph_type_erased_device_array_view_t* vertex_mobility_vertices,
   const cugraph_type_erased_device_array_view_t* vertex_mobility_values,
+  const cugraph_type_erased_device_array_view_t* vertex_mass_vertices,
+  const cugraph_type_erased_device_array_view_t* vertex_mass_values,
   bool_t verbose,
   bool_t do_expensive_check,
   cugraph::c_api::cugraph_layout_result_t** result,
@@ -417,6 +461,12 @@ extern "C" cugraph_error_code_t cugraph_force_atlas2(
       ((vertex_mobility_vertices != nullptr) && (vertex_mobility_values != nullptr)),
     CUGRAPH_INVALID_INPUT,
     "Both vertex_mobility_vertices and vertex_mobility_values should either be NULL or specified.",
+    *error);
+  CAPI_EXPECTS(
+    ((vertex_mass_vertices == nullptr) && (vertex_mass_values == nullptr)) ||
+      ((vertex_mass_vertices != nullptr) && (vertex_mass_values != nullptr)),
+    CUGRAPH_INVALID_INPUT,
+    "Both vertex_mass_vertices and vertex_mass_values should either be NULL or specified.",
     *error);
 
   if (x_start != nullptr) {
@@ -470,6 +520,21 @@ extern "C" cugraph_error_code_t cugraph_force_atlas2(
                  "vertex type of graph and vertex_mobility_vertices must match",
                  *error);
   }
+  if (vertex_mass_values != nullptr) {
+    CAPI_EXPECTS(reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
+                   vertex_mass_values)
+                     ->type_ == FLOAT32,
+                 CUGRAPH_INVALID_INPUT,
+                 "vertex_mass_values should be of type float32",
+                 *error);
+    CAPI_EXPECTS(reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)->vertex_type_ ==
+                   reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
+                     vertex_mass_vertices)
+                     ->type_,
+                 CUGRAPH_INVALID_INPUT,
+                 "vertex type of graph and vertex_mass_vertices must match",
+                 *error);
+  }
 
   force_atlas2_functor functor(handle,
                                rng_state,
@@ -493,6 +558,8 @@ extern "C" cugraph_error_code_t cugraph_force_atlas2(
                                gravity,
                                vertex_mobility_vertices,
                                vertex_mobility_values,
+                               vertex_mass_vertices,
+                               vertex_mass_values,
                                verbose,
                                do_expensive_check);
 

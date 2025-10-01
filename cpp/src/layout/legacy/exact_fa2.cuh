@@ -54,6 +54,7 @@ void exact_fa2(raft::handle_t const& handle,
                bool strong_gravity_mode                      = false,
                const float gravity                           = 1.0,
                float* vertex_mobility                        = nullptr,
+               float* vertex_mass                            = nullptr,
                bool verbose                                  = false,
                internals::GraphBasedDimRedCallback* callback = nullptr)
 {
@@ -64,7 +65,8 @@ void exact_fa2(raft::handle_t const& handle,
   float* d_repel{nullptr};
   float* d_attract{nullptr};
   float* d_old_forces{nullptr};
-  edge_t* d_mass{nullptr};
+  float* d_mass{nullptr};
+  edge_t* d_mass_edge_t{nullptr};
   float* d_swinging{nullptr};
   float* d_traction{nullptr};
 
@@ -72,9 +74,8 @@ void exact_fa2(raft::handle_t const& handle,
   rmm::device_uvector<float> attract(n * 2, stream_view);
   rmm::device_uvector<float> old_forces(n * 2, stream_view);
   thrust::fill(handle.get_thrust_policy(), old_forces.begin(), old_forces.end(), 0.f);
-  // FA2 requires degree + 1.
-  rmm::device_uvector<edge_t> mass(n, stream_view);
-  thrust::fill(handle.get_thrust_policy(), mass.begin(), mass.end(), 1);
+  rmm::device_uvector<edge_t> mass_edge_t(0, stream_view);
+  rmm::device_uvector<float> mass(n, stream_view);
   rmm::device_uvector<float> swinging(n, stream_view);
   rmm::device_uvector<float> traction(n, stream_view);
 
@@ -97,8 +98,23 @@ void exact_fa2(raft::handle_t const& handle,
   sort(graph, stream_view.value());
   RAFT_CHECK_CUDA(stream_view.value());
 
-  graph.degree(d_mass, cugraph::legacy::DegreeDirection::OUT);
-  RAFT_CHECK_CUDA(stream_view.value());
+  if (vertex_mass != nullptr) {
+    raft::copy(d_mass, vertex_mass, n, stream_view.value());
+  } else {
+    // FA2 requires degree + 1.
+    mass_edge_t.resize(n, handle.get_stream());
+    thrust::fill(handle.get_thrust_policy(), mass_edge_t.begin(), mass_edge_t.end(), 1);
+    d_mass_edge_t = mass_edge_t.data();
+    graph.degree(d_mass_edge_t, cugraph::legacy::DegreeDirection::OUT);
+    RAFT_CHECK_CUDA(stream_view.value());
+
+    thrust::transform(
+      handle.get_thrust_policy(),
+      mass_edge_t.begin(),
+      mass_edge_t.end(),
+      mass.begin(),
+      cuda::proclaim_return_type<float>([] __device__(edge_t x) { return static_cast<float>(x); }));
+  }
 
   const vertex_t* row = graph.src_indices;
   const vertex_t* col = graph.dst_indices;
@@ -110,7 +126,7 @@ void exact_fa2(raft::handle_t const& handle,
   float jt                        = 0.f;
 
   if (outbound_attraction_distribution) {
-    edge_t sum = thrust::reduce(handle.get_thrust_policy(), mass.begin(), mass.end());
+    float sum = thrust::reduce(handle.get_thrust_policy(), mass.begin(), mass.end());
     outbound_att_compensation = sum / (float)n;
   }
 
@@ -127,28 +143,28 @@ void exact_fa2(raft::handle_t const& handle,
     thrust::fill(handle.get_thrust_policy(), traction.begin(), traction.end(), 0.f);
 
     // Exact repulsion
-    apply_repulsion<vertex_t, edge_t>(pos,
-                                      pos + n,
-                                      d_repel,
-                                      d_repel + n,
-                                      d_mass,
-                                      scaling_ratio,
-                                      prevent_overlapping,
-                                      vertex_radius,
-                                      overlap_scaling_ratio,
-                                      n,
-                                      stream_view.value());
+    apply_repulsion<vertex_t>(pos,
+                              pos + n,
+                              d_repel,
+                              d_repel + n,
+                              d_mass,
+                              scaling_ratio,
+                              prevent_overlapping,
+                              vertex_radius,
+                              overlap_scaling_ratio,
+                              n,
+                              stream_view.value());
 
-    apply_gravity<vertex_t, edge_t>(pos,
-                                    pos + n,
-                                    d_attract,
-                                    d_attract + n,
-                                    d_mass,
-                                    gravity,
-                                    strong_gravity_mode,
-                                    scaling_ratio,
-                                    n,
-                                    stream_view.value());
+    apply_gravity<vertex_t>(pos,
+                            pos + n,
+                            d_attract,
+                            d_attract + n,
+                            d_mass,
+                            gravity,
+                            strong_gravity_mode,
+                            scaling_ratio,
+                            n,
+                            stream_view.value());
 
     apply_attraction<vertex_t, edge_t, weight_t>(row,
                                                  col,
@@ -167,17 +183,17 @@ void exact_fa2(raft::handle_t const& handle,
                                                  vertex_radius,
                                                  stream_view.value());
 
-    compute_local_speed<vertex_t, edge_t>(d_repel,
-                                          d_repel + n,
-                                          d_attract,
-                                          d_attract + n,
-                                          d_old_forces,
-                                          d_old_forces + n,
-                                          d_mass,
-                                          d_swinging,
-                                          d_traction,
-                                          n,
-                                          stream_view.value());
+    compute_local_speed<vertex_t>(d_repel,
+                                  d_repel + n,
+                                  d_attract,
+                                  d_attract + n,
+                                  d_old_forces,
+                                  d_old_forces + n,
+                                  d_mass,
+                                  d_swinging,
+                                  d_traction,
+                                  n,
+                                  stream_view.value());
 
     // Compute global swinging and traction values.
     const float s = thrust::reduce(handle.get_thrust_policy(), swinging.begin(), swinging.end());
