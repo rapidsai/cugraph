@@ -71,7 +71,7 @@ struct generate {
     raft::device_span<typename GraphViewType::vertex_type const> vertex_type_offsets,
     int32_t hash_bin_count);
 
-  // generate unqiue edge property values (in [0, # edges in the graph) if property_t is an integer
+  // generate unique edge property values (in [0, # edges in the graph) if property_t is an integer
   // type, this function requires std::numeric_limits<property_t>::max() to be no smaller than the
   // number of edges in the input graph).
   static cugraph::edge_property_t<edge_type, property_t> unique_edge_property(

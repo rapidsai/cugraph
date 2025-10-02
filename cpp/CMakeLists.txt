@@ -80,10 +80,8 @@ message("-- Building for GPU_ARCHS = ${CMAKE_CUDA_ARCHITECTURES}")
 list(APPEND CUGRAPH_CUDA_FLAGS --expt-extended-lambda --expt-relaxed-constexpr)
 list(APPEND CUGRAPH_CUDA_FLAGS -Werror=cross-execution-space-call -Wno-deprecated-declarations -DRAFT_HIDE_DEPRECATION_WARNINGS -Xptxas=--disable-warnings)
 list(APPEND CUGRAPH_CUDA_FLAGS -Xcompiler=-Wall,-Wno-error=sign-compare,-Wno-error=unused-but-set-variable)
-list(APPEND CUGRAPH_CUDA_FLAGS -Xfatbin=-compress-all)
-if(CMAKE_CUDA_COMPILER_ID STREQUAL "NVIDIA" AND (CMAKE_CUDA_COMPILER_VERSION VERSION_GREATER_EQUAL 12.9 AND CMAKE_CUDA_COMPILER_VERSION VERSION_LESS 13.0))
-  list(APPEND CUGRAPH_CUDA_FLAGS -Xfatbin=--compress-level=3)
-endif()
+include(${rapids-cmake-dir}/cuda/enable_fatbin_compression.cmake)
+rapids_cuda_enable_fatbin_compression(VARIABLE CUGRAPH_CUDA_FLAGS TUNE_FOR rapids)
 
 # Option to enable line info in CUDA device compilation to allow introspection when profiling /
 # memchecking
@@ -156,19 +154,16 @@ set(CUGRAPH_SOURCES
     src/sampling/detail/update_temporal_edge_mask_sg_v64_e64.cu
     src/sampling/detail/update_temporal_edge_mask_mg_v32_e32.cu
     src/sampling/detail/update_temporal_edge_mask_mg_v64_e64.cu
-    src/utilities/shuffle_vertices_mg_v32_fp.cu
-    src/utilities/shuffle_vertices_mg_v32_integral.cu
-    src/utilities/shuffle_vertices_mg_v64_fp.cu
-    src/utilities/shuffle_vertices_mg_v64_integral.cu
+    src/utilities/shuffle_vertices_mg_v32.cu
+    src/utilities/shuffle_vertices_mg_v64.cu
+    src/utilities/shuffle_properties_mg.cu
     src/utilities/validation_checks.cu
     src/detail/permute_range_v32.cu
     src/detail/permute_range_v64.cu
     src/utilities/shuffle_vertex_pairs_mg_v32_e32.cu
     src/utilities/shuffle_vertex_pairs_mg_v64_e64.cu
-    src/utilities/shuffle_local_edge_srcs_dsts_mg_v32_fp.cu
-    src/utilities/shuffle_local_edge_srcs_dsts_mg_v32_integral.cu
-    src/utilities/shuffle_local_edge_srcs_dsts_mg_v64_fp.cu
-    src/utilities/shuffle_local_edge_srcs_dsts_mg_v64_integral.cu
+    src/utilities/shuffle_local_edge_srcs_dsts_mg_v32.cu
+    src/utilities/shuffle_local_edge_srcs_dsts_mg_v64.cu
     src/detail/collect_local_vertex_values_sg_v32_e32.cu
     src/detail/collect_local_vertex_values_sg_v64_e64.cu
     src/detail/collect_local_vertex_values_mg_v32_e32.cu
@@ -409,14 +404,6 @@ set(CUGRAPH_SOURCES
     src/structure/create_graph_from_edgelist_sg_v32_e32.cu
     src/structure/create_graph_from_edgelist_mg_v64_e64.cu
     src/structure/create_graph_from_edgelist_mg_v32_e32.cu
-    src/structure/create_graph_from_edgelist_sg_v64_e64_t32.cu
-    src/structure/create_graph_from_edgelist_sg_v32_e32_t32.cu
-    src/structure/create_graph_from_edgelist_mg_v64_e64_t32.cu
-    src/structure/create_graph_from_edgelist_mg_v32_e32_t32.cu
-    src/structure/create_graph_from_edgelist_sg_v64_e64_t64.cu
-    src/structure/create_graph_from_edgelist_sg_v32_e32_t64.cu
-    src/structure/create_graph_from_edgelist_mg_v64_e64_t64.cu
-    src/structure/create_graph_from_edgelist_mg_v32_e32_t64.cu
     src/structure/symmetrize_edgelist_sg_v64_e64.cu
     src/structure/symmetrize_edgelist_sg_v32_e32.cu
     src/structure/symmetrize_edgelist_mg_v64_e64.cu
@@ -553,6 +540,8 @@ add_library(cugraph_c
         src/c_api/louvain.cpp
         src/c_api/triangle_count.cpp
         src/c_api/neighbor_sampling.cpp
+        src/c_api/sampling_result.cpp
+        src/c_api/temporal_neighbor_sampling.cpp
         src/c_api/negative_sampling.cpp
         src/c_api/labeling_result.cpp
         src/c_api/weakly_connected_components.cpp

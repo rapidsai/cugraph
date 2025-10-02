@@ -112,8 +112,8 @@ class Tests_Similarity
         std::for_each(thrust::make_zip_iterator(src.begin(), dst.begin()),
                       thrust::make_zip_iterator(src.end(), dst.end()),
                       [&one_hop_v1, &one_hop_v2, seed](auto t) {
-                        auto u = thrust::get<0>(t);
-                        auto v = thrust::get<1>(t);
+                        auto u = cuda::std::get<0>(t);
+                        auto v = cuda::std::get<1>(t);
                         if (u == seed) {
                           one_hop_v1.push_back(u);
                           one_hop_v2.push_back(v);
@@ -124,13 +124,13 @@ class Tests_Similarity
       std::for_each(thrust::make_zip_iterator(one_hop_v1.begin(), one_hop_v2.begin()),
                     thrust::make_zip_iterator(one_hop_v1.end(), one_hop_v2.end()),
                     [&](auto t1) {
-                      auto seed     = thrust::get<0>(t1);
-                      auto neighbor = thrust::get<1>(t1);
+                      auto seed     = cuda::std::get<0>(t1);
+                      auto neighbor = cuda::std::get<1>(t1);
                       std::for_each(thrust::make_zip_iterator(src.begin(), dst.begin()),
                                     thrust::make_zip_iterator(src.end(), dst.end()),
                                     [&](auto t2) {
-                                      auto u = thrust::get<0>(t2);
-                                      auto v = thrust::get<1>(t2);
+                                      auto u = cuda::std::get<0>(t2);
+                                      auto v = cuda::std::get<1>(t2);
                                       if (u == neighbor) {
                                         h_v1.push_back(seed);
                                         h_v2.push_back(v);
@@ -144,8 +144,8 @@ class Tests_Similarity
       auto end_iter = std::unique(thrust::make_zip_iterator(h_v1.begin(), h_v2.begin()),
                                   thrust::make_zip_iterator(h_v1.end(), h_v2.end()),
                                   [](auto t1, auto t2) {
-                                    return (thrust::get<0>(t1) == thrust::get<0>(t2)) &&
-                                           (thrust::get<1>(t1) == thrust::get<1>(t2));
+                                    return (cuda::std::get<0>(t1) == cuda::std::get<0>(t2)) &&
+                                           (cuda::std::get<1>(t1) == cuda::std::get<1>(t2));
                                   });
 
       h_v1.resize(

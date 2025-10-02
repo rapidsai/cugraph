@@ -22,8 +22,8 @@
 #include <rmm/cuda_stream_view.hpp>
 #include <rmm/device_uvector.hpp>
 
+#include <cuda/std/tuple>
 #include <thrust/iterator/zip_iterator.h>
-#include <thrust/tuple.h>
 
 #include <type_traits>
 
@@ -38,34 +38,33 @@ auto allocate_dataframe_buffer_tuple_impl(
   rmm::cuda_stream_view stream_view,
   rmm::device_async_resource_ref mr = rmm::mr::get_current_device_resource_ref())
 {
-  return std::make_tuple(rmm::device_uvector<typename thrust::tuple_element<Is, TupleType>::type>(
-    buffer_size, stream_view, mr)...);
+  return std::make_tuple(
+    rmm::device_uvector<typename cuda::std::tuple_element<Is, TupleType>::type>(
+      buffer_size, stream_view, mr)...);
 }
 
 template <typename TupleType, std::size_t... Is>
 auto get_dataframe_buffer_begin_tuple_impl(std::index_sequence<Is...>, TupleType& buffer)
 {
-  return thrust::make_zip_iterator(thrust::make_tuple((std::get<Is>(buffer).begin())...));
+  return thrust::make_zip_iterator((std::get<Is>(buffer).begin())...);
 }
 
 template <typename TupleType, std::size_t... Is>
 auto get_dataframe_buffer_end_tuple_impl(std::index_sequence<Is...>, TupleType& buffer)
 {
-  return thrust::make_zip_iterator(thrust::make_tuple((std::get<Is>(buffer).end())...));
+  return thrust::make_zip_iterator((std::get<Is>(buffer).end())...);
 }
 
 template <typename TupleType, size_t... Is>
 auto get_dataframe_buffer_cbegin_tuple_impl(std::index_sequence<Is...>, TupleType& buffer)
 {
-  // thrust::make_tuple instead of std::make_tuple as this is fed to thrust::make_zip_iterator.
-  return thrust::make_zip_iterator(thrust::make_tuple((std::get<Is>(buffer).cbegin())...));
+  return thrust::make_zip_iterator((std::get<Is>(buffer).cbegin())...);
 }
 
 template <typename TupleType, std::size_t... Is>
 auto get_dataframe_buffer_cend_tuple_impl(std::index_sequence<Is...>, TupleType& buffer)
 {
-  // thrust::make_tuple instead of std::make_tuple as this is fed to thrust::make_zip_iterator.
-  return thrust::make_zip_iterator(thrust::make_tuple((std::get<Is>(buffer).cend())...));
+  return thrust::make_zip_iterator((std::get<Is>(buffer).cend())...);
 }
 
 }  // namespace detail
@@ -87,7 +86,7 @@ auto allocate_dataframe_buffer(
   rmm::cuda_stream_view stream_view,
   rmm::device_async_resource_ref mr = rmm::mr::get_current_device_resource_ref())
 {
-  size_t constexpr tuple_size = thrust::tuple_size<T>::value;
+  size_t constexpr tuple_size = cuda::std::tuple_size<T>::value;
   return detail::allocate_dataframe_buffer_tuple_impl<T>(
     std::make_index_sequence<tuple_size>(), buffer_size, stream_view, mr);
 }
@@ -119,8 +118,9 @@ struct dataframe_buffer_iterator_type {
 };
 
 template <typename... Ts>
-struct dataframe_buffer_iterator_type<thrust::tuple<Ts...>> {
-  using type = thrust::zip_iterator<thrust::tuple<typename rmm::device_uvector<Ts>::iterator...>>;
+struct dataframe_buffer_iterator_type<cuda::std::tuple<Ts...>> {
+  using type =
+    thrust::zip_iterator<cuda::std::tuple<typename rmm::device_uvector<Ts>::iterator...>>;
 };
 
 template <typename T>
@@ -132,9 +132,9 @@ struct dataframe_buffer_const_iterator_type {
 };
 
 template <typename... Ts>
-struct dataframe_buffer_const_iterator_type<thrust::tuple<Ts...>> {
+struct dataframe_buffer_const_iterator_type<cuda::std::tuple<Ts...>> {
   using type =
-    thrust::zip_iterator<thrust::tuple<typename rmm::device_uvector<Ts>::const_iterator...>>;
+    thrust::zip_iterator<cuda::std::tuple<typename rmm::device_uvector<Ts>::const_iterator...>>;
 };
 
 template <typename T>

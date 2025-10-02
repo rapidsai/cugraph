@@ -24,6 +24,7 @@
 #include <rmm/device_uvector.hpp>
 
 #include <cuda/std/iterator>
+#include <cuda/std/tuple>
 #include <thrust/copy.h>
 #include <thrust/for_each.h>
 #include <thrust/gather.h>
@@ -36,7 +37,6 @@
 #include <thrust/set_operations.h>
 #include <thrust/sort.h>
 #include <thrust/transform.h>
-#include <thrust/tuple.h>
 
 #include <algorithm>
 #include <optional>
@@ -48,11 +48,13 @@ namespace {
 // compare after flipping major & minor
 template <typename vertex_t, typename weight_t>
 struct compare_upper_triangular_edges_as_lower_triangular_t {
-  __device__ bool operator()(thrust::tuple<vertex_t, vertex_t, weight_t> const& lhs,
-                             thrust::tuple<vertex_t, vertex_t, weight_t> const& rhs) const
+  __device__ bool operator()(cuda::std::tuple<vertex_t, vertex_t, weight_t> const& lhs,
+                             cuda::std::tuple<vertex_t, vertex_t, weight_t> const& rhs) const
   {
-    return thrust::make_tuple(thrust::get<1>(lhs), thrust::get<0>(lhs), thrust::get<2>(lhs)) <
-           thrust::make_tuple(thrust::get<1>(rhs), thrust::get<0>(rhs), thrust::get<2>(rhs));
+    return cuda::std::make_tuple(
+             cuda::std::get<1>(lhs), cuda::std::get<0>(lhs), cuda::std::get<2>(lhs)) <
+           cuda::std::make_tuple(
+             cuda::std::get<1>(rhs), cuda::std::get<0>(rhs), cuda::std::get<2>(rhs));
   }
 };
 
@@ -61,21 +63,21 @@ struct compare_upper_triangular_edges_as_lower_triangular_t {
 // upper triangular edges
 template <typename vertex_t, typename weight_t>
 struct compare_lower_and_upper_triangular_edges_t {
-  __device__ bool operator()(thrust::tuple<vertex_t, vertex_t, weight_t> const& lhs,
-                             thrust::tuple<vertex_t, vertex_t, weight_t> const& rhs) const
+  __device__ bool operator()(cuda::std::tuple<vertex_t, vertex_t, weight_t> const& lhs,
+                             cuda::std::tuple<vertex_t, vertex_t, weight_t> const& rhs) const
   {
-    auto lhs_in_lower = thrust::get<0>(lhs) > thrust::get<1>(lhs);
-    auto rhs_in_lower = thrust::get<0>(rhs) > thrust::get<1>(rhs);
-    return thrust::make_tuple(
-             lhs_in_lower ? thrust::get<0>(lhs) : thrust::get<1>(lhs),
-             lhs_in_lower ? thrust::get<1>(lhs) : thrust::get<0>(lhs),
+    auto lhs_in_lower = cuda::std::get<0>(lhs) > cuda::std::get<1>(lhs);
+    auto rhs_in_lower = cuda::std::get<0>(rhs) > cuda::std::get<1>(rhs);
+    return cuda::std::make_tuple(
+             lhs_in_lower ? cuda::std::get<0>(lhs) : cuda::std::get<1>(lhs),
+             lhs_in_lower ? cuda::std::get<1>(lhs) : cuda::std::get<0>(lhs),
              !lhs_in_lower,  // lower triangular edges comes before upper triangular edges
-             thrust::get<2>(lhs)) <
-           thrust::make_tuple(
-             rhs_in_lower ? thrust::get<0>(rhs) : thrust::get<1>(rhs),
-             rhs_in_lower ? thrust::get<1>(rhs) : thrust::get<0>(rhs),
+             cuda::std::get<2>(lhs)) <
+           cuda::std::make_tuple(
+             rhs_in_lower ? cuda::std::get<0>(rhs) : cuda::std::get<1>(rhs),
+             rhs_in_lower ? cuda::std::get<1>(rhs) : cuda::std::get<0>(rhs),
              !rhs_in_lower,  // lower triangular edges comes before upper triangular edges
-             thrust::get<2>(rhs));
+             cuda::std::get<2>(rhs));
   }
 };
 
@@ -96,9 +98,10 @@ struct symmetrize_op_t {
     auto max_run_length = lower_run_length < upper_run_length ? upper_run_length : lower_run_length;
     for (size_t i = 0; i < max_run_length; ++i) {
       if (i < min_run_length) {
-        thrust::get<2>(*(edge_first + i)) = (thrust::get<2>(*(edge_first + i)) +
-                                             thrust::get<2>(*(edge_first + lower_run_length + i))) /
-                                            weight_t{2};  // average
+        cuda::std::get<2>(*(edge_first + i)) =
+          (cuda::std::get<2>(*(edge_first + i)) +
+           cuda::std::get<2>(*(edge_first + lower_run_length + i))) /
+          weight_t{2};  // average
         *(include_first + i)                    = true;
         *(include_first + lower_run_length + i) = false;
       } else {
@@ -127,12 +130,12 @@ struct update_edge_weights_and_flags_t {
     } else {
       auto cur       = *(edge_first + i);
       auto prev      = *(edge_first + (i - 1));
-      auto cur_pair  = thrust::get<0>(cur) > thrust::get<1>(cur)
-                         ? thrust::make_tuple(thrust::get<0>(cur), thrust::get<1>(cur))
-                         : thrust::make_tuple(thrust::get<1>(cur), thrust::get<0>(cur));
-      auto prev_pair = thrust::get<0>(prev) > thrust::get<1>(prev)
-                         ? thrust::make_tuple(thrust::get<0>(prev), thrust::get<1>(prev))
-                         : thrust::make_tuple(thrust::get<1>(prev), thrust::get<0>(prev));
+      auto cur_pair  = cuda::std::get<0>(cur) > cuda::std::get<1>(cur)
+                         ? cuda::std::make_tuple(cuda::std::get<0>(cur), cuda::std::get<1>(cur))
+                         : cuda::std::make_tuple(cuda::std::get<1>(cur), cuda::std::get<0>(cur));
+      auto prev_pair = cuda::std::get<0>(prev) > cuda::std::get<1>(prev)
+                         ? cuda::std::make_tuple(cuda::std::get<0>(prev), cuda::std::get<1>(prev))
+                         : cuda::std::make_tuple(cuda::std::get<1>(prev), cuda::std::get<0>(prev));
       first_in_run   = cur_pair != prev_pair;
     }
 
@@ -140,13 +143,14 @@ struct update_edge_weights_and_flags_t {
       auto first = *(edge_first + i);
       size_t lower_run_length{0};
       size_t upper_run_length{0};
-      auto pair_first = thrust::get<0>(first) > thrust::get<1>(first)
-                          ? thrust::make_tuple(thrust::get<0>(first), thrust::get<1>(first))
-                          : thrust::make_tuple(thrust::get<1>(first), thrust::get<0>(first));
+      auto pair_first =
+        cuda::std::get<0>(first) > cuda::std::get<1>(first)
+          ? cuda::std::make_tuple(cuda::std::get<0>(first), cuda::std::get<1>(first))
+          : cuda::std::make_tuple(cuda::std::get<1>(first), cuda::std::get<0>(first));
       while (i + lower_run_length < num_edges) {
         auto cur = *(edge_first + i + lower_run_length);
-        if ((thrust::get<0>(cur) > thrust::get<1>(cur)) &&
-            (thrust::make_tuple(thrust::get<0>(cur), thrust::get<1>(cur)) == pair_first)) {
+        if ((cuda::std::get<0>(cur) > cuda::std::get<1>(cur)) &&
+            (cuda::std::make_tuple(cuda::std::get<0>(cur), cuda::std::get<1>(cur)) == pair_first)) {
           ++lower_run_length;
         } else {
           break;
@@ -154,8 +158,8 @@ struct update_edge_weights_and_flags_t {
       }
       while (i + lower_run_length + upper_run_length < num_edges) {
         auto cur = *(edge_first + i + lower_run_length + upper_run_length);
-        if ((thrust::get<0>(cur) < thrust::get<1>(cur)) &&
-            (thrust::make_tuple(thrust::get<1>(cur), thrust::get<0>(cur)) == pair_first)) {
+        if ((cuda::std::get<0>(cur) < cuda::std::get<1>(cur)) &&
+            (cuda::std::make_tuple(cuda::std::get<1>(cur), cuda::std::get<0>(cur)) == pair_first)) {
           ++upper_run_length;
         } else {
           break;
@@ -169,11 +173,12 @@ struct update_edge_weights_and_flags_t {
 
 template <typename vertex_t>
 struct to_lower_triangular_t {
-  __device__ thrust::tuple<vertex_t, vertex_t> operator()(thrust::tuple<vertex_t, vertex_t> e) const
+  __device__ cuda::std::tuple<vertex_t, vertex_t> operator()(
+    cuda::std::tuple<vertex_t, vertex_t> e) const
   {
-    return thrust::get<0>(e) > thrust::get<1>(e)
+    return cuda::std::get<0>(e) > cuda::std::get<1>(e)
              ? e
-             : thrust::make_tuple(thrust::get<1>(e), thrust::get<0>(e));
+             : cuda::std::make_tuple(cuda::std::get<1>(e), cuda::std::get<0>(e));
   }
 };
 
@@ -231,7 +236,7 @@ merge_lower_triangular(raft::handle_t const& handle,
   merged_minors.resize(merged_majors.size(), handle.get_stream());
   merged_properties.resize(merged_majors.size(), handle.get_stream());
   auto merged_first = thrust::make_zip_iterator(
-    thrust::make_tuple(merged_majors.begin(), merged_minors.begin(), merged_properties.begin()));
+    merged_majors.begin(), merged_minors.begin(), merged_properties.begin());
   thrust::merge(handle.get_thrust_policy(),
                 lower_triangular_edge_first,
                 lower_triangular_edge_first + lower_triangular_majors.size(),
@@ -269,7 +274,7 @@ merge_lower_triangular(raft::handle_t const& handle,
                         thrust::remove_if(handle.get_thrust_policy(),
                                           merged_edge_and_flag_first,
                                           merged_edge_and_flag_first + merged_majors.size(),
-                                          [] __device__(auto t) { return !thrust::get<3>(t); })),
+                                          [] __device__(auto t) { return !cuda::std::get<3>(t); })),
     handle.get_stream());
   merged_majors.shrink_to_fit(handle.get_stream());
   merged_minors.resize(merged_majors.size(), handle.get_stream());
@@ -302,13 +307,13 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> merge_l
   rmm::device_uvector<vertex_t> merged_majors(0, handle.get_stream());
   rmm::device_uvector<vertex_t> merged_minors(0, handle.get_stream());
 
-  auto lower_triangular_edge_first = thrust::make_zip_iterator(
-    thrust::make_tuple(lower_triangular_majors.begin(), lower_triangular_minors.begin()));
+  auto lower_triangular_edge_first =
+    thrust::make_zip_iterator(lower_triangular_majors.begin(), lower_triangular_minors.begin());
   thrust::sort(handle.get_thrust_policy(),
                lower_triangular_edge_first,
                lower_triangular_edge_first + lower_triangular_majors.size());
   auto upper_triangular_edge_first = thrust::make_zip_iterator(
-    thrust::make_tuple(upper_triangular_minors.begin(), upper_triangular_majors.begin()));  // flip
+    upper_triangular_minors.begin(), upper_triangular_majors.begin());  // flip
   thrust::sort(handle.get_thrust_policy(),
                upper_triangular_edge_first,
                upper_triangular_edge_first + upper_triangular_majors.size());
@@ -318,8 +323,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> merge_l
                          : num_lower_triangular_edges + upper_triangular_majors.size(),
                        handle.get_stream());
   merged_minors.resize(merged_majors.size(), handle.get_stream());
-  auto merged_first =
-    thrust::make_zip_iterator(thrust::make_tuple(merged_majors.begin(), merged_minors.begin()));
+  auto merged_first = thrust::make_zip_iterator(merged_majors.begin(), merged_minors.begin());
   auto merged_last =
     reciprocal
       ? thrust::set_intersection(handle.get_thrust_policy(),
@@ -389,14 +393,14 @@ symmetrize_edgelist(raft::handle_t const& handle,
   size_t num_diagonal_edges{0};
 
   auto lower_triangular_compare = [] __device__(auto e) {
-    auto major = thrust::get<0>(e);
-    auto minor = thrust::get<1>(e);
+    auto major = cuda::std::get<0>(e);
+    auto minor = cuda::std::get<1>(e);
     return major > minor;
   };
 
   auto diagonal_compare = [] __device__(auto e) {
-    auto major = thrust::get<0>(e);
-    auto minor = thrust::get<1>(e);
+    auto major = cuda::std::get<0>(e);
+    auto minor = cuda::std::get<1>(e);
     return major == minor;
   };
 
@@ -1202,7 +1206,7 @@ symmetrize_edgelist(raft::handle_t const& handle,
            edgelist_edge_types,
            edgelist_edge_start_times,
            edgelist_edge_end_times) =
-    detail::symmetrize_edgelist<vertex_t, vertex_t, weight_t, edge_type_t, edge_time_t, multi_gpu>(
+    detail::symmetrize_edgelist<vertex_t, edge_t, weight_t, edge_type_t, edge_time_t, multi_gpu>(
       handle,
       std::move(edgelist_majors),
       std::move(edgelist_minors),

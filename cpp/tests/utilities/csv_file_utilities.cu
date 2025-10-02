@@ -119,9 +119,9 @@ bool check_symmetric(raft::handle_t const& handle,
 
   if (edgelist_weights) {
     auto org_first = thrust::make_zip_iterator(
-      thrust::make_tuple(org_srcs.begin(), org_dsts.begin(), (*org_weights).begin()));
+      cuda::std::make_tuple(org_srcs.begin(), org_dsts.begin(), (*org_weights).begin()));
     thrust::sort(handle.get_thrust_policy(), org_first, org_first + org_srcs.size());
-    auto symmetrized_first = thrust::make_zip_iterator(thrust::make_tuple(
+    auto symmetrized_first = thrust::make_zip_iterator(cuda::std::make_tuple(
       symmetrized_srcs.begin(), symmetrized_dsts.begin(), (*symmetrized_weights).begin()));
     thrust::sort(
       handle.get_thrust_policy(), symmetrized_first, symmetrized_first + symmetrized_srcs.size());
@@ -129,10 +129,10 @@ bool check_symmetric(raft::handle_t const& handle,
       handle.get_thrust_policy(), org_first, org_first + org_srcs.size(), symmetrized_first);
   } else {
     auto org_first =
-      thrust::make_zip_iterator(thrust::make_tuple(org_srcs.begin(), org_dsts.begin()));
+      thrust::make_zip_iterator(cuda::std::make_tuple(org_srcs.begin(), org_dsts.begin()));
     thrust::sort(handle.get_thrust_policy(), org_first, org_first + org_srcs.size());
     auto symmetrized_first = thrust::make_zip_iterator(
-      thrust::make_tuple(symmetrized_srcs.begin(), symmetrized_dsts.begin()));
+      cuda::std::make_tuple(symmetrized_srcs.begin(), symmetrized_dsts.begin()));
     thrust::sort(
       handle.get_thrust_policy(), symmetrized_first, symmetrized_first + symmetrized_srcs.size());
     return thrust::equal(
@@ -273,7 +273,7 @@ read_edgelist_from_csv_file(raft::handle_t const& handle,
       comm_size, major_comm_size, minor_comm_size};
     size_t number_of_local_edges{};
     if (d_edgelist_weights) {
-      auto edge_first = thrust::make_zip_iterator(thrust::make_tuple(
+      auto edge_first = thrust::make_zip_iterator(cuda::std::make_tuple(
         d_edgelist_srcs.begin(), d_edgelist_dsts.begin(), (*d_edgelist_weights).begin()));
       auto edge_last  = edge_first;
       if (shuffle) {  // edges are properly shuffled to the owning GPUs
@@ -282,8 +282,8 @@ read_edgelist_from_csv_file(raft::handle_t const& handle,
           edge_first,
           edge_first + d_edgelist_srcs.size(),
           [store_transposed, comm_rank, key_func = edge_key_func] __device__(auto e) {
-            auto major = thrust::get<0>(e);
-            auto minor = thrust::get<1>(e);
+            auto major = cuda::std::get<0>(e);
+            auto minor = cuda::std::get<1>(e);
             return store_transposed ? key_func(minor, major) != comm_rank
                                     : key_func(major, minor) != comm_rank;
           });
@@ -293,8 +293,8 @@ read_edgelist_from_csv_file(raft::handle_t const& handle,
           edge_first,
           edge_first + d_edgelist_srcs.size(),
           [comm_rank, comm_size] __device__(auto e) {
-            auto major = thrust::get<0>(e);
-            auto minor = thrust::get<1>(e);
+            auto major = cuda::std::get<0>(e);
+            auto minor = cuda::std::get<1>(e);
             return static_cast<int>(((major % comm_size) + (minor % comm_size)) % comm_size) !=
                    comm_rank;
           });
@@ -302,7 +302,7 @@ read_edgelist_from_csv_file(raft::handle_t const& handle,
       number_of_local_edges = cuda::std::distance(edge_first, edge_last);
     } else {
       auto edge_first = thrust::make_zip_iterator(
-        thrust::make_tuple(d_edgelist_srcs.begin(), d_edgelist_dsts.begin()));
+        cuda::std::make_tuple(d_edgelist_srcs.begin(), d_edgelist_dsts.begin()));
       auto edge_last = edge_first;
       if (shuffle) {  // edges are properly shuffled to the owning GPUs
         edge_last = thrust::remove_if(
@@ -310,8 +310,8 @@ read_edgelist_from_csv_file(raft::handle_t const& handle,
           edge_first,
           edge_first + d_edgelist_srcs.size(),
           [store_transposed, comm_rank, key_func = edge_key_func] __device__(auto e) {
-            auto major = thrust::get<0>(e);
-            auto minor = thrust::get<1>(e);
+            auto major = cuda::std::get<0>(e);
+            auto minor = cuda::std::get<1>(e);
             return store_transposed ? key_func(minor, major) != comm_rank
                                     : key_func(major, minor) != comm_rank;
           });
@@ -321,8 +321,8 @@ read_edgelist_from_csv_file(raft::handle_t const& handle,
           edge_first,
           edge_first + d_edgelist_srcs.size(),
           [comm_rank, comm_size] __device__(auto e) {
-            auto major = thrust::get<0>(e);
-            auto minor = thrust::get<1>(e);
+            auto major = cuda::std::get<0>(e);
+            auto minor = cuda::std::get<1>(e);
             return static_cast<int>(((major % comm_size) + (minor % comm_size)) % comm_size) !=
                    comm_rank;
           });
@@ -372,23 +372,29 @@ read_graph_from_csv_file(raft::handle_t const& handle,
                                                     large_edge_buffer_type);
 
   graph_t<vertex_t, edge_t, store_transposed, multi_gpu> graph(handle);
-  std::optional<cugraph::edge_property_t<edge_t, weight_t>> edge_weights{std::nullopt};
+  std::vector<cugraph::edge_arithmetic_property_t<edge_t>> edge_properties{};
+  std::vector<cugraph::arithmetic_device_uvector_t> edgelist_edge_properties{};
+  if (d_edgelist_weights) { edgelist_edge_properties.push_back(std::move(*d_edgelist_weights)); }
   std::optional<rmm::device_uvector<vertex_t>> renumber_map{std::nullopt};
-  std::tie(graph, edge_weights, std::ignore, std::ignore, renumber_map) = cugraph::
-    create_graph_from_edgelist<vertex_t, edge_t, weight_t, int32_t, store_transposed, multi_gpu>(
+  std::tie(graph, edge_properties, renumber_map) =
+    cugraph::create_graph_from_edgelist<vertex_t, edge_t, store_transposed, multi_gpu>(
       handle,
       std::nullopt,
       std::move(d_edgelist_srcs),
       std::move(d_edgelist_dsts),
-      std::move(d_edgelist_weights),
-      std::nullopt,
-      std::nullopt,
+      std::move(edgelist_edge_properties),
       cugraph::graph_properties_t{is_symmetric, false},
       renumber,
       large_vertex_buffer_type,
       large_edge_buffer_type);
 
-  return std::make_tuple(std::move(graph), std::move(edge_weights), std::move(renumber_map));
+  return std::make_tuple(
+    std::move(graph),
+    d_edgelist_weights
+      ? std::make_optional<cugraph::edge_property_t<edge_t, weight_t>>(std::move(
+          std::get<cugraph::edge_property_t<edge_t, weight_t>>(std::move(edge_properties[0]))))
+      : std::nullopt,
+    std::move(renumber_map));
 }
 
 // explicit instantiations

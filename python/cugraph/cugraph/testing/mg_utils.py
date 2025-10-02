@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2024, NVIDIA CORPORATION.
+# Copyright (c) 2022-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -21,6 +21,7 @@ from dask.distributed import Client
 from dask.base import is_dask_collection
 from dask_cuda import LocalCUDACluster
 from dask_cuda.initialize import initialize
+from dask_cuda.utils import get_device_total_memory
 from cugraph.dask.comms import comms as Comms
 from cugraph.dask.common.mg_utils import get_visible_devices
 from cugraph.generators import rmat
@@ -147,7 +148,9 @@ def start_dask_client(
             CUDA_VISIBLE_DEVICES=dask_worker_devices,
             jit_unspill=jit_unspill,
             worker_class=worker_class,
-            device_memory_limit=device_memory_limit,
+            device_memory_limit=device_memory_limit
+            if get_device_total_memory(0) is not None
+            else None,
         )
         client = Client(cluster)
 

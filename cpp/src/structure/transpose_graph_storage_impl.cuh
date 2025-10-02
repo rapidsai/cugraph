@@ -96,32 +96,26 @@ transpose_graph_storage_impl(raft::handle_t const& handle,
                       std::move(edgelist_edge_properties),
                       !store_transposed);
 
-  if (edgelist_weights)
-    *edgelist_weights =
-      std::move(std::get<rmm::device_uvector<weight_t>>(edgelist_edge_properties[0]));
-
   graph_t<vertex_t, edge_t, !store_transposed, multi_gpu> storage_transposed_graph(handle);
-  std::optional<edge_property_t<edge_t, weight_t>> storage_transposed_edge_weights{};
+  std::vector<edge_arithmetic_property_t<edge_t>> storage_transposed_edge_properties{};
   std::optional<rmm::device_uvector<vertex_t>> new_renumber_map{std::nullopt};
-  std::tie(storage_transposed_graph,
-           storage_transposed_edge_weights,
-           std::ignore,
-           std::ignore,
-           new_renumber_map) =
-    create_graph_from_edgelist<vertex_t, edge_t, weight_t, int32_t, !store_transposed, multi_gpu>(
+  std::tie(storage_transposed_graph, storage_transposed_edge_properties, new_renumber_map) =
+    create_graph_from_edgelist<vertex_t, edge_t, !store_transposed, multi_gpu>(
       handle,
       std::move(renumber_map),
       std::move(edgelist_srcs),
       std::move(edgelist_dsts),
-      std::move(edgelist_weights),
-      std::nullopt,
-      std::nullopt,
+      std::move(edgelist_edge_properties),
       graph_properties_t{is_symmetric, is_multigraph},
       true);
 
-  return std::make_tuple(std::move(storage_transposed_graph),
-                         std::move(storage_transposed_edge_weights),
-                         std::move(new_renumber_map));
+  return std::make_tuple(
+    std::move(storage_transposed_graph),
+    edgelist_weights
+      ? std::make_optional<edge_property_t<edge_t, weight_t>>(std::move(
+          std::get<edge_property_t<edge_t, weight_t>>(storage_transposed_edge_properties[0])))
+      : std::nullopt,
+    std::move(new_renumber_map));
 }
 
 template <typename vertex_t,
@@ -184,27 +178,27 @@ transpose_graph_storage_impl(raft::handle_t const& handle,
   }
 
   graph_t<vertex_t, edge_t, !store_transposed, multi_gpu> storage_transposed_graph(handle);
-  std::optional<edge_property_t<edge_t, weight_t>> storage_transposed_edge_weights{};
+  std::vector<edge_arithmetic_property_t<edge_t>> storage_transposed_edge_properties{};
+  std::vector<arithmetic_device_uvector_t> edgelist_edge_properties{};
+  if (edgelist_weights) edgelist_edge_properties.push_back(std::move(*edgelist_weights));
   std::optional<rmm::device_uvector<vertex_t>> new_renumber_map{std::nullopt};
-  std::tie(storage_transposed_graph,
-           storage_transposed_edge_weights,
-           std::ignore,
-           std::ignore,
-           new_renumber_map) =
-    create_graph_from_edgelist<vertex_t, edge_t, weight_t, int32_t, !store_transposed, multi_gpu>(
+  std::tie(storage_transposed_graph, storage_transposed_edge_properties, new_renumber_map) =
+    create_graph_from_edgelist<vertex_t, edge_t, !store_transposed, multi_gpu>(
       handle,
       std::move(vertices),
       std::move(edgelist_srcs),
       std::move(edgelist_dsts),
-      std::move(edgelist_weights),
-      std::nullopt,
-      std::nullopt,
+      std::move(edgelist_edge_properties),
       graph_properties_t{is_symmetric, is_multigraph},
       renumber);
 
-  return std::make_tuple(std::move(storage_transposed_graph),
-                         std::move(storage_transposed_edge_weights),
-                         std::move(new_renumber_map));
+  return std::make_tuple(
+    std::move(storage_transposed_graph),
+    edgelist_weights
+      ? std::make_optional<edge_property_t<edge_t, weight_t>>(std::move(
+          std::get<edge_property_t<edge_t, weight_t>>(storage_transposed_edge_properties[0])))
+      : std::nullopt,
+    std::move(new_renumber_map));
 }
 
 }  // namespace

@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2024, NVIDIA CORPORATION.
+# Copyright (c) 2019-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -12,7 +12,6 @@
 # limitations under the License.
 
 import sys
-from tempfile import NamedTemporaryFile
 import math
 
 import numpy as np
@@ -26,17 +25,19 @@ from cudf.testing.testing import assert_series_equal
 from cupyx.scipy.sparse import coo_matrix as cupy_coo_matrix
 
 
-CONNECTED_GRAPH = """1,5,3
-1,4,1
-1,2,1
-1,6,2
-1,7,2
-4,5,1
-2,3,1
-7,6,2
-"""
+CONNECTED_GRAPH = [
+    [1, 5, 3],
+    [1, 4, 1],
+    [1, 2, 1],
+    [1, 6, 2],
+    [1, 7, 2],
+    [4, 5, 1],
+    [2, 3, 1],
+    [7, 6, 2],
+]
 
-DISCONNECTED_GRAPH = CONNECTED_GRAPH + "8,9,4"
+
+DISCONNECTED_GRAPH = CONNECTED_GRAPH + [[8, 9, 4]]
 
 
 # Single value or callable golden results are not added as a Resultset
@@ -64,47 +65,48 @@ def load_traversal_results():
 
 @pytest.fixture
 def graphs(request):
-    with NamedTemporaryFile(mode="w+", suffix=".csv") as graph_tf:
-        graph_tf.writelines(request.param)
-        graph_tf.seek(0)
 
-        cudf_df = cudf.read_csv(
-            graph_tf.name,
-            names=["src", "dst", "data"],
-            delimiter=",",
-            dtype=["int32", "int32", "float64"],
-        )
-        cugraph_G = cugraph.Graph()
-        cugraph_G.from_cudf_edgelist(
-            cudf_df, source="src", destination="dst", edge_attr="data"
-        )
+    matrix = np.matrix(request.param)
+    array = np.asarray(matrix)
 
-        # construct cupy coo_matrix graph
-        i = []
-        j = []
-        weights = []
-        for index in range(cudf_df.shape[0]):
-            vertex1 = cudf_df.iloc[index]["src"]
-            vertex2 = cudf_df.iloc[index]["dst"]
-            weight = cudf_df.iloc[index]["data"]
-            i += [vertex1, vertex2]
-            j += [vertex2, vertex1]
-            weights += [weight, weight]
-        i = cupy.array(i)
-        j = cupy.array(j)
-        weights = cupy.array(weights)
-        largest_vertex = max(cupy.amax(i), cupy.amax(j))
-        cupy_df = cupy_coo_matrix(
-            (weights, (i, j)), shape=(largest_vertex + 1, largest_vertex + 1)
-        )
+    cudf_df = cudf.DataFrame(array, columns=["src", "dst", "data"])
+    cudf_df["src"] = cudf_df["src"].astype("int32")
+    cudf_df["dst"] = cudf_df["dst"].astype("int32")
+    cudf_df["data"] = cudf_df["data"].astype("float64")
 
-        yield cugraph_G, cupy_df
+    cugraph_G = cugraph.Graph()
+    cugraph_G.from_cudf_edgelist(
+        cudf_df, source="src", destination="dst", edge_attr="data"
+    )
+
+    # construct cupy coo_matrix graph
+    i = []
+    j = []
+    weights = []
+    for index in range(cudf_df.shape[0]):
+        vertex1 = cudf_df.iloc[index]["src"]
+        vertex2 = cudf_df.iloc[index]["dst"]
+        weight = cudf_df.iloc[index]["data"]
+        i += [vertex1, vertex2]
+        j += [vertex2, vertex1]
+        weights += [weight, weight]
+    i = cupy.array(i)
+    j = cupy.array(j)
+    weights = cupy.array(weights)
+    largest_vertex = max(cupy.amax(i), cupy.amax(j))
+    cupy_df = cupy_coo_matrix(
+        (weights, (i, j)), shape=(largest_vertex + 1, largest_vertex + 1)
+    )
+
+    yield cugraph_G, cupy_df
 
 
 @pytest.mark.sg
 @pytest.mark.parametrize("graphs", [CONNECTED_GRAPH], indirect=True)
 def test_connected_graph_shortest_path_length(graphs):
     cugraph_G, cupy_df = graphs
+
+    assert cugraph_G.is_weighted() is True
 
     path_1_to_1_length = cugraph.shortest_path_length(cugraph_G, 1, 1)
     # FIXME: aren't the first two assertions in each batch redundant?

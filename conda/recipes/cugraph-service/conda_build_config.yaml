@@ -1,2 +1,2 @@
-ucx_py_version:
-  - "0.46.*"
+ucxx_version:
+  - "0.47.*"

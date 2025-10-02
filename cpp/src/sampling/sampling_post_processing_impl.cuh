@@ -18,6 +18,7 @@
 
 #include "prims/kv_store.cuh"
 
+#include <cugraph/arithmetic_variant_types.hpp>
 #include <cugraph/sampling_functions.hpp>
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/error.hpp>
@@ -31,6 +32,7 @@
 #include <cuda/functional>
 #include <cuda/std/iterator>
 #include <cuda/std/optional>
+#include <cuda/std/tuple>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
 #include <thrust/count.h>
@@ -41,7 +43,6 @@
 #include <thrust/set_operations.h>
 #include <thrust/sort.h>
 #include <thrust/transform.h>
-#include <thrust/tuple.h>
 #include <thrust/unique.h>
 
 #include <optional>
@@ -158,18 +159,12 @@ struct optionally_compute_label_index_t {
   }
 };
 
-template <typename label_index_t,
-          typename vertex_t,
-          typename vertex_type_t,
-          typename weight_t,
-          typename edge_id_t,
-          typename edge_type_t>
+template <typename label_index_t, typename vertex_t, typename vertex_type_t>
 void check_input_edges(raft::handle_t const& handle,
                        rmm::device_uvector<vertex_t> const& edgelist_majors,
                        rmm::device_uvector<vertex_t> const& edgelist_minors,
-                       std::optional<rmm::device_uvector<weight_t>> const& edgelist_weights,
-                       std::optional<rmm::device_uvector<edge_id_t>> const& edgelist_edge_ids,
-                       std::optional<rmm::device_uvector<edge_type_t>> const& edgelist_edge_types,
+                       std::vector<arithmetic_device_uvector_t> const& edgelist_edge_properties,
+                       std::optional<const_arithmetic_device_span_t> edgelist_edge_types,
                        std::optional<rmm::device_uvector<int32_t>> const& edgelist_hops,
                        std::optional<raft::device_span<vertex_t const>> seed_vertices,
                        std::optional<raft::device_span<size_t const>> seed_vertex_label_offsets,
@@ -184,21 +179,25 @@ void check_input_edges(raft::handle_t const& handle,
   CUGRAPH_EXPECTS(
     edgelist_majors.size() == edgelist_minors.size(),
     "Invalid input arguments: edgelist_srcs.size() and edgelist_dsts.size() should coincide.");
+
+  for (size_t i = 0; i < edgelist_edge_properties.size(); ++i) {
+    CUGRAPH_EXPECTS(cugraph::variant_type_dispatch(edgelist_edge_properties[i],
+                                                   [](auto const& edgelist_edge_property) {
+                                                     return edgelist_edge_property.size();
+                                                   }) == edgelist_majors.size(),
+                    "Invalid input arguments: edgelist_edge_properties[%d].size() and "
+                    "edgelist_(srcs|dsts).size() should coincide.",
+                    i);
+  }
+
   CUGRAPH_EXPECTS(
-    !edgelist_weights.has_value() || (edgelist_majors.size() == (*edgelist_weights).size()),
-    "Invalid input arguments: if edgelist_weights is valid, (*edgelist_weights).size() and "
-    "edgelist_(srcs|dsts).size() should coincide.");
-  CUGRAPH_EXPECTS(
-    !edgelist_edge_ids.has_value() || (edgelist_majors.size() == (*edgelist_edge_ids).size()),
-    "Invalid input arguments: if edgelist_edge_ids is valid, (*edgelist_edge_ids).size() and "
-    "edgelist_(srcs|dsts).size() should coincide.");
-  CUGRAPH_EXPECTS(
-    !edgelist_edge_types.has_value() || (edgelist_majors.size() == (*edgelist_edge_types).size()),
+    !edgelist_edge_types.has_value() ||
+      (edgelist_majors.size() ==
+       cugraph::variant_type_dispatch(
+         *edgelist_edge_types,
+         [](auto const& edgelist_edge_types) { return edgelist_edge_types.size(); })),
     "Invalid input arguments: if edgelist_edge_types is valid, (*edgelist_edge_types).size() and "
     "edgelist_(srcs|dsts).size() should coincide.");
-  CUGRAPH_EXPECTS(!edgelist_hops.has_value() || (edgelist_majors.size() == (*edgelist_hops).size()),
-                  "Invalid input arguments: if edgelist_hops is valid, (*edgelist_hops).size() and "
-                  "edgelist_(srcs|dsts).size() should coincide.");
 
   CUGRAPH_EXPECTS(
     !edgelist_label_offsets.has_value() || ((*edgelist_label_offsets).size() == num_labels + 1),
@@ -276,17 +275,23 @@ void check_input_edges(raft::handle_t const& handle,
 
     if (edgelist_edge_types && num_edge_types) {
       CUGRAPH_EXPECTS(
+        std::holds_alternative<raft::device_span<int32_t const>>(*edgelist_edge_types),
+        "Invalid input arguments: edgelist_edge_types should be a device_span<int32_t const>");
+      using edge_type_t = int32_t;
+
+      auto const& edge_types = std::get<raft::device_span<int32_t const>>(*edgelist_edge_types);
+      CUGRAPH_EXPECTS(
         thrust::count_if(handle.get_thrust_policy(),
-                         (*edgelist_edge_types).begin(),
-                         (*edgelist_edge_types).end(),
+                         edge_types.begin(),
+                         edge_types.end(),
                          [num_edge_types = static_cast<edge_type_t>(*num_edge_types)] __device__(
                            edge_type_t edge_type) { return edge_type >= num_edge_types; }) == 0,
         "Invalid input arguments: edgelist_edge_type is valid but contains out-of-range edge type "
         "values.");
       if constexpr (std::is_signed_v<edge_type_t>) {
         CUGRAPH_EXPECTS(thrust::count_if(handle.get_thrust_policy(),
-                                         (*edgelist_edge_types).begin(),
-                                         (*edgelist_edge_types).end(),
+                                         edge_types.begin(),
+                                         edge_types.end(),
                                          [] __device__(edge_type_t edge_type) {
                                            return edge_type < edge_type_t{0};
                                          }) == 0,
@@ -340,13 +345,18 @@ void check_input_edges(raft::handle_t const& handle,
                    edgelist_minors.begin(),
                    edgelist_minors.end(),
                    tmp_minors.begin());
+
       if (edgelist_edge_types) {
-        rmm::device_uvector<edge_type_t> tmp_edge_types((*edgelist_edge_types).size(),
-                                                        handle.get_stream());
-        thrust::copy(handle.get_thrust_policy(),
-                     (*edgelist_edge_types).begin(),
-                     (*edgelist_edge_types).end(),
-                     tmp_edge_types.begin());
+        CUGRAPH_EXPECTS(
+          std::holds_alternative<raft::device_span<int32_t const>>(*edgelist_edge_types),
+          "Invalid input arguments: edgelist_edge_types should be a device_span<int32_t const>");
+        using edge_type_t = int32_t;
+
+        auto const& edge_types = std::get<raft::device_span<int32_t const>>(*edgelist_edge_types);
+
+        rmm::device_uvector<edge_type_t> tmp_edge_types(edge_types.size(), handle.get_stream());
+        thrust::copy(
+          handle.get_thrust_policy(), edge_types.begin(), edge_types.end(), tmp_edge_types.begin());
         auto triplet_first =
           thrust::make_zip_iterator(tmp_edge_types.begin(), tmp_majors.begin(), tmp_minors.begin());
         thrust::sort(handle.get_thrust_policy(), triplet_first, triplet_first + tmp_majors.size());
@@ -359,32 +369,32 @@ void check_input_edges(raft::handle_t const& handle,
               if (i > 0) {
                 auto prev = *(triplet_first + i - 1);
                 auto cur  = *(triplet_first + i);
-                if (thrust::get<0>(prev) == thrust::get<0>(cur)) {  // same edge type
+                if (cuda::std::get<0>(prev) == cuda::std::get<0>(cur)) {  // same edge type
                   auto prev_major_v_type =
                     cuda::std::distance(vertex_type_offsets.begin() + 1,
                                         thrust::upper_bound(thrust::seq,
                                                             vertex_type_offsets.begin() + 1,
                                                             vertex_type_offsets.end(),
-                                                            thrust::get<1>(prev)));
+                                                            cuda::std::get<1>(prev)));
                   auto cur_major_v_type =
                     cuda::std::distance(vertex_type_offsets.begin() + 1,
                                         thrust::upper_bound(thrust::seq,
                                                             vertex_type_offsets.begin() + 1,
                                                             vertex_type_offsets.end(),
-                                                            thrust::get<1>(cur)));
+                                                            cuda::std::get<1>(cur)));
                   if (prev_major_v_type != cur_major_v_type) { return true; }
                   auto prev_minor_v_type =
                     cuda::std::distance(vertex_type_offsets.begin() + 1,
                                         thrust::upper_bound(thrust::seq,
                                                             vertex_type_offsets.begin() + 1,
                                                             vertex_type_offsets.end(),
-                                                            thrust::get<2>(prev)));
+                                                            cuda::std::get<2>(prev)));
                   auto cur_minor_v_type =
                     cuda::std::distance(vertex_type_offsets.begin() + 1,
                                         thrust::upper_bound(thrust::seq,
                                                             vertex_type_offsets.begin() + 1,
                                                             vertex_type_offsets.end(),
-                                                            thrust::get<2>(cur)));
+                                                            cuda::std::get<2>(cur)));
                   if (prev_minor_v_type != cur_minor_v_type) { return true; }
                 }
               }
@@ -411,26 +421,26 @@ void check_input_edges(raft::handle_t const& handle,
                                       thrust::upper_bound(thrust::seq,
                                                           vertex_type_offsets.begin() + 1,
                                                           vertex_type_offsets.end(),
-                                                          thrust::get<0>(prev)));
+                                                          cuda::std::get<0>(prev)));
                 auto cur_src_v_type =
                   cuda::std::distance(vertex_type_offsets.begin() + 1,
                                       thrust::upper_bound(thrust::seq,
                                                           vertex_type_offsets.begin() + 1,
                                                           vertex_type_offsets.end(),
-                                                          thrust::get<0>(cur)));
+                                                          cuda::std::get<0>(cur)));
                 if (prev_src_v_type != cur_src_v_type) { return true; }
                 auto prev_dst_v_type =
                   cuda::std::distance(vertex_type_offsets.begin() + 1,
                                       thrust::upper_bound(thrust::seq,
                                                           vertex_type_offsets.begin() + 1,
                                                           vertex_type_offsets.end(),
-                                                          thrust::get<1>(prev)));
+                                                          cuda::std::get<1>(prev)));
                 auto cur_dst_v_type =
                   cuda::std::distance(vertex_type_offsets.begin() + 1,
                                       thrust::upper_bound(thrust::seq,
                                                           vertex_type_offsets.begin() + 1,
                                                           vertex_type_offsets.end(),
-                                                          thrust::get<1>(cur)));
+                                                          cuda::std::get<1>(cur)));
                 if (prev_dst_v_type != cur_dst_v_type) { return true; }
               }
               return false;
@@ -562,7 +572,7 @@ compute_min_hop_for_unique_label_vertex_pairs(
       thrust::sequence(
         handle.get_thrust_policy(), tmp_indices.begin(), tmp_indices.end(), size_t{0});
 
-      // cub::DeviceSegmentedSort currently does not suuport thrust::tuple type keys, sorting in
+      // cub::DeviceSegmentedSort currently does not suuport cuda::std::tuple type keys, sorting in
       // chunks still helps in limiting the binary search range and improving memory locality
       for (size_t i = 0; i < num_chunks; ++i) {
         thrust::sort(
@@ -620,7 +630,7 @@ compute_min_hop_for_unique_label_vertex_pairs(
 
       auto triplet_first = thrust::make_transform_iterator(
         tmp_indices.begin(),
-        cuda::proclaim_return_type<thrust::tuple<label_index_t, vertex_t, int32_t>>(
+        cuda::proclaim_return_type<cuda::std::tuple<label_index_t, vertex_t, int32_t>>(
           [edgelist_label_offsets = *edgelist_label_offsets,
            edgelist_vertices,
            edgelist_hops = *edgelist_hops] __device__(size_t i) {
@@ -628,7 +638,7 @@ compute_min_hop_for_unique_label_vertex_pairs(
               edgelist_label_offsets.begin() + 1,
               thrust::upper_bound(
                 thrust::seq, edgelist_label_offsets.begin() + 1, edgelist_label_offsets.end(), i)));
-            return thrust::make_tuple(label_idx, edgelist_vertices[i], edgelist_hops[i]);
+            return cuda::std::make_tuple(label_idx, edgelist_vertices[i], edgelist_hops[i]);
           }));
       thrust::copy(handle.get_thrust_policy(),
                    triplet_first,
@@ -678,7 +688,7 @@ compute_min_hop_for_unique_label_vertex_pairs(
 
       auto input_pair_first = thrust::make_transform_iterator(
         thrust::make_counting_iterator(size_t{0}),
-        cuda::proclaim_return_type<thrust::tuple<label_index_t, vertex_t>>(
+        cuda::proclaim_return_type<cuda::std::tuple<label_index_t, vertex_t>>(
           [edgelist_label_offsets = *edgelist_label_offsets,
            edgelist_vertices      = raft::device_span<vertex_t const>(
              segment_sorted_vertices.data(), segment_sorted_vertices.size())] __device__(size_t i) {
@@ -686,7 +696,7 @@ compute_min_hop_for_unique_label_vertex_pairs(
               edgelist_label_offsets.begin() + 1,
               thrust::upper_bound(
                 thrust::seq, edgelist_label_offsets.begin() + 1, edgelist_label_offsets.end(), i)));
-            return thrust::make_tuple(label_idx, edgelist_vertices[i]);
+            return cuda::std::make_tuple(label_idx, edgelist_vertices[i]);
           }));
       auto output_pair_first =
         thrust::make_zip_iterator(tmp_label_indices.begin(), tmp_vertices.begin());
@@ -743,7 +753,7 @@ compute_min_hop_for_unique_label_vertex_pairs(
                                                          handle.get_stream());
       auto input_pair_first = thrust::make_transform_iterator(
         thrust::make_counting_iterator(size_t{0}),
-        cuda::proclaim_return_type<thrust::tuple<label_index_t, vertex_t>>(
+        cuda::proclaim_return_type<cuda::std::tuple<label_index_t, vertex_t>>(
           [seed_vertex_label_offsets = *seed_vertex_label_offsets,
            seed_vertices             = raft::device_span<vertex_t const>(
              segment_sorted_vertices.data(), segment_sorted_vertices.size())] __device__(size_t i) {
@@ -753,7 +763,7 @@ compute_min_hop_for_unique_label_vertex_pairs(
                                                       seed_vertex_label_offsets.begin() + 1,
                                                       seed_vertex_label_offsets.end(),
                                                       i)));
-            return thrust::make_tuple(label_idx, seed_vertices[i]);
+            return cuda::std::make_tuple(label_idx, seed_vertices[i]);
           }));
       auto output_pair_first = thrust::make_zip_iterator(unique_seed_vertex_label_indices.begin(),
                                                          unique_seed_vertices.begin());
@@ -790,12 +800,12 @@ compute_min_hop_for_unique_label_vertex_pairs(
               thrust::seq,
               triplet_from_edgelist_first,
               triplet_from_edgelist_last,
-              thrust::make_tuple(thrust::get<0>(pair), thrust::get<1>(pair), int32_t{0}));
+              cuda::std::make_tuple(cuda::std::get<0>(pair), cuda::std::get<1>(pair), int32_t{0}));
             if ((it != triplet_from_edgelist_last) &&
-                (thrust::get<0>(*it) == thrust::get<0>(pair)) &&
-                (thrust::get<1>(*it) == thrust::get<1>(pair))) {
+                (cuda::std::get<0>(*it) == cuda::std::get<0>(pair)) &&
+                (cuda::std::get<1>(*it) == cuda::std::get<1>(pair))) {
               // update min. hop to 0
-              if (thrust::get<2>(*it) != int32_t{0}) { thrust::get<2>(*it) = int32_t{0}; }
+              if (cuda::std::get<2>(*it) != int32_t{0}) { cuda::std::get<2>(*it) = int32_t{0}; }
             }
           });
 
@@ -813,10 +823,11 @@ compute_min_hop_for_unique_label_vertex_pairs(
                   thrust::seq,
                   triplet_from_edgelist_first,
                   triplet_from_edgelist_last,
-                  thrust::make_tuple(thrust::get<0>(pair), thrust::get<1>(pair), int32_t{0}));
+                  cuda::std::make_tuple(
+                    cuda::std::get<0>(pair), cuda::std::get<1>(pair), int32_t{0}));
                 return (it != triplet_from_edgelist_last) &&
-                       (thrust::get<0>(*it) == thrust::get<0>(pair)) &&
-                       (thrust::get<1>(*it) == thrust::get<1>(pair));
+                       (cuda::std::get<0>(*it) == cuda::std::get<0>(pair)) &&
+                       (cuda::std::get<1>(*it) == cuda::std::get<1>(pair));
               })),
           handle.get_stream());
         unique_seed_vertices.resize(unique_seed_vertex_label_indices.size(), handle.get_stream());
@@ -921,10 +932,10 @@ compute_min_hop_for_unique_label_vertex_pairs(
       thrust::sort(handle.get_thrust_policy(), pair_first, pair_first + tmp_vertices.size());
       tmp_vertices.resize(
         cuda::std::distance(tmp_vertices.begin(),
-                            thrust::get<0>(thrust::unique_by_key(handle.get_thrust_policy(),
-                                                                 tmp_vertices.begin(),
-                                                                 tmp_vertices.end(),
-                                                                 (*tmp_hops).begin()))),
+                            cuda::std::get<0>(thrust::unique_by_key(handle.get_thrust_policy(),
+                                                                    tmp_vertices.begin(),
+                                                                    tmp_vertices.end(),
+                                                                    (*tmp_hops).begin()))),
         handle.get_stream());
       (*tmp_hops).resize(tmp_vertices.size(), handle.get_stream());
       tmp_vertices.shrink_to_fit(handle.get_stream());
@@ -970,11 +981,11 @@ compute_min_hop_for_unique_label_vertex_pairs(
                            auto it = thrust::lower_bound(thrust::seq,
                                                          pair_from_edgelist_first,
                                                          pair_from_edgelist_last,
-                                                         thrust::make_tuple(v, int32_t{0}));
-                           if ((it != pair_from_edgelist_last) && (thrust::get<0>(*it) == v)) {
+                                                         cuda::std::make_tuple(v, int32_t{0}));
+                           if ((it != pair_from_edgelist_last) && (cuda::std::get<0>(*it) == v)) {
                              // update min. hop to 0
-                             if (thrust::get<1>(*it) != int32_t{0}) {
-                               thrust::get<1>(*it) = int32_t{0};
+                             if (cuda::std::get<1>(*it) != int32_t{0}) {
+                               cuda::std::get<1>(*it) = int32_t{0};
                              }
                            }
                          });
@@ -991,9 +1002,9 @@ compute_min_hop_for_unique_label_vertex_pairs(
                                 auto it = thrust::lower_bound(thrust::seq,
                                                               pair_from_edgelist_first,
                                                               pair_from_edgelist_last,
-                                                              thrust::make_tuple(v, int32_t{0}));
+                                                              cuda::std::make_tuple(v, int32_t{0}));
                                 return (it != pair_from_edgelist_last) &&
-                                       (thrust::get<0>(*it) == v);
+                                       (cuda::std::get<0>(*it) == v);
                               })),
           handle.get_stream());
         if (unique_seed_vertices.size() > 0) {
@@ -1144,7 +1155,7 @@ compute_vertex_renumber_map(
         merged_label_indices.resize(
           cuda::std::distance(
             unique_key_first,
-            thrust::get<0>(thrust::unique_by_key(
+            cuda::std::get<0>(thrust::unique_by_key(
               handle.get_thrust_policy(),
               unique_key_first,
               unique_key_first + merged_label_indices.size(),
@@ -1166,15 +1177,19 @@ compute_vertex_renumber_map(
               auto lhs_v_type = cuda::std::distance(
                 offsets.begin() + 1,
                 thrust::upper_bound(
-                  thrust::seq, offsets.begin() + 1, offsets.end(), thrust::get<1>(lhs)));
+                  thrust::seq, offsets.begin() + 1, offsets.end(), cuda::std::get<1>(lhs)));
               auto rhs_v_type = cuda::std::distance(
                 offsets.begin() + 1,
                 thrust::upper_bound(
-                  thrust::seq, offsets.begin() + 1, offsets.end(), thrust::get<1>(rhs)));
-              return thrust::make_tuple(
-                       thrust::get<0>(lhs), lhs_v_type, thrust::get<2>(lhs), thrust::get<3>(lhs)) <
-                     thrust::make_tuple(
-                       thrust::get<0>(rhs), rhs_v_type, thrust::get<2>(rhs), thrust::get<3>(rhs));
+                  thrust::seq, offsets.begin() + 1, offsets.end(), cuda::std::get<1>(rhs)));
+              return cuda::std::make_tuple(cuda::std::get<0>(lhs),
+                                           lhs_v_type,
+                                           cuda::std::get<2>(lhs),
+                                           cuda::std::get<3>(lhs)) <
+                     cuda::std::make_tuple(cuda::std::get<0>(rhs),
+                                           rhs_v_type,
+                                           cuda::std::get<2>(rhs),
+                                           cuda::std::get<3>(rhs));
             });
         } else {
           auto sort_key_first = thrust::make_zip_iterator(
@@ -1207,10 +1222,10 @@ compute_vertex_renumber_map(
         merged_label_indices.resize(
           cuda::std::distance(
             unique_key_first,
-            thrust::get<0>(thrust::unique_by_key(handle.get_thrust_policy(),
-                                                 unique_key_first,
-                                                 unique_key_first + merged_label_indices.size(),
-                                                 merged_flags.begin()))),
+            cuda::std::get<0>(thrust::unique_by_key(handle.get_thrust_policy(),
+                                                    unique_key_first,
+                                                    unique_key_first + merged_label_indices.size(),
+                                                    merged_flags.begin()))),
           handle.get_stream());
         merged_vertices.resize(merged_label_indices.size(), handle.get_stream());
         merged_flags.resize(merged_label_indices.size(), handle.get_stream());
@@ -1225,13 +1240,15 @@ compute_vertex_renumber_map(
               auto lhs_v_type = cuda::std::distance(
                 offsets.begin() + 1,
                 thrust::upper_bound(
-                  thrust::seq, offsets.begin() + 1, offsets.end(), thrust::get<1>(lhs)));
+                  thrust::seq, offsets.begin() + 1, offsets.end(), cuda::std::get<1>(lhs)));
               auto rhs_v_type = cuda::std::distance(
                 offsets.begin() + 1,
                 thrust::upper_bound(
-                  thrust::seq, offsets.begin() + 1, offsets.end(), thrust::get<1>(rhs)));
-              return thrust::make_tuple(thrust::get<0>(lhs), lhs_v_type, thrust::get<2>(lhs)) <
-                     thrust::make_tuple(thrust::get<0>(rhs), rhs_v_type, thrust::get<2>(rhs));
+                  thrust::seq, offsets.begin() + 1, offsets.end(), cuda::std::get<1>(rhs)));
+              return cuda::std::make_tuple(
+                       cuda::std::get<0>(lhs), lhs_v_type, cuda::std::get<2>(lhs)) <
+                     cuda::std::make_tuple(
+                       cuda::std::get<0>(rhs), rhs_v_type, cuda::std::get<2>(rhs));
             });
         } else {
           auto sort_key_first =
@@ -1277,10 +1294,10 @@ compute_vertex_renumber_map(
             })));
       auto value_first = thrust::make_transform_iterator(
         thrust::make_counting_iterator(size_t{0}),
-        cuda::proclaim_return_type<thrust::tuple<label_index_t, vertex_type_t>>(
+        cuda::proclaim_return_type<cuda::std::tuple<label_index_t, vertex_type_t>>(
           [num_vertex_types] __device__(size_t i) {
-            return thrust::make_tuple(static_cast<label_index_t>(i / num_vertex_types),
-                                      static_cast<vertex_type_t>(i % num_vertex_types));
+            return cuda::std::make_tuple(static_cast<label_index_t>(i / num_vertex_types),
+                                         static_cast<vertex_type_t>(i % num_vertex_types));
           }));
       thrust::upper_bound(handle.get_thrust_policy(),
                           label_type_pair_first,
@@ -1329,7 +1346,7 @@ compute_vertex_renumber_map(
       merged_vertices.resize(
         cuda::std::distance(
           merged_vertices.begin(),
-          thrust::get<0>(thrust::unique_by_key(
+          cuda::std::get<0>(thrust::unique_by_key(
             handle.get_thrust_policy(),
             merged_vertices.begin(),
             merged_vertices.end(),
@@ -1349,13 +1366,15 @@ compute_vertex_renumber_map(
             auto lhs_v_type = cuda::std::distance(
               offsets.begin() + 1,
               thrust::upper_bound(
-                thrust::seq, offsets.begin() + 1, offsets.end(), thrust::get<0>(lhs)));
+                thrust::seq, offsets.begin() + 1, offsets.end(), cuda::std::get<0>(lhs)));
             auto rhs_v_type = cuda::std::distance(
               offsets.begin() + 1,
               thrust::upper_bound(
-                thrust::seq, offsets.begin() + 1, offsets.end(), thrust::get<0>(rhs)));
-            return thrust::make_tuple(lhs_v_type, thrust::get<1>(lhs), thrust::get<2>(lhs)) <
-                   thrust::make_tuple(rhs_v_type, thrust::get<1>(rhs), thrust::get<2>(rhs));
+                thrust::seq, offsets.begin() + 1, offsets.end(), cuda::std::get<0>(rhs)));
+            return cuda::std::make_tuple(
+                     lhs_v_type, cuda::std::get<1>(lhs), cuda::std::get<2>(lhs)) <
+                   cuda::std::make_tuple(
+                     rhs_v_type, cuda::std::get<1>(rhs), cuda::std::get<2>(rhs));
           });
       } else {
         auto sort_key_first = thrust::make_zip_iterator(merged_hops.begin(), merged_flags.begin());
@@ -1457,7 +1476,7 @@ compute_edge_id_renumber_map(
     rmm::device_uvector<size_t> tmp_indices(edgelist_edge_ids.size(), handle.get_stream());
     thrust::sequence(handle.get_thrust_policy(), tmp_indices.begin(), tmp_indices.end(), size_t{0});
 
-    // cub::DeviceSegmentedSort currently does not suuport thrust::tuple type keys, sorting in
+    // cub::DeviceSegmentedSort currently does not suuport cuda::std::tuple type keys, sorting in
     // chunks still helps in limiting the binary search range and improving memory locality
     for (size_t i = 0; i < num_chunks; ++i) {
       // sort by (label, (type), id, (hop))
@@ -1592,22 +1611,22 @@ compute_edge_id_renumber_map(
     if (edgelist_edge_types) {
       auto label_type_pair_first = thrust::make_transform_iterator(
         tmp_indices.begin(),
-        cuda::proclaim_return_type<thrust::tuple<label_index_t, edge_type_t>>(
+        cuda::proclaim_return_type<cuda::std::tuple<label_index_t, edge_type_t>>(
           [edgelist_label_offsets = *edgelist_label_offsets,
            edgelist_edge_types    = *edgelist_edge_types] __device__(size_t i) {
             auto label_idx = cuda::std::distance(
               edgelist_label_offsets.begin() + 1,
               thrust::upper_bound(
                 thrust::seq, edgelist_label_offsets.begin() + 1, edgelist_label_offsets.end(), i));
-            return thrust::make_tuple(static_cast<label_index_t>(label_idx),
-                                      edgelist_edge_types[i]);
+            return cuda::std::make_tuple(static_cast<label_index_t>(label_idx),
+                                         edgelist_edge_types[i]);
           }));
       auto value_first = thrust::make_transform_iterator(
         thrust::make_counting_iterator(size_t{0}),
-        cuda::proclaim_return_type<thrust::tuple<label_index_t, edge_type_t>>(
+        cuda::proclaim_return_type<cuda::std::tuple<label_index_t, edge_type_t>>(
           [num_edge_types] __device__(size_t i) {
-            return thrust::make_tuple(static_cast<label_index_t>(i / num_edge_types),
-                                      static_cast<edge_type_t>(i % num_edge_types));
+            return cuda::std::make_tuple(static_cast<label_index_t>(i / num_edge_types),
+                                         static_cast<edge_type_t>(i % num_edge_types));
           }));
       thrust::upper_bound(handle.get_thrust_policy(),
                           label_type_pair_first,
@@ -1687,10 +1706,10 @@ compute_edge_id_renumber_map(
       if (tmp_hops) {
         tmp_ids.resize(
           cuda::std::distance(pair_first,
-                              thrust::get<0>(thrust::unique_by_key(handle.get_thrust_policy(),
-                                                                   pair_first,
-                                                                   pair_first + tmp_ids.size(),
-                                                                   (*tmp_hops).begin()))),
+                              cuda::std::get<0>(thrust::unique_by_key(handle.get_thrust_policy(),
+                                                                      pair_first,
+                                                                      pair_first + tmp_ids.size(),
+                                                                      (*tmp_hops).begin()))),
           handle.get_stream());
         (*tmp_hops).resize(tmp_ids.size(), handle.get_stream());
       } else {
@@ -1706,7 +1725,7 @@ compute_edge_id_renumber_map(
         tmp_ids.resize(
           cuda::std::distance(
             tmp_ids.begin(),
-            thrust::get<0>(thrust::unique_by_key(
+            cuda::std::get<0>(thrust::unique_by_key(
               handle.get_thrust_policy(), tmp_ids.begin(), tmp_ids.end(), (*tmp_hops).begin()))),
           handle.get_stream());
         (*tmp_hops).resize(tmp_ids.size(), handle.get_stream());
@@ -1880,13 +1899,13 @@ renumber_sampled_edgelist(raft::handle_t const& handle,
        new_vertices = raft::device_span<vertex_t const>(
          segment_sorted_new_vertices.data(),
          segment_sorted_new_vertices.size())] __device__(auto pair) {
-        auto old_vertex = thrust::get<0>(pair);
+        auto old_vertex = cuda::std::get<0>(pair);
         auto label_idx  = static_cast<label_index_t>(
           cuda::std::distance(edgelist_label_offsets.begin() + 1,
                               thrust::upper_bound(thrust::seq,
                                                   edgelist_label_offsets.begin() + 1,
                                                   edgelist_label_offsets.end(),
-                                                  thrust::get<1>(pair))));
+                                                  cuda::std::get<1>(pair))));
         auto label_start_offset = renumber_map_label_offsets[label_idx];
         auto label_end_offset   = renumber_map_label_offsets[label_idx + 1];
         auto it                 = thrust::lower_bound(thrust::seq,
@@ -1912,13 +1931,13 @@ renumber_sampled_edgelist(raft::handle_t const& handle,
        new_vertices = raft::device_span<vertex_t const>(
          segment_sorted_new_vertices.data(),
          segment_sorted_new_vertices.size())] __device__(auto pair) {
-        auto old_vertex = thrust::get<0>(pair);
+        auto old_vertex = cuda::std::get<0>(pair);
         auto label_idx  = static_cast<label_index_t>(
           cuda::std::distance(edgelist_label_offsets.begin() + 1,
                               thrust::upper_bound(thrust::seq,
                                                   edgelist_label_offsets.begin() + 1,
                                                   edgelist_label_offsets.end(),
-                                                  thrust::get<1>(pair))));
+                                                  cuda::std::get<1>(pair))));
         auto label_start_offset = renumber_map_label_offsets[label_idx];
         auto label_end_offset   = renumber_map_label_offsets[label_idx + 1];
         auto it                 = thrust::lower_bound(thrust::seq,
@@ -1945,13 +1964,13 @@ renumber_sampled_edgelist(raft::handle_t const& handle,
          new_vertices = raft::device_span<vertex_t const>(
            segment_sorted_new_vertices.data(),
            segment_sorted_new_vertices.size())] __device__(auto pair) {
-          auto old_vertex = thrust::get<0>(pair);
+          auto old_vertex = cuda::std::get<0>(pair);
           auto label_idx  = static_cast<label_index_t>(
             cuda::std::distance(seed_vertex_label_offsets.begin() + 1,
                                 thrust::upper_bound(thrust::seq,
                                                     seed_vertex_label_offsets.begin() + 1,
                                                     seed_vertex_label_offsets.end(),
-                                                    thrust::get<1>(pair))));
+                                                    cuda::std::get<1>(pair))));
           auto label_start_offset = renumber_map_label_offsets[label_idx];
           auto label_end_offset   = renumber_map_label_offsets[label_idx + 1];
           auto it                 = thrust::lower_bound(thrust::seq,
@@ -2154,7 +2173,7 @@ heterogeneous_renumber_sampled_edgelist(
        new_vertices = raft::device_span<vertex_t const>(segment_sorted_new_vertices.data(),
                                                         segment_sorted_new_vertices.size()),
        num_vertex_types] __device__(auto pair) {
-        auto old_vertex = thrust::get<0>(pair);
+        auto old_vertex = cuda::std::get<0>(pair);
         label_index_t label_idx{0};
         if (edgelist_label_offsets) {
           label_idx = static_cast<label_index_t>(
@@ -2162,7 +2181,7 @@ heterogeneous_renumber_sampled_edgelist(
                                 thrust::upper_bound(thrust::seq,
                                                     (*edgelist_label_offsets).begin() + 1,
                                                     (*edgelist_label_offsets).end(),
-                                                    thrust::get<1>(pair))));
+                                                    cuda::std::get<1>(pair))));
         }
         auto v_type       = static_cast<vertex_type_t>(cuda::std::distance(
           vertex_type_offsets.begin() + 1,
@@ -2196,7 +2215,7 @@ heterogeneous_renumber_sampled_edgelist(
        new_vertices = raft::device_span<vertex_t const>(segment_sorted_new_vertices.data(),
                                                         segment_sorted_new_vertices.size()),
        num_vertex_types] __device__(auto pair) {
-        auto old_vertex = thrust::get<0>(pair);
+        auto old_vertex = cuda::std::get<0>(pair);
         label_index_t label_idx{0};
         if (edgelist_label_offsets) {
           label_idx = static_cast<label_index_t>(
@@ -2204,7 +2223,7 @@ heterogeneous_renumber_sampled_edgelist(
                                 thrust::upper_bound(thrust::seq,
                                                     (*edgelist_label_offsets).begin() + 1,
                                                     (*edgelist_label_offsets).end(),
-                                                    thrust::get<1>(pair))));
+                                                    cuda::std::get<1>(pair))));
         }
         auto v_type       = static_cast<vertex_type_t>(cuda::std::distance(
           vertex_type_offsets.begin() + 1,
@@ -2239,7 +2258,7 @@ heterogeneous_renumber_sampled_edgelist(
          new_vertices = raft::device_span<vertex_t const>(segment_sorted_new_vertices.data(),
                                                           segment_sorted_new_vertices.size()),
          num_vertex_types] __device__(auto pair) {
-          auto old_vertex = thrust::get<0>(pair);
+          auto old_vertex = cuda::std::get<0>(pair);
           label_index_t label_idx{0};
           if (seed_vertex_label_offsets) {
             label_idx = static_cast<label_index_t>(
@@ -2247,7 +2266,7 @@ heterogeneous_renumber_sampled_edgelist(
                                   thrust::upper_bound(thrust::seq,
                                                       (*seed_vertex_label_offsets).begin() + 1,
                                                       (*seed_vertex_label_offsets).end(),
-                                                      thrust::get<1>(pair))));
+                                                      cuda::std::get<1>(pair))));
           }
           auto v_type = static_cast<vertex_type_t>(
             cuda::std::distance(vertex_type_offsets.begin() + 1,
@@ -2385,8 +2404,8 @@ heterogeneous_renumber_sampled_edgelist(
              raft::device_span<size_t const>((*edge_id_renumber_map_label_type_offsets).data(),
                                              (*edge_id_renumber_map_label_type_offsets).size()),
            num_edge_types] __device__(auto pair) {
-            auto old_edge_id = thrust::get<0>(pair);
-            auto edge_idx    = thrust::get<1>(pair);
+            auto old_edge_id = cuda::std::get<0>(pair);
+            auto edge_idx    = cuda::std::get<1>(pair);
             size_t label_idx{0};
             if (edgelist_label_offsets) {
               label_idx = static_cast<size_t>(
@@ -2464,23 +2483,29 @@ void permute_array(raft::handle_t const& handle,
 // key:
 // ((label), (edge type), (hop), major, minor) if use_edge_type_as_sort_key is true
 // ((label), (hop), major, minor) if use_edge_type_as_sort_key is false
-template <typename vertex_t, typename weight_t, typename edge_id_t, typename edge_type_t>
+template <typename vertex_t>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
-           std::optional<rmm::device_uvector<weight_t>>,
-           std::optional<rmm::device_uvector<edge_id_t>>,
-           std::optional<rmm::device_uvector<edge_type_t>>,
+           std::vector<arithmetic_device_uvector_t>,
+           std::optional<arithmetic_device_uvector_t>,
            std::optional<rmm::device_uvector<int32_t>>>
 sort_sampled_edge_tuples(raft::handle_t const& handle,
                          rmm::device_uvector<vertex_t>&& edgelist_majors,
                          rmm::device_uvector<vertex_t>&& edgelist_minors,
-                         std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights,
-                         std::optional<rmm::device_uvector<edge_id_t>>&& edgelist_edge_ids,
-                         std::optional<rmm::device_uvector<edge_type_t>>&& edgelist_edge_types,
+                         std::vector<arithmetic_device_uvector_t>&& edgelist_edge_properties,
+                         std::optional<arithmetic_device_uvector_t>&& edgelist_edge_types,
                          std::optional<rmm::device_uvector<int32_t>>&& edgelist_hops,
                          std::optional<raft::device_span<size_t const>> edgelist_label_offsets,
                          bool use_edge_type_as_sort_key)
 {
+  using edge_type_t = int32_t;
+  CUGRAPH_EXPECTS(
+    !edgelist_edge_types.has_value() ||
+      std::holds_alternative<rmm::device_uvector<int32_t>>(*edgelist_edge_types),
+    "Invalid input arguments: edgelist_edge_types should be a rmm::device_uvector<int32_t>");
+
+  using edge_type_t = int32_t;
+
   std::vector<size_t> h_label_offsets{};
   std::vector<size_t> h_edge_offsets{};
 
@@ -2508,7 +2533,8 @@ sort_sampled_edge_tuples(raft::handle_t const& handle,
                              : cuda::std::nullopt,
       edgelist_edge_types && use_edge_type_as_sort_key
         ? cuda::std::make_optional<raft::device_span<edge_type_t const>>(
-            (*edgelist_edge_types).data() + h_edge_offsets[i], indices.size())
+            std::get<rmm::device_uvector<int32_t>>(*edgelist_edge_types).data() + h_edge_offsets[i],
+            indices.size())
         : cuda::std::nullopt,
       edgelist_hops ? cuda::std::make_optional<raft::device_span<int32_t const>>(
                         (*edgelist_hops).data() + h_edge_offsets[i], indices.size())
@@ -2524,20 +2550,28 @@ sort_sampled_edge_tuples(raft::handle_t const& handle,
                   thrust::make_zip_iterator(edgelist_majors.begin(), edgelist_minors.begin()) +
                     h_edge_offsets[i]);
 
-    if (edgelist_weights) {
-      permute_array(
-        handle, indices.begin(), indices.end(), (*edgelist_weights).begin() + h_edge_offsets[i]);
-    }
-
-    if (edgelist_edge_ids) {
-      permute_array(
-        handle, indices.begin(), indices.end(), (*edgelist_edge_ids).begin() + h_edge_offsets[i]);
-    }
-
     if (edgelist_edge_types) {
+      CUGRAPH_EXPECTS(
+        std::holds_alternative<rmm::device_uvector<int32_t>>(*edgelist_edge_types),
+        "Invalid input arguments: edgelist_edge_types should be a rmm::device_uvector<int32_t>");
+
       permute_array(
-        handle, indices.begin(), indices.end(), (*edgelist_edge_types).begin() + h_edge_offsets[i]);
+        handle,
+        indices.begin(),
+        indices.end(),
+        std::get<rmm::device_uvector<int32_t>>(*edgelist_edge_types).begin() + h_edge_offsets[i]);
     }
+
+    std::for_each(
+      edgelist_edge_properties.begin(),
+      edgelist_edge_properties.end(),
+      [&handle, &indices, &h_edge_offsets, i](auto& edge_property) {
+        cugraph::variant_type_dispatch(
+          edge_property, [&handle, &indices, &h_edge_offsets, i](auto& edge_property) {
+            permute_array(
+              handle, indices.begin(), indices.end(), edge_property.begin() + h_edge_offsets[i]);
+          });
+      });
 
     if (edgelist_hops) {
       permute_array(
@@ -2547,8 +2581,7 @@ sort_sampled_edge_tuples(raft::handle_t const& handle,
 
   return std::make_tuple(std::move(edgelist_majors),
                          std::move(edgelist_minors),
-                         std::move(edgelist_weights),
-                         std::move(edgelist_edge_ids),
+                         std::move(edgelist_edge_properties),
                          std::move(edgelist_edge_types),
                          std::move(edgelist_hops));
 }
@@ -2556,14 +2589,11 @@ sort_sampled_edge_tuples(raft::handle_t const& handle,
 }  // namespace
 
 template <typename vertex_t,
-          typename weight_t,
-          typename edge_id_t,
           typename edge_type_t>
 std::tuple<std::optional<rmm::device_uvector<vertex_t>>,     // dcsr/dcsc major vertices
            rmm::device_uvector<size_t>,                      // (d)csr/(d)csc offset values
            rmm::device_uvector<vertex_t>,                    // minor vertices
-           std::optional<rmm::device_uvector<weight_t>>,     // weights
-           std::optional<rmm::device_uvector<edge_id_t>>,    // edge IDs
+           std::vector<arithmetic_device_uvector_t>,         // edge properties
            std::optional<rmm::device_uvector<edge_type_t>>,  // edge types
            std::optional<rmm::device_uvector<size_t>>,       // (label, hop) offsets to the
                                                              // (d)csr/(d)csc offset array
@@ -2573,8 +2603,7 @@ renumber_and_compress_sampled_edgelist(
   raft::handle_t const& handle,
   rmm::device_uvector<vertex_t>&& edgelist_srcs,
   rmm::device_uvector<vertex_t>&& edgelist_dsts,
-  std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights,
-  std::optional<rmm::device_uvector<edge_id_t>>&& edgelist_edge_ids,
+  std::vector<arithmetic_device_uvector_t>&& edgelist_edge_properties,
   std::optional<rmm::device_uvector<edge_type_t>>&& edgelist_edge_types,
   std::optional<rmm::device_uvector<int32_t>>&& edgelist_hops,
   std::optional<raft::device_span<vertex_t const>> seed_vertices,
@@ -2595,22 +2624,27 @@ renumber_and_compress_sampled_edgelist(
 
   // 1. check input arguments
 
-  check_input_edges<label_index_t, vertex_t, vertex_type_t>(handle,
-                                                            edgelist_majors,
-                                                            edgelist_minors,
-                                                            edgelist_weights,
-                                                            edgelist_edge_ids,
-                                                            edgelist_edge_types,
-                                                            edgelist_hops,
-                                                            seed_vertices,
-                                                            seed_vertex_label_offsets,
-                                                            edgelist_label_offsets,
-                                                            std::nullopt,
-                                                            num_labels,
-                                                            num_hops,
-                                                            size_t{1},
-                                                            std::optional<size_t>{std::nullopt},
-                                                            do_expensive_check);
+  check_input_edges<label_index_t, vertex_t, vertex_type_t>(
+    handle,
+    edgelist_majors,
+    edgelist_minors,
+    edgelist_edge_properties,
+    // edgelist_edge_types ?
+    // std::make_optional(make_const_arithmetic_device_span(*edgelist_edge_types)) : std::nullopt,
+    edgelist_edge_types
+      ? std::make_optional<const_arithmetic_device_span_t>(raft::device_span<edge_type_t const>{
+          edgelist_edge_types->data(), edgelist_edge_types->size()})
+      : std::nullopt,
+    edgelist_hops,
+    seed_vertices,
+    seed_vertex_label_offsets,
+    edgelist_label_offsets,
+    std::nullopt,
+    num_labels,
+    num_hops,
+    size_t{1},
+    std::optional<size_t>{std::nullopt},
+    do_expensive_check);
 
   CUGRAPH_EXPECTS(
     !doubly_compress || !compress_per_hop,
@@ -2651,21 +2685,25 @@ renumber_and_compress_sampled_edgelist(
       do_expensive_check);
 
   // 3. sort by ((l), (h), major, minor)
-
-  std::tie(edgelist_majors,
-           edgelist_minors,
-           edgelist_weights,
-           edgelist_edge_ids,
-           edgelist_edge_types,
-           edgelist_hops) = sort_sampled_edge_tuples(handle,
-                                                     std::move(edgelist_majors),
-                                                     std::move(edgelist_minors),
-                                                     std::move(edgelist_weights),
-                                                     std::move(edgelist_edge_ids),
-                                                     std::move(edgelist_edge_types),
-                                                     std::move(edgelist_hops),
-                                                     edgelist_label_offsets,
-                                                     false);
+  {
+    std::optional<arithmetic_device_uvector_t> edgelist_edge_types_tmp{std::nullopt};
+    std::tie(edgelist_majors,
+             edgelist_minors,
+             edgelist_edge_properties,
+             edgelist_edge_types_tmp,
+             edgelist_hops) = sort_sampled_edge_tuples(handle,
+                                                       std::move(edgelist_majors),
+                                                       std::move(edgelist_minors),
+                                                       std::move(edgelist_edge_properties),
+                                                       std::move(edgelist_edge_types),
+                                                       std::move(edgelist_hops),
+                                                       edgelist_label_offsets,
+                                                       false);
+    if (edgelist_edge_types_tmp) {
+      edgelist_edge_types =
+        std::move(std::get<rmm::device_uvector<edge_type_t>>(*edgelist_edge_types_tmp));
+    }
+  }
 
   if (renumbered_seed_vertices) {
     if (seed_vertex_label_offsets) {
@@ -2705,17 +2743,17 @@ renumber_and_compress_sampled_edgelist(
                               edgelist_majors.begin(),
                               output_key_first,
                               min_vertices.begin(),
-                              thrust::equal_to<thrust::tuple<label_index_t, int32_t>>{},
+                              thrust::equal_to<cuda::std::tuple<label_index_t, int32_t>>{},
                               thrust::minimum<vertex_t>{});
       auto num_unique_keys =
-        static_cast<size_t>(cuda::std::distance(output_key_first, thrust::get<0>(output_it)));
+        static_cast<size_t>(cuda::std::distance(output_key_first, cuda::std::get<0>(output_it)));
       thrust::reduce_by_key(handle.get_thrust_policy(),
                             input_key_first,
                             input_key_first + edgelist_majors.size(),
                             edgelist_majors.begin(),
                             output_key_first,
                             max_vertices.begin(),
-                            thrust::equal_to<thrust::tuple<label_index_t, int32_t>>{},
+                            thrust::equal_to<cuda::std::tuple<label_index_t, int32_t>>{},
                             thrust::maximum<vertex_t>{});
 
       if (renumbered_seed_vertices) {
@@ -2756,7 +2794,7 @@ renumber_and_compress_sampled_edgelist(
                                                             num_unique_keys)] __device__(size_t i) {
             auto prev_key = *(output_key_first + (i - 1));
             auto this_key = *(output_key_first + i);
-            if (thrust::get<0>(prev_key) == thrust::get<0>(this_key)) {
+            if (cuda::std::get<0>(prev_key) == cuda::std::get<0>(this_key)) {
               auto this_min = min_vertices[i];
               auto prev_max = max_vertices[i - 1];
               return prev_max >= this_min;
@@ -2875,10 +2913,10 @@ renumber_and_compress_sampled_edgelist(
                                                       (*compressed_hops).begin());
           auto value_pair_first = thrust::make_transform_iterator(
             thrust::make_counting_iterator(size_t{0}),
-            cuda::proclaim_return_type<thrust::tuple<label_index_t, int32_t>>(
+            cuda::proclaim_return_type<cuda::std::tuple<label_index_t, int32_t>>(
               [num_hops] __device__(size_t i) {
-                return thrust::make_tuple(static_cast<label_index_t>(i / num_hops),
-                                          static_cast<int32_t>(i % num_hops));
+                return cuda::std::make_tuple(static_cast<label_index_t>(i / num_hops),
+                                             static_cast<int32_t>(i % num_hops));
               }));
           thrust::upper_bound(handle.get_thrust_policy(),
                               pair_first,
@@ -3006,10 +3044,10 @@ renumber_and_compress_sampled_edgelist(
                           minor_vertex_counts = raft::device_span<vertex_t>(
                             (*minor_vertex_counts).data(), (*minor_vertex_counts).size()),
                           num_hops] __device__(auto triplet) {
-                           auto nzd_v_idx    = thrust::get<2>(triplet);
+                           auto nzd_v_idx    = cuda::std::get<2>(triplet);
                            size_t end_offset = compressed_offsets[nzd_v_idx + 1];
-                           auto l_idx        = thrust::get<0>(triplet);
-                           auto h            = thrust::get<1>(triplet);
+                           auto l_idx        = cuda::std::get<0>(triplet);
+                           auto h            = cuda::std::get<1>(triplet);
                            cuda::atomic_ref<vertex_t, cuda::thread_scope_device> minor_vertex_count(
                              minor_vertex_counts[l_idx * num_hops + h]);
                            minor_vertex_count.fetch_max(edgelist_minors[end_offset - 1] + 1,
@@ -3028,9 +3066,9 @@ renumber_and_compress_sampled_edgelist(
                           minor_vertex_counts = raft::device_span<vertex_t>(
                             (*minor_vertex_counts).data(), (*minor_vertex_counts).size()),
                           num_hops] __device__(auto pair) {
-                           auto nzd_v_idx    = thrust::get<1>(pair);
+                           auto nzd_v_idx    = cuda::std::get<1>(pair);
                            size_t end_offset = compressed_offsets[nzd_v_idx + 1];
-                           auto h            = thrust::get<0>(pair);
+                           auto h            = cuda::std::get<0>(pair);
                            cuda::atomic_ref<vertex_t, cuda::thread_scope_device> minor_vertex_count(
                              minor_vertex_counts[h]);
                            minor_vertex_count.fetch_max(edgelist_minors[end_offset - 1] + 1,
@@ -3098,11 +3136,11 @@ renumber_and_compress_sampled_edgelist(
                                                               tmp_compressed_offsets.size()),
            compress_per_hop,
            num_hops] __device__(auto triplet) {
-            auto nzd_v_idx      = thrust::get<2>(triplet);
+            auto nzd_v_idx      = cuda::std::get<2>(triplet);
             size_t start_offset = compressed_offsets[nzd_v_idx];
             size_t end_offset   = compressed_offsets[nzd_v_idx + 1];
-            auto l_idx          = thrust::get<0>(triplet);
-            auto h              = thrust::get<1>(triplet);
+            auto l_idx          = cuda::std::get<0>(triplet);
+            auto h              = cuda::std::get<1>(triplet);
             tmp_compressed_offsets[offset_array_offsets[l_idx * num_hops +
                                                         (compress_per_hop ? h : int32_t{0})] +
                                    compressed_nzd_vertices[nzd_v_idx]] = end_offset - start_offset;
@@ -3122,10 +3160,10 @@ renumber_and_compress_sampled_edgelist(
              raft::device_span<size_t>(compressed_offsets.data(), compressed_offsets.size()),
            tmp_compressed_offsets = raft::device_span<size_t>(
              tmp_compressed_offsets.data(), tmp_compressed_offsets.size())] __device__(auto pair) {
-            auto nzd_v_idx      = thrust::get<1>(pair);
+            auto nzd_v_idx      = cuda::std::get<1>(pair);
             size_t start_offset = compressed_offsets[nzd_v_idx];
             size_t end_offset   = compressed_offsets[nzd_v_idx + 1];
-            auto l_idx          = thrust::get<0>(pair);
+            auto l_idx          = cuda::std::get<0>(pair);
             tmp_compressed_offsets[offset_array_offsets[l_idx] +
                                    compressed_nzd_vertices[nzd_v_idx]] = end_offset - start_offset;
           });
@@ -3147,10 +3185,10 @@ renumber_and_compress_sampled_edgelist(
            tmp_compressed_offsets = raft::device_span<size_t>(tmp_compressed_offsets.data(),
                                                               tmp_compressed_offsets.size()),
            compress_per_hop] __device__(auto pair) {
-            auto nzd_v_idx      = thrust::get<1>(pair);
+            auto nzd_v_idx      = cuda::std::get<1>(pair);
             size_t start_offset = compressed_offsets[nzd_v_idx];
             size_t end_offset   = compressed_offsets[nzd_v_idx + 1];
-            auto h              = thrust::get<0>(pair);
+            auto h              = cuda::std::get<0>(pair);
             tmp_compressed_offsets[offset_array_offsets[compress_per_hop ? h : int32_t{0}] +
                                    compressed_nzd_vertices[nzd_v_idx]] = end_offset - start_offset;
           });
@@ -3191,33 +3229,25 @@ renumber_and_compress_sampled_edgelist(
     doubly_compress ? std::make_optional(std::move(compressed_nzd_vertices)) : std::nullopt,
     std::move(compressed_offsets),
     std::move(edgelist_minors),
-    std::move(edgelist_weights),
-    std::move(edgelist_edge_ids),
+    std::move(edgelist_edge_properties),
     std::move(edgelist_edge_types),
     std::move(compressed_offset_label_hop_offsets),
     std::move(renumber_map),
     std::move(renumber_map_label_offsets));
 }
 
-template <typename vertex_t,
-          typename weight_t,
-          typename edge_id_t,
-          typename edge_type_t>
-std::tuple<rmm::device_uvector<vertex_t>,                    // srcs
-           rmm::device_uvector<vertex_t>,                    // dsts
-           std::optional<rmm::device_uvector<weight_t>>,     // weights
-           std::optional<rmm::device_uvector<edge_id_t>>,    // edge IDs
-           std::optional<rmm::device_uvector<edge_type_t>>,  // edge types
-           std::optional<rmm::device_uvector<size_t>>,       // (label, hop) offsets to the edges
-           rmm::device_uvector<vertex_t>,                    // renumber map
-           std::optional<rmm::device_uvector<size_t>>>       // label offsets to the renumber map
+template <typename vertex_t>
+std::tuple<rmm::device_uvector<vertex_t>,               // srcs
+           rmm::device_uvector<vertex_t>,               // dsts
+           std::vector<arithmetic_device_uvector_t>,    // edge properties
+           std::optional<rmm::device_uvector<size_t>>,  // (label, hop) offsets to the edges
+           rmm::device_uvector<vertex_t>,               // renumber map
+           std::optional<rmm::device_uvector<size_t>>>  // label offsets to the renumber map
 renumber_and_sort_sampled_edgelist(
   raft::handle_t const& handle,
   rmm::device_uvector<vertex_t>&& edgelist_srcs,
   rmm::device_uvector<vertex_t>&& edgelist_dsts,
-  std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights,
-  std::optional<rmm::device_uvector<edge_id_t>>&& edgelist_edge_ids,
-  std::optional<rmm::device_uvector<edge_type_t>>&& edgelist_edge_types,
+  std::vector<arithmetic_device_uvector_t>&& edgelist_edge_properties,
   std::optional<rmm::device_uvector<int32_t>>&& edgelist_hops,
   std::optional<raft::device_span<vertex_t const>> seed_vertices,
   std::optional<raft::device_span<size_t const>> seed_vertex_label_offsets,
@@ -3238,9 +3268,8 @@ renumber_and_sort_sampled_edgelist(
   check_input_edges<label_index_t, vertex_t, vertex_type_t>(handle,
                                                             edgelist_majors,
                                                             edgelist_minors,
-                                                            edgelist_weights,
-                                                            edgelist_edge_ids,
-                                                            edgelist_edge_types,
+                                                            edgelist_edge_properties,
+                                                            std::nullopt,
                                                             edgelist_hops,
                                                             seed_vertices,
                                                             seed_vertex_label_offsets,
@@ -3282,20 +3311,15 @@ renumber_and_sort_sampled_edgelist(
 
   // 3. sort by ((l), (h), major, minor)
 
-  std::tie(edgelist_majors,
-           edgelist_minors,
-           edgelist_weights,
-           edgelist_edge_ids,
-           edgelist_edge_types,
-           edgelist_hops) = sort_sampled_edge_tuples(handle,
-                                                     std::move(edgelist_majors),
-                                                     std::move(edgelist_minors),
-                                                     std::move(edgelist_weights),
-                                                     std::move(edgelist_edge_ids),
-                                                     std::move(edgelist_edge_types),
-                                                     std::move(edgelist_hops),
-                                                     edgelist_label_offsets,
-                                                     false);
+  std::tie(edgelist_majors, edgelist_minors, edgelist_edge_properties, std::ignore, edgelist_hops) =
+    sort_sampled_edge_tuples(handle,
+                             std::move(edgelist_majors),
+                             std::move(edgelist_minors),
+                             std::move(edgelist_edge_properties),
+                             std::nullopt,
+                             std::move(edgelist_hops),
+                             edgelist_label_offsets,
+                             false);
 
   // 4. compute edgelist_label_hop_offsets
 
@@ -3356,34 +3380,31 @@ renumber_and_sort_sampled_edgelist(
 
   return std::make_tuple(std::move(src_is_major ? edgelist_majors : edgelist_minors),
                          std::move(src_is_major ? edgelist_minors : edgelist_majors),
-                         std::move(edgelist_weights),
-                         std::move(edgelist_edge_ids),
-                         std::move(edgelist_edge_types),
+                         std::move(edgelist_edge_properties),
                          std::move(edgelist_label_hop_offsets),
                          std::move(renumber_map),
                          std::move(renumber_map_label_offsets));
 }
 
 template <typename vertex_t,
-          typename weight_t,
           typename edge_id_t,
           typename edge_type_t>
 std::tuple<rmm::device_uvector<vertex_t>,                  // srcs
            rmm::device_uvector<vertex_t>,                  // dsts
-           std::optional<rmm::device_uvector<weight_t>>,   // weights
+           std::vector<arithmetic_device_uvector_t>,       // edge properties
            std::optional<rmm::device_uvector<edge_id_t>>,  // edge IDs
            std::optional<rmm::device_uvector<size_t>>,     // (label, edge type, hop) offsets to the
                                                            // edges
            rmm::device_uvector<vertex_t>,                  // vertex renumber map
            rmm::device_uvector<size_t>,  // (label, vertex type) offsets to the vertex renumber map
            std::optional<rmm::device_uvector<edge_id_t>>,  // edge ID renumber map
-           std::optional<
-             rmm::device_uvector<size_t>>>  // (label, edge type) offsets to the vertex renumber map
+           std::optional<rmm::device_uvector<
+             size_t>>>  // (label, edge type) offsets to the edge ID renumber map
 heterogeneous_renumber_and_sort_sampled_edgelist(
   raft::handle_t const& handle,
   rmm::device_uvector<vertex_t>&& edgelist_srcs,
   rmm::device_uvector<vertex_t>&& edgelist_dsts,
-  std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights,
+  std::vector<arithmetic_device_uvector_t>&& edgelist_edge_additional_properties,
   std::optional<rmm::device_uvector<edge_id_t>>&& edgelist_edge_ids,
   std::optional<rmm::device_uvector<edge_type_t>>&& edgelist_edge_types,
   std::optional<rmm::device_uvector<int32_t>>&& edgelist_hops,
@@ -3405,24 +3426,37 @@ heterogeneous_renumber_and_sort_sampled_edgelist(
   auto edgelist_minors = src_is_major ? std::move(edgelist_dsts) : std::move(edgelist_srcs);
 
   // 1. check input arguments
+  {
+    if (edgelist_edge_ids) {
+      edgelist_edge_additional_properties.push_back(std::move(*edgelist_edge_ids));
+    }
 
-  check_input_edges<label_index_t, vertex_t, vertex_type_t>(handle,
-                                                            edgelist_majors,
-                                                            edgelist_minors,
-                                                            edgelist_weights,
-                                                            edgelist_edge_ids,
-                                                            edgelist_edge_types,
-                                                            edgelist_hops,
-                                                            seed_vertices,
-                                                            seed_vertex_label_offsets,
-                                                            edgelist_label_offsets,
-                                                            vertex_type_offsets,
-                                                            num_labels,
-                                                            num_hops,
-                                                            num_vertex_types,
-                                                            std::optional<size_t>{num_edge_types},
-                                                            do_expensive_check);
+    check_input_edges<label_index_t, vertex_t, vertex_type_t>(
+      handle,
+      edgelist_majors,
+      edgelist_minors,
+      edgelist_edge_additional_properties,
+      edgelist_edge_types
+        ? std::make_optional<const_arithmetic_device_span_t>(raft::device_span<edge_type_t const>{
+            edgelist_edge_types->data(), edgelist_edge_types->size()})
+        : std::nullopt,
+      edgelist_hops,
+      seed_vertices,
+      seed_vertex_label_offsets,
+      edgelist_label_offsets,
+      vertex_type_offsets,
+      num_labels,
+      num_hops,
+      num_vertex_types,
+      std::optional<size_t>{num_edge_types},
+      do_expensive_check);
 
+    if (edgelist_edge_ids) {
+      edgelist_edge_ids = std::move(
+        std::get<rmm::device_uvector<edge_id_t>>(edgelist_edge_additional_properties.back()));
+      edgelist_edge_additional_properties.pop_back();
+    }
+  }
   // 2. renumber
 
   std::optional<rmm::device_uvector<vertex_t>> renumbered_seed_vertices{std::nullopt};
@@ -3471,21 +3505,37 @@ heterogeneous_renumber_and_sort_sampled_edgelist(
       do_expensive_check);
 
   // 3. sort by ((label), (edge type), (hop), major, minor)
+  {
+    if (edgelist_edge_ids) {
+      edgelist_edge_additional_properties.push_back(std::move(*edgelist_edge_ids));
+    }
 
-  std::tie(edgelist_majors,
-           edgelist_minors,
-           edgelist_weights,
-           edgelist_edge_ids,
-           edgelist_edge_types,
-           edgelist_hops) = sort_sampled_edge_tuples(handle,
-                                                     std::move(edgelist_majors),
-                                                     std::move(edgelist_minors),
-                                                     std::move(edgelist_weights),
-                                                     std::move(edgelist_edge_ids),
-                                                     std::move(edgelist_edge_types),
-                                                     std::move(edgelist_hops),
-                                                     edgelist_label_offsets,
-                                                     true);
+    std::optional<arithmetic_device_uvector_t> edgelist_edge_types_tmp{std::nullopt};
+    std::tie(edgelist_majors,
+             edgelist_minors,
+             edgelist_edge_additional_properties,
+             edgelist_edge_types_tmp,
+             edgelist_hops) =
+      sort_sampled_edge_tuples(handle,
+                               std::move(edgelist_majors),
+                               std::move(edgelist_minors),
+                               std::move(edgelist_edge_additional_properties),
+                               std::move(edgelist_edge_types),
+                               std::move(edgelist_hops),
+                               edgelist_label_offsets,
+                               true);
+
+    if (edgelist_edge_types_tmp) {
+      edgelist_edge_types =
+        std::move(std::get<rmm::device_uvector<edge_type_t>>(*edgelist_edge_types_tmp));
+    }
+
+    if (edgelist_edge_ids) {
+      edgelist_edge_ids = std::move(
+        std::get<rmm::device_uvector<edge_id_t>>(edgelist_edge_additional_properties.back()));
+      edgelist_edge_additional_properties.pop_back();
+    }
+  }
 
   // 4. compute edgelist (label, edge type, hop) offsets
 
@@ -3568,7 +3618,7 @@ heterogeneous_renumber_and_sort_sampled_edgelist(
 
   return std::make_tuple(std::move(src_is_major ? edgelist_majors : edgelist_minors),
                          std::move(src_is_major ? edgelist_minors : edgelist_majors),
-                         std::move(edgelist_weights),
+                         std::move(edgelist_edge_additional_properties),
                          std::move(edgelist_edge_ids),
                          std::move(edgelist_label_type_hop_offsets),
                          std::move(vertex_renumber_map),
@@ -3577,22 +3627,15 @@ heterogeneous_renumber_and_sort_sampled_edgelist(
                          std::move(edge_id_renumber_map_label_type_offsets));
 }
 
-template <typename vertex_t,
-          typename weight_t,
-          typename edge_id_t,
-          typename edge_type_t>
-std::tuple<rmm::device_uvector<vertex_t>,                    // srcs
-           rmm::device_uvector<vertex_t>,                    // dsts
-           std::optional<rmm::device_uvector<weight_t>>,     // weights
-           std::optional<rmm::device_uvector<edge_id_t>>,    // edge IDs
-           std::optional<rmm::device_uvector<edge_type_t>>,  // edge types
-           std::optional<rmm::device_uvector<size_t>>>       // (label, hop) offsets to the edges
+template <typename vertex_t>
+std::tuple<rmm::device_uvector<vertex_t>,               // srcs
+           rmm::device_uvector<vertex_t>,               // dsts
+           std::vector<arithmetic_device_uvector_t>,    // edge properties
+           std::optional<rmm::device_uvector<size_t>>>  // (label, hop) offsets to the edges
 sort_sampled_edgelist(raft::handle_t const& handle,
                       rmm::device_uvector<vertex_t>&& edgelist_srcs,
                       rmm::device_uvector<vertex_t>&& edgelist_dsts,
-                      std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights,
-                      std::optional<rmm::device_uvector<edge_id_t>>&& edgelist_edge_ids,
-                      std::optional<rmm::device_uvector<edge_type_t>>&& edgelist_edge_types,
+                      std::vector<arithmetic_device_uvector_t>&& edgelist_edge_properties,
                       std::optional<rmm::device_uvector<int32_t>>&& edgelist_hops,
                       std::optional<raft::device_span<size_t const>> edgelist_label_offsets,
                       size_t num_labels,
@@ -3611,9 +3654,8 @@ sort_sampled_edgelist(raft::handle_t const& handle,
   check_input_edges<label_index_t, vertex_t, vertex_type_t>(handle,
                                                             edgelist_majors,
                                                             edgelist_minors,
-                                                            edgelist_weights,
-                                                            edgelist_edge_ids,
-                                                            edgelist_edge_types,
+                                                            edgelist_edge_properties,
+                                                            std::nullopt,
                                                             edgelist_hops,
                                                             std::nullopt,
                                                             std::nullopt,
@@ -3627,20 +3669,15 @@ sort_sampled_edgelist(raft::handle_t const& handle,
 
   // 2. sort by ((l), (h), major, minor)
 
-  std::tie(edgelist_majors,
-           edgelist_minors,
-           edgelist_weights,
-           edgelist_edge_ids,
-           edgelist_edge_types,
-           edgelist_hops) = sort_sampled_edge_tuples(handle,
-                                                     std::move(edgelist_majors),
-                                                     std::move(edgelist_minors),
-                                                     std::move(edgelist_weights),
-                                                     std::move(edgelist_edge_ids),
-                                                     std::move(edgelist_edge_types),
-                                                     std::move(edgelist_hops),
-                                                     edgelist_label_offsets,
-                                                     false);
+  std::tie(edgelist_majors, edgelist_minors, edgelist_edge_properties, std::ignore, edgelist_hops) =
+    sort_sampled_edge_tuples(handle,
+                             std::move(edgelist_majors),
+                             std::move(edgelist_minors),
+                             std::move(edgelist_edge_properties),
+                             std::nullopt,
+                             std::move(edgelist_hops),
+                             edgelist_label_offsets,
+                             false);
 
   // 3. compute edgelist_label_hop_offsets
 
@@ -3652,6 +3689,7 @@ sort_sampled_edgelist(raft::handle_t const& handle,
                  (*edgelist_label_hop_offsets).begin(),
                  (*edgelist_label_hop_offsets).end(),
                  size_t{0});
+
     thrust::transform(
       handle.get_thrust_policy(),
       thrust::make_counting_iterator(size_t{0}),
@@ -3691,19 +3729,18 @@ sort_sampled_edgelist(raft::handle_t const& handle,
 
           return end_offset - start_offset;
         }));
+
     thrust::exclusive_scan(handle.get_thrust_policy(),
                            (*edgelist_label_hop_offsets).begin(),
                            (*edgelist_label_hop_offsets).end(),
                            (*edgelist_label_hop_offsets).begin());
-  }
 
-  edgelist_hops = std::nullopt;
+    edgelist_hops = std::nullopt;
+  }
 
   return std::make_tuple(std::move(src_is_major ? edgelist_majors : edgelist_minors),
                          std::move(src_is_major ? edgelist_minors : edgelist_majors),
-                         std::move(edgelist_weights),
-                         std::move(edgelist_edge_ids),
-                         std::move(edgelist_edge_types),
+                         std::move(edgelist_edge_properties),
                          std::move(edgelist_label_hop_offsets));
 }
 

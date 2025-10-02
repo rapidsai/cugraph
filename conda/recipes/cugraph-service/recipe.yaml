@@ -74,15 +74,15 @@ outputs:
         - ${{ pin_subpackage("cugraph-service-client", exact=True) }}
         - cudf =${{ minor_version }}
         - cugraph =${{ minor_version }}
-        - cupy >=12.0.0
+        - cupy >=13.6.0
         - dask-cuda =${{ minor_version }}
         - dask-cudf =${{ minor_version }}
-        - numba >=0.59.1,<0.62.0a0
+        - numba >=0.60.0,<0.62.0a0
         - numpy >=1.23,<3.0a0
         - python
         - rapids-dask-dependency =${{ minor_version }}
         - thriftpy2 >=0.4.15,!=0.5.0,!=0.5.1
-        - ucx-py ${{ ucx_py_version }}
+        - ucxx ${{ ucxx_version }}
 
     about:
       homepage: ${{ load_from_file("python/cugraph-service/server/pyproject.toml").project.urls.Homepage }}

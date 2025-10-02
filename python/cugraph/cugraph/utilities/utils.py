@@ -51,16 +51,6 @@ except ModuleNotFoundError:
 
 scipy_package = sp
 
-try:
-    import networkx as nx
-
-    __nx_graph_types = [nx.Graph, nx.DiGraph]
-except ModuleNotFoundError:
-    nx = None
-    __nx_graph_types = []
-
-nx_package = nx
-
 
 def get_traversed_path(df, id):
     """
@@ -205,12 +195,30 @@ def get_traversed_path_list(df, id):
     return answer
 
 
-# FIXME: if G is a Nx type, the weight attribute is assumed to be "weight", if
-# set. An additional optional parameter for the weight attr name when accepting
-# Nx graphs may be needed.  From the Nx docs:
-# |      Many NetworkX algorithms designed for weighted graphs use
-# |      an edge attribute (by default `weight`) to hold a numerical value.
-def ensure_cugraph_obj(obj, nx_weight_attr=None, matrix_graph_type=None):
+def ensure_valid_dtype(input_graph, vertex_pair):
+    import inspect
+
+    vertex_dtype = input_graph.edgelist.edgelist_df.dtypes.iloc[0]
+    vertex_pair_dtypes = vertex_pair.dtypes
+
+    if (
+        vertex_pair_dtypes.iloc[0] != vertex_dtype
+        or vertex_pair_dtypes.iloc[1] != vertex_dtype
+    ):
+        func_name = inspect.stack()[1].function
+
+        warning_msg = (
+            f"{func_name} requires 'vertex_pair' to match the graph's 'vertex' type. "
+            f"input graph's vertex type is: {vertex_dtype} and got "
+            f"'vertex_pair' of type: {vertex_pair_dtypes}."
+        )
+        warn(warning_msg, UserWarning)
+        vertex_pair = vertex_pair.astype(vertex_dtype)
+
+    return vertex_pair
+
+
+def ensure_cugraph_obj(obj, matrix_graph_type=None):
 
     """
     Convert the input obj - if possible - to a cuGraph Graph-type obj (Graph,
@@ -220,14 +228,10 @@ def ensure_cugraph_obj(obj, nx_weight_attr=None, matrix_graph_type=None):
     """
     # FIXME: importing here to avoid circular import
     from cugraph.structure import Graph
-    from cugraph.utilities.nx_factory import convert_from_nx
 
     input_type = type(obj)
     if is_cugraph_graph_type(input_type):
         return (obj, input_type)
-
-    elif is_nx_graph_type(input_type):
-        return (convert_from_nx(obj, weight=nx_weight_attr), input_type)
 
     elif (input_type in __cp_matrix_types) or (input_type in __sp_matrix_types):
         if matrix_graph_type is None:
@@ -264,53 +268,12 @@ def ensure_cugraph_obj(obj, nx_weight_attr=None, matrix_graph_type=None):
             G = matrix_graph_type
         else:
             G = matrix_graph_type()
-        G.from_cudf_edgelist(df, edge_attr="weight", renumber=True)
+        G.from_cudf_edgelist(df, weight="weight", renumber=True)
 
         return (G, input_type)
 
     else:
         raise TypeError(f"obj of type {input_type} is not supported.")
-
-
-# FIXME: if G is a Nx type, the weight attribute is assumed to be "weight", if
-# set. An additional optional parameter for the weight attr name when accepting
-# Nx graphs may be needed.  From the Nx docs:
-# |      Many NetworkX algorithms designed for weighted graphs use
-# |      an edge attribute (by default `weight`) to hold a numerical value.
-def ensure_cugraph_obj_for_nx(
-    obj, nx_weight_attr="weight", store_transposed=False, vertex_type="int32"
-):
-    """
-    Ensures a cuGraph Graph-type obj is returned for either cuGraph or Nx
-    Graph-type objs. If obj is a Nx type,
-    """
-    # FIXME: importing here to avoid circular import
-    from cugraph.utilities.nx_factory import convert_from_nx
-
-    input_type = type(obj)
-    if is_nx_graph_type(input_type):
-        warn(
-            "Support for accepting and returning NetworkX objects is "
-            "deprecated. Please use NetworkX with the nx-cugraph backend",
-            DeprecationWarning,
-            2,
-        )
-        return (
-            convert_from_nx(
-                obj,
-                weight=nx_weight_attr,
-                store_transposed=store_transposed,
-                vertex_type=vertex_type,
-            ),
-            True,
-        )
-    elif is_cugraph_graph_type(input_type):
-        return (obj, False)
-    else:
-        raise TypeError(
-            "input must be either a cuGraph or NetworkX graph "
-            f"type, got {input_type}"
-        )
 
 
 def is_cp_matrix_type(m):
@@ -323,10 +286,6 @@ def is_sp_matrix_type(m):
 
 def is_matrix_type(m):
     return is_cp_matrix_type(m) or is_sp_matrix_type(m)
-
-
-def is_nx_graph_type(graph_type):
-    return graph_type in __nx_graph_types
 
 
 def is_cugraph_graph_type(g):

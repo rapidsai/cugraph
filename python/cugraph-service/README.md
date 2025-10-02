@@ -1,5 +1,12 @@
 # cugraph_service
 
+## NOTICE: cugraph-service is deprecated
+
+The cugraph-service client and server are deprecated and will be removed in a future release.
+If cugraph_service is critical for your work, please submit a GitHub
+issue at https://github.com/rapidsai/cugraph/issues
+
+
 ## Description
 [RAPIDS](https://rapids.ai) cugraph-service provides an RPC interace to a remote [RAPIDS cuGraph](https://github.com/rapidsai/cugraph) session, allowing users to perform GPU accelerated graph analytics from a remote process. cugraph-service uses cuGraph, cuDF, and other libraries on the server to execute graph data prep and analysis on server-side GPUs. Multiple clients can connect to the server allowing different users and processes the ability to access large graph data that may not otherwise be possible using the client resources.
 
@@ -52,7 +59,7 @@
    ```
 
 ### Debugging
-#### UCX-Py related variables:
+#### UCXX related variables:
 `UCX_TLS` - set the transports to use, in priority order. Example:
 ```
 UCX_TLS=tcp,cuda_copy,cuda_ipc
@@ -67,7 +74,7 @@ UCX_LOG_LEVEL=ERROR
 ```
 
 #### UCX performance checks:
-Because cugraph-service uses UCX-Py for direct-to-client GPU data transfers when specified, it can be helpful to understand the various UCX performance chacks available to ensure cugraph-service is transfering results as efficiently as the system is capable of.
+Because cugraph-service uses UCXX for direct-to-client GPU data transfers when specified, it can be helpful to understand the various UCX performance chacks available to ensure cugraph-service is transfering results as efficiently as the system is capable of.
 ```
 ucx_perftest -m cuda -t tag_bw -n 100 -s 16000 &
 ucx_perftest -m cuda -t tag_bw -n 100 -s 16000 localhost

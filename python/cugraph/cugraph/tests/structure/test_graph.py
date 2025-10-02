@@ -630,7 +630,7 @@ def test_number_of_edges():
     df = pd.DataFrame(cycle_edges, columns=["source", "destination", "weight"])
 
     # Convert to cuDF
-    cudf_edges = cudf.DataFrame.from_pandas(df)
+    cudf_edges = cudf.DataFrame(df)
 
     # Create directed graph
     G_directed = cugraph.Graph(directed=True)

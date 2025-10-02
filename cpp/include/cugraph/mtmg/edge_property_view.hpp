@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2023-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,9 +24,9 @@ namespace mtmg {
 /**
  * @brief Edge property object for each GPU
  */
-template <typename edge_t, typename value_iterator_t>
+template <typename edge_t>
 using edge_property_view_t =
-  detail::device_shared_wrapper_t<cugraph::edge_property_view_t<edge_t, value_iterator_t>>;
+  detail::device_shared_wrapper_t<cugraph::edge_arithmetic_property_view_t<edge_t>>;
 
 }  // namespace mtmg
 }  // namespace cugraph

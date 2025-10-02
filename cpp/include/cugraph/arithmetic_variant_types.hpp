@@ -26,6 +26,8 @@
 
 namespace cugraph {
 
+using arithmetic_type_t = std::variant<std::monostate, float, double, int32_t, int64_t, size_t>;
+
 using arithmetic_device_uvector_t    = std::variant<std::monostate,
                                                     rmm::device_uvector<float>,
                                                     rmm::device_uvector<double>,
@@ -46,6 +48,14 @@ using const_arithmetic_device_span_t = std::variant<std::monostate,
                                                     raft::device_span<size_t const>>;
 
 template <typename edge_t>
+using edge_arithmetic_property_t = std::variant<std::monostate,
+                                                cugraph::edge_property_t<edge_t, float>,
+                                                cugraph::edge_property_t<edge_t, double>,
+                                                cugraph::edge_property_t<edge_t, int32_t>,
+                                                cugraph::edge_property_t<edge_t, int64_t>,
+                                                cugraph::edge_property_t<edge_t, size_t>>;
+
+template <typename edge_t>
 using edge_arithmetic_property_view_t =
   std::variant<std::monostate,
                cugraph::edge_property_view_t<edge_t, float const*>,
@@ -63,73 +73,8 @@ using edge_arithmetic_property_mutable_view_t =
                cugraph::edge_property_view_t<edge_t, int64_t*>,
                cugraph::edge_property_view_t<edge_t, size_t*>>;
 
-template <typename func_t>
-auto variant_type_dispatch(arithmetic_device_uvector_t& property, func_t func)
-{
-  switch (property.index()) {
-    case 1: return func(std::get<1>(property));
-    case 2: return func(std::get<2>(property));
-    case 3: return func(std::get<3>(property));
-    case 4: return func(std::get<4>(property));
-    case 5: return func(std::get<5>(property));
-    default: CUGRAPH_FAIL("Variant not initialized");
-  }
-}
-
-template <typename func_t>
-auto variant_type_dispatch(arithmetic_device_uvector_t const& property, func_t func)
-{
-  switch (property.index()) {
-    case 1: return func(std::get<1>(property));
-    case 2: return func(std::get<2>(property));
-    case 3: return func(std::get<3>(property));
-    case 4: return func(std::get<4>(property));
-    case 5: return func(std::get<5>(property));
-    default: CUGRAPH_FAIL("Variant not initialized");
-  }
-}
-
-template <typename func_t>
-auto variant_type_dispatch(arithmetic_device_span_t& property, func_t func)
-{
-  switch (property.index()) {
-    case 1: return func(std::get<1>(property));
-    case 2: return func(std::get<2>(property));
-    case 3: return func(std::get<3>(property));
-    case 4: return func(std::get<4>(property));
-    case 5: return func(std::get<5>(property));
-    default: CUGRAPH_FAIL("Variant not initialized");
-  }
-}
-
-template <typename func_t>
-auto variant_type_dispatch(const_arithmetic_device_span_t& property, func_t func)
-{
-  switch (property.index()) {
-    case 1: return func(std::get<1>(property));
-    case 2: return func(std::get<2>(property));
-    case 3: return func(std::get<3>(property));
-    case 4: return func(std::get<4>(property));
-    case 5: return func(std::get<5>(property));
-    default: CUGRAPH_FAIL("Variant not initialized");
-  }
-}
-
-template <typename edge_t, typename func_t>
-auto variant_type_dispatch(edge_arithmetic_property_view_t<edge_t>& property, func_t func)
-{
-  switch (property.index()) {
-    case 1: return func(std::get<1>(property));
-    case 2: return func(std::get<2>(property));
-    case 3: return func(std::get<3>(property));
-    case 4: return func(std::get<4>(property));
-    case 5: return func(std::get<5>(property));
-    default: CUGRAPH_FAIL("Variant not initialized");
-  }
-}
-
-template <typename edge_t, typename func_t>
-auto variant_type_dispatch(edge_arithmetic_property_mutable_view_t<edge_t>& property, func_t func)
+template <typename dispatched_type_t, typename func_t>
+auto variant_type_dispatch(dispatched_type_t& property, func_t func)
 {
   switch (property.index()) {
     case 1: return func(std::get<1>(property));
@@ -173,6 +118,25 @@ inline std::vector<arithmetic_device_span_t> make_arithmetic_device_span_vector(
   std::vector<arithmetic_device_span_t> results(v.size());
   std::transform(
     v.begin(), v.end(), results.begin(), [](auto& c) { return make_arithmetic_device_span(c); });
+  return results;
+}
+
+inline const_arithmetic_device_span_t make_const_arithmetic_device_span(
+  arithmetic_device_uvector_t& v)
+{
+  return variant_type_dispatch(v, [](auto& v) {
+    using T = typename std::remove_reference<decltype(v)>::type::value_type;
+    return const_arithmetic_device_span_t(raft::device_span<T const>(v.data(), v.size()));
+  });
+}
+
+inline std::vector<const_arithmetic_device_span_t> make_const_arithmetic_device_span_vector(
+  std::vector<arithmetic_device_uvector_t>& v)
+{
+  std::vector<const_arithmetic_device_span_t> results(v.size());
+  std::transform(v.begin(), v.end(), results.begin(), [](auto& c) {
+    return make_const_arithmetic_device_span(c);
+  });
   return results;
 }
 

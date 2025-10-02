@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -228,21 +228,32 @@ class Tests_SamplingPostProcessing
         hr_timer.start("Renumber and sort sampled edgelist");
       }
 
+      std::vector<cugraph::arithmetic_device_uvector_t>
+        renumbered_and_sorted_edgelist_edge_properties{};
+      if (renumbered_and_sorted_edgelist_weights) {
+        renumbered_and_sorted_edgelist_edge_properties.push_back(
+          std::move(*renumbered_and_sorted_edgelist_weights));
+      }
+      if (renumbered_and_sorted_edgelist_edge_ids) {
+        renumbered_and_sorted_edgelist_edge_properties.push_back(
+          std::move(*renumbered_and_sorted_edgelist_edge_ids));
+      }
+      if (renumbered_and_sorted_edgelist_edge_types) {
+        renumbered_and_sorted_edgelist_edge_properties.push_back(
+          std::move(*renumbered_and_sorted_edgelist_edge_types));
+      }
+
       std::tie(renumbered_and_sorted_edgelist_srcs,
                renumbered_and_sorted_edgelist_dsts,
-               renumbered_and_sorted_edgelist_weights,
-               renumbered_and_sorted_edgelist_edge_ids,
-               renumbered_and_sorted_edgelist_edge_types,
+               renumbered_and_sorted_edgelist_edge_properties,
                renumbered_and_sorted_edgelist_label_hop_offsets,
                renumbered_and_sorted_renumber_map,
                renumbered_and_sorted_renumber_map_label_offsets) =
-        cugraph::renumber_and_sort_sampled_edgelist<vertex_t, weight_t, edge_id_t, edge_type_t>(
+        cugraph::renumber_and_sort_sampled_edgelist<vertex_t>(
           handle,
           std::move(renumbered_and_sorted_edgelist_srcs),
           std::move(renumbered_and_sorted_edgelist_dsts),
-          std::move(renumbered_and_sorted_edgelist_weights),
-          std::move(renumbered_and_sorted_edgelist_edge_ids),
-          std::move(renumbered_and_sorted_edgelist_edge_types),
+          std::move(renumbered_and_sorted_edgelist_edge_properties),
           std::move(renumbered_and_sorted_edgelist_hops),
           sampling_post_processing_usecase.renumber_with_seeds
             ? std::make_optional<raft::device_span<vertex_t const>>(starting_vertices.data(),
@@ -259,6 +270,22 @@ class Tests_SamplingPostProcessing
           sampling_post_processing_usecase.num_labels,
           sampling_post_processing_usecase.fanouts.size(),
           sampling_post_processing_usecase.src_is_major);
+
+      size_t pos = 0;
+      if (renumbered_and_sorted_edgelist_weights) {
+        renumbered_and_sorted_edgelist_weights = std::move(std::get<rmm::device_uvector<weight_t>>(
+          renumbered_and_sorted_edgelist_edge_properties[pos++]));
+      }
+      if (renumbered_and_sorted_edgelist_edge_ids) {
+        renumbered_and_sorted_edgelist_edge_ids =
+          std::move(std::get<rmm::device_uvector<edge_id_t>>(
+            renumbered_and_sorted_edgelist_edge_properties[pos++]));
+      }
+      if (renumbered_and_sorted_edgelist_edge_types) {
+        renumbered_and_sorted_edgelist_edge_types =
+          std::move(std::get<rmm::device_uvector<edge_type_t>>(
+            renumbered_and_sorted_edgelist_edge_properties[pos++]));
+      }
 
       if (cugraph::test::g_perf) {
         RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -455,21 +482,28 @@ class Tests_SamplingPostProcessing
         hr_timer.start("Renumber and compressed sampled edgelist");
       }
 
+      std::vector<cugraph::arithmetic_device_uvector_t> renumbered_and_compressed_edge_properties{};
+      if (renumbered_and_compressed_edgelist_weights) {
+        renumbered_and_compressed_edge_properties.push_back(
+          std::move(*renumbered_and_compressed_edgelist_weights));
+      }
+      if (renumbered_and_compressed_edgelist_edge_ids) {
+        renumbered_and_compressed_edge_properties.push_back(
+          std::move(*renumbered_and_compressed_edgelist_edge_ids));
+      }
       std::tie(renumbered_and_compressed_nzd_vertices,
                renumbered_and_compressed_offsets,
                renumbered_and_compressed_edgelist_minors,
-               renumbered_and_compressed_edgelist_weights,
-               renumbered_and_compressed_edgelist_edge_ids,
+               renumbered_and_compressed_edge_properties,
                renumbered_and_compressed_edgelist_edge_types,
                renumbered_and_compressed_offset_label_hop_offsets,
                renumbered_and_compressed_renumber_map,
                renumbered_and_compressed_renumber_map_label_offsets) =
-        cugraph::renumber_and_compress_sampled_edgelist<vertex_t, weight_t, edge_id_t, edge_type_t>(
+        cugraph::renumber_and_compress_sampled_edgelist(
           handle,
           std::move(renumbered_and_compressed_edgelist_srcs),
           std::move(renumbered_and_compressed_edgelist_dsts),
-          std::move(renumbered_and_compressed_edgelist_weights),
-          std::move(renumbered_and_compressed_edgelist_edge_ids),
+          std::move(renumbered_and_compressed_edge_properties),
           std::move(renumbered_and_compressed_edgelist_edge_types),
           std::move(renumbered_and_compressed_edgelist_hops),
           sampling_post_processing_usecase.renumber_with_seeds
@@ -489,6 +523,18 @@ class Tests_SamplingPostProcessing
           sampling_post_processing_usecase.src_is_major,
           sampling_post_processing_usecase.compress_per_hop,
           sampling_post_processing_usecase.doubly_compress);
+
+      size_t pos = 0;
+      if (renumbered_and_compressed_edgelist_weights) {
+        renumbered_and_compressed_edgelist_weights =
+          std::move(std::get<rmm::device_uvector<weight_t>>(
+            renumbered_and_compressed_edge_properties[pos++]));
+      }
+      if (renumbered_and_compressed_edgelist_edge_ids) {
+        renumbered_and_compressed_edgelist_edge_ids =
+          std::move(std::get<rmm::device_uvector<edge_id_t>>(
+            renumbered_and_compressed_edge_properties[pos++]));
+      }
 
       if (cugraph::test::g_perf) {
         RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -529,7 +575,6 @@ class Tests_SamplingPostProcessing
         }
 
         // check whether renumbering recovers the original edge list
-
         rmm::device_uvector<vertex_t> output_edgelist_srcs(0, handle.get_stream());
         rmm::device_uvector<vertex_t> output_edgelist_dsts(0, handle.get_stream());
         auto output_edgelist_weights =
@@ -572,6 +617,7 @@ class Tests_SamplingPostProcessing
             handle.sync_stream();
 
             auto old_size = output_edgelist_srcs.size();
+
             output_edgelist_srcs.resize(old_size + (h_offsets.back() - h_offsets[0]),
                                         handle.get_stream());
             output_edgelist_dsts.resize(output_edgelist_srcs.size(), handle.get_stream());
@@ -651,7 +697,6 @@ class Tests_SamplingPostProcessing
              "edgelist.";
 
         // Check the invariants in renumber_map
-
         ASSERT_TRUE(check_vertex_renumber_map_invariants<vertex_t>(
           handle,
           sampling_post_processing_usecase.renumber_with_seeds
@@ -687,7 +732,6 @@ class Tests_SamplingPostProcessing
     }
 
     // 6. post processing: sort only
-
     {
       rmm::device_uvector<vertex_t> sorted_edgelist_srcs(org_edgelist_srcs.size(),
                                                          handle.get_stream());
@@ -732,19 +776,26 @@ class Tests_SamplingPostProcessing
         hr_timer.start("Sort sampled edgelist");
       }
 
+      std::vector<cugraph::arithmetic_device_uvector_t> sorted_edgelist_edge_properties{};
+      if (sorted_edgelist_weights) {
+        sorted_edgelist_edge_properties.push_back(std::move(*sorted_edgelist_weights));
+      }
+      if (sorted_edgelist_edge_ids) {
+        sorted_edgelist_edge_properties.push_back(std::move(*sorted_edgelist_edge_ids));
+      }
+      if (sorted_edgelist_edge_types) {
+        sorted_edgelist_edge_properties.push_back(std::move(*sorted_edgelist_edge_types));
+      }
+
       std::tie(sorted_edgelist_srcs,
                sorted_edgelist_dsts,
-               sorted_edgelist_weights,
-               sorted_edgelist_edge_ids,
-               sorted_edgelist_edge_types,
+               sorted_edgelist_edge_properties,
                sorted_edgelist_label_hop_offsets) =
-        cugraph::sort_sampled_edgelist<vertex_t, weight_t, edge_id_t, edge_type_t>(
+        cugraph::sort_sampled_edgelist<vertex_t>(
           handle,
           std::move(sorted_edgelist_srcs),
           std::move(sorted_edgelist_dsts),
-          std::move(sorted_edgelist_weights),
-          std::move(sorted_edgelist_edge_ids),
-          std::move(sorted_edgelist_edge_types),
+          std::move(sorted_edgelist_edge_properties),
           std::move(sorted_edgelist_hops),
           org_edgelist_label_offsets
             ? std::make_optional(raft::device_span<size_t const>(
@@ -753,6 +804,20 @@ class Tests_SamplingPostProcessing
           sampling_post_processing_usecase.num_labels,
           sampling_post_processing_usecase.fanouts.size(),
           sampling_post_processing_usecase.src_is_major);
+
+      size_t pos = 0;
+      if (sorted_edgelist_weights) {
+        sorted_edgelist_weights = std::move(
+          std::get<rmm::device_uvector<weight_t>>(sorted_edgelist_edge_properties[pos++]));
+      }
+      if (sorted_edgelist_edge_ids) {
+        sorted_edgelist_edge_ids = std::move(
+          std::get<rmm::device_uvector<edge_id_t>>(sorted_edgelist_edge_properties[pos++]));
+      }
+      if (sorted_edgelist_edge_types) {
+        sorted_edgelist_edge_types = std::move(
+          std::get<rmm::device_uvector<edge_type_t>>(sorted_edgelist_edge_properties[pos++]));
+      }
 
       if (cugraph::test::g_perf) {
         RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -773,7 +838,6 @@ class Tests_SamplingPostProcessing
         }
 
         // check whether renumbering recovers the original edge list
-
         ASSERT_TRUE(compare_edgelist(
           handle,
           raft::device_span<vertex_t const>(org_edgelist_srcs.data(), org_edgelist_srcs.size()),

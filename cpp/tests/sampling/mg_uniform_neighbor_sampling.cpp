@@ -213,8 +213,11 @@ class Tests_MGUniform_Neighbor_Sampling
       vertices = cugraph::test::sort<vertex_t>(*handle_, std::move(vertices));
       vertices = cugraph::test::unique<vertex_t>(*handle_, std::move(vertices));
 
-      vertices = cugraph::detail::shuffle_int_vertices_to_local_gpu_by_vertex_partitioning(
-        *handle_, std::move(vertices), mg_graph_view.vertex_partition_range_lasts());
+      std::tie(vertices, std::ignore) =
+        cugraph::shuffle_int_vertices(*handle_,
+                                      std::move(vertices),
+                                      std::vector<cugraph::arithmetic_device_uvector_t>{},
+                                      mg_graph_view.vertex_partition_range_lasts());
 
       vertices = cugraph::test::sort<vertex_t>(*handle_, std::move(vertices));
       vertices = cugraph::test::unique<vertex_t>(*handle_, std::move(vertices));
@@ -272,7 +275,6 @@ class Tests_MGUniform_Neighbor_Sampling
             cugraph::test::validate_sampling_depth(*handle_,
                                                    std::move(mg_aggregate_src),
                                                    std::move(mg_aggregate_dst),
-                                                   std::move(mg_aggregate_wgt),
                                                    std::move(mg_start_src),
                                                    uniform_neighbor_sampling_usecase.fanout.size());
           }

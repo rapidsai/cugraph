@@ -26,6 +26,10 @@ typedef int32_t vertex_t;
 typedef int32_t edge_t;
 typedef float weight_t;
 
+cugraph_data_type_id_t vertex_tid = INT32;
+cugraph_data_type_id_t edge_tid   = INT32;
+cugraph_data_type_id_t weight_tid = FLOAT32;
+
 /*
  * Simple check of creating a graph from a COO on device memory.
  */
@@ -50,11 +54,27 @@ int generic_k_truss_test(const cugraph_resource_handle_t* handle,
 
   cugraph_induced_subgraph_result_t* result = NULL;
 
-  cugraph_data_type_id_t vertex_tid = INT32;
-  cugraph_data_type_id_t size_t_tid = SIZE_T;
-
-  ret_code = create_mg_test_graph(
-    handle, h_src, h_dst, h_wgt, num_edges, store_transposed, TRUE, &graph, &ret_error);
+  ret_code = create_mg_test_graph_new(handle,
+                                      vertex_tid,
+                                      edge_tid,
+                                      h_src,
+                                      h_dst,
+                                      weight_tid,
+                                      h_wgt,
+                                      INT32,
+                                      NULL,
+                                      edge_tid,
+                                      NULL,
+                                      INT32,
+                                      NULL,
+                                      NULL,
+                                      num_edges,
+                                      store_transposed,
+                                      TRUE,
+                                      TRUE,
+                                      FALSE,
+                                      &graph,
+                                      &ret_error);
 
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "create_test_graph failed.");
   TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));

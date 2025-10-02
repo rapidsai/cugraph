@@ -41,6 +41,7 @@
 #include <rmm/device_uvector.hpp>
 
 #include <cuda/std/optional>
+#include <cuda/std/tuple>
 #include <thrust/copy.h>
 #include <thrust/count.h>
 #include <thrust/equal.h>
@@ -49,7 +50,6 @@
 #include <thrust/sort.h>
 #include <thrust/tabulate.h>
 #include <thrust/transform.h>
-#include <thrust/tuple.h>
 
 #include <cuco/hash_functions.cuh>
 
@@ -62,22 +62,22 @@
 template <typename vertex_t, typename property_t, typename output_payload_t>
 struct e_op_t {
   static_assert(std::is_same_v<output_payload_t, int32_t> ||
-                std::is_same_v<output_payload_t, thrust::tuple<float, int32_t>>);
+                std::is_same_v<output_payload_t, cuda::std::tuple<float, int32_t>>);
 
   using return_type = std::conditional_t<std::is_arithmetic_v<output_payload_t>,
-                                         thrust::tuple<vertex_t, vertex_t, int32_t>,
-                                         thrust::tuple<vertex_t, vertex_t, float, int32_t>>;
+                                         cuda::std::tuple<vertex_t, vertex_t, int32_t>,
+                                         cuda::std::tuple<vertex_t, vertex_t, float, int32_t>>;
 
   __device__ return_type
   operator()(vertex_t src, vertex_t dst, property_t, property_t, cuda::std::nullopt_t) const
   {
     auto output_payload = static_cast<output_payload_t>(1);
     if constexpr (std::is_arithmetic_v<output_payload_t>) {
-      return thrust::make_tuple(src, dst, output_payload);
+      return cuda::std::make_tuple(src, dst, output_payload);
     } else {
-      static_assert(thrust::tuple_size<output_payload_t>::value == size_t{2});
-      return thrust::make_tuple(
-        src, dst, thrust::get<0>(output_payload), thrust::get<1>(output_payload));
+      static_assert(cuda::std::tuple_size<output_payload_t>::value == size_t{2});
+      return cuda::std::make_tuple(
+        src, dst, cuda::std::get<0>(output_payload), cuda::std::get<1>(output_payload));
     }
   }
 };
@@ -119,7 +119,7 @@ class Tests_MGExtractTransformIfE
     static_assert(std::is_same_v<output_payload_t, void> ||
                   cugraph::is_arithmetic_or_thrust_tuple_of_arithmetic<output_payload_t>::value);
     if constexpr (cugraph::is_thrust_tuple<output_payload_t>::value) {
-      static_assert(thrust::tuple_size<output_payload_t>::value == size_t{2});
+      static_assert(cuda::std::tuple_size<output_payload_t>::value == size_t{2});
     }
 
     HighResTimer hr_timer{};
@@ -301,14 +301,14 @@ TEST_P(Tests_MGExtractTransformIfE_Rmat, CheckInt32Int32FloatVoidInt32)
 TEST_P(Tests_MGExtractTransformIfE_File, CheckInt32Int32FloatVoidTupleFloatInt32)
 {
   auto param = GetParam();
-  run_current_test<int32_t, int32_t, float, thrust::tuple<float, int32_t>>(std::get<0>(param),
-                                                                           std::get<1>(param));
+  run_current_test<int32_t, int32_t, float, cuda::std::tuple<float, int32_t>>(std::get<0>(param),
+                                                                              std::get<1>(param));
 }
 
 TEST_P(Tests_MGExtractTransformIfE_Rmat, CheckInt32Int32FloatVoidTupleFloatInt32)
 {
   auto param = GetParam();
-  run_current_test<int32_t, int32_t, float, thrust::tuple<float, int32_t>>(
+  run_current_test<int32_t, int32_t, float, cuda::std::tuple<float, int32_t>>(
     std::get<0>(param),
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
@@ -330,14 +330,14 @@ TEST_P(Tests_MGExtractTransformIfE_Rmat, CheckInt32Int32FloatInt32Int32)
 TEST_P(Tests_MGExtractTransformIfE_File, CheckInt32Int32FloatInt32TupleFloatInt32)
 {
   auto param = GetParam();
-  run_current_test<int32_t, int32_t, float, thrust::tuple<float, int32_t>>(std::get<0>(param),
-                                                                           std::get<1>(param));
+  run_current_test<int32_t, int32_t, float, cuda::std::tuple<float, int32_t>>(std::get<0>(param),
+                                                                              std::get<1>(param));
 }
 
 TEST_P(Tests_MGExtractTransformIfE_Rmat, CheckInt32Int32FloatInt32TupleFloatInt32)
 {
   auto param = GetParam();
-  run_current_test<int32_t, int32_t, float, thrust::tuple<float, int32_t>>(
+  run_current_test<int32_t, int32_t, float, cuda::std::tuple<float, int32_t>>(
     std::get<0>(param),
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }

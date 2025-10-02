@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2024, NVIDIA CORPORATION.
+# Copyright (c) 2022-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -37,6 +37,8 @@ from pylibcugraph._cugraph_c.algorithms cimport (
     cugraph_sample_result_get_renumber_map_offsets,
     cugraph_sample_result_get_edge_renumber_map,
     cugraph_sample_result_get_edge_renumber_map_offsets,
+    cugraph_sample_result_get_edge_start_time,
+    cugraph_sample_result_get_edge_end_time,
     cugraph_sample_result_free,
 )
 from pylibcugraph.utils cimport (
@@ -173,6 +175,34 @@ cdef class SamplingResult:
                              "non-NULL value first.")
         cdef cugraph_type_erased_device_array_view_t* device_array_view_ptr = (
             cugraph_sample_result_get_edge_type(self.c_sample_result_ptr)
+        )
+
+        if device_array_view_ptr is NULL:
+            return None
+
+        return create_cupy_array_view_for_device_ptr(device_array_view_ptr,
+                                                     self)
+
+    def get_edge_start_time(self):
+        if self.c_sample_result_ptr is NULL:
+            raise ValueError("pointer not set, must call set_ptr() with a "
+                             "non-NULL value first.")
+        cdef cugraph_type_erased_device_array_view_t* device_array_view_ptr = (
+            cugraph_sample_result_get_edge_start_time(self.c_sample_result_ptr)
+        )
+
+        if device_array_view_ptr is NULL:
+            return None
+
+        return create_cupy_array_view_for_device_ptr(device_array_view_ptr,
+                                                     self)
+
+    def get_edge_end_time(self):
+        if self.c_sample_result_ptr is NULL:
+            raise ValueError("pointer not set, must call set_ptr() with a "
+                             "non-NULL value first.")
+        cdef cugraph_type_erased_device_array_view_t* device_array_view_ptr = (
+            cugraph_sample_result_get_edge_end_time(self.c_sample_result_ptr)
         )
 
         if device_array_view_ptr is NULL:
