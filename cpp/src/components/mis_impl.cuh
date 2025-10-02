@@ -300,20 +300,6 @@ rmm::device_uvector<vertex_t> maximal_independent_set(
   ranks.resize(0, handle.get_stream());
   ranks.shrink_to_fit(handle.get_stream());
 
-  if (multi_gpu) {
-      // FIXME: rename to 'nr_remaining_vertices_to_check' to
-      // 'nr_remaining_global_vertices_to_check'
-      mis_size = host_scalar_allreduce(handle.get_comms(),
-                                       mis_size,
-                                       raft::comms::op_t::SUM,
-                                       handle.get_stream());
-      
-      mis_size_perc = host_scalar_allreduce(handle.get_comms(),
-                                            mis_size_perc,
-                                            raft::comms::op_t::SUM,
-                                            handle.get_stream());
-  }
-
   return mis;
 }
 }  // namespace detail
