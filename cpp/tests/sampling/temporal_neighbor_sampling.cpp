@@ -125,6 +125,16 @@ class Tests_Temporal_Neighbor_Sampling
     auto edge_end_times_view =
       edge_end_times ? std::make_optional((*edge_end_times).view()) : std::nullopt;
 
+#if 0
+    // FIXME: Edge masking is not working yet
+    std::optional<cugraph::edge_property_t<decltype(graph_view), bool>> edge_mask{std::nullopt};
+    if (temporal_neighbor_sampling_usecase.edge_masking) {
+      edge_mask =
+        cugraph::test::generate<decltype(graph_view), bool>::edge_property(*handle_, graph_view, 2);
+      graph_view.attach_edge_mask((*edge_mask).view());
+    }
+#endif
+
     constexpr float select_probability{0.05};
 
     auto random_sources = cugraph::select_random_vertices(
@@ -171,7 +181,7 @@ class Tests_Temporal_Neighbor_Sampling
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      hr_timer.start("Uniform temporal sampling");
+      hr_timer.start("Temporal sampling");
     }
 
     cugraph::sampling_flags_t sampling_flags{};

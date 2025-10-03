@@ -600,12 +600,14 @@ temporal_gather_one_hop_edgelist(
         handle, std::move(*tmp_positions), marked_entry_span, keep_count);
     }
 
-    result_labels = rmm::device_uvector<label_t>(keep_count, handle.get_stream());
-    kv_store.view().find(
-      tmp_positions->begin(),
-      tmp_positions->end(),
-      thrust::make_zip_iterator(thrust::make_discard_iterator(), result_labels->begin()),
-      handle.get_stream());
+    if (active_major_labels) {
+      result_labels = rmm::device_uvector<label_t>(keep_count, handle.get_stream());
+      kv_store.view().find(
+        tmp_positions->begin(),
+        tmp_positions->end(),
+        thrust::make_zip_iterator(thrust::make_discard_iterator(), result_labels->begin()),
+        handle.get_stream());
+    }
   }
 
   std::tie(result_srcs, result_dsts, result_properties) =
