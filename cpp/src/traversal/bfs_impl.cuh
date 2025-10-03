@@ -168,7 +168,7 @@ void bfs(raft::handle_t const& handle,
   rmm::device_uvector<int64_t> d_staging_buffer(0, handle.get_stream());
   {
     size_t staging_buffer_size =
-      std::max(size_t{2}, n_sources);  // should be large enough to cover all update_host &
+      std::max(size_t{3}, n_sources);  // should be large enough to cover all update_host &
                                        // update_device calls in this function
     h_staging_buffer = host_staging_buffer_manager::allocate_staging_buffer<int64_t>(
       staging_buffer_size, handle.get_stream());
@@ -451,49 +451,30 @@ void bfs(raft::handle_t const& handle,
           reduce_op::any<vertex_t>(),
           pred_op);
 
-      auto input_pair_first = thrust::make_zip_iterator(thrust::make_constant_iterator(depth + 1),
-                                                        predecessor_buffer.begin());
-      thrust::scatter(
-        handle.get_thrust_policy(),
-        input_pair_first,
-        input_pair_first + new_frontier_vertex_buffer.size(),
-        thrust::make_transform_iterator(
-          new_frontier_vertex_buffer.begin(),
-          detail::shift_left_t<vertex_t>{graph_view.local_vertex_partition_range_first()}),
-        thrust::make_zip_iterator(distances, predecessor_first));
+      {
+        auto input_pair_first = thrust::make_zip_iterator(thrust::make_constant_iterator(depth + 1),
+                                                          predecessor_buffer.begin());
+        thrust::scatter(
+          handle.get_thrust_policy(),
+          input_pair_first,
+          input_pair_first + new_frontier_vertex_buffer.size(),
+          thrust::make_transform_iterator(
+            new_frontier_vertex_buffer.begin(),
+            detail::shift_left_t<vertex_t>{graph_view.local_vertex_partition_range_first()}),
+          thrust::make_zip_iterator(distances, predecessor_first));
+      }
+
       vertex_frontier.bucket(bucket_idx_next) =
         key_bucket_t<vertex_t, void, GraphViewType::is_multi_gpu, true>(
           handle, std::move(new_frontier_vertex_buffer));
 
-      next_aggregate_frontier_size = vertex_frontier.bucket(bucket_idx_next).size();
-      if constexpr (GraphViewType::is_multi_gpu) {
-        vertex_t* h_staging_buffer_ptr = reinterpret_cast<vertex_t*>(h_staging_buffer.data());
-        vertex_t* d_staging_buffer_ptr = reinterpret_cast<vertex_t*>(d_staging_buffer.data());
-        assert(h_staging_buffer.size() >= 1);
-        h_staging_buffer_ptr[0] = next_aggregate_frontier_size;
-        raft::update_device(
-          d_staging_buffer_ptr, h_staging_buffer_ptr, size_t{1}, handle.get_stream());
-        device_allreduce(handle.get_comms(),
-                         d_staging_buffer_ptr,
-                         d_staging_buffer_ptr,
-                         size_t{1},
-                         raft::comms::op_t::SUM,
-                         handle.get_stream());
-        raft::update_host(
-          h_staging_buffer_ptr, d_staging_buffer_ptr, size_t{1}, handle.get_stream());
-        handle.sync_stream();
-        next_aggregate_frontier_size = h_staging_buffer_ptr[0];
-      }
-      if (next_aggregate_frontier_size == 0) { break; }
-
-      fill_edge_dst_property(handle,
-                             graph_view,
-                             vertex_frontier.bucket(bucket_idx_next).cbegin(),
-                             vertex_frontier.bucket(bucket_idx_next).cend(),
-                             prev_dst_visited_flags.mutable_view(),
-                             true);
-
+      // m_f & m_u are relevant only if direction_optimizing is true; use size_t instead of edge_t
+      // as we approximate (and if edge_t is 32 bit, it may overflow)
+      std::optional<size_t> m_f{std::nullopt};
+      std::optional<size_t> m_u{std::nullopt};
       if (direction_optimizing) {
+        m_f = 0;
+        m_u = 0;
         if (vertex_frontier.bucket(bucket_idx_next).size() > 0) {
           thrust::for_each(
             handle.get_thrust_policy(),
@@ -507,22 +488,18 @@ void bfs(raft::handle_t const& handle,
                 bitmap[packed_bool_offset(v_offset)]);
               word.fetch_or(packed_bool_mask(v_offset), cuda::std::memory_order_relaxed);
             });
-        }
-
-        double m_f{0.0};
-        double m_u{0.0};
-        {
-          size_t partition_size{1};
-          if constexpr (GraphViewType::is_multi_gpu) {
-            auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
-            auto const minor_comm_size = minor_comm.get_size();
-            partition_size             = static_cast<size_t>(minor_comm_size);
-          }
 
           auto f_vertex_first = vertex_frontier.bucket(bucket_idx_next).cbegin();
           auto f_vertex_last  = vertex_frontier.bucket(bucket_idx_next).cend();
 
           if (segment_offsets) {
+            size_t partition_size{1};
+            if constexpr (GraphViewType::is_multi_gpu) {
+              auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+              auto const minor_comm_size = minor_comm.get_size();
+              partition_size             = static_cast<size_t>(minor_comm_size);
+            }
+
             // FIXME: this actually over-estimates for graphs with power-law degree distribution
             auto approx_low_segment_degree =
               static_cast<double>(low_degree_threshold * partition_size) * 0.5;
@@ -531,7 +508,7 @@ void bfs(raft::handle_t const& handle,
             auto f_segment_offsets = compute_key_segment_offsets(
               vertex_frontier.bucket(bucket_idx_next).cbegin(),
               vertex_frontier.bucket(bucket_idx_next).cend(),
-              raft::host_span<vertex_t const>((*segment_offsets).data(), (*segment_offsets).size()),
+              raft::host_span<vertex_t const>(segment_offsets->data(), segment_offsets->size()),
               graph_view.local_vertex_partition_range_first(),
               handle.get_stream());
             *(aux_info->num_nzd_unvisited_low_degree_vertices) -=
@@ -541,22 +518,26 @@ void bfs(raft::handle_t const& handle,
                 (f_segment_offsets[4] - f_segment_offsets[3]);
             }
             f_vertex_last = f_vertex_first + f_segment_offsets[2];
-            m_f           = static_cast<double>((f_segment_offsets[3] - f_segment_offsets[2])) *
-                  approx_low_segment_degree;
+            m_f           = static_cast<size_t>(
+              static_cast<double>((f_segment_offsets[3] - f_segment_offsets[2])) *
+              approx_low_segment_degree);
             if (graph_view.use_dcs()) {
-              m_f += static_cast<double>(f_segment_offsets[4] - f_segment_offsets[3]) *
-                     approx_hypersparse_segment_degree;
+              *m_f += static_cast<size_t>(
+                static_cast<double>(f_segment_offsets[4] - f_segment_offsets[3]) *
+                approx_hypersparse_segment_degree);
             }
 
-            m_u = static_cast<double>(*(aux_info->num_nzd_unvisited_low_degree_vertices)) *
-                  approx_low_segment_degree;
+            m_u = static_cast<size_t>(
+              static_cast<double>(*(aux_info->num_nzd_unvisited_low_degree_vertices)) *
+              approx_low_segment_degree);
             if (graph_view.use_dcs()) {
-              m_u += static_cast<double>(*(aux_info->num_nzd_unvisited_hypersparse_vertices)) *
-                     approx_hypersparse_segment_degree;
+              *m_u += static_cast<size_t>(
+                static_cast<double>(*(aux_info->num_nzd_unvisited_hypersparse_vertices)) *
+                approx_hypersparse_segment_degree);
             }
           }
 
-          m_f += static_cast<double>(thrust::transform_reduce(
+          *m_f += static_cast<size_t>(thrust::transform_reduce(
             handle.get_thrust_policy(),
             f_vertex_first,
             f_vertex_last,
@@ -570,7 +551,7 @@ void bfs(raft::handle_t const& handle,
             edge_t{0},
             thrust::plus<edge_t>{}));
 
-          m_u += static_cast<double>(thrust::transform_reduce(
+          *m_u += static_cast<size_t>(thrust::transform_reduce(
             handle.get_thrust_policy(),
             thrust::make_counting_iterator(vertex_t{0}),
             thrust::make_counting_iterator(segment_offsets
@@ -592,34 +573,53 @@ void bfs(raft::handle_t const& handle,
             edge_t{0},
             thrust::plus<edge_t>{}));
         }
+      }
 
-        auto aggregate_m_f = m_f;
-        auto aggregate_m_u = m_u;
-        if constexpr (GraphViewType::is_multi_gpu) {
-          double* h_staging_buffer_ptr = reinterpret_cast<double*>(h_staging_buffer.data());
-          double* d_staging_buffer_ptr = reinterpret_cast<double*>(d_staging_buffer.data());
-          assert(h_staging_buffer.size() >= 2);
-          h_staging_buffer_ptr[0] = m_f;
-          h_staging_buffer_ptr[1] = m_u;
-          raft::update_device(
-            d_staging_buffer_ptr, h_staging_buffer_ptr, size_t{2}, handle.get_stream());
-          device_allreduce(handle.get_comms(),
-                           d_staging_buffer_ptr,
-                           d_staging_buffer_ptr,
-                           size_t{2},
-                           raft::comms::op_t::SUM,
-                           handle.get_stream());
-          raft::update_host(
-            h_staging_buffer_ptr, d_staging_buffer_ptr, size_t{2}, handle.get_stream());
-          handle.sync_stream();
-          aggregate_m_f = h_staging_buffer_ptr[0];
-          aggregate_m_u = h_staging_buffer_ptr[1];
+      next_aggregate_frontier_size = vertex_frontier.bucket(bucket_idx_next).size();
+      auto aggregate_m_f           = m_f;
+      auto aggregate_m_u           = m_u;
+      if constexpr (GraphViewType::is_multi_gpu) {
+        size_t* h_staging_buffer_ptr = reinterpret_cast<size_t*>(h_staging_buffer.data());
+        size_t* d_staging_buffer_ptr = reinterpret_cast<size_t*>(d_staging_buffer.data());
+        auto num_scalars             = direction_optimizing ? size_t{3} : size_t{1};
+        assert(h_staging_buffer.size() >= num_scalars);
+        h_staging_buffer_ptr[0] = static_cast<size_t>(next_aggregate_frontier_size);
+        if (direction_optimizing) {
+          h_staging_buffer_ptr[1] = *m_f;
+          h_staging_buffer_ptr[2] = *m_u;
         }
-        if ((aggregate_m_f * direction_optimizing_alpha > aggregate_m_u) &&
+        raft::update_device(
+          d_staging_buffer_ptr, h_staging_buffer_ptr, num_scalars, handle.get_stream());
+        device_allreduce(handle.get_comms(),
+                         d_staging_buffer_ptr,
+                         d_staging_buffer_ptr,
+                         num_scalars,
+                         raft::comms::op_t::SUM,
+                         handle.get_stream());
+        raft::update_host(
+          h_staging_buffer_ptr, d_staging_buffer_ptr, num_scalars, handle.get_stream());
+        handle.sync_stream();
+        next_aggregate_frontier_size = static_cast<vertex_t>(h_staging_buffer_ptr[0]);
+        if (direction_optimizing) {
+          aggregate_m_f = h_staging_buffer_ptr[1];
+          aggregate_m_u = h_staging_buffer_ptr[2];
+        }
+      }
+      if (next_aggregate_frontier_size == 0) { break; }
+
+      fill_edge_dst_property(handle,
+                             graph_view,
+                             vertex_frontier.bucket(bucket_idx_next).cbegin(),
+                             vertex_frontier.bucket(bucket_idx_next).cend(),
+                             prev_dst_visited_flags.mutable_view(),
+                             true);
+
+      if (direction_optimizing) {
+        if ((static_cast<size_t>(*aggregate_m_f * direction_optimizing_alpha) > *aggregate_m_u) &&
             (next_aggregate_frontier_size >= cur_aggregate_frontier_size)) {
           topdown                          = false;
           aux_info->nzd_unvisited_vertices = rmm::device_uvector<vertex_t>(
-            segment_offsets ? *((*segment_offsets).rbegin() + 1)
+            segment_offsets ? *(segment_offsets->rbegin() + 1)
                             : graph_view.local_vertex_partition_range_size(),
             handle.get_stream());
           (aux_info->nzd_unvisited_vertices)
@@ -631,7 +631,7 @@ void bfs(raft::handle_t const& handle,
                   thrust::make_counting_iterator(graph_view.local_vertex_partition_range_first()),
                   thrust::make_counting_iterator(
                     segment_offsets ? graph_view.local_vertex_partition_range_first() +
-                                        *((*segment_offsets).rbegin() + 1)
+                                        *(segment_offsets->rbegin() + 1)
                                     : graph_view.local_vertex_partition_range_last()),
                   (aux_info->nzd_unvisited_vertices)->begin(),
                   [bitmap  = raft::device_span<uint32_t const>(aux_info->visited_bitmap.data(),
@@ -684,7 +684,6 @@ void bfs(raft::handle_t const& handle,
         auto input_pair_first = thrust::make_zip_iterator(thrust::make_constant_iterator(depth + 1),
                                                           predecessor_buffer.begin());
 
-        // FIXME: this scatter_if and the resize below can be concurrently executed.
         thrust::scatter_if(
           handle.get_thrust_policy(),
           input_pair_first,
@@ -708,19 +707,54 @@ void bfs(raft::handle_t const& handle,
           handle.get_stream());
 
         assert(direction_optimizing);
-
-        thrust::for_each(
-          handle.get_thrust_policy(),
-          new_frontier_vertex_buffer.begin(),
-          new_frontier_vertex_buffer.end(),
-          [bitmap  = raft::device_span<uint32_t>(aux_info->visited_bitmap.data(),
-                                                aux_info->visited_bitmap.size()),
-           v_first = graph_view.local_vertex_partition_range_first()] __device__(auto v) {
-            auto v_offset = v - v_first;
-            cuda::atomic_ref<uint32_t, cuda::thread_scope_device> word(
-              bitmap[packed_bool_offset(v_offset)]);
-            word.fetch_or(packed_bool_mask(v_offset), cuda::std::memory_order_relaxed);
-          });
+        if ((graph_view.local_vertex_partition_range_size() > 0) &&
+            (static_cast<double>(new_frontier_vertex_buffer.size()) /
+               static_cast<double>(graph_view.local_vertex_partition_range_size()) >=
+             0.4 /* tuning parameter */)) {
+          thrust::for_each(
+            handle.get_thrust_policy(),
+            thrust::make_counting_iterator(vertex_t{0}),
+            thrust::make_counting_iterator(static_cast<vertex_t>(aux_info->visited_bitmap.size())),
+            [bitmap = raft::device_span<uint32_t>(aux_info->visited_bitmap.data(),
+                                                  aux_info->visited_bitmap.size()),
+             new_frontier_vertex_first = new_frontier_vertex_buffer.begin(),
+             new_frontier_vertex_last  = new_frontier_vertex_buffer.end(),
+             v_range_size              = graph_view.local_vertex_partition_range_size(),
+             v_first = graph_view.local_vertex_partition_range_first()] __device__(auto i) {
+              auto& word               = bitmap[i];
+              auto word_v_offset_first = static_cast<vertex_t>(i * packed_bools_per_word());
+              auto word_v_offset_last =
+                word_v_offset_first +
+                ((v_range_size - word_v_offset_first) > packed_bools_per_word()
+                   ? static_cast<vertex_t>(packed_bools_per_word())
+                   : (v_range_size - word_v_offset_first));
+              auto it_first = thrust::lower_bound(thrust::seq,
+                                                  new_frontier_vertex_first,
+                                                  new_frontier_vertex_last,
+                                                  v_first + word_v_offset_first);
+              auto it_last  = thrust::lower_bound(thrust::seq,
+                                                 new_frontier_vertex_first,
+                                                 new_frontier_vertex_last,
+                                                 v_first + word_v_offset_last);
+              for (auto it = it_first; it != it_last; ++it) {
+                auto v_offset = *it - v_first;
+                word |= packed_bool_mask(v_offset);
+              }
+            });
+        } else {
+          thrust::for_each(
+            handle.get_thrust_policy(),
+            new_frontier_vertex_buffer.begin(),
+            new_frontier_vertex_buffer.end(),
+            [bitmap  = raft::device_span<uint32_t>(aux_info->visited_bitmap.data(),
+                                                  aux_info->visited_bitmap.size()),
+             v_first = graph_view.local_vertex_partition_range_first()] __device__(auto v) {
+              auto v_offset = v - v_first;
+              cuda::atomic_ref<uint32_t, cuda::thread_scope_device> word(
+                bitmap[packed_bool_offset(v_offset)]);
+              word.fetch_or(packed_bool_mask(v_offset), cuda::std::memory_order_relaxed);
+            });
+        }
         (aux_info->nzd_unvisited_vertices)
           ->resize(
             cuda::std::distance(
