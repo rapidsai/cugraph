@@ -423,15 +423,27 @@ decompress_to_edgelist(
 
 /**
  * @ingroup graph_functions_cpp
- * @brief Symmetrize edgelist.
+ * @brief Rule for combining edge properties when adding reciprocal edges.
+ */
+enum class edge_property_combining_rule_t {
+  PART_OF_UNIQUENESS,  /// This property is part of the uniqueness of the edge.
+  SUM,                 /// Sum the properties of the two edges.
+  MAX,                 /// Take the maximum of the properties of the two edges.
+  MIN,                 /// Take the minimum of the properties of the two edges.
+  MEAN,                /// Take the mean of the properties of the two edges.
+  ARBITRARY            /// Arbitrarily choose one of the properties.
+};
+
+/**
+ * @ingroup graph_functions_cpp
+ * @brief Add reciprocal edges to the edgelist.  This was formerly called symmetrize_edgelist
+ * with reciprocal set to true.
+ *
+ * Reciprocal edges are edges that appear in both directions.  Edges that are only in one direction
+ * will be added to the edge list in the opposite direction.  The resulting edge list will be
+ * symmetric.
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
- * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
- * @tparam weight_t Type of edge weights. Needs to be a floating point type.
- * @tparam edge_type_t Type of edge type identifiers. Needs to be an integral type.
- * @tparam edge_time_t Type of edge time. Needs to be an integral type.
- * @tparam store_transposed Flag indicating whether to use sources (if false) or destinations (if
- * true) as major indices in storing edges using a 2D sparse matrix.
  * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
  * or multi-GPU (true).
  *
@@ -441,39 +453,56 @@ decompress_to_edgelist(
  * compute_gpu_id_from_ext_edge_endpoints_t to every edge should return the local GPU ID for this
  * function to work (edges should be pre-shuffled).
  * @param edgelist_dsts Vector of edge destination vertex IDs.
- * @param edgelist_weights Vector of edge weights.
- * @param edgelist_edge_ids Vector of edge ids
- * @param edgelist_edge_types Vector of edge types
- * @param edgelist_edge_start_times Vector of edge start times
- * @param edgelist_edge_end_times Vector of edge end times
- * @param reciprocal Flag indicating whether to keep (if set to `false`) or discard (if set to
- * `true`) edges that appear only in one direction.
- * @return Tuple of symmetrized sources, destinations, optional weights, optional edge ids, optional
- * edge types, optional edge start times and optional edge end times
+ * @param edgelist_edge_properties Vector of edge properties.
+ * @param edge_property_combining_rules Vector of rules for combining edge properties when adding
+ * reciprocal edges.
+ * @param store_transposed Flag indicating whether to use sources (if false) or destinations (if
+ * true) as major indices in storing edges using a 2D sparse matrix.
+ * @return Tuple of symmetrized sources, destinations, and edge properties.
  */
-template <typename vertex_t,
-          typename edge_t,
-          typename weight_t,
-          typename edge_type_t,
-          typename edge_time_t,
-          bool store_transposed,
-          bool multi_gpu>
+template <typename vertex_t, bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
-           std::optional<rmm::device_uvector<weight_t>>,
-           std::optional<rmm::device_uvector<edge_t>>,
-           std::optional<rmm::device_uvector<edge_type_t>>,
-           std::optional<rmm::device_uvector<edge_time_t>>,
-           std::optional<rmm::device_uvector<edge_time_t>>>
-symmetrize_edgelist(raft::handle_t const& handle,
-                    rmm::device_uvector<vertex_t>&& edgelist_srcs,
-                    rmm::device_uvector<vertex_t>&& edgelist_dsts,
-                    std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights,
-                    std::optional<rmm::device_uvector<edge_t>>&& edgelist_edge_ids,
-                    std::optional<rmm::device_uvector<edge_type_t>>&& edgelist_edge_types,
-                    std::optional<rmm::device_uvector<edge_time_t>>&& edgelist_edge_start_times,
-                    std::optional<rmm::device_uvector<edge_time_t>>&& edgelist_edge_end_times,
-                    bool reciprocal);
+           std::vector<arithmetic_device_uvector_t>>
+add_reciprocal_edges(
+  raft::handle_t const& handle,
+  rmm::device_uvector<vertex_t>&& edgelist_srcs,
+  rmm::device_uvector<vertex_t>&& edgelist_dsts,
+  std::vector<arithmetic_device_uvector_t>&& edgelist_edge_properties,
+  std::vector<edge_property_combining_rule_t> const& edge_property_combining_rules,
+  bool store_transposed);
+
+/**
+ * @ingroup graph_functions_cpp
+ * @brief Remove non-reciprocal edges from the edgelist.  This was formerly called
+ * symmetrize_edgelist with reciprocal set to false.
+ *
+ * Non-reciprocal edges are edges that appear only in one direction.  They will be removed from the
+ * edge list so that the resulting edge list is symmetric.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * or multi-GPU (true).
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param edgelist_srcs Vector of edge source vertex IDs. If multi-GPU, applying the
+ * compute_gpu_id_from_ext_edge_endpoints_t to every edge should return the local GPU ID for this
+ * function to work (edges should be pre-shuffled).
+ * @param edgelist_dsts Vector of edge destination vertex IDs.
+ * @param edgelist_edge_properties Vector of edge properties.
+ * @param store_transposed Flag indicating whether to use sources (if false) or destinations (if
+ * true) as major indices in storing edges using a 2D sparse matrix.
+ * @return Tuple of non-reciprocal sources, destinations, and edge properties.
+ */
+template <typename vertex_t, bool multi_gpu>
+std::tuple<rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           std::vector<arithmetic_device_uvector_t>>
+remove_nonreciprocal_edges(raft::handle_t const& handle,
+                           rmm::device_uvector<vertex_t>&& edgelist_srcs,
+                           rmm::device_uvector<vertex_t>&& edgelist_dsts,
+                           std::vector<arithmetic_device_uvector_t>&& edgelist_edge_properties,
+                           bool store_transposed);
 
 /**
  * @ingroup graph_functions_cpp
