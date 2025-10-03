@@ -13,11 +13,12 @@
 
 import time
 import pytest
+import random
 
+import cudf
 import cugraph
 from cugraph.structure import number_map
 from cugraph.internals import GraphBasedDimRedCallback
-from sklearn.manifold import trustworthiness
 import scipy.io
 from cugraph.datasets import (
     karate,
@@ -62,6 +63,8 @@ def cugraph_call(
     outbound_attraction_distribution,
     lin_log_mode,
     prevent_overlapping,
+    vertex_radius,
+    overlap_scaling_ratio,
     edge_weight_influence,
     jitter_tolerance,
     barnes_hut_theta,
@@ -69,6 +72,7 @@ def cugraph_call(
     scaling_ratio,
     strong_gravity_mode,
     gravity,
+    vertex_mobility,
     callback=None,
     renumber=False,
 ):
@@ -89,6 +93,8 @@ def cugraph_call(
         outbound_attraction_distribution=outbound_attraction_distribution,
         lin_log_mode=lin_log_mode,
         prevent_overlapping=prevent_overlapping,
+        vertex_radius=vertex_radius,
+        overlap_scaling_ratio=overlap_scaling_ratio,
         edge_weight_influence=edge_weight_influence,
         jitter_tolerance=jitter_tolerance,
         barnes_hut_optimize=barnes_hut_optimize,
@@ -96,6 +102,7 @@ def cugraph_call(
         scaling_ratio=scaling_ratio,
         strong_gravity_mode=strong_gravity_mode,
         gravity=gravity,
+        vertex_mobility=vertex_mobility,
         callback=callback,
     )
     t2 = time.time() - t1
@@ -117,9 +124,26 @@ DATASETS2 = [
     (netscience, 0.66),
 ]
 
+DATASETS_NOVERLAP = [
+    (karate, 10.0, 50),
+    (polbooks, 10.0, 90),
+    (dolphins, 10.0, 60),
+    (netscience, 10.0, 1100),
+    (dining_prefs, 10.0, 20),
+]
+
+DATASETS_MOBILITY = [
+    karate,
+    polbooks,
+    dolphins,
+    netscience,
+    dining_prefs,
+]
+
 
 MAX_ITERATIONS = [500]
 BARNES_HUT_OPTIMIZE = [False, True]
+MOBILITY_FIXED_CNT = [5, 12]
 
 
 class ExampleCallback(GraphBasedDimRedCallback):
@@ -146,22 +170,26 @@ class ExampleCallback(GraphBasedDimRedCallback):
 def test_force_atlas2(graph_file, score, max_iter, barnes_hut_optimize):
     cu_M = graph_file.get_edgelist(download=True)
     test_callback = ExampleCallback()
-    cu_pos = cugraph_call(
-        cu_M,
-        max_iter=max_iter,
-        pos_list=None,
-        outbound_attraction_distribution=True,
-        lin_log_mode=False,
-        prevent_overlapping=False,
-        edge_weight_influence=1.0,
-        jitter_tolerance=1.0,
-        barnes_hut_optimize=False,
-        barnes_hut_theta=0.5,
-        scaling_ratio=2.0,
-        strong_gravity_mode=False,
-        gravity=1.0,
-        callback=test_callback,
-    )
+    with pytest.raises(RuntimeError, match="callback argument was removed"):
+        cugraph_call(
+            cu_M,
+            max_iter=max_iter,
+            pos_list=None,
+            outbound_attraction_distribution=True,
+            lin_log_mode=False,
+            prevent_overlapping=False,
+            vertex_radius=None,
+            overlap_scaling_ratio=100.0,
+            edge_weight_influence=1.0,
+            jitter_tolerance=1.0,
+            barnes_hut_optimize=False,
+            barnes_hut_theta=0.5,
+            scaling_ratio=2.0,
+            strong_gravity_mode=False,
+            gravity=1.0,
+            vertex_mobility=None,
+            callback=test_callback,
+        )
     """
         Trustworthiness score can be used for Force Atlas 2 as the algorithm
         optimizes modularity. The final layout will result in
@@ -173,12 +201,14 @@ def test_force_atlas2(graph_file, score, max_iter, barnes_hut_optimize):
         Thresholds are based on the best score that is achived after 500
         iterations on a given graph.
     """
-
+    # Uncomment the below if the callback becomes supported again
+    """
     if "string" in graph_file.metadata["col_types"]:
         df = renumbered_edgelist(graph_file.get_edgelist(download=True))
         M = get_coo_array(df)
     else:
         M = get_coo_array(graph_file.get_edgelist(download=True))
+    # from sklearn.manifold import trustworthiness
     cu_trust = trustworthiness(M, cu_pos[["x", "y"]].to_pandas())
     print(cu_trust, score)
     assert cu_trust > score
@@ -188,3 +218,136 @@ def test_force_atlas2(graph_file, score, max_iter, barnes_hut_optimize):
     assert test_callback.on_epoch_end_called_count == max_iter
     # verify `on_train_end` was only called once
     assert test_callback.on_train_end_called_count == 1
+    """
+
+
+@pytest.mark.sg
+@pytest.mark.parametrize("graph_file, radius, max_overlaps", DATASETS_NOVERLAP)
+@pytest.mark.parametrize("max_iter", MAX_ITERATIONS)
+def test_force_atlas2_noverlap(graph_file, radius, max_overlaps, max_iter):
+    """
+    All vertices are given the same radius. After running FA2 with
+    prevent_overlapping enabled, the number of pairs of overlapping
+    vertices should be very low.
+    Radii and thresholds have been picked such that
+    99.9% of runs with prevent_overlapping would pass, and
+    99.9% of runs without prevent_overlapping would fail
+    """
+
+    def count_overlaps(cu_pos, radius):
+        pairs = cu_pos.merge(cu_pos, how="cross", suffixes=("_1", "_2"))
+        pairs = pairs[pairs["vertex_1"] < pairs["vertex_2"]]
+        # Calculate pairwise distances and find overlapping vertices
+        overlaps = pairs[
+            ((pairs["x_1"] - pairs["x_2"]) ** 2 + (pairs["y_1"] - pairs["y_2"]) ** 2)
+            < (2 * radius) ** 2
+        ]
+        return len(overlaps)
+
+    cu_M = graph_file.get_edgelist(download=True)
+    G = graph_file.get_graph()
+    vertex_radius = cudf.DataFrame(
+        {
+            "vertex": G.extract_vertex_list(return_unrenumbered_vertices=True),
+            "radius": radius,
+        }
+    )
+
+    cu_pos = cugraph_call(
+        cu_M,
+        max_iter=max_iter,
+        pos_list=None,
+        outbound_attraction_distribution=True,
+        lin_log_mode=False,
+        prevent_overlapping=True,
+        vertex_radius=vertex_radius,
+        overlap_scaling_ratio=100.0,
+        edge_weight_influence=1.0,
+        jitter_tolerance=1.0,
+        barnes_hut_optimize=False,
+        barnes_hut_theta=0.5,
+        scaling_ratio=2.0,
+        strong_gravity_mode=False,
+        gravity=1.0,
+        vertex_mobility=None,
+        callback=None,
+    )
+
+    overlap_cnt = count_overlaps(cu_pos, radius)
+    assert overlap_cnt < max_overlaps
+
+
+@pytest.mark.sg
+@pytest.mark.parametrize("graph_file", DATASETS_MOBILITY)
+@pytest.mark.parametrize("max_iter", MAX_ITERATIONS)
+@pytest.mark.parametrize("fixed_node_cnt", MOBILITY_FIXED_CNT)
+def test_force_atlas2_mobility(graph_file, max_iter, fixed_node_cnt):
+    """
+    After an initial layout, we freeze `fixed_node_cnt` random
+    vertices with mobility=0.0, and run FA2 again with mobility enabled.
+    In the final layout, the selected vertices should not have moved.
+    """
+    cu_M = graph_file.get_edgelist(download=True)
+    G = graph_file.get_graph()
+    vertices = G.extract_vertex_list(return_unrenumbered_vertices=True)
+
+    mobility = [0.0] * fixed_node_cnt
+    mobility += [1.0] * (len(vertices) - fixed_node_cnt)
+    random.shuffle(mobility)
+
+    mobility_df = cudf.DataFrame({"vertex": vertices, "mobility": mobility})
+
+    # Initial layout without mobility
+    pos_1 = cugraph_call(
+        cu_M,
+        max_iter=max_iter,
+        pos_list=None,
+        outbound_attraction_distribution=True,
+        lin_log_mode=False,
+        prevent_overlapping=False,
+        vertex_radius=None,
+        overlap_scaling_ratio=100.0,
+        edge_weight_influence=1.0,
+        jitter_tolerance=1.0,
+        barnes_hut_optimize=False,
+        barnes_hut_theta=0.5,
+        scaling_ratio=2.0,
+        strong_gravity_mode=False,
+        gravity=1.0,
+        vertex_mobility=None,
+        callback=None,
+    )
+
+    # Run FA2 again, with mobility
+    pos_2 = cugraph_call(
+        cu_M,
+        max_iter=max_iter,
+        pos_list=pos_1,
+        outbound_attraction_distribution=True,
+        lin_log_mode=False,
+        prevent_overlapping=False,
+        vertex_radius=None,
+        overlap_scaling_ratio=100.0,
+        edge_weight_influence=1.0,
+        jitter_tolerance=1.0,
+        barnes_hut_optimize=False,
+        barnes_hut_theta=0.5,
+        scaling_ratio=2.0,
+        strong_gravity_mode=False,
+        gravity=1.0,
+        vertex_mobility=mobility_df,
+        callback=None,
+    )
+
+    pos_difference = pos_1.merge(pos_2, on="vertex", suffixes=("_1", "_2")).merge(
+        mobility_df, on="vertex", how="left"
+    )
+
+    pos_difference["move_dist"] = abs(
+        pos_difference["x_1"] - pos_difference["x_2"]
+    ) + abs(pos_difference["y_1"] - pos_difference["y_2"])
+
+    fixed_nodes = pos_difference["mobility"] == 0.0
+    assert fixed_nodes.sum() == fixed_node_cnt
+    assert (pos_difference.loc[fixed_nodes, "move_dist"] == 0.0).all()
+    assert (pos_difference.loc[~fixed_nodes, "move_dist"] > 0.0).all()

@@ -44,6 +44,7 @@ from pylibcugraph.utils cimport (
     get_c_type_from_numpy_type,
     create_cugraph_type_erased_device_array_view_from_py_obj,
 )
+from pylibcugraph.utilities.api_tools import ensure_valid_dtypes
 from libc.stdlib cimport malloc
 
 
@@ -196,8 +197,10 @@ cdef class SGGraph(_GPUGraph):
         assert_CAI_type(edge_start_time_array, "edge_start_time_array", True)
         assert_CAI_type(edge_end_time_array, "edge_end_time_array", True)
 
-        # FIXME: assert that src_or_offset_array and dst_or_index_array have
-        # the same type
+        # Ensure valid dtypes
+        ensure_valid_dtypes(
+                src_or_offset_array, dst_or_index_array, vertices_array,
+                    edge_id_array, edge_start_time_array, edge_end_time_array)
 
         cdef cugraph_error_t* error_ptr
         cdef cugraph_error_code_t error_code
@@ -470,6 +473,11 @@ cdef class MGGraph(_GPUGraph):
                 assert_CAI_type(edge_type_array[i], "edge_type_array", True)
                 if edge_type_array[i] is not None and len(edge_type_array[i]) != len(src_array[i]):
                     raise ValueError('Edge type array must be same length as edgelist')
+
+            # Ensure valid dtypes
+            ensure_valid_dtypes(
+                    src_array[i], dst_array[i], vertices_array[i],
+                        edge_id_array[i], edge_start_time_array[i], edge_end_time_array[i])
 
             if src_array[i] is not None:
                 if i == 0:

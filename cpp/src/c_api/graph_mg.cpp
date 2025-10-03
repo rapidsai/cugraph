@@ -19,6 +19,7 @@
 #include "c_api/error.hpp"
 #include "c_api/generic_cascaded_dispatch.hpp"
 #include "c_api/graph.hpp"
+#include "c_api/graph_helper.hpp"
 #include "c_api/resource_handle.hpp"
 #include "cugraph/utilities/host_scalar_comm.hpp"
 #include "cugraph_c/types.h"
@@ -46,10 +47,10 @@ rmm::device_uvector<value_t> concatenate(
   size_t concat_pos{0};
 
   for (size_t i = 0; i < num_arrays; ++i) {
-    raft::copy<value_t>(results.data() + concat_pos,
-                        values[i]->as_type<value_t>(),
-                        values[i]->size_,
-                        handle.get_stream());
+    cugraph::c_api::copy_or_transform(
+      raft::device_span<value_t>{results.data() + concat_pos, values[i]->size_},
+      values[i],
+      handle.get_stream());
     concat_pos += values[i]->size_;
   }
 
@@ -391,16 +392,6 @@ extern "C" cugraph_error_code_t cugraph_graph_create_mg(
                  "Invalid input arguments: src size != dst size.",
                  *error);
 
-    CAPI_EXPECTS(p_src[i]->type_ == p_dst[i]->type_,
-                 CUGRAPH_INVALID_INPUT,
-                 "Invalid input arguments: src type != dst type.",
-                 *error);
-
-    CAPI_EXPECTS((p_vertices == nullptr) || (p_src[i]->type_ == p_vertices[i]->type_),
-                 CUGRAPH_INVALID_INPUT,
-                 "Invalid input arguments: src type != vertices type.",
-                 *error);
-
     CAPI_EXPECTS((weights == nullptr) || (p_weights[i]->size_ == p_src[i]->size_),
                  CUGRAPH_INVALID_INPUT,
                  "Invalid input arguments: src size != weights size.",
@@ -408,7 +399,21 @@ extern "C" cugraph_error_code_t cugraph_graph_create_mg(
 
     local_num_edges += p_src[i]->size_;
 
+    // FIXME: Might be better to move this out of the for loop
+    bool cast_vertex_t = false;
     if (vertex_type == cugraph_data_type_id_t::NTYPES) vertex_type = p_src[i]->type_;
+
+    if (!((p_vertices == nullptr) || (p_src[i]->type_ == p_vertices[i]->type_))) {
+      cast_vertex_t = true;
+    }
+
+    if (!((p_edge_ids == nullptr) || (p_src[i]->type_ == p_edge_ids[i]->type_))) {
+      cast_vertex_t = true;
+    }
+
+    if (!(p_src[i]->type_ == p_dst[i]->type_)) { cast_vertex_t = true; }
+
+    if (cast_vertex_t) { vertex_type = cugraph_data_type_id_t::INT64; }
 
     if (weights != nullptr) {
       if (weight_type == cugraph_data_type_id_t::NTYPES) weight_type = p_weights[i]->type_;
@@ -421,11 +426,6 @@ extern "C" cugraph_error_code_t cugraph_graph_create_mg(
                    "is set to True.",
                    *error);
     }
-
-    CAPI_EXPECTS(p_src[i]->type_ == vertex_type,
-                 CUGRAPH_INVALID_INPUT,
-                 "Invalid input arguments: all vertex types must match",
-                 *error);
 
     CAPI_EXPECTS((weights == nullptr) || (p_weights[i]->type_ == weight_type),
                  CUGRAPH_INVALID_INPUT,
@@ -485,11 +485,6 @@ extern "C" cugraph_error_code_t cugraph_graph_create_mg(
   cugraph_data_type_id_t edge_type_id_type{cugraph_data_type_id_t::NTYPES};
 
   for (size_t i = 0; i < num_arrays; ++i) {
-    CAPI_EXPECTS((edge_ids == nullptr) || (p_edge_ids[i]->type_ == edge_type),
-                 CUGRAPH_INVALID_INPUT,
-                 "Invalid input arguments: Edge id type must match edge type",
-                 *error);
-
     CAPI_EXPECTS((edge_ids == nullptr) || (p_edge_ids[i]->size_ == p_src[i]->size_),
                  CUGRAPH_INVALID_INPUT,
                  "Invalid input arguments: src size != edge id prop size",
@@ -644,16 +639,6 @@ extern "C" cugraph_error_code_t cugraph_graph_create_with_times_mg(
                  "Invalid input arguments: src size != dst size.",
                  *error);
 
-    CAPI_EXPECTS(p_src[i]->type_ == p_dst[i]->type_,
-                 CUGRAPH_INVALID_INPUT,
-                 "Invalid input arguments: src type != dst type.",
-                 *error);
-
-    CAPI_EXPECTS((p_vertices == nullptr) || (p_src[i]->type_ == p_vertices[i]->type_),
-                 CUGRAPH_INVALID_INPUT,
-                 "Invalid input arguments: src type != vertices type.",
-                 *error);
-
     CAPI_EXPECTS((weights == nullptr) || (p_weights[i]->size_ == p_src[i]->size_),
                  CUGRAPH_INVALID_INPUT,
                  "Invalid input arguments: src size != weights size.",
@@ -661,7 +646,21 @@ extern "C" cugraph_error_code_t cugraph_graph_create_with_times_mg(
 
     local_num_edges += p_src[i]->size_;
 
+    // FIXME: Might be better to move this out of the for loop
+    bool cast_vertex_t = false;
     if (vertex_type == cugraph_data_type_id_t::NTYPES) vertex_type = p_src[i]->type_;
+
+    if (!((p_vertices == nullptr) || (p_src[i]->type_ == p_vertices[i]->type_))) {
+      cast_vertex_t = true;
+    }
+
+    if (!((p_edge_ids == nullptr) || (p_src[i]->type_ == p_edge_ids[i]->type_))) {
+      cast_vertex_t = true;
+    }
+
+    if (!(p_src[i]->type_ == p_dst[i]->type_)) { cast_vertex_t = true; }
+
+    if (cast_vertex_t) { vertex_type = cugraph_data_type_id_t::INT64; }
 
     if (weights != nullptr) {
       if (weight_type == cugraph_data_type_id_t::NTYPES) weight_type = p_weights[i]->type_;
@@ -675,33 +674,18 @@ extern "C" cugraph_error_code_t cugraph_graph_create_with_times_mg(
                    *error);
     }
 
-    CAPI_EXPECTS(p_src[i]->type_ == vertex_type,
-                 CUGRAPH_INVALID_INPUT,
-                 "Invalid input arguments: all vertex types must match",
-                 *error);
-
     CAPI_EXPECTS((weights == nullptr) || (p_weights[i]->type_ == weight_type),
                  CUGRAPH_INVALID_INPUT,
                  "Invalid input arguments: all weight types must match",
                  *error);
 
-    if ((edge_time_type == cugraph_data_type_id_t::NTYPES) && (p_edge_start_times != nullptr))
+    if ((edge_time_type == cugraph_data_type_id_t::NTYPES) && (p_edge_start_times != nullptr)) {
       edge_time_type = p_edge_start_times[i]->type_;
-    if ((edge_time_type == cugraph_data_type_id_t::NTYPES) && (p_edge_end_times != nullptr))
-      edge_time_type = p_edge_end_times[i]->type_;
-
-    if (p_edge_start_times != nullptr) {
-      CAPI_EXPECTS(p_edge_start_times[i]->type_ == edge_time_type,
-                   CUGRAPH_INVALID_INPUT,
-                   "Invalid input arguments: all time types must match",
-                   *error);
     }
 
-    if (p_edge_end_times != nullptr) {
-      CAPI_EXPECTS(p_edge_end_times[i]->type_ == edge_time_type,
-                   CUGRAPH_INVALID_INPUT,
-                   "Invalid input arguments: all time types must match",
-                   *error);
+    if (!((p_edge_end_times == nullptr) ||
+          (p_edge_start_times[i]->type_ == p_edge_end_times[i]->type_))) {
+      edge_time_type = cugraph_data_type_id_t::INT64;
     }
   }
 
@@ -779,11 +763,6 @@ extern "C" cugraph_error_code_t cugraph_graph_create_with_times_mg(
   cugraph_data_type_id_t edge_type_id_type{cugraph_data_type_id_t::NTYPES};
 
   for (size_t i = 0; i < num_arrays; ++i) {
-    CAPI_EXPECTS((edge_ids == nullptr) || (p_edge_ids[i]->type_ == edge_type),
-                 CUGRAPH_INVALID_INPUT,
-                 "Invalid input arguments: Edge id type must match edge type",
-                 *error);
-
     CAPI_EXPECTS((edge_ids == nullptr) || (p_edge_ids[i]->size_ == p_src[i]->size_),
                  CUGRAPH_INVALID_INPUT,
                  "Invalid input arguments: src size != edge id prop size",
@@ -803,6 +782,16 @@ extern "C" cugraph_error_code_t cugraph_graph_create_with_times_mg(
                    "Invalid input arguments: src size != edge type prop size",
                    *error);
     }
+
+    CAPI_EXPECTS((edge_start_times == nullptr) || (p_edge_start_times[i]->size_ == p_src[i]->size_),
+                 CUGRAPH_INVALID_INPUT,
+                 "Invalid input arguments: src size != edge start time prop size",
+                 *error);
+
+    CAPI_EXPECTS((edge_end_times == nullptr) || (p_edge_end_times[i]->size_ == p_src[i]->size_),
+                 CUGRAPH_INVALID_INPUT,
+                 "Invalid input arguments: src size != edge end time prop size",
+                 *error);
   }
 
   auto edge_type_id_types = cugraph::host_scalar_allgather(p_handle->handle_->get_comms(),
