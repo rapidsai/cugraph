@@ -14,12 +14,17 @@
  * limitations under the License.
  */
 
+#include "prims/extract_transform_v_frontier_outgoing_e.cuh"
+#include "prims/vertex_frontier.cuh"
 #include "utilities/collect_comm.cuh"
 
 #include <cugraph/algorithms.hpp>
+#include <cugraph/edge_property.hpp>
+#include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/large_buffer_manager.hpp>
+#include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/packed_bool_utils.hpp>
 
@@ -30,6 +35,7 @@
 #include <rmm/device_uvector.hpp>
 
 #include <thrust/copy.h>
+#include <thrust/equal.h>
 #include <thrust/fill.h>
 #include <thrust/for_each.h>
 #include <thrust/iterator/transform_iterator.h>
@@ -552,10 +558,33 @@ nbr_unrenumber_cache_t<vertex_t> build_nbr_unrenumber_cache(
   vertex_t invalid_vertex,
   std::optional<cugraph::large_buffer_type_t> large_buffer_type)
 {
+  constexpr size_t num_k_hop_rounds      = 24;  // to cut peak memory usage
+  constexpr size_t num_unrenumber_rounds = 8;   // to cut peak memory usage
+
+  auto& comm                 = handle.get_comms();
+  auto const comm_size       = comm.get_size();
+  auto& major_comm           = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
+  auto const major_comm_size = major_comm.get_size();
+  auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+  auto const minor_comm_size = minor_comm.get_size();
+
   CUGRAPH_EXPECTS(!large_buffer_type || cugraph::large_buffer_manager::memory_buffer_initialized(),
                   "Large memory buffer is not initialized.");
-
-  auto& comm = handle.get_comms();
+  CUGRAPH_EXPECTS(
+    minor_comm_size <= std::numeric_limits<uint16_t>::max(),
+    "minor_comm_size is too large for uint16_t, use int instead.");  // we use uint16_t to
+                                                                     // temporarily store minor_comm
+                                                                     // ranks in this code
+  std::optional<vertex_t> dense_size_per_vertex_partition{std::nullopt};
+  auto segment_offsets = mg_graph_view.local_vertex_partition_segment_offsets();
+  if (segment_offsets) {
+    dense_size_per_vertex_partition =
+      host_scalar_allreduce(comm,
+                            (*segment_offsets)[2] /* high & mid segments */,
+                            raft::comms::op_t::SUM,
+                            handle.get_stream()) /
+      comm_size;
+  }
 
   auto h_vertex_partition_range_lasts = mg_graph_view.vertex_partition_range_lasts();
   rmm::device_uvector<vertex_t> d_vertex_partition_range_lasts(
@@ -565,63 +594,200 @@ nbr_unrenumber_cache_t<vertex_t> build_nbr_unrenumber_cache(
                       h_vertex_partition_range_lasts.size(),
                       handle.get_stream());
 
-  constexpr size_t num_k_hop_rounds      = 24;  // to cut peak memory usage
-  constexpr size_t num_unrenumber_rounds = 8;   // to cut peak memory usage
-
   auto nbrs = large_buffer_type ? cugraph::large_buffer_manager::allocate_memory_buffer<vertex_t>(
                                     0, handle.get_stream())
                                 : rmm::device_uvector<vertex_t>(0, handle.get_stream());
+  std::optional<rmm::device_uvector<uint32_t>> dense_nbr_bitmap{std::nullopt};
+  if (dense_size_per_vertex_partition) {
+    dense_nbr_bitmap = rmm::device_uvector<uint32_t>(
+      cugraph::packed_bool_size(*dense_size_per_vertex_partition * comm_size), handle.get_stream());
+    thrust::fill(handle.get_thrust_policy(),
+                 dense_nbr_bitmap->begin(),
+                 dense_nbr_bitmap->end(),
+                 cugraph::packed_bool_empty_mask());
+  }
   for (size_t r = 0; r < num_k_hop_rounds; ++r) {
-    auto range_size = mg_graph_view.local_vertex_partition_range_size();
-    auto num_seeds  = range_size / num_k_hop_rounds + (r < (range_size % num_k_hop_rounds) ? 1 : 0);
-    rmm::device_uvector<vertex_t> seeds(num_seeds, handle.get_stream());
-    thrust::tabulate(
-      handle.get_thrust_policy(),
-      seeds.begin(),
-      seeds.end(),
-      cuda::proclaim_return_type<vertex_t>(
-        [r, v_first = mg_graph_view.local_vertex_partition_range_first()] __device__(size_t i) {
-          return v_first + static_cast<vertex_t>(r + i * num_k_hop_rounds);
-        }));
-
-    if (cugraph::host_scalar_allreduce(
-          comm, seeds.size(), raft::comms::op_t::SUM, handle.get_stream()) == size_t{0}) {
-      continue;
-    }
-
     rmm::device_uvector<vertex_t> this_round_nbrs(0, handle.get_stream());
-    std::tie(std::ignore, this_round_nbrs) =
-      cugraph::k_hop_nbrs(handle,
-                          mg_graph_view,
-                          raft::device_span<vertex_t const>(seeds.data(), seeds.size()),
-                          size_t{1});
+    rmm::device_uvector<size_t> d_tx_counts(0, handle.get_stream());
+    {
+      auto range_size = mg_graph_view.local_vertex_partition_range_size();
+      auto num_seeds =
+        range_size / num_k_hop_rounds + (r < (range_size % num_k_hop_rounds) ? 1 : 0);
+      rmm::device_uvector<vertex_t> seeds(num_seeds, handle.get_stream());
+      thrust::tabulate(
+        handle.get_thrust_policy(),
+        seeds.begin(),
+        seeds.end(),
+        cuda::proclaim_return_type<vertex_t>(
+          [r, v_first = mg_graph_view.local_vertex_partition_range_first()] __device__(size_t i) {
+            return v_first + static_cast<vertex_t>(r + i * num_k_hop_rounds);
+          }));
+
+      if (cugraph::host_scalar_allreduce(
+            comm, seeds.size(), raft::comms::op_t::SUM, handle.get_stream()) == size_t{0}) {
+        continue;
+      }
+
+      rmm::device_uvector<uint16_t> minor_comm_ranks(0, handle.get_stream());
+      cugraph::key_bucket_t<vertex_t, void, true, true> frontier(handle, std::move(seeds));
+      std::tie(minor_comm_ranks, this_round_nbrs) =
+        cugraph::extract_transform_v_frontier_outgoing_e(
+          handle,
+          mg_graph_view,
+          frontier,
+          cugraph::edge_src_dummy_property_t{}.view(),
+          cugraph::edge_dst_dummy_property_t{}.view(),
+          cugraph::edge_dummy_property_t{}.view(),
+          cuda::proclaim_return_type<cuda::std::tuple<uint16_t, vertex_t>>(
+            [lasts = raft::device_span<vertex_t const>(d_vertex_partition_range_lasts.data(),
+                                                       d_vertex_partition_range_lasts.size()),
+             major_comm_size,
+             minor_comm_size] __device__(auto src, auto dst, auto, auto, auto) {
+              auto vertex_partition_id = static_cast<int>(cuda::std::distance(
+                lasts.begin(), thrust::upper_bound(thrust::seq, lasts.begin(), lasts.end(), src)));
+              auto comm_rank =
+                cugraph::partition_manager::compute_global_comm_rank_from_vertex_partition_id(
+                  major_comm_size, minor_comm_size, vertex_partition_id);
+              auto minor_comm_rank =
+                partition_manager::compute_minor_comm_rank_from_global_comm_rank(
+                  major_comm_size, minor_comm_size, comm_rank);
+              return cuda::std::make_tuple(static_cast<uint16_t>(minor_comm_rank), dst);
+            }));
+      d_tx_counts = cugraph::groupby_and_count(minor_comm_ranks.begin(),
+                                               minor_comm_ranks.end(),
+                                               this_round_nbrs.begin(),
+                                               cugraph::detail::typecast_t<uint16_t, int>{},
+                                               minor_comm_size,
+                                               std::numeric_limits<size_t>::max(),
+                                               handle.get_stream());
+    }
+    std::tie(this_round_nbrs, std::ignore) =
+      shuffle_values(minor_comm,
+                     this_round_nbrs.begin(),
+                     raft::device_span<size_t const>(d_tx_counts.data(), d_tx_counts.size()),
+                     handle.get_stream());
+    if (dense_size_per_vertex_partition) {
+      auto sparse_last = thrust::partition(
+        handle.get_thrust_policy(),
+        this_round_nbrs.begin(),
+        this_round_nbrs.end(),
+        cuda::proclaim_return_type<bool>(
+          [lasts = raft::device_span<vertex_t const>(d_vertex_partition_range_lasts.data(),
+                                                     d_vertex_partition_range_lasts.size()),
+           dense_size_per_vertex_partition = *dense_size_per_vertex_partition] __device__(auto v) {
+            auto vertex_partition_id = static_cast<int>(cuda::std::distance(
+              lasts.begin(), thrust::upper_bound(thrust::seq, lasts.begin(), lasts.end(), v)));
+            auto v_first =
+              (vertex_partition_id == 0) ? vertex_t{0} : lasts[vertex_partition_id - 1];
+            return (v - v_first) >= dense_size_per_vertex_partition;
+          }));
+      thrust::for_each(
+        handle.get_thrust_policy(),
+        sparse_last,
+        this_round_nbrs.end(),
+        [lasts  = raft::device_span<vertex_t const>(d_vertex_partition_range_lasts.data(),
+                                                   d_vertex_partition_range_lasts.size()),
+         bitmap = raft::device_span<uint32_t>(dense_nbr_bitmap->data(), dense_nbr_bitmap->size()),
+         dense_size_per_vertex_partition = *dense_size_per_vertex_partition] __device__(auto v) {
+          auto vertex_partition_id = static_cast<int>(cuda::std::distance(
+            lasts.begin(), thrust::upper_bound(thrust::seq, lasts.begin(), lasts.end(), v)));
+          auto v_first  = (vertex_partition_id == 0) ? vertex_t{0} : lasts[vertex_partition_id - 1];
+          auto v_offset = v - v_first;
+          auto offset   = dense_size_per_vertex_partition * vertex_partition_id + v_offset;
+          cuda::atomic_ref<uint32_t, cuda::thread_scope_device> word(
+            bitmap[cugraph::packed_bool_offset(offset)]);
+          word.fetch_or(cugraph::packed_bool_mask(offset), cuda::std::memory_order_relaxed);
+        });
+      this_round_nbrs.resize(cuda::std::distance(this_round_nbrs.begin(), sparse_last),
+                             handle.get_stream());
+      this_round_nbrs.shrink_to_fit(handle.get_stream());
+    }
     thrust::sort(handle.get_thrust_policy(), this_round_nbrs.begin(), this_round_nbrs.end());
     this_round_nbrs.resize(
       cuda::std::distance(
         this_round_nbrs.begin(),
         thrust::unique(handle.get_thrust_policy(), this_round_nbrs.begin(), this_round_nbrs.end())),
       handle.get_stream());
-    rmm::device_uvector<vertex_t> new_nbrs(this_round_nbrs.size(), handle.get_stream());
-    new_nbrs.resize(cuda::std::distance(new_nbrs.begin(),
-                                        thrust::set_difference(handle.get_thrust_policy(),
-                                                               this_round_nbrs.begin(),
-                                                               this_round_nbrs.end(),
-                                                               nbrs.begin(),
-                                                               nbrs.end(),
-                                                               new_nbrs.begin())),
-                    handle.get_stream());
+    this_round_nbrs.resize(
+      cuda::std::distance(
+        this_round_nbrs.begin(),
+        thrust::remove_if(
+          handle.get_thrust_policy(),
+          this_round_nbrs.begin(),
+          this_round_nbrs.end(),
+          cuda::proclaim_return_type<bool>([nbrs = raft::device_span<vertex_t const>(
+                                              nbrs.data(), nbrs.size())] __device__(auto v) {
+            return thrust::binary_search(thrust::seq, nbrs.begin(), nbrs.end(), v);
+          }))),
+      handle.get_stream());
+    this_round_nbrs.shrink_to_fit(handle.get_stream());
     auto merged_nbrs =
       large_buffer_type
         ? cugraph::large_buffer_manager::allocate_memory_buffer<vertex_t>(
-            nbrs.size() + new_nbrs.size(), handle.get_stream())
-        : rmm::device_uvector<vertex_t>(nbrs.size() + new_nbrs.size(), handle.get_stream());
+            nbrs.size() + this_round_nbrs.size(), handle.get_stream())
+        : rmm::device_uvector<vertex_t>(nbrs.size() + this_round_nbrs.size(), handle.get_stream());
     thrust::merge(handle.get_thrust_policy(),
                   nbrs.begin(),
                   nbrs.end(),
-                  new_nbrs.begin(),
-                  new_nbrs.end(),
+                  this_round_nbrs.begin(),
+                  this_round_nbrs.end(),
                   merged_nbrs.begin());
     nbrs = std::move(merged_nbrs);
+  }
+  if (dense_size_per_vertex_partition) {
+    auto num_dense_nbrs =
+      thrust::transform_reduce(handle.get_thrust_policy(),
+                               dense_nbr_bitmap->begin(),
+                               dense_nbr_bitmap->end(),
+                               cuda::proclaim_return_type<vertex_t>([] __device__(uint32_t word) {
+                                 return static_cast<vertex_t>(__popc(word));
+                               }),
+                               vertex_t{0},
+                               thrust::plus<vertex_t>{});
+    std::cout << "num_dense_nbrs=" << num_dense_nbrs << " (sparse) nbrs.size()=" << nbrs.size()
+              << std::endl;
+    auto dense_nbrs    = large_buffer_type
+                           ? cugraph::large_buffer_manager::allocate_memory_buffer<vertex_t>(
+                            num_dense_nbrs, handle.get_stream())
+                           : rmm::device_uvector<vertex_t>(num_dense_nbrs, handle.get_stream());
+    auto dense_v_first = thrust::make_transform_iterator(
+      thrust::make_counting_iterator(vertex_t{0}),
+      cuda::proclaim_return_type<vertex_t>(
+        [lasts = raft::device_span<vertex_t const>(d_vertex_partition_range_lasts.data(),
+                                                   d_vertex_partition_range_lasts.size()),
+         dense_size_per_vertex_partition = *dense_size_per_vertex_partition] __device__(auto i) {
+          auto vertex_partition_id = i / dense_size_per_vertex_partition;
+          auto v_first = (vertex_partition_id == 0) ? vertex_t{0} : lasts[vertex_partition_id - 1];
+          return v_first + (i % dense_size_per_vertex_partition);
+        }));
+    auto stencil_first = thrust::make_transform_iterator(
+      thrust::make_counting_iterator(vertex_t{0}),
+      cuda::proclaim_return_type<bool>(
+        [bitmap = raft::device_span<uint32_t const>(dense_nbr_bitmap->data(),
+                                                    dense_nbr_bitmap->size())] __device__(auto i) {
+          auto word = bitmap[cugraph::packed_bool_offset(i)];
+          return (word & cugraph::packed_bool_mask(i)) != cugraph::packed_bool_empty_mask();
+        }));
+    thrust::copy_if(handle.get_thrust_policy(),
+                    dense_v_first,
+                    dense_v_first + (*dense_size_per_vertex_partition * comm_size),
+                    stencil_first,
+                    dense_nbrs.begin(),
+                    cuda::std::identity{});
+    auto merged_nbrs =
+      large_buffer_type
+        ? cugraph::large_buffer_manager::allocate_memory_buffer<vertex_t>(
+            nbrs.size() + dense_nbrs.size(), handle.get_stream())
+        : rmm::device_uvector<vertex_t>(nbrs.size() + dense_nbrs.size(), handle.get_stream());
+    thrust::merge(handle.get_thrust_policy(),
+                  nbrs.begin(),
+                  nbrs.end(),
+                  dense_nbrs.begin(),
+                  dense_nbrs.end(),
+                  merged_nbrs.begin());
+    nbrs                            = std::move(merged_nbrs);
+    dense_size_per_vertex_partition = std::nullopt;
+    dense_nbr_bitmap                = std::nullopt;
   }
 
   auto unrenumbered_nbrs = large_buffer_type
