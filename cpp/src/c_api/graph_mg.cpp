@@ -683,7 +683,7 @@ extern "C" cugraph_error_code_t cugraph_graph_create_with_times_mg(
       edge_time_type = p_edge_start_times[i]->type_;
     }
 
-    if (!((p_edge_start_times == nullptr) ||
+    if (!((p_edge_end_times == nullptr) ||
           (p_edge_start_times[i]->type_ == p_edge_end_times[i]->type_))) {
       edge_time_type = cugraph_data_type_id_t::INT64;
     }
