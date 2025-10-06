@@ -647,7 +647,7 @@ __global__ static __launch_bounds__(THREADS6, FACTOR6) void apply_forces_bh(
 
     if (prevent_overlapping) {
       factor   = 0.1 * factor;
-      float df = sqrt(dx * dx + dy * dy);
+      float df = sqrt(dx * dx + dy * dy + FLT_EPSILON);
       factor   = min(factor * df, 10.0f) / df;
     }
 

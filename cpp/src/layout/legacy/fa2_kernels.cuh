@@ -328,7 +328,7 @@ __global__ static void update_positions_kernel(float* restrict x_pos,
 
     if (prevent_overlapping) {
       factor   = 0.1 * factor;
-      float df = sqrt(dx * dx + dy * dy);
+      float df = sqrt(dx * dx + dy * dy + FLT_EPSILON);
       factor   = min(factor * df, 10.0f) / df;
     }
 
