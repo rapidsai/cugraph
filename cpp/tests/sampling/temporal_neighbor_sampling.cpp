@@ -30,6 +30,8 @@ struct Temporal_Neighbor_Sampling_Usecase {
   bool flag_replacement{true};
   bool biased{false};
   bool edge_masking{false};
+  cugraph::temporal_sampling_comparison_t temporal_sampling_comparison{
+    cugraph::temporal_sampling_comparison_t::MONOTONICALLY_INCREASING};
   bool check_correctness{true};
 };
 
@@ -123,6 +125,16 @@ class Tests_Temporal_Neighbor_Sampling
     auto edge_end_times_view =
       edge_end_times ? std::make_optional((*edge_end_times).view()) : std::nullopt;
 
+#if 0
+    // FIXME: Edge masking is not working yet
+    std::optional<cugraph::edge_property_t<decltype(graph_view), bool>> edge_mask{std::nullopt};
+    if (temporal_neighbor_sampling_usecase.edge_masking) {
+      edge_mask =
+        cugraph::test::generate<decltype(graph_view), bool>::edge_property(*handle_, graph_view, 2);
+      graph_view.attach_edge_mask((*edge_mask).view());
+    }
+#endif
+
     constexpr float select_probability{0.05};
 
     auto random_sources = cugraph::select_random_vertices(
@@ -169,37 +181,81 @@ class Tests_Temporal_Neighbor_Sampling
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      hr_timer.start("Uniform temporal sampling");
+      hr_timer.start("Temporal sampling");
     }
 
     cugraph::sampling_flags_t sampling_flags{};
+    sampling_flags.temporal_sampling_comparison =
+      temporal_neighbor_sampling_usecase.temporal_sampling_comparison;
 
-    auto&& [src_out,
-            dst_out,
-            wgt_out,
-            edge_id,
-            edge_type,
-            edge_start_time,
-            edge_end_time,
-            hop,
-            offsets] =
-      homogeneous_uniform_temporal_neighbor_sample(
-        handle,
-        rng_state,
-        graph_view,
-        edge_weights_view,
-        edge_ids_view,
-        edge_types_view,
-        *edge_start_times_view,
-        edge_end_times_view,
-        raft::device_span<vertex_t const>{random_sources_copy.data(), random_sources.size()},
-        batch_number ? std::make_optional(raft::device_span<int32_t const>{batch_number->data(),
-                                                                           batch_number->size()})
-                     : std::nullopt,
-        label_to_output_comm_rank_mapping,
-        raft::host_span<int32_t const>(temporal_neighbor_sampling_usecase.fanout.data(),
-                                       temporal_neighbor_sampling_usecase.fanout.size()),
-        sampling_flags);
+    rmm::device_uvector<vertex_t> src_out(0, handle.get_stream());
+    rmm::device_uvector<vertex_t> dst_out(0, handle.get_stream());
+    std::optional<rmm::device_uvector<weight_t>> wgt_out{std::nullopt};
+    std::optional<rmm::device_uvector<edge_t>> edge_id{std::nullopt};
+    std::optional<rmm::device_uvector<int32_t>> edge_type{std::nullopt};
+    std::optional<rmm::device_uvector<edge_time_t>> edge_start_time{std::nullopt};
+    std::optional<rmm::device_uvector<edge_time_t>> edge_end_time{std::nullopt};
+    std::optional<rmm::device_uvector<int32_t>> hop{std::nullopt};
+    std::optional<rmm::device_uvector<size_t>> offsets{std::nullopt};
+
+    if (temporal_neighbor_sampling_usecase.biased) {
+      ASSERT_TRUE(edge_weights_view.has_value());
+
+      std::tie(src_out,
+               dst_out,
+               wgt_out,
+               edge_id,
+               edge_type,
+               edge_start_time,
+               edge_end_time,
+               hop,
+               offsets) =
+        homogeneous_biased_temporal_neighbor_sample(
+          handle,
+          rng_state,
+          graph_view,
+          edge_weights_view,
+          edge_ids_view,
+          edge_types_view,
+          *edge_start_times_view,
+          edge_end_times_view,
+          *edge_weights_view,
+          raft::device_span<vertex_t const>{random_sources_copy.data(), random_sources.size()},
+          batch_number ? std::make_optional(raft::device_span<int32_t const>{batch_number->data(),
+                                                                             batch_number->size()})
+                       : std::nullopt,
+          label_to_output_comm_rank_mapping,
+          raft::host_span<int32_t const>(temporal_neighbor_sampling_usecase.fanout.data(),
+                                         temporal_neighbor_sampling_usecase.fanout.size()),
+          sampling_flags);
+    } else {
+      std::tie(src_out,
+               dst_out,
+               wgt_out,
+               edge_id,
+               edge_type,
+               edge_start_time,
+               edge_end_time,
+               hop,
+               offsets) =
+        homogeneous_uniform_temporal_neighbor_sample(
+          handle,
+          rng_state,
+          graph_view,
+          edge_weights_view,
+          edge_ids_view,
+          edge_types_view,
+          *edge_start_times_view,
+          edge_end_times_view,
+          raft::device_span<vertex_t const>{random_sources_copy.data(), random_sources.size()},
+          batch_number ? std::make_optional(raft::device_span<int32_t const>{batch_number->data(),
+                                                                             batch_number->size()})
+                       : std::nullopt,
+          label_to_output_comm_rank_mapping,
+          raft::host_span<int32_t const>(temporal_neighbor_sampling_usecase.fanout.data(),
+                                         temporal_neighbor_sampling_usecase.fanout.size()),
+          sampling_flags);
+    }
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -255,7 +311,8 @@ class Tests_Temporal_Neighbor_Sampling
         raft::device_span<vertex_t const>{src_out.data(), src_out.size()},
         raft::device_span<const vertex_t>{dst_out.data(), dst_out.size()},
         raft::device_span<const edge_time_t>{edge_start_time->data(), edge_start_time->size()},
-        raft::device_span<const vertex_t>{random_sources.data(), random_sources.size()}));
+        raft::device_span<const vertex_t>{random_sources.data(), random_sources.size()},
+        temporal_neighbor_sampling_usecase.temporal_sampling_comparison));
 
       if (random_sources.size() < 100) {
         // This validation is too expensive for large number of vertices
@@ -303,27 +360,174 @@ TEST_P(Tests_Temporal_Neighbor_Sampling_Rmat, CheckInt64Int64Float)
 INSTANTIATE_TEST_SUITE_P(
   file_test,
   Tests_Temporal_Neighbor_Sampling_File,
-  ::testing::Combine(
-    ::testing::Values(Temporal_Neighbor_Sampling_Usecase{{4, -1, 10}, 128, false, false, true},
-                      Temporal_Neighbor_Sampling_Usecase{{4, -1, 10}, 128, true, false, false},
-                      Temporal_Neighbor_Sampling_Usecase{{4, -1, 10}, 128, true, false, true},
-                      Temporal_Neighbor_Sampling_Usecase{{4, -1, 10}, 128, false, true, false},
-                      Temporal_Neighbor_Sampling_Usecase{{4, -1, 10}, 128, false, true, true},
-                      Temporal_Neighbor_Sampling_Usecase{{4, -1, 10}, 128, true, true, false},
-                      Temporal_Neighbor_Sampling_Usecase{{4, -1, 10}, 128, true, true, true}),
-    ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
+  ::testing::Combine(::testing::Values(
+                       Temporal_Neighbor_Sampling_Usecase{
+                         {4, -1, 10},
+                         128,
+                         false,
+                         false,
+                         true,
+                         cugraph::temporal_sampling_comparison_t::MONOTONICALLY_INCREASING},
+                       Temporal_Neighbor_Sampling_Usecase{
+                         {4, -1, 10},
+                         128,
+                         true,
+                         false,
+                         false,
+                         cugraph::temporal_sampling_comparison_t::MONOTONICALLY_INCREASING},
+                       Temporal_Neighbor_Sampling_Usecase{
+                         {4, -1, 10},
+                         128,
+                         true,
+                         false,
+                         true,
+                         cugraph::temporal_sampling_comparison_t::MONOTONICALLY_INCREASING},
+                       Temporal_Neighbor_Sampling_Usecase{
+                         {4, -1, 10},
+                         128,
+                         false,
+                         true,
+                         false,
+                         cugraph::temporal_sampling_comparison_t::MONOTONICALLY_INCREASING},
+                       Temporal_Neighbor_Sampling_Usecase{
+                         {4, -1, 10},
+                         128,
+                         false,
+                         true,
+                         true,
+                         cugraph::temporal_sampling_comparison_t::MONOTONICALLY_INCREASING},
+                       Temporal_Neighbor_Sampling_Usecase{
+                         {4, -1, 10},
+                         128,
+                         true,
+                         true,
+                         false,
+                         cugraph::temporal_sampling_comparison_t::MONOTONICALLY_INCREASING},
+                       Temporal_Neighbor_Sampling_Usecase{
+                         {4, -1, 10},
+                         128,
+                         true,
+                         true,
+                         true,
+                         cugraph::temporal_sampling_comparison_t::MONOTONICALLY_INCREASING}),
+                     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
+
+INSTANTIATE_TEST_SUITE_P(
+  file_test_decreasing,
+  Tests_Temporal_Neighbor_Sampling_File,
+  ::testing::Combine(::testing::Values(
+                       Temporal_Neighbor_Sampling_Usecase{
+                         {4, -1, 10},
+                         128,
+                         false,
+                         false,
+                         true,
+                         cugraph::temporal_sampling_comparison_t::MONOTONICALLY_DECREASING},
+                       Temporal_Neighbor_Sampling_Usecase{
+                         {4, -1, 10},
+                         128,
+                         true,
+                         false,
+                         false,
+                         cugraph::temporal_sampling_comparison_t::MONOTONICALLY_DECREASING},
+                       Temporal_Neighbor_Sampling_Usecase{
+                         {4, -1, 10},
+                         128,
+                         true,
+                         false,
+                         true,
+                         cugraph::temporal_sampling_comparison_t::MONOTONICALLY_DECREASING},
+                       Temporal_Neighbor_Sampling_Usecase{
+                         {4, -1, 10},
+                         128,
+                         false,
+                         true,
+                         false,
+                         cugraph::temporal_sampling_comparison_t::MONOTONICALLY_DECREASING},
+                       Temporal_Neighbor_Sampling_Usecase{
+                         {4, -1, 10},
+                         128,
+                         false,
+                         true,
+                         true,
+                         cugraph::temporal_sampling_comparison_t::MONOTONICALLY_DECREASING},
+                       Temporal_Neighbor_Sampling_Usecase{
+                         {4, -1, 10},
+                         128,
+                         true,
+                         true,
+                         false,
+                         cugraph::temporal_sampling_comparison_t::MONOTONICALLY_DECREASING},
+                       Temporal_Neighbor_Sampling_Usecase{
+                         {4, -1, 10},
+                         128,
+                         true,
+                         true,
+                         true,
+                         cugraph::temporal_sampling_comparison_t::MONOTONICALLY_DECREASING}),
+                     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(
   file_large_test,
   Tests_Temporal_Neighbor_Sampling_File,
   ::testing::Combine(
-    ::testing::Values(Temporal_Neighbor_Sampling_Usecase{{4, 10}, 128, false, false, true},
-                      Temporal_Neighbor_Sampling_Usecase{{4, 10}, 128, true, false, false},
-                      Temporal_Neighbor_Sampling_Usecase{{4, 10}, 128, true, false, true},
-                      Temporal_Neighbor_Sampling_Usecase{{4, 10}, 128, false, true, false},
-                      Temporal_Neighbor_Sampling_Usecase{{4, 10}, 128, false, true, true},
-                      Temporal_Neighbor_Sampling_Usecase{{4, 10}, 128, true, true, false},
-                      Temporal_Neighbor_Sampling_Usecase{{4, 10}, 128, true, true, true}),
+    ::testing::Values(
+      Temporal_Neighbor_Sampling_Usecase{
+        {4, 10},
+        128,
+        false,
+        false,
+        true,
+        cugraph::temporal_sampling_comparison_t::MONOTONICALLY_INCREASING,
+        false},
+      Temporal_Neighbor_Sampling_Usecase{
+        {4, 10},
+        128,
+        true,
+        false,
+        false,
+        cugraph::temporal_sampling_comparison_t::MONOTONICALLY_INCREASING,
+        false},
+      Temporal_Neighbor_Sampling_Usecase{
+        {4, 10},
+        128,
+        true,
+        false,
+        true,
+        cugraph::temporal_sampling_comparison_t::MONOTONICALLY_INCREASING,
+        false},
+      Temporal_Neighbor_Sampling_Usecase{
+        {4, 10},
+        128,
+        false,
+        true,
+        false,
+        cugraph::temporal_sampling_comparison_t::MONOTONICALLY_INCREASING,
+        false},
+      Temporal_Neighbor_Sampling_Usecase{
+        {4, 10},
+        128,
+        false,
+        true,
+        true,
+        cugraph::temporal_sampling_comparison_t::MONOTONICALLY_INCREASING,
+        false},
+      Temporal_Neighbor_Sampling_Usecase{
+        {4, 10},
+        128,
+        true,
+        true,
+        false,
+        cugraph::temporal_sampling_comparison_t::MONOTONICALLY_INCREASING,
+        false},
+      Temporal_Neighbor_Sampling_Usecase{
+        {4, 10},
+        128,
+        true,
+        true,
+        true,
+        cugraph::temporal_sampling_comparison_t::MONOTONICALLY_INCREASING,
+        false}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
                       cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
                       cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx"))));
@@ -332,13 +536,112 @@ INSTANTIATE_TEST_SUITE_P(
   rmat_small_test,
   Tests_Temporal_Neighbor_Sampling_Rmat,
   ::testing::Combine(
-    ::testing::Values(Temporal_Neighbor_Sampling_Usecase{{4, -1, 10}, 128, false, false, true},
-                      Temporal_Neighbor_Sampling_Usecase{{4, -1, 10}, 128, true, false, false},
-                      Temporal_Neighbor_Sampling_Usecase{{4, -1, 10}, 128, true, false, true},
-                      Temporal_Neighbor_Sampling_Usecase{{4, -1, 10}, 128, false, true, false},
-                      Temporal_Neighbor_Sampling_Usecase{{4, -1, 10}, 128, false, true, true},
-                      Temporal_Neighbor_Sampling_Usecase{{4, -1, 10}, 128, true, true, false},
-                      Temporal_Neighbor_Sampling_Usecase{{4, -1, 10}, 128, true, true, true}),
+    ::testing::Values(
+      Temporal_Neighbor_Sampling_Usecase{
+        {4, -1, 10},
+        128,
+        false,
+        false,
+        true,
+        cugraph::temporal_sampling_comparison_t::MONOTONICALLY_INCREASING},
+      Temporal_Neighbor_Sampling_Usecase{
+        {4, -1, 10},
+        128,
+        true,
+        false,
+        false,
+        cugraph::temporal_sampling_comparison_t::MONOTONICALLY_INCREASING},
+      Temporal_Neighbor_Sampling_Usecase{
+        {4, -1, 10},
+        128,
+        true,
+        false,
+        true,
+        cugraph::temporal_sampling_comparison_t::MONOTONICALLY_INCREASING},
+      Temporal_Neighbor_Sampling_Usecase{
+        {4, -1, 10},
+        128,
+        false,
+        true,
+        false,
+        cugraph::temporal_sampling_comparison_t::MONOTONICALLY_INCREASING},
+      Temporal_Neighbor_Sampling_Usecase{
+        {4, -1, 10},
+        128,
+        false,
+        true,
+        true,
+        cugraph::temporal_sampling_comparison_t::MONOTONICALLY_INCREASING},
+      Temporal_Neighbor_Sampling_Usecase{
+        {4, -1, 10},
+        128,
+        true,
+        true,
+        false,
+        cugraph::temporal_sampling_comparison_t::MONOTONICALLY_INCREASING},
+      Temporal_Neighbor_Sampling_Usecase{
+        {4, -1, 10},
+        128,
+        true,
+        true,
+        true,
+        cugraph::temporal_sampling_comparison_t::MONOTONICALLY_INCREASING}),
+    ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false, 0))));
+
+INSTANTIATE_TEST_SUITE_P(
+  rmat_small_test_decreasing,
+  Tests_Temporal_Neighbor_Sampling_Rmat,
+  ::testing::Combine(
+    ::testing::Values(
+      Temporal_Neighbor_Sampling_Usecase{
+        {4, -1, 10},
+        128,
+        false,
+        false,
+        true,
+        cugraph::temporal_sampling_comparison_t::MONOTONICALLY_DECREASING},
+      Temporal_Neighbor_Sampling_Usecase{
+        {4, -1, 10},
+        128,
+        true,
+        false,
+        false,
+        cugraph::temporal_sampling_comparison_t::MONOTONICALLY_DECREASING},
+      Temporal_Neighbor_Sampling_Usecase{
+        {4, -1, 10},
+        128,
+        true,
+        false,
+        true,
+        cugraph::temporal_sampling_comparison_t::MONOTONICALLY_DECREASING},
+      Temporal_Neighbor_Sampling_Usecase{
+        {4, -1, 10},
+        128,
+        false,
+        true,
+        false,
+        cugraph::temporal_sampling_comparison_t::MONOTONICALLY_DECREASING},
+      Temporal_Neighbor_Sampling_Usecase{
+        {4, -1, 10},
+        128,
+        false,
+        true,
+        true,
+        cugraph::temporal_sampling_comparison_t::MONOTONICALLY_DECREASING},
+      Temporal_Neighbor_Sampling_Usecase{
+        {4, -1, 10},
+        128,
+        true,
+        true,
+        false,
+        cugraph::temporal_sampling_comparison_t::MONOTONICALLY_DECREASING},
+      Temporal_Neighbor_Sampling_Usecase{
+        {4, -1, 10},
+        128,
+        true,
+        true,
+        true,
+        cugraph::temporal_sampling_comparison_t::MONOTONICALLY_DECREASING}),
     ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false, 0))));
 
 INSTANTIATE_TEST_SUITE_P(
@@ -349,13 +652,63 @@ INSTANTIATE_TEST_SUITE_P(
                           factor (to avoid running same benchmarks more than once) */
   Tests_Temporal_Neighbor_Sampling_Rmat,
   ::testing::Combine(
-    ::testing::Values(Temporal_Neighbor_Sampling_Usecase{{4, 10}, 128, false, false, true},
-                      Temporal_Neighbor_Sampling_Usecase{{4, 10}, 128, true, false, false},
-                      Temporal_Neighbor_Sampling_Usecase{{4, 10}, 128, true, false, true},
-                      Temporal_Neighbor_Sampling_Usecase{{4, 10}, 128, false, true, false},
-                      Temporal_Neighbor_Sampling_Usecase{{4, 10}, 128, false, true, true},
-                      Temporal_Neighbor_Sampling_Usecase{{4, 10}, 128, true, true, false},
-                      Temporal_Neighbor_Sampling_Usecase{{4, 10}, 128, true, true, true}),
+    ::testing::Values(
+      Temporal_Neighbor_Sampling_Usecase{
+        {4, 10},
+        128,
+        false,
+        false,
+        true,
+        cugraph::temporal_sampling_comparison_t::MONOTONICALLY_INCREASING,
+        false},
+      Temporal_Neighbor_Sampling_Usecase{
+        {4, 10},
+        128,
+        true,
+        false,
+        false,
+        cugraph::temporal_sampling_comparison_t::MONOTONICALLY_INCREASING,
+        false},
+      Temporal_Neighbor_Sampling_Usecase{
+        {4, 10},
+        128,
+        true,
+        false,
+        true,
+        cugraph::temporal_sampling_comparison_t::MONOTONICALLY_INCREASING,
+        false},
+      Temporal_Neighbor_Sampling_Usecase{
+        {4, 10},
+        128,
+        false,
+        true,
+        false,
+        cugraph::temporal_sampling_comparison_t::MONOTONICALLY_INCREASING,
+        false},
+      Temporal_Neighbor_Sampling_Usecase{
+        {4, 10},
+        128,
+        false,
+        true,
+        true,
+        cugraph::temporal_sampling_comparison_t::MONOTONICALLY_INCREASING,
+        false},
+      Temporal_Neighbor_Sampling_Usecase{
+        {4, 10},
+        128,
+        true,
+        true,
+        false,
+        cugraph::temporal_sampling_comparison_t::MONOTONICALLY_INCREASING,
+        false},
+      Temporal_Neighbor_Sampling_Usecase{
+        {4, 10},
+        128,
+        true,
+        true,
+        true,
+        cugraph::temporal_sampling_comparison_t::MONOTONICALLY_INCREASING,
+        false}),
     ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false, 0))));
 
 CUGRAPH_TEST_PROGRAM_MAIN()

@@ -21,6 +21,7 @@
 #include "prims/update_edge_src_dst_property.cuh"
 
 #include <cugraph/detail/utility_wrappers.hpp>
+#include <cugraph/sampling_functions.hpp>
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/mask_utils.cuh>
 
@@ -40,7 +41,8 @@ void update_temporal_edge_mask(
   edge_property_view_t<edge_t, edge_time_t const*> edge_start_time_view,
   raft::device_span<vertex_t const> vertices,
   raft::device_span<edge_time_t const> vertex_times,
-  edge_property_view_t<edge_t, uint32_t*, bool> edge_time_mask_view)
+  edge_property_view_t<edge_t, uint32_t*, bool> edge_time_mask_view,
+  temporal_sampling_comparison_t temporal_sampling_comparison)
 {
   edge_time_t const STARTING_TIME{std::numeric_limits<edge_time_t>::min()};
 
@@ -65,8 +67,24 @@ void update_temporal_edge_mask(
     edge_src_times.view(),
     cugraph::edge_dst_dummy_property_t{}.view(),
     edge_start_time_view,
-    [] __device__(auto src, auto dst, auto src_time, auto, auto edge_start_time) {
-      return edge_start_time > src_time;
+    [temporal_sampling_comparison] __device__(
+      auto src, auto dst, auto src_time, auto, auto edge_start_time) {
+      bool result = false;
+      switch (temporal_sampling_comparison) {
+        case temporal_sampling_comparison_t::STRICTLY_INCREASING:
+          result = (edge_start_time > src_time);
+          break;
+        case temporal_sampling_comparison_t::MONOTONICALLY_INCREASING:
+          result = (edge_start_time >= src_time);
+          break;
+        case temporal_sampling_comparison_t::STRICTLY_DECREASING:
+          result = (edge_start_time < src_time);
+          break;
+        case temporal_sampling_comparison_t::MONOTONICALLY_DECREASING:
+          result = (edge_start_time <= src_time);
+          break;
+      }
+      return result;
     },
     edge_time_mask_view,
     false);

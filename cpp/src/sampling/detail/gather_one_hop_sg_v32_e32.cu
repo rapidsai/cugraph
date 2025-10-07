@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include "cugraph/sampling_functions.hpp"
 #include "gather_one_hop_impl.cuh"
 
 namespace cugraph {
@@ -51,6 +52,7 @@ temporal_gather_one_hop_edgelist(
   raft::device_span<int32_t const> active_major_times,
   std::optional<raft::device_span<int32_t const>> active_major_labels,
   std::optional<raft::device_span<uint8_t const>> gather_flags,
+  temporal_sampling_comparison_t temporal_sampling_comparison,
   bool do_expensive_check);
 
 template std::tuple<rmm::device_uvector<vertex_t>,
@@ -67,6 +69,7 @@ temporal_gather_one_hop_edgelist(
   raft::device_span<int64_t const> active_major_times,
   std::optional<raft::device_span<int32_t const>> active_major_labels,
   std::optional<raft::device_span<uint8_t const>> gather_flags,
+  temporal_sampling_comparison_t temporal_sampling_comparison,
   bool do_expensive_check);
 
 }  // namespace detail
