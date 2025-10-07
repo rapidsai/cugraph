@@ -40,6 +40,7 @@
 #include <rmm/device_uvector.hpp>
 
 #include <cuda/std/optional>
+#include <cuda/std/tuple>
 #include <thrust/copy.h>
 #include <thrust/count.h>
 #include <thrust/equal.h>
@@ -48,7 +49,6 @@
 #include <thrust/sort.h>
 #include <thrust/tabulate.h>
 #include <thrust/transform.h>
-#include <thrust/tuple.h>
 
 #include <cuco/hash_functions.cuh>
 
@@ -61,18 +61,18 @@
 template <typename key_t, typename vertex_t, typename property_t, typename output_payload_t>
 struct e_op_t {
   static_assert(std::is_same_v<key_t, vertex_t> ||
-                std::is_same_v<key_t, thrust::tuple<vertex_t, int32_t>>);
+                std::is_same_v<key_t, cuda::std::tuple<vertex_t, int32_t>>);
   static_assert(std::is_same_v<output_payload_t, int32_t> ||
-                std::is_same_v<output_payload_t, thrust::tuple<float, int32_t>>);
+                std::is_same_v<output_payload_t, cuda::std::tuple<float, int32_t>>);
 
   using return_type = typename std::conditional_t<
     std::is_same_v<key_t, vertex_t>,
     std::conditional_t<std::is_arithmetic_v<output_payload_t>,
-                       thrust::tuple<vertex_t, vertex_t, int32_t>,
-                       thrust::tuple<vertex_t, vertex_t, float, int32_t>>,
+                       cuda::std::tuple<vertex_t, vertex_t, int32_t>,
+                       cuda::std::tuple<vertex_t, vertex_t, float, int32_t>>,
     std::conditional_t<std::is_arithmetic_v<output_payload_t>,
-                       thrust::tuple<vertex_t, int32_t, vertex_t, int32_t>,
-                       thrust::tuple<vertex_t, int32_t, vertex_t, float, int32_t>>>;
+                       cuda::std::tuple<vertex_t, int32_t, vertex_t, int32_t>,
+                       cuda::std::tuple<vertex_t, int32_t, vertex_t, float, int32_t>>>;
 
   __device__ return_type operator()(
     key_t optionally_tagged_src, vertex_t dst, property_t, property_t, cuda::std::nullopt_t) const
@@ -80,28 +80,28 @@ struct e_op_t {
     auto output_payload = static_cast<output_payload_t>(1);
     if constexpr (std::is_same_v<key_t, vertex_t>) {
       if constexpr (std::is_arithmetic_v<output_payload_t>) {
-        return thrust::make_tuple(optionally_tagged_src, dst, output_payload);
+        return cuda::std::make_tuple(optionally_tagged_src, dst, output_payload);
       } else {
-        static_assert(thrust::tuple_size<output_payload_t>::value == size_t{2});
-        return thrust::make_tuple(optionally_tagged_src,
-                                  dst,
-                                  thrust::get<0>(output_payload),
-                                  thrust::get<1>(output_payload));
+        static_assert(cuda::std::tuple_size<output_payload_t>::value == size_t{2});
+        return cuda::std::make_tuple(optionally_tagged_src,
+                                     dst,
+                                     cuda::std::get<0>(output_payload),
+                                     cuda::std::get<1>(output_payload));
       }
     } else {
-      static_assert(thrust::tuple_size<key_t>::value == size_t{2});
+      static_assert(cuda::std::tuple_size<key_t>::value == size_t{2});
       if constexpr (std::is_arithmetic_v<output_payload_t>) {
-        return thrust::make_tuple(thrust::get<0>(optionally_tagged_src),
-                                  thrust::get<1>(optionally_tagged_src),
-                                  dst,
-                                  output_payload);
+        return cuda::std::make_tuple(cuda::std::get<0>(optionally_tagged_src),
+                                     cuda::std::get<1>(optionally_tagged_src),
+                                     dst,
+                                     output_payload);
       } else {
-        static_assert(thrust::tuple_size<output_payload_t>::value == size_t{2});
-        return thrust::make_tuple(thrust::get<0>(optionally_tagged_src),
-                                  thrust::get<1>(optionally_tagged_src),
-                                  dst,
-                                  thrust::get<0>(output_payload),
-                                  thrust::get<1>(output_payload));
+        static_assert(cuda::std::tuple_size<output_payload_t>::value == size_t{2});
+        return cuda::std::make_tuple(cuda::std::get<0>(optionally_tagged_src),
+                                     cuda::std::get<1>(optionally_tagged_src),
+                                     dst,
+                                     cuda::std::get<0>(output_payload),
+                                     cuda::std::get<1>(output_payload));
       }
     }
   }
@@ -110,7 +110,7 @@ struct e_op_t {
 template <typename key_t, typename vertex_t, typename property_t>
 struct pred_op_t {
   static_assert(std::is_same_v<key_t, vertex_t> ||
-                std::is_same_v<key_t, thrust::tuple<vertex_t, int32_t>>);
+                std::is_same_v<key_t, cuda::std::tuple<vertex_t, int32_t>>);
 
   __device__ bool operator()(
     key_t, vertex_t, property_t src_val, property_t dst_val, cuda::std::nullopt_t) const
@@ -149,13 +149,13 @@ class Tests_MGExtractTransformIfVFrontierOutgoingE
     using result_t    = int32_t;
 
     using key_t =
-      std::conditional_t<std::is_same_v<tag_t, void>, vertex_t, thrust::tuple<vertex_t, tag_t>>;
+      std::conditional_t<std::is_same_v<tag_t, void>, vertex_t, cuda::std::tuple<vertex_t, tag_t>>;
 
     static_assert(std::is_same_v<tag_t, void> || std::is_arithmetic_v<tag_t>);
     static_assert(std::is_same_v<output_payload_t, void> ||
                   cugraph::is_arithmetic_or_thrust_tuple_of_arithmetic<output_payload_t>::value);
     if constexpr (cugraph::is_thrust_tuple<output_payload_t>::value) {
-      static_assert(thrust::tuple_size<output_payload_t>::value == size_t{2});
+      static_assert(cuda::std::tuple_size<output_payload_t>::value == size_t{2});
     }
 
     HighResTimer hr_timer{};
@@ -220,7 +220,7 @@ class Tests_MGExtractTransformIfVFrontierOutgoingE
                        [mg_renumber_map_labels = (*d_mg_renumber_map_labels).data(),
                         local_vertex_partition_range_first =
                           mg_graph_view.local_vertex_partition_range_first()] __device__(size_t i) {
-                         return thrust::make_tuple(
+                         return cuda::std::make_tuple(
                            static_cast<vertex_t>(local_vertex_partition_range_first + i),
                            static_cast<tag_t>(*(mg_renumber_map_labels + i) % size_t{10}));
                        });
@@ -336,7 +336,7 @@ class Tests_MGExtractTransformIfVFrontierOutgoingE
                            cugraph::get_dataframe_buffer_begin(sg_key_buffer),
                            cugraph::get_dataframe_buffer_end(sg_key_buffer),
                            [] __device__(size_t i) {
-                             return thrust::make_tuple(
+                             return cuda::std::make_tuple(
                                static_cast<vertex_t>(i),
                                static_cast<tag_t>(static_cast<vertex_t>(i) % size_t{10}));
                            });
@@ -403,14 +403,14 @@ TEST_P(Tests_MGExtractTransformIfVFrontierOutgoingE_Rmat, CheckInt32Int32FloatVo
 TEST_P(Tests_MGExtractTransformIfVFrontierOutgoingE_File, CheckInt32Int32FloatVoidTupleFloatInt32)
 {
   auto param = GetParam();
-  run_current_test<int32_t, int32_t, float, void, thrust::tuple<float, int32_t>>(
+  run_current_test<int32_t, int32_t, float, void, cuda::std::tuple<float, int32_t>>(
     std::get<0>(param), std::get<1>(param));
 }
 
 TEST_P(Tests_MGExtractTransformIfVFrontierOutgoingE_Rmat, CheckInt32Int32FloatVoidTupleFloatInt32)
 {
   auto param = GetParam();
-  run_current_test<int32_t, int32_t, float, void, thrust::tuple<float, int32_t>>(
+  run_current_test<int32_t, int32_t, float, void, cuda::std::tuple<float, int32_t>>(
     std::get<0>(param),
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
@@ -433,14 +433,14 @@ TEST_P(Tests_MGExtractTransformIfVFrontierOutgoingE_Rmat, CheckInt32Int32FloatIn
 TEST_P(Tests_MGExtractTransformIfVFrontierOutgoingE_File, CheckInt32Int32FloatInt32TupleFloatInt32)
 {
   auto param = GetParam();
-  run_current_test<int32_t, int32_t, float, int32_t, thrust::tuple<float, int32_t>>(
+  run_current_test<int32_t, int32_t, float, int32_t, cuda::std::tuple<float, int32_t>>(
     std::get<0>(param), std::get<1>(param));
 }
 
 TEST_P(Tests_MGExtractTransformIfVFrontierOutgoingE_Rmat, CheckInt32Int32FloatInt32TupleFloatInt32)
 {
   auto param = GetParam();
-  run_current_test<int32_t, int32_t, float, int32_t, thrust::tuple<float, int32_t>>(
+  run_current_test<int32_t, int32_t, float, int32_t, cuda::std::tuple<float, int32_t>>(
     std::get<0>(param),
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }

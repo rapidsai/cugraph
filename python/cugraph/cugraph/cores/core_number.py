@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2024, NVIDIA CORPORATION.
+# Copyright (c) 2019-2025, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -11,16 +11,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.utilities import (
-    ensure_cugraph_obj_for_nx,
-    df_score_to_dictionary,
-)
+from cugraph.structure import Graph
 import cudf
 
 from pylibcugraph import core_number as pylibcugraph_core_number, ResourceHandle
 
 
-def core_number(G, degree_type="bidirectional"):
+def core_number(G: Graph, degree_type="bidirectional") -> cudf.DataFrame:
     """
     Compute the core numbers for the nodes of the graph G. A k-core of a graph
     is a maximal subgraph that contains nodes of degree k or more.  A node has
@@ -29,15 +26,10 @@ def core_number(G, degree_type="bidirectional"):
 
     Parameters
     ----------
-    G : cuGraph.Graph or networkx.Graph
+    G : cuGraph.Graph
         The current implementation only supports undirected graphs.  The graph
         can contain edge weights, but they don't participate in the calculation
         of the core numbers.
-
-        .. deprecated:: 24.12
-           Accepting a ``networkx.Graph`` is deprecated and will be removed in a
-           future version.  For ``networkx.Graph`` use networkx directly with
-           the ``nx-cugraph`` backend. See:  https://rapids.ai/nx-cugraph/
 
     degree_type: str, (default="bidirectional")
         This option is currently ignored.  This option may eventually determine
@@ -47,7 +39,7 @@ def core_number(G, degree_type="bidirectional"):
 
     Returns
     -------
-    df : cudf.DataFrame or python dictionary (in NetworkX input)
+    df : cudf.DataFrame
         GPU data frame containing two cudf.Series of size V: the vertex
         identifiers and the corresponding core number values.
 
@@ -69,8 +61,6 @@ def core_number(G, degree_type="bidirectional"):
     3       2            4
     4       1            4
     """
-
-    G, isNx = ensure_cugraph_obj_for_nx(G)
 
     if G.is_directed():
         raise ValueError("input graph must be undirected")
@@ -97,8 +87,5 @@ def core_number(G, degree_type="bidirectional"):
 
     if G.renumbered:
         df = G.unrenumber(df, "vertex")
-
-    if isNx is True:
-        df = df_score_to_dictionary(df, "core_number")
 
     return df

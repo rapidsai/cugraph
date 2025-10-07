@@ -71,6 +71,9 @@ int generic_biased_neighbor_sample_test(const cugraph_resource_handle_t* handle,
                                       h_edge_types,
                                       edge_id_tid,
                                       h_edge_ids,
+                                      INT32,
+                                      NULL,
+                                      NULL,
                                       num_edges,
                                       FALSE,
                                       TRUE,
@@ -516,8 +519,28 @@ int test_biased_neighbor_from_alex(const cugraph_resource_handle_t* handle)
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "rng_state create failed.");
   TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
 
-  ret_code = create_mg_test_graph_with_properties(
-    handle, src, dst, idx, typ, wgt, num_edges, store_transposed, FALSE, &graph, &ret_error);
+  ret_code = create_mg_test_graph_new(handle,
+                                      vertex_tid,
+                                      edge_tid,
+                                      src,
+                                      dst,
+                                      weight_tid,
+                                      wgt,
+                                      edge_type_tid,
+                                      typ,
+                                      edge_id_tid,
+                                      idx,
+                                      INT32,
+                                      NULL,
+                                      NULL,
+                                      num_edges,
+                                      store_transposed,
+                                      TRUE,
+                                      FALSE,
+                                      TRUE,
+                                      &graph,
+                                      &ret_error);
+
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "graph creation failed.");
   TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
 

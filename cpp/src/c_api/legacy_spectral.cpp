@@ -17,6 +17,7 @@
 #include "c_api/abstract_functor.hpp"
 #include "c_api/capi_helper.hpp"
 #include "c_api/graph.hpp"
+#include "c_api/random.hpp"
 #include "c_api/resource_handle.hpp"
 #include "c_api/utils.hpp"
 
@@ -43,6 +44,7 @@ namespace {
 
 struct balanced_cut_clustering_functor : public cugraph::c_api::abstract_functor {
   raft::handle_t const& handle_;
+  cugraph::c_api::cugraph_rng_state_t* rng_state_{nullptr};
   cugraph::c_api::cugraph_graph_t* graph_;
   size_t n_clusters_;
   size_t n_eigenvectors_;
@@ -54,6 +56,7 @@ struct balanced_cut_clustering_functor : public cugraph::c_api::abstract_functor
   cugraph::c_api::cugraph_clustering_result_t* result_{};
 
   balanced_cut_clustering_functor(::cugraph_resource_handle_t const* handle,
+                                  ::cugraph_rng_state_t* rng_state,
                                   ::cugraph_graph_t* graph,
                                   size_t n_clusters,
                                   size_t n_eigenvectors,
@@ -64,6 +67,7 @@ struct balanced_cut_clustering_functor : public cugraph::c_api::abstract_functor
                                   bool do_expensive_check)
     : abstract_functor(),
       handle_(*reinterpret_cast<cugraph::c_api::cugraph_resource_handle_t const*>(handle)->handle_),
+      rng_state_(reinterpret_cast<cugraph::c_api::cugraph_rng_state_t*>(rng_state)),
       graph_(reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)),
       n_clusters_(n_clusters),
       n_eigenvectors_(n_eigenvectors),
@@ -78,7 +82,8 @@ struct balanced_cut_clustering_functor : public cugraph::c_api::abstract_functor
   template <typename vertex_t,
             typename edge_t,
             typename weight_t,
-            typename edge_type_type_t,
+            typename edge_type_t,
+            typename edge_time_t,
             bool store_transposed,
             bool multi_gpu>
   void operator()()
@@ -109,6 +114,11 @@ struct balanced_cut_clustering_functor : public cugraph::c_api::abstract_functor
       auto graph_view          = graph->view();
       auto edge_partition_view = graph_view.local_edge_partition_view();
 
+      if (!graph_view.is_symmetric()) {
+        unsupported();
+        return;
+      }
+
       rmm::device_uvector<weight_t> tmp_weights(0, handle_.get_stream());
       if (edge_weights == nullptr) {
         tmp_weights.resize(edge_partition_view.indices().size(), handle_.get_stream());
@@ -127,7 +137,9 @@ struct balanced_cut_clustering_functor : public cugraph::c_api::abstract_functor
       rmm::device_uvector<vertex_t> clusters(graph_view.local_vertex_partition_range_size(),
                                              handle_.get_stream());
 
-      cugraph::ext_raft::balancedCutClustering(legacy_graph_view,
+      cugraph::ext_raft::balancedCutClustering(handle_,
+                                               rng_state_->rng_state_,
+                                               legacy_graph_view,
                                                static_cast<vertex_t>(n_clusters_),
                                                static_cast<vertex_t>(n_eigenvectors_),
                                                static_cast<weight_t>(evs_tolerance_),
@@ -149,6 +161,7 @@ struct balanced_cut_clustering_functor : public cugraph::c_api::abstract_functor
 
 struct spectral_clustering_functor : public cugraph::c_api::abstract_functor {
   raft::handle_t const& handle_;
+  cugraph::c_api::cugraph_rng_state_t* rng_state_{nullptr};
   cugraph::c_api::cugraph_graph_t* graph_;
   size_t n_clusters_;
   size_t n_eigenvectors_;
@@ -160,6 +173,7 @@ struct spectral_clustering_functor : public cugraph::c_api::abstract_functor {
   cugraph::c_api::cugraph_clustering_result_t* result_{};
 
   spectral_clustering_functor(::cugraph_resource_handle_t const* handle,
+                              ::cugraph_rng_state_t* rng_state,
                               ::cugraph_graph_t* graph,
                               size_t n_clusters,
                               size_t n_eigenvectors,
@@ -170,6 +184,7 @@ struct spectral_clustering_functor : public cugraph::c_api::abstract_functor {
                               bool do_expensive_check)
     : abstract_functor(),
       handle_(*reinterpret_cast<cugraph::c_api::cugraph_resource_handle_t const*>(handle)->handle_),
+      rng_state_(reinterpret_cast<cugraph::c_api::cugraph_rng_state_t*>(rng_state)),
       graph_(reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)),
       n_clusters_(n_clusters),
       n_eigenvectors_(n_eigenvectors),
@@ -184,7 +199,8 @@ struct spectral_clustering_functor : public cugraph::c_api::abstract_functor {
   template <typename vertex_t,
             typename edge_t,
             typename weight_t,
-            typename edge_type_type_t,
+            typename edge_type_t,
+            typename edge_time_t,
             bool store_transposed,
             bool multi_gpu>
   void operator()()
@@ -215,6 +231,11 @@ struct spectral_clustering_functor : public cugraph::c_api::abstract_functor {
       auto graph_view          = graph->view();
       auto edge_partition_view = graph_view.local_edge_partition_view();
 
+      if (!graph_view.is_symmetric()) {
+        unsupported();
+        return;
+      }
+
       rmm::device_uvector<weight_t> tmp_weights(0, handle_.get_stream());
       if (edge_weights == nullptr) {
         tmp_weights.resize(edge_partition_view.indices().size(), handle_.get_stream());
@@ -233,7 +254,9 @@ struct spectral_clustering_functor : public cugraph::c_api::abstract_functor {
       rmm::device_uvector<vertex_t> clusters(graph_view.local_vertex_partition_range_size(),
                                              handle_.get_stream());
 
-      cugraph::ext_raft::spectralModularityMaximization(legacy_graph_view,
+      cugraph::ext_raft::spectralModularityMaximization(handle_,
+                                                        rng_state_->rng_state_,
+                                                        legacy_graph_view,
                                                         static_cast<vertex_t>(n_clusters_),
                                                         static_cast<vertex_t>(n_eigenvectors_),
                                                         static_cast<weight_t>(evs_tolerance_),
@@ -280,7 +303,8 @@ struct analyze_clustering_ratio_cut_functor : public cugraph::c_api::abstract_fu
   template <typename vertex_t,
             typename edge_t,
             typename weight_t,
-            typename edge_type_type_t,
+            typename edge_type_t,
+            typename edge_time_t,
             bool store_transposed,
             bool multi_gpu>
   void operator()()
@@ -311,6 +335,11 @@ struct analyze_clustering_ratio_cut_functor : public cugraph::c_api::abstract_fu
       auto graph_view          = graph->view();
       auto edge_partition_view = graph_view.local_edge_partition_view();
 
+      if (!graph_view.is_symmetric()) {
+        unsupported();
+        return;
+      }
+
       rmm::device_uvector<weight_t> tmp_weights(0, handle_.get_stream());
       if (edge_weights == nullptr) {
         tmp_weights.resize(edge_partition_view.indices().size(), handle_.get_stream());
@@ -334,7 +363,7 @@ struct analyze_clustering_ratio_cut_functor : public cugraph::c_api::abstract_fu
                                               vertices_->size_},
             raft::device_span<vertex_t const>{number_map->data(), number_map->size()})) {
         cugraph::ext_raft::analyzeClustering_ratio_cut(
-          legacy_graph_view, n_clusters_, clusters_->as_type<vertex_t>(), &score);
+          handle_, legacy_graph_view, n_clusters_, clusters_->as_type<vertex_t>(), &score);
       } else {
         rmm::device_uvector<vertex_t> tmp_v(vertices_->size_, handle_.get_stream());
         rmm::device_uvector<vertex_t> tmp_c(clusters_->size_, handle_.get_stream());
@@ -359,7 +388,7 @@ struct analyze_clustering_ratio_cut_functor : public cugraph::c_api::abstract_fu
           raft::device_span<vertex_t>{tmp_c.data(), tmp_c.size()});
 
         cugraph::ext_raft::analyzeClustering_ratio_cut(
-          legacy_graph_view, n_clusters_, tmp_c.data(), &score);
+          handle_, legacy_graph_view, n_clusters_, tmp_c.data(), &score);
       }
 
       result_ = static_cast<double>(score);
@@ -394,7 +423,8 @@ struct analyze_clustering_edge_cut_functor : public cugraph::c_api::abstract_fun
   template <typename vertex_t,
             typename edge_t,
             typename weight_t,
-            typename edge_type_type_t,
+            typename edge_type_t,
+            typename edge_time_t,
             bool store_transposed,
             bool multi_gpu>
   void operator()()
@@ -425,6 +455,11 @@ struct analyze_clustering_edge_cut_functor : public cugraph::c_api::abstract_fun
       auto graph_view          = graph->view();
       auto edge_partition_view = graph_view.local_edge_partition_view();
 
+      if (!graph_view.is_symmetric()) {
+        unsupported();
+        return;
+      }
+
       rmm::device_uvector<weight_t> tmp_weights(0, handle_.get_stream());
       if (edge_weights == nullptr) {
         tmp_weights.resize(edge_partition_view.indices().size(), handle_.get_stream());
@@ -448,7 +483,7 @@ struct analyze_clustering_edge_cut_functor : public cugraph::c_api::abstract_fun
                                               vertices_->size_},
             raft::device_span<vertex_t const>{number_map->data(), number_map->size()})) {
         cugraph::ext_raft::analyzeClustering_edge_cut(
-          legacy_graph_view, n_clusters_, clusters_->as_type<vertex_t>(), &score);
+          handle_, legacy_graph_view, n_clusters_, clusters_->as_type<vertex_t>(), &score);
       } else {
         rmm::device_uvector<vertex_t> tmp_v(vertices_->size_, handle_.get_stream());
         rmm::device_uvector<vertex_t> tmp_c(clusters_->size_, handle_.get_stream());
@@ -473,7 +508,7 @@ struct analyze_clustering_edge_cut_functor : public cugraph::c_api::abstract_fun
           raft::device_span<vertex_t>{tmp_c.data(), tmp_c.size()});
 
         cugraph::ext_raft::analyzeClustering_edge_cut(
-          legacy_graph_view, n_clusters_, tmp_c.data(), &score);
+          handle_, legacy_graph_view, n_clusters_, tmp_c.data(), &score);
       }
 
       result_ = static_cast<double>(score);
@@ -508,7 +543,8 @@ struct analyze_clustering_modularity_functor : public cugraph::c_api::abstract_f
   template <typename vertex_t,
             typename edge_t,
             typename weight_t,
-            typename edge_type_type_t,
+            typename edge_type_t,
+            typename edge_time_t,
             bool store_transposed,
             bool multi_gpu>
   void operator()()
@@ -539,6 +575,11 @@ struct analyze_clustering_modularity_functor : public cugraph::c_api::abstract_f
       auto graph_view          = graph->view();
       auto edge_partition_view = graph_view.local_edge_partition_view();
 
+      if (!graph_view.is_symmetric()) {
+        unsupported();
+        return;
+      }
+
       rmm::device_uvector<weight_t> tmp_weights(0, handle_.get_stream());
       if (edge_weights == nullptr) {
         tmp_weights.resize(edge_partition_view.indices().size(), handle_.get_stream());
@@ -562,7 +603,7 @@ struct analyze_clustering_modularity_functor : public cugraph::c_api::abstract_f
                                               vertices_->size_},
             raft::device_span<vertex_t const>{number_map->data(), number_map->size()})) {
         cugraph::ext_raft::analyzeClustering_modularity(
-          legacy_graph_view, n_clusters_, clusters_->as_type<vertex_t>(), &score);
+          handle_, legacy_graph_view, n_clusters_, clusters_->as_type<vertex_t>(), &score);
       } else {
         rmm::device_uvector<vertex_t> tmp_v(vertices_->size_, handle_.get_stream());
         rmm::device_uvector<vertex_t> tmp_c(clusters_->size_, handle_.get_stream());
@@ -587,7 +628,7 @@ struct analyze_clustering_modularity_functor : public cugraph::c_api::abstract_f
           raft::device_span<vertex_t>{tmp_c.data(), tmp_c.size()});
 
         cugraph::ext_raft::analyzeClustering_modularity(
-          legacy_graph_view, n_clusters_, tmp_c.data(), &score);
+          handle_, legacy_graph_view, n_clusters_, tmp_c.data(), &score);
       }
 
       result_ = static_cast<double>(score);
@@ -623,6 +664,7 @@ extern "C" void cugraph_clustering_result_free(cugraph_clustering_result_t* resu
 
 extern "C" cugraph_error_code_t cugraph_balanced_cut_clustering(
   const cugraph_resource_handle_t* handle,
+  cugraph_rng_state_t* rng_state,
   cugraph_graph_t* graph,
   size_t n_clusters,
   size_t n_eigenvectors,
@@ -635,6 +677,7 @@ extern "C" cugraph_error_code_t cugraph_balanced_cut_clustering(
   cugraph_error_t** error)
 {
   balanced_cut_clustering_functor functor(handle,
+                                          rng_state,
                                           graph,
                                           n_clusters,
                                           n_eigenvectors,
@@ -645,9 +688,12 @@ extern "C" cugraph_error_code_t cugraph_balanced_cut_clustering(
                                           do_expensive_check);
 
   return cugraph::c_api::run_algorithm(graph, functor, result, error);
+  // return 0;
 }
+
 extern "C" cugraph_error_code_t cugraph_spectral_modularity_maximization(
   const cugraph_resource_handle_t* handle,
+  cugraph_rng_state_t* rng_state,
   cugraph_graph_t* graph,
   size_t n_clusters,
   size_t n_eigenvectors,
@@ -660,6 +706,7 @@ extern "C" cugraph_error_code_t cugraph_spectral_modularity_maximization(
   cugraph_error_t** error)
 {
   spectral_clustering_functor functor(handle,
+                                      rng_state,
                                       graph,
                                       n_clusters,
                                       n_eigenvectors,

@@ -25,6 +25,7 @@
 #include <rmm/device_uvector.hpp>
 
 #include <cuda/std/iterator>
+#include <cuda/std/tuple>
 #include <thrust/copy.h>
 #include <thrust/execution_policy.h>
 #include <thrust/for_each.h>
@@ -32,7 +33,6 @@
 #include <thrust/partition.h>
 #include <thrust/sort.h>
 #include <thrust/transform.h>
-#include <thrust/tuple.h>
 #include <thrust/unique.h>
 
 #include <numeric>

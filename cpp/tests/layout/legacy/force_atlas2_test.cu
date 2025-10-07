@@ -147,6 +147,8 @@ class Tests_Force_Atlas2 : public ::testing::TestWithParam<Force_Atlas2_Usecase>
     bool outbound_attraction_distribution = false;
     bool lin_log_mode                     = false;
     bool prevent_overlapping              = false;
+    float* vertex_radius                  = nullptr;
+    const float overlap_scaling_ratio     = 100.0;
     const float edge_weight_influence     = 1.0;
     const float jitter_tolerance          = 1.0;
     bool optimize                         = true;
@@ -154,6 +156,7 @@ class Tests_Force_Atlas2 : public ::testing::TestWithParam<Force_Atlas2_Usecase>
     const float scaling_ratio             = 2.0;
     bool strong_gravity_mode              = false;
     const float gravity                   = 1.0;
+    float* vertex_mobility                = nullptr;
     bool verbose                          = false;
 
     unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
@@ -163,7 +166,7 @@ class Tests_Force_Atlas2 : public ::testing::TestWithParam<Force_Atlas2_Usecase>
       hr_timer.start("force_atlas2");
       for (int i = 0; i < PERF_MULTIPLIER; ++i) {
         cugraph::force_atlas2<int, int, T>(handle,
-                                           // rng_state,
+                                           rng_state,
                                            G,
                                            pos.data(),
                                            max_iter,
@@ -172,6 +175,8 @@ class Tests_Force_Atlas2 : public ::testing::TestWithParam<Force_Atlas2_Usecase>
                                            outbound_attraction_distribution,
                                            lin_log_mode,
                                            prevent_overlapping,
+                                           vertex_radius,
+                                           overlap_scaling_ratio,
                                            edge_weight_influence,
                                            jitter_tolerance,
                                            optimize,
@@ -179,6 +184,7 @@ class Tests_Force_Atlas2 : public ::testing::TestWithParam<Force_Atlas2_Usecase>
                                            scaling_ratio,
                                            strong_gravity_mode,
                                            gravity,
+                                           vertex_mobility,
                                            verbose);
         cudaDeviceSynchronize();
       }
@@ -187,7 +193,7 @@ class Tests_Force_Atlas2 : public ::testing::TestWithParam<Force_Atlas2_Usecase>
     } else {
       cudaProfilerStart();
       cugraph::force_atlas2<int, int, T>(handle,
-                                         // rng_state,
+                                         rng_state,
                                          G,
                                          pos.data(),
                                          max_iter,
@@ -196,6 +202,8 @@ class Tests_Force_Atlas2 : public ::testing::TestWithParam<Force_Atlas2_Usecase>
                                          outbound_attraction_distribution,
                                          lin_log_mode,
                                          prevent_overlapping,
+                                         vertex_radius,
+                                         overlap_scaling_ratio,
                                          edge_weight_influence,
                                          jitter_tolerance,
                                          optimize,
@@ -203,6 +211,7 @@ class Tests_Force_Atlas2 : public ::testing::TestWithParam<Force_Atlas2_Usecase>
                                          scaling_ratio,
                                          strong_gravity_mode,
                                          gravity,
+                                         vertex_mobility,
                                          verbose);
       cudaProfilerStop();
       cudaDeviceSynchronize();

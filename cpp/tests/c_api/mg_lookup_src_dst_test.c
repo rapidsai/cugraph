@@ -69,6 +69,9 @@ int generic_lookup_src_dst_test(const cugraph_resource_handle_t* handle,
                                       h_edge_types,
                                       edge_id_tid,
                                       h_edge_ids,
+                                      INT32,
+                                      NULL,
+                                      NULL,
                                       num_edges,
                                       FALSE, /*store_transposed*/
                                       TRUE,  /*renumber*/

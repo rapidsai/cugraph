@@ -38,11 +38,10 @@ bool validate_extracted_graph_is_subgraph(
   raft::device_span<vertex_t const> subgraph_dst,
   std::optional<raft::device_span<weight_t const>> subgraph_wgt);
 
-template <typename vertex_t, typename weight_t>
+template <typename vertex_t>
 bool validate_sampling_depth(raft::handle_t const& handle,
                              rmm::device_uvector<vertex_t>&& d_src,
                              rmm::device_uvector<vertex_t>&& d_dst,
-                             std::optional<rmm::device_uvector<weight_t>>&& d_wgt,
                              rmm::device_uvector<vertex_t>&& d_source_vertices,
                              int max_depth);
 

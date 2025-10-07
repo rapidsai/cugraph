@@ -95,12 +95,12 @@ void induced_subgraph_validate(
                                               d_cugraph_subgraph_edgelist_minors.begin(),
                                               d_cugraph_subgraph_edgelist_weights->begin()),
                     [] __device__(auto left, auto right) {
-                      auto l0 = thrust::get<0>(left);
-                      auto l1 = thrust::get<1>(left);
-                      auto l2 = thrust::get<2>(left);
-                      auto r0 = thrust::get<0>(right);
-                      auto r1 = thrust::get<1>(right);
-                      auto r2 = thrust::get<2>(right);
+                      auto l0 = cuda::std::get<0>(left);
+                      auto l1 = cuda::std::get<1>(left);
+                      auto l2 = cuda::std::get<2>(left);
+                      auto r0 = cuda::std::get<0>(right);
+                      auto r1 = cuda::std::get<1>(right);
+                      auto r2 = cuda::std::get<2>(right);
                       return (l0 == r0) && (l1 == r1) && (l2 == r2);
                     }))
       << "Extracted subgraph edges do not match with the edges extracted by the reference "
@@ -130,10 +130,10 @@ void induced_subgraph_validate(
                     thrust::make_zip_iterator(d_cugraph_subgraph_edgelist_majors.begin(),
                                               d_cugraph_subgraph_edgelist_minors.begin()),
                     [] __device__(auto left, auto right) {
-                      auto l0 = thrust::get<0>(left);
-                      auto l1 = thrust::get<1>(left);
-                      auto r0 = thrust::get<0>(right);
-                      auto r1 = thrust::get<1>(right);
+                      auto l0 = cuda::std::get<0>(left);
+                      auto l1 = cuda::std::get<1>(left);
+                      auto r0 = cuda::std::get<0>(right);
+                      auto r1 = cuda::std::get<1>(right);
                       return (l0 == r0) && (l1 == r1);
                     }))
       << "Extracted subgraph edges do not match with the edges extracted by the reference "

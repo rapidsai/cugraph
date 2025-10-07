@@ -68,9 +68,13 @@ set(cython_sources
     all_pairs_overlap_coefficients.pyx
     all_pairs_cosine_coefficients.pyx
     heterogeneous_biased_neighbor_sample.pyx
+    heterogeneous_biased_temporal_neighbor_sample.pyx
     heterogeneous_uniform_neighbor_sample.pyx
+    heterogeneous_uniform_temporal_neighbor_sample.pyx
     homogeneous_biased_neighbor_sample.pyx
+    homogeneous_biased_temporal_neighbor_sample.pyx
     homogeneous_uniform_neighbor_sample.pyx
+    homogeneous_uniform_temporal_neighbor_sample.pyx
     edge_id_lookup_table.pyx
     decompress_to_edgelist.pyx
     renumber_arbitrary_edgelist.pyx

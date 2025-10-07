@@ -20,7 +20,7 @@ This repository contains a collection of Jupyter Notebooks that outline how to r
 |                 | [ECG](algorithms/community/ECG.ipynb)                                   | Identify clusters in a graph using the Ensemble Clustering for Graph |
 |                 | [K-Truss](algorithms/community/ktruss.ipynb)                                | Extracts the K-Truss cluster                                 |
 |                 | [Spectral-Clustering](algorithms/community/Spectral-Clustering.ipynb)   | Identify clusters in a  graph using Spectral Clustering with both<br> - Balanced Cut<br> - Modularity Modularity |
-|                 | [Subgraph Extraction](algorithms/community/Subgraph-Extraction.ipynb)   | Compute a subgraph of the existing graph including only the specified vertices |
+|                 | [Induced Subgraph](algorithms/community/Induced-Subgraph.ipynb)   | Compute a subgraph of the existing graph including only the specified vertices |
 |                 | [Triangle Counting](algorithms/community/Triangle-Counting.ipynb)       | Count the number of Triangle in a graph                      |
 | Components      |                                                              |                                                              |
 |                 | [Connected Components](algorithms/components/ConnectedComponents.ipynb) | Find weakly and strongly connected components in a graph     |
@@ -55,10 +55,7 @@ Running the example in these notebooks requires:
 * The latest version of RAPIDS with cuGraph.
   * Download via Docker, Conda (See [__Getting Started__](https://rapids.ai/start.html))
 
-* cuGraph is dependent on the latest version of cuDF.  Please install all components of RAPIDS
-* Python 3.10+
-* A system with an NVIDIA GPU: Volta architecture or newer
-* CUDA 12.0+
+[System Requirements](https://docs.rapids.ai/install/#system-req)
 
 ### QuickStart
 
@@ -66,13 +63,13 @@ The easiest way to run the notebooks is to get the latest [rapidsai/notebooks](h
 
 For example, get the latest (as of writing the document) nightly image (`a` after the version number indicates that an image is nightly) with cuda 12.0 using
 ```sh
-docker pull rapidsai/notebooks:25.08a-cuda12.0-py3.10
+docker pull rapidsai/notebooks:25.10a-cuda12.0-py3.10
 ```
 
 And, then run a container based on the image using
 
 ```sh
-docker run --rm  -it --pull always --gpus all --shm-size=1g --ulimit memlock=-1 --ulimit stack=67108864   -p 8888:8888 rapidsai/notebooks:25.08a-cuda12.0-py3.10
+docker run --rm  -it --pull always --gpus all --shm-size=1g --ulimit memlock=-1 --ulimit stack=67108864   -p 8888:8888 rapidsai/notebooks:25.10a-cuda12.0-py3.10
 ```
 You are all set. Run and edit cugraph notebooks from a browser at url
 http://127.0.0.1:8888/lab/tree/cugraph/cugraph_benchmarks
@@ -88,8 +85,8 @@ ssh -L  127.0.0.1:8888:127.0.0.1:8888 [USER_NAME@][REMOTE_HOST_NAME or REMOTE_HO
 and then run the container in your remote machine.
 
 ```sh
-docker pull rapidsai/notebooks:25.08a-cuda12.0-py3.10
-docker run --rm  -it --pull always --gpus all --shm-size=1g --ulimit memlock=-1 --ulimit stack=67108864 -p 8888:8888 rapidsai/notebooks:25.08a-cuda12.0-py3.10
+docker pull rapidsai/notebooks:25.10a-cuda12.0-py3.10
+docker run --rm  -it --pull always --gpus all --shm-size=1g --ulimit memlock=-1 --ulimit stack=67108864 -p 8888:8888 rapidsai/notebooks:25.10a-cuda12.0-py3.10
 ```
 
 You can run and edit cugraph notebooks at url http://127.0.0.1:8888/lab/tree/cugraph/cugraph_benchmarks as if they are running locally.

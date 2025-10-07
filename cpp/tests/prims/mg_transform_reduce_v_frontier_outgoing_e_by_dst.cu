@@ -39,6 +39,7 @@
 #include <rmm/device_uvector.hpp>
 
 #include <cuda/std/optional>
+#include <cuda/std/tuple>
 #include <thrust/copy.h>
 #include <thrust/count.h>
 #include <thrust/equal.h>
@@ -47,7 +48,6 @@
 #include <thrust/sort.h>
 #include <thrust/tabulate.h>
 #include <thrust/transform.h>
-#include <thrust/tuple.h>
 
 #include <cuco/hash_functions.cuh>
 
@@ -71,11 +71,11 @@ struct e_op_t {
         return static_cast<payload_t>(1);
       }
     } else {
-      auto tag = thrust::get<1>(optionally_tagged_src);
+      auto tag = cuda::std::get<1>(optionally_tagged_src);
       if constexpr (std::is_same_v<payload_t, void>) {
         return tag;
       } else {
-        return thrust::make_tuple(tag, static_cast<payload_t>(1));
+        return cuda::std::make_tuple(tag, static_cast<payload_t>(1));
       }
     }
   }
@@ -110,13 +110,13 @@ class Tests_MGTransformReduceVFrontierOutgoingEBySrcDst
     using edge_type_t = int32_t;
 
     using key_t =
-      std::conditional_t<std::is_same_v<tag_t, void>, vertex_t, thrust::tuple<vertex_t, tag_t>>;
+      std::conditional_t<std::is_same_v<tag_t, void>, vertex_t, cuda::std::tuple<vertex_t, tag_t>>;
 
     static_assert(std::is_same_v<tag_t, void> || std::is_arithmetic_v<tag_t>);
     static_assert(std::is_same_v<payload_t, void> ||
                   cugraph::is_arithmetic_or_thrust_tuple_of_arithmetic<payload_t>::value);
     if constexpr (cugraph::is_thrust_tuple<payload_t>::value) {
-      static_assert(thrust::tuple_size<payload_t>::value == size_t{2});
+      static_assert(cuda::std::tuple_size<payload_t>::value == size_t{2});
     }
 
     HighResTimer hr_timer{};
@@ -170,7 +170,7 @@ class Tests_MGTransformReduceVFrontierOutgoingEBySrcDst
                        [mg_renumber_map_labels = (*mg_renumber_map).data(),
                         local_vertex_partition_range_first =
                           mg_graph_view.local_vertex_partition_range_first()] __device__(size_t i) {
-                         return thrust::make_tuple(
+                         return cuda::std::make_tuple(
                            static_cast<vertex_t>(local_vertex_partition_range_first + i),
                            static_cast<tag_t>(*(mg_renumber_map_labels + i) % size_t{10}));
                        });
@@ -323,7 +323,7 @@ class Tests_MGTransformReduceVFrontierOutgoingEBySrcDst
                            cugraph::get_dataframe_buffer_begin(sg_key_buffer),
                            cugraph::get_dataframe_buffer_end(sg_key_buffer),
                            [] __device__(size_t i) {
-                             return thrust::make_tuple(
+                             return cuda::std::make_tuple(
                                static_cast<vertex_t>(i),
                                static_cast<tag_t>(static_cast<vertex_t>(i) % size_t{10}));
                            });
@@ -440,7 +440,7 @@ TEST_P(Tests_MGTransformReduceVFrontierOutgoingEBySrcDst_File,
        CheckInt32Int32FloatVoidTupleFloatInt32)
 {
   auto param = GetParam();
-  run_current_test<int32_t, int32_t, float, void, thrust::tuple<float, int32_t>>(
+  run_current_test<int32_t, int32_t, float, void, cuda::std::tuple<float, int32_t>>(
     std::get<0>(param), std::get<1>(param));
 }
 
@@ -448,7 +448,7 @@ TEST_P(Tests_MGTransformReduceVFrontierOutgoingEBySrcDst_Rmat,
        CheckInt32Int32FloatVoidTupleFloatInt32)
 {
   auto param = GetParam();
-  run_current_test<int32_t, int32_t, float, void, thrust::tuple<float, int32_t>>(
+  run_current_test<int32_t, int32_t, float, void, cuda::std::tuple<float, int32_t>>(
     std::get<0>(param),
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
@@ -486,7 +486,7 @@ TEST_P(Tests_MGTransformReduceVFrontierOutgoingEBySrcDst_File,
        CheckInt32Int32FloatInt32TupleFloatInt32)
 {
   auto param = GetParam();
-  run_current_test<int32_t, int32_t, float, int32_t, thrust::tuple<float, int32_t>>(
+  run_current_test<int32_t, int32_t, float, int32_t, cuda::std::tuple<float, int32_t>>(
     std::get<0>(param), std::get<1>(param));
 }
 
@@ -494,7 +494,7 @@ TEST_P(Tests_MGTransformReduceVFrontierOutgoingEBySrcDst_Rmat,
        CheckInt32Int32FloatInt32TupleFloatInt32)
 {
   auto param = GetParam();
-  run_current_test<int32_t, int32_t, float, int32_t, thrust::tuple<float, int32_t>>(
+  run_current_test<int32_t, int32_t, float, int32_t, cuda::std::tuple<float, int32_t>>(
     std::get<0>(param),
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }

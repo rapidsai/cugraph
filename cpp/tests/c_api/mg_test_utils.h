@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -126,6 +126,9 @@ int create_mg_test_graph_new(const cugraph_resource_handle_t* handle,
                              void* h_edge_type,
                              cugraph_data_type_id_t edge_id_tid,
                              void* h_edge_id,
+                             cugraph_data_type_id_t edge_time_tid,
+                             void* h_edge_start_times,
+                             void* h_edge_end_times,
                              size_t num_edges,
                              bool_t store_transposed,
                              bool_t renumber,

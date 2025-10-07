@@ -33,6 +33,7 @@
 #include <cuda/atomic>
 #include <cuda/functional>
 #include <cuda/std/iterator>
+#include <cuda/std/tuple>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
 #include <thrust/fill.h>
@@ -44,7 +45,6 @@
 #include <thrust/remove.h>
 #include <thrust/sort.h>
 #include <thrust/transform.h>
-#include <thrust/tuple.h>
 #include <thrust/unique.h>
 
 #include <cinttypes>
@@ -70,13 +70,14 @@ KeyIterator compute_key_lower_bound(KeyIterator sorted_unique_key_first,
       rmm::exec_policy(stream_view), sorted_unique_key_first, sorted_unique_key_last, v_threshold);
   } else {
     key_t k_threshold{};
-    thrust::get<0>(k_threshold) = v_threshold;
-    return thrust::lower_bound(
-      rmm::exec_policy(stream_view),
-      sorted_unique_key_first,
-      sorted_unique_key_last,
-      k_threshold,
-      [] __device__(auto lhs, auto rhs) { return thrust::get<0>(lhs) < thrust::get<0>(rhs); });
+    cuda::std::get<0>(k_threshold) = v_threshold;
+    return thrust::lower_bound(rmm::exec_policy(stream_view),
+                               sorted_unique_key_first,
+                               sorted_unique_key_last,
+                               k_threshold,
+                               [] __device__(auto lhs, auto rhs) {
+                                 return cuda::std::get<0>(lhs) < cuda::std::get<0>(rhs);
+                               });
   }
 }
 
@@ -138,39 +139,36 @@ rmm::device_uvector<uint32_t> compute_vertex_list_bitmap_info(
 
   auto bitmap = rmm::device_uvector<uint32_t>(
     packed_bool_size(vertex_range_last - vertex_range_first), stream_view);
-  rmm::device_uvector<vertex_t> lasts(bitmap.size(), stream_view);
-  auto bdry_first = thrust::make_transform_iterator(
-    thrust::make_counting_iterator(vertex_t{1}),
-    cuda::proclaim_return_type<vertex_t>(
-      [vertex_range_first,
-       vertex_range_size = vertex_range_last - vertex_range_first] __device__(vertex_t i) {
-        return vertex_range_first +
-               static_cast<vertex_t>(
-                 std::min(packed_bools_per_word() * i, static_cast<size_t>(vertex_range_size)));
-      }));
-  thrust::lower_bound(rmm::exec_policy_nosync(stream_view),
-                      sorted_unique_vertex_first,
-                      sorted_unique_vertex_last,
-                      bdry_first,
-                      bdry_first + bitmap.size(),
-                      lasts.begin());
   thrust::tabulate(
     rmm::exec_policy_nosync(stream_view),
     bitmap.begin(),
     bitmap.end(),
-    cuda::proclaim_return_type<uint32_t>(
-      [sorted_unique_vertex_first,
-       vertex_range_first,
-       lasts = raft::device_span<vertex_t const>(lasts.data(), lasts.size())] __device__(size_t i) {
-        auto offset_first = (i != 0) ? lasts[i - 1] : vertex_t{0};
-        auto offset_last  = lasts[i];
-        auto ret          = packed_bool_empty_mask();
-        for (auto j = offset_first; j < offset_last; ++j) {
-          auto v_offset = *(sorted_unique_vertex_first + j) - vertex_range_first;
+    cuda::proclaim_return_type<uint32_t>([sorted_unique_vertex_first,
+                                          sorted_unique_vertex_last,
+                                          vertex_range_first,
+                                          vertex_range_last] __device__(size_t i) {
+      auto min_v = vertex_range_first + static_cast<vertex_t>(packed_bools_per_word() * i);
+      auto max_v =
+        min_v + static_cast<vertex_t>(cuda::std::min(
+                  packed_bools_per_word(), static_cast<size_t>(vertex_range_last - min_v)));
+      auto this_word_sorted_unique_vertex_first = thrust::lower_bound(
+        thrust::seq, sorted_unique_vertex_first, sorted_unique_vertex_last, min_v);
+      auto max_checks = static_cast<int>(
+        cuda::std::min(packed_bools_per_word(),
+                       static_cast<size_t>(cuda::std::distance(this_word_sorted_unique_vertex_first,
+                                                               sorted_unique_vertex_last))));
+      auto ret = packed_bool_empty_mask();
+      for (int i = 0; i < max_checks; ++i) {
+        auto v = *(this_word_sorted_unique_vertex_first + i);
+        if (v < max_v) {
+          auto v_offset = v - vertex_range_first;
           ret |= packed_bool_mask(v_offset);
+        } else {
+          break;
         }
-        return ret;
-      }));
+      }
+      return ret;
+    }));
 
   return bitmap;
 }
@@ -242,7 +240,7 @@ void retrieve_vertex_list_from_bitmap(
                          stream_view);
 }
 
-// key type is either vertex_t (tag_t == void) or thrust::tuple<vertex_t, tag_t> (tag_t != void)
+// key type is either vertex_t (tag_t == void) or cuda::std::tuple<vertex_t, tag_t> (tag_t != void)
 // if sorted_unique is true, stores unique key objects in the sorted (non-descending) order.
 // if false, there can be duplicates and the elements may not be sorted.
 template <typename vertex_t,
@@ -252,7 +250,7 @@ template <typename vertex_t,
 class key_bucket_t {
  public:
   using key_type =
-    std::conditional_t<std::is_same_v<tag_t, void>, vertex_t, thrust::tuple<vertex_t, tag_t>>;
+    std::conditional_t<std::is_same_v<tag_t, void>, vertex_t, cuda::std::tuple<vertex_t, tag_t>>;
   static bool constexpr is_sorted_unique = sorted_unique;
 
   static_assert(std::is_same_v<tag_t, void> || std::is_arithmetic_v<tag_t>);
@@ -374,13 +372,13 @@ class key_bucket_t {
    * @param tag tag of the (vertex, tag) pair to insert
    */
   template <typename tag_type = tag_t, std::enable_if_t<!std::is_same_v<tag_type, void>>* = nullptr>
-  void insert(thrust::tuple<vertex_t, tag_type> key)
+  void insert(cuda::std::tuple<vertex_t, tag_type> key)
   {
     CUGRAPH_EXPECTS(vertices_.index() == 1,
                     "insert() is supported only when this bucket holds an owning container.");
     if (std::get<1>(vertices_).size() > 0) {
-      rmm::device_scalar<vertex_t> tmp_vertex(thrust::get<0>(key), handle_ptr_->get_stream());
-      rmm::device_scalar<tag_t> tmp_tag(thrust::get<1>(key), handle_ptr_->get_stream());
+      rmm::device_scalar<vertex_t> tmp_vertex(cuda::std::get<0>(key), handle_ptr_->get_stream());
+      rmm::device_scalar<tag_t> tmp_tag(cuda::std::get<1>(key), handle_ptr_->get_stream());
       auto pair_first = thrust::make_zip_iterator(tmp_vertex.data(), tmp_tag.data());
       insert(pair_first, pair_first + 1);
     } else {
@@ -460,7 +458,7 @@ class key_bucket_t {
   void insert(KeyIterator key_first, KeyIterator key_last)
   {
     static_assert(std::is_same_v<typename std::iterator_traits<KeyIterator>::value_type,
-                                 thrust::tuple<vertex_t, tag_t>>);
+                                 cuda::std::tuple<vertex_t, tag_t>>);
 
     CUGRAPH_EXPECTS(vertices_.index() == 1,
                     "insert() is supported only when this bucket holds an owning container.");
@@ -648,7 +646,7 @@ class vertex_frontier_t {
 
  public:
   using key_type =
-    std::conditional_t<std::is_same_v<tag_t, void>, vertex_t, thrust::tuple<vertex_t, tag_t>>;
+    std::conditional_t<std::is_same_v<tag_t, void>, vertex_t, cuda::std::tuple<vertex_t, tag_t>>;
   static size_t constexpr kInvalidBucketIdx{std::numeric_limits<size_t>::max()};
 
   vertex_frontier_t(raft::handle_t const& handle, size_t num_buckets) : handle_ptr_(&handle)
@@ -712,7 +710,7 @@ class vertex_frontier_t {
         pair_first,
         pair_first + bucket_indices.size(),
         [this_bucket_idx = static_cast<uint8_t>(this_bucket_idx)] __device__(auto pair) {
-          return thrust::get<0>(pair) == this_bucket_idx;
+          return cuda::std::get<0>(pair) == this_bucket_idx;
         })));
 
     // 3. remove elements with the invalid bucket indices
@@ -724,7 +722,7 @@ class vertex_frontier_t {
                                               pair_first + new_this_bucket_size,
                                               pair_first + bucket_indices.size(),
                                               [] __device__(auto pair) {
-                                                return thrust::get<0>(pair) ==
+                                                return cuda::std::get<0>(pair) ==
                                                        static_cast<uint8_t>(kInvalidBucketIdx);
                                               })),
       handle_ptr_->get_stream());
@@ -768,7 +766,7 @@ class vertex_frontier_t {
           pair_first,
           pair_last,
           [next_bucket_idx = static_cast<uint8_t>(to_bucket_indices[0])] __device__(auto pair) {
-            return thrust::get<0>(pair) == next_bucket_idx;
+            return cuda::std::get<0>(pair) == next_bucket_idx;
           })));
       insert_bucket_indices =
         std::vector<size_t>(to_bucket_indices.begin(), to_bucket_indices.end());
@@ -781,7 +779,9 @@ class vertex_frontier_t {
         handle_ptr_->get_thrust_policy(),
         pair_first,
         pair_last,
-        [] __device__(auto lhs, auto rhs) { return thrust::get<0>(lhs) < thrust::get<0>(rhs); });
+        [] __device__(auto lhs, auto rhs) {
+          return cuda::std::get<0>(lhs) < cuda::std::get<0>(rhs);
+        });
       rmm::device_uvector<uint8_t> d_indices(to_bucket_indices.size(), handle_ptr_->get_stream());
       rmm::device_uvector<size_t> d_counts(d_indices.size(), handle_ptr_->get_stream());
       // FIXME: thrust::lower_bound & thrust::upper_bound will be faster
@@ -791,17 +791,20 @@ class vertex_frontier_t {
                                       thrust::make_constant_iterator(size_t{1}),
                                       d_indices.begin(),
                                       d_counts.begin());
-      d_indices.resize(cuda::std::distance(d_indices.begin(), thrust::get<0>(it)),
+      d_indices.resize(cuda::std::distance(d_indices.begin(), cuda::std::get<0>(it)),
                        handle_ptr_->get_stream());
       d_counts.resize(d_indices.size(), handle_ptr_->get_stream());
       std::vector<uint8_t> h_indices(d_indices.size());
-      std::vector<size_t> h_counts(h_indices.size());
+      std::vector<size_t> h_counts(d_counts.size());
       raft::update_host(
         h_indices.data(), d_indices.data(), d_indices.size(), handle_ptr_->get_stream());
       raft::update_host(
         h_counts.data(), d_counts.data(), d_counts.size(), handle_ptr_->get_stream());
       handle_ptr_->sync_stream();
 
+      insert_bucket_indices.resize(h_indices.size());
+      insert_offsets.resize(h_indices.size());
+      insert_sizes.resize(h_indices.size());
       size_t offset{0};
       for (size_t i = 0; i < h_indices.size(); ++i) {
         insert_bucket_indices[i] = static_cast<size_t>(h_indices[i]);

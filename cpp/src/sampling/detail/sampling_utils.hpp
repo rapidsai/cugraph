@@ -286,24 +286,30 @@ prepare_next_frontier(
  *
  * @tparam vertex_t Type of vertex identifiers.  Needs to be an integral type.
  * @tparam label_t Type of label.  Needs to be an integral type.
+ * @tparam edge_time_t Type of edge time.  Needs to be an integral type.
  *
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param frontier_vertices Vertices discovered in the current hop
  * @param frontier_vertex_labels Labels for the vertices discovered in the current hop
+ * @param frontier_vertex_times Times for the vertices discovered in the current hop
  * @param vertices_used_as_source Device vector containing all vertices used in previous hops as a
  * source
  * @param vertex_labels_used_as_source Device vector containing vertex labels associated with
  * the @p vertices_used_as_source used in previous hops as a source vertex label
  *
- * @return tuple containing the modified frontier_vertices and frontier_vertex_labels
+ * @return tuple containing the modified frontier_vertices, frontier_vertex_labels and
+ * frontier_vertex_times
  */
-template <typename vertex_t, typename label_t>
-std::tuple<rmm::device_uvector<vertex_t>, std::optional<rmm::device_uvector<label_t>>>
+template <typename vertex_t, typename label_t, typename edge_time_t>
+std::tuple<rmm::device_uvector<vertex_t>,
+           std::optional<rmm::device_uvector<label_t>>,
+           std::optional<rmm::device_uvector<edge_time_t>>>
 remove_visited_vertices_from_frontier(
   raft::handle_t const& handle,
   rmm::device_uvector<vertex_t>&& frontier_vertices,
   std::optional<rmm::device_uvector<label_t>>&& frontier_vertex_labels,
+  std::optional<rmm::device_uvector<edge_time_t>>&& frontier_vertex_times,
   raft::device_span<vertex_t const> vertices_used_as_source,
   std::optional<raft::device_span<label_t const>> vertex_labels_used_as_source);
 

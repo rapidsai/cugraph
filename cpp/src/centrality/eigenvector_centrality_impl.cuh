@@ -33,12 +33,12 @@
 
 #include <rmm/exec_policy.hpp>
 
+#include <cuda/std/tuple>
 #include <thrust/copy.h>
 #include <thrust/fill.h>
 #include <thrust/iterator/constant_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/transform.h>
-#include <thrust/tuple.h>
 
 namespace cugraph {
 namespace detail {
@@ -148,8 +148,10 @@ rmm::device_uvector<weight_t> eigenvector_centrality(
     auto diff_sum = transform_reduce_v(
       handle,
       pull_graph_view,
-      thrust::make_zip_iterator(thrust::make_tuple(centralities.begin(), old_centralities.data())),
-      [] __device__(auto, auto val) { return std::abs(thrust::get<0>(val) - thrust::get<1>(val)); },
+      thrust::make_zip_iterator(centralities.begin(), old_centralities.data()),
+      [] __device__(auto, auto val) {
+        return cuda::std::abs(cuda::std::get<0>(val) - cuda::std::get<1>(val));
+      },
       weight_t{0.0});
 
     iter++;

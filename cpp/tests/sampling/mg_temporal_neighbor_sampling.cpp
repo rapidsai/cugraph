@@ -256,8 +256,11 @@ class Tests_MGTemporal_Neighbor_Sampling
       vertices = cugraph::test::sort<vertex_t>(*handle_, std::move(vertices));
       vertices = cugraph::test::unique<vertex_t>(*handle_, std::move(vertices));
 
-      vertices = cugraph::detail::shuffle_int_vertices_to_local_gpu_by_vertex_partitioning(
-        *handle_, std::move(vertices), graph_view.vertex_partition_range_lasts());
+      std::tie(vertices, std::ignore) =
+        cugraph::shuffle_int_vertices(*handle_,
+                                      std::move(vertices),
+                                      std::vector<cugraph::arithmetic_device_uvector_t>{},
+                                      graph_view.vertex_partition_range_lasts());
 
       rmm::device_uvector<size_t> d_subgraph_offsets(2, handle_->get_stream());
       std::vector<size_t> h_subgraph_offsets({0, vertices.size()});
@@ -321,7 +324,6 @@ class Tests_MGTemporal_Neighbor_Sampling
             *handle_,
             std::move(mg_aggregate_src),
             std::move(mg_aggregate_dst),
-            std::move(mg_aggregate_wgt),
             std::move(mg_start_src),
             temporal_neighbor_sampling_usecase.fanout.size()));
         }

@@ -26,10 +26,10 @@
 #include <rmm/detail/error.hpp>
 #include <rmm/device_uvector.hpp>
 
+#include <cuda/std/tuple>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/transform.h>
-#include <thrust/tuple.h>
 
 #include <tuple>
 

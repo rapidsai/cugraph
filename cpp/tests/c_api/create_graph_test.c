@@ -91,22 +91,24 @@ int test_create_sg_graph_simple()
     handle, wgt_view, (byte_t*)h_wgt, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "wgt copy_from_host failed.");
 
-  ret_code = cugraph_graph_create_sg(handle,
-                                     &properties,
-                                     NULL,
-                                     src_view,
-                                     dst_view,
-                                     wgt_view,
-                                     NULL,
-                                     NULL,
-                                     FALSE,
-                                     FALSE,
-                                     FALSE,
-                                     FALSE,
-                                     FALSE,
-                                     FALSE,
-                                     &graph,
-                                     &ret_error);
+  ret_code = cugraph_graph_create_with_times_sg(handle,
+                                                &properties,
+                                                NULL,
+                                                src_view,
+                                                dst_view,
+                                                wgt_view,
+                                                NULL,
+                                                NULL,
+                                                NULL,
+                                                NULL,
+                                                FALSE,
+                                                FALSE,
+                                                FALSE,
+                                                FALSE,
+                                                FALSE,
+                                                TRUE,
+                                                &graph,
+                                                &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "graph creation failed.");
 
   cugraph_graph_free(graph);
@@ -114,6 +116,141 @@ int test_create_sg_graph_simple()
   cugraph_type_erased_device_array_view_free(wgt_view);
   cugraph_type_erased_device_array_view_free(dst_view);
   cugraph_type_erased_device_array_view_free(src_view);
+  cugraph_type_erased_device_array_free(wgt);
+  cugraph_type_erased_device_array_free(dst);
+  cugraph_type_erased_device_array_free(src);
+
+  cugraph_free_resource_handle(handle);
+  cugraph_error_free(ret_error);
+
+  return test_ret_value;
+}
+
+int test_create_sg_graph_with_times()
+{
+  int test_ret_value = 0;
+
+  typedef int32_t vertex_t;
+  typedef int32_t edge_t;
+  typedef float weight_t;
+  typedef int64_t edge_time_t;
+
+  cugraph_error_code_t ret_code = CUGRAPH_SUCCESS;
+  cugraph_error_t* ret_error;
+  size_t num_edges    = 8;
+  size_t num_vertices = 6;
+
+  vertex_t h_src[]                 = {0, 1, 1, 2, 2, 2, 3, 4};
+  vertex_t h_dst[]                 = {1, 3, 4, 0, 1, 3, 5, 5};
+  weight_t h_wgt[]                 = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
+  edge_time_t h_edge_start_times[] = {1, 3, 5, 7, 9, 11, 13, 15};
+  edge_time_t h_edge_end_times[]   = {2, 4, 6, 8, 10, 12, 14, 16};
+
+  cugraph_resource_handle_t* handle = NULL;
+  cugraph_graph_t* graph            = NULL;
+  cugraph_graph_properties_t properties;
+
+  properties.is_symmetric  = FALSE;
+  properties.is_multigraph = FALSE;
+
+  cugraph_data_type_id_t vertex_tid    = INT32;
+  cugraph_data_type_id_t edge_tid      = INT32;
+  cugraph_data_type_id_t weight_tid    = FLOAT32;
+  cugraph_data_type_id_t edge_time_tid = INT64;
+
+  handle = cugraph_create_resource_handle(NULL);
+  TEST_ASSERT(test_ret_value, handle != NULL, "resource handle creation failed.");
+
+  cugraph_type_erased_device_array_t* src;
+  cugraph_type_erased_device_array_t* dst;
+  cugraph_type_erased_device_array_t* wgt;
+  cugraph_type_erased_device_array_t* edge_start_times;
+  cugraph_type_erased_device_array_t* edge_end_times;
+
+  cugraph_type_erased_device_array_view_t* src_view;
+  cugraph_type_erased_device_array_view_t* dst_view;
+  cugraph_type_erased_device_array_view_t* wgt_view;
+  cugraph_type_erased_device_array_view_t* edge_start_times_view;
+  cugraph_type_erased_device_array_view_t* edge_end_times_view;
+
+  ret_code =
+    cugraph_type_erased_device_array_create(handle, num_edges, vertex_tid, &src, &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "src create failed.");
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
+
+  ret_code =
+    cugraph_type_erased_device_array_create(handle, num_edges, vertex_tid, &dst, &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "dst create failed.");
+
+  ret_code =
+    cugraph_type_erased_device_array_create(handle, num_edges, weight_tid, &wgt, &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "wgt create failed.");
+
+  ret_code = cugraph_type_erased_device_array_create(
+    handle, num_edges, edge_time_tid, &edge_start_times, &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "edge_start_times create failed.");
+
+  ret_code = cugraph_type_erased_device_array_create(
+    handle, num_edges, edge_time_tid, &edge_end_times, &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "edge_end_times create failed.");
+
+  src_view              = cugraph_type_erased_device_array_view(src);
+  dst_view              = cugraph_type_erased_device_array_view(dst);
+  wgt_view              = cugraph_type_erased_device_array_view(wgt);
+  edge_start_times_view = cugraph_type_erased_device_array_view(edge_start_times);
+  edge_end_times_view   = cugraph_type_erased_device_array_view(edge_end_times);
+
+  ret_code = cugraph_type_erased_device_array_view_copy_from_host(
+    handle, src_view, (byte_t*)h_src, &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "src copy_from_host failed.");
+
+  ret_code = cugraph_type_erased_device_array_view_copy_from_host(
+    handle, dst_view, (byte_t*)h_dst, &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "dst copy_from_host failed.");
+
+  ret_code = cugraph_type_erased_device_array_view_copy_from_host(
+    handle, wgt_view, (byte_t*)h_wgt, &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "wgt copy_from_host failed.");
+
+  ret_code = cugraph_type_erased_device_array_view_copy_from_host(
+    handle, edge_start_times_view, (byte_t*)h_edge_start_times, &ret_error);
+  TEST_ASSERT(
+    test_ret_value, ret_code == CUGRAPH_SUCCESS, "edge_start_times copy_from_host failed.");
+
+  ret_code = cugraph_type_erased_device_array_view_copy_from_host(
+    handle, edge_end_times_view, (byte_t*)h_edge_end_times, &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "edge_end_times copy_from_host failed.");
+
+  ret_code = cugraph_graph_create_with_times_sg(handle,
+                                                &properties,
+                                                NULL,
+                                                src_view,
+                                                dst_view,
+                                                wgt_view,
+                                                NULL,
+                                                NULL,
+                                                edge_start_times_view,
+                                                edge_end_times_view,
+                                                FALSE,
+                                                FALSE,
+                                                FALSE,
+                                                FALSE,
+                                                FALSE,
+                                                FALSE,
+                                                &graph,
+                                                &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "graph creation failed.");
+  TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
+
+  cugraph_graph_free(graph);
+
+  cugraph_type_erased_device_array_view_free(edge_end_times_view);
+  cugraph_type_erased_device_array_view_free(edge_start_times_view);
+  cugraph_type_erased_device_array_view_free(wgt_view);
+  cugraph_type_erased_device_array_view_free(dst_view);
+  cugraph_type_erased_device_array_view_free(src_view);
+  cugraph_type_erased_device_array_free(edge_end_times);
+  cugraph_type_erased_device_array_free(edge_start_times);
   cugraph_type_erased_device_array_free(wgt);
   cugraph_type_erased_device_array_free(dst);
   cugraph_type_erased_device_array_free(src);
@@ -398,22 +535,24 @@ int test_create_sg_graph_symmetric_error()
     handle, wgt_view, (byte_t*)h_wgt, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "wgt copy_from_host failed.");
 
-  ret_code = cugraph_graph_create_sg(handle,
-                                     &properties,
-                                     NULL,
-                                     src_view,
-                                     dst_view,
-                                     wgt_view,
-                                     NULL,
-                                     NULL,
-                                     FALSE,
-                                     FALSE,
-                                     FALSE,
-                                     FALSE,
-                                     FALSE,
-                                     TRUE,
-                                     &graph,
-                                     &ret_error);
+  ret_code = cugraph_graph_create_with_times_sg(handle,
+                                                &properties,
+                                                NULL,
+                                                src_view,
+                                                dst_view,
+                                                wgt_view,
+                                                NULL,
+                                                NULL,
+                                                NULL,
+                                                NULL,
+                                                FALSE,
+                                                FALSE,
+                                                FALSE,
+                                                FALSE,
+                                                FALSE,
+                                                TRUE,
+                                                &graph,
+                                                &ret_error);
   TEST_ASSERT(test_ret_value,
               ret_code != CUGRAPH_SUCCESS,
               "graph creation succeeded but should have failed.");
@@ -516,22 +655,24 @@ int test_create_sg_graph_with_isolated_vertices()
     handle, wgt_view, (byte_t*)h_wgt, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "wgt copy_from_host failed.");
 
-  ret_code = cugraph_graph_create_sg(handle,
-                                     &properties,
-                                     vertices_view,
-                                     src_view,
-                                     dst_view,
-                                     wgt_view,
-                                     NULL,
-                                     NULL,
-                                     FALSE,
-                                     FALSE,
-                                     FALSE,
-                                     FALSE,
-                                     FALSE,
-                                     FALSE,
-                                     &graph,
-                                     &ret_error);
+  ret_code = cugraph_graph_create_with_times_sg(handle,
+                                                &properties,
+                                                vertices_view,
+                                                src_view,
+                                                dst_view,
+                                                wgt_view,
+                                                NULL,
+                                                NULL,
+                                                NULL,
+                                                NULL,
+                                                FALSE,
+                                                FALSE,
+                                                FALSE,
+                                                FALSE,
+                                                FALSE,
+                                                FALSE,
+                                                &graph,
+                                                &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "graph creation failed.");
 
   cugraph_centrality_result_t* result = NULL;
@@ -832,22 +973,24 @@ int test_create_sg_graph_with_isolated_vertices_multi_input()
     handle, wgt_view, (byte_t*)h_wgt, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "wgt copy_from_host failed.");
 
-  ret_code = cugraph_graph_create_sg(handle,
-                                     &properties,
-                                     vertices_view,
-                                     src_view,
-                                     dst_view,
-                                     wgt_view,
-                                     NULL,
-                                     NULL,
-                                     FALSE,
-                                     FALSE,
-                                     TRUE,
-                                     TRUE,
-                                     FALSE,
-                                     FALSE,
-                                     &graph,
-                                     &ret_error);
+  ret_code = cugraph_graph_create_with_times_sg(handle,
+                                                &properties,
+                                                vertices_view,
+                                                src_view,
+                                                dst_view,
+                                                wgt_view,
+                                                NULL,
+                                                NULL,
+                                                NULL,
+                                                NULL,
+                                                FALSE,
+                                                FALSE,
+                                                TRUE,
+                                                TRUE,
+                                                FALSE,
+                                                FALSE,
+                                                &graph,
+                                                &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "graph creation failed.");
 
   cugraph_centrality_result_t* result = NULL;
@@ -915,6 +1058,7 @@ int main(int argc, char** argv)
 {
   int result = 0;
   result |= RUN_TEST(test_create_sg_graph_simple);
+  result |= RUN_TEST(test_create_sg_graph_with_times);
   result |= RUN_TEST(test_create_sg_graph_csr);
   result |= RUN_TEST(test_create_sg_graph_symmetric_error);
   result |= RUN_TEST(test_create_sg_graph_with_isolated_vertices);

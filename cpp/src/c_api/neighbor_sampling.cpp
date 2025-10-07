@@ -20,6 +20,7 @@
 #include "c_api/properties.hpp"
 #include "c_api/random.hpp"
 #include "c_api/resource_handle.hpp"
+#include "c_api/sampling_common.hpp"
 #include "c_api/utils.hpp"
 #include "sampling/detail/sampling_utils.hpp"
 
@@ -27,52 +28,12 @@
 #include <cugraph_c/sampling_algorithms.h>
 
 #include <cugraph/algorithms.hpp>
+#include <cugraph/arithmetic_variant_types.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/sampling_functions.hpp>
 #include <cugraph/shuffle_functions.hpp>
 
 #include <raft/core/handle.hpp>
-
-namespace cugraph {
-namespace c_api {
-
-struct cugraph_sampling_options_t {
-  bool_t with_replacement_{FALSE};
-  bool_t return_hops_{FALSE};
-  prior_sources_behavior_t prior_sources_behavior_{prior_sources_behavior_t::DEFAULT};
-  bool_t dedupe_sources_{FALSE};
-  bool_t renumber_results_{FALSE};
-  cugraph_compression_type_t compression_type_{cugraph_compression_type_t::COO};
-  bool_t compress_per_hop_{FALSE};
-  bool_t retain_seeds_{FALSE};
-};
-
-struct sampling_flags_t {
-  prior_sources_behavior_t prior_sources_behavior_{prior_sources_behavior_t::DEFAULT};
-  bool_t return_hops_{FALSE};
-  bool_t dedupe_sources_{FALSE};
-  bool_t with_replacement_{FALSE};
-};
-
-struct cugraph_sample_result_t {
-  cugraph_type_erased_device_array_t* major_offsets_{nullptr};
-  cugraph_type_erased_device_array_t* majors_{nullptr};
-  cugraph_type_erased_device_array_t* minors_{nullptr};
-  cugraph_type_erased_device_array_t* edge_id_{nullptr};
-  cugraph_type_erased_device_array_t* edge_type_{nullptr};
-  cugraph_type_erased_device_array_t* wgt_{nullptr};
-  cugraph_type_erased_device_array_t* hop_{nullptr};
-  cugraph_type_erased_device_array_t* label_hop_offsets_{nullptr};
-  cugraph_type_erased_device_array_t* label_type_hop_offsets_{nullptr};
-  cugraph_type_erased_device_array_t* label_{nullptr};
-  cugraph_type_erased_device_array_t* renumber_map_{nullptr};
-  cugraph_type_erased_device_array_t* renumber_map_offsets_{nullptr};
-  cugraph_type_erased_device_array_t* edge_renumber_map_{nullptr};
-  cugraph_type_erased_device_array_t* edge_renumber_map_offsets_{nullptr};
-};
-
-}  // namespace c_api
-}  // namespace cugraph
 
 namespace {
 
@@ -132,6 +93,7 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
             typename edge_t,
             typename weight_t,
             typename edge_type_t,
+            typename edge_time_t,
             bool store_transposed,
             bool multi_gpu>
   void operator()()
@@ -185,10 +147,17 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
 
       if constexpr (multi_gpu) {
         if (start_vertex_labels) {
-          std::tie(start_vertices, *start_vertex_labels) = cugraph::shuffle_ext_vertex_value_pairs(
-            handle_, std::move(start_vertices), std::move(*start_vertex_labels));
+          std::vector<cugraph::arithmetic_device_uvector_t> vertex_properties{};
+          vertex_properties.push_back(std::move(*start_vertex_labels));
+          std::tie(start_vertices, vertex_properties) = cugraph::shuffle_ext_vertices(
+            handle_, std::move(start_vertices), std::move(vertex_properties));
+          start_vertex_labels =
+            std::move(std::get<rmm::device_uvector<label_t>>(vertex_properties[0]));
         } else {
-          start_vertices = cugraph::shuffle_ext_vertices(handle_, std::move(start_vertices));
+          std::tie(start_vertices, std::ignore) =
+            cugraph::shuffle_ext_vertices(handle_,
+                                          std::move(start_vertices),
+                                          std::vector<cugraph::arithmetic_device_uvector_t>{});
         }
       }
 
@@ -204,7 +173,14 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
         graph_view.local_vertex_partition_range_last(),
         do_expensive_check_);
 
-      auto&& [src, dst, wgt, edge_id, edge_type, hop, edge_label, offsets] =
+      auto&& [sampled_srcs,
+              sampled_dsts,
+              sampled_weights,
+              sampled_edge_ids,
+              sampled_edge_type,
+              hop,
+              edge_label,
+              offsets] =
         cugraph::uniform_neighbor_sample(
           handle_,
           graph_view,
@@ -233,16 +209,16 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
 
       cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(
         handle_,
-        src.data(),
-        src.size(),
+        sampled_srcs.data(),
+        sampled_srcs.size(),
         number_map->data(),
         graph_view.vertex_partition_range_lasts(),
         do_expensive_check_);
 
       cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(
         handle_,
-        dst.data(),
-        dst.size(),
+        sampled_dsts.data(),
+        sampled_dsts.size(),
         number_map->data(),
         graph_view.vertex_partition_range_lasts(),
         do_expensive_check_);
@@ -266,21 +242,23 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
 
           rmm::device_uvector<vertex_t> output_majors(0, handle_.get_stream());
           rmm::device_uvector<vertex_t> output_renumber_map(0, handle_.get_stream());
+          std::vector<cugraph::arithmetic_device_uvector_t> output_edge_properties{};
+          if (sampled_weights) { output_edge_properties.push_back(std::move(*sampled_weights)); }
+          if (sampled_edge_ids) { output_edge_properties.push_back(std::move(*sampled_edge_ids)); }
+          if (sampled_edge_type) {
+            output_edge_properties.push_back(std::move(*sampled_edge_type));
+          }
           std::tie(output_majors,
                    minors,
-                   wgt,
-                   edge_id,
-                   edge_type,
+                   output_edge_properties,
                    label_hop_offsets,
                    output_renumber_map,
                    renumber_map_offsets) =
             cugraph::renumber_and_sort_sampled_edgelist<vertex_t>(
               handle_,
-              std::move(src),
-              std::move(dst),
-              std::move(wgt),
-              std::move(edge_id),
-              std::move(edge_type),
+              std::move(sampled_srcs),
+              std::move(sampled_dsts),
+              std::move(output_edge_properties),
               std::move(hop),
               options_.retain_seeds_
                 ? std::make_optional(raft::device_span<vertex_t const>{
@@ -299,30 +277,45 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
 
           majors.emplace(std::move(output_majors));
           renumber_map.emplace(std::move(output_renumber_map));
+
+          size_t pos = 0;
+          if (sampled_weights) {
+            sampled_weights =
+              std::move(std::get<rmm::device_uvector<weight_t>>(output_edge_properties[pos++]));
+          }
+          if (sampled_edge_ids) {
+            sampled_edge_ids =
+              std::move(std::get<rmm::device_uvector<edge_t>>(output_edge_properties[pos++]));
+          }
+          if (sampled_edge_type) {
+            sampled_edge_type =
+              std::move(std::get<rmm::device_uvector<edge_type_t>>(output_edge_properties[pos++]));
+          }
         } else {
           // (D)CSC, (D)CSR
 
           bool doubly_compress = (options_.compression_type_ == cugraph_compression_type_t::DCSR) ||
                                  (options_.compression_type_ == cugraph_compression_type_t::DCSC);
 
+          std::vector<cugraph::arithmetic_device_uvector_t> output_edge_properties{};
+          if (sampled_weights) { output_edge_properties.push_back(std::move(*sampled_weights)); }
+          if (sampled_edge_ids) { output_edge_properties.push_back(std::move(*sampled_edge_ids)); }
           rmm::device_uvector<size_t> output_major_offsets(0, handle_.get_stream());
           rmm::device_uvector<vertex_t> output_renumber_map(0, handle_.get_stream());
           std::tie(majors,
                    output_major_offsets,
                    minors,
-                   wgt,
-                   edge_id,
-                   edge_type,
+                   output_edge_properties,
+                   sampled_edge_type,
                    label_hop_offsets,
                    output_renumber_map,
                    renumber_map_offsets) =
-            cugraph::renumber_and_compress_sampled_edgelist<vertex_t>(
+            cugraph::renumber_and_compress_sampled_edgelist(
               handle_,
-              std::move(src),
-              std::move(dst),
-              std::move(wgt),
-              std::move(edge_id),
-              std::move(edge_type),
+              std::move(sampled_srcs),
+              std::move(sampled_dsts),
+              std::move(output_edge_properties),
+              std::move(sampled_edge_type),
               std::move(hop),
               options_.retain_seeds_
                 ? std::make_optional(raft::device_span<vertex_t const>{
@@ -353,13 +346,16 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
           CUGRAPH_FAIL("Can only use COO format if not renumbering");
         }
 
-        std::tie(src, dst, wgt, edge_id, edge_type, label_hop_offsets) =
+        std::vector<cugraph::arithmetic_device_uvector_t> output_edge_properties{};
+        if (sampled_weights) { output_edge_properties.push_back(std::move(*sampled_weights)); }
+        if (sampled_edge_ids) { output_edge_properties.push_back(std::move(*sampled_edge_ids)); }
+        if (sampled_edge_type) { output_edge_properties.push_back(std::move(*sampled_edge_type)); }
+
+        std::tie(sampled_srcs, sampled_dsts, output_edge_properties, label_hop_offsets) =
           cugraph::sort_sampled_edgelist(handle_,
-                                         std::move(src),
-                                         std::move(dst),
-                                         std::move(wgt),
-                                         std::move(edge_id),
-                                         std::move(edge_type),
+                                         std::move(sampled_srcs),
+                                         std::move(sampled_dsts),
+                                         std::move(output_edge_properties),
                                          std::move(hop),
                                          offsets
                                            ? std::make_optional(raft::device_span<size_t const>{
@@ -370,8 +366,23 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
                                          src_is_major,
                                          do_expensive_check_);
 
-        majors.emplace(std::move(src));
-        minors = std::move(dst);
+        majors.emplace(std::move(sampled_srcs));
+        minors = std::move(sampled_dsts);
+
+        size_t pos = 0;
+
+        if (sampled_weights) {
+          sampled_weights =
+            std::move(std::get<rmm::device_uvector<weight_t>>(output_edge_properties[pos++]));
+        }
+        if (sampled_edge_ids) {
+          sampled_edge_ids =
+            std::move(std::get<rmm::device_uvector<edge_t>>(output_edge_properties[pos++]));
+        }
+        if (sampled_edge_type) {
+          sampled_edge_type =
+            std::move(std::get<rmm::device_uvector<edge_type_t>>(output_edge_properties[pos++]));
+        }
 
         hop.reset();
         offsets.reset();
@@ -385,14 +396,17 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
           ? new cugraph::c_api::cugraph_type_erased_device_array_t(*majors, graph_->vertex_type_)
           : nullptr,
         new cugraph::c_api::cugraph_type_erased_device_array_t(minors, graph_->vertex_type_),
-        (edge_id)
-          ? new cugraph::c_api::cugraph_type_erased_device_array_t(*edge_id, graph_->edge_type_)
-          : nullptr,
-        (edge_type) ? new cugraph::c_api::cugraph_type_erased_device_array_t(
-                        *edge_type, graph_->edge_type_id_type_)
-                    : nullptr,
-        (wgt) ? new cugraph::c_api::cugraph_type_erased_device_array_t(*wgt, graph_->weight_type_)
-              : nullptr,
+        (sampled_edge_ids) ? new cugraph::c_api::cugraph_type_erased_device_array_t(
+                               *sampled_edge_ids, graph_->edge_type_)
+                           : nullptr,
+        (sampled_edge_type) ? new cugraph::c_api::cugraph_type_erased_device_array_t(
+                                *sampled_edge_type, graph_->edge_type_id_type_)
+                            : nullptr,
+        (sampled_weights) ? new cugraph::c_api::cugraph_type_erased_device_array_t(
+                              *sampled_weights, graph_->weight_type_)
+                          : nullptr,
+        nullptr,
+        nullptr,
         (hop) ? new cugraph::c_api::cugraph_type_erased_device_array_t(*hop, INT32)
               : nullptr,  // FIXME get rid of this
         (label_hop_offsets)
@@ -474,6 +488,7 @@ struct biased_neighbor_sampling_functor : public cugraph::c_api::abstract_functo
             typename edge_t,
             typename weight_t,
             typename edge_type_t,
+            typename edge_time_t,
             bool store_transposed,
             bool multi_gpu>
   void operator()()
@@ -532,10 +547,17 @@ struct biased_neighbor_sampling_functor : public cugraph::c_api::abstract_functo
 
       if constexpr (multi_gpu) {
         if (start_vertex_labels) {
-          std::tie(start_vertices, *start_vertex_labels) = cugraph::shuffle_ext_vertex_value_pairs(
-            handle_, std::move(start_vertices), std::move(*start_vertex_labels));
+          std::vector<cugraph::arithmetic_device_uvector_t> vertex_properties{};
+          vertex_properties.push_back(std::move(*start_vertex_labels));
+          std::tie(start_vertices, vertex_properties) = cugraph::shuffle_ext_vertices(
+            handle_, std::move(start_vertices), std::move(vertex_properties));
+          start_vertex_labels =
+            std::move(std::get<rmm::device_uvector<label_t>>(vertex_properties[0]));
         } else {
-          start_vertices = cugraph::shuffle_ext_vertices(handle_, std::move(start_vertices));
+          std::tie(start_vertices, std::ignore) =
+            cugraph::shuffle_ext_vertices(handle_,
+                                          std::move(start_vertices),
+                                          std::vector<cugraph::arithmetic_device_uvector_t>{});
         }
       }
 
@@ -551,7 +573,14 @@ struct biased_neighbor_sampling_functor : public cugraph::c_api::abstract_functo
         graph_view.local_vertex_partition_range_last(),
         do_expensive_check_);
 
-      auto&& [src, dst, wgt, edge_id, edge_type, hop, edge_label, offsets] =
+      auto&& [sampled_srcs,
+              sampled_dsts,
+              sampled_weights,
+              sampled_edge_ids,
+              sampled_edge_type,
+              hop,
+              edge_label,
+              offsets] =
         cugraph::biased_neighbor_sample(
           handle_,
           graph_view,
@@ -581,16 +610,16 @@ struct biased_neighbor_sampling_functor : public cugraph::c_api::abstract_functo
 
       cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(
         handle_,
-        src.data(),
-        src.size(),
+        sampled_srcs.data(),
+        sampled_srcs.size(),
         number_map->data(),
         graph_view.vertex_partition_range_lasts(),
         do_expensive_check_);
 
       cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(
         handle_,
-        dst.data(),
-        dst.size(),
+        sampled_dsts.data(),
+        sampled_dsts.size(),
         number_map->data(),
         graph_view.vertex_partition_range_lasts(),
         do_expensive_check_);
@@ -614,21 +643,23 @@ struct biased_neighbor_sampling_functor : public cugraph::c_api::abstract_functo
 
           rmm::device_uvector<vertex_t> output_majors(0, handle_.get_stream());
           rmm::device_uvector<vertex_t> output_renumber_map(0, handle_.get_stream());
+          std::vector<cugraph::arithmetic_device_uvector_t> output_edge_properties{};
+          if (sampled_weights) { output_edge_properties.push_back(std::move(*sampled_weights)); }
+          if (sampled_edge_ids) { output_edge_properties.push_back(std::move(*sampled_edge_ids)); }
+          if (sampled_edge_type) {
+            output_edge_properties.push_back(std::move(*sampled_edge_type));
+          }
           std::tie(output_majors,
                    minors,
-                   wgt,
-                   edge_id,
-                   edge_type,
+                   output_edge_properties,
                    label_hop_offsets,
                    output_renumber_map,
                    renumber_map_offsets) =
             cugraph::renumber_and_sort_sampled_edgelist<vertex_t>(
               handle_,
-              std::move(src),
-              std::move(dst),
-              std::move(wgt),
-              std::move(edge_id),
-              std::move(edge_type),
+              std::move(sampled_srcs),
+              std::move(sampled_dsts),
+              std::move(output_edge_properties),
               std::move(hop),
               options_.retain_seeds_
                 ? std::make_optional(raft::device_span<vertex_t const>{
@@ -647,30 +678,45 @@ struct biased_neighbor_sampling_functor : public cugraph::c_api::abstract_functo
 
           majors.emplace(std::move(output_majors));
           renumber_map.emplace(std::move(output_renumber_map));
+
+          size_t pos = 0;
+          if (sampled_weights) {
+            sampled_weights =
+              std::move(std::get<rmm::device_uvector<weight_t>>(output_edge_properties[pos++]));
+          }
+          if (sampled_edge_ids) {
+            sampled_edge_ids =
+              std::move(std::get<rmm::device_uvector<edge_t>>(output_edge_properties[pos++]));
+          }
+          if (sampled_edge_type) {
+            sampled_edge_type =
+              std::move(std::get<rmm::device_uvector<edge_type_t>>(output_edge_properties[pos++]));
+          }
         } else {
           // (D)CSC, (D)CSR
 
           bool doubly_compress = (options_.compression_type_ == cugraph_compression_type_t::DCSR) ||
                                  (options_.compression_type_ == cugraph_compression_type_t::DCSC);
 
+          std::vector<cugraph::arithmetic_device_uvector_t> output_edge_properties{};
+          if (sampled_weights) { output_edge_properties.push_back(std::move(*sampled_weights)); }
+          if (sampled_edge_ids) { output_edge_properties.push_back(std::move(*sampled_edge_ids)); }
           rmm::device_uvector<size_t> output_major_offsets(0, handle_.get_stream());
           rmm::device_uvector<vertex_t> output_renumber_map(0, handle_.get_stream());
           std::tie(majors,
                    output_major_offsets,
                    minors,
-                   wgt,
-                   edge_id,
-                   edge_type,
+                   output_edge_properties,
+                   sampled_edge_type,
                    label_hop_offsets,
                    output_renumber_map,
                    renumber_map_offsets) =
-            cugraph::renumber_and_compress_sampled_edgelist<vertex_t>(
+            cugraph::renumber_and_compress_sampled_edgelist(
               handle_,
-              std::move(src),
-              std::move(dst),
-              std::move(wgt),
-              std::move(edge_id),
-              std::move(edge_type),
+              std::move(sampled_srcs),
+              std::move(sampled_dsts),
+              std::move(output_edge_properties),
+              std::move(sampled_edge_type),
               std::move(hop),
               options_.retain_seeds_
                 ? std::make_optional(raft::device_span<vertex_t const>{
@@ -701,13 +747,16 @@ struct biased_neighbor_sampling_functor : public cugraph::c_api::abstract_functo
           CUGRAPH_FAIL("Can only use COO format if not renumbering");
         }
 
-        std::tie(src, dst, wgt, edge_id, edge_type, label_hop_offsets) =
+        std::vector<cugraph::arithmetic_device_uvector_t> output_edge_properties{};
+        if (sampled_weights) { output_edge_properties.push_back(std::move(*sampled_weights)); }
+        if (sampled_edge_ids) { output_edge_properties.push_back(std::move(*sampled_edge_ids)); }
+        if (sampled_edge_type) { output_edge_properties.push_back(std::move(*sampled_edge_type)); }
+
+        std::tie(sampled_srcs, sampled_dsts, output_edge_properties, label_hop_offsets) =
           cugraph::sort_sampled_edgelist(handle_,
-                                         std::move(src),
-                                         std::move(dst),
-                                         std::move(wgt),
-                                         std::move(edge_id),
-                                         std::move(edge_type),
+                                         std::move(sampled_srcs),
+                                         std::move(sampled_dsts),
+                                         std::move(output_edge_properties),
                                          std::move(hop),
                                          offsets
                                            ? std::make_optional(raft::device_span<size_t const>{
@@ -718,8 +767,23 @@ struct biased_neighbor_sampling_functor : public cugraph::c_api::abstract_functo
                                          src_is_major,
                                          do_expensive_check_);
 
-        majors.emplace(std::move(src));
-        minors = std::move(dst);
+        majors.emplace(std::move(sampled_srcs));
+        minors = std::move(sampled_dsts);
+
+        size_t pos = 0;
+
+        if (sampled_weights) {
+          sampled_weights =
+            std::move(std::get<rmm::device_uvector<weight_t>>(output_edge_properties[pos++]));
+        }
+        if (sampled_edge_ids) {
+          sampled_edge_ids =
+            std::move(std::get<rmm::device_uvector<edge_t>>(output_edge_properties[pos++]));
+        }
+        if (sampled_edge_type) {
+          sampled_edge_type =
+            std::move(std::get<rmm::device_uvector<edge_type_t>>(output_edge_properties[pos++]));
+        }
 
         hop.reset();
         offsets.reset();
@@ -733,14 +797,17 @@ struct biased_neighbor_sampling_functor : public cugraph::c_api::abstract_functo
           ? new cugraph::c_api::cugraph_type_erased_device_array_t(*majors, graph_->vertex_type_)
           : nullptr,
         new cugraph::c_api::cugraph_type_erased_device_array_t(minors, graph_->vertex_type_),
-        (edge_id)
-          ? new cugraph::c_api::cugraph_type_erased_device_array_t(*edge_id, graph_->edge_type_)
-          : nullptr,
-        (edge_type) ? new cugraph::c_api::cugraph_type_erased_device_array_t(
-                        *edge_type, graph_->edge_type_id_type_)
-                    : nullptr,
-        (wgt) ? new cugraph::c_api::cugraph_type_erased_device_array_t(*wgt, graph_->weight_type_)
-              : nullptr,
+        (sampled_edge_ids) ? new cugraph::c_api::cugraph_type_erased_device_array_t(
+                               *sampled_edge_ids, graph_->edge_type_)
+                           : nullptr,
+        (sampled_edge_type) ? new cugraph::c_api::cugraph_type_erased_device_array_t(
+                                *sampled_edge_type, graph_->edge_type_id_type_)
+                            : nullptr,
+        (sampled_weights) ? new cugraph::c_api::cugraph_type_erased_device_array_t(
+                              *sampled_weights, graph_->weight_type_)
+                          : nullptr,
+        nullptr,
+        nullptr,
         (hop) ? new cugraph::c_api::cugraph_type_erased_device_array_t(*hop, INT32)
               : nullptr,  // FIXME get rid of this
         (label_hop_offsets)
@@ -819,6 +886,7 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
             typename edge_t,
             typename weight_t,
             typename edge_type_t,
+            typename edge_time_t,
             bool store_transposed,
             bool multi_gpu>
   void operator()()
@@ -944,12 +1012,19 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
             raft::host_span<size_t const>(displacements.data(), displacements.size()),
             handle_.get_stream());
 
-          std::tie(start_vertices, *start_vertex_labels) = cugraph::shuffle_ext_vertex_value_pairs(
-            handle_, std::move(start_vertices), std::move(*start_vertex_labels));
+          std::vector<cugraph::arithmetic_device_uvector_t> vertex_properties{};
+          vertex_properties.push_back(std::move(*start_vertex_labels));
+          std::tie(start_vertices, vertex_properties) = cugraph::shuffle_ext_vertices(
+            handle_, std::move(start_vertices), std::move(vertex_properties));
+          start_vertex_labels =
+            std::move(std::get<rmm::device_uvector<label_t>>(vertex_properties[0]));
         }
       } else {
         if constexpr (multi_gpu) {
-          start_vertices = cugraph::shuffle_ext_vertices(handle_, std::move(start_vertices));
+          std::tie(start_vertices, std::ignore) =
+            cugraph::shuffle_ext_vertices(handle_,
+                                          std::move(start_vertices),
+                                          std::vector<cugraph::arithmetic_device_uvector_t>{});
         }
       }
       //
@@ -964,11 +1039,11 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
         graph_view.local_vertex_partition_range_last(),
         do_expensive_check_);
 
-      rmm::device_uvector<vertex_t> src(0, handle_.get_stream());
-      rmm::device_uvector<vertex_t> dst(0, handle_.get_stream());
-      std::optional<rmm::device_uvector<weight_t>> wgt{std::nullopt};
-      std::optional<rmm::device_uvector<edge_t>> edge_id{std::nullopt};
-      std::optional<rmm::device_uvector<edge_type_t>> edge_type{std::nullopt};
+      rmm::device_uvector<vertex_t> sampled_srcs(0, handle_.get_stream());
+      rmm::device_uvector<vertex_t> sampled_dsts(0, handle_.get_stream());
+      std::optional<rmm::device_uvector<weight_t>> sampled_weights{std::nullopt};
+      std::optional<rmm::device_uvector<edge_t>> sampled_edge_ids{std::nullopt};
+      std::optional<rmm::device_uvector<edge_type_t>> sampled_edge_type{std::nullopt};
       std::optional<rmm::device_uvector<int32_t>> hop{std::nullopt};
       std::optional<rmm::device_uvector<label_t>> edge_label{std::nullopt};
       std::optional<rmm::device_uvector<size_t>> offsets{std::nullopt};
@@ -982,7 +1057,13 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
 
         // call heterogeneous neighbor sample
         if (is_biased_) {
-          std::tie(src, dst, wgt, edge_id, edge_type, hop, offsets) =
+          std::tie(sampled_srcs,
+                   sampled_dsts,
+                   sampled_weights,
+                   sampled_edge_ids,
+                   sampled_edge_type,
+                   hop,
+                   offsets) =
             cugraph::heterogeneous_biased_neighbor_sample(
               handle_,
               rng_state_->rng_state_,
@@ -1007,7 +1088,13 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
                                         options_.with_replacement_},
               do_expensive_check_);
         } else {
-          std::tie(src, dst, wgt, edge_id, edge_type, hop, offsets) =
+          std::tie(sampled_srcs,
+                   sampled_dsts,
+                   sampled_weights,
+                   sampled_edge_ids,
+                   sampled_edge_type,
+                   hop,
+                   offsets) =
             cugraph::heterogeneous_uniform_neighbor_sample(
               handle_,
               rng_state_->rng_state_,
@@ -1034,7 +1121,13 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
       } else {
         // Call homogeneous neighbor sample
         if (is_biased_) {
-          std::tie(src, dst, wgt, edge_id, edge_type, hop, offsets) =
+          std::tie(sampled_srcs,
+                   sampled_dsts,
+                   sampled_weights,
+                   sampled_edge_ids,
+                   sampled_edge_type,
+                   hop,
+                   offsets) =
             cugraph::homogeneous_biased_neighbor_sample(
               handle_,
               rng_state_->rng_state_,
@@ -1058,7 +1151,13 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
                                         options_.with_replacement_},
               do_expensive_check_);
         } else {
-          std::tie(src, dst, wgt, edge_id, edge_type, hop, offsets) =
+          std::tie(sampled_srcs,
+                   sampled_dsts,
+                   sampled_weights,
+                   sampled_edge_ids,
+                   sampled_edge_type,
+                   hop,
+                   offsets) =
             cugraph::homogeneous_uniform_neighbor_sample(
               handle_,
               rng_state_->rng_state_,
@@ -1085,16 +1184,16 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
 
       cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(
         handle_,
-        src.data(),
-        src.size(),
+        sampled_srcs.data(),
+        sampled_srcs.size(),
         number_map->data(),
         graph_view.vertex_partition_range_lasts(),
         do_expensive_check_);
 
       cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(
         handle_,
-        dst.data(),
-        dst.size(),
+        sampled_dsts.data(),
+        sampled_dsts.size(),
         number_map->data(),
         graph_view.vertex_partition_range_lasts(),
         do_expensive_check_);
@@ -1122,28 +1221,35 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
       }
 
       if (options_.renumber_results_) {
-        if (src.size() > 0) {          // Only renumber if there are edgelist to renumber
-          if (num_edge_types_ == 1) {  // homogeneous renumbering
+        if (sampled_srcs.size() > 0) {  // Only renumber if there are edgelist to renumber
+          if (num_edge_types_ == 1) {   // homogeneous renumbering
             if (options_.compression_type_ == cugraph_compression_type_t::COO) {
               // COO
 
               rmm::device_uvector<vertex_t> output_majors(0, handle_.get_stream());
               rmm::device_uvector<vertex_t> output_renumber_map(0, handle_.get_stream());
+              std::vector<cugraph::arithmetic_device_uvector_t> output_edge_properties{};
+              if (sampled_weights) {
+                output_edge_properties.push_back(std::move(*sampled_weights));
+              }
+              if (sampled_edge_ids) {
+                output_edge_properties.push_back(std::move(*sampled_edge_ids));
+              }
+              if (sampled_edge_type) {
+                output_edge_properties.push_back(std::move(*sampled_edge_type));
+              }
+
               std::tie(output_majors,
                        minors,
-                       wgt,
-                       edge_id,
-                       edge_type,
+                       output_edge_properties,
                        label_hop_offsets,
                        output_renumber_map,
                        renumber_map_offsets) =
                 cugraph::renumber_and_sort_sampled_edgelist<vertex_t>(
                   handle_,
-                  std::move(src),
-                  std::move(dst),
-                  std::move(wgt),
-                  std::move(edge_id),
-                  std::move(edge_type),
+                  std::move(sampled_srcs),
+                  std::move(sampled_dsts),
+                  std::move(output_edge_properties),
                   std::move(hop),
                   options_.retain_seeds_
                     ? std::make_optional(raft::device_span<vertex_t const>{
@@ -1163,6 +1269,20 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
 
               majors.emplace(std::move(output_majors));
               renumber_map.emplace(std::move(output_renumber_map));
+
+              size_t pos = 0;
+              if (sampled_weights) {
+                sampled_weights =
+                  std::move(std::get<rmm::device_uvector<weight_t>>(output_edge_properties[pos++]));
+              }
+              if (sampled_edge_ids) {
+                sampled_edge_ids =
+                  std::move(std::get<rmm::device_uvector<edge_t>>(output_edge_properties[pos++]));
+              }
+              if (sampled_edge_type) {
+                sampled_edge_type = std::move(
+                  std::get<rmm::device_uvector<edge_type_t>>(output_edge_properties[pos++]));
+              }
             } else {
               // (D)CSC, (D)CSR
 
@@ -1173,22 +1293,27 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
               rmm::device_uvector<size_t> output_major_offsets(0, handle_.get_stream());
               rmm::device_uvector<vertex_t> output_renumber_map(0, handle_.get_stream());
 
+              std::vector<cugraph::arithmetic_device_uvector_t> output_edge_properties{};
+              if (sampled_weights) {
+                output_edge_properties.push_back(std::move(*sampled_weights));
+              }
+              if (sampled_edge_ids) {
+                output_edge_properties.push_back(std::move(*sampled_edge_ids));
+              }
               std::tie(majors,
                        output_major_offsets,
                        minors,
-                       wgt,
-                       edge_id,
-                       edge_type,
+                       output_edge_properties,
+                       sampled_edge_type,
                        label_hop_offsets,
                        output_renumber_map,
                        renumber_map_offsets) =
-                cugraph::renumber_and_compress_sampled_edgelist<vertex_t>(
+                cugraph::renumber_and_compress_sampled_edgelist(
                   handle_,
-                  std::move(src),
-                  std::move(dst),
-                  std::move(wgt),
-                  std::move(edge_id),
-                  std::move(edge_type),
+                  std::move(sampled_srcs),
+                  std::move(sampled_dsts),
+                  std::move(output_edge_properties),
+                  std::move(sampled_edge_type),
                   std::move(hop),
                   options_.retain_seeds_
                     ? std::make_optional(raft::device_span<vertex_t const>{
@@ -1207,6 +1332,16 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
                   options_.compress_per_hop_,
                   doubly_compress,
                   do_expensive_check_);
+
+              size_t pos = 0;
+              if (sampled_weights) {
+                sampled_weights =
+                  std::move(std::get<rmm::device_uvector<weight_t>>(output_edge_properties[pos++]));
+              }
+              if (sampled_edge_ids) {
+                sampled_edge_ids =
+                  std::move(std::get<rmm::device_uvector<edge_t>>(output_edge_properties[pos++]));
+              }
 
               renumber_map.emplace(std::move(output_renumber_map));
               major_offsets.emplace(std::move(output_major_offsets));
@@ -1235,10 +1370,12 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
             rmm::device_uvector<vertex_t> output_majors(0, handle_.get_stream());
             rmm::device_uvector<vertex_t> output_renumber_map(0, handle_.get_stream());
 
+            std::vector<cugraph::arithmetic_device_uvector_t> output_edge_properties{};
+            if (sampled_weights) { output_edge_properties.push_back(std::move(*sampled_weights)); }
             std::tie(output_majors,
                      minors,
-                     wgt,
-                     edge_id,
+                     output_edge_properties,
+                     sampled_edge_ids,
                      label_type_hop_offsets,  // Contains information about the type and hop offsets
                      output_renumber_map,
                      renumber_map_offsets,
@@ -1246,11 +1383,11 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
                      renumbered_and_sorted_edge_id_renumber_map_label_type_offsets) =
               cugraph::heterogeneous_renumber_and_sort_sampled_edgelist<vertex_t>(
                 handle_,
-                std::move(src),
-                std::move(dst),
-                std::move(wgt),
-                std::move(edge_id),
-                std::move(edge_type),
+                std::move(sampled_srcs),
+                std::move(sampled_dsts),
+                std::move(output_edge_properties),
+                std::move(sampled_edge_ids),
+                std::move(sampled_edge_type),
                 std::move(hop),
                 options_.retain_seeds_
                   ? std::make_optional(raft::device_span<vertex_t const>{
@@ -1282,15 +1419,23 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
                 num_edge_types_,
                 src_is_major,
                 do_expensive_check_);
-            if (edge_type) {
-              (*edge_type)
+            if (sampled_edge_type) {
+              (*sampled_edge_type)
                 .resize(raft::device_span<size_t const>{(*label_type_hop_offsets).data(),
                                                         (*label_type_hop_offsets).size()}
                             .back() -
                           1,
                         handle_.get_stream());
-              cugraph::detail::sequence_fill(
-                handle_.get_stream(), (*edge_type).begin(), (*edge_type).size(), edge_type_t{0});
+              cugraph::detail::sequence_fill(handle_.get_stream(),
+                                             (*sampled_edge_type).begin(),
+                                             (*sampled_edge_type).size(),
+                                             edge_type_t{0});
+            }
+
+            size_t pos = 0;
+            if (sampled_weights) {
+              sampled_weights =
+                std::move(std::get<rmm::device_uvector<weight_t>>(output_edge_properties[pos++]));
             }
 
             majors.emplace(std::move(output_majors));
@@ -1304,13 +1449,16 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
           CUGRAPH_FAIL("Can only use COO format if not renumbering");
         }
 
-        std::tie(src, dst, wgt, edge_id, edge_type, label_hop_offsets) =
+        std::vector<cugraph::arithmetic_device_uvector_t> output_edge_properties{};
+        if (sampled_weights) { output_edge_properties.push_back(std::move(*sampled_weights)); }
+        if (sampled_edge_ids) { output_edge_properties.push_back(std::move(*sampled_edge_ids)); }
+        if (sampled_edge_type) { output_edge_properties.push_back(std::move(*sampled_edge_type)); }
+
+        std::tie(sampled_srcs, sampled_dsts, output_edge_properties, label_hop_offsets) =
           cugraph::sort_sampled_edgelist(handle_,
-                                         std::move(src),
-                                         std::move(dst),
-                                         std::move(wgt),
-                                         std::move(edge_id),
-                                         std::move(edge_type),
+                                         std::move(sampled_srcs),
+                                         std::move(sampled_dsts),
+                                         std::move(output_edge_properties),
                                          std::move(hop),
                                          offsets
                                            ? std::make_optional(raft::device_span<size_t const>{
@@ -1323,9 +1471,22 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
                                          src_is_major,
                                          do_expensive_check_);
 
-        majors.emplace(std::move(src));
-        minors = std::move(dst);
+        majors.emplace(std::move(sampled_srcs));
+        minors = std::move(sampled_dsts);
 
+        size_t pos = 0;
+        if (sampled_weights) {
+          sampled_weights =
+            std::move(std::get<rmm::device_uvector<weight_t>>(output_edge_properties[pos++]));
+        }
+        if (sampled_edge_ids) {
+          sampled_edge_ids =
+            std::move(std::get<rmm::device_uvector<edge_t>>(output_edge_properties[pos++]));
+        }
+        if (sampled_edge_type) {
+          sampled_edge_type =
+            std::move(std::get<rmm::device_uvector<edge_type_t>>(output_edge_properties[pos++]));
+        }
         hop.reset();
         offsets.reset();
       }
@@ -1338,14 +1499,17 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
           ? new cugraph::c_api::cugraph_type_erased_device_array_t(*majors, graph_->vertex_type_)
           : nullptr,
         new cugraph::c_api::cugraph_type_erased_device_array_t(minors, graph_->vertex_type_),
-        (edge_id)
-          ? new cugraph::c_api::cugraph_type_erased_device_array_t(*edge_id, graph_->edge_type_)
-          : nullptr,
-        (edge_type) ? new cugraph::c_api::cugraph_type_erased_device_array_t(
-                        *edge_type, graph_->edge_type_id_type_)
-                    : nullptr,
-        (wgt) ? new cugraph::c_api::cugraph_type_erased_device_array_t(*wgt, graph_->weight_type_)
-              : nullptr,
+        (sampled_edge_ids) ? new cugraph::c_api::cugraph_type_erased_device_array_t(
+                               *sampled_edge_ids, graph_->edge_type_)
+                           : nullptr,
+        (sampled_edge_type) ? new cugraph::c_api::cugraph_type_erased_device_array_t(
+                                *sampled_edge_type, graph_->edge_type_id_type_)
+                            : nullptr,
+        (sampled_weights) ? new cugraph::c_api::cugraph_type_erased_device_array_t(
+                              *sampled_weights, graph_->weight_type_)
+                          : nullptr,
+        nullptr,
+        nullptr,
         (hop) ? new cugraph::c_api::cugraph_type_erased_device_array_t(*hop, INT32)
               : nullptr,  // FIXME get rid of this
         (label_hop_offsets)
@@ -1376,518 +1540,6 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
 };
 
 }  // namespace
-
-extern "C" cugraph_error_code_t cugraph_sampling_options_create(
-  cugraph_sampling_options_t** options, cugraph_error_t** error)
-{
-  *options =
-    reinterpret_cast<cugraph_sampling_options_t*>(new cugraph::c_api::cugraph_sampling_options_t());
-  if (*options == nullptr) {
-    *error = reinterpret_cast<cugraph_error_t*>(
-      new cugraph::c_api::cugraph_error_t{"invalid resource handle"});
-    return CUGRAPH_INVALID_HANDLE;
-  }
-
-  return CUGRAPH_SUCCESS;
-}
-
-extern "C" void cugraph_sampling_set_retain_seeds(cugraph_sampling_options_t* options, bool_t value)
-{
-  auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_sampling_options_t*>(options);
-  internal_pointer->retain_seeds_ = value;
-}
-
-extern "C" void cugraph_sampling_set_renumber_results(cugraph_sampling_options_t* options,
-                                                      bool_t value)
-{
-  auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_sampling_options_t*>(options);
-  internal_pointer->renumber_results_ = value;
-}
-
-extern "C" void cugraph_sampling_set_compress_per_hop(cugraph_sampling_options_t* options,
-                                                      bool_t value)
-{
-  auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_sampling_options_t*>(options);
-  internal_pointer->compress_per_hop_ = value;
-}
-
-extern "C" void cugraph_sampling_set_with_replacement(cugraph_sampling_options_t* options,
-                                                      bool_t value)
-{
-  auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_sampling_options_t*>(options);
-  internal_pointer->with_replacement_ = value;
-}
-
-extern "C" void cugraph_sampling_set_return_hops(cugraph_sampling_options_t* options, bool_t value)
-{
-  auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_sampling_options_t*>(options);
-  internal_pointer->return_hops_ = value;
-}
-
-extern "C" void cugraph_sampling_set_compression_type(cugraph_sampling_options_t* options,
-                                                      cugraph_compression_type_t value)
-{
-  auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_sampling_options_t*>(options);
-  switch (value) {
-    case COO: internal_pointer->compression_type_ = cugraph_compression_type_t::COO; break;
-    case CSR: internal_pointer->compression_type_ = cugraph_compression_type_t::CSR; break;
-    case CSC: internal_pointer->compression_type_ = cugraph_compression_type_t::CSC; break;
-    case DCSR: internal_pointer->compression_type_ = cugraph_compression_type_t::DCSR; break;
-    case DCSC: internal_pointer->compression_type_ = cugraph_compression_type_t::DCSC; break;
-    default: CUGRAPH_FAIL("Invalid compression type");
-  }
-}
-
-extern "C" void cugraph_sampling_set_prior_sources_behavior(cugraph_sampling_options_t* options,
-                                                            cugraph_prior_sources_behavior_t value)
-{
-  auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_sampling_options_t*>(options);
-  switch (value) {
-    case CARRY_OVER:
-      internal_pointer->prior_sources_behavior_ = cugraph::prior_sources_behavior_t::CARRY_OVER;
-      break;
-    case EXCLUDE:
-      internal_pointer->prior_sources_behavior_ = cugraph::prior_sources_behavior_t::EXCLUDE;
-      break;
-    default:
-      internal_pointer->prior_sources_behavior_ = cugraph::prior_sources_behavior_t::DEFAULT;
-      break;
-  }
-}
-
-extern "C" void cugraph_sampling_set_dedupe_sources(cugraph_sampling_options_t* options,
-                                                    bool_t value)
-{
-  auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_sampling_options_t*>(options);
-  internal_pointer->dedupe_sources_ = value;
-}
-
-extern "C" void cugraph_sampling_options_free(cugraph_sampling_options_t* options)
-{
-  auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_sampling_options_t*>(options);
-  delete internal_pointer;
-}
-
-extern "C" cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_sources(
-  const cugraph_sample_result_t* result)
-{
-  // Deprecated.
-  return cugraph_sample_result_get_majors(result);
-}
-
-extern "C" cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_destinations(
-  const cugraph_sample_result_t* result)
-{
-  // Deprecated.
-  return cugraph_sample_result_get_minors(result);
-}
-
-extern "C" cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_majors(
-  const cugraph_sample_result_t* result)
-{
-  auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_sample_result_t const*>(result);
-  return (internal_pointer->majors_ != nullptr)
-           ? reinterpret_cast<cugraph_type_erased_device_array_view_t*>(
-               internal_pointer->majors_->view())
-
-           : NULL;
-}
-
-extern "C" cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_major_offsets(
-  const cugraph_sample_result_t* result)
-{
-  auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_sample_result_t const*>(result);
-  return (internal_pointer->major_offsets_ != nullptr)
-           ? reinterpret_cast<cugraph_type_erased_device_array_view_t*>(
-               internal_pointer->major_offsets_->view())
-
-           : NULL;
-}
-
-extern "C" cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_minors(
-  const cugraph_sample_result_t* result)
-{
-  auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_sample_result_t const*>(result);
-  return reinterpret_cast<cugraph_type_erased_device_array_view_t*>(
-    internal_pointer->minors_->view());
-}
-
-extern "C" cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_start_labels(
-  const cugraph_sample_result_t* result)
-{
-  auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_sample_result_t const*>(result);
-  return internal_pointer->label_ != nullptr
-           ? reinterpret_cast<cugraph_type_erased_device_array_view_t*>(
-               internal_pointer->label_->view())
-           : NULL;
-}
-
-extern "C" cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_edge_id(
-  const cugraph_sample_result_t* result)
-{
-  auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_sample_result_t const*>(result);
-  return internal_pointer->edge_id_ != nullptr
-           ? reinterpret_cast<cugraph_type_erased_device_array_view_t*>(
-               internal_pointer->edge_id_->view())
-           : NULL;
-}
-
-extern "C" cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_edge_type(
-  const cugraph_sample_result_t* result)
-{
-  auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_sample_result_t const*>(result);
-  return internal_pointer->edge_type_ != nullptr
-           ? reinterpret_cast<cugraph_type_erased_device_array_view_t*>(
-               internal_pointer->edge_type_->view())
-           : NULL;
-}
-
-extern "C" cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_edge_weight(
-  const cugraph_sample_result_t* result)
-{
-  auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_sample_result_t const*>(result);
-  return internal_pointer->wgt_ != nullptr
-           ? reinterpret_cast<cugraph_type_erased_device_array_view_t*>(
-               internal_pointer->wgt_->view())
-           : NULL;
-}
-
-extern "C" cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_hop(
-  const cugraph_sample_result_t* result)
-{
-  auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_sample_result_t const*>(result);
-  return internal_pointer->hop_ != nullptr
-           ? reinterpret_cast<cugraph_type_erased_device_array_view_t*>(
-               internal_pointer->hop_->view())
-           : NULL;
-}
-
-extern "C" cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_label_hop_offsets(
-  const cugraph_sample_result_t* result)
-{
-  auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_sample_result_t const*>(result);
-  return internal_pointer->label_hop_offsets_ != nullptr
-           ? reinterpret_cast<cugraph_type_erased_device_array_view_t*>(
-               internal_pointer->label_hop_offsets_->view())
-           : NULL;
-}
-
-extern "C" cugraph_type_erased_device_array_view_t*
-cugraph_sample_result_get_label_type_hop_offsets(const cugraph_sample_result_t* result)
-{
-  auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_sample_result_t const*>(result);
-  return internal_pointer->label_type_hop_offsets_ != nullptr
-           ? reinterpret_cast<cugraph_type_erased_device_array_view_t*>(
-               internal_pointer->label_type_hop_offsets_->view())
-           : NULL;
-}
-
-extern "C" cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_index(
-  const cugraph_sample_result_t* result)
-{
-  auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_sample_result_t const*>(result);
-  return reinterpret_cast<cugraph_type_erased_device_array_view_t*>(
-    internal_pointer->edge_id_->view());
-}
-
-extern "C" cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_offsets(
-  const cugraph_sample_result_t* result)
-{
-  // Deprecated.
-  return cugraph_sample_result_get_label_hop_offsets(result);
-}
-
-extern "C" cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_renumber_map(
-  const cugraph_sample_result_t* result)
-{
-  auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_sample_result_t const*>(result);
-  return internal_pointer->renumber_map_ == nullptr
-           ? NULL
-           : reinterpret_cast<cugraph_type_erased_device_array_view_t*>(
-               internal_pointer->renumber_map_->view());
-}
-
-extern "C" cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_renumber_map_offsets(
-  const cugraph_sample_result_t* result)
-{
-  auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_sample_result_t const*>(result);
-  return internal_pointer->renumber_map_ == nullptr
-           ? NULL
-           : reinterpret_cast<cugraph_type_erased_device_array_view_t*>(
-               internal_pointer->renumber_map_offsets_->view());
-}
-
-extern "C" cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_edge_renumber_map(
-  const cugraph_sample_result_t* result)
-{
-  auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_sample_result_t const*>(result);
-  return internal_pointer->renumber_map_ == nullptr
-           ? NULL
-           : reinterpret_cast<cugraph_type_erased_device_array_view_t*>(
-               internal_pointer->edge_renumber_map_->view());
-}
-
-extern "C" cugraph_type_erased_device_array_view_t*
-cugraph_sample_result_get_edge_renumber_map_offsets(const cugraph_sample_result_t* result)
-{
-  auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_sample_result_t const*>(result);
-  return internal_pointer->renumber_map_ == nullptr
-           ? NULL
-           : reinterpret_cast<cugraph_type_erased_device_array_view_t*>(
-               internal_pointer->edge_renumber_map_offsets_->view());
-}
-
-extern "C" cugraph_error_code_t cugraph_test_uniform_neighborhood_sample_result_create(
-  const cugraph_resource_handle_t* handle,
-  const cugraph_type_erased_device_array_view_t* srcs,
-  const cugraph_type_erased_device_array_view_t* dsts,
-  const cugraph_type_erased_device_array_view_t* edge_id,
-  const cugraph_type_erased_device_array_view_t* edge_type,
-  const cugraph_type_erased_device_array_view_t* weight,
-  const cugraph_type_erased_device_array_view_t* hop,
-  const cugraph_type_erased_device_array_view_t* label,
-  cugraph_sample_result_t** result,
-  cugraph_error_t** error)
-{
-  *result = nullptr;
-  *error  = nullptr;
-  size_t n_bytes{0};
-  cugraph_error_code_t error_code{CUGRAPH_SUCCESS};
-
-  if (!handle) {
-    *error = reinterpret_cast<cugraph_error_t*>(
-      new cugraph::c_api::cugraph_error_t{"invalid resource handle"});
-    return CUGRAPH_INVALID_HANDLE;
-  }
-
-  // Create unique_ptrs and release them during cugraph_sample_result_t
-  // construction. This allows the arrays to be cleaned up if this function
-  // returns early on error.
-  using device_array_unique_ptr_t =
-    std::unique_ptr<cugraph_type_erased_device_array_t,
-                    decltype(&cugraph_type_erased_device_array_free)>;
-
-  // copy srcs to new device array
-  cugraph_type_erased_device_array_t* new_device_srcs_ptr{nullptr};
-  error_code =
-    cugraph_type_erased_device_array_create_from_view(handle, srcs, &new_device_srcs_ptr, error);
-  if (error_code != CUGRAPH_SUCCESS) return error_code;
-
-  device_array_unique_ptr_t new_device_srcs(new_device_srcs_ptr,
-                                            &cugraph_type_erased_device_array_free);
-
-  // copy dsts to new device array
-  cugraph_type_erased_device_array_t* new_device_dsts_ptr{nullptr};
-  error_code =
-    cugraph_type_erased_device_array_create_from_view(handle, dsts, &new_device_dsts_ptr, error);
-  if (error_code != CUGRAPH_SUCCESS) return error_code;
-
-  device_array_unique_ptr_t new_device_dsts(new_device_dsts_ptr,
-                                            &cugraph_type_erased_device_array_free);
-
-  // copy weights to new device array
-  cugraph_type_erased_device_array_t* new_device_weight_ptr{nullptr};
-  error_code = cugraph_type_erased_device_array_create_from_view(
-    handle, weight, &new_device_weight_ptr, error);
-  if (error_code != CUGRAPH_SUCCESS) return error_code;
-
-  device_array_unique_ptr_t new_device_weight(new_device_weight_ptr,
-                                              &cugraph_type_erased_device_array_free);
-
-  // copy edge ids to new device array
-  cugraph_type_erased_device_array_t* new_device_edge_id_ptr{nullptr};
-  error_code = cugraph_type_erased_device_array_create_from_view(
-    handle, edge_id, &new_device_edge_id_ptr, error);
-  if (error_code != CUGRAPH_SUCCESS) return error_code;
-
-  device_array_unique_ptr_t new_device_edge_id(new_device_edge_id_ptr,
-                                               &cugraph_type_erased_device_array_free);
-
-  // copy edge types to new device array
-  cugraph_type_erased_device_array_t* new_device_edge_type_ptr{nullptr};
-  error_code = cugraph_type_erased_device_array_create_from_view(
-    handle, edge_type, &new_device_edge_type_ptr, error);
-  if (error_code != CUGRAPH_SUCCESS) return error_code;
-
-  device_array_unique_ptr_t new_device_edge_type(new_device_edge_type_ptr,
-                                                 &cugraph_type_erased_device_array_free);
-  // copy hop ids to new device array
-  cugraph_type_erased_device_array_t* new_device_hop_ptr{nullptr};
-  error_code =
-    cugraph_type_erased_device_array_create_from_view(handle, hop, &new_device_hop_ptr, error);
-  if (error_code != CUGRAPH_SUCCESS) return error_code;
-
-  device_array_unique_ptr_t new_device_hop(new_device_hop_ptr,
-                                           &cugraph_type_erased_device_array_free);
-
-  // copy labels to new device array
-  cugraph_type_erased_device_array_t* new_device_label_ptr{nullptr};
-  error_code =
-    cugraph_type_erased_device_array_create_from_view(handle, label, &new_device_label_ptr, error);
-  if (error_code != CUGRAPH_SUCCESS) return error_code;
-
-  device_array_unique_ptr_t new_device_label(new_device_label_ptr,
-                                             &cugraph_type_erased_device_array_free);
-
-  // create new cugraph_sample_result_t
-  *result = reinterpret_cast<cugraph_sample_result_t*>(new cugraph::c_api::cugraph_sample_result_t{
-    nullptr,
-    reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_t*>(
-      new_device_srcs.release()),
-    reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_t*>(
-      new_device_dsts.release()),
-    reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_t*>(
-      new_device_edge_id.release()),
-    reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_t*>(
-      new_device_edge_type.release()),
-    reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_t*>(
-      new_device_weight.release()),
-    reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_t*>(new_device_hop.release()),
-    reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_t*>(
-      new_device_label.release())});
-
-  return CUGRAPH_SUCCESS;
-}
-
-extern "C" cugraph_error_code_t cugraph_test_sample_result_create(
-  const cugraph_resource_handle_t* handle,
-  const cugraph_type_erased_device_array_view_t* srcs,
-  const cugraph_type_erased_device_array_view_t* dsts,
-  const cugraph_type_erased_device_array_view_t* edge_id,
-  const cugraph_type_erased_device_array_view_t* edge_type,
-  const cugraph_type_erased_device_array_view_t* wgt,
-  const cugraph_type_erased_device_array_view_t* hop,
-  const cugraph_type_erased_device_array_view_t* label,
-  cugraph_sample_result_t** result,
-  cugraph_error_t** error)
-{
-  *result = nullptr;
-  *error  = nullptr;
-  size_t n_bytes{0};
-  cugraph_error_code_t error_code{CUGRAPH_SUCCESS};
-
-  if (!handle) {
-    *error = reinterpret_cast<cugraph_error_t*>(
-      new cugraph::c_api::cugraph_error_t{"invalid resource handle"});
-    return CUGRAPH_INVALID_HANDLE;
-  }
-
-  // Create unique_ptrs and release them during cugraph_sample_result_t
-  // construction. This allows the arrays to be cleaned up if this function
-  // returns early on error.
-  using device_array_unique_ptr_t =
-    std::unique_ptr<cugraph_type_erased_device_array_t,
-                    decltype(&cugraph_type_erased_device_array_free)>;
-
-  // copy srcs to new device array
-  cugraph_type_erased_device_array_t* new_device_srcs_ptr{nullptr};
-  error_code =
-    cugraph_type_erased_device_array_create_from_view(handle, srcs, &new_device_srcs_ptr, error);
-  if (error_code != CUGRAPH_SUCCESS) return error_code;
-
-  device_array_unique_ptr_t new_device_srcs(new_device_srcs_ptr,
-                                            &cugraph_type_erased_device_array_free);
-
-  // copy dsts to new device array
-  cugraph_type_erased_device_array_t* new_device_dsts_ptr{nullptr};
-  error_code =
-    cugraph_type_erased_device_array_create_from_view(handle, dsts, &new_device_dsts_ptr, error);
-  if (error_code != CUGRAPH_SUCCESS) return error_code;
-
-  device_array_unique_ptr_t new_device_dsts(new_device_dsts_ptr,
-                                            &cugraph_type_erased_device_array_free);
-
-  // copy edge_id to new device array
-  cugraph_type_erased_device_array_t* new_device_edge_id_ptr{nullptr};
-
-  if (edge_id != NULL) {
-    error_code = cugraph_type_erased_device_array_create_from_view(
-      handle, edge_id, &new_device_edge_id_ptr, error);
-    if (error_code != CUGRAPH_SUCCESS) return error_code;
-  }
-
-  device_array_unique_ptr_t new_device_edge_id(new_device_edge_id_ptr,
-                                               &cugraph_type_erased_device_array_free);
-
-  // copy edge_type to new device array
-  cugraph_type_erased_device_array_t* new_device_edge_type_ptr{nullptr};
-
-  if (edge_type != NULL) {
-    error_code = cugraph_type_erased_device_array_create_from_view(
-      handle, edge_type, &new_device_edge_type_ptr, error);
-    if (error_code != CUGRAPH_SUCCESS) return error_code;
-  }
-
-  device_array_unique_ptr_t new_device_edge_type(new_device_edge_type_ptr,
-                                                 &cugraph_type_erased_device_array_free);
-
-  // copy wgt to new device array
-  cugraph_type_erased_device_array_t* new_device_wgt_ptr{nullptr};
-  if (wgt != NULL) {
-    error_code =
-      cugraph_type_erased_device_array_create_from_view(handle, wgt, &new_device_wgt_ptr, error);
-    if (error_code != CUGRAPH_SUCCESS) return error_code;
-  }
-
-  device_array_unique_ptr_t new_device_wgt(new_device_wgt_ptr,
-                                           &cugraph_type_erased_device_array_free);
-
-  // copy hop to new device array
-  cugraph_type_erased_device_array_t* new_device_hop_ptr{nullptr};
-  error_code =
-    cugraph_type_erased_device_array_create_from_view(handle, hop, &new_device_hop_ptr, error);
-  if (error_code != CUGRAPH_SUCCESS) return error_code;
-
-  device_array_unique_ptr_t new_device_hop(new_device_hop_ptr,
-                                           &cugraph_type_erased_device_array_free);
-
-  // copy label to new device array
-  cugraph_type_erased_device_array_t* new_device_label_ptr{nullptr};
-
-  if (label != NULL) {
-    error_code = cugraph_type_erased_device_array_create_from_view(
-      handle, label, &new_device_label_ptr, error);
-    if (error_code != CUGRAPH_SUCCESS) return error_code;
-  }
-
-  device_array_unique_ptr_t new_device_label(new_device_label_ptr,
-                                             &cugraph_type_erased_device_array_free);
-
-  // create new cugraph_sample_result_t
-  *result = reinterpret_cast<cugraph_sample_result_t*>(new cugraph::c_api::cugraph_sample_result_t{
-    reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_t*>(
-      new_device_srcs.release()),
-    reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_t*>(
-      new_device_dsts.release()),
-    reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_t*>(
-      new_device_edge_id.release()),
-    reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_t*>(
-      new_device_edge_type.release()),
-    reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_t*>(new_device_wgt.release()),
-    reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_t*>(
-      new_device_label.release()),
-    reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_t*>(
-      new_device_hop.release())});
-
-  return CUGRAPH_SUCCESS;
-}
-
-extern "C" void cugraph_sample_result_free(cugraph_sample_result_t* result)
-{
-  auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_sample_result_t*>(result);
-  delete internal_pointer->major_offsets_;
-  delete internal_pointer->majors_;
-  delete internal_pointer->minors_;
-  delete internal_pointer->edge_id_;
-  delete internal_pointer->edge_type_;
-  delete internal_pointer->wgt_;
-  delete internal_pointer->hop_;
-  delete internal_pointer->label_hop_offsets_;
-  delete internal_pointer->label_;
-  delete internal_pointer->renumber_map_;
-  delete internal_pointer->renumber_map_offsets_;
-  delete internal_pointer;
-}
 
 cugraph_error_code_t cugraph_uniform_neighbor_sample(
   const cugraph_resource_handle_t* handle,

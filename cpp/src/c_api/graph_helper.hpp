@@ -30,5 +30,21 @@ template <typename GraphViewType, typename T>
 edge_property_t<typename GraphViewType::edge_type, T> create_constant_edge_property(
   raft::handle_t const& handle, GraphViewType const& graph_view, T constant_value);
 
+/**
+ * @ingroup utility_wrappers_cpp
+ * @brief    Cast the values of a cugraph_type_erased_device_array_view_t to the new type
+ *
+ * @tparam      new_type_t     type of the value to operate on. Must be either int32_t or int64_t.
+ *
+ * @param[out]  output      device span to update with new data type
+ * @param[in]   input       cugraph_type_erased_device_array_view_t with initial data type
+ * @param[in]   stream_view  stream view
+ *
+ */
+template <typename new_type_t>
+void copy_or_transform(raft::device_span<new_type_t> output,
+                       cugraph_type_erased_device_array_view_t const* input,
+                       rmm::cuda_stream_view const& stream_view);
+
 }  // namespace c_api
 }  // namespace cugraph

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,7 +22,7 @@
 
 #include <rmm/device_uvector.hpp>
 
-#include <thrust/tuple.h>
+#include <cuda/std/tuple>
 
 #include <numeric>
 #include <type_traits>
@@ -35,10 +35,10 @@ template <typename TupleType, size_t I, size_t N>
 struct update_vector_of_tuple_scalar_elements_from_tuple_impl {
   void update(std::vector<int64_t>& tuple_scalar_elements, TupleType const& tuple) const
   {
-    using element_t = typename thrust::tuple_element<I, TupleType>::type;
+    using element_t = typename cuda::std::tuple_element<I, TupleType>::type;
     static_assert(sizeof(element_t) <= sizeof(int64_t));
     auto ptr = reinterpret_cast<element_t*>(tuple_scalar_elements.data() + I);
-    *ptr     = thrust::get<I>(tuple);
+    *ptr     = cuda::std::get<I>(tuple);
     update_vector_of_tuple_scalar_elements_from_tuple_impl<TupleType, I + 1, N>().update(
       tuple_scalar_elements, tuple);
   }
@@ -53,10 +53,10 @@ template <typename TupleType, size_t I, size_t N>
 struct update_tuple_from_vector_of_tuple_scalar_elements_impl {
   void update(TupleType& tuple, std::vector<int64_t> const& tuple_scalar_elements) const
   {
-    using element_t = typename thrust::tuple_element<I, TupleType>::type;
+    using element_t = typename cuda::std::tuple_element<I, TupleType>::type;
     static_assert(sizeof(element_t) <= sizeof(int64_t));
-    auto ptr              = reinterpret_cast<element_t const*>(tuple_scalar_elements.data() + I);
-    thrust::get<I>(tuple) = *ptr;
+    auto ptr                 = reinterpret_cast<element_t const*>(tuple_scalar_elements.data() + I);
+    cuda::std::get<I>(tuple) = *ptr;
     update_tuple_from_vector_of_tuple_scalar_elements_impl<TupleType, I + 1, N>().update(
       tuple, tuple_scalar_elements);
   }
@@ -74,7 +74,7 @@ struct host_allreduce_tuple_scalar_element_impl {
            raft::comms::op_t op,
            cudaStream_t stream) const
   {
-    using element_t = typename thrust::tuple_element<I, TupleType>::type;
+    using element_t = typename cuda::std::tuple_element<I, TupleType>::type;
     static_assert(sizeof(element_t) <= sizeof(int64_t));
     auto ptr = reinterpret_cast<element_t*>(tuple_scalar_elements.data() + I);
     comm.allreduce(ptr, ptr, 1, op, stream);
@@ -101,7 +101,7 @@ struct host_reduce_tuple_scalar_element_impl {
            int root,
            cudaStream_t stream) const
   {
-    using element_t = typename thrust::tuple_element<I, TupleType>::type;
+    using element_t = typename cuda::std::tuple_element<I, TupleType>::type;
     static_assert(sizeof(element_t) <= sizeof(int64_t));
     auto ptr = reinterpret_cast<element_t*>(tuple_scalar_elements.data() + I);
     comm.reduce(ptr, ptr, 1, op, root, stream);
@@ -141,7 +141,7 @@ template <typename T>
 std::enable_if_t<cugraph::is_thrust_tuple_of_arithmetic<T>::value, T> host_scalar_allreduce(
   raft::comms::comms_t const& comm, T input, raft::comms::op_t op, cudaStream_t stream)
 {
-  size_t constexpr tuple_size = thrust::tuple_size<T>::value;
+  size_t constexpr tuple_size = cuda::std::tuple_size<T>::value;
   std::vector<int64_t> h_tuple_scalar_elements(tuple_size);
   rmm::device_uvector<int64_t> d_tuple_scalar_elements(tuple_size, stream);
   T ret{};
@@ -182,7 +182,7 @@ template <typename T>
 std::enable_if_t<cugraph::is_thrust_tuple_of_arithmetic<T>::value, T> host_scalar_reduce(
   raft::comms::comms_t const& comm, T input, raft::comms::op_t op, int root, cudaStream_t stream)
 {
-  size_t constexpr tuple_size = thrust::tuple_size<T>::value;
+  size_t constexpr tuple_size = cuda::std::tuple_size<T>::value;
   std::vector<int64_t> h_tuple_scalar_elements(tuple_size);
   rmm::device_uvector<int64_t> d_tuple_scalar_elements(tuple_size, stream);
   T ret{};
@@ -225,7 +225,7 @@ template <typename T>
 std::enable_if_t<cugraph::is_thrust_tuple_of_arithmetic<T>::value, T> host_scalar_bcast(
   raft::comms::comms_t const& comm, T input, int root, cudaStream_t stream)
 {
-  size_t constexpr tuple_size = thrust::tuple_size<T>::value;
+  size_t constexpr tuple_size = cuda::std::tuple_size<T>::value;
   std::vector<int64_t> h_tuple_scalar_elements(tuple_size);
   rmm::device_uvector<int64_t> d_tuple_scalar_elements(tuple_size, stream);
   auto ret = input;
@@ -269,7 +269,7 @@ template <typename T>
 std::enable_if_t<cugraph::is_thrust_tuple_of_arithmetic<T>::value, std::vector<T>>
 host_scalar_allgather(raft::comms::comms_t const& comm, T input, cudaStream_t stream)
 {
-  size_t constexpr tuple_size = thrust::tuple_size<T>::value;
+  size_t constexpr tuple_size = cuda::std::tuple_size<T>::value;
   std::vector<int64_t> h_tuple_scalar_elements(tuple_size);
   rmm::device_uvector<int64_t> d_allgathered_tuple_scalar_elements(comm.get_size() * tuple_size,
                                                                    stream);
@@ -338,7 +338,7 @@ std::enable_if_t<cugraph::is_thrust_tuple_of_arithmetic<T>::value, T> host_scala
     ((comm.get_rank() == root) && (inputs.size() == static_cast<size_t>(comm.get_size()))) ||
       ((comm.get_rank() != root) && (inputs.size() == 0)),
     "inputs.size() should match with comm.get_size() in root and should be 0 otherwise.");
-  size_t constexpr tuple_size = thrust::tuple_size<T>::value;
+  size_t constexpr tuple_size = cuda::std::tuple_size<T>::value;
   rmm::device_uvector<int64_t> d_scatter_tuple_scalar_elements(comm.get_size() * tuple_size,
                                                                stream);
   if (comm.get_rank() == root) {
@@ -399,7 +399,7 @@ template <typename T>
 std::enable_if_t<cugraph::is_thrust_tuple_of_arithmetic<T>::value, std::vector<T>>
 host_scalar_gather(raft::comms::comms_t const& comm, T input, int root, cudaStream_t stream)
 {
-  size_t constexpr tuple_size = thrust::tuple_size<T>::value;
+  size_t constexpr tuple_size = cuda::std::tuple_size<T>::value;
   std::vector<int64_t> h_tuple_scalar_elements(tuple_size);
   rmm::device_uvector<int64_t> d_gathered_tuple_scalar_elements(
     comm.get_rank() == root ? comm.get_size() * tuple_size : tuple_size, stream);

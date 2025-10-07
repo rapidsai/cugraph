@@ -193,6 +193,8 @@ void overlap_list(legacy::GraphCSRView<VT, ET, WT> const& graph,
  *
  * @param[in] handle                            Library handle (RAFT). If a communicator is set in
  * the handle, the multi GPU version will be selected.
+ * @param[in] rng_state                         The RngState instance holding pseudo-random number
+ * generator state.
  * @param[in] graph                             cuGraph graph descriptor, should contain the
  * connectivity information as a COO. Graph is considered undirected. Edge weights are used for this
  * algorithm and set to 1 by default.
@@ -207,6 +209,10 @@ void overlap_list(legacy::GraphCSRView<VT, ET, WT> const& graph,
  * @param[in] lin_log_mode                      Switch ForceAtlas’ model from lin-lin to lin-log
  * (tribute to Andreas Noack). Makes clusters more tight.
  * @param[in] prevent_overlapping               Prevent nodes from overlapping.
+ * @param[in] vertex_radius_values              Radius of each vertex, used when prevent_overlapping
+ * is set.
+ * @param[in] overlap_scaling_ratio             When prevent_overlapping is set, scales the
+ * repulsion force between two nodes that are overlapping.
  * @param[in] edge_weight_influence             How much influence you give to the edges weight. 0
  * is “no influence” and 1 is “normal”.
  * @param[in] jitter_tolerance                  How much swinging you allow. Above 1 discouraged.
@@ -215,22 +221,24 @@ void overlap_list(legacy::GraphCSRView<VT, ET, WT> const& graph,
  * slower exact version.
  * @param[in] barnes_hut_theta:                 Float between 0 and 1. Tradeoff for speed (1) vs
  * accuracy (0) for Barnes Hut only.
- * @params[in] scaling_ratio                    Float strictly positive. How much repulsion you
+ * @param[in] scaling_ratio                    Float strictly positive. How much repulsion you
  * want. More makes a more sparse graph. Switching from regular mode to LinLog mode needs a
  * readjustment of the scaling parameter.
- * @params[in] strong_gravity_mode              Sets a force
+ * @param[in] strong_gravity_mode              Sets a force
  * that attracts the nodes that are distant from the center more. It is so strong that it can
  * sometimes dominate other forces.
- * @params[in] gravity                          Attracts nodes to the center. Prevents islands from
+ * @param[in] gravity                          Attracts nodes to the center. Prevents islands from
  * drifting away.
- * @params[in] verbose                          Output convergence info at each interation.
- * @params[in] callback                         An instance of GraphBasedDimRedCallback class to
+ * @param[in] vertex_mobility_values           Device array containing mobility of each vertex
+ * (scaling factor for the displacement at each iteration).
+ * @param[in] verbose                          Output convergence info at each interation.
+ * @param[in] callback                         An instance of GraphBasedDimRedCallback class to
  * intercept the internal state of positions while they are being trained.
  *
  */
 template <typename vertex_t, typename edge_t, typename weight_t>
 void force_atlas2(raft::handle_t const& handle,
-                  // raft::random::RngState& rng_state,
+                  raft::random::RngState& rng_state,
                   legacy::GraphCOOView<vertex_t, edge_t, weight_t>& graph,
                   float* pos,
                   const int max_iter                            = 500,
@@ -239,6 +247,8 @@ void force_atlas2(raft::handle_t const& handle,
                   bool outbound_attraction_distribution         = true,
                   bool lin_log_mode                             = false,
                   bool prevent_overlapping                      = false,
+                  float* vertex_radius_values                   = nullptr,
+                  const float overlap_scaling_ratio             = 100.0,
                   const float edge_weight_influence             = 1.0,
                   const float jitter_tolerance                  = 1.0,
                   bool barnes_hut_optimize                      = true,
@@ -246,6 +256,7 @@ void force_atlas2(raft::handle_t const& handle,
                   const float scaling_ratio                     = 2.0,
                   bool strong_gravity_mode                      = false,
                   const float gravity                           = 1.0,
+                  float* vertex_mobility_values                 = nullptr,
                   bool verbose                                  = false,
                   internals::GraphBasedDimRedCallback* callback = nullptr);
 
@@ -879,6 +890,8 @@ std::unique_ptr<legacy::GraphCOO<VT, ET, WT>> extract_subgraph_vertex(
  * 32-bit)
  * @tparam WT                        Type of edge weights. Supported values : float or double.
  *
+ * @param[in]  handle                Library handle (RAFT). If a communicator is set in the handle,
+ * @param[in]  rng_state         The RngState instance holding pseudo-random number generator state.
  * @param[in]  graph                 input graph object (CSR)
  * @param[in]  num_clusters          The desired number of clusters
  * @param[in]  num_eigen_vects       The number of eigenvectors to use
@@ -892,7 +905,9 @@ std::unique_ptr<legacy::GraphCOO<VT, ET, WT>> extract_subgraph_vertex(
 
 namespace ext_raft {
 template <typename VT, typename ET, typename WT>
-void balancedCutClustering(legacy::GraphCSRView<VT, ET, WT> const& graph,
+void balancedCutClustering(raft::handle_t const& handle,
+                           raft::random::RngState& rng_state,
+                           legacy::GraphCSRView<VT, ET, WT> const& graph,
                            VT num_clusters,
                            VT num_eigen_vects,
                            WT evs_tolerance,
@@ -913,6 +928,8 @@ void balancedCutClustering(legacy::GraphCSRView<VT, ET, WT> const& graph,
  * 32-bit)
  * @tparam WT                        Type of edge weights. Supported values : float or double.
  *
+ * @param[in]  handle                Library handle (RAFT). If a communicator is set in the handle,
+ * @param[in]  rng_state         The RngState instance holding pseudo-random number generator state.
  * @param[in]  graph                 input graph object (CSR)
  * @param[in]  num_clusters          The desired number of clusters
  * @param[in]  num_eigen_vects       The number of eigenvectors to use
@@ -924,7 +941,9 @@ void balancedCutClustering(legacy::GraphCSRView<VT, ET, WT> const& graph,
  * be stored
  */
 template <typename VT, typename ET, typename WT>
-void spectralModularityMaximization(legacy::GraphCSRView<VT, ET, WT> const& graph,
+void spectralModularityMaximization(raft::handle_t const& handle,
+                                    raft::random::RngState& rng_state,
+                                    legacy::GraphCSRView<VT, ET, WT> const& graph,
                                     VT n_clusters,
                                     VT n_eig_vects,
                                     WT evs_tolerance,
@@ -945,13 +964,15 @@ void spectralModularityMaximization(legacy::GraphCSRView<VT, ET, WT> const& grap
  * 32-bit)
  * @tparam WT                        Type of edge weights. Supported values : float or double.
  *
+ * @param[in]  handle                Library handle (RAFT). If a communicator is set in the handle,
  * @param[in]  graph                 input graph object (CSR)
  * @param[in]  n_clusters            Number of clusters in the clustering
  * @param[in]  clustering            Pointer to device array containing the clustering to analyze
  * @param[out] score                 Pointer to a float in which the result will be written
  */
 template <typename VT, typename ET, typename WT>
-void analyzeClustering_modularity(legacy::GraphCSRView<VT, ET, WT> const& graph,
+void analyzeClustering_modularity(raft::handle_t const& handle,
+                                  legacy::GraphCSRView<VT, ET, WT> const& graph,
                                   int n_clusters,
                                   VT const* clustering,
                                   WT* score);
@@ -968,13 +989,15 @@ void analyzeClustering_modularity(legacy::GraphCSRView<VT, ET, WT> const& graph,
  * 32-bit)
  * @tparam WT                        Type of edge weights. Supported values : float or double.
  *
+ * @param[in]  handle                Library handle (RAFT). If a communicator is set in the handle,
  * @param[in]  graph                 input graph object (CSR)
  * @param[in]  n_clusters            Number of clusters in the clustering
  * @param[in]  clustering            Pointer to device array containing the clustering to analyze
  * @param[out] score                 Pointer to a float in which the result will be written
  */
 template <typename VT, typename ET, typename WT>
-void analyzeClustering_edge_cut(legacy::GraphCSRView<VT, ET, WT> const& graph,
+void analyzeClustering_edge_cut(raft::handle_t const& handle,
+                                legacy::GraphCSRView<VT, ET, WT> const& graph,
                                 int n_clusters,
                                 VT const* clustering,
                                 WT* score);
@@ -991,13 +1014,15 @@ void analyzeClustering_edge_cut(legacy::GraphCSRView<VT, ET, WT> const& graph,
  * 32-bit)
  * @tparam WT                        Type of edge weights. Supported values : float or double.
  *
+ * @param[in]  handle                Library handle (RAFT). If a communicator is set in the handle,
  * @param[in]  graph                 input graph object (CSR)
  * @param[in]  n_clusters            Number of clusters in the clustering
  * @param[in]  clustering            Pointer to device array containing the clustering to analyze
  * @param[out] score                 Pointer to a float in which the result will be written
  */
 template <typename VT, typename ET, typename WT>
-void analyzeClustering_ratio_cut(legacy::GraphCSRView<VT, ET, WT> const& graph,
+void analyzeClustering_ratio_cut(raft::handle_t const& handle,
+                                 legacy::GraphCSRView<VT, ET, WT> const& graph,
                                  int n_clusters,
                                  VT const* clustering,
                                  WT* score);

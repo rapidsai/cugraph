@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2024, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2019-2025, NVIDIA CORPORATION.  All rights reserved.
  *
  * NVIDIA CORPORATION and its licensors retain all intellectual property
  * and proprietary rights in and to this software, related documentation
@@ -44,13 +44,20 @@ TEST(balanced_edge, success)
 
   std::vector<int> cluster_id(num_verts, -1);
 
-  rmm::device_vector<int> offsets_v(off_h);
-  rmm::device_vector<int> indices_v(ind_h);
-  rmm::device_vector<float> weights_v(w_h);
-  rmm::device_vector<int> result_v(cluster_id);
+  raft::handle_t handle{};
+
+  rmm::device_uvector<int> offsets_v(off_h.size(), handle.get_stream());
+  rmm::device_uvector<int> indices_v(ind_h.size(), handle.get_stream());
+  rmm::device_uvector<float> weights_v(w_h.size(), handle.get_stream());
+  rmm::device_uvector<int> result_v(cluster_id.size(), handle.get_stream());
+
+  raft::copy(offsets_v.data(), off_h.data(), off_h.size(), handle.get_stream());
+  raft::copy(indices_v.data(), ind_h.data(), ind_h.size(), handle.get_stream());
+  raft::copy(weights_v.data(), w_h.data(), w_h.size(), handle.get_stream());
+  raft::copy(result_v.data(), cluster_id.data(), cluster_id.size(), handle.get_stream());
 
   cugraph::legacy::GraphCSRView<int, int, float> G(
-    offsets_v.data().get(), indices_v.data().get(), weights_v.data().get(), num_verts, num_edges);
+    offsets_v.data(), indices_v.data(), weights_v.data(), num_verts, num_edges);
 
   int num_clusters{8};
   int num_eigenvectors{8};
@@ -60,15 +67,20 @@ TEST(balanced_edge, success)
   int kmean_max_iter{100};
   float score;
 
-  cugraph::ext_raft::balancedCutClustering(G,
+  constexpr uint64_t seed{0};
+  raft::random::RngState rng_state(seed);
+
+  cugraph::ext_raft::balancedCutClustering(handle,
+                                           rng_state,
+                                           G,
                                            num_clusters,
                                            num_eigenvectors,
                                            evs_tolerance,
                                            evs_max_iter,
                                            kmean_tolerance,
                                            kmean_max_iter,
-                                           result_v.data().get());
-  cugraph::ext_raft::analyzeClustering_edge_cut(G, num_clusters, result_v.data().get(), &score);
+                                           result_v.data());
+  cugraph::ext_raft::analyzeClustering_edge_cut(handle, G, num_clusters, result_v.data(), &score);
 
   std::cout << "score = " << score << std::endl;
   ASSERT_LT(score, float{55.0});

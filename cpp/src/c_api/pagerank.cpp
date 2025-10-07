@@ -93,7 +93,8 @@ struct pagerank_functor : public cugraph::c_api::abstract_functor {
   template <typename vertex_t,
             typename edge_t,
             typename weight_t,
-            typename edge_type_type_t,
+            typename edge_type_t,
+            typename edge_time_t,
             bool store_transposed,
             bool multi_gpu>
   void operator()()
@@ -138,9 +139,12 @@ struct pagerank_functor : public cugraph::c_api::abstract_functor {
                    handle_.get_stream());
 
         if constexpr (multi_gpu) {
-          std::tie(personalization_vertices, personalization_values) =
-            cugraph::shuffle_ext_vertex_value_pairs(
-              handle_, std::move(personalization_vertices), std::move(personalization_values));
+          std::vector<cugraph::arithmetic_device_uvector_t> vertex_properties{};
+          vertex_properties.push_back(std::move(personalization_values));
+          std::tie(personalization_vertices, vertex_properties) = cugraph::shuffle_ext_vertices(
+            handle_, std::move(personalization_vertices), std::move(vertex_properties));
+          personalization_values =
+            std::move(std::get<rmm::device_uvector<weight_t>>(vertex_properties[0]));
         }
         //
         // Need to renumber personalization_vertices
