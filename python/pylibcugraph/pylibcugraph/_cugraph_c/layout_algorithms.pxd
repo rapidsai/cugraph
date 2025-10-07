@@ -84,6 +84,8 @@ cdef extern from "cugraph_c/layout_algorithms.h":
         double gravity,
         cugraph_type_erased_device_array_view_t* vertex_mobility_vertices,
         cugraph_type_erased_device_array_view_t* vertex_mobility_values,
+        cugraph_type_erased_device_array_view_t* vertex_mass_vertices,
+        cugraph_type_erased_device_array_view_t* vertex_mass_values,
         bool_t verbose,
         bool_t do_expensive_check,
         cugraph_layout_result_t** result,

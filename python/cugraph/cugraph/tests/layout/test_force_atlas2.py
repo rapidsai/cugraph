@@ -73,6 +73,7 @@ def cugraph_call(
     strong_gravity_mode,
     gravity,
     vertex_mobility,
+    vertex_mass,
     callback=None,
     renumber=False,
 ):
@@ -103,6 +104,7 @@ def cugraph_call(
         strong_gravity_mode=strong_gravity_mode,
         gravity=gravity,
         vertex_mobility=vertex_mobility,
+        vertex_mass=vertex_mass,
         callback=callback,
     )
     t2 = time.time() - t1
@@ -188,6 +190,7 @@ def test_force_atlas2(graph_file, score, max_iter, barnes_hut_optimize):
             strong_gravity_mode=False,
             gravity=1.0,
             vertex_mobility=None,
+            vertex_mass=None,
             callback=test_callback,
         )
     """
@@ -270,6 +273,7 @@ def test_force_atlas2_noverlap(graph_file, radius, max_overlaps, max_iter):
         strong_gravity_mode=False,
         gravity=1.0,
         vertex_mobility=None,
+        vertex_mass=None,
         callback=None,
     )
 
@@ -315,6 +319,7 @@ def test_force_atlas2_mobility(graph_file, max_iter, fixed_node_cnt):
         strong_gravity_mode=False,
         gravity=1.0,
         vertex_mobility=None,
+        vertex_mass=None,
         callback=None,
     )
 
@@ -336,6 +341,7 @@ def test_force_atlas2_mobility(graph_file, max_iter, fixed_node_cnt):
         strong_gravity_mode=False,
         gravity=1.0,
         vertex_mobility=mobility_df,
+        vertex_mass=None,
         callback=None,
     )
 
@@ -351,3 +357,88 @@ def test_force_atlas2_mobility(graph_file, max_iter, fixed_node_cnt):
     assert fixed_nodes.sum() == fixed_node_cnt
     assert (pos_difference.loc[fixed_nodes, "move_dist"] == 0.0).all()
     assert (pos_difference.loc[~fixed_nodes, "move_dist"] > 0.0).all()
+
+
+@pytest.mark.sg
+@pytest.mark.parametrize("max_iter", MAX_ITERATIONS)
+@pytest.mark.parametrize("barnes_hut_optimize", BARNES_HUT_OPTIMIZE)
+def test_force_atlas2_mass(max_iter, barnes_hut_optimize):
+    (v0, v1, v2, v3) = range(4)
+    edge_dict = {
+        "src": [v0, v0, v0, v1, v2, v3],
+        "dst": [v1, v3, v2, v0, v0, v0],
+        "wgt": 6 * [1.0],
+    }
+    edgelist_df = cudf.DataFrame(edge_dict)
+
+    # v1, v2, v3 should be approximately equidistant from v0 and each other
+    default_pos = cugraph_call(
+        edgelist_df,
+        max_iter=max_iter,
+        pos_list=None,
+        outbound_attraction_distribution=True,
+        lin_log_mode=False,
+        prevent_overlapping=False,
+        vertex_radius=None,
+        overlap_scaling_ratio=100.0,
+        edge_weight_influence=1.0,
+        jitter_tolerance=1.0,
+        barnes_hut_optimize=barnes_hut_optimize,
+        barnes_hut_theta=0.5,
+        scaling_ratio=2.0,
+        strong_gravity_mode=False,
+        gravity=1.0,
+        vertex_mobility=None,
+        vertex_mass=None,
+        callback=None,
+    )
+    data = default_pos.set_index("vertex").sort_index().values.get()
+    distances = scipy.spatial.distance.cdist(data, data)
+
+    # Within 10% is close enough
+    rel = 0.1
+    # Equidistance from v0
+    assert pytest.approx(distances[0, 1], rel=rel) == distances[0, 2]
+    assert pytest.approx(distances[0, 1], rel=rel) == distances[0, 3]
+    assert pytest.approx(distances[0, 2], rel=rel) == distances[0, 3]
+    # Equidistance from each other (v1, v2, v3)
+    assert pytest.approx(distances[1, 2], rel=rel) == distances[1, 3]
+    assert pytest.approx(distances[1, 2], rel=rel) == distances[2, 3]
+    assert pytest.approx(distances[1, 3], rel=rel) == distances[2, 3]
+
+    # Now make v3 much larger (repels other vertices)
+    vertex_mass = cudf.DataFrame({"vertex": [v0, v1, v2, v3], "mass": [4, 2, 2, 20.0]})
+    vertex_mass["mass"] = vertex_mass["mass"].astype("float32")
+
+    pos_2 = cugraph_call(
+        edgelist_df,
+        max_iter=max_iter,
+        pos_list=None,
+        outbound_attraction_distribution=True,
+        lin_log_mode=False,
+        prevent_overlapping=False,
+        vertex_radius=None,
+        overlap_scaling_ratio=100.0,
+        edge_weight_influence=1.0,
+        jitter_tolerance=1.0,
+        barnes_hut_optimize=barnes_hut_optimize,
+        barnes_hut_theta=0.5,
+        scaling_ratio=2.0,
+        strong_gravity_mode=False,
+        gravity=1.0,
+        vertex_mobility=None,
+        vertex_mass=vertex_mass,
+        callback=None,
+    )
+    data = pos_2.set_index("vertex").sort_index().values.get()
+    distances = scipy.spatial.distance.cdist(data, data)
+
+    # v1 and v2 should be equidistance from v0
+    assert pytest.approx(distances[0, 1], rel=rel) == distances[0, 2]
+    # and from v3
+    assert pytest.approx(distances[3, 1], rel=rel) == distances[3, 2]
+    # v3 should be much further from v0 than v1 or v2
+    assert distances[0, 3] / distances[0, 1] > 4.0
+    assert distances[0, 3] / distances[0, 2] > 4.0
+    assert distances[1, 3] / distances[1, 0] > 4.0
+    assert distances[2, 3] / distances[2, 0] > 4.0

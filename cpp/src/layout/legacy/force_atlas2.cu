@@ -40,6 +40,7 @@ void force_atlas2(raft::handle_t const& handle,
                   bool strong_gravity_mode,
                   const float gravity,
                   float* vertex_mobility,
+                  float* vertex_mass,
                   bool verbose,
                   internals::GraphBasedDimRedCallback* callback)
 {
@@ -65,6 +66,7 @@ void force_atlas2(raft::handle_t const& handle,
                                                            strong_gravity_mode,
                                                            gravity,
                                                            vertex_mobility,
+                                                           vertex_mass,
                                                            verbose,
                                                            callback);
   } else {
@@ -87,6 +89,7 @@ void force_atlas2(raft::handle_t const& handle,
                                                             strong_gravity_mode,
                                                             gravity,
                                                             vertex_mobility,
+                                                            vertex_mass,
                                                             verbose,
                                                             callback);
   }
@@ -113,6 +116,7 @@ template void force_atlas2<int32_t, int32_t, float>(
   bool strong_gravity_mode,
   const float gravity,
   float* vertex_mobility,
+  float* vertex_mass,
   bool verbose,
   internals::GraphBasedDimRedCallback* callback);
 
@@ -137,6 +141,7 @@ template void force_atlas2<int32_t, int32_t, double>(
   bool strong_gravity_mode,
   const float gravity,
   float* vertex_mobility,
+  float* vertex_mass,
   bool verbose,
   internals::GraphBasedDimRedCallback* callback);
 
@@ -161,6 +166,7 @@ template void force_atlas2<int64_t, int64_t, float>(
   bool strong_gravity_mode,
   const float gravity,
   float* vertex_mobility,
+  float* vertex_mass,
   bool verbose,
   internals::GraphBasedDimRedCallback* callback);
 
@@ -185,6 +191,7 @@ template void force_atlas2<int64_t, int64_t, double>(
   bool strong_gravity_mode,
   const float gravity,
   float* vertex_mobility,
+  float* vertex_mass,
   bool verbose,
   internals::GraphBasedDimRedCallback* callback);
 

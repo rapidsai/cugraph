@@ -67,11 +67,10 @@ __global__ static void ResetKernel(float* restrict radiusd_squared,
 /**
  * Figures the bounding boxes for every point in the embedding.
  */
-template <typename edge_t>
 __global__ static __launch_bounds__(THREADS1,
                                     FACTOR1) void BoundingBoxKernel(int* restrict startd,
                                                                     int* restrict childd,
-                                                                    edge_t* restrict massd,
+                                                                    float* restrict massd,
                                                                     float* restrict posxd,
                                                                     float* restrict posyd,
                                                                     float* restrict maxxd,
@@ -298,9 +297,8 @@ __global__ static __launch_bounds__(THREADS2,
 /**
  * Clean more state vectors.
  */
-template <typename edge_t>
 __global__ static __launch_bounds__(1024, 1) void ClearKernel2(int* restrict startd,
-                                                               edge_t* restrict massd,
+                                                               float* restrict massd,
                                                                const int NNODES,
                                                                const int* restrict bottomd)
 {
@@ -320,11 +318,10 @@ __global__ static __launch_bounds__(1024, 1) void ClearKernel2(int* restrict sta
 /**
  * Summarize the KD Tree via cell gathering
  */
-template <typename edge_t>
 __global__ static __launch_bounds__(THREADS3, FACTOR3) void SummarizationKernel(
   int* restrict countd,
   const int* restrict childd,
-  volatile edge_t* restrict massd,
+  volatile float* restrict massd,
   float* restrict posxd,
   float* restrict posyd,
   const int NNODES,
@@ -334,7 +331,7 @@ __global__ static __launch_bounds__(THREADS3, FACTOR3) void SummarizationKernel(
   bool flag = 0;
   float cm, px, py;
   __shared__ int child[THREADS3 * 4];
-  __shared__ int mass[THREADS3 * 4];
+  __shared__ float mass[THREADS3 * 4];
 
   const int bottom = bottomd[0];
   const int inc    = blockDim.x * gridDim.x;
@@ -507,7 +504,6 @@ __global__ static __launch_bounds__(THREADS4,
 /**
  * Calculate the repulsive forces using the KD Tree
  */
-template <typename edge_t>
 __global__ static __launch_bounds__(
   THREADS5, FACTOR5) void RepulsionKernel(/* int *restrict errd, */
                                           const float scaling_ratio,
@@ -515,7 +511,7 @@ __global__ static __launch_bounds__(
                                           const float epssqd,  // correction for zero distance
                                           const int* restrict sortd,
                                           const int* restrict childd,
-                                          const edge_t* restrict massd,
+                                          const float* restrict massd,
                                           const float* restrict posxd,
                                           const float* restrict posyd,
                                           float* restrict velxd,
