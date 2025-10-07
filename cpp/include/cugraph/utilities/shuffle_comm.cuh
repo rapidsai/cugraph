@@ -854,10 +854,10 @@ rmm::device_uvector<size_t> groupby_and_count(
   return d_tx_value_counts;
 }
 
-template <typename VertexIterator, typename ValueIterator, typename KeyToGroupIdOp>
+template <typename KeyIterator, typename ValueIterator, typename KeyToGroupIdOp>
 rmm::device_uvector<size_t> groupby_and_count(
-  VertexIterator tx_key_first /* [INOUT */,
-  VertexIterator tx_key_last /* [INOUT */,
+  KeyIterator tx_key_first /* [INOUT */,
+  KeyIterator tx_key_last /* [INOUT */,
   ValueIterator tx_value_first /* [INOUT */,
   KeyToGroupIdOp key_to_group_id_op,
   int num_groups,
@@ -1293,18 +1293,18 @@ auto groupby_gpu_id_and_shuffle_values(
   return std::make_tuple(std::move(rx_value_buffer), rx_counts);
 }
 
-template <typename VertexIterator, typename ValueIterator, typename KeyToGPUIdOp>
+template <typename KeyIterator, typename ValueIterator, typename KeyToGPUIdOp>
 auto groupby_gpu_id_and_shuffle_kv_pairs(
   raft::comms::comms_t const& comm,
-  VertexIterator tx_key_first /* [INOUT */,
-  VertexIterator tx_key_last /* [INOUT */,
+  KeyIterator tx_key_first /* [INOUT */,
+  KeyIterator tx_key_last /* [INOUT */,
   ValueIterator tx_value_first /* [INOUT */,
   KeyToGPUIdOp key_to_gpu_id_op,
   rmm::cuda_stream_view stream_view,
   std::optional<large_buffer_type_t> large_buffer_type = std::nullopt)
 {
-  using vertex_t = typename thrust::iterator_traits<VertexIterator>::value_type;
-  using value_t  = typename thrust::iterator_traits<ValueIterator>::value_type;
+  using key_t   = typename thrust::iterator_traits<KeyIterator>::value_type;
+  using value_t = typename thrust::iterator_traits<ValueIterator>::value_type;
 
   CUGRAPH_EXPECTS(!large_buffer_type || large_buffer_manager::memory_buffer_initialized(),
                   "Invalid input argument: large memory buffer is not initialized.");
@@ -1334,9 +1334,9 @@ auto groupby_gpu_id_and_shuffle_kv_pairs(
       stream_view);
 
   auto rx_buffer_size = rx_displs.size() > 0 ? rx_displs.back() + rx_counts.back() : size_t{0};
-  auto rx_keys        = large_buffer_type ? large_buffer_manager::allocate_memory_buffer<vertex_t>(
+  auto rx_keys        = large_buffer_type ? large_buffer_manager::allocate_memory_buffer<key_t>(
                                        rx_buffer_size, stream_view)
-                                          : rmm::device_uvector<vertex_t>(rx_buffer_size, stream_view);
+                                          : rmm::device_uvector<key_t>(rx_buffer_size, stream_view);
   auto rx_value_buffer =
     large_buffer_type
       ? large_buffer_manager::allocate_memory_buffer<value_t>(rx_buffer_size, stream_view)
