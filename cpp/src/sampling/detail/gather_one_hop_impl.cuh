@@ -554,7 +554,7 @@ temporal_gather_one_hop_edgelist(
                                    case temporal_sampling_comparison_t::MONOTONICALLY_DECREASING:
                                      return (edge_time <= key_time);
                                  }
-                                 return false;
+                                 assert(false);
                                })
         : detail::mark_entries(handle,
                                edge_times.size(),
@@ -574,7 +574,7 @@ temporal_gather_one_hop_edgelist(
                                    case temporal_sampling_comparison_t::MONOTONICALLY_DECREASING:
                                      return (edge_time <= key_time);
                                  }
-                                 return false;
+                                 assert(false);
                                });
 
     raft::device_span<uint32_t const> marked_entry_span{marked_entries.data(),
