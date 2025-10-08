@@ -1,3 +1,73 @@
+# cugraph 25.10.00 (8 Oct 2025)
+
+## 🚨 Breaking Changes
+
+- Fix `cugraph-service` Failure and Re-enable CI Tests ([#5268](https://github.com/rapidsai/cugraph/pull/5268)) [@nv-rliu](https://github.com/nv-rliu)
+- ForceAtlas2: continue #5213 for `prevent_overlapping` and `mobility` ([#5260](https://github.com/rapidsai/cugraph/pull/5260)) [@eriknw](https://github.com/eriknw)
+- Update create graph to use arithmetic types ([#5248](https://github.com/rapidsai/cugraph/pull/5248)) [@ChuckHastings](https://github.com/ChuckHastings)
+- Remove subgraph extraction ([#5247](https://github.com/rapidsai/cugraph/pull/5247)) [@BradReesWork](https://github.com/BradReesWork)
+- Update shuffle_ext_vertices, shuffle_int_vertices, shuffle_local_edge_srcs to take std::vector&lt;arithemtic_devcie_uvector_t&gt; ([#5225](https://github.com/rapidsai/cugraph/pull/5225)) [@seunghwak](https://github.com/seunghwak)
+- cleanup and dropping NX ([#5194](https://github.com/rapidsai/cugraph/pull/5194)) [@BradReesWork](https://github.com/BradReesWork)
+- Re-enable spectral clustering ([#5151](https://github.com/rapidsai/cugraph/pull/5151)) [@jnke2016](https://github.com/jnke2016)
+
+## 🐛 Bug Fixes
+
+- bug fix - incorrect if statement causing GNN failure ([#5297](https://github.com/rapidsai/cugraph/pull/5297)) [@ChuckHastings](https://github.com/ChuckHastings)
+- Fix `cugraph-service` Failure and Re-enable CI Tests ([#5268](https://github.com/rapidsai/cugraph/pull/5268)) [@nv-rliu](https://github.com/nv-rliu)
+- [BUG] Fix Sampling Output Parameters for Temporal Sampling API ([#5267](https://github.com/rapidsai/cugraph/pull/5267)) [@alexbarghi-nv](https://github.com/alexbarghi-nv)
+- Skip failing cugraph-service tests for 25.10 CI ([#5265](https://github.com/rapidsai/cugraph/pull/5265)) [@nv-rliu](https://github.com/nv-rliu)
+- check that optional is set before resizing ([#5245](https://github.com/rapidsai/cugraph/pull/5245)) [@ChuckHastings](https://github.com/ChuckHastings)
+- mg_util supports running on tegra like machines ([#5241](https://github.com/rapidsai/cugraph/pull/5241)) [@robertmaynard](https://github.com/robertmaynard)
+- Fix incorrect filter in ForceAtlas2 attraction kernel ([#5229](https://github.com/rapidsai/cugraph/pull/5229)) [@MathisHammel](https://github.com/MathisHammel)
+
+## 📖 Documentation
+
+- removing change blocks and some diagram improvements ([#5231](https://github.com/rapidsai/cugraph/pull/5231)) [@acostadon](https://github.com/acostadon)
+
+## 🛠️ Improvements
+
+- Fix missed deps in `update-version.sh` ([#5287](https://github.com/rapidsai/cugraph/pull/5287)) [@AyodeAwe](https://github.com/AyodeAwe)
+- Empty commit to trigger a build ([#5274](https://github.com/rapidsai/cugraph/pull/5274)) [@msarahan](https://github.com/msarahan)
+- Clarify supported type combination ([#5273](https://github.com/rapidsai/cugraph/pull/5273)) [@jnke2016](https://github.com/jnke2016)
+- deprecate cugraph-service ([#5269](https://github.com/rapidsai/cugraph/pull/5269)) [@BradReesWork](https://github.com/BradReesWork)
+- Update balanced_edge_test ([#5262](https://github.com/rapidsai/cugraph/pull/5262)) [@ChuckHastings](https://github.com/ChuckHastings)
+- ForceAtlas2: continue #5213 for `prevent_overlapping` and `mobility` ([#5260](https://github.com/rapidsai/cugraph/pull/5260)) [@eriknw](https://github.com/eriknw)
+- Configure repo for automatic release notes generation ([#5258](https://github.com/rapidsai/cugraph/pull/5258)) [@AyodeAwe](https://github.com/AyodeAwe)
+- update dependencies: numba (&gt;=0.60.0) ([#5253](https://github.com/rapidsai/cugraph/pull/5253)) [@jameslamb](https://github.com/jameslamb)
+- Implement two level near far method in SSSP and initial Graph 500 SSSP driver code ([#5252](https://github.com/rapidsai/cugraph/pull/5252)) [@seunghwak](https://github.com/seunghwak)
+- Adds Leiden benchmark ([#5251](https://github.com/rapidsai/cugraph/pull/5251)) [@rlratzel](https://github.com/rlratzel)
+- Temporal Sampling PLC API ([#5250](https://github.com/rapidsai/cugraph/pull/5250)) [@jnke2016](https://github.com/jnke2016)
+- Use branch-25.10 again ([#5249](https://github.com/rapidsai/cugraph/pull/5249)) [@jameslamb](https://github.com/jameslamb)
+- Update create graph to use arithmetic types ([#5248](https://github.com/rapidsai/cugraph/pull/5248)) [@ChuckHastings](https://github.com/ChuckHastings)
+- Remove subgraph extraction ([#5247](https://github.com/rapidsai/cugraph/pull/5247)) [@BradReesWork](https://github.com/BradReesWork)
+- fix pytorch requirement for CUDA 13 builds ([#5244](https://github.com/rapidsai/cugraph/pull/5244)) [@jameslamb](https://github.com/jameslamb)
+- use dask-cuda[cu12, cu13] extras for wheel dependencies ([#5243](https://github.com/rapidsai/cugraph/pull/5243)) [@jameslamb](https://github.com/jameslamb)
+- Update rapids-dependency-file-generator ([#5240](https://github.com/rapidsai/cugraph/pull/5240)) [@KyleFromNVIDIA](https://github.com/KyleFromNVIDIA)
+- Move from UCX-Py to UCXX ([#5238](https://github.com/rapidsai/cugraph/pull/5238)) [@pentschev](https://github.com/pentschev)
+- remove cugraph-pyg and wholegraph configuration ([#5237](https://github.com/rapidsai/cugraph/pull/5237)) [@jameslamb](https://github.com/jameslamb)
+- Build and test with CUDA 13.0.0 ([#5236](https://github.com/rapidsai/cugraph/pull/5236)) [@jameslamb](https://github.com/jameslamb)
+- Refactor Graph 500 BFS code and replace thrust::tuple with cuda::std::tuple ([#5235](https://github.com/rapidsai/cugraph/pull/5235)) [@seunghwak](https://github.com/seunghwak)
+- Temporal Sampling C API ([#5232](https://github.com/rapidsai/cugraph/pull/5232)) [@ChuckHastings](https://github.com/ChuckHastings)
+- Raise wheel size threshold for libcugraph ([#5230](https://github.com/rapidsai/cugraph/pull/5230)) [@ChuckHastings](https://github.com/ChuckHastings)
+- Migrate from thrust::tuple to cuda::std::tuple ([#5226](https://github.com/rapidsai/cugraph/pull/5226)) [@ChuckHastings](https://github.com/ChuckHastings)
+- Update shuffle_ext_vertices, shuffle_int_vertices, shuffle_local_edge_srcs to take std::vector&lt;arithemtic_devcie_uvector_t&gt; ([#5225](https://github.com/rapidsai/cugraph/pull/5225)) [@seunghwak](https://github.com/seunghwak)
+- Use build cluster in devcontainers ([#5223](https://github.com/rapidsai/cugraph/pull/5223)) [@trxcllnt](https://github.com/trxcllnt)
+- Use rapids_cuda_enable_fatbin_compression ([#5222](https://github.com/rapidsai/cugraph/pull/5222)) [@robertmaynard](https://github.com/robertmaynard)
+- Update rapids_config to handle user defined branch name ([#5218](https://github.com/rapidsai/cugraph/pull/5218)) [@robertmaynard](https://github.com/robertmaynard)
+- performance notebook improvements ([#5217](https://github.com/rapidsai/cugraph/pull/5217)) [@acostadon](https://github.com/acostadon)
+- Update rapids-build-backend to 0.4.1 ([#5211](https://github.com/rapidsai/cugraph/pull/5211)) [@KyleFromNVIDIA](https://github.com/KyleFromNVIDIA)
+- Concurrent multisource backwardpass ([#5206](https://github.com/rapidsai/cugraph/pull/5206)) [@HowardHuang1](https://github.com/HowardHuang1)
+- ci(labeler): update labeler action to [@v5 ([#5205](https://github.com/rapidsai/cugraph/pull/5205)) @gforsyth](https://github.com/v5 ([#5205](https://github.com/rapidsai/cugraph/pull/5205)) @gforsyth)
+- Allows Dataset method `get_edgelist()` to be called on a CPU-only system ([#5196](https://github.com/rapidsai/cugraph/pull/5196)) [@rlratzel](https://github.com/rlratzel)
+- cugraph RAPIDS dependency now use the new rapids-cmake branch info ([#5195](https://github.com/rapidsai/cugraph/pull/5195)) [@robertmaynard](https://github.com/robertmaynard)
+- cleanup and dropping NX ([#5194](https://github.com/rapidsai/cugraph/pull/5194)) [@BradReesWork](https://github.com/BradReesWork)
+- Allow latest OS in devcontainers ([#5188](https://github.com/rapidsai/cugraph/pull/5188)) [@bdice](https://github.com/bdice)
+- Update build infra to support new branching strategy ([#5172](https://github.com/rapidsai/cugraph/pull/5172)) [@robertmaynard](https://github.com/robertmaynard)
+- Temporal Graph Construction C API ([#5161](https://github.com/rapidsai/cugraph/pull/5161)) [@ChuckHastings](https://github.com/ChuckHastings)
+- Re-enable spectral clustering ([#5151](https://github.com/rapidsai/cugraph/pull/5151)) [@jnke2016](https://github.com/jnke2016)
+- Improve betweenness centrality performance ([#5146](https://github.com/rapidsai/cugraph/pull/5146)) [@HowardHuang1](https://github.com/HowardHuang1)
+- Use GCC 14 in conda builds. ([#5124](https://github.com/rapidsai/cugraph/pull/5124)) [@vyasr](https://github.com/vyasr)
+
 # cugraph 25.08.00 (6 Aug 2025)
 
 ## 🚨 Breaking Changes
