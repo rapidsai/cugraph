@@ -128,17 +128,9 @@ template <typename T>
 std::enable_if_t<std::is_arithmetic<T>::value, T> host_scalar_allreduce(
   raft::comms::comms_t const& comm, T input, raft::comms::op_t op, cudaStream_t stream)
 {
-  static_assert((host_staging_buffer_manager::minimum_alignment % sizeof(T)) == 0);
-
-  std::optional<std::vector<T>> h_tmp_buffer{std::nullopt};
-  T* h_staging_buffer{};
-  if (auto h_ptr = host_staging_buffer_manager::buffer_ptr(sizeof(T), stream); h_ptr.has_value()) {
-    h_staging_buffer = static_cast<T*>(*h_ptr);
-  } else {
-    h_tmp_buffer     = std::vector<T>(1);
-    h_staging_buffer = h_tmp_buffer->data();
-  }
+  auto h_tmp_buffer = host_staging_buffer_manager::allocate_staging_buffer<T>(1, stream);
   rmm::device_uvector<T> d_tmp_buffer(1, stream);
+  T* h_staging_buffer = h_tmp_buffer.data();
   T* d_staging_buffer = d_tmp_buffer.data();
   h_staging_buffer[0] = input;
   raft::update_device(d_staging_buffer, h_staging_buffer, 1, stream);
@@ -156,18 +148,11 @@ std::enable_if_t<cugraph::is_thrust_tuple_of_arithmetic<T>::value, T> host_scala
   raft::comms::comms_t const& comm, T input, raft::comms::op_t op, cudaStream_t stream)
 {
   size_t constexpr tuple_size = cuda::std::tuple_size<T>::value;
-  static_assert((host_staging_buffer_manager::minimum_alignment % sizeof(int64_t)) == 0);
 
-  std::optional<std::vector<int64_t>> h_tmp_buffer{std::nullopt};
-  int64_t* h_staging_buffer{};
-  if (auto h_ptr = host_staging_buffer_manager::buffer_ptr(sizeof(int64_t) * tuple_size, stream);
-      h_ptr.has_value()) {
-    h_staging_buffer = static_cast<int64_t*>(*h_ptr);
-  } else {
-    h_tmp_buffer     = std::vector<int64_t>(tuple_size);
-    h_staging_buffer = h_tmp_buffer->data();
-  }
+  auto h_tmp_buffer =
+    host_staging_buffer_manager::allocate_staging_buffer<int64_t>(tuple_size, stream);
   rmm::device_uvector<int64_t> d_tmp_buffer(tuple_size, stream);
+  int64_t* h_staging_buffer = h_tmp_buffer.data();
   int64_t* d_staging_buffer = d_tmp_buffer.data();
   detail::update_array_of_tuple_scalar_elements_from_tuple_impl<T, size_t{0}, tuple_size>().update(
     h_staging_buffer, input);
@@ -189,18 +174,9 @@ template <typename T>
 std::enable_if_t<std::is_arithmetic<T>::value, T> host_scalar_reduce(
   raft::comms::comms_t const& comm, T input, raft::comms::op_t op, int root, cudaStream_t stream)
 {
-  static_assert(host_staging_buffer_manager::staging_buffer_size >= sizeof(T));
-  static_assert((host_staging_buffer_manager::minimum_alignment % sizeof(T)) == 0);
-
-  std::optional<std::vector<T>> h_tmp_buffer{std::nullopt};
-  T* h_staging_buffer{};
-  if (auto h_ptr = host_staging_buffer_manager::buffer_ptr(sizeof(T), stream); h_ptr.has_value()) {
-    h_staging_buffer = static_cast<T*>(*h_ptr);
-  } else {
-    h_tmp_buffer     = std::vector<T>(1);
-    h_staging_buffer = h_tmp_buffer->data();
-  }
+  auto h_tmp_buffer = host_staging_buffer_manager::allocate_staging_buffer<T>(1, stream);
   rmm::device_uvector<T> d_tmp_buffer(1, stream);
+  T* h_staging_buffer = h_tmp_buffer.data();
   T* d_staging_buffer = d_tmp_buffer.data();
   h_staging_buffer[0] = input;
   raft::update_device(d_staging_buffer, h_staging_buffer, 1, stream);
@@ -220,18 +196,11 @@ std::enable_if_t<cugraph::is_thrust_tuple_of_arithmetic<T>::value, T> host_scala
   raft::comms::comms_t const& comm, T input, raft::comms::op_t op, int root, cudaStream_t stream)
 {
   size_t constexpr tuple_size = cuda::std::tuple_size<T>::value;
-  static_assert((host_staging_buffer_manager::minimum_alignment % sizeof(int64_t)) == 0);
 
-  std::optional<std::vector<int64_t>> h_tmp_buffer{std::nullopt};
-  int64_t* h_staging_buffer{};
-  if (auto h_ptr = host_staging_buffer_manager::buffer_ptr(sizeof(int64_t) * tuple_size, stream);
-      h_ptr.has_value()) {
-    h_staging_buffer = static_cast<int64_t*>(*h_ptr);
-  } else {
-    h_tmp_buffer     = std::vector<int64_t>(tuple_size);
-    h_staging_buffer = h_tmp_buffer->data();
-  }
+  auto h_tmp_buffer =
+    host_staging_buffer_manager::allocate_staging_buffer<int64_t>(tuple_size, stream);
   rmm::device_uvector<int64_t> d_tmp_buffer(tuple_size, stream);
+  int64_t* h_staging_buffer = h_tmp_buffer.data();
   int64_t* d_staging_buffer = d_tmp_buffer.data();
   detail::update_array_of_tuple_scalar_elements_from_tuple_impl<T, size_t{0}, tuple_size>().update(
     h_staging_buffer, input);
@@ -256,17 +225,9 @@ template <typename T>
 std::enable_if_t<std::is_arithmetic<T>::value, T> host_scalar_bcast(
   raft::comms::comms_t const& comm, T input, int root, cudaStream_t stream)
 {
-  static_assert((host_staging_buffer_manager::minimum_alignment % sizeof(T)) == 0);
-
-  std::optional<std::vector<T>> h_tmp_buffer{std::nullopt};
-  T* h_staging_buffer{};
-  if (auto h_ptr = host_staging_buffer_manager::buffer_ptr(sizeof(T), stream); h_ptr.has_value()) {
-    h_staging_buffer = static_cast<T*>(*h_ptr);
-  } else {
-    h_tmp_buffer     = std::vector<T>(1);
-    h_staging_buffer = h_tmp_buffer->data();
-  }
+  auto h_tmp_buffer = host_staging_buffer_manager::allocate_staging_buffer<T>(1, stream);
   rmm::device_uvector<T> d_tmp_buffer(1, stream);
+  T* h_staging_buffer = h_tmp_buffer.data();
   T* d_staging_buffer = d_tmp_buffer.data();
   if (comm.get_rank() == root) {
     h_staging_buffer[0] = input;
@@ -286,18 +247,11 @@ std::enable_if_t<cugraph::is_thrust_tuple_of_arithmetic<T>::value, T> host_scala
   raft::comms::comms_t const& comm, T input, int root, cudaStream_t stream)
 {
   size_t constexpr tuple_size = cuda::std::tuple_size<T>::value;
-  static_assert((host_staging_buffer_manager::minimum_alignment % sizeof(int64_t)) == 0);
 
-  std::optional<std::vector<int64_t>> h_tmp_buffer{std::nullopt};
-  int64_t* h_staging_buffer{};
-  if (auto h_ptr = host_staging_buffer_manager::buffer_ptr(sizeof(int64_t) * tuple_size, stream);
-      h_ptr.has_value()) {
-    h_staging_buffer = static_cast<int64_t*>(*h_ptr);
-  } else {
-    h_tmp_buffer     = std::vector<int64_t>(tuple_size);
-    h_staging_buffer = h_tmp_buffer->data();
-  }
+  auto h_tmp_buffer =
+    host_staging_buffer_manager::allocate_staging_buffer<int64_t>(tuple_size, stream);
   rmm::device_uvector<int64_t> d_tmp_buffer(tuple_size, stream);
+  int64_t* h_staging_buffer = h_tmp_buffer.data();
   int64_t* d_staging_buffer = d_tmp_buffer.data();
   if (comm.get_rank() == root) {
     detail::update_array_of_tuple_scalar_elements_from_tuple_impl<T, size_t{0}, tuple_size>()
@@ -321,18 +275,10 @@ template <typename T>
 std::enable_if_t<std::is_arithmetic<T>::value, std::vector<T>> host_scalar_allgather(
   raft::comms::comms_t const& comm, T input, cudaStream_t stream)
 {
-  static_assert((host_staging_buffer_manager::minimum_alignment % sizeof(T)) == 0);
-
-  std::optional<std::vector<T>> h_tmp_buffer{std::nullopt};
-  T* h_staging_buffer{};
-  if (auto h_ptr = host_staging_buffer_manager::buffer_ptr(sizeof(T) * comm.get_size(), stream);
-      h_ptr.has_value()) {
-    h_staging_buffer = static_cast<T*>(*h_ptr);
-  } else {
-    h_tmp_buffer     = std::vector<T>(comm.get_size());
-    h_staging_buffer = h_tmp_buffer->data();
-  }
+  auto h_tmp_buffer =
+    host_staging_buffer_manager::allocate_staging_buffer<T>(comm.get_size(), stream);
   rmm::device_uvector<T> d_tmp_buffer(comm.get_size(), stream);
+  T* h_staging_buffer               = h_tmp_buffer.data();
   T* d_staging_buffer               = d_tmp_buffer.data();
   h_staging_buffer[comm.get_rank()] = input;
   raft::update_device(
@@ -351,19 +297,11 @@ std::enable_if_t<cugraph::is_thrust_tuple_of_arithmetic<T>::value, std::vector<T
 host_scalar_allgather(raft::comms::comms_t const& comm, T input, cudaStream_t stream)
 {
   size_t constexpr tuple_size = cuda::std::tuple_size<T>::value;
-  static_assert((host_staging_buffer_manager::minimum_alignment % sizeof(int64_t)) == 0);
 
-  std::optional<std::vector<int64_t>> h_tmp_buffer{std::nullopt};
-  int64_t* h_staging_buffer{};
-  if (auto h_ptr = host_staging_buffer_manager::buffer_ptr(
-        sizeof(int64_t) * tuple_size * comm.get_size(), stream);
-      h_ptr.has_value()) {
-    h_staging_buffer = static_cast<int64_t*>(*h_ptr);
-  } else {
-    h_tmp_buffer     = std::vector<int64_t>(comm.get_size() * tuple_size);
-    h_staging_buffer = h_tmp_buffer->data();
-  }
+  auto h_tmp_buffer = host_staging_buffer_manager::allocate_staging_buffer<int64_t>(
+    comm.get_size() * tuple_size, stream);
   rmm::device_uvector<int64_t> d_tmp_buffer(comm.get_size() * tuple_size, stream);
+  int64_t* h_staging_buffer = h_tmp_buffer.data();
   int64_t* d_staging_buffer = d_tmp_buffer.data();
   detail::update_array_of_tuple_scalar_elements_from_tuple_impl<T, size_t{0}, tuple_size>().update(
     h_staging_buffer + comm.get_rank() * tuple_size, input);
@@ -392,24 +330,15 @@ std::enable_if_t<std::is_arithmetic<T>::value, T> host_scalar_scatter(
   int root,
   cudaStream_t stream)
 {
-  CUGRAPH_EXPECTS(host_staging_buffer_manager::staging_buffer_size >= sizeof(T) * comm.get_size(),
-                  "staging_buffer_size is too small.");
-  static_assert((host_staging_buffer_manager::minimum_alignment % sizeof(T)) == 0);
   CUGRAPH_EXPECTS(
     ((comm.get_rank() == root) && (inputs.size() == static_cast<size_t>(comm.get_size()))) ||
       ((comm.get_rank() != root) && (inputs.size() == 0)),
     "inputs.size() should match with comm.get_size() in root and should be 0 otherwise.");
 
-  std::optional<std::vector<T>> h_tmp_buffer{std::nullopt};
-  T* h_staging_buffer{};
-  if (auto h_ptr = host_staging_buffer_manager::buffer_ptr(sizeof(T) * comm.get_size(), stream);
-      h_ptr.has_value()) {
-    h_staging_buffer = static_cast<T*>(*h_ptr);
-  } else {
-    h_tmp_buffer     = std::vector<T>(comm.get_size());
-    h_staging_buffer = h_tmp_buffer->data();
-  }
+  auto h_tmp_buffer =
+    host_staging_buffer_manager::allocate_staging_buffer<T>(comm.get_size(), stream);
   rmm::device_uvector<T> d_tmp_buffer(comm.get_size(), stream);
+  T* h_staging_buffer = h_tmp_buffer.data();
   T* d_staging_buffer = d_tmp_buffer.data();
   if (comm.get_rank() == root) {
     std::copy(inputs.begin(), inputs.end(), h_staging_buffer);
@@ -435,23 +364,15 @@ std::enable_if_t<cugraph::is_thrust_tuple_of_arithmetic<T>::value, T> host_scala
   cudaStream_t stream)
 {
   size_t constexpr tuple_size = cuda::std::tuple_size<T>::value;
-  static_assert((host_staging_buffer_manager::minimum_alignment % sizeof(int64_t)) == 0);
   CUGRAPH_EXPECTS(
     ((comm.get_rank() == root) && (inputs.size() == static_cast<size_t>(comm.get_size()))) ||
       ((comm.get_rank() != root) && (inputs.size() == 0)),
     "inputs.size() should match with comm.get_size() in root and should be 0 otherwise.");
 
-  std::optional<std::vector<int64_t>> h_tmp_buffer{std::nullopt};
-  int64_t* h_staging_buffer{};
-  if (auto h_ptr = host_staging_buffer_manager::buffer_ptr(
-        sizeof(int64_t) * tuple_size * comm.get_size(), stream);
-      h_ptr.has_value()) {
-    h_staging_buffer = static_cast<int64_t*>(*h_ptr);
-  } else {
-    h_tmp_buffer     = std::vector<int64_t>(comm.get_size() * tuple_size);
-    h_staging_buffer = h_tmp_buffer->data();
-  }
+  auto h_tmp_buffer = host_staging_buffer_manager::allocate_staging_buffer<int64_t>(
+    comm.get_size() * tuple_size, stream);
   rmm::device_uvector<int64_t> d_tmp_buffer(comm.get_size() * tuple_size, stream);
+  int64_t* h_staging_buffer = h_tmp_buffer.data();
   int64_t* d_staging_buffer = d_tmp_buffer.data();
   if (comm.get_rank() == root) {
     for (int i = 0; i < comm.get_size(); ++i) {
@@ -482,20 +403,10 @@ template <typename T>
 std::enable_if_t<std::is_arithmetic<T>::value, std::vector<T>> host_scalar_gather(
   raft::comms::comms_t const& comm, T input, int root, cudaStream_t stream)
 {
-  CUGRAPH_EXPECTS(host_staging_buffer_manager::staging_buffer_size >= sizeof(T) * comm.get_size(),
-                  "staging_buffer_size is too small.");
-  static_assert((host_staging_buffer_manager::minimum_alignment % sizeof(T)) == 0);
-
-  std::optional<std::vector<T>> h_tmp_buffer{std::nullopt};
-  T* h_staging_buffer{};
-  if (auto h_ptr = host_staging_buffer_manager::buffer_ptr(sizeof(T) * comm.get_size(), stream);
-      h_ptr.has_value()) {
-    h_staging_buffer = static_cast<T*>(*h_ptr);
-  } else {
-    h_tmp_buffer     = std::vector<T>(comm.get_size());
-    h_staging_buffer = h_tmp_buffer->data();
-  }
+  auto h_tmp_buffer =
+    host_staging_buffer_manager::allocate_staging_buffer<T>(comm.get_size(), stream);
   rmm::device_uvector<T> d_tmp_buffer(comm.get_size(), stream);
+  T* h_staging_buffer               = h_tmp_buffer.data();
   T* d_staging_buffer               = d_tmp_buffer.data();
   h_staging_buffer[comm.get_rank()] = input;
   raft::update_device(
@@ -520,19 +431,11 @@ std::enable_if_t<cugraph::is_thrust_tuple_of_arithmetic<T>::value, std::vector<T
 host_scalar_gather(raft::comms::comms_t const& comm, T input, int root, cudaStream_t stream)
 {
   size_t constexpr tuple_size = cuda::std::tuple_size<T>::value;
-  static_assert((host_staging_buffer_manager::minimum_alignment % sizeof(int64_t)) == 0);
 
-  std::optional<std::vector<int64_t>> h_tmp_buffer{std::nullopt};
-  int64_t* h_staging_buffer{};
-  if (auto h_ptr = host_staging_buffer_manager::buffer_ptr(
-        sizeof(int64_t) * tuple_size * comm.get_size(), stream);
-      h_ptr.has_value()) {
-    h_staging_buffer = static_cast<int64_t*>(*h_ptr);
-  } else {
-    h_tmp_buffer     = std::vector<int64_t>(comm.get_size() * tuple_size);
-    h_staging_buffer = h_tmp_buffer->data();
-  }
+  auto h_tmp_buffer = host_staging_buffer_manager::allocate_staging_buffer<int64_t>(
+    comm.get_size() * tuple_size, stream);
   rmm::device_uvector<int64_t> d_tmp_buffer(comm.get_size() * tuple_size, stream);
+  int64_t* h_staging_buffer = h_tmp_buffer.data();
   int64_t* d_staging_buffer = d_tmp_buffer.data();
   detail::update_array_of_tuple_scalar_elements_from_tuple_impl<T, size_t{0}, tuple_size>().update(
     h_staging_buffer + comm.get_rank() * tuple_size, input);
