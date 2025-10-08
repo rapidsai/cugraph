@@ -414,6 +414,58 @@ class nbr_unrenumber_cache_t {
 
   void unrenumber(raft::handle_t const& handle, raft::device_span<vertex_t> nbrs)
   {
+#if 0
+    rmm::device_uvector<vertex_t> counts(12, handle.get_stream());
+    thrust::fill(handle.get_thrust_policy(), counts.begin(), counts.end(), vertex_t{0});
+    thrust::for_each(handle.get_thrust_policy(),
+                     nbrs.begin(),
+                     nbrs.end(),
+                     [counts = raft::device_span<vertex_t>(counts.data(), counts.size()),
+                      vertex_partition_range_lasts = raft::device_span<vertex_t const>(
+                        vertex_partition_range_lasts_.data(),
+                        vertex_partition_range_lasts_.size())] __device__(auto nbr) {
+                       auto vertex_partition_id = static_cast<int>(cuda::std::distance(
+                         vertex_partition_range_lasts.begin(),
+                         thrust::upper_bound(thrust::seq,
+                                             vertex_partition_range_lasts.begin(),
+                                             vertex_partition_range_lasts.end(),
+                                             nbr)));
+                       auto v_offset =
+                         nbr - ((vertex_partition_id == 0)
+                                  ? vertex_t{0}
+                                  : vertex_partition_range_lasts[vertex_partition_id - 1]);
+                       size_t idx{};
+                       if (v_offset < (vertex_t{1} << 16)) {
+                         idx = 0;
+                       } else if (v_offset < (vertex_t{1} << 17)) {
+                         idx = 1;
+                       } else if (v_offset < (vertex_t{1} << 18)) {
+                         idx = 2;
+                       } else if (v_offset < (vertex_t{1} << 19)) {
+                         idx = 3;
+                       } else if (v_offset < (vertex_t{1} << 20)) {
+                         idx = 4;
+                       } else if (v_offset < (vertex_t{1} << 21)) {
+                         idx = 5;
+                       } else if (v_offset < (vertex_t{1} << 22)) {
+                         idx = 6;
+                       } else if (v_offset < (vertex_t{1} << 23)) {
+                         idx = 7;
+                       } else if (v_offset < (vertex_t{1} << 24)) {
+                         idx = 8;
+                       } else if (v_offset < (vertex_t{1} << 25)) {
+                         idx = 9;
+                       } else if (v_offset < (vertex_t{1} << 26)) {
+                         idx = 10;
+                       } else {
+                         idx = 11;
+                       }
+                       cuda::atomic_ref<vertex_t, cuda::thread_scope_device> count(counts[idx]);
+                       count.fetch_add(vertex_t{1}, cuda::std::memory_order_relaxed);
+                     });
+    raft::print_device_vector("unrenumber counts", counts.data(), counts.size(), std::cout);
+#endif
+
     thrust::transform_if(
       handle.get_thrust_policy(),
       nbrs.begin(),
@@ -708,18 +760,52 @@ nbr_unrenumber_cache_t<vertex_t> build_nbr_unrenumber_cache(
         this_round_nbrs.begin(),
         thrust::unique(handle.get_thrust_policy(), this_round_nbrs.begin(), this_round_nbrs.end())),
       handle.get_stream());
-    this_round_nbrs.resize(
-      cuda::std::distance(
-        this_round_nbrs.begin(),
-        thrust::remove_if(
-          handle.get_thrust_policy(),
-          this_round_nbrs.begin(),
-          this_round_nbrs.end(),
-          cuda::proclaim_return_type<bool>([nbrs = raft::device_span<vertex_t const>(
-                                              nbrs.data(), nbrs.size())] __device__(auto v) {
-            return thrust::binary_search(thrust::seq, nbrs.begin(), nbrs.end(), v);
-          }))),
-      handle.get_stream());
+    if ((nbrs.size() > 0) && (this_round_nbrs.size() > 0)) {
+      auto tmp_buf_size = std::max(nbrs.size() / num_k_hop_rounds, this_round_nbrs.size());
+      auto num_chunks   = (nbrs.size() + (tmp_buf_size - 1)) / tmp_buf_size;
+      vertex_t this_round_nbr_offset{0};
+      for (size_t i = 0; i < num_chunks; ++i) {
+        rmm::device_uvector<vertex_t> tmp_nbrs(
+          (i == num_chunks - 1) ? (nbrs.size() - (tmp_buf_size * i)) : tmp_buf_size,
+          handle.get_stream());
+        raft::update_device(
+          tmp_nbrs.data(), nbrs.data() + tmp_buf_size * i, tmp_nbrs.size(), handle.get_stream());
+        auto last = (i == num_chunks - 1)
+                      ? this_round_nbrs.end()
+                      : thrust::upper_bound(handle.get_thrust_policy(),
+                                            this_round_nbrs.begin() + this_round_nbr_offset,
+                                            this_round_nbrs.end(),
+                                            tmp_nbrs.back_element(handle.get_stream()));
+        rmm::device_uvector<vertex_t> new_nbrs(
+          cuda::std::distance(this_round_nbrs.begin() + this_round_nbr_offset, last),
+          handle.get_stream());
+        new_nbrs.resize(cuda::std::distance(
+                          new_nbrs.begin(),
+                          thrust::set_difference(handle.get_thrust_policy(),
+                                                 this_round_nbrs.begin() + this_round_nbr_offset,
+                                                 last,
+                                                 tmp_nbrs.begin(),
+                                                 tmp_nbrs.end(),
+                                                 new_nbrs.begin())),
+                        handle.get_stream());
+        thrust::copy(handle.get_thrust_policy(),
+                     new_nbrs.begin(),
+                     new_nbrs.end(),
+                     this_round_nbrs.begin() + this_round_nbr_offset);
+        thrust::fill(handle.get_thrust_policy(),
+                     this_round_nbrs.begin() + this_round_nbr_offset + new_nbrs.size(),
+                     last,
+                     invalid_vertex);
+        this_round_nbr_offset += static_cast<vertex_t>(
+          cuda::std::distance(this_round_nbrs.begin() + this_round_nbr_offset, last));
+      }
+      this_round_nbrs.resize(cuda::std::distance(this_round_nbrs.begin(),
+                                                 thrust::remove(handle.get_thrust_policy(),
+                                                                this_round_nbrs.begin(),
+                                                                this_round_nbrs.end(),
+                                                                invalid_vertex)),
+                             handle.get_stream());
+    }
     this_round_nbrs.shrink_to_fit(handle.get_stream());
     auto merged_nbrs =
       large_buffer_type
