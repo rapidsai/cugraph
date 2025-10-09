@@ -94,9 +94,11 @@ void exact_fa2(raft::handle_t const& handle,
     raft::copy(pos + n, y_start, n, stream_view.value());
   }
 
-  // Sort COO for coalesced memory access.
-  sort(graph, stream_view.value());
-  RAFT_CHECK_CUDA(stream_view.value());
+  if (graph.number_of_edges > 0) {
+    // Sort COO for coalesced memory access.
+    sort(graph, stream_view.value());
+    RAFT_CHECK_CUDA(stream_view.value());
+  }
 
   if (vertex_mass != nullptr) {
     raft::copy(d_mass, vertex_mass, n, stream_view.value());

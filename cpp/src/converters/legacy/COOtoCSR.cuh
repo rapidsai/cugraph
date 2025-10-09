@@ -69,6 +69,7 @@ VT sort(legacy::GraphCOOView<VT, ET, WT>& graph, rmm::cuda_stream_view stream_vi
 {
   VT max_src_id;
   VT max_dst_id;
+  CUGRAPH_EXPECTS(graph.number_of_edges > 0, "number_of_edges should be strictly positive");
   if (graph.has_data()) {
     thrust::stable_sort_by_key(rmm::exec_policy(stream_view),
                                graph.dst_indices,
