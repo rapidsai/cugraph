@@ -613,6 +613,8 @@ void fill_edge_minor_property(raft::handle_t const& handle,
           assert(retinerpret_cast<uintptr_t>(padded_v_list->data()) % 128 == 0);
         }
       }
+    } else {
+      aggregate_local_v_list_size = local_v_list_sizes[0];
     }
 
     if (aggregate_local_v_list_size == 0) {
@@ -741,45 +743,57 @@ void fill_edge_minor_property(raft::handle_t const& handle,
         std::variant<rmm::device_uvector<vertex_t>, rmm::device_uvector<uint32_t>>
           allgather_buffer = rmm::device_uvector<vertex_t>(0, handle.get_stream());
         rmm::device_uvector<size_t> dummy_counters(major_comm_size, handle.get_stream());
-        if (v_list_bitmap) {
-          allgather_buffer = rmm::device_uvector<uint32_t>(v_list_bitmap->size() * major_comm_size,
-                                                           handle.get_stream());
-        } else if (compressed_v_list) {
-          allgather_buffer = rmm::device_uvector<uint32_t>(
-            compressed_v_list->size() * major_comm_size, handle.get_stream());
-        } else {
-          assert(padded_v_list);
-          allgather_buffer = rmm::device_uvector<vertex_t>(padded_v_list->size() * major_comm_size,
-                                                           handle.get_stream());
-        }
         std::optional<vertex_t> v_list_bitmap_size{std::nullopt};
         std::optional<vertex_t> compressed_v_list_size{std::nullopt};
         std::optional<vertex_t> padded_v_list_size{std::nullopt};
-        if (v_list_bitmap) {
-          device_allgather(major_comm,
-                           v_list_bitmap->data(),
-                           std::get<1>(allgather_buffer).data(),
-                           v_list_bitmap->size(),
-                           handle.get_stream());
-          v_list_bitmap_size = v_list_bitmap->size();
-          v_list_bitmap      = std::nullopt;
-        } else if (compressed_v_list) {
-          device_allgather(major_comm,
-                           compressed_v_list->data(),
-                           std::get<1>(allgather_buffer).data(),
-                           compressed_v_list->size(),
-                           handle.get_stream());
-          compressed_v_list_size = compressed_v_list->size();
-          compressed_v_list      = std::nullopt;
+        if (major_comm_size > 1) {
+          if (v_list_bitmap) {
+            allgather_buffer = rmm::device_uvector<uint32_t>(
+              v_list_bitmap->size() * major_comm_size, handle.get_stream());
+          } else if (compressed_v_list) {
+            allgather_buffer = rmm::device_uvector<uint32_t>(
+              compressed_v_list->size() * major_comm_size, handle.get_stream());
+          } else {
+            assert(padded_v_list);
+            allgather_buffer = rmm::device_uvector<vertex_t>(
+              padded_v_list->size() * major_comm_size, handle.get_stream());
+          }
+          if (v_list_bitmap) {
+            device_allgather(major_comm,
+                             v_list_bitmap->data(),
+                             std::get<1>(allgather_buffer).data(),
+                             v_list_bitmap->size(),
+                             handle.get_stream());
+            v_list_bitmap_size = v_list_bitmap->size();
+            v_list_bitmap      = std::nullopt;
+          } else if (compressed_v_list) {
+            device_allgather(major_comm,
+                             compressed_v_list->data(),
+                             std::get<1>(allgather_buffer).data(),
+                             compressed_v_list->size(),
+                             handle.get_stream());
+            compressed_v_list_size = compressed_v_list->size();
+            compressed_v_list      = std::nullopt;
+          } else {
+            assert(padded_v_list);
+            device_allgather(major_comm,
+                             padded_v_list->data(),
+                             std::get<0>(allgather_buffer).data(),
+                             padded_v_list->size(),
+                             handle.get_stream());
+            padded_v_list_size = padded_v_list->size();
+            padded_v_list      = std::nullopt;
+          }
         } else {
-          assert(padded_v_list);
-          device_allgather(major_comm,
-                           padded_v_list->data(),
-                           std::get<0>(allgather_buffer).data(),
-                           padded_v_list->size(),
-                           handle.get_stream());
-          padded_v_list_size = padded_v_list->size();
-          padded_v_list      = std::nullopt;
+          allgather_buffer = rmm::device_uvector<vertex_t>(
+            raft::round_up_safe(local_v_list_sizes[0],
+                                static_cast<vertex_t>(128 / sizeof(vertex_t))),
+            handle.get_stream());
+          thrust::copy(handle.get_thrust_policy(),
+                       sorted_unique_vertex_first,
+                       sorted_unique_vertex_last,
+                       std::get<0>(allgather_buffer).begin());
+          padded_v_list_size = std::get<0>(allgather_buffer).size();
         }
 
         bool kernel_fusion =
