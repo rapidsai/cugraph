@@ -76,6 +76,7 @@ def cugraph_call(
     vertex_mass,
     callback=None,
     renumber=False,
+    vertices=None,
 ):
     G = cugraph.Graph()
     if cu_M["src"] is not int or cu_M["dst"] is not int:
@@ -83,7 +84,12 @@ def cugraph_call(
     else:
         renumber = False
     G.from_cudf_edgelist(
-        cu_M, source="src", destination="dst", edge_attr="wgt", renumber=renumber
+        cu_M,
+        source="src",
+        destination="dst",
+        edge_attr="wgt",
+        renumber=renumber,
+        vertices=vertices,
     )
 
     t1 = time.time()
@@ -442,3 +448,71 @@ def test_force_atlas2_mass(max_iter, barnes_hut_optimize):
     assert distances[0, 3] / distances[0, 2] > 4.0
     assert distances[1, 3] / distances[1, 0] > 4.0
     assert distances[2, 3] / distances[2, 0] > 4.0
+
+
+@pytest.mark.sg
+@pytest.mark.parametrize("max_iter", MAX_ITERATIONS)
+@pytest.mark.parametrize("barnes_hut_optimize", BARNES_HUT_OPTIMIZE)
+def test_force_atlas2_empty(max_iter, barnes_hut_optimize):
+    # FA2 with vertices but no edges has a repulsive force and gravity
+    # towards the center of mass, but no attraction along edges.
+    # With four vertices, we could hope that the final positions
+    # form a rectangle, but in practice there is a lot of variation.
+    # Instead, this test simply tests whether gravity works as expected.
+    edgelist_df = cudf.DataFrame({"src": [], "dst": [], "wgt": []}, dtype="int32")
+    vertices = [0, 1, 2, 3]
+    gravity = 1.0
+    pos_1 = cugraph_call(
+        edgelist_df,
+        max_iter=max_iter,
+        pos_list=None,
+        outbound_attraction_distribution=True,
+        lin_log_mode=False,
+        prevent_overlapping=False,
+        vertex_radius=None,
+        overlap_scaling_ratio=100.0,
+        edge_weight_influence=1.0,
+        jitter_tolerance=1.0,
+        barnes_hut_optimize=barnes_hut_optimize,
+        barnes_hut_theta=0.5,
+        scaling_ratio=2.0,
+        strong_gravity_mode=False,
+        gravity=gravity,
+        vertex_mobility=None,
+        vertex_mass=None,
+        callback=None,
+        vertices=vertices,
+    )
+    # Changing gravity should change the distances apart.
+    # Compare average distance from center of mass.
+    dist_1 = (
+        ((pos_1[["x", "y"]] - pos_1[["x", "y"]].mean()) ** 2).sum(axis=1) ** 0.5
+    ).mean()
+
+    gravity = 100.0
+    pos_100 = cugraph_call(
+        edgelist_df,
+        max_iter=max_iter,
+        pos_list=None,
+        outbound_attraction_distribution=True,
+        lin_log_mode=False,
+        prevent_overlapping=False,
+        vertex_radius=None,
+        overlap_scaling_ratio=100.0,
+        edge_weight_influence=1.0,
+        jitter_tolerance=1.0,
+        barnes_hut_optimize=barnes_hut_optimize,
+        barnes_hut_theta=0.5,
+        scaling_ratio=2.0,
+        strong_gravity_mode=False,
+        gravity=gravity,
+        vertex_mobility=None,
+        vertex_mass=None,
+        callback=None,
+        vertices=vertices,
+    )
+    dist_100 = (
+        ((pos_100[["x", "y"]] - pos_100[["x", "y"]].mean()) ** 2).sum(axis=1) ** 0.5
+    ).mean()
+    # Stronger gravity makes vertices closer together.
+    assert dist_1 > 4 * dist_100

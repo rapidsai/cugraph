@@ -159,9 +159,11 @@ void barnes_hut(raft::handle_t const& handle,
 
   thrust::fill(handle.get_thrust_policy(), d_old_forces.begin(), d_old_forces.end(), 0.f);
 
-  // Sort COO for coalesced memory access.
-  sort(graph, stream_view.value());
-  RAFT_CHECK_CUDA(stream_view.value());
+  if (graph.number_of_edges > 0) {
+    // Sort COO for coalesced memory access.
+    sort(graph, stream_view.value());
+    RAFT_CHECK_CUDA(stream_view.value());
+  }
 
   if (vertex_mass != nullptr) {
     // Fill masses with 1 (because `nnodes + 1 > n`)
