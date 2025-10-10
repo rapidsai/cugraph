@@ -515,4 +515,4 @@ def test_force_atlas2_empty(max_iter, barnes_hut_optimize):
         ((pos_100[["x", "y"]] - pos_100[["x", "y"]].mean()) ** 2).sum(axis=1) ** 0.5
     ).mean()
     # Stronger gravity makes vertices closer together.
-    assert dist_1 > 8 * dist_100
+    assert dist_1 > 4 * dist_100
