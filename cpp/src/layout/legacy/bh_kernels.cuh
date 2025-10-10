@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -70,7 +70,7 @@ __global__ static void ResetKernel(float* restrict radiusd_squared,
 __global__ static __launch_bounds__(THREADS1,
                                     FACTOR1) void BoundingBoxKernel(int* restrict startd,
                                                                     int* restrict childd,
-                                                                    int* restrict massd,
+                                                                    float* restrict massd,
                                                                     float* restrict posxd,
                                                                     float* restrict posyd,
                                                                     float* restrict maxxd,
@@ -298,7 +298,7 @@ __global__ static __launch_bounds__(THREADS2,
  * Clean more state vectors.
  */
 __global__ static __launch_bounds__(1024, 1) void ClearKernel2(int* restrict startd,
-                                                               int* restrict massd,
+                                                               float* restrict massd,
                                                                const int NNODES,
                                                                const int* restrict bottomd)
 {
@@ -318,20 +318,20 @@ __global__ static __launch_bounds__(1024, 1) void ClearKernel2(int* restrict sta
 /**
  * Summarize the KD Tree via cell gathering
  */
-__global__ static __launch_bounds__(THREADS3,
-                                    FACTOR3) void SummarizationKernel(int* restrict countd,
-                                                                      const int* restrict childd,
-                                                                      volatile int* restrict massd,
-                                                                      float* restrict posxd,
-                                                                      float* restrict posyd,
-                                                                      const int NNODES,
-                                                                      const int N,
-                                                                      const int* restrict bottomd)
+__global__ static __launch_bounds__(THREADS3, FACTOR3) void SummarizationKernel(
+  int* restrict countd,
+  const int* restrict childd,
+  volatile float* restrict massd,
+  float* restrict posxd,
+  float* restrict posyd,
+  const int NNODES,
+  const int N,
+  const int* restrict bottomd)
 {
   bool flag = 0;
   float cm, px, py;
   __shared__ int child[THREADS3 * 4];
-  __shared__ int mass[THREADS3 * 4];
+  __shared__ float mass[THREADS3 * 4];
 
   const int bottom = bottomd[0];
   const int inc    = blockDim.x * gridDim.x;
@@ -511,7 +511,7 @@ __global__ static __launch_bounds__(
                                           const float epssqd,  // correction for zero distance
                                           const int* restrict sortd,
                                           const int* restrict childd,
-                                          const int* restrict massd,
+                                          const float* restrict massd,
                                           const float* restrict posxd,
                                           const float* restrict posyd,
                                           float* restrict velxd,
@@ -614,18 +614,19 @@ __global__ static __launch_bounds__(
   }
 }
 
-__global__ static __launch_bounds__(THREADS6,
-                                    FACTOR6) void apply_forces_bh(float* restrict Y_x,
-                                                                  float* restrict Y_y,
-                                                                  const float* restrict attract_x,
-                                                                  const float* restrict attract_y,
-                                                                  const float* restrict repel_x,
-                                                                  const float* restrict repel_y,
-                                                                  float* restrict old_dx,
-                                                                  float* restrict old_dy,
-                                                                  const float* restrict swinging,
-                                                                  const float speed,
-                                                                  const int n)
+__global__ static __launch_bounds__(THREADS6, FACTOR6) void apply_forces_bh(
+  float* restrict Y_x,
+  float* restrict Y_y,
+  const float* restrict attract_x,
+  const float* restrict attract_y,
+  const float* restrict repel_x,
+  const float* restrict repel_y,
+  float* restrict old_dx,
+  float* restrict old_dy,
+  const float* restrict swinging,
+  const float* restrict vertex_mobility,
+  const float speed,
+  const int n)
 {
   // For evrery vertex
   for (int i = threadIdx.x + blockIdx.x * blockDim.x; i < n; i += gridDim.x * blockDim.x) {
@@ -636,7 +637,8 @@ __global__ static __launch_bounds__(THREADS6,
     old_dy[i]      = dy;
 
     // Update positions
-    float factor = speed / (1.0 + sqrt(speed * swinging[i]));
+    float mobility_factor = vertex_mobility ? vertex_mobility[i] : 1.0f;
+    float factor          = mobility_factor * speed / (1.0 + sqrt(speed * swinging[i]));
     Y_x[i] += dx * factor;
     Y_y[i] += dy * factor;
   }

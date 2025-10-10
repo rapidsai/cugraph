@@ -37,7 +37,7 @@ namespace detail {
 
 template <typename vertex_t, typename edge_t, typename weight_t>
 void barnes_hut(raft::handle_t const& handle,
-                // raft::random::RngState& rng_state, FIXME: add support for rng state
+                raft::random::RngState& rng_state,
                 legacy::GraphCOOView<vertex_t, edge_t, weight_t>& graph,
                 float* pos,
                 const int max_iter                            = 500,
@@ -46,12 +46,16 @@ void barnes_hut(raft::handle_t const& handle,
                 bool outbound_attraction_distribution         = true,
                 bool lin_log_mode                             = false,
                 bool prevent_overlapping                      = false,
+                float* vertex_radius                          = nullptr,
+                const float overlap_scaling_ratio             = 100.0,
                 const float edge_weight_influence             = 1.0,
                 const float jitter_tolerance                  = 1.0,
                 const float theta                             = 0.5,
                 const float scaling_ratio                     = 2.0,
                 bool strong_gravity_mode                      = false,
                 const float gravity                           = 1.0,
+                float* vertex_mobility                        = nullptr,
+                float* vertex_mass                            = nullptr,
                 bool verbose                                  = false,
                 internals::GraphBasedDimRedCallback* callback = nullptr)
 {
@@ -91,19 +95,18 @@ void barnes_hut(raft::handle_t const& handle,
 
   rmm::device_uvector<int> d_startl(nnodes + 1, stream_view);
   rmm::device_uvector<int> d_childl((nnodes + 1) * 4, stream_view);
-  // FA2 requires degree + 1
-  rmm::device_uvector<int> d_massl(nnodes + 1, stream_view);
-  thrust::fill(handle.get_thrust_policy(), d_massl.begin(), d_massl.end(), 1);
+  rmm::device_uvector<float> d_massl(nnodes + 1, stream_view);
+  rmm::device_uvector<edge_t> d_massl_edge_t(0, stream_view);
 
   rmm::device_uvector<float> d_maxxl(blocks * FACTOR1, stream_view);
   rmm::device_uvector<float> d_maxyl(blocks * FACTOR1, stream_view);
   rmm::device_uvector<float> d_minxl(blocks * FACTOR1, stream_view);
   rmm::device_uvector<float> d_minyl(blocks * FACTOR1, stream_view);
 
-  // Actual mallocs
-  int* startl = d_startl.data();
-  int* childl = d_childl.data();
-  int* massl  = d_massl.data();
+  int* startl  = d_startl.data();
+  int* childl  = d_childl.data();
+  float* massl = d_massl.data();
+  edge_t* massl_edge_t{nullptr};
 
   float* maxxl = d_maxxl.data();
   float* maxyl = d_maxyl.data();
@@ -128,14 +131,12 @@ void barnes_hut(raft::handle_t const& handle,
   rmm::device_uvector<float> d_nodes_pos((nnodes + 1) * 2, stream_view);
   float* nodes_pos = d_nodes_pos.data();
 
-  // Initialize positions with random values
-  raft::random::RngState rng_state{0};
-
   // Copy start x and y positions.
   if (x_start && y_start) {
     raft::copy(nodes_pos, x_start, n, stream_view.value());
     raft::copy(nodes_pos + nnodes + 1, y_start, n, stream_view.value());
   } else {
+    // Initialize positions with random values
     uniform_random_fill(
       handle.get_stream(), nodes_pos, (nnodes + 1) * 2, -100.0f, 100.0f, rng_state);
   }
@@ -158,12 +159,31 @@ void barnes_hut(raft::handle_t const& handle,
 
   thrust::fill(handle.get_thrust_policy(), d_old_forces.begin(), d_old_forces.end(), 0.f);
 
-  // Sort COO for coalesced memory access.
-  sort(graph, stream_view.value());
-  RAFT_CHECK_CUDA(stream_view.value());
+  if (graph.number_of_edges > 0) {
+    // Sort COO for coalesced memory access.
+    sort(graph, stream_view.value());
+    RAFT_CHECK_CUDA(stream_view.value());
+  }
 
-  graph.degree(massl, cugraph::legacy::DegreeDirection::OUT);
-  RAFT_CHECK_CUDA(stream_view.value());
+  if (vertex_mass != nullptr) {
+    // Fill masses with 1 (because `nnodes + 1 > n`)
+    thrust::fill(handle.get_thrust_policy(), d_massl.begin() + n, d_massl.end(), 1.f);
+    raft::copy(massl, vertex_mass, n, stream_view.value());
+  } else {
+    // FA2 requires degree + 1
+    d_massl_edge_t.resize(nnodes + 1, handle.get_stream());
+    thrust::fill(handle.get_thrust_policy(), d_massl_edge_t.begin(), d_massl_edge_t.end(), 1);
+    massl_edge_t = d_massl_edge_t.data();
+    graph.degree(massl_edge_t, cugraph::legacy::DegreeDirection::OUT);
+    RAFT_CHECK_CUDA(stream_view.value());
+
+    thrust::transform(
+      handle.get_thrust_policy(),
+      d_massl_edge_t.begin(),
+      d_massl_edge_t.end(),
+      d_massl.begin(),
+      cuda::proclaim_return_type<float>([] __device__(edge_t x) { return static_cast<float>(x); }));
+  }
 
   const vertex_t* row = graph.src_indices;
   const vertex_t* col = graph.dst_indices;
@@ -177,7 +197,7 @@ void barnes_hut(raft::handle_t const& handle,
 
   // If outboundAttractionDistribution active, compensate.
   if (outbound_attraction_distribution) {
-    int sum = thrust::reduce(handle.get_thrust_policy(), d_massl.begin(), d_massl.begin() + n);
+    float sum = thrust::reduce(handle.get_thrust_policy(), d_massl.begin(), d_massl.begin() + n);
     outbound_att_compensation = sum / (float)n;
   }
 
@@ -290,19 +310,21 @@ void barnes_hut(raft::handle_t const& handle,
                                                  lin_log_mode,
                                                  edge_weight_influence,
                                                  outbound_att_compensation,
+                                                 prevent_overlapping,
+                                                 vertex_radius,
                                                  stream_view.value());
 
-    compute_local_speed(rep_forces,
-                        rep_forces + nnodes + 1,
-                        attract,
-                        attract + n,
-                        old_forces,
-                        old_forces + n,
-                        massl,
-                        swinging,
-                        traction,
-                        n,
-                        stream_view.value());
+    compute_local_speed<vertex_t>(rep_forces,
+                                  rep_forces + nnodes + 1,
+                                  attract,
+                                  attract + n,
+                                  old_forces,
+                                  old_forces + n,
+                                  massl,
+                                  swinging,
+                                  traction,
+                                  n,
+                                  stream_view.value());
 
     // Compute global swinging and traction values
     const float s =
@@ -324,6 +346,7 @@ void barnes_hut(raft::handle_t const& handle,
                                                                             old_forces,
                                                                             old_forces + n,
                                                                             swinging,
+                                                                            vertex_mobility,
                                                                             speed,
                                                                             n);
 

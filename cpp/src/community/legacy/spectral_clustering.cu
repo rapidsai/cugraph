@@ -269,8 +269,9 @@ void balancedCutClustering(raft::handle_t const& handle,
                            int kmean_max_iter,
                            VT* clustering)
 {
-  rmm::device_vector<WT> eig_vals(num_eigen_vects);
-  rmm::device_vector<WT> eig_vects(num_eigen_vects * graph.number_of_vertices);
+  rmm::device_uvector<WT> eig_vals(num_eigen_vects, handle.get_stream());
+  rmm::device_uvector<WT> eig_vects(num_eigen_vects * graph.number_of_vertices,
+                                    handle.get_stream());
 
   detail::balancedCutClustering_impl(handle,
                                      rng_state,
@@ -282,8 +283,8 @@ void balancedCutClustering(raft::handle_t const& handle,
                                      kmean_tolerance,
                                      kmean_max_iter,
                                      clustering,
-                                     eig_vals.data().get(),
-                                     eig_vects.data().get());
+                                     eig_vals.data(),
+                                     eig_vects.data());
 }
 
 template <typename VT, typename ET, typename WT>
@@ -298,8 +299,8 @@ void spectralModularityMaximization(raft::handle_t const& handle,
                                     int kmean_max_iter,
                                     VT* clustering)
 {
-  rmm::device_vector<WT> eig_vals(n_eigen_vects);
-  rmm::device_vector<WT> eig_vects(n_eigen_vects * graph.number_of_vertices);
+  rmm::device_uvector<WT> eig_vals(n_eigen_vects, handle.get_stream());
+  rmm::device_uvector<WT> eig_vects(n_eigen_vects * graph.number_of_vertices, handle.get_stream());
 
   detail::spectralModularityMaximization_impl(handle,
                                               rng_state,
@@ -311,8 +312,8 @@ void spectralModularityMaximization(raft::handle_t const& handle,
                                               kmean_tolerance,
                                               kmean_max_iter,
                                               clustering,
-                                              eig_vals.data().get(),
-                                              eig_vects.data().get());
+                                              eig_vals.data(),
+                                              eig_vects.data());
 }
 
 template <typename VT, typename ET, typename WT>

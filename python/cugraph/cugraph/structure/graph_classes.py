@@ -460,7 +460,7 @@ class Graph:
         if not isinstance(pdf, pd.DataFrame):
             raise TypeError("pdf input is not a Pandas DataFrame")
 
-        gdf = cudf.DataFrame.from_pandas(pdf)
+        gdf = cudf.DataFrame(pdf)
         self.from_cudf_edgelist(
             gdf,
             source=source,

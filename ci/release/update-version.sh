@@ -39,6 +39,7 @@ function sed_runner() {
 # NOTE: Any script that runs in CI will need to use gha-tool `rapids-generate-version`
 # and echo it to `VERSION` file to get an alpha spec of the current version
 echo "${NEXT_FULL_TAG}" > VERSION
+echo "branch-${NEXT_SHORT_TAG}" > RAPIDS_BRANCH
 
 # Need to distutils-normalize the original version
 NEXT_SHORT_TAG_PEP440=$(python -c "from packaging.version import Version; print(Version('${NEXT_SHORT_TAG}'))")
@@ -72,7 +73,7 @@ UCXX_DEPENDENCIES=(
 )
 for FILE in dependencies.yaml conda/environments/*.yaml; do
   for DEP in "${DEPENDENCIES[@]}"; do
-    sed_runner "/-.* ${DEP}\(-cu[[:digit:]]\{2\}\)\{0,1\}==/ s/==.*/==${NEXT_SHORT_TAG_PEP440}.*,>=0.0.0a0/g" "${FILE}"
+    sed_runner "/-.* ${DEP}\(-cu[[:digit:]]\{2\}\)\{0,1\}\(\[.*\]\)\{0,1\}==/ s/==.*/==${NEXT_SHORT_TAG_PEP440}.*,>=0.0.0a0/g" "${FILE}"
   done
   for DEP in "${UCXX_DEPENDENCIES[@]}"; do
     sed_runner "/-.* ${DEP}\(-cu[[:digit:]]\{2\}\)\{0,1\}==/ s/==.*/==${NEXT_UCXX_SHORT_TAG_PEP440}.*,>=0.0.0a0/g" "${FILE}"

@@ -33,10 +33,12 @@ __global__ static void attraction_kernel(const vertex_t* restrict row,
                                          const float* restrict y_pos,
                                          float* restrict attract_x,
                                          float* restrict attract_y,
-                                         const int* restrict mass,
+                                         const float* restrict mass,
                                          bool outbound_attraction_distribution,
                                          bool lin_log_mode,
                                          const float edge_weight_influence,
+                                         bool prevent_overlapping,
+                                         const float* restrict vertex_radius,
                                          const float coef)
 {
   vertex_t i, src, dst;
@@ -53,11 +55,32 @@ __global__ static void attraction_kernel(const vertex_t* restrict row,
     float y_dist = y_pos[src] - y_pos[dst];
     float factor = -coef * weight;
 
-    if (lin_log_mode) {
-      float distance = pow(x_dist, 2) + pow(y_dist, 2);
-      distance += FLT_EPSILON;
-      distance = sqrt(distance);
-      factor *= log(1 + distance) / distance;
+    if (prevent_overlapping) {
+      float radius_src  = vertex_radius[src];
+      float radius_dst  = vertex_radius[dst];
+      float distance_sq = x_dist * x_dist + y_dist * y_dist;
+      if (distance_sq <= pow(radius_src + radius_dst, 2)) {
+        // Overlapping, force is 0
+        continue;
+      } else {
+        // Not overlapping, force is based on d' instead of d
+        float distance = pow(x_dist, 2) + pow(y_dist, 2);
+        distance += FLT_EPSILON;
+        distance             = sqrt(distance);
+        float distance_inter = distance - radius_src - radius_dst;
+        if (lin_log_mode) {
+          factor *= log(1 + distance_inter) / distance;
+        } else {
+          factor *= distance_inter / distance;
+        }
+      }
+    } else {
+      if (lin_log_mode) {
+        float distance = pow(x_dist, 2) + pow(y_dist, 2);
+        distance += FLT_EPSILON;
+        distance = sqrt(distance);
+        factor *= log(1 + distance) / distance;
+      }
     }
     if (outbound_attraction_distribution) factor /= mass[src];
 
@@ -78,23 +101,27 @@ void apply_attraction(const vertex_t* restrict row,
                       const float* restrict y_pos,
                       float* restrict attract_x,
                       float* restrict attract_y,
-                      const int* restrict mass,
+                      const float* restrict mass,
                       bool outbound_attraction_distribution,
                       bool lin_log_mode,
                       const float edge_weight_influence,
                       const float coef,
+                      bool prevent_overlapping,
+                      const float* restrict vertex_radius,
                       cudaStream_t stream)
 {
   // 0 edge graph.
   if (!e) return;
 
   dim3 nthreads, nblocks;
-  nthreads.x = min(e, CUDA_MAX_KERNEL_THREADS);
+  nthreads.x = static_cast<int>(min(e, static_cast<edge_t>(CUDA_MAX_KERNEL_THREADS)));
   nthreads.y = 1;
   nthreads.z = 1;
-  nblocks.x  = min((e + nthreads.x - 1) / nthreads.x, CUDA_MAX_BLOCKS);
-  nblocks.y  = 1;
-  nblocks.z  = 1;
+  nblocks.x  = static_cast<int>(
+    min((e + static_cast<edge_t>(nthreads.x) - 1) / static_cast<edge_t>(nthreads.x),
+        static_cast<edge_t>(CUDA_MAX_BLOCKS)));
+  nblocks.y = 1;
+  nblocks.z = 1;
 
   attraction_kernel<vertex_t, edge_t, weight_t>
     <<<nblocks, nthreads, 0, stream>>>(row,
@@ -109,6 +136,8 @@ void apply_attraction(const vertex_t* restrict row,
                                        outbound_attraction_distribution,
                                        lin_log_mode,
                                        edge_weight_influence,
+                                       prevent_overlapping,
+                                       vertex_radius,
                                        coef);
 
   RAFT_CHECK_CUDA(stream);
@@ -119,7 +148,7 @@ __global__ static void linear_gravity_kernel(const float* restrict x_pos,
                                              const float* restrict y_pos,
                                              float* restrict attract_x,
                                              float* restrict attract_y,
-                                             const int* restrict mass,
+                                             const float* restrict mass,
                                              const float gravity,
                                              const vertex_t n)
 {
@@ -139,7 +168,7 @@ __global__ static void strong_gravity_kernel(const float* restrict x_pos,
                                              const float* restrict y_pos,
                                              float* restrict attract_x,
                                              float* restrict attract_y,
-                                             const int* restrict mass,
+                                             const float* restrict mass,
                                              const float gravity,
                                              const float scaling_ratio,
                                              const vertex_t n)
@@ -160,7 +189,7 @@ void apply_gravity(const float* restrict x_pos,
                    const float* restrict y_pos,
                    float* restrict attract_x,
                    float* restrict attract_y,
-                   const int* restrict mass,
+                   const float* restrict mass,
                    const float gravity,
                    bool strong_gravity_mode,
                    const float scaling_ratio,
@@ -168,12 +197,14 @@ void apply_gravity(const float* restrict x_pos,
                    cudaStream_t stream)
 {
   dim3 nthreads, nblocks;
-  nthreads.x = min(n, CUDA_MAX_KERNEL_THREADS);
+  nthreads.x = static_cast<int>(min(n, static_cast<vertex_t>(CUDA_MAX_KERNEL_THREADS)));
   nthreads.y = 1;
   nthreads.z = 1;
-  nblocks.x  = min((n + nthreads.x - 1) / nthreads.x, CUDA_MAX_BLOCKS);
-  nblocks.y  = 1;
-  nblocks.z  = 1;
+  nblocks.x  = static_cast<int>(
+    min((n + static_cast<vertex_t>(nthreads.x) - 1) / static_cast<vertex_t>(nthreads.x),
+        static_cast<vertex_t>(CUDA_MAX_BLOCKS)));
+  nblocks.y = 1;
+  nblocks.z = 1;
 
   if (strong_gravity_mode) {
     strong_gravity_kernel<vertex_t><<<nblocks, nthreads, 0, stream>>>(
@@ -192,7 +223,7 @@ __global__ static void local_speed_kernel(const float* restrict repel_x,
                                           const float* restrict attract_y,
                                           const float* restrict old_dx,
                                           const float* restrict old_dy,
-                                          const int* restrict mass,
+                                          const float* restrict mass,
                                           float* restrict swinging,
                                           float* restrict traction,
                                           const vertex_t n)
@@ -215,21 +246,23 @@ void compute_local_speed(const float* restrict repel_x,
                          const float* restrict attract_y,
                          float* restrict old_dx,
                          float* restrict old_dy,
-                         const int* restrict mass,
+                         const float* restrict mass,
                          float* restrict swinging,
                          float* restrict traction,
                          const vertex_t n,
                          cudaStream_t stream)
 {
   dim3 nthreads, nblocks;
-  nthreads.x = min(n, CUDA_MAX_KERNEL_THREADS);
+  nthreads.x = static_cast<int>(min(n, static_cast<vertex_t>(CUDA_MAX_KERNEL_THREADS)));
   nthreads.y = 1;
   nthreads.z = 1;
-  nblocks.x  = min((n + nthreads.x - 1) / nthreads.x, CUDA_MAX_BLOCKS);
-  nblocks.y  = 1;
-  nblocks.z  = 1;
+  nblocks.x  = static_cast<int>(
+    min((n + static_cast<vertex_t>(nthreads.x) - 1) / static_cast<vertex_t>(nthreads.x),
+        static_cast<vertex_t>(CUDA_MAX_BLOCKS)));
+  nblocks.y = 1;
+  nblocks.z = 1;
 
-  local_speed_kernel<<<nblocks, nthreads, 0, stream>>>(
+  local_speed_kernel<vertex_t><<<nblocks, nthreads, 0, stream>>>(
     repel_x, repel_y, attract_x, attract_y, old_dx, old_dy, mass, swinging, traction, n);
   RAFT_CHECK_CUDA(stream);
 }
@@ -280,14 +313,16 @@ __global__ static void update_positions_kernel(float* restrict x_pos,
                                                float* restrict old_dx,
                                                float* restrict old_dy,
                                                const float* restrict swinging,
+                                               const float* restrict vertex_mobility,
                                                const float speed,
                                                const vertex_t n)
 {
   // For every node.
   for (int i = threadIdx.x + blockIdx.x * blockDim.x; i < n; i += gridDim.x * blockDim.x) {
-    const float factor = speed / (1.0 + sqrt(speed * swinging[i]));
-    const float dx     = (repel_x[i] + attract_x[i]);
-    const float dy     = (repel_y[i] + attract_y[i]);
+    const float mobility_factor = vertex_mobility ? vertex_mobility[i] : 1.0f;
+    const float factor          = mobility_factor * speed / (1.0 + sqrt(speed * swinging[i]));
+    const float dx              = (repel_x[i] + attract_x[i]);
+    const float dy              = (repel_y[i] + attract_y[i]);
 
     x_pos[i] += dx * factor;
     y_pos[i] += dy * factor;
@@ -306,20 +341,33 @@ void apply_forces(float* restrict x_pos,
                   float* restrict old_dx,
                   float* restrict old_dy,
                   const float* restrict swinging,
+                  const float* restrict vertex_mobility,
                   const float speed,
                   const vertex_t n,
                   cudaStream_t stream)
 {
   dim3 nthreads, nblocks;
-  nthreads.x = min(n, CUDA_MAX_KERNEL_THREADS);
+  nthreads.x = static_cast<int>(min(n, static_cast<vertex_t>(CUDA_MAX_KERNEL_THREADS)));
   nthreads.y = 1;
   nthreads.z = 1;
-  nblocks.x  = min((n + nthreads.x - 1) / nthreads.x, CUDA_MAX_BLOCKS);
-  nblocks.y  = 1;
-  nblocks.z  = 1;
+  nblocks.x  = static_cast<int>(
+    min((n + static_cast<vertex_t>(nthreads.x) - 1) / static_cast<vertex_t>(nthreads.x),
+        static_cast<vertex_t>(CUDA_MAX_BLOCKS)));
+  nblocks.y = 1;
+  nblocks.z = 1;
 
-  update_positions_kernel<vertex_t><<<nblocks, nthreads, 0, stream>>>(
-    x_pos, y_pos, repel_x, repel_y, attract_x, attract_y, old_dx, old_dy, swinging, speed, n);
+  update_positions_kernel<vertex_t><<<nblocks, nthreads, 0, stream>>>(x_pos,
+                                                                      y_pos,
+                                                                      repel_x,
+                                                                      repel_y,
+                                                                      attract_x,
+                                                                      attract_y,
+                                                                      old_dx,
+                                                                      old_dy,
+                                                                      swinging,
+                                                                      vertex_mobility,
+                                                                      speed,
+                                                                      n);
   RAFT_CHECK_CUDA(stream);
 }
 

@@ -185,30 +185,57 @@ class Tests_MGTemporalGraph
       last_pos += edge_src_chunks[i].size();
     }
 
-    std::tie(graph,
-             edge_weights,
-             std::ignore,
-             std::ignore,
-             edge_start_times,
-             edge_end_times,
-             renumber_map) =
-      cugraph::create_graph_from_edgelist<vertex_t,
-                                          edge_t,
-                                          weight_t,
-                                          edge_type_t,
-                                          edge_time_t,
-                                          store_transposed,
-                                          true>(*handle_,
-                                                std::move(d_vertices_v),
-                                                std::move(edge_src_chunks),
-                                                std::move(edge_dst_chunks),
-                                                std::move(edge_weight_chunks),
-                                                std::nullopt,
-                                                std::nullopt,
-                                                std::move(edge_start_time_chunks),
-                                                std::move(edge_end_time_chunks),
-                                                cugraph::graph_properties_t{is_symmetric, true},
-                                                renumber);
+    std::vector<std::vector<cugraph::arithmetic_device_uvector_t>> edgelist_edge_properties{};
+    if (local_original_wgts) {
+      std::vector<cugraph::arithmetic_device_uvector_t> properties{};
+      std::for_each(edge_weight_chunks->begin(),
+                    edge_weight_chunks->end(),
+                    [&properties](auto& vector) { properties.push_back(std::move(vector)); });
+      edgelist_edge_properties.push_back(std::move(properties));
+    }
+    if (local_original_start_times) {
+      std::vector<cugraph::arithmetic_device_uvector_t> properties{};
+      std::for_each(edge_start_time_chunks->begin(),
+                    edge_start_time_chunks->end(),
+                    [&properties](auto& vector) { properties.push_back(std::move(vector)); });
+      edgelist_edge_properties.push_back(std::move(properties));
+    }
+    if (local_original_end_times) {
+      std::vector<cugraph::arithmetic_device_uvector_t> properties{};
+      std::for_each(edge_end_time_chunks->begin(),
+                    edge_end_time_chunks->end(),
+                    [&properties](auto& vector) { properties.push_back(std::move(vector)); });
+      edgelist_edge_properties.push_back(std::move(properties));
+    }
+
+    std::vector<cugraph::edge_arithmetic_property_t<edge_t>> edge_properties{};
+
+    std::tie(graph, edge_properties, renumber_map) =
+      cugraph::create_graph_from_edgelist<vertex_t, edge_t, store_transposed, true>(
+        *handle_,
+        std::move(d_vertices_v),
+        std::move(edge_src_chunks),
+        std::move(edge_dst_chunks),
+        std::move(edgelist_edge_properties),
+        cugraph::graph_properties_t{is_symmetric, true},
+        renumber);
+
+    size_t pos{0};
+    auto edge_weights_property =
+      local_original_wgts
+        ? std::make_optional(
+            std::move(std::get<cugraph::edge_property_t<edge_t, weight_t>>(edge_properties[pos++])))
+        : std::nullopt;
+    auto edge_start_times_property =
+      local_original_start_times
+        ? std::make_optional(std::move(
+            std::get<cugraph::edge_property_t<edge_t, edge_time_t>>(edge_properties[pos++])))
+        : std::nullopt;
+    auto edge_end_times_property =
+      local_original_end_times
+        ? std::make_optional(std::move(
+            std::get<cugraph::edge_property_t<edge_t, edge_time_t>>(edge_properties[pos++])))
+        : std::nullopt;
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
