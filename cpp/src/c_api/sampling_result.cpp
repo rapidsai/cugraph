@@ -543,16 +543,23 @@ extern "C" cugraph_error_code_t cugraph_test_sample_result_create(
 extern "C" void cugraph_sample_result_free(cugraph_sample_result_t* result)
 {
   auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_sample_result_t*>(result);
+
   delete internal_pointer->major_offsets_;
   delete internal_pointer->majors_;
   delete internal_pointer->minors_;
   delete internal_pointer->edge_id_;
   delete internal_pointer->edge_type_;
   delete internal_pointer->wgt_;
+  delete internal_pointer->edge_start_time_;
+  delete internal_pointer->edge_end_time_;
   delete internal_pointer->hop_;
   delete internal_pointer->label_hop_offsets_;
+  delete internal_pointer->label_type_hop_offsets_;
   delete internal_pointer->label_;
   delete internal_pointer->renumber_map_;
   delete internal_pointer->renumber_map_offsets_;
+  delete internal_pointer->edge_renumber_map_;
+  delete internal_pointer->edge_renumber_map_offsets_;
+
   delete internal_pointer;
 }
