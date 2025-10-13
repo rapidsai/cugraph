@@ -248,7 +248,7 @@ template <bool update_major,
           typename EdgePartitionDstValueInputWrapper,
           typename EdgePartitionEdgeValueInputWrapper,
           typename EdgePartitionEdgeMaskWrapper,
-          typename ResultValueOutputIteratorOrWrapper /* wrapper if update_major &&
+          typename ResultValueOutputIteratorOrWrapper /* wrapper if !update_major &&
                                                          GraphViewType::is_multi_gpu, iterator
                                                          otherwise */
           ,
@@ -333,15 +333,15 @@ __global__ static void per_v_transform_reduce_e_hypersparse(
                                            indices,
                                            edge_offset};
 
-      auto call_pred_op = init_pred_op<GraphViewType>(edge_partition,
-                                                      edge_partition_src_value_input,
-                                                      edge_partition_dst_value_input,
-                                                      edge_partition_e_value_input,
-                                                      pred_op,
-                                                      key,
-                                                      major_offset,
-                                                      indices,
-                                                      edge_offset);
+      auto call_pred_op = init_pred_op<GraphViewType, key_t>(edge_partition,
+                                                             edge_partition_src_value_input,
+                                                             edge_partition_dst_value_input,
+                                                             edge_partition_e_value_input,
+                                                             pred_op,
+                                                             key,
+                                                             major_offset,
+                                                             indices,
+                                                             edge_offset);
 
       if (edge_partition_e_mask) {
         update_result_value_output<update_major>(
@@ -385,7 +385,7 @@ template <bool update_major,
           typename EdgePartitionDstValueInputWrapper,
           typename EdgePartitionEdgeValueInputWrapper,
           typename EdgePartitionEdgeMaskWrapper,
-          typename ResultValueOutputIteratorOrWrapper /* wrapper if update_major &&
+          typename ResultValueOutputIteratorOrWrapper /* wrapper if !update_major &&
                                                          GraphViewType::is_multi_gpu, iterator
                                                          otherwise */
           ,
@@ -420,7 +420,8 @@ __global__ static void per_v_transform_reduce_e_low_degree(
   auto const tid = threadIdx.x + blockIdx.x * blockDim.x;
   auto idx       = static_cast<size_t>(tid);
 
-  while (idx < static_cast<size_t>(cuda::std::distance(key_first, key_last))) {
+  auto num_keys = static_cast<size_t>(cuda::std::distance(key_first, key_last));
+  while (idx < num_keys) {
     auto key   = *(key_first + idx);
     auto major = thrust_tuple_get_or_identity<key_t, 0>(key);
 
@@ -446,15 +447,15 @@ __global__ static void per_v_transform_reduce_e_low_degree(
                                          indices,
                                          edge_offset};
 
-    auto call_pred_op = init_pred_op<GraphViewType>(edge_partition,
-                                                    edge_partition_src_value_input,
-                                                    edge_partition_dst_value_input,
-                                                    edge_partition_e_value_input,
-                                                    pred_op,
-                                                    key,
-                                                    major_offset,
-                                                    indices,
-                                                    edge_offset);
+    auto call_pred_op = init_pred_op<GraphViewType, key_t>(edge_partition,
+                                                           edge_partition_src_value_input,
+                                                           edge_partition_dst_value_input,
+                                                           edge_partition_e_value_input,
+                                                           pred_op,
+                                                           key,
+                                                           major_offset,
+                                                           indices,
+                                                           edge_offset);
 
     if (edge_partition_e_mask) {
       update_result_value_output<update_major>(
@@ -495,7 +496,7 @@ template <bool update_major,
           typename EdgePartitionDstValueInputWrapper,
           typename EdgePartitionEdgeValueInputWrapper,
           typename EdgePartitionEdgeMaskWrapper,
-          typename ResultValueOutputIteratorOrWrapper /* wrapper if update_major &&
+          typename ResultValueOutputIteratorOrWrapper /* wrapper if !update_major &&
                                                          GraphViewType::is_multi_gpu, iterator
                                                          otherwise */
           ,
@@ -566,15 +567,15 @@ __global__ static void per_v_transform_reduce_e_mid_degree(
                                          indices,
                                          edge_offset};
 
-    auto call_pred_op = init_pred_op<GraphViewType>(edge_partition,
-                                                    edge_partition_src_value_input,
-                                                    edge_partition_dst_value_input,
-                                                    edge_partition_e_value_input,
-                                                    pred_op,
-                                                    key,
-                                                    major_offset,
-                                                    indices,
-                                                    edge_offset);
+    auto call_pred_op = init_pred_op<GraphViewType, key_t>(edge_partition,
+                                                           edge_partition_src_value_input,
+                                                           edge_partition_dst_value_input,
+                                                           edge_partition_e_value_input,
+                                                           pred_op,
+                                                           key,
+                                                           major_offset,
+                                                           indices,
+                                                           edge_offset);
 
     [[maybe_unused]] std::conditional_t<update_major, T, std::byte /* dummy */>
       reduced_e_op_result{};
@@ -688,7 +689,7 @@ template <bool update_major,
           typename EdgePartitionDstValueInputWrapper,
           typename EdgePartitionEdgeValueInputWrapper,
           typename EdgePartitionEdgeMaskWrapper,
-          typename ResultValueOutputIteratorOrWrapper /* wrapper if update_major &&
+          typename ResultValueOutputIteratorOrWrapper /* wrapper if !update_major &&
                                                          GraphViewType::is_multi_gpu, iterator
                                                          otherwise */
           ,
@@ -762,15 +763,15 @@ __global__ static void per_v_transform_reduce_e_high_degree(
                                          indices,
                                          edge_offset};
 
-    auto call_pred_op = init_pred_op<GraphViewType>(edge_partition,
-                                                    edge_partition_src_value_input,
-                                                    edge_partition_dst_value_input,
-                                                    edge_partition_e_value_input,
-                                                    pred_op,
-                                                    key,
-                                                    major_offset,
-                                                    indices,
-                                                    edge_offset);
+    auto call_pred_op = init_pred_op<GraphViewType, key_t>(edge_partition,
+                                                           edge_partition_src_value_input,
+                                                           edge_partition_dst_value_input,
+                                                           edge_partition_e_value_input,
+                                                           pred_op,
+                                                           key,
+                                                           major_offset,
+                                                           indices,
+                                                           edge_offset);
 
     [[maybe_unused]] std::conditional_t<update_major, T, std::byte /* dummy */>
       reduced_e_op_result{};
@@ -1665,7 +1666,11 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
 
     int num_gpus_per_domain{};  // domain: a group of GPUs that can communicate fast (e.g. NVLink
                                 // domain)
+#if 1  // SK: we should get this from NCCL (once NCCL is updated to provide this information)
+    num_gpus_per_domain = 64;
+#else
     RAFT_CUDA_TRY(cudaGetDeviceCount(&num_gpus_per_domain));
+#endif
     num_gpus_per_domain = std::min(num_gpus_per_domain, comm_size);
     if (comm_size == num_gpus_per_domain) {
       subgroup_size = minor_comm_size;
@@ -2085,20 +2090,21 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
       if constexpr (try_bitmap) {
         if (v_list_bitmap) {
           edge_partition_bitmap_buffers = std::vector<rmm::device_uvector<uint32_t>>{};
-          (*edge_partition_bitmap_buffers).reserve(loop_count);
+          edge_partition_bitmap_buffers->reserve(loop_count);
         }
       }
 
       for (size_t j = 0; j < loop_count; ++j) {
         auto partition_idx = i + j;
 
-        bool use_bitmap_buffer = edge_partition_bitmap_buffers.has_value();
+        bool use_bitmap_buffer = false;
         if constexpr (try_bitmap) {
           if (edge_partition_bitmap_buffers) {
-            (*edge_partition_bitmap_buffers)
-              .emplace_back(packed_bool_size(local_v_list_range_lasts[partition_idx] -
-                                             local_v_list_range_firsts[partition_idx]),
-                            handle.get_stream());
+            use_bitmap_buffer = true;
+            edge_partition_bitmap_buffers->emplace_back(
+              packed_bool_size(local_v_list_range_lasts[partition_idx] -
+                               local_v_list_range_firsts[partition_idx]),
+              handle.get_stream());
           }
         }
         if (!use_bitmap_buffer) {
@@ -2136,7 +2142,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                          handle.get_stream());
           } else if (compressed_v_list) {
             device_bcast(minor_comm,
-                         (*compressed_v_list).data(),
+                         compressed_v_list->data(),
                          get_dataframe_buffer_begin(std::get<0>(edge_partition_key_buffers[j])),
                          local_key_list_sizes[partition_idx],
                          static_cast<int>(partition_idx),
@@ -2237,10 +2243,9 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
         if (graph_view.use_dcs()) {
           edge_partition_hypersparse_key_offset_vectors =
             std::vector<std::variant<rmm::device_uvector<uint32_t>, rmm::device_uvector<size_t>>>{};
-          (*edge_partition_hypersparse_key_offset_vectors)
-            .reserve(
-              loop_count);  // store the offset values (indices) in the output array for the
-                            // vertices in the hypersparse region that have a non-zero local degree
+          edge_partition_hypersparse_key_offset_vectors->reserve(
+            loop_count);  // store the offset values (indices) in the output array for the
+                          // vertices in the hypersparse region that have a non-zero local degree
 
           std::conditional_t<GraphViewType::is_multi_gpu && use_input_key,
                              std::optional<std::conditional_t<
@@ -2266,7 +2271,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
             } else {
               edge_partition_new_key_buffers = std::vector<dataframe_buffer_type_t<key_t>>{};
             }
-            (*edge_partition_new_key_buffers).reserve(loop_count);
+            edge_partition_new_key_buffers->reserve(loop_count);
 
             for (size_t j = 0; j < loop_count; ++j) {
               auto partition_idx = i + j;
@@ -3010,7 +3015,6 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
             // check segment_offsets->size() >= 2 to silence a compiler warning with GCC 14 (if
             // segment_offsets.has_value() is true, segment_offsets->size() should always be larger
             // than 2, so this check shouldn't be necessary otherwise).
-
             buffer_size =
               segment_offsets
                 ? (segment_offsets->size() >= 2
