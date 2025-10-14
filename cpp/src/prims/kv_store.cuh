@@ -314,7 +314,7 @@ class kv_cuco_store_view_t {
                      thrust::equal_to<key_t>,
                      cuco::linear_probing<1,  // CG size
                                           cuco::murmurhash3_32<key_t>>,
-                     rmm::mr::stream_allocator_adaptor<rmm::mr::polymorphic_allocator<std::byte>>,
+                     rmm::mr::polymorphic_allocator<std::byte>,
                      cuco_storage_type>;
 
   template <typename type = value_type>
@@ -510,7 +510,7 @@ class kv_cuco_store_t {
                      thrust::equal_to<key_t>,
                      cuco::linear_probing<1,  // CG size
                                           cuco::murmurhash3_32<key_t>>,
-                     rmm::mr::stream_allocator_adaptor<rmm::mr::polymorphic_allocator<std::byte>>,
+                     rmm::mr::polymorphic_allocator<std::byte>,
                      cuco_storage_type>;
 
   kv_cuco_store_t(rmm::cuda_stream_view stream)
@@ -819,8 +819,6 @@ class kv_cuco_store_t {
       static_cast<size_t>(static_cast<double>(num_keys) / load_factor),
       static_cast<size_t>(num_keys) + 1);  // cuco::static_map requires at least one empty slot
 
-    auto stream_adapter = rmm::mr::stream_allocator_adaptor(
-      rmm::mr::polymorphic_allocator<std::byte>(rmm::mr::get_current_device_resource()), stream);
     if constexpr (std::is_arithmetic_v<value_t>) {
       cuco_store_ =
         std::make_unique<cuco_map_type>(cuco_size,
@@ -831,7 +829,7 @@ class kv_cuco_store_t {
                                                              cuco::murmurhash3_32<key_t>>{},
                                         cuco::thread_scope_device,
                                         cuco_storage_type{},
-                                        stream_adapter,
+                                        rmm::mr::polymorphic_allocator<std::byte>{},
                                         stream.value());
     } else {
       cuco_store_ = std::make_unique<cuco_map_type>(
@@ -843,7 +841,7 @@ class kv_cuco_store_t {
                              cuco::murmurhash3_32<key_t>>{},
         cuco::thread_scope_device,
         cuco_storage_type{},
-        stream_adapter,
+        rmm::mr::polymorphic_allocator<std::byte>{},
         stream.value());
       reserve_optional_dataframe_buffer<value_t>(store_values_, num_keys, stream);
     }
