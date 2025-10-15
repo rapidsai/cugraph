@@ -175,16 +175,6 @@ fanout_5_10_15 = pytest.param(
     id="fanout=5_10_15",
 )
 
-# scaling the number of concurrent cugraph-service clients
-_num_clients = [2, 4, 8, 16, 32]
-num_clients = {}
-for nc in _num_clients:
-    num_clients[nc] = pytest.param(
-        nc,
-        id=f"num_clients={nc}",
-        marks=[getattr(pytest.mark, f"num_clients_{nc}")],
-    )
-
 # Parameters for Graph generation fixture
 graph_obj_fixture_params = gen_fixture_params(
     (sg, rmat["20_16"]),
