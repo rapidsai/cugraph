@@ -1175,6 +1175,19 @@ def test_graph_creation_edges_multi_col_vertices(graph_file, directed):
         )
 
 
+@pytest.mark.sg
+def test_graph_nodes_with_multi_col_vertices():
+    G = cugraph.Graph(directed=True)
+    df = cudf.DataFrame(
+        {"src_0": [1, 2], "src_1": [10, 20], "dst_0": [2, 3], "dst_1": [20, 30]}
+    )
+    G.from_cudf_edgelist(df, source=["src_0", "src_1"], destination=["dst_0", "dst_1"])
+
+    expected_nodes = cudf.DataFrame({"0_vertex": [1, 2, 3], "1_vertex": [10, 20, 30]})
+    nodes = G.nodes()
+    assert_frame_equal(nodes, expected_nodes, check_dtype=False)
+
+
 def test_from_pandas_adjacency_string_columns():
     data = {
         "A": [0, 1, 1, 0],

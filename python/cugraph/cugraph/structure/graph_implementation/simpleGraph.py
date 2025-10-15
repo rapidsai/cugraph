@@ -937,9 +937,8 @@ class simpleGraphImpl:
             df_["vertex"] = vertices
             df_ = self.renumber_map.unrenumber(df_, "vertex")
             if len(df_.columns) > 1:
-                vertices = df_
-            else:
-                vertices = df_["vertex"]
+                return df_.sort_values(df_.columns, ignore_index=True)
+            vertices = df_["vertex"]
 
         return vertices.sort_values(ignore_index=True)
 
@@ -1545,7 +1544,7 @@ class simpleGraphImpl:
         If multi columns vertices, return a cudf.DataFrame.
         """
         if self.edgelist is not None:
-            return self.extract_vertex_list(return_unrenumbered_vertices=False)
+            return self.extract_vertex_list(return_unrenumbered_vertices=True)
         if self.adjlist is not None:
             return cudf.Series(np.arange(0, self.number_of_nodes()))
 
