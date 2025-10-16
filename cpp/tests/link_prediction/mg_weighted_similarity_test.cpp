@@ -110,7 +110,7 @@ class Tests_MGSimilarity
 
     std::vector<cugraph::arithmetic_device_uvector_t> edge_properties{};
 
-    std::tie(d_v1, d_v2, std::ignore, std::ignore) =
+    std::tie(d_v1, d_v2, std::ignore) =
       cugraph::shuffle_int_edges(*handle_,
                                  std::move(d_v1),
                                  std::move(d_v2),

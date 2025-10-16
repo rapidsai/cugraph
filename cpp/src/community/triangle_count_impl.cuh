@@ -450,7 +450,7 @@ void triangle_count(raft::handle_t const& handle,
 
     if constexpr (multi_gpu) {
       std::vector<arithmetic_device_uvector_t> edge_properties{};
-      std::tie(srcs, dsts, std::ignore, std::ignore) = shuffle_ext_edges(
+      std::tie(srcs, dsts, std::ignore) = shuffle_ext_edges(
         handle, std::move(srcs), std::move(dsts), std::move(edge_properties), false);
     }
 

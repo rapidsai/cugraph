@@ -23,7 +23,6 @@
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/error.hpp>
-#include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
 
 #include <rmm/mr/device/per_device_resource.hpp>
@@ -171,11 +170,11 @@ void unrenumber_local_int_edges(
     }
   }
 
-  auto number_of_edges =
-    host_scalar_allreduce(comm,
-                          std::reduce(edgelist_edge_counts.begin(), edgelist_edge_counts.end()),
-                          raft::comms::op_t::SUM,
-                          handle.get_stream());
+  auto number_of_edges = std::reduce(edgelist_edge_counts.begin(), edgelist_edge_counts.end());
+  comm.host_allreduce(std::addressof(number_of_edges),
+                      std::addressof(number_of_edges),
+                      size_t{1},
+                      raft::comms::op_t::SUM);
 
   // FIXME: compare this hash based approach with a binary search based approach in both memory
   // footprint and execution time
@@ -398,12 +397,11 @@ void renumber_ext_vertices(raft::handle_t const& handle,
     rmm::device_uvector<vertex_t> int_vertices_for_sorted_unique_ext_vertices(0,
                                                                               handle.get_stream());
     auto [unique_ext_vertices, int_vertices_for_unique_ext_vertices] =
-      collect_values_for_unique_keys(comm,
+      collect_values_for_unique_keys(handle,
                                      local_renumber_map.view(),
                                      std::move(sorted_unique_ext_vertices),
                                      detail::compute_gpu_id_from_ext_vertex_t<vertex_t>{
-                                       comm_size, major_comm_size, minor_comm_size},
-                                     handle.get_stream());
+                                       comm_size, major_comm_size, minor_comm_size});
 
     renumber_map_ptr = std::make_unique<kv_store_t<vertex_t, vertex_t, false>>(
       unique_ext_vertices.begin(),

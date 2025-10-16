@@ -86,7 +86,7 @@ gather_sampled_properties(
     if (std::holds_alternative<rmm::device_uvector<edge_t>>(multi_index))
       edge_properties.push_back(std::move(multi_index));
 
-    std::tie(majors, minors, edge_properties, std::ignore) =
+    std::tie(majors, minors, edge_properties) =
       shuffle_int_edges(handle,
                         std::move(majors),
                         std::move(minors),

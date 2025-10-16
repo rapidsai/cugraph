@@ -146,7 +146,7 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
         edgelist_edge_properties.push_back(
           concatenate<edge_time_t>(handle_, edge_end_times_, num_arrays_));
 
-      std::tie(edgelist_srcs, edgelist_dsts, edgelist_edge_properties, std::ignore) =
+      std::tie(edgelist_srcs, edgelist_dsts, edgelist_edge_properties) =
         cugraph::shuffle_ext_edges(handle_,
                                    std::move(edgelist_srcs),
                                    std::move(edgelist_dsts),

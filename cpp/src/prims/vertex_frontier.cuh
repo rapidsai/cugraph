@@ -520,11 +520,11 @@ class key_bucket_t {
   template <bool do_aggregate = multi_gpu>
   std::enable_if_t<do_aggregate, size_t> aggregate_size() const
   {
-    return host_scalar_allreduce(
-      handle_ptr_->get_comms(),
-      vertices_.index() == 0 ? std::get<0>(vertices_).size() : std::get<1>(vertices_).size(),
-      raft::comms::op_t::SUM,
-      handle_ptr_->get_stream());
+    size_t ret =
+      (vertices_.index() == 0) ? std::get<0>(vertices_).size() : std::get<1>(vertices_).size();
+    handle_ptr_->get_comms().host_allreduce(
+      std::addressof(ret), std::addressof(ret), size_t{1}, raft::comms::op_t::SUM);
+    return ret;
   }
 
   template <bool do_aggregate = multi_gpu>

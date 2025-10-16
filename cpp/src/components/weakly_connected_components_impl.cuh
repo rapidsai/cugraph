@@ -319,8 +319,10 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
                                                 // GPU has the same number of SMs)
     auto& comm           = handle.get_comms();
     auto const comm_size = comm.get_size();
-    degree_sum_threshold = host_scalar_allreduce(
-      comm, degree_sum_threshold, raft::comms::op_t::SUM, handle.get_stream());
+    comm.host_allreduce(std::addressof(degree_sum_threshold),
+                        std::addressof(degree_sum_threshold),
+                        size_t{1},
+                        raft::comms::op_t::SUM);
     degree_sum_threshold /= static_cast<edge_t>(comm_size);
   }
 
@@ -391,13 +393,13 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
         auto& comm            = handle.get_comms();
         auto const comm_size  = comm.get_size();
         auto local_max_degree = max_degree;
-        max_degree =
-          host_scalar_allreduce(comm, max_degree, raft::comms::op_t::MAX, handle.get_stream());
-        max_v = host_scalar_allreduce(
-          comm,
-          local_max_degree == max_degree ? max_v : std::numeric_limits<vertex_t>::max(),
-          raft::comms::op_t::MIN,
-          handle.get_stream());
+        comm.host_allreduce(std::addressof(max_degree),
+                            std::addressof(max_degree),
+                            size_t{1},
+                            raft::comms::op_t::MAX);
+        max_v = (local_max_degree == max_degree) ? max_v : std::numeric_limits<vertex_t>::max();
+        comm.host_allreduce(
+          std::addressof(max_v), std::addressof(max_v), size_t{1}, raft::comms::op_t::MIN);
         threshold *= std::max(
           static_cast<edge_t>(sqrt(comm_size)),
           edge_t{
@@ -586,10 +588,19 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
           edge_t{0},
           thrust::plus<edge_t>{});
 
-        auto first_candidate_degrees =
-          host_scalar_gather(comm, first_candidate_degree, int{0}, handle.get_stream());
-        auto new_root_candidate_counts =
-          host_scalar_gather(comm, new_root_candidates.size(), int{0}, handle.get_stream());
+        std::vector<edge_t> first_candidate_degrees(comm_rank == 0 ? comm_size : 0, 0);
+        comm.host_gather(std::addressof(first_candidate_degree),
+                         first_candidate_degrees.data(),
+                         size_t{1},
+                         int{0});
+        std::vector<size_t> new_root_candidate_counts(comm_rank == 0 ? comm_size : 0, 0);
+        {
+          auto new_root_candidate_count = new_root_candidates.size();
+          comm.host_gather(std::addressof(new_root_candidate_count),
+                           new_root_candidate_counts.data(),
+                           size_t{1},
+                           int{0});
+        }
 
         if (comm_rank == 0) {
           std::vector<vertex_t> init_max_new_root_counts(comm_size, vertex_t{0});
@@ -635,11 +646,13 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
                       std::numeric_limits<vertex_t>::max());
           }
 
-          init_max_new_roots =
-            host_scalar_scatter(comm, init_max_new_root_counts, int{0}, handle.get_stream());
+          comm.host_scatter(
+            init_max_new_root_counts.data(), std::addressof(init_max_new_roots), size_t{1}, int{0});
         } else {
-          init_max_new_roots =
-            host_scalar_scatter(comm, std::vector<vertex_t>{}, int{0}, handle.get_stream());
+          comm.host_scatter(static_cast<vertex_t const*>(nullptr),
+                            std::addressof(init_max_new_roots),
+                            size_t{1},
+                            int{0});
         }
 
         handle.sync_stream();
@@ -850,8 +863,10 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
     auto aggregate_num_inserts = num_inserts;
     if (GraphViewType::is_multi_gpu) {
       auto& comm = handle.get_comms();
-      aggregate_num_inserts =
-        host_scalar_allreduce(comm, num_inserts, raft::comms::op_t::SUM, handle.get_stream());
+      comm.host_allreduce(std::addressof(aggregate_num_inserts),
+                          std::addressof(aggregate_num_inserts),
+                          size_t{1},
+                          raft::comms::op_t::SUM);
     }
 
     if (aggregate_num_inserts > 0) {
@@ -868,7 +883,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
       if (GraphViewType::is_multi_gpu) {
         std::vector<cugraph::arithmetic_device_uvector_t> edge_properties{};
 
-        std::tie(std::get<0>(edge_buffer), std::get<1>(edge_buffer), std::ignore, std::ignore) =
+        std::tie(std::get<0>(edge_buffer), std::get<1>(edge_buffer), std::ignore) =
           shuffle_ext_edges(handle,
                             std::move(std::get<0>(edge_buffer)),
                             std::move(std::get<1>(edge_buffer)),
@@ -959,11 +974,10 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
                                                                    sorted_unique_keys.end())),
                                 handle.get_stream());
       auto [unique_keys, values_for_unique_keys] = collect_values_for_unique_keys(
-        handle.get_comms(),
+        handle,
         next_level_kv_store.view(),
         std::move(sorted_unique_keys),
-        cuda::proclaim_return_type<int>([key_func] __device__(auto key) { return key_func(key); }),
-        handle.get_stream());
+        cuda::proclaim_return_type<int>([key_func] __device__(auto key) { return key_func(key); }));
       auto kv_pair_first =
         thrust::make_zip_iterator(unique_keys.begin(), values_for_unique_keys.begin());
       unique_keys.resize(

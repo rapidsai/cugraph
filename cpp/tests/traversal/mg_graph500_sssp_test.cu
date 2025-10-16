@@ -251,15 +251,14 @@ class Tests_GRAPH500_MGSSSP
         std::vector<cugraph::arithmetic_device_uvector_t> edge_property_chunk{};
         edge_property_chunk.push_back(std::move(*tmp_weight_chunk));
 
-        std::tie(src_chunks[i], dst_chunks[i], edge_property_chunk, std::ignore) =
-          cugraph::shuffle_ext_edges(*handle_,
-                                     std::move(src_chunks[i]),
-                                     std::move(dst_chunks[i]),
-                                     std::move(edge_property_chunk),
-                                     store_transposed,
-                                     sssp_usecase.use_large_buffer
-                                       ? std::make_optional(cugraph::large_buffer_type_t::MEMORY)
-                                       : std::nullopt);
+        std::tie(src_chunks[i], dst_chunks[i], edge_property_chunk) = cugraph::shuffle_ext_edges(
+          *handle_,
+          std::move(src_chunks[i]),
+          std::move(dst_chunks[i]),
+          std::move(edge_property_chunk),
+          store_transposed,
+          sssp_usecase.use_large_buffer ? std::make_optional(cugraph::large_buffer_type_t::MEMORY)
+                                        : std::nullopt);
 
         weight_chunks[i] =
           std::move(std::get<rmm::device_uvector<weight_t>>(edge_property_chunk[0]));
@@ -903,7 +902,7 @@ class Tests_GRAPH500_MGSSSP
               mg_subgraph_renumber_map_ptr,
               mg_subgraph_view.local_vertex_partition_range_first(),
               mg_subgraph_view.local_vertex_partition_range_last());
-            std::tie(tree_srcs, tree_dsts, std::ignore, std::ignore) =
+            std::tie(tree_srcs, tree_dsts, std::ignore) =
               cugraph::shuffle_int_edges(*handle_,
                                          std::move(tree_srcs),
                                          std::move(tree_dsts),

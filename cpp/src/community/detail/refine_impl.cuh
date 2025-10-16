@@ -184,12 +184,11 @@ refine_clustering(
       comm_size, major_comm_size, minor_comm_size};
 
     vertex_louvain_cluster_weights =
-      cugraph::collect_values_for_keys(comm,
+      cugraph::collect_values_for_keys(handle,
                                        cluster_key_weight_map.view(),
                                        louvain_assignment_of_vertices.begin(),
                                        louvain_assignment_of_vertices.end(),
-                                       vertex_to_gpu_id_op,
-                                       handle.get_stream());
+                                       vertex_to_gpu_id_op);
 
   } else {
     vertex_louvain_cluster_weights.resize(louvain_assignment_of_vertices.size(),
@@ -488,12 +487,11 @@ refine_clustering(
       //   comm_size, major_comm_size, minor_comm_size};
 
       louvain_of_leiden_keys_used_in_edge_reduction =
-        cugraph::collect_values_for_keys(comm,
+        cugraph::collect_values_for_keys(handle,
                                          leiden_to_louvain_map.view(),
                                          leiden_keys_used_in_edge_reduction.begin(),
                                          leiden_keys_used_in_edge_reduction.end(),
-                                         vertex_to_gpu_id_op,
-                                         handle.get_stream());
+                                         vertex_to_gpu_id_op);
     } else {
       louvain_of_leiden_keys_used_in_edge_reduction.resize(
         leiden_keys_used_in_edge_reduction.size(), handle.get_stream());
@@ -648,7 +646,7 @@ refine_clustering(
       std::vector<cugraph::arithmetic_device_uvector_t> edge_properties{};
       if (d_weights) edge_properties.push_back(std::move(*d_weights));
 
-      std::tie(d_srcs, d_dsts, edge_properties, std::ignore) =
+      std::tie(d_srcs, d_dsts, edge_properties) =
         cugraph::shuffle_ext_edges(handle,
                                    std::move(d_srcs),
                                    std::move(d_dsts),
@@ -875,12 +873,11 @@ refine_clustering(
     //   comm_size, major_comm_size, minor_comm_size};
 
     lovain_of_leiden_cluster_keys =
-      cugraph::collect_values_for_keys(comm,
+      cugraph::collect_values_for_keys(handle,
                                        leiden_to_louvain_map.view(),
                                        leiden_keys_to_read_louvain.begin(),
                                        leiden_keys_to_read_louvain.end(),
-                                       vertex_to_gpu_id_op,
-                                       handle.get_stream());
+                                       vertex_to_gpu_id_op);
 
   } else {
     lovain_of_leiden_cluster_keys.resize(leiden_keys_to_read_louvain.size(), handle.get_stream());

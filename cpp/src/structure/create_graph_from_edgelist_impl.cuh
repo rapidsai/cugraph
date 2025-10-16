@@ -133,13 +133,18 @@ void expensive_check_edgelist(raft::handle_t const& handle,
     auto const comm_size       = comm.get_size();
     auto const comm_rank       = comm.get_rank();
     auto& major_comm           = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
+    auto const major_comm_rank = major_comm.get_rank();
     auto const major_comm_size = major_comm.get_size();
     auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+    auto const minor_comm_rank = minor_comm.get_rank();
     auto const minor_comm_size = minor_comm.get_size();
 
     if (vertices) {
-      auto num_unique_vertices = host_scalar_allreduce(
-        comm, (*vertices).size(), raft::comms::op_t::SUM, handle.get_stream());
+      auto num_unique_vertices = vertices->size();
+      comm.host_allreduce(std::addressof(num_unique_vertices),
+                          std::addressof(num_unique_vertices),
+                          size_t{1},
+                          raft::comms::op_t::SUM);
       CUGRAPH_EXPECTS(
         num_unique_vertices < static_cast<size_t>(std::numeric_limits<vertex_t>::max()),
         "Invalid input arguments: # unique vertex IDs should be smaller than "
@@ -174,13 +179,14 @@ void expensive_check_edgelist(raft::handle_t const& handle,
     if (vertices) {
       rmm::device_uvector<vertex_t> sorted_majors(0, handle.get_stream());
       {
-        auto recvcounts =
-          host_scalar_allgather(minor_comm, (*vertices).size(), handle.get_stream());
+        std::vector<size_t> recvcounts(minor_comm_size, 0);
+        recvcounts[minor_comm_rank] = vertices->size();
+        minor_comm.host_allgather(recvcounts.data(), recvcounts.data(), size_t{1});
         std::vector<size_t> displacements(recvcounts.size(), size_t{0});
         std::partial_sum(recvcounts.begin(), recvcounts.end() - 1, displacements.begin() + 1);
         sorted_majors.resize(displacements.back() + recvcounts.back(), handle.get_stream());
         device_allgatherv(minor_comm,
-                          (*vertices).data(),
+                          vertices->data(),
                           sorted_majors.data(),
                           raft::host_span<size_t const>(recvcounts.data(), recvcounts.size()),
                           raft::host_span<size_t const>(displacements.data(), displacements.size()),
@@ -190,13 +196,14 @@ void expensive_check_edgelist(raft::handle_t const& handle,
 
       rmm::device_uvector<vertex_t> sorted_minors(0, handle.get_stream());
       {
-        auto recvcounts =
-          host_scalar_allgather(major_comm, (*vertices).size(), handle.get_stream());
+        std::vector<size_t> recvcounts(major_comm_size, 0);
+        recvcounts[major_comm_rank] = vertices->size();
+        major_comm.host_allgather(recvcounts.data(), recvcounts.data(), size_t{1});
         std::vector<size_t> displacements(recvcounts.size(), size_t{0});
         std::partial_sum(recvcounts.begin(), recvcounts.end() - 1, displacements.begin() + 1);
         sorted_minors.resize(displacements.back() + recvcounts.back(), handle.get_stream());
         device_allgatherv(major_comm,
-                          (*vertices).data(),
+                          vertices->data(),
                           sorted_minors.data(),
                           raft::host_span<size_t const>(recvcounts.data(), recvcounts.size()),
                           raft::host_span<size_t const>(displacements.data(), displacements.size()),

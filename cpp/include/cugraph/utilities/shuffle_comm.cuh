@@ -89,27 +89,16 @@ compute_tx_rx_counts_displs_ranks(raft::comms::comms_t const& comm,
 
   rmm::device_uvector<size_t> d_rx_value_counts(comm_size, stream_view);
 
-  std::vector<size_t> tx_counts(comm_size, size_t{1});
-  std::vector<size_t> tx_displs(comm_size);
-  std::iota(tx_displs.begin(), tx_displs.end(), size_t{0});
+  comm.device_alltoall(d_tx_value_counts.data(), d_rx_value_counts.data(), size_t{1}, stream_view);
+
+  std::vector<size_t> tx_counts(comm_size);
+  std::vector<size_t> tx_displs(comm_size, 0);
   std::vector<int> tx_dst_ranks(comm_size);
   std::iota(tx_dst_ranks.begin(), tx_dst_ranks.end(), int{0});
-  std::vector<size_t> rx_counts(comm_size, size_t{1});
-  std::vector<size_t> rx_displs(comm_size);
-  std::iota(rx_displs.begin(), rx_displs.end(), size_t{0});
+  std::vector<size_t> rx_counts(comm_size);
+  std::vector<size_t> rx_displs(comm_size, 0);
   std::vector<int> rx_src_ranks(comm_size);
   std::iota(rx_src_ranks.begin(), rx_src_ranks.end(), int{0});
-  device_multicast_sendrecv(comm,
-                            d_tx_value_counts.data(),
-                            raft::host_span<size_t const>(tx_counts.data(), tx_counts.size()),
-                            raft::host_span<size_t const>(tx_displs.data(), tx_displs.size()),
-                            raft::host_span<int const>(tx_dst_ranks.data(), tx_dst_ranks.size()),
-                            d_rx_value_counts.data(),
-                            raft::host_span<size_t const>(rx_counts.data(), rx_counts.size()),
-                            raft::host_span<size_t const>(rx_displs.data(), rx_displs.size()),
-                            raft::host_span<int const>(rx_src_ranks.data(), rx_src_ranks.size()),
-                            stream_view);
-
   raft::update_host(tx_counts.data(), d_tx_value_counts.data(), comm_size, stream_view.value());
   raft::update_host(rx_counts.data(), d_rx_value_counts.data(), comm_size, stream_view.value());
 
@@ -904,18 +893,15 @@ auto shuffle_values(raft::comms::comms_t const& comm,
 {
   using value_t = typename thrust::iterator_traits<TxValueIterator>::value_type;
 
+  auto const comm_size = comm.get_size();
+
+  CUGRAPH_EXPECTS(
+    static_cast<int>(d_tx_value_counts.size()) == comm_size,
+    "Invalid input argument: d_tx_value_countsw.size() should coincide with comm.get_size()");
   CUGRAPH_EXPECTS(!large_buffer_type || large_buffer_manager::memory_buffer_initialized(),
                   "Invalid input argument: large memory buffer is not initialized.");
 
-  auto const comm_size = comm.get_size();
-
-  std::vector<size_t> tx_counts{};
-  std::vector<size_t> tx_displs{};
-  std::vector<int> tx_dst_ranks{};
-  std::vector<size_t> rx_counts{};
-  std::vector<size_t> rx_displs{};
-  std::vector<int> rx_src_ranks{};
-  std::tie(tx_counts, tx_displs, tx_dst_ranks, rx_counts, rx_displs, rx_src_ranks) =
+  auto [tx_counts, tx_displs, tx_dst_ranks, rx_counts, rx_displs, rx_src_ranks] =
     detail::compute_tx_rx_counts_displs_ranks(comm, d_tx_value_counts, true, stream_view);
 
   auto rx_buffer_size = rx_displs.size() > 0 ? rx_displs.back() + rx_counts.back() : size_t{0};
@@ -924,7 +910,6 @@ auto shuffle_values(raft::comms::comms_t const& comm,
       ? large_buffer_manager::allocate_memory_buffer<value_t>(rx_buffer_size, stream_view)
       : allocate_dataframe_buffer<value_t>(rx_buffer_size, stream_view);
 
-  // (if num_tx_dst_ranks == num_rx_src_ranks == comm_size).
   device_multicast_sendrecv(comm,
                             tx_value_first,
                             raft::host_span<size_t const>(tx_counts.data(), tx_counts.size()),

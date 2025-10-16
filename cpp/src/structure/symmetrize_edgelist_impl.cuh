@@ -723,14 +723,12 @@ symmetrize_edgelist(raft::handle_t const& handle,
     if (upper_triangular_edge_end_times)
       upper_triangular_edge_properties.push_back(std::move(*upper_triangular_edge_end_times));
 
-    std::tie(upper_triangular_minors,
-             upper_triangular_majors,
-             upper_triangular_edge_properties,
-             std::ignore) = shuffle_ext_edges(handle,
-                                              std::move(upper_triangular_minors),
-                                              std::move(upper_triangular_majors),
-                                              std::move(upper_triangular_edge_properties),
-                                              false);
+    std::tie(upper_triangular_minors, upper_triangular_majors, upper_triangular_edge_properties) =
+      shuffle_ext_edges(handle,
+                        std::move(upper_triangular_minors),
+                        std::move(upper_triangular_majors),
+                        std::move(upper_triangular_edge_properties),
+                        false);
 
     size_t pos = 0;
     if (upper_triangular_weights)
@@ -1013,14 +1011,12 @@ symmetrize_edgelist(raft::handle_t const& handle,
     if (upper_triangular_edge_end_times)
       upper_triangular_edge_properties.push_back(std::move(*upper_triangular_edge_end_times));
 
-    std::tie(upper_triangular_majors,
-             upper_triangular_minors,
-             upper_triangular_edge_properties,
-             std::ignore) = shuffle_ext_edges(handle,
-                                              std::move(upper_triangular_majors),
-                                              std::move(upper_triangular_minors),
-                                              std::move(upper_triangular_edge_properties),
-                                              false);
+    std::tie(upper_triangular_majors, upper_triangular_minors, upper_triangular_edge_properties) =
+      shuffle_ext_edges(handle,
+                        std::move(upper_triangular_majors),
+                        std::move(upper_triangular_minors),
+                        std::move(upper_triangular_edge_properties),
+                        false);
 
     size_t pos = 0;
     if (upper_triangular_weights)

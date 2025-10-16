@@ -308,7 +308,7 @@ class per_device_edgelist_t {
     if (edge_start_time_) tmp_edge_properties.push_back(std::move((*edge_start_time_)[0]));
     if (edge_end_time_) tmp_edge_properties.push_back(std::move((*edge_end_time_)[0]));
 
-    std::tie(src_[0], dst_[0], tmp_edge_properties, std::ignore) =
+    std::tie(src_[0], dst_[0], tmp_edge_properties) =
       cugraph::shuffle_ext_edges(handle.raft_handle(),
                                  std::move(src_[0]),
                                  std::move(dst_[0]),

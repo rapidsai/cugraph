@@ -150,10 +150,7 @@ class Tests_MGPerVPairTransformDstNbrIntersection
     auto h_vertex_partition_range_lasts = mg_graph_view.vertex_partition_range_lasts();
     std::vector<cugraph::arithmetic_device_uvector_t> edge_properties{};
 
-    std::tie(std::get<0>(mg_vertex_pair_buffer),
-             std::get<1>(mg_vertex_pair_buffer),
-             std::ignore,
-             std::ignore) =
+    std::tie(std::get<0>(mg_vertex_pair_buffer), std::get<1>(mg_vertex_pair_buffer), std::ignore) =
       cugraph::shuffle_int_edges(*handle_,
                                  std::move(std::get<0>(mg_vertex_pair_buffer)),
                                  std::move(std::get<1>(mg_vertex_pair_buffer)),

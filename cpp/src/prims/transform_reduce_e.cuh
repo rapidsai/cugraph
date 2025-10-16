@@ -27,7 +27,6 @@
 #include <cugraph/utilities/atomic_ops.cuh>
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/error.hpp>
-#include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/thrust_tuple_utils.hpp>
 
 #include <raft/core/handle.hpp>
@@ -604,8 +603,8 @@ T transform_reduce_e(raft::handle_t const& handle,
     edge_property_add);
 
   if constexpr (GraphViewType::is_multi_gpu) {
-    result = host_scalar_allreduce(
-      handle.get_comms(), result, raft::comms::op_t::SUM, handle.get_stream());
+    handle.get_comms().host_allreduce(
+      std::addressof(result), std::addressof(result), size_t{1}, raft::comms::op_t::SUM);
   }
 
   return result;

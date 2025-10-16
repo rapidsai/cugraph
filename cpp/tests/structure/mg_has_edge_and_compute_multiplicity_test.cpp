@@ -120,7 +120,7 @@ class Tests_MGHasEdgeAndComputeMultiplicity
                                          rng_state);
     std::vector<cugraph::arithmetic_device_uvector_t> edge_properties{};
 
-    std::tie(d_mg_edge_srcs, d_mg_edge_dsts, std::ignore, std::ignore) =
+    std::tie(d_mg_edge_srcs, d_mg_edge_dsts, std::ignore) =
       cugraph::shuffle_int_edges(*handle_,
                                  std::move(d_mg_edge_srcs),
                                  std::move(d_mg_edge_dsts),
