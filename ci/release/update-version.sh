@@ -48,8 +48,6 @@ NEXT_UCXX_SHORT_TAG_PEP440=$(python -c "from packaging.version import Version; p
 DEPENDENCIES=(
   cudf
   cugraph
-  cugraph-service-server
-  cugraph-service-client
   cuxfilter
   dask-cuda
   dask-cudf
