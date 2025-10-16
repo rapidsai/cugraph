@@ -23,7 +23,7 @@
 
 #include <rmm/cuda_stream_view.hpp>
 #include <rmm/device_uvector.hpp>
-#include <rmm/mr/host/pinned_memory_resource.hpp>
+#include <rmm/mr/pinned_host_memory_resource.hpp>
 
 #include <memory>
 #include <optional>
@@ -35,12 +35,14 @@ namespace detail {
 class large_memory_buffer_resource_t {
  public:
   large_memory_buffer_resource_t() = delete;
-  large_memory_buffer_resource_t(std::shared_ptr<rmm::mr::pinned_memory_resource> mr) : mr_(mr) {}
+  large_memory_buffer_resource_t(std::shared_ptr<rmm::mr::pinned_host_memory_resource> mr) : mr_(mr)
+  {
+  }
 
-  rmm::mr::pinned_memory_resource* get() const { return mr_.get(); }
+  rmm::mr::pinned_host_memory_resource* get() const { return mr_.get(); }
 
  private:
-  std::shared_ptr<rmm::mr::pinned_memory_resource>
+  std::shared_ptr<rmm::mr::pinned_host_memory_resource>
     mr_{};  // currently, large memory buffer is backed by CUDA (rmm) pinned host memory
 };
 
@@ -94,7 +96,7 @@ class large_buffer_manager {
   static detail::large_memory_buffer_resource_t create_memory_buffer_resource()
   {
     return detail::large_memory_buffer_resource_t(
-      std::make_shared<rmm::mr::pinned_memory_resource>());
+      std::make_shared<rmm::mr::pinned_host_memory_resource>());
   }
 
   static detail::large_storage_buffer_resource_t create_storage_buffer_resource()
