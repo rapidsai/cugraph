@@ -28,6 +28,7 @@
 #include <cugraph/arithmetic_variant_types.hpp>
 #include <cugraph/edge_property.hpp>
 #include <cugraph/sampling_functions.hpp>
+#include <cugraph/utilities/assert.cuh>
 #include <cugraph/utilities/mask_utils.cuh>
 
 #include <raft/util/cudart_utils.hpp>
@@ -554,7 +555,7 @@ temporal_gather_one_hop_edgelist(
                                    case temporal_sampling_comparison_t::MONOTONICALLY_DECREASING:
                                      return (edge_time <= key_time);
                                  }
-                                 assert(false);
+                                 CUGRAPH_UNREACHABLE("Unsupported temporal sampling comparison");
                                })
         : detail::mark_entries(handle,
                                edge_times.size(),
@@ -574,7 +575,7 @@ temporal_gather_one_hop_edgelist(
                                    case temporal_sampling_comparison_t::MONOTONICALLY_DECREASING:
                                      return (edge_time <= key_time);
                                  }
-                                 assert(false);
+                                 CUGRAPH_UNREACHABLE("Unsupported temporal sampling comparison");
                                });
 
     raft::device_span<uint32_t const> marked_entry_span{marked_entries.data(),
