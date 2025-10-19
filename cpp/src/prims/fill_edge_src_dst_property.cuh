@@ -931,7 +931,7 @@ void fill_edge_minor_property(raft::handle_t const& handle,
               }
             }
           }
-          if (stream_pool_indices) { handle.sync_stream_pool(*stream_pool_indices); }
+          if (stream_pool_indices) { RAFT_CUDA_TRY(cudaDeviceSynchronize()); }
         } else {  // kernel fusion
           auto max_padded_local_v_list_size =
             compressed_v_list_size ? *compressed_v_list_size : *padded_v_list_size;

@@ -1606,9 +1606,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
             edge_partition_stream_pool_indices->data(), edge_partition_stream_pool_indices->size())
         : std::nullopt);
 
-    if (edge_partition_stream_pool_indices) {
-      handle.sync_stream_pool(*edge_partition_stream_pool_indices);
-    }
+    if (edge_partition_stream_pool_indices) { RAFT_CUDA_TRY(cudaDeviceSynchronize()); }
 
     auto input_size = cuda::std::distance(sorted_unique_key_first, sorted_unique_nzd_key_last);
     resize_optional_dataframe_buffer<key_t>(tmp_key_buffer, input_size, handle.get_stream());
@@ -2928,7 +2926,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
               edge_partition_hypersparse_key_offset_vectors->push_back(std::move(offsets));
             }
           }
-          if (loop_stream_pool_indices) { handle.sync_stream_pool(*loop_stream_pool_indices); }
+          if (loop_stream_pool_indices) { RAFT_CUDA_TRY(cudaDeviceSynchronize()); }
           if (edge_partition_new_key_buffers) {
             for (size_t j = 0; j < loop_count; ++j) {
               edge_partition_key_buffers[j] = std::move((*edge_partition_new_key_buffers)[j]);
@@ -3027,7 +3025,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
           allocate_dataframe_buffer<T>(buffer_size, loop_stream));
       }
     }
-    if (loop_stream_pool_indices) { handle.sync_stream_pool(*loop_stream_pool_indices); }
+    if (loop_stream_pool_indices) { RAFT_CUDA_TRY(cudaDeviceSynchronize()); }
 
     for (size_t j = 0; j < loop_count; ++j) {
       if (process_local_edges[j]) {
@@ -3201,7 +3199,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
         }
       }
     }
-    if (stream_pool_indices) { handle.sync_stream_pool(*stream_pool_indices); }
+    if (stream_pool_indices) { RAFT_CUDA_TRY(cudaDeviceSynchronize()); }
 
     if constexpr (GraphViewType::is_multi_gpu && update_major) {
       auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
@@ -3328,7 +3326,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
               loop_stream);
           }
         }
-        if (loop_stream_pool_indices) { handle.sync_stream_pool(*loop_stream_pool_indices); }
+        if (loop_stream_pool_indices) { RAFT_CUDA_TRY(cudaDeviceSynchronize()); }
 
         if (minor_comm_size <= std::numeric_limits<uint8_t>::max()) {  // priority == uint8_t
           device_allreduce(minor_comm,
@@ -3418,7 +3416,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
           }
           edge_partition_selected_ranks_or_flags.push_back(std::move(selected_ranks_or_flags));
         }
-        if (loop_stream_pool_indices) { handle.sync_stream_pool(*loop_stream_pool_indices); }
+        if (loop_stream_pool_indices) { RAFT_CUDA_TRY(cudaDeviceSynchronize()); }
         if (minor_comm_size <= std::numeric_limits<uint8_t>::max()) {  // priority == uint8_t
           std::get<0>(aggregate_priorities).resize(0, handle.get_stream());
           std::get<0>(aggregate_priorities).shrink_to_fit(handle.get_stream());
@@ -3508,7 +3506,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
 
           edge_partition_values.push_back(std::move(values));
         }
-        if (loop_stream_pool_indices) { handle.sync_stream_pool(*loop_stream_pool_indices); }
+        if (loop_stream_pool_indices) { RAFT_CUDA_TRY(cudaDeviceSynchronize()); }
 
         auto copy_sizes = reinterpret_cast<size_t*>(h_staging_buffer.data());
         assert(h_staging_buffer.size() >= loop_count);
@@ -3618,7 +3616,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
         handle.sync_stream();  // this is required before edge_partition_values.clear()
         edge_partition_values.clear();
         if (loop_stream_pool_indices) {
-          handle.sync_stream_pool(*loop_stream_pool_indices);
+          RAFT_CUDA_TRY(cudaDeviceSynchronize());
         }  // to ensure that memory is freed
 
         if (rx_values && (size_dataframe_buffer(*rx_values) > 0)) {

@@ -1335,7 +1335,7 @@ extract_transform_if_v_frontier_e(raft::handle_t const& handle,
 
             edge_partition_key_buffers.push_back(std::move(keys));
           }
-          if (loop_stream_pool_indices) { handle.sync_stream_pool(*loop_stream_pool_indices); }
+          if (loop_stream_pool_indices) { RAFT_CUDA_TRY(cudaDeviceSynchronize()); }
           (*edge_partition_bitmap_buffers).clear();
         }
       }
@@ -1472,7 +1472,7 @@ extract_transform_if_v_frontier_e(raft::handle_t const& handle,
             }
           }
         }
-        if (loop_stream_pool_indices) { handle.sync_stream_pool(*loop_stream_pool_indices); }
+        if (loop_stream_pool_indices) { RAFT_CUDA_TRY(cudaDeviceSynchronize()); }
         auto h_staging_buffer_ptr = reinterpret_cast<size_t*>(h_staging_buffer.data());
         assert(h_staging_buffer.size() >= loop_count);
         raft::update_host(h_staging_buffer_ptr, counters.data(), loop_count, handle.get_stream());
@@ -1588,7 +1588,7 @@ extract_transform_if_v_frontier_e(raft::handle_t const& handle,
           std::move(high_segment_key_local_degree_offsets));
       }
 
-      if (loop_stream_pool_indices) { handle.sync_stream_pool(*loop_stream_pool_indices); }
+      if (loop_stream_pool_indices) { RAFT_CUDA_TRY(cudaDeviceSynchronize()); }
       if (std::count(copy_counters.begin(), copy_counters.end(), true) > 0) {
         auto h_staging_buffer_ptr = reinterpret_cast<size_t*>(h_staging_buffer.data());
         assert(h_staging_buffer.size() >= loop_count);
@@ -1599,7 +1599,7 @@ extract_transform_if_v_frontier_e(raft::handle_t const& handle,
         }
       }
     } else {
-      if (loop_stream_pool_indices) { handle.sync_stream_pool(*loop_stream_pool_indices); }
+      if (loop_stream_pool_indices) { RAFT_CUDA_TRY(cudaDeviceSynchronize()); }
     }
 
     thrust::fill(
@@ -1726,7 +1726,7 @@ extract_transform_if_v_frontier_e(raft::handle_t const& handle,
       }
     }
 
-    if (stream_pool_indices) { handle.sync_stream_pool(*stream_pool_indices); }
+    if (stream_pool_indices) { RAFT_CUDA_TRY(cudaDeviceSynchronize()); }
 
     std::vector<size_t> h_counts(loop_count);
     {
@@ -1759,7 +1759,7 @@ extract_transform_if_v_frontier_e(raft::handle_t const& handle,
         value_buffers.push_back(std::move(tmp_value_buffer));
       }
     }
-    if (loop_stream_pool_indices) { handle.sync_stream_pool(*loop_stream_pool_indices); }
+    if (loop_stream_pool_indices) { RAFT_CUDA_TRY(cudaDeviceSynchronize()); }
   }
 
   // 3. concatenate and return the buffers
@@ -1811,7 +1811,7 @@ extract_transform_if_v_frontier_e(raft::handle_t const& handle,
                        buffer_displacements[i]);
       }
     }
-    if (loop_stream_pool_indices) { handle.sync_stream_pool(*loop_stream_pool_indices); }
+    if (loop_stream_pool_indices) { RAFT_CUDA_TRY(cudaDeviceSynchronize()); }
   }
 
   return std::make_tuple(std::move(key_buffer), std::move(value_buffer));
