@@ -131,8 +131,13 @@ class Tests_GRAPH500_MGBFS
       cugraph::partition_manager::compute_vertex_partition_id_from_graph_subcomm_ranks(
         major_comm_size, minor_comm_size, major_comm_rank, minor_comm_rank);
 
-    std::cout << "comm_size=" << comm_size << " major_comm_size=" << major_comm_size
-              << " minor_comm_size=" << minor_comm_size << std::endl;
+    {
+      char hostname[256];
+      gethostname(hostname, sizeof(hostname));
+      std::cout << "hostname=" << std::string(hostname) << " comm_size=" << comm_size
+                << " major_comm_size=" << major_comm_size << " minor_comm_size=" << minor_comm_size
+                << std::endl;
+    }
 
     constexpr auto invalid_distance = std::numeric_limits<vertex_t>::max();
     constexpr auto invalid_vertex   = cugraph::invalid_vertex_id<vertex_t>::value;
@@ -145,7 +150,6 @@ class Tests_GRAPH500_MGBFS
       hr_timer.start("NCCL P2P buffer initialization");
     }
 
-    cugraph::test::enforce_p2p_initialization(comm, handle_->get_stream());
     cugraph::test::enforce_p2p_initialization(major_comm, handle_->get_stream());
     cugraph::test::enforce_p2p_initialization(minor_comm, handle_->get_stream());
 
@@ -210,8 +214,10 @@ class Tests_GRAPH500_MGBFS
       for (size_t i = 0; i < src_chunks.size(); ++i) {
         num_input_edges += static_cast<edge_t>(src_chunks[i].size());
       }
-      num_input_edges = cugraph::host_scalar_allreduce(
-        comm, num_input_edges, raft::comms::op_t::SUM, handle_->get_stream());
+      comm.host_allreduce(std::addressof(num_input_edges),
+                          std::addressof(num_input_edges),
+                          size_t{1},
+                          raft::comms::op_t::SUM);
 
       // 2-2. create an MG graph
 
@@ -241,7 +247,7 @@ class Tests_GRAPH500_MGBFS
 
         std::vector<cugraph::arithmetic_device_uvector_t> dummy_edge_property_chunk{};
 
-        std::tie(src_chunks[i], dst_chunks[i], dummy_edge_property_chunk, std::ignore) =
+        std::tie(src_chunks[i], dst_chunks[i], dummy_edge_property_chunk) =
           cugraph::shuffle_ext_edges(*handle_,
                                      std::move(src_chunks[i]),
                                      std::move(dst_chunks[i]),
@@ -269,8 +275,8 @@ class Tests_GRAPH500_MGBFS
       for (size_t i = 0; i < src_chunks.size(); ++i) {
         num_edges += static_cast<edge_t>(src_chunks[i].size());
       }
-      num_edges = cugraph::host_scalar_allreduce(
-        comm, num_edges, raft::comms::op_t::SUM, handle_->get_stream());
+      comm.host_allreduce(
+        std::addressof(num_edges), std::addressof(num_edges), size_t{1}, raft::comms::op_t::SUM);
 
       cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu> mg_graph(*handle_);
       std::optional<rmm::device_uvector<vertex_t>> tmp_map{};
@@ -308,8 +314,7 @@ class Tests_GRAPH500_MGBFS
         auto mg_graph_view = mg_graph.view();
 
         components.resize(mg_graph_view.local_vertex_partition_range_size(), handle_->get_stream());
-        cugraph::weakly_connected_components(
-          *handle_, mg_graph_view, components.data(), components.size());
+        cugraph::weakly_connected_components(*handle_, mg_graph_view, components.data());
         std::tie(parents, std::ignore) =
           find_trees_from_2cores<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
             *handle_, mg_graph_view, std::nullopt, invalid_vertex, std::nullopt);
@@ -406,12 +411,13 @@ class Tests_GRAPH500_MGBFS
 
     // 3. randomly select starting vertices
 
-    std::vector<vertex_t> starting_vertices{};
+    std::vector<vertex_t> starting_vertices(num_warmup_starting_vertices +
+                                            num_timed_starting_vertices);
     {
       ASSERT_TRUE(vertex_partition_range_offsets.back() > 0)
         << "Invalid input graph, the input graph should have at least one vertex";
-      rmm::device_uvector<vertex_t> d_starting_vertices(
-        num_warmup_starting_vertices + num_timed_starting_vertices, handle_->get_stream());
+      rmm::device_uvector<vertex_t> d_starting_vertices(starting_vertices.size(),
+                                                        handle_->get_stream());
       if (comm_rank == 0) {
         cugraph::detail::uniform_random_fill(handle_->get_stream(),
                                              d_starting_vertices.data(),
@@ -419,16 +425,15 @@ class Tests_GRAPH500_MGBFS
                                              vertex_partition_range_offsets[0],
                                              vertex_partition_range_offsets.back(),
                                              rng_state);
-        raft::print_device_vector(
-          "d_starting_vertices", d_starting_vertices.data(), d_starting_vertices.size(), std::cout);
+        raft::update_host(starting_vertices.data(),
+                          d_starting_vertices.data(),
+                          d_starting_vertices.size(),
+                          handle_->get_stream());
+        handle_->sync_stream();
+        raft::print_host_vector(
+          "starting_vertices", starting_vertices.data(), starting_vertices.size(), std::cout);
       }
-      cugraph::device_bcast(comm,
-                            d_starting_vertices.data(),
-                            d_starting_vertices.data(),
-                            d_starting_vertices.size(),
-                            int{0},
-                            handle_->get_stream());
-      starting_vertices = cugraph::test::to_host(*handle_, d_starting_vertices);
+      comm.host_bcast(starting_vertices.data(), starting_vertices.size(), int{0});
     }
 
     // 4. run MG BFS
@@ -501,17 +506,14 @@ class Tests_GRAPH500_MGBFS
         auto h_staging_buffer_ptr = reinterpret_cast<vertex_t*>(h_staging_buffer.data());
         auto d_staging_buffer_ptr = reinterpret_cast<vertex_t*>(d_staging_buffer.data());
         assert(h_staging_buffer.size() >= 3);
-        cugraph::device_bcast(
-          comm,
-          d_staging_buffer_ptr,
-          d_staging_buffer_ptr,
-          size_t{3},
-          cugraph::partition_manager::compute_global_comm_rank_from_vertex_partition_id(
-            major_comm_size, minor_comm_size, starting_vertex_vertex_partition_id),
-          handle_->get_stream());
         raft::update_host(
           h_staging_buffer_ptr, d_staging_buffer_ptr, size_t{3}, handle_->get_stream());
         handle_->sync_stream();
+        comm.host_bcast(
+          h_staging_buffer_ptr,
+          3,
+          cugraph::partition_manager::compute_global_comm_rank_from_vertex_partition_id(
+            major_comm_size, minor_comm_size, starting_vertex_vertex_partition_id));
         unrenumbered_starting_vertex = h_staging_buffer_ptr[0];
         starting_vertex_parent       = h_staging_buffer_ptr[1];
         starting_vertex_component    = h_staging_buffer_ptr[2];
@@ -752,8 +754,10 @@ class Tests_GRAPH500_MGBFS
               starting_vertex - local_vertex_partition_range_first, handle_->get_stream());
             if (starting_vertex_predecessor != starting_vertex) { ++num_invalids; }
           }
-          num_invalids = cugraph::host_scalar_allreduce(
-            comm, num_invalids, raft::comms::op_t::SUM, handle_->get_stream());
+          comm.host_allreduce(std::addressof(num_invalids),
+                              std::addressof(num_invalids),
+                              size_t{1},
+                              raft::comms::op_t::SUM);
           ASSERT_EQ(num_invalids, 0) << "predecessor of a starting vertex should be itself";
         }
 

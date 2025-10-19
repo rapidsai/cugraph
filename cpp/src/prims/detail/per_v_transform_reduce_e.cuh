@@ -195,8 +195,7 @@ __device__ void update_result_value_output(
                                                                  // edges return a valid value
         val = init;
         for (edge_t i = 0; i < local_degree; ++i) {
-          auto tmp = transform_op(i);
-          val      = tmp;
+          val = transform_op(i);
           break;
         }
       } else {
@@ -209,17 +208,18 @@ __device__ void update_result_value_output(
       }
     } else {
       val = init;
-      for (edge_t i = 0; i < local_degree; ++i) {
-        if (pred_op(i)) {
-          auto tmp = transform_op(i);
-          if constexpr (std::is_same_v<ReduceOp,
-                                       reduce_op::any<result_t>>) {  // init is selected only when
-                                                                     // no edges return a valid
-                                                                     // value
-            val = tmp;
-            break;
-          } else {
-            val = reduce_op(val, tmp);
+      if constexpr (std::is_same_v<ReduceOp,
+                                   reduce_op::any<result_t>>) {  // init is selected only when no
+                                                                 // edges return a valid value
+        auto first = thrust::make_counting_iterator(edge_t{0});
+        auto last  = thrust::make_counting_iterator(local_degree);
+        auto it    = thrust::find_if(thrust::seq, first, last, pred_op);
+        if (it != last) { val = transform_op(*it); }
+      } else {
+        for (edge_t i = 0; i < local_degree; ++i) {
+          if (pred_op(i)) {
+            auto tmp = transform_op(i);
+            val      = reduce_op(val, tmp);
           }
         }
       }

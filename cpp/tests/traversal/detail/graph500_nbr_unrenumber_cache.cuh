@@ -25,7 +25,6 @@
 #include <cugraph/graph_view.hpp>
 #include <cugraph/large_buffer_manager.hpp>
 #include <cugraph/partition_manager.hpp>
-#include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/packed_bool_utils.hpp>
 
 #include <raft/core/device_span.hpp>
@@ -75,7 +74,7 @@ class nbr_unrenumber_cache_t {
 
   static size_t constexpr dense_lsb_bits   = 8;
   using dense_lsb_t                        = uint8_t;
-  static size_t constexpr dense_total_bits = 24;
+  static size_t constexpr dense_total_bits = 23;
   using dense_offset_t                     = uint32_t;
 
   static size_t constexpr sparse_lsb_bits = 16;
@@ -414,58 +413,6 @@ class nbr_unrenumber_cache_t {
 
   void unrenumber(raft::handle_t const& handle, raft::device_span<vertex_t> nbrs)
   {
-#if 0
-    rmm::device_uvector<vertex_t> counts(12, handle.get_stream());
-    thrust::fill(handle.get_thrust_policy(), counts.begin(), counts.end(), vertex_t{0});
-    thrust::for_each(handle.get_thrust_policy(),
-                     nbrs.begin(),
-                     nbrs.end(),
-                     [counts = raft::device_span<vertex_t>(counts.data(), counts.size()),
-                      vertex_partition_range_lasts = raft::device_span<vertex_t const>(
-                        vertex_partition_range_lasts_.data(),
-                        vertex_partition_range_lasts_.size())] __device__(auto nbr) {
-                       auto vertex_partition_id = static_cast<int>(cuda::std::distance(
-                         vertex_partition_range_lasts.begin(),
-                         thrust::upper_bound(thrust::seq,
-                                             vertex_partition_range_lasts.begin(),
-                                             vertex_partition_range_lasts.end(),
-                                             nbr)));
-                       auto v_offset =
-                         nbr - ((vertex_partition_id == 0)
-                                  ? vertex_t{0}
-                                  : vertex_partition_range_lasts[vertex_partition_id - 1]);
-                       size_t idx{};
-                       if (v_offset < (vertex_t{1} << 16)) {
-                         idx = 0;
-                       } else if (v_offset < (vertex_t{1} << 17)) {
-                         idx = 1;
-                       } else if (v_offset < (vertex_t{1} << 18)) {
-                         idx = 2;
-                       } else if (v_offset < (vertex_t{1} << 19)) {
-                         idx = 3;
-                       } else if (v_offset < (vertex_t{1} << 20)) {
-                         idx = 4;
-                       } else if (v_offset < (vertex_t{1} << 21)) {
-                         idx = 5;
-                       } else if (v_offset < (vertex_t{1} << 22)) {
-                         idx = 6;
-                       } else if (v_offset < (vertex_t{1} << 23)) {
-                         idx = 7;
-                       } else if (v_offset < (vertex_t{1} << 24)) {
-                         idx = 8;
-                       } else if (v_offset < (vertex_t{1} << 25)) {
-                         idx = 9;
-                       } else if (v_offset < (vertex_t{1} << 26)) {
-                         idx = 10;
-                       } else {
-                         idx = 11;
-                       }
-                       cuda::atomic_ref<vertex_t, cuda::thread_scope_device> count(counts[idx]);
-                       count.fetch_add(vertex_t{1}, cuda::std::memory_order_relaxed);
-                     });
-    raft::print_device_vector("unrenumber counts", counts.data(), counts.size(), std::cout);
-#endif
-
     thrust::transform_if(
       handle.get_thrust_policy(),
       nbrs.begin(),
@@ -630,12 +577,12 @@ nbr_unrenumber_cache_t<vertex_t> build_nbr_unrenumber_cache(
   std::optional<vertex_t> dense_size_per_vertex_partition{std::nullopt};
   auto segment_offsets = mg_graph_view.local_vertex_partition_segment_offsets();
   if (segment_offsets) {
-    dense_size_per_vertex_partition =
-      host_scalar_allreduce(comm,
-                            (*segment_offsets)[2] /* high & mid segments */,
-                            raft::comms::op_t::SUM,
-                            handle.get_stream()) /
-      comm_size;
+    dense_size_per_vertex_partition = (*segment_offsets)[2] /* high & mid segments */;
+    comm.host_allreduce(std::addressof(*dense_size_per_vertex_partition),
+                        std::addressof(*dense_size_per_vertex_partition),
+                        size_t{1},
+                        raft::comms::op_t::SUM);
+    *dense_size_per_vertex_partition /= comm_size;
   }
 
   auto h_vertex_partition_range_lasts = mg_graph_view.vertex_partition_range_lasts();
@@ -675,10 +622,12 @@ nbr_unrenumber_cache_t<vertex_t> build_nbr_unrenumber_cache(
             return v_first + static_cast<vertex_t>(r + i * num_k_hop_rounds);
           }));
 
-      if (cugraph::host_scalar_allreduce(
-            comm, seeds.size(), raft::comms::op_t::SUM, handle.get_stream()) == size_t{0}) {
-        continue;
-      }
+      auto num_aggregate_seeds = seeds.size();
+      comm.host_allreduce(std::addressof(num_aggregate_seeds),
+                          std::addressof(num_aggregate_seeds),
+                          size_t{1},
+                          raft::comms::op_t::SUM);
+      if (num_aggregate_seeds == size_t{0}) { continue; }
 
       rmm::device_uvector<uint16_t> minor_comm_ranks(0, handle.get_stream());
       cugraph::key_bucket_t<vertex_t, void, true, true> frontier(handle, std::move(seeds));

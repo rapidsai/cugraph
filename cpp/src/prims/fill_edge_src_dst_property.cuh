@@ -24,7 +24,6 @@
 #include <cugraph/host_staging_buffer_manager.hpp>
 #include <cugraph/utilities/atomic_ops.cuh>
 #include <cugraph/utilities/error.hpp>
-#include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/packed_bool_utils.hpp>
 
 #include <raft/core/handle.hpp>
@@ -169,11 +168,10 @@ void fill_edge_major_property(raft::handle_t const& handle,
     auto const minor_comm_rank = minor_comm.get_rank();
     auto const minor_comm_size = minor_comm.get_size();
 
-    auto local_v_list_sizes =
-      host_scalar_allgather(minor_comm,
-                            static_cast<size_t>(cuda::std::distance(sorted_unique_vertex_first,
-                                                                    sorted_unique_vertex_last)),
-                            handle.get_stream());
+    std::vector<size_t> local_v_list_sizes(minor_comm_size, 0);
+    local_v_list_sizes[minor_comm_rank] = static_cast<size_t>(
+      cuda::std::distance(sorted_unique_vertex_first, sorted_unique_vertex_last));
+    minor_comm.host_allgather(local_v_list_sizes.data(), local_v_list_sizes.data(), size_t{1});
     auto max_rx_size = std::reduce(
       local_v_list_sizes.begin(), local_v_list_sizes.end(), size_t{0}, [](auto lhs, auto rhs) {
         return std::max(lhs, rhs);
@@ -368,59 +366,53 @@ void fill_edge_minor_property(raft::handle_t const& handle,
     {
       auto v_list_size = static_cast<vertex_t>(
         cuda::std::distance(sorted_unique_vertex_first, sorted_unique_vertex_last));
-      rmm::device_uvector<size_t> d_aggregate_tmps(major_comm_size * size_t{3},
-                                                   handle.get_stream());
-      thrust::tabulate(handle.get_thrust_policy(),
-                       d_aggregate_tmps.begin() + major_comm_rank * size_t{3},
-                       d_aggregate_tmps.begin() + (major_comm_rank + 1) * size_t{3},
-                       [sorted_unique_vertex_first,
-                        v_list_size,
-                        vertex_partition_range_first =
-                          graph_view.local_vertex_partition_range_first()] __device__(size_t i) {
-                         if (i == 0) {
-                           return static_cast<size_t>(v_list_size);
-                         } else if (i == 1) {
-                           vertex_t first{};
-                           if (v_list_size > 0) {
-                             first = *sorted_unique_vertex_first;
-                           } else {
-                             first = vertex_partition_range_first;
-                           }
-                           assert(static_cast<vertex_t>(static_cast<size_t>(first)) == first);
-                           return static_cast<size_t>(first);
-                         } else {
-                           vertex_t last{};
-                           if (v_list_size > 0) {
-                             last = *(sorted_unique_vertex_first + (v_list_size - 1)) + 1;
-                           } else {
-                             last = vertex_partition_range_first;
-                           }
-                           assert(static_cast<vertex_t>(static_cast<size_t>(last)) == last);
-                           return static_cast<size_t>(last);
-                         }
-                       });
-
-      if (major_comm_size > 1) {  // allgather v_list_size, v_list_range_first (inclusive),
-                                  // v_list_range_last (exclusive)
-        device_allgather(major_comm,
-                         d_aggregate_tmps.data() + major_comm_rank * size_t{3},
-                         d_aggregate_tmps.data(),
-                         size_t{3},
-                         handle.get_stream());
+      auto h_aggregate_tmps = reinterpret_cast<vertex_t*>(h_staging_buffer.data());
+      assert(h_staging_buffer.size() >= major_comm_size * size_t{3});
+      h_aggregate_tmps[major_comm_rank * size_t{3}] = v_list_size;
+      if (v_list_size > 0) {
+        if constexpr (std::is_pointer_v<std::decay_t<VertexIterator>>) {
+          raft::update_host(std::addressof(h_aggregate_tmps[major_comm_rank * size_t{3} + 1]),
+                            sorted_unique_vertex_first,
+                            size_t{1},
+                            handle.get_stream());
+          raft::update_host(std::addressof(h_aggregate_tmps[major_comm_rank * size_t{3} + 2]),
+                            sorted_unique_vertex_first + (v_list_size - 1),
+                            size_t{1},
+                            handle.get_stream());
+          handle.sync_stream();
+          h_aggregate_tmps[major_comm_rank * size_t{3} + 2] += 1;
+        } else {
+          rmm::device_uvector<size_t> d_aggregate_tmps(size_t{2}, handle.get_stream());
+          thrust::tabulate(handle.get_thrust_policy(),
+                           d_aggregate_tmps.begin(),
+                           d_aggregate_tmps.end(),
+                           [sorted_unique_vertex_first, v_list_size] __device__(size_t i) {
+                             if (i == 0) {
+                               return *sorted_unique_vertex_first;
+                             } else {
+                               return *(sorted_unique_vertex_first + (v_list_size - 1)) + 1;
+                             }
+                           });
+          raft::update_host(h_aggregate_tmps + (major_comm_rank * size_t{3} + 1),
+                            d_aggregate_tmps.data(),
+                            size_t{2},
+                            handle.get_stream());
+          handle.sync_stream();
+        }
+      } else {
+        h_aggregate_tmps[major_comm_rank * size_t{3} + 1] =
+          graph_view.local_vertex_partition_range_first();
+        h_aggregate_tmps[major_comm_rank * size_t{3} + 2] =
+          graph_view.local_vertex_partition_range_first();
       }
-
-      auto h_aggregate_tmps = reinterpret_cast<size_t*>(h_staging_buffer.data());
-      assert(h_staging_buffer.size() >= d_aggregate_tmps.size());
-      raft::update_host(
-        h_aggregate_tmps, d_aggregate_tmps.data(), d_aggregate_tmps.size(), handle.get_stream());
-      handle.sync_stream();
+      major_comm.host_allgather(h_aggregate_tmps, h_aggregate_tmps, size_t{3});
       local_v_list_sizes        = std::vector<vertex_t>(major_comm_size);
       local_v_list_range_firsts = std::vector<vertex_t>(major_comm_size);
       local_v_list_range_lasts  = std::vector<vertex_t>(major_comm_size);
       for (int i = 0; i < major_comm_size; ++i) {
-        local_v_list_sizes[i]        = static_cast<vertex_t>(h_aggregate_tmps[i * size_t{3} + 0]);
-        local_v_list_range_firsts[i] = static_cast<vertex_t>(h_aggregate_tmps[i * size_t{3} + 1]);
-        local_v_list_range_lasts[i]  = static_cast<vertex_t>(h_aggregate_tmps[i * size_t{3} + 2]);
+        local_v_list_sizes[i]        = h_aggregate_tmps[i * size_t{3} + 0];
+        local_v_list_range_firsts[i] = h_aggregate_tmps[i * size_t{3} + 1];
+        local_v_list_range_lasts[i]  = h_aggregate_tmps[i * size_t{3} + 2];
       }
     }
 
@@ -1147,8 +1139,10 @@ void fill_edge_src_property(raft::handle_t const& handle,
       });
     if constexpr (GraphViewType::is_multi_gpu) {
       auto& comm = handle.get_comms();
-      num_invalids =
-        host_scalar_allreduce(comm, num_invalids, raft::comms::op_t::SUM, handle.get_stream());
+      comm.host_allreduce(std::addressof(num_invalids),
+                          std::addressof(num_invalids),
+                          size_t{1},
+                          raft::comms::op_t::SUM);
     }
     CUGRAPH_EXPECTS(num_invalids == 0,
                     "Invalid input argument: invalid or non-local vertices in "
@@ -1259,8 +1253,10 @@ void fill_edge_dst_property(raft::handle_t const& handle,
       });
     if constexpr (GraphViewType::is_multi_gpu) {
       auto& comm = handle.get_comms();
-      num_invalids =
-        host_scalar_allreduce(comm, num_invalids, raft::comms::op_t::SUM, handle.get_stream());
+      comm.host_allreduce(std::addressof(num_invalids),
+                          std::addressof(num_invalids),
+                          size_t{1},
+                          raft::comms::op_t::SUM);
     }
     CUGRAPH_EXPECTS(num_invalids == 0,
                     "Invalid input argument: invalid or non-local vertices in "

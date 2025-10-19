@@ -135,7 +135,7 @@ filter_buffer_elements(
     handle.get_thrust_policy(),
     unique_v_buffer.begin(),
     unique_v_buffer.end(),
-    [offsets    = vertex_partition_range_offsets,
+    [offsets = vertex_partition_range_offsets,
      priorities = raft::device_span<priority_t>(priorities.data(), priorities.size()),
      allreduce_count_per_rank,
      subgroup_size,
@@ -728,12 +728,14 @@ transform_reduce_if_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
   if constexpr (GraphViewType::is_multi_gpu) {
     auto& major_comm           = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
     auto const major_comm_size = major_comm.get_size();
-    size_t local_key_buffer_size = size_dataframe_buffer(key_buffer);
-    auto aggregate_key_buffer_size =
-      (major_comm_size > 1)
-        ? host_scalar_allreduce(
-            major_comm, local_key_buffer_size, raft::comms::op_t::SUM, handle.get_stream())
-        : local_key_buffer_size;
+    size_t local_key_buffer_size   = size_dataframe_buffer(key_buffer);
+    auto aggregate_key_buffer_size = local_key_buffer_size;
+    if (major_comm_size > 1) {
+      major_comm.host_allreduce(std::addressof(aggregate_key_buffer_size),
+                                std::addressof(aggregate_key_buffer_size),
+                                size_t{1},
+                                raft::comms::op_t::SUM);
+    }
     if ((major_comm_size > 1) && (aggregate_key_buffer_size > 0)) {
       auto avg_key_buffer_size = aggregate_key_buffer_size / major_comm_size;
 

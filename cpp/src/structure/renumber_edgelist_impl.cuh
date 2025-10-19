@@ -250,8 +250,10 @@ std::optional<vertex_t> find_locally_unused_ext_vertex_id(
         if (v == std::numeric_limits<vertex_t>::max()) { break; }
         ++v;
       }
-      auto found = static_cast<bool>(host_scalar_allreduce(
-        comm, static_cast<int>(ret.has_value()), raft::comms::op_t::MIN, handle.get_stream()));
+      auto tmp = static_cast<int>(ret.has_value());
+      comm.host_allreduce(
+        std::addressof(tmp), std::addressof(tmp), size_t{1}, raft::comms::op_t::MIN);
+      auto found = static_cast<bool>(tmp);
       if (found) { return ret; }
     }
   }
@@ -269,10 +271,11 @@ std::optional<vertex_t> find_locally_unused_ext_vertex_id(
     handle.sync_stream();
   }
   if (multi_gpu && (handle.get_comms().get_size() > int{1})) {
-    min =
-      host_scalar_allreduce(handle.get_comms(), min, raft::comms::op_t::MIN, handle.get_stream());
-    max =
-      host_scalar_allreduce(handle.get_comms(), max, raft::comms::op_t::MAX, handle.get_stream());
+    auto& comm = handle.get_comms();
+    comm.host_allreduce(
+      std::addressof(min), std::addressof(min), size_t{1}, raft::comms::op_t::MIN);
+    comm.host_allreduce(
+      std::addressof(max), std::addressof(max), size_t{1}, raft::comms::op_t::MAX);
   }
   if (min > std::numeric_limits<vertex_t>::lowest()) {
     return std::numeric_limits<vertex_t>::lowest();
@@ -311,8 +314,9 @@ std::optional<vertex_t> find_locally_unused_ext_vertex_id(
     thrust::minimum<vertex_t>{});
 
   if (multi_gpu && (handle.get_comms().get_size() > int{1})) {
-    unused_id = host_scalar_allreduce(
-      handle.get_comms(), unused_id, raft::comms::op_t::MIN, handle.get_stream());
+    auto& comm = handle.get_comms();
+    comm.host_allreduce(
+      std::addressof(unused_id), std::addressof(unused_id), size_t{1}, raft::comms::op_t::MIN);
   }
 
   return (unused_id != std::numeric_limits<vertex_t>::max())
@@ -628,8 +632,10 @@ compute_renumber_map(raft::handle_t const& handle,
 
     assert(edgelist_majors.size() == minor_comm_size);
 
-    auto edge_partition_major_range_sizes =
-      host_scalar_allgather(minor_comm, sorted_local_vertices.size(), handle.get_stream());
+    std::vector<size_t> edge_partition_major_range_sizes(minor_comm.get_size(), 0);
+    edge_partition_major_range_sizes[minor_comm_rank] = sorted_local_vertices.size();
+    minor_comm.host_allgather(
+      edge_partition_major_range_sizes.data(), edge_partition_major_range_sizes.data(), size_t{1});
 
     for (int i = 0; i < minor_comm_size; ++i) {
       auto sorted_majors =
@@ -1127,13 +1133,21 @@ renumber_edgelist(
 
   // 2. initialize partition_t object, number_of_vertices, and number_of_edges
 
-  auto vertex_counts = host_scalar_allgather(
-    comm, static_cast<vertex_t>(renumber_map_labels.size()), handle.get_stream());
-  auto vertex_partition_ids =
-    host_scalar_allgather(comm,
-                          partition_manager::compute_vertex_partition_id_from_graph_subcomm_ranks(
-                            major_comm_size, minor_comm_size, major_comm_rank, minor_comm_rank),
-                          handle.get_stream());
+  std::vector<vertex_t> vertex_counts(comm_size, 0);
+  std::vector<int> vertex_partition_ids(comm_size, 0);
+  {
+    static_assert(std::numeric_limits<vertex_t>::max() >= std::numeric_limits<int>::max());
+    std::vector<vertex_t> h_buffer(comm_size * 2, 0);
+    h_buffer[comm_rank * 2] = static_cast<vertex_t>(renumber_map_labels.size());
+    h_buffer[comm_rank * 2 + 1] =
+      static_cast<vertex_t>(partition_manager::compute_vertex_partition_id_from_graph_subcomm_ranks(
+        major_comm_size, minor_comm_size, major_comm_rank, minor_comm_rank));
+    comm.host_allgather(h_buffer.data(), h_buffer.data(), size_t{2});
+    for (int i = 0; i < comm_size; ++i) {
+      vertex_counts[i]        = h_buffer[i * 2];
+      vertex_partition_ids[i] = static_cast<int>(h_buffer[i * 2 + 1]);
+    }
+  }
 
   std::vector<vertex_t> vertex_partition_range_offsets(comm_size + 1, 0);
   for (int i = 0; i < comm_size; ++i) {
@@ -1151,11 +1165,12 @@ renumber_edgelist(
                                   minor_comm_rank);
 
   auto number_of_vertices = vertex_partition_range_offsets.back();
-  auto number_of_edges    = host_scalar_allreduce(
-    comm,
-    std::accumulate(edgelist_edge_counts.begin(), edgelist_edge_counts.end(), edge_t{0}),
-    raft::comms::op_t::SUM,
-    handle.get_stream());
+  auto number_of_edges =
+    std::accumulate(edgelist_edge_counts.begin(), edgelist_edge_counts.end(), edge_t{0});
+  comm.host_allreduce(std::addressof(number_of_edges),
+                      std::addressof(number_of_edges),
+                      size_t{1},
+                      raft::comms::op_t::SUM);
 
   // 3. renumber edges
 
