@@ -279,6 +279,27 @@ struct temporal_neighbor_sampling_functor : public cugraph::c_api::abstract_func
       std::optional<rmm::device_uvector<label_t>> edge_label{std::nullopt};
       std::optional<rmm::device_uvector<size_t>> offsets{std::nullopt};
 
+      cugraph::temporal_sampling_comparison_t temporal_sampling_comparison{};
+      switch (options_.temporal_sampling_comparison_) {
+        case cugraph_temporal_sampling_comparison_t::STRICTLY_INCREASING:
+          temporal_sampling_comparison =
+            cugraph::temporal_sampling_comparison_t::STRICTLY_INCREASING;
+          break;
+        case cugraph_temporal_sampling_comparison_t::MONOTONICALLY_INCREASING:
+          temporal_sampling_comparison =
+            cugraph::temporal_sampling_comparison_t::MONOTONICALLY_INCREASING;
+          break;
+        case cugraph_temporal_sampling_comparison_t::STRICTLY_DECREASING:
+          temporal_sampling_comparison =
+            cugraph::temporal_sampling_comparison_t::STRICTLY_DECREASING;
+          break;
+        case cugraph_temporal_sampling_comparison_t::MONOTONICALLY_DECREASING:
+          temporal_sampling_comparison =
+            cugraph::temporal_sampling_comparison_t::MONOTONICALLY_DECREASING;
+          break;
+        default: CUGRAPH_FAIL("Invalid temporal sampling comparison type");
+      };
+
       // FIXME: For biased sampling, the user should pass either biases or edge weights,
       // otherwised throw an error and suggest the user to call uniform neighbor sample instead
 
@@ -321,7 +342,8 @@ struct temporal_neighbor_sampling_functor : public cugraph::c_api::abstract_func
               cugraph::sampling_flags_t{options_.prior_sources_behavior_,
                                         options_.return_hops_,
                                         options_.dedupe_sources_,
-                                        options_.with_replacement_},
+                                        options_.with_replacement_,
+                                        temporal_sampling_comparison},
               do_expensive_check_);
         } else {
           std::tie(sampled_edge_srcs,
@@ -356,7 +378,8 @@ struct temporal_neighbor_sampling_functor : public cugraph::c_api::abstract_func
               cugraph::sampling_flags_t{options_.prior_sources_behavior_,
                                         options_.return_hops_,
                                         options_.dedupe_sources_,
-                                        options_.with_replacement_},
+                                        options_.with_replacement_,
+                                        temporal_sampling_comparison},
               do_expensive_check_);
         }
       } else {
@@ -394,7 +417,8 @@ struct temporal_neighbor_sampling_functor : public cugraph::c_api::abstract_func
               cugraph::sampling_flags_t{options_.prior_sources_behavior_,
                                         options_.return_hops_,
                                         options_.dedupe_sources_,
-                                        options_.with_replacement_},
+                                        options_.with_replacement_,
+                                        temporal_sampling_comparison},
               do_expensive_check_);
         } else {
           std::tie(sampled_edge_srcs,
@@ -428,7 +452,8 @@ struct temporal_neighbor_sampling_functor : public cugraph::c_api::abstract_func
               cugraph::sampling_flags_t{options_.prior_sources_behavior_,
                                         options_.return_hops_,
                                         options_.dedupe_sources_,
-                                        options_.with_replacement_},
+                                        options_.with_replacement_,
+                                        temporal_sampling_comparison},
               do_expensive_check_);
         }
       }

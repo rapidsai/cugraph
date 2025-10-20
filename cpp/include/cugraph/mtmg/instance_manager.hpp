@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2023-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -51,7 +51,11 @@ class instance_manager_t {
   {
     for (size_t i = 0; i < nccl_comms_.size(); ++i) {
       rmm::cuda_set_device_raii local_set_device(device_ids_[i]);
-      RAFT_NCCL_TRY(ncclCommDestroy(*nccl_comms_[i]));
+      try {
+        RAFT_NCCL_TRY(ncclCommDestroy(*nccl_comms_[i]));
+      } catch (const std::exception& e) {
+        std::cerr << "Error destroying NCCL communication: " << e.what() << std::endl;
+      }
     }
   }
 

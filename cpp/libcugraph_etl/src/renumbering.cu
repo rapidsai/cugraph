@@ -23,7 +23,7 @@
 #include <cudf/utilities/type_dispatcher.hpp>
 
 #include <rmm/exec_policy.hpp>
-#include <rmm/mr/host/new_delete_resource.hpp>
+#include <rmm/mr/pinned_host_memory_resource.hpp>
 
 #include <cub/device/device_radix_sort.cuh>
 #include <thrust/pair.h>
@@ -789,7 +789,7 @@ struct renumber_functor {
 
     cudaStream_t exec_strm = handle.get_stream();
 
-    auto mr                         = rmm::mr::new_delete_resource();
+    auto mr                         = rmm::mr::pinned_host_memory_resource();
     size_t hist_size                = sizeof(accum_type) * 32;
     accum_type* hist_insert_counter = static_cast<accum_type*>(mr.allocate(hist_size));
     *hist_insert_counter            = 0;

@@ -84,6 +84,8 @@ def force_atlas2(ResourceHandle resource_handle,
                  double gravity,
                  vertex_mobility_vertices,
                  vertex_mobility_values,
+                 vertex_mass_vertices,
+                 vertex_mass_values,
                  bool_t verbose,
                  bool_t do_expensive_check,
                 ):
@@ -170,6 +172,13 @@ def force_atlas2(ResourceHandle resource_handle,
         Mobility of each vertex, scaling its speed in each iteration.
         If not provided, all vertices will have a mobility of 1.0.
 
+    vertex_mass_vertices : device array type, optional (default=None)
+        Vertices of graph for vertex_mass_values.
+
+    vertex_mass_values : device array type, optional (default=None)
+        Mass of each vertex, which controls the attraction to other vertices.
+        If not provided, the mass of each vertex will be its degree plus one.
+
     verbose : bool_t
         Output convergence info at each interation.
 
@@ -196,14 +205,16 @@ def force_atlas2(ResourceHandle resource_handle,
     ...     resource_handle, graph_props, srcs, dsts, weight_array=weights,
     ...     store_transposed=False, renumber=False, do_expensive_check=False)
     >>> (vertices, x_axis, y_axis) = pylibcugraph.force_atlas2(
-    ...     resource_handle, None, G, 500, None, None, None, True, False, False, None,
-    ...     1.0, 1.0, True, 0.5, 2.0, False, None, 1.0, False, False)
+    ...     resource_handle, 42, G, 500, None, None, None, True, False, False,
+    ...     None, None, 100.0, 1.0, 1.0, False, 0.5, 2.0, False, 1.0, None, None,
+    ...     None, None, False, False)
     >>> vertices
     [   0  1   2   3   4   5    ]
     >>> x_axis
-    [ 5.444471    0.4794112   1.2495936  -0.01039529 -1.1892298  -1.5889403 ]
+    [-7.7015705   7.6763854  -2.7651896  -0.02446137  1.6971487  -1.2822613 ]
     >>> y_axis
-    [-1.4304754e+01 -3.8182523e+00  3.8365445e+00  8.3183739e-03 -8.3009762e-01 -1.9155006e-01
+    [ 23.276543     7.9067745   13.618961    -0.07172047  -6.8321953  -11.90544   ]
+
 
     """
 
@@ -262,6 +273,20 @@ def force_atlas2(ResourceHandle resource_handle,
             create_cugraph_type_erased_device_array_view_from_py_obj(
                 vertex_mobility_values)
 
+    assert_CAI_type(vertex_mass_vertices, "vertex_mass_vertices", True)
+
+    cdef cugraph_type_erased_device_array_view_t* \
+        vertex_mass_vertices_view_ptr = \
+            create_cugraph_type_erased_device_array_view_from_py_obj(
+                vertex_mass_vertices)
+
+    assert_CAI_type(vertex_mass_values, "vertex_mass_values", True)
+
+    cdef cugraph_type_erased_device_array_view_t* \
+        vertex_mass_values_view_ptr = \
+            create_cugraph_type_erased_device_array_view_from_py_obj(
+                vertex_mass_values)
+
     cdef cugraph_layout_result_t* result_ptr
     cdef cugraph_error_code_t error_code
     cdef cugraph_error_t* error_ptr
@@ -292,6 +317,8 @@ def force_atlas2(ResourceHandle resource_handle,
                                       gravity,
                                       vertex_mobility_vertices_view_ptr,
                                       vertex_mobility_values_view_ptr,
+                                      vertex_mass_vertices_view_ptr,
+                                      vertex_mass_values_view_ptr,
                                       verbose,
                                       do_expensive_check,
                                       &result_ptr,
