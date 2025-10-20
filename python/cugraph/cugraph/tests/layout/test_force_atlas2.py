@@ -235,7 +235,9 @@ def test_force_atlas2(graph_file, score, max_iter, barnes_hut_optimize):
 @pytest.mark.parametrize("graph_file, radius, max_overlaps", DATASETS_NOVERLAP)
 @pytest.mark.parametrize("max_iter", NOVERLAP_MAX_ITERATIONS)
 @pytest.mark.parametrize("barnes_hut_optimize", BARNES_HUT_OPTIMIZE)
-def test_force_atlas2_noverlap(graph_file, radius, max_overlaps, max_iter, barnes_hut_optimize):
+def test_force_atlas2_noverlap(
+    graph_file, radius, max_overlaps, max_iter, barnes_hut_optimize
+):
     """
     All vertices are given the same radius. After running FA2 with
     prevent_overlapping enabled, the number of pairs of overlapping
