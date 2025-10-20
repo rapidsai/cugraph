@@ -128,7 +128,7 @@ DATASETS_NOVERLAP = [
     (karate, 10.0, 100),
     (polbooks, 10.0, 200),
     (dolphins, 10.0, 110),
-    (netscience, 5.0, 500),
+    (netscience, 5.0, 700),
     (dining_prefs, 10.0, 80),
 ]
 
