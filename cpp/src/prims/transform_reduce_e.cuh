@@ -47,6 +47,11 @@
 #include <cstdint>
 #include <type_traits>
 
+
+#include <cuda/experimental/stf.cuh>
+#include <raft/core/resource/custom_resource.hpp>
+using namespace cuda::experimental::stf;
+
 namespace cugraph {
 
 namespace detail {
@@ -473,6 +478,9 @@ T transform_reduce_e(raft::handle_t const& handle,
     // currently, nothing to do
   }
 
+  async_resources_handle& cudastf_handle = *raft::resource::get_custom_resource<async_resources_handle>(handle);
+  stream_ctx cudastf_ctx(handle.get_stream(), cudastf_handle);
+
   property_op<T, thrust::plus> edge_property_add{};
 
   auto result_buffer = allocate_dataframe_buffer<T>(1, handle.get_stream());
@@ -507,6 +515,11 @@ T transform_reduce_e(raft::handle_t const& handle,
     }
     auto edge_partition_e_value_input = edge_partition_e_input_device_view_t(edge_value_input, i);
 
+    // CUDASTF logical data buffer for transform_reduce phase
+    std::vector<token> l_tr_buffers(5);
+        for (size_t segment_i = 0; segment_i < 5; segment_i++) { l_tr_buffers[segment_i] = cudastf_ctx.token();
+    }
+
     auto segment_offsets = graph_view.local_edge_partition_segment_offsets(i);
     if (segment_offsets) {
       // FIXME: we may further improve performance by 1) concurrently running kernels on different
@@ -517,8 +530,9 @@ T transform_reduce_e(raft::handle_t const& handle,
         raft::grid_1d_block_t update_grid((*segment_offsets)[1],
                                           detail::transform_reduce_e_kernel_block_size,
                                           handle.get_device_properties().maxGridSize[0]);
+        cudastf_ctx.task(l_tr_buffers[0].write())->*[&](cudaStream_t stream) {
         detail::transform_reduce_e_high_degree<GraphViewType>
-          <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
+          <<<update_grid.num_blocks, update_grid.block_size, 0, stream>>>(
             edge_partition,
             edge_partition.major_range_first(),
             edge_partition.major_range_first() + (*segment_offsets)[1],
@@ -528,13 +542,15 @@ T transform_reduce_e(raft::handle_t const& handle,
             edge_partition_e_mask,
             get_dataframe_buffer_begin(result_buffer),
             e_op);
+        };
       }
       if ((*segment_offsets)[2] - (*segment_offsets)[1] > 0) {
         raft::grid_1d_warp_t update_grid((*segment_offsets)[2] - (*segment_offsets)[1],
                                          detail::transform_reduce_e_kernel_block_size,
                                          handle.get_device_properties().maxGridSize[0]);
+        cudastf_ctx.task(l_tr_buffers[1].write())->*[&](cudaStream_t stream) {
         detail::transform_reduce_e_mid_degree<GraphViewType>
-          <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
+          <<<update_grid.num_blocks, update_grid.block_size, 0, stream>>>(
             edge_partition,
             edge_partition.major_range_first() + (*segment_offsets)[1],
             edge_partition.major_range_first() + (*segment_offsets)[2],
@@ -544,13 +560,15 @@ T transform_reduce_e(raft::handle_t const& handle,
             edge_partition_e_mask,
             get_dataframe_buffer_begin(result_buffer),
             e_op);
+        };
       }
       if ((*segment_offsets)[3] - (*segment_offsets)[2] > 0) {
+        cudastf_ctx.task(l_tr_buffers[2].write())->*[&](cudaStream_t stream) {
         raft::grid_1d_thread_t update_grid((*segment_offsets)[3] - (*segment_offsets)[2],
                                            detail::transform_reduce_e_kernel_block_size,
                                            handle.get_device_properties().maxGridSize[0]);
         detail::transform_reduce_e_low_degree<GraphViewType>
-          <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
+          <<<update_grid.num_blocks, update_grid.block_size, 0, stream>>>(
             edge_partition,
             edge_partition.major_range_first() + (*segment_offsets)[2],
             edge_partition.major_range_first() + (*segment_offsets)[3],
@@ -560,13 +578,15 @@ T transform_reduce_e(raft::handle_t const& handle,
             edge_partition_e_mask,
             get_dataframe_buffer_begin(result_buffer),
             e_op);
+        };
       }
       if (edge_partition.dcs_nzd_vertex_count() && (*(edge_partition.dcs_nzd_vertex_count()) > 0)) {
         raft::grid_1d_thread_t update_grid(*(edge_partition.dcs_nzd_vertex_count()),
                                            detail::transform_reduce_e_kernel_block_size,
                                            handle.get_device_properties().maxGridSize[0]);
+        cudastf_ctx.task(l_tr_buffers[3].write())->*[&](cudaStream_t stream) {
         detail::transform_reduce_e_hypersparse<GraphViewType>
-          <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
+          <<<update_grid.num_blocks, update_grid.block_size, 0, stream>>>(
             edge_partition,
             edge_partition_src_value_input,
             edge_partition_dst_value_input,
@@ -574,6 +594,7 @@ T transform_reduce_e(raft::handle_t const& handle,
             edge_partition_e_mask,
             get_dataframe_buffer_begin(result_buffer),
             e_op);
+         };
       }
     } else {
       if (edge_partition.major_range_size() > 0) {
@@ -581,8 +602,9 @@ T transform_reduce_e(raft::handle_t const& handle,
                                            detail::transform_reduce_e_kernel_block_size,
                                            handle.get_device_properties().maxGridSize[0]);
 
+        cudastf_ctx.task(l_tr_buffers[4].write())->*[&](cudaStream_t stream) {
         detail::transform_reduce_e_low_degree<GraphViewType>
-          <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
+          <<<update_grid.num_blocks, update_grid.block_size, 0, stream>>>(
             edge_partition,
             edge_partition.major_range_first(),
             edge_partition.major_range_last(),
@@ -592,9 +614,12 @@ T transform_reduce_e(raft::handle_t const& handle,
             edge_partition_e_mask,
             get_dataframe_buffer_begin(result_buffer),
             e_op);
+         };
       }
     }
   }
+
+  cudastf_ctx.finalize();
 
   auto result = thrust::reduce(
     handle.get_thrust_policy(),

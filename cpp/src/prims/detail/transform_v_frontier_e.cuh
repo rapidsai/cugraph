@@ -27,6 +27,9 @@
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/thrust_tuple_utils.hpp>
 
+#include <cuda/experimental/stf.cuh>
+#include <raft/core/resource/custom_resource.hpp>
+
 #include <raft/core/handle.hpp>
 
 #include <cuda/std/iterator>
@@ -36,6 +39,8 @@
 #include <thrust/iterator/counting_iterator.h>
 
 #include <type_traits>
+
+using namespace cuda::experimental::stf;
 
 namespace cugraph {
 
@@ -415,6 +420,9 @@ auto transform_v_frontier_e(raft::handle_t const& handle,
 
   auto edge_mask_view = graph_view.edge_mask_view();
 
+  async_resources_handle& cudastf_handle = *raft::resource::get_custom_resource<async_resources_handle>(handle);
+  stream_ctx cudastf_ctx(handle.get_stream(), cudastf_handle);
+
   // 1. update aggregate_local_frontier_local_degree_offsets
 
   auto aggregate_local_frontier_local_degree_offsets =
@@ -508,9 +516,17 @@ auto transform_v_frontier_e(raft::handle_t const& handle,
     }
     auto edge_partition_e_value_input = edge_partition_e_input_device_view_t(edge_value_input, i);
 
+
+    // CUDASTF logical data buffer for transform reduce phase
+    std::vector<token> l_tv_buffers(5);
+    for (size_t segment_i = 0; segment_i < 5; segment_i++) {
+         l_tv_buffers[segment_i] = cudastf_ctx.token();
+    }
+
     auto segment_offsets = graph_view.local_edge_partition_segment_offsets(i);
     if (segment_offsets) {
-      auto [edge_partition_key_indices, edge_partition_v_frontier_partition_offsets] =
+      //auto [edge_partition_key_indices, edge_partition_v_frontier_partition_offsets] =
+      auto res_partition_v_frontier =
         partition_v_frontier(
           handle,
           edge_partition_frontier_major_first,
@@ -519,6 +535,10 @@ auto transform_v_frontier_e(raft::handle_t const& handle,
           std::vector<vertex_t>{edge_partition.major_range_first() + (*segment_offsets)[1],
                                 edge_partition.major_range_first() + (*segment_offsets)[2],
                                 edge_partition.major_range_first() + (*segment_offsets)[3]});
+
+      // We cannot capture structured binding before C++20 so we create these variables manually
+      auto& edge_partition_key_indices = ::std::get<0>(res_partition_v_frontier);
+      auto& edge_partition_v_frontier_partition_offsets = ::std::get<1>(res_partition_v_frontier);
 
       // FIXME: we may further improve performance by 1) concurrently running kernels on different
       // segments; 2) individually tuning block sizes for different segments; and 3) adding one
@@ -529,8 +549,10 @@ auto transform_v_frontier_e(raft::handle_t const& handle,
         raft::grid_1d_block_t update_grid(high_size,
                                           detail::transform_v_frontier_e_kernel_block_size,
                                           handle.get_device_properties().maxGridSize[0]);
+
+        cudastf_ctx.task(l_tv_buffers[0].write())->*[&](cudaStream_t stream) {
         detail::transform_v_frontier_e_high_degree<GraphViewType>
-          <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
+          <<<update_grid.num_blocks, update_grid.block_size, 0, stream>>>(
             edge_partition,
             edge_partition_frontier_key_first,
             edge_partition_key_indices.begin() + edge_partition_v_frontier_partition_offsets[0],
@@ -542,6 +564,7 @@ auto transform_v_frontier_e(raft::handle_t const& handle,
             edge_partition_frontier_local_degree_offsets,
             e_op,
             get_dataframe_buffer_begin(aggregate_value_buffer));
+         };
       }
       auto mid_size = edge_partition_v_frontier_partition_offsets[2] -
                       edge_partition_v_frontier_partition_offsets[1];
@@ -549,8 +572,9 @@ auto transform_v_frontier_e(raft::handle_t const& handle,
         raft::grid_1d_warp_t update_grid(mid_size,
                                          detail::transform_v_frontier_e_kernel_block_size,
                                          handle.get_device_properties().maxGridSize[0]);
+        cudastf_ctx.task(l_tv_buffers[1].write())->*[&](cudaStream_t stream) {
         detail::transform_v_frontier_e_mid_degree<GraphViewType>
-          <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
+          <<<update_grid.num_blocks, update_grid.block_size, 0, stream>>>(
             edge_partition,
             edge_partition_frontier_key_first,
             edge_partition_key_indices.begin() + edge_partition_v_frontier_partition_offsets[1],
@@ -562,6 +586,7 @@ auto transform_v_frontier_e(raft::handle_t const& handle,
             edge_partition_frontier_local_degree_offsets,
             e_op,
             get_dataframe_buffer_begin(aggregate_value_buffer));
+         };
       }
       auto low_size = edge_partition_v_frontier_partition_offsets[3] -
                       edge_partition_v_frontier_partition_offsets[2];
@@ -569,8 +594,9 @@ auto transform_v_frontier_e(raft::handle_t const& handle,
         raft::grid_1d_thread_t update_grid(low_size,
                                            detail::transform_v_frontier_e_kernel_block_size,
                                            handle.get_device_properties().maxGridSize[0]);
+        cudastf_ctx.task(l_tv_buffers[2].write())->*[&](cudaStream_t stream) {
         detail::transform_v_frontier_e_hypersparse_or_low_degree<false, GraphViewType>
-          <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
+          <<<update_grid.num_blocks, update_grid.block_size, 0, stream>>>(
             edge_partition,
             edge_partition_frontier_key_first,
             edge_partition_key_indices.begin() + edge_partition_v_frontier_partition_offsets[2],
@@ -582,6 +608,7 @@ auto transform_v_frontier_e(raft::handle_t const& handle,
             edge_partition_frontier_local_degree_offsets,
             e_op,
             get_dataframe_buffer_begin(aggregate_value_buffer));
+        };
       }
       auto hypersparse_size = edge_partition_v_frontier_partition_offsets[4] -
                               edge_partition_v_frontier_partition_offsets[3];
@@ -589,8 +616,9 @@ auto transform_v_frontier_e(raft::handle_t const& handle,
         raft::grid_1d_thread_t update_grid(hypersparse_size,
                                            detail::transform_v_frontier_e_kernel_block_size,
                                            handle.get_device_properties().maxGridSize[0]);
+        cudastf_ctx.task(l_tv_buffers[3].write())->*[&](cudaStream_t stream) {
         detail::transform_v_frontier_e_hypersparse_or_low_degree<true, GraphViewType>
-          <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
+          <<<update_grid.num_blocks, update_grid.block_size, 0, stream>>>(
             edge_partition,
             edge_partition_frontier_key_first,
             edge_partition_key_indices.begin() + edge_partition_v_frontier_partition_offsets[3],
@@ -602,6 +630,7 @@ auto transform_v_frontier_e(raft::handle_t const& handle,
             edge_partition_frontier_local_degree_offsets,
             e_op,
             get_dataframe_buffer_begin(aggregate_value_buffer));
+        };
       }
     } else {
       raft::grid_1d_thread_t update_grid(
@@ -609,8 +638,9 @@ auto transform_v_frontier_e(raft::handle_t const& handle,
         detail::transform_v_frontier_e_kernel_block_size,
         handle.get_device_properties().maxGridSize[0]);
 
+      cudastf_ctx.task(l_tv_buffers[4].write())->*[&,i](cudaStream_t stream) {
       detail::transform_v_frontier_e_hypersparse_or_low_degree<false, GraphViewType>
-        <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
+        <<<update_grid.num_blocks, update_grid.block_size, 0, stream>>>(
           edge_partition,
           edge_partition_frontier_key_first,
           thrust::make_counting_iterator(size_t{0}),
@@ -622,8 +652,11 @@ auto transform_v_frontier_e(raft::handle_t const& handle,
           edge_partition_frontier_local_degree_offsets,
           e_op,
           get_dataframe_buffer_begin(aggregate_value_buffer));
+       };
     }
   }
+
+  cudastf_ctx.finalize();
 
   return std::make_tuple(std::move(aggregate_value_buffer),
                          std::move(aggregate_local_frontier_local_degree_offsets));

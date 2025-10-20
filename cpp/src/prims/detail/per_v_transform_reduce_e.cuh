@@ -64,6 +64,10 @@
 #include <type_traits>
 #include <utility>
 
+#include <cuda/experimental/stf.cuh>
+#include <raft/core/resource/custom_resource.hpp>
+using namespace cuda::experimental::stf;
+
 namespace cugraph {
 
 namespace detail {
@@ -1161,6 +1165,14 @@ void per_v_transform_reduce_e_edge_partition(
   std::optional<raft::host_span<size_t const>> key_segment_offsets,
   std::optional<raft::host_span<size_t const>> const& edge_partition_stream_pool_indices)
 {
+  async_resources_handle& cudastf_handle = *raft::resource::get_custom_resource<async_resources_handle>(handle);
+  stream_ctx cudastf_ctx(handle.get_stream(), cudastf_handle);
+  token output_tokens[4];
+  for (size_t i = 0; i < 4; i++)
+  {
+     output_tokens[i] = cudastf_ctx.token();
+  }
+
   constexpr bool use_input_key = !std::is_same_v<OptionalKeyIterator, void*>;
 
   using vertex_t = typename GraphViewType::vertex_type;
@@ -1184,10 +1196,12 @@ void per_v_transform_reduce_e_edge_partition(
 
       if constexpr (update_major && !use_input_key) {  // this is necessary as we don't visit
                                                        // every vertex in the hypersparse segment
-        thrust::fill(rmm::exec_policy_nosync(exec_stream),
+        cudastf_ctx.task(output_tokens[3].write())->*[=](cudaStream_t stream) {
+        thrust::fill(rmm::exec_policy_nosync(stream),
                      output_buffer + (*key_segment_offsets)[3],
                      output_buffer + (*key_segment_offsets)[4],
                      major_init);
+         };
       }
 
       auto segment_size = use_input_key
@@ -1197,8 +1211,9 @@ void per_v_transform_reduce_e_edge_partition(
         raft::grid_1d_thread_t update_grid(segment_size,
                                            detail::per_v_transform_reduce_e_kernel_block_size,
                                            handle.get_device_properties().maxGridSize[0]);
+        size_t token_idx = 0;
         auto segment_output_buffer = output_buffer;
-        if constexpr (update_major) { segment_output_buffer += (*key_segment_offsets)[3]; }
+        if constexpr (update_major) { segment_output_buffer += (*key_segment_offsets)[3]; token_idx +=3; }
         auto segment_key_first = edge_partition_key_first;
         auto segment_key_last  = edge_partition_key_last;
         if constexpr (use_input_key) {
@@ -1209,8 +1224,9 @@ void per_v_transform_reduce_e_edge_partition(
           assert(segment_key_first == nullptr);
           assert(segment_key_last == nullptr);
         }
+        cudastf_ctx.task(output_tokens[token_idx].rw())->*[=](cudaStream_t stream) {
         detail::per_v_transform_reduce_e_hypersparse<update_major, GraphViewType>
-          <<<update_grid.num_blocks, update_grid.block_size, 0, exec_stream>>>(
+          <<<update_grid.num_blocks, update_grid.block_size, 0, stream>>>(
             edge_partition,
             segment_key_first,
             segment_key_last,
@@ -1223,6 +1239,7 @@ void per_v_transform_reduce_e_edge_partition(
             major_init,
             reduce_op,
             pred_op);
+        };
       }
     }
     if ((*key_segment_offsets)[3] - (*key_segment_offsets)[2]) {
@@ -1233,8 +1250,9 @@ void per_v_transform_reduce_e_edge_partition(
       raft::grid_1d_thread_t update_grid((*key_segment_offsets)[3] - (*key_segment_offsets)[2],
                                          detail::per_v_transform_reduce_e_kernel_block_size,
                                          handle.get_device_properties().maxGridSize[0]);
+      size_t token_idx = 0;
       auto segment_output_buffer = output_buffer;
-      if constexpr (update_major) { segment_output_buffer += (*key_segment_offsets)[2]; }
+      if constexpr (update_major) { segment_output_buffer += (*key_segment_offsets)[2]; token_idx += 2; }
       std::optional<segment_key_iterator_t>
         segment_key_first{};  // std::optional as thrust::transform_iterator's default constructor
                               // is a deleted function, segment_key_first should always have a value
@@ -1244,8 +1262,9 @@ void per_v_transform_reduce_e_edge_partition(
         segment_key_first = thrust::make_counting_iterator(edge_partition.major_range_first());
       }
       *segment_key_first += (*key_segment_offsets)[2];
+      cudastf_ctx.task(output_tokens[token_idx].rw())->*[=](cudaStream_t stream) {
       detail::per_v_transform_reduce_e_low_degree<update_major, GraphViewType>
-        <<<update_grid.num_blocks, update_grid.block_size, 0, exec_stream>>>(
+        <<<update_grid.num_blocks, update_grid.block_size, 0, stream>>>(
           edge_partition,
           *segment_key_first,
           *segment_key_first + ((*key_segment_offsets)[3] - (*key_segment_offsets)[2]),
@@ -1258,6 +1277,7 @@ void per_v_transform_reduce_e_edge_partition(
           major_init,
           reduce_op,
           pred_op);
+       };
     }
     if ((*key_segment_offsets)[2] - (*key_segment_offsets)[1] > 0) {
       auto exec_stream = edge_partition_stream_pool_indices
@@ -1267,8 +1287,10 @@ void per_v_transform_reduce_e_edge_partition(
       raft::grid_1d_warp_t update_grid((*key_segment_offsets)[2] - (*key_segment_offsets)[1],
                                        detail::per_v_transform_reduce_e_kernel_block_size,
                                        handle.get_device_properties().maxGridSize[0]);
+      size_t token_idx = 0;
       auto segment_output_buffer = output_buffer;
-      if constexpr (update_major) { segment_output_buffer += (*key_segment_offsets)[1]; }
+      
+      if constexpr (update_major) { segment_output_buffer += (*key_segment_offsets)[1]; token_idx += 1;}
       std::optional<segment_key_iterator_t>
         segment_key_first{};  // std::optional as thrust::transform_iterator's default constructor
                               // is a deleted function, segment_key_first should always have a value
@@ -1278,8 +1300,9 @@ void per_v_transform_reduce_e_edge_partition(
         segment_key_first = thrust::make_counting_iterator(edge_partition.major_range_first());
       }
       *segment_key_first += (*key_segment_offsets)[1];
+      cudastf_ctx.task(output_tokens[token_idx].rw())->*[=](cudaStream_t stream) {
       detail::per_v_transform_reduce_e_mid_degree<update_major, GraphViewType>
-        <<<update_grid.num_blocks, update_grid.block_size, 0, exec_stream>>>(
+        <<<update_grid.num_blocks, update_grid.block_size, 0, stream>>>(
           edge_partition,
           *segment_key_first,
           *segment_key_first + ((*key_segment_offsets)[2] - (*key_segment_offsets)[1]),
@@ -1293,6 +1316,7 @@ void per_v_transform_reduce_e_edge_partition(
           major_identity_element,
           reduce_op,
           pred_op);
+      };
     }
     if ((*key_segment_offsets)[1] > 0) {
       auto exec_stream = edge_partition_stream_pool_indices
@@ -1313,8 +1337,9 @@ void per_v_transform_reduce_e_edge_partition(
       } else {
         segment_key_first = thrust::make_counting_iterator(edge_partition.major_range_first());
       }
+      cudastf_ctx.task(output_tokens[0].rw())->*[=](cudaStream_t stream) {
       detail::per_v_transform_reduce_e_high_degree<update_major, GraphViewType>
-        <<<update_grid.num_blocks, update_grid.block_size, 0, exec_stream>>>(
+        <<<update_grid.num_blocks, update_grid.block_size, 0, stream>>>(
           edge_partition,
           *segment_key_first,
           *segment_key_first + (*key_segment_offsets)[1],
@@ -1328,7 +1353,10 @@ void per_v_transform_reduce_e_edge_partition(
           major_identity_element,
           reduce_op,
           pred_op);
+       };
     }
+  
+    cudastf_ctx.finalize();
   } else {
     auto exec_stream = edge_partition_stream_pool_indices
                          ? handle.get_stream_from_stream_pool(
