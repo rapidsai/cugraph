@@ -624,11 +624,12 @@ __global__ static __launch_bounds__(THREADS6, FACTOR6) void apply_forces_bh(
   float* restrict old_dx,
   float* restrict old_dy,
   const float* restrict swinging,
+  const bool prevent_overlapping,
   const float* restrict vertex_mobility,
   const float speed,
   const int n)
 {
-  // For evrery vertex
+  // For every vertex
   for (int i = threadIdx.x + blockIdx.x * blockDim.x; i < n; i += gridDim.x * blockDim.x) {
     // Store displacement needed for next iteration.
     const float dx = (repel_x[i] + attract_x[i]);
@@ -638,9 +639,16 @@ __global__ static __launch_bounds__(THREADS6, FACTOR6) void apply_forces_bh(
 
     // Update positions
     float mobility_factor = vertex_mobility ? vertex_mobility[i] : 1.0f;
-    float factor          = mobility_factor * speed / (1.0 + sqrt(speed * swinging[i]));
-    Y_x[i] += dx * factor;
-    Y_y[i] += dy * factor;
+    float factor          = speed / (1.0 + sqrt(speed * swinging[i]));
+
+    if (prevent_overlapping) {
+      factor   = 0.1 * factor;
+      float df = sqrt(dx * dx + dy * dy + FLT_EPSILON);
+      factor   = min(factor * df, 10.0f) / df;
+    }
+
+    Y_x[i] += dx * mobility_factor * factor;
+    Y_y[i] += dy * mobility_factor * factor;
   }
 }
 
