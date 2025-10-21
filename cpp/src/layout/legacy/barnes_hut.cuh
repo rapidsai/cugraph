@@ -346,6 +346,7 @@ void barnes_hut(raft::handle_t const& handle,
                                                                             old_forces,
                                                                             old_forces + n,
                                                                             swinging,
+                                                                            prevent_overlapping,
                                                                             vertex_mobility,
                                                                             speed,
                                                                             n);
