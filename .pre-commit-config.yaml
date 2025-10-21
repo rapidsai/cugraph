@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+# SPDX-License-Identifier: Apache-2.0
+
 ## https://pre-commit.com/
 #
 # Before first use: `pre-commit install`
@@ -41,17 +44,25 @@ repos:
         types_or: [c, c++, cuda]
         args: ["-fallback-style=none", "-style=file", "-i"]
   - repo: https://github.com/rapidsai/pre-commit-hooks
-    rev: v0.6.0
+    rev: v1.0.0
     hooks:
       - id: verify-copyright
+        args: [--fix, --spdx]
         files: |
           (?x)
-              [.](cmake|cpp|cu|cuh|h|hpp|sh|pxd|py|pyx)$|
-              CMakeLists[.]txt$|
-              CMakeLists_standalone[.]txt$|
-              [.]flake8[.]cython$|
-              meta[.]yaml$|
-              setup[.]cfg$
+            [.](cmake|c|cpp|cu|cuh|h|hpp|sh|pxd|py|pyx|rs|java)$|
+            CMakeLists[.]txt$|
+            CMakeLists_standalone[.]txt$|
+            [.]flake8[.]cython$|
+            meta[.]yaml$|
+            setup[.]cfg$|
+            pytest[.]ini$|
+            pyproject[.]toml$|
+            dependencies[.]yaml$|
+            recipe[.]yaml$|
+            ^[.]pre-commit-config[.]yaml$|
+            ^benchmarks/shared/build_cugraph_ucx/cugraph_ucx[.]dockerfile$|
+            ^[.]github/ISSUE_TEMPLATE/.*[.]yml$
       - id: verify-alpha-spec
       - id: verify-codeowners
         args: [--fix, --project-prefix=cugraph]
