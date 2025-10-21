@@ -47,6 +47,7 @@ repos:
     rev: v1.0.0
     hooks:
       - id: verify-copyright
+        name: verify-copyright-cugraph
         args: [--fix, --spdx]
         files: |
           (?x)
@@ -62,7 +63,20 @@ repos:
             recipe[.]yaml$|
             ^[.]pre-commit-config[.]yaml$|
             ^benchmarks/shared/build_cugraph_ucx/cugraph_ucx[.]dockerfile$|
-            ^[.]github/ISSUE_TEMPLATE/.*[.]yml$
+            ^[.]github/ISSUE_TEMPLATE/.*[.]yml$|
+            [.]flake8$
+        exclude: |
+          (?x)^(
+            python/cugraph/cugraph/tests/structure/test_hypergraph[.]py$|
+            python/cugraph/cugraph/structure/hypergraph[.]py$
+          )
+      - id: verify-copyright
+        name: verify-copyright-pygraphistry
+        args: [--fix, --spdx, "--spdx-license-identifier=Apache-2.0 AND BSD-3-Clause"]
+        files: |
+          (?x)
+            ^python/cugraph/cugraph/tests/structure/test_hypergraph[.]py$|
+            ^python/cugraph/cugraph/structure/hypergraph[.]py$
       - id: verify-alpha-spec
       - id: verify-codeowners
         args: [--fix, --project-prefix=cugraph]
