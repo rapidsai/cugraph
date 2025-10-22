@@ -377,11 +377,11 @@ void fill_edge_minor_property(raft::handle_t const& handle,
         cuda::std::distance(sorted_unique_vertex_first, sorted_unique_vertex_last));
       auto range_first = graph_view.local_vertex_partition_range_first();
       if (v_list_size > 0) {
+        auto h_staging_buffer_ptr = reinterpret_cast<vertex_t*>(h_staging_buffer.data());
+        assert(h_staging_buffer.size() >= size_t{1});
         if constexpr (std::is_pointer_v<std::decay_t<VertexIterator>>) {
-          raft::update_host(std::addressof(range_first),
-                            sorted_unique_vertex_first,
-                            size_t{1},
-                            handle.get_stream());
+          raft::update_host(
+            h_staging_buffer_ptr, sorted_unique_vertex_first, size_t{1}, handle.get_stream());
         } else {
           rmm::device_uvector<vertex_t> tmps(1, handle.get_stream());
           thrust::tabulate(
@@ -391,9 +391,9 @@ void fill_edge_minor_property(raft::handle_t const& handle,
             cuda::proclaim_return_type<vertex_t>([sorted_unique_vertex_first] __device__(size_t i) {
               return *(sorted_unique_vertex_first + i);
             }));
-          raft::update_host(
-            std::addressof(range_first), tmps.data(), size_t{1}, handle.get_stream());
+          raft::update_host(h_staging_buffer_ptr, tmps.data(), size_t{1}, handle.get_stream());
         }
+        range_first = h_staging_buffer_ptr[0];
         handle.sync_stream();
       }
 
