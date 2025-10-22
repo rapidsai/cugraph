@@ -149,15 +149,14 @@ class key_cuco_store_view_t {
 
   static constexpr bool binary_search = false;
 
-  using cuco_set_type =
-    cuco::static_set<key_t,
-                     cuco::extent<std::size_t>,
-                     cuda::thread_scope_device,
-                     thrust::equal_to<key_t>,
-                     cuco::linear_probing<1,  // CG size
-                                          cuco::murmurhash3_32<key_t>>,
-                     rmm::mr::stream_allocator_adaptor<rmm::mr::polymorphic_allocator<std::byte>>,
-                     cuco_storage_type>;
+  using cuco_set_type = cuco::static_set<key_t,
+                                         cuco::extent<std::size_t>,
+                                         cuda::thread_scope_device,
+                                         thrust::equal_to<key_t>,
+                                         cuco::linear_probing<1,  // CG size
+                                                              cuco::murmurhash3_32<key_t>>,
+                                         rmm::mr::polymorphic_allocator<std::byte>,
+                                         cuco_storage_type>;
 
   key_cuco_store_view_t(cuco_set_type const* store) : cuco_store_(store) {}
 
@@ -240,15 +239,14 @@ class key_cuco_store_t {
  public:
   using key_type = key_t;
 
-  using cuco_set_type =
-    cuco::static_set<key_t,
-                     cuco::extent<std::size_t>,
-                     cuda::thread_scope_device,
-                     thrust::equal_to<key_t>,
-                     cuco::linear_probing<1,  // CG size
-                                          cuco::murmurhash3_32<key_t>>,
-                     rmm::mr::stream_allocator_adaptor<rmm::mr::polymorphic_allocator<std::byte>>,
-                     cuco_storage_type>;
+  using cuco_set_type = cuco::static_set<key_t,
+                                         cuco::extent<std::size_t>,
+                                         cuda::thread_scope_device,
+                                         thrust::equal_to<key_t>,
+                                         cuco::linear_probing<1,  // CG size
+                                                              cuco::murmurhash3_32<key_t>>,
+                                         rmm::mr::polymorphic_allocator<std::byte>,
+                                         cuco_storage_type>;
 
   key_cuco_store_t(rmm::cuda_stream_view stream) {}
 
@@ -323,8 +321,6 @@ class key_cuco_store_t {
       static_cast<size_t>(static_cast<double>(num_keys) / load_factor),
       static_cast<size_t>(num_keys) + 1);  // cuco::static_map requires at least one empty slot
 
-    auto stream_adapter = rmm::mr::stream_allocator_adaptor(
-      rmm::mr::polymorphic_allocator<std::byte>(rmm::mr::get_current_device_resource()), stream);
     cuco_store_ =
       std::make_unique<cuco_set_type>(cuco_size,
                                       cuco::empty_key<key_t>{invalid_key},
@@ -333,7 +329,7 @@ class key_cuco_store_t {
                                                            cuco::murmurhash3_32<key_t>>{},
                                       cuco::thread_scope_device,
                                       cuco_storage_type{},
-                                      stream_adapter,
+                                      rmm::mr::polymorphic_allocator<std::byte>{},
                                       stream.value());
   }
 
