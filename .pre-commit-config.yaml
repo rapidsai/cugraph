@@ -68,15 +68,24 @@ repos:
         exclude: |
           (?x)^(
             python/cugraph/cugraph/tests/structure/test_hypergraph[.]py$|
-            python/cugraph/cugraph/structure/hypergraph[.]py$
+            python/cugraph/cugraph/structure/hypergraph[.]py$|
+            cpp/src/generators/scramble[.]cuh$
           )
       - id: verify-copyright
         name: verify-copyright-pygraphistry
         args: [--fix, --spdx, "--spdx-license-identifier=Apache-2.0 AND BSD-3-Clause"]
         files: |
-          (?x)
-            ^python/cugraph/cugraph/tests/structure/test_hypergraph[.]py$|
-            ^python/cugraph/cugraph/structure/hypergraph[.]py$
+          (?x)^(
+            python/cugraph/cugraph/tests/structure/test_hypergraph[.]py$|
+            python/cugraph/cugraph/structure/hypergraph[.]py$
+          )
+      - id: verify-copyright
+        name: verify-copyright-iu
+        args: [--fix, --spdx, "--spdx-license-identifier=Apache-2.0 AND BSL-1.0"]
+        files: |
+          (?x)^(
+            cpp/src/generators/scramble[.]cuh$
+          )
       - id: verify-alpha-spec
       - id: verify-codeowners
         args: [--fix, --project-prefix=cugraph]
