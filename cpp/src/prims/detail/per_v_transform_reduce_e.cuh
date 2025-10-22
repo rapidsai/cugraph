@@ -947,7 +947,7 @@ void compute_priorities(
                    priorities.begin() + contiguous_size,
                    priorities.end(),
                    std::numeric_limits<priority_t>::max());
-      if ((*hypersparse_key_offsets).index() == 0) {
+      if (hypersparse_key_offsets->index() == 0) {
         auto priority_first = thrust::make_transform_iterator(
           std::get<0>(*hypersparse_key_offsets).begin(),
           cuda::proclaim_return_type<priority_t>(
@@ -1870,6 +1870,13 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
     }
   }
 
+  if constexpr (use_input_key) {
+    if (std::reduce(local_key_list_sizes.begin(), local_key_list_sizes.end()) ==
+        0) {  // nothing to do
+      return;
+    }
+  }
+
   // 6. compute optional bitmap info & compressed vertex list
 
   bool v_compressible{false};
@@ -2071,7 +2078,11 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                          std::variant<rmm::device_uvector<uint32_t>, rmm::device_uvector<size_t>>>>,
                        std::byte /* dummy */>
       edge_partition_hypersparse_key_offset_vectors{};  // drop zero local degree keys in the
-                                                        // hypersparse region
+                                                        // hypersparse region (keep output offset
+                                                        // values of the keys in the hypersparse
+                                                        // region that have non-zero local degrees)
+    std::conditional_t<use_input_key, std::vector<bool>, std::byte /* dummy */> nonzero_key_lists{};
+    if constexpr (use_input_key) { nonzero_key_lists = std::vector<bool>(loop_count, true); }
     std::vector<bool> process_local_edges(loop_count, true);
 
     if constexpr (GraphViewType::is_multi_gpu && use_input_key) {
@@ -2094,6 +2105,15 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
 
       for (size_t j = 0; j < loop_count; ++j) {
         auto partition_idx = i + j;
+
+        if constexpr (use_input_key) {
+          if (local_key_list_sizes[partition_idx] == 0) { nonzero_key_lists[j] = false; }
+          if constexpr (filter_input_key) {
+            if (static_cast<int>(partition_idx) == minor_comm_rank) {
+              process_local_edges[j] = false;
+            }
+          }
+        }
 
         bool use_bitmap_buffer = false;
         if constexpr (try_bitmap) {
@@ -2119,17 +2139,14 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
               local_key_list_sizes[partition_idx], handle.get_stream()));
           }
         }
-
-        if constexpr (filter_input_key) {
-          if (static_cast<int>(partition_idx) == minor_comm_rank) {
-            process_local_edges[j] = false;
-          }
-        }
       }
 
       device_group_start(minor_comm);
       for (size_t j = 0; j < loop_count; ++j) {
         auto partition_idx = i + j;
+
+        if (!nonzero_key_lists[j]) { continue; }
+
         if constexpr (try_bitmap) {
           if (v_list_bitmap) {
             device_bcast(minor_comm,
@@ -2190,7 +2207,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
             }
 
             auto& rx_bitmap = (*edge_partition_bitmap_buffers)[j];
-            if (process_local_edges[j]) {
+            if (nonzero_key_lists[j] && process_local_edges[j]) {
               auto range_first = local_v_list_range_firsts[partition_idx];
               auto range_last  = local_v_list_range_lasts[partition_idx];
               if constexpr (filter_input_key) {
@@ -2241,9 +2258,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
         if (graph_view.use_dcs()) {
           edge_partition_hypersparse_key_offset_vectors =
             std::vector<std::variant<rmm::device_uvector<uint32_t>, rmm::device_uvector<size_t>>>{};
-          edge_partition_hypersparse_key_offset_vectors->reserve(
-            loop_count);  // store the offset values (indices) in the output array for the
-                          // vertices in the hypersparse region that have a non-zero local degree
+          edge_partition_hypersparse_key_offset_vectors->reserve(loop_count);
 
           std::conditional_t<GraphViewType::is_multi_gpu && use_input_key,
                              std::optional<std::conditional_t<
@@ -2285,7 +2300,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                   auto new_key_buffer = rmm::device_uvector<uint32_t>(
                     process_local_edges[j] ? local_key_list_sizes[partition_idx] : size_t{0},
                     loop_stream);
-                  if (process_local_edges[j]) {
+                  if (nonzero_key_lists[j] && process_local_edges[j]) {
                     thrust::copy(
                       rmm::exec_policy_nosync(loop_stream),
                       get_dataframe_buffer_begin(std::get<0>(edge_partition_key_buffers[j])),
@@ -2296,12 +2311,12 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                     std::get<0>(edge_partition_key_buffers[j]).resize(0, loop_stream);
                     std::get<0>(edge_partition_key_buffers[j]).shrink_to_fit(loop_stream);
                   }
-                  (*edge_partition_new_key_buffers).push_back(std::move(new_key_buffer));
+                  edge_partition_new_key_buffers->push_back(std::move(new_key_buffer));
                 } else {
                   auto new_key_buffer = rmm::device_uvector<vertex_t>(
                     process_local_edges[j] ? local_key_list_sizes[partition_idx] : size_t{0},
                     loop_stream);
-                  if (process_local_edges[j]) {
+                  if (nonzero_key_lists[j] && process_local_edges[j]) {
                     thrust::copy(
                       rmm::exec_policy_nosync(loop_stream),
                       get_dataframe_buffer_begin(std::get<1>(edge_partition_key_buffers[j])),
@@ -2312,13 +2327,13 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                     std::get<1>(edge_partition_key_buffers[j]).resize(0, loop_stream);
                     std::get<1>(edge_partition_key_buffers[j]).shrink_to_fit(loop_stream);
                   }
-                  (*edge_partition_new_key_buffers).push_back(std::move(new_key_buffer));
+                  edge_partition_new_key_buffers->push_back(std::move(new_key_buffer));
                 }
               } else {
                 auto new_key_buffer = allocate_dataframe_buffer<key_t>(
                   process_local_edges[j] ? local_key_list_sizes[partition_idx] : size_t{0},
                   loop_stream);
-                if (process_local_edges[j]) {
+                if (nonzero_key_lists[j] && process_local_edges[j]) {
                   thrust::copy(rmm::exec_policy_nosync(loop_stream),
                                get_dataframe_buffer_begin(edge_partition_key_buffers[j]),
                                get_dataframe_buffer_begin(edge_partition_key_buffers[j]) +
@@ -2328,7 +2343,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                   edge_partition_key_buffers[j].resize(0, loop_stream);
                   edge_partition_key_buffers[j].shrink_to_fit(loop_stream);
                 }
-                (*edge_partition_new_key_buffers).push_back(std::move(new_key_buffer));
+                edge_partition_new_key_buffers->push_back(std::move(new_key_buffer));
               }
             }
           }
@@ -2357,7 +2372,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                     : handle.get_stream();
 
                 rmm::device_uvector<vertex_t> input_count_offsets(0, loop_stream);
-                if (process_local_edges[j]) {
+                if (nonzero_key_lists[j] && process_local_edges[j]) {
                   auto edge_partition =
                     edge_partition_device_view_t<vertex_t, edge_t, GraphViewType::is_multi_gpu>(
                       graph_view.local_edge_partition_view(partition_idx));
@@ -2421,7 +2436,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
 
                 rmm::device_uvector<uint32_t> filtered_bitmap(0, loop_stream);
                 rmm::device_uvector<vertex_t> output_count_offsets(0, loop_stream);
-                if (process_local_edges[j]) {
+                if (nonzero_key_lists[j] && process_local_edges[j]) {
                   auto edge_partition =
                     edge_partition_device_view_t<vertex_t, edge_t, GraphViewType::is_multi_gpu>(
                       graph_view.local_edge_partition_view(partition_idx));
@@ -2531,7 +2546,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                     loop_stream);
                 }
 
-                if (process_local_edges[j]) {
+                if (nonzero_key_lists[j] && process_local_edges[j]) {
                   auto range_offset_first = range_offset_firsts[j];
                   auto range_offset_last  = range_offset_lasts[j];
                   if (range_offset_first < range_offset_last) {
@@ -2776,7 +2791,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                   loop_stream);
               }
 
-              if (process_local_edges[j]) {
+              if (nonzero_key_lists[j] && process_local_edges[j]) {
                 auto edge_partition =
                   edge_partition_device_view_t<vertex_t, edge_t, GraphViewType::is_multi_gpu>(
                     graph_view.local_edge_partition_view(partition_idx));
@@ -2946,7 +2961,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                 ? handle.get_stream_from_stream_pool((*loop_stream_pool_indices)[j])
                 : handle.get_stream();
 
-            if (process_local_edges[j]) {
+            if (nonzero_key_lists[j] && process_local_edges[j]) {
               auto const& key_segment_offsets = (*key_segment_offset_vectors)[partition_idx];
 
               auto& keys = edge_partition_key_buffers[j];
@@ -2984,13 +2999,13 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
       edge_partition_major_output_buffers.reserve(loop_count);
     }
 
-    for (size_t j = 0; j < loop_count; ++j) {
-      auto partition_idx = i + j;
-      auto loop_stream   = loop_stream_pool_indices
-                             ? handle.get_stream_from_stream_pool((*loop_stream_pool_indices)[j])
-                             : handle.get_stream();
+    if constexpr (GraphViewType::is_multi_gpu && update_major) {
+      for (size_t j = 0; j < loop_count; ++j) {
+        auto partition_idx = i + j;
+        auto loop_stream   = loop_stream_pool_indices
+                               ? handle.get_stream_from_stream_pool((*loop_stream_pool_indices)[j])
+                               : handle.get_stream();
 
-      if constexpr (GraphViewType::is_multi_gpu && update_major) {
         size_t buffer_size{0};
         if (process_local_edges[j]) {
           if constexpr (use_input_key) {
@@ -3028,160 +3043,128 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
     if (loop_stream_pool_indices) { RAFT_CUDA_TRY(cudaDeviceSynchronize()); }
 
     for (size_t j = 0; j < loop_count; ++j) {
-      if (process_local_edges[j]) {
-        auto partition_idx = i + j;
+      if constexpr (use_input_key) {
+        if (!nonzero_key_lists[j]) { continue; }
+      }
+      if (!process_local_edges[j]) { continue; }
 
-        auto edge_partition =
-          edge_partition_device_view_t<vertex_t, edge_t, GraphViewType::is_multi_gpu>(
-            graph_view.local_edge_partition_view(partition_idx));
-        auto edge_partition_e_mask =
-          edge_mask_view
-            ? cuda::std::make_optional<
-                detail::edge_partition_edge_property_device_view_t<edge_t, uint32_t const*, bool>>(
-                *edge_mask_view, partition_idx)
-            : cuda::std::nullopt;
-        size_t num_streams_per_loop{1};
-        if (stream_pool_indices) {
-          assert((*stream_pool_indices).size() >= num_concurrent_loops);
-          num_streams_per_loop = (*stream_pool_indices).size() / num_concurrent_loops;
+      auto partition_idx = i + j;
+
+      auto edge_partition =
+        edge_partition_device_view_t<vertex_t, edge_t, GraphViewType::is_multi_gpu>(
+          graph_view.local_edge_partition_view(partition_idx));
+      auto edge_partition_e_mask =
+        edge_mask_view
+          ? cuda::std::make_optional<
+              detail::edge_partition_edge_property_device_view_t<edge_t, uint32_t const*, bool>>(
+              *edge_mask_view, partition_idx)
+          : cuda::std::nullopt;
+      size_t num_streams_per_loop{1};
+      if (stream_pool_indices) {
+        assert((*stream_pool_indices).size() >= num_concurrent_loops);
+        num_streams_per_loop = (*stream_pool_indices).size() / num_concurrent_loops;
+      }
+      auto edge_partition_stream_pool_indices =
+        stream_pool_indices
+          ? std::make_optional<raft::host_span<size_t const>>(
+              (*stream_pool_indices).data() + j * num_streams_per_loop, num_streams_per_loop)
+          : std::nullopt;
+
+      T major_init{};
+      T major_identity_element{};
+      if constexpr (update_major) {
+        if constexpr (std::is_same_v<ReduceOp,
+                                     reduce_op::any<T>>) {  // if any edge has a non-init value,
+                                                            // one of the non-init values will
+                                                            // be selected.
+          major_init             = init;
+          major_identity_element = init;
+        } else {
+          major_init = ReduceOp::identity_element;
+          if constexpr (GraphViewType::is_multi_gpu) {
+            auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+            auto const minor_comm_rank = minor_comm.get_rank();
+            major_init                 = (static_cast<int>(partition_idx) == minor_comm_rank)
+                                           ? init
+                                           : ReduceOp::identity_element;
+          } else {
+            major_init = init;
+          }
+          major_identity_element = ReduceOp::identity_element;
         }
-        auto edge_partition_stream_pool_indices =
-          stream_pool_indices
-            ? std::make_optional<raft::host_span<size_t const>>(
-                (*stream_pool_indices).data() + j * num_streams_per_loop, num_streams_per_loop)
-            : std::nullopt;
+      }
 
-        T major_init{};
-        T major_identity_element{};
+      std::optional<std::vector<size_t>> key_segment_offsets{std::nullopt};
+      if constexpr (use_input_key) {
+        if (key_segment_offset_vectors) {
+          key_segment_offsets = (*key_segment_offset_vectors)[partition_idx];
+          if constexpr (filter_input_key) {
+            if (edge_partition_hypersparse_key_offset_vectors) {
+              key_segment_offsets->back() =
+                size_dataframe_buffer(edge_partition_major_output_buffers[j]);
+              *(key_segment_offsets->rbegin() + 1) = key_segment_offsets->back();
+            }
+          }
+        }
+      } else {
+        auto const& segment_offsets =
+          graph_view.local_edge_partition_segment_offsets(partition_idx);
+        if (segment_offsets) {
+          key_segment_offsets = std::vector<size_t>(segment_offsets->size());
+          std::transform(segment_offsets->begin(),
+                         segment_offsets->end(),
+                         key_segment_offsets->begin(),
+                         [](vertex_t offset) { return static_cast<size_t>(offset); });
+        }
+      }
+
+      edge_partition_src_input_device_view_t edge_partition_src_value_input{};
+      edge_partition_dst_input_device_view_t edge_partition_dst_value_input{};
+      if constexpr (GraphViewType::is_storage_transposed) {
+        edge_partition_src_value_input =
+          edge_partition_src_input_device_view_t(edge_src_value_input);
+        edge_partition_dst_value_input =
+          edge_partition_dst_input_device_view_t(edge_dst_value_input, partition_idx);
+      } else {
+        edge_partition_src_value_input =
+          edge_partition_src_input_device_view_t(edge_src_value_input, partition_idx);
+        edge_partition_dst_value_input =
+          edge_partition_dst_input_device_view_t(edge_dst_value_input);
+      }
+      auto edge_partition_e_value_input =
+        edge_partition_e_input_device_view_t(edge_value_input, partition_idx);
+
+      std::conditional_t<GraphViewType::is_multi_gpu,
+                         std::conditional_t<update_major,
+                                            dataframe_buffer_iterator_type_t<T>,
+                                            edge_partition_minor_output_device_view_t>,
+                         VertexValueOutputIterator>
+        output_buffer{};
+      if constexpr (GraphViewType::is_multi_gpu) {
         if constexpr (update_major) {
-          if constexpr (std::is_same_v<ReduceOp,
-                                       reduce_op::any<T>>) {  // if any edge has a non-init value,
-                                                              // one of the non-init values will
-                                                              // be selected.
-            major_init             = init;
-            major_identity_element = init;
-          } else {
-            major_init = ReduceOp::identity_element;
-            if constexpr (GraphViewType::is_multi_gpu) {
-              auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
-              auto const minor_comm_rank = minor_comm.get_rank();
-              major_init                 = (static_cast<int>(partition_idx) == minor_comm_rank)
-                                             ? init
-                                             : ReduceOp::identity_element;
-            } else {
-              major_init = init;
-            }
-            major_identity_element = ReduceOp::identity_element;
-          }
-        }
-
-        std::optional<std::vector<size_t>> key_segment_offsets{std::nullopt};
-        if constexpr (use_input_key) {
-          if (key_segment_offset_vectors) {
-            key_segment_offsets = (*key_segment_offset_vectors)[partition_idx];
-            if constexpr (filter_input_key) {
-              if (edge_partition_hypersparse_key_offset_vectors) {
-                key_segment_offsets->back() =
-                  size_dataframe_buffer(edge_partition_major_output_buffers[j]);
-                *(key_segment_offsets->rbegin() + 1) = key_segment_offsets->back();
-              }
-            }
-          }
+          output_buffer = get_dataframe_buffer_begin(edge_partition_major_output_buffers[j]);
         } else {
-          auto const& segment_offsets =
-            graph_view.local_edge_partition_segment_offsets(partition_idx);
-          if (segment_offsets) {
-            key_segment_offsets = std::vector<size_t>(segment_offsets->size());
-            std::transform(segment_offsets->begin(),
-                           segment_offsets->end(),
-                           key_segment_offsets->begin(),
-                           [](vertex_t offset) { return static_cast<size_t>(offset); });
-          }
+          output_buffer =
+            edge_partition_minor_output_device_view_t(minor_tmp_buffer->mutable_view());
         }
+      } else {
+        output_buffer = tmp_vertex_value_output_first;
+      }
 
-        edge_partition_src_input_device_view_t edge_partition_src_value_input{};
-        edge_partition_dst_input_device_view_t edge_partition_dst_value_input{};
-        if constexpr (GraphViewType::is_storage_transposed) {
-          edge_partition_src_value_input =
-            edge_partition_src_input_device_view_t(edge_src_value_input);
-          edge_partition_dst_value_input =
-            edge_partition_dst_input_device_view_t(edge_dst_value_input, partition_idx);
-        } else {
-          edge_partition_src_value_input =
-            edge_partition_src_input_device_view_t(edge_src_value_input, partition_idx);
-          edge_partition_dst_value_input =
-            edge_partition_dst_input_device_view_t(edge_dst_value_input);
-        }
-        auto edge_partition_e_value_input =
-          edge_partition_e_input_device_view_t(edge_value_input, partition_idx);
-
-        std::conditional_t<GraphViewType::is_multi_gpu,
-                           std::conditional_t<update_major,
-                                              dataframe_buffer_iterator_type_t<T>,
-                                              edge_partition_minor_output_device_view_t>,
-                           VertexValueOutputIterator>
-          output_buffer{};
-        if constexpr (GraphViewType::is_multi_gpu) {
-          if constexpr (update_major) {
-            output_buffer = get_dataframe_buffer_begin(edge_partition_major_output_buffers[j]);
-          } else {
-            output_buffer =
-              edge_partition_minor_output_device_view_t(minor_tmp_buffer->mutable_view());
-          }
-        } else {
-          output_buffer = tmp_vertex_value_output_first;
-        }
-
-        bool processed{false};
-        if constexpr (try_bitmap) {
-          auto const& keys = edge_partition_key_buffers[j];
-          if (keys.index() == 0) {
-            auto edge_partition_key_first = thrust::make_transform_iterator(
-              std::get<0>(keys).begin(),
-              cuda::proclaim_return_type<vertex_t>(
-                [range_first = local_v_list_range_firsts[partition_idx]] __device__(
-                  uint32_t v_offset) { return range_first + static_cast<vertex_t>(v_offset); }));
-            per_v_transform_reduce_e_edge_partition<update_major, GraphViewType>(
-              handle,
-              edge_partition,
-              edge_partition_key_first,
-              edge_partition_key_first + std::get<0>(keys).size(),
-              edge_partition_src_value_input,
-              edge_partition_dst_value_input,
-              edge_partition_e_value_input,
-              edge_partition_e_mask,
-              output_buffer,
-              e_op,
-              major_init,
-              major_identity_element,
-              reduce_op,
-              pred_op,
-              key_segment_offsets ? std::make_optional<raft::host_span<size_t const>>(
-                                      (*key_segment_offsets).data(), (*key_segment_offsets).size())
-                                  : std::nullopt,
-              edge_partition_stream_pool_indices);
-            processed = true;
-          }
-        }
-        if (!processed) {
-          auto edge_partition_key_first = sorted_unique_key_first;
-          auto edge_partition_key_last  = sorted_unique_nzd_key_last;
-          if constexpr (GraphViewType::is_multi_gpu && use_input_key) {
-            auto const& keys = edge_partition_key_buffers[j];
-            if constexpr (try_bitmap) {
-              edge_partition_key_first = get_dataframe_buffer_begin(std::get<1>(keys));
-              edge_partition_key_last  = get_dataframe_buffer_end(std::get<1>(keys));
-            } else {
-              edge_partition_key_first = get_dataframe_buffer_begin(keys);
-              edge_partition_key_last  = get_dataframe_buffer_end(keys);
-            }
-          }
-
+      bool processed{false};
+      if constexpr (try_bitmap) {
+        auto const& keys = edge_partition_key_buffers[j];
+        if (keys.index() == 0) {
+          auto edge_partition_key_first = thrust::make_transform_iterator(
+            std::get<0>(keys).begin(),
+            cuda::proclaim_return_type<vertex_t>(
+              [range_first = local_v_list_range_firsts[partition_idx]] __device__(
+                uint32_t v_offset) { return range_first + static_cast<vertex_t>(v_offset); }));
           per_v_transform_reduce_e_edge_partition<update_major, GraphViewType>(
             handle,
             edge_partition,
             edge_partition_key_first,
-            edge_partition_key_last,
+            edge_partition_key_first + std::get<0>(keys).size(),
             edge_partition_src_value_input,
             edge_partition_dst_value_input,
             edge_partition_e_value_input,
@@ -3196,7 +3179,42 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                                     (*key_segment_offsets).data(), (*key_segment_offsets).size())
                                 : std::nullopt,
             edge_partition_stream_pool_indices);
+          processed = true;
         }
+      }
+      if (!processed) {
+        auto edge_partition_key_first = sorted_unique_key_first;
+        auto edge_partition_key_last  = sorted_unique_nzd_key_last;
+        if constexpr (GraphViewType::is_multi_gpu && use_input_key) {
+          auto const& keys = edge_partition_key_buffers[j];
+          if constexpr (try_bitmap) {
+            edge_partition_key_first = get_dataframe_buffer_begin(std::get<1>(keys));
+            edge_partition_key_last  = get_dataframe_buffer_end(std::get<1>(keys));
+          } else {
+            edge_partition_key_first = get_dataframe_buffer_begin(keys);
+            edge_partition_key_last  = get_dataframe_buffer_end(keys);
+          }
+        }
+
+        per_v_transform_reduce_e_edge_partition<update_major, GraphViewType>(
+          handle,
+          edge_partition,
+          edge_partition_key_first,
+          edge_partition_key_last,
+          edge_partition_src_value_input,
+          edge_partition_dst_value_input,
+          edge_partition_e_value_input,
+          edge_partition_e_mask,
+          output_buffer,
+          e_op,
+          major_init,
+          major_identity_element,
+          reduce_op,
+          pred_op,
+          key_segment_offsets ? std::make_optional<raft::host_span<size_t const>>(
+                                  key_segment_offsets->data(), key_segment_offsets->size())
+                              : std::nullopt,
+          edge_partition_stream_pool_indices);
       }
     }
     if (stream_pool_indices) { RAFT_CUDA_TRY(cudaDeviceSynchronize()); }
@@ -3294,36 +3312,38 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
             }
           }
 
-          auto const& output_buffer = edge_partition_major_output_buffers[j];
+          if (edge_partition_allreduce_sizes[j] > 0) {
+            auto const& output_buffer = edge_partition_major_output_buffers[j];
 
-          if (minor_comm_size <= std::numeric_limits<uint8_t>::max()) {  // priority == uint8_t
-            compute_priorities<vertex_t, uint8_t>(
-              minor_comm,
-              get_dataframe_buffer_begin(output_buffer),
-              raft::device_span<uint8_t>(std::get<0>(aggregate_priorities).data() +
-                                           edge_partition_allreduce_displacements[j],
-                                         edge_partition_allreduce_sizes[j]),
-              hypersparse_key_offsets,
-              edge_partition_contiguous_sizes[j],
-              static_cast<int>(partition_idx),
-              subgroup_size,
-              init,
-              process_local_edges[j] ? false : true /* ignore_local_values */,
-              loop_stream);
-          } else {  // priority == uint32_t
-            compute_priorities<vertex_t, uint32_t>(
-              minor_comm,
-              get_dataframe_buffer_begin(output_buffer),
-              raft::device_span<uint32_t>(std::get<1>(aggregate_priorities).data() +
-                                            edge_partition_allreduce_displacements[j],
-                                          edge_partition_allreduce_sizes[j]),
-              hypersparse_key_offsets,
-              edge_partition_contiguous_sizes[j],
-              static_cast<int>(partition_idx),
-              subgroup_size,
-              init,
-              process_local_edges[j] ? false : true /* ignore_local_values */,
-              loop_stream);
+            if (minor_comm_size <= std::numeric_limits<uint8_t>::max()) {  // priority == uint8_t
+              compute_priorities<vertex_t, uint8_t>(
+                minor_comm,
+                get_dataframe_buffer_begin(output_buffer),
+                raft::device_span<uint8_t>(std::get<0>(aggregate_priorities).data() +
+                                             edge_partition_allreduce_displacements[j],
+                                           edge_partition_allreduce_sizes[j]),
+                hypersparse_key_offsets,
+                edge_partition_contiguous_sizes[j],
+                static_cast<int>(partition_idx),
+                subgroup_size,
+                init,
+                process_local_edges[j] ? false : true /* ignore_local_values */,
+                loop_stream);
+            } else {  // priority == uint32_t
+              compute_priorities<vertex_t, uint32_t>(
+                minor_comm,
+                get_dataframe_buffer_begin(output_buffer),
+                raft::device_span<uint32_t>(std::get<1>(aggregate_priorities).data() +
+                                              edge_partition_allreduce_displacements[j],
+                                            edge_partition_allreduce_sizes[j]),
+                hypersparse_key_offsets,
+                edge_partition_contiguous_sizes[j],
+                static_cast<int>(partition_idx),
+                subgroup_size,
+                init,
+                process_local_edges[j] ? false : true /* ignore_local_values */,
+                loop_stream);
+            }
           }
         }
         if (loop_stream_pool_indices) { RAFT_CUDA_TRY(cudaDeviceSynchronize()); }
@@ -3373,45 +3393,50 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
             selected_ranks_or_flags =
               std::variant<rmm::device_uvector<uint8_t>, rmm::device_uvector<int>>(
                 rmm::device_uvector<uint8_t>(0, loop_stream));
-          if (minor_comm_size <= std::numeric_limits<uint8_t>::max()) {  // priority == uint8_t
-            auto priorities = raft::device_span<uint8_t const>(
-              std::get<0>(aggregate_priorities).data() + edge_partition_allreduce_displacements[j],
-              edge_partition_allreduce_sizes[j]);
-            auto tmp = compute_selected_ranks_from_priorities<vertex_t, uint8_t>(
-              minor_comm,
-              priorities,
-              hypersparse_key_offsets,
-              contiguous_size,
-              static_cast<int>(partition_idx),
-              subgroup_size,
-              process_local_edges[j] ? false : true /* ignore_local_values */,
-              loop_stream);
-            if (tmp.index() == 0) {
-              selected_ranks_or_flags =
-                std::variant<rmm::device_uvector<uint8_t>, rmm::device_uvector<int>>(
-                  std::move(std::get<0>(tmp)));
-            } else {
-              selected_ranks_or_flags = std::move(std::get<1>(tmp));
-            }
-          } else {  // priority_t == uint32_t
-            auto priorities = raft::device_span<uint32_t const>(
-              std::get<1>(aggregate_priorities).data() + edge_partition_allreduce_displacements[j],
-              edge_partition_allreduce_sizes[j]);
-            auto tmp = compute_selected_ranks_from_priorities<vertex_t, uint32_t>(
-              minor_comm,
-              priorities,
-              hypersparse_key_offsets,
-              contiguous_size,
-              static_cast<int>(partition_idx),
-              subgroup_size,
-              process_local_edges[j] ? false : true /* ignore_local_values */,
-              loop_stream);
-            if (tmp.index() == 0) {
-              selected_ranks_or_flags =
-                std::variant<rmm::device_uvector<uint8_t>, rmm::device_uvector<int>>(
-                  std::move(std::get<0>(tmp)));
-            } else {
-              selected_ranks_or_flags = std::move(std::get<1>(tmp));
+
+          if (edge_partition_allreduce_sizes[j] > 0) {
+            if (minor_comm_size <= std::numeric_limits<uint8_t>::max()) {  // priority == uint8_t
+              auto priorities =
+                raft::device_span<uint8_t const>(std::get<0>(aggregate_priorities).data() +
+                                                   edge_partition_allreduce_displacements[j],
+                                                 edge_partition_allreduce_sizes[j]);
+              auto tmp = compute_selected_ranks_from_priorities<vertex_t, uint8_t>(
+                minor_comm,
+                priorities,
+                hypersparse_key_offsets,
+                contiguous_size,
+                static_cast<int>(partition_idx),
+                subgroup_size,
+                process_local_edges[j] ? false : true /* ignore_local_values */,
+                loop_stream);
+              if (tmp.index() == 0) {
+                selected_ranks_or_flags =
+                  std::variant<rmm::device_uvector<uint8_t>, rmm::device_uvector<int>>(
+                    std::move(std::get<0>(tmp)));
+              } else {
+                selected_ranks_or_flags = std::move(std::get<1>(tmp));
+              }
+            } else {  // priority_t == uint32_t
+              auto priorities =
+                raft::device_span<uint32_t const>(std::get<1>(aggregate_priorities).data() +
+                                                    edge_partition_allreduce_displacements[j],
+                                                  edge_partition_allreduce_sizes[j]);
+              auto tmp = compute_selected_ranks_from_priorities<vertex_t, uint32_t>(
+                minor_comm,
+                priorities,
+                hypersparse_key_offsets,
+                contiguous_size,
+                static_cast<int>(partition_idx),
+                subgroup_size,
+                process_local_edges[j] ? false : true /* ignore_local_values */,
+                loop_stream);
+              if (tmp.index() == 0) {
+                selected_ranks_or_flags =
+                  std::variant<rmm::device_uvector<uint8_t>, rmm::device_uvector<int>>(
+                    std::move(std::get<0>(tmp)));
+              } else {
+                selected_ranks_or_flags = std::move(std::get<1>(tmp));
+              }
             }
           }
           edge_partition_selected_ranks_or_flags.push_back(std::move(selected_ranks_or_flags));
@@ -3439,68 +3464,72 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
 
           auto values = allocate_dataframe_buffer<T>(
             process_local_edges[j] ? size_dataframe_buffer(output_buffer) : size_t{0}, loop_stream);
-          if (process_local_edges[j]) {
-            if (minor_comm_rank == static_cast<int>(partition_idx)) {
-              assert(!use_input_key);
-              assert(edge_partition_selected_ranks_or_flags[j].index() == 0);
-              auto const& selected_ranks = std::get<0>(edge_partition_selected_ranks_or_flags[j]);
-              if (selected_ranks.index() == 0) {
-                copy_if_nosync(
-                  get_dataframe_buffer_begin(output_buffer),
-                  get_dataframe_buffer_begin(output_buffer) + edge_partition_allreduce_sizes[j],
-                  thrust::make_transform_iterator(
-                    std::get<0>(selected_ranks).begin(),
-                    cuda::proclaim_return_type<bool>([minor_comm_rank] __device__(auto rank) {
-                      return static_cast<int>(rank) == minor_comm_rank;
-                    })),
-                  get_dataframe_buffer_begin(values),
-                  raft::device_span<size_t>(counters.data() + j, size_t{1}),
-                  loop_stream);
-              } else {
-                copy_if_nosync(
-                  get_dataframe_buffer_begin(output_buffer),
-                  get_dataframe_buffer_begin(output_buffer) + edge_partition_allreduce_sizes[j],
-                  thrust::make_transform_iterator(
-                    std::get<1>(selected_ranks).begin(),
-                    cuda::proclaim_return_type<bool>(
-                      [minor_comm_rank] __device__(auto rank) { return rank == minor_comm_rank; })),
-                  get_dataframe_buffer_begin(values),
-                  raft::device_span<size_t>(counters.data() + j, size_t{1}),
-                  loop_stream);
-              }
-            } else {
-              assert(edge_partition_selected_ranks_or_flags[j].index() == 1);
-              auto& keep_flags = std::get<1>(edge_partition_selected_ranks_or_flags[j]);
-              size_t input_end_offset{};
-              if constexpr (filter_input_key) {
-                input_end_offset = edge_partition_contiguous_sizes[j];
-                if (edge_partition_hypersparse_key_offset_spans) {
-                  auto const& span = (*edge_partition_hypersparse_key_offset_spans)[j];
-                  if (span.index() == 0) {
-                    input_end_offset += std::get<0>(span).size();
-                  } else {
-                    input_end_offset += std::get<1>(span).size();
-                  }
+          if (edge_partition_allreduce_sizes[j] > 0) {
+            assert(nonzero_key_lists[j]);
+            if (process_local_edges[j]) {
+              if (minor_comm_rank == static_cast<int>(partition_idx)) {
+                assert(!use_input_key);
+                assert(edge_partition_selected_ranks_or_flags[j].index() == 0);
+                auto const& selected_ranks = std::get<0>(edge_partition_selected_ranks_or_flags[j]);
+                if (selected_ranks.index() == 0) {
+                  copy_if_nosync(
+                    get_dataframe_buffer_begin(output_buffer),
+                    get_dataframe_buffer_begin(output_buffer) + edge_partition_allreduce_sizes[j],
+                    thrust::make_transform_iterator(
+                      std::get<0>(selected_ranks).begin(),
+                      cuda::proclaim_return_type<bool>([minor_comm_rank] __device__(auto rank) {
+                        return static_cast<int>(rank) == minor_comm_rank;
+                      })),
+                    get_dataframe_buffer_begin(values),
+                    raft::device_span<size_t>(counters.data() + j, size_t{1}),
+                    loop_stream);
+                } else {
+                  copy_if_nosync(
+                    get_dataframe_buffer_begin(output_buffer),
+                    get_dataframe_buffer_begin(output_buffer) + edge_partition_allreduce_sizes[j],
+                    thrust::make_transform_iterator(
+                      std::get<1>(selected_ranks).begin(),
+                      cuda::proclaim_return_type<bool>([minor_comm_rank] __device__(auto rank) {
+                        return rank == minor_comm_rank;
+                      })),
+                    get_dataframe_buffer_begin(values),
+                    raft::device_span<size_t>(counters.data() + j, size_t{1}),
+                    loop_stream);
                 }
               } else {
-                input_end_offset = edge_partition_allreduce_sizes[j];
+                assert(edge_partition_selected_ranks_or_flags[j].index() == 1);
+                auto& keep_flags = std::get<1>(edge_partition_selected_ranks_or_flags[j]);
+                size_t input_end_offset{};
+                if constexpr (filter_input_key) {
+                  input_end_offset = edge_partition_contiguous_sizes[j];
+                  if (edge_partition_hypersparse_key_offset_spans) {
+                    auto const& span = (*edge_partition_hypersparse_key_offset_spans)[j];
+                    if (span.index() == 0) {
+                      input_end_offset += std::get<0>(span).size();
+                    } else {
+                      input_end_offset += std::get<1>(span).size();
+                    }
+                  }
+                } else {
+                  input_end_offset = edge_partition_allreduce_sizes[j];
+                }
+                copy_if_nosync(
+                  get_dataframe_buffer_begin(output_buffer),
+                  get_dataframe_buffer_begin(output_buffer) + input_end_offset,
+                  thrust::make_transform_iterator(
+                    thrust::make_counting_iterator(size_t{0}),
+                    cuda::proclaim_return_type<bool>(
+                      [keep_flags = raft::device_span<uint32_t const>(
+                         keep_flags->data(), keep_flags->size())] __device__(size_t offset) {
+                        auto word = keep_flags[packed_bool_offset(offset)];
+                        return ((word & packed_bool_mask(offset)) != packed_bool_empty_mask());
+                      })),
+                  get_dataframe_buffer_begin(values),
+                  raft::device_span<size_t>(counters.data() + j, size_t{1}),
+                  loop_stream);
+                keep_flags->resize(0, loop_stream);
+                keep_flags->shrink_to_fit(loop_stream);
               }
-              copy_if_nosync(
-                get_dataframe_buffer_begin(output_buffer),
-                get_dataframe_buffer_begin(output_buffer) + input_end_offset,
-                thrust::make_transform_iterator(
-                  thrust::make_counting_iterator(size_t{0}),
-                  cuda::proclaim_return_type<bool>(
-                    [keep_flags = raft::device_span<uint32_t const>(
-                       (*keep_flags).data(), (*keep_flags).size())] __device__(size_t offset) {
-                      auto word = keep_flags[packed_bool_offset(offset)];
-                      return ((word & packed_bool_mask(offset)) != packed_bool_empty_mask());
-                    })),
-                get_dataframe_buffer_begin(values),
-                raft::device_span<size_t>(counters.data() + j, size_t{1}),
-                loop_stream);
-              (*keep_flags).resize(0, loop_stream);
-              (*keep_flags).shrink_to_fit(loop_stream);
             }
           }
 
@@ -3514,7 +3543,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
         handle.sync_stream();
 
         for (size_t j = 0; j < loop_count; ++j) {
-          if (process_local_edges[j]) {
+          if (nonzero_key_lists[j] && process_local_edges[j]) {
             resize_dataframe_buffer(edge_partition_values[j], copy_sizes[j], handle.get_stream());
             // skip shrink_to_fit() to cut execution time
           }
@@ -3585,8 +3614,13 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
           }
         }
 
+        // FIXME: can't this better be all-to-all
         device_group_start(minor_comm);
         for (size_t j = 0; j < loop_count; ++j) {
+          if constexpr (use_input_key) {
+            if (!nonzero_key_lists[j]) { continue; }
+          }
+
           auto partition_idx = i + j;
           auto& values       = edge_partition_values[j];
 
@@ -3621,6 +3655,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
 
         if (rx_values && (size_dataframe_buffer(*rx_values) > 0)) {
           auto j = static_cast<size_t>(minor_comm_rank % num_concurrent_loops);
+          if constexpr (use_input_key) { assert(nonzero_key_list[j]); }
 
           {  // remove gaps introduced to enforce alignment
             rmm::device_uvector<uint32_t> bitmap(
@@ -3745,15 +3780,19 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
       } else {
         device_group_start(minor_comm);
         for (size_t j = 0; j < loop_count; ++j) {
-          auto partition_idx = i + j;
+          bool process = true;
+          if constexpr (use_input_key) { process = nonzero_key_lists[j]; }
+          if (process) {
+            auto partition_idx = i + j;
 
-          device_reduce(minor_comm,
-                        get_dataframe_buffer_begin(edge_partition_major_output_buffers[j]),
-                        tmp_vertex_value_output_first,
-                        size_dataframe_buffer(edge_partition_major_output_buffers[j]),
-                        ReduceOp::compatible_raft_comms_op,
-                        static_cast<int>(partition_idx),
-                        handle.get_stream());
+            device_reduce(minor_comm,
+                          get_dataframe_buffer_begin(edge_partition_major_output_buffers[j]),
+                          tmp_vertex_value_output_first,
+                          size_dataframe_buffer(edge_partition_major_output_buffers[j]),
+                          ReduceOp::compatible_raft_comms_op,
+                          static_cast<int>(partition_idx),
+                          handle.get_stream());
+          }
         }
         device_group_end(minor_comm);
         if (loop_stream_pool_indices) { handle.sync_stream(); }
