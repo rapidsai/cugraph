@@ -51,8 +51,6 @@ files:
       - depends_on_libcugraph
       - depends_on_pylibcugraph
       - depends_on_cugraph
-      - depends_on_cugraph_service_server
-      - depends_on_cugraph_service_client
       - depends_on_libcugraph_etl
       - depends_on_pytorch
   test_cpp:
@@ -87,8 +85,6 @@ files:
       - depends_on_libcugraph
       - depends_on_pylibcugraph
       - depends_on_cugraph
-      - depends_on_cugraph_service_server
-      - depends_on_cugraph_service_client
   py_build_cugraph:
     output: pyproject
     pyproject_dir: python/cugraph
@@ -207,64 +203,6 @@ files:
       - depends_on_cudf
       - test_python_common
       - test_python_pylibcugraph
-  py_build_cugraph_service_client:
-    output: pyproject
-    pyproject_dir: python/cugraph-service/client
-    extras:
-      table: build-system
-    includes:
-      - python_build_rapids
-      - python_build_wheel
-  py_run_cugraph_service_client:
-    output: pyproject
-    pyproject_dir: python/cugraph-service/client
-    extras:
-      table: project
-    includes:
-      - python_run_cugraph_service_client
-  py_test_cugraph_service_client:
-    output: pyproject
-    pyproject_dir: python/cugraph-service/client
-    extras:
-      table: project.optional-dependencies
-      key: test
-    includes:
-      - depends_on_cudf
-      - depends_on_cupy
-      - test_python_common
-      - test_python_cugraph_service_client
-  py_build_cugraph_service_server:
-    output: pyproject
-    pyproject_dir: python/cugraph-service/server
-    extras:
-      table: build-system
-    includes:
-      - python_build_rapids
-      - python_build_wheel
-  py_run_cugraph_service_server:
-    output: pyproject
-    pyproject_dir: python/cugraph-service/server
-    extras:
-      table: project
-    includes:
-      - depends_on_cudf
-      - depends_on_cugraph
-      - depends_on_cugraph_service_client
-      - depends_on_cupy
-      - depends_on_dask_cuda
-      - depends_on_dask_cudf
-      - depends_on_rmm
-      - depends_on_ucxx
-      - python_run_cugraph_service_server
-  py_test_cugraph_service_server:
-    output: pyproject
-    pyproject_dir: python/cugraph-service/server
-    extras:
-      table: project.optional-dependencies
-      key: test
-    includes:
-      - test_python_common
-      - test_python_cugraph_service_server
 channels:
   - rapidsai
   - rapidsai-nightly
@@ -436,18 +374,6 @@ dependencies:
       - output_types: [conda, pyproject, requirements]
         packages:
           - *numpy
-  python_run_cugraph_service_client:
-    common:
-      - output_types: [conda, pyproject, requirements]
-        packages:
-          - &thrift thriftpy2>=0.4.15,!=0.5.0,!=0.5.1
-  python_run_cugraph_service_server:
-    common:
-      - output_types: [conda, pyproject, requirements]
-        packages:
-          - *dask
-          - *numpy
-          - *thrift
   test_cpp:
     common:
       - output_types: conda
@@ -479,20 +405,6 @@ dependencies:
           - *numpy
           - python-louvain
           - scikit-learn>=0.23.1
-      - output_types: [conda]
-        packages:
-          - *thrift
-  test_python_cugraph_service_client:
-    common:
-      - output_types: [conda, pyproject, requirements]
-        packages:
-          - *numpy
-          - *pandas
-  test_python_cugraph_service_server:
-    common:
-      - output_types: [conda, pyproject, requirements]
-        packages:
-          - *numpy
   test_python_pylibcugraph:
     common:
       - output_types: [conda, pyproject, requirements]
@@ -522,26 +434,6 @@ dependencies:
             packages:
               - cugraph-cu13==25.12.*,>=0.0.0a0
           - {matrix: null, packages: [*cugraph_unsuffixed]}
-  depends_on_cugraph_service_client:
-    common:
-      - output_types: [conda, requirements, pyproject]
-        packages:
-          - cugraph-service-client==25.12.*,>=0.0.0a0
-      - output_types: requirements
-        packages:
-          # pip recognizes the index as a global option for the requirements.txt file
-          - --extra-index-url=https://pypi.nvidia.com
-          - --extra-index-url=https://pypi.anaconda.org/rapidsai-wheels-nightly/simple
-  depends_on_cugraph_service_server:
-    common:
-      - output_types: [conda, requirements, pyproject]
-        packages:
-          - cugraph-service-server==25.12.*,>=0.0.0a0
-      - output_types: requirements
-        packages:
-          # pip recognizes the index as a global option for the requirements.txt file
-          - --extra-index-url=https://pypi.nvidia.com
-          - --extra-index-url=https://pypi.anaconda.org/rapidsai-wheels-nightly/simple
   depends_on_libcugraph_etl:
     common:
       - output_types: conda
