@@ -55,7 +55,7 @@ endfunction()
 # To use a different RAFT locally, set the CMake variable
 # CPM_raft_SOURCE=/path/to/local/raft
 find_and_configure_raft(VERSION    ${CUGRAPH_MIN_VERSION_raft}
-                        FORK       achirkin
+                        FORK        achirkin
                         PINNED_TAG enh-consistent-container-policy
 
                         # When PINNED_TAG above doesn't match cugraph,
