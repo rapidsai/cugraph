@@ -25,6 +25,7 @@
 #include <cugraph/utilities/atomic_ops.cuh>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/packed_bool_utils.hpp>
+#include <cugraph/utilities/shuffle_comm.cuh>
 
 #include <raft/core/handle.hpp>
 
@@ -338,9 +339,8 @@ void fill_edge_minor_property(raft::handle_t const& handle,
     auto const minor_comm_size = minor_comm.get_size();
 
     constexpr size_t packed_bool_word_bcast_alignment =
-      128 /
-      sizeof(
-        uint32_t);  // 128B cache line alignment (unaligned ncclBroadcast operations are slower)
+      cache_line_size /
+      sizeof(uint32_t);  // cache line alignment,  unaligned ncclBroadcast operations are slower
 
     // we should consider reducing the life-time of this variable
     // oncermm::rm::pool_memory_resource<rmm::mr::pinned_memory_resource> is updated to honor stream
@@ -352,10 +352,14 @@ void fill_edge_minor_property(raft::handle_t const& handle,
       if (GraphViewType::is_multi_gpu) {
         auto& major_comm = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
         auto const major_comm_size = major_comm.get_size();
-        staging_buffer_size        = static_cast<size_t>(major_comm_size) *
-                              (size_t{3} + ((packed_bool_word_bcast_alignment + 1) / 2));
+        staging_buffer_size =
+          static_cast<size_t>(major_comm_size) *
+          (size_t{3} + (raft::round_up_safe(packed_bool_word_bcast_alignment, size_t{2}) /
+                        2 /* two packed bool words per 64 bit */));
       } else {
-        staging_buffer_size = size_t{3} + ((packed_bool_word_bcast_alignment + 1) / 2);
+        staging_buffer_size =
+          size_t{3} + (raft::round_up_safe(packed_bool_word_bcast_alignment, size_t{2}) /
+                       2 /* two packed bool words per 64 bit */);
       }
       h_staging_buffer = host_staging_buffer_manager::allocate_staging_buffer<int64_t>(
         staging_buffer_size, handle.get_stream());
@@ -393,8 +397,8 @@ void fill_edge_minor_property(raft::handle_t const& handle,
             }));
           raft::update_host(h_staging_buffer_ptr, tmps.data(), size_t{1}, handle.get_stream());
         }
-        range_first = h_staging_buffer_ptr[0];
         handle.sync_stream();
+        range_first = h_staging_buffer_ptr[0];
       }
 
       auto leading_boundary_words =
@@ -509,7 +513,8 @@ void fill_edge_minor_property(raft::handle_t const& handle,
 
       auto h_aggregate_tmps = reinterpret_cast<uint32_t*>(h_staging_buffer.data());
       assert(h_staging_buffer.size() >=
-             (major_comm_size * (num_leading_words + packed_bool_word_bcast_alignment)));
+             major_comm_size *
+               (raft::round_up_safe(num_leading_words + packed_bool_word_bcast_alignment, 2) / 2));
       raft::update_host(h_aggregate_tmps,
                         d_aggregate_tmps.data(),
                         major_comm_size * (num_leading_words + packed_bool_word_bcast_alignment),
@@ -656,15 +661,15 @@ void fill_edge_minor_property(raft::handle_t const& handle,
             sorted_unique_vertex_last,
             local_v_list_range_firsts[major_comm_rank],
             local_v_list_range_firsts[major_comm_rank] +
-              raft::round_up_safe(
-                max_local_v_list_range_size,
-                static_cast<vertex_t>((128 / sizeof(uint32_t)) * packed_bools_per_word())),
+              raft::round_up_safe(max_local_v_list_range_size,
+                                  static_cast<vertex_t>((cache_line_size / sizeof(uint32_t)) *
+                                                        packed_bools_per_word())),
             handle.get_stream());  // use the maximum padded size instead of
                                    // (local_v_list_range_lasts[major_comm_rank] -
                                    // local_v_list_range_firsts[major_comm_rank]) to ensure that
                                    // the buffer size is identical in every major_comm_rank (to
                                    // use devcie_allgather) and cache line aligned
-          assert(retinerpret_cast<uintptr_t>(v_list_bitmap.data()) % 128 == 0);
+          assert(retinerpret_cast<uintptr_t>(v_list_bitmap.data()) % cache_line_size == 0);
         }
       } else {
         if (aggregate_local_v_list_size >=
@@ -672,7 +677,7 @@ void fill_edge_minor_property(raft::handle_t const& handle,
           if (v_compressible) {
             rmm::device_uvector<uint32_t> tmps(
               raft::round_up_safe(max_local_v_list_size,
-                                  static_cast<vertex_t>(128 / sizeof(uint32_t))),
+                                  static_cast<vertex_t>(cache_line_size / sizeof(uint32_t))),
               handle.get_stream());  // use the maximum padded size instead of
                                      // local_v_list_sizes[major_comm_rank] to ensure that the
                                      // buffer size is identical in every major_comm_rank (to use
@@ -688,13 +693,13 @@ void fill_edge_minor_property(raft::handle_t const& handle,
                 }));  // last tmps.size() - local_v_list_sizes[major_comm_rank] elements
                       // have garbage values (this is OK as we won't use them)
             compressed_v_list = std::move(tmps);
-            assert(retinerpret_cast<uintptr_t>(compressed_v_list->data()) % 128 == 0);
+            assert(retinerpret_cast<uintptr_t>(compressed_v_list->data()) % cache_line_size == 0);
           }
         }
         if (!compressed_v_list) {
           rmm::device_uvector<vertex_t> tmps(
             raft::round_up_safe(max_local_v_list_size,
-                                static_cast<vertex_t>(128 / sizeof(vertex_t))),
+                                static_cast<vertex_t>(cache_line_size / sizeof(vertex_t))),
             handle.get_stream());  // use the maximum padded size instead of
                                    // local_v_list_sizes[major_comm_rank] to ensure that the
                                    // buffer size is identical in every major_comm_rank (to use
@@ -706,7 +711,7 @@ void fill_edge_minor_property(raft::handle_t const& handle,
             tmps.begin());  // last tmps.size() - local_v_list_sizes[major_comm_rank]
                             // elements have garbage values (this is OK as we won't use them)
           padded_v_list = std::move(tmps);
-          assert(retinerpret_cast<uintptr_t>(padded_v_list->data()) % 128 == 0);
+          assert(retinerpret_cast<uintptr_t>(padded_v_list->data()) % cache_line_size == 0);
         }
       }
     }
@@ -879,7 +884,7 @@ void fill_edge_minor_property(raft::handle_t const& handle,
         } else {
           allgather_buffer = rmm::device_uvector<vertex_t>(
             raft::round_up_safe(local_v_list_sizes[0],
-                                static_cast<vertex_t>(128 / sizeof(vertex_t))),
+                                static_cast<vertex_t>(cache_line_size / sizeof(vertex_t))),
             handle.get_stream());
           thrust::copy(handle.get_thrust_policy(),
                        sorted_unique_vertex_first,
