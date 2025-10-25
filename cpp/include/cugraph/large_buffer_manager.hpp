@@ -97,6 +97,12 @@ class large_buffer_manager {
     storage_buffer_resource() = storage_resource;
   }
 
+  static void clear()
+  {
+    memory_buffer_resource()  = std::nullopt;
+    storage_buffer_resource() = std::nullopt;
+  }
+
   static detail::large_memory_buffer_resource_t create_memory_buffer_resource(
     std::shared_ptr<rmm::mr::pinned_memory_resource> mr)
   {

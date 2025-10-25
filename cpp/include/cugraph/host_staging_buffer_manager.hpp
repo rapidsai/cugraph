@@ -48,6 +48,13 @@ class host_staging_buffer_manager {
       std::move(pinned_mr), init_staging_buffer_size, max_staging_buffer_size);
   }
 
+  static void clear()
+  {
+    auto& s = state();
+    s.pinned_pool_mr.reset();
+    s.initialized = false;
+  }
+
   template <typename T>
   static rmm::device_uvector<T> allocate_staging_buffer(size_t size, rmm::cuda_stream_view stream)
   {
