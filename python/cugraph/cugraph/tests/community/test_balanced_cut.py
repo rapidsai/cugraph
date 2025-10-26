@@ -9,7 +9,7 @@ import pytest
 import cudf
 import cugraph
 from cugraph.testing import DEFAULT_DATASETS
-from cugraph.datasets import karate_asymmetric
+from cugraph.datasets import karate_asymmetric, karate
 
 
 def cugraph_call(G, partitions):
@@ -98,3 +98,15 @@ def test_edge_cut_clustering_directed_graph(partitions):
     )
     with pytest.raises(ValueError):
         cugraph_call(G_edge, partitions)
+
+
+@pytest.mark.sg
+def test_spectral_balanced_cut_clustering_deprecation_warning():
+    G = karate.get_graph(create_using=cugraph.Graph(directed=False), ignore_weights=True)
+    warning_msg = (
+        "spectralBalancedCutClustering is deprecated and will be removed in a future release. "
+        "Use spectralModularityMaximizationClustering instead."
+    )
+
+    with pytest.warns(DeprecationWarning, match=warning_msg):
+        cugraph.spectralBalancedCutClustering(G, num_clusters=2)

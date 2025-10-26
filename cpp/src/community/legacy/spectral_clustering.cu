@@ -11,6 +11,11 @@
 #include <raft/random/rng_state.hpp>
 #include <raft/spectral/modularity_maximization.cuh>
 #include <raft/spectral/partition.cuh>
+#include <raft/core/copy.hpp>
+#include <raft/sparse/convert/csr.cuh>
+
+#include <cuvs/cluster/spectral.hpp>
+#include <cuvs/preprocessing/spectral_embedding.hpp>
 
 #include <rmm/device_vector.hpp>
 #include <rmm/exec_policy.hpp>
@@ -57,54 +62,61 @@ void balancedCutClustering_impl(raft::handle_t const& handle,
   RAFT_EXPECTS(eig_vals != nullptr, "API error, must specify valid eigenvalues");
   RAFT_EXPECTS(eig_vects != nullptr, "API error, must specify valid eigenvectors");
 
-  int evs_max_it{4000};
-  int kmean_max_it{200};
-  weight_t evs_tol{1.0E-3};
-  weight_t kmean_tol{1.0E-2};
+  // Use cuVS for float precision until double precision is supported
+  if constexpr (std::is_same_v<weight_t, float>) {
+    // Convert CSR to COO using thrust
+    rmm::device_uvector<vertex_t> src_indices(graph.number_of_edges, handle.get_stream());
+    rmm::device_uvector<vertex_t> dst_indices(graph.number_of_edges, handle.get_stream());
+    
+    // Copy destination indices (already in COO format)
+    raft::copy(dst_indices.data(), graph.indices, graph.number_of_edges, handle.get_stream());
+    
+    // Expand CSR row offsets to COO source indices
+    thrust::for_each(rmm::exec_policy(handle.get_stream()),
+                     thrust::make_counting_iterator<vertex_t>(0),
+                     thrust::make_counting_iterator<vertex_t>(graph.number_of_vertices),
+                     [offsets = graph.offsets, 
+                      src_indices = src_indices.data()] __device__(vertex_t row) {
+                       for (edge_t j = offsets[row]; j < offsets[row + 1]; ++j) {
+                         src_indices[j] = row;
+                       }
+                     });
+    
+    // Create coordinate structure view from converted COO data
+    auto coord_view = raft::make_device_coordinate_structure_view<vertex_t, vertex_t, vertex_t>(
+      src_indices.data(), dst_indices.data(), 
+      graph.number_of_vertices, graph.number_of_vertices, graph.number_of_edges);
+      
+    // Create COO matrix view using coordinate structure view and CSR edge data
+    auto coo_matrix = raft::make_device_coo_matrix_view<weight_t>(graph.edge_data, coord_view);
 
-  if (evs_max_iter > 0) evs_max_it = evs_max_iter;
+    // Use seed from RNG state instead of hardcoded 0
+    rmm::device_uvector<unsigned long long> d_seed(1, handle.get_stream());
 
-  if (evs_tolerance > weight_t{0.0}) evs_tol = evs_tolerance;
+    raft::random::uniformInt<unsigned long long>(
+      rng_state, d_seed.data(), 1, 0, std::numeric_limits<vertex_t>::max() - 1, handle.get_stream());
+    
+    unsigned long long seed{0};
+    raft::update_host(&seed, d_seed.data(), d_seed.size(), handle.get_stream());
+    
+    cuvs::cluster::spectral::params params;
+    
+    params.seed = seed;
+    params.n_clusters   = n_clusters;
+    params.n_components = n_eig_vects;
+    params.n_init       = 10;  // Multiple initializations for better results
+    params.n_neighbors  = std::min(static_cast<int>(graph.number_of_vertices) - 1, 15);  // Adaptive neighbor count
 
-  if (kmean_max_iter > 0) kmean_max_it = kmean_max_iter;
+    cuvs::cluster::spectral::fit_predict(
+      handle,
+      params,
+      coo_matrix,
+      raft::make_device_vector_view<vertex_t, vertex_t>(clustering, graph.number_of_vertices));
+  } else {
+    CUGRAPH_FAIL("Double precision spectral clustering not yet supported with cuVS");
+  }
 
-  if (kmean_tolerance > weight_t{0.0}) kmean_tol = kmean_tolerance;
 
-  int restartIter_lanczos = 15 + n_eig_vects;
-
-  // FIXME: These should be parameters (and a raft::random::rng_state)
-  unsigned long long seed1{0};
-
-  // FIXME: Both 'eigen_solver_config_t' and 'cluster_solver_config_t do not take
-  // and rng_state as an input. Once a cugraph's primitive based implementation
-  // is available, the rng_state will already be supported by both the C and PLC API.
-  rmm::device_uvector<unsigned long long> d_seed(1, handle.get_stream());
-
-  raft::random::uniformInt<unsigned long long>(
-    rng_state, d_seed.data(), 1, 0, std::numeric_limits<vertex_t>::max() - 1, handle.get_stream());
-
-  raft::update_host(&seed1, d_seed.data(), d_seed.size(), handle.get_stream());
-  unsigned long long seed2 = seed1 + 1;
-
-  bool reorthog{false};
-
-  using index_type = vertex_t;
-  using value_type = weight_t;
-  using nnz_type   = edge_t;
-
-  raft::spectral::matrix::sparse_matrix_t<index_type, value_type, nnz_type> const r_csr_m{handle,
-                                                                                          graph};
-
-  raft::spectral::eigen_solver_config_t<index_type, value_type, nnz_type> eig_cfg{
-    n_eig_vects, evs_max_it, restartIter_lanczos, evs_tol, reorthog, seed1};
-  raft::spectral::lanczos_solver_t<index_type, value_type, nnz_type> eig_solver{eig_cfg};
-
-  raft::spectral::cluster_solver_config_t<index_type, value_type> clust_cfg{
-    n_clusters, kmean_max_it, kmean_tol, seed2};
-  raft::spectral::kmeans_solver_t<index_type, value_type> cluster_solver{clust_cfg};
-
-  raft::spectral::partition(
-    handle, r_csr_m, eig_solver, cluster_solver, clustering, eig_vals, eig_vects);
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>
@@ -140,61 +152,59 @@ void spectralModularityMaximization_impl(
   RAFT_EXPECTS(eig_vals != nullptr, "API error, must specify valid eigenvalues");
   RAFT_EXPECTS(eig_vects != nullptr, "API error, must specify valid eigenvectors");
 
-  int evs_max_it{4000};
-  int kmean_max_it{200};
-  weight_t evs_tol{1.0E-3};
-  weight_t kmean_tol{1.0E-2};
+  // Use cuVS for float precision until double precision is supported
+  if constexpr (std::is_same_v<weight_t, float>) {
+    // Convert CSR to COO using thrust
+    rmm::device_uvector<vertex_t> src_indices(graph.number_of_edges, handle.get_stream());
+    rmm::device_uvector<vertex_t> dst_indices(graph.number_of_edges, handle.get_stream());
+    
+    // Copy destination indices (already in COO format)
+    raft::copy(dst_indices.data(), graph.indices, graph.number_of_edges, handle.get_stream());
+    
+    // Expand CSR row offsets to COO source indices
+    thrust::for_each(rmm::exec_policy(handle.get_stream()),
+                     thrust::make_counting_iterator<vertex_t>(0),
+                     thrust::make_counting_iterator<vertex_t>(graph.number_of_vertices),
+                     [offsets = graph.offsets, 
+                      src_indices = src_indices.data()] __device__(vertex_t row) {
+                       for (edge_t j = offsets[row]; j < offsets[row + 1]; ++j) {
+                         src_indices[j] = row;
+                       }
+                     });
+    
+    // Create coordinate structure view from converted COO data
+    auto coord_view = raft::make_device_coordinate_structure_view<vertex_t, vertex_t, vertex_t>(
+      src_indices.data(), dst_indices.data(), 
+      graph.number_of_vertices, graph.number_of_vertices, graph.number_of_edges);
+      
+    // Create COO matrix view using coordinate structure view and CSR edge data
+    auto coo_matrix = raft::make_device_coo_matrix_view<weight_t>(graph.edge_data, coord_view);
 
-  if (evs_max_iter > 0) evs_max_it = evs_max_iter;
+    // Use seed from RNG state instead of hardcoded 0
+    rmm::device_uvector<unsigned long long> d_seed(1, handle.get_stream());
 
-  if (evs_tolerance > weight_t{0.0}) evs_tol = evs_tolerance;
+    raft::random::uniformInt<unsigned long long>(
+      rng_state, d_seed.data(), 1, 0, std::numeric_limits<vertex_t>::max() - 1, handle.get_stream());
+    
+    unsigned long long seed{0};
+    raft::update_host(&seed, d_seed.data(), d_seed.size(), handle.get_stream());
+    
+    cuvs::cluster::spectral::params params;
+    
+    params.seed = seed;
+    params.n_clusters   = n_clusters;
+    params.n_components = n_eig_vects;
+    params.n_init       = 10;  // Multiple initializations for better results
+    params.n_neighbors  = std::min(static_cast<int>(graph.number_of_vertices) - 1, 15);  // Adaptive neighbor count
 
-  if (kmean_max_iter > 0) kmean_max_it = kmean_max_iter;
-
-  if (kmean_tolerance > weight_t{0.0}) kmean_tol = kmean_tolerance;
-
-  int restartIter_lanczos = 15 + n_eig_vects;
-
-  // FIXME: These should be parameters (and a raft::random::rng_state)
-  unsigned long long seed1{0};
-
-  // FIXME: Both 'eigen_solver_config_t' and 'cluster_solver_config_t do not take
-  // and rng_state as an input. Once a cugraph's primitive based implementation
-  // is available, the rng_state will already be supported by both the C and PLC API.
-  rmm::device_uvector<unsigned long long> d_seed(1, handle.get_stream());
-
-  raft::random::uniformInt<unsigned long long>(
-    rng_state, d_seed.data(), 1, 0, std::numeric_limits<vertex_t>::max() - 1, handle.get_stream());
-
-  raft::update_host(&seed1, d_seed.data(), d_seed.size(), handle.get_stream());
-  unsigned long long seed2 = seed1 + 1;
-
-  bool reorthog{false};
-
-  using index_type = vertex_t;
-  using value_type = weight_t;
-  using nnz_type   = edge_t;
-
-  raft::spectral::matrix::sparse_matrix_t<index_type, value_type, nnz_type> const r_csr_m{handle,
-                                                                                          graph};
-
-  raft::spectral::eigen_solver_config_t<index_type, value_type, nnz_type> eig_cfg{
-    n_eig_vects, evs_max_it, restartIter_lanczos, evs_tol, reorthog, seed1};
-  raft::spectral::lanczos_solver_t<index_type, value_type, nnz_type> eig_solver{eig_cfg};
-
-  raft::spectral::cluster_solver_config_t<index_type, value_type> clust_cfg{
-    n_clusters, kmean_max_it, kmean_tol, seed2};
-  raft::spectral::kmeans_solver_t<index_type, value_type> cluster_solver{clust_cfg};
-
-  // not returned...
-  // auto result =
-  raft::spectral::modularity_maximization(
-    handle, r_csr_m, eig_solver, cluster_solver, clustering, eig_vals, eig_vects);
-
-  // not returned...
-  // int iters_lanczos, iters_kmeans;
-  // iters_lanczos = std::get<0>(result);
-  // iters_kmeans  = std::get<2>(result);
+    cuvs::cluster::spectral::fit_predict(
+      handle,
+      params,
+      coo_matrix,
+      raft::make_device_vector_view<vertex_t, vertex_t>(clustering, graph.number_of_vertices));
+  } else {
+    CUGRAPH_FAIL("Double precision spectral clustering not yet supported with cuVS");
+  }
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>
