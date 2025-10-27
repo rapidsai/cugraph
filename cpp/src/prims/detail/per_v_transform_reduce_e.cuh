@@ -3087,14 +3087,29 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
       if constexpr (std::is_same_v<ReduceOp, reduce_op::any<T>>) {
         size_t tx_buf_size_per_rank{};
         {
-          size_t max_size{0};
+          auto h_max_size = reinterpret_cast<size_t*>(h_staging_buffer.data());
+          assert(h_staging_buffer.size() >= 1);
+          h_max_size[0] = 0;
           for (size_t j = 0; j < loop_count; ++j) {
             auto const& output_buffer = edge_partition_major_output_buffers[j];
-            max_size                  = std::max(max_size, size_dataframe_buffer(output_buffer));
+            h_max_size[0] = std::max(h_max_size[0], size_dataframe_buffer(output_buffer));
           }
-          minor_comm.host_allreduce(
-            std::addressof(max_size), std::addressof(max_size), size_t{1}, raft::comms::op_t::MAX);
-          tx_buf_size_per_rank = raft::round_up_safe(max_size, alignment);
+          rmm::device_uvector<size_t> d_max_size(1, handle.get_stream());
+          raft::update_device(d_max_size.data(), h_max_size, size_t{1}, handle.get_stream());
+          device_allreduce(
+            minor_comm,
+            d_max_size.data(),
+            d_max_size.data(),
+            size_t{1},
+            raft::comms::op_t::MAX,
+            handle.get_stream());  // FIXME: use device_allreduce instead of
+                                   // minor_comm\.host_allreduce as we saw infrequent spikes in
+                                   // allreduce time when minor_comm is contained within a single
+                                   // NVL72 domain (maybe due to some interference between MPI and
+                                   // NCCL?, this should be further investigated especially when
+                                   // minor_comm spans multiple NVLink domains)
+          raft::update_host(h_max_size, d_max_size.data(), size_t{1}, handle.get_stream());
+          tx_buf_size_per_rank = raft::round_up_safe(h_max_size[0], alignment);
         }
 
         std::variant<rmm::device_uvector<uint32_t>, rmm::device_uvector<size_t>>
@@ -3109,6 +3124,8 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
         }
         auto tx_values =
           allocate_dataframe_buffer<T>(tx_buf_size_per_rank * loop_count, handle.get_stream());
+        thrust::fill(
+          handle.get_thrust_policy(), counters.data(), counters.data() + loop_count, size_t{0});
         handle.sync_stream();
 
         for (size_t j = 0; j < loop_count; ++j) {
@@ -3176,20 +3193,28 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
         std::vector<size_t> rx_counts(minor_comm_size, 0);
         size_t rx_buf_size_per_rank{};
         {
-          auto h_valid_counts = reinterpret_cast<size_t*>(h_staging_buffer.data());
-          assert(h_staging_buffer.size() >= loop_count);
-          raft::update_host(h_valid_counts, counters.data(), loop_count, handle.get_stream());
+          rmm::device_uvector<size_t> d_allgathered_valid_counts(minor_comm_size * loop_count,
+                                                                 handle.get_stream());
+          device_allgather(minor_comm,
+                           counters.data(),
+                           d_allgathered_valid_counts.data(),
+                           loop_count,
+                           handle.get_stream());
+          auto h_allgathered_valid_counts = reinterpret_cast<size_t*>(h_staging_buffer.data());
+          assert(h_staging_buffer.size() >= minor_comm_size * loop_count);
+          raft::update_host(h_allgathered_valid_counts,
+                            d_allgathered_valid_counts.data(),
+                            d_allgathered_valid_counts.size(),
+                            handle.get_stream());
           handle.sync_stream();
           for (size_t j = 0; j < loop_count; ++j) {
             if (nonzero_key_lists[j] && process_local_edges[j]) {
-              edge_partition_valid_counts[j] = h_valid_counts[j];
+              edge_partition_valid_counts[j] =
+                h_allgathered_valid_counts[minor_comm_rank * loop_count + j];
             }
           }
-          std::vector<size_t> allgathered_valid_counts(minor_comm_size * loop_count);
-          minor_comm.host_allgather(
-            edge_partition_valid_counts.data(), allgathered_valid_counts.data(), loop_count);
-          auto max_size        = std::reduce(allgathered_valid_counts.begin(),
-                                      allgathered_valid_counts.end(),
+          auto max_size        = std::reduce(h_allgathered_valid_counts,
+                                      h_allgathered_valid_counts + (minor_comm_size * loop_count),
                                       size_t{0},
                                       [](auto l, auto r) { return std::max(l, r); });
           rx_buf_size_per_rank = raft::round_up_safe(max_size, alignment);
@@ -3201,7 +3226,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
             auto loop_offset = minor_comm_rank % num_concurrent_loops;
             assert(loop_offset < loop_count);
             for (int j = 0; j < minor_comm_size; ++j) {
-              rx_counts[j] = allgathered_valid_counts[j * loop_count + loop_offset];
+              rx_counts[j] = h_allgathered_valid_counts[j * loop_count + loop_offset];
             }
           }
         }

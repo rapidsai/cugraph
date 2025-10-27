@@ -32,7 +32,6 @@
 #include <cugraph/utilities/device_comm.hpp>
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/error.hpp>
-#include <cugraph/utilities/host_scalar_comm.hpp>
 
 #include <raft/core/handle.hpp>
 #include <raft/util/cudart_utils.hpp>
@@ -801,8 +800,10 @@ extract_transform_if_v_frontier_e(raft::handle_t const& handle,
                        check_in_range_t<vertex_t>{graph_view.local_vertex_partition_range_first(),
                                                   graph_view.local_vertex_partition_range_last()});
     if constexpr (GraphViewType::is_multi_gpu) {
-      num_invalid_keys = host_scalar_allreduce(
-        handle.get_comms(), num_invalid_keys, raft::comms::op_t::SUM, handle.get_stream());
+      handle.get_comms().host_allreduce(std::addressof(num_invalid_keys),
+                                        std::addressof(num_invalid_keys),
+                                        size_t{1},
+                                        raft::comms::op_t::SUM);
     }
     CUGRAPH_EXPECTS(num_invalid_keys == size_t{0},
                     "Invalid input argument: frontier includes out-of-range keys.");
