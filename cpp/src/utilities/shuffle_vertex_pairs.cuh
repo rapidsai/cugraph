@@ -23,7 +23,6 @@
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/large_buffer_manager.hpp>
 #include <cugraph/partition_manager.hpp>
-#include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
 
 #include <cuda/std/tuple>
