@@ -33,7 +33,6 @@
 #include <cugraph/utilities/device_comm.hpp>
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/error.hpp>
-#include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
 #include <cugraph/vertex_partition_device_view.cuh>
 
@@ -1140,7 +1139,9 @@ size_t compute_num_out_nbrs_from_frontier(raft::handle_t const& handle,
   std::vector<size_t> local_frontier_sizes{};
   if constexpr (GraphViewType::is_multi_gpu) {
     auto& minor_comm     = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
-    local_frontier_sizes = host_scalar_allgather(minor_comm, frontier.size(), handle.get_stream());
+    local_frontier_sizes = std::vector<size_t>(minor_comm.get_size(), 0);
+    local_frontier_sizes[minor_comm.get_rank()] = frontier.size();
+    minor_comm.host_allgather(local_frontier_sizes.data(), local_frontier_sizes.data(), size_t{1});
   } else {
     local_frontier_sizes = std::vector<size_t>{static_cast<size_t>(frontier.size())};
   }
