@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2022-2024, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -164,16 +164,6 @@ fanout_5_10_15 = pytest.param(
     marks=[pytest.mark.fanout_5_10_15],
     id="fanout=5_10_15",
 )
-
-# scaling the number of concurrent cugraph-service clients
-_num_clients = [2, 4, 8, 16, 32]
-num_clients = {}
-for nc in _num_clients:
-    num_clients[nc] = pytest.param(
-        nc,
-        id=f"num_clients={nc}",
-        marks=[getattr(pytest.mark, f"num_clients_{nc}")],
-    )
 
 # Parameters for Graph generation fixture
 graph_obj_fixture_params = gen_fixture_params(
