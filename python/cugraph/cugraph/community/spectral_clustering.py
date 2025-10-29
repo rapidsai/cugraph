@@ -12,6 +12,7 @@ from pylibcugraph import (
 from pylibcugraph import ResourceHandle
 import cudf
 import numpy as np
+import warnings
 
 
 def spectralBalancedCutClustering(
@@ -77,6 +78,11 @@ def spectralBalancedCutClustering(
     >>> df = cugraph.spectralBalancedCutClustering(G, 5)
 
     """
+    warnings.warn(
+        "spectralBalancedCutClustering is deprecated and will be removed in a future release. "
+        "Use spectralModularityMaximizationClustering instead.",
+        DeprecationWarning,
+    )
 
     if G.is_directed():
         raise ValueError("input graph must be undirected")
