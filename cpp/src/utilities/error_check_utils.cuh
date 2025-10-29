@@ -128,8 +128,10 @@ size_t count_invalid_vertex_pairs(raft::handle_t const& handle,
       edge_partition_minor_range_last});
   if constexpr (GraphViewType::is_multi_gpu) {
     auto& comm = handle.get_comms();
-    num_invalid_pairs =
-      host_scalar_allreduce(comm, num_invalid_pairs, raft::comms::op_t::SUM, handle.get_stream());
+    comm.host_allreduce(std::addressof(num_invalid_pairs),
+                        std::addressof(num_invalid_pairs),
+                        size_t{1},
+                        raft::comms::op_t::SUM);
   }
 
   return num_invalid_pairs;

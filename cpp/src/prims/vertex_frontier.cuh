@@ -19,7 +19,6 @@
 
 #include <cugraph/utilities/device_comm.hpp>
 #include <cugraph/utilities/error.hpp>
-#include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/packed_bool_utils.hpp>
 
 #include <raft/core/device_span.hpp>

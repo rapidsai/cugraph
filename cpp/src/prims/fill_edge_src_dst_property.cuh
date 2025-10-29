@@ -380,25 +380,36 @@ void fill_edge_minor_property(raft::handle_t const& handle,
       auto v_list_size = static_cast<vertex_t>(
         cuda::std::distance(sorted_unique_vertex_first, sorted_unique_vertex_last));
       auto range_first = graph_view.local_vertex_partition_range_first();
+      auto range_last  = range_first;
       if (v_list_size > 0) {
         auto h_staging_buffer_ptr = reinterpret_cast<vertex_t*>(h_staging_buffer.data());
-        assert(h_staging_buffer.size() >= size_t{1});
+        assert(h_staging_buffer.size() >= size_t{2});
         if constexpr (std::is_pointer_v<std::decay_t<VertexIterator>>) {
           raft::update_host(
             h_staging_buffer_ptr, sorted_unique_vertex_first, size_t{1}, handle.get_stream());
+          raft::update_host(h_staging_buffer_ptr + 1,
+                            sorted_unique_vertex_first + (v_list_size - 1),
+                            size_t{1},
+                            handle.get_stream());
         } else {
-          rmm::device_uvector<vertex_t> tmps(1, handle.get_stream());
-          thrust::tabulate(
-            handle.get_thrust_policy(),
-            tmps.begin(),
-            tmps.end(),
-            cuda::proclaim_return_type<vertex_t>([sorted_unique_vertex_first] __device__(size_t i) {
-              return *(sorted_unique_vertex_first + i);
-            }));
-          raft::update_host(h_staging_buffer_ptr, tmps.data(), size_t{1}, handle.get_stream());
+          rmm::device_uvector<vertex_t> tmps(2, handle.get_stream());
+          thrust::tabulate(handle.get_thrust_policy(),
+                           tmps.begin(),
+                           tmps.end(),
+                           cuda::proclaim_return_type<vertex_t>(
+                             [sorted_unique_vertex_first, v_list_size] __device__(size_t i) {
+                               if (i == 0) {
+                                 return *sorted_unique_vertex_first;
+                               } else {
+                                 assert(i == 1);
+                                 return *(sorted_unique_vertex_first + (v_list_size - 1));
+                               }
+                             }));
+          raft::update_host(h_staging_buffer_ptr, tmps.data(), size_t{2}, handle.get_stream());
         }
         handle.sync_stream();
         range_first = h_staging_buffer_ptr[0];
+        range_last  = h_staging_buffer_ptr[1] + 1;
       }
 
       auto leading_boundary_words =
@@ -415,111 +426,81 @@ void fill_edge_minor_property(raft::handle_t const& handle,
         leading_boundary_words = packed_bool_word_bcast_alignment;
       }
       auto word_offset_first = packed_bool_offset(range_first - minor_range_first);
+
       constexpr size_t num_words_per_vertex =
         (sizeof(vertex_t) > sizeof(uint32_t) ? size_t{2} : size_t{1});
       auto num_leading_words =
         size_t{3} /* local_v_list_size, local_v_list_range_first, local_v_list_range_last */ *
         num_words_per_vertex;
-      rmm::device_uvector<uint32_t> d_aggregate_tmps(
-        major_comm_size * (num_leading_words + packed_bool_word_bcast_alignment),
-        handle.get_stream());
+      rmm::device_uvector<uint32_t> d_tmps(packed_bool_word_bcast_alignment, handle.get_stream());
       thrust::tabulate(
         handle.get_thrust_policy(),
-        d_aggregate_tmps.data() +
-          major_comm_rank * (num_leading_words + packed_bool_word_bcast_alignment),
-        d_aggregate_tmps.data() +
-          (major_comm_rank + 1) * (num_leading_words + packed_bool_word_bcast_alignment),
+        d_tmps.begin(),
+        d_tmps.end(),
         [sorted_unique_vertex_first,
          sorted_unique_vertex_last,
-         v_list_size,
-         vertex_partition_range_first = graph_view.local_vertex_partition_range_first(),
-         vertex_partition_range_last  = graph_view.local_vertex_partition_range_last(),
+         vertex_partition_range_last = graph_view.local_vertex_partition_range_last(),
          minor_range_first,
          word_offset_first,
          leading_boundary_words,
          input] __device__(size_t i) {
-          if (i < num_words_per_vertex * 1) {
-            if constexpr (num_words_per_vertex == 1) {
-              return static_cast<uint32_t>(v_list_size);
-            } else {
-              return (i % 2) == 0 ? static_cast<uint32_t>(v_list_size & 0xffffffffull)
-                                  : static_cast<uint32_t>(v_list_size >> 32);
-            }
-          } else if (i < num_words_per_vertex * 2) {
-            vertex_t first{};
-            if (v_list_size > 0) {
-              first = *sorted_unique_vertex_first;
-            } else {
-              first = vertex_partition_range_first;
-            }
-            if constexpr (num_words_per_vertex == 1) {
-              return static_cast<uint32_t>(first);
-            } else {
-              return (i % 2) == 0 ? static_cast<uint32_t>(first & 0xffffffffull)
-                                  : static_cast<uint32_t>(first >> 32);
-            }
-          } else if (i < num_words_per_vertex * 3) {
-            vertex_t last{};
-            if (v_list_size > 0) {
-              last = *(sorted_unique_vertex_first + (v_list_size - 1)) + 1;
-            } else {
-              last = vertex_partition_range_first;
-            }
-            if constexpr (num_words_per_vertex == 1) {
-              return static_cast<uint32_t>(last);
-            } else {
-              return (i % 2) == 0 ? static_cast<uint32_t>(last & 0xffffffffull)
-                                  : static_cast<uint32_t>(last >> 32);
-            }
-          } else {
-            auto word_idx = i - size_t{3} * num_words_per_vertex;
-            uint32_t word{0};
-            if (word_idx < leading_boundary_words) {
-              auto word_v_first =
-                minor_range_first +
-                static_cast<vertex_t>((word_offset_first + word_idx) * packed_bools_per_word());
-              auto word_v_last =
-                ((vertex_partition_range_last - word_v_first) <= packed_bools_per_word())
-                  ? vertex_partition_range_last
-                  : (word_v_first + static_cast<vertex_t>(packed_bools_per_word()));
-              auto it = thrust::lower_bound(
-                thrust::seq, sorted_unique_vertex_first, sorted_unique_vertex_last, word_v_first);
-              while ((it != sorted_unique_vertex_last) && (*it < word_v_last)) {
-                auto v_offset = *it - minor_range_first;
-                if (input) {
-                  word |= packed_bool_mask(v_offset);
-                } else {
-                  word &= ~packed_bool_mask(v_offset);
-                }
-                ++it;
+          uint32_t word{0};
+          if (i < leading_boundary_words) {
+            auto word_v_first = minor_range_first + static_cast<vertex_t>((word_offset_first + i) *
+                                                                          packed_bools_per_word());
+            auto word_v_last =
+              ((vertex_partition_range_last - word_v_first) <= packed_bools_per_word())
+                ? vertex_partition_range_last
+                : (word_v_first + static_cast<vertex_t>(packed_bools_per_word()));
+            auto it = thrust::lower_bound(
+              thrust::seq, sorted_unique_vertex_first, sorted_unique_vertex_last, word_v_first);
+            while ((it != sorted_unique_vertex_last) && (*it < word_v_last)) {
+              auto v_offset = *it - minor_range_first;
+              if (input) {
+                word |= packed_bool_mask(v_offset);
+              } else {
+                word &= ~packed_bool_mask(v_offset);
               }
+              ++it;
             }
-            return word;
           }
+          return word;
         });
+
+      auto h_aggregate_tmps = reinterpret_cast<uint32_t*>(h_staging_buffer.data());
+      assert(h_staging_buffer.size() >=
+             major_comm_size *
+               (raft::round_up_safe(num_leading_words + packed_bool_word_bcast_alignment, 2) / 2));
+      auto h_this_rank_aggregate_tmps =
+        h_aggregate_tmps +
+        (major_comm_rank * (num_leading_words + packed_bool_word_bcast_alignment));
+      if constexpr (num_words_per_vertex == 1) {
+        h_this_rank_aggregate_tmps[0] = v_list_size;
+        h_this_rank_aggregate_tmps[1] = range_first;
+        h_this_rank_aggregate_tmps[2] = range_last;
+      } else {
+        h_this_rank_aggregate_tmps[0] = static_cast<uint32_t>(v_list_size & 0xfffffffful);
+        h_this_rank_aggregate_tmps[1] = static_cast<uint32_t>(v_list_size >> 32);
+        h_this_rank_aggregate_tmps[2] = static_cast<uint32_t>(range_first & 0xfffffffful);
+        h_this_rank_aggregate_tmps[3] = static_cast<uint32_t>(range_first >> 32);
+        h_this_rank_aggregate_tmps[4] = static_cast<uint32_t>(range_last & 0xfffffffful);
+        h_this_rank_aggregate_tmps[5] = static_cast<uint32_t>(range_last >> 32);
+      }
+      raft::update_host(h_this_rank_aggregate_tmps + num_leading_words,
+                        d_tmps.data(),
+                        d_tmps.size(),
+                        handle.get_stream());
+      handle.sync_stream();
 
       if (major_comm_size >
           1) {  // allgather v_list_size, v_list_range_first (inclusive), v_list_range_last
                 // (exclusive), and packed bool data in the partition boundary (relevant only if
                 // direct_bcast is set to true, but we pre-calculate to reduce the number of
                 // device_allgather operations)
-        device_allgather(major_comm,
-                         d_aggregate_tmps.data() +
-                           major_comm_rank * (num_leading_words + packed_bool_word_bcast_alignment),
-                         d_aggregate_tmps.data(),
-                         num_leading_words + packed_bool_word_bcast_alignment,
-                         handle.get_stream());
+        major_comm.host_allgather(
+          h_aggregate_tmps, h_aggregate_tmps, num_leading_words + packed_bool_word_bcast_alignment);
       }
 
-      auto h_aggregate_tmps = reinterpret_cast<uint32_t*>(h_staging_buffer.data());
-      assert(h_staging_buffer.size() >=
-             major_comm_size *
-               (raft::round_up_safe(num_leading_words + packed_bool_word_bcast_alignment, 2) / 2));
-      raft::update_host(h_aggregate_tmps,
-                        d_aggregate_tmps.data(),
-                        major_comm_size * (num_leading_words + packed_bool_word_bcast_alignment),
-                        handle.get_stream());
-      handle.sync_stream();
       local_v_list_sizes        = std::vector<vertex_t>(major_comm_size);
       local_v_list_range_firsts = std::vector<vertex_t>(major_comm_size);
       local_v_list_range_lasts  = std::vector<vertex_t>(major_comm_size);
@@ -640,6 +621,14 @@ void fill_edge_minor_property(raft::handle_t const& handle,
             }
           }
 
+          rmm::device_uvector<uint32_t> d_aggregate_tmps(
+            major_comm_size * (num_leading_words + packed_bool_word_bcast_alignment),
+            handle.get_stream());
+          raft::update_device(
+            d_aggregate_tmps.data(),
+            h_aggregate_tmps,
+            major_comm_size * (num_leading_words + packed_bool_word_bcast_alignment),
+            handle.get_stream());
           rmm::device_uvector<uint32_t> aggregate_boundary_words(
             major_comm_size * packed_bool_word_bcast_alignment, handle.get_stream());
           auto map_first = thrust::make_transform_iterator(

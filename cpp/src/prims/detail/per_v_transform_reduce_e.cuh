@@ -35,7 +35,6 @@
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/device_comm.hpp>
 #include <cugraph/utilities/error.hpp>
-#include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/packed_bool_utils.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
 #include <cugraph/utilities/thrust_tuple_utils.hpp>
@@ -1597,77 +1596,60 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
       if (key_segment_offsets) { num_scalars += key_segment_offsets->size(); }
     }
 
-    rmm::device_uvector<size_t> d_aggregate_tmps(minor_comm_size * num_scalars,
-                                                 handle.get_stream());
-    thrust::tabulate(handle.get_thrust_policy(),
-                     d_aggregate_tmps.begin() + num_scalars * minor_comm_rank,
-                     d_aggregate_tmps.begin() + num_scalars * minor_comm_rank +
-                       num_scalars_less_key_segment_offsets,
-                     [max_tmp_buffer_size,
-                      approx_tmp_buffer_size_per_loop,
-                      sorted_unique_key_first,
-                      sorted_unique_nzd_key_last,
-                      vertex_partition_range_first =
-                        graph_view.local_vertex_partition_range_first()] __device__(size_t i) {
-                       if (i == 0) {
-                         return max_tmp_buffer_size;
-                       } else if (i == 1) {
-                         return approx_tmp_buffer_size_per_loop;
-                       }
-                       if constexpr (use_input_key) {
-                         auto v_list_size = static_cast<size_t>(cuda::std::distance(
-                           sorted_unique_key_first, sorted_unique_nzd_key_last));
-                         if (i == 2) { return v_list_size; }
-                         if constexpr (try_bitmap) {
-                           if (i == 3) {
-                             vertex_t first{};
-                             if (v_list_size > 0) {
-                               first = *sorted_unique_key_first;
-                             } else {
-                               first = vertex_partition_range_first;
-                             }
-                             assert(static_cast<vertex_t>(static_cast<size_t>(first)) == first);
-                             return static_cast<size_t>(first);
-                           } else if (i == 4) {
-                             vertex_t last{};
-                             if (v_list_size > 0) {
-                               last = *(sorted_unique_key_first + (v_list_size - 1)) + 1;
-                             } else {
-                               last = vertex_partition_range_first;
-                             }
-                             assert(static_cast<vertex_t>(static_cast<size_t>(last)) == last);
-                             return static_cast<size_t>(last);
-                           }
-                         }
-                       }
-                       assert(false);
-                       return size_t{0};
-                     });
+    std::vector<size_t> h_aggregate_tmps(minor_comm_size * num_scalars);
+    h_aggregate_tmps[minor_comm_rank * num_scalars]     = max_tmp_buffer_size;
+    h_aggregate_tmps[minor_comm_rank * num_scalars + 1] = approx_tmp_buffer_size_per_loop;
     if constexpr (use_input_key) {
+      auto v_list_size = static_cast<size_t>(
+        cuda::std::distance(sorted_unique_key_first, sorted_unique_nzd_key_last));
+      h_aggregate_tmps[minor_comm_rank * num_scalars + 2] = v_list_size;
+      if constexpr (try_bitmap) {
+        vertex_t range_first = graph_view.local_vertex_partition_range_first();
+        auto range_last      = range_first;
+        if (v_list_size > 0) {
+          auto h_staging_buffer_ptr = reinterpret_cast<vertex_t*>(h_staging_buffer.data());
+          assert(h_staging_buffer.size() >= size_t{2});
+          if constexpr (std::is_pointer_v<std::decay<OptionalKeyIterator>>) {
+            raft::update_host(
+              h_staging_buffer_ptr, sorted_unique_key_first, size_t{1}, handle.get_stream());
+            raft::update_host(h_staging_buffer_ptr + 1,
+                              sorted_unique_key_first + (v_list_size - 1),
+                              size_t{1},
+                              handle.get_stream());
+          } else {
+            rmm::device_uvector<vertex_t> tmps(2, handle.get_stream());
+            thrust::tabulate(handle.get_thrust_policy(),
+                             tmps.begin(),
+                             tmps.end(),
+                             cuda::proclaim_return_type<vertex_t>(
+                               [sorted_unique_key_first, v_list_size] __device__(size_t i) {
+                                 if (i == 0) {
+                                   return *sorted_unique_key_first;
+                                 } else {
+                                   assert(i == 1);
+                                   return *(sorted_unique_key_first + (v_list_size - 1));
+                                 }
+                               }));
+            raft::update_host(h_staging_buffer_ptr, tmps.data(), size_t{2}, handle.get_stream());
+          }
+          handle.sync_stream();
+          range_first = h_staging_buffer_ptr[0];
+          range_last  = h_staging_buffer_ptr[1] + 1;
+        }
+        h_aggregate_tmps[minor_comm_rank * num_scalars + 3] = static_cast<size_t>(range_first);
+        h_aggregate_tmps[minor_comm_rank * num_scalars + 4] = static_cast<size_t>(range_last);
+      }
       if (key_segment_offsets) {
-        auto h_staging_buffer_ptr = reinterpret_cast<size_t*>(h_staging_buffer.data());
-        std::copy(key_segment_offsets->begin(), key_segment_offsets->end(), h_staging_buffer_ptr);
-        raft::update_device(d_aggregate_tmps.data() + (num_scalars * minor_comm_rank +
-                                                       num_scalars_less_key_segment_offsets),
-                            h_staging_buffer_ptr,
-                            key_segment_offsets->size(),
-                            handle.get_stream());
+        std::copy(key_segment_offsets->begin(),
+                  key_segment_offsets->end(),
+                  h_aggregate_tmps.begin() +
+                    (minor_comm_rank * num_scalars + num_scalars_less_key_segment_offsets));
       }
     }
 
     if (minor_comm_size > 1) {
-      device_allgather(minor_comm,
-                       d_aggregate_tmps.data() + minor_comm_rank * num_scalars,
-                       d_aggregate_tmps.data(),
-                       num_scalars,
-                       handle.get_stream());
+      minor_comm.host_allgather(h_aggregate_tmps.data(), h_aggregate_tmps.data(), num_scalars);
     }
-
-    auto h_aggregate_tmps = reinterpret_cast<size_t*>(h_staging_buffer.data());
-    assert(h_staging_buffer.size() >= d_aggregate_tmps.size());
-    raft::update_host(
-      h_aggregate_tmps, d_aggregate_tmps.data(), d_aggregate_tmps.size(), handle.get_stream());
-    handle.sync_stream();
     max_tmp_buffer_sizes                    = std::vector<size_t>(minor_comm_size);
     tmp_buffer_size_per_loop_approximations = std::vector<size_t>(minor_comm_size);
     if constexpr (use_input_key) {
@@ -1693,10 +1675,10 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
             static_cast<vertex_t>(h_aggregate_tmps[i * num_scalars + 4]);
         }
         if (key_segment_offsets) {
-          (*key_segment_offset_vectors)
-            .emplace_back(h_aggregate_tmps + i * num_scalars + num_scalars_less_key_segment_offsets,
-                          h_aggregate_tmps + i * num_scalars +
-                            num_scalars_less_key_segment_offsets + (*key_segment_offsets).size());
+          key_segment_offset_vectors->emplace_back(
+            h_aggregate_tmps.begin() + i * num_scalars + num_scalars_less_key_segment_offsets,
+            h_aggregate_tmps.begin() + i * num_scalars + num_scalars_less_key_segment_offsets +
+              key_segment_offsets->size());
         }
       }
     }
@@ -1734,12 +1716,12 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
       auto const minor_comm_rank = minor_comm.get_rank();
 
       if constexpr (sizeof(vertex_t) == 8) {
-        vertex_t local_v_list_max_range_size{0};
+        vertex_t max_local_v_list_range_size{0};
         for (int i = 0; i < minor_comm_size; ++i) {
           auto range_size             = local_v_list_range_lasts[i] - local_v_list_range_firsts[i];
-          local_v_list_max_range_size = std::max(range_size, local_v_list_max_range_size);
+          max_local_v_list_range_size = std::max(range_size, max_local_v_list_range_size);
         }
-        if (local_v_list_max_range_size <=
+        if (max_local_v_list_range_size <=
             std::numeric_limits<uint32_t>::max()) {  // broadcast 32bit offset values instead of 64
                                                      // bit vertex IDs
           v_compressible = true;
@@ -3087,29 +3069,14 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
       if constexpr (std::is_same_v<ReduceOp, reduce_op::any<T>>) {
         size_t tx_buf_size_per_rank{};
         {
-          auto h_max_size = reinterpret_cast<size_t*>(h_staging_buffer.data());
-          assert(h_staging_buffer.size() >= 1);
-          h_max_size[0] = 0;
+          size_t max_size{0};
           for (size_t j = 0; j < loop_count; ++j) {
             auto const& output_buffer = edge_partition_major_output_buffers[j];
-            h_max_size[0] = std::max(h_max_size[0], size_dataframe_buffer(output_buffer));
+            max_size                  = std::max(max_size, size_dataframe_buffer(output_buffer));
           }
-          rmm::device_uvector<size_t> d_max_size(1, handle.get_stream());
-          raft::update_device(d_max_size.data(), h_max_size, size_t{1}, handle.get_stream());
-          device_allreduce(
-            minor_comm,
-            d_max_size.data(),
-            d_max_size.data(),
-            size_t{1},
-            raft::comms::op_t::MAX,
-            handle.get_stream());  // FIXME: use device_allreduce instead of
-                                   // minor_comm\.host_allreduce as we saw infrequent spikes in
-                                   // allreduce time when minor_comm is contained within a single
-                                   // NVL72 domain (maybe due to some interference between MPI and
-                                   // NCCL?, this should be further investigated especially when
-                                   // minor_comm spans multiple NVLink domains)
-          raft::update_host(h_max_size, d_max_size.data(), size_t{1}, handle.get_stream());
-          tx_buf_size_per_rank = raft::round_up_safe(h_max_size[0], alignment);
+          minor_comm.host_allreduce(
+            std::addressof(max_size), std::addressof(max_size), size_t{1}, raft::comms::op_t::MAX);
+          tx_buf_size_per_rank = raft::round_up_safe(max_size, alignment);
         }
 
         std::variant<rmm::device_uvector<uint32_t>, rmm::device_uvector<size_t>>
@@ -3193,28 +3160,24 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
         std::vector<size_t> rx_counts(minor_comm_size, 0);
         size_t rx_buf_size_per_rank{};
         {
-          rmm::device_uvector<size_t> d_allgathered_valid_counts(minor_comm_size * loop_count,
-                                                                 handle.get_stream());
-          device_allgather(minor_comm,
-                           counters.data(),
-                           d_allgathered_valid_counts.data(),
-                           loop_count,
-                           handle.get_stream());
-          auto h_allgathered_valid_counts = reinterpret_cast<size_t*>(h_staging_buffer.data());
-          assert(h_staging_buffer.size() >= minor_comm_size * loop_count);
-          raft::update_host(h_allgathered_valid_counts,
-                            d_allgathered_valid_counts.data(),
-                            d_allgathered_valid_counts.size(),
-                            handle.get_stream());
+          auto h_counts = reinterpret_cast<size_t*>(h_staging_buffer.data());
+          assert(h_staging_buffer.size() >= loop_count);
+          raft::update_host(h_counts, counters.data(), loop_count, handle.get_stream());
           handle.sync_stream();
+          std::vector<size_t> h_allgathered_valid_counts(minor_comm_size * loop_count);
+          std::copy(h_counts,
+                    h_counts + loop_count,
+                    h_allgathered_valid_counts.begin() + minor_comm_rank * loop_count);
+          minor_comm.host_allgather(
+            h_allgathered_valid_counts.data(), h_allgathered_valid_counts.data(), loop_count);
           for (size_t j = 0; j < loop_count; ++j) {
             if (nonzero_key_lists[j] && process_local_edges[j]) {
               edge_partition_valid_counts[j] =
                 h_allgathered_valid_counts[minor_comm_rank * loop_count + j];
             }
           }
-          auto max_size        = std::reduce(h_allgathered_valid_counts,
-                                      h_allgathered_valid_counts + (minor_comm_size * loop_count),
+          auto max_size        = std::reduce(h_allgathered_valid_counts.begin(),
+                                      h_allgathered_valid_counts.end(),
                                       size_t{0},
                                       [](auto l, auto r) { return std::max(l, r); });
           rx_buf_size_per_rank = raft::round_up_safe(max_size, alignment);

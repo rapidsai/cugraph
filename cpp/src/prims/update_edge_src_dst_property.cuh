@@ -27,6 +27,7 @@
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/device_comm.hpp>
 #include <cugraph/utilities/error.hpp>
+#include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/packed_bool_utils.hpp>
 #include <cugraph/vertex_partition_device_view.cuh>
 
@@ -289,10 +290,11 @@ void update_edge_major_property(
     auto const minor_comm_rank = minor_comm.get_rank();
     auto const minor_comm_size = minor_comm.get_size();
 
-    std::vector<size_t> local_v_list_sizes(minor_comm_size, 0);
-    local_v_list_sizes[minor_comm_rank] = static_cast<size_t>(
-      cuda::std::distance(sorted_unique_vertex_first, sorted_unique_vertex_last));
-    minor_comm.host_allgather(local_v_list_sizes.data(), local_v_list_sizes.data(), size_t{1});
+    auto local_v_list_sizes =
+      host_scalar_allgather(minor_comm,
+                            static_cast<size_t>(cuda::std::distance(sorted_unique_vertex_first,
+                                                                    sorted_unique_vertex_last)),
+                            handle.get_stream());
     auto max_rx_size = std::reduce(
       local_v_list_sizes.begin(), local_v_list_sizes.end(), size_t{0}, [](auto lhs, auto rhs) {
         return std::max(lhs, rhs);
@@ -717,21 +719,11 @@ void update_edge_minor_property(
       handle.sync_stream();
     }
 
-    std::vector<size_t> local_v_list_sizes(major_comm_size, 0);
-    std::vector<vertex_t> local_v_list_range_firsts(major_comm_size, 0);
-    std::vector<vertex_t> local_v_list_range_lasts(major_comm_size, 0);
-    {
-      std::vector<size_t> h_tmps(major_comm_size * size_t{3}, 0);
-      h_tmps[major_comm_rank * size_t{3}]     = v_list_size;
-      h_tmps[major_comm_rank * size_t{3} + 1] = static_cast<size_t>(v_list_range[0]);
-      h_tmps[major_comm_rank * size_t{3} + 2] = static_cast<size_t>(v_list_range[1]);
-      major_comm.host_allgather(h_tmps.data(), h_tmps.data(), size_t{3});
-      for (int i = 0; i < major_comm_size; ++i) {
-        local_v_list_sizes[i]        = h_tmps[i * size_t{3}];
-        local_v_list_range_firsts[i] = h_tmps[i * size_t{3} + 1];
-        local_v_list_range_lasts[i]  = h_tmps[i * size_t{3} + 2];
-      }
-    }
+    auto local_v_list_sizes = host_scalar_allgather(major_comm, v_list_size, handle.get_stream());
+    auto local_v_list_range_firsts =
+      host_scalar_allgather(major_comm, v_list_range[0], handle.get_stream());
+    auto local_v_list_range_lasts =
+      host_scalar_allgather(major_comm, v_list_range[1], handle.get_stream());
 
     std::optional<rmm::device_uvector<uint32_t>> v_list_bitmap{std::nullopt};
     if (major_comm_size > 1) {

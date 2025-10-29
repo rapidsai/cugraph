@@ -940,77 +940,60 @@ extract_transform_if_v_frontier_e(raft::handle_t const& handle,
     if constexpr (try_bitmap) {
       num_scalars += 2;  // local_frontier_range_first, local_frontier_range_last
     }
-    if (key_segment_offsets) { num_scalars += (*key_segment_offsets).size(); }
-    rmm::device_uvector<size_t> d_aggregate_tmps(minor_comm_size * num_scalars,
-                                                 handle.get_stream());
-    thrust::tabulate(
-      handle.get_thrust_policy(),
-      d_aggregate_tmps.begin() + num_scalars * minor_comm_rank,
-      d_aggregate_tmps.begin() + (num_scalars * minor_comm_rank + (try_bitmap ? 5 : 3)),
-      [frontier_key_first,
-       max_tmp_buffer_size,
-       approx_tmp_buffer_size_per_loop,
-       v_list_size =
-         static_cast<size_t>(cuda::std::distance(frontier_key_first, frontier_key_last)),
-       vertex_partition_range_first =
-         graph_view.local_vertex_partition_range_first()] __device__(size_t i) {
-        if (i == 0) {
-          return v_list_size;
-        } else if (i == 1) {
-          return max_tmp_buffer_size;
-        } else if (i == 2) {
-          return approx_tmp_buffer_size_per_loop;
+    size_t num_scalars_less_key_segment_offsets = num_scalars;
+    if (key_segment_offsets) { num_scalars += key_segment_offsets->size(); }
+    std::vector<size_t> h_aggregate_tmps(minor_comm_size * num_scalars);
+    auto key_list_size =
+      static_cast<size_t>(cuda::std::distance(frontier_key_first, frontier_key_last));
+    h_aggregate_tmps[minor_comm_rank * num_scalars]     = key_list_size;
+    h_aggregate_tmps[minor_comm_rank * num_scalars + 1] = max_tmp_buffer_size;
+    h_aggregate_tmps[minor_comm_rank * num_scalars + 2] = approx_tmp_buffer_size_per_loop;
+    if constexpr (try_bitmap) {
+      vertex_t range_first = graph_view.local_vertex_partition_range_first();
+      auto range_last      = range_first;
+      if (key_list_size > 0) {
+        auto h_staging_buffer_ptr = reinterpret_cast<vertex_t*>(h_staging_buffer.data());
+        assert(h_staging_buffer.size() >= size_t{2});
+        if constexpr (std::is_pointer_v<std::decay<decltype(frontier_key_first)>>) {
+          raft::update_host(
+            h_staging_buffer_ptr, frontier_key_first, size_t{1}, handle.get_stream());
+          raft::update_host(h_staging_buffer_ptr + 1,
+                            frontier_key_first + (key_list_size - 1),
+                            size_t{1},
+                            handle.get_stream());
+        } else {
+          rmm::device_uvector<vertex_t> tmps(2, handle.get_stream());
+          thrust::tabulate(handle.get_thrust_policy(),
+                           tmps.begin(),
+                           tmps.end(),
+                           cuda::proclaim_return_type<vertex_t>(
+                             [frontier_key_first, key_list_size] __device__(size_t i) {
+                               if (i == 0) {
+                                 return *frontier_key_first;
+                               } else {
+                                 assert(i == 1);
+                                 return *(frontier_key_first + (key_list_size - 1));
+                               }
+                             }));
+          raft::update_host(h_staging_buffer_ptr, tmps.data(), size_t{2}, handle.get_stream());
         }
-        if constexpr (try_bitmap) {
-          if (i == 3) {
-            vertex_t first{};
-            if (v_list_size > 0) {
-              first = *frontier_key_first;
-            } else {
-              first = vertex_partition_range_first;
-            }
-            assert(static_cast<vertex_t>(static_cast<size_t>(first)) == first);
-            return static_cast<size_t>(first);
-          } else if (i == 4) {
-            assert(i == 4);
-            vertex_t last{};
-            if (v_list_size > 0) {
-              last = *(frontier_key_first + (v_list_size - 1)) + 1;
-            } else {
-              last = vertex_partition_range_first;
-            }
-            assert(static_cast<vertex_t>(static_cast<size_t>(last)) == last);
-            return static_cast<size_t>(last);
-          }
-        }
-        assert(false);
-        return size_t{0};
-      });
-
-    auto h_staging_buffer_ptr = reinterpret_cast<size_t*>(h_staging_buffer.data());
-
+        handle.sync_stream();
+        range_first = h_staging_buffer_ptr[0];
+        range_last  = h_staging_buffer_ptr[1] + 1;
+      }
+      h_aggregate_tmps[minor_comm_rank * num_scalars + 3] = static_cast<size_t>(range_first);
+      h_aggregate_tmps[minor_comm_rank * num_scalars + 4] = static_cast<size_t>(range_last);
+    }
     if (key_segment_offsets) {
-      assert(h_staging_buffer.size() >= key_segment_offsets->size());
-      std::copy(key_segment_offsets->begin(), key_segment_offsets->end(), h_staging_buffer_ptr);
-      raft::update_device(
-        d_aggregate_tmps.data() + (minor_comm_rank * num_scalars + (try_bitmap ? 5 : 3)),
-        h_staging_buffer_ptr,
-        key_segment_offsets->size(),
-        handle.get_stream());
+      std::copy(key_segment_offsets->begin(),
+                key_segment_offsets->end(),
+                h_aggregate_tmps.begin() +
+                  (minor_comm_rank * num_scalars + num_scalars_less_key_segment_offsets));
     }
 
     if (minor_comm_size > 1) {
-      device_allgather(minor_comm,
-                       d_aggregate_tmps.data() + minor_comm_rank * num_scalars,
-                       d_aggregate_tmps.data(),
-                       num_scalars,
-                       handle.get_stream());
+      minor_comm.host_allgather(h_aggregate_tmps.data(), h_aggregate_tmps.data(), num_scalars);
     }
-
-    assert(h_staging_buffer.size() >= d_aggregate_tmps.size());
-    raft::update_host(
-      h_staging_buffer_ptr, d_aggregate_tmps.data(), d_aggregate_tmps.size(), handle.get_stream());
-    handle.sync_stream();
     local_frontier_sizes                    = std::vector<size_t>(minor_comm_size);
     max_tmp_buffer_sizes                    = std::vector<size_t>(minor_comm_size);
     tmp_buffer_size_per_loop_approximations = std::vector<size_t>(minor_comm_size);
@@ -1023,20 +1006,20 @@ extract_transform_if_v_frontier_e(raft::handle_t const& handle,
       key_segment_offset_vectors->reserve(minor_comm_size);
     }
     for (int i = 0; i < minor_comm_size; ++i) {
-      local_frontier_sizes[i]                    = h_staging_buffer_ptr[i * num_scalars];
-      max_tmp_buffer_sizes[i]                    = h_staging_buffer_ptr[i * num_scalars + 1];
-      tmp_buffer_size_per_loop_approximations[i] = h_staging_buffer_ptr[i * num_scalars + 2];
+      local_frontier_sizes[i]                    = h_aggregate_tmps[i * num_scalars];
+      max_tmp_buffer_sizes[i]                    = h_aggregate_tmps[i * num_scalars + 1];
+      tmp_buffer_size_per_loop_approximations[i] = h_aggregate_tmps[i * num_scalars + 2];
       if constexpr (try_bitmap) {
         local_frontier_range_firsts[i] =
-          static_cast<vertex_t>(h_staging_buffer_ptr[i * num_scalars + 3]);
+          static_cast<vertex_t>(h_aggregate_tmps[i * num_scalars + 3]);
         local_frontier_range_lasts[i] =
-          static_cast<vertex_t>(h_staging_buffer_ptr[i * num_scalars + 4]);
+          static_cast<vertex_t>(h_aggregate_tmps[i * num_scalars + 4]);
       }
       if (key_segment_offsets) {
         key_segment_offset_vectors->emplace_back(
-          h_staging_buffer_ptr + (i * num_scalars + (try_bitmap ? 5 : 3)),
-          h_staging_buffer_ptr +
-            (i * num_scalars + (try_bitmap ? 5 : 3) + (*key_segment_offsets).size()));
+          h_aggregate_tmps.begin() + (i * num_scalars + num_scalars_less_key_segment_offsets),
+          h_aggregate_tmps.begin() +
+            (i * num_scalars + num_scalars_less_key_segment_offsets + key_segment_offsets->size()));
       }
     }
   } else {

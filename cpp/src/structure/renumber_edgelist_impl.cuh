@@ -632,11 +632,8 @@ compute_renumber_map(raft::handle_t const& handle,
 
     assert(edgelist_majors.size() == minor_comm_size);
 
-    std::vector<size_t> edge_partition_major_range_sizes(minor_comm.get_size(), 0);
-    edge_partition_major_range_sizes[minor_comm_rank] = sorted_local_vertices.size();
-    minor_comm.host_allgather(
-      edge_partition_major_range_sizes.data(), edge_partition_major_range_sizes.data(), size_t{1});
-
+    auto edge_partition_major_range_sizes =
+      host_scalar_allgather(minor_comm, sorted_local_vertices.size(), handle.get_stream());
     for (int i = 0; i < minor_comm_size; ++i) {
       auto sorted_majors =
         large_vertex_buffer_type
