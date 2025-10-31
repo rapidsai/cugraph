@@ -1,15 +1,5 @@
-# Copyright (c) 2021-2025, NVIDIA CORPORATION.
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
+# SPDX-License-Identifier: Apache-2.0
 
 from cugraph.structure import graph_primtypes_wrapper
 from cugraph.structure.replicate_edgelist import replicate_cudf_dataframe
@@ -937,9 +927,8 @@ class simpleGraphImpl:
             df_["vertex"] = vertices
             df_ = self.renumber_map.unrenumber(df_, "vertex")
             if len(df_.columns) > 1:
-                vertices = df_
-            else:
-                vertices = df_["vertex"]
+                return df_.sort_values(df_.columns, ignore_index=True)
+            vertices = df_["vertex"]
 
         return vertices.sort_values(ignore_index=True)
 
@@ -1545,7 +1534,7 @@ class simpleGraphImpl:
         If multi columns vertices, return a cudf.DataFrame.
         """
         if self.edgelist is not None:
-            return self.extract_vertex_list(return_unrenumbered_vertices=False)
+            return self.extract_vertex_list(return_unrenumbered_vertices=True)
         if self.adjlist is not None:
             return cudf.Series(np.arange(0, self.number_of_nodes()))
 

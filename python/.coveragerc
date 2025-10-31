@@ -1,10 +1,8 @@
 # Configuration file for Python coverage tests
 [run]
 include = cugraph/cugraph/*
-          cugraph-service/*
           pylibcugraph/pylibcugraph/*
 omit = cugraph/cugraph/tests/*
-       cugraph-service/tests/*
        pylibcugraph/pylibcugraph/tests/*
 disable_warnings = include-ignored
                    module-not-measured

@@ -15,7 +15,6 @@ Property Graph enables:
 * Subgraph extractions based on properties and/or edge and node types as seen below.
 * Storage of properties either within the graph structure on gpu or using GNN-centric storage extensions on host storage.
 * Adding additional properties, nodes and edges into the property graph to store derived data like analytic results.
-* Client access managed by a remote server allowing shared access and remote operations using [CuGraph Service](./cugraph_service.md).
 
 This is an example of using the cuGraph Property Graph in a two stage analysis.
 

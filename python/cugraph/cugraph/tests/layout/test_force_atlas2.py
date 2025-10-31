@@ -1,15 +1,5 @@
-# Copyright (c) 2020-2025, NVIDIA CORPORATION.
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# SPDX-FileCopyrightText: Copyright (c) 2020-2025, NVIDIA CORPORATION.
+# SPDX-License-Identifier: Apache-2.0
 
 import time
 import pytest
@@ -76,6 +66,7 @@ def cugraph_call(
     vertex_mass,
     callback=None,
     renumber=False,
+    vertices=None,
 ):
     G = cugraph.Graph()
     if cu_M["src"] is not int or cu_M["dst"] is not int:
@@ -83,7 +74,12 @@ def cugraph_call(
     else:
         renumber = False
     G.from_cudf_edgelist(
-        cu_M, source="src", destination="dst", edge_attr="wgt", renumber=renumber
+        cu_M,
+        source="src",
+        destination="dst",
+        edge_attr="wgt",
+        renumber=renumber,
+        vertices=vertices,
     )
 
     t1 = time.time()
@@ -127,11 +123,11 @@ DATASETS2 = [
 ]
 
 DATASETS_NOVERLAP = [
-    (karate, 10.0, 50),
-    (polbooks, 10.0, 90),
-    (dolphins, 10.0, 60),
-    (netscience, 10.0, 1100),
-    (dining_prefs, 10.0, 20),
+    (karate, 10.0, 100),
+    (polbooks, 10.0, 200),
+    (dolphins, 10.0, 110),
+    (netscience, 5.0, 700),
+    (dining_prefs, 10.0, 80),
 ]
 
 DATASETS_MOBILITY = [
@@ -144,6 +140,7 @@ DATASETS_MOBILITY = [
 
 
 MAX_ITERATIONS = [500]
+NOVERLAP_MAX_ITERATIONS = [5000]
 BARNES_HUT_OPTIMIZE = [False, True]
 MOBILITY_FIXED_CNT = [5, 12]
 
@@ -226,8 +223,11 @@ def test_force_atlas2(graph_file, score, max_iter, barnes_hut_optimize):
 
 @pytest.mark.sg
 @pytest.mark.parametrize("graph_file, radius, max_overlaps", DATASETS_NOVERLAP)
-@pytest.mark.parametrize("max_iter", MAX_ITERATIONS)
-def test_force_atlas2_noverlap(graph_file, radius, max_overlaps, max_iter):
+@pytest.mark.parametrize("max_iter", NOVERLAP_MAX_ITERATIONS)
+@pytest.mark.parametrize("barnes_hut_optimize", BARNES_HUT_OPTIMIZE)
+def test_force_atlas2_noverlap(
+    graph_file, radius, max_overlaps, max_iter, barnes_hut_optimize
+):
     """
     All vertices are given the same radius. After running FA2 with
     prevent_overlapping enabled, the number of pairs of overlapping
@@ -256,6 +256,8 @@ def test_force_atlas2_noverlap(graph_file, radius, max_overlaps, max_iter):
         }
     )
 
+    vertex_radius = vertex_radius.astype({"radius": "float32"})
+
     cu_pos = cugraph_call(
         cu_M,
         max_iter=max_iter,
@@ -267,7 +269,7 @@ def test_force_atlas2_noverlap(graph_file, radius, max_overlaps, max_iter):
         overlap_scaling_ratio=100.0,
         edge_weight_influence=1.0,
         jitter_tolerance=1.0,
-        barnes_hut_optimize=False,
+        barnes_hut_optimize=barnes_hut_optimize,
         barnes_hut_theta=0.5,
         scaling_ratio=2.0,
         strong_gravity_mode=False,
@@ -300,6 +302,7 @@ def test_force_atlas2_mobility(graph_file, max_iter, fixed_node_cnt):
     random.shuffle(mobility)
 
     mobility_df = cudf.DataFrame({"vertex": vertices, "mobility": mobility})
+    mobility_df = mobility_df.astype({"mobility": "float32"})
 
     # Initial layout without mobility
     pos_1 = cugraph_call(
@@ -442,3 +445,71 @@ def test_force_atlas2_mass(max_iter, barnes_hut_optimize):
     assert distances[0, 3] / distances[0, 2] > 4.0
     assert distances[1, 3] / distances[1, 0] > 4.0
     assert distances[2, 3] / distances[2, 0] > 4.0
+
+
+@pytest.mark.sg
+@pytest.mark.parametrize("max_iter", MAX_ITERATIONS)
+@pytest.mark.parametrize("barnes_hut_optimize", BARNES_HUT_OPTIMIZE)
+def test_force_atlas2_empty(max_iter, barnes_hut_optimize):
+    # FA2 with vertices but no edges has a repulsive force and gravity
+    # towards the center of mass, but no attraction along edges.
+    # With four vertices, we could hope that the final positions
+    # form a rectangle, but in practice there is a lot of variation.
+    # Instead, this test simply tests whether gravity works as expected.
+    edgelist_df = cudf.DataFrame({"src": [], "dst": [], "wgt": []}, dtype="int32")
+    vertices = [0, 1, 2, 3]
+    gravity = 1.0
+    pos_1 = cugraph_call(
+        edgelist_df,
+        max_iter=max_iter,
+        pos_list=None,
+        outbound_attraction_distribution=True,
+        lin_log_mode=False,
+        prevent_overlapping=False,
+        vertex_radius=None,
+        overlap_scaling_ratio=100.0,
+        edge_weight_influence=1.0,
+        jitter_tolerance=1.0,
+        barnes_hut_optimize=barnes_hut_optimize,
+        barnes_hut_theta=0.5,
+        scaling_ratio=2.0,
+        strong_gravity_mode=False,
+        gravity=gravity,
+        vertex_mobility=None,
+        vertex_mass=None,
+        callback=None,
+        vertices=vertices,
+    )
+    # Changing gravity should change the distances apart.
+    # Compare average distance from center of mass.
+    dist_1 = (
+        ((pos_1[["x", "y"]] - pos_1[["x", "y"]].mean()) ** 2).sum(axis=1) ** 0.5
+    ).mean()
+
+    gravity = 100.0
+    pos_100 = cugraph_call(
+        edgelist_df,
+        max_iter=max_iter,
+        pos_list=None,
+        outbound_attraction_distribution=True,
+        lin_log_mode=False,
+        prevent_overlapping=False,
+        vertex_radius=None,
+        overlap_scaling_ratio=100.0,
+        edge_weight_influence=1.0,
+        jitter_tolerance=1.0,
+        barnes_hut_optimize=barnes_hut_optimize,
+        barnes_hut_theta=0.5,
+        scaling_ratio=2.0,
+        strong_gravity_mode=False,
+        gravity=gravity,
+        vertex_mobility=None,
+        vertex_mass=None,
+        callback=None,
+        vertices=vertices,
+    )
+    dist_100 = (
+        ((pos_100[["x", "y"]] - pos_100[["x", "y"]].mean()) ** 2).sum(axis=1) ** 0.5
+    ).mean()
+    # Stronger gravity makes vertices closer together.
+    assert dist_1 > 4 * dist_100
