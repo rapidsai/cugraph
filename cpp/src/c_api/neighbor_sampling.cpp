@@ -352,19 +352,19 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
         if (sampled_edge_type) { output_edge_properties.push_back(std::move(*sampled_edge_type)); }
 
         std::tie(sampled_srcs, sampled_dsts, output_edge_properties, label_hop_offsets) =
-          cugraph::sort_sampled_edgelist(handle_,
-                                         std::move(sampled_srcs),
-                                         std::move(sampled_dsts),
-                                         std::move(output_edge_properties),
-                                         std::move(hop),
-                                         offsets
-                                           ? std::make_optional(raft::device_span<size_t const>{
-                                               offsets->data(), offsets->size()})
-                                           : std::nullopt,
-                                         edge_label ? edge_label->size() : size_t{1},
-                                         hop ? fan_out_->size_ : size_t{1},
-                                         src_is_major,
-                                         do_expensive_check_);
+          cugraph::sort_sampled_edgelist(
+            handle_,
+            std::move(sampled_srcs),
+            std::move(sampled_dsts),
+            std::move(output_edge_properties),
+            std::move(hop),
+            offsets ? std::make_optional(
+                        raft::device_span<size_t const>{offsets->data(), offsets->size()})
+                    : std::nullopt,
+            edge_label ? edge_label->size() : size_t{1},  // wrong value...
+            hop ? fan_out_->size_ : size_t{1},
+            src_is_major,
+            do_expensive_check_);
 
         majors.emplace(std::move(sampled_srcs));
         minors = std::move(sampled_dsts);
@@ -1083,9 +1083,9 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
               raft::host_span<const int>(fan_out_->as_type<const int>(), fan_out_->size_),
               num_edge_types_,
               cugraph::sampling_flags_t{options_.prior_sources_behavior_,
-                                        options_.return_hops_,
-                                        options_.dedupe_sources_,
-                                        options_.with_replacement_},
+                                        options_.return_hops_ == TRUE,
+                                        options_.dedupe_sources_ == TRUE,
+                                        options_.with_replacement_ == TRUE},
               do_expensive_check_);
         } else {
           std::tie(sampled_srcs,
@@ -1113,9 +1113,9 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
               raft::host_span<const int>(fan_out_->as_type<const int>(), fan_out_->size_),
               num_edge_types_,
               cugraph::sampling_flags_t{options_.prior_sources_behavior_,
-                                        options_.return_hops_,
-                                        options_.dedupe_sources_,
-                                        options_.with_replacement_},
+                                        options_.return_hops_ == TRUE,
+                                        options_.dedupe_sources_ == TRUE,
+                                        options_.with_replacement_ == TRUE},
               do_expensive_check_);
         }
       } else {
@@ -1146,9 +1146,9 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
                                  : std::nullopt,
               raft::host_span<const int>(fan_out_->as_type<const int>(), fan_out_->size_),
               cugraph::sampling_flags_t{options_.prior_sources_behavior_,
-                                        options_.return_hops_,
-                                        options_.dedupe_sources_,
-                                        options_.with_replacement_},
+                                        options_.return_hops_ == TRUE,
+                                        options_.dedupe_sources_ == TRUE,
+                                        options_.with_replacement_ == TRUE},
               do_expensive_check_);
         } else {
           std::tie(sampled_srcs,
@@ -1175,9 +1175,9 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
                                  : std::nullopt,
               raft::host_span<const int>(fan_out_->as_type<const int>(), fan_out_->size_),
               cugraph::sampling_flags_t{options_.prior_sources_behavior_,
-                                        options_.return_hops_,
-                                        options_.dedupe_sources_,
-                                        options_.with_replacement_},
+                                        options_.return_hops_ == TRUE,
+                                        options_.dedupe_sources_ == TRUE,
+                                        options_.with_replacement_ == TRUE},
               do_expensive_check_);
         }
       }
@@ -1898,7 +1898,7 @@ cugraph_error_code_t cugraph_homogeneous_biased_neighbor_sample(
     "edge_biases is required if the graph is not weighted",
     *error);
 
-  // FIXME: Should we maintain this contition?
+  // FIXME: Should we maintain this condition?
   CAPI_EXPECTS((!options_cpp.retain_seeds_) || (starting_vertex_label_offsets != nullptr),
                CUGRAPH_INVALID_INPUT,
                "must specify starting_vertex_label_offsets if retain_seeds is true",

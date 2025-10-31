@@ -25,6 +25,7 @@
 
 #include <rmm/device_uvector.hpp>
 
+#include <thrust/binary_search.h>
 #include <thrust/count.h>
 #include <thrust/gather.h>
 #include <thrust/sort.h>
@@ -43,11 +44,14 @@ shuffle_and_organize_output(
   std::vector<cugraph::arithmetic_device_uvector_t>&& property_edges,
   std::optional<rmm::device_uvector<int32_t>>&& labels,
   std::optional<rmm::device_uvector<int32_t>>&& hops,
+  std::optional<raft::device_span<int32_t const>> input_labels,
+  std::optional<int32_t> input_hops,
   std::optional<raft::device_span<int32_t const>> label_to_output_comm_rank)
 {
   std::optional<rmm::device_uvector<size_t>> offsets{std::nullopt};
 
   if (labels) {
+    CUGRAPH_EXPECTS(input_labels, "input_labels must be provided if labels are provided");
     if (label_to_output_comm_rank) {
       indirection_t<int32_t, int32_t const*> key_to_gpu_op{label_to_output_comm_rank->begin()};
 
@@ -141,25 +145,31 @@ shuffle_and_organize_output(
         });
       });
 
+    // Need to generate offsets for each unique label (not each seed)
+    rmm::device_uvector<int32_t> unique_labels(input_labels->size(), handle.get_stream());
+    raft::copy(
+      unique_labels.data(), input_labels->data(), unique_labels.size(), handle.get_stream());
+    thrust::sort(handle.get_thrust_policy(), unique_labels.begin(), unique_labels.end());
+    auto unique_end =
+      thrust::unique(handle.get_thrust_policy(), unique_labels.begin(), unique_labels.end());
     size_t num_unique_labels =
-      thrust::count_if(handle.get_thrust_policy(),
-                       thrust::make_counting_iterator<size_t>(0),
-                       thrust::make_counting_iterator<size_t>(labels->size()),
-                       is_first_in_run_t<int32_t const*>{labels->data()});
+      static_cast<size_t>(thrust::distance(unique_labels.begin(), unique_end));
 
-    rmm::device_uvector<int32_t> unique_labels(num_unique_labels, handle.get_stream());
+    unique_labels.resize(num_unique_labels, handle.get_stream());
     offsets = rmm::device_uvector<size_t>(num_unique_labels + 1, handle.get_stream());
 
-    thrust::reduce_by_key(handle.get_thrust_policy(),
-                          labels->begin(),
-                          labels->end(),
-                          thrust::make_constant_iterator(size_t{1}),
-                          unique_labels.begin(),
-                          offsets->begin());
+    thrust::transform(
+      handle.get_thrust_policy(),
+      unique_labels.begin(),
+      unique_labels.end(),
+      offsets->begin(),
+      [d_labels = labels->data(), labels_size = labels->size()] __device__(int32_t label) {
+        return thrust::distance(
+          d_labels, thrust::lower_bound(thrust::seq, d_labels, d_labels + labels_size, label));
+      });
 
-    thrust::exclusive_scan(
-      handle.get_thrust_policy(), offsets->begin(), offsets->end(), offsets->begin());
-    labels = std::move(unique_labels);
+    size_t last_offset = labels->size();
+    offsets->set_element_async(num_unique_labels, last_offset, handle.get_stream());
   }
 
   return std::make_tuple(

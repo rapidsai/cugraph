@@ -656,6 +656,8 @@ cugraph_error_code_t cugraph_heterogeneous_biased_neighbor_sample(
  * @param [in]  temporal_property_name Name associated with the edge property in the graph that
  * should be used as the time.  Currently unused.
  * @param [in]  start_vertices Device array of start vertices for the sampling
+ * @param [in]  starting_vertex_times Optional device span of times associated with each starting
+ * vertex for the sampling.
  * @param [in]  starting_vertex_label_offsets Device array of the offsets for each label in
  * the seed list. This parameter is only used with the retain_seeds option.
  * @param [in]  fan_out       Host array defining the fan out at each step in the sampling
@@ -675,6 +677,7 @@ cugraph_error_code_t cugraph_homogeneous_uniform_temporal_neighbor_sample(
   cugraph_graph_t* graph,
   const char* temporal_property_name,
   const cugraph_type_erased_device_array_view_t* start_vertices,
+  const cugraph_type_erased_device_array_view_t* starting_vertex_times,
   const cugraph_type_erased_device_array_view_t* starting_vertex_label_offsets,
   const cugraph_type_erased_host_array_view_t* fan_out,
   const cugraph_sampling_options_t* sampling_options,
@@ -708,6 +711,8 @@ cugraph_error_code_t cugraph_homogeneous_uniform_temporal_neighbor_sample(
  * @param [in]  edge_biases  Device array of edge biases to use for sampling.  If NULL
  * use the edge weight as the bias. If set to NULL, edges will be sampled uniformly.
  * @param [in]  start_vertices Device array of start vertices for the sampling
+ * @param [in]  starting_vertex_times Optional device span of times associated with each starting
+ * vertex for the sampling.
  * @param [in]  starting_vertex_label_offsets Device array of the offsets for each label in
  * the seed list. This parameter is only used with the retain_seeds option.
  * @param [in]  fan_out       Host array defining the fan out at each step in the sampling
@@ -728,6 +733,7 @@ cugraph_error_code_t cugraph_homogeneous_biased_temporal_neighbor_sample(
   const char* temporal_property_name,
   const cugraph_edge_property_view_t* edge_biases,
   const cugraph_type_erased_device_array_view_t* start_vertices,
+  const cugraph_type_erased_device_array_view_t* starting_vertex_times,
   const cugraph_type_erased_device_array_view_t* starting_vertex_label_offsets,
   const cugraph_type_erased_host_array_view_t* fan_out,
   const cugraph_sampling_options_t* sampling_options,
@@ -759,6 +765,8 @@ cugraph_error_code_t cugraph_homogeneous_biased_temporal_neighbor_sample(
  * @param [in]  temporal_property_name Name associated with the edge property in the graph that
  * should be used as the time.  Currently unused.
  * @param [in]  start_vertices Device array of start vertices for the sampling
+ * @param [in]  starting_vertex_times Optional device span of times associated with each starting
+ * vertex for the sampling.
  * @param [in]  starting_vertex_label_offsets Device array of the offsets for each label in
  * the seed list. This parameter is only used with the retain_seeds option.
  * @param [in]  vertex_type_offsets Device array of the offsets for each vertex type in the
@@ -782,6 +790,7 @@ cugraph_error_code_t cugraph_heterogeneous_uniform_temporal_neighbor_sample(
   cugraph_graph_t* graph,
   const char* temporal_property_name,
   const cugraph_type_erased_device_array_view_t* start_vertices,
+  const cugraph_type_erased_device_array_view_t* starting_vertex_times,
   const cugraph_type_erased_device_array_view_t* starting_vertex_label_offsets,
   const cugraph_type_erased_device_array_view_t* vertex_type_offsets,
   const cugraph_type_erased_host_array_view_t* fan_out,
@@ -817,6 +826,8 @@ cugraph_error_code_t cugraph_heterogeneous_uniform_temporal_neighbor_sample(
  * @param [in]  edge_biases  Device array of edge biases to use for sampling.  If NULL
  * use the edge weight as the bias. If set to NULL, edges will be sampled uniformly.
  * @param [in]  start_vertices Device array of start vertices for the sampling
+ * @param [in]  starting_vertex_times Optional device span of times associated with each starting
+ * vertex for the sampling.
  * @param [in]  starting_vertex_label_offsets Device array of the offsets for each label in
  * the seed list. This parameter is only used with the retain_seeds option.
  * @param [in]  vertex_type_offsets Device array of the offsets for each vertex type in the
@@ -841,6 +852,7 @@ cugraph_error_code_t cugraph_heterogeneous_biased_temporal_neighbor_sample(
   const char* temporal_property_name,
   const cugraph_edge_property_view_t* edge_biases,
   const cugraph_type_erased_device_array_view_t* start_vertices,
+  const cugraph_type_erased_device_array_view_t* starting_vertex_times,
   const cugraph_type_erased_device_array_view_t* starting_vertex_label_offsets,
   const cugraph_type_erased_device_array_view_t* vertex_type_offsets,
   const cugraph_type_erased_host_array_view_t* fan_out,

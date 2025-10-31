@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, NVIDIA CORPORATION.
+ * Copyright (c) 2024-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,7 +24,12 @@ namespace detail {
 rmm::device_uvector<int32_t> convert_starting_vertex_label_offsets_to_labels(
   raft::handle_t const& handle, raft::device_span<size_t const> starting_vertex_label_offsets)
 {
+  auto labels =
+    expand_sparse_offsets(starting_vertex_label_offsets, int32_t{0}, handle.get_stream());
+  return labels;
+#if 0
   return expand_sparse_offsets(starting_vertex_label_offsets, int32_t{0}, handle.get_stream());
+#endif
 }
 
 template <typename label_t>

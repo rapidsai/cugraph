@@ -17,9 +17,11 @@
 #include <cugraph_c/error.h>
 #include <cugraph_c/graph.h>
 #include <cugraph_c/resource_handle.h>
+#include <cugraph_c/sampling_algorithms.h>
 
 #include <cuda_runtime_api.h>
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <time.h>
 
@@ -105,6 +107,26 @@ int create_sg_test_graph(const cugraph_resource_handle_t* handle,
                          cugraph_error_t** ret_error);
 
 size_t cugraph_size_t_allreduce(const cugraph_resource_handle_t* handle, size_t value);
+
+int validate_sample_result(const cugraph_resource_handle_t* handle,
+                           const cugraph_sample_result_t* result,
+                           int32_t* h_src,
+                           int32_t* h_dst,
+                           float* h_wgt,
+                           int32_t* h_edge_ids,
+                           int32_t* h_edge_types,
+                           int32_t* h_edge_start_times,
+                           int32_t* h_edge_end_times,
+                           size_t num_vertices,
+                           size_t num_edge,
+                           int32_t* h_start_vertices,
+                           size_t num_start_vertices,
+                           size_t* h_start_label_offsets,
+                           size_t num_start_label_offsets,
+                           int32_t* h_fan_out,
+                           size_t fan_out_size,
+                           cugraph_sampling_options_t* sampling_options,
+                           bool validate_edge_times);
 
 #ifdef __cplusplus
 }

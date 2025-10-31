@@ -555,6 +555,7 @@ temporal_gather_one_hop_edgelist(
                                      return (edge_time <= key_time);
                                  }
                                  assert(false);
+                                 return false;
                                })
         : detail::mark_entries(handle,
                                edge_times.size(),
@@ -575,6 +576,7 @@ temporal_gather_one_hop_edgelist(
                                      return (edge_time <= key_time);
                                  }
                                  assert(false);
+                                 return false;
                                });
 
     raft::device_span<uint32_t const> marked_entry_span{marked_entries.data(),
