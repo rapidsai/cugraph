@@ -332,6 +332,8 @@ shuffle_and_organize_output(
   std::vector<cugraph::arithmetic_device_uvector_t>&& property_edges,
   std::optional<rmm::device_uvector<int32_t>>&& labels,
   std::optional<rmm::device_uvector<int32_t>>&& hops,
+  std::optional<raft::device_span<int32_t const>> input_labels,
+  std::optional<int32_t> input_hops,
   std::optional<raft::device_span<int32_t const>> label_to_output_comm_rank);
 
 /**

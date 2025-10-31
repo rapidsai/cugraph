@@ -87,6 +87,7 @@ target_link_libraries(cugraph_c_testutil
     PRIVATE
         cugraph::cugraph_c
         cugraph::cugraph
+        cugraphtestutil
 )
 
 if(BUILD_CUGRAPH_MG_TESTS)
