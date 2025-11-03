@@ -105,10 +105,9 @@ def test_spectral_balanced_cut_clustering_deprecation_warning():
     G = karate.get_graph(
         create_using=cugraph.Graph(directed=False), ignore_weights=True
     )
-    warnings.warn(
+    warning_msg = (
         "spectralBalancedCutClustering is deprecated and will be removed in a future "
-        "release. Use spectralModularityMaximizationClustering instead.",
-        DeprecationWarning,
+        "release. Use spectralModularityMaximizationClustering instead."
     )
 
     with pytest.warns(DeprecationWarning, match=warning_msg):
