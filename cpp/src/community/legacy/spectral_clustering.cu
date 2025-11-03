@@ -69,7 +69,7 @@ void balancedCutClustering_impl(raft::handle_t const& handle,
   
   // Copy destination indices (already in COO format)
   raft::copy(dst_indices.data(), graph.indices, graph.number_of_edges, handle.get_stream());
-  
+
   // Convert CSR row offsets to COO source indices
   raft::sparse::convert::csr_to_coo<vertex_t>(
     graph.offsets, 
