@@ -79,8 +79,8 @@ def spectralBalancedCutClustering(
 
     """
     warnings.warn(
-        "spectralBalancedCutClustering is deprecated and will be removed in a future release. "
-        "Use spectralModularityMaximizationClustering instead.",
+        "spectralBalancedCutClustering is deprecated and will be removed in a future "
+        "release. Use spectralModularityMaximizationClustering instead.",
         DeprecationWarning,
     )
 

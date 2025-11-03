@@ -8,20 +8,20 @@
 #include <cugraph/legacy/graph.hpp>
 #include <cugraph/utilities/error.hpp>
 
-#include <raft/random/rng_state.hpp>
-#include <raft/spectral/modularity_maximization.cuh>
-#include <raft/spectral/partition.cuh>
 #include <raft/core/copy.hpp>
+#include <raft/random/rng_state.hpp>
 #include <raft/sparse/convert/coo.cuh>
 #include <raft/sparse/convert/csr.cuh>
-
-#include <cuvs/cluster/spectral.hpp>
-#include <cuvs/preprocessing/spectral_embedding.hpp>
+#include <raft/spectral/modularity_maximization.cuh>
+#include <raft/spectral/partition.cuh>
 
 #include <rmm/device_vector.hpp>
 #include <rmm/exec_policy.hpp>
 
 #include <thrust/transform.h>
+
+#include <cuvs/cluster/spectral.hpp>
+#include <cuvs/preprocessing/spectral_embedding.hpp>
 
 #include <ctime>
 
@@ -66,23 +66,25 @@ void balancedCutClustering_impl(raft::handle_t const& handle,
   // Convert CSR to COO using raft::sparse::convert::csr_to_coo
   rmm::device_uvector<vertex_t> src_indices(graph.number_of_edges, handle.get_stream());
   rmm::device_uvector<vertex_t> dst_indices(graph.number_of_edges, handle.get_stream());
-  
+
   // Copy destination indices (already in COO format)
   raft::copy(dst_indices.data(), graph.indices, graph.number_of_edges, handle.get_stream());
 
   // Convert CSR row offsets to COO source indices
-  raft::sparse::convert::csr_to_coo<vertex_t>(
-    graph.offsets, 
-    static_cast<vertex_t>(graph.number_of_vertices), 
-    src_indices.data(), 
-    static_cast<edge_t>(graph.number_of_edges), 
-    handle.get_stream());
-  
+  raft::sparse::convert::csr_to_coo<vertex_t>(graph.offsets,
+                                              static_cast<vertex_t>(graph.number_of_vertices),
+                                              src_indices.data(),
+                                              static_cast<edge_t>(graph.number_of_edges),
+                                              handle.get_stream());
+
   // Create coordinate structure view from converted COO data
   auto coord_view = raft::make_device_coordinate_structure_view<vertex_t, vertex_t, vertex_t>(
-    src_indices.data(), dst_indices.data(), 
-    graph.number_of_vertices, graph.number_of_vertices, graph.number_of_edges);
-    
+    src_indices.data(),
+    dst_indices.data(),
+    graph.number_of_vertices,
+    graph.number_of_vertices,
+    graph.number_of_edges);
+
   // Create COO matrix view using coordinate structure view and CSR edge data
   auto coo_matrix = raft::make_device_coo_matrix_view<weight_t>(graph.edge_data, coord_view);
 
@@ -91,24 +93,24 @@ void balancedCutClustering_impl(raft::handle_t const& handle,
 
   raft::random::uniformInt<unsigned long long>(
     rng_state, d_seed.data(), 1, 0, std::numeric_limits<vertex_t>::max() - 1, handle.get_stream());
-  
+
   unsigned long long seed{0};
   raft::update_host(&seed, d_seed.data(), d_seed.size(), handle.get_stream());
-  
+
   cuvs::cluster::spectral::params params;
-  
-  params.rng_state = rng_state;
+
+  params.rng_state    = rng_state;
   params.n_clusters   = n_clusters;
   params.n_components = n_eig_vects;
   params.n_init       = 10;  // Multiple initializations for better results
-  params.n_neighbors  = std::min(static_cast<int>(graph.number_of_vertices) - 1, 15);  // Adaptive neighbor count
+  params.n_neighbors =
+    std::min(static_cast<int>(graph.number_of_vertices) - 1, 15);  // Adaptive neighbor count
 
   cuvs::cluster::spectral::fit_predict(
     handle,
     params,
     coo_matrix,
     raft::make_device_vector_view<vertex_t, vertex_t>(clustering, graph.number_of_vertices));
-
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>
@@ -147,23 +149,25 @@ void spectralModularityMaximization_impl(
   // Convert CSR to COO using raft::sparse::convert::csr_to_coo
   rmm::device_uvector<vertex_t> src_indices(graph.number_of_edges, handle.get_stream());
   rmm::device_uvector<vertex_t> dst_indices(graph.number_of_edges, handle.get_stream());
-  
+
   // Copy destination indices (already in COO format)
   raft::copy(dst_indices.data(), graph.indices, graph.number_of_edges, handle.get_stream());
-  
+
   // Convert CSR row offsets to COO source indices
-  raft::sparse::convert::csr_to_coo<vertex_t>(
-    graph.offsets, 
-    static_cast<vertex_t>(graph.number_of_vertices), 
-    src_indices.data(), 
-    static_cast<edge_t>(graph.number_of_edges), 
-    handle.get_stream());
-  
+  raft::sparse::convert::csr_to_coo<vertex_t>(graph.offsets,
+                                              static_cast<vertex_t>(graph.number_of_vertices),
+                                              src_indices.data(),
+                                              static_cast<edge_t>(graph.number_of_edges),
+                                              handle.get_stream());
+
   // Create coordinate structure view from converted COO data
   auto coord_view = raft::make_device_coordinate_structure_view<vertex_t, vertex_t, vertex_t>(
-    src_indices.data(), dst_indices.data(), 
-    graph.number_of_vertices, graph.number_of_vertices, graph.number_of_edges);
-    
+    src_indices.data(),
+    dst_indices.data(),
+    graph.number_of_vertices,
+    graph.number_of_vertices,
+    graph.number_of_edges);
+
   // Create COO matrix view using coordinate structure view and CSR edge data
   auto coo_matrix = raft::make_device_coo_matrix_view<weight_t>(graph.edge_data, coord_view);
 
@@ -172,17 +176,18 @@ void spectralModularityMaximization_impl(
 
   raft::random::uniformInt<unsigned long long>(
     rng_state, d_seed.data(), 1, 0, std::numeric_limits<vertex_t>::max() - 1, handle.get_stream());
-  
+
   unsigned long long seed{0};
   raft::update_host(&seed, d_seed.data(), d_seed.size(), handle.get_stream());
-  
+
   cuvs::cluster::spectral::params params;
-  
-  params.rng_state = rng_state;
+
+  params.rng_state    = rng_state;
   params.n_clusters   = n_clusters;
   params.n_components = n_eig_vects;
   params.n_init       = 10;  // Multiple initializations for better results
-  params.n_neighbors  = std::min(static_cast<int>(graph.number_of_vertices) - 1, 15);  // Adaptive neighbor count
+  params.n_neighbors =
+    std::min(static_cast<int>(graph.number_of_vertices) - 1, 15);  // Adaptive neighbor count
 
   cuvs::cluster::spectral::fit_predict(
     handle,

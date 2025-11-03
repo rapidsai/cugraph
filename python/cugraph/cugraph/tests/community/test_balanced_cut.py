@@ -102,7 +102,9 @@ def test_edge_cut_clustering_directed_graph(partitions):
 
 @pytest.mark.sg
 def test_spectral_balanced_cut_clustering_deprecation_warning():
-    G = karate.get_graph(create_using=cugraph.Graph(directed=False), ignore_weights=True)
+    G = karate.get_graph(
+        create_using=cugraph.Graph(directed=False), ignore_weights=True
+    )
     warning_msg = (
         "spectralBalancedCutClustering is deprecated and will be removed in a future release. "
         "Use spectralModularityMaximizationClustering instead."
