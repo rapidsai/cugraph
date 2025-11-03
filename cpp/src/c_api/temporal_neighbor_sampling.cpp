@@ -964,6 +964,17 @@ cugraph_error_code_t cugraph_heterogeneous_uniform_temporal_neighbor_sample(
                "vertex type of graph and start_vertices must match",
                *error);
 
+  CAPI_EXPECTS(starting_vertex_times == nullptr ||
+                 reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
+                   starting_vertex_times)
+                     ->size_ ==
+                   reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
+                     start_vertices)
+                     ->size_,
+               CUGRAPH_INVALID_INPUT,
+               "starting_vertex_times should have the same size as start_vertices",
+               *error);
+
   temporal_neighbor_sampling_functor functor{handle,
                                              rng_state,
                                              graph,
@@ -1036,6 +1047,17 @@ cugraph_error_code_t cugraph_heterogeneous_biased_temporal_neighbor_sample(
                "vertex type of graph and start_vertices must match",
                *error);
 
+  CAPI_EXPECTS(starting_vertex_times == nullptr ||
+                 reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
+                   starting_vertex_times)
+                     ->size_ ==
+                   reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
+                     start_vertices)
+                     ->size_,
+               CUGRAPH_INVALID_INPUT,
+               "starting_vertex_times should have the same size as start_vertices",
+               *error);
+
   temporal_neighbor_sampling_functor functor{handle,
                                              rng_state,
                                              graph,
@@ -1096,6 +1118,17 @@ extern "C" cugraph_error_code_t cugraph_homogeneous_uniform_temporal_neighbor_sa
                    ->type_,
                CUGRAPH_INVALID_INPUT,
                "vertex type of graph and start_vertices must match",
+               *error);
+
+  CAPI_EXPECTS(starting_vertex_times == nullptr ||
+                 reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
+                   starting_vertex_times)
+                     ->size_ ==
+                   reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
+                     start_vertices)
+                     ->size_,
+               CUGRAPH_INVALID_INPUT,
+               "starting_vertex_times should have the same size as start_vertices",
                *error);
 
   temporal_neighbor_sampling_functor functor{handle,
@@ -1166,6 +1199,17 @@ extern "C" cugraph_error_code_t cugraph_homogeneous_biased_temporal_neighbor_sam
                    ->type_,
                CUGRAPH_INVALID_INPUT,
                "vertex type of graph and start_vertices must match",
+               *error);
+
+  CAPI_EXPECTS(starting_vertex_times == nullptr ||
+                 reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
+                   starting_vertex_times)
+                     ->size_ ==
+                   reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
+                     start_vertices)
+                     ->size_,
+               CUGRAPH_INVALID_INPUT,
+               "starting_vertex_times should have the same size as start_vertices",
                *error);
 
   temporal_neighbor_sampling_functor functor{handle,
