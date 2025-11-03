@@ -123,6 +123,7 @@ class Graph:
         store_transposed=False,
         symmetrize=None,
         vertices=None,
+        drop_self_loops=False,
     ):
         """
         Initialize a graph from the edge list. It is an error to call this
@@ -190,6 +191,9 @@ class Graph:
             If specified, this array must contain every vertex identifier,
             including vertex identifiers that are already included in the
             source and destination arrays.
+        
+        drop_self_loops : bool, optional (default=False)
+            If true, drop any self loops that exist in the provided edge list.
 
         Examples
         --------
@@ -219,6 +223,7 @@ class Graph:
             renumber=renumber,
             store_transposed=store_transposed,
             symmetrize=symmetrize,
+            drop_self_loops=drop_self_loops,
         )
 
     def from_cudf_adjlist(

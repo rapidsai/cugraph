@@ -137,6 +137,7 @@ class simpleGraphImpl:
         store_transposed=False,
         symmetrize=None,
         vertices=None,
+        drop_self_loops=False
     ):
 
         if self.properties.directed and symmetrize:
@@ -330,6 +331,7 @@ class simpleGraphImpl:
             drop_multi_edges=not self.properties.multi_edge,
             symmetrize=symmetrize,
             vertices=vertices,
+            drop_self_loops=drop_self_loops
         )
 
     def to_pandas_edgelist(
@@ -1314,6 +1316,7 @@ class simpleGraphImpl:
         drop_multi_edges: bool = False,
         symmetrize: bool = False,
         vertices: cudf.Series = None,
+        drop_self_loops: bool = False,
     ):
 
         """
@@ -1337,6 +1340,8 @@ class simpleGraphImpl:
             Whether to symmetrize
         vertices: cudf.Series = None
             vertices in the graph
+        drop_self_loops: bool (default=False)
+            Whether to drop self loops
         """
 
         if value_col is None:
@@ -1401,6 +1406,7 @@ class simpleGraphImpl:
             do_expensive_check=True,
             input_array_format=input_array_format,
             vertices_array=vertices,
+            drop_self_loops=drop_self_loops,
             drop_multi_edges=drop_multi_edges,
             symmetrize=symmetrize,
         )
