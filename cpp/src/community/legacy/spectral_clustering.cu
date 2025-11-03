@@ -12,6 +12,7 @@
 #include <raft/spectral/modularity_maximization.cuh>
 #include <raft/spectral/partition.cuh>
 #include <raft/core/copy.hpp>
+#include <raft/sparse/convert/coo.cuh>
 #include <raft/sparse/convert/csr.cuh>
 
 #include <cuvs/cluster/spectral.hpp>
@@ -62,60 +63,51 @@ void balancedCutClustering_impl(raft::handle_t const& handle,
   RAFT_EXPECTS(eig_vals != nullptr, "API error, must specify valid eigenvalues");
   RAFT_EXPECTS(eig_vects != nullptr, "API error, must specify valid eigenvectors");
 
-  // Use cuVS for float precision until double precision is supported
-  if constexpr (std::is_same_v<weight_t, float>) {
-    // Convert CSR to COO using thrust
-    rmm::device_uvector<vertex_t> src_indices(graph.number_of_edges, handle.get_stream());
-    rmm::device_uvector<vertex_t> dst_indices(graph.number_of_edges, handle.get_stream());
+  // Convert CSR to COO using raft::sparse::convert::csr_to_coo
+  rmm::device_uvector<vertex_t> src_indices(graph.number_of_edges, handle.get_stream());
+  rmm::device_uvector<vertex_t> dst_indices(graph.number_of_edges, handle.get_stream());
+  
+  // Copy destination indices (already in COO format)
+  raft::copy(dst_indices.data(), graph.indices, graph.number_of_edges, handle.get_stream());
+  
+  // Convert CSR row offsets to COO source indices
+  raft::sparse::convert::csr_to_coo<vertex_t>(
+    graph.offsets, 
+    static_cast<vertex_t>(graph.number_of_vertices), 
+    src_indices.data(), 
+    static_cast<edge_t>(graph.number_of_edges), 
+    handle.get_stream());
+  
+  // Create coordinate structure view from converted COO data
+  auto coord_view = raft::make_device_coordinate_structure_view<vertex_t, vertex_t, vertex_t>(
+    src_indices.data(), dst_indices.data(), 
+    graph.number_of_vertices, graph.number_of_vertices, graph.number_of_edges);
     
-    // Copy destination indices (already in COO format)
-    raft::copy(dst_indices.data(), graph.indices, graph.number_of_edges, handle.get_stream());
-    
-    // Expand CSR row offsets to COO source indices
-    thrust::for_each(rmm::exec_policy(handle.get_stream()),
-                     thrust::make_counting_iterator<vertex_t>(0),
-                     thrust::make_counting_iterator<vertex_t>(graph.number_of_vertices),
-                     [offsets = graph.offsets, 
-                      src_indices = src_indices.data()] __device__(vertex_t row) {
-                       for (edge_t j = offsets[row]; j < offsets[row + 1]; ++j) {
-                         src_indices[j] = row;
-                       }
-                     });
-    
-    // Create coordinate structure view from converted COO data
-    auto coord_view = raft::make_device_coordinate_structure_view<vertex_t, vertex_t, vertex_t>(
-      src_indices.data(), dst_indices.data(), 
-      graph.number_of_vertices, graph.number_of_vertices, graph.number_of_edges);
-      
-    // Create COO matrix view using coordinate structure view and CSR edge data
-    auto coo_matrix = raft::make_device_coo_matrix_view<weight_t>(graph.edge_data, coord_view);
+  // Create COO matrix view using coordinate structure view and CSR edge data
+  auto coo_matrix = raft::make_device_coo_matrix_view<weight_t>(graph.edge_data, coord_view);
 
-    // Use seed from RNG state instead of hardcoded 0
-    rmm::device_uvector<unsigned long long> d_seed(1, handle.get_stream());
+  // Use seed from RNG state instead of hardcoded 0
+  rmm::device_uvector<unsigned long long> d_seed(1, handle.get_stream());
 
-    raft::random::uniformInt<unsigned long long>(
-      rng_state, d_seed.data(), 1, 0, std::numeric_limits<vertex_t>::max() - 1, handle.get_stream());
-    
-    unsigned long long seed{0};
-    raft::update_host(&seed, d_seed.data(), d_seed.size(), handle.get_stream());
-    
-    cuvs::cluster::spectral::params params;
-    
-    params.seed = seed;
-    params.n_clusters   = n_clusters;
-    params.n_components = n_eig_vects;
-    params.n_init       = 10;  // Multiple initializations for better results
-    params.n_neighbors  = std::min(static_cast<int>(graph.number_of_vertices) - 1, 15);  // Adaptive neighbor count
+  raft::random::uniformInt<unsigned long long>(
+    rng_state, d_seed.data(), 1, 0, std::numeric_limits<vertex_t>::max() - 1, handle.get_stream());
+  
+  unsigned long long seed{0};
+  raft::update_host(&seed, d_seed.data(), d_seed.size(), handle.get_stream());
+  
+  cuvs::cluster::spectral::params params;
+  
+  params.rng_state = rng_state;
+  params.n_clusters   = n_clusters;
+  params.n_components = n_eig_vects;
+  params.n_init       = 10;  // Multiple initializations for better results
+  params.n_neighbors  = std::min(static_cast<int>(graph.number_of_vertices) - 1, 15);  // Adaptive neighbor count
 
-    cuvs::cluster::spectral::fit_predict(
-      handle,
-      params,
-      coo_matrix,
-      raft::make_device_vector_view<vertex_t, vertex_t>(clustering, graph.number_of_vertices));
-  } else {
-    CUGRAPH_FAIL("Double precision spectral clustering not yet supported with cuVS");
-  }
-
+  cuvs::cluster::spectral::fit_predict(
+    handle,
+    params,
+    coo_matrix,
+    raft::make_device_vector_view<vertex_t, vertex_t>(clustering, graph.number_of_vertices));
 
 }
 
@@ -152,59 +144,51 @@ void spectralModularityMaximization_impl(
   RAFT_EXPECTS(eig_vals != nullptr, "API error, must specify valid eigenvalues");
   RAFT_EXPECTS(eig_vects != nullptr, "API error, must specify valid eigenvectors");
 
-  // Use cuVS for float precision until double precision is supported
-  if constexpr (std::is_same_v<weight_t, float>) {
-    // Convert CSR to COO using thrust
-    rmm::device_uvector<vertex_t> src_indices(graph.number_of_edges, handle.get_stream());
-    rmm::device_uvector<vertex_t> dst_indices(graph.number_of_edges, handle.get_stream());
+  // Convert CSR to COO using raft::sparse::convert::csr_to_coo
+  rmm::device_uvector<vertex_t> src_indices(graph.number_of_edges, handle.get_stream());
+  rmm::device_uvector<vertex_t> dst_indices(graph.number_of_edges, handle.get_stream());
+  
+  // Copy destination indices (already in COO format)
+  raft::copy(dst_indices.data(), graph.indices, graph.number_of_edges, handle.get_stream());
+  
+  // Convert CSR row offsets to COO source indices
+  raft::sparse::convert::csr_to_coo<vertex_t>(
+    graph.offsets, 
+    static_cast<vertex_t>(graph.number_of_vertices), 
+    src_indices.data(), 
+    static_cast<edge_t>(graph.number_of_edges), 
+    handle.get_stream());
+  
+  // Create coordinate structure view from converted COO data
+  auto coord_view = raft::make_device_coordinate_structure_view<vertex_t, vertex_t, vertex_t>(
+    src_indices.data(), dst_indices.data(), 
+    graph.number_of_vertices, graph.number_of_vertices, graph.number_of_edges);
     
-    // Copy destination indices (already in COO format)
-    raft::copy(dst_indices.data(), graph.indices, graph.number_of_edges, handle.get_stream());
-    
-    // Expand CSR row offsets to COO source indices
-    thrust::for_each(rmm::exec_policy(handle.get_stream()),
-                     thrust::make_counting_iterator<vertex_t>(0),
-                     thrust::make_counting_iterator<vertex_t>(graph.number_of_vertices),
-                     [offsets = graph.offsets, 
-                      src_indices = src_indices.data()] __device__(vertex_t row) {
-                       for (edge_t j = offsets[row]; j < offsets[row + 1]; ++j) {
-                         src_indices[j] = row;
-                       }
-                     });
-    
-    // Create coordinate structure view from converted COO data
-    auto coord_view = raft::make_device_coordinate_structure_view<vertex_t, vertex_t, vertex_t>(
-      src_indices.data(), dst_indices.data(), 
-      graph.number_of_vertices, graph.number_of_vertices, graph.number_of_edges);
-      
-    // Create COO matrix view using coordinate structure view and CSR edge data
-    auto coo_matrix = raft::make_device_coo_matrix_view<weight_t>(graph.edge_data, coord_view);
+  // Create COO matrix view using coordinate structure view and CSR edge data
+  auto coo_matrix = raft::make_device_coo_matrix_view<weight_t>(graph.edge_data, coord_view);
 
-    // Use seed from RNG state instead of hardcoded 0
-    rmm::device_uvector<unsigned long long> d_seed(1, handle.get_stream());
+  // Use seed from RNG state instead of hardcoded 0
+  rmm::device_uvector<unsigned long long> d_seed(1, handle.get_stream());
 
-    raft::random::uniformInt<unsigned long long>(
-      rng_state, d_seed.data(), 1, 0, std::numeric_limits<vertex_t>::max() - 1, handle.get_stream());
-    
-    unsigned long long seed{0};
-    raft::update_host(&seed, d_seed.data(), d_seed.size(), handle.get_stream());
-    
-    cuvs::cluster::spectral::params params;
-    
-    params.seed = seed;
-    params.n_clusters   = n_clusters;
-    params.n_components = n_eig_vects;
-    params.n_init       = 10;  // Multiple initializations for better results
-    params.n_neighbors  = std::min(static_cast<int>(graph.number_of_vertices) - 1, 15);  // Adaptive neighbor count
+  raft::random::uniformInt<unsigned long long>(
+    rng_state, d_seed.data(), 1, 0, std::numeric_limits<vertex_t>::max() - 1, handle.get_stream());
+  
+  unsigned long long seed{0};
+  raft::update_host(&seed, d_seed.data(), d_seed.size(), handle.get_stream());
+  
+  cuvs::cluster::spectral::params params;
+  
+  params.rng_state = rng_state;
+  params.n_clusters   = n_clusters;
+  params.n_components = n_eig_vects;
+  params.n_init       = 10;  // Multiple initializations for better results
+  params.n_neighbors  = std::min(static_cast<int>(graph.number_of_vertices) - 1, 15);  // Adaptive neighbor count
 
-    cuvs::cluster::spectral::fit_predict(
-      handle,
-      params,
-      coo_matrix,
-      raft::make_device_vector_view<vertex_t, vertex_t>(clustering, graph.number_of_vertices));
-  } else {
-    CUGRAPH_FAIL("Double precision spectral clustering not yet supported with cuVS");
-  }
+  cuvs::cluster::spectral::fit_predict(
+    handle,
+    params,
+    coo_matrix,
+    raft::make_device_vector_view<vertex_t, vertex_t>(clustering, graph.number_of_vertices));
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>
