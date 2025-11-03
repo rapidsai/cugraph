@@ -423,25 +423,38 @@ decompress_to_edgelist(
 
 /**
  * @ingroup graph_functions_cpp
- * @brief Rule for combining edge properties when adding reciprocal edges.
+
+ * @brief Identify if an edge property is part of the uniqueness of the edge, or just a value to be
+ combined.
  */
-enum class edge_property_combining_rule_t {
-  PART_OF_UNIQUENESS,  /// This property is part of the uniqueness of the edge.
-  SUM,                 /// Sum the properties of the two edges.
-  MAX,                 /// Take the maximum of the properties of the two edges.
-  MIN,                 /// Take the minimum of the properties of the two edges.
-  MEAN,                /// Take the mean of the properties of the two edges.
-  ARBITRARY            /// Arbitrarily choose one of the properties.
+enum class edge_key_selector_t {
+  KEY,  /** This property is part of the uniqueness key of the edge. */
+  VALUE /** This property is a value to be combined. */
 };
 
 /**
  * @ingroup graph_functions_cpp
- * @brief Add reciprocal edges to the edgelist.  This was formerly called symmetrize_edgelist
- * with reciprocal set to true.
+ * @brief Rule for combining edge properties when merging reciprocal edges.
+ */
+enum class edge_value_combining_rule_t {
+  SUM,   /** Sum the values of the two edge properties. */
+  MAX,   /** Take the maximum of the values of the two edge properties. */
+  MIN,   /** Take the minimum of the values of the two edge properties. */
+  MEAN,  /** Take the mean of the values of the two edge properties. */
+  FIRST, /** Use the value of the first edge property. */
+  LAST,  /** Use the value of the last edge property. */
+  ANY,   /** Use the value of any edge property. */
+  NONE   /** Do not combine the values. */
+};
+
+/**
+ * @ingroup graph_functions_cpp
+ * @brief Add reciprocal edges and merge the edges.  This was formerly called symmetrize_edgelist
+ * with reciprocal set to false.
  *
- * Reciprocal edges are edges that appear in both directions.  Edges that are only in one direction
- * will be added to the edge list in the opposite direction.  The resulting edge list will be
- * symmetric.
+ * The input edge list is replicated as reciprocal edges.  Then the original edges and the
+ * reciprocal edges are merged based on the provided @p edge_key_selector and @p
+ * edge_value_combining_rule.
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
@@ -454,8 +467,9 @@ enum class edge_property_combining_rule_t {
  * function to work (edges should be pre-shuffled).
  * @param edgelist_dsts Vector of edge destination vertex IDs.
  * @param edgelist_edge_properties Vector of edge properties.
- * @param edge_property_combining_rules Vector of rules for combining edge properties when adding
- * reciprocal edges.
+ * @param edge_key_selector Vector of selectors for selecting the key of the edge properties.
+ * @param edge_value_combining_rule Vector of rules for combining edge values when merging
+ * reciprocal edges. reciprocal edges.
  * @param store_transposed Flag indicating whether to use sources (if false) or destinations (if
  * true) as major indices in storing edges using a 2D sparse matrix.
  * @return Tuple of symmetrized sources, destinations, and edge properties.
@@ -464,21 +478,25 @@ template <typename vertex_t, bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            std::vector<arithmetic_device_uvector_t>>
-add_reciprocal_edges(
+add_reciprocals_and_merge_edge_tuples(
   raft::handle_t const& handle,
   rmm::device_uvector<vertex_t>&& edgelist_srcs,
   rmm::device_uvector<vertex_t>&& edgelist_dsts,
   std::vector<arithmetic_device_uvector_t>&& edgelist_edge_properties,
-  std::vector<edge_property_combining_rule_t> const& edge_property_combining_rules,
+  std::vector<edge_key_selector_t> const& edge_key_selector,
+  std::vector<edge_value_combining_rule_t> const& edge_value_combining_rule,
   bool store_transposed);
 
 /**
  * @ingroup graph_functions_cpp
  * @brief Remove non-reciprocal edges from the edgelist.  This was formerly called
- * symmetrize_edgelist with reciprocal set to false.
+ * symmetrize_edgelist with reciprocal set to true.
  *
- * Non-reciprocal edges are edges that appear only in one direction.  They will be removed from the
- * edge list so that the resulting edge list is symmetric.
+ * The input edge list scanned, each edge tuple that does not have a matching reciprocal edge is
+ * removed.  @p edge_key_selector is used to determine if an edge property is part of the uniqueness
+ * key of the edge.  If it is part of the uniqueness key, the edge tuple is removed if it does not
+ * have a matching reciprocal edge.  If it is not part of the uniqueness key, the edge property is
+ * ignored in the comparison.
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
@@ -490,6 +508,7 @@ add_reciprocal_edges(
  * function to work (edges should be pre-shuffled).
  * @param edgelist_dsts Vector of edge destination vertex IDs.
  * @param edgelist_edge_properties Vector of edge properties.
+ * @param edge_key_selector Vector of selectors for selecting the key of the edge properties.
  * @param store_transposed Flag indicating whether to use sources (if false) or destinations (if
  * true) as major indices in storing edges using a 2D sparse matrix.
  * @return Tuple of non-reciprocal sources, destinations, and edge properties.
@@ -498,11 +517,12 @@ template <typename vertex_t, bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            std::vector<arithmetic_device_uvector_t>>
-remove_nonreciprocal_edges(raft::handle_t const& handle,
-                           rmm::device_uvector<vertex_t>&& edgelist_srcs,
-                           rmm::device_uvector<vertex_t>&& edgelist_dsts,
-                           std::vector<arithmetic_device_uvector_t>&& edgelist_edge_properties,
-                           bool store_transposed);
+drop_nonreciprocal_edge_tuples(raft::handle_t const& handle,
+                               rmm::device_uvector<vertex_t>&& edgelist_srcs,
+                               rmm::device_uvector<vertex_t>&& edgelist_dsts,
+                               std::vector<arithmetic_device_uvector_t>&& edgelist_edge_properties,
+                               std::vector<edge_key_selector_t> const& edge_key_selector,
+                               bool store_transposed);
 
 /**
  * @ingroup graph_functions_cpp
