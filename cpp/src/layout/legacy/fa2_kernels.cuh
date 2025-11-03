@@ -1,17 +1,6 @@
 /*
- * Copyright (c) 2020-2025, NVIDIA CORPORATION.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2025, NVIDIA CORPORATION.
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 #pragma once
@@ -33,7 +22,7 @@ __global__ static void attraction_kernel(const vertex_t* restrict row,
                                          const float* restrict y_pos,
                                          float* restrict attract_x,
                                          float* restrict attract_y,
-                                         const edge_t* restrict mass,
+                                         const float* restrict mass,
                                          bool outbound_attraction_distribution,
                                          bool lin_log_mode,
                                          const float edge_weight_influence,
@@ -101,7 +90,7 @@ void apply_attraction(const vertex_t* restrict row,
                       const float* restrict y_pos,
                       float* restrict attract_x,
                       float* restrict attract_y,
-                      const edge_t* restrict mass,
+                      const float* restrict mass,
                       bool outbound_attraction_distribution,
                       bool lin_log_mode,
                       const float edge_weight_influence,
@@ -143,12 +132,12 @@ void apply_attraction(const vertex_t* restrict row,
   RAFT_CHECK_CUDA(stream);
 }
 
-template <typename vertex_t, typename edge_t>
+template <typename vertex_t>
 __global__ static void linear_gravity_kernel(const float* restrict x_pos,
                                              const float* restrict y_pos,
                                              float* restrict attract_x,
                                              float* restrict attract_y,
-                                             const edge_t* restrict mass,
+                                             const float* restrict mass,
                                              const float gravity,
                                              const vertex_t n)
 {
@@ -163,12 +152,12 @@ __global__ static void linear_gravity_kernel(const float* restrict x_pos,
   }
 }
 
-template <typename vertex_t, typename edge_t>
+template <typename vertex_t>
 __global__ static void strong_gravity_kernel(const float* restrict x_pos,
                                              const float* restrict y_pos,
                                              float* restrict attract_x,
                                              float* restrict attract_y,
-                                             const edge_t* restrict mass,
+                                             const float* restrict mass,
                                              const float gravity,
                                              const float scaling_ratio,
                                              const vertex_t n)
@@ -184,12 +173,12 @@ __global__ static void strong_gravity_kernel(const float* restrict x_pos,
   }
 }
 
-template <typename vertex_t, typename edge_t>
+template <typename vertex_t>
 void apply_gravity(const float* restrict x_pos,
                    const float* restrict y_pos,
                    float* restrict attract_x,
                    float* restrict attract_y,
-                   const edge_t* restrict mass,
+                   const float* restrict mass,
                    const float gravity,
                    bool strong_gravity_mode,
                    const float scaling_ratio,
@@ -207,23 +196,23 @@ void apply_gravity(const float* restrict x_pos,
   nblocks.z = 1;
 
   if (strong_gravity_mode) {
-    strong_gravity_kernel<vertex_t, edge_t><<<nblocks, nthreads, 0, stream>>>(
+    strong_gravity_kernel<vertex_t><<<nblocks, nthreads, 0, stream>>>(
       x_pos, y_pos, attract_x, attract_y, mass, gravity, scaling_ratio, n);
   } else {
-    linear_gravity_kernel<vertex_t, edge_t>
+    linear_gravity_kernel<vertex_t>
       <<<nblocks, nthreads, 0, stream>>>(x_pos, y_pos, attract_x, attract_y, mass, gravity, n);
   }
   RAFT_CHECK_CUDA(stream);
 }
 
-template <typename vertex_t, typename edge_t>
+template <typename vertex_t>
 __global__ static void local_speed_kernel(const float* restrict repel_x,
                                           const float* restrict repel_y,
                                           const float* restrict attract_x,
                                           const float* restrict attract_y,
                                           const float* restrict old_dx,
                                           const float* restrict old_dy,
-                                          const edge_t* restrict mass,
+                                          const float* restrict mass,
                                           float* restrict swinging,
                                           float* restrict traction,
                                           const vertex_t n)
@@ -239,14 +228,14 @@ __global__ static void local_speed_kernel(const float* restrict repel_x,
   }
 }
 
-template <typename vertex_t, typename edge_t>
+template <typename vertex_t>
 void compute_local_speed(const float* restrict repel_x,
                          const float* restrict repel_y,
                          const float* restrict attract_x,
                          const float* restrict attract_y,
                          float* restrict old_dx,
                          float* restrict old_dy,
-                         const edge_t* restrict mass,
+                         const float* restrict mass,
                          float* restrict swinging,
                          float* restrict traction,
                          const vertex_t n,
@@ -262,7 +251,7 @@ void compute_local_speed(const float* restrict repel_x,
   nblocks.y = 1;
   nblocks.z = 1;
 
-  local_speed_kernel<vertex_t, edge_t><<<nblocks, nthreads, 0, stream>>>(
+  local_speed_kernel<vertex_t><<<nblocks, nthreads, 0, stream>>>(
     repel_x, repel_y, attract_x, attract_y, old_dx, old_dy, mass, swinging, traction, n);
   RAFT_CHECK_CUDA(stream);
 }
@@ -313,6 +302,7 @@ __global__ static void update_positions_kernel(float* restrict x_pos,
                                                float* restrict old_dx,
                                                float* restrict old_dy,
                                                const float* restrict swinging,
+                                               const bool prevent_overlapping,
                                                const float* restrict vertex_mobility,
                                                const float speed,
                                                const vertex_t n)
@@ -320,12 +310,19 @@ __global__ static void update_positions_kernel(float* restrict x_pos,
   // For every node.
   for (int i = threadIdx.x + blockIdx.x * blockDim.x; i < n; i += gridDim.x * blockDim.x) {
     const float mobility_factor = vertex_mobility ? vertex_mobility[i] : 1.0f;
-    const float factor          = mobility_factor * speed / (1.0 + sqrt(speed * swinging[i]));
     const float dx              = (repel_x[i] + attract_x[i]);
     const float dy              = (repel_y[i] + attract_y[i]);
 
-    x_pos[i] += dx * factor;
-    y_pos[i] += dy * factor;
+    float factor = speed / (1.0 + sqrt(speed * swinging[i]));
+
+    if (prevent_overlapping) {
+      factor   = 0.1 * factor;
+      float df = sqrt(dx * dx + dy * dy + FLT_EPSILON);
+      factor   = min(factor * df, 10.0f) / df;
+    }
+
+    x_pos[i] += dx * mobility_factor * factor;
+    y_pos[i] += dy * mobility_factor * factor;
     old_dx[i] = dx;
     old_dy[i] = dy;
   }
@@ -341,6 +338,7 @@ void apply_forces(float* restrict x_pos,
                   float* restrict old_dx,
                   float* restrict old_dy,
                   const float* restrict swinging,
+                  const bool prevent_overlapping,
                   const float* restrict vertex_mobility,
                   const float speed,
                   const vertex_t n,
@@ -365,6 +363,7 @@ void apply_forces(float* restrict x_pos,
                                                                       old_dx,
                                                                       old_dy,
                                                                       swinging,
+                                                                      prevent_overlapping,
                                                                       vertex_mobility,
                                                                       speed,
                                                                       n);

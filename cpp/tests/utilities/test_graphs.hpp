@@ -1,17 +1,6 @@
 /*
- * Copyright (c) 2021-2025, NVIDIA CORPORATION.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
+ * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
 
@@ -585,7 +574,13 @@ construct_graph(
   std::optional<large_buffer_type_t> large_vertex_buffer_type = std::nullopt,
   std::optional<large_buffer_type_t> large_edge_buffer_type   = std::nullopt)
 {
-  auto [edge_src_chunks, edge_dst_chunks, edge_weight_chunks, d_vertices_v, is_symmetric] =
+  std::vector<rmm::device_uvector<vertex_t>> edge_src_chunks{};
+  std::vector<rmm::device_uvector<vertex_t>> edge_dst_chunks{};
+  std::optional<std::vector<rmm::device_uvector<weight_t>>> edge_weight_chunks{std::nullopt};
+  std::optional<rmm::device_uvector<vertex_t>> d_vertices_v{std::nullopt};
+  bool is_symmetric{false};
+
+  std::tie(edge_src_chunks, edge_dst_chunks, edge_weight_chunks, d_vertices_v, is_symmetric) =
     input_usecase.template construct_edgelist<vertex_t, weight_t>(handle,
                                                                   test_weighted,
                                                                   store_transposed,

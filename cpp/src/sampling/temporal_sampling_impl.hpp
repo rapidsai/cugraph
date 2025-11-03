@@ -1,17 +1,6 @@
 /*
- * Copyright (c) 2025, NVIDIA CORPORATION.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-FileCopyrightText: Copyright (c) 2025, NVIDIA CORPORATION.
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 #pragma once
@@ -73,10 +62,7 @@ temporal_neighbor_sample_impl(
   std::optional<raft::device_span<int32_t const>> label_to_output_comm_rank,
   raft::host_span<int32_t const> fan_out,
   std::optional<edge_type_t> num_edge_types,  // valid if heterogeneous sampling
-  bool return_hops,
-  bool with_replacement,
-  prior_sources_behavior_t prior_sources_behavior,
-  bool dedupe_sources,
+  sampling_flags_t sampling_flags,
   bool do_expensive_check)
 {
   static_assert(std::is_floating_point_v<bias_t>);
@@ -170,7 +156,7 @@ temporal_neighbor_sample_impl(
                            std::optional<rmm::device_uvector<edge_time_t>>>>
     vertex_used_as_source{std::nullopt};
 
-  if (prior_sources_behavior == prior_sources_behavior_t::EXCLUDE) {
+  if (sampling_flags.prior_sources_behavior == prior_sources_behavior_t::EXCLUDE) {
     vertex_used_as_source = std::make_optional(std::make_tuple(
       rmm::device_uvector<vertex_t>{0, handle.get_stream()},
       starting_vertex_labels
@@ -265,7 +251,8 @@ temporal_neighbor_sample_impl(
                                             frontier_vertices_no_duplicates.size()},
           raft::device_span<edge_time_t const>{frontier_vertex_times_no_duplicates.data(),
                                                frontier_vertex_times_no_duplicates.size()},
-          edge_time_mask.mutable_view());
+          edge_time_mask.mutable_view(),
+          sampling_flags.temporal_sampling_comparison);
 
         temporal_graph_view.attach_edge_mask(edge_time_mask.view());
       }
@@ -303,7 +290,7 @@ temporal_neighbor_sample_impl(
                                                  frontier_vertex_labels_no_duplicates->size()})
             : std::nullopt,
           raft::host_span<size_t const>(level_Ks->data(), level_Ks->size()),
-          with_replacement);
+          sampling_flags.with_replacement);
 
         result_vector_sizes.push_back(srcs.size());
         result_vector_hops.push_back(hop);
@@ -386,7 +373,8 @@ temporal_neighbor_sample_impl(
                                                    frontier_vertex_labels_has_duplicates->size()})
               : std::nullopt,
             raft::host_span<size_t const>(level_Ks->data(), level_Ks->size()),
-            with_replacement);
+            sampling_flags.with_replacement,
+            sampling_flags.temporal_sampling_comparison);
 
         size_t pos{0};
         auto weights =
@@ -546,6 +534,7 @@ temporal_neighbor_sample_impl(
                                                  frontier_vertex_labels_has_duplicates->size()})
             : std::nullopt,
           gather_flags_span,
+          sampling_flags.temporal_sampling_comparison,
           do_expensive_check);
 
         if (srcs.size() > 0) {
@@ -607,8 +596,8 @@ temporal_neighbor_sample_impl(
           next_frontier_vertex_time_spans->data(), next_frontier_vertex_time_spans->size()}),
         std::move(vertex_used_as_source),
         graph_view.vertex_partition_range_lasts(),
-        prior_sources_behavior,
-        dedupe_sources,
+        sampling_flags.prior_sources_behavior,
+        sampling_flags.dedupe_sources,
         multi_gpu,
         do_expensive_check);
   }
@@ -722,7 +711,7 @@ temporal_neighbor_sample_impl(
 
   std::optional<rmm::device_uvector<int32_t>> result_hops{std::nullopt};
 
-  if (return_hops) {
+  if (sampling_flags.return_hops) {
     // FIX THIS!!!  It's possible for some labels to end before num_hops values... so we need to
     // Populate the result_hops vector some other way...
     result_hops   = rmm::device_uvector<int32_t>(result_size, handle.get_stream());
@@ -850,10 +839,7 @@ homogeneous_uniform_temporal_neighbor_sample(
       label_to_output_comm_rank,
       fan_out,
       std::optional<edge_type_t>{std::nullopt},
-      sampling_flags.return_hops,
-      sampling_flags.with_replacement,
-      sampling_flags.prior_sources_behavior,
-      sampling_flags.dedupe_sources,
+      sampling_flags,
       do_expensive_check);
 }
 
@@ -909,10 +895,7 @@ heterogeneous_uniform_temporal_neighbor_sample(
       label_to_output_comm_rank,
       fan_out,
       std::optional<edge_type_t>{num_edge_types},
-      sampling_flags.return_hops,
-      sampling_flags.with_replacement,
-      sampling_flags.prior_sources_behavior,
-      sampling_flags.dedupe_sources,
+      sampling_flags,
       do_expensive_check);
 }
 
@@ -966,10 +949,7 @@ homogeneous_biased_temporal_neighbor_sample(
       label_to_output_comm_rank,
       fan_out,
       std::optional<edge_type_t>{std::nullopt},
-      sampling_flags.return_hops,
-      sampling_flags.with_replacement,
-      sampling_flags.prior_sources_behavior,
-      sampling_flags.dedupe_sources,
+      sampling_flags,
       do_expensive_check);
 }
 
@@ -1024,10 +1004,7 @@ heterogeneous_biased_temporal_neighbor_sample(
       label_to_output_comm_rank,
       fan_out,
       std::optional<edge_type_t>{num_edge_types},
-      sampling_flags.return_hops,
-      sampling_flags.with_replacement,
-      sampling_flags.prior_sources_behavior,
-      sampling_flags.dedupe_sources,
+      sampling_flags,
       do_expensive_check);
 }
 

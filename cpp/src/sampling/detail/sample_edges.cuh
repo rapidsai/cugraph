@@ -1,17 +1,6 @@
 /*
- * Copyright (c) 2022-2025, NVIDIA CORPORATION.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 #pragma once
@@ -28,6 +17,7 @@
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_view.hpp>
+#include <cugraph/sampling_functions.hpp>
 #include <cugraph/utilities/mask_utils.cuh>
 #include <cugraph/utilities/thrust_tuple_utils.hpp>
 
@@ -95,6 +85,8 @@ struct sample_edge_biases_op_t {
 
 template <typename vertex_t, typename bias_t>
 struct temporal_sample_edge_biases_op_t {
+  temporal_sampling_comparison_t temporal_sampling_comparison{};
+
   template <typename edge_time_t>
   bias_t __device__ operator()(cuda::std::tuple<vertex_t, edge_time_t> tagged_src,
                                vertex_t,
@@ -113,7 +105,17 @@ struct temporal_sample_edge_biases_op_t {
                                cuda::std::nullopt_t,
                                edge_time_t edge_time) const
   {
-    return (cuda::std::get<1>(tagged_src) < edge_time) ? bias_t{1} : bias_t{0};
+    switch (temporal_sampling_comparison) {
+      case temporal_sampling_comparison_t::STRICTLY_INCREASING:
+        return (cuda::std::get<1>(tagged_src) < edge_time) ? bias_t{1} : bias_t{0};
+      case temporal_sampling_comparison_t::MONOTONICALLY_INCREASING:
+        return (cuda::std::get<1>(tagged_src) <= edge_time) ? bias_t{1} : bias_t{0};
+      case temporal_sampling_comparison_t::STRICTLY_DECREASING:
+        return (cuda::std::get<1>(tagged_src) > edge_time) ? bias_t{1} : bias_t{0};
+      case temporal_sampling_comparison_t::MONOTONICALLY_DECREASING:
+        return (cuda::std::get<1>(tagged_src) >= edge_time) ? bias_t{1} : bias_t{0};
+    }
+    return bias_t{0};
   }
 
   template <typename edge_time_t>
@@ -123,9 +125,25 @@ struct temporal_sample_edge_biases_op_t {
                                cuda::std::nullopt_t,
                                cuda::std::tuple<bias_t, edge_time_t> bias_and_time) const
   {
-    return (cuda::std::get<1>(tagged_src) < cuda::std::get<1>(bias_and_time))
-             ? cuda::std::get<0>(bias_and_time)
-             : bias_t{0};
+    switch (temporal_sampling_comparison) {
+      case temporal_sampling_comparison_t::STRICTLY_INCREASING:
+        return (cuda::std::get<1>(tagged_src) < cuda::std::get<1>(bias_and_time))
+                 ? cuda::std::get<0>(bias_and_time)
+                 : bias_t{0};
+      case temporal_sampling_comparison_t::MONOTONICALLY_INCREASING:
+        return (cuda::std::get<1>(tagged_src) <= cuda::std::get<1>(bias_and_time))
+                 ? cuda::std::get<0>(bias_and_time)
+                 : bias_t{0};
+      case temporal_sampling_comparison_t::STRICTLY_DECREASING:
+        return (cuda::std::get<1>(tagged_src) > cuda::std::get<1>(bias_and_time))
+                 ? cuda::std::get<0>(bias_and_time)
+                 : bias_t{0};
+      case temporal_sampling_comparison_t::MONOTONICALLY_DECREASING:
+        return (cuda::std::get<1>(tagged_src) >= cuda::std::get<1>(bias_and_time))
+                 ? cuda::std::get<0>(bias_and_time)
+                 : bias_t{0};
+    }
+    return bias_t{0};
   }
 
   template <typename edge_time_t,
@@ -137,8 +155,21 @@ struct temporal_sample_edge_biases_op_t {
                                cuda::std::nullopt_t,
                                cuda::std::tuple<edge_time_t, edge_type_t> time_and_type) const
   {
-    return (cuda::std::get<1>(tagged_src) < cuda::std::get<0>(time_and_type)) ? bias_t{1}
-                                                                              : bias_t{0};
+    switch (temporal_sampling_comparison) {
+      case temporal_sampling_comparison_t::STRICTLY_INCREASING:
+        return (cuda::std::get<1>(tagged_src) < cuda::std::get<0>(time_and_type)) ? bias_t{1}
+                                                                                  : bias_t{0};
+      case temporal_sampling_comparison_t::MONOTONICALLY_INCREASING:
+        return (cuda::std::get<1>(tagged_src) <= cuda::std::get<0>(time_and_type)) ? bias_t{1}
+                                                                                   : bias_t{0};
+      case temporal_sampling_comparison_t::STRICTLY_DECREASING:
+        return (cuda::std::get<1>(tagged_src) > cuda::std::get<0>(time_and_type)) ? bias_t{1}
+                                                                                  : bias_t{0};
+      case temporal_sampling_comparison_t::MONOTONICALLY_DECREASING:
+        return (cuda::std::get<1>(tagged_src) >= cuda::std::get<0>(time_and_type)) ? bias_t{1}
+                                                                                   : bias_t{0};
+    }
+    return bias_t{0};
   }
 
   template <typename edge_time_t, typename edge_type_t>
@@ -149,9 +180,25 @@ struct temporal_sample_edge_biases_op_t {
              cuda::std::nullopt_t,
              cuda::std::tuple<bias_t, edge_time_t, edge_type_t> bias_time_and_type) const
   {
-    return (cuda::std::get<1>(tagged_src) < cuda::std::get<1>(bias_time_and_type))
-             ? cuda::std::get<0>(bias_time_and_type)
-             : bias_t{0};
+    switch (temporal_sampling_comparison) {
+      case temporal_sampling_comparison_t::STRICTLY_INCREASING:
+        return (cuda::std::get<1>(tagged_src) < cuda::std::get<1>(bias_time_and_type))
+                 ? cuda::std::get<0>(bias_time_and_type)
+                 : bias_t{0};
+      case temporal_sampling_comparison_t::MONOTONICALLY_INCREASING:
+        return (cuda::std::get<1>(tagged_src) <= cuda::std::get<1>(bias_time_and_type))
+                 ? cuda::std::get<0>(bias_time_and_type)
+                 : bias_t{0};
+      case temporal_sampling_comparison_t::STRICTLY_DECREASING:
+        return (cuda::std::get<1>(tagged_src) > cuda::std::get<1>(bias_time_and_type))
+                 ? cuda::std::get<0>(bias_time_and_type)
+                 : bias_t{0};
+      case temporal_sampling_comparison_t::MONOTONICALLY_DECREASING:
+        return (cuda::std::get<1>(tagged_src) >= cuda::std::get<1>(bias_time_and_type))
+                 ? cuda::std::get<0>(bias_time_and_type)
+                 : bias_t{0};
+    }
+    return bias_t{0};
   }
 };
 
@@ -576,7 +623,8 @@ temporal_sample_with_one_property(
   std::optional<edge_arithmetic_property_view_t<edge_t>> edge_bias_view,
   cugraph::vertex_frontier_t<vertex_t, edge_time_t, multi_gpu, false>& vertex_frontier,
   raft::host_span<size_t const> Ks,
-  bool with_replacement)
+  bool with_replacement,
+  temporal_sampling_comparison_t temporal_sampling_comparison)
 {
   using edge_type_t = int32_t;
 
@@ -604,7 +652,7 @@ temporal_sample_with_one_property(
                 view_concat(
                   std::get<cugraph::edge_property_view_t<edge_t, bias_t const*>>(*edge_bias_view),
                   edge_time_view),
-                temporal_sample_edge_biases_op_t<vertex_t, bias_t>{},
+                temporal_sample_edge_biases_op_t<vertex_t, bias_t>{temporal_sampling_comparison},
                 edge_src_dummy_property_t{}.view(),
                 edge_dst_dummy_property_t{}.view(),
                 edge_property_view,
@@ -623,7 +671,7 @@ temporal_sample_with_one_property(
                 view_concat(
                   std::get<cugraph::edge_property_view_t<edge_t, bias_t const*>>(*edge_bias_view),
                   edge_time_view),
-                temporal_sample_edge_biases_op_t<vertex_t, bias_t>{},
+                temporal_sample_edge_biases_op_t<vertex_t, bias_t>{temporal_sampling_comparison},
                 edge_src_dummy_property_t{}.view(),
                 edge_dst_dummy_property_t{}.view(),
                 edge_property_view,
@@ -647,7 +695,7 @@ temporal_sample_with_one_property(
                 view_concat(
                   std::get<cugraph::edge_property_view_t<edge_t, bias_t const*>>(*edge_bias_view),
                   edge_time_view),
-                temporal_sample_edge_biases_op_t<vertex_t, bias_t>{},
+                temporal_sample_edge_biases_op_t<vertex_t, bias_t>{temporal_sampling_comparison},
                 edge_src_dummy_property_t{}.view(),
                 edge_dst_dummy_property_t{}.view(),
                 edge_property_view,
@@ -666,7 +714,7 @@ temporal_sample_with_one_property(
                 view_concat(
                   std::get<cugraph::edge_property_view_t<edge_t, bias_t const*>>(*edge_bias_view),
                   edge_time_view),
-                temporal_sample_edge_biases_op_t<vertex_t, bias_t>{},
+                temporal_sample_edge_biases_op_t<vertex_t, bias_t>{temporal_sampling_comparison},
                 edge_src_dummy_property_t{}.view(),
                 edge_dst_dummy_property_t{}.view(),
                 edge_property_view,
@@ -697,7 +745,7 @@ temporal_sample_with_one_property(
                 view_concat(
                   std::get<cugraph::edge_property_view_t<edge_t, bias_t const*>>(*edge_bias_view),
                   edge_time_view),
-                temporal_sample_edge_biases_op_t<vertex_t, bias_t>{},
+                temporal_sample_edge_biases_op_t<vertex_t, bias_t>{temporal_sampling_comparison},
                 edge_src_dummy_property_t{}.view(),
                 edge_dst_dummy_property_t{}.view(),
                 edge_property_view,
@@ -760,7 +808,7 @@ temporal_sample_with_one_property(
                 view_concat(
                   std::get<cugraph::edge_property_view_t<edge_t, bias_t const*>>(*edge_bias_view),
                   edge_time_view),
-                temporal_sample_edge_biases_op_t<vertex_t, bias_t>{},
+                temporal_sample_edge_biases_op_t<vertex_t, bias_t>{temporal_sampling_comparison},
                 edge_src_dummy_property_t{}.view(),
                 edge_dst_dummy_property_t{}.view(),
                 edge_property_view,
@@ -789,7 +837,7 @@ temporal_sample_with_one_property(
               edge_src_dummy_property_t{}.view(),
               edge_dst_dummy_property_t{}.view(),
               edge_time_view,
-              temporal_sample_edge_biases_op_t<vertex_t, bias_t>{},
+              temporal_sample_edge_biases_op_t<vertex_t, bias_t>{temporal_sampling_comparison},
               edge_src_dummy_property_t{}.view(),
               edge_dst_dummy_property_t{}.view(),
               edge_property_view,
@@ -806,7 +854,7 @@ temporal_sample_with_one_property(
               edge_src_dummy_property_t{}.view(),
               edge_dst_dummy_property_t{}.view(),
               edge_time_view,
-              temporal_sample_edge_biases_op_t<vertex_t, bias_t>{},
+              temporal_sample_edge_biases_op_t<vertex_t, bias_t>{temporal_sampling_comparison},
               edge_src_dummy_property_t{}.view(),
               edge_dst_dummy_property_t{}.view(),
               edge_property_view,
@@ -827,7 +875,7 @@ temporal_sample_with_one_property(
               edge_src_dummy_property_t{}.view(),
               edge_dst_dummy_property_t{}.view(),
               edge_time_view,
-              temporal_sample_edge_biases_op_t<vertex_t, bias_t>{},
+              temporal_sample_edge_biases_op_t<vertex_t, bias_t>{temporal_sampling_comparison},
               edge_src_dummy_property_t{}.view(),
               edge_dst_dummy_property_t{}.view(),
               edge_property_view,
@@ -844,7 +892,7 @@ temporal_sample_with_one_property(
               edge_src_dummy_property_t{}.view(),
               edge_dst_dummy_property_t{}.view(),
               edge_time_view,
-              temporal_sample_edge_biases_op_t<vertex_t, bias_t>{},
+              temporal_sample_edge_biases_op_t<vertex_t, bias_t>{temporal_sampling_comparison},
               edge_src_dummy_property_t{}.view(),
               edge_dst_dummy_property_t{}.view(),
               edge_property_view,
@@ -878,7 +926,8 @@ temporal_sample_edges(raft::handle_t const& handle,
                       raft::device_span<edge_time_t const> active_major_times,
                       std::optional<raft::device_span<int32_t const>> active_major_labels,
                       raft::host_span<size_t const> Ks,
-                      bool with_replacement)
+                      bool with_replacement,
+                      temporal_sampling_comparison_t temporal_sampling_comparison)
 {
   CUGRAPH_EXPECTS(Ks.size() >= 1, "Must specify non-zero value for Ks");
   CUGRAPH_EXPECTS((Ks.size() == 1) || edge_type_view,
@@ -902,28 +951,30 @@ temporal_sample_edges(raft::handle_t const& handle,
 
   if (edge_property_views.size() == 1) {
     arithmetic_device_uvector_t tmp{std::monostate{}};
-    std::tie(majors, minors, tmp, sample_offsets) =
-      cugraph::variant_type_dispatch(edge_property_views[0],
-                                     [&handle,
-                                      &rng_state,
-                                      &graph_view,
-                                      &edge_time_view,
-                                      &edge_type_view,
-                                      &edge_bias_view,
-                                      &vertex_frontier,
-                                      &Ks,
-                                      with_replacement](auto& edge_property_view) {
-                                       return temporal_sample_with_one_property(handle,
-                                                                                rng_state,
-                                                                                graph_view,
-                                                                                edge_property_view,
-                                                                                edge_time_view,
-                                                                                edge_type_view,
-                                                                                edge_bias_view,
-                                                                                vertex_frontier,
-                                                                                Ks,
-                                                                                with_replacement);
-                                     });
+    std::tie(majors, minors, tmp, sample_offsets) = cugraph::variant_type_dispatch(
+      edge_property_views[0],
+      [&handle,
+       &rng_state,
+       &graph_view,
+       &edge_time_view,
+       &edge_type_view,
+       &edge_bias_view,
+       &vertex_frontier,
+       &Ks,
+       with_replacement,
+       temporal_sampling_comparison](auto& edge_property_view) {
+        return temporal_sample_with_one_property(handle,
+                                                 rng_state,
+                                                 graph_view,
+                                                 edge_property_view,
+                                                 edge_time_view,
+                                                 edge_type_view,
+                                                 edge_bias_view,
+                                                 vertex_frontier,
+                                                 Ks,
+                                                 with_replacement,
+                                                 temporal_sampling_comparison);
+      });
 
     edge_properties.push_back(std::move(tmp));
   } else {
@@ -943,7 +994,8 @@ temporal_sample_edges(raft::handle_t const& handle,
                                           edge_bias_view,
                                           vertex_frontier,
                                           Ks,
-                                          with_replacement);
+                                          with_replacement,
+                                          temporal_sampling_comparison);
 
     } else {
       std::tie(majors, minors, std::ignore, sample_offsets) =
@@ -956,7 +1008,8 @@ temporal_sample_edges(raft::handle_t const& handle,
                                           edge_bias_view,
                                           vertex_frontier,
                                           Ks,
-                                          with_replacement);
+                                          with_replacement,
+                                          temporal_sampling_comparison);
     }
 
     std::tie(majors, minors, edge_properties) = gather_sampled_properties(handle,

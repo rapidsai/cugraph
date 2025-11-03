@@ -1,17 +1,6 @@
 /*
- * Copyright (c) 2020-2025, NVIDIA CORPORATION.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2025, NVIDIA CORPORATION.
+ * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
 
@@ -231,6 +220,7 @@ void overlap_list(legacy::GraphCSRView<VT, ET, WT> const& graph,
  * drifting away.
  * @param[in] vertex_mobility_values           Device array containing mobility of each vertex
  * (scaling factor for the displacement at each iteration).
+ * @param[in] vertex_mass_values               Device array containing mass of each vertex
  * @param[in] verbose                          Output convergence info at each interation.
  * @param[in] callback                         An instance of GraphBasedDimRedCallback class to
  * intercept the internal state of positions while they are being trained.
@@ -257,6 +247,7 @@ void force_atlas2(raft::handle_t const& handle,
                   bool strong_gravity_mode                      = false,
                   const float gravity                           = 1.0,
                   float* vertex_mobility_values                 = nullptr,
+                  float* vertex_mass_values                     = nullptr,
                   bool verbose                                  = false,
                   internals::GraphBasedDimRedCallback* callback = nullptr);
 

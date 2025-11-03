@@ -1,15 +1,5 @@
-# Copyright (c) 2020-2025, NVIDIA CORPORATION.
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# SPDX-FileCopyrightText: Copyright (c) 2020-2025, NVIDIA CORPORATION.
+# SPDX-License-Identifier: Apache-2.0
 
 import warnings
 from cugraph.structure import Graph
@@ -61,6 +51,7 @@ def force_atlas2(
     input_graph: Graph,
     max_iter=500,
     pos_list=None,
+    *,
     outbound_attraction_distribution=True,
     lin_log_mode=False,
     prevent_overlapping=False,
@@ -74,9 +65,9 @@ def force_atlas2(
     strong_gravity_mode=False,
     gravity=1.0,
     vertex_mobility=None,
+    vertex_mass=None,
     verbose=False,
     callback=None,
-    *,
     random_state=None,
 ):
 
@@ -159,6 +150,11 @@ def force_atlas2(
         Mobility is a scaling factor on the speed of the vertex.
         Must contain two columns 'vertex' and 'mobility'.
 
+    vertex_mass: cudf.DataFrame, optional (default=None)
+        Data frame containing the mass of each vertex in the graph.
+        Mass of a vertex controls the attraction to other vertices.
+        Must contain two columns 'vertex' and 'mass'.
+
     verbose: bool, optional (default=False)
         Output convergence info at each interation.
 
@@ -203,6 +199,8 @@ def force_atlas2(
     vertex_radius_values = None
     vertex_mobility_vertices = None
     vertex_mobility_values = None
+    vertex_mass_vertices = None
+    vertex_mass_values = None
     do_expensive_check = False
 
     if pos_list is not None:
@@ -268,6 +266,26 @@ def force_atlas2(
             vertex_mobility["mobility"], 'vertex_mobility["mobility"]'
         )
 
+    if vertex_mass is not None:
+        if not isinstance(vertex_mass, cudf.DataFrame):
+            raise TypeError("vertex_mass must be a cudf.DataFrame")
+
+        if len(vertex_mass.columns.intersection({"vertex", "mass"})) != 2:
+            raise ValueError(
+                "vertex_mass has wrong column names. It must have 'vertex' "
+                "and 'mass'"
+            )
+
+        if input_graph.renumbered:
+            vertex_mass = renumber_vertices(input_graph, vertex_mass)
+        # Ensure dtypes are valid, warn if we need to cast
+        vertex_mass_vertices = ensure_vertex_dtype(
+            input_graph, vertex_mass["vertex"], 'vertex_mass["vertex"]'
+        )
+        vertex_mass_values = ensure_float32_dtype(
+            vertex_mass["mass"], 'vertex_mass["mass"]'
+        )
+
     if input_graph.is_directed():
         input_graph = input_graph.to_undirected()
 
@@ -294,6 +312,8 @@ def force_atlas2(
         gravity=gravity,
         vertex_mobility_vertices=vertex_mobility_vertices,
         vertex_mobility_values=vertex_mobility_values,
+        vertex_mass_vertices=vertex_mass_vertices,
+        vertex_mass_values=vertex_mass_values,
         verbose=verbose,
         do_expensive_check=do_expensive_check,
     )

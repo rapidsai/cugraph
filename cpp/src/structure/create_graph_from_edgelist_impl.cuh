@@ -1,17 +1,6 @@
 /*
- * Copyright (c) 2021-2025, NVIDIA CORPORATION.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
+ * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
 
@@ -343,9 +332,7 @@ split_edge_chunk_compressed_elements_to_local_edge_partitions(
       large_buffer_type
         ? large_buffer_manager::allocate_memory_buffer<std::byte>(num_bytes, handle.get_stream())
         : rmm::device_uvector<std::byte>(num_bytes, handle.get_stream()));
-  }
 
-  for (size_t i = 0; i < num_edge_partitions; ++i) {
     for (size_t j = 0; j < num_segments; ++j) {
       for (size_t k = 0; k < num_chunks; ++k) {
         auto segment_offset = edgelist_edge_offset_vectors[k][i * num_segments + j];
@@ -403,31 +390,29 @@ std::vector<arithmetic_device_uvector_t> split_edge_chunk_elements_to_local_edge
             : rmm::device_uvector<edge_partition_buffer_type>(allocated_size, handle.get_stream()));
       });
 
-    for (size_t i = 0; i < num_edge_partitions; ++i) {
-      for (size_t j = 0; j < num_segments; ++j) {
-        for (size_t k = 0; k < num_chunks; ++k) {
-          auto segment_offset = edgelist_edge_offset_vectors[k][i * num_segments + j];
-          auto segment_size   = edgelist_edge_offset_vectors[k][i * num_segments + j + 1] -
-                              edgelist_edge_offset_vectors[k][i * num_segments + j];
-          auto output_offset =
-            edge_partition_intra_partition_segment_offset_vectors[i][j] +
-            edge_partition_intra_segment_copy_output_displacement_vectors[i][j * num_chunks + k];
+    for (size_t j = 0; j < num_segments; ++j) {
+      for (size_t k = 0; k < num_chunks; ++k) {
+        auto segment_offset = edgelist_edge_offset_vectors[k][i * num_segments + j];
+        auto segment_size   = edgelist_edge_offset_vectors[k][i * num_segments + j + 1] -
+                            edgelist_edge_offset_vectors[k][i * num_segments + j];
+        auto output_offset =
+          edge_partition_intra_partition_segment_offset_vectors[i][j] +
+          edge_partition_intra_segment_copy_output_displacement_vectors[i][j * num_chunks + k];
 
-          variant_type_dispatch(
-            edgelist_elements[k],
-            [&handle, &edge_partition_elements, segment_offset, segment_size, output_offset, i](
-              auto const& edgelist_element) {
-              using edge_partition_buffer_type =
-                typename std::decay_t<decltype(edgelist_element)>::value_type;
-              thrust::copy(handle.get_thrust_policy(),
-                           edgelist_element.begin() + segment_offset,
-                           edgelist_element.begin() + (segment_offset + segment_size),
-                           std::get<rmm::device_uvector<edge_partition_buffer_type>>(
-                             edge_partition_elements[i])
-                               .begin() +
-                             output_offset);
-            });
-        }
+        variant_type_dispatch(
+          edgelist_elements[k],
+          [&handle, &edge_partition_elements, segment_offset, segment_size, output_offset, i](
+            auto const& edgelist_element) {
+            using edge_partition_buffer_type =
+              typename std::decay_t<decltype(edgelist_element)>::value_type;
+            thrust::copy(
+              handle.get_thrust_policy(),
+              edgelist_element.begin() + segment_offset,
+              edgelist_element.begin() + (segment_offset + segment_size),
+              std::get<rmm::device_uvector<edge_partition_buffer_type>>(edge_partition_elements[i])
+                  .begin() +
+                output_offset);
+          });
       }
     }
   }

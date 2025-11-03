@@ -1,5 +1,6 @@
 #!/bin/bash
-# Copyright (c) 2022-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+# SPDX-License-Identifier: Apache-2.0
 
 set -euo pipefail
 
@@ -46,17 +47,6 @@ rattler-build build --recipe conda/recipes/cugraph \
                     "${RATTLER_CHANNELS[@]}"
 
 sccache --show-adv-stats
-
-# NOTE: nothing in the cugraph-service packages are CUDA-specific, but they are
-# built on each CUDA platform to ensure they are included in each set of
-# artifacts, since test scripts only install from one set of artifacts based on
-# the CUDA version used for the test run.
-
-rapids-logger "Building cugraph-service"
-
-rattler-build build --recipe conda/recipes/cugraph-service \
-                    "${RATTLER_ARGS[@]}" \
-                    "${RATTLER_CHANNELS[@]}"
 
 # remove build_cache directory to avoid uploading the entire source tree
 # tracked in https://github.com/prefix-dev/rattler-build/issues/1424

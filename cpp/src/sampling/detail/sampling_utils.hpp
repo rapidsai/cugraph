@@ -1,17 +1,6 @@
 /*
- * Copyright (c) 2022-2025, NVIDIA CORPORATION.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 #pragma once
@@ -121,6 +110,7 @@ gather_one_hop_edgelist(
  * @param active_major_labels Optional device vector containing labels for each device vector
  * @param gather_flags Optional host span indicating whether to gather edge or not for each edge
  * type. @p gather_flags.has_value() should coincide with @p edge_type_view.has_value().
+ * @param temporal_sampling_comparison Temporal sampling comparison type
  * @return A tuple of device vectors containing the sampled majors, minors, edge properties and
  * optional label
  */
@@ -139,6 +129,7 @@ temporal_gather_one_hop_edgelist(
   raft::device_span<edge_time_t const> active_major_times,
   std::optional<raft::device_span<int32_t const>> active_major_labels,
   std::optional<raft::device_span<uint8_t const>> gather_flags,
+  temporal_sampling_comparison_t temporal_sampling_comparison,
   bool do_expensive_check);
 
 /**
@@ -202,6 +193,7 @@ sample_edges(raft::handle_t const& handle,
  * @param active_major_labels Optional device vector containing labels corresponding to each major
  * @param Ks How many edges to sample for each vertex per edge type
  * @param with_replacement If true sample with replacement, otherwise sample without replacement
+ * @param temporal_sampling_comparison Temporal sampling comparison type
  * @return A tuple of device vectors containing the majors, minors, edge properties and optional
  * labels
  */
@@ -221,7 +213,8 @@ temporal_sample_edges(raft::handle_t const& handle,
                       raft::device_span<edge_time_t const> active_major_times,
                       std::optional<raft::device_span<int32_t const>> active_major_labels,
                       raft::host_span<size_t const> Ks,
-                      bool with_replacement);
+                      bool with_replacement,
+                      temporal_sampling_comparison_t temporal_sampling_comparison);
 
 /**
  * @brief Use the sampling results from hop N to populate the new frontier for hop N+1.
@@ -428,6 +421,7 @@ temporal_partition_vertices(raft::handle_t const& handle,
  * @param vertex_times Device span identifying the time associated with each vertex in the frontier
  * @param edge_time_mask_view Edge property view for bit mask.  Will be updated by this call.  Bit
  * will be set to 1 if an edge should be considered and 0 if not.
+ * @param temporal_sampling_comparison Temporal sampling comparison type
  */
 template <typename vertex_t, typename edge_t, typename edge_time_t, bool multi_gpu>
 void update_temporal_edge_mask(
@@ -436,7 +430,8 @@ void update_temporal_edge_mask(
   edge_property_view_t<edge_t, edge_time_t const*> edge_start_time_view,
   raft::device_span<vertex_t const> vertices,
   raft::device_span<edge_time_t const> vertex_times,
-  edge_property_view_t<edge_t, uint32_t*, bool> edge_time_mask_view);
+  edge_property_view_t<edge_t, uint32_t*, bool> edge_time_mask_view,
+  temporal_sampling_comparison_t temporal_sampling_comparison);
 
 }  // namespace detail
 }  // namespace cugraph

@@ -1,17 +1,6 @@
 /*
- * Copyright (c) 2020-2025, NVIDIA CORPORATION.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2025, NVIDIA CORPORATION.
+ * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
 
@@ -254,6 +243,16 @@ biased_neighbor_sample(
   bool dedupe_sources                             = false,
   bool do_expensive_check                         = false);
 
+enum class temporal_sampling_comparison_t {
+  STRICTLY_INCREASING = 0,  /** Time strictly increasing (each time is after the previous one) */
+  MONOTONICALLY_INCREASING, /** Time monotonically increasing (could have multiple edges with same
+                              time) */
+  STRICTLY_DECREASING,      /** Time strictly decreasing (each time is before the previous one) */
+  MONOTONICALLY_DECREASING, /** Time monotonically decreasing (could have multiple edges with same
+                                time) */
+  LAST                      /** Support last n behavior */
+};
+
 struct sampling_flags_t {
   /**
    * Specifies how to handle prior sources. Default is DEFAULT.
@@ -277,6 +276,12 @@ struct sampling_flags_t {
    *   (true) or without replacement (false).  Default is true.
    */
   bool with_replacement{true};
+
+  /**
+   * Specifies how to handle temporal sampling. Default is STRICTLY_INCREASING.
+   */
+  temporal_sampling_comparison_t temporal_sampling_comparison{
+    temporal_sampling_comparison_t::STRICTLY_INCREASING};
 };
 
 /**

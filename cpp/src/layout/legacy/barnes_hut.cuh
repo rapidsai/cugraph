@@ -1,17 +1,6 @@
 /*
- * Copyright (c) 2020-2025, NVIDIA CORPORATION.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2025, NVIDIA CORPORATION.
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 #pragma once
@@ -55,6 +44,7 @@ void barnes_hut(raft::handle_t const& handle,
                 bool strong_gravity_mode                      = false,
                 const float gravity                           = 1.0,
                 float* vertex_mobility                        = nullptr,
+                float* vertex_mass                            = nullptr,
                 bool verbose                                  = false,
                 internals::GraphBasedDimRedCallback* callback = nullptr)
 {
@@ -94,18 +84,18 @@ void barnes_hut(raft::handle_t const& handle,
 
   rmm::device_uvector<int> d_startl(nnodes + 1, stream_view);
   rmm::device_uvector<int> d_childl((nnodes + 1) * 4, stream_view);
-  // FA2 requires degree + 1
-  rmm::device_uvector<edge_t> d_massl(nnodes + 1, stream_view);
-  thrust::fill(handle.get_thrust_policy(), d_massl.begin(), d_massl.end(), 1);
+  rmm::device_uvector<float> d_massl(nnodes + 1, stream_view);
+  rmm::device_uvector<edge_t> d_massl_edge_t(0, stream_view);
 
   rmm::device_uvector<float> d_maxxl(blocks * FACTOR1, stream_view);
   rmm::device_uvector<float> d_maxyl(blocks * FACTOR1, stream_view);
   rmm::device_uvector<float> d_minxl(blocks * FACTOR1, stream_view);
   rmm::device_uvector<float> d_minyl(blocks * FACTOR1, stream_view);
 
-  int* startl   = d_startl.data();
-  int* childl   = d_childl.data();
-  edge_t* massl = d_massl.data();
+  int* startl  = d_startl.data();
+  int* childl  = d_childl.data();
+  float* massl = d_massl.data();
+  edge_t* massl_edge_t{nullptr};
 
   float* maxxl = d_maxxl.data();
   float* maxyl = d_maxyl.data();
@@ -158,12 +148,31 @@ void barnes_hut(raft::handle_t const& handle,
 
   thrust::fill(handle.get_thrust_policy(), d_old_forces.begin(), d_old_forces.end(), 0.f);
 
-  // Sort COO for coalesced memory access.
-  sort(graph, stream_view.value());
-  RAFT_CHECK_CUDA(stream_view.value());
+  if (graph.number_of_edges > 0) {
+    // Sort COO for coalesced memory access.
+    sort(graph, stream_view.value());
+    RAFT_CHECK_CUDA(stream_view.value());
+  }
 
-  graph.degree(massl, cugraph::legacy::DegreeDirection::OUT);
-  RAFT_CHECK_CUDA(stream_view.value());
+  if (vertex_mass != nullptr) {
+    // Fill masses with 1 (because `nnodes + 1 > n`)
+    thrust::fill(handle.get_thrust_policy(), d_massl.begin() + n, d_massl.end(), 1.f);
+    raft::copy(massl, vertex_mass, n, stream_view.value());
+  } else {
+    // FA2 requires degree + 1
+    d_massl_edge_t.resize(nnodes + 1, handle.get_stream());
+    thrust::fill(handle.get_thrust_policy(), d_massl_edge_t.begin(), d_massl_edge_t.end(), 1);
+    massl_edge_t = d_massl_edge_t.data();
+    graph.degree(massl_edge_t, cugraph::legacy::DegreeDirection::OUT);
+    RAFT_CHECK_CUDA(stream_view.value());
+
+    thrust::transform(
+      handle.get_thrust_policy(),
+      d_massl_edge_t.begin(),
+      d_massl_edge_t.end(),
+      d_massl.begin(),
+      cuda::proclaim_return_type<float>([] __device__(edge_t x) { return static_cast<float>(x); }));
+  }
 
   const vertex_t* row = graph.src_indices;
   const vertex_t* col = graph.dst_indices;
@@ -177,20 +186,20 @@ void barnes_hut(raft::handle_t const& handle,
 
   // If outboundAttractionDistribution active, compensate.
   if (outbound_attraction_distribution) {
-    edge_t sum = thrust::reduce(handle.get_thrust_policy(), d_massl.begin(), d_massl.begin() + n);
+    float sum = thrust::reduce(handle.get_thrust_policy(), d_massl.begin(), d_massl.begin() + n);
     outbound_att_compensation = sum / (float)n;
   }
 
   //
   // Set cache levels for faster algorithm execution
   //---------------------------------------------------
-  cudaFuncSetCacheConfig(BoundingBoxKernel<edge_t>, cudaFuncCachePreferShared);
+  cudaFuncSetCacheConfig(BoundingBoxKernel, cudaFuncCachePreferShared);
   cudaFuncSetCacheConfig(TreeBuildingKernel, cudaFuncCachePreferL1);
   cudaFuncSetCacheConfig(ClearKernel1, cudaFuncCachePreferL1);
-  cudaFuncSetCacheConfig(ClearKernel2<edge_t>, cudaFuncCachePreferL1);
-  cudaFuncSetCacheConfig(SummarizationKernel<edge_t>, cudaFuncCachePreferShared);
+  cudaFuncSetCacheConfig(ClearKernel2, cudaFuncCachePreferL1);
+  cudaFuncSetCacheConfig(SummarizationKernel, cudaFuncCachePreferShared);
   cudaFuncSetCacheConfig(SortKernel, cudaFuncCachePreferL1);
-  cudaFuncSetCacheConfig(RepulsionKernel<edge_t>, cudaFuncCachePreferL1);
+  cudaFuncSetCacheConfig(RepulsionKernel, cudaFuncCachePreferL1);
   cudaFuncSetCacheConfig(apply_forces_bh, cudaFuncCachePreferL1);
 
   if (callback) {
@@ -209,21 +218,21 @@ void barnes_hut(raft::handle_t const& handle,
     RAFT_CHECK_CUDA(stream_view.value());
 
     // Compute bounding box arround all bodies
-    BoundingBoxKernel<edge_t>
-      <<<blocks * FACTOR1, THREADS1, 0, stream_view.value()>>>(startl,
-                                                               childl,
-                                                               massl,
-                                                               nodes_pos,
-                                                               nodes_pos + nnodes + 1,
-                                                               maxxl,
-                                                               maxyl,
-                                                               minxl,
-                                                               minyl,
-                                                               FOUR_NNODES,
-                                                               NNODES,
-                                                               n,
-                                                               limiter,
-                                                               radiusd);
+    BoundingBoxKernel<<<blocks * FACTOR1, THREADS1, 0, stream_view.value()>>>(
+      startl,
+      childl,
+      massl,
+      nodes_pos,
+      nodes_pos + nnodes + 1,
+      maxxl,
+      maxyl,
+      minxl,
+      minyl,
+      FOUR_NNODES,
+      NNODES,
+      n,
+      limiter,
+      radiusd);
     RAFT_CHECK_CUDA(stream_view.value());
 
     ClearKernel1<<<blocks, 1024, 0, stream_view.value()>>>(childl, FOUR_NNODES, FOUR_N);
@@ -234,11 +243,11 @@ void barnes_hut(raft::handle_t const& handle,
       childl, nodes_pos, nodes_pos + nnodes + 1, NNODES, n, maxdepthd, bottomd, radiusd);
     RAFT_CHECK_CUDA(stream_view.value());
 
-    ClearKernel2<edge_t><<<blocks, 1024, 0, stream_view.value()>>>(startl, massl, NNODES, bottomd);
+    ClearKernel2<<<blocks, 1024, 0, stream_view.value()>>>(startl, massl, NNODES, bottomd);
     RAFT_CHECK_CUDA(stream_view.value());
 
     // Summarizes mass and position for each cell, bottom up approach
-    SummarizationKernel<edge_t><<<blocks * FACTOR3, THREADS3, 0, stream_view.value()>>>(
+    SummarizationKernel<<<blocks * FACTOR3, THREADS3, 0, stream_view.value()>>>(
       countl, childl, massl, nodes_pos, nodes_pos + nnodes + 1, NNODES, n, bottomd);
     RAFT_CHECK_CUDA(stream_view.value());
 
@@ -248,35 +257,34 @@ void barnes_hut(raft::handle_t const& handle,
     RAFT_CHECK_CUDA(stream_view.value());
 
     // Force computation O(n . log(n))
-    RepulsionKernel<edge_t>
-      <<<blocks * FACTOR5, THREADS5, 0, stream_view.value()>>>(scaling_ratio,
-                                                               theta,
-                                                               epssq,
-                                                               sortl,
-                                                               childl,
-                                                               massl,
-                                                               nodes_pos,
-                                                               nodes_pos + nnodes + 1,
-                                                               rep_forces,
-                                                               rep_forces + nnodes + 1,
-                                                               theta_squared,
-                                                               NNODES,
-                                                               FOUR_NNODES,
-                                                               n,
-                                                               radiusd_squared,
-                                                               maxdepthd);
+    RepulsionKernel<<<blocks * FACTOR5, THREADS5, 0, stream_view.value()>>>(scaling_ratio,
+                                                                            theta,
+                                                                            epssq,
+                                                                            sortl,
+                                                                            childl,
+                                                                            massl,
+                                                                            nodes_pos,
+                                                                            nodes_pos + nnodes + 1,
+                                                                            rep_forces,
+                                                                            rep_forces + nnodes + 1,
+                                                                            theta_squared,
+                                                                            NNODES,
+                                                                            FOUR_NNODES,
+                                                                            n,
+                                                                            radiusd_squared,
+                                                                            maxdepthd);
     RAFT_CHECK_CUDA(stream_view.value());
 
-    apply_gravity<vertex_t, edge_t>(nodes_pos,
-                                    nodes_pos + nnodes + 1,
-                                    attract,
-                                    attract + n,
-                                    massl,
-                                    gravity,
-                                    strong_gravity_mode,
-                                    scaling_ratio,
-                                    n,
-                                    stream_view.value());
+    apply_gravity<vertex_t>(nodes_pos,
+                            nodes_pos + nnodes + 1,
+                            attract,
+                            attract + n,
+                            massl,
+                            gravity,
+                            strong_gravity_mode,
+                            scaling_ratio,
+                            n,
+                            stream_view.value());
 
     apply_attraction<vertex_t, edge_t, weight_t>(row,
                                                  col,
@@ -295,17 +303,17 @@ void barnes_hut(raft::handle_t const& handle,
                                                  vertex_radius,
                                                  stream_view.value());
 
-    compute_local_speed<vertex_t, edge_t>(rep_forces,
-                                          rep_forces + nnodes + 1,
-                                          attract,
-                                          attract + n,
-                                          old_forces,
-                                          old_forces + n,
-                                          massl,
-                                          swinging,
-                                          traction,
-                                          n,
-                                          stream_view.value());
+    compute_local_speed<vertex_t>(rep_forces,
+                                  rep_forces + nnodes + 1,
+                                  attract,
+                                  attract + n,
+                                  old_forces,
+                                  old_forces + n,
+                                  massl,
+                                  swinging,
+                                  traction,
+                                  n,
+                                  stream_view.value());
 
     // Compute global swinging and traction values
     const float s =
@@ -327,6 +335,7 @@ void barnes_hut(raft::handle_t const& handle,
                                                                             old_forces,
                                                                             old_forces + n,
                                                                             swinging,
+                                                                            prevent_overlapping,
                                                                             vertex_mobility,
                                                                             speed,
                                                                             n);
