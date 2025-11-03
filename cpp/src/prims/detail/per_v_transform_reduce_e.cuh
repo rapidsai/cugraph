@@ -577,13 +577,6 @@ __global__ static void per_v_transform_reduce_e_mid_degree(
       }
     }
 
-    // FIXME: Remove once upgraded to CCCL version 3.x
-#if CCCL_MAJOR_VERSION >= 3
-    using cuda::minimum;
-#else
-    using minimum = cub::Min;
-#endif
-
     if (edge_partition_e_mask) {
       if constexpr (update_major && std::is_same_v<ReduceOp, reduce_op::any<T>>) {
         auto rounded_up_local_degree =
@@ -595,8 +588,9 @@ __global__ static void per_v_transform_reduce_e_mid_degree(
               (*edge_partition_e_mask).get(edge_offset + i) && call_pred_op(i)) {
             e_op_result = call_e_op(i);
           }
-          first_valid_lane_id = WarpReduce(temp_storage[threadIdx.x / raft::warp_size()])
-                                  .Reduce(e_op_result ? lane_id : raft::warp_size(), minimum{});
+          first_valid_lane_id =
+            WarpReduce(temp_storage[threadIdx.x / raft::warp_size()])
+              .Reduce(e_op_result ? lane_id : raft::warp_size(), cuda::minimum{});
           first_valid_lane_id = __shfl_sync(raft::warp_full_mask(), first_valid_lane_id, int{0});
           if (lane_id == first_valid_lane_id) { reduced_e_op_result = *e_op_result; }
           if (first_valid_lane_id != raft::warp_size()) { break; }
@@ -628,8 +622,9 @@ __global__ static void per_v_transform_reduce_e_mid_degree(
           if (i < static_cast<size_t>(local_degree) && call_pred_op(i)) {
             e_op_result = call_e_op(i);
           }
-          first_valid_lane_id = WarpReduce(temp_storage[threadIdx.x / raft::warp_size()])
-                                  .Reduce(e_op_result ? lane_id : raft::warp_size(), minimum{});
+          first_valid_lane_id =
+            WarpReduce(temp_storage[threadIdx.x / raft::warp_size()])
+              .Reduce(e_op_result ? lane_id : raft::warp_size(), cuda::minimum{});
           first_valid_lane_id = __shfl_sync(raft::warp_full_mask(), first_valid_lane_id, int{0});
           if (lane_id == first_valid_lane_id) { reduced_e_op_result = *e_op_result; }
           if (first_valid_lane_id != raft::warp_size()) { break; }
@@ -774,13 +769,6 @@ __global__ static void per_v_transform_reduce_e_high_degree(
       }
     }
 
-    // FIXME: Remove once upgraded to CCCL version 3.x
-#if CCCL_MAJOR_VERSION >= 3
-    using cuda::minimum;
-#else
-    using minimum = cub::Min;
-#endif
-
     if (edge_partition_e_mask) {
       if constexpr (update_major && std::is_same_v<ReduceOp, reduce_op::any<T>>) {
         auto rounded_up_local_degree =
@@ -799,7 +787,7 @@ __global__ static void per_v_transform_reduce_e_high_degree(
               .Reduce(e_op_result
                         ? threadIdx.x
                         : per_v_transform_reduce_e_kernel_high_degree_reduce_any_block_size,
-                      minimum{});
+                      cuda::minimum{});
           if (threadIdx.x == 0) { output_thread_id = first_valid_thread_id; }
           __syncthreads();
           first_valid_thread_id = output_thread_id;
@@ -843,7 +831,7 @@ __global__ static void per_v_transform_reduce_e_high_degree(
               .Reduce(e_op_result
                         ? threadIdx.x
                         : per_v_transform_reduce_e_kernel_high_degree_reduce_any_block_size,
-                      minimum{});
+                      cuda::minimum{});
           if (threadIdx.x == 0) { output_thread_id = first_valid_thread_id; }
           __syncthreads();
           first_valid_thread_id = output_thread_id;
