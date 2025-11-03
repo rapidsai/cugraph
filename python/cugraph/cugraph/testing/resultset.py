@@ -74,7 +74,7 @@ def get_resultset(resultset_name, **kwargs):
 default_resultset_download_dir = DefaultDownloadDir(subdir="tests/resultsets")
 
 
-def load_resultset(resultset_name, resultset_download_url):
+def load_resultset(resultset_name, resultset_download_url, sep=" "):
     """
     Read a mapping file (<resultset_name>.csv) in the _results_dir and save the
     mappings between each unique set of args/identifiers to UUIDs to the
@@ -103,8 +103,6 @@ def load_resultset(resultset_name, resultset_download_url):
             tar.extractall(str(curr_resultset_download_dir))
         tar.close()
 
-    # FIXME: This assumes separator is " ", but should this be configurable?
-    sep = " "
     with open(mapping_file_path) as mapping_file:
         for line in mapping_file.readlines():
             if line.startswith("#"):
