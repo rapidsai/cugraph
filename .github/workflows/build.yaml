@@ -41,7 +41,8 @@ jobs:
       date: ${{ inputs.date }}
       script: ci/build_cpp.sh
       sha: ${{ inputs.sha }}
-      node_type: cpu32
+      node_type: cpu8
+      sccache-dist-token-secret-name: GIST_REPO_READ_ORG_GITHUB_TOKEN
   python-build:
     needs: [cpp-build]
     secrets: inherit
@@ -52,6 +53,7 @@ jobs:
       date: ${{ inputs.date }}
       script: ci/build_python.sh
       sha: ${{ inputs.sha }}
+      sccache-dist-token-secret-name: GIST_REPO_READ_ORG_GITHUB_TOKEN
   upload-conda:
     needs: [cpp-build, python-build]
     secrets: inherit
@@ -86,9 +88,10 @@ jobs:
       sha: ${{ inputs.sha }}
       date: ${{ inputs.date }}
       script: ci/build_wheel_libcugraph.sh
-      node_type: cpu32
+      node_type: cpu8
       package-name: libcugraph
       package-type: cpp
+      sccache-dist-token-secret-name: GIST_REPO_READ_ORG_GITHUB_TOKEN
   wheel-publish-libcugraph:
     needs: wheel-build-libcugraph
     secrets: inherit
@@ -106,12 +109,14 @@ jobs:
     uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@main
     with:
       build_type: ${{ inputs.build_type || 'branch' }}
+      node_type: cpu8
       branch: ${{ inputs.branch }}
       sha: ${{ inputs.sha }}
       date: ${{ inputs.date }}
       script: ci/build_wheel_pylibcugraph.sh
       package-name: pylibcugraph
       package-type: python
+      sccache-dist-token-secret-name: GIST_REPO_READ_ORG_GITHUB_TOKEN
   wheel-publish-pylibcugraph:
     needs: wheel-build-pylibcugraph
     secrets: inherit
@@ -129,12 +134,14 @@ jobs:
     uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@main
     with:
       build_type: ${{ inputs.build_type || 'branch' }}
+      node_type: cpu8
       branch: ${{ inputs.branch }}
       sha: ${{ inputs.sha }}
       date: ${{ inputs.date }}
       script: ci/build_wheel_cugraph.sh
       package-name: cugraph
       package-type: python
+      sccache-dist-token-secret-name: GIST_REPO_READ_ORG_GITHUB_TOKEN
   wheel-publish-cugraph:
     needs: wheel-build-cugraph
     secrets: inherit
