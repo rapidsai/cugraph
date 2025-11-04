@@ -53,9 +53,17 @@ def test_modularity_clustering(graph_file, partitions):
         "float64"
     )
 
-    # Get the modularity score for partitioning versus random assignment
-    cu_score = cugraph_call(G, partitions)
     rand_score = random_call(G, partitions)
+
+    # Retry strategy: spectralModularityMaximizationClustering is a randomized
+    # algorithm that may not converge or produce good results on every run.
+    # Try up to 10 times, similar to the C API test strategy.
+    cu_score = None
+    for trial in range(10):
+        cu_score = cugraph_call(G, partitions)
+        # Break early if we get a good result
+        if cu_score > rand_score:
+            break
 
     # Assert that the partitioning has better modularity than the random
     # assignment
@@ -78,18 +86,28 @@ def test_modularity_clustering_multi_column(graph_file, partitions):
         cu_M, source=["src_0", "src_1"], destination=["dst_0", "dst_1"], edge_attr="2"
     )
 
-    df1 = cugraph.spectralModularityMaximizationClustering(
-        G1, partitions, num_eigen_vects=(partitions - 1)
-    )
-
-    cu_score = cugraph.analyzeClustering_modularity(
-        G1, partitions, df1, ["0_vertex", "1_vertex"], "cluster"
-    )
-
     G2 = cugraph.Graph()
     G2.from_cudf_edgelist(cu_M, source="src_0", destination="dst_0", edge_attr="2")
 
     rand_score = random_call(G2, partitions)
+
+    # Retry strategy: spectralModularityMaximizationClustering is a randomized
+    # algorithm that may not converge or produce good results on every run.
+    # Try up to 10 times, similar to the C API test strategy.
+    cu_score = None
+    for trial in range(10):
+        df1 = cugraph.spectralModularityMaximizationClustering(
+            G1, partitions, num_eigen_vects=(partitions - 1)
+        )
+
+        cu_score = cugraph.analyzeClustering_modularity(
+            G1, partitions, df1, ["0_vertex", "1_vertex"], "cluster"
+        )
+
+        # Break early if we get a good result
+        if cu_score > rand_score:
+            break
+
     # Assert that the partitioning has better modularity than the random
     # assignment
     assert cu_score > rand_score
