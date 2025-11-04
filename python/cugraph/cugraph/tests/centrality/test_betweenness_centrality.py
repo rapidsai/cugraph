@@ -3,6 +3,7 @@
 
 import gc
 
+import packaging.version
 import pytest
 import random
 import numpy as np
@@ -12,6 +13,9 @@ import cudf
 import cugraph
 from cugraph.datasets import karate_disjoint
 from cugraph.testing import SMALL_DATASETS
+
+nx_version_3_5 = packaging.version.parse("3.5")
+nx_version = packaging.version.parse(nx.__version__)
 
 # =============================================================================
 # Parameters
@@ -300,8 +304,8 @@ def compare_scores(sorted_df, first_key, second_key, epsilon=DEFAULT_EPSILON):
 # Tests
 # =============================================================================
 @pytest.mark.skipif(
-    float(".".join(nx.__version__.split(".")[:2])) < 3.5,
-    reason="Requires networkx >= 3.5",
+    nx_version < nx_version_3_5,
+    reason=f"Requires networkx >= {nx_version_3_5}",
 )
 @pytest.mark.sg
 @pytest.mark.parametrize("graph_file", SMALL_DATASETS)

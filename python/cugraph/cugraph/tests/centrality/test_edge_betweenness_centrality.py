@@ -3,6 +3,7 @@
 
 import gc
 
+import packaging.version
 import pytest
 import random
 import networkx as nx
@@ -14,6 +15,8 @@ import cugraph
 from cugraph.datasets import karate_disjoint
 from cugraph.testing import utils, SMALL_DATASETS
 
+nx_version_3_5 = packaging.version.parse("3.5")
+nx_version = packaging.version.parse(nx.__version__)
 
 # NOTE: Endpoint parameter is not currently being tested, there could be a test
 #       to verify that python raise an error if it is used
@@ -303,8 +306,8 @@ def generate_upper_triangle(dataframe):
 
 
 @pytest.mark.skipif(
-    float(".".join(nx.__version__.split(".")[:2])) < 3.5,
-    reason="Requires networkx >= 3.5",
+    nx_version < nx_version_3_5,
+    reason=f"Requires networkx >= {nx_version_3_5}",
 )
 @pytest.mark.sg
 @pytest.mark.parametrize("graph_file", SMALL_DATASETS)
@@ -337,8 +340,8 @@ def test_edge_betweenness_centrality(
 
 
 @pytest.mark.skipif(
-    float(".".join(nx.__version__.split(".")[:2])) < 3.5,
-    reason="Requires networkx >= 3.5",
+    nx_version < nx_version_3_5,
+    reason=f"Requires networkx >= {nx_version_3_5}",
 )
 @pytest.mark.sg
 @pytest.mark.parametrize("graph_file", SMALL_DATASETS)
@@ -380,8 +383,8 @@ def test_edge_betweenness_centrality_k_full(
 #       to a random sampling over the number of vertices (thus direct offsets)
 #       in the graph structure instead of actual vertices identifiers
 @pytest.mark.skipif(
-    float(".".join(nx.__version__.split(".")[:2])) < 3.5,
-    reason="Requires networkx >= 3.5",
+    nx_version < nx_version_3_5,
+    reason=f"Requires networkx >= {nx_version_3_5}",
 )
 @pytest.mark.sg
 @pytest.mark.parametrize("graph_file", [karate_disjoint])

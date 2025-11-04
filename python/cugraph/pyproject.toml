@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2022, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 
 [build-system]
@@ -54,6 +54,7 @@ test = [
     "certifi",
     "networkx>=2.5.1",
     "numpy>=1.23,<3.0a0",
+    "packaging",
     "pandas",
     "pytest",
     "pytest-benchmark",
