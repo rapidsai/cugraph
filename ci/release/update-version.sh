@@ -45,6 +45,7 @@ DEPENDENCIES=(
   libcugraph
   libcugraph_etl
   libcugraph-tests
+  libcuvs
   libraft
   librmm
   pylibcudf
