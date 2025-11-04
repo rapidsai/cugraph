@@ -26,12 +26,8 @@ function(find_and_configure_cuvs)
       message(STATUS "CUGRAPH: Using shared cuVS library")
     endif()
 
-    # Enable multi-GPU algorithms when compiling from source
-    if(PKG_COMPILE_LIBRARY)
-      set(CUVS_BUILD_MG_ALGOS ON)
-    else()
-      set(CUVS_BUILD_MG_ALGOS OFF)
-    endif()
+    # Disable multi-GPU algorithms to avoid NCCL dependency
+    set(CUVS_BUILD_MG_ALGOS OFF)
 
     rapids_cpm_find(cuvs ${PKG_VERSION}
       GLOBAL_TARGETS      cuvs::cuvs
