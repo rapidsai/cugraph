@@ -424,6 +424,24 @@ enum class edge_key_selector_t {
 /**
  * @ingroup graph_functions_cpp
  * @brief Rule for combining edge properties when merging reciprocal edges.
+ *
+ * Each edge property in the edge tuple can have a different combining rule.
+ * For example, the weight of an edge can be combined differently than the edge type.
+ *
+ * @param SUM Sum the values of the edge properties.
+ * @param MAX Take the maximum of the values of the edge properties.
+ * @param MIN Take the minimum of the values of the edge properties.
+ * @param MEAN Take the mean of the values of the edge properties.
+ * @param FIRST Use the value of the first edge property based on the original order of the edges in
+ * the input data.  For an inverse edge things will be ordered based on the order of the
+ * original edge that the inverse edge was created from.
+ * @param LAST Use the value of the last edge property based on the original order of the edges in
+ * the input data.  For an inverse edge things will be ordered based on the order of the
+ * original edge that the inverse edge was created from.
+ * @param NONE Do not combine the values, so the edge property will be unchanged, so the edge
+ * properties will potentially be different in each direction.  If NONE is specified and there are
+ * multiple values in the same direction, then we will not remove any edge tuples from the edgelist
+ * and the resulting edge list can have duplicate edges.
  */
 enum class edge_value_combining_rule_t {
   SUM,   /** Sum the values of the two edge properties. */
@@ -478,14 +496,21 @@ add_reciprocals_and_merge_edge_tuples(
 
 /**
  * @ingroup graph_functions_cpp
- * @brief Remove non-reciprocal edges from the edgelist.  This was formerly called
+ * @brief Drop non-reciprocal edge tuples from the edgelist.  This was formerly called
  * symmetrize_edgelist with reciprocal set to true.
  *
  * The input edge list scanned, each edge tuple that does not have a matching reciprocal edge is
- * removed.  @p edge_key_selector is used to determine if an edge property is part of the uniqueness
+ * dropped.  @p edge_key_selector is used to determine if an edge property is part of the uniqueness
  * key of the edge.  If it is part of the uniqueness key, the edge tuple is removed if it does not
  * have a matching reciprocal edge.  If it is not part of the uniqueness key, the edge property is
  * ignored in the comparison.
+ *
+ * @p edge_value_combining_rule is used to combine the edge values when merging reciprocal edges.
+ * Specifically, if the edge tuple has a matching reciprocal edge, the edge values could be
+ * different, so we need a rule to combine the edge values.  If NONE is specified as the value
+ * combining rule, the edge property will be unchanged, so will potentially be different in each
+ * direction.  Otherwise the edge property will be combined according to the specified rule so that
+ * both directions match.
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
@@ -498,6 +523,8 @@ add_reciprocals_and_merge_edge_tuples(
  * @param edgelist_dsts Vector of edge destination vertex IDs.
  * @param edgelist_edge_properties Vector of edge properties.
  * @param edge_key_selector Vector of selectors for selecting the key of the edge properties.
+ * @param edge_value_combining_rule Vector of rules for combining edge values when merging
+ * reciprocal edges. reciprocal edges.
  * @param store_transposed Flag indicating whether to use sources (if false) or destinations (if
  * true) as major indices in storing edges using a 2D sparse matrix.
  * @return Tuple of non-reciprocal sources, destinations, and edge properties.
@@ -506,12 +533,14 @@ template <typename vertex_t, bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            std::vector<arithmetic_device_uvector_t>>
-drop_nonreciprocal_edge_tuples(raft::handle_t const& handle,
-                               rmm::device_uvector<vertex_t>&& edgelist_srcs,
-                               rmm::device_uvector<vertex_t>&& edgelist_dsts,
-                               std::vector<arithmetic_device_uvector_t>&& edgelist_edge_properties,
-                               std::vector<edge_key_selector_t> const& edge_key_selector,
-                               bool store_transposed);
+drop_nonreciprocal_edge_tuples(
+  raft::handle_t const& handle,
+  rmm::device_uvector<vertex_t>&& edgelist_srcs,
+  rmm::device_uvector<vertex_t>&& edgelist_dsts,
+  std::vector<arithmetic_device_uvector_t>&& edgelist_edge_properties,
+  std::vector<edge_key_selector_t> const& edge_key_selector,
+  std::vector<edge_value_combining_rule_t> const& edge_value_combining_rule,
+  bool store_transposed);
 
 /**
  * @ingroup graph_functions_cpp
