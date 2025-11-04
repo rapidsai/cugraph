@@ -75,6 +75,7 @@ requires = [
     "cmake>=3.30.4",
     "cython>=3.1.2",
     "libcugraph==25.12.*,>=0.0.0a0",
+    "libcuvs==25.12.*,>=0.0.0a0",
     "libraft==25.12.*,>=0.0.0a0",
     "librmm==25.12.*,>=0.0.0a0",
     "ninja",

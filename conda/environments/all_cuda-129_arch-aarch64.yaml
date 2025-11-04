@@ -32,8 +32,8 @@ dependencies:
 - libcurand-dev
 - libcusolver-dev
 - libcusparse-dev
-- libraft==25.12.*,>=0.0.0a0
 - libcuvs==25.12.*,>=0.0.0a0
+- libraft==25.12.*,>=0.0.0a0
 - librmm==25.12.*,>=0.0.0a0
 - nbsphinx
 - nccl>=2.19

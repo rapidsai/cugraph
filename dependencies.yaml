@@ -19,6 +19,7 @@ files:
       - depends_on_dask_cuda
       - depends_on_dask_cudf
       - depends_on_libcudf
+      - depends_on_libcuvs
       - depends_on_libraft
       - depends_on_librmm
       - depends_on_pylibcudf
@@ -103,6 +104,7 @@ files:
     includes:
       - common_build
       - depends_on_libcugraph
+      - depends_on_libcuvs
       - depends_on_libraft
       - depends_on_librmm
       - depends_on_pylibcugraph
@@ -152,6 +154,7 @@ files:
     includes:
       - common_build
       - depends_on_librmm
+      - depends_on_libcuvs
       - depends_on_libraft
   py_run_libcugraph:
     output: pyproject
@@ -159,6 +162,7 @@ files:
     extras:
       table: project
     includes:
+      - depends_on_libcuvs
       - depends_on_libraft
   py_build_pylibcugraph:
     output: pyproject
@@ -177,6 +181,7 @@ files:
     includes:
       - common_build
       - depends_on_libcugraph
+      - depends_on_libcuvs
       - depends_on_libraft
       - depends_on_librmm
       - depends_on_pylibraft
@@ -507,6 +512,30 @@ dependencies:
             packages:
               - libraft-cu13==25.12.*,>=0.0.0a0
           - {matrix: null, packages: [*libraft_unsuffixed]}
+  depends_on_libcuvs:
+    common:
+      - output_types: conda
+        packages:
+          - &libcuvs_unsuffixed libcuvs==25.12.*,>=0.0.0a0
+      - output_types: requirements
+        packages:
+          # pip recognizes the index as a global option for the requirements.txt file
+          - --extra-index-url=https://pypi.nvidia.com
+          - --extra-index-url=https://pypi.anaconda.org/rapidsai-wheels-nightly/simple
+    specific:
+      - output_types: [requirements, pyproject]
+        matrices:
+          - matrix:
+              cuda: "12.*"
+              cuda_suffixed: "true"
+            packages:
+              - libcuvs-cu12==25.12.*,>=0.0.0a0
+          - matrix:
+              cuda: "13.*"
+              cuda_suffixed: "true"
+            packages:
+              - libcuvs-cu13==25.12.*,>=0.0.0a0
+          - {matrix: null, packages: [*libcuvs_unsuffixed]}
   depends_on_librmm:
     common:
       - output_types: conda
