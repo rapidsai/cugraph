@@ -2375,7 +2375,7 @@ class EXPERIMENTAL__PropertyGraph:
             # This returns a writable view (i.e., no copies!)
             rv = s._data.columns[0].children[-1].values.reshape(-1, length)
         else:
-            if df.dtypes[col_name] is not object:
+            if df.dtypes[col_name] != "object":
                 raise TypeError(
                     "Wrong dtype for vector property; expected 'object', "
                     f"got {df.dtypes[col_name]}"
