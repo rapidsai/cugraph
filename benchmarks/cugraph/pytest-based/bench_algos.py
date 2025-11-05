@@ -401,29 +401,6 @@ def bench_edge_betweenness_centrality(benchmark, graph):
     benchmark(cugraph.edge_betweenness_centrality, graph, k=10, seed=123)
 
 
-def bench_uniform_neighbor_sample(benchmark, graph):
-    uns = (
-        dask_cugraph.uniform_neighbor_sample
-        if is_graph_distributed(graph)
-        else cugraph.uniform_neighbor_sample
-    )
-
-    seed = 42
-    # FIXME: may need to provide number_of_vertices separately
-    num_verts_in_graph = graph.number_of_vertices()
-    len_start_list = max(int(num_verts_in_graph * 0.01), 2)
-    srcs = graph.edgelist.edgelist_df["src"]
-    frac = len_start_list / num_verts_in_graph
-
-    start_list = srcs.sample(frac=frac, random_state=seed)
-    # Attempt to automatically handle a dask Series
-    if hasattr(start_list, "compute"):
-        start_list = start_list.compute()
-
-    fanout_vals = [5, 5, 5]
-    benchmark(uns, graph, start_list=start_list, fanout_vals=fanout_vals)
-
-
 def bench_egonet(benchmark, graph):
     egonet = (
         dask_cugraph.ego_graph if is_graph_distributed(graph) else cugraph.ego_graph
