@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2021-2024, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -134,14 +134,6 @@ def katz(G, alpha=None):
 
 def hits(G):
     return cugraph.hits(G)
-
-
-def uniform_neighbor_sample(G, start_list=None, fanout_vals=None):
-    # convert list to cudf.Series
-    start_list = cudf.Series(start_list, dtype="int32")
-    return cugraph.uniform_neighbor_sample(
-        G, start_list=start_list, fanout_vals=fanout_vals
-    )
 
 
 def triangle_count(G):
