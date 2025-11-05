@@ -1,13 +1,11 @@
 # SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 
-import os
 
 import pytest
 import numpy as np
 import cupy as cp
 from cugraph.testing.mg_utils import start_dask_client, stop_dask_client
-import cudf
 import dask_cudf
 import rmm
 
@@ -257,7 +255,7 @@ def bench_cugraph_uniform_neighbor_sample(
         )
     # print(f"\n{uns_args}")
     # FIXME: uniform_neighbor_sample cannot take a np.ndarray for start_list
-    result = benchmark(
+    result = benchmark(  # noqa: F841
         uniform_neighbor_sample_func,
         G,
         start_list=uns_args["start_list"],

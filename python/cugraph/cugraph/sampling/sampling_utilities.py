@@ -88,7 +88,6 @@ def sampling_results_from_cupy_array_dict(
 
     else:
         if len(batch_ids) > 0:
-
             results_df["batch_id"] = batch_ids
         else:
             results_df["batch_id"] = None
@@ -111,7 +110,6 @@ def sampling_results_from_cupy_array_dict(
     results_df = results_df.join(hop_ids_r, how="outer").sort_index()
 
     if major_col_name not in results_df:
-
         major_offsets_series = cudf.Series(
             cupy_array_dict["major_offsets"], name="major_offsets"
         )
@@ -244,7 +242,6 @@ def legacy_sampling_results_from_cupy_array_dict(
     results_df = results_df.join(hop_ids_r, how="outer").sort_index()
 
     if major_col_name not in results_df:
-
         major_offsets_series = cudf.Series(
             cupy_array_dict["major_offsets"], name="major_offsets"
         )

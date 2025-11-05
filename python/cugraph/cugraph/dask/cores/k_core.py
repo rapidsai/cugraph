@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2022-2024, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -26,7 +26,6 @@ def convert_to_cudf(cp_arrays):
 
 
 def _call_plc_k_core(sID, mg_graph_x, k, degree_type, core_result, do_expensive_check):
-
     return pylibcugraph_k_core(
         resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
         graph=mg_graph_x,

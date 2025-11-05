@@ -70,7 +70,6 @@ def check_edges(result, srcs, dsts, weights, num_verts, num_edges, num_seeds):
 def test_neighborhood_sampling_cupy(
     sg_graph_objs, valid_graph_data, renumber, store_transposed, with_replacement
 ):
-
     resource_handle = ResourceHandle()
     graph_props = GraphProperties(is_symmetric=False, is_multigraph=False)
 
@@ -123,7 +122,6 @@ def test_neighborhood_sampling_cupy(
 def test_neighborhood_sampling_cudf(
     sg_graph_objs, valid_graph_data, renumber, store_transposed, with_replacement
 ):
-
     resource_handle = ResourceHandle()
     graph_props = GraphProperties(is_symmetric=False, is_multigraph=False)
 

@@ -779,7 +779,7 @@ class Graph:
 
         if self.graph_properties.directed is False:
             undirected_graph = type(self)()
-        elif self.__class__.__bases__[0] == object:
+        elif type(self).__bases__[0] is object:
             undirected_graph = type(self)()
         else:
             undirected_graph = self.__class__.__bases__[0]()

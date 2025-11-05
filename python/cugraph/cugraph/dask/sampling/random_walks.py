@@ -39,7 +39,6 @@ def convert_to_cudf(cp_paths, number_map=None, is_vertex_paths=False):
 
 
 def _call_plc_uniform_random_walks(sID, mg_graph_x, st_x, max_depth):
-
     return pylibcugraph_uniform_random_walks(
         resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
         input_graph=mg_graph_x,

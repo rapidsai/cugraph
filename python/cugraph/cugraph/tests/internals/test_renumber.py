@@ -16,7 +16,6 @@ from cugraph.testing import utils, DEFAULT_DATASETS
 
 @pytest.mark.sg
 def test_renumber_ips_cols():
-
     source_list = [
         "192.168.1.1",
         "172.217.5.238",

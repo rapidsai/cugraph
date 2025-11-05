@@ -74,7 +74,7 @@ def run_sampling_test(ddf, start_list):
     df, time_ls = sample_graph(ddf, start_list)
     time_ar = np.asarray(time_ls)
     time_mean = time_ar.mean()
-    print(f"Sampling {len(start_list):,} took = {time_mean*1e-6} ms")
+    print(f"Sampling {len(start_list):,} took = {time_mean * 1e-6} ms")
     return
 
 

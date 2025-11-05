@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2022-2024, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -13,7 +13,6 @@ import warnings
 def _call_plc_katz_centrality(
     sID, mg_graph_x, betas, alpha, beta, epsilon, max_iterations, do_expensive_check
 ):
-
     return pylibcugraph_katz(
         resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
         graph=mg_graph_x,
@@ -145,7 +144,7 @@ def katz_centrality(
         alpha = 1 / (degree_max)
 
     if (alpha is not None) and (alpha <= 0.0):
-        raise ValueError(f"'alpha' must be a positive float or None, " f"got: {alpha}")
+        raise ValueError(f"'alpha' must be a positive float or None, got: {alpha}")
 
     # FIXME: should we add this parameter as an option?
     do_expensive_check = False

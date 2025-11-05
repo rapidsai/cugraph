@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2023-2024, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2023-2025, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 
 import dask_cudf
@@ -107,7 +107,6 @@ def _mg_call_plc_replicate(
     input_type: str,
     col_names: list,
 ) -> Union[dask_cudf.DataFrame, dask_cudf.Series]:
-
     if input_type == "dataframe":
         result = [
             client.submit(

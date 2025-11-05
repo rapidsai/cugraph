@@ -76,13 +76,12 @@ class npartiteGraphImpl(simpleGraphImpl):
             if multipartite is not None:
                 if self.properties.bipartite:
                     raise Exception(
-                        "The Graph is bipartite. " "Use bipartite option instead."
+                        "The Graph is bipartite. Use bipartite option instead."
                     )
             elif bipartite is not None:
                 if not self.properties.bipartite:
                     raise Exception(
-                        "The Graph is set as npartite. "
-                        "Use multipartite option instead."
+                        "The Graph is set as npartite. Use multipartite option instead."
                     )
                 multipartite = bipartite
                 if multipartite not in set_names and len(set_names) == 2:

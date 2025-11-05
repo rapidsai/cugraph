@@ -121,7 +121,6 @@ def simple_unweighted_input_expected_output(request):
 # =============================================================================
 @pytest.mark.sg
 def test_uniform_neighbor_sample_simple(input_combo):
-
     G = input_combo["Graph"]
 
     #
@@ -220,7 +219,6 @@ def test_uniform_neighbor_sample_simple(input_combo):
 @pytest.mark.sg
 @pytest.mark.parametrize("directed", IS_DIRECTED)
 def test_uniform_neighbor_sample_tree(directed):
-
     input_data_path = small_tree.get_path()
 
     df = cudf.read_csv(

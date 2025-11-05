@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2021-2023, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 
 import sys
@@ -162,7 +162,7 @@ class BenchmarkRun:
                         G.compute_renumber_edge_list(transposed=False)
                 self.__log("done.")
         # FIXME: need to handle individual algo args
-        for ((algo, params), validator) in zip(self.algos, self.validators):
+        for (algo, params), validator in zip(self.algos, self.validators):
             self.__log(f"running {algo.name} (warmup)...", end="")
             algo(G, **params)
             self.__log("done.")

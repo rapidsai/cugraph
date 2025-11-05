@@ -257,7 +257,7 @@ class simpleDistributedGraphImpl:
                 ]
                 value_col_names = [self.edgeWeightCol, self.edgeIdCol, self.edgeTypeCol]
             else:
-                raise ValueError("Only 1 or 3 values may be provided" "for edge_attr")
+                raise ValueError("Only 1 or 3 values may be providedfor edge_attr")
 
             # The symmetrize step may add additional edges with unknown
             # ids and types for an undirected graph.  Therefore, only
@@ -477,9 +477,10 @@ class simpleDistributedGraphImpl:
                     edgelist_df, [srcCol, dstCol], len(workers)
                 )
 
-            edgelist_df[srcCol], edgelist_df[dstCol] = edgelist_df[
-                [srcCol, dstCol]
-            ].min(axis=1), edgelist_df[[srcCol, dstCol]].max(axis=1)
+            edgelist_df[srcCol], edgelist_df[dstCol] = (
+                edgelist_df[[srcCol, dstCol]].min(axis=1),
+                edgelist_df[[srcCol, dstCol]].max(axis=1),
+            )
 
             edgelist_df = edgelist_df.groupby(by=[srcCol, dstCol]).sum().reset_index()
             if wgtCol in edgelist_df.columns:
@@ -594,7 +595,6 @@ class simpleDistributedGraphImpl:
         def _call_plc_degrees_function(
             sID: bytes, mg_graph_x, source_vertices: cudf.Series, degree_type: str
         ) -> cp.array:
-
             if degree_type == "in_degree":
                 results = pylibcugraph_in_degrees(
                     resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
@@ -1322,7 +1322,10 @@ class simpleDistributedGraphImpl:
 
                 del self.edgelist
 
-            (renumbered_ddf, number_map,) = NumberMap.renumber_and_segment(
+            (
+                renumbered_ddf,
+                number_map,
+            ) = NumberMap.renumber_and_segment(
                 self.input_df,
                 self.source_columns,
                 self.destination_columns,

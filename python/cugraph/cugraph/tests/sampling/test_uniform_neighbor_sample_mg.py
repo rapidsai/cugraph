@@ -110,7 +110,6 @@ def input_combo(request):
 # =============================================================================
 @pytest.mark.mg
 def test_mg_uniform_neighbor_sample_simple(dask_client, input_combo):
-
     dg = input_combo["MGGraph"]
 
     input_df = dg.input_df
@@ -199,7 +198,6 @@ def test_mg_uniform_neighbor_sample_simple(dask_client, input_combo):
 @pytest.mark.mg
 @pytest.mark.parametrize("directed", IS_DIRECTED)
 def test_mg_uniform_neighbor_sample_tree(dask_client, directed):
-
     input_data_path = small_tree.get_path()
     chunksize = dcg.get_chunksize(input_data_path)
 

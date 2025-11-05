@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2021-2023, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 
 from cugraph.testing.mg_utils import (
@@ -198,7 +198,7 @@ if __name__ == "__main__":
                 restart_client(client)
                 sleep(10)
 
-            print("-" * 40 + f"renumber completed" + "-" * 40)
+            print("-" * 40 + "renumber completed" + "-" * 40)
             stats_df = pd.DataFrame(
                 stats_ls,
                 columns=[

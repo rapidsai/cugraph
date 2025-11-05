@@ -80,7 +80,6 @@ def run(
         "pagerank": funcs.pagerank,
         "wcc": funcs.wcc,
         "katz": funcs.katz,
-        "wcc": funcs.wcc,
         "hits": funcs.hits,
         "uniform_neighbor_sample": funcs.uniform_neighbor_sample,
         "triangle_count": funcs.triangle_count,
@@ -90,7 +89,7 @@ def run(
     if algos:
         invalid_benchmarks = set(algos) - set(benchmarks.keys())
         if invalid_benchmarks:
-            raise ValueError("Invalid benchmark(s) specified " f"{invalid_benchmarks}")
+            raise ValueError(f"Invalid benchmark(s) specified {invalid_benchmarks}")
         benchmarks_to_run = [benchmarks[b] for b in algos]
     else:
         benchmarks_to_run = list(benchmarks.values())
@@ -160,13 +159,13 @@ if __name__ == "__main__":
         "--scale",
         type=int,
         default=None,
-        help="scale factor for the graph edgelist generator " "(num_verts=2**SCALE).",
+        help="scale factor for the graph edgelist generator (num_verts=2**SCALE).",
     )
     ap.add_argument(
         "--csv",
         type=str,
         default=None,
-        help="path to CSV file to read instead of generating a " "graph edgelist.",
+        help="path to CSV file to read instead of generating a graph edgelist.",
     )
     ap.add_argument(
         "--unweighted",
@@ -190,7 +189,7 @@ if __name__ == "__main__":
         "--symmetric-graph",
         default=False,
         action="store_true",
-        help="Generate a symmetric (undirected) Graph instead of " "a DiGraph.",
+        help="Generate a symmetric (undirected) Graph instead of a DiGraph.",
     )
     ap.add_argument(
         "--edgefactor",

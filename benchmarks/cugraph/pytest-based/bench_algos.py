@@ -12,7 +12,7 @@ import cugraph
 import cugraph.dask as dask_cugraph
 from cugraph.structure.number_map import NumberMap
 from cugraph.generators import rmat
-from cugraph.testing import utils, mg_utils
+from cugraph.testing import mg_utils
 
 from cugraph_benchmarking.params import (
     directed_datasets,
@@ -138,6 +138,7 @@ dataset_fixture_params = gen_fixture_params_product(
 # conftest.py
 RMM_SETTINGS = {"managed_mem": False, "pool_alloc": False}
 
+
 # FIXME: this only changes the RMM config in a SG environment. The dask config
 # that applies to RMM in an MG environment is not changed by this!
 def reinitRMM(managed_mem, pool_alloc):
@@ -148,7 +149,6 @@ def reinitRMM(managed_mem, pool_alloc):
     if (managed_mem != RMM_SETTINGS["managed_mem"]) or (
         pool_alloc != RMM_SETTINGS["pool_alloc"]
     ):
-
         rmm.reinitialize(
             managed_memory=managed_mem,
             pool_allocator=pool_alloc,
@@ -175,7 +175,6 @@ def rmm_config(request):
 
 @pytest.fixture(scope="module", params=dataset_fixture_params)
 def dataset(request, rmm_config):
-
     """
     Fixture which provides a Dataset instance, setting up a Dask cluster and
     client if necessary for MG, to tests and other fixtures. When all
@@ -366,7 +365,7 @@ def bench_spectralBalancedCutClustering(benchmark, graph):
     benchmark(cugraph.spectralBalancedCutClustering, graph, 2)
 
 
-@pytest.mark.skip(reason="Need to guarantee graph has weights, " "not doing that yet")
+@pytest.mark.skip(reason="Need to guarantee graph has weights, not doing that yet")
 def bench_spectralModularityMaximizationClustering(benchmark, graph):
     smmc = (
         dask_cugraph.spectralModularityMaximizationClustering
