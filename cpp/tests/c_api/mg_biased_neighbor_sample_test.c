@@ -14,6 +14,8 @@
 typedef int32_t vertex_t;
 typedef int32_t edge_t;
 typedef float weight_t;
+typedef int32_t edge_type_t;
+typedef int32_t edge_time_t;
 
 cugraph_data_type_id_t vertex_tid    = INT32;
 cugraph_data_type_id_t edge_tid      = INT32;
@@ -26,9 +28,9 @@ int generic_biased_neighbor_sample_test(const cugraph_resource_handle_t* handle,
                                         vertex_t* h_dst,
                                         weight_t* h_wgt,
                                         edge_t* h_edge_ids,
-                                        int32_t* h_edge_types,
-                                        int32_t* h_edge_start_times,
-                                        int32_t* h_edge_end_times,
+                                        edge_type_t* h_edge_types,
+                                        edge_time_t* h_edge_start_times,
+                                        edge_time_t* h_edge_end_times,
                                         size_t num_vertices,
                                         size_t num_edges,
                                         vertex_t* h_start,
@@ -97,19 +99,17 @@ int generic_biased_neighbor_sample_test(const cugraph_resource_handle_t* handle,
     ret_code = cugraph_type_erased_device_array_view_copy_from_host(
       handle, d_start_view, (byte_t*)h_start, &ret_error);
 
-    if (h_start_label_offsets != NULL) {
-      ret_code = cugraph_type_erased_device_array_create(
-        handle, num_start_label_offsets, SIZE_T, &d_start_label_offsets, &ret_error);
-      TEST_ASSERT(
-        test_ret_value, ret_code == CUGRAPH_SUCCESS, "d_start_label_offsets create failed.");
+    ret_code = cugraph_type_erased_device_array_create(
+      handle, num_start_label_offsets, SIZE_T, &d_start_label_offsets, &ret_error);
+    TEST_ASSERT(
+      test_ret_value, ret_code == CUGRAPH_SUCCESS, "d_start_label_offsets create failed.");
 
-      d_start_label_offsets_view = cugraph_type_erased_device_array_view(d_start_label_offsets);
+    d_start_label_offsets_view = cugraph_type_erased_device_array_view(d_start_label_offsets);
 
-      ret_code = cugraph_type_erased_device_array_view_copy_from_host(
-        handle, d_start_label_offsets_view, (byte_t*)h_start_label_offsets, &ret_error);
-      TEST_ASSERT(
-        test_ret_value, ret_code == CUGRAPH_SUCCESS, "start_label_offsets copy_from_host failed.");
-    }
+    ret_code = cugraph_type_erased_device_array_view_copy_from_host(
+      handle, d_start_label_offsets_view, (byte_t*)h_start_label_offsets, &ret_error);
+    TEST_ASSERT(
+      test_ret_value, ret_code == CUGRAPH_SUCCESS, "start_label_offsets copy_from_host failed.");
 
     cugraph_rng_state_t* rng_state;
     ret_code = cugraph_rng_state_create(handle, rank, &rng_state, &ret_error);
@@ -185,11 +185,13 @@ int test_biased_neighbor_sample(const cugraph_resource_handle_t* handle)
   size_t fan_out_size = 2;
   size_t num_starts   = 2;
 
-  vertex_t src[]   = {0, 1, 1, 2, 2, 2, 3, 4};
-  vertex_t dst[]   = {1, 3, 4, 0, 1, 3, 5, 5};
-  weight_t wgt[]   = {1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7};
-  vertex_t start[] = {2, 2};
-  int fan_out[]    = {1, 2};
+  vertex_t src[]                  = {0, 1, 1, 2, 2, 2, 3, 4};
+  vertex_t dst[]                  = {1, 3, 4, 0, 1, 3, 5, 5};
+  weight_t wgt[]                  = {1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7};
+  vertex_t start[]                = {2, 2};
+  int fan_out[]                   = {1, 2};
+  size_t start_label_offsets[]    = {0, 2};
+  size_t start_label_offsets_size = 2;
 
   bool_t with_replacement                                 = FALSE;
   bool_t return_hops                                      = TRUE;
@@ -208,8 +210,8 @@ int test_biased_neighbor_sample(const cugraph_resource_handle_t* handle)
                                              num_edges,
                                              start,
                                              num_starts,
-                                             NULL,
-                                             0,
+                                             start_label_offsets,
+                                             start_label_offsets_size,
                                              fan_out,
                                              fan_out_size,
                                              with_replacement,
