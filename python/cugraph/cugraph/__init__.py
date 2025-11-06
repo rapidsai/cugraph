@@ -107,7 +107,6 @@ from cugraph.sampling import (
     uniform_random_walks,
     biased_random_walks,
     node2vec_random_walks,
-    uniform_neighbor_sample,
     homogeneous_neighbor_sample,
     heterogeneous_neighbor_sample,
 )

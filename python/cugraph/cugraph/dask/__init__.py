@@ -16,7 +16,6 @@ from .community.induced_subgraph import induced_subgraph
 from .community.ktruss_subgraph import ktruss_subgraph
 from .centrality.katz_centrality import katz_centrality
 from .components.connectivity import weakly_connected_components
-from .sampling.uniform_neighbor_sample import uniform_neighbor_sample
 from .sampling.random_walks import random_walks
 from .sampling.uniform_random_walks import uniform_random_walks
 from .sampling.biased_random_walks import biased_random_walks
