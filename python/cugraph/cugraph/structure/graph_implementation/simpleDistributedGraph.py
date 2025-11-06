@@ -257,7 +257,7 @@ class simpleDistributedGraphImpl:
                 ]
                 value_col_names = [self.edgeWeightCol, self.edgeIdCol, self.edgeTypeCol]
             else:
-                raise ValueError("Only 1 or 3 values may be providedfor edge_attr")
+                raise ValueError("Only 1 or 3 values may be provided for edge_attr")
 
             # The symmetrize step may add additional edges with unknown
             # ids and types for an undirected graph.  Therefore, only
