@@ -523,7 +523,7 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
                   offsets ? std::make_optional(
                               raft::device_span<size_t const>{offsets->data(), offsets->size()})
                           : std::nullopt,
-                  edge_label ? (*offsets).size() - 1 : size_t{1},  // FIXME: update edge_label
+                  edge_label ? (*offsets).size() - 1 : size_t{1},
                   hop ? fan_out_->size_ : size_t{1},
                   src_is_major,
                   options_.compress_per_hop_,
