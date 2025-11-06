@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import warnings
-from warnings import FutureWarning
 
 from .reader import DEPRECATED__BufferedSampleReader, DEPRECATED__DistSampleReader
 from .writer import DEPRECATED__DistSampleWriter

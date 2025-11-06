@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import warnings
-from warnings import FutureWarning
 
 from cugraph.gnn.data_loading.dist_sampler import (
     DEPRECATED__NeighborSampler,
