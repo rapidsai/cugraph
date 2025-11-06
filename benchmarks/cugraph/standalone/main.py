@@ -81,7 +81,6 @@ def run(
         "wcc": funcs.wcc,
         "katz": funcs.katz,
         "hits": funcs.hits,
-        "uniform_neighbor_sample": funcs.uniform_neighbor_sample,
         "triangle_count": funcs.triangle_count,
         "eigenvector_centrality": funcs.eigenvector_centrality,
     }

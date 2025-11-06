@@ -7,7 +7,6 @@ from dask_cuda import LocalCUDACluster
 from cugraph.structure.symmetrize import symmetrize_ddf
 from cugraph.dask.common.mg_utils import get_visible_devices
 from dask_cuda.initialize import initialize
-import cudf
 
 import cugraph
 from cugraph.dask.comms import comms as Comms
@@ -106,14 +105,6 @@ def katz(G, alpha=None):
 
 def hits(G):
     return cugraph.dask.hits(G)
-
-
-def uniform_neighbor_sample(G, start_list=None, fanout_vals=None):
-    # convert list to cudf.Series
-    start_list = cudf.Series(start_list, dtype="int32")
-    return cugraph.dask.uniform_neighbor_sample(
-        G, start_list=start_list, fanout_vals=fanout_vals
-    )
 
 
 def triangle_count(G):

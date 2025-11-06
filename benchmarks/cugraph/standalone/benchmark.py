@@ -87,13 +87,12 @@ class BenchmarkRun:
         # FIXME: Refactor BenchmarkRun __init__ because all the work
         # done below should be done elsewhere
         for i, algo in enumerate(algo_func_param_list):
-            if benchmark(algo).name in ["bfs", "sssp", "uniform_neighbor_sample"]:
+            if benchmark(algo).name in [
+                "bfs",
+                "sssp",
+            ]:
                 param = {}
                 param["start"] = self.input_dataframe["src"].head()[0]
-                if benchmark(algo).name in ["uniform_neighbor_sample"]:
-                    start = [param.pop("start")]
-                    param["start_list"] = start
-                    param["fanout_vals"] = [1]
                 algo_func_param_list[i] = (algo,) + (param,)
 
         self.algos = []
@@ -127,8 +126,7 @@ class BenchmarkRun:
         self.results.append(result)
         #
         # Algos with transposed=True : PageRank, Katz.
-        # Algos with transposed=False: BFS, SSSP, Louvain, HITS,
-        # Neighborhood_sampling.
+        # Algos with transposed=False: BFS, SSSP, Louvain, HITS
         #
         for i in range(len(self.algos)):
             # set transpose=True when renumbering

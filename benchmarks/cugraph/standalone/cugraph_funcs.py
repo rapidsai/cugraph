@@ -136,14 +136,6 @@ def hits(G):
     return cugraph.hits(G)
 
 
-def uniform_neighbor_sample(G, start_list=None, fanout_vals=None):
-    # convert list to cudf.Series
-    start_list = cudf.Series(start_list, dtype="int32")
-    return cugraph.uniform_neighbor_sample(
-        G, start_list=start_list, fanout_vals=fanout_vals
-    )
-
-
 def triangle_count(G):
     return cugraph.triangle_count(G)
 
