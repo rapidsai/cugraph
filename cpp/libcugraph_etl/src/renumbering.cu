@@ -780,7 +780,7 @@ struct renumber_functor {
 
     auto mr                         = rmm::mr::pinned_host_memory_resource();
     size_t hist_size                = sizeof(accum_type) * 32;
-    accum_type* hist_insert_counter = static_cast<accum_type*>(mr.allocate(hist_size));
+    accum_type* hist_insert_counter = static_cast<accum_type*>(mr.allocate(exec_strm, hist_size));
     *hist_insert_counter            = 0;
 
     float load_factor = 0.7;
@@ -1041,7 +1041,7 @@ struct renumber_functor {
 
     RAFT_CHECK_CUDA(cudaDeviceSynchronize());
 
-    mr.deallocate(hist_insert_counter, hist_size);
+    mr.deallocate(exec_strm, hist_insert_counter, hist_size);
 
     return std::make_tuple(
       std::move(cols_vector[0]),
