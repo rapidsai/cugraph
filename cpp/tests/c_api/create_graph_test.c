@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2022, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -260,17 +260,18 @@ int test_create_sg_graph_csr()
 
   cugraph_error_code_t ret_code = CUGRAPH_SUCCESS;
   cugraph_error_t* ret_error;
-  size_t num_edges    = 8;
-  size_t num_vertices = 6;
+  size_t num_edges          = 8;
+  size_t num_vertices       = 6;
+  size_t num_start_vertices = 6;
 
-  /*
-  vertex_t h_src[] = {0, 1, 1, 2, 2, 2, 3, 4};
-  vertex_t h_dst[] = {1, 3, 4, 0, 1, 3, 5, 5};
-  */
   edge_t h_offsets[]   = {0, 1, 3, 6, 7, 8, 8};
   vertex_t h_indices[] = {1, 3, 4, 0, 1, 3, 5, 5};
   vertex_t h_start[]   = {0, 1, 2, 3, 4, 5};
   weight_t h_wgt[]     = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
+
+  // for validation
+  vertex_t h_src[] = {0, 1, 1, 2, 2, 2, 3, 4};
+  vertex_t* h_dst  = h_indices;
 
   bool_t with_replacement                                 = FALSE;
   bool_t return_hops                                      = TRUE;
@@ -345,17 +346,6 @@ int test_create_sg_graph_csr()
                                               &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "graph creation failed.");
 
-  weight_t M[num_vertices][num_vertices];
-
-  for (int i = 0; i < num_vertices; ++i)
-    for (int j = 0; j < num_vertices; ++j)
-      M[i][j] = -1;
-
-  for (int i = 0; i < num_vertices; ++i)
-    for (size_t j = h_offsets[i]; j < h_offsets[i + 1]; ++j) {
-      M[i][h_indices[j]] = h_wgt[j];
-    }
-
   int fan_out[] = {-1};
 
   cugraph_type_erased_device_array_t* d_start           = NULL;
@@ -365,8 +355,8 @@ int test_create_sg_graph_csr()
 
   h_fan_out_view = cugraph_type_erased_host_array_view_create(fan_out, 1, INT32);
 
-  ret_code =
-    cugraph_type_erased_device_array_create(handle, num_vertices, INT32, &d_start, &ret_error);
+  ret_code = cugraph_type_erased_device_array_create(
+    handle, num_start_vertices, INT32, &d_start, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "d_start create failed.");
 
   d_start_view = cugraph_type_erased_device_array_view(d_start);
@@ -390,56 +380,41 @@ int test_create_sg_graph_csr()
   cugraph_sampling_set_compression_type(sampling_options, compression);
   cugraph_sampling_set_compress_per_hop(sampling_options, compress_per_hop);
 
-  ret_code = cugraph_uniform_neighbor_sample(handle,
-                                             graph,
-                                             d_start_view,
-                                             NULL,
-                                             NULL,
-                                             NULL,
-                                             NULL,
-                                             h_fan_out_view,
-                                             rng_state,
-                                             sampling_options,
-                                             FALSE,
-                                             &result,
-                                             &ret_error);
+  ret_code = cugraph_homogeneous_uniform_neighbor_sample(handle,
+                                                         rng_state,
+                                                         graph,
+                                                         d_start_view,
+                                                         NULL,
+                                                         h_fan_out_view,
+                                                         sampling_options,
+                                                         FALSE,
+                                                         &result,
+                                                         &ret_error);
 
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
-  TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, "uniform_neighbor_sample failed.");
+  TEST_ASSERT(
+    test_ret_value, ret_code == CUGRAPH_SUCCESS, "homogeneous_uniform_neighbor_sample failed.");
 
-  cugraph_type_erased_device_array_view_t* srcs;
-  cugraph_type_erased_device_array_view_t* dsts;
-  cugraph_type_erased_device_array_view_t* wgts;
-
-  srcs = cugraph_sample_result_get_sources(result);
-  dsts = cugraph_sample_result_get_destinations(result);
-  wgts = cugraph_sample_result_get_edge_weight(result);
-
-  size_t result_size = cugraph_type_erased_device_array_view_size(srcs);
-
-  vertex_t h_result_srcs[result_size];
-  vertex_t h_result_dsts[result_size];
-  weight_t h_result_wgts[result_size];
-
-  ret_code = cugraph_type_erased_device_array_view_copy_to_host(
-    handle, (byte_t*)h_result_srcs, srcs, &ret_error);
-  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "copy_to_host failed.");
-
-  ret_code = cugraph_type_erased_device_array_view_copy_to_host(
-    handle, (byte_t*)h_result_dsts, dsts, &ret_error);
-  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "copy_to_host failed.");
-
-  ret_code = cugraph_type_erased_device_array_view_copy_to_host(
-    handle, (byte_t*)h_result_wgts, wgts, &ret_error);
-  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "copy_to_host failed.");
-
-  TEST_ASSERT(test_ret_value, result_size == num_edges, "number of edges does not match");
-
-  for (int i = 0; (i < result_size) && (test_ret_value == 0); ++i) {
-    TEST_ASSERT(test_ret_value,
-                M[h_result_srcs[i]][h_result_dsts[i]] == h_result_wgts[i],
-                "uniform_neighbor_sample got edge that doesn't exist");
-  }
+  test_ret_value = validate_sample_result(handle,
+                                          result,
+                                          h_src,
+                                          h_dst,
+                                          h_wgt,
+                                          NULL,
+                                          NULL,
+                                          NULL,
+                                          NULL,
+                                          num_vertices,
+                                          num_edges,
+                                          h_start,
+                                          num_start_vertices,
+                                          NULL,
+                                          0,
+                                          fan_out,
+                                          1,
+                                          sampling_options,
+                                          FALSE);
+  TEST_ASSERT(test_ret_value, test_ret_value == 0, "validate_sample_result failed.");
 
   cugraph_sample_result_free(result);
   cugraph_graph_free(graph);
