@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2020-2023, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2020-2025, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 
 
@@ -25,8 +25,7 @@ def skip_if_not_enough_devices(required_devices):
         number_of_visible_devices = len(visible_devices)
         if required_devices > number_of_visible_devices:
             pytest.skip(
-                "Not enough devices available to "
-                "test MG({})".format(required_devices)
+                "Not enough devices available to test MG({})".format(required_devices)
             )
 
 

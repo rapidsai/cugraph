@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2021-2024, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 
 import cudf
@@ -1054,8 +1054,7 @@ class EXPERIMENTAL__PropertyGraph:
         if edge_id_col_name is not None:
             if not isinstance(edge_id_col_name, str):
                 raise TypeError(
-                    "edge_id_col_name must be a string, got: "
-                    f"{type(edge_id_col_name)}"
+                    f"edge_id_col_name must be a string, got: {type(edge_id_col_name)}"
                 )
             if edge_id_col_name not in dataframe.columns:
                 if edge_id_col_name != dataframe.index.name:
@@ -2376,7 +2375,7 @@ class EXPERIMENTAL__PropertyGraph:
             # This returns a writable view (i.e., no copies!)
             rv = s._data.columns[0].children[-1].values.reshape(-1, length)
         else:
-            if df.dtypes[col_name] != object:
+            if df.dtypes[col_name] != "object":
                 raise TypeError(
                     "Wrong dtype for vector property; expected 'object', "
                     f"got {df.dtypes[col_name]}"
@@ -2531,7 +2530,7 @@ class EXPERIMENTAL__PropertyGraph:
         integer dtypes, needed to accommodate NA values in columns.
         """
         update_cols = {}
-        for (col, dtype) in column_dtype_dict.items():
+        for col, dtype in column_dtype_dict.items():
             if col not in df.columns:
                 continue
             # If the DataFrame is Pandas and the dtype is an integer type,

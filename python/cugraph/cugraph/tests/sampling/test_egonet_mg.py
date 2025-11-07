@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2022-2024, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 
 import gc
@@ -109,7 +109,6 @@ def input_expected_output(input_combo):
 @pytest.mark.mg
 @pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
 def test_dask_mg_ego_graphs(dask_client, benchmark, input_expected_output):
-
     dg = input_expected_output["MGGraph"]
 
     result_ego_graph = benchmark(

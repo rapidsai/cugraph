@@ -35,6 +35,7 @@ def setup_function():
 ###############################################################################
 # Helpers
 
+
 # check if there is a row where src == dst
 def has_selfloop(dataset):
     if not dataset.metadata["is_directed"]:

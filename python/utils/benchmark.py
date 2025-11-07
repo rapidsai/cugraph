@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2018-2022, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2018-2025, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 
 # from time import process_time_ns   # only in 3.7!
@@ -10,7 +10,6 @@ from gpu_metric_poller import startGpuMetricPolling, stopGpuMetricPolling
 
 
 class Benchmark:
-
     resultsDict = {}
     metricNameCellWidth = 20
     valueCellWidth = 40

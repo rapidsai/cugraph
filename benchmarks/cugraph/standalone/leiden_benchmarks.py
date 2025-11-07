@@ -23,7 +23,7 @@ class Timer:
     def __exit__(self, exc_type, exc_value, traceback):
         run_time = time.perf_counter_ns() - self.start_time
         if exc_type is exc_value is traceback is None:
-            print(f"done. Time was {(run_time/1e9):.4g} s", flush=True)
+            print(f"done. Time was {(run_time / 1e9):.4g} s", flush=True)
 
 
 def get_edgelist():

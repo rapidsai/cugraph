@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2020-2024, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2020-2025, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 
 import gc
@@ -120,7 +120,7 @@ def test_enable_batch_context_then_views(graph_file, directed, dask_client):
     G.enable_batch()
     assert G.batch_enabled is True, "Internal property should be True"
     assert G.batch_edgelists is not None, (
-        "The graph should have " "been created with an " "edgelist"
+        "The graph should have been created with an edgelist"
     )
     assert G.batch_adjlists is None
     G.view_adj_list()
@@ -153,7 +153,7 @@ def test_enable_batch_view_then_context(graph_file, directed, dask_client):
     G.enable_batch()
     assert G.batch_enabled is True, "Internal property should be True"
     assert G.batch_edgelists is not None, (
-        "The graph should have " "been created with an " "edgelist"
+        "The graph should have been created with an edgelist"
     )
     assert G.batch_adjlists is not None
     assert G.batch_transposed_adjlists is not None
@@ -172,7 +172,7 @@ def test_enable_batch_context_no_context_views(graph_file, directed, dask_client
     G.enable_batch()
     assert G.batch_enabled is True, "Internal property should be True"
     assert G.batch_edgelists is not None, (
-        "The graph should have " "been created with an " "edgelist"
+        "The graph should have been created with an edgelist"
     )
     G.view_edge_list()
     G.view_adj_list()

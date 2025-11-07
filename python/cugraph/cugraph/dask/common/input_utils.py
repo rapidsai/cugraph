@@ -118,7 +118,6 @@ class DistributedDataHandler:
     """ Methods to calculate further attributes """
 
     def calculate_worker_and_rank_info(self, comms):
-
         self.worker_info = comms.worker_info(comms.worker_addresses)
         self.ranks = dict()
 
@@ -126,7 +125,6 @@ class DistributedDataHandler:
             self.ranks[w] = self.worker_info[w]["rank"]
 
     def calculate_parts_to_sizes(self, comms=None, ranks=None):
-
         if self.worker_info is None and comms is not None:
             self.calculate_worker_and_rank_info(comms)
 
@@ -153,7 +151,6 @@ class DistributedDataHandler:
             self.total_rows += total
 
     def calculate_local_data(self, comms, by):
-
         if self.worker_info is None and comms is not None:
             self.calculate_worker_and_rank_info(comms)
 

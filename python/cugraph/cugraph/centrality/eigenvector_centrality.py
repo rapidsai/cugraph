@@ -61,7 +61,7 @@ def eigenvector_centrality(G, max_iter=100, tol=1.0e-6):
 
     """
     if (not isinstance(max_iter, int)) or max_iter <= 0:
-        raise ValueError(f"'max_iter' must be a positive integer" f", got: {max_iter}")
+        raise ValueError(f"'max_iter' must be a positive integer, got: {max_iter}")
     if (not isinstance(tol, float)) or (tol <= 0.0):
         raise ValueError(f"'tol' must be a positive float, got: {tol}")
 
