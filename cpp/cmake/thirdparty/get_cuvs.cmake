@@ -32,7 +32,6 @@ function(find_and_configure_cuvs)
     rapids_cpm_find(cuvs ${PKG_VERSION}
       GLOBAL_TARGETS      cuvs::cuvs
       BUILD_EXPORT_SET    cugraph-exports
-      INSTALL_EXPORT_SET  cugraph-exports
       CPM_ARGS
         GIT_REPOSITORY         https://github.com/${PKG_FORK}/cuvs.git
         GIT_TAG                ${PKG_PINNED_TAG}
@@ -66,5 +65,5 @@ find_and_configure_cuvs(VERSION          ${CUGRAPH_MIN_VERSION_cuvs}
                         CLONE_ON_PIN     ON
                         USE_CUVS_STATIC  ${CUGRAPH_USE_CUVS_STATIC}
                         COMPILE_LIBRARY  ${CUGRAPH_COMPILE_CUVS}
-                        EXCLUDE_FROM_ALL OFF
+                        EXCLUDE_FROM_ALL ON
                         )
