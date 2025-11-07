@@ -418,7 +418,7 @@ decompress_to_edgelist(
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
  * @tparam weight_t Type of edge weights. Needs to be a floating point type.
  * @tparam edge_type_t Type of edge type identifiers. Needs to be an integral type.
- * @tparam time_stamp_t Type of edge time. Needs to be an integral type.
+ * @tparam time_stamp_t Type of time. Needs to be an integral type.
  * @tparam store_transposed Flag indicating whether to use sources (if false) or destinations (if
  * true) as major indices in storing edges using a 2D sparse matrix.
  * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
@@ -1028,7 +1028,7 @@ rmm::device_uvector<vertex_t> select_random_vertices(
  * @tparam edge_t      Type of edge identifiers. Needs to be an integral type.
  * @tparam weight_t    Type of edge weight. Currently float and double are supported.
  * @tparam edge_type_t Type of edge type. Needs to be an integral type.
- * @tparam time_stamp_t Type of edge time.  Needs to be an integral type.
+ * @tparam time_stamp_t Type of time.  Needs to be an integral type.
  *
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
@@ -1088,7 +1088,7 @@ remove_self_loops(raft::handle_t const& handle,
  * @tparam edge_t      Type of edge identifiers. Needs to be an integral type.
  * @tparam weight_t    Type of edge weight. Currently float and double are supported.
  * @tparam edge_type_t Type of edge type. Needs to be an integral type.
- * @tparam time_stamp_t Type of edge time.  Needs to be an integral type.
+ * @tparam time_stamp_t Type of time.  Needs to be an integral type.
  *
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
@@ -1158,7 +1158,7 @@ remove_multi_edges(raft::handle_t const& handle,
  * @tparam edge_t      Type of edge identifiers. Needs to be an integral type.
  * @tparam weight_t    Type of edge weight. Currently float and double are supported.
  * @tparam edge_type_t Type of edge type. Needs to be an integral type.
- * @tparam time_stamp_t Type of edge time.  Needs to be an integral type.
+ * @tparam time_stamp_t Type of time.  Needs to be an integral type.
  *
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.

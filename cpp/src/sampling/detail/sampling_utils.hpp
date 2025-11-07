@@ -175,7 +175,7 @@ sample_edges(raft::handle_t const& handle,
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
- * @tparam time_stamp_t Type of edge time. Needs to be an integral type.
+ * @tparam time_stamp_t Type of time. Needs to be an integral type.
  * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU
  * (false)
  *
@@ -221,7 +221,7 @@ temporal_sample_edges(raft::handle_t const& handle,
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam label_t Type of label. Needs to be an integral type.
- @ @tparam time_stamp_t Type of edge time.  Needs to be an integral type.
+ @ @tparam time_stamp_t Type of time.  Needs to be an integral type.
  * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU
  (false)
  *
@@ -279,7 +279,7 @@ prepare_next_frontier(
  *
  * @tparam vertex_t Type of vertex identifiers.  Needs to be an integral type.
  * @tparam label_t Type of label.  Needs to be an integral type.
- * @tparam time_stamp_t Type of edge time.  Needs to be an integral type.
+ * @tparam time_stamp_t Type of time.  Needs to be an integral type.
  *
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
@@ -377,7 +377,7 @@ rmm::device_uvector<int32_t> flatten_label_map(
  * timestamps.  This function will partition the frontier appropriately.
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
- * @tparam time_stamp_t Type of edge time. Needs to be an integral type.
+ * @tparam time_stamp_t Type of time. Needs to be an integral type.
  * @tparam label_t Type of label. Needs to be an integral type.
  *
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
@@ -412,7 +412,7 @@ temporal_partition_vertices(raft::handle_t const& handle,
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam edge_t Type of edge identifiers.  Needs to be an integral type.
- * @tparam time_stamp_t Type of edge time. Needs to be an integral type.
+ * @tparam time_stamp_t Type of time. Needs to be an integral type.
  * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
  *
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and

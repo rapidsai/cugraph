@@ -427,7 +427,7 @@ heterogeneous_biased_neighbor_sample(
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
  * @tparam weight_t Type of edge weights. Needs to be a floating point type.
  * @tparam edge_type_t Type of edge type. Needs to be an integral type.
- * @tparam time_stamp_t Type of edge time. Needs to be an integral type.
+ * @tparam time_stamp_t Type of time. Needs to be an integral type.
  * @tparam store_transposed Flag indicating whether sources (if false) or destinations (if
  * true) are major indices
  * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
@@ -519,7 +519,7 @@ homogeneous_uniform_temporal_neighbor_sample(
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
  * @tparam weight_t Type of edge weights. Needs to be a floating point type.
  * @tparam edge_type_t Type of edge type. Needs to be an integral type.
- * @tparam time_stamp_t Type of edge time. Needs to be an integral type.
+ * @tparam time_stamp_t Type of time. Needs to be an integral type.
  * @tparam store_transposed Flag indicating whether sources (if false) or destinations (if
  * true) are major indices
  * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
@@ -614,7 +614,7 @@ heterogeneous_uniform_temporal_neighbor_sample(
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
  * @tparam weight_t Type of edge weights. Needs to be a floating point type.
  * @tparam edge_type_t Type of edge type. Needs to be an integral type.
- * @tparam time_stamp_t Type of edge time. Needs to be an integral type.
+ * @tparam time_stamp_t Type of time. Needs to be an integral type.
  * @tparam bias_t Type of bias. Needs to be an integral type.
  * @tparam store_transposed Flag indicating whether sources (if false) or destinations (if
  * true) are major indices
@@ -713,7 +713,7 @@ homogeneous_biased_temporal_neighbor_sample(
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
  * @tparam weight_t Type of edge weights. Needs to be a floating point type.
  * @tparam edge_type_t Type of edge type. Needs to be an integral type.
- * @tparam time_stamp_t Type of edge time. Needs to be an integral type.
+ * @tparam time_stamp_t Type of time. Needs to be an integral type.
  * @tparam bias_t Type of bias. Needs to be an integral type.
  * @tparam store_transposed Flag indicating whether sources (if false) or destinations (if
  * true) are major indices
