@@ -118,7 +118,6 @@ def test_hits(benchmark, input_expected_output):
 
 @pytest.mark.sg
 def test_hits_transposed_false():
-
     G = karate.get_graph(create_using=cugraph.Graph(directed=True))
     warning_msg = (
         "Pagerank expects the 'store_transposed' "

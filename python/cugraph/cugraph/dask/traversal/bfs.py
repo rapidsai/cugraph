@@ -129,7 +129,7 @@ def bfs(input_graph, start, depth_limit=None, return_distances=True, check_start
 
         if invalid_dtype:
             warning_msg = (
-                "The 'start' values dtype must match " "the graph's vertices dtype."
+                "The 'start' values dtype must match the graph's vertices dtype."
             )
 
             warnings.warn(warning_msg, UserWarning)

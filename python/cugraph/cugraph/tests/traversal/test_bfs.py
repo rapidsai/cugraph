@@ -165,7 +165,7 @@ def compare_bfs(benchmark_callable, G, golden_values, start_vertex, depth_limit)
         benchmark_callable(func_to_benchmark)
 
         compare_func = _compare_bfs
-        for (i, sv) in enumerate(start_vertex):
+        for i, sv in enumerate(start_vertex):
             cugraph_df = convert_output_to_cudf(G, all_cugraph_distances[i])
 
             compare_func(cugraph_df, all_golden_values[i], sv)
@@ -183,7 +183,7 @@ def _compare_bfs(cugraph_df, golden_distances, source):
     # NOTE: 'predecessor' is always returned while the C++ function allows to
     # pass a nullptr
     assert len(cugraph_df.columns) == 3, (
-        "The result of the BFS has an invalid " "number of columns"
+        "The result of the BFS has an invalid number of columns"
     )
     cu_distances = {
         vertex: dist
@@ -227,7 +227,7 @@ def _compare_bfs(cugraph_df, golden_distances, source):
                 else:
                     # The graph is unweighted thus, predecessors are 1 away
                     if vertex != source and (
-                        (golden_distances[pred] + 1 != cu_distances[vertex])
+                        golden_distances[pred] + 1 != cu_distances[vertex]
                     ):
                         print(
                             "[ERR] Invalid on predecessors: "
