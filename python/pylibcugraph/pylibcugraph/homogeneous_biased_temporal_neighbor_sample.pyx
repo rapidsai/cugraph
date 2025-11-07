@@ -77,6 +77,7 @@ def homogeneous_biased_temporal_neighbor_sample(ResourceHandle resource_handle,
                                                  _GPUGraph input_graph,
                                                  temporal_property_name,
                                                  start_vertex_list,
+                                                 starting_vertex_times,
                                                  starting_vertex_label_offsets,
                                                  h_fan_out,
                                                  *,
@@ -119,6 +120,12 @@ def homogeneous_biased_temporal_neighbor_sample(ResourceHandle resource_handle,
 
     start_vertex_list: device array type
         Device array containing the list of starting vertices for sampling.
+
+    starting_vertex_times: device array type (Optional)
+        Optional array of times associated with each starting vertex. If provided,
+        this establishes the initial time at which sampling begins for each start
+        vertex. Must have length equal to len(start_vertex_list) and a dtype
+        compatible with the graph's temporal property.
 
     starting_vertex_label_offsets: device array type (Optional)
         Offsets of each label within the start vertex list. Expanding
@@ -212,7 +219,7 @@ def homogeneous_biased_temporal_neighbor_sample(ResourceHandle resource_handle,
     ...     edge_start_time_array=edge_start_times, edge_end_time_array=edge_end_times,
     ...     store_transposed=True, renumber=False, do_expensive_check=False)
     >>> sampling_results = pylibcugraph.homogeneous_biased_temporal_neighbor_sample(
-    ...         resource_handle, G, None, start_vertices, None, h_fan_out, False, True)
+    ...         resource_handle, G, None, start_vertices, None, None, h_fan_out, False, True)
     >>> sampling_results
     {'majors': array([2, 2, 5, 5], dtype=int32),
      'minors': array([0, 1, 3, 4], dtype=int32),
@@ -223,7 +230,7 @@ def homogeneous_biased_temporal_neighbor_sample(ResourceHandle resource_handle,
     >>> start_vertices = cupy.asarray([2, 5, 1]).astype(numpy.int32)
     >>> starting_vertex_label_offsets = cupy.asarray([0, 2, 3])
     >>> sampling_results = pylibcugraph.homogeneous_biased_temporal_neighbor_sample(
-    ...         resource_handle, G, None, start_vertices, starting_vertex_label_offsets,
+    ...         resource_handle, G, None, start_vertices, None, starting_vertex_label_offsets,
     ...         h_fan_out, False, True)
     >>> sampling_results
     {'majors': array([2, 2, 5, 5, 1, 1], dtype=int32),
@@ -254,6 +261,7 @@ def homogeneous_biased_temporal_neighbor_sample(ResourceHandle resource_handle,
     # FIXME: refactor the way we are creating pointer. Can use a single helper function to create
 
     assert_CAI_type(start_vertex_list, "start_vertex_list")
+    assert_CAI_type(starting_vertex_times, "starting_vertex_times", True)
     assert_CAI_type(starting_vertex_label_offsets, "starting_vertex_label_offsets", True)
 
     assert_AI_type(h_fan_out, "h_fan_out")
@@ -278,6 +286,11 @@ def homogeneous_biased_temporal_neighbor_sample(ResourceHandle resource_handle,
     cdef uintptr_t cai_start_ptr = \
         start_vertex_list.__cuda_array_interface__["data"][0]
 
+    cdef uintptr_t cai_starting_vertex_times_ptr
+    if starting_vertex_times is not None:
+        cai_starting_vertex_times_ptr = \
+            starting_vertex_times.__cuda_array_interface__['data'][0]
+
     cdef uintptr_t cai_starting_vertex_label_offsets_ptr
     if starting_vertex_label_offsets is not None:
         cai_starting_vertex_label_offsets_ptr = \
@@ -288,6 +301,15 @@ def homogeneous_biased_temporal_neighbor_sample(ResourceHandle resource_handle,
             <void*>cai_start_ptr,
             len(start_vertex_list),
             get_c_type_from_numpy_type(start_vertex_list.dtype))
+
+    cdef cugraph_type_erased_device_array_view_t* starting_vertex_times_ptr = <cugraph_type_erased_device_array_view_t*>NULL
+    if starting_vertex_times is not None:
+        starting_vertex_times_ptr = \
+            cugraph_type_erased_device_array_view_create(
+                <void*>cai_starting_vertex_times_ptr,
+                len(starting_vertex_times),
+                get_c_type_from_numpy_type(starting_vertex_times.dtype)
+            )
 
     cdef cugraph_type_erased_device_array_view_t* starting_vertex_label_offsets_ptr = <cugraph_type_erased_device_array_view_t*>NULL
     if starting_vertex_label_offsets is not None:
@@ -358,6 +380,7 @@ def homogeneous_biased_temporal_neighbor_sample(ResourceHandle resource_handle,
         "edge_start_time",
         <cugraph_edge_property_view_t*>NULL, # FIXME: Add support for biased neighbor sampling
         start_vertex_list_ptr,
+        starting_vertex_times_ptr,
         starting_vertex_label_offsets_ptr,
         fan_out_ptr,
         sampling_options,
@@ -371,6 +394,8 @@ def homogeneous_biased_temporal_neighbor_sample(ResourceHandle resource_handle,
 
     # Free the two input arrays that are no longer needed.
     cugraph_type_erased_device_array_view_free(start_vertex_list_ptr)
+    if starting_vertex_times is not None:
+        cugraph_type_erased_device_array_view_free(starting_vertex_times_ptr)
     cugraph_type_erased_host_array_view_free(fan_out_ptr)
 
     if starting_vertex_label_offsets is not None:
