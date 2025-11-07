@@ -790,9 +790,6 @@ temporal_neighbor_sample_impl(
 
   std::optional<rmm::device_uvector<size_t>> result_offsets{std::nullopt};
 
-  // OK... got a problem here.  For the result_offsets, we need to store the offset for each label,
-  // but if a label stops early we're not computing this properly.  Need to investigate.
-
   std::tie(property_edges, result_labels, result_hops, result_offsets) =
     shuffle_and_organize_output(
       handle,

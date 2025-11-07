@@ -147,18 +147,16 @@ shuffle_and_organize_output(
     unique_labels.resize(num_unique_labels, handle.get_stream());
     offsets = rmm::device_uvector<size_t>(num_unique_labels + 1, handle.get_stream());
 
-    thrust::transform(
-      handle.get_thrust_policy(),
-      unique_labels.begin(),
-      unique_labels.end(),
-      offsets->begin(),
-      [d_labels = labels->data(), labels_size = labels->size()] __device__(int32_t label) {
-        return thrust::distance(
-          d_labels, thrust::lower_bound(thrust::seq, d_labels, d_labels + labels_size, label));
-      });
+    thrust::lower_bound(handle.get_thrust_policy(),
+                        labels->begin(),
+                        labels->end(),
+                        unique_labels.begin(),
+                        unique_labels.end(),
+                        offsets->begin());
 
     size_t last_offset = labels->size();
     offsets->set_element_async(num_unique_labels, last_offset, handle.get_stream());
+    handle.sync_stream();
   }
 
   return std::make_tuple(
