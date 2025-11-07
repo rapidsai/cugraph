@@ -70,8 +70,8 @@ class Tests_Multithreaded
     std::tuple<Multithreaded_Usecase const&, input_usecase_t const&> const& param,
     std::vector<int> gpu_list)
   {
-    using edge_type_t = int32_t;
-    using edge_time_t = int32_t;
+    using edge_type_t  = int32_t;
+    using time_stamp_t = int32_t;
 
     constexpr bool renumber           = true;
     constexpr bool do_expensive_check = false;
@@ -152,7 +152,7 @@ class Tests_Multithreaded
 
       std::tie(d_src_v, d_dst_v, d_weights_v, std::ignore, std::ignore, std::ignore, std::ignore) =
         cugraph::test::detail::
-          concatenate_edge_chunks<vertex_t, edge_t, weight_t, edge_type_t, edge_time_t>(
+          concatenate_edge_chunks<vertex_t, edge_t, weight_t, edge_type_t, time_stamp_t>(
             handle,
             std::move(src_chunks),
             std::move(dst_chunks),

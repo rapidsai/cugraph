@@ -15,7 +15,7 @@
 typedef int32_t vertex_t;
 typedef int32_t edge_t;
 typedef float weight_t;
-typedef int32_t edge_time_t;
+typedef int32_t time_stamp_t;
 
 cugraph_data_type_id_t vertex_tid    = INT32;
 cugraph_data_type_id_t edge_tid      = INT32;
@@ -41,8 +41,8 @@ int generic_uniform_temporal_neighbor_sample_test(
   weight_t* h_wgt,
   edge_t* h_edge_ids,
   int32_t* h_edge_types,
-  edge_time_t* h_edge_start_times,
-  edge_time_t* h_edge_end_times,
+  time_stamp_t* h_edge_start_times,
+  time_stamp_t* h_edge_end_times,
   size_t num_vertices,
   size_t num_edges,
   vertex_t* h_start,
@@ -194,13 +194,13 @@ int test_uniform_temporal_neighbor_sample(const cugraph_resource_handle_t* handl
   size_t fan_out_size = 2;
   size_t num_starts   = 2;
 
-  vertex_t src[]            = {0, 1, 1, 2, 2, 2, 3, 4};
-  vertex_t dst[]            = {1, 3, 4, 0, 1, 3, 5, 5};
-  edge_time_t start_times[] = {0, 1, 2, 3, 4, 5, 6, 7};
-  edge_time_t end_times[]   = {1, 2, 3, 4, 5, 6, 7, 8};
-  edge_t idx[]              = {0, 1, 2, 3, 4, 5, 6, 7};
-  vertex_t start[]          = {2, 2};
-  int fan_out[]             = {1, 2};
+  vertex_t src[]             = {0, 1, 1, 2, 2, 2, 3, 4};
+  vertex_t dst[]             = {1, 3, 4, 0, 1, 3, 5, 5};
+  time_stamp_t start_times[] = {0, 1, 2, 3, 4, 5, 6, 7};
+  time_stamp_t end_times[]   = {1, 2, 3, 4, 5, 6, 7, 8};
+  edge_t idx[]               = {0, 1, 2, 3, 4, 5, 6, 7};
+  vertex_t start[]           = {2, 2};
+  int fan_out[]              = {1, 2};
 
   bool_t with_replacement                                 = FALSE;
   bool_t return_hops                                      = TRUE;
@@ -238,14 +238,14 @@ int test_uniform_temporal_neighbor_from_alex(const cugraph_resource_handle_t* ha
   size_t fan_out_size = 2;
   size_t num_starts   = 2;
 
-  vertex_t src[]                 = {0, 1, 2, 3, 4, 3, 4, 2, 0, 1, 0, 2};
-  vertex_t dst[]                 = {1, 2, 4, 2, 3, 4, 1, 1, 2, 3, 4, 4};
-  edge_t edge_ids[]              = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
-  int32_t edge_types[]           = {0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 0};
-  weight_t weights[]             = {0.0, 0.1, 0.2, 3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.10, 0.11};
-  edge_time_t edge_start_times[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
-  edge_time_t edge_end_times[]   = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12};
-  vertex_t start[]               = {0, 4};
+  vertex_t src[]                  = {0, 1, 2, 3, 4, 3, 4, 2, 0, 1, 0, 2};
+  vertex_t dst[]                  = {1, 2, 4, 2, 3, 4, 1, 1, 2, 3, 4, 4};
+  edge_t edge_ids[]               = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
+  int32_t edge_types[]            = {0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 0};
+  weight_t weights[]              = {0.0, 0.1, 0.2, 3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.10, 0.11};
+  time_stamp_t edge_start_times[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
+  time_stamp_t edge_end_times[]   = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12};
+  vertex_t start[]                = {0, 4};
   size_t start_vertex_label_offsets[] = {0, 1, 2};
   int fan_out[]                       = {2, 2};
 

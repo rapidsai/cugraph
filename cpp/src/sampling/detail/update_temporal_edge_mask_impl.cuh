@@ -23,19 +23,19 @@
 namespace cugraph {
 namespace detail {
 
-template <typename vertex_t, typename edge_t, typename edge_time_t, bool multi_gpu>
+template <typename vertex_t, typename edge_t, typename time_stamp_t, bool multi_gpu>
 void update_temporal_edge_mask(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
-  edge_property_view_t<edge_t, edge_time_t const*> edge_start_time_view,
+  edge_property_view_t<edge_t, time_stamp_t const*> edge_start_time_view,
   raft::device_span<vertex_t const> vertices,
-  raft::device_span<edge_time_t const> vertex_times,
+  raft::device_span<time_stamp_t const> vertex_times,
   edge_property_view_t<edge_t, uint32_t*, bool> edge_time_mask_view,
   temporal_sampling_comparison_t temporal_sampling_comparison)
 {
-  edge_time_t const STARTING_TIME{std::numeric_limits<edge_time_t>::min()};
+  time_stamp_t const STARTING_TIME{std::numeric_limits<time_stamp_t>::min()};
 
-  edge_src_property_t<edge_t, edge_time_t> edge_src_times(handle, graph_view);
+  edge_src_property_t<edge_t, time_stamp_t> edge_src_times(handle, graph_view);
 
   // FIXME: As a future optimization, could consider moving this fill function to
   // outside the outer loop in the calling function and simply call this before sampling

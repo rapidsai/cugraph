@@ -25,22 +25,22 @@ template <typename vertex_t,
           typename edge_t,
           typename weight_t,
           typename edge_type_t,
-          typename edge_time_t>
+          typename time_stamp_t>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>,
            std::optional<rmm::device_uvector<edge_t>>,
            std::optional<rmm::device_uvector<edge_type_t>>,
-           std::optional<rmm::device_uvector<edge_time_t>>,
-           std::optional<rmm::device_uvector<edge_time_t>>>
+           std::optional<rmm::device_uvector<time_stamp_t>>,
+           std::optional<rmm::device_uvector<time_stamp_t>>>
 remove_self_loops(raft::handle_t const& handle,
                   rmm::device_uvector<vertex_t>&& edgelist_srcs,
                   rmm::device_uvector<vertex_t>&& edgelist_dsts,
                   std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights,
                   std::optional<rmm::device_uvector<edge_t>>&& edgelist_edge_ids,
                   std::optional<rmm::device_uvector<edge_type_t>>&& edgelist_edge_types,
-                  std::optional<rmm::device_uvector<edge_time_t>>&& edgelist_edge_start_times,
-                  std::optional<rmm::device_uvector<edge_time_t>>&& edgelist_edge_end_times,
+                  std::optional<rmm::device_uvector<time_stamp_t>>&& edgelist_edge_start_times,
+                  std::optional<rmm::device_uvector<time_stamp_t>>&& edgelist_edge_end_times,
                   std::optional<large_buffer_type_t> large_buffer_type)
 {
   auto [keep_count, keep_flags] = detail::mark_entries(

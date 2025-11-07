@@ -40,7 +40,7 @@ struct select_random_vertices_functor : public cugraph::c_api::abstract_functor 
             typename edge_t,
             typename weight_t,
             typename edge_type_t,
-            typename edge_time_t,
+            typename time_stamp_t,
             bool store_transposed,
             bool multi_gpu>
   void operator()()
