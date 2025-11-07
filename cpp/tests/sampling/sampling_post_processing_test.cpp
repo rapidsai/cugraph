@@ -126,21 +126,21 @@ class Tests_SamplingPostProcessing
     std::optional<rmm::device_uvector<int32_t>> org_edgelist_hops{std::nullopt};
     std::optional<rmm::device_uvector<label_t>> org_labels{std::nullopt};
     std::optional<rmm::device_uvector<size_t>> org_edgelist_label_offsets{std::nullopt};
-    std::tie(org_edgelist_srcs,
-             org_edgelist_dsts,
-             org_edgelist_weights,
-             std::ignore,
-             std::ignore,
-             org_edgelist_hops,
-             org_labels,
-             org_edgelist_label_offsets) = cugraph::uniform_neighbor_sample<vertex_t,
-                                                                            edge_t,
-                                                                            weight_t,
-                                                                            edge_type_t,
-                                                                            label_t,
-                                                                            store_transposed,
-                                                                            false>(
+    std::tie(
+      org_edgelist_srcs,
+      org_edgelist_dsts,
+      org_edgelist_weights,
+      std::ignore,
+      std::ignore,
+      org_edgelist_hops,
+      org_edgelist_label_offsets) = cugraph::homogeneous_uniform_neighbor_sample<vertex_t,
+                                                                                 edge_t,
+                                                                                 weight_t,
+                                                                                 edge_type_t,
+                                                                                 store_transposed,
+                                                                                 false>(
       handle,
+      rng_state,
       graph_view,
       edge_weight_view,
       std::nullopt,
@@ -152,13 +152,13 @@ class Tests_SamplingPostProcessing
       std::nullopt,
       raft::host_span<int32_t const>(sampling_post_processing_usecase.fanouts.data(),
                                      sampling_post_processing_usecase.fanouts.size()),
-      rng_state,
-      sampling_post_processing_usecase.fanouts.size() > 1,
-      sampling_post_processing_usecase.sample_with_replacement,
-      (!sampling_post_processing_usecase.compress_per_hop &&
-       (sampling_post_processing_usecase.fanouts.size() > 1))
-        ? cugraph::prior_sources_behavior_t::EXCLUDE
-        : cugraph::prior_sources_behavior_t::DEFAULT,
+      cugraph::sampling_flags_t{(!sampling_post_processing_usecase.compress_per_hop &&
+                                 (sampling_post_processing_usecase.fanouts.size() > 1))
+                                  ? cugraph::prior_sources_behavior_t::EXCLUDE
+                                  : cugraph::prior_sources_behavior_t::DEFAULT,
+                                true,
+                                false,
+                                sampling_post_processing_usecase.sample_with_replacement},
       false);
 
     if (!sampling_post_processing_usecase.src_is_major) {
