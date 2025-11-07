@@ -110,12 +110,12 @@ def katz_centrality(
         alpha = 1 / (degree_max)
 
     if (alpha is not None) and (alpha <= 0.0):
-        raise ValueError(f"'alpha' must be a positive float or None, " f"got: {alpha}")
+        raise ValueError(f"'alpha' must be a positive float or None, got: {alpha}")
 
     elif (not isinstance(beta, float)) or (beta <= 0.0):
-        raise ValueError(f"'beta' must be a positive float or None, " f"got: {beta}")
+        raise ValueError(f"'beta' must be a positive float or None, got: {beta}")
     if (not isinstance(max_iter, int)) or (max_iter <= 0):
-        raise ValueError(f"'max_iter' must be a positive integer" f", got: {max_iter}")
+        raise ValueError(f"'max_iter' must be a positive integer, got: {max_iter}")
     if (not isinstance(tol, float)) or (tol <= 0.0):
         raise ValueError(f"'tol' must be a positive float, got: {tol}")
 

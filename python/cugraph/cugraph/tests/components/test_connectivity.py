@@ -121,7 +121,7 @@ def cugraph_call(
     # their labels.
     elif expected_return_type is dict:
         assert type(result) is dict
-        for (vert, label) in result.items():
+        for vert, label in result.items():
             label_vertex_dict[label].append(vert)
 
     # A CuPy/SciPy input means the return value will be a 2-tuple of:
@@ -337,7 +337,6 @@ def test_weak_cc_nonnative_inputs(
 @pytest.mark.sg
 @pytest.mark.parametrize("cugraph_input_type", utils.CUGRAPH_DIR_INPUT_TYPES)
 def test_strong_cc(benchmark, dataset_nxresults_strong, cugraph_input_type):
-
     # NetX returns a list of components, each component being a
     # collection (set{}) of vertex indices
     (

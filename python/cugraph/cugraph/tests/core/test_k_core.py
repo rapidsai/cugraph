@@ -54,7 +54,6 @@ def compare_edges(cg, nxg):
 @pytest.mark.sg
 @pytest.mark.parametrize("graph_file", UNDIRECTED_DATASETS)
 def test_k_core_Graph(graph_file):
-
     cu_kcore, nx_kcore = calc_k_cores(graph_file, False)
 
     assert compare_edges(cu_kcore, nx_kcore)

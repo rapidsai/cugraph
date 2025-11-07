@@ -209,7 +209,6 @@ def ensure_valid_dtype(input_graph, vertex_pair):
 
 
 def ensure_cugraph_obj(obj, matrix_graph_type=None):
-
     """
     Convert the input obj - if possible - to a cuGraph Graph-type obj (Graph,
     etc.) and return a tuple of (cugraph Graph-type obj, original
@@ -317,7 +316,7 @@ class MissingModule:
         self.name = mod_name
 
     def __getattr__(self, attr):
-        raise RuntimeError(f"This feature requires the {self.name} " "package/module")
+        raise RuntimeError(f"This feature requires the {self.name} package/module")
 
 
 def import_optional(mod, default_mod_class=MissingModule):

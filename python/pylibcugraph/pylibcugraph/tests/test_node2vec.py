@@ -727,7 +727,5 @@ def test_node2vec_renumber_cupy(renumber):
         if paths[i * (max_depth + 1)] != seeds[i]:
             raise ValueError(
                 "vertex_path {} start did not match seed \
-                             vertex".format(
-                    paths
-                )
+                             vertex".format(paths)
             )

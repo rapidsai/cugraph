@@ -31,7 +31,7 @@ def experimental_warning_wrapper(obj, obj_namespace_name=None):
     """
     obj_type = type(obj)
     if not callable(obj):
-        raise TypeError("obj must be a class or a function type, got " f"{obj_type}")
+        raise TypeError(f"obj must be a class or a function type, got {obj_type}")
 
     obj_name = obj.__name__
     obj_name = obj_name.lstrip(experimental_prefix)
@@ -114,7 +114,7 @@ def promoted_experimental_warning_wrapper(obj, obj_namespace_name=None):
     """
     obj_type = type(obj)
     if not callable(obj):
-        raise TypeError("obj must be a class or a function type, got " f"{obj_type}")
+        raise TypeError(f"obj must be a class or a function type, got {obj_type}")
 
     obj_name = obj.__name__
     obj_name = obj_name.lstrip(experimental_prefix)
@@ -181,7 +181,7 @@ def deprecated_warning_wrapper(obj, obj_namespace_name=None):
     """
     obj_type = type(obj)
     if not callable(obj):
-        raise TypeError("obj must be a class or a function type, got " f"{obj_type}")
+        raise TypeError(f"obj must be a class or a function type, got {obj_type}")
 
     obj_name = obj.__name__
     if obj_namespace_name is None:
@@ -237,7 +237,6 @@ def ensure_valid_dtypes(
     edge_start_time_array,
     edge_stop_time_array,
 ):
-
     """
     Returns a warning if unsupported type combinations are provided. All vertex
     types which are 'vertices_array', 'src_or_offset_array', 'dst_or_index_array'

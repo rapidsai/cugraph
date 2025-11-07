@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2022-2024, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -48,7 +48,6 @@ def _call_plc_betweenness_centrality(
     do_expensive_check: bool,
     edge_bc: bool,
 ) -> cudf.DataFrame:
-
     if edge_bc:
         cp_arrays = pylibcugraph_edge_betweenness_centrality(
             resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
@@ -82,7 +81,6 @@ def _mg_call_plc_betweenness_centrality(
     endpoints: bool = False,
     edge_bc: bool = False,
 ) -> dask_cudf.DataFrame:
-
     result = [
         client.submit(
             _call_plc_betweenness_centrality,
@@ -212,8 +210,7 @@ def betweenness_centrality(
 
     if weight is not None:
         raise NotImplementedError(
-            "weighted implementation of betweenness "
-            "centrality not currently supported"
+            "weighted implementation of betweenness centrality not currently supported"
         )
 
     if not isinstance(k, (dask_cudf.DataFrame, dask_cudf.Series)):
@@ -423,9 +420,10 @@ def edge_betweenness_centrality(
         # swap the src and dst vertices for the lower triangle only. Because
         # this is a symmeterized graph, this operation results in a df with
         # multiple src/dst entries.
-        ddf["src"], ddf["dst"] = ddf[["src", "dst"]].min(axis=1), ddf[
-            ["src", "dst"]
-        ].max(axis=1)
+        ddf["src"], ddf["dst"] = (
+            ddf[["src", "dst"]].min(axis=1),
+            ddf[["src", "dst"]].max(axis=1),
+        )
         # overwrite the df with the sum of the values for all alike src/dst
         # vertex pairs, resulting in half the edges of the original df from the
         # symmeterized graph.
