@@ -130,8 +130,8 @@ done
 
 # ucxx version
 for FILE in conda/recipes/*/conda_build_config.yaml; do
-  sed_runner "/^libucxx_version:$/ {n;s/.*/  - \"${NEXT_UCXX_SHORT_TAG_PEP440}.*\"/}" "${FILE}"
-  sed_runner "/^ucxx_version:$/ {n;s/.*/  - \"${NEXT_UCXX_SHORT_TAG_PEP440}.*\"/}" "${FILE}"
+  sed_runner "/^libucxx_version:\$/ {n;s|.*|  - \"${NEXT_UCXX_SHORT_TAG_PEP440}.*\"|;}" "${FILE}"
+  sed_runner "/^ucxx_version:\$/ {n;s|.*|  - \"${NEXT_UCXX_SHORT_TAG_PEP440}.*\"|;}" "${FILE}"
 done
 
 # CI files - context-aware branch references
