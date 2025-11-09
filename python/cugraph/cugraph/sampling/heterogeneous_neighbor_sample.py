@@ -252,7 +252,7 @@ def heterogeneous_neighbor_sample(
     elif isinstance(fanout_vals, cudf.Series):
         fanout_vals = fanout_vals.values_host.astype("int32")
     else:
-        raise TypeError("fanout_vals must be a sequence, " f"got: {type(fanout_vals)}")
+        raise TypeError(f"fanout_vals must be a sequence, got: {type(fanout_vals)}")
 
     if "weights" in G.edgelist.edgelist_df:
         weight_t = G.edgelist.edgelist_df["weights"].dtype

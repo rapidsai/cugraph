@@ -44,7 +44,6 @@ def convert_to_cudf(
 def _call_plc_uniform_random_walks(
     sID: bytes, mg_graph_x, st_x: cudf.Series, max_depth: int, random_state: int
 ) -> Tuple[cp.ndarray, cp.ndarray]:
-
     return pylibcugraph_uniform_random_walks(
         resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
         input_graph=mg_graph_x,

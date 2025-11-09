@@ -39,7 +39,6 @@ def convert_to_cudf(cp_arrays):
 def _call_plc_sorensen(
     sID, mg_graph_x, vertex_pair, use_weight, do_expensive_check, vertex_pair_col_name
 ):
-
     first = vertex_pair[vertex_pair_col_name[0]]
     second = vertex_pair[vertex_pair_col_name[1]]
 
@@ -56,7 +55,6 @@ def _call_plc_sorensen(
 def _call_plc_all_pairs_sorensen(
     sID, mg_graph_x, vertices, use_weight, topk, do_expensive_check
 ):
-
     return pylibcugraph_all_pairs_sorensen_coefficients(
         resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
         graph=mg_graph_x,

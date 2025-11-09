@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2022-2024, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 
 import gc
@@ -102,7 +102,6 @@ def input_expected_output(input_combo):
 # )
 @pytest.mark.mg
 def test_dask_mg_hits(dask_client, benchmark, input_expected_output):
-
     dg = input_expected_output["MGGraph"]
 
     result_hits = benchmark(

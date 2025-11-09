@@ -59,9 +59,9 @@ def run_bandwidth_test(ddf, n):
     time_mean = time_ar.mean()
     size_bytes = df.memory_usage().sum()
     size_gb = round(size_bytes / (pow(1024, 3)), 2)
-    print(f"Getting {len(df):,} rows  of size {size_gb} took = {time_mean*1e-6} ms")
+    print(f"Getting {len(df):,} rows  of size {size_gb} took = {time_mean * 1e-6} ms")
     time_mean_s = time_mean * 1e-9
-    print(f"Bandwidth = {round(size_gb/time_mean_s, 4)} gb/s")
+    print(f"Bandwidth = {round(size_gb / time_mean_s, 4)} gb/s")
     return
 
 

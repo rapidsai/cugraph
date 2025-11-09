@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2019-2021, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2019-2025, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -61,8 +61,7 @@ def changedFilesBetween(baseName, branchName, commitHash):
     # checkout latest commit from branch
     __git("checkout", "-fq", commitHash)
 
-    files = __gitdiff("--name-only", "--ignore-submodules",
-                      f"{baseName}..{branchName}")
+    files = __gitdiff("--name-only", "--ignore-submodules", f"{baseName}..{branchName}")
 
     # restore the original branch
     __git("checkout", "--force", current)
@@ -74,8 +73,15 @@ def changesInFileBetween(file, b1, b2, pathFilter=None):
     current = branch()
     __git("checkout", "--quiet", b1)
     __git("checkout", "--quiet", b2)
-    diffs = __gitdiff("--ignore-submodules", "-w", "--minimal", "-U0",
-                      "%s...%s" % (b1, b2), "--", file)
+    diffs = __gitdiff(
+        "--ignore-submodules",
+        "-w",
+        "--minimal",
+        "-U0",
+        "%s...%s" % (b1, b2),
+        "--",
+        file,
+    )
     __git("checkout", "--quiet", current)
     lines = []
     for line in diffs.splitlines():
@@ -100,8 +106,10 @@ def modifiedFiles(pathFilter=None):
     targetBranch = os.environ.get("TARGET_BRANCH")
     commitHash = os.environ.get("COMMIT_HASH")
     currentBranch = branch()
-    print(f"   [DEBUG] TARGET_BRANCH={targetBranch}, COMMIT_HASH={commitHash}, "
-          f"currentBranch={currentBranch}")
+    print(
+        f"   [DEBUG] TARGET_BRANCH={targetBranch}, COMMIT_HASH={commitHash}, "
+        f"currentBranch={currentBranch}"
+    )
 
     if targetBranch and commitHash and (currentBranch == "current-pr-branch"):
         print("   [DEBUG] Assuming a CI environment.")

@@ -291,7 +291,6 @@ def all_pairs_overlap(
         raise ValueError("Input must be an undirected Graph.")
 
     if vertices is not None:
-
         if isinstance(vertices, int):
             vertices = [vertices]
 

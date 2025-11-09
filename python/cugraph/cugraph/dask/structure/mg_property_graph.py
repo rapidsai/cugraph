@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2021-2024, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 
 import cudf
@@ -803,8 +803,7 @@ class EXPERIMENTAL__MGPropertyGraph:
         if edge_id_col_name is not None:
             if not isinstance(edge_id_col_name, str):
                 raise TypeError(
-                    "edge_id_col_name must be a string, got: "
-                    f"{type(edge_id_col_name)}"
+                    f"edge_id_col_name must be a string, got: {type(edge_id_col_name)}"
                 )
             if edge_id_col_name not in dataframe.columns:
                 if edge_id_col_name != dataframe.index.name:
@@ -1861,7 +1860,7 @@ class EXPERIMENTAL__MGPropertyGraph:
         This also handles converting standard integer dtypes to nullable
         integer dtypes, needed to accommodate NA values in columns.
         """
-        for (col, dtype) in column_dtype_dict.items():
+        for col, dtype in column_dtype_dict.items():
             if col not in df.columns:
                 continue
             # If the DataFrame is Pandas and the dtype is an integer type,

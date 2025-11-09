@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2019-2022, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2019-2025, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 
 
@@ -87,7 +87,6 @@ def EXPERIMENTAL__strong_connected_component(source, destination):
 
     # ----- Start processing -----
     while len(d) > 0:
-
         v = d["vertex"][0]
 
         # compute the forward BFS
@@ -142,7 +141,6 @@ def _filter_list(vert_list, drop_list):
 
 
 def _compress_array(a, length):
-
     tmp = cudf.DataFrame()
 
     if length > 0:

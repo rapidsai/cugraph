@@ -98,7 +98,7 @@ def check_node2vec_random_walks(G, path_data, seeds, max_depth, df_G=None):
 
             if i == next_path_idx and src not in seeds.values:
                 invalid_seeds += 1
-                print("[ERR] Invalid seed: " " src {} != src {}".format(src, seeds))
+                print("[ERR] Invalid seed:  src {} != src {}".format(src, seeds))
 
             else:
                 # If everything is good proceed to the next part

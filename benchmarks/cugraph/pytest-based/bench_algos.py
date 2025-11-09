@@ -12,7 +12,7 @@ import cugraph
 import cugraph.dask as dask_cugraph
 from cugraph.structure.number_map import NumberMap
 from cugraph.generators import rmat
-from cugraph.testing import utils, mg_utils
+from cugraph.testing import mg_utils
 
 from cugraph_benchmarking.params import (
     directed_datasets,
@@ -138,6 +138,7 @@ dataset_fixture_params = gen_fixture_params_product(
 # conftest.py
 RMM_SETTINGS = {"managed_mem": False, "pool_alloc": False}
 
+
 # FIXME: this only changes the RMM config in a SG environment. The dask config
 # that applies to RMM in an MG environment is not changed by this!
 def reinitRMM(managed_mem, pool_alloc):
@@ -148,7 +149,6 @@ def reinitRMM(managed_mem, pool_alloc):
     if (managed_mem != RMM_SETTINGS["managed_mem"]) or (
         pool_alloc != RMM_SETTINGS["pool_alloc"]
     ):
-
         rmm.reinitialize(
             managed_memory=managed_mem,
             pool_allocator=pool_alloc,
@@ -175,7 +175,6 @@ def rmm_config(request):
 
 @pytest.fixture(scope="module", params=dataset_fixture_params)
 def dataset(request, rmm_config):
-
     """
     Fixture which provides a Dataset instance, setting up a Dask cluster and
     client if necessary for MG, to tests and other fixtures. When all
@@ -366,7 +365,7 @@ def bench_spectralBalancedCutClustering(benchmark, graph):
     benchmark(cugraph.spectralBalancedCutClustering, graph, 2)
 
 
-@pytest.mark.skip(reason="Need to guarantee graph has weights, " "not doing that yet")
+@pytest.mark.skip(reason="Need to guarantee graph has weights, not doing that yet")
 def bench_spectralModularityMaximizationClustering(benchmark, graph):
     smmc = (
         dask_cugraph.spectralModularityMaximizationClustering
@@ -399,29 +398,6 @@ def bench_edge_betweenness_centrality(benchmark, graph):
     if is_graph_distributed(graph):
         pytest.skip("distributed graphs are not supported")
     benchmark(cugraph.edge_betweenness_centrality, graph, k=10, seed=123)
-
-
-def bench_uniform_neighbor_sample(benchmark, graph):
-    uns = (
-        dask_cugraph.uniform_neighbor_sample
-        if is_graph_distributed(graph)
-        else cugraph.uniform_neighbor_sample
-    )
-
-    seed = 42
-    # FIXME: may need to provide number_of_vertices separately
-    num_verts_in_graph = graph.number_of_vertices()
-    len_start_list = max(int(num_verts_in_graph * 0.01), 2)
-    srcs = graph.edgelist.edgelist_df["src"]
-    frac = len_start_list / num_verts_in_graph
-
-    start_list = srcs.sample(frac=frac, random_state=seed)
-    # Attempt to automatically handle a dask Series
-    if hasattr(start_list, "compute"):
-        start_list = start_list.compute()
-
-    fanout_vals = [5, 5, 5]
-    benchmark(uns, graph, start_list=start_list, fanout_vals=fanout_vals)
 
 
 def bench_egonet(benchmark, graph):

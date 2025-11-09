@@ -265,7 +265,7 @@ def _mg_rmat(
     num_workers = len(worker_list)
     num_edges_list = _calc_num_edges_per_worker(num_workers, num_edges)
     result = []
-    for (i, worker_num_edges) in enumerate(num_edges_list):
+    for i, worker_num_edges in enumerate(num_edges_list):
         unique_worker_seed = seed + i
         future = client.submit(
             _call_rmat,
