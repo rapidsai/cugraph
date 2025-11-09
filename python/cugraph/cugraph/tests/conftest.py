@@ -22,6 +22,7 @@ from cugraph.testing.mg_utils import (
 # Hooks
 # =============================================================================
 
+
 # Install SSL certificates
 def pytest_sessionstart(session):
     ssl_context = create_default_context(cafile=certifi.where())
