@@ -1,21 +1,26 @@
 # SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 
+import tempfile
+from ssl import create_default_context
+from urllib.request import build_opener, HTTPSHandler, install_opener
+
+import packaging.version
 import pytest
+import networkx as nx
+import certifi
+from dask_cuda.utils_test import (
+    IncreasedCloseTimeoutNanny,
+)  # Avoid timeout during shutdown
+
 from cugraph.testing.mg_utils import (
     start_dask_client,
     stop_dask_client,
 )
 
-import tempfile
 
-# Avoid timeout during shutdown
-from dask_cuda.utils_test import IncreasedCloseTimeoutNanny
-
-import certifi
-from ssl import create_default_context
-from urllib.request import build_opener, HTTPSHandler, install_opener
-
+# Hooks
+# =============================================================================
 
 # Install SSL certificates
 def pytest_sessionstart(session):
@@ -24,7 +29,32 @@ def pytest_sessionstart(session):
     install_opener(build_opener(https_handler))
 
 
-# module-wide fixtures
+def pytest_collection_modifyitems(config, items):
+    """Modify pytest items after tests have been collected."""
+    installed_nx_version = packaging.version.parse(nx.__version__)
+    for item in items:
+        # Skip tests marked as requiring a specific version of NetworkX if
+        # the installed version is too old
+        for mark in item.iter_markers(name="requires_nx"):
+            ver_str = mark.kwargs.get(
+                "version", mark.args[0] if len(mark.args) > 0 else None
+            )
+            if ver_str is None:
+                raise TypeError("requires_nx marker must specify a version")
+            min_required_nx_version = packaging.version.parse(ver_str)
+            if installed_nx_version < min_required_nx_version:
+                item.add_marker(
+                    pytest.mark.skip(
+                        reason=(
+                            f"Requires networkx >= {min_required_nx_version}, "
+                            f"(version installed: {installed_nx_version})"
+                        )
+                    )
+                )
+
+
+# Fixtures
+# =============================================================================
 
 
 @pytest.fixture(scope="module")

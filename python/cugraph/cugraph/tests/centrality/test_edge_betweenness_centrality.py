@@ -3,7 +3,6 @@
 
 import gc
 
-import packaging.version
 import pytest
 import random
 import networkx as nx
@@ -14,9 +13,6 @@ import cudf
 import cugraph
 from cugraph.datasets import karate_disjoint
 from cugraph.testing import utils, SMALL_DATASETS
-
-nx_version_3_5 = packaging.version.parse("3.5")
-nx_version = packaging.version.parse(nx.__version__)
 
 # NOTE: Endpoint parameter is not currently being tested, there could be a test
 #       to verify that python raise an error if it is used
@@ -305,11 +301,8 @@ def generate_upper_triangle(dataframe):
     return dataframe
 
 
-@pytest.mark.skipif(
-    nx_version < nx_version_3_5,
-    reason=f"Requires networkx >= {nx_version_3_5}",
-)
 @pytest.mark.sg
+@pytest.mark.requires_nx(version="3.5")
 @pytest.mark.parametrize("graph_file", SMALL_DATASETS)
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize("subset_size", SUBSET_SIZE_OPTIONS)
@@ -339,11 +332,8 @@ def test_edge_betweenness_centrality(
     compare_scores(sorted_df, first_key="cu_bc", second_key="ref_bc")
 
 
-@pytest.mark.skipif(
-    nx_version < nx_version_3_5,
-    reason=f"Requires networkx >= {nx_version_3_5}",
-)
 @pytest.mark.sg
+@pytest.mark.requires_nx(version="3.5")
 @pytest.mark.parametrize("graph_file", SMALL_DATASETS)
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize("subset_size", [None])
@@ -382,11 +372,8 @@ def test_edge_betweenness_centrality_k_full(
 #       the function operating the comparison inside is first proceeding
 #       to a random sampling over the number of vertices (thus direct offsets)
 #       in the graph structure instead of actual vertices identifiers
-@pytest.mark.skipif(
-    nx_version < nx_version_3_5,
-    reason=f"Requires networkx >= {nx_version_3_5}",
-)
 @pytest.mark.sg
+@pytest.mark.requires_nx(version="3.5")
 @pytest.mark.parametrize("graph_file", [karate_disjoint])
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize("subset_size", SUBSET_SIZE_OPTIONS)
