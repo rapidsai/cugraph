@@ -36,12 +36,12 @@ bool validate_sampling_depth(raft::handle_t const& handle,
                              rmm::device_uvector<vertex_t>&& d_source_vertices,
                              int max_depth);
 
-template <typename vertex_t, typename edge_time_t>
+template <typename vertex_t, typename time_stamp_t>
 bool validate_temporal_integrity(
   raft::handle_t const& handle,
   raft::device_span<vertex_t const> srcs,
   raft::device_span<vertex_t const> dsts,
-  raft::device_span<edge_time_t const> edge_times,
+  raft::device_span<time_stamp_t const> edge_times,
   raft::device_span<vertex_t const> source_vertices,
   cugraph::temporal_sampling_comparison_t temporal_sampling_comparison);
 

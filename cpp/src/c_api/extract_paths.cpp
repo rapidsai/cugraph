@@ -52,7 +52,7 @@ struct extract_paths_functor : public abstract_functor {
             typename edge_t,
             typename weight_t,
             typename edge_type_t,
-            typename edge_time_t,
+            typename time_stamp_t,
             bool store_transposed,
             bool multi_gpu>
   void operator()()

@@ -14,7 +14,6 @@ import cugraph
 from cugraph.datasets import karate_disjoint
 from cugraph.testing import utils, SMALL_DATASETS
 
-
 # NOTE: Endpoint parameter is not currently being tested, there could be a test
 #       to verify that python raise an error if it is used
 # =============================================================================
@@ -301,11 +300,8 @@ def generate_upper_triangle(dataframe):
     return dataframe
 
 
-@pytest.mark.skipif(
-    float(".".join(nx.__version__.split(".")[:2])) < 3.5,
-    reason="Requires networkx >= 3.5",
-)
 @pytest.mark.sg
+@pytest.mark.requires_nx(version="3.5")
 @pytest.mark.parametrize("graph_file", SMALL_DATASETS)
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize("subset_size", SUBSET_SIZE_OPTIONS)
@@ -335,11 +331,8 @@ def test_edge_betweenness_centrality(
     compare_scores(sorted_df, first_key="cu_bc", second_key="ref_bc")
 
 
-@pytest.mark.skipif(
-    float(".".join(nx.__version__.split(".")[:2])) < 3.5,
-    reason="Requires networkx >= 3.5",
-)
 @pytest.mark.sg
+@pytest.mark.requires_nx(version="3.5")
 @pytest.mark.parametrize("graph_file", SMALL_DATASETS)
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize("subset_size", [None])
@@ -378,11 +371,8 @@ def test_edge_betweenness_centrality_k_full(
 #       the function operating the comparison inside is first proceeding
 #       to a random sampling over the number of vertices (thus direct offsets)
 #       in the graph structure instead of actual vertices identifiers
-@pytest.mark.skipif(
-    float(".".join(nx.__version__.split(".")[:2])) < 3.5,
-    reason="Requires networkx >= 3.5",
-)
 @pytest.mark.sg
+@pytest.mark.requires_nx(version="3.5")
 @pytest.mark.parametrize("graph_file", [karate_disjoint])
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize("subset_size", SUBSET_SIZE_OPTIONS)

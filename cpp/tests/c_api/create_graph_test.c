@@ -122,18 +122,18 @@ int test_create_sg_graph_with_times()
   typedef int32_t vertex_t;
   typedef int32_t edge_t;
   typedef float weight_t;
-  typedef int64_t edge_time_t;
+  typedef int64_t time_stamp_t;
 
   cugraph_error_code_t ret_code = CUGRAPH_SUCCESS;
   cugraph_error_t* ret_error;
   size_t num_edges    = 8;
   size_t num_vertices = 6;
 
-  vertex_t h_src[]                 = {0, 1, 1, 2, 2, 2, 3, 4};
-  vertex_t h_dst[]                 = {1, 3, 4, 0, 1, 3, 5, 5};
-  weight_t h_wgt[]                 = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
-  edge_time_t h_edge_start_times[] = {1, 3, 5, 7, 9, 11, 13, 15};
-  edge_time_t h_edge_end_times[]   = {2, 4, 6, 8, 10, 12, 14, 16};
+  vertex_t h_src[]                  = {0, 1, 1, 2, 2, 2, 3, 4};
+  vertex_t h_dst[]                  = {1, 3, 4, 0, 1, 3, 5, 5};
+  weight_t h_wgt[]                  = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
+  time_stamp_t h_edge_start_times[] = {1, 3, 5, 7, 9, 11, 13, 15};
+  time_stamp_t h_edge_end_times[]   = {2, 4, 6, 8, 10, 12, 14, 16};
 
   cugraph_resource_handle_t* handle = NULL;
   cugraph_graph_t* graph            = NULL;
