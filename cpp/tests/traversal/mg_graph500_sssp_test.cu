@@ -87,9 +87,9 @@ class Tests_GRAPH500_MGSSSP
   void run_current_test(Graph500_SSSP_Usecase const& sssp_usecase,
                         input_usecase_t const& input_usecase)
   {
-    using weight_t    = float;
-    using edge_type_t = int32_t;  // dummy
-    using edge_time_t = int32_t;  // dummy
+    using weight_t     = float;
+    using edge_type_t  = int32_t;  // dummy
+    using time_stamp_t = int32_t;  // dummy
 
     bool constexpr store_transposed = false;
     bool constexpr multi_gpu        = true;
@@ -223,7 +223,7 @@ class Tests_GRAPH500_MGSSSP
                  std::ignore,
                  std::ignore,
                  std::ignore) =
-          cugraph::remove_self_loops<vertex_t, edge_t, weight_t, edge_type_t, edge_time_t>(
+          cugraph::remove_self_loops<vertex_t, edge_t, weight_t, edge_type_t, time_stamp_t>(
             *handle_,
             std::move(src_chunks[i]),
             std::move(dst_chunks[i]),
@@ -256,7 +256,7 @@ class Tests_GRAPH500_MGSSSP
                  std::ignore,
                  std::ignore,
                  std::ignore) =
-          cugraph::remove_multi_edges<vertex_t, edge_t, weight_t, edge_type_t, edge_time_t>(
+          cugraph::remove_multi_edges<vertex_t, edge_t, weight_t, edge_type_t, time_stamp_t>(
             *handle_,
             std::move(src_chunks),
             std::move(dst_chunks),
@@ -287,7 +287,7 @@ class Tests_GRAPH500_MGSSSP
                                               edge_t,
                                               weight_t,
                                               edge_type_t,
-                                              edge_time_t,
+                                              time_stamp_t,
                                               store_transposed,
                                               multi_gpu>(
             *handle_,
@@ -361,7 +361,7 @@ class Tests_GRAPH500_MGSSSP
                                                          edge_t,
                                                          weight_t,
                                                          edge_type_t,
-                                                         edge_time_t,
+                                                         time_stamp_t,
                                                          store_transposed,
                                                          multi_gpu>(
             *handle_,

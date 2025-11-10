@@ -427,7 +427,7 @@ heterogeneous_biased_neighbor_sample(
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
  * @tparam weight_t Type of edge weights. Needs to be a floating point type.
  * @tparam edge_type_t Type of edge type. Needs to be an integral type.
- * @tparam edge_time_t Type of edge time. Needs to be an integral type.
+ * @tparam time_stamp_t Type of time. Needs to be an integral type.
  * @tparam store_transposed Flag indicating whether sources (if false) or destinations (if
  * true) are major indices
  * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
@@ -454,14 +454,14 @@ heterogeneous_biased_neighbor_sample(
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return tuple device vectors (vertex_t source_vertex, vertex_t destination_vertex,
  * optional weight_t weight, optional edge_t edge id, optional edge_type_t edge type,
- * optional edge_time_t start time, optional edge_time_t end time, optional int32_t hop, optional
+ * optional time_stamp_t start time, optional time_stamp_t end time, optional int32_t hop, optional
  * size_t offsets)
  */
 template <typename vertex_t,
           typename edge_t,
           typename weight_t,
           typename edge_type_t,
-          typename edge_time_t,
+          typename time_stamp_t,
           bool store_transposed,
           bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>,
@@ -469,8 +469,8 @@ std::tuple<rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>,
            std::optional<rmm::device_uvector<edge_t>>,
            std::optional<rmm::device_uvector<edge_type_t>>,
-           std::optional<rmm::device_uvector<edge_time_t>>,
-           std::optional<rmm::device_uvector<edge_time_t>>,
+           std::optional<rmm::device_uvector<time_stamp_t>>,
+           std::optional<rmm::device_uvector<time_stamp_t>>,
            std::optional<rmm::device_uvector<int32_t>>,
            std::optional<rmm::device_uvector<size_t>>>
 homogeneous_uniform_temporal_neighbor_sample(
@@ -480,10 +480,10 @@ homogeneous_uniform_temporal_neighbor_sample(
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   std::optional<edge_property_view_t<edge_t, edge_t const*>> edge_id_view,
   std::optional<edge_property_view_t<edge_t, edge_type_t const*>> edge_type_view,
-  edge_property_view_t<edge_t, edge_time_t const*> edge_start_time_view,
-  std::optional<edge_property_view_t<edge_t, edge_time_t const*>> edge_end_time_view,
+  edge_property_view_t<edge_t, time_stamp_t const*> edge_start_time_view,
+  std::optional<edge_property_view_t<edge_t, time_stamp_t const*>> edge_end_time_view,
   raft::device_span<vertex_t const> starting_vertices,
-  std::optional<raft::device_span<edge_time_t const>> starting_vertex_times,
+  std::optional<raft::device_span<time_stamp_t const>> starting_vertex_times,
   std::optional<raft::device_span<int32_t const>> starting_vertex_labels,
   std::optional<raft::device_span<int32_t const>> label_to_output_comm_rank,
   raft::host_span<int32_t const> fan_out,
@@ -519,7 +519,7 @@ homogeneous_uniform_temporal_neighbor_sample(
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
  * @tparam weight_t Type of edge weights. Needs to be a floating point type.
  * @tparam edge_type_t Type of edge type. Needs to be an integral type.
- * @tparam edge_time_t Type of edge time. Needs to be an integral type.
+ * @tparam time_stamp_t Type of time. Needs to be an integral type.
  * @tparam store_transposed Flag indicating whether sources (if false) or destinations (if
  * true) are major indices
  * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
@@ -549,14 +549,14 @@ homogeneous_uniform_temporal_neighbor_sample(
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return tuple device vectors (vertex_t source_vertex, vertex_t destination_vertex,
  * optional weight_t weight, optional edge_t edge id, optional edge_type_t edge type,
- * optional edge_time_t start time, optional edge_time_t end time, optional int32_t hop, optional
+ * optional time_stamp_t start time, optional time_stamp_t end time, optional int32_t hop, optional
  * size_t offsets)
  */
 template <typename vertex_t,
           typename edge_t,
           typename weight_t,
           typename edge_type_t,
-          typename edge_time_t,
+          typename time_stamp_t,
           bool store_transposed,
           bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>,
@@ -564,8 +564,8 @@ std::tuple<rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>,
            std::optional<rmm::device_uvector<edge_t>>,
            std::optional<rmm::device_uvector<edge_type_t>>,
-           std::optional<rmm::device_uvector<edge_time_t>>,
-           std::optional<rmm::device_uvector<edge_time_t>>,
+           std::optional<rmm::device_uvector<time_stamp_t>>,
+           std::optional<rmm::device_uvector<time_stamp_t>>,
            std::optional<rmm::device_uvector<int32_t>>,
            std::optional<rmm::device_uvector<size_t>>>
 heterogeneous_uniform_temporal_neighbor_sample(
@@ -575,10 +575,10 @@ heterogeneous_uniform_temporal_neighbor_sample(
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   std::optional<edge_property_view_t<edge_t, edge_t const*>> edge_id_view,
   edge_property_view_t<edge_t, edge_type_t const*> edge_type_view,
-  edge_property_view_t<edge_t, edge_time_t const*> edge_start_time_view,
-  std::optional<edge_property_view_t<edge_t, edge_time_t const*>> edge_end_time_view,
+  edge_property_view_t<edge_t, time_stamp_t const*> edge_start_time_view,
+  std::optional<edge_property_view_t<edge_t, time_stamp_t const*>> edge_end_time_view,
   raft::device_span<vertex_t const> starting_vertices,
-  std::optional<raft::device_span<edge_time_t const>> starting_vertex_times,
+  std::optional<raft::device_span<time_stamp_t const>> starting_vertex_times,
   std::optional<raft::device_span<int32_t const>> starting_vertex_labels,
   std::optional<raft::device_span<int32_t const>> label_to_output_comm_rank,
   raft::host_span<int32_t const> fan_out,
@@ -614,7 +614,7 @@ heterogeneous_uniform_temporal_neighbor_sample(
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
  * @tparam weight_t Type of edge weights. Needs to be a floating point type.
  * @tparam edge_type_t Type of edge type. Needs to be an integral type.
- * @tparam edge_time_t Type of edge time. Needs to be an integral type.
+ * @tparam time_stamp_t Type of time. Needs to be an integral type.
  * @tparam bias_t Type of bias. Needs to be an integral type.
  * @tparam store_transposed Flag indicating whether sources (if false) or destinations (if
  * true) are major indices
@@ -646,14 +646,14 @@ heterogeneous_uniform_temporal_neighbor_sample(
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return tuple device vectors (vertex_t source_vertex, vertex_t destination_vertex,
  * optional weight_t weight, optional edge_t edge id, optional edge_type_t edge type,
- * optional edge_time_t start time, optional edge_time_t end time, optional int32_t hop, optional
+ * optional time_stamp_t start time, optional time_stamp_t end time, optional int32_t hop, optional
  * size_t offsets)
  */
 template <typename vertex_t,
           typename edge_t,
           typename weight_t,
           typename edge_type_t,
-          typename edge_time_t,
+          typename time_stamp_t,
           typename bias_t,
           bool store_transposed,
           bool multi_gpu>
@@ -662,8 +662,8 @@ std::tuple<rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>,
            std::optional<rmm::device_uvector<edge_t>>,
            std::optional<rmm::device_uvector<edge_type_t>>,
-           std::optional<rmm::device_uvector<edge_time_t>>,
-           std::optional<rmm::device_uvector<edge_time_t>>,
+           std::optional<rmm::device_uvector<time_stamp_t>>,
+           std::optional<rmm::device_uvector<time_stamp_t>>,
            std::optional<rmm::device_uvector<int32_t>>,
            std::optional<rmm::device_uvector<size_t>>>
 homogeneous_biased_temporal_neighbor_sample(
@@ -673,11 +673,11 @@ homogeneous_biased_temporal_neighbor_sample(
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   std::optional<edge_property_view_t<edge_t, edge_t const*>> edge_id_view,
   std::optional<edge_property_view_t<edge_t, edge_type_t const*>> edge_type_view,
-  edge_property_view_t<edge_t, edge_time_t const*> edge_start_time_view,
-  std::optional<edge_property_view_t<edge_t, edge_time_t const*>> edge_end_time_view,
+  edge_property_view_t<edge_t, time_stamp_t const*> edge_start_time_view,
+  std::optional<edge_property_view_t<edge_t, time_stamp_t const*>> edge_end_time_view,
   edge_property_view_t<edge_t, bias_t const*> edge_bias_view,
   raft::device_span<vertex_t const> starting_vertices,
-  std::optional<raft::device_span<edge_time_t const>> starting_vertex_times,
+  std::optional<raft::device_span<time_stamp_t const>> starting_vertex_times,
   std::optional<raft::device_span<int32_t const>> starting_vertex_labels,
   std::optional<raft::device_span<int32_t const>> label_to_output_comm_rank,
   raft::host_span<int32_t const> fan_out,
@@ -713,7 +713,7 @@ homogeneous_biased_temporal_neighbor_sample(
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
  * @tparam weight_t Type of edge weights. Needs to be a floating point type.
  * @tparam edge_type_t Type of edge type. Needs to be an integral type.
- * @tparam edge_time_t Type of edge time. Needs to be an integral type.
+ * @tparam time_stamp_t Type of time. Needs to be an integral type.
  * @tparam bias_t Type of bias. Needs to be an integral type.
  * @tparam store_transposed Flag indicating whether sources (if false) or destinations (if
  * true) are major indices
@@ -748,14 +748,14 @@ homogeneous_biased_temporal_neighbor_sample(
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return tuple device vectors (vertex_t source_vertex, vertex_t destination_vertex,
  * optional weight_t weight, optional edge_t edge id, optional edge_type_t edge type,
- * optional edge_time_t start time, optional edge_time_t end time, optional int32_t hop, optional
+ * optional time_stamp_t start time, optional time_stamp_t end time, optional int32_t hop, optional
  * size_t offsets)
  */
 template <typename vertex_t,
           typename edge_t,
           typename weight_t,
           typename edge_type_t,
-          typename edge_time_t,
+          typename time_stamp_t,
           typename bias_t,
           bool store_transposed,
           bool multi_gpu>
@@ -764,8 +764,8 @@ std::tuple<rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>,
            std::optional<rmm::device_uvector<edge_t>>,
            std::optional<rmm::device_uvector<edge_type_t>>,
-           std::optional<rmm::device_uvector<edge_time_t>>,
-           std::optional<rmm::device_uvector<edge_time_t>>,
+           std::optional<rmm::device_uvector<time_stamp_t>>,
+           std::optional<rmm::device_uvector<time_stamp_t>>,
            std::optional<rmm::device_uvector<int32_t>>,
            std::optional<rmm::device_uvector<size_t>>>
 heterogeneous_biased_temporal_neighbor_sample(
@@ -775,11 +775,11 @@ heterogeneous_biased_temporal_neighbor_sample(
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   std::optional<edge_property_view_t<edge_t, edge_t const*>> edge_id_view,
   edge_property_view_t<edge_t, edge_type_t const*> edge_type_view,
-  edge_property_view_t<edge_t, edge_time_t const*> edge_start_time_view,
-  std::optional<edge_property_view_t<edge_t, edge_time_t const*>> edge_end_time_view,
+  edge_property_view_t<edge_t, time_stamp_t const*> edge_start_time_view,
+  std::optional<edge_property_view_t<edge_t, time_stamp_t const*>> edge_end_time_view,
   edge_property_view_t<edge_t, bias_t const*> edge_bias_view,
   raft::device_span<vertex_t const> starting_vertices,
-  std::optional<raft::device_span<edge_time_t const>> starting_vertex_times,
+  std::optional<raft::device_span<time_stamp_t const>> starting_vertex_times,
   std::optional<raft::device_span<int32_t const>> starting_vertex_labels,
   std::optional<raft::device_span<int32_t const>> label_to_output_comm_rank,
   raft::host_span<int32_t const> fan_out,
