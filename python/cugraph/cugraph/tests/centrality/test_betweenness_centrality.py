@@ -299,11 +299,8 @@ def compare_scores(sorted_df, first_key, second_key, epsilon=DEFAULT_EPSILON):
 # =============================================================================
 # Tests
 # =============================================================================
-@pytest.mark.skipif(
-    float(".".join(nx.__version__.split(".")[:2])) < 3.5,
-    reason="Requires networkx >= 3.5",
-)
 @pytest.mark.sg
+@pytest.mark.requires_nx(version="3.5")
 @pytest.mark.parametrize("graph_file", SMALL_DATASETS)
 @pytest.mark.parametrize("directed", [False, True])
 @pytest.mark.parametrize("subset_size", SUBSET_SIZE_OPTIONS)

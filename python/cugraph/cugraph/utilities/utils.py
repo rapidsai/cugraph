@@ -7,6 +7,7 @@ import shutil
 
 import cudf
 from cudf.core.column import as_column
+import pylibcudf as plcudf
 
 from warnings import warn
 
@@ -431,14 +432,25 @@ def create_list_series_from_2d_ar(ar, index):
     )
     mask_col = cp.full(shape=n_rows, fill_value=True)
     mask = as_column(mask_col).as_mask()
+    # FIXME: Look into a better way to create a cudf Series from cupy arrays
+    plc_offset_col = plcudf.Column.from_cuda_array_interface(offset_col)
+    plc_data_col = plcudf.Column.from_cuda_array_interface(data)
+    plc_lc = plcudf.Column(
+        plcudf.DataType(plcudf.TypeId.LIST),
+        n_rows,
+        None,
+        plcudf.gpumemoryview(mask),
+        0,
+        0,
+        [plc_offset_col, plc_data_col],
+    )
     lc = cudf.core.column.ListColumn(
-        data=None,
+        plc_column=plc_lc,
         size=n_rows,
         dtype=cudf.ListDtype(data.dtype),
-        mask=mask,
         offset=0,
         null_count=0,
-        children=(offset_col, data),
+        exposed=False,
     )
     return cudf.Series._from_column(lc, index=index)
 
