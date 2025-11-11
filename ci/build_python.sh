@@ -26,7 +26,7 @@ rapids-logger "Prepending channel ${CPP_CHANNEL} to RATTLER_CHANNELS"
 
 RATTLER_CHANNELS=("--channel" "${CPP_CHANNEL}" "${RATTLER_CHANNELS[@]}")
 
-sccache --zero-stats
+sccache --stop-server >/dev/null 2>&1 || true
 
 rapids-logger "Building pylibcugraph"
 
@@ -38,7 +38,7 @@ rattler-build build --recipe conda/recipes/pylibcugraph \
                     "${RATTLER_CHANNELS[@]}"
 
 sccache --show-adv-stats
-sccache --zero-stats
+sccache --stop-server >/dev/null 2>&1 || true
 
 rapids-logger "Building cugraph"
 
