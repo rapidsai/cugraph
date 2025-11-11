@@ -101,7 +101,6 @@ def test_complex_df():
 @pytest.mark.sg
 @pytest.mark.parametrize("categorical_metadata", [False, True])
 def test_hyperedges(categorical_metadata):
-
     h = cugraph.hypergraph(simple_df, categorical_metadata=categorical_metadata)
 
     assert len(h.keys()) == len(["entities", "nodes", "edges", "events", "graph"])
@@ -164,13 +163,12 @@ def test_hyperedges(categorical_metadata):
 
     # check_like ignores the order of columns as long as all correct ones are present
     assert_frame_equal(edges, h["edges"], check_dtype=False, check_like=True)
-    for (k, v) in [("entities", 12), ("nodes", 15), ("edges", 12), ("events", 3)]:
+    for k, v in [("entities", 12), ("nodes", 15), ("edges", 12), ("events", 3)]:
         assert len(h[k]) == v
 
 
 @pytest.mark.sg
 def test_hyperedges_direct():
-
     h = cugraph.hypergraph(hyper_df, direct=True)
 
     assert len(h["edges"]) == 9
@@ -179,7 +177,6 @@ def test_hyperedges_direct():
 
 @pytest.mark.sg
 def test_hyperedges_direct_categories():
-
     h = cugraph.hypergraph(
         hyper_df,
         direct=True,
@@ -196,7 +193,6 @@ def test_hyperedges_direct_categories():
 
 @pytest.mark.sg
 def test_hyperedges_direct_manual_shaping():
-
     h1 = cugraph.hypergraph(
         hyper_df,
         direct=True,
@@ -215,7 +211,6 @@ def test_hyperedges_direct_manual_shaping():
 @pytest.mark.sg
 @pytest.mark.parametrize("categorical_metadata", [False, True])
 def test_drop_edge_attrs(categorical_metadata):
-
     h = cugraph.hypergraph(
         simple_df,
         columns=["id", "a1", "🙈"],
@@ -261,14 +256,13 @@ def test_drop_edge_attrs(categorical_metadata):
     # check_like ignores the order of columns as long as all correct ones are present
     assert_frame_equal(edges, h["edges"], check_dtype=False, check_like=True)
 
-    for (k, v) in [("entities", 9), ("nodes", 12), ("edges", 9), ("events", 3)]:
+    for k, v in [("entities", 9), ("nodes", 12), ("edges", 9), ("events", 3)]:
         assert len(h[k]) == v
 
 
 @pytest.mark.sg
 @pytest.mark.parametrize("categorical_metadata", [False, True])
 def test_drop_edge_attrs_direct(categorical_metadata):
-
     h = cugraph.hypergraph(
         simple_df,
         ["id", "a1", "🙈"],
@@ -291,9 +285,23 @@ def test_drop_edge_attrs_direct(categorical_metadata):
                     "event_id::1",
                     "event_id::2",
                 ],
-                "edge_type": ["a1::🙈", "a1::🙈", "a1::🙈", "id::a1", "id::a1", "id::a1"],
+                "edge_type": [
+                    "a1::🙈",
+                    "a1::🙈",
+                    "a1::🙈",
+                    "id::a1",
+                    "id::a1",
+                    "id::a1",
+                ],
                 "src": ["a1::1", "a1::2", "a1::3", "id::a", "id::b", "id::c"],
-                "dst": ["🙈::æski ēˈmōjē", "🙈::😋", "🙈::s", "a1::1", "a1::2", "a1::3"],
+                "dst": [
+                    "🙈::æski ēˈmōjē",
+                    "🙈::😋",
+                    "🙈::s",
+                    "a1::1",
+                    "a1::2",
+                    "a1::3",
+                ],
             }
         )
     )
@@ -304,13 +312,12 @@ def test_drop_edge_attrs_direct(categorical_metadata):
     # check_like ignores the order of columns as long as all correct ones are present
     assert_frame_equal(edges, h["edges"], check_dtype=False, check_like=True)
 
-    for (k, v) in [("entities", 9), ("nodes", 9), ("edges", 6), ("events", 0)]:
+    for k, v in [("entities", 9), ("nodes", 9), ("edges", 6), ("events", 0)]:
         assert len(h[k]) == v
 
 
 @pytest.mark.sg
 def test_skip_hyper():
-
     df = cudf.DataFrame(
         pd.DataFrame({"a": ["a", None, "b"], "b": ["a", "b", "c"], "c": [1, 2, 3]})
     )
@@ -323,7 +330,6 @@ def test_skip_hyper():
 
 @pytest.mark.sg
 def test_skip_drop_na_hyper():
-
     df = cudf.DataFrame(
         pd.DataFrame({"a": ["a", None, "b"], "b": ["a", "b", "c"], "c": [1, 2, 3]})
     )
@@ -336,7 +342,6 @@ def test_skip_drop_na_hyper():
 
 @pytest.mark.sg
 def test_skip_direct():
-
     df = cudf.DataFrame(
         pd.DataFrame({"a": ["a", None, "b"], "b": ["a", "b", "c"], "c": [1, 2, 3]})
     )
@@ -349,7 +354,6 @@ def test_skip_direct():
 
 @pytest.mark.sg
 def test_skip_drop_na_direct():
-
     df = cudf.DataFrame(
         pd.DataFrame({"a": ["a", None, "b"], "b": ["a", "b", "c"], "c": [1, 2, 3]})
     )
@@ -362,7 +366,6 @@ def test_skip_drop_na_direct():
 
 @pytest.mark.sg
 def test_drop_na_hyper():
-
     df = cudf.DataFrame(pd.DataFrame({"a": ["a", None, "c"], "i": [1, 2, None]}))
 
     hg = cugraph.hypergraph(df, dropna=True)
@@ -373,7 +376,6 @@ def test_drop_na_hyper():
 
 @pytest.mark.sg
 def test_drop_na_direct():
-
     df = cudf.DataFrame(pd.DataFrame({"a": ["a", None, "a"], "i": [1, 1, None]}))
 
     hg = cugraph.hypergraph(df, dropna=True, direct=True)
@@ -384,7 +386,6 @@ def test_drop_na_direct():
 
 @pytest.mark.sg
 def test_skip_na_hyperedge():
-
     nans_df = cudf.DataFrame(
         pd.DataFrame({"x": ["a", "b", "c"], "y": ["aa", None, "cc"]})
     )
@@ -401,7 +402,6 @@ def test_skip_na_hyperedge():
 
 @pytest.mark.sg
 def test_hyper_to_pa_vanilla():
-
     df = cudf.DataFrame(pd.DataFrame({"x": ["a", "b", "c"], "y": ["d", "e", "f"]}))
 
     hg = cugraph.hypergraph(df)
@@ -413,7 +413,6 @@ def test_hyper_to_pa_vanilla():
 
 @pytest.mark.sg
 def test_hyper_to_pa_mixed():
-
     df = cudf.DataFrame(pd.DataFrame({"x": ["a", "b", "c"], "y": [1, 2, 3]}))
 
     hg = cugraph.hypergraph(df)
@@ -425,7 +424,6 @@ def test_hyper_to_pa_mixed():
 
 @pytest.mark.sg
 def test_hyper_to_pa_na():
-
     df = cudf.DataFrame(pd.DataFrame({"x": ["a", None, "c"], "y": [1, 2, None]}))
 
     hg = cugraph.hypergraph(df, dropna=False)

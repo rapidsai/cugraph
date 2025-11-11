@@ -1,19 +1,16 @@
 # SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 
-import numpy as np
 import dask_cudf
 from dask.distributed import Client
 from dask_cuda import LocalCUDACluster
 from cugraph.structure.symmetrize import symmetrize_ddf
 from cugraph.dask.common.mg_utils import get_visible_devices
 from dask_cuda.initialize import initialize
-import cudf
 
 import cugraph
 from cugraph.dask.comms import comms as Comms
 import tempfile
-from cugraph.testing.mg_utils import generate_edgelist
 
 
 def read_csv(input_csv_file, scale):
@@ -29,7 +26,7 @@ def read_csv(input_csv_file, scale):
     """
     vertex_t = "int32" if scale <= 32 else "int64"
     dtypes = [vertex_t, vertex_t, "float32"]
-    names = (["src", "dst", "weight"],)
+    names = (["src", "dst", "weight"],)  # noqa: F841
 
     chunksize = cugraph.dask.get_chunksize(input_csv_file)
     return dask_cudf.read_csv(

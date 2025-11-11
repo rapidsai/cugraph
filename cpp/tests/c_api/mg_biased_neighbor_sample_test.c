@@ -15,7 +15,7 @@ typedef int32_t vertex_t;
 typedef int32_t edge_t;
 typedef float weight_t;
 typedef int32_t edge_type_t;
-typedef int32_t edge_time_t;
+typedef int32_t time_stamp_t;
 
 cugraph_data_type_id_t vertex_tid    = INT32;
 cugraph_data_type_id_t edge_tid      = INT32;
@@ -29,8 +29,8 @@ int generic_biased_neighbor_sample_test(const cugraph_resource_handle_t* handle,
                                         weight_t* h_wgt,
                                         edge_t* h_edge_ids,
                                         edge_type_t* h_edge_types,
-                                        edge_time_t* h_edge_start_times,
-                                        edge_time_t* h_edge_end_times,
+                                        time_stamp_t* h_edge_start_times,
+                                        time_stamp_t* h_edge_end_times,
                                         size_t num_vertices,
                                         size_t num_edges,
                                         vertex_t* h_start,

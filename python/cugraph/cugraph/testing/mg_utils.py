@@ -120,7 +120,7 @@ def start_dask_client(
         initialize()
         client = Client(scheduler_file=dask_scheduler_file)
         # FIXME: use proper logging, INFO or DEBUG level
-        print("\nDask client created using " f"{dask_scheduler_file}")
+        print(f"\nDask client created using {dask_scheduler_file}")
     else:
         if dask_local_directory is None:
             # The tempdir created by tempdir_object should be cleaned up once

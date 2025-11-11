@@ -120,8 +120,7 @@ def betweenness_centrality(
 
     if weight is not None:
         raise NotImplementedError(
-            "weighted implementation of betweenness "
-            "centrality not currently supported"
+            "weighted implementation of betweenness centrality not currently supported"
         )
 
     if G.store_transposed is True:
@@ -137,7 +136,7 @@ def betweenness_centrality(
         raise TypeError("result type can only be np.float32 or np.float64")
     else:
         warning_msg = (
-            "This parameter is deprecated and will be remove " "in the next release."
+            "This parameter is deprecated and will be remove in the next release."
         )
         warnings.warn(warning_msg, PendingDeprecationWarning)
 

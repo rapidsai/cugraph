@@ -59,7 +59,7 @@ neighbor_sample_impl(raft::handle_t const& handle,
                      bool dedupe_sources,
                      bool do_expensive_check)
 {
-  using edge_time_t = int32_t;
+  using time_stamp_t = int32_t;
 
   static_assert(std::is_floating_point_v<bias_t>);
   static_assert(std::is_same_v<bias_t, weight_t>);
@@ -137,7 +137,7 @@ neighbor_sample_impl(raft::handle_t const& handle,
 
   std::optional<std::tuple<rmm::device_uvector<vertex_t>,
                            std::optional<rmm::device_uvector<label_t>>,
-                           std::optional<rmm::device_uvector<edge_time_t>>>>
+                           std::optional<rmm::device_uvector<time_stamp_t>>>>
     vertex_used_as_source{std::nullopt};
 
   if (prior_sources_behavior == prior_sources_behavior_t::EXCLUDE) {
@@ -146,7 +146,7 @@ neighbor_sample_impl(raft::handle_t const& handle,
                       starting_vertex_labels
                         ? std::make_optional(rmm::device_uvector<label_t>{0, handle.get_stream()})
                         : std::nullopt,
-                      std::optional<rmm::device_uvector<edge_time_t>>{std::nullopt}));
+                      std::optional<rmm::device_uvector<time_stamp_t>>{std::nullopt}));
   }
 
   std::vector<size_t> result_sizes{};
@@ -158,7 +158,7 @@ neighbor_sample_impl(raft::handle_t const& handle,
     auto next_frontier_vertex_label_spans =
       starting_vertex_labels ? std::make_optional<std::vector<raft::device_span<label_t const>>>()
                              : std::nullopt;
-    std::optional<std::vector<raft::device_span<edge_time_t const>>>
+    std::optional<std::vector<raft::device_span<time_stamp_t const>>>
       next_frontier_vertex_time_spans{std::nullopt};
 
     auto start_offset = hop * (num_edge_types ? *num_edge_types : edge_type_t{1});
@@ -182,9 +182,9 @@ neighbor_sample_impl(raft::handle_t const& handle,
       }
     }
 
-    std::optional<edge_property_view_t<edge_t, edge_time_t const*>> edge_start_time_view{
+    std::optional<edge_property_view_t<edge_t, time_stamp_t const*>> edge_start_time_view{
       std::nullopt};
-    std::optional<edge_property_view_t<edge_t, edge_time_t const*>> edge_end_time_view{
+    std::optional<edge_property_view_t<edge_t, time_stamp_t const*>> edge_end_time_view{
       std::nullopt};
 
     if (level_Ks) {
@@ -235,13 +235,13 @@ neighbor_sample_impl(raft::handle_t const& handle,
           : std::nullopt;
       auto edge_start_times =
         (edge_start_time_view)
-          ? std::make_optional(
-              std::move(std::get<rmm::device_uvector<edge_time_t>>(sampled_edge_properties[pos++])))
+          ? std::make_optional(std::move(
+              std::get<rmm::device_uvector<time_stamp_t>>(sampled_edge_properties[pos++])))
           : std::nullopt;
       auto edge_end_times =
         (edge_end_time_view)
-          ? std::make_optional(
-              std::move(std::get<rmm::device_uvector<edge_time_t>>(sampled_edge_properties[pos++])))
+          ? std::make_optional(std::move(
+              std::get<rmm::device_uvector<time_stamp_t>>(sampled_edge_properties[pos++])))
           : std::nullopt;
 
       result_sizes.push_back(srcs.size());
@@ -311,13 +311,13 @@ neighbor_sample_impl(raft::handle_t const& handle,
           : std::nullopt;
       auto edge_start_times =
         (edge_start_time_view)
-          ? std::make_optional(
-              std::move(std::get<rmm::device_uvector<edge_time_t>>(sampled_edge_properties[pos++])))
+          ? std::make_optional(std::move(
+              std::get<rmm::device_uvector<time_stamp_t>>(sampled_edge_properties[pos++])))
           : std::nullopt;
       auto edge_end_times =
         (edge_end_time_view)
-          ? std::make_optional(
-              std::move(std::get<rmm::device_uvector<edge_time_t>>(sampled_edge_properties[pos++])))
+          ? std::make_optional(std::move(
+              std::get<rmm::device_uvector<time_stamp_t>>(sampled_edge_properties[pos++])))
           : std::nullopt;
 
       result_sizes.push_back(srcs.size());
@@ -348,7 +348,7 @@ neighbor_sample_impl(raft::handle_t const& handle,
           ? std::make_optional(raft::device_span<label_t const>(frontier_vertex_labels->data(),
                                                                 frontier_vertex_labels->size()))
           : std::nullopt,
-        std::optional<raft::device_span<edge_time_t const>>{std::nullopt},
+        std::optional<raft::device_span<time_stamp_t const>>{std::nullopt},
         raft::host_span<raft::device_span<vertex_t const>>{next_frontier_vertex_spans.data(),
                                                            next_frontier_vertex_spans.size()},
         next_frontier_vertex_label_spans
@@ -356,7 +356,7 @@ neighbor_sample_impl(raft::handle_t const& handle,
               next_frontier_vertex_label_spans->data(), next_frontier_vertex_label_spans->size()})
           : std::nullopt,
         next_frontier_vertex_time_spans
-          ? std::make_optional(raft::host_span<raft::device_span<edge_time_t const>>{
+          ? std::make_optional(raft::host_span<raft::device_span<time_stamp_t const>>{
               next_frontier_vertex_time_spans->data(), next_frontier_vertex_time_spans->size()})
           : std::nullopt,
         std::move(vertex_used_as_source),

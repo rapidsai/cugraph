@@ -93,7 +93,7 @@ struct temporal_neighbor_sampling_functor : public cugraph::c_api::abstract_func
             typename edge_t,
             typename weight_t,
             typename edge_type_t,
-            typename edge_time_t,
+            typename time_stamp_t,
             bool store_transposed,
             bool multi_gpu>
   void operator()()
@@ -126,8 +126,8 @@ struct temporal_neighbor_sampling_functor : public cugraph::c_api::abstract_func
       auto edge_types =
         reinterpret_cast<cugraph::edge_property_t<edge_t, edge_type_t>*>(graph_->edge_types_);
 
-      auto edge_start_times =
-        reinterpret_cast<cugraph::edge_property_t<edge_t, edge_time_t>*>(graph_->edge_start_times_);
+      auto edge_start_times = reinterpret_cast<cugraph::edge_property_t<edge_t, time_stamp_t>*>(
+        graph_->edge_start_times_);
 
       if (edge_start_times == nullptr) {
         mark_error(CUGRAPH_INVALID_INPUT, "edge_start_times is required for temporal sampling");
@@ -135,7 +135,7 @@ struct temporal_neighbor_sampling_functor : public cugraph::c_api::abstract_func
       }
 
       auto edge_end_times =
-        reinterpret_cast<cugraph::edge_property_t<edge_t, edge_time_t>*>(graph_->edge_end_times_);
+        reinterpret_cast<cugraph::edge_property_t<edge_t, time_stamp_t>*>(graph_->edge_end_times_);
 
       auto number_map = reinterpret_cast<rmm::device_uvector<vertex_t>*>(graph_->number_map_);
 
@@ -150,12 +150,12 @@ struct temporal_neighbor_sampling_functor : public cugraph::c_api::abstract_func
                  start_vertices.size(),
                  handle_.get_stream());
 
-      std::optional<rmm::device_uvector<edge_time_t>> starting_vertex_times{std::nullopt};
+      std::optional<rmm::device_uvector<time_stamp_t>> starting_vertex_times{std::nullopt};
       if (starting_vertex_times_ != nullptr) {
         starting_vertex_times =
-          rmm::device_uvector<edge_time_t>(starting_vertex_times_->size_, handle_.get_stream());
+          rmm::device_uvector<time_stamp_t>(starting_vertex_times_->size_, handle_.get_stream());
         raft::copy(starting_vertex_times->data(),
-                   starting_vertex_times_->as_type<edge_time_t>(),
+                   starting_vertex_times_->as_type<time_stamp_t>(),
                    starting_vertex_times->size(),
                    handle_.get_stream());
       }
@@ -252,7 +252,7 @@ struct temporal_neighbor_sampling_functor : public cugraph::c_api::abstract_func
           size_t pos = 0;
           if (starting_vertex_times) {
             starting_vertex_times =
-              std::move(std::get<rmm::device_uvector<edge_time_t>>(vertex_properties[pos++]));
+              std::move(std::get<rmm::device_uvector<time_stamp_t>>(vertex_properties[pos++]));
           }
           if (start_vertex_labels) {
             start_vertex_labels =
@@ -271,7 +271,7 @@ struct temporal_neighbor_sampling_functor : public cugraph::c_api::abstract_func
 
           if (starting_vertex_times) {
             starting_vertex_times =
-              std::move(std::get<rmm::device_uvector<edge_time_t>>(vertex_properties[0]));
+              std::move(std::get<rmm::device_uvector<time_stamp_t>>(vertex_properties[0]));
           }
         }
       }
@@ -293,8 +293,8 @@ struct temporal_neighbor_sampling_functor : public cugraph::c_api::abstract_func
       std::optional<rmm::device_uvector<weight_t>> sampled_weights{std::nullopt};
       std::optional<rmm::device_uvector<edge_t>> sampled_edge_ids{std::nullopt};
       std::optional<rmm::device_uvector<edge_type_t>> sampled_edge_types{std::nullopt};
-      std::optional<rmm::device_uvector<edge_time_t>> sampled_edge_start_times{std::nullopt};
-      std::optional<rmm::device_uvector<edge_time_t>> sampled_edge_end_times{std::nullopt};
+      std::optional<rmm::device_uvector<time_stamp_t>> sampled_edge_start_times{std::nullopt};
+      std::optional<rmm::device_uvector<time_stamp_t>> sampled_edge_end_times{std::nullopt};
       std::optional<rmm::device_uvector<int32_t>> hop{std::nullopt};
       std::optional<rmm::device_uvector<label_t>> edge_label{std::nullopt};
       std::optional<rmm::device_uvector<size_t>> offsets{std::nullopt};
@@ -351,7 +351,7 @@ struct temporal_neighbor_sampling_functor : public cugraph::c_api::abstract_func
               (edge_biases != nullptr) ? *edge_biases : edge_weights->view(),
               raft::device_span<vertex_t const>{start_vertices.data(), start_vertices.size()},
               starting_vertex_times
-                ? std::make_optional<raft::device_span<edge_time_t const>>(
+                ? std::make_optional<raft::device_span<time_stamp_t const>>(
                     starting_vertex_times->data(), starting_vertex_times->size())
                 : std::nullopt,
               (starting_vertex_label_offsets_ != nullptr)
@@ -391,7 +391,7 @@ struct temporal_neighbor_sampling_functor : public cugraph::c_api::abstract_func
                                           : std::nullopt,
               raft::device_span<vertex_t const>{start_vertices.data(), start_vertices.size()},
               starting_vertex_times
-                ? std::make_optional<raft::device_span<edge_time_t const>>(
+                ? std::make_optional<raft::device_span<time_stamp_t const>>(
                     starting_vertex_times->data(), starting_vertex_times->size())
                 : std::nullopt,
               (starting_vertex_label_offsets_ != nullptr)
@@ -435,7 +435,7 @@ struct temporal_neighbor_sampling_functor : public cugraph::c_api::abstract_func
               (edge_biases != nullptr) ? *edge_biases : edge_weights->view(),
               raft::device_span<vertex_t const>{start_vertices.data(), start_vertices.size()},
               starting_vertex_times
-                ? std::make_optional<raft::device_span<edge_time_t const>>(
+                ? std::make_optional<raft::device_span<time_stamp_t const>>(
                     starting_vertex_times->data(), starting_vertex_times->size())
                 : std::nullopt,
               (starting_vertex_label_offsets_ != nullptr)
@@ -474,7 +474,7 @@ struct temporal_neighbor_sampling_functor : public cugraph::c_api::abstract_func
                                           : std::nullopt,
               raft::device_span<vertex_t const>{start_vertices.data(), start_vertices.size()},
               starting_vertex_times
-                ? std::make_optional<raft::device_span<edge_time_t const>>(
+                ? std::make_optional<raft::device_span<time_stamp_t const>>(
                     starting_vertex_times->data(), starting_vertex_times->size())
                 : std::nullopt,
               (starting_vertex_label_offsets_ != nullptr)
@@ -603,11 +603,11 @@ struct temporal_neighbor_sampling_functor : public cugraph::c_api::abstract_func
               }
               if (sampled_edge_start_times) {
                 sampled_edge_start_times = std::move(
-                  std::get<rmm::device_uvector<edge_time_t>>(output_edge_properties[pos++]));
+                  std::get<rmm::device_uvector<time_stamp_t>>(output_edge_properties[pos++]));
               }
               if (sampled_edge_end_times) {
                 sampled_edge_end_times = std::move(
-                  std::get<rmm::device_uvector<edge_time_t>>(output_edge_properties[pos++]));
+                  std::get<rmm::device_uvector<time_stamp_t>>(output_edge_properties[pos++]));
               }
             } else {
               // (D)CSC, (D)CSR
@@ -676,11 +676,11 @@ struct temporal_neighbor_sampling_functor : public cugraph::c_api::abstract_func
               }
               if (sampled_edge_start_times) {
                 sampled_edge_start_times = std::move(
-                  std::get<rmm::device_uvector<edge_time_t>>(output_edge_properties[pos++]));
+                  std::get<rmm::device_uvector<time_stamp_t>>(output_edge_properties[pos++]));
               }
               if (sampled_edge_end_times) {
                 sampled_edge_end_times = std::move(
-                  std::get<rmm::device_uvector<edge_time_t>>(output_edge_properties[pos++]));
+                  std::get<rmm::device_uvector<time_stamp_t>>(output_edge_properties[pos++]));
               }
 
               renumber_map.emplace(std::move(output_renumber_map));
@@ -786,11 +786,11 @@ struct temporal_neighbor_sampling_functor : public cugraph::c_api::abstract_func
             }
             if (sampled_edge_start_times) {
               sampled_edge_start_times = std::move(
-                std::get<rmm::device_uvector<edge_time_t>>(output_edge_properties[pos++]));
+                std::get<rmm::device_uvector<time_stamp_t>>(output_edge_properties[pos++]));
             }
             if (sampled_edge_end_times) {
               sampled_edge_end_times = std::move(
-                std::get<rmm::device_uvector<edge_time_t>>(output_edge_properties[pos++]));
+                std::get<rmm::device_uvector<time_stamp_t>>(output_edge_properties[pos++]));
             }
 
             majors.emplace(std::move(output_majors));
@@ -852,11 +852,11 @@ struct temporal_neighbor_sampling_functor : public cugraph::c_api::abstract_func
         }
         if (sampled_edge_start_times) {
           sampled_edge_start_times =
-            std::move(std::get<rmm::device_uvector<edge_time_t>>(output_edge_properties[pos++]));
+            std::move(std::get<rmm::device_uvector<time_stamp_t>>(output_edge_properties[pos++]));
         }
         if (sampled_edge_end_times) {
           sampled_edge_end_times =
-            std::move(std::get<rmm::device_uvector<edge_time_t>>(output_edge_properties[pos++]));
+            std::move(std::get<rmm::device_uvector<time_stamp_t>>(output_edge_properties[pos++]));
         }
 
         hop.reset();

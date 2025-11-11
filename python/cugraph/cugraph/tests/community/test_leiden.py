@@ -17,15 +17,14 @@ from cugraph.datasets import karate_asymmetric
 # Test data
 # =============================================================================
 
+# fmt: off
 _test_data = {
     "data_1": {
         "graph": {
             "src_or_offset_array": [0, 1, 1, 2, 2, 2, 3, 4, 1, 3, 4, 0, 1, 3, 5, 5],
             "dst_or_index_array": [1, 3, 4, 0, 1, 3, 5, 5, 0, 1, 1, 2, 2, 2, 3, 4],
-            # fmt: off
             "weight": [0.1, 2.1, 1.1, 5.1, 3.1, 4.1, 7.2, 3.2, 0.1, 2.1, 1.1, 5.1,
                        3.1, 4.1, 7.2, 3.2],
-            # fmt: on
         },
         "max_level": 10,
         "resolution": 1.0,
@@ -37,7 +36,6 @@ _test_data = {
     },
     "data_2": {
         "graph": {
-            # fmt: off
             "src_or_offset_array": [0, 16, 25, 35, 41, 44, 48, 52, 56, 61, 63, 66,
                                     67, 69, 74, 76, 78, 80, 82, 84, 87, 89, 91, 93,
                                     98, 101, 104, 106, 110, 113, 117, 121, 127, 139,
@@ -66,20 +64,18 @@ _test_data = {
                        1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
                        1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
                        1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
-            # fmt: on
         },
         "max_level": 40,
         "resolution": 1.0,
         "input_type": "CSR",
         "expected_output": {
-            # fmt: off
             "partition": [0, 0, 0, 0, 3, 3, 3, 0, 1, 0, 3, 0, 0, 0, 1, 1, 3, 0, 1, 0,
                           1, 0, 1, 2, 2, 2, 1, 2, 2, 1, 1, 2, 1, 1],
-            # fmt: on
             "modularity_score": 0.41880345,
         },
     },
 }
+# fmt: on
 
 
 # =============================================================================
@@ -145,7 +141,6 @@ def setup_function():
 
 
 def cugraph_leiden(G):
-
     # cugraph Louvain Call
     t1 = time.time()
     parts, mod = cugraph.leiden(G)
@@ -156,7 +151,6 @@ def cugraph_leiden(G):
 
 
 def cugraph_louvain(G):
-
     # cugraph Louvain Call
     t1 = time.time()
     parts, mod = cugraph.louvain(G)
@@ -193,7 +187,6 @@ def test_leiden(graph_file):
 
 @pytest.mark.sg
 def test_leiden_directed_graph():
-
     edgevals = True
     G = karate_asymmetric.get_graph(
         create_using=cugraph.Graph(directed=True), ignore_weights=not edgevals

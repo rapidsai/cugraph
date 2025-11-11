@@ -59,7 +59,6 @@ def compare_k_truss(k_truss_cugraph, k, ground_truth_file):
 @pytest.mark.sg
 @pytest.mark.parametrize("_, nx_ground_truth", utils.DATASETS_KTRUSS)
 def test_ktruss_subgraph_Graph(_, nx_ground_truth):
-
     k = 5
     G = polbooks.get_graph(download=True, create_using=cugraph.Graph(directed=False))
     k_subgraph = cugraph.ktruss_subgraph(G, k, use_weights=False)

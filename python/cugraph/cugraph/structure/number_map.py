@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2020-2024, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2020-2025, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -198,7 +198,6 @@ class NumberMap:
             return ret
 
         def indirection_map(self, ddf, src_col_names, dst_col_names):
-
             tmp = (
                 ddf[src_col_names]
                 .groupby(src_col_names)

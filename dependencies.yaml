@@ -340,7 +340,7 @@ dependencies:
     common:
       - output_types: [conda, pyproject, requirements]
         packages:
-          - cython>=3.1.2
+          - cython>=3.1.2,<3.2.0a0
   python_run_cugraph:
     common:
       - output_types: [conda, pyproject, requirements]
@@ -392,7 +392,7 @@ dependencies:
       - output_types: [conda, pyproject, requirements]
         packages:
           - &pandas pandas
-          - pytest
+          - pytest<9.0.0a0
           - pytest-benchmark
           - pytest-cov
           - pytest-xdist
@@ -404,6 +404,7 @@ dependencies:
           - certifi
           - networkx>=2.5.1
           - *numpy
+          - packaging
           - python-louvain
           - scikit-learn>=0.23.1
   test_python_pylibcugraph:

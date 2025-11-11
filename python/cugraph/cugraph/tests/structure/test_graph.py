@@ -612,7 +612,6 @@ def test_number_of_vertices(graph_file):
 
 @pytest.mark.sg
 def test_number_of_edges():
-
     # cycle edges
     cycle_edges = [(0, 1, 1.0), (1, 2, 1.0), (2, 3, 1.0), (3, 0, 1.0)]
 
