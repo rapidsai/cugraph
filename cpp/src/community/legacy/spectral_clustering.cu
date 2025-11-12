@@ -105,6 +105,7 @@ void balancedCutClustering_impl(raft::handle_t const& handle,
   params.n_init       = 10;  // Multiple initializations for better results
   params.n_neighbors =
     std::min(static_cast<int>(graph.number_of_vertices) - 1, 15);  // Adaptive neighbor count
+  params.tolerance = evs_tolerance;  // Eigensolver convergence tolerance
 
   cuvs::cluster::spectral::fit_predict(
     handle,
@@ -188,6 +189,7 @@ void spectralModularityMaximization_impl(
   params.n_init       = 10;  // Multiple initializations for better results
   params.n_neighbors =
     std::min(static_cast<int>(graph.number_of_vertices) - 1, 15);  // Adaptive neighbor count
+  params.tolerance = evs_tolerance;  // Eigensolver convergence tolerance
 
   cuvs::cluster::spectral::fit_predict(
     handle,

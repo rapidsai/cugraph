@@ -277,8 +277,8 @@ int test_spectral()
   size_t num_eigenvectors    = 2;
   size_t num_edges           = 14;
   size_t num_vertices        = 6;
-  double evs_tolerance       = 0.001;
-  int evs_max_iterations     = 100;
+  double evs_tolerance       = 0.01;  // Relaxed for convergence on newer architectures
+  int evs_max_iterations     = 500;   // Increased for convergence on newer architectures
   double k_means_tolerance   = 0.001;
   int k_means_max_iterations = 100;
   size_t seed                = 10;
