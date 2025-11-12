@@ -15,6 +15,19 @@
 #   ./ci/release/update-version.sh --run-context=release 25.12.00
 #   RAPIDS_RUN_CONTEXT=main ./ci/release/update-version.sh 25.12.00
 
+# Verify we're running from the repository root
+if [[ ! -f "VERSION" ]] || [[ ! -f "ci/release/update-version.sh" ]] || [[ ! -d "python" ]]; then
+    echo "Error: This script must be run from the root of the cugraph repository"
+    echo ""
+    echo "Usage:"
+    echo "  cd /path/to/cugraph"
+    echo "  ./ci/release/update-version.sh --run-context=main|release <new_version>"
+    echo ""
+    echo "Example:"
+    echo "  ./ci/release/update-version.sh --run-context=main 25.12.00"
+    exit 1
+fi
+
 # Parse command line arguments
 POSITIONAL_ARGS=()
 while [[ $# -gt 0 ]]; do
