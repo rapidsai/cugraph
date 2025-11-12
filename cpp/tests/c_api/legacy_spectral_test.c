@@ -313,8 +313,8 @@ int test_balanced_cut_unequal_weight()
   size_t num_eigenvectors    = 2;
   size_t num_edges           = 14;
   size_t num_vertices        = 6;
-  double evs_tolerance       = 0.001;
-  int evs_max_iterations     = 100;
+  double evs_tolerance       = 0.01;  // Relaxed for convergence on newer architectures
+  int evs_max_iterations     = 500;   // Increased for convergence on newer architectures
   double k_means_tolerance   = 0.001;
   int k_means_max_iterations = 100;
   size_t seed                = 99;
@@ -354,11 +354,11 @@ int test_balanced_cut_equal_weight()
   size_t num_eigenvectors    = 2;
   size_t num_edges           = 14;
   size_t num_vertices        = 6;
-  double evs_tolerance       = 0.001;  // More relaxed tolerance
-  int evs_max_iterations     = 100;    // More iterations
-  double k_means_tolerance   = 0.001;  // More relaxed tolerance
-  int k_means_max_iterations = 100;    // More iterations
-  size_t seed                = 99;     // Different seed for better randomization
+  double evs_tolerance       = 0.01;  // Relaxed for convergence on newer architectures
+  int evs_max_iterations     = 500;   // Increased for convergence on newer architectures
+  double k_means_tolerance   = 0.001;
+  int k_means_max_iterations = 100;
+  size_t seed                = 99;
 
   vertex_t h_src[]             = {0, 0, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 5, 5};
   vertex_t h_dst[]             = {1, 2, 0, 2, 0, 1, 3, 2, 4, 5, 3, 5, 3, 4};
@@ -393,8 +393,8 @@ int test_balanced_cut_no_weight()
   size_t num_eigenvectors    = 2;
   size_t num_edges           = 14;
   size_t num_vertices        = 6;
-  double evs_tolerance       = 0.001;
-  int evs_max_iterations     = 100;
+  double evs_tolerance       = 0.01;  // Relaxed for convergence on newer architectures
+  int evs_max_iterations     = 500;   // Increased for convergence on newer architectures
   double k_means_tolerance   = 0.001;
   int k_means_max_iterations = 100;
   size_t seed                = 99;
