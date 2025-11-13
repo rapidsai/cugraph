@@ -159,7 +159,7 @@ for FILE in .github/workflows/*.yaml; do
   sed_runner "s/:[0-9]*\\.[0-9]*-/:${NEXT_SHORT_TAG}-/g" "${FILE}"
 done
 
-# Documentation references - context-aware  
+# Documentation references - context-aware
 if [[ "${RUN_CONTEXT}" == "main" ]]; then
   # In main context, keep documentation on main (no changes needed)
   :
