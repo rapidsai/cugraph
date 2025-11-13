@@ -5,7 +5,7 @@
 #pragma once
 
 #include <rmm/device_uvector.hpp>
-#include <rmm/mr/device/polymorphic_allocator.hpp>
+#include <rmm/mr/polymorphic_allocator.hpp>
 
 #include <cuda/std/iterator>
 #include <thrust/binary_search.h>
