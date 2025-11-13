@@ -14,7 +14,7 @@
 #include <raft/util/cuda_rt_essentials.hpp>
 
 #include <rmm/cuda_stream_view.hpp>
-#include <rmm/mr/device/polymorphic_allocator.hpp>
+#include <rmm/mr/polymorphic_allocator.hpp>
 #include <rmm/prefetch.hpp>
 
 #include <cuda/atomic>

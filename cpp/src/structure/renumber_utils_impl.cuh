@@ -15,8 +15,8 @@
 #include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
 
-#include <rmm/mr/device/per_device_resource.hpp>
-#include <rmm/mr/device/polymorphic_allocator.hpp>
+#include <rmm/mr/per_device_resource.hpp>
+#include <rmm/mr/polymorphic_allocator.hpp>
 
 #include <cuda/std/iterator>
 #include <cuda/std/tuple>
