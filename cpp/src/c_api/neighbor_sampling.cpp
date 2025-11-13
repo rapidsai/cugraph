@@ -279,10 +279,13 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
                                  : std::nullopt,
               raft::host_span<const int>(fan_out_->as_type<const int>(), fan_out_->size_),
               num_edge_types_,
-              cugraph::sampling_flags_t{options_.prior_sources_behavior_,
-                                        options_.return_hops_ == TRUE,
-                                        options_.dedupe_sources_ == TRUE,
-                                        options_.with_replacement_ == TRUE},
+              cugraph::sampling_flags_t{
+                options_.prior_sources_behavior_,
+                options_.return_hops_ == TRUE,
+                options_.dedupe_sources_ == TRUE,
+                options_.with_replacement_ == TRUE,
+                cugraph::temporal_sampling_comparison_t::STRICTLY_INCREASING,
+                options_.disjoint_sampling_ == TRUE},
               do_expensive_check_);
         } else {
           std::tie(sampled_srcs,
@@ -309,10 +312,13 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
                                  : std::nullopt,
               raft::host_span<const int>(fan_out_->as_type<const int>(), fan_out_->size_),
               num_edge_types_,
-              cugraph::sampling_flags_t{options_.prior_sources_behavior_,
-                                        options_.return_hops_ == TRUE,
-                                        options_.dedupe_sources_ == TRUE,
-                                        options_.with_replacement_ == TRUE},
+              cugraph::sampling_flags_t{
+                options_.prior_sources_behavior_,
+                options_.return_hops_ == TRUE,
+                options_.dedupe_sources_ == TRUE,
+                options_.with_replacement_ == TRUE,
+                cugraph::temporal_sampling_comparison_t::STRICTLY_INCREASING,
+                options_.disjoint_sampling_ == TRUE},
               do_expensive_check_);
         }
       } else {
@@ -342,10 +348,13 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
                                      (*label_to_comm_rank).data(), (*label_to_comm_rank).size()})
                                  : std::nullopt,
               raft::host_span<const int>(fan_out_->as_type<const int>(), fan_out_->size_),
-              cugraph::sampling_flags_t{options_.prior_sources_behavior_,
-                                        options_.return_hops_ == TRUE,
-                                        options_.dedupe_sources_ == TRUE,
-                                        options_.with_replacement_ == TRUE},
+              cugraph::sampling_flags_t{
+                options_.prior_sources_behavior_,
+                options_.return_hops_ == TRUE,
+                options_.dedupe_sources_ == TRUE,
+                options_.with_replacement_ == TRUE,
+                cugraph::temporal_sampling_comparison_t::STRICTLY_INCREASING,
+                options_.disjoint_sampling_ == TRUE},
               do_expensive_check_);
         } else {
           std::tie(sampled_srcs,
@@ -371,10 +380,13 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
                                      (*label_to_comm_rank).data(), (*label_to_comm_rank).size()})
                                  : std::nullopt,
               raft::host_span<const int>(fan_out_->as_type<const int>(), fan_out_->size_),
-              cugraph::sampling_flags_t{options_.prior_sources_behavior_,
-                                        options_.return_hops_ == TRUE,
-                                        options_.dedupe_sources_ == TRUE,
-                                        options_.with_replacement_ == TRUE},
+              cugraph::sampling_flags_t{
+                options_.prior_sources_behavior_,
+                options_.return_hops_ == TRUE,
+                options_.dedupe_sources_ == TRUE,
+                options_.with_replacement_ == TRUE,
+                cugraph::temporal_sampling_comparison_t::STRICTLY_INCREASING,
+                options_.disjoint_sampling_ == TRUE},
               do_expensive_check_);
         }
       }

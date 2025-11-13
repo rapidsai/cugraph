@@ -23,6 +23,7 @@ struct cugraph_sampling_options_t {
   bool_t retain_seeds_{FALSE};
   cugraph_temporal_sampling_comparison_t temporal_sampling_comparison_{
     cugraph_temporal_sampling_comparison_t::STRICTLY_INCREASING};
+  bool_t disjoint_sampling_{FALSE};
 };
 
 struct sampling_flags_t {

@@ -311,6 +311,17 @@ void cugraph_sampling_set_temporal_sampling_comparison(
 
 /**
  * @ingroup samplingC
+ * @brief   Set flag to perform disjoint sampling
+ *
+ * Note: This flag is not supported in the current implementation.
+ *
+ * @param options - opaque pointer to the sampling options
+ * @param value - Boolean value to assign to the option
+ */
+void cugraph_sampling_set_disjoint_sampling(cugraph_sampling_options_t* options, bool_t value);
+
+/**
+ * @ingroup samplingC
  * @brief     Free sampling options object
  *
  * @param [in]   options   Opaque pointer to sampling object
