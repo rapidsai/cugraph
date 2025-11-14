@@ -16,8 +16,12 @@ def cugraph_call(G, partitions):
         G, partitions, num_eigen_vects=(partitions - 1)
     )
 
-    modularity_score = cugraph.analyzeClustering_modularity(G, partitions, df, "vertex", "cluster")
-    edge_cut_score = cugraph.analyzeClustering_edge_cut(G, partitions, df, "vertex", "cluster")
+    modularity_score = cugraph.analyzeClustering_modularity(
+        G, partitions, df, "vertex", "cluster"
+    )
+    edge_cut_score = cugraph.analyzeClustering_edge_cut(
+        G, partitions, df, "vertex", "cluster"
+    )
     return modularity_score, edge_cut_score
 
 

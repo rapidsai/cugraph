@@ -10,7 +10,7 @@ from cugraph.datasets import karate
 @pytest.mark.sg
 def test_spectral_balanced_cut_clustering_deprecation_warning():
     """Test that spectralBalancedCutClustering emits a deprecation warning.
-    
+
     Note: spectralBalancedCutClustering is deprecated in favor of
     spectralModularityMaximizationClustering. Functional tests for spectral
     clustering (including edge cut validation) are in test_modularity.py.
@@ -23,5 +23,5 @@ def test_spectral_balanced_cut_clustering_deprecation_warning():
         "release. Use spectralModularityMaximizationClustering instead."
     )
 
-    with pytest.warns(DeprecationWarning, match=warning_msg):
+    with pytest.warns(FutureWarning, match=warning_msg):
         cugraph.spectralBalancedCutClustering(G, num_clusters=2)

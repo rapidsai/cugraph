@@ -44,8 +44,8 @@ option(BUILD_TESTS "Configure CMake to build tests" ON)
 option(USE_RAFT_STATIC "Build raft as a static library" OFF)
 option(CUGRAPH_COMPILE_RAFT_LIB "Compile the raft library instead of using it header-only" ON)
 option(CUDA_STATIC_RUNTIME "Statically link the CUDA toolkit runtime and libraries" OFF)
-option(CUGRAPH_COMPILE_CUVS "Always compile cuVS from source" ON)
-cmake_dependent_option(CUGRAPH_USE_CUVS_STATIC 
+option(CUGRAPH_COMPILE_CUVS "Always compile cuVS from source" OFF)
+cmake_dependent_option(CUGRAPH_USE_CUVS_STATIC
   "Build and statically link the cuVS library" ON
   "CUGRAPH_COMPILE_CUVS" OFF)
 
@@ -122,9 +122,7 @@ rapids_cpm_cuco(BUILD_EXPORT_SET cugraph-exports INSTALL_EXPORT_SET cugraph-expo
 include(cmake/thirdparty/get_raft.cmake)
 
 # Always include cuVS for spectral clustering enhancements
-if(CUGRAPH_COMPILE_CUVS)
-  include(cmake/thirdparty/get_cuvs.cmake)
-endif()
+include(cmake/thirdparty/get_cuvs.cmake)
 
 if (BUILD_CUGRAPH_MTMG_TESTS)
     if(NOT TARGET ucx::ucp)
@@ -492,6 +490,9 @@ unset(CUVS_LIB)
 if(CUGRAPH_COMPILE_CUVS AND CUGRAPH_USE_CUVS_STATIC)
   set(CUVS_LIB cuvs::cuvs_static)
 elseif(CUGRAPH_COMPILE_CUVS)
+  set(CUVS_LIB cuvs::cuvs)
+else()
+  # When using prebuilt packages (CUGRAPH_COMPILE_CUVS=OFF), link to shared library
   set(CUVS_LIB cuvs::cuvs)
 endif()
 
