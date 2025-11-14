@@ -286,10 +286,23 @@ cdef extern from "cugraph_c/algorithms.h":
         DCSR
         DCSC
 
+    ctypedef enum cugraph_temporal_sampling_comparison_t:
+        STRICTLY_INCREASING=0
+        MONOTONICALLY_INCREASING
+        STRICTLY_DECREASING
+        MONOTONICALLY_DECREASING
+        LAST
+
     cdef cugraph_error_code_t \
         cugraph_sampling_options_create(
             cugraph_sampling_options_t** options,
             cugraph_error_t** error,
+        )
+
+    cdef void \
+        cugraph_sampling_set_temporal_sampling_comparison(
+            cugraph_sampling_options_t* options,
+            cugraph_temporal_sampling_comparison_t comparison,
         )
 
     cdef void \
