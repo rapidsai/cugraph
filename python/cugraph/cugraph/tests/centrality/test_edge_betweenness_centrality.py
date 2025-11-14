@@ -14,7 +14,6 @@ import cugraph
 from cugraph.datasets import karate_disjoint
 from cugraph.testing import utils, SMALL_DATASETS
 
-
 # NOTE: Endpoint parameter is not currently being tested, there could be a test
 #       to verify that python raise an error if it is used
 # =============================================================================
@@ -138,7 +137,6 @@ def calc_edge_betweenness_centrality(
 
 
 def _rescale_e(betweenness, num_nodes, k):
-
     for e in betweenness:
         betweenness[e] *= num_nodes / k
 
@@ -187,7 +185,7 @@ def _calc_bc_subset(G, Gnx, normalized, weight, k, seed, result_dtype):
 
 def _calc_bc_subset_fixed(G, Gnx, normalized, weight, k, seed, result_dtype):
     assert isinstance(k, int), (
-        "This test is meant for verifying coherence " "when k is given as an int"
+        "This test is meant for verifying coherence when k is given as an int"
     )
     # In the fixed set we compare cu_bc against itself as we random.seed(seed)
     # on the same seed and then sample on the number of vertices themselves
@@ -242,9 +240,9 @@ def _calc_bc_full(G, Gnx, normalized, weight, k, seed, result_dtype):
         result_dtype=result_dtype,
     )
 
-    assert (
-        df["betweenness_centrality"].dtype == result_dtype
-    ), "'betweenness_centrality' column has not the expected type"
+    assert df["betweenness_centrality"].dtype == result_dtype, (
+        "'betweenness_centrality' column has not the expected type"
+    )
 
     nx_bc_dict = nx.edge_betweenness_centrality(
         Gnx, k=k, normalized=normalized, seed=seed, weight=weight
@@ -271,10 +269,10 @@ def compare_scores(sorted_df, first_key, second_key, epsilon=DEFAULT_EPSILON):
     num_errors = len(errors)
     if num_errors > 0:
         print(errors)
-    assert (
-        num_errors == 0
-    ), "Mismatch were found when comparing '{}' and '{}' (rtol = {})".format(
-        first_key, second_key, epsilon
+    assert num_errors == 0, (
+        "Mismatch were found when comparing '{}' and '{}' (rtol = {})".format(
+            first_key, second_key, epsilon
+        )
     )
 
 
@@ -302,11 +300,8 @@ def generate_upper_triangle(dataframe):
     return dataframe
 
 
-@pytest.mark.skipif(
-    float(".".join(nx.__version__.split(".")[:2])) < 3.5,
-    reason="Requires networkx >= 3.5",
-)
 @pytest.mark.sg
+@pytest.mark.requires_nx(version="3.5")
 @pytest.mark.parametrize("graph_file", SMALL_DATASETS)
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize("subset_size", SUBSET_SIZE_OPTIONS)
@@ -336,11 +331,8 @@ def test_edge_betweenness_centrality(
     compare_scores(sorted_df, first_key="cu_bc", second_key="ref_bc")
 
 
-@pytest.mark.skipif(
-    float(".".join(nx.__version__.split(".")[:2])) < 3.5,
-    reason="Requires networkx >= 3.5",
-)
 @pytest.mark.sg
+@pytest.mark.requires_nx(version="3.5")
 @pytest.mark.parametrize("graph_file", SMALL_DATASETS)
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize("subset_size", [None])
@@ -379,11 +371,8 @@ def test_edge_betweenness_centrality_k_full(
 #       the function operating the comparison inside is first proceeding
 #       to a random sampling over the number of vertices (thus direct offsets)
 #       in the graph structure instead of actual vertices identifiers
-@pytest.mark.skipif(
-    float(".".join(nx.__version__.split(".")[:2])) < 3.5,
-    reason="Requires networkx >= 3.5",
-)
 @pytest.mark.sg
+@pytest.mark.requires_nx(version="3.5")
 @pytest.mark.parametrize("graph_file", [karate_disjoint])
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize("subset_size", SUBSET_SIZE_OPTIONS)

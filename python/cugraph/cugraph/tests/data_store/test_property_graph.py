@@ -1131,7 +1131,6 @@ def test_add_edge_data_bad_args():
 def test_extract_subgraph_vertex_prop_condition_only(
     dataset1_PropertyGraph, as_pg_first
 ):
-
     (pG, data) = dataset1_PropertyGraph
 
     # This should result in two users: 78634 and 89216
@@ -1180,7 +1179,7 @@ def test_extract_subgraph_vertex_edge_prop_condition(
     (pG, data) = dataset1_PropertyGraph
     tcn = PropertyGraph.type_col_name
 
-    selection = pG.select_vertices("(user_location==47906) | " "(user_location==78750)")
+    selection = pG.select_vertices("(user_location==47906) | (user_location==78750)")
     selection += pG.select_edges(f"{tcn}=='referrals'")
     if as_pg_first:
         G = pG.extract_subgraph(
@@ -1277,7 +1276,7 @@ def test_extract_subgraph_specific_query(dataset1_PropertyGraph, as_pg_first):
 
     # _DST_ below used to be referred to as merchant_id
     selection = pG.select_edges(
-        f"({tcn}=='transactions') & " "(_DST_==4) & " "(time>1639085000)"
+        f"({tcn}=='transactions') & (_DST_==4) & (time>1639085000)"
     )
     if as_pg_first:
         G = pG.extract_subgraph(selection=selection, create_using=pG).extract_subgraph(
@@ -1319,7 +1318,7 @@ def test_select_vertices_from_previous_selection(dataset1_PropertyGraph, as_pg_f
     # awkward query with separate select calls to test from_previous_selection
     selection = pG.select_vertices(f"{tcn} == 'users'")
     selection = pG.select_vertices(
-        "((user_location == 78757) & (vertical == 1)) " "| (user_location == 47906)",
+        "((user_location == 78757) & (vertical == 1)) | (user_location == 47906)",
         from_previous_selection=selection,
     )
     selection += pG.select_edges(f"{tcn} == 'referrals'")

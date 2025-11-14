@@ -31,6 +31,7 @@ def _get_cuda_version_string():
     minor //= 10
     return f"{major}.{minor}"
 
+
 cuda_version_string = _get_cuda_version_string()
 
 parser = argparse.ArgumentParser(description="Condition for running the notebook tests")

@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2024, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2024-2025, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -22,7 +22,6 @@ def _call_k_truss_subgraph(
     k: int,
     do_expensive_check: bool,
 ) -> Tuple[cp.ndarray, cp.ndarray, cp.ndarray]:
-
     return pylibcugraph_k_truss_subgraph(
         resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
         graph=mg_graph_x,

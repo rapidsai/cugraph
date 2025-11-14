@@ -65,8 +65,8 @@ class Tests_Multithreaded
     std::tuple<Multithreaded_Usecase const&, input_usecase_t const&> const& param,
     std::vector<int> gpu_list)
   {
-    using edge_type_t = int32_t;
-    using edge_time_t = int32_t;
+    using edge_type_t  = int32_t;
+    using time_stamp_t = int32_t;
 
     constexpr bool renumber           = true;
     constexpr bool store_transposed   = true;

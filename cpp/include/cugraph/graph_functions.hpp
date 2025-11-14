@@ -418,7 +418,7 @@ decompress_to_edgelist(
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
  * @tparam weight_t Type of edge weights. Needs to be a floating point type.
  * @tparam edge_type_t Type of edge type identifiers. Needs to be an integral type.
- * @tparam edge_time_t Type of edge time. Needs to be an integral type.
+ * @tparam time_stamp_t Type of time. Needs to be an integral type.
  * @tparam store_transposed Flag indicating whether to use sources (if false) or destinations (if
  * true) as major indices in storing edges using a 2D sparse matrix.
  * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
@@ -444,7 +444,7 @@ template <typename vertex_t,
           typename edge_t,
           typename weight_t,
           typename edge_type_t,
-          typename edge_time_t,
+          typename time_stamp_t,
           bool store_transposed,
           bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>,
@@ -452,16 +452,16 @@ std::tuple<rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>,
            std::optional<rmm::device_uvector<edge_t>>,
            std::optional<rmm::device_uvector<edge_type_t>>,
-           std::optional<rmm::device_uvector<edge_time_t>>,
-           std::optional<rmm::device_uvector<edge_time_t>>>
+           std::optional<rmm::device_uvector<time_stamp_t>>,
+           std::optional<rmm::device_uvector<time_stamp_t>>>
 symmetrize_edgelist(raft::handle_t const& handle,
                     rmm::device_uvector<vertex_t>&& edgelist_srcs,
                     rmm::device_uvector<vertex_t>&& edgelist_dsts,
                     std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights,
                     std::optional<rmm::device_uvector<edge_t>>&& edgelist_edge_ids,
                     std::optional<rmm::device_uvector<edge_type_t>>&& edgelist_edge_types,
-                    std::optional<rmm::device_uvector<edge_time_t>>&& edgelist_edge_start_times,
-                    std::optional<rmm::device_uvector<edge_time_t>>&& edgelist_edge_end_times,
+                    std::optional<rmm::device_uvector<time_stamp_t>>&& edgelist_edge_start_times,
+                    std::optional<rmm::device_uvector<time_stamp_t>>&& edgelist_edge_end_times,
                     bool reciprocal);
 
 /**
@@ -1028,7 +1028,7 @@ rmm::device_uvector<vertex_t> select_random_vertices(
  * @tparam edge_t      Type of edge identifiers. Needs to be an integral type.
  * @tparam weight_t    Type of edge weight. Currently float and double are supported.
  * @tparam edge_type_t Type of edge type. Needs to be an integral type.
- * @tparam edge_time_t Type of edge time.  Needs to be an integral type.
+ * @tparam time_stamp_t Type of time.  Needs to be an integral type.
  *
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
@@ -1050,22 +1050,22 @@ template <typename vertex_t,
           typename edge_t,
           typename weight_t,
           typename edge_type_t,
-          typename edge_time_t>
+          typename time_stamp_t>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>,
            std::optional<rmm::device_uvector<edge_t>>,
            std::optional<rmm::device_uvector<edge_type_t>>,
-           std::optional<rmm::device_uvector<edge_time_t>>,
-           std::optional<rmm::device_uvector<edge_time_t>>>
+           std::optional<rmm::device_uvector<time_stamp_t>>,
+           std::optional<rmm::device_uvector<time_stamp_t>>>
 remove_self_loops(raft::handle_t const& handle,
                   rmm::device_uvector<vertex_t>&& edgelist_srcs,
                   rmm::device_uvector<vertex_t>&& edgelist_dsts,
                   std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights,
                   std::optional<rmm::device_uvector<edge_t>>&& edgelist_edge_ids,
                   std::optional<rmm::device_uvector<edge_type_t>>&& edgelist_edge_types,
-                  std::optional<rmm::device_uvector<edge_time_t>>&& edgelist_edge_start_times,
-                  std::optional<rmm::device_uvector<edge_time_t>>&& edgelist_edge_end_times,
+                  std::optional<rmm::device_uvector<time_stamp_t>>&& edgelist_edge_start_times,
+                  std::optional<rmm::device_uvector<time_stamp_t>>&& edgelist_edge_end_times,
                   std::optional<large_buffer_type_t> large_buffer_type = std::nullopt);
 
 /**
@@ -1088,7 +1088,7 @@ remove_self_loops(raft::handle_t const& handle,
  * @tparam edge_t      Type of edge identifiers. Needs to be an integral type.
  * @tparam weight_t    Type of edge weight. Currently float and double are supported.
  * @tparam edge_type_t Type of edge type. Needs to be an integral type.
- * @tparam edge_time_t Type of edge time.  Needs to be an integral type.
+ * @tparam time_stamp_t Type of time.  Needs to be an integral type.
  *
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
@@ -1119,22 +1119,22 @@ template <typename vertex_t,
           typename edge_t,
           typename weight_t,
           typename edge_type_t,
-          typename edge_time_t>
+          typename time_stamp_t>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>,
            std::optional<rmm::device_uvector<edge_t>>,
            std::optional<rmm::device_uvector<edge_type_t>>,
-           std::optional<rmm::device_uvector<edge_time_t>>,
-           std::optional<rmm::device_uvector<edge_time_t>>>
+           std::optional<rmm::device_uvector<time_stamp_t>>,
+           std::optional<rmm::device_uvector<time_stamp_t>>>
 remove_multi_edges(raft::handle_t const& handle,
                    rmm::device_uvector<vertex_t>&& edgelist_srcs,
                    rmm::device_uvector<vertex_t>&& edgelist_dsts,
                    std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights,
                    std::optional<rmm::device_uvector<edge_t>>&& edgelist_edge_ids,
                    std::optional<rmm::device_uvector<edge_type_t>>&& edgelist_edge_types,
-                   std::optional<rmm::device_uvector<edge_time_t>>&& edgelist_edge_start_times,
-                   std::optional<rmm::device_uvector<edge_time_t>>&& edgelist_edge_edge_times,
+                   std::optional<rmm::device_uvector<time_stamp_t>>&& edgelist_edge_start_times,
+                   std::optional<rmm::device_uvector<time_stamp_t>>&& edgelist_edge_edge_times,
                    bool keep_min_value_edge                             = false,
                    std::optional<large_buffer_type_t> large_buffer_type = std::nullopt);
 
@@ -1158,7 +1158,7 @@ remove_multi_edges(raft::handle_t const& handle,
  * @tparam edge_t      Type of edge identifiers. Needs to be an integral type.
  * @tparam weight_t    Type of edge weight. Currently float and double are supported.
  * @tparam edge_type_t Type of edge type. Needs to be an integral type.
- * @tparam edge_time_t Type of edge time.  Needs to be an integral type.
+ * @tparam time_stamp_t Type of time.  Needs to be an integral type.
  *
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
@@ -1192,14 +1192,14 @@ template <typename vertex_t,
           typename edge_t,
           typename weight_t,
           typename edge_type_t,
-          typename edge_time_t>
+          typename time_stamp_t>
 std::tuple<std::vector<rmm::device_uvector<vertex_t>>,
            std::vector<rmm::device_uvector<vertex_t>>,
            std::optional<std::vector<rmm::device_uvector<weight_t>>>,
            std::optional<std::vector<rmm::device_uvector<edge_t>>>,
            std::optional<std::vector<rmm::device_uvector<edge_type_t>>>,
-           std::optional<std::vector<rmm::device_uvector<edge_time_t>>>,
-           std::optional<std::vector<rmm::device_uvector<edge_time_t>>>>
+           std::optional<std::vector<rmm::device_uvector<time_stamp_t>>>,
+           std::optional<std::vector<rmm::device_uvector<time_stamp_t>>>>
 remove_multi_edges(
   raft::handle_t const& handle,
   std::vector<rmm::device_uvector<vertex_t>>&& edgelist_srcs,
@@ -1207,8 +1207,8 @@ remove_multi_edges(
   std::optional<std::vector<rmm::device_uvector<weight_t>>>&& edgelist_weights,
   std::optional<std::vector<rmm::device_uvector<edge_t>>>&& edgelist_edge_ids,
   std::optional<std::vector<rmm::device_uvector<edge_type_t>>>&& edgelist_edge_types,
-  std::optional<std::vector<rmm::device_uvector<edge_time_t>>>&& edgelist_edge_start_times,
-  std::optional<std::vector<rmm::device_uvector<edge_time_t>>>&& edgelist_edge_edge_times,
+  std::optional<std::vector<rmm::device_uvector<time_stamp_t>>>&& edgelist_edge_start_times,
+  std::optional<std::vector<rmm::device_uvector<time_stamp_t>>>&& edgelist_edge_edge_times,
   bool keep_min_value_edge                             = false,
   std::optional<large_buffer_type_t> large_buffer_type = std::nullopt);
 
