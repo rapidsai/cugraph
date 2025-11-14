@@ -144,7 +144,12 @@ def read_csv_for_nx(csv_file, read_weights_in_sp=True, read_weights=True):
 
 
 def create_obj_from_csv(
-    csv_file_name, obj_type, csv_has_weights=True, edgevals=False, directed=False
+    csv_file_name,
+    obj_type,
+    csv_has_weights=True,
+    edgevals=False,
+    directed=False,
+    data_type=np.float32,
 ):
     """
     Return an object based on obj_type populated with the contents of
@@ -164,14 +169,13 @@ def create_obj_from_csv(
         )
 
     elif obj_type in SCIPY_MATRIX_TYPES + CUPY_MATRIX_TYPES:
-        # FIXME: assuming float32
         if csv_has_weights:
             (rows, cols, weights) = np.genfromtxt(
-                csv_file_name, delimiter=" ", dtype=np.float32, unpack=True
+                csv_file_name, delimiter=" ", dtype=data_type, unpack=True
             )
         else:
             (rows, cols) = np.genfromtxt(
-                csv_file_name, delimiter=" ", dtype=np.float32, unpack=True
+                csv_file_name, delimiter=" ", dtype=data_type, unpack=True
             )
 
         if (csv_has_weights is False) or (edgevals is False):
