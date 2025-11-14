@@ -25,8 +25,8 @@
 
 #include <raft/core/handle.hpp>
 
-#include <rmm/mr/device/per_device_resource.hpp>
-#include <rmm/mr/device/polymorphic_allocator.hpp>
+#include <rmm/mr/per_device_resource.hpp>
+#include <rmm/mr/polymorphic_allocator.hpp>
 
 #include <cub/cub.cuh>
 #include <cuda/std/iterator>
