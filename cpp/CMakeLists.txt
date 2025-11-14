@@ -13,6 +13,7 @@ include(rapids-cpm)
 include(rapids-cuda)
 include(rapids-export)
 include(rapids-find)
+include(CMakeDependentOption)
 
 rapids_cuda_init_architectures(CUGRAPH)
 
@@ -43,8 +44,10 @@ option(BUILD_TESTS "Configure CMake to build tests" ON)
 option(USE_RAFT_STATIC "Build raft as a static library" OFF)
 option(CUGRAPH_COMPILE_RAFT_LIB "Compile the raft library instead of using it header-only" ON)
 option(CUDA_STATIC_RUNTIME "Statically link the CUDA toolkit runtime and libraries" OFF)
-option(CUGRAPH_USE_CUVS_STATIC "Build and statically link the cuVS library" ON)
 option(CUGRAPH_COMPILE_CUVS "Always compile cuVS from source" ON)
+cmake_dependent_option(CUGRAPH_USE_CUVS_STATIC 
+  "Build and statically link the cuVS library" ON
+  "CUGRAPH_COMPILE_CUVS" OFF)
 
 message(VERBOSE "CUGRAPH: CUDA_STATIC_RUNTIME=${CUDA_STATIC_RUNTIME}")
 message(VERBOSE "CUGRAPH: CUGRAPH_COMPILE_CUVS=${CUGRAPH_COMPILE_CUVS}")
@@ -485,13 +488,11 @@ if(CUGRAPH_COMPILE_RAFT_LIB)
   endif()
 endif()
 
-set(CUVS_LIB )
-if(CUGRAPH_COMPILE_CUVS)
-  if(CUGRAPH_USE_CUVS_STATIC)
-    set(CUVS_LIB cuvs::cuvs_static)
-  else()
-    set(CUVS_LIB cuvs::cuvs)
-  endif()
+unset(CUVS_LIB)
+if(CUGRAPH_COMPILE_CUVS AND CUGRAPH_USE_CUVS_STATIC)
+  set(CUVS_LIB cuvs::cuvs_static)
+elseif(CUGRAPH_COMPILE_CUVS)
+  set(CUVS_LIB cuvs::cuvs)
 endif()
 
 ################################################################################

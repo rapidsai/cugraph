@@ -8,7 +8,7 @@
 set(CUGRAPH_MIN_VERSION_cuvs "${CUGRAPH_VERSION_MAJOR}.${CUGRAPH_VERSION_MINOR}.00")
 
 function(find_and_configure_cuvs)
-    set(oneValueArgs VERSION FORK PINNED_TAG EXCLUDE_FROM_ALL USE_CUVS_STATIC COMPILE_LIBRARY CLONE_ON_PIN)
+    set(oneValueArgs VERSION FORK PINNED_TAG EXCLUDE_FROM_ALL USE_CUVS_STATIC CLONE_ON_PIN)
     cmake_parse_arguments(PKG "${options}" "${oneValueArgs}"
             "${multiValueArgs}" ${ARGN} )
 
@@ -20,20 +20,21 @@ function(find_and_configure_cuvs)
       set(CPM_DOWNLOAD_cuvs ON)
     endif()
 
-    if(PKG_USE_CUVS_STATIC)
-      set(CUVS_LIB cuvs::cuvs_static PARENT_SCOPE)
-      message(STATUS "CUGRAPH: Using static cuVS library")
-    else()
-      set(CUVS_LIB cuvs::cuvs PARENT_SCOPE)
-      message(STATUS "CUGRAPH: Using shared cuVS library")
-    endif()
-
     # Disable multi-GPU algorithms to avoid NCCL dependency
     set(CUVS_BUILD_MG_ALGOS OFF)
 
+    # Set up components and targets based on static/shared preference
+    if(PKG_USE_CUVS_STATIC)
+      set(cuvs_components COMPONENTS cuvs_static)
+      set(cuvs_global_targets cuvs::cuvs_static)
+    else()
+      set(cuvs_components)
+      set(cuvs_global_targets cuvs::cuvs)
+    endif()
+
     rapids_cpm_find(cuvs ${PKG_VERSION}
-      GLOBAL_TARGETS      cuvs::cuvs
-      BUILD_EXPORT_SET    cugraph-exports
+      ${cuvs_components}
+      GLOBAL_TARGETS      ${cuvs_global_targets}
       CPM_ARGS
         GIT_REPOSITORY         https://github.com/${PKG_FORK}/cuvs.git
         GIT_TAG                ${PKG_PINNED_TAG}
@@ -66,6 +67,5 @@ find_and_configure_cuvs(VERSION          ${CUGRAPH_MIN_VERSION_cuvs}
                         # even if it's already installed.
                         CLONE_ON_PIN     ON
                         USE_CUVS_STATIC  ${CUGRAPH_USE_CUVS_STATIC}
-                        COMPILE_LIBRARY  ${CUGRAPH_COMPILE_CUVS}
                         EXCLUDE_FROM_ALL ON
                         )
