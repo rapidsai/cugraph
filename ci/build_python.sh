@@ -5,7 +5,6 @@
 set -euo pipefail
 
 source rapids-configure-sccache
-
 source rapids-date-string
 
 export CMAKE_GENERATOR=Ninja
@@ -26,7 +25,7 @@ rapids-logger "Prepending channel ${CPP_CHANNEL} to RATTLER_CHANNELS"
 
 RATTLER_CHANNELS=("--channel" "${CPP_CHANNEL}" "${RATTLER_CHANNELS[@]}")
 
-sccache --zero-stats
+sccache --stop-server 2>/dev/null || true
 
 rapids-logger "Building pylibcugraph"
 
@@ -38,7 +37,7 @@ rattler-build build --recipe conda/recipes/pylibcugraph \
                     "${RATTLER_CHANNELS[@]}"
 
 sccache --show-adv-stats
-sccache --zero-stats
+sccache --stop-server 2>/dev/null || true
 
 rapids-logger "Building cugraph"
 
