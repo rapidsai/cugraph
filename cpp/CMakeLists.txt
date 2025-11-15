@@ -486,14 +486,9 @@ if(CUGRAPH_COMPILE_RAFT_LIB)
   endif()
 endif()
 
-unset(CUVS_LIB)
-if(CUGRAPH_COMPILE_CUVS AND CUGRAPH_USE_CUVS_STATIC)
+set(CUVS_LIB cuvs::cuvs)
+if(CUGRAPH_USE_CUVS_STATIC)
   set(CUVS_LIB cuvs::cuvs_static)
-elseif(CUGRAPH_COMPILE_CUVS)
-  set(CUVS_LIB cuvs::cuvs)
-else()
-  # When using prebuilt packages (CUGRAPH_COMPILE_CUVS=OFF), link to shared library
-  set(CUVS_LIB cuvs::cuvs)
 endif()
 
 ################################################################################
