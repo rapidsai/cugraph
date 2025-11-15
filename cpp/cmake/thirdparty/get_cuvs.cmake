@@ -23,18 +23,8 @@ function(find_and_configure_cuvs)
     # Disable multi-GPU algorithms to avoid NCCL dependency
     set(CUVS_BUILD_MG_ALGOS OFF)
 
-    # Set up components and targets based on static/shared preference
-    if(PKG_USE_CUVS_STATIC)
-      set(cuvs_components COMPONENTS cuvs_static)
-      set(cuvs_global_targets cuvs::cuvs_static)
-    else()
-      set(cuvs_components)
-      set(cuvs_global_targets cuvs::cuvs)
-    endif()
-
     rapids_cpm_find(cuvs ${PKG_VERSION}
-      ${cuvs_components}
-      GLOBAL_TARGETS      ${cuvs_global_targets}
+      GLOBAL_TARGETS      cuvs::cuvs
       CPM_ARGS
         GIT_REPOSITORY         https://github.com/${PKG_FORK}/cuvs.git
         GIT_TAG                ${PKG_PINNED_TAG}
