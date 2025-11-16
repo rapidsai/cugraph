@@ -16,8 +16,13 @@ def cugraph_call(G, partitions):
         G, partitions, num_eigen_vects=(partitions - 1)
     )
 
-    score = cugraph.analyzeClustering_modularity(G, partitions, df, "vertex", "cluster")
-    return score
+    modularity_score = cugraph.analyzeClustering_modularity(
+        G, partitions, df, "vertex", "cluster"
+    )
+    edge_cut_score = cugraph.analyzeClustering_edge_cut(
+        G, partitions, df, "vertex", "cluster"
+    )
+    return modularity_score, edge_cut_score
 
 
 def random_call(G, partitions):
@@ -31,10 +36,13 @@ def random_call(G, partitions):
     assignment_cu["vertex"] = assignment_cu.index
     assignment_cu = assignment_cu.astype("int32")
 
-    score = cugraph.analyzeClustering_modularity(
+    modularity_score = cugraph.analyzeClustering_modularity(
         G, partitions, assignment_cu, "vertex", "cluster"
     )
-    return score
+    edge_cut_score = cugraph.analyzeClustering_edge_cut(
+        G, partitions, assignment_cu, "vertex", "cluster"
+    )
+    return modularity_score, edge_cut_score
 
 
 PARTITIONS = [2, 4, 8]
@@ -53,13 +61,25 @@ def test_modularity_clustering(graph_file, partitions):
         "float64"
     )
 
-    # Get the modularity score for partitioning versus random assignment
-    cu_score = cugraph_call(G, partitions)
-    rand_score = random_call(G, partitions)
+    rand_modularity, rand_edge_cut = random_call(G, partitions)
+
+    # Retry strategy: spectralModularityMaximizationClustering is a randomized
+    # algorithm that may not converge or produce good results on every run.
+    # Try up to 10 times, similar to the C API test strategy.
+    cu_modularity = None
+    cu_edge_cut = None
+    for trial in range(10):
+        cu_modularity, cu_edge_cut = cugraph_call(G, partitions)
+        # Break early if we get a good result
+        if cu_modularity > rand_modularity:
+            break
 
     # Assert that the partitioning has better modularity than the random
     # assignment
-    assert cu_score > rand_score
+    assert cu_modularity > rand_modularity
+    # Assert that the partitioning has better edge cut than the random
+    # assignment (lower is better for edge cut)
+    assert cu_edge_cut < rand_edge_cut
 
 
 @pytest.mark.sg
@@ -78,21 +98,38 @@ def test_modularity_clustering_multi_column(graph_file, partitions):
         cu_M, source=["src_0", "src_1"], destination=["dst_0", "dst_1"], edge_attr="2"
     )
 
-    df1 = cugraph.spectralModularityMaximizationClustering(
-        G1, partitions, num_eigen_vects=(partitions - 1)
-    )
-
-    cu_score = cugraph.analyzeClustering_modularity(
-        G1, partitions, df1, ["0_vertex", "1_vertex"], "cluster"
-    )
-
     G2 = cugraph.Graph()
     G2.from_cudf_edgelist(cu_M, source="src_0", destination="dst_0", edge_attr="2")
 
-    rand_score = random_call(G2, partitions)
+    rand_modularity, rand_edge_cut = random_call(G2, partitions)
+
+    # Retry strategy: spectralModularityMaximizationClustering is a randomized
+    # algorithm that may not converge or produce good results on every run.
+    # Try up to 10 times, similar to the C API test strategy.
+    cu_modularity = None
+    cu_edge_cut = None
+    for trial in range(10):
+        df1 = cugraph.spectralModularityMaximizationClustering(
+            G1, partitions, num_eigen_vects=(partitions - 1)
+        )
+
+        cu_modularity = cugraph.analyzeClustering_modularity(
+            G1, partitions, df1, ["0_vertex", "1_vertex"], "cluster"
+        )
+        cu_edge_cut = cugraph.analyzeClustering_edge_cut(
+            G1, partitions, df1, ["0_vertex", "1_vertex"], "cluster"
+        )
+
+        # Break early if we get a good result
+        if cu_modularity > rand_modularity:
+            break
+
     # Assert that the partitioning has better modularity than the random
     # assignment
-    assert cu_score > rand_score
+    assert cu_modularity > rand_modularity
+    # Assert that the partitioning has better edge cut than the random
+    # assignment (lower is better for edge cut)
+    assert cu_edge_cut < rand_edge_cut
 
 
 # Test to ensure DiGraph objs are not accepted

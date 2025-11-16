@@ -256,6 +256,9 @@ typedef struct {
 /**
  * @brief   Balanced cut clustering
  *
+ * @deprecated This function is deprecated and will be removed in a future release.
+ *             Use cugraph_spectral_clustering (spectral modularity maximization) instead.
+ *
  * NOTE: This currently wraps the legacy balanced cut clustering implementation and is only
  * available in Single GPU implementation.
  *
