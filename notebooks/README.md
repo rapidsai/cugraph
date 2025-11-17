@@ -46,7 +46,7 @@ Layout            |                                                             
 
 
 ## RAPIDS notebooks
-Visit the release/25.12 RAPIDS [notebooks](https://github.com/rapidsai/notebooks) repo for a listing of all notebooks across all RAPIDS libraries.
+Visit the main RAPIDS [notebooks](https://github.com/rapidsai/notebooks) repo for a listing of all notebooks across all RAPIDS libraries.
 
 ## Requirements
 
@@ -106,7 +106,7 @@ If any notebook doesn't run as detailed here, please file an issue in [cuGraph](
 |[Managed Memory Pagerank](demo/uvm.ipynb)                   |demo                     |[cugraph conda](https://github.com/rapidsai/cugraph/blob/branch-23.06/conda/environments/all_cuda-118_arch-x86_64.yaml)     |None              |fixed in PR/23.06                            |
 |[Cost Matrix simulating All Points Shortest Path](applications/CostMatrix.ipynb)            |applications             |[cugraph conda](https://github.com/rapidsai/cugraph/blob/branch-23.06/conda/environments/all_cuda-118_arch-x86_64.yaml)     |None              |fixed in PR #3551/23.06                      |
 |[Generating Transaction data using RMAT](applications/gen_550M.ipynb)              |applications             |[cugraph conda](https://github.com/rapidsai/cugraph/blob/branch-23.06/conda/environments/all_cuda-118_arch-x86_64.yaml)     |None              |tested and documented  PR #3551/23.06        |
-|[Multiple GPU tutorial with Pagerank](https://github.com/rapidsai-community/notebooks-contrib/blob/release/25.12/community_tutorials_and_guides/cugraph/multi_gpu_pagerank.ipynb)    |contrib/community/cugraph|[cugraph conda](https://github.com/rapidsai/cugraph/blob/branch-23.06/conda/environments/all_cuda-118_arch-x86_64.yaml)     |None              |fixed notebook-contrib PR #374/23.06         |
+|[Multiple GPU tutorial with Pagerank](https://github.com/rapidsai-community/notebooks-contrib/blob/main/community_tutorials_and_guides/cugraph/multi_gpu_pagerank.ipynb)    |contrib/community/cugraph|[cugraph conda](https://github.com/rapidsai/cugraph/blob/branch-23.06/conda/environments/all_cuda-118_arch-x86_64.yaml)     |None              |fixed notebook-contrib PR #374/23.06         |
 |[Breadth First Search benchmark](cugraph_benchmarks/bfs_benchmark.ipynb)         |cugraph_benchmark        |[cugraph conda](https://github.com/rapidsai/cugraph/blob/branch-23.06/conda/environments/all_cuda-118_arch-x86_64.yaml)     |None              |fixed in PR #3561/23.06                      |
 |[Louvain benchmark](cugraph_benchmarks/louvain_benchmark.ipynb)     |cugraph_benchmark        |[cugraph conda](https://github.com/rapidsai/cugraph/blob/branch-23.06/conda/environments/all_cuda-118_arch-x86_64.yaml)     |None              |fixed in PR #3561/23.06                      |
 |[Pagerank benchmark](cugraph_benchmarks/pagerank_benchmark.ipynb)    |cugraph_benchmark        |[cugraph conda](https://github.com/rapidsai/cugraph/blob/branch-23.06/conda/environments/all_cuda-118_arch-x86_64.yaml)     |None              |fixed in PR #3561/23.06                      |
