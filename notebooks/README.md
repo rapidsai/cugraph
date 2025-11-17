@@ -63,13 +63,13 @@ The easiest way to run the notebooks is to get the latest [rapidsai/notebooks](h
 
 For example, get the latest (as of writing the document) nightly image (`a` after the version number indicates that an image is nightly) with CUDA 13 using
 ```sh
-docker pull rapidsai/notebooks:25.12a-cuda13-py3.13
+docker pull rapidsai/notebooks:26.02a-cuda13-py3.13
 ```
 
 And, then run a container based on the image using
 
 ```sh
-docker run --rm  -it --pull always --gpus all --shm-size=1g --ulimit memlock=-1 --ulimit stack=67108864   -p 8888:8888 rapidsai/notebooks:25.12a-cuda13-py3.13
+docker run --rm  -it --pull always --gpus all --shm-size=1g --ulimit memlock=-1 --ulimit stack=67108864   -p 8888:8888 rapidsai/notebooks:26.02a-cuda13-py3.13
 ```
 You are all set. Run and edit cugraph notebooks from a browser at url
 http://127.0.0.1:8888/lab/tree/cugraph/cugraph_benchmarks
@@ -85,8 +85,8 @@ ssh -L  127.0.0.1:8888:127.0.0.1:8888 [USER_NAME@][REMOTE_HOST_NAME or REMOTE_HO
 and then run the container in your remote machine.
 
 ```sh
-docker pull rapidsai/notebooks:25.12a-cuda13-py3.13
-docker run --rm  -it --pull always --gpus all --shm-size=1g --ulimit memlock=-1 --ulimit stack=67108864 -p 8888:8888 rapidsai/notebooks:25.12a-cuda13-py3.13
+docker pull rapidsai/notebooks:26.02a-cuda13-py3.13
+docker run --rm  -it --pull always --gpus all --shm-size=1g --ulimit memlock=-1 --ulimit stack=67108864 -p 8888:8888 rapidsai/notebooks:26.02a-cuda13-py3.13
 ```
 
 You can run and edit cugraph notebooks at url http://127.0.0.1:8888/lab/tree/cugraph/cugraph_benchmarks as if they are running locally.
