@@ -105,7 +105,7 @@ Read the section on [building cuGraph from source](../docs/cugraph/source/instal
 ```git remote add upstream https://github.com/rapidsai/cugraph.git```
 
 3. Checkout the latest branch
-cuGraph only allows contribution to the current branch and not release/25.12 or a future branch.  Please check the [cuGraph](https://github.com/rapidsai/cugraph) page for the name of the current branch.
+cuGraph only allows contribution to the current branch and not main or a future branch.  Please check the [cuGraph](https://github.com/rapidsai/cugraph) page for the name of the current branch.
 
 ```git checkout branch-x.x```
 
