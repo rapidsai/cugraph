@@ -38,4 +38,8 @@ set(CMAKE_CUDA_LINEINFO OFF)
 set(USE_RAFT_STATIC OFF)
 set(CUGRAPH_COMPILE_RAFT_LIB ON)
 
+# --- cuvs --- #
+set(CUGRAPH_COMPILE_CUVS ON)
+set(CUGRAPH_USE_CUVS_STATIC ON)
+
 add_subdirectory(../../cpp cugraph-cpp)

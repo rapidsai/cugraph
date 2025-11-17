@@ -71,12 +71,6 @@ def spectralBalancedCutClustering(
         df['cluster'] : cudf.Series
             contains the cluster assignments
 
-    Examples
-    --------
-    >>> from cugraph.datasets import karate
-    >>> G = karate.get_graph(download=True)
-    >>> df = cugraph.spectralModularityMaximizationClustering(G, 5)
-
     """
     warnings.warn(
         "spectralBalancedCutClustering is deprecated and will be removed in a future "

@@ -38,6 +38,31 @@ files:
       - test_python_common
       - test_python_cugraph
       - test_python_pylibcugraph
+  devcontainers:
+    output: none
+    includes:
+      - common_build
+      - cuda_version
+      - depends_on_cudf
+      - depends_on_cupy
+      - depends_on_dask_cuda
+      - depends_on_dask_cudf
+      - depends_on_libcuvs
+      - depends_on_libraft
+      - depends_on_librmm
+      - depends_on_pylibcudf
+      - depends_on_pylibraft
+      - depends_on_raft_dask
+      - depends_on_rmm
+      - depends_on_ucxx
+      - python_build_cythonize
+      - python_build_rapids
+      - python_build_skbuild
+      - python_run_cugraph
+      - py_version
+      - test_python_common
+      - test_python_cugraph
+      - test_python_pylibcugraph
   checks:
     output: none
     includes:
@@ -104,7 +129,6 @@ files:
     includes:
       - common_build
       - depends_on_libcugraph
-      - depends_on_libcuvs
       - depends_on_libraft
       - depends_on_librmm
       - depends_on_pylibcugraph
@@ -154,7 +178,6 @@ files:
     includes:
       - common_build
       - depends_on_librmm
-      - depends_on_libcuvs
       - depends_on_libraft
   py_run_libcugraph:
     output: pyproject
@@ -162,7 +185,6 @@ files:
     extras:
       table: project
     includes:
-      - depends_on_libcuvs
       - depends_on_libraft
   py_build_pylibcugraph:
     output: pyproject
@@ -181,7 +203,6 @@ files:
     includes:
       - common_build
       - depends_on_libcugraph
-      - depends_on_libcuvs
       - depends_on_libraft
       - depends_on_librmm
       - depends_on_pylibraft

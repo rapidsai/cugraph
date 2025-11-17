@@ -30,15 +30,14 @@ rapids-pip-retry wheel \
 sccache --show-adv-stats
 
 EXCLUDE_ARGS=(
-  --exclude "libcuvs.so"
   --exclude "libraft.so"
 )
 
 # Avoid picking up dependencies on CUDA wheels that come through
-# transitively from 'libraft' and 'libcuvs'.
+# transitively from 'libraft'.
 #
-# 'libraft' and 'libcuvs' wheels are responsible for carrying a runtime dependency on
-# these based on RAFT's and cuVS's needs.
+# 'libraft' wheels are responsible for carrying a runtime dependency on
+# these based on RAFT's needs.
 EXCLUDE_ARGS+=(
   --exclude "libcublas.so.*"
   --exclude "libcublasLt.so.*"
