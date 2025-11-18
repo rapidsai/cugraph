@@ -42,6 +42,7 @@ from pylibcugraph._cugraph_c.algorithms cimport (
     cugraph_sampling_set_compress_per_hop,
     cugraph_sampling_set_compression_type,
     cugraph_sampling_set_retain_seeds,
+    cugraph_sampling_set_disjoint_sampling,
 )
 from pylibcugraph._cugraph_c.sampling_algorithms cimport (
     cugraph_homogeneous_uniform_temporal_neighbor_sample,
@@ -82,6 +83,7 @@ def homogeneous_uniform_temporal_neighbor_sample(ResourceHandle resource_handle,
                                                  bool_t do_expensive_check,
                                                  prior_sources_behavior=None,
                                                  deduplicate_sources=False,
+                                                 disjoint_sampling=False,
                                                  return_hops=False,
                                                  renumber=False,
                                                  retain_seeds=False,
@@ -174,6 +176,10 @@ def homogeneous_uniform_temporal_neighbor_sample(ResourceHandle resource_handle,
         entire batch.
         If True, will create a separate compressed edgelist per hop within
         a batch.
+
+    disjoint_sampling: bool (Optional)
+        If True, enables disjoint sampling between seeds per hop when supported.
+        Defaults to False.
 
     random_state: int (Optional)
         Random state to use when generating samples.  Optional argument,
@@ -371,6 +377,7 @@ def homogeneous_uniform_temporal_neighbor_sample(ResourceHandle resource_handle,
     cugraph_sampling_set_compression_type(sampling_options, compression_behavior_e)
     cugraph_sampling_set_compress_per_hop(sampling_options, c_compress_per_hop)
     cugraph_sampling_set_retain_seeds(sampling_options, retain_seeds)
+    cugraph_sampling_set_disjoint_sampling(sampling_options, disjoint_sampling)
 
     error_code = cugraph_homogeneous_uniform_temporal_neighbor_sample(
         c_resource_handle_ptr,
