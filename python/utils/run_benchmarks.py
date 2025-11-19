@@ -184,19 +184,19 @@ def parseCLI(argv):
         "--damping_factor",
         type=float,
         default=0.85,
-        help="Damping factor for pagerank algo. Default is " "0.85",
+        help="Damping factor for pagerank algo. Default is 0.85",
     )
     parser.add_argument(
         "--max_iter",
         type=int,
         default=100,
-        help="Maximum number of iteration for any iterative " "algo. Default is 100",
+        help="Maximum number of iteration for any iterative algo. Default is 100",
     )
     parser.add_argument(
         "--tolerance",
         type=float,
         default=1e-5,
-        help="Tolerance for any approximation algo. Default " "is 1e-5",
+        help="Tolerance for any approximation algo. Default is 1e-5",
     )
     parser.add_argument(
         "--source", type=int, default=0, help="Source for bfs or sssp. Default is 0"

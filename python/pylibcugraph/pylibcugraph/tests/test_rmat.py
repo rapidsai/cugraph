@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2022-2023, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 
 
@@ -24,7 +24,6 @@ from pylibcugraph import generate_rmat_edgelist
 def check_results(
     result, scale, num_edges, include_edge_ids, include_edge_weights, include_edge_types
 ):
-
     h_src_arr, h_dst_arr, h_wgt_arr, h_ids_arr, h_types_arr = result
 
     if include_edge_weights:
@@ -56,7 +55,6 @@ def test_rmat(
     include_edge_types,
     include_edge_ids,
 ):
-
     resource_handle = ResourceHandle()
 
     result = generate_rmat_edgelist(

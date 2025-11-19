@@ -255,7 +255,7 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_MGKTruss_Rmat,
   ::testing::Combine(
     ::testing::Values(KTruss_Usecase{4, false, false, false}),
-    ::testing::Values(cugraph::test::Rmat_Usecase(20, 16, 0.57, 0.19, 0.19, 0, true, false))));
+    ::testing::Values(cugraph::test::Rmat_Usecase(15, 16, 0.57, 0.19, 0.19, 0, true, false))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with

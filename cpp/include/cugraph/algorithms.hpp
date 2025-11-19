@@ -873,6 +873,8 @@ std::unique_ptr<legacy::GraphCOO<VT, ET, WT>> extract_subgraph_vertex(
  * @ingroup community_cpp
  * @brief     Wrapper function for Nvgraph balanced cut clustering
  *
+ * @deprecated This API will be deprecated. Use spectralModularityMaximization instead.
+ *
  * @throws     cugraph::logic_error when an error occurs.
  *
  * @tparam VT                        Type of vertex identifiers. Supported value : int (signed,

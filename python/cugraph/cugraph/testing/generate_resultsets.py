@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2023, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2023-2025, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 
 from tempfile import NamedTemporaryFile
@@ -228,9 +228,10 @@ if __name__ == "__main__":
         res = _resultsets[temp].get_cudf_dataframe()
         temp_filename = str(random.getrandbits(50))
         temp_dict = dict(temp)
-        argnames, argvals = [t for t in temp_dict.keys()], [
-            t for t in temp_dict.values()
-        ]
+        argnames, argvals = (
+            [t for t in temp_dict.keys()],
+            [t for t in temp_dict.values()],
+        )
         single_mapping = np.empty(21, dtype=object)
         dict_length = len(argnames)
 

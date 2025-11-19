@@ -1,6 +1,8 @@
 # =============================================================================
+# cmake-format: off
 # SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
+# cmake-format: on
 # =============================================================================
 
 add_subdirectory(components)
@@ -45,8 +47,6 @@ set(cython_sources
     sssp.pyx
     triangle_count.pyx
     two_hop_neighbors.pyx
-    uniform_neighbor_sample.pyx
-    biased_neighbor_sample.pyx
     negative_sampling.pyx
     uniform_random_walks.pyx
     biased_random_walks.pyx

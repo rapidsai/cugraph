@@ -33,7 +33,7 @@ def _ensure_args(G, start, i_start, directed):
     # Check for Graph-type inputs
     if isinstance(G, Graph):
         if directed is not None:
-            raise TypeError("'directed' cannot be specified for a " "Graph-type input")
+            raise TypeError("'directed' cannot be specified for a Graph-type input")
 
     if directed is None:
         directed = True

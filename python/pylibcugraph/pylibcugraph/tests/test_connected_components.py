@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2021-2023, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 
 from pathlib import Path
@@ -222,12 +222,12 @@ def _check_labels(vertex_ordered_labels, expected_vertex_comps):
     # Group the vertex_ordered_labels list into components based on labels by
     # creating a dictionary of labels to lists of vertices with that label.
     d = {}
-    for (vertex, label) in enumerate(vertex_ordered_labels):
+    for vertex, label in enumerate(vertex_ordered_labels):
         d.setdefault(label, []).append(vertex)
 
-    assert len(d.keys()) == len(
-        expected_vertex_comps
-    ), "number of different labels does not match expected"
+    assert len(d.keys()) == len(expected_vertex_comps), (
+        "number of different labels does not match expected"
+    )
 
     # Compare the actual components (created from the dictionary above) to
     # expected.

@@ -42,6 +42,7 @@ from pylibcugraph._cugraph_c.algorithms cimport (
     cugraph_sampling_set_compress_per_hop,
     cugraph_sampling_set_compression_type,
     cugraph_sampling_set_retain_seeds,
+    cugraph_sampling_set_disjoint_sampling,
 )
 from pylibcugraph._cugraph_c.sampling_algorithms cimport (
     cugraph_heterogeneous_uniform_temporal_neighbor_sample,
@@ -74,6 +75,7 @@ def heterogeneous_uniform_temporal_neighbor_sample(ResourceHandle resource_handl
                                                    _GPUGraph input_graph,
                                                    temporal_property_name,
                                                    start_vertex_list,
+                                                   starting_vertex_times,
                                                    starting_vertex_label_offsets,
                                                    vertex_type_offsets,
                                                    h_fan_out,
@@ -83,6 +85,7 @@ def heterogeneous_uniform_temporal_neighbor_sample(ResourceHandle resource_handl
                                                    bool_t do_expensive_check,
                                                    prior_sources_behavior=None,
                                                    deduplicate_sources=False,
+                                                   disjoint_sampling=False,
                                                    return_hops=False,
                                                    renumber=False,
                                                    retain_seeds=False,
@@ -116,6 +119,12 @@ def heterogeneous_uniform_temporal_neighbor_sample(ResourceHandle resource_handl
 
     start_vertex_list: device array type
         Device array containing the list of starting vertices for sampling.
+
+    starting_vertex_times: device array type (Optional)
+        Optional array of times associated with each starting vertex. If provided,
+        this establishes the initial time at which sampling begins for each start
+        vertex. Must have length equal to len(start_vertex_list) and a dtype
+        compatible with the graph's temporal property.
 
     starting_vertex_label_offsets: device array type (Optional)
         Offsets of each label within the start vertex list. Expanding
@@ -185,6 +194,10 @@ def heterogeneous_uniform_temporal_neighbor_sample(ResourceHandle resource_handl
         defaults to a hash of process id, time, and hostname.
         (See pylibcugraph.random.CuGraphRandomState)
 
+    disjoint_sampling: bool (Optional)
+        If True, enables disjoint sampling between seeds per hop when supported.
+        Defaults to False.
+
     Returns
     -------
     A tuple of device arrays, where the first and second items in the tuple
@@ -223,7 +236,7 @@ def heterogeneous_uniform_temporal_neighbor_sample(ResourceHandle resource_handl
     ...     edge_start_time_array=edge_start_times, edge_end_time_array=edge_end_times,
     ...     store_transposed=False, renumber=False, do_expensive_check=False)
     >>> sampling_results = pylibcugraph.heterogeneous_uniform_temporal_neighbor_sample(
-    ...         resource_handle, G, None, start_vertices, starting_vertex_label_offsets, None, h_fan_out,
+    ...         resource_handle, G, None, start_vertices, None, starting_vertex_label_offsets, None, h_fan_out,
     ...         num_edge_types=num_edge_types, with_replacement=False, do_expensive_check=True)
     >>> sampling_results
     {'majors': array([2, 2, 1], dtype=int32),
@@ -256,6 +269,7 @@ def heterogeneous_uniform_temporal_neighbor_sample(ResourceHandle resource_handl
     # FIXME: refactor the way we are creating pointer. Can use a single helper function to create
 
     assert_CAI_type(start_vertex_list, "start_vertex_list")
+    assert_CAI_type(starting_vertex_times, "starting_vertex_times", True)
     assert_CAI_type(starting_vertex_label_offsets, "starting_vertex_label_offsets", True)
     assert_CAI_type(vertex_type_offsets, "vertex_type_offsets", True)
 
@@ -283,6 +297,11 @@ def heterogeneous_uniform_temporal_neighbor_sample(ResourceHandle resource_handl
     cdef uintptr_t cai_start_ptr = \
         start_vertex_list.__cuda_array_interface__["data"][0]
 
+    cdef uintptr_t cai_starting_vertex_times_ptr
+    if starting_vertex_times is not None:
+        cai_starting_vertex_times_ptr = \
+            starting_vertex_times.__cuda_array_interface__['data'][0]
+
     cdef uintptr_t cai_starting_vertex_label_offsets_ptr
     if starting_vertex_label_offsets is not None:
         cai_starting_vertex_label_offsets_ptr = \
@@ -298,6 +317,15 @@ def heterogeneous_uniform_temporal_neighbor_sample(ResourceHandle resource_handl
             <void*>cai_start_ptr,
             len(start_vertex_list),
             get_c_type_from_numpy_type(start_vertex_list.dtype))
+
+    cdef cugraph_type_erased_device_array_view_t* starting_vertex_times_ptr = <cugraph_type_erased_device_array_view_t*>NULL
+    if starting_vertex_times is not None:
+        starting_vertex_times_ptr = \
+            cugraph_type_erased_device_array_view_create(
+                <void*>cai_starting_vertex_times_ptr,
+                len(starting_vertex_times),
+                get_c_type_from_numpy_type(starting_vertex_times.dtype)
+            )
 
 
     cdef cugraph_type_erased_device_array_view_t* starting_vertex_label_offsets_ptr = <cugraph_type_erased_device_array_view_t*>NULL
@@ -370,6 +398,7 @@ def heterogeneous_uniform_temporal_neighbor_sample(ResourceHandle resource_handl
     cugraph_sampling_set_compression_type(sampling_options, compression_behavior_e)
     cugraph_sampling_set_compress_per_hop(sampling_options, c_compress_per_hop)
     cugraph_sampling_set_retain_seeds(sampling_options, retain_seeds)
+    cugraph_sampling_set_disjoint_sampling(sampling_options, disjoint_sampling)
 
     error_code = cugraph_heterogeneous_uniform_temporal_neighbor_sample(
         c_resource_handle_ptr,
@@ -377,6 +406,7 @@ def heterogeneous_uniform_temporal_neighbor_sample(ResourceHandle resource_handl
         c_graph_ptr,
         "edge_start_time",
         start_vertex_list_ptr,
+        starting_vertex_times_ptr,
         starting_vertex_label_offsets_ptr,
         vertex_type_offsets_ptr,
         fan_out_ptr,
@@ -392,6 +422,8 @@ def heterogeneous_uniform_temporal_neighbor_sample(ResourceHandle resource_handl
 
     # Free the two input arrays that are no longer needed.
     cugraph_type_erased_device_array_view_free(start_vertex_list_ptr)
+    if starting_vertex_times is not None:
+        cugraph_type_erased_device_array_view_free(starting_vertex_times_ptr)
     cugraph_type_erased_host_array_view_free(fan_out_ptr)
 
     if starting_vertex_label_offsets is not None:

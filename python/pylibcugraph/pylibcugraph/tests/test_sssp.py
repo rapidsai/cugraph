@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2022-2023, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -338,9 +338,9 @@ def test_sssp(sg_graph_objs):
         # predecessor, so only do a closer compare if either the actual or
         # expected are not that MAX value.
         if (actual_distance <= 3.4e38) or (expected_distance <= 3.4e38):
-            assert actual_distance == pytest.approx(
-                expected_distance, 1e-4
-            ), f"actual != expected for distance result at index {i}"
+            assert actual_distance == pytest.approx(expected_distance, 1e-4), (
+                f"actual != expected for distance result at index {i}"
+            )
 
         # The array of predecessors for graphs with multiple paths that are
         # equally short are non-deterministic, so skip those checks for

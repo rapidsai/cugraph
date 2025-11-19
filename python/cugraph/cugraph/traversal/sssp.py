@@ -58,9 +58,9 @@ def _ensure_args(
         ):
             raise ValueError("'return_predecessors' must be a bool")
         if (unweighted is not None) and (unweighted is not True):
-            raise ValueError("'unweighted' currently must be True if " "specified")
+            raise ValueError("'unweighted' currently must be True if specified")
         if (overwrite is not None) and (overwrite is not False):
-            raise ValueError("'overwrite' currently must be False if " "specified")
+            raise ValueError("'overwrite' currently must be False if specified")
 
     source = source if source is not None else indices
     if return_predecessors is None:

@@ -64,13 +64,13 @@ struct hash_and_mod_src_dst_pair_t {
   }
 };
 
-template <typename edge_t, typename weight_t, typename edge_type_t, typename edge_time_t>
+template <typename edge_t, typename weight_t, typename edge_type_t, typename time_stamp_t>
 struct edge_value_compare_t {
   cuda::std::optional<raft::device_span<weight_t const>> weights;
   cuda::std::optional<raft::device_span<edge_t const>> edge_ids;
   cuda::std::optional<raft::device_span<edge_type_t const>> edge_types;
-  cuda::std::optional<raft::device_span<edge_time_t const>> edge_start_times;
-  cuda::std::optional<raft::device_span<edge_time_t const>> edge_end_times;
+  cuda::std::optional<raft::device_span<time_stamp_t const>> edge_start_times;
+  cuda::std::optional<raft::device_span<time_stamp_t const>> edge_end_times;
 
   __device__ bool operator()(size_t l_idx, size_t r_idx) const
   {
@@ -349,13 +349,13 @@ template <typename vertex_t,
           typename edge_t,
           typename weight_t,
           typename edge_type_t,
-          typename edge_time_t>
+          typename time_stamp_t>
 void sort_multi_edges(
   raft::handle_t const& handle,
   raft::device_span<vertex_t> edgelist_srcs,
   raft::device_span<vertex_t> edgelist_dsts,
   raft::device_span<size_t> edgelist_indices,
-  edge_value_compare_t<edge_t, weight_t, edge_type_t, edge_time_t> edge_value_compare,
+  edge_value_compare_t<edge_t, weight_t, edge_type_t, time_stamp_t> edge_value_compare,
   bool keep_min_value_edge)
 {
   auto pair_first = thrust::make_zip_iterator(edgelist_srcs.begin(), edgelist_dsts.begin());
@@ -389,14 +389,14 @@ template <typename vertex_t,
           typename edge_t,
           typename weight_t,
           typename edge_type_t,
-          typename edge_time_t>
+          typename time_stamp_t>
 std::tuple<std::vector<rmm::device_uvector<vertex_t>>,
            std::vector<rmm::device_uvector<vertex_t>>,
            std::optional<std::vector<rmm::device_uvector<weight_t>>>,
            std::optional<std::vector<rmm::device_uvector<edge_t>>>,
            std::optional<std::vector<rmm::device_uvector<edge_type_t>>>,
-           std::optional<std::vector<rmm::device_uvector<edge_time_t>>>,
-           std::optional<std::vector<rmm::device_uvector<edge_time_t>>>>
+           std::optional<std::vector<rmm::device_uvector<time_stamp_t>>>,
+           std::optional<std::vector<rmm::device_uvector<time_stamp_t>>>>
 remove_multi_edges_impl(
   raft::handle_t const& handle,
   std::vector<rmm::device_uvector<vertex_t>>&& edgelist_srcs,
@@ -404,8 +404,8 @@ remove_multi_edges_impl(
   std::optional<std::vector<rmm::device_uvector<weight_t>>>&& edgelist_weights,
   std::optional<std::vector<rmm::device_uvector<edge_t>>>&& edgelist_edge_ids,
   std::optional<std::vector<rmm::device_uvector<edge_type_t>>>&& edgelist_edge_types,
-  std::optional<std::vector<rmm::device_uvector<edge_time_t>>>&& edgelist_edge_start_times,
-  std::optional<std::vector<rmm::device_uvector<edge_time_t>>>&& edgelist_edge_end_times,
+  std::optional<std::vector<rmm::device_uvector<time_stamp_t>>>&& edgelist_edge_start_times,
+  std::optional<std::vector<rmm::device_uvector<time_stamp_t>>>&& edgelist_edge_end_times,
   bool keep_min_value_edge,
   std::optional<large_buffer_type_t> large_buffer_type = std::nullopt)
 {
@@ -440,7 +440,7 @@ remove_multi_edges_impl(
         element_size += sizeof(edge_type_t);
       } else {
         assert(edgelist_edge_start_times || edgelist_edge_end_times);
-        element_size += sizeof(edge_time_t);
+        element_size += sizeof(time_stamp_t);
       }
     } else if (edge_property_count > 1) {
       element_size += sizeof(size_t);
@@ -511,9 +511,9 @@ remove_multi_edges_impl(
             large_buffer_type);
         (*edgelist_edge_types)[i] = std::move(*tmp);
       } else if (edgelist_edge_start_times) {
-        std::optional<rmm::device_uvector<edge_time_t>> tmp{std::nullopt};
+        std::optional<rmm::device_uvector<time_stamp_t>> tmp{std::nullopt};
         std::tie(edgelist_srcs[i], edgelist_dsts[i], tmp, group_counts[i]) =
-          detail::group_edges<vertex_t, edge_time_t>(
+          detail::group_edges<vertex_t, time_stamp_t>(
             handle,
             std::move(edgelist_srcs[i]),
             std::move(edgelist_dsts[i]),
@@ -524,9 +524,9 @@ remove_multi_edges_impl(
         (*edgelist_edge_start_times)[i] = std::move(*tmp);
       } else {
         assert(edgelist_edge_end_times);
-        std::optional<rmm::device_uvector<edge_time_t>> tmp{std::nullopt};
+        std::optional<rmm::device_uvector<time_stamp_t>> tmp{std::nullopt};
         std::tie(edgelist_srcs[i], edgelist_dsts[i], tmp, group_counts[i]) =
-          detail::group_edges<vertex_t, edge_time_t>(
+          detail::group_edges<vertex_t, time_stamp_t>(
             handle,
             std::move(edgelist_srcs[i]),
             std::move(edgelist_dsts[i]),
@@ -677,11 +677,11 @@ remove_multi_edges_impl(
                                          tot_multi_edge_count, handle.get_stream()))
                                            : std::nullopt;
       auto multi_edge_edge_start_times = edgelist_edge_start_times
-                                           ? std::make_optional(rmm::device_uvector<edge_time_t>(
+                                           ? std::make_optional(rmm::device_uvector<time_stamp_t>(
                                                tot_multi_edge_count, handle.get_stream()))
                                            : std::nullopt;
       auto multi_edge_edge_end_times   = edgelist_edge_end_times
-                                           ? std::make_optional(rmm::device_uvector<edge_time_t>(
+                                           ? std::make_optional(rmm::device_uvector<time_stamp_t>(
                                              tot_multi_edge_count, handle.get_stream()))
                                            : std::nullopt;
       auto multi_edge_edgelist_indices = edgelist_indices
@@ -792,7 +792,7 @@ remove_multi_edges_impl(
         raft::device_span<vertex_t>(multi_edge_srcs.data(), multi_edge_srcs.size()),
         raft::device_span<vertex_t>(multi_edge_dsts.data(), multi_edge_dsts.size()),
         raft::device_span<size_t>(multi_edge_indices.data(), multi_edge_indices.size()),
-        detail::edge_value_compare_t<edge_t, weight_t, edge_type_t, edge_time_t>{
+        detail::edge_value_compare_t<edge_t, weight_t, edge_type_t, time_stamp_t>{
           multi_edge_weights ? cuda::std::make_optional(raft::device_span<weight_t const>(
                                  multi_edge_weights->data(), multi_edge_weights->size()))
                              : cuda::std::nullopt,
@@ -803,11 +803,11 @@ remove_multi_edges_impl(
                                     multi_edge_edge_types->data(), multi_edge_edge_types->size()))
                                 : cuda::std::nullopt,
           multi_edge_edge_start_times
-            ? cuda::std::make_optional(raft::device_span<edge_time_t const>(
+            ? cuda::std::make_optional(raft::device_span<time_stamp_t const>(
                 multi_edge_edge_start_times->data(), multi_edge_edge_start_times->size()))
             : cuda::std::nullopt,
           multi_edge_edge_end_times
-            ? cuda::std::make_optional(raft::device_span<edge_time_t const>(
+            ? cuda::std::make_optional(raft::device_span<time_stamp_t const>(
                 multi_edge_edge_end_times->data(), multi_edge_edge_end_times->size()))
             : cuda::std::nullopt},
         keep_min_value_edge);
@@ -1055,9 +1055,9 @@ remove_multi_edges_impl(
         }
         if (edgelist_edge_start_times) {
           auto tmp = large_buffer_type
-                       ? large_buffer_manager::allocate_memory_buffer<edge_time_t>(
+                       ? large_buffer_manager::allocate_memory_buffer<time_stamp_t>(
                            keep_count, handle.get_stream())
-                       : rmm::device_uvector<edge_time_t>(keep_count, handle.get_stream());
+                       : rmm::device_uvector<time_stamp_t>(keep_count, handle.get_stream());
           thrust::gather(handle.get_thrust_policy(),
                          (*edgelist_indices)[i].begin(),
                          (*edgelist_indices)[i].begin() + keep_count,
@@ -1067,9 +1067,9 @@ remove_multi_edges_impl(
         }
         if (edgelist_edge_end_times) {
           auto tmp = large_buffer_type
-                       ? large_buffer_manager::allocate_memory_buffer<edge_time_t>(
+                       ? large_buffer_manager::allocate_memory_buffer<time_stamp_t>(
                            keep_count, handle.get_stream())
-                       : rmm::device_uvector<edge_time_t>(keep_count, handle.get_stream());
+                       : rmm::device_uvector<time_stamp_t>(keep_count, handle.get_stream());
           thrust::gather(handle.get_thrust_policy(),
                          (*edgelist_indices)[i].begin(),
                          (*edgelist_indices)[i].begin() + keep_count,
@@ -1135,7 +1135,7 @@ remove_multi_edges_impl(
               group_counts[0][i] - non_multi_edge_counts[0][i])),
             keep_min_value_edge);
         } else if (edgelist_edge_start_times) {
-          detail::sort_multi_edges<vertex_t, edge_time_t>(
+          detail::sort_multi_edges<vertex_t, time_stamp_t>(
             handle,
             raft::device_span<vertex_t>(
               edgelist_srcs[0].data() + group_disps[0][i] + non_multi_edge_counts[0][i],
@@ -1144,13 +1144,13 @@ remove_multi_edges_impl(
               edgelist_dsts[0].data() + group_disps[0][i] + non_multi_edge_counts[0][i],
               group_counts[0][i] - non_multi_edge_counts[0][i]),
             std::make_optional(
-              raft::device_span<edge_time_t>((*edgelist_edge_start_times)[0].data() +
-                                               group_disps[0][i] + non_multi_edge_counts[0][i],
-                                             group_counts[0][i] - non_multi_edge_counts[0][i])),
+              raft::device_span<time_stamp_t>((*edgelist_edge_start_times)[0].data() +
+                                                group_disps[0][i] + non_multi_edge_counts[0][i],
+                                              group_counts[0][i] - non_multi_edge_counts[0][i])),
             keep_min_value_edge);
         } else {
           assert(edgelist_edge_end_times);
-          detail::sort_multi_edges<vertex_t, edge_time_t>(
+          detail::sort_multi_edges<vertex_t, time_stamp_t>(
             handle,
             raft::device_span<vertex_t>(
               edgelist_srcs[0].data() + group_disps[0][i] + non_multi_edge_counts[0][i],
@@ -1159,9 +1159,9 @@ remove_multi_edges_impl(
               edgelist_dsts[0].data() + group_disps[0][i] + non_multi_edge_counts[0][i],
               group_counts[0][i] - non_multi_edge_counts[0][i]),
             std::make_optional(
-              raft::device_span<edge_time_t>((*edgelist_edge_end_times)[0].data() +
-                                               group_disps[0][i] + non_multi_edge_counts[0][i],
-                                             group_counts[0][i] - non_multi_edge_counts[0][i])),
+              raft::device_span<time_stamp_t>((*edgelist_edge_end_times)[0].data() +
+                                                group_disps[0][i] + non_multi_edge_counts[0][i],
+                                              group_counts[0][i] - non_multi_edge_counts[0][i])),
             keep_min_value_edge);
         }
       } else {  // edge_property_count > 1
@@ -1176,7 +1176,7 @@ remove_multi_edges_impl(
           raft::device_span<size_t>(
             (*edgelist_indices)[0].data() + group_disps[0][i] + non_multi_edge_counts[0][i],
             group_counts[0][i] - non_multi_edge_counts[0][i]),
-          detail::edge_value_compare_t<edge_t, weight_t, edge_type_t, edge_time_t>{
+          detail::edge_value_compare_t<edge_t, weight_t, edge_type_t, time_stamp_t>{
             edgelist_weights ? cuda::std::make_optional(raft::device_span<weight_t const>(
                                  (*edgelist_weights)[0].data(), (*edgelist_weights)[0].size()))
                              : cuda::std::nullopt,
@@ -1188,11 +1188,11 @@ remove_multi_edges_impl(
                   (*edgelist_edge_types)[0].data(), (*edgelist_edge_types)[0].size()))
               : cuda::std::nullopt,
             edgelist_edge_start_times
-              ? cuda::std::make_optional(raft::device_span<edge_time_t const>(
+              ? cuda::std::make_optional(raft::device_span<time_stamp_t const>(
                   (*edgelist_edge_start_times)[0].data(), (*edgelist_edge_start_times)[0].size()))
               : cuda::std::nullopt,
             edgelist_edge_end_times
-              ? cuda::std::make_optional(raft::device_span<edge_time_t const>(
+              ? cuda::std::make_optional(raft::device_span<time_stamp_t const>(
                   (*edgelist_edge_end_times)[0].data(), (*edgelist_edge_end_times)[0].size()))
               : cuda::std::nullopt},
           keep_min_value_edge);
@@ -1313,9 +1313,9 @@ remove_multi_edges_impl(
       }
       if (edgelist_edge_start_times) {
         auto tmp = large_buffer_type
-                     ? large_buffer_manager::allocate_memory_buffer<edge_time_t>(
+                     ? large_buffer_manager::allocate_memory_buffer<time_stamp_t>(
                          keep_count, handle.get_stream())
-                     : rmm::device_uvector<edge_time_t>(keep_count, handle.get_stream());
+                     : rmm::device_uvector<time_stamp_t>(keep_count, handle.get_stream());
         thrust::gather(handle.get_thrust_policy(),
                        (*edgelist_indices)[0].begin(),
                        (*edgelist_indices)[0].end(),
@@ -1325,9 +1325,9 @@ remove_multi_edges_impl(
       }
       if (edgelist_edge_end_times) {
         auto tmp = large_buffer_type
-                     ? large_buffer_manager::allocate_memory_buffer<edge_time_t>(
+                     ? large_buffer_manager::allocate_memory_buffer<time_stamp_t>(
                          keep_count, handle.get_stream())
-                     : rmm::device_uvector<edge_time_t>(keep_count, handle.get_stream());
+                     : rmm::device_uvector<time_stamp_t>(keep_count, handle.get_stream());
         thrust::gather(handle.get_thrust_policy(),
                        (*edgelist_indices)[0].begin(),
                        (*edgelist_indices)[0].end(),
@@ -1353,22 +1353,22 @@ template <typename vertex_t,
           typename edge_t,
           typename weight_t,
           typename edge_type_t,
-          typename edge_time_t>
+          typename time_stamp_t>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>,
            std::optional<rmm::device_uvector<edge_t>>,
            std::optional<rmm::device_uvector<edge_type_t>>,
-           std::optional<rmm::device_uvector<edge_time_t>>,
-           std::optional<rmm::device_uvector<edge_time_t>>>
+           std::optional<rmm::device_uvector<time_stamp_t>>,
+           std::optional<rmm::device_uvector<time_stamp_t>>>
 remove_multi_edges(raft::handle_t const& handle,
                    rmm::device_uvector<vertex_t>&& edgelist_srcs,
                    rmm::device_uvector<vertex_t>&& edgelist_dsts,
                    std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights,
                    std::optional<rmm::device_uvector<edge_t>>&& edgelist_edge_ids,
                    std::optional<rmm::device_uvector<edge_type_t>>&& edgelist_edge_types,
-                   std::optional<rmm::device_uvector<edge_time_t>>&& edgelist_edge_start_times,
-                   std::optional<rmm::device_uvector<edge_time_t>>&& edgelist_edge_end_times,
+                   std::optional<rmm::device_uvector<time_stamp_t>>&& edgelist_edge_start_times,
+                   std::optional<rmm::device_uvector<time_stamp_t>>&& edgelist_edge_end_times,
                    bool keep_min_value_edge,
                    std::optional<large_buffer_type_t> large_buffer_type = std::nullopt)
 {
@@ -1420,16 +1420,16 @@ remove_multi_edges(raft::handle_t const& handle,
     edgelist_edge_type_chunks = std::vector<rmm::device_uvector<edge_type_t>>{};
     edgelist_edge_type_chunks->push_back(std::move(*edgelist_edge_types));
   }
-  std::optional<std::vector<rmm::device_uvector<edge_time_t>>> edgelist_edge_start_time_chunks{
+  std::optional<std::vector<rmm::device_uvector<time_stamp_t>>> edgelist_edge_start_time_chunks{
     std::nullopt};
   if (edgelist_edge_start_times) {
-    edgelist_edge_start_time_chunks = std::vector<rmm::device_uvector<edge_time_t>>{};
+    edgelist_edge_start_time_chunks = std::vector<rmm::device_uvector<time_stamp_t>>{};
     edgelist_edge_start_time_chunks->push_back(std::move(*edgelist_edge_start_times));
   }
-  std::optional<std::vector<rmm::device_uvector<edge_time_t>>> edgelist_edge_end_time_chunks{
+  std::optional<std::vector<rmm::device_uvector<time_stamp_t>>> edgelist_edge_end_time_chunks{
     std::nullopt};
   if (edgelist_edge_end_times) {
-    edgelist_edge_end_time_chunks = std::vector<rmm::device_uvector<edge_time_t>>{};
+    edgelist_edge_end_time_chunks = std::vector<rmm::device_uvector<time_stamp_t>>{};
     edgelist_edge_end_time_chunks->push_back(std::move(*edgelist_edge_end_times));
   }
 
@@ -1472,14 +1472,14 @@ template <typename vertex_t,
           typename edge_t,
           typename weight_t,
           typename edge_type_t,
-          typename edge_time_t>
+          typename time_stamp_t>
 std::tuple<std::vector<rmm::device_uvector<vertex_t>>,
            std::vector<rmm::device_uvector<vertex_t>>,
            std::optional<std::vector<rmm::device_uvector<weight_t>>>,
            std::optional<std::vector<rmm::device_uvector<edge_t>>>,
            std::optional<std::vector<rmm::device_uvector<edge_type_t>>>,
-           std::optional<std::vector<rmm::device_uvector<edge_time_t>>>,
-           std::optional<std::vector<rmm::device_uvector<edge_time_t>>>>
+           std::optional<std::vector<rmm::device_uvector<time_stamp_t>>>,
+           std::optional<std::vector<rmm::device_uvector<time_stamp_t>>>>
 remove_multi_edges(
   raft::handle_t const& handle,
   std::vector<rmm::device_uvector<vertex_t>>&& edgelist_srcs,
@@ -1487,8 +1487,8 @@ remove_multi_edges(
   std::optional<std::vector<rmm::device_uvector<weight_t>>>&& edgelist_weights,
   std::optional<std::vector<rmm::device_uvector<edge_t>>>&& edgelist_edge_ids,
   std::optional<std::vector<rmm::device_uvector<edge_type_t>>>&& edgelist_edge_types,
-  std::optional<std::vector<rmm::device_uvector<edge_time_t>>>&& edgelist_edge_start_times,
-  std::optional<std::vector<rmm::device_uvector<edge_time_t>>>&& edgelist_edge_end_times,
+  std::optional<std::vector<rmm::device_uvector<time_stamp_t>>>&& edgelist_edge_start_times,
+  std::optional<std::vector<rmm::device_uvector<time_stamp_t>>>&& edgelist_edge_end_times,
   bool keep_min_value_edge,
   std::optional<large_buffer_type_t> large_buffer_type = std::nullopt)
 {

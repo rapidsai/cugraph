@@ -55,7 +55,6 @@ def load_traversal_results():
 
 @pytest.fixture
 def graphs(request):
-
     matrix = np.matrix(request.param)
     array = np.asarray(matrix)
 
@@ -224,7 +223,6 @@ def test_shortest_path_length_no_target(graphs, load_traversal_results):
     # results for vertex 8 and 9 are not returned
     assert cugraph_path_1_to_all.shape[0] == len(golden_path_1_to_all) + 2
     for index in range(cugraph_path_1_to_all.shape[0]):
-
         vertex = cugraph_path_1_to_all["vertex"][index].item()
         distance = cugraph_path_1_to_all["distance"][index].item()
 
