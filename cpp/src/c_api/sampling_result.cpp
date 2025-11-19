@@ -99,6 +99,13 @@ extern "C" void cugraph_sampling_set_temporal_sampling_comparison(
   internal_pointer->temporal_sampling_comparison_ = value;
 }
 
+extern "C" void cugraph_sampling_set_disjoint_sampling(cugraph_sampling_options_t* options,
+                                                       bool_t value)
+{
+  auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_sampling_options_t*>(options);
+  internal_pointer->disjoint_sampling_ = value;
+}
+
 extern "C" void cugraph_sampling_options_free(cugraph_sampling_options_t* options)
 {
   auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_sampling_options_t*>(options);
