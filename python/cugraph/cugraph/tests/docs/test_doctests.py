@@ -17,6 +17,7 @@ import pylibcugraph
 import cudf
 from cugraph.testing import utils
 
+pytestmark = pytest.mark.filterwarnings("ignore::FutureWarning")
 
 modules_to_skip = ["dask", "proto", "raft"]
 datasets = utils.RAPIDS_DATASET_ROOT_DIR_PATH
