@@ -44,6 +44,7 @@ from pylibcugraph._cugraph_c.algorithms cimport (
     cugraph_sampling_set_retain_seeds,
     cugraph_sampling_set_temporal_sampling_comparison,
     cugraph_temporal_sampling_comparison_t,
+    cugraph_sampling_set_disjoint_sampling,
 )
 from pylibcugraph._cugraph_c.sampling_algorithms cimport (
     cugraph_heterogeneous_uniform_temporal_neighbor_sample,
@@ -86,6 +87,7 @@ def heterogeneous_uniform_temporal_neighbor_sample(ResourceHandle resource_handl
                                                    bool_t do_expensive_check,
                                                    prior_sources_behavior=None,
                                                    deduplicate_sources=False,
+                                                   disjoint_sampling=False,
                                                    return_hops=False,
                                                    renumber=False,
                                                    retain_seeds=False,
@@ -203,6 +205,10 @@ def heterogeneous_uniform_temporal_neighbor_sample(ResourceHandle resource_handl
         '>=' : monotonically increasing
         '<=' : monotonically decreasing
         'last' : "last n"
+
+    disjoint_sampling: bool (Optional)
+        If True, enables disjoint sampling between seeds per hop when supported.
+        Defaults to False.
 
     Returns
     -------
@@ -404,6 +410,7 @@ def heterogeneous_uniform_temporal_neighbor_sample(ResourceHandle resource_handl
     cugraph_sampling_set_compression_type(sampling_options, compression_behavior_e)
     cugraph_sampling_set_compress_per_hop(sampling_options, c_compress_per_hop)
     cugraph_sampling_set_retain_seeds(sampling_options, retain_seeds)
+    cugraph_sampling_set_disjoint_sampling(sampling_options, disjoint_sampling)
 
     cdef cugraph_temporal_sampling_comparison_t temporal_sampling_comparison_e
     if temporal_sampling_comparison is None or temporal_sampling_comparison == '>':
