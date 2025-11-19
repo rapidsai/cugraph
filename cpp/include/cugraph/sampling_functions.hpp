@@ -73,6 +73,11 @@ struct sampling_flags_t {
    */
   temporal_sampling_comparison_t temporal_sampling_comparison{
     temporal_sampling_comparison_t::STRICTLY_INCREASING};
+
+  /**
+   * Specifies if disjoint sampling should be enforced. Default is false.
+   */
+  bool disjoint_sampling{false};
 };
 
 /**
