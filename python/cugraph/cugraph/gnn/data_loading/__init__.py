@@ -16,16 +16,16 @@ from cugraph.gnn.data_loading.dist_io import (
 
 def DistSampler(*args, **kwargs):
     warnings.warn(
-        FutureWarning,
         "DistSampler is deprecated and will be removed in a future release.  Please migrate to the distributed sampling API in cuGraph-PyG.",
+        FutureWarning,
     )
     return DEPRECATED__DistSampler(*args, **kwargs)
 
 
 def NeighborSampler(*args, **kwargs):
     warnings.warn(
-        FutureWarning,
         "NeighborSampler is deprecated and will be removed in a future release.  Please migrate to the distributed sampling API in cuGraph-PyG.",
+        FutureWarning,
     )
     return DEPRECATED__NeighborSampler(*args, **kwargs)
 

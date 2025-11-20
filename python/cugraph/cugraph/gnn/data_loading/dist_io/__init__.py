@@ -9,23 +9,23 @@ from .writer import DEPRECATED__DistSampleWriter
 
 def BufferedSampleReader(*args, **kwargs):
     warnings.warn(
-        FutureWarning,
         "BufferedSampleReader is deprecated and will be removed in a future release.  Please migrate to the distributed sampling API in cuGraph-PyG.",
+        FutureWarning,
     )
     return DEPRECATED__BufferedSampleReader(*args, **kwargs)
 
 
 def DistSampleReader(*args, **kwargs):
     warnings.warn(
-        FutureWarning,
         "DistSampleReader is deprecated and will be removed in a future release.  Please migrate to the distributed sampling API in cuGraph-PyG.",
+        FutureWarning,
     )
     return DEPRECATED__DistSampleReader(*args, **kwargs)
 
 
 def DistSampleWriter(*args, **kwargs):
     warnings.warn(
-        FutureWarning,
         "DistSampleWriter is deprecated and will be removed in a future release.  Please migrate to the distributed sampling API in cuGraph-PyG.",
+        FutureWarning,
     )
     return DEPRECATED__DistSampleWriter(*args, **kwargs)
