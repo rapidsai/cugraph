@@ -71,7 +71,6 @@ def _build_temporal_sg_with_edge_types(resource_handle: ResourceHandle) -> SGGra
         "strictly_decreasing",
         "monotonically_increasing",
         "monotonically_decreasing",
-        "last",
     ],
 )
 def test_homogeneous_uniform_temporal_none_times(temporal_sampling_comparison):
@@ -107,7 +106,6 @@ def test_homogeneous_uniform_temporal_none_times(temporal_sampling_comparison):
         "strictly_decreasing",
         "monotonically_increasing",
         "monotonically_decreasing",
-        "last",
     ],
 )
 def test_homogeneous_uniform_temporal_with_times_and_labels(
@@ -145,7 +143,6 @@ def test_homogeneous_uniform_temporal_with_times_and_labels(
         "strictly_decreasing",
         "monotonically_increasing",
         "monotonically_decreasing",
-        "last",
     ],
 )
 def test_homogeneous_biased_temporal_with_times(temporal_sampling_comparison):
@@ -178,7 +175,6 @@ def test_homogeneous_biased_temporal_with_times(temporal_sampling_comparison):
         "strictly_decreasing",
         "monotonically_increasing",
         "monotonically_decreasing",
-        "last",
     ],
 )
 def test_heterogeneous_uniform_temporal_none_times(temporal_sampling_comparison):
@@ -212,7 +208,6 @@ def test_heterogeneous_uniform_temporal_none_times(temporal_sampling_comparison)
         "strictly_decreasing",
         "monotonically_increasing",
         "monotonically_decreasing",
-        "last",
     ],
 )
 def test_heterogeneous_biased_temporal_with_times(temporal_sampling_comparison):

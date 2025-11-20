@@ -395,7 +395,7 @@ def homogeneous_uniform_temporal_neighbor_sample(ResourceHandle resource_handle,
     elif temporal_sampling_comparison == 'monotonically_decreasing':
         temporal_sampling_comparison_e = cugraph_temporal_sampling_comparison_t.MONOTONICALLY_DECREASING
     elif temporal_sampling_comparison == "last":
-        temporal_sampling_comparison_e = cugraph_temporal_sampling_comparison_t.LAST
+        raise NotImplementedError('The "last" comparison type is currently unsupported.')
     else:
         raise ValueError(f'Invalid option {temporal_sampling_comparison} for temporal sampling comparison')
     cugraph_sampling_set_temporal_sampling_comparison(sampling_options, temporal_sampling_comparison_e)
