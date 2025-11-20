@@ -145,13 +145,13 @@ def from_adjlist(offsets, indices, values=None, create_using=Graph):
     indices_type = type(indices)
     if offsets_type != indices_type:
         raise TypeError(
-            f"'offsets' type {offsets_type} != 'indices' " f"type {indices_type}"
+            f"'offsets' type {offsets_type} != 'indices' type {indices_type}"
         )
     if values is not None:
         values_type = type(values)
         if values_type != offsets_type:
             raise TypeError(
-                f"'values' type {values_type} != 'offsets' " f"type {offsets_type}"
+                f"'values' type {values_type} != 'offsets' type {offsets_type}"
             )
 
     if create_using is None:

@@ -101,9 +101,7 @@ def node2vec_random_walks(
 
     """
     if (not isinstance(max_depth, int)) or (max_depth < 1):
-        raise ValueError(
-            f"'max_depth' must be a positive integer, " f"got: {max_depth}"
-        )
+        raise ValueError(f"'max_depth' must be a positive integer, got: {max_depth}")
     if (not isinstance(p, float)) or (p <= 0.0):
         raise ValueError(f"'p' must be a positive float, got: {p}")
     if (not isinstance(q, float)) or (q <= 0.0):
@@ -117,8 +115,7 @@ def node2vec_random_walks(
         # FIXME: Verify if this condition still holds
         if start_vertices.dtype != "int32":
             raise ValueError(
-                f"'start_vertices' must have int32 values, "
-                f"got: {start_vertices.dtype}"
+                f"'start_vertices' must have int32 values, got: {start_vertices.dtype}"
             )
 
     if G.renumbered is True:

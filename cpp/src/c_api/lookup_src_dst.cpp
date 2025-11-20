@@ -40,7 +40,7 @@ struct build_lookup_map_functor : public cugraph::c_api::abstract_functor {
             typename edge_t,
             typename weight_t,
             typename edge_type_t,
-            typename edge_time_t,
+            typename time_stamp_t,
             bool store_transposed,
             bool multi_gpu>
   void operator()()
@@ -112,7 +112,7 @@ struct lookup_using_edge_ids_of_single_type_functor : public cugraph::c_api::abs
             typename edge_t,
             typename weight_t,
             typename edge_type_t,
-            typename edge_time_t,
+            typename time_stamp_t,
             bool store_transposed,
             bool multi_gpu>
   void operator()()
@@ -206,7 +206,7 @@ struct lookup_using_edge_ids_and_types_functor : public cugraph::c_api::abstract
             typename edge_t,
             typename weight_t,
             typename edge_type_t,
-            typename edge_time_t,
+            typename time_stamp_t,
             bool store_transposed,
             bool multi_gpu>
   void operator()()

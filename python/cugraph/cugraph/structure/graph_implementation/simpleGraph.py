@@ -128,7 +128,6 @@ class simpleGraphImpl:
         symmetrize=None,
         vertices=None,
     ):
-
         if self.properties.directed and symmetrize:
             raise ValueError(
                 "The edgelist can only be symmetrized for undirected graphs."
@@ -194,7 +193,7 @@ class simpleGraphImpl:
 
             if len(edge_attr) != 1 and len(edge_attr) != 3:
                 raise ValueError(
-                    f"Invalid number of edge attributes " f"passed. {edge_attr}"
+                    f"Invalid number of edge attributes passed. {edge_attr}"
                 )
 
             # The symmetrize step may add additional edges with unknown
@@ -520,7 +519,6 @@ class simpleGraphImpl:
         elif not use_initial_input_df and self.properties.renumbered:
             # Do not unrenumber the vertices if the initial input df was used
             if not self.properties.directed:
-
                 edgelist_df = self.decompress_to_edgelist(
                     return_unrenumbered_edgelist=return_unrenumbered_edgelist
                 )
@@ -585,7 +583,6 @@ class simpleGraphImpl:
         store_transposed=False,
         symmetrize=None,
     ):
-
         self.adjlist = simpleGraphImpl.AdjList(offset_col, index_col, value_col)
 
         if self.properties.directed and symmetrize:
@@ -1304,7 +1301,6 @@ class simpleGraphImpl:
         symmetrize: bool = False,
         vertices: cudf.Series = None,
     ):
-
         """
         Parameters
         ----------
@@ -1417,7 +1413,6 @@ class simpleGraphImpl:
         DiG._make_plc_graph(value_col, store_transposed)
 
     def to_undirected(self, G, store_transposed=False):
-
         """
         Return an undirected copy of the graph.
 

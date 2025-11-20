@@ -70,7 +70,6 @@ def force_atlas2(
     callback=None,
     random_state=None,
 ):
-
     """
     ForceAtlas2 is a continuous graph layout algorithm for handy network
     visualization.
@@ -272,8 +271,7 @@ def force_atlas2(
 
         if len(vertex_mass.columns.intersection({"vertex", "mass"})) != 2:
             raise ValueError(
-                "vertex_mass has wrong column names. It must have 'vertex' "
-                "and 'mass'"
+                "vertex_mass has wrong column names. It must have 'vertex' and 'mass'"
             )
 
         if input_graph.renumbered:

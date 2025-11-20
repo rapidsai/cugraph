@@ -1,6 +1,8 @@
 ﻿#=============================================================================
+# cmake-format: off
 # SPDX-FileCopyrightText: Copyright (c) 2019-2025, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
+# cmake-format: on
 #
 #=============================================================================
 enable_testing()
@@ -87,6 +89,7 @@ target_link_libraries(cugraph_c_testutil
     PRIVATE
         cugraph::cugraph_c
         cugraph::cugraph
+        cugraphtestutil
 )
 
 if(BUILD_CUGRAPH_MG_TESTS)
@@ -481,11 +484,6 @@ ConfigureTest(WEIGHTED_SIMILARITY_TEST link_prediction/weighted_similarity_test.
 #  FIXME: Rename to random_walks_test.cu once the legacy implementation is deleted
 ConfigureTest(RANDOM_WALKS_TEST sampling/sg_random_walks_test.cpp)
 
-###################################################################################################
-# - UNIFORM NBR SAMPLING tests --------------------------------------------------------------------
-ConfigureTest(UNIFORM_NEIGHBOR_SAMPLING_TEST sampling/uniform_neighbor_sampling.cpp
-        GPUS 1 PERCENT 75)
-
 # - HOMOGENEOUS UNIFORM NBR SAMPLING tests --------------------------------------------------------
 ConfigureTest(
     HOMOGENEOUS_UNIFORM_NEIGHBOR_SAMPLING_TEST sampling/homogeneous_uniform_neighbor_sampling.cpp
@@ -495,10 +493,6 @@ ConfigureTest(
 ConfigureTest(
     HETEROGENEOUS_UNIFORM_NEIGHBOR_SAMPLING_TEST sampling/heterogeneous_uniform_neighbor_sampling.cpp
         GPUS 1 PERCENT 75)
-
-###################################################################################################
-# - BIASED NBR SAMPLING tests ---------------------------------------------------------------------
-ConfigureTest(BIASED_NEIGHBOR_SAMPLING_TEST sampling/biased_neighbor_sampling.cpp GPUS 1 PERCENT 75)
 
 ###################################################################################################
 # - HOMOGENEOUS BIASED NBR SAMPLING tests ---------------------------------------------------------
@@ -805,10 +799,6 @@ if(BUILD_CUGRAPH_MG_TESTS)
                     prims/mg_per_v_pair_transform_dst_nbr_weighted_intersection.cu)
 
     ###############################################################################################
-    # - MG UNIFORM NBR SAMPLING tests -------------------------------------------------------------
-    ConfigureTestMG(MG_UNIFORM_NEIGHBOR_SAMPLING_TEST sampling/mg_uniform_neighbor_sampling.cpp)
-
-    ###############################################################################################
     # - MG HOMOGENEOUS UNIFORM NBR SAMPLING tests -------------------------------------------------
     ConfigureTestMG(
         MG_HOMOGENEOUS_UNIFORM_NEIGHBOR_SAMPLING_TEST sampling/mg_homogeneous_uniform_neighbor_sampling.cpp)
@@ -827,10 +817,6 @@ if(BUILD_CUGRAPH_MG_TESTS)
     # - MG HETEROGENEOUS BIASED NBR SAMPLING tests --------------------------------------------------
     ConfigureTestMG(
         MG_HETEROGENEOUS_BIASED_NEIGHBOR_SAMPLING_TEST sampling/mg_heterogeneous_biased_neighbor_sampling.cpp)
-
-    ###############################################################################################
-    # - MG BIASED NBR SAMPLING tests --------------------------------------------------------------
-    ConfigureTestMG(MG_BIASED_NEIGHBOR_SAMPLING_TEST sampling/mg_biased_neighbor_sampling.cpp)
 
     ###############################################################################################
     # - MG TEMPORAL NBR SAMPLING tests --------------------------------------------------------------

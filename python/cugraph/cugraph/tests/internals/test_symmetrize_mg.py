@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2022-2024, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 
 import gc
@@ -202,7 +202,6 @@ def read_datasets(input_combo):
 # )
 @pytest.mark.mg
 def test_mg_symmetrize(dask_client, read_datasets):
-
     ddf = read_datasets["ddf"]
     src_col_name = read_datasets["src_col_name"]
     dst_col_name = read_datasets["dst_col_name"]

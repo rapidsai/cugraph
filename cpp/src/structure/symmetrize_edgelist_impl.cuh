@@ -350,23 +350,23 @@ template <typename vertex_t,
           typename edge_t,
           typename weight_t,
           typename edge_type_t,
-          typename edge_time_t,
+          typename time_stamp_t,
           bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>,
            std::optional<rmm::device_uvector<edge_t>>,
            std::optional<rmm::device_uvector<edge_type_t>>,
-           std::optional<rmm::device_uvector<edge_time_t>>,
-           std::optional<rmm::device_uvector<edge_time_t>>>
+           std::optional<rmm::device_uvector<time_stamp_t>>,
+           std::optional<rmm::device_uvector<time_stamp_t>>>
 symmetrize_edgelist(raft::handle_t const& handle,
                     rmm::device_uvector<vertex_t>&& edgelist_majors,
                     rmm::device_uvector<vertex_t>&& edgelist_minors,
                     std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights,
                     std::optional<rmm::device_uvector<edge_t>>&& edgelist_edge_ids,
                     std::optional<rmm::device_uvector<edge_type_t>>&& edgelist_edge_types,
-                    std::optional<rmm::device_uvector<edge_time_t>>&& edgelist_edge_start_times,
-                    std::optional<rmm::device_uvector<edge_time_t>>&& edgelist_edge_end_times,
+                    std::optional<rmm::device_uvector<time_stamp_t>>&& edgelist_edge_start_times,
+                    std::optional<rmm::device_uvector<time_stamp_t>>&& edgelist_edge_end_times,
                     bool reciprocal)
 {
   int edge_property_count = 0;
@@ -548,7 +548,7 @@ symmetrize_edgelist(raft::handle_t const& handle,
     }
 
     if (edgelist_edge_start_times) {
-      rmm::device_uvector<edge_time_t> tmp(property_position.size(), handle.get_stream());
+      rmm::device_uvector<time_stamp_t> tmp(property_position.size(), handle.get_stream());
 
       thrust::gather(handle.get_thrust_policy(),
                      property_position.begin(),
@@ -560,7 +560,7 @@ symmetrize_edgelist(raft::handle_t const& handle,
     }
 
     if (edgelist_edge_end_times) {
-      rmm::device_uvector<edge_time_t> tmp(property_position.size(), handle.get_stream());
+      rmm::device_uvector<time_stamp_t> tmp(property_position.size(), handle.get_stream());
 
       thrust::gather(handle.get_thrust_policy(),
                      property_position.begin(),
@@ -600,13 +600,13 @@ symmetrize_edgelist(raft::handle_t const& handle,
   std::optional<rmm::device_uvector<weight_t>> diagonal_weights{std::nullopt};
   std::optional<rmm::device_uvector<edge_t>> diagonal_edge_ids{std::nullopt};
   std::optional<rmm::device_uvector<edge_type_t>> diagonal_edge_types{std::nullopt};
-  std::optional<rmm::device_uvector<edge_time_t>> diagonal_edge_start_times{std::nullopt};
-  std::optional<rmm::device_uvector<edge_time_t>> diagonal_edge_end_times{std::nullopt};
+  std::optional<rmm::device_uvector<time_stamp_t>> diagonal_edge_start_times{std::nullopt};
+  std::optional<rmm::device_uvector<time_stamp_t>> diagonal_edge_end_times{std::nullopt};
   std::optional<rmm::device_uvector<weight_t>> upper_triangular_weights{std::nullopt};
   std::optional<rmm::device_uvector<edge_t>> upper_triangular_edge_ids{std::nullopt};
   std::optional<rmm::device_uvector<edge_type_t>> upper_triangular_edge_types{std::nullopt};
-  std::optional<rmm::device_uvector<edge_time_t>> upper_triangular_edge_start_times{std::nullopt};
-  std::optional<rmm::device_uvector<edge_time_t>> upper_triangular_edge_end_times{std::nullopt};
+  std::optional<rmm::device_uvector<time_stamp_t>> upper_triangular_edge_start_times{std::nullopt};
+  std::optional<rmm::device_uvector<time_stamp_t>> upper_triangular_edge_end_times{std::nullopt};
 
   if (edgelist_weights) {
     diagonal_weights = rmm::device_uvector<weight_t>(num_diagonal_edges, handle.get_stream());
@@ -661,9 +661,9 @@ symmetrize_edgelist(raft::handle_t const& handle,
 
   if (edgelist_edge_start_times) {
     diagonal_edge_start_times =
-      rmm::device_uvector<edge_time_t>(num_diagonal_edges, handle.get_stream());
+      rmm::device_uvector<time_stamp_t>(num_diagonal_edges, handle.get_stream());
     upper_triangular_edge_start_times =
-      rmm::device_uvector<edge_time_t>(upper_triangular_majors.size(), handle.get_stream());
+      rmm::device_uvector<time_stamp_t>(upper_triangular_majors.size(), handle.get_stream());
     thrust::copy(
       handle.get_thrust_policy(),
       edgelist_edge_start_times->begin() + num_lower_triangular_edges,
@@ -681,9 +681,9 @@ symmetrize_edgelist(raft::handle_t const& handle,
 
   if (edgelist_edge_end_times) {
     diagonal_edge_end_times =
-      rmm::device_uvector<edge_time_t>(num_diagonal_edges, handle.get_stream());
+      rmm::device_uvector<time_stamp_t>(num_diagonal_edges, handle.get_stream());
     upper_triangular_edge_end_times =
-      rmm::device_uvector<edge_time_t>(upper_triangular_majors.size(), handle.get_stream());
+      rmm::device_uvector<time_stamp_t>(upper_triangular_majors.size(), handle.get_stream());
     thrust::copy(handle.get_thrust_policy(),
                  edgelist_edge_end_times->begin() + num_lower_triangular_edges,
                  edgelist_edge_end_times->begin() + num_lower_triangular_edges + num_diagonal_edges,
@@ -733,10 +733,10 @@ symmetrize_edgelist(raft::handle_t const& handle,
         std::get<rmm::device_uvector<edge_type_t>>(upper_triangular_edge_properties[pos++]));
     if (upper_triangular_edge_start_times)
       *upper_triangular_edge_start_times = std::move(
-        std::get<rmm::device_uvector<edge_time_t>>(upper_triangular_edge_properties[pos++]));
+        std::get<rmm::device_uvector<time_stamp_t>>(upper_triangular_edge_properties[pos++]));
     if (upper_triangular_edge_end_times)
       *upper_triangular_edge_end_times = std::move(
-        std::get<rmm::device_uvector<edge_time_t>>(upper_triangular_edge_properties[pos++]));
+        std::get<rmm::device_uvector<time_stamp_t>>(upper_triangular_edge_properties[pos++]));
   }
 
   // 3. merge the lower triangular and the (flipped) upper triangular edges
@@ -755,11 +755,11 @@ symmetrize_edgelist(raft::handle_t const& handle,
       : std::nullopt;
   auto merged_lower_triangular_edge_start_times =
     edgelist_edge_start_times
-      ? std::make_optional<rmm::device_uvector<edge_time_t>>(0, handle.get_stream())
+      ? std::make_optional<rmm::device_uvector<time_stamp_t>>(0, handle.get_stream())
       : std::nullopt;
   auto merged_lower_triangular_edge_end_times =
     edgelist_edge_end_times
-      ? std::make_optional<rmm::device_uvector<edge_time_t>>(0, handle.get_stream())
+      ? std::make_optional<rmm::device_uvector<time_stamp_t>>(0, handle.get_stream())
       : std::nullopt;
 
   if (edge_property_count == 0) {
@@ -914,11 +914,11 @@ symmetrize_edgelist(raft::handle_t const& handle,
         property_position.end(),
         thrust::make_transform_iterator(
           edgelist_edge_start_times->begin(),
-          pick_from_lower_upper_t<edge_time_t>{
-            raft::device_span<edge_time_t const>{lower_triangular_edge_start_times->data(),
-                                                 lower_triangular_edge_start_times->size()},
-            raft::device_span<edge_time_t const>{upper_triangular_edge_start_times->data(),
-                                                 upper_triangular_edge_start_times->size()}}),
+          pick_from_lower_upper_t<time_stamp_t>{
+            raft::device_span<time_stamp_t const>{lower_triangular_edge_start_times->data(),
+                                                  lower_triangular_edge_start_times->size()},
+            raft::device_span<time_stamp_t const>{upper_triangular_edge_start_times->data(),
+                                                  upper_triangular_edge_start_times->size()}}),
         merged_lower_triangular_edge_start_times->begin());
     }
     if (edgelist_edge_end_times) {
@@ -931,11 +931,11 @@ symmetrize_edgelist(raft::handle_t const& handle,
         property_position.end(),
         thrust::make_transform_iterator(
           edgelist_edge_end_times->begin(),
-          pick_from_lower_upper_t<edge_time_t>{
-            raft::device_span<edge_time_t const>{lower_triangular_edge_end_times->data(),
-                                                 lower_triangular_edge_end_times->size()},
-            raft::device_span<edge_time_t const>{upper_triangular_edge_end_times->data(),
-                                                 upper_triangular_edge_end_times->size()}}),
+          pick_from_lower_upper_t<time_stamp_t>{
+            raft::device_span<time_stamp_t const>{lower_triangular_edge_end_times->data(),
+                                                  lower_triangular_edge_end_times->size()},
+            raft::device_span<time_stamp_t const>{upper_triangular_edge_end_times->data(),
+                                                  upper_triangular_edge_end_times->size()}}),
         merged_lower_triangular_edge_end_times->begin());
     }
   }
@@ -1023,10 +1023,10 @@ symmetrize_edgelist(raft::handle_t const& handle,
         std::get<rmm::device_uvector<edge_type_t>>(upper_triangular_edge_properties[pos++]));
     if (upper_triangular_edge_start_times)
       *upper_triangular_edge_start_times = std::move(
-        std::get<rmm::device_uvector<edge_time_t>>(upper_triangular_edge_properties[pos++]));
+        std::get<rmm::device_uvector<time_stamp_t>>(upper_triangular_edge_properties[pos++]));
     if (upper_triangular_edge_end_times)
       *upper_triangular_edge_end_times = std::move(
-        std::get<rmm::device_uvector<edge_time_t>>(upper_triangular_edge_properties[pos++]));
+        std::get<rmm::device_uvector<time_stamp_t>>(upper_triangular_edge_properties[pos++]));
   }
 
   edgelist_majors           = std::move(merged_lower_triangular_majors);
@@ -1166,7 +1166,7 @@ template <typename vertex_t,
           typename edge_t,
           typename weight_t,
           typename edge_type_t,
-          typename edge_time_t,
+          typename time_stamp_t,
           bool store_transposed,
           bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>,
@@ -1174,16 +1174,16 @@ std::tuple<rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>,
            std::optional<rmm::device_uvector<edge_t>>,
            std::optional<rmm::device_uvector<edge_type_t>>,
-           std::optional<rmm::device_uvector<edge_time_t>>,
-           std::optional<rmm::device_uvector<edge_time_t>>>
+           std::optional<rmm::device_uvector<time_stamp_t>>,
+           std::optional<rmm::device_uvector<time_stamp_t>>>
 symmetrize_edgelist(raft::handle_t const& handle,
                     rmm::device_uvector<vertex_t>&& edgelist_srcs,
                     rmm::device_uvector<vertex_t>&& edgelist_dsts,
                     std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights,
                     std::optional<rmm::device_uvector<edge_t>>&& edgelist_edge_ids,
                     std::optional<rmm::device_uvector<edge_type_t>>&& edgelist_edge_types,
-                    std::optional<rmm::device_uvector<edge_time_t>>&& edgelist_edge_start_times,
-                    std::optional<rmm::device_uvector<edge_time_t>>&& edgelist_edge_end_times,
+                    std::optional<rmm::device_uvector<time_stamp_t>>&& edgelist_edge_start_times,
+                    std::optional<rmm::device_uvector<time_stamp_t>>&& edgelist_edge_end_times,
                     bool reciprocal)
 {
   auto edgelist_majors = std::move(store_transposed ? edgelist_dsts : edgelist_srcs);
@@ -1195,7 +1195,7 @@ symmetrize_edgelist(raft::handle_t const& handle,
            edgelist_edge_types,
            edgelist_edge_start_times,
            edgelist_edge_end_times) =
-    detail::symmetrize_edgelist<vertex_t, edge_t, weight_t, edge_type_t, edge_time_t, multi_gpu>(
+    detail::symmetrize_edgelist<vertex_t, edge_t, weight_t, edge_type_t, time_stamp_t, multi_gpu>(
       handle,
       std::move(edgelist_majors),
       std::move(edgelist_minors),

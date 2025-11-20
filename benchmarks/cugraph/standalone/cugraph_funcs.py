@@ -63,7 +63,7 @@ def read_csv(input_csv_file, scale):
     """
     vertex_t = "int32" if scale <= 32 else "int64"
     dtypes = [vertex_t, vertex_t, "float32"]
-    names = (["src", "dst", "weight"],)
+    names = (["src", "dst", "weight"],)  # noqa: F841
 
     return cudf.read_csv(
         input_csv_file,

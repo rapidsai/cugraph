@@ -21,7 +21,6 @@ def _call_plc_eigenvector_centrality(
     epsilon,
     do_expensive_check,
 ):
-
     return pylib_eigen(
         resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
         graph=mg_graph_x,

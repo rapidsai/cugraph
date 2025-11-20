@@ -341,6 +341,12 @@ cdef extern from "cugraph_c/algorithms.h":
         )
 
     cdef void \
+        cugraph_sampling_set_disjoint_sampling(
+            cugraph_sampling_options_t* options,
+            bool_t value,
+        )
+
+    cdef void \
         cugraph_sampling_options_free(
             cugraph_sampling_options_t* options,
         )

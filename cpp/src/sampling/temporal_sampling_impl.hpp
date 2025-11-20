@@ -33,7 +33,7 @@ template <typename vertex_t,
           typename edge_t,
           typename weight_t,
           typename edge_type_t,
-          typename edge_time_t,
+          typename time_stamp_t,
           typename bias_t,
           typename label_t,
           bool store_transposed,
@@ -43,8 +43,8 @@ std::tuple<rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>,
            std::optional<rmm::device_uvector<edge_t>>,
            std::optional<rmm::device_uvector<edge_type_t>>,
-           std::optional<rmm::device_uvector<edge_time_t>>,
-           std::optional<rmm::device_uvector<edge_time_t>>,
+           std::optional<rmm::device_uvector<time_stamp_t>>,
+           std::optional<rmm::device_uvector<time_stamp_t>>,
            std::optional<rmm::device_uvector<int32_t>>,
            std::optional<rmm::device_uvector<size_t>>>
 temporal_neighbor_sample_impl(
@@ -54,10 +54,11 @@ temporal_neighbor_sample_impl(
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   std::optional<edge_property_view_t<edge_t, edge_t const*>> edge_id_view,
   std::optional<edge_property_view_t<edge_t, edge_type_t const*>> edge_type_view,
-  edge_property_view_t<edge_t, edge_time_t const*> edge_start_time_view,
-  std::optional<edge_property_view_t<edge_t, edge_time_t const*>> edge_end_time_view,
+  edge_property_view_t<edge_t, time_stamp_t const*> edge_start_time_view,
+  std::optional<edge_property_view_t<edge_t, time_stamp_t const*>> edge_end_time_view,
   std::optional<edge_property_view_t<edge_t, bias_t const*>> edge_bias_view,
   raft::device_span<vertex_t const> starting_vertices,
+  std::optional<raft::device_span<time_stamp_t const>> starting_vertex_times,
   std::optional<raft::device_span<label_t const>> starting_vertex_labels,
   std::optional<raft::device_span<int32_t const>> label_to_output_comm_rank,
   raft::host_span<int32_t const> fan_out,
@@ -124,9 +125,9 @@ temporal_neighbor_sample_impl(
     edge_type_view ? std::make_optional(std::vector<rmm::device_uvector<edge_type_t>>{})
                    : std::nullopt;
   auto result_edge_start_time_vectors =
-    std::make_optional(std::vector<rmm::device_uvector<edge_time_t>>{});
+    std::make_optional(std::vector<rmm::device_uvector<time_stamp_t>>{});
   auto result_edge_end_time_vectors =
-    edge_end_time_view ? std::make_optional(std::vector<rmm::device_uvector<edge_time_t>>{})
+    edge_end_time_view ? std::make_optional(std::vector<rmm::device_uvector<time_stamp_t>>{})
                        : std::nullopt;
   auto result_label_vectors = starting_vertex_labels
                                 ? std::make_optional(std::vector<rmm::device_uvector<label_t>>{})
@@ -143,17 +144,38 @@ temporal_neighbor_sample_impl(
   if (result_label_vectors) { (*result_label_vectors).reserve(num_hops); }
 
   rmm::device_uvector<vertex_t> frontier_vertices(0, handle.get_stream());
-  auto frontier_vertex_times = std::make_optional<rmm::device_uvector<edge_time_t>>(
-    starting_vertices.size(), handle.get_stream());
+  std::optional<rmm::device_uvector<time_stamp_t>> frontier_vertex_times{std::nullopt};
 
   auto frontier_vertex_labels =
     starting_vertex_labels
       ? std::make_optional(rmm::device_uvector<label_t>{0, handle.get_stream()})
       : std::nullopt;
 
+  if (starting_vertex_times) {
+    frontier_vertices.resize(starting_vertices.size(), handle.get_stream());
+    raft::copy(frontier_vertices.data(),
+               starting_vertices.data(),
+               starting_vertices.size(),
+               handle.get_stream());
+    frontier_vertex_times =
+      rmm::device_uvector<time_stamp_t>(starting_vertex_times->size(), handle.get_stream());
+    raft::copy(frontier_vertex_times->data(),
+               starting_vertex_times->data(),
+               starting_vertex_times->size(),
+               handle.get_stream());
+
+    if (frontier_vertex_labels) {
+      frontier_vertex_labels->resize(starting_vertex_labels->size(), handle.get_stream());
+      raft::copy(frontier_vertex_labels->data(),
+                 starting_vertex_labels->data(),
+                 starting_vertex_labels->size(),
+                 handle.get_stream());
+    }
+  }
+
   std::optional<std::tuple<rmm::device_uvector<vertex_t>,
                            std::optional<rmm::device_uvector<label_t>>,
-                           std::optional<rmm::device_uvector<edge_time_t>>>>
+                           std::optional<rmm::device_uvector<time_stamp_t>>>>
     vertex_used_as_source{std::nullopt};
 
   if (sampling_flags.prior_sources_behavior == prior_sources_behavior_t::EXCLUDE) {
@@ -162,7 +184,7 @@ temporal_neighbor_sample_impl(
       starting_vertex_labels
         ? std::make_optional(rmm::device_uvector<label_t>{0, handle.get_stream()})
         : std::nullopt,
-      std::make_optional<rmm::device_uvector<edge_time_t>>(0, handle.get_stream())));
+      std::make_optional<rmm::device_uvector<time_stamp_t>>(0, handle.get_stream())));
   }
 
   std::vector<size_t> result_vector_sizes{};
@@ -173,21 +195,21 @@ temporal_neighbor_sample_impl(
   cugraph::edge_property_t<edge_t, bool> edge_time_mask(handle, graph_view);
 
   rmm::device_uvector<vertex_t> frontier_vertices_no_duplicates(0, handle.get_stream());
-  rmm::device_uvector<edge_time_t> frontier_vertex_times_no_duplicates(0, handle.get_stream());
+  rmm::device_uvector<time_stamp_t> frontier_vertex_times_no_duplicates(0, handle.get_stream());
   std::optional<rmm::device_uvector<label_t>> frontier_vertex_labels_no_duplicates{std::nullopt};
   rmm::device_uvector<vertex_t> frontier_vertices_has_duplicates(0, handle.get_stream());
-  rmm::device_uvector<edge_time_t> frontier_vertex_times_has_duplicates(0, handle.get_stream());
+  rmm::device_uvector<time_stamp_t> frontier_vertex_times_has_duplicates(0, handle.get_stream());
   std::optional<rmm::device_uvector<label_t>> frontier_vertex_labels_has_duplicates{std::nullopt};
 
   for (size_t hop = 0; hop < num_hops; ++hop) {
     std::optional<std::vector<size_t>> level_Ks{std::nullopt};
     std::optional<std::vector<uint8_t>> gather_flags{std::nullopt};
-    std::vector<raft::device_span<vertex_t const>> next_frontier_vertex_spans;
+    std::vector<raft::device_span<vertex_t const>> next_frontier_vertex_spans{};
     auto next_frontier_vertex_label_spans =
       starting_vertex_labels ? std::make_optional<std::vector<raft::device_span<label_t const>>>()
                              : std::nullopt;
     auto next_frontier_vertex_time_spans =
-      std::make_optional<std::vector<raft::device_span<edge_time_t const>>>();
+      std::make_optional<std::vector<raft::device_span<time_stamp_t const>>>();
     size_t no_duplicates_size{0};
     size_t has_duplicates_size{0};
 
@@ -212,10 +234,9 @@ temporal_neighbor_sample_impl(
       }
     }
 
-    if (hop > 0) {
+    if (frontier_vertex_times) {
       // It's possible for a vertex to appear in the frontier multiple times with different time
-      // stamps (after the first hop).  To handle that situation, we need to partition the vertex
-      // set.
+      // stamps.  To handle that situation, we need to partition the vertex set.
       std::tie(frontier_vertices_no_duplicates,
                frontier_vertex_times_no_duplicates,
                frontier_vertex_labels_no_duplicates,
@@ -225,8 +246,8 @@ temporal_neighbor_sample_impl(
         temporal_partition_vertices(
           handle,
           raft::device_span<vertex_t const>{frontier_vertices.data(), frontier_vertices.size()},
-          raft::device_span<edge_time_t const>{frontier_vertex_times->data(),
-                                               frontier_vertex_times->size()},
+          raft::device_span<time_stamp_t const>{frontier_vertex_times->data(),
+                                                frontier_vertex_times->size()},
           frontier_vertex_labels
             ? std::make_optional(raft::device_span<label_t const>{frontier_vertex_labels->data(),
                                                                   frontier_vertex_labels->size()})
@@ -249,17 +270,43 @@ temporal_neighbor_sample_impl(
           edge_start_time_view,
           raft::device_span<vertex_t const>{frontier_vertices_no_duplicates.data(),
                                             frontier_vertices_no_duplicates.size()},
-          raft::device_span<edge_time_t const>{frontier_vertex_times_no_duplicates.data(),
-                                               frontier_vertex_times_no_duplicates.size()},
+          raft::device_span<time_stamp_t const>{frontier_vertex_times_no_duplicates.data(),
+                                                frontier_vertex_times_no_duplicates.size()},
           edge_time_mask.mutable_view(),
           sampling_flags.temporal_sampling_comparison);
 
         temporal_graph_view.attach_edge_mask(edge_time_mask.view());
       }
+    } else {
+      // This can only happen in the first hop if starting_vertex_times is not provided.
+      frontier_vertices_no_duplicates.resize(starting_vertices.size(), handle.get_stream());
+      raft::copy(frontier_vertices_no_duplicates.data(),
+                 starting_vertices.data(),
+                 starting_vertices.size(),
+                 handle.get_stream());
+      if (starting_vertex_labels) {
+        if (frontier_vertex_labels_no_duplicates) {
+          frontier_vertex_labels_no_duplicates->resize(starting_vertices.size(),
+                                                       handle.get_stream());
+        } else {
+          frontier_vertex_labels_no_duplicates = std::make_optional(
+            rmm::device_uvector<label_t>{starting_vertex_labels->size(), handle.get_stream()});
+        }
+        raft::copy(frontier_vertex_labels_no_duplicates->data(),
+                   starting_vertex_labels->data(),
+                   starting_vertex_labels->size(),
+                   handle.get_stream());
+      }
+
+      no_duplicates_size = frontier_vertices_no_duplicates.size();
+      if constexpr (multi_gpu) {
+        no_duplicates_size = host_scalar_allreduce(
+          handle.get_comms(), no_duplicates_size, raft::comms::op_t::SUM, handle.get_stream());
+      }
     }
 
     if (level_Ks) {
-      if ((hop == 0) || (no_duplicates_size > 0)) {
+      if (no_duplicates_size > 0) {
         std::vector<edge_arithmetic_property_view_t<edge_t>> edge_property_views{};
 
         if (edge_weight_view) edge_property_views.push_back(*edge_weight_view);
@@ -280,11 +327,9 @@ temporal_neighbor_sample_impl(
           edge_bias_view
             ? std::make_optional<edge_arithmetic_property_view_t<edge_t>>(*edge_bias_view)
             : std::nullopt,
-          (hop == 0) ? starting_vertices
-                     : raft::device_span<vertex_t const>{frontier_vertices_no_duplicates.data(),
-                                                         frontier_vertices_no_duplicates.size()},
-          (hop == 0) ? starting_vertex_labels
-          : frontier_vertex_labels_no_duplicates
+          raft::device_span<vertex_t const>{frontier_vertices_no_duplicates.data(),
+                                            frontier_vertices_no_duplicates.size()},
+          frontier_vertex_labels_no_duplicates
             ? std::make_optional(
                 raft::device_span<label_t const>{frontier_vertex_labels_no_duplicates->data(),
                                                  frontier_vertex_labels_no_duplicates->size()})
@@ -313,11 +358,11 @@ temporal_neighbor_sample_impl(
                 std::get<rmm::device_uvector<edge_type_t>>(sampled_edge_properties[pos++])))
             : std::nullopt;
         auto edge_start_times =
-          std::move(std::get<rmm::device_uvector<edge_time_t>>(sampled_edge_properties[pos++]));
+          std::move(std::get<rmm::device_uvector<time_stamp_t>>(sampled_edge_properties[pos++]));
         auto edge_end_times =
           (edge_end_time_view)
             ? std::make_optional(std::move(
-                std::get<rmm::device_uvector<edge_time_t>>(sampled_edge_properties[pos++])))
+                std::get<rmm::device_uvector<time_stamp_t>>(sampled_edge_properties[pos++])))
             : std::nullopt;
 
         if (weights) { (*result_weight_vectors).push_back(std::move(*weights)); }
@@ -332,8 +377,8 @@ temporal_neighbor_sample_impl(
         next_frontier_vertex_spans.push_back(raft::device_span<vertex_t const>{
           result_dst_vectors.back().data(), result_dst_vectors.back().size()});
         next_frontier_vertex_time_spans->push_back(
-          raft::device_span<edge_time_t const>{result_edge_start_time_vectors->back().data(),
-                                               result_edge_start_time_vectors->back().size()});
+          raft::device_span<time_stamp_t const>{result_edge_start_time_vectors->back().data(),
+                                                result_edge_start_time_vectors->back().size()});
         if (next_frontier_vertex_label_spans) {
           next_frontier_vertex_label_spans->push_back(raft::device_span<label_t const>{
             result_label_vectors->back().data(), result_label_vectors->back().size()});
@@ -350,7 +395,7 @@ temporal_neighbor_sample_impl(
         if (edge_end_time_view) edge_property_views.push_back(*edge_end_time_view);
 
         auto [srcs, dsts, sampled_edge_properties, labels] =
-          temporal_sample_edges<vertex_t, edge_t, edge_time_t, multi_gpu>(
+          temporal_sample_edges<vertex_t, edge_t, time_stamp_t, multi_gpu>(
             handle,
             rng_state,
             graph_view,
@@ -365,8 +410,8 @@ temporal_neighbor_sample_impl(
               : std::nullopt,
             raft::device_span<vertex_t const>{frontier_vertices_has_duplicates.data(),
                                               frontier_vertices_has_duplicates.size()},
-            raft::device_span<edge_time_t const>{frontier_vertex_times_has_duplicates.data(),
-                                                 frontier_vertex_times_has_duplicates.size()},
+            raft::device_span<time_stamp_t const>{frontier_vertex_times_has_duplicates.data(),
+                                                  frontier_vertex_times_has_duplicates.size()},
             frontier_vertex_labels_has_duplicates
               ? std::make_optional(
                   raft::device_span<label_t const>{frontier_vertex_labels_has_duplicates->data(),
@@ -392,11 +437,11 @@ temporal_neighbor_sample_impl(
                 std::get<rmm::device_uvector<edge_type_t>>(sampled_edge_properties[pos++])))
             : std::nullopt;
         auto edge_start_times =
-          std::move(std::get<rmm::device_uvector<edge_time_t>>(sampled_edge_properties[pos++]));
+          std::move(std::get<rmm::device_uvector<time_stamp_t>>(sampled_edge_properties[pos++]));
         auto edge_end_times =
           (edge_end_time_view)
             ? std::make_optional(std::move(
-                std::get<rmm::device_uvector<edge_time_t>>(sampled_edge_properties[pos++])))
+                std::get<rmm::device_uvector<time_stamp_t>>(sampled_edge_properties[pos++])))
             : std::nullopt;
 
         if (srcs.size() > 0) {
@@ -417,8 +462,8 @@ temporal_neighbor_sample_impl(
           next_frontier_vertex_spans.push_back(raft::device_span<vertex_t const>{
             result_dst_vectors.back().data(), result_dst_vectors.back().size()});
           next_frontier_vertex_time_spans->push_back(
-            raft::device_span<edge_time_t const>{result_edge_start_time_vectors->back().data(),
-                                                 result_edge_start_time_vectors->back().size()});
+            raft::device_span<time_stamp_t const>{result_edge_start_time_vectors->back().data(),
+                                                  result_edge_start_time_vectors->back().size()});
           if (next_frontier_vertex_label_spans) {
             next_frontier_vertex_label_spans->push_back(raft::device_span<label_t const>{
               result_label_vectors->back().data(), result_label_vectors->back().size()});
@@ -436,7 +481,7 @@ temporal_neighbor_sample_impl(
                                      d_gather_flags.data(), d_gather_flags.size()})
                                  : std::nullopt;
 
-      if ((hop == 0) || (no_duplicates_size > 0)) {
+      if (no_duplicates_size > 0) {
         std::vector<edge_arithmetic_property_view_t<edge_t>> edge_property_views{};
 
         if (edge_weight_view) edge_property_views.push_back(*edge_weight_view);
@@ -451,11 +496,9 @@ temporal_neighbor_sample_impl(
           raft::host_span<edge_arithmetic_property_view_t<edge_t>>{edge_property_views.data(),
                                                                    edge_property_views.size()},
           edge_type_view,
-          hop == 0 ? starting_vertices
-                   : raft::device_span<vertex_t const>{frontier_vertices_no_duplicates.data(),
-                                                       frontier_vertices_no_duplicates.size()},
-          hop == 0 ? starting_vertex_labels
-          : frontier_vertex_labels_no_duplicates
+          raft::device_span<vertex_t const>{frontier_vertices_no_duplicates.data(),
+                                            frontier_vertices_no_duplicates.size()},
+          frontier_vertex_labels_no_duplicates
             ? std::make_optional(
                 raft::device_span<label_t const>{frontier_vertex_labels_no_duplicates->data(),
                                                  frontier_vertex_labels_no_duplicates->size()})
@@ -487,19 +530,19 @@ temporal_neighbor_sample_impl(
           }
           (*result_edge_start_time_vectors)
             .push_back(std::move(
-              std::get<rmm::device_uvector<edge_time_t>>(sampled_edge_properties[pos++])));
+              std::get<rmm::device_uvector<time_stamp_t>>(sampled_edge_properties[pos++])));
           if (edge_end_time_view) {
             (*result_edge_end_time_vectors)
               .push_back(std::move(
-                std::get<rmm::device_uvector<edge_time_t>>(sampled_edge_properties[pos++])));
+                std::get<rmm::device_uvector<time_stamp_t>>(sampled_edge_properties[pos++])));
           }
           if (labels) { (*result_label_vectors).push_back(std::move(*labels)); }
 
           next_frontier_vertex_spans.push_back(raft::device_span<vertex_t const>{
             result_dst_vectors.back().data(), result_dst_vectors.back().size()});
           next_frontier_vertex_time_spans->push_back(
-            raft::device_span<edge_time_t const>{result_edge_start_time_vectors->back().data(),
-                                                 result_edge_start_time_vectors->back().size()});
+            raft::device_span<time_stamp_t const>{result_edge_start_time_vectors->back().data(),
+                                                  result_edge_start_time_vectors->back().size()});
           if (next_frontier_vertex_label_spans) {
             next_frontier_vertex_label_spans->push_back(raft::device_span<label_t const>{
               result_label_vectors->back().data(), result_label_vectors->back().size()});
@@ -526,8 +569,8 @@ temporal_neighbor_sample_impl(
           raft::device_span<vertex_t const>{frontier_vertices_has_duplicates.data(),
                                             frontier_vertices_has_duplicates.size()},
 
-          raft::device_span<edge_time_t const>{frontier_vertex_times_has_duplicates.data(),
-                                               frontier_vertex_times_has_duplicates.size()},
+          raft::device_span<time_stamp_t const>{frontier_vertex_times_has_duplicates.data(),
+                                                frontier_vertex_times_has_duplicates.size()},
           frontier_vertex_labels_has_duplicates
             ? std::make_optional(
                 raft::device_span<label_t const>{frontier_vertex_labels_has_duplicates->data(),
@@ -561,11 +604,11 @@ temporal_neighbor_sample_impl(
           }
           (*result_edge_start_time_vectors)
             .push_back(std::move(
-              std::get<rmm::device_uvector<edge_time_t>>(sampled_edge_properties[pos++])));
+              std::get<rmm::device_uvector<time_stamp_t>>(sampled_edge_properties[pos++])));
           if (edge_end_time_view) {
             (*result_edge_end_time_vectors)
               .push_back(std::move(
-                std::get<rmm::device_uvector<edge_time_t>>(sampled_edge_properties[pos++])));
+                std::get<rmm::device_uvector<time_stamp_t>>(sampled_edge_properties[pos++])));
           }
           if (labels) { (*result_label_vectors).push_back(std::move(*labels)); }
         }
@@ -576,23 +619,19 @@ temporal_neighbor_sample_impl(
       frontier_vertices, frontier_vertex_labels, frontier_vertex_times, vertex_used_as_source) =
       prepare_next_frontier(
         handle,
-        hop == 0
-          ? starting_vertices
-          : raft::device_span<vertex_t const>(frontier_vertices.data(), frontier_vertices.size()),
-        hop == 0 ? starting_vertex_labels
-        : starting_vertex_labels
-          ? std::make_optional(raft::device_span<label_t const>(frontier_vertex_labels->data(),
-                                                                frontier_vertex_labels->size()))
-          : std::nullopt,
-        std::make_optional<raft::device_span<edge_time_t const>>(frontier_vertex_times->data(),
-                                                                 frontier_vertex_times->size()),
+        raft::device_span<vertex_t const>(frontier_vertices.data(), frontier_vertices.size()),
+        frontier_vertex_labels ? std::make_optional(raft::device_span<label_t const>(
+                                   frontier_vertex_labels->data(), frontier_vertex_labels->size()))
+                               : std::nullopt,
+        std::make_optional<raft::device_span<time_stamp_t const>>(frontier_vertex_times->data(),
+                                                                  frontier_vertex_times->size()),
         raft::host_span<raft::device_span<vertex_t const>>{next_frontier_vertex_spans.data(),
                                                            next_frontier_vertex_spans.size()},
         next_frontier_vertex_label_spans
           ? std::make_optional(raft::host_span<raft::device_span<label_t const>>{
               next_frontier_vertex_label_spans->data(), next_frontier_vertex_label_spans->size()})
           : std::nullopt,
-        std::make_optional(raft::host_span<raft::device_span<edge_time_t const>>{
+        std::make_optional(raft::host_span<raft::device_span<time_stamp_t const>>{
           next_frontier_vertex_time_spans->data(), next_frontier_vertex_time_spans->size()}),
         std::move(vertex_used_as_source),
         graph_view.vertex_partition_range_lasts(),
@@ -679,7 +718,7 @@ temporal_neighbor_sample_impl(
 
   auto result_edge_start_times =
     result_edge_start_time_vectors
-      ? std::make_optional(rmm::device_uvector<edge_time_t>(result_size, handle.get_stream()))
+      ? std::make_optional(rmm::device_uvector<time_stamp_t>(result_size, handle.get_stream()))
       : std::nullopt;
   if (result_edge_start_times) {
     output_offset = 0;
@@ -695,7 +734,7 @@ temporal_neighbor_sample_impl(
 
   auto result_edge_end_times =
     result_edge_end_time_vectors
-      ? std::make_optional(rmm::device_uvector<edge_time_t>(result_size, handle.get_stream()))
+      ? std::make_optional(rmm::device_uvector<time_stamp_t>(result_size, handle.get_stream()))
       : std::nullopt;
   if (result_edge_end_times) {
     output_offset = 0;
@@ -752,11 +791,14 @@ temporal_neighbor_sample_impl(
   std::optional<rmm::device_uvector<size_t>> result_offsets{std::nullopt};
 
   std::tie(property_edges, result_labels, result_hops, result_offsets) =
-    shuffle_and_organize_output(handle,
-                                std::move(property_edges),
-                                std::move(result_labels),
-                                std::move(result_hops),
-                                label_to_output_comm_rank);
+    shuffle_and_organize_output(
+      handle,
+      std::move(property_edges),
+      std::move(result_labels),
+      std::move(result_hops),
+      starting_vertex_labels,
+      sampling_flags.return_hops ? std::make_optional<int32_t>(num_hops) : std::nullopt,
+      label_to_output_comm_rank);
 
   size_t pos  = 0;
   result_srcs = std::move(std::get<rmm::device_uvector<vertex_t>>(property_edges[pos++]));
@@ -770,10 +812,10 @@ temporal_neighbor_sample_impl(
       std::move(std::get<rmm::device_uvector<edge_type_t>>(property_edges[pos++]));
   if (result_edge_start_times)
     result_edge_start_times =
-      std::move(std::get<rmm::device_uvector<edge_time_t>>(property_edges[pos++]));
+      std::move(std::get<rmm::device_uvector<time_stamp_t>>(property_edges[pos++]));
   if (result_edge_end_times)
     result_edge_end_times =
-      std::move(std::get<rmm::device_uvector<edge_time_t>>(property_edges[pos++]));
+      std::move(std::get<rmm::device_uvector<time_stamp_t>>(property_edges[pos++]));
 
   return std::make_tuple(std::move(result_srcs),
                          std::move(result_dsts),
@@ -792,7 +834,7 @@ template <typename vertex_t,
           typename edge_t,
           typename weight_t,
           typename edge_type_t,
-          typename edge_time_t,
+          typename time_stamp_t,
           bool store_transposed,
           bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>,
@@ -800,8 +842,8 @@ std::tuple<rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>,
            std::optional<rmm::device_uvector<edge_t>>,
            std::optional<rmm::device_uvector<edge_type_t>>,
-           std::optional<rmm::device_uvector<edge_time_t>>,
-           std::optional<rmm::device_uvector<edge_time_t>>,
+           std::optional<rmm::device_uvector<time_stamp_t>>,
+           std::optional<rmm::device_uvector<time_stamp_t>>,
            std::optional<rmm::device_uvector<int32_t>>,
            std::optional<rmm::device_uvector<size_t>>>
 homogeneous_uniform_temporal_neighbor_sample(
@@ -811,9 +853,10 @@ homogeneous_uniform_temporal_neighbor_sample(
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   std::optional<edge_property_view_t<edge_t, edge_t const*>> edge_id_view,
   std::optional<edge_property_view_t<edge_t, edge_type_t const*>> edge_type_view,
-  edge_property_view_t<edge_t, edge_time_t const*> edge_start_time_view,
-  std::optional<edge_property_view_t<edge_t, edge_time_t const*>> edge_end_time_view,
+  edge_property_view_t<edge_t, time_stamp_t const*> edge_start_time_view,
+  std::optional<edge_property_view_t<edge_t, time_stamp_t const*>> edge_end_time_view,
   raft::device_span<vertex_t const> starting_vertices,
+  std::optional<raft::device_span<time_stamp_t const>> starting_vertex_times,
   std::optional<raft::device_span<int32_t const>> starting_vertex_labels,
   std::optional<raft::device_span<int32_t const>> label_to_output_comm_rank,
   raft::host_span<int32_t const> fan_out,
@@ -823,7 +866,7 @@ homogeneous_uniform_temporal_neighbor_sample(
   using bias_t = weight_t;  // dummy
 
   return detail::
-    temporal_neighbor_sample_impl<vertex_t, edge_t, weight_t, edge_type_t, edge_time_t, bias_t>(
+    temporal_neighbor_sample_impl<vertex_t, edge_t, weight_t, edge_type_t, time_stamp_t, bias_t>(
       handle,
       rng_state,
       graph_view,
@@ -835,6 +878,7 @@ homogeneous_uniform_temporal_neighbor_sample(
       std::optional<edge_property_view_t<edge_t, bias_t const*>>{
         std::nullopt},  // Optional edge_bias_view
       starting_vertices,
+      starting_vertex_times,
       starting_vertex_labels,
       label_to_output_comm_rank,
       fan_out,
@@ -847,7 +891,7 @@ template <typename vertex_t,
           typename edge_t,
           typename weight_t,
           typename edge_type_t,
-          typename edge_time_t,
+          typename time_stamp_t,
           bool store_transposed,
           bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>,
@@ -855,8 +899,8 @@ std::tuple<rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>,
            std::optional<rmm::device_uvector<edge_t>>,
            std::optional<rmm::device_uvector<edge_type_t>>,
-           std::optional<rmm::device_uvector<edge_time_t>>,
-           std::optional<rmm::device_uvector<edge_time_t>>,
+           std::optional<rmm::device_uvector<time_stamp_t>>,
+           std::optional<rmm::device_uvector<time_stamp_t>>,
            std::optional<rmm::device_uvector<int32_t>>,
            std::optional<rmm::device_uvector<size_t>>>
 heterogeneous_uniform_temporal_neighbor_sample(
@@ -866,9 +910,10 @@ heterogeneous_uniform_temporal_neighbor_sample(
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   std::optional<edge_property_view_t<edge_t, edge_t const*>> edge_id_view,
   edge_property_view_t<edge_t, edge_type_t const*> edge_type_view,
-  edge_property_view_t<edge_t, edge_time_t const*> edge_start_time_view,
-  std::optional<edge_property_view_t<edge_t, edge_time_t const*>> edge_end_time_view,
+  edge_property_view_t<edge_t, time_stamp_t const*> edge_start_time_view,
+  std::optional<edge_property_view_t<edge_t, time_stamp_t const*>> edge_end_time_view,
   raft::device_span<vertex_t const> starting_vertices,
+  std::optional<raft::device_span<time_stamp_t const>> starting_vertex_times,
   std::optional<raft::device_span<int32_t const>> starting_vertex_labels,
   std::optional<raft::device_span<int32_t const>> label_to_output_comm_rank,
   raft::host_span<int32_t const> fan_out,
@@ -879,7 +924,7 @@ heterogeneous_uniform_temporal_neighbor_sample(
   using bias_t = weight_t;  // dummy
 
   return detail::
-    temporal_neighbor_sample_impl<vertex_t, edge_t, weight_t, edge_type_t, edge_time_t, bias_t>(
+    temporal_neighbor_sample_impl<vertex_t, edge_t, weight_t, edge_type_t, time_stamp_t, bias_t>(
       handle,
       rng_state,
       graph_view,
@@ -891,6 +936,7 @@ heterogeneous_uniform_temporal_neighbor_sample(
       std::optional<edge_property_view_t<edge_t, bias_t const*>>{
         std::nullopt},  // Optional edge_bias_view
       starting_vertices,
+      starting_vertex_times,
       starting_vertex_labels,
       label_to_output_comm_rank,
       fan_out,
@@ -903,7 +949,7 @@ template <typename vertex_t,
           typename edge_t,
           typename weight_t,
           typename edge_type_t,
-          typename edge_time_t,
+          typename time_stamp_t,
           typename bias_t,
           bool store_transposed,
           bool multi_gpu>
@@ -912,8 +958,8 @@ std::tuple<rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>,
            std::optional<rmm::device_uvector<edge_t>>,
            std::optional<rmm::device_uvector<edge_type_t>>,
-           std::optional<rmm::device_uvector<edge_time_t>>,
-           std::optional<rmm::device_uvector<edge_time_t>>,
+           std::optional<rmm::device_uvector<time_stamp_t>>,
+           std::optional<rmm::device_uvector<time_stamp_t>>,
            std::optional<rmm::device_uvector<int32_t>>,
            std::optional<rmm::device_uvector<size_t>>>
 homogeneous_biased_temporal_neighbor_sample(
@@ -923,10 +969,11 @@ homogeneous_biased_temporal_neighbor_sample(
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   std::optional<edge_property_view_t<edge_t, edge_t const*>> edge_id_view,
   std::optional<edge_property_view_t<edge_t, edge_type_t const*>> edge_type_view,
-  edge_property_view_t<edge_t, edge_time_t const*> edge_start_time_view,
-  std::optional<edge_property_view_t<edge_t, edge_time_t const*>> edge_end_time_view,
+  edge_property_view_t<edge_t, time_stamp_t const*> edge_start_time_view,
+  std::optional<edge_property_view_t<edge_t, time_stamp_t const*>> edge_end_time_view,
   edge_property_view_t<edge_t, bias_t const*> edge_bias_view,
   raft::device_span<vertex_t const> starting_vertices,
+  std::optional<raft::device_span<time_stamp_t const>> starting_vertex_times,
   std::optional<raft::device_span<int32_t const>> starting_vertex_labels,
   std::optional<raft::device_span<int32_t const>> label_to_output_comm_rank,
   raft::host_span<int32_t const> fan_out,
@@ -934,7 +981,7 @@ homogeneous_biased_temporal_neighbor_sample(
   bool do_expensive_check)
 {
   return detail::
-    temporal_neighbor_sample_impl<vertex_t, edge_t, weight_t, edge_type_t, edge_time_t, bias_t>(
+    temporal_neighbor_sample_impl<vertex_t, edge_t, weight_t, edge_type_t, time_stamp_t, bias_t>(
       handle,
       rng_state,
       graph_view,
@@ -945,6 +992,7 @@ homogeneous_biased_temporal_neighbor_sample(
       edge_end_time_view,
       std::make_optional(edge_bias_view),
       starting_vertices,
+      starting_vertex_times,
       starting_vertex_labels,
       label_to_output_comm_rank,
       fan_out,
@@ -957,7 +1005,7 @@ template <typename vertex_t,
           typename edge_t,
           typename weight_t,
           typename edge_type_t,
-          typename edge_time_t,
+          typename time_stamp_t,
           typename bias_t,
           bool store_transposed,
           bool multi_gpu>
@@ -966,8 +1014,8 @@ std::tuple<rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>,
            std::optional<rmm::device_uvector<edge_t>>,
            std::optional<rmm::device_uvector<edge_type_t>>,
-           std::optional<rmm::device_uvector<edge_time_t>>,
-           std::optional<rmm::device_uvector<edge_time_t>>,
+           std::optional<rmm::device_uvector<time_stamp_t>>,
+           std::optional<rmm::device_uvector<time_stamp_t>>,
            std::optional<rmm::device_uvector<int32_t>>,
            std::optional<rmm::device_uvector<size_t>>>
 heterogeneous_biased_temporal_neighbor_sample(
@@ -977,10 +1025,11 @@ heterogeneous_biased_temporal_neighbor_sample(
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   std::optional<edge_property_view_t<edge_t, edge_t const*>> edge_id_view,
   edge_property_view_t<edge_t, edge_type_t const*> edge_type_view,
-  edge_property_view_t<edge_t, edge_time_t const*> edge_start_time_view,
-  std::optional<edge_property_view_t<edge_t, edge_time_t const*>> edge_end_time_view,
+  edge_property_view_t<edge_t, time_stamp_t const*> edge_start_time_view,
+  std::optional<edge_property_view_t<edge_t, time_stamp_t const*>> edge_end_time_view,
   edge_property_view_t<edge_t, bias_t const*> edge_bias_view,
   raft::device_span<vertex_t const> starting_vertices,
+  std::optional<raft::device_span<time_stamp_t const>> starting_vertex_times,
   std::optional<raft::device_span<int32_t const>> starting_vertex_labels,
   std::optional<raft::device_span<int32_t const>> label_to_output_comm_rank,
   raft::host_span<int32_t const> fan_out,
@@ -989,7 +1038,7 @@ heterogeneous_biased_temporal_neighbor_sample(
   bool do_expensive_check)
 {
   return detail::
-    temporal_neighbor_sample_impl<vertex_t, edge_t, weight_t, edge_type_t, edge_time_t, bias_t>(
+    temporal_neighbor_sample_impl<vertex_t, edge_t, weight_t, edge_type_t, time_stamp_t, bias_t>(
       handle,
       rng_state,
       graph_view,
@@ -1000,6 +1049,7 @@ heterogeneous_biased_temporal_neighbor_sample(
       edge_end_time_view,
       std::make_optional(edge_bias_view),
       starting_vertices,
+      starting_vertex_times,
       starting_vertex_labels,
       label_to_output_comm_rank,
       fan_out,

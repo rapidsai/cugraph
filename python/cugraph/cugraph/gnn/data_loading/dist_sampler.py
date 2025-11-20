@@ -29,19 +29,19 @@ def verify_metadata(metadata: Optional[Dict[str, Union[str, Tuple[str, str, str]
             assert isinstance(k, str), "Metadata keys must be strings."
             if isinstance(v, tuple):
                 assert len(v) == 3, "Metadata tuples must be of length 3."
-                assert isinstance(
-                    v[0], str
-                ), "Metadata tuple must be of type (str, str, str)."
-                assert isinstance(
-                    v[1], str
-                ), "Metadata tuple must be of type (str, str, str)."
-                assert isinstance(
-                    v[2], str
-                ), "Metadata tuple must be of type (str, str, str)."
+                assert isinstance(v[0], str), (
+                    "Metadata tuple must be of type (str, str, str)."
+                )
+                assert isinstance(v[1], str), (
+                    "Metadata tuple must be of type (str, str, str)."
+                )
+                assert isinstance(v[2], str), (
+                    "Metadata tuple must be of type (str, str, str)."
+                )
             else:
-                assert isinstance(
-                    v, str
-                ), "Metadata values must be strings or tuples of strings."
+                assert isinstance(v, str), (
+                    "Metadata values must be strings or tuples of strings."
+                )
 
 
 class DEPRECATED__DistSampler:
@@ -507,9 +507,9 @@ class DEPRECATED__DistSampler:
         minibatch_dict["input_index"] = current_ix.cuda()
         minibatch_dict["input_label"] = current_label.cuda()
         minibatch_dict["input_offsets"] = input_offsets
-        minibatch_dict[
-            "edge_inverse"
-        ] = current_inv  # (2 * batch_size) entries per batch
+        minibatch_dict["edge_inverse"] = (
+            current_inv  # (2 * batch_size) entries per batch
+        )
 
         if self.__writer is None:
             # rename renumber_map -> map to match unbuffered format
@@ -696,7 +696,6 @@ class DEPRECATED__NeighborSampler(DEPRECATED__DistSampler):
         vertex_type_offsets: Optional[TensorType] = None,
         num_edge_types: int = 1,
     ):
-
         self.__fanout = fanout
         self.__func_kwargs = {
             "h_fan_out": np.asarray(fanout, dtype="int32"),

@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2020-2024, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2020-2025, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 
 import gc
@@ -52,7 +52,6 @@ def get_pagerank_result(dataset, is_mg):
 @pytest.mark.mg
 @pytest.mark.parametrize("directed", IS_DIRECTED)
 def test_dask_mg_pagerank(dask_client, directed):
-
     # Initialize and run pagerank on two distributed graphs
     # with same communicator
 
