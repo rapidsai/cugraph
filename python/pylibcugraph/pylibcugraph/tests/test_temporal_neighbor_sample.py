@@ -64,7 +64,16 @@ def _build_temporal_sg_with_edge_types(resource_handle: ResourceHandle) -> SGGra
     return G
 
 
-def test_homogeneous_uniform_temporal_none_times():
+@pytest.mark.parametrize(
+    "temporal_sampling_comparison",
+    [
+        "strictly_increasing",
+        "strictly_decreasing",
+        "monotonically_increasing",
+        "monotonically_decreasing",
+    ],
+)
+def test_homogeneous_uniform_temporal_none_times(temporal_sampling_comparison):
     rh = ResourceHandle()
     G = _build_temporal_sg(rh)
     starts = cp.asarray([1, 2], dtype=np.int32)
@@ -80,6 +89,7 @@ def test_homogeneous_uniform_temporal_none_times():
         fanout,
         with_replacement=False,
         do_expensive_check=True,
+        temporal_sampling_comparison=temporal_sampling_comparison,
     )
     result = {k: v for k, v in result.items() if v is not None}
 
@@ -89,7 +99,18 @@ def test_homogeneous_uniform_temporal_none_times():
     assert isinstance(result["edge_end_time"], cp.ndarray)
 
 
-def test_homogeneous_uniform_temporal_with_times_and_labels():
+@pytest.mark.parametrize(
+    "temporal_sampling_comparison",
+    [
+        "strictly_increasing",
+        "strictly_decreasing",
+        "monotonically_increasing",
+        "monotonically_decreasing",
+    ],
+)
+def test_homogeneous_uniform_temporal_with_times_and_labels(
+    temporal_sampling_comparison,
+):
     rh = ResourceHandle()
     G = _build_temporal_sg(rh)
     starts = cp.asarray([1, 2, 1], dtype=np.int32)
@@ -107,6 +128,7 @@ def test_homogeneous_uniform_temporal_with_times_and_labels():
         fanout,
         with_replacement=False,
         do_expensive_check=True,
+        temporal_sampling_comparison=temporal_sampling_comparison,
     )
     result = {k: v for k, v in result.items() if v is not None}
 
@@ -114,7 +136,16 @@ def test_homogeneous_uniform_temporal_with_times_and_labels():
     assert result["edge_start_time"].size == result["edge_end_time"].size
 
 
-def test_homogeneous_biased_temporal_with_times():
+@pytest.mark.parametrize(
+    "temporal_sampling_comparison",
+    [
+        "strictly_increasing",
+        "strictly_decreasing",
+        "monotonically_increasing",
+        "monotonically_decreasing",
+    ],
+)
+def test_homogeneous_biased_temporal_with_times(temporal_sampling_comparison):
     rh = ResourceHandle()
     G = _build_temporal_sg(rh)
     starts = cp.asarray([0, 1], dtype=np.int32)
@@ -131,12 +162,22 @@ def test_homogeneous_biased_temporal_with_times():
         fanout,
         with_replacement=False,
         do_expensive_check=True,
+        temporal_sampling_comparison=temporal_sampling_comparison,
     )
     result = {k: v for k, v in result.items() if v is not None}
     assert "edge_start_time" in result and "edge_end_time" in result
 
 
-def test_heterogeneous_uniform_temporal_none_times():
+@pytest.mark.parametrize(
+    "temporal_sampling_comparison",
+    [
+        "strictly_increasing",
+        "strictly_decreasing",
+        "monotonically_increasing",
+        "monotonically_decreasing",
+    ],
+)
+def test_heterogeneous_uniform_temporal_none_times(temporal_sampling_comparison):
     rh = ResourceHandle()
     G = _build_temporal_sg_with_edge_types(rh)
     starts = cp.asarray([1, 2], dtype=np.int32)
@@ -154,12 +195,22 @@ def test_heterogeneous_uniform_temporal_none_times():
         num_edge_types=2,
         with_replacement=False,
         do_expensive_check=True,
+        temporal_sampling_comparison=temporal_sampling_comparison,
     )
     result = {k: v for k, v in result.items() if v is not None}
     assert "edge_type" in result and "edge_start_time" in result
 
 
-def test_heterogeneous_biased_temporal_with_times():
+@pytest.mark.parametrize(
+    "temporal_sampling_comparison",
+    [
+        "strictly_increasing",
+        "strictly_decreasing",
+        "monotonically_increasing",
+        "monotonically_decreasing",
+    ],
+)
+def test_heterogeneous_biased_temporal_with_times(temporal_sampling_comparison):
     rh = ResourceHandle()
     G = _build_temporal_sg_with_edge_types(rh)
     starts = cp.asarray([0, 1], dtype=np.int32)
@@ -178,6 +229,7 @@ def test_heterogeneous_biased_temporal_with_times():
         num_edge_types=2,
         with_replacement=False,
         do_expensive_check=True,
+        temporal_sampling_comparison=temporal_sampling_comparison,
     )
     result = {k: v for k, v in result.items() if v is not None}
     assert (

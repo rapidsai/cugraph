@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2024, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2024-2025, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 
 
@@ -15,7 +15,7 @@ from cugraph.utilities.utils import import_optional, MissingModule
 torch = MissingModule("torch")
 
 
-class DistSampleReader:
+class DEPRECATED__DistSampleReader:
     def __init__(
         self,
         directory: str,
@@ -89,7 +89,7 @@ class DistSampleReader:
         raise StopIteration
 
 
-class BufferedSampleReader:
+class DEPRECATED__BufferedSampleReader:
     def __init__(
         self,
         nodes_call_groups: list["torch.Tensor"],
