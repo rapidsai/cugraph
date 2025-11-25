@@ -9,7 +9,9 @@ from math import ceil
 import cupy
 
 from cugraph.utilities.utils import MissingModule
-from cugraph.gnn.data_loading.dist_io import DistSampleReader
+from cugraph.gnn.data_loading.dist_io import (
+    DEPRECATED__DistSampleReader as DistSampleReader,
+)
 
 from cugraph.gnn.data_loading.bulk_sampler_io import create_df_from_disjoint_arrays
 
@@ -18,7 +20,7 @@ from typing import Iterator, Tuple, Dict
 torch = MissingModule("torch")
 
 
-class DistSampleWriter:
+class DEPRECATED__DistSampleWriter:
     def __init__(
         self,
         directory: str,
