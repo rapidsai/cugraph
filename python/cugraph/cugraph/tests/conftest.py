@@ -36,35 +36,35 @@ def pytest_collection_modifyitems(config, items):
     for item in items:
         # Skip tests marked as requiring a specific version of NetworkX if
         # the installed version is too old
-        for mark in item.iter_markers(name="requires_nx"):
-            skip = False
+        for marker in item.iter_markers(name="requires_nx"):
+            set_mark = False
             reason = "Requires "
-            min_ver = mark.kwargs.get(
-                "min_ver", mark.args[0] if len(mark.args) > 0 else None
+            min_ver = marker.kwargs.get(
+                "min_ver", marker.args[0] if len(marker.args) > 0 else None
             )
-            max_ver = mark.kwargs.get(
-                "max_ver", mark.args[1] if len(mark.args) > 1 else None
+            max_ver = marker.kwargs.get(
+                "max_ver", marker.args[1] if len(marker.args) > 1 else None
             )
+            # xfail by default, but allow for a skip if option set.
+            skip = marker.kwargs.get("skip", False)
             if min_ver is None and max_ver is None:
                 raise TypeError("requires_nx marker must specify a min_ver or max_ver")
             if min_ver is not None:
                 min_required_nx_version = packaging.version.parse(min_ver)
                 if installed_nx_version < min_required_nx_version:
-                    skip = True
+                    set_mark = True
                     reason += f"networkx >= {min_required_nx_version}, "
             if max_ver is not None:
                 max_required_nx_version = packaging.version.parse(max_ver)
                 if installed_nx_version > max_required_nx_version:
-                    skip = True
+                    set_mark = True
                     reason += f"networkx <= {max_required_nx_version}, "
-            if skip:
-                item.add_marker(
-                    pytest.mark.skip(
-                        reason=(
-                            reason + f" (version installed: {installed_nx_version})"
-                        )
-                    )
-                )
+            if set_mark:
+                reason_str = reason + f" (version installed: {installed_nx_version})"
+                if skip:
+                    item.add_marker(pytest.mark.skip(reason=reason_str))
+                else:
+                    item.add_marker(pytest.mark.xfail(reason=reason_str))
 
 
 # Fixtures
