@@ -37,18 +37,31 @@ def pytest_collection_modifyitems(config, items):
         # Skip tests marked as requiring a specific version of NetworkX if
         # the installed version is too old
         for mark in item.iter_markers(name="requires_nx"):
-            ver_str = mark.kwargs.get(
-                "version", mark.args[0] if len(mark.args) > 0 else None
+            skip = False
+            reason = "Requires "
+            min_ver = mark.kwargs.get(
+                "min_ver", mark.args[0] if len(mark.args) > 0 else None
             )
-            if ver_str is None:
-                raise TypeError("requires_nx marker must specify a version")
-            min_required_nx_version = packaging.version.parse(ver_str)
-            if installed_nx_version < min_required_nx_version:
+            max_ver = mark.kwargs.get(
+                "max_ver", mark.args[1] if len(mark.args) > 1 else None
+            )
+            if min_ver is None and max_ver is None:
+                raise TypeError("requires_nx marker must specify a min_ver or max_ver")
+            if min_ver is not None:
+                min_required_nx_version = packaging.version.parse(min_ver)
+                if installed_nx_version < min_required_nx_version:
+                    skip = True
+                    reason += f"networkx >= {min_required_nx_version}, "
+            if max_ver is not None:
+                max_required_nx_version = packaging.version.parse(max_ver)
+                if installed_nx_version > max_required_nx_version:
+                    skip = True
+                    reason += f"networkx <= {max_required_nx_version}, "
+            if skip:
                 item.add_marker(
                     pytest.mark.skip(
                         reason=(
-                            f"Requires networkx >= {min_required_nx_version}, "
-                            f"(version installed: {installed_nx_version})"
+                            reason + f" (version installed: {installed_nx_version})"
                         )
                     )
                 )
