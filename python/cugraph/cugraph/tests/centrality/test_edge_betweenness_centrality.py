@@ -301,7 +301,7 @@ def generate_upper_triangle(dataframe):
 
 
 @pytest.mark.sg
-@pytest.mark.requires_nx(version="3.5")
+@pytest.mark.requires_nx(min_ver="3.5", max_ver="3.5")
 @pytest.mark.parametrize("graph_file", SMALL_DATASETS)
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize("subset_size", SUBSET_SIZE_OPTIONS)
@@ -332,7 +332,7 @@ def test_edge_betweenness_centrality(
 
 
 @pytest.mark.sg
-@pytest.mark.requires_nx(version="3.5")
+@pytest.mark.requires_nx(min_ver="3.5")
 @pytest.mark.parametrize("graph_file", SMALL_DATASETS)
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize("subset_size", [None])
@@ -372,7 +372,7 @@ def test_edge_betweenness_centrality_k_full(
 #       to a random sampling over the number of vertices (thus direct offsets)
 #       in the graph structure instead of actual vertices identifiers
 @pytest.mark.sg
-@pytest.mark.requires_nx(version="3.5")
+@pytest.mark.requires_nx(min_ver="3.5", max_ver="3.5")
 @pytest.mark.parametrize("graph_file", [karate_disjoint])
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize("subset_size", SUBSET_SIZE_OPTIONS)
