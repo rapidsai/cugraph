@@ -31,6 +31,7 @@
 #include <cuda/std/iterator>
 #include <cuda/std/optional>
 #include <thrust/copy.h>
+#include <thrust/distance.h>
 #include <thrust/execution_policy.h>
 #include <thrust/functional.h>
 #include <thrust/iterator/counting_iterator.h>
