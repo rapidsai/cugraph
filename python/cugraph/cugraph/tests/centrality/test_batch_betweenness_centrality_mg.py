@@ -43,7 +43,7 @@ def setup_function():
 
 
 @pytest.mark.mg
-@pytest.mark.requires_nx(version="3.5")
+@pytest.mark.requires_nx(min_ver="3.5")
 @pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
 @pytest.mark.parametrize("dataset", DATASETS)
 @pytest.mark.parametrize("directed", IS_DIRECTED)
