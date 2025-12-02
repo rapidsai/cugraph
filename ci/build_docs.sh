@@ -4,10 +4,6 @@
 
 set -euo pipefail
 
-conda config --file /opt/conda/.condarc --remove-key custom_multichannels
-conda config --get
-cat /opt/conda/.condarc
-
 rapids-logger "Downloading artifacts from previous jobs"
 CPP_CHANNEL=$(rapids-download-conda-from-github cpp)
 PYTHON_CHANNEL=$(rapids-download-conda-from-github python)

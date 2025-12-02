@@ -4,10 +4,6 @@
 
 set -Eeuo pipefail
 
-conda config --file /opt/conda/.condarc --remove-key custom_multichannels
-conda config --get
-cat /opt/conda/.condarc
-
 . /opt/conda/etc/profile.d/conda.sh
 
 rapids-logger "Downloading artifacts from previous jobs"

@@ -4,10 +4,6 @@
 
 set -euo pipefail
 
-conda config --file /opt/conda/.condarc --remove-key custom_multichannels
-conda config --get
-cat /opt/conda/.condarc
-
 # Support invoking test_python.sh outside the script directory
 cd "$(dirname "$(realpath "${BASH_SOURCE[0]}")")"/../
 

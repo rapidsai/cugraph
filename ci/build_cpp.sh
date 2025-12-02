@@ -4,10 +4,6 @@
 
 set -euo pipefail
 
-conda config --file /opt/conda/.condarc --remove-key custom_multichannels
-conda config --get
-cat /opt/conda/.condarc
-
 source rapids-configure-sccache
 source rapids-date-string
 
