@@ -4,6 +4,10 @@
 
 set -euo pipefail
 
+conda config --remove custom_multichannels
+conda config --get
+cat /opt/conda/.condarc
+
 rapids-logger "Create checks conda environment"
 . /opt/conda/etc/profile.d/conda.sh
 
