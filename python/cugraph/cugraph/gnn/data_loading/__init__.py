@@ -1,15 +1,33 @@
 # SPDX-FileCopyrightText: Copyright (c) 2023-2025, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 
+import warnings
+
 from cugraph.gnn.data_loading.dist_sampler import (
-    NeighborSampler,
-    DistSampler,
+    DEPRECATED__NeighborSampler,
+    DEPRECATED__DistSampler,
 )
 from cugraph.gnn.data_loading.dist_io import (
     DistSampleWriter,
     DistSampleReader,
     BufferedSampleReader,
 )
+
+
+def DistSampler(*args, **kwargs):
+    warnings.warn(
+        "DistSampler is deprecated and will be removed in a future release.  Please migrate to the distributed sampling API in cuGraph-PyG.",
+        FutureWarning,
+    )
+    return DEPRECATED__DistSampler(*args, **kwargs)
+
+
+def NeighborSampler(*args, **kwargs):
+    warnings.warn(
+        "NeighborSampler is deprecated and will be removed in a future release.  Please migrate to the distributed sampling API in cuGraph-PyG.",
+        FutureWarning,
+    )
+    return DEPRECATED__NeighborSampler(*args, **kwargs)
 
 
 def UniformNeighborSampler(*args, **kwargs):
