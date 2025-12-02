@@ -1,6 +1,8 @@
 #=============================================================================
+# cmake-format: off
 # SPDX-FileCopyrightText: Copyright (c) 2018-2025, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
+# cmake-format: on
 #=============================================================================
 
 cmake_minimum_required(VERSION 3.30.4 FATAL_ERROR)
@@ -11,6 +13,7 @@ include(rapids-cpm)
 include(rapids-cuda)
 include(rapids-export)
 include(rapids-find)
+include(CMakeDependentOption)
 
 rapids_cuda_init_architectures(CUGRAPH)
 
@@ -41,8 +44,14 @@ option(BUILD_TESTS "Configure CMake to build tests" ON)
 option(USE_RAFT_STATIC "Build raft as a static library" OFF)
 option(CUGRAPH_COMPILE_RAFT_LIB "Compile the raft library instead of using it header-only" ON)
 option(CUDA_STATIC_RUNTIME "Statically link the CUDA toolkit runtime and libraries" OFF)
+option(CUGRAPH_COMPILE_CUVS "Always compile cuVS from source" OFF)
+cmake_dependent_option(CUGRAPH_USE_CUVS_STATIC
+  "Build and statically link the cuVS library" ON
+  "CUGRAPH_COMPILE_CUVS" OFF)
 
 message(VERBOSE "CUGRAPH: CUDA_STATIC_RUNTIME=${CUDA_STATIC_RUNTIME}")
+message(VERBOSE "CUGRAPH: CUGRAPH_COMPILE_CUVS=${CUGRAPH_COMPILE_CUVS}")
+message(VERBOSE "CUGRAPH: CUGRAPH_USE_CUVS_STATIC=${CUGRAPH_USE_CUVS_STATIC}")
 
 ################################################################################
 # - compiler options -----------------------------------------------------------
@@ -111,6 +120,9 @@ rapids_cpm_rmm(BUILD_EXPORT_SET cugraph-exports)
 include(${rapids-cmake-dir}/cpm/cuco.cmake)
 rapids_cpm_cuco(BUILD_EXPORT_SET cugraph-exports INSTALL_EXPORT_SET cugraph-exports)
 include(cmake/thirdparty/get_raft.cmake)
+
+# Always include cuVS for spectral clustering enhancements
+include(cmake/thirdparty/get_cuvs.cmake)
 
 if (BUILD_CUGRAPH_MTMG_TESTS)
     if(NOT TARGET ucx::ucp)
@@ -474,6 +486,11 @@ if(CUGRAPH_COMPILE_RAFT_LIB)
   endif()
 endif()
 
+set(CUVS_LIB cuvs::cuvs)
+if(CUGRAPH_USE_CUVS_STATIC)
+  set(CUVS_LIB cuvs::cuvs_static)
+endif()
+
 ################################################################################
 # - link libraries -------------------------------------------------------------
 target_link_libraries(cugraph
@@ -483,6 +500,7 @@ target_link_libraries(cugraph
         $<BUILD_LOCAL_INTERFACE:CUDA::toolkit>
     PRIVATE
         ${COMPILED_RAFT_LIB}
+        ${CUVS_LIB}
         cuco::cuco
     )
 

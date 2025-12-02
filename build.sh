@@ -240,7 +240,8 @@ if buildDefault || hasArg libcugraph || hasArg all; then
               -DBUILD_CUGRAPH_MG_TESTS=${BUILD_CPP_MG_TESTS} \
               -DBUILD_CUGRAPH_MTMG_TESTS=${BUILD_CPP_MTMG_TESTS} \
               "${CMAKE_GENERATOR_OPTION[@]}" \
-              "${CMAKE_VERBOSE_OPTION[@]}"
+              "${CMAKE_VERBOSE_OPTION[@]}" \
+              ${EXTRA_CMAKE_ARGS}
 
         cmake --build "${LIBCUGRAPH_BUILD_DIR}" "-j${PARALLEL_LEVEL}" "${INSTALL_TARGET[@]}" "${VERBOSE_FLAG}"
     fi
