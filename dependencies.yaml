@@ -19,6 +19,7 @@ files:
       - depends_on_dask_cuda
       - depends_on_dask_cudf
       - depends_on_libcudf
+      - depends_on_libcuvs
       - depends_on_libraft
       - depends_on_librmm
       - depends_on_pylibcudf
@@ -508,6 +509,11 @@ dependencies:
             packages:
               - libraft-cu13==26.2.*,>=0.0.0a0
           - {matrix: null, packages: [*libraft_unsuffixed]}
+  depends_on_libcuvs:
+    common:
+      - output_types: conda
+        packages:
+          - libcuvs==26.2.*,>=0.0.0a0
   depends_on_librmm:
     common:
       - output_types: conda
