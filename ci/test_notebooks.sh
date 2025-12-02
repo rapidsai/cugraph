@@ -4,7 +4,7 @@
 
 set -Eeuo pipefail
 
-conda config --remove custom_multichannels
+conda config --remove-key custom_multichannels
 conda config --get
 cat /opt/conda/.condarc
 
