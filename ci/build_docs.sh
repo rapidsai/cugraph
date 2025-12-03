@@ -11,6 +11,9 @@ PYTHON_CHANNEL=$(rapids-download-conda-from-github python)
 rapids-logger "Create test conda environment"
 . /opt/conda/etc/profile.d/conda.sh
 
+rapids-logger "Configuring conda strict channel priority"
+conda config --set channel_priority strict
+
 RAPIDS_VERSION="$(rapids-version)"
 export RAPIDS_VERSION
 RAPIDS_VERSION_MAJOR_MINOR="$(rapids-version-major-minor)"
@@ -24,7 +27,6 @@ rapids-dependency-file-generator \
   --matrix "cuda=${RAPIDS_CUDA_VERSION%.*};arch=$(arch);py=${RAPIDS_PY_VERSION}" \
   --prepend-channel "${CPP_CHANNEL}" \
   --prepend-channel "${PYTHON_CHANNEL}" \
-  --prepend-channel conda-forge \
   | tee env.yaml
 
 rapids-mamba-retry env create --yes -f env.yaml -n docs
