@@ -16,6 +16,7 @@
 
 #include <thrust/binary_search.h>
 #include <thrust/count.h>
+#include <thrust/distance.h>
 #include <thrust/gather.h>
 #include <thrust/sort.h>
 

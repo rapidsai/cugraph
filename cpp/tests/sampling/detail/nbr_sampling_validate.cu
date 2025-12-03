@@ -21,6 +21,7 @@
 #include <cuda/std/tuple>
 #include <thrust/binary_search.h>
 #include <thrust/count.h>
+#include <thrust/distance.h>
 #include <thrust/equal.h>
 #include <thrust/extrema.h>
 #include <thrust/fill.h>

@@ -14,6 +14,7 @@
 #include <raft/core/resource/thrust_policy.hpp>
 
 #include <thrust/copy.h>
+#include <thrust/distance.h>
 #include <thrust/remove.h>
 #include <thrust/sort.h>
 
