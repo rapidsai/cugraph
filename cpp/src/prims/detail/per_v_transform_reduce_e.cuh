@@ -2603,7 +2603,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                            output_count_offsets = raft::device_span<vertex_t const>(
                              output_count_offsets.data(), output_count_offsets.size()),
                            output_key_first =
-                             get_dataframe_buffer_begin(std::get<0>(keys)) + key_segment_offsets[3],
+                             get_dataframe_buffer_begin(std::get<1>(keys)) + key_segment_offsets[3],
                            output_offset_first = std::get<0>(offsets).begin(),
                            range_first         = local_v_list_range_firsts[partition_idx],
                            range_offset_first,
@@ -2651,7 +2651,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                            output_count_offsets = raft::device_span<vertex_t const>(
                              output_count_offsets.data(), output_count_offsets.size()),
                            output_key_first =
-                             get_dataframe_buffer_begin(std::get<0>(keys)) + key_segment_offsets[3],
+                             get_dataframe_buffer_begin(std::get<1>(keys)) + key_segment_offsets[3],
                            output_offset_first = std::get<1>(offsets).begin(),
                            range_first         = local_v_list_range_firsts[partition_idx],
                            range_offset_first,
