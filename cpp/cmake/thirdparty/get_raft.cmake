@@ -55,8 +55,8 @@ endfunction()
 # To use a different RAFT locally, set the CMake variable
 # CPM_raft_SOURCE=/path/to/local/raft
 find_and_configure_raft(VERSION    ${CUGRAPH_MIN_VERSION_raft}
-                        FORK       rapidsai
-                        PINNED_TAG ${rapids-cmake-checkout-tag}
+                        FORK       aamijar
+                        PINNED_TAG raft-deprecated-apis
 
                         # When PINNED_TAG above doesn't match cugraph,
                         # force local raft clone in build directory
