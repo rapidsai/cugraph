@@ -317,7 +317,7 @@ dependencies:
     common:
       - output_types: [conda, pyproject, requirements]
         packages:
-          - rapids-build-backend>=0.4.0,<0.5.0.dev0
+          - rapids-build-backend>=0.4.0,<0.5.0
   python_build_skbuild:
     common:
       - output_types: conda
@@ -336,14 +336,14 @@ dependencies:
     common:
       - output_types: [conda, pyproject, requirements]
         packages:
-          - cython>=3.1.2,<3.2.0a0
+          - cython>=3.1.2,<3.2.0
   python_run_cugraph:
     common:
       - output_types: [conda, pyproject, requirements]
         packages:
           - &dask rapids-dask-dependency==26.2.*,>=0.0.0a0
-          - &numba numba>=0.60.0,<0.62.0a0
-          - &numpy numpy>=1.23,<3.0a0
+          - &numba numba>=0.60.0,<0.62.0
+          - &numpy numpy>=1.23,<3.0
       - output_types: conda
         packages:
           - aiohttp
@@ -361,11 +361,11 @@ dependencies:
           - matrix:
               cuda: "12.*"
             packages:
-              - cuda-python>=12.9.2,<13.0a0
+              - cuda-python>=12.9.2,<13.0
           # fallback to CUDA 13 versions if 'cuda' is '13.*' or not provided
           - matrix:
             packages:
-              - cuda-python>=13.0.1,<14.0a0
+              - cuda-python>=13.0.1,<14.0
   python_run_pylibcugraph:
     common:
       - output_types: [conda, pyproject, requirements]
@@ -388,7 +388,7 @@ dependencies:
       - output_types: [conda, pyproject, requirements]
         packages:
           - &pandas pandas
-          - pytest<9.0.0a0
+          - pytest<9.0.0
           - pytest-benchmark
           - pytest-cov
           - pytest-xdist
