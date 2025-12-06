@@ -49,8 +49,8 @@ endfunction()
 # To use a different cuVS locally, set the CMake variable
 # CPM_cuvs_SOURCE=/path/to/local/cuvs
 find_and_configure_cuvs(VERSION          ${CUGRAPH_MIN_VERSION_cuvs}
-                        FORK             rapidsai
-                        PINNED_TAG       ${rapids-cmake-checkout-tag}
+                        FORK             aamijar
+                        PINNED_TAG       raft-deprecated-apis
 
                         # When PINNED_TAG above doesn't match cugraph,
                         # force local cuVS clone in build directory
