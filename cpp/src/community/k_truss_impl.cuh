@@ -137,6 +137,24 @@ struct extract_low_to_high_degree_edges_from_endpoints_pred_op_t {
   }
 };
 
+template <typename vertex_t, typename edge_t>
+struct decrement_edge_triangle_count_t {
+  raft::device_span<vertex_t const> edge_srcs{};
+  raft::device_span<vertex_t const> edge_dsts{};
+  raft::device_span<edge_t const> decrease_counts{};
+
+  __device__ edge_t operator()(
+    vertex_t src, vertex_t dst, cuda::std::nullopt_t, cuda::std::nullopt_t, edge_t count) const
+  {
+    auto edge_first = thrust::make_zip_iterator(edge_srcs.begin(), edge_dsts.begin());
+    auto edge_last  = thrust::make_zip_iterator(edge_srcs.end(), edge_dsts.end());
+    auto itr_pair =
+      thrust::lower_bound(thrust::seq, edge_first, edge_last, cuda::std::make_tuple(src, dst));
+    auto idx_pair = cuda::std::distance(edge_first, itr_pair);
+    return count - decrease_counts[idx_pair];
+  }
+};
+
 }  // namespace
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
@@ -546,26 +564,12 @@ k_truss(raft::handle_t const& handle,
         cugraph::edge_src_dummy_property_t{}.view(),
         cugraph::edge_dst_dummy_property_t{}.view(),
         edge_triangle_counts.view(),
-        cuda::proclaim_return_type<edge_t>(
-          [edge_buffer_first =
-             thrust::make_zip_iterator(std::get<0>(vertex_pair_buffer_unique).begin(),
-                                       std::get<1>(vertex_pair_buffer_unique).begin()),
-           edge_buffer_last =
-             thrust::make_zip_iterator(std::get<0>(vertex_pair_buffer_unique).end(),
-                                       std::get<1>(vertex_pair_buffer_unique).end()),
-           decrease_count = raft::device_span<edge_t>(
-             decrease_count.data(), decrease_count.size())] __device__(auto src,
-                                                                       auto dst,
-                                                                       cuda::std::nullopt_t,
-                                                                       cuda::std::nullopt_t,
-                                                                       edge_t count) {
-            auto itr_pair = thrust::lower_bound(
-              thrust::seq, edge_buffer_first, edge_buffer_last, cuda::std::make_tuple(src, dst));
-            auto idx_pair = cuda::std::distance(edge_buffer_first, itr_pair);
-            count -= decrease_count[idx_pair];
-
-            return count;
-          }),
+        decrement_edge_triangle_count_t<vertex_t, edge_t>{
+          raft::device_span<vertex_t const>(std::get<0>(vertex_pair_buffer_unique).data(),
+                                            std::get<0>(vertex_pair_buffer_unique).size()),
+          raft::device_span<vertex_t const>(std::get<1>(vertex_pair_buffer_unique).data(),
+                                            std::get<1>(vertex_pair_buffer_unique).size()),
+          raft::device_span<edge_t const>(decrease_count.data(), decrease_count.size())},
         edge_triangle_counts.mutable_view(),
         do_expensive_check);
 
