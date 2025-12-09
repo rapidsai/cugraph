@@ -254,9 +254,9 @@ prepare_next_frontier(
         auto end_iter =
           thrust::unique(handle.get_thrust_policy(), begin_iter, begin_iter + new_verts_size);
 
-        verts.resize(thrust::distance(begin_iter, end_iter), handle.get_stream());
-        labels->resize(thrust::distance(begin_iter, end_iter), handle.get_stream());
-        times->resize(thrust::distance(begin_iter, end_iter), handle.get_stream());
+        verts.resize(cuda::std::distance(begin_iter, end_iter), handle.get_stream());
+        labels->resize(cuda::std::distance(begin_iter, end_iter), handle.get_stream());
+        times->resize(cuda::std::distance(begin_iter, end_iter), handle.get_stream());
       } else {
         auto begin_iter = thrust::make_zip_iterator(verts.begin(), labels->begin());
 
@@ -277,8 +277,8 @@ prepare_next_frontier(
         auto end_iter =
           thrust::unique(handle.get_thrust_policy(), begin_iter, begin_iter + new_verts_size);
 
-        verts.resize(thrust::distance(begin_iter, end_iter), handle.get_stream());
-        times->resize(thrust::distance(begin_iter, end_iter), handle.get_stream());
+        verts.resize(cuda::std::distance(begin_iter, end_iter), handle.get_stream());
+        times->resize(cuda::std::distance(begin_iter, end_iter), handle.get_stream());
 
       } else {
         thrust::sort(handle.get_thrust_policy(), verts.begin(), verts.end());
@@ -312,9 +312,11 @@ prepare_next_frontier(
         auto new_end = thrust::unique(
           handle.get_thrust_policy(), begin_iter, begin_iter + frontier_vertices.size());
 
-        frontier_vertices.resize(thrust::distance(begin_iter, new_end), handle.get_stream());
-        frontier_vertex_labels->resize(thrust::distance(begin_iter, new_end), handle.get_stream());
-        frontier_vertex_times->resize(thrust::distance(begin_iter, new_end), handle.get_stream());
+        frontier_vertices.resize(cuda::std::distance(begin_iter, new_end), handle.get_stream());
+        frontier_vertex_labels->resize(cuda::std::distance(begin_iter, new_end),
+                                       handle.get_stream());
+        frontier_vertex_times->resize(cuda::std::distance(begin_iter, new_end),
+                                      handle.get_stream());
 
       } else {
         auto begin_iter =
@@ -335,8 +337,9 @@ prepare_next_frontier(
         auto new_end = thrust::unique(
           handle.get_thrust_policy(), begin_iter, begin_iter + frontier_vertices.size());
 
-        frontier_vertices.resize(thrust::distance(begin_iter, new_end), handle.get_stream());
-        frontier_vertex_times->resize(thrust::distance(begin_iter, new_end), handle.get_stream());
+        frontier_vertices.resize(cuda::std::distance(begin_iter, new_end), handle.get_stream());
+        frontier_vertex_times->resize(cuda::std::distance(begin_iter, new_end),
+                                      handle.get_stream());
 
       } else {
         auto new_end = thrust::unique(
