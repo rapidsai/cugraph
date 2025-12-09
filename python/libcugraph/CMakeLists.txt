@@ -28,9 +28,6 @@ endif()
 
 unset(cugraph_FOUND)
 
-# --- CUDA -- #
-set(CUDA_STATIC_RUNTIME ON)
-
 # --- cugraph ---#
 set(BUILD_TESTS OFF)
 set(BUILD_CUGRAPH_MG_TESTS OFF)
