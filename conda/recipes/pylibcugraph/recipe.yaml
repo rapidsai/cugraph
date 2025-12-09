@@ -81,7 +81,6 @@ requirements:
     - pylibraft =${{ minor_version }}
     - python
     - rmm =${{ minor_version }}
-    - cuda-cudart
   ignore_run_exports:
     from_package:
       - cuda-cudart-dev

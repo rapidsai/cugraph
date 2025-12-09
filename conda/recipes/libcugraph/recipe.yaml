@@ -122,14 +122,12 @@ outputs:
         - librmm =${{ minor_version }}
         - nccl ${{ nccl_version }}
         - cuda-profiler-api
-        - cuda-cudart
         - libcublas
         - libcurand
         - libcusolver
         - libcusparse
       ignore_run_exports:
         by_name:
-          - cuda-cudart
           - cuda-nvtx
           - cuda-version
           - libcublas
@@ -174,10 +172,8 @@ outputs:
         - ${{ pin_subpackage("libcugraph", exact=True) }}
         - libcudf =${{ minor_version }}
         - librmm =${{ minor_version }}
-        - cuda-cudart
       ignore_run_exports:
         by_name:
-          - cuda-cudart
           - cuda-nvtx
           - cuda-version
           - libcublas
@@ -222,10 +218,8 @@ outputs:
         - ${{ pin_compatible("cuda-version", upper_bound="x", lower_bound="x") }}
         - ${{ pin_subpackage("libcugraph", exact=True) }}
         - ${{ pin_subpackage("libcugraph_etl", exact=True) }}
-        - cuda-cudart
       ignore_run_exports:
         by_name:
-          - cuda-cudart
           - cuda-nvtx
           - cuda-version
           - libcublas

@@ -101,7 +101,6 @@ requirements:
     - rapids-dask-dependency =${{ minor_version }}
     - requests
     - ucxx ${{ ucxx_version }}
-    - cuda-cudart
     - if: cuda_major == "12"
       then: cuda-python >=12.9.2,<13.0
       else: cuda-python >=13.0.1,<14.0
