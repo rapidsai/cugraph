@@ -1,17 +1,6 @@
 /*
- * Copyright (c) 2022-2025, NVIDIA CORPORATION.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+ * SPDX-License-Identifier: Apache-2.0
  */
 #include <cugraph/utilities/error.hpp>
 #include <cugraph_etl/functions.hpp>
@@ -23,7 +12,7 @@
 #include <cudf/utilities/type_dispatcher.hpp>
 
 #include <rmm/exec_policy.hpp>
-#include <rmm/mr/host/new_delete_resource.hpp>
+#include <rmm/mr/pinned_host_memory_resource.hpp>
 
 #include <cub/device/device_radix_sort.cuh>
 #include <thrust/pair.h>
@@ -789,9 +778,9 @@ struct renumber_functor {
 
     cudaStream_t exec_strm = handle.get_stream();
 
-    auto mr                         = rmm::mr::new_delete_resource();
+    auto mr                         = rmm::mr::pinned_host_memory_resource();
     size_t hist_size                = sizeof(accum_type) * 32;
-    accum_type* hist_insert_counter = static_cast<accum_type*>(mr.allocate(hist_size));
+    accum_type* hist_insert_counter = static_cast<accum_type*>(mr.allocate(exec_strm, hist_size));
     *hist_insert_counter            = 0;
 
     float load_factor = 0.7;
@@ -1052,7 +1041,7 @@ struct renumber_functor {
 
     RAFT_CHECK_CUDA(cudaDeviceSynchronize());
 
-    mr.deallocate(hist_insert_counter, hist_size);
+    mr.deallocate(exec_strm, hist_insert_counter, hist_size);
 
     return std::make_tuple(
       std::move(cols_vector[0]),

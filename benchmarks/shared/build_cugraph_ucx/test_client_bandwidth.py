@@ -1,15 +1,5 @@
-# Copyright (c) 2022-2025, NVIDIA CORPORATION.
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+# SPDX-License-Identifier: Apache-2.0
 
 from dask_cuda import LocalCUDACluster
 from dask.distributed import Client, wait
@@ -69,9 +59,9 @@ def run_bandwidth_test(ddf, n):
     time_mean = time_ar.mean()
     size_bytes = df.memory_usage().sum()
     size_gb = round(size_bytes / (pow(1024, 3)), 2)
-    print(f"Getting {len(df):,} rows  of size {size_gb} took = {time_mean*1e-6} ms")
+    print(f"Getting {len(df):,} rows  of size {size_gb} took = {time_mean * 1e-6} ms")
     time_mean_s = time_mean * 1e-9
-    print(f"Bandwidth = {round(size_gb/time_mean_s, 4)} gb/s")
+    print(f"Bandwidth = {round(size_gb / time_mean_s, 4)} gb/s")
     return
 
 

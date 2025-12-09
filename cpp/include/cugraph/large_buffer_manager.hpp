@@ -1,17 +1,6 @@
 /*
- * Copyright (c) 2025, NVIDIA CORPORATION.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-FileCopyrightText: Copyright (c) 2025, NVIDIA CORPORATION.
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 #pragma once
@@ -23,7 +12,7 @@
 
 #include <rmm/cuda_stream_view.hpp>
 #include <rmm/device_uvector.hpp>
-#include <rmm/mr/host/pinned_memory_resource.hpp>
+#include <rmm/mr/pinned_host_memory_resource.hpp>
 
 #include <memory>
 #include <optional>
@@ -35,12 +24,14 @@ namespace detail {
 class large_memory_buffer_resource_t {
  public:
   large_memory_buffer_resource_t() = delete;
-  large_memory_buffer_resource_t(std::shared_ptr<rmm::mr::pinned_memory_resource> mr) : mr_(mr) {}
+  large_memory_buffer_resource_t(std::shared_ptr<rmm::mr::pinned_host_memory_resource> mr) : mr_(mr)
+  {
+  }
 
-  rmm::mr::pinned_memory_resource* get() const { return mr_.get(); }
+  rmm::mr::pinned_host_memory_resource* get() const { return mr_.get(); }
 
  private:
-  std::shared_ptr<rmm::mr::pinned_memory_resource>
+  std::shared_ptr<rmm::mr::pinned_host_memory_resource>
     mr_{};  // currently, large memory buffer is backed by CUDA (rmm) pinned host memory
 };
 
@@ -94,7 +85,7 @@ class large_buffer_manager {
   static detail::large_memory_buffer_resource_t create_memory_buffer_resource()
   {
     return detail::large_memory_buffer_resource_t(
-      std::make_shared<rmm::mr::pinned_memory_resource>());
+      std::make_shared<rmm::mr::pinned_host_memory_resource>());
   }
 
   static detail::large_storage_buffer_resource_t create_storage_buffer_resource()

@@ -1,15 +1,5 @@
-# Copyright (c) 2021-2025, NVIDIA CORPORATION.
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
+# SPDX-License-Identifier: Apache-2.0
 
 import gc
 from typing import Union, Iterable
@@ -267,7 +257,7 @@ class simpleDistributedGraphImpl:
                 ]
                 value_col_names = [self.edgeWeightCol, self.edgeIdCol, self.edgeTypeCol]
             else:
-                raise ValueError("Only 1 or 3 values may be provided" "for edge_attr")
+                raise ValueError("Only 1 or 3 values may be provided for edge_attr")
 
             # The symmetrize step may add additional edges with unknown
             # ids and types for an undirected graph.  Therefore, only
@@ -487,9 +477,10 @@ class simpleDistributedGraphImpl:
                     edgelist_df, [srcCol, dstCol], len(workers)
                 )
 
-            edgelist_df[srcCol], edgelist_df[dstCol] = edgelist_df[
-                [srcCol, dstCol]
-            ].min(axis=1), edgelist_df[[srcCol, dstCol]].max(axis=1)
+            edgelist_df[srcCol], edgelist_df[dstCol] = (
+                edgelist_df[[srcCol, dstCol]].min(axis=1),
+                edgelist_df[[srcCol, dstCol]].max(axis=1),
+            )
 
             edgelist_df = edgelist_df.groupby(by=[srcCol, dstCol]).sum().reset_index()
             if wgtCol in edgelist_df.columns:
@@ -604,7 +595,6 @@ class simpleDistributedGraphImpl:
         def _call_plc_degrees_function(
             sID: bytes, mg_graph_x, source_vertices: cudf.Series, degree_type: str
         ) -> cp.array:
-
             if degree_type == "in_degree":
                 results = pylibcugraph_in_degrees(
                     resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
@@ -1332,7 +1322,10 @@ class simpleDistributedGraphImpl:
 
                 del self.edgelist
 
-            (renumbered_ddf, number_map,) = NumberMap.renumber_and_segment(
+            (
+                renumbered_ddf,
+                number_map,
+            ) = NumberMap.renumber_and_segment(
                 self.input_df,
                 self.source_columns,
                 self.destination_columns,

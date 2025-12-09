@@ -1,15 +1,5 @@
-# Copyright (c) 2021-2024, NVIDIA CORPORATION.
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
+# SPDX-License-Identifier: Apache-2.0
 
 import cudf
 import numpy as np
@@ -1064,8 +1054,7 @@ class EXPERIMENTAL__PropertyGraph:
         if edge_id_col_name is not None:
             if not isinstance(edge_id_col_name, str):
                 raise TypeError(
-                    "edge_id_col_name must be a string, got: "
-                    f"{type(edge_id_col_name)}"
+                    f"edge_id_col_name must be a string, got: {type(edge_id_col_name)}"
                 )
             if edge_id_col_name not in dataframe.columns:
                 if edge_id_col_name != dataframe.index.name:
@@ -2386,7 +2375,7 @@ class EXPERIMENTAL__PropertyGraph:
             # This returns a writable view (i.e., no copies!)
             rv = s._data.columns[0].children[-1].values.reshape(-1, length)
         else:
-            if df.dtypes[col_name] != object:
+            if df.dtypes[col_name] != "object":
                 raise TypeError(
                     "Wrong dtype for vector property; expected 'object', "
                     f"got {df.dtypes[col_name]}"
@@ -2541,7 +2530,7 @@ class EXPERIMENTAL__PropertyGraph:
         integer dtypes, needed to accommodate NA values in columns.
         """
         update_cols = {}
-        for (col, dtype) in column_dtype_dict.items():
+        for col, dtype in column_dtype_dict.items():
             if col not in df.columns:
                 continue
             # If the DataFrame is Pandas and the dtype is an integer type,

@@ -1,6 +1,7 @@
 #!/bin/bash
 
-# Copyright (c) 2019-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2019-2025, NVIDIA CORPORATION.
+# SPDX-License-Identifier: Apache-2.0
 
 # cugraph build script
 
@@ -26,7 +27,6 @@ VALIDARGS="
    libcugraph_etl
    pylibcugraph
    cugraph
-   cugraph-service
    cpp-mgtests
    cpp-mtmgtests
    docs
@@ -51,10 +51,9 @@ HELP="$0 [<target> ...] [<flag> ...]
    libcugraph_etl             - build libcugraph_etl.so and SG test binaries
    pylibcugraph               - build the pylibcugraph Python package
    cugraph                    - build the cugraph Python package
-   cugraph-service            - build the cugraph-service_client and cugraph-service_server Python package
    cpp-mgtests                - build libcugraph and libcugraph_etl MG tests. Builds MPI communicator, adding MPI as a dependency.
    cpp-mtmgtests              - build libcugraph MTMG tests. Adds UCX as a dependency (temporary).
-   docs                       - build the docs
+   docs                       - build the docs packages
    all                        - build everything
  and <flag> is:
    -v                         - verbose build mode
@@ -75,13 +74,9 @@ HELP="$0 [<target> ...] [<flag> ...]
 "
 LIBCUGRAPH_BUILD_DIR=${LIBCUGRAPH_BUILD_DIR:=${REPODIR}/cpp/build}
 LIBCUGRAPH_ETL_BUILD_DIR=${LIBCUGRAPH_ETL_BUILD_DIR:=${REPODIR}/cpp/libcugraph_etl/build}
-CUGRAPH_SERVICE_BUILD_DIRS="${REPODIR}/python/cugraph-service/server/build
-                            ${REPODIR}/python/cugraph-service/client/build
-"
 
 BUILD_DIRS="${LIBCUGRAPH_BUILD_DIR}
             ${LIBCUGRAPH_ETL_BUILD_DIR}
-            ${CUGRAPH_SERVICE_BUILD_DIRS}
 "
 
 # Set defaults for vars modified by flags to this script
@@ -194,7 +189,7 @@ if hasArg uninstall; then
     # FIXME: if multiple versions of these packages are installed, this only
     # removes the latest one and leaves the others installed. build.sh uninstall
     # can be run multiple times to remove all of them, but that is not obvious.
-    pip uninstall -y pylibcugraph cugraph cugraph-service-client cugraph-service-server
+    pip uninstall -y pylibcugraph cugraph
 fi
 
 if hasArg clean; then
@@ -245,7 +240,8 @@ if buildDefault || hasArg libcugraph || hasArg all; then
               -DBUILD_CUGRAPH_MG_TESTS=${BUILD_CPP_MG_TESTS} \
               -DBUILD_CUGRAPH_MTMG_TESTS=${BUILD_CPP_MTMG_TESTS} \
               "${CMAKE_GENERATOR_OPTION[@]}" \
-              "${CMAKE_VERBOSE_OPTION[@]}"
+              "${CMAKE_VERBOSE_OPTION[@]}" \
+              ${EXTRA_CMAKE_ARGS}
 
         cmake --build "${LIBCUGRAPH_BUILD_DIR}" "-j${PARALLEL_LEVEL}" "${INSTALL_TARGET[@]}" "${VERBOSE_FLAG}"
     fi
@@ -300,16 +296,6 @@ if buildDefault || hasArg cugraph || hasArg all; then
     else
         SKBUILD_CMAKE_ARGS="${SKBUILD_EXTRA_CMAKE_ARGS}" \
             python "${PYTHON_ARGS_FOR_INSTALL[@]}" "${REPODIR}/python/cugraph"
-    fi
-fi
-
-# Install the cugraph-service-client and cugraph-service-server Python packages
-if hasArg cugraph-service || hasArg all; then
-    if hasArg --clean; then
-        cleanPythonDir "${REPODIR}/python/cugraph-service"
-    else
-        python "${PYTHON_ARGS_FOR_INSTALL[@]}" "${REPODIR}/python/cugraph-service/client"
-        python "${PYTHON_ARGS_FOR_INSTALL[@]}" "${REPODIR}/python/cugraph-service/server"
     fi
 fi
 

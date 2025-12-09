@@ -1,15 +1,5 @@
-# Copyright (c) 2021-2023, NVIDIA CORPORATION.
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
+# SPDX-License-Identifier: Apache-2.0
 
 import os
 from pathlib import Path
@@ -108,7 +98,7 @@ def gen_fixture_params_product(*args):
     paramLists = []
     ids = []
     paramType = pytest.param().__class__
-    for (paramList, paramId) in args:
+    for paramList, paramId in args:
         paramListCopy = paramList[:]  # do not modify the incoming lists!
         for i in range(len(paramList)):
             if not isinstance(paramList[i], paramType):
@@ -121,7 +111,7 @@ def gen_fixture_params_product(*args):
         values = [p.values[0] for p in paramCombo]
         marks = [m for p in paramCombo for m in p.marks]
         id_strings = []
-        for (p, paramId) in zip(paramCombo, ids):
+        for p, paramId in zip(paramCombo, ids):
             # Assume paramId is either a string or a callable
             if isinstance(paramId, str):
                 id_strings.append("%s:%s" % (paramId, p.values[0]))

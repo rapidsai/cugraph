@@ -1,15 +1,5 @@
-# Copyright (c) 2020-2025, NVIDIA CORPORATION.
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# SPDX-FileCopyrightText: Copyright (c) 2020-2025, NVIDIA CORPORATION.
+# SPDX-License-Identifier: Apache-2.0
 
 import os
 
@@ -154,7 +144,12 @@ def read_csv_for_nx(csv_file, read_weights_in_sp=True, read_weights=True):
 
 
 def create_obj_from_csv(
-    csv_file_name, obj_type, csv_has_weights=True, edgevals=False, directed=False
+    csv_file_name,
+    obj_type,
+    csv_has_weights=True,
+    edgevals=False,
+    directed=False,
+    data_type=np.float32,
 ):
     """
     Return an object based on obj_type populated with the contents of
@@ -174,14 +169,13 @@ def create_obj_from_csv(
         )
 
     elif obj_type in SCIPY_MATRIX_TYPES + CUPY_MATRIX_TYPES:
-        # FIXME: assuming float32
         if csv_has_weights:
             (rows, cols, weights) = np.genfromtxt(
-                csv_file_name, delimiter=" ", dtype=np.float32, unpack=True
+                csv_file_name, delimiter=" ", dtype=data_type, unpack=True
             )
         else:
             (rows, cols) = np.genfromtxt(
-                csv_file_name, delimiter=" ", dtype=np.float32, unpack=True
+                csv_file_name, delimiter=" ", dtype=data_type, unpack=True
             )
 
         if (csv_has_weights is False) or (edgevals is False):

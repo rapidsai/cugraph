@@ -1,16 +1,5 @@
-# Copyright (c) 2019-2021, NVIDIA CORPORATION.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# SPDX-FileCopyrightText: Copyright (c) 2019-2025, NVIDIA CORPORATION.
+# SPDX-License-Identifier: Apache-2.0
 #
 
 import subprocess
@@ -72,8 +61,7 @@ def changedFilesBetween(baseName, branchName, commitHash):
     # checkout latest commit from branch
     __git("checkout", "-fq", commitHash)
 
-    files = __gitdiff("--name-only", "--ignore-submodules",
-                      f"{baseName}..{branchName}")
+    files = __gitdiff("--name-only", "--ignore-submodules", f"{baseName}..{branchName}")
 
     # restore the original branch
     __git("checkout", "--force", current)
@@ -85,8 +73,15 @@ def changesInFileBetween(file, b1, b2, pathFilter=None):
     current = branch()
     __git("checkout", "--quiet", b1)
     __git("checkout", "--quiet", b2)
-    diffs = __gitdiff("--ignore-submodules", "-w", "--minimal", "-U0",
-                      "%s...%s" % (b1, b2), "--", file)
+    diffs = __gitdiff(
+        "--ignore-submodules",
+        "-w",
+        "--minimal",
+        "-U0",
+        "%s...%s" % (b1, b2),
+        "--",
+        file,
+    )
     __git("checkout", "--quiet", current)
     lines = []
     for line in diffs.splitlines():
@@ -111,8 +106,10 @@ def modifiedFiles(pathFilter=None):
     targetBranch = os.environ.get("TARGET_BRANCH")
     commitHash = os.environ.get("COMMIT_HASH")
     currentBranch = branch()
-    print(f"   [DEBUG] TARGET_BRANCH={targetBranch}, COMMIT_HASH={commitHash}, "
-          f"currentBranch={currentBranch}")
+    print(
+        f"   [DEBUG] TARGET_BRANCH={targetBranch}, COMMIT_HASH={commitHash}, "
+        f"currentBranch={currentBranch}"
+    )
 
     if targetBranch and commitHash and (currentBranch == "current-pr-branch"):
         print("   [DEBUG] Assuming a CI environment.")

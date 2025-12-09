@@ -1,17 +1,6 @@
 /*
- * Copyright (c) 2022-2025, NVIDIA CORPORATION.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 #pragma once
@@ -98,8 +87,8 @@ template <typename vertex_t, typename bias_t>
 struct temporal_sample_edge_biases_op_t {
   temporal_sampling_comparison_t temporal_sampling_comparison{};
 
-  template <typename edge_time_t>
-  bias_t __device__ operator()(cuda::std::tuple<vertex_t, edge_time_t> tagged_src,
+  template <typename time_stamp_t>
+  bias_t __device__ operator()(cuda::std::tuple<vertex_t, time_stamp_t> tagged_src,
                                vertex_t,
                                cuda::std::nullopt_t,
                                cuda::std::nullopt_t,
@@ -109,12 +98,12 @@ struct temporal_sample_edge_biases_op_t {
     return bias_t{0};
   }
 
-  template <typename edge_time_t>
-  bias_t __device__ operator()(cuda::std::tuple<vertex_t, edge_time_t> tagged_src,
+  template <typename time_stamp_t>
+  bias_t __device__ operator()(cuda::std::tuple<vertex_t, time_stamp_t> tagged_src,
                                vertex_t,
                                cuda::std::nullopt_t,
                                cuda::std::nullopt_t,
-                               edge_time_t edge_time) const
+                               time_stamp_t edge_time) const
   {
     switch (temporal_sampling_comparison) {
       case temporal_sampling_comparison_t::STRICTLY_INCREASING:
@@ -129,12 +118,12 @@ struct temporal_sample_edge_biases_op_t {
     return bias_t{0};
   }
 
-  template <typename edge_time_t>
-  bias_t __device__ operator()(cuda::std::tuple<vertex_t, edge_time_t> tagged_src,
+  template <typename time_stamp_t>
+  bias_t __device__ operator()(cuda::std::tuple<vertex_t, time_stamp_t> tagged_src,
                                vertex_t,
                                cuda::std::nullopt_t,
                                cuda::std::nullopt_t,
-                               cuda::std::tuple<bias_t, edge_time_t> bias_and_time) const
+                               cuda::std::tuple<bias_t, time_stamp_t> bias_and_time) const
   {
     switch (temporal_sampling_comparison) {
       case temporal_sampling_comparison_t::STRICTLY_INCREASING:
@@ -157,14 +146,14 @@ struct temporal_sample_edge_biases_op_t {
     return bias_t{0};
   }
 
-  template <typename edge_time_t,
+  template <typename time_stamp_t,
             typename edge_type_t,
             typename std::enable_if_t<std::is_integral_v<edge_type_t>>* = nullptr>
-  bias_t __device__ operator()(cuda::std::tuple<vertex_t, edge_time_t> tagged_src,
+  bias_t __device__ operator()(cuda::std::tuple<vertex_t, time_stamp_t> tagged_src,
                                vertex_t,
                                cuda::std::nullopt_t,
                                cuda::std::nullopt_t,
-                               cuda::std::tuple<edge_time_t, edge_type_t> time_and_type) const
+                               cuda::std::tuple<time_stamp_t, edge_type_t> time_and_type) const
   {
     switch (temporal_sampling_comparison) {
       case temporal_sampling_comparison_t::STRICTLY_INCREASING:
@@ -183,13 +172,13 @@ struct temporal_sample_edge_biases_op_t {
     return bias_t{0};
   }
 
-  template <typename edge_time_t, typename edge_type_t>
+  template <typename time_stamp_t, typename edge_type_t>
   bias_t __device__
-  operator()(cuda::std::tuple<vertex_t, edge_time_t> tagged_src,
+  operator()(cuda::std::tuple<vertex_t, time_stamp_t> tagged_src,
              vertex_t,
              cuda::std::nullopt_t,
              cuda::std::nullopt_t,
-             cuda::std::tuple<bias_t, edge_time_t, edge_type_t> bias_time_and_type) const
+             cuda::std::tuple<bias_t, time_stamp_t, edge_type_t> bias_time_and_type) const
   {
     switch (temporal_sampling_comparison) {
       case temporal_sampling_comparison_t::STRICTLY_INCREASING:
@@ -618,7 +607,7 @@ sample_edges(raft::handle_t const& handle,
 template <typename vertex_t,
           typename edge_t,
           typename property_view_t,
-          typename edge_time_t,
+          typename time_stamp_t,
           bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
@@ -629,10 +618,10 @@ temporal_sample_with_one_property(
   raft::random::RngState& rng_state,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   property_view_t edge_property_view,
-  edge_property_view_t<edge_t, edge_time_t const*> edge_time_view,
+  edge_property_view_t<edge_t, time_stamp_t const*> edge_time_view,
   std::optional<edge_arithmetic_property_view_t<edge_t>> edge_type_view,
   std::optional<edge_arithmetic_property_view_t<edge_t>> edge_bias_view,
-  cugraph::vertex_frontier_t<vertex_t, edge_time_t, multi_gpu, false>& vertex_frontier,
+  cugraph::vertex_frontier_t<vertex_t, time_stamp_t, multi_gpu, false>& vertex_frontier,
   raft::host_span<size_t const> Ks,
   bool with_replacement,
   temporal_sampling_comparison_t temporal_sampling_comparison)
@@ -921,7 +910,7 @@ temporal_sample_with_one_property(
     std::move(majors), std::move(minors), std::move(sampled_property), std::move(sample_offsets));
 }
 
-template <typename vertex_t, typename edge_t, typename edge_time_t, bool multi_gpu>
+template <typename vertex_t, typename edge_t, typename time_stamp_t, bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            std::vector<arithmetic_device_uvector_t>,
@@ -930,11 +919,11 @@ temporal_sample_edges(raft::handle_t const& handle,
                       raft::random::RngState& rng_state,
                       graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
                       raft::host_span<edge_arithmetic_property_view_t<edge_t>> edge_property_views,
-                      edge_property_view_t<edge_t, edge_time_t const*> edge_time_view,
+                      edge_property_view_t<edge_t, time_stamp_t const*> edge_time_view,
                       std::optional<edge_arithmetic_property_view_t<edge_t>> edge_type_view,
                       std::optional<edge_arithmetic_property_view_t<edge_t>> edge_bias_view,
                       raft::device_span<vertex_t const> active_majors,
-                      raft::device_span<edge_time_t const> active_major_times,
+                      raft::device_span<time_stamp_t const> active_major_times,
                       std::optional<raft::device_span<int32_t const>> active_major_labels,
                       raft::host_span<size_t const> Ks,
                       bool with_replacement,
@@ -946,7 +935,7 @@ temporal_sample_edges(raft::handle_t const& handle,
   CUGRAPH_EXPECTS(edge_property_views.size() > 0,
                   "Temporal sampling requires at least a time as a property");
 
-  using tag_t = edge_time_t;
+  using tag_t = time_stamp_t;
 
   cugraph::vertex_frontier_t<vertex_t, tag_t, multi_gpu, false> vertex_frontier(handle, 1);
 

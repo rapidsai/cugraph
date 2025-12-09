@@ -1,21 +1,10 @@
-# Copyright (c) 2019-2025, NVIDIA CORPORATION.
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# SPDX-FileCopyrightText: Copyright (c) 2019-2025, NVIDIA CORPORATION.
+# SPDX-License-Identifier: Apache-2.0
 
 import gc
 
 import pytest
 import numpy as np
-import networkx as nx
 
 from cugraph.dask.common.mg_utils import is_single_gpu
 from cugraph.datasets import karate, netscience
@@ -25,12 +14,9 @@ from test_edge_betweenness_centrality import (
     compare_scores,
 )
 
-
 # =============================================================================
 # Parameters
 # =============================================================================
-
-
 DATASETS = [karate, netscience]
 IS_DIRECTED = [True, False]
 IS_NORMALIZED = [True, False]
@@ -54,11 +40,8 @@ def setup_function():
 
 
 # FIXME: Fails for directed = False(bc score twice as much) and normalized = True.
-@pytest.mark.skipif(
-    float(".".join(nx.__version__.split(".")[:2])) < 3.5,
-    reason="Requires networkx >= 3.5",
-)
 @pytest.mark.mg
+@pytest.mark.requires_nx(min_ver="3.5")
 @pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
 @pytest.mark.parametrize("dataset", DATASETS)
 @pytest.mark.parametrize("directed", IS_DIRECTED)

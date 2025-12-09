@@ -1,15 +1,5 @@
-# Copyright (c) 2025, NVIDIA CORPORATION.
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# SPDX-FileCopyrightText: Copyright (c) 2025, NVIDIA CORPORATION.
+# SPDX-License-Identifier: Apache-2.0
 
 # Have cython use python 3 syntax
 # cython: language_level = 3
@@ -55,6 +45,9 @@ from pylibcugraph._cugraph_c.algorithms cimport (
     cugraph_sampling_set_compress_per_hop,
     cugraph_sampling_set_compression_type,
     cugraph_sampling_set_retain_seeds,
+    cugraph_sampling_set_temporal_sampling_comparison,
+    cugraph_temporal_sampling_comparison_t,
+    cugraph_sampling_set_disjoint_sampling,
 )
 from pylibcugraph._cugraph_c.sampling_algorithms cimport (
     cugraph_heterogeneous_biased_temporal_neighbor_sample,
@@ -87,6 +80,7 @@ def heterogeneous_biased_temporal_neighbor_sample(ResourceHandle resource_handle
                                                    _GPUGraph input_graph,
                                                    temporal_property_name,
                                                    start_vertex_list,
+                                                   starting_vertex_times,
                                                    starting_vertex_label_offsets,
                                                    vertex_type_offsets,
                                                    h_fan_out,
@@ -96,12 +90,14 @@ def heterogeneous_biased_temporal_neighbor_sample(ResourceHandle resource_handle
                                                    bool_t do_expensive_check,
                                                    prior_sources_behavior=None,
                                                    deduplicate_sources=False,
+                                                   disjoint_sampling=False,
                                                    return_hops=False,
                                                    renumber=False,
                                                    retain_seeds=False,
                                                    compression='COO',
                                                    compress_per_hop=False,
-                                                   random_state=None):
+                                                   random_state=None,
+                                                   temporal_sampling_comparison='strictly_increasing'):
     """
     Performs biased temporal neighborhood sampling, which samples nodes from
     a graph based on the current node's neighbors, with a corresponding fan_out
@@ -131,6 +127,12 @@ def heterogeneous_biased_temporal_neighbor_sample(ResourceHandle resource_handle
 
     start_vertex_list: device array type
         Device array containing the list of starting vertices for sampling.
+
+    starting_vertex_times: device array type (Optional)
+        Optional array of times associated with each starting vertex. If provided,
+        this establishes the initial time at which sampling begins for each start
+        vertex. Must have length equal to len(start_vertex_list) and a dtype
+        compatible with the graph's temporal property.
 
     starting_vertex_label_offsets: device array type (Optional)
         Offsets of each label within the start vertex list. Expanding
@@ -200,6 +202,14 @@ def heterogeneous_biased_temporal_neighbor_sample(ResourceHandle resource_handle
         defaults to a hash of process id, time, and hostname.
         (See pylibcugraph.random.CuGraphRandomState)
 
+    temporal_sampling_comparison: str (Optional)
+        Options: 'strictly_increasing' (default), 'strictly_decreasing', 'monotonically_increasing', 'monotonically_decreasing', 'last'
+        Sets the comparison operator for temporal sampling.
+
+    disjoint_sampling: bool (Optional)
+        If True, enables disjoint sampling between seeds per hop when supported.
+        Defaults to False.
+
     Returns
     -------
     A tuple of device arrays, where the first and second items in the tuple
@@ -238,7 +248,7 @@ def heterogeneous_biased_temporal_neighbor_sample(ResourceHandle resource_handle
     ...     edge_start_time_array=edge_start_times, edge_end_time_array=edge_end_times,
     ...     store_transposed=False, renumber=False, do_expensive_check=False)
     >>> sampling_results = pylibcugraph.heterogeneous_biased_temporal_neighbor_sample(
-    ...         resource_handle, G, None, start_vertices, starting_vertex_label_offsets, None, h_fan_out,
+    ...         resource_handle, G, None, start_vertices, None, starting_vertex_label_offsets, None, h_fan_out,
     ...         num_edge_types=num_edge_types, with_replacement=False, do_expensive_check=True)
     >>> sampling_results
     {'majors': array([2, 2, 1], dtype=int32),
@@ -270,6 +280,7 @@ def heterogeneous_biased_temporal_neighbor_sample(ResourceHandle resource_handle
     # FIXME: refactor the way we are creating pointer. Can use a single helper function to create
 
     assert_CAI_type(start_vertex_list, "start_vertex_list")
+    assert_CAI_type(starting_vertex_times, "starting_vertex_times", True)
     assert_CAI_type(starting_vertex_label_offsets, "starting_vertex_label_offsets", True)
     assert_CAI_type(vertex_type_offsets, "vertex_type_offsets", True)
 
@@ -297,6 +308,11 @@ def heterogeneous_biased_temporal_neighbor_sample(ResourceHandle resource_handle
     cdef uintptr_t cai_start_ptr = \
         start_vertex_list.__cuda_array_interface__["data"][0]
 
+    cdef uintptr_t cai_starting_vertex_times_ptr
+    if starting_vertex_times is not None:
+        cai_starting_vertex_times_ptr = \
+            starting_vertex_times.__cuda_array_interface__['data'][0]
+
     cdef uintptr_t cai_starting_vertex_label_offsets_ptr
     if starting_vertex_label_offsets is not None:
         cai_starting_vertex_label_offsets_ptr = \
@@ -312,6 +328,15 @@ def heterogeneous_biased_temporal_neighbor_sample(ResourceHandle resource_handle
             <void*>cai_start_ptr,
             len(start_vertex_list),
             get_c_type_from_numpy_type(start_vertex_list.dtype))
+
+    cdef cugraph_type_erased_device_array_view_t* starting_vertex_times_ptr = <cugraph_type_erased_device_array_view_t*>NULL
+    if starting_vertex_times is not None:
+        starting_vertex_times_ptr = \
+            cugraph_type_erased_device_array_view_create(
+                <void*>cai_starting_vertex_times_ptr,
+                len(starting_vertex_times),
+                get_c_type_from_numpy_type(starting_vertex_times.dtype)
+            )
 
 
     cdef cugraph_type_erased_device_array_view_t* starting_vertex_label_offsets_ptr = <cugraph_type_erased_device_array_view_t*>NULL
@@ -384,6 +409,22 @@ def heterogeneous_biased_temporal_neighbor_sample(ResourceHandle resource_handle
     cugraph_sampling_set_compression_type(sampling_options, compression_behavior_e)
     cugraph_sampling_set_compress_per_hop(sampling_options, c_compress_per_hop)
     cugraph_sampling_set_retain_seeds(sampling_options, retain_seeds)
+    cugraph_sampling_set_disjoint_sampling(sampling_options, disjoint_sampling)
+
+    cdef cugraph_temporal_sampling_comparison_t temporal_sampling_comparison_e
+    if temporal_sampling_comparison is None or temporal_sampling_comparison == 'strictly_increasing':
+        temporal_sampling_comparison_e = cugraph_temporal_sampling_comparison_t.STRICTLY_INCREASING
+    elif temporal_sampling_comparison == 'strictly_decreasing':
+        temporal_sampling_comparison_e = cugraph_temporal_sampling_comparison_t.STRICTLY_DECREASING
+    elif temporal_sampling_comparison == 'monotonically_increasing':
+        temporal_sampling_comparison_e = cugraph_temporal_sampling_comparison_t.MONOTONICALLY_INCREASING
+    elif temporal_sampling_comparison == 'monotonically_decreasing':
+        temporal_sampling_comparison_e = cugraph_temporal_sampling_comparison_t.MONOTONICALLY_DECREASING
+    elif temporal_sampling_comparison == "last":
+        raise NotImplementedError('The "last" comparison type is currently unsupported.')
+    else:
+        raise ValueError(f'Invalid option {temporal_sampling_comparison} for temporal sampling comparison')
+    cugraph_sampling_set_temporal_sampling_comparison(sampling_options, temporal_sampling_comparison_e)
 
     error_code = cugraph_heterogeneous_biased_temporal_neighbor_sample(
         c_resource_handle_ptr,
@@ -392,6 +433,7 @@ def heterogeneous_biased_temporal_neighbor_sample(ResourceHandle resource_handle
         "edge_start_time",
         <cugraph_edge_property_view_t*>NULL, # FIXME: Add support for biased neighbor sampling
         start_vertex_list_ptr,
+        starting_vertex_times_ptr,
         starting_vertex_label_offsets_ptr,
         vertex_type_offsets_ptr,
         fan_out_ptr,
@@ -407,6 +449,8 @@ def heterogeneous_biased_temporal_neighbor_sample(ResourceHandle resource_handle
 
     # Free the two input arrays that are no longer needed.
     cugraph_type_erased_device_array_view_free(start_vertex_list_ptr)
+    if starting_vertex_times is not None:
+        cugraph_type_erased_device_array_view_free(starting_vertex_times_ptr)
     cugraph_type_erased_host_array_view_free(fan_out_ptr)
 
     if starting_vertex_label_offsets is not None:

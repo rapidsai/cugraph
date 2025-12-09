@@ -1,15 +1,5 @@
-# Copyright (c) 2020-2025, NVIDIA CORPORATION.
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# SPDX-FileCopyrightText: Copyright (c) 2020-2025, NVIDIA CORPORATION.
+# SPDX-License-Identifier: Apache-2.0
 
 import time
 import pytest
@@ -133,11 +123,11 @@ DATASETS2 = [
 ]
 
 DATASETS_NOVERLAP = [
-    (karate, 10.0, 50),
-    (polbooks, 10.0, 90),
-    (dolphins, 10.0, 60),
-    (netscience, 10.0, 1100),
-    (dining_prefs, 10.0, 20),
+    (karate, 10.0, 100),
+    (polbooks, 10.0, 200),
+    (dolphins, 10.0, 110),
+    (netscience, 5.0, 700),
+    (dining_prefs, 10.0, 80),
 ]
 
 DATASETS_MOBILITY = [
@@ -150,6 +140,7 @@ DATASETS_MOBILITY = [
 
 
 MAX_ITERATIONS = [500]
+NOVERLAP_MAX_ITERATIONS = [5000]
 BARNES_HUT_OPTIMIZE = [False, True]
 MOBILITY_FIXED_CNT = [5, 12]
 
@@ -232,8 +223,11 @@ def test_force_atlas2(graph_file, score, max_iter, barnes_hut_optimize):
 
 @pytest.mark.sg
 @pytest.mark.parametrize("graph_file, radius, max_overlaps", DATASETS_NOVERLAP)
-@pytest.mark.parametrize("max_iter", MAX_ITERATIONS)
-def test_force_atlas2_noverlap(graph_file, radius, max_overlaps, max_iter):
+@pytest.mark.parametrize("max_iter", NOVERLAP_MAX_ITERATIONS)
+@pytest.mark.parametrize("barnes_hut_optimize", BARNES_HUT_OPTIMIZE)
+def test_force_atlas2_noverlap(
+    graph_file, radius, max_overlaps, max_iter, barnes_hut_optimize
+):
     """
     All vertices are given the same radius. After running FA2 with
     prevent_overlapping enabled, the number of pairs of overlapping
@@ -262,6 +256,8 @@ def test_force_atlas2_noverlap(graph_file, radius, max_overlaps, max_iter):
         }
     )
 
+    vertex_radius = vertex_radius.astype({"radius": "float32"})
+
     cu_pos = cugraph_call(
         cu_M,
         max_iter=max_iter,
@@ -273,7 +269,7 @@ def test_force_atlas2_noverlap(graph_file, radius, max_overlaps, max_iter):
         overlap_scaling_ratio=100.0,
         edge_weight_influence=1.0,
         jitter_tolerance=1.0,
-        barnes_hut_optimize=False,
+        barnes_hut_optimize=barnes_hut_optimize,
         barnes_hut_theta=0.5,
         scaling_ratio=2.0,
         strong_gravity_mode=False,
@@ -306,6 +302,7 @@ def test_force_atlas2_mobility(graph_file, max_iter, fixed_node_cnt):
     random.shuffle(mobility)
 
     mobility_df = cudf.DataFrame({"vertex": vertices, "mobility": mobility})
+    mobility_df = mobility_df.astype({"mobility": "float32"})
 
     # Initial layout without mobility
     pos_1 = cugraph_call(

@@ -1,15 +1,5 @@
-# Copyright (c) 2020-2025, NVIDIA CORPORATION.:
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# SPDX-FileCopyrightText: Copyright (c) 2020-2025, NVIDIA CORPORATION.:
+# SPDX-License-Identifier: Apache-2.0
 
 import gc
 
@@ -194,7 +184,7 @@ def _calc_bc_subset(G, Gnx, normalized, weight, endpoints, k, seed, result_dtype
 
 def _calc_bc_subset_fixed(G, Gnx, normalized, weight, endpoints, k, seed, result_dtype):
     assert isinstance(k, int), (
-        "This test is meant for verifying coherence " "when k is given as an int"
+        "This test is meant for verifying coherence when k is given as an int"
     )
     # In the fixed set we compare cu_bc against itself as we random.seed(seed)
     # on the same seed and then sample on the number of vertices themselves
@@ -258,9 +248,9 @@ def _calc_bc_full(G, Gnx, normalized, weight, endpoints, k, seed, result_dtype):
         endpoints=endpoints,
         result_dtype=result_dtype,
     )
-    assert (
-        df["betweenness_centrality"].dtype == result_dtype
-    ), "'betweenness_centrality' column has not the expected type"
+    assert df["betweenness_centrality"].dtype == result_dtype, (
+        "'betweenness_centrality' column has not the expected type"
+    )
     nx_bc = nx.betweenness_centrality(
         Gnx, k=k, normalized=normalized, weight=weight, endpoints=endpoints
     )
@@ -299,21 +289,18 @@ def compare_scores(sorted_df, first_key, second_key, epsilon=DEFAULT_EPSILON):
     num_errors = len(errors)
     if num_errors > 0:
         print(errors)
-    assert (
-        num_errors == 0
-    ), "Mismatch were found when comparing '{}' and '{}' (rtol = {}) and df {}".format(
-        first_key, second_key, epsilon, sorted_df
+    assert num_errors == 0, (
+        "Mismatch were found when comparing '{}' and '{}' (rtol = {}) and df {}".format(
+            first_key, second_key, epsilon, sorted_df
+        )
     )
 
 
 # =============================================================================
 # Tests
 # =============================================================================
-@pytest.mark.skipif(
-    float(".".join(nx.__version__.split(".")[:2])) < 3.5,
-    reason="Requires networkx >= 3.5",
-)
 @pytest.mark.sg
+@pytest.mark.requires_nx(min_ver="3.5")
 @pytest.mark.parametrize("graph_file", SMALL_DATASETS)
 @pytest.mark.parametrize("directed", [False, True])
 @pytest.mark.parametrize("subset_size", SUBSET_SIZE_OPTIONS)

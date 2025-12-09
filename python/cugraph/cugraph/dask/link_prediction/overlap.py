@@ -1,16 +1,5 @@
-# Copyright (c) 2022-2025, NVIDIA CORPORATION.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+# SPDX-License-Identifier: Apache-2.0
 #
 
 from dask.distributed import wait, default_client
@@ -50,7 +39,6 @@ def convert_to_cudf(cp_arrays):
 def _call_plc_all_pairs_overlap(
     sID, mg_graph_x, vertices, use_weight, topk, do_expensive_check
 ):
-
     return pylibcugraph_all_pairs_overlap_coefficients(
         resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
         graph=mg_graph_x,
@@ -64,7 +52,6 @@ def _call_plc_all_pairs_overlap(
 def _call_plc_overlap(
     sID, mg_graph_x, vertex_pair, use_weight, do_expensive_check, vertex_pair_col_name
 ):
-
     first = vertex_pair[vertex_pair_col_name[0]]
     second = vertex_pair[vertex_pair_col_name[1]]
 

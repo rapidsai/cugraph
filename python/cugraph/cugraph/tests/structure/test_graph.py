@@ -1,15 +1,5 @@
-# Copyright (c) 2019-2025, NVIDIA CORPORATION.
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# SPDX-FileCopyrightText: Copyright (c) 2019-2025, NVIDIA CORPORATION.
+# SPDX-License-Identifier: Apache-2.0
 
 import gc
 import time
@@ -622,7 +612,6 @@ def test_number_of_vertices(graph_file):
 
 @pytest.mark.sg
 def test_number_of_edges():
-
     # cycle edges
     cycle_edges = [(0, 1, 1.0), (1, 2, 1.0), (2, 3, 1.0), (3, 0, 1.0)]
 
@@ -1173,6 +1162,19 @@ def test_graph_creation_edges_multi_col_vertices(graph_file, directed):
             input_df.sort_values(by=vertexCol).reset_index(drop=True),
             check_dtype=False,
         )
+
+
+@pytest.mark.sg
+def test_graph_nodes_with_multi_col_vertices():
+    G = cugraph.Graph(directed=True)
+    df = cudf.DataFrame(
+        {"src_0": [1, 2], "src_1": [10, 20], "dst_0": [2, 3], "dst_1": [20, 30]}
+    )
+    G.from_cudf_edgelist(df, source=["src_0", "src_1"], destination=["dst_0", "dst_1"])
+
+    expected_nodes = cudf.DataFrame({"0_vertex": [1, 2, 3], "1_vertex": [10, 20, 30]})
+    nodes = G.nodes()
+    assert_frame_equal(nodes, expected_nodes, check_dtype=False)
 
 
 def test_from_pandas_adjacency_string_columns():

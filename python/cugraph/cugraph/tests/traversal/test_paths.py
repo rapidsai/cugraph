@@ -1,15 +1,5 @@
-# Copyright (c) 2019-2025, NVIDIA CORPORATION.
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# SPDX-FileCopyrightText: Copyright (c) 2019-2025, NVIDIA CORPORATION.
+# SPDX-License-Identifier: Apache-2.0
 
 import sys
 import math
@@ -65,7 +55,6 @@ def load_traversal_results():
 
 @pytest.fixture
 def graphs(request):
-
     matrix = np.matrix(request.param)
     array = np.asarray(matrix)
 
@@ -234,7 +223,6 @@ def test_shortest_path_length_no_target(graphs, load_traversal_results):
     # results for vertex 8 and 9 are not returned
     assert cugraph_path_1_to_all.shape[0] == len(golden_path_1_to_all) + 2
     for index in range(cugraph_path_1_to_all.shape[0]):
-
         vertex = cugraph_path_1_to_all["vertex"][index].item()
         distance = cugraph_path_1_to_all["distance"][index].item()
 

@@ -1,17 +1,6 @@
 /*
- * Copyright (c) 2025, NVIDIA CORPORATION.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-FileCopyrightText: Copyright (c) 2025, NVIDIA CORPORATION.
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 #include "detail/graph500_forest_pruning_utils.cuh"
@@ -98,9 +87,9 @@ class Tests_GRAPH500_MGSSSP
   void run_current_test(Graph500_SSSP_Usecase const& sssp_usecase,
                         input_usecase_t const& input_usecase)
   {
-    using weight_t    = float;
-    using edge_type_t = int32_t;  // dummy
-    using edge_time_t = int32_t;  // dummy
+    using weight_t     = float;
+    using edge_type_t  = int32_t;  // dummy
+    using time_stamp_t = int32_t;  // dummy
 
     bool constexpr store_transposed = false;
     bool constexpr multi_gpu        = true;
@@ -234,7 +223,7 @@ class Tests_GRAPH500_MGSSSP
                  std::ignore,
                  std::ignore,
                  std::ignore) =
-          cugraph::remove_self_loops<vertex_t, edge_t, weight_t, edge_type_t, edge_time_t>(
+          cugraph::remove_self_loops<vertex_t, edge_t, weight_t, edge_type_t, time_stamp_t>(
             *handle_,
             std::move(src_chunks[i]),
             std::move(dst_chunks[i]),
@@ -267,7 +256,7 @@ class Tests_GRAPH500_MGSSSP
                  std::ignore,
                  std::ignore,
                  std::ignore) =
-          cugraph::remove_multi_edges<vertex_t, edge_t, weight_t, edge_type_t, edge_time_t>(
+          cugraph::remove_multi_edges<vertex_t, edge_t, weight_t, edge_type_t, time_stamp_t>(
             *handle_,
             std::move(src_chunks),
             std::move(dst_chunks),
@@ -298,7 +287,7 @@ class Tests_GRAPH500_MGSSSP
                                               edge_t,
                                               weight_t,
                                               edge_type_t,
-                                              edge_time_t,
+                                              time_stamp_t,
                                               store_transposed,
                                               multi_gpu>(
             *handle_,
@@ -372,7 +361,7 @@ class Tests_GRAPH500_MGSSSP
                                                          edge_t,
                                                          weight_t,
                                                          edge_type_t,
-                                                         edge_time_t,
+                                                         time_stamp_t,
                                                          store_transposed,
                                                          multi_gpu>(
             *handle_,

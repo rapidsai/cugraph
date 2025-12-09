@@ -1,15 +1,5 @@
-# Copyright (c) 2019-2025, NVIDIA CORPORATION.
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# SPDX-FileCopyrightText: Copyright (c) 2019-2025, NVIDIA CORPORATION.
+# SPDX-License-Identifier: Apache-2.0
 
 import gc
 
@@ -131,7 +121,7 @@ def cugraph_call(
     # their labels.
     elif expected_return_type is dict:
         assert type(result) is dict
-        for (vert, label) in result.items():
+        for vert, label in result.items():
             label_vertex_dict[label].append(vert)
 
     # A CuPy/SciPy input means the return value will be a 2-tuple of:
@@ -347,7 +337,6 @@ def test_weak_cc_nonnative_inputs(
 @pytest.mark.sg
 @pytest.mark.parametrize("cugraph_input_type", utils.CUGRAPH_DIR_INPUT_TYPES)
 def test_strong_cc(benchmark, dataset_nxresults_strong, cugraph_input_type):
-
     # NetX returns a list of components, each component being a
     # collection (set{}) of vertex indices
     (

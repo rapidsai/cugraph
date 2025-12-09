@@ -1,29 +1,16 @@
-# Copyright (c) 2021-2024, NVIDIA CORPORATION.
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
+# SPDX-License-Identifier: Apache-2.0
 
-import numpy as np
 import dask_cudf
 from dask.distributed import Client
 from dask_cuda import LocalCUDACluster
 from cugraph.structure.symmetrize import symmetrize_ddf
 from cugraph.dask.common.mg_utils import get_visible_devices
 from dask_cuda.initialize import initialize
-import cudf
 
 import cugraph
 from cugraph.dask.comms import comms as Comms
 import tempfile
-from cugraph.testing.mg_utils import generate_edgelist
 
 
 def read_csv(input_csv_file, scale):
@@ -39,7 +26,7 @@ def read_csv(input_csv_file, scale):
     """
     vertex_t = "int32" if scale <= 32 else "int64"
     dtypes = [vertex_t, vertex_t, "float32"]
-    names = (["src", "dst", "weight"],)
+    names = (["src", "dst", "weight"],)  # noqa: F841
 
     chunksize = cugraph.dask.get_chunksize(input_csv_file)
     return dask_cudf.read_csv(
@@ -118,14 +105,6 @@ def katz(G, alpha=None):
 
 def hits(G):
     return cugraph.dask.hits(G)
-
-
-def uniform_neighbor_sample(G, start_list=None, fanout_vals=None):
-    # convert list to cudf.Series
-    start_list = cudf.Series(start_list, dtype="int32")
-    return cugraph.dask.uniform_neighbor_sample(
-        G, start_list=start_list, fanout_vals=fanout_vals
-    )
 
 
 def triangle_count(G):

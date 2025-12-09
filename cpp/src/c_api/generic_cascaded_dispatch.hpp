@@ -1,17 +1,6 @@
 /*
- * Copyright (c) 2021-2025, NVIDIA CORPORATION.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 #pragma once
@@ -32,23 +21,23 @@ template <typename vertex_t,
           typename edge_t,
           typename weight_t,
           typename edge_type_t,
-          typename edge_time_t,
+          typename time_stamp_t,
           bool store_transposed,
           typename functor_t>
 auto multi_gpu_dispatcher(bool multi_gpu, functor_t& functor)
 {
   if (multi_gpu) {
     return functor.template
-    operator()<vertex_t, edge_t, weight_t, edge_type_t, edge_time_t, store_transposed, true>();
+    operator()<vertex_t, edge_t, weight_t, edge_type_t, time_stamp_t, store_transposed, true>();
   } else {
     return functor.template
-    operator()<vertex_t, edge_t, weight_t, edge_type_t, edge_time_t, store_transposed, false>();
+    operator()<vertex_t, edge_t, weight_t, edge_type_t, time_stamp_t, store_transposed, false>();
   }
 }
 
 // transpose bool dispatcher:
 // resolves bool `store_transpose`
-// and using template arguments vertex_t, edge_t, weight_t, edge_type_t, edge_time_t
+// and using template arguments vertex_t, edge_t, weight_t, edge_type_t, time_stamp_t
 // cascades into next level
 // multi_gpu_dispatcher()
 //
@@ -56,21 +45,21 @@ template <typename vertex_t,
           typename edge_t,
           typename weight_t,
           typename edge_type_t,
-          typename edge_time_t,
+          typename time_stamp_t,
           typename functor_t>
 auto transpose_dispatcher(bool store_transposed, bool multi_gpu, functor_t& functor)
 {
   if (store_transposed) {
-    return multi_gpu_dispatcher<vertex_t, edge_t, weight_t, edge_type_t, edge_time_t, true>(
+    return multi_gpu_dispatcher<vertex_t, edge_t, weight_t, edge_type_t, time_stamp_t, true>(
       multi_gpu, functor);
   } else {
-    return multi_gpu_dispatcher<vertex_t, edge_t, weight_t, edge_type_t, edge_time_t, false>(
+    return multi_gpu_dispatcher<vertex_t, edge_t, weight_t, edge_type_t, time_stamp_t, false>(
       multi_gpu, functor);
   }
 }
 
 // edge_time_type type dispatcher:
-// resolves edge_time_t from edge_time_type enum and using template arguments vertex_t, edge_t,
+// resolves time_stamp_t from edge_time_type enum and using template arguments vertex_t, edge_t,
 // weight_t, edge_t cascades into next level transpose_dispatcher()
 //
 template <typename vertex_t,
@@ -85,13 +74,13 @@ auto edge_time_type_dispatcher(cugraph_data_type_id_t edge_time_type,
 {
   switch (edge_time_type) {
     case cugraph_data_type_id_t::INT32: {
-      using edge_time_t = int32_t;
-      return transpose_dispatcher<vertex_t, edge_t, weight_t, edge_type_t, edge_time_t>(
+      using time_stamp_t = int32_t;
+      return transpose_dispatcher<vertex_t, edge_t, weight_t, edge_type_t, time_stamp_t>(
         store_transposed, multi_gpu, functor);
     }
     case cugraph_data_type_id_t::INT64: {
-      using edge_time_t = int64_t;
-      return transpose_dispatcher<vertex_t, edge_t, weight_t, edge_type_t, edge_time_t>(
+      using time_stamp_t = int64_t;
+      return transpose_dispatcher<vertex_t, edge_t, weight_t, edge_type_t, time_stamp_t>(
         store_transposed, multi_gpu, functor);
       break;
     }

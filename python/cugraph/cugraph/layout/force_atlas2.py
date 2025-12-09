@@ -1,15 +1,5 @@
-# Copyright (c) 2020-2025, NVIDIA CORPORATION.
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# SPDX-FileCopyrightText: Copyright (c) 2020-2025, NVIDIA CORPORATION.
+# SPDX-License-Identifier: Apache-2.0
 
 import warnings
 from cugraph.structure import Graph
@@ -80,7 +70,6 @@ def force_atlas2(
     callback=None,
     random_state=None,
 ):
-
     """
     ForceAtlas2 is a continuous graph layout algorithm for handy network
     visualization.
@@ -282,8 +271,7 @@ def force_atlas2(
 
         if len(vertex_mass.columns.intersection({"vertex", "mass"})) != 2:
             raise ValueError(
-                "vertex_mass has wrong column names. It must have 'vertex' "
-                "and 'mass'"
+                "vertex_mass has wrong column names. It must have 'vertex' and 'mass'"
             )
 
         if input_graph.renumbered:

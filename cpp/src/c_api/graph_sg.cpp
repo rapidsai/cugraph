@@ -1,17 +1,6 @@
 /*
- * Copyright (c) 2021-2025, NVIDIA CORPORATION.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 #include "c_api/abstract_functor.hpp"
@@ -91,7 +80,7 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
             typename edge_t,
             typename weight_t,
             typename edge_type_t,
-            typename edge_time_t,
+            typename time_stamp_t,
             bool store_transposed,
             bool multi_gpu>
   void operator()()
@@ -164,28 +153,28 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
                                 handle_.get_stream());
       }
 
-      std::optional<rmm::device_uvector<edge_time_t>> edgelist_edge_start_times =
-        edge_start_times_ ? std::make_optional(rmm::device_uvector<edge_time_t>(
+      std::optional<rmm::device_uvector<time_stamp_t>> edgelist_edge_start_times =
+        edge_start_times_ ? std::make_optional(rmm::device_uvector<time_stamp_t>(
                               edge_start_times_->size_, handle_.get_stream()))
                           : std::nullopt;
 
-      std::optional<rmm::device_uvector<edge_time_t>> edgelist_edge_end_times =
-        edge_end_times_ ? std::make_optional(rmm::device_uvector<edge_time_t>(
+      std::optional<rmm::device_uvector<time_stamp_t>> edgelist_edge_end_times =
+        edge_end_times_ ? std::make_optional(rmm::device_uvector<time_stamp_t>(
                             edge_end_times_->size_, handle_.get_stream()))
                         : std::nullopt;
 
       if (edgelist_edge_start_times) {
         cugraph::c_api::copy_or_transform(
-          raft::device_span<edge_time_t>{edgelist_edge_start_times->data(),
-                                         edgelist_edge_start_times->size()},
+          raft::device_span<time_stamp_t>{edgelist_edge_start_times->data(),
+                                          edgelist_edge_start_times->size()},
           edge_start_times_,
           handle_.get_stream());
       }
 
       if (edgelist_edge_end_times) {
         cugraph::c_api::copy_or_transform(
-          raft::device_span<edge_time_t>{edgelist_edge_end_times->data(),
-                                         edgelist_edge_end_times->size()},
+          raft::device_span<time_stamp_t>{edgelist_edge_end_times->data(),
+                                          edgelist_edge_end_times->size()},
           edge_end_times_,
           handle_.get_stream());
       }
@@ -242,7 +231,7 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
                                        edge_t,
                                        weight_t,
                                        edge_type_t,
-                                       edge_time_t,
+                                       time_stamp_t,
                                        store_transposed,
                                        multi_gpu>(handle_,
                                                   std::move(edgelist_srcs),
@@ -265,9 +254,10 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
       std::optional<cugraph::edge_property_t<edge_t, weight_t>> new_edge_weights{std::nullopt};
       std::optional<cugraph::edge_property_t<edge_t, edge_t>> new_edge_ids{std::nullopt};
       std::optional<cugraph::edge_property_t<edge_t, edge_type_t>> new_edge_types{std::nullopt};
-      std::optional<cugraph::edge_property_t<edge_t, edge_time_t>> new_edge_start_times{
+      std::optional<cugraph::edge_property_t<edge_t, time_stamp_t>> new_edge_start_times{
         std::nullopt};
-      std::optional<cugraph::edge_property_t<edge_t, edge_time_t>> new_edge_end_times{std::nullopt};
+      std::optional<cugraph::edge_property_t<edge_t, time_stamp_t>> new_edge_end_times{
+        std::nullopt};
 
       std::vector<cugraph::arithmetic_device_uvector_t> edgelist_edge_properties{};
       if (edgelist_weights) edgelist_edge_properties.push_back(std::move(*edgelist_weights));
@@ -311,12 +301,12 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
 
       if (edgelist_edge_start_times) {
         new_edge_start_times = std::move(
-          std::get<cugraph::edge_property_t<edge_t, edge_time_t>>(new_edge_properties[pos++]));
+          std::get<cugraph::edge_property_t<edge_t, time_stamp_t>>(new_edge_properties[pos++]));
       }
 
       if (edgelist_edge_end_times) {
         new_edge_end_times = std::move(
-          std::get<cugraph::edge_property_t<edge_t, edge_time_t>>(new_edge_properties[pos++]));
+          std::get<cugraph::edge_property_t<edge_t, time_stamp_t>>(new_edge_properties[pos++]));
       }
 
       if (renumber_) {
@@ -352,8 +342,8 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
       cugraph::edge_property_t<edge_t, weight_t>* edge_weights{nullptr};
       cugraph::edge_property_t<edge_t, edge_t>* edge_ids{nullptr};
       cugraph::edge_property_t<edge_t, edge_type_t>* edge_types{nullptr};
-      cugraph::edge_property_t<edge_t, edge_time_t>* edge_start_times{nullptr};
-      cugraph::edge_property_t<edge_t, edge_time_t>* edge_end_times{nullptr};
+      cugraph::edge_property_t<edge_t, time_stamp_t>* edge_start_times{nullptr};
+      cugraph::edge_property_t<edge_t, time_stamp_t>* edge_end_times{nullptr};
 
       if (new_edge_weights) {
         edge_weights =
@@ -368,12 +358,12 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
           new cugraph::edge_property_t<edge_t, edge_type_t>(std::move(new_edge_types.value()));
       }
       if (new_edge_start_times) {
-        edge_start_times = new cugraph::edge_property_t<edge_t, edge_time_t>(
+        edge_start_times = new cugraph::edge_property_t<edge_t, time_stamp_t>(
           std::move(new_edge_start_times.value()));
       }
       if (new_edge_end_times) {
         edge_end_times =
-          new cugraph::edge_property_t<edge_t, edge_time_t>(std::move(new_edge_end_times.value()));
+          new cugraph::edge_property_t<edge_t, time_stamp_t>(std::move(new_edge_end_times.value()));
       }
 
       // Set up return
@@ -382,7 +372,7 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
                                             cugraph::c_api::data_type_id<edge_t>::id,
                                             cugraph::c_api::data_type_id<weight_t>::id,
                                             cugraph::c_api::data_type_id<edge_type_t>::id,
-                                            cugraph::c_api::data_type_id<edge_time_t>::id,
+                                            cugraph::c_api::data_type_id<time_stamp_t>::id,
                                             store_transposed,
                                             multi_gpu,
                                             graph,
@@ -440,7 +430,7 @@ struct create_graph_csr_functor : public cugraph::c_api::abstract_functor {
             typename edge_t,
             typename weight_t,
             typename edge_type_t,
-            typename edge_time_t,
+            typename time_stamp_t,
             bool store_transposed,
             bool multi_gpu>
   void operator()()
@@ -515,8 +505,8 @@ struct create_graph_csr_functor : public cugraph::c_api::abstract_functor {
                                 handle_.get_stream());
       }
 
-      std::optional<rmm::device_uvector<edge_time_t>> edgelist_edge_start_times{std::nullopt};
-      std::optional<rmm::device_uvector<edge_time_t>> edgelist_edge_end_times{std::nullopt};
+      std::optional<rmm::device_uvector<time_stamp_t>> edgelist_edge_start_times{std::nullopt};
+      std::optional<rmm::device_uvector<time_stamp_t>> edgelist_edge_end_times{std::nullopt};
 
       auto graph = new cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu>(handle_);
 
@@ -542,7 +532,7 @@ struct create_graph_csr_functor : public cugraph::c_api::abstract_functor {
                                        edge_t,
                                        weight_t,
                                        edge_type_t,
-                                       edge_time_t,
+                                       time_stamp_t,
                                        store_transposed,
                                        multi_gpu>(handle_,
                                                   std::move(edgelist_srcs),
@@ -595,8 +585,8 @@ struct create_graph_csr_functor : public cugraph::c_api::abstract_functor {
       cugraph::edge_property_t<edge_t, weight_t>* edge_weights_property{nullptr};
       cugraph::edge_property_t<edge_t, edge_t>* edge_ids_property{nullptr};
       cugraph::edge_property_t<edge_t, edge_type_t>* edge_types_property{nullptr};
-      cugraph::edge_property_t<edge_t, edge_time_t>* edge_start_times_property{nullptr};
-      cugraph::edge_property_t<edge_t, edge_time_t>* edge_end_times_property{nullptr};
+      cugraph::edge_property_t<edge_t, time_stamp_t>* edge_start_times_property{nullptr};
+      cugraph::edge_property_t<edge_t, time_stamp_t>* edge_end_times_property{nullptr};
 
       {
         size_t pos = 0;
@@ -616,13 +606,13 @@ struct create_graph_csr_functor : public cugraph::c_api::abstract_functor {
         }
 
         if (edgelist_edge_start_times) {
-          edge_start_times_property = new cugraph::edge_property_t<edge_t, edge_time_t>(std::move(
-            std::get<cugraph::edge_property_t<edge_t, edge_time_t>>(new_edge_properties[pos++])));
+          edge_start_times_property = new cugraph::edge_property_t<edge_t, time_stamp_t>(std::move(
+            std::get<cugraph::edge_property_t<edge_t, time_stamp_t>>(new_edge_properties[pos++])));
         }
 
         if (edgelist_edge_end_times) {
-          edge_end_times_property = new cugraph::edge_property_t<edge_t, edge_time_t>(std::move(
-            std::get<cugraph::edge_property_t<edge_t, edge_time_t>>(new_edge_properties[pos++])));
+          edge_end_times_property = new cugraph::edge_property_t<edge_t, time_stamp_t>(std::move(
+            std::get<cugraph::edge_property_t<edge_t, time_stamp_t>>(new_edge_properties[pos++])));
         }
       }
 
@@ -670,7 +660,7 @@ struct destroy_graph_functor : public cugraph::c_api::abstract_functor {
             typename edge_t,
             typename weight_t,
             typename edge_type_t,
-            typename edge_time_t,
+            typename time_stamp_t,
             bool store_transposed,
             bool multi_gpu>
   void operator()()

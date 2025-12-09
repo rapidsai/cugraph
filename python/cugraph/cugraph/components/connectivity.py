@@ -1,15 +1,5 @@
-# Copyright (c) 2019-2025, NVIDIA CORPORATION.
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# SPDX-FileCopyrightText: Copyright (c) 2019-2025, NVIDIA CORPORATION.
+# SPDX-License-Identifier: Apache-2.0
 
 
 from cugraph.utilities import (
@@ -50,14 +40,14 @@ def _ensure_args(api_name, G, directed, connection, return_labels):
     # Handle connection type, based on API being called
     if api_name == "strongly_connected_components":
         if (connection is not None) and (connection != "strong"):
-            raise TypeError("'connection' must be 'strong' for " f"{api_name}()")
+            raise TypeError(f"'connection' must be 'strong' for {api_name}()")
         connection = "strong"
     elif api_name == "weakly_connected_components":
         if (connection is not None) and (connection != "weak"):
-            raise TypeError("'connection' must be 'weak' for " f"{api_name}()")
+            raise TypeError(f"'connection' must be 'weak' for {api_name}()")
         connection = "weak"
     else:
-        raise RuntimeError("invalid API name specified (internal): " f"{api_name}")
+        raise RuntimeError(f"invalid API name specified (internal): {api_name}")
 
     return (directed, connection, return_labels)
 
@@ -372,6 +362,5 @@ def connected_components(G, directed=None, connection="weak", return_labels=None
         return strongly_connected_components(G, directed, connection, return_labels)
     else:
         raise ValueError(
-            f"invalid connection type: {connection}, "
-            "must be either 'strong' or 'weak'"
+            f"invalid connection type: {connection}, must be either 'strong' or 'weak'"
         )

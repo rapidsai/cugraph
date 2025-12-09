@@ -1,17 +1,6 @@
 /*
- * Copyright (c) 2023-2025, NVIDIA CORPORATION.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-FileCopyrightText: Copyright (c) 2023-2025, NVIDIA CORPORATION.
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 #include <raft/core/device_span.hpp>
@@ -32,15 +21,15 @@
 namespace cugraph {
 namespace detail {
 
-template <typename vertex_t, typename label_t, typename edge_time_t>
+template <typename vertex_t, typename label_t, typename time_stamp_t>
 std::tuple<rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<label_t>>,
-           std::optional<rmm::device_uvector<edge_time_t>>>
+           std::optional<rmm::device_uvector<time_stamp_t>>>
 remove_visited_vertices_from_frontier(
   raft::handle_t const& handle,
   rmm::device_uvector<vertex_t>&& frontier_vertices,
   std::optional<rmm::device_uvector<label_t>>&& frontier_vertex_labels,
-  std::optional<rmm::device_uvector<edge_time_t>>&& frontier_vertex_times,
+  std::optional<rmm::device_uvector<time_stamp_t>>&& frontier_vertex_times,
   raft::device_span<vertex_t const> vertices_used_as_source,
   std::optional<raft::device_span<label_t const>> vertex_labels_used_as_source)
 {
@@ -59,7 +48,7 @@ remove_visited_vertices_from_frontier(
                                            begin_iter,
                                            frontier_vertex_times->begin(),
                                            thrust::equal_to<cuda::std::tuple<label_t, vertex_t>>{},
-                                           thrust::minimum<edge_time_t>{});
+                                           thrust::minimum<time_stamp_t>{});
 
       frontier_vertices.resize(cuda::std::distance(begin_iter, new_end.first), handle.get_stream());
       frontier_vertex_labels->resize(cuda::std::distance(begin_iter, new_end.first),
@@ -78,7 +67,7 @@ remove_visited_vertices_from_frontier(
                                            frontier_vertices.begin(),
                                            frontier_vertex_times->begin(),
                                            thrust::equal_to<vertex_t>{},
-                                           thrust::minimum<edge_time_t>());
+                                           thrust::minimum<time_stamp_t>());
 
       frontier_vertices.resize(cuda::std::distance(frontier_vertices.begin(), new_end.first),
                                handle.get_stream());

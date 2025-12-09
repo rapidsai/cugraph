@@ -1,16 +1,5 @@
-# Copyright (c) 2022-2024, NVIDIA CORPORATION.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+# SPDX-License-Identifier: Apache-2.0
 #
 
 from dask.distributed import wait, get_client
@@ -59,7 +48,6 @@ def _call_plc_betweenness_centrality(
     do_expensive_check: bool,
     edge_bc: bool,
 ) -> cudf.DataFrame:
-
     if edge_bc:
         cp_arrays = pylibcugraph_edge_betweenness_centrality(
             resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
@@ -93,7 +81,6 @@ def _mg_call_plc_betweenness_centrality(
     endpoints: bool = False,
     edge_bc: bool = False,
 ) -> dask_cudf.DataFrame:
-
     result = [
         client.submit(
             _call_plc_betweenness_centrality,
@@ -223,8 +210,7 @@ def betweenness_centrality(
 
     if weight is not None:
         raise NotImplementedError(
-            "weighted implementation of betweenness "
-            "centrality not currently supported"
+            "weighted implementation of betweenness centrality not currently supported"
         )
 
     if not isinstance(k, (dask_cudf.DataFrame, dask_cudf.Series)):
@@ -434,9 +420,10 @@ def edge_betweenness_centrality(
         # swap the src and dst vertices for the lower triangle only. Because
         # this is a symmeterized graph, this operation results in a df with
         # multiple src/dst entries.
-        ddf["src"], ddf["dst"] = ddf[["src", "dst"]].min(axis=1), ddf[
-            ["src", "dst"]
-        ].max(axis=1)
+        ddf["src"], ddf["dst"] = (
+            ddf[["src", "dst"]].min(axis=1),
+            ddf[["src", "dst"]].max(axis=1),
+        )
         # overwrite the df with the sum of the values for all alike src/dst
         # vertex pairs, resulting in half the edges of the original df from the
         # symmeterized graph.

@@ -1,30 +1,26 @@
-# Copyright (c) 2021-2025, NVIDIA CORPORATION.
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
+# SPDX-License-Identifier: Apache-2.0
 
+import tempfile
+from ssl import create_default_context
+from urllib.request import build_opener, HTTPSHandler, install_opener
+
+import packaging.version
 import pytest
+import networkx as nx
+import certifi
+from dask_cuda.utils_test import (
+    IncreasedCloseTimeoutNanny,
+)  # Avoid timeout during shutdown
+
 from cugraph.testing.mg_utils import (
     start_dask_client,
     stop_dask_client,
 )
 
-import tempfile
 
-# Avoid timeout during shutdown
-from dask_cuda.utils_test import IncreasedCloseTimeoutNanny
-
-import certifi
-from ssl import create_default_context
-from urllib.request import build_opener, HTTPSHandler, install_opener
+# Hooks
+# =============================================================================
 
 
 # Install SSL certificates
@@ -34,7 +30,45 @@ def pytest_sessionstart(session):
     install_opener(build_opener(https_handler))
 
 
-# module-wide fixtures
+def pytest_collection_modifyitems(config, items):
+    """Modify pytest items after tests have been collected."""
+    installed_nx_version = packaging.version.parse(nx.__version__)
+    for item in items:
+        # Skip tests marked as requiring a specific version of NetworkX if
+        # the installed version is too old
+        for marker in item.iter_markers(name="requires_nx"):
+            set_mark = False
+            reason = "Requires "
+            min_ver = marker.kwargs.get(
+                "min_ver", marker.args[0] if len(marker.args) > 0 else None
+            )
+            max_ver = marker.kwargs.get(
+                "max_ver", marker.args[1] if len(marker.args) > 1 else None
+            )
+            # xfail by default, but allow for a skip if option set.
+            skip = marker.kwargs.get("skip", False)
+            if min_ver is None and max_ver is None:
+                raise TypeError("requires_nx marker must specify a min_ver or max_ver")
+            if min_ver is not None:
+                min_required_nx_version = packaging.version.parse(min_ver)
+                if installed_nx_version < min_required_nx_version:
+                    set_mark = True
+                    reason += f"networkx >= {min_required_nx_version}, "
+            if max_ver is not None:
+                max_required_nx_version = packaging.version.parse(max_ver)
+                if installed_nx_version > max_required_nx_version:
+                    set_mark = True
+                    reason += f"networkx <= {max_required_nx_version}, "
+            if set_mark:
+                reason_str = reason + f" (version installed: {installed_nx_version})"
+                if skip:
+                    item.add_marker(pytest.mark.skip(reason=reason_str))
+                else:
+                    item.add_marker(pytest.mark.xfail(reason=reason_str))
+
+
+# Fixtures
+# =============================================================================
 
 
 @pytest.fixture(scope="module")

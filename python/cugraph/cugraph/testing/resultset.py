@@ -1,15 +1,5 @@
-# Copyright (c) 2023-2024, NVIDIA CORPORATION.
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# SPDX-FileCopyrightText: Copyright (c) 2023-2025, NVIDIA CORPORATION.
+# SPDX-License-Identifier: Apache-2.0
 
 import warnings
 import tarfile
@@ -84,7 +74,7 @@ def get_resultset(resultset_name, **kwargs):
 default_resultset_download_dir = DefaultDownloadDir(subdir="tests/resultsets")
 
 
-def load_resultset(resultset_name, resultset_download_url):
+def load_resultset(resultset_name, resultset_download_url, sep=" "):
     """
     Read a mapping file (<resultset_name>.csv) in the _results_dir and save the
     mappings between each unique set of args/identifiers to UUIDs to the
@@ -113,8 +103,6 @@ def load_resultset(resultset_name, resultset_download_url):
             tar.extractall(str(curr_resultset_download_dir))
         tar.close()
 
-    # FIXME: This assumes separator is " ", but should this be configurable?
-    sep = " "
     with open(mapping_file_path) as mapping_file:
         for line in mapping_file.readlines():
             if line.startswith("#"):

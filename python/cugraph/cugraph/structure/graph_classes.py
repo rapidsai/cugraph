@@ -1,15 +1,5 @@
-# Copyright (c) 2021-2025, NVIDIA CORPORATION.
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
+# SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 from .graph_implementation import (
@@ -789,10 +779,10 @@ class Graph:
 
         if self.graph_properties.directed is False:
             undirected_graph = type(self)()
-        elif self.__class__.__bases__[0] == object:
+        elif type(self).__bases__[0] is object:
             undirected_graph = type(self)()
         else:
-            undirected_graph = self.__class__.__bases__[0]()
+            undirected_graph = type(self).__bases__[0]()
         undirected_graph._Impl = type(self._Impl)(undirected_graph.graph_properties)
         self._Impl.to_undirected(undirected_graph._Impl)
         return undirected_graph

@@ -1,15 +1,5 @@
-# Copyright (c) 2022-2025, NVIDIA CORPORATION.
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+# SPDX-License-Identifier: Apache-2.0
 
 # Have cython use python 3 syntax
 # cython: language_level = 3
@@ -296,10 +286,23 @@ cdef extern from "cugraph_c/algorithms.h":
         DCSR
         DCSC
 
+    ctypedef enum cugraph_temporal_sampling_comparison_t:
+        STRICTLY_INCREASING=0
+        MONOTONICALLY_INCREASING
+        STRICTLY_DECREASING
+        MONOTONICALLY_DECREASING
+        LAST
+
     cdef cugraph_error_code_t \
         cugraph_sampling_options_create(
             cugraph_sampling_options_t** options,
             cugraph_error_t** error,
+        )
+
+    cdef void \
+        cugraph_sampling_set_temporal_sampling_comparison(
+            cugraph_sampling_options_t* options,
+            cugraph_temporal_sampling_comparison_t comparison,
         )
 
     cdef void \
@@ -348,6 +351,12 @@ cdef extern from "cugraph_c/algorithms.h":
         cugraph_sampling_set_compression_type(
             cugraph_sampling_options_t* options,
             cugraph_compression_type_t value,
+        )
+
+    cdef void \
+        cugraph_sampling_set_disjoint_sampling(
+            cugraph_sampling_options_t* options,
+            bool_t value,
         )
 
     cdef void \

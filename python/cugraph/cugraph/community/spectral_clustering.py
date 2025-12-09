@@ -1,15 +1,5 @@
-# Copyright (c) 2019-2025, NVIDIA CORPORATION.
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# SPDX-FileCopyrightText: Copyright (c) 2019-2025, NVIDIA CORPORATION.
+# SPDX-License-Identifier: Apache-2.0
 
 
 from pylibcugraph import (
@@ -22,6 +12,7 @@ from pylibcugraph import (
 from pylibcugraph import ResourceHandle
 import cudf
 import numpy as np
+import warnings
 
 
 def spectralBalancedCutClustering(
@@ -80,13 +71,12 @@ def spectralBalancedCutClustering(
         df['cluster'] : cudf.Series
             contains the cluster assignments
 
-    Examples
-    --------
-    >>> from cugraph.datasets import karate
-    >>> G = karate.get_graph(download=True)
-    >>> df = cugraph.spectralBalancedCutClustering(G, 5)
-
     """
+    warnings.warn(
+        "spectralBalancedCutClustering is deprecated and will be removed in a future "
+        "release. Use spectralModularityMaximizationClustering instead.",
+        FutureWarning,
+    )
 
     if G.is_directed():
         raise ValueError("input graph must be undirected")
@@ -260,7 +250,7 @@ def analyzeClustering_modularity(
     --------
     >>> from cugraph.datasets import karate
     >>> G = karate.get_graph(download=True)
-    >>> df = cugraph.spectralBalancedCutClustering(G, 5)
+    >>> df = cugraph.spectralModularityMaximizationClustering(G, 5)
     >>> score = cugraph.analyzeClustering_modularity(G, 5, df)
 
     """
@@ -344,7 +334,7 @@ def analyzeClustering_edge_cut(
     --------
     >>> from cugraph.datasets import karate
     >>> G = karate.get_graph(download=True)
-    >>> df = cugraph.spectralBalancedCutClustering(G, 5)
+    >>> df = cugraph.spectralModularityMaximizationClustering(G, 5)
     >>> score = cugraph.analyzeClustering_edge_cut(G, 5, df)
 
     """
@@ -425,7 +415,7 @@ def analyzeClustering_ratio_cut(
     --------
     >>> from cugraph.datasets import karate
     >>> G = karate.get_graph(download=True)
-    >>> df = cugraph.spectralBalancedCutClustering(G, 5)
+    >>> df = cugraph.spectralModularityMaximizationClustering(G, 5)
     >>> score = cugraph.analyzeClustering_ratio_cut(G, 5, df, 'vertex',
     ...                                             'cluster')
 

@@ -1,17 +1,6 @@
 /*
- * Copyright (c) 2022-2025, NVIDIA CORPORATION.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 #pragma once
@@ -43,24 +32,24 @@
 namespace cugraph {
 namespace detail {
 
-template <typename vertex_t, typename label_t, typename edge_time_t>
+template <typename vertex_t, typename label_t, typename time_stamp_t>
 std::tuple<rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<label_t>>,
-           std::optional<rmm::device_uvector<edge_time_t>>,
+           std::optional<rmm::device_uvector<time_stamp_t>>,
            std::optional<std::tuple<rmm::device_uvector<vertex_t>,
                                     std::optional<rmm::device_uvector<label_t>>,
-                                    std::optional<rmm::device_uvector<edge_time_t>>>>>
+                                    std::optional<rmm::device_uvector<time_stamp_t>>>>>
 prepare_next_frontier(
   raft::handle_t const& handle,
   raft::device_span<vertex_t const> sampled_src_vertices,
   std::optional<raft::device_span<label_t const>> sampled_src_vertex_labels,
-  std::optional<raft::device_span<edge_time_t const>> sampled_src_vertex_times,
+  std::optional<raft::device_span<time_stamp_t const>> sampled_src_vertex_times,
   raft::host_span<raft::device_span<vertex_t const>> sampled_dst_vertices,
   std::optional<raft::host_span<raft::device_span<label_t const>>> sampled_dst_vertex_labels,
-  std::optional<raft::host_span<raft::device_span<edge_time_t const>>> sampled_dst_vertex_times,
+  std::optional<raft::host_span<raft::device_span<time_stamp_t const>>> sampled_dst_vertex_times,
   std::optional<std::tuple<rmm::device_uvector<vertex_t>,
                            std::optional<rmm::device_uvector<label_t>>,
-                           std::optional<rmm::device_uvector<edge_time_t>>>>&&
+                           std::optional<rmm::device_uvector<time_stamp_t>>>>&&
     vertex_used_as_source,
   raft::host_span<vertex_t const> vertex_partition_range_lasts,
   prior_sources_behavior_t prior_sources_behavior,
@@ -85,7 +74,7 @@ prepare_next_frontier(
       : std::nullopt;
   auto frontier_vertex_times =
     sampled_dst_vertex_times
-      ? std::make_optional<rmm::device_uvector<edge_time_t>>(frontier_size, handle.get_stream())
+      ? std::make_optional<rmm::device_uvector<time_stamp_t>>(frontier_size, handle.get_stream())
       : std::nullopt;
 
   size_t current_pos = 0;
@@ -166,7 +155,7 @@ prepare_next_frontier(
         frontier_vertex_labels =
           std::move(std::get<rmm::device_uvector<label_t>>(vertex_properties[0]));
         frontier_vertex_times =
-          std::move(std::get<rmm::device_uvector<edge_time_t>>(vertex_properties[1]));
+          std::move(std::get<rmm::device_uvector<time_stamp_t>>(vertex_properties[1]));
       } else {
         std::vector<cugraph::arithmetic_device_uvector_t> vertex_properties{};
         vertex_properties.push_back(std::move(*frontier_vertex_labels));
@@ -188,7 +177,7 @@ prepare_next_frontier(
                                std::move(vertex_properties),
                                vertex_partition_range_lasts);
         frontier_vertex_times =
-          std::move(std::get<rmm::device_uvector<edge_time_t>>(vertex_properties[0]));
+          std::move(std::get<rmm::device_uvector<time_stamp_t>>(vertex_properties[0]));
       } else {
         std::tie(frontier_vertices, std::ignore) =
           shuffle_int_vertices(handle,
