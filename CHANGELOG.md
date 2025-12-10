@@ -1,3 +1,53 @@
+# cugraph 25.12.00 (10 Dec 2025)
+
+### 🚨 Breaking Changes
+* Add support for other temporal comparisons by @ChuckHastings in https://github.com/rapidsai/cugraph/pull/5283
+* Dropping cuGraph Service by @BradReesWork in https://github.com/rapidsai/cugraph/pull/5325
+* Require CUDA 12.2+ by @jakirkham in https://github.com/rapidsai/cugraph/pull/5327
+* Remove Old Sampling API by @alexbarghi-nv in https://github.com/rapidsai/cugraph/pull/5335
+* Time filtering hop 0 by @ChuckHastings in https://github.com/rapidsai/cugraph/pull/5328
+* Deprecate Distributed Sampling API by @alexbarghi-nv in https://github.com/rapidsai/cugraph/pull/5336
+### 🐛 Bug Fixes
+* Skip failing dataset test for now by @ChuckHastings in https://github.com/rapidsai/cugraph/pull/5301
+* Fix `force_atlas2` on empty graphs by @eriknw in https://github.com/rapidsai/cugraph/pull/5303
+* Fix `G.nodes()` returning internal vertex IDs by @eriknw in https://github.com/rapidsai/cugraph/pull/5304
+* Use pinned_host_memory_resource for device-accessible memory in renumbering.cu by @bdice in https://github.com/rapidsai/cugraph/pull/5317
+* Fix warning in unreachable device code by @bdice in https://github.com/rapidsai/cugraph/pull/5316
+* Pin Cython pre-3.2.0 and PyTest pre-9 by @jakirkham in https://github.com/rapidsai/cugraph/pull/5340
+* refactored update-version.sh to handle new branching strategy by @rockhowse in https://github.com/rapidsai/cugraph/pull/5341
+### 📖 Documentation
+* Use Docker CUDA major-version tags by @bdice in https://github.com/rapidsai/cugraph/pull/5291
+### 🚀 New Features
+* [FEA] Update pylibcugraph to support different temporal comparisons by @alexbarghi-nv in https://github.com/rapidsai/cugraph/pull/5345
+### 🛠️ Improvements
+* Update `RAPIDS_BRANCH`, codify changes in `update-version.sh` by @KyleFromNVIDIA in https://github.com/rapidsai/cugraph/pull/5278
+* Update for cudf.DataFrame.from_pandas deprecation by @TomAugspurger in https://github.com/rapidsai/cugraph/pull/5286
+* Update to rapids-logger 0.2 by @bdice in https://github.com/rapidsai/cugraph/pull/5298
+* `force_atlas2`: allow vertex mass to be given by the user by @eriknw in https://github.com/rapidsai/cugraph/pull/5293
+* Use pinned_host_memory_resource instead of pinned_memory_resource. by @bdice in https://github.com/rapidsai/cugraph/pull/5312
+* Enable `sccache-dist` connection pool by @trxcllnt in https://github.com/rapidsai/cugraph/pull/5314
+* Use main in RAPIDS_BRANCH by @bdice in https://github.com/rapidsai/cugraph/pull/5318
+* Fix ForceAtlas2 speed factor in prevent_overlapping mode by @MathisHammel in https://github.com/rapidsai/cugraph/pull/5295
+* Use main shared-workflows branch by @bdice in https://github.com/rapidsai/cugraph/pull/5319
+* Update the code to be compatible with the new cuco stream-ordered allocator by @PointKernel in https://github.com/rapidsai/cugraph/pull/5311
+* Use SPDX for all copyright headers by @KyleFromNVIDIA in https://github.com/rapidsai/cugraph/pull/5320
+* Remove shims for CCCL < 3.1 compatibility by @bdice in https://github.com/rapidsai/cugraph/pull/5331
+* Migrate cugraph to CCCL memory resource interface by @bdice in https://github.com/rapidsai/cugraph/pull/5337
+* Use ruff-check, ruff-format instead of flake8, black by @KyleFromNVIDIA in https://github.com/rapidsai/cugraph/pull/5334
+* Fixes networkx version checks for skipping certain tests. by @rlratzel in https://github.com/rapidsai/cugraph/pull/5333
+* rename edge_time_t to time_stamp_t by @ChuckHastings in https://github.com/rapidsai/cugraph/pull/5339
+* Enable merge barriers by @KyleFromNVIDIA in https://github.com/rapidsai/cugraph/pull/5344
+* Update RMM includes from `<rmm/mr/device/*>` to `<rmm/mr/*>` by @bdice in https://github.com/rapidsai/cugraph/pull/5343
+* New sampling flag for disjoint sampling by @ChuckHastings in https://github.com/rapidsai/cugraph/pull/5342
+* Update API to leverage cuVS Spectral clustering by @jnke2016 in https://github.com/rapidsai/cugraph/pull/5326
+* Use `sccache-dist` build cluster for conda and wheel builds by @trxcllnt in https://github.com/rapidsai/cugraph/pull/5332
+* Requires NX 3.5 for edge BC tests by @rlratzel in https://github.com/rapidsai/cugraph/pull/5355
+
+## New Contributors
+* @rockhowse made their first contribution in https://github.com/rapidsai/cugraph/pull/5341
+
+**Full Changelog**: https://github.com/rapidsai/cugraph/compare/v25.12.00a...release/25.12
+
 # cugraph 25.10.00 (8 Oct 2025)
 
 ## 🚨 Breaking Changes
