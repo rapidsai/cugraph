@@ -242,7 +242,6 @@ dependencies:
     common:
       - output_types: [conda]
         packages:
-          - cuda-cudart-dev
           - cuda-nvtx-dev
           - cuda-profiler-api
           - libcublas-dev

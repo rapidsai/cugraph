@@ -81,7 +81,6 @@ cache:
       - rapids-build-backend >=0.4.0,<0.5.0
       - cuda-nvtx-dev
       - cuda-profiler-api
-      - cuda-cudart-dev
       - libcublas-dev
       - libcurand-dev
       - libcusolver-dev
@@ -111,7 +110,6 @@ outputs:
         - cuda-version =${{ cuda_version }}
         - librmm =${{ minor_version }}
         - rapids-logger =0.2
-        - cuda-cudart-dev
         - libcublas-dev
         - libcurand-dev
         - libcusolver-dev
@@ -166,7 +164,6 @@ outputs:
         - cuda-version =${{ cuda_version }}
         - libcudf =${{ minor_version }}
         - librmm =${{ minor_version }}
-        - cuda-cudart-dev
       run:
         - ${{ pin_compatible("cuda-version", upper_bound="x", lower_bound="x") }}
         - ${{ pin_subpackage("libcugraph", exact=True) }}
@@ -213,7 +210,6 @@ outputs:
         - nccl ${{ nccl_version }}
         - openmpi <5.0.3 # Required for building cpp-mgtests (multi-GPU tests)
         - rapids-logger =0.2
-        - cuda-cudart-dev
       run:
         - ${{ pin_compatible("cuda-version", upper_bound="x", lower_bound="x") }}
         - ${{ pin_subpackage("libcugraph", exact=True) }}
