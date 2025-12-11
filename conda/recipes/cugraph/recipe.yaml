@@ -55,6 +55,7 @@ build:
       SCCACHE_NO_CACHE: ${{ env.get("SCCACHE_NO_CACHE", default="") }}
       SCCACHE_RECACHE: ${{ env.get("SCCACHE_RECACHE", default="") }}
       SCCACHE_REGION: ${{ env.get("SCCACHE_REGION", default="") }}
+      SCCACHE_NO_DIST_COMPILE: ${{ env.get("SCCACHE_NO_DIST_COMPILE", default="") }}
       SCCACHE_S3_KEY_PREFIX: cugraph/${{ env.get("RAPIDS_CONDA_ARCH") }}/cuda${{ cuda_major }}
       SCCACHE_S3_NO_CREDENTIALS: ${{ env.get("SCCACHE_S3_NO_CREDENTIALS", default="false") }}
       SCCACHE_S3_PREPROCESSOR_CACHE_KEY_PREFIX: cugraph/${{ env.get("RAPIDS_CONDA_ARCH") }}/cuda${{ cuda_major }}/conda/preprocessor-cache

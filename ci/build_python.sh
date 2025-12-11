@@ -8,6 +8,7 @@ source rapids-configure-sccache
 source rapids-date-string
 
 export CMAKE_GENERATOR=Ninja
+export SCCACHE_NO_DIST_COMPILE=1
 
 rapids-print-env
 
