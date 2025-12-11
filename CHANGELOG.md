@@ -1,3 +1,11 @@
+# cugraph 25.12.01 (10 Dec 2025)
+
+### 🛠️ Improvements
+* Don't use the build cluster for releases due to runner disk constraints by @trxcllnt in https://github.com/rapidsai/cugraph/pull/5370
+
+
+**Full Changelog**: https://github.com/rapidsai/cugraph/compare/v25.12.00...release/25.12
+
 # cugraph 25.12.00 (10 Dec 2025)
 
 ### 🚨 Breaking Changes
