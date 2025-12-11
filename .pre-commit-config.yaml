@@ -88,6 +88,10 @@ repos:
             cpp/tests/utilities/cxxopts[.]hpp$
           )
       - id: verify-alpha-spec
+        args:
+          - --fix
+          - --mode
+          - release
       - id: verify-codeowners
         args: [--fix, --project-prefix=cugraph]
   - repo: https://github.com/sphinx-contrib/sphinx-lint
@@ -98,8 +102,8 @@ repos:
   - repo: https://github.com/rapidsai/dependency-file-generator
     rev: v1.20.0
     hooks:
-        - id: rapids-dependency-file-generator
-          args: ["--clean", "--warn-all", "--strict"]
+      - id: rapids-dependency-file-generator
+        args: ["--clean", "--warn-all", "--strict"]
   - repo: https://github.com/shellcheck-py/shellcheck-py
     rev: v0.10.0.1
     hooks:
