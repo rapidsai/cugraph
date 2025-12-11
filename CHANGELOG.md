@@ -1,3 +1,11 @@
+# cugraph 25.12.02 (10 Dec 2025)
+
+### 🛠️ Improvements
+* Unset `SCCACHE_NO_CACHE` by @trxcllnt in https://github.com/rapidsai/cugraph/pull/5371
+
+
+**Full Changelog**: https://github.com/rapidsai/cugraph/compare/v25.12.01...release/25.12
+
 # cugraph 25.12.01 (10 Dec 2025)
 
 ### 🛠️ Improvements
