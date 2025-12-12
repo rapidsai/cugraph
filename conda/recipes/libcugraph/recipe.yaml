@@ -161,6 +161,7 @@ outputs:
         - cmake ${{ cmake_version }}
         - ${{ stdlib("c") }}
       host:
+        - ${{ pin_subpackage("libcugraph", exact=True) }}
         - cuda-version =${{ cuda_version }}
         - libcudf =${{ minor_version }}
         - librmm =${{ minor_version }}

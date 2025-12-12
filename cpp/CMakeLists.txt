@@ -54,6 +54,11 @@ message(VERBOSE "CUGRAPH: CUGRAPH_USE_CUVS_STATIC=${CUGRAPH_USE_CUVS_STATIC}")
 ################################################################################
 # - compiler options -----------------------------------------------------------
 
+# For now, disable CMake's automatic module scanning for C++ files. There is an sccache bug in the
+# version RAPIDS uses in CI that causes it to handle the resulting -M* flags incorrectly with
+# gcc>=14. We can remove this once we upgrade to a newer sccache version.
+set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
+
 # CUDA runtime
 rapids_cuda_init_runtime(USE_STATIC ON)
 
@@ -435,9 +440,9 @@ set_target_properties(cugraph
     PROPERTIES BUILD_RPATH                         "\$ORIGIN"
                INSTALL_RPATH                       "\$ORIGIN"
                # set target compile options
-               CXX_STANDARD                        17
+               CXX_STANDARD                        20
                CXX_STANDARD_REQUIRED               ON
-               CUDA_STANDARD                       17
+               CUDA_STANDARD                       20
                CUDA_STANDARD_REQUIRED              ON
                POSITION_INDEPENDENT_CODE           ON
                INTERFACE_POSITION_INDEPENDENT_CODE ON
@@ -567,9 +572,9 @@ set_target_properties(cugraph_c
     PROPERTIES BUILD_RPATH                         "\$ORIGIN"
                INSTALL_RPATH                       "\$ORIGIN"
                # set target compile options
-               CXX_STANDARD                        17
+               CXX_STANDARD                        20
                CXX_STANDARD_REQUIRED               ON
-               CUDA_STANDARD                       17
+               CUDA_STANDARD                       20
                CUDA_STANDARD_REQUIRED              ON
                POSITION_INDEPENDENT_CODE           ON
                INTERFACE_POSITION_INDEPENDENT_CODE ON
