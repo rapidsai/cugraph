@@ -315,8 +315,6 @@ remove_visited_vertices_from_frontier(
  * @param property_edges vector of arithmetic device vectors of the edge data and the
  * properties.  This should include the src and dst vertices, any edge properties that exist for the
  * sampled edge and optionally the hop where the edge was sampled
- * @param labels Optional labels associated with each edge.  If labels are not specified this
- * function is a noop.
  * @param hops Optional hops associated with each edge.  If hops are specified the result is sorted
  * by label and hop
  * @param label_to_output_comm_rank Optional map associating each label to a comm rank.  If
@@ -332,7 +330,6 @@ shuffle_and_organize_output(
   std::vector<cugraph::arithmetic_device_uvector_t>&& property_edges,
   std::optional<rmm::device_uvector<int32_t>>&& labels,
   std::optional<rmm::device_uvector<int32_t>>&& hops,
-  std::optional<raft::device_span<int32_t const>> input_labels,
   std::optional<int32_t> input_hops,
   std::optional<raft::device_span<int32_t const>> label_to_output_comm_rank);
 
