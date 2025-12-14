@@ -72,7 +72,6 @@ requirements:
     - python =${{ py_version }}
     - rapids-build-backend >=0.4.0,<0.5.0
     - scikit-build-core >=0.10.0
-    - cuda-cudart-dev
   run:
     - ${{ pin_compatible("cuda-version", upper_bound="x", lower_bound="x") }}
     - cupy >=13.6.0
@@ -81,10 +80,8 @@ requirements:
     - pylibraft =${{ minor_version }}
     - python
     - rmm =${{ minor_version }}
-    - cuda-cudart
   ignore_run_exports:
     from_package:
-      - cuda-cudart-dev
     by_name:
       - cuda-version
 

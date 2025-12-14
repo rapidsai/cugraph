@@ -88,15 +88,6 @@ void balancedCutClustering_impl(raft::handle_t const& handle,
   // Create COO matrix view using coordinate structure view and CSR edge data
   auto coo_matrix = raft::make_device_coo_matrix_view<weight_t>(graph.edge_data, coord_view);
 
-  // Use seed from RNG state instead of hardcoded 0
-  rmm::device_uvector<unsigned long long> d_seed(1, handle.get_stream());
-
-  raft::random::uniformInt<unsigned long long>(
-    rng_state, d_seed.data(), 1, 0, std::numeric_limits<vertex_t>::max() - 1, handle.get_stream());
-
-  unsigned long long seed{0};
-  raft::update_host(&seed, d_seed.data(), d_seed.size(), handle.get_stream());
-
   cuvs::cluster::spectral::params params;
 
   params.rng_state    = rng_state;
@@ -171,15 +162,6 @@ void spectralModularityMaximization_impl(
 
   // Create COO matrix view using coordinate structure view and CSR edge data
   auto coo_matrix = raft::make_device_coo_matrix_view<weight_t>(graph.edge_data, coord_view);
-
-  // Use seed from RNG state instead of hardcoded 0
-  rmm::device_uvector<unsigned long long> d_seed(1, handle.get_stream());
-
-  raft::random::uniformInt<unsigned long long>(
-    rng_state, d_seed.data(), 1, 0, std::numeric_limits<vertex_t>::max() - 1, handle.get_stream());
-
-  unsigned long long seed{0};
-  raft::update_host(&seed, d_seed.data(), d_seed.size(), handle.get_stream());
 
   cuvs::cluster::spectral::params params;
 

@@ -83,7 +83,6 @@ requirements:
     - rmm =${{ minor_version }}
     - rapids-build-backend >=0.4.0,<0.5.0
     - scikit-build-core >=0.10.0
-    - cuda-cudart-dev
   run:
     - ${{ pin_compatible("cuda-version", upper_bound="x", lower_bound="x") }}
     - aiohttp
@@ -101,13 +100,11 @@ requirements:
     - rapids-dask-dependency =${{ minor_version }}
     - requests
     - ucxx ${{ ucxx_version }}
-    - cuda-cudart
     - if: cuda_major == "12"
       then: cuda-python >=12.9.2,<13.0
       else: cuda-python >=13.0.1,<14.0
   ignore_run_exports:
     from_package:
-      - cuda-cudart-dev
     by_name:
       - cuda-version
 
