@@ -71,8 +71,7 @@ rapids-logger "pytest pylibcugraph"
 # the install location, and in most cases, the source tree does not have
 # extensions built in-place and will result in ImportErrors.
 #
-# FIXME: TEMPORARILY disable MG PropertyGraph tests (experimental) tests and
-# bulk sampler IO tests (hangs in CI)
+# FIXME: TEMPORARILY disable bulk sampler IO tests (hangs in CI)
 rapids-logger "pytest cugraph (not mg, with xdist)"
 ./ci/run_cugraph_pytests.sh \
   --verbose \
