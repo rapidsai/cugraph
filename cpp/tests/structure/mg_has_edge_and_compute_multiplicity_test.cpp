@@ -53,9 +53,9 @@ class Tests_MGHasEdgeAndComputeMultiplicity
     HasEdgeAndComputeMultiplicity_Usecase const& has_edge_and_compute_multiplicity_usecase,
     input_usecase_t const& input_usecase)
   {
-    using weight_t    = float;
-    using edge_type_t = int32_t;
-    using edge_time_t = int32_t;
+    using weight_t     = float;
+    using edge_type_t  = int32_t;
+    using time_stamp_t = int32_t;
 
     HighResTimer hr_timer{};
 

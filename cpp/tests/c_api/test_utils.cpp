@@ -507,12 +507,12 @@ extern "C" int validate_sample_result(const cugraph_resource_handle_t* handle,
   cugraph_temporal_sampling_comparison_t temporal_sampling_comparison =
     internal_sampling_options->temporal_sampling_comparison_;
 
-  using vertex_t    = int32_t;
-  using weight_t    = float;
-  using edge_t      = int32_t;
-  using edge_time_t = int32_t;
+  using vertex_t     = int32_t;
+  using weight_t     = float;
+  using edge_t       = int32_t;
+  using time_stamp_t = int32_t;
 
-  edge_time_t const MAX_EDGE_TIME = INT32_MAX;
+  time_stamp_t const MAX_EDGE_TIME = INT32_MAX;
 
   cugraph_type_erased_device_array_view_t* result_renumber_map_offsets   = nullptr;
   cugraph_type_erased_device_array_view_t* result_renumber_map           = nullptr;
@@ -572,11 +572,11 @@ extern "C" int validate_sample_result(const cugraph_resource_handle_t* handle,
                                   : std::nullopt;
   auto result_edge_start_times_span =
     (result_edge_start_times != NULL)
-      ? std::make_optional(make_span<edge_time_t>(result_edge_start_times))
+      ? std::make_optional(make_span<time_stamp_t>(result_edge_start_times))
       : std::nullopt;
   auto result_edge_end_times_span =
     (result_edge_end_times != NULL)
-      ? std::make_optional(make_span<edge_time_t>(result_edge_end_times))
+      ? std::make_optional(make_span<time_stamp_t>(result_edge_end_times))
       : std::nullopt;
   auto result_label_span =
     (result_labels != NULL) ? std::make_optional(make_span<int32_t>(result_labels)) : std::nullopt;
@@ -605,11 +605,11 @@ extern "C" int validate_sample_result(const cugraph_resource_handle_t* handle,
       : std::nullopt;
   auto graph_edge_start_times =
     (result_edge_start_times != NULL)
-      ? std::make_optional(rmm::device_uvector<edge_time_t>(num_edges, raft_handle.get_stream()))
+      ? std::make_optional(rmm::device_uvector<time_stamp_t>(num_edges, raft_handle.get_stream()))
       : std::nullopt;
   auto graph_edge_end_times =
     (result_edge_end_times != NULL)
-      ? std::make_optional(rmm::device_uvector<edge_time_t>(num_edges, raft_handle.get_stream()))
+      ? std::make_optional(rmm::device_uvector<time_stamp_t>(num_edges, raft_handle.get_stream()))
       : std::nullopt;
 
   raft::update_device(graph_srcs.data(), h_src, num_edges, raft_handle.get_stream());
@@ -646,8 +646,8 @@ extern "C" int validate_sample_result(const cugraph_resource_handle_t* handle,
              raft_handle.get_stream());
 
   int32_t h_result_labels[result_size];
-  edge_time_t h_result_edge_start_times[result_size];
-  edge_time_t h_result_edge_end_times[result_size];
+  time_stamp_t h_result_edge_start_times[result_size];
+  time_stamp_t h_result_edge_end_times[result_size];
 
   if (result_label_span) {
     ret_code = cugraph_type_erased_device_array_view_copy_to_host(
@@ -800,7 +800,7 @@ extern "C" int validate_sample_result(const cugraph_resource_handle_t* handle,
       h_result_edge_start_times,
       reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
         result_edge_start_times)
-        ->as_type<edge_time_t const>(),
+        ->as_type<time_stamp_t const>(),
       result_size,
       raft_handle.get_stream());
   }
@@ -809,7 +809,7 @@ extern "C" int validate_sample_result(const cugraph_resource_handle_t* handle,
       h_result_edge_end_times,
       reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
         result_edge_end_times)
-        ->as_type<edge_time_t const>(),
+        ->as_type<time_stamp_t const>(),
       result_size,
       raft_handle.get_stream());
   }
@@ -1008,7 +1008,7 @@ extern "C" int validate_sample_result(const cugraph_resource_handle_t* handle,
 
       if (validate_edge_times) {
         // Check that the edge times are moving in the correct direction
-        edge_time_t previous_vertex_times[num_vertices];
+        time_stamp_t previous_vertex_times[num_vertices];
         for (size_t i = 0; i < num_vertices; ++i)
           if (temporal_sampling_comparison == STRICTLY_INCREASING) {
             previous_vertex_times[i] = -1;

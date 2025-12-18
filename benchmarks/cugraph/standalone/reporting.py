@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2021-2023, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 
 from os import path
@@ -14,7 +14,7 @@ def __namify_dict(d):
     """
     strings = []
 
-    for (key, val) in d.items():
+    for key, val in d.items():
         if type(val) in [float, np.float64, np.float32]:
             val = f"{val:.6}"
         strings.append(f"{key}:{val}")
@@ -39,7 +39,7 @@ def generate_console_report(benchmark_result_list):
     remaining_results = benchmark_result_list[1:]
 
     for r in remaining_results:
-        retstring += f"{'-'*80}\n"
+        retstring += f"{'-' * 80}\n"
         name = f"{r.name}({__namify_dict(r.params)})"
         space = " " * (70 - len(name))
         retstring += f"{name}{space}{r.runtime:.6}\n"

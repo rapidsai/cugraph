@@ -1,16 +1,3 @@
-# ** NOTICE ** the cuGraph repository has been refactored to make it more efficient to build, maintain and use.
-
-Libraries supporting GNNs are now located in the [cugraph-gnn repository](https://github.com/rapidsai/cugraph-gnn)
-
-* [pylibwholegraph](https://github.com/rapidsai/cugraph-gnn/tree/HEAD/python/) - the [Wholegraph](https://docs.rapids.ai/api/cugraph/nightly/wholegraph/) library for client memory management supporting cuGraph-PyG for even greater scalability
-* [cugraph_pyg](https://github.com/rapidsai/cugraph-gnn/blob/main/readme_pages/cugraph_pyg.md) enables the ability to use cugraph Property Graphs with PyTorch Geometric (PyG).
-
-[RAPIDS nx-cugraph](https://rapids.ai/nx-cugraph/) is now located in the [nx-cugraph repository](https://github.com/rapidsai/nx-cugraph) containing a backend to NetworkX for running supported algorithms with GPU acceleration.
-
-The [cugraph-docs repository](https://github.com/rapidsai/cugraph-docs) contains code to generate cuGraph documentation.
-
-#
-
 <h1 align="center"; style="font-style: italic";>
   <br>
   <img src="img/cugraph_logo_2.png" alt="cuGraph" width="500">
@@ -35,15 +22,7 @@ The [cugraph-docs repository](https://github.com/rapidsai/cugraph-docs) contains
 
 <br>
 
-[RAPIDS](https://rapids.ai) cuGraph is a repo that represents a collection of packages focused on GPU-accelerated graph analytics including support for property graphs.  cuGraph supports the creation and manipulation of graphs followed by the execution of scalable fast graph algorithms.
-
-<div align="center">
-
-[Getting cuGraph](https://docs.rapids.ai/api/cugraph/nightly/) *
-[Graph Algorithms](https://docs.rapids.ai/api/cugraph/nightly/graph_support/algorithms/) *
-[Property Graph](./readme_pages/property_graph.md) *
-
-</div>
+[RAPIDS](https://rapids.ai) cuGraph is a repo that represents a collection of packages focused on GPU-accelerated graph analytics.  cuGraph supports the creation and manipulation of graphs followed by the execution of scalable fast graph algorithms.
 
 -----
 
@@ -58,7 +37,6 @@ The [cugraph-docs repository](https://github.com/rapidsai/cugraph-docs) contains
   - [Blogs and Presentation](https://docs.rapids.ai/api/cugraph/nightly/tutorials/cugraph_blogs/)
 - Packages
   - [cuGraph Python](./readme_pages/cugraph_python.md)
-    - [Property Graph](./readme_pages/property_graph.md)
     - [External Data Types](./readme_pages/data_types.md)
   - [pylibcugraph](./readme_pages/pylibcugraph.md)
   - [libcugraph (C/C++/CUDA)](./readme_pages/libcugraph.md)
@@ -81,8 +59,6 @@ The [cugraph-docs repository](https://github.com/rapidsai/cugraph-docs) contains
 <br><br>
 
 -----
-
-<img src="img/Stack2.png" alt="Stack" width="800">
 
 [RAPIDS](https://rapids.ai) cuGraph is a collection of GPU-accelerated graph algorithms. At the Python layer, cuGraph operates on [GPU DataFrames](https://github.com/rapidsai/cudf), thereby allowing for seamless passing of data between ETL tasks in [cuDF](https://github.com/rapidsai/cudf) and machine learning tasks in [cuML](https://github.com/rapidsai/cuml). Data scientists familiar with Python will quickly pick up how cuGraph integrates with the Pandas-like API of cuDF.  Likewise, users familiar with NetworkX will quickly recognize the NetworkX-like API provided in cuGraph, with the goal to allow existing code to be ported with minimal effort into RAPIDS. To simplify integration, cuGraph also supports data found in [Pandas DataFrame](https://pandas.pydata.org/), [NetworkX Graph Objects](https://networkx.org/) and several other formats.
 
@@ -114,12 +90,6 @@ df_page.sort_values('pagerank', ascending=False).head(10)
 
 ```
 
-</br>
-
-[Why cuGraph does not support Method Cascading](https://docs.rapids.ai/api/cugraph/nightly/basics/cugraph_cascading.html)
-
-
-
 ------
 # Projects that use cuGraph
 
@@ -132,8 +102,6 @@ df_page.sort_values('pagerank', ascending=False).head(10)
 * ScanPy - a scalable toolkit for analyzing single-cell gene expression data - https://scanpy.readthedocs.io/en/stable/
 
 (please post an issue if you have a project to add to this list)
-
-
 
 ------
 <br>

@@ -121,8 +121,7 @@ def check_node2vec_random_walks(G, path_data, seeds, max_depth):
                 if i % (max_depth + 1) == 0 and vertex_1 != seeds[i // (max_depth + 1)]:
                     invalid_seeds += 1
                     print(
-                        "[ERR] Invalid seed: "
-                        " src {} != src {}".format(
+                        "[ERR] Invalid seed:  src {} != src {}".format(
                             vertex_1, seeds[i // (max_depth + 1)]
                         )
                     )
@@ -151,8 +150,9 @@ def check_node2vec_random_walks(G, path_data, seeds, max_depth):
 
                 if len(edge) == 0:
                     print(
-                        "[ERR] Invalid edge: "
-                        "There is no edge src {} dst {}".format(src, dst)
+                        "[ERR] Invalid edge: There is no edge src {} dst {}".format(
+                            src, dst
+                        )
                     )
                     invalid_edge += 1
 
@@ -192,7 +192,6 @@ def check_node2vec_random_walks(G, path_data, seeds, max_depth):
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize("max_depth", [None])
 def test_node2vec_random_walks_invalid_max_dept(graph_file, directed, max_depth):
-
     input_graph = graph_file.get_graph(create_using=cugraph.Graph(directed=directed))
     with pytest.raises(ValueError):
         _, _, _ = calc_node2vec_random_walks(input_graph, max_depth=max_depth)

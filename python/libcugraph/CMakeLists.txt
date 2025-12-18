@@ -1,6 +1,8 @@
 # =============================================================================
+# cmake-format: off
 # SPDX-FileCopyrightText: Copyright (c) 2025, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
+# cmake-format: on
 # =============================================================================
 
 cmake_minimum_required(VERSION 3.30.4 FATAL_ERROR)
@@ -26,9 +28,6 @@ endif()
 
 unset(cugraph_FOUND)
 
-# --- CUDA -- #
-set(CUDA_STATIC_RUNTIME ON)
-
 # --- cugraph ---#
 set(BUILD_TESTS OFF)
 set(BUILD_CUGRAPH_MG_TESTS OFF)
@@ -37,5 +36,9 @@ set(CMAKE_CUDA_LINEINFO OFF)
 # --- raft -- #
 set(USE_RAFT_STATIC OFF)
 set(CUGRAPH_COMPILE_RAFT_LIB ON)
+
+# --- cuvs --- #
+set(CUGRAPH_COMPILE_CUVS ON)
+set(CUGRAPH_USE_CUVS_STATIC ON)
 
 add_subdirectory(../../cpp cugraph-cpp)

@@ -125,7 +125,6 @@ def k_core(G: Graph, k=None, core_number=None, degree_type="bidirectional") -> G
         dst_names = k_core_df.columns[1]
 
     if G.edgelist.weights:
-
         KCoreGraph.from_cudf_edgelist(
             k_core_df, source=src_names, destination=dst_names, edge_attr="weight"
         )

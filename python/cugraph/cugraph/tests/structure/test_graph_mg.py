@@ -104,7 +104,6 @@ def test_nodes_functionality(dask_client, input_combo):
 
 @pytest.mark.mg
 def test_has_node_functionality(dask_client, input_combo):
-
     G = input_combo["MGGraph"]
 
     valid_nodes = G.nodes().compute()

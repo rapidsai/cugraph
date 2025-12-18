@@ -29,6 +29,7 @@
 #include <cuda/std/tuple>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
+#include <thrust/distance.h>
 #include <thrust/fill.h>
 #include <thrust/for_each.h>
 #include <thrust/iterator/counting_iterator.h>
@@ -263,7 +264,7 @@ template <typename vertex_t,
           typename edge_t,
           typename weight_t,
           typename edge_type_t,
-          typename edge_time_t,
+          typename time_stamp_t,
           bool store_transposed,
           bool multi_gpu>
 std::tuple<

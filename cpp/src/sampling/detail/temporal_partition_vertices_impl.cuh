@@ -14,6 +14,7 @@
 #include <raft/core/resource/thrust_policy.hpp>
 
 #include <thrust/copy.h>
+#include <thrust/distance.h>
 #include <thrust/remove.h>
 #include <thrust/sort.h>
 
@@ -22,26 +23,26 @@
 namespace cugraph {
 namespace detail {
 
-template <typename vertex_t, typename edge_time_t, typename label_t>
+template <typename vertex_t, typename time_stamp_t, typename label_t>
 std::tuple<rmm::device_uvector<vertex_t>,
-           rmm::device_uvector<edge_time_t>,
+           rmm::device_uvector<time_stamp_t>,
            std::optional<rmm::device_uvector<label_t>>,
            rmm::device_uvector<vertex_t>,
-           rmm::device_uvector<edge_time_t>,
+           rmm::device_uvector<time_stamp_t>,
            std::optional<rmm::device_uvector<label_t>>>
 temporal_partition_vertices(raft::handle_t const& handle,
                             raft::device_span<vertex_t const> vertices,
-                            raft::device_span<edge_time_t const> vertex_times,
+                            raft::device_span<time_stamp_t const> vertex_times,
                             std::optional<raft::device_span<label_t const>> vertex_labels)
 {
   rmm::device_uvector<vertex_t> vertices_p1(vertices.size(), handle.get_stream());
-  rmm::device_uvector<edge_time_t> vertex_times_p1(vertex_times.size(), handle.get_stream());
+  rmm::device_uvector<time_stamp_t> vertex_times_p1(vertex_times.size(), handle.get_stream());
   std::optional<rmm::device_uvector<label_t>> vertex_labels_p1{
     vertex_labels
       ? std::make_optional<rmm::device_uvector<label_t>>(vertex_labels->size(), handle.get_stream())
       : std::nullopt};
   rmm::device_uvector<vertex_t> vertices_p2(0, handle.get_stream());
-  rmm::device_uvector<edge_time_t> vertex_times_p2(0, handle.get_stream());
+  rmm::device_uvector<time_stamp_t> vertex_times_p2(0, handle.get_stream());
   std::optional<rmm::device_uvector<label_t>> vertex_labels_p2{
     vertex_labels ? std::make_optional<rmm::device_uvector<label_t>>(0, handle.get_stream())
                   : std::nullopt};

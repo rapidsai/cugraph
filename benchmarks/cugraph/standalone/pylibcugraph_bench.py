@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2022-2023, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 
 import time
@@ -16,20 +16,20 @@ print(f"num edges: {len(weights)}")
 print()
 
 ########
-import cugraph
+import cugraph  # noqa: E402
 
 st = time.time()
 G2 = cugraph.Graph(directed=True)
-print(f"cugraph Graph create time:      {time.time()-st}")
+print(f"cugraph Graph create time:      {time.time() - st}")
 G2.from_cudf_edgelist(
     edgelist_df, source="src", destination="dst", edge_attr="weight", renumber=True
 )
 st = time.time()
 result = cugraph.pagerank(G2, alpha=0.85, tol=1.0e-6, max_iter=500)
-print(f"cugraph time:      {time.time()-st}")
+print(f"cugraph time:      {time.time() - st}")
 
 ########
-import pylibcugraph
+import pylibcugraph  # noqa: E402
 
 resource_handle = pylibcugraph.experimental.ResourceHandle()
 graph_props = pylibcugraph.experimental.GraphProperties(
@@ -46,7 +46,7 @@ G = pylibcugraph.experimental.SGGraph(
     renumber=True,
     do_expensive_check=False,
 )
-print(f"pylibcugraph Graph create time: {time.time()-st}")
+print(f"pylibcugraph Graph create time: {time.time() - st}")
 st = time.time()
 (vertices, pageranks) = pylibcugraph.experimental.pagerank(
     resource_handle,
@@ -58,7 +58,7 @@ st = time.time()
     has_initial_guess=False,
     do_expensive_check=True,
 )
-print(f"pylibcugraph time: {time.time()-st} (expensive check)")
+print(f"pylibcugraph time: {time.time() - st} (expensive check)")
 st = time.time()
 (vertices, pageranks) = pylibcugraph.experimental.pagerank(
     resource_handle,
@@ -70,7 +70,7 @@ st = time.time()
     has_initial_guess=False,
     do_expensive_check=False,
 )
-print(f"pylibcugraph time: {time.time()-st}")
+print(f"pylibcugraph time: {time.time() - st}")
 
 ########
 print()

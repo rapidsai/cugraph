@@ -75,7 +75,6 @@ def nx_cugraph_call(G, max_iter, tol, alpha, personalization, nstart):
 # The function selects personalization_perc% of accessible vertices in graph M
 # and randomly assigns them personalization values
 def networkx_call(Gnx, max_iter, tol, alpha, personalization_perc, nnz_vtx):
-
     personalization = None
     if personalization_perc != 0:
         personalization = {}
@@ -153,7 +152,6 @@ def test_pagerank(
     has_guess,
     has_precomputed_vertex_out_weight,
 ):
-
     # NetworkX PageRank
     dataset_path = graph_file.get_path()
     M = utils.read_csv_for_nx(dataset_path)
@@ -219,7 +217,6 @@ def test_pagerank_multi_column(
     has_guess,
     has_precomputed_vertex_out_weight,
 ):
-
     # NetworkX PageRank
     dataset_path = graph_file.get_path()
     M = utils.read_csv_for_nx(dataset_path)

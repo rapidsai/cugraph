@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2019-2022, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2019-2025, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 
 # Import needed libraries
@@ -89,7 +89,6 @@ def EXPERIMENTAL__find_bicliques(
 
     # Loop over all the features (dst) or until K is reached
     for i in range(iter_max):
-
         # pop the next feature to process
         feature = f_list["dst"][i]
         degree = f_list["count"][i]
@@ -102,7 +101,6 @@ def EXPERIMENTAL__find_bicliques(
 
         # if this set of machines is the same as the last, skip this feature
         if not is_same_as_last(machine_old, machines):
-
             # now from those machines, hop out to the list of all the features
             feature_list = get_all_feature(src_by_dst, machines, num_parts)
 
@@ -141,7 +139,6 @@ def EXPERIMENTAL__find_bicliques(
 
 
 def _partition_data_by_feature(_df, PART_SIZE):
-
     # compute the number of sets
     m = int((_df["dst"].max() / PART_SIZE) + 1)
 
@@ -161,7 +158,6 @@ def _partition_data_by_feature(_df, PART_SIZE):
 
 
 def _count_features(_gdf, sort=True):
-
     aggs = OrderedDict()
     aggs["dst"] = "count"
 
@@ -177,7 +173,6 @@ def _count_features(_gdf, sort=True):
 
 # get all src vertices for a given dst
 def get_src_from_dst(_gdf, id):
-
     _src_list = _gdf.query("dst == @id")
 
     _src_list.drop("dst", inplace=True)
@@ -199,7 +194,6 @@ def is_same_as_last(_old, _new):
 
 # get all the items used by the specified users
 def get_all_feature(_gdf, src_list_df, N):
-
     c = [None] * N
 
     for i in range(N):

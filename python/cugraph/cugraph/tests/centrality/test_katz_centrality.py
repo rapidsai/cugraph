@@ -123,14 +123,12 @@ def test_katz_centrality_toy(graph_file):
         expected_score = centralities[vertex]
         actual_score = ck["katz_centrality"].iloc[vertex]
         assert pytest.approx(expected_score, abs=1e-2) == actual_score, (
-            f"Katz centrality score is {actual_score}, should have"
-            f"been {expected_score}"
+            f"Katz centrality score is {actual_score}, should have been {expected_score}"
         )
 
 
 @pytest.mark.sg
 def test_katz_centrality_transposed_false():
-
     G = karate.get_graph(create_using=cugraph.Graph(directed=True))
 
     warning_msg = (

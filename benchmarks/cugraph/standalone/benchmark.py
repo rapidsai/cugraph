@@ -160,7 +160,7 @@ class BenchmarkRun:
                         G.compute_renumber_edge_list(transposed=False)
                 self.__log("done.")
         # FIXME: need to handle individual algo args
-        for ((algo, params), validator) in zip(self.algos, self.validators):
+        for (algo, params), validator in zip(self.algos, self.validators):
             self.__log(f"running {algo.name} (warmup)...", end="")
             algo(G, **params)
             self.__log("done.")

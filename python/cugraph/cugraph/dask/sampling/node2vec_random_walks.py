@@ -49,7 +49,6 @@ def _call_plc_node2vec_random_walks(
     q: float,
     random_state: int,
 ) -> Tuple[cp.ndarray, cp.ndarray]:
-
     return pylibcugraph_node2vec_random_walks(
         resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
         graph=mg_graph_x,
@@ -122,9 +121,7 @@ def node2vec_random_walks(
     client = default_client()
 
     if (not isinstance(max_depth, int)) or (max_depth < 1):
-        raise ValueError(
-            f"'max_depth' must be a positive integer, " f"got: {max_depth}"
-        )
+        raise ValueError(f"'max_depth' must be a positive integer, got: {max_depth}")
     if (not isinstance(p, float)) or (p <= 0.0):
         raise ValueError(f"'p' must be a positive float, got: {p}")
     if (not isinstance(q, float)) or (q <= 0.0):

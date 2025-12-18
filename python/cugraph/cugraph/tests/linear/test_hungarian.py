@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2020-2023, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2020-2025, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 
 import gc
@@ -13,7 +13,6 @@ from scipy.optimize import linear_sum_assignment
 
 
 def create_random_bipartite(v1, v2, size, dtype):
-
     #
     #   Create a full bipartite graph
     #

@@ -21,6 +21,7 @@
 #include <cuda/std/tuple>
 #include <thrust/binary_search.h>
 #include <thrust/count.h>
+#include <thrust/distance.h>
 #include <thrust/equal.h>
 #include <thrust/extrema.h>
 #include <thrust/fill.h>
@@ -285,12 +286,12 @@ template bool validate_sampling_depth(raft::handle_t const& handle,
                                       rmm::device_uvector<int64_t>&& d_source_vertices,
                                       int max_depth);
 
-template <typename vertex_t, typename edge_time_t>
+template <typename vertex_t, typename time_stamp_t>
 bool validate_temporal_integrity(
   raft::handle_t const& handle,
   raft::device_span<vertex_t const> srcs,
   raft::device_span<vertex_t const> dsts,
-  raft::device_span<edge_time_t const> edge_times,
+  raft::device_span<time_stamp_t const> edge_times,
   raft::device_span<vertex_t const> source_vertices,
   cugraph::temporal_sampling_comparison_t temporal_sampling_comparison)
 {
@@ -307,7 +308,7 @@ bool validate_temporal_integrity(
   //    does not exist verify that it exists in source_vertices
 
   rmm::device_uvector<vertex_t> sorted_dsts(dsts.size(), handle.get_stream());
-  rmm::device_uvector<edge_time_t> sorted_dst_times(edge_times.size(), handle.get_stream());
+  rmm::device_uvector<time_stamp_t> sorted_dst_times(edge_times.size(), handle.get_stream());
 
   raft::copy(sorted_dsts.begin(), dsts.begin(), dsts.size(), handle.get_stream());
   raft::copy(sorted_dst_times.begin(), edge_times.begin(), edge_times.size(), handle.get_stream());
@@ -328,7 +329,7 @@ bool validate_temporal_integrity(
                                                               sorted_dsts.begin(),
                                                               sorted_dst_times.begin(),
                                                               thrust::equal_to<vertex_t>(),
-                                                              thrust::minimum<edge_time_t>())
+                                                              thrust::minimum<time_stamp_t>())
                                           .first),
                        handle.get_stream());
   } else {
@@ -340,7 +341,7 @@ bool validate_temporal_integrity(
                                                               sorted_dsts.begin(),
                                                               sorted_dst_times.begin(),
                                                               thrust::equal_to<vertex_t>(),
-                                                              thrust::maximum<edge_time_t>())
+                                                              thrust::maximum<time_stamp_t>())
                                           .first),
                        handle.get_stream());
   }
@@ -352,12 +353,12 @@ bool validate_temporal_integrity(
     thrust::make_zip_iterator(srcs.end(), dsts.end(), edge_times.end()),
     [min_dsts = raft::device_span<vertex_t const>{sorted_dsts.data(), sorted_dsts.size()},
      min_dst_times =
-       raft::device_span<edge_time_t const>{sorted_dst_times.data(), sorted_dst_times.size()},
+       raft::device_span<time_stamp_t const>{sorted_dst_times.data(), sorted_dst_times.size()},
      source_vertices,
      temporal_sampling_comparison] __device__(auto t) {
-      vertex_t src     = cuda::std::get<0>(t);
-      vertex_t dst     = cuda::std::get<1>(t);
-      edge_time_t time = cuda::std::get<2>(t);
+      vertex_t src      = cuda::std::get<0>(t);
+      vertex_t dst      = cuda::std::get<1>(t);
+      time_stamp_t time = cuda::std::get<2>(t);
 
       bool vertex_is_source =
         thrust::find(thrust::seq, source_vertices.begin(), source_vertices.end(), src) !=

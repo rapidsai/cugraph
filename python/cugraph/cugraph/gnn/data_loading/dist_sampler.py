@@ -29,22 +29,22 @@ def verify_metadata(metadata: Optional[Dict[str, Union[str, Tuple[str, str, str]
             assert isinstance(k, str), "Metadata keys must be strings."
             if isinstance(v, tuple):
                 assert len(v) == 3, "Metadata tuples must be of length 3."
-                assert isinstance(
-                    v[0], str
-                ), "Metadata tuple must be of type (str, str, str)."
-                assert isinstance(
-                    v[1], str
-                ), "Metadata tuple must be of type (str, str, str)."
-                assert isinstance(
-                    v[2], str
-                ), "Metadata tuple must be of type (str, str, str)."
+                assert isinstance(v[0], str), (
+                    "Metadata tuple must be of type (str, str, str)."
+                )
+                assert isinstance(v[1], str), (
+                    "Metadata tuple must be of type (str, str, str)."
+                )
+                assert isinstance(v[2], str), (
+                    "Metadata tuple must be of type (str, str, str)."
+                )
             else:
-                assert isinstance(
-                    v, str
-                ), "Metadata values must be strings or tuples of strings."
+                assert isinstance(v, str), (
+                    "Metadata values must be strings or tuples of strings."
+                )
 
 
-class DistSampler:
+class DEPRECATED__DistSampler:
     def __init__(
         self,
         graph: Union[pylibcugraph.SGGraph, pylibcugraph.MGGraph],
@@ -507,9 +507,9 @@ class DistSampler:
         minibatch_dict["input_index"] = current_ix.cuda()
         minibatch_dict["input_label"] = current_label.cuda()
         minibatch_dict["input_offsets"] = input_offsets
-        minibatch_dict[
-            "edge_inverse"
-        ] = current_inv  # (2 * batch_size) entries per batch
+        minibatch_dict["edge_inverse"] = (
+            current_inv  # (2 * batch_size) entries per batch
+        )
 
         if self.__writer is None:
             # rename renumber_map -> map to match unbuffered format
@@ -669,7 +669,7 @@ class DistSampler:
         return self.__retain_original_seeds
 
 
-class NeighborSampler(DistSampler):
+class DEPRECATED__NeighborSampler(DEPRECATED__DistSampler):
     # Number of vertices in the output minibatch, based
     # on benchmarking.
     BASE_VERTICES_PER_BYTE = 0.1107662486009992
@@ -696,7 +696,6 @@ class NeighborSampler(DistSampler):
         vertex_type_offsets: Optional[TensorType] = None,
         num_edge_types: int = 1,
     ):
-
         self.__fanout = fanout
         self.__func_kwargs = {
             "h_fan_out": np.asarray(fanout, dtype="int32"),
@@ -761,7 +760,7 @@ class NeighborSampler(DistSampler):
 
         if local_seeds_per_call is None:
             if len([x for x in fanout if x <= 0]) > 0:
-                return NeighborSampler.UNKNOWN_VERTICES_DEFAULT
+                return DEPRECATED__NeighborSampler.UNKNOWN_VERTICES_DEFAULT
 
             if heterogeneous:
                 if len(fanout) % num_edge_types != 0:
@@ -775,7 +774,9 @@ class NeighborSampler(DistSampler):
             total_memory = torch.cuda.get_device_properties(0).total_memory
             fanout_prod = reduce(lambda x, y: x * y, fanout)
             return int(
-                NeighborSampler.BASE_VERTICES_PER_BYTE * total_memory / fanout_prod
+                DEPRECATED__NeighborSampler.BASE_VERTICES_PER_BYTE
+                * total_memory
+                / fanout_prod
             )
 
         return local_seeds_per_call

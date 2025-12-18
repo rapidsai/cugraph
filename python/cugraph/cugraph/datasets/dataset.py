@@ -147,7 +147,7 @@ class Dataset:
 
         else:
             raise RuntimeError(
-                f"The directory {self._dl_path.path.absolute()}" "does not exist"
+                f"The directory {self._dl_path.path.absolute()} does not exist"
             )
         return self._path
 
