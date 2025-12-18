@@ -736,7 +736,7 @@ void multisource_backward_pass(
 
   auto d_first = thrust::make_transform_iterator(
     distances_2d.begin(),
-    cuda::proclaim_return_type<vertex_t>([invalid_distance] __host__ __device__(vertex_t d) {
+    cuda::proclaim_return_type<vertex_t>([invalid_distance] __device__(vertex_t d) {
       return d == invalid_distance ? vertex_t{0} : d;
     }));
   vertex_t global_max_distance = thrust::reduce(handle.get_thrust_policy(),
@@ -885,11 +885,10 @@ void multisource_backward_pass(
 
       if (num_segments_in_chunk > 0) {
         auto offset_first = thrust::make_transform_iterator(
-          h_distance_offsets.data() + chunk_distance_start,
-          cuda::proclaim_return_type<size_t>(
-            [chunk_vertex_start] __host__ __device__(size_t offset) {
-              return offset - chunk_vertex_start;
-            }));
+          d_distance_offsets.data() + chunk_distance_start,
+          cuda::proclaim_return_type<size_t>([chunk_vertex_start] __device__(size_t offset) {
+            return offset - chunk_vertex_start;
+          }));
 
         // CUB segmented sort directly on consecutive arrays - no copy needed!
         size_t temp_storage_bytes = 0;
