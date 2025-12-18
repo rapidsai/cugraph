@@ -877,16 +877,9 @@ void multisource_backward_pass(
     // Allocate temporary storage for CUB segmented sort
     rmm::device_uvector<std::byte> d_tmp_storage(0, handle.get_stream());
 
-    // Find max chunk size to allocate output buffers once
-    size_t max_chunk_size = 0;
-    for (size_t chunk_i = 0; chunk_i < num_chunks; ++chunk_i) {
-      size_t chunk_size = h_vertex_chunk_offsets[chunk_i + 1] - h_vertex_chunk_offsets[chunk_i];
-      max_chunk_size    = std::max(max_chunk_size, chunk_size);
-    }
-
-    // Allocate output buffers for CUB sort (requires separate input/output buffers)
-    rmm::device_uvector<vertex_t> d_sorted_vertices(max_chunk_size, handle.get_stream());
-    rmm::device_uvector<origin_t> d_sorted_sources(max_chunk_size, handle.get_stream());
+    // Allocate output buffers for CUB sort (input/output cannot overlap)
+    rmm::device_uvector<vertex_t> sorted_vertices(total_vertices, handle.get_stream());
+    rmm::device_uvector<origin_t> sorted_sources(total_vertices, handle.get_stream());
 
     // Process each chunk
     for (size_t chunk_i = 0; chunk_i < num_chunks; ++chunk_i) {
@@ -909,9 +902,9 @@ void multisource_backward_pass(
         cub::DeviceSegmentedSort::SortPairs(nullptr,
                                             temp_storage_bytes,
                                             all_vertices.data() + chunk_vertex_start,
-                                            d_sorted_vertices.data(),
+                                            sorted_vertices.data() + chunk_vertex_start,
                                             all_sources.data() + chunk_vertex_start,
-                                            d_sorted_sources.data(),
+                                            sorted_sources.data() + chunk_vertex_start,
                                             chunk_size,
                                             num_segments_in_chunk,
                                             offset_first,
@@ -925,26 +918,20 @@ void multisource_backward_pass(
         cub::DeviceSegmentedSort::SortPairs(d_tmp_storage.data(),
                                             temp_storage_bytes,
                                             all_vertices.data() + chunk_vertex_start,
-                                            d_sorted_vertices.data(),
+                                            sorted_vertices.data() + chunk_vertex_start,
                                             all_sources.data() + chunk_vertex_start,
-                                            d_sorted_sources.data(),
+                                            sorted_sources.data() + chunk_vertex_start,
                                             chunk_size,
                                             num_segments_in_chunk,
                                             offset_first,
                                             offset_first + 1,
                                             handle.get_stream());
-
-        // Copy sorted results back to the original arrays
-        thrust::copy(handle.get_thrust_policy(),
-                     d_sorted_vertices.begin(),
-                     d_sorted_vertices.begin() + chunk_size,
-                     all_vertices.data() + chunk_vertex_start);
-        thrust::copy(handle.get_thrust_policy(),
-                     d_sorted_sources.begin(),
-                     d_sorted_sources.begin() + chunk_size,
-                     all_sources.data() + chunk_vertex_start);
       }
     }
+
+    // Use the sorted arrays for subsequent processing
+    all_vertices = std::move(sorted_vertices);
+    all_sources  = std::move(sorted_sources);
   }
 
   // Process distance levels using pre-computed buckets (now with sorted vertices)
