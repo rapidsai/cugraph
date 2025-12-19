@@ -485,7 +485,6 @@ neighbor_sample_impl(raft::handle_t const& handle,
                                 std::move(property_edges),
                                 std::move(result_labels),
                                 std::move(result_hops),
-                                starting_vertex_labels,
                                 return_hops ? std::make_optional<int32_t>(num_hops) : std::nullopt,
                                 label_to_output_comm_rank);
 
