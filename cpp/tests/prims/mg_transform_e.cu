@@ -129,13 +129,19 @@ class Tests_MGTransformE
           cugraph::edge_dst_dummy_property_t{}.view(),
           edge_multi_indices.view(),
           cuda::proclaim_return_type<cuda::std::tuple<vertex_t, vertex_t, edge_t>>(
-            [] __device__(auto src, auto dst, auto, auto, auto multi_edge_index) {
+            [] __device__(vertex_t src,
+                          vertex_t dst,
+                          cuda::std::nullopt_t,
+                          cuda::std::nullopt_t,
+                          edge_t multi_edge_index) {
               return cuda::std::make_tuple(src, dst, multi_edge_index);
             }),
           cuda::proclaim_return_type<bool>(
-            [] __device__(auto src, auto dst, auto, auto, auto multi_edge_index) {
-              return ((src + dst) % 2) == 0;
-            }));
+            [] __device__(vertex_t src,
+                          vertex_t dst,
+                          cuda::std::nullopt_t,
+                          cuda::std::nullopt_t,
+                          edge_t multi_edge_index) { return ((src + dst) % 2) == 0; }));
         srcs               = std::move(std::get<0>(ret));
         dsts               = std::move(std::get<1>(ret));
         multi_edge_indices = std::move(std::get<2>(ret));
@@ -152,12 +158,17 @@ class Tests_MGTransformE
           cugraph::edge_dst_dummy_property_t{}.view(),
           cugraph::edge_dummy_property_t{}.view(),
           cuda::proclaim_return_type<cuda::std::tuple<vertex_t, vertex_t>>(
-            [] __device__(auto src, auto dst, auto, auto, auto) {
-              return cuda::std::make_tuple(src, dst);
-            }),
-          cuda::proclaim_return_type<bool>([] __device__(auto src, auto dst, auto, auto, auto) {
-            return ((src + dst) % 2) == 0;
-          }));
+            [] __device__(vertex_t src,
+                          vertex_t dst,
+                          cuda::std::nullopt_t,
+                          cuda::std::nullopt_t,
+                          cuda::std::nullopt_t) { return cuda::std::make_tuple(src, dst); }),
+          cuda::proclaim_return_type<bool>(
+            [] __device__(vertex_t src,
+                          vertex_t dst,
+                          cuda::std::nullopt_t,
+                          cuda::std::nullopt_t,
+                          cuda::std::nullopt_t) { return ((src + dst) % 2) == 0; }));
         srcs            = std::move(std::get<0>(ret));
         dsts            = std::move(std::get<1>(ret));
         auto pair_first = thrust::make_zip_iterator(store_transposed ? dsts.begin() : srcs.begin(),

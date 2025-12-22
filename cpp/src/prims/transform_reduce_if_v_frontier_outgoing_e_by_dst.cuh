@@ -307,9 +307,10 @@ sort_and_reduce_buffer_elements(
         handle.get_thrust_policy(),
         pair_first + num_unique_prefix_elements,
         pair_first + size_dataframe_buffer(key_buffer),
-        cuda::proclaim_return_type<bool>([invalid_key = *invalid_key] __device__(auto pair) {
-          return cuda::std::get<0>(pair) != invalid_key;
-        }));
+        cuda::proclaim_return_type<bool>(
+          [invalid_key = *invalid_key] __device__(thrust::tuple<key_t, payload_t> pair) {
+            return cuda::std::get<0>(pair) != invalid_key;
+          }));
       valid_size = static_cast<size_t>(cuda::std::distance(pair_first, valid_pair_last));
     }
     resize_dataframe_buffer(key_buffer, valid_size, handle.get_stream());
@@ -346,7 +347,7 @@ sort_and_reduce_buffer_elements(
            shift_left_amt =
              (compressed ? key_t{0} : std::get<0>(vertex_range)) + unique_prefix_vertex_range_size,
            num_keys =
-             size_dataframe_buffer(key_buffer) - num_unique_prefix_elements] __device__(auto i) {
+             size_dataframe_buffer(key_buffer) - num_unique_prefix_elements] __device__(size_t i) {
             auto keep_flag_word = packed_bool_empty_mask();
             for (size_t j = i * packed_bools_per_word();
                  j < cuda::std::min((i + 1) * packed_bools_per_word(), num_keys);
@@ -364,7 +365,7 @@ sort_and_reduce_buffer_elements(
             keep_flags[i] = keep_flag_word;
           }));
       auto count_first = thrust::make_transform_iterator(
-        keep_flags.begin(), cuda::proclaim_return_type<size_t>([] __device__(auto word) {
+        keep_flags.begin(), cuda::proclaim_return_type<size_t>([] __device__(uint32_t word) {
           return static_cast<size_t>(__popc(word));
         }));
       auto num_valids =

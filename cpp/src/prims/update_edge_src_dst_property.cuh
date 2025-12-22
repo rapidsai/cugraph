@@ -382,7 +382,7 @@ void update_edge_major_property(
         } else {
           auto map_first = thrust::make_transform_iterator(
             rx_vertices.begin(),
-            cuda::proclaim_return_type<vertex_t>([edge_partition] __device__(auto v) {
+            cuda::proclaim_return_type<vertex_t>([edge_partition] __device__(vertex_t v) {
               return edge_partition.major_offset_from_major_nocheck(v);
             }));
           // FIXME: this scatter is unnecessary if NCCL directly takes a permutation iterator (and
@@ -851,7 +851,7 @@ void update_edge_minor_property(
         } else {
           auto map_first = thrust::make_transform_iterator(
             rx_vertices.begin(),
-            cuda::proclaim_return_type<vertex_t>([edge_partition] __device__(auto v) {
+            cuda::proclaim_return_type<vertex_t>([edge_partition] __device__(vertex_t v) {
               return edge_partition.minor_offset_from_minor_nocheck(v);
             }));
           // FIXME: this scatter is unnecessary if NCCL directly takes a permutation iterator (and

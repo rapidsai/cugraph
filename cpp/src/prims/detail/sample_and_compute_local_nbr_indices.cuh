@@ -827,7 +827,7 @@ void sample_nbr_index_without_replacement(
 
     } else {
       auto count_first = thrust::make_transform_iterator(
-        frontier_degrees.begin(), cuda::proclaim_return_type<size_t>([K] __device__(auto degree) {
+        frontier_degrees.begin(), cuda::proclaim_return_type<size_t>([K] __device__(edge_t degree) {
           auto d = static_cast<size_t>(degree);
           return d > K ? (d - K) : size_t{0};
         }));
