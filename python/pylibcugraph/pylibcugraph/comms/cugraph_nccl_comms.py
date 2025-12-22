@@ -20,6 +20,12 @@ except ImportError:
                 " but are required for MG operations"
             )
 
+        def __getattr__(self, name):
+            raise ModuleNotFoundError(
+                "raft-dask and/or ucxx could not be imported"
+                " but are required for MG operations"
+            )
+
     nccl = MissingUCXX()
     inject_comms_on_handle_coll_only = MissingUCXX()
 
