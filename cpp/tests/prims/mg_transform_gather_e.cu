@@ -246,17 +246,15 @@ class Tests_MGTransformGatherE
         mg_src_prop.view(),
         mg_dst_prop.view(),
         cugraph::edge_dummy_property_t{}.view(),
-        cuda::proclaim_return_type<result_t>([] __device__(vertex_t src,
-                                                           vertex_t dst,
-                                                           result_t src_property,
-                                                           result_t dst_property,
-                                                           cuda::std::nullopt_t) {
-          if (src_property < dst_property) {
-            return src_property;
-          } else {
-            return dst_property;
-          }
-        }),
+        cuda::proclaim_return_type<result_t>(
+          [] __device__(
+            auto src, auto dst, auto src_property, auto dst_property, cuda::std::nullopt_t) {
+            if (src_property < dst_property) {
+              return src_property;
+            } else {
+              return dst_property;
+            }
+          }),
         cugraph::get_dataframe_buffer_begin(gathered_values));
     } else {
       cugraph::edge_bucket_t<vertex_t,
@@ -279,17 +277,15 @@ class Tests_MGTransformGatherE
         mg_src_prop.view(),
         mg_dst_prop.view(),
         cugraph::edge_dummy_property_t{}.view(),
-        cuda::proclaim_return_type<result_t>([] __device__(vertex_t src,
-                                                           vertex_t dst,
-                                                           result_t src_property,
-                                                           result_t dst_property,
-                                                           cuda::std::nullopt_t) {
-          if (src_property < dst_property) {
-            return src_property;
-          } else {
-            return dst_property;
-          }
-        }),
+        cuda::proclaim_return_type<result_t>(
+          [] __device__(
+            auto src, auto dst, auto src_property, auto dst_property, cuda::std::nullopt_t) {
+            if (src_property < dst_property) {
+              return src_property;
+            } else {
+              return dst_property;
+            }
+          }),
         cugraph::get_dataframe_buffer_begin(gathered_values));
     }
 
