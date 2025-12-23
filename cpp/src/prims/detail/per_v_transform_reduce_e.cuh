@@ -3404,7 +3404,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                   get_dataframe_buffer_begin(output_buffer) + edge_partition_allreduce_sizes[j],
                   thrust::make_transform_iterator(
                     std::get<0>(selected_ranks).begin(),
-                    cuda::proclaim_return_type<bool>([minor_comm_rank] __device__(auto rank) {
+                    cuda::proclaim_return_type<bool>([minor_comm_rank] __device__(uint8_t rank) {
                       return static_cast<int>(rank) == minor_comm_rank;
                     })),
                   get_dataframe_buffer_begin(values),

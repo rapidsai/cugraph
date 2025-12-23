@@ -233,7 +233,7 @@ void transform_gather_e(raft::handle_t const& handle,
     thrust::sort(handle.get_thrust_policy(),
                  output_indices.begin(),
                  output_indices.end(),
-                 cuda::proclaim_return_type<bool>([edge_first] __device__(auto l, auto r) {
+                 cuda::proclaim_return_type<bool>([edge_first] __device__(size_t l, size_t r) {
                    return *(edge_first + l) < *(edge_first + r);
                  }));
   }

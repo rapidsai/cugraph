@@ -208,7 +208,7 @@ void fill_edge_major_property(raft::handle_t const& handle,
         } else {
           auto map_first = thrust::make_transform_iterator(
             rx_vertices.begin(),
-            cuda::proclaim_return_type<vertex_t>([edge_partition] __device__(auto v) {
+            cuda::proclaim_return_type<vertex_t>([edge_partition] __device__(vertex_t v) {
               return edge_partition.major_offset_from_major_nocheck(v);
             }));
           auto val_first = thrust::make_constant_iterator(input);

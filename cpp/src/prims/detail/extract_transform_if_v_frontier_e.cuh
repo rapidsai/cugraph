@@ -1454,7 +1454,7 @@ extract_transform_if_v_frontier_e(raft::handle_t const& handle,
             }
           }
           auto key_local_degree_first = thrust::make_transform_iterator(
-            key_first, cuda::proclaim_return_type<size_t>([edge_partition] __device__(auto key) {
+            key_first, cuda::proclaim_return_type<size_t>([edge_partition] __device__(key_t key) {
               auto major        = thrust_tuple_get_or_identity<key_t, 0>(key);
               auto major_offset = edge_partition.major_offset_from_major_nocheck(major);
               return static_cast<size_t>(edge_partition.local_degree(major_offset));
