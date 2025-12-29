@@ -201,10 +201,13 @@ void transform_gather_e(raft::handle_t const& handle,
     cuda::proclaim_return_type<cuda::std::tuple<vertex_t, vertex_t, edge_t>>(
       [pair_first, multi_edge_index_first] __device__(
         size_t i) -> cuda::std::tuple<vertex_t, vertex_t, edge_t> {
-        auto pair             = *(pair_first + i);
-        auto multi_edge_index = multi_edge_index_first ? *(*multi_edge_index_first + i) : edge_t{0};
-        return cuda::std::tuple<vertex_t, vertex_t, edge_t>{
-          cuda::std::get<0>(pair), cuda::std::get<1>(pair), multi_edge_index};
+        auto pair = *(pair_first + i);
+        if (multi_edge_index_first) {
+          return cuda::std::make_tuple(
+            cuda::std::get<0>(pair), cuda::std::get<1>(pair), *(*multi_edge_index_first + i));
+        } else {
+          return cuda::std::make_tuple(cuda::std::get<0>(pair), cuda::std::get<1>(pair), edge_t{0});
+        }
       }));
 
   if (do_expensive_check) {
