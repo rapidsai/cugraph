@@ -1,4 +1,4 @@
-﻿#=============================================================================
+#=============================================================================
 # cmake-format: off
 # SPDX-FileCopyrightText: Copyright (c) 2019-2025, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
@@ -524,6 +524,34 @@ ConfigureTest(SAMPLING_POST_PROCESSING_TEST sampling/sampling_post_processing_te
 ###################################################################################################
 # - NEGATIVE SAMPLING tests --------------------------------------------------------------------
 ConfigureTest(NEGATIVE_SAMPLING_TEST sampling/negative_sampling.cpp PERCENT 100)
+
+###################################################################################################
+# - WINDOW EDGE MASK tests (Optimization B: CUDA-level window-based filtering) ------------------
+# Note: This test needs access to internal src headers
+add_executable(WINDOW_EDGE_MASK_TEST sampling/window_edge_mask_test.cu)
+target_include_directories(WINDOW_EDGE_MASK_TEST PRIVATE "${CUGRAPH_SOURCE_DIR}/src")
+target_link_libraries(WINDOW_EDGE_MASK_TEST
+    PRIVATE
+        cugraphtestutil
+        GTest::gtest
+        GTest::gtest_main
+)
+set_target_properties(
+    WINDOW_EDGE_MASK_TEST
+        PROPERTIES RUNTIME_OUTPUT_DIRECTORY "$<BUILD_INTERFACE:${CUGRAPH_BINARY_DIR}/gtests>"
+                   INSTALL_RPATH "\$ORIGIN/../../../lib"
+                   CXX_STANDARD                        17
+                   CXX_STANDARD_REQUIRED               ON
+                   CUDA_STANDARD                       17
+                   CUDA_STANDARD_REQUIRED              ON)
+rapids_test_add(
+    NAME WINDOW_EDGE_MASK_TEST
+    COMMAND WINDOW_EDGE_MASK_TEST
+    GPUS 1
+    PERCENT 100
+    INSTALL_COMPONENT_SET testing
+)
+set_tests_properties(WINDOW_EDGE_MASK_TEST PROPERTIES LABELS "CUGRAPH")
 
 ###################################################################################################
 # - Renumber tests --------------------------------------------------------------------------------
