@@ -141,28 +141,22 @@ temporal_partition_vertices(raft::handle_t const& handle,
       vertex_labels_p1->resize(vertices_p1.size(), handle.get_stream());
       vertex_times_p1.resize(vertices_p1.size(), handle.get_stream());
     } else {
+      // FIXED: When vertex_labels is std::nullopt, don't include labels in zip iterator
       copy_if_mask_unset(
         handle,
-        thrust::make_zip_iterator(
-          vertices_p1.begin(), vertex_times_p1.begin(), vertex_labels_p1->begin()),
-        thrust::make_zip_iterator(
-          vertices_p1.end(), vertex_times_p1.end(), vertex_labels_p1->end()),
+        thrust::make_zip_iterator(vertices_p1.begin(), vertex_times_p1.begin()),
+        thrust::make_zip_iterator(vertices_p1.end(), vertex_times_p1.end()),
         vertex_partition_mask.begin(),
-        thrust::make_zip_iterator(
-          vertices_p2.begin(), vertex_times_p2.begin(), vertex_labels_p2->begin()));
+        thrust::make_zip_iterator(vertices_p2.begin(), vertex_times_p2.begin()));
       vertices_p1.resize(
         thrust::distance(
-          thrust::make_zip_iterator(
-            vertices_p1.begin(), vertex_times_p1.begin(), vertex_labels_p1->begin()),
+          thrust::make_zip_iterator(vertices_p1.begin(), vertex_times_p1.begin()),
           copy_if_mask_set(
             handle,
-            thrust::make_zip_iterator(
-              vertices_p1.begin(), vertex_times_p1.begin(), vertex_labels_p1->begin()),
-            thrust::make_zip_iterator(
-              vertices_p1.end(), vertex_times_p1.end(), vertex_labels_p1->end()),
+            thrust::make_zip_iterator(vertices_p1.begin(), vertex_times_p1.begin()),
+            thrust::make_zip_iterator(vertices_p1.end(), vertex_times_p1.end()),
             vertex_partition_mask.begin(),
-            thrust::make_zip_iterator(
-              vertices_p1.begin(), vertex_times_p1.begin(), vertex_labels_p1->begin()))),
+            thrust::make_zip_iterator(vertices_p1.begin(), vertex_times_p1.begin()))),
         handle.get_stream());
 
       vertex_times_p1.resize(vertices_p1.size(), handle.get_stream());
