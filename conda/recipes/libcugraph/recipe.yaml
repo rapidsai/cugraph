@@ -139,7 +139,7 @@ outputs:
           - openmpi
     about:
       homepage: ${{ load_from_file("python/libcugraph/pyproject.toml").project.urls.Homepage }}
-      license: ${{ load_from_file("python/libcugraph/pyproject.toml").project.license.text }}
+      license: ${{ load_from_file("python/libcugraph/pyproject.toml").project.license }}
       summary: ${{ load_from_file("python/libcugraph/pyproject.toml").project.description }}
 
   - package:
@@ -185,7 +185,7 @@ outputs:
           - openmpi
     about:
       homepage: ${{ load_from_file("python/libcugraph/pyproject.toml").project.urls.Homepage }}
-      license: ${{ load_from_file("python/libcugraph/pyproject.toml").project.license.text }}
+      license: ${{ load_from_file("python/libcugraph/pyproject.toml").project.license }}
       summary: libcugraph_etl library
 
   - package:
@@ -230,5 +230,5 @@ outputs:
           - openmpi
     about:
       homepage: ${{ load_from_file("python/libcugraph/pyproject.toml").project.urls.Homepage }}
-      license: ${{ load_from_file("python/libcugraph/pyproject.toml").project.license.text }}
+      license: ${{ load_from_file("python/libcugraph/pyproject.toml").project.license }}
       summary: libcugraph test & benchmark executables
