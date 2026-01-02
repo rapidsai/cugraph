@@ -263,7 +263,12 @@ temporal_neighbor_sample_impl(
           handle.get_comms(), has_duplicates_size, raft::comms::op_t::SUM, handle.get_stream());
       }
 
-      if (no_duplicates_size > 0) {
+      // OPTIMIZATION D: Only update edge mask for gather path (fan_out < 0).
+      // For sampling path (fan_out > 0), we use temporal_sample_edges() which
+      // does inline temporal filtering at O(frontier_edges) instead of O(all_edges).
+      // The edge mask update was the main bottleneck (~62% of GPU time).
+      bool gather_flags = level_Ks ? false : true;
+      if (gather_flags && no_duplicates_size > 0) {
         update_temporal_edge_mask(
           handle,
           graph_view,
@@ -315,12 +320,15 @@ temporal_neighbor_sample_impl(
         edge_property_views.push_back(edge_start_time_view);
         if (edge_end_time_view) edge_property_views.push_back(*edge_end_time_view);
 
-        auto [srcs, dsts, sampled_edge_properties, labels] = sample_edges(
+        // OPTIMIZATION D: Use temporal_sample_edges for inline temporal filtering.
+        // This is O(frontier_edges) instead of O(all_edges) edge mask update.
+        auto [srcs, dsts, sampled_edge_properties, labels] = temporal_sample_edges<vertex_t, edge_t, time_stamp_t, multi_gpu>(
           handle,
           rng_state,
-          temporal_graph_view,
+          graph_view,  // Use original graph_view (no mask needed)
           raft::host_span<edge_arithmetic_property_view_t<edge_t>>{edge_property_views.data(),
                                                                    edge_property_views.size()},
+          edge_start_time_view,
           edge_type_view
             ? std::make_optional<edge_arithmetic_property_view_t<edge_t>>(*edge_type_view)
             : std::nullopt,
@@ -329,13 +337,16 @@ temporal_neighbor_sample_impl(
             : std::nullopt,
           raft::device_span<vertex_t const>{frontier_vertices_no_duplicates.data(),
                                             frontier_vertices_no_duplicates.size()},
+          raft::device_span<time_stamp_t const>{frontier_vertex_times_no_duplicates.data(),
+                                                frontier_vertex_times_no_duplicates.size()},
           frontier_vertex_labels_no_duplicates
             ? std::make_optional(
                 raft::device_span<label_t const>{frontier_vertex_labels_no_duplicates->data(),
                                                  frontier_vertex_labels_no_duplicates->size()})
             : std::nullopt,
           raft::host_span<size_t const>(level_Ks->data(), level_Ks->size()),
-          sampling_flags.with_replacement);
+          sampling_flags.with_replacement,
+          sampling_flags.temporal_sampling_comparison);
 
         result_vector_sizes.push_back(srcs.size());
         result_vector_hops.push_back(hop);
