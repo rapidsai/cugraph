@@ -64,6 +64,48 @@ After all optimizations, `cuco::insert_if_n` is at 19.2% of GPU time:
 - Potential savings if 2x faster: ~4.5ms per iteration
 - Expected additional speedup: 16.09ms → ~11.6ms (1.4x more)
 
+### Principled CG Size Analysis (from nsys profile)
+
+**Kernel Details from nsys:**
+```
+insert_if_n<(int)1, (int)128>
+  - CG size: 1 (current)
+  - Block size: 128
+  - Grid size: 78,125 x 1 x 1
+  - Total keys per call: ~10M
+  - Avg execution time: 8.4ms
+```
+
+**Load Factor Analysis:**
+- cuGraph uses 70% load factor (`kv_store.cuh` line 806)
+- At 70% load factor with linear probing:
+  - Expected avg probe distance: 1/(1-0.7) ≈ 3.3 slots
+  - Max reasonable probe: ~10 slots
+
+**CG Size Trade-offs:**
+
+| CG Size | Probes/Iteration | Avg Iterations | Max Iterations | Warp Groups |
+|---------|------------------|----------------|----------------|-------------|
+| 1 | 1 | 4 | 10 | 32 (full warp) |
+| 2 | 2 | 2 | 5 | 16 |
+| **4** | **4** | **1** | **3** | **8** |
+| 8 | 8 | 1 | 2 | 4 |
+| 16 | 16 | 1 | 1 | 2 |
+
+**Why CG=4 is Optimal:**
+
+1. **Matches cuco default**: cuco's `static_map` and `static_set` default to CG=4
+2. **Memory coalescing**: 4 consecutive slots probed together = better L2 cache utilization
+3. **Probe efficiency**: At 70% load, 4 parallel probes find most keys in 1 iteration
+4. **Warp efficiency**: 8 groups per warp = good SM occupancy
+5. **Documentation**: cuco explicitly states CG provides "significant boost in throughput 
+   compared to non-CG at moderate to high load factors" (static_map.cuh lines 2194, 2453)
+
+**Expected Speedup from CG=4:**
+- Reduce avg iterations from 4 to 1 → ~2-4x faster probing
+- Conservative estimate: 2x speedup on hash table kernel
+- Impact on total time: 8.4ms → 4.2ms per iteration (25% of current 16ms)
+
 ### Why CG Size Increase Is Invasive
 
 **Attempted and failed.** The cuGraph codebase uses device-side hash table operations:

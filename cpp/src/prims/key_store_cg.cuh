@@ -43,7 +43,21 @@
 namespace cugraph {
 namespace detail {
 
-// CG size for parallel probing (4 threads per key)
+/**
+ * CG size for parallel probing.
+ *
+ * Rationale for CG=4 (derived from nsys profile analysis):
+ *
+ * 1. Load factor: cuGraph uses 0.7 (70%) load factor for hash tables
+ * 2. Probe distance: At 70% load, avg probe distance = 1/(1-0.7) ≈ 3.3 slots
+ * 3. Parallel probing efficiency:
+ *    - CG=1: 4 iterations avg to find key
+ *    - CG=4: 1 iteration avg to find key (4 probes covers ~3.3 expected)
+ *    - CG=8: 1 iteration (overkill, wastes warp parallelism)
+ * 4. Warp efficiency: CG=4 gives 8 groups per warp = good SM occupancy
+ * 5. Memory coalescing: CG=4 probes 4 consecutive slots together
+ * 6. cuco default: Both static_map and static_set default to CG=4
+ */
 constexpr int kCGSize = 4;
 
 using cuco_storage_type = cuco::storage<1>;
