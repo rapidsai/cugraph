@@ -32,6 +32,7 @@
 
 #include <cooperative_groups.h>
 #include <thrust/binary_search.h>
+#include <thrust/distance.h>
 #include <thrust/gather.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/sequence.h>
