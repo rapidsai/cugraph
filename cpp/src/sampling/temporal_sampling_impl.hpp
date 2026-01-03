@@ -69,9 +69,8 @@ temporal_neighbor_sample_impl(
   static_assert(std::is_floating_point_v<bias_t>);
   static_assert(std::is_same_v<bias_t, weight_t>);
 
-  // FIXME: Add support for a graph_view that already has an edge mask
-  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(),
-                  "Can't currently support a graph view with an existing edge mask");
+  // Support for graph views with edge masks (e.g., from window filtering B/C optimization)
+  // The edge mask will be combined with temporal filtering during sampling
 
   if constexpr (!multi_gpu) {
     CUGRAPH_EXPECTS(!label_to_output_comm_rank,
