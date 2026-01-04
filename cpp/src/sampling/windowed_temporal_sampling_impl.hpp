@@ -263,7 +263,7 @@ windowed_temporal_neighbor_sample_impl(
     // Create edge mask for window
     window_edge_mask = cugraph::edge_property_t<edge_t, bool>(handle, graph_view);
     
-    auto num_edges = graph_view.number_of_edges();
+    auto num_edges = graph_view.compute_number_of_edges(handle);
     
     if (window_state) {
       // Use existing window state for incremental update (Optimization C)
