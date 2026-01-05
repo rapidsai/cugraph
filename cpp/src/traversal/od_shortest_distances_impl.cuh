@@ -273,8 +273,12 @@ __global__ static void multi_partition_copy(
       if (tmp_idx < num_elems) {
         auto partition    = partition_op(*(input_first + tmp_idx));
         tmp_partitions[i] = partition;
-        tmp_offsets[i]    = tmp_counts[partition];
-        ++tmp_counts[partition];
+        // Skip count update for discarded elements (partition == max_num_partitions)
+        // to avoid out-of-bounds access on tmp_counts array
+        if (partition != static_cast<uint8_t>(max_num_partitions)) {
+          tmp_offsets[i] = tmp_counts[partition];
+          ++tmp_counts[partition];
+        }
       }
       tmp_idx += gridDim.x * blockDim.x;
     }

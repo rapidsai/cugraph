@@ -92,7 +92,8 @@ normalize_biases(raft::handle_t const& handle,
       thrust::find_if(handle.get_thrust_policy(),
                       thrust::make_reverse_iterator(gpu_biases->end()),
                       thrust::make_reverse_iterator(gpu_biases->begin()),
-                      [] __device__(weight_t bias) { return bias > weight_t{0}; }));
+                      cuda::proclaim_return_type<bool>(
+                        [] __device__(weight_t bias) { return bias > weight_t{0}; })));
 
     thrust::transform(handle.get_thrust_policy(),
                       gpu_biases->begin(),
