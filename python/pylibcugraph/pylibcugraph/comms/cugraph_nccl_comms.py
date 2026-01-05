@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2024-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 
 import math
@@ -17,13 +17,13 @@ except ImportError:
         def __call__(self, *args, **kwargs):
             raise ModuleNotFoundError(
                 "raft-dask and/or ucxx could not be imported"
-                " but are required for MG operations"
+                " but are required for multi-GPU operations"
             )
 
         def __getattr__(self, name):
             raise ModuleNotFoundError(
                 "raft-dask and/or ucxx could not be imported"
-                " but are required for MG operations"
+                " but are required for multi-GPU operations"
             )
 
     nccl = MissingUCXX()
