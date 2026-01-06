@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -133,24 +133,16 @@ shuffle_and_organize_output(
         });
       });
 
-    // Need to generate offsets for each unique label (not each seed)
-    rmm::device_uvector<int32_t> unique_labels(0, handle.get_stream());
+    // Need to generate offsets for each unique label (not each seed) on each GPU
+    rmm::device_uvector<int32_t> unique_labels(labels->size(), handle.get_stream());
+    raft::copy(unique_labels.data(), labels->data(), labels->size(), handle.get_stream());
+    thrust::sort(handle.get_thrust_policy(), unique_labels.begin(), unique_labels.end());
+    auto unique_end =
+      thrust::unique(handle.get_thrust_policy(), unique_labels.begin(), unique_labels.end());
+    size_t num_unique_labels =
+      static_cast<size_t>(thrust::distance(unique_labels.begin(), unique_end));
 
-    if (label_to_output_comm_rank) {
-      unique_labels.resize(label_to_output_comm_rank->size(), handle.get_stream());
-      detail::sequence_fill(
-        handle.get_stream(), unique_labels.data(), unique_labels.size(), int32_t{0});
-    } else {
-      unique_labels.resize(labels->size(), handle.get_stream());
-      raft::copy(unique_labels.data(), labels->data(), labels->size(), handle.get_stream());
-      thrust::sort(handle.get_thrust_policy(), unique_labels.begin(), unique_labels.end());
-      auto unique_end =
-        thrust::unique(handle.get_thrust_policy(), unique_labels.begin(), unique_labels.end());
-      size_t num_unique_labels =
-        static_cast<size_t>(thrust::distance(unique_labels.begin(), unique_end));
-
-      unique_labels.resize(num_unique_labels, handle.get_stream());
-    }
+    unique_labels.resize(num_unique_labels, handle.get_stream());
 
     offsets = rmm::device_uvector<size_t>(unique_labels.size() + 1, handle.get_stream());
 
