@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2024-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -64,6 +64,75 @@ struct negative_sampling_functor : public cugraph::c_api::abstract_functor {
   {
   }
 
+  template <typename bias_t, typename vertex_t, typename edge_t, bool multi_gpu>
+  std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>>
+  perform_negative_sampling(
+    cugraph::graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+    rmm::device_uvector<vertex_t> const& number_map)
+  {
+    rmm::device_uvector<vertex_t> vertices(0, handle_.get_stream());
+    rmm::device_uvector<bias_t> src_biases(0, handle_.get_stream());
+    rmm::device_uvector<bias_t> dst_biases(0, handle_.get_stream());
+
+    if (src_biases_ != nullptr) {
+      vertices.resize(vertices_->size_, handle_.get_stream());
+      src_biases.resize(src_biases_->size_, handle_.get_stream());
+
+      raft::copy(
+        vertices.data(), vertices_->as_type<vertex_t>(), vertices.size(), handle_.get_stream());
+      raft::copy(
+        src_biases.data(), src_biases_->as_type<bias_t>(), src_biases.size(), handle_.get_stream());
+
+      src_biases = cugraph::detail::
+        collect_local_vertex_values_from_ext_vertex_value_pairs<vertex_t, bias_t, multi_gpu>(
+          handle_,
+          std::move(vertices),
+          std::move(src_biases),
+          number_map,
+          graph_view.local_vertex_partition_range_first(),
+          graph_view.local_vertex_partition_range_last(),
+          bias_t{0},
+          do_expensive_check_);
+    }
+
+    if (dst_biases_ != nullptr) {
+      vertices.resize(vertices_->size_, handle_.get_stream());
+      dst_biases.resize(dst_biases_->size_, handle_.get_stream());
+
+      raft::copy(
+        vertices.data(), vertices_->as_type<vertex_t>(), vertices.size(), handle_.get_stream());
+      raft::copy(
+        dst_biases.data(), dst_biases_->as_type<bias_t>(), dst_biases.size(), handle_.get_stream());
+
+      dst_biases = cugraph::detail::
+        collect_local_vertex_values_from_ext_vertex_value_pairs<vertex_t, bias_t, multi_gpu>(
+          handle_,
+          std::move(vertices),
+          std::move(dst_biases),
+          number_map,
+          graph_view.local_vertex_partition_range_first(),
+          graph_view.local_vertex_partition_range_last(),
+          bias_t{0},
+          do_expensive_check_);
+    }
+
+    return cugraph::negative_sampling(
+      handle_,
+      rng_state_->rng_state_,
+      graph_view,
+      (src_biases_ != nullptr)
+        ? std::make_optional(raft::device_span<bias_t const>{src_biases.data(), src_biases.size()})
+        : std::nullopt,
+      (dst_biases_ != nullptr)
+        ? std::make_optional(raft::device_span<bias_t const>{dst_biases.data(), dst_biases.size()})
+        : std::nullopt,
+      num_samples_,
+      remove_duplicates_,
+      remove_existing_edges_,
+      exact_number_of_samples_,
+      do_expensive_check_);
+  }
+
   template <typename vertex_t,
             typename edge_t,
             typename weight_t,
@@ -92,71 +161,16 @@ struct negative_sampling_functor : public cugraph::c_api::abstract_functor {
 
       auto number_map = reinterpret_cast<rmm::device_uvector<vertex_t>*>(graph_->number_map_);
 
-      rmm::device_uvector<vertex_t> vertices(0, handle_.get_stream());
-      rmm::device_uvector<weight_t> src_biases(0, handle_.get_stream());
-      rmm::device_uvector<weight_t> dst_biases(0, handle_.get_stream());
+      rmm::device_uvector<vertex_t> src(0, handle_.get_stream());
+      rmm::device_uvector<vertex_t> dst(0, handle_.get_stream());
 
-      if (src_biases_ != nullptr) {
-        vertices.resize(vertices_->size_, handle_.get_stream());
-        src_biases.resize(src_biases_->size_, handle_.get_stream());
-
-        raft::copy(
-          vertices.data(), vertices_->as_type<vertex_t>(), vertices.size(), handle_.get_stream());
-        raft::copy(src_biases.data(),
-                   src_biases_->as_type<weight_t>(),
-                   src_biases.size(),
-                   handle_.get_stream());
-
-        src_biases = cugraph::detail::
-          collect_local_vertex_values_from_ext_vertex_value_pairs<vertex_t, weight_t, multi_gpu>(
-            handle_,
-            std::move(vertices),
-            std::move(src_biases),
-            *number_map,
-            graph_view.local_vertex_partition_range_first(),
-            graph_view.local_vertex_partition_range_last(),
-            weight_t{0},
-            do_expensive_check_);
+      if ((src_biases_ == nullptr) || (src_biases_->type_ == FLOAT32)) {
+        std::tie(src, dst) = perform_negative_sampling<float>(graph_view, *number_map);
+      } else if (src_biases_->type_ == FLOAT64) {
+        std::tie(src, dst) = perform_negative_sampling<double>(graph_view, *number_map);
+      } else {
+        CUGRAPH_FAIL("Biases must be float or double");
       }
-
-      if (dst_biases_ != nullptr) {
-        vertices.resize(vertices_->size_, handle_.get_stream());
-        dst_biases.resize(dst_biases_->size_, handle_.get_stream());
-
-        raft::copy(
-          vertices.data(), vertices_->as_type<vertex_t>(), vertices.size(), handle_.get_stream());
-        raft::copy(dst_biases.data(),
-                   dst_biases_->as_type<weight_t>(),
-                   dst_biases.size(),
-                   handle_.get_stream());
-
-        dst_biases = cugraph::detail::
-          collect_local_vertex_values_from_ext_vertex_value_pairs<vertex_t, weight_t, multi_gpu>(
-            handle_,
-            std::move(vertices),
-            std::move(dst_biases),
-            *number_map,
-            graph_view.local_vertex_partition_range_first(),
-            graph_view.local_vertex_partition_range_last(),
-            weight_t{0},
-            do_expensive_check_);
-      }
-
-      auto&& [src, dst] = cugraph::negative_sampling(
-        handle_,
-        rng_state_->rng_state_,
-        graph_view,
-        (src_biases_ != nullptr) ? std::make_optional(raft::device_span<weight_t const>{
-                                     src_biases.data(), src_biases.size()})
-                                 : std::nullopt,
-        (dst_biases_ != nullptr) ? std::make_optional(raft::device_span<weight_t const>{
-                                     dst_biases.data(), dst_biases.size()})
-                                 : std::nullopt,
-        num_samples_,
-        remove_duplicates_,
-        remove_existing_edges_,
-        exact_number_of_samples_,
-        do_expensive_check_);
 
       cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(
         handle_,
@@ -203,6 +217,16 @@ cugraph_error_code_t cugraph_negative_sampling(
   cugraph_coo_t** result,
   cugraph_error_t** error)
 {
+  if ((src_biases != nullptr) && (dst_biases != nullptr))
+    CAPI_EXPECTS(
+      reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(src_biases)
+          ->type_ ==
+        reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(dst_biases)
+          ->type_,
+      CUGRAPH_INVALID_INPUT,
+      "If source and destination biases are specified they must be of the same type",
+      *error);
+
   negative_sampling_functor functor{handle,
                                     rng_state,
                                     graph,
