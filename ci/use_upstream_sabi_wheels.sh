@@ -20,13 +20,13 @@ LIBRAFT_WHEELHOUSE=$(
   RAPIDS_PY_WHEEL_NAME="libraft_${RAPIDS_PY_CUDA_SUFFIX}" rapids-get-pr-artifact raft 2915 cpp wheel
 )
 PYLIBRAFT_WHEELHOUSE=$(
-  rapids-get-pr-artifact raft 2915 python wheel --stable --pkg_name pylibraft
+  ./ci/rapids-get-pr-artifact raft 2915 python wheel --stable --pkg_name pylibraft
 )
 LIBCUDF_WHEELHOUSE=$(
   RAPIDS_PY_WHEEL_NAME="libcudf_${RAPIDS_PY_CUDA_SUFFIX}" rapids-get-pr-artifact cudf 20974 cpp wheel
 )
 PYLIBCUDF_WHEELHOUSE=$(
-  rapids-get-pr-artifact cudf 20974 python wheel --stable --pkg_name pylibcudf
+  ./ci/rapids-get-pr-artifact cudf 20974 python wheel --stable --pkg_name pylibcudf
 )
 CUDF_WHEELHOUSE=$(
   rapids-get-pr-artifact cudf 20974 python wheel --stable
