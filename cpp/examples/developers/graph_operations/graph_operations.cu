@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2024, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -11,6 +11,7 @@
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
+#include <cugraph/shuffle_functions.hpp>
 
 #include <raft/comms/mpi_comms.hpp>
 #include <raft/core/comms.hpp>
@@ -70,9 +71,7 @@ template <typename vertex_t,
           bool multi_gpu>
 
 std::tuple<cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu>,
-           std::optional<cugraph::edge_property_t<
-             cugraph::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
-             weight_t>>,
+           std::optional<cugraph::edge_property_t<edge_t, weight_t>>,
            std::optional<rmm::device_uvector<vertex_t>>>
 create_graph(raft::handle_t const& handle,
              std::vector<vertex_t>&& edge_srcs,
@@ -113,6 +112,9 @@ create_graph(raft::handle_t const& handle,
       (*d_edge_wgts).data(), (*edge_wgts).data() + start, work_size, handle.get_stream());
   }
 
+  std::vector<cugraph::arithmetic_device_uvector_t> edge_property_vectors{};
+  if (d_edge_wgts) { edge_property_vectors.push_back(std::move(*d_edge_wgts)); }
+
   //
   // In cugraph, each vertex and edge is assigned to a specific GPU using hash functions. Before
   // creating a graph from edges, we need to ensure that all edges are already assigned to the
@@ -120,13 +122,12 @@ create_graph(raft::handle_t const& handle,
   //
 
   if (multi_gpu) {
-    std::tie(d_edge_srcs, d_edge_dsts, d_edge_wgts, std::ignore, std::ignore, std::ignore) =
-      cugraph::shuffle_external_edges<vertex_t, vertex_t, weight_t, int32_t>(handle,
-                                                                             std::move(d_edge_srcs),
-                                                                             std::move(d_edge_dsts),
-                                                                             std::move(d_edge_wgts),
-                                                                             std::nullopt,
-                                                                             std::nullopt);
+    std::tie(d_edge_srcs, d_edge_dsts, edge_property_vectors, std::ignore) =
+      cugraph::shuffle_ext_edges(handle,
+                                 std::move(d_edge_srcs),
+                                 std::move(d_edge_dsts),
+                                 std::move(edge_property_vectors),
+                                 store_transposed);
   }
 
   //
@@ -135,31 +136,29 @@ create_graph(raft::handle_t const& handle,
 
   cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu> graph(handle);
 
-  std::optional<cugraph::edge_property_t<decltype(graph.view()), weight_t>> edge_weights{
-    std::nullopt};
+  std::optional<cugraph::edge_property_t<edge_t, weight_t>> edge_weights{std::nullopt};
+  std::vector<cugraph::edge_arithmetic_property_t<edge_t>> edgelist_edge_properties;
 
   std::optional<rmm::device_uvector<vertex_t>> renumber_map{std::nullopt};
 
-  std::tie(graph, edge_weights, std::ignore, std::ignore, renumber_map) =
-    cugraph::create_graph_from_edgelist<vertex_t,
-                                        edge_t,
-                                        weight_t,
-                                        edge_t,
-                                        int32_t,
-                                        store_transposed,
-                                        multi_gpu>(handle,
-                                                   std::nullopt,
-                                                   std::move(d_edge_srcs),
-                                                   std::move(d_edge_dsts),
-                                                   std::move(d_edge_wgts),
-                                                   std::nullopt,
-                                                   std::nullopt,
-                                                   cugraph::graph_properties_t{is_symmetric, false},
-                                                   renumber,
-                                                   true);
+  std::tie(graph, edgelist_edge_properties, renumber_map) =
+    cugraph::create_graph_from_edgelist<vertex_t, edge_t, store_transposed, multi_gpu>(
+      handle,
+      std::nullopt,
+      std::move(d_edge_srcs),
+      std::move(d_edge_dsts),
+      std::move(edge_property_vectors),
+      cugraph::graph_properties_t{is_symmetric, false},
+      renumber,
+      std::nullopt,
+      std::nullopt,
+      true);
 
-  auto graph_view       = graph.view();
-  auto edge_weight_view = edge_weights ? std::make_optional((*edge_weights).view()) : std::nullopt;
+  auto graph_view = graph.view();
+  if (edgelist_edge_properties.size() > 0) {
+    edge_weights =
+      std::move(std::get<cugraph::edge_property_t<edge_t, weight_t>>(edgelist_edge_properties[0]));
+  }
 
   return std::make_tuple(std::move(graph), std::move(edge_weights), std::move(renumber_map));
 }
@@ -185,8 +184,6 @@ void perform_example_graph_operations(
   vertex_t size_of_the_vertex_partition_assigned_to_this_process =
     graph_view.local_vertex_partition_range_size();
 
-  using graph_view_t = cugraph::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>;
-
   //
   // As an example operation, for each vertex, compute the weighted average of the
   // properties of neighboring vertices, weighted by the edge weights, if the input
@@ -197,11 +194,9 @@ void perform_example_graph_operations(
     using result_t      = weight_t;
     auto vertex_weights = cugraph::compute_out_weight_sums(handle, graph_view, *edge_weight_view);
 
-    cugraph::edge_src_property_t<graph_view_t, result_t> src_vertex_weights_cache(handle,
-                                                                                  graph_view);
+    cugraph::edge_src_property_t<edge_t, result_t> src_vertex_weights_cache(handle, graph_view);
 
-    cugraph::edge_dst_property_t<graph_view_t, result_t> dst_vertex_weights_cache(handle,
-                                                                                  graph_view);
+    cugraph::edge_dst_property_t<edge_t, result_t> dst_vertex_weights_cache(handle, graph_view);
 
     cugraph::update_edge_src_property(
       handle, graph_view, vertex_weights.begin(), src_vertex_weights_cache.mutable_view());
@@ -242,10 +237,8 @@ void perform_example_graph_operations(
     using result_t      = edge_t;
     auto vertex_weights = graph_view.compute_out_degrees(handle);
 
-    cugraph::edge_src_property_t<graph_view_t, result_t> src_vertex_weights_cache(handle,
-                                                                                  graph_view);
-    cugraph::edge_dst_property_t<graph_view_t, result_t> dst_vertex_weights_cache(handle,
-                                                                                  graph_view);
+    cugraph::edge_src_property_t<edge_t, result_t> src_vertex_weights_cache(handle, graph_view);
+    cugraph::edge_dst_property_t<edge_t, result_t> dst_vertex_weights_cache(handle, graph_view);
 
     cugraph::update_edge_src_property(
       handle, graph_view, vertex_weights.begin(), src_vertex_weights_cache.mutable_view());
