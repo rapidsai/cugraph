@@ -39,6 +39,7 @@ libraft-${RAPIDS_PY_CUDA_SUFFIX} @ file://$(echo "${LIBRAFT_WHEELHOUSE}"/libraft
 pylibraft-${RAPIDS_PY_CUDA_SUFFIX} @ file://$(echo "${PYLIBRAFT_WHEELHOUSE}"/pylibraft_*.whl)
 libcudf-${RAPIDS_PY_CUDA_SUFFIX} @ file://$(echo "${LIBCUDF_WHEELHOUSE}"/libcudf_*.whl)
 pylibcudf-${RAPIDS_PY_CUDA_SUFFIX} @ file://$(echo "${PYLIBCUDF_WHEELHOUSE}"/pylibcudf_*.whl)
+pylibcudf-${RAPIDS_PY_CUDA_SUFFIX}[pyarrow] @ file://$(echo "${PYLIBCUDF_WHEELHOUSE}"/pylibcudf_*.whl)
 cudf-${RAPIDS_PY_CUDA_SUFFIX} @ file://$(echo "${CUDF_WHEELHOUSE}"/cudf_*.whl)
 EOF
 
