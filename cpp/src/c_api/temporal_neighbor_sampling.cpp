@@ -12,6 +12,7 @@
 #include "c_api/sampling_common.hpp"
 #include "c_api/utils.hpp"
 #include "sampling/detail/sampling_utils.hpp"
+#include "sampling/windowed_temporal_sampling_impl.hpp"
 
 #include <cugraph_c/algorithms.h>
 #include <cugraph_c/sampling_algorithms.h>
@@ -44,7 +45,10 @@ struct temporal_neighbor_sampling_functor : public cugraph::c_api::abstract_func
   bool do_expensive_check_{false};
   cugraph::c_api::cugraph_sample_result_t* result_{nullptr};
 
-  // Temporal-specific parameters
+  // Window-based filtering parameters (B+C+D optimizations)
+  bool use_windowed_sampling_{false};
+  int64_t window_start_{0};
+  int64_t window_end_{0};
 
   temporal_neighbor_sampling_functor(
     cugraph_resource_handle_t const* handle,
@@ -87,6 +91,13 @@ struct temporal_neighbor_sampling_functor : public cugraph::c_api::abstract_func
       do_expensive_check_(do_expensive_check),
       temporal_column_name_(temporal_column_name)
   {
+  }
+
+  void set_window_parameters(int64_t window_start, int64_t window_end)
+  {
+    use_windowed_sampling_ = true;
+    window_start_ = window_start;
+    window_end_ = window_end;
   }
 
   template <typename vertex_t,
@@ -454,6 +465,57 @@ struct temporal_neighbor_sampling_functor : public cugraph::c_api::abstract_func
                                         options_.with_replacement_ == TRUE,
                                         temporal_sampling_comparison,
                                         options_.disjoint_sampling_ == TRUE},
+              do_expensive_check_);
+        } else if (use_windowed_sampling_) {
+          // Windowed temporal sampling with B+C+D optimizations
+          // B: O(log E) binary search for window bounds
+          // C: O(ΔE) incremental updates (when window_state provided)
+          // D: Inline temporal filtering during sampling
+          std::tie(sampled_edge_srcs,
+                   sampled_edge_dsts,
+                   sampled_weights,
+                   sampled_edge_ids,
+                   sampled_edge_types,
+                   sampled_edge_start_times,
+                   sampled_edge_end_times,
+                   hop,
+                   offsets) =
+            cugraph::detail::windowed_temporal_neighbor_sample_impl<
+              vertex_t, edge_t, weight_t, edge_type_t, time_stamp_t, weight_t, label_t,
+              false, multi_gpu>(
+              handle_,
+              rng_state_->rng_state_,
+              graph_view,
+              (edge_weights != nullptr) ? std::make_optional(edge_weights->view()) : std::nullopt,
+              (edge_ids != nullptr) ? std::make_optional(edge_ids->view()) : std::nullopt,
+              (edge_types != nullptr) ? std::make_optional(edge_types->view()) : std::nullopt,
+              edge_start_times->view(),
+              (edge_end_times != nullptr) ? std::make_optional(edge_end_times->view())
+                                          : std::nullopt,
+              std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},  // edge_bias
+              raft::device_span<vertex_t const>{start_vertices.data(), start_vertices.size()},
+              starting_vertex_times
+                ? std::make_optional<raft::device_span<time_stamp_t const>>(
+                    starting_vertex_times->data(), starting_vertex_times->size())
+                : std::nullopt,
+              (starting_vertex_label_offsets_ != nullptr)
+                ? std::make_optional<raft::device_span<label_t const>>((*start_vertex_labels).data(),
+                                                                       (*start_vertex_labels).size())
+                : std::nullopt,
+              label_to_comm_rank ? std::make_optional(raft::device_span<int32_t const>{
+                                     (*label_to_comm_rank).data(), (*label_to_comm_rank).size()})
+                                 : std::nullopt,
+              raft::host_span<const int>(fan_out_->as_type<const int>(), fan_out_->size_),
+              std::make_optional(edge_type_t{1}),  // num_edge_types
+              cugraph::sampling_flags_t{options_.prior_sources_behavior_,
+                                        options_.return_hops_ == TRUE,
+                                        options_.dedupe_sources_ == TRUE,
+                                        options_.with_replacement_ == TRUE,
+                                        temporal_sampling_comparison,
+                                        options_.disjoint_sampling_ == TRUE},
+              std::make_optional(static_cast<time_stamp_t>(window_start_)),
+              std::make_optional(static_cast<time_stamp_t>(window_end_)),
+              std::optional<std::reference_wrapper<cugraph::detail::window_state_t<edge_t, time_stamp_t>>>{std::nullopt},  // No persistent window state for single call
               do_expensive_check_);
         } else {
           std::tie(sampled_edge_srcs,
@@ -1230,5 +1292,90 @@ extern "C" cugraph_error_code_t cugraph_homogeneous_biased_temporal_neighbor_sam
                                              std::move(options_cpp),
                                              TRUE,
                                              do_expensive_check};
+  return cugraph::c_api::run_algorithm(graph, functor, result, error);
+}
+
+extern "C" cugraph_error_code_t cugraph_homogeneous_uniform_temporal_neighbor_sample_windowed(
+  const cugraph_resource_handle_t* handle,
+  cugraph_rng_state_t* rng_state,
+  cugraph_graph_t* graph,
+  const char* temporal_column_name,
+  const cugraph_type_erased_device_array_view_t* start_vertices,
+  const cugraph_type_erased_device_array_view_t* starting_vertex_times,
+  const cugraph_type_erased_device_array_view_t* starting_vertex_label_offsets,
+  const cugraph_type_erased_host_array_view_t* fan_out,
+  const cugraph_sampling_options_t* options,
+  int64_t window_start,
+  int64_t window_end,
+  bool_t do_expensive_check,
+  cugraph_sample_result_t** result,
+  cugraph_error_t** error)
+{
+  auto options_cpp = *reinterpret_cast<cugraph::c_api::cugraph_sampling_options_t const*>(options);
+
+  // Validate window parameters
+  CAPI_EXPECTS(window_end > window_start,
+               CUGRAPH_INVALID_INPUT,
+               "window_end must be greater than window_start",
+               *error);
+
+  // FIXME: Should we maintain this contition?
+  CAPI_EXPECTS((!options_cpp.retain_seeds_) || (starting_vertex_label_offsets != nullptr),
+               CUGRAPH_INVALID_INPUT,
+               "must specify starting_vertex_label_offsets if retain_seeds is true",
+               *error);
+
+  CAPI_EXPECTS((starting_vertex_label_offsets == nullptr) ||
+                 (reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
+                    starting_vertex_label_offsets)
+                    ->type_ == SIZE_T),
+               CUGRAPH_INVALID_INPUT,
+               "starting_vertex_label_offsets should be of type size_t",
+               *error);
+
+  CAPI_EXPECTS(
+    reinterpret_cast<cugraph::c_api::cugraph_type_erased_host_array_view_t const*>(fan_out)
+        ->type_ == INT32,
+    CUGRAPH_INVALID_INPUT,
+    "fan_out type must be INT32",
+    *error);
+
+  CAPI_EXPECTS(reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)->vertex_type_ ==
+                 reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
+                   start_vertices)
+                   ->type_,
+               CUGRAPH_INVALID_INPUT,
+               "vertex type of graph and start_vertices must match",
+               *error);
+
+  CAPI_EXPECTS(starting_vertex_times == nullptr ||
+                 reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
+                   starting_vertex_times)
+                     ->size_ ==
+                   reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
+                     start_vertices)
+                     ->size_,
+               CUGRAPH_INVALID_INPUT,
+               "starting_vertex_times should have the same size as start_vertices",
+               *error);
+
+  temporal_neighbor_sampling_functor functor{handle,
+                                             rng_state,
+                                             graph,
+                                             temporal_column_name,
+                                             nullptr,  // edge_biases
+                                             start_vertices,
+                                             starting_vertex_times,
+                                             starting_vertex_label_offsets,
+                                             nullptr,  // vertex_type_offsets
+                                             fan_out,
+                                             1,  // num_edge_types
+                                             std::move(options_cpp),
+                                             FALSE,  // is_biased
+                                             do_expensive_check};
+  
+  // Enable windowed sampling with B+C+D optimizations
+  functor.set_window_parameters(window_start, window_end);
+  
   return cugraph::c_api::run_algorithm(graph, functor, result, error);
 }

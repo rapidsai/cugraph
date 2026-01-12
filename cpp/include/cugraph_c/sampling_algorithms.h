@@ -568,6 +568,50 @@ cugraph_error_code_t cugraph_homogeneous_uniform_temporal_neighbor_sample(
   cugraph_error_t** error);
 
 /**
+ * @brief     Homogeneous Uniform Temporal Neighborhood Sampling with Window Filtering (B+C+D)
+ *
+ * Same as cugraph_homogeneous_uniform_temporal_neighbor_sample but with window-based edge
+ * filtering optimizations:
+ *   - B: Binary search for window bounds (O(log E) instead of O(E))
+ *   - C: Incremental window updates for sliding windows (O(ΔE) instead of O(E))
+ *   - D: Inline temporal filtering during sampling
+ *
+ * Use this function when performing multiple sampling operations with sliding time windows,
+ * such as walk-forward cross-validation or rolling window training.
+ *
+ * @param [in]  handle        Handle to the underlying resources for GPU operations
+ * @param [in]  rng_state     Random number generator state
+ * @param [in]  graph         Pointer to the graph
+ * @param [in]  temporal_property_name Name of temporal edge property (currently unused)
+ * @param [in]  start_vertices Device array of starting vertices for sampling
+ * @param [in]  starting_vertex_times Optional device array of times for each starting vertex
+ * @param [in]  starting_vertex_label_offsets Optional device array of label offsets
+ * @param [in]  fan_out       Host array defining the fan out at each step
+ * @param [in]  sampling_options Opaque pointer defining sampling options
+ * @param [in]  window_start  Start of temporal window (edges with time >= window_start included)
+ * @param [in]  window_end    End of temporal window (edges with time < window_end included)
+ * @param [in]  do_expensive_check Flag to run expensive input validation
+ * @param [out] result        Output from the sampling call
+ * @param [out] error         Pointer to error object
+ * @return error code
+ */
+cugraph_error_code_t cugraph_homogeneous_uniform_temporal_neighbor_sample_windowed(
+  const cugraph_resource_handle_t* handle,
+  cugraph_rng_state_t* rng_state,
+  cugraph_graph_t* graph,
+  const char* temporal_property_name,
+  const cugraph_type_erased_device_array_view_t* start_vertices,
+  const cugraph_type_erased_device_array_view_t* starting_vertex_times,
+  const cugraph_type_erased_device_array_view_t* starting_vertex_label_offsets,
+  const cugraph_type_erased_host_array_view_t* fan_out,
+  const cugraph_sampling_options_t* sampling_options,
+  int64_t window_start,
+  int64_t window_end,
+  bool_t do_expensive_check,
+  cugraph_sample_result_t** result,
+  cugraph_error_t** error);
+
+/**
  * @brief     Homogeneous Biased Temporal Neighborhood Sampling
  *
  * Returns a sample of the neighborhood around specified start vertices and fan_out.

@@ -48,6 +48,7 @@ from pylibcugraph._cugraph_c.algorithms cimport (
 )
 from pylibcugraph._cugraph_c.sampling_algorithms cimport (
     cugraph_homogeneous_uniform_temporal_neighbor_sample,
+    cugraph_homogeneous_uniform_temporal_neighbor_sample_windowed,
 )
 from pylibcugraph.resource_handle cimport (
     ResourceHandle,
@@ -89,10 +90,12 @@ def homogeneous_uniform_temporal_neighbor_sample(ResourceHandle resource_handle,
                                                  return_hops=False,
                                                  renumber=False,
                                                  retain_seeds=False,
-                                                 compression='COO',
-                                                 compress_per_hop=False,
-                                                 random_state=None,
-                                                 temporal_sampling_comparison='strictly_increasing'):
+                                                compression='COO',
+                                                compress_per_hop=False,
+                                                random_state=None,
+                                                temporal_sampling_comparison='strictly_increasing',
+                                                window_start=None,
+                                                window_end=None):
     """
     Performs uniform temporal neighborhood sampling, which samples nodes from
     a graph based on the current node's neighbors, with a corresponding fan_out
@@ -192,6 +195,19 @@ def homogeneous_uniform_temporal_neighbor_sample(ResourceHandle resource_handle,
     temporal_sampling_comparison: str (Optional)
         Options: 'strictly_increasing' (default), 'strictly_decreasing', 'monotonically_increasing', 'monotonically_decreasing', 'last'
         Sets the comparison operator for temporal sampling.
+
+    window_start: int (Optional)
+        Start of temporal window. When provided with window_end, enables B+C+D
+        optimizations for windowed temporal sampling:
+          - B: O(log E) binary search for window bounds
+          - C: O(ΔE) incremental window updates
+          - D: Inline temporal filtering
+        Only edges with time >= window_start are considered.
+
+    window_end: int (Optional)
+        End of temporal window. Only edges with time < window_end are considered.
+        Must be provided together with window_start.
+
     Returns
     -------
     A tuple of device arrays, where the first and second items in the tuple
@@ -400,20 +416,41 @@ def homogeneous_uniform_temporal_neighbor_sample(ResourceHandle resource_handle,
         raise ValueError(f'Invalid option {temporal_sampling_comparison} for temporal sampling comparison')
     cugraph_sampling_set_temporal_sampling_comparison(sampling_options, temporal_sampling_comparison_e)
 
-    error_code = cugraph_homogeneous_uniform_temporal_neighbor_sample(
-        c_resource_handle_ptr,
-        rng_state_ptr,
-        c_graph_ptr,
-        "edge_start_time",
-        start_vertex_list_ptr,
-        starting_vertex_times_ptr,
-        starting_vertex_label_offsets_ptr,
-        fan_out_ptr,
-        sampling_options,
-        do_expensive_check,
-        &result_ptr,
-        &error_ptr)
-    assert_success(error_code, error_ptr, "cugraph_homogeneous_uniform_temporal_neighbor_sample")
+    # Use windowed variant if window parameters are provided
+    if window_start is not None and window_end is not None:
+        error_code = cugraph_homogeneous_uniform_temporal_neighbor_sample_windowed(
+            c_resource_handle_ptr,
+            rng_state_ptr,
+            c_graph_ptr,
+            "edge_start_time",
+            start_vertex_list_ptr,
+            starting_vertex_times_ptr,
+            starting_vertex_label_offsets_ptr,
+            fan_out_ptr,
+            sampling_options,
+            <long>window_start,
+            <long>window_end,
+            do_expensive_check,
+            &result_ptr,
+            &error_ptr)
+        assert_success(error_code, error_ptr, "cugraph_homogeneous_uniform_temporal_neighbor_sample_windowed")
+    elif window_start is not None or window_end is not None:
+        raise ValueError("Both window_start and window_end must be provided together, or neither")
+    else:
+        error_code = cugraph_homogeneous_uniform_temporal_neighbor_sample(
+            c_resource_handle_ptr,
+            rng_state_ptr,
+            c_graph_ptr,
+            "edge_start_time",
+            start_vertex_list_ptr,
+            starting_vertex_times_ptr,
+            starting_vertex_label_offsets_ptr,
+            fan_out_ptr,
+            sampling_options,
+            do_expensive_check,
+            &result_ptr,
+            &error_ptr)
+        assert_success(error_code, error_ptr, "cugraph_homogeneous_uniform_temporal_neighbor_sample")
 
     # Free the sampling options
     cugraph_sampling_options_free(sampling_options)

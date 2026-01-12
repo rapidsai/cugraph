@@ -162,6 +162,24 @@ cdef extern from "cugraph_c/sampling_algorithms.h":
             cugraph_sample_result_t** result,
             cugraph_error_t** error);
 
+    # homogeneous uniform temporal neighbor sampling with window (B+C+D optimized)
+    cdef cugraph_error_code_t \
+        cugraph_homogeneous_uniform_temporal_neighbor_sample_windowed(
+            const cugraph_resource_handle_t* handle,
+            cugraph_rng_state_t* rng_state,
+            cugraph_graph_t* graph,
+            const char* temporal_property_name,
+            const cugraph_type_erased_device_array_view_t* start_vertices,
+            const cugraph_type_erased_device_array_view_t* starting_vertex_times,
+            const cugraph_type_erased_device_array_view_t* starting_vertex_label_offsets,
+            const cugraph_type_erased_host_array_view_t* fan_out,
+            const cugraph_sampling_options_t* sampling_options,
+            long window_start,
+            long window_end,
+            bool_t do_expensive_check,
+            cugraph_sample_result_t** result,
+            cugraph_error_t** error);
+
     # homogeneous biased temporal neighbor sampling
     cdef cugraph_error_code_t \
         cugraph_homogeneous_biased_temporal_neighbor_sample(
