@@ -160,6 +160,7 @@ function(ConfigureTest CMAKE_TEST_NAME)
 
     target_link_libraries(${CMAKE_TEST_NAME}
         PRIVATE
+            cuco::cuco
             cugraphtestutil
             GTest::gtest
             GTest::gtest_main
