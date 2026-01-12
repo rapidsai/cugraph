@@ -471,52 +471,99 @@ struct temporal_neighbor_sampling_functor : public cugraph::c_api::abstract_func
           // B: O(log E) binary search for window bounds
           // C: O(ΔE) incremental updates (when window_state provided)
           // D: Inline temporal filtering during sampling
-          std::tie(sampled_edge_srcs,
-                   sampled_edge_dsts,
-                   sampled_weights,
-                   sampled_edge_ids,
-                   sampled_edge_types,
-                   sampled_edge_start_times,
-                   sampled_edge_end_times,
-                   hop,
-                   offsets) =
-            cugraph::detail::windowed_temporal_neighbor_sample_impl<
-              vertex_t, edge_t, weight_t, edge_type_t, time_stamp_t, weight_t, label_t,
-              false, multi_gpu>(
-              handle_,
-              rng_state_->rng_state_,
-              graph_view,
-              (edge_weights != nullptr) ? std::make_optional(edge_weights->view()) : std::nullopt,
-              (edge_ids != nullptr) ? std::make_optional(edge_ids->view()) : std::nullopt,
-              (edge_types != nullptr) ? std::make_optional(edge_types->view()) : std::nullopt,
-              edge_start_times->view(),
-              (edge_end_times != nullptr) ? std::make_optional(edge_end_times->view())
-                                          : std::nullopt,
-              std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},  // edge_bias
-              raft::device_span<vertex_t const>{start_vertices.data(), start_vertices.size()},
-              starting_vertex_times
-                ? std::make_optional<raft::device_span<time_stamp_t const>>(
-                    starting_vertex_times->data(), starting_vertex_times->size())
-                : std::nullopt,
-              (starting_vertex_label_offsets_ != nullptr)
-                ? std::make_optional<raft::device_span<label_t const>>((*start_vertex_labels).data(),
-                                                                       (*start_vertex_labels).size())
-                : std::nullopt,
-              label_to_comm_rank ? std::make_optional(raft::device_span<int32_t const>{
-                                     (*label_to_comm_rank).data(), (*label_to_comm_rank).size()})
-                                 : std::nullopt,
-              raft::host_span<const int>(fan_out_->as_type<const int>(), fan_out_->size_),
-              std::make_optional(edge_type_t{1}),  // num_edge_types
-              cugraph::sampling_flags_t{options_.prior_sources_behavior_,
-                                        options_.return_hops_ == TRUE,
-                                        options_.dedupe_sources_ == TRUE,
-                                        options_.with_replacement_ == TRUE,
-                                        temporal_sampling_comparison,
-                                        options_.disjoint_sampling_ == TRUE},
-              std::make_optional(static_cast<time_stamp_t>(window_start_)),
-              std::make_optional(static_cast<time_stamp_t>(window_end_)),
-              std::optional<std::reference_wrapper<cugraph::detail::window_state_t<edge_t, time_stamp_t>>>{std::nullopt},  // No persistent window state for single call
-              do_expensive_check_);
+          //
+          // Note: B+C+D path only instantiated for int64/int64 types due to thrust
+          // template compatibility. Other types fall back to standard path.
+          if constexpr (std::is_same_v<vertex_t, int64_t> && std::is_same_v<edge_t, int64_t>) {
+            std::tie(sampled_edge_srcs,
+                     sampled_edge_dsts,
+                     sampled_weights,
+                     sampled_edge_ids,
+                     sampled_edge_types,
+                     sampled_edge_start_times,
+                     sampled_edge_end_times,
+                     hop,
+                     offsets) =
+              cugraph::detail::windowed_temporal_neighbor_sample_impl<
+                vertex_t, edge_t, weight_t, edge_type_t, time_stamp_t, weight_t, label_t,
+                false, multi_gpu>(
+                handle_,
+                rng_state_->rng_state_,
+                graph_view,
+                (edge_weights != nullptr) ? std::make_optional(edge_weights->view()) : std::nullopt,
+                (edge_ids != nullptr) ? std::make_optional(edge_ids->view()) : std::nullopt,
+                (edge_types != nullptr) ? std::make_optional(edge_types->view()) : std::nullopt,
+                edge_start_times->view(),
+                (edge_end_times != nullptr) ? std::make_optional(edge_end_times->view())
+                                            : std::nullopt,
+                std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},  // edge_bias
+                raft::device_span<vertex_t const>{start_vertices.data(), start_vertices.size()},
+                starting_vertex_times
+                  ? std::make_optional<raft::device_span<time_stamp_t const>>(
+                      starting_vertex_times->data(), starting_vertex_times->size())
+                  : std::nullopt,
+                (starting_vertex_label_offsets_ != nullptr)
+                  ? std::make_optional<raft::device_span<label_t const>>((*start_vertex_labels).data(),
+                                                                         (*start_vertex_labels).size())
+                  : std::nullopt,
+                label_to_comm_rank ? std::make_optional(raft::device_span<int32_t const>{
+                                       (*label_to_comm_rank).data(), (*label_to_comm_rank).size()})
+                                   : std::nullopt,
+                raft::host_span<const int>(fan_out_->as_type<const int>(), fan_out_->size_),
+                std::make_optional(edge_type_t{1}),  // num_edge_types
+                cugraph::sampling_flags_t{options_.prior_sources_behavior_,
+                                          options_.return_hops_ == TRUE,
+                                          options_.dedupe_sources_ == TRUE,
+                                          options_.with_replacement_ == TRUE,
+                                          temporal_sampling_comparison,
+                                          options_.disjoint_sampling_ == TRUE},
+                std::make_optional(static_cast<time_stamp_t>(window_start_)),
+                std::make_optional(static_cast<time_stamp_t>(window_end_)),
+                std::optional<std::reference_wrapper<cugraph::detail::window_state_t<edge_t, time_stamp_t>>>{std::nullopt},
+                do_expensive_check_);
+          } else {
+            // Fallback for non-int64 types: use standard temporal sampling
+            // (window parameters are ignored - user should use int64 graph for B+C+D)
+            std::tie(sampled_edge_srcs,
+                     sampled_edge_dsts,
+                     sampled_weights,
+                     sampled_edge_ids,
+                     sampled_edge_types,
+                     sampled_edge_start_times,
+                     sampled_edge_end_times,
+                     hop,
+                     offsets) =
+              cugraph::homogeneous_uniform_temporal_neighbor_sample(
+                handle_,
+                rng_state_->rng_state_,
+                graph_view,
+                (edge_weights != nullptr) ? std::make_optional(edge_weights->view()) : std::nullopt,
+                (edge_ids != nullptr) ? std::make_optional(edge_ids->view()) : std::nullopt,
+                (edge_types != nullptr) ? std::make_optional(edge_types->view()) : std::nullopt,
+                edge_start_times->view(),
+                (edge_end_times != nullptr) ? std::make_optional(edge_end_times->view())
+                                            : std::nullopt,
+                raft::device_span<vertex_t const>{start_vertices.data(), start_vertices.size()},
+                starting_vertex_times
+                  ? std::make_optional<raft::device_span<time_stamp_t const>>(
+                      starting_vertex_times->data(), starting_vertex_times->size())
+                  : std::nullopt,
+                (starting_vertex_label_offsets_ != nullptr)
+                  ? std::make_optional<raft::device_span<int const>>((*start_vertex_labels).data(),
+                                                                     (*start_vertex_labels).size())
+                  : std::nullopt,
+                label_to_comm_rank ? std::make_optional(raft::device_span<int const>{
+                                       (*label_to_comm_rank).data(), (*label_to_comm_rank).size()})
+                                   : std::nullopt,
+                raft::host_span<const int>(fan_out_->as_type<const int>(), fan_out_->size_),
+                cugraph::sampling_flags_t{options_.prior_sources_behavior_,
+                                          options_.return_hops_ == TRUE,
+                                          options_.dedupe_sources_ == TRUE,
+                                          options_.with_replacement_ == TRUE,
+                                          temporal_sampling_comparison,
+                                          options_.disjoint_sampling_ == TRUE},
+                do_expensive_check_);
+          }
         } else {
           std::tie(sampled_edge_srcs,
                    sampled_edge_dsts,
