@@ -1,6 +1,6 @@
 ﻿#=============================================================================
 # cmake-format: off
-# SPDX-FileCopyrightText: Copyright (c) 2019-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2019-2026, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 # cmake-format: on
 #
@@ -60,6 +60,7 @@ target_link_libraries(cugraphtestutil
     PUBLIC
         cugraph::cugraph
     PRIVATE
+        cuco::cuco
         GTest::gtest
 )
 
@@ -128,6 +129,7 @@ if(BUILD_CUGRAPH_MG_TESTS)
 
     target_link_libraries(cugraphmgtestutil
         PRIVATE
+            cuco::cuco
             cugraph::cugraph
             NCCL::NCCL
             MPI::MPI_CXX
@@ -186,6 +188,7 @@ function(ConfigureTestMG CMAKE_TEST_NAME)
     target_include_directories(${CMAKE_TEST_NAME} PRIVATE "${CUGRAPH_SOURCE_DIR}/src")
     target_link_libraries(${CMAKE_TEST_NAME}
         PRIVATE
+        cuco::cuco
         cugraphmgtestutil
         cugraphtestutil
         GTest::gtest
@@ -240,6 +243,7 @@ function(ConfigureCTest CMAKE_TEST_NAME)
 
     target_link_libraries(${CMAKE_TEST_NAME}
         PRIVATE
+            cuco::cuco
             cugraph::cugraph_c
             cugraph_c_testutil
             GTest::gtest
@@ -270,6 +274,7 @@ function(ConfigureCTestMG CMAKE_TEST_NAME)
 
     target_link_libraries(${CMAKE_TEST_NAME}
         PRIVATE
+            cuco::cuco
             cugraph::cugraph_c
             cugraph_c_testutil
             cugraphmgtestutil
@@ -933,6 +938,7 @@ if (BUILD_CUGRAPH_MTMG_TESTS)
     ConfigureTest(MTMG_TEST mtmg/threaded_test.cpp)
     target_link_libraries(MTMG_TEST
                           PRIVATE
+                          cuco::cuco
                           cugraphmgtestutil
                           ${COMPILED_RAFT_LIB}
                           ucx::ucp
@@ -943,6 +949,7 @@ if (BUILD_CUGRAPH_MTMG_TESTS)
     ConfigureTest(MTMG_LOUVAIN_TEST mtmg/threaded_test_louvain.cpp)
     target_link_libraries(MTMG_LOUVAIN_TEST
                           PRIVATE
+                          cuco::cuco
                           cugraphmgtestutil
                           ${COMPILED_RAFT_LIB}
                           ucx::ucp
@@ -953,6 +960,7 @@ if (BUILD_CUGRAPH_MTMG_TESTS)
     ConfigureTest(MTMG_JACCARD_TEST mtmg/threaded_test_jaccard.cpp)
     target_link_libraries(MTMG_JACCARD_TEST
                           PRIVATE
+                          cuco::cuco
                           cugraphmgtestutil
                           ${COMPILED_RAFT_LIB}
                           ucx::ucp
@@ -966,6 +974,7 @@ if (BUILD_CUGRAPH_MTMG_TESTS)
         ConfigureTest(MTMG_MULTINODE_TEST mtmg/multi_node_threaded_test.cpp utilities/mg_utilities.cpp)
         target_link_libraries(MTMG_MULTINODE_TEST
                               PRIVATE
+                              cuco::cuco
                               cugraphmgtestutil
                               ${COMPILED_RAFT_LIB}
                               ucx::ucp
