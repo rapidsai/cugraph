@@ -37,7 +37,7 @@ rapids_cmake_build_type(Release)
 
 option(BUILD_SHARED_LIBS "Build cuGraph shared libraries" ON)
 option(BUILD_CUGRAPH_ETL_MG_TESTS "Build cuGraph multigpu algorithm tests" OFF)
-option(CMAKE_CUDA_LINEINFO "Enable the -lineinfo option for nvcc (useful for cuda-memcheck / profiler" OFF)
+option(CMAKE_CUDA_LINEINFO "Enable the -lineinfo option for nvcc (useful for cuda-memcheck / profiler)" OFF)
 option(BUILD_TESTS "Configure CMake to build tests" ON)
 option(CUDA_STATIC_MATH_LIBRARIES "Statically link the CUDA math libraries" OFF)
 
@@ -138,6 +138,7 @@ target_link_libraries(cugraph_etl
                 CUDA::cusolver${_ctk_static_suffix}
                 CUDA::cusparse${_ctk_static_suffix}
         PRIVATE
+                cuco::cuco
                 cugraph::cugraph
                 cudf::cudf
 )
