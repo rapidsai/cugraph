@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2017-2025, NVIDIA CORPORATION.  All rights reserved.
+ * SPDX-FileCopyrightText: Copyright (c) 2017-2026, NVIDIA CORPORATION.  All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -18,7 +18,7 @@
 #include <rmm/prefetch.hpp>
 
 #include <cuda/atomic>
-#include <cuda/std/pair>
+#include <cuda/std/utility>
 
 #include <hash/helper_functions.cuh>
 #include <hash/managed.cuh>

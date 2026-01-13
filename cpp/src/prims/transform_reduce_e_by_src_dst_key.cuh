@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -491,15 +491,15 @@ template <bool edge_src_key,
           typename T>
 std::tuple<rmm::device_uvector<typename GraphViewType::vertex_type>,
            decltype(allocate_dataframe_buffer<T>(0, cudaStream_t{nullptr}))>
-  transform_reduce_e_by_src_dst_key(raft::handle_t const& handle,
-                                    GraphViewType const& graph_view,
-                                    EdgeSrcValueInputWrapper edge_src_value_input,
-                                    EdgeDstValueInputWrapper edge_dst_value_input,
-                                    EdgeValueInputWrapper edge_value_input,
-                                    EdgeSrcDstKeyInputWrapper edge_src_dst_key_input,
-                                    EdgeOp e_op,
-                                    T init,
-                                    ReduceOp reduce_op)
+transform_reduce_e_by_src_dst_key(raft::handle_t const& handle,
+                                  GraphViewType const& graph_view,
+                                  EdgeSrcValueInputWrapper edge_src_value_input,
+                                  EdgeDstValueInputWrapper edge_dst_value_input,
+                                  EdgeValueInputWrapper edge_value_input,
+                                  EdgeSrcDstKeyInputWrapper edge_src_dst_key_input,
+                                  EdgeOp e_op,
+                                  T init,
+                                  ReduceOp reduce_op)
 {
   static_assert(is_arithmetic_or_thrust_tuple_of_arithmetic<T>::value);
   static_assert(std::is_same<typename EdgeSrcDstKeyInputWrapper::value_type,
