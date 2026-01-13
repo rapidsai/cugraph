@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 
 [build-system]
@@ -67,6 +67,10 @@ wheel.packages = ["pylibcugraph"]
 provider = "scikit_build_core.metadata.regex"
 input = "pylibcugraph/VERSION"
 regex = "(?P<value>.*)"
+
+[[tool.scikit-build.overrides]]
+if.python-version = ">=3.11"
+wheel.py-api = "cp311"
 
 [tool.rapids-build-backend]
 build-backend = "scikit_build_core.build"
