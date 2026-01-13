@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -142,12 +142,11 @@ temporal_partition_vertices(raft::handle_t const& handle,
       vertex_times_p1.resize(vertices_p1.size(), handle.get_stream());
     } else {
       // FIXED: When vertex_labels is std::nullopt, don't include labels in zip iterator
-      copy_if_mask_unset(
-        handle,
-        thrust::make_zip_iterator(vertices_p1.begin(), vertex_times_p1.begin()),
-        thrust::make_zip_iterator(vertices_p1.end(), vertex_times_p1.end()),
-        vertex_partition_mask.begin(),
-        thrust::make_zip_iterator(vertices_p2.begin(), vertex_times_p2.begin()));
+      copy_if_mask_unset(handle,
+                         thrust::make_zip_iterator(vertices_p1.begin(), vertex_times_p1.begin()),
+                         thrust::make_zip_iterator(vertices_p1.end(), vertex_times_p1.end()),
+                         vertex_partition_mask.begin(),
+                         thrust::make_zip_iterator(vertices_p2.begin(), vertex_times_p2.begin()));
       vertices_p1.resize(
         thrust::distance(
           thrust::make_zip_iterator(vertices_p1.begin(), vertex_times_p1.begin()),
