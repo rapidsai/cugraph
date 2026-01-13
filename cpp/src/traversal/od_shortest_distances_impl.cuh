@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2024-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -913,6 +913,7 @@ rmm::device_uvector<weight_t> od_shortest_distances(
                                   handle.get_stream());
 
               rmm::device_uvector<key_t> tmp_buffer = std::move(far_buffers.back());
+              far_buffers.back() = rmm::device_uvector<key_t>(0, handle.get_stream());
               std::vector<key_t*> h_buffer_ptrs(h_split_thresholds.size() + 1);
               auto old_size = new_near_q_keys.size();
               for (size_t j = 0; j < h_buffer_ptrs.size(); ++j) {
@@ -995,6 +996,7 @@ rmm::device_uvector<weight_t> od_shortest_distances(
                                      handle.get_stream());
             } else {
               far_buffers[i - num_near_q_insert_buffers] = std::move(far_buffers[i]);
+              far_buffers[i] = rmm::device_uvector<key_t>(0, handle.get_stream());
             }
           }
 
