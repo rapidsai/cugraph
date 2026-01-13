@@ -8,7 +8,7 @@
 
 #include <cudf/types.hpp>
 
-#include <thrust/pair.h>
+#include <cuda/std/utility>
 
 #include <cassert>
 
@@ -129,7 +129,7 @@ __global__ static void init_hashtbl(value_type* __restrict__ const hashtbl_value
 {
   const size_type idx = blockIdx.x * blockDim.x + threadIdx.x;
   if (idx < n) {
-    store_pair_vectorized(hashtbl_values + idx, thrust::make_pair(key_val, elem_val));
+    store_pair_vectorized(hashtbl_values + idx, cuda::std::make_pair(key_val, elem_val));
   }
 }
 

@@ -15,7 +15,7 @@
 #include <rmm/mr/pinned_host_memory_resource.hpp>
 
 #include <cub/device/device_radix_sort.cuh>
-#include <thrust/pair.h>
+#include <cuda/std/utility>
 #include <thrust/sort.h>
 
 #include <cuda.h>
@@ -307,7 +307,7 @@ __global__ static void concat_and_create_histogram(int8_t* col_1,
     // concurrent_unordered_map
     // key : hashed_val, val: {idx, count}
     auto insert_pair =
-      hash_map.insert(thrust::make_pair(hashed_str_val, str_hash_value{start_idx, 0, 0}));
+      hash_map.insert(cuda::std::make_pair(hashed_str_val, str_hash_value{start_idx, 0, 0}));
 
     if (!insert_pair.second) {
       size_type row__ = validate_ht_row_insert(&(insert_pair.first->second.row_));
@@ -316,7 +316,7 @@ __global__ static void concat_and_create_histogram(int8_t* col_1,
         // else loop over +1 count of hash value and insert again
         hashed_str_val += hash_inc_constant;
         insert_pair =
-          hash_map.insert(thrust::make_pair(hashed_str_val, str_hash_value{start_idx, 0, 0}));
+          hash_map.insert(cuda::std::make_pair(hashed_str_val, str_hash_value{start_idx, 0, 0}));
         if (insert_pair.second) {
           atomicAdd(&(insert_counter[warp_accum_idx]), 1);
           break;
@@ -391,7 +391,7 @@ __global__ static void concat_and_create_histogram_2(int8_t* col_1,
     // key : hashed_val, val: {idx, count}
 
     auto insert_pair =
-      hash_map.insert(thrust::make_pair(hashed_str_val, str_hash_value{start_idx, 0, 1}));
+      hash_map.insert(cuda::std::make_pair(hashed_str_val, str_hash_value{start_idx, 0, 1}));
 
     if (!insert_pair.second) {
       size_type row__ = validate_ht_row_insert(&(insert_pair.first->second.row_));
@@ -417,7 +417,7 @@ __global__ static void concat_and_create_histogram_2(int8_t* col_1,
         hashed_str_val += hash_inc_constant;
         // printf("new insert\n");
         insert_pair =
-          hash_map.insert(thrust::make_pair(hashed_str_val, str_hash_value{start_idx, 0, 1}));
+          hash_map.insert(cuda::std::make_pair(hashed_str_val, str_hash_value{start_idx, 0, 1}));
         if (insert_pair.second) {
           atomicAdd(&(insert_counter[warp_accum_idx]), 1);
           break;
@@ -579,7 +579,9 @@ __global__ static void create_mapping_histogram(uint32_t* hash_value,
 {
   accum_type idx = threadIdx.x + blockIdx.x * blockDim.x;
 
-  if (idx < count) { auto it = hash_map.insert(thrust::make_pair(hash_value[idx], payload[idx])); }
+  if (idx < count) {
+    auto it = hash_map.insert(cuda::std::make_pair(hash_value[idx], payload[idx]));
+  }
 }
 
 __global__ static void assign_histogram_idx(cudf_map_type cuda_map_obj,
