@@ -303,7 +303,7 @@ __global__ static void per_v_transform_reduce_e_hypersparse(
       vertex_t const* indices{nullptr};
       edge_t edge_offset{};
       edge_t local_degree{};
-      thrust::tie(indices, edge_offset, local_degree) =
+      cuda::std::tie(indices, edge_offset, local_degree) =
         edge_partition.local_edges(static_cast<vertex_t>(*major_idx));
 
       auto call_e_op = call_e_op_t<GraphViewType,
@@ -416,7 +416,7 @@ __global__ static void per_v_transform_reduce_e_low_degree(
     vertex_t const* indices{nullptr};
     edge_t edge_offset{};
     edge_t local_degree{};
-    thrust::tie(indices, edge_offset, local_degree) =
+    cuda::std::tie(indices, edge_offset, local_degree) =
       edge_partition.local_edges(static_cast<vertex_t>(major_offset));
 
     auto call_e_op = call_e_op_t<GraphViewType,
@@ -537,7 +537,7 @@ __global__ static void per_v_transform_reduce_e_mid_degree(
     vertex_t const* indices{nullptr};
     edge_t edge_offset{};
     edge_t local_degree{};
-    thrust::tie(indices, edge_offset, local_degree) = edge_partition.local_edges(major_offset);
+    cuda::std::tie(indices, edge_offset, local_degree) = edge_partition.local_edges(major_offset);
 
     auto call_e_op = call_e_op_t<GraphViewType,
                                  key_t,
@@ -728,7 +728,7 @@ __global__ static void per_v_transform_reduce_e_high_degree(
     vertex_t const* indices{nullptr};
     edge_t edge_offset{};
     edge_t local_degree{};
-    thrust::tie(indices, edge_offset, local_degree) = edge_partition.local_edges(major_offset);
+    cuda::std::tie(indices, edge_offset, local_degree) = edge_partition.local_edges(major_offset);
 
     auto call_e_op = call_e_op_t<GraphViewType,
                                  key_t,

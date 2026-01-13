@@ -121,7 +121,7 @@ __global__ static void transform_reduce_by_src_dst_key_hypersparse(
     vertex_t const* indices{nullptr};
     edge_t edge_offset{};
     edge_t local_degree{};
-    thrust::tie(indices, edge_offset, local_degree) =
+    cuda::std::tie(indices, edge_offset, local_degree) =
       edge_partition.local_edges(static_cast<vertex_t>(major_idx));
     if (edge_partition_e_mask) {
       auto major_offset          = edge_partition.major_offset_from_major_nocheck(major);
@@ -208,7 +208,7 @@ __global__ static void transform_reduce_by_src_dst_key_low_degree(
     vertex_t const* indices{nullptr};
     edge_t edge_offset{};
     edge_t local_degree{};
-    thrust::tie(indices, edge_offset, local_degree) =
+    cuda::std::tie(indices, edge_offset, local_degree) =
       edge_partition.local_edges(static_cast<vertex_t>(major_offset));
     if (edge_partition_e_mask) {
       auto edge_offset_with_mask = (*edge_offsets_with_mask)[major_offset];
@@ -299,7 +299,7 @@ __global__ static void transform_reduce_by_src_dst_key_mid_degree(
     vertex_t const* indices{nullptr};
     edge_t edge_offset{};
     edge_t local_degree{};
-    thrust::tie(indices, edge_offset, local_degree) =
+    cuda::std::tie(indices, edge_offset, local_degree) =
       edge_partition.local_edges(static_cast<vertex_t>(major_offset));
     if (edge_partition_e_mask) {
       // FIXME: it might be faster to update in warp-sync way
@@ -395,7 +395,7 @@ __global__ static void transform_reduce_by_src_dst_key_high_degree(
     vertex_t const* indices{nullptr};
     edge_t edge_offset{};
     edge_t local_degree{};
-    thrust::tie(indices, edge_offset, local_degree) =
+    cuda::std::tie(indices, edge_offset, local_degree) =
       edge_partition.local_edges(static_cast<vertex_t>(major_offset));
     if (edge_partition_e_mask) {
       // FIXME: it might be faster to update in block-sync way
@@ -491,15 +491,15 @@ template <bool edge_src_key,
           typename T>
 std::tuple<rmm::device_uvector<typename GraphViewType::vertex_type>,
            decltype(allocate_dataframe_buffer<T>(0, cudaStream_t{nullptr}))>
-transform_reduce_e_by_src_dst_key(raft::handle_t const& handle,
-                                  GraphViewType const& graph_view,
-                                  EdgeSrcValueInputWrapper edge_src_value_input,
-                                  EdgeDstValueInputWrapper edge_dst_value_input,
-                                  EdgeValueInputWrapper edge_value_input,
-                                  EdgeSrcDstKeyInputWrapper edge_src_dst_key_input,
-                                  EdgeOp e_op,
-                                  T init,
-                                  ReduceOp reduce_op)
+  transform_reduce_e_by_src_dst_key(raft::handle_t const& handle,
+                                    GraphViewType const& graph_view,
+                                    EdgeSrcValueInputWrapper edge_src_value_input,
+                                    EdgeDstValueInputWrapper edge_dst_value_input,
+                                    EdgeValueInputWrapper edge_value_input,
+                                    EdgeSrcDstKeyInputWrapper edge_src_dst_key_input,
+                                    EdgeOp e_op,
+                                    T init,
+                                    ReduceOp reduce_op)
 {
   static_assert(is_arithmetic_or_thrust_tuple_of_arithmetic<T>::value);
   static_assert(std::is_same<typename EdgeSrcDstKeyInputWrapper::value_type,

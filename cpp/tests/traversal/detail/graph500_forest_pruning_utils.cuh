@@ -718,14 +718,14 @@ std::tuple<vertex_t, int, distance_t, vertex_t, std::optional<distance_t>> trave
     }
 
     if constexpr (std::is_floating_point_v<distance_t>) {  // SSSP
-      thrust::tie(unrenumbered_n, nn, w_to_n) = cugraph::host_scalar_bcast(
+      cuda::std::tie(unrenumbered_n, nn, w_to_n) = cugraph::host_scalar_bcast(
         comm,
         cuda::std::make_tuple(unrenumbered_n, nn, *w_to_n),
         cugraph::partition_manager::compute_global_comm_rank_from_vertex_partition_id(
           major_comm_size, minor_comm_size, n_vertex_partition_id),
         handle.get_stream());
     } else {  // BFS
-      thrust::tie(unrenumbered_n, nn) = cugraph::host_scalar_bcast(
+      cuda::std::tie(unrenumbered_n, nn) = cugraph::host_scalar_bcast(
         comm,
         cuda::std::make_tuple(unrenumbered_n, nn),
         cugraph::partition_manager::compute_global_comm_rank_from_vertex_partition_id(

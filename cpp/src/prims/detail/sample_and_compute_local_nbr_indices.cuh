@@ -224,15 +224,16 @@ struct find_nth_valid_nbr_idx_t {
       if (major_hypersparse_first && (major >= *major_hypersparse_first)) {
         auto major_hypersparse_idx = edge_partition.major_hypersparse_idx_from_major_nocheck(major);
         if (major_hypersparse_idx) {
-          thrust::tie(indices, edge_offset, local_degree) = edge_partition.local_edges(
+          cuda::std::tie(indices, edge_offset, local_degree) = edge_partition.local_edges(
             edge_partition.major_offset_from_major_nocheck(*major_hypersparse_first) +
             *major_hypersparse_idx);
         }
       } else {
-        thrust::tie(indices, edge_offset, local_degree) = edge_partition.local_edges(major_offset);
+        cuda::std::tie(indices, edge_offset, local_degree) =
+          edge_partition.local_edges(major_offset);
       }
     } else {
-      thrust::tie(indices, edge_offset, local_degree) = edge_partition.local_edges(major_offset);
+      cuda::std::tie(indices, edge_offset, local_degree) = edge_partition.local_edges(major_offset);
     }
 
     if (local_degree < compute_valid_local_nbr_count_inclusive_sum_local_degree_threshold) {
