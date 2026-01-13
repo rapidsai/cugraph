@@ -13,8 +13,8 @@
 #include <raft/core/handle.hpp>
 #include <raft/core/resource/thrust_policy.hpp>
 
+#include <cuda/std/iterator>
 #include <thrust/copy.h>
-#include <thrust/distance.h>
 #include <thrust/remove.h>
 #include <thrust/sort.h>
 
@@ -124,7 +124,7 @@ temporal_partition_vertices(raft::handle_t const& handle,
           vertices_p2.begin(), vertex_times_p2.begin(), vertex_labels_p2->begin()));
 
       vertices_p1.resize(
-        thrust::distance(
+        cuda::std::distance(
           thrust::make_zip_iterator(
             vertices_p1.begin(), vertex_times_p1.begin(), vertex_labels_p1->begin()),
           copy_if_mask_set(
@@ -151,7 +151,7 @@ temporal_partition_vertices(raft::handle_t const& handle,
         thrust::make_zip_iterator(
           vertices_p2.begin(), vertex_times_p2.begin(), vertex_labels_p2->begin()));
       vertices_p1.resize(
-        thrust::distance(
+        cuda::std::distance(
           thrust::make_zip_iterator(
             vertices_p1.begin(), vertex_times_p1.begin(), vertex_labels_p1->begin()),
           copy_if_mask_set(

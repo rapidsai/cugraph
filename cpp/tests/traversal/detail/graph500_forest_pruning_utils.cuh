@@ -26,10 +26,10 @@
 
 #include <rmm/device_uvector.hpp>
 
+#include <cuda/std/iterator>
 #include <cuda/std/tuple>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
-#include <thrust/distance.h>
 #include <thrust/fill.h>
 #include <thrust/for_each.h>
 #include <thrust/iterator/counting_iterator.h>
@@ -834,7 +834,7 @@ void update_unvisited_vertex_distances(
                                             [invalid_distance] __device__(auto pair) {
                                               return cuda::std::get<1>(pair) == invalid_distance;
                                             });
-    auto new_size       = thrust::distance(pair_first, remaining_last);
+    auto new_size       = cuda::std::distance(pair_first, remaining_last);
     auto scatter_offset_first =
       thrust::make_transform_iterator(
         remaining_vertices.begin(),
