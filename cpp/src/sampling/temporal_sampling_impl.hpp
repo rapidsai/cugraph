@@ -64,6 +64,8 @@ temporal_neighbor_sample_impl(
   raft::host_span<int32_t const> fan_out,
   std::optional<edge_type_t> num_edge_types,  // valid if heterogeneous sampling
   sampling_flags_t sampling_flags,
+  std::optional<time_stamp_t> window_start,
+  std::optional<time_stamp_t> window_end,
   bool do_expensive_check)
 {
   static_assert(std::is_floating_point_v<bias_t>);
@@ -277,7 +279,9 @@ temporal_neighbor_sample_impl(
           raft::device_span<time_stamp_t const>{frontier_vertex_times_no_duplicates.data(),
                                                 frontier_vertex_times_no_duplicates.size()},
           edge_time_mask.mutable_view(),
-          sampling_flags.temporal_sampling_comparison);
+          sampling_flags.temporal_sampling_comparison,
+          window_start,
+          window_end);
 
         temporal_graph_view.attach_edge_mask(edge_time_mask.view());
       }
@@ -319,33 +323,67 @@ temporal_neighbor_sample_impl(
         edge_property_views.push_back(edge_start_time_view);
         if (edge_end_time_view) edge_property_views.push_back(*edge_end_time_view);
 
-        // OPTIMIZATION D: Use temporal_sample_edges for inline temporal filtering.
-        // This is O(frontier_edges) instead of O(all_edges) edge mask update.
-        auto [srcs, dsts, sampled_edge_properties, labels] = temporal_sample_edges<vertex_t, edge_t, time_stamp_t, multi_gpu>(
-          handle,
-          rng_state,
-          graph_view,  // Use original graph_view (no mask needed)
-          raft::host_span<edge_arithmetic_property_view_t<edge_t>>{edge_property_views.data(),
-                                                                   edge_property_views.size()},
-          edge_start_time_view,
-          edge_type_view
-            ? std::make_optional<edge_arithmetic_property_view_t<edge_t>>(*edge_type_view)
-            : std::nullopt,
-          edge_bias_view
-            ? std::make_optional<edge_arithmetic_property_view_t<edge_t>>(*edge_bias_view)
-            : std::nullopt,
-          raft::device_span<vertex_t const>{frontier_vertices_no_duplicates.data(),
-                                            frontier_vertices_no_duplicates.size()},
-          raft::device_span<time_stamp_t const>{frontier_vertex_times_no_duplicates.data(),
-                                                frontier_vertex_times_no_duplicates.size()},
-          frontier_vertex_labels_no_duplicates
-            ? std::make_optional(
-                raft::device_span<label_t const>{frontier_vertex_labels_no_duplicates->data(),
-                                                 frontier_vertex_labels_no_duplicates->size()})
-            : std::nullopt,
-          raft::host_span<size_t const>(level_Ks->data(), level_Ks->size()),
-          sampling_flags.with_replacement,
-          sampling_flags.temporal_sampling_comparison);
+        rmm::device_uvector<vertex_t> srcs(0, handle.get_stream());
+        rmm::device_uvector<vertex_t> dsts(0, handle.get_stream());
+        std::vector<arithmetic_device_uvector_t> sampled_edge_properties{};
+        std::optional<rmm::device_uvector<int32_t>> labels{std::nullopt};
+
+        if (frontier_vertex_times) {
+          // OPTIMIZATION D: Use temporal_sample_edges for inline temporal filtering.
+          // This is O(frontier_edges) instead of O(all_edges) edge mask update.
+          std::tie(srcs, dsts, sampled_edge_properties, labels) =
+            temporal_sample_edges<vertex_t, edge_t, time_stamp_t, multi_gpu>(
+              handle,
+              rng_state,
+              graph_view,  // Use original graph_view (no mask needed)
+              raft::host_span<edge_arithmetic_property_view_t<edge_t>>{edge_property_views.data(),
+                                                                       edge_property_views.size()},
+              edge_start_time_view,
+              edge_type_view
+                ? std::make_optional<edge_arithmetic_property_view_t<edge_t>>(*edge_type_view)
+                : std::nullopt,
+              edge_bias_view
+                ? std::make_optional<edge_arithmetic_property_view_t<edge_t>>(*edge_bias_view)
+                : std::nullopt,
+              raft::device_span<vertex_t const>{frontier_vertices_no_duplicates.data(),
+                                                frontier_vertices_no_duplicates.size()},
+              raft::device_span<time_stamp_t const>{frontier_vertex_times_no_duplicates.data(),
+                                                    frontier_vertex_times_no_duplicates.size()},
+              frontier_vertex_labels_no_duplicates
+                ? std::make_optional(
+                    raft::device_span<label_t const>{frontier_vertex_labels_no_duplicates->data(),
+                                                     frontier_vertex_labels_no_duplicates->size()})
+                : std::nullopt,
+              raft::host_span<size_t const>(level_Ks->data(), level_Ks->size()),
+              sampling_flags.with_replacement,
+              sampling_flags.temporal_sampling_comparison,
+              window_start,
+              window_end);
+        } else {
+          // No vertex times provided - temporal comparison is not applicable. Fall back to regular
+          // sampling without temporal filtering (matches existing API semantics/tests).
+          std::tie(srcs, dsts, sampled_edge_properties, labels) = sample_edges(
+            handle,
+            rng_state,
+            graph_view,
+            raft::host_span<edge_arithmetic_property_view_t<edge_t>>{edge_property_views.data(),
+                                                                     edge_property_views.size()},
+            edge_type_view
+              ? std::make_optional<edge_arithmetic_property_view_t<edge_t>>(*edge_type_view)
+              : std::nullopt,
+            edge_bias_view
+              ? std::make_optional<edge_arithmetic_property_view_t<edge_t>>(*edge_bias_view)
+              : std::nullopt,
+            raft::device_span<vertex_t const>{frontier_vertices_no_duplicates.data(),
+                                              frontier_vertices_no_duplicates.size()},
+            frontier_vertex_labels_no_duplicates
+              ? std::make_optional(
+                  raft::device_span<label_t const>{frontier_vertex_labels_no_duplicates->data(),
+                                                   frontier_vertex_labels_no_duplicates->size()})
+              : std::nullopt,
+            raft::host_span<size_t const>(level_Ks->data(), level_Ks->size()),
+            sampling_flags.with_replacement);
+        }
 
         result_vector_sizes.push_back(srcs.size());
         result_vector_hops.push_back(hop);
@@ -429,7 +467,9 @@ temporal_neighbor_sample_impl(
               : std::nullopt,
             raft::host_span<size_t const>(level_Ks->data(), level_Ks->size()),
             sampling_flags.with_replacement,
-            sampling_flags.temporal_sampling_comparison);
+            sampling_flags.temporal_sampling_comparison,
+            window_start,
+            window_end);
 
         size_t pos{0};
         auto weights =
@@ -893,6 +933,8 @@ homogeneous_uniform_temporal_neighbor_sample(
       fan_out,
       std::optional<edge_type_t>{std::nullopt},
       sampling_flags,
+      std::optional<time_stamp_t>{std::nullopt},
+      std::optional<time_stamp_t>{std::nullopt},
       do_expensive_check);
 }
 
@@ -951,6 +993,8 @@ heterogeneous_uniform_temporal_neighbor_sample(
       fan_out,
       std::optional<edge_type_t>{num_edge_types},
       sampling_flags,
+      std::optional<time_stamp_t>{std::nullopt},
+      std::optional<time_stamp_t>{std::nullopt},
       do_expensive_check);
 }
 
@@ -1007,6 +1051,8 @@ homogeneous_biased_temporal_neighbor_sample(
       fan_out,
       std::optional<edge_type_t>{std::nullopt},
       sampling_flags,
+      std::optional<time_stamp_t>{std::nullopt},
+      std::optional<time_stamp_t>{std::nullopt},
       do_expensive_check);
 }
 
@@ -1064,6 +1110,8 @@ heterogeneous_biased_temporal_neighbor_sample(
       fan_out,
       std::optional<edge_type_t>{num_edge_types},
       sampling_flags,
+      std::optional<time_stamp_t>{std::nullopt},
+      std::optional<time_stamp_t>{std::nullopt},
       do_expensive_check);
 }
 

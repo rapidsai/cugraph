@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -45,13 +45,12 @@ namespace detail {
  * @param edge_mask_view Output edge mask view
  */
 template <typename vertex_t, typename edge_t, typename time_stamp_t, bool multi_gpu>
-void set_window_edge_mask(
-  raft::handle_t const& handle,
-  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
-  edge_property_view_t<edge_t, time_stamp_t const*> edge_time_view,
-  time_stamp_t window_start,
-  time_stamp_t window_end,
-  edge_property_view_t<edge_t, uint32_t*, bool> edge_mask_view)
+void set_window_edge_mask(raft::handle_t const& handle,
+                          graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+                          edge_property_view_t<edge_t, time_stamp_t const*> edge_time_view,
+                          time_stamp_t window_start,
+                          time_stamp_t window_end,
+                          edge_property_view_t<edge_t, uint32_t*, bool> edge_mask_view)
 {
   // Use transform_e to set mask bits based on time window
   // This is O(E) but with very low constants - just a comparison per edge
@@ -61,8 +60,7 @@ void set_window_edge_mask(
     cugraph::edge_src_dummy_property_t{}.view(),
     cugraph::edge_dst_dummy_property_t{}.view(),
     edge_time_view,
-    [window_start, window_end] __device__(
-      auto src, auto dst, auto, auto, auto edge_time) {
+    [window_start, window_end] __device__(auto src, auto dst, auto, auto, auto edge_time) {
       // Include edge if timestamp is in [window_start, window_end)
       return (edge_time >= window_start) && (edge_time < window_end);
     },
@@ -89,31 +87,24 @@ void set_window_edge_mask(
  * @return Pair of (start_idx, end_idx) for edges in the window
  */
 template <typename time_stamp_t>
-std::pair<size_t, size_t> compute_window_bounds_binary_search(
-  raft::handle_t const& handle,
-  time_stamp_t const* sorted_edge_times,
-  size_t num_edges,
-  time_stamp_t window_start,
-  time_stamp_t window_end)
+std::pair<size_t, size_t> compute_window_bounds_binary_search(raft::handle_t const& handle,
+                                                              time_stamp_t const* sorted_edge_times,
+                                                              size_t num_edges,
+                                                              time_stamp_t window_start,
+                                                              time_stamp_t window_end)
 {
   // Use thrust binary search for O(log E) complexity
   auto stream = handle.get_stream();
-  
+
   auto start_iter = thrust::lower_bound(
-    thrust::device.on(stream),
-    sorted_edge_times,
-    sorted_edge_times + num_edges,
-    window_start);
-  
+    thrust::device.on(stream), sorted_edge_times, sorted_edge_times + num_edges, window_start);
+
   auto end_iter = thrust::lower_bound(
-    thrust::device.on(stream),
-    sorted_edge_times,
-    sorted_edge_times + num_edges,
-    window_end);
-  
+    thrust::device.on(stream), sorted_edge_times, sorted_edge_times + num_edges, window_end);
+
   size_t start_idx = thrust::distance(sorted_edge_times, start_iter);
-  size_t end_idx = thrust::distance(sorted_edge_times, end_iter);
-  
+  size_t end_idx   = thrust::distance(sorted_edge_times, end_iter);
+
   return std::make_pair(start_idx, end_idx);
 }
 
@@ -133,37 +124,33 @@ std::pair<size_t, size_t> compute_window_bounds_binary_search(
  * @param end_idx End index in sorted order
  */
 template <typename edge_t>
-void set_mask_from_sorted_range(
-  raft::handle_t const& handle,
-  uint32_t* edge_mask,
-  edge_t num_edges,
-  edge_t const* sorted_edge_indices,
-  size_t start_idx,
-  size_t end_idx)
+void set_mask_from_sorted_range(raft::handle_t const& handle,
+                                uint32_t* edge_mask,
+                                edge_t num_edges,
+                                edge_t const* sorted_edge_indices,
+                                size_t start_idx,
+                                size_t end_idx)
 {
   auto stream = handle.get_stream();
-  
+
   // First clear the entire mask
   size_t num_mask_words = (num_edges + 31) / 32;
-  thrust::fill(thrust::device.on(stream),
-               edge_mask,
-               edge_mask + num_mask_words,
-               static_cast<uint32_t>(0));
-  
+  thrust::fill(
+    thrust::device.on(stream), edge_mask, edge_mask + num_mask_words, static_cast<uint32_t>(0));
+
   // Then set bits for edges in the window
   // Use atomic OR since edges may map to the same mask word
   size_t num_window_edges = end_idx - start_idx;
   if (num_window_edges > 0) {
-    thrust::for_each(
-      thrust::device.on(stream),
-      thrust::make_counting_iterator<size_t>(0),
-      thrust::make_counting_iterator<size_t>(num_window_edges),
-      [edge_mask, sorted_edge_indices, start_idx] __device__(size_t i) {
-        edge_t edge_idx = sorted_edge_indices[start_idx + i];
-        uint32_t word_idx = edge_idx / 32;
-        uint32_t bit_idx = edge_idx % 32;
-        atomicOr(&edge_mask[word_idx], 1u << bit_idx);
-      });
+    thrust::for_each(thrust::device.on(stream),
+                     thrust::make_counting_iterator<size_t>(0),
+                     thrust::make_counting_iterator<size_t>(num_window_edges),
+                     [edge_mask, sorted_edge_indices, start_idx] __device__(size_t i) {
+                       edge_t edge_idx   = sorted_edge_indices[start_idx + i];
+                       uint32_t word_idx = edge_idx / 32;
+                       uint32_t bit_idx  = edge_idx % 32;
+                       atomicOr(&edge_mask[word_idx], 1u << bit_idx);
+                     });
   }
 }
 
@@ -186,45 +173,42 @@ void set_mask_from_sorted_range(
  * @param entering_end End index of edges entering the window
  */
 template <typename edge_t>
-void update_mask_incremental(
-  raft::handle_t const& handle,
-  uint32_t* edge_mask,
-  edge_t const* sorted_edge_indices,
-  size_t leaving_start,
-  size_t leaving_end,
-  size_t entering_start,
-  size_t entering_end)
+void update_mask_incremental(raft::handle_t const& handle,
+                             uint32_t* edge_mask,
+                             edge_t const* sorted_edge_indices,
+                             size_t leaving_start,
+                             size_t leaving_end,
+                             size_t entering_start,
+                             size_t entering_end)
 {
   auto stream = handle.get_stream();
-  
+
   // Clear bits for edges leaving the window
   size_t num_leaving = leaving_end - leaving_start;
   if (num_leaving > 0) {
-    thrust::for_each(
-      thrust::device.on(stream),
-      thrust::make_counting_iterator<size_t>(0),
-      thrust::make_counting_iterator<size_t>(num_leaving),
-      [edge_mask, sorted_edge_indices, leaving_start] __device__(size_t i) {
-        edge_t edge_idx = sorted_edge_indices[leaving_start + i];
-        uint32_t word_idx = edge_idx / 32;
-        uint32_t bit_idx = edge_idx % 32;
-        atomicAnd(&edge_mask[word_idx], ~(1u << bit_idx));
-      });
+    thrust::for_each(thrust::device.on(stream),
+                     thrust::make_counting_iterator<size_t>(0),
+                     thrust::make_counting_iterator<size_t>(num_leaving),
+                     [edge_mask, sorted_edge_indices, leaving_start] __device__(size_t i) {
+                       edge_t edge_idx   = sorted_edge_indices[leaving_start + i];
+                       uint32_t word_idx = edge_idx / 32;
+                       uint32_t bit_idx  = edge_idx % 32;
+                       atomicAnd(&edge_mask[word_idx], ~(1u << bit_idx));
+                     });
   }
-  
+
   // Set bits for edges entering the window
   size_t num_entering = entering_end - entering_start;
   if (num_entering > 0) {
-    thrust::for_each(
-      thrust::device.on(stream),
-      thrust::make_counting_iterator<size_t>(0),
-      thrust::make_counting_iterator<size_t>(num_entering),
-      [edge_mask, sorted_edge_indices, entering_start] __device__(size_t i) {
-        edge_t edge_idx = sorted_edge_indices[entering_start + i];
-        uint32_t word_idx = edge_idx / 32;
-        uint32_t bit_idx = edge_idx % 32;
-        atomicOr(&edge_mask[word_idx], 1u << bit_idx);
-      });
+    thrust::for_each(thrust::device.on(stream),
+                     thrust::make_counting_iterator<size_t>(0),
+                     thrust::make_counting_iterator<size_t>(num_entering),
+                     [edge_mask, sorted_edge_indices, entering_start] __device__(size_t i) {
+                       edge_t edge_idx   = sorted_edge_indices[entering_start + i];
+                       uint32_t word_idx = edge_idx / 32;
+                       uint32_t bit_idx  = edge_idx % 32;
+                       atomicOr(&edge_mask[word_idx], 1u << bit_idx);
+                     });
   }
 }
 

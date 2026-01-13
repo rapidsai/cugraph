@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -45,11 +45,7 @@ TEST_F(WindowEdgeMaskTest, BinarySearchBounds)
 
   // Test window [200, 400) - should include indices 2, 3, 4, 5 (times 200, 250, 300, 350)
   auto [start_idx, end_idx] = cugraph::detail::compute_window_bounds_binary_search<time_stamp_t>(
-    handle_,
-    d_times.data(),
-    d_times.size(),
-    200,
-    400);
+    handle_, d_times.data(), d_times.size(), 200, 400);
 
   handle_.sync_stream();
 
@@ -102,7 +98,10 @@ TEST_F(WindowEdgeMaskTest, SortedRangeMask)
   // (i.e., edge 3 has smallest time, edge 7 has second smallest, etc.)
   std::vector<edge_t> h_sorted_indices = {3, 7, 1, 9, 0, 2, 8, 5, 4, 6};
   rmm::device_uvector<edge_t> d_sorted_indices(h_sorted_indices.size(), handle_.get_stream());
-  raft::copy(d_sorted_indices.data(), h_sorted_indices.data(), h_sorted_indices.size(), handle_.get_stream());
+  raft::copy(d_sorted_indices.data(),
+             h_sorted_indices.data(),
+             h_sorted_indices.size(),
+             handle_.get_stream());
 
   // Create mask (10 edges = 1 word)
   rmm::device_uvector<uint32_t> d_mask(1, handle_.get_stream());
@@ -110,12 +109,7 @@ TEST_F(WindowEdgeMaskTest, SortedRangeMask)
   // Set mask for sorted range [2, 5) - includes edges at sorted positions 2,3,4
   // which are original edge indices 1, 9, 0
   cugraph::detail::set_mask_from_sorted_range<edge_t>(
-    handle_,
-    d_mask.data(),
-    static_cast<edge_t>(10),
-    d_sorted_indices.data(),
-    2,
-    5);
+    handle_, d_mask.data(), static_cast<edge_t>(10), d_sorted_indices.data(), 2, 5);
 
   handle_.sync_stream();
 
@@ -124,12 +118,12 @@ TEST_F(WindowEdgeMaskTest, SortedRangeMask)
   raft::copy(&h_mask, d_mask.data(), 1, handle_.get_stream());
   handle_.sync_stream();
 
-  EXPECT_TRUE(h_mask & (1u << 0));  // Edge 0
-  EXPECT_TRUE(h_mask & (1u << 1));  // Edge 1
-  EXPECT_TRUE(h_mask & (1u << 9));  // Edge 9
-  EXPECT_FALSE(h_mask & (1u << 3)); // Edge 3 (outside range)
-  EXPECT_FALSE(h_mask & (1u << 7)); // Edge 7 (outside range)
-  EXPECT_FALSE(h_mask & (1u << 2)); // Edge 2 (outside range)
+  EXPECT_TRUE(h_mask & (1u << 0));   // Edge 0
+  EXPECT_TRUE(h_mask & (1u << 1));   // Edge 1
+  EXPECT_TRUE(h_mask & (1u << 9));   // Edge 9
+  EXPECT_FALSE(h_mask & (1u << 3));  // Edge 3 (outside range)
+  EXPECT_FALSE(h_mask & (1u << 7));  // Edge 7 (outside range)
+  EXPECT_FALSE(h_mask & (1u << 2));  // Edge 2 (outside range)
 }
 
 // Test incremental mask update
@@ -140,18 +134,16 @@ TEST_F(WindowEdgeMaskTest, IncrementalUpdate)
   // 10 edges, sorted indices
   std::vector<edge_t> h_sorted_indices = {3, 7, 1, 9, 0, 2, 8, 5, 4, 6};
   rmm::device_uvector<edge_t> d_sorted_indices(h_sorted_indices.size(), handle_.get_stream());
-  raft::copy(d_sorted_indices.data(), h_sorted_indices.data(), h_sorted_indices.size(), handle_.get_stream());
+  raft::copy(d_sorted_indices.data(),
+             h_sorted_indices.data(),
+             h_sorted_indices.size(),
+             handle_.get_stream());
 
   // Create initial mask with edges [2, 5) set
   // This sets bits for edges 1, 9, 0 (indices at sorted positions 2, 3, 4)
   rmm::device_uvector<uint32_t> d_mask(1, handle_.get_stream());
   cugraph::detail::set_mask_from_sorted_range<edge_t>(
-    handle_,
-    d_mask.data(),
-    static_cast<edge_t>(10),
-    d_sorted_indices.data(),
-    2,
-    5);
+    handle_, d_mask.data(), static_cast<edge_t>(10), d_sorted_indices.data(), 2, 5);
 
   handle_.sync_stream();
 
@@ -159,19 +151,20 @@ TEST_F(WindowEdgeMaskTest, IncrementalUpdate)
   uint32_t h_mask_before;
   raft::copy(&h_mask_before, d_mask.data(), 1, handle_.get_stream());
   handle_.sync_stream();
-  EXPECT_TRUE(h_mask_before & (1u << 0));   // Edge 0
-  EXPECT_TRUE(h_mask_before & (1u << 1));   // Edge 1
-  EXPECT_TRUE(h_mask_before & (1u << 9));   // Edge 9
+  EXPECT_TRUE(h_mask_before & (1u << 0));  // Edge 0
+  EXPECT_TRUE(h_mask_before & (1u << 1));  // Edge 1
+  EXPECT_TRUE(h_mask_before & (1u << 9));  // Edge 9
 
   // Now slide window: old [2, 5) -> new [3, 6)
   // Leaving: sorted position 2 (edge index 1)
   // Entering: sorted position 5 (edge index 2)
-  cugraph::detail::update_mask_incremental<edge_t>(
-    handle_,
-    d_mask.data(),
-    d_sorted_indices.data(),
-    2, 3,  // leaving: position 2 (edge 1)
-    5, 6); // entering: position 5 (edge 2)
+  cugraph::detail::update_mask_incremental<edge_t>(handle_,
+                                                   d_mask.data(),
+                                                   d_sorted_indices.data(),
+                                                   2,
+                                                   3,  // leaving: position 2 (edge 1)
+                                                   5,
+                                                   6);  // entering: position 5 (edge 2)
 
   handle_.sync_stream();
 
@@ -208,12 +201,7 @@ TEST_F(WindowEdgeMaskTest, MultiWordMask)
 
   // Set mask for range [25, 75) - 50 edges
   cugraph::detail::set_mask_from_sorted_range<edge_t>(
-    handle_,
-    d_mask.data(),
-    static_cast<edge_t>(num_edges),
-    d_sorted_indices.data(),
-    25,
-    75);
+    handle_, d_mask.data(), static_cast<edge_t>(num_edges), d_sorted_indices.data(), 25, 75);
 
   handle_.sync_stream();
 
@@ -224,9 +212,7 @@ TEST_F(WindowEdgeMaskTest, MultiWordMask)
 
   int set_count = 0;
   for (size_t i = 0; i < num_edges; ++i) {
-    if (h_mask[i / 32] & (1u << (i % 32))) {
-      set_count++;
-    }
+    if (h_mask[i / 32] & (1u << (i % 32))) { set_count++; }
   }
 
   EXPECT_EQ(set_count, 50);  // Exactly 50 edges in window
@@ -235,18 +221,20 @@ TEST_F(WindowEdgeMaskTest, MultiWordMask)
 // Performance test with larger data
 TEST_F(WindowEdgeMaskTest, PerformanceTest)
 {
-  using edge_t = int64_t;
+  using edge_t       = int64_t;
   using time_stamp_t = int64_t;
 
-  const size_t num_edges = 1000000;  // 1M edges
-  const int64_t time_range = 730 * 86400;  // 730 days in seconds
-  const int64_t window_size = 365 * 86400; // 365 day window
+  const size_t num_edges    = 1000000;      // 1M edges
+  const int64_t time_range  = 730 * 86400;  // 730 days in seconds
+  const int64_t window_size = 365 * 86400;  // 365 day window
 
   // Create random sorted timestamps
   std::vector<time_stamp_t> h_times(num_edges);
   std::mt19937 gen(42);
   std::uniform_int_distribution<time_stamp_t> dist(0, time_range);
-  for (auto& t : h_times) { t = dist(gen); }
+  for (auto& t : h_times) {
+    t = dist(gen);
+  }
   std::sort(h_times.begin(), h_times.end());
 
   rmm::device_uvector<time_stamp_t> d_times(num_edges, handle_.get_stream());
@@ -264,21 +252,21 @@ TEST_F(WindowEdgeMaskTest, PerformanceTest)
 
   handle_.sync_stream();
 
-  using clock = std::chrono::high_resolution_clock;
+  using clock                  = std::chrono::high_resolution_clock;
   double binary_search_time_ms = 0.0;
-  double set_mask_time_ms = 0.0;
-  double incremental_time_ms = 0.0;
+  double set_mask_time_ms      = 0.0;
+  double incremental_time_ms   = 0.0;
 
   // Test binary search
   auto t0 = clock::now();
-  auto [start_idx, end_idx] = cugraph::detail::compute_window_bounds_binary_search<time_stamp_t>(
-    handle_,
-    d_times.data(),
-    num_edges,
-    window_size,  // window_start
-    time_range);  // window_end
+  auto [start_idx, end_idx] =
+    cugraph::detail::compute_window_bounds_binary_search<time_stamp_t>(handle_,
+                                                                       d_times.data(),
+                                                                       num_edges,
+                                                                       window_size,  // window_start
+                                                                       time_range);  // window_end
   handle_.sync_stream();
-  auto t1 = clock::now();
+  auto t1               = clock::now();
   binary_search_time_ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
 
   std::cout << "Binary search time: " << binary_search_time_ms << " ms" << std::endl;
@@ -286,30 +274,31 @@ TEST_F(WindowEdgeMaskTest, PerformanceTest)
 
   // Test full mask set
   t0 = clock::now();
-  cugraph::detail::set_mask_from_sorted_range<edge_t>(
-    handle_,
-    d_mask.data(),
-    static_cast<edge_t>(num_edges),
-    d_sorted_indices.data(),
-    start_idx,
-    end_idx);
+  cugraph::detail::set_mask_from_sorted_range<edge_t>(handle_,
+                                                      d_mask.data(),
+                                                      static_cast<edge_t>(num_edges),
+                                                      d_sorted_indices.data(),
+                                                      start_idx,
+                                                      end_idx);
   handle_.sync_stream();
-  t1 = clock::now();
+  t1               = clock::now();
   set_mask_time_ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
 
   std::cout << "Set mask from range time: " << set_mask_time_ms << " ms" << std::endl;
 
   // Test incremental update (simulate 1-day step)
   size_t delta_edges = num_edges / 730;  // ~1 day worth
-  t0 = clock::now();
+  t0                 = clock::now();
   cugraph::detail::update_mask_incremental<edge_t>(
     handle_,
     d_mask.data(),
     d_sorted_indices.data(),
-    start_idx, start_idx + delta_edges,  // leaving
-    end_idx, std::min(end_idx + delta_edges, num_edges));     // entering
+    start_idx,
+    start_idx + delta_edges,  // leaving
+    end_idx,
+    std::min(end_idx + delta_edges, num_edges));  // entering
   handle_.sync_stream();
-  t1 = clock::now();
+  t1                  = clock::now();
   incremental_time_ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
 
   std::cout << "Incremental update time: " << incremental_time_ms << " ms" << std::endl;
@@ -318,7 +307,7 @@ TEST_F(WindowEdgeMaskTest, PerformanceTest)
   // Verify performance expectations
   // Binary search should be < 1ms for 1M edges
   EXPECT_LT(binary_search_time_ms, 10.0);  // Allow 10ms for GPU overhead
-  
+
   // Incremental update should be faster than full set
   EXPECT_LT(incremental_time_ms, set_mask_time_ms * 2);  // Allow some variance
 

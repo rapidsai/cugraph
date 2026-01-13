@@ -98,7 +98,7 @@ insert_if_n<(int)1, (int)128>
 2. **Memory coalescing**: 4 consecutive slots probed together = better L2 cache utilization
 3. **Probe efficiency**: At 70% load, 4 parallel probes find most keys in 1 iteration
 4. **Warp efficiency**: 8 groups per warp = good SM occupancy
-5. **Documentation**: cuco explicitly states CG provides "significant boost in throughput 
+5. **Documentation**: cuco explicitly states CG provides "significant boost in throughput
    compared to non-CG at moderate to high load factors" (static_map.cuh lines 2194, 2453)
 
 **Expected Speedup from CG=4:**
@@ -112,12 +112,12 @@ insert_if_n<(int)1, (int)128>
 
 ```cpp
 // key_store.cuh line 76
-__device__ bool contains(key_type key) const { 
+__device__ bool contains(key_type key) const {
   return cuco_store_device_ref.contains(key);  // Requires CG size == 1
 }
 
 // key_store.cuh line 93
-__device__ void insert(key_type key) { 
+__device__ void insert(key_type key) {
   cuco_store_device_ref.insert(key);  // Requires CG size == 1
 }
 ```
@@ -126,7 +126,7 @@ For CG size > 1, ALL callers must change to use cooperative group tiles:
 
 ```cpp
 // Would require cooperative group tile parameter
-__device__ bool contains(cg::thread_block_tile<4> tile, key_type key) const { 
+__device__ bool contains(cg::thread_block_tile<4> tile, key_type key) const {
   return cuco_store_device_ref.contains(tile, key);
 }
 ```

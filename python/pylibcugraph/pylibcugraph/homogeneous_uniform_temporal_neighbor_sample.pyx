@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 
 # Have cython use python 3 syntax
@@ -79,16 +79,16 @@ from datetime import datetime
 def _convert_timestamp_to_int(value, time_unit='ns'):
     """
     Convert various timestamp formats to integer.
-    
+
     Parameters
     ----------
     value : int, str, datetime, pd.Timestamp, or np.datetime64
         The timestamp value to convert.
     time_unit : str
         The unit of time for the graph's edge timestamps.
-        Options: 'ns' (nanoseconds), 'us' (microseconds), 
+        Options: 'ns' (nanoseconds), 'us' (microseconds),
                  'ms' (milliseconds), 's' (seconds)
-    
+
     Returns
     -------
     int
@@ -96,11 +96,11 @@ def _convert_timestamp_to_int(value, time_unit='ns'):
     """
     if value is None:
         return None
-    
+
     # Already an integer - assume it's in the correct units
     if isinstance(value, (int, np.integer)):
         return int(value)
-    
+
     # Conversion factors from nanoseconds
     unit_divisors = {
         'ns': 1,
@@ -108,27 +108,27 @@ def _convert_timestamp_to_int(value, time_unit='ns'):
         'ms': 1_000_000,
         's': 1_000_000_000,
     }
-    
+
     if time_unit not in unit_divisors:
         raise ValueError(f"Invalid time_unit '{time_unit}'. "
                         f"Must be one of: {list(unit_divisors.keys())}")
-    
+
     divisor = unit_divisors[time_unit]
-    
+
     # pandas Timestamp - has .value attribute in nanoseconds
     if hasattr(value, 'value') and hasattr(value, 'timestamp'):
         return int(value.value // divisor)
-    
+
     # numpy datetime64
     if isinstance(value, np.datetime64):
         ns_value = value.astype('datetime64[ns]').astype(np.int64)
         return int(ns_value // divisor)
-    
+
     # Python datetime
     if isinstance(value, datetime):
         ns_value = int(value.timestamp() * 1_000_000_000)
         return int(ns_value // divisor)
-    
+
     # String - try to parse with pandas
     if isinstance(value, str):
         try:
@@ -141,7 +141,7 @@ def _convert_timestamp_to_int(value, time_unit='ns'):
             dt = parser.parse(value)
             ns_value = int(dt.timestamp() * 1_000_000_000)
             return int(ns_value // divisor)
-    
+
     raise TypeError(
         f"Cannot convert {type(value).__name__} to timestamp. "
         f"Expected int, str, datetime, pd.Timestamp, or np.datetime64"
@@ -278,7 +278,7 @@ def homogeneous_uniform_temporal_neighbor_sample(ResourceHandle resource_handle,
           - C: O(ΔE) incremental window updates
           - D: Inline temporal filtering
         Only edges with time >= window_start are considered.
-        
+
         Accepts multiple formats:
           - int: Used directly (interpreted according to window_time_unit)
           - str: Parsed as datetime (e.g., "2024-01-15", "2024-01-15T10:30:00")
@@ -294,7 +294,7 @@ def homogeneous_uniform_temporal_neighbor_sample(ResourceHandle resource_handle,
         The time unit used for edge timestamps in the graph. Used when converting
         string/datetime window parameters to integers. Default is 's' (seconds).
         Options: 'ns' (nanoseconds), 'us' (microseconds), 'ms' (milliseconds), 's' (seconds)
-        
+
         Note: Integer window_start/window_end values are passed through unchanged,
         assuming they're already in the correct units for your graph.
 
@@ -373,8 +373,6 @@ def homogeneous_uniform_temporal_neighbor_sample(ResourceHandle resource_handle,
 
     # FIXME: refactor the way we are creating pointer. Can use a single helper function to create
 
-    print("start_vertex_list", start_vertex_list)
-    print("starting_vertex_times", starting_vertex_times)
     assert_CAI_type(start_vertex_list, "start_vertex_list")
     assert_CAI_type(starting_vertex_times, "starting_vertex_times", True)
     assert_CAI_type(starting_vertex_label_offsets, "starting_vertex_label_offsets", True)
@@ -511,13 +509,13 @@ def homogeneous_uniform_temporal_neighbor_sample(ResourceHandle resource_handle,
         # Convert window parameters to integers (handles str, datetime, pd.Timestamp, etc.)
         c_window_start = _convert_timestamp_to_int(window_start, window_time_unit)
         c_window_end = _convert_timestamp_to_int(window_end, window_time_unit)
-        
+
         if c_window_end <= c_window_start:
             raise ValueError(
                 f"window_end ({window_end} -> {c_window_end}) must be greater than "
                 f"window_start ({window_start} -> {c_window_start})"
             )
-        
+
         error_code = cugraph_homogeneous_uniform_temporal_neighbor_sample_windowed(
             c_resource_handle_ptr,
             rng_state_ptr,

@@ -1,12 +1,12 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2023-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
 #pragma once
 
-#include "prims/kv_store.cuh"
 #include "detail/renumber_cg.cuh"
+#include "prims/kv_store.cuh"
 
 #include <cugraph/arithmetic_variant_types.hpp>
 #include <cugraph/sampling_functions.hpp>

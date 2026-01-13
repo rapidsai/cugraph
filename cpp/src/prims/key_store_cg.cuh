@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -23,7 +23,6 @@
 #include <rmm/device_uvector.hpp>
 #include <rmm/mr/polymorphic_allocator.hpp>
 
-#include <cooperative_groups.h>
 #include <cuda/std/iterator>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
@@ -32,6 +31,7 @@
 #include <thrust/sort.h>
 #include <thrust/unique.h>
 
+#include <cooperative_groups.h>
 #include <cuco/static_set.cuh>
 
 #include <algorithm>
@@ -75,15 +75,15 @@ template <typename key_t>
 class key_store_cg_t {
  public:
   using key_type = key_t;
-  
+
   using cuco_set_type = cuco::static_set<key_t,
-                                          cuco::extent<std::size_t>,
-                                          cuda::thread_scope_device,
-                                          thrust::equal_to<key_t>,
-                                          cuco::linear_probing<kCGSize,  // CG size = 4
-                                                               cuco::murmurhash3_32<key_t>>,
-                                          rmm::mr::polymorphic_allocator<std::byte>,
-                                          cuco_storage_type>;
+                                         cuco::extent<std::size_t>,
+                                         cuda::thread_scope_device,
+                                         thrust::equal_to<key_t>,
+                                         cuco::linear_probing<kCGSize,  // CG size = 4
+                                                              cuco::murmurhash3_32<key_t>>,
+                                         rmm::mr::polymorphic_allocator<std::byte>,
+                                         cuco_storage_type>;
 
   key_store_cg_t(rmm::cuda_stream_view stream) {}
 
@@ -104,7 +104,7 @@ class key_store_cg_t {
    * @brief Insert keys into the store
    *
    * Uses CG-parallel probing for better performance on hash collisions.
-   * 
+   *
    * @tparam KeyIterator Key iterator type
    * @param key_first Iterator to first key
    * @param key_last Iterator past last key
@@ -121,7 +121,7 @@ class key_store_cg_t {
 
   /**
    * @brief Conditional insert with CG-parallel probing
-   * 
+   *
    * @tparam KeyIterator Key iterator type
    * @tparam StencilIterator Stencil iterator type
    * @tparam PredOp Predicate operation type
@@ -181,32 +181,31 @@ class key_store_cg_t {
  * @return Number of unique vertices
  */
 template <typename vertex_t>
-size_t deduplicate_hybrid(
-  raft::handle_t const& handle,
-  rmm::device_uvector<vertex_t>& vertices,
-  size_t use_hash_threshold = 1000000)
+size_t deduplicate_hybrid(raft::handle_t const& handle,
+                          rmm::device_uvector<vertex_t>& vertices,
+                          size_t use_hash_threshold = 1000000)
 {
   auto stream = handle.get_stream();
-  
+
   if (vertices.size() == 0) return 0;
-  
+
   // For small to medium frontiers, sort + unique is faster due to better cache behavior
   // For very large frontiers, hash table amortizes its overhead
   // The threshold is empirical and may need tuning for specific hardware
-  
+
   // Current implementation: always use sort + unique since hash table
   // requires CG-compatible changes throughout the codebase
   // TODO: Add hash table path when CG migration is complete
-  
+
   // Sort vertices - benefits from coalesced memory access
   thrust::sort(rmm::exec_policy(stream), vertices.begin(), vertices.end());
-  
+
   // Remove duplicates - O(n) scan
   auto unique_end = thrust::unique(rmm::exec_policy(stream), vertices.begin(), vertices.end());
-  
+
   size_t unique_count = static_cast<size_t>(thrust::distance(vertices.begin(), unique_end));
   vertices.resize(unique_count, stream);
-  
+
   return unique_count;
 }
 
@@ -224,23 +223,22 @@ size_t deduplicate_hybrid(
  * @return Number of unique vertices
  */
 template <typename vertex_t>
-size_t deduplicate_sort_unique(
-  raft::handle_t const& handle,
-  rmm::device_uvector<vertex_t>& vertices)
+size_t deduplicate_sort_unique(raft::handle_t const& handle,
+                               rmm::device_uvector<vertex_t>& vertices)
 {
   auto stream = handle.get_stream();
-  
+
   if (vertices.size() == 0) return 0;
-  
+
   // Sort vertices
   thrust::sort(rmm::exec_policy(stream), vertices.begin(), vertices.end());
-  
+
   // Remove duplicates
   auto unique_end = thrust::unique(rmm::exec_policy(stream), vertices.begin(), vertices.end());
-  
+
   size_t unique_count = static_cast<size_t>(thrust::distance(vertices.begin(), unique_end));
   vertices.resize(unique_count, stream);
-  
+
   return unique_count;
 }
 
@@ -257,28 +255,27 @@ size_t deduplicate_sort_unique(
  * @return Number of unique keys
  */
 template <typename key_t, typename value_t>
-size_t deduplicate_sort_unique_by_key(
-  raft::handle_t const& handle,
-  rmm::device_uvector<key_t>& keys,
-  rmm::device_uvector<value_t>& values)
+size_t deduplicate_sort_unique_by_key(raft::handle_t const& handle,
+                                      rmm::device_uvector<key_t>& keys,
+                                      rmm::device_uvector<value_t>& values)
 {
   auto stream = handle.get_stream();
-  
+
   if (keys.size() == 0) return 0;
-  
+
   CUGRAPH_EXPECTS(keys.size() == values.size(), "Keys and values must have same size");
-  
+
   // Sort by key
   thrust::sort_by_key(rmm::exec_policy(stream), keys.begin(), keys.end(), values.begin());
-  
+
   // Remove duplicates (keeps first occurrence due to stable sort semantics)
-  auto [keys_end, values_end] = thrust::unique_by_key(
-    rmm::exec_policy(stream), keys.begin(), keys.end(), values.begin());
-  
+  auto [keys_end, values_end] =
+    thrust::unique_by_key(rmm::exec_policy(stream), keys.begin(), keys.end(), values.begin());
+
   size_t unique_count = static_cast<size_t>(thrust::distance(keys.begin(), keys_end));
   keys.resize(unique_count, stream);
   values.resize(unique_count, stream);
-  
+
   return unique_count;
 }
 

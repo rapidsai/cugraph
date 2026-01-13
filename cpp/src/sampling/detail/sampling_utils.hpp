@@ -214,7 +214,9 @@ temporal_sample_edges(raft::handle_t const& handle,
                       std::optional<raft::device_span<int32_t const>> active_major_labels,
                       raft::host_span<size_t const> Ks,
                       bool with_replacement,
-                      temporal_sampling_comparison_t temporal_sampling_comparison);
+                      temporal_sampling_comparison_t temporal_sampling_comparison,
+                      std::optional<time_stamp_t> window_start = std::nullopt,
+                      std::optional<time_stamp_t> window_end   = std::nullopt);
 
 /**
  * @brief Use the sampling results from hop N to populate the new frontier for hop N+1.
@@ -430,7 +432,9 @@ void update_temporal_edge_mask(
   raft::device_span<vertex_t const> vertices,
   raft::device_span<time_stamp_t const> vertex_times,
   edge_property_view_t<edge_t, uint32_t*, bool> edge_time_mask_view,
-  temporal_sampling_comparison_t temporal_sampling_comparison);
+  temporal_sampling_comparison_t temporal_sampling_comparison,
+  std::optional<time_stamp_t> window_start = std::nullopt,
+  std::optional<time_stamp_t> window_end   = std::nullopt);
 
 }  // namespace detail
 }  // namespace cugraph

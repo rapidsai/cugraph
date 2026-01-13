@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -12,6 +12,7 @@
 #include "c_api/resource_handle.hpp"
 #include "cugraph/edge_property.hpp"
 #include "cugraph_c/types.h"
+#include "sampling/window_state_fwd.hpp"
 
 #include <cugraph_c/graph.h>
 
@@ -644,15 +645,21 @@ struct destroy_graph_functor : public cugraph::c_api::abstract_functor {
   void* edge_weights_;
   void* edge_ids_;
   void* edge_types_;
+  void* window_state_;
 
-  destroy_graph_functor(
-    void* graph, void* number_map, void* edge_weights, void* edge_ids, void* edge_types)
+  destroy_graph_functor(void* graph,
+                        void* number_map,
+                        void* edge_weights,
+                        void* edge_ids,
+                        void* edge_types,
+                        void* window_state = nullptr)
     : abstract_functor(),
       graph_(graph),
       number_map_(number_map),
       edge_weights_(edge_weights),
       edge_ids_(edge_ids),
-      edge_types_(edge_types)
+      edge_types_(edge_types),
+      window_state_(window_state)
   {
   }
 
@@ -686,6 +693,19 @@ struct destroy_graph_functor : public cugraph::c_api::abstract_functor {
     auto internal_edge_type_pointer =
       reinterpret_cast<cugraph::edge_property_t<edge_t, edge_type_t>*>(edge_types_);
     if (internal_edge_type_pointer) { delete internal_edge_type_pointer; }
+
+    // Clean up cached window_state for B+C+D temporal sampling optimization
+    // window_state_t is templated on edge_t and time_stamp_t
+    if (window_state_ != nullptr) {
+      // Forward declare the type (defined in windowed_temporal_sampling_impl.hpp)
+      // We use a simple delete since window_state_t has proper destructor
+      // Note: This works because window_state is only allocated for int64/int64 types
+      if constexpr (std::is_same_v<edge_t, int64_t>) {
+        auto* ws =
+          reinterpret_cast<cugraph::detail::window_state_t<edge_t, time_stamp_t>*>(window_state_);
+        delete ws;
+      }
+    }
   }
 };
 
@@ -1098,7 +1118,8 @@ extern "C" void cugraph_graph_free(cugraph_graph_t* ptr_graph)
                                   internal_pointer->number_map_,
                                   internal_pointer->edge_weights_,
                                   internal_pointer->edge_ids_,
-                                  internal_pointer->edge_types_);
+                                  internal_pointer->edge_types_,
+                                  internal_pointer->window_state_);
 
     cugraph::c_api::vertex_dispatcher(internal_pointer->vertex_type_,
                                       internal_pointer->edge_type_,
