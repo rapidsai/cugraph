@@ -912,8 +912,8 @@ rmm::device_uvector<weight_t> od_shortest_distances(
                                   h_split_thresholds.size(),
                                   handle.get_stream());
 
-              rmm::device_uvector<key_t> tmp_buffer = std::move(far_buffers.back());
-              far_buffers.back() = rmm::device_uvector<key_t>(0, handle.get_stream());
+              auto tmp_buffer = rmm::device_uvector<key_t>(0, handle.get_stream());
+              std::swap(tmp_buffer, far_buffers.back());
               std::vector<key_t*> h_buffer_ptrs(h_split_thresholds.size() + 1);
               auto old_size = new_near_q_keys.size();
               for (size_t j = 0; j < h_buffer_ptrs.size(); ++j) {
