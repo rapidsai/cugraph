@@ -995,8 +995,8 @@ rmm::device_uvector<weight_t> od_shortest_distances(
               new_near_q_keys.resize(cuda::std::distance(new_near_q_keys.begin(), last),
                                      handle.get_stream());
             } else {
-              far_buffers[i - num_near_q_insert_buffers] = std::move(far_buffers[i]);
-              far_buffers[i] = rmm::device_uvector<key_t>(0, handle.get_stream());
+              std::swap(far_buffers[i - num_near_q_insert_buffers], far_buffers[i]);
+              far_buffers[i].resize(0, handle.get_stream());
             }
           }
 
