@@ -25,7 +25,7 @@ on:
 jobs:
   conda-cpp-checks:
     secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/conda-cpp-post-build-checks.yaml@cuda-13.1.0
+    uses: rapidsai/shared-workflows/.github/workflows/conda-cpp-post-build-checks.yaml@main
     with:
       build_type: ${{ inputs.build_type }}
       branch: ${{ inputs.branch }}
@@ -34,7 +34,7 @@ jobs:
       symbol_exclusions: (cugraph::ops|hornet|void writeEdgeCountsKernel|void markUniqueOffsetsKernel)
   conda-cpp-tests:
     secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/conda-cpp-tests.yaml@cuda-13.1.0
+    uses: rapidsai/shared-workflows/.github/workflows/conda-cpp-tests.yaml@main
     with:
       build_type: ${{ inputs.build_type }}
       branch: ${{ inputs.branch }}
@@ -44,7 +44,7 @@ jobs:
       sccache-dist-token-secret-name: GIST_REPO_READ_ORG_GITHUB_TOKEN
   conda-python-tests:
     secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/conda-python-tests.yaml@cuda-13.1.0
+    uses: rapidsai/shared-workflows/.github/workflows/conda-python-tests.yaml@main
     with:
       build_type: ${{ inputs.build_type }}
       branch: ${{ inputs.branch }}
@@ -54,7 +54,7 @@ jobs:
       sccache-dist-token-secret-name: GIST_REPO_READ_ORG_GITHUB_TOKEN
   wheel-tests-pylibcugraph:
     secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/wheels-test.yaml@cuda-13.1.0
+    uses: rapidsai/shared-workflows/.github/workflows/wheels-test.yaml@main
     with:
       build_type: ${{ inputs.build_type }}
       branch: ${{ inputs.branch }}
@@ -64,7 +64,7 @@ jobs:
       sccache-dist-token-secret-name: GIST_REPO_READ_ORG_GITHUB_TOKEN
   wheel-tests-cugraph:
     secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/wheels-test.yaml@cuda-13.1.0
+    uses: rapidsai/shared-workflows/.github/workflows/wheels-test.yaml@main
     with:
       build_type: ${{ inputs.build_type }}
       branch: ${{ inputs.branch }}
