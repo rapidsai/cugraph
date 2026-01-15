@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -31,7 +31,6 @@
 #include <cuda/std/iterator>
 #include <cuda/std/optional>
 #include <thrust/copy.h>
-#include <thrust/distance.h>
 #include <thrust/execution_policy.h>
 #include <thrust/functional.h>
 #include <thrust/iterator/counting_iterator.h>
@@ -660,7 +659,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> multisour
 
     // Step 3: Manual array updates using in-place reduced data
     // Get count from the values output since keys output is a zip iterator
-    size_t num_reduced = thrust::distance(sigmas.begin(), reduced_result.second);
+    size_t num_reduced = cuda::std::distance(sigmas.begin(), reduced_result.second);
     thrust::for_each(handle.get_thrust_policy(),
                      thrust::make_zip_iterator(
                        frontier_vertices.begin(), frontier_origins.begin(), sigmas.begin()),

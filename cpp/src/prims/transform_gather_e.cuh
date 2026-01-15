@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2023-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -23,6 +23,7 @@
 
 #include <cuda/std/iterator>
 #include <cuda/std/optional>
+#include <cuda/std/tuple>
 #include <thrust/binary_search.h>
 #include <thrust/count.h>
 #include <thrust/for_each.h>
@@ -79,7 +80,7 @@ struct return_e_value_t {
     vertex_t const* indices{nullptr};
     edge_t edge_offset{};
     edge_t local_degree{};
-    thrust::tie(indices, edge_offset, local_degree) = edge_partition.local_edges(*major_idx);
+    cuda::std::tie(indices, edge_offset, local_degree) = edge_partition.local_edges(*major_idx);
     auto it =
       thrust::lower_bound(thrust::seq, indices, indices + local_degree, minor) + multi_edge_index;
     assert(*it == minor);

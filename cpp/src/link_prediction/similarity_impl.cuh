@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -97,7 +97,7 @@ rmm::device_uvector<weight_t> similarity(
 
           auto pair_first = thrust::make_zip_iterator(intersected_properties_a.data(),
                                                       intersected_properties_b.data());
-          thrust::tie(norm_a, norm_b, sum_of_product_of_a_and_b) = thrust::transform_reduce(
+          cuda::std::tie(norm_a, norm_b, sum_of_product_of_a_and_b) = thrust::transform_reduce(
             thrust::seq,
             pair_first,
             pair_first + intersected_properties_a.size(),
@@ -126,10 +126,10 @@ rmm::device_uvector<weight_t> similarity(
 
           auto pair_first = thrust::make_zip_iterator(intersected_properties_a.data(),
                                                       intersected_properties_b.data());
-          thrust::tie(sum_of_min_weight_a_intersect_b,
-                      sum_of_max_weight_a_intersect_b,
-                      sum_of_intersected_a,
-                      sum_of_intersected_b) =
+          cuda::std::tie(sum_of_min_weight_a_intersect_b,
+                         sum_of_max_weight_a_intersect_b,
+                         sum_of_intersected_a,
+                         sum_of_intersected_b) =
             thrust::transform_reduce(
               thrust::seq,
               pair_first,
