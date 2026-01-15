@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 
 # Have cython use python 3 syntax
@@ -48,6 +48,7 @@ from pylibcugraph._cugraph_c.algorithms cimport (
 )
 from pylibcugraph._cugraph_c.sampling_algorithms cimport (
     cugraph_homogeneous_uniform_temporal_neighbor_sample,
+    cugraph_homogeneous_uniform_temporal_neighbor_sample_windowed,
 )
 from pylibcugraph.resource_handle cimport (
     ResourceHandle,
@@ -71,6 +72,80 @@ from pylibcugraph.random cimport (
     CuGraphRandomState
 )
 import warnings
+import numpy as np
+from datetime import datetime
+
+
+def _convert_timestamp_to_int(value, time_unit='ns'):
+    """
+    Convert various timestamp formats to integer.
+
+    Parameters
+    ----------
+    value : int, str, datetime, pd.Timestamp, or np.datetime64
+        The timestamp value to convert.
+    time_unit : str
+        The unit of time for the graph's edge timestamps.
+        Options: 'ns' (nanoseconds), 'us' (microseconds),
+                 'ms' (milliseconds), 's' (seconds)
+
+    Returns
+    -------
+    int
+        Timestamp as integer in the specified time_unit.
+    """
+    if value is None:
+        return None
+
+    # Already an integer - assume it's in the correct units
+    if isinstance(value, (int, np.integer)):
+        return int(value)
+
+    # Conversion factors from nanoseconds
+    unit_divisors = {
+        'ns': 1,
+        'us': 1_000,
+        'ms': 1_000_000,
+        's': 1_000_000_000,
+    }
+
+    if time_unit not in unit_divisors:
+        raise ValueError(f"Invalid time_unit '{time_unit}'. "
+                        f"Must be one of: {list(unit_divisors.keys())}")
+
+    divisor = unit_divisors[time_unit]
+
+    # pandas Timestamp - has .value attribute in nanoseconds
+    if hasattr(value, 'value') and hasattr(value, 'timestamp'):
+        return int(value.value // divisor)
+
+    # numpy datetime64
+    if isinstance(value, np.datetime64):
+        ns_value = value.astype('datetime64[ns]').astype(np.int64)
+        return int(ns_value // divisor)
+
+    # Python datetime
+    if isinstance(value, datetime):
+        ns_value = int(value.timestamp() * 1_000_000_000)
+        return int(ns_value // divisor)
+
+    # String - try to parse with pandas
+    if isinstance(value, str):
+        try:
+            import pandas as pd
+            ts = pd.Timestamp(value)
+            return int(ts.value // divisor)
+        except ImportError:
+            # Fallback: try Python's datetime parsing
+            from dateutil import parser
+            dt = parser.parse(value)
+            ns_value = int(dt.timestamp() * 1_000_000_000)
+            return int(ns_value // divisor)
+
+    raise TypeError(
+        f"Cannot convert {type(value).__name__} to timestamp. "
+        f"Expected int, str, datetime, pd.Timestamp, or np.datetime64"
+    )
 
 # TODO accept cupy/numpy random state in addition to raw seed.
 def homogeneous_uniform_temporal_neighbor_sample(ResourceHandle resource_handle,
@@ -89,10 +164,13 @@ def homogeneous_uniform_temporal_neighbor_sample(ResourceHandle resource_handle,
                                                  return_hops=False,
                                                  renumber=False,
                                                  retain_seeds=False,
-                                                 compression='COO',
-                                                 compress_per_hop=False,
-                                                 random_state=None,
-                                                 temporal_sampling_comparison='strictly_increasing'):
+                                                compression='COO',
+                                                compress_per_hop=False,
+                                                random_state=None,
+                                                temporal_sampling_comparison='strictly_increasing',
+                                                window_start=None,
+                                                window_end=None,
+                                                window_time_unit='s'):
     """
     Performs uniform temporal neighborhood sampling, which samples nodes from
     a graph based on the current node's neighbors, with a corresponding fan_out
@@ -192,6 +270,34 @@ def homogeneous_uniform_temporal_neighbor_sample(ResourceHandle resource_handle,
     temporal_sampling_comparison: str (Optional)
         Options: 'strictly_increasing' (default), 'strictly_decreasing', 'monotonically_increasing', 'monotonically_decreasing', 'last'
         Sets the comparison operator for temporal sampling.
+
+    window_start: int, str, datetime, pd.Timestamp, or np.datetime64 (Optional)
+        Start of temporal window. When provided with window_end, enables B+C+D
+        optimizations for windowed temporal sampling:
+          - B: O(log E) binary search for window bounds
+          - C: O(ΔE) incremental window updates
+          - D: Inline temporal filtering
+        Only edges with time >= window_start are considered.
+
+        Accepts multiple formats:
+          - int: Used directly (interpreted according to window_time_unit)
+          - str: Parsed as datetime (e.g., "2024-01-15", "2024-01-15T10:30:00")
+          - datetime: Python datetime object
+          - pd.Timestamp: Pandas Timestamp
+          - np.datetime64: NumPy datetime64
+
+    window_end: int, str, datetime, pd.Timestamp, or np.datetime64 (Optional)
+        End of temporal window. Only edges with time < window_end are considered.
+        Must be provided together with window_start. Accepts same formats as window_start.
+
+    window_time_unit: str (Optional)
+        The time unit used for edge timestamps in the graph. Used when converting
+        string/datetime window parameters to integers. Default is 's' (seconds).
+        Options: 'ns' (nanoseconds), 'us' (microseconds), 'ms' (milliseconds), 's' (seconds)
+
+        Note: Integer window_start/window_end values are passed through unchanged,
+        assuming they're already in the correct units for your graph.
+
     Returns
     -------
     A tuple of device arrays, where the first and second items in the tuple
@@ -267,8 +373,6 @@ def homogeneous_uniform_temporal_neighbor_sample(ResourceHandle resource_handle,
 
     # FIXME: refactor the way we are creating pointer. Can use a single helper function to create
 
-    print("start_vertex_list", start_vertex_list)
-    print("starting_vertex_times", starting_vertex_times)
     assert_CAI_type(start_vertex_list, "start_vertex_list")
     assert_CAI_type(starting_vertex_times, "starting_vertex_times", True)
     assert_CAI_type(starting_vertex_label_offsets, "starting_vertex_label_offsets", True)
@@ -400,20 +504,51 @@ def homogeneous_uniform_temporal_neighbor_sample(ResourceHandle resource_handle,
         raise ValueError(f'Invalid option {temporal_sampling_comparison} for temporal sampling comparison')
     cugraph_sampling_set_temporal_sampling_comparison(sampling_options, temporal_sampling_comparison_e)
 
-    error_code = cugraph_homogeneous_uniform_temporal_neighbor_sample(
-        c_resource_handle_ptr,
-        rng_state_ptr,
-        c_graph_ptr,
-        "edge_start_time",
-        start_vertex_list_ptr,
-        starting_vertex_times_ptr,
-        starting_vertex_label_offsets_ptr,
-        fan_out_ptr,
-        sampling_options,
-        do_expensive_check,
-        &result_ptr,
-        &error_ptr)
-    assert_success(error_code, error_ptr, "cugraph_homogeneous_uniform_temporal_neighbor_sample")
+    # Use windowed variant if window parameters are provided
+    if window_start is not None and window_end is not None:
+        # Convert window parameters to integers (handles str, datetime, pd.Timestamp, etc.)
+        c_window_start = _convert_timestamp_to_int(window_start, window_time_unit)
+        c_window_end = _convert_timestamp_to_int(window_end, window_time_unit)
+
+        if c_window_end <= c_window_start:
+            raise ValueError(
+                f"window_end ({window_end} -> {c_window_end}) must be greater than "
+                f"window_start ({window_start} -> {c_window_start})"
+            )
+
+        error_code = cugraph_homogeneous_uniform_temporal_neighbor_sample_windowed(
+            c_resource_handle_ptr,
+            rng_state_ptr,
+            c_graph_ptr,
+            "edge_start_time",
+            start_vertex_list_ptr,
+            starting_vertex_times_ptr,
+            starting_vertex_label_offsets_ptr,
+            fan_out_ptr,
+            sampling_options,
+            <long>c_window_start,
+            <long>c_window_end,
+            do_expensive_check,
+            &result_ptr,
+            &error_ptr)
+        assert_success(error_code, error_ptr, "cugraph_homogeneous_uniform_temporal_neighbor_sample_windowed")
+    elif window_start is not None or window_end is not None:
+        raise ValueError("Both window_start and window_end must be provided together, or neither")
+    else:
+        error_code = cugraph_homogeneous_uniform_temporal_neighbor_sample(
+            c_resource_handle_ptr,
+            rng_state_ptr,
+            c_graph_ptr,
+            "edge_start_time",
+            start_vertex_list_ptr,
+            starting_vertex_times_ptr,
+            starting_vertex_label_offsets_ptr,
+            fan_out_ptr,
+            sampling_options,
+            do_expensive_check,
+            &result_ptr,
+            &error_ptr)
+        assert_success(error_code, error_ptr, "cugraph_homogeneous_uniform_temporal_neighbor_sample")
 
     # Free the sampling options
     cugraph_sampling_options_free(sampling_options)

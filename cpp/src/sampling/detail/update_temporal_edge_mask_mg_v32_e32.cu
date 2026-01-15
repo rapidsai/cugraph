@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -15,7 +15,9 @@ template void update_temporal_edge_mask(
   raft::device_span<int32_t const> vertices,
   raft::device_span<int32_t const> vertex_times,
   edge_property_view_t<int32_t, uint32_t*, bool> edge_time_mask_view,
-  temporal_sampling_comparison_t temporal_sampling_comparison);
+  temporal_sampling_comparison_t temporal_sampling_comparison,
+  std::optional<int32_t> window_start,
+  std::optional<int32_t> window_end);
 
 template void update_temporal_edge_mask(
   raft::handle_t const& handle,
@@ -24,7 +26,9 @@ template void update_temporal_edge_mask(
   raft::device_span<int32_t const> vertices,
   raft::device_span<int64_t const> vertex_times,
   edge_property_view_t<int32_t, uint32_t*, bool> edge_time_mask_view,
-  temporal_sampling_comparison_t temporal_sampling_comparison);
+  temporal_sampling_comparison_t temporal_sampling_comparison,
+  std::optional<int64_t> window_start,
+  std::optional<int64_t> window_end);
 
 }  // namespace detail
 }  // namespace cugraph

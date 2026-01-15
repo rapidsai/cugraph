@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -19,6 +19,7 @@
 #include <thrust/scatter.h>
 
 #include <limits>
+#include <optional>
 
 namespace cugraph {
 namespace detail {
@@ -31,9 +32,22 @@ void update_temporal_edge_mask(
   raft::device_span<vertex_t const> vertices,
   raft::device_span<time_stamp_t const> vertex_times,
   edge_property_view_t<edge_t, uint32_t*, bool> edge_time_mask_view,
-  temporal_sampling_comparison_t temporal_sampling_comparison)
+  temporal_sampling_comparison_t temporal_sampling_comparison,
+  std::optional<time_stamp_t> window_start,
+  std::optional<time_stamp_t> window_end)
 {
   time_stamp_t const STARTING_TIME{std::numeric_limits<time_stamp_t>::min()};
+
+  bool use_window = (window_start.has_value() || window_end.has_value());
+  CUGRAPH_EXPECTS(!use_window || (window_start && window_end),
+                  "Invalid window parameters: both window_start and window_end must be provided.");
+  time_stamp_t ws{time_stamp_t{}};
+  time_stamp_t we{time_stamp_t{}};
+  if (use_window) {
+    ws = *window_start;
+    we = *window_end;
+    CUGRAPH_EXPECTS(we > ws, "Invalid window parameters: window_end must be > window_start.");
+  }
 
   edge_src_property_t<edge_t, time_stamp_t> edge_src_times(handle, graph_view);
 
@@ -56,7 +70,7 @@ void update_temporal_edge_mask(
     edge_src_times.view(),
     cugraph::edge_dst_dummy_property_t{}.view(),
     edge_start_time_view,
-    [temporal_sampling_comparison] __device__(
+    [temporal_sampling_comparison, use_window, ws, we] __device__(
       auto src, auto dst, auto src_time, auto, auto edge_start_time) {
       bool result = false;
       switch (temporal_sampling_comparison) {
@@ -73,6 +87,7 @@ void update_temporal_edge_mask(
           result = (edge_start_time <= src_time);
           break;
       }
+      if (use_window) { result = result && (edge_start_time >= ws) && (edge_start_time < we); }
       return result;
     },
     edge_time_mask_view,

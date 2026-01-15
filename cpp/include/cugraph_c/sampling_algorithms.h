@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -565,6 +565,163 @@ cugraph_error_code_t cugraph_homogeneous_uniform_temporal_neighbor_sample(
   const cugraph_sampling_options_t* sampling_options,
   bool_t do_expensive_check,
   cugraph_sample_result_t** result,
+  cugraph_error_t** error);
+
+/**
+ * @brief     Homogeneous Uniform Temporal Neighborhood Sampling with Window Filtering (B+C+D)
+ *
+ * Same as cugraph_homogeneous_uniform_temporal_neighbor_sample but with window-based edge
+ * filtering optimizations:
+ *   - B: Binary search for window bounds (O(log E) instead of O(E))
+ *   - C: Incremental window updates for sliding windows (O(ΔE) instead of O(E))
+ *   - D: Inline temporal filtering during sampling
+ *
+ * Use this function when performing multiple sampling operations with sliding time windows,
+ * such as walk-forward cross-validation or rolling window training.
+ *
+ * @param [in]  handle        Handle to the underlying resources for GPU operations
+ * @param [in]  rng_state     Random number generator state
+ * @param [in]  graph         Pointer to the graph
+ * @param [in]  temporal_property_name Name of temporal edge property (currently unused)
+ * @param [in]  start_vertices Device array of starting vertices for sampling
+ * @param [in]  starting_vertex_times Optional device array of times for each starting vertex
+ * @param [in]  starting_vertex_label_offsets Optional device array of label offsets
+ * @param [in]  fan_out       Host array defining the fan out at each step
+ * @param [in]  sampling_options Opaque pointer defining sampling options
+ * @param [in]  window_start  Start of temporal window (edges with time >= window_start included)
+ * @param [in]  window_end    End of temporal window (edges with time < window_end included)
+ * @param [in]  do_expensive_check Flag to run expensive input validation
+ * @param [out] result        Output from the sampling call
+ * @param [out] error         Pointer to error object
+ * @return error code
+ */
+cugraph_error_code_t cugraph_homogeneous_uniform_temporal_neighbor_sample_windowed(
+  const cugraph_resource_handle_t* handle,
+  cugraph_rng_state_t* rng_state,
+  cugraph_graph_t* graph,
+  const char* temporal_property_name,
+  const cugraph_type_erased_device_array_view_t* start_vertices,
+  const cugraph_type_erased_device_array_view_t* starting_vertex_times,
+  const cugraph_type_erased_device_array_view_t* starting_vertex_label_offsets,
+  const cugraph_type_erased_host_array_view_t* fan_out,
+  const cugraph_sampling_options_t* sampling_options,
+  int64_t window_start,
+  int64_t window_end,
+  bool_t do_expensive_check,
+  cugraph_sample_result_t** result,
+  cugraph_error_t** error);
+
+/**
+ * @brief     Opaque batch temporal sample result type
+ *
+ * Contains concatenated results from multiple sampling iterations along with
+ * offsets to index into each iteration's results.
+ */
+typedef struct {
+  int32_t align_;
+} cugraph_batch_sample_result_t;
+
+/**
+ * @brief     Get the source vertices from a batch sampling result
+ *
+ * @param [in]  result  Batch sampling result
+ * @return type erased array view of source vertices (concatenated across iterations)
+ */
+cugraph_type_erased_device_array_view_t* cugraph_batch_sample_result_get_sources(
+  cugraph_batch_sample_result_t* result);
+
+/**
+ * @brief     Get the destination vertices from a batch sampling result
+ *
+ * @param [in]  result  Batch sampling result
+ * @return type erased array view of destination vertices (concatenated across iterations)
+ */
+cugraph_type_erased_device_array_view_t* cugraph_batch_sample_result_get_destinations(
+  cugraph_batch_sample_result_t* result);
+
+/**
+ * @brief     Get the edge weights from a batch sampling result
+ *
+ * @param [in]  result  Batch sampling result
+ * @return type erased array view of edge weights (concatenated across iterations)
+ */
+cugraph_type_erased_device_array_view_t* cugraph_batch_sample_result_get_edge_weights(
+  cugraph_batch_sample_result_t* result);
+
+/**
+ * @brief     Get the edge start times from a batch sampling result
+ *
+ * @param [in]  result  Batch sampling result
+ * @return type erased array view of edge start times (concatenated across iterations)
+ */
+cugraph_type_erased_device_array_view_t* cugraph_batch_sample_result_get_edge_start_times(
+  cugraph_batch_sample_result_t* result);
+
+/**
+ * @brief     Get the iteration offsets from a batch sampling result
+ *
+ * @param [in]  result  Batch sampling result
+ * @return type erased array view of iteration offsets (size = n_iterations + 1)
+ */
+cugraph_type_erased_device_array_view_t* cugraph_batch_sample_result_get_iteration_offsets(
+  cugraph_batch_sample_result_t* result);
+
+/**
+ * @brief     Get the hop offsets from a batch sampling result
+ *
+ * @param [in]  result  Batch sampling result
+ * @return type erased array view of hop offsets (concatenated across iterations)
+ */
+cugraph_type_erased_device_array_view_t* cugraph_batch_sample_result_get_hop_offsets(
+  cugraph_batch_sample_result_t* result);
+
+/**
+ * @brief     Free a batch sample result
+ *
+ * @param [in]  result  Batch sampling result to free
+ */
+void cugraph_batch_sample_result_free(cugraph_batch_sample_result_t* result);
+
+/**
+ * @brief     Batch Temporal Neighborhood Sampling
+ *
+ * Performs temporal neighborhood sampling for multiple time windows in a single call.
+ * This eliminates Python overhead by:
+ * - Generating seeds internally with cuRAND (no host-device transfer)
+ * - Processing all iterations in C++
+ * - Reusing window state across iterations (O(1) amortized per iteration)
+ *
+ * The function initializes window state once (O(E log E)) then uses incremental
+ * updates (O(ΔE)) for each sliding window step.
+ *
+ * @param [in]  handle          Handle for accessing resources
+ * @param [in,out] rng_state    State of the random number generator
+ * @param [in]  graph           Pointer to graph (must have edge_start_time_array)
+ * @param [in]  n_seeds_per_iteration  Number of seed vertices per iteration
+ * @param [in]  seed_vertex_range_start  Start of vertex range for random seed selection
+ * @param [in]  seed_vertex_range_end    End of vertex range for random seed selection (exclusive)
+ * @param [in]  window_starts   Array of window start times (size = n_iterations)
+ * @param [in]  window_ends     Array of window end times (size = n_iterations)
+ * @param [in]  fan_out         Host array of fan_out values per hop
+ * @param [in]  sampling_options Options for sampling behavior
+ * @param [in]  do_expensive_check  Flag to run expensive input validation
+ * @param [out] result          Batch sampling result with iteration offsets
+ * @param [out] error           Pointer to error object
+ * @return error code
+ */
+cugraph_error_code_t cugraph_batch_temporal_neighbor_sample(
+  const cugraph_resource_handle_t* handle,
+  cugraph_rng_state_t* rng_state,
+  cugraph_graph_t* graph,
+  size_t n_seeds_per_iteration,
+  int64_t seed_vertex_range_start,
+  int64_t seed_vertex_range_end,
+  const cugraph_type_erased_device_array_view_t* window_starts,
+  const cugraph_type_erased_device_array_view_t* window_ends,
+  const cugraph_type_erased_host_array_view_t* fan_out,
+  const cugraph_sampling_options_t* sampling_options,
+  bool_t do_expensive_check,
+  cugraph_batch_sample_result_t** result,
   cugraph_error_t** error);
 
 /**

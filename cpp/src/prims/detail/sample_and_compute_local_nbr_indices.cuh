@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2024-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -40,6 +40,7 @@
 #include <thrust/tabulate.h>
 #include <thrust/unique.h>
 
+#include <cstdlib>
 #include <optional>
 #include <tuple>
 
@@ -509,6 +510,15 @@ compute_valid_local_nbr_count_inclusive_sums(raft::handle_t const& handle,
   local_frontier_valid_local_nbr_count_inclusive_sums.reserve(
     graph_view.number_of_local_edge_partitions());
 
+  // Debug/perf knob: avoid degree-based partitioning (thrust::partition) in masked sampling.
+  // When enabled, inclusive sums are computed for all frontier vertices in one pass.
+  //
+  // Environment variable: CUGRAPH_MASKED_SAMPLING_AVOID_PARTITION=1
+  static bool const avoid_partition = []() {
+    auto const* v = std::getenv("CUGRAPH_MASKED_SAMPLING_AVOID_PARTITION");
+    return (v != nullptr) && (v[0] == '1');
+  }();
+
   for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
     auto edge_partition =
       edge_partition_device_view_t<vertex_t, edge_t, GraphViewType::is_multi_gpu>(
@@ -538,88 +548,126 @@ compute_valid_local_nbr_count_inclusive_sums(raft::handle_t const& handle,
                            size_first + edge_partition_local_degrees.size(),
                            inclusive_sum_offsets.begin() + 1);
 
-    auto [edge_partition_frontier_indices, frontier_partition_offsets] = partition_v_frontier(
-      handle,
-      edge_partition_local_degrees.begin(),
-      edge_partition_local_degrees.end(),
-      std::vector<edge_t>{
-        static_cast<edge_t>(compute_valid_local_nbr_count_inclusive_sum_local_degree_threshold),
-        static_cast<edge_t>(compute_valid_local_nbr_count_inclusive_sum_mid_local_degree_threshold),
-        static_cast<edge_t>(
-          compute_valid_local_nbr_count_inclusive_sum_high_local_degree_threshold)});
-
     rmm::device_uvector<edge_t> inclusive_sums(
       inclusive_sum_offsets.back_element(handle.get_stream()), handle.get_stream());
 
-    thrust::for_each(
-      handle.get_thrust_policy(),
-      edge_partition_frontier_indices.begin() + frontier_partition_offsets[1],
-      edge_partition_frontier_indices.begin() + frontier_partition_offsets[2],
-      [edge_partition,
-       edge_partition_e_mask,
-       edge_partition_frontier_major_first =
-         aggregate_local_frontier_major_first + local_frontier_offsets[i],
-       inclusive_sum_offsets = raft::device_span<size_t const>(inclusive_sum_offsets.data(),
-                                                               inclusive_sum_offsets.size()),
-       inclusive_sums        = raft::device_span<edge_t>(inclusive_sums.data(),
-                                                  inclusive_sums.size())] __device__(size_t i) {
-        auto major = *(edge_partition_frontier_major_first + i);
-        vertex_t major_idx{};
-        if constexpr (GraphViewType::is_multi_gpu) {
-          major_idx = *(edge_partition.major_idx_from_major_nocheck(major));
-        } else {
-          major_idx = edge_partition.major_offset_from_major_nocheck(major);
-        }
-        auto edge_offset  = edge_partition.local_offset(major_idx);
-        auto local_degree = edge_partition.local_degree(major_idx);
-        edge_t sum{0};
-        auto start_offset = inclusive_sum_offsets[i];
-        auto end_offset   = inclusive_sum_offsets[i + 1];
-        for (size_t j = 0; j < end_offset - start_offset; ++j) {
-          sum += count_set_bits(
-            (*edge_partition_e_mask).value_first(),
-            edge_offset + packed_bools_per_word() * j,
-            cuda::std::min(packed_bools_per_word(), local_degree - packed_bools_per_word() * j));
-          inclusive_sums[start_offset + j] = sum;
-        }
-      });
+    if (avoid_partition) {
+      thrust::for_each(
+        handle.get_thrust_policy(),
+        thrust::make_counting_iterator<size_t>(0),
+        thrust::make_counting_iterator<size_t>(edge_partition_local_degrees.size()),
+        [edge_partition,
+         edge_partition_e_mask,
+         edge_partition_frontier_major_first =
+           aggregate_local_frontier_major_first + local_frontier_offsets[i],
+         inclusive_sum_offsets = raft::device_span<size_t const>(inclusive_sum_offsets.data(),
+                                                                 inclusive_sum_offsets.size()),
+         inclusive_sums        = raft::device_span<edge_t>(inclusive_sums.data(),
+                                                    inclusive_sums.size())] __device__(size_t idx) {
+          auto major = *(edge_partition_frontier_major_first + idx);
+          vertex_t major_idx{};
+          if constexpr (GraphViewType::is_multi_gpu) {
+            major_idx = *(edge_partition.major_idx_from_major_nocheck(major));
+          } else {
+            major_idx = edge_partition.major_offset_from_major_nocheck(major);
+          }
+          auto edge_offset  = edge_partition.local_offset(major_idx);
+          auto local_degree = edge_partition.local_degree(major_idx);
+          edge_t sum{0};
+          auto start_offset = inclusive_sum_offsets[idx];
+          auto end_offset   = inclusive_sum_offsets[idx + 1];
+          for (size_t j = 0; j < end_offset - start_offset; ++j) {
+            sum += count_set_bits(
+              (*edge_partition_e_mask).value_first(),
+              edge_offset + packed_bools_per_word() * j,
+              cuda::std::min(packed_bools_per_word(), local_degree - packed_bools_per_word() * j));
+            inclusive_sums[start_offset + j] = sum;
+          }
+        });
+    } else {
+      auto [edge_partition_frontier_indices, frontier_partition_offsets] = partition_v_frontier(
+        handle,
+        edge_partition_local_degrees.begin(),
+        edge_partition_local_degrees.end(),
+        std::vector<edge_t>{
+          static_cast<edge_t>(compute_valid_local_nbr_count_inclusive_sum_local_degree_threshold),
+          static_cast<edge_t>(
+            compute_valid_local_nbr_count_inclusive_sum_mid_local_degree_threshold),
+          static_cast<edge_t>(
+            compute_valid_local_nbr_count_inclusive_sum_high_local_degree_threshold)});
 
-    auto mid_partition_size = frontier_partition_offsets[3] - frontier_partition_offsets[2];
-    if (mid_partition_size > 0) {
-      raft::grid_1d_warp_t update_grid(mid_partition_size,
-                                       sample_and_compute_local_nbr_indices_block_size,
-                                       handle.get_device_properties().maxGridSize[0]);
-      compute_valid_local_nbr_count_inclusive_sums_mid_local_degree<<<update_grid.num_blocks,
-                                                                      update_grid.block_size,
-                                                                      0,
-                                                                      handle.get_stream()>>>(
-        edge_partition,
-        *edge_partition_e_mask,
-        aggregate_local_frontier_major_first + local_frontier_offsets[i],
-        raft::device_span<size_t const>(inclusive_sum_offsets.data(), inclusive_sum_offsets.size()),
-        raft::device_span<size_t const>(
-          edge_partition_frontier_indices.data() + frontier_partition_offsets[2],
-          frontier_partition_offsets[3] - frontier_partition_offsets[2]),
-        raft::device_span<edge_t>(inclusive_sums.data(), inclusive_sums.size()));
-    }
+      thrust::for_each(
+        handle.get_thrust_policy(),
+        edge_partition_frontier_indices.begin() + frontier_partition_offsets[1],
+        edge_partition_frontier_indices.begin() + frontier_partition_offsets[2],
+        [edge_partition,
+         edge_partition_e_mask,
+         edge_partition_frontier_major_first =
+           aggregate_local_frontier_major_first + local_frontier_offsets[i],
+         inclusive_sum_offsets = raft::device_span<size_t const>(inclusive_sum_offsets.data(),
+                                                                 inclusive_sum_offsets.size()),
+         inclusive_sums        = raft::device_span<edge_t>(inclusive_sums.data(),
+                                                    inclusive_sums.size())] __device__(size_t idx) {
+          auto major = *(edge_partition_frontier_major_first + idx);
+          vertex_t major_idx{};
+          if constexpr (GraphViewType::is_multi_gpu) {
+            major_idx = *(edge_partition.major_idx_from_major_nocheck(major));
+          } else {
+            major_idx = edge_partition.major_offset_from_major_nocheck(major);
+          }
+          auto edge_offset  = edge_partition.local_offset(major_idx);
+          auto local_degree = edge_partition.local_degree(major_idx);
+          edge_t sum{0};
+          auto start_offset = inclusive_sum_offsets[idx];
+          auto end_offset   = inclusive_sum_offsets[idx + 1];
+          for (size_t j = 0; j < end_offset - start_offset; ++j) {
+            sum += count_set_bits(
+              (*edge_partition_e_mask).value_first(),
+              edge_offset + packed_bools_per_word() * j,
+              cuda::std::min(packed_bools_per_word(), local_degree - packed_bools_per_word() * j));
+            inclusive_sums[start_offset + j] = sum;
+          }
+        });
 
-    auto high_partition_size = frontier_partition_offsets[4] - frontier_partition_offsets[3];
-    if (high_partition_size > 0) {
-      raft::grid_1d_block_t update_grid(high_partition_size,
-                                        sample_and_compute_local_nbr_indices_block_size,
-                                        handle.get_device_properties().maxGridSize[0]);
-      compute_valid_local_nbr_count_inclusive_sums_high_local_degree<<<update_grid.num_blocks,
-                                                                       update_grid.block_size,
-                                                                       0,
-                                                                       handle.get_stream()>>>(
-        edge_partition,
-        *edge_partition_e_mask,
-        aggregate_local_frontier_major_first + local_frontier_offsets[i],
-        raft::device_span<size_t const>(inclusive_sum_offsets.data(), inclusive_sum_offsets.size()),
-        raft::device_span<size_t const>(
-          edge_partition_frontier_indices.data() + frontier_partition_offsets[3],
-          frontier_partition_offsets[4] - frontier_partition_offsets[3]),
-        raft::device_span<edge_t>(inclusive_sums.data(), inclusive_sums.size()));
+      auto mid_partition_size = frontier_partition_offsets[3] - frontier_partition_offsets[2];
+      if (mid_partition_size > 0) {
+        raft::grid_1d_warp_t update_grid(mid_partition_size,
+                                         sample_and_compute_local_nbr_indices_block_size,
+                                         handle.get_device_properties().maxGridSize[0]);
+        compute_valid_local_nbr_count_inclusive_sums_mid_local_degree<<<update_grid.num_blocks,
+                                                                        update_grid.block_size,
+                                                                        0,
+                                                                        handle.get_stream()>>>(
+          edge_partition,
+          *edge_partition_e_mask,
+          aggregate_local_frontier_major_first + local_frontier_offsets[i],
+          raft::device_span<size_t const>(inclusive_sum_offsets.data(),
+                                          inclusive_sum_offsets.size()),
+          raft::device_span<size_t const>(
+            edge_partition_frontier_indices.data() + frontier_partition_offsets[2],
+            frontier_partition_offsets[3] - frontier_partition_offsets[2]),
+          raft::device_span<edge_t>(inclusive_sums.data(), inclusive_sums.size()));
+      }
+
+      auto high_partition_size = frontier_partition_offsets[4] - frontier_partition_offsets[3];
+      if (high_partition_size > 0) {
+        raft::grid_1d_block_t update_grid(high_partition_size,
+                                          sample_and_compute_local_nbr_indices_block_size,
+                                          handle.get_device_properties().maxGridSize[0]);
+        compute_valid_local_nbr_count_inclusive_sums_high_local_degree<<<update_grid.num_blocks,
+                                                                         update_grid.block_size,
+                                                                         0,
+                                                                         handle.get_stream()>>>(
+          edge_partition,
+          *edge_partition_e_mask,
+          aggregate_local_frontier_major_first + local_frontier_offsets[i],
+          raft::device_span<size_t const>(inclusive_sum_offsets.data(),
+                                          inclusive_sum_offsets.size()),
+          raft::device_span<size_t const>(
+            edge_partition_frontier_indices.data() + frontier_partition_offsets[3],
+            frontier_partition_offsets[4] - frontier_partition_offsets[3]),
+          raft::device_span<edge_t>(inclusive_sums.data(), inclusive_sums.size()));
+      }
     }
 
     local_frontier_valid_local_nbr_count_inclusive_sums.push_back(

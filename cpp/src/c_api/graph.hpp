@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -59,6 +59,11 @@ struct cugraph_graph_t {
   void* edge_types_;        // edge_property_t<edge_t, edge_type_t>*
   void* edge_start_times_;  // edge_property_t<edge_t, time_stamp_t>*
   void* edge_end_times_;    // edge_property_t<edge_t, time_stamp_t>*
+
+  // Cached window state for B+C+D temporal sampling optimization
+  // Type: cugraph::detail::window_state_t<edge_t, time_stamp_t>*
+  // Lazily initialized on first windowed temporal sampling call
+  void* window_state_{nullptr};
 };
 
 template <typename vertex_t,
