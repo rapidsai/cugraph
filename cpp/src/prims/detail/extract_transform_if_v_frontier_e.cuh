@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -344,7 +344,7 @@ __global__ static void extract_transform_if_v_frontier_e_mid_degree(
     vertex_t const* indices{nullptr};
     edge_t local_edge_offset{};
     edge_t local_degree{};
-    thrust::tie(indices, local_edge_offset, local_degree) =
+    cuda::std::tie(indices, local_edge_offset, local_degree) =
       edge_partition.local_edges(major_offset);
     auto rounded_up_local_degree =
       ((static_cast<size_t>(local_degree) + (raft::warp_size() - 1)) / raft::warp_size()) *
@@ -467,7 +467,7 @@ __global__ static void extract_transform_if_v_frontier_e_high_degree(
       vertex_t const* indices{nullptr};
       edge_t local_edge_offset{};
       edge_t local_degree{};
-      thrust::tie(indices, local_edge_offset, local_degree) =
+      cuda::std::tie(indices, local_edge_offset, local_degree) =
         edge_partition.local_edges(major_offset);
 
       auto call_pred_op = call_e_op_t<GraphViewType,
