@@ -27,7 +27,6 @@ RAPIDS_PIP_WHEEL_ARGS=(
   -v
   --no-deps
   --disable-pip-version-check
-  --build-constraint="${PIP_CONSTRAINT}"
 )
 # Only use --build-constraint when build isolation is enabled.
 #
