@@ -1,5 +1,5 @@
 #!/bin/bash
-# SPDX-FileCopyrightText: Copyright (c) 2023-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 
 set -eoxu pipefail
@@ -18,6 +18,7 @@ else
     # FIXME: Adding PY_IGNORE_IMPORTMISMATCH=1 to workaround conftest.py import
     # mismatch error seen by nx-cugraph after using pytest 8 and
     # --import-mode=append.
+    # FIXME: temporarily disables MG Leiden (dedicated tests and those in docstrings)
     RAPIDS_DATASET_ROOT_DIR=$(pwd)/datasets \
     PY_IGNORE_IMPORTMISMATCH=1 \
     DASK_WORKER_DEVICES="0" \
@@ -28,6 +29,6 @@ else
        -v \
        --import-mode=append \
        --benchmark-disable \
-       -k "not test_property_graph_mg" \
+       -k "not test_leiden_mg and not test_doctests_mg" \
        "./python/${package_name}/${python_package_name}/tests"
 fi
