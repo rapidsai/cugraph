@@ -86,19 +86,19 @@ rapids-logger "pytest cugraph (not mg, with xdist)"
   --cov-report=term
 
 # excludes known failures that will always fail when run in combination
-# FIXME: temporarily disables MG Leiden (dedicated tests and those in docstrings)
-rapids-logger "pytest cugraph (mg, with xdist)"
-./ci/run_cugraph_pytests.sh \
-  --verbose \
-  --junitxml="${RAPIDS_TESTS_DIR}/junit-cugraph.xml" \
-  --numprocesses=8 \
-  --dist=worksteal \
-  -m "mg" \
-  -k "not test_dist_sampler_mg and not test_leiden_mg and not test_doctests_mg" \
-  --cov-config=../../.coveragerc \
-  --cov=cugraph \
-  --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph-coverage.xml" \
-  --cov-report=term
+# FIXME: temporarily disables MG tests due to hang in CI with CUDA 13.1.0
+rapids-logger "pytest cugraph (mg, with xdist) - SKIPPING DUE TO HANG IN CI WITH CUDA 13.1.0"
+#./ci/run_cugraph_pytests.sh \
+#  --verbose \
+#  --junitxml="${RAPIDS_TESTS_DIR}/junit-cugraph.xml" \
+#  --numprocesses=8 \
+#  --dist=worksteal \
+#  -m "mg" \
+#  -k "not test_dist_sampler_mg" \
+#  --cov-config=../../.coveragerc \
+#  --cov=cugraph \
+#  --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph-coverage.xml" \
+#  --cov-report=term
 
 rapids-logger "pytest cugraph (mg dist_sampler and uns)"
 ./ci/run_cugraph_pytests.sh \
