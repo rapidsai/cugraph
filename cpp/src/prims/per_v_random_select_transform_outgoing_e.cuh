@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -107,15 +107,16 @@ struct transform_local_nbr_indices_t {
       if (major_hypersparse_first && (major >= *major_hypersparse_first)) {
         auto major_hypersparse_idx = edge_partition.major_hypersparse_idx_from_major_nocheck(major);
         if (major_hypersparse_idx) {
-          thrust::tie(indices, edge_offset, local_degree) = edge_partition.local_edges(
+          cuda::std::tie(indices, edge_offset, local_degree) = edge_partition.local_edges(
             edge_partition.major_offset_from_major_nocheck(*major_hypersparse_first) +
             *major_hypersparse_idx);
         }
       } else {
-        thrust::tie(indices, edge_offset, local_degree) = edge_partition.local_edges(major_offset);
+        cuda::std::tie(indices, edge_offset, local_degree) =
+          edge_partition.local_edges(major_offset);
       }
     } else {
-      thrust::tie(indices, edge_offset, local_degree) = edge_partition.local_edges(major_offset);
+      cuda::std::tie(indices, edge_offset, local_degree) = edge_partition.local_edges(major_offset);
     }
     auto local_nbr_idx = *(local_nbr_idx_first + i);
     if (local_nbr_idx != invalid_idx) {

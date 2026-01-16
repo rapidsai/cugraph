@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -86,7 +86,7 @@ __global__ static void transform_reduce_e_hypersparse(
     vertex_t const* indices{nullptr};
     edge_t edge_offset{};
     edge_t local_degree{};
-    thrust::tie(indices, edge_offset, local_degree) = edge_partition.local_edges(major_idx);
+    cuda::std::tie(indices, edge_offset, local_degree) = edge_partition.local_edges(major_idx);
 
     auto call_e_op = call_e_op_t<GraphViewType,
                                  vertex_t,
@@ -175,7 +175,7 @@ __global__ static void transform_reduce_e_low_degree(
     vertex_t const* indices{nullptr};
     edge_t edge_offset{};
     edge_t local_degree{};
-    thrust::tie(indices, edge_offset, local_degree) = edge_partition.local_edges(major_offset);
+    cuda::std::tie(indices, edge_offset, local_degree) = edge_partition.local_edges(major_offset);
 
     auto call_e_op = call_e_op_t<GraphViewType,
                                  vertex_t,
@@ -265,7 +265,7 @@ __global__ static void transform_reduce_e_mid_degree(
     vertex_t const* indices{nullptr};
     edge_t edge_offset{};
     edge_t local_degree{};
-    thrust::tie(indices, edge_offset, local_degree) = edge_partition.local_edges(major_offset);
+    cuda::std::tie(indices, edge_offset, local_degree) = edge_partition.local_edges(major_offset);
 
     auto call_e_op = call_e_op_t<GraphViewType,
                                  vertex_t,
@@ -340,7 +340,7 @@ __global__ static void transform_reduce_e_high_degree(
     vertex_t const* indices{nullptr};
     edge_t edge_offset{};
     edge_t local_degree{};
-    thrust::tie(indices, edge_offset, local_degree) = edge_partition.local_edges(major_offset);
+    cuda::std::tie(indices, edge_offset, local_degree) = edge_partition.local_edges(major_offset);
 
     auto call_e_op = call_e_op_t<GraphViewType,
                                  vertex_t,

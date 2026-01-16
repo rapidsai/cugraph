@@ -1,11 +1,13 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2024-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
 
 #include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/edge_partition_edge_property_device_view.cuh>
+
+#include <cuda/std/tuple>
 
 #include <limits>
 #include <type_traits>
@@ -30,7 +32,7 @@ struct edge_exists_t {
     vertex_t const* indices{nullptr};
     edge_t edge_offset{};
     edge_t local_degree{};
-    thrust::tie(indices, edge_offset, local_degree) = edge_partition.local_edges(*major_idx);
+    cuda::std::tie(indices, edge_offset, local_degree) = edge_partition.local_edges(*major_idx);
     auto lower_it = thrust::lower_bound(thrust::seq, indices, indices + local_degree, minor);
     if (*(lower_it + multi_edge_index) != minor) { return true; }
     if (edge_partition_e_mask) {
