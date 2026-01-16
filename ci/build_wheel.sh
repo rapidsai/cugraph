@@ -27,6 +27,7 @@ RAPIDS_PIP_WHEEL_ARGS=(
   -v
   --no-deps
   --disable-pip-version-check
+  --extra-index-url https://pypi.nvidia.com
 )
 # Only use --build-constraint when build isolation is enabled.
 #
