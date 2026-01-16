@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -211,9 +211,10 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
                            thrust::make_counting_iterator(tmp_keys_buffer.size()),
                            is_first_in_run_t<vertex_t const*>{tmp_keys_buffer.data()});
 
-        cluster_keys.resize(num_unique_louvain_clusters_in_refined_partition, handle.get_stream());
-        cluster_weights.resize(num_unique_louvain_clusters_in_refined_partition,
-                               handle.get_stream());
+        cluster_keys = rmm::device_uvector<vertex_t>(
+          num_unique_louvain_clusters_in_refined_partition, handle.get_stream());
+        cluster_weights = rmm::device_uvector<weight_t>(
+          num_unique_louvain_clusters_in_refined_partition, handle.get_stream());
 
         thrust::reduce_by_key(handle.get_thrust_policy(),
                               tmp_keys_buffer.begin(),
