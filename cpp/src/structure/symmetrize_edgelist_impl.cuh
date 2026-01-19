@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -80,8 +80,8 @@ struct symmetrize_op_t {
     size_t upper_run_length,
     uint8_t* include_first /* size = lower_run_length + upper_run_Length */) const
   {
-    using weight_t = typename thrust::
-      tuple_element<2, typename thrust::iterator_traits<EdgeIterator>::value_type>::type;
+    using weight_t =
+      cuda::std::tuple_element_t<2, typename thrust::iterator_traits<EdgeIterator>::value_type>;
 
     auto min_run_length = lower_run_length < upper_run_length ? lower_run_length : upper_run_length;
     auto max_run_length = lower_run_length < upper_run_length ? upper_run_length : lower_run_length;

@@ -14,6 +14,7 @@
 #include <raft/core/handle.hpp>
 #include <raft/random/rng_state.hpp>
 
+#include <cuda/std/tuple>
 #include <thrust/for_each.h>
 
 #include <iostream>
@@ -227,15 +228,15 @@ void look_into_vertex_and_edge_partitions(
 
   if (renumber_map) {
     thrust::for_each(thrust::host,
-                     thrust::make_zip_iterator(thrust::make_tuple(
+                     thrust::make_zip_iterator(cuda::std::make_tuple(
                        h_vertices_in_this_proces.begin(),
                        thrust::make_counting_iterator(renumbered_vertex_id_of_local_first))),
-                     thrust::make_zip_iterator(thrust::make_tuple(
+                     thrust::make_zip_iterator(cuda::std::make_tuple(
                        h_vertices_in_this_proces.end(),
                        thrust::make_counting_iterator(renumbered_vertex_id_of_local_last))),
                      [comm_rank](auto old_and_new_id_pair) {
-                       auto old_id = thrust::get<0>(old_and_new_id_pair);
-                       auto new_id = thrust::get<1>(old_and_new_id_pair);
+                       auto old_id = cuda::std::get<0>(old_and_new_id_pair);
+                       auto new_id = cuda::std::get<1>(old_and_new_id_pair);
                        printf("owner rank = %d, original vertex id %d is renumbered to  %d\n",
                               comm_rank,
                               static_cast<int>(old_id),
