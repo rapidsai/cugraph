@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -13,6 +13,7 @@
 #include <raft/core/device_span.hpp>
 
 #include <cuda/std/optional>
+#include <cuda/std/tuple>
 #include <thrust/binary_search.h>
 #include <thrust/iterator/iterator_traits.h>
 
