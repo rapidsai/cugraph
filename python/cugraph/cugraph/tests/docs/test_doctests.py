@@ -17,6 +17,7 @@ import pylibcugraph
 import cudf
 from cugraph.testing import utils
 
+pytestmark = pytest.mark.filterwarnings("ignore::FutureWarning")
 
 modules_to_skip = ["dask", "proto", "raft"]
 datasets = utils.RAPIDS_DATASET_ROOT_DIR_PATH
@@ -82,10 +83,7 @@ def _find_doctests_in_docstring(finder, member):
     for docstring in finder.find(member):
         has_examples = docstring.examples
         is_dask = "dask" in str(docstring)
-        # FIXME: when PropertyGraph is removed from EXPERIMENTAL
-        # manually including PropertyGraph until it is removed from EXPERIMENTAL
-        is_pg = "PropertyGraph" in str(docstring)
-        is_experimental = "EXPERIMENTAL" in str(docstring) and not is_pg
+        is_experimental = "EXPERIMENTAL" in str(docstring)
         # if has_examples and not is_dask:
         if has_examples and not is_dask and not is_experimental:
             yield docstring

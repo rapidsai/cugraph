@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2023-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -21,6 +21,7 @@
 
 #include <cuda/std/iterator>
 #include <cuda/std/optional>
+#include <cuda/std/tuple>
 #include <thrust/binary_search.h>
 #include <thrust/count.h>
 #include <thrust/for_each.h>
@@ -34,6 +35,26 @@ namespace cugraph {
 namespace detail {
 
 int32_t constexpr transform_e_kernel_block_size = 512;
+
+template <typename vertex_t,
+          typename edge_t,
+          typename PairIterator,
+          typename MultiEdgeIndexIterator>
+struct edge_tuple_from_index_t {
+  PairIterator pair_first{};
+  cuda::std::optional<MultiEdgeIndexIterator> multi_edge_index_first{};
+
+  __device__ cuda::std::tuple<vertex_t, vertex_t, edge_t> operator()(size_t i) const
+  {
+    auto pair = *(pair_first + i);
+    if (multi_edge_index_first) {
+      return cuda::std::make_tuple(
+        cuda::std::get<0>(pair), cuda::std::get<1>(pair), *(*multi_edge_index_first + i));
+    } else {
+      return cuda::std::make_tuple(cuda::std::get<0>(pair), cuda::std::get<1>(pair), edge_t{0});
+    }
+  }
+};
 
 template <bool check_edge_mask,
           typename GraphViewType,
@@ -154,7 +175,7 @@ struct update_e_value_t {
     vertex_t const* indices{nullptr};
     edge_t edge_offset{};
     edge_t local_degree{};
-    thrust::tie(indices, edge_offset, local_degree) = edge_partition.local_edges(*major_idx);
+    cuda::std::tie(indices, edge_offset, local_degree) = edge_partition.local_edges(*major_idx);
     auto it =
       thrust::lower_bound(thrust::seq, indices, indices + local_degree, minor) + multi_edge_index;
 
@@ -498,21 +519,14 @@ void transform_e(raft::handle_t const& handle,
                   "Invalid input arguments: the edge list should include multi-edge index for a "
                   "multi-graph (and should not for a non-multi-graph).");
 
-  auto edge_first = thrust::make_transform_iterator(
+  using multi_edge_index_iterator_t = typename decltype(multi_edge_index_first)::value_type;
+  auto edge_first                   = thrust::make_transform_iterator(
     thrust::make_counting_iterator(size_t{0}),
-    cuda::proclaim_return_type<cuda::std::tuple<vertex_t, vertex_t, edge_t>>(
-      [pair_first,
-       multi_edge_index_first = multi_edge_index_first
-                                  ? cuda::std::make_optional(*multi_edge_index_first)
-                                  : cuda::std::nullopt] __device__(size_t i) {
-        auto pair = *(pair_first + i);
-        if (multi_edge_index_first) {
-          return cuda::std::make_tuple(
-            cuda::std::get<0>(pair), cuda::std::get<1>(pair), *(*multi_edge_index_first + i));
-        } else {
-          return cuda::std::make_tuple(cuda::std::get<0>(pair), cuda::std::get<1>(pair), edge_t{0});
-        }
-      }));
+    detail::
+      edge_tuple_from_index_t<vertex_t, edge_t, decltype(pair_first), multi_edge_index_iterator_t>{
+        pair_first,
+        multi_edge_index_first ? cuda::std::make_optional(*multi_edge_index_first)
+                                                 : cuda::std::nullopt});
 
   if (do_expensive_check) {
     CUGRAPH_EXPECTS(
@@ -587,7 +601,7 @@ void transform_e(raft::handle_t const& handle,
             vertex_t const* indices{nullptr};
             edge_t edge_offset{};
             edge_t local_degree{};
-            thrust::tie(indices, edge_offset, local_degree) =
+            cuda::std::tie(indices, edge_offset, local_degree) =
               edge_partition.local_edges(*major_idx);
             auto lower_it =
               thrust::lower_bound(thrust::seq, indices, indices + local_degree, minor);

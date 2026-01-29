@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -303,7 +303,7 @@ __global__ static void per_v_transform_reduce_e_hypersparse(
       vertex_t const* indices{nullptr};
       edge_t edge_offset{};
       edge_t local_degree{};
-      thrust::tie(indices, edge_offset, local_degree) =
+      cuda::std::tie(indices, edge_offset, local_degree) =
         edge_partition.local_edges(static_cast<vertex_t>(*major_idx));
 
       auto call_e_op = call_e_op_t<GraphViewType,
@@ -416,7 +416,7 @@ __global__ static void per_v_transform_reduce_e_low_degree(
     vertex_t const* indices{nullptr};
     edge_t edge_offset{};
     edge_t local_degree{};
-    thrust::tie(indices, edge_offset, local_degree) =
+    cuda::std::tie(indices, edge_offset, local_degree) =
       edge_partition.local_edges(static_cast<vertex_t>(major_offset));
 
     auto call_e_op = call_e_op_t<GraphViewType,
@@ -537,7 +537,7 @@ __global__ static void per_v_transform_reduce_e_mid_degree(
     vertex_t const* indices{nullptr};
     edge_t edge_offset{};
     edge_t local_degree{};
-    thrust::tie(indices, edge_offset, local_degree) = edge_partition.local_edges(major_offset);
+    cuda::std::tie(indices, edge_offset, local_degree) = edge_partition.local_edges(major_offset);
 
     auto call_e_op = call_e_op_t<GraphViewType,
                                  key_t,
@@ -728,7 +728,7 @@ __global__ static void per_v_transform_reduce_e_high_degree(
     vertex_t const* indices{nullptr};
     edge_t edge_offset{};
     edge_t local_degree{};
-    thrust::tie(indices, edge_offset, local_degree) = edge_partition.local_edges(major_offset);
+    cuda::std::tie(indices, edge_offset, local_degree) = edge_partition.local_edges(major_offset);
 
     auto call_e_op = call_e_op_t<GraphViewType,
                                  key_t,
@@ -2603,7 +2603,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                            output_count_offsets = raft::device_span<vertex_t const>(
                              output_count_offsets.data(), output_count_offsets.size()),
                            output_key_first =
-                             get_dataframe_buffer_begin(std::get<0>(keys)) + key_segment_offsets[3],
+                             get_dataframe_buffer_begin(std::get<1>(keys)) + key_segment_offsets[3],
                            output_offset_first = std::get<0>(offsets).begin(),
                            range_first         = local_v_list_range_firsts[partition_idx],
                            range_offset_first,
@@ -2651,7 +2651,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                            output_count_offsets = raft::device_span<vertex_t const>(
                              output_count_offsets.data(), output_count_offsets.size()),
                            output_key_first =
-                             get_dataframe_buffer_begin(std::get<0>(keys)) + key_segment_offsets[3],
+                             get_dataframe_buffer_begin(std::get<1>(keys)) + key_segment_offsets[3],
                            output_offset_first = std::get<1>(offsets).begin(),
                            range_first         = local_v_list_range_firsts[partition_idx],
                            range_offset_first,

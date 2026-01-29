@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -26,6 +26,7 @@
 
 #include <rmm/device_uvector.hpp>
 
+#include <cuda/std/iterator>
 #include <cuda/std/tuple>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
@@ -717,14 +718,14 @@ std::tuple<vertex_t, int, distance_t, vertex_t, std::optional<distance_t>> trave
     }
 
     if constexpr (std::is_floating_point_v<distance_t>) {  // SSSP
-      thrust::tie(unrenumbered_n, nn, w_to_n) = cugraph::host_scalar_bcast(
+      cuda::std::tie(unrenumbered_n, nn, w_to_n) = cugraph::host_scalar_bcast(
         comm,
         cuda::std::make_tuple(unrenumbered_n, nn, *w_to_n),
         cugraph::partition_manager::compute_global_comm_rank_from_vertex_partition_id(
           major_comm_size, minor_comm_size, n_vertex_partition_id),
         handle.get_stream());
     } else {  // BFS
-      thrust::tie(unrenumbered_n, nn) = cugraph::host_scalar_bcast(
+      cuda::std::tie(unrenumbered_n, nn) = cugraph::host_scalar_bcast(
         comm,
         cuda::std::make_tuple(unrenumbered_n, nn),
         cugraph::partition_manager::compute_global_comm_rank_from_vertex_partition_id(
@@ -833,7 +834,7 @@ void update_unvisited_vertex_distances(
                                             [invalid_distance] __device__(auto pair) {
                                               return cuda::std::get<1>(pair) == invalid_distance;
                                             });
-    auto new_size       = thrust::distance(pair_first, remaining_last);
+    auto new_size       = cuda::std::distance(pair_first, remaining_last);
     auto scatter_offset_first =
       thrust::make_transform_iterator(
         remaining_vertices.begin(),

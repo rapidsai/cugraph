@@ -22,6 +22,8 @@
 
 #include <raft/util/cudart_utils.hpp>
 
+#include <cuda/std/tuple>
+
 #include <variant>
 
 namespace cugraph {

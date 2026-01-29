@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -487,9 +487,9 @@ std::
     });
 
   size_t first_parition_size =
-    thrust::distance(thrust::make_zip_iterator(cugraph::get_dataframe_buffer_begin(keys),
-                                               cugraph::get_dataframe_buffer_begin(values)),
-                     first_partition_last);
+    cuda::std::distance(thrust::make_zip_iterator(cugraph::get_dataframe_buffer_begin(keys),
+                                                  cugraph::get_dataframe_buffer_begin(values)),
+                        first_partition_last);
 
   return std::make_tuple(std::move(keys), std::move(values), first_parition_size);
 }

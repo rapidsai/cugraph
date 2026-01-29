@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2024-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -120,12 +120,12 @@ __global__ static void transform_v_frontier_e_hypersparse_or_low_degree(
     if constexpr (hypersparse) {
       auto major_idx = edge_partition.major_idx_from_major_nocheck(major);
       if (major_idx) {
-        thrust::tie(indices, edge_offset, local_degree) = edge_partition.local_edges(*major_idx);
+        cuda::std::tie(indices, edge_offset, local_degree) = edge_partition.local_edges(*major_idx);
       } else {
         local_degree = edge_t{0};
       }
     } else {
-      thrust::tie(indices, edge_offset, local_degree) = edge_partition.local_edges(major_offset);
+      cuda::std::tie(indices, edge_offset, local_degree) = edge_partition.local_edges(major_offset);
     }
     auto this_key_value_first = value_first + edge_partition_frontier_local_degree_offsets[key_idx];
     if (edge_partition_e_mask) {
@@ -208,7 +208,7 @@ __global__ static void transform_v_frontier_e_mid_degree(
     vertex_t const* indices{nullptr};
     [[maybe_unused]] edge_t edge_offset{};
     edge_t local_degree{};
-    thrust::tie(indices, edge_offset, local_degree) = edge_partition.local_edges(major_offset);
+    cuda::std::tie(indices, edge_offset, local_degree) = edge_partition.local_edges(major_offset);
     auto this_key_value_first = value_first + edge_partition_frontier_local_degree_offsets[key_idx];
     if (edge_partition_e_mask) {
       auto rounded_up_local_degree =
@@ -297,7 +297,7 @@ __global__ static void transform_v_frontier_e_high_degree(
     vertex_t const* indices{nullptr};
     [[maybe_unused]] edge_t edge_offset{};
     edge_t local_degree{};
-    thrust::tie(indices, edge_offset, local_degree) = edge_partition.local_edges(major_offset);
+    cuda::std::tie(indices, edge_offset, local_degree) = edge_partition.local_edges(major_offset);
     auto this_key_value_first = value_first + edge_partition_frontier_local_degree_offsets[key_idx];
     if (edge_partition_e_mask) {
       auto rounded_up_local_degree =

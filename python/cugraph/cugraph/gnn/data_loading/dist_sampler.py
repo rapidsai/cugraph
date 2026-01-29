@@ -44,7 +44,7 @@ def verify_metadata(metadata: Optional[Dict[str, Union[str, Tuple[str, str, str]
                 )
 
 
-class DistSampler:
+class DEPRECATED__DistSampler:
     def __init__(
         self,
         graph: Union[pylibcugraph.SGGraph, pylibcugraph.MGGraph],
@@ -669,7 +669,7 @@ class DistSampler:
         return self.__retain_original_seeds
 
 
-class NeighborSampler(DistSampler):
+class DEPRECATED__NeighborSampler(DEPRECATED__DistSampler):
     # Number of vertices in the output minibatch, based
     # on benchmarking.
     BASE_VERTICES_PER_BYTE = 0.1107662486009992
@@ -760,7 +760,7 @@ class NeighborSampler(DistSampler):
 
         if local_seeds_per_call is None:
             if len([x for x in fanout if x <= 0]) > 0:
-                return NeighborSampler.UNKNOWN_VERTICES_DEFAULT
+                return DEPRECATED__NeighborSampler.UNKNOWN_VERTICES_DEFAULT
 
             if heterogeneous:
                 if len(fanout) % num_edge_types != 0:
@@ -774,7 +774,9 @@ class NeighborSampler(DistSampler):
             total_memory = torch.cuda.get_device_properties(0).total_memory
             fanout_prod = reduce(lambda x, y: x * y, fanout)
             return int(
-                NeighborSampler.BASE_VERTICES_PER_BYTE * total_memory / fanout_prod
+                DEPRECATED__NeighborSampler.BASE_VERTICES_PER_BYTE
+                * total_memory
+                / fanout_prod
             )
 
         return local_seeds_per_call

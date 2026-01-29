@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -47,8 +47,8 @@ namespace detail {
 
 template <typename VertexPairIterator>
 struct compute_local_edge_partition_id_t {
-  using vertex_t = typename thrust::
-    tuple_element<0, typename thrust::iterator_traits<VertexPairIterator>::value_type>::type;
+  using vertex_t =
+    cuda::std::tuple_element_t<0, typename thrust::iterator_traits<VertexPairIterator>::value_type>;
 
   VertexPairIterator vertex_pair_first{};
   size_t num_local_edge_partitions{};
