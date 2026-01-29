@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -13,6 +13,7 @@
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/sampling_functions.hpp>
+#include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/vertex_partition_view.hpp>
@@ -200,6 +201,27 @@ temporal_neighbor_sample_impl(
   rmm::device_uvector<vertex_t> frontier_vertices_has_duplicates(0, handle.get_stream());
   rmm::device_uvector<time_stamp_t> frontier_vertex_times_has_duplicates(0, handle.get_stream());
   std::optional<rmm::device_uvector<label_t>> frontier_vertex_labels_has_duplicates{std::nullopt};
+
+  auto visited_vertices =
+    (sampling_flags.disjoint_sampling)
+      ? std::make_optional(rmm::device_uvector<vertex_t>(0, handle.get_stream()))
+      : std::nullopt;
+
+  if (visited_vertices) {
+    thrust::fill(handle.get_thrust_policy(),
+                 visited_vertices->begin(),
+                 visited_vertices->end(),
+                 cugraph::invalid_vertex_id<vertex_t>());
+
+    thrust::scatter(
+      handle.get_thrust_policy(),
+      starting_vertices.begin(),
+      starting_vertices.end(),
+      thrust::make_transform_iterator(
+        starting_vertices.begin(),
+        detail::shift_left_t<vertex_t>{graph_view.local_vertex_partition_range_first()}),
+      visited_vertices->begin());
+  }
 
   for (size_t hop = 0; hop < num_hops; ++hop) {
     std::optional<std::vector<size_t>> level_Ks{std::nullopt};
@@ -865,6 +887,12 @@ homogeneous_uniform_temporal_neighbor_sample(
 {
   using bias_t = weight_t;  // dummy
 
+  CUGRAPH_EXPECTS(!(sampling_flags.with_replacement && sampling_flags.disjoint_sampling),
+                  "Invalid input argument: disjoint sampling and sampling with replacement are "
+                  "mutually exclusive.");
+  CUGRAPH_EXPECTS(!(sampling_flags.disjoint_sampling && graph_view.is_multigraph()),
+                  "Invalid input argument: disjoint sampling is not supported for multi-graphs.");
+
   return detail::
     temporal_neighbor_sample_impl<vertex_t, edge_t, weight_t, edge_type_t, time_stamp_t, bias_t>(
       handle,
@@ -923,6 +951,12 @@ heterogeneous_uniform_temporal_neighbor_sample(
 {
   using bias_t = weight_t;  // dummy
 
+  CUGRAPH_EXPECTS(!(sampling_flags.with_replacement && sampling_flags.disjoint_sampling),
+                  "Invalid input argument: disjoint sampling and sampling with replacement are "
+                  "mutually exclusive.");
+  CUGRAPH_EXPECTS(!(sampling_flags.disjoint_sampling && graph_view.is_multigraph()),
+                  "Invalid input argument: disjoint sampling is not supported for multi-graphs.");
+
   return detail::
     temporal_neighbor_sample_impl<vertex_t, edge_t, weight_t, edge_type_t, time_stamp_t, bias_t>(
       handle,
@@ -980,6 +1014,12 @@ homogeneous_biased_temporal_neighbor_sample(
   sampling_flags_t sampling_flags,
   bool do_expensive_check)
 {
+  CUGRAPH_EXPECTS(!(sampling_flags.with_replacement && sampling_flags.disjoint_sampling),
+                  "Invalid input argument: disjoint sampling and sampling with replacement are "
+                  "mutually exclusive.");
+  CUGRAPH_EXPECTS(!(sampling_flags.disjoint_sampling && graph_view.is_multigraph()),
+                  "Invalid input argument: disjoint sampling is not supported for multi-graphs.");
+
   return detail::
     temporal_neighbor_sample_impl<vertex_t, edge_t, weight_t, edge_type_t, time_stamp_t, bias_t>(
       handle,
@@ -1037,6 +1077,12 @@ heterogeneous_biased_temporal_neighbor_sample(
   sampling_flags_t sampling_flags,
   bool do_expensive_check)
 {
+  CUGRAPH_EXPECTS(!(sampling_flags.with_replacement && sampling_flags.disjoint_sampling),
+                  "Invalid input argument: disjoint sampling and sampling with replacement are "
+                  "mutually exclusive.");
+  CUGRAPH_EXPECTS(!(sampling_flags.disjoint_sampling && graph_view.is_multigraph()),
+                  "Invalid input argument: disjoint sampling is not supported for multi-graphs.");
+
   return detail::
     temporal_neighbor_sample_impl<vertex_t, edge_t, weight_t, edge_type_t, time_stamp_t, bias_t>(
       handle,

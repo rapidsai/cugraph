@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -44,6 +44,20 @@ bool validate_temporal_integrity(
   raft::device_span<time_stamp_t const> edge_times,
   raft::device_span<vertex_t const> source_vertices,
   cugraph::temporal_sampling_comparison_t temporal_sampling_comparison);
+
+/**
+ * @brief Validate disjoint sampling constraints.
+ *
+ * For disjoint sampling, batches (labels) of sources should expand without overlapping destinations
+ * across batches for the same hop.
+ */
+template <typename vertex_t>
+bool validate_disjoint_sampling(raft::handle_t const& handle,
+                                raft::device_span<vertex_t const> srcs,
+                                raft::device_span<vertex_t const> dsts,
+                                raft::device_span<vertex_t const> starting_vertices,
+                                std::optional<raft::device_span<size_t const>> label_offsets,
+                                std::optional<raft::device_span<int32_t const>> batch_numbers);
 
 }  // namespace test
 }  // namespace cugraph

@@ -1,6 +1,8 @@
 #=============================================================================
-# SPDX-FileCopyrightText: Copyright (c) 2018-2025, NVIDIA CORPORATION.
+# cmake-format: off
+# SPDX-FileCopyrightText: Copyright (c) 2018-2026, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
+# cmake-format: on
 #=============================================================================
 
 cmake_minimum_required(VERSION 3.30.4 FATAL_ERROR)
@@ -254,6 +256,7 @@ set(CUGRAPH_SOURCES
     src/sampling/detail/gather_one_hop_sg_v32_e32.cu
     src/sampling/detail/gather_one_hop_sg_v64_e64.cu
     src/sampling/detail/gather_sampled_properties.cu
+    src/sampling/detail/update_visited_utils.cu
     src/sampling/detail/sample_edges_sg_v64_e64.cu
     src/sampling/detail/sample_edges_sg_v32_e32.cu
     src/sampling/detail/sample_edges_mg_v64_e64.cu

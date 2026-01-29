@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -618,7 +618,7 @@ class key_bucket_t {
 
   auto const vertex_end() const { return vertex_cend(); }
 
-  bool is_owning() { return (vertices_.index() == 1); }
+  bool is_owning() const { return (vertices_.index() == 1); }
 
  private:
   raft::handle_t const* handle_ptr_{nullptr};
