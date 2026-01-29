@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2018-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2018-2026, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 schema_version: 1
 
@@ -38,7 +38,7 @@ cache:
         CMAKE_C_COMPILER_LAUNCHER: ${{ env.get("CMAKE_C_COMPILER_LAUNCHER") }}
         CMAKE_CUDA_COMPILER_LAUNCHER: ${{ env.get("CMAKE_CUDA_COMPILER_LAUNCHER") }}
         CMAKE_CXX_COMPILER_LAUNCHER: ${{ env.get("CMAKE_CXX_COMPILER_LAUNCHER") }}
-        CMAKE_GENERATOR: ${{ env.get("CMAKE_GENERATOR") }}
+        CMAKE_GENERATOR: ${{ env.gdet("CMAKE_GENERATOR") }}
         EXTRA_CMAKE_ARGS: "-DCUGRAPH_COMPILE_CUVS=ON"
         NVCC_APPEND_FLAGS: ${{ env.get("NVCC_APPEND_FLAGS", default="") }}
         PARALLEL_LEVEL: ${{ env.get("PARALLEL_LEVEL", default="8") }}
