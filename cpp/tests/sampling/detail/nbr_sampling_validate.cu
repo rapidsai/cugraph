@@ -446,7 +446,8 @@ bool validate_disjoint_sampling(
     auto h_label_offsets          = cugraph::test::to_host(handle, *label_offsets);
 
     // Validate that no destination is duplicated within a batch
-    for (size_t label_index = 0; label_index < (h_label_offsets.size() - 1); ++label_index) {
+    for (int32_t label_index = 0; label_index < (static_cast<int32_t>(h_label_offsets.size()) - 1);
+         ++label_index) {
       auto start_index = h_label_offsets[label_index];
       auto end_index   = h_label_offsets[label_index + 1];
 
