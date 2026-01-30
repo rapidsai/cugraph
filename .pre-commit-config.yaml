@@ -90,6 +90,18 @@ repos:
       - id: verify-alpha-spec
       - id: verify-codeowners
         args: [--fix, --project-prefix=cugraph]
+      - id: verify-hardcoded-version
+        exclude: |
+          (?x)
+            devcontainer[.]json$|
+            dependencies[.]yaml$|
+            ^[.]github/workflows/|
+            [.]md$|
+            pom[.]xml$|
+            ^[.]pre-commit-config[.]yaml$|
+            [.]rst$|
+            ^conda/environments/|
+            [.](png)$
       - id: verify-pyproject-license
         # ignore the top-level pyproject.toml, which doesn't
         # have or need a [project] table
