@@ -33,6 +33,8 @@
 #include <thrust/transform.h>
 #include <thrust/unique.h>
 
+#include <utilities/conversion_utilities.hpp>
+
 #include <functional>
 #include <iostream>
 #include <iterator>
@@ -425,6 +427,74 @@ template bool validate_temporal_integrity(
   raft::device_span<int64_t const> edge_time,
   raft::device_span<int64_t const> source_vertices,
   cugraph::temporal_sampling_comparison_t temporal_sampling_comparison);
+
+template <typename vertex_t>
+bool validate_disjoint_sampling(
+  raft::handle_t const& handle,
+  raft::device_span<vertex_t const> srcs,
+  raft::device_span<vertex_t const> dsts,
+  raft::device_span<vertex_t const> starting_vertices,
+  std::optional<raft::device_span<size_t const>> label_offsets,
+  std::optional<raft::device_span<int32_t const>> starting_batch_numbers)
+{
+  auto h_starting_vertices = cugraph::test::to_host(handle, starting_vertices);
+  auto h_srcs              = cugraph::test::to_host(handle, srcs);
+  auto h_dsts              = cugraph::test::to_host(handle, dsts);
+
+  if (label_offsets) {
+    auto h_starting_batch_numbers = cugraph::test::to_host(handle, *starting_batch_numbers);
+    auto h_label_offsets          = cugraph::test::to_host(handle, *label_offsets);
+
+    // Validate that no destination is duplicated within a batch
+    for (int32_t label_index = 0; label_index < (static_cast<int32_t>(h_label_offsets.size()) - 1);
+         ++label_index) {
+      auto start_index = h_label_offsets[label_index];
+      auto end_index   = h_label_offsets[label_index + 1];
+
+      std::sort(h_dsts.begin() + start_index, h_dsts.begin() + end_index);
+      auto last = std::unique(h_dsts.begin() + start_index, h_dsts.begin() + end_index);
+      if (last != h_dsts.begin() + end_index) { return false; }
+
+      // Now check that the source vertices for this batch are not in the destinations
+      for (size_t i = 0; i < h_starting_vertices.size(); ++i) {
+        if (h_starting_batch_numbers[i] == label_index) {
+          if (std::binary_search(
+                h_dsts.begin() + start_index, h_dsts.begin() + end_index, h_starting_vertices[i])) {
+            return false;
+          }
+        }
+      }
+    }
+  } else {
+    // Validate that no destination is duplicated
+    std::sort(h_dsts.begin(), h_dsts.end());
+    auto last = std::unique(h_dsts.begin(), h_dsts.end());
+    if (last != h_dsts.end()) { return false; }
+
+    // Now check that the source vertices for this batch are not in the destinations
+    for (size_t i = 0; i < h_starting_vertices.size(); ++i) {
+      if (std::binary_search(h_dsts.begin(), h_dsts.end(), h_starting_vertices[i])) {
+        return false;
+      }
+    }
+  }
+
+  return true;
+}
+
+template bool validate_disjoint_sampling(raft::handle_t const&,
+                                         raft::device_span<int32_t const>,
+                                         raft::device_span<int32_t const>,
+                                         raft::device_span<int32_t const>,
+                                         std::optional<raft::device_span<size_t const>>,
+                                         std::optional<raft::device_span<int32_t const>>);
+
+template bool validate_disjoint_sampling(raft::handle_t const&,
+                                         raft::device_span<int64_t const>,
+                                         raft::device_span<int64_t const>,
+                                         raft::device_span<int64_t const>,
+                                         std::optional<raft::device_span<size_t const>>,
+                                         std::optional<raft::device_span<int32_t const>>);
 
 }  // namespace test
 }  // namespace cugraph
