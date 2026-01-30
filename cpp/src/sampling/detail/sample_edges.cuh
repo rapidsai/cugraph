@@ -765,9 +765,13 @@ sample_unvisited_with_one_property(
     local_minors.shrink_to_fit(handle.get_stream());
 
     // We'll have to rerun the sampling on a smaller vertex frontier if there are duplicates
-    sample_and_append =
-      (host_scalar_allreduce(
-         handle.get_comms(), duplicate_count, raft::comms::op_t::SUM, handle.get_stream()) > 0);
+    if constexpr (multi_gpu) {
+      sample_and_append =
+        (host_scalar_allreduce(
+           handle.get_comms(), duplicate_count, raft::comms::op_t::SUM, handle.get_stream()) > 0);
+    } else {
+      sample_and_append = (duplicate_count > 0);
+    }
 
     if (duplicate_count > 0) {
       local_majors = detail::keep_marked_entries(
