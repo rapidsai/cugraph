@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -12,7 +12,6 @@
 
 #include <cub/cub.cuh>
 #include <cuda/std/tuple>
-#include <thrust/detail/type_traits/iterator/is_discard_iterator.h>
 #include <thrust/functional.h>
 #include <thrust/iterator/detail/any_assign.h>
 #include <thrust/iterator/discard_iterator.h>
