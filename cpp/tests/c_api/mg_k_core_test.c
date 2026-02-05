@@ -1,17 +1,6 @@
 /*
- * Copyright (c) 2022, NVIDIA CORPORATION.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-FileCopyrightText: Copyright (c) 2022, NVIDIA CORPORATION.
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 #include "mg_test_utils.h" /* RUN_TEST */
@@ -25,6 +14,10 @@
 typedef int32_t vertex_t;
 typedef int32_t edge_t;
 typedef float weight_t;
+
+cugraph_data_type_id_t vertex_tid = INT32;
+cugraph_data_type_id_t edge_tid   = INT32;
+cugraph_data_type_id_t weight_tid = FLOAT32;
 
 int generic_k_core_test(const cugraph_resource_handle_t* resource_handle,
                         vertex_t* h_src,
@@ -48,8 +41,27 @@ int generic_k_core_test(const cugraph_resource_handle_t* resource_handle,
   cugraph_core_result_t* core_result     = NULL;
   cugraph_k_core_result_t* k_core_result = NULL;
 
-  ret_code = create_mg_test_graph(
-    resource_handle, h_src, h_dst, h_wgt, num_edges, store_transposed, TRUE, &graph, &ret_error);
+  ret_code = create_mg_test_graph_new(resource_handle,
+                                      vertex_tid,
+                                      edge_tid,
+                                      h_src,
+                                      h_dst,
+                                      weight_tid,
+                                      h_wgt,
+                                      INT32,
+                                      NULL,
+                                      edge_tid,
+                                      NULL,
+                                      INT32,
+                                      NULL,
+                                      NULL,
+                                      num_edges,
+                                      store_transposed,
+                                      TRUE,
+                                      TRUE,
+                                      FALSE,
+                                      &graph,
+                                      &ret_error);
 
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "create_test_graph failed.");
   TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));

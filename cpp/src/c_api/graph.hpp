@@ -1,17 +1,6 @@
 /*
- * Copyright (c) 2021-2025, NVIDIA CORPORATION.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
+ * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
 
@@ -68,8 +57,8 @@ struct cugraph_graph_t {
   void* edge_weights_;      // edge_property_t<edge_t, weight_t>*
   void* edge_ids_;          // edge_property_t<edge_t, edge_t>*
   void* edge_types_;        // edge_property_t<edge_t, edge_type_t>*
-  void* edge_start_times_;  // edge_property_t<edge_t, edge_time_t>*
-  void* edge_end_times_;    // edge_property_t<edge_t, edge_time_t>*
+  void* edge_start_times_;  // edge_property_t<edge_t, time_stamp_t>*
+  void* edge_end_times_;    // edge_property_t<edge_t, time_stamp_t>*
 };
 
 template <typename vertex_t,

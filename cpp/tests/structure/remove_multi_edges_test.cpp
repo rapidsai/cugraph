@@ -1,17 +1,6 @@
 /*
- * Copyright (c) 2025, NVIDIA CORPORATION.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governin_from_mtxg permissions and
- * limitations under the License.
+ * SPDX-FileCopyrightText: Copyright (c) 2025, NVIDIA CORPORATION.
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 #include "utilities/base_fixture.hpp"
@@ -26,7 +15,7 @@
 #include <raft/util/cudart_utils.hpp>
 
 #include <rmm/device_uvector.hpp>
-#include <rmm/mr/device/cuda_memory_resource.hpp>
+#include <rmm/mr/cuda_memory_resource.hpp>
 
 #include <gtest/gtest.h>
 
@@ -203,9 +192,9 @@ class Tests_RemoveMultiEdges
   void run_current_test(
     std::tuple<RemoveMultiEdges_Usecase const&, input_usecase_t const&> const& param)
   {
-    using weight_t    = float;
-    using edge_type_t = int32_t;
-    using edge_time_t = int32_t;
+    using weight_t     = float;
+    using edge_type_t  = int32_t;
+    using time_stamp_t = int32_t;
 
     bool constexpr store_transposed = false;
     bool constexpr multi_gpu        = false;
@@ -298,7 +287,7 @@ class Tests_RemoveMultiEdges
     if (src_chunks.size() == 1) {
       std::tie(
         result_srcs, result_dsts, std::ignore, std::ignore, std::ignore, std::ignore, std::ignore) =
-        cugraph::remove_multi_edges<vertex_t, edge_t, weight_t, edge_type_t, edge_time_t>(
+        cugraph::remove_multi_edges<vertex_t, edge_t, weight_t, edge_type_t, time_stamp_t>(
           handle,
           std::move(src_chunks[0]),
           std::move(dst_chunks[0]),
@@ -316,7 +305,7 @@ class Tests_RemoveMultiEdges
             result_edge_type_chunks /* dummy */,
             result_edge_start_time_chunks /* dummy */,
             result_edge_end_time_chunks /* dummy */] =
-        cugraph::remove_multi_edges<vertex_t, edge_t, weight_t, edge_type_t, edge_time_t>(
+        cugraph::remove_multi_edges<vertex_t, edge_t, weight_t, edge_type_t, time_stamp_t>(
           handle,
           std::move(src_chunks),
           std::move(dst_chunks),
@@ -378,7 +367,7 @@ class Tests_RemoveMultiEdges
       std::optional<rmm::device_uvector<weight_t>> tmp_weights{};
       std::tie(
         result_srcs, result_dsts, tmp_weights, std::ignore, std::ignore, std::ignore, std::ignore) =
-        cugraph::remove_multi_edges<vertex_t, edge_t, weight_t, edge_type_t, edge_time_t>(
+        cugraph::remove_multi_edges<vertex_t, edge_t, weight_t, edge_type_t, time_stamp_t>(
           handle,
           std::move(src_chunks[0]),
           std::move(dst_chunks[0]),
@@ -397,7 +386,7 @@ class Tests_RemoveMultiEdges
             result_edge_type_chunks /* dummy */,
             result_edge_start_time_chunks /* dummy */,
             result_edge_end_time_chunks /* dummy */] =
-        cugraph::remove_multi_edges<vertex_t, edge_t, weight_t, edge_type_t, edge_time_t>(
+        cugraph::remove_multi_edges<vertex_t, edge_t, weight_t, edge_type_t, time_stamp_t>(
           handle,
           std::move(src_chunks),
           std::move(dst_chunks),
@@ -480,7 +469,7 @@ class Tests_RemoveMultiEdges
                tmp_edge_types,
                std::ignore,
                std::ignore) =
-        cugraph::remove_multi_edges<vertex_t, edge_t, weight_t, edge_type_t, edge_time_t>(
+        cugraph::remove_multi_edges<vertex_t, edge_t, weight_t, edge_type_t, time_stamp_t>(
           handle,
           std::move(src_chunks[0]),
           std::move(dst_chunks[0]),
@@ -501,7 +490,7 @@ class Tests_RemoveMultiEdges
             result_edge_type_chunks,
             result_edge_start_time_chunks /* dummy */,
             result_edge_end_time_chunks /* dummy */] =
-        cugraph::remove_multi_edges<vertex_t, edge_t, weight_t, edge_type_t, edge_time_t>(
+        cugraph::remove_multi_edges<vertex_t, edge_t, weight_t, edge_type_t, time_stamp_t>(
           handle,
           std::move(src_chunks),
           std::move(dst_chunks),

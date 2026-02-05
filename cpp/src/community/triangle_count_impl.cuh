@@ -1,17 +1,6 @@
 /*
- * Copyright (c) 2022-2025, NVIDIA CORPORATION.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+ * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
 
@@ -449,22 +438,26 @@ void triangle_count(raft::handle_t const& handle,
                              extract_low_to_high_degree_edges_pred_op_t<vertex_t, edge_t>{});
 
     if constexpr (multi_gpu) {
-      std::vector<arithmetic_device_uvector_t> edge_properties{};
-      std::tie(srcs, dsts, std::ignore) = shuffle_ext_edges(
-        handle, std::move(srcs), std::move(dsts), std::move(edge_properties), false);
+      std::tie(srcs, dsts, std::ignore) =
+        shuffle_ext_edges(handle,
+                          std::move(srcs),
+                          std::move(dsts),
+                          std::vector<arithmetic_device_uvector_t>{},
+                          false);
     }
 
-    std::tie(modified_graph, std::ignore, std::ignore, std::ignore, renumber_map) =
-      create_graph_from_edgelist<vertex_t, edge_t, weight_t, int32_t, false, multi_gpu>(
+    std::tie(modified_graph, std::ignore, renumber_map) =
+      create_graph_from_edgelist<vertex_t, edge_t, false, multi_gpu>(
         handle,
         std::nullopt,
         std::move(srcs),
         std::move(dsts),
-        std::nullopt,
-        std::nullopt,
-        std::nullopt,
+        std::vector<arithmetic_device_uvector_t>{},
         cugraph::graph_properties_t{false /* now asymmetric */, cur_graph_view.is_multigraph()},
-        true);
+        true,
+        std::nullopt,
+        std::nullopt,
+        do_expensive_check);
   }
 
   cur_graph_view = modified_graph.view();

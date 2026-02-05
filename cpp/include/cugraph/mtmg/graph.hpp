@@ -1,17 +1,6 @@
 /*
- * Copyright (c) 2023-2025, NVIDIA CORPORATION.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-FileCopyrightText: Copyright (c) 2023-2025, NVIDIA CORPORATION.
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 #pragma once
@@ -30,7 +19,7 @@ namespace mtmg {
  */
 template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
 class graph_t : public detail::device_shared_wrapper_t<
-                  cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu>> {
+                  cugraph::graph_t<vertex_t, vertex_t, store_transposed, multi_gpu>> {
   using parent_t = detail::device_shared_wrapper_t<
     cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu>>;
 
@@ -60,33 +49,19 @@ class graph_t : public detail::device_shared_wrapper_t<
  * @param[in]  graph_properties   Graph properties
  * @param[in]  renumber           If true, renumber graph (must be true for MG)
  * @param[out] graph              MTMG graph is stored here
- * @param[out] edge_weights       MTMG edge weights is stored here
- * @param[out] edge_ids           MTMG edge ids is stored here
- * @param[out] edge_types         MTMG edge types is stored here
- * @param[out] edge_start_times   MTMG edge start times is stored here
- * @param[out] edge_end_times     MTMG edge end times is stored here
- * @param[in]  renumber_map       MTMG renumber_map is stored here
+ * @param[out] edge_properties    MTMG edge properties is stored here
+ * @param[out]  renumber_map      MTMG renumber_map is stored here
  * @param[in]  do_expensive_check A flag to run expensive checks for input arguments (if set to
  * `true`).
  */
-template <typename vertex_t,
-          typename edge_t,
-          typename weight_t,
-          typename edge_type_t,
-          typename edge_time_t,
-          bool store_transposed,
-          bool multi_gpu>
+template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
 void create_graph_from_edgelist(
   handle_t const& handle,
-  cugraph::mtmg::edgelist_t<vertex_t, weight_t, edge_t, edge_type_t, edge_time_t>& edgelist,
+  cugraph::mtmg::edgelist_t<vertex_t>& edgelist,
   graph_properties_t graph_properties,
   bool renumber,
   cugraph::mtmg::graph_t<vertex_t, edge_t, store_transposed, multi_gpu>& graph,
-  std::optional<cugraph::mtmg::edge_property_t<edge_t, weight_t>>& edge_weights,
-  std::optional<cugraph::mtmg::edge_property_t<edge_t, edge_t>>& edge_ids,
-  std::optional<cugraph::mtmg::edge_property_t<edge_t, edge_type_t>>& edge_types,
-  std::optional<cugraph::mtmg::edge_property_t<edge_t, edge_time_t>>& edge_start_times,
-  std::optional<cugraph::mtmg::edge_property_t<edge_t, edge_time_t>>& edge_end_times,
+  std::vector<cugraph::mtmg::edge_property_t<vertex_t>>& edge_properties,
   std::optional<cugraph::mtmg::renumber_map_t<vertex_t>>& renumber_map,
   bool do_expensive_check = false)
 {
@@ -101,47 +76,31 @@ void create_graph_from_edgelist(
   CUGRAPH_EXPECTS(my_edgelist.get_src().size() == 1,
                   "Must consolidate edges into a single list before creating graph");
 
-  auto [local_graph,
-        local_edge_weights,
-        local_edge_ids,
-        local_edge_types,
-        local_edge_start_times,
-        local_edge_end_times,
-        local_renumber_map] = cugraph::create_graph_from_edgelist<vertex_t,
-                                                                  edge_t,
-                                                                  weight_t,
-                                                                  edge_t,
-                                                                  edge_time_t,
-                                                                  store_transposed,
-                                                                  multi_gpu>(
-    handle.raft_handle(),
-    std::nullopt,
-    std::move(my_edgelist.get_src()[0]),
-    std::move(my_edgelist.get_dst()[0]),
-    my_edgelist.get_wgt() ? std::make_optional(std::move((*my_edgelist.get_wgt())[0]))
-                          : std::nullopt,
-    my_edgelist.get_edge_id() ? std::make_optional(std::move((*my_edgelist.get_edge_id())[0]))
-                              : std::nullopt,
-    my_edgelist.get_edge_type() ? std::make_optional(std::move((*my_edgelist.get_edge_type())[0]))
-                                : std::nullopt,
-    my_edgelist.get_edge_start_time()
-      ? std::make_optional(std::move((*my_edgelist.get_edge_start_time())[0]))
-      : std::nullopt,
-    my_edgelist.get_edge_end_time()
-      ? std::make_optional(std::move((*my_edgelist.get_edge_end_time())[0]))
-      : std::nullopt,
-    graph_properties,
-    renumber,
-    std::nullopt,
-    std::nullopt,
-    do_expensive_check);
+  std::vector<cugraph::arithmetic_device_uvector_t> edge_properties_buffers{};
+  edge_properties_buffers.reserve(my_edgelist.get_edge_property_buffers().size());
+
+  for (size_t i = 0; i < my_edgelist.get_edge_property_buffers().size(); ++i) {
+    edge_properties_buffers.push_back(std::move(my_edgelist.get_edge_property_buffers()[i][0]));
+  }
+
+  auto [local_graph, local_edge_properties, local_renumber_map] =
+    cugraph::create_graph_from_edgelist<vertex_t, edge_t, store_transposed, multi_gpu>(
+      handle.raft_handle(),
+      std::nullopt,
+      std::move(my_edgelist.get_src()[0]),
+      std::move(my_edgelist.get_dst()[0]),
+      std::move(edge_properties_buffers),
+      graph_properties,
+      renumber,
+      std::nullopt,
+      std::nullopt,
+      do_expensive_check);
 
   graph.set(handle, std::move(local_graph));
-  if (edge_weights) edge_weights->set(handle, std::move(*local_edge_weights));
-  if (edge_ids) edge_ids->set(handle, std::move(*local_edge_ids));
-  if (edge_types) edge_types->set(handle, std::move(*local_edge_types));
-  if (edge_start_times) edge_types->set(handle, std::move(*local_edge_start_times));
-  if (edge_end_times) edge_types->set(handle, std::move(*local_edge_end_times));
+  for (size_t i = 0; i < local_edge_properties.size(); ++i) {
+    edge_properties[i].set(handle, std::move(local_edge_properties[i]));
+  }
+
   if (renumber) renumber_map->set(handle, std::move(*local_renumber_map));
 }
 

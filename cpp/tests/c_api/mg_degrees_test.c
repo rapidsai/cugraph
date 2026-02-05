@@ -1,23 +1,13 @@
 /*
- * Copyright (c) 2024, NVIDIA CORPORATION.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-FileCopyrightText: Copyright (c) 2024, NVIDIA CORPORATION.
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 #include "mg_test_utils.h" /* RUN_TEST */
 
 #include <cugraph_c/graph.h>
 #include <cugraph_c/graph_functions.h>
+#include <cugraph_c/types.h>
 
 #include <stdio.h>
 
@@ -170,7 +160,6 @@ int test_degrees(const cugraph_resource_handle_t* handle)
   vertex_t h_in_degrees[]  = {1, 2, 0, 2, 1, 2};
   vertex_t h_out_degrees[] = {1, 2, 3, 1, 1, 0};
 
-  // Pagerank wants store_transposed = TRUE
   return generic_degrees_test(handle,
                               h_src,
                               h_dst,
@@ -237,7 +226,7 @@ int test_in_degrees(const cugraph_resource_handle_t* handle)
                               TRUE,
                               FALSE,
                               FALSE,
-                              TRUE,
+                              FALSE,
                               h_in_degrees,
                               NULL);
 }
@@ -263,7 +252,7 @@ int test_out_degrees(const cugraph_resource_handle_t* handle)
                               FALSE,
                               TRUE,
                               FALSE,
-                              TRUE,
+                              FALSE,
                               NULL,
                               h_out_degrees);
 }
@@ -350,7 +339,7 @@ int test_in_degrees_subset(const cugraph_resource_handle_t* handle)
                               TRUE,
                               FALSE,
                               FALSE,
-                              TRUE,
+                              FALSE,
                               h_in_degrees,
                               NULL);
 }
@@ -378,7 +367,7 @@ int test_out_degrees_subset(const cugraph_resource_handle_t* handle)
                               FALSE,
                               TRUE,
                               FALSE,
-                              TRUE,
+                              FALSE,
                               NULL,
                               h_out_degrees);
 }

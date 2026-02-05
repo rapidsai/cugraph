@@ -1,17 +1,6 @@
 /*
- * Copyright (c) 2024-2025, NVIDIA CORPORATION.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-FileCopyrightText: Copyright (c) 2024-2025, NVIDIA CORPORATION.
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 #pragma once
@@ -29,6 +18,7 @@
 
 #include <raft/util/integer_utils.hpp>
 
+#include <cuda/functional>
 #include <cuda/std/iterator>
 #include <cuda/std/optional>
 #include <cuda/std/tuple>
@@ -362,30 +352,31 @@ edge_property_t<edge_t, edge_t> edge_triangle_count_impl(
                      edgelist_dsts.begin(),
                      std::optional<edge_t const*>{std::nullopt});
 
-  cugraph::transform_e(
-    handle,
-    cur_graph_view,
-    valid_edges,
-    cugraph::edge_src_dummy_property_t{}.view(),
-    cugraph::edge_dst_dummy_property_t{}.view(),
-    cugraph::edge_dummy_property_t{}.view(),
-    [edge_first,
-     edge_last     = edge_first + edgelist_srcs.size(),
-     num_edges     = edgelist_srcs.size(),
-     num_triangles = num_triangles.data()] __device__(auto src,
-                                                      auto dst,
-                                                      cuda::std::nullopt_t,
-                                                      cuda::std::nullopt_t,
-                                                      cuda::std::nullopt_t) {
-      auto pair = cuda::std::make_tuple(src, dst);
+  cugraph::transform_e(handle,
+                       cur_graph_view,
+                       valid_edges,
+                       cugraph::edge_src_dummy_property_t{}.view(),
+                       cugraph::edge_dst_dummy_property_t{}.view(),
+                       cugraph::edge_dummy_property_t{}.view(),
+                       cuda::proclaim_return_type<edge_t>(
+                         [edge_first,
+                          edge_last     = edge_first + edgelist_srcs.size(),
+                          num_edges     = edgelist_srcs.size(),
+                          num_triangles = num_triangles.data()] __device__(auto src,
+                                                                           auto dst,
+                                                                           cuda::std::nullopt_t,
+                                                                           cuda::std::nullopt_t,
+                                                                           cuda::std::nullopt_t) {
+                           auto pair = cuda::std::make_tuple(src, dst);
 
-      // Find its position in 'edges'
-      auto itr_pair = thrust::lower_bound(thrust::seq, edge_first, edge_last, pair);
-      auto idx_pair = cuda::std::distance(edge_first, itr_pair);
-      return num_triangles[idx_pair];
-    },
-    counts.mutable_view(),
-    false);
+                           // Find its position in 'edges'
+                           auto itr_pair =
+                             thrust::lower_bound(thrust::seq, edge_first, edge_last, pair);
+                           auto idx_pair = cuda::std::distance(edge_first, itr_pair);
+                           return num_triangles[idx_pair];
+                         }),
+                       counts.mutable_view(),
+                       false);
 
   return counts;
 }

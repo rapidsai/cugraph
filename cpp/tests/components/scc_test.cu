@@ -1,12 +1,6 @@
 /*
- * Copyright (c) 2019-2025, NVIDIA CORPORATION.  All rights reserved.
- *
- * NVIDIA CORPORATION and its licensors retain all intellectual property
- * and proprietary rights in and to this software, related documentation
- * and any modifications thereto.  Any use, reproduction, disclosure or
- * distribution of this software and related documentation without an express
- * license agreement from NVIDIA CORPORATION is strictly prohibited.
- *
+ * SPDX-FileCopyrightText: Copyright (c) 2019-2025, NVIDIA CORPORATION.  All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 // strongly connected components tests
@@ -38,7 +32,7 @@
 #include <iterator>
 
 template <typename T>
-using DVector = rmm::device_vector<T>;
+using DVector = thrust::device_vector<T>;
 
 namespace {  // un-nammed
 struct Usecase {
@@ -93,11 +87,11 @@ template <typename ByteT, typename IndexT>
 DVector<IndexT> byte_matrix_to_int(const DVector<ByteT>& d_adj_byte_matrix)
 {
   auto n2 = d_adj_byte_matrix.size();
-  thrust::device_vector<IndexT> d_vec_matrix(n2, 0);
+  thrust::device_vector<IndexT> d_vec_matrix(n2);
   thrust::transform(d_adj_byte_matrix.begin(),
                     d_adj_byte_matrix.end(),
                     d_vec_matrix.begin(),
-                    [] __device__(auto byte_v) { return static_cast<IndexT>(byte_v); });
+                    [] __device__(ByteT byte_v) { return static_cast<IndexT>(byte_v); });
   return d_vec_matrix;
 }
 
@@ -182,7 +176,7 @@ struct Tests_Strongly_CC : ::testing::TestWithParam<Usecase> {
     auto G_unique                                    = cugraph::coo_to_csr(G_coo);
     cugraph::legacy::GraphCSRView<int, int, float> G = G_unique->view();
 
-    rmm::device_vector<int> d_labels(nrows);
+    thrust::device_vector<int> d_labels(nrows);
 
     size_t count = 0;
 
@@ -252,7 +246,7 @@ TEST_F(SCCSmallTest, CustomGraphSimpleLoops)
   auto G_unique                                    = cugraph::coo_to_csr(G_coo);
   cugraph::legacy::GraphCSRView<int, int, float> G = G_unique->view();
 
-  rmm::device_vector<IndexT> d_labels(nrows);
+  thrust::device_vector<IndexT> d_labels(nrows);
 
   cugraph::connected_components(G, cugraph::cugraph_cc_t::CUGRAPH_STRONG, d_labels.data().get());
 
@@ -303,7 +297,7 @@ TEST_F(SCCSmallTest, /*DISABLED_*/ CustomGraphWithSelfLoops)
   auto G_unique                                    = cugraph::coo_to_csr(G_coo);
   cugraph::legacy::GraphCSRView<int, int, float> G = G_unique->view();
 
-  rmm::device_vector<IndexT> d_labels(nrows);
+  thrust::device_vector<IndexT> d_labels(nrows);
 
   cugraph::connected_components(G, cugraph::cugraph_cc_t::CUGRAPH_STRONG, d_labels.data().get());
 
@@ -349,7 +343,7 @@ TEST_F(SCCSmallTest, SmallGraphWithSelfLoops1)
   auto G_unique                                    = cugraph::coo_to_csr(G_coo);
   cugraph::legacy::GraphCSRView<int, int, float> G = G_unique->view();
 
-  rmm::device_vector<IndexT> d_labels(nrows);
+  thrust::device_vector<IndexT> d_labels(nrows);
 
   cugraph::connected_components(G, cugraph::cugraph_cc_t::CUGRAPH_STRONG, d_labels.data().get());
 
@@ -413,7 +407,7 @@ TEST_F(SCCSmallTest, SmallGraphWithIsolated)
   EXPECT_EQ(num_vertices, nrows);
   EXPECT_EQ(num_edges, nnz);
 
-  rmm::device_vector<IndexT> d_labels(nrows);
+  thrust::device_vector<IndexT> d_labels(nrows);
 
   cugraph::connected_components(G, cugraph::cugraph_cc_t::CUGRAPH_STRONG, d_labels.data().get());
 

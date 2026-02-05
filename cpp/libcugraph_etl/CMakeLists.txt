@@ -1,17 +1,8 @@
 #=============================================================================
-# Copyright (c) 2021-2025, NVIDIA CORPORATION.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# cmake-format: off
+# SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
+# SPDX-License-Identifier: Apache-2.0
+# cmake-format: on
 #=============================================================================
 
 cmake_minimum_required(VERSION 3.30.4 FATAL_ERROR)
@@ -46,9 +37,8 @@ rapids_cmake_build_type(Release)
 
 option(BUILD_SHARED_LIBS "Build cuGraph shared libraries" ON)
 option(BUILD_CUGRAPH_ETL_MG_TESTS "Build cuGraph multigpu algorithm tests" OFF)
-option(CMAKE_CUDA_LINEINFO "Enable the -lineinfo option for nvcc (useful for cuda-memcheck / profiler" OFF)
+option(CMAKE_CUDA_LINEINFO "Enable the -lineinfo option for nvcc (useful for cuda-memcheck / profiler)" OFF)
 option(BUILD_TESTS "Configure CMake to build tests" ON)
-option(CUDA_STATIC_RUNTIME "Statically link the CUDA runtime" OFF)
 option(CUDA_STATIC_MATH_LIBRARIES "Statically link the CUDA math libraries" OFF)
 
 ################################################################################
@@ -60,7 +50,7 @@ if(CUDA_STATIC_MATH_LIBRARIES)
 endif()
 
 # CUDA runtime
-rapids_cuda_init_runtime(USE_STATIC ${CUDA_STATIC_RUNTIME})
+rapids_cuda_init_runtime(USE_STATIC ON)
 
 rapids_find_package(CUDAToolkit REQUIRED
     BUILD_EXPORT_SET    cugraph_etl-exports
@@ -115,9 +105,9 @@ set_target_properties(cugraph_etl
                PROPERTIES BUILD_RPATH              "\$ORIGIN"
                INSTALL_RPATH                       "\$ORIGIN"
                # set target compile options
-               CXX_STANDARD                        17
+               CXX_STANDARD                        20
                CXX_STANDARD_REQUIRED               ON
-               CUDA_STANDARD                       17
+               CUDA_STANDARD                       20
                CUDA_STANDARD_REQUIRED              ON
                POSITION_INDEPENDENT_CODE           ON
                INTERFACE_POSITION_INDEPENDENT_CODE ON
@@ -148,6 +138,7 @@ target_link_libraries(cugraph_etl
                 CUDA::cusolver${_ctk_static_suffix}
                 CUDA::cusparse${_ctk_static_suffix}
         PRIVATE
+                cuco::cuco
                 cugraph::cugraph
                 cudf::cudf
 )

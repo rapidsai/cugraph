@@ -1,17 +1,6 @@
 /*
- * Copyright (c) 2020-2024, NVIDIA CORPORATION.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 #pragma once
@@ -23,12 +12,12 @@
 #include <cugraph/utilities/error.hpp>
 
 #include <rmm/exec_policy.hpp>
-#include <rmm/mr/device/binning_memory_resource.hpp>
-#include <rmm/mr/device/cuda_memory_resource.hpp>
-#include <rmm/mr/device/managed_memory_resource.hpp>
-#include <rmm/mr/device/owning_wrapper.hpp>
-#include <rmm/mr/device/per_device_resource.hpp>
-#include <rmm/mr/device/pool_memory_resource.hpp>
+#include <rmm/mr/binning_memory_resource.hpp>
+#include <rmm/mr/cuda_memory_resource.hpp>
+#include <rmm/mr/managed_memory_resource.hpp>
+#include <rmm/mr/owning_wrapper.hpp>
+#include <rmm/mr/per_device_resource.hpp>
+#include <rmm/mr/pool_memory_resource.hpp>
 #include <rmm/resource_ref.hpp>
 
 #include <gtest/gtest.h>
@@ -211,7 +200,7 @@ inline auto parse_test_options(int argc, char** argv)
     auto const cmd_opts = parse_test_options(argc, argv);                               \
     auto const rmm_mode = cmd_opts["rmm_mode"].as<std::string>();                       \
     auto resource       = cugraph::test::create_memory_resource(rmm_mode);              \
-    rmm::mr::set_current_device_resource(resource.get());                               \
+    rmm::mr::set_current_device_resource_ref(resource.get());                           \
     cugraph::test::g_perf = cmd_opts["perf"].as<bool>();                                \
     cugraph::test::g_rmat_scale =                                                       \
       (cmd_opts.count("rmat_scale") > 0)                                                \
@@ -242,7 +231,7 @@ inline auto parse_test_options(int argc, char** argv)
     auto const cmd_opts = parse_test_options(argc, argv);                               \
     auto const rmm_mode = cmd_opts["rmm_mode"].as<std::string>();                       \
     auto resource       = cugraph::test::create_memory_resource(rmm_mode);              \
-    rmm::mr::set_current_device_resource(resource.get());                               \
+    rmm::mr::set_current_device_resource_ref(resource.get());                           \
     cugraph::test::g_perf = cmd_opts["perf"].as<bool>();                                \
     cugraph::test::g_rmat_scale =                                                       \
       (cmd_opts.count("rmat_scale") > 0)                                                \

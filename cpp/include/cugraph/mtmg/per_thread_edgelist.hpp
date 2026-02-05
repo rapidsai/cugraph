@@ -1,17 +1,6 @@
 /*
- * Copyright (c) 2023-2025, NVIDIA CORPORATION.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-FileCopyrightText: Copyright (c) 2023-2025, NVIDIA CORPORATION.
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 #pragma once
@@ -34,11 +23,7 @@ namespace mtmg {
  * buffer.  As the local buffer fills, the buffer will be sent to GPU memory using the flush()
  * method.  This allows the CPU to GPU transfers to be larger (and consequently more efficient).
  */
-template <typename vertex_t,
-          typename weight_t,
-          typename edge_t,
-          typename edge_type_t,
-          typename edge_time_t>
+template <typename vertex_t>
 class per_thread_edgelist_t {
  public:
   per_thread_edgelist_t()                             = delete;
@@ -50,32 +35,23 @@ class per_thread_edgelist_t {
    * @param edgelist            The edge list this thread_edgelist_t should be associated with
    * @param thread_buffer_size  Size of the local buffer for accumulating edges on the CPU
    */
-  per_thread_edgelist_t(
-    detail::per_device_edgelist_t<vertex_t, weight_t, edge_t, edge_type_t, edge_time_t>& edgelist,
-    size_t thread_buffer_size)
+  per_thread_edgelist_t(detail::per_device_edgelist_t<vertex_t>& edgelist,
+                        size_t thread_buffer_size)
     : edgelist_{edgelist},
       current_pos_{0},
       src_(thread_buffer_size),
       dst_(thread_buffer_size),
-      wgt_{std::nullopt},
-      edge_id_{std::nullopt},
-      edge_type_{std::nullopt},
-      edge_start_time_{std::nullopt},
-      edge_end_time_{std::nullopt}
+      edge_properties_{}
   {
-    if (edgelist.use_weight()) wgt_ = std::make_optional(std::vector<weight_t>(thread_buffer_size));
-
-    if (edgelist.use_edge_id())
-      edge_id_ = std::make_optional(std::vector<edge_t>(thread_buffer_size));
-
-    if (edgelist.use_edge_type())
-      edge_type_ = std::make_optional(std::vector<edge_type_t>(thread_buffer_size));
-
-    if (edgelist.use_edge_start_time())
-      edge_start_time_ = std::make_optional(std::vector<edge_time_t>(thread_buffer_size));
-
-    if (edgelist.use_edge_end_time())
-      edge_end_time_ = std::make_optional(std::vector<edge_time_t>(thread_buffer_size));
+    std::for_each(
+      edgelist.get_edge_property_types().begin(),
+      edgelist.get_edge_property_types().end(),
+      [&edge_properties = edge_properties_, thread_buffer_size](auto& p) {
+        cugraph::variant_type_dispatch(p, [&edge_properties, thread_buffer_size](auto& p) {
+          using T = std::decay_t<decltype(p)>;
+          edge_properties.push_back(arithmetic_host_vector_t{std::vector<T>(thread_buffer_size)});
+        });
+      });
   }
 
   /**
@@ -83,29 +59,28 @@ class per_thread_edgelist_t {
    *
    * @param src             Source vertex id
    * @param dst             Destination vertex id
-   * @param wgt             Edge weight
-   * @param edge_id         Edge id
-   * @param edge_type       Edge type
-   * @param edge_start_time Edge type
-   * @param edge_end_time   Edge type
+   * @param edge_properties Edge properties
    * @param stream_view     The cuda stream
    */
   void append(vertex_t src,
               vertex_t dst,
-              std::optional<weight_t> wgt,
-              std::optional<edge_t> edge_id,
-              std::optional<edge_type_t> edge_type,
-              std::optional<edge_time_t> edge_start_time,
-              std::optional<edge_time_t> edge_end_time,
+              std::vector<cugraph::arithmetic_type_t> edge_properties,
               rmm::cuda_stream_view stream_view)
   {
     if (current_pos_ == src_.size()) { flush(stream_view); }
 
     src_[current_pos_] = src;
     dst_[current_pos_] = dst;
-    if (wgt) (*wgt_)[current_pos_] = *wgt;
-    if (edge_id) (*edge_id_)[current_pos_] = *edge_id;
-    if (edge_type) (*edge_type_)[current_pos_] = *edge_type;
+
+    for (size_t i = 0; i < edge_properties.size(); ++i) {
+      cugraph::variant_type_dispatch(
+        edge_properties[i],
+        [&edge_properties = edge_properties_, i, current_pos = current_pos_](auto& p) {
+          using T = std::decay_t<decltype(p)>;
+
+          (std::get<std::vector<T>>(edge_properties[i]))[current_pos] = p;
+        });
+    }
 
     ++current_pos_;
   }
@@ -115,20 +90,12 @@ class per_thread_edgelist_t {
    *
    * @param src             Source vertex id
    * @param dst             Destination vertex id
-   * @param wgt             Edge weight
-   * @param edge_id         Edge id
-   * @param edge_type       Edge type
-   * @param edge_start_time Edge type
-   * @param edge_end_time   Edge type
+   * @param edge_properties Edge properties
    * @param stream_view     The cuda stream
    */
   void append(raft::host_span<vertex_t const> src,
               raft::host_span<vertex_t const> dst,
-              std::optional<raft::host_span<weight_t const>> wgt,
-              std::optional<raft::host_span<edge_t const>> edge_id,
-              std::optional<raft::host_span<edge_type_t const>> edge_type,
-              std::optional<raft::host_span<edge_time_t const>> edge_start_time,
-              std::optional<raft::host_span<edge_time_t const>> edge_end_time,
+              std::vector<raft::host_span<cugraph::arithmetic_type_t const>> edge_properties,
               rmm::cuda_stream_view stream_view)
   {
     size_t count = src.size();
@@ -139,24 +106,18 @@ class per_thread_edgelist_t {
 
       std::copy(src.begin() + pos, src.begin() + pos + copy_count, src_.begin() + current_pos_);
       std::copy(dst.begin() + pos, dst.begin() + pos + copy_count, dst_.begin() + current_pos_);
-      if (wgt)
-        std::copy(wgt.begin() + pos, wgt.begin() + pos + copy_count, wgt_->begin() + current_pos_);
-      if (edge_id)
-        std::copy(edge_id.begin() + pos,
-                  edge_id.begin() + pos + copy_count,
-                  edge_id_->begin() + current_pos_);
-      if (edge_type)
-        std::copy(edge_type.begin() + pos,
-                  edge_type.begin() + pos + copy_count,
-                  edge_type_->begin() + current_pos_);
-      if (edge_start_time)
-        std::copy(edge_start_time.begin() + pos,
-                  edge_start_time.begin() + pos + copy_count,
-                  edge_start_time_->begin() + current_pos_);
-      if (edge_end_time)
-        std::copy(edge_end_time.begin() + pos,
-                  edge_end_time.begin() + pos + copy_count,
-                  edge_end_time_->begin() + current_pos_);
+
+      for (size_t i = 0; i < edge_properties.size(); ++i) {
+        cugraph::variant_type_dispatch(
+          edge_properties[i],
+          [&edge_properties = edge_properties_, i, pos, copy_count, current_pos = current_pos_](
+            auto& p) {
+            using T = std::decay_t<decltype(p)>;
+            std::copy(p.begin() + pos,
+                      p.begin() + pos + copy_count,
+                      (std::get<std::vector<T>>(edge_properties[i])).begin() + current_pos);
+          });
+      }
 
       if (current_pos_ == src_.size()) { flush(stream_view); }
 
@@ -174,23 +135,22 @@ class per_thread_edgelist_t {
    */
   void flush(rmm::cuda_stream_view stream_view, bool sync = false)
   {
-    edgelist_.append(
-      raft::host_span<vertex_t const>{src_.data(), current_pos_},
-      raft::host_span<vertex_t const>{dst_.data(), current_pos_},
-      wgt_ ? std::make_optional(raft::host_span<weight_t const>{wgt_->data(), current_pos_})
-           : std::nullopt,
-      edge_id_ ? std::make_optional(raft::host_span<edge_t const>{edge_id_->data(), current_pos_})
-               : std::nullopt,
-      edge_type_
-        ? std::make_optional(raft::host_span<edge_type_t const>{edge_type_->data(), current_pos_})
-        : std::nullopt,
-      edge_start_time_ ? std::make_optional(raft::host_span<edge_time_t const>{
-                           edge_start_time_->data(), current_pos_})
-                       : std::nullopt,
-      edge_end_time_ ? std::make_optional(
-                         raft::host_span<edge_time_t const>{edge_end_time_->data(), current_pos_})
-                     : std::nullopt,
-      stream_view);
+    std::vector<arithmetic_const_host_span_t> edge_properties_spans;
+    std::for_each(edge_properties_.begin(),
+                  edge_properties_.end(),
+                  [&edge_properties_spans, current_pos = current_pos_](auto& p) {
+                    variant_type_dispatch(p, [&edge_properties_spans](auto& p) {
+                      using T = typename std::decay_t<decltype(p)>::value_type;
+                      raft::host_span<T const> span{p.data(), p.size()};
+                      edge_properties_spans.push_back(span);
+                    });
+                  });
+
+    edgelist_.append(raft::host_span<vertex_t const>{src_.data(), current_pos_},
+                     raft::host_span<vertex_t const>{dst_.data(), current_pos_},
+                     raft::host_span<arithmetic_const_host_span_t>{edge_properties_spans.data(),
+                                                                   edge_properties_spans.size()},
+                     stream_view);
 
     current_pos_ = 0;
 
@@ -198,15 +158,11 @@ class per_thread_edgelist_t {
   }
 
  private:
-  detail::per_device_edgelist_t<vertex_t, weight_t, edge_t, edge_type_t, edge_time_t>& edgelist_;
+  detail::per_device_edgelist_t<vertex_t>& edgelist_;
   size_t current_pos_{0};
   std::vector<vertex_t> src_{};
   std::vector<vertex_t> dst_{};
-  std::optional<std::vector<weight_t>> wgt_{};
-  std::optional<std::vector<edge_t>> edge_id_{};
-  std::optional<std::vector<edge_type_t>> edge_type_{};
-  std::optional<std::vector<edge_time_t>> edge_start_time_{};
-  std::optional<std::vector<edge_time_t>> edge_end_time_{};
+  std::vector<arithmetic_host_vector_t> edge_properties_{};
 };
 
 }  // namespace mtmg

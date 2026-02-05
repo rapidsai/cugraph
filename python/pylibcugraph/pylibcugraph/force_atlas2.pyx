@@ -1,15 +1,5 @@
-# Copyright (c) 2025, NVIDIA CORPORATION.
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# SPDX-FileCopyrightText: Copyright (c) 2025, NVIDIA CORPORATION.
+# SPDX-License-Identifier: Apache-2.0
 
 # Have cython use python 3 syntax
 # cython: language_level = 3
@@ -66,11 +56,15 @@ def force_atlas2(ResourceHandle resource_handle,
                  random_state,
                  _GPUGraph graph,
                  int max_iter,
+                 start_vertices,
                  x_start,
                  y_start,
                  bool_t outbound_attraction_distribution,
                  bool_t lin_log_mode,
                  bool_t prevent_overlapping,
+                 vertex_radius_vertices,
+                 vertex_radius_values,
+                 double overlap_scaling_ratio,
                  double edge_weight_influence,
                  double jitter_tolerance,
                  bool_t barnes_hut_optimize,
@@ -78,6 +72,10 @@ def force_atlas2(ResourceHandle resource_handle,
                  double scaling_ratio,
                  bool_t strong_gravity_mode,
                  double gravity,
+                 vertex_mobility_vertices,
+                 vertex_mobility_values,
+                 vertex_mass_vertices,
+                 vertex_mass_values,
                  bool_t verbose,
                  bool_t do_expensive_check,
                 ):
@@ -96,13 +94,14 @@ def force_atlas2(ResourceHandle resource_handle,
         defaults to a hash of process id, time, and hostname.
         (See pylibcugraph.random.CuGraphRandomState)
 
-        Not Supported yet.
-
     graph : SGGraph or MGGraph
         The input graph, for either Single or Multi-GPU operations.
 
     max_iter: int
         Maximum number of Katz Centrality iterations
+
+    start_vertices : device array type, optional (default=None)
+        Vertices of graph for x_start and y_start
 
     x_start : device array type, optional (default=None)
         Initial vertex positioning (x-axis)
@@ -120,6 +119,16 @@ def force_atlas2(ResourceHandle resource_handle,
 
     prevent_overlapping : bool_t
         Prevent nodes to overlap.
+
+    vertex_radius_vertices : device array type, optional (default=None)
+        Vertices of graph for vertex_radius_values.
+
+    vertex_radius_values : device array type, optional (default=None)
+        Radius of each vertex, used when prevent_overlapping is set.
+
+    overlap_scaling_ratio : double
+        When prevent_overlapping is set, scales the repulsion force
+        between two nodes that are overlapping.
 
     edge_weight_influence : double
         How much influence you give to the edges weight.
@@ -145,6 +154,20 @@ def force_atlas2(ResourceHandle resource_handle,
 
     gravity : double
         Attracts nodes to the center. Prevents islands from drifting away.
+
+    vertex_mobility_vertices : device array type, optional (default=None)
+        Vertices of graph for vertex_mobility_values.
+
+    vertex_mobility_values : device array type, optional (default=None)
+        Mobility of each vertex, scaling its speed in each iteration.
+        If not provided, all vertices will have a mobility of 1.0.
+
+    vertex_mass_vertices : device array type, optional (default=None)
+        Vertices of graph for vertex_mass_values.
+
+    vertex_mass_values : device array type, optional (default=None)
+        Mass of each vertex, which controls the attraction to other vertices.
+        If not provided, the mass of each vertex will be its degree plus one.
 
     verbose : bool_t
         Output convergence info at each interation.
@@ -172,14 +195,16 @@ def force_atlas2(ResourceHandle resource_handle,
     ...     resource_handle, graph_props, srcs, dsts, weight_array=weights,
     ...     store_transposed=False, renumber=False, do_expensive_check=False)
     >>> (vertices, x_axis, y_axis) = pylibcugraph.force_atlas2(
-    ...     resource_handle, None, G, 500, None, None, True, False, False, 1.0, 1.0, True,
-    ...     0.5, 2.0, False, 1.0, False, False)
+    ...     resource_handle, 42, G, 500, None, None, None, True, False, False,
+    ...     None, None, 100.0, 1.0, 1.0, False, 0.5, 2.0, False, 1.0, None, None,
+    ...     None, None, False, False)
     >>> vertices
     [   0  1   2   3   4   5    ]
     >>> x_axis
-    [ 5.444471    0.4794112   1.2495936  -0.01039529 -1.1892298  -1.5889403 ]
+    [-7.7015705   7.6763854  -2.7651896  -0.02446137  1.6971487  -1.2822613 ]
     >>> y_axis
-    [-1.4304754e+01 -3.8182523e+00  3.8365445e+00  8.3183739e-03 -8.3009762e-01 -1.9155006e-01
+    [ 23.276543     7.9067745   13.618961    -0.07172047  -6.8321953  -11.90544   ]
+
 
     """
 
@@ -188,6 +213,13 @@ def force_atlas2(ResourceHandle resource_handle,
     cdef cugraph_graph_t* c_graph_ptr = graph.c_graph_ptr
 
     cdef cugraph_type_erased_device_array_t* pos_ptr
+
+    assert_CAI_type(start_vertices, "start_vertices", True)
+
+    cdef cugraph_type_erased_device_array_view_t* \
+        start_vertices_view_ptr = \
+            create_cugraph_type_erased_device_array_view_from_py_obj(
+                start_vertices)
 
     assert_CAI_type(x_start, "x_start", True)
 
@@ -203,6 +235,48 @@ def force_atlas2(ResourceHandle resource_handle,
             create_cugraph_type_erased_device_array_view_from_py_obj(
                 y_start)
 
+    assert_CAI_type(vertex_radius_vertices, "vertex_radius_vertices", True)
+
+    cdef cugraph_type_erased_device_array_view_t* \
+        vertex_radius_vertices_view_ptr = \
+            create_cugraph_type_erased_device_array_view_from_py_obj(
+                vertex_radius_vertices)
+
+    assert_CAI_type(vertex_radius_values, "vertex_radius_values", True)
+
+    cdef cugraph_type_erased_device_array_view_t* \
+        vertex_radius_values_view_ptr = \
+            create_cugraph_type_erased_device_array_view_from_py_obj(
+                vertex_radius_values)
+
+    assert_CAI_type(vertex_mobility_vertices, "vertex_mobility_vertices", True)
+
+    cdef cugraph_type_erased_device_array_view_t* \
+        vertex_mobility_vertices_view_ptr = \
+            create_cugraph_type_erased_device_array_view_from_py_obj(
+                vertex_mobility_vertices)
+
+    assert_CAI_type(vertex_mobility_values, "vertex_mobility_values", True)
+
+    cdef cugraph_type_erased_device_array_view_t* \
+        vertex_mobility_values_view_ptr = \
+            create_cugraph_type_erased_device_array_view_from_py_obj(
+                vertex_mobility_values)
+
+    assert_CAI_type(vertex_mass_vertices, "vertex_mass_vertices", True)
+
+    cdef cugraph_type_erased_device_array_view_t* \
+        vertex_mass_vertices_view_ptr = \
+            create_cugraph_type_erased_device_array_view_from_py_obj(
+                vertex_mass_vertices)
+
+    assert_CAI_type(vertex_mass_values, "vertex_mass_values", True)
+
+    cdef cugraph_type_erased_device_array_view_t* \
+        vertex_mass_values_view_ptr = \
+            create_cugraph_type_erased_device_array_view_from_py_obj(
+                vertex_mass_values)
+
     cdef cugraph_layout_result_t* result_ptr
     cdef cugraph_error_code_t error_code
     cdef cugraph_error_t* error_ptr
@@ -215,11 +289,15 @@ def force_atlas2(ResourceHandle resource_handle,
                                       rng_state_ptr,
                                       c_graph_ptr,
                                       max_iter,
+                                      start_vertices_view_ptr,
                                       x_start_view_ptr,
                                       y_start_view_ptr,
                                       outbound_attraction_distribution,
                                       lin_log_mode,
                                       prevent_overlapping,
+                                      vertex_radius_vertices_view_ptr,
+                                      vertex_radius_values_view_ptr,
+                                      overlap_scaling_ratio,
                                       edge_weight_influence,
                                       jitter_tolerance,
                                       barnes_hut_optimize,
@@ -227,6 +305,10 @@ def force_atlas2(ResourceHandle resource_handle,
                                       scaling_ratio,
                                       strong_gravity_mode,
                                       gravity,
+                                      vertex_mobility_vertices_view_ptr,
+                                      vertex_mobility_values_view_ptr,
+                                      vertex_mass_vertices_view_ptr,
+                                      vertex_mass_values_view_ptr,
                                       verbose,
                                       do_expensive_check,
                                       &result_ptr,

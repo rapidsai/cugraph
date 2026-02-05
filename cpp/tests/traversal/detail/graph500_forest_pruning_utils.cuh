@@ -1,17 +1,6 @@
 /*
- * Copyright (c) 2025, NVIDIA CORPORATION.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION.
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 #include "graph500_misc.cuh"
@@ -37,6 +26,7 @@
 
 #include <rmm/device_uvector.hpp>
 
+#include <cuda/std/iterator>
 #include <cuda/std/tuple>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
@@ -275,7 +265,7 @@ template <typename vertex_t,
           typename edge_t,
           typename weight_t,
           typename edge_type_t,
-          typename edge_time_t,
+          typename time_stamp_t,
           bool store_transposed,
           bool multi_gpu>
 std::tuple<
@@ -311,9 +301,13 @@ extract_forest_pruned_graph_and_isolated_trees(
 
   std::vector<rmm::device_uvector<vertex_t>> pruned_graph_src_chunks{};
   std::vector<rmm::device_uvector<vertex_t>> pruned_graph_dst_chunks{};
-  std::optional<std::vector<rmm::device_uvector<weight_t>>> pruned_graph_weight_chunks =
-    mg_edge_weights ? std::make_optional(std::vector<rmm::device_uvector<weight_t>>{})
-                    : std::nullopt;
+  std::vector<std::vector<cugraph::arithmetic_device_uvector_t>>
+    pruned_graph_edge_property_chunks{};
+  if (mg_edge_weights) {
+    pruned_graph_edge_property_chunks.push_back(
+      std::vector<cugraph::arithmetic_device_uvector_t>{});
+  }
+
   {
     size_t constexpr num_chunks{
       8};  // extract in multiple chunks to reduce peak memory usage (temporaraily store the edge
@@ -321,8 +315,8 @@ extract_forest_pruned_graph_and_isolated_trees(
     for (size_t i = 0; i < num_chunks; ++i) {
       pruned_graph_src_chunks.emplace_back(0, handle.get_stream());
       pruned_graph_dst_chunks.emplace_back(0, handle.get_stream());
-      if (pruned_graph_weight_chunks) {
-        pruned_graph_weight_chunks->emplace_back(0, handle.get_stream());
+      if (pruned_graph_edge_property_chunks.size() > 0) {
+        pruned_graph_edge_property_chunks[0].push_back(std::monostate{});
       }
     }
     cugraph::edge_src_property_t<vertex_t, bool> edge_src_in_2cores(handle, mg_graph_view);
@@ -379,8 +373,8 @@ extract_forest_pruned_graph_and_isolated_trees(
       mg_graph_view.clear_edge_mask();
       pruned_graph_src_chunks[i] = std::move(std::get<0>(pruned_graph_edges));
       pruned_graph_dst_chunks[i] = std::move(std::get<1>(pruned_graph_edges));
-      if (pruned_graph_weight_chunks) {
-        (*pruned_graph_weight_chunks)[i] = std::move(*(std::get<2>(pruned_graph_edges)));
+      if (pruned_graph_edge_property_chunks.size() > 0) {
+        pruned_graph_edge_property_chunks[0][i] = std::move(*(std::get<2>(pruned_graph_edges)));
       }
     }
   }
@@ -389,9 +383,8 @@ extract_forest_pruned_graph_and_isolated_trees(
 
   rmm::device_uvector<vertex_t> isolated_tree_edge_srcs(0, handle.get_stream());
   rmm::device_uvector<vertex_t> isolated_tree_edge_dsts(0, handle.get_stream());
-  std::optional<rmm::device_uvector<weight_t>> isolated_tree_edge_weights =
-    mg_edge_weights ? std::make_optional(rmm::device_uvector<weight_t>(0, handle.get_stream()))
-                    : std::nullopt;
+  std::vector<cugraph::arithmetic_device_uvector_t> isolated_tree_edge_property_chunks{};
+  if (mg_edge_weights) { isolated_tree_edge_property_chunks.push_back(std::monostate{}); }
   {
     rmm::device_uvector<bool> reachable_from_2cores(
       mg_graph_view.local_vertex_partition_range_size(), handle.get_stream());
@@ -431,8 +424,8 @@ extract_forest_pruned_graph_and_isolated_trees(
         large_buffer_type);
     isolated_tree_edge_srcs = std::move(std::get<0>(isolated_tree_edges));
     isolated_tree_edge_dsts = std::move(std::get<1>(isolated_tree_edges));
-    if (isolated_tree_edge_weights) {
-      isolated_tree_edge_weights = std::move(*(std::get<2>(isolated_tree_edges)));
+    if (isolated_tree_edge_property_chunks.size() > 0) {
+      isolated_tree_edge_property_chunks[0] = std::move(*(std::get<2>(isolated_tree_edges)));
     }
   }
 
@@ -448,32 +441,22 @@ extract_forest_pruned_graph_and_isolated_trees(
     std::nullopt};
   rmm::device_uvector<vertex_t> mg_pruned_graph_renumber_map(0, handle.get_stream());
   {
+    std::vector<cugraph::edge_arithmetic_property_t<edge_t>> pruned_graph_edge_properties_objects{};
     std::optional<rmm::device_uvector<vertex_t>> tmp_map{};
-    std::tie(mg_pruned_graph,
-             mg_pruned_graph_edge_weights,
-             std::ignore,
-             std::ignore,
-             std::ignore,
-             std::ignore,
-             tmp_map) = cugraph::create_graph_from_edgelist<vertex_t,
-                                                            edge_t,
-                                                            weight_t,
-                                                            edge_type_t,
-                                                            edge_time_t,
-                                                            store_transposed,
-                                                            multi_gpu>(
-      handle,
-      std::nullopt,
-      std::move(pruned_graph_src_chunks),
-      std::move(pruned_graph_dst_chunks),
-      std::move(pruned_graph_weight_chunks),
-      std::nullopt,
-      std::nullopt,
-      std::nullopt,
-      std::nullopt,
-      cugraph::graph_properties_t{true /* symmetric */, false /* multi-graph */},
-      true);
+    std::tie(mg_pruned_graph, pruned_graph_edge_properties_objects, tmp_map) =
+      cugraph::create_graph_from_edgelist<vertex_t, edge_t, store_transposed, multi_gpu>(
+        handle,
+        std::nullopt,
+        std::move(pruned_graph_src_chunks),
+        std::move(pruned_graph_dst_chunks),
+        std::move(pruned_graph_edge_property_chunks),
+        cugraph::graph_properties_t{true /* symmetric */, false /* multi-graph */},
+        true);
     mg_pruned_graph_renumber_map = std::move(*tmp_map);
+    if (pruned_graph_edge_properties_objects.size() > 0) {
+      mg_pruned_graph_edge_weights = std::move(std::get<cugraph::edge_property_t<edge_t, weight_t>>(
+        pruned_graph_edge_properties_objects[0]));
+    }
   }
 
   // create the isolated trees graph
@@ -483,32 +466,24 @@ extract_forest_pruned_graph_and_isolated_trees(
     std::nullopt};
   rmm::device_uvector<vertex_t> mg_isolated_trees_renumber_map(0, handle.get_stream());
   {
+    std::vector<cugraph::edge_arithmetic_property_t<edge_t>>
+      isolated_tree_edge_properties_objects{};
     std::optional<rmm::device_uvector<vertex_t>> tmp_map{};
-    std::tie(mg_isolated_trees,
-             mg_isolated_trees_edge_weights,
-             std::ignore,
-             std::ignore,
-             std::ignore,
-             std::ignore,
-             tmp_map) = cugraph::create_graph_from_edgelist<vertex_t,
-                                                            edge_t,
-                                                            weight_t,
-                                                            edge_type_t,
-                                                            edge_time_t,
-                                                            store_transposed,
-                                                            multi_gpu>(
-      handle,
-      std::nullopt,
-      std::move(isolated_tree_edge_srcs),
-      std::move(isolated_tree_edge_dsts),
-      std::move(isolated_tree_edge_weights),
-      std::nullopt,
-      std::nullopt,
-      std::nullopt,
-      std::nullopt,
-      cugraph::graph_properties_t{true /* symmetric */, false /* multi-graph */},
-      true);
+    std::tie(mg_isolated_trees, isolated_tree_edge_properties_objects, tmp_map) =
+      cugraph::create_graph_from_edgelist<vertex_t, edge_t, store_transposed, multi_gpu>(
+        handle,
+        std::nullopt,
+        std::move(isolated_tree_edge_srcs),
+        std::move(isolated_tree_edge_dsts),
+        std::move(isolated_tree_edge_property_chunks),
+        cugraph::graph_properties_t{true /* symmetric */, false /* multi-graph */},
+        true);
     mg_isolated_trees_renumber_map = std::move(*tmp_map);
+    if (isolated_tree_edge_properties_objects.size() > 0) {
+      mg_isolated_trees_edge_weights =
+        std::move(std::get<cugraph::edge_property_t<edge_t, weight_t>>(
+          isolated_tree_edge_properties_objects[0]));
+    }
   }
 
   // update v_offset mappings between mg_graph and mg_isolated_trees & mg_pruned_graph
@@ -888,7 +863,7 @@ void update_unvisited_vertex_distances(
                                             [invalid_distance] __device__(auto pair) {
                                               return cuda::std::get<1>(pair) == invalid_distance;
                                             });
-    auto new_size       = thrust::distance(pair_first, remaining_last);
+    auto new_size       = cuda::std::distance(pair_first, remaining_last);
     auto scatter_offset_first =
       thrust::make_transform_iterator(
         remaining_vertices.begin(),

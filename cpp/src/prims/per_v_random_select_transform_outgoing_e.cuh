@@ -1,17 +1,6 @@
 /*
- * Copyright (c) 2022-2025, NVIDIA CORPORATION.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
+ * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
 
@@ -118,15 +107,16 @@ struct transform_local_nbr_indices_t {
       if (major_hypersparse_first && (major >= *major_hypersparse_first)) {
         auto major_hypersparse_idx = edge_partition.major_hypersparse_idx_from_major_nocheck(major);
         if (major_hypersparse_idx) {
-          thrust::tie(indices, edge_offset, local_degree) = edge_partition.local_edges(
+          cuda::std::tie(indices, edge_offset, local_degree) = edge_partition.local_edges(
             edge_partition.major_offset_from_major_nocheck(*major_hypersparse_first) +
             *major_hypersparse_idx);
         }
       } else {
-        thrust::tie(indices, edge_offset, local_degree) = edge_partition.local_edges(major_offset);
+        cuda::std::tie(indices, edge_offset, local_degree) =
+          edge_partition.local_edges(major_offset);
       }
     } else {
-      thrust::tie(indices, edge_offset, local_degree) = edge_partition.local_edges(major_offset);
+      cuda::std::tie(indices, edge_offset, local_degree) = edge_partition.local_edges(major_offset);
     }
     auto local_nbr_idx = *(local_nbr_idx_first + i);
     if (local_nbr_idx != invalid_idx) {

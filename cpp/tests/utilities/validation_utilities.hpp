@@ -1,17 +1,6 @@
 /*
- * Copyright (c) 2024-2025, NVIDIA CORPORATION.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-FileCopyrightText: Copyright (c) 2024-2025, NVIDIA CORPORATION.
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 #pragma once
@@ -42,15 +31,15 @@ template <typename vertex_t,
           typename edge_t,
           typename weight_t,
           typename edge_type_t,
-          typename edge_time_t>
+          typename time_stamp_t>
 void sort(raft::handle_t const& handle,
           raft::device_span<vertex_t> srcs,
           raft::device_span<vertex_t> dsts,
           std::optional<raft::device_span<weight_t>> wgts,
           std::optional<raft::device_span<edge_t>> ids,
           std::optional<raft::device_span<edge_type_t>> types,
-          std::optional<raft::device_span<edge_time_t>> start_times,
-          std::optional<raft::device_span<edge_time_t>> end_times);
+          std::optional<raft::device_span<time_stamp_t>> start_times,
+          std::optional<raft::device_span<time_stamp_t>> end_times);
 
 template <typename vertex_t, typename edge_t, typename weight_t, typename edge_type_t>
 size_t count_intersection(raft::handle_t const& handle,

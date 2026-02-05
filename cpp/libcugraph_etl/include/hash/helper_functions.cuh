@@ -1,17 +1,6 @@
 /*
- * Copyright (c) 2017-2024, NVIDIA CORPORATION.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-FileCopyrightText: Copyright (c) 2017-2026, NVIDIA CORPORATION.
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 #ifndef HELPER_FUNCTIONS_CUH
@@ -19,7 +8,7 @@
 
 #include <cudf/types.hpp>
 
-#include <thrust/pair.h>
+#include <cuda/std/utility>
 
 #include <cassert>
 
@@ -140,7 +129,7 @@ __global__ static void init_hashtbl(value_type* __restrict__ const hashtbl_value
 {
   const size_type idx = blockIdx.x * blockDim.x + threadIdx.x;
   if (idx < n) {
-    store_pair_vectorized(hashtbl_values + idx, thrust::make_pair(key_val, elem_val));
+    store_pair_vectorized(hashtbl_values + idx, cuda::std::make_pair(key_val, elem_val));
   }
 }
 

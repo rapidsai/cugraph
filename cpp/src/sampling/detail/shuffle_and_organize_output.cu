@@ -1,17 +1,6 @@
 /*
- * Copyright (c) 2022-2025, NVIDIA CORPORATION.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 #include "detail/graph_partition_utils.cuh"
@@ -25,6 +14,8 @@
 
 #include <rmm/device_uvector.hpp>
 
+#include <cuda/std/iterator>
+#include <thrust/binary_search.h>
 #include <thrust/count.h>
 #include <thrust/gather.h>
 #include <thrust/sort.h>
@@ -43,6 +34,7 @@ shuffle_and_organize_output(
   std::vector<cugraph::arithmetic_device_uvector_t>&& property_edges,
   std::optional<rmm::device_uvector<int32_t>>&& labels,
   std::optional<rmm::device_uvector<int32_t>>&& hops,
+  std::optional<int32_t> input_hops,
   std::optional<raft::device_span<int32_t const>> label_to_output_comm_rank)
 {
   std::optional<rmm::device_uvector<size_t>> offsets{std::nullopt};
@@ -141,25 +133,29 @@ shuffle_and_organize_output(
         });
       });
 
+    // Need to generate offsets for each unique label (not each seed) on each GPU
+    rmm::device_uvector<int32_t> unique_labels(labels->size(), handle.get_stream());
+    raft::copy(unique_labels.data(), labels->data(), labels->size(), handle.get_stream());
+    thrust::sort(handle.get_thrust_policy(), unique_labels.begin(), unique_labels.end());
+    auto unique_end =
+      thrust::unique(handle.get_thrust_policy(), unique_labels.begin(), unique_labels.end());
     size_t num_unique_labels =
-      thrust::count_if(handle.get_thrust_policy(),
-                       thrust::make_counting_iterator<size_t>(0),
-                       thrust::make_counting_iterator<size_t>(labels->size()),
-                       is_first_in_run_t<int32_t const*>{labels->data()});
+      static_cast<size_t>(cuda::std::distance(unique_labels.begin(), unique_end));
 
-    rmm::device_uvector<int32_t> unique_labels(num_unique_labels, handle.get_stream());
-    offsets = rmm::device_uvector<size_t>(num_unique_labels + 1, handle.get_stream());
+    unique_labels.resize(num_unique_labels, handle.get_stream());
 
-    thrust::reduce_by_key(handle.get_thrust_policy(),
-                          labels->begin(),
-                          labels->end(),
-                          thrust::make_constant_iterator(size_t{1}),
-                          unique_labels.begin(),
-                          offsets->begin());
+    offsets = rmm::device_uvector<size_t>(unique_labels.size() + 1, handle.get_stream());
 
-    thrust::exclusive_scan(
-      handle.get_thrust_policy(), offsets->begin(), offsets->end(), offsets->begin());
-    labels = std::move(unique_labels);
+    thrust::lower_bound(handle.get_thrust_policy(),
+                        labels->begin(),
+                        labels->end(),
+                        unique_labels.begin(),
+                        unique_labels.end(),
+                        offsets->begin());
+
+    size_t last_offset = labels->size();
+    offsets->set_element_async(unique_labels.size(), last_offset, handle.get_stream());
+    handle.sync_stream();
   }
 
   return std::make_tuple(

@@ -1,16 +1,5 @@
-# Copyright (c) 2022-2024, NVIDIA CORPORATION.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+# SPDX-License-Identifier: Apache-2.0
 #
 
 from dask.distributed import wait, default_client
@@ -24,7 +13,6 @@ import warnings
 def _call_plc_katz_centrality(
     sID, mg_graph_x, betas, alpha, beta, epsilon, max_iterations, do_expensive_check
 ):
-
     return pylibcugraph_katz(
         resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
         graph=mg_graph_x,
@@ -156,7 +144,7 @@ def katz_centrality(
         alpha = 1 / (degree_max)
 
     if (alpha is not None) and (alpha <= 0.0):
-        raise ValueError(f"'alpha' must be a positive float or None, " f"got: {alpha}")
+        raise ValueError(f"'alpha' must be a positive float or None, got: {alpha}")
 
     # FIXME: should we add this parameter as an option?
     do_expensive_check = False

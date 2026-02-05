@@ -1,17 +1,6 @@
 /*
- * Copyright (c) 2020-2025, NVIDIA CORPORATION.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2025, NVIDIA CORPORATION.
+ * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
 
@@ -901,21 +890,18 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
       }
 
       std::optional<rmm::device_uvector<vertex_t>> tmp_renumber_map{std::nullopt};
-      std::tie(level_graph, std::ignore, std::ignore, std::ignore, tmp_renumber_map) =
+      std::tie(level_graph, std::ignore, tmp_renumber_map) =
         create_graph_from_edgelist<vertex_t,
                                    edge_t,
-                                   float /* dummy */,
-                                   int32_t /* dummy */,
                                    GraphViewType::is_storage_transposed,
-                                   GraphViewType::is_multi_gpu>(handle,
-                                                                std::nullopt,
-                                                                std::move(std::get<0>(edge_buffer)),
-                                                                std::move(std::get<1>(edge_buffer)),
-                                                                std::nullopt,
-                                                                std::nullopt,
-                                                                std::nullopt,
-                                                                graph_properties_t{true, false},
-                                                                true);
+                                   GraphViewType::is_multi_gpu>(
+          handle,
+          std::nullopt,
+          std::move(std::get<0>(edge_buffer)),
+          std::move(std::get<1>(edge_buffer)),
+          std::vector<arithmetic_device_uvector_t>{},
+          graph_properties_t{true, false},
+          true);
       level_renumber_map = std::move(*tmp_renumber_map);
     } else {
       break;

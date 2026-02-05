@@ -1,16 +1,6 @@
 #!/bin/bash
-# Copyright (c) 2019-2025, NVIDIA CORPORATION.
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# SPDX-FileCopyrightText: Copyright (c) 2019-2025, NVIDIA CORPORATION.
+# SPDX-License-Identifier: Apache-2.0
 
 # Any failing command will set EXITCODE to non-zero
 set -e           # abort the script on error, this will change for running tests (see below)
@@ -98,11 +88,6 @@ if hasArg "--run-python-tests"; then
     cd "${CUGRAPH_ROOT}"/benchmarks/cugraph
     pytest -sv -m sg -m "managedmem_on and poolallocator_on and tiny" --benchmark-disable
     echo "Ran Python benchmarks for cuGraph (running as tests) : return code was: $?, test script exit code is now: $EXITCODE"
-
-    echo "Python pytest for cugraph-service (single-GPU only)..."
-    cd "${CUGRAPH_ROOT}"/python/cugraph-service
-    pytest -sv --cache-clear --junitxml="${CUGRAPH_ROOT}"/junit-cugraph-service-pytests.xml --benchmark-disable -k "not mg" ./tests
-    echo "Ran Python pytest for cugraph-service : return code was: $?, test script exit code is now: $EXITCODE"
 fi
 
 echo "Test script exiting with value: $EXITCODE"

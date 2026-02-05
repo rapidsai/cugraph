@@ -1,17 +1,6 @@
 /*
- * Copyright (c) 2025, NVIDIA CORPORATION.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION.
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 #pragma once
@@ -24,6 +13,7 @@
 #include <raft/core/handle.hpp>
 #include <raft/core/resource/thrust_policy.hpp>
 
+#include <cuda/std/iterator>
 #include <thrust/copy.h>
 #include <thrust/remove.h>
 #include <thrust/sort.h>
@@ -33,26 +23,26 @@
 namespace cugraph {
 namespace detail {
 
-template <typename vertex_t, typename edge_time_t, typename label_t>
+template <typename vertex_t, typename time_stamp_t, typename label_t>
 std::tuple<rmm::device_uvector<vertex_t>,
-           rmm::device_uvector<edge_time_t>,
+           rmm::device_uvector<time_stamp_t>,
            std::optional<rmm::device_uvector<label_t>>,
            rmm::device_uvector<vertex_t>,
-           rmm::device_uvector<edge_time_t>,
+           rmm::device_uvector<time_stamp_t>,
            std::optional<rmm::device_uvector<label_t>>>
 temporal_partition_vertices(raft::handle_t const& handle,
                             raft::device_span<vertex_t const> vertices,
-                            raft::device_span<edge_time_t const> vertex_times,
+                            raft::device_span<time_stamp_t const> vertex_times,
                             std::optional<raft::device_span<label_t const>> vertex_labels)
 {
   rmm::device_uvector<vertex_t> vertices_p1(vertices.size(), handle.get_stream());
-  rmm::device_uvector<edge_time_t> vertex_times_p1(vertex_times.size(), handle.get_stream());
+  rmm::device_uvector<time_stamp_t> vertex_times_p1(vertex_times.size(), handle.get_stream());
   std::optional<rmm::device_uvector<label_t>> vertex_labels_p1{
     vertex_labels
       ? std::make_optional<rmm::device_uvector<label_t>>(vertex_labels->size(), handle.get_stream())
       : std::nullopt};
   rmm::device_uvector<vertex_t> vertices_p2(0, handle.get_stream());
-  rmm::device_uvector<edge_time_t> vertex_times_p2(0, handle.get_stream());
+  rmm::device_uvector<time_stamp_t> vertex_times_p2(0, handle.get_stream());
   std::optional<rmm::device_uvector<label_t>> vertex_labels_p2{
     vertex_labels ? std::make_optional<rmm::device_uvector<label_t>>(0, handle.get_stream())
                   : std::nullopt};
@@ -134,7 +124,7 @@ temporal_partition_vertices(raft::handle_t const& handle,
           vertices_p2.begin(), vertex_times_p2.begin(), vertex_labels_p2->begin()));
 
       vertices_p1.resize(
-        thrust::distance(
+        cuda::std::distance(
           thrust::make_zip_iterator(
             vertices_p1.begin(), vertex_times_p1.begin(), vertex_labels_p1->begin()),
           copy_if_mask_set(
@@ -161,7 +151,7 @@ temporal_partition_vertices(raft::handle_t const& handle,
         thrust::make_zip_iterator(
           vertices_p2.begin(), vertex_times_p2.begin(), vertex_labels_p2->begin()));
       vertices_p1.resize(
-        thrust::distance(
+        cuda::std::distance(
           thrust::make_zip_iterator(
             vertices_p1.begin(), vertex_times_p1.begin(), vertex_labels_p1->begin()),
           copy_if_mask_set(

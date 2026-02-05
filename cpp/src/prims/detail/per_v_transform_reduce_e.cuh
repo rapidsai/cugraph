@@ -1,17 +1,6 @@
 /*
- * Copyright (c) 2020-2025, NVIDIA CORPORATION.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
+ * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
 
@@ -316,7 +305,7 @@ __global__ static void per_v_transform_reduce_e_hypersparse(
       vertex_t const* indices{nullptr};
       edge_t edge_offset{};
       edge_t local_degree{};
-      thrust::tie(indices, edge_offset, local_degree) =
+      cuda::std::tie(indices, edge_offset, local_degree) =
         edge_partition.local_edges(static_cast<vertex_t>(*major_idx));
 
       auto call_e_op = call_e_op_t<GraphViewType,
@@ -430,7 +419,7 @@ __global__ static void per_v_transform_reduce_e_low_degree(
     vertex_t const* indices{nullptr};
     edge_t edge_offset{};
     edge_t local_degree{};
-    thrust::tie(indices, edge_offset, local_degree) =
+    cuda::std::tie(indices, edge_offset, local_degree) =
       edge_partition.local_edges(static_cast<vertex_t>(major_offset));
 
     auto call_e_op = call_e_op_t<GraphViewType,
@@ -551,7 +540,7 @@ __global__ static void per_v_transform_reduce_e_mid_degree(
     vertex_t const* indices{nullptr};
     edge_t edge_offset{};
     edge_t local_degree{};
-    thrust::tie(indices, edge_offset, local_degree) = edge_partition.local_edges(major_offset);
+    cuda::std::tie(indices, edge_offset, local_degree) = edge_partition.local_edges(major_offset);
 
     auto call_e_op = call_e_op_t<GraphViewType,
                                  key_t,
@@ -591,13 +580,6 @@ __global__ static void per_v_transform_reduce_e_mid_degree(
       }
     }
 
-    // FIXME: Remove once upgraded to CCCL version 3.x
-#if CCCL_MAJOR_VERSION >= 3
-    using cuda::minimum;
-#else
-    using minimum = cub::Min;
-#endif
-
     if (edge_partition_e_mask) {
       if constexpr (update_major && std::is_same_v<ReduceOp, reduce_op::any<T>>) {
         auto rounded_up_local_degree =
@@ -609,8 +591,9 @@ __global__ static void per_v_transform_reduce_e_mid_degree(
               (*edge_partition_e_mask).get(edge_offset + i) && call_pred_op(i)) {
             e_op_result = call_e_op(i);
           }
-          first_valid_lane_id = WarpReduce(temp_storage[threadIdx.x / raft::warp_size()])
-                                  .Reduce(e_op_result ? lane_id : raft::warp_size(), minimum{});
+          first_valid_lane_id =
+            WarpReduce(temp_storage[threadIdx.x / raft::warp_size()])
+              .Reduce(e_op_result ? lane_id : raft::warp_size(), cuda::minimum{});
           first_valid_lane_id = __shfl_sync(raft::warp_full_mask(), first_valid_lane_id, int{0});
           if (lane_id == first_valid_lane_id) { reduced_e_op_result = *e_op_result; }
           if (first_valid_lane_id != raft::warp_size()) { break; }
@@ -642,8 +625,9 @@ __global__ static void per_v_transform_reduce_e_mid_degree(
           if (i < static_cast<size_t>(local_degree) && call_pred_op(i)) {
             e_op_result = call_e_op(i);
           }
-          first_valid_lane_id = WarpReduce(temp_storage[threadIdx.x / raft::warp_size()])
-                                  .Reduce(e_op_result ? lane_id : raft::warp_size(), minimum{});
+          first_valid_lane_id =
+            WarpReduce(temp_storage[threadIdx.x / raft::warp_size()])
+              .Reduce(e_op_result ? lane_id : raft::warp_size(), cuda::minimum{});
           first_valid_lane_id = __shfl_sync(raft::warp_full_mask(), first_valid_lane_id, int{0});
           if (lane_id == first_valid_lane_id) { reduced_e_op_result = *e_op_result; }
           if (first_valid_lane_id != raft::warp_size()) { break; }
@@ -747,7 +731,7 @@ __global__ static void per_v_transform_reduce_e_high_degree(
     vertex_t const* indices{nullptr};
     edge_t edge_offset{};
     edge_t local_degree{};
-    thrust::tie(indices, edge_offset, local_degree) = edge_partition.local_edges(major_offset);
+    cuda::std::tie(indices, edge_offset, local_degree) = edge_partition.local_edges(major_offset);
 
     auto call_e_op = call_e_op_t<GraphViewType,
                                  key_t,
@@ -788,13 +772,6 @@ __global__ static void per_v_transform_reduce_e_high_degree(
       }
     }
 
-    // FIXME: Remove once upgraded to CCCL version 3.x
-#if CCCL_MAJOR_VERSION >= 3
-    using cuda::minimum;
-#else
-    using minimum = cub::Min;
-#endif
-
     if (edge_partition_e_mask) {
       if constexpr (update_major && std::is_same_v<ReduceOp, reduce_op::any<T>>) {
         auto rounded_up_local_degree =
@@ -813,7 +790,7 @@ __global__ static void per_v_transform_reduce_e_high_degree(
               .Reduce(e_op_result
                         ? threadIdx.x
                         : per_v_transform_reduce_e_kernel_high_degree_reduce_any_block_size,
-                      minimum{});
+                      cuda::minimum{});
           if (threadIdx.x == 0) { output_thread_id = first_valid_thread_id; }
           __syncthreads();
           first_valid_thread_id = output_thread_id;
@@ -857,7 +834,7 @@ __global__ static void per_v_transform_reduce_e_high_degree(
               .Reduce(e_op_result
                         ? threadIdx.x
                         : per_v_transform_reduce_e_kernel_high_degree_reduce_any_block_size,
-                      minimum{});
+                      cuda::minimum{});
           if (threadIdx.x == 0) { output_thread_id = first_valid_thread_id; }
           __syncthreads();
           first_valid_thread_id = output_thread_id;
@@ -2501,7 +2478,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                            output_count_offsets = raft::device_span<vertex_t const>(
                              output_count_offsets.data(), output_count_offsets.size()),
                            output_key_first =
-                             get_dataframe_buffer_begin(std::get<0>(keys)) + key_segment_offsets[3],
+                             get_dataframe_buffer_begin(std::get<1>(keys)) + key_segment_offsets[3],
                            output_offset_first = std::get<0>(offsets).begin(),
                            range_first         = local_v_list_range_firsts[partition_idx],
                            range_offset_first,
@@ -2549,7 +2526,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                            output_count_offsets = raft::device_span<vertex_t const>(
                              output_count_offsets.data(), output_count_offsets.size()),
                            output_key_first =
-                             get_dataframe_buffer_begin(std::get<0>(keys)) + key_segment_offsets[3],
+                             get_dataframe_buffer_begin(std::get<1>(keys)) + key_segment_offsets[3],
                            output_offset_first = std::get<1>(offsets).begin(),
                            range_first         = local_v_list_range_firsts[partition_idx],
                            range_offset_first,

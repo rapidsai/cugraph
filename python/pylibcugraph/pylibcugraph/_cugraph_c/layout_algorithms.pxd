@@ -1,15 +1,5 @@
-# Copyright (c) 2025, NVIDIA CORPORATION.
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# SPDX-FileCopyrightText: Copyright (c) 2025, NVIDIA CORPORATION.
+# SPDX-License-Identifier: Apache-2.0
 
 # Have cython use python 3 syntax
 # cython: language_level = 3
@@ -66,11 +56,15 @@ cdef extern from "cugraph_c/layout_algorithms.h":
         cugraph_rng_state_t* rng_state,
         cugraph_graph_t* graph,
         int max_iter,
+        cugraph_type_erased_device_array_view_t* start_vertices,
         cugraph_type_erased_device_array_view_t* x_start,
         cugraph_type_erased_device_array_view_t* y_start,
         bool_t outbound_attraction_distribution,
         bool_t lin_log_mode,
         bool_t prevent_overlapping,
+        cugraph_type_erased_device_array_view_t* vertex_radius_vertices,
+        cugraph_type_erased_device_array_view_t* vertex_radius_values,
+        double overlap_scaling_ratio,
         double edge_weight_influence,
         double jitter_tolerance,
         bool_t barnes_hut_optimize,
@@ -78,6 +72,10 @@ cdef extern from "cugraph_c/layout_algorithms.h":
         double scaling_ratio,
         bool_t strong_gravity_mode,
         double gravity,
+        cugraph_type_erased_device_array_view_t* vertex_mobility_vertices,
+        cugraph_type_erased_device_array_view_t* vertex_mobility_values,
+        cugraph_type_erased_device_array_view_t* vertex_mass_vertices,
+        cugraph_type_erased_device_array_view_t* vertex_mass_values,
         bool_t verbose,
         bool_t do_expensive_check,
         cugraph_layout_result_t** result,

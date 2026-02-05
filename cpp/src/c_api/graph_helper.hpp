@@ -1,17 +1,6 @@
 /*
- * Copyright (c) 2022-2025, NVIDIA CORPORATION.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 #include <raft/core/device_span.hpp>
@@ -29,6 +18,22 @@ rmm::device_uvector<vertex_t> expand_sparse_offsets(raft::device_span<edge_t con
 template <typename GraphViewType, typename T>
 edge_property_t<typename GraphViewType::edge_type, T> create_constant_edge_property(
   raft::handle_t const& handle, GraphViewType const& graph_view, T constant_value);
+
+/**
+ * @ingroup utility_wrappers_cpp
+ * @brief    Cast the values of a cugraph_type_erased_device_array_view_t to the new type
+ *
+ * @tparam      new_type_t     type of the value to operate on. Must be either int32_t or int64_t.
+ *
+ * @param[out]  output      device span to update with new data type
+ * @param[in]   input       cugraph_type_erased_device_array_view_t with initial data type
+ * @param[in]   stream_view  stream view
+ *
+ */
+template <typename new_type_t>
+void copy_or_transform(raft::device_span<new_type_t> output,
+                       cugraph_type_erased_device_array_view_t const* input,
+                       rmm::cuda_stream_view const& stream_view);
 
 }  // namespace c_api
 }  // namespace cugraph

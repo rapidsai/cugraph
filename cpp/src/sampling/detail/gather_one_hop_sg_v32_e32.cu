@@ -1,19 +1,9 @@
 /*
- * Copyright (c) 2025, NVIDIA CORPORATION.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-FileCopyrightText: Copyright (c) 2025, NVIDIA CORPORATION.
+ * SPDX-License-Identifier: Apache-2.0
  */
 
+#include "cugraph/sampling_functions.hpp"
 #include "gather_one_hop_impl.cuh"
 
 namespace cugraph {
@@ -51,6 +41,7 @@ temporal_gather_one_hop_edgelist(
   raft::device_span<int32_t const> active_major_times,
   std::optional<raft::device_span<int32_t const>> active_major_labels,
   std::optional<raft::device_span<uint8_t const>> gather_flags,
+  temporal_sampling_comparison_t temporal_sampling_comparison,
   bool do_expensive_check);
 
 template std::tuple<rmm::device_uvector<vertex_t>,
@@ -67,6 +58,7 @@ temporal_gather_one_hop_edgelist(
   raft::device_span<int64_t const> active_major_times,
   std::optional<raft::device_span<int32_t const>> active_major_labels,
   std::optional<raft::device_span<uint8_t const>> gather_flags,
+  temporal_sampling_comparison_t temporal_sampling_comparison,
   bool do_expensive_check);
 
 }  // namespace detail

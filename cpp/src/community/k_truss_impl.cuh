@@ -1,17 +1,6 @@
 /*
- * Copyright (c) 2024-2025, NVIDIA CORPORATION.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-FileCopyrightText: Copyright (c) 2024-2025, NVIDIA CORPORATION.
+ * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
 
@@ -31,6 +20,7 @@
 
 #include <raft/util/integer_utils.hpp>
 
+#include <cuda/functional>
 #include <cuda/std/iterator>
 #include <cuda/std/optional>
 #include <cuda/std/tuple>
@@ -147,6 +137,24 @@ struct extract_low_to_high_degree_edges_from_endpoints_pred_op_t {
   }
 };
 
+template <typename vertex_t, typename edge_t>
+struct decrement_edge_triangle_count_t {
+  raft::device_span<vertex_t const> edge_srcs{};
+  raft::device_span<vertex_t const> edge_dsts{};
+  raft::device_span<edge_t const> decrease_counts{};
+
+  __device__ edge_t operator()(
+    vertex_t src, vertex_t dst, cuda::std::nullopt_t, cuda::std::nullopt_t, edge_t count) const
+  {
+    auto edge_first = thrust::make_zip_iterator(edge_srcs.begin(), edge_dsts.begin());
+    auto edge_last  = thrust::make_zip_iterator(edge_srcs.end(), edge_dsts.end());
+    auto itr_pair =
+      thrust::lower_bound(thrust::seq, edge_first, edge_last, cuda::std::make_tuple(src, dst));
+    auto idx_pair = cuda::std::distance(edge_first, itr_pair);
+    return count - decrease_counts[idx_pair];
+  }
+};
+
 }  // namespace
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
@@ -188,14 +196,14 @@ k_truss(raft::handle_t const& handle,
       cugraph::fill_edge_property(
         handle, unmasked_cur_graph_view, self_loop_edge_mask.mutable_view(), false);
 
-      transform_e(
-        handle,
-        cur_graph_view,
-        edge_src_dummy_property_t{}.view(),
-        edge_dst_dummy_property_t{}.view(),
-        edge_dummy_property_t{}.view(),
-        [] __device__(auto src, auto dst, auto, auto, auto) { return src != dst; },
-        self_loop_edge_mask.mutable_view());
+      transform_e(handle,
+                  cur_graph_view,
+                  edge_src_dummy_property_t{}.view(),
+                  edge_dst_dummy_property_t{}.view(),
+                  edge_dummy_property_t{}.view(),
+                  cuda::proclaim_return_type<bool>(
+                    [] __device__(auto src, auto dst, auto, auto, auto) { return src != dst; }),
+                  self_loop_edge_mask.mutable_view());
 
       undirected_mask = std::move(self_loop_edge_mask);
       if (cur_graph_view.has_edge_mask()) { cur_graph_view.clear_edge_mask(); }
@@ -241,9 +249,10 @@ k_truss(raft::handle_t const& handle,
         edge_src_in_k_minus_1_cores.view(),
         edge_dst_in_k_minus_1_cores.view(),
         edge_dummy_property_t{}.view(),
-        [] __device__(auto, auto, auto src_in_k_minus_1_core, auto dst_in_k_minus_1_core, auto) {
-          return src_in_k_minus_1_core && dst_in_k_minus_1_core;
-        },
+        cuda::proclaim_return_type<bool>(
+          [] __device__(auto, auto, auto src_in_k_minus_1_core, auto dst_in_k_minus_1_core, auto) {
+            return src_in_k_minus_1_core && dst_in_k_minus_1_core;
+          }),
         in_k_minus_1_core_edge_mask.mutable_view());
 
       undirected_mask = std::move(in_k_minus_1_core_edge_mask);
@@ -274,13 +283,14 @@ k_truss(raft::handle_t const& handle,
       edge_src_out_degrees.view(),
       edge_dst_out_degrees.view(),
       edge_dummy_property_t{}.view(),
-      [] __device__(auto src, auto dst, auto src_out_degree, auto dst_out_degree, auto) {
-        return (src_out_degree < dst_out_degree) ? true
-               : ((src_out_degree == dst_out_degree) &&
-                  (src < dst) /* tie-breaking using vertex ID */)
-                 ? true
-                 : false;
-      },
+      cuda::proclaim_return_type<bool>(
+        [] __device__(auto src, auto dst, auto src_out_degree, auto dst_out_degree, auto) {
+          return (src_out_degree < dst_out_degree) ? true
+                 : ((src_out_degree == dst_out_degree) &&
+                    (src < dst) /* tie-breaking using vertex ID */)
+                   ? true
+                   : false;
+        }),
       dodg_mask.mutable_view(),
       do_expensive_check);
 
@@ -419,32 +429,33 @@ k_truss(raft::handle_t const& handle,
         thrust::make_counting_iterator<edge_t>(0),
         thrust::make_counting_iterator<edge_t>(size_dataframe_buffer(edgelist_to_update_count)),
         get_dataframe_buffer_begin(edgelist_to_update_count),
-        [num_unique_triangles,
-         triangles_endpoints =
-           get_dataframe_buffer_begin(triangles_endpoints)] __device__(auto idx) {
-          auto idx_triangle           = idx % num_unique_triangles;
-          auto idx_vertex_in_triangle = idx / num_unique_triangles;
-          auto triangle               = (triangles_endpoints + idx_triangle).get_iterator_tuple();
-          vertex_t src;
-          vertex_t dst;
+        cuda::proclaim_return_type<cuda::std::tuple<vertex_t, vertex_t>>(
+          [num_unique_triangles,
+           triangles_endpoints =
+             get_dataframe_buffer_begin(triangles_endpoints)] __device__(auto idx) {
+            auto idx_triangle           = idx % num_unique_triangles;
+            auto idx_vertex_in_triangle = idx / num_unique_triangles;
+            auto triangle               = (triangles_endpoints + idx_triangle).get_iterator_tuple();
+            vertex_t src;
+            vertex_t dst;
 
-          if (idx_vertex_in_triangle == 0) {
-            src = *(cuda::std::get<0>(triangle));
-            dst = *(cuda::std::get<1>(triangle));
-          }
+            if (idx_vertex_in_triangle == 0) {
+              src = *(cuda::std::get<0>(triangle));
+              dst = *(cuda::std::get<1>(triangle));
+            }
 
-          if (idx_vertex_in_triangle == 1) {
-            src = *(cuda::std::get<0>(triangle));
-            dst = *(cuda::std::get<2>(triangle));
-          }
+            if (idx_vertex_in_triangle == 1) {
+              src = *(cuda::std::get<0>(triangle));
+              dst = *(cuda::std::get<2>(triangle));
+            }
 
-          if (idx_vertex_in_triangle == 2) {
-            src = *(cuda::std::get<1>(triangle));
-            dst = *(cuda::std::get<2>(triangle));
-          }
+            if (idx_vertex_in_triangle == 2) {
+              src = *(cuda::std::get<1>(triangle));
+              dst = *(cuda::std::get<2>(triangle));
+            }
 
-          return cuda::std::make_tuple(src, dst);
-        });
+            return cuda::std::make_tuple(src, dst);
+          }));
 
       if constexpr (multi_gpu) {
         std::vector<cugraph::arithmetic_device_uvector_t> edge_properties{};
@@ -551,24 +562,12 @@ k_truss(raft::handle_t const& handle,
         cugraph::edge_src_dummy_property_t{}.view(),
         cugraph::edge_dst_dummy_property_t{}.view(),
         edge_triangle_counts.view(),
-        [edge_buffer_first =
-           thrust::make_zip_iterator(std::get<0>(vertex_pair_buffer_unique).begin(),
-                                     std::get<1>(vertex_pair_buffer_unique).begin()),
-         edge_buffer_last = thrust::make_zip_iterator(std::get<0>(vertex_pair_buffer_unique).end(),
-                                                      std::get<1>(vertex_pair_buffer_unique).end()),
-         decrease_count   = raft::device_span<edge_t>(
-           decrease_count.data(), decrease_count.size())] __device__(auto src,
-                                                                     auto dst,
-                                                                     cuda::std::nullopt_t,
-                                                                     cuda::std::nullopt_t,
-                                                                     edge_t count) {
-          auto itr_pair = thrust::lower_bound(
-            thrust::seq, edge_buffer_first, edge_buffer_last, cuda::std::make_tuple(src, dst));
-          auto idx_pair = cuda::std::distance(edge_buffer_first, itr_pair);
-          count -= decrease_count[idx_pair];
-
-          return count;
-        },
+        decrement_edge_triangle_count_t<vertex_t, edge_t>{
+          raft::device_span<vertex_t const>(std::get<0>(vertex_pair_buffer_unique).data(),
+                                            std::get<0>(vertex_pair_buffer_unique).size()),
+          raft::device_span<vertex_t const>(std::get<1>(vertex_pair_buffer_unique).data(),
+                                            std::get<1>(vertex_pair_buffer_unique).size()),
+          raft::device_span<edge_t const>(decrease_count.data(), decrease_count.size())},
         edge_triangle_counts.mutable_view(),
         do_expensive_check);
 
@@ -597,10 +596,11 @@ k_truss(raft::handle_t const& handle,
         cugraph::edge_src_dummy_property_t{}.view(),
         cugraph::edge_dst_dummy_property_t{}.view(),
         cugraph::edge_dummy_property_t{}.view(),
-        [] __device__(
-          auto src, auto dst, cuda::std::nullopt_t, cuda::std::nullopt_t, cuda::std::nullopt_t) {
-          return false;
-        },
+        cuda::proclaim_return_type<bool>(
+          [] __device__(
+            auto src, auto dst, cuda::std::nullopt_t, cuda::std::nullopt_t, cuda::std::nullopt_t) {
+            return false;
+          }),
         weak_edges_mask.mutable_view(),
         do_expensive_check);
 
@@ -636,10 +636,11 @@ k_truss(raft::handle_t const& handle,
         cugraph::edge_src_dummy_property_t{}.view(),
         cugraph::edge_dst_dummy_property_t{}.view(),
         cugraph::edge_dummy_property_t{}.view(),
-        [] __device__(
-          auto src, auto dst, cuda::std::nullopt_t, cuda::std::nullopt_t, cuda::std::nullopt_t) {
-          return false;
-        },
+        cuda::proclaim_return_type<bool>(
+          [] __device__(
+            auto src, auto dst, cuda::std::nullopt_t, cuda::std::nullopt_t, cuda::std::nullopt_t) {
+            return false;
+          }),
         weak_edges_mask.mutable_view(),
         do_expensive_check);
 
@@ -660,9 +661,10 @@ k_truss(raft::handle_t const& handle,
       cugraph::edge_src_dummy_property_t{}.view(),
       cugraph::edge_dst_dummy_property_t{}.view(),
       edge_triangle_counts.view(),
-      [] __device__(auto src, auto dst, cuda::std::nullopt_t, cuda::std::nullopt_t, auto count) {
-        return count == 0 ? false : true;
-      },
+      cuda::proclaim_return_type<bool>(
+        [] __device__(auto src, auto dst, cuda::std::nullopt_t, cuda::std::nullopt_t, auto count) {
+          return count == 0 ? false : true;
+        }),
       dodg_mask.mutable_view(),
       do_expensive_check);
 

@@ -1,17 +1,6 @@
 /*
- * Copyright (c) 2022-2025, NVIDIA CORPORATION.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+ * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
 
@@ -140,17 +129,38 @@ int create_mg_test_graph_new(const cugraph_resource_handle_t* handle,
 size_t cugraph_test_device_gatherv_size(const cugraph_resource_handle_t* handle,
                                         const cugraph_type_erased_device_array_view_t* array);
 
-int cugraph_test_device_gatherv_fill(const cugraph_resource_handle_t* handle,
-                                     const cugraph_type_erased_device_array_view_t* array,
-                                     void* fill_array);
+cugraph_error_code_t cugraph_test_device_gatherv_fill(
+  const cugraph_resource_handle_t* handle,
+  const cugraph_type_erased_device_array_view_t* array,
+  void* fill_array);
 
 size_t cugraph_test_scalar_reduce(const cugraph_resource_handle_t* handle, size_t value);
 
-int cugraph_test_host_gatherv_fill(const cugraph_resource_handle_t* handle,
-                                   void* input,
-                                   size_t input_size,
-                                   cugraph_data_type_id_t input_type,
-                                   void* output);
+cugraph_error_code_t cugraph_test_host_gatherv_fill(const cugraph_resource_handle_t* handle,
+                                                    void* input,
+                                                    size_t input_size,
+                                                    cugraph_data_type_id_t input_type,
+                                                    void* output);
+
+int mg_validate_sample_result(const cugraph_resource_handle_t* handle,
+                              const cugraph_sample_result_t* result,
+                              int32_t* h_src,
+                              int32_t* h_dst,
+                              float* h_wgt,
+                              int32_t* h_edge_ids,
+                              int32_t* h_edge_types,
+                              int32_t* h_edge_start_times,
+                              int32_t* h_edge_end_times,
+                              size_t num_vertices,
+                              size_t num_edges,
+                              int32_t* h_start_vertices,
+                              size_t num_start_vertices,
+                              size_t* h_start_label_offsets,
+                              size_t num_start_label_offsets,
+                              int32_t* h_fan_out,
+                              size_t fan_out_size,
+                              cugraph_sampling_options_t* sampling_options,
+                              bool validate_edge_times);
 
 #ifdef __cplusplus
 }

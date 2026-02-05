@@ -1,15 +1,5 @@
-# Copyright (c) 2022-2025, NVIDIA CORPORATION.
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+# SPDX-License-Identifier: Apache-2.0
 
 # Have cython use python 3 syntax
 # cython: language_level = 3
@@ -52,6 +42,7 @@ from pylibcugraph._cugraph_c.algorithms cimport (
     cugraph_sampling_set_compress_per_hop,
     cugraph_sampling_set_compression_type,
     cugraph_sampling_set_retain_seeds,
+    cugraph_sampling_set_disjoint_sampling,
 )
 from pylibcugraph._cugraph_c.sampling_algorithms cimport (
     cugraph_homogeneous_uniform_neighbor_sample,
@@ -90,6 +81,7 @@ def homogeneous_uniform_neighbor_sample(ResourceHandle resource_handle,
                                           bool_t do_expensive_check,
                                           prior_sources_behavior=None,
                                           deduplicate_sources=False,
+                                          disjoint_sampling=False,
                                           return_hops=False,
                                           renumber=False,
                                           retain_seeds=False,
@@ -166,6 +158,10 @@ def homogeneous_uniform_neighbor_sample(ResourceHandle resource_handle,
         entire batch.
         If True, will create a separate compressed edgelist per hop within
         a batch.
+
+    disjoint_sampling: bool (Optional)
+        If True, enables disjoint sampling between seeds per hop when supported.
+        Defaults to False.
 
     random_state: int (Optional)
         Random state to use when generating samples.  Optional argument,
@@ -337,6 +333,7 @@ def homogeneous_uniform_neighbor_sample(ResourceHandle resource_handle,
     cugraph_sampling_set_compression_type(sampling_options, compression_behavior_e)
     cugraph_sampling_set_compress_per_hop(sampling_options, c_compress_per_hop)
     cugraph_sampling_set_retain_seeds(sampling_options, retain_seeds)
+    cugraph_sampling_set_disjoint_sampling(sampling_options, disjoint_sampling)
 
     error_code = cugraph_homogeneous_uniform_neighbor_sample(
         c_resource_handle_ptr,

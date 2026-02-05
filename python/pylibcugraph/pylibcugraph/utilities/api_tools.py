@@ -1,15 +1,5 @@
-# Copyright (c) 2022-2024, NVIDIA CORPORATION.
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+# SPDX-License-Identifier: Apache-2.0
 
 import functools
 import warnings
@@ -41,7 +31,7 @@ def experimental_warning_wrapper(obj, obj_namespace_name=None):
     """
     obj_type = type(obj)
     if not callable(obj):
-        raise TypeError("obj must be a class or a function type, got " f"{obj_type}")
+        raise TypeError(f"obj must be a class or a function type, got {obj_type}")
 
     obj_name = obj.__name__
     obj_name = obj_name.lstrip(experimental_prefix)
@@ -124,7 +114,7 @@ def promoted_experimental_warning_wrapper(obj, obj_namespace_name=None):
     """
     obj_type = type(obj)
     if not callable(obj):
-        raise TypeError("obj must be a class or a function type, got " f"{obj_type}")
+        raise TypeError(f"obj must be a class or a function type, got {obj_type}")
 
     obj_name = obj.__name__
     obj_name = obj_name.lstrip(experimental_prefix)
@@ -191,7 +181,7 @@ def deprecated_warning_wrapper(obj, obj_namespace_name=None):
     """
     obj_type = type(obj)
     if not callable(obj):
-        raise TypeError("obj must be a class or a function type, got " f"{obj_type}")
+        raise TypeError(f"obj must be a class or a function type, got {obj_type}")
 
     obj_name = obj.__name__
     if obj_namespace_name is None:
@@ -237,3 +227,43 @@ def deprecated_warning_wrapper(obj, obj_namespace_name=None):
     warning_wrapper_function.__name__ = obj_name
 
     return warning_wrapper_function
+
+
+def ensure_valid_dtypes(
+    src_or_offset_array,
+    dst_or_index_array,
+    vertices_array,
+    edge_id_array,
+    edge_start_time_array,
+    edge_stop_time_array,
+):
+    """
+    Returns a warning if unsupported type combinations are provided. All vertex
+    types which are 'vertices_array', 'src_or_offset_array', 'dst_or_index_array'
+    and 'edge_id_array' should match. All temporal type if provided should also match
+
+    """
+    vertex_args = [
+        src_or_offset_array,
+        dst_or_index_array,
+        vertices_array,
+        edge_id_array,
+    ]
+    temporal_args = [edge_start_time_array, edge_stop_time_array]
+    vertex_types = {arg.dtype for arg in vertex_args if arg is not None}
+    temporal_types = {arg.dtype for arg in temporal_args if arg is not None}
+
+    if len(vertex_types) > 1:
+        warning_msg = (
+            "The graph requires 'src_or_offset_array', 'dst_or_index_array' "
+            "'vertices_array' and 'edge_id_array' to match. "
+            "Those will be widened to 64-bit."
+        )
+        warnings.warn(warning_msg, UserWarning)
+
+    if len(temporal_types) > 1:
+        warning_msg = (
+            "The graph requires 'edge_start_time_array' and 'edge_end_time_array' "
+            "to match. Those will be widened to 64-bit."
+        )
+        warnings.warn(warning_msg, UserWarning)

@@ -1,17 +1,6 @@
 /*
- * Copyright (c) 2017-2025, NVIDIA CORPORATION.  All rights reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-FileCopyrightText: Copyright (c) 2017-2026, NVIDIA CORPORATION.  All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 /*
@@ -25,11 +14,11 @@
 #include <raft/util/cuda_rt_essentials.hpp>
 
 #include <rmm/cuda_stream_view.hpp>
-#include <rmm/mr/device/polymorphic_allocator.hpp>
+#include <rmm/mr/polymorphic_allocator.hpp>
 #include <rmm/prefetch.hpp>
 
 #include <cuda/atomic>
-#include <thrust/pair.h>
+#include <cuda/std/utility>
 
 #include <hash/helper_functions.cuh>
 #include <hash/managed.cuh>
@@ -121,7 +110,7 @@ template <typename Key,
           typename Element,
           typename Hasher    = cudf::hashing::detail::default_hash<Key>,
           typename Equality  = equal_to<Key>,
-          typename Allocator = rmm::mr::polymorphic_allocator<thrust::pair<Key, Element>>>
+          typename Allocator = rmm::mr::polymorphic_allocator<cuda::std::pair<Key, Element>>>
 class concurrent_unordered_map {
  public:
   using size_type      = size_t;
@@ -130,7 +119,7 @@ class concurrent_unordered_map {
   using allocator_type = Allocator;
   using key_type       = Key;
   using mapped_type    = Element;
-  using value_type     = thrust::pair<Key, Element>;
+  using value_type     = cuda::std::pair<Key, Element>;
   using iterator       = cycle_iterator_adapter<value_type*>;
   using const_iterator = cycle_iterator_adapter<value_type*> const;
 
@@ -272,7 +261,7 @@ class concurrent_unordered_map {
   __device__ std::enable_if_t<is_packable<pair_type>(), insert_result> attempt_insert(
     value_type* const __restrict__ insert_location, value_type const& insert_pair)
   {
-    pair_packer<pair_type> expected{thrust::make_pair(m_unused_key, m_unused_element)};
+    pair_packer<pair_type> expected{cuda::std::make_pair(m_unused_key, m_unused_element)};
     pair_packer<pair_type> desired{insert_pair};
 
     using packed_type = typename pair_packer<pair_type>::packed_type;
@@ -338,7 +327,7 @@ class concurrent_unordered_map {
    *newly inserted pair, or the existing pair that prevented the insert.
    *Boolean indicates insert success.
    */
-  __device__ thrust::pair<iterator, bool> insert(value_type const& insert_pair)
+  __device__ cuda::std::pair<iterator, bool> insert(value_type const& insert_pair)
   {
     size_type const key_hash{m_hf(insert_pair.first)};
     size_type index{key_hash % m_capacity};
@@ -355,7 +344,7 @@ class concurrent_unordered_map {
 
     bool const insert_success = status == insert_result::SUCCESS;
 
-    return thrust::make_pair(
+    return cuda::std::make_pair(
       iterator(m_hashtbl_values, m_hashtbl_values + m_capacity, current_bucket), insert_success);
   }
 

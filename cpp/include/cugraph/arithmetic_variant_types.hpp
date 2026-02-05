@@ -1,17 +1,6 @@
 /*
- * Copyright (c) 2025, NVIDIA CORPORATION.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-FileCopyrightText: Copyright (c) 2025, NVIDIA CORPORATION.
+ * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
 
@@ -25,6 +14,8 @@
 #include <variant>
 
 namespace cugraph {
+
+using arithmetic_type_t = std::variant<std::monostate, float, double, int32_t, int64_t, size_t>;
 
 using arithmetic_device_uvector_t    = std::variant<std::monostate,
                                                     rmm::device_uvector<float>,
@@ -46,6 +37,14 @@ using const_arithmetic_device_span_t = std::variant<std::monostate,
                                                     raft::device_span<size_t const>>;
 
 template <typename edge_t>
+using edge_arithmetic_property_t = std::variant<std::monostate,
+                                                cugraph::edge_property_t<edge_t, float>,
+                                                cugraph::edge_property_t<edge_t, double>,
+                                                cugraph::edge_property_t<edge_t, int32_t>,
+                                                cugraph::edge_property_t<edge_t, int64_t>,
+                                                cugraph::edge_property_t<edge_t, size_t>>;
+
+template <typename edge_t>
 using edge_arithmetic_property_view_t =
   std::variant<std::monostate,
                cugraph::edge_property_view_t<edge_t, float const*>,
@@ -63,73 +62,8 @@ using edge_arithmetic_property_mutable_view_t =
                cugraph::edge_property_view_t<edge_t, int64_t*>,
                cugraph::edge_property_view_t<edge_t, size_t*>>;
 
-template <typename func_t>
-auto variant_type_dispatch(arithmetic_device_uvector_t& property, func_t func)
-{
-  switch (property.index()) {
-    case 1: return func(std::get<1>(property));
-    case 2: return func(std::get<2>(property));
-    case 3: return func(std::get<3>(property));
-    case 4: return func(std::get<4>(property));
-    case 5: return func(std::get<5>(property));
-    default: CUGRAPH_FAIL("Variant not initialized");
-  }
-}
-
-template <typename func_t>
-auto variant_type_dispatch(arithmetic_device_uvector_t const& property, func_t func)
-{
-  switch (property.index()) {
-    case 1: return func(std::get<1>(property));
-    case 2: return func(std::get<2>(property));
-    case 3: return func(std::get<3>(property));
-    case 4: return func(std::get<4>(property));
-    case 5: return func(std::get<5>(property));
-    default: CUGRAPH_FAIL("Variant not initialized");
-  }
-}
-
-template <typename func_t>
-auto variant_type_dispatch(arithmetic_device_span_t& property, func_t func)
-{
-  switch (property.index()) {
-    case 1: return func(std::get<1>(property));
-    case 2: return func(std::get<2>(property));
-    case 3: return func(std::get<3>(property));
-    case 4: return func(std::get<4>(property));
-    case 5: return func(std::get<5>(property));
-    default: CUGRAPH_FAIL("Variant not initialized");
-  }
-}
-
-template <typename func_t>
-auto variant_type_dispatch(const_arithmetic_device_span_t& property, func_t func)
-{
-  switch (property.index()) {
-    case 1: return func(std::get<1>(property));
-    case 2: return func(std::get<2>(property));
-    case 3: return func(std::get<3>(property));
-    case 4: return func(std::get<4>(property));
-    case 5: return func(std::get<5>(property));
-    default: CUGRAPH_FAIL("Variant not initialized");
-  }
-}
-
-template <typename edge_t, typename func_t>
-auto variant_type_dispatch(edge_arithmetic_property_view_t<edge_t>& property, func_t func)
-{
-  switch (property.index()) {
-    case 1: return func(std::get<1>(property));
-    case 2: return func(std::get<2>(property));
-    case 3: return func(std::get<3>(property));
-    case 4: return func(std::get<4>(property));
-    case 5: return func(std::get<5>(property));
-    default: CUGRAPH_FAIL("Variant not initialized");
-  }
-}
-
-template <typename edge_t, typename func_t>
-auto variant_type_dispatch(edge_arithmetic_property_mutable_view_t<edge_t>& property, func_t func)
+template <typename dispatched_type_t, typename func_t>
+auto variant_type_dispatch(dispatched_type_t& property, func_t func)
 {
   switch (property.index()) {
     case 1: return func(std::get<1>(property));

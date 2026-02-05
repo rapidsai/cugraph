@@ -1,15 +1,5 @@
-# Copyright (c) 2024-2025, NVIDIA CORPORATION.
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# SPDX-FileCopyrightText: Copyright (c) 2024-2025, NVIDIA CORPORATION.
+# SPDX-License-Identifier: Apache-2.0
 
 from pylibcugraph import (
     ResourceHandle,
@@ -111,9 +101,7 @@ def node2vec_random_walks(
 
     """
     if (not isinstance(max_depth, int)) or (max_depth < 1):
-        raise ValueError(
-            f"'max_depth' must be a positive integer, " f"got: {max_depth}"
-        )
+        raise ValueError(f"'max_depth' must be a positive integer, got: {max_depth}")
     if (not isinstance(p, float)) or (p <= 0.0):
         raise ValueError(f"'p' must be a positive float, got: {p}")
     if (not isinstance(q, float)) or (q <= 0.0):
@@ -127,8 +115,7 @@ def node2vec_random_walks(
         # FIXME: Verify if this condition still holds
         if start_vertices.dtype != "int32":
             raise ValueError(
-                f"'start_vertices' must have int32 values, "
-                f"got: {start_vertices.dtype}"
+                f"'start_vertices' must have int32 values, got: {start_vertices.dtype}"
             )
 
     if G.renumbered is True:

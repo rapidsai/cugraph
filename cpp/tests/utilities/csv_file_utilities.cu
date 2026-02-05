@@ -1,17 +1,6 @@
 /*
- * Copyright (c) 2021-2025, NVIDIA CORPORATION.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 #include "detail/graph_partition_utils.cuh"
@@ -25,6 +14,7 @@
 #include <rmm/device_uvector.hpp>
 
 #include <cuda/std/iterator>
+#include <cuda/std/tuple>
 #include <thrust/equal.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/remove.h>
@@ -372,23 +362,29 @@ read_graph_from_csv_file(raft::handle_t const& handle,
                                                     large_edge_buffer_type);
 
   graph_t<vertex_t, edge_t, store_transposed, multi_gpu> graph(handle);
-  std::optional<cugraph::edge_property_t<edge_t, weight_t>> edge_weights{std::nullopt};
+  std::vector<cugraph::edge_arithmetic_property_t<edge_t>> edge_properties{};
+  std::vector<cugraph::arithmetic_device_uvector_t> edgelist_edge_properties{};
+  if (d_edgelist_weights) { edgelist_edge_properties.push_back(std::move(*d_edgelist_weights)); }
   std::optional<rmm::device_uvector<vertex_t>> renumber_map{std::nullopt};
-  std::tie(graph, edge_weights, std::ignore, std::ignore, renumber_map) = cugraph::
-    create_graph_from_edgelist<vertex_t, edge_t, weight_t, int32_t, store_transposed, multi_gpu>(
+  std::tie(graph, edge_properties, renumber_map) =
+    cugraph::create_graph_from_edgelist<vertex_t, edge_t, store_transposed, multi_gpu>(
       handle,
       std::nullopt,
       std::move(d_edgelist_srcs),
       std::move(d_edgelist_dsts),
-      std::move(d_edgelist_weights),
-      std::nullopt,
-      std::nullopt,
+      std::move(edgelist_edge_properties),
       cugraph::graph_properties_t{is_symmetric, false},
       renumber,
       large_vertex_buffer_type,
       large_edge_buffer_type);
 
-  return std::make_tuple(std::move(graph), std::move(edge_weights), std::move(renumber_map));
+  return std::make_tuple(
+    std::move(graph),
+    d_edgelist_weights
+      ? std::make_optional<cugraph::edge_property_t<edge_t, weight_t>>(std::move(
+          std::get<cugraph::edge_property_t<edge_t, weight_t>>(std::move(edge_properties[0]))))
+      : std::nullopt,
+    std::move(renumber_map));
 }
 
 // explicit instantiations

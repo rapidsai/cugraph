@@ -1,17 +1,6 @@
 /*
- * Copyright (c) 2022-2025, NVIDIA CORPORATION.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
+ * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
 
@@ -108,7 +97,7 @@ rmm::device_uvector<weight_t> similarity(
 
           auto pair_first = thrust::make_zip_iterator(intersected_properties_a.data(),
                                                       intersected_properties_b.data());
-          thrust::tie(norm_a, norm_b, sum_of_product_of_a_and_b) = thrust::transform_reduce(
+          cuda::std::tie(norm_a, norm_b, sum_of_product_of_a_and_b) = thrust::transform_reduce(
             thrust::seq,
             pair_first,
             pair_first + intersected_properties_a.size(),
@@ -137,10 +126,10 @@ rmm::device_uvector<weight_t> similarity(
 
           auto pair_first = thrust::make_zip_iterator(intersected_properties_a.data(),
                                                       intersected_properties_b.data());
-          thrust::tie(sum_of_min_weight_a_intersect_b,
-                      sum_of_max_weight_a_intersect_b,
-                      sum_of_intersected_a,
-                      sum_of_intersected_b) =
+          cuda::std::tie(sum_of_min_weight_a_intersect_b,
+                         sum_of_max_weight_a_intersect_b,
+                         sum_of_intersected_a,
+                         sum_of_intersected_b) =
             thrust::transform_reduce(
               thrust::seq,
               pair_first,
@@ -218,7 +207,8 @@ all_pairs_similarity(raft::handle_t const& handle,
                      coefficient_t coeff,
                      bool do_expensive_check = false)
 {
-  using GraphViewType = graph_view_t<vertex_t, edge_t, false, multi_gpu>;
+  constexpr bool store_transposed = false;
+  using GraphViewType             = graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>;
 
   CUGRAPH_EXPECTS(graph_view.is_symmetric(),
                   "similarity algorithms require an undirected(symmetric) graph");
@@ -606,15 +596,13 @@ all_pairs_similarity(raft::handle_t const& handle,
 
     if constexpr (multi_gpu) {
       // shuffle vertex pairs
-      auto vertex_partition_range_lasts = graph_view.vertex_partition_range_lasts();
-      std::vector<cugraph::arithmetic_device_uvector_t> edge_properties{};
-
-      std::tie(v1, v2, std::ignore) = shuffle_int_edges(handle,
-                                                        std::move(v1),
-                                                        std::move(v2),
-                                                        std::move(edge_properties),
-                                                        false,
-                                                        vertex_partition_range_lasts);
+      std::tie(v1, v2, std::ignore) =
+        shuffle_int_edges(handle,
+                          std::move(v1),
+                          std::move(v2),
+                          std::vector<cugraph::arithmetic_device_uvector_t>{},
+                          store_transposed,
+                          graph_view.vertex_partition_range_lasts());
     }
 
     auto score =

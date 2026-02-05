@@ -1,15 +1,5 @@
-# Copyright (c) 2019-2025, NVIDIA CORPORATION.
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# SPDX-FileCopyrightText: Copyright (c) 2019-2025, NVIDIA CORPORATION.
+# SPDX-License-Identifier: Apache-2.0
 
 import gc
 
@@ -133,14 +123,12 @@ def test_katz_centrality_toy(graph_file):
         expected_score = centralities[vertex]
         actual_score = ck["katz_centrality"].iloc[vertex]
         assert pytest.approx(expected_score, abs=1e-2) == actual_score, (
-            f"Katz centrality score is {actual_score}, should have"
-            f"been {expected_score}"
+            f"Katz centrality score is {actual_score}, should have been {expected_score}"
         )
 
 
 @pytest.mark.sg
 def test_katz_centrality_transposed_false():
-
     G = karate.get_graph(create_using=cugraph.Graph(directed=True))
 
     warning_msg = (

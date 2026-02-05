@@ -1,17 +1,6 @@
 /*
- * Copyright (c) 2019-2025, NVIDIA CORPORATION.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-FileCopyrightText: Copyright (c) 2019-2025, NVIDIA CORPORATION.
+ * SPDX-License-Identifier: Apache-2.0
  */
 /*
  * COOtoCSR_kernels.cuh
@@ -69,6 +58,7 @@ VT sort(legacy::GraphCOOView<VT, ET, WT>& graph, rmm::cuda_stream_view stream_vi
 {
   VT max_src_id;
   VT max_dst_id;
+  CUGRAPH_EXPECTS(graph.number_of_edges > 0, "number_of_edges should be strictly positive");
   if (graph.has_data()) {
     thrust::stable_sort_by_key(rmm::exec_policy(stream_view),
                                graph.dst_indices,

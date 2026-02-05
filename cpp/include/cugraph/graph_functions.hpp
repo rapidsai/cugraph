@@ -1,20 +1,10 @@
 /*
- * Copyright (c) 2020-2025, NVIDIA CORPORATION.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2025, NVIDIA CORPORATION.
+ * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
 
+#include <cugraph/arithmetic_variant_types.hpp>
 #include <cugraph/edge_property.hpp>
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_view.hpp>
@@ -428,7 +418,7 @@ decompress_to_edgelist(
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
  * @tparam weight_t Type of edge weights. Needs to be a floating point type.
  * @tparam edge_type_t Type of edge type identifiers. Needs to be an integral type.
- * @tparam edge_time_t Type of edge time. Needs to be an integral type.
+ * @tparam time_stamp_t Type of time. Needs to be an integral type.
  * @tparam store_transposed Flag indicating whether to use sources (if false) or destinations (if
  * true) as major indices in storing edges using a 2D sparse matrix.
  * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
@@ -454,7 +444,7 @@ template <typename vertex_t,
           typename edge_t,
           typename weight_t,
           typename edge_type_t,
-          typename edge_time_t,
+          typename time_stamp_t,
           bool store_transposed,
           bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>,
@@ -462,16 +452,16 @@ std::tuple<rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>,
            std::optional<rmm::device_uvector<edge_t>>,
            std::optional<rmm::device_uvector<edge_type_t>>,
-           std::optional<rmm::device_uvector<edge_time_t>>,
-           std::optional<rmm::device_uvector<edge_time_t>>>
+           std::optional<rmm::device_uvector<time_stamp_t>>,
+           std::optional<rmm::device_uvector<time_stamp_t>>>
 symmetrize_edgelist(raft::handle_t const& handle,
                     rmm::device_uvector<vertex_t>&& edgelist_srcs,
                     rmm::device_uvector<vertex_t>&& edgelist_dsts,
                     std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights,
                     std::optional<rmm::device_uvector<edge_t>>&& edgelist_edge_ids,
                     std::optional<rmm::device_uvector<edge_type_t>>&& edgelist_edge_types,
-                    std::optional<rmm::device_uvector<edge_time_t>>&& edgelist_edge_start_times,
-                    std::optional<rmm::device_uvector<edge_time_t>>&& edgelist_edge_end_times,
+                    std::optional<rmm::device_uvector<time_stamp_t>>&& edgelist_edge_start_times,
+                    std::optional<rmm::device_uvector<time_stamp_t>>&& edgelist_edge_end_times,
                     bool reciprocal);
 
 /**
@@ -726,9 +716,6 @@ extract_induced_subgraphs(
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
- * @tparam weight_t Type of edge weight.  Needs to be floating point type
- * @tparam edge_type_t Type of edge type.  Needs to be an integral type, currently only int32_t is
- * supported
  * @tparam store_transposed Flag indicating whether to use sources (if false) or destinations (if
  * true) as major indices in storing edges using a 2D sparse matrix.
  * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
@@ -744,9 +731,7 @@ extract_induced_subgraphs(
  * compute_gpu_id_from_ext_edge_endpoints_t to every edge should return the local GPU ID for this
  * function to work (edges should be pre-shuffled).
  * @param edgelist_dsts Vector of edge destination vertex IDs.
- * @param edgelist_weights Vector of weight values for edges
- * @param edgelist_edge_ids Vector of edge_id values for edges
- * @param edgelist_edge_types Vector of edge_type values for edges
+ * @param edgelist_edge_properties Vector of edge properties for edges
  * @param graph_properties Properties of the graph represented by the input (optional vertex list
  * and) edge list.
  * @param renumber Flag indicating whether to renumber vertices or not (must be true if @p multi_gpu
@@ -763,102 +748,16 @@ extract_induced_subgraphs(
  * @return Tuple of the generated graph and optional edge_property_t objects storing the provided
  * edge properties and a renumber map (if @p renumber is true).
  */
-template <typename vertex_t,
-          typename edge_t,
-          typename weight_t,
-          typename edge_type_t,
-          bool store_transposed,
-          bool multi_gpu>
+template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
 std::tuple<graph_t<vertex_t, edge_t, store_transposed, multi_gpu>,
-           std::optional<edge_property_t<edge_t, weight_t>>,
-           std::optional<edge_property_t<edge_t, edge_t>>,
-           std::optional<edge_property_t<edge_t, edge_type_t>>,
+           std::vector<edge_arithmetic_property_t<edge_t>>,
            std::optional<rmm::device_uvector<vertex_t>>>
 create_graph_from_edgelist(
   raft::handle_t const& handle,
   std::optional<rmm::device_uvector<vertex_t>>&& vertices,
   rmm::device_uvector<vertex_t>&& edgelist_srcs,
   rmm::device_uvector<vertex_t>&& edgelist_dsts,
-  std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights,
-  std::optional<rmm::device_uvector<edge_t>>&& edgelist_edge_ids,
-  std::optional<rmm::device_uvector<edge_type_t>>&& edgelist_edge_types,
-  graph_properties_t graph_properties,
-  bool renumber,
-  std::optional<large_buffer_type_t> large_vertex_buffer_type = std::nullopt,
-  std::optional<large_buffer_type_t> large_edge_buffer_type   = std::nullopt,
-  bool do_expensive_check                                     = false);
-
-/**
- * @ingroup graph_functions_cpp
- * @brief create a graph from (the optional vertex list and) the given edge list (with optional edge
- * IDs and types).
- *
- * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
- * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
- * @tparam weight_t Type of edge weight.  Needs to be floating point type
- * @tparam edge_type_t Type of edge type.  Needs to be an integral type, currently only int32_t is
- * supported
- * @tparam edge_time_t Type of edge time.  Needs to be an integral type.
- * @tparam store_transposed Flag indicating whether to use sources (if false) or destinations (if
- * true) as major indices in storing edges using a 2D sparse matrix. transposed.
- * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
- * or multi-GPU (true).
- * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
- * handles to various CUDA libraries) to run graph algorithms.
- * @param vertices  If valid, part of the entire set of vertices in the graph to be renumbered.
- * This parameter can be used to include isolated vertices. If @p renumber is false and @p vertices
- * is valid, @p vertices elements should be consecutive integers starting from 0. If multi-GPU,
- * applying the compute_gpu_id_from_vertex_t to every vertex should return the local GPU ID for this
- * function to work (vertices should be pre-shuffled).
- * @param edgelist_srcs Vector of edge source vertex IDs. If multi-GPU, applying the
- * compute_gpu_id_from_ext_edge_endpoints_t to every edge should return the local GPU ID for this
- * function to work (edges should be pre-shuffled).
- * @param edgelist_dsts Vector of edge destination vertex IDs.
- * @param edgelist_weights Vector of weight values for edges
- * @param edgelist_edge_ids Vector of edge_id values for edges
- * @param edgelist_edge_types Vector of edge_type values for edges
- * @param edgelist_edge_start_times Vector of start time values for edges
- * @param edgelist_edge_end_times Vector of end time values for edges
- * @param graph_properties Properties of the graph represented by the input (optional vertex list
- * and) edge list.
- * @param renumber Flag indicating whether to renumber vertices or not (must be true if @p multi_gpu
- * is true).
- * @param large_vertex_buffer_type Flag indicating the large buffer type to use when we need to
- * create a per-vertex device-accessible vector object (if the value is std::nullopt, the default
- * RMM per-device memory resource is used). The per-vertex vectors in the created graph will also be
- * stored in the buffer type dictated by this parameter.
- * @param large_edge_buffer_type Flag indicating the large buffer type to use when we need to create
- * a per-edge device-accessible vector object (if the value is std::nullopt, the default RMM
- * per-device memory resource is used). The per-edge vectors in the created graph will also be
- * stored in the buffer type dictated by this parameter.
- * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
- * @return Tuple of the generated graph and optional edge_property_t objects storing the provided
- * edge properties and a renumber map (if @p renumber is true).
- */
-template <typename vertex_t,
-          typename edge_t,
-          typename weight_t,
-          typename edge_type_t,
-          typename edge_time_t,
-          bool store_transposed,
-          bool multi_gpu>
-std::tuple<graph_t<vertex_t, edge_t, store_transposed, multi_gpu>,
-           std::optional<edge_property_t<edge_t, weight_t>>,
-           std::optional<edge_property_t<edge_t, edge_t>>,
-           std::optional<edge_property_t<edge_t, edge_type_t>>,
-           std::optional<edge_property_t<edge_t, edge_time_t>>,
-           std::optional<edge_property_t<edge_t, edge_time_t>>,
-           std::optional<rmm::device_uvector<vertex_t>>>
-create_graph_from_edgelist(
-  raft::handle_t const& handle,
-  std::optional<rmm::device_uvector<vertex_t>>&& vertices,
-  rmm::device_uvector<vertex_t>&& edgelist_srcs,
-  rmm::device_uvector<vertex_t>&& edgelist_dsts,
-  std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights,
-  std::optional<rmm::device_uvector<edge_t>>&& edgelist_edge_ids,
-  std::optional<rmm::device_uvector<edge_type_t>>&& edgelist_edge_types,
-  std::optional<rmm::device_uvector<edge_time_t>>&& edgelist_edge_start_times,
-  std::optional<rmm::device_uvector<edge_time_t>>&& edgelist_edge_end_times,
+  std::vector<arithmetic_device_uvector_t>&& edgelist_edge_properties,
   graph_properties_t graph_properties,
   bool renumber,
   std::optional<large_buffer_type_t> large_vertex_buffer_type = std::nullopt,
@@ -874,9 +773,6 @@ create_graph_from_edgelist(
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
- * @tparam weight_t Type of edge weight.  Needs to be floating point type
- * @tparam edge_type_t Type of edge type.  Needs to be an integral type, currently only int32_t is
- * supported
  * @tparam store_transposed Flag indicating whether to use sources (if false) or destinations (if
  * true) as major indices in storing edges using a 2D sparse matrix.
  * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
@@ -892,9 +788,7 @@ create_graph_from_edgelist(
  * compute_gpu_id_from_ext_edge_endpoints_t to every edge should return the local GPU ID for this
  * function to work (edges should be pre-shuffled).
  * @param edgelist_dsts Vectors of edge destination vertex IDs.
- * @param edgelist_weights Vectors of weight values for edges
- * @param edgelist_edge_ids Vectors of edge_id values for edges
- * @param edgelist_edge_types Vectors of edge_type values for edges
+ * @param edgelist_edge_properties Vector of edge properties for edges
  * @param graph_properties Properties of the graph represented by the input (optional vertex list
  * and) edge list.
  * @param renumber Flag indicating whether to renumber vertices or not (must be true if @p multi_gpu
@@ -911,103 +805,16 @@ create_graph_from_edgelist(
  * @return Tuple of the generated graph and optional edge_property_t objects storing the provided
  * edge properties and a renumber map (if @p renumber is true).
  */
-template <typename vertex_t,
-          typename edge_t,
-          typename weight_t,
-          typename edge_type_t,
-          bool store_transposed,
-          bool multi_gpu>
+template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
 std::tuple<graph_t<vertex_t, edge_t, store_transposed, multi_gpu>,
-           std::optional<edge_property_t<edge_t, weight_t>>,
-           std::optional<edge_property_t<edge_t, edge_t>>,
-           std::optional<edge_property_t<edge_t, edge_type_t>>,
+           std::vector<edge_arithmetic_property_t<edge_t>>,
            std::optional<rmm::device_uvector<vertex_t>>>
 create_graph_from_edgelist(
   raft::handle_t const& handle,
   std::optional<rmm::device_uvector<vertex_t>>&& vertices,
   std::vector<rmm::device_uvector<vertex_t>>&& edgelist_srcs,
   std::vector<rmm::device_uvector<vertex_t>>&& edgelist_dsts,
-  std::optional<std::vector<rmm::device_uvector<weight_t>>>&& edgelist_weights,
-  std::optional<std::vector<rmm::device_uvector<edge_t>>>&& edgelist_edge_ids,
-  std::optional<std::vector<rmm::device_uvector<edge_type_t>>>&& edgelist_edge_types,
-  graph_properties_t graph_properties,
-  bool renumber,
-  std::optional<large_buffer_type_t> large_vertex_buffer_type = std::nullopt,
-  std::optional<large_buffer_type_t> large_edge_buffer_type   = std::nullopt,
-  bool do_expensive_check                                     = false);
-
-/**
- * @ingroup graph_functions_cpp
- * @brief create a graph from (the optional vertex list and) the given edge list (with optional edge
- * IDs, types, start and end times).
- *
- * This version takes edge list in multiple chunks (e.g. edge data from multiple files).
- *
- * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
- * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
- * @tparam weight_t Type of edge weight.  Needs to be floating point type
- * @tparam edge_type_t Type of edge type.  Needs to be an integral type, currently only int32_t is
- * supported
- * @tparam edge_time_t Type of edge time.  Needs to be an integral type.
- * @tparam store_transposed Flag indicating whether to use sources (if false) or destinations (if
- * true) as major indices in storing edges using a 2D sparse matrix. transposed.
- * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
- * or multi-GPU (true).
- * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
- * handles to various CUDA libraries) to run graph algorithms.
- * @param vertices  If valid, part of the entire set of vertices in the graph to be renumbered.
- * This parameter can be used to include isolated vertices. If @p renumber is false and @p vertices
- * is valid, @p vertices elements should be consecutive integers starting from 0. If multi-GPU,
- * applying the compute_gpu_id_from_vertex_t to every vertex should return the local GPU ID for this
- * function to work (vertices should be pre-shuffled).
- * @param edgelist_srcs Vectors of edge source vertex IDs. If multi-GPU, applying the
- * compute_gpu_id_from_ext_edge_endpoints_t to every edge should return the local GPU ID for this
- * function to work (edges should be pre-shuffled).
- * @param edgelist_dsts Vectors of edge destination vertex IDs.
- * @param edgelist_weights Vectors of weight values for edges
- * @param edgelist_edge_ids Vectors of edge_id values for edges
- * @param edgelist_edge_types Vectors of edge_type values for edges
- * @param edgelist_edge_start_times Vector of start time values for edges
- * @param edgelist_edge_end_times Vector of end time values for edges
- * @param graph_properties Properties of the graph represented by the input (optional vertex list
- * and) edge list.
- * @param renumber Flag indicating whether to renumber vertices or not (must be true if @p multi_gpu
- * @param large_vertex_buffer_type Flag indicating the large buffer type to use when we need to
- * create a per-vertex device-accessible vector object (if the value is std::nullopt, the default
- * RMM per-device memory resource is used). The per-vertex vectors in the created graph will also be
- * stored in the buffer type dictated by this parameter.
- * @param large_edge_buffer_type Flag indicating the large buffer type to use when we need to create
- * a per-edge device-accessible vector object (if the value is std::nullopt, the default RMM
- * per-device memory resource is used). The per-edge vectors in the created graph will also be
- * stored in the buffer type dictated by this parameter.
- * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
- * @return Tuple of the generated graph and optional edge_property_t objects storing the provided
- * edge properties and a renumber map (if @p renumber is true).
- */
-template <typename vertex_t,
-          typename edge_t,
-          typename weight_t,
-          typename edge_type_t,
-          typename edge_time_t,
-          bool store_transposed,
-          bool multi_gpu>
-std::tuple<graph_t<vertex_t, edge_t, store_transposed, multi_gpu>,
-           std::optional<edge_property_t<edge_t, weight_t>>,
-           std::optional<edge_property_t<edge_t, edge_t>>,
-           std::optional<edge_property_t<edge_t, edge_type_t>>,
-           std::optional<edge_property_t<edge_t, edge_time_t>>,
-           std::optional<edge_property_t<edge_t, edge_time_t>>,
-           std::optional<rmm::device_uvector<vertex_t>>>
-create_graph_from_edgelist(
-  raft::handle_t const& handle,
-  std::optional<rmm::device_uvector<vertex_t>>&& vertices,
-  std::vector<rmm::device_uvector<vertex_t>>&& edgelist_srcs,
-  std::vector<rmm::device_uvector<vertex_t>>&& edgelist_dsts,
-  std::optional<std::vector<rmm::device_uvector<weight_t>>>&& edgelist_weights,
-  std::optional<std::vector<rmm::device_uvector<edge_t>>>&& edgelist_edge_ids,
-  std::optional<std::vector<rmm::device_uvector<edge_type_t>>>&& edgelist_edge_types,
-  std::optional<std::vector<rmm::device_uvector<edge_time_t>>>&& edgelist_edge_start_times,
-  std::optional<std::vector<rmm::device_uvector<edge_time_t>>>&& edgelist_edge_end_times,
+  std::vector<std::vector<arithmetic_device_uvector_t>>&& edgelist_edge_properties,
   graph_properties_t graph_properties,
   bool renumber,
   std::optional<large_buffer_type_t> large_vertex_buffer_type = std::nullopt,
@@ -1221,7 +1028,7 @@ rmm::device_uvector<vertex_t> select_random_vertices(
  * @tparam edge_t      Type of edge identifiers. Needs to be an integral type.
  * @tparam weight_t    Type of edge weight. Currently float and double are supported.
  * @tparam edge_type_t Type of edge type. Needs to be an integral type.
- * @tparam edge_time_t Type of edge time.  Needs to be an integral type.
+ * @tparam time_stamp_t Type of time.  Needs to be an integral type.
  *
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
@@ -1243,22 +1050,22 @@ template <typename vertex_t,
           typename edge_t,
           typename weight_t,
           typename edge_type_t,
-          typename edge_time_t>
+          typename time_stamp_t>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>,
            std::optional<rmm::device_uvector<edge_t>>,
            std::optional<rmm::device_uvector<edge_type_t>>,
-           std::optional<rmm::device_uvector<edge_time_t>>,
-           std::optional<rmm::device_uvector<edge_time_t>>>
+           std::optional<rmm::device_uvector<time_stamp_t>>,
+           std::optional<rmm::device_uvector<time_stamp_t>>>
 remove_self_loops(raft::handle_t const& handle,
                   rmm::device_uvector<vertex_t>&& edgelist_srcs,
                   rmm::device_uvector<vertex_t>&& edgelist_dsts,
                   std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights,
                   std::optional<rmm::device_uvector<edge_t>>&& edgelist_edge_ids,
                   std::optional<rmm::device_uvector<edge_type_t>>&& edgelist_edge_types,
-                  std::optional<rmm::device_uvector<edge_time_t>>&& edgelist_edge_start_times,
-                  std::optional<rmm::device_uvector<edge_time_t>>&& edgelist_edge_end_times,
+                  std::optional<rmm::device_uvector<time_stamp_t>>&& edgelist_edge_start_times,
+                  std::optional<rmm::device_uvector<time_stamp_t>>&& edgelist_edge_end_times,
                   std::optional<large_buffer_type_t> large_buffer_type = std::nullopt);
 
 /**
@@ -1281,7 +1088,7 @@ remove_self_loops(raft::handle_t const& handle,
  * @tparam edge_t      Type of edge identifiers. Needs to be an integral type.
  * @tparam weight_t    Type of edge weight. Currently float and double are supported.
  * @tparam edge_type_t Type of edge type. Needs to be an integral type.
- * @tparam edge_time_t Type of edge time.  Needs to be an integral type.
+ * @tparam time_stamp_t Type of time.  Needs to be an integral type.
  *
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
@@ -1312,22 +1119,22 @@ template <typename vertex_t,
           typename edge_t,
           typename weight_t,
           typename edge_type_t,
-          typename edge_time_t>
+          typename time_stamp_t>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>,
            std::optional<rmm::device_uvector<edge_t>>,
            std::optional<rmm::device_uvector<edge_type_t>>,
-           std::optional<rmm::device_uvector<edge_time_t>>,
-           std::optional<rmm::device_uvector<edge_time_t>>>
+           std::optional<rmm::device_uvector<time_stamp_t>>,
+           std::optional<rmm::device_uvector<time_stamp_t>>>
 remove_multi_edges(raft::handle_t const& handle,
                    rmm::device_uvector<vertex_t>&& edgelist_srcs,
                    rmm::device_uvector<vertex_t>&& edgelist_dsts,
                    std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights,
                    std::optional<rmm::device_uvector<edge_t>>&& edgelist_edge_ids,
                    std::optional<rmm::device_uvector<edge_type_t>>&& edgelist_edge_types,
-                   std::optional<rmm::device_uvector<edge_time_t>>&& edgelist_edge_start_times,
-                   std::optional<rmm::device_uvector<edge_time_t>>&& edgelist_edge_edge_times,
+                   std::optional<rmm::device_uvector<time_stamp_t>>&& edgelist_edge_start_times,
+                   std::optional<rmm::device_uvector<time_stamp_t>>&& edgelist_edge_edge_times,
                    bool keep_min_value_edge                             = false,
                    std::optional<large_buffer_type_t> large_buffer_type = std::nullopt);
 
@@ -1351,7 +1158,7 @@ remove_multi_edges(raft::handle_t const& handle,
  * @tparam edge_t      Type of edge identifiers. Needs to be an integral type.
  * @tparam weight_t    Type of edge weight. Currently float and double are supported.
  * @tparam edge_type_t Type of edge type. Needs to be an integral type.
- * @tparam edge_time_t Type of edge time.  Needs to be an integral type.
+ * @tparam time_stamp_t Type of time.  Needs to be an integral type.
  *
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
@@ -1385,14 +1192,14 @@ template <typename vertex_t,
           typename edge_t,
           typename weight_t,
           typename edge_type_t,
-          typename edge_time_t>
+          typename time_stamp_t>
 std::tuple<std::vector<rmm::device_uvector<vertex_t>>,
            std::vector<rmm::device_uvector<vertex_t>>,
            std::optional<std::vector<rmm::device_uvector<weight_t>>>,
            std::optional<std::vector<rmm::device_uvector<edge_t>>>,
            std::optional<std::vector<rmm::device_uvector<edge_type_t>>>,
-           std::optional<std::vector<rmm::device_uvector<edge_time_t>>>,
-           std::optional<std::vector<rmm::device_uvector<edge_time_t>>>>
+           std::optional<std::vector<rmm::device_uvector<time_stamp_t>>>,
+           std::optional<std::vector<rmm::device_uvector<time_stamp_t>>>>
 remove_multi_edges(
   raft::handle_t const& handle,
   std::vector<rmm::device_uvector<vertex_t>>&& edgelist_srcs,
@@ -1400,8 +1207,8 @@ remove_multi_edges(
   std::optional<std::vector<rmm::device_uvector<weight_t>>>&& edgelist_weights,
   std::optional<std::vector<rmm::device_uvector<edge_t>>>&& edgelist_edge_ids,
   std::optional<std::vector<rmm::device_uvector<edge_type_t>>>&& edgelist_edge_types,
-  std::optional<std::vector<rmm::device_uvector<edge_time_t>>>&& edgelist_edge_start_times,
-  std::optional<std::vector<rmm::device_uvector<edge_time_t>>>&& edgelist_edge_edge_times,
+  std::optional<std::vector<rmm::device_uvector<time_stamp_t>>>&& edgelist_edge_start_times,
+  std::optional<std::vector<rmm::device_uvector<time_stamp_t>>>&& edgelist_edge_edge_times,
   bool keep_min_value_edge                             = false,
   std::optional<large_buffer_type_t> large_buffer_type = std::nullopt);
 

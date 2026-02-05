@@ -1,17 +1,6 @@
 /*
- * Copyright (c) 2022-2025, NVIDIA CORPORATION.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
+ * SPDX-License-Identifier: Apache-2.0
  */
 #include <cugraph/utilities/error.hpp>
 #include <cugraph_etl/functions.hpp>
@@ -23,10 +12,10 @@
 #include <cudf/utilities/type_dispatcher.hpp>
 
 #include <rmm/exec_policy.hpp>
-#include <rmm/mr/host/new_delete_resource.hpp>
+#include <rmm/mr/pinned_host_memory_resource.hpp>
 
 #include <cub/device/device_radix_sort.cuh>
-#include <thrust/pair.h>
+#include <cuda/std/utility>
 #include <thrust/sort.h>
 
 #include <cuda.h>
@@ -318,7 +307,7 @@ __global__ static void concat_and_create_histogram(int8_t* col_1,
     // concurrent_unordered_map
     // key : hashed_val, val: {idx, count}
     auto insert_pair =
-      hash_map.insert(thrust::make_pair(hashed_str_val, str_hash_value{start_idx, 0, 0}));
+      hash_map.insert(cuda::std::make_pair(hashed_str_val, str_hash_value{start_idx, 0, 0}));
 
     if (!insert_pair.second) {
       size_type row__ = validate_ht_row_insert(&(insert_pair.first->second.row_));
@@ -327,7 +316,7 @@ __global__ static void concat_and_create_histogram(int8_t* col_1,
         // else loop over +1 count of hash value and insert again
         hashed_str_val += hash_inc_constant;
         insert_pair =
-          hash_map.insert(thrust::make_pair(hashed_str_val, str_hash_value{start_idx, 0, 0}));
+          hash_map.insert(cuda::std::make_pair(hashed_str_val, str_hash_value{start_idx, 0, 0}));
         if (insert_pair.second) {
           atomicAdd(&(insert_counter[warp_accum_idx]), 1);
           break;
@@ -402,7 +391,7 @@ __global__ static void concat_and_create_histogram_2(int8_t* col_1,
     // key : hashed_val, val: {idx, count}
 
     auto insert_pair =
-      hash_map.insert(thrust::make_pair(hashed_str_val, str_hash_value{start_idx, 0, 1}));
+      hash_map.insert(cuda::std::make_pair(hashed_str_val, str_hash_value{start_idx, 0, 1}));
 
     if (!insert_pair.second) {
       size_type row__ = validate_ht_row_insert(&(insert_pair.first->second.row_));
@@ -428,7 +417,7 @@ __global__ static void concat_and_create_histogram_2(int8_t* col_1,
         hashed_str_val += hash_inc_constant;
         // printf("new insert\n");
         insert_pair =
-          hash_map.insert(thrust::make_pair(hashed_str_val, str_hash_value{start_idx, 0, 1}));
+          hash_map.insert(cuda::std::make_pair(hashed_str_val, str_hash_value{start_idx, 0, 1}));
         if (insert_pair.second) {
           atomicAdd(&(insert_counter[warp_accum_idx]), 1);
           break;
@@ -590,7 +579,9 @@ __global__ static void create_mapping_histogram(uint32_t* hash_value,
 {
   accum_type idx = threadIdx.x + blockIdx.x * blockDim.x;
 
-  if (idx < count) { auto it = hash_map.insert(thrust::make_pair(hash_value[idx], payload[idx])); }
+  if (idx < count) {
+    auto it = hash_map.insert(cuda::std::make_pair(hash_value[idx], payload[idx]));
+  }
 }
 
 __global__ static void assign_histogram_idx(cudf_map_type cuda_map_obj,
@@ -789,9 +780,9 @@ struct renumber_functor {
 
     cudaStream_t exec_strm = handle.get_stream();
 
-    auto mr                         = rmm::mr::new_delete_resource();
+    auto mr                         = rmm::mr::pinned_host_memory_resource();
     size_t hist_size                = sizeof(accum_type) * 32;
-    accum_type* hist_insert_counter = static_cast<accum_type*>(mr.allocate(hist_size));
+    accum_type* hist_insert_counter = static_cast<accum_type*>(mr.allocate(exec_strm, hist_size));
     *hist_insert_counter            = 0;
 
     float load_factor = 0.7;
@@ -1052,7 +1043,7 @@ struct renumber_functor {
 
     RAFT_CHECK_CUDA(cudaDeviceSynchronize());
 
-    mr.deallocate(hist_insert_counter, hist_size);
+    mr.deallocate(exec_strm, hist_insert_counter, hist_size);
 
     return std::make_tuple(
       std::move(cols_vector[0]),

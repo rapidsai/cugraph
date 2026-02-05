@@ -1,17 +1,6 @@
 /*
- * Copyright (c) 2022-2025, NVIDIA CORPORATION.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
+ * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
 
@@ -41,6 +30,7 @@
 #include <cuda/atomic>
 #include <cuda/std/iterator>
 #include <cuda/std/optional>
+#include <cuda/std/tuple>
 #include <thrust/copy.h>
 #include <thrust/execution_policy.h>
 #include <thrust/functional.h>
@@ -670,7 +660,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> multisour
 
     // Step 3: Manual array updates using in-place reduced data
     // Get count from the values output since keys output is a zip iterator
-    size_t num_reduced = thrust::distance(sigmas.begin(), reduced_result.second);
+    size_t num_reduced = cuda::std::distance(sigmas.begin(), reduced_result.second);
     thrust::for_each(handle.get_thrust_policy(),
                      thrust::make_zip_iterator(
                        frontier_vertices.begin(), frontier_origins.begin(), sigmas.begin()),
@@ -746,8 +736,9 @@ void multisource_backward_pass(
 
   auto d_first = thrust::make_transform_iterator(
     distances_2d.begin(),
-    cuda::proclaim_return_type<vertex_t>(
-      [invalid_distance] __device__(auto d) { return d == invalid_distance ? vertex_t{0} : d; }));
+    cuda::proclaim_return_type<vertex_t>([invalid_distance] __device__(vertex_t d) {
+      return d == invalid_distance ? vertex_t{0} : d;
+    }));
   vertex_t global_max_distance = thrust::reduce(handle.get_thrust_policy(),
                                                 d_first,
                                                 d_first + distances_2d.size(),
@@ -805,18 +796,21 @@ void multisource_backward_pass(
   auto v_first = graph_view.local_vertex_partition_range_first();
 
   // Calculate offsets for each distance level in the consecutive arrays
-  std::vector<size_t> h_distance_offsets(global_max_distance + 1);
+  // Need global_max_distance + 2 elements: one for each distance level (0 to global_max_distance)
+  // plus a sentinel at the end for CUB segmented sort end offsets
+  std::vector<size_t> h_distance_offsets(global_max_distance + 2);
   size_t offset = 0;
   for (vertex_t d = 0; d <= global_max_distance; ++d) {
     h_distance_offsets[d] = offset;
     offset += host_distance_counts[d];
   }
+  h_distance_offsets[global_max_distance + 1] = offset;  // sentinel = total_vertices
 
   // Copy offsets to device for kernel access
-  rmm::device_uvector<size_t> d_distance_offsets(global_max_distance + 1, handle.get_stream());
+  rmm::device_uvector<size_t> d_distance_offsets(global_max_distance + 2, handle.get_stream());
   raft::update_device(d_distance_offsets.data(),
                       h_distance_offsets.data(),
-                      global_max_distance + 1,
+                      global_max_distance + 2,
                       handle.get_stream());
 
   // Populate consecutive arrays - single scan of distance array
@@ -883,7 +877,11 @@ void multisource_backward_pass(
     // Allocate temporary storage for CUB segmented sort
     rmm::device_uvector<std::byte> d_tmp_storage(0, handle.get_stream());
 
-    // Process each chunk - sort consecutive arrays directly in-place
+    // Allocate output buffers for CUB sort (input/output cannot overlap)
+    rmm::device_uvector<vertex_t> sorted_vertices(total_vertices, handle.get_stream());
+    rmm::device_uvector<origin_t> sorted_sources(total_vertices, handle.get_stream());
+
+    // Process each chunk
     for (size_t chunk_i = 0; chunk_i < num_chunks; ++chunk_i) {
       size_t chunk_vertex_start    = h_vertex_chunk_offsets[chunk_i];
       size_t chunk_vertex_end      = h_vertex_chunk_offsets[chunk_i + 1];
@@ -894,17 +892,19 @@ void multisource_backward_pass(
 
       if (num_segments_in_chunk > 0) {
         auto offset_first = thrust::make_transform_iterator(
-          h_distance_offsets.data() + chunk_distance_start,
-          [chunk_vertex_start] __device__(size_t offset) { return offset - chunk_vertex_start; });
+          d_distance_offsets.data() + chunk_distance_start,
+          cuda::proclaim_return_type<size_t>([chunk_vertex_start] __device__(size_t offset) {
+            return offset - chunk_vertex_start;
+          }));
 
-        // CUB segmented sort directly on consecutive arrays - no copy needed!
+        // CUB segmented sort requires separate input and output buffers
         size_t temp_storage_bytes = 0;
         cub::DeviceSegmentedSort::SortPairs(nullptr,
                                             temp_storage_bytes,
                                             all_vertices.data() + chunk_vertex_start,
-                                            all_vertices.data() + chunk_vertex_start,
+                                            sorted_vertices.data() + chunk_vertex_start,
                                             all_sources.data() + chunk_vertex_start,
-                                            all_sources.data() + chunk_vertex_start,
+                                            sorted_sources.data() + chunk_vertex_start,
                                             chunk_size,
                                             num_segments_in_chunk,
                                             offset_first,
@@ -918,9 +918,9 @@ void multisource_backward_pass(
         cub::DeviceSegmentedSort::SortPairs(d_tmp_storage.data(),
                                             temp_storage_bytes,
                                             all_vertices.data() + chunk_vertex_start,
-                                            all_vertices.data() + chunk_vertex_start,
+                                            sorted_vertices.data() + chunk_vertex_start,
                                             all_sources.data() + chunk_vertex_start,
-                                            all_sources.data() + chunk_vertex_start,
+                                            sorted_sources.data() + chunk_vertex_start,
                                             chunk_size,
                                             num_segments_in_chunk,
                                             offset_first,
@@ -928,6 +928,10 @@ void multisource_backward_pass(
                                             handle.get_stream());
       }
     }
+
+    // Use the sorted arrays for subsequent processing
+    all_vertices = std::move(sorted_vertices);
+    all_sources  = std::move(sorted_sources);
   }
 
   // Process distance levels using pre-computed buckets (now with sorted vertices)

@@ -1,17 +1,6 @@
 /*
- * Copyright (c) 2020-2025, NVIDIA CORPORATION.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2025, NVIDIA CORPORATION.
+ * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
 
@@ -536,19 +525,23 @@ coarsen_graph(raft::handle_t const& handle,
   // 4. create a graph
 
   graph_t<vertex_t, edge_t, store_transposed, multi_gpu> coarsened_graph(handle);
-  std::optional<edge_property_t<edge_t, weight_t>> edge_weights{std::nullopt};
+  std::vector<edge_arithmetic_property_t<edge_t>> edge_properties{};
   std::optional<rmm::device_uvector<vertex_t>> renumber_map{std::nullopt};
-  std::tie(coarsened_graph, edge_weights, std::ignore, std::ignore, renumber_map) =
-    create_graph_from_edgelist<vertex_t, edge_t, weight_t, int32_t, store_transposed, multi_gpu>(
+
+  std::vector<arithmetic_device_uvector_t> concatenated_edgelist_edge_properties{};
+  if (concatenated_edgelist_weights) {
+    concatenated_edgelist_edge_properties.push_back(std::move(*concatenated_edgelist_weights));
+  }
+
+  std::tie(coarsened_graph, edge_properties, renumber_map) =
+    create_graph_from_edgelist<vertex_t, edge_t, store_transposed, multi_gpu>(
       handle,
       std::move(unique_labels),
       store_transposed ? std::move(concatenated_edgelist_minors)
                        : std::move(concatenated_edgelist_majors),
       store_transposed ? std::move(concatenated_edgelist_majors)
                        : std::move(concatenated_edgelist_minors),
-      std::move(concatenated_edgelist_weights),
-      std::nullopt,
-      std::nullopt,
+      std::move(concatenated_edgelist_edge_properties),
       graph_properties_t{graph_view.is_symmetric(), false},
       true /* renumber */,
       std::nullopt,
@@ -556,7 +549,10 @@ coarsen_graph(raft::handle_t const& handle,
       do_expensive_check);
 
   return std::make_tuple(std::move(coarsened_graph),
-                         std::move(edge_weights),
+                         concatenated_edgelist_weights
+                           ? std::make_optional<edge_property_t<edge_t, weight_t>>(std::move(
+                               std::get<edge_property_t<edge_t, weight_t>>(edge_properties[0])))
+                           : std::nullopt,
                          std::optional<rmm::device_uvector<vertex_t>>{std::move(*renumber_map)});
 }
 
@@ -687,27 +683,34 @@ coarsen_graph(raft::handle_t const& handle,
   }
 
   graph_t<vertex_t, edge_t, store_transposed, multi_gpu> coarsened_graph(handle);
-  std::optional<edge_property_t<edge_t, weight_t>> edge_weights{std::nullopt};
   std::optional<rmm::device_uvector<vertex_t>> renumber_map{std::nullopt};
-  std::tie(coarsened_graph, edge_weights, std::ignore, std::ignore, renumber_map) =
-    create_graph_from_edgelist<vertex_t, edge_t, weight_t, int32_t, store_transposed, multi_gpu>(
+  std::vector<arithmetic_device_uvector_t> coarsened_edgelist_edge_properties{};
+  if (coarsened_edgelist_weights) {
+    coarsened_edgelist_edge_properties.push_back(std::move(*coarsened_edgelist_weights));
+  }
+
+  std::vector<edge_arithmetic_property_t<edge_t>> edge_properties{};
+  std::tie(coarsened_graph, edge_properties, renumber_map) =
+    create_graph_from_edgelist<vertex_t, edge_t, store_transposed, multi_gpu>(
       handle,
       std::optional<rmm::device_uvector<vertex_t>>{std::move(vertices)},
       store_transposed ? std::move(coarsened_edgelist_minors)
                        : std::move(coarsened_edgelist_majors),
       store_transposed ? std::move(coarsened_edgelist_majors)
                        : std::move(coarsened_edgelist_minors),
-      std::move(coarsened_edgelist_weights),
-      std::nullopt,
-      std::nullopt,
+      std::move(coarsened_edgelist_edge_properties),
       graph_properties_t{graph_view.is_symmetric(), false},
       renumber,
       std::nullopt,
       std::nullopt,
       do_expensive_check);
 
-  return std::make_tuple(
-    std::move(coarsened_graph), std::move(edge_weights), std::move(*renumber_map));
+  return std::make_tuple(std::move(coarsened_graph),
+                         coarsened_edgelist_weights
+                           ? std::make_optional<edge_property_t<edge_t, weight_t>>(std::move(
+                               std::get<edge_property_t<edge_t, weight_t>>(edge_properties[0])))
+                           : std::nullopt,
+                         std::move(*renumber_map));
 }
 
 }  // namespace detail

@@ -1,17 +1,6 @@
 /*
- * Copyright (c) 2021-2025, NVIDIA CORPORATION.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 #pragma once
@@ -96,27 +85,26 @@ transpose_graph_impl(raft::handle_t const& handle,
                       std::move(edgelist_edge_properties),
                       store_transposed);
 
-  if (edgelist_weights)
-    *edgelist_weights =
-      std::move(std::get<rmm::device_uvector<weight_t>>(edgelist_edge_properties[0]));
-
   graph_t<vertex_t, edge_t, store_transposed, multi_gpu> transposed_graph(handle);
-  std::optional<edge_property_t<edge_t, weight_t>> transposed_edge_weights{};
+  std::vector<edge_arithmetic_property_t<edge_t>> transposed_edge_properties{};
   std::optional<rmm::device_uvector<vertex_t>> new_renumber_map{std::nullopt};
-  std::tie(transposed_graph, transposed_edge_weights, std::ignore, std::ignore, new_renumber_map) =
-    create_graph_from_edgelist<vertex_t, edge_t, weight_t, int32_t, store_transposed, multi_gpu>(
+  std::tie(transposed_graph, transposed_edge_properties, new_renumber_map) =
+    create_graph_from_edgelist<vertex_t, edge_t, store_transposed, multi_gpu>(
       handle,
       std::move(renumber_map),
       std::move(edgelist_dsts),
       std::move(edgelist_srcs),
-      std::move(edgelist_weights),
-      std::nullopt,
-      std::nullopt,
+      std::move(edgelist_edge_properties),
       graph_properties_t{false, is_multigraph},
       true);
 
   return std::make_tuple(
-    std::move(transposed_graph), std::move(transposed_edge_weights), std::move(new_renumber_map));
+    std::move(transposed_graph),
+    edgelist_weights
+      ? std::make_optional<edge_property_t<edge_t, weight_t>>(
+          std::move(std::get<edge_property_t<edge_t, weight_t>>(transposed_edge_properties[0])))
+      : std::nullopt,
+    std::move(new_renumber_map));
 }
 
 template <typename vertex_t,
@@ -179,22 +167,30 @@ transpose_graph_impl(raft::handle_t const& handle,
   }
 
   graph_t<vertex_t, edge_t, store_transposed, multi_gpu> transposed_graph(handle);
-  std::optional<edge_property_t<edge_t, weight_t>> transposed_edge_weights{};
+  std::vector<edge_arithmetic_property_t<edge_t>> transposed_edge_properties{};
+
+  std::vector<arithmetic_device_uvector_t> edgelist_edge_properties{};
+  if (edgelist_weights) edgelist_edge_properties.push_back(std::move(*edgelist_weights));
+
   std::optional<rmm::device_uvector<vertex_t>> new_renumber_map{std::nullopt};
-  std::tie(transposed_graph, transposed_edge_weights, std::ignore, std::ignore, new_renumber_map) =
-    create_graph_from_edgelist<vertex_t, edge_t, weight_t, int32_t, store_transposed, multi_gpu>(
+
+  std::tie(transposed_graph, transposed_edge_properties, new_renumber_map) =
+    create_graph_from_edgelist<vertex_t, edge_t, store_transposed, multi_gpu>(
       handle,
       std::move(vertices),
       std::move(edgelist_dsts),
       std::move(edgelist_srcs),
-      std::move(edgelist_weights),
-      std::nullopt,
-      std::nullopt,
+      std::move(edgelist_edge_properties),
       graph_properties_t{false, is_multigraph},
       renumber);
 
   return std::make_tuple(
-    std::move(transposed_graph), std::move(transposed_edge_weights), std::move(new_renumber_map));
+    std::move(transposed_graph),
+    edgelist_weights
+      ? std::make_optional<edge_property_t<edge_t, weight_t>>(
+          std::move(std::get<edge_property_t<edge_t, weight_t>>(transposed_edge_properties[0])))
+      : std::nullopt,
+    std::move(new_renumber_map));
 }
 
 }  // namespace

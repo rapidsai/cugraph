@@ -1,17 +1,6 @@
 /*
- * Copyright (c) 2025, NVIDIA CORPORATION.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION.
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 #pragma once
@@ -27,9 +16,13 @@
 
 #include <cugraph/arithmetic_variant_types.hpp>
 #include <cugraph/edge_property.hpp>
+#include <cugraph/sampling_functions.hpp>
+#include <cugraph/utilities/assert.cuh>
 #include <cugraph/utilities/mask_utils.cuh>
 
 #include <raft/util/cudart_utils.hpp>
+
+#include <cuda/std/tuple>
 
 #include <variant>
 
@@ -340,7 +333,7 @@ gather_one_hop_edgelist(
                          std::move(result_labels));
 }
 
-template <typename vertex_t, typename edge_t, typename edge_time_t, bool multi_gpu>
+template <typename vertex_t, typename edge_t, typename time_stamp_t, bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            std::vector<arithmetic_device_uvector_t>,
@@ -349,12 +342,13 @@ temporal_gather_one_hop_edgelist(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   raft::host_span<edge_arithmetic_property_view_t<edge_t>> edge_property_views,
-  edge_property_view_t<edge_t, edge_time_t const*> edge_time_view,
+  edge_property_view_t<edge_t, time_stamp_t const*> edge_time_view,
   std::optional<edge_property_view_t<edge_t, int32_t const*>> edge_type_view,
   raft::device_span<vertex_t const> active_majors,
-  raft::device_span<edge_time_t const> active_major_times,
+  raft::device_span<time_stamp_t const> active_major_times,
   std::optional<raft::device_span<int32_t const>> active_major_labels,
   std::optional<raft::device_span<uint8_t const>> gather_flags,
+  temporal_sampling_comparison_t temporal_sampling_comparison,
   bool do_expensive_check)
 {
   constexpr bool store_transposed = false;
@@ -371,11 +365,11 @@ temporal_gather_one_hop_edgelist(
   using label_t = int32_t;
 
   // Only used if active_major_labels is set
-  kv_store_t<size_t, cuda::std::tuple<edge_time_t, label_t>, true> kv_store{handle.get_stream()};
+  kv_store_t<size_t, cuda::std::tuple<time_stamp_t, label_t>, true> kv_store{handle.get_stream()};
   std::optional<rmm::device_uvector<size_t>> tmp_positions{std::nullopt};
 
   // Only used if active_major_labels is not set
-  std::optional<rmm::device_uvector<edge_time_t>> tmp_times{std::nullopt};
+  std::optional<rmm::device_uvector<time_stamp_t>> tmp_times{std::nullopt};
 
   // Only used if graph_view is a multi_graph
   arithmetic_device_uvector_t tmp_edge_indices{std::monostate{}};
@@ -412,30 +406,31 @@ temporal_gather_one_hop_edgelist(
                           minor_comm,
                           raft::device_span<size_t const>{vertex_label_time_positions.data(),
                                                           vertex_label_time_positions.size()});
-      auto all_minor_times = device_allgatherv(
-        handle,
-        minor_comm,
-        raft::device_span<edge_time_t const>{active_major_times.data(), active_major_times.size()});
+      auto all_minor_times =
+        device_allgatherv(handle,
+                          minor_comm,
+                          raft::device_span<time_stamp_t const>{active_major_times.data(),
+                                                                active_major_times.size()});
       auto all_minor_labels = device_allgatherv(
         handle,
         minor_comm,
         raft::device_span<label_t const>{active_major_labels->data(), active_major_labels->size()});
 
-      kv_store = kv_store_t<size_t, cuda::std::tuple<edge_time_t, label_t>, true>(
+      kv_store = kv_store_t<size_t, cuda::std::tuple<time_stamp_t, label_t>, true>(
         all_minor_keys.begin(),
         all_minor_keys.end(),
         thrust::make_zip_iterator(all_minor_times.begin(), all_minor_labels.begin()),
-        cuda::std::make_tuple(edge_time_t{-1}, label_t{-1}),
+        cuda::std::make_tuple(time_stamp_t{-1}, label_t{-1}),
         true,
         handle.get_stream());
 
     } else {
-      kv_store = kv_store_t<size_t, cuda::std::tuple<edge_time_t, label_t>, true>(
+      kv_store = kv_store_t<size_t, cuda::std::tuple<time_stamp_t, label_t>, true>(
         vertex_label_time_positions.begin(),
         vertex_label_time_positions.end(),
         thrust::make_zip_iterator(active_major_times.begin(),
                                   active_major_labels->begin()),  // multi_gpu is different
-        cuda::std::make_tuple(edge_time_t{-1}, label_t{-1}),
+        cuda::std::make_tuple(time_stamp_t{-1}, label_t{-1}),
         true,
         handle.get_stream());
     }
@@ -506,7 +501,7 @@ temporal_gather_one_hop_edgelist(
 
   // Filter by time
   {
-    rmm::device_uvector<edge_time_t> edge_times(result_srcs.size(), handle.get_stream());
+    rmm::device_uvector<time_stamp_t> edge_times(result_srcs.size(), handle.get_stream());
 
     cugraph::edge_bucket_t<vertex_t, edge_t, !store_transposed, multi_gpu, false> edge_list(
       handle, graph_view.is_multigraph());
@@ -532,7 +527,8 @@ temporal_gather_one_hop_edgelist(
       tmp_positions
         ? detail::mark_entries(handle,
                                edge_times.size(),
-                               [d_tmp           = edge_times.data(),
+                               [temporal_sampling_comparison,
+                                d_tmp           = edge_times.data(),
                                 d_tmp_positions = tmp_positions->data(),
                                 kv_store_view =
                                   kv_binary_search_store_device_view_t<decltype(kv_store.view())>{
@@ -540,16 +536,39 @@ temporal_gather_one_hop_edgelist(
                                  auto edge_time = d_tmp[index];
                                  auto key_time =
                                    cuda::std::get<0>(kv_store_view.find(d_tmp_positions[index]));
-                                 return (edge_time > key_time);
+
+                                 switch (temporal_sampling_comparison) {
+                                   case temporal_sampling_comparison_t::STRICTLY_INCREASING:
+                                     return (edge_time > key_time);
+                                   case temporal_sampling_comparison_t::MONOTONICALLY_INCREASING:
+                                     return (edge_time >= key_time);
+                                   case temporal_sampling_comparison_t::STRICTLY_DECREASING:
+                                     return (edge_time < key_time);
+                                   case temporal_sampling_comparison_t::MONOTONICALLY_DECREASING:
+                                     return (edge_time <= key_time);
+                                 }
+                                 CUGRAPH_UNREACHABLE("Unsupported temporal sampling comparison");
                                })
-        : detail::mark_entries(
-            handle,
-            edge_times.size(),
-            [d_tmp = edge_times.data(), d_tmp_time = tmp_times->data()] __device__(auto index) {
-              auto edge_time = d_tmp[index];
-              auto key_time  = d_tmp_time[index];
-              return (edge_time > key_time);
-            });
+        : detail::mark_entries(handle,
+                               edge_times.size(),
+                               [temporal_sampling_comparison,
+                                d_tmp      = edge_times.data(),
+                                d_tmp_time = tmp_times->data()] __device__(auto index) {
+                                 auto edge_time = d_tmp[index];
+                                 auto key_time  = d_tmp_time[index];
+
+                                 switch (temporal_sampling_comparison) {
+                                   case temporal_sampling_comparison_t::STRICTLY_INCREASING:
+                                     return (edge_time > key_time);
+                                   case temporal_sampling_comparison_t::MONOTONICALLY_INCREASING:
+                                     return (edge_time >= key_time);
+                                   case temporal_sampling_comparison_t::STRICTLY_DECREASING:
+                                     return (edge_time < key_time);
+                                   case temporal_sampling_comparison_t::MONOTONICALLY_DECREASING:
+                                     return (edge_time <= key_time);
+                                 }
+                                 CUGRAPH_UNREACHABLE("Unsupported temporal sampling comparison");
+                               });
 
     raft::device_span<uint32_t const> marked_entry_span{marked_entries.data(),
                                                         marked_entries.size()};
@@ -574,12 +593,14 @@ temporal_gather_one_hop_edgelist(
         handle, std::move(*tmp_positions), marked_entry_span, keep_count);
     }
 
-    result_labels = rmm::device_uvector<label_t>(keep_count, handle.get_stream());
-    kv_store.view().find(
-      tmp_positions->begin(),
-      tmp_positions->end(),
-      thrust::make_zip_iterator(thrust::make_discard_iterator(), result_labels->begin()),
-      handle.get_stream());
+    if (active_major_labels) {
+      result_labels = rmm::device_uvector<label_t>(keep_count, handle.get_stream());
+      kv_store.view().find(
+        tmp_positions->begin(),
+        tmp_positions->end(),
+        thrust::make_zip_iterator(thrust::make_discard_iterator(), result_labels->begin()),
+        handle.get_stream());
+    }
   }
 
   std::tie(result_srcs, result_dsts, result_properties) =

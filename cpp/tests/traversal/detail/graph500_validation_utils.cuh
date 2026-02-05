@@ -1,17 +1,6 @@
 /*
- * Copyright (c) 2025, NVIDIA CORPORATION.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION.
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 #include "detail/shuffle_wrappers.hpp"
@@ -39,6 +28,7 @@
 
 #include <rmm/device_uvector.hpp>
 
+#include <cuda/std/iterator>
 #include <cuda/std/tuple>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
@@ -127,7 +117,7 @@ bool is_valid_predecessor_tree(raft::handle_t const& handle,
 
   rmm::device_uvector<vertex_t> ancestors(mg_predecessors.size(), handle.get_stream());
   ancestors.resize(
-    thrust::distance(
+    cuda::std::distance(
       ancestors.begin(),
       thrust::copy_if(
         handle.get_thrust_policy(),
@@ -163,7 +153,7 @@ bool is_valid_predecessor_tree(raft::handle_t const& handle,
                                       vertex_partition_range_offsets.size() - 1),
       local_vertex_partition_range_first);
     ancestors.resize(
-      thrust::distance(ancestors.begin(),
+      cuda::std::distance(ancestors.begin(),
                        thrust::remove_if(handle.get_thrust_policy(),
                                          ancestors.begin(),
                                          ancestors.end(),
@@ -449,7 +439,7 @@ bool check_edge_endpoint_distances(
         mg_subgraph_view.local_vertex_partition_range_size(),
         handle.get_stream());  // vertices with mg_distances[] = level - 1, level, or level + 1
       subgraph_level_v_offsets.resize(
-        thrust::distance(
+        cuda::std::distance(
           subgraph_level_v_offsets.begin(),
           thrust::copy_if(handle.get_thrust_policy(),
                           reachable_from_2cores ? mg_graph_to_pruned_graph_map.begin()
@@ -467,7 +457,7 @@ bool check_edge_endpoint_distances(
         handle.get_stream());
       subgraph_level_v_offsets.shrink_to_fit(handle.get_stream());
       subgraph_adjacent_level_v_offsets.resize(
-        thrust::distance(
+        cuda::std::distance(
           subgraph_adjacent_level_v_offsets.begin(),
           thrust::copy_if(handle.get_thrust_policy(),
                           reachable_from_2cores ? mg_graph_to_pruned_graph_map.begin()
@@ -553,7 +543,7 @@ bool check_edge_endpoint_distances(
     rmm::device_uvector<vertex_t> unreachable_v_offsets(
       mg_subgraph_view.local_vertex_partition_range_size(), handle.get_stream());
     unreachable_v_offsets.resize(
-      thrust::distance(
+      cuda::std::distance(
         unreachable_v_offsets.begin(),
         thrust::copy_if(handle.get_thrust_policy(),
                         reachable_from_2cores ? mg_graph_to_pruned_graph_map.begin()
@@ -623,27 +613,27 @@ bool check_edge_endpoint_distances(
         w_to_parents->begin());
       auto output_first = thrust::make_zip_iterator(
         forest_edge_parents.begin(), forest_edge_vertices.begin(), forest_edge_weights->begin());
-      forest_edge_parents.resize(thrust::distance(
-                                   output_first,
-                                   thrust::copy_if(handle.get_thrust_policy(),
-                                                   input_first,
-                                                   input_first + forest_edge_parents.size(),
-                                                   output_first,
-                                                   cuda::proclaim_return_type<bool>(
-                                                     [invalid_vertex] __device__(auto triplet) {
-                                                       auto p = cuda::std::get<0>(triplet);
-                                                       auto v = cuda::std::get<1>(triplet);
-                                                       return (p != invalid_vertex /* reachable from 2-cores */) &&
+      forest_edge_parents.resize(
+        cuda::std::distance(output_first,
+                            thrust::copy_if(handle.get_thrust_policy(),
+                                            input_first,
+                                            input_first + forest_edge_parents.size(),
+                                            output_first,
+                                            cuda::proclaim_return_type<bool>(
+                                              [invalid_vertex] __device__(auto triplet) {
+                                                auto p = cuda::std::get<0>(triplet);
+                                                auto v = cuda::std::get<1>(triplet);
+                                                return (p != invalid_vertex /* reachable from 2-cores */) &&
                                  (p != v /* not in a 2-core */);
-                                                     }))),
-                                 handle.get_stream());
+                                              }))),
+        handle.get_stream());
     } else {
       auto input_first = thrust::make_zip_iterator(
         parents.begin(), thrust::make_counting_iterator(local_vertex_partition_range_first));
       auto output_first =
         thrust::make_zip_iterator(forest_edge_parents.begin(), forest_edge_vertices.begin());
       forest_edge_parents.resize(
-        thrust::distance(
+        cuda::std::distance(
           output_first,
           thrust::copy_if(handle.get_thrust_policy(),
                           input_first,
@@ -798,7 +788,7 @@ bool check_has_edge_from_parents(
     mg_predecessors.begin(), thrust::make_counting_iterator(local_vertex_partition_range_first));
   auto output_edge_first = thrust::make_zip_iterator(query_preds.begin(), query_vertices.begin());
   query_preds.resize(
-    thrust::distance(
+    cuda::std::distance(
       output_edge_first,
       thrust::copy_if(
         handle.get_thrust_policy(),
@@ -815,7 +805,7 @@ bool check_has_edge_from_parents(
   if (reachable_from_2cores) {  // exclude the edges in the forest (parents[v] -> v)
     auto query_edge_first = thrust::make_zip_iterator(query_preds.begin(), query_vertices.begin());
     query_preds.resize(
-      thrust::distance(
+      cuda::std::distance(
         query_edge_first,
         thrust::remove_if(
           handle.get_thrust_policy(),
@@ -841,7 +831,7 @@ bool check_has_edge_from_parents(
       auto output_first =
         thrust::make_zip_iterator(forest_edge_vertices.begin(), forest_edge_parents.begin());
       forest_edge_vertices.resize(
-        thrust::distance(
+        cuda::std::distance(
           output_first,
           thrust::copy_if(handle.get_thrust_policy(),
                           input_first,
@@ -874,7 +864,7 @@ bool check_has_edge_from_parents(
                    forest_edge_first + forest_edge_vertices.size());
       query_edge_first = thrust::make_zip_iterator(query_preds.begin(), query_vertices.begin());
       query_preds.resize(
-        thrust::distance(
+        cuda::std::distance(
           query_edge_first,
           thrust::remove_if(
             handle.get_thrust_policy(),

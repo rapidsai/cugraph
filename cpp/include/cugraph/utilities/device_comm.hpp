@@ -1,17 +1,6 @@
 /*
- * Copyright (c) 2020-2025, NVIDIA CORPORATION.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
+ * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
 
@@ -90,8 +79,8 @@ struct device_isend_tuple_iterator_element_impl {
            int base_tag,
            raft::comms::request_t* requests) const
   {
-    using output_value_t = typename thrust::
-      tuple_element<I, typename std::iterator_traits<OutputIterator>::value_type>::type;
+    using output_value_t =
+      cuda::std::tuple_element_t<I, typename std::iterator_traits<OutputIterator>::value_type>;
     auto tuple_element_input_first = cuda::std::get<I>(input_first.get_iterator_tuple());
     device_isend_impl<decltype(tuple_element_input_first), output_value_t>(
       comm, tuple_element_input_first, count, dst, static_cast<int>(base_tag + I), requests + I);
@@ -150,8 +139,8 @@ struct device_irecv_tuple_iterator_element_impl {
            int base_tag,
            raft::comms::request_t* requests) const
   {
-    using input_value_t = typename thrust::
-      tuple_element<I, typename std::iterator_traits<InputIterator>::value_type>::type;
+    using input_value_t =
+      cuda::std::tuple_element_t<I, typename std::iterator_traits<InputIterator>::value_type>;
     auto tuple_element_output_first = cuda::std::get<I>(output_first.get_iterator_tuple());
     device_irecv_impl<input_value_t, decltype(tuple_element_output_first)>(
       comm, tuple_element_output_first, count, src, static_cast<int>(base_tag + I), requests + I);
@@ -222,8 +211,8 @@ struct device_sendrecv_tuple_iterator_element_impl {
            int src,
            rmm::cuda_stream_view stream_view) const
   {
-    using output_value_t = typename thrust::
-      tuple_element<I, typename std::iterator_traits<OutputIterator>::value_type>::type;
+    using output_value_t =
+      cuda::std::tuple_element_t<I, typename std::iterator_traits<OutputIterator>::value_type>;
     auto tuple_element_input_first  = cuda::std::get<I>(input_first.get_iterator_tuple());
     auto tuple_element_output_first = cuda::std::get<I>(output_first.get_iterator_tuple());
     device_sendrecv_impl<decltype(tuple_element_input_first), decltype(tuple_element_output_first)>(
@@ -312,8 +301,8 @@ struct device_multicast_sendrecv_tuple_iterator_element_impl {
            raft::host_span<int const> rx_src_ranks,
            rmm::cuda_stream_view stream_view) const
   {
-    using output_value_t = typename thrust::
-      tuple_element<I, typename std::iterator_traits<OutputIterator>::value_type>::type;
+    using output_value_t =
+      cuda::std::tuple_element_t<I, typename std::iterator_traits<OutputIterator>::value_type>;
     auto tuple_element_input_first  = cuda::std::get<I>(input_first.get_iterator_tuple());
     auto tuple_element_output_first = cuda::std::get<I>(output_first.get_iterator_tuple());
     device_multicast_sendrecv_impl<decltype(tuple_element_input_first),

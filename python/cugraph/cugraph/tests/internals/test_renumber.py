@@ -1,15 +1,5 @@
-# Copyright (c) 2019-2023, NVIDIA CORPORATION.
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# SPDX-FileCopyrightText: Copyright (c) 2019-2025, NVIDIA CORPORATION.
+# SPDX-License-Identifier: Apache-2.0
 
 # This file test the Renumbering features
 
@@ -26,7 +16,6 @@ from cugraph.testing import utils, DEFAULT_DATASETS
 
 @pytest.mark.sg
 def test_renumber_ips_cols():
-
     source_list = [
         "192.168.1.1",
         "172.217.5.238",
@@ -78,7 +67,7 @@ def test_renumber_negative_col():
 
     df = pd.DataFrame({"source_list": source_list, "dest_list": dest_list})
 
-    gdf = cudf.DataFrame.from_pandas(df[["source_list", "dest_list"]])
+    gdf = cudf.DataFrame(df[["source_list", "dest_list"]])
     gdf["original_src"] = gdf["source_list"]
     gdf["original_dst"] = gdf["dest_list"]
 

@@ -1,5 +1,6 @@
 #!/bin/bash
-# Copyright (c) 2022-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
+# SPDX-License-Identifier: Apache-2.0
 
 set -euo pipefail
 
@@ -7,6 +8,9 @@ set -euo pipefail
 cd "$(dirname "$(realpath "${BASH_SOURCE[0]}")")"/../
 
 . /opt/conda/etc/profile.d/conda.sh
+
+rapids-logger "Configuring conda strict channel priority"
+conda config --set channel_priority strict
 
 rapids-logger "Downloading artifacts from previous jobs"
 CPP_CHANNEL=$(rapids-download-conda-from-github cpp)
@@ -67,8 +71,7 @@ rapids-logger "pytest pylibcugraph"
 # the install location, and in most cases, the source tree does not have
 # extensions built in-place and will result in ImportErrors.
 #
-# FIXME: TEMPORARILY disable MG PropertyGraph tests (experimental) tests and
-# bulk sampler IO tests (hangs in CI)
+# FIXME: TEMPORARILY disable bulk sampler IO tests (hangs in CI)
 rapids-logger "pytest cugraph (not mg, with xdist)"
 ./ci/run_cugraph_pytests.sh \
   --verbose \
@@ -76,7 +79,7 @@ rapids-logger "pytest cugraph (not mg, with xdist)"
   --numprocesses=8 \
   --dist=worksteal \
   -m "not mg" \
-  -k "not test_bulk_sampler and not test_create_undirected_graph_from_asymmetric_adj_list and not test_uniform_neighbor_sample and not test_node2vec and not(test_property_graph.py and cyber)" \
+  -k "not test_bulk_sampler and not test_create_undirected_graph_from_asymmetric_adj_list and not test_node2vec" \
   --cov-config=../../.coveragerc \
   --cov=cugraph \
   --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph-coverage.xml" \
@@ -90,7 +93,7 @@ rapids-logger "pytest cugraph (mg, with xdist)"
   --numprocesses=8 \
   --dist=worksteal \
   -m "mg" \
-  -k "not test_property_graph_mg and not test_dist_sampler_mg and not test_uniform_neighbor_sample_mg" \
+  -k "not test_dist_sampler_mg" \
   --cov-config=../../.coveragerc \
   --cov=cugraph \
   --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph-coverage.xml" \
@@ -101,7 +104,7 @@ rapids-logger "pytest cugraph (mg dist_sampler and uns)"
   --verbose \
   --junitxml="${RAPIDS_TESTS_DIR}/junit-cugraph.xml" \
   -m "mg" \
-  -k "test_dist_sampler_mg or test_uniform_neighbor_sample_mg" \
+  -k "test_dist_sampler_mg" \
   --cov-config=../../.coveragerc \
   --cov=cugraph \
   --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph-coverage.xml" \
@@ -109,16 +112,6 @@ rapids-logger "pytest cugraph (mg dist_sampler and uns)"
 
 rapids-logger "pytest cugraph benchmarks (run as tests)"
 ./ci/run_cugraph_benchmark_pytests.sh --verbose
-
-rapids-logger "pytest cugraph-service (single GPU)"
-./ci/run_cugraph_service_pytests.sh \
-  --verbose \
-  --junitxml="${RAPIDS_TESTS_DIR}/junit-cugraph-service.xml" \
-  --cov-config=../.coveragerc \
-  --cov=cugraph_service_client \
-  --cov=cugraph_service_server \
-  --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph-service-coverage.xml" \
-  --cov-report=term
 
 rapids-logger "Test script exiting with value: $EXITCODE"
 exit ${EXITCODE}

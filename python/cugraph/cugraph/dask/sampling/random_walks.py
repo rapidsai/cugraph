@@ -1,16 +1,5 @@
-# Copyright (c) 2022-2025, NVIDIA CORPORATION.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+# SPDX-License-Identifier: Apache-2.0
 
 import warnings
 from dask.distributed import wait, default_client
@@ -50,7 +39,6 @@ def convert_to_cudf(cp_paths, number_map=None, is_vertex_paths=False):
 
 
 def _call_plc_uniform_random_walks(sID, mg_graph_x, st_x, max_depth):
-
     return pylibcugraph_uniform_random_walks(
         resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
         input_graph=mg_graph_x,

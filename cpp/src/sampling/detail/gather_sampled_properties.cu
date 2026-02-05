@@ -1,20 +1,10 @@
 /*
- * Copyright (c) 2022-2025, NVIDIA CORPORATION.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 #include "detail/graph_partition_utils.cuh"
+#include "detail/shuffle_wrappers.hpp"
 #include "prims/edge_bucket.cuh"
 #include "prims/transform_gather_e.cuh"
 
@@ -72,6 +62,7 @@ gather_sampled_properties(
   // benefits from gathering the sampled edges in this way.
 
   rmm::device_uvector<size_t> original_positions(0, handle.get_stream());
+  rmm::device_uvector<int> original_gpu_ids(0, handle.get_stream());
   //
   // Shuffle majors/minors/multi-index
   //
@@ -82,6 +73,12 @@ gather_sampled_properties(
     detail::sequence_fill(
       handle.get_stream(), original_positions.data(), original_positions.size(), size_t{0});
     edge_properties.push_back(std::move(original_positions));
+    original_gpu_ids.resize(majors.size(), handle.get_stream());
+    detail::scalar_fill(handle.get_stream(),
+                        original_gpu_ids.data(),
+                        original_gpu_ids.size(),
+                        handle.get_comms().get_rank());
+    edge_properties.push_back(std::move(original_gpu_ids));
 
     if (std::holds_alternative<rmm::device_uvector<edge_t>>(multi_index))
       edge_properties.push_back(std::move(multi_index));
@@ -96,7 +93,8 @@ gather_sampled_properties(
                         std::nullopt);
 
     original_positions = std::move(std::get<rmm::device_uvector<size_t>>(edge_properties[0]));
-    if (edge_properties.size() > 1) multi_index = std::move(edge_properties[1]);
+    original_gpu_ids   = std::move(std::get<rmm::device_uvector<int>>(edge_properties[1]));
+    if (edge_properties.size() > 2) multi_index = std::move(edge_properties[2]);
   }
 
   edge_list.insert(
@@ -138,100 +136,21 @@ gather_sampled_properties(
 
   // Now shuffle back
   if constexpr (multi_gpu) {
-    auto& comm                 = handle.get_comms();
-    auto const comm_size       = comm.get_size();
-    auto& major_comm           = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
-    auto const major_comm_size = major_comm.get_size();
-    auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
-    auto const minor_comm_size = minor_comm.get_size();
+    result_properties.push_back(std::move(majors));
+    result_properties.push_back(std::move(minors));
+    result_properties.push_back(std::move(original_positions));
+
+    result_properties = cugraph::shuffle_properties(
+      handle, std::move(original_gpu_ids), std::move(result_properties));
+
+    original_positions = std::move(std::get<rmm::device_uvector<size_t>>(result_properties.back()));
+    result_properties.pop_back();
+    minors = std::move(std::get<rmm::device_uvector<vertex_t>>(result_properties.back()));
+    result_properties.pop_back();
+    majors = std::move(std::get<rmm::device_uvector<vertex_t>>(result_properties.back()));
+    result_properties.pop_back();
 
     rmm::device_uvector<size_t> property_position(majors.size(), handle.get_stream());
-    detail::sequence_fill(
-      handle.get_stream(), property_position.data(), property_position.size(), size_t{0});
-
-    rmm::device_uvector<vertex_t> d_vertex_partition_range_lasts(
-      graph_view.vertex_partition_range_lasts().size(), handle.get_stream());
-    raft::update_device(d_vertex_partition_range_lasts.data(),
-                        graph_view.vertex_partition_range_lasts().data(),
-                        graph_view.vertex_partition_range_lasts().size(),
-                        handle.get_stream());
-
-    size_t element_size{sizeof(vertex_t) + sizeof(size_t)};
-    auto total_global_mem = handle.get_device_properties().totalGlobalMem;
-    auto constexpr mem_frugal_ratio =
-      0.1;  // if the expected temporary buffer size exceeds the mem_frugal_ratio of the
-            // total_global_mem, switch to the memory frugal approach (thrust::sort is used to
-            // group-by by default, and thrust::sort requires temporary buffer comparable to the
-            // input data size)
-    auto mem_frugal_threshold =
-      static_cast<size_t>(static_cast<double>(total_global_mem / element_size) * mem_frugal_ratio);
-
-    auto d_tx_value_counts = cugraph::groupby_and_count(
-      majors.begin(),
-      majors.end(),
-      property_position.begin(),
-      cugraph::detail::compute_gpu_id_from_int_vertex_t<vertex_t>{
-        raft::device_span<vertex_t const>(d_vertex_partition_range_lasts.data(),
-                                          d_vertex_partition_range_lasts.size()),
-        major_comm_size,
-        minor_comm_size},
-      comm_size,
-      mem_frugal_threshold,
-      handle.get_stream());
-
-    raft::device_span<size_t const> d_tx_value_counts_span{d_tx_value_counts.data(),
-                                                           d_tx_value_counts.size()};
-
-    std::tie(majors, std::ignore) =
-      shuffle_values(comm, majors.begin(), d_tx_value_counts_span, handle.get_stream());
-
-    {
-      rmm::device_uvector<vertex_t> tmp(minors.size(), handle.get_stream());
-
-      thrust::gather(handle.get_thrust_policy(),
-                     property_position.begin(),
-                     property_position.end(),
-                     minors.begin(),
-                     tmp.begin());
-
-      std::tie(minors, std::ignore) =
-        shuffle_values(comm, tmp.begin(), d_tx_value_counts_span, handle.get_stream());
-    }
-
-    {
-      rmm::device_uvector<size_t> tmp(original_positions.size(), handle.get_stream());
-
-      thrust::gather(handle.get_thrust_policy(),
-                     property_position.begin(),
-                     property_position.end(),
-                     original_positions.begin(),
-                     tmp.begin());
-
-      std::tie(original_positions, std::ignore) =
-        shuffle_values(comm, tmp.begin(), d_tx_value_counts_span, handle.get_stream());
-    }
-
-    std::for_each(
-      result_properties.begin(),
-      result_properties.end(),
-      [&handle, &comm, &property_position, d_tx_value_counts_span](auto& property) {
-        cugraph::variant_type_dispatch(
-          property, [&handle, &comm, &property_position, d_tx_value_counts_span](auto& prop) {
-            using T = typename std::remove_reference<decltype(prop)>::type::value_type;
-            rmm::device_uvector<T> tmp(prop.size(), handle.get_stream());
-
-            thrust::gather(handle.get_thrust_policy(),
-                           property_position.begin(),
-                           property_position.end(),
-                           prop.begin(),
-                           tmp.begin());
-
-            std::tie(prop, std::ignore) =
-              shuffle_values(comm, tmp.begin(), d_tx_value_counts_span, handle.get_stream());
-          });
-      });
-
-    property_position.resize(majors.size(), handle.get_stream());
     detail::sequence_fill(
       handle.get_stream(), property_position.data(), property_position.size(), size_t{0});
     thrust::sort_by_key(handle.get_thrust_policy(),
@@ -265,10 +184,9 @@ gather_sampled_properties(
 
     std::for_each(result_properties.begin(),
                   result_properties.end(),
-                  [&handle, &comm, &property_position, d_tx_value_counts_span](auto& property) {
+                  [&handle, &property_position](auto& property) {
                     cugraph::variant_type_dispatch(
-                      property,
-                      [&handle, &comm, &property_position, d_tx_value_counts_span](auto& prop) {
+                      property, [&handle, &property_position](auto& prop) {
                         using T = typename std::remove_reference<decltype(prop)>::type::value_type;
                         rmm::device_uvector<T> tmp(prop.size(), handle.get_stream());
 

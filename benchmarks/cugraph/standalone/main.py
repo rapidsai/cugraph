@@ -1,15 +1,5 @@
-# Copyright (c) 2021-2025, NVIDIA CORPORATION.
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
+# SPDX-License-Identifier: Apache-2.0
 
 import sys
 
@@ -90,9 +80,7 @@ def run(
         "pagerank": funcs.pagerank,
         "wcc": funcs.wcc,
         "katz": funcs.katz,
-        "wcc": funcs.wcc,
         "hits": funcs.hits,
-        "uniform_neighbor_sample": funcs.uniform_neighbor_sample,
         "triangle_count": funcs.triangle_count,
         "eigenvector_centrality": funcs.eigenvector_centrality,
     }
@@ -100,7 +88,7 @@ def run(
     if algos:
         invalid_benchmarks = set(algos) - set(benchmarks.keys())
         if invalid_benchmarks:
-            raise ValueError("Invalid benchmark(s) specified " f"{invalid_benchmarks}")
+            raise ValueError(f"Invalid benchmark(s) specified {invalid_benchmarks}")
         benchmarks_to_run = [benchmarks[b] for b in algos]
     else:
         benchmarks_to_run = list(benchmarks.values())
@@ -170,13 +158,13 @@ if __name__ == "__main__":
         "--scale",
         type=int,
         default=None,
-        help="scale factor for the graph edgelist generator " "(num_verts=2**SCALE).",
+        help="scale factor for the graph edgelist generator (num_verts=2**SCALE).",
     )
     ap.add_argument(
         "--csv",
         type=str,
         default=None,
-        help="path to CSV file to read instead of generating a " "graph edgelist.",
+        help="path to CSV file to read instead of generating a graph edgelist.",
     )
     ap.add_argument(
         "--unweighted",
@@ -200,7 +188,7 @@ if __name__ == "__main__":
         "--symmetric-graph",
         default=False,
         action="store_true",
-        help="Generate a symmetric (undirected) Graph instead of " "a DiGraph.",
+        help="Generate a symmetric (undirected) Graph instead of a DiGraph.",
     )
     ap.add_argument(
         "--edgefactor",

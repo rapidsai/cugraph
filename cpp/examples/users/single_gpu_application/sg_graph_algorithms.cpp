@@ -1,17 +1,6 @@
 /*
- * Copyright (c) 2024, NVIDIA CORPORATION.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 #include <cugraph/algorithms.hpp>
@@ -45,9 +34,7 @@ template <typename vertex_t,
           bool multi_gpu>
 
 std::tuple<cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu>,
-           std::optional<cugraph::edge_property_t<
-             cugraph::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
-             weight_t>>,
+           std::optional<cugraph::edge_property_t<edge_t, weight_t>>,
            std::optional<rmm::device_uvector<vertex_t>>>
 create_graph(raft::handle_t const& handle,
              std::vector<vertex_t>&& edge_srcs,
@@ -81,31 +68,32 @@ create_graph(raft::handle_t const& handle,
 
   cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu> graph(handle);
 
-  std::optional<cugraph::edge_property_t<decltype(graph.view()), weight_t>> edge_weights{
-    std::nullopt};
+  std::optional<cugraph::edge_property_t<edge_t, weight_t>> edge_weights{std::nullopt};
 
   std::optional<rmm::device_uvector<vertex_t>> renumber_map{std::nullopt};
 
-  std::tie(graph, edge_weights, std::ignore, std::ignore, renumber_map) =
-    cugraph::create_graph_from_edgelist<vertex_t,
-                                        edge_t,
-                                        weight_t,
-                                        edge_t,
-                                        int32_t,
-                                        store_transposed,
-                                        multi_gpu>(handle,
-                                                   std::nullopt,
-                                                   std::move(d_edge_srcs),
-                                                   std::move(d_edge_dsts),
-                                                   std::move(d_edge_wgts),
-                                                   std::nullopt,
-                                                   std::nullopt,
-                                                   cugraph::graph_properties_t{is_symmetric, false},
-                                                   renumber,
-                                                   true);
+  std::vector<cugraph::arithmetic_device_uvector_t> edgelist_edge_property_vectors;
+  if (d_edge_wgts) edgelist_edge_property_vectors.push_back(std::move(*d_edge_wgts));
+  std::vector<cugraph::edge_arithmetic_property_t<edge_t>> edgelist_edge_properties;
 
-  auto graph_view       = graph.view();
-  auto edge_weight_view = edge_weights ? std::make_optional((*edge_weights).view()) : std::nullopt;
+  std::tie(graph, edgelist_edge_properties, renumber_map) =
+    cugraph::create_graph_from_edgelist<vertex_t, edge_t, store_transposed, multi_gpu>(
+      handle,
+      std::nullopt,
+      std::move(d_edge_srcs),
+      std::move(d_edge_dsts),
+      std::move(edgelist_edge_property_vectors),
+      cugraph::graph_properties_t{is_symmetric, false},
+      renumber,
+      std::nullopt,
+      std::nullopt,
+      true);
+
+  auto graph_view = graph.view();
+  if (edgelist_edge_properties.size() > 0) {
+    edge_weights =
+      std::move(std::get<cugraph::edge_property_t<edge_t, weight_t>>(edgelist_edge_properties[0]));
+  }
 
   return std::make_tuple(std::move(graph), std::move(edge_weights), std::move(renumber_map));
 }

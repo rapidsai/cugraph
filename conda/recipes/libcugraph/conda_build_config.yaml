@@ -23,4 +23,4 @@ c_stdlib_version:
   - "2.28"
 
 libucxx_version:
-  - "0.46.*"
+  - "0.49.*"

@@ -1,26 +1,17 @@
 /*
- * Copyright (c) 2024-2025, NVIDIA CORPORATION.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-FileCopyrightText: Copyright (c) 2024-2025, NVIDIA CORPORATION.
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 #pragma once
 
 #include "detail/graph_partition_utils.cuh"
+#include "utilities/collect_comm.cuh"
 
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/mtmg/vertex_pair_result_view.hpp>
+#include <cugraph/shuffle_functions.hpp>
 #include <cugraph/vertex_partition_device_view.cuh>
 
 #include <cuda/std/iterator>
@@ -56,13 +47,6 @@ std::
   cugraph::detail::scalar_fill(
     stream, vertex_gpu_ids.data(), vertex_gpu_ids.size(), handle.get_rank());
 
-  rmm::device_uvector<vertex_t> d_vertex_partition_range_lasts(vertex_partition_range_lasts.size(),
-                                                               stream);
-  raft::update_device(d_vertex_partition_range_lasts.data(),
-                      vertex_partition_range_lasts.data(),
-                      vertex_partition_range_lasts.size(),
-                      stream);
-
   if (renumber_map_view) {
     cugraph::renumber_ext_vertices<vertex_t, multi_gpu>(
       handle.raft_handle(),
@@ -73,30 +57,25 @@ std::
       vertex_partition_view.local_vertex_partition_range_last());
   }
 
+  // allgather the vertices and vertex_gpu_ids.
+  // FIXME: This is a potential scaling problem.  This will create an all_vertices array that could
+  // be as large as O(n)
+  //   on each GPU.  We should explore other options for this.  We could do it in batches, or we
+  //   could ensure that the vertex pairs are partitioned a certain way and share the source vertces
+  //   (v1) on the appropriate subset of GPUs.
+  auto all_vertices = cugraph::device_allgatherv(
+    handle.raft_handle(),
+    handle.raft_handle().get_comms(),
+    raft::device_span<vertex_t const>{local_vertices.data(), local_vertices.size()});
+  auto all_vertex_gpu_ids = cugraph::device_allgatherv(
+    handle.raft_handle(),
+    handle.raft_handle().get_comms(),
+    raft::device_span<int const>{vertex_gpu_ids.data(), vertex_gpu_ids.size()});
+
   auto const major_comm_size =
     handle.raft_handle().get_subcomm(cugraph::partition_manager::major_comm_name()).get_size();
   auto const minor_comm_size =
     handle.raft_handle().get_subcomm(cugraph::partition_manager::minor_comm_name()).get_size();
-
-  std::tie(local_vertices, vertex_gpu_ids, std::ignore) = groupby_gpu_id_and_shuffle_kv_pairs(
-    handle.raft_handle().get_comms(),
-    local_vertices.begin(),
-    local_vertices.end(),
-    vertex_gpu_ids.begin(),
-    cugraph::detail::compute_gpu_id_from_int_vertex_t<vertex_t>{
-      raft::device_span<vertex_t const>(d_vertex_partition_range_lasts.data(),
-                                        d_vertex_partition_range_lasts.size()),
-      major_comm_size,
-      minor_comm_size},
-    stream);
-
-  //
-  // LOOK AT THIS...
-  //    I think the above shuffle is correct...
-  //    This will give us vertex/gpu_id tuples on the GPU that vertex is assigned
-  //       to.  I need to take this and filter the device vector tuples based on the desired
-  //       vertex (v1).
-  //
 
   //
   //  Now gather
@@ -116,14 +95,14 @@ std::
     thrust::make_zip_iterator(v1.begin(), v2.begin(), result.begin()));
 
   thrust::sort_by_key(
-    rmm::exec_policy(stream), local_vertices.begin(), local_vertices.end(), vertex_gpu_ids.begin());
+    rmm::exec_policy(stream), all_vertices.begin(), all_vertices.end(), all_vertex_gpu_ids.begin());
 
   auto new_end =
     thrust::remove_if(rmm::exec_policy(stream),
                       thrust::make_zip_iterator(v1.begin(), v2.begin(), result.begin()),
                       thrust::make_zip_iterator(v1.end(), v2.end(), result.end()),
                       [v1_check = raft::device_span<vertex_t const>{
-                         local_vertices.data(), local_vertices.size()}] __device__(auto tuple) {
+                         all_vertices.data(), all_vertices.size()}] __device__(auto tuple) {
                         return thrust::binary_search(
                           thrust::seq, v1_check.begin(), v1_check.end(), cuda::std::get<0>(tuple));
                       });

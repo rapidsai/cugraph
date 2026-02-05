@@ -1,17 +1,8 @@
 #=============================================================================
-# Copyright (c) 2018-2025, NVIDIA CORPORATION.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# cmake-format: off
+# SPDX-FileCopyrightText: Copyright (c) 2018-2026, NVIDIA CORPORATION.
+# SPDX-License-Identifier: Apache-2.0
+# cmake-format: on
 #=============================================================================
 
 cmake_minimum_required(VERSION 3.30.4 FATAL_ERROR)
@@ -22,6 +13,7 @@ include(rapids-cpm)
 include(rapids-cuda)
 include(rapids-export)
 include(rapids-find)
+include(CMakeDependentOption)
 
 rapids_cuda_init_architectures(CUGRAPH)
 
@@ -51,15 +43,24 @@ option(CMAKE_CUDA_LINEINFO "Enable the -lineinfo option for nvcc (useful for cud
 option(BUILD_TESTS "Configure CMake to build tests" ON)
 option(USE_RAFT_STATIC "Build raft as a static library" OFF)
 option(CUGRAPH_COMPILE_RAFT_LIB "Compile the raft library instead of using it header-only" ON)
-option(CUDA_STATIC_RUNTIME "Statically link the CUDA toolkit runtime and libraries" OFF)
+option(CUGRAPH_COMPILE_CUVS "Always compile cuVS from source" OFF)
+cmake_dependent_option(CUGRAPH_USE_CUVS_STATIC
+  "Build and statically link the cuVS library" ON
+  "CUGRAPH_COMPILE_CUVS" OFF)
 
-message(VERBOSE "CUGRAPH: CUDA_STATIC_RUNTIME=${CUDA_STATIC_RUNTIME}")
+message(VERBOSE "CUGRAPH: CUGRAPH_COMPILE_CUVS=${CUGRAPH_COMPILE_CUVS}")
+message(VERBOSE "CUGRAPH: CUGRAPH_USE_CUVS_STATIC=${CUGRAPH_USE_CUVS_STATIC}")
 
 ################################################################################
 # - compiler options -----------------------------------------------------------
 
+# For now, disable CMake's automatic module scanning for C++ files. There is an sccache bug in the
+# version RAPIDS uses in CI that causes it to handle the resulting -M* flags incorrectly with
+# gcc>=14. We can remove this once we upgrade to a newer sccache version.
+set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
+
 # CUDA runtime
-rapids_cuda_init_runtime(USE_STATIC ${CUDA_STATIC_RUNTIME})
+rapids_cuda_init_runtime(USE_STATIC ON)
 
 rapids_find_package(CUDAToolkit REQUIRED
     BUILD_EXPORT_SET    cugraph-exports
@@ -120,8 +121,11 @@ include(cmake/thirdparty/get_cccl.cmake)
 include(${rapids-cmake-dir}/cpm/rmm.cmake)
 rapids_cpm_rmm(BUILD_EXPORT_SET cugraph-exports)
 include(${rapids-cmake-dir}/cpm/cuco.cmake)
-rapids_cpm_cuco(BUILD_EXPORT_SET cugraph-exports INSTALL_EXPORT_SET cugraph-exports)
+rapids_cpm_cuco(BUILD_EXPORT_SET cugraph-exports)
 include(cmake/thirdparty/get_raft.cmake)
+
+# Always include cuVS for spectral clustering enhancements
+include(cmake/thirdparty/get_cuvs.cmake)
 
 if (BUILD_CUGRAPH_MTMG_TESTS)
     if(NOT TARGET ucx::ucp)
@@ -404,14 +408,6 @@ set(CUGRAPH_SOURCES
     src/structure/create_graph_from_edgelist_sg_v32_e32.cu
     src/structure/create_graph_from_edgelist_mg_v64_e64.cu
     src/structure/create_graph_from_edgelist_mg_v32_e32.cu
-    src/structure/create_graph_from_edgelist_sg_v64_e64_t32.cu
-    src/structure/create_graph_from_edgelist_sg_v32_e32_t32.cu
-    src/structure/create_graph_from_edgelist_mg_v64_e64_t32.cu
-    src/structure/create_graph_from_edgelist_mg_v32_e32_t32.cu
-    src/structure/create_graph_from_edgelist_sg_v64_e64_t64.cu
-    src/structure/create_graph_from_edgelist_sg_v32_e32_t64.cu
-    src/structure/create_graph_from_edgelist_mg_v64_e64_t64.cu
-    src/structure/create_graph_from_edgelist_mg_v32_e32_t64.cu
     src/structure/symmetrize_edgelist_sg_v64_e64.cu
     src/structure/symmetrize_edgelist_sg_v32_e32.cu
     src/structure/symmetrize_edgelist_mg_v64_e64.cu
@@ -444,9 +440,9 @@ set_target_properties(cugraph
     PROPERTIES BUILD_RPATH                         "\$ORIGIN"
                INSTALL_RPATH                       "\$ORIGIN"
                # set target compile options
-               CXX_STANDARD                        17
+               CXX_STANDARD                        20
                CXX_STANDARD_REQUIRED               ON
-               CUDA_STANDARD                       17
+               CUDA_STANDARD                       20
                CUDA_STANDARD_REQUIRED              ON
                POSITION_INDEPENDENT_CODE           ON
                INTERFACE_POSITION_INDEPENDENT_CODE ON
@@ -493,6 +489,11 @@ if(CUGRAPH_COMPILE_RAFT_LIB)
   endif()
 endif()
 
+set(CUVS_LIB cuvs::cuvs)
+if(CUGRAPH_USE_CUVS_STATIC)
+  set(CUVS_LIB cuvs::cuvs_static)
+endif()
+
 ################################################################################
 # - link libraries -------------------------------------------------------------
 target_link_libraries(cugraph
@@ -502,6 +503,7 @@ target_link_libraries(cugraph
         $<BUILD_LOCAL_INTERFACE:CUDA::toolkit>
     PRIVATE
         ${COMPILED_RAFT_LIB}
+        ${CUVS_LIB}
         cuco::cuco
     )
 
@@ -570,9 +572,9 @@ set_target_properties(cugraph_c
     PROPERTIES BUILD_RPATH                         "\$ORIGIN"
                INSTALL_RPATH                       "\$ORIGIN"
                # set target compile options
-               CXX_STANDARD                        17
+               CXX_STANDARD                        20
                CXX_STANDARD_REQUIRED               ON
-               CUDA_STANDARD                       17
+               CUDA_STANDARD                       20
                CUDA_STANDARD_REQUIRED              ON
                POSITION_INDEPENDENT_CODE           ON
                INTERFACE_POSITION_INDEPENDENT_CODE ON

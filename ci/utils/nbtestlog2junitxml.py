@@ -1,15 +1,5 @@
-# Copyright (c) 2019-2020, NVIDIA CORPORATION.
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# SPDX-FileCopyrightText: Copyright (c) 2019-2025, NVIDIA CORPORATION.
+# SPDX-License-Identifier: Apache-2.0
 
 # Generate a junit-xml file from parsing a nbtest log
 
@@ -49,12 +39,8 @@ def makeFailureElement(outputLines):
 
 
 def setFileNameAttr(attrDict, fileName):
-    attrDict.update(file=fileName,
-                    classname="",
-                    line="",
-                    name="",
-                    time=""
-                   )
+    attrDict.update(file=fileName, classname="", line="", name="", time="")
+
 
 def setClassNameAttr(attrDict, className):
     attrDict["classname"] = className
@@ -88,11 +74,12 @@ def parseLog(logFile, testSuiteElement):
         testSuiteElement.attrib["timestamp"] = ""
 
         attrDict = {}
-        #setFileNameAttr(attrDict, logFile)
+        # setFileNameAttr(attrDict, logFile)
         setFileNameAttr(attrDict, "nbtest")
 
-        parserStateEnum = Enum("parserStateEnum",
-                               "newTest startingLine finishLine exitCode")
+        parserStateEnum = Enum(
+            "parserStateEnum", "newTest startingLine finishLine exitCode"
+        )
         parserState = parserStateEnum.newTest
 
         testOutput = ""
@@ -172,4 +159,4 @@ if __name__ == "__main__":
     testSuiteElement = Element("testsuite", name="nbtest", hostname="")
     parseLog(sys.argv[1], testSuiteElement)
     testSuitesElement.append(testSuiteElement)
-    ElementTree(testSuitesElement).write(sys.argv[1]+".xml", xml_declaration=True)
+    ElementTree(testSuitesElement).write(sys.argv[1] + ".xml", xml_declaration=True)

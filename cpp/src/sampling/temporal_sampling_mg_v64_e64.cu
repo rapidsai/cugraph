@@ -1,17 +1,6 @@
 /*
- * Copyright (c) 2022-2025, NVIDIA CORPORATION.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 #include "temporal_sampling_impl.hpp"
@@ -40,6 +29,7 @@ homogeneous_uniform_temporal_neighbor_sample(
   edge_property_view_t<int64_t, int32_t const*> edge_start_time_view,
   std::optional<edge_property_view_t<int64_t, int32_t const*>> edge_end_time_view,
   raft::device_span<int64_t const> starting_vertices,
+  std::optional<raft::device_span<int32_t const>> starting_vertex_times,
   std::optional<raft::device_span<int32_t const>> starting_vertex_labels,
   std::optional<raft::device_span<int32_t const>> label_to_output_comm_rank,
   raft::host_span<int32_t const> fan_out,
@@ -65,6 +55,7 @@ heterogeneous_uniform_temporal_neighbor_sample(
   edge_property_view_t<int64_t, int32_t const*> edge_start_time_view,
   std::optional<edge_property_view_t<int64_t, int32_t const*>> edge_end_time_view,
   raft::device_span<int64_t const> starting_vertices,
+  std::optional<raft::device_span<int32_t const>> starting_vertex_times,
   std::optional<raft::device_span<int32_t const>> starting_vertex_labels,
   std::optional<raft::device_span<int32_t const>> label_to_output_comm_rank,
   raft::host_span<int32_t const> fan_out,
@@ -92,6 +83,7 @@ homogeneous_biased_temporal_neighbor_sample(
   std::optional<edge_property_view_t<int64_t, int32_t const*>> edge_end_time_view,
   edge_property_view_t<int64_t, float const*> edge_bias_view,
   raft::device_span<int64_t const> starting_vertices,
+  std::optional<raft::device_span<int32_t const>> starting_vertex_times,
   std::optional<raft::device_span<int32_t const>> starting_vertex_labels,
   std::optional<raft::device_span<int32_t const>> label_to_output_comm_rank,
   raft::host_span<int32_t const> fan_out,
@@ -118,6 +110,7 @@ heterogeneous_biased_temporal_neighbor_sample(
   std::optional<edge_property_view_t<int64_t, int32_t const*>> edge_end_time_view,
   edge_property_view_t<int64_t, float const*> edge_bias_view,
   raft::device_span<int64_t const> starting_vertices,
+  std::optional<raft::device_span<int32_t const>> starting_vertex_times,
   std::optional<raft::device_span<int32_t const>> starting_vertex_labels,
   std::optional<raft::device_span<int32_t const>> label_to_output_comm_rank,
   raft::host_span<int32_t const> fan_out,
@@ -144,6 +137,7 @@ homogeneous_uniform_temporal_neighbor_sample(
   edge_property_view_t<int64_t, int64_t const*> edge_start_time_view,
   std::optional<edge_property_view_t<int64_t, int64_t const*>> edge_end_time_view,
   raft::device_span<int64_t const> starting_vertices,
+  std::optional<raft::device_span<int64_t const>> starting_vertex_times,
   std::optional<raft::device_span<int32_t const>> starting_vertex_labels,
   std::optional<raft::device_span<int32_t const>> label_to_output_comm_rank,
   raft::host_span<int32_t const> fan_out,
@@ -169,6 +163,7 @@ heterogeneous_uniform_temporal_neighbor_sample(
   edge_property_view_t<int64_t, int64_t const*> edge_start_time_view,
   std::optional<edge_property_view_t<int64_t, int64_t const*>> edge_end_time_view,
   raft::device_span<int64_t const> starting_vertices,
+  std::optional<raft::device_span<int64_t const>> starting_vertex_times,
   std::optional<raft::device_span<int32_t const>> starting_vertex_labels,
   std::optional<raft::device_span<int32_t const>> label_to_output_comm_rank,
   raft::host_span<int32_t const> fan_out,
@@ -196,6 +191,7 @@ homogeneous_biased_temporal_neighbor_sample(
   std::optional<edge_property_view_t<int64_t, int64_t const*>> edge_end_time_view,
   edge_property_view_t<int64_t, float const*> edge_bias_view,
   raft::device_span<int64_t const> starting_vertices,
+  std::optional<raft::device_span<int64_t const>> starting_vertex_times,
   std::optional<raft::device_span<int32_t const>> starting_vertex_labels,
   std::optional<raft::device_span<int32_t const>> label_to_output_comm_rank,
   raft::host_span<int32_t const> fan_out,
@@ -222,6 +218,7 @@ heterogeneous_biased_temporal_neighbor_sample(
   std::optional<edge_property_view_t<int64_t, int64_t const*>> edge_end_time_view,
   edge_property_view_t<int64_t, float const*> edge_bias_view,
   raft::device_span<int64_t const> starting_vertices,
+  std::optional<raft::device_span<int64_t const>> starting_vertex_times,
   std::optional<raft::device_span<int32_t const>> starting_vertex_labels,
   std::optional<raft::device_span<int32_t const>> label_to_output_comm_rank,
   raft::host_span<int32_t const> fan_out,
@@ -248,6 +245,7 @@ homogeneous_uniform_temporal_neighbor_sample(
   edge_property_view_t<int64_t, int32_t const*> edge_start_time_view,
   std::optional<edge_property_view_t<int64_t, int32_t const*>> edge_end_time_view,
   raft::device_span<int64_t const> starting_vertices,
+  std::optional<raft::device_span<int32_t const>> starting_vertex_times,
   std::optional<raft::device_span<int32_t const>> starting_vertex_labels,
   std::optional<raft::device_span<int32_t const>> label_to_output_comm_rank,
   raft::host_span<int32_t const> fan_out,
@@ -273,6 +271,7 @@ heterogeneous_uniform_temporal_neighbor_sample(
   edge_property_view_t<int64_t, int32_t const*> edge_start_time_view,
   std::optional<edge_property_view_t<int64_t, int32_t const*>> edge_end_time_view,
   raft::device_span<int64_t const> starting_vertices,
+  std::optional<raft::device_span<int32_t const>> starting_vertex_times,
   std::optional<raft::device_span<int32_t const>> starting_vertex_labels,
   std::optional<raft::device_span<int32_t const>> label_to_output_comm_rank,
   raft::host_span<int32_t const> fan_out,
@@ -300,6 +299,7 @@ homogeneous_biased_temporal_neighbor_sample(
   std::optional<edge_property_view_t<int64_t, int32_t const*>> edge_end_time_view,
   edge_property_view_t<int64_t, double const*> edge_bias_view,
   raft::device_span<int64_t const> starting_vertices,
+  std::optional<raft::device_span<int32_t const>> starting_vertex_times,
   std::optional<raft::device_span<int32_t const>> starting_vertex_labels,
   std::optional<raft::device_span<int32_t const>> label_to_output_comm_rank,
   raft::host_span<int32_t const> fan_out,
@@ -326,6 +326,7 @@ heterogeneous_biased_temporal_neighbor_sample(
   std::optional<edge_property_view_t<int64_t, int32_t const*>> edge_end_time_view,
   edge_property_view_t<int64_t, double const*> edge_bias_view,
   raft::device_span<int64_t const> starting_vertices,
+  std::optional<raft::device_span<int32_t const>> starting_vertex_times,
   std::optional<raft::device_span<int32_t const>> starting_vertex_labels,
   std::optional<raft::device_span<int32_t const>> label_to_output_comm_rank,
   raft::host_span<int32_t const> fan_out,
@@ -352,6 +353,7 @@ homogeneous_uniform_temporal_neighbor_sample(
   edge_property_view_t<int64_t, int64_t const*> edge_start_time_view,
   std::optional<edge_property_view_t<int64_t, int64_t const*>> edge_end_time_view,
   raft::device_span<int64_t const> starting_vertices,
+  std::optional<raft::device_span<int64_t const>> starting_vertex_times,
   std::optional<raft::device_span<int32_t const>> starting_vertex_labels,
   std::optional<raft::device_span<int32_t const>> label_to_output_comm_rank,
   raft::host_span<int32_t const> fan_out,
@@ -377,6 +379,7 @@ heterogeneous_uniform_temporal_neighbor_sample(
   edge_property_view_t<int64_t, int64_t const*> edge_start_time_view,
   std::optional<edge_property_view_t<int64_t, int64_t const*>> edge_end_time_view,
   raft::device_span<int64_t const> starting_vertices,
+  std::optional<raft::device_span<int64_t const>> starting_vertex_times,
   std::optional<raft::device_span<int32_t const>> starting_vertex_labels,
   std::optional<raft::device_span<int32_t const>> label_to_output_comm_rank,
   raft::host_span<int32_t const> fan_out,
@@ -404,6 +407,7 @@ homogeneous_biased_temporal_neighbor_sample(
   std::optional<edge_property_view_t<int64_t, int64_t const*>> edge_end_time_view,
   edge_property_view_t<int64_t, double const*> edge_bias_view,
   raft::device_span<int64_t const> starting_vertices,
+  std::optional<raft::device_span<int64_t const>> starting_vertex_times,
   std::optional<raft::device_span<int32_t const>> starting_vertex_labels,
   std::optional<raft::device_span<int32_t const>> label_to_output_comm_rank,
   raft::host_span<int32_t const> fan_out,
@@ -430,6 +434,7 @@ heterogeneous_biased_temporal_neighbor_sample(
   std::optional<edge_property_view_t<int64_t, int64_t const*>> edge_end_time_view,
   edge_property_view_t<int64_t, double const*> edge_bias_view,
   raft::device_span<int64_t const> starting_vertices,
+  std::optional<raft::device_span<int64_t const>> starting_vertex_times,
   std::optional<raft::device_span<int32_t const>> starting_vertex_labels,
   std::optional<raft::device_span<int32_t const>> label_to_output_comm_rank,
   raft::host_span<int32_t const> fan_out,

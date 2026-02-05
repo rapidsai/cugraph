@@ -1,17 +1,6 @@
 /*
- * Copyright (c) 2025, NVIDIA CORPORATION.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION.
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 #include "detail/graph500_forest_pruning_utils.cuh"
@@ -50,6 +39,7 @@
 #include <rmm/device_uvector.hpp>
 #include <rmm/mr/host/pinned_memory_resource.hpp>
 
+#include <cuda/std/tuple>
 #include <thrust/merge.h>
 #include <thrust/set_operations.h>
 #include <thrust/sort.h>
@@ -102,9 +92,9 @@ class Tests_GRAPH500_MGBFS
   void run_current_test(Graph500_BFS_Usecase const& bfs_usecase,
                         input_usecase_t const& input_usecase)
   {
-    using weight_t    = float;    // dummy
-    using edge_type_t = int32_t;  // dummy
-    using edge_time_t = int32_t;  // dummy
+    using weight_t     = float;    // dummy
+    using edge_type_t  = int32_t;  // dummy
+    using time_stamp_t = int32_t;  // dummy
 
     bool constexpr store_transposed = false;
     bool constexpr multi_gpu        = true;
@@ -235,7 +225,7 @@ class Tests_GRAPH500_MGBFS
                  std::ignore,
                  std::ignore,
                  std::ignore) =
-          cugraph::remove_self_loops<vertex_t, edge_t, weight_t, edge_type_t, edge_time_t>(
+          cugraph::remove_self_loops<vertex_t, edge_t, weight_t, edge_type_t, time_stamp_t>(
             *handle_,
             std::move(src_chunks[i]),
             std::move(dst_chunks[i]),
@@ -260,7 +250,7 @@ class Tests_GRAPH500_MGBFS
 
       std::tie(
         src_chunks, dst_chunks, std::ignore, std::ignore, std::ignore, std::ignore, std::ignore) =
-        cugraph::remove_multi_edges<vertex_t, edge_t, weight_t, edge_type_t, edge_time_t>(
+        cugraph::remove_multi_edges<vertex_t, edge_t, weight_t, edge_type_t, time_stamp_t>(
           *handle_,
           std::move(src_chunks),
           std::move(dst_chunks),
@@ -280,23 +270,13 @@ class Tests_GRAPH500_MGBFS
 
       cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu> mg_graph(*handle_);
       std::optional<rmm::device_uvector<vertex_t>> tmp_map{};
-      std::tie(mg_graph, std::ignore, std::ignore, std::ignore, std::ignore, std::ignore, tmp_map) =
-        cugraph::create_graph_from_edgelist<vertex_t,
-                                            edge_t,
-                                            weight_t,
-                                            edge_type_t,
-                                            edge_time_t,
-                                            store_transposed,
-                                            multi_gpu>(
+      std::tie(mg_graph, std::ignore, tmp_map) =
+        cugraph::create_graph_from_edgelist<vertex_t, edge_t, store_transposed, multi_gpu>(
           *handle_,
           std::nullopt,
           std::move(src_chunks),
           std::move(dst_chunks),
-          std::nullopt,
-          std::nullopt,
-          std::nullopt,
-          std::nullopt,
-          std::nullopt,
+          std::vector<std::vector<cugraph::arithmetic_device_uvector_t>>{},
           cugraph::graph_properties_t{true /* symmetric */, false /* multi-graph */},
           renumber);
       mg_renumber_map = std::move(*tmp_map);
@@ -348,7 +328,7 @@ class Tests_GRAPH500_MGBFS
                                                        edge_t,
                                                        weight_t,
                                                        edge_type_t,
-                                                       edge_time_t,
+                                                       time_stamp_t,
                                                        store_transposed,
                                                        multi_gpu>(
           *handle_,
@@ -502,16 +482,20 @@ class Tests_GRAPH500_MGBFS
       vertex_t unrenumbered_starting_vertex{};
       vertex_t starting_vertex_parent{starting_vertex};
       vertex_t starting_vertex_component{};
-      {
-        auto h_staging_buffer_ptr = reinterpret_cast<vertex_t*>(h_staging_buffer.data());
-        auto d_staging_buffer_ptr = reinterpret_cast<vertex_t*>(d_staging_buffer.data());
-        assert(h_staging_buffer.size() >= 3);
-        raft::update_host(
-          h_staging_buffer_ptr, d_staging_buffer_ptr, size_t{3}, handle_->get_stream());
-        handle_->sync_stream();
-        comm.host_bcast(
-          h_staging_buffer_ptr,
-          3,
+      if (starting_vertex_vertex_partition_id == vertex_partition_id) {
+        unrenumbered_starting_vertex = mg_renumber_map.element(
+          starting_vertex - local_vertex_partition_range_first, handle_->get_stream());
+        starting_vertex_parent = parents.element(
+          starting_vertex - local_vertex_partition_range_first, handle_->get_stream());
+        starting_vertex_component = components.element(
+          starting_vertex - local_vertex_partition_range_first, handle_->get_stream());
+      }
+      cuda::std::tie(
+        unrenumbered_starting_vertex, starting_vertex_parent, starting_vertex_component) =
+        cugraph::host_scalar_bcast(
+          comm,
+          cuda::std::make_tuple(
+            unrenumbered_starting_vertex, starting_vertex_parent, starting_vertex_component),
           cugraph::partition_manager::compute_global_comm_rank_from_vertex_partition_id(
             major_comm_size, minor_comm_size, starting_vertex_vertex_partition_id));
         unrenumbered_starting_vertex = h_staging_buffer_ptr[0];

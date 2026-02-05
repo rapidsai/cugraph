@@ -1,15 +1,5 @@
-# Copyright (c) 2022-2025, NVIDIA CORPORATION.
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+# SPDX-License-Identifier: Apache-2.0
 
 # Have cython use python 3 syntax
 # cython: language_level = 3
@@ -50,23 +40,6 @@ from pylibcugraph._cugraph_c.properties cimport (
 
 cdef extern from "cugraph_c/sampling_algorithms.h":
     ###########################################################################
-
-    # uniform neighbor sampling
-    cdef cugraph_error_code_t cugraph_uniform_neighbor_sample(
-        const cugraph_resource_handle_t* handle,
-        cugraph_graph_t* graph,
-        const cugraph_type_erased_device_array_view_t* start_vertices,
-        const cugraph_type_erased_device_array_view_t* start_vertex_labels,
-        const cugraph_type_erased_device_array_view_t* label_list,
-        const cugraph_type_erased_device_array_view_t* label_to_comm_rank,
-        const cugraph_type_erased_device_array_view_t* label_offsets,
-        const cugraph_type_erased_host_array_view_t* fan_out,
-        cugraph_rng_state_t* rng_state,
-        const cugraph_sampling_options_t* options,
-        bool_t do_expensive_check,
-        cugraph_sample_result_t** result,
-        cugraph_error_t** error
-    )
 
     # heterogeneous uniform neighbor sampling
     cdef cugraph_error_code_t cugraph_heterogeneous_uniform_neighbor_sample(
@@ -130,24 +103,6 @@ cdef extern from "cugraph_c/sampling_algorithms.h":
         cugraph_error_t** error
     )
 
-    # biased neighbor sampling
-    cdef cugraph_error_code_t cugraph_biased_neighbor_sample(
-        const cugraph_resource_handle_t* handle,
-        cugraph_graph_t* graph,
-        const cugraph_edge_property_view_t* edge_biases,
-        const cugraph_type_erased_device_array_view_t* start_vertices,
-        const cugraph_type_erased_device_array_view_t* start_vertex_labels,
-        const cugraph_type_erased_device_array_view_t* label_list,
-        const cugraph_type_erased_device_array_view_t* label_to_comm_rank,
-        const cugraph_type_erased_device_array_view_t* label_offsets,
-        const cugraph_type_erased_host_array_view_t* fan_out,
-        cugraph_rng_state_t* rng_state,
-        const cugraph_sampling_options_t* options,
-        bool_t do_expensive_check,
-        cugraph_sample_result_t** result,
-        cugraph_error_t** error
-    )
-
     # create test uniform neighbor sampling result
     cdef cugraph_error_code_t cugraph_test_uniform_neighborhood_sample_result_create(
         const cugraph_resource_handle_t* handle,
@@ -199,6 +154,7 @@ cdef extern from "cugraph_c/sampling_algorithms.h":
             cugraph_graph_t* graph,
             const char* temporal_property_name,
             const cugraph_type_erased_device_array_view_t* start_vertices,
+            const cugraph_type_erased_device_array_view_t* starting_vertex_times,
             const cugraph_type_erased_device_array_view_t* starting_vertex_label_offsets,
             const cugraph_type_erased_host_array_view_t* fan_out,
             const cugraph_sampling_options_t* sampling_options,
@@ -215,6 +171,7 @@ cdef extern from "cugraph_c/sampling_algorithms.h":
             const char* temporal_property_name,
             const cugraph_edge_property_view_t* edge_biases,
             const cugraph_type_erased_device_array_view_t* start_vertices,
+            const cugraph_type_erased_device_array_view_t* starting_vertex_times,
             const cugraph_type_erased_device_array_view_t* starting_vertex_label_offsets,
             const cugraph_type_erased_host_array_view_t* fan_out,
             const cugraph_sampling_options_t* sampling_options,
@@ -230,6 +187,7 @@ cdef extern from "cugraph_c/sampling_algorithms.h":
             cugraph_graph_t* graph,
             const char* temporal_property_name,
             const cugraph_type_erased_device_array_view_t* start_vertices,
+            const cugraph_type_erased_device_array_view_t* starting_vertex_times,
             const cugraph_type_erased_device_array_view_t* starting_vertex_label_offsets,
             const cugraph_type_erased_device_array_view_t* vertex_type_offsets,
             const cugraph_type_erased_host_array_view_t* fan_out,
@@ -248,6 +206,7 @@ cdef extern from "cugraph_c/sampling_algorithms.h":
             const char* temporal_property_name,
             const cugraph_edge_property_view_t* edge_biases,
             const cugraph_type_erased_device_array_view_t* start_vertices,
+            const cugraph_type_erased_device_array_view_t* starting_vertex_times,
             const cugraph_type_erased_device_array_view_t* starting_vertex_label_offsets,
             const cugraph_type_erased_device_array_view_t* vertex_type_offsets,
             const cugraph_type_erased_host_array_view_t* fan_out,

@@ -1,17 +1,6 @@
 /*
- * Copyright (c) 2024-2025, NVIDIA CORPORATION.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-FileCopyrightText: Copyright (c) 2024-2025, NVIDIA CORPORATION.
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 #include "c_api/lookup_src_dst.hpp"
@@ -51,7 +40,7 @@ struct build_lookup_map_functor : public cugraph::c_api::abstract_functor {
             typename edge_t,
             typename weight_t,
             typename edge_type_t,
-            typename edge_time_t,
+            typename time_stamp_t,
             bool store_transposed,
             bool multi_gpu>
   void operator()()
@@ -123,7 +112,7 @@ struct lookup_using_edge_ids_of_single_type_functor : public cugraph::c_api::abs
             typename edge_t,
             typename weight_t,
             typename edge_type_t,
-            typename edge_time_t,
+            typename time_stamp_t,
             bool store_transposed,
             bool multi_gpu>
   void operator()()
@@ -217,7 +206,7 @@ struct lookup_using_edge_ids_and_types_functor : public cugraph::c_api::abstract
             typename edge_t,
             typename weight_t,
             typename edge_type_t,
-            typename edge_time_t,
+            typename time_stamp_t,
             bool store_transposed,
             bool multi_gpu>
   void operator()()

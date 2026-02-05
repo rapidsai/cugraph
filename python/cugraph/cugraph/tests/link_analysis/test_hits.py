@@ -1,15 +1,5 @@
-# Copyright (c) 2020-2023, NVIDIA CORPORATION.
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# SPDX-FileCopyrightText: Copyright (c) 2020-2025, NVIDIA CORPORATION.
+# SPDX-License-Identifier: Apache-2.0
 
 import gc
 
@@ -112,9 +102,9 @@ def test_hits(benchmark, input_expected_output):
     # Update the cugraph HITS results with Nx results for easy comparison using
     # cuDF DataFrame methods.
     pdf = pd.DataFrame.from_dict(nx_hubs, orient="index").sort_index()
-    cugraph_hits["nx_hubs"] = cudf.Series.from_pandas(pdf[0])
+    cugraph_hits["nx_hubs"] = cudf.Series(pdf[0])
     pdf = pd.DataFrame.from_dict(nx_authorities, orient="index").sort_index()
-    cugraph_hits["nx_authorities"] = cudf.Series.from_pandas(pdf[0])
+    cugraph_hits["nx_authorities"] = cudf.Series(pdf[0])
     hubs_diffs1 = cugraph_hits.query("hubs - nx_hubs > 0.00001")
     hubs_diffs2 = cugraph_hits.query("hubs - nx_hubs < -0.00001")
     authorities_diffs1 = cugraph_hits.query("authorities - nx_authorities > 0.0001")
@@ -128,7 +118,6 @@ def test_hits(benchmark, input_expected_output):
 
 @pytest.mark.sg
 def test_hits_transposed_false():
-
     G = karate.get_graph(create_using=cugraph.Graph(directed=True))
     warning_msg = (
         "Pagerank expects the 'store_transposed' "

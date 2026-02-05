@@ -1,17 +1,6 @@
 /*
- * Copyright (c) 2021-2025, NVIDIA CORPORATION.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 #pragma once
@@ -322,129 +311,22 @@ void cugraph_sampling_set_temporal_sampling_comparison(
 
 /**
  * @ingroup samplingC
+ * @brief   Set flag to perform disjoint sampling
+ *
+ * Note: This flag is not supported in the current implementation.
+ *
+ * @param options - opaque pointer to the sampling options
+ * @param value - Boolean value to assign to the option
+ */
+void cugraph_sampling_set_disjoint_sampling(cugraph_sampling_options_t* options, bool_t value);
+
+/**
+ * @ingroup samplingC
  * @brief     Free sampling options object
  *
  * @param [in]   options   Opaque pointer to sampling object
  */
 void cugraph_sampling_options_free(cugraph_sampling_options_t* options);
-
-/**
- * @brief     Uniform Neighborhood Sampling
- *
- * @deprecated  This API will be deleted, use cugraph_homogeneous_uniform_neighbor_sample
- *
- * Returns a sample of the neighborhood around specified start vertices.  Optionally, each
- * start vertex can be associated with a label, allowing the caller to specify multiple batches
- * of sampling requests in the same function call - which should improve GPU utilization.
- *
- * If label is NULL then all start vertices will be considered part of the same batch and the
- * return value will not have a label column.
- *
- * @param [in]  handle       Handle for accessing resources
- * @param [in]  graph        Pointer to graph.  NOTE: Graph might be modified if the storage
- *                           needs to be transposed
- * @param [in]  start_vertices Device array of start vertices for the sampling
- * @param [in]  start_vertex_labels  Device array of start vertex labels for the sampling.  The
- * labels associated with each start vertex will be included in the output associated with results
- * that were derived from that start vertex.  We only support label of type INT32. If label is
- * NULL, the return data will not be labeled.
- * @param [in]  label_list Device array of the labels included in @p start_vertex_labels.  If
- * @p label_to_comm_rank is not specified this parameter is ignored.  If specified, label_list
- * must be sorted in ascending order.
- * @param [in]  label_to_comm_rank Device array identifying which comm rank the output for a
- * particular label should be shuffled in the output.  If not specifed the data is not organized in
- * output.  If specified then the all data from @p label_list[i] will be shuffled to rank @p.  This
- * cannot be specified unless @p start_vertex_labels is also specified
- * label_to_comm_rank[i].  If not specified then the output data will not be shuffled between ranks.
- * @param [in]  label_offsets Device array of the offsets for each label in the seed list.  This
- *                            parameter is only used with the retain_seeds option.
- * @param [in]  fan_out       Host array defining the fan out at each step in the sampling
- * algorithm. We only support fan_out values of type INT32
- * @param [in,out] rng_state State of the random number generator, updated with each call
- * @param [in]  sampling_options
- *                           Opaque pointer defining the sampling options.
- * @param [in]  do_expensive_check
- *                           A flag to run expensive checks for input arguments (if set to true)
- * @param [out]  result      Output from the uniform_neighbor_sample call
- * @param [out] error        Pointer to an error object storing details of any error.  Will
- *                           be populated if error code is not CUGRAPH_SUCCESS
- * @return error code
- */
-cugraph_error_code_t cugraph_uniform_neighbor_sample(
-  const cugraph_resource_handle_t* handle,
-  cugraph_graph_t* graph,
-  const cugraph_type_erased_device_array_view_t* start_vertices,
-  const cugraph_type_erased_device_array_view_t* start_vertex_labels,
-  const cugraph_type_erased_device_array_view_t* label_list,
-  const cugraph_type_erased_device_array_view_t* label_to_comm_rank,
-  const cugraph_type_erased_device_array_view_t* label_offsets,
-  const cugraph_type_erased_host_array_view_t* fan_out,
-  cugraph_rng_state_t* rng_state,
-  const cugraph_sampling_options_t* options,
-  bool_t do_expensive_check,
-  cugraph_sample_result_t** result,
-  cugraph_error_t** error);
-
-/**
- * @brief     Biased Neighborhood Sampling
- *
- * @deprecated  This API will be deleted, use cugraph_homogeneous_biased_neighbor_sample.
- *
- * Returns a sample of the neighborhood around specified start vertices.  Optionally, each
- * start vertex can be associated with a label, allowing the caller to specify multiple batches
- * of sampling requests in the same function call - which should improve GPU utilization.
- *
- * If label is NULL then all start vertices will be considered part of the same batch and the
- * return value will not have a label column.
- *
- * @param [in]  handle       Handle for accessing resources
- * @param [in]  graph        Pointer to graph.  NOTE: Graph might be modified if the storage
- *                           needs to be transposed
- * @param [in]  edge_biases  Device array of edge biases to use for sampling.  If NULL
- * use the edge weight as the bias.  NOTE: This is a placeholder for future capability, the
- * value for edge_biases should always be set to NULL at the moment.
- * @param [in]  start_vertices Device array of start vertices for the sampling
- * @param [in]  start_vertex_labels  Device array of start vertex labels for the sampling.  The
- * labels associated with each start vertex will be included in the output associated with results
- * that were derived from that start vertex.  We only support label of type INT32. If label is
- * NULL, the return data will not be labeled.
- * @param [in]  label_list Device array of the labels included in @p start_vertex_labels.  If
- * @p label_to_comm_rank is not specified this parameter is ignored.  If specified, label_list
- * must be sorted in ascending order.
- * @param [in]  label_to_comm_rank Device array identifying which comm rank the output for a
- * particular label should be shuffled in the output.  If not specifed the data is not organized in
- * output.  If specified then the all data from @p label_list[i] will be shuffled to rank @p.  This
- * cannot be specified unless @p start_vertex_labels is also specified
- * label_to_comm_rank[i].  If not specified then the output data will not be shuffled between ranks.
- * @param [in]  label_offsets Device array of the offsets for each label in the seed list.  This
- *                            parameter is only used with the retain_seeds option.
- * @param [in]  fan_out       Host array defining the fan out at each step in the sampling
- * algorithm. We only support fan_out values of type INT32
- * @param [in,out] rng_state State of the random number generator, updated with each call
- * @param [in]  sampling_options
- *                           Opaque pointer defining the sampling options.
- * @param [in]  do_expensive_check
- *                           A flag to run expensive checks for input arguments (if set to true)
- * @param [out]  result      Output from the uniform_neighbor_sample call
- * @param [out] error        Pointer to an error object storing details of any error.  Will
- *                           be populated if error code is not CUGRAPH_SUCCESS
- * @return error code
- */
-cugraph_error_code_t cugraph_biased_neighbor_sample(
-  const cugraph_resource_handle_t* handle,
-  cugraph_graph_t* graph,
-  const cugraph_edge_property_view_t* edge_biases,
-  const cugraph_type_erased_device_array_view_t* start_vertices,
-  const cugraph_type_erased_device_array_view_t* start_vertex_labels,
-  const cugraph_type_erased_device_array_view_t* label_list,
-  const cugraph_type_erased_device_array_view_t* label_to_comm_rank,
-  const cugraph_type_erased_device_array_view_t* label_offsets,
-  const cugraph_type_erased_host_array_view_t* fan_out,
-  cugraph_rng_state_t* rng_state,
-  const cugraph_sampling_options_t* options,
-  bool_t do_expensive_check,
-  cugraph_sample_result_t** result,
-  cugraph_error_t** error);
 
 /**
  * @brief     Homogeneous Uniform Neighborhood Sampling
@@ -656,6 +538,8 @@ cugraph_error_code_t cugraph_heterogeneous_biased_neighbor_sample(
  * @param [in]  temporal_property_name Name associated with the edge property in the graph that
  * should be used as the time.  Currently unused.
  * @param [in]  start_vertices Device array of start vertices for the sampling
+ * @param [in]  starting_vertex_times Optional device span of times associated with each starting
+ * vertex for the sampling.
  * @param [in]  starting_vertex_label_offsets Device array of the offsets for each label in
  * the seed list. This parameter is only used with the retain_seeds option.
  * @param [in]  fan_out       Host array defining the fan out at each step in the sampling
@@ -675,6 +559,7 @@ cugraph_error_code_t cugraph_homogeneous_uniform_temporal_neighbor_sample(
   cugraph_graph_t* graph,
   const char* temporal_property_name,
   const cugraph_type_erased_device_array_view_t* start_vertices,
+  const cugraph_type_erased_device_array_view_t* starting_vertex_times,
   const cugraph_type_erased_device_array_view_t* starting_vertex_label_offsets,
   const cugraph_type_erased_host_array_view_t* fan_out,
   const cugraph_sampling_options_t* sampling_options,
@@ -708,6 +593,8 @@ cugraph_error_code_t cugraph_homogeneous_uniform_temporal_neighbor_sample(
  * @param [in]  edge_biases  Device array of edge biases to use for sampling.  If NULL
  * use the edge weight as the bias. If set to NULL, edges will be sampled uniformly.
  * @param [in]  start_vertices Device array of start vertices for the sampling
+ * @param [in]  starting_vertex_times Optional device span of times associated with each starting
+ * vertex for the sampling.
  * @param [in]  starting_vertex_label_offsets Device array of the offsets for each label in
  * the seed list. This parameter is only used with the retain_seeds option.
  * @param [in]  fan_out       Host array defining the fan out at each step in the sampling
@@ -728,6 +615,7 @@ cugraph_error_code_t cugraph_homogeneous_biased_temporal_neighbor_sample(
   const char* temporal_property_name,
   const cugraph_edge_property_view_t* edge_biases,
   const cugraph_type_erased_device_array_view_t* start_vertices,
+  const cugraph_type_erased_device_array_view_t* starting_vertex_times,
   const cugraph_type_erased_device_array_view_t* starting_vertex_label_offsets,
   const cugraph_type_erased_host_array_view_t* fan_out,
   const cugraph_sampling_options_t* sampling_options,
@@ -759,6 +647,8 @@ cugraph_error_code_t cugraph_homogeneous_biased_temporal_neighbor_sample(
  * @param [in]  temporal_property_name Name associated with the edge property in the graph that
  * should be used as the time.  Currently unused.
  * @param [in]  start_vertices Device array of start vertices for the sampling
+ * @param [in]  starting_vertex_times Optional device span of times associated with each starting
+ * vertex for the sampling.
  * @param [in]  starting_vertex_label_offsets Device array of the offsets for each label in
  * the seed list. This parameter is only used with the retain_seeds option.
  * @param [in]  vertex_type_offsets Device array of the offsets for each vertex type in the
@@ -782,6 +672,7 @@ cugraph_error_code_t cugraph_heterogeneous_uniform_temporal_neighbor_sample(
   cugraph_graph_t* graph,
   const char* temporal_property_name,
   const cugraph_type_erased_device_array_view_t* start_vertices,
+  const cugraph_type_erased_device_array_view_t* starting_vertex_times,
   const cugraph_type_erased_device_array_view_t* starting_vertex_label_offsets,
   const cugraph_type_erased_device_array_view_t* vertex_type_offsets,
   const cugraph_type_erased_host_array_view_t* fan_out,
@@ -817,6 +708,8 @@ cugraph_error_code_t cugraph_heterogeneous_uniform_temporal_neighbor_sample(
  * @param [in]  edge_biases  Device array of edge biases to use for sampling.  If NULL
  * use the edge weight as the bias. If set to NULL, edges will be sampled uniformly.
  * @param [in]  start_vertices Device array of start vertices for the sampling
+ * @param [in]  starting_vertex_times Optional device span of times associated with each starting
+ * vertex for the sampling.
  * @param [in]  starting_vertex_label_offsets Device array of the offsets for each label in
  * the seed list. This parameter is only used with the retain_seeds option.
  * @param [in]  vertex_type_offsets Device array of the offsets for each vertex type in the
@@ -841,6 +734,7 @@ cugraph_error_code_t cugraph_heterogeneous_biased_temporal_neighbor_sample(
   const char* temporal_property_name,
   const cugraph_edge_property_view_t* edge_biases,
   const cugraph_type_erased_device_array_view_t* start_vertices,
+  const cugraph_type_erased_device_array_view_t* starting_vertex_times,
   const cugraph_type_erased_device_array_view_t* starting_vertex_label_offsets,
   const cugraph_type_erased_device_array_view_t* vertex_type_offsets,
   const cugraph_type_erased_host_array_view_t* fan_out,

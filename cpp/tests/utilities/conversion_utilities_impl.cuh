@@ -1,17 +1,6 @@
 /*
- * Copyright (c) 2022-2025, NVIDIA CORPORATION.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governin_from_mtxg permissions and
- * limitations under the License.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+ * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
 
@@ -335,17 +324,34 @@ mg_graph_to_sg_graph(
         handle.get_stream(), vertices.data(), vertices.size(), vertex_t{0});
     }
 
-    std::tie(sg_graph, sg_edge_weights, sg_edge_ids, sg_edge_types, sg_number_map) = cugraph::
-      create_graph_from_edgelist<vertex_t, edge_t, weight_t, edge_type_t, store_transposed, false>(
+    std::vector<cugraph::edge_arithmetic_property_t<edge_t>> sg_edge_properties{};
+    std::vector<cugraph::arithmetic_device_uvector_t> edgelist_edge_properties{};
+    if (d_wgt) { edgelist_edge_properties.push_back(std::move(*d_wgt)); }
+    if (d_edge_id) { edgelist_edge_properties.push_back(std::move(*d_edge_id)); }
+    if (d_edge_type) { edgelist_edge_properties.push_back(std::move(*d_edge_type)); }
+    std::tie(sg_graph, sg_edge_properties, sg_number_map) =
+      cugraph::create_graph_from_edgelist<vertex_t, edge_t, store_transposed, false>(
         handle,
         std::make_optional(std::move(vertices)),
         std::move(d_src),
         std::move(d_dst),
-        std::move(d_wgt),
-        std::move(d_edge_id),
-        std::move(d_edge_type),
+        std::move(edgelist_edge_properties),
         cugraph::graph_properties_t{graph_view.is_symmetric(), graph_view.is_multigraph()},
         renumber);
+
+    size_t pos = 0;
+    if (d_wgt) {
+      sg_edge_weights = std::make_optional(
+        std::move(std::get<cugraph::edge_property_t<edge_t, weight_t>>(sg_edge_properties[pos++])));
+    }
+    if (d_edge_id) {
+      sg_edge_ids = std::make_optional(
+        std::move(std::get<cugraph::edge_property_t<edge_t, edge_t>>(sg_edge_properties[pos++])));
+    }
+    if (d_edge_type) {
+      sg_edge_types = std::make_optional(std::move(
+        std::get<cugraph::edge_property_t<edge_t, edge_type_t>>(sg_edge_properties[pos++])));
+    }
   } else {
     d_src.resize(0, handle.get_stream());
     d_src.shrink_to_fit(handle.get_stream());

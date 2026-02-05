@@ -1,17 +1,6 @@
 /*
- * Copyright (c) 2022, NVIDIA CORPORATION.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-FileCopyrightText: Copyright (c) 2022, NVIDIA CORPORATION.
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 #include "mg_test_utils.h" /* RUN_TEST */
@@ -24,6 +13,10 @@
 typedef int32_t vertex_t;
 typedef int32_t edge_t;
 typedef float weight_t;
+
+cugraph_data_type_id_t vertex_tid = INT32;
+cugraph_data_type_id_t edge_tid   = INT32;
+cugraph_data_type_id_t weight_tid = FLOAT32;
 
 int generic_triangle_count_test(const cugraph_resource_handle_t* handle,
                                 vertex_t* h_src,
@@ -41,35 +34,54 @@ int generic_triangle_count_test(const cugraph_resource_handle_t* handle,
   cugraph_error_code_t ret_code = CUGRAPH_SUCCESS;
   cugraph_error_t* ret_error;
 
-  cugraph_graph_t* p_graph                              = NULL;
-  cugraph_triangle_count_result_t* p_result             = NULL;
-  cugraph_type_erased_device_array_t* p_start           = NULL;
-  cugraph_type_erased_device_array_view_t* p_start_view = NULL;
+  cugraph_graph_t* graph                              = NULL;
+  cugraph_triangle_count_result_t* result             = NULL;
+  cugraph_type_erased_device_array_t* start           = NULL;
+  cugraph_type_erased_device_array_view_t* start_view = NULL;
 
   int rank = cugraph_resource_handle_get_rank(handle);
 
-  ret_code = create_mg_test_graph(
-    handle, h_src, h_dst, h_wgt, num_edges, store_transposed, TRUE, &p_graph, &ret_error);
+  ret_code = create_mg_test_graph_new(handle,
+                                      vertex_tid,
+                                      edge_tid,
+                                      h_src,
+                                      h_dst,
+                                      weight_tid,
+                                      h_wgt,
+                                      INT32,
+                                      NULL,
+                                      edge_tid,
+                                      NULL,
+                                      INT32,
+                                      NULL,
+                                      NULL,
+                                      num_edges,
+                                      store_transposed,
+                                      TRUE,
+                                      TRUE,
+                                      FALSE,
+                                      &graph,
+                                      &ret_error);
 
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "create_mg_test_graph failed.");
 
   if (h_verts != NULL) {
     if (rank == 0) {
       ret_code =
-        cugraph_type_erased_device_array_create(handle, num_results, INT32, &p_start, &ret_error);
-      TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "p_start create failed.");
+        cugraph_type_erased_device_array_create(handle, num_results, INT32, &start, &ret_error);
+      TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "start create failed.");
 
-      p_start_view = cugraph_type_erased_device_array_view(p_start);
+      start_view = cugraph_type_erased_device_array_view(start);
 
       ret_code = cugraph_type_erased_device_array_view_copy_from_host(
-        handle, p_start_view, (byte_t*)h_verts, &ret_error);
+        handle, start_view, (byte_t*)h_verts, &ret_error);
       TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "src copy_from_host failed.");
     } else {
-      p_start_view = cugraph_type_erased_device_array_view_create(NULL, 0, INT32);
+      start_view = cugraph_type_erased_device_array_view_create(NULL, 0, INT32);
     }
   }
 
-  ret_code = cugraph_triangle_count(handle, p_graph, p_start_view, FALSE, &p_result, &ret_error);
+  ret_code = cugraph_triangle_count(handle, graph, start_view, FALSE, &result, &ret_error);
 
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
   TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, "cugraph_triangle_count failed.");
@@ -78,8 +90,8 @@ int generic_triangle_count_test(const cugraph_resource_handle_t* handle,
     cugraph_type_erased_device_array_view_t* vertices;
     cugraph_type_erased_device_array_view_t* counts;
 
-    vertices = cugraph_triangle_count_result_get_vertices(p_result);
-    counts   = cugraph_triangle_count_result_get_counts(p_result);
+    vertices = cugraph_triangle_count_result_get_vertices(result);
+    counts   = cugraph_triangle_count_result_get_counts(result);
 
     vertex_t num_local_results = cugraph_type_erased_device_array_view_size(vertices);
 
@@ -102,10 +114,10 @@ int generic_triangle_count_test(const cugraph_resource_handle_t* handle,
       }
     }
 
-    cugraph_triangle_count_result_free(p_result);
+    cugraph_triangle_count_result_free(result);
   }
 
-  cugraph_graph_free(p_graph);
+  cugraph_graph_free(graph);
   cugraph_error_free(ret_error);
 
   return test_ret_value;

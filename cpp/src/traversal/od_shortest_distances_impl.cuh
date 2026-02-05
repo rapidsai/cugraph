@@ -1,17 +1,6 @@
 /*
- * Copyright (c) 2024-2025, NVIDIA CORPORATION.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
+ * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
 
@@ -284,8 +273,12 @@ __global__ static void multi_partition_copy(
       if (tmp_idx < num_elems) {
         auto partition    = partition_op(*(input_first + tmp_idx));
         tmp_partitions[i] = partition;
-        tmp_offsets[i]    = tmp_counts[partition];
-        ++tmp_counts[partition];
+        // Skip count update for discarded elements (partition == max_num_partitions)
+        // to avoid out-of-bounds access on tmp_counts array
+        if (partition != static_cast<uint8_t>(max_num_partitions)) {
+          tmp_offsets[i] = tmp_counts[partition];
+          ++tmp_counts[partition];
+        }
       }
       tmp_idx += gridDim.x * blockDim.x;
     }
@@ -919,7 +912,8 @@ rmm::device_uvector<weight_t> od_shortest_distances(
                                   h_split_thresholds.size(),
                                   handle.get_stream());
 
-              rmm::device_uvector<key_t> tmp_buffer = std::move(far_buffers.back());
+              rmm::device_uvector<key_t> tmp_buffer = std::exchange(
+                far_buffers.back(), rmm::device_uvector<key_t>(0, handle.get_stream()));
               std::vector<key_t*> h_buffer_ptrs(h_split_thresholds.size() + 1);
               auto old_size = new_near_q_keys.size();
               for (size_t j = 0; j < h_buffer_ptrs.size(); ++j) {
@@ -1001,7 +995,8 @@ rmm::device_uvector<weight_t> od_shortest_distances(
               new_near_q_keys.resize(cuda::std::distance(new_near_q_keys.begin(), last),
                                      handle.get_stream());
             } else {
-              far_buffers[i - num_near_q_insert_buffers] = std::move(far_buffers[i]);
+              far_buffers[i - num_near_q_insert_buffers] =
+                std::exchange(far_buffers[i], rmm::device_uvector<key_t>{0, handle.get_stream()});
             }
           }
 

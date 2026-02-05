@@ -1,15 +1,5 @@
-# Copyright (c) 2022-2025, NVIDIA CORPORATION.
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+# SPDX-License-Identifier: Apache-2.0
 
 import contextlib
 import doctest
@@ -27,6 +17,7 @@ import pylibcugraph
 import cudf
 from cugraph.testing import utils
 
+pytestmark = pytest.mark.filterwarnings("ignore::FutureWarning")
 
 modules_to_skip = ["dask", "proto", "raft"]
 datasets = utils.RAPIDS_DATASET_ROOT_DIR_PATH
@@ -92,10 +83,7 @@ def _find_doctests_in_docstring(finder, member):
     for docstring in finder.find(member):
         has_examples = docstring.examples
         is_dask = "dask" in str(docstring)
-        # FIXME: when PropertyGraph is removed from EXPERIMENTAL
-        # manually including PropertyGraph until it is removed from EXPERIMENTAL
-        is_pg = "PropertyGraph" in str(docstring)
-        is_experimental = "EXPERIMENTAL" in str(docstring) and not is_pg
+        is_experimental = "EXPERIMENTAL" in str(docstring)
         # if has_examples and not is_dask:
         if has_examples and not is_dask and not is_experimental:
             yield docstring

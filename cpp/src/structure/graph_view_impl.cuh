@@ -1,17 +1,6 @@
 /*
- * Copyright (c) 2020-2025, NVIDIA CORPORATION.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 #pragma once
@@ -274,7 +263,7 @@ __global__ static void for_all_major_for_all_nbr_mid_degree(
     vertex_t const* indices{nullptr};
     [[maybe_unused]] edge_t edge_offset{};
     edge_t local_degree{};
-    thrust::tie(indices, edge_offset, local_degree) = edge_partition.local_edges(major_offset);
+    cuda::std::tie(indices, edge_offset, local_degree) = edge_partition.local_edges(major_offset);
     for (edge_t i = lane_id; i < local_degree; i += raft::warp_size()) {
       if ((i != 0) && (indices[i - 1] == indices[i])) { ++count_sum; }
     }
@@ -305,7 +294,7 @@ __global__ static void for_all_major_for_all_nbr_high_degree(
     vertex_t const* indices{nullptr};
     [[maybe_unused]] edge_t edge_offset{};
     edge_t local_degree{};
-    thrust::tie(indices, edge_offset, local_degree) =
+    cuda::std::tie(indices, edge_offset, local_degree) =
       edge_partition.local_edges(static_cast<vertex_t>(major_offset));
     for (edge_t i = threadIdx.x; i < local_degree; i += blockDim.x) {
       if ((i != 0) && (indices[i - 1] == indices[i])) { ++count_sum; }
@@ -369,7 +358,7 @@ edge_t count_edge_partition_multi_edges(
           vertex_t const* indices{nullptr};
           [[maybe_unused]] edge_t edge_offset{};
           edge_t local_degree{};
-          thrust::tie(indices, edge_offset, local_degree) =
+          cuda::std::tie(indices, edge_offset, local_degree) =
             edge_partition.local_edges(major_offset);
           edge_t count{0};
           for (edge_t i = 1; i < local_degree; ++i) {  // assumes neighbors are sorted
@@ -393,7 +382,8 @@ edge_t count_edge_partition_multi_edges(
             vertex_t const* indices{nullptr};
             [[maybe_unused]] edge_t edge_offset{};
             edge_t local_degree{};
-            thrust::tie(indices, edge_offset, local_degree) = edge_partition.local_edges(major_idx);
+            cuda::std::tie(indices, edge_offset, local_degree) =
+              edge_partition.local_edges(major_idx);
             edge_t count{0};
             for (edge_t i = 1; i < local_degree; ++i) {  // assumes neighbors are sorted
               if (indices[i - 1] == indices[i]) { ++count; }
@@ -416,7 +406,8 @@ edge_t count_edge_partition_multi_edges(
         vertex_t const* indices{nullptr};
         [[maybe_unused]] edge_t edge_offset{};
         edge_t local_degree{};
-        thrust::tie(indices, edge_offset, local_degree) = edge_partition.local_edges(major_offset);
+        cuda::std::tie(indices, edge_offset, local_degree) =
+          edge_partition.local_edges(major_offset);
         edge_t count{0};
         for (edge_t i = 1; i < local_degree; ++i) {  // assumes neighbors are sorted
           if (indices[i - 1] == indices[i]) { ++count; }
@@ -862,7 +853,7 @@ graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<mul
                           vertex_t const* indices{nullptr};
                           edge_t local_edge_offset{};
                           edge_t local_degree{};
-                          thrust::tie(indices, local_edge_offset, local_degree) =
+                          cuda::std::tie(indices, local_edge_offset, local_degree) =
                             edge_partition.local_edges(*major_idx);
                           auto it = thrust::lower_bound(
                             thrust::seq, indices, indices + local_degree, minor);
@@ -932,7 +923,7 @@ graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<!mu
       vertex_t const* indices{nullptr};
       edge_t local_edge_offset{};
       edge_t local_degree{};
-      thrust::tie(indices, local_edge_offset, local_degree) =
+      cuda::std::tie(indices, local_edge_offset, local_degree) =
         edge_partition.local_edges(major_offset);
       auto it = thrust::lower_bound(thrust::seq, indices, indices + local_degree, minor);
       if ((it != indices + local_degree) && *it == minor) {
@@ -1008,7 +999,7 @@ graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<mul
           vertex_t const* indices{nullptr};
           edge_t local_edge_offset{};
           edge_t local_degree{};
-          thrust::tie(indices, local_edge_offset, local_degree) =
+          cuda::std::tie(indices, local_edge_offset, local_degree) =
             edge_partition.local_edges(*major_idx);
           auto lower_it = thrust::lower_bound(thrust::seq, indices, indices + local_degree, minor);
           auto upper_it = thrust::upper_bound(thrust::seq, indices, indices + local_degree, minor);
@@ -1077,7 +1068,7 @@ graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<!mu
       vertex_t const* indices{nullptr};
       edge_t local_edge_offset{};
       edge_t local_degree{};
-      thrust::tie(indices, local_edge_offset, local_degree) =
+      cuda::std::tie(indices, local_edge_offset, local_degree) =
         edge_partition.local_edges(major_offset);
       auto lower_it     = thrust::lower_bound(thrust::seq, indices, indices + local_degree, minor);
       auto upper_it     = thrust::upper_bound(thrust::seq, indices, indices + local_degree, minor);

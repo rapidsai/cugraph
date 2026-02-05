@@ -1,15 +1,5 @@
-# Copyright (c) 2025, NVIDIA CORPORATION.:
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# SPDX-FileCopyrightText: Copyright (c) 2025, NVIDIA CORPORATION.:
+# SPDX-License-Identifier: Apache-2.0
 
 import gc
 import random
@@ -131,8 +121,7 @@ def check_uniform_random_walks(G, path_data, seeds, max_depth):
                 if i % (max_depth + 1) == 0 and vertex_1 != seeds[i // (max_depth + 1)]:
                     invalid_seeds += 1
                     print(
-                        "[ERR] Invalid seed: "
-                        " src {} != src {}".format(
+                        "[ERR] Invalid seed:  src {} != src {}".format(
                             vertex_1, seeds[i // (max_depth + 1)]
                         )
                     )
@@ -161,8 +150,9 @@ def check_uniform_random_walks(G, path_data, seeds, max_depth):
 
                 if len(edge) == 0:
                     print(
-                        "[ERR] Invalid edge: "
-                        "There is no edge src {} dst {}".format(src, dst)
+                        "[ERR] Invalid edge: There is no edge src {} dst {}".format(
+                            src, dst
+                        )
                     )
                     invalid_edge += 1
 
@@ -202,7 +192,6 @@ def check_uniform_random_walks(G, path_data, seeds, max_depth):
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize("max_depth", [None])
 def test_uniform_random_walks_invalid_max_dept(graph_file, directed, max_depth):
-
     input_graph = graph_file.get_graph(create_using=cugraph.Graph(directed=directed))
     with pytest.raises(TypeError):
         _, _, _ = calc_uniform_random_walks(input_graph, max_depth=max_depth)
