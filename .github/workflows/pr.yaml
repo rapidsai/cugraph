@@ -56,12 +56,59 @@ jobs:
     uses: rapidsai/shared-workflows/.github/workflows/changed-files.yaml@main
     with:
       files_yaml: |
+        build_docs:
+          - '**'
+          - '!.devcontainer/**'
+          - '!.dockerignore'
+          - '!.git-blame-ignore-revs'
+          - '!.github/CODEOWNERS'
+          - '!.github/ISSUE_TEMPLATE/**'
+          - '!.github/copy-pr-bot.yaml'
+          - '!.github/labeler.yml'
+          - '!.github/ops-bot.yaml'
+          - '!.github/release.yml'
+          - '!.github/workflows/add-to-project.yml'
+          - '!.github/workflows/new-issues-to-triage-projects.yml'
+          - '!.github/workflows/trigger-breaking-change-alert.yaml'
+          - '!.pre-commit-config.yaml'
+          - '!README.md'
+          - '!ci/build_wheel*.sh'
+          - '!ci/check_style.sh'
+          - '!ci/release/update-version.sh'
+          - '!ci/run_ctests.sh'
+          - '!ci/test_cpp.sh'
+          - '!ci/test_notebooks.sh'
+          - '!ci/test_python.sh'
+          - '!ci/test_wheel*.sh'
+          - '!ci/validate_wheel.sh'
+          - '!ci/wheel*.py'
         test_cpp:
           - '**'
           - '!.devcontainer/**'
-          - '!CONTRIBUTING.md'
+          - '!.dockerignore'
+          - '!.git-blame-ignore-revs'
+          - '!.github/CODEOWNERS'
+          - '!.github/ISSUE_TEMPLATE/**'
+          - '!.github/copy-pr-bot.yaml'
+          - '!.github/labeler.yml'
+          - '!.github/ops-bot.yaml'
+          - '!.github/release.yml'
+          - '!.github/workflows/add-to-project.yml'
+          - '!.github/workflows/new-issues-to-triage-projects.yml'
+          - '!.github/workflows/trigger-breaking-change-alert.yaml'
+          - '!.pre-commit-config.yaml'
           - '!README.md'
+          - '!ci/build_docs.sh'
+          - '!ci/build_python.sh'
+          - '!ci/build_wheel*.sh'
+          - '!ci/check_style.sh'
+          - '!ci/notebook_list.py'
           - '!ci/release/update-version.sh'
+          - '!ci/test_notebooks.sh'
+          - '!ci/test_python.sh'
+          - '!ci/test_wheel*.sh'
+          - '!ci/validate_wheel.sh'
+          - '!ci/wheel*.py'
           - '!docs/**'
           - '!img/**'
           - '!mg_utils/**'
@@ -71,19 +118,91 @@ jobs:
         test_notebooks:
           - '**'
           - '!.devcontainer/**'
-          - '!CONTRIBUTING.md'
+          - '!.dockerignore'
+          - '!.git-blame-ignore-revs'
+          - '!.github/CODEOWNERS'
+          - '!.github/ISSUE_TEMPLATE/**'
+          - '!.github/copy-pr-bot.yaml'
+          - '!.github/labeler.yml'
+          - '!.github/ops-bot.yaml'
+          - '!.github/release.yml'
+          - '!.github/workflows/add-to-project.yml'
+          - '!.github/workflows/new-issues-to-triage-projects.yml'
+          - '!.github/workflows/trigger-breaking-change-alert.yaml'
+          - '!.pre-commit-config.yaml'
           - '!README.md'
+          - '!ci/build_docs.sh'
+          - '!ci/build_wheel*.sh'
+          - '!ci/check_style.sh'
           - '!ci/release/update-version.sh'
+          - '!ci/run_ctests.sh'
+          - '!ci/test_cpp.sh'
+          - '!ci/test_python.sh'
+          - '!ci/test_wheel*.sh'
+          - '!ci/validate_wheel.sh'
+          - '!ci/wheel*.py'
           - '!docs/**'
-        test_python:
+        test_python_conda:
           - '**'
           - '!.devcontainer/**'
-          - '!CONTRIBUTING.md'
+          - '!.dockerignore'
+          - '!.git-blame-ignore-revs'
+          - '!.github/CODEOWNERS'
+          - '!.github/ISSUE_TEMPLATE/**'
+          - '!.github/copy-pr-bot.yaml'
+          - '!.github/labeler.yml'
+          - '!.github/ops-bot.yaml'
+          - '!.github/release.yml'
+          - '!.github/workflows/add-to-project.yml'
+          - '!.github/workflows/new-issues-to-triage-projects.yml'
+          - '!.github/workflows/trigger-breaking-change-alert.yaml'
+          - '!.pre-commit-config.yaml'
           - '!README.md'
+          - '!ci/build_docs.sh'
+          - '!ci/build_wheel*.sh'
+          - '!ci/check_style.sh'
+          - '!ci/notebook_release.py'
           - '!ci/release/update-version.sh'
+          - '!ci/run_ctests.sh'
+          - '!ci/test_cpp.sh'
+          - '!ci/test_notebooks.sh'
+          - '!ci/test_wheel*.sh'
+          - '!ci/validate_wheel.sh'
+          - '!ci/wheel*.py'
           - '!docs/**'
           - '!img/**'
           - '!notebooks/**'
+          - '!readme_pages/**'
+        test_python_wheels:
+          - '**'
+          - '!.devcontainer/**'
+          - '!.dockerignore'
+          - '!.git-blame-ignore-revs'
+          - '!.github/CODEOWNERS'
+          - '!.github/ISSUE_TEMPLATE/**'
+          - '!.github/copy-pr-bot.yaml'
+          - '!.github/labeler.yml'
+          - '!.github/ops-bot.yaml'
+          - '!.github/release.yml'
+          - '!.github/workflows/add-to-project.yml'
+          - '!.github/workflows/new-issues-to-triage-projects.yml'
+          - '!.github/workflows/trigger-breaking-change-alert.yaml'
+          - '!.pre-commit-config.yaml'
+          - '!README.md'
+          - '!ci/build_cpp.sh'
+          - '!ci/build_docs.sh'
+          - '!ci/build_python.sh'
+          - '!ci/check_style.sh'
+          - '!ci/release/update-version.sh'
+          - '!ci/run_ctests.sh'
+          - '!ci/test_cpp.sh'
+          - '!ci/test_notebooks.sh'
+          - '!ci/test_python.sh'
+          - '!conda/**'
+          - '!docs/**'
+          - '!img/**'
+          - '!notebooks/**'
+          - '!readme_pages/**'
   checks:
     secrets: inherit
     needs: telemetry-setup
@@ -128,7 +247,7 @@ jobs:
     needs: [conda-python-build, changed-files]
     secrets: inherit
     uses: rapidsai/shared-workflows/.github/workflows/conda-python-tests.yaml@main
-    if: fromJSON(needs.changed-files.outputs.changed_file_groups).test_python
+    if: fromJSON(needs.changed-files.outputs.changed_file_groups).test_python_conda
     with:
       build_type: pull-request
       script: ci/test_python.sh
@@ -145,9 +264,10 @@ jobs:
       container_image: "rapidsai/ci-conda:26.04-latest"
       script: "ci/test_notebooks.sh"
   docs-build:
-    needs: conda-python-build
+    needs: [conda-python-build, changed-files]
     secrets: inherit
     uses: rapidsai/shared-workflows/.github/workflows/custom-job.yaml@main
+    if: fromJSON(needs.changed-files.outputs.changed_file_groups).build_docs
     with:
       build_type: pull-request
       node_type: "gpu-l4-latest-1"
@@ -182,7 +302,7 @@ jobs:
     needs: [wheel-build-pylibcugraph, changed-files]
     secrets: inherit
     uses: rapidsai/shared-workflows/.github/workflows/wheels-test.yaml@main
-    if: fromJSON(needs.changed-files.outputs.changed_file_groups).test_python
+    if: fromJSON(needs.changed-files.outputs.changed_file_groups).test_python_wheels
     with:
       build_type: pull-request
       script: ci/test_wheel_pylibcugraph.sh
@@ -202,7 +322,7 @@ jobs:
     needs: [wheel-build-cugraph, changed-files]
     secrets: inherit
     uses: rapidsai/shared-workflows/.github/workflows/wheels-test.yaml@main
-    if: fromJSON(needs.changed-files.outputs.changed_file_groups).test_python
+    if: fromJSON(needs.changed-files.outputs.changed_file_groups).test_python_wheels
     with:
       build_type: pull-request
       script: ci/test_wheel_cugraph.sh
