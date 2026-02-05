@@ -337,8 +337,10 @@ template <typename vertex_t, typename edge_t, bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            std::vector<arithmetic_device_uvector_t>,
+           std::optional<rmm::device_uvector<int32_t>>,
+           rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<int32_t>>>
-gather_one_hop_edgelist_with_visited(
+gather_one_hop_edgelist_to_unvisited_neighbors(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   raft::host_span<edge_arithmetic_property_view_t<edge_t>> edge_property_views,
@@ -346,12 +348,10 @@ gather_one_hop_edgelist_with_visited(
   raft::device_span<vertex_t const> active_majors,
   std::optional<raft::device_span<int32_t const>> active_major_labels,
   std::optional<raft::device_span<uint8_t const>> gather_flags,
-  std::optional<rmm::device_uvector<vertex_t>>& visited_vertices,
-  std::optional<rmm::device_uvector<int32_t>>& visited_vertex_labels,
+  rmm::device_uvector<vertex_t>&& visited_vertices,
+  std::optional<rmm::device_uvector<int32_t>>&& visited_vertex_labels,
   bool do_expensive_check)
 {
-  CUGRAPH_EXPECTS(visited_vertices, "Visited vertices must be provided");
-
   // Implement this, should be a little easier than sample_edges_with_visited, since we don't need
   // to compute the probability of sampling for an edge based on the label/tag.  We can just extract
   // everything and then filter the results based on the visited vertices and vertex labels.
@@ -374,9 +374,9 @@ gather_one_hop_edgelist_with_visited(
             result_dsts.size(),
             [dsts                  = result_dsts.data(),
              labels                = result_labels->data(),
-             visited_vertices      = visited_vertices->data(),
+             visited_vertices      = visited_vertices.data(),
              visited_labels        = visited_vertex_labels->data(),
-             visited_vertices_size = visited_vertices->size()] __device__(auto index) {
+             visited_vertices_size = visited_vertices.size()] __device__(auto index) {
               auto iter_begin = thrust::make_zip_iterator(visited_vertices, visited_labels);
               return !thrust::binary_search(thrust::seq,
                                             iter_begin,
@@ -387,8 +387,8 @@ gather_one_hop_edgelist_with_visited(
             handle,
             result_dsts.size(),
             [dsts                  = result_dsts.data(),
-             visited_vertices      = visited_vertices->data(),
-             visited_vertices_size = visited_vertices->size()] __device__(auto index) {
+             visited_vertices      = visited_vertices.data(),
+             visited_vertices_size = visited_vertices.size()] __device__(auto index) {
               return !thrust::binary_search(thrust::seq,
                                             visited_vertices,
                                             visited_vertices + visited_vertices_size,
@@ -519,13 +519,13 @@ gather_one_hop_edgelist_with_visited(
     });
 
   // Finally, I update the visited vertices and vertex labels to include the new result set
-  rmm::device_uvector<vertex_t> new_visited_vertices(visited_vertices->size() + result_dsts.size(),
+  rmm::device_uvector<vertex_t> new_visited_vertices(visited_vertices.size() + result_dsts.size(),
                                                      handle.get_stream());
   raft::copy(
     new_visited_vertices.begin(), result_dsts.begin(), result_dsts.size(), handle.get_stream());
   raft::copy(new_visited_vertices.begin() + result_dsts.size(),
-             visited_vertices->begin(),
-             visited_vertices->size(),
+             visited_vertices.begin(),
+             visited_vertices.size(),
              handle.get_stream());
 
   if (result_labels) {
@@ -557,7 +557,9 @@ gather_one_hop_edgelist_with_visited(
   return std::make_tuple(std::move(result_srcs),
                          std::move(result_dsts),
                          std::move(result_properties),
-                         std::move(result_labels));
+                         std::move(result_labels),
+                         std::move(visited_vertices),
+                         std::move(visited_vertex_labels));
 }
 
 template <typename vertex_t, typename edge_t, typename time_stamp_t, bool multi_gpu>

@@ -479,7 +479,7 @@ call_unbiased_per_v_random_select_transform_outgoing_e(
                            false);
   }
 
-  if (offsets) {
+  if (active_major_labels) {
     labels =
       rmm::device_uvector<int32_t>(offsets->back_element(handle.get_stream()), handle.get_stream());
     auto num_segments = offsets->size() - size_t{1};
@@ -845,88 +845,86 @@ sample_unvisited_with_one_property(
           handle.get_thrust_policy(), majors_begin, majors_begin + local_majors.size());
         local_majors.resize(cuda::std::distance(majors_begin, new_end), handle.get_stream());
       }
+    }
 
-      if (local_majors.size() > 0) {
-        // Now we need to delete sampled edges from any vertex in local_majors
-        size_t keep_count{};
-        rmm::device_uvector<uint32_t> keep_flags(0, handle.get_stream());
+    if (local_majors.size() > 0) {
+      // Now we need to delete sampled edges from any vertex in local_majors
+      size_t keep_count{};
+      rmm::device_uvector<uint32_t> keep_flags(0, handle.get_stream());
 
-        if (visited_vertex_labels) {
-          auto labels_major_begin =
-            thrust::make_zip_iterator(local_labels.begin(), local_majors.begin());
-          std::tie(keep_count, keep_flags) = detail::mark_entries(
-            handle,
-            sampled_majors.size(),
-            [majors             = sampled_majors.data(),
-             labels             = sampled_labels->data(),
-             labels_major_begin = labels_major_begin,
-             labels_major_end   = labels_major_begin + local_majors.size()] __device__(size_t i) {
-              return !thrust::binary_search(thrust::seq,
-                                            labels_major_begin,
-                                            labels_major_end,
-                                            cuda::std::make_tuple(labels[i], majors[i]));
-            });
-        } else {
-          std::tie(keep_count, keep_flags) = detail::mark_entries(
-            handle,
-            sampled_majors.size(),
-            [majors       = sampled_majors.data(),
-             majors_begin = local_majors.begin(),
-             majors_end   = local_majors.end()] __device__(size_t i) {
-              return !thrust::binary_search(thrust::seq, majors_begin, majors_end, majors[i]);
-            });
-        }
-
-        // local_majors/local_labels contain the vertices that need to be resampled
-        // Replace the current frontier (bucket 0) with the new set
-        if constexpr (std::is_same_v<tag_t, void>) {
-          resample_active_majors    = std::move(local_majors);
-          vertex_frontier.bucket(0) = cugraph::key_bucket_t<vertex_t, tag_t, multi_gpu, false>(
-            handle,
-            raft::device_span<vertex_t const>{resample_active_majors.data(),
-                                              resample_active_majors.size()});
-        } else {
-          resample_active_majors       = std::move(local_majors);
-          resample_active_major_labels = std::move(local_labels);
-          vertex_frontier.bucket(0)    = cugraph::key_bucket_t<vertex_t, tag_t, multi_gpu, false>(
-            handle,
-            raft::device_span<vertex_t const>{resample_active_majors.data(),
-                                                 resample_active_majors.size()},
-            raft::device_span<tag_t const>{resample_active_major_labels.data(),
-                                              resample_active_major_labels.size()});
-          handle.sync_stream();
-          active_major_labels = raft::device_span<int32_t const>{
-            resample_active_major_labels.data(), resample_active_major_labels.size()};
-        }
-
-        sampled_majors = detail::keep_marked_entries(
+      if (visited_vertex_labels) {
+        auto labels_major_begin =
+          thrust::make_zip_iterator(local_labels.begin(), local_majors.begin());
+        std::tie(keep_count, keep_flags) = detail::mark_entries(
           handle,
-          std::move(sampled_majors),
-          raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
-          keep_count);
-        sampled_minors = detail::keep_marked_entries(
+          sampled_majors.size(),
+          [majors             = sampled_majors.data(),
+           labels             = sampled_labels->data(),
+           labels_major_begin = labels_major_begin,
+           labels_major_end   = labels_major_begin + local_majors.size()] __device__(size_t i) {
+            return !thrust::binary_search(thrust::seq,
+                                          labels_major_begin,
+                                          labels_major_end,
+                                          cuda::std::make_tuple(labels[i], majors[i]));
+          });
+      } else {
+        std::tie(keep_count, keep_flags) = detail::mark_entries(
           handle,
-          std::move(sampled_minors),
-          raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
-          keep_count);
-        if (visited_vertex_labels) {
-          sampled_labels = detail::keep_marked_entries(
-            handle,
-            std::move(*sampled_labels),
-            raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
-            keep_count);
-        }
-
-        if constexpr (!std::is_same_v<T, cuda::std::nullopt_t>) {
-          sampled_properties = detail::keep_marked_entries(
-            handle,
-            std::move(std::get<rmm::device_uvector<T>>(sampled_properties)),
-            raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
-            keep_count);
-        }
+          sampled_majors.size(),
+          [majors       = sampled_majors.data(),
+           majors_begin = local_majors.begin(),
+           majors_end   = local_majors.end()] __device__(size_t i) {
+            return !thrust::binary_search(thrust::seq, majors_begin, majors_end, majors[i]);
+          });
       }
-    } else {
-      sample_and_append = false;
+
+      // local_majors/local_labels contain the vertices that need to be resampled
+      // Replace the current frontier (bucket 0) with the new set
+      if constexpr (std::is_same_v<tag_t, void>) {
+        resample_active_majors    = std::move(local_majors);
+        vertex_frontier.bucket(0) = cugraph::key_bucket_t<vertex_t, tag_t, multi_gpu, false>(
+          handle,
+          raft::device_span<vertex_t const>{resample_active_majors.data(),
+                                            resample_active_majors.size()});
+      } else {
+        resample_active_majors       = std::move(local_majors);
+        resample_active_major_labels = std::move(local_labels);
+        vertex_frontier.bucket(0)    = cugraph::key_bucket_t<vertex_t, tag_t, multi_gpu, false>(
+          handle,
+          raft::device_span<vertex_t const>{resample_active_majors.data(),
+                                               resample_active_majors.size()},
+          raft::device_span<tag_t const>{resample_active_major_labels.data(),
+                                            resample_active_major_labels.size()});
+        handle.sync_stream();
+        active_major_labels = raft::device_span<int32_t const>{resample_active_major_labels.data(),
+                                                               resample_active_major_labels.size()};
+      }
+
+      sampled_majors = detail::keep_marked_entries(
+        handle,
+        std::move(sampled_majors),
+        raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
+        keep_count);
+      sampled_minors = detail::keep_marked_entries(
+        handle,
+        std::move(sampled_minors),
+        raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
+        keep_count);
+      if (visited_vertex_labels) {
+        sampled_labels = detail::keep_marked_entries(
+          handle,
+          std::move(*sampled_labels),
+          raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
+          keep_count);
+      }
+
+      if constexpr (!std::is_same_v<T, cuda::std::nullopt_t>) {
+        sampled_properties = detail::keep_marked_entries(
+          handle,
+          std::move(std::get<rmm::device_uvector<T>>(sampled_properties)),
+          raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
+          keep_count);
+      }
     }
 
     // Now I need to update the visited vertices and labels

@@ -83,16 +83,19 @@ gather_one_hop_edgelist(
   bool do_expensive_check);
 
 /**
- * @brief Gather edge list for specified vertices, tracking visited state
+ * @brief Gather one-hop edges to unvisited neighbors
  *
- * Same as gather_one_hop_edgelist, with additional by-reference visited sets that may be updated.
+ * Same as gather_one_hop_edgelist, but filters out destinations already present in the visited sets
+ * (vertex-only or vertex,label pairs) and updates those visited sets with newly discovered items.
  */
 template <typename vertex_t, typename edge_t, bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            std::vector<arithmetic_device_uvector_t>,
+           std::optional<rmm::device_uvector<int32_t>>,
+           rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<int32_t>>>
-gather_one_hop_edgelist_with_visited(
+gather_one_hop_edgelist_to_unvisited_neighbors(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   raft::host_span<edge_arithmetic_property_view_t<edge_t>> edge_property_views,
@@ -100,8 +103,8 @@ gather_one_hop_edgelist_with_visited(
   raft::device_span<vertex_t const> active_majors,
   std::optional<raft::device_span<int32_t const>> active_major_labels,
   std::optional<raft::device_span<uint8_t const>> gather_flags,
-  std::optional<rmm::device_uvector<vertex_t>>& visited_vertices,
-  std::optional<rmm::device_uvector<int32_t>>& visited_vertex_labels,
+  rmm::device_uvector<vertex_t>&& visited_vertices,
+  std::optional<rmm::device_uvector<int32_t>>&& visited_vertex_labels,
   bool do_expensive_check);
 
 /**

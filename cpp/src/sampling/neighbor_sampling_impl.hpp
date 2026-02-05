@@ -334,8 +334,9 @@ neighbor_sample_impl(raft::handle_t const& handle,
       std::optional<rmm::device_uvector<label_t>> labels{std::nullopt};
 
       if (visited_vertices) {
-        std::tie(srcs, dsts, sampled_edge_properties, labels) =
-          gather_one_hop_edgelist_with_visited(
+        std::tie(
+          srcs, dsts, sampled_edge_properties, labels, visited_vertices, visited_vertex_labels) =
+          gather_one_hop_edgelist_to_unvisited_neighbors(
             handle,
             graph_view,
             raft::host_span<edge_arithmetic_property_view_t<edge_t>>{edge_property_views.data(),
@@ -350,8 +351,8 @@ neighbor_sample_impl(raft::handle_t const& handle,
                                                                     frontier_vertex_labels->size()))
               : std::nullopt,
             gather_flags_span,
-            visited_vertices,
-            visited_vertex_labels,
+            std::move(*visited_vertices),
+            std::move(visited_vertex_labels),
             do_expensive_check);
       } else {
         std::tie(srcs, dsts, sampled_edge_properties, labels) = gather_one_hop_edgelist(
