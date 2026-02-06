@@ -205,10 +205,15 @@ void core_number(raft::handle_t const& handle,
     auto aggregate_num_remaining_vertices = remaining_vertices.size();
     if constexpr (multi_gpu) {
       auto& comm = handle.get_comms();
+#if 1  // FIXME: we should add host_allreduce to raft
+      aggregate_num_remaining_vertices = host_scalar_allreduce(
+        comm, aggregate_num_remaining_vertices, raft::comms::op_t::SUM, handle.get_stream());
+#else
       comm.host_allreduce(std::addressof(aggregate_num_remaining_vertices),
                           std::addressof(aggregate_num_remaining_vertices),
                           size_t{1},
                           raft::comms::op_t::SUM);
+#endif
     }
     if (aggregate_num_remaining_vertices == 0) { break; }
 
@@ -345,10 +350,15 @@ void core_number(raft::handle_t const& handle,
                        thrust::minimum<edge_t>{});
       if constexpr (multi_gpu) {
         auto& comm = handle.get_comms();
+#if 1  // FIXME: we should add host_allreduce to raft
+        min_core_number =
+          host_scalar_allreduce(comm, min_core_number, raft::comms::op_t::MIN, handle.get_stream());
+#else
         comm.host_allreduce(std::addressof(min_core_number),
                             std::addressof(min_core_number),
                             size_t{1},
                             raft::comms::op_t::MIN);
+#endif
       }
       k = std::max(k + delta, static_cast<size_t>(min_core_number + edge_t{delta}));
     }

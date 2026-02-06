@@ -2,7 +2,6 @@
  * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
-
 #include "prims/extract_transform_v_frontier_outgoing_e.cuh"
 #include "prims/vertex_frontier.cuh"
 #include "utilities/collect_comm.cuh"
@@ -60,11 +59,11 @@ struct in_region_t {
 template <typename vertex_t>
 class nbr_unrenumber_cache_t {
  public:
-  static size_t constexpr consecutive_total_bits = 19;
+  static size_t constexpr consecutive_total_bits = 18;
 
   static size_t constexpr dense_lsb_bits   = 8;
   using dense_lsb_t                        = uint8_t;
-  static size_t constexpr dense_total_bits = 23;
+  static size_t constexpr dense_total_bits = 21;
   using dense_offset_t                     = uint32_t;
 
   static size_t constexpr sparse_lsb_bits = 16;
@@ -568,10 +567,15 @@ nbr_unrenumber_cache_t<vertex_t> build_nbr_unrenumber_cache(
   auto segment_offsets = mg_graph_view.local_vertex_partition_segment_offsets();
   if (segment_offsets) {
     dense_size_per_vertex_partition = (*segment_offsets)[2] /* high & mid segments */;
+#if 1  // FIXME: we should add host_allreduce to raft
+    dense_size_per_vertex_partition = host_scalar_allreduce(
+      comm, *dense_size_per_vertex_partition, raft::comms::op_t::SUM, handle.get_stream());
+#else
     comm.host_allreduce(std::addressof(*dense_size_per_vertex_partition),
                         std::addressof(*dense_size_per_vertex_partition),
                         size_t{1},
                         raft::comms::op_t::SUM);
+#endif
     *dense_size_per_vertex_partition /= comm_size;
   }
 
@@ -613,10 +617,15 @@ nbr_unrenumber_cache_t<vertex_t> build_nbr_unrenumber_cache(
           }));
 
       auto num_aggregate_seeds = seeds.size();
+#if 1  // FIXME: we should add host_allreduce to raft
+      num_aggregate_seeds = host_scalar_allreduce(
+        comm, num_aggregate_seeds, raft::comms::op_t::SUM, handle.get_stream());
+#else
       comm.host_allreduce(std::addressof(num_aggregate_seeds),
                           std::addressof(num_aggregate_seeds),
                           size_t{1},
                           raft::comms::op_t::SUM);
+#endif
       if (num_aggregate_seeds == size_t{0}) { continue; }
 
       rmm::device_uvector<uint16_t> minor_comm_ranks(0, handle.get_stream());

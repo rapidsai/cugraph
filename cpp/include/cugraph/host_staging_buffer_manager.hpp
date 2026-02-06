@@ -22,9 +22,9 @@
 
 #include <rmm/cuda_stream_view.hpp>
 #include <rmm/device_uvector.hpp>
-#include <rmm/mr/device/owning_wrapper.hpp>
-#include <rmm/mr/device/pool_memory_resource.hpp>
-#include <rmm/mr/host/pinned_memory_resource.hpp>
+#include <rmm/mr/owning_wrapper.hpp>
+#include <rmm/mr/pinned_host_memory_resource.hpp>
+#include <rmm/mr/pool_memory_resource.hpp>
 
 #include <cstddef>
 #include <memory>
@@ -39,7 +39,7 @@ class host_staging_buffer_manager {
     size_t{1024} * size_t{1024} * size_t{1024};  // 1 GB
 
   static void init(raft::handle_t const& handle,
-                   std::shared_ptr<rmm::mr::pinned_memory_resource> pinned_mr)
+                   std::shared_ptr<rmm::mr::pinned_host_memory_resource> pinned_mr)
   {
     auto& s = state();
     CUGRAPH_EXPECTS(s.initialized == false, "host_staging_buffer_manager is already initialized.");
@@ -66,8 +66,8 @@ class host_staging_buffer_manager {
   struct state_t {
     bool initialized = false;
     std::shared_ptr<
-      rmm::mr::owning_wrapper<rmm::mr::pool_memory_resource<rmm::mr::pinned_memory_resource>,
-                              rmm::mr::pinned_memory_resource>>
+      rmm::mr::owning_wrapper<rmm::mr::pool_memory_resource<rmm::mr::pinned_host_memory_resource>,
+                              rmm::mr::pinned_host_memory_resource>>
       pinned_pool_mr{};
   };
 

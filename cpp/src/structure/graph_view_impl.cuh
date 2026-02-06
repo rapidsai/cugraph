@@ -564,8 +564,13 @@ edge_t graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_i
     for (size_t i = 0; i < value_firsts.size(); ++i) {
       ret += static_cast<edge_t>(detail::count_set_bits(handle, value_firsts[i], edge_counts[i]));
     }
+#if 1  // FIXME: we should add host_allreduce to raft
+    ret =
+      host_scalar_allreduce(handle.get_comms(), ret, raft::comms::op_t::SUM, handle.get_stream());
+#else
     handle.get_comms().host_allreduce(
       std::addressof(ret), std::addressof(ret), size_t{1}, raft::comms::op_t::SUM);
+#endif
     return ret;
   } else {
     return this->number_of_edges_;
@@ -779,8 +784,13 @@ edge_t graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_i
       this->local_edge_partition_segment_offsets(i));
   }
 
+#if 1  // FIXME: we should add host_allreduce to raft
+  count =
+    host_scalar_allreduce(handle.get_comms(), count, raft::comms::op_t::SUM, handle.get_stream());
+#else
   handle.get_comms().host_allreduce(
     std::addressof(count), std::addressof(count), size_t{1}, raft::comms::op_t::SUM);
+#endif
   return count;
 }
 

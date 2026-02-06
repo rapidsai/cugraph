@@ -160,10 +160,15 @@ void unrenumber_local_int_edges(
   }
 
   auto number_of_edges = std::reduce(edgelist_edge_counts.begin(), edgelist_edge_counts.end());
+#if 1  // FIXME: we should add host_allreduce to raft
+  number_of_edges =
+    host_scalar_allreduce(comm, number_of_edges, raft::comms::op_t::SUM, handle.get_stream());
+#else
   comm.host_allreduce(std::addressof(number_of_edges),
                       std::addressof(number_of_edges),
                       size_t{1},
                       raft::comms::op_t::SUM);
+#endif
 
   // FIXME: compare this hash based approach with a binary search based approach in both memory
   // footprint and execution time

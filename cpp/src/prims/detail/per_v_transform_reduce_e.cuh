@@ -1530,14 +1530,14 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
         if constexpr (std::is_arithmetic_v<key_t>) {
           key_size = sizeof(key_t);
         } else {
-          key_size = sum_thrust_tuple_element_sizes<key_t>();
+          key_size = cugraph::sum_thrust_tuple_element_sizes<key_t>();
         }
       }
       size_t value_size{0};
       if constexpr (std::is_arithmetic_v<key_t>) {
         value_size = sizeof(T);
       } else {
-        value_size = sum_thrust_tuple_element_sizes<T>();
+        value_size = cugraph::sum_thrust_tuple_element_sizes<T>();
       }
 
       size_t major_range_size{};
@@ -1625,7 +1625,26 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
     }
 
     if (minor_comm_size > 1) {
+#if 1  // FIXME: we should add host_allgather to raft
+      rmm::device_uvector<size_t> d_aggregate_tmps(num_scalars * minor_comm_size,
+                                                   handle.get_stream());
+      raft::update_device(d_aggregate_tmps.data() + minor_comm_rank * num_scalars,
+                          h_aggregate_tmps.data() + minor_comm_rank * num_scalars,
+                          num_scalars,
+                          handle.get_stream());
+      device_allgather(minor_comm,
+                       d_aggregate_tmps.data() + minor_comm_rank * num_scalars,
+                       d_aggregate_tmps.data(),
+                       num_scalars,
+                       handle.get_stream());
+      raft::update_host(h_aggregate_tmps.data(),
+                        d_aggregate_tmps.data(),
+                        num_scalars * minor_comm_size,
+                        handle.get_stream());
+      handle.sync_stream();
+#else
       minor_comm.host_allgather(h_aggregate_tmps.data(), h_aggregate_tmps.data(), num_scalars);
+#endif
     }
     max_tmp_buffer_sizes                    = std::vector<size_t>(minor_comm_size);
     tmp_buffer_size_per_loop_approximations = std::vector<size_t>(minor_comm_size);
@@ -1790,7 +1809,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
   if constexpr (std::is_arithmetic_v<T>) {
     min_element_size = std::min(sizeof(T), min_element_size);
   } else {
-    min_element_size = std::min(min_thrust_tuple_element_sizes<T>(), min_element_size);
+    min_element_size = std::min(cugraph::min_thrust_tuple_element_sizes<T>(), min_element_size);
   }
   assert((cache_line_size % min_element_size) == 0);
   auto alignment = cache_line_size / min_element_size;
@@ -3051,8 +3070,13 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
             auto const& output_buffer = edge_partition_major_output_buffers[j];
             max_size                  = std::max(max_size, size_dataframe_buffer(output_buffer));
           }
+#if 1  // FIXME: we should add host_allreduce to raft
+          max_size = host_scalar_allreduce(
+            minor_comm, max_size, raft::comms::op_t::MAX, handle.get_stream());
+#else
           minor_comm.host_allreduce(
             std::addressof(max_size), std::addressof(max_size), size_t{1}, raft::comms::op_t::MAX);
+#endif
           tx_buf_size_per_rank = raft::round_up_safe(max_size, alignment);
         }
 
@@ -3137,6 +3161,21 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
         std::vector<size_t> rx_counts(minor_comm_size, 0);
         size_t rx_buf_size_per_rank{};
         {
+#if 1  // FIXME: we should add host_allgather to raft
+          rmm::device_uvector<size_t> d_allgathered_valid_counts(minor_comm_size * loop_count,
+                                                                 handle.get_stream());
+          device_allgather(minor_comm,
+                           counters.data(),
+                           d_allgathered_valid_counts.data(),
+                           loop_count,
+                           handle.get_stream());
+          std::vector<size_t> h_allgathered_valid_counts(minor_comm_size * loop_count);
+          raft::update_host(h_allgathered_valid_counts.data(),
+                            d_allgathered_valid_counts.data(),
+                            minor_comm_size * loop_count,
+                            handle.get_stream());
+          handle.sync_stream();
+#else
           auto h_counts = reinterpret_cast<size_t*>(h_staging_buffer.data());
           assert(h_staging_buffer.size() >= loop_count);
           raft::update_host(h_counts, counters.data(), loop_count, handle.get_stream());
@@ -3147,6 +3186,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                     h_allgathered_valid_counts.begin() + minor_comm_rank * loop_count);
           minor_comm.host_allgather(
             h_allgathered_valid_counts.data(), h_allgathered_valid_counts.data(), loop_count);
+#endif
           for (size_t j = 0; j < loop_count; ++j) {
             if (nonzero_key_lists[j] && process_local_edges[j]) {
               edge_partition_valid_counts[j] =

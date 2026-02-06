@@ -240,8 +240,12 @@ std::optional<vertex_t> find_locally_unused_ext_vertex_id(
         ++v;
       }
       auto tmp = static_cast<int>(ret.has_value());
+#if 1  // FIXME: we should add host_allreduce to raft
+      tmp = host_scalar_allreduce(comm, tmp, raft::comms::op_t::MIN, handle.get_stream());
+#else
       comm.host_allreduce(
         std::addressof(tmp), std::addressof(tmp), size_t{1}, raft::comms::op_t::MIN);
+#endif
       auto found = static_cast<bool>(tmp);
       if (found) { return ret; }
     }
@@ -261,10 +265,15 @@ std::optional<vertex_t> find_locally_unused_ext_vertex_id(
   }
   if (multi_gpu && (handle.get_comms().get_size() > int{1})) {
     auto& comm = handle.get_comms();
+#if 1  // FIXME: we should add host_allreduce to raft
+    min = host_scalar_allreduce(comm, min, raft::comms::op_t::MIN, handle.get_stream());
+    max = host_scalar_allreduce(comm, max, raft::comms::op_t::MAX, handle.get_stream());
+#else
     comm.host_allreduce(
       std::addressof(min), std::addressof(min), size_t{1}, raft::comms::op_t::MIN);
     comm.host_allreduce(
       std::addressof(max), std::addressof(max), size_t{1}, raft::comms::op_t::MAX);
+#endif
   }
   if (min > std::numeric_limits<vertex_t>::lowest()) {
     return std::numeric_limits<vertex_t>::lowest();
@@ -304,8 +313,12 @@ std::optional<vertex_t> find_locally_unused_ext_vertex_id(
 
   if (multi_gpu && (handle.get_comms().get_size() > int{1})) {
     auto& comm = handle.get_comms();
+#if 1  // FIXME: we should add host_allreduce to raft
+    unused_id = host_scalar_allreduce(comm, unused_id, raft::comms::op_t::MIN, handle.get_stream());
+#else
     comm.host_allreduce(
       std::addressof(unused_id), std::addressof(unused_id), size_t{1}, raft::comms::op_t::MIN);
+#endif
   }
 
   return (unused_id != std::numeric_limits<vertex_t>::max())
@@ -1119,6 +1132,14 @@ renumber_edgelist(
 
   // 2. initialize partition_t object, number_of_vertices, and number_of_edges
 
+#if 1  // FIXME: we should add host_allgather to raft
+  auto vertex_counts = host_scalar_allgather(comm, renumber_map_labels.size(), handle.get_stream());
+  auto vertex_partition_ids =
+    host_scalar_allgather(comm,
+                          partition_manager::compute_vertex_partition_id_from_graph_subcomm_ranks(
+                            major_comm_size, minor_comm_size, major_comm_rank, minor_comm_rank),
+                          handle.get_stream());
+#else
   std::vector<vertex_t> vertex_counts(comm_size, 0);
   std::vector<int> vertex_partition_ids(comm_size, 0);
   {
@@ -1134,6 +1155,7 @@ renumber_edgelist(
       vertex_partition_ids[i] = static_cast<int>(h_buffer[i * 2 + 1]);
     }
   }
+#endif
 
   std::vector<vertex_t> vertex_partition_range_offsets(comm_size + 1, 0);
   for (int i = 0; i < comm_size; ++i) {
@@ -1153,10 +1175,15 @@ renumber_edgelist(
   auto number_of_vertices = vertex_partition_range_offsets.back();
   auto number_of_edges =
     std::accumulate(edgelist_edge_counts.begin(), edgelist_edge_counts.end(), edge_t{0});
+#if 1  // FIXME: we should add host_allreduce to raft
+  number_of_edges =
+    host_scalar_allreduce(comm, number_of_edges, raft::comms::op_t::SUM, handle.get_stream());
+#else
   comm.host_allreduce(std::addressof(number_of_edges),
                       std::addressof(number_of_edges),
                       size_t{1},
                       raft::comms::op_t::SUM);
+#endif
 
   // 3. renumber edges
 

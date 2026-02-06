@@ -76,21 +76,35 @@ compute_tx_rx_counts_displs_ranks(raft::comms::comms_t const& comm,
 {
   auto const comm_size = comm.get_size();
 
-  rmm::device_uvector<size_t> d_rx_value_counts(comm_size, stream_view);
-
-  comm.device_alltoall(d_tx_value_counts.data(), d_rx_value_counts.data(), size_t{1}, stream_view);
-
-  std::vector<size_t> tx_counts(comm_size);
-  std::vector<size_t> tx_displs(comm_size, 0);
+  std::vector<size_t> tx_counts(comm_size, size_t{1});
+  std::vector<size_t> tx_displs(comm_size);
+  std::iota(tx_displs.begin(), tx_displs.end(), size_t{0});
   std::vector<int> tx_dst_ranks(comm_size);
   std::iota(tx_dst_ranks.begin(), tx_dst_ranks.end(), int{0});
-  std::vector<size_t> rx_counts(comm_size);
-  std::vector<size_t> rx_displs(comm_size, 0);
+  std::vector<size_t> rx_counts(comm_size, size_t{1});
+  std::vector<size_t> rx_displs(comm_size);
+  std::iota(rx_displs.begin(), rx_displs.end(), size_t{0});
   std::vector<int> rx_src_ranks(comm_size);
   std::iota(rx_src_ranks.begin(), rx_src_ranks.end(), int{0});
+
+  rmm::device_uvector<size_t> d_rx_value_counts(comm_size, stream_view);
+#if 1  // FIXME: we should add comm.device_alltoall to raft (which calls ncclAlltoAll)
+  device_multicast_sendrecv(comm,
+                            d_tx_value_counts.data(),
+                            raft::host_span<size_t const>(tx_counts.data(), tx_counts.size()),
+                            raft::host_span<size_t const>(tx_displs.data(), tx_displs.size()),
+                            raft::host_span<int const>(tx_dst_ranks.data(), tx_dst_ranks.size()),
+                            d_rx_value_counts.data(),
+                            raft::host_span<size_t const>(rx_counts.data(), rx_counts.size()),
+                            raft::host_span<size_t const>(rx_displs.data(), rx_displs.size()),
+                            raft::host_span<int const>(rx_src_ranks.data(), rx_src_ranks.size()),
+                            stream_view);
+#else
+  comm.device_alltoall(d_tx_value_counts.data(), d_rx_value_counts.data(), size_t{1}, stream_view);
+#endif
+
   raft::update_host(tx_counts.data(), d_tx_value_counts.data(), comm_size, stream_view.value());
   raft::update_host(rx_counts.data(), d_rx_value_counts.data(), comm_size, stream_view.value());
-
   stream_view.synchronize();
 
   std::partial_sum(tx_counts.begin(), tx_counts.end() - 1, tx_displs.begin() + 1);
@@ -891,7 +905,7 @@ auto shuffle_values(raft::comms::comms_t const& comm,
                   "Invalid input argument: large memory buffer is not initialized.");
 
   auto [tx_counts, tx_displs, tx_dst_ranks, rx_counts, rx_displs, rx_src_ranks] =
-    detail::compute_tx_rx_counts_displs_ranks(comm, d_tx_value_counts, true, stream_view);
+    detail::compute_tx_rx_counts_displs_ranks(comm, d_tx_value_counts, false, stream_view);
 
   auto rx_buffer_size = rx_displs.size() > 0 ? rx_displs.back() + rx_counts.back() : size_t{0};
   auto rx_value_buffer =
@@ -1235,7 +1249,7 @@ auto groupby_gpu_id_and_shuffle_values(
     detail::compute_tx_rx_counts_displs_ranks(
       comm,
       raft::device_span<size_t const>{d_tx_value_counts.data(), d_tx_value_counts.size()},
-      true,
+      false,
       stream_view);
 
   auto rx_buffer_size = rx_displs.size() > 0 ? rx_displs.back() + rx_counts.back() : size_t{0};
@@ -1304,7 +1318,7 @@ auto groupby_gpu_id_and_shuffle_kv_pairs(
     detail::compute_tx_rx_counts_displs_ranks(
       comm,
       raft::device_span<size_t const>{d_tx_value_counts.data(), d_tx_value_counts.size()},
-      true,
+      false,
       stream_view);
 
   auto rx_buffer_size = rx_displs.size() > 0 ? rx_displs.back() + rx_counts.back() : size_t{0};

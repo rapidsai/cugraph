@@ -118,10 +118,15 @@ size_t count_invalid_vertex_pairs(raft::handle_t const& handle,
       edge_partition_minor_range_last});
   if constexpr (GraphViewType::is_multi_gpu) {
     auto& comm = handle.get_comms();
+#if 1  // FIXME: we should add host_allreduce to raft
+    num_invalid_pairs =
+      host_scalar_allreduce(comm, num_invalid_pairs, raft::comms::op_t::SUM, handle.get_stream());
+#else
     comm.host_allreduce(std::addressof(num_invalid_pairs),
                         std::addressof(num_invalid_pairs),
                         size_t{1},
                         raft::comms::op_t::SUM);
+#endif
   }
 
   return num_invalid_pairs;

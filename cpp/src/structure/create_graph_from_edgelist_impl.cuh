@@ -130,10 +130,15 @@ void expensive_check_edgelist(raft::handle_t const& handle,
 
     if (vertices) {
       auto num_unique_vertices = vertices->size();
+#if 1  // FIXME: we should add host_allreduce to raft
+      num_unique_vertices = host_scalar_allreduce(
+        comm, num_unique_vertices, raft::comms::op_t::SUM, handle.get_stream());
+#else
       comm.host_allreduce(std::addressof(num_unique_vertices),
                           std::addressof(num_unique_vertices),
                           size_t{1},
                           raft::comms::op_t::SUM);
+#endif
       CUGRAPH_EXPECTS(
         num_unique_vertices < static_cast<size_t>(std::numeric_limits<vertex_t>::max()),
         "Invalid input arguments: # unique vertex IDs should be smaller than "
@@ -168,9 +173,13 @@ void expensive_check_edgelist(raft::handle_t const& handle,
     if (vertices) {
       rmm::device_uvector<vertex_t> sorted_majors(0, handle.get_stream());
       {
+#if 1  // FIXME: we should add host_allgather to raft
+        auto recvcounts = host_scalar_allgather(minor_comm, vertices->size(), handle.get_stream());
+#else
         std::vector<size_t> recvcounts(minor_comm_size, 0);
         recvcounts[minor_comm_rank] = vertices->size();
         minor_comm.host_allgather(recvcounts.data(), recvcounts.data(), size_t{1});
+#endif
         std::vector<size_t> displacements(recvcounts.size(), size_t{0});
         std::partial_sum(recvcounts.begin(), recvcounts.end() - 1, displacements.begin() + 1);
         sorted_majors.resize(displacements.back() + recvcounts.back(), handle.get_stream());
@@ -185,9 +194,13 @@ void expensive_check_edgelist(raft::handle_t const& handle,
 
       rmm::device_uvector<vertex_t> sorted_minors(0, handle.get_stream());
       {
+#if 1  // FIXME: we should add host_allgather to raft
+        auto recvcounts = host_scalar_allgather(major_comm, vertices->size(), handle.get_stream());
+#else
         std::vector<size_t> recvcounts(major_comm_size, 0);
         recvcounts[major_comm_rank] = vertices->size();
         major_comm.host_allgather(recvcounts.data(), recvcounts.data(), size_t{1});
+#endif
         std::vector<size_t> displacements(recvcounts.size(), size_t{0});
         std::partial_sum(recvcounts.begin(), recvcounts.end() - 1, displacements.begin() + 1);
         sorted_minors.resize(displacements.back() + recvcounts.back(), handle.get_stream());

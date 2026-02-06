@@ -2,6 +2,7 @@
  * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
+
 #pragma once
 
 #include "prims/detail/multi_stream_utils.cuh"
@@ -789,10 +790,15 @@ extract_transform_if_v_frontier_e(raft::handle_t const& handle,
                        check_in_range_t<vertex_t>{graph_view.local_vertex_partition_range_first(),
                                                   graph_view.local_vertex_partition_range_last()});
     if constexpr (GraphViewType::is_multi_gpu) {
+#if 1  // FIXME: we should add host_allreduce to raft
+      num_invalid_keys = host_scalar_allreduce(
+        handle.get_comms(), num_invalid_keys, raft::comms::op_t::SUM, handle.get_stream());
+#else
       handle.get_comms().host_allreduce(std::addressof(num_invalid_keys),
                                         std::addressof(num_invalid_keys),
                                         size_t{1},
                                         raft::comms::op_t::SUM);
+#endif
     }
     CUGRAPH_EXPECTS(num_invalid_keys == size_t{0},
                     "Invalid input argument: frontier includes out-of-range keys.");
@@ -981,7 +987,26 @@ extract_transform_if_v_frontier_e(raft::handle_t const& handle,
     }
 
     if (minor_comm_size > 1) {
+#if 1  // FIXME: we should add host_allgather to raft
+      rmm::device_uvector<size_t> d_aggregate_tmps(num_scalars * minor_comm_size,
+                                                   handle.get_stream());
+      raft::update_device(d_aggregate_tmps.data() + minor_comm_rank * num_scalars,
+                          h_aggregate_tmps.data() + minor_comm_rank * num_scalars,
+                          num_scalars,
+                          handle.get_stream());
+      device_allgather(minor_comm,
+                       d_aggregate_tmps.data() + minor_comm_rank * num_scalars,
+                       d_aggregate_tmps.data(),
+                       num_scalars,
+                       handle.get_stream());
+      raft::update_host(h_aggregate_tmps.data(),
+                        d_aggregate_tmps.data(),
+                        num_scalars * minor_comm_size,
+                        handle.get_stream());
+      handle.sync_stream();
+#else
       minor_comm.host_allgather(h_aggregate_tmps.data(), h_aggregate_tmps.data(), num_scalars);
+#endif
     }
     local_frontier_sizes                    = std::vector<size_t>(minor_comm_size);
     max_tmp_buffer_sizes                    = std::vector<size_t>(minor_comm_size);

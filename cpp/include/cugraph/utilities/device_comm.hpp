@@ -20,6 +20,7 @@
 #include <thrust/iterator/iterator_traits.h>
 #include <thrust/memory.h>
 
+#include <numeric>
 #include <type_traits>
 
 namespace cugraph {
@@ -370,10 +371,29 @@ device_alltoall_impl(raft::comms::comms_t const& comm,
   using value_type = typename std::iterator_traits<InputIterator>::value_type;
   static_assert(
     std::is_same_v<typename std::iterator_traits<OutputIterator>::value_type, value_type>);
+#if 1  // FIXME: we should add comm.device_alltoall to raft (which calls ncclAlltoAll)
+  std::vector<size_t> sizes(comm.get_size(), count_per_rank);
+  std::vector<size_t> displs(comm.get_size());
+  for (int i = 0; i < displs.size(); ++i) {
+    displs[i] = i * count_per_rank;
+  }
+  std::vector<int> ranks(comm.get_size());
+  std::iota(ranks.begin(), ranks.end(), int{0});
+  comm.device_multicast_sendrecv(iter_to_raw_ptr(input_first),
+                                 sizes,
+                                 displs,
+                                 ranks,
+                                 iter_to_raw_ptr(output_first),
+                                 sizes,
+                                 displs,
+                                 ranks,
+                                 stream_view.value());
+#else
   comm.device_alltoall(iter_to_raw_ptr(input_first),
                        iter_to_raw_ptr(output_first),
                        count_per_rank,
                        stream_view.value());
+#endif
 }
 
 template <typename InputIterator, typename OutputIterator, size_t I, size_t N>

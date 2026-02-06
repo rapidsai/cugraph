@@ -62,7 +62,7 @@ void enforce_p2p_initialization(raft::comms::comms_t const& comm, rmm::cuda_stre
   rmm::device_uvector<int32_t> tx_ints(comm_size * p2p_count, stream);
   rmm::device_uvector<int32_t> rx_ints(comm_size * p2p_count, stream);
 
-  comm.device_alltoall(tx_ints.data(), rx_ints.data(), p2p_count, stream);
+  cugraph::device_alltoall(comm, tx_ints.data(), rx_ints.data(), p2p_count, stream);
 
   RAFT_CUDA_TRY(cudaStreamSynchronize(stream));
 }

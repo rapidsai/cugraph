@@ -21,7 +21,6 @@
 #include <rmm/exec_policy.hpp>
 
 #include <cuda/std/iterator>
-#include <cuda/std/tuple>
 #include <thrust/count.h>
 #include <thrust/fill.h>
 #include <thrust/iterator/constant_iterator.h>
@@ -159,10 +158,18 @@ void fill_edge_major_property(raft::handle_t const& handle,
     auto const minor_comm_rank = minor_comm.get_rank();
     auto const minor_comm_size = minor_comm.get_size();
 
+#if 1  // FIXME: we should add host_allgather to raft
+    auto local_v_list_sizes =
+      host_scalar_allgather(comm,
+                            static_cast<size_t>(cuda::std::distance(sorted_unique_vertex_first,
+                                                                    sorted_unique_vertex_last)),
+                            handle.get_stream());
+#else
     std::vector<size_t> local_v_list_sizes(minor_comm_size, 0);
     local_v_list_sizes[minor_comm_rank] = static_cast<size_t>(
       cuda::std::distance(sorted_unique_vertex_first, sorted_unique_vertex_last));
     minor_comm.host_allgather(local_v_list_sizes.data(), local_v_list_sizes.data(), size_t{1});
+#endif
     auto max_rx_size = std::reduce(
       local_v_list_sizes.begin(), local_v_list_sizes.end(), size_t{0}, [](auto lhs, auto rhs) {
         return std::max(lhs, rhs);
@@ -487,8 +494,32 @@ void fill_edge_minor_property(raft::handle_t const& handle,
                 // (exclusive), and packed bool data in the partition boundary (relevant only if
                 // direct_bcast is set to true, but we pre-calculate to reduce the number of
                 // device_allgather operations)
+#if 1           // FIXME: we should add host_allgather to raft
+        rmm::device_uvector<uint32_t> d_aggregate_tmps(
+          (num_leading_words + packed_bool_word_bcast_alignment) * major_comm_size,
+          handle.get_stream());
+        raft::update_device(
+          d_aggregate_tmps.data() +
+            (num_leading_words + packed_bool_word_bcast_alignment) * major_comm_rank,
+          h_aggregate_tmps +
+            (num_leading_words + packed_bool_word_bcast_alignment) * major_comm_rank,
+          num_leading_words + packed_bool_word_bcast_alignment,
+          handle.get_stream());
+        device_allgather(major_comm,
+                         d_aggregate_tmps.data() +
+                           (num_leading_words + packed_bool_word_bcast_alignment) * major_comm_rank,
+                         d_aggregate_tmps.data(),
+                         num_leading_words + packed_bool_word_bcast_alignment,
+                         handle.get_stream());
+        raft::update_host(h_aggregate_tmps,
+                          d_aggregate_tmps.data(),
+                          (num_leading_words + packed_bool_word_bcast_alignment) * major_comm_size,
+                          handle.get_stream());
+        handle.sync_stream();
+#else
         major_comm.host_allgather(
           h_aggregate_tmps, h_aggregate_tmps, num_leading_words + packed_bool_word_bcast_alignment);
+#endif
       }
 
       local_v_list_sizes        = std::vector<vertex_t>(major_comm_size);
@@ -526,16 +557,11 @@ void fill_edge_minor_property(raft::handle_t const& handle,
 
       aggregate_local_v_list_size =
         std::reduce(local_v_list_sizes.begin(), local_v_list_sizes.end());
-      vertex_t max_local_v_list_size = std::reduce(
-        local_v_list_sizes.begin() + 1,
-        local_v_list_sizes.end(),
-        local_v_list_sizes[0],
-        [](vertex_t lhs, vertex_t rhs) {
-          return std::max(lhs, rhs);
-        });  // if we don't directly broadcast to the array pointed by edge_minor_value_first, use
-             // allgather instead of allgatherv (v_list_bitmap, comprssed_v_list, and
-             // padded_v_list will be sized based on max_local_v_list_size + additional padding
-             // for cache line alignment if we are not directly copying)
+      vertex_t max_local_v_list_size =
+        std::reduce(local_v_list_sizes.begin() + 1,
+                    local_v_list_sizes.end(),
+                    local_v_list_sizes[0],
+                    [](vertex_t lhs, vertex_t rhs) { return std::max(lhs, rhs); });
       vertex_t max_local_v_list_range_size{0};
       for (int i = 0; i < major_comm_size; ++i) {
         auto range_size             = local_v_list_range_lasts[i] - local_v_list_range_firsts[i];
@@ -695,7 +721,9 @@ void fill_edge_minor_property(raft::handle_t const& handle,
       }
     }
 
-    if (aggregate_local_v_list_size == 0) { return; }
+    if (aggregate_local_v_list_size == 0) {
+      return;
+    }
 
     std::optional<std::vector<size_t>> stream_pool_indices{std::nullopt};
     if ((major_comm_size > 1) && (handle.get_stream_pool_size() > 1)) {
@@ -1223,10 +1251,15 @@ void fill_edge_src_property(raft::handle_t const& handle,
       });
     if constexpr (GraphViewType::is_multi_gpu) {
       auto& comm = handle.get_comms();
+#if 1  // FIXME: we should add host_allreduce to raft
+      num_invalids =
+        host_scalar_allreduce(comm, num_invalids, raft::comms::op_t::SUM, handle.get_stream());
+#else
       comm.host_allreduce(std::addressof(num_invalids),
                           std::addressof(num_invalids),
                           size_t{1},
                           raft::comms::op_t::SUM);
+#endif
     }
     CUGRAPH_EXPECTS(num_invalids == 0,
                     "Invalid input argument: invalid or non-local vertices in "
@@ -1337,10 +1370,15 @@ void fill_edge_dst_property(raft::handle_t const& handle,
       });
     if constexpr (GraphViewType::is_multi_gpu) {
       auto& comm = handle.get_comms();
+#if 1  // FIXME: we should add host_allreduce to raft
+      num_invalids =
+        host_scalar_allreduce(comm, num_invalids, raft::comms::op_t::SUM, handle.get_stream());
+#else
       comm.host_allreduce(std::addressof(num_invalids),
                           std::addressof(num_invalids),
                           size_t{1},
                           raft::comms::op_t::SUM);
+#endif
     }
     CUGRAPH_EXPECTS(num_invalids == 0,
                     "Invalid input argument: invalid or non-local vertices in "

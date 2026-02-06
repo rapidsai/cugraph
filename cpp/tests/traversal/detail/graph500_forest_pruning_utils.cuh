@@ -20,6 +20,7 @@
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/device_functors.cuh>
+#include <cugraph/utilities/host_scalar_comm.hpp>
 
 #include <raft/core/comms.hpp>
 #include <raft/core/handle.hpp>
@@ -180,8 +181,13 @@ find_trees_from_2cores(
           }));
     }
     auto tot_count = srcs.size();
+#if 1  // FIXME: we should add host_allreduce to raft
+    tot_count =
+      cugraph::host_scalar_allreduce(comm, tot_count, raft::comms::op_t::SUM, handle.get_stream());
+#else
     comm.host_allreduce(
       std::addressof(tot_count), std::addressof(tot_count), size_t{1}, raft::comms::op_t::SUM);
+#endif
     if (tot_count > 0) {
       if (mg_edge_weight_view) {
         std::vector<cugraph::arithmetic_device_uvector_t> src_properties{};
@@ -733,6 +739,20 @@ std::tuple<vertex_t, int, distance_t, vertex_t, std::optional<distance_t>> trave
     }
 
     {
+#if 1  // FIXME: we should add host_bcast to raft
+      unrenumbered_n = cugraph::host_scalar_bcast(
+        comm,
+        unrenumbered_n,
+        cugraph::partition_manager::compute_global_comm_rank_from_vertex_partition_id(
+          major_comm_size, minor_comm_size, n_vertex_partition_id),
+        handle.get_stream());
+      nn = cugraph::host_scalar_bcast(
+        comm,
+        nn,
+        cugraph::partition_manager::compute_global_comm_rank_from_vertex_partition_id(
+          major_comm_size, minor_comm_size, n_vertex_partition_id),
+        handle.get_stream());
+#else
       std::vector<vertex_t> buf(2);
       buf[0] = unrenumbered_n;
       buf[1] = nn;
@@ -742,8 +762,17 @@ std::tuple<vertex_t, int, distance_t, vertex_t, std::optional<distance_t>> trave
                         major_comm_size, minor_comm_size, n_vertex_partition_id));
       unrenumbered_n = buf[0];
       nn             = buf[1];
+#endif
     }
     if constexpr (std::is_floating_point_v<distance_t>) {  // SSSP
+#if 1  // FIXME: we should add host_bcast to raft
+      w_to_n = cugraph::host_scalar_bcast(
+        comm,
+        *w_to_n,
+        cugraph::partition_manager::compute_global_comm_rank_from_vertex_partition_id(
+          major_comm_size, minor_comm_size, n_vertex_partition_id),
+        handle.get_stream());
+#else
       std::vector<distance_t> buf(1);
       buf[0] = *w_to_n;
       comm.host_bcast(buf.data(),
@@ -751,6 +780,7 @@ std::tuple<vertex_t, int, distance_t, vertex_t, std::optional<distance_t>> trave
                       cugraph::partition_manager::compute_global_comm_rank_from_vertex_partition_id(
                         major_comm_size, minor_comm_size, n_vertex_partition_id));
       w_to_n = buf[0];
+#endif
     }
 
     if (n == nn) {  // reached a 2-core
@@ -832,10 +862,15 @@ void update_unvisited_vertex_distances(
     handle.get_stream());
   while (true) {
     auto tot_remaining_vertex_count = remaining_vertices.size();
+#if 1  // FIXME: we should add host_allreduce to raft
+    tot_remaining_vertex_count = cugraph::host_scalar_allreduce(
+      comm, tot_remaining_vertex_count, raft::comms::op_t::SUM, handle.get_stream());
+#else
     comm.host_allreduce(std::addressof(tot_remaining_vertex_count),
                         std::addressof(tot_remaining_vertex_count),
                         size_t{1},
                         raft::comms::op_t::SUM);
+#endif
     if (tot_remaining_vertex_count == 0) { break; }
     rmm::device_uvector<vertex_t> remaining_vertex_parents(remaining_vertices.size(),
                                                            handle.get_stream());

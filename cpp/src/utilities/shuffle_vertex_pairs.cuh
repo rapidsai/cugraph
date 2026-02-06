@@ -12,6 +12,7 @@
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/large_buffer_manager.hpp>
 #include <cugraph/partition_manager.hpp>
+#include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
 
 #include <cuda/std/tuple>
@@ -106,8 +107,12 @@ shuffle_vertex_pairs_with_values_by_gpu_id_impl(
   bool mem_frugal_flag{};
   {
     auto flag = majors.size() > mem_frugal_threshold ? int{1} : int{0};
+#if 1  // FIXME: we should add host_allreduce to raft
+    flag = host_scalar_allreduce(comm, flag, raft::comms::op_t::MAX, handle.get_stream());
+#else
     comm.host_allreduce(
       std::addressof(flag), std::addressof(flag), size_t{1}, raft::comms::op_t::MAX);
+#endif
     mem_frugal_flag = (flag > 0) ? true : false;
   }
 
