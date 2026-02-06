@@ -163,7 +163,7 @@ neighbor_sample_impl(raft::handle_t const& handle,
       detail::update_dst_visited_vertices_and_labels<vertex_t, edge_t, multi_gpu>(
         handle,
         graph_view,
-        std::move(visited_vertices),
+        std::move(*visited_vertices),
         std::move(visited_vertex_labels),
         starting_vertices,
         starting_vertex_labels ? std::make_optional(*starting_vertex_labels) : std::nullopt);
@@ -220,30 +220,32 @@ neighbor_sample_impl(raft::handle_t const& handle,
       std::optional<rmm::device_uvector<label_t>> labels{std::nullopt};
 
       if (visited_vertices) {
-        std::tie(srcs, dsts, sampled_edge_properties, labels) = sample_edges_with_visited(
-          handle,
-          rng_state,
-          graph_view,
-          raft::host_span<edge_arithmetic_property_view_t<edge_t>>{edge_property_views.data(),
-                                                                   edge_property_views.size()},
-          edge_type_view
-            ? std::make_optional<edge_arithmetic_property_view_t<edge_t>>(*edge_type_view)
-            : std::nullopt,
-          edge_bias_view
-            ? std::make_optional<edge_arithmetic_property_view_t<edge_t>>(*edge_bias_view)
-            : std::nullopt,
-          hop == 0
-            ? starting_vertices
-            : raft::device_span<vertex_t const>(frontier_vertices.data(), frontier_vertices.size()),
-          hop == 0 ? starting_vertex_labels
-          : starting_vertex_labels
-            ? std::make_optional(raft::device_span<label_t const>(frontier_vertex_labels->data(),
-                                                                  frontier_vertex_labels->size()))
-            : std::nullopt,
-          raft::host_span<size_t const>(level_Ks->data(), level_Ks->size()),
-          visited_vertices,
-          visited_vertex_labels,
-          sampling_flags.with_replacement);
+        std::tie(
+          srcs, dsts, sampled_edge_properties, labels, visited_vertices, visited_vertex_labels) =
+          sample_edges_to_unvisited_neighbors(
+            handle,
+            rng_state,
+            graph_view,
+            raft::host_span<edge_arithmetic_property_view_t<edge_t>>{edge_property_views.data(),
+                                                                     edge_property_views.size()},
+            edge_type_view
+              ? std::make_optional<edge_arithmetic_property_view_t<edge_t>>(*edge_type_view)
+              : std::nullopt,
+            edge_bias_view
+              ? std::make_optional<edge_arithmetic_property_view_t<edge_t>>(*edge_bias_view)
+              : std::nullopt,
+            hop == 0 ? starting_vertices
+                     : raft::device_span<vertex_t const>(frontier_vertices.data(),
+                                                         frontier_vertices.size()),
+            hop == 0 ? starting_vertex_labels
+            : starting_vertex_labels
+              ? std::make_optional(raft::device_span<label_t const>(frontier_vertex_labels->data(),
+                                                                    frontier_vertex_labels->size()))
+              : std::nullopt,
+            raft::host_span<size_t const>(level_Ks->data(), level_Ks->size()),
+            std::move(*visited_vertices),
+            std::move(visited_vertex_labels),
+            sampling_flags.with_replacement);
       } else {
         std::tie(srcs, dsts, sampled_edge_properties, labels) = sample_edges(
           handle,

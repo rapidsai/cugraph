@@ -592,6 +592,8 @@ template <typename vertex_t,
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            arithmetic_device_uvector_t,
+           std::optional<rmm::device_uvector<int32_t>>,
+           rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<int32_t>>>
 sample_unvisited_with_one_property(
   raft::handle_t const& handle,
@@ -601,8 +603,8 @@ sample_unvisited_with_one_property(
   std::optional<edge_arithmetic_property_view_t<edge_t>> edge_type_view,
   std::optional<edge_arithmetic_property_view_t<edge_t>> edge_bias_view,
   cugraph::vertex_frontier_t<vertex_t, tag_t, multi_gpu, false>& vertex_frontier,
-  std::optional<rmm::device_uvector<vertex_t>>& visited_vertices,
-  std::optional<rmm::device_uvector<int32_t>>& visited_vertex_labels,
+  rmm::device_uvector<vertex_t>&& visited_vertices,
+  std::optional<rmm::device_uvector<int32_t>>&& visited_vertex_labels,
   raft::host_span<size_t const> Ks,
   std::optional<raft::device_span<int32_t const>> active_major_labels,
   bool with_replacement)
@@ -641,7 +643,7 @@ sample_unvisited_with_one_property(
             std::get<cugraph::edge_property_view_t<edge_t, bias_t const*>>(*edge_bias_view),
             edge_property_view,
             sample_unvisited_edge_biases_op_t<vertex_t, bias_t>{
-              raft::device_span<vertex_t const>{visited_vertices->data(), visited_vertices->size()},
+              raft::device_span<vertex_t const>{visited_vertices.data(), visited_vertices.size()},
               raft::device_span<int32_t const>{visited_vertex_labels->data(),
                                                visited_vertex_labels->size()}},
             edge_type_view ? std::make_optional(
@@ -664,7 +666,7 @@ sample_unvisited_with_one_property(
             std::get<cugraph::edge_property_view_t<edge_t, bias_t const*>>(*edge_bias_view),
             edge_property_view,
             sample_unvisited_edge_biases_op_t<vertex_t, bias_t>{
-              raft::device_span<vertex_t const>{visited_vertices->data(), visited_vertices->size()},
+              raft::device_span<vertex_t const>{visited_vertices.data(), visited_vertices.size()},
               raft::device_span<int32_t const>{visited_vertex_labels->data(),
                                                visited_vertex_labels->size()}},
             edge_type_view ? std::make_optional(
@@ -687,7 +689,7 @@ sample_unvisited_with_one_property(
           cugraph::edge_dummy_property_view_t{},
           edge_property_view,
           sample_unvisited_edge_biases_op_t<vertex_t, bias_t>{
-            raft::device_span<vertex_t const>{visited_vertices->data(), visited_vertices->size()},
+            raft::device_span<vertex_t const>{visited_vertices.data(), visited_vertices.size()},
             raft::device_span<int32_t const>{visited_vertex_labels->data(),
                                              visited_vertex_labels->size()}},
           edge_type_view ? std::make_optional(
@@ -981,7 +983,9 @@ sample_unvisited_with_one_property(
   return std::make_tuple(std::move(result_majors),
                          std::move(result_minors),
                          std::move(result_properties),
-                         std::move(result_labels));
+                         std::move(result_labels),
+                         std::move(visited_vertices),
+                         std::move(visited_vertex_labels));
 }
 
 template <typename vertex_t, typename edge_t, bool multi_gpu>
@@ -1327,8 +1331,10 @@ template <typename vertex_t, typename edge_t, bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            std::vector<arithmetic_device_uvector_t>,
+           std::optional<rmm::device_uvector<int32_t>>,
+           rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<int32_t>>>
-sample_edges_with_visited(
+sample_edges_to_unvisited_neighbors(
   raft::handle_t const& handle,
   raft::random::RngState& rng_state,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
@@ -1338,14 +1344,13 @@ sample_edges_with_visited(
   raft::device_span<vertex_t const> active_majors,
   std::optional<raft::device_span<int32_t const>> active_major_labels,
   raft::host_span<size_t const> Ks,
-  std::optional<rmm::device_uvector<vertex_t>>& visited_vertices,
-  std::optional<rmm::device_uvector<int32_t>>& visited_vertex_labels,
+  rmm::device_uvector<vertex_t>&& visited_vertices,
+  std::optional<rmm::device_uvector<int32_t>>&& visited_vertex_labels,
   bool with_replacement)
 {
   CUGRAPH_EXPECTS(Ks.size() >= 1, "Must specify non-zero value for Ks");
   CUGRAPH_EXPECTS((Ks.size() == 1) || edge_type_view,
                   "If Ks has more than 1 element must specify types");
-  CUGRAPH_EXPECTS(visited_vertices, "Visited vertices must be specified");
   CUGRAPH_EXPECTS(active_major_labels.has_value() == visited_vertex_labels.has_value(),
                   "Active major labels and visited vertex labels must both be specified or both "
                   "be unspecified");
@@ -1366,7 +1371,7 @@ sample_edges_with_visited(
       thrust::make_zip_iterator(active_majors.end(), active_major_labels->end()));
 
     if (edge_property_views.size() == 0) {
-      std::tie(majors, minors, std::ignore, labels) =
+      std::tie(majors, minors, std::ignore, labels, visited_vertices, visited_vertex_labels) =
         sample_unvisited_with_one_property(handle,
                                            rng_state,
                                            graph_view,
@@ -1374,39 +1379,40 @@ sample_edges_with_visited(
                                            edge_type_view,
                                            edge_bias_view,
                                            vertex_frontier,
-                                           visited_vertices,
-                                           visited_vertex_labels,
+                                           std::move(visited_vertices),
+                                           std::move(visited_vertex_labels),
                                            Ks,
                                            active_major_labels,
                                            with_replacement);
     } else if (edge_property_views.size() == 1) {
       arithmetic_device_uvector_t tmp{std::monostate{}};
-      std::tie(majors, minors, tmp, labels) = cugraph::variant_type_dispatch(
-        edge_property_views[0],
-        [&handle,
-         &rng_state,
-         &graph_view,
-         &edge_type_view,
-         &edge_bias_view,
-         &vertex_frontier,
-         &visited_vertices,
-         &visited_vertex_labels,
-         &active_major_labels,
-         &Ks,
-         with_replacement](auto edge_property_view) {
-          return sample_unvisited_with_one_property(handle,
-                                                    rng_state,
-                                                    graph_view,
-                                                    edge_property_view,
-                                                    edge_type_view,
-                                                    edge_bias_view,
-                                                    vertex_frontier,
-                                                    visited_vertices,
-                                                    visited_vertex_labels,
-                                                    Ks,
-                                                    active_major_labels,
-                                                    with_replacement);
-        });
+      std::tie(majors, minors, tmp, labels, visited_vertices, visited_vertex_labels) =
+        cugraph::variant_type_dispatch(edge_property_views[0],
+                                       [&handle,
+                                        &rng_state,
+                                        &graph_view,
+                                        &edge_type_view,
+                                        &edge_bias_view,
+                                        &vertex_frontier,
+                                        &visited_vertices,
+                                        &visited_vertex_labels,
+                                        &active_major_labels,
+                                        &Ks,
+                                        with_replacement](auto edge_property_view) {
+                                         return sample_unvisited_with_one_property(
+                                           handle,
+                                           rng_state,
+                                           graph_view,
+                                           edge_property_view,
+                                           edge_type_view,
+                                           edge_bias_view,
+                                           vertex_frontier,
+                                           std::move(visited_vertices),
+                                           std::move(visited_vertex_labels),
+                                           Ks,
+                                           active_major_labels,
+                                           with_replacement);
+                                       });
       edge_properties.push_back(std::move(tmp));
     } else {
       arithmetic_device_uvector_t multi_index{std::monostate{}};
@@ -1415,7 +1421,7 @@ sample_edges_with_visited(
         cugraph::edge_multi_index_property_t<edge_t, vertex_t> multi_index_property(handle,
                                                                                     graph_view);
 
-        std::tie(majors, minors, multi_index, labels) =
+        std::tie(majors, minors, multi_index, labels, visited_vertices, visited_vertex_labels) =
           sample_unvisited_with_one_property(handle,
                                              rng_state,
                                              graph_view,
@@ -1423,13 +1429,13 @@ sample_edges_with_visited(
                                              edge_type_view,
                                              edge_bias_view,
                                              vertex_frontier,
-                                             visited_vertices,
-                                             visited_vertex_labels,
+                                             std::move(visited_vertices),
+                                             std::move(visited_vertex_labels),
                                              Ks,
                                              active_major_labels,
                                              with_replacement);
       } else {
-        std::tie(majors, minors, std::ignore, labels) =
+        std::tie(majors, minors, std::ignore, labels, visited_vertices, visited_vertex_labels) =
           sample_unvisited_with_one_property(handle,
                                              rng_state,
                                              graph_view,
@@ -1437,8 +1443,8 @@ sample_edges_with_visited(
                                              edge_type_view,
                                              edge_bias_view,
                                              vertex_frontier,
-                                             visited_vertices,
-                                             visited_vertex_labels,
+                                             std::move(visited_vertices),
+                                             std::move(visited_vertex_labels),
                                              Ks,
                                              active_major_labels,
                                              with_replacement);
@@ -1461,7 +1467,7 @@ sample_edges_with_visited(
     vertex_frontier.bucket(0).insert(active_majors.begin(), active_majors.end());
 
     if (edge_property_views.size() == 0) {
-      std::tie(majors, minors, std::ignore, labels) =
+      std::tie(majors, minors, std::ignore, labels, visited_vertices, visited_vertex_labels) =
         sample_unvisited_with_one_property(handle,
                                            rng_state,
                                            graph_view,
@@ -1469,39 +1475,40 @@ sample_edges_with_visited(
                                            edge_type_view,
                                            edge_bias_view,
                                            vertex_frontier,
-                                           visited_vertices,
-                                           visited_vertex_labels,
+                                           std::move(visited_vertices),
+                                           std::move(visited_vertex_labels),
                                            Ks,
                                            active_major_labels,
                                            with_replacement);
     } else if (edge_property_views.size() == 1) {
       arithmetic_device_uvector_t tmp{std::monostate{}};
-      std::tie(majors, minors, tmp, labels) = cugraph::variant_type_dispatch(
-        edge_property_views[0],
-        [&handle,
-         &rng_state,
-         &graph_view,
-         &edge_type_view,
-         &edge_bias_view,
-         &vertex_frontier,
-         &visited_vertices,
-         &visited_vertex_labels,
-         &active_major_labels,
-         &Ks,
-         with_replacement](auto edge_property_view) {
-          return sample_unvisited_with_one_property(handle,
-                                                    rng_state,
-                                                    graph_view,
-                                                    edge_property_view,
-                                                    edge_type_view,
-                                                    edge_bias_view,
-                                                    vertex_frontier,
-                                                    visited_vertices,
-                                                    visited_vertex_labels,
-                                                    Ks,
-                                                    active_major_labels,
-                                                    with_replacement);
-        });
+      std::tie(majors, minors, tmp, labels, visited_vertices, visited_vertex_labels) =
+        cugraph::variant_type_dispatch(edge_property_views[0],
+                                       [&handle,
+                                        &rng_state,
+                                        &graph_view,
+                                        &edge_type_view,
+                                        &edge_bias_view,
+                                        &vertex_frontier,
+                                        &visited_vertices,
+                                        &visited_vertex_labels,
+                                        &active_major_labels,
+                                        &Ks,
+                                        with_replacement](auto edge_property_view) {
+                                         return sample_unvisited_with_one_property(
+                                           handle,
+                                           rng_state,
+                                           graph_view,
+                                           edge_property_view,
+                                           edge_type_view,
+                                           edge_bias_view,
+                                           vertex_frontier,
+                                           std::move(visited_vertices),
+                                           std::move(visited_vertex_labels),
+                                           Ks,
+                                           active_major_labels,
+                                           with_replacement);
+                                       });
       edge_properties.push_back(std::move(tmp));
     } else {
       arithmetic_device_uvector_t multi_index{std::monostate{}};
@@ -1509,7 +1516,7 @@ sample_edges_with_visited(
       if (graph_view.is_multigraph()) {
         cugraph::edge_multi_index_property_t<edge_t, vertex_t> multi_index_property(handle,
                                                                                     graph_view);
-        std::tie(majors, minors, multi_index, labels) =
+        std::tie(majors, minors, multi_index, labels, visited_vertices, visited_vertex_labels) =
           sample_unvisited_with_one_property(handle,
                                              rng_state,
                                              graph_view,
@@ -1517,13 +1524,13 @@ sample_edges_with_visited(
                                              edge_type_view,
                                              edge_bias_view,
                                              vertex_frontier,
-                                             visited_vertices,
-                                             visited_vertex_labels,
+                                             std::move(visited_vertices),
+                                             std::move(visited_vertex_labels),
                                              Ks,
                                              active_major_labels,
                                              with_replacement);
       } else {
-        std::tie(majors, minors, std::ignore, labels) =
+        std::tie(majors, minors, std::ignore, labels, visited_vertices, visited_vertex_labels) =
           sample_unvisited_with_one_property(handle,
                                              rng_state,
                                              graph_view,
@@ -1531,8 +1538,8 @@ sample_edges_with_visited(
                                              edge_type_view,
                                              edge_bias_view,
                                              vertex_frontier,
-                                             visited_vertices,
-                                             visited_vertex_labels,
+                                             std::move(visited_vertices),
+                                             std::move(visited_vertex_labels),
                                              Ks,
                                              active_major_labels,
                                              with_replacement);
@@ -1549,8 +1556,12 @@ sample_edges_with_visited(
     }
   }
 
-  return std::make_tuple(
-    std::move(majors), std::move(minors), std::move(edge_properties), std::move(labels));
+  return std::make_tuple(std::move(majors),
+                         std::move(minors),
+                         std::move(edge_properties),
+                         std::move(labels),
+                         std::move(visited_vertices),
+                         std::move(visited_vertex_labels));
 }
 
 }  // namespace detail

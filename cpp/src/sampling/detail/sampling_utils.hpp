@@ -209,8 +209,10 @@ template <typename vertex_t, typename edge_t, bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            std::vector<arithmetic_device_uvector_t>,
+           std::optional<rmm::device_uvector<int32_t>>,
+           rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<int32_t>>>
-sample_edges_with_visited(
+sample_edges_to_unvisited_neighbors(
   raft::handle_t const& handle,
   raft::random::RngState& rng_state,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
@@ -220,8 +222,8 @@ sample_edges_with_visited(
   raft::device_span<vertex_t const> active_majors,
   std::optional<raft::device_span<int32_t const>> active_major_labels,
   raft::host_span<size_t const> Ks,
-  std::optional<rmm::device_uvector<vertex_t>>& visited_vertices,
-  std::optional<rmm::device_uvector<int32_t>>& visited_vertex_labels,
+  rmm::device_uvector<vertex_t>&& visited_vertices,
+  std::optional<rmm::device_uvector<int32_t>>&& visited_vertex_labels,
   bool with_replacement);
 
 /**
@@ -497,19 +499,18 @@ void update_temporal_edge_mask(
  *
  * @param handle RAFT handle object.
  * @param graph_view Graph View object for context (partitioning, MG routing, etc.).
- * @param visited_vertices Optional device vector of already visited vertices.
+ * @param visited_vertices Device vector of already visited vertices.
  * @param visited_vertex_labels Optional device vector of labels for visited vertices.
  * @param sampled_vertices Device span of newly sampled vertices to mark visited.
  * @param sampled_vertex_labels Device span of labels corresponding to sampled vertices.
- * @return Tuple with possibly-updated visited vertices and labels.
+ * @return Tuple with updated visited vertices and labels.
  */
 template <typename vertex_t, typename edge_t, bool multi_gpu>
-std::tuple<std::optional<rmm::device_uvector<vertex_t>>,
-           std::optional<rmm::device_uvector<int32_t>>>
+std::tuple<rmm::device_uvector<vertex_t>, std::optional<rmm::device_uvector<int32_t>>>
 update_dst_visited_vertices_and_labels(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
-  std::optional<rmm::device_uvector<vertex_t>>&& visited_vertices,
+  rmm::device_uvector<vertex_t>&& visited_vertices,
   std::optional<rmm::device_uvector<int32_t>>&& visited_vertex_labels,
   raft::device_span<vertex_t const> sampled_vertices,
   std::optional<raft::device_span<int32_t const>> sampled_vertex_labels);
