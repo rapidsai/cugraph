@@ -132,9 +132,11 @@ class partition_manager {
     comm.host_allgather(vertex_counts.data(), vertex_counts.data(), size_t{1});
 #endif
 #if 1  // FIXME: we should add host_allgather to raft
-    auto vertex_partition_ids = host_scalar_allgather(comm,
-      partition_manager::compute_vertex_partition_id_from_graph_subcomm_ranks(
-        major_comm_size, minor_comm_size, major_comm_rank, minor_comm_rank), handle.get_stream());
+    auto vertex_partition_ids =
+      host_scalar_allgather(comm,
+                            partition_manager::compute_vertex_partition_id_from_graph_subcomm_ranks(
+                              major_comm_size, minor_comm_size, major_comm_rank, minor_comm_rank),
+                            handle.get_stream());
 #else
     std::vector<int> vertex_partition_ids(comm_size, 0);
     vertex_partition_ids[comm_rank] =

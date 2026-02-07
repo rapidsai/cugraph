@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -309,7 +309,8 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
     auto& comm           = handle.get_comms();
     auto const comm_size = comm.get_size();
 #if 1  // FIXME: we should add host_allreduce to raft
-  degree_sum_threshold = host_scalar_allreduce(comm, degree_sum_threshold, raft::comms::op_t::SUM, handle.get_stream());
+    degree_sum_threshold = host_scalar_allreduce(
+      comm, degree_sum_threshold, raft::comms::op_t::SUM, handle.get_stream());
 #else
     comm.host_allreduce(std::addressof(degree_sum_threshold),
                         std::addressof(degree_sum_threshold),
@@ -387,7 +388,8 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
         auto const comm_size  = comm.get_size();
         auto local_max_degree = max_degree;
 #if 1  // FIXME: we should add host_allreduce to raft
-        max_degree = host_scalar_allreduce(comm, max_degree, raft::comms::op_t::MAX, handle.get_stream());
+        max_degree =
+          host_scalar_allreduce(comm, max_degree, raft::comms::op_t::MAX, handle.get_stream());
 #else
         comm.host_allreduce(std::addressof(max_degree),
                             std::addressof(max_degree),
@@ -590,7 +592,8 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
           thrust::plus<edge_t>{});
 
 #if 1  // FIXME: we should add host_gather to raft
-        auto first_candidate_degrees = host_scalar_gather(comm, first_candidate_degree, 0, handle.get_stream());
+        auto first_candidate_degrees =
+          host_scalar_gather(comm, first_candidate_degree, 0, handle.get_stream());
 #else
         std::vector<edge_t> first_candidate_degrees(comm_rank == 0 ? comm_size : 0, 0);
         comm.host_gather(std::addressof(first_candidate_degree),
@@ -602,7 +605,8 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
         {
           auto new_root_candidate_count = new_root_candidates.size();
 #if 1  // FIXME: we should add host_gather to raft
-          new_root_candidate_counts = host_scalar_gather(comm, new_root_candidate_count, 0, handle.get_stream());
+          new_root_candidate_counts =
+            host_scalar_gather(comm, new_root_candidate_count, 0, handle.get_stream());
 #else
           comm.host_gather(std::addressof(new_root_candidate_count),
                            new_root_candidate_counts.data(),
@@ -656,14 +660,16 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
           }
 
 #if 1  // FIXME: we should add host_scatter to raft
-          init_max_new_roots = host_scalar_scatter(comm, init_max_new_root_counts, 0, handle.get_stream());
+          init_max_new_roots =
+            host_scalar_scatter(comm, init_max_new_root_counts, 0, handle.get_stream());
 #else
           comm.host_scatter(
             init_max_new_root_counts.data(), std::addressof(init_max_new_roots), size_t{1}, int{0});
 #endif
         } else {
 #if 1  // FIXME: we should add host_scatter to raft
-          init_max_new_roots = host_scalar_scatter(comm, std::vector<vertex_t>{}, 0, handle.get_stream());
+          init_max_new_roots =
+            host_scalar_scatter(comm, std::vector<vertex_t>{}, 0, handle.get_stream());
 #else
           comm.host_scatter(static_cast<vertex_t const*>(nullptr),
                             std::addressof(init_max_new_roots),
@@ -881,7 +887,8 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
     if (GraphViewType::is_multi_gpu) {
       auto& comm = handle.get_comms();
 #if 1  // FIXME: we should add host_allreduce to raft
-      aggregate_num_inserts = host_scalar_allreduce(comm, aggregate_num_inserts, raft::comms::op_t::SUM, handle.get_stream());
+      aggregate_num_inserts = host_scalar_allreduce(
+        comm, aggregate_num_inserts, raft::comms::op_t::SUM, handle.get_stream());
 #else
       comm.host_allreduce(std::addressof(aggregate_num_inserts),
                           std::addressof(aggregate_num_inserts),

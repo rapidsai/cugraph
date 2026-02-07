@@ -989,7 +989,8 @@ void update_edge_src_property(raft::handle_t const& handle,
     if constexpr (GraphViewType::is_multi_gpu) {
       auto& comm = handle.get_comms();
 #if 1  // FIXME: we should add host_allreduce to raft
-      num_invalids = host_scalar_allreduce(comm, num_invalids, raft::comms::op_t::SUM, handle.get_stream());
+      num_invalids =
+        host_scalar_allreduce(comm, num_invalids, raft::comms::op_t::SUM, handle.get_stream());
 #else
       comm.host_allreduce(std::addressof(num_invalids),
                           std::addressof(num_invalids),
@@ -1117,7 +1118,8 @@ void update_edge_dst_property(raft::handle_t const& handle,
     if constexpr (GraphViewType::is_multi_gpu) {
       auto& comm = handle.get_comms();
 #if 1  // FIXME: we should add host_allreduce to raft
-      num_invalids = host_scalar_allreduce(comm, num_invalids, raft::comms::op_t::SUM, handle.get_stream());
+      num_invalids =
+        host_scalar_allreduce(comm, num_invalids, raft::comms::op_t::SUM, handle.get_stream());
 #else
       comm.host_allreduce(std::addressof(num_invalids),
                           std::addressof(num_invalids),

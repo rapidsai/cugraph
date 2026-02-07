@@ -593,7 +593,8 @@ T transform_reduce_e(raft::handle_t const& handle,
 
   if constexpr (GraphViewType::is_multi_gpu) {
 #if 1  // FIXME: we should add host_allreduce to raft
-    result = host_scalar_allreduce(handle.get_comms(), result, raft::comms::op_t::SUM, handle.get_stream());
+    result = host_scalar_allreduce(
+      handle.get_comms(), result, raft::comms::op_t::SUM, handle.get_stream());
 #else
     handle.get_comms().host_allreduce(
       std::addressof(result), std::addressof(result), size_t{1}, raft::comms::op_t::SUM);

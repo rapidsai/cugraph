@@ -785,7 +785,8 @@ transform_reduce_if_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
     auto aggregate_key_buffer_size = local_key_buffer_size;
     if (major_comm_size > 1) {
 #if 1  // FIXME: we should add host_allreduce to raft
-      aggregate_key_buffer_size = host_scalar_allreduce(major_comm, aggregate_key_buffer_size, raft::comms::op_t::SUM, handle.get_stream());
+      aggregate_key_buffer_size = host_scalar_allreduce(
+        major_comm, aggregate_key_buffer_size, raft::comms::op_t::SUM, handle.get_stream());
 #else
       major_comm.host_allreduce(std::addressof(aggregate_key_buffer_size),
                                 std::addressof(aggregate_key_buffer_size),
@@ -1200,11 +1201,11 @@ size_t compute_num_out_nbrs_from_frontier(raft::handle_t const& handle,
 
   std::vector<size_t> local_frontier_sizes{};
   if constexpr (GraphViewType::is_multi_gpu) {
-    auto& minor_comm     = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+    auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
 #if 1  // FIXME: we should add host_allgather to raft
     local_frontier_sizes = host_scalar_allgather(minor_comm, frontier.size(), handle.get_stream());
 #else
-    local_frontier_sizes = std::vector<size_t>(minor_comm.get_size(), 0);
+    local_frontier_sizes                        = std::vector<size_t>(minor_comm.get_size(), 0);
     local_frontier_sizes[minor_comm.get_rank()] = frontier.size();
     minor_comm.host_allgather(local_frontier_sizes.data(), local_frontier_sizes.data(), size_t{1});
 #endif

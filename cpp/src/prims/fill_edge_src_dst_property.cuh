@@ -721,9 +721,7 @@ void fill_edge_minor_property(raft::handle_t const& handle,
       }
     }
 
-    if (aggregate_local_v_list_size == 0) {
-      return;
-    }
+    if (aggregate_local_v_list_size == 0) { return; }
 
     std::optional<std::vector<size_t>> stream_pool_indices{std::nullopt};
     if ((major_comm_size > 1) && (handle.get_stream_pool_size() > 1)) {

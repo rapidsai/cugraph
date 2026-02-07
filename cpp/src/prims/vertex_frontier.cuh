@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -7,8 +7,8 @@
 #include "prims/detail/multi_stream_utils.cuh"
 
 #include <cugraph/utilities/device_comm.hpp>
-#include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/error.hpp>
+#include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/packed_bool_utils.hpp>
 
 #include <raft/core/device_span.hpp>
@@ -512,7 +512,8 @@ class key_bucket_t {
     size_t ret =
       (vertices_.index() == 0) ? std::get<0>(vertices_).size() : std::get<1>(vertices_).size();
 #if 1  // FIXME: we should add host_allreduce to raft
-    host_scalar_allreduce(handle_ptr_->get_comms(), ret, raft::comms::op_t::SUM, handle_ptr_->get_stream());
+    host_scalar_allreduce(
+      handle_ptr_->get_comms(), ret, raft::comms::op_t::SUM, handle_ptr_->get_stream());
 #else
     handle_ptr_->get_comms().host_allreduce(
       std::addressof(ret), std::addressof(ret), size_t{1}, raft::comms::op_t::SUM);

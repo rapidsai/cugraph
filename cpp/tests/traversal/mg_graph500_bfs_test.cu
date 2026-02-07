@@ -107,7 +107,7 @@ class Tests_GRAPH500_MGBFS
     bool constexpr test_weighted    = false;
     bool constexpr shuffle = false;  // Graph 500 requirement (edges can't be pre-shuffled, edges
                                      // should be shuffled in Kernel 1)
-    size_t num_warmup_starting_vertices = 1;  // to enforce all CUDA & NCCL initializations
+    size_t num_warmup_starting_vertices = 1;   // to enforce all CUDA & NCCL initializations
     size_t num_timed_starting_vertices  = 64;  // Graph 500 requirement (64)
 
     HighResTimer hr_timer{};
