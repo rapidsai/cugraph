@@ -20,7 +20,8 @@
 Run `build.sh all` from the examples dir to build the above listed examples.
 
 ```sh
-~/cugraph/cpp/examples$./build.sh all
+cd cpp/examples
+./build.sh all
 ```
 
 ## Run instructions
