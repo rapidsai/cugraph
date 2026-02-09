@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 
 from .simpleGraph import simpleGraphImpl
@@ -44,9 +44,7 @@ class npartiteGraphImpl(simpleGraphImpl):
             if len(set_names) == 2:
                 bottom = self._nodes[set_names[1]]
             else:
-                bottom = cudf.Series(
-                    set(self.nodes().values_host) - set(top.values_host)
-                )
+                bottom = cudf.Series(set(self.nodes().to_numpy()) - set(top.to_numpy()))
             return top, bottom
         else:
             return {k: self._nodes[k] for k in set_names}

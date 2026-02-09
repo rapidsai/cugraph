@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 
 from cugraph.structure import graph_primtypes_wrapper
@@ -372,7 +372,7 @@ class simpleGraphImpl:
         np_array_data = self.to_numpy_array()
         pdf = pd.DataFrame(np_array_data)
 
-        nodes = self.nodes().values_host.tolist()
+        nodes = self.nodes().to_numpy().tolist()
         pdf.columns = nodes
         pdf.index = nodes
         return pdf
