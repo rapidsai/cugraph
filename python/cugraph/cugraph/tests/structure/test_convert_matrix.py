@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2019-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2019-2026, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 
 import gc
@@ -87,9 +87,9 @@ def test_from_to_numpy(graph_file):
     )
 
     # convert graphs to numpy array
-    nparray_nx = nx.to_numpy_array(nxG, nodelist=cuG.nodes().values_host)
+    nparray_nx = nx.to_numpy_array(nxG, nodelist=cuG.nodes().to_numpy())
     nparray_cu = cugraph.to_numpy_array(cuG)
-    npmatrix_nx = nx.to_numpy_array(nxG, nodelist=cuG.nodes().values_host)
+    npmatrix_nx = nx.to_numpy_array(nxG, nodelist=cuG.nodes().to_numpy())
     npmatrix_cu = cugraph.to_numpy_array(cuG)
 
     # Compare arrays and matrices
