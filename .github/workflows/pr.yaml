@@ -252,6 +252,8 @@ jobs:
       build_type: pull-request
       script: ci/test_python.sh
       sccache-dist-token-secret-name: GIST_REPO_READ_ORG_GITHUB_TOKEN
+      # Skip failing tests on RTX PRO 6000 (Blackwell). xref: https://github.com/rapidsai/cugraph/issues/5421
+      matrix_filter: map(select(.GPU != "rtxpro6000"))
   conda-notebook-tests:
     needs: [conda-python-build, changed-files]
     secrets: inherit
@@ -327,6 +329,8 @@ jobs:
       build_type: pull-request
       script: ci/test_wheel_cugraph.sh
       sccache-dist-token-secret-name: GIST_REPO_READ_ORG_GITHUB_TOKEN
+      # Skip failing tests on RTX PRO 6000 (Blackwell). xref: https://github.com/rapidsai/cugraph/issues/5421
+      matrix_filter: map(select(.GPU != "rtxpro6000"))
   devcontainer:
     secrets: inherit
     needs: telemetry-setup
