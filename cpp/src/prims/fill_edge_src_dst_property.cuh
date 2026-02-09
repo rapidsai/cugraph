@@ -340,7 +340,7 @@ void fill_edge_minor_property(raft::handle_t const& handle,
       sizeof(uint32_t);  // cache line alignment,  unaligned ncclBroadcast operations are slower
 
     // we should consider reducing the life-time of this variable
-    // oncermm::rm::pool_memory_resource<rmm::mr::pinned_memory_resource> is updated to honor stream
+    // once rmm::rm::pool_memory_resource<rmm::mr::pinned_memory_resource> is updated to honor stream
     // semantics (github.com/rapidsai/rmm/issues/2053)
     rmm::device_uvector<int64_t> h_staging_buffer(0, handle.get_stream());
     {

@@ -808,7 +808,7 @@ extract_transform_if_v_frontier_e(raft::handle_t const& handle,
     detail::num_sparse_segments_per_vertex_partition + size_t{1};
 
   // we should consider reducing the life-time of this variable
-  // oncermm::rm::pool_memory_resource<rmm::mr::pinned_memory_resource> is updated to honor stream
+  // once rmm::rm::pool_memory_resource<rmm::mr::pinned_memory_resource> is updated to honor stream
   // semantics (github.com/rapidsai/rmm/issues/2053)
   rmm::device_uvector<int64_t> h_staging_buffer(0, handle.get_stream());
   {
