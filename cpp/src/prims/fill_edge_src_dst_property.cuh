@@ -799,7 +799,8 @@ void fill_edge_minor_property(raft::handle_t const& handle,
           leading_boundary_word_counts.size() + major_comm_size, handle.get_stream());
         static_assert((sizeof(int64_t) >= sizeof(size_t)) && (sizeof(int64_t) >= sizeof(vertex_t)));
         {
-          std::byte* h_staging_buffer_ptr = reinterpret_cast<std::byte*>(h_staging_buffer_view.data());
+          std::byte* h_staging_buffer_ptr =
+            reinterpret_cast<std::byte*>(h_staging_buffer_view.data());
           assert(h_staging_buffer_view.size() >= d_tmp_vars.size());
           std::copy(leading_boundary_word_counts.begin(),
                     leading_boundary_word_counts.end(),
@@ -919,7 +920,8 @@ void fill_edge_minor_property(raft::handle_t const& handle,
         raft::device_span<vertex_t const> d_local_v_list_sizes{};
         raft::device_span<vertex_t const> d_local_v_list_range_firsts{};
         {
-          vertex_t* h_staging_buffer_ptr = reinterpret_cast<vertex_t*>(h_staging_buffer_view.data());
+          vertex_t* h_staging_buffer_ptr =
+            reinterpret_cast<vertex_t*>(h_staging_buffer_view.data());
           assert(h_staging_buffer_view.size() >= major_comm_size * 2);
           std::copy(local_v_list_sizes.begin(), local_v_list_sizes.end(), h_staging_buffer_ptr);
           std::copy(local_v_list_range_firsts.begin(),
