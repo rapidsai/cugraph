@@ -9,6 +9,7 @@
 #include <cugraph/utilities/thrust_tuple_utils.hpp>
 
 #include <raft/core/handle.hpp>
+#include <raft/core/host_span.hpp>
 
 #include <rmm/device_uvector.hpp>
 
@@ -16,6 +17,7 @@
 
 #include <numeric>
 #include <type_traits>
+#include <variant>
 
 namespace cugraph {
 
@@ -117,9 +119,17 @@ template <typename T>
 std::enable_if_t<std::is_arithmetic<T>::value, T> host_scalar_allreduce(
   raft::comms::comms_t const& comm, T input, raft::comms::op_t op, cudaStream_t stream)
 {
-  auto h_tmp_buffer = host_staging_buffer_manager::allocate_staging_buffer<T>(1, stream);
+  std::variant<std::vector<T>, rmm::device_uvector<T>> h_tmp_buffer{};
+  raft::host_span<T> h_tmp_buffer_view{};
+  if (host_staging_buffer_manager::initialized()) {
+    h_tmp_buffer = host_staging_buffer_manager::allocate_staging_buffer<T>(1, stream);
+  } else {
+    h_tmp_buffer = std::vector<T>(1);
+  }
+  h_tmp_buffer_view = std::visit(
+    [](auto& buffer) { return raft::host_span<T>(buffer.data(), buffer.size()); }, h_tmp_buffer);
   rmm::device_uvector<T> d_tmp_buffer(1, stream);
-  T* h_staging_buffer = h_tmp_buffer.data();
+  T* h_staging_buffer = h_tmp_buffer_view.data();
   T* d_staging_buffer = d_tmp_buffer.data();
   h_staging_buffer[0] = input;
   raft::update_device(d_staging_buffer, h_staging_buffer, 1, stream);
@@ -138,10 +148,19 @@ std::enable_if_t<cugraph::is_thrust_tuple_of_arithmetic<T>::value, T> host_scala
 {
   size_t constexpr tuple_size = cuda::std::tuple_size<T>::value;
 
-  auto h_tmp_buffer =
-    host_staging_buffer_manager::allocate_staging_buffer<int64_t>(tuple_size, stream);
+  std::variant<std::vector<int64_t>, rmm::device_uvector<int64_t>> h_tmp_buffer{};
+  raft::host_span<int64_t> h_tmp_buffer_view{};
+  if (host_staging_buffer_manager::initialized()) {
+    h_tmp_buffer =
+      host_staging_buffer_manager::allocate_staging_buffer<int64_t>(tuple_size, stream);
+  } else {
+    h_tmp_buffer = std::vector<int64_t>(tuple_size);
+  }
+  h_tmp_buffer_view =
+    std::visit([](auto& buffer) { return raft::host_span<int64_t>(buffer.data(), buffer.size()); },
+               h_tmp_buffer);
   rmm::device_uvector<int64_t> d_tmp_buffer(tuple_size, stream);
-  int64_t* h_staging_buffer = h_tmp_buffer.data();
+  int64_t* h_staging_buffer = h_tmp_buffer_view.data();
   int64_t* d_staging_buffer = d_tmp_buffer.data();
   detail::update_array_of_tuple_scalar_elements_from_tuple_impl<T, size_t{0}, tuple_size>().update(
     h_staging_buffer, input);
@@ -163,9 +182,17 @@ template <typename T>
 std::enable_if_t<std::is_arithmetic<T>::value, T> host_scalar_reduce(
   raft::comms::comms_t const& comm, T input, raft::comms::op_t op, int root, cudaStream_t stream)
 {
-  auto h_tmp_buffer = host_staging_buffer_manager::allocate_staging_buffer<T>(1, stream);
+  std::variant<std::vector<T>, rmm::device_uvector<T>> h_tmp_buffer{};
+  raft::host_span<T> h_tmp_buffer_view{};
+  if (host_staging_buffer_manager::initialized()) {
+    h_tmp_buffer = host_staging_buffer_manager::allocate_staging_buffer<T>(1, stream);
+  } else {
+    h_tmp_buffer = std::vector<T>(1);
+  }
+  h_tmp_buffer_view = std::visit(
+    [](auto& buffer) { return raft::host_span<T>(buffer.data(), buffer.size()); }, h_tmp_buffer);
   rmm::device_uvector<T> d_tmp_buffer(1, stream);
-  T* h_staging_buffer = h_tmp_buffer.data();
+  T* h_staging_buffer = h_tmp_buffer_view.data();
   T* d_staging_buffer = d_tmp_buffer.data();
   h_staging_buffer[0] = input;
   raft::update_device(d_staging_buffer, h_staging_buffer, 1, stream);
@@ -186,10 +213,19 @@ std::enable_if_t<cugraph::is_thrust_tuple_of_arithmetic<T>::value, T> host_scala
 {
   size_t constexpr tuple_size = cuda::std::tuple_size<T>::value;
 
-  auto h_tmp_buffer =
-    host_staging_buffer_manager::allocate_staging_buffer<int64_t>(tuple_size, stream);
+  std::variant<std::vector<int64_t>, rmm::device_uvector<int64_t>> h_tmp_buffer{};
+  raft::host_span<int64_t> h_tmp_buffer_view{};
+  if (host_staging_buffer_manager::initialized()) {
+    h_tmp_buffer =
+      host_staging_buffer_manager::allocate_staging_buffer<int64_t>(tuple_size, stream);
+  } else {
+    h_tmp_buffer = std::vector<int64_t>(tuple_size);
+  }
+  h_tmp_buffer_view =
+    std::visit([](auto& buffer) { return raft::host_span<int64_t>(buffer.data(), buffer.size()); },
+               h_tmp_buffer);
   rmm::device_uvector<int64_t> d_tmp_buffer(tuple_size, stream);
-  int64_t* h_staging_buffer = h_tmp_buffer.data();
+  int64_t* h_staging_buffer = h_tmp_buffer_view.data();
   int64_t* d_staging_buffer = d_tmp_buffer.data();
   detail::update_array_of_tuple_scalar_elements_from_tuple_impl<T, size_t{0}, tuple_size>().update(
     h_staging_buffer, input);
@@ -214,9 +250,17 @@ template <typename T>
 std::enable_if_t<std::is_arithmetic<T>::value, T> host_scalar_bcast(
   raft::comms::comms_t const& comm, T input, int root, cudaStream_t stream)
 {
-  auto h_tmp_buffer = host_staging_buffer_manager::allocate_staging_buffer<T>(1, stream);
+  std::variant<std::vector<T>, rmm::device_uvector<T>> h_tmp_buffer{};
+  raft::host_span<T> h_tmp_buffer_view{};
+  if (host_staging_buffer_manager::initialized()) {
+    h_tmp_buffer = host_staging_buffer_manager::allocate_staging_buffer<T>(1, stream);
+  } else {
+    h_tmp_buffer = std::vector<T>(1);
+  }
+  h_tmp_buffer_view = std::visit(
+    [](auto& buffer) { return raft::host_span<T>(buffer.data(), buffer.size()); }, h_tmp_buffer);
   rmm::device_uvector<T> d_tmp_buffer(1, stream);
-  T* h_staging_buffer = h_tmp_buffer.data();
+  T* h_staging_buffer = h_tmp_buffer_view.data();
   T* d_staging_buffer = d_tmp_buffer.data();
   if (comm.get_rank() == root) {
     h_staging_buffer[0] = input;
@@ -237,10 +281,19 @@ std::enable_if_t<cugraph::is_thrust_tuple_of_arithmetic<T>::value, T> host_scala
 {
   size_t constexpr tuple_size = cuda::std::tuple_size<T>::value;
 
-  auto h_tmp_buffer =
-    host_staging_buffer_manager::allocate_staging_buffer<int64_t>(tuple_size, stream);
+  std::variant<std::vector<int64_t>, rmm::device_uvector<int64_t>> h_tmp_buffer{};
+  raft::host_span<int64_t> h_tmp_buffer_view{};
+  if (host_staging_buffer_manager::initialized()) {
+    h_tmp_buffer =
+      host_staging_buffer_manager::allocate_staging_buffer<int64_t>(tuple_size, stream);
+  } else {
+    h_tmp_buffer = std::vector<int64_t>(tuple_size);
+  }
+  h_tmp_buffer_view =
+    std::visit([](auto& buffer) { return raft::host_span<int64_t>(buffer.data(), buffer.size()); },
+               h_tmp_buffer);
   rmm::device_uvector<int64_t> d_tmp_buffer(tuple_size, stream);
-  int64_t* h_staging_buffer = h_tmp_buffer.data();
+  int64_t* h_staging_buffer = h_tmp_buffer_view.data();
   int64_t* d_staging_buffer = d_tmp_buffer.data();
   if (comm.get_rank() == root) {
     detail::update_array_of_tuple_scalar_elements_from_tuple_impl<T, size_t{0}, tuple_size>()
@@ -264,10 +317,17 @@ template <typename T>
 std::enable_if_t<std::is_arithmetic<T>::value, std::vector<T>> host_scalar_allgather(
   raft::comms::comms_t const& comm, T input, cudaStream_t stream)
 {
-  auto h_tmp_buffer =
-    host_staging_buffer_manager::allocate_staging_buffer<T>(comm.get_size(), stream);
+  std::variant<std::vector<T>, rmm::device_uvector<T>> h_tmp_buffer{};
+  raft::host_span<T> h_tmp_buffer_view{};
+  if (host_staging_buffer_manager::initialized()) {
+    h_tmp_buffer = host_staging_buffer_manager::allocate_staging_buffer<T>(comm.get_size(), stream);
+  } else {
+    h_tmp_buffer = std::vector<T>(comm.get_size());
+  }
+  h_tmp_buffer_view = std::visit(
+    [](auto& buffer) { return raft::host_span<T>(buffer.data(), buffer.size()); }, h_tmp_buffer);
   rmm::device_uvector<T> d_tmp_buffer(comm.get_size(), stream);
-  T* h_staging_buffer               = h_tmp_buffer.data();
+  T* h_staging_buffer               = h_tmp_buffer_view.data();
   T* d_staging_buffer               = d_tmp_buffer.data();
   h_staging_buffer[comm.get_rank()] = input;
   raft::update_device(
@@ -287,10 +347,19 @@ host_scalar_allgather(raft::comms::comms_t const& comm, T input, cudaStream_t st
 {
   size_t constexpr tuple_size = cuda::std::tuple_size<T>::value;
 
-  auto h_tmp_buffer = host_staging_buffer_manager::allocate_staging_buffer<int64_t>(
-    comm.get_size() * tuple_size, stream);
+  std::variant<std::vector<int64_t>, rmm::device_uvector<int64_t>> h_tmp_buffer{};
+  raft::host_span<int64_t> h_tmp_buffer_view{};
+  if (host_staging_buffer_manager::initialized()) {
+    h_tmp_buffer = host_staging_buffer_manager::allocate_staging_buffer<int64_t>(
+      comm.get_size() * tuple_size, stream);
+  } else {
+    h_tmp_buffer = std::vector<int64_t>(comm.get_size() * tuple_size);
+  }
+  h_tmp_buffer_view =
+    std::visit([](auto& buffer) { return raft::host_span<int64_t>(buffer.data(), buffer.size()); },
+               h_tmp_buffer);
   rmm::device_uvector<int64_t> d_tmp_buffer(comm.get_size() * tuple_size, stream);
-  int64_t* h_staging_buffer = h_tmp_buffer.data();
+  int64_t* h_staging_buffer = h_tmp_buffer_view.data();
   int64_t* d_staging_buffer = d_tmp_buffer.data();
   detail::update_array_of_tuple_scalar_elements_from_tuple_impl<T, size_t{0}, tuple_size>().update(
     h_staging_buffer + comm.get_rank() * tuple_size, input);
@@ -324,10 +393,17 @@ std::enable_if_t<std::is_arithmetic<T>::value, T> host_scalar_scatter(
       ((comm.get_rank() != root) && (inputs.size() == 0)),
     "inputs.size() should match with comm.get_size() in root and should be 0 otherwise.");
 
-  auto h_tmp_buffer =
-    host_staging_buffer_manager::allocate_staging_buffer<T>(comm.get_size(), stream);
+  std::variant<std::vector<T>, rmm::device_uvector<T>> h_tmp_buffer{};
+  raft::host_span<T> h_tmp_buffer_view{};
+  if (host_staging_buffer_manager::initialized()) {
+    h_tmp_buffer = host_staging_buffer_manager::allocate_staging_buffer<T>(comm.get_size(), stream);
+  } else {
+    h_tmp_buffer = std::vector<T>(comm.get_size());
+  }
+  h_tmp_buffer_view = std::visit(
+    [](auto& buffer) { return raft::host_span<T>(buffer.data(), buffer.size()); }, h_tmp_buffer);
   rmm::device_uvector<T> d_tmp_buffer(comm.get_size(), stream);
-  T* h_staging_buffer = h_tmp_buffer.data();
+  T* h_staging_buffer = h_tmp_buffer_view.data();
   T* d_staging_buffer = d_tmp_buffer.data();
   if (comm.get_rank() == root) {
     std::copy(inputs.begin(), inputs.end(), h_staging_buffer);
@@ -358,10 +434,19 @@ std::enable_if_t<cugraph::is_thrust_tuple_of_arithmetic<T>::value, T> host_scala
       ((comm.get_rank() != root) && (inputs.size() == 0)),
     "inputs.size() should match with comm.get_size() in root and should be 0 otherwise.");
 
-  auto h_tmp_buffer = host_staging_buffer_manager::allocate_staging_buffer<int64_t>(
-    comm.get_size() * tuple_size, stream);
+  std::variant<std::vector<int64_t>, rmm::device_uvector<int64_t>> h_tmp_buffer{};
+  raft::host_span<int64_t> h_tmp_buffer_view{};
+  if (host_staging_buffer_manager::initialized()) {
+    h_tmp_buffer = host_staging_buffer_manager::allocate_staging_buffer<int64_t>(
+      comm.get_size() * tuple_size, stream);
+  } else {
+    h_tmp_buffer = std::vector<int64_t>(comm.get_size() * tuple_size);
+  }
+  h_tmp_buffer_view =
+    std::visit([](auto& buffer) { return raft::host_span<int64_t>(buffer.data(), buffer.size()); },
+               h_tmp_buffer);
   rmm::device_uvector<int64_t> d_tmp_buffer(comm.get_size() * tuple_size, stream);
-  int64_t* h_staging_buffer = h_tmp_buffer.data();
+  int64_t* h_staging_buffer = h_tmp_buffer_view.data();
   int64_t* d_staging_buffer = d_tmp_buffer.data();
   if (comm.get_rank() == root) {
     for (int i = 0; i < comm.get_size(); ++i) {
@@ -392,10 +477,17 @@ template <typename T>
 std::enable_if_t<std::is_arithmetic<T>::value, std::vector<T>> host_scalar_gather(
   raft::comms::comms_t const& comm, T input, int root, cudaStream_t stream)
 {
-  auto h_tmp_buffer =
-    host_staging_buffer_manager::allocate_staging_buffer<T>(comm.get_size(), stream);
+  std::variant<std::vector<T>, rmm::device_uvector<T>> h_tmp_buffer{};
+  raft::host_span<T> h_tmp_buffer_view{};
+  if (host_staging_buffer_manager::initialized()) {
+    h_tmp_buffer = host_staging_buffer_manager::allocate_staging_buffer<T>(comm.get_size(), stream);
+  } else {
+    h_tmp_buffer = std::vector<T>(comm.get_size());
+  }
+  h_tmp_buffer_view = std::visit(
+    [](auto& buffer) { return raft::host_span<T>(buffer.data(), buffer.size()); }, h_tmp_buffer);
   rmm::device_uvector<T> d_tmp_buffer(comm.get_size(), stream);
-  T* h_staging_buffer               = h_tmp_buffer.data();
+  T* h_staging_buffer               = h_tmp_buffer_view.data();
   T* d_staging_buffer               = d_tmp_buffer.data();
   h_staging_buffer[comm.get_rank()] = input;
   raft::update_device(
@@ -421,10 +513,19 @@ host_scalar_gather(raft::comms::comms_t const& comm, T input, int root, cudaStre
 {
   size_t constexpr tuple_size = cuda::std::tuple_size<T>::value;
 
-  auto h_tmp_buffer = host_staging_buffer_manager::allocate_staging_buffer<int64_t>(
-    comm.get_size() * tuple_size, stream);
+  std::variant<std::vector<int64_t>, rmm::device_uvector<int64_t>> h_tmp_buffer{};
+  raft::host_span<int64_t> h_tmp_buffer_view{};
+  if (host_staging_buffer_manager::initialized()) {
+    h_tmp_buffer = host_staging_buffer_manager::allocate_staging_buffer<int64_t>(
+      comm.get_size() * tuple_size, stream);
+  } else {
+    h_tmp_buffer = std::vector<int64_t>(comm.get_size() * tuple_size);
+  }
+  h_tmp_buffer_view =
+    std::visit([](auto& buffer) { return raft::host_span<int64_t>(buffer.data(), buffer.size()); },
+               h_tmp_buffer);
   rmm::device_uvector<int64_t> d_tmp_buffer(comm.get_size() * tuple_size, stream);
-  int64_t* h_staging_buffer = h_tmp_buffer.data();
+  int64_t* h_staging_buffer = h_tmp_buffer_view.data();
   int64_t* d_staging_buffer = d_tmp_buffer.data();
   detail::update_array_of_tuple_scalar_elements_from_tuple_impl<T, size_t{0}, tuple_size>().update(
     h_staging_buffer + comm.get_rank() * tuple_size, input);

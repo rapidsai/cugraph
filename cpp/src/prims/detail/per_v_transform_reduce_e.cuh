@@ -1280,7 +1280,8 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
   // we should consider reducing the life-time of this variable
   // once rmm::rm::pool_memory_resource<rmm::mr::pinned_memory_resource> is updated to honor stream
   // semantics (github.com/rapidsai/rmm/issues/2053)
-  rmm::device_uvector<int64_t> h_staging_buffer(0, handle.get_stream());
+  std::variant<std::vector<int64_t>, rmm::device_uvector<int64_t>> h_staging_buffer{};
+  raft::host_span<int64_t> h_staging_buffer_view{};
   {
     size_t staging_buffer_size{};  // should be large enough to cover all update_host &
                                    // update_device calls in this primitive
@@ -1292,8 +1293,15 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
     } else {
       staging_buffer_size = size_t{16};
     }
-    h_staging_buffer = host_staging_buffer_manager::allocate_staging_buffer<int64_t>(
-      staging_buffer_size, handle.get_stream());
+    if (host_staging_buffer_manager::initialized()) {
+      h_staging_buffer = host_staging_buffer_manager::allocate_staging_buffer<int64_t>(
+        staging_buffer_size, handle.get_stream());
+    } else {
+      h_staging_buffer = std::vector<int64_t>(staging_buffer_size);
+    }
+    h_staging_buffer_view = std::visit(
+      [](auto& buffer) { return raft::host_span<int64_t>(buffer.data(), buffer.size()); },
+      h_staging_buffer);
   }
 
   // 1. drop zero degree keys & compute key_segment_offsets
@@ -1584,8 +1592,8 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
         vertex_t range_first = graph_view.local_vertex_partition_range_first();
         auto range_last      = range_first;
         if (v_list_size > 0) {
-          auto h_staging_buffer_ptr = reinterpret_cast<vertex_t*>(h_staging_buffer.data());
-          assert(h_staging_buffer.size() >= size_t{2});
+          auto h_staging_buffer_ptr = reinterpret_cast<vertex_t*>(h_staging_buffer_view.data());
+          assert(h_staging_buffer_view.size() >= size_t{2});
           if constexpr (std::is_pointer_v<std::decay<OptionalKeyIterator>>) {
             raft::update_host(
               h_staging_buffer_ptr, sorted_unique_key_first, size_t{1}, handle.get_stream());
@@ -2782,8 +2790,8 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
           }
           if (edge_partition_bitmap_buffers) { edge_partition_bitmap_buffers->clear(); }
 
-          auto h_counts = reinterpret_cast<size_t*>(h_staging_buffer.data());
-          assert(h_staging_buffer.size() >= loop_count);
+          auto h_counts = reinterpret_cast<size_t*>(h_staging_buffer_view.data());
+          assert(h_staging_buffer_view.size() >= loop_count);
           raft::update_host(h_counts, counters.data(), loop_count, handle.get_stream());
           handle.sync_stream();
 
@@ -3176,8 +3184,8 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                             handle.get_stream());
           handle.sync_stream();
 #else
-          auto h_counts = reinterpret_cast<size_t*>(h_staging_buffer.data());
-          assert(h_staging_buffer.size() >= loop_count);
+          auto h_counts = reinterpret_cast<size_t*>(h_staging_buffer_view.data());
+          assert(h_staging_buffer_view.size() >= loop_count);
           raft::update_host(h_counts, counters.data(), loop_count, handle.get_stream());
           handle.sync_stream();
           std::vector<size_t> h_allgathered_valid_counts(minor_comm_size * loop_count);
@@ -3278,8 +3286,8 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
 
         if (static_cast<size_t>(minor_comm_rank / num_concurrent_loops) ==
             (i / num_concurrent_loops)) {
-          auto h_rx_counts = reinterpret_cast<size_t*>(h_staging_buffer.data());
-          assert(h_staging_buffer.size() >= minor_comm_size);
+          auto h_rx_counts = reinterpret_cast<size_t*>(h_staging_buffer_view.data());
+          assert(h_staging_buffer_view.size() >= minor_comm_size);
           std::copy(rx_counts.begin(), rx_counts.end(), h_rx_counts);
           rmm::device_uvector<size_t> d_rx_counts(rx_counts.size(), handle.get_stream());
           raft::update_device(

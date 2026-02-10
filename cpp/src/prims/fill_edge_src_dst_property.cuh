@@ -340,9 +340,10 @@ void fill_edge_minor_property(raft::handle_t const& handle,
       sizeof(uint32_t);  // cache line alignment,  unaligned ncclBroadcast operations are slower
 
     // we should consider reducing the life-time of this variable
-    // once rmm::rm::pool_memory_resource<rmm::mr::pinned_memory_resource> is updated to honor stream
-    // semantics (github.com/rapidsai/rmm/issues/2053)
-    rmm::device_uvector<int64_t> h_staging_buffer(0, handle.get_stream());
+    // once rmm::rm::pool_memory_resource<rmm::mr::pinned_memory_resource> is updated to honor
+    // stream semantics (github.com/rapidsai/rmm/issues/2053)
+    std::variant<std::vector<int64_t>, rmm::device_uvector<int64_t>> h_staging_buffer{};
+    raft::host_span<int64_t> h_staging_buffer_view{};
     {
       size_t staging_buffer_size{};  // should be large enough to cover all update_host &
                                      // update_device calls in this primitive
@@ -358,8 +359,15 @@ void fill_edge_minor_property(raft::handle_t const& handle,
           size_t{3} + (raft::round_up_safe(packed_bool_word_bcast_alignment, size_t{2}) /
                        2 /* two packed bool words per 64 bit */);
       }
-      h_staging_buffer = host_staging_buffer_manager::allocate_staging_buffer<int64_t>(
-        staging_buffer_size, handle.get_stream());
+      if (host_staging_buffer_manager::initialized()) {
+        h_staging_buffer = host_staging_buffer_manager::allocate_staging_buffer<int64_t>(
+          staging_buffer_size, handle.get_stream());
+      } else {
+        h_staging_buffer = std::vector<int64_t>(staging_buffer_size);
+      }
+      h_staging_buffer_view = std::visit(
+        [](auto& buffer) { return raft::host_span<int64_t>(buffer.data(), buffer.size()); },
+        h_staging_buffer);
     }
 
     auto edge_partition_keys = edge_minor_property_output.minor_keys();
@@ -379,8 +387,8 @@ void fill_edge_minor_property(raft::handle_t const& handle,
       auto range_first = graph_view.local_vertex_partition_range_first();
       auto range_last  = range_first;
       if (v_list_size > 0) {
-        auto h_staging_buffer_ptr = reinterpret_cast<vertex_t*>(h_staging_buffer.data());
-        assert(h_staging_buffer.size() >= size_t{2});
+        auto h_staging_buffer_ptr = reinterpret_cast<vertex_t*>(h_staging_buffer_view.data());
+        assert(h_staging_buffer_view.size() >= size_t{2});
         if constexpr (std::is_pointer_v<std::decay_t<VertexIterator>>) {
           raft::update_host(
             h_staging_buffer_ptr, sorted_unique_vertex_first, size_t{1}, handle.get_stream());
@@ -464,8 +472,8 @@ void fill_edge_minor_property(raft::handle_t const& handle,
           return word;
         });
 
-      auto h_aggregate_tmps = reinterpret_cast<uint32_t*>(h_staging_buffer.data());
-      assert(h_staging_buffer.size() >=
+      auto h_aggregate_tmps = reinterpret_cast<uint32_t*>(h_staging_buffer_view.data());
+      assert(h_staging_buffer_view.size() >=
              major_comm_size *
                (raft::round_up_safe(num_leading_words + packed_bool_word_bcast_alignment, 2) / 2));
       auto h_this_rank_aggregate_tmps =
@@ -791,8 +799,8 @@ void fill_edge_minor_property(raft::handle_t const& handle,
           leading_boundary_word_counts.size() + major_comm_size, handle.get_stream());
         static_assert((sizeof(int64_t) >= sizeof(size_t)) && (sizeof(int64_t) >= sizeof(vertex_t)));
         {
-          std::byte* h_staging_buffer_ptr = reinterpret_cast<std::byte*>(h_staging_buffer.data());
-          assert(h_staging_buffer.size() >= d_tmp_vars.size());
+          std::byte* h_staging_buffer_ptr = reinterpret_cast<std::byte*>(h_staging_buffer_view.data());
+          assert(h_staging_buffer_view.size() >= d_tmp_vars.size());
           std::copy(leading_boundary_word_counts.begin(),
                     leading_boundary_word_counts.end(),
                     reinterpret_cast<size_t*>(h_staging_buffer_ptr));
@@ -911,7 +919,8 @@ void fill_edge_minor_property(raft::handle_t const& handle,
         raft::device_span<vertex_t const> d_local_v_list_sizes{};
         raft::device_span<vertex_t const> d_local_v_list_range_firsts{};
         {
-          vertex_t* h_staging_buffer_ptr = reinterpret_cast<vertex_t*>(h_staging_buffer.data());
+          vertex_t* h_staging_buffer_ptr = reinterpret_cast<vertex_t*>(h_staging_buffer_view.data());
+          assert(h_staging_buffer_view.size() >= major_comm_size * 2);
           std::copy(local_v_list_sizes.begin(), local_v_list_sizes.end(), h_staging_buffer_ptr);
           std::copy(local_v_list_range_firsts.begin(),
                     local_v_list_range_firsts.end(),

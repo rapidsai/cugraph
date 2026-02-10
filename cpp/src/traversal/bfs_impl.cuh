@@ -153,13 +153,21 @@ void bfs(raft::handle_t const& handle,
   // we should consider reducing the life-time of this variable once
   // rmm::rm::pool_memory_resource<rmm::mr::pinned_memory_resource> is updated to honor stream
   // semantics (github.com/rapidsai/rmm/issues/2053)
-  rmm::device_uvector<int64_t> h_staging_buffer(0, handle.get_stream());
+  std::variant<std::vector<int64_t>, rmm::device_uvector<int64_t>> h_staging_buffer{};
+  raft::host_span<int64_t> h_staging_buffer_view{};
   {
     size_t staging_buffer_size =
       std::max(size_t{3}, n_sources);  // should be large enough to cover all update_host &
                                        // update_device calls in this function
-    h_staging_buffer = host_staging_buffer_manager::allocate_staging_buffer<int64_t>(
-      staging_buffer_size, handle.get_stream());
+    if (host_staging_buffer_manager::initialized()) {
+      h_staging_buffer = host_staging_buffer_manager::allocate_staging_buffer<int64_t>(
+        staging_buffer_size, handle.get_stream());
+    } else {
+      h_staging_buffer = std::vector<int64_t>(staging_buffer_size);
+    }
+    h_staging_buffer_view = std::visit(
+      [](auto& buffer) { return raft::host_span<int64_t>(buffer.data(), buffer.size()); },
+      h_staging_buffer);
   }
 
   // 1. check input arguments
@@ -365,8 +373,8 @@ void bfs(raft::handle_t const& handle,
         num_nzd_unvisited_hypersparse_vertices = (*segment_offsets)[4] - (*segment_offsets)[3];
       }
       if (n_sources > 0) {
-        auto h_sources = reinterpret_cast<vertex_t*>(h_staging_buffer.data());
-        assert(h_staging_buffer.size() >= n_sources);
+        auto h_sources = reinterpret_cast<vertex_t*>(h_staging_buffer_view.data());
+        assert(h_staging_buffer_view.size() >= n_sources);
         raft::update_host(h_sources, sources, n_sources, handle.get_stream());
         handle.sync_stream();
         for (size_t i = 0; i < n_sources; ++i) {
@@ -596,9 +604,9 @@ void bfs(raft::handle_t const& handle,
             handle.get_comms(), *m_u, raft::comms::op_t::SUM, handle.get_stream());
         }
 #else
-        size_t* h_staging_buffer_ptr = reinterpret_cast<size_t*>(h_staging_buffer.data());
+        size_t* h_staging_buffer_ptr = reinterpret_cast<size_t*>(h_staging_buffer_view.data());
         auto num_scalars             = direction_optimizing ? size_t{3} : size_t{1};
-        assert(h_staging_buffer.size() >= num_scalars);
+        assert(h_staging_buffer_view.size() >= num_scalars);
         h_staging_buffer_ptr[0] = static_cast<size_t>(next_aggregate_frontier_size);
         if (direction_optimizing) {
           h_staging_buffer_ptr[1] = *m_f;
@@ -811,8 +819,8 @@ void bfs(raft::handle_t const& handle,
                                                                  raft::comms::op_t::SUM,
                                                                  handle.get_stream());
 #else
-        vertex_t* h_staging_buffer_ptr = reinterpret_cast<vertex_t*>(h_staging_buffer.data());
-        assert(h_staging_buffer.size() >= 2);
+        vertex_t* h_staging_buffer_ptr = reinterpret_cast<vertex_t*>(h_staging_buffer_view.data());
+        assert(h_staging_buffer_view.size() >= 2);
         h_staging_buffer_ptr[0] = next_aggregate_frontier_size;
         h_staging_buffer_ptr[1] = aggregate_nzd_unvisited_vertices;
         auto& comm              = handle.get_comms();

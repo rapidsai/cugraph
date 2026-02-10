@@ -698,7 +698,8 @@ transform_reduce_if_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
   // we should consider reducing the life-time of this variable
   // once rmm::rm::pool_memory_resource<rmm::mr::pinned_memory_resource> is updated to honor stream
   // semantics (github.com/rapidsai/rmm/issues/2053)
-  rmm::device_uvector<int64_t> h_staging_buffer(0, handle.get_stream());
+  std::variant<std::vector<int64_t>, rmm::device_uvector<int64_t>> h_staging_buffer{};
+  raft::host_span<int64_t> h_staging_buffer_view{};
   {
     size_t staging_buffer_size{};  // should be large enough to cover all update_host &
                                    // update_device calls in this primitive
@@ -709,8 +710,15 @@ transform_reduce_if_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
     } else {
       staging_buffer_size = size_t{2};
     }
-    h_staging_buffer = host_staging_buffer_manager::allocate_staging_buffer<int64_t>(
-      staging_buffer_size, handle.get_stream());
+    if (host_staging_buffer_manager::initialized()) {
+      h_staging_buffer = host_staging_buffer_manager::allocate_staging_buffer<int64_t>(
+        staging_buffer_size, handle.get_stream());
+    } else {
+      h_staging_buffer = std::vector<int64_t>(staging_buffer_size);
+    }
+    h_staging_buffer_view = std::visit(
+      [](auto& buffer) { return raft::host_span<int64_t>(buffer.data(), buffer.size()); },
+      h_staging_buffer);
   }
 
   // 1. fill the buffer
@@ -799,8 +807,8 @@ transform_reduce_if_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
 
       rmm::device_uvector<vertex_t> d_vertex_partition_range_offsets(
         vertex_partition_range_offsets.size(), handle.get_stream());
-      auto h_staging_buffer_ptr = reinterpret_cast<vertex_t*>(h_staging_buffer.data());
-      assert(h_staging_buffer.size() >= vertex_partition_range_offsets.size());
+      auto h_staging_buffer_ptr = reinterpret_cast<vertex_t*>(h_staging_buffer_view.data());
+      assert(h_staging_buffer_view.size() >= vertex_partition_range_offsets.size());
       std::copy(vertex_partition_range_offsets.begin(),
                 vertex_partition_range_offsets.end(),
                 h_staging_buffer_ptr);
@@ -963,8 +971,8 @@ transform_reduce_if_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
           shrink_to_fit_dataframe_buffer(key_buffer, handle.get_stream());
         }
       }
-      auto h_tx_buffer_last_boundaries = reinterpret_cast<edge_t*>(h_staging_buffer.data());
-      assert(h_staging_buffer.size() >= d_tx_last_buffer_boundaries.size());
+      auto h_tx_buffer_last_boundaries = reinterpret_cast<edge_t*>(h_staging_buffer_view.data());
+      assert(h_staging_buffer_view.size() >= d_tx_last_buffer_boundaries.size());
       raft::update_host(h_tx_buffer_last_boundaries,
                         d_tx_buffer_last_boundaries.data(),
                         d_tx_buffer_last_boundaries.size(),

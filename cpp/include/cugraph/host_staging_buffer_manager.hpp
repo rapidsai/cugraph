@@ -26,6 +26,11 @@ class host_staging_buffer_manager {
   static constexpr size_t max_staging_buffer_size =
     size_t{1024} * size_t{1024} * size_t{1024};  // 1 GB
 
+  static bool initialized() {
+    auto& s = state();
+    return s.initialized;
+  }
+
   static void init(raft::handle_t const& handle,
                    std::shared_ptr<rmm::mr::pinned_host_memory_resource> pinned_mr)
   {
