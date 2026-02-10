@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 
 import cudf
@@ -231,7 +231,7 @@ def homogeneous_neighbor_sample(
     elif isinstance(fanout_vals, cp.ndarray):
         fanout_vals = fanout_vals.get().astype("int32")
     elif isinstance(fanout_vals, cudf.Series):
-        fanout_vals = fanout_vals.values_host.astype("int32")
+        fanout_vals = fanout_vals.to_numpy().astype("int32")
     else:
         raise TypeError(f"fanout_vals must be a sequence, got: {type(fanout_vals)}")
 

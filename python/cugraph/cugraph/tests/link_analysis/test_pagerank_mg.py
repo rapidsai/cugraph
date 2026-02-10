@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2020-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 
 import gc
@@ -21,7 +21,7 @@ def personalize(vertices, personalization_perc):
     personalization = None
     if personalization_perc != 0:
         personalization = {}
-        nnz_vtx = vertices.values_host
+        nnz_vtx = vertices.to_numpy()
         personalization_count = int((nnz_vtx.size * personalization_perc) / 100.0)
         nnz_vtx = np.random.choice(
             nnz_vtx, min(nnz_vtx.size, personalization_count), replace=False
