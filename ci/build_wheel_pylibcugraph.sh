@@ -21,5 +21,13 @@ cat >> "${PIP_CONSTRAINT}" <<EOF
 libcugraph-${RAPIDS_PY_CUDA_SUFFIX} @ file://$(echo "${LIBCUGRAPH_WHEELHOUSE}"/libcugraph_*.whl)
 EOF
 
-./ci/build_wheel.sh pylibcugraph ${package_dir}
+# TODO: move this variable into `ci-wheel`
+# Format Python limited API version string
+RAPIDS_PY_API="cp${RAPIDS_PY_VERSION//./}"
+export RAPIDS_PY_API
+
+./ci/build_wheel.sh pylibcugraph ${package_dir} --stable
 ./ci/validate_wheel.sh ${package_dir} "${RAPIDS_WHEEL_BLD_OUTPUT_DIR}"
+
+RAPIDS_PACKAGE_NAME="$(rapids-package-name wheel_python pylibcugraph --stable --cuda)"
+export RAPIDS_PACKAGE_NAME
