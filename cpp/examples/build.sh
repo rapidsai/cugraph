@@ -67,6 +67,7 @@ if hasArg -h || hasArg --help; then
 fi
 
 CMAKE_CONFIGURE_ARGS=(
+    -GNinja
     -Dcugraph_ROOT="${CUGRAPH_BUILD_DIR}"
 )
 CMAKE_BUILD_ARGS=(

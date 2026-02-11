@@ -15,7 +15,14 @@
 
   -  cugraph_operations: example code for using cugraph primitives for simple graph operations needed to implement graph algorithms.
 
-## Build instructions:
+## Build instructions
+
+Build `cugraph` first.
+For example, open one of the devcontainers in this repo and run the following:
+
+```shell
+build-cugraph-cpp
+```
 
 Run `build.sh all` from the examples dir to build the above listed examples.
 

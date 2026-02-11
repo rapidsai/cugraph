@@ -13,11 +13,11 @@ file(
 include(${CMAKE_BINARY_DIR}/cmake/get_cpm.cmake)
 
 # find or build it via CPM
-include(${CMAKE_CURRENT_LIST_DIR}/../../cmake/rapids_config.cmake)
+include(rapids-cpm)
 CPMFindPackage(
   NAME cugraph
-  VERSION ${RAPIDS_VERSION_MAJOR_MINOR}
-  FIND_PACKAGE_ARGUMENTS "PATHS ${cugraph_ROOT}" GIT_REPOSITORY
+  VERSION ${RAPIDS_VERSION}
+  FIND_PACKAGE_ARGUMENTS "PATHS ${cugraph_ROOT} ${cugraph_ROOT}/latest" GIT_REPOSITORY
                          https://github.com/rapidsai/cugraph
   GIT_TAG ${rapids-cmake-branch}
   GIT_SHALLOW
