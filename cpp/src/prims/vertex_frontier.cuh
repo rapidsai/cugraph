@@ -512,7 +512,7 @@ class key_bucket_t {
     size_t ret =
       (vertices_.index() == 0) ? std::get<0>(vertices_).size() : std::get<1>(vertices_).size();
 #if 1  // FIXME: we should add host_allreduce to raft
-    host_scalar_allreduce(
+    ret = host_scalar_allreduce(
       handle_ptr_->get_comms(), ret, raft::comms::op_t::SUM, handle_ptr_->get_stream());
 #else
     handle_ptr_->get_comms().host_allreduce(

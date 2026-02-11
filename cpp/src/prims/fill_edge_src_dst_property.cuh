@@ -160,7 +160,7 @@ void fill_edge_major_property(raft::handle_t const& handle,
 
 #if 1  // FIXME: we should add host_allgather to raft
     auto local_v_list_sizes =
-      host_scalar_allgather(comm,
+      host_scalar_allgather(minor_comm,
                             static_cast<size_t>(cuda::std::distance(sorted_unique_vertex_first,
                                                                     sorted_unique_vertex_last)),
                             handle.get_stream());
@@ -447,8 +447,7 @@ void fill_edge_minor_property(raft::handle_t const& handle,
          vertex_partition_range_last = graph_view.local_vertex_partition_range_last(),
          minor_range_first,
          word_offset_first,
-         leading_boundary_words,
-         input] __device__(size_t i) {
+         leading_boundary_words] __device__(size_t i) {
           uint32_t word{0};
           if (i < leading_boundary_words) {
             auto word_v_first = minor_range_first + static_cast<vertex_t>((word_offset_first + i) *
@@ -461,11 +460,7 @@ void fill_edge_minor_property(raft::handle_t const& handle,
               thrust::seq, sorted_unique_vertex_first, sorted_unique_vertex_last, word_v_first);
             while ((it != sorted_unique_vertex_last) && (*it < word_v_last)) {
               auto v_offset = *it - minor_range_first;
-              if (input) {
-                word |= packed_bool_mask(v_offset);
-              } else {
-                word &= ~packed_bool_mask(v_offset);
-              }
+              word |= packed_bool_mask(v_offset);
               ++it;
             }
           }
