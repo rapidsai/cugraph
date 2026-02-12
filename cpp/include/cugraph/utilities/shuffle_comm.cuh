@@ -88,20 +88,7 @@ compute_tx_rx_counts_displs_ranks(raft::comms::comms_t const& comm,
   std::iota(rx_src_ranks.begin(), rx_src_ranks.end(), int{0});
 
   rmm::device_uvector<size_t> d_rx_value_counts(comm_size, stream_view);
-#if 1  // FIXME: we should add comm.device_alltoall to raft (which calls ncclAlltoAll)
-  device_multicast_sendrecv(comm,
-                            d_tx_value_counts.data(),
-                            raft::host_span<size_t const>(tx_counts.data(), tx_counts.size()),
-                            raft::host_span<size_t const>(tx_displs.data(), tx_displs.size()),
-                            raft::host_span<int const>(tx_dst_ranks.data(), tx_dst_ranks.size()),
-                            d_rx_value_counts.data(),
-                            raft::host_span<size_t const>(rx_counts.data(), rx_counts.size()),
-                            raft::host_span<size_t const>(rx_displs.data(), rx_displs.size()),
-                            raft::host_span<int const>(rx_src_ranks.data(), rx_src_ranks.size()),
-                            stream_view);
-#else
-  comm.device_alltoall(d_tx_value_counts.data(), d_rx_value_counts.data(), size_t{1}, stream_view);
-#endif
+  device_alltoall(comm, d_tx_value_counts.data(), d_rx_value_counts.data(), size_t{1}, stream_view);
 
   raft::update_host(tx_counts.data(), d_tx_value_counts.data(), comm_size, stream_view.value());
   raft::update_host(rx_counts.data(), d_rx_value_counts.data(), comm_size, stream_view.value());

@@ -1489,11 +1489,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
 
     int num_gpus_per_domain{};  // domain: a group of GPUs that can communicate fast (e.g. NVLink
                                 // domain)
-#if 1  // SK: we should get this from NCCL (once NCCL is updated to provide this information)
-    num_gpus_per_domain = 64;
-#else
     RAFT_CUDA_TRY(cudaGetDeviceCount(&num_gpus_per_domain));
-#endif
     num_gpus_per_domain = std::min(num_gpus_per_domain, comm_size);
     if (comm_size == num_gpus_per_domain) {
       subgroup_size = minor_comm_size;

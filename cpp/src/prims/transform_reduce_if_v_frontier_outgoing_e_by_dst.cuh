@@ -120,18 +120,11 @@ filter_buffer_elements(
                priorities.begin(),
                priorities.end(),
                std::numeric_limits<priority_t>::max());
-#if 0
-  rmm::device_uvector<vertex_t> counts(13, handle.get_stream());
-  thrust::fill(handle.get_thrust_policy(), counts.begin(), counts.end(), vertex_t{0});
-#endif
   thrust::for_each(
     handle.get_thrust_policy(),
     unique_v_buffer.begin(),
     unique_v_buffer.end(),
-    [offsets = vertex_partition_range_offsets,
-#if 0
-     counts = raft::device_span<vertex_t>(counts.data(), counts.size()),
-#endif
+    [offsets    = vertex_partition_range_offsets,
      priorities = raft::device_span<priority_t>(priorities.data(), priorities.size()),
      allreduce_count_per_rank,
      subgroup_size,
@@ -141,69 +134,12 @@ filter_buffer_elements(
         offsets.begin() + 1,
         thrust::upper_bound(thrust::seq, offsets.begin() + 1, offsets.end(), v)));
       auto v_offset = v - offsets[root];
-#if 0
-      if (v_offset < (vertex_t{1} << 10)) {
-        cuda::atomic_ref<vertex_t, cuda::thread_scope_device> acounter(counts[0]);
-        acounter.fetch_add(vertex_t{1}, cuda::std::memory_order_relaxed);
-      }
-      else if (v_offset < (vertex_t{1} << 11)) {
-        cuda::atomic_ref<vertex_t, cuda::thread_scope_device> acounter(counts[1]);
-        acounter.fetch_add(vertex_t{1}, cuda::std::memory_order_relaxed);
-      }
-      else if (v_offset < (vertex_t{1} << 12)) {
-        cuda::atomic_ref<vertex_t, cuda::thread_scope_device> acounter(counts[2]);
-        acounter.fetch_add(vertex_t{1}, cuda::std::memory_order_relaxed);
-      }
-      else if (v_offset < (vertex_t{1} << 13)) {
-        cuda::atomic_ref<vertex_t, cuda::thread_scope_device> acounter(counts[3]);
-        acounter.fetch_add(vertex_t{1}, cuda::std::memory_order_relaxed);
-      }
-      else if (v_offset < (vertex_t{1} << 14)) {
-        cuda::atomic_ref<vertex_t, cuda::thread_scope_device> acounter(counts[4]);
-        acounter.fetch_add(vertex_t{1}, cuda::std::memory_order_relaxed);
-      }
-      else if (v_offset < (vertex_t{1} << 15)) {
-        cuda::atomic_ref<vertex_t, cuda::thread_scope_device> acounter(counts[5]);
-        acounter.fetch_add(vertex_t{1}, cuda::std::memory_order_relaxed);
-      }
-      else if (v_offset < (vertex_t{1} << 16)) {
-        cuda::atomic_ref<vertex_t, cuda::thread_scope_device> acounter(counts[6]);
-        acounter.fetch_add(vertex_t{1}, cuda::std::memory_order_relaxed);
-      }
-      else if (v_offset < (vertex_t{1} << 17)) {
-        cuda::atomic_ref<vertex_t, cuda::thread_scope_device> acounter(counts[7]);
-        acounter.fetch_add(vertex_t{1}, cuda::std::memory_order_relaxed);
-      }
-      else if (v_offset < (vertex_t{1} << 18)) {
-        cuda::atomic_ref<vertex_t, cuda::thread_scope_device> acounter(counts[8]);
-        acounter.fetch_add(vertex_t{1}, cuda::std::memory_order_relaxed);
-      }
-      else if (v_offset < (vertex_t{1} << 19)) {
-        cuda::atomic_ref<vertex_t, cuda::thread_scope_device> acounter(counts[9]);
-        acounter.fetch_add(vertex_t{1}, cuda::std::memory_order_relaxed);
-      }
-      else if (v_offset < (vertex_t{1} << 20)) {
-        cuda::atomic_ref<vertex_t, cuda::thread_scope_device> acounter(counts[10]);
-        acounter.fetch_add(vertex_t{1}, cuda::std::memory_order_relaxed);
-      }
-      else if (v_offset < (vertex_t{1} << 21)) {
-        cuda::atomic_ref<vertex_t, cuda::thread_scope_device> acounter(counts[11]);
-        acounter.fetch_add(vertex_t{1}, cuda::std::memory_order_relaxed);
-      }
-      else {
-        cuda::atomic_ref<vertex_t, cuda::thread_scope_device> acounter(counts[12]);
-        acounter.fetch_add(vertex_t{1}, cuda::std::memory_order_relaxed);
-      }
-#endif
       if (v_offset < allreduce_count_per_rank) {
         priorities[allreduce_count_per_rank * root + v_offset] =
           rank_to_priority<vertex_t, priority_t>(
             major_comm_rank, root, subgroup_size, major_comm_size, v_offset);
       }
     });
-#if 0
-  raft::print_device_vector("counts", counts.data(), counts.size(), std::cout);
-#endif
   device_allreduce(major_comm,
                    priorities.data(),
                    priorities.data(),
@@ -866,11 +802,7 @@ transform_reduce_if_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
           int subgroup_size{};
           int num_gpus_per_domain{};  // domain a group of GPUs that can communicate fast (e.g.
                                       // NVLink domain)
-#if 1  // SK: we should get this from NCCL (once NCCL is updated to provide this information)
-          num_gpus_per_domain = 64;
-#else
           RAFT_CUDA_TRY(cudaGetDeviceCount(&num_gpus_per_domain));
-#endif
           num_gpus_per_domain = std::min(num_gpus_per_domain, comm_size);
           if (comm_size == num_gpus_per_domain) {
             subgroup_size = major_comm_size;

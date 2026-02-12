@@ -374,7 +374,7 @@ device_alltoall_impl(raft::comms::comms_t const& comm,
 #if 1  // FIXME: we should add comm.device_alltoall to raft (which calls ncclAlltoAll)
   std::vector<size_t> sizes(comm.get_size(), count_per_rank);
   std::vector<size_t> displs(comm.get_size());
-  for (int i = 0; i < displs.size(); ++i) {
+  for (size_t i = 0; i < displs.size(); ++i) {
     displs[i] = i * count_per_rank;
   }
   std::vector<int> ranks(comm.get_size());
