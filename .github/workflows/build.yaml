@@ -43,7 +43,6 @@ jobs:
       node_type: cpu16
       script: ci/build_cpp.sh
       sha: ${{ inputs.sha }}
-      sccache-dist-token-secret-name: GIST_REPO_READ_ORG_GITHUB_TOKEN
   python-build:
     needs: [cpp-build]
     secrets: inherit
@@ -54,7 +53,6 @@ jobs:
       date: ${{ inputs.date }}
       script: ci/build_python.sh
       sha: ${{ inputs.sha }}
-      sccache-dist-token-secret-name: GIST_REPO_READ_ORG_GITHUB_TOKEN
       # Build a conda package for each CUDA x ARCH x minimum supported Python version
       matrix_filter: group_by({CUDA_VER, ARCH}) | map(min_by(.PY_VER | split(".") | map(tonumber)))
   upload-conda:
@@ -94,7 +92,6 @@ jobs:
       node_type: cpu16
       package-name: libcugraph
       package-type: cpp
-      sccache-dist-token-secret-name: GIST_REPO_READ_ORG_GITHUB_TOKEN
   wheel-publish-libcugraph:
     needs: wheel-build-libcugraph
     secrets: inherit
@@ -119,7 +116,6 @@ jobs:
       script: ci/build_wheel_pylibcugraph.sh
       package-name: pylibcugraph
       package-type: python
-      sccache-dist-token-secret-name: GIST_REPO_READ_ORG_GITHUB_TOKEN
       # Build a wheel for each CUDA x ARCH x minimum supported Python version
       matrix_filter: group_by({CUDA_VER, ARCH}) | map(min_by(.PY_VER | split(".") | map(tonumber)))
   wheel-publish-pylibcugraph:
@@ -147,7 +143,6 @@ jobs:
       script: ci/build_wheel_cugraph.sh
       package-name: cugraph
       package-type: python
-      sccache-dist-token-secret-name: GIST_REPO_READ_ORG_GITHUB_TOKEN
       # Build a wheel for each CUDA x ARCH x minimum supported Python version
       matrix_filter: group_by({CUDA_VER, ARCH}) | map(min_by(.PY_VER | split(".") | map(tonumber)))
   wheel-publish-cugraph:
