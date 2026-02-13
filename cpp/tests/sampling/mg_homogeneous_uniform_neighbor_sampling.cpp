@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -22,6 +22,7 @@ struct Homogeneous_Uniform_Neighbor_Sampling_Usecase {
   bool with_replacement{true};
 
   bool edge_masking{false};
+  bool disjoint_sampling{false};
   bool check_correctness{true};
 };
 
@@ -55,14 +56,18 @@ class Tests_MGHomogeneous_Uniform_Neighbor_Sampling
       hr_timer.start("MG construct graph");
     }
 
+    // Drop self loops and multi edges when testing disjoint sampling
+    bool drop_self_loops  = homogeneous_uniform_neighbor_sampling_usecase.disjoint_sampling;
+    bool drop_multi_edges = homogeneous_uniform_neighbor_sampling_usecase.disjoint_sampling;
+
     auto [mg_graph, mg_edge_weights, mg_renumber_map_labels] =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, true>(
         *handle_,
         input_usecase,
         true /* test_weighted */,
         true /* renumber */,
-        false /* drop_self_loops */,
-        false /* drop_multi_edges */);
+        drop_self_loops /* drop_self_loops */,
+        drop_multi_edges /* drop_multi_edges */);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -168,7 +173,9 @@ class Tests_MGHomogeneous_Uniform_Neighbor_Sampling
         cugraph::sampling_flags_t{cugraph::prior_sources_behavior_t{0},
                                   true,   // return_hops
                                   false,  // dedupe_sources
-                                  homogeneous_uniform_neighbor_sampling_usecase.with_replacement});
+                                  homogeneous_uniform_neighbor_sampling_usecase.with_replacement,
+                                  cugraph::temporal_sampling_comparison_t::STRICTLY_INCREASING,
+                                  homogeneous_uniform_neighbor_sampling_usecase.disjoint_sampling});
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -241,6 +248,14 @@ class Tests_MGHomogeneous_Uniform_Neighbor_Sampling
               raft::device_span<weight_t const>{wgt_compare->data(), wgt_compare->size()}))
           : std::nullopt;
 
+      // Gather offsets and batch numbers to rank 0 for disjoint validation
+      auto mg_aggregate_offsets =
+        offsets ? std::make_optional(cugraph::test::device_gatherv(
+                    *handle_, raft::device_span<size_t const>{offsets->data(), offsets->size()}))
+                : std::nullopt;
+      auto mg_start_batch_numbers = cugraph::test::device_gatherv(
+        *handle_, raft::device_span<int32_t const>{batch_number.data(), batch_number.size()});
+
       if (handle_->get_comms().get_rank() == 0) {
         ASSERT_TRUE(cugraph::test::validate_extracted_graph_is_subgraph(
           *handle_,
@@ -257,6 +272,19 @@ class Tests_MGHomogeneous_Uniform_Neighbor_Sampling
           mg_aggregate_wgt ? std::make_optional(raft::device_span<weight_t const>{
                                mg_aggregate_wgt->data(), mg_aggregate_wgt->size()})
                            : std::nullopt));
+
+        if (homogeneous_uniform_neighbor_sampling_usecase.disjoint_sampling) {
+          ASSERT_TRUE(cugraph::test::validate_disjoint_sampling(
+            *handle_,
+            raft::device_span<vertex_t const>{mg_aggregate_src.data(), mg_aggregate_src.size()},
+            raft::device_span<vertex_t const>{mg_aggregate_dst.data(), mg_aggregate_dst.size()},
+            raft::device_span<vertex_t const>{mg_start_src.data(), mg_start_src.size()},
+            mg_aggregate_offsets ? std::make_optional(raft::device_span<size_t const>{
+                                     mg_aggregate_offsets->data(), mg_aggregate_offsets->size()})
+                                 : std::nullopt,
+            std::make_optional(raft::device_span<int32_t const>{mg_start_batch_numbers.data(),
+                                                                mg_start_batch_numbers.size()})));
+        }
 
         if (random_sources.size() < 100) {
           // This validation is too expensive for large number of vertices
@@ -309,20 +337,28 @@ INSTANTIATE_TEST_SUITE_P(
   file_test,
   Tests_MGHomogeneous_Uniform_Neighbor_Sampling_File,
   ::testing::Combine(
-    ::testing::Values(Homogeneous_Uniform_Neighbor_Sampling_Usecase{{4, 10}, 128, false, false},
-                      Homogeneous_Uniform_Neighbor_Sampling_Usecase{{4, 10}, 128, false, true},
-                      Homogeneous_Uniform_Neighbor_Sampling_Usecase{{4, 10}, 128, true, false},
-                      Homogeneous_Uniform_Neighbor_Sampling_Usecase{{4, 10}, 128, true, true}),
+    ::testing::Values(
+      Homogeneous_Uniform_Neighbor_Sampling_Usecase{{4, 10}, 128, false, false},
+      Homogeneous_Uniform_Neighbor_Sampling_Usecase{{4, 10}, 128, false, true},
+      Homogeneous_Uniform_Neighbor_Sampling_Usecase{{4, 10}, 128, true, false},
+      Homogeneous_Uniform_Neighbor_Sampling_Usecase{{4, 10}, 128, true, true},
+      // Disjoint variants
+      Homogeneous_Uniform_Neighbor_Sampling_Usecase{{4, 10}, 128, false, false, true},
+      Homogeneous_Uniform_Neighbor_Sampling_Usecase{{4, 10}, 128, false, true, true}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(
   file_large_test,
   Tests_MGHomogeneous_Uniform_Neighbor_Sampling_File,
   ::testing::Combine(
-    ::testing::Values(Homogeneous_Uniform_Neighbor_Sampling_Usecase{{4, 10}, 128, false, false},
-                      Homogeneous_Uniform_Neighbor_Sampling_Usecase{{4, 10}, 128, false, true},
-                      Homogeneous_Uniform_Neighbor_Sampling_Usecase{{4, 10}, 128, true, false},
-                      Homogeneous_Uniform_Neighbor_Sampling_Usecase{{4, 10}, 128, true, true}),
+    ::testing::Values(
+      Homogeneous_Uniform_Neighbor_Sampling_Usecase{{4, 10}, 128, false, false, false, false},
+      Homogeneous_Uniform_Neighbor_Sampling_Usecase{{4, 10}, 128, false, true, false, false},
+      Homogeneous_Uniform_Neighbor_Sampling_Usecase{{4, 10}, 128, true, false, false, false},
+      Homogeneous_Uniform_Neighbor_Sampling_Usecase{{4, 10}, 128, true, true, false, false},
+      // Disjoint variants
+      Homogeneous_Uniform_Neighbor_Sampling_Usecase{{4, 10}, 128, false, false, true, false},
+      Homogeneous_Uniform_Neighbor_Sampling_Usecase{{4, 10}, 128, false, true, true, false}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
                       cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
                       cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx"))));
@@ -331,10 +367,14 @@ INSTANTIATE_TEST_SUITE_P(
   rmat_small_test,
   Tests_MGHomogeneous_Uniform_Neighbor_Sampling_Rmat,
   ::testing::Combine(
-    ::testing::Values(Homogeneous_Uniform_Neighbor_Sampling_Usecase{{4, 10}, 128, false, false},
-                      Homogeneous_Uniform_Neighbor_Sampling_Usecase{{4, 10}, 128, false, true},
-                      Homogeneous_Uniform_Neighbor_Sampling_Usecase{{4, 10}, 128, true, false},
-                      Homogeneous_Uniform_Neighbor_Sampling_Usecase{{4, 10}, 128, true, true}),
+    ::testing::Values(
+      Homogeneous_Uniform_Neighbor_Sampling_Usecase{{4, 10}, 128, false, false},
+      Homogeneous_Uniform_Neighbor_Sampling_Usecase{{4, 10}, 128, false, true},
+      Homogeneous_Uniform_Neighbor_Sampling_Usecase{{4, 10}, 128, true, false},
+      Homogeneous_Uniform_Neighbor_Sampling_Usecase{{4, 10}, 128, true, true},
+      // Disjoint variants
+      Homogeneous_Uniform_Neighbor_Sampling_Usecase{{4, 10}, 128, false, false, true},
+      Homogeneous_Uniform_Neighbor_Sampling_Usecase{{4, 10}, 128, false, true, true}),
     ::testing::Values(
       // cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false))));
       cugraph::test::Rmat_Usecase(5, 16, 0.57, 0.19, 0.19, 0, false, false))));
@@ -348,10 +388,13 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_MGHomogeneous_Uniform_Neighbor_Sampling_Rmat,
   ::testing::Combine(
     ::testing::Values(
-      Homogeneous_Uniform_Neighbor_Sampling_Usecase{{4, 10}, 128, false, false, false},
-      Homogeneous_Uniform_Neighbor_Sampling_Usecase{{4, 10}, 128, false, true, false},
-      Homogeneous_Uniform_Neighbor_Sampling_Usecase{{4, 10}, 128, true, false, false},
-      Homogeneous_Uniform_Neighbor_Sampling_Usecase{{4, 10}, 128, true, true, false}),
+      Homogeneous_Uniform_Neighbor_Sampling_Usecase{{4, 10}, 128, false, false, false, false},
+      Homogeneous_Uniform_Neighbor_Sampling_Usecase{{4, 10}, 128, false, true, false, false},
+      Homogeneous_Uniform_Neighbor_Sampling_Usecase{{4, 10}, 128, true, false, false, false},
+      Homogeneous_Uniform_Neighbor_Sampling_Usecase{{4, 10}, 128, true, true, false, false},
+      // Disjoint variants
+      Homogeneous_Uniform_Neighbor_Sampling_Usecase{{4, 10}, 128, false, false, true, false},
+      Homogeneous_Uniform_Neighbor_Sampling_Usecase{{4, 10}, 128, false, true, true, false}),
     ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()
