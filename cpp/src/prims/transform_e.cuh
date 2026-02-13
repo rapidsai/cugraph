@@ -19,7 +19,7 @@
 
 #include <rmm/exec_policy.hpp>
 
-#include <cuda/std/iterator>
+#include <cuda/iterator>
 #include <cuda/std/optional>
 #include <cuda/std/tuple>
 #include <thrust/binary_search.h>
@@ -520,7 +520,7 @@ void transform_e(raft::handle_t const& handle,
                   "multi-graph (and should not for a non-multi-graph).");
 
   using multi_edge_index_iterator_t = typename decltype(multi_edge_index_first)::value_type;
-  auto edge_first                   = thrust::make_transform_iterator(
+  auto edge_first                   = cuda::make_transform_iterator(
     thrust::make_counting_iterator(size_t{0}),
     detail::
       edge_tuple_from_index_t<vertex_t, edge_t, decltype(pair_first), multi_edge_index_iterator_t>{

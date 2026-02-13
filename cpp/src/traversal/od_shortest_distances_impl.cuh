@@ -25,8 +25,8 @@
 #include <raft/util/cudart_utils.hpp>
 #include <raft/util/integer_utils.hpp>
 
+#include <cuda/iterator>
 #include <cuda/std/functional>
-#include <cuda/std/iterator>
 #include <cuda/std/optional>
 #include <cuda/std/tuple>
 #include <thrust/fill.h>
@@ -350,7 +350,7 @@ kv_store_t<key_t, weight_t, false /* use_binary_search */> filter_key_to_dist_ma
     auto num_edges = edge_partition.compute_number_of_edges(
       near_bucket.vertex_begin(), near_bucket.vertex_end(), handle.get_stream());
     for (size_t i = 0; i < far_buffers.size(); ++i) {
-      auto far_vertex_first = thrust::make_transform_iterator(
+      auto far_vertex_first = cuda::make_transform_iterator(
         far_buffers[i].begin(),
         extract_v_t<vertex_t, tag_t, key_t>{static_cast<tag_t>(num_origins)});
       num_edges += edge_partition.compute_number_of_edges(
@@ -374,7 +374,7 @@ kv_store_t<key_t, weight_t, false /* use_binary_search */> filter_key_to_dist_ma
                        aggregate_vi_t<vertex_t, tag_t, key_t>{static_cast<tag_t>(num_origins)}});
 
     for (size_t i = 0; i < far_buffers.size(); ++i) {
-      auto far_vi_first = thrust::make_transform_iterator(
+      auto far_vi_first = cuda::make_transform_iterator(
         far_buffers[i].begin(),
         split_vi_t<vertex_t, tag_t, key_t>{static_cast<tag_t>(num_origins)});
       thrust::for_each(handle.get_thrust_policy(),
@@ -598,7 +598,7 @@ rmm::device_uvector<weight_t> od_shortest_distances(
     vertex_frontier.bucket(bucket_idx_near)
       .insert(tagged_origin_first, tagged_origin_first + origins.size());
 
-    auto key_first = thrust::make_transform_iterator(
+    auto key_first = cuda::make_transform_iterator(
       tagged_origin_first,
       aggregate_vi_t<vertex_t, od_idx_t, key_t>{static_cast<od_idx_t>(origins.size())});
     key_to_dist_map.insert(key_first,
@@ -612,7 +612,7 @@ rmm::device_uvector<weight_t> od_shortest_distances(
                          key_first,
                          thrust::make_permutation_iterator(
                            od_matrix.begin(),
-                           thrust::make_transform_iterator(
+                           cuda::make_transform_iterator(
                              key_first,
                              compute_od_matrix_index_t<vertex_t, od_idx_t, key_t>{
                                raft::device_span<od_idx_t const>(v_to_destination_indices.data(),
@@ -681,7 +681,7 @@ rmm::device_uvector<weight_t> od_shortest_distances(
 
       new_frontier_keys.resize(size_dataframe_buffer(new_frontier_tagged_vertex_buffer),
                                handle.get_stream());
-      auto key_first = thrust::make_transform_iterator(
+      auto key_first = cuda::make_transform_iterator(
         get_dataframe_buffer_begin(new_frontier_tagged_vertex_buffer),
         aggregate_vi_t<vertex_t, od_idx_t, key_t>{static_cast<od_idx_t>(origins.size())});
       thrust::copy(handle.get_thrust_policy(),
@@ -736,7 +736,7 @@ rmm::device_uvector<weight_t> od_shortest_distances(
                            new_frontier_keys.begin(),
                            thrust::make_permutation_iterator(
                              od_matrix.begin(),
-                             thrust::make_transform_iterator(
+                             cuda::make_transform_iterator(
                                new_frontier_keys.begin(),
                                compute_od_matrix_index_t<vertex_t, od_idx_t, key_t>{
                                  raft::device_span<od_idx_t const>(v_to_destination_indices.data(),
@@ -843,7 +843,7 @@ rmm::device_uvector<weight_t> od_shortest_distances(
                                                                 tmp_near_q_keys.begin(),
                                                                 tmp_near_q_keys.end())),
                              handle.get_stream());
-      auto near_vi_first = thrust::make_transform_iterator(
+      auto near_vi_first = cuda::make_transform_iterator(
         tmp_near_q_keys.begin(),
         split_vi_t<vertex_t, od_idx_t, key_t>{static_cast<od_idx_t>(origins.size())});
       vertex_frontier.bucket(bucket_idx_near)
@@ -1006,7 +1006,7 @@ rmm::device_uvector<weight_t> od_shortest_distances(
                                                                     new_near_q_keys.begin(),
                                                                     new_near_q_keys.end())),
                                  handle.get_stream());
-          auto near_vi_first = thrust::make_transform_iterator(
+          auto near_vi_first = cuda::make_transform_iterator(
             new_near_q_keys.begin(),
             split_vi_t<vertex_t, od_idx_t, key_t>{static_cast<od_idx_t>(origins.size())});
           vertex_frontier.bucket(bucket_idx_near)

@@ -29,7 +29,7 @@
 #include <rmm/exec_policy.hpp>
 
 #include <cub/cub.cuh>
-#include <cuda/std/iterator>
+#include <cuda/iterator>
 #include <cuda/std/optional>
 #include <cuda/std/tuple>
 #include <thrust/binary_search.h>
@@ -1331,7 +1331,7 @@ extract_transform_if_v_frontier_e(raft::handle_t const& handle,
             bool computed{false};
             if constexpr (try_bitmap) {
               if (keys.index() == 0) {
-                auto major_first = thrust::make_transform_iterator(
+                auto major_first = cuda::make_transform_iterator(
                   std::get<0>(keys).begin(),
                   cuda::proclaim_return_type<vertex_t>(
                     [range_first =
@@ -1425,7 +1425,7 @@ extract_transform_if_v_frontier_e(raft::handle_t const& handle,
         if constexpr (try_bitmap) {
           auto const& keys = edge_partition_key_buffers[j];
           if (keys.index() == 0) {
-            auto key_local_degree_first = thrust::make_transform_iterator(
+            auto key_local_degree_first = cuda::make_transform_iterator(
               std::get<0>(keys).begin(),
               cuda::proclaim_return_type<size_t>(
                 [edge_partition,
@@ -1453,7 +1453,7 @@ extract_transform_if_v_frontier_e(raft::handle_t const& handle,
               key_first = get_dataframe_buffer_begin(keys);
             }
           }
-          auto key_local_degree_first = thrust::make_transform_iterator(
+          auto key_local_degree_first = cuda::make_transform_iterator(
             key_first, cuda::proclaim_return_type<size_t>([edge_partition] __device__(auto key) {
               auto major        = thrust_tuple_get_or_identity<key_t, 0>(key);
               auto major_offset = edge_partition.major_offset_from_major_nocheck(major);
@@ -1522,7 +1522,7 @@ extract_transform_if_v_frontier_e(raft::handle_t const& handle,
       if constexpr (try_bitmap) {
         auto const& keys = edge_partition_key_buffers[j];
         if (keys.index() == 0) {
-          auto edge_partition_frontier_key_first = thrust::make_transform_iterator(
+          auto edge_partition_frontier_key_first = cuda::make_transform_iterator(
             std::get<0>(keys).begin(),
             cuda::proclaim_return_type<vertex_t>(
               [range_first = local_frontier_range_firsts[partition_idx]] __device__(

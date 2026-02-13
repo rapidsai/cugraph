@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2024, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -11,6 +11,7 @@
 #include <cugraph/utilities/shuffle_comm.cuh>
 
 #include <cuda/functional>
+#include <cuda/iterator>
 
 namespace cugraph {
 namespace detail {
@@ -55,7 +56,7 @@ rmm::device_uvector<value_t> collect_local_vertex_values_from_ext_vertex_value_p
                                                    local_vertex_last,
                                                    do_expensive_check);
 
-  auto vertex_iterator = thrust::make_transform_iterator(
+  auto vertex_iterator = cuda::make_transform_iterator(
     d_vertices.begin(),
     cuda::proclaim_return_type<vertex_t>(
       [local_vertex_first] __device__(vertex_t v) { return v - local_vertex_first; }));

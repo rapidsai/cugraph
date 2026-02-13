@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -12,10 +12,10 @@
 
 #include <rmm/exec_policy.hpp>
 
+#include <cuda/iterator>
 #include <thrust/count.h>
 #include <thrust/execution_policy.h>
 #include <thrust/iterator/counting_iterator.h>
-#include <thrust/iterator/transform_iterator.h>
 #include <thrust/reduce.h>
 
 namespace cugraph {
@@ -72,7 +72,7 @@ typename GraphViewType::vertex_type count_if_v(raft::handle_t const& handle,
     // currently, nothing to do
   }
 
-  auto it = thrust::make_transform_iterator(
+  auto it = cuda::make_transform_iterator(
     thrust::make_counting_iterator(vertex_t{0}),
     detail::count_if_call_v_op_t<vertex_t, VertexValueInputIterator, VertexOp>{
       graph_view.local_vertex_partition_range_first(), vertex_value_input_first, v_op});

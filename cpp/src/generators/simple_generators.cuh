@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -13,10 +13,10 @@
 #include <rmm/device_uvector.hpp>
 
 #include <cuda/functional>
+#include <cuda/iterator>
 #include <cuda/std/tuple>
 #include <thrust/copy.h>
 #include <thrust/iterator/counting_iterator.h>
-#include <thrust/iterator/transform_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/sequence.h>
 
@@ -252,7 +252,7 @@ generate_complete_graph_edgelist(
     vertex_t num_vertices, base_vertex_id;
     std::tie(num_vertices, base_vertex_id) = tuple;
 
-    auto transform_iter = thrust::make_transform_iterator(
+    auto transform_iter = cuda::make_transform_iterator(
       thrust::make_counting_iterator<size_t>(0),
       cuda::proclaim_return_type<cuda::std::tuple<vertex_t, vertex_t>>(
         [base_vertex_id, num_vertices, invalid_vertex] __device__(size_t index) {

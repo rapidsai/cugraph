@@ -21,7 +21,7 @@
 
 #include <rmm/exec_policy.hpp>
 
-#include <cuda/std/iterator>
+#include <cuda/iterator>
 #include <cuda/std/optional>
 #include <cuda/std/tuple>
 #include <thrust/binary_search.h>
@@ -197,7 +197,7 @@ void transform_gather_e(raft::handle_t const& handle,
                   "Invalid input arguments: the edge list should include multi-edge index for a "
                   "multi-graph (and should not for a non-multi-graph).");
 
-  auto edge_first = thrust::make_transform_iterator(
+  auto edge_first = cuda::make_transform_iterator(
     thrust::make_counting_iterator(size_t{0}),
     cuda::proclaim_return_type<cuda::std::tuple<vertex_t, vertex_t, edge_t>>(
       [pair_first, multi_edge_index_first] __device__(

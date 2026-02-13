@@ -26,7 +26,7 @@
 
 #include <rmm/device_uvector.hpp>
 
-#include <cuda/std/iterator>
+#include <cuda/iterator>
 #include <cuda/std/tuple>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
@@ -810,7 +810,7 @@ void update_unvisited_vertex_distances(
     if (tot_remaining_vertex_count == 0) { break; }
     rmm::device_uvector<vertex_t> remaining_vertex_parents(remaining_vertices.size(),
                                                            handle.get_stream());
-    auto gather_offset_first = thrust::make_transform_iterator(
+    auto gather_offset_first = cuda::make_transform_iterator(
       remaining_vertices.begin(),
       cugraph::detail::shift_left_t<vertex_t>{local_vertex_partition_range_first});
     thrust::gather(handle.get_thrust_policy(),
@@ -836,12 +836,12 @@ void update_unvisited_vertex_distances(
                                             });
     auto new_size       = cuda::std::distance(pair_first, remaining_last);
     auto scatter_offset_first =
-      thrust::make_transform_iterator(
+      cuda::make_transform_iterator(
         remaining_vertices.begin(),
         cugraph::detail::shift_left_t<vertex_t>{local_vertex_partition_range_first}) +
       new_size;
     if constexpr (std::is_floating_point_v<distance_t>) {  // SSSP
-      auto dist_first = thrust::make_transform_iterator(
+      auto dist_first = cuda::make_transform_iterator(
         pair_first + new_size,
         cuda::proclaim_return_type<distance_t>(
           [weights =
@@ -860,9 +860,9 @@ void update_unvisited_vertex_distances(
                       mg_distances.begin());
     } else {  // BFS
       auto dist_first =
-        thrust::make_transform_iterator(remaining_vertex_parent_dists.begin() + new_size,
-                                        cuda::proclaim_return_type<distance_t>(
-                                          [] __device__(auto d) { return d + distance_t{1}; }));
+        cuda::make_transform_iterator(remaining_vertex_parent_dists.begin() + new_size,
+                                      cuda::proclaim_return_type<distance_t>(
+                                        [] __device__(auto d) { return d + distance_t{1}; }));
       thrust::scatter(handle.get_thrust_policy(),
                       dist_first,
                       dist_first + (remaining_vertices.size() - new_size),
