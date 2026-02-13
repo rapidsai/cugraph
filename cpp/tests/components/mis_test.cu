@@ -4,6 +4,7 @@
  */
 
 #include "prims/per_v_transform_reduce_incoming_outgoing_e.cuh"
+#include "prims/per_v_transform_reduce_if_incoming_outgoing_e.cuh"
 #include "prims/reduce_op.cuh"
 #include "utilities/base_fixture.hpp"
 #include "utilities/test_graphs.hpp"
@@ -14,6 +15,7 @@
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
+#include <cugraph/large_buffer_manager.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
 
 #include <raft/random/rng_state.hpp>
@@ -40,9 +42,10 @@ class Tests_SGMaximalIndependentSet
   virtual void SetUp() {}
   virtual void TearDown() {}
 
-  template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
+  template <typename vertex_t, typename edge_t, typename weight_t>
   void run_current_test(std::tuple<MaximalIndependentSet_Usecase, input_usecase_t> const& param)
   {
+  
     auto [mis_usecase, input_usecase] = param;
 
     raft::handle_t handle{};
@@ -55,9 +58,14 @@ class Tests_SGMaximalIndependentSet
 
     constexpr bool multi_gpu = false;
 
+    bool test_weighted = false;
+    bool renumber = true;
+    bool drop_self_loops  = true;
+    bool drop_multi_edges = true;
+
     auto [sg_graph, sg_edge_weights, sg_renumber_map] =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, multi_gpu>(
-        handle, input_usecase, false, true);
+        handle, input_usecase, test_weighted, renumber, drop_self_loops, drop_multi_edges);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());
@@ -65,10 +73,14 @@ class Tests_SGMaximalIndependentSet
       hr_timer.stop();
       hr_timer.display_and_clear(std::cout);
     }
-
+    
     auto sg_graph_view = sg_graph.view();
     auto sg_edge_weight_view =
       sg_edge_weights ? std::make_optional((*sg_edge_weights).view()) : std::nullopt;
+
+    auto edge_partition = sg_graph_view.local_edge_partition_view(0);
+    
+    auto number_of_local_edges = edge_partition.number_of_edges();
 
     raft::random::RngState rng_state(0);
     auto d_mis = cugraph::maximal_independent_set<vertex_t, edge_t, multi_gpu>(
@@ -92,7 +104,7 @@ class Tests_SGMaximalIndependentSet
       // If a vertex is included in MIS, then none of its neighbor should be
 
       vertex_t local_vtx_partitoin_size = sg_graph_view.local_vertex_partition_range_size();
-      rmm::device_uvector<vertex_t> d_total_outgoing_nbrs_included_mis(local_vtx_partitoin_size,
+      rmm::device_uvector<vertex_t> d_any_outgoing_nbrs_included_mis(local_vtx_partitoin_size,
                                                                        handle.get_stream());
 
       rmm::device_uvector<vertex_t> inclusiong_flags(local_vtx_partitoin_size, handle.get_stream());
@@ -113,47 +125,93 @@ class Tests_SGMaximalIndependentSet
 
       RAFT_CUDA_TRY(cudaDeviceSynchronize());
 
-      per_v_transform_reduce_outgoing_e(
+      per_v_transform_reduce_if_outgoing_e(
         handle,
         sg_graph_view,
         cugraph::make_edge_src_property_view<vertex_t, vertex_t>(
-          sg_graph_view, inclusiong_flags.data(), 1),
+          sg_graph_view, inclusiong_flags.data(), inclusiong_flags.size()),
         cugraph::make_edge_dst_property_view<vertex_t, vertex_t>(
-          sg_graph_view, inclusiong_flags.data(), 1),
+          sg_graph_view, inclusiong_flags.data(), inclusiong_flags.size()),
         cugraph::edge_dummy_property_t{}.view(),
-        [] __device__(auto src, auto dst, auto src_included, auto dst_included, auto wt) {
-          return (src == dst) ? 0 : dst_included;
-        },
+        [] __device__(auto src, auto dst, auto src_included, auto dst_included, auto wt) { return vertex_t{1}; },
         vertex_t{0},
-        cugraph::reduce_op::plus<vertex_t>{},
-        d_total_outgoing_nbrs_included_mis.begin());
+        cugraph::reduce_op::any<vertex_t>(),
+        // just use auto, auto remove src_rank and wt # FIXME: address this.
+        [] __device__(auto src, auto dst, auto src_included, auto dst_included, auto wt) {
+          // Adjacent vertices are in the MIS
+          return (src_included == dst_included) && (src_included == 1);
+          },
+        d_any_outgoing_nbrs_included_mis.begin(),
+        false);
+      
+      auto num_invalid_vertices_in_mis = thrust::reduce(
+        handle.get_thrust_policy(),
+        d_any_outgoing_nbrs_included_mis.begin(),
+        d_any_outgoing_nbrs_included_mis.end());
 
       RAFT_CUDA_TRY(cudaDeviceSynchronize());
 
-      std::vector<vertex_t> h_total_outgoing_nbrs_included_mis(
-        d_total_outgoing_nbrs_included_mis.size());
-      raft::update_host(h_total_outgoing_nbrs_included_mis.data(),
-                        d_total_outgoing_nbrs_included_mis.data(),
-                        d_total_outgoing_nbrs_included_mis.size(),
-                        handle.get_stream());
+      ASSERT_TRUE(num_invalid_vertices_in_mis == 0);
 
-      RAFT_CUDA_TRY(cudaDeviceSynchronize());
+      auto vertex_begin =
+        thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_first());
 
-      {
-        auto vertex_first = sg_graph_view.local_vertex_partition_range_first();
-        auto vertex_last  = sg_graph_view.local_vertex_partition_range_last();
+      auto vertex_end = 
+        thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_last());
 
-        std::for_each(h_mis.begin(),
-                      h_mis.end(),
-                      [vertex_first, vertex_last, &h_total_outgoing_nbrs_included_mis](vertex_t v) {
-                        ASSERT_TRUE((v >= vertex_first) && (v < vertex_last))
-                          << v << " is not within vertex parition range" << std::endl;
+      rmm::device_uvector<vertex_t> vertices(local_vtx_partitoin_size,
+                                              handle.get_stream());
+      
+      thrust::copy(handle.get_thrust_policy(), vertex_begin, vertex_end, vertices.begin());
 
-                        ASSERT_TRUE(h_total_outgoing_nbrs_included_mis[v - vertex_first] == 0)
-                          << v << "'s neighbor is included in MIS" << std::endl;
-                      });
-      }
+      rmm::device_uvector<vertex_t> non_candidate_vertices(
+        vertices.size() - d_mis.size(), handle.get_stream());
+      
+      thrust::set_difference(handle.get_thrust_policy(),
+                             vertices.begin(),
+                             vertices.end(),
+                             d_mis.begin(),
+                             d_mis.end(),
+                             non_candidate_vertices.begin());
+      
+      cugraph::vertex_frontier_t<vertex_t, void, /*GraphViewType::is_multi_gpu*/false, true> vertex_frontier(
+        handle,
+        1);
+      
+      vertex_frontier.bucket(0).insert(non_candidate_vertices.begin(), non_candidate_vertices.end());
+      
+      d_any_outgoing_nbrs_included_mis.resize(non_candidate_vertices.size(), handle.get_stream());
+
+      per_v_transform_reduce_if_outgoing_e(
+        handle,
+        sg_graph_view,
+        vertex_frontier.bucket(0),
+        cugraph::make_edge_src_property_view<vertex_t, vertex_t>(
+          sg_graph_view, inclusiong_flags.data(), inclusiong_flags.size()),
+        cugraph::make_edge_dst_property_view<vertex_t, vertex_t>(
+          sg_graph_view, inclusiong_flags.data(), inclusiong_flags.size()),
+        cugraph::edge_dummy_property_t{}.view(),
+        [] __device__(auto src, auto dst, auto src_included, auto dst_included, auto wt) { return vertex_t{1}; },
+        vertex_t{0},
+        cugraph::reduce_op::any<vertex_t>(),
+        // just use auto, auto remove src_rank and wt # FIXME: address this.
+        [] __device__(auto src, auto dst, auto src_included, auto dst_included, auto wt) {
+          // Adjacent vertices are in the MIS
+          return dst_included == 1;
+          },
+        d_any_outgoing_nbrs_included_mis.begin(),
+        false);
+
+      auto num_invalid_non_candidate_vertices_out_mis = thrust::reduce(
+        handle.get_thrust_policy(),
+        d_any_outgoing_nbrs_included_mis.begin(),
+        d_any_outgoing_nbrs_included_mis.end());
+      
+      // FIXME: Add an error message
+      ASSERT_TRUE(
+        num_invalid_non_candidate_vertices_out_mis == d_any_outgoing_nbrs_included_mis.size());
     }
+    
   }
 };
 
