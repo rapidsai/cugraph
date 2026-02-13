@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2024-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -323,7 +323,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> negativ
       auto vertex_partition_range_lasts = graph_view.vertex_partition_range_lasts();
       std::vector<cugraph::arithmetic_device_uvector_t> edge_properties{};
 
-      std::tie(batch_srcs, batch_dsts, std::ignore, std::ignore) =
+      std::tie(batch_srcs, batch_dsts, std::ignore) =
         shuffle_int_edges(handle,
                           std::move(batch_srcs),
                           std::move(batch_dsts),

@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -160,15 +160,12 @@ rmm::device_uvector<vertex_t> find_uniques(raft::handle_t const& handle,
             first_half_uniques.size() + second_half_uniques.size(), handle.get_stream())
         : rmm::device_uvector<vertex_t>(first_half_uniques.size() + second_half_uniques.size(),
                                         handle.get_stream());
-    thrust::copy(handle.get_thrust_policy(),
-                 first_half_uniques.begin(),
-                 first_half_uniques.end(),
-                 uniques.begin());
-    thrust::copy(handle.get_thrust_policy(),
-                 second_half_uniques.begin(),
-                 second_half_uniques.end(),
-                 uniques.begin() + first_half_uniques.size());
-    thrust::sort(handle.get_thrust_policy(), uniques.begin(), uniques.end());
+    thrust::merge(handle.get_thrust_policy(),
+                  first_half_uniques.begin(),
+                  first_half_uniques.end(),
+                  second_half_uniques.begin(),
+                  second_half_uniques.end(),
+                  uniques.begin());
     uniques.resize(cuda::std::distance(
                      uniques.begin(),
                      thrust::unique(handle.get_thrust_policy(), uniques.begin(), uniques.end())),
@@ -242,8 +239,14 @@ std::optional<vertex_t> find_locally_unused_ext_vertex_id(
         if (v == std::numeric_limits<vertex_t>::max()) { break; }
         ++v;
       }
-      auto found = static_cast<bool>(host_scalar_allreduce(
-        comm, static_cast<int>(ret.has_value()), raft::comms::op_t::MIN, handle.get_stream()));
+      auto tmp = static_cast<int>(ret.has_value());
+#if 1  // FIXME: we should add host_allreduce to raft
+      tmp = host_scalar_allreduce(comm, tmp, raft::comms::op_t::MIN, handle.get_stream());
+#else
+      comm.host_allreduce(
+        std::addressof(tmp), std::addressof(tmp), size_t{1}, raft::comms::op_t::MIN);
+#endif
+      auto found = static_cast<bool>(tmp);
       if (found) { return ret; }
     }
   }
@@ -261,10 +264,16 @@ std::optional<vertex_t> find_locally_unused_ext_vertex_id(
     handle.sync_stream();
   }
   if (multi_gpu && (handle.get_comms().get_size() > int{1})) {
-    min =
-      host_scalar_allreduce(handle.get_comms(), min, raft::comms::op_t::MIN, handle.get_stream());
-    max =
-      host_scalar_allreduce(handle.get_comms(), max, raft::comms::op_t::MAX, handle.get_stream());
+    auto& comm = handle.get_comms();
+#if 1  // FIXME: we should add host_allreduce to raft
+    min = host_scalar_allreduce(comm, min, raft::comms::op_t::MIN, handle.get_stream());
+    max = host_scalar_allreduce(comm, max, raft::comms::op_t::MAX, handle.get_stream());
+#else
+    comm.host_allreduce(
+      std::addressof(min), std::addressof(min), size_t{1}, raft::comms::op_t::MIN);
+    comm.host_allreduce(
+      std::addressof(max), std::addressof(max), size_t{1}, raft::comms::op_t::MAX);
+#endif
   }
   if (min > std::numeric_limits<vertex_t>::lowest()) {
     return std::numeric_limits<vertex_t>::lowest();
@@ -303,8 +312,13 @@ std::optional<vertex_t> find_locally_unused_ext_vertex_id(
     thrust::minimum<vertex_t>{});
 
   if (multi_gpu && (handle.get_comms().get_size() > int{1})) {
-    unused_id = host_scalar_allreduce(
-      handle.get_comms(), unused_id, raft::comms::op_t::MIN, handle.get_stream());
+    auto& comm = handle.get_comms();
+#if 1  // FIXME: we should add host_allreduce to raft
+    unused_id = host_scalar_allreduce(comm, unused_id, raft::comms::op_t::MIN, handle.get_stream());
+#else
+    comm.host_allreduce(
+      std::addressof(unused_id), std::addressof(unused_id), size_t{1}, raft::comms::op_t::MIN);
+#endif
   }
 
   return (unused_id != std::numeric_limits<vertex_t>::max())
@@ -501,82 +515,73 @@ compute_renumber_map(raft::handle_t const& handle,
           2 /* tmp_minors & temporary memory use in sort */;
       }
 
-      std::vector<rmm::device_uvector<vertex_t>> edge_partition_tmp_minors{};
-      edge_partition_tmp_minors.reserve(edgelist_minors.size());
       for (size_t i = 0; i < edgelist_minors.size(); ++i) {
         auto tmp_minors = find_uniques(
           handle,
           raft::device_span<vertex_t const>(edgelist_minors[i].data(), edgelist_minors[i].size()),
           mem_frugal_threshold,
           large_edge_buffer_type);
-        edge_partition_tmp_minors.push_back(std::move(tmp_minors));
-      }
-      sorted_unique_minors = std::move(edge_partition_tmp_minors[0]);
-      for (size_t i = 1; i < edge_partition_tmp_minors.size(); ++i) {
-        auto merged_minors =
-          large_edge_buffer_type
-            ? large_buffer_manager::allocate_memory_buffer<vertex_t>(
-                sorted_unique_minors.size() + edge_partition_tmp_minors[i].size(),
-                handle.get_stream())
-            : rmm::device_uvector<vertex_t>(
-                sorted_unique_minors.size() + edge_partition_tmp_minors[i].size(),
-                handle.get_stream());
-        thrust::merge(handle.get_thrust_policy(),
-                      sorted_unique_minors.begin(),
-                      sorted_unique_minors.end(),
-                      edge_partition_tmp_minors[i].begin(),
-                      edge_partition_tmp_minors[i].end(),
-                      merged_minors.begin());
-        edge_partition_tmp_minors[i].resize(0, handle.get_stream());
-        edge_partition_tmp_minors[i].shrink_to_fit(handle.get_stream());
-        merged_minors.resize(
-          cuda::std::distance(
-            merged_minors.begin(),
-            thrust::unique(handle.get_thrust_policy(), merged_minors.begin(), merged_minors.end())),
-          handle.get_stream());
-        sorted_unique_minors = std::move(merged_minors);
-      }
-      edge_partition_tmp_minors.clear();
-      if constexpr (multi_gpu) {
-        auto& major_comm = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
-        auto const major_comm_size = major_comm.get_size();
-        if (major_comm_size > 1) {
-          auto& comm           = handle.get_comms();
-          auto const comm_size = comm.get_size();
-          auto& minor_comm     = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
-          auto const minor_comm_size = minor_comm.get_size();
-          compute_gpu_id_from_ext_vertex_t<vertex_t> gpu_id_func{
-            comm_size, major_comm_size, minor_comm_size};
-          auto d_tx_counts = groupby_and_count(
-            sorted_unique_minors.begin(),
-            sorted_unique_minors.end(),
-            cuda::proclaim_return_type<int>(
-              [major_comm_size, minor_comm_size, gpu_id_func] __device__(auto v) {
-                return partition_manager::compute_major_comm_rank_from_global_comm_rank(
-                  major_comm_size, minor_comm_size, gpu_id_func(v));
-              }),
-            major_comm_size,
-            std::numeric_limits<size_t>::max(),
-            handle.get_stream(),
-            large_edge_buffer_type);
-          std::vector<size_t> h_tx_counts(d_tx_counts.size());
-          raft::update_host(
-            h_tx_counts.data(), d_tx_counts.data(), d_tx_counts.size(), handle.get_stream());
-          handle.sync_stream();
-          std::vector<size_t> tx_displacements(h_tx_counts.size());
-          std::exclusive_scan(
-            h_tx_counts.begin(), h_tx_counts.end(), tx_displacements.begin(), size_t{0});
-          for (int j = 0; j < major_comm_size; ++j) {
-            thrust::sort(handle.get_thrust_policy(),
-                         sorted_unique_minors.begin() + tx_displacements[j],
-                         sorted_unique_minors.begin() + (tx_displacements[j] + h_tx_counts[j]));
+        if constexpr (multi_gpu) {
+          auto& major_comm = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
+          auto const major_comm_size = major_comm.get_size();
+          if (major_comm_size > 1) {
+            auto& comm           = handle.get_comms();
+            auto const comm_size = comm.get_size();
+            auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+            auto const minor_comm_size = minor_comm.get_size();
+            compute_gpu_id_from_ext_vertex_t<vertex_t> gpu_id_func{
+              comm_size, major_comm_size, minor_comm_size};
+
+            auto d_tx_counts = groupby_and_count(
+              tmp_minors.begin(),
+              tmp_minors.end(),
+              cuda::proclaim_return_type<int>(
+                [major_comm_size, minor_comm_size, gpu_id_func] __device__(auto v) {
+                  return partition_manager::compute_major_comm_rank_from_global_comm_rank(
+                    major_comm_size, minor_comm_size, gpu_id_func(v));
+                }),
+              major_comm_size,
+              std::numeric_limits<size_t>::max(),
+              handle.get_stream(),
+              large_edge_buffer_type);
+            std::tie(tmp_minors, std::ignore) = shuffle_values(
+              major_comm,
+              tmp_minors.begin(),
+              raft::device_span<size_t const>(d_tx_counts.data(), d_tx_counts.size()),
+              handle.get_stream(),
+              large_edge_buffer_type);
+            tmp_minors =
+              find_uniques(handle,
+                           raft::device_span<vertex_t const>(tmp_minors.data(), tmp_minors.size()),
+                           mem_frugal_threshold,
+                           large_edge_buffer_type);
           }
-          sorted_unique_minors = shuffle_and_unique_segment_sorted_values(
-            major_comm,
-            sorted_unique_minors.begin(),
-            raft::host_span<size_t const>(h_tx_counts.data(), h_tx_counts.size()),
-            handle.get_stream(),
-            large_edge_buffer_type);
+        }
+
+        if (i == 0) {
+          sorted_unique_minors = std::move(tmp_minors);
+        } else {
+          auto merged_minors =
+            large_edge_buffer_type
+              ? large_buffer_manager::allocate_memory_buffer<vertex_t>(
+                  sorted_unique_minors.size() + tmp_minors.size(), handle.get_stream())
+              : rmm::device_uvector<vertex_t>(sorted_unique_minors.size() + tmp_minors.size(),
+                                              handle.get_stream());
+          thrust::merge(handle.get_thrust_policy(),
+                        sorted_unique_minors.begin(),
+                        sorted_unique_minors.end(),
+                        tmp_minors.begin(),
+                        tmp_minors.end(),
+                        merged_minors.begin());
+          tmp_minors.resize(0, handle.get_stream());
+          tmp_minors.shrink_to_fit(handle.get_stream());
+          merged_minors.resize(cuda::std::distance(merged_minors.begin(),
+                                                   thrust::unique(handle.get_thrust_policy(),
+                                                                  merged_minors.begin(),
+                                                                  merged_minors.end())),
+                               handle.get_stream());
+          merged_minors.shrink_to_fit(handle.get_stream());
+          sorted_unique_minors = std::move(merged_minors);
         }
       }
     }
@@ -631,7 +636,6 @@ compute_renumber_map(raft::handle_t const& handle,
 
     auto edge_partition_major_range_sizes =
       host_scalar_allgather(minor_comm, sorted_local_vertices.size(), handle.get_stream());
-
     for (int i = 0; i < minor_comm_size; ++i) {
       auto sorted_majors =
         large_vertex_buffer_type
@@ -1128,13 +1132,30 @@ renumber_edgelist(
 
   // 2. initialize partition_t object, number_of_vertices, and number_of_edges
 
-  auto vertex_counts = host_scalar_allgather(
-    comm, static_cast<vertex_t>(renumber_map_labels.size()), handle.get_stream());
+#if 1  // FIXME: we should add host_allgather to raft
+  auto vertex_counts = host_scalar_allgather(comm, renumber_map_labels.size(), handle.get_stream());
   auto vertex_partition_ids =
     host_scalar_allgather(comm,
                           partition_manager::compute_vertex_partition_id_from_graph_subcomm_ranks(
                             major_comm_size, minor_comm_size, major_comm_rank, minor_comm_rank),
                           handle.get_stream());
+#else
+  std::vector<vertex_t> vertex_counts(comm_size, 0);
+  std::vector<int> vertex_partition_ids(comm_size, 0);
+  {
+    static_assert(std::numeric_limits<vertex_t>::max() >= std::numeric_limits<int>::max());
+    std::vector<vertex_t> h_buffer(comm_size * 2, 0);
+    h_buffer[comm_rank * 2] = static_cast<vertex_t>(renumber_map_labels.size());
+    h_buffer[comm_rank * 2 + 1] =
+      static_cast<vertex_t>(partition_manager::compute_vertex_partition_id_from_graph_subcomm_ranks(
+        major_comm_size, minor_comm_size, major_comm_rank, minor_comm_rank));
+    comm.host_allgather(h_buffer.data(), h_buffer.data(), size_t{2});
+    for (int i = 0; i < comm_size; ++i) {
+      vertex_counts[i]        = h_buffer[i * 2];
+      vertex_partition_ids[i] = static_cast<int>(h_buffer[i * 2 + 1]);
+    }
+  }
+#endif
 
   std::vector<vertex_t> vertex_partition_range_offsets(comm_size + 1, 0);
   for (int i = 0; i < comm_size; ++i) {
@@ -1152,11 +1173,17 @@ renumber_edgelist(
                                   minor_comm_rank);
 
   auto number_of_vertices = vertex_partition_range_offsets.back();
-  auto number_of_edges    = host_scalar_allreduce(
-    comm,
-    std::accumulate(edgelist_edge_counts.begin(), edgelist_edge_counts.end(), edge_t{0}),
-    raft::comms::op_t::SUM,
-    handle.get_stream());
+  auto number_of_edges =
+    std::accumulate(edgelist_edge_counts.begin(), edgelist_edge_counts.end(), edge_t{0});
+#if 1  // FIXME: we should add host_allreduce to raft
+  number_of_edges =
+    host_scalar_allreduce(comm, number_of_edges, raft::comms::op_t::SUM, handle.get_stream());
+#else
+  comm.host_allreduce(std::addressof(number_of_edges),
+                      std::addressof(number_of_edges),
+                      size_t{1},
+                      raft::comms::op_t::SUM);
+#endif
 
   // 3. renumber edges
 

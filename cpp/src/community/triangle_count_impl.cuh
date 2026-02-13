@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -438,7 +438,7 @@ void triangle_count(raft::handle_t const& handle,
                              extract_low_to_high_degree_edges_pred_op_t<vertex_t, edge_t>{});
 
     if constexpr (multi_gpu) {
-      std::tie(srcs, dsts, std::ignore, std::ignore) =
+      std::tie(srcs, dsts, std::ignore) =
         shuffle_ext_edges(handle,
                           std::move(srcs),
                           std::move(dsts),

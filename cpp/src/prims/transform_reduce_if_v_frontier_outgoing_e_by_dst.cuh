@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -16,6 +16,7 @@
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_view.hpp>
+#include <cugraph/host_staging_buffer_manager.hpp>
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/device_comm.hpp>
@@ -129,9 +130,9 @@ filter_buffer_elements(
      subgroup_size,
      major_comm_rank,
      major_comm_size] __device__(auto v) {
-      auto root = cuda::std::distance(
+      auto root     = static_cast<int>(cuda::std::distance(
         offsets.begin() + 1,
-        thrust::upper_bound(thrust::seq, offsets.begin() + 1, offsets.end(), v));
+        thrust::upper_bound(thrust::seq, offsets.begin() + 1, offsets.end(), v)));
       auto v_offset = v - offsets[root];
       if (v_offset < allreduce_count_per_rank) {
         priorities[allreduce_count_per_rank * root + v_offset] =
@@ -160,9 +161,9 @@ filter_buffer_elements(
            subgroup_size,
            major_comm_rank,
            major_comm_size] __device__(auto v) {
-            auto root = cuda::std::distance(
+            auto root     = static_cast<int>(cuda::std::distance(
               offsets.begin() + 1,
-              thrust::upper_bound(thrust::seq, offsets.begin() + 1, offsets.end(), v));
+              thrust::upper_bound(thrust::seq, offsets.begin() + 1, offsets.end(), v)));
             auto v_offset = v - offsets[root];
             if (v_offset < allreduce_count_per_rank) {
               auto selected_rank = priority_to_rank<vertex_t, priority_t>(
@@ -194,9 +195,9 @@ filter_buffer_elements(
            subgroup_size,
            major_comm_rank,
            major_comm_size] __device__(auto v) {
-            auto root = cuda::std::distance(
+            auto root     = static_cast<int>(cuda::std::distance(
               offsets.begin() + 1,
-              thrust::upper_bound(thrust::seq, offsets.begin() + 1, offsets.end(), v));
+              thrust::upper_bound(thrust::seq, offsets.begin() + 1, offsets.end(), v)));
             auto v_offset = v - offsets[root];
             if (v_offset < allreduce_count_per_rank) {
               auto selected_rank = priority_to_rank<vertex_t, priority_t>(
@@ -630,6 +631,32 @@ transform_reduce_if_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
     // currently, nothing to do
   }
 
+  // we should consider reducing the life-time of this variable
+  // once rmm::rm::pool_memory_resource<rmm::mr::pinned_memory_resource> is updated to honor stream
+  // semantics (github.com/rapidsai/rmm/issues/2053)
+  std::variant<std::vector<int64_t>, rmm::device_uvector<int64_t>> h_staging_buffer{};
+  raft::host_span<int64_t> h_staging_buffer_view{};
+  {
+    size_t staging_buffer_size{};  // should be large enough to cover all update_host &
+                                   // update_device calls in this primitive
+    if (GraphViewType::is_multi_gpu) {
+      auto& major_comm = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
+      auto const major_comm_size = major_comm.get_size();
+      staging_buffer_size        = (major_comm_size + 1);
+    } else {
+      staging_buffer_size = size_t{2};
+    }
+    if (host_staging_buffer_manager::initialized()) {
+      h_staging_buffer = host_staging_buffer_manager::allocate_staging_buffer<int64_t>(
+        staging_buffer_size, handle.get_stream());
+    } else {
+      h_staging_buffer = std::vector<int64_t>(staging_buffer_size);
+    }
+    h_staging_buffer_view = std::visit(
+      [](auto& buffer) { return raft::host_span<int64_t>(buffer.data(), buffer.size()); },
+      h_staging_buffer);
+  }
+
   // 1. fill the buffer
 
   detail::transform_reduce_if_v_frontier_call_e_op_t<key_t,
@@ -698,19 +725,31 @@ transform_reduce_if_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
   if constexpr (GraphViewType::is_multi_gpu) {
     auto& major_comm           = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
     auto const major_comm_size = major_comm.get_size();
-    size_t local_key_buffer_size = size_dataframe_buffer(key_buffer);
-    auto aggregate_key_buffer_size =
-      (major_comm_size > 1)
-        ? host_scalar_allreduce(
-            major_comm, local_key_buffer_size, raft::comms::op_t::SUM, handle.get_stream())
-        : local_key_buffer_size;
+    size_t local_key_buffer_size   = size_dataframe_buffer(key_buffer);
+    auto aggregate_key_buffer_size = local_key_buffer_size;
+    if (major_comm_size > 1) {
+#if 1  // FIXME: we should add host_allreduce to raft
+      aggregate_key_buffer_size = host_scalar_allreduce(
+        major_comm, aggregate_key_buffer_size, raft::comms::op_t::SUM, handle.get_stream());
+#else
+      major_comm.host_allreduce(std::addressof(aggregate_key_buffer_size),
+                                std::addressof(aggregate_key_buffer_size),
+                                size_t{1},
+                                raft::comms::op_t::SUM);
+#endif
+    }
     if ((major_comm_size > 1) && (aggregate_key_buffer_size > 0)) {
       auto avg_key_buffer_size = aggregate_key_buffer_size / major_comm_size;
 
       rmm::device_uvector<vertex_t> d_vertex_partition_range_offsets(
         vertex_partition_range_offsets.size(), handle.get_stream());
+      auto h_staging_buffer_ptr = reinterpret_cast<vertex_t*>(h_staging_buffer_view.data());
+      assert(h_staging_buffer_view.size() >= vertex_partition_range_offsets.size());
+      std::copy(vertex_partition_range_offsets.begin(),
+                vertex_partition_range_offsets.end(),
+                h_staging_buffer_ptr);
       raft::update_device(d_vertex_partition_range_offsets.data(),
-                          vertex_partition_range_offsets.data(),
+                          h_staging_buffer_ptr,
                           vertex_partition_range_offsets.size(),
                           handle.get_stream());
 
@@ -726,14 +765,12 @@ transform_reduce_if_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
       }
 
       if constexpr (std::is_same_v<key_t, vertex_t> &&
-                    std::is_same_v<ReduceOp, reduce_op::any<typename ReduceOp::value_type>>) {
-        vertex_t min_vertex_partition_size = std::numeric_limits<vertex_t>::max();
-        for (int i = 0; i < major_comm_size; ++i) {
-          min_vertex_partition_size =
-            std::min(vertex_partition_range_offsets[i + 1] - vertex_partition_range_offsets[i],
-                     min_vertex_partition_size);
-        }
-
+                    std::is_same_v<
+                      ReduceOp,
+                      reduce_op::any<typename ReduceOp::value_type>>) {  // check whether we can
+                                                                         // benefit from filtering
+                                                                         // or not (before global
+                                                                         // shuffling)
         auto segment_offsets = graph_view.local_vertex_partition_segment_offsets();
         auto& comm           = handle.get_comms();
         auto const comm_size = comm.get_size();
@@ -775,6 +812,13 @@ transform_reduce_if_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
             subgroup_size              = partition_manager::map_major_comm_to_gpu_row_comm
                                            ? std::min(major_comm_size, num_gpus_per_domain)
                                            : std::max(num_gpus_per_domain / minor_comm_size, int{1});
+          }
+
+          vertex_t min_vertex_partition_size = std::numeric_limits<vertex_t>::max();
+          for (int i = 0; i < major_comm_size; ++i) {
+            min_vertex_partition_size =
+              std::min(vertex_partition_range_offsets[i + 1] - vertex_partition_range_offsets[i],
+                       min_vertex_partition_size);
           }
 
           size_t allreduce_size_per_rank{0};
@@ -844,30 +888,32 @@ transform_reduce_if_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
             handle.get_thrust_policy(),
             get_dataframe_buffer_begin(key_buffer),
             get_dataframe_buffer_end(key_buffer),
-            (*compressed_v_buffer).begin(),
+            compressed_v_buffer->begin(),
             cuda::proclaim_return_type<uint32_t>(
               [firsts = raft::device_span<vertex_t const>(d_vertex_partition_range_offsets.data(),
                                                           static_cast<size_t>(major_comm_size)),
                lasts  = raft::device_span<vertex_t const>(
                  d_vertex_partition_range_offsets.data() + 1,
                  static_cast<size_t>(major_comm_size))] __device__(auto v) {
-                auto major_comm_rank = cuda::std::distance(
-                  lasts.begin(), thrust::upper_bound(thrust::seq, lasts.begin(), lasts.end(), v));
+                auto major_comm_rank = static_cast<int>(cuda::std::distance(
+                  lasts.begin(), thrust::upper_bound(thrust::seq, lasts.begin(), lasts.end(), v)));
                 return static_cast<uint32_t>(v - firsts[major_comm_rank]);
               }));
           resize_dataframe_buffer(key_buffer, 0, handle.get_stream());
           shrink_to_fit_dataframe_buffer(key_buffer, handle.get_stream());
         }
       }
-      std::vector<edge_t> h_tx_buffer_last_boundaries(d_tx_buffer_last_boundaries.size());
-      raft::update_host(h_tx_buffer_last_boundaries.data(),
+      auto h_tx_buffer_last_boundaries = reinterpret_cast<edge_t*>(h_staging_buffer_view.data());
+      assert(h_staging_buffer_view.size() >= d_tx_last_buffer_boundaries.size());
+      raft::update_host(h_tx_buffer_last_boundaries,
                         d_tx_buffer_last_boundaries.data(),
                         d_tx_buffer_last_boundaries.size(),
                         handle.get_stream());
       handle.sync_stream();
-      std::vector<size_t> tx_counts(h_tx_buffer_last_boundaries.size());
-      std::adjacent_difference(
-        h_tx_buffer_last_boundaries.begin(), h_tx_buffer_last_boundaries.end(), tx_counts.begin());
+      std::vector<size_t> tx_counts(d_tx_buffer_last_boundaries.size());
+      std::adjacent_difference(h_tx_buffer_last_boundaries,
+                               h_tx_buffer_last_boundaries + d_tx_buffer_last_boundaries.size(),
+                               tx_counts.begin());
 
       size_t min_element_size{cache_line_size};
       if constexpr (std::is_same_v<key_t, vertex_t>) {
@@ -1095,8 +1141,14 @@ size_t compute_num_out_nbrs_from_frontier(raft::handle_t const& handle,
 
   std::vector<size_t> local_frontier_sizes{};
   if constexpr (GraphViewType::is_multi_gpu) {
-    auto& minor_comm     = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+    auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+#if 1  // FIXME: we should add host_allgather to raft
     local_frontier_sizes = host_scalar_allgather(minor_comm, frontier.size(), handle.get_stream());
+#else
+    local_frontier_sizes                        = std::vector<size_t>(minor_comm.get_size(), 0);
+    local_frontier_sizes[minor_comm.get_rank()] = frontier.size();
+    minor_comm.host_allgather(local_frontier_sizes.data(), local_frontier_sizes.data(), size_t{1});
+#endif
   } else {
     local_frontier_sizes = std::vector<size_t>{static_cast<size_t>(frontier.size())};
   }

@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -509,11 +509,16 @@ class key_bucket_t {
   template <bool do_aggregate = multi_gpu>
   std::enable_if_t<do_aggregate, size_t> aggregate_size() const
   {
-    return host_scalar_allreduce(
-      handle_ptr_->get_comms(),
-      vertices_.index() == 0 ? std::get<0>(vertices_).size() : std::get<1>(vertices_).size(),
-      raft::comms::op_t::SUM,
-      handle_ptr_->get_stream());
+    size_t ret =
+      (vertices_.index() == 0) ? std::get<0>(vertices_).size() : std::get<1>(vertices_).size();
+#if 1  // FIXME: we should add host_allreduce to raft
+    ret = host_scalar_allreduce(
+      handle_ptr_->get_comms(), ret, raft::comms::op_t::SUM, handle_ptr_->get_stream());
+#else
+    handle_ptr_->get_comms().host_allreduce(
+      std::addressof(ret), std::addressof(ret), size_t{1}, raft::comms::op_t::SUM);
+#endif
+    return ret;
   }
 
   template <bool do_aggregate = multi_gpu>

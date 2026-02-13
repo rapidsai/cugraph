@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -333,7 +333,7 @@ coarsen_graph(raft::handle_t const& handle,
     std::vector<cugraph::arithmetic_device_uvector_t> edgelist_edge_properties{};
     if (edgelist_weights) edgelist_edge_properties.push_back(std::move(*edgelist_weights));
 
-    std::tie(edgelist_majors, edgelist_minors, edgelist_edge_properties, std::ignore) =
+    std::tie(edgelist_majors, edgelist_minors, edgelist_edge_properties) =
       cugraph::shuffle_ext_edges(handle,
                                  std::move(edgelist_majors),
                                  std::move(edgelist_minors),
@@ -456,14 +456,13 @@ coarsen_graph(raft::handle_t const& handle,
     if (reversed_edgelist_weights)
       reversed_edgelist_edge_properties.push_back(std::move(*reversed_edgelist_weights));
 
-    std::tie(reversed_edgelist_majors,
-             reversed_edgelist_minors,
-             reversed_edgelist_edge_properties,
-             std::ignore) = cugraph::shuffle_ext_edges(handle,
-                                                       std::move(reversed_edgelist_majors),
-                                                       std::move(reversed_edgelist_minors),
-                                                       std::move(reversed_edgelist_edge_properties),
-                                                       false);
+    std::tie(
+      reversed_edgelist_majors, reversed_edgelist_minors, reversed_edgelist_edge_properties) =
+      cugraph::shuffle_ext_edges(handle,
+                                 std::move(reversed_edgelist_majors),
+                                 std::move(reversed_edgelist_minors),
+                                 std::move(reversed_edgelist_edge_properties),
+                                 false);
 
     if (reversed_edgelist_weights)
       *reversed_edgelist_weights =

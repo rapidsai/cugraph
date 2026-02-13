@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -122,13 +122,23 @@ void expensive_check_edgelist(raft::handle_t const& handle,
     auto const comm_size       = comm.get_size();
     auto const comm_rank       = comm.get_rank();
     auto& major_comm           = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
+    auto const major_comm_rank = major_comm.get_rank();
     auto const major_comm_size = major_comm.get_size();
     auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+    auto const minor_comm_rank = minor_comm.get_rank();
     auto const minor_comm_size = minor_comm.get_size();
 
     if (vertices) {
-      auto num_unique_vertices = host_scalar_allreduce(
-        comm, (*vertices).size(), raft::comms::op_t::SUM, handle.get_stream());
+      auto num_unique_vertices = vertices->size();
+#if 1  // FIXME: we should add host_allreduce to raft
+      num_unique_vertices = host_scalar_allreduce(
+        comm, num_unique_vertices, raft::comms::op_t::SUM, handle.get_stream());
+#else
+      comm.host_allreduce(std::addressof(num_unique_vertices),
+                          std::addressof(num_unique_vertices),
+                          size_t{1},
+                          raft::comms::op_t::SUM);
+#endif
       CUGRAPH_EXPECTS(
         num_unique_vertices < static_cast<size_t>(std::numeric_limits<vertex_t>::max()),
         "Invalid input arguments: # unique vertex IDs should be smaller than "
@@ -163,13 +173,18 @@ void expensive_check_edgelist(raft::handle_t const& handle,
     if (vertices) {
       rmm::device_uvector<vertex_t> sorted_majors(0, handle.get_stream());
       {
-        auto recvcounts =
-          host_scalar_allgather(minor_comm, (*vertices).size(), handle.get_stream());
+#if 1  // FIXME: we should add host_allgather to raft
+        auto recvcounts = host_scalar_allgather(minor_comm, vertices->size(), handle.get_stream());
+#else
+        std::vector<size_t> recvcounts(minor_comm_size, 0);
+        recvcounts[minor_comm_rank] = vertices->size();
+        minor_comm.host_allgather(recvcounts.data(), recvcounts.data(), size_t{1});
+#endif
         std::vector<size_t> displacements(recvcounts.size(), size_t{0});
         std::partial_sum(recvcounts.begin(), recvcounts.end() - 1, displacements.begin() + 1);
         sorted_majors.resize(displacements.back() + recvcounts.back(), handle.get_stream());
         device_allgatherv(minor_comm,
-                          (*vertices).data(),
+                          vertices->data(),
                           sorted_majors.data(),
                           raft::host_span<size_t const>(recvcounts.data(), recvcounts.size()),
                           raft::host_span<size_t const>(displacements.data(), displacements.size()),
@@ -179,13 +194,18 @@ void expensive_check_edgelist(raft::handle_t const& handle,
 
       rmm::device_uvector<vertex_t> sorted_minors(0, handle.get_stream());
       {
-        auto recvcounts =
-          host_scalar_allgather(major_comm, (*vertices).size(), handle.get_stream());
+#if 1  // FIXME: we should add host_allgather to raft
+        auto recvcounts = host_scalar_allgather(major_comm, vertices->size(), handle.get_stream());
+#else
+        std::vector<size_t> recvcounts(major_comm_size, 0);
+        recvcounts[major_comm_rank] = vertices->size();
+        major_comm.host_allgather(recvcounts.data(), recvcounts.data(), size_t{1});
+#endif
         std::vector<size_t> displacements(recvcounts.size(), size_t{0});
         std::partial_sum(recvcounts.begin(), recvcounts.end() - 1, displacements.begin() + 1);
         sorted_minors.resize(displacements.back() + recvcounts.back(), handle.get_stream());
         device_allgatherv(major_comm,
-                          (*vertices).data(),
+                          vertices->data(),
                           sorted_minors.data(),
                           raft::host_span<size_t const>(recvcounts.data(), recvcounts.size()),
                           raft::host_span<size_t const>(displacements.data(), displacements.size()),
@@ -498,6 +518,7 @@ create_graph_from_partitioned_edgelist(
     num_segments_per_vertex_partition > (detail::num_sparse_segments_per_vertex_partition + 2);
 
   // 2. sort and compress edge list (COO) to CSR (or CSC) or CSR + DCSR (CSC + DCSC) hybrid
+
   size_t element_size = sizeof(vertex_t) * 2;
 
   if (edge_partition_edgelist_edge_properties.size() == 1) {
@@ -517,6 +538,7 @@ create_graph_from_partitioned_edgelist(
       static_cast<size_t>(static_cast<double>(total_global_mem / element_size) * mem_frugal_ratio) /
       static_cast<size_t>(minor_comm_size);
   }
+
   std::vector<rmm::device_uvector<edge_t>> edge_partition_offsets{};
   std::vector<rmm::device_uvector<vertex_t>> edge_partition_indices{};
   std::vector<std::vector<arithmetic_device_uvector_t>> edge_partition_edge_properties{};
@@ -565,12 +587,6 @@ create_graph_from_partitioned_edgelist(
           mem_frugal_threshold,
           large_vertex_buffer_type,
           large_edge_buffer_type);
-
-      edge_partition_offsets.push_back(std::move(offsets));
-      edge_partition_indices.push_back(std::move(indices));
-      if (edge_partition_dcs_nzd_vertices) {
-        edge_partition_dcs_nzd_vertices->push_back(std::move(*dcs_nzd_vertices));
-      }
     } else {
       auto property_positions = large_edge_buffer_type
                                   ? large_buffer_manager::allocate_memory_buffer<edge_t>(
@@ -595,13 +611,6 @@ create_graph_from_partitioned_edgelist(
           large_vertex_buffer_type,
           large_edge_buffer_type);
 
-      edge_partition_offsets.push_back(std::move(offsets));
-      edge_partition_indices.push_back(std::move(indices));
-
-      if (edge_partition_dcs_nzd_vertices) {
-        edge_partition_dcs_nzd_vertices->push_back(std::move(*dcs_nzd_vertices));
-      }
-
       for (size_t j = 0; j < edge_partition_edgelist_edge_properties.size(); ++j) {
         cugraph::variant_type_dispatch(
           edge_partition_edgelist_edge_properties[j][i],
@@ -625,6 +634,12 @@ create_graph_from_partitioned_edgelist(
             edge_partition_edge_properties[j].push_back(std::move(tmp));
           });
       }
+    }
+
+    edge_partition_offsets.push_back(std::move(offsets));
+    edge_partition_indices.push_back(std::move(indices));
+    if (edge_partition_dcs_nzd_vertices) {
+      edge_partition_dcs_nzd_vertices->push_back(std::move(*dcs_nzd_vertices));
     }
   }
 
@@ -716,6 +731,7 @@ create_graph_from_partitioned_edgelist(
             edge_property_t<edge_t, edge_property_type>(std::move(edge_property_vector)));
         });
     });
+
   return std::make_tuple(
     cugraph::graph_t<vertex_t, edge_t, store_transposed, true>(
       handle,
@@ -785,8 +801,8 @@ create_graph_from_edgelist_impl(raft::handle_t const& handle,
           handle,
           raft::device_span<vertex_t const>(edgelist_srcs.data(), edgelist_srcs.size()),
           raft::device_span<vertex_t const>(edgelist_dsts.data(), edgelist_dsts.size()))),
-        "Invalid input arguments: graph_properties.is_symmetric is true but the input edge list "
-        "is not symmetric.");
+        "Invalid input arguments: graph_properties.is_symmetric is true but the input edge list is "
+        "not symmetric.");
     }
 
     if (!graph_properties.is_multigraph) {
@@ -795,13 +811,14 @@ create_graph_from_edgelist_impl(raft::handle_t const& handle,
           handle,
           raft::device_span<vertex_t const>(edgelist_srcs.data(), edgelist_srcs.size()),
           raft::device_span<vertex_t const>(edgelist_dsts.data(), edgelist_dsts.size())),
-        "Invalid input arguments: graph_properties.is_multigraph is false but the input edge "
-        "list has parallel edges.");
+        "Invalid input arguments: graph_properties.is_multigraph is false but the input edge list "
+        "has parallel edges.");
     }
   }
 
   // 1. groupby edges to their target local adjacency matrix partition (and further groupby within
   // the local partition by applying the compute_gpu_id_from_vertex_t to minor vertex IDs).
+
   std::vector<arithmetic_device_span_t> edgelist_edge_properties_spans =
     make_arithmetic_device_span_vector(edgelist_edge_properties);
 
@@ -838,6 +855,7 @@ create_graph_from_edgelist_impl(raft::handle_t const& handle,
                    edgelist_displacements.begin() + 1);
 
   // 2. split the input edges to local partitions
+
   std::vector<rmm::device_uvector<vertex_t>> edge_partition_edgelist_srcs{};
   edge_partition_edgelist_srcs.reserve(minor_comm_size);
   for (int i = 0; i < minor_comm_size; ++i) {
@@ -1024,8 +1042,8 @@ create_graph_from_edgelist_impl(
                                                                  aggregate_edgelist_srcs.size()),
                                raft::device_span<vertex_t const>(aggregate_edgelist_dsts.data(),
                                                                  aggregate_edgelist_dsts.size())),
-        "Invalid input arguments: graph_properties.is_multigraph is false but the input edge "
-        "list has parallel edges.");
+        "Invalid input arguments: graph_properties.is_multigraph is false but the input edge list "
+        "has parallel edges.");
     }
   }
 
@@ -1034,8 +1052,8 @@ create_graph_from_edgelist_impl(
   // 1. set whether to temporarily compress vertex IDs or not in splitting edge chunks
 
   size_t compressed_v_size =
-    sizeof(vertex_t);  // if set to a value smaller than sizeof(vertex_t), temporarily store
-                       // vertex IDs in compressed_v_size byte variables
+    sizeof(vertex_t);  // if set to a value smaller than sizeof(vertex_t), temporarily store vertex
+                       // IDs in compressed_v_size byte variables
   static_assert((sizeof(vertex_t) == 4) || (sizeof(vertex_t) == 8));
   if constexpr (sizeof(vertex_t) == 8) {        // 64 bit vertex ID
     static_assert(std::is_signed_v<vertex_t>);  // __clzll takes a signed integer
@@ -1043,8 +1061,7 @@ create_graph_from_edgelist_impl(
     bool compress{false};
     if (!large_edge_buffer_type) {
       auto total_global_mem = handle.get_device_properties().totalGlobalMem;
-
-      size_t element_size = std::transform_reduce(
+      size_t element_size   = std::transform_reduce(
         edgelist_edge_properties.begin(),
         edgelist_edge_properties.end(),
         sizeof(vertex_t) * 2,
@@ -1096,8 +1113,9 @@ create_graph_from_edgelist_impl(
   }
 
   // 2. groupby each edge chunks to their target local adjacency matrix partition (and further
-  // groupby within the local partition by applying the compute_gpu_id_from_vertex_t to minor
-  // vertex IDs).
+  // groupby within the local partition by applying the compute_gpu_id_from_vertex_t to minor vertex
+  // IDs).
+
   std::vector<std::vector<edge_t>> edgelist_edge_offset_vectors(num_chunks);
   for (size_t i = 0; i < num_chunks; ++i) {  // iterate over input edge chunks
     std::vector<arithmetic_device_span_t> this_chunk_edgelist_properties{};
@@ -1131,16 +1149,15 @@ create_graph_from_edgelist_impl(
     handle.sync_stream();
     std::vector<edge_t> h_this_chunk_edge_offsets(
       h_this_chunk_edge_counts.size() + 1,
-      0);  // size = minor_comm_size (# local edge partitions) * major_comm_size (# segments in
-           // the local minor range)
+      0);  // size = minor_comm_size (# local edge partitions) * major_comm_size (# segments in the
+           // local minor range)
     std::inclusive_scan(h_this_chunk_edge_counts.begin(),
                         h_this_chunk_edge_counts.end(),
                         h_this_chunk_edge_offsets.begin() + 1);
     edgelist_edge_offset_vectors[i] = std::move(h_this_chunk_edge_offsets);
   }
 
-  // 3. compress edge chunk source/destination vertices to cut intermediate peak memory
-  // requirement
+  // 3. compress edge chunk source/destination vertices to cut intermediate peak memory requirement
 
   std::optional<std::vector<rmm::device_uvector<std::byte>>> edgelist_compressed_srcs{std::nullopt};
   std::optional<std::vector<rmm::device_uvector<std::byte>>> edgelist_compressed_dsts{std::nullopt};
@@ -1383,6 +1400,7 @@ create_graph_from_edgelist_impl(
       (*edge_partition_edgelist_compressed_dsts)[i].shrink_to_fit(handle.get_stream());
     }
   }
+
   return create_graph_from_partitioned_edgelist<vertex_t, edge_t, store_transposed, multi_gpu>(
     handle,
     std::move(local_vertices),

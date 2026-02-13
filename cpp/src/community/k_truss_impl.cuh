@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2024-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -393,15 +393,14 @@ k_truss(raft::handle_t const& handle,
         {
           std::vector<cugraph::arithmetic_device_uvector_t> edge_properties{};
           edge_properties.push_back(std::move(std::get<2>(triangles_endpoints)));
-          std::tie(std::get<0>(triangles_endpoints),
-                   std::get<1>(triangles_endpoints),
-                   edge_properties,
-                   std::ignore) = shuffle_int_edges(handle,
-                                                    std::move(std::get<0>(triangles_endpoints)),
-                                                    std::move(std::get<1>(triangles_endpoints)),
-                                                    std::move(edge_properties),
-                                                    false /* store_transposed */,
-                                                    vertex_partition_range_lasts);
+          std::tie(
+            std::get<0>(triangles_endpoints), std::get<1>(triangles_endpoints), edge_properties) =
+            shuffle_int_edges(handle,
+                              std::move(std::get<0>(triangles_endpoints)),
+                              std::move(std::get<1>(triangles_endpoints)),
+                              std::move(edge_properties),
+                              false /* store_transposed */,
+                              vertex_partition_range_lasts);
           std::get<2>(triangles_endpoints) =
             std::move(std::get<rmm::device_uvector<vertex_t>>(edge_properties[0]));
         }
@@ -463,7 +462,6 @@ k_truss(raft::handle_t const& handle,
 
         std::tie(std::get<0>(edgelist_to_update_count),
                  std::get<1>(edgelist_to_update_count),
-                 std::ignore,
                  std::ignore) = shuffle_int_edges(handle,
                                                   std::move(std::get<0>(edgelist_to_update_count)),
                                                   std::move(std::get<1>(edgelist_to_update_count)),
@@ -529,13 +527,13 @@ k_truss(raft::handle_t const& handle,
         edge_properties.push_back(std::move(decrease_count));
         std::tie(std::get<0>(vertex_pair_buffer_unique),
                  std::get<1>(vertex_pair_buffer_unique),
-                 edge_properties,
-                 std::ignore) = shuffle_int_edges(handle,
-                                                  std::move(std::get<0>(vertex_pair_buffer_unique)),
-                                                  std::move(std::get<1>(vertex_pair_buffer_unique)),
-                                                  std::move(edge_properties),
-                                                  false /* store_transposed */,
-                                                  vertex_partition_range_lasts);
+                 edge_properties) =
+          shuffle_int_edges(handle,
+                            std::move(std::get<0>(vertex_pair_buffer_unique)),
+                            std::move(std::get<1>(vertex_pair_buffer_unique)),
+                            std::move(edge_properties),
+                            false /* store_transposed */,
+                            vertex_partition_range_lasts);
         decrease_count = std::move(std::get<rmm::device_uvector<edge_t>>(edge_properties[0]));
       }
 
@@ -612,7 +610,7 @@ k_truss(raft::handle_t const& handle,
       if constexpr (multi_gpu) {
         std::vector<cugraph::arithmetic_device_uvector_t> edge_properties{};
 
-        std::tie(weak_edgelist_dsts, weak_edgelist_srcs, std::ignore, std::ignore) =
+        std::tie(weak_edgelist_dsts, weak_edgelist_srcs, std::ignore) =
           shuffle_int_edges(handle,
                             std::move(weak_edgelist_dsts),
                             std::move(weak_edgelist_srcs),
