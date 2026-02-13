@@ -21,7 +21,7 @@
 
 #include <rmm/exec_policy.hpp>
 
-#include <cuda/std/iterator>
+#include <cuda/iterator>
 #include <cuda/std/optional>
 #include <cuda/std/tuple>
 #include <thrust/binary_search.h>
@@ -251,7 +251,7 @@ void per_v_pair_transform_dst_nbr_intersection(
 
     sorted_unique_vertices =
       rmm::device_uvector<vertex_t>(num_input_pairs * 2, handle.get_stream());
-    auto elem0_first = thrust::make_transform_iterator(
+    auto elem0_first = cuda::make_transform_iterator(
       vertex_pair_first,
       cugraph::thrust_tuple_get<typename thrust::iterator_traits<VertexPairIterator>::value_type,
                                 0>{});
@@ -259,7 +259,7 @@ void per_v_pair_transform_dst_nbr_intersection(
                  elem0_first,
                  elem0_first + num_input_pairs,
                  (*sorted_unique_vertices).begin());
-    auto elem1_first = thrust::make_transform_iterator(
+    auto elem1_first = cuda::make_transform_iterator(
       vertex_pair_first,
       cugraph::thrust_tuple_get<typename thrust::iterator_traits<VertexPairIterator>::value_type,
                                 1>{});
@@ -373,7 +373,7 @@ void per_v_pair_transform_dst_nbr_intersection(
       // FIXME: better restrict detail::nbr_intersection input vertex pairs to a single edge
       // partition? This may provide additional performance improvement opportunities???
 
-      auto chunk_vertex_pair_first = thrust::make_transform_iterator(
+      auto chunk_vertex_pair_first = cuda::make_transform_iterator(
         chunk_vertex_pair_index_first,
         detail::indirection_t<size_t, VertexPairIterator>{vertex_pair_first});
 

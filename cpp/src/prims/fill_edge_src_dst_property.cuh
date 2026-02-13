@@ -19,7 +19,7 @@
 
 #include <rmm/exec_policy.hpp>
 
-#include <cuda/std/iterator>
+#include <cuda/iterator>
 #include <cuda/std/tuple>
 #include <thrust/count.h>
 #include <thrust/fill.h>
@@ -207,7 +207,7 @@ void fill_edge_major_property(raft::handle_t const& handle,
               packed_bool_atomic_set(output_value_first, major_offset, input);
             });
         } else {
-          auto map_first = thrust::make_transform_iterator(
+          auto map_first = cuda::make_transform_iterator(
             rx_vertices.begin(),
             cuda::proclaim_return_type<vertex_t>([edge_partition] __device__(auto v) {
               return edge_partition.major_offset_from_major_nocheck(v);
@@ -826,7 +826,7 @@ void fill_edge_minor_property(raft::handle_t const& handle,
                   });
               } else {
                 if (compressed_v_list) {
-                  auto map_first = thrust::make_transform_iterator(
+                  auto map_first = cuda::make_transform_iterator(
                     std::get<1>(edge_partition_v_buffers[j]).begin(),
                     cuda::proclaim_return_type<vertex_t>(
                       [minor_range_first,
@@ -841,7 +841,7 @@ void fill_edge_minor_property(raft::handle_t const& handle,
                                   map_first,
                                   edge_partition_value_first);
                 } else {
-                  auto map_first = thrust::make_transform_iterator(
+                  auto map_first = cuda::make_transform_iterator(
                     std::get<0>(edge_partition_v_buffers[j]).begin(),
                     cuda::proclaim_return_type<vertex_t>(
                       [minor_range_first] __device__(auto v) { return v - minor_range_first; }));
@@ -915,7 +915,7 @@ void fill_edge_minor_property(raft::handle_t const& handle,
           } else {
             auto val_first = thrust::make_constant_iterator(input);
             if (compressed_v_list) {
-              auto map_first = thrust::make_transform_iterator(
+              auto map_first = cuda::make_transform_iterator(
                 thrust::make_counting_iterator(vertex_t{0}),
                 cuda::proclaim_return_type<vertex_t>(
                   [range_firsts,
@@ -937,7 +937,7 @@ void fill_edge_minor_property(raft::handle_t const& handle,
                               map_first,
                               edge_partition_value_first);
             } else {
-              auto map_first = thrust::make_transform_iterator(
+              auto map_first = cuda::make_transform_iterator(
                 thrust::make_counting_iterator(vertex_t{0}),
                 cuda::proclaim_return_type<vertex_t>(
                   [loop_offsets,

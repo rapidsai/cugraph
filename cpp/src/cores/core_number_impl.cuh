@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -19,14 +19,13 @@
 
 #include <raft/core/handle.hpp>
 
-#include <cuda/std/iterator>
+#include <cuda/iterator>
 #include <cuda/std/optional>
 #include <cuda/std/tuple>
 #include <thrust/copy.h>
 #include <thrust/for_each.h>
 #include <thrust/functional.h>
 #include <thrust/iterator/counting_iterator.h>
-#include <thrust/iterator/transform_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/partition.h>
 #include <thrust/reduce.h>
@@ -107,7 +106,7 @@ void core_number(raft::handle_t const& handle,
         handle.get_thrust_policy(), out_degrees.begin(), out_degrees.end(), core_numbers);
     } else {
       auto inout_degree_first =
-        thrust::make_transform_iterator(out_degrees.begin(), mult_degree_by_two_t<edge_t>{});
+        cuda::make_transform_iterator(out_degrees.begin(), mult_degree_by_two_t<edge_t>{});
       thrust::copy(handle.get_thrust_policy(),
                    inout_degree_first,
                    inout_degree_first + out_degrees.size(),
@@ -333,7 +332,7 @@ void core_number(raft::handle_t const& handle,
         handle.get_stream());
       k += delta;
     } else {
-      auto remaining_vertex_core_number_first = thrust::make_transform_iterator(
+      auto remaining_vertex_core_number_first = cuda::make_transform_iterator(
         remaining_vertices.begin(),
         v_to_core_number_t<vertex_t, edge_t>{core_numbers,
                                              cur_graph_view.local_vertex_partition_range_first()});

@@ -13,7 +13,7 @@
 #include <rmm/device_uvector.hpp>
 
 #include <cuda/functional>
-#include <cuda/std/iterator>
+#include <cuda/iterator>
 #include <cuda/std/optional>
 #include <cuda/std/tuple>
 #include <thrust/binary_search.h>
@@ -1263,7 +1263,7 @@ bool check_vertex_renumber_map_invariants(
         rmm::device_uvector<vertex_t> min_vertices(num_unique_keys, handle.get_stream());
         rmm::device_uvector<vertex_t> max_vertices(num_unique_keys, handle.get_stream());
 
-        auto renumbered_merged_vertex_first = thrust::make_transform_iterator(
+        auto renumbered_merged_vertex_first = cuda::make_transform_iterator(
           merged_vertices.begin(),
           cuda::proclaim_return_type<vertex_t>(
             [this_type_sorted_org_vertices = raft::device_span<vertex_t const>(
@@ -1670,7 +1670,7 @@ bool check_edge_id_renumber_map_invariants(
         rmm::device_uvector<edge_id_t> min_edge_ids(num_unique_keys, handle.get_stream());
         rmm::device_uvector<edge_id_t> max_edge_ids(num_unique_keys, handle.get_stream());
 
-        auto renumbered_edge_id_first = thrust::make_transform_iterator(
+        auto renumbered_edge_id_first = cuda::make_transform_iterator(
           this_label_unique_key_edge_ids.begin(),
           cuda::proclaim_return_type<edge_id_t>(
             [this_type_sorted_org_edge_ids = raft::device_span<edge_id_t const>(

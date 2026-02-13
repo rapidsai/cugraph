@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -22,7 +22,7 @@
 
 #include <raft/core/handle.hpp>
 
-#include <cuda/std/iterator>
+#include <cuda/iterator>
 #include <cuda/std/tuple>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
@@ -427,7 +427,7 @@ void decompress_vertices(raft::handle_t const& handle,
                          raft::device_span<vertex_t> vertices,
                          size_t compressed_v_size)
 {
-  auto input_v_first = thrust::make_transform_iterator(
+  auto input_v_first = cuda::make_transform_iterator(
     thrust::make_counting_iterator(size_t{0}),
     cuda::proclaim_return_type<vertex_t>(
       [byte_first = compressed_vertices.begin(), compressed_v_size] __device__(size_t i) {
@@ -1066,7 +1066,7 @@ create_graph_from_edgelist_impl(
     if (compress) {
       size_t min_clz{sizeof(vertex_t) * 8};
       for (size_t i = 0; i < num_chunks; ++i) {
-        auto min_clz_first = thrust::make_transform_iterator(
+        auto min_clz_first = cuda::make_transform_iterator(
           thrust::make_zip_iterator(edgelist_srcs[i].begin(), edgelist_dsts[i].begin()),
           cuda::proclaim_return_type<size_t>([] __device__(auto pair) {
             return static_cast<size_t>(
@@ -1156,7 +1156,7 @@ create_graph_from_edgelist_impl(
         large_edge_buffer_type
           ? large_buffer_manager::allocate_memory_buffer<std::byte>(num_bytes, handle.get_stream())
           : rmm::device_uvector<std::byte>(num_bytes, handle.get_stream());
-      auto input_src_first = thrust::make_transform_iterator(
+      auto input_src_first = cuda::make_transform_iterator(
         thrust::make_counting_iterator(size_t{0}),
         cuda::proclaim_return_type<std::byte>(
           [src_first = edgelist_srcs[i].begin(), compressed_v_size] __device__(size_t i) {
@@ -1178,7 +1178,7 @@ create_graph_from_edgelist_impl(
         large_edge_buffer_type
           ? large_buffer_manager::allocate_memory_buffer<std::byte>(num_bytes, handle.get_stream())
           : rmm::device_uvector<std::byte>(num_bytes, handle.get_stream());
-      auto input_dst_first = thrust::make_transform_iterator(
+      auto input_dst_first = cuda::make_transform_iterator(
         thrust::make_counting_iterator(size_t{0}),
         cuda::proclaim_return_type<std::byte>(
           [dst_first = edgelist_dsts[i].begin(), compressed_v_size] __device__(size_t i) {

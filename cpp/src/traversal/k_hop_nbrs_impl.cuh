@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -19,14 +19,13 @@
 
 #include <rmm/exec_policy.hpp>
 
-#include <cuda/std/iterator>
+#include <cuda/iterator>
 #include <cuda/std/optional>
 #include <cuda/std/tuple>
 #include <thrust/count.h>
 #include <thrust/fill.h>
 #include <thrust/iterator/constant_iterator.h>
 #include <thrust/iterator/counting_iterator.h>
-#include <thrust/iterator/transform_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
 
 #include <limits>
@@ -201,7 +200,7 @@ k_hop_nbrs(raft::handle_t const& handle,
     handle.get_thrust_policy(),
     tmp_counts.begin(),
     tmp_counts.end(),
-    thrust::make_transform_iterator(
+    cuda::make_transform_iterator(
       tmp_indices.begin(),
       shift_left_t<size_t>{
         start_vertex_displacements[GraphViewType::is_multi_gpu ? handle.get_comms().get_rank()

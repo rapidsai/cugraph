@@ -28,7 +28,7 @@
 
 #include <cub/cub.cuh>
 #include <cuda/atomic>
-#include <cuda/std/iterator>
+#include <cuda/iterator>
 #include <cuda/std/optional>
 #include <cuda/std/tuple>
 #include <thrust/copy.h>
@@ -734,7 +734,7 @@ void multisource_backward_pass(
   // Find global maximum distance across all sources
   constexpr vertex_t invalid_distance = std::numeric_limits<vertex_t>::max();
 
-  auto d_first = thrust::make_transform_iterator(
+  auto d_first = cuda::make_transform_iterator(
     distances_2d.begin(),
     cuda::proclaim_return_type<vertex_t>([invalid_distance] __device__(vertex_t d) {
       return d == invalid_distance ? vertex_t{0} : d;
@@ -891,7 +891,7 @@ void multisource_backward_pass(
       size_t num_segments_in_chunk = chunk_distance_end - chunk_distance_start;
 
       if (num_segments_in_chunk > 0) {
-        auto offset_first = thrust::make_transform_iterator(
+        auto offset_first = cuda::make_transform_iterator(
           d_distance_offsets.data() + chunk_distance_start,
           cuda::proclaim_return_type<size_t>([chunk_vertex_start] __device__(size_t offset) {
             return offset - chunk_vertex_start;

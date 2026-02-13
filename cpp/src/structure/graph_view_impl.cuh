@@ -27,7 +27,7 @@
 #include <rmm/exec_policy.hpp>
 
 #include <cuda/functional>
-#include <cuda/std/iterator>
+#include <cuda/iterator>
 #include <cuda/std/optional>
 #include <cuda/std/tuple>
 #include <thrust/binary_search.h>
@@ -37,7 +37,6 @@
 #include <thrust/for_each.h>
 #include <thrust/functional.h>
 #include <thrust/iterator/counting_iterator.h>
-#include <thrust/iterator/transform_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/sort.h>
 #include <thrust/tabulate.h>
@@ -454,7 +453,7 @@ compute_edge_indices_and_edge_partition_offsets(
                       handle.get_stream());
   rmm::device_uvector<size_t> d_lower_bounds(d_major_range_lasts.size(), handle.get_stream());
   auto major_first        = edge_majors.begin();
-  auto sorted_major_first = thrust::make_transform_iterator(
+  auto sorted_major_first = cuda::make_transform_iterator(
     edge_indices.begin(),
     cugraph::detail::indirection_t<size_t, decltype(major_first)>{major_first});
   thrust::lower_bound(handle.get_thrust_policy(),
@@ -827,7 +826,7 @@ graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<mul
 
   auto edge_mask_view = this->edge_mask_view();
 
-  auto sorted_edge_first = thrust::make_transform_iterator(
+  auto sorted_edge_first = cuda::make_transform_iterator(
     edge_indices.begin(), cugraph::detail::indirection_t<size_t, decltype(edge_first)>{edge_first});
   rmm::device_uvector<bool> ret(edge_srcs.size(), handle.get_stream());
 
@@ -972,7 +971,7 @@ graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<mul
 
   auto edge_mask_view = this->edge_mask_view();
 
-  auto sorted_edge_first = thrust::make_transform_iterator(
+  auto sorted_edge_first = cuda::make_transform_iterator(
     edge_indices.begin(), cugraph::detail::indirection_t<size_t, decltype(edge_first)>{edge_first});
   rmm::device_uvector<edge_t> ret(edge_srcs.size(), handle.get_stream());
 

@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -21,7 +21,7 @@
 #include <rmm/mr/per_device_resource.hpp>
 #include <rmm/mr/polymorphic_allocator.hpp>
 
-#include <cuda/std/iterator>
+#include <cuda/iterator>
 #include <cuda/std/tuple>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
@@ -343,7 +343,7 @@ void compute_sorted_local_major_degrees_without_atomics(
     std::max((sorted_local_majors.size() + (max_cache_size - 1)) / max_cache_size, size_t{1});
   rmm::device_uvector<vertex_t> sorted_local_major_cache(
     (sorted_local_majors.size() + (cache_stride - 1)) / cache_stride, handle.get_stream());
-  auto gather_index_first = thrust::make_transform_iterator(
+  auto gather_index_first = cuda::make_transform_iterator(
     thrust::make_counting_iterator(size_t{0}), detail::multiplier_t<size_t>{cache_stride});
   thrust::gather(handle.get_thrust_policy(),
                  gather_index_first,
