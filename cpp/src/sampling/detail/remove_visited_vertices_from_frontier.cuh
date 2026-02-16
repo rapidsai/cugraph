@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2023-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -8,10 +8,10 @@
 
 #include <rmm/device_uvector.hpp>
 
+#include <cuda/functional>
 #include <cuda/std/iterator>
 #include <cuda/std/tuple>
 #include <thrust/binary_search.h>
-#include <thrust/functional.h>
 #include <thrust/reduce.h>
 #include <thrust/remove.h>
 #include <thrust/sort.h>
@@ -41,14 +41,15 @@ remove_visited_vertices_from_frontier(
 
       auto begin_iter =
         thrust::make_zip_iterator(frontier_vertex_labels->begin(), frontier_vertices.begin());
-      auto new_end = thrust::reduce_by_key(handle.get_thrust_policy(),
-                                           begin_iter,
-                                           begin_iter + frontier_vertices.size(),
-                                           frontier_vertex_times->begin(),
-                                           begin_iter,
-                                           frontier_vertex_times->begin(),
-                                           thrust::equal_to<cuda::std::tuple<label_t, vertex_t>>{},
-                                           thrust::minimum<time_stamp_t>{});
+      auto new_end =
+        thrust::reduce_by_key(handle.get_thrust_policy(),
+                              begin_iter,
+                              begin_iter + frontier_vertices.size(),
+                              frontier_vertex_times->begin(),
+                              begin_iter,
+                              frontier_vertex_times->begin(),
+                              cuda::std::equal_to<cuda::std::tuple<label_t, vertex_t>>{},
+                              cuda::minimum<time_stamp_t>{});
 
       frontier_vertices.resize(cuda::std::distance(begin_iter, new_end.first), handle.get_stream());
       frontier_vertex_labels->resize(cuda::std::distance(begin_iter, new_end.first),
@@ -66,8 +67,8 @@ remove_visited_vertices_from_frontier(
                                            frontier_vertex_times->begin(),
                                            frontier_vertices.begin(),
                                            frontier_vertex_times->begin(),
-                                           thrust::equal_to<vertex_t>{},
-                                           thrust::minimum<time_stamp_t>());
+                                           cuda::std::equal_to<vertex_t>{},
+                                           cuda::minimum<time_stamp_t>());
 
       frontier_vertices.resize(cuda::std::distance(frontier_vertices.begin(), new_end.first),
                                handle.get_stream());

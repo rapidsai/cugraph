@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -32,6 +32,7 @@
 #include <rmm/exec_policy.hpp>
 
 #include <cub/cub.cuh>
+#include <cuda/std/functional>
 #include <cuda/std/iterator>
 #include <cuda/std/optional>
 #include <cuda/std/tuple>
@@ -39,7 +40,6 @@
 #include <thrust/copy.h>
 #include <thrust/count.h>
 #include <thrust/execution_policy.h>
-#include <thrust/functional.h>
 #include <thrust/iterator/constant_iterator.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/iterator_traits.h>
@@ -574,7 +574,7 @@ sort_and_reduce_buffer_elements(
                             get_optional_dataframe_buffer_begin<payload_t>(payload_buffer),
                             get_dataframe_buffer_begin(new_key_buffer),
                             get_dataframe_buffer_begin(new_payload_buffer),
-                            thrust::equal_to<key_t>(),
+                            cuda::std::equal_to<key_t>(),
                             reduce_op);
     } else {
       thrust::reduce_by_key(handle.get_thrust_policy(),
@@ -583,7 +583,7 @@ sort_and_reduce_buffer_elements(
                             get_optional_dataframe_buffer_begin<payload_t>(payload_buffer),
                             get_dataframe_buffer_begin(new_key_buffer),
                             get_dataframe_buffer_begin(new_payload_buffer),
-                            thrust::equal_to<key_t>(),
+                            cuda::std::equal_to<key_t>(),
                             reduce_op);
     }
 

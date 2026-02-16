@@ -13,8 +13,8 @@
 
 #include <raft/core/comms.hpp>
 
+#include <cuda/std/functional>
 #include <cuda/std/tuple>
-#include <thrust/functional.h>
 
 #include <utility>
 
@@ -210,7 +210,7 @@ struct plus {
   static constexpr bool pure_function = true;  // this can be called in any process
   static constexpr raft::comms::op_t compatible_raft_comms_op = raft::comms::op_t::SUM;
   inline static T const identity_element                      = T{};
-  property_op<T, thrust::plus> op{};
+  property_op<T, cuda::std::plus> op{};
 
   __host__ __device__ T operator()(T const& lhs, T const& rhs) const { return op(lhs, rhs); }
 };

@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -25,6 +25,7 @@
 #include <rmm/device_uvector.hpp>
 #include <rmm/mr/polymorphic_allocator.hpp>
 
+#include <cuda/functional>
 #include <cuda/std/iterator>
 #include <cuda/std/optional>
 #include <cuda/std/tuple>
@@ -34,7 +35,6 @@
 #include <thrust/execution_policy.h>
 #include <thrust/fill.h>
 #include <thrust/for_each.h>
-#include <thrust/functional.h>
 #include <thrust/gather.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/iterator_traits.h>
@@ -308,7 +308,7 @@ struct pick_min_degree_t {
         static_cast<edge_t>(second_element_offsets[idx + 1] - second_element_offsets[idx]);
     }
 
-    return thrust::minimum<edge_t>{}(local_degree0, local_degree1);
+    return cuda::minimum<edge_t>{}(local_degree0, local_degree1);
   }
 };
 

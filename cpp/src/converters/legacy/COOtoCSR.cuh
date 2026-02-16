@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2019-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2019-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 /*
@@ -20,12 +20,12 @@
 
 #include <cub/device/device_radix_sort.cuh>
 #include <cub/device/device_run_length_encode.cuh>
+#include <cuda/functional>
 #include <cuda/std/tuple>
 #include <thrust/device_ptr.h>
 #include <thrust/extrema.h>
 #include <thrust/fill.h>
 #include <thrust/for_each.h>
-#include <thrust/functional.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/reverse_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
@@ -110,11 +110,8 @@ void fill_offset(VT* source,
   off[src[0]]                = ET{0};
 
   auto iter = thrust::make_reverse_iterator(offsets + number_of_vertices + 1);
-  thrust::inclusive_scan(rmm::exec_policy(stream_view),
-                         iter,
-                         iter + number_of_vertices + 1,
-                         iter,
-                         thrust::minimum<ET>());
+  thrust::inclusive_scan(
+    rmm::exec_policy(stream_view), iter, iter + number_of_vertices + 1, iter, cuda::minimum<ET>());
 }
 
 template <typename VT, typename ET>

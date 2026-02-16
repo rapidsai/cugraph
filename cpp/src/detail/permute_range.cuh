@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2024-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -17,6 +17,7 @@
 #include <rmm/device_uvector.hpp>
 #include <rmm/exec_policy.hpp>
 
+#include <cuda/std/functional>
 #include <cuda/std/iterator>
 #include <thrust/iterator/constant_iterator.h>
 #include <thrust/reduce.h>
@@ -87,7 +88,7 @@ rmm::device_uvector<vertex_t> permute_range(raft::handle_t const& handle,
                                               thrust::make_constant_iterator(1),
                                               d_reduced_ranks.begin(),
                                               d_reduced_counts.begin(),
-                                              thrust::equal_to<int>());
+                                              cuda::std::equal_to<int>());
 
       auto nr_output_pairs =
         static_cast<vertex_t>(cuda::std::distance(d_reduced_ranks.begin(), output_end.first));

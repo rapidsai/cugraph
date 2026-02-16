@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -21,6 +21,7 @@
 
 #include <rmm/exec_policy.hpp>
 
+#include <cuda/std/functional>
 #include <cuda/std/optional>
 #include <cuda/std/tuple>
 #include <thrust/binary_search.h>
@@ -29,7 +30,6 @@
 #include <thrust/execution_policy.h>
 #include <thrust/fill.h>
 #include <thrust/for_each.h>
-#include <thrust/functional.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/iterator_traits.h>
 #include <thrust/iterator/zip_iterator.h>
@@ -121,8 +121,8 @@ std::tuple<rmm::device_uvector<vertex_t>, ValueBuffer> sort_and_reduce_by_vertic
                         get_dataframe_buffer_begin(value_buffer),
                         reduced_vertices.begin(),
                         get_dataframe_buffer_begin(reduced_value_buffer),
-                        thrust::equal_to<vertex_t>{},
-                        property_op<value_t, thrust::plus>{});
+                        cuda::std::equal_to<vertex_t>{},
+                        property_op<value_t, cuda::std::plus>{});
 
   vertices.resize(size_t{0}, handle.get_stream());
   resize_dataframe_buffer(value_buffer, size_t{0}, handle.get_stream());
@@ -156,7 +156,7 @@ struct accumulate_vertex_property_t {
 
   vertex_t local_vertex_partition_range_first{};
   VertexValueOutputIterator vertex_value_output_first{};
-  property_op<value_type, thrust::plus> vertex_property_add{};
+  property_op<value_type, cuda::std::plus> vertex_property_add{};
 
   __device__ void operator()(cuda::std::tuple<vertex_t, value_type> pair) const
   {
@@ -477,8 +477,8 @@ void transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v(
                             get_dataframe_buffer_begin(merged_value_buffer),
                             reduced_vertices.begin(),
                             get_dataframe_buffer_begin(reduced_value_buffer),
-                            thrust::equal_to<vertex_t>{},
-                            property_op<T, thrust::plus>{});
+                            cuda::std::equal_to<vertex_t>{},
+                            property_op<T, cuda::std::plus>{});
       merged_vertices.resize(size_t{0}, handle.get_stream());
       merged_vertices.shrink_to_fit(handle.get_stream());
       resize_dataframe_buffer(merged_value_buffer, size_t{0}, handle.get_stream());

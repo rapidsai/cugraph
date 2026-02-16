@@ -18,6 +18,7 @@
 
 #include <rmm/device_uvector.hpp>
 
+#include <cuda/functional>
 #include <cuda/std/tuple>
 #include <thrust/copy.h>
 #include <thrust/fill.h>
@@ -121,7 +122,7 @@ class nbr_unrenumber_cache_t {
                                                  size_first,
                                                  size_first + vertex_partition_range_lasts_.size(),
                                                  vertex_t{0},
-                                                 thrust::maximum<vertex_t>{});
+                                                 cuda::maximum<vertex_t>{});
     }
 
     consecutive_size_per_vertex_partition_ =
