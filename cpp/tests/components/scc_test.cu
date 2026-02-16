@@ -16,9 +16,9 @@
 
 #include <rmm/device_vector.hpp>
 
+#include <cuda/iterator>
 #include <cuda/std/iterator>
 #include <thrust/device_vector.h>
-#include <thrust/iterator/constant_iterator.h>
 #include <thrust/iterator/discard_iterator.h>
 #include <thrust/reduce.h>
 #include <thrust/sequence.h>
@@ -73,7 +73,7 @@ size_t get_component_sizes(const IndexT* p_d_labels,
 
   auto pair_it = thrust::reduce_by_key(d_sorted_l.begin(),
                                        d_sorted_l.end(),
-                                       thrust::make_constant_iterator<size_t>(1),
+                                       cuda::make_constant_iterator<size_t>(1),
                                        thrust::make_discard_iterator(),  // ignore...
                                        d_num_vs_per_component.begin());
 

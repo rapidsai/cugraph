@@ -25,7 +25,6 @@
 #include <cuda/std/tuple>
 #include <thrust/copy.h>
 #include <thrust/fill.h>
-#include <thrust/iterator/constant_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/transform.h>
 

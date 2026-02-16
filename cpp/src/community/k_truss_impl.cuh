@@ -21,6 +21,7 @@
 #include <raft/util/integer_utils.hpp>
 
 #include <cuda/functional>
+#include <cuda/iterator>
 #include <cuda/std/iterator>
 #include <cuda/std/optional>
 #include <cuda/std/tuple>
@@ -490,7 +491,7 @@ k_truss(raft::handle_t const& handle,
       thrust::reduce_by_key(handle.get_thrust_policy(),
                             get_dataframe_buffer_begin(edgelist_to_update_count),
                             get_dataframe_buffer_end(edgelist_to_update_count),
-                            thrust::make_constant_iterator(size_t{1}),
+                            cuda::make_constant_iterator(size_t{1}),
                             get_dataframe_buffer_begin(vertex_pair_buffer_unique),
                             decrease_count.begin(),
                             thrust::equal_to<cuda::std::tuple<vertex_t, vertex_t>>{});

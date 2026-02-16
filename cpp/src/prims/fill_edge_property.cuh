@@ -13,11 +13,11 @@
 
 #include <rmm/exec_policy.hpp>
 
+#include <cuda/iterator>
 #include <cuda/std/functional>
 #include <cuda/std/optional>
 #include <cuda/std/tuple>
 #include <thrust/fill.h>
-#include <thrust/iterator/constant_iterator.h>
 
 #include <cstddef>
 
@@ -93,8 +93,8 @@ void fill_edge_property(raft::handle_t const& handle,
     } else {
       if (edge_partition_e_mask) {
         thrust::transform_if(handle.get_thrust_policy(),
-                             thrust::make_constant_iterator(input),
-                             thrust::make_constant_iterator(input) + edge_counts[i],
+                             cuda::make_constant_iterator(input),
+                             cuda::make_constant_iterator(input) + edge_counts[i],
                              thrust::make_counting_iterator(edge_t{0}),
                              value_firsts[i],
                              cuda::std::identity{},

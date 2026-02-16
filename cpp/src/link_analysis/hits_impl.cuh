@@ -16,11 +16,11 @@
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_view.hpp>
 
+#include <cuda/iterator>
 #include <cuda/std/tuple>
 #include <thrust/copy.h>
 #include <thrust/fill.h>
 #include <thrust/functional.h>
-#include <thrust/iterator/constant_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/transform.h>
 
@@ -38,7 +38,7 @@ void normalize(raft::handle_t const& handle,
   thrust::transform(handle.get_thrust_policy(),
                     hubs,
                     hubs + graph_view.local_vertex_partition_range_size(),
-                    thrust::make_constant_iterator(hubs_norm),
+                    cuda::make_constant_iterator(hubs_norm),
                     hubs,
                     thrust::divides<result_t>());
 }
