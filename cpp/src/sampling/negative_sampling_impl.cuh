@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2024-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -88,10 +88,10 @@ normalize_biases(raft::handle_t const& handle,
     // be part of the upper-most range.  We'll compute the last non-zero value in the
     // gpu_biases array here and below we will fill it with a value larger than 1.0
     size_t trailing_zeros = cuda::std::distance(
-      thrust::make_reverse_iterator(gpu_biases->end()),
+      cuda::std::make_reverse_iterator(gpu_biases->end()),
       thrust::find_if(handle.get_thrust_policy(),
-                      thrust::make_reverse_iterator(gpu_biases->end()),
-                      thrust::make_reverse_iterator(gpu_biases->begin()),
+                      cuda::std::make_reverse_iterator(gpu_biases->end()),
+                      cuda::std::make_reverse_iterator(gpu_biases->begin()),
                       cuda::proclaim_return_type<bool>(
                         [] __device__(weight_t bias) { return bias > weight_t{0}; })));
 
