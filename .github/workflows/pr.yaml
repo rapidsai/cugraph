@@ -58,6 +58,8 @@ jobs:
         with:
           repo: ${{ github.repository }}
           target-branch: ${{ fromJSON(steps.get-pr-info.outputs.pr-info).base.ref }}
+          # TODO: remove this when nightly tests are passing again (ref: https://github.com/rapidsai/cugraph/issues/5421)
+          max-days-without-success: 21
   changed-files:
     secrets: inherit
     needs: telemetry-setup
