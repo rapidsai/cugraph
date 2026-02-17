@@ -618,6 +618,48 @@ class key_bucket_t {
 
   auto const vertex_end() const { return vertex_cend(); }
 
+  template <typename tag_type = tag_t, std::enable_if_t<!std::is_same_v<tag_type, void>>* = nullptr>
+  auto tag_begin()
+  {
+    CUGRAPH_EXPECTS(
+      tags_.index() == 1,
+      "non-const tag_begin() is supported only when this bucket holds an owning container.");
+    return std::get<1>(tags_).begin();
+  }
+
+  template <typename tag_type = tag_t, std::enable_if_t<!std::is_same_v<tag_type, void>>* = nullptr>
+  auto tag_cbegin() const
+  {
+    return tags_.index() == 0 ? std::get<0>(tags_).begin() : std::get<1>(tags_).begin();
+  }
+
+  template <typename tag_type = tag_t, std::enable_if_t<!std::is_same_v<tag_type, void>>* = nullptr>
+  auto const tag_begin() const
+  {
+    return tag_cbegin();
+  }
+
+  template <typename tag_type = tag_t, std::enable_if_t<!std::is_same_v<tag_type, void>>* = nullptr>
+  auto tag_end()
+  {
+    CUGRAPH_EXPECTS(
+      tags_.index() == 1,
+      "non-const tag_end() is supported only when this bucket holds an owning container.");
+    return std::get<1>(tags_).end();
+  }
+
+  template <typename tag_type = tag_t, std::enable_if_t<!std::is_same_v<tag_type, void>>* = nullptr>
+  auto tag_cend() const
+  {
+    return tags_.index() == 0 ? std::get<0>(tags_).end() : std::get<1>(tags_).end();
+  }
+
+  template <typename tag_type = tag_t, std::enable_if_t<!std::is_same_v<tag_type, void>>* = nullptr>
+  auto const tag_end() const
+  {
+    return tag_cend();
+  }
+
   bool is_owning() { return (vertices_.index() == 1); }
 
  private:
