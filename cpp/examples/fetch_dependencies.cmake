@@ -1,8 +1,10 @@
 # =============================================================================
-# SPDX-FileCopyrightText: Copyright (c) 2024-2025, NVIDIA CORPORATION.
+# cmake-format: off
+# SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
+# cmake-format: on
 # =============================================================================
-set(CPM_DOWNLOAD_VERSION v0.35.3)
+set(CPM_DOWNLOAD_VERSION v0.38.5)
 file(
   DOWNLOAD
   https://github.com/cpm-cmake/CPM.cmake/releases/download/${CPM_DOWNLOAD_VERSION}/get_cpm.cmake
@@ -10,15 +12,16 @@ file(
 )
 include(${CMAKE_BINARY_DIR}/cmake/get_cpm.cmake)
 
-set(CUGRAPH_TAG branch-23.12)
+# find or build it via CPM
+include(rapids-cpm)
 CPMFindPackage(
-  NAME cugraph GIT_REPOSITORY https://github.com/rapidsai/cugraph
-  GIT_TAG ${CUGRAPH_TAG}
+  NAME cugraph
+  VERSION ${RAPIDS_VERSION}
+  FIND_PACKAGE_ARGUMENTS "PATHS ${cugraph_ROOT} ${cugraph_ROOT}/latest" GIT_REPOSITORY
+                         https://github.com/rapidsai/cugraph
+  GIT_TAG ${rapids-cmake-branch}
   GIT_SHALLOW
     TRUE
     SOURCE_SUBDIR
     cpp
 )
-
-include(../../../../cmake/rapids_config.cmake)
-include(rapids-find)
