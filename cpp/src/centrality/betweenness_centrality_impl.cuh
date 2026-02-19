@@ -28,12 +28,12 @@
 
 #include <cub/cub.cuh>
 #include <cuda/atomic>
+#include <cuda/std/functional>
 #include <cuda/std/iterator>
 #include <cuda/std/optional>
 #include <cuda/std/tuple>
 #include <thrust/copy.h>
 #include <thrust/execution_policy.h>
-#include <thrust/functional.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/reduce.h>
@@ -655,8 +655,8 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> multisour
       thrust::make_zip_iterator(frontier_vertices.begin(),
                                 frontier_origins.begin()),  // Output keys (overwrite input)
       sigmas.begin(),                                       // Output values (overwrite input)
-      thrust::equal_to<cuda::std::tuple<vertex_t, origin_t>>{},
-      thrust::plus<edge_t>{});
+      cuda::std::equal_to<cuda::std::tuple<vertex_t, origin_t>>{},
+      cuda::std::plus<edge_t>{});
 
     // Step 3: Manual array updates using in-place reduced data
     // Get count from the values output since keys output is a zip iterator
@@ -743,7 +743,7 @@ void multisource_backward_pass(
                                                 d_first,
                                                 d_first + distances_2d.size(),
                                                 vertex_t{0},
-                                                thrust::maximum<vertex_t>());
+                                                cuda::maximum<vertex_t>());
 
   // Pre-compute: Partition all (vertex, source) pairs by distance once
   // This eliminates the need to scan the distance array global_max_distance times
@@ -1028,8 +1028,8 @@ void multisource_backward_pass(
           thrust::make_zip_iterator(srcs.begin(),
                                     source_indices.begin()),  // Output keys (overwrite input)
           deltas.begin(),                                     // Output values (overwrite input)
-          thrust::equal_to<cuda::std::tuple<vertex_t, origin_t>>{},
-          thrust::plus<weight_t>{});
+          cuda::std::equal_to<cuda::std::tuple<vertex_t, origin_t>>{},
+          cuda::std::plus<weight_t>{});
 
         // Get num_unique from the result
         size_t num_unique = reduced_result.second - deltas.begin();

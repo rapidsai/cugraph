@@ -24,11 +24,11 @@
 
 #include <rmm/exec_policy.hpp>
 
+#include <cuda/std/functional>
 #include <cuda/std/optional>
 #include <cuda/std/tuple>
 #include <thrust/execution_policy.h>
 #include <thrust/fill.h>
-#include <thrust/functional.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/reduce.h>
 #include <thrust/transform_reduce.h>
@@ -75,7 +75,7 @@ __global__ static void transform_reduce_e_hypersparse(
   using BlockReduce = cub::BlockReduce<e_op_result_t, transform_reduce_e_kernel_block_size>;
   __shared__ typename BlockReduce::TempStorage temp_storage;
 
-  property_op<e_op_result_t, thrust::plus> edge_property_add{};
+  property_op<e_op_result_t, cuda::std::plus> edge_property_add{};
   e_op_result_t e_op_result_sum{};
   while (idx < static_cast<size_t>(dcs_nzd_vertex_count)) {
     auto major =
@@ -167,7 +167,7 @@ __global__ static void transform_reduce_e_low_degree(
   using BlockReduce = cub::BlockReduce<e_op_result_t, transform_reduce_e_kernel_block_size>;
   __shared__ typename BlockReduce::TempStorage temp_storage;
 
-  property_op<e_op_result_t, thrust::plus> edge_property_add{};
+  property_op<e_op_result_t, cuda::std::plus> edge_property_add{};
   e_op_result_t e_op_result_sum{};
   while (idx < static_cast<size_t>(major_range_last - major_range_first)) {
     auto major_offset = static_cast<vertex_t>(major_start_offset + idx);
@@ -257,7 +257,7 @@ __global__ static void transform_reduce_e_mid_degree(
 
   using BlockReduce = cub::BlockReduce<e_op_result_t, transform_reduce_e_kernel_block_size>;
   __shared__ typename BlockReduce::TempStorage temp_storage;
-  property_op<e_op_result_t, thrust::plus> edge_property_add{};
+  property_op<e_op_result_t, cuda::std::plus> edge_property_add{};
   e_op_result_t e_op_result_sum{};
   while (idx < static_cast<size_t>(major_range_last - major_range_first)) {
     auto major_offset = static_cast<vertex_t>(major_start_offset + idx);
@@ -332,7 +332,7 @@ __global__ static void transform_reduce_e_high_degree(
 
   using BlockReduce = cub::BlockReduce<e_op_result_t, transform_reduce_e_kernel_block_size>;
   __shared__ typename BlockReduce::TempStorage temp_storage;
-  property_op<e_op_result_t, thrust::plus> edge_property_add{};
+  property_op<e_op_result_t, cuda::std::plus> edge_property_add{};
   e_op_result_t e_op_result_sum{};
   while (idx < static_cast<size_t>(major_range_last - major_range_first)) {
     auto major_offset = static_cast<vertex_t>(major_start_offset + idx);
@@ -462,7 +462,7 @@ T transform_reduce_e(raft::handle_t const& handle,
     // currently, nothing to do
   }
 
-  property_op<T, thrust::plus> edge_property_add{};
+  property_op<T, cuda::std::plus> edge_property_add{};
 
   auto result_buffer = allocate_dataframe_buffer<T>(1, handle.get_stream());
   thrust::fill(handle.get_thrust_policy(),

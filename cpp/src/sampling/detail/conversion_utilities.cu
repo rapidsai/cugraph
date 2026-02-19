@@ -1,11 +1,13 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2024, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
 #include "sampling/detail/sampling_utils.hpp"
 
 #include <cugraph/utilities/misc_utils.cuh>
+
+#include <cuda/functional>
 
 namespace cugraph {
 namespace detail {
@@ -26,7 +28,7 @@ rmm::device_uvector<int32_t> flatten_label_map(
                                      std::get<0>(label_to_output_comm_rank).begin(),
                                      std::get<0>(label_to_output_comm_rank).end(),
                                      label_t{0},
-                                     thrust::maximum<label_t>());
+                                     cuda::maximum<label_t>());
 
   rmm::device_uvector<int32_t> label_map(max_label + 1, handle.get_stream());
 

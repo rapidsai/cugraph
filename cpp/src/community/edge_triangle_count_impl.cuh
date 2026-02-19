@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2024-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -252,7 +252,7 @@ edge_property_t<edge_t, edge_t> edge_triangle_count_impl(
                             increase_count_tmp.begin(),
                             get_dataframe_buffer_begin(vertex_pair_buffer),
                             increase_count.begin(),
-                            thrust::equal_to<cuda::std::tuple<vertex_t, vertex_t>>{});
+                            cuda::std::equal_to<cuda::std::tuple<vertex_t, vertex_t>>{});
 
       rmm::device_uvector<vertex_t> pair_srcs(0, handle.get_stream());
       rmm::device_uvector<vertex_t> pair_dsts(0, handle.get_stream());

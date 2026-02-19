@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -23,6 +23,7 @@
 #include <rmm/device_uvector.hpp>
 #include <rmm/exec_policy.hpp>
 
+#include <cuda/functional>
 #include <cuda/std/iterator>
 #include <cuda/std/tuple>
 #include <thrust/copy.h>
@@ -677,7 +678,7 @@ coarsen_graph(raft::handle_t const& handle,
                                                  labels,
                                                  labels + vertices.size(),
                                                  vertex_t{0},
-                                                 thrust::maximum<vertex_t>{}) +
+                                                 cuda::maximum<vertex_t>{}) +
                                   1;
     vertices = rmm::device_uvector<vertex_t>(number_of_vertices, handle.get_stream());
     thrust::sequence(handle.get_thrust_policy(), vertices.begin(), vertices.end(), vertex_t{0});
