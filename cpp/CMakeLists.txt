@@ -466,6 +466,7 @@ SECTIONS
 }
 ]=])
 target_link_options(cugraph PRIVATE "${CUGRAPH_BINARY_DIR}/fatbin.ld")
+target_link_options(cugraph PUBLIC "$<BUILD_LOCAL_INTERFACE:-Wl,--allow-shlib-undefined>")
 
 add_library(cugraph::cugraph ALIAS cugraph)
 
@@ -590,6 +591,7 @@ target_compile_options(cugraph_c
 target_compile_definitions(cugraph_c PUBLIC CUDA_API_PER_THREAD_DEFAULT_STREAM)
 
 target_link_options(cugraph_c PRIVATE "${CUGRAPH_BINARY_DIR}/fatbin.ld")
+target_link_options(cugraph_c PUBLIC "$<BUILD_LOCAL_INTERFACE:-Wl,--allow-shlib-undefined>")
 
 ################################################################################
 # - C-API include paths --------------------------------------------------------
