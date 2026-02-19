@@ -269,6 +269,7 @@ set(CUGRAPH_SOURCES
     src/sampling/detail/gather_one_hop_sg_v32_e32.cu
     src/sampling/detail/gather_one_hop_sg_v64_e64.cu
     src/sampling/detail/gather_sampled_properties.cu
+    src/sampling/detail/update_visited_utils.cu
     src/sampling/detail/sample_edges_sg_v64_e64.cu
     src/sampling/detail/sample_edges_sg_v32_e32.cu
     src/sampling/detail/sample_edges_mg_v64_e64.cu
