@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2024-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -7,7 +7,6 @@
 
 #include "prims/reduce_v.cuh"
 #include "prims/update_edge_src_dst_property.cuh"
-#include "thrust/iterator/zip_iterator.h"
 #include "utilities/collect_comm.cuh"
 
 #include <cugraph/detail/collect_comm_wrapper.hpp>
@@ -29,6 +28,8 @@
 #include <thrust/adjacent_difference.h>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
+#include <thrust/iterator/reverse_iterator.h>
+#include <thrust/iterator/zip_iterator.h>
 #include <thrust/reduce.h>
 #include <thrust/remove.h>
 #include <thrust/scan.h>
