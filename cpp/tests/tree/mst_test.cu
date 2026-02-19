@@ -17,7 +17,6 @@
 #include <raft/core/handle.hpp>
 
 #include <thrust/device_ptr.h>
-#include <thrust/iterator/constant_iterator.h>
 #include <thrust/reduce.h>
 
 #include <cuda_profiler_api.h>

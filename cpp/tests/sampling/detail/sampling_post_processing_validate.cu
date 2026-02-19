@@ -13,6 +13,7 @@
 #include <rmm/device_uvector.hpp>
 
 #include <cuda/functional>
+#include <cuda/iterator>
 #include <cuda/std/iterator>
 #include <cuda/std/optional>
 #include <cuda/std/tuple>
@@ -20,7 +21,6 @@
 #include <thrust/equal.h>
 #include <thrust/fill.h>
 #include <thrust/gather.h>
-#include <thrust/iterator/constant_iterator.h>
 #include <thrust/reduce.h>
 #include <thrust/remove.h>
 #include <thrust/sort.h>
@@ -1220,11 +1220,11 @@ bool check_vertex_renumber_map_invariants(
         auto major_triplet_first =
           thrust::make_zip_iterator(this_type_unique_majors.begin(),
                                     (*this_type_unique_major_hops).begin(),
-                                    thrust::make_constant_iterator(int8_t{0}));
+                                    cuda::make_constant_iterator(int8_t{0}));
         auto minor_triplet_first =
           thrust::make_zip_iterator(this_type_unique_minors.begin(),
                                     (*this_type_unique_minor_hops).begin(),
-                                    thrust::make_constant_iterator(int8_t{1}));
+                                    cuda::make_constant_iterator(int8_t{1}));
         thrust::merge(handle.get_thrust_policy(),
                       major_triplet_first,
                       major_triplet_first + this_type_unique_majors.size(),

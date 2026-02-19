@@ -24,8 +24,8 @@
 
 #include <rmm/device_scalar.hpp>
 
+#include <cuda/iterator>
 #include <cuda/std/functional>
-#include <cuda/std/iterator>
 #include <thrust/adjacent_difference.h>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
@@ -106,7 +106,7 @@ normalize_biases(raft::handle_t const& handle,
 
     // FIXME: conclusion of above.  Using 1.1 since it is > 1.0 and easy to type
     thrust::copy_n(handle.get_thrust_policy(),
-                   thrust::make_constant_iterator<weight_t>(1.1),
+                   cuda::make_constant_iterator<weight_t>(1.1),
                    trailing_zeros + 1,
                    gpu_biases->begin() + gpu_biases->size() - trailing_zeros - 1);
   }
