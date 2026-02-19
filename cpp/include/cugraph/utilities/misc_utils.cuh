@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -12,11 +12,11 @@
 
 #include <cuda/atomic>
 #include <cuda/functional>
+#include <cuda/iterator>
 #include <cuda/std/optional>
 #include <thrust/binary_search.h>
 #include <thrust/gather.h>
 #include <thrust/iterator/counting_iterator.h>
-#include <thrust/iterator/transform_iterator.h>
 #include <thrust/scan.h>
 
 #include <optional>
@@ -34,7 +34,7 @@ std::tuple<std::vector<vertex_t>, std::vector<offset_t>> compute_offset_aligned_
   offset_t num_elements,
   vertex_t approx_element_chunk_size)
 {
-  auto search_offset_first = thrust::make_transform_iterator(
+  auto search_offset_first = cuda::make_transform_iterator(
     thrust::make_counting_iterator(size_t{1}),
     cuda::proclaim_return_type<size_t>(
       [approx_element_chunk_size] __device__(auto i) { return i * approx_element_chunk_size; }));

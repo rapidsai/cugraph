@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -21,7 +21,7 @@
 
 #include <cuda/atomic>
 #include <cuda/functional>
-#include <cuda/std/iterator>
+#include <cuda/iterator>
 #include <cuda/std/tuple>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
@@ -97,7 +97,7 @@ std::vector<size_t> compute_key_segment_offsets(KeyIterator sorted_key_first,
                         d_offsets.begin());
   } else {
     auto sorted_vertex_first =
-      thrust::make_transform_iterator(sorted_key_first, thrust_tuple_get<key_t, 0>{});
+      cuda::make_transform_iterator(sorted_key_first, thrust_tuple_get<key_t, 0>{});
     thrust::lower_bound(
       rmm::exec_policy_nosync(stream_view),
       sorted_vertex_first,
@@ -188,7 +188,7 @@ void device_bcast_vertex_list(
     detail::copy_if_nosync(
       thrust::make_counting_iterator(vertex_range_first),
       thrust::make_counting_iterator(vertex_range_last),
-      thrust::make_transform_iterator(
+      cuda::make_transform_iterator(
         thrust::make_counting_iterator(vertex_t{0}),
         cuda::proclaim_return_type<bool>(
           [bitmap = raft::device_span<uint32_t const>(
@@ -218,7 +218,7 @@ void retrieve_vertex_list_from_bitmap(
   assert((bitmap.size() >= packed_bool_size(vertex_range_last - vertex_range_first)));
   detail::copy_if_nosync(thrust::make_counting_iterator(vertex_range_first),
                          thrust::make_counting_iterator(vertex_range_last),
-                         thrust::make_transform_iterator(
+                         cuda::make_transform_iterator(
                            thrust::make_counting_iterator(vertex_t{0}),
                            cuda::proclaim_return_type<bool>([bitmap] __device__(vertex_t v_offset) {
                              return ((bitmap[packed_bool_offset(v_offset)] &

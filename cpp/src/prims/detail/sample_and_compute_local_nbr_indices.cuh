@@ -26,8 +26,8 @@
 #include <cub/cub.cuh>
 #include <cuda/atomic>
 #include <cuda/functional>
+#include <cuda/iterator>
 #include <cuda/std/cmath>
-#include <cuda/std/iterator>
 #include <cuda/std/optional>
 #include <cuda/std/tuple>
 #include <thrust/adjacent_difference.h>
@@ -528,7 +528,7 @@ compute_valid_local_nbr_count_inclusive_sums(raft::handle_t const& handle,
     auto inclusive_sum_offsets = rmm::device_uvector<size_t>(
       (local_frontier_offsets[i + 1] - local_frontier_offsets[i]) + 1, handle.get_stream());
     inclusive_sum_offsets.set_element_to_zero_async(0, handle.get_stream());
-    auto size_first = thrust::make_transform_iterator(
+    auto size_first = cuda::make_transform_iterator(
       edge_partition_local_degrees.begin(),
       cuda::proclaim_return_type<size_t>([] __device__(edge_t local_degree) {
         return static_cast<size_t>((local_degree + packed_bools_per_word() - 1) /
@@ -692,7 +692,7 @@ void sample_nbr_index_with_replacement(
   if (frontier_index_type_pairs) {
     input_r_offsets = rmm::device_uvector<size_t>(num_keys + 1, handle.get_stream());
     (*input_r_offsets).set_element_to_zero_async(0, handle.get_stream());
-    auto k_first = thrust::make_transform_iterator(
+    auto k_first = cuda::make_transform_iterator(
       std::get<1>(*frontier_index_type_pairs).begin(),
       cuda::proclaim_return_type<size_t>(
         [K_offsets] __device__(auto type) { return K_offsets[type + 1] - K_offsets[type]; }));
@@ -815,7 +815,7 @@ void sample_nbr_index_without_replacement(
     rmm::device_uvector<size_t> input_r_offsets(num_keys + 1, handle.get_stream());
     input_r_offsets.set_element_to_zero_async(0, handle.get_stream());
     if (frontier_indices) {
-      auto count_first = thrust::make_transform_iterator(
+      auto count_first = cuda::make_transform_iterator(
         (*frontier_indices).begin(),
         cuda::proclaim_return_type<size_t>([frontier_degrees, K] __device__(size_t i) {
           auto d = static_cast<size_t>(frontier_degrees[i]);
@@ -827,7 +827,7 @@ void sample_nbr_index_without_replacement(
                              input_r_offsets.begin() + 1);
 
     } else {
-      auto count_first = thrust::make_transform_iterator(
+      auto count_first = cuda::make_transform_iterator(
         frontier_degrees.begin(), cuda::proclaim_return_type<size_t>([K] __device__(auto degree) {
           auto d = static_cast<size_t>(degree);
           return d > K ? (d - K) : size_t{0};
@@ -902,7 +902,7 @@ void sample_nbr_index_without_replacement(
   if (frontier_index_type_pairs) {
     rmm::device_uvector<size_t> sample_size_offsets(num_keys + 1, handle.get_stream());
     sample_size_offsets.set_element_to_zero_async(0, handle.get_stream());
-    auto k_first = thrust::make_transform_iterator(
+    auto k_first = cuda::make_transform_iterator(
       std::get<1>(*frontier_index_type_pairs).begin(),
       cuda::proclaim_return_type<size_t>(
         [K_offsets] __device__(auto type) { return K_offsets[type + 1] - K_offsets[type]; }));
@@ -960,7 +960,7 @@ void sample_nbr_index_without_replacement(
     rmm::device_uvector<size_t> input_r_offsets(num_keys + 1, handle.get_stream());
     input_r_offsets.set_element_to_zero_async(0, handle.get_stream());
     if (frontier_index_type_pairs) {
-      auto count_first = thrust::make_transform_iterator(
+      auto count_first = cuda::make_transform_iterator(
         thrust::make_zip_iterator(std::get<0>(*frontier_index_type_pairs).begin(),
                                   std::get<1>(*frontier_index_type_pairs).begin()),
         cuda::proclaim_return_type<size_t>(
@@ -978,7 +978,7 @@ void sample_nbr_index_without_replacement(
                              count_first + num_keys,
                              input_r_offsets.begin() + 1);
     } else {
-      auto count_first = thrust::make_transform_iterator(
+      auto count_first = cuda::make_transform_iterator(
         thrust::make_counting_iterator(size_t{0}),
         cuda::proclaim_return_type<size_t>(
           [frontier_per_type_degrees, K_offsets] __device__(auto i) {
@@ -1121,7 +1121,7 @@ rmm::device_uvector<edge_t> compute_homogeneous_uniform_sampling_index_without_r
 
       auto segment_frontier_index_first =
         frontier_indices.begin() + frontier_partition_offsets[1] + keys_to_sort_per_iteration * i;
-      auto segment_frontier_degree_first = thrust::make_transform_iterator(
+      auto segment_frontier_degree_first = cuda::make_transform_iterator(
         segment_frontier_index_first,
         indirection_t<size_t, decltype(frontier_degrees.begin())>{frontier_degrees.begin()});
 
@@ -1227,10 +1227,10 @@ rmm::device_uvector<edge_t> compute_homogeneous_uniform_sampling_index_without_r
           (retry_segment_indices ? (*retry_segment_indices).size() : num_segments) *
             high_partition_oversampling_K,
           retry_segment_indices ? (*retry_segment_indices).size() : num_segments,
-          thrust::make_transform_iterator(thrust::make_counting_iterator(size_t{0}),
-                                          multiplier_t<size_t>{high_partition_oversampling_K}),
-          thrust::make_transform_iterator(thrust::make_counting_iterator(size_t{1}),
-                                          multiplier_t<size_t>{high_partition_oversampling_K}),
+          cuda::make_transform_iterator(thrust::make_counting_iterator(size_t{0}),
+                                        multiplier_t<size_t>{high_partition_oversampling_K}),
+          cuda::make_transform_iterator(thrust::make_counting_iterator(size_t{1}),
+                                        multiplier_t<size_t>{high_partition_oversampling_K}),
           handle.get_stream());
         if (tmp_storage_bytes > d_tmp_storage.size()) {
           d_tmp_storage = rmm::device_uvector<std::byte>(tmp_storage_bytes, handle.get_stream());
@@ -1247,10 +1247,10 @@ rmm::device_uvector<edge_t> compute_homogeneous_uniform_sampling_index_without_r
           (retry_segment_indices ? (*retry_segment_indices).size() : num_segments) *
             high_partition_oversampling_K,
           retry_segment_indices ? (*retry_segment_indices).size() : num_segments,
-          thrust::make_transform_iterator(thrust::make_counting_iterator(size_t{0}),
-                                          multiplier_t<size_t>{high_partition_oversampling_K}),
-          thrust::make_transform_iterator(thrust::make_counting_iterator(size_t{1}),
-                                          multiplier_t<size_t>{high_partition_oversampling_K}),
+          cuda::make_transform_iterator(thrust::make_counting_iterator(size_t{0}),
+                                        multiplier_t<size_t>{high_partition_oversampling_K}),
+          cuda::make_transform_iterator(thrust::make_counting_iterator(size_t{1}),
+                                        multiplier_t<size_t>{high_partition_oversampling_K}),
           handle.get_stream());
 
         // count the number of unique neighbor indices
@@ -1374,9 +1374,9 @@ rmm::device_uvector<edge_t> compute_homogeneous_uniform_sampling_index_without_r
         tmp_nbr_indices.data(),
         num_segments * high_partition_oversampling_K,
         num_segments,
-        thrust::make_transform_iterator(thrust::make_counting_iterator(size_t{0}),
-                                        multiplier_t<size_t>{high_partition_oversampling_K}),
-        thrust::make_transform_iterator(
+        cuda::make_transform_iterator(thrust::make_counting_iterator(size_t{0}),
+                                      multiplier_t<size_t>{high_partition_oversampling_K}),
+        cuda::make_transform_iterator(
           thrust::make_counting_iterator(size_t{0}),
           cuda::proclaim_return_type<size_t>(
             [high_partition_oversampling_K,
@@ -1397,9 +1397,9 @@ rmm::device_uvector<edge_t> compute_homogeneous_uniform_sampling_index_without_r
         tmp_nbr_indices.data(),
         num_segments * high_partition_oversampling_K,
         num_segments,
-        thrust::make_transform_iterator(thrust::make_counting_iterator(size_t{0}),
-                                        multiplier_t<size_t>{high_partition_oversampling_K}),
-        thrust::make_transform_iterator(
+        cuda::make_transform_iterator(thrust::make_counting_iterator(size_t{0}),
+                                      multiplier_t<size_t>{high_partition_oversampling_K}),
+        cuda::make_transform_iterator(
           thrust::make_counting_iterator(size_t{0}),
           cuda::proclaim_return_type<size_t>(
             [high_partition_oversampling_K,
@@ -1529,7 +1529,7 @@ rmm::device_uvector<edge_t> compute_heterogeneous_uniform_sampling_index_without
 
       auto segment_frontier_index_first =
         frontier_indices.begin() + frontier_partition_offsets[1] + keys_to_sort_per_iteration * i;
-      auto segment_frontier_per_type_degree_first = thrust::make_transform_iterator(
+      auto segment_frontier_per_type_degree_first = cuda::make_transform_iterator(
         thrust::make_zip_iterator(frontier_indices.begin(), frontier_edge_types.begin()) +
           frontier_partition_offsets[1] + keys_to_sort_per_iteration * i,
         cuda::proclaim_return_type<edge_t>(
@@ -1652,10 +1652,10 @@ rmm::device_uvector<edge_t> compute_heterogeneous_uniform_sampling_index_without
           (retry_segment_indices ? (*retry_segment_indices).size() : num_segments) *
             high_partition_oversampling_K,
           retry_segment_indices ? (*retry_segment_indices).size() : num_segments,
-          thrust::make_transform_iterator(thrust::make_counting_iterator(size_t{0}),
-                                          multiplier_t<size_t>{high_partition_oversampling_K}),
-          thrust::make_transform_iterator(thrust::make_counting_iterator(size_t{1}),
-                                          multiplier_t<size_t>{high_partition_oversampling_K}),
+          cuda::make_transform_iterator(thrust::make_counting_iterator(size_t{0}),
+                                        multiplier_t<size_t>{high_partition_oversampling_K}),
+          cuda::make_transform_iterator(thrust::make_counting_iterator(size_t{1}),
+                                        multiplier_t<size_t>{high_partition_oversampling_K}),
           handle.get_stream());
         if (tmp_storage_bytes > d_tmp_storage.size()) {
           d_tmp_storage = rmm::device_uvector<std::byte>(tmp_storage_bytes, handle.get_stream());
@@ -1673,10 +1673,10 @@ rmm::device_uvector<edge_t> compute_heterogeneous_uniform_sampling_index_without
           (retry_segment_indices ? (*retry_segment_indices).size() : num_segments) *
             high_partition_oversampling_K,
           retry_segment_indices ? (*retry_segment_indices).size() : num_segments,
-          thrust::make_transform_iterator(thrust::make_counting_iterator(size_t{0}),
-                                          multiplier_t<size_t>{high_partition_oversampling_K}),
-          thrust::make_transform_iterator(thrust::make_counting_iterator(size_t{1}),
-                                          multiplier_t<size_t>{high_partition_oversampling_K}),
+          cuda::make_transform_iterator(thrust::make_counting_iterator(size_t{0}),
+                                        multiplier_t<size_t>{high_partition_oversampling_K}),
+          cuda::make_transform_iterator(thrust::make_counting_iterator(size_t{1}),
+                                        multiplier_t<size_t>{high_partition_oversampling_K}),
           handle.get_stream());
 
         // count the number of unique neighbor indices
@@ -1811,9 +1811,9 @@ rmm::device_uvector<edge_t> compute_heterogeneous_uniform_sampling_index_without
         tmp_per_type_nbr_indices.data(),
         num_segments * high_partition_oversampling_K,
         num_segments,
-        thrust::make_transform_iterator(thrust::make_counting_iterator(size_t{0}),
-                                        multiplier_t<size_t>{high_partition_oversampling_K}),
-        thrust::make_transform_iterator(
+        cuda::make_transform_iterator(thrust::make_counting_iterator(size_t{0}),
+                                      multiplier_t<size_t>{high_partition_oversampling_K}),
+        cuda::make_transform_iterator(
           thrust::make_counting_iterator(size_t{0}),
           cuda::proclaim_return_type<size_t>(
             [high_partition_oversampling_K,
@@ -1834,9 +1834,9 @@ rmm::device_uvector<edge_t> compute_heterogeneous_uniform_sampling_index_without
         tmp_per_type_nbr_indices.data(),
         num_segments * high_partition_oversampling_K,
         num_segments,
-        thrust::make_transform_iterator(thrust::make_counting_iterator(size_t{0}),
-                                        multiplier_t<size_t>{high_partition_oversampling_K}),
-        thrust::make_transform_iterator(
+        cuda::make_transform_iterator(thrust::make_counting_iterator(size_t{0}),
+                                      multiplier_t<size_t>{high_partition_oversampling_K}),
+        cuda::make_transform_iterator(
           thrust::make_counting_iterator(size_t{0}),
           cuda::proclaim_return_type<size_t>(
             [high_partition_oversampling_K,
@@ -1850,7 +1850,7 @@ rmm::device_uvector<edge_t> compute_heterogeneous_uniform_sampling_index_without
 
       rmm::device_uvector<size_t> output_count_offsets(num_segments + 1, handle.get_stream());
       output_count_offsets.set_element_to_zero_async(0, handle.get_stream());
-      auto k_first = thrust::make_transform_iterator(
+      auto k_first = cuda::make_transform_iterator(
         segment_frontier_type_first,
         cuda::proclaim_return_type<size_t>(
           [K_offsets] __device__(auto type) { return K_offsets[type + 1] - K_offsets[type]; }));
@@ -1917,7 +1917,7 @@ void compute_homogeneous_biased_sampling_index_without_replacement(
                              : std::nullopt;
     if (packed_input_degree_offsets) {
       (*packed_input_degree_offsets).set_element_to_zero_async(0, handle.get_stream());
-      auto degree_first = thrust::make_transform_iterator(
+      auto degree_first = cuda::make_transform_iterator(
         (*input_frontier_indices).begin(),
         cuda::proclaim_return_type<size_t>([input_degree_offsets] __device__(size_t i) {
           return input_degree_offsets[i + 1] - input_degree_offsets[i];
@@ -1961,7 +1961,7 @@ void compute_homogeneous_biased_sampling_index_without_replacement(
         handle.get_stream(), keys.data(), keys.size(), bias_t{0.0}, bias_t{1.0}, rng_state);
 
       if (packed_input_degree_offsets) {
-        auto bias_first = thrust::make_transform_iterator(
+        auto bias_first = cuda::make_transform_iterator(
           thrust::make_counting_iterator(element_offsets[i]),
           cuda::proclaim_return_type<bias_t>(
             [input_biases,
@@ -2032,7 +2032,7 @@ void compute_homogeneous_biased_sampling_index_without_replacement(
       rmm::device_uvector<edge_t> segment_sorted_nbr_indices(nbr_indices.size(),
                                                              handle.get_stream());
 
-      auto offset_first = thrust::make_transform_iterator(
+      auto offset_first = cuda::make_transform_iterator(
         (packed_input_degree_offsets ? (*packed_input_degree_offsets).begin()
                                      : input_degree_offsets.begin()) +
           chunk_offsets[i],
@@ -2173,7 +2173,7 @@ void compute_heterogeneous_biased_sampling_index_without_replacement(
                              : std::nullopt;
     if (packed_input_per_type_degree_offsets) {
       (*packed_input_per_type_degree_offsets).set_element_to_zero_async(0, handle.get_stream());
-      auto per_type_degree_first = thrust::make_transform_iterator(
+      auto per_type_degree_first = cuda::make_transform_iterator(
         thrust::make_zip_iterator((*input_frontier_indices).begin(),
                                   input_frontier_edge_types.begin()),
         cuda::proclaim_return_type<size_t>(
@@ -2223,7 +2223,7 @@ void compute_heterogeneous_biased_sampling_index_without_replacement(
         handle.get_stream(), keys.data(), keys.size(), bias_t{0.0}, bias_t{1.0}, rng_state);
 
       if (packed_input_per_type_degree_offsets) {
-        auto bias_first = thrust::make_transform_iterator(
+        auto bias_first = cuda::make_transform_iterator(
           thrust::make_counting_iterator(element_offsets[i]),
           cuda::proclaim_return_type<bias_t>(
             [input_biases,
@@ -2299,7 +2299,7 @@ void compute_heterogeneous_biased_sampling_index_without_replacement(
       rmm::device_uvector<edge_t> segment_sorted_per_type_nbr_indices(per_type_nbr_indices.size(),
                                                                       handle.get_stream());
 
-      auto offset_first = thrust::make_transform_iterator(
+      auto offset_first = cuda::make_transform_iterator(
         (packed_input_per_type_degree_offsets ? (*packed_input_per_type_degree_offsets).begin()
                                               : input_per_type_degree_offsets.begin()) +
           chunk_offsets[i],
@@ -2595,7 +2595,7 @@ compute_aggregate_local_frontier_biases(raft::handle_t const& handle,
     auto nz_biases  = rmm::device_uvector<bias_t>(num_nz_bias_nbrs, handle.get_stream());
     auto pair_first = thrust::make_zip_iterator(
       aggregate_local_frontier_biases.begin(),
-      thrust::make_transform_iterator(
+      cuda::make_transform_iterator(
         thrust::make_counting_iterator(size_t{0}),
         cuda::proclaim_return_type<edge_t>(
           [offsets = raft::device_span<size_t const>(
@@ -2875,10 +2875,9 @@ shuffle_and_compute_local_nbr_values(
 
   rmm::device_uvector<size_t> d_tx_counts(minor_comm_size, handle.get_stream());
   thrust::fill(handle.get_thrust_policy(), d_tx_counts.begin(), d_tx_counts.end(), size_t{0});
-  auto input_pair_first =
-    thrust::make_zip_iterator(sample_local_nbr_values.begin(),
-                              thrust::make_transform_iterator(
-                                thrust::make_counting_iterator(size_t{0}), divider_t<size_t>{K}));
+  auto input_pair_first = thrust::make_zip_iterator(
+    sample_local_nbr_values.begin(),
+    cuda::make_transform_iterator(thrust::make_counting_iterator(size_t{0}), divider_t<size_t>{K}));
   auto output_tuple_first = thrust::make_zip_iterator(minor_comm_ranks.begin(),
                                                       intra_partition_displacements.begin(),
                                                       sample_local_nbr_values.begin(),
@@ -2911,7 +2910,7 @@ shuffle_and_compute_local_nbr_values(
     handle.get_thrust_policy(),
     pair_first,
     pair_first + sample_local_nbr_values.size(),
-    thrust::make_transform_iterator(
+    cuda::make_transform_iterator(
       thrust::make_counting_iterator(size_t{0}),
       shuffle_index_compute_offset_t{
         raft::device_span<int const>(minor_comm_ranks.data(), minor_comm_ranks.size()),
@@ -3026,7 +3025,7 @@ shuffle_and_compute_per_type_local_nbr_values(
     handle.get_thrust_policy(),
     triplet_first,
     triplet_first + sample_per_type_local_nbr_values.size(),
-    thrust::make_transform_iterator(
+    cuda::make_transform_iterator(
       thrust::make_counting_iterator(size_t{0}),
       shuffle_index_compute_offset_t{
         raft::device_span<int const>(minor_comm_ranks.data(), minor_comm_ranks.size()),
@@ -3226,7 +3225,7 @@ biased_sample_with_replacement(
     aggregate_local_frontier_unique_key_bias_segmented_local_inclusive_sums(
       aggregate_local_frontier_unique_key_biases.size(), handle.get_stream());
   {
-    auto unique_key_first = thrust::make_transform_iterator(
+    auto unique_key_first = cuda::make_transform_iterator(
       thrust::make_counting_iterator(size_t{0}),
       cuda::proclaim_return_type<size_t>(
         [offsets = raft::device_span<size_t const>(
@@ -3677,7 +3676,7 @@ homogeneous_biased_sample_without_replacement(
                             mid_local_frontier_offsets.size(),
                             handle.get_stream());
         rmm::device_uvector<size_t> d_lasts(num_local_edge_partitions, handle.get_stream());
-        auto map_first = thrust::make_transform_iterator(
+        auto map_first = cuda::make_transform_iterator(
           thrust::make_counting_iterator(size_t{0}),
           cuda::proclaim_return_type<size_t>(
             [mid_local_frontier_offsets = raft::device_span<size_t const>(
@@ -3731,7 +3730,7 @@ homogeneous_biased_sample_without_replacement(
       aggregate_mid_local_frontier_biases.resize(0, handle.get_stream());
       aggregate_mid_local_frontier_biases.shrink_to_fit(handle.get_stream());
 
-      auto mid_frontier_degree_first = thrust::make_transform_iterator(
+      auto mid_frontier_degree_first = cuda::make_transform_iterator(
         frontier_indices.begin() + frontier_partition_offsets[1],
         cuda::proclaim_return_type<edge_t>(
           [frontier_degrees = raft::device_span<edge_t>(
@@ -3885,7 +3884,7 @@ homogeneous_biased_sample_without_replacement(
         high_frontier_size * minor_comm_size * K, handle.get_stream());
       rmm::device_uvector<bias_t> high_frontier_keys(high_frontier_nbr_indices.size(),
                                                      handle.get_stream());
-      auto index_first = thrust::make_transform_iterator(
+      auto index_first = cuda::make_transform_iterator(
         thrust::make_counting_iterator(size_t{0}),
         cuda::proclaim_return_type<size_t>(
           [K, minor_comm_rank, minor_comm_size, high_frontier_size] __device__(size_t i) {
@@ -3893,7 +3892,7 @@ homogeneous_biased_sample_without_replacement(
             auto minor_comm_rank = (i % (K * minor_comm_size)) / K;
             return minor_comm_rank * (high_frontier_size * K) + idx * K + (i % K);
           }));
-      auto high_frontier_gathered_nbr_idx_first = thrust::make_transform_iterator(
+      auto high_frontier_gathered_nbr_idx_first = cuda::make_transform_iterator(
         thrust::counting_iterator(size_t{0}),
         cuda::proclaim_return_type<edge_t>(
           [frontier_partitioned_local_degree_displacements = raft::device_span<edge_t const>(
@@ -3941,10 +3940,10 @@ homogeneous_biased_sample_without_replacement(
         high_frontier_segment_sorted_nbr_indices.data(),
         high_frontier_size * K * minor_comm_size,
         high_frontier_size,
-        thrust::make_transform_iterator(thrust::make_counting_iterator(size_t{0}),
-                                        multiplier_t<size_t>{minor_comm_size * K}),
-        thrust::make_transform_iterator(thrust::make_counting_iterator(size_t{1}),
-                                        multiplier_t<size_t>{minor_comm_size * K}),
+        cuda::make_transform_iterator(thrust::make_counting_iterator(size_t{0}),
+                                      multiplier_t<size_t>{minor_comm_size * K}),
+        cuda::make_transform_iterator(thrust::make_counting_iterator(size_t{1}),
+                                      multiplier_t<size_t>{minor_comm_size * K}),
         handle.get_stream());
       if (tmp_storage_bytes > d_tmp_storage.size()) {
         d_tmp_storage = rmm::device_uvector<std::byte>(tmp_storage_bytes, handle.get_stream());
@@ -3958,10 +3957,10 @@ homogeneous_biased_sample_without_replacement(
         high_frontier_segment_sorted_nbr_indices.data(),
         high_frontier_size * K * minor_comm_size,
         high_frontier_size,
-        thrust::make_transform_iterator(thrust::make_counting_iterator(size_t{0}),
-                                        multiplier_t<size_t>{minor_comm_size * K}),
-        thrust::make_transform_iterator(thrust::make_counting_iterator(size_t{1}),
-                                        multiplier_t<size_t>{minor_comm_size * K}),
+        cuda::make_transform_iterator(thrust::make_counting_iterator(size_t{0}),
+                                      multiplier_t<size_t>{minor_comm_size * K}),
+        cuda::make_transform_iterator(thrust::make_counting_iterator(size_t{1}),
+                                      multiplier_t<size_t>{minor_comm_size * K}),
         handle.get_stream());
 
       thrust::for_each(
@@ -4381,7 +4380,7 @@ heterogeneous_biased_sample_without_replacement(
       aggregate_mid_local_frontier_biases.resize(0, handle.get_stream());
       aggregate_mid_local_frontier_biases.shrink_to_fit(handle.get_stream());
 
-      auto mid_frontier_per_type_degree_first = thrust::make_transform_iterator(
+      auto mid_frontier_per_type_degree_first = cuda::make_transform_iterator(
         thrust::make_zip_iterator(frontier_indices.begin(), frontier_edge_types.begin()) +
           frontier_partition_offsets[1],
         cuda::proclaim_return_type<edge_t>(
@@ -4500,7 +4499,7 @@ heterogeneous_biased_sample_without_replacement(
       rmm::device_uvector<size_t> aggregate_high_local_frontier_output_offsets(
         high_local_frontier_offsets.back() + 1, handle.get_stream());
       {
-        auto K_first = thrust::make_transform_iterator(
+        auto K_first = cuda::make_transform_iterator(
           std::get<1>(aggregate_high_local_frontier_index_type_pairs).begin(),
           cuda::proclaim_return_type<size_t>(
             [d_K_offsets = raft::device_span<size_t const>(
@@ -4607,7 +4606,7 @@ heterogeneous_biased_sample_without_replacement(
       rmm::device_uvector<size_t> high_frontier_output_offsets(high_frontier_size + 1,
                                                                handle.get_stream());
       {
-        auto K_first = thrust::make_transform_iterator(
+        auto K_first = cuda::make_transform_iterator(
           frontier_edge_types.begin() + frontier_partition_offsets[2],
           cuda::proclaim_return_type<size_t>(
             [K_offsets = raft::device_span<size_t const>(
@@ -4626,7 +4625,7 @@ heterogeneous_biased_sample_without_replacement(
         handle.get_stream());
       rmm::device_uvector<bias_t> high_frontier_keys(high_frontier_per_type_nbr_indices.size(),
                                                      handle.get_stream());
-      auto index_first = thrust::make_transform_iterator(
+      auto index_first = cuda::make_transform_iterator(
         thrust::make_counting_iterator(size_t{0}),
         cuda::proclaim_return_type<size_t>(
           [offsets = raft::device_span<size_t const>(high_frontier_output_offsets.data(),
@@ -4641,7 +4640,7 @@ heterogeneous_biased_sample_without_replacement(
             return minor_comm_rank * offsets[offsets.size() - 1] + offsets[idx] +
                    ((i - offsets[idx] * minor_comm_size) % K);
           }));
-      auto high_frontier_gathered_per_type_nbr_idx_first = thrust::make_transform_iterator(
+      auto high_frontier_gathered_per_type_nbr_idx_first = cuda::make_transform_iterator(
         thrust::counting_iterator(size_t{0}),
         cuda::proclaim_return_type<edge_t>(
           [frontier_partitioned_per_type_local_degree_displacements =
@@ -4689,7 +4688,7 @@ heterogeneous_biased_sample_without_replacement(
         high_frontier_per_type_nbr_indices.size(), handle.get_stream());
       rmm::device_uvector<bias_t> high_frontier_segment_sorted_keys(high_frontier_keys.size(),
                                                                     handle.get_stream());
-      auto offset_first = thrust::make_transform_iterator(
+      auto offset_first = cuda::make_transform_iterator(
         thrust::make_counting_iterator(size_t{0}),
         cuda::proclaim_return_type<size_t>(
           [offsets = raft::device_span<size_t const>(high_frontier_output_offsets.data(),
@@ -4994,7 +4993,7 @@ rmm::device_uvector<typename GraphViewType::edge_type> convert_to_unmasked_local
       raft::host_span<size_t const>(local_frontier_unique_major_offsets.data(),
                                     local_frontier_unique_major_offsets.size()));
 
-  auto sample_major_idx_first = thrust::make_transform_iterator(
+  auto sample_major_idx_first = cuda::make_transform_iterator(
     thrust::make_counting_iterator(size_t{0}),
     cuda::proclaim_return_type<size_t>(
       [K,
@@ -5273,7 +5272,7 @@ heterogeneous_uniform_sample_and_compute_local_nbr_indices(
         aggregate_local_frontier_unique_key_org_indices.data() + h_nbr_offsets[i],
         h_nbr_offsets[i + 1] - h_nbr_offsets[i]);
 
-      auto offset_first = thrust::make_transform_iterator(
+      auto offset_first = cuda::make_transform_iterator(
         aggregate_local_frontier_unique_key_local_degree_offsets.data() + h_key_offsets[i],
         detail::shift_left_t<size_t>{h_nbr_offsets[i]});
       cub::DeviceSegmentedSort::SortPairs(
@@ -5791,7 +5790,7 @@ heterogeneous_biased_sample_and_compute_local_nbr_indices(
       rmm::device_uvector<size_t> segment_sorted_sequences(h_nbr_offsets[i + 1] - h_nbr_offsets[i],
                                                            handle.get_stream());
 
-      auto offset_first = thrust::make_transform_iterator(
+      auto offset_first = cuda::make_transform_iterator(
         aggregate_local_frontier_unique_key_local_degree_offsets.data() + h_key_offsets[i],
         detail::shift_left_t<size_t>{h_nbr_offsets[i]});
       cub::DeviceSegmentedSort::SortPairs(

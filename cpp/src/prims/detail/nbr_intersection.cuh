@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -25,7 +25,7 @@
 #include <rmm/device_uvector.hpp>
 #include <rmm/mr/polymorphic_allocator.hpp>
 
-#include <cuda/std/iterator>
+#include <cuda/iterator>
 #include <cuda/std/optional>
 #include <cuda/std/tuple>
 #include <thrust/binary_search.h>
@@ -38,7 +38,6 @@
 #include <thrust/gather.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/iterator_traits.h>
-#include <thrust/iterator/transform_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/reduce.h>
 #include <thrust/remove.h>
@@ -757,7 +756,7 @@ nbr_intersection(raft::handle_t const& handle,
 
       rmm::device_uvector<vertex_t> unique_majors(input_size, handle.get_stream());
       {
-        auto second_element_first = thrust::make_transform_iterator(
+        auto second_element_first = cuda::make_transform_iterator(
           vertex_pair_first, thrust_tuple_get<cuda::std::tuple<vertex_t, vertex_t>, size_t{1}>{});
         thrust::copy(handle.get_thrust_policy(),
                      second_element_first,
@@ -937,8 +936,8 @@ nbr_intersection(raft::handle_t const& handle,
         rmm::device_uvector<size_t> local_nbr_offsets_for_rx_majors(
           local_degrees_for_rx_majors.size() + 1, handle.get_stream());
         local_nbr_offsets_for_rx_majors.set_element_to_zero_async(size_t{0}, handle.get_stream());
-        auto degree_first = thrust::make_transform_iterator(local_degrees_for_rx_majors.begin(),
-                                                            detail::typecast_t<edge_t, size_t>{});
+        auto degree_first = cuda::make_transform_iterator(local_degrees_for_rx_majors.begin(),
+                                                          detail::typecast_t<edge_t, size_t>{});
         thrust::inclusive_scan(handle.get_thrust_policy(),
                                degree_first,
                                degree_first + local_degrees_for_rx_majors.size(),
@@ -1036,8 +1035,8 @@ nbr_intersection(raft::handle_t const& handle,
         major_nbr_offsets = rmm::device_uvector<edge_t>(local_degrees_for_unique_majors.size() + 1,
                                                         handle.get_stream());
         (*major_nbr_offsets).set_element_to_zero_async(size_t{0}, handle.get_stream());
-        auto degree_first = thrust::make_transform_iterator(local_degrees_for_unique_majors.begin(),
-                                                            detail::typecast_t<edge_t, size_t>{});
+        auto degree_first = cuda::make_transform_iterator(local_degrees_for_unique_majors.begin(),
+                                                          detail::typecast_t<edge_t, size_t>{});
         thrust::inclusive_scan(handle.get_thrust_policy(),
                                degree_first,
                                degree_first + local_degrees_for_unique_majors.size(),
@@ -1119,7 +1118,7 @@ nbr_intersection(raft::handle_t const& handle,
                           handle.get_stream());
 
       rmm::device_uvector<size_t> d_lasts(minor_comm_size, handle.get_stream());
-      auto first_element_first = thrust::make_transform_iterator(
+      auto first_element_first = cuda::make_transform_iterator(
         vertex_pair_first, thrust_tuple_get<cuda::std::tuple<vertex_t, vertex_t>, size_t{0}>{});
       thrust::lower_bound(handle.get_thrust_policy(),
                           first_element_first,
@@ -1239,7 +1238,7 @@ nbr_intersection(raft::handle_t const& handle,
           rx_v_pair_nbr_intersection_sizes.size() + 1, handle.get_stream());
         rx_v_pair_nbr_intersection_offsets.set_element_to_zero_async(size_t{0},
                                                                      handle.get_stream());
-        auto size_first = thrust::make_transform_iterator(
+        auto size_first = cuda::make_transform_iterator(
           rx_v_pair_nbr_intersection_sizes.begin(), cugraph::detail::typecast_t<edge_t, size_t>{});
         thrust::inclusive_scan(handle.get_thrust_policy(),
                                size_first,
@@ -1433,7 +1432,7 @@ nbr_intersection(raft::handle_t const& handle,
         combined_nbr_intersection_offsets.resize(rx_v_pair_counts[minor_comm_rank] + 1,
                                                  handle.get_stream());
         combined_nbr_intersection_offsets.set_element_to_zero_async(size_t{0}, handle.get_stream());
-        auto combined_size_first = thrust::make_transform_iterator(
+        auto combined_size_first = cuda::make_transform_iterator(
           combined_nbr_intersection_sizes.begin(), detail::typecast_t<edge_t, size_t>{});
         thrust::inclusive_scan(handle.get_thrust_policy(),
                                combined_size_first,
@@ -1443,14 +1442,14 @@ nbr_intersection(raft::handle_t const& handle,
         gathered_nbr_intersection_offsets.resize(gathered_nbr_intersection_sizes.size() + 1,
                                                  handle.get_stream());
         gathered_nbr_intersection_offsets.set_element_to_zero_async(size_t{0}, handle.get_stream());
-        auto gathered_size_first = thrust::make_transform_iterator(
+        auto gathered_size_first = cuda::make_transform_iterator(
           gathered_nbr_intersection_sizes.begin(), detail::typecast_t<edge_t, size_t>{});
         thrust::inclusive_scan(handle.get_thrust_policy(),
                                gathered_size_first,
                                gathered_size_first + gathered_nbr_intersection_sizes.size(),
                                gathered_nbr_intersection_offsets.begin() + 1);
 
-        auto map_first = thrust::make_transform_iterator(
+        auto map_first = cuda::make_transform_iterator(
           thrust::make_counting_iterator(size_t{1}),
           detail::multiplier_t<size_t>{rx_v_pair_counts[minor_comm_rank]});
         rmm::device_uvector<size_t> d_lasts(minor_comm_size, handle.get_stream());
@@ -1664,8 +1663,8 @@ nbr_intersection(raft::handle_t const& handle,
     }
     nbr_intersection_offsets.resize(nbr_intersection_sizes.size() + size_t{1}, handle.get_stream());
     nbr_intersection_offsets.set_element_to_zero_async(size_t{0}, handle.get_stream());
-    auto size_first = thrust::make_transform_iterator(nbr_intersection_sizes.begin(),
-                                                      detail::typecast_t<edge_t, size_t>{});
+    auto size_first = cuda::make_transform_iterator(nbr_intersection_sizes.begin(),
+                                                    detail::typecast_t<edge_t, size_t>{});
     thrust::inclusive_scan(handle.get_thrust_policy(),
                            size_first,
                            size_first + nbr_intersection_sizes.size(),
@@ -1703,8 +1702,8 @@ nbr_intersection(raft::handle_t const& handle,
 
     nbr_intersection_offsets.resize(nbr_intersection_sizes.size() + 1, handle.get_stream());
     nbr_intersection_offsets.set_element_to_zero_async(size_t{0}, handle.get_stream());
-    auto size_first = thrust::make_transform_iterator(nbr_intersection_sizes.begin(),
-                                                      detail::typecast_t<edge_t, size_t>{});
+    auto size_first = cuda::make_transform_iterator(nbr_intersection_sizes.begin(),
+                                                    detail::typecast_t<edge_t, size_t>{});
     thrust::inclusive_scan(handle.get_thrust_policy(),
                            size_first,
                            size_first + nbr_intersection_sizes.size(),

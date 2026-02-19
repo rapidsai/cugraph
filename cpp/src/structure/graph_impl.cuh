@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -23,7 +23,7 @@
 #include <rmm/exec_policy.hpp>
 
 #include <cub/cub.cuh>
-#include <cuda/std/iterator>
+#include <cuda/iterator>
 #include <cuda/std/tuple>
 #include <thrust/adjacent_difference.h>
 #include <thrust/binary_search.h>
@@ -34,7 +34,6 @@
 #include <thrust/for_each.h>
 #include <thrust/gather.h>
 #include <thrust/iterator/counting_iterator.h>
-#include <thrust/iterator/transform_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/reduce.h>
 #include <thrust/remove.h>
@@ -169,7 +168,7 @@ update_local_sorted_unique_edge_majors_minors(
                        atomic_or_bitmap_t<vertex_t>{minor_bitmaps.data(), minor_range_first});
     }
 
-    auto count_first = thrust::make_transform_iterator(minor_bitmaps.begin(), popc_t<vertex_t>{});
+    auto count_first = cuda::make_transform_iterator(minor_bitmaps.begin(), popc_t<vertex_t>{});
     auto num_local_unique_edge_minors = thrust::reduce(
       handle.get_thrust_policy(), count_first, count_first + minor_bitmaps.size(), vertex_t{0});
 
@@ -219,7 +218,7 @@ update_local_sorted_unique_edge_majors_minors(
       rmm::device_uvector<vertex_t> unique_edge_minor_chunk_start_offsets(num_chunks + size_t{1},
                                                                           handle.get_stream());
 
-      auto chunk_start_vertex_first = thrust::make_transform_iterator(
+      auto chunk_start_vertex_first = cuda::make_transform_iterator(
         thrust::make_counting_iterator(vertex_t{0}),
         detail::multiply_and_add_t<vertex_t>{static_cast<vertex_t>(chunk_size), minor_range_first});
       thrust::lower_bound(handle.get_thrust_policy(),
@@ -341,9 +340,9 @@ update_local_sorted_unique_edge_majors_minors(
                                                                             handle.get_stream());
 
         auto chunk_start_vertex_first =
-          thrust::make_transform_iterator(thrust::make_counting_iterator(vertex_t{0}),
-                                          detail::multiply_and_add_t<vertex_t>{
-                                            static_cast<vertex_t>(chunk_size), major_range_first});
+          cuda::make_transform_iterator(thrust::make_counting_iterator(vertex_t{0}),
+                                        detail::multiply_and_add_t<vertex_t>{
+                                          static_cast<vertex_t>(chunk_size), major_range_first});
         thrust::lower_bound(handle.get_thrust_policy(),
                             unique_edge_majors.begin(),
                             unique_edge_majors.end(),

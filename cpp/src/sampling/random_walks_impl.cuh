@@ -29,7 +29,7 @@
 
 #include <rmm/device_uvector.hpp>
 
-#include <cuda/std/iterator>
+#include <cuda/iterator>
 #include <cuda/std/optional>
 #include <cuda/std/tuple>
 
@@ -264,7 +264,7 @@ struct biased_selector {
     auto vertex_weight_sum = compute_out_weight_sums(handle, graph_view, *edge_weight_view);
     rmm::device_uvector<weight_t> gathered_weight_sums(vertex_frontier.bucket(0).size(),
                                                        handle.get_stream());
-    auto map_first = thrust::make_transform_iterator(
+    auto map_first = cuda::make_transform_iterator(
       vertex_frontier.bucket(0).begin(),
       shift_left_t<vertex_t>{graph_view.local_vertex_partition_range_first()});
     thrust::gather(handle.get_thrust_policy(),

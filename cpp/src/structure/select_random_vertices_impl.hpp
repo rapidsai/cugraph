@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2023-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -19,6 +19,7 @@
 #include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
 
+#include <cuda/iterator>
 #include <thrust/functional.h>
 #include <thrust/gather.h>
 #include <thrust/logical.h>
@@ -238,9 +239,9 @@ rmm::device_uvector<vertex_t> select_random_vertices(
   if (given_set) {
     thrust::gather(
       handle.get_thrust_policy(),
-      thrust::make_transform_iterator(
+      cuda::make_transform_iterator(
         mg_sample_buffer.begin(), cugraph::detail::shift_left_t<vertex_t>{local_int_vertex_first}),
-      thrust::make_transform_iterator(
+      cuda::make_transform_iterator(
         mg_sample_buffer.end(), cugraph::detail::shift_left_t<vertex_t>{local_int_vertex_first}),
       (*given_set).begin(),
       mg_sample_buffer.begin());

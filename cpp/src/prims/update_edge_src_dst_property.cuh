@@ -25,7 +25,7 @@
 #include <rmm/exec_policy.hpp>
 
 #include <cuda/functional>
-#include <cuda/std/iterator>
+#include <cuda/iterator>
 #include <cuda/std/tuple>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
@@ -36,7 +36,6 @@
 #include <thrust/gather.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/permutation_iterator.h>
-#include <thrust/iterator/transform_iterator.h>
 #include <thrust/scatter.h>
 
 #include <algorithm>
@@ -167,7 +166,7 @@ void update_edge_major_property(raft::handle_t const& handle,
                          graph_view.vertex_partition_range_size(major_range_vertex_partition_id)),
                        i,
                        handle.get_stream());
-          auto bool_first = thrust::make_transform_iterator(
+          auto bool_first = cuda::make_transform_iterator(
             (*edge_partition_keys)[i].begin(),
             cuda::proclaim_return_type<bool>(
               [rx_value_first,
@@ -189,7 +188,7 @@ void update_edge_major_property(raft::handle_t const& handle,
                        i,
                        handle.get_stream());
 
-          auto v_offset_first = thrust::make_transform_iterator(
+          auto v_offset_first = cuda::make_transform_iterator(
             (*edge_partition_keys)[i].begin(),
             cuda::proclaim_return_type<vertex_t>(
               [v_first = graph_view.vertex_partition_range_first(
@@ -381,7 +380,7 @@ void update_edge_major_property(
               packed_bool_atomic_set(output_value_first, major_offset, rx_value);
             });
         } else {
-          auto map_first = thrust::make_transform_iterator(
+          auto map_first = cuda::make_transform_iterator(
             rx_vertices.begin(),
             cuda::proclaim_return_type<vertex_t>([edge_partition] __device__(auto v) {
               return edge_partition.major_offset_from_major_nocheck(v);
@@ -592,7 +591,7 @@ void update_edge_minor_property(raft::handle_t const& handle,
                 auto key_offsets =
                   std::get<raft::host_span<vertex_t const>>(key_offsets_or_rx_displacements);
 
-                auto bool_first = thrust::make_transform_iterator(
+                auto bool_first = cuda::make_transform_iterator(
                   (*edge_partition_keys).begin() + key_offsets[j],
                   cuda::proclaim_return_type<bool>(
                     [rx_value_first,
@@ -611,7 +610,7 @@ void update_edge_minor_property(raft::handle_t const& handle,
               } else {
                 auto rx_displacements =
                   std::get<std::vector<size_t>>(key_offsets_or_rx_displacements);
-                auto bool_first = thrust::make_transform_iterator(
+                auto bool_first = cuda::make_transform_iterator(
                   thrust::make_counting_iterator(vertex_t{0}),
                   cuda::proclaim_return_type<bool>([rx_value_first] __device__(vertex_t v_offset) {
                     return static_cast<bool>(*(rx_value_first + packed_bool_offset(v_offset)) &
@@ -630,7 +629,7 @@ void update_edge_minor_property(raft::handle_t const& handle,
               auto key_offsets =
                 std::get<raft::host_span<vertex_t const>>(key_offsets_or_rx_displacements);
 
-              auto v_offset_first = thrust::make_transform_iterator(
+              auto v_offset_first = cuda::make_transform_iterator(
                 (*edge_partition_keys).begin() + key_offsets[j],
                 cuda::proclaim_return_type<vertex_t>(
                   [v_first = graph_view.vertex_partition_range_first(
@@ -850,7 +849,7 @@ void update_edge_minor_property(
               packed_bool_atomic_set(output_value_first, minor_offset, rx_value);
             });
         } else {
-          auto map_first = thrust::make_transform_iterator(
+          auto map_first = cuda::make_transform_iterator(
             rx_vertices.begin(),
             cuda::proclaim_return_type<vertex_t>([edge_partition] __device__(auto v) {
               return edge_partition.minor_offset_from_minor_nocheck(v);

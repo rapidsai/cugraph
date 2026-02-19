@@ -23,7 +23,7 @@
 #include <cub/cub.cuh>
 #include <cuda/atomic>
 #include <cuda/functional>
-#include <cuda/std/iterator>
+#include <cuda/iterator>
 #include <cuda/std/optional>
 #include <cuda/std/tuple>
 #include <thrust/copy.h>
@@ -560,7 +560,7 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
         handle.get_thrust_policy(),
         get_dataframe_buffer_begin(sample_e_op_results),
         get_dataframe_buffer_end(sample_e_op_results),
-        thrust::make_transform_iterator(
+        cuda::make_transform_iterator(
           thrust::make_counting_iterator(size_t{0}),
           return_value_compute_offset_t<true>{
             raft::device_span<size_t const>((*sample_key_indices).data(),
@@ -572,7 +572,7 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
     } else {
       (*sample_offsets).set_element_to_zero_async(size_t{0}, handle.get_stream());
       auto typecasted_sample_count_first =
-        thrust::make_transform_iterator(sample_counts.begin(), typecast_t<int32_t, size_t>{});
+        cuda::make_transform_iterator(sample_counts.begin(), typecast_t<int32_t, size_t>{});
       thrust::inclusive_scan(handle.get_thrust_policy(),
                              typecasted_sample_count_first,
                              typecasted_sample_count_first + sample_counts.size(),
@@ -587,7 +587,7 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
         handle.get_thrust_policy(),
         get_dataframe_buffer_begin(sample_e_op_results),
         get_dataframe_buffer_end(sample_e_op_results),
-        thrust::make_transform_iterator(
+        cuda::make_transform_iterator(
           thrust::make_counting_iterator(size_t{0}),
           return_value_compute_offset_t<false>{
             raft::device_span<size_t const>((*sample_key_indices).data(),
@@ -611,7 +611,7 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
                                cugraph::invalid_edge_id_v<edge_t>});
       (*sample_offsets).set_element_to_zero_async(size_t{0}, handle.get_stream());
       auto typecasted_sample_count_first =
-        thrust::make_transform_iterator(sample_counts.begin(), typecast_t<int32_t, size_t>{});
+        cuda::make_transform_iterator(sample_counts.begin(), typecast_t<int32_t, size_t>{});
       thrust::inclusive_scan(handle.get_thrust_policy(),
                              typecasted_sample_count_first,
                              typecasted_sample_count_first + sample_counts.size(),

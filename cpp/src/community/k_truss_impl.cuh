@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2024-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -21,14 +21,13 @@
 #include <raft/util/integer_utils.hpp>
 
 #include <cuda/functional>
-#include <cuda/std/iterator>
+#include <cuda/iterator>
 #include <cuda/std/optional>
 #include <cuda/std/tuple>
 #include <cuda/std/utility>
 #include <thrust/copy.h>
 #include <thrust/count.h>
 #include <thrust/execution_policy.h>
-#include <thrust/iterator/transform_iterator.h>
 #include <thrust/sort.h>
 #include <thrust/transform.h>
 
@@ -224,7 +223,7 @@ k_truss(raft::handle_t const& handle,
       edge_src_property_t<vertex_t, bool> edge_src_in_k_minus_1_cores(handle, cur_graph_view);
       edge_dst_property_t<vertex_t, bool> edge_dst_in_k_minus_1_cores(handle, cur_graph_view);
       auto in_k_minus_1_core_first =
-        thrust::make_transform_iterator(core_numbers.begin(), is_k_or_greater_t<edge_t>{k - 1});
+        cuda::make_transform_iterator(core_numbers.begin(), is_k_or_greater_t<edge_t>{k - 1});
       rmm::device_uvector<bool> in_k_minus_1_core_flags(core_numbers.size(), handle.get_stream());
       thrust::copy(handle.get_thrust_policy(),
                    in_k_minus_1_core_first,
