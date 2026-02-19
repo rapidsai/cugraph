@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2018-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2018-2026, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 schema_version: 1
 
@@ -71,6 +71,9 @@ cache:
       - ninja
       - ${{ stdlib("c") }}
     host:
+      - if: cuda_major == "13"
+        then:
+          - libnvjitlink-dev
       - cuda-version =${{ cuda_version }}
       - libcudf =${{ minor_version }}
       - libraft =${{ minor_version }}
@@ -114,6 +117,9 @@ outputs:
         - libcurand-dev
         - libcusolver-dev
         - libcusparse-dev
+        - if: cuda_major == "13"
+          then:
+            - libnvjitlink-dev
       run:
         - ${{ pin_compatible("cuda-version", upper_bound="x", lower_bound="x") }}
         - libraft =${{ minor_version }}
@@ -124,6 +130,9 @@ outputs:
         - libcurand
         - libcusolver
         - libcusparse
+        - if: cuda_major == "13"
+          then:
+            - libnvjitlink-dev
       ignore_run_exports:
         by_name:
           - cuda-nvtx
@@ -137,6 +146,9 @@ outputs:
           - libucxx
           - nccl
           - openmpi
+          - if: cuda_major == "13"
+            then:
+              - libnvjitlink-dev
     about:
       homepage: ${{ load_from_file("python/libcugraph/pyproject.toml").project.urls.Homepage }}
       license: ${{ load_from_file("python/libcugraph/pyproject.toml").project.license }}
