@@ -501,6 +501,7 @@ target_link_libraries(cugraph
         rmm::rmm
         raft::raft
         $<BUILD_LOCAL_INTERFACE:CUDA::toolkit>
+        cuda
     PRIVATE
         ${COMPILED_RAFT_LIB}
         ${CUVS_LIB}
