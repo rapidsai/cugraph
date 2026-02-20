@@ -130,6 +130,9 @@ outputs:
         - libcurand
         - libcusolver
         - libcusparse
+        - if: cuda_major == "13"
+          then:
+            - libnvjitlink
       ignore_run_exports:
         by_name:
           - cuda-nvtx
