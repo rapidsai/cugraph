@@ -22,6 +22,7 @@
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/device_functors.cuh>
+#include <cugraph/utilities/host_scalar_comm.hpp>
 
 #include <raft/core/comms.hpp>
 #include <raft/core/handle.hpp>
@@ -86,8 +87,15 @@ edge_t compute_number_of_visited_undirected_edges(
         return (cuda::std::get<0>(pair) != invalid_distance /* reachable */) &&
                (cuda::std::get<1>(pair) == invalid_vertex /* not in the pruned graph */);
       });  // # vertices reachable from 2-cores but not in 2-cores
+#if 1      // FIXME: we should add host_allreduce to raft
     forest_edge_count = cugraph::host_scalar_allreduce(
       comm, forest_edge_count, raft::comms::op_t::SUM, handle.get_stream());
+#else
+    comm.host_allreduce(std::addressof(forest_edge_count),
+                        std::addressof(forest_edge_count),
+                        size_t{1},
+                        raft::comms::op_t::SUM);
+#endif
     visited_undirected_edges += forest_edge_count;
   } else {  // isolated trees
     auto num_visited =
@@ -95,9 +103,14 @@ edge_t compute_number_of_visited_undirected_edges(
                        mg_distances.begin(),
                        mg_distances.end(),
                        [invalid_distance] __device__(auto d) { return d != invalid_distance; });
-    auto tot_num_visited = cugraph::host_scalar_allreduce(
+#if 1  // FIXME: we should add host_allreduce to raft
+    num_visited = cugraph::host_scalar_allreduce(
       comm, num_visited, raft::comms::op_t::SUM, handle.get_stream());
-    visited_undirected_edges = tot_num_visited - 1;  // # edges in a tree is # vertices - 1
+#else
+    comm.host_allreduce(
+      std::addressof(num_visited), std::addressof(num_visited), size_t{1}, raft::comms::op_t::SUM);
+#endif
+    visited_undirected_edges = num_visited - 1;  // # edges in a tree is # vertices - 1
   }
   return visited_undirected_edges;
 }
@@ -111,28 +124,7 @@ bool is_valid_predecessor_tree(raft::handle_t const& handle,
                                vertex_t local_vertex_partition_range_first,
                                vertex_t invalid_vertex)
 {
-  auto& comm                 = handle.get_comms();
-  auto& major_comm           = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
-  auto const major_comm_size = major_comm.get_size();
-  auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
-  auto const minor_comm_size = minor_comm.get_size();
-
-  auto local_vertex_partition_range_last =
-    local_vertex_partition_range_first + static_cast<vertex_t>(mg_predecessors.size());
-  cugraph::kv_store_t<vertex_t, vertex_t, true /* use_binary_search */> kv_store(
-    thrust::make_counting_iterator(local_vertex_partition_range_first),
-    thrust::make_counting_iterator(local_vertex_partition_range_last),
-    mg_predecessors.begin(),
-    invalid_vertex,
-    true /* key_sorted */,
-    handle.get_stream());
-  auto kv_store_view = kv_store.view();
-  rmm::device_uvector<vertex_t> d_vertex_partition_range_offsets(
-    vertex_partition_range_offsets.size(), handle.get_stream());
-  raft::update_device(d_vertex_partition_range_offsets.data(),
-                      vertex_partition_range_offsets.data(),
-                      vertex_partition_range_offsets.size(),
-                      handle.get_stream());
+  auto& comm = handle.get_comms();
 
   rmm::device_uvector<vertex_t> ancestors(mg_predecessors.size(), handle.get_stream());
   ancestors.resize(
@@ -149,26 +141,38 @@ bool is_valid_predecessor_tree(raft::handle_t const& handle,
     handle.get_stream());
 
   size_t level{0};
-  auto aggregate_size = cugraph::host_scalar_allreduce(
-    comm, ancestors.size(), raft::comms::op_t::SUM, handle.get_stream());
+  auto aggregate_size = ancestors.size();
+#if 1  // FIXME: we should add host_allreduce to raft
+  aggregate_size = cugraph::host_scalar_allreduce(
+    comm, aggregate_size, raft::comms::op_t::SUM, handle.get_stream());
+#else
+  comm.host_allreduce(std::addressof(aggregate_size),
+                      std::addressof(aggregate_size),
+                      size_t{1},
+                      raft::comms::op_t::SUM);
+#endif
   while (aggregate_size > size_t{0}) {
     if (level >= static_cast<size_t>(vertex_partition_range_offsets.back() - 1)) { return false; }
     auto num_invalids =
       thrust::count(handle.get_thrust_policy(), ancestors.begin(), ancestors.end(), invalid_vertex);
+#if 1  // FIXME: we should add host_allreduce to raft
     num_invalids = cugraph::host_scalar_allreduce(
       comm, num_invalids, raft::comms::op_t::SUM, handle.get_stream());
+#else
+    comm.host_allreduce(std::addressof(num_invalids),
+                        std::addressof(num_invalids),
+                        size_t{1},
+                        raft::comms::op_t::SUM);
+#endif
     if (num_invalids > 0) { return false; }
-    ancestors = cugraph::collect_values_for_keys(
-      comm,
-      kv_store_view,
+    ancestors = cugraph::collect_values_for_int_vertices(
+      handle,
       ancestors.begin(),
       ancestors.end(),
-      cugraph::detail::compute_gpu_id_from_int_vertex_t<vertex_t>{
-        raft::device_span<vertex_t const>(d_vertex_partition_range_offsets.data() + 1,
-                                          d_vertex_partition_range_offsets.size() - 1),
-        major_comm_size,
-        minor_comm_size},
-      handle.get_stream());
+      mg_predecessors.begin(),
+      raft::host_span<vertex_t const>(vertex_partition_range_offsets.data() + 1,
+                                      vertex_partition_range_offsets.size() - 1),
+      local_vertex_partition_range_first);
     ancestors.resize(cuda::std::distance(
                        ancestors.begin(),
                        thrust::remove_if(handle.get_thrust_policy(),
@@ -176,8 +180,16 @@ bool is_valid_predecessor_tree(raft::handle_t const& handle,
                                          ancestors.end(),
                                          cugraph::detail::is_equal_t<vertex_t>{starting_vertex})),
                      handle.get_stream());
+    aggregate_size = ancestors.size();
+#if 1  // FIXME: we should add host_allreduce to raft
     aggregate_size = cugraph::host_scalar_allreduce(
-      comm, ancestors.size(), raft::comms::op_t::SUM, handle.get_stream());
+      comm, aggregate_size, raft::comms::op_t::SUM, handle.get_stream());
+#else
+    comm.host_allreduce(std::addressof(aggregate_size),
+                        std::addressof(aggregate_size),
+                        size_t{1},
+                        raft::comms::op_t::SUM);
+#endif
     ++level;
   }
   return true;
@@ -290,8 +302,13 @@ bool check_distance_from_parents(
                          return (src_dist + 1) != dst_dist;
                        })));
   }
+#if 1  // FIXME: we should add host_allreduce to raft
   num_invalids =
     cugraph::host_scalar_allreduce(comm, num_invalids, raft::comms::op_t::SUM, handle.get_stream());
+#else
+  comm.host_allreduce(
+    std::addressof(num_invalids), std::addressof(num_invalids), size_t{1}, raft::comms::op_t::SUM);
+#endif
   if (num_invalids > 0) { return false; }
 
   return true;
@@ -434,9 +451,15 @@ bool check_edge_endpoint_distances(
       }),
       distance_t{0},
       thrust::maximum<distance_t>{});
+#if 1  // FIXME: we should add host_allreduce to raft
     max_distance = cugraph::host_scalar_allreduce(
       comm, max_distance, raft::comms::op_t::MAX, handle.get_stream());
-
+#else
+    comm.host_allreduce(std::addressof(max_distance),
+                        std::addressof(max_distance),
+                        size_t{1},
+                        raft::comms::op_t::MAX);
+#endif
     auto pair_first =
       thrust::make_zip_iterator(reachable_from_2cores ? mg_graph_to_pruned_graph_map.begin()
                                                       : mg_graph_to_isolated_trees_map.begin(),
@@ -727,8 +750,15 @@ bool check_edge_endpoint_distances(
           }
         })));
     }
+#if 1  // FIXME: we should add host_allreduce to raft
     num_invalids = cugraph::host_scalar_allreduce(
       comm, num_invalids, raft::comms::op_t::SUM, handle.get_stream());
+#else
+    comm.host_allreduce(std::addressof(num_invalids),
+                        std::addressof(num_invalids),
+                        size_t{1},
+                        raft::comms::op_t::SUM);
+#endif
     if (num_invalids > 0) {
       return false;  // the distances from the starting vertex differ by more than one
     }
@@ -763,8 +793,13 @@ bool check_connected_components(raft::handle_t const& handle,
                            return pred != invalid_vertex;
                          }
                        }));
+#if 1  // FIXME: we should add host_allreduce to raft
   num_invalids =
     cugraph::host_scalar_allreduce(comm, num_invalids, raft::comms::op_t::SUM, handle.get_stream());
+#else
+  comm.host_allreduce(
+    std::addressof(num_invalids), std::addressof(num_invalids), size_t{1}, raft::comms::op_t::SUM);
+#endif
   if (num_invalids > 0) {
     return false;  // the BFS tree does not span the entire connected component of the starting
                    // vertex
@@ -948,15 +983,20 @@ bool check_has_edge_from_parents(
                      query_vertices.begin(),
                      query_vertices.end(),
                      [invalid_vertex] __device__(auto v) { return v == invalid_vertex; });
+#if 1  // FIXME: we should add host_allreduce to raft
   num_invalids =
     cugraph::host_scalar_allreduce(comm, num_invalids, raft::comms::op_t::SUM, handle.get_stream());
+#else
+  comm.host_allreduce(
+    std::addressof(num_invalids), std::addressof(num_invalids), size_t{1}, raft::comms::op_t::SUM);
+#endif
   if (num_invalids > 0) {
     return false;  // predecessor->v missing in the input graph
   }
 
   std::vector<cugraph::arithmetic_device_uvector_t> edge_properties{};
 
-  std::tie(query_preds, query_vertices, std::ignore, std::ignore) =
+  std::tie(query_preds, query_vertices, std::ignore) =
     cugraph::shuffle_int_edges(handle,
                                std::move(query_preds),
                                std::move(query_vertices),
@@ -969,8 +1009,13 @@ bool check_has_edge_from_parents(
     raft::device_span<vertex_t const>(query_preds.data(), query_preds.size()),
     raft::device_span<vertex_t const>(query_vertices.data(), query_vertices.size()));
   num_invalids = thrust::count(handle.get_thrust_policy(), flags.begin(), flags.end(), false);
+#if 1  // FIXME: we should add host_allreduce to raft
   num_invalids =
     cugraph::host_scalar_allreduce(comm, num_invalids, raft::comms::op_t::SUM, handle.get_stream());
+#else
+  comm.host_allreduce(
+    std::addressof(num_invalids), std::addressof(num_invalids), size_t{1}, raft::comms::op_t::SUM);
+#endif
   if (num_invalids > 0) {
     return false;  // predecessor->v missing in the input graph
   }

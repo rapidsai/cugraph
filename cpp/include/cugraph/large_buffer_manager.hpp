@@ -1,8 +1,7 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
-
 #pragma once
 
 #include <cugraph/utilities/dataframe_buffer.hpp>
@@ -32,7 +31,10 @@ class large_memory_buffer_resource_t {
 
  private:
   std::shared_ptr<rmm::mr::pinned_host_memory_resource>
-    mr_{};  // currently, large memory buffer is backed by CUDA (rmm) pinned host memory
+    mr_{};  // currently, large memory buffer is backed by CUDA (rmm) pinned host memory, in the
+            // future, we may support different memory resources, in that case, we may update mr_ to
+            // a std::shared_ptr of a std::variant type, and add additional constructors taking
+            // different memory resources.
 };
 
 // storage buffer does not support pointer based load & store operations and requries special
@@ -82,10 +84,16 @@ class large_buffer_manager {
     storage_buffer_resource() = storage_resource;
   }
 
-  static detail::large_memory_buffer_resource_t create_memory_buffer_resource()
+  static void clear()
   {
-    return detail::large_memory_buffer_resource_t(
-      std::make_shared<rmm::mr::pinned_host_memory_resource>());
+    memory_buffer_resource()  = std::nullopt;
+    storage_buffer_resource() = std::nullopt;
+  }
+
+  static detail::large_memory_buffer_resource_t create_memory_buffer_resource(
+    std::shared_ptr<rmm::mr::pinned_host_memory_resource> mr)
+  {
+    return detail::large_memory_buffer_resource_t(std::move(mr));
   }
 
   static detail::large_storage_buffer_resource_t create_storage_buffer_resource()

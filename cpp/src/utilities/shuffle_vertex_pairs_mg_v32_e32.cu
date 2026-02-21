@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -9,8 +9,7 @@ namespace cugraph {
 
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
-                    std::vector<cugraph::arithmetic_device_uvector_t>,
-                    std::vector<size_t>>
+                    std::vector<cugraph::arithmetic_device_uvector_t>>
 shuffle_ext_edges(raft::handle_t const& handle,
                   rmm::device_uvector<int32_t>&& edge_srcs,
                   rmm::device_uvector<int32_t>&& edge_dsts,
@@ -20,8 +19,7 @@ shuffle_ext_edges(raft::handle_t const& handle,
 
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
-                    std::vector<cugraph::arithmetic_device_uvector_t>,
-                    std::vector<size_t>>
+                    std::vector<cugraph::arithmetic_device_uvector_t>>
 shuffle_int_edges(raft::handle_t const& handle,
                   rmm::device_uvector<int32_t>&& majors,
                   rmm::device_uvector<int32_t>&& minors,

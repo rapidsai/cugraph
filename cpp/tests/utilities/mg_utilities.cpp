@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #include "utilities/mg_utilities.hpp"
@@ -48,7 +48,6 @@ std::unique_ptr<raft::handle_t> initialize_mg_handle(size_t pool_size)
   while (comm_size % gpu_row_comm_size != 0) {
     --gpu_row_comm_size;
   }
-
   cugraph::partition_manager::init_subcomm(*handle, gpu_row_comm_size);
 
   return std::move(handle);
@@ -58,26 +57,12 @@ void enforce_p2p_initialization(raft::comms::comms_t const& comm, rmm::cuda_stre
 {
   auto const comm_size = comm.get_size();
 
-  rmm::device_uvector<int32_t> tx_ints(comm_size, stream);
-  rmm::device_uvector<int32_t> rx_ints(comm_size, stream);
-  std::vector<size_t> tx_sizes(comm_size, size_t{1});
-  std::vector<size_t> tx_displs(comm_size);
-  std::iota(tx_displs.begin(), tx_displs.end(), size_t{0});
-  std::vector<int32_t> tx_ranks(comm_size);
-  std::iota(tx_ranks.begin(), tx_ranks.end(), int32_t{0});
-  auto rx_sizes  = tx_sizes;
-  auto rx_displs = tx_displs;
-  auto rx_ranks  = tx_ranks;
+  constexpr size_t p2p_count = (128 * 1024) / sizeof(int32_t);  // 128 MB
 
-  comm.device_multicast_sendrecv(tx_ints.data(),
-                                 tx_sizes,
-                                 tx_displs,
-                                 tx_ranks,
-                                 rx_ints.data(),
-                                 rx_sizes,
-                                 rx_displs,
-                                 rx_ranks,
-                                 stream);
+  rmm::device_uvector<int32_t> tx_ints(comm_size * p2p_count, stream);
+  rmm::device_uvector<int32_t> rx_ints(comm_size * p2p_count, stream);
+
+  cugraph::device_alltoall(comm, tx_ints.data(), rx_ints.data(), p2p_count, stream);
 
   RAFT_CUDA_TRY(cudaStreamSynchronize(stream));
 }

@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -286,12 +286,17 @@ update_local_sorted_unique_edge_majors_minors(
       aggregate_major_range_size += meta.partition.local_edge_partition_major_range_size(i);
     }
 
-    auto max_major_properties_fill_ratio =
-      host_scalar_allreduce(comm,
-                            static_cast<double>(num_local_unique_edge_majors) /
-                              static_cast<double>(aggregate_major_range_size),
-                            raft::comms::op_t::MAX,
-                            handle.get_stream());
+    auto max_major_properties_fill_ratio = static_cast<double>(num_local_unique_edge_majors) /
+                                           static_cast<double>(aggregate_major_range_size);
+#if 1  // FIXME: we should add host_allreduce to raft
+    max_major_properties_fill_ratio = host_scalar_allreduce(
+      comm, max_major_properties_fill_ratio, raft::comms::op_t::MAX, handle.get_stream());
+#else
+    comm.host_allreduce(std::addressof(max_major_properties_fill_ratio),
+                        std::addressof(max_major_properties_fill_ratio),
+                        size_t{1},
+                        raft::comms::op_t::MAX);
+#endif
 
     if (max_major_properties_fill_ratio <
         detail::edge_partition_src_dst_property_values_kv_pair_fill_ratio_threshold) {

@@ -20,6 +20,7 @@
 #include <thrust/iterator/iterator_traits.h>
 #include <thrust/memory.h>
 
+#include <numeric>
 #include <type_traits>
 
 namespace cugraph {
@@ -341,6 +342,85 @@ struct device_multicast_sendrecv_tuple_iterator_element_impl<InputIterator, Outp
            raft::host_span<size_t const> rx_counts,
            raft::host_span<size_t const> rx_displs,
            raft::host_span<int const> rx_src_ranks,
+           rmm::cuda_stream_view stream_view) const
+  {
+  }
+};
+
+template <typename InputIterator, typename OutputIterator>
+std::enable_if_t<thrust::detail::is_discard_iterator<OutputIterator>::value, void>
+device_alltoall_impl(raft::comms::comms_t const& comm,
+                     InputIterator input_first,
+                     OutputIterator output_first,
+                     size_t count_per_rank,
+                     rmm::cuda_stream_view stream_view)
+{
+  // no-op
+}
+
+template <typename InputIterator, typename OutputIterator>
+std::enable_if_t<
+  std::is_arithmetic<typename std::iterator_traits<OutputIterator>::value_type>::value,
+  void>
+device_alltoall_impl(raft::comms::comms_t const& comm,
+                     InputIterator input_first,
+                     OutputIterator output_first,
+                     size_t count_per_rank,
+                     rmm::cuda_stream_view stream_view)
+{
+  using value_type = typename std::iterator_traits<InputIterator>::value_type;
+  static_assert(
+    std::is_same_v<typename std::iterator_traits<OutputIterator>::value_type, value_type>);
+#if 1  // FIXME: we should add comm.device_alltoall to raft (which calls ncclAlltoAll)
+  std::vector<size_t> sizes(comm.get_size(), count_per_rank);
+  std::vector<size_t> displs(comm.get_size());
+  for (size_t i = 0; i < displs.size(); ++i) {
+    displs[i] = i * count_per_rank;
+  }
+  std::vector<int> ranks(comm.get_size());
+  std::iota(ranks.begin(), ranks.end(), int{0});
+  comm.device_multicast_sendrecv(iter_to_raw_ptr(input_first),
+                                 sizes,
+                                 displs,
+                                 ranks,
+                                 iter_to_raw_ptr(output_first),
+                                 sizes,
+                                 displs,
+                                 ranks,
+                                 stream_view.value());
+#else
+  comm.device_alltoall(iter_to_raw_ptr(input_first),
+                       iter_to_raw_ptr(output_first),
+                       count_per_rank,
+                       stream_view.value());
+#endif
+}
+
+template <typename InputIterator, typename OutputIterator, size_t I, size_t N>
+struct device_alltoall_tuple_iterator_element_impl {
+  void run(raft::comms::comms_t const& comm,
+           InputIterator input_first,
+           OutputIterator output_first,
+           size_t count_per_rank,
+           rmm::cuda_stream_view stream_view) const
+  {
+    using output_value_t = typename thrust::
+      tuple_element<I, typename std::iterator_traits<OutputIterator>::value_type>::type;
+    auto tuple_element_input_first  = cuda::std::get<I>(input_first.get_iterator_tuple());
+    auto tuple_element_output_first = cuda::std::get<I>(output_first.get_iterator_tuple());
+    device_alltoall_impl<decltype(tuple_element_input_first), decltype(tuple_element_output_first)>(
+      comm, tuple_element_input_first, tuple_element_output_first, count_per_rank, stream_view);
+    device_alltoall_tuple_iterator_element_impl<InputIterator, OutputIterator, I + 1, N>().run(
+      comm, input_first, output_first, count_per_rank, stream_view);
+  }
+};
+
+template <typename InputIterator, typename OutputIterator, size_t I>
+struct device_alltoall_tuple_iterator_element_impl<InputIterator, OutputIterator, I, I> {
+  void run(raft::comms::comms_t const& comm,
+           InputIterator input_first,
+           OutputIterator output_first,
+           size_t count_per_rank,
            rmm::cuda_stream_view stream_view) const
   {
   }
@@ -924,6 +1004,45 @@ device_multicast_sendrecv(raft::comms::comms_t const& comm,
          rx_displs,
          rx_src_ranks,
          stream_view);
+}
+
+template <typename InputIterator, typename OutputIterator>
+std::enable_if_t<
+  std::is_arithmetic<typename std::iterator_traits<InputIterator>::value_type>::value,
+  void>
+device_alltoall(raft::comms::comms_t const& comm,
+                InputIterator input_first,
+                OutputIterator output_first,
+                size_t count_per_rank,
+                rmm::cuda_stream_view stream_view)
+{
+  detail::device_alltoall_impl<InputIterator, OutputIterator>(
+    comm, input_first, output_first, count_per_rank, stream_view);
+}
+
+template <typename InputIterator, typename OutputIterator>
+std::enable_if_t<
+  is_thrust_tuple_of_arithmetic<typename std::iterator_traits<InputIterator>::value_type>::value &&
+    is_thrust_tuple<typename std::iterator_traits<OutputIterator>::value_type>::value,
+  void>
+device_alltoall(raft::comms::comms_t const& comm,
+                InputIterator input_first,
+                OutputIterator output_first,
+                size_t count_per_rank,
+                rmm::cuda_stream_view stream_view)
+{
+  static_assert(
+    cuda::std::tuple_size<typename thrust::iterator_traits<InputIterator>::value_type>::value ==
+    cuda::std::tuple_size<typename thrust::iterator_traits<OutputIterator>::value_type>::value);
+
+  size_t constexpr tuple_size =
+    cuda::std::tuple_size<typename thrust::iterator_traits<InputIterator>::value_type>::value;
+
+  detail::device_alltoall_tuple_iterator_element_impl<InputIterator,
+                                                      OutputIterator,
+                                                      size_t{0},
+                                                      tuple_size>()
+    .run(comm, input_first, output_first, count_per_rank, stream_view);
 }
 
 template <typename InputIterator, typename OutputIterator>

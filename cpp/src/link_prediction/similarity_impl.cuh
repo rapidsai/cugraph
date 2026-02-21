@@ -417,13 +417,12 @@ all_pairs_similarity(raft::handle_t const& handle,
         auto vertex_partition_range_lasts = graph_view.vertex_partition_range_lasts();
         std::vector<cugraph::arithmetic_device_uvector_t> edge_properties{};
 
-        std::tie(v1, v2, std::ignore, std::ignore) =
-          shuffle_int_edges(handle,
-                            std::move(v1),
-                            std::move(v2),
-                            std::move(edge_properties),
-                            false,
-                            vertex_partition_range_lasts);
+        std::tie(v1, v2, std::ignore) = shuffle_int_edges(handle,
+                                                          std::move(v1),
+                                                          std::move(v2),
+                                                          std::move(edge_properties),
+                                                          false,
+                                                          vertex_partition_range_lasts);
       }
 
       auto score =
@@ -597,7 +596,7 @@ all_pairs_similarity(raft::handle_t const& handle,
 
     if constexpr (multi_gpu) {
       // shuffle vertex pairs
-      std::tie(v1, v2, std::ignore, std::ignore) =
+      std::tie(v1, v2, std::ignore) =
         shuffle_int_edges(handle,
                           std::move(v1),
                           std::move(v2),

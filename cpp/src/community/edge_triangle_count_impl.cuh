@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2024-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -266,7 +266,7 @@ edge_property_t<edge_t, edge_t> edge_triangle_count_impl(
       pair_properties.push_back(std::move(pair_count));
 
       // There are still multiple copies here but is it worth sorting and reducing again?
-      std::tie(pair_srcs, pair_dsts, pair_properties, std::ignore) =
+      std::tie(pair_srcs, pair_dsts, pair_properties) =
         shuffle_int_edges(handle,
                           std::move(std::get<0>(vertex_pair_buffer)),
                           std::move(std::get<1>(vertex_pair_buffer)),

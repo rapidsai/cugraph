@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -116,6 +116,7 @@ class partition_manager {
   {
     auto& comm                 = handle.get_comms();
     auto const comm_size       = comm.get_size();
+    auto const comm_rank       = comm.get_rank();
     auto& major_comm           = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
     auto const major_comm_size = major_comm.get_size();
     auto const major_comm_rank = major_comm.get_rank();
@@ -123,12 +124,26 @@ class partition_manager {
     auto const minor_comm_size = minor_comm.get_size();
     auto const minor_comm_rank = minor_comm.get_rank();
 
+#if 1  // FIXME: we should add host_allgather to raft
     auto vertex_counts = host_scalar_allgather(comm, local_partition_size, handle.get_stream());
+#else
+    std::vector<vertex_t> vertex_counts(comm_size, 0);
+    vertex_counts[comm_rank] = local_partition_size;
+    comm.host_allgather(vertex_counts.data(), vertex_counts.data(), size_t{1});
+#endif
+#if 1  // FIXME: we should add host_allgather to raft
     auto vertex_partition_ids =
       host_scalar_allgather(comm,
                             partition_manager::compute_vertex_partition_id_from_graph_subcomm_ranks(
                               major_comm_size, minor_comm_size, major_comm_rank, minor_comm_rank),
                             handle.get_stream());
+#else
+    std::vector<int> vertex_partition_ids(comm_size, 0);
+    vertex_partition_ids[comm_rank] =
+      partition_manager::compute_vertex_partition_id_from_graph_subcomm_ranks(
+        major_comm_size, minor_comm_size, major_comm_rank, minor_comm_rank);
+    comm.host_allgather(vertex_partition_ids.data(), vertex_partition_ids.data(), size_t{1});
+#endif
 
     std::vector<vertex_t> vertex_partition_range_offsets(comm_size + 1, 0);
     for (int i = 0; i < comm_size; ++i) {
