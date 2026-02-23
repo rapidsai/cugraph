@@ -4,6 +4,7 @@
  */
 #pragma once
 
+#include <cugraph/utilities/iterator_utils.hpp>
 #include <cugraph/utilities/thrust_tuple_utils.hpp>
 
 #include <raft/core/handle.hpp>
@@ -13,36 +14,13 @@
 #include <rmm/device_uvector.hpp>
 
 #include <cuda/std/tuple>
-#include <thrust/detail/type_traits/iterator/is_discard_iterator.h>
-#include <thrust/device_ptr.h>
 #include <thrust/iterator/detail/any_assign.h>
-#include <thrust/iterator/detail/normal_iterator.h>
-#include <thrust/iterator/iterator_traits.h>
 #include <thrust/memory.h>
 
 #include <type_traits>
-
 namespace cugraph {
 
 namespace detail {
-
-template <typename T>
-T* iter_to_raw_ptr(T* ptr)
-{
-  return ptr;
-}
-
-template <typename T>
-T* iter_to_raw_ptr(thrust::device_ptr<T> ptr)
-{
-  return thrust::raw_pointer_cast(ptr);
-}
-
-template <typename T>
-auto iter_to_raw_ptr(thrust::detail::normal_iterator<thrust::device_ptr<T>> iter)
-{
-  return thrust::raw_pointer_cast(iter.base());
-}
 
 template <typename InputIterator, typename OutputValueType>
 std::enable_if_t<std::is_same_v<OutputValueType, thrust::detail::any_assign>, void>
@@ -102,13 +80,13 @@ struct device_isend_tuple_iterator_element_impl<InputIterator, OutputIterator, I
 };
 
 template <typename InputValueType, typename OutputIterator>
-std::enable_if_t<thrust::detail::is_discard_iterator<OutputIterator>::value, void>
-device_irecv_impl(raft::comms::comms_t const& comm,
-                  OutputIterator output_first,
-                  size_t count,
-                  int src,
-                  int tag,
-                  raft::comms::request_t* request)
+std::enable_if_t<is_discard_iterator<OutputIterator>::value, void> device_irecv_impl(
+  raft::comms::comms_t const& comm,
+  OutputIterator output_first,
+  size_t count,
+  int src,
+  int tag,
+  raft::comms::request_t* request)
 {
   // no-op
 }
@@ -162,15 +140,15 @@ struct device_irecv_tuple_iterator_element_impl<InputIterator, OutputIterator, I
 };
 
 template <typename InputIterator, typename OutputIterator>
-std::enable_if_t<thrust::detail::is_discard_iterator<OutputIterator>::value, void>
-device_sendrecv_impl(raft::comms::comms_t const& comm,
-                     InputIterator input_first,
-                     size_t tx_count,
-                     int dst,
-                     OutputIterator output_first,
-                     size_t rx_count,
-                     int src,
-                     rmm::cuda_stream_view stream_view)
+std::enable_if_t<is_discard_iterator<OutputIterator>::value, void> device_sendrecv_impl(
+  raft::comms::comms_t const& comm,
+  InputIterator input_first,
+  size_t tx_count,
+  int dst,
+  OutputIterator output_first,
+  size_t rx_count,
+  int src,
+  rmm::cuda_stream_view stream_view)
 {
   // no-op
 }
@@ -244,17 +222,17 @@ struct device_sendrecv_tuple_iterator_element_impl<InputIterator, OutputIterator
 };
 
 template <typename InputIterator, typename OutputIterator>
-std::enable_if_t<thrust::detail::is_discard_iterator<OutputIterator>::value, void>
-device_multicast_sendrecv_impl(raft::comms::comms_t const& comm,
-                               InputIterator input_first,
-                               raft::host_span<size_t const> tx_counts,
-                               raft::host_span<size_t const> tx_displs,
-                               raft::host_span<int const> tx_dst_ranks,
-                               OutputIterator output_first,
-                               raft::host_span<size_t const> rx_counts,
-                               raft::host_span<size_t const> rx_displs,
-                               raft::host_span<int const> rx_src_ranks,
-                               rmm::cuda_stream_view stream_view)
+std::enable_if_t<is_discard_iterator<OutputIterator>::value, void> device_multicast_sendrecv_impl(
+  raft::comms::comms_t const& comm,
+  InputIterator input_first,
+  raft::host_span<size_t const> tx_counts,
+  raft::host_span<size_t const> tx_displs,
+  raft::host_span<int const> tx_dst_ranks,
+  OutputIterator output_first,
+  raft::host_span<size_t const> rx_counts,
+  raft::host_span<size_t const> rx_displs,
+  raft::host_span<int const> rx_src_ranks,
+  rmm::cuda_stream_view stream_view)
 {
   // no-op
 }
@@ -347,13 +325,13 @@ struct device_multicast_sendrecv_tuple_iterator_element_impl<InputIterator, Outp
 };
 
 template <typename InputIterator, typename OutputIterator>
-std::enable_if_t<thrust::detail::is_discard_iterator<OutputIterator>::value, void>
-device_bcast_impl(raft::comms::comms_t const& comm,
-                  InputIterator input_first,
-                  OutputIterator output_first,
-                  size_t count,
-                  int root,
-                  rmm::cuda_stream_view stream_view)
+std::enable_if_t<is_discard_iterator<OutputIterator>::value, void> device_bcast_impl(
+  raft::comms::comms_t const& comm,
+  InputIterator input_first,
+  OutputIterator output_first,
+  size_t count,
+  int root,
+  rmm::cuda_stream_view stream_view)
 {
   // no-op
 }
@@ -408,13 +386,13 @@ struct device_bcast_tuple_iterator_element_impl<InputIterator, OutputIterator, I
 };
 
 template <typename InputIterator, typename OutputIterator>
-std::enable_if_t<thrust::detail::is_discard_iterator<OutputIterator>::value, void>
-device_allreduce_impl(raft::comms::comms_t const& comm,
-                      InputIterator input_first,
-                      OutputIterator output_first,
-                      size_t count,
-                      raft::comms::op_t op,
-                      rmm::cuda_stream_view stream_view)
+std::enable_if_t<is_discard_iterator<OutputIterator>::value, void> device_allreduce_impl(
+  raft::comms::comms_t const& comm,
+  InputIterator input_first,
+  OutputIterator output_first,
+  size_t count,
+  raft::comms::op_t op,
+  rmm::cuda_stream_view stream_view)
 {
   // no-op
 }
@@ -469,14 +447,14 @@ struct device_allreduce_tuple_iterator_element_impl<InputIterator, OutputIterato
 };
 
 template <typename InputIterator, typename OutputIterator>
-std::enable_if_t<thrust::detail::is_discard_iterator<OutputIterator>::value, void>
-device_reduce_impl(raft::comms::comms_t const& comm,
-                   InputIterator input_first,
-                   OutputIterator output_first,
-                   size_t count,
-                   raft::comms::op_t op,
-                   int root,
-                   rmm::cuda_stream_view stream_view)
+std::enable_if_t<is_discard_iterator<OutputIterator>::value, void> device_reduce_impl(
+  raft::comms::comms_t const& comm,
+  InputIterator input_first,
+  OutputIterator output_first,
+  size_t count,
+  raft::comms::op_t op,
+  int root,
+  rmm::cuda_stream_view stream_view)
 {
   // no-op
 }
@@ -539,12 +517,12 @@ struct device_reduce_tuple_iterator_element_impl<InputIterator, OutputIterator, 
 };
 
 template <typename InputIterator, typename OutputIterator>
-std::enable_if_t<thrust::detail::is_discard_iterator<OutputIterator>::value, void>
-device_allgather_impl(raft::comms::comms_t const& comm,
-                      InputIterator input_first,
-                      OutputIterator output_first,
-                      size_t sendcount,
-                      rmm::cuda_stream_view stream_view)
+std::enable_if_t<is_discard_iterator<OutputIterator>::value, void> device_allgather_impl(
+  raft::comms::comms_t const& comm,
+  InputIterator input_first,
+  OutputIterator output_first,
+  size_t sendcount,
+  rmm::cuda_stream_view stream_view)
 {
   // no-op
 }
@@ -595,13 +573,13 @@ struct device_allgather_tuple_iterator_element_impl<InputIterator, OutputIterato
 };
 
 template <typename InputIterator, typename OutputIterator>
-std::enable_if_t<thrust::detail::is_discard_iterator<OutputIterator>::value, void>
-device_allgatherv_impl(raft::comms::comms_t const& comm,
-                       InputIterator input_first,
-                       OutputIterator output_first,
-                       raft::host_span<size_t const> recvcounts,
-                       raft::host_span<size_t const> displacements,
-                       rmm::cuda_stream_view stream_view)
+std::enable_if_t<is_discard_iterator<OutputIterator>::value, void> device_allgatherv_impl(
+  raft::comms::comms_t const& comm,
+  InputIterator input_first,
+  OutputIterator output_first,
+  raft::host_span<size_t const> recvcounts,
+  raft::host_span<size_t const> displacements,
+  rmm::cuda_stream_view stream_view)
 {
   // no-op
 }
@@ -659,15 +637,15 @@ struct device_allgatherv_tuple_iterator_element_impl<InputIterator, OutputIterat
 };
 
 template <typename InputIterator, typename OutputIterator>
-std::enable_if_t<thrust::detail::is_discard_iterator<OutputIterator>::value, void>
-device_gatherv_impl(raft::comms::comms_t const& comm,
-                    InputIterator input_first,
-                    OutputIterator output_first,
-                    size_t sendcount,
-                    raft::host_span<size_t const> recvcounts,
-                    raft::host_span<size_t const> displacements,
-                    int root,
-                    rmm::cuda_stream_view stream_view)
+std::enable_if_t<is_discard_iterator<OutputIterator>::value, void> device_gatherv_impl(
+  raft::comms::comms_t const& comm,
+  InputIterator input_first,
+  OutputIterator output_first,
+  size_t sendcount,
+  raft::host_span<size_t const> recvcounts,
+  raft::host_span<size_t const> displacements,
+  int root,
+  rmm::cuda_stream_view stream_view)
 {
   // no-op
 }

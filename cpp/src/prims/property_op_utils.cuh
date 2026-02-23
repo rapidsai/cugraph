@@ -12,7 +12,7 @@
 
 #include <cub/cub.cuh>
 #include <cuda/std/tuple>
-#include <thrust/detail/type_traits/iterator/is_discard_iterator.h>
+#include <thrust/functional.h>
 #include <thrust/iterator/detail/any_assign.h>
 #include <thrust/iterator/discard_iterator.h>
 #include <thrust/iterator/iterator_traits.h>

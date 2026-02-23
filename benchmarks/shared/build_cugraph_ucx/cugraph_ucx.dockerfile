@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 
 # rdma build instructions from here:
@@ -47,7 +47,7 @@ RUN conda config --set ssl_verify false
 RUN conda install -c gpuci gpuci-tools
 RUN gpuci_conda_retry install -c conda-forge mamba
 
-RUN gpuci_mamba_retry install -y -c pytorch -c rapidsai-nightly -c rapidsai -c conda-forge -c nvidia \
+RUN gpuci_mamba_retry install -y -c rapidsai-nightly -c rapidsai -c conda-forge \
     cugraph=$RAPIDS_VER \
     pytorch=$PYTORCH_VER \
     python=$PYTHON_VER \
@@ -59,8 +59,6 @@ RUN chmod 744 /root/build-ucx.sh & bash /root/build-ucx.sh
 
 ADD test_client_bandwidth.py  /root/test_client_bandwidth.py
 RUN chmod 777 /root/test_client_bandwidth.py
-ADD test_cugraph_sampling.py  /root/test_cugraph_sampling.py
-RUN chmod 777 /root/test_cugraph_sampling.py
 
 ENV PATH /opt/conda/env/bin:$PATH
 WORKDIR /root/
