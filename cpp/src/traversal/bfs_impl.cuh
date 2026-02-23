@@ -22,7 +22,6 @@
 
 #include <cuda/iterator>
 #include <cuda/std/functional>
-#include <cuda/std/iterator>
 #include <cuda/std/optional>
 #include <cuda/std/tuple>
 #include <thrust/copy.h>
@@ -234,7 +233,7 @@ void bfs(raft::handle_t const& handle,
                invalid_vertex);
   auto output_first = thrust::make_permutation_iterator(
     distances,
-    thrust::make_transform_iterator(
+    cuda::make_transform_iterator(
       sources, detail::shift_left_t<vertex_t>{graph_view.local_vertex_partition_range_first()}));
   thrust::fill(handle.get_thrust_policy(), output_first, output_first + n_sources, vertex_t{0});
 
@@ -417,7 +416,7 @@ void bfs(raft::handle_t const& handle,
         handle.get_thrust_policy(),
         input_pair_first,
         input_pair_first + new_frontier_vertex_buffer.size(),
-        thrust::make_transform_iterator(
+        cuda::make_transform_iterator(
           new_frontier_vertex_buffer.begin(),
           detail::shift_left_t<vertex_t>{graph_view.local_vertex_partition_range_first()}),
         thrust::make_zip_iterator(distances, predecessor_first));
@@ -621,7 +620,7 @@ void bfs(raft::handle_t const& handle,
           handle.get_thrust_policy(),
           input_pair_first,
           input_pair_first + predecessor_buffer.size(),
-          thrust::make_transform_iterator(
+          cuda::make_transform_iterator(
             vertex_frontier.bucket(bucket_idx_cur).cbegin(),
             detail::shift_left_t<vertex_t>{graph_view.local_vertex_partition_range_first()}),
           predecessor_buffer.begin(),
