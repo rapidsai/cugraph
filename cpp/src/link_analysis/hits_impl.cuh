@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -16,10 +16,10 @@
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_view.hpp>
 
+#include <cuda/std/functional>
 #include <cuda/std/tuple>
 #include <thrust/copy.h>
 #include <thrust/fill.h>
-#include <thrust/functional.h>
 #include <thrust/iterator/constant_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/transform.h>
@@ -40,7 +40,7 @@ void normalize(raft::handle_t const& handle,
                     hubs + graph_view.local_vertex_partition_range_size(),
                     thrust::make_constant_iterator(hubs_norm),
                     hubs,
-                    thrust::divides<result_t>());
+                    cuda::std::divides<result_t>());
 }
 
 template <typename GraphViewType, typename result_t>

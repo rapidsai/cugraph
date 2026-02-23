@@ -1285,16 +1285,16 @@ bool check_vertex_renumber_map_invariants(
                               renumbered_merged_vertex_first,
                               thrust::make_discard_iterator(),
                               min_vertices.begin(),
-                              thrust::equal_to<cuda::std::tuple<int32_t, int8_t>>{},
-                              thrust::minimum<vertex_t>{});
+                              cuda::std::equal_to<cuda::std::tuple<int32_t, int8_t>>{},
+                              cuda::minimum<vertex_t>{});
         thrust::reduce_by_key(handle.get_thrust_policy(),
                               sort_key_first,
                               sort_key_first + merged_hops.size(),
                               renumbered_merged_vertex_first,
                               thrust::make_discard_iterator(),
                               max_vertices.begin(),
-                              thrust::equal_to<cuda::std::tuple<int32_t, int8_t>>{},
-                              thrust::maximum<vertex_t>{});
+                              cuda::std::equal_to<cuda::std::tuple<int32_t, int8_t>>{},
+                              cuda::maximum<vertex_t>{});
 
         auto num_violations =
           thrust::count_if(handle.get_thrust_policy(),
@@ -1405,7 +1405,7 @@ bool check_vertex_renumber_map_invariants(
                 this_type_sorted_org_vertices.begin(), it)];
             }),
           std::numeric_limits<vertex_t>::lowest(),
-          thrust::maximum<vertex_t>{});
+          cuda::maximum<vertex_t>{});
 
         auto min_minor_renumbered_vertex = thrust::transform_reduce(
           handle.get_thrust_policy(),
@@ -1426,7 +1426,7 @@ bool check_vertex_renumber_map_invariants(
                 this_type_sorted_org_vertices.begin(), it)];
             }),
           std::numeric_limits<vertex_t>::max(),
-          thrust::minimum<vertex_t>{});
+          cuda::minimum<vertex_t>{});
 
         if (max_major_renumbered_vertex >= min_minor_renumbered_vertex) { return false; }
       }
@@ -1692,16 +1692,16 @@ bool check_edge_id_renumber_map_invariants(
                               renumbered_edge_id_first + type_start_offset,
                               thrust::make_discard_iterator(),
                               min_edge_ids.begin(),
-                              thrust::equal_to<int32_t>{},
-                              thrust::minimum<edge_id_t>{});
+                              cuda::std::equal_to<int32_t>{},
+                              cuda::minimum<edge_id_t>{});
         thrust::reduce_by_key(handle.get_thrust_policy(),
                               sort_key_first + type_start_offset,
                               sort_key_first + type_end_offset,
                               renumbered_edge_id_first + type_start_offset,
                               thrust::make_discard_iterator(),
                               max_edge_ids.begin(),
-                              thrust::equal_to<int32_t>{},
-                              thrust::maximum<edge_id_t>{});
+                              cuda::std::equal_to<int32_t>{},
+                              cuda::maximum<edge_id_t>{});
 
         auto num_violations =
           thrust::count_if(handle.get_thrust_policy(),

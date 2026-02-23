@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -20,6 +20,7 @@
 
 #include <raft/core/handle.hpp>
 
+#include <cuda/std/functional>
 #include <cuda/std/iterator>
 #include <cuda/std/optional>
 #include <cuda/std/tuple>
@@ -510,7 +511,7 @@ void bfs(raft::handle_t const& handle,
                 return out_degrees[v_offset];
               }),
             edge_t{0},
-            thrust::plus<edge_t>{}));
+            cuda::std::plus<edge_t>{}));
 
           m_u += static_cast<double>(thrust::transform_reduce(
             handle.get_thrust_policy(),
@@ -532,7 +533,7 @@ void bfs(raft::handle_t const& handle,
                 }
               }),
             edge_t{0},
-            thrust::plus<edge_t>{}));
+            cuda::std::plus<edge_t>{}));
         }
 
         auto aggregate_m_f = m_f;

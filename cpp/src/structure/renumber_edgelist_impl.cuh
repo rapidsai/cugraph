@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -21,6 +21,7 @@
 #include <rmm/mr/per_device_resource.hpp>
 #include <rmm/mr/polymorphic_allocator.hpp>
 
+#include <cuda/functional>
 #include <cuda/std/iterator>
 #include <cuda/std/tuple>
 #include <thrust/binary_search.h>
@@ -29,7 +30,6 @@
 #include <thrust/execution_policy.h>
 #include <thrust/fill.h>
 #include <thrust/for_each.h>
-#include <thrust/functional.h>
 #include <thrust/iterator/constant_iterator.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/discard_iterator.h>
@@ -300,7 +300,7 @@ std::optional<vertex_t> find_locally_unused_ext_vertex_id(
                                std::numeric_limits<vertex_t>::max()},
     std::numeric_limits<vertex_t>::max(),  // already taken in the step 1.2, so this can't be a
                                            // valid answer
-    thrust::minimum<vertex_t>{});
+    cuda::minimum<vertex_t>{});
 
   if (multi_gpu && (handle.get_comms().get_size() > int{1})) {
     unused_id = host_scalar_allreduce(
@@ -728,7 +728,7 @@ compute_renumber_map(raft::handle_t const& handle,
                       sorted_local_vertex_degrees.begin(),
                       sorted_local_vertex_degrees.end(),
                       sorted_local_vertices.begin(),
-                      thrust::greater<edge_t>());
+                      cuda::std::greater<edge_t>());
 
   // 5. compute segment_offsets
 
@@ -785,7 +785,7 @@ compute_renumber_map(raft::handle_t const& handle,
                         d_thresholds.begin(),
                         d_thresholds.end(),
                         d_offsets.begin() + 1,
-                        thrust::greater<edge_t>{});
+                        cuda::std::greater<edge_t>{});
     std::vector<vertex_t> h_offsets(d_offsets.size());
     raft::update_host(h_offsets.data(), d_offsets.data(), d_offsets.size(), handle.get_stream());
     handle.sync_stream();

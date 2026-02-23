@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -19,12 +19,12 @@
 
 #include <raft/core/handle.hpp>
 
+#include <cuda/functional>
 #include <cuda/std/iterator>
 #include <cuda/std/optional>
 #include <cuda/std/tuple>
 #include <thrust/copy.h>
 #include <thrust/for_each.h>
-#include <thrust/functional.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/transform_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
@@ -342,7 +342,7 @@ void core_number(raft::handle_t const& handle,
                        remaining_vertex_core_number_first,
                        remaining_vertex_core_number_first + remaining_vertices.size(),
                        std::numeric_limits<edge_t>::max(),
-                       thrust::minimum<edge_t>{});
+                       cuda::minimum<edge_t>{});
       if constexpr (multi_gpu) {
         min_core_number = host_scalar_allreduce(
           handle.get_comms(), min_core_number, raft::comms::op_t::MIN, handle.get_stream());

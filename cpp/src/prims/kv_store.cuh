@@ -14,11 +14,11 @@
 #include <rmm/device_uvector.hpp>
 #include <rmm/mr/polymorphic_allocator.hpp>
 
+#include <cuda/std/functional>
 #include <cuda/std/iterator>
 #include <cuda/std/tuple>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
-#include <thrust/functional.h>
 #include <thrust/gather.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/iterator_traits.h>
@@ -301,7 +301,7 @@ class kv_cuco_store_view_t {
                      std::conditional_t<std::is_arithmetic_v<value_type>, value_type, size_t>,
                      cuco::extent<std::size_t>,
                      cuda::thread_scope_device,
-                     thrust::equal_to<key_t>,
+                     cuda::std::equal_to<key_t>,
                      cuco::linear_probing<1,  // CG size
                                           cuco::murmurhash3_32<key_t>>,
                      rmm::mr::polymorphic_allocator<std::byte>,
@@ -497,7 +497,7 @@ class kv_cuco_store_t {
                      std::conditional_t<std::is_arithmetic_v<value_t>, value_t, size_t>,
                      cuco::extent<std::size_t>,
                      cuda::thread_scope_device,
-                     thrust::equal_to<key_t>,
+                     cuda::std::equal_to<key_t>,
                      cuco::linear_probing<1,  // CG size
                                           cuco::murmurhash3_32<key_t>>,
                      rmm::mr::polymorphic_allocator<std::byte>,
@@ -814,7 +814,7 @@ class kv_cuco_store_t {
         std::make_unique<cuco_map_type>(cuco_size,
                                         cuco::empty_key<key_t>{invalid_key},
                                         cuco::empty_value<value_t>{invalid_value},
-                                        thrust::equal_to<key_t>{},
+                                        cuda::std::equal_to<key_t>{},
                                         cuco::linear_probing<1,  // CG size
                                                              cuco::murmurhash3_32<key_t>>{},
                                         cuco::thread_scope_device,
@@ -826,7 +826,7 @@ class kv_cuco_store_t {
         cuco_size,
         cuco::empty_key<key_t>{invalid_key},
         cuco::empty_value<size_t>{std::numeric_limits<size_t>::max()},
-        thrust::equal_to<key_t>{},
+        cuda::std::equal_to<key_t>{},
         cuco::linear_probing<1,  // CG size
                              cuco::murmurhash3_32<key_t>>{},
         cuco::thread_scope_device,

@@ -28,6 +28,7 @@
 
 #include <rmm/device_uvector.hpp>
 
+#include <cuda/functional>
 #include <cuda/std/iterator>
 #include <cuda/std/tuple>
 #include <thrust/binary_search.h>
@@ -433,7 +434,7 @@ bool check_edge_endpoint_distances(
         return d == invalid_distance ? distance_t{0} : d;
       }),
       distance_t{0},
-      thrust::maximum<distance_t>{});
+      cuda::maximum<distance_t>{});
     max_distance = cugraph::host_scalar_allreduce(
       comm, max_distance, raft::comms::op_t::MAX, handle.get_stream());
 
