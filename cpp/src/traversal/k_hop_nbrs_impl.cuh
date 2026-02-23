@@ -19,12 +19,12 @@
 
 #include <rmm/exec_policy.hpp>
 
+#include <cuda/iterator>
 #include <cuda/std/iterator>
 #include <cuda/std/optional>
 #include <cuda/std/tuple>
 #include <thrust/count.h>
 #include <thrust/fill.h>
-#include <thrust/iterator/constant_iterator.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/transform_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
@@ -191,7 +191,7 @@ k_hop_nbrs(raft::handle_t const& handle,
   thrust::reduce_by_key(handle.get_thrust_policy(),
                         start_vertex_indices.begin(),
                         start_vertex_indices.end(),
-                        thrust::make_constant_iterator(size_t{1}),
+                        cuda::make_constant_iterator(size_t{1}),
                         tmp_indices.begin(),
                         tmp_counts.begin());
 

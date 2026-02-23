@@ -28,6 +28,7 @@
 #include <rmm/device_uvector.hpp>
 
 #include <cuda/functional>
+#include <cuda/iterator>
 #include <cuda/std/iterator>
 #include <cuda/std/optional>
 #include <cuda/std/tuple>
@@ -35,7 +36,6 @@
 #include <thrust/copy.h>
 #include <thrust/for_each.h>
 #include <thrust/functional.h>
-#include <thrust/iterator/constant_iterator.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/discard_iterator.h>
 #include <thrust/iterator/transform_iterator.h>
@@ -753,7 +753,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
           vertex_frontier,
           raft::host_span<size_t const>(next_frontier_bucket_indices.data(),
                                         next_frontier_bucket_indices.size()),
-          thrust::make_constant_iterator(0) /* dummy */,
+          cuda::make_constant_iterator(0) /* dummy */,
           thrust::make_discard_iterator() /* dummy */,
           v_op_t<GraphViewType>{
             vertex_partition, level_components, bucket_idx_next, bucket_idx_conflict});

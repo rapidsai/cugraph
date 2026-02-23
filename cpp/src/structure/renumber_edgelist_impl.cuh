@@ -21,6 +21,7 @@
 #include <rmm/mr/per_device_resource.hpp>
 #include <rmm/mr/polymorphic_allocator.hpp>
 
+#include <cuda/iterator>
 #include <cuda/std/iterator>
 #include <cuda/std/tuple>
 #include <thrust/binary_search.h>
@@ -30,7 +31,6 @@
 #include <thrust/fill.h>
 #include <thrust/for_each.h>
 #include <thrust/functional.h>
-#include <thrust/iterator/constant_iterator.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/discard_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
@@ -382,7 +382,7 @@ void compute_sorted_local_major_degrees_without_atomics(
     auto it          = thrust::reduce_by_key(handle.get_thrust_policy(),
                                     indices.begin(),
                                     indices.begin() + num_edges_to_process,
-                                    thrust::make_constant_iterator(edge_t{1}),
+                                    cuda::make_constant_iterator(edge_t{1}),
                                     output_indices.begin(),
                                     output_counts.begin());
     auto input_first = thrust::make_zip_iterator(output_indices.begin(), output_counts.begin());
