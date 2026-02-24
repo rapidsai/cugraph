@@ -29,14 +29,13 @@
 #include <rmm/mr/polymorphic_allocator.hpp>
 
 #include <cub/cub.cuh>
+#include <cuda/std/functional>
 #include <cuda/std/iterator>
 #include <cuda/std/optional>
 #include <cuda/std/tuple>
 #include <thrust/copy.h>
 #include <thrust/count.h>
 #include <thrust/fill.h>
-#include <thrust/functional.h>
-#include <thrust/iterator/constant_iterator.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/transform_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
@@ -1040,7 +1039,7 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
                             get_dataframe_buffer_begin(tmp_e_op_result_buffer),
                             unique_majors.begin(),
                             get_dataframe_buffer_begin(reduced_e_op_result_buffer),
-                            thrust::equal_to<vertex_t>{},
+                            cuda::std::equal_to<vertex_t>{},
                             reduce_op);
       tmp_majors             = std::move(unique_majors);
       tmp_e_op_result_buffer = std::move(reduced_e_op_result_buffer);

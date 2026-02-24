@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -18,7 +18,6 @@
 #include <cuda/std/tuple>
 #include <thrust/count.h>
 #include <thrust/equal.h>
-#include <thrust/functional.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/reduce.h>
 #include <thrust/remove.h>
@@ -136,7 +135,7 @@ vertex_t compute_maximum_vertex_id(rmm::cuda_stream_view const& stream_view,
                         max_v_first,
                         max_v_first + num_edges,
                         vertex_t{0},
-                        thrust::maximum<vertex_t>{});
+                        cuda::maximum<vertex_t>{});
 }
 
 template <typename data_t>

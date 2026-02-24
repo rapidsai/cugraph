@@ -20,6 +20,7 @@
 
 #include <raft/core/handle.hpp>
 
+#include <cuda/std/functional>
 #include <cuda/std/optional>
 #include <cuda/std/tuple>
 #include <thrust/copy.h>
@@ -474,7 +475,7 @@ std::tuple<rmm::device_uvector<vertex_t>, BufferType> reduce_to_unique_kv_pairs(
                         get_dataframe_buffer_begin(value_buffer),
                         unique_keys.begin(),
                         get_dataframe_buffer_begin(value_for_unique_key_buffer),
-                        thrust::equal_to<vertex_t>{},
+                        cuda::std::equal_to<vertex_t>{},
                         reduce_op);
 
   return std::make_tuple(std::move(unique_keys), std::move(value_for_unique_key_buffer));

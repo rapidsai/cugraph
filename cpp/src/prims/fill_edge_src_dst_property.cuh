@@ -20,10 +20,10 @@
 
 #include <rmm/exec_policy.hpp>
 
-#include <cuda/std/iterator>
+#include <cuda/iterator>
+#include <cuda/std/tuple>
 #include <thrust/count.h>
 #include <thrust/fill.h>
-#include <thrust/iterator/constant_iterator.h>
 
 #include <cstddef>
 #include <utility>
@@ -231,7 +231,7 @@ void fill_edge_major_property(raft::handle_t const& handle,
             cuda::proclaim_return_type<vertex_t>([edge_partition] __device__(auto v) {
               return edge_partition.major_offset_from_major_nocheck(v);
             }));
-          auto val_first = thrust::make_constant_iterator(input);
+          auto val_first = cuda::make_constant_iterator(input);
           // FIXME: this scatter is unnecessary if NCCL directly takes a permutation iterator (and
           // directly scatters from the internal buffer)
           thrust::scatter(handle.get_thrust_policy(),
@@ -254,7 +254,7 @@ void fill_edge_major_property(raft::handle_t const& handle,
                        [input, output_value_first = edge_partition_value_firsts[0]] __device__(
                          auto v) { packed_bool_atomic_set(output_value_first, v, input); });
     } else {
-      auto val_first = thrust::make_constant_iterator(input);
+      auto val_first = cuda::make_constant_iterator(input);
       thrust::scatter(
         handle.get_thrust_policy(),
         val_first,
@@ -1026,7 +1026,7 @@ void fill_edge_minor_property(raft::handle_t const& handle,
                        range_first = local_v_list_range_firsts[i]] __device__(auto v_offset) {
                         return static_cast<vertex_t>(v_offset + (range_first - minor_range_first));
                       }));
-                  auto val_first = thrust::make_constant_iterator(input);
+                  auto val_first = cuda::make_constant_iterator(input);
                   thrust::scatter(rmm::exec_policy_nosync(loop_stream),
                                   val_first,
                                   val_first + local_v_list_sizes[i],
@@ -1037,7 +1037,7 @@ void fill_edge_minor_property(raft::handle_t const& handle,
                     rx_vertex_first,
                     cuda::proclaim_return_type<vertex_t>(
                       [minor_range_first] __device__(auto v) { return v - minor_range_first; }));
-                  auto val_first = thrust::make_constant_iterator(input);
+                  auto val_first = cuda::make_constant_iterator(input);
                   thrust::scatter(rmm::exec_policy_nosync(loop_stream),
                                   val_first,
                                   val_first + local_v_list_sizes[i],
@@ -1082,7 +1082,7 @@ void fill_edge_minor_property(raft::handle_t const& handle,
                 }
               });
           } else {
-            auto val_first     = thrust::make_constant_iterator(input);
+            auto val_first     = cuda::make_constant_iterator(input);
             auto stencil_first = thrust::make_counting_iterator(vertex_t{0});
             if (compressed_v_list_size) {
               auto map_first = thrust::make_transform_iterator(
@@ -1157,7 +1157,7 @@ void fill_edge_minor_property(raft::handle_t const& handle,
                          fill_scalar_or_thrust_tuple(output_value_first, v, input);
                        });
     } else {
-      auto val_first = thrust::make_constant_iterator(input);
+      auto val_first = cuda::make_constant_iterator(input);
       thrust::scatter(
         handle.get_thrust_policy(),
         val_first,

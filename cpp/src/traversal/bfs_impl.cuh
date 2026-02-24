@@ -20,6 +20,8 @@
 
 #include <raft/core/handle.hpp>
 
+#include <cuda/iterator>
+#include <cuda/std/functional>
 #include <cuda/std/iterator>
 #include <cuda/std/optional>
 #include <cuda/std/tuple>
@@ -27,7 +29,6 @@
 #include <thrust/count.h>
 #include <thrust/fill.h>
 #include <thrust/for_each.h>
-#include <thrust/iterator/constant_iterator.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/discard_iterator.h>
 #include <thrust/iterator/permutation_iterator.h>
@@ -465,7 +466,7 @@ void bfs(raft::handle_t const& handle,
           pred_op);
 
       {
-        auto input_pair_first = thrust::make_zip_iterator(thrust::make_constant_iterator(depth + 1),
+        auto input_pair_first = thrust::make_zip_iterator(cuda::make_constant_iterator(depth + 1),
                                                           predecessor_buffer.begin());
         thrust::scatter(
           handle.get_thrust_policy(),
@@ -562,7 +563,7 @@ void bfs(raft::handle_t const& handle,
                 return out_degrees[v_offset];
               }),
             edge_t{0},
-            thrust::plus<edge_t>{}));
+            cuda::std::plus<edge_t>{}));
 
           *m_u += static_cast<size_t>(thrust::transform_reduce(
             handle.get_thrust_policy(),
@@ -584,7 +585,7 @@ void bfs(raft::handle_t const& handle,
                 }
               }),
             edge_t{0},
-            thrust::plus<edge_t>{}));
+            cuda::std::plus<edge_t>{}));
         }
       }
 
@@ -698,7 +699,7 @@ void bfs(raft::handle_t const& handle,
                                              reduce_op::any<vertex_t>(),
                                              pred_op,
                                              predecessor_buffer.begin());
-        auto input_pair_first = thrust::make_zip_iterator(thrust::make_constant_iterator(depth + 1),
+        auto input_pair_first = thrust::make_zip_iterator(cuda::make_constant_iterator(depth + 1),
                                                           predecessor_buffer.begin());
 
         thrust::scatter_if(

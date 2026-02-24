@@ -23,11 +23,11 @@
 #include <raft/random/rng_device.cuh>
 
 #include <cuda/functional>
+#include <cuda/std/functional>
 #include <cuda/std/iterator>
 #include <cuda/std/tuple>
 #include <thrust/binary_search.h>
 #include <thrust/execution_policy.h>
-#include <thrust/functional.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/random.h>
 #include <thrust/sequence.h>

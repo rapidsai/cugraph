@@ -7,7 +7,6 @@
 
 #include "prims/reduce_v.cuh"
 #include "prims/update_edge_src_dst_property.cuh"
-#include "thrust/iterator/zip_iterator.h"
 #include "utilities/collect_comm.cuh"
 
 #include <cugraph/detail/collect_comm_wrapper.hpp>
@@ -24,11 +23,13 @@
 
 #include <rmm/device_scalar.hpp>
 
+#include <cuda/iterator>
 #include <cuda/std/functional>
-#include <cuda/std/iterator>
 #include <thrust/adjacent_difference.h>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
+#include <thrust/iterator/reverse_iterator.h>
+#include <thrust/iterator/zip_iterator.h>
 #include <thrust/reduce.h>
 #include <thrust/remove.h>
 #include <thrust/scan.h>
@@ -106,7 +107,7 @@ normalize_biases(raft::handle_t const& handle,
 
     // FIXME: conclusion of above.  Using 1.1 since it is > 1.0 and easy to type
     thrust::copy_n(handle.get_thrust_policy(),
-                   thrust::make_constant_iterator<weight_t>(1.1),
+                   cuda::make_constant_iterator<weight_t>(1.1),
                    trailing_zeros + 1,
                    gpu_biases->begin() + gpu_biases->size() - trailing_zeros - 1);
   }

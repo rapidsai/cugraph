@@ -1,6 +1,6 @@
 
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2023-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -211,7 +211,7 @@ rmm::device_uvector<vertex_t> maximal_independent_moves(
                       max_incoming_ranks.end(),
                       max_outgoing_ranks.begin(),
                       max_outgoing_ranks.begin(),
-                      thrust::maximum<vertex_t>());
+                      cuda::maximum<vertex_t>());
 
     max_incoming_ranks.resize(0, handle.get_stream());
     max_incoming_ranks.shrink_to_fit(handle.get_stream());

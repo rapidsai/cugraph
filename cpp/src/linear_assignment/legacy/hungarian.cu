@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 // #define TIMING
@@ -15,11 +15,11 @@
 #include <rmm/cuda_stream_view.hpp>
 #include <rmm/device_uvector.hpp>
 
+#include <cuda/functional>
 #include <cuda/std/iterator>
 #include <thrust/copy.h>
 #include <thrust/fill.h>
 #include <thrust/for_each.h>
-#include <thrust/functional.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/random.h>
 #include <thrust/reduce.h>
@@ -78,7 +78,7 @@ weight_t hungarian(raft::handle_t const& handle,
                                        d_original_cost,
                                        d_original_cost + (num_rows * num_cols),
                                        weight_t{0},
-                                       thrust::maximum<weight_t>());
+                                       cuda::maximum<weight_t>());
 
     rmm::device_uvector<weight_t> tmp_cost_v(n * n, handle.get_stream());
     rmm::device_uvector<index_t> tmp_row_assignment_v(n, handle.get_stream());
