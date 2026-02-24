@@ -382,7 +382,7 @@ struct device_alltoall_tuple_iterator_element_impl {
            size_t count_per_rank,
            rmm::cuda_stream_view stream_view) const
   {
-    using output_value_t = typename thrust::
+    using output_value_t = typename cuda::std::
       tuple_element<I, typename std::iterator_traits<OutputIterator>::value_type>::type;
     auto tuple_element_input_first  = cuda::std::get<I>(input_first.get_iterator_tuple());
     auto tuple_element_output_first = cuda::std::get<I>(output_first.get_iterator_tuple());
