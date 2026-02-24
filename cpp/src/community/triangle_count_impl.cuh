@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -17,7 +17,7 @@
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 
-#include <cuda/std/iterator>
+#include <cuda/iterator>
 #include <cuda/std/optional>
 #include <cuda/std/tuple>
 #include <thrust/binary_search.h>
@@ -25,7 +25,6 @@
 #include <thrust/count.h>
 #include <thrust/execution_policy.h>
 #include <thrust/fill.h>
-#include <thrust/iterator/transform_iterator.h>
 #include <thrust/scatter.h>
 #include <thrust/sort.h>
 #include <thrust/transform.h>
@@ -387,7 +386,7 @@ void triangle_count(raft::handle_t const& handle,
     edge_src_property_t<vertex_t, bool> edge_src_in_two_cores(handle, cur_graph_view);
     edge_dst_property_t<vertex_t, bool> edge_dst_in_two_cores(handle, cur_graph_view);
     auto in_two_core_first =
-      thrust::make_transform_iterator(core_numbers.begin(), is_two_or_greater_t<edge_t>{});
+      cuda::make_transform_iterator(core_numbers.begin(), is_two_or_greater_t<edge_t>{});
     rmm::device_uvector<bool> in_two_core_flags(core_numbers.size(), handle.get_stream());
     thrust::copy(handle.get_thrust_policy(),
                  in_two_core_first,
@@ -538,7 +537,7 @@ void triangle_count(raft::handle_t const& handle,
         handle.get_thrust_policy(),
         local_counts.begin(),
         local_counts.end(),
-        thrust::make_transform_iterator(
+        cuda::make_transform_iterator(
           local_vertices.begin(),
           vertex_offset_from_vertex_t<vertex_t>{graph_view.local_vertex_partition_range_first()}),
         counts.begin());

@@ -28,8 +28,8 @@
 
 #include <cub/cub.cuh>
 #include <cuda/atomic>
+#include <cuda/iterator>
 #include <cuda/std/functional>
-#include <cuda/std/iterator>
 #include <cuda/std/optional>
 #include <cuda/std/tuple>
 #include <thrust/copy.h>
@@ -578,8 +578,8 @@ batch_partition_frontier(raft::handle_t const& handle,
                              source_out_edge_counts.end(),
                              source_out_edge_count_inclusive_sums.begin());
       source_lasts     = rmm::device_uvector<size_t>(num_batches, handle.get_stream());
-      auto count_first = thrust::make_transform_iterator(
-        thrust::make_counting_iterator(size_t{1}), multiplier_t<size_t>{max_pushes_per_batch});
+      auto count_first = cuda::make_transform_iterator(thrust::make_counting_iterator(size_t{1}),
+                                                       multiplier_t<size_t>{max_pushes_per_batch});
       thrust::lower_bound(handle.get_thrust_policy(),
                           source_out_edge_count_inclusive_sums.begin(),
                           source_out_edge_count_inclusive_sums.end(),
@@ -612,7 +612,7 @@ batch_partition_frontier(raft::handle_t const& handle,
       }));
 
     rmm::device_uvector<size_t> d_batch_offsets(source_lasts->size() + 1, handle.get_stream());
-    auto batch_id_first = thrust::make_transform_iterator(
+    auto batch_id_first = cuda::make_transform_iterator(
       frontier.begin(),
       cuda::proclaim_return_type<size_t>(
         [source_lasts = raft::device_span<size_t const>(
@@ -895,7 +895,7 @@ void multisource_backward_pass(
   std::vector<size_t> h_distance_offsets{};
   rmm::device_uvector<size_t> d_distance_offsets(0, handle.get_stream());
   {
-    auto d_first = thrust::make_transform_iterator(
+    auto d_first = cuda::make_transform_iterator(
       distances_2d.begin(),
       cuda::proclaim_return_type<vertex_t>([invalid_distance] __device__(vertex_t d) {
         return d == invalid_distance ? vertex_t{0} : d;
@@ -906,22 +906,9 @@ void multisource_backward_pass(
                                                   vertex_t{0},
                                                   thrust::maximum<vertex_t>());
 
-<<<<<<< HEAD
     rmm::device_uvector<size_t> d_distance_counts(global_max_distance + 1, handle.get_stream());
     thrust::fill(
       handle.get_thrust_policy(), d_distance_counts.begin(), d_distance_counts.end(), size_t{0});
-=======
-    auto d_first = thrust::make_transform_iterator(
-      distances_2d.begin(),
-      cuda::proclaim_return_type<vertex_t>([invalid_distance] __device__(vertex_t d) {
-        return d == invalid_distance ? vertex_t{0} : d;
-      }));
-    vertex_t global_max_distance = thrust::reduce(handle.get_thrust_policy(),
-                                                  d_first,
-                                                  d_first + distances_2d.size(),
-                                                  vertex_t{0},
-                                                  cuda::maximum<vertex_t>());
->>>>>>> 0ef04cb30b5c9d6f6cc8e0413449c4f1200c53b5
 
     thrust::for_each_n(
       handle.get_thrust_policy(),
@@ -1023,7 +1010,7 @@ void multisource_backward_pass(
       size_t num_segments_in_chunk = chunk_distance_end - chunk_distance_start;
 
       if (num_segments_in_chunk > 0) {
-        auto offset_first = thrust::make_transform_iterator(
+        auto offset_first = cuda::make_transform_iterator(
           d_distance_offsets.data() + chunk_distance_start,
           cuda::proclaim_return_type<size_t>([chunk_vertex_start] __device__(size_t offset) {
             return offset - chunk_vertex_start;
@@ -1144,7 +1131,6 @@ void multisource_backward_pass(
               weight_t delta_w = deltas[dst_offset];
               weight_t delta   = (sigma_v / sigma_w) * (1 + delta_w);
 
-<<<<<<< HEAD
               return cuda::std::make_tuple(src, source_idx, delta);
             }),
           cuda::proclaim_return_type<bool>(
@@ -1162,20 +1148,6 @@ void multisource_backward_pass(
               auto dst_offset = dst - v_first;
               return distances[dst_offset] == d;
             }));
-=======
-          // Step 4: Use reduce_by_key with in-place reduction
-          // Reduce by key and get count in one operation - overwrite input buffers
-          auto reduced_result = thrust::reduce_by_key(
-            handle.get_thrust_policy(),
-            thrust::make_zip_iterator(srcs.begin(), source_indices.begin()),
-            thrust::make_zip_iterator(srcs.end(), source_indices.end()),
-            deltas.begin(),
-            thrust::make_zip_iterator(srcs.begin(),
-                                      source_indices.begin()),  // Output keys (overwrite input)
-            deltas.begin(),                                     // Output values (overwrite input)
-            cuda::std::equal_to<cuda::std::tuple<vertex_t, origin_t>>{},
-            cuda::std::plus<weight_t>{});
->>>>>>> 0ef04cb30b5c9d6f6cc8e0413449c4f1200c53b5
 
         // Work directly with the result buffer
         if (srcs.size() > 0) {

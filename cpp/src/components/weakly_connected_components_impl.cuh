@@ -29,8 +29,6 @@
 
 #include <cuda/functional>
 #include <cuda/iterator>
-#include <cuda/std/functional>
-#include <cuda/std/iterator>
 #include <cuda/std/optional>
 #include <cuda/std/tuple>
 #include <thrust/binary_search.h>
@@ -38,7 +36,6 @@
 #include <thrust/for_each.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/discard_iterator.h>
-#include <thrust/iterator/transform_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/merge.h>
 #include <thrust/partition.h>
@@ -691,7 +688,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
         if constexpr (GraphViewType::is_multi_gpu) {
           rmm::device_uvector<vertex_t> gathered_level_components(
             vertex_frontier.bucket(bucket_idx_cur).size(), handle.get_stream());
-          auto map_first = thrust::make_transform_iterator(
+          auto map_first = cuda::make_transform_iterator(
             cuda::std::get<0>(vertex_frontier.bucket(bucket_idx_cur).begin().get_iterator_tuple()),
             detail::shift_left_t<vertex_t>{level_graph_view.local_vertex_partition_range_first()});
           thrust::gather(handle.get_thrust_policy(),
