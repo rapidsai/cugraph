@@ -1111,22 +1111,22 @@ void fill_edge_minor_property(raft::handle_t const& handle,
                 edge_partition_value_first,
                 within_valid_range_t<vertex_t>{d_local_v_list_sizes, max_padded_local_v_list_size});
             } else {
-              auto map_first = cuda::make_transform_iterator(
-                thrust::make_counting_iterator(vertex_t{0}),
-                cuda::proclaim_return_type<vertex_t>(
-                  [local_v_list_sizes = d_local_v_list_sizes,
-                   rx_first           = std::get<0>(allgather_buffer).begin(),
-                   minor_range_first,
-                   max_padded_local_v_list_size] __device__(auto i) {
-                    auto loop_idx = i / max_padded_local_v_list_size;
-                    auto offset   = i % max_padded_local_v_list_size;
-                    if (offset < local_v_list_sizes[loop_idx]) {
-                      auto minor = *(rx_first + i);
-                      return minor - minor_range_first;
-                    } else {
-                      return vertex_t{0};  // dummy
-                    }
-                  }));
+              auto map_first =
+                cuda::make_transform_iterator(thrust::make_counting_iterator(vertex_t{0}),
+                                              cuda::proclaim_return_type<vertex_t>(
+                                                [local_v_list_sizes = d_local_v_list_sizes,
+                                                 rx_first = std::get<0>(allgather_buffer).begin(),
+                                                 minor_range_first,
+                                                 max_padded_local_v_list_size] __device__(auto i) {
+                                                  auto loop_idx = i / max_padded_local_v_list_size;
+                                                  auto offset   = i % max_padded_local_v_list_size;
+                                                  if (offset < local_v_list_sizes[loop_idx]) {
+                                                    auto minor = *(rx_first + i);
+                                                    return minor - minor_range_first;
+                                                  } else {
+                                                    return vertex_t{0};  // dummy
+                                                  }
+                                                }));
               thrust::scatter_if(
                 handle.get_thrust_policy(),
                 val_first,
