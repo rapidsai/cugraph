@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -22,6 +22,7 @@
 
 #include <raft/core/handle.hpp>
 
+#include <cuda/functional>
 #include <cuda/std/iterator>
 #include <cuda/std/tuple>
 #include <thrust/binary_search.h>
@@ -1076,7 +1077,7 @@ create_graph_from_edgelist_impl(
                                  min_clz_first,
                                  min_clz_first + edgelist_srcs[i].size(),
                                  min_clz,
-                                 thrust::minimum<size_t>{});
+                                 cuda::minimum<size_t>{});
       }
       compressed_v_size = sizeof(vertex_t) - (min_clz / 8);
       compressed_v_size = std::max(compressed_v_size, size_t{1});

@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2024-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -11,7 +11,6 @@
 #include <cugraph/mtmg/vertex_pair_result_view.hpp>
 #include <cugraph/vertex_partition_device_view.cuh>
 
-#include <thrust/functional.h>
 #include <thrust/gather.h>
 
 namespace cugraph {

@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -19,9 +19,9 @@
 
 #include <rmm/device_uvector.hpp>
 
+#include <cuda/std/functional>
 #include <cuda/std/tuple>
 #include <thrust/binary_search.h>
-#include <thrust/functional.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/sort.h>
 
@@ -271,7 +271,7 @@ decompress_to_edgelist_impl(
                           d_thresholds.begin(),
                           d_thresholds.end(),
                           d_segment_offsets.begin(),
-                          thrust::less<vertex_t>{});
+                          cuda::std::less<vertex_t>{});
       (*edgelist_intra_partition_segment_offsets)[i][0]     = size_t{0};
       (*edgelist_intra_partition_segment_offsets)[i].back() = edgelist_edge_counts[i];
       raft::update_host((*edgelist_intra_partition_segment_offsets)[i].data() + 1,

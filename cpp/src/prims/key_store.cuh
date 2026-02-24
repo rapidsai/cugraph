@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2023-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -7,10 +7,10 @@
 #include <rmm/device_uvector.hpp>
 #include <rmm/mr/polymorphic_allocator.hpp>
 
+#include <cuda/std/functional>
 #include <cuda/std/iterator>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
-#include <thrust/functional.h>
 #include <thrust/iterator/iterator_traits.h>
 #include <thrust/sort.h>
 
@@ -141,7 +141,7 @@ class key_cuco_store_view_t {
   using cuco_set_type = cuco::static_set<key_t,
                                          cuco::extent<std::size_t>,
                                          cuda::thread_scope_device,
-                                         thrust::equal_to<key_t>,
+                                         cuda::std::equal_to<key_t>,
                                          cuco::linear_probing<1,  // CG size
                                                               cuco::murmurhash3_32<key_t>>,
                                          rmm::mr::polymorphic_allocator<std::byte>,
@@ -231,7 +231,7 @@ class key_cuco_store_t {
   using cuco_set_type = cuco::static_set<key_t,
                                          cuco::extent<std::size_t>,
                                          cuda::thread_scope_device,
-                                         thrust::equal_to<key_t>,
+                                         cuda::std::equal_to<key_t>,
                                          cuco::linear_probing<1,  // CG size
                                                               cuco::murmurhash3_32<key_t>>,
                                          rmm::mr::polymorphic_allocator<std::byte>,
@@ -313,7 +313,7 @@ class key_cuco_store_t {
     cuco_store_ =
       std::make_unique<cuco_set_type>(cuco_size,
                                       cuco::empty_key<key_t>{invalid_key},
-                                      thrust::equal_to<key_t>{},
+                                      cuda::std::equal_to<key_t>{},
                                       cuco::linear_probing<1,  // CG size
                                                            cuco::murmurhash3_32<key_t>>{},
                                       cuco::thread_scope_device,

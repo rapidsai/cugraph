@@ -18,6 +18,7 @@
 
 #include <raft/core/handle.hpp>
 
+#include <cuda/std/functional>
 #include <cuda/std/iterator>
 #include <cuda/std/tuple>
 #include <thrust/fill.h>
@@ -172,7 +173,7 @@ std::tuple<rmm::device_uvector<vertex_t>, weight_t> approximate_weighted_matchin
       itr_to_tuples,
       unique_targets.begin(),
       itr_to_reduced_tuples,
-      thrust::equal_to<vertex_t>{},
+      cuda::std::equal_to<vertex_t>{},
       [] __device__(auto pair1, auto pair2) { return (pair1 > pair2) ? pair1 : pair2; });
 
     vertex_t nr_reduces_tuples =
