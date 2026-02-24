@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -15,6 +15,7 @@
 #include <rmm/device_uvector.hpp>
 #include <rmm/exec_policy.hpp>
 
+#include <cuda/std/functional>
 #include <cuda/std/iterator>
 #include <cuda/std/optional>
 #include <cuda/std/tuple>
@@ -223,7 +224,7 @@ class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t
                                          *dcs_nzd_vertices_,
                                          *major_hypersparse_first_},
                                  size_t{0},
-                                 thrust::plus<size_t>())
+                                 cuda::std::plus<size_t>())
                              : thrust::transform_reduce(
                                  rmm::exec_policy(stream),
                                  major_first,
@@ -238,7 +239,7 @@ class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t
                                           std::byte{0} /* dummy */,
                                           std::byte{0} /* dummy */},
                                  size_t{0},
-                                 thrust::plus<size_t>());
+                                 cuda::std::plus<size_t>());
   }
 
   template <typename MajorIterator>
@@ -379,7 +380,7 @@ class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t
                                                  *major_hypersparse_first_,
                                                  mask_first},
                                  size_t{0},
-                                 thrust::plus<size_t>())
+                                 cuda::std::plus<size_t>())
                              : thrust::transform_reduce(
                                  rmm::exec_policy(stream),
                                  major_first,
@@ -396,7 +397,7 @@ class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t
                                                  std::byte{0} /* dummy */,
                                                  mask_first},
                                  size_t{0},
-                                 thrust::plus<size_t>());
+                                 cuda::std::plus<size_t>());
   }
 
   template <typename MaskIterator, typename MajorIterator>
@@ -709,7 +710,7 @@ class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t
                                        std::byte{0} /* dummy */,
                                        std::byte{0} /* dummy */},
       size_t{0},
-      thrust::plus<size_t>());
+      cuda::std::plus<size_t>());
   }
 
   template <typename MajorIterator>
@@ -806,7 +807,7 @@ class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t
                       std::byte{0} /* dummy */,
                       mask_first},
       size_t{0},
-      thrust::plus<size_t>());
+      cuda::std::plus<size_t>());
   }
 
   template <typename MaskIterator>

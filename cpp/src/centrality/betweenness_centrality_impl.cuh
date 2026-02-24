@@ -28,12 +28,12 @@
 
 #include <cub/cub.cuh>
 #include <cuda/atomic>
+#include <cuda/std/functional>
 #include <cuda/std/iterator>
 #include <cuda/std/optional>
 #include <cuda/std/tuple>
 #include <thrust/copy.h>
 #include <thrust/execution_policy.h>
-#include <thrust/functional.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/reduce.h>
@@ -782,8 +782,8 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> multisour
           this_batch_frontier_vertices.begin(),
           this_batch_frontier_origins.begin()),  // Output keys (overwrite input)
         this_batch_sigmas.begin(),               // Output values (overwrite input)
-        thrust::equal_to<cuda::std::tuple<vertex_t, origin_t>>{},
-        thrust::plus<edge_t>{});
+        cuda::std::equal_to<cuda::std::tuple<vertex_t, origin_t>>{},
+        cuda::std::plus<edge_t>{});
       size_t num_reduced = cuda::std::distance(this_batch_sigmas.begin(), reduced_result.second);
 
       // Step 2-4: Manual array updates using in-place reduced data
@@ -906,9 +906,22 @@ void multisource_backward_pass(
                                                   vertex_t{0},
                                                   thrust::maximum<vertex_t>());
 
+<<<<<<< HEAD
     rmm::device_uvector<size_t> d_distance_counts(global_max_distance + 1, handle.get_stream());
     thrust::fill(
       handle.get_thrust_policy(), d_distance_counts.begin(), d_distance_counts.end(), size_t{0});
+=======
+    auto d_first = thrust::make_transform_iterator(
+      distances_2d.begin(),
+      cuda::proclaim_return_type<vertex_t>([invalid_distance] __device__(vertex_t d) {
+        return d == invalid_distance ? vertex_t{0} : d;
+      }));
+    vertex_t global_max_distance = thrust::reduce(handle.get_thrust_policy(),
+                                                  d_first,
+                                                  d_first + distances_2d.size(),
+                                                  vertex_t{0},
+                                                  cuda::maximum<vertex_t>());
+>>>>>>> 0ef04cb30b5c9d6f6cc8e0413449c4f1200c53b5
 
     thrust::for_each_n(
       handle.get_thrust_policy(),
@@ -1131,6 +1144,7 @@ void multisource_backward_pass(
               weight_t delta_w = deltas[dst_offset];
               weight_t delta   = (sigma_v / sigma_w) * (1 + delta_w);
 
+<<<<<<< HEAD
               return cuda::std::make_tuple(src, source_idx, delta);
             }),
           cuda::proclaim_return_type<bool>(
@@ -1148,6 +1162,20 @@ void multisource_backward_pass(
               auto dst_offset = dst - v_first;
               return distances[dst_offset] == d;
             }));
+=======
+          // Step 4: Use reduce_by_key with in-place reduction
+          // Reduce by key and get count in one operation - overwrite input buffers
+          auto reduced_result = thrust::reduce_by_key(
+            handle.get_thrust_policy(),
+            thrust::make_zip_iterator(srcs.begin(), source_indices.begin()),
+            thrust::make_zip_iterator(srcs.end(), source_indices.end()),
+            deltas.begin(),
+            thrust::make_zip_iterator(srcs.begin(),
+                                      source_indices.begin()),  // Output keys (overwrite input)
+            deltas.begin(),                                     // Output values (overwrite input)
+            cuda::std::equal_to<cuda::std::tuple<vertex_t, origin_t>>{},
+            cuda::std::plus<weight_t>{});
+>>>>>>> 0ef04cb30b5c9d6f6cc8e0413449c4f1200c53b5
 
         // Work directly with the result buffer
         if (srcs.size() > 0) {
@@ -1168,8 +1196,8 @@ void multisource_backward_pass(
             thrust::make_zip_iterator(srcs.begin(),
                                       source_indices.begin()),  // Output keys (overwrite input)
             deltas.begin(),                                     // Output values (overwrite input)
-            thrust::equal_to<cuda::std::tuple<vertex_t, origin_t>>{},
-            thrust::plus<weight_t>{});
+            cuda::std::equal_to<cuda::std::tuple<vertex_t, origin_t>>{},
+            cuda::std::plus<weight_t>{});
           size_t num_reduced = cuda::std::distance(deltas.begin(), reduced_result.second);
 
           // Step 5: Update centralities and deltas from the in-place reduced results

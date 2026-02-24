@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2024, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -17,7 +17,6 @@
 #include <raft/core/handle.hpp>
 
 #include <thrust/device_ptr.h>
-#include <thrust/iterator/constant_iterator.h>
 #include <thrust/reduce.h>
 
 #include <cuda_profiler_api.h>

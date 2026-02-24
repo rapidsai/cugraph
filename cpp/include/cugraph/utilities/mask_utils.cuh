@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2023-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -11,9 +11,9 @@
 #include <raft/core/handle.hpp>
 
 #include <cuda/functional>
+#include <cuda/std/functional>
 #include <cuda/std/iterator>
 #include <thrust/copy.h>
-#include <thrust/functional.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/transform_iterator.h>
 #include <thrust/tabulate.h>
@@ -56,7 +56,7 @@ __device__ size_t count_set_bits(MaskIterator mask_first, size_t start_offset, s
       return static_cast<size_t>(__popc(word));
     },
     ret,
-    thrust::plus<size_t>{});
+    cuda::std::plus<size_t>{});
 }
 
 // @p n starts from 1
@@ -161,7 +161,7 @@ size_t count_set_bits(raft::handle_t const& handle, MaskIterator mask_first, siz
       return static_cast<size_t>(__popc(word));
     }),
     size_t{0},
-    thrust::plus<size_t>{});
+    cuda::std::plus<size_t>{});
 }
 
 template <typename InputIterator,

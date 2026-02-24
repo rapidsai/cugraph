@@ -25,8 +25,8 @@
 #include <raft/util/cudart_utils.hpp>
 #include <raft/util/integer_utils.hpp>
 
+#include <cuda/iterator>
 #include <cuda/std/functional>
-#include <cuda/std/iterator>
 #include <cuda/std/optional>
 #include <cuda/std/tuple>
 #include <thrust/fill.h>
@@ -603,12 +603,12 @@ rmm::device_uvector<weight_t> od_shortest_distances(
       aggregate_vi_t<vertex_t, od_idx_t, key_t>{static_cast<od_idx_t>(origins.size())});
     key_to_dist_map.insert(key_first,
                            key_first + origins.size(),
-                           thrust::make_constant_iterator(weight_t{0.0}),
+                           cuda::make_constant_iterator(weight_t{0.0}),
                            handle.get_stream());
 
     thrust::transform_if(handle.get_thrust_policy(),
-                         thrust::make_constant_iterator(weight_t{0.0}),
-                         thrust::make_constant_iterator(weight_t{0.0}) + origins.size(),
+                         cuda::make_constant_iterator(weight_t{0.0}),
+                         cuda::make_constant_iterator(weight_t{0.0}) + origins.size(),
                          key_first,
                          thrust::make_permutation_iterator(
                            od_matrix.begin(),

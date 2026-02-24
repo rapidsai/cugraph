@@ -19,6 +19,7 @@
 
 #include <rmm/device_uvector.hpp>
 
+#include <cuda/std/functional>
 #include <cuda/std/iterator>
 #include <cuda/std/tuple>
 
@@ -328,7 +329,7 @@ all_pairs_similarity(raft::handle_t const& handle,
                         two_hop_degrees.begin(),
                         two_hop_degrees.end() - 1,
                         tmp_vertices.begin(),
-                        thrust::greater<size_t>{});
+                        cuda::std::greater<size_t>{});
 
     thrust::exclusive_scan(handle.get_thrust_policy(),
                            two_hop_degrees.begin(),
@@ -454,7 +455,7 @@ all_pairs_similarity(raft::handle_t const& handle,
                           score.begin(),
                           score.end(),
                           thrust::make_zip_iterator(v1.begin(), v2.begin()),
-                          thrust::greater<weight_t>{});
+                          cuda::std::greater<weight_t>{});
 
       size_t v1_keep = std::min(*topk, v1.size());
 
@@ -473,7 +474,7 @@ all_pairs_similarity(raft::handle_t const& handle,
                           score.begin(),
                           score.end(),
                           thrust::make_zip_iterator(v1.begin(), v2.begin()),
-                          thrust::greater<weight_t>{});
+                          cuda::std::greater<weight_t>{});
 
       if (top_v1.size() < std::min(*topk, v1.size())) {
         top_v1.resize(std::min(*topk, v1.size()), handle.get_stream());
@@ -524,7 +525,7 @@ all_pairs_similarity(raft::handle_t const& handle,
                               gathered_score.begin(),
                               gathered_score.end(),
                               thrust::make_zip_iterator(gathered_v1.begin(), gathered_v2.begin()),
-                              thrust::greater<weight_t>{});
+                              cuda::std::greater<weight_t>{});
 
           if (gathered_v1.size() > *topk) {
             gathered_v1.resize(*topk, handle.get_stream());

@@ -172,7 +172,8 @@ function(ConfigureTest CMAKE_TEST_NAME)
                        CXX_STANDARD                        17
                        CXX_STANDARD_REQUIRED               ON
                        CUDA_STANDARD                       17
-                       CUDA_STANDARD_REQUIRED              ON)
+                       CUDA_STANDARD_REQUIRED              ON
+                       LINK_FLAGS "-Wl,--allow-shlib-undefined")
 
     rapids_test_add(
         NAME ${CMAKE_TEST_NAME}
@@ -204,7 +205,8 @@ function(ConfigureTestMG CMAKE_TEST_NAME)
                        CXX_STANDARD                        17
                        CXX_STANDARD_REQUIRED               ON
                        CUDA_STANDARD                       17
-                       CUDA_STANDARD_REQUIRED              ON)
+                       CUDA_STANDARD_REQUIRED              ON
+                       LINK_FLAGS "-Wl,--allow-shlib-undefined")
 
     rapids_test_add(
         NAME ${CMAKE_TEST_NAME}
@@ -257,7 +259,8 @@ function(ConfigureCTest CMAKE_TEST_NAME)
                        CXX_STANDARD                        17
                        CXX_STANDARD_REQUIRED               ON
                        CUDA_STANDARD                       17
-                       CUDA_STANDARD_REQUIRED              ON)
+                       CUDA_STANDARD_REQUIRED              ON
+                       LINK_FLAGS "-Wl,--allow-shlib-undefined")
 
     rapids_test_add(
         NAME ${CMAKE_TEST_NAME}
@@ -291,7 +294,8 @@ function(ConfigureCTestMG CMAKE_TEST_NAME)
                        CXX_STANDARD                        17
                        CXX_STANDARD_REQUIRED               ON
                        CUDA_STANDARD                       17
-                       CUDA_STANDARD_REQUIRED              ON)
+                       CUDA_STANDARD_REQUIRED              ON
+                       LINK_FLAGS "-Wl,--allow-shlib-undefined")
 
     rapids_test_add(
         NAME ${CMAKE_TEST_NAME}

@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2023-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -12,7 +12,6 @@
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/vertex_partition_device_view.cuh>
 
-#include <thrust/functional.h>
 #include <thrust/gather.h>
 
 namespace cugraph {

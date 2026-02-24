@@ -16,7 +16,7 @@
 #include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
 
-#include <cuda/std/functional>
+#include <cuda/functional>
 #include <cuda/std/iterator>
 #include <cuda/std/tuple>
 #include <thrust/binary_search.h>
@@ -24,7 +24,6 @@
 #include <thrust/equal.h>
 #include <thrust/extrema.h>
 #include <thrust/fill.h>
-#include <thrust/functional.h>
 #include <thrust/gather.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/reduce.h>
@@ -327,8 +326,8 @@ bool validate_temporal_integrity(
                                                                  sorted_dst_times.begin(),
                                                                  sorted_dsts.begin(),
                                                                  sorted_dst_times.begin(),
-                                                                 thrust::equal_to<vertex_t>(),
-                                                                 thrust::minimum<time_stamp_t>())
+                                                                 cuda::std::equal_to<vertex_t>(),
+                                                                 cuda::minimum<time_stamp_t>())
                                              .first),
                        handle.get_stream());
   } else {
@@ -339,8 +338,8 @@ bool validate_temporal_integrity(
                                                                  sorted_dst_times.begin(),
                                                                  sorted_dsts.begin(),
                                                                  sorted_dst_times.begin(),
-                                                                 thrust::equal_to<vertex_t>(),
-                                                                 thrust::maximum<time_stamp_t>())
+                                                                 cuda::std::equal_to<vertex_t>(),
+                                                                 cuda::maximum<time_stamp_t>())
                                              .first),
                        handle.get_stream());
   }
