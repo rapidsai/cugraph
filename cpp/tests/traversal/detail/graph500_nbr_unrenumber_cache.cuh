@@ -22,12 +22,12 @@
 #include <rmm/device_uvector.hpp>
 
 #include <cuda/functional>
+#include <cuda/iterator>
 #include <cuda/std/tuple>
 #include <thrust/copy.h>
 #include <thrust/equal.h>
 #include <thrust/fill.h>
 #include <thrust/for_each.h>
-#include <thrust/iterator/transform_iterator.h>
 #include <thrust/merge.h>
 #include <thrust/reduce.h>
 #include <thrust/set_operations.h>
@@ -114,7 +114,7 @@ class nbr_unrenumber_cache_t {
 
     vertex_t max_vertex_partition_size{};
     {
-      auto size_first = thrust::make_transform_iterator(
+      auto size_first = cuda::make_transform_iterator(
         thrust::make_counting_iterator(size_t{0}),
         cuda::proclaim_return_type<vertex_t>(
           [lasts = raft::device_span<vertex_t const>(
@@ -785,7 +785,7 @@ nbr_unrenumber_cache_t<vertex_t> build_nbr_unrenumber_cache(
                            ? cugraph::large_buffer_manager::allocate_memory_buffer<vertex_t>(
                             num_dense_nbrs, handle.get_stream())
                            : rmm::device_uvector<vertex_t>(num_dense_nbrs, handle.get_stream());
-    auto dense_v_first = thrust::make_transform_iterator(
+    auto dense_v_first = cuda::make_transform_iterator(
       thrust::make_counting_iterator(vertex_t{0}),
       cuda::proclaim_return_type<vertex_t>(
         [lasts = raft::device_span<vertex_t const>(d_vertex_partition_range_lasts.data(),
@@ -795,7 +795,7 @@ nbr_unrenumber_cache_t<vertex_t> build_nbr_unrenumber_cache(
           auto v_first = (vertex_partition_id == 0) ? vertex_t{0} : lasts[vertex_partition_id - 1];
           return v_first + (i % dense_size_per_vertex_partition);
         }));
-    auto stencil_first = thrust::make_transform_iterator(
+    auto stencil_first = cuda::make_transform_iterator(
       thrust::make_counting_iterator(vertex_t{0}),
       cuda::proclaim_return_type<bool>(
         [bitmap = raft::device_span<uint32_t const>(dense_nbr_bitmap->data(),
@@ -836,7 +836,7 @@ nbr_unrenumber_cache_t<vertex_t> build_nbr_unrenumber_cache(
       unrenumbered_nbrs.size() / num_unrenumber_rounds +
         ((r < (unrenumbered_nbrs.size() % num_unrenumber_rounds)) ? size_t{1} : size_t{0}),
       handle.get_stream());
-    auto offset_first = thrust::make_transform_iterator(
+    auto offset_first = cuda::make_transform_iterator(
       thrust::make_counting_iterator(size_t{0}),
       cuda::proclaim_return_type<size_t>(
         [num_unrenumber_rounds, r] __device__(auto i) { return r + i * num_unrenumber_rounds; }));

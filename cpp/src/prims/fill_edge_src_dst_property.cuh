@@ -226,7 +226,7 @@ void fill_edge_major_property(raft::handle_t const& handle,
               packed_bool_atomic_set(output_value_first, major_offset, input);
             });
         } else {
-          auto map_first = thrust::make_transform_iterator(
+          auto map_first = cuda::make_transform_iterator(
             rx_vertices.begin(),
             cuda::proclaim_return_type<vertex_t>([edge_partition] __device__(auto v) {
               return edge_partition.major_offset_from_major_nocheck(v);
@@ -650,7 +650,7 @@ void fill_edge_minor_property(raft::handle_t const& handle,
             handle.get_stream());
           rmm::device_uvector<uint32_t> aggregate_boundary_words(
             major_comm_size * packed_bool_word_bcast_alignment, handle.get_stream());
-          auto map_first = thrust::make_transform_iterator(
+          auto map_first = cuda::make_transform_iterator(
             thrust::make_counting_iterator(size_t{0}),
             cuda::proclaim_return_type<size_t>([num_leading_words] __device__(auto i) {
               return (i / packed_bool_word_bcast_alignment) *
@@ -1019,7 +1019,7 @@ void fill_edge_minor_property(raft::handle_t const& handle,
               } else {
                 auto stencil_first = thrust::make_counting_iterator(vertex_t{0});
                 if (compressed_v_list_size) {
-                  auto map_first = thrust::make_transform_iterator(
+                  auto map_first = cuda::make_transform_iterator(
                     rx_compressed_vertex_first,
                     cuda::proclaim_return_type<vertex_t>(
                       [minor_range_first,
@@ -1033,7 +1033,7 @@ void fill_edge_minor_property(raft::handle_t const& handle,
                                   map_first,
                                   edge_partition_value_first);
                 } else {
-                  auto map_first = thrust::make_transform_iterator(
+                  auto map_first = cuda::make_transform_iterator(
                     rx_vertex_first,
                     cuda::proclaim_return_type<vertex_t>(
                       [minor_range_first] __device__(auto v) { return v - minor_range_first; }));
@@ -1085,7 +1085,7 @@ void fill_edge_minor_property(raft::handle_t const& handle,
             auto val_first     = cuda::make_constant_iterator(input);
             auto stencil_first = thrust::make_counting_iterator(vertex_t{0});
             if (compressed_v_list_size) {
-              auto map_first = thrust::make_transform_iterator(
+              auto map_first = cuda::make_transform_iterator(
                 thrust::make_counting_iterator(vertex_t{0}),
                 cuda::proclaim_return_type<vertex_t>(
                   [local_v_list_sizes        = d_local_v_list_sizes,
@@ -1111,7 +1111,7 @@ void fill_edge_minor_property(raft::handle_t const& handle,
                 edge_partition_value_first,
                 within_valid_range_t<vertex_t>{d_local_v_list_sizes, max_padded_local_v_list_size});
             } else {
-              auto map_first = thrust::make_transform_iterator(
+              auto map_first = cuda::make_transform_iterator(
                 thrust::make_counting_iterator(vertex_t{0}),
                 cuda::proclaim_return_type<vertex_t>(
                   [local_v_list_sizes = d_local_v_list_sizes,

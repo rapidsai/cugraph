@@ -15,8 +15,8 @@
 #include <rmm/device_uvector.hpp>
 #include <rmm/exec_policy.hpp>
 
+#include <cuda/iterator>
 #include <cuda/std/functional>
-#include <cuda/std/iterator>
 #include <cuda/std/optional>
 #include <cuda/std/tuple>
 #include <thrust/binary_search.h>
@@ -256,7 +256,7 @@ class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t
     size_t tmp_storage_bytes{0};
 
     if (dcs_nzd_vertices_) {
-      auto local_degree_first = thrust::make_transform_iterator(
+      auto local_degree_first = cuda::make_transform_iterator(
         major_first,
         detail::local_degree_op_t<vertex_t,
                                   edge_t,
@@ -278,7 +278,7 @@ class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t
                              cuda::std::distance(major_first, major_last),
                              stream);
     } else {
-      auto local_degree_first = thrust::make_transform_iterator(
+      auto local_degree_first = cuda::make_transform_iterator(
         major_first,
         detail::local_degree_op_t<vertex_t,
                                   edge_t,
@@ -416,7 +416,7 @@ class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t
     size_t tmp_storage_bytes{0};
 
     if (dcs_nzd_vertices_) {
-      auto local_degree_first = thrust::make_transform_iterator(
+      auto local_degree_first = cuda::make_transform_iterator(
         major_first,
         detail::local_degree_with_mask_op_t<
           vertex_t,
@@ -443,7 +443,7 @@ class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t
                              cuda::std::distance(major_first, major_last),
                              stream);
     } else {
-      auto local_degree_first = thrust::make_transform_iterator(
+      auto local_degree_first = cuda::make_transform_iterator(
         major_first,
         detail::local_degree_with_mask_op_t<
           vertex_t,
@@ -726,7 +726,7 @@ class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t
     rmm::device_uvector<std::byte> d_tmp_storage(0, stream);
     size_t tmp_storage_bytes{0};
 
-    auto local_degree_first = thrust::make_transform_iterator(
+    auto local_degree_first = cuda::make_transform_iterator(
       major_first,
       detail::local_degree_op_t<vertex_t,
                                 edge_t,

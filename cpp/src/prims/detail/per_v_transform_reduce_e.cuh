@@ -36,8 +36,8 @@
 
 #include <cub/cub.cuh>
 #include <cuda/functional>
+#include <cuda/iterator>
 #include <cuda/std/functional>
-#include <cuda/std/iterator>
 #include <cuda/std/optional>
 #include <cuda/std/tuple>
 #include <thrust/copy.h>
@@ -45,7 +45,6 @@
 #include <thrust/fill.h>
 #include <thrust/for_each.h>
 #include <thrust/iterator/counting_iterator.h>
-#include <thrust/iterator/transform_iterator.h>
 #include <thrust/scatter.h>
 #include <thrust/set_operations.h>
 #include <thrust/transform_reduce.h>
@@ -905,7 +904,7 @@ void copy_valid_offset_value_pairs(
   bool copied = false;
   if (hypersparse_key_offsets) {
     auto input_pair_first = thrust::make_zip_iterator(
-      thrust::make_transform_iterator(
+      cuda::make_transform_iterator(
         thrust::make_counting_iterator(offset_t{0}),
         cuda::proclaim_return_type<offset_t>(
           [contiguous_size = input_size - hypersparse_key_offsets->size(),
@@ -921,7 +920,7 @@ void copy_valid_offset_value_pairs(
     copy_if_nosync(
       input_pair_first,
       input_pair_first + input_size,
-      thrust::make_transform_iterator(
+      cuda::make_transform_iterator(
         input_value_first, cuda::proclaim_return_type<bool>([invalid_value] __device__(auto value) {
           return value != invalid_value;
         })),
@@ -936,7 +935,7 @@ void copy_valid_offset_value_pairs(
     copy_if_nosync(
       input_pair_first,
       input_pair_first + input_size,
-      thrust::make_transform_iterator(
+      cuda::make_transform_iterator(
         input_value_first, cuda::proclaim_return_type<bool>([invalid_value] __device__(auto value) {
           return value != invalid_value;
         })),
@@ -1056,7 +1055,7 @@ void per_v_transform_reduce_e_edge_partition(
       auto segment_output_buffer = output_buffer;
       if constexpr (update_major) { segment_output_buffer += (*key_segment_offsets)[2]; }
       std::optional<segment_key_iterator_t>
-        segment_key_first{};  // std::optional as thrust::transform_iterator's default constructor
+        segment_key_first{};  // std::optional as cuda::transform_iterator's default constructor
                               // is a deleted function, segment_key_first should always have a value
       if constexpr (use_input_key) {
         segment_key_first = edge_partition_key_first;
@@ -1090,7 +1089,7 @@ void per_v_transform_reduce_e_edge_partition(
       auto segment_output_buffer = output_buffer;
       if constexpr (update_major) { segment_output_buffer += (*key_segment_offsets)[1]; }
       std::optional<segment_key_iterator_t>
-        segment_key_first{};  // std::optional as thrust::transform_iterator's default constructor
+        segment_key_first{};  // std::optional as cuda::transform_iterator's default constructor
                               // is a deleted function, segment_key_first should always have a value
       if constexpr (use_input_key) {
         segment_key_first = edge_partition_key_first;
@@ -1126,7 +1125,7 @@ void per_v_transform_reduce_e_edge_partition(
           : detail::per_v_transform_reduce_e_kernel_block_size,
         handle.get_device_properties().maxGridSize[0]);
       std::optional<segment_key_iterator_t>
-        segment_key_first{};  // std::optional as thrust::transform_iterator's default constructor
+        segment_key_first{};  // std::optional as cuda::transform_iterator's default constructor
                               // is a deleted function, segment_key_first should always have a value
       if constexpr (use_input_key) {
         segment_key_first = edge_partition_key_first;
@@ -1168,7 +1167,7 @@ void per_v_transform_reduce_e_edge_partition(
                                          detail::per_v_transform_reduce_e_kernel_block_size,
                                          handle.get_device_properties().maxGridSize[0]);
       std::optional<segment_key_iterator_t>
-        segment_key_first{};  // std::optional as thrust::transform_iterator's default constructor
+        segment_key_first{};  // std::optional as cuda::transform_iterator's default constructor
                               // is a deleted function, segment_key_first should always have a value
       if constexpr (use_input_key) {
         segment_key_first = edge_partition_key_first;
@@ -2234,7 +2233,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                                local_v_list_range_firsts[partition_idx]);
                   if (range_offset_first < range_offset_last) {
                     auto const& rx_bitmap  = (*edge_partition_bitmap_buffers)[j];
-                    auto input_count_first = thrust::make_transform_iterator(
+                    auto input_count_first = cuda::make_transform_iterator(
                       thrust::make_counting_iterator(packed_bool_offset(range_offset_first)),
                       cuda::proclaim_return_type<vertex_t>(
                         [range_bitmap =
@@ -2342,7 +2341,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                           }
                           return range_bitmap_word & segment_bitmap_word;
                         }));
-                    auto output_count_first = thrust::make_transform_iterator(
+                    auto output_count_first = cuda::make_transform_iterator(
                       filtered_bitmap.begin(),
                       cuda::proclaim_return_type<vertex_t>([] __device__(uint32_t word) {
                         return static_cast<vertex_t>(__popc(word));
@@ -2641,7 +2640,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                 if constexpr (try_bitmap) {
                   assert(!v_list_bitmap);
                   if (keys.index() == 0) {
-                    auto flag_first = thrust::make_transform_iterator(
+                    auto flag_first = cuda::make_transform_iterator(
                       get_dataframe_buffer_begin(std::get<0>(keys)) + key_segment_offsets[3],
                       cuda::proclaim_return_type<bool>(
                         [segment_bitmap = raft::device_span<uint32_t const>(segment_bitmap.data(),
@@ -2687,7 +2686,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                         loop_stream);
                     }
                   } else {
-                    auto flag_first = thrust::make_transform_iterator(
+                    auto flag_first = cuda::make_transform_iterator(
                       get_dataframe_buffer_begin(std::get<1>(keys)) + key_segment_offsets[3],
                       cuda::proclaim_return_type<bool>(
                         [segment_bitmap = raft::device_span<uint32_t const>(segment_bitmap.data(),
@@ -2731,7 +2730,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                     }
                   }
                 } else {
-                  auto flag_first = thrust::make_transform_iterator(
+                  auto flag_first = cuda::make_transform_iterator(
                     get_dataframe_buffer_begin(keys) + key_segment_offsets[3],
                     cuda::proclaim_return_type<bool>(
                       [segment_bitmap = raft::device_span<uint32_t const>(segment_bitmap.data(),
@@ -2992,7 +2991,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
       if constexpr (try_bitmap) {
         auto const& keys = edge_partition_key_buffers[j];
         if (keys.index() == 0) {
-          auto edge_partition_key_first = thrust::make_transform_iterator(
+          auto edge_partition_key_first = cuda::make_transform_iterator(
             std::get<0>(keys).begin(),
             cuda::proclaim_return_type<vertex_t>(
               [range_first = local_v_list_range_firsts[partition_idx]] __device__(
@@ -3352,7 +3351,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
               }
               keep_bitmap[i] = keep_word;
             });
-          auto keep_flag_first = thrust::make_transform_iterator(
+          auto keep_flag_first = cuda::make_transform_iterator(
             thrust::make_counting_iterator(size_t{0}),
             cuda::proclaim_return_type<bool>(
               [keep_bitmap = raft::device_span<uint32_t const>(
@@ -3447,14 +3446,14 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                      tx_buffer_first +
                        graph_view.vertex_partition_range_size(this_segment_vertex_partition_id),
                      minor_init);
-        auto value_first = thrust::make_transform_iterator(
+        auto value_first = cuda::make_transform_iterator(
           view.minor_value_first(),
           cuda::proclaim_return_type<T>(
             [reduce_op, minor_init] __device__(auto val) { return reduce_op(val, minor_init); }));
         thrust::scatter(handle.get_thrust_policy(),
                         value_first + (*minor_key_offsets)[i],
                         value_first + (*minor_key_offsets)[i + 1],
-                        thrust::make_transform_iterator(
+                        cuda::make_transform_iterator(
                           (*(view.minor_keys())).begin() + (*minor_key_offsets)[i],
                           cuda::proclaim_return_type<vertex_t>(
                             [key_first = graph_view.vertex_partition_range_first(

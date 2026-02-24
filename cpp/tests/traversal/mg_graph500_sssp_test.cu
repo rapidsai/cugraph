@@ -41,6 +41,7 @@
 #include <rmm/device_uvector.hpp>
 #include <rmm/mr/host/pinned_memory_resource.hpp>
 
+#include <cuda/iterator>
 #include <cuda/std/tuple>
 #include <thrust/merge.h>
 #include <thrust/set_operations.h>
@@ -934,7 +935,7 @@ class Tests_GRAPH500_MGSSSP
               handle_->get_thrust_policy(),
               tree_weights.begin(),
               tree_weights.end(),
-              thrust::make_transform_iterator(
+              cuda::make_transform_iterator(
                 tree_dsts.begin(),
                 cuda::proclaim_return_type<vertex_t>(
                   [map_first = reachable_from_2cores ? mg_pruned_graph_to_graph_map.begin()

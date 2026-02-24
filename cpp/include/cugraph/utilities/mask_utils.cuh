@@ -11,11 +11,9 @@
 #include <raft/core/handle.hpp>
 
 #include <cuda/functional>
-#include <cuda/std/functional>
-#include <cuda/std/iterator>
+#include <cuda/iterator>
 #include <thrust/copy.h>
 #include <thrust/iterator/counting_iterator.h>
-#include <thrust/iterator/transform_iterator.h>
 #include <thrust/tabulate.h>
 #include <thrust/transform.h>
 #include <thrust/transform_reduce.h>
@@ -132,15 +130,15 @@ __device__ size_t copy_if_mask_set(InputIterator input_first,
 
   return static_cast<size_t>(cuda::std::distance(
     output_first + output_start_offset,
-    thrust::copy_if(thrust::seq,
-                    input_first + input_start_offset,
-                    input_first + (input_start_offset + num_items),
-                    thrust::make_transform_iterator(
-                      thrust::make_counting_iterator(size_t{0}),
-                      check_bit_set_t<MaskIterator, size_t>{mask_first, size_t{0}}) +
-                      input_start_offset,
-                    output_first + output_start_offset,
-                    is_equal_t<bool>{true})));
+    thrust::copy_if(
+      thrust::seq,
+      input_first + input_start_offset,
+      input_first + (input_start_offset + num_items),
+      cuda::make_transform_iterator(thrust::make_counting_iterator(size_t{0}),
+                                    check_bit_set_t<MaskIterator, size_t>{mask_first, size_t{0}}) +
+        input_start_offset,
+      output_first + output_start_offset,
+      is_equal_t<bool>{true})));
 }
 
 template <typename MaskIterator>  // should be packed bool
@@ -177,8 +175,8 @@ OutputIterator copy_if_mask_set(raft::handle_t const& handle,
     handle.get_thrust_policy(),
     input_first,
     input_last,
-    thrust::make_transform_iterator(thrust::make_counting_iterator(size_t{0}),
-                                    check_bit_set_t<MaskIterator, size_t>{mask_first, size_t{0}}),
+    cuda::make_transform_iterator(thrust::make_counting_iterator(size_t{0}),
+                                  check_bit_set_t<MaskIterator, size_t>{mask_first, size_t{0}}),
     output_first,
     is_equal_t<bool>{true});
 }
@@ -196,8 +194,8 @@ OutputIterator copy_if_mask_unset(raft::handle_t const& handle,
     handle.get_thrust_policy(),
     input_first,
     input_last,
-    thrust::make_transform_iterator(thrust::make_counting_iterator(size_t{0}),
-                                    check_bit_set_t<MaskIterator, size_t>{mask_first, size_t{0}}),
+    cuda::make_transform_iterator(thrust::make_counting_iterator(size_t{0}),
+                                  check_bit_set_t<MaskIterator, size_t>{mask_first, size_t{0}}),
     output_first,
     is_equal_t<bool>{false});
 }

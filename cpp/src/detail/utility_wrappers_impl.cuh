@@ -14,7 +14,7 @@
 #include <rmm/exec_policy.hpp>
 
 #include <cuda/functional>
-#include <cuda/std/iterator>
+#include <cuda/iterator>
 #include <cuda/std/tuple>
 #include <thrust/count.h>
 #include <thrust/equal.h>
@@ -126,7 +126,7 @@ vertex_t compute_maximum_vertex_id(rmm::cuda_stream_view const& stream_view,
                                    vertex_t const* d_edgelist_dsts,
                                    size_t num_edges)
 {
-  auto max_v_first = thrust::make_transform_iterator(
+  auto max_v_first = cuda::make_transform_iterator(
     thrust::make_zip_iterator(d_edgelist_srcs, d_edgelist_dsts),
     cuda::proclaim_return_type<vertex_t>([] __device__(auto e) {
       return cuda::std::max(cuda::std::get<0>(e), cuda::std::get<1>(e));

@@ -19,8 +19,8 @@
 
 #include <rmm/device_uvector.hpp>
 
+#include <cuda/iterator>
 #include <cuda/std/functional>
-#include <cuda/std/iterator>
 #include <cuda/std/tuple>
 
 #include <optional>
@@ -313,10 +313,10 @@ all_pairs_similarity(raft::handle_t const& handle,
 
       thrust::gather(
         handle.get_thrust_policy(),
-        thrust::make_transform_iterator(
+        cuda::make_transform_iterator(
           tmp_vertices.begin(),
           cugraph::detail::shift_left_t<vertex_t>{graph_view.local_vertex_partition_range_first()}),
-        thrust::make_transform_iterator(
+        cuda::make_transform_iterator(
           tmp_vertices.end(),
           cugraph::detail::shift_left_t<vertex_t>{graph_view.local_vertex_partition_range_first()}),
         two_hop_degrees.begin(),

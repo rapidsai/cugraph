@@ -12,7 +12,7 @@
 
 #include <rmm/device_uvector.hpp>
 
-#include <cuda/std/iterator>
+#include <cuda/iterator>
 #include <cuda/std/tuple>
 #include <thrust/copy.h>
 #include <thrust/for_each.h>
@@ -860,7 +860,7 @@ symmetrize_edgelist(raft::handle_t const& handle,
       thrust::gather(handle.get_thrust_policy(),
                      property_position.begin(),
                      property_position.end(),
-                     thrust::make_transform_iterator(
+                     cuda::make_transform_iterator(
                        edgelist_weights->begin(),
                        pick_from_lower_upper_t<weight_t>{
                          raft::device_span<weight_t const>{lower_triangular_weights->data(),
@@ -876,7 +876,7 @@ symmetrize_edgelist(raft::handle_t const& handle,
       thrust::gather(handle.get_thrust_policy(),
                      property_position.begin(),
                      property_position.end(),
-                     thrust::make_transform_iterator(
+                     cuda::make_transform_iterator(
                        edgelist_edge_ids->begin(),
                        pick_from_lower_upper_t<edge_t>{
                          raft::device_span<edge_t const>{lower_triangular_edge_ids->data(),
@@ -893,7 +893,7 @@ symmetrize_edgelist(raft::handle_t const& handle,
         handle.get_thrust_policy(),
         property_position.begin(),
         property_position.end(),
-        thrust::make_transform_iterator(
+        cuda::make_transform_iterator(
           edgelist_edge_types->begin(),
           pick_from_lower_upper_t<edge_type_t>{
             raft::device_span<edge_type_t const>{lower_triangular_edge_types->data(),
@@ -910,7 +910,7 @@ symmetrize_edgelist(raft::handle_t const& handle,
         handle.get_thrust_policy(),
         property_position.begin(),
         property_position.end(),
-        thrust::make_transform_iterator(
+        cuda::make_transform_iterator(
           edgelist_edge_start_times->begin(),
           pick_from_lower_upper_t<time_stamp_t>{
             raft::device_span<time_stamp_t const>{lower_triangular_edge_start_times->data(),
@@ -927,7 +927,7 @@ symmetrize_edgelist(raft::handle_t const& handle,
         handle.get_thrust_policy(),
         property_position.begin(),
         property_position.end(),
-        thrust::make_transform_iterator(
+        cuda::make_transform_iterator(
           edgelist_edge_end_times->begin(),
           pick_from_lower_upper_t<time_stamp_t>{
             raft::device_span<time_stamp_t const>{lower_triangular_edge_end_times->data(),
