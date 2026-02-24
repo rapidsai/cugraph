@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -32,15 +32,14 @@
 #include <rmm/exec_policy.hpp>
 
 #include <cub/cub.cuh>
-#include <cuda/std/iterator>
+#include <cuda/iterator>
+#include <cuda/std/functional>
 #include <cuda/std/optional>
 #include <cuda/std/tuple>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
 #include <thrust/count.h>
 #include <thrust/execution_policy.h>
-#include <thrust/functional.h>
-#include <thrust/iterator/constant_iterator.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/iterator_traits.h>
 #include <thrust/iterator/zip_iterator.h>
@@ -363,13 +362,13 @@ sort_and_reduce_buffer_elements(
             }
             keep_flags[i] = keep_flag_word;
           }));
-      auto count_first = thrust::make_transform_iterator(
+      auto count_first = cuda::make_transform_iterator(
         keep_flags.begin(), cuda::proclaim_return_type<size_t>([] __device__(auto word) {
           return static_cast<size_t>(__popc(word));
         }));
       auto num_valids =
         thrust::reduce(handle.get_thrust_policy(), count_first, count_first + keep_flags.size());
-      auto stencil_first = thrust::make_transform_iterator(
+      auto stencil_first = cuda::make_transform_iterator(
         thrust::make_counting_iterator(size_t{0}),
         cuda::proclaim_return_type<bool>(
           [keep_flags = raft::device_span<uint32_t const>(keep_flags.data(),
@@ -461,7 +460,7 @@ sort_and_reduce_buffer_elements(
     if constexpr (compressed) {
       resize_dataframe_buffer(
         output_key_buffer, size_dataframe_buffer(key_buffer), handle.get_stream());
-      auto input_key_first = thrust::make_transform_iterator(
+      auto input_key_first = cuda::make_transform_iterator(
         get_dataframe_buffer_begin(key_buffer),
         cuda::proclaim_return_type<key_t>(
           [v_first = std::get<0>(vertex_range)] __device__(auto v_offset) {
@@ -498,7 +497,7 @@ sort_and_reduce_buffer_elements(
     if constexpr (compressed) {
       resize_dataframe_buffer(
         output_key_buffer, size_dataframe_buffer(key_buffer), handle.get_stream());
-      auto input_key_first = thrust::make_transform_iterator(
+      auto input_key_first = cuda::make_transform_iterator(
         get_dataframe_buffer_begin(key_buffer),
         cuda::proclaim_return_type<key_t>(
           [v_first = std::get<0>(vertex_range)] __device__(auto v_offset) {
@@ -562,7 +561,7 @@ sort_and_reduce_buffer_elements(
       allocate_dataframe_buffer<payload_t>(num_uniques, handle.get_stream());
 
     if constexpr (compressed) {
-      auto input_key_first = thrust::make_transform_iterator(
+      auto input_key_first = cuda::make_transform_iterator(
         get_dataframe_buffer_begin(key_buffer),
         cuda::proclaim_return_type<key_t>(
           [v_first = std::get<0>(vertex_range)] __device__(auto v_offset) {
@@ -574,7 +573,7 @@ sort_and_reduce_buffer_elements(
                             get_optional_dataframe_buffer_begin<payload_t>(payload_buffer),
                             get_dataframe_buffer_begin(new_key_buffer),
                             get_dataframe_buffer_begin(new_payload_buffer),
-                            thrust::equal_to<key_t>(),
+                            cuda::std::equal_to<key_t>(),
                             reduce_op);
     } else {
       thrust::reduce_by_key(handle.get_thrust_policy(),
@@ -583,7 +582,7 @@ sort_and_reduce_buffer_elements(
                             get_optional_dataframe_buffer_begin<payload_t>(payload_buffer),
                             get_dataframe_buffer_begin(new_key_buffer),
                             get_dataframe_buffer_begin(new_payload_buffer),
-                            thrust::equal_to<key_t>(),
+                            cuda::std::equal_to<key_t>(),
                             reduce_op);
     }
 

@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2023-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -13,8 +13,8 @@
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/vertex_partition_device_view.cuh>
 
+#include <cuda/iterator>
 #include <cuda/std/functional>
-#include <cuda/std/iterator>
 #include <cuda/std/tuple>
 #include <thrust/gather.h>
 
@@ -98,7 +98,7 @@ rmm::device_uvector<result_t> vertex_result_view_t<result_t>::gather(
   auto vertex_partition =
     vertex_partition_device_view_t<vertex_t, multi_gpu>(vertex_partition_view);
 
-  auto iter = thrust::make_transform_iterator(
+  auto iter = cuda::make_transform_iterator(
     local_vertices.begin(),
     cuda::proclaim_return_type<vertex_t>([vertex_partition] __device__(auto v) {
       return vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(v);

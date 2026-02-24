@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2023-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -82,7 +82,7 @@ struct leiden_functor : public cugraph::c_api::abstract_functor {
                                              handle_.get_stream());
 
       // FIXME: Revisit the constant edge property idea.  We could consider an alternate
-      // implementation (perhaps involving the thrust::constant_iterator), or we
+      // implementation (perhaps involving the cuda::constant_iterator), or we
       // could add support in Leiden for std::nullopt as the edge weights behaving
       // as desired and only instantiating a real edge_property_view_t for the
       // coarsened graphs.

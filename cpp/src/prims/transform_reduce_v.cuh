@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -13,10 +13,10 @@
 
 #include <raft/core/handle.hpp>
 
+#include <cuda/iterator>
 #include <thrust/execution_policy.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/iterator_traits.h>
-#include <thrust/iterator/transform_iterator.h>
 #include <thrust/transform_reduce.h>
 
 namespace cugraph {
@@ -88,7 +88,7 @@ T transform_reduce_v(raft::handle_t const& handle,
   return reduce_v(
     handle,
     graph_view,
-    thrust::make_transform_iterator(
+    cuda::make_transform_iterator(
       thrust::make_counting_iterator(vertex_t{0}),
       detail::transform_reduce_call_v_op_t<vertex_t, VertexValueInputIterator, VertexOp, T>{
         graph_view.local_vertex_partition_range_first(), vertex_value_input_first, v_op}),

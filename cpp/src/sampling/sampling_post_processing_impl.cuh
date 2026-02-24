@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2023-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -19,13 +19,12 @@
 
 #include <cub/cub.cuh>
 #include <cuda/functional>
-#include <cuda/std/iterator>
+#include <cuda/iterator>
 #include <cuda/std/optional>
 #include <cuda/std/tuple>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
 #include <thrust/count.h>
-#include <thrust/iterator/constant_iterator.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/merge.h>
@@ -312,12 +311,12 @@ void check_input_edges(raft::handle_t const& handle,
                                                edgelist_majors.begin(),
                                                edgelist_majors.end(),
                                                vertex_t{0},
-                                               thrust::maximum<vertex_t>{}),
+                                               cuda::maximum<vertex_t>{}),
                                 thrust::reduce(handle.get_thrust_policy(),
                                                edgelist_minors.begin(),
                                                edgelist_minors.end(),
                                                vertex_t{0},
-                                               thrust::maximum<vertex_t>{}));
+                                               cuda::maximum<vertex_t>{}));
       CUGRAPH_EXPECTS(
         back_element > max_v,
         "Invalid input arguments: if vertex_type_offsets is valid, the last element of "
@@ -617,7 +616,7 @@ compute_min_hop_for_unique_label_vertex_pairs(
       tmp_vertices.resize(tmp_indices.size(), handle.get_stream());
       tmp_hops = rmm::device_uvector<int32_t>(tmp_indices.size(), handle.get_stream());
 
-      auto triplet_first = thrust::make_transform_iterator(
+      auto triplet_first = cuda::make_transform_iterator(
         tmp_indices.begin(),
         cuda::proclaim_return_type<cuda::std::tuple<label_index_t, vertex_t, int32_t>>(
           [edgelist_label_offsets = *edgelist_label_offsets,
@@ -643,8 +642,8 @@ compute_min_hop_for_unique_label_vertex_pairs(
         size_t tmp_storage_bytes{0};
 
         auto offset_first =
-          thrust::make_transform_iterator((*edgelist_label_offsets).data() + h_label_offsets[i],
-                                          detail::shift_left_t<size_t>{h_edge_offsets[i]});
+          cuda::make_transform_iterator((*edgelist_label_offsets).data() + h_label_offsets[i],
+                                        detail::shift_left_t<size_t>{h_edge_offsets[i]});
         cub::DeviceSegmentedSort::SortKeys(static_cast<void*>(nullptr),
                                            tmp_storage_bytes,
                                            edgelist_vertices.begin() + h_edge_offsets[i],
@@ -675,7 +674,7 @@ compute_min_hop_for_unique_label_vertex_pairs(
       tmp_label_indices.resize(segment_sorted_vertices.size(), handle.get_stream());
       tmp_vertices.resize(segment_sorted_vertices.size(), handle.get_stream());
 
-      auto input_pair_first = thrust::make_transform_iterator(
+      auto input_pair_first = cuda::make_transform_iterator(
         thrust::make_counting_iterator(size_t{0}),
         cuda::proclaim_return_type<cuda::std::tuple<label_index_t, vertex_t>>(
           [edgelist_label_offsets = *edgelist_label_offsets,
@@ -740,7 +739,7 @@ compute_min_hop_for_unique_label_vertex_pairs(
                                                                           handle.get_stream());
       rmm::device_uvector<vertex_t> unique_seed_vertices((*seed_vertices).size(),
                                                          handle.get_stream());
-      auto input_pair_first = thrust::make_transform_iterator(
+      auto input_pair_first = cuda::make_transform_iterator(
         thrust::make_counting_iterator(size_t{0}),
         cuda::proclaim_return_type<cuda::std::tuple<label_index_t, vertex_t>>(
           [seed_vertex_label_offsets = *seed_vertex_label_offsets,
@@ -831,7 +830,7 @@ compute_min_hop_for_unique_label_vertex_pairs(
           auto triplet_from_seed_vertex_first =
             thrust::make_zip_iterator(unique_seed_vertex_label_indices.begin(),
                                       unique_seed_vertices.begin(),
-                                      thrust::make_constant_iterator(int32_t{0}));
+                                      cuda::make_constant_iterator(int32_t{0}));
           thrust::merge(
             handle.get_thrust_policy(),
             triplet_from_edgelist_first,
@@ -1001,7 +1000,7 @@ compute_min_hop_for_unique_label_vertex_pairs(
             tmp_vertices.size() + unique_seed_vertices.size(), handle.get_stream());
           rmm::device_uvector<int32_t> merged_hops(merged_vertices.size(), handle.get_stream());
           auto pair_from_seed_vertex_first = thrust::make_zip_iterator(
-            unique_seed_vertices.begin(), thrust::make_constant_iterator(int32_t{0}));
+            unique_seed_vertices.begin(), cuda::make_constant_iterator(int32_t{0}));
           thrust::merge(handle.get_thrust_policy(),
                         pair_from_edgelist_first,
                         pair_from_edgelist_first + tmp_vertices.size(),
@@ -1123,12 +1122,12 @@ compute_vertex_renumber_map(
           thrust::make_zip_iterator((*unique_label_major_pair_label_indices).begin(),
                                     unique_label_major_pair_vertices.begin(),
                                     (*unique_label_major_pair_hops).begin(),
-                                    thrust::make_constant_iterator(int8_t{0}));
+                                    cuda::make_constant_iterator(int8_t{0}));
         auto minor_quad_first =
           thrust::make_zip_iterator((*unique_label_minor_pair_label_indices).begin(),
                                     unique_label_minor_pair_vertices.begin(),
                                     (*unique_label_minor_pair_hops).begin(),
-                                    thrust::make_constant_iterator(int8_t{1}));
+                                    cuda::make_constant_iterator(int8_t{1}));
         thrust::merge(handle.get_thrust_policy(),
                       major_quad_first + major_start_offset,
                       major_quad_first + major_end_offset,
@@ -1192,11 +1191,11 @@ compute_vertex_renumber_map(
         auto major_triplet_first =
           thrust::make_zip_iterator((*unique_label_major_pair_label_indices).begin(),
                                     unique_label_major_pair_vertices.begin(),
-                                    thrust::make_constant_iterator(int8_t{0}));
+                                    cuda::make_constant_iterator(int8_t{0}));
         auto minor_triplet_first =
           thrust::make_zip_iterator((*unique_label_minor_pair_label_indices).begin(),
                                     unique_label_minor_pair_vertices.begin(),
-                                    thrust::make_constant_iterator(int8_t{1}));
+                                    cuda::make_constant_iterator(int8_t{1}));
         thrust::merge(
           handle.get_thrust_policy(),
           major_triplet_first + major_start_offset,
@@ -1273,7 +1272,7 @@ compute_vertex_renumber_map(
     if (vertex_type_offsets) {
       auto label_type_pair_first = thrust::make_zip_iterator(
         renumber_map_label_indices.begin(),
-        thrust::make_transform_iterator(
+        cuda::make_transform_iterator(
           renumber_map.begin(),
           cuda::proclaim_return_type<vertex_type_t>(
             [offsets = *vertex_type_offsets] __device__(auto v) {
@@ -1281,7 +1280,7 @@ compute_vertex_renumber_map(
                 offsets.begin() + 1,
                 thrust::upper_bound(thrust::seq, offsets.begin() + 1, offsets.end(), v)));
             })));
-      auto value_first = thrust::make_transform_iterator(
+      auto value_first = cuda::make_transform_iterator(
         thrust::make_counting_iterator(size_t{0}),
         cuda::proclaim_return_type<cuda::std::tuple<label_index_t, vertex_type_t>>(
           [num_vertex_types] __device__(size_t i) {
@@ -1309,14 +1308,12 @@ compute_vertex_renumber_map(
         handle.get_stream());
       rmm::device_uvector<int32_t> merged_hops(merged_vertices.size(), handle.get_stream());
       rmm::device_uvector<int8_t> merged_flags(merged_vertices.size(), handle.get_stream());
-      auto major_triplet_first =
-        thrust::make_zip_iterator(unique_label_major_pair_vertices.begin(),
-                                  (*unique_label_major_pair_hops).begin(),
-                                  thrust::make_constant_iterator(int8_t{0}));
-      auto minor_triplet_first =
-        thrust::make_zip_iterator(unique_label_minor_pair_vertices.begin(),
-                                  (*unique_label_minor_pair_hops).begin(),
-                                  thrust::make_constant_iterator(int8_t{1}));
+      auto major_triplet_first = thrust::make_zip_iterator(unique_label_major_pair_vertices.begin(),
+                                                           (*unique_label_major_pair_hops).begin(),
+                                                           cuda::make_constant_iterator(int8_t{0}));
+      auto minor_triplet_first = thrust::make_zip_iterator(unique_label_minor_pair_vertices.begin(),
+                                                           (*unique_label_minor_pair_hops).begin(),
+                                                           cuda::make_constant_iterator(int8_t{1}));
       thrust::merge(handle.get_thrust_policy(),
                     major_triplet_first,
                     major_triplet_first + unique_label_major_pair_vertices.size(),
@@ -1415,7 +1412,7 @@ compute_vertex_renumber_map(
       renumber_map_label_type_offsets =
         rmm::device_uvector<size_t>(num_vertex_types + 1, handle.get_stream());
       (*renumber_map_label_type_offsets).set_element_to_zero_async(0, handle.get_stream());
-      auto type_first = thrust::make_transform_iterator(
+      auto type_first = cuda::make_transform_iterator(
         renumber_map.begin(),
         cuda::proclaim_return_type<vertex_type_t>(
           [offsets = *vertex_type_offsets] __device__(auto v) {
@@ -1598,7 +1595,7 @@ compute_edge_id_renumber_map(
       rmm::device_uvector<size_t>(num_labels * num_edge_types + 1, handle.get_stream());
     (*renumber_map_label_type_offsets).set_element_to_zero_async(0, handle.get_stream());
     if (edgelist_edge_types) {
-      auto label_type_pair_first = thrust::make_transform_iterator(
+      auto label_type_pair_first = cuda::make_transform_iterator(
         tmp_indices.begin(),
         cuda::proclaim_return_type<cuda::std::tuple<label_index_t, edge_type_t>>(
           [edgelist_label_offsets = *edgelist_label_offsets,
@@ -1610,7 +1607,7 @@ compute_edge_id_renumber_map(
             return cuda::std::make_tuple(static_cast<label_index_t>(label_idx),
                                          edgelist_edge_types[i]);
           }));
-      auto value_first = thrust::make_transform_iterator(
+      auto value_first = cuda::make_transform_iterator(
         thrust::make_counting_iterator(size_t{0}),
         cuda::proclaim_return_type<cuda::std::tuple<label_index_t, edge_type_t>>(
           [num_edge_types] __device__(size_t i) {
@@ -1624,7 +1621,7 @@ compute_edge_id_renumber_map(
                           value_first + (num_labels * num_edge_types),
                           (*renumber_map_label_type_offsets).begin() + 1);
     } else {
-      auto label_first = thrust::make_transform_iterator(
+      auto label_first = cuda::make_transform_iterator(
         tmp_indices.begin(),
         cuda::proclaim_return_type<label_index_t>(
           [edgelist_label_offsets = *edgelist_label_offsets] __device__(size_t i) {
@@ -1838,8 +1835,8 @@ renumber_sampled_edgelist(raft::handle_t const& handle,
       size_t tmp_storage_bytes{0};
 
       auto offset_first =
-        thrust::make_transform_iterator((*renumber_map_label_offsets).data() + h_label_offsets[i],
-                                        detail::shift_left_t<size_t>{h_edge_offsets[i]});
+        cuda::make_transform_iterator((*renumber_map_label_offsets).data() + h_label_offsets[i],
+                                      detail::shift_left_t<size_t>{h_edge_offsets[i]});
       cub::DeviceSegmentedSort::SortPairs(static_cast<void*>(nullptr),
                                           tmp_storage_bytes,
                                           renumber_map.begin() + h_edge_offsets[i],
@@ -2108,7 +2105,7 @@ heterogeneous_renumber_sampled_edgelist(
     for (size_t i = 0; i < num_chunks; ++i) {
       size_t tmp_storage_bytes{0};
 
-      auto offset_first = thrust::make_transform_iterator(
+      auto offset_first = cuda::make_transform_iterator(
         (*vertex_renumber_map_label_type_offsets).data() + h_label_offsets[i],
         detail::shift_left_t<size_t>{h_edge_offsets[i]});
       cub::DeviceSegmentedSort::SortPairs(
@@ -2322,7 +2319,7 @@ heterogeneous_renumber_sampled_edgelist(
       for (size_t i = 0; i < num_chunks; ++i) {
         size_t tmp_storage_bytes{0};
 
-        auto offset_first = thrust::make_transform_iterator(
+        auto offset_first = cuda::make_transform_iterator(
           (*edge_id_renumber_map_label_type_offsets).data() + h_label_offsets[i],
           detail::shift_left_t<size_t>{h_edge_offsets[i]});
         cub::DeviceSegmentedSort::SortPairs(
@@ -2713,7 +2710,7 @@ renumber_and_compress_sampled_edgelist(
       rmm::device_uvector<vertex_t> min_vertices(num_labels * num_hops, handle.get_stream());
       rmm::device_uvector<vertex_t> max_vertices(min_vertices.size(), handle.get_stream());
 
-      auto label_index_first = thrust::make_transform_iterator(
+      auto label_index_first = cuda::make_transform_iterator(
         thrust::make_counting_iterator(size_t{0}),
         optionally_compute_label_index_t<label_index_t>{
           edgelist_label_offsets ? cuda::std::make_optional(*edgelist_label_offsets)
@@ -2732,8 +2729,8 @@ renumber_and_compress_sampled_edgelist(
                               edgelist_majors.begin(),
                               output_key_first,
                               min_vertices.begin(),
-                              thrust::equal_to<cuda::std::tuple<label_index_t, int32_t>>{},
-                              thrust::minimum<vertex_t>{});
+                              cuda::std::equal_to<cuda::std::tuple<label_index_t, int32_t>>{},
+                              cuda::minimum<vertex_t>{});
       auto num_unique_keys =
         static_cast<size_t>(cuda::std::distance(output_key_first, cuda::std::get<0>(output_it)));
       thrust::reduce_by_key(handle.get_thrust_policy(),
@@ -2742,8 +2739,8 @@ renumber_and_compress_sampled_edgelist(
                             edgelist_majors.begin(),
                             output_key_first,
                             max_vertices.begin(),
-                            thrust::equal_to<cuda::std::tuple<label_index_t, int32_t>>{},
-                            thrust::maximum<vertex_t>{});
+                            cuda::std::equal_to<cuda::std::tuple<label_index_t, int32_t>>{},
+                            cuda::maximum<vertex_t>{});
 
       if (renumbered_seed_vertices) {
         thrust::for_each(
@@ -2830,9 +2827,9 @@ renumber_and_compress_sampled_edgelist(
   compressed_offsets.set_element_to_zero_async(num_uniques, handle.get_stream());
 
   if (edgelist_label_offsets) {
-    auto label_index_first = thrust::make_transform_iterator(
-      thrust::make_counting_iterator(size_t{0}),
-      compute_label_index_t<label_index_t>{*edgelist_label_offsets});
+    auto label_index_first =
+      cuda::make_transform_iterator(thrust::make_counting_iterator(size_t{0}),
+                                    compute_label_index_t<label_index_t>{*edgelist_label_offsets});
 
     if (edgelist_hops) {
       auto input_key_first = thrust::make_zip_iterator(
@@ -2843,7 +2840,7 @@ renumber_and_compress_sampled_edgelist(
       thrust::reduce_by_key(handle.get_thrust_policy(),
                             input_key_first,
                             input_key_first + edgelist_majors.size(),
-                            thrust::make_constant_iterator(size_t{1}),
+                            cuda::make_constant_iterator(size_t{1}),
                             output_key_first,
                             compressed_offsets.begin());
     } else {
@@ -2853,7 +2850,7 @@ renumber_and_compress_sampled_edgelist(
       thrust::reduce_by_key(handle.get_thrust_policy(),
                             input_key_first,
                             input_key_first + edgelist_majors.size(),
-                            thrust::make_constant_iterator(size_t{1}),
+                            cuda::make_constant_iterator(size_t{1}),
                             output_key_first,
                             compressed_offsets.begin());
     }
@@ -2866,7 +2863,7 @@ renumber_and_compress_sampled_edgelist(
       thrust::reduce_by_key(handle.get_thrust_policy(),
                             input_key_first,
                             input_key_first + edgelist_majors.size(),
-                            thrust::make_constant_iterator(size_t{1}),
+                            cuda::make_constant_iterator(size_t{1}),
                             output_key_first,
                             compressed_offsets.begin());
     } else {
@@ -2875,7 +2872,7 @@ renumber_and_compress_sampled_edgelist(
       thrust::reduce_by_key(handle.get_thrust_policy(),
                             input_key_first,
                             input_key_first + edgelist_majors.size(),
-                            thrust::make_constant_iterator(size_t{1}),
+                            cuda::make_constant_iterator(size_t{1}),
                             output_key_first,
                             compressed_offsets.begin());
     }
@@ -2900,7 +2897,7 @@ renumber_and_compress_sampled_edgelist(
         if (edgelist_hops) {
           auto pair_first       = thrust::make_zip_iterator((*compressed_label_indices).begin(),
                                                       (*compressed_hops).begin());
-          auto value_pair_first = thrust::make_transform_iterator(
+          auto value_pair_first = cuda::make_transform_iterator(
             thrust::make_counting_iterator(size_t{0}),
             cuda::proclaim_return_type<cuda::std::tuple<label_index_t, int32_t>>(
               [num_hops] __device__(size_t i) {
