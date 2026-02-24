@@ -778,7 +778,7 @@ nbr_unrenumber_cache_t<vertex_t> build_nbr_unrenumber_cache(
                                  return static_cast<vertex_t>(__popc(word));
                                }),
                                vertex_t{0},
-                               thrust::plus<vertex_t>{});
+                               cuda::std::plus<vertex_t>{});
     std::cout << "num_dense_nbrs=" << num_dense_nbrs << " (sparse) nbrs.size()=" << nbrs.size()
               << std::endl;
     auto dense_nbrs    = large_buffer_type
