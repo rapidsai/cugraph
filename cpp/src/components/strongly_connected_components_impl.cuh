@@ -443,23 +443,18 @@ void strongly_connected_components_impl(
                                          components.begin(),
                                          forward_graph_view.local_vertex_partition_range_size());
 
-    // FIXME: we may add edge_property_t constructor that takes an initial value; then we can just
-    // use the forward_graph_view (without calling clear_edge_maks()) and avoid passing
-    // edge_mask.view()
-    forward_graph_view.clear_edge_mask();
-    auto new_edge_mask = edge_property_t<edge_t, bool>(handle, forward_graph_view);
-    cugraph::fill_edge_property(handle, forward_graph_view, new_edge_mask.mutable_view(), false);
-    transform_e(
-      handle,
-      forward_graph_view,
-      edge_src_component_view,
-      edge_dst_component_view,
-      edge_mask.view(),
-      cuda::proclaim_return_type<bool>(
-        [] __device__(auto src, auto dst, auto src_component, auto dst_component, auto valid) {
-          return valid && (src_component == dst_component);
-        }),
-      new_edge_mask.mutable_view());
+    auto new_edge_mask = make_initialized_edge_property(handle, forward_graph_view, false);
+    transform_e(handle,
+                forward_graph_view,
+                edge_src_component_view,
+                edge_dst_component_view,
+                edge_dummy_property_t{}.view(),
+                cuda::proclaim_return_type<bool>(
+                  [] __device__(auto, auto, auto src_component, auto dst_component, auto) {
+                    return src_component == dst_component;
+                  }),
+                new_edge_mask.mutable_view());
+    if (forward_graph_view.has_edge_mask()) { forward_graph_view.clear_edge_mask(); }
     edge_mask = std::move(new_edge_mask);
     forward_graph_view.attach_edge_mask(edge_mask.view());
 
@@ -488,24 +483,19 @@ void strongly_connected_components_impl(
                       inverse_components->begin(),
                       inverse_graph_view.local_vertex_partition_range_size());
 
-      // FIXME: we may add edge_property_t constructor that takes an initial value; then we can
-      // just use the inverse_graph_view (without calling clear_edge_maks()) and avoid passing
-      // inverse_edge_mask.view()
-      inverse_graph_view.clear_edge_mask();
-      auto new_inverse_edge_mask = edge_property_t<edge_t, bool>(handle, inverse_graph_view);
-      cugraph::fill_edge_property(
-        handle, inverse_graph_view, new_inverse_edge_mask.mutable_view(), false);
-      transform_e(
-        handle,
-        inverse_graph_view,
-        inverse_edge_src_component_view,
-        inverse_edge_dst_component_view,
-        inverse_edge_mask.view(),
-        cuda::proclaim_return_type<bool>(
-          [] __device__(auto src, auto dst, auto src_component, auto dst_component, auto valid) {
-            return valid && (src_component == dst_component);
-          }),
-        new_inverse_edge_mask.mutable_view());
+      auto new_inverse_edge_mask =
+        make_initialized_edge_property(handle, inverse_graph_view, false);
+      transform_e(handle,
+                  inverse_graph_view,
+                  inverse_edge_src_component_view,
+                  inverse_edge_dst_component_view,
+                  edge_dummy_property_t{}.view(),
+                  cuda::proclaim_return_type<bool>(
+                    [] __device__(auto, auto, auto src_component, auto dst_component, auto) {
+                      return src_component == dst_component;
+                    }),
+                  new_inverse_edge_mask.mutable_view());
+      if (inverse_graph_view.has_edge_mask()) { inverse_graph_view.clear_edge_mask(); }
       inverse_edge_mask = std::move(new_inverse_edge_mask);
       inverse_graph_view.attach_edge_mask(inverse_edge_mask.view());
     }
