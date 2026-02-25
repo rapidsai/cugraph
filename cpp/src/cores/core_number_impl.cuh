@@ -6,6 +6,7 @@
 
 #include "prims/fill_edge_property.cuh"
 #include "prims/fill_edge_src_dst_property.cuh"
+#include "prims/make_initialized_edge_property.cuh"
 #include "prims/reduce_v.cuh"
 #include "prims/transform_e.cuh"
 #include "prims/transform_reduce_if_v_frontier_outgoing_e_by_dst.cuh"
@@ -81,19 +82,16 @@ void core_number(raft::handle_t const& handle,
   std::optional<cugraph::edge_property_t<edge_t, bool>> self_loop_edge_mask{std::nullopt};
   auto cur_graph_view = graph_view;
   if (cur_graph_view.count_self_loops(handle) > edge_t{0}) {
-    self_loop_edge_mask = cugraph::edge_property_t<edge_t, bool>(handle, cur_graph_view);
-    if (cur_graph_view.has_edge_mask()) { cur_graph_view.clear_edge_mask(); }
-    cugraph::fill_edge_property(handle, cur_graph_view, self_loop_edge_mask->mutable_view(), false);
-
+    self_loop_edge_mask = make_initialized_edge_property(handle, cur_graph_view, false);
     transform_e(handle,
-                graph_view,
+                cur_graph_view,
                 edge_src_dummy_property_t{}.view(),
                 edge_dst_dummy_property_t{}.view(),
                 edge_dummy_property_t{}.view(),
                 cuda::proclaim_return_type<bool>(
                   [] __device__(auto src, auto dst, auto, auto, auto) { return src != dst; }),
                 self_loop_edge_mask->mutable_view());
-
+    if (cur_graph_view.has_edge_mask()) { cur_graph_view.clear_edge_mask(); }
     cur_graph_view.attach_edge_mask(self_loop_edge_mask->view());
   }
 

@@ -338,12 +338,7 @@ edge_property_t<edge_t, edge_t> edge_triangle_count_impl(
     prev_chunk_size += chunk_size;
   }
 
-  cugraph::edge_property_t<edge_t, edge_t> counts(handle, cur_graph_view);
-  {
-    auto unmasked_graph_view = cur_graph_view;
-    if (unmasked_graph_view.has_edge_mask()) { unmasked_graph_view.clear_edge_mask(); }
-    cugraph::fill_edge_property(handle, unmasked_graph_view, counts.mutable_view(), edge_t{0});
-  }
+  auto counts = make_initialized_edge_property(handle, cur_graph_view, edge_t{0});
 
   cugraph::edge_bucket_t<vertex_t, edge_t, true, multi_gpu, true> valid_edges(
     handle, false /* multigraph */);

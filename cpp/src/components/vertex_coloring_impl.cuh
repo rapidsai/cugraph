@@ -1,10 +1,11 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2024-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
 
 #include "prims/fill_edge_property.cuh"
+#include "prims/make_initialized_edge_property.cuh"
 #include "prims/transform_e.cuh"
 #include "prims/update_edge_src_dst_property.cuh"
 
@@ -29,13 +30,8 @@ rmm::device_uvector<vertex_t> vertex_coloring(
   graph_view_t current_graph_view(graph_view);
 
   // edge mask
-  cugraph::edge_property_t<edge_t, bool> edge_masks_even(handle, current_graph_view);
-  cugraph::fill_edge_property(
-    handle, current_graph_view, edge_masks_even.mutable_view(), bool{false});
-
-  cugraph::edge_property_t<edge_t, bool> edge_masks_odd(handle, current_graph_view);
-  cugraph::fill_edge_property(
-    handle, current_graph_view, edge_masks_odd.mutable_view(), bool{false});
+  auto edge_masks_even = make_initialized_edge_property(handle, current_graph_view, false);
+  auto edge_masks_odd  = make_initialized_edge_property(handle, current_graph_view, false);
 
   cugraph::transform_e(
     handle,
