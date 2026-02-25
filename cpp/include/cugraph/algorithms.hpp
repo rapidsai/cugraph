@@ -1757,11 +1757,11 @@ void weakly_connected_components(raft::handle_t const& handle,
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Graph view object.
- * @param components Pointer to the output component ID array.
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ * @return Device vector of stronlgy connected component IDs
  */
 template <typename vertex_t, typename edge_t, bool multi_gpu>
-void strongly_connected_components(
+rmm::device_uvector<vertex_t> strongly_connected_components(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   bool do_expensive_check = false);
