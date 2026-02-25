@@ -1503,7 +1503,8 @@ edge_property_t<edge_t, weight_t> edge_betweenness_centrality(
                     "Invalid input argument: sources have invalid vertex IDs.");
   }
 
-  auto centralities = make_initialized_edge_property(handle, graph_view, weight_t{0.0});
+  auto centralities =
+    make_initialized_edge_property(handle, graph_view, weight_t{0.0}, do_expensive_check);
 
   size_t num_sources = cuda::std::distance(vertices_begin, vertices_end);
   std::vector<size_t> source_offsets{{0, num_sources}};

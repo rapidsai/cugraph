@@ -8,6 +8,7 @@
 #include "detail/graph_partition_utils.cuh"
 #include "prims/edge_bucket.cuh"
 #include "prims/fill_edge_property.cuh"
+#include "prims/make_initialized_edge_property.cuh"
 #include "prims/per_v_pair_dst_nbr_intersection.cuh"
 #include "prims/transform_e.cuh"
 
