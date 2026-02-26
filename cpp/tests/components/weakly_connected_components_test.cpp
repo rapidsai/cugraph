@@ -94,7 +94,7 @@ class Tests_WeaklyConnectedComponent
   {
     constexpr bool renumber = true;
 
-    using weight_t = float;
+    using weight_t = float;  // dummy
 
     raft::handle_t handle{};
     HighResTimer hr_timer{};
@@ -124,7 +124,7 @@ class Tests_WeaklyConnectedComponent
     if (weakly_connected_components_usecase.edge_masking) {
       edge_mask =
         cugraph::test::generate<decltype(graph_view), bool>::edge_property(handle, graph_view, 2);
-      graph_view.attach_edge_mask((*edge_mask).view());
+      graph_view.attach_edge_mask(edge_mask->view());
     }
 
     rmm::device_uvector<vertex_t> d_components(graph_view.number_of_vertices(),
