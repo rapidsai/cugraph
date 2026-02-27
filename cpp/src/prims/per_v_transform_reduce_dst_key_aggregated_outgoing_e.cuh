@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -29,16 +29,14 @@
 #include <rmm/mr/polymorphic_allocator.hpp>
 
 #include <cub/cub.cuh>
-#include <cuda/std/iterator>
+#include <cuda/iterator>
+#include <cuda/std/functional>
 #include <cuda/std/optional>
 #include <cuda/std/tuple>
 #include <thrust/copy.h>
 #include <thrust/count.h>
 #include <thrust/fill.h>
-#include <thrust/functional.h>
-#include <thrust/iterator/constant_iterator.h>
 #include <thrust/iterator/counting_iterator.h>
-#include <thrust/iterator/transform_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/reduce.h>
 #include <thrust/scatter.h>
@@ -363,7 +361,7 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
           (*segment_offsets)[detail::num_sparse_segments_per_vertex_partition];
         degrees_with_mask = rmm::device_uvector<edge_t>(
           major_sparse_range_size + *(edge_partition.dcs_nzd_vertex_count()), handle.get_stream());
-        auto major_first = thrust::make_transform_iterator(
+        auto major_first = cuda::make_transform_iterator(
           thrust::make_counting_iterator(vertex_t{0}),
           cuda::proclaim_return_type<vertex_t>(
             [major_sparse_range_size,
@@ -417,11 +415,11 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
         raft::device_span<vertex_t>(tmp_majors.data(), tmp_majors.size()),
         segment_offsets);
 
-      auto minor_key_first = thrust::make_transform_iterator(
-        edge_partition.indices(),
-        detail::minor_to_key_t<edge_partition_dst_key_device_view_t>{
-          edge_partition_dst_key_device_view_t(edge_dst_key_input),
-          edge_partition.minor_range_first()});
+      auto minor_key_first =
+        cuda::make_transform_iterator(edge_partition.indices(),
+                                      detail::minor_to_key_t<edge_partition_dst_key_device_view_t>{
+                                        edge_partition_dst_key_device_view_t(edge_dst_key_input),
+                                        edge_partition.minor_range_first()});
 
       // to limit memory footprint ((1 << 20) is a tuning parameter)
       auto approx_edges_to_sort_per_iteration =
@@ -494,7 +492,7 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
         }
 
         size_t tmp_storage_bytes{0};
-        auto offset_first = thrust::make_transform_iterator(
+        auto offset_first = cuda::make_transform_iterator(
           (offsets_with_mask ? (*offsets_with_mask).data() : edge_partition.offsets()) +
             h_vertex_offsets[j],
           detail::rebase_offset_t<edge_t>{h_edge_offsets[j]});
@@ -1041,7 +1039,7 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
                             get_dataframe_buffer_begin(tmp_e_op_result_buffer),
                             unique_majors.begin(),
                             get_dataframe_buffer_begin(reduced_e_op_result_buffer),
-                            thrust::equal_to<vertex_t>{},
+                            cuda::std::equal_to<vertex_t>{},
                             reduce_op);
       tmp_majors             = std::move(unique_majors);
       tmp_e_op_result_buffer = std::move(reduced_e_op_result_buffer);

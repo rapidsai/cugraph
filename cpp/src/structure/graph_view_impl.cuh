@@ -27,7 +27,7 @@
 #include <rmm/exec_policy.hpp>
 
 #include <cuda/functional>
-#include <cuda/std/iterator>
+#include <cuda/iterator>
 #include <cuda/std/optional>
 #include <cuda/std/tuple>
 #include <thrust/binary_search.h>
@@ -35,9 +35,7 @@
 #include <thrust/extrema.h>
 #include <thrust/fill.h>
 #include <thrust/for_each.h>
-#include <thrust/functional.h>
 #include <thrust/iterator/counting_iterator.h>
-#include <thrust/iterator/transform_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/sort.h>
 #include <thrust/tabulate.h>
@@ -257,7 +255,7 @@ __global__ static void for_all_major_for_all_nbr_mid_degree(
 
   using BlockReduce = cub::BlockReduce<edge_t, count_edge_partition_multi_edges_block_size>;
   __shared__ typename BlockReduce::TempStorage temp_storage;
-  property_op<edge_t, thrust::plus> edge_property_add{};
+  property_op<edge_t, cuda::std::plus> edge_property_add{};
   edge_t count_sum{0};
   while (idx < static_cast<size_t>(major_range_last - major_range_first)) {
     auto major_offset = static_cast<vertex_t>(major_start_offset + idx);
@@ -288,7 +286,7 @@ __global__ static void for_all_major_for_all_nbr_high_degree(
 
   using BlockReduce = cub::BlockReduce<edge_t, count_edge_partition_multi_edges_block_size>;
   __shared__ typename BlockReduce::TempStorage temp_storage;
-  property_op<edge_t, thrust::plus> edge_property_add{};
+  property_op<edge_t, cuda::std::plus> edge_property_add{};
   edge_t count_sum{0};
   while (idx < static_cast<size_t>(major_range_last - major_range_first)) {
     auto major_offset = major_start_offset + idx;
@@ -368,7 +366,7 @@ edge_t count_edge_partition_multi_edges(
           return count;
         }),
         edge_t{0},
-        thrust::plus<edge_t>{});
+        cuda::std::plus<edge_t>{});
     }
     if (edge_partition.dcs_nzd_vertex_count() && (*(edge_partition.dcs_nzd_vertex_count()) > 0)) {
       ret += thrust::transform_reduce(
@@ -392,7 +390,7 @@ edge_t count_edge_partition_multi_edges(
             return count;
           }),
         edge_t{0},
-        thrust::plus<edge_t>{});
+        cuda::std::plus<edge_t>{});
     }
 
     return ret;
@@ -416,7 +414,7 @@ edge_t count_edge_partition_multi_edges(
         return count;
       }),
       edge_t{0},
-      thrust::plus<edge_t>{});
+      cuda::std::plus<edge_t>{});
   }
 }
 
@@ -454,7 +452,7 @@ compute_edge_indices_and_edge_partition_offsets(
                       handle.get_stream());
   rmm::device_uvector<size_t> d_lower_bounds(d_major_range_lasts.size(), handle.get_stream());
   auto major_first        = edge_majors.begin();
-  auto sorted_major_first = thrust::make_transform_iterator(
+  auto sorted_major_first = cuda::make_transform_iterator(
     edge_indices.begin(),
     cugraph::detail::indirection_t<size_t, decltype(major_first)>{major_first});
   thrust::lower_bound(handle.get_thrust_policy(),
@@ -827,7 +825,7 @@ graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<mul
 
   auto edge_mask_view = this->edge_mask_view();
 
-  auto sorted_edge_first = thrust::make_transform_iterator(
+  auto sorted_edge_first = cuda::make_transform_iterator(
     edge_indices.begin(), cugraph::detail::indirection_t<size_t, decltype(edge_first)>{edge_first});
   rmm::device_uvector<bool> ret(edge_srcs.size(), handle.get_stream());
 
@@ -972,7 +970,7 @@ graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<mul
 
   auto edge_mask_view = this->edge_mask_view();
 
-  auto sorted_edge_first = thrust::make_transform_iterator(
+  auto sorted_edge_first = cuda::make_transform_iterator(
     edge_indices.begin(), cugraph::detail::indirection_t<size_t, decltype(edge_first)>{edge_first});
   rmm::device_uvector<edge_t> ret(edge_srcs.size(), handle.get_stream());
 

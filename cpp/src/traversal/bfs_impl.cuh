@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -20,14 +20,14 @@
 
 #include <raft/core/handle.hpp>
 
-#include <cuda/std/iterator>
+#include <cuda/iterator>
+#include <cuda/std/functional>
 #include <cuda/std/optional>
 #include <cuda/std/tuple>
 #include <thrust/copy.h>
 #include <thrust/count.h>
 #include <thrust/fill.h>
 #include <thrust/for_each.h>
-#include <thrust/iterator/constant_iterator.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/discard_iterator.h>
 #include <thrust/iterator/permutation_iterator.h>
@@ -233,7 +233,7 @@ void bfs(raft::handle_t const& handle,
                invalid_vertex);
   auto output_first = thrust::make_permutation_iterator(
     distances,
-    thrust::make_transform_iterator(
+    cuda::make_transform_iterator(
       sources, detail::shift_left_t<vertex_t>{graph_view.local_vertex_partition_range_first()}));
   thrust::fill(handle.get_thrust_policy(), output_first, output_first + n_sources, vertex_t{0});
 
@@ -410,13 +410,13 @@ void bfs(raft::handle_t const& handle,
           reduce_op::any<vertex_t>(),
           pred_op);
 
-      auto input_pair_first = thrust::make_zip_iterator(thrust::make_constant_iterator(depth + 1),
+      auto input_pair_first = thrust::make_zip_iterator(cuda::make_constant_iterator(depth + 1),
                                                         predecessor_buffer.begin());
       thrust::scatter(
         handle.get_thrust_policy(),
         input_pair_first,
         input_pair_first + new_frontier_vertex_buffer.size(),
-        thrust::make_transform_iterator(
+        cuda::make_transform_iterator(
           new_frontier_vertex_buffer.begin(),
           detail::shift_left_t<vertex_t>{graph_view.local_vertex_partition_range_first()}),
         thrust::make_zip_iterator(distances, predecessor_first));
@@ -510,7 +510,7 @@ void bfs(raft::handle_t const& handle,
                 return out_degrees[v_offset];
               }),
             edge_t{0},
-            thrust::plus<edge_t>{}));
+            cuda::std::plus<edge_t>{}));
 
           m_u += static_cast<double>(thrust::transform_reduce(
             handle.get_thrust_policy(),
@@ -532,7 +532,7 @@ void bfs(raft::handle_t const& handle,
                 }
               }),
             edge_t{0},
-            thrust::plus<edge_t>{}));
+            cuda::std::plus<edge_t>{}));
         }
 
         auto aggregate_m_f = m_f;
@@ -612,7 +612,7 @@ void bfs(raft::handle_t const& handle,
                                              pred_op,
                                              predecessor_buffer.begin(),
                                              true);
-        auto input_pair_first = thrust::make_zip_iterator(thrust::make_constant_iterator(depth + 1),
+        auto input_pair_first = thrust::make_zip_iterator(cuda::make_constant_iterator(depth + 1),
                                                           predecessor_buffer.begin());
 
         // FIXME: this scatter_if and the resize below can be concurrently executed.
@@ -620,7 +620,7 @@ void bfs(raft::handle_t const& handle,
           handle.get_thrust_policy(),
           input_pair_first,
           input_pair_first + predecessor_buffer.size(),
-          thrust::make_transform_iterator(
+          cuda::make_transform_iterator(
             vertex_frontier.bucket(bucket_idx_cur).cbegin(),
             detail::shift_left_t<vertex_t>{graph_view.local_vertex_partition_range_first()}),
           predecessor_buffer.begin(),

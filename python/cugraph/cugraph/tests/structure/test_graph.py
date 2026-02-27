@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2019-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2019-2026, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 
 import gc
@@ -792,7 +792,7 @@ def test_has_node(graph_file):
     G = cugraph.Graph()
     G.from_cudf_edgelist(cu_M, source="0", destination="1")
 
-    for n in nodes.values_host:
+    for n in nodes.to_numpy():
         assert G.has_node(n)
 
 
@@ -816,7 +816,7 @@ def test_bipartite_api(graph_file):
 
     # Create set of nodes for partition
     set1_exp = cudf.Series(nodes[0 : int(len(nodes) / 2)])
-    set2_exp = cudf.Series(set(nodes.values_host) - set(set1_exp.values_host))
+    set2_exp = cudf.Series(set(nodes.to_numpy()) - set(set1_exp.to_numpy()))
 
     G = cugraph.BiPartiteGraph()
     assert G.is_bipartite()
@@ -846,7 +846,7 @@ def test_neighbors(graph_file):
     G.from_cudf_edgelist(cu_M, source="0", destination="1")
 
     Gnx = nx.from_pandas_edgelist(M, source="0", target="1", create_using=nx.Graph())
-    for n in nodes.values_host:
+    for n in nodes.to_numpy():
         cu_neighbors = G.neighbors(n).to_arrow().to_pylist()
         nx_neighbors = [i for i in Gnx.neighbors(n)]
         cu_neighbors.sort()
@@ -1115,7 +1115,7 @@ def test_graph_creation_edges(graph_file, directed, renumber):
             srcCol = srcCol[0]
             dstCol = dstCol[0]
         is_upper_triangular = edge_list_view[srcCol] <= edge_list_view[dstCol]
-        is_upper_triangular = list(set(is_upper_triangular.values_host))
+        is_upper_triangular = list(set(is_upper_triangular.to_numpy()))
         assert len(is_upper_triangular) == 1
         assert is_upper_triangular[0]
 

@@ -1,19 +1,17 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
 
+#include <cugraph/utilities/iterator_utils.hpp>
 #include <cugraph/utilities/packed_bool_utils.hpp>
 #include <cugraph/utilities/thrust_tuple_utils.hpp>
 
 #include <raft/util/device_atomics.cuh>
 
 #include <cuda/std/tuple>
-#include <thrust/detail/type_traits/iterator/is_discard_iterator.h>
 #include <thrust/iterator/detail/any_assign.h>
-#include <thrust/iterator/discard_iterator.h>
-#include <thrust/iterator/iterator_traits.h>
 #include <thrust/memory.h>
 
 namespace cugraph {
@@ -79,7 +77,7 @@ __device__ constexpr TupleType thrust_tuple_elementwise_atomic_max(Iterator iter
 }  // namespace detail
 
 template <typename Iterator, typename T>
-__device__ std::enable_if_t<thrust::detail::is_discard_iterator<Iterator>::value, void> atomic_and(
+__device__ std::enable_if_t<cugraph::detail::is_discard_iterator<Iterator>::value, void> atomic_and(
   Iterator iter, T value)
 {
   // no-op
@@ -107,7 +105,7 @@ __device__
 }
 
 template <typename Iterator, typename T>
-__device__ std::enable_if_t<thrust::detail::is_discard_iterator<Iterator>::value, void> atomic_or(
+__device__ std::enable_if_t<cugraph::detail::is_discard_iterator<Iterator>::value, void> atomic_or(
   Iterator iter, T value)
 {
   // no-op
@@ -135,7 +133,7 @@ __device__
 }
 
 template <typename Iterator, typename T>
-__device__ std::enable_if_t<thrust::detail::is_discard_iterator<Iterator>::value, void> atomic_add(
+__device__ std::enable_if_t<cugraph::detail::is_discard_iterator<Iterator>::value, void> atomic_add(
   Iterator iter, T value)
 {
   // no-op
@@ -187,7 +185,7 @@ __device__
 }
 
 template <typename Iterator, typename T>
-__device__ std::enable_if_t<thrust::detail::is_discard_iterator<Iterator>::value, void>
+__device__ std::enable_if_t<cugraph::detail::is_discard_iterator<Iterator>::value, void>
 elementwise_atomic_min(Iterator iter, T const& value)
 {
   // no-op
@@ -218,7 +216,7 @@ __device__
 }
 
 template <typename Iterator, typename T>
-__device__ std::enable_if_t<thrust::detail::is_discard_iterator<Iterator>::value, void>
+__device__ std::enable_if_t<cugraph::detail::is_discard_iterator<Iterator>::value, void>
 elementwise_atomic_max(Iterator iter, T const& value)
 {
   // no-op

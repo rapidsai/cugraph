@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2019-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2019-2026, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 
 # This file test the Renumbering features
@@ -107,11 +107,11 @@ def test_renumber_files_col(graph_file):
     translate = 1000
 
     gdf = cudf.DataFrame()
-    gdf["src"] = cudf.Series([x + translate for x in sources.values_host])
-    gdf["dst"] = cudf.Series([x + translate for x in destinations.values_host])
+    gdf["src"] = cudf.Series([x + translate for x in sources.to_numpy()])
+    gdf["dst"] = cudf.Series([x + translate for x in destinations.to_numpy()])
 
-    exp_src = cudf.Series([x + translate for x in sources.values_host])
-    exp_dst = cudf.Series([x + translate for x in destinations.values_host])
+    exp_src = cudf.Series([x + translate for x in sources.to_numpy()])
+    exp_dst = cudf.Series([x + translate for x in destinations.to_numpy()])
 
     # Brackets are added to the column names to trigger the python renumebring
     renumbered_df, renumber_map = NumberMap.renumber(

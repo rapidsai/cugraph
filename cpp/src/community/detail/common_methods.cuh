@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -19,11 +19,11 @@
 #include <cugraph/graph_functions.hpp>
 
 #include <cuda/functional>
+#include <cuda/iterator>
 #include <cuda/std/optional>
 #include <cuda/std/tuple>
 #include <thrust/binary_search.h>
 #include <thrust/execution_policy.h>
-#include <thrust/functional.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/sequence.h>
 #include <thrust/sort.h>
@@ -163,7 +163,7 @@ weight_t compute_modularity(
   //
   // Sum(Sigma_tot_c^2), over all clusters c
   //
-  auto squared_first = thrust::make_transform_iterator(
+  auto squared_first = cuda::make_transform_iterator(
     cluster_weights.begin(),
     cuda::proclaim_return_type<weight_t>([] __device__(weight_t p) { return p * p; }));
   weight_t sum_degree_squared = thrust::reduce(
