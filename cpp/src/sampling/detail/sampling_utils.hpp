@@ -103,8 +103,8 @@ gather_one_hop_edgelist_to_unvisited_neighbors(
   raft::device_span<vertex_t const> active_majors,
   std::optional<raft::device_span<int32_t const>> active_major_labels,
   std::optional<raft::device_span<uint8_t const>> gather_flags,
-  rmm::device_uvector<vertex_t>&& visited_vertices,
-  std::optional<rmm::device_uvector<int32_t>>&& visited_vertex_labels,
+  rmm::device_uvector<vertex_t>&& visited_minors,
+  std::optional<rmm::device_uvector<int32_t>>&& visited_minor_labels,
   bool do_expensive_check);
 
 /**
@@ -222,8 +222,8 @@ sample_edges_to_unvisited_neighbors(
   raft::device_span<vertex_t const> active_majors,
   std::optional<raft::device_span<int32_t const>> active_major_labels,
   raft::host_span<size_t const> Ks,
-  rmm::device_uvector<vertex_t>&& visited_vertices,
-  std::optional<rmm::device_uvector<int32_t>>&& visited_vertex_labels,
+  rmm::device_uvector<vertex_t>&& visited_minors,
+  std::optional<rmm::device_uvector<int32_t>>&& visited_minor_labels,
   bool with_replacement);
 
 /**
@@ -499,8 +499,8 @@ void update_temporal_edge_mask(
  *
  * @param handle RAFT handle object.
  * @param graph_view Graph View object for context (partitioning, MG routing, etc.).
- * @param visited_vertices Device vector of already visited vertices.
- * @param visited_vertex_labels Optional device vector of labels for visited vertices.
+ * @param visited_minors Device vector of already visited minor vertices.
+ * @param visited_minor_labels Optional device vector of labels for visited minor vertices.
  * @param sampled_vertices Device span of newly sampled vertices to mark visited.
  * @param sampled_vertex_labels Device span of labels corresponding to sampled vertices.
  * @return Tuple with updated visited vertices and labels.
@@ -510,10 +510,53 @@ std::tuple<rmm::device_uvector<vertex_t>, std::optional<rmm::device_uvector<int3
 update_dst_visited_vertices_and_labels(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
-  rmm::device_uvector<vertex_t>&& visited_vertices,
-  std::optional<rmm::device_uvector<int32_t>>&& visited_vertex_labels,
+  rmm::device_uvector<vertex_t>&& visited_minors,
+  std::optional<rmm::device_uvector<int32_t>>&& visited_minor_labels,
   raft::device_span<vertex_t const> sampled_vertices,
   std::optional<raft::device_span<int32_t const>> sampled_vertex_labels);
+
+/**
+ * @brief Remove duplicate edges (by destination/minor) and update the visited set.
+ *
+ * Filters the edge list to keep only edges whose (dst, label) or dst is not already in
+ * (visited_minors, visited_minor_labels), deduplicates by keeping one edge per (label, minor),
+ * then updates the visited sets with the kept edges' destinations.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * @param handle RAFT handle object.
+ * @param graph_view Graph View object for context (partitioning, MG routing, etc.).
+ * @param result_majors Device vector of edge major (source) vertices.
+ * @param result_minors Device vector of edge minor (destination) vertices.
+ * @param result_properties Vector of device vectors of edge properties.
+ * @param result_labels Optional device vector of labels per edge.
+ * @param visited_minors Device vector of already visited minor vertices.
+ * @param visited_minor_labels Optional device vector of labels for visited minor vertices.
+ * @param call_from_sampling If true, the last two return values are populated with majors (and
+ *        optional major labels) that need to be resampled (edges to those were removed).
+ * @return Tuple of filtered (result_majors, result_minors, result_properties, result_labels),
+ *         updated (visited_minors, visited_minor_labels), and when call_from_sampling is true,
+ *         optional (resample_majors, resample_major_labels).
+ */
+template <typename vertex_t, typename edge_t, bool multi_gpu>
+std::tuple<rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           std::vector<arithmetic_device_uvector_t>,
+           std::optional<rmm::device_uvector<int32_t>>,
+           rmm::device_uvector<vertex_t>,
+           std::optional<rmm::device_uvector<int32_t>>,
+           std::optional<rmm::device_uvector<vertex_t>>,
+           std::optional<rmm::device_uvector<int32_t>>>
+remove_duplicate_edges(raft::handle_t const& handle,
+                       graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+                       rmm::device_uvector<vertex_t>&& result_majors,
+                       rmm::device_uvector<vertex_t>&& result_minors,
+                       std::vector<arithmetic_device_uvector_t>&& result_properties,
+                       std::optional<rmm::device_uvector<int32_t>>&& result_labels,
+                       rmm::device_uvector<vertex_t>&& visited_minors,
+                       std::optional<rmm::device_uvector<int32_t>>&& visited_minor_labels,
+                       bool call_from_sampling);
 
 }  // namespace detail
 }  // namespace cugraph

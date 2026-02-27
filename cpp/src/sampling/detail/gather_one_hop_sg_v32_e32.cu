@@ -41,8 +41,8 @@ gather_one_hop_edgelist_to_unvisited_neighbors(
   raft::device_span<vertex_t const> active_majors,
   std::optional<raft::device_span<int32_t const>> active_major_labels,
   std::optional<raft::device_span<uint8_t const>> gather_flags,
-  rmm::device_uvector<vertex_t>&& visited_vertices,
-  std::optional<rmm::device_uvector<int32_t>>&& visited_vertex_labels,
+  rmm::device_uvector<vertex_t>&& visited_minors,
+  std::optional<rmm::device_uvector<int32_t>>&& visited_minor_labels,
   bool do_expensive_check);
 
 template std::tuple<rmm::device_uvector<vertex_t>,

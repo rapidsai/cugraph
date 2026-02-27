@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2023-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -258,6 +258,9 @@ rmm::device_uvector<T> keep_marked_entries(
   return result;
 }
 
-}  // namespace detail
+void swap_marked_and_unmarked_entries(raft::handle_t const& handle,
+                                      raft::device_span<uint32_t> flags,
+                                      size_t num_entries);
 
+}  // namespace detail
 }  // namespace cugraph

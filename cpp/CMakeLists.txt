@@ -162,6 +162,7 @@ set(CUGRAPH_SOURCES
     src/utilities/shuffle_vertices_mg_v64.cu
     src/utilities/shuffle_properties_mg.cu
     src/utilities/validation_checks.cu
+    src/utilities/swap_marked_and_unmarked_entries.cu
     src/detail/permute_range_v32.cu
     src/detail/permute_range_v64.cu
     src/utilities/shuffle_vertex_pairs_mg_v32_e32.cu
@@ -270,6 +271,7 @@ set(CUGRAPH_SOURCES
     src/sampling/detail/gather_one_hop_sg_v64_e64.cu
     src/sampling/detail/gather_sampled_properties.cu
     src/sampling/detail/update_visited_utils.cu
+    src/sampling/detail/remove_duplicate_edges.cu
     src/sampling/detail/sample_edges_sg_v64_e64.cu
     src/sampling/detail/sample_edges_sg_v32_e32.cu
     src/sampling/detail/sample_edges_mg_v64_e64.cu

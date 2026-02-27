@@ -148,25 +148,27 @@ neighbor_sample_impl(raft::handle_t const& handle,
 
   std::vector<size_t> result_sizes{};
 
-  std::optional<rmm::device_uvector<vertex_t>> visited_vertices{std::nullopt};
-  std::optional<rmm::device_uvector<label_t>> visited_vertex_labels{std::nullopt};
+  std::optional<rmm::device_uvector<vertex_t>> visited_minors{std::nullopt};
+  std::optional<rmm::device_uvector<label_t>> visited_minor_labels{std::nullopt};
 
   if (sampling_flags.disjoint_sampling) {
     // Initialize empty visited sets, then populate using the same MG-aware routine
     // used after sampling to ensure proper distribution/aggregation.
-    visited_vertices = std::make_optional(rmm::device_uvector<vertex_t>(0, handle.get_stream()));
+    visited_minors = std::make_optional(rmm::device_uvector<vertex_t>(0, handle.get_stream()));
     if (starting_vertex_labels) {
-      visited_vertex_labels =
+      visited_minor_labels =
         std::make_optional(rmm::device_uvector<label_t>(0, handle.get_stream()));
     }
-    std::tie(visited_vertices, visited_vertex_labels) =
+    auto [updated_visited_minors, updated_visited_minor_labels] =
       detail::update_dst_visited_vertices_and_labels<vertex_t, edge_t, multi_gpu>(
         handle,
         graph_view,
-        std::move(*visited_vertices),
-        std::move(visited_vertex_labels),
+        std::move(*visited_minors),
+        std::move(visited_minor_labels),
         starting_vertices,
         starting_vertex_labels ? std::make_optional(*starting_vertex_labels) : std::nullopt);
+    visited_minors       = std::make_optional(std::move(updated_visited_minors));
+    visited_minor_labels = std::move(updated_visited_minor_labels);
   }
 
   for (size_t hop = 0; hop < num_hops; ++hop) {
@@ -219,9 +221,9 @@ neighbor_sample_impl(raft::handle_t const& handle,
       std::vector<cugraph::arithmetic_device_uvector_t> sampled_edge_properties{};
       std::optional<rmm::device_uvector<label_t>> labels{std::nullopt};
 
-      if (visited_vertices) {
+      if (visited_minors) {
         std::tie(
-          srcs, dsts, sampled_edge_properties, labels, visited_vertices, visited_vertex_labels) =
+          srcs, dsts, sampled_edge_properties, labels, visited_minors, visited_minor_labels) =
           sample_edges_to_unvisited_neighbors(
             handle,
             rng_state,
@@ -243,8 +245,8 @@ neighbor_sample_impl(raft::handle_t const& handle,
                                                                     frontier_vertex_labels->size()))
               : std::nullopt,
             raft::host_span<size_t const>(level_Ks->data(), level_Ks->size()),
-            std::move(*visited_vertices),
-            std::move(visited_vertex_labels),
+            std::move(*visited_minors),
+            std::move(visited_minor_labels),
             sampling_flags.with_replacement);
       } else {
         std::tie(srcs, dsts, sampled_edge_properties, labels) = sample_edges(
@@ -335,9 +337,9 @@ neighbor_sample_impl(raft::handle_t const& handle,
       std::vector<cugraph::arithmetic_device_uvector_t> sampled_edge_properties{};
       std::optional<rmm::device_uvector<label_t>> labels{std::nullopt};
 
-      if (visited_vertices) {
+      if (visited_minors) {
         std::tie(
-          srcs, dsts, sampled_edge_properties, labels, visited_vertices, visited_vertex_labels) =
+          srcs, dsts, sampled_edge_properties, labels, visited_minors, visited_minor_labels) =
           gather_one_hop_edgelist_to_unvisited_neighbors(
             handle,
             graph_view,
@@ -353,8 +355,8 @@ neighbor_sample_impl(raft::handle_t const& handle,
                                                                     frontier_vertex_labels->size()))
               : std::nullopt,
             gather_flags_span,
-            std::move(*visited_vertices),
-            std::move(visited_vertex_labels),
+            std::move(*visited_minors),
+            std::move(visited_minor_labels),
             do_expensive_check);
       } else {
         std::tie(srcs, dsts, sampled_edge_properties, labels) = gather_one_hop_edgelist(
@@ -459,6 +461,7 @@ neighbor_sample_impl(raft::handle_t const& handle,
                handle.get_stream());
     output_offset += result_sizes[i];
   }
+  handle.sync_stream();
   result_src_vectors.clear();
   result_src_vectors.shrink_to_fit();
 

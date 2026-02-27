@@ -349,14 +349,10 @@ gather_one_hop_edgelist_to_unvisited_neighbors(
   raft::device_span<vertex_t const> active_majors,
   std::optional<raft::device_span<int32_t const>> active_major_labels,
   std::optional<raft::device_span<uint8_t const>> gather_flags,
-  rmm::device_uvector<vertex_t>&& visited_vertices,
-  std::optional<rmm::device_uvector<int32_t>>&& visited_vertex_labels,
+  rmm::device_uvector<vertex_t>&& visited_minors,
+  std::optional<rmm::device_uvector<int32_t>>&& visited_minor_labels,
   bool do_expensive_check)
 {
-  // Implement this, should be a little easier than sample_edges_to_unvisited_neighbors, since we
-  // don't need to compute the probability of sampling for an edge based on the label/tag.  We can
-  // just extract everything and then filter the results based on the visited vertices and vertex
-  // labels.
   auto [result_srcs, result_dsts, result_properties, result_labels] =
     gather_one_hop_edgelist<vertex_t, edge_t, multi_gpu>(handle,
                                                          graph_view,
@@ -370,31 +366,29 @@ gather_one_hop_edgelist_to_unvisited_neighbors(
   // Remove any edges that lead to a visited vertex
   {
     auto [keep_count, marked_entries] =
-      visited_vertex_labels
+      visited_minor_labels
         ? detail::mark_entries(
             handle,
             result_dsts.size(),
-            [dsts                  = result_dsts.data(),
-             labels                = result_labels->data(),
-             visited_vertices      = visited_vertices.data(),
-             visited_labels        = visited_vertex_labels->data(),
-             visited_vertices_size = visited_vertices.size()] __device__(auto index) {
-              auto iter_begin = thrust::make_zip_iterator(visited_vertices, visited_labels);
+            [dsts                = result_dsts.data(),
+             labels              = result_labels->data(),
+             visited_minors      = visited_minors.data(),
+             visited_labels      = visited_minor_labels->data(),
+             visited_minors_size = visited_minors.size()] __device__(auto index) {
+              auto iter_begin = thrust::make_zip_iterator(visited_minors, visited_labels);
               return !thrust::binary_search(thrust::seq,
                                             iter_begin,
-                                            iter_begin + visited_vertices_size,
+                                            iter_begin + visited_minors_size,
                                             thrust::tuple(dsts[index], labels[index]));
             })
         : detail::mark_entries(
             handle,
             result_dsts.size(),
-            [dsts                  = result_dsts.data(),
-             visited_vertices      = visited_vertices.data(),
-             visited_vertices_size = visited_vertices.size()] __device__(auto index) {
-              return !thrust::binary_search(thrust::seq,
-                                            visited_vertices,
-                                            visited_vertices + visited_vertices_size,
-                                            dsts[index]);
+            [dsts                = result_dsts.data(),
+             visited_minors      = visited_minors.data(),
+             visited_minors_size = visited_minors.size()] __device__(auto index) {
+              return !thrust::binary_search(
+                thrust::seq, visited_minors, visited_minors + visited_minors_size, dsts[index]);
             });
 
     raft::device_span<uint32_t const> marked_entry_span{marked_entries.data(),
@@ -419,125 +413,29 @@ gather_one_hop_edgelist_to_unvisited_neighbors(
       });
   }
 
-  // Now the results have been filtered to exclude vertices that were already visited.  Next check
-  // is to identify any vertices that are visited more than once in this result set.
-  rmm::device_uvector<size_t> positions(result_srcs.size(), handle.get_stream());
-  thrust::sequence(handle.get_thrust_policy(), positions.begin(), positions.end(), size_t{0});
-
-  if (result_labels) {
-    rmm::device_uvector<vertex_t> remove_srcs(result_srcs.size(), handle.get_stream());
-    rmm::device_uvector<vertex_t> remove_dsts(result_dsts.size(), handle.get_stream());
-    rmm::device_uvector<int32_t> remove_labels(result_labels->size(), handle.get_stream());
-
-    raft::copy(remove_srcs.begin(), result_srcs.begin(), result_srcs.size(), handle.get_stream());
-    raft::copy(remove_dsts.begin(), result_dsts.begin(), result_dsts.size(), handle.get_stream());
-    raft::copy(
-      remove_labels.begin(), result_labels->begin(), result_labels->size(), handle.get_stream());
-
-    thrust::sort(
-      handle.get_thrust_policy(),
-      thrust::make_zip_iterator(
-        remove_labels.begin(), remove_dsts.begin(), remove_srcs.begin(), positions.begin()),
-      thrust::make_zip_iterator(
-        remove_labels.end(), remove_dsts.end(), remove_srcs.end(), positions.end()));
-
-    auto tuple_first =
-      thrust::make_zip_iterator(remove_labels.begin(), remove_dsts.begin(), remove_srcs.begin());
-    auto [keep_count, keep_flags] = detail::mark_entries(
-      handle, remove_dsts.size(), detail::is_first_in_run_t<decltype(tuple_first)>{tuple_first});
-
-    positions = detail::keep_marked_entries(
-      handle,
-      std::move(positions),
-      raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
-      keep_count);
-  } else {
-    rmm::device_uvector<vertex_t> remove_srcs(result_srcs.size(), handle.get_stream());
-    rmm::device_uvector<vertex_t> remove_dsts(result_dsts.size(), handle.get_stream());
-
-    raft::copy(remove_srcs.begin(), result_srcs.begin(), result_srcs.size(), handle.get_stream());
-    raft::copy(remove_dsts.begin(), result_dsts.begin(), result_dsts.size(), handle.get_stream());
-
-    thrust::sort(
-      handle.get_thrust_policy(),
-      thrust::make_zip_iterator(remove_dsts.begin(), remove_srcs.begin(), positions.begin()),
-      thrust::make_zip_iterator(remove_dsts.end(), remove_srcs.end(), positions.end()));
-
-    auto pair_first = thrust::make_zip_iterator(remove_dsts.begin(), remove_srcs.begin());
-    auto [keep_count, keep_flags] = detail::mark_entries(
-      handle, remove_dsts.size(), detail::is_first_in_run_t<decltype(pair_first)>{pair_first});
-
-    positions = detail::keep_marked_entries(
-      handle,
-      std::move(positions),
-      raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
-      keep_count);
-  }
-
-  // TODO: This code misses the MG case, need to update to check for duplicates across
-  // GPUs.
-
-  // Keep the values from the results arrays based on the positions array
-  {
-    rmm::device_uvector<vertex_t> keep_srcs(positions.size(), handle.get_stream());
-    thrust::gather(handle.get_thrust_policy(),
-                   positions.begin(),
-                   positions.end(),
-                   result_srcs.begin(),
-                   keep_srcs.begin());
-    result_srcs = std::move(keep_srcs);
-  }
-  {
-    rmm::device_uvector<vertex_t> keep_dsts(positions.size(), handle.get_stream());
-    thrust::gather(handle.get_thrust_policy(),
-                   positions.begin(),
-                   positions.end(),
-                   result_dsts.begin(),
-                   keep_dsts.begin());
-    result_dsts = std::move(keep_dsts);
-  }
-  if (result_labels) {
-    rmm::device_uvector<int32_t> keep_labels(positions.size(), handle.get_stream());
-    thrust::gather(handle.get_thrust_policy(),
-                   positions.begin(),
-                   positions.end(),
-                   result_labels->begin(),
-                   keep_labels.begin());
-    result_labels = std::move(keep_labels);
-  }
-
-  std::for_each(
-    result_properties.begin(), result_properties.end(), [&handle, &positions](auto& property) {
-      cugraph::variant_type_dispatch(property, [&handle, &positions](auto& property) {
-        using T = typename std::decay_t<decltype(property)>::value_type;
-        rmm::device_uvector<T> keep_property(positions.size(), handle.get_stream());
-        thrust::gather(handle.get_thrust_policy(),
-                       positions.begin(),
-                       positions.end(),
-                       property.begin(),
-                       keep_property.begin());
-        property = std::move(keep_property);
-      });
-    });
-
-  // Finally, I update the visited vertices and vertex labels to include the new result set
-  std::tie(visited_vertices, visited_vertex_labels) =
-    detail::update_dst_visited_vertices_and_labels(
-      handle,
-      graph_view,
-      std::move(visited_vertices),
-      std::move(visited_vertex_labels),
-      raft::device_span<vertex_t const>{result_dsts.data(), result_dsts.size()},
-      result_labels ? std::make_optional(raft::device_span<int32_t const>{result_labels->data(),
-                                                                          result_labels->size()})
-                    : std::nullopt);
+  std::tie(result_srcs,
+           result_dsts,
+           result_properties,
+           result_labels,
+           visited_minors,
+           visited_minor_labels,
+           std::ignore,
+           std::ignore) = remove_duplicate_edges(handle,
+                                                 graph_view,
+                                                 std::move(result_srcs),
+                                                 std::move(result_dsts),
+                                                 std::move(result_properties),
+                                                 std::move(result_labels),
+                                                 std::move(visited_minors),
+                                                 std::move(visited_minor_labels),
+                                                 false);
 
   return std::make_tuple(std::move(result_srcs),
                          std::move(result_dsts),
                          std::move(result_properties),
                          std::move(result_labels),
-                         std::move(visited_vertices),
-                         std::move(visited_vertex_labels));
+                         std::move(visited_minors),
+                         std::move(visited_minor_labels));
 }
 
 template <typename vertex_t, typename edge_t, typename time_stamp_t, bool multi_gpu>

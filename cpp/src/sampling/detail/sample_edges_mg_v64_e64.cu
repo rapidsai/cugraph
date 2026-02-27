@@ -39,8 +39,8 @@ sample_edges_to_unvisited_neighbors(
   raft::device_span<int64_t const> active_majors,
   std::optional<raft::device_span<int32_t const>> active_major_labels,
   raft::host_span<size_t const> Ks,
-  rmm::device_uvector<int64_t>&& visited_vertices,
-  std::optional<rmm::device_uvector<int32_t>>&& visited_vertex_labels,
+  rmm::device_uvector<int64_t>&& visited_minors,
+  std::optional<rmm::device_uvector<int32_t>>&& visited_minor_labels,
   bool with_replacement);
 
 }  // namespace detail

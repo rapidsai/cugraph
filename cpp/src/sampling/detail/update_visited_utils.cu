@@ -28,14 +28,14 @@ std::tuple<rmm::device_uvector<vertex_t>, std::optional<rmm::device_uvector<int3
 update_dst_visited_vertices_and_labels(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
-  rmm::device_uvector<vertex_t>&& visited_vertices,
-  std::optional<rmm::device_uvector<int32_t>>&& visited_vertex_labels,
+  rmm::device_uvector<vertex_t>&& visited_minors,
+  std::optional<rmm::device_uvector<int32_t>>&& visited_minor_labels,
   raft::device_span<vertex_t const> sampled_vertices,
   std::optional<raft::device_span<int32_t const>> sampled_vertex_labels)
 {
   CUGRAPH_EXPECTS(
-    visited_vertex_labels.has_value() == sampled_vertex_labels.has_value(),
-    "Invalid input: visited_vertex_labels and sampled_vertex_labels must have the same presence");
+    visited_minor_labels.has_value() == sampled_vertex_labels.has_value(),
+    "Invalid input: visited_minor_labels and sampled_vertex_labels must have the same presence");
 
   // 1) Shuffle sampled items to the owning GPU by vertex partitioning (minor path context)
   rmm::device_uvector<vertex_t> new_samples(sampled_vertices.size(), handle.get_stream());
@@ -103,29 +103,28 @@ update_dst_visited_vertices_and_labels(
   }
 
   // 4) Single-GPU: append local new samples (already deduped) at tail and sort
-  auto const orig_size = static_cast<size_t>(visited_vertices.size());
-  visited_vertices.resize(orig_size + new_samples.size(), handle.get_stream());
+  auto const orig_size = static_cast<size_t>(visited_minors.size());
+  visited_minors.resize(orig_size + new_samples.size(), handle.get_stream());
   thrust::copy(handle.get_thrust_policy(),
                new_samples.begin(),
                new_samples.end(),
-               visited_vertices.begin() + orig_size);
+               visited_minors.begin() + orig_size);
 
   if (new_sample_labels) {
-    visited_vertex_labels->resize(orig_size + new_sample_labels->size(), handle.get_stream());
+    visited_minor_labels->resize(orig_size + new_sample_labels->size(), handle.get_stream());
     thrust::copy(handle.get_thrust_policy(),
                  new_sample_labels->begin(),
                  new_sample_labels->end(),
-                 visited_vertex_labels->begin() + orig_size);
+                 visited_minor_labels->begin() + orig_size);
 
-    thrust::sort(
-      handle.get_thrust_policy(),
-      thrust::make_zip_iterator(visited_vertices.begin(), visited_vertex_labels->begin()),
-      thrust::make_zip_iterator(visited_vertices.end(), visited_vertex_labels->end()));
+    thrust::sort(handle.get_thrust_policy(),
+                 thrust::make_zip_iterator(visited_minors.begin(), visited_minor_labels->begin()),
+                 thrust::make_zip_iterator(visited_minors.end(), visited_minor_labels->end()));
   } else {
-    thrust::sort(handle.get_thrust_policy(), visited_vertices.begin(), visited_vertices.end());
+    thrust::sort(handle.get_thrust_policy(), visited_minors.begin(), visited_minors.end());
   }
 
-  return std::make_tuple(std::move(visited_vertices), std::move(visited_vertex_labels));
+  return std::make_tuple(std::move(visited_minors), std::move(visited_minor_labels));
 }
 
 // Explicit instantiations for common configurations

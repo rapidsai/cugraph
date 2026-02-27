@@ -202,15 +202,15 @@ temporal_neighbor_sample_impl(
   rmm::device_uvector<time_stamp_t> frontier_vertex_times_has_duplicates(0, handle.get_stream());
   std::optional<rmm::device_uvector<label_t>> frontier_vertex_labels_has_duplicates{std::nullopt};
 
-  auto visited_vertices =
+  auto visited_minors =
     (sampling_flags.disjoint_sampling)
       ? std::make_optional(rmm::device_uvector<vertex_t>(0, handle.get_stream()))
       : std::nullopt;
 
-  if (visited_vertices) {
+  if (visited_minors) {
     thrust::fill(handle.get_thrust_policy(),
-                 visited_vertices->begin(),
-                 visited_vertices->end(),
+                 visited_minors->begin(),
+                 visited_minors->end(),
                  cugraph::invalid_vertex_id<vertex_t>());
 
     thrust::scatter(
@@ -220,7 +220,7 @@ temporal_neighbor_sample_impl(
       thrust::make_transform_iterator(
         starting_vertices.begin(),
         detail::shift_left_t<vertex_t>{graph_view.local_vertex_partition_range_first()}),
-      visited_vertices->begin());
+      visited_minors->begin());
   }
 
   for (size_t hop = 0; hop < num_hops; ++hop) {

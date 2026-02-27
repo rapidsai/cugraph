@@ -343,7 +343,9 @@ INSTANTIATE_TEST_SUITE_P(
       Homogeneous_Biased_Neighbor_Sampling_Usecase{{4, 10}, 128, true, true},
       // Disjoint variants
       Homogeneous_Biased_Neighbor_Sampling_Usecase{{4, 10}, 128, false, false, true},
-      Homogeneous_Biased_Neighbor_Sampling_Usecase{{4, 10}, 128, false, true, true}),
+      Homogeneous_Biased_Neighbor_Sampling_Usecase{{4, 10}, 128, false, true, true},
+      Homogeneous_Biased_Neighbor_Sampling_Usecase{{4, -1}, 128, false, false, true},
+      Homogeneous_Biased_Neighbor_Sampling_Usecase{{4, -1}, 128, false, true, true}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(
@@ -357,7 +359,9 @@ INSTANTIATE_TEST_SUITE_P(
       Homogeneous_Biased_Neighbor_Sampling_Usecase{{4, 10}, 128, true, true, false, false},
       // Disjoint variants
       Homogeneous_Biased_Neighbor_Sampling_Usecase{{4, 10}, 128, false, false, true, false},
-      Homogeneous_Biased_Neighbor_Sampling_Usecase{{4, 10}, 128, false, true, true, false}),
+      Homogeneous_Biased_Neighbor_Sampling_Usecase{{4, 10}, 128, false, true, true, false},
+      Homogeneous_Biased_Neighbor_Sampling_Usecase{{4, -1}, 128, false, false, true, false},
+      Homogeneous_Biased_Neighbor_Sampling_Usecase{{4, -1}, 128, false, true, true, false}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
                       cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
                       cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx"))));
@@ -373,7 +377,9 @@ INSTANTIATE_TEST_SUITE_P(
       Homogeneous_Biased_Neighbor_Sampling_Usecase{{4, 10}, 128, true, true},
       // Disjoint variants
       Homogeneous_Biased_Neighbor_Sampling_Usecase{{4, 10}, 128, false, false, true},
-      Homogeneous_Biased_Neighbor_Sampling_Usecase{{4, 10}, 128, false, true, true}),
+      Homogeneous_Biased_Neighbor_Sampling_Usecase{{4, 10}, 128, false, true, true},
+      Homogeneous_Biased_Neighbor_Sampling_Usecase{{4, -1}, 128, false, false, true, true},
+      Homogeneous_Biased_Neighbor_Sampling_Usecase{{4, -1}, 128, false, true, true, true}),
     ::testing::Values(
       // cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false))));
       cugraph::test::Rmat_Usecase(5, 16, 0.57, 0.19, 0.19, 0, false, false))));
@@ -393,7 +399,9 @@ INSTANTIATE_TEST_SUITE_P(
       Homogeneous_Biased_Neighbor_Sampling_Usecase{{4, 10}, 128, true, true, false, false},
       // Disjoint variants
       Homogeneous_Biased_Neighbor_Sampling_Usecase{{4, 10}, 128, false, false, true, false},
-      Homogeneous_Biased_Neighbor_Sampling_Usecase{{4, 10}, 128, false, true, true, false}),
+      Homogeneous_Biased_Neighbor_Sampling_Usecase{{4, 10}, 128, false, true, true, false},
+      Homogeneous_Biased_Neighbor_Sampling_Usecase{{4, -1}, 128, false, false, true, false},
+      Homogeneous_Biased_Neighbor_Sampling_Usecase{{4, -1}, 128, false, true, true, false}),
     ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()
