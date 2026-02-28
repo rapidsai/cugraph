@@ -93,8 +93,9 @@ rmm::device_uvector<vertex_t> peel_zero_in_degree_vertices(
     candidate_vertices.begin(),
     candidate_vertices.end(),
     seed_vertices.begin(),
-    [in_degrees = raft::device_span<edge_t const>(in_degrees.data(), in_degrees.size())]
-      __device__(auto v) { return in_degrees[v] == 0; });
+    [in_degrees = raft::device_span<edge_t const>(in_degrees.data(), in_degrees.size()),
+     v_first    = graph_view.local_vertex_partition_range_first()]
+      __device__(auto v) { return in_degrees[v - v_first] == 0; });
   seed_vertices.resize(
     cuda::std::distance(seed_vertices.begin(), seed_vertices_end), handle.get_stream());
   seed_vertices.shrink_to_fit(handle.get_stream());
@@ -155,8 +156,9 @@ rmm::device_uvector<vertex_t> peel_zero_in_degree_vertices(
           handle.get_thrust_policy(),
           vertex_frontier.bucket(bucket_idx_next).begin(),
           vertex_frontier.bucket(bucket_idx_next).end(),
-          [in_degrees = in_degrees.data()] __device__(auto v) {
-            return in_degrees[v] > 0;
+          [in_degrees = in_degrees.data(),
+           v_first    = graph_view.local_vertex_partition_range_first()] __device__(auto v) {
+            return in_degrees[v - v_first] > 0;
           }))));
     vertex_frontier.bucket(bucket_idx_next).shrink_to_fit();
 
@@ -197,7 +199,7 @@ rmm::device_uvector<typename GraphViewType::vertex_type> find_trivial_singleton_
                candidate_vertices.begin(),
                candidate_vertices.end(),
                inv_candidate_vertices.begin());
-  
+
   renumber_local_ext_vertices<vertex_t, multi_gpu>(handle,
                               inv_candidate_vertices.data(),
                               inv_candidate_vertices.size(),
