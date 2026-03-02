@@ -97,6 +97,7 @@ requirements:
     - dask-cudf =${{ minor_version }}
     - fsspec>=0.6.0
     - libcugraph =${{ version }}
+    - numba >=0.60.0,<0.65.0
     - pylibcudf =${{ minor_version }}
     - pylibcugraph =${{ version }}
     - pylibraft =${{ minor_version }}
