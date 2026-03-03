@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2024-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -7,6 +7,7 @@
 #include "prims/edge_bucket.cuh"
 #include "prims/extract_transform_if_e.cuh"
 #include "prims/fill_edge_property.cuh"
+#include "prims/make_initialized_edge_property.cuh"
 #include "prims/per_v_pair_dst_nbr_intersection.cuh"
 #include "prims/transform_e.cuh"
 #include "prims/transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v.cuh"
@@ -21,14 +22,13 @@
 #include <raft/util/integer_utils.hpp>
 
 #include <cuda/functional>
-#include <cuda/std/iterator>
+#include <cuda/iterator>
 #include <cuda/std/optional>
 #include <cuda/std/tuple>
 #include <cuda/std/utility>
 #include <thrust/copy.h>
 #include <thrust/count.h>
 #include <thrust/execution_policy.h>
-#include <thrust/iterator/transform_iterator.h>
 #include <thrust/sort.h>
 #include <thrust/transform.h>
 
@@ -180,10 +180,8 @@ k_truss(raft::handle_t const& handle,
 
   // 2. Exclude self-loops and edges that do not belong to (k-1)-core
 
-  auto cur_graph_view          = graph_view;
-  auto unmasked_cur_graph_view = cur_graph_view;
+  auto cur_graph_view = graph_view;
 
-  if (unmasked_cur_graph_view.has_edge_mask()) { unmasked_cur_graph_view.clear_edge_mask(); }
   // mask for self-loops and edges not part of k-1 core
   cugraph::edge_property_t<edge_t, bool> undirected_mask(handle);
   {
@@ -192,9 +190,7 @@ k_truss(raft::handle_t const& handle,
     if (cur_graph_view.count_self_loops(handle) > edge_t{0}) {
       // 2.1. Exclude self-loops
 
-      cugraph::edge_property_t<edge_t, bool> self_loop_edge_mask(handle, cur_graph_view);
-      cugraph::fill_edge_property(
-        handle, unmasked_cur_graph_view, self_loop_edge_mask.mutable_view(), false);
+      auto self_loop_edge_mask = make_initialized_edge_property(handle, cur_graph_view, false);
 
       transform_e(handle,
                   cur_graph_view,
@@ -224,7 +220,7 @@ k_truss(raft::handle_t const& handle,
       edge_src_property_t<vertex_t, bool> edge_src_in_k_minus_1_cores(handle, cur_graph_view);
       edge_dst_property_t<vertex_t, bool> edge_dst_in_k_minus_1_cores(handle, cur_graph_view);
       auto in_k_minus_1_core_first =
-        thrust::make_transform_iterator(core_numbers.begin(), is_k_or_greater_t<edge_t>{k - 1});
+        cuda::make_transform_iterator(core_numbers.begin(), is_k_or_greater_t<edge_t>{k - 1});
       rmm::device_uvector<bool> in_k_minus_1_core_flags(core_numbers.size(), handle.get_stream());
       thrust::copy(handle.get_thrust_policy(),
                    in_k_minus_1_core_first,
@@ -239,9 +235,8 @@ k_truss(raft::handle_t const& handle,
                                in_k_minus_1_core_flags.begin(),
                                edge_dst_in_k_minus_1_cores.mutable_view());
 
-      cugraph::edge_property_t<edge_t, bool> in_k_minus_1_core_edge_mask(handle, cur_graph_view);
-      cugraph::fill_edge_property(
-        handle, unmasked_cur_graph_view, in_k_minus_1_core_edge_mask.mutable_view(), false);
+      auto in_k_minus_1_core_edge_mask =
+        make_initialized_edge_property(handle, cur_graph_view, false);
 
       transform_e(
         handle,
@@ -266,16 +261,13 @@ k_truss(raft::handle_t const& handle,
   edge_src_property_t<vertex_t, edge_t> edge_src_out_degrees(handle, cur_graph_view);
   edge_dst_property_t<vertex_t, edge_t> edge_dst_out_degrees(handle, cur_graph_view);
 
-  cugraph::edge_property_t<edge_t, bool> dodg_mask(handle, cur_graph_view);
+  auto dodg_mask = make_initialized_edge_property(handle, cur_graph_view, false);
   {
     auto out_degrees = cur_graph_view.compute_out_degrees(handle);
     update_edge_src_property(
       handle, cur_graph_view, out_degrees.begin(), edge_src_out_degrees.mutable_view());
     update_edge_dst_property(
       handle, cur_graph_view, out_degrees.begin(), edge_dst_out_degrees.mutable_view());
-
-    cugraph::fill_edge_property(
-      handle, unmasked_cur_graph_view, dodg_mask.mutable_view(), bool{false});
 
     cugraph::transform_e(
       handle,
@@ -490,10 +482,10 @@ k_truss(raft::handle_t const& handle,
       thrust::reduce_by_key(handle.get_thrust_policy(),
                             get_dataframe_buffer_begin(edgelist_to_update_count),
                             get_dataframe_buffer_end(edgelist_to_update_count),
-                            thrust::make_constant_iterator(size_t{1}),
+                            cuda::make_constant_iterator(size_t{1}),
                             get_dataframe_buffer_begin(vertex_pair_buffer_unique),
                             decrease_count.begin(),
-                            thrust::equal_to<cuda::std::tuple<vertex_t, vertex_t>>{});
+                            cuda::std::equal_to<cuda::std::tuple<vertex_t, vertex_t>>{});
 
       std::tie(std::get<0>(vertex_pair_buffer_unique),
                std::get<1>(vertex_pair_buffer_unique),

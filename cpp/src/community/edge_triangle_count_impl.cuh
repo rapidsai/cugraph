@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2024-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -8,6 +8,7 @@
 #include "detail/graph_partition_utils.cuh"
 #include "prims/edge_bucket.cuh"
 #include "prims/fill_edge_property.cuh"
+#include "prims/make_initialized_edge_property.cuh"
 #include "prims/per_v_pair_dst_nbr_intersection.cuh"
 #include "prims/transform_e.cuh"
 
@@ -252,7 +253,7 @@ edge_property_t<edge_t, edge_t> edge_triangle_count_impl(
                             increase_count_tmp.begin(),
                             get_dataframe_buffer_begin(vertex_pair_buffer),
                             increase_count.begin(),
-                            thrust::equal_to<cuda::std::tuple<vertex_t, vertex_t>>{});
+                            cuda::std::equal_to<cuda::std::tuple<vertex_t, vertex_t>>{});
 
       rmm::device_uvector<vertex_t> pair_srcs(0, handle.get_stream());
       rmm::device_uvector<vertex_t> pair_dsts(0, handle.get_stream());
@@ -338,12 +339,7 @@ edge_property_t<edge_t, edge_t> edge_triangle_count_impl(
     prev_chunk_size += chunk_size;
   }
 
-  cugraph::edge_property_t<edge_t, edge_t> counts(handle, cur_graph_view);
-  {
-    auto unmasked_graph_view = cur_graph_view;
-    if (unmasked_graph_view.has_edge_mask()) { unmasked_graph_view.clear_edge_mask(); }
-    cugraph::fill_edge_property(handle, unmasked_graph_view, counts.mutable_view(), edge_t{0});
-  }
+  auto counts = make_initialized_edge_property(handle, cur_graph_view, edge_t{0});
 
   cugraph::edge_bucket_t<vertex_t, edge_t, true, multi_gpu, true> valid_edges(
     handle, false /* multigraph */);

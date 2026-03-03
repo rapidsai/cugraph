@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -20,6 +20,7 @@
 
 #include <raft/core/handle.hpp>
 
+#include <cuda/std/functional>
 #include <cuda/std/optional>
 #include <cuda/std/tuple>
 #include <thrust/copy.h>
@@ -121,7 +122,7 @@ __global__ static void transform_reduce_by_src_dst_key_hypersparse(
     vertex_t const* indices{nullptr};
     edge_t edge_offset{};
     edge_t local_degree{};
-    thrust::tie(indices, edge_offset, local_degree) =
+    cuda::std::tie(indices, edge_offset, local_degree) =
       edge_partition.local_edges(static_cast<vertex_t>(major_idx));
     if (edge_partition_e_mask) {
       auto major_offset          = edge_partition.major_offset_from_major_nocheck(major);
@@ -208,7 +209,7 @@ __global__ static void transform_reduce_by_src_dst_key_low_degree(
     vertex_t const* indices{nullptr};
     edge_t edge_offset{};
     edge_t local_degree{};
-    thrust::tie(indices, edge_offset, local_degree) =
+    cuda::std::tie(indices, edge_offset, local_degree) =
       edge_partition.local_edges(static_cast<vertex_t>(major_offset));
     if (edge_partition_e_mask) {
       auto edge_offset_with_mask = (*edge_offsets_with_mask)[major_offset];
@@ -299,7 +300,7 @@ __global__ static void transform_reduce_by_src_dst_key_mid_degree(
     vertex_t const* indices{nullptr};
     edge_t edge_offset{};
     edge_t local_degree{};
-    thrust::tie(indices, edge_offset, local_degree) =
+    cuda::std::tie(indices, edge_offset, local_degree) =
       edge_partition.local_edges(static_cast<vertex_t>(major_offset));
     if (edge_partition_e_mask) {
       // FIXME: it might be faster to update in warp-sync way
@@ -395,7 +396,7 @@ __global__ static void transform_reduce_by_src_dst_key_high_degree(
     vertex_t const* indices{nullptr};
     edge_t edge_offset{};
     edge_t local_degree{};
-    thrust::tie(indices, edge_offset, local_degree) =
+    cuda::std::tie(indices, edge_offset, local_degree) =
       edge_partition.local_edges(static_cast<vertex_t>(major_offset));
     if (edge_partition_e_mask) {
       // FIXME: it might be faster to update in block-sync way
@@ -474,7 +475,7 @@ std::tuple<rmm::device_uvector<vertex_t>, BufferType> reduce_to_unique_kv_pairs(
                         get_dataframe_buffer_begin(value_buffer),
                         unique_keys.begin(),
                         get_dataframe_buffer_begin(value_for_unique_key_buffer),
-                        thrust::equal_to<vertex_t>{},
+                        cuda::std::equal_to<vertex_t>{},
                         reduce_op);
 
   return std::make_tuple(std::move(unique_keys), std::move(value_for_unique_key_buffer));

@@ -160,18 +160,6 @@ for FILE in .github/workflows/*.yaml; do
   sed_runner "s/:[0-9]*\\.[0-9]*-/:${NEXT_SHORT_TAG}-/g" "${FILE}"
 done
 
-# Documentation references - context-aware
-if [[ "${RUN_CONTEXT}" == "main" ]]; then
-  # In main context, keep documentation on main (no changes needed)
-  :
-elif [[ "${RUN_CONTEXT}" == "release" ]]; then
-  # In release context, use release branch for documentation links (word boundaries to avoid partial matches)
-  sed_runner "s|\\bmain\\b|release/${NEXT_SHORT_TAG}|g" readme_pages/CONTRIBUTING.md
-  sed_runner "s|\\bmain\\b|release/${NEXT_SHORT_TAG}|g" notebooks/modules/mag240m_pg.ipynb
-  sed_runner "s|\\bmain\\b|release/${NEXT_SHORT_TAG}|g" notebooks/demo/mg_property_graph.ipynb
-  sed_runner "s|\\bmain\\b|release/${NEXT_SHORT_TAG}|g" notebooks/README.md
-fi
-
 # .devcontainer files
 find .devcontainer/ -type f -name devcontainer.json -print0 | while IFS= read -r -d '' filename; do
     sed_runner "s@rapidsai/devcontainers:[0-9.]*@rapidsai/devcontainers:${NEXT_SHORT_TAG}@g" "${filename}"

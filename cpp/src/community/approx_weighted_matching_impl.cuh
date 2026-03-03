@@ -1,11 +1,12 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2024-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
 
 #include "detail/shuffle_wrappers.hpp"
 #include "prims/fill_edge_property.cuh"
+#include "prims/make_initialized_edge_property.cuh"
 #include "prims/reduce_op.cuh"
 #include "prims/transform_e.cuh"
 #include "prims/transform_reduce_e_by_src_dst_key.cuh"
@@ -18,7 +19,9 @@
 
 #include <raft/core/handle.hpp>
 
+#include <cuda/std/functional>
 #include <cuda/std/iterator>
+#include <cuda/std/tuple>
 #include <thrust/fill.h>
 
 namespace cugraph {
@@ -36,18 +39,10 @@ std::tuple<rmm::device_uvector<vertex_t>, weight_t> approximate_weighted_matchin
                   "need to be symmetric");
 
   auto current_graph_view = graph_view;
-  if (current_graph_view.has_edge_mask()) { current_graph_view.clear_edge_mask(); }
 
-  cugraph::edge_property_t<edge_t, bool> edge_masks_even(handle, current_graph_view);
-  cugraph::fill_edge_property(
-    handle, current_graph_view, edge_masks_even.mutable_view(), bool{false});
-  cugraph::edge_property_t<edge_t, bool> edge_masks_odd(handle, current_graph_view);
-  cugraph::fill_edge_property(
-    handle, current_graph_view, edge_masks_odd.mutable_view(), bool{false});
+  auto edge_masks_even = make_initialized_edge_property(handle, current_graph_view, false);
+  auto edge_masks_odd  = make_initialized_edge_property(handle, current_graph_view, false);
 
-  if (graph_view.has_edge_mask()) {
-    current_graph_view.attach_edge_mask(*(graph_view.edge_mask_view()));
-  }
   // Mask out self-loop
   cugraph::transform_e(
     handle,
@@ -171,7 +166,7 @@ std::tuple<rmm::device_uvector<vertex_t>, weight_t> approximate_weighted_matchin
       itr_to_tuples,
       unique_targets.begin(),
       itr_to_reduced_tuples,
-      thrust::equal_to<vertex_t>{},
+      cuda::std::equal_to<vertex_t>{},
       [] __device__(auto pair1, auto pair2) { return (pair1 > pair2) ? pair1 : pair2; });
 
     vertex_t nr_reduces_tuples =

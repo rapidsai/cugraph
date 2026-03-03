@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -26,10 +26,10 @@
 
 #include <rmm/device_uvector.hpp>
 
+#include <cuda/iterator>
 #include <cuda/std/tuple>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
-#include <thrust/distance.h>
 #include <thrust/fill.h>
 #include <thrust/for_each.h>
 #include <thrust/iterator/counting_iterator.h>
@@ -718,14 +718,14 @@ std::tuple<vertex_t, int, distance_t, vertex_t, std::optional<distance_t>> trave
     }
 
     if constexpr (std::is_floating_point_v<distance_t>) {  // SSSP
-      thrust::tie(unrenumbered_n, nn, w_to_n) = cugraph::host_scalar_bcast(
+      cuda::std::tie(unrenumbered_n, nn, w_to_n) = cugraph::host_scalar_bcast(
         comm,
         cuda::std::make_tuple(unrenumbered_n, nn, *w_to_n),
         cugraph::partition_manager::compute_global_comm_rank_from_vertex_partition_id(
           major_comm_size, minor_comm_size, n_vertex_partition_id),
         handle.get_stream());
     } else {  // BFS
-      thrust::tie(unrenumbered_n, nn) = cugraph::host_scalar_bcast(
+      cuda::std::tie(unrenumbered_n, nn) = cugraph::host_scalar_bcast(
         comm,
         cuda::std::make_tuple(unrenumbered_n, nn),
         cugraph::partition_manager::compute_global_comm_rank_from_vertex_partition_id(
@@ -810,7 +810,7 @@ void update_unvisited_vertex_distances(
     if (tot_remaining_vertex_count == 0) { break; }
     rmm::device_uvector<vertex_t> remaining_vertex_parents(remaining_vertices.size(),
                                                            handle.get_stream());
-    auto gather_offset_first = thrust::make_transform_iterator(
+    auto gather_offset_first = cuda::make_transform_iterator(
       remaining_vertices.begin(),
       cugraph::detail::shift_left_t<vertex_t>{local_vertex_partition_range_first});
     thrust::gather(handle.get_thrust_policy(),
@@ -834,14 +834,14 @@ void update_unvisited_vertex_distances(
                                             [invalid_distance] __device__(auto pair) {
                                               return cuda::std::get<1>(pair) == invalid_distance;
                                             });
-    auto new_size       = thrust::distance(pair_first, remaining_last);
+    auto new_size       = cuda::std::distance(pair_first, remaining_last);
     auto scatter_offset_first =
-      thrust::make_transform_iterator(
+      cuda::make_transform_iterator(
         remaining_vertices.begin(),
         cugraph::detail::shift_left_t<vertex_t>{local_vertex_partition_range_first}) +
       new_size;
     if constexpr (std::is_floating_point_v<distance_t>) {  // SSSP
-      auto dist_first = thrust::make_transform_iterator(
+      auto dist_first = cuda::make_transform_iterator(
         pair_first + new_size,
         cuda::proclaim_return_type<distance_t>(
           [weights =
@@ -860,9 +860,9 @@ void update_unvisited_vertex_distances(
                       mg_distances.begin());
     } else {  // BFS
       auto dist_first =
-        thrust::make_transform_iterator(remaining_vertex_parent_dists.begin() + new_size,
-                                        cuda::proclaim_return_type<distance_t>(
-                                          [] __device__(auto d) { return d + distance_t{1}; }));
+        cuda::make_transform_iterator(remaining_vertex_parent_dists.begin() + new_size,
+                                      cuda::proclaim_return_type<distance_t>(
+                                        [] __device__(auto d) { return d + distance_t{1}; }));
       thrust::scatter(handle.get_thrust_policy(),
                       dist_first,
                       dist_first + (remaining_vertices.size() - new_size),

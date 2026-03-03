@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# SPDX-FileCopyrightText: Copyright (c) 2024-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 
 # script for building libcugraph examples
@@ -17,9 +17,6 @@ VALIDARGS="
    -h
    --help
 "
-
-VERBOSE_FLAG=""
-CMAKE_VERBOSE_OPTION=""
 
 # Parallelism control
 PARALLEL_LEVEL=${PARALLEL_LEVEL:-8}
@@ -69,9 +66,17 @@ if hasArg -h || hasArg --help; then
     exit 0
 fi
 
+CMAKE_CONFIGURE_ARGS=(
+    -GNinja
+    -Dcugraph_ROOT="${CUGRAPH_BUILD_DIR}"
+)
+CMAKE_BUILD_ARGS=(
+    -j"${PARALLEL_LEVEL}"
+)
+
 if hasArg -v; then
-    VERBOSE_FLAG="-v"
-    CMAKE_VERBOSE_OPTION="--log-level=VERBOSE"
+    CMAKE_CONFIGURE_ARGS+=(--log-level=VERBOSE)
+    CMAKE_BUILD_ARGS+=(-v)
 fi
 
 if hasArg clean; then
@@ -91,22 +96,20 @@ if hasArg clean; then
     set -e
 fi
 
-build_example() {
-  echo "building ${1}"
-  example_dir=${1}
-  example_dir="${EXAMPLES_ROOT_DIR}/${example_dir}"
-  build_dir="${example_dir}/build"
-
-  # Configure
-  cmake -S "${example_dir}" -B "${build_dir}" -Dcugraph_ROOT="${CUGRAPH_BUILD_DIR}" ${CMAKE_VERBOSE_OPTION}
-  # Build
-  cmake --build "${build_dir}" "-j${PARALLEL_LEVEL}" "${VERBOSE_FLAG}"
-}
-
 if hasArg all; then
     for idx in "${!EXAMPLES[@]}"
     do
-        current_example=${EXAMPLES[$idx]}
-        build_example "$current_example"
+        example_subdir=${EXAMPLES[$idx]}
+        echo "build '${example_subdir}'"
+        src_dir="${EXAMPLES_ROOT_DIR}/${example_subdir}"
+        build_dir="${src_dir}/build"
+        cmake \
+            -S "${src_dir}" \
+            -B "${build_dir}" \
+            "${CMAKE_CONFIGURE_ARGS[@]}"
+
+        cmake --build \
+            "${build_dir}" \
+            "${CMAKE_BUILD_ARGS[@]}"
     done
 fi

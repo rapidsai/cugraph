@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -17,7 +17,7 @@
 
 #include <cuda/atomic>
 #include <cuda/functional>
-#include <cuda/std/iterator>
+#include <cuda/iterator>
 #include <cuda/std/tuple>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
@@ -25,7 +25,6 @@
 #include <thrust/execution_policy.h>
 #include <thrust/fill.h>
 #include <thrust/iterator/iterator_traits.h>
-#include <thrust/iterator/transform_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/partition.h>
 #include <thrust/reduce.h>
@@ -220,7 +219,7 @@ void multi_partition(ValueIterator value_first,
     rmm::exec_policy(stream_view),
     value_first,
     value_last,
-    thrust::make_transform_iterator(
+    cuda::make_transform_iterator(
       thrust::make_zip_iterator(group_id_offsets.begin(), intra_partition_displs.begin()),
       cuda::proclaim_return_type<size_t>(
         [displacements = raft::device_span<size_t const>(
@@ -271,7 +270,7 @@ void multi_partition(KeyIterator key_first,
   thrust::exclusive_scan(
     rmm::exec_policy(stream_view), counts.begin(), counts.end(), displacements.begin());
 
-  auto map_first = thrust::make_transform_iterator(
+  auto map_first = cuda::make_transform_iterator(
     thrust::make_zip_iterator(group_id_offsets.begin(), intra_partition_displs.begin()),
     cuda::proclaim_return_type<size_t>([displacements = raft::device_span<size_t const>(
                                           displacements.data(),
@@ -825,7 +824,7 @@ rmm::device_uvector<size_t> groupby_and_count(
                              stream_view,
                              large_buffer_type);
 
-  auto group_id_first = thrust::make_transform_iterator(
+  auto group_id_first = cuda::make_transform_iterator(
     tx_value_first, cuda::proclaim_return_type<int>([value_to_group_id_op] __device__(auto value) {
       return value_to_group_id_op(value);
     }));
@@ -866,7 +865,7 @@ rmm::device_uvector<size_t> groupby_and_count(
                              stream_view,
                              large_buffer_type);
 
-  auto group_id_first = thrust::make_transform_iterator(
+  auto group_id_first = cuda::make_transform_iterator(
     tx_key_first, cuda::proclaim_return_type<int>([key_to_group_id_op] __device__(auto key) {
       return key_to_group_id_op(key);
     }));

@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -21,6 +21,7 @@
 
 #include <raft/util/cudart_utils.hpp>
 
+#include <cuda/iterator>
 #include <cuda/std/optional>
 #include <cuda/std/tuple>
 #include <thrust/fill.h>
@@ -299,7 +300,7 @@ void sssp(raft::handle_t const& handle,
                                                   // instead of thrust::gather
       rmm::device_uvector<weight_t> gathered_distances(
         vertex_frontier.bucket(bucket_idx_cur_near_near).size(), handle.get_stream());
-      auto map_first = thrust::make_transform_iterator(
+      auto map_first = cuda::make_transform_iterator(
         vertex_frontier.bucket(bucket_idx_cur_near_near).begin(),
         shift_left_t<vertex_t>{graph_view.local_vertex_partition_range_first()});
       thrust::gather(handle.get_thrust_policy(),

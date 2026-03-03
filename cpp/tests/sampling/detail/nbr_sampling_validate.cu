@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -16,16 +16,14 @@
 #include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
 
-#include <cuda/std/functional>
+#include <cuda/functional>
 #include <cuda/std/iterator>
 #include <cuda/std/tuple>
 #include <thrust/binary_search.h>
 #include <thrust/count.h>
-#include <thrust/distance.h>
 #include <thrust/equal.h>
 #include <thrust/extrema.h>
 #include <thrust/fill.h>
-#include <thrust/functional.h>
 #include <thrust/gather.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/reduce.h>
@@ -321,28 +319,28 @@ bool validate_temporal_integrity(
        cugraph::temporal_sampling_comparison_t::MONOTONICALLY_INCREASING) ||
       (temporal_sampling_comparison ==
        cugraph::temporal_sampling_comparison_t::STRICTLY_INCREASING)) {
-    sorted_dsts.resize(thrust::distance(sorted_dsts.begin(),
-                                        thrust::reduce_by_key(handle.get_thrust_policy(),
-                                                              sorted_dsts.begin(),
-                                                              sorted_dsts.end(),
-                                                              sorted_dst_times.begin(),
-                                                              sorted_dsts.begin(),
-                                                              sorted_dst_times.begin(),
-                                                              thrust::equal_to<vertex_t>(),
-                                                              thrust::minimum<time_stamp_t>())
-                                          .first),
+    sorted_dsts.resize(cuda::std::distance(sorted_dsts.begin(),
+                                           thrust::reduce_by_key(handle.get_thrust_policy(),
+                                                                 sorted_dsts.begin(),
+                                                                 sorted_dsts.end(),
+                                                                 sorted_dst_times.begin(),
+                                                                 sorted_dsts.begin(),
+                                                                 sorted_dst_times.begin(),
+                                                                 cuda::std::equal_to<vertex_t>(),
+                                                                 cuda::minimum<time_stamp_t>())
+                                             .first),
                        handle.get_stream());
   } else {
-    sorted_dsts.resize(thrust::distance(sorted_dsts.begin(),
-                                        thrust::reduce_by_key(handle.get_thrust_policy(),
-                                                              sorted_dsts.begin(),
-                                                              sorted_dsts.end(),
-                                                              sorted_dst_times.begin(),
-                                                              sorted_dsts.begin(),
-                                                              sorted_dst_times.begin(),
-                                                              thrust::equal_to<vertex_t>(),
-                                                              thrust::maximum<time_stamp_t>())
-                                          .first),
+    sorted_dsts.resize(cuda::std::distance(sorted_dsts.begin(),
+                                           thrust::reduce_by_key(handle.get_thrust_policy(),
+                                                                 sorted_dsts.begin(),
+                                                                 sorted_dsts.end(),
+                                                                 sorted_dst_times.begin(),
+                                                                 sorted_dsts.begin(),
+                                                                 sorted_dst_times.begin(),
+                                                                 cuda::std::equal_to<vertex_t>(),
+                                                                 cuda::maximum<time_stamp_t>())
+                                             .first),
                        handle.get_stream());
   }
   sorted_dst_times.resize(sorted_dsts.size(), handle.get_stream());
@@ -374,16 +372,16 @@ bool validate_temporal_integrity(
           bool result = false;
           switch (temporal_sampling_comparison) {
             case cugraph::temporal_sampling_comparison_t::MONOTONICALLY_INCREASING:
-              result = time < min_dst_times[thrust::distance(min_dsts.begin(), pos)];
+              result = time < min_dst_times[cuda::std::distance(min_dsts.begin(), pos)];
               break;
             case cugraph::temporal_sampling_comparison_t::MONOTONICALLY_DECREASING:
-              result = time > min_dst_times[thrust::distance(min_dsts.begin(), pos)];
+              result = time > min_dst_times[cuda::std::distance(min_dsts.begin(), pos)];
               break;
             case cugraph::temporal_sampling_comparison_t::STRICTLY_DECREASING:
-              result = time >= min_dst_times[thrust::distance(min_dsts.begin(), pos)];
+              result = time >= min_dst_times[cuda::std::distance(min_dsts.begin(), pos)];
               break;
             case cugraph::temporal_sampling_comparison_t::STRICTLY_INCREASING:
-              result = time <= min_dst_times[thrust::distance(min_dsts.begin(), pos)];
+              result = time <= min_dst_times[cuda::std::distance(min_dsts.begin(), pos)];
               break;
             default: result = false;
           }

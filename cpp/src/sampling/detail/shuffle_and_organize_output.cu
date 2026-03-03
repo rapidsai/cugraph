@@ -14,9 +14,9 @@
 
 #include <rmm/device_uvector.hpp>
 
+#include <cuda/std/iterator>
 #include <thrust/binary_search.h>
 #include <thrust/count.h>
-#include <thrust/distance.h>
 #include <thrust/gather.h>
 #include <thrust/sort.h>
 
@@ -140,7 +140,7 @@ shuffle_and_organize_output(
     auto unique_end =
       thrust::unique(handle.get_thrust_policy(), unique_labels.begin(), unique_labels.end());
     size_t num_unique_labels =
-      static_cast<size_t>(thrust::distance(unique_labels.begin(), unique_end));
+      static_cast<size_t>(cuda::std::distance(unique_labels.begin(), unique_end));
 
     unique_labels.resize(num_unique_labels, handle.get_stream());
 

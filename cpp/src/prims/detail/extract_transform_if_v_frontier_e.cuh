@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -29,14 +29,13 @@
 #include <rmm/exec_policy.hpp>
 
 #include <cub/cub.cuh>
-#include <cuda/std/iterator>
+#include <cuda/iterator>
 #include <cuda/std/optional>
 #include <cuda/std/tuple>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
 #include <thrust/count.h>
 #include <thrust/execution_policy.h>
-#include <thrust/functional.h>
 #include <thrust/iterator/iterator_traits.h>
 #include <thrust/sort.h>
 
@@ -344,7 +343,7 @@ __global__ static void extract_transform_if_v_frontier_e_mid_degree(
     vertex_t const* indices{nullptr};
     edge_t local_edge_offset{};
     edge_t local_degree{};
-    thrust::tie(indices, local_edge_offset, local_degree) =
+    cuda::std::tie(indices, local_edge_offset, local_degree) =
       edge_partition.local_edges(major_offset);
     auto rounded_up_local_degree =
       ((static_cast<size_t>(local_degree) + (raft::warp_size() - 1)) / raft::warp_size()) *
@@ -467,7 +466,7 @@ __global__ static void extract_transform_if_v_frontier_e_high_degree(
       vertex_t const* indices{nullptr};
       edge_t local_edge_offset{};
       edge_t local_degree{};
-      thrust::tie(indices, local_edge_offset, local_degree) =
+      cuda::std::tie(indices, local_edge_offset, local_degree) =
         edge_partition.local_edges(major_offset);
 
       auto call_pred_op = call_e_op_t<GraphViewType,
@@ -1331,7 +1330,7 @@ extract_transform_if_v_frontier_e(raft::handle_t const& handle,
             bool computed{false};
             if constexpr (try_bitmap) {
               if (keys.index() == 0) {
-                auto major_first = thrust::make_transform_iterator(
+                auto major_first = cuda::make_transform_iterator(
                   std::get<0>(keys).begin(),
                   cuda::proclaim_return_type<vertex_t>(
                     [range_first =
@@ -1425,7 +1424,7 @@ extract_transform_if_v_frontier_e(raft::handle_t const& handle,
         if constexpr (try_bitmap) {
           auto const& keys = edge_partition_key_buffers[j];
           if (keys.index() == 0) {
-            auto key_local_degree_first = thrust::make_transform_iterator(
+            auto key_local_degree_first = cuda::make_transform_iterator(
               std::get<0>(keys).begin(),
               cuda::proclaim_return_type<size_t>(
                 [edge_partition,
@@ -1453,7 +1452,7 @@ extract_transform_if_v_frontier_e(raft::handle_t const& handle,
               key_first = get_dataframe_buffer_begin(keys);
             }
           }
-          auto key_local_degree_first = thrust::make_transform_iterator(
+          auto key_local_degree_first = cuda::make_transform_iterator(
             key_first, cuda::proclaim_return_type<size_t>([edge_partition] __device__(auto key) {
               auto major        = thrust_tuple_get_or_identity<key_t, 0>(key);
               auto major_offset = edge_partition.major_offset_from_major_nocheck(major);
@@ -1522,7 +1521,7 @@ extract_transform_if_v_frontier_e(raft::handle_t const& handle,
       if constexpr (try_bitmap) {
         auto const& keys = edge_partition_key_buffers[j];
         if (keys.index() == 0) {
-          auto edge_partition_frontier_key_first = thrust::make_transform_iterator(
+          auto edge_partition_frontier_key_first = cuda::make_transform_iterator(
             std::get<0>(keys).begin(),
             cuda::proclaim_return_type<vertex_t>(
               [range_first = local_frontier_range_firsts[partition_idx]] __device__(

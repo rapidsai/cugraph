@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -21,6 +21,8 @@
 #include <cugraph/utilities/mask_utils.cuh>
 
 #include <raft/util/cudart_utils.hpp>
+
+#include <cuda/std/tuple>
 
 #include <variant>
 

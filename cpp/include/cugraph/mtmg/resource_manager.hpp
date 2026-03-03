@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2023-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -107,7 +107,7 @@ class resource_manager_t {
                   std::make_shared<rmm::mr::cuda_memory_resource>(), min_alloc)});
 #endif
 
-    rmm::mr::set_per_device_resource(local_device_id, per_device_it.first->second.get());
+    rmm::mr::set_per_device_resource_ref(local_device_id, per_device_it.first->second.get());
   }
 
   /**

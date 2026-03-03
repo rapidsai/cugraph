@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2023-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 
 import cudf
@@ -15,7 +15,7 @@ if __name__ == "__main__":
     result_df = cugraph.pagerank(G)
 
     assert result_df["pagerank"].sum() == 1.0
-    assert result_df.sort_values(by="pagerank")["vertex"].values_host.tolist() == [
+    assert result_df.sort_values(by="pagerank")["vertex"].to_numpy().tolist() == [
         "a",
         "b",
         "c",

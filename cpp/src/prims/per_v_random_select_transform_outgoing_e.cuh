@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -23,12 +23,11 @@
 #include <cub/cub.cuh>
 #include <cuda/atomic>
 #include <cuda/functional>
-#include <cuda/std/iterator>
+#include <cuda/iterator>
 #include <cuda/std/optional>
 #include <cuda/std/tuple>
 #include <thrust/copy.h>
 #include <thrust/count.h>
-#include <thrust/iterator/constant_iterator.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/remove.h>
 #include <thrust/sort.h>
@@ -107,15 +106,16 @@ struct transform_local_nbr_indices_t {
       if (major_hypersparse_first && (major >= *major_hypersparse_first)) {
         auto major_hypersparse_idx = edge_partition.major_hypersparse_idx_from_major_nocheck(major);
         if (major_hypersparse_idx) {
-          thrust::tie(indices, edge_offset, local_degree) = edge_partition.local_edges(
+          cuda::std::tie(indices, edge_offset, local_degree) = edge_partition.local_edges(
             edge_partition.major_offset_from_major_nocheck(*major_hypersparse_first) +
             *major_hypersparse_idx);
         }
       } else {
-        thrust::tie(indices, edge_offset, local_degree) = edge_partition.local_edges(major_offset);
+        cuda::std::tie(indices, edge_offset, local_degree) =
+          edge_partition.local_edges(major_offset);
       }
     } else {
-      thrust::tie(indices, edge_offset, local_degree) = edge_partition.local_edges(major_offset);
+      cuda::std::tie(indices, edge_offset, local_degree) = edge_partition.local_edges(major_offset);
     }
     auto local_nbr_idx = *(local_nbr_idx_first + i);
     if (local_nbr_idx != invalid_idx) {
@@ -559,7 +559,7 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
         handle.get_thrust_policy(),
         get_dataframe_buffer_begin(sample_e_op_results),
         get_dataframe_buffer_end(sample_e_op_results),
-        thrust::make_transform_iterator(
+        cuda::make_transform_iterator(
           thrust::make_counting_iterator(size_t{0}),
           return_value_compute_offset_t<true>{
             raft::device_span<size_t const>((*sample_key_indices).data(),
@@ -571,7 +571,7 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
     } else {
       (*sample_offsets).set_element_to_zero_async(size_t{0}, handle.get_stream());
       auto typecasted_sample_count_first =
-        thrust::make_transform_iterator(sample_counts.begin(), typecast_t<int32_t, size_t>{});
+        cuda::make_transform_iterator(sample_counts.begin(), typecast_t<int32_t, size_t>{});
       thrust::inclusive_scan(handle.get_thrust_policy(),
                              typecasted_sample_count_first,
                              typecasted_sample_count_first + sample_counts.size(),
@@ -586,7 +586,7 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
         handle.get_thrust_policy(),
         get_dataframe_buffer_begin(sample_e_op_results),
         get_dataframe_buffer_end(sample_e_op_results),
-        thrust::make_transform_iterator(
+        cuda::make_transform_iterator(
           thrust::make_counting_iterator(size_t{0}),
           return_value_compute_offset_t<false>{
             raft::device_span<size_t const>((*sample_key_indices).data(),
@@ -610,7 +610,7 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
                                cugraph::invalid_edge_id_v<edge_t>});
       (*sample_offsets).set_element_to_zero_async(size_t{0}, handle.get_stream());
       auto typecasted_sample_count_first =
-        thrust::make_transform_iterator(sample_counts.begin(), typecast_t<int32_t, size_t>{});
+        cuda::make_transform_iterator(sample_counts.begin(), typecast_t<int32_t, size_t>{});
       thrust::inclusive_scan(handle.get_thrust_policy(),
                              typecasted_sample_count_first,
                              typecasted_sample_count_first + sample_counts.size(),

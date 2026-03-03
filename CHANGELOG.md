@@ -1,3 +1,48 @@
+# cugraph 26.02.00 (4 Feb 2026)
+
+### 🚨 Breaking Changes
+* Default to static linking of libcudart by @bdice in https://github.com/rapidsai/cugraph/pull/5366
+* Require C++20 by @bdice in https://github.com/rapidsai/cugraph/pull/5310
+### 🐛 Bug Fixes
+* Main merge release/25.12 (unblock forward merge) by @alexbarghi-nv in https://github.com/rapidsai/cugraph/pull/5354
+* Include `<thrust/distance.h>` where it is used by @bdice in https://github.com/rapidsai/cugraph/pull/5357
+* Bug fix in per_v_transform_reduce(_if)_incoming|outgoing_e by @seunghwak in https://github.com/rapidsai/cugraph/pull/5360
+* Specify argument types inside proclaim_return_type by @vyasr in https://github.com/rapidsai/cugraph/pull/5379
+* Fix bug in multi-GPU sampling by @ChuckHastings in https://github.com/rapidsai/cugraph/pull/5372
+* Update examples to incorporate the latest changes to the API by @ChuckHastings in https://github.com/rapidsai/cugraph/pull/5389
+### 🚀 New Features
+### 🛠️ Improvements
+* Addressing FIXMEs by @BradReesWork in https://github.com/rapidsai/cugraph/pull/5330
+* Use strict priority in CI conda tests by @bdice in https://github.com/rapidsai/cugraph/pull/5352
+* Use strict priority in CI conda tests by @bdice in https://github.com/rapidsai/cugraph/pull/5359
+* CUDA 13: use releases, not nightlies, for PyTorch wheels by @jameslamb in https://github.com/rapidsai/cugraph/pull/5356
+* Remove alpha specs from non-RAPIDS dependencies by @bdice in https://github.com/rapidsai/cugraph/pull/5362
+* Remove deprecated raft::random::uniformInt usage by @jnke2016 in https://github.com/rapidsai/cugraph/pull/5365
+* Compatibility fixes for CCCL 3.2 by @bdice in https://github.com/rapidsai/cugraph/pull/5363
+* Add devcontainer fallback for C++ test location by @bdice in https://github.com/rapidsai/cugraph/pull/5369
+* Removes experimental `PropertyGraph` (SG and MG) and all references by @rlratzel in https://github.com/rapidsai/cugraph/pull/5374
+* Proclaim return types and other fixes needed for CCCL 3.2 by @bdice in https://github.com/rapidsai/cugraph/pull/5375
+* Empty commit to trigger a build by @bdice in https://github.com/rapidsai/cugraph/pull/5377
+* Use SPDX license identifiers in pyproject.toml, bump build dependency floors by @jameslamb in https://github.com/rapidsai/cugraph/pull/5380
+* Add CUDA 13.1 support by @bdice in https://github.com/rapidsai/cugraph/pull/5373
+* Remove cumlprims from clang-format by @bdice in https://github.com/rapidsai/cugraph/pull/5382
+* Cleanup empty by @BradReesWork in https://github.com/rapidsai/cugraph/pull/5385
+* Empty commit to trigger a build by @jameslamb in https://github.com/rapidsai/cugraph/pull/5391
+* Fix negative sampling with biases by @ChuckHastings in https://github.com/rapidsai/cugraph/pull/5386
+* Improve Error Messages from MissingUCXX by @alexbarghi-nv in https://github.com/rapidsai/cugraph/pull/5378
+* build and test against CUDA 13.1.0 by @jameslamb in https://github.com/rapidsai/cugraph/pull/5383
+* Use main shared-workflows branch by @jameslamb in https://github.com/rapidsai/cugraph/pull/5396
+* Replace deprecated thrust facilities in favor of `libcu++` ones by @miscco in https://github.com/rapidsai/cugraph/pull/5394
+* Remove incorrect documentation main-to-release replacements by @AyodeAwe in https://github.com/rapidsai/cugraph/pull/5400
+* Update RMM memory resource APIs to ref-based equivalents by @bdice in https://github.com/rapidsai/cugraph/pull/5392
+* Fix MG Leiden UB in std::move, re-enable MG Python tests by @rlratzel in https://github.com/rapidsai/cugraph/pull/5398
+* wheel builds: react to changes in pip's handling of build constraints by @mmccarty in https://github.com/rapidsai/cugraph/pull/5399
+* Replace deprecated thrust tuple facilities with cuda::std equivalents by @bdice in https://github.com/rapidsai/cugraph/pull/5404
+* fix(build): build package on merge to `release/*` branch by @gforsyth in https://github.com/rapidsai/cugraph/pull/5409
+
+
+**Full Changelog**: https://github.com/rapidsai/cugraph/compare/v26.02.00a...release/26.02
+
 # cugraph 25.12.00 (10 Dec 2025)
 
 ### 🚨 Breaking Changes

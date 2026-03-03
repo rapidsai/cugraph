@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -40,6 +40,7 @@
 #include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
 
+#include <cuda/iterator>
 #include <cuda/std/tuple>
 #include <thrust/merge.h>
 #include <thrust/set_operations.h>
@@ -505,10 +506,10 @@ class Tests_GRAPH500_MGSSSP
         starting_vertex_component = components.element(
           starting_vertex - local_vertex_partition_range_first, handle_->get_stream());
       }
-      thrust::tie(unrenumbered_starting_vertex,
-                  starting_vertex_parent,
-                  w_to_starting_vertex_parent,
-                  starting_vertex_component) =
+      cuda::std::tie(unrenumbered_starting_vertex,
+                     starting_vertex_parent,
+                     w_to_starting_vertex_parent,
+                     starting_vertex_component) =
         cugraph::host_scalar_bcast(
           comm,
           cuda::std::make_tuple(unrenumbered_starting_vertex,
@@ -928,7 +929,7 @@ class Tests_GRAPH500_MGSSSP
               handle_->get_thrust_policy(),
               tree_weights.begin(),
               tree_weights.end(),
-              thrust::make_transform_iterator(
+              cuda::make_transform_iterator(
                 tree_dsts.begin(),
                 cuda::proclaim_return_type<vertex_t>(
                   [map_first = reachable_from_2cores ? mg_pruned_graph_to_graph_map.begin()

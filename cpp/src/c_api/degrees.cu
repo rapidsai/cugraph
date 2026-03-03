@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2024-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -17,6 +17,7 @@
 #include <cugraph/shuffle_functions.hpp>
 #include <cugraph/vertex_partition_device_view.cuh>
 
+#include <cuda/iterator>
 #include <thrust/gather.h>
 
 #include <optional>
@@ -112,7 +113,7 @@ struct degrees_functor : public cugraph::c_api::abstract_functor {
         auto vertex_partition = cugraph::vertex_partition_device_view_t<vertex_t, multi_gpu>(
           graph_view.local_vertex_partition_view());
 
-        auto vertices_iter = thrust::make_transform_iterator(
+        auto vertices_iter = cuda::make_transform_iterator(
           vertex_ids.begin(),
           cuda::proclaim_return_type<vertex_t>([vertex_partition] __device__(auto v) {
             return vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(v);

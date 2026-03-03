@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# SPDX-FileCopyrightText: Copyright (c) 2019-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2019-2026, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 
 # cugraph build script
@@ -89,7 +89,11 @@ BUILD_CPP_MG_TESTS=OFF
 BUILD_CPP_MTMG_TESTS=OFF
 BUILD_ALL_GPU_ARCH=0
 CMAKE_GENERATOR_OPTION=(-G Ninja)
-PYTHON_ARGS_FOR_INSTALL=(-m pip install --no-build-isolation --no-deps --config-settings rapidsai.disable-cuda=true)
+PYTHON_ARGS_FOR_INSTALL=(
+   --no-build-isolation
+   --no-deps
+   --config-settings="rapidsai.disable-cuda=true"
+)
 
 # Set defaults for vars that may not have been defined externally
 #  FIXME: if PREFIX is not set, check CONDA_PREFIX, but there is no fallback
@@ -279,13 +283,19 @@ if buildDefault || hasArg libcugraph_etl || hasArg all; then
     fi
 fi
 
+# If `RAPIDS_PY_VERSION` is set, use that as the lower-bound for the stable ABI CPython version
+if [ -n "${RAPIDS_PY_VERSION:-}" ]; then
+    RAPIDS_PY_API="cp${RAPIDS_PY_VERSION//./}"
+    PYTHON_ARGS_FOR_INSTALL+=("--config-settings" "skbuild.wheel.py-api=${RAPIDS_PY_API}")
+fi
+
 # Build, and install pylibcugraph
 if buildDefault || hasArg pylibcugraph || hasArg all; then
     if hasArg --clean; then
         cleanPythonDir "${REPODIR}/python/pylibcugraph"
     else
         SKBUILD_CMAKE_ARGS="${SKBUILD_EXTRA_CMAKE_ARGS}" \
-            python "${PYTHON_ARGS_FOR_INSTALL[@]}" "${REPODIR}/python/pylibcugraph"
+            python -m pip install "${PYTHON_ARGS_FOR_INSTALL[@]}" "${REPODIR}/python/pylibcugraph"
     fi
 fi
 
@@ -295,7 +305,7 @@ if buildDefault || hasArg cugraph || hasArg all; then
         cleanPythonDir "${REPODIR}/python/cugraph"
     else
         SKBUILD_CMAKE_ARGS="${SKBUILD_EXTRA_CMAKE_ARGS}" \
-            python "${PYTHON_ARGS_FOR_INSTALL[@]}" "${REPODIR}/python/cugraph"
+            python -m pip install "${PYTHON_ARGS_FOR_INSTALL[@]}" "${REPODIR}/python/cugraph"
     fi
 fi
 

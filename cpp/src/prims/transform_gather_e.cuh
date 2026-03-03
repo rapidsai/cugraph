@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2023-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -21,8 +21,9 @@
 
 #include <rmm/exec_policy.hpp>
 
-#include <cuda/std/iterator>
+#include <cuda/iterator>
 #include <cuda/std/optional>
+#include <cuda/std/tuple>
 #include <thrust/binary_search.h>
 #include <thrust/count.h>
 #include <thrust/for_each.h>
@@ -79,7 +80,7 @@ struct return_e_value_t {
     vertex_t const* indices{nullptr};
     edge_t edge_offset{};
     edge_t local_degree{};
-    thrust::tie(indices, edge_offset, local_degree) = edge_partition.local_edges(*major_idx);
+    cuda::std::tie(indices, edge_offset, local_degree) = edge_partition.local_edges(*major_idx);
     auto it =
       thrust::lower_bound(thrust::seq, indices, indices + local_degree, minor) + multi_edge_index;
     assert(*it == minor);
@@ -196,7 +197,7 @@ void transform_gather_e(raft::handle_t const& handle,
                   "Invalid input arguments: the edge list should include multi-edge index for a "
                   "multi-graph (and should not for a non-multi-graph).");
 
-  auto edge_first = thrust::make_transform_iterator(
+  auto edge_first = cuda::make_transform_iterator(
     thrust::make_counting_iterator(size_t{0}),
     cuda::proclaim_return_type<cuda::std::tuple<vertex_t, vertex_t, edge_t>>(
       [pair_first, multi_edge_index_first] __device__(

@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -13,7 +13,8 @@
 
 #include <raft/core/comms.hpp>
 
-#include <thrust/functional.h>
+#include <cuda/std/functional>
+#include <cuda/std/tuple>
 
 #include <utility>
 
@@ -209,7 +210,7 @@ struct plus {
   static constexpr bool pure_function = true;  // this can be called in any process
   static constexpr raft::comms::op_t compatible_raft_comms_op = raft::comms::op_t::SUM;
   inline static T const identity_element                      = T{};
-  property_op<T, thrust::plus> op{};
+  property_op<T, cuda::std::plus> op{};
 
   __host__ __device__ T operator()(T const& lhs, T const& rhs) const { return op(lhs, rhs); }
 };

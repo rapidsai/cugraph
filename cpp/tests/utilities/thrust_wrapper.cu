@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -10,10 +10,10 @@
 
 #include <rmm/exec_policy.hpp>
 
+#include <cuda/functional>
 #include <cuda/std/iterator>
 #include <cuda/std/tuple>
 #include <thrust/copy.h>
-#include <thrust/distance.h>
 #include <thrust/equal.h>
 #include <thrust/extrema.h>
 #include <thrust/gather.h>
@@ -393,8 +393,8 @@ reduce_by_key(raft::handle_t const& handle,
   auto reduced_values =
     cugraph::allocate_dataframe_buffer<value_t>(num_unique_keys, handle.get_stream());
 
-  // FIXME: Default binary op is thrust::minimum. If there are usecases,
-  // update this to support thrust::plus, thrust::maximum and more.
+  // FIXME: Default binary op is cuda::minimum. If there are usecases,
+  // update this to support cuda::std::plus, cuda::maximum and more.
 
   thrust::reduce_by_key(handle.get_thrust_policy(),
                         cugraph::get_dataframe_buffer_begin(keys),
@@ -402,8 +402,8 @@ reduce_by_key(raft::handle_t const& handle,
                         cugraph::get_dataframe_buffer_begin(values),
                         cugraph::get_dataframe_buffer_begin(reduced_keys),
                         cugraph::get_dataframe_buffer_begin(reduced_values),
-                        thrust::equal_to<key_t>{},
-                        thrust::minimum<value_t>{});
+                        cuda::std::equal_to<key_t>{},
+                        cuda::minimum<value_t>{});
 
   return std::make_tuple(std::move(reduced_keys), std::move(reduced_values));
 }
@@ -455,7 +455,7 @@ value_t reduce(raft::handle_t const& handle,
                         cugraph::get_dataframe_buffer_begin(values),
                         cugraph::get_dataframe_buffer_end(values),
                         init_value,
-                        thrust::plus<value_t>());
+                        cuda::std::plus<value_t>());
 }
 
 template int32_t reduce<int32_t>(raft::handle_t const& handle,
@@ -488,9 +488,9 @@ std::
     });
 
   size_t first_parition_size =
-    thrust::distance(thrust::make_zip_iterator(cugraph::get_dataframe_buffer_begin(keys),
-                                               cugraph::get_dataframe_buffer_begin(values)),
-                     first_partition_last);
+    cuda::std::distance(thrust::make_zip_iterator(cugraph::get_dataframe_buffer_begin(keys),
+                                                  cugraph::get_dataframe_buffer_begin(values)),
+                        first_partition_last);
 
   return std::make_tuple(std::move(keys), std::move(values), first_parition_size);
 }

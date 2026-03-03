@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -7,6 +7,7 @@
 #include "detail/shuffle_wrappers.hpp"
 #include "prims/extract_transform_if_e.cuh"
 #include "prims/fill_edge_property.cuh"
+#include "prims/make_initialized_edge_property.cuh"
 #include "prims/transform_e.cuh"
 #include "prims/transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v.cuh"
 #include "prims/update_edge_src_dst_property.cuh"
@@ -17,7 +18,7 @@
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 
-#include <cuda/std/iterator>
+#include <cuda/iterator>
 #include <cuda/std/optional>
 #include <cuda/std/tuple>
 #include <thrust/binary_search.h>
@@ -25,7 +26,6 @@
 #include <thrust/count.h>
 #include <thrust/execution_policy.h>
 #include <thrust/fill.h>
-#include <thrust/iterator/transform_iterator.h>
 #include <thrust/scatter.h>
 #include <thrust/sort.h>
 #include <thrust/transform.h>
@@ -183,18 +183,13 @@ void triangle_count(raft::handle_t const& handle,
 
   auto cur_graph_view = graph_view;
 
-  auto unmasked_cur_graph_view = cur_graph_view;
-  if (unmasked_cur_graph_view.has_edge_mask()) { unmasked_cur_graph_view.clear_edge_mask(); }
-
   // 2. Mask out the edges that has source or destination that cannot be reached from vertices
   // within two hop (if vertices.has_value() is true).
 
   cugraph::edge_property_t<edge_t, bool> edge_mask(handle);
 
   if (vertices) {
-    cugraph::edge_property_t<edge_t, bool> within_two_hop_edge_mask(handle, cur_graph_view);
-    cugraph::fill_edge_property(
-      handle, unmasked_cur_graph_view, within_two_hop_edge_mask.mutable_view(), false);
+    auto within_two_hop_edge_mask = make_initialized_edge_property(handle, cur_graph_view, false);
 
     rmm::device_uvector<vertex_t> unique_vertices((*vertices).size(), handle.get_stream());
     thrust::copy(
@@ -354,9 +349,7 @@ void triangle_count(raft::handle_t const& handle,
   // 3. Exclude self-loops
 
   if (cur_graph_view.count_self_loops(handle) > edge_t{0}) {
-    cugraph::edge_property_t<edge_t, bool> self_loop_edge_mask(handle, cur_graph_view);
-    cugraph::fill_edge_property(
-      handle, unmasked_cur_graph_view, self_loop_edge_mask.mutable_view(), false);
+    auto self_loop_edge_mask = make_initialized_edge_property(handle, cur_graph_view, false);
 
     transform_e(handle,
                 cur_graph_view,
@@ -375,9 +368,7 @@ void triangle_count(raft::handle_t const& handle,
   // 4. Find 2-core and exclude edges that do not belong to 2-core add masking support).
 
   {
-    cugraph::edge_property_t<edge_t, bool> in_two_core_edge_mask(handle, cur_graph_view);
-    cugraph::fill_edge_property(
-      handle, unmasked_cur_graph_view, in_two_core_edge_mask.mutable_view(), false);
+    auto in_two_core_edge_mask = make_initialized_edge_property(handle, cur_graph_view, false);
 
     rmm::device_uvector<edge_t> core_numbers(cur_graph_view.number_of_vertices(),
                                              handle.get_stream());
@@ -387,7 +378,7 @@ void triangle_count(raft::handle_t const& handle,
     edge_src_property_t<vertex_t, bool> edge_src_in_two_cores(handle, cur_graph_view);
     edge_dst_property_t<vertex_t, bool> edge_dst_in_two_cores(handle, cur_graph_view);
     auto in_two_core_first =
-      thrust::make_transform_iterator(core_numbers.begin(), is_two_or_greater_t<edge_t>{});
+      cuda::make_transform_iterator(core_numbers.begin(), is_two_or_greater_t<edge_t>{});
     rmm::device_uvector<bool> in_two_core_flags(core_numbers.size(), handle.get_stream());
     thrust::copy(handle.get_thrust_policy(),
                  in_two_core_first,
@@ -538,7 +529,7 @@ void triangle_count(raft::handle_t const& handle,
         handle.get_thrust_policy(),
         local_counts.begin(),
         local_counts.end(),
-        thrust::make_transform_iterator(
+        cuda::make_transform_iterator(
           local_vertices.begin(),
           vertex_offset_from_vertex_t<vertex_t>{graph_view.local_vertex_partition_range_first()}),
         counts.begin());

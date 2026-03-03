@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #include "link_prediction/similarity_compare.hpp"
@@ -13,6 +13,7 @@
 #include <cugraph/utilities/high_res_timer.hpp>
 
 #include <cuda/std/iterator>
+#include <cuda/std/tuple>
 
 #include <gtest/gtest.h>
 
