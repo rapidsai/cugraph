@@ -1,0 +1,45 @@
+W0106 17:21:54.281000 1584308 site-packages/torch/distributed/run.py:774]
+W0106 17:21:54.281000 1584308 site-packages/torch/distributed/run.py:774] *****************************************
+W0106 17:21:54.281000 1584308 site-packages/torch/distributed/run.py:774] Setting OMP_NUM_THREADS environment variable for each process to be 1 in default, to avoid your system being overloaded, please further tune the variable for optimal performance in your application as needed.
+W0106 17:21:54.281000 1584308 site-packages/torch/distributed/run.py:774] *****************************************
+/raid/abarghi/.local/share/mamba/envs/rapids/bin/python: can't open file '/home/nfs/abarghi/cugraph6/mag_lp_mnmg.py': [Errno 2] No such file or directory
+/raid/abarghi/.local/share/mamba/envs/rapids/bin/python: can't open file '/home/nfs/abarghi/cugraph6/mag_lp_mnmg.py': [Errno 2] No such file or directory
+E0106 17:21:54.389000 1584308 site-packages/torch/distributed/elastic/multiprocessing/api.py:874] failed (exitcode: 2) local_rank: 0 (pid: 1584335) of binary: /raid/abarghi/.local/share/mamba/envs/rapids/bin/python
+Traceback (most recent call last):
+  File "/raid/abarghi/.local/share/mamba/envs/rapids/bin/torchrun", line 9, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/raid/abarghi/.local/share/mamba/envs/rapids/lib/python3.12/site-packages/torch/distributed/elastic/multiprocessing/errors/__init__.py", line 357, in wrapper
+    return f(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^
+  File "/raid/abarghi/.local/share/mamba/envs/rapids/lib/python3.12/site-packages/torch/distributed/run.py", line 901, in main
+    run(args)
+  File "/raid/abarghi/.local/share/mamba/envs/rapids/lib/python3.12/site-packages/torch/distributed/run.py", line 892, in run
+    elastic_launch(
+  File "/raid/abarghi/.local/share/mamba/envs/rapids/lib/python3.12/site-packages/torch/distributed/launcher/api.py", line 143, in __call__
+    return launch_agent(self._config, self._entrypoint, list(args))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/raid/abarghi/.local/share/mamba/envs/rapids/lib/python3.12/site-packages/torch/distributed/launcher/api.py", line 277, in launch_agent
+    raise ChildFailedError(
+torch.distributed.elastic.multiprocessing.errors.ChildFailedError:
+============================================================
+mag_lp_mnmg.py FAILED
+------------------------------------------------------------
+Failures:
+[1]:
+  time      : 2026-01-06_17:21:54
+  host      : dgx19.aselab.nvidia.com
+  rank      : 1 (local_rank: 1)
+  exitcode  : 2 (pid: 1584336)
+  error_file: <N/A>
+  traceback : To enable traceback see: https://pytorch.org/docs/stable/elastic/errors.html
+------------------------------------------------------------
+Root Cause (first observed failure):
+[0]:
+  time      : 2026-01-06_17:21:54
+  host      : dgx19.aselab.nvidia.com
+  rank      : 0 (local_rank: 0)
+  exitcode  : 2 (pid: 1584335)
+  error_file: <N/A>
+  traceback : To enable traceback see: https://pytorch.org/docs/stable/elastic/errors.html
+============================================================
