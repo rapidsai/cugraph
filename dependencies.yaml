@@ -397,7 +397,7 @@ dependencies:
       - output_types: [conda, pyproject, requirements]
         packages:
           - &pandas pandas
-          - pytest<9.0.0
+          - pytest
           - pytest-benchmark
           - pytest-cov
           - pytest-xdist
