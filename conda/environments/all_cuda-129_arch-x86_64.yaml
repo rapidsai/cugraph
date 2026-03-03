@@ -51,10 +51,10 @@ dependencies:
 - pydata-sphinx-theme
 - pylibcudf==26.4.*,>=0.0.0a0
 - pylibraft==26.4.*,>=0.0.0a0
+- pytest
 - pytest-benchmark
 - pytest-cov
 - pytest-xdist
-- pytest<9.0.0
 - python-louvain
 - pytorch>=2.3
 - raft-dask==26.4.*,>=0.0.0a0
