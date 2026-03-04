@@ -45,6 +45,7 @@
 #include <thrust/partition.h>
 #include <thrust/random.h>
 #include <thrust/scan.h>
+#include <thrust/set_operations.h>
 #include <thrust/sequence.h>
 #include <thrust/shuffle.h>
 #include <thrust/sort.h>
@@ -121,7 +122,7 @@ rmm::device_uvector<vertex_t> peel_zero_in_degree_vertices(
                            false);
 
     auto [new_frontier_vertex_buffer, delta_buffer] =
-      transform_reduce_if_v_frontier_outgoing_e_by_dst(
+      cugraph::transform_reduce_if_v_frontier_outgoing_e_by_dst(
         handle,
         graph_view,
         vertex_frontier.bucket(bucket_idx_cur),
@@ -200,6 +201,11 @@ rmm::device_uvector<typename GraphViewType::vertex_type> find_trivial_singleton_
                candidate_vertices.end(),
                inv_candidate_vertices.begin());
 
+  if constexpr (multi_gpu) {
+    std::tie(inv_candidate_vertices, std::ignore) = shuffle_ext_vertices(
+      handle, std::move(inv_candidate_vertices), std::vector<cugraph::arithmetic_device_uvector_t>{});
+  }
+  
   renumber_local_ext_vertices<vertex_t, multi_gpu>(handle,
                               inv_candidate_vertices.data(),
                               inv_candidate_vertices.size(),
@@ -218,6 +224,11 @@ rmm::device_uvector<typename GraphViewType::vertex_type> find_trivial_singleton_
                                 inverse_renumber_map.data(),
                                 inverse_graph_view.local_vertex_partition_range_first(),
                                 inverse_graph_view.local_vertex_partition_range_last());
+
+  if constexpr (multi_gpu) {
+    std::tie(inv_peeled, std::ignore) = shuffle_ext_vertices(
+      handle, std::move(inv_peeled), std::vector<cugraph::arithmetic_device_uvector_t>{});
+  }
 
   // 3. merge and deduplicate
 
@@ -650,12 +661,326 @@ intersect_reachable_sets(raft::handle_t const& handle,
                          rmm::device_uvector<vertex_t>&& backward_set_offsets,
                          rmm::device_uvector<vertex_t>&& backward_set_vertices,
                          rmm::device_uvector<vertex_t>&& trivial_singleton_scc_vertices)
-{
-  CUGRAPH_FAIL("unimplemented.");
-  return std::make_tuple(rmm::device_uvector<vertex_t>(0, handle.get_stream()),
-                         rmm::device_uvector<bool>(0, handle.get_stream()),
-                         rmm::device_uvector<vertex_t>(0, handle.get_stream()),
-                         rmm::device_uvector<vertex_t>(0, handle.get_stream()));
+                         {
+  
+                          // Find the component_idx for each vertex based on CSR offsets
+                          auto make_component_idx_transform_iterator = [](raft::device_span<vertex_t const> offsets) {
+                            return thrust::make_transform_iterator(
+                              thrust::make_counting_iterator(size_t{0}),
+                              [offsets] __device__(size_t i) {
+                                auto component_pos = thrust::upper_bound(
+                                  thrust::seq, offsets.begin() + 1, offsets.end(), static_cast<vertex_t>(i));
+                                return static_cast<vertex_t>(cuda::std::distance(offsets.begin() + 1, component_pos));
+                              });
+                          };
+                        
+                          auto unresolved_component_idxs_first = make_component_idx_transform_iterator(
+                            raft::device_span<vertex_t const>(unresolved_component_offsets.data(), unresolved_component_offsets.size()));
+                          auto forward_set_component_idxs_first = make_component_idx_transform_iterator(
+                            raft::device_span<vertex_t const>(forward_set_offsets.data(), forward_set_offsets.size()));
+                          auto backward_set_component_idxs_first = make_component_idx_transform_iterator(
+                            raft::device_span<vertex_t const>(backward_set_offsets.data(), backward_set_offsets.size()));
+                        
+                          auto unresolved_component_pairs_first = thrust::make_zip_iterator(unresolved_component_idxs_first, unresolved_component_vertices.begin());
+                          auto forward_set_pairs_first = thrust::make_zip_iterator(forward_set_component_idxs_first, forward_set_vertices.begin());
+                          auto backward_set_pairs_first = thrust::make_zip_iterator(backward_set_component_idxs_first, backward_set_vertices.begin());
+                        
+                          // Precondition: vertices within each CSR segment are already sorted,
+                          // so (comp_idx, vertex) pairs are fully sorted and ready for set operations.
+                        
+                          // 1. SCC = FWD ∩ BWD
+                          rmm::device_uvector<vertex_t> scc_component_idxs(
+                            std::min(forward_set_vertices.size(), backward_set_vertices.size()), handle.get_stream());
+                          rmm::device_uvector<vertex_t> scc_vertices(scc_component_idxs.size(), handle.get_stream());
+                          {
+                            auto out_first = thrust::make_zip_iterator(scc_component_idxs.begin(), scc_vertices.begin());
+                            auto out_end   = thrust::set_intersection(
+                              handle.get_thrust_policy(),
+                              forward_set_pairs_first,
+                              forward_set_pairs_first + forward_set_vertices.size(),
+                              backward_set_pairs_first,
+                              backward_set_pairs_first + backward_set_vertices.size(),
+                              out_first);
+                            auto count = static_cast<size_t>(cuda::std::distance(out_first, out_end));
+                            scc_component_idxs.resize(count, handle.get_stream());
+                            scc_vertices.resize(count, handle.get_stream());
+                          }
+                        
+                          // 2. FWD_ONLY = FWD \ BWD
+                          rmm::device_uvector<vertex_t> fwd_only_component_idxs(forward_set_vertices.size(), handle.get_stream());
+                          rmm::device_uvector<vertex_t> fwd_only_vertices(forward_set_vertices.size(), handle.get_stream());
+                          {
+                            auto out_first = thrust::make_zip_iterator(fwd_only_component_idxs.begin(), fwd_only_vertices.begin());
+                            auto out_end   = thrust::set_difference(
+                              handle.get_thrust_policy(),
+                              forward_set_pairs_first,
+                              forward_set_pairs_first + forward_set_vertices.size(),
+                              backward_set_pairs_first,
+                              backward_set_pairs_first + backward_set_vertices.size(),
+                              out_first);
+                            auto count = static_cast<size_t>(cuda::std::distance(out_first, out_end));
+                            fwd_only_component_idxs.resize(count, handle.get_stream());
+                            fwd_only_vertices.resize(count, handle.get_stream());
+                          }
+                        
+                          // 3. BWD_ONLY = BWD \ FWD
+                          rmm::device_uvector<vertex_t> bwd_only_component_idxs(backward_set_vertices.size(), handle.get_stream());
+                          rmm::device_uvector<vertex_t> bwd_only_vertices(backward_set_vertices.size(), handle.get_stream());
+                          {
+                            auto out_first = thrust::make_zip_iterator(bwd_only_component_idxs.begin(), bwd_only_vertices.begin());
+                            auto out_end   = thrust::set_difference(
+                              handle.get_thrust_policy(),
+                              backward_set_pairs_first,
+                              backward_set_pairs_first + backward_set_vertices.size(),
+                              forward_set_pairs_first,
+                              forward_set_pairs_first + forward_set_vertices.size(),
+                              out_first);
+                            auto count = static_cast<size_t>(cuda::std::distance(out_first, out_end));
+                            bwd_only_component_idxs.resize(count, handle.get_stream());
+                            bwd_only_vertices.resize(count, handle.get_stream());
+                          }
+                        
+                          // 4. FWD_OR_BWD = FWD ∪ BWD (needed to compute REMAINDER)
+                          rmm::device_uvector<vertex_t> union_component_idxs(
+                            forward_set_vertices.size() + backward_set_vertices.size(), handle.get_stream());
+                          rmm::device_uvector<vertex_t> union_vertices(union_component_idxs.size(), handle.get_stream());
+                          {
+                            auto out_first = thrust::make_zip_iterator(union_component_idxs.begin(), union_vertices.begin());
+                            auto out_end   = thrust::set_union(
+                              handle.get_thrust_policy(),
+                              forward_set_pairs_first,
+                              forward_set_pairs_first + forward_set_vertices.size(),
+                              backward_set_pairs_first,
+                              backward_set_pairs_first + backward_set_vertices.size(),
+                              out_first);
+                            auto count = static_cast<size_t>(cuda::std::distance(out_first, out_end));
+                            union_component_idxs.resize(count, handle.get_stream());
+                            union_vertices.resize(count, handle.get_stream());
+                          }
+                        
+                          // 5. REMAINDER = UC \ FWD_OR_BWD
+                          rmm::device_uvector<vertex_t> remaining_component_idxs(
+                            unresolved_component_vertices.size(), handle.get_stream());
+                          rmm::device_uvector<vertex_t> remaining_vertices(remaining_component_idxs.size(), handle.get_stream());
+                          {
+                            auto union_pairs_first =
+                              thrust::make_zip_iterator(union_component_idxs.begin(), union_vertices.begin());
+                            auto out_first = thrust::make_zip_iterator(remaining_component_idxs.begin(), remaining_vertices.begin());
+                            auto out_end   = thrust::set_difference(
+                              handle.get_thrust_policy(),
+                              unresolved_component_pairs_first,
+                              unresolved_component_pairs_first + unresolved_component_vertices.size(),
+                              union_pairs_first,
+                              union_pairs_first + union_vertices.size(),
+                              out_first);
+                            auto count = static_cast<size_t>(cuda::std::distance(out_first, out_end));
+                            remaining_component_idxs.resize(count, handle.get_stream());
+                            remaining_vertices.resize(count, handle.get_stream());
+                          }
+                        
+                          // Remove singletons from fwd_only, bwd_only, remainder.
+                          // Singletons can't appear in SCC (FWD ∩ BWD) so that set is already clean.
+                        
+                          {
+                            auto remove_singletons = [&](rmm::device_uvector<vertex_t>& component_idxs,
+                                                         rmm::device_uvector<vertex_t>& component_vertices) {
+                              auto zip_first = thrust::make_zip_iterator(component_idxs.begin(), component_vertices.begin());
+                              auto zip_end   = thrust::remove_if(
+                                handle.get_thrust_policy(),
+                                zip_first,
+                                zip_first + component_vertices.size(),
+                                [trivial_singleton_scc_vertices = raft::device_span<vertex_t const>(trivial_singleton_scc_vertices.data(), trivial_singleton_scc_vertices.size())] __device__(auto pair) {
+                                  auto v = thrust::get<1>(pair);
+                                  return thrust::binary_search(thrust::seq, trivial_singleton_scc_vertices.begin(), trivial_singleton_scc_vertices.end(), v);
+                                });
+                              auto count = static_cast<size_t>(cuda::std::distance(zip_first, zip_end));
+                              component_idxs.resize(count, handle.get_stream());
+                              component_vertices.resize(count, handle.get_stream());
+                            };
+                        
+                            remove_singletons(fwd_only_component_idxs, fwd_only_vertices);
+                            remove_singletons(bwd_only_component_idxs, bwd_only_vertices);
+                            remove_singletons(remaining_component_idxs, remaining_vertices);
+                          }
+                        
+                          // For each subset (scc, fwd, bwd, remainder), find the local min vertex id per component idx
+                          // on the current GPU and perform global reduction.
+                        
+                          auto find_min_vertex_id_per_component = [&](rmm::device_uvector<vertex_t>& component_idxs,
+                                                                 rmm::device_uvector<vertex_t>& vertices) {
+                            rmm::device_uvector<vertex_t> unique_idxs(component_idxs.size(), handle.get_stream());
+                            rmm::device_uvector<vertex_t> min_vertex_ids(component_idxs.size(), handle.get_stream());
+                        
+                            auto [unique_end, min_end] = thrust::reduce_by_key(handle.get_thrust_policy(),
+                                                                               component_idxs.begin(),
+                                                                               component_idxs.end(),
+                                                                               vertices.begin(),
+                                                                               unique_idxs.begin(),
+                                                                               min_vertex_ids.begin(),
+                                                                               thrust::equal_to<vertex_t>{},
+                                                                               thrust::minimum<vertex_t>());
+                        
+                            unique_idxs.resize(cuda::std::distance(unique_idxs.begin(), unique_end), handle.get_stream());
+                            min_vertex_ids.resize(cuda::std::distance(min_vertex_ids.begin(), min_end), handle.get_stream());
+                        
+                            return std::make_pair(std::move(unique_idxs), std::move(min_vertex_ids));
+                          };
+                        
+                          auto [unique_scc_component_idxs, scc_component_min_vertex_ids] =
+                          find_min_vertex_id_per_component(scc_component_idxs, scc_vertices);
+                          auto [unique_fwd_component_idxs, fwd_component_min_vertex_ids] =
+                          find_min_vertex_id_per_component(fwd_only_component_idxs, fwd_only_vertices);
+                          auto [unique_bwd_component_idxs, bwd_component_min_vertex_ids] =
+                          find_min_vertex_id_per_component(bwd_only_component_idxs, bwd_only_vertices);
+                          auto [unique_remaining_component_idxs, remaining_component_min_vertex_ids] =
+                          find_min_vertex_id_per_component(remaining_component_idxs, remaining_vertices);
+                        
+                          // Build a flat array of 4 * num_unresolved_components to hold the min vertex id for each
+                          // (component, subset) pair [scc_0, fwd_0, bwd_0, rem_0, scc_1, fwd_1, ...]
+                        
+                          auto num_unresolved_components = unresolved_component_offsets.size() - 1;
+                          rmm::device_uvector<vertex_t> component_local_min_vertex_ids(
+                            4 * num_unresolved_components, handle.get_stream());
+                          thrust::fill(handle.get_thrust_policy(),
+                                       component_local_min_vertex_ids.begin(),
+                                       component_local_min_vertex_ids.end(),
+                                       std::numeric_limits<vertex_t>::max());
+                        
+                          // Scatter each subset's local min vertex ids into the interleaved array.
+                          auto scatter_mins = [&](rmm::device_uvector<vertex_t> const& unique_component_idxs,
+                                                  rmm::device_uvector<vertex_t> const& min_vertex_ids,
+                                                  size_t subset_offset) {
+                            thrust::for_each(
+                              handle.get_thrust_policy(),
+                              thrust::make_counting_iterator(size_t{0}),
+                              thrust::make_counting_iterator(unique_component_idxs.size()),
+                              [unique_component_idxs = raft::device_span<vertex_t const>(unique_component_idxs.data(),unique_component_idxs.size()),
+                               min_vertex_ids = raft::device_span<vertex_t const>(min_vertex_ids.data(),min_vertex_ids.size()),
+                               component_local_min_vertex_ids = raft::device_span<vertex_t>(component_local_min_vertex_ids.data(),component_local_min_vertex_ids.size()),
+                               subset_offset] __device__(size_t i) {
+                                component_local_min_vertex_ids[4 * static_cast<size_t>(unique_component_idxs[i]) + subset_offset] = min_vertex_ids[i];
+                              });
+                          };
+                        
+                          scatter_mins(unique_scc_component_idxs, scc_component_min_vertex_ids, 0);
+                          scatter_mins(unique_fwd_component_idxs, fwd_component_min_vertex_ids, 1);
+                          scatter_mins(unique_bwd_component_idxs, bwd_component_min_vertex_ids, 2);
+                          scatter_mins(unique_remaining_component_idxs, remaining_component_min_vertex_ids, 3);
+                        
+                          // Multi-GPU: reduce across GPUs to get global min vertex id per sub-component.
+                          if constexpr (multi_gpu) {
+                            device_allreduce(handle.get_comms(),
+                                             component_local_min_vertex_ids.begin(),
+                                             component_local_min_vertex_ids.begin(),
+                                             component_local_min_vertex_ids.size(),
+                                             raft::comms::op_t::MIN,
+                                             handle.get_stream());
+                          }
+                        
+                          // Build (component_id, vertex, scc_flag) for all vertices from all 5 sources:
+                          // trivial singletons, scc, fwd, bwd, remainder.
+                        
+                          auto total_vertices = trivial_singleton_scc_vertices.size() +
+                                                scc_vertices.size() +
+                                                fwd_only_vertices.size() +
+                                                bwd_only_vertices.size() +
+                                                remaining_vertices.size();
+                        
+                          rmm::device_uvector<vertex_t> all_component_ids(total_vertices, handle.get_stream());
+                          rmm::device_uvector<vertex_t> component_vertices(total_vertices, handle.get_stream());
+                          rmm::device_uvector<bool> all_scc_flags(total_vertices, handle.get_stream());
+                        
+                          // Trivial singletons: component_id = vertex_id, scc_flag = true.
+                          size_t dst_offset = 0;
+                          thrust::copy(handle.get_thrust_policy(),
+                                       trivial_singleton_scc_vertices.begin(),
+                                       trivial_singleton_scc_vertices.end(),
+                                       all_component_ids.begin());
+                          thrust::copy(handle.get_thrust_policy(),
+                                       trivial_singleton_scc_vertices.begin(),
+                                       trivial_singleton_scc_vertices.end(),
+                                       component_vertices.begin());
+                          thrust::fill(handle.get_thrust_policy(),
+                                       all_scc_flags.begin(),
+                                       all_scc_flags.begin() + trivial_singleton_scc_vertices.size(),
+                                       true);
+                          dst_offset += trivial_singleton_scc_vertices.size();
+                        
+                          // For each of the 4 subsets, map component_idx -> component_id via component_local_min_vertex_ids.
+                          auto fill_subset = [&](rmm::device_uvector<vertex_t> const& component_idxs,
+                                                 rmm::device_uvector<vertex_t> const& vertices,
+                                                 size_t subset_idx,
+                                                 bool scc_flag,
+                                                 size_t offset) {
+                            thrust::copy(handle.get_thrust_policy(),
+                                         vertices.begin(),
+                                         vertices.end(),
+                                         component_vertices.begin() + offset);
+                            thrust::transform(
+                              handle.get_thrust_policy(),
+                              component_idxs.begin(),
+                              component_idxs.end(),
+                              all_component_ids.begin() + offset,
+                              [component_local_min_vertex_ids = raft::device_span<vertex_t const>(component_local_min_vertex_ids.data(),
+                                                                            component_local_min_vertex_ids.size()),
+                               subset_idx] __device__(vertex_t component_idx) {
+                                return component_local_min_vertex_ids[4 * static_cast<size_t>(component_idx) + subset_idx];
+                              });
+                            thrust::fill(handle.get_thrust_policy(),
+                                         all_scc_flags.begin() + offset,
+                                         all_scc_flags.begin() + offset + vertices.size(),
+                                         scc_flag);
+                          };
+                        
+                          fill_subset(scc_component_idxs, scc_vertices, 0, true, dst_offset);
+                          dst_offset += scc_vertices.size();
+                          fill_subset(fwd_only_component_idxs, fwd_only_vertices, 1, false, dst_offset);
+                          dst_offset += fwd_only_vertices.size();
+                          fill_subset(bwd_only_component_idxs, bwd_only_vertices, 2, false, dst_offset);
+                          dst_offset += bwd_only_vertices.size();
+                          fill_subset(remaining_component_idxs, remaining_vertices, 3, false, dst_offset);
+                        
+                          // Sort by (component_id, vertex), carrying scc_flags along.
+                          {
+                            auto key_first = thrust::make_zip_iterator(all_component_ids.begin(), component_vertices.begin());
+                            thrust::sort_by_key(handle.get_thrust_policy(),
+                                                key_first,
+                                                key_first + total_vertices,
+                                                all_scc_flags.begin());
+                          }
+                        
+                          // Extract unique component_ids and one scc_flag per component.
+                        
+                          rmm::device_uvector<vertex_t> component_ids(total_vertices, handle.get_stream());
+                          rmm::device_uvector<bool> component_scc_flags(total_vertices, handle.get_stream());
+                          auto [component_ids_end, component_scc_flags_end] = thrust::unique_by_key_copy(
+                            handle.get_thrust_policy(),
+                            all_component_ids.begin(),
+                            all_component_ids.end(),
+                            all_scc_flags.begin(),
+                            component_ids.begin(),
+                            component_scc_flags.begin());
+                          auto num_components = static_cast<size_t>(
+                            cuda::std::distance(component_ids.begin(), component_ids_end));
+                          component_ids.resize(num_components, handle.get_stream());
+                          component_scc_flags.resize(num_components, handle.get_stream());
+                        
+                          // Build component_offsets via lower_bound on sorted component_ids.
+                        
+                          rmm::device_uvector<vertex_t> component_offsets(num_components + 1, handle.get_stream());
+                          thrust::lower_bound(handle.get_thrust_policy(),
+                                              all_component_ids.begin(),
+                                              all_component_ids.end(),
+                                              component_ids.begin(),
+                                              component_ids.end(),
+                                              component_offsets.begin());
+                          component_offsets.set_element(
+                            num_components, static_cast<vertex_t>(total_vertices), handle.get_stream());
+                        
+                          return std::make_tuple(std::move(component_ids),
+                                                 std::move(component_scc_flags),
+                                                 std::move(component_offsets),
+                                                 std::move(component_vertices));
 }
 
 // return component_ids, component_offsets, component_vertices, num_unresolved_components
