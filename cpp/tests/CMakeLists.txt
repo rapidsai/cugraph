@@ -685,6 +685,11 @@ if(BUILD_CUGRAPH_MG_TESTS)
                     components/mg_weakly_connected_components_test.cpp)
 
     ###############################################################################################
+    # - MG STRONGLY CONNECTED COMPONENTS tests ----------------------------------------------------
+    ConfigureTestMG(MG_STRONGLY_CONNECTED_COMPONENTS_TEST
+                    components/mg_strongly_connected_components_test.cpp)
+
+    ###############################################################################################
     # - MG EDGE SOURCE DESTINATION LOOKUP tests ---------------------------------------------------
     ConfigureTestMG(MG_LOOKUP_SRC_DST_TEST lookup/mg_lookup_src_dst_test.cpp)
 
