@@ -12,6 +12,7 @@
 #include "prims/kv_store.cuh"
 #include "prims/transform_gather_e.cuh"
 #include "prims/vertex_frontier.cuh"
+#include "sampling_utils.hpp"
 #include "utilities/collect_comm.cuh"
 
 #include <cugraph/arithmetic_variant_types.hpp>
@@ -331,6 +332,110 @@ gather_one_hop_edgelist(
                          std::move(result_dsts),
                          std::move(result_properties),
                          std::move(result_labels));
+}
+
+template <typename vertex_t, typename edge_t, bool multi_gpu>
+std::tuple<rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           std::vector<arithmetic_device_uvector_t>,
+           std::optional<rmm::device_uvector<int32_t>>,
+           rmm::device_uvector<vertex_t>,
+           std::optional<rmm::device_uvector<int32_t>>>
+gather_one_hop_edgelist_to_unvisited_neighbors(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  raft::host_span<edge_arithmetic_property_view_t<edge_t>> edge_property_views,
+  std::optional<edge_property_view_t<edge_t, int32_t const*>> edge_type_view,
+  raft::device_span<vertex_t const> active_majors,
+  std::optional<raft::device_span<int32_t const>> active_major_labels,
+  std::optional<raft::device_span<uint8_t const>> gather_flags,
+  rmm::device_uvector<vertex_t>&& visited_minors,
+  std::optional<rmm::device_uvector<int32_t>>&& visited_minor_labels,
+  bool do_expensive_check)
+{
+  auto [result_srcs, result_dsts, result_properties, result_labels] =
+    gather_one_hop_edgelist<vertex_t, edge_t, multi_gpu>(handle,
+                                                         graph_view,
+                                                         edge_property_views,
+                                                         edge_type_view,
+                                                         active_majors,
+                                                         active_major_labels,
+                                                         gather_flags,
+                                                         do_expensive_check);
+
+  // Remove any edges that lead to a visited vertex
+  {
+    auto [keep_count, marked_entries] =
+      visited_minor_labels
+        ? detail::mark_entries(
+            handle,
+            result_dsts.size(),
+            [dsts                = result_dsts.data(),
+             labels              = result_labels->data(),
+             visited_minors      = visited_minors.data(),
+             visited_labels      = visited_minor_labels->data(),
+             visited_minors_size = visited_minors.size()] __device__(auto index) {
+              auto iter_begin = thrust::make_zip_iterator(visited_minors, visited_labels);
+              return !thrust::binary_search(thrust::seq,
+                                            iter_begin,
+                                            iter_begin + visited_minors_size,
+                                            thrust::tuple(dsts[index], labels[index]));
+            })
+        : detail::mark_entries(
+            handle,
+            result_dsts.size(),
+            [dsts                = result_dsts.data(),
+             visited_minors      = visited_minors.data(),
+             visited_minors_size = visited_minors.size()] __device__(auto index) {
+              return !thrust::binary_search(
+                thrust::seq, visited_minors, visited_minors + visited_minors_size, dsts[index]);
+            });
+
+    raft::device_span<uint32_t const> marked_entry_span{marked_entries.data(),
+                                                        marked_entries.size()};
+    result_srcs =
+      detail::keep_marked_entries(handle, std::move(result_srcs), marked_entry_span, keep_count);
+    result_dsts =
+      detail::keep_marked_entries(handle, std::move(result_dsts), marked_entry_span, keep_count);
+    if (result_labels) {
+      *result_labels = detail::keep_marked_entries(
+        handle, std::move(*result_labels), marked_entry_span, keep_count);
+    }
+    std::for_each(
+      result_properties.begin(),
+      result_properties.end(),
+      [&handle, keep_count = keep_count, marked_entry_span = marked_entry_span](auto& property) {
+        cugraph::variant_type_dispatch(
+          property, [&handle, keep_count, marked_entry_span](auto& property) {
+            property = detail::keep_marked_entries(
+              handle, std::move(property), marked_entry_span, keep_count);
+          });
+      });
+  }
+
+  std::tie(result_srcs,
+           result_dsts,
+           result_properties,
+           result_labels,
+           visited_minors,
+           visited_minor_labels,
+           std::ignore,
+           std::ignore) = remove_duplicate_edges(handle,
+                                                 graph_view,
+                                                 std::move(result_srcs),
+                                                 std::move(result_dsts),
+                                                 std::move(result_properties),
+                                                 std::move(result_labels),
+                                                 std::move(visited_minors),
+                                                 std::move(visited_minor_labels),
+                                                 false);
+
+  return std::make_tuple(std::move(result_srcs),
+                         std::move(result_dsts),
+                         std::move(result_properties),
+                         std::move(result_labels),
+                         std::move(visited_minors),
+                         std::move(visited_minor_labels));
 }
 
 template <typename vertex_t, typename edge_t, typename time_stamp_t, bool multi_gpu>
