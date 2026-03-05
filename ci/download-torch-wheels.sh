@@ -21,7 +21,7 @@ TORCH_WHEEL_DIR="${1}"
 # (which can happen because pip doesn't support index priority).
 #
 # Not appending this to PIP_CONSTRAINT, because we don't want the torch '--extra-index-url'
-# to leak outside of this script into other 'pip {download,install}'' calls.
+# to leak outside of this script into other 'pip {download,install}' calls.
 rapids-dependency-file-generator \
     --output requirements \
     --file-key "torch_only" \
