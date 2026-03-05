@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -25,61 +25,79 @@
 #include <algorithm>
 #include <iterator>
 #include <limits>
+#include <stack>
+#include <unordered_map>
 #include <vector>
 
+// Tarjan's strongly connected components algorithm.
+// (https://en.wikipedia.org/wiki/Tarjan%27s_strongly_connected_components_algorithm)
 template <typename vertex_t, typename edge_t>
-void weakly_connected_components_reference(edge_t const* offsets,
-                                           vertex_t const* indices,
-                                           vertex_t* components,
-                                           vertex_t num_vertices)
+void strongly_connected_components_reference(edge_t const* offsets,
+                                             vertex_t const* indices,
+                                             vertex_t* components,
+                                             vertex_t num_vertices)
 {
-  vertex_t depth{0};
+  using index_t                   = size_t;
+  constexpr index_t invalid_index = std::numeric_limits<index_t>::max();
+
+  std::vector<index_t> index(num_vertices, invalid_index);
+  std::vector<index_t> lowlink(num_vertices, invalid_index);
+  std::vector<bool> on_stack(num_vertices, false);
+  std::stack<vertex_t> S{};
+  index_t current_index{0};
+  vertex_t next_component_id{0};
 
   std::fill(components, components + num_vertices, cugraph::invalid_component_id<vertex_t>::value);
 
-  vertex_t num_scanned{0};
-  while (true) {
-    auto it = std::find(components + num_scanned,
-                        components + num_vertices,
-                        cugraph::invalid_component_id<vertex_t>::value);
-    if (it == components + num_vertices) { break; }
-    num_scanned += static_cast<vertex_t>(std::distance(components + num_scanned, it));
-    auto source            = num_scanned;
-    *(components + source) = source;
-    std::vector<vertex_t> cur_frontier_srcs{source};
-    std::vector<vertex_t> new_frontier_srcs{};
+  auto strongconnect = [&](vertex_t v, auto&& strongconnect_ref) -> void {
+    index[v]   = current_index;
+    lowlink[v] = current_index;
+    ++current_index;
+    S.push(v);
+    on_stack[v] = true;
 
-    while (cur_frontier_srcs.size() > 0) {
-      for (auto const src : cur_frontier_srcs) {
-        auto nbr_offset_first = *(offsets + src);
-        auto nbr_offset_last  = *(offsets + src + 1);
-        for (auto nbr_offset = nbr_offset_first; nbr_offset != nbr_offset_last; ++nbr_offset) {
-          auto nbr = *(indices + nbr_offset);
-          if (*(components + nbr) == cugraph::invalid_component_id<vertex_t>::value) {
-            *(components + nbr) = source;
-            new_frontier_srcs.push_back(nbr);
-          }
-        }
+    // Consider successors of v (outgoing edges)
+    edge_t nbr_begin = offsets[v];
+    edge_t nbr_end   = offsets[v + 1];
+    for (edge_t e = nbr_begin; e != nbr_end; ++e) {
+      vertex_t w = indices[e];
+      if (index[w] == invalid_index) {
+        strongconnect_ref(w, strongconnect_ref);
+        lowlink[v] = std::min(lowlink[v], lowlink[w]);
+      } else if (on_stack[w]) {
+        lowlink[v] = std::min(lowlink[v], index[w]);
       }
-      std::swap(cur_frontier_srcs, new_frontier_srcs);
-      new_frontier_srcs.clear();
     }
-  }
 
-  return;
+    // If v is a root node, pop the stack and assign component id
+    if (lowlink[v] == index[v]) {
+      vertex_t w;
+      do {
+        w = S.top();
+        S.pop();
+        on_stack[w]   = false;
+        components[w] = next_component_id;
+      } while (w != v);
+      ++next_component_id;
+    }
+  };
+
+  for (vertex_t v = 0; v < num_vertices; ++v) {
+    if (index[v] == invalid_index) { strongconnect(v, strongconnect); }
+  }
 }
 
-struct WeaklyConnectedComponents_Usecase {
+struct StronglyConnectedComponents_Usecase {
   bool edge_masking{false};
   bool check_correctness{true};
 };
 
 template <typename input_usecase_t>
-class Tests_WeaklyConnectedComponent
+class Tests_StronglyConnectedComponent
   : public ::testing::TestWithParam<
-      std::tuple<WeaklyConnectedComponents_Usecase, input_usecase_t>> {
+      std::tuple<StronglyConnectedComponents_Usecase, input_usecase_t>> {
  public:
-  Tests_WeaklyConnectedComponent() {}
+  Tests_StronglyConnectedComponent() {}
 
   static void SetUpTestCase() {}
   static void TearDownTestCase() {}
@@ -89,7 +107,7 @@ class Tests_WeaklyConnectedComponent
 
   template <typename vertex_t, typename edge_t>
   void run_current_test(
-    WeaklyConnectedComponents_Usecase const& weakly_connected_components_usecase,
+    StronglyConnectedComponents_Usecase const& strongly_connected_components_usecase,
     input_usecase_t const& input_usecase)
   {
     constexpr bool renumber = true;
@@ -117,25 +135,22 @@ class Tests_WeaklyConnectedComponent
     }
 
     auto graph_view = graph.view();
-    ASSERT_TRUE(graph_view.is_symmetric())
-      << "Weakly connected components works only on undirected (symmetric) graphs.";
+    ASSERT_FALSE(graph_view.is_symmetric())
+      << "Strongly connected components works only on directed (asymmetric) graphs.";
 
     std::optional<cugraph::edge_property_t<edge_t, bool>> edge_mask{std::nullopt};
-    if (weakly_connected_components_usecase.edge_masking) {
+    if (strongly_connected_components_usecase.edge_masking) {
       edge_mask =
         cugraph::test::generate<decltype(graph_view), bool>::edge_property(handle, graph_view, 2);
       graph_view.attach_edge_mask(edge_mask->view());
     }
 
-    rmm::device_uvector<vertex_t> d_components(graph_view.number_of_vertices(),
-                                               handle.get_stream());
-
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      hr_timer.start("Weakly_connected_components");
+      hr_timer.start("Strongly_connected_components");
     }
 
-    cugraph::weakly_connected_components(handle, graph_view, d_components.data());
+    auto d_components = cugraph::strongly_connected_components(handle, graph_view);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -143,7 +158,7 @@ class Tests_WeaklyConnectedComponent
       hr_timer.display_and_clear(std::cout);
     }
 
-    if (weakly_connected_components_usecase.check_correctness) {
+    if (strongly_connected_components_usecase.check_correctness) {
       cugraph::graph_t<vertex_t, edge_t, false, false> unrenumbered_graph(handle);
       if (renumber) {
         std::tie(unrenumbered_graph, std::ignore, std::ignore) =
@@ -159,10 +174,10 @@ class Tests_WeaklyConnectedComponent
 
       std::vector<vertex_t> h_reference_components(unrenumbered_graph_view.number_of_vertices());
 
-      weakly_connected_components_reference(h_offsets.data(),
-                                            h_indices.data(),
-                                            h_reference_components.data(),
-                                            unrenumbered_graph_view.number_of_vertices());
+      strongly_connected_components_reference(h_offsets.data(),
+                                              h_indices.data(),
+                                              h_reference_components.data(),
+                                              unrenumbered_graph_view.number_of_vertices());
 
       std::vector<vertex_t> h_cugraph_components{};
       if (renumber) {
@@ -192,26 +207,25 @@ class Tests_WeaklyConnectedComponent
   }
 };
 
-using Tests_WeaklyConnectedComponents_File =
-  Tests_WeaklyConnectedComponent<cugraph::test::File_Usecase>;
-using Tests_WeaklyConnectedComponents_Rmat =
-  Tests_WeaklyConnectedComponent<cugraph::test::Rmat_Usecase>;
+using Tests_StronglyConnectedComponents_File =
+  Tests_StronglyConnectedComponent<cugraph::test::File_Usecase>;
+using Tests_StronglyConnectedComponents_Rmat =
+  Tests_StronglyConnectedComponent<cugraph::test::Rmat_Usecase>;
 
-// FIXME: add tests for type combinations
-TEST_P(Tests_WeaklyConnectedComponents_File, CheckInt32Int32)
+TEST_P(Tests_StronglyConnectedComponents_File, CheckInt32Int32)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t>(std::get<0>(param), std::get<1>(param));
 }
 
-TEST_P(Tests_WeaklyConnectedComponents_Rmat, CheckInt32Int32)
+TEST_P(Tests_StronglyConnectedComponents_Rmat, CheckInt32Int32)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t>(
     std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
 
-TEST_P(Tests_WeaklyConnectedComponents_Rmat, CheckInt64Int64)
+TEST_P(Tests_StronglyConnectedComponents_Rmat, CheckInt64Int64)
 {
   auto param = GetParam();
   run_current_test<int64_t, int64_t>(
@@ -220,31 +234,25 @@ TEST_P(Tests_WeaklyConnectedComponents_Rmat, CheckInt64Int64)
 
 INSTANTIATE_TEST_SUITE_P(
   file_test,
-  Tests_WeaklyConnectedComponents_File,
+  Tests_StronglyConnectedComponents_File,
   ::testing::Values(
-    // enable correctness checks
-    std::make_tuple(WeaklyConnectedComponents_Usecase{false},
-                    cugraph::test::File_Usecase("test/datasets/karate.mtx")),
-    std::make_tuple(WeaklyConnectedComponents_Usecase{true},
-                    cugraph::test::File_Usecase("test/datasets/karate.mtx")),
-    std::make_tuple(WeaklyConnectedComponents_Usecase{false},
-                    cugraph::test::File_Usecase("test/datasets/polbooks.mtx")),
-    std::make_tuple(WeaklyConnectedComponents_Usecase{true},
-                    cugraph::test::File_Usecase("test/datasets/polbooks.mtx")),
-    std::make_tuple(WeaklyConnectedComponents_Usecase{false},
-                    cugraph::test::File_Usecase("test/datasets/netscience.mtx")),
-    std::make_tuple(WeaklyConnectedComponents_Usecase{true},
-                    cugraph::test::File_Usecase("test/datasets/netscience.mtx"))));
+    std::make_tuple(StronglyConnectedComponents_Usecase{false},
+                    cugraph::test::File_Usecase("test/datasets/karate-asymmetric.csv")),
+    std::make_tuple(StronglyConnectedComponents_Usecase{true},
+                    cugraph::test::File_Usecase("test/datasets/karate-asymmetric.csv")),
+    std::make_tuple(StronglyConnectedComponents_Usecase{false},
+                    cugraph::test::File_Usecase("test/datasets/cage6.mtx")),
+    std::make_tuple(StronglyConnectedComponents_Usecase{true},
+                    cugraph::test::File_Usecase("test/datasets/cage6.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_small_test,
-  Tests_WeaklyConnectedComponents_Rmat,
+  Tests_StronglyConnectedComponents_Rmat,
   ::testing::Values(
-    // enable correctness checks
-    std::make_tuple(WeaklyConnectedComponents_Usecase{false},
-                    cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, true, false)),
-    std::make_tuple(WeaklyConnectedComponents_Usecase{true},
-                    cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, true, false))));
+    std::make_tuple(StronglyConnectedComponents_Usecase{false},
+                    cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false)),
+    std::make_tuple(StronglyConnectedComponents_Usecase{true},
+                    cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
@@ -252,12 +260,11 @@ INSTANTIATE_TEST_SUITE_P(
                           vertex & edge type combination) by command line arguments and do not
                           include more than one Rmat_Usecase that differ only in scale or edge
                           factor (to avoid running same benchmarks more than once) */
-  Tests_WeaklyConnectedComponents_Rmat,
+  Tests_StronglyConnectedComponents_Rmat,
   ::testing::Values(
-    // disable correctness checks
-    std::make_tuple(WeaklyConnectedComponents_Usecase{false, false},
-                    cugraph::test::Rmat_Usecase(20, 16, 0.57, 0.19, 0.19, 0, true, false)),
-    std::make_tuple(WeaklyConnectedComponents_Usecase{true, false},
-                    cugraph::test::Rmat_Usecase(20, 16, 0.57, 0.19, 0.19, 0, true, false))));
+    std::make_tuple(StronglyConnectedComponents_Usecase{false, false},
+                    cugraph::test::Rmat_Usecase(20, 16, 0.57, 0.19, 0.19, 0, false, false)),
+    std::make_tuple(StronglyConnectedComponents_Usecase{true, false},
+                    cugraph::test::Rmat_Usecase(20, 16, 0.57, 0.19, 0.19, 0, false, false))));
 
 CUGRAPH_TEST_PROGRAM_MAIN()

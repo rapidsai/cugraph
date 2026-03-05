@@ -1744,6 +1744,29 @@ void weakly_connected_components(raft::handle_t const& handle,
                                  bool do_expensive_check = false);
 
 /**
+.* @ingroup components_cpp
+ * @brief Finds (strongly-connected-)component IDs of each vertices in the input graph.
+ *
+ * Component IDs can be arbitrary integers (they can be non-consecutive and are not ordered by
+ * component size or any other criterion).
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * or multi-GPU (true).
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Graph view object.
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ * @return Device vector of stronlgy connected component IDs
+ */
+template <typename vertex_t, typename edge_t, bool multi_gpu>
+rmm::device_uvector<vertex_t> strongly_connected_components(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  bool do_expensive_check = false);
+
+/**
 .* @ingroup core_cpp
  * @brief  Identify whether the core number computation should be based off incoming edges,
  *         outgoing edges or both.
