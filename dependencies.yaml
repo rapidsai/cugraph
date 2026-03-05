@@ -485,36 +485,51 @@ dependencies:
     common:
       - output_types: [conda]
         packages:
-          - pytorch>=2.3
-          - torchdata
-          - pydantic
-          - ogb
-          - torchmetrics
+          - pytorch>=2.9
+      - output_types: [pyproject, requirements]
+        packages:
+          - torch>=2.9
     specific:
-      - output_types: [requirements]
+      # The 'pytorch.org' indices referenced in --extra-index-url below host CPU-only variants too,
+      # so requirements like '>=' are not safe.
+      #
+      # Using '==' and a version with the CUDA specifier like '+cu130' is the most reliable way to ensure
+      # the packages we want are pulled (at the expense of needing to maintain this list).
+      #
+      # 'torch' tightly pins wheels to a single {major}.{minor} CTK version.
+      #
+      # This list only contains entries exactly matching CUDA {major}.{minor} that we test in RAPIDS CI,
+      # to ensure a loud error alerts us to the need to update this list (or CI scripts) when new
+      # CTKs are added to the support matrix.
+      #
+      # 'torch' first supported aarch64 CUDA wheels in v2.6.0 (targeting CUDA 12.6).
+      # See https://github.com/rapidsai/build-planning/issues/255 for more details on
+      # historical support.
+      #
+      - output_types: requirements
         matrices:
           - matrix:
-              cuda: "12.*"
+              cuda: "12.9"
+              dependencies: "oldest"
             packages:
-              - --extra-index-url=https://download.pytorch.org/whl/cu121
+              - &torch_cu129_index --extra-index-url=https://download.pytorch.org/whl/cu129
+              - torch==2.9.0+cu129
           - matrix:
-              cuda: "13.*"
+              cuda: "12.9"
             packages:
-              - --extra-index-url=https://download.pytorch.org/whl/cu130
-          - {matrix: null, packages: null}
-      - output_types: [requirements, pyproject]
-        matrices:
+              - *torch_cu129_index
+              - torch==2.10.0+cu129
           - matrix:
-              cuda: "12.*"
+              cuda: "13.0"
+              dependencies: "oldest"
             packages:
-              - torch>=2.3
-              - tensordict>=0.1.2
+              - &torch_index_cu13 --extra-index-url=https://download.pytorch.org/whl/cu130
+              - torch==2.9.0+cu130
           - matrix:
-              cuda: "13.*"
+              cuda: "13.0"
             packages:
-              - &pytorch_pip torch>=2.9.0
-              - &tensordict tensordict>=0.1.2
-          - {matrix: null, packages: [*pytorch_pip, *tensordict]}
+              - *torch_index_cu13
+              - torch==2.10.0+cu130
   depends_on_libcudf:
     common:
       - output_types: conda
