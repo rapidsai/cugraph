@@ -1,6 +1,6 @@
 # =============================================================================
 # cmake-format: off
-# SPDX-FileCopyrightText: Copyright (c) 2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 # cmake-format: on
 # =============================================================================
@@ -42,3 +42,29 @@ set(CUGRAPH_COMPILE_CUVS ON)
 set(CUGRAPH_USE_CUVS_STATIC ON)
 
 add_subdirectory(../../cpp cugraph-cpp)
+
+# assumes libcugraph.so is installed 2 levels deep, e.g. site-packages/libcugraph/lib64/libcugraph.so
+if(CMAKE_CUDA_COMPILER_VERSION VERSION_GREATER_EQUAL 13.0)
+  # starting with CTK 13 wheels, all libraries are grouped in this 'nvidia/cu13/lib' directory
+  set(rpaths "$ORIGIN" "$ORIGIN/../../nvidia/cu13/lib")
+else()
+  set(rpaths
+      "$ORIGIN"
+      "$ORIGIN/../../nvidia/cublas/lib"
+      "$ORIGIN/../../nvidia/curand/lib"
+      "$ORIGIN/../../nvidia/cusolver/lib"
+      "$ORIGIN/../../nvidia/cusparse/lib"
+      "$ORIGIN/../../nvidia/nvjitlink/lib"
+  )
+endif()
+
+set_property(
+  TARGET cugraph
+  PROPERTY INSTALL_RPATH ${rpaths}
+  APPEND
+)
+set_property(
+  TARGET cugraph_c
+  PROPERTY INSTALL_RPATH ${rpaths}
+  APPEND
+)
