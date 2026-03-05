@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -59,7 +59,7 @@ generate_erdos_renyi_graph_edgelist_gnp(raft::handle_t const& handle,
   thrust::copy_if(handle.get_thrust_policy(),
                   thrust::make_counting_iterator<size_t>(0),
                   thrust::make_counting_iterator<size_t>(max_num_edges),
-                  thrust::make_transform_output_iterator(
+                  cuda::make_transform_output_iterator(
                     thrust::make_zip_iterator(src_v.begin(), dst_v.begin()),
                     cuda::proclaim_return_type<cuda::std::tuple<vertex_t, vertex_t>>(
                       [num_vertices] __device__(size_t index) {
