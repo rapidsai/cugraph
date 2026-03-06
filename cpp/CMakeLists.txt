@@ -396,6 +396,10 @@ set(CUGRAPH_SOURCES
     src/components/weakly_connected_components_sg_v32_e32.cu
     src/components/weakly_connected_components_mg_v64_e64.cu
     src/components/weakly_connected_components_mg_v32_e32.cu
+    src/components/strongly_connected_components_sg_v64_e64.cu
+    src/components/strongly_connected_components_sg_v32_e32.cu
+    src/components/strongly_connected_components_mg_v64_e64.cu
+    src/components/strongly_connected_components_mg_v32_e32.cu
     src/components/mis_sg_v64_e64.cu
     src/components/mis_sg_v32_e32.cu
     src/components/mis_mg_v64_e64.cu
