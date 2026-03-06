@@ -479,9 +479,9 @@ reachable_sets(
 // enable setting unresolved_component_offsets without re-sorting).
 template <typename vertex_t, bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>,
-           rmm::device_uvector<bool>,
            rmm::device_uvector<vertex_t>,
-           rmm::device_uvector<vertex_t>>
+           rmm::device_uvector<vertex_t>,
+           vertex_t>
 intersect_reachable_sets(raft::handle_t const& handle,
                          rmm::device_uvector<vertex_t>&& unresolved_component_offsets,
                          rmm::device_uvector<vertex_t>&& unresolved_component_vertices,
@@ -493,9 +493,9 @@ intersect_reachable_sets(raft::handle_t const& handle,
 {
   CUGRAPH_FAIL("unimplemented.");
   return std::make_tuple(rmm::device_uvector<vertex_t>(0, handle.get_stream()),
-                         rmm::device_uvector<bool>(0, handle.get_stream()),
                          rmm::device_uvector<vertex_t>(0, handle.get_stream()),
-                         rmm::device_uvector<vertex_t>(0, handle.get_stream()));
+                         rmm::device_uvector<vertex_t>(0, handle.get_stream()),
+                         vertex_t{0});
 }
 
 // return component_ids, component_offsets, component_vertices, num_unresolved_components
