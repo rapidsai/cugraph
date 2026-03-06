@@ -4,29 +4,13 @@
  */
 #pragma once
 
-#include "link_prediction/similarity_impl.cuh"
+#include "link_prediction/detail/similarity.hpp"
 
 #include <cugraph/algorithms.hpp>
 
 #include <raft/core/handle.hpp>
 
 namespace cugraph {
-namespace detail {
-
-template <typename weight_t>
-struct overlap_functor_t {
-  weight_t __device__ compute_score(weight_t weight_a,
-                                    weight_t weight_b,
-                                    weight_t weight_a_intersect_b,
-                                    weight_t weight_a_union_b) const
-  {
-    return std::min(weight_a, weight_b) <= std::numeric_limits<weight_t>::min()
-             ? weight_t{0}
-             : weight_a_intersect_b / std::min(weight_a, weight_b);
-  }
-};
-
-}  // namespace detail
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 rmm::device_uvector<weight_t> overlap_coefficients(
@@ -42,7 +26,6 @@ rmm::device_uvector<weight_t> overlap_coefficients(
                             graph_view,
                             edge_weight_view,
                             vertex_pairs,
-                            detail::overlap_functor_t<weight_t>{},
                             detail::coefficient_t::OVERLAP,
                             do_expensive_check);
 }
@@ -65,7 +48,6 @@ std::
                                       edge_weight_view,
                                       vertices,
                                       topk,
-                                      detail::overlap_functor_t<weight_t>{},
                                       detail::coefficient_t::OVERLAP,
                                       do_expensive_check);
 }
