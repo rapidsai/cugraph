@@ -8,8 +8,11 @@
 #include "prims/per_v_pair_transform_dst_nbr_intersection.cuh"
 #include "prims/per_v_transform_reduce_incoming_outgoing_e.cuh"
 #include "prims/update_edge_src_dst_property.cuh"
+#include "similarity.hpp"
+#include "similarity_functor.cuh"
 #include "utilities/error_check_utils.cuh"
 
+#include <cugraph/algorithms.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/shuffle_functions.hpp>
@@ -29,17 +32,14 @@
 namespace cugraph {
 namespace detail {
 
-enum class coefficient_t { JACCARD, SORENSEN, OVERLAP, COSINE };
-
-template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu, typename functor_t>
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 rmm::device_uvector<weight_t> similarity(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   std::tuple<raft::device_span<vertex_t const>, raft::device_span<vertex_t const>> vertex_pairs,
-  functor_t functor,
   coefficient_t coeff,
-  bool do_expensive_check = false)
+  bool do_expensive_check)
 {
   using GraphViewType = graph_view_t<vertex_t, edge_t, false, multi_gpu>;
 
@@ -84,13 +84,17 @@ rmm::device_uvector<weight_t> similarity(
       vertex_pairs_begin,
       vertex_pairs_begin + num_vertex_pairs,
       weighted_out_degrees.begin(),
-      [functor, coeff] __device__(auto a,
-                                  auto b,
-                                  auto weight_a,
-                                  auto weight_b,
-                                  auto intersection,
-                                  auto intersected_properties_a,
-                                  auto intersected_properties_b) {
+      [coeff,
+       j = jaccard_functor_t<weight_t>{},
+       s = sorensen_functor_t<weight_t>{},
+       o = overlap_functor_t<weight_t>{},
+       c = cosine_functor_t<weight_t>{}] __device__(auto a,
+                                                    auto b,
+                                                    auto weight_a,
+                                                    auto weight_b,
+                                                    auto intersection,
+                                                    auto intersected_properties_a,
+                                                    auto intersected_properties_b) {
         if (coeff == coefficient_t::COSINE) {
           weight_t norm_a                    = weight_t{0};
           weight_t norm_b                    = weight_t{0};
@@ -114,10 +118,10 @@ rmm::device_uvector<weight_t> similarity(
                                            cuda::std::get<2>(lhs) + cuda::std::get<2>(rhs));
             });
 
-          return functor.compute_score(static_cast<weight_t>(sqrt(norm_a)),
-                                       static_cast<weight_t>(sqrt(norm_b)),
-                                       static_cast<weight_t>(sum_of_product_of_a_and_b),
-                                       weight_t{1.0});
+          return c.compute_score(static_cast<weight_t>(sqrt(norm_a)),
+                                 static_cast<weight_t>(sqrt(norm_b)),
+                                 static_cast<weight_t>(sum_of_product_of_a_and_b),
+                                 weight_t{1.0});
 
         } else {
           weight_t sum_of_min_weight_a_intersect_b = weight_t{0};
@@ -154,10 +158,22 @@ rmm::device_uvector<weight_t> similarity(
 
           sum_of_max_weight_a_intersect_b += sum_of_uniq_a + sum_of_uniq_b;
 
-          return functor.compute_score(static_cast<weight_t>(weight_a),
-                                       static_cast<weight_t>(weight_b),
-                                       static_cast<weight_t>(sum_of_min_weight_a_intersect_b),
-                                       static_cast<weight_t>(sum_of_max_weight_a_intersect_b));
+          if (coeff == coefficient_t::JACCARD) {
+            return j.compute_score(static_cast<weight_t>(weight_a),
+                                   static_cast<weight_t>(weight_b),
+                                   static_cast<weight_t>(sum_of_min_weight_a_intersect_b),
+                                   static_cast<weight_t>(sum_of_max_weight_a_intersect_b));
+          } else if (coeff == coefficient_t::SORENSEN) {
+            return s.compute_score(static_cast<weight_t>(weight_a),
+                                   static_cast<weight_t>(weight_b),
+                                   static_cast<weight_t>(sum_of_min_weight_a_intersect_b),
+                                   static_cast<weight_t>(sum_of_max_weight_a_intersect_b));
+          } else {
+            return o.compute_score(static_cast<weight_t>(weight_a),
+                                   static_cast<weight_t>(weight_b),
+                                   static_cast<weight_t>(sum_of_min_weight_a_intersect_b),
+                                   static_cast<weight_t>(sum_of_max_weight_a_intersect_b));
+          }
         }
       },
       similarity_score.begin(),
@@ -174,19 +190,42 @@ rmm::device_uvector<weight_t> similarity(
       vertex_pairs_begin,
       vertex_pairs_begin + num_vertex_pairs,
       out_degrees.begin(),
-      [functor, coeff] __device__(
-        auto v1, auto v2, auto v1_degree, auto v2_degree, auto intersection, auto, auto) {
+      [coeff,
+       j = jaccard_functor_t<weight_t>{},
+       s = sorensen_functor_t<weight_t>{},
+       o = overlap_functor_t<weight_t>{},
+       c = cosine_functor_t<weight_t>{}] __device__(auto v1,
+                                                    auto v2,
+                                                    auto v1_degree,
+                                                    auto v2_degree,
+                                                    auto intersection,
+                                                    auto,
+                                                    auto) {
         if (coeff == coefficient_t::COSINE) {
-          return functor.compute_score(weight_t{1},
-                                       weight_t{1},
-                                       intersection.size() >= 1 ? weight_t{1} : weight_t{0},
-                                       weight_t{1});
+          return c.compute_score(weight_t{1},
+                                 weight_t{1},
+                                 intersection.size() >= 1 ? weight_t{1} : weight_t{0},
+                                 weight_t{1});
         } else {
-          return functor.compute_score(
-            static_cast<weight_t>(v1_degree),
-            static_cast<weight_t>(v2_degree),
-            static_cast<weight_t>(intersection.size()),
-            static_cast<weight_t>(v1_degree + v2_degree - intersection.size()));
+          if (coeff == coefficient_t::JACCARD) {
+            return j.compute_score(
+              static_cast<weight_t>(v1_degree),
+              static_cast<weight_t>(v2_degree),
+              static_cast<weight_t>(intersection.size()),
+              static_cast<weight_t>(v1_degree + v2_degree - intersection.size()));
+          } else if (coeff == coefficient_t::SORENSEN) {
+            return s.compute_score(
+              static_cast<weight_t>(v1_degree),
+              static_cast<weight_t>(v2_degree),
+              static_cast<weight_t>(intersection.size()),
+              static_cast<weight_t>(v1_degree + v2_degree - intersection.size()));
+          } else {
+            return o.compute_score(
+              static_cast<weight_t>(v1_degree),
+              static_cast<weight_t>(v2_degree),
+              static_cast<weight_t>(intersection.size()),
+              static_cast<weight_t>(v1_degree + v2_degree - intersection.size()));
+          }
         }
       },
       similarity_score.begin(),
@@ -195,7 +234,7 @@ rmm::device_uvector<weight_t> similarity(
   }
 }
 
-template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu, typename functor_t>
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            rmm::device_uvector<weight_t>>
@@ -204,9 +243,8 @@ all_pairs_similarity(raft::handle_t const& handle,
                      std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
                      std::optional<raft::device_span<vertex_t const>> vertices,
                      std::optional<size_t> topk,
-                     functor_t functor,
                      coefficient_t coeff,
-                     bool do_expensive_check = false)
+                     bool do_expensive_check)
 {
   constexpr bool store_transposed = false;
   using GraphViewType             = graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>;
@@ -432,7 +470,6 @@ all_pairs_similarity(raft::handle_t const& handle,
                    edge_weight_view,
                    std::make_tuple(raft::device_span<vertex_t const>{v1.data(), v1.size()},
                                    raft::device_span<vertex_t const>{v2.data(), v2.size()}),
-                   functor,
                    coeff,
                    do_expensive_check);
 
@@ -612,7 +649,6 @@ all_pairs_similarity(raft::handle_t const& handle,
                  edge_weight_view,
                  std::make_tuple(raft::device_span<vertex_t const>{v1.data(), v1.size()},
                                  raft::device_span<vertex_t const>{v2.data(), v2.size()}),
-                 functor,
                  coeff,
                  do_expensive_check);
 

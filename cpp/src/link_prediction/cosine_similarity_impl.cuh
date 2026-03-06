@@ -1,30 +1,16 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2024, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
 
-#include "link_prediction/similarity_impl.cuh"
+#include "link_prediction/detail/similarity.hpp"
 
 #include <cugraph/algorithms.hpp>
 
 #include <raft/core/handle.hpp>
 
 namespace cugraph {
-namespace detail {
-
-template <typename weight_t>
-struct cosine_functor_t {
-  weight_t __device__ compute_score(weight_t norm_a,
-                                    weight_t norm_b,
-                                    weight_t sum_of_product_of_a_and_b,
-                                    weight_t reserved_param) const
-  {
-    return sum_of_product_of_a_and_b / (norm_a * norm_b);
-  }
-};
-
-}  // namespace detail
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 rmm::device_uvector<weight_t> cosine_similarity_coefficients(
@@ -40,7 +26,6 @@ rmm::device_uvector<weight_t> cosine_similarity_coefficients(
                             graph_view,
                             edge_weight_view,
                             vertex_pairs,
-                            detail::cosine_functor_t<weight_t>{},
                             detail::coefficient_t::COSINE,
                             do_expensive_check);
 }
@@ -63,7 +48,6 @@ std::
                                       edge_weight_view,
                                       vertices,
                                       topk,
-                                      detail::cosine_functor_t<weight_t>{},
                                       detail::coefficient_t::COSINE,
                                       do_expensive_check);
 }
