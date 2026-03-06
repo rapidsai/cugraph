@@ -64,115 +64,9 @@ namespace cugraph {
 
 namespace {
 
-// cascade-peel vertices with zero in-degree: find seeds with in_degree==0 among candidate_vertices,
-// then iteratively remove them and propagate degree decrements to out-neighbors until stable.
-template <typename vertex_t, typename edge_t, bool multi_gpu>
-rmm::device_uvector<vertex_t> peel_zero_in_degree_vertices(
-  raft::handle_t const& handle,
-  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
-  raft::device_span<vertex_t const> candidate_vertices)
-{
-  if (candidate_vertices.size() == 0) {
-    return rmm::device_uvector<vertex_t>(0, handle.get_stream());
-  }
-
-  rmm::device_uvector<vertex_t> peeled_vertices(0, handle.get_stream());
-
-  auto in_degrees = graph_view.compute_in_degrees(handle);
-
-  constexpr size_t bucket_idx_cur  = 0;
-  constexpr size_t bucket_idx_next = 1;
-  constexpr size_t num_buckets     = 2;
-
-  vertex_frontier_t<vertex_t, void, multi_gpu, true> vertex_frontier(handle, num_buckets);
-  edge_dst_property_t<edge_t, bool> edge_dst_valids(handle, graph_view);
-  fill_edge_dst_property(handle, graph_view, edge_dst_valids.mutable_view(), true);
-
-  rmm::device_uvector<vertex_t> seed_vertices(candidate_vertices.size(), handle.get_stream());
-  auto seed_vertices_end = thrust::copy_if(
-    handle.get_thrust_policy(),
-    candidate_vertices.begin(),
-    candidate_vertices.end(),
-    seed_vertices.begin(),
-    [in_degrees = raft::device_span<edge_t const>(in_degrees.data(), in_degrees.size()),
-     v_first    = graph_view.local_vertex_partition_range_first()]
-      __device__(auto v) { return in_degrees[v - v_first] == 0; });
-  seed_vertices.resize(
-    cuda::std::distance(seed_vertices.begin(), seed_vertices_end), handle.get_stream());
-  seed_vertices.shrink_to_fit(handle.get_stream());
-
-  vertex_frontier.bucket(bucket_idx_cur).insert(seed_vertices.begin(), seed_vertices.end());
-  auto delta = edge_t{1};
-
-  while (vertex_frontier.bucket(bucket_idx_cur).aggregate_size() > 0) {
-    auto old_size  = peeled_vertices.size();
-    auto new_count = vertex_frontier.bucket(bucket_idx_cur).size();
-    peeled_vertices.resize(old_size + new_count, handle.get_stream());
-
-    thrust::copy(handle.get_thrust_policy(),
-                 vertex_frontier.bucket(bucket_idx_cur).begin(),
-                 vertex_frontier.bucket(bucket_idx_cur).end(),
-                 peeled_vertices.begin() + old_size);
-
-    fill_edge_dst_property(handle,
-                           graph_view,
-                           vertex_frontier.bucket(bucket_idx_cur).begin(),
-                           vertex_frontier.bucket(bucket_idx_cur).end(),
-                           edge_dst_valids.mutable_view(),
-                           false);
-
-    auto [new_frontier_vertex_buffer, delta_buffer] =
-      cugraph::transform_reduce_if_v_frontier_outgoing_e_by_dst(
-        handle,
-        graph_view,
-        vertex_frontier.bucket(bucket_idx_cur),
-        edge_src_dummy_property_t{}.view(),
-        edge_dst_valids.view(),
-        edge_dummy_property_t{}.view(),
-        cuda::proclaim_return_type<edge_t>(
-          [delta] __device__(auto, auto, auto, auto, auto) { return delta; }),
-        reduce_op::plus<edge_t>(),
-        cuda::proclaim_return_type<bool>(
-          [delta] __device__(auto, auto, auto, bool dst_valid, auto) { return dst_valid; }));
-
-    update_v_frontier(
-      handle,
-      graph_view,
-      std::move(new_frontier_vertex_buffer),
-      std::move(delta_buffer),
-      vertex_frontier,
-      raft::host_span<size_t const>(&bucket_idx_next, size_t{1}),
-      in_degrees.data(),
-      in_degrees.data(),
-      [] __device__(auto v, auto v_val, auto pushed_val) {
-        auto new_in_degree = v_val >= pushed_val ? v_val - pushed_val : edge_t{0};
-        return cuda::std::make_tuple(cuda::std::optional<size_t>{bucket_idx_next},
-                                     cuda::std::optional<edge_t>{new_in_degree});
-      });
-
-    vertex_frontier.bucket(bucket_idx_next)
-      .resize(static_cast<size_t>(cuda::std::distance(
-        vertex_frontier.bucket(bucket_idx_next).begin(),
-        thrust::remove_if(
-          handle.get_thrust_policy(),
-          vertex_frontier.bucket(bucket_idx_next).begin(),
-          vertex_frontier.bucket(bucket_idx_next).end(),
-          [in_degrees = in_degrees.data(),
-           v_first    = graph_view.local_vertex_partition_range_first()] __device__(auto v) {
-            return in_degrees[v - v_first] > 0;
-          }))));
-    vertex_frontier.bucket(bucket_idx_next).shrink_to_fit();
-
-    vertex_frontier.bucket(bucket_idx_cur).clear();
-    vertex_frontier.bucket(bucket_idx_cur).shrink_to_fit();
-    vertex_frontier.swap_buckets(bucket_idx_cur, bucket_idx_next);
-  }
-
-  return peeled_vertices;
-}
-
-// recursively find a set of vertices with either 0 out-degree or 0 in-degree; the returned set of
-// vertices is sorted.
+// Iteratively peel vertices with zero in-degree or zero out-degree. Each iteration partitions
+// candidates into (non-zero degree, zero degree), peels the zero-degree vertices, and propagates
+// degree decrements to neighbors via both forward and inverse graph traversals.
 template <typename GraphViewType>
 rmm::device_uvector<typename GraphViewType::vertex_type> find_trivial_singleton_scc_vertices(
   raft::handle_t const& handle,
@@ -184,78 +78,181 @@ rmm::device_uvector<typename GraphViewType::vertex_type> find_trivial_singleton_
   rmm::device_uvector<typename GraphViewType::vertex_type>&& out_degrees)
 {
   using vertex_t = typename GraphViewType::vertex_type;
-  using edge_t = typename GraphViewType::edge_type;
+  using edge_t   = typename GraphViewType::edge_type;
   constexpr bool multi_gpu = GraphViewType::is_multi_gpu;
 
   auto num_aggregated_candidate_vertices = candidate_vertices.size();
   if constexpr (multi_gpu) {
-    num_aggregated_candidate_vertices = host_scalar_allreduce(handle.get_comms(), num_aggregated_candidate_vertices, raft::comms::op_t::SUM, handle.get_stream());
+    num_aggregated_candidate_vertices = host_scalar_allreduce(
+      handle.get_comms(), num_aggregated_candidate_vertices, raft::comms::op_t::SUM, handle.get_stream());
   }
 
   if (num_aggregated_candidate_vertices == 0) {
     return rmm::device_uvector<vertex_t>(0, handle.get_stream());
   }
-  
-  rmm::device_uvector<vertex_t> aggregated_candidate_vertices(num_aggregated_candidate_vertices, handle.get_stream());
 
-  // 1. zero in-degree cascade on forward graph
-  auto fwd_peeled = peel_zero_in_degree_vertices<vertex_t, edge_t, multi_gpu>(handle, graph_view, candidate_vertices);
-
-  // 2. zero out-degree cascade (= zero in-degree on inverse graph)
-  rmm::device_uvector<vertex_t> inv_candidate_vertices(candidate_vertices.size(), handle.get_stream());
+  rmm::device_uvector<vertex_t> candidates(candidate_vertices.size(), handle.get_stream());
   thrust::copy(handle.get_thrust_policy(),
                candidate_vertices.begin(),
                candidate_vertices.end(),
-               inv_candidate_vertices.begin());
+               candidates.begin());
 
-  if constexpr (multi_gpu) {
-    std::tie(inv_candidate_vertices, std::ignore) = shuffle_ext_vertices(
-      handle, std::move(inv_candidate_vertices), std::vector<cugraph::arithmetic_device_uvector_t>{});
+  rmm::device_uvector<vertex_t> cur_in_degrees(in_degrees.size(), handle.get_stream());
+  thrust::copy(
+    handle.get_thrust_policy(), in_degrees.begin(), in_degrees.end(), cur_in_degrees.begin());
+
+  rmm::device_uvector<vertex_t> cur_out_degrees(out_degrees.size(), handle.get_stream());
+  thrust::copy(
+    handle.get_thrust_policy(), out_degrees.begin(), out_degrees.end(), cur_out_degrees.begin());
+
+  rmm::device_uvector<vertex_t> peeled_vertices(0, handle.get_stream());
+  auto v_first = graph_view.local_vertex_partition_range_first();
+
+  while (true) {
+    // 1. Partition: first half = non-zero in AND out degree; second half = zero in OR out degree
+    auto partition_point = thrust::partition(
+      handle.get_thrust_policy(),
+      candidates.begin(),
+      candidates.end(),
+      [cur_in_degrees  = raft::device_span<vertex_t const>(cur_in_degrees.data(), cur_in_degrees.size()),
+       cur_out_degrees = raft::device_span<vertex_t const>(cur_out_degrees.data(), cur_out_degrees.size()),
+       v_first] __device__(auto v) {
+        return cur_in_degrees[v - v_first] > 0 && cur_out_degrees[v - v_first] > 0;
+      });
+
+    auto num_surviving  = static_cast<size_t>(cuda::std::distance(candidates.begin(), partition_point));
+    auto num_zero       = static_cast<size_t>(cuda::std::distance(partition_point, candidates.end()));
+    auto aggregate_zero = num_zero;
+    if constexpr (multi_gpu) {
+      aggregate_zero = host_scalar_allreduce(
+        handle.get_comms(), num_zero, raft::comms::op_t::SUM, handle.get_stream());
+    }
+    if (aggregate_zero == 0) break;
+
+    // 2. Append zero-degree vertices to result
+    auto old_size = peeled_vertices.size();
+    peeled_vertices.resize(old_size + num_zero, handle.get_stream());
+    thrust::copy(handle.get_thrust_policy(),
+                 partition_point,
+                 candidates.end(),
+                 peeled_vertices.begin() + old_size);
+
+    // Sort the frontier (partition does not preserve order) for vertex_frontier_t insert
+    thrust::sort(handle.get_thrust_policy(), partition_point, candidates.end());
+
+    // 3. Forward pass: traverse outgoing edges from frontier, decrement in_degrees of destinations
+    {
+      vertex_frontier_t<vertex_t, void, multi_gpu, true> frontier(handle, 1);
+      frontier.bucket(0).insert(partition_point, candidates.end());
+
+      auto [dst_vertices, decrement_counts] =
+        cugraph::transform_reduce_if_v_frontier_outgoing_e_by_dst(
+          handle,
+          graph_view,
+          frontier.bucket(0),
+          edge_src_dummy_property_t{}.view(),
+          edge_dst_dummy_property_t{}.view(),
+          edge_dummy_property_t{}.view(),
+          cuda::proclaim_return_type<edge_t>(
+            [] __device__(auto, auto, auto, auto, auto) { return edge_t{1}; }),
+          reduce_op::plus<edge_t>(),
+          cuda::proclaim_return_type<bool>(
+            [] __device__(auto, auto, auto, auto, auto) { return true; }));
+
+      thrust::for_each(
+        handle.get_thrust_policy(),
+        thrust::make_counting_iterator(size_t{0}),
+        thrust::make_counting_iterator(dst_vertices.size()),
+        [dst_vertices     = raft::device_span<vertex_t const>(dst_vertices.data(), dst_vertices.size()),
+         decrement_counts = raft::device_span<edge_t const>(decrement_counts.data(), decrement_counts.size()),
+         cur_in_degrees = raft::device_span<vertex_t>(cur_in_degrees.data(), cur_in_degrees.size()),
+         v_first] __device__(size_t i) {
+          auto d              = cur_in_degrees[dst_vertices[i] - v_first];
+          cur_in_degrees[dst_vertices[i] - v_first] = d >= decrement_counts[i] ? d - decrement_counts[i] : vertex_t{0};
+        });
+    }
+
+    // 4. Inverse pass: traverse incoming edges (via inverse graph), decrement out_degrees of sources
+    {
+      rmm::device_uvector<vertex_t> inv_frontier(num_zero, handle.get_stream());
+      thrust::copy(handle.get_thrust_policy(),
+                   partition_point,
+                   candidates.end(),
+                   inv_frontier.begin());
+
+      if constexpr (multi_gpu) {
+        std::tie(inv_frontier, std::ignore) = shuffle_ext_vertices(
+          handle,
+          std::move(inv_frontier),
+          std::vector<cugraph::arithmetic_device_uvector_t>{});
+      }
+
+      renumber_local_ext_vertices<vertex_t, multi_gpu>(
+        handle,
+        inv_frontier.data(),
+        inv_frontier.size(),
+        inverse_renumber_map.data(),
+        inverse_graph_view.local_vertex_partition_range_first(),
+        inverse_graph_view.local_vertex_partition_range_last(),
+        false);
+
+      thrust::sort(handle.get_thrust_policy(), inv_frontier.begin(), inv_frontier.end());
+
+      vertex_frontier_t<vertex_t, void, multi_gpu, true> inv_vertex_frontier(handle, 1);
+      inv_vertex_frontier.bucket(0).insert(inv_frontier.begin(), inv_frontier.end());
+
+      auto [inv_dst_vertices, inv_decrement_counts] =
+        cugraph::transform_reduce_if_v_frontier_outgoing_e_by_dst(
+          handle,
+          inverse_graph_view,
+          inv_vertex_frontier.bucket(0),
+          edge_src_dummy_property_t{}.view(),
+          edge_dst_dummy_property_t{}.view(),
+          edge_dummy_property_t{}.view(),
+          cuda::proclaim_return_type<edge_t>(
+            [] __device__(auto, auto, auto, auto, auto) { return edge_t{1}; }),
+          reduce_op::plus<edge_t>(),
+          cuda::proclaim_return_type<bool>(
+            [] __device__(auto, auto, auto, auto, auto) { return true; }));
+
+      unrenumber_local_int_vertices(handle,
+                                    inv_dst_vertices.data(),
+                                    inv_dst_vertices.size(),
+                                    inverse_renumber_map.data(),
+                                    inverse_graph_view.local_vertex_partition_range_first(),
+                                    inverse_graph_view.local_vertex_partition_range_last());
+
+      if constexpr (multi_gpu) {
+        std::vector<arithmetic_device_uvector_t> properties{};
+        properties.push_back(std::move(inv_decrement_counts));
+        std::tie(inv_dst_vertices, properties) = shuffle_ext_vertices(
+          handle, std::move(inv_dst_vertices), std::move(properties));
+        inv_decrement_counts =
+          std::move(std::get<rmm::device_uvector<edge_t>>(properties[0]));
+      }
+
+      thrust::for_each(
+        handle.get_thrust_policy(),
+        thrust::make_counting_iterator(size_t{0}),
+        thrust::make_counting_iterator(inv_dst_vertices.size()),
+        [inv_dst_vertices     = raft::device_span<vertex_t const>(inv_dst_vertices.data(), inv_dst_vertices.size()),
+         inv_decrement_counts = raft::device_span<edge_t const>(inv_decrement_counts.data(), inv_decrement_counts.size()),
+         cur_out_degrees = raft::device_span<vertex_t>(cur_out_degrees.data(), cur_out_degrees.size()),
+         v_first] __device__(size_t i) {
+          auto d              = cur_out_degrees[inv_dst_vertices[i] - v_first];
+          cur_out_degrees[inv_dst_vertices[i] - v_first] = d >= inv_decrement_counts[i] ? d - inv_decrement_counts[i] : vertex_t{0};
+        });
+    }
+
+    // 5. Shrink candidates to surviving (non-zero degree) vertices only
+    candidates.resize(num_surviving, handle.get_stream());
+    candidates.shrink_to_fit(handle.get_stream());
   }
-  
-  renumber_local_ext_vertices<vertex_t, multi_gpu>(handle,
-                              inv_candidate_vertices.data(),
-                              inv_candidate_vertices.size(),
-                              inverse_renumber_map.data(),
-                              inverse_graph_view.local_vertex_partition_range_first(),
-                              inverse_graph_view.local_vertex_partition_range_last(),
-                              false);
-  
-  thrust::sort(handle.get_thrust_policy(), inv_candidate_vertices.begin(), inv_candidate_vertices.end());
 
-  auto inv_peeled = peel_zero_in_degree_vertices<vertex_t, edge_t, multi_gpu>(handle, inverse_graph_view, raft::device_span<vertex_t const>(inv_candidate_vertices.data(), inv_candidate_vertices.size()));
+  thrust::sort(handle.get_thrust_policy(), peeled_vertices.begin(), peeled_vertices.end());
+  peeled_vertices.shrink_to_fit(handle.get_stream());
 
-  unrenumber_local_int_vertices(handle,
-                                inv_peeled.data(),
-                                inv_peeled.size(),
-                                inverse_renumber_map.data(),
-                                inverse_graph_view.local_vertex_partition_range_first(),
-                                inverse_graph_view.local_vertex_partition_range_last());
-
-  if constexpr (multi_gpu) {
-    std::tie(inv_peeled, std::ignore) = shuffle_ext_vertices(
-      handle, std::move(inv_peeled), std::vector<cugraph::arithmetic_device_uvector_t>{});
-  }
-
-  // 3. merge and deduplicate
-
-  thrust::sort(handle.get_thrust_policy(), fwd_peeled.begin(), fwd_peeled.end());
-  thrust::sort(handle.get_thrust_policy(), inv_peeled.begin(), inv_peeled.end());
-
-  rmm::device_uvector<vertex_t> merged(fwd_peeled.size() + inv_peeled.size(), handle.get_stream());
-  auto merged_end = thrust::merge(handle.get_thrust_policy(),
-                                  fwd_peeled.begin(),
-                                  fwd_peeled.end(),
-                                  inv_peeled.begin(),
-                                  inv_peeled.end(),
-                                  merged.begin());
-  merged.resize(cuda::std::distance(merged.begin(), merged_end), handle.get_stream());
-
-  auto unique_end = thrust::unique(handle.get_thrust_policy(), merged.begin(), merged.end());
-  merged.resize(cuda::std::distance(merged.begin(), unique_end), handle.get_stream());
-  merged.shrink_to_fit(handle.get_stream());
-
-  return merged;
+  return peeled_vertices;
 }
 
 // find pivots;returns (pivot vertices, pivot unresolved component indexes) pairs; the returned
@@ -655,38 +652,50 @@ reachable_sets(
 // component_ids.size() - num_unresolved_components are fully resolved SCCs). in multi-GPU,
 // component IDs for unresolved components in every GPU should follow one global ordering (this will
 // enable setting unresolved_component_offsets without re-sorting).
-template <typename vertex_t, bool multi_gpu>
-std::tuple<rmm::device_uvector<vertex_t>,
-           rmm::device_uvector<bool>,
-           rmm::device_uvector<vertex_t>,
-           rmm::device_uvector<vertex_t>>
+template <typename GraphViewType>
+std::tuple<rmm::device_uvector<typename GraphViewType::vertex_type>,
+           rmm::device_uvector<typename GraphViewType::vertex_type>,
+           rmm::device_uvector<typename GraphViewType::vertex_type>,
+           size_t>
 intersect_reachable_sets(raft::handle_t const& handle,
-                         rmm::device_uvector<vertex_t>&& unresolved_component_offsets,
-                         rmm::device_uvector<vertex_t>&& unresolved_component_vertices,
-                         rmm::device_uvector<vertex_t>&& forward_set_offsets,
-                         rmm::device_uvector<vertex_t>&& forward_set_vertices,
-                         rmm::device_uvector<vertex_t>&& backward_set_offsets,
-                         rmm::device_uvector<vertex_t>&& backward_set_vertices,
-                         rmm::device_uvector<vertex_t>&& trivial_singleton_scc_vertices)
+                         rmm::device_uvector<typename GraphViewType::vertex_type>&& unresolved_component_offsets,
+                         rmm::device_uvector<typename GraphViewType::vertex_type>&& unresolved_component_vertices,
+                         rmm::device_uvector<typename GraphViewType::vertex_type>&& forward_set_offsets,
+                         rmm::device_uvector<typename GraphViewType::vertex_type>&& forward_set_vertices,
+                         rmm::device_uvector<typename GraphViewType::vertex_type>&& backward_set_offsets,
+                         rmm::device_uvector<typename GraphViewType::vertex_type>&& backward_set_vertices,
+                         rmm::device_uvector<typename GraphViewType::vertex_type>&& trivial_singleton_scc_vertices)
                          {
-  
+  using vertex_t = typename GraphViewType::vertex_type;
+
   // Find the component_idx for each vertex based on CSR offsets
-  auto make_component_idx_transform_iterator = [](raft::device_span<vertex_t const> offsets) {
-    return thrust::make_transform_iterator(
-      thrust::make_counting_iterator(size_t{0}),
-      cuda::proclaim_return_type<vertex_t>([offsets] __device__(size_t i) {
+  auto unresolved_component_idxs_first = thrust::make_transform_iterator(
+    thrust::make_counting_iterator(size_t{0}),
+    cuda::proclaim_return_type<vertex_t>(
+      [offsets = raft::device_span<vertex_t const>(
+         unresolved_component_offsets.data(), unresolved_component_offsets.size())] __device__(size_t i) {
         auto component_pos = thrust::upper_bound(
           thrust::seq, offsets.begin() + 1, offsets.end(), static_cast<vertex_t>(i));
         return static_cast<vertex_t>(cuda::std::distance(offsets.begin() + 1, component_pos));
       }));
-  };
-
-  auto unresolved_component_idxs_first = make_component_idx_transform_iterator(
-    raft::device_span<vertex_t const>(unresolved_component_offsets.data(), unresolved_component_offsets.size()));
-  auto forward_set_component_idxs_first = make_component_idx_transform_iterator(
-    raft::device_span<vertex_t const>(forward_set_offsets.data(), forward_set_offsets.size()));
-  auto backward_set_component_idxs_first = make_component_idx_transform_iterator(
-    raft::device_span<vertex_t const>(backward_set_offsets.data(), backward_set_offsets.size()));
+  auto forward_set_component_idxs_first = thrust::make_transform_iterator(
+    thrust::make_counting_iterator(size_t{0}),
+    cuda::proclaim_return_type<vertex_t>(
+      [offsets = raft::device_span<vertex_t const>(
+         forward_set_offsets.data(), forward_set_offsets.size())] __device__(size_t i) {
+        auto component_pos = thrust::upper_bound(
+          thrust::seq, offsets.begin() + 1, offsets.end(), static_cast<vertex_t>(i));
+        return static_cast<vertex_t>(cuda::std::distance(offsets.begin() + 1, component_pos));
+      }));
+  auto backward_set_component_idxs_first = thrust::make_transform_iterator(
+    thrust::make_counting_iterator(size_t{0}),
+    cuda::proclaim_return_type<vertex_t>(
+      [offsets = raft::device_span<vertex_t const>(
+         backward_set_offsets.data(), backward_set_offsets.size())] __device__(size_t i) {
+        auto component_pos = thrust::upper_bound(
+          thrust::seq, offsets.begin() + 1, offsets.end(), static_cast<vertex_t>(i));
+        return static_cast<vertex_t>(cuda::std::distance(offsets.begin() + 1, component_pos));
+      }));
 
   auto unresolved_component_pairs_first = thrust::make_zip_iterator(unresolved_component_idxs_first, unresolved_component_vertices.begin());
   auto forward_set_pairs_first = thrust::make_zip_iterator(forward_set_component_idxs_first, forward_set_vertices.begin());
@@ -710,7 +719,9 @@ intersect_reachable_sets(raft::handle_t const& handle,
       out_first);
     auto count = static_cast<size_t>(cuda::std::distance(out_first, out_end));
     scc_component_idxs.resize(count, handle.get_stream());
+    scc_component_idxs.shrink_to_fit(handle.get_stream());
     scc_vertices.resize(count, handle.get_stream());
+    scc_vertices.shrink_to_fit(handle.get_stream());
   }
 
   // 2. FWD_ONLY = FWD \ BWD
@@ -728,6 +739,8 @@ intersect_reachable_sets(raft::handle_t const& handle,
     auto count = static_cast<size_t>(cuda::std::distance(out_first, out_end));
     fwd_only_component_idxs.resize(count, handle.get_stream());
     fwd_only_vertices.resize(count, handle.get_stream());
+    fwd_only_component_idxs.shrink_to_fit(handle.get_stream());
+    fwd_only_vertices.shrink_to_fit(handle.get_stream());
   }
 
   // 3. BWD_ONLY = BWD \ FWD
@@ -745,31 +758,34 @@ intersect_reachable_sets(raft::handle_t const& handle,
     auto count = static_cast<size_t>(cuda::std::distance(out_first, out_end));
     bwd_only_component_idxs.resize(count, handle.get_stream());
     bwd_only_vertices.resize(count, handle.get_stream());
+    bwd_only_component_idxs.shrink_to_fit(handle.get_stream());
+    bwd_only_vertices.shrink_to_fit(handle.get_stream());
   }
 
-  // 4. FWD_OR_BWD = FWD ∪ BWD (needed to compute REMAINDER)
-  rmm::device_uvector<vertex_t> union_component_idxs(
-    forward_set_vertices.size() + backward_set_vertices.size(), handle.get_stream());
-  rmm::device_uvector<vertex_t> union_vertices(union_component_idxs.size(), handle.get_stream());
-  {
-    auto out_first = thrust::make_zip_iterator(union_component_idxs.begin(), union_vertices.begin());
-    auto out_end   = thrust::set_union(
-      handle.get_thrust_policy(),
-      forward_set_pairs_first,
-      forward_set_pairs_first + forward_set_vertices.size(),
-      backward_set_pairs_first,
-      backward_set_pairs_first + backward_set_vertices.size(),
-      out_first);
-    auto count = static_cast<size_t>(cuda::std::distance(out_first, out_end));
-    union_component_idxs.resize(count, handle.get_stream());
-    union_vertices.resize(count, handle.get_stream());
-  }
-
-  // 5. REMAINDER = UC \ FWD_OR_BWD
+  // 4. REMAINDER = UC \ (FWD ∪ BWD)
   rmm::device_uvector<vertex_t> remaining_component_idxs(
     unresolved_component_vertices.size(), handle.get_stream());
   rmm::device_uvector<vertex_t> remaining_vertices(remaining_component_idxs.size(), handle.get_stream());
   {
+    rmm::device_uvector<vertex_t> union_component_idxs(
+      forward_set_vertices.size() + backward_set_vertices.size(), handle.get_stream());
+    rmm::device_uvector<vertex_t> union_vertices(union_component_idxs.size(), handle.get_stream());
+    {
+      auto out_first = thrust::make_zip_iterator(union_component_idxs.begin(), union_vertices.begin());
+      auto out_end   = thrust::set_union(
+        handle.get_thrust_policy(),
+        forward_set_pairs_first,
+        forward_set_pairs_first + forward_set_vertices.size(),
+        backward_set_pairs_first,
+        backward_set_pairs_first + backward_set_vertices.size(),
+        out_first);
+      auto count = static_cast<size_t>(cuda::std::distance(out_first, out_end));
+      union_component_idxs.resize(count, handle.get_stream());
+      union_vertices.resize(count, handle.get_stream());
+      union_component_idxs.shrink_to_fit(handle.get_stream());
+      union_vertices.shrink_to_fit(handle.get_stream());
+    }
+
     auto union_pairs_first =
       thrust::make_zip_iterator(union_component_idxs.begin(), union_vertices.begin());
     auto out_first = thrust::make_zip_iterator(remaining_component_idxs.begin(), remaining_vertices.begin());
@@ -783,6 +799,8 @@ intersect_reachable_sets(raft::handle_t const& handle,
     auto count = static_cast<size_t>(cuda::std::distance(out_first, out_end));
     remaining_component_idxs.resize(count, handle.get_stream());
     remaining_vertices.resize(count, handle.get_stream());
+    remaining_component_idxs.shrink_to_fit(handle.get_stream());
+    remaining_vertices.shrink_to_fit(handle.get_stream());
   }
 
   // Remove singletons from fwd_only, bwd_only, remainder.
@@ -814,7 +832,7 @@ intersect_reachable_sets(raft::handle_t const& handle,
   // on the current GPU and perform global reduction.
 
   auto find_min_vertex_id_per_component = [&](rmm::device_uvector<vertex_t>& component_idxs,
-                                         rmm::device_uvector<vertex_t>& vertices) {
+                                             rmm::device_uvector<vertex_t>& vertices) {
     rmm::device_uvector<vertex_t> unique_idxs(component_idxs.size(), handle.get_stream());
     rmm::device_uvector<vertex_t> min_vertex_ids(component_idxs.size(), handle.get_stream());
 
@@ -829,6 +847,8 @@ intersect_reachable_sets(raft::handle_t const& handle,
 
     unique_idxs.resize(cuda::std::distance(unique_idxs.begin(), unique_end), handle.get_stream());
     min_vertex_ids.resize(cuda::std::distance(min_vertex_ids.begin(), min_end), handle.get_stream());
+    unique_idxs.shrink_to_fit(handle.get_stream());
+    min_vertex_ids.shrink_to_fit(handle.get_stream());
 
     return std::make_pair(std::move(unique_idxs), std::move(min_vertex_ids));
   };
@@ -857,16 +877,17 @@ intersect_reachable_sets(raft::handle_t const& handle,
   auto scatter_mins = [&](rmm::device_uvector<vertex_t> const& unique_component_idxs,
                           rmm::device_uvector<vertex_t> const& min_vertex_ids,
                           size_t subset_offset) {
-    thrust::for_each(
+    thrust::scatter(
       handle.get_thrust_policy(),
-      thrust::make_counting_iterator(size_t{0}),
-      thrust::make_counting_iterator(unique_component_idxs.size()),
-      [unique_component_idxs = raft::device_span<vertex_t const>(unique_component_idxs.data(),unique_component_idxs.size()),
-       min_vertex_ids = raft::device_span<vertex_t const>(min_vertex_ids.data(),min_vertex_ids.size()),
-       component_local_min_vertex_ids = raft::device_span<vertex_t>(component_local_min_vertex_ids.data(),component_local_min_vertex_ids.size()),
-       subset_offset] __device__(size_t i) {
-        component_local_min_vertex_ids[4 * static_cast<size_t>(unique_component_idxs[i]) + subset_offset] = min_vertex_ids[i];
-      });
+      min_vertex_ids.begin(),
+      min_vertex_ids.end(),
+      thrust::make_transform_iterator(
+        unique_component_idxs.begin(),
+        cuda::proclaim_return_type<size_t>(
+          [subset_offset] __device__(vertex_t idx) {
+            return 4 * static_cast<size_t>(idx) + subset_offset;
+          })),
+      component_local_min_vertex_ids.begin());
   };
 
   scatter_mins(unique_scc_component_idxs, scc_component_min_vertex_ids, 0);
@@ -875,7 +896,7 @@ intersect_reachable_sets(raft::handle_t const& handle,
   scatter_mins(unique_remaining_component_idxs, remaining_component_min_vertex_ids, 3);
 
   // Multi-GPU: reduce across GPUs to get global min vertex id per sub-component.
-  if constexpr (multi_gpu) {
+  if constexpr (GraphViewType::is_multi_gpu) {
     device_allreduce(handle.get_comms(),
                      component_local_min_vertex_ids.begin(),
                      component_local_min_vertex_ids.begin(),
@@ -884,110 +905,212 @@ intersect_reachable_sets(raft::handle_t const& handle,
                      handle.get_stream());
   }
 
-  // Build (component_id, vertex, scc_flag) for all vertices from all 5 sources:
-  // trivial singletons, scc, fwd, bwd, remainder.
+  // For fwd only, bwd only and remaining components, if global component size is 1
+  // we can treat them as trivial SCCs.
 
-  auto total_vertices = trivial_singleton_scc_vertices.size() +
-                        scc_vertices.size() +
-                        fwd_only_vertices.size() +
-                        bwd_only_vertices.size() +
-                        remaining_vertices.size();
+  auto find_size_per_component = [&](rmm::device_uvector<vertex_t>& component_idxs) {
+    rmm::device_uvector<size_t> component_sizes(component_idxs.size(), handle.get_stream());
 
-  rmm::device_uvector<vertex_t> all_component_ids(total_vertices, handle.get_stream());
-  rmm::device_uvector<vertex_t> component_vertices(total_vertices, handle.get_stream());
-  rmm::device_uvector<bool> all_scc_flags(total_vertices, handle.get_stream());
+    thrust::reduce_by_key(handle.get_thrust_policy(),
+                          component_idxs.begin(),
+                          component_idxs.end(),
+                          thrust::make_constant_iterator(size_t{1}),
+                          thrust::make_discard_iterator(),
+                          component_sizes.begin(),
+                          thrust::equal_to<vertex_t>{},
+                          thrust::plus<size_t>());
 
-  // Trivial singletons: component_id = vertex_id, scc_flag = true.
-  size_t dst_offset = 0;
-  thrust::copy(handle.get_thrust_policy(),
-               trivial_singleton_scc_vertices.begin(),
-               trivial_singleton_scc_vertices.end(),
-               all_component_ids.begin());
-  thrust::copy(handle.get_thrust_policy(),
-               trivial_singleton_scc_vertices.begin(),
-               trivial_singleton_scc_vertices.end(),
-               component_vertices.begin());
+    component_sizes.resize(cuda::std::distance(component_sizes.begin(), component_sizes_end), handle.get_stream());
+    component_sizes.shrink_to_fit(handle.get_stream());
+    return std::move(component_sizes);
+  };
+  
+  auto fwd_component_sizes       = find_size_per_component(fwd_only_component_idxs);
+  fwd_component_sizes.resize(unique_fwd_component_idxs.size(), handle.get_stream());
+  auto bwd_component_sizes       = find_size_per_component(bwd_only_component_idxs);
+  bwd_component_sizes.resize(unique_bwd_component_idxs.size(), handle.get_stream());
+  auto remaining_component_sizes = find_size_per_component(remaining_component_idxs);
+  remaining_component_sizes.resize(unique_remaining_component_idxs.size(), handle.get_stream());
+
+  // Interleaved array: [fwd_0, bwd_0, rem_0, fwd_1, bwd_1, rem_1, ...]
+  rmm::device_uvector<size_t> component_local_sizes(
+    3 * num_unresolved_components, handle.get_stream());
   thrust::fill(handle.get_thrust_policy(),
-               all_scc_flags.begin(),
-               all_scc_flags.begin() + trivial_singleton_scc_vertices.size(),
-               true);
-  dst_offset += trivial_singleton_scc_vertices.size();
+               component_local_sizes.begin(),
+               component_local_sizes.end(),
+               size_t{0});
 
-  // For each of the 4 subsets, map component_idx -> component_id via component_local_min_vertex_ids.
-  auto fill_subset = [&](rmm::device_uvector<vertex_t> const& component_idxs,
-                         rmm::device_uvector<vertex_t> const& vertices,
-                         size_t subset_idx,
-                         bool scc_flag,
-                         size_t offset) {
-    thrust::copy(handle.get_thrust_policy(),
-                 vertices.begin(),
-                 vertices.end(),
-                 component_vertices.begin() + offset);
+  auto scatter_sizes = [&](rmm::device_uvector<vertex_t> const& unique_component_idxs,
+                           rmm::device_uvector<size_t> const& sizes,
+                           size_t subset_offset) {
+    thrust::scatter(
+      handle.get_thrust_policy(),
+      sizes.begin(),
+      sizes.end(),
+      thrust::make_transform_iterator(
+        unique_component_idxs.begin(),
+        cuda::proclaim_return_type<size_t>(
+          [subset_offset] __device__(vertex_t idx) {
+            return 3 * static_cast<size_t>(idx) + subset_offset;
+          })),
+      component_local_sizes.begin());
+  };
+
+  scatter_sizes(unique_fwd_component_idxs, fwd_component_sizes, 0);
+  scatter_sizes(unique_bwd_component_idxs, bwd_component_sizes, 1);
+  scatter_sizes(unique_remaining_component_idxs, remaining_component_sizes, 2);
+
+  if constexpr (GraphViewType::is_multi_gpu) {
+    device_allreduce(handle.get_comms(),
+                     component_local_sizes.begin(),
+                     component_local_sizes.begin(),
+                     component_local_sizes.size(),
+                     raft::comms::op_t::SUM,
+                     handle.get_stream());
+  }
+
+  // Partition fwd/bwd/remaining vertices: resolved (size <= 1) left, unresolved (size > 1) right.
+  // Size-0 sub-components have no local vertices, so they are naturally absent.
+
+  auto partition_by_size = [&](rmm::device_uvector<vertex_t>& component_idxs,
+                               rmm::device_uvector<vertex_t>& component_vertices,
+                               size_t size_offset) {
+    auto zip_first = thrust::make_zip_iterator(component_idxs.begin(), component_vertices.begin());
+    auto partition_point = thrust::stable_partition(
+      handle.get_thrust_policy(),
+      zip_first,
+      zip_first + component_vertices.size(),
+      [component_local_sizes = raft::device_span<size_t const>(component_local_sizes.data(),
+                                                               component_local_sizes.size()),
+       size_offset] __device__(auto pair) {
+        auto idx = cuda::std::get<0>(pair);
+        return component_local_sizes[3 * static_cast<size_t>(idx) + size_offset] <= size_t{1};
+      });
+    return static_cast<size_t>(cuda::std::distance(zip_first, partition_point));
+  };
+
+  auto fwd_resolved_count       = partition_by_size(fwd_only_component_idxs, fwd_only_vertices, 0);
+  auto bwd_resolved_count       = partition_by_size(bwd_only_component_idxs, bwd_only_vertices, 1);
+  auto remaining_resolved_count = partition_by_size(remaining_component_idxs, remaining_vertices, 2);
+
+  // Count unresolved components: number of sub-components with global size > 1.
+  auto num_unresolved_components = static_cast<size_t>(thrust::count_if(
+    handle.get_thrust_policy(),
+    component_local_sizes.begin(),
+    component_local_sizes.end(),
+    [] __device__(size_t s) { return s > size_t{1}; }));
+
+  // Map component_idx -> component_id via component_local_min_vertex_ids (in-place).
+  // IMPORTANT: This must run after partition_by_size and find_size_per_component, which index into
+  // component_local_sizes using component_idx values. After this transform, the arrays hold vertex
+  // IDs (arbitrarily large) and can no longer be used as array indices.
+  auto map_idxs_to_ids = [&](rmm::device_uvector<vertex_t>& component_idxs, size_t subset_idx) {
     thrust::transform(
       handle.get_thrust_policy(),
       component_idxs.begin(),
       component_idxs.end(),
-      all_component_ids.begin() + offset,
-      [component_local_min_vertex_ids = raft::device_span<vertex_t const>(component_local_min_vertex_ids.data(),
-                                                    component_local_min_vertex_ids.size()),
+      component_idxs.begin(),
+      [component_local_min_vertex_ids = raft::device_span<vertex_t const>(
+         component_local_min_vertex_ids.data(), component_local_min_vertex_ids.size()),
        subset_idx] __device__(vertex_t component_idx) {
         return component_local_min_vertex_ids[4 * static_cast<size_t>(component_idx) + subset_idx];
       });
-    thrust::fill(handle.get_thrust_policy(),
-                 all_scc_flags.begin() + offset,
-                 all_scc_flags.begin() + offset + vertices.size(),
-                 scc_flag);
   };
 
-  fill_subset(scc_component_idxs, scc_vertices, 0, true, dst_offset);
-  dst_offset += scc_vertices.size();
-  fill_subset(fwd_only_component_idxs, fwd_only_vertices, 1, false, dst_offset);
-  dst_offset += fwd_only_vertices.size();
-  fill_subset(bwd_only_component_idxs, bwd_only_vertices, 2, false, dst_offset);
-  dst_offset += bwd_only_vertices.size();
-  fill_subset(remaining_component_idxs, remaining_vertices, 3, false, dst_offset);
+  map_idxs_to_ids(scc_component_idxs, 0);
+  map_idxs_to_ids(fwd_only_component_idxs, 1);
+  map_idxs_to_ids(bwd_only_component_idxs, 2);
+  map_idxs_to_ids(remaining_component_idxs, 3);
 
-  // Sort by (component_id, vertex), carrying scc_flags along.
+  // Build output arrays incrementally: unresolved first, then resolved SCCs.
+  // After partitioning, each fwd/bwd/rem array has [resolved | unresolved].
+  // append_and_trim_source appends elements from src_offset to end, then resizes the source to src_offset
+  // and shrinks.
+  // Order: [fwd_unresolved | bwd_unresolved | rem_unresolved |
+  //         scc | trivial_singletons | fwd_resolved | bwd_resolved | rem_resolved]
+
+  rmm::device_uvector<vertex_t> all_component_ids(0, handle.get_stream());
+  rmm::device_uvector<vertex_t> component_vertices(0, handle.get_stream());
+
+  auto append_and_trim_source = [&](rmm::device_uvector<vertex_t>& src_component_ids,
+                         rmm::device_uvector<vertex_t>& src_component_vertices,
+                         size_t src_offset) {
+    auto count      = src_component_ids.size() - src_offset;
+    auto dst_offset = all_component_ids.size();
+    all_component_ids.resize(dst_offset + count, handle.get_stream());
+    component_vertices.resize(dst_offset + count, handle.get_stream());
+    thrust::copy(handle.get_thrust_policy(),
+                 src_component_ids.begin() + src_offset,
+                 src_component_ids.end(),
+                 all_component_ids.begin() + dst_offset);
+    thrust::copy(handle.get_thrust_policy(),
+                 src_component_vertices.begin() + src_offset,
+                 src_component_vertices.end(),
+                 component_vertices.begin() + dst_offset);
+    src_component_ids.resize(src_offset, handle.get_stream());
+    src_component_ids.shrink_to_fit(handle.get_stream());
+    src_component_vertices.resize(src_offset, handle.get_stream());
+    src_component_vertices.shrink_to_fit(handle.get_stream());
+  };
+
+  // Unresolved sub-components (right portion, then trim source to resolved only).
+  append_and_trim_source(fwd_only_component_idxs, fwd_only_vertices, fwd_resolved_count);
+  append_and_trim_source(bwd_only_component_idxs, bwd_only_vertices, bwd_resolved_count);
+  append_and_trim_source(remaining_component_idxs, remaining_vertices, remaining_resolved_count);
+
+  // Resolved: SCC vertices.
+  append_and_trim_source(scc_component_idxs, scc_vertices, 0);
+
+  // Resolved: trivial singleton vertices (component_id = vertex_id).
   {
-    auto key_first = thrust::make_zip_iterator(all_component_ids.begin(), component_vertices.begin());
-    thrust::sort_by_key(handle.get_thrust_policy(),
-                        key_first,
-                        key_first + total_vertices,
-                        all_scc_flags.begin());
+    auto dst_offset = all_component_ids.size();
+    auto count      = trivial_singleton_scc_vertices.size();
+    all_component_ids.resize(dst_offset + count, handle.get_stream());
+    component_vertices.resize(dst_offset + count, handle.get_stream());
+    thrust::copy(handle.get_thrust_policy(),
+                 trivial_singleton_scc_vertices.begin(),
+                 trivial_singleton_scc_vertices.end(),
+                 all_component_ids.begin() + dst_offset);
+    thrust::copy(handle.get_thrust_policy(),
+                 trivial_singleton_scc_vertices.begin(),
+                 trivial_singleton_scc_vertices.end(),
+                 component_vertices.begin() + dst_offset);
+    trivial_singleton_scc_vertices.resize(0, handle.get_stream());
+    trivial_singleton_scc_vertices.shrink_to_fit(handle.get_stream());
   }
 
-  // Extract unique component_ids and one scc_flag per component.
+  // Resolved: size-1 fwd/bwd/remaining sub-components (entire remaining source, then free).
+  append_and_trim_source(fwd_only_component_idxs, fwd_only_vertices, 0);
+  append_and_trim_source(bwd_only_component_idxs, bwd_only_vertices, 0);
+  append_and_trim_source(remaining_component_idxs, remaining_vertices, 0);
 
-  rmm::device_uvector<vertex_t> component_ids(total_vertices, handle.get_stream());
-  rmm::device_uvector<bool> component_scc_flags(total_vertices, handle.get_stream());
-  auto [component_ids_end, component_scc_flags_end] = thrust::unique_by_key_copy(
+  // Extract unique component_ids and their offsets in a single pass.
+  // Data is already grouped by component_id (contiguous runs), so we just find run boundaries.
+  rmm::device_uvector<vertex_t> component_ids(component_vertices.size(), handle.get_stream());
+  rmm::device_uvector<vertex_t> component_offsets(component_vertices.size() + 1, handle.get_stream());
+
+  auto input_first = thrust::make_zip_iterator(
+    all_component_ids.begin(), thrust::make_counting_iterator(vertex_t{0}));
+  auto output_first = thrust::make_zip_iterator(
+    component_ids.begin(), component_offsets.begin());
+  auto output_end = thrust::copy_if(
     handle.get_thrust_policy(),
-    all_component_ids.begin(),
-    all_component_ids.end(),
-    all_scc_flags.begin(),
-    component_ids.begin(),
-    component_scc_flags.begin());
-  auto num_components = static_cast<size_t>(
-    cuda::std::distance(component_ids.begin(), component_ids_end));
+    input_first,
+    input_first + component_vertices.size(),
+    thrust::make_counting_iterator(size_t{0}),
+    output_first,
+    detail::is_first_in_run_t<vertex_t const*>{all_component_ids.data()});
+
+  auto num_components = static_cast<size_t>(cuda::std::distance(output_first, output_end));
   component_ids.resize(num_components, handle.get_stream());
-  component_scc_flags.resize(num_components, handle.get_stream());
-
-  // Build component_offsets via lower_bound on sorted component_ids.
-
-  rmm::device_uvector<vertex_t> component_offsets(num_components + 1, handle.get_stream());
-  thrust::lower_bound(handle.get_thrust_policy(),
-                      all_component_ids.begin(),
-                      all_component_ids.end(),
-                      component_ids.begin(),
-                      component_ids.end(),
-                      component_offsets.begin());
+  component_offsets.resize(num_components + 1, handle.get_stream());
   component_offsets.set_element(
-    num_components, static_cast<vertex_t>(total_vertices), handle.get_stream());
+    num_components, static_cast<vertex_t>(component_vertices.size()), handle.get_stream());
 
   return std::make_tuple(std::move(component_ids),
-                         std::move(component_scc_flags),
                          std::move(component_offsets),
-                         std::move(component_vertices));
+                         std::move(component_vertices),
+                         num_unresolved_components);
 }
 
 // return component_ids, component_offsets, component_vertices, num_unresolved_components
@@ -1208,7 +1331,7 @@ forward_backward_intersect(
                  vertex_t{0});
   }
 
-  return intersect_reachable_sets<vertex_t, multi_gpu>(handle,
+  return intersect_reachable_sets<GraphViewType>(handle,
                                                        std::move(unresolved_component_offsets),
                                                        std::move(unresolved_component_vertices),
                                                        std::move(forward_set_offsets),
