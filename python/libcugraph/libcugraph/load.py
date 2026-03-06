@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -52,7 +52,7 @@ def load_library():
     )
 
     libs_to_return = []
-    for soname in ["libcugraph.so", "libcugraph_c.so"]:
+    for soname in ["libcugraph.so", "libcugraph_mg.so", "libcugraph_c.so"]:
         libcugraph_lib = None
         if prefer_system_installation:
             # Prefer a system library if one is present to
