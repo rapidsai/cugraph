@@ -144,25 +144,23 @@ class Tests_WeaklyConnectedComponent
     }
 
     if (weakly_connected_components_usecase.check_correctness) {
-      cugraph::graph_t<vertex_t, edge_t, false, false> unrenumbered_graph(handle);
-      if (renumber) {
-        std::tie(unrenumbered_graph, std::ignore, std::ignore) =
-          cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, false>(
-            handle, input_usecase, false, false);
-      }
-      auto unrenumbered_graph_view = renumber ? unrenumbered_graph.view() : graph_view;
+      std::vector<edge_t> h_offsets{};
+      std::vector<vertex_t> h_indices{};
+      std::tie(h_offsets, h_indices, std::ignore) =
+        cugraph::test::graph_to_host_csr<vertex_t, edge_t, weight_t, false, false>(
+          handle,
+          graph_view,
+          std::nullopt,
+          d_renumber_map_labels ? std::make_optional<raft::device_span<vertex_t const>>(
+                                    d_renumber_map_labels->data(), d_renumber_map_labels->size())
+                                : std::nullopt);
 
-      auto h_offsets = cugraph::test::to_host(
-        handle, unrenumbered_graph_view.local_edge_partition_view().offsets());
-      auto h_indices = cugraph::test::to_host(
-        handle, unrenumbered_graph_view.local_edge_partition_view().indices());
-
-      std::vector<vertex_t> h_reference_components(unrenumbered_graph_view.number_of_vertices());
+      std::vector<vertex_t> h_reference_components(graph_view.number_of_vertices());
 
       weakly_connected_components_reference(h_offsets.data(),
                                             h_indices.data(),
                                             h_reference_components.data(),
-                                            unrenumbered_graph_view.number_of_vertices());
+                                            graph_view.number_of_vertices());
 
       std::vector<vertex_t> h_cugraph_components{};
       if (renumber) {

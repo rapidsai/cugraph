@@ -203,6 +203,11 @@ graph_to_host_csc(
   std::optional<raft::device_span<vertex_t const>> renumber_map);
 
 // Only the rank 0 GPU holds the valid data
+// if @p renumber is false, mg_graph edge (or unrenumbered mg_graph edge if @p
+// renumber_map.has_value() is true) sources/destinations should be in [0,
+// mg_graph_view.number_of_vertices()); undefined behaviors are expected if @p
+// renumber_map.has_value is true and the unrenumbered edge sources/destinations are not consecutive
+// integers startiing from 0.
 template <typename vertex_t,
           typename edge_t,
           typename weight_t,
