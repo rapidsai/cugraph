@@ -20,7 +20,7 @@ DASK_CUDF_WHEELHOUSE=$(
 LIBCUDF_WHEELHOUSE=$(
   RAPIDS_PY_WHEEL_NAME="libcudf_${RAPIDS_PY_CUDA_SUFFIX}" rapids-get-pr-artifact cudf 21671 cpp wheel "${CUDF_COMMIT}"
 )
-PYLICUDF_WHEELHOUSE=$(
+PYLIBCUDF_WHEELHOUSE=$(
   rapids-get-pr-artifact cudf 21671 python wheel --pkg_name pylibcudf --stable "${CUDF_COMMIT}"
 )
 
@@ -37,7 +37,7 @@ KVIKIO_WHEELHOUSE=$(
 )
 
 # raft
-RAFT_COMMIT=20f7213826e7550e92d635d5b3c07eff169afe54
+RAFT_COMMIT=5258ae71a6e0e0b10308329957b13358d3585b84
 LIBRAFT_WHEELHOUSE=$(
   RAPIDS_PY_WHEEL_NAME="libraft_${RAPIDS_PY_CUDA_SUFFIX}" rapids-get-pr-artifact raft 2971 cpp wheel "${RAFT_COMMIT}"
 )
@@ -58,7 +58,7 @@ RMM_WHEELHOUSE=$(
 )
 
 # ucxx
-UCXX_COMMIT=b1e5230d5b1ac47a11cc2d421b3af91be50b39e4
+UCXX_COMMIT=b9406fa336ebc302cac4773c2262a392c16631cc
 DISTRIBUTED_UCXX_WHEELHOUSE=$(
   RAPIDS_PY_WHEEL_NAME="${RAPIDS_PY_CUDA_SUFFIX}" RAPIDS_PY_WHEEL_PURE="1" rapids-get-pr-artifact --pkg_name distributed-ucxx ucxx 604 python wheel
 )
@@ -76,8 +76,8 @@ dask-cudf-${RAPIDS_PY_CUDA_SUFFIX} @ file://$(echo "${DASK_CUDF_WHEELHOUSE}"/das
 libcudf-${RAPIDS_PY_CUDA_SUFFIX} @ file://$(echo "${LIBCUDF_WHEELHOUSE}"/libcudf*.whl)
 pylibcudf-${RAPIDS_PY_CUDA_SUFFIX} @ file://$(echo "${PYLIBCUDF_WHEELHOUSE}"/pylibcudf*.whl)
 
-libkvikio-${RAPIDS_PY_CUDA_SUFFIX} @ file://$(echo "${LIBKVIKIO_WHEELHOUSE}"/libkvikio*.whl)
 kvikio-${RAPIDS_PY_CUDA_SUFFIX} @ file://$(echo "${KVIKIO_WHEELHOUSE}"/kvikio_*.whl)
+libkvikio-${RAPIDS_PY_CUDA_SUFFIX} @ file://$(echo "${LIBKVIKIO_WHEELHOUSE}"/libkvikio*.whl)
 
 libraft-${RAPIDS_PY_CUDA_SUFFIX} @ file://$(echo "${LIBRAFT_WHEELHOUSE}"/libraft*.whl)
 pylibraft-${RAPIDS_PY_CUDA_SUFFIX} @ file://$(echo "${PYLIBRAFT_WHEELHOUSE}"/pylibraft*.whl)
