@@ -10,7 +10,7 @@ RAPIDS_PY_CUDA_SUFFIX=$(rapids-wheel-ctk-name-gen "${RAPIDS_CUDA_VERSION}")
 # download wheels, store the directories holding them in variables
 
 # cudf
-CUDF_COMMIT=876d6937a50f22e597d2f04124f44d85eebb14d2
+CUDF_COMMIT=0d3a5eaacbfc0cf7d103eace02b7411a877f69a1
 CUDF_WHEELHOUSE=$(
   rapids-get-pr-artifact cudf 21671 python wheel --pkg_name cudf --stable "${CUDF_COMMIT}"
 )
@@ -24,12 +24,11 @@ PYLICUDF_WHEELHOUSE=$(
   rapids-get-pr-artifact cudf 21671 python wheel --pkg_name pylibcudf --stable "${CUDF_COMMIT}"
 )
 
-
 # cuvs
 # (not needed because it's pulled w/ CPM and we aren't actually changing its source code for this)
 
 # kvikio
-KVIKIO_COMMIT=b71d3beaca46a0ec8d54a948c1c9bca5e4359b53
+KVIKIO_COMMIT=3d53f6a63d9ca8cb17b8fc89645b67f2bf1c012f
 LIBKVIKIO_WHEELHOUSE=$(
   RAPIDS_PY_WHEEL_NAME="libkvikio_${RAPIDS_PY_CUDA_SUFFIX}" rapids-get-pr-artifact kvikio 942 cpp wheel "${KVIKIO_COMMIT}"
 )
@@ -38,7 +37,7 @@ KVIKIO_WHEELHOUSE=$(
 )
 
 # raft
-RAFT_COMMIT=b7b9c53d7c492937cc9214cbd292039d6551d996
+RAFT_COMMIT=20f7213826e7550e92d635d5b3c07eff169afe54
 LIBRAFT_WHEELHOUSE=$(
   RAPIDS_PY_WHEEL_NAME="libraft_${RAPIDS_PY_CUDA_SUFFIX}" rapids-get-pr-artifact raft 2971 cpp wheel "${RAFT_COMMIT}"
 )
@@ -50,7 +49,7 @@ RAFT_DASK_WHEELHOUSE=$(
 )
 
 # rmm
-RMM_COMMIT=af96977c404565bbb0657c490d407a561cedc3fc
+RMM_COMMIT=0465f7cbc3acfa95dc5b83bdc6682db108e8b1b2
 LIBRMM_WHEELHOUSE=$(
   RAPIDS_PY_WHEEL_NAME="librmm_${RAPIDS_PY_CUDA_SUFFIX}" rapids-get-pr-artifact rmm 2270 cpp wheel "${RMM_COMMIT}"
 )
