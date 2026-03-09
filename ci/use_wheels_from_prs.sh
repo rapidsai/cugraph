@@ -10,7 +10,7 @@ RAPIDS_PY_CUDA_SUFFIX=$(rapids-wheel-ctk-name-gen "${RAPIDS_CUDA_VERSION}")
 # download wheels, store the directories holding them in variables
 
 # cudf
-CUDF_COMMIT=0d3a5eaacbfc0cf7d103eace02b7411a877f69a1
+CUDF_COMMIT=fe2b9732747fc1bb289beb85e2af8d55def7e592
 CUDF_WHEELHOUSE=$(
   rapids-get-pr-artifact cudf 21671 python wheel --pkg_name cudf --stable "${CUDF_COMMIT}"
 )
@@ -37,7 +37,7 @@ KVIKIO_WHEELHOUSE=$(
 )
 
 # raft
-RAFT_COMMIT=5258ae71a6e0e0b10308329957b13358d3585b84
+RAFT_COMMIT=ceff7637e1567c2efb0942d5bc67b27100a21387
 LIBRAFT_WHEELHOUSE=$(
   RAPIDS_PY_WHEEL_NAME="libraft_${RAPIDS_PY_CUDA_SUFFIX}" rapids-get-pr-artifact raft 2971 cpp wheel "${RAFT_COMMIT}"
 )

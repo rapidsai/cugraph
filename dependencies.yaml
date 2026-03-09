@@ -330,16 +330,16 @@ dependencies:
           - matrix:
               use_cuda_wheels: "false"
             packages:
+          # We always want nvJitLink >= whatever minor version was available in the build environment
+          # nvJitLink tends to follow the CTK's minor versions, but check at https://docs.nvidia.com/cuda/cuda-toolkit-release-notes/index.html
+          #
+          # ref: https://github.com/rapidsai/cudf/pull/20873
           - matrix:
-              cuda: "12.*"
+              cuda: "12.9"
               use_cuda_wheels: "true"
             packages:
-              # cuVS doesn't place a direct requirement on nvJitLink at runtime for CUDA 12,
-              # but does need to ensure cusparse and nvJitLink installed together are compatible.
-              #
-              # cuGraph doesn't have any other direct libnvJitLink usage, except in what it links in
-              # from its source build of cuVS
-              - cuda-toolkit[cublas,curand,cusolver,cusparse,nvjitlink]==12.*
+              - cuda-toolkit[cublas,curand,cusolver,cusparse]==12.*
+              - nvidia-nvjitlink-cu12>=12.9,<13
           - matrix:
               cuda: "13.0"
               use_cuda_wheels: "true"
