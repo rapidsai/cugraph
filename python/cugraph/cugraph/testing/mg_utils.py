@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -23,7 +23,7 @@ def start_dask_client(
     rmm_async=False,
     rmm_pool_size=None,
     dask_worker_devices=None,
-    jit_unspill=False,
+    jit_unspill=None,
     worker_class=None,
     device_memory_limit=0.8,
     p2p=True,
