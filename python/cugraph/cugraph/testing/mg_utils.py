@@ -23,7 +23,6 @@ def start_dask_client(
     rmm_async=False,
     rmm_pool_size=None,
     dask_worker_devices=None,
-    jit_unspill=None,
     worker_class=None,
     device_memory_limit=0.8,
     p2p=True,
@@ -74,12 +73,6 @@ def start_dask_client(
         DASK_WORKER_DEVICES. This parameter is ignored if the env var
         SCHEDULER_FILE is set which implies the dask cluster has already been
         created.
-
-    jit_unspill : bool or None, default None
-        The "jit_unspill" arg to LocalCUDACluster to enable just-in-time
-        spilling, see docs for dask_cuda.LocalCUDACluster for details. This
-        parameter is ignored if the env var SCHEDULER_FILE is set which implies
-        the dask cluster has already been created.
 
     device_memory_limit : int, float, str, or None, default 0.8
         The "device_memory_limit" arg to LocalCUDACluster to determine when
@@ -136,7 +129,6 @@ def start_dask_client(
             rmm_pool_size=rmm_pool_size,
             rmm_async=rmm_async,
             CUDA_VISIBLE_DEVICES=dask_worker_devices,
-            jit_unspill=jit_unspill,
             worker_class=worker_class,
             device_memory_limit=device_memory_limit
             if get_device_total_memory(0) is not None
