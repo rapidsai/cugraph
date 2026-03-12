@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 
 from cugraph.testing.mg_utils import (
@@ -156,7 +156,7 @@ def get_memory_statistics(allocation_counts, input_memory):
 
 
 if __name__ == "__main__":
-    client, cluster = start_dask_client(dask_worker_devices=[1], jit_unspill=False)
+    client, cluster = start_dask_client(dask_worker_devices=[1])
     enable_spilling()
     stats_ls = []
     client.run(enable_spilling)
