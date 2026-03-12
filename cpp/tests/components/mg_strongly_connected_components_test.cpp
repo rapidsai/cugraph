@@ -97,8 +97,7 @@ class Tests_MGStronglyConnectedComponents
       hr_timer.start("MG strongly_connected_components");
     }
 
-    auto d_mg_components =
-      cugraph::strongly_connected_components(*handle_, mg_graph_view, false);
+    auto d_mg_components = cugraph::strongly_connected_components(*handle_, mg_graph_view, false);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -116,8 +115,7 @@ class Tests_MGStronglyConnectedComponents
       std::tie(std::ignore, d_mg_aggregate_components) =
         cugraph::test::mg_vertex_property_values_to_sg_vertex_property_values(
           *handle_,
-          std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
-                                                                (*mg_renumber_map).size()),
+          std::optional<raft::device_span<vertex_t const>>{std::nullopt},
           mg_graph_view.local_vertex_partition_range(),
           std::optional<raft::device_span<vertex_t const>>{std::nullopt},
           std::optional<raft::device_span<vertex_t const>>{std::nullopt},
@@ -131,8 +129,7 @@ class Tests_MGStronglyConnectedComponents
           std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},
           std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
           std::optional<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>{std::nullopt},
-          std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
-                                                                (*mg_renumber_map).size()),
+          std::optional<raft::device_span<vertex_t const>>{std::nullopt},
           false);
 
       if (handle_->get_comms().get_rank() == int{0}) {

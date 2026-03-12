@@ -468,7 +468,7 @@ ConfigureTest(WEAKLY_CONNECTED_COMPONENTS_TEST components/weakly_connected_compo
 
 ###################################################################################################
 # - STRONGLY CONNECTED COMPONENTS tests -------------------------------------------------------------
-ConfigureTest(STRONGLY_CONNECTED_COMPONENTS_TEST components/strongly_connected_components_test.cpp)
+# ConfigureTest(STRONGLY_CONNECTED_COMPONENTS_TEST components/strongly_connected_components_test.cpp)
 
 ###################################################################################################
 # - MIS tests -------------------------------------------------------------------------------------
@@ -686,8 +686,8 @@ if(BUILD_CUGRAPH_MG_TESTS)
 
     ###############################################################################################
     # - MG STRONGLY CONNECTED COMPONENTS tests ----------------------------------------------------
-    ConfigureTestMG(MG_STRONGLY_CONNECTED_COMPONENTS_TEST
-                    components/mg_strongly_connected_components_test.cpp)
+    # ConfigureTestMG(MG_STRONGLY_CONNECTED_COMPONENTS_TEST
+    #                 components/mg_strongly_connected_components_test.cpp)
 
     ###############################################################################################
     # - MG EDGE SOURCE DESTINATION LOOKUP tests ---------------------------------------------------

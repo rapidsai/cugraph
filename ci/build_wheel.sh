@@ -91,8 +91,9 @@ EXCLUDE_ARGS+=(
 
 if [[ "${package_dir}" != "python/libcugraph" ]]; then
     EXCLUDE_ARGS+=(
-      --exclude "libcugraph_c.so"
       --exclude "libcugraph.so"
+      --exclude "libcugraph_c.so"
+      --exclude "libcugraph_mg.so"
     )
 fi
 
