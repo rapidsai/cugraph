@@ -28,14 +28,13 @@
 
 #include <rmm/device_uvector.hpp>
 
-#include <cuda/functional>
+#include <cuda/std/functional>
 #include <cuda/std/iterator>
 #include <cuda/std/optional>
 #include <cuda/std/tuple>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
 #include <thrust/for_each.h>
-#include <thrust/functional.h>
 #include <thrust/iterator/constant_iterator.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/discard_iterator.h>
@@ -75,8 +74,8 @@ rmm::device_uvector<typename GraphViewType::vertex_type> find_trivial_singleton_
   rmm::device_uvector<typename GraphViewType::vertex_type>&& in_degrees,
   rmm::device_uvector<typename GraphViewType::vertex_type>&& out_degrees)
 {
-  using vertex_t           = typename GraphViewType::vertex_type;
-  return rmm::device_uvector<vertex_t>(0, handle.get_stream());
+  using vertex_t = typename GraphViewType::vertex_type return rmm::device_uvector<vertex_t>(
+    0, handle.get_stream());
 }
 
 // find pivots;returns (pivot vertices, pivot unresolved component indexes) pairs; the returned
@@ -264,7 +263,7 @@ reachable_sets(
         handle.get_thrust_policy(),
         sorted_starting_vertices.begin(),
         sorted_starting_vertices.end(),
-        thrust::make_transform_iterator(
+        cuda::make_transform_iterator(
           sorted_starting_vertices.begin(),
           cugraph::detail::shift_left_t<vertex_t>{graph_view.local_vertex_partition_range_first()}),
         predecessors
@@ -373,7 +372,7 @@ reachable_sets(
           remaining_vertex_unresolved_component_idxs.begin() +
             cuda::std::distance(triplet_first, triplet_last),
           remaining_vertex_unresolved_component_idxs.end(),
-          thrust::make_transform_iterator(
+          cuda::make_transform_iterator(
             remaining_vertices.begin() + cuda::std::distance(triplet_first, triplet_last),
             cugraph::detail::shift_left_t<vertex_t>{
               graph_view.local_vertex_partition_range_first()}),
