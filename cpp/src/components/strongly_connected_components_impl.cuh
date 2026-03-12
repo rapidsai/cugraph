@@ -74,8 +74,8 @@ rmm::device_uvector<typename GraphViewType::vertex_type> find_trivial_singleton_
   rmm::device_uvector<typename GraphViewType::vertex_type>&& in_degrees,
   rmm::device_uvector<typename GraphViewType::vertex_type>&& out_degrees)
 {
-  using vertex_t = typename GraphViewType::vertex_type return rmm::device_uvector<vertex_t>(
-    0, handle.get_stream());
+  using vertex_t = typename GraphViewType::vertex_type;
+  return rmm::device_uvector<vertex_t>(0, handle.get_stream());
 }
 
 // find pivots;returns (pivot vertices, pivot unresolved component indexes) pairs; the returned
