@@ -19,6 +19,8 @@ rapids-generate-pip-constraints test_python "${PIP_CONSTRAINT}"
 # Update this when 'torch' publishes CUDA wheels supporting newer CTKs.
 #
 # See notes in 'dependencies.yaml' for details on supported versions.
+CUDA_MAJOR=$(echo "${RAPIDS_CUDA_VERSION}" | cut -d'.' -f1)
+CUDA_MINOR=$(echo "${RAPIDS_CUDA_VERSION}" | cut -d'.' -f2)
 PIP_INSTALL_ARGS=()
 if \
     { [ "${CUDA_MAJOR}" -eq 12 ] && [ "${CUDA_MINOR}" -ge 9 ]; } \
