@@ -86,6 +86,11 @@ files:
       - depends_on_libcugraph
       - depends_on_pylibcugraph
       - depends_on_cugraph
+      - test_python
+  torch_only:
+    output: none
+    includes:
+      - depends_on_pytorch
   py_build_cugraph:
     output: pyproject
     pyproject_dir: python/cugraph
@@ -216,6 +221,8 @@ dependencies:
       - output_types: [conda, requirements]
         packages:
           - pre-commit
+  # 'cuda_version' intentionally does not contain fallback entries... we want
+  # a loud error if an unsupported 'cuda' value is passed
   cuda_version:
     specific:
       - output_types: conda
@@ -244,6 +251,51 @@ dependencies:
               cuda: "13.1"
             packages:
               - cuda-version=13.1
+      - output_types: requirements
+        matrices:
+          # if use_cuda_wheels=false is provided, do not add dependencies on any CUDA wheels
+          # (e.g. for DLFW and pip devcontainers)
+          - matrix:
+              use_cuda_wheels: "false"
+            packages:
+          - matrix:
+              arch: aarch64
+              cuda: "12.2"
+              use_cuda_wheels: "true"
+            packages:
+              # some components (like nvidia-cublas-cu12 and nvidia-cuda-nvcc-cu12) didn't have
+              # aarch64 wheels until CTK 12.3, so allow a slightly looser bound here
+              - cuda-toolkit>=12.2,<12.4
+          - matrix:
+              cuda: "12.2"
+              use_cuda_wheels: "true"
+            packages:
+              - cuda-toolkit==12.2.*
+          - matrix:
+              cuda: "12.5"
+              use_cuda_wheels: "true"
+            packages:
+              - cuda-toolkit==12.5.*
+          - matrix:
+              cuda: "12.8"
+              use_cuda_wheels: "true"
+            packages:
+              - cuda-toolkit==12.8.*
+          - matrix:
+              cuda: "12.9"
+              use_cuda_wheels: "true"
+            packages:
+              - cuda-toolkit==12.9.*
+          - matrix:
+              cuda: "13.0"
+              use_cuda_wheels: "true"
+            packages:
+              - cuda-toolkit==13.0.*
+          - matrix:
+              cuda: "13.1"
+              use_cuda_wheels: "true"
+            packages:
+              - cuda-toolkit==13.1.*
   cuda:
     common:
       - output_types: [conda]
@@ -266,28 +318,46 @@ dependencies:
             packages:
   cuda_wheels:
     specific:
-      - output_types: [pyproject, requirements]
+      # cuGraph needs 'nvJitLink>={whatever-cuvs-was-built-against}' at runtime, and mixing
+      # old-CTK with new-nvJitLink is supported, so maintain 1 entry here per CUDA major.minor
+      # cuVS is built against.
+      #
+      # nvJitLink has historically roughly followed the CTK's minor versioning scheme,
+      # but check at https://docs.nvidia.com/cuda/cuda-toolkit-release-notes/index.html
+      - output_types: [requirements, pyproject]
         matrices:
-          - matrix:
-              cuda: "12.*"
-              use_cuda_wheels: "true"
-            packages:
-              - cuda-toolkit[cublas,curand,cusolver,cusparse,nvjitlink]==12.*
-          - matrix:
-              cuda: "13.*"
-              use_cuda_wheels: "true"
-            packages:
-              - cuda-toolkit[cublas,curand,cusolver,cusparse,nvjitlink]==13.*
-          # if use_cuda_wheels=false is provided, do not add dependencies on any CUDA wheels
-          # (e.g. for DLFW and pip devcontainers)
+          # skip this whole group if explicitly opting out of CUDA wheels
           - matrix:
               use_cuda_wheels: "false"
             packages:
-          # if no matching matrix selectors passed, list the unsuffixed packages
+          # We always want nvJitLink >= whatever minor version was available in the build environment
+          # nvJitLink tends to follow the CTK's minor versions, but check at https://docs.nvidia.com/cuda/cuda-toolkit-release-notes/index.html
+          #
+          # ref: https://github.com/rapidsai/cudf/pull/20873
+          - matrix:
+              cuda: "12.9"
+              use_cuda_wheels: "true"
+            packages:
+              - cuda-toolkit[cublas,curand,cusolver,cusparse]==12.*
+              - nvidia-nvjitlink-cu12>=12.9,<13
+          - matrix:
+              cuda: "13.0"
+              use_cuda_wheels: "true"
+            packages:
+              - &cuda_toolkit_any_cu13 cuda-toolkit[cublas,curand,cusolver,cusparse]==13.*
+              - nvidia-nvjitlink>=13.0,<14
+          - matrix:
+              cuda: "13.1"
+              use_cuda_wheels: "true"
+            packages:
+              - *cuda_toolkit_any_cu13
+              - nvidia-nvjitlink>=13.1,<14
+          # if no matching matrix selectors passed, list a range
           # (just as a source of documentation, as this populates pyproject.toml in source control)
           - matrix:
             packages:
-              - cuda-toolkit[cublas,curand,cusolver,cusparse,nvjitlink]>=12,<14
+              - cuda-toolkit[cublas,curand,cusolver,cusparse]>=12,<14
+              - nvidia-nvjitlink>=12,<14
   common_build:
     common:
       - output_types: [conda, requirements, pyproject]
@@ -485,36 +555,51 @@ dependencies:
     common:
       - output_types: [conda]
         packages:
-          - pytorch>=2.3
-          - torchdata
-          - pydantic
-          - ogb
-          - torchmetrics
+          - pytorch>=2.9
+      - output_types: [pyproject, requirements]
+        packages:
+          - torch>=2.9
     specific:
-      - output_types: [requirements]
+      # The 'pytorch.org' indices referenced in --extra-index-url below host CPU-only variants too,
+      # so requirements like '>=' are not safe.
+      #
+      # Using '==' and a version with the CUDA specifier like '+cu130' is the most reliable way to ensure
+      # the packages we want are pulled (at the expense of needing to maintain this list).
+      #
+      # 'torch' tightly pins wheels to a single {major}.{minor} CTK version.
+      #
+      # This list only contains entries exactly matching CUDA {major}.{minor} that we test in RAPIDS CI,
+      # to ensure a loud error alerts us to the need to update this list (or CI scripts) when new
+      # CTKs are added to the support matrix.
+      #
+      # 'torch' first supported aarch64 CUDA wheels in v2.6.0 (targeting CUDA 12.6).
+      # See https://github.com/rapidsai/build-planning/issues/255 for more details on
+      # historical support.
+      #
+      - output_types: requirements
         matrices:
           - matrix:
-              cuda: "12.*"
+              cuda: "12.9"
+              dependencies: "oldest"
             packages:
-              - --extra-index-url=https://download.pytorch.org/whl/cu121
+              - &torch_cu129_index --extra-index-url=https://download.pytorch.org/whl/cu129
+              - torch==2.9.0+cu129
           - matrix:
-              cuda: "13.*"
+              cuda: "12.9"
             packages:
-              - --extra-index-url=https://download.pytorch.org/whl/cu130
-          - {matrix: null, packages: null}
-      - output_types: [requirements, pyproject]
-        matrices:
+              - *torch_cu129_index
+              - torch==2.10.0+cu129
           - matrix:
-              cuda: "12.*"
+              cuda: "13.0"
+              dependencies: "oldest"
             packages:
-              - torch>=2.3
-              - tensordict>=0.1.2
+              - &torch_index_cu13 --extra-index-url=https://download.pytorch.org/whl/cu130
+              - torch==2.9.0+cu130
           - matrix:
-              cuda: "13.*"
+              cuda: "13.0"
             packages:
-              - &pytorch_pip torch>=2.9.0
-              - &tensordict tensordict>=0.1.2
-          - {matrix: null, packages: [*pytorch_pip, *tensordict]}
+              - *torch_index_cu13
+              - torch==2.10.0+cu130
   depends_on_libcudf:
     common:
       - output_types: conda
