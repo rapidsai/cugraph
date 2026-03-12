@@ -496,7 +496,7 @@ dependencies:
       # Using '==' and a version with the CUDA specifier like '+cu130' is the most reliable way to ensure
       # the packages we want are pulled (at the expense of needing to maintain this list).
       #
-      # 'torch' tightly pins wheels to a single {major}.{minor} CTK version.
+      # 'torch' tightly pins wheels to a single {major}.{minor}.{patch} CTK version.
       #
       # This list only contains entries exactly matching CUDA {major}.{minor} that we test in RAPIDS CI,
       # to ensure a loud error alerts us to the need to update this list (or CI scripts) when new
