@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2023-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -273,7 +273,7 @@ class per_device_edgelist_t {
       }
     }
 
-    std::tie(src_[0], dst_[0], consolidated_edge_property_buffers, std::ignore) =
+    std::tie(src_[0], dst_[0], consolidated_edge_property_buffers) =
       cugraph::shuffle_ext_edges(handle.raft_handle(),
                                  std::move(src_[0]),
                                  std::move(dst_[0]),
