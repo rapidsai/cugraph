@@ -297,6 +297,8 @@ set(CUGRAPH_SG_SOURCES
     src/tree/legacy/mst.cu
     src/components/weakly_connected_components_sg_v64_e64.cu
     src/components/weakly_connected_components_sg_v32_e32.cu
+    src/components/strongly_connected_components_sg_v64_e64.cu
+    src/components/strongly_connected_components_sg_v32_e32.cu
     src/components/mis_sg_v64_e64.cu
     src/components/mis_sg_v32_e32.cu
     src/components/vertex_coloring_sg_v64_e64.cu
@@ -426,6 +428,8 @@ set(CUGRAPH_MG_SOURCES
     src/centrality/betweenness_centrality_mg_v32_e32.cu
     src/components/weakly_connected_components_mg_v64_e64.cu
     src/components/weakly_connected_components_mg_v32_e32.cu
+    src/components/strongly_connected_components_mg_v64_e64.cu
+    src/components/strongly_connected_components_mg_v32_e32.cu
     src/components/mis_mg_v64_e64.cu
     src/components/mis_mg_v32_e32.cu
     src/components/vertex_coloring_mg_v64_e64.cu
