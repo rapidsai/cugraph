@@ -659,7 +659,7 @@ class key_bucket_t {
     return tag_cend();
   }
 
-  bool is_owning() { return (vertices_.index() == 1); }
+  bool is_owning() const { return (vertices_.index() == 1); }
 
  private:
   raft::handle_t const* handle_ptr_{nullptr};
