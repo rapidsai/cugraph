@@ -494,6 +494,9 @@ dependencies:
       - output_types: [requirements]
         matrices:
           - matrix:
+              no_pytorch: "true"
+            packages:
+          - matrix:
               cuda: "12.*"
             packages:
               - --extra-index-url=https://download.pytorch.org/whl/cu121
@@ -504,6 +507,9 @@ dependencies:
           - {matrix: null, packages: null}
       - output_types: [requirements, pyproject]
         matrices:
+          - matrix:
+              no_pytorch: "true"
+            packages:
           - matrix:
               cuda: "12.*"
             packages:
