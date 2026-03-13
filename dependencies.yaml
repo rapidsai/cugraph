@@ -206,6 +206,10 @@ files:
       - depends_on_cudf
       - test_python_common
       - test_python_pylibcugraph
+  torch_only:
+    output: none
+    includes:
+      - depends_on_pytorch
 channels:
   - rapidsai-nightly
   - rapidsai
