@@ -101,6 +101,7 @@ repos:
             ^[.]pre-commit-config[.]yaml$|
             [.]rst$|
             ^conda/environments/|
+            RAPIDS_BRANCH|
             [.](png)$
       - id: verify-pyproject-license
         # ignore the top-level pyproject.toml, which doesn't
