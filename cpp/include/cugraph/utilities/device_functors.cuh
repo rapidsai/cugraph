@@ -1,11 +1,12 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2024, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
 
 #include <cugraph/utilities/packed_bool_utils.hpp>
 
+#include <thrust/binary_search.h>
 #include <thrust/iterator/iterator_traits.h>
 
 #include <cstddef>
@@ -168,6 +169,18 @@ struct divider_t {
   T divisor{};
 
   __device__ T operator()(T input) const { return input / divisor; }
+};
+
+template <typename T>
+struct segment_id_t {
+  raft::device_span<T const> segment_lasts{};
+
+  __device__ T operator()(T i) const
+  {
+    return static_cast<T>(cuda::std::distance(
+      segment_lasts.begin(),
+      thrust::upper_bound(thrust::seq, segment_lasts.begin(), segment_lasts.end(), i)));
+  }
 };
 
 }  // namespace detail
