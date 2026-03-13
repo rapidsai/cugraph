@@ -502,6 +502,13 @@ dependencies:
           - matrix:
               no_pytorch: "true"
             packages:
+          # there weren't aarch64 pytorch conda packages that supported CTK 12.2, so just skip testing
+          # it on that combination
+          - matrix:
+              arch: aarch64
+              cuda: "12.2"
+              dependencies: "oldest"
+            packages:
           - matrix:
               cuda: "12.*"
               dependencies: "oldest"
@@ -557,6 +564,8 @@ dependencies:
             packages:
               - *torch_index_cu13
               - torch==2.10.0+cu130
+          - matrix:
+            packages:
   depends_on_libcudf:
     common:
       - output_types: conda
