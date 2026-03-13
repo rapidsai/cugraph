@@ -24,8 +24,8 @@ CUDA_MINOR=$(echo "${RAPIDS_CUDA_VERSION}" | cut -d'.' -f2)
 PIP_INSTALL_ARGS=()
 torch_downloaded=false
 if \
-    { [ "${CUDA_MAJOR}" -eq 12 ] && [ "${CUDA_MINOR}" -ge 9 ]; } \
-    || { [ "${CUDA_MAJOR}" -eq 13 ] && [ "${CUDA_MINOR}" -le 0 ]; }; \
+    { [ "${CUDA_MAJOR}" -eq 12 ] && [ "${CUDA_MINOR}" -eq 9 ]; } \
+    || { [ "${CUDA_MAJOR}" -eq 13 ] && [ "${CUDA_MINOR}" -eq 0 ]; }; \
 then
     # ensure a CUDA variant of 'torch' is used
     rapids-logger "Downloading PyTorch CUDA wheels"
