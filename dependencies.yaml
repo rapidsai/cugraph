@@ -493,6 +493,12 @@ dependencies:
           - matrix:
               no_pytorch: "true"
             packages:
+          # there weren't aarch64 pytorch conda packages that supported CTK 12.2, so just skip testing
+          # it on that combination
+          - matrix:
+              arch: aarch64
+              cuda: "12.2"
+            packages:
           - matrix:
               require_gpu: "true"
             packages:
