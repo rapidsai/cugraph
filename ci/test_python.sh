@@ -20,7 +20,7 @@ rapids-logger "Generate Python testing dependencies"
 rapids-dependency-file-generator \
   --output conda \
   --file-key test_python \
-  --matrix "cuda=${RAPIDS_CUDA_VERSION%.*};arch=$(arch);py=${RAPIDS_PY_VERSION}" \
+  --matrix "cuda=${RAPIDS_CUDA_VERSION%.*};arch=$(arch);py=${RAPIDS_PY_VERSION};require_gpu=true" \
   --prepend-channel "${CPP_CHANNEL}" \
   --prepend-channel "${PYTHON_CHANNEL}" \
   | tee env.yaml
