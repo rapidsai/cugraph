@@ -10,7 +10,7 @@ RAPIDS_PY_CUDA_SUFFIX=$(rapids-wheel-ctk-name-gen "${RAPIDS_CUDA_VERSION}")
 # download wheels, store the directories holding them in variables
 
 # cudf
-CUDF_COMMIT=c47c9863c2c0d82634c625d65fe1f4833fc2837b
+CUDF_COMMIT=23d0852b79e2b53feb9f948b2e3e892d7cfb0707
 CUDF_WHEELHOUSE=$(
   rapids-get-pr-artifact cudf 21671 python wheel --pkg_name cudf --stable "${CUDF_COMMIT}"
 )
