@@ -160,7 +160,9 @@ files:
     extras:
       table: project
     includes:
+      - cuda_wheels
       - depends_on_libraft
+      - depends_on_librmm
   py_build_pylibcugraph:
     output: pyproject
     pyproject_dir: python/pylibcugraph
@@ -204,6 +206,10 @@ files:
       - depends_on_cudf
       - test_python_common
       - test_python_pylibcugraph
+  torch_only:
+    output: none
+    includes:
+      - depends_on_pytorch
 channels:
   - rapidsai-nightly
   - rapidsai
@@ -262,6 +268,30 @@ dependencies:
           - matrix:
               cuda: "12.*"
             packages:
+  cuda_wheels:
+    specific:
+      - output_types: [pyproject, requirements]
+        matrices:
+          - matrix:
+              cuda: "12.*"
+              use_cuda_wheels: "true"
+            packages:
+              - cuda-toolkit[cublas,curand,cusolver,cusparse,nvjitlink]==12.*
+          - matrix:
+              cuda: "13.*"
+              use_cuda_wheels: "true"
+            packages:
+              - cuda-toolkit[cublas,curand,cusolver,cusparse,nvjitlink]==13.*
+          # if use_cuda_wheels=false is provided, do not add dependencies on any CUDA wheels
+          # (e.g. for DLFW and pip devcontainers)
+          - matrix:
+              use_cuda_wheels: "false"
+            packages:
+          # if no matching matrix selectors passed, list the unsuffixed packages
+          # (just as a source of documentation, as this populates pyproject.toml in source control)
+          - matrix:
+            packages:
+              - cuda-toolkit[cublas,curand,cusolver,cusparse,nvjitlink]>=12,<14
   common_build:
     common:
       - output_types: [conda, requirements, pyproject]
@@ -320,8 +350,12 @@ dependencies:
             packages:
               - python=3.13
           - matrix:
+              py: "3.14"
             packages:
-              - python>=3.11,<3.14
+              - python=3.14
+          - matrix:
+            packages:
+              - python>=3.11
   python_build_rapids:
     common:
       - output_types: [conda, pyproject, requirements]
@@ -345,13 +379,13 @@ dependencies:
     common:
       - output_types: [conda, pyproject, requirements]
         packages:
-          - cython>=3.1.2,<3.2.0
+          - cython>=3.2.2
   python_run_cugraph:
     common:
       - output_types: [conda, pyproject, requirements]
         packages:
           - &dask rapids-dask-dependency==26.4.*,>=0.0.0a0
-          - &numba numba>=0.60.0,<0.62.0
+          - &numba numba>=0.60.0,<0.65.0
           - &numpy numpy>=1.23,<3.0
       - output_types: conda
         packages:
@@ -397,7 +431,7 @@ dependencies:
       - output_types: [conda, pyproject, requirements]
         packages:
           - &pandas pandas
-          - pytest<9.0.0
+          - pytest
           - pytest-benchmark
           - pytest-cov
           - pytest-xdist
@@ -452,39 +486,96 @@ dependencies:
         packages:
           - libcugraph-tests==26.4.*,>=0.0.0a0
   depends_on_pytorch:
-    common:
-      - output_types: [conda]
-        packages:
-          - pytorch>=2.3
-          - torchdata
-          - pydantic
-          - ogb
-          - torchmetrics
     specific:
-      - output_types: [requirements]
+      # conda: choose between GPU and CPU-only pytorch
+      - output_types: conda
         matrices:
           - matrix:
-              cuda: "12.*"
+              no_pytorch: "true"
             packages:
-              - --extra-index-url=https://download.pytorch.org/whl/cu121
+          # there weren't aarch64 pytorch conda packages that supported CTK 12.2, so just skip testing
+          # it on that combination
           - matrix:
-              cuda: "13.*"
+              arch: aarch64
+              cuda: "12.2"
             packages:
-              - --extra-index-url=https://download.pytorch.org/whl/cu130
-          - {matrix: null, packages: null}
-      - output_types: [requirements, pyproject]
+          - matrix:
+              require_gpu: "true"
+            packages:
+              - pytorch-gpu>=2.4.1
+          - matrix:
+            packages:
+              - pytorch>=2.4.1
+      # conda: optionally pin to older versions based on 'dependencies' key
+      - output_types: conda
         matrices:
           - matrix:
-              cuda: "12.*"
+              no_pytorch: "true"
             packages:
-              - torch>=2.3
-              - tensordict>=0.1.2
+          # there weren't aarch64 pytorch conda packages that supported CTK 12.2, so just skip testing
+          # it on that combination
+          - matrix:
+              arch: aarch64
+              cuda: "12.2"
+              dependencies: "oldest"
+            packages:
+          - matrix:
+              cuda: "12.*"
+              dependencies: "oldest"
+            packages:
+              - pytorch==2.4.1
           - matrix:
               cuda: "13.*"
+              dependencies: "oldest"
             packages:
-              - &pytorch_pip torch>=2.9.0
-              - &tensordict tensordict>=0.1.2
-          - {matrix: null, packages: [*pytorch_pip, *tensordict]}
+              - pytorch==2.9
+          - matrix:
+            packages:
+      # The 'pytorch.org' indices referenced in --extra-index-url below host CPU-only variants too,
+      # so requirements like '>=' are not safe.
+      #
+      # Using '==' and a version with the CUDA specifier like '+cu130' is the most reliable way to ensure
+      # the packages we want are pulled (at the expense of needing to maintain this list).
+      #
+      # 'torch' tightly pins wheels to a single {major}.{minor}.{patch} CTK version.
+      #
+      # This list only contains entries exactly matching CUDA {major}.{minor} that we test in RAPIDS CI,
+      # to ensure a loud error alerts us to the need to update this list (or CI scripts) when new
+      # CTKs are added to the support matrix.
+      #
+      - output_types: requirements
+        matrices:
+          - matrix:
+              no_pytorch: "true"
+            packages:
+          - matrix:
+              cuda: "12.9"
+              dependencies: "oldest"
+              require_gpu: "true"
+            packages:
+              - &torch_cu129_index --extra-index-url=https://download.pytorch.org/whl/cu129
+              - torch==2.9.0+cu129
+          - matrix:
+              cuda: "12.9"
+              require_gpu: "true"
+            packages:
+              - *torch_cu129_index
+              - torch==2.10.0+cu129
+          - matrix:
+              cuda: "13.0"
+              dependencies: "oldest"
+              require_gpu: "true"
+            packages:
+              - &torch_index_cu13 --extra-index-url=https://download.pytorch.org/whl/cu130
+              - torch==2.9.0+cu130
+          - matrix:
+              cuda: "13.0"
+              require_gpu: "true"
+            packages:
+              - *torch_index_cu13
+              - torch==2.10.0+cu130
+          - matrix:
+            packages:
   depends_on_libcudf:
     common:
       - output_types: conda
