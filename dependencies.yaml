@@ -86,7 +86,6 @@ files:
       - depends_on_libcugraph
       - depends_on_pylibcugraph
       - depends_on_cugraph
-      - test_python
   py_build_cugraph:
     output: pyproject
     pyproject_dir: python/cugraph
