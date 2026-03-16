@@ -6,6 +6,7 @@
 
 #include "prims/fill_edge_property.cuh"
 #include "prims/fill_edge_src_dst_property.cuh"
+#include "prims/make_initialized_edge_property.cuh"
 #include "prims/transform_e.cuh"
 #include "prims/transform_reduce_if_v_frontier_outgoing_e_by_dst.cuh"
 #include "prims/update_edge_src_dst_property.cuh"
@@ -457,15 +458,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
         handle, level_graph_view, visited.begin(), edge_src_visited.mutable_view());
       {
         auto tmp_graph_view = level_graph_view;
-        edge_property_t<edge_t, bool> edge_mask(handle, level_graph_view);
-        if (tmp_graph_view.has_edge_mask()) {
-          tmp_graph_view.clear_edge_mask();
-          cugraph::fill_edge_property(handle,
-                                      tmp_graph_view,
-                                      edge_mask.mutable_view(),
-                                      false);  // if level_graph_view has an attached edge mask,
-                                               // masked out values of edge_mask won't be updated.
-        }
+        auto edge_mask      = make_initialized_edge_property(handle, level_graph_view, false);
         transform_e(handle,
                     level_graph_view,
                     edge_src_visited.view(),
@@ -477,6 +470,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
                                !src_visited;
                       }),
                     edge_mask.mutable_view());
+        if (tmp_graph_view.has_edge_mask()) { tmp_graph_view.clear_edge_mask(); }
         tmp_graph_view.attach_edge_mask(edge_mask.view());
         std::tie(std::get<0>(edge_buffer),
                  std::get<1>(edge_buffer),

@@ -10,6 +10,7 @@
 #include "prims/extract_transform_if_e.cuh"
 #include "prims/extract_transform_if_v_frontier_outgoing_e.cuh"
 #include "prims/fill_edge_property.cuh"
+#include "prims/make_initialized_edge_property.cuh"
 #include "prims/per_v_transform_reduce_incoming_outgoing_e.cuh"
 #include "prims/transform_e.cuh"
 #include "prims/transform_reduce_if_v_frontier_outgoing_e_by_dst.cuh"
@@ -1502,17 +1503,8 @@ edge_property_t<edge_t, weight_t> edge_betweenness_centrality(
                     "Invalid input argument: sources have invalid vertex IDs.");
   }
 
-  edge_property_t<edge_t, weight_t> centralities(handle, graph_view);
-
-  if (graph_view.has_edge_mask()) {
-    auto unmasked_graph_view = graph_view;
-    unmasked_graph_view.clear_edge_mask();
-    fill_edge_property(
-      handle, unmasked_graph_view, centralities.mutable_view(), weight_t{0}, do_expensive_check);
-  } else {
-    fill_edge_property(
-      handle, graph_view, centralities.mutable_view(), weight_t{0}, do_expensive_check);
-  }
+  auto centralities =
+    make_initialized_edge_property(handle, graph_view, weight_t{0.0}, do_expensive_check);
 
   size_t num_sources = cuda::std::distance(vertices_begin, vertices_end);
   std::vector<size_t> source_offsets{{0, num_sources}};
