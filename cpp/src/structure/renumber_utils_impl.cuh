@@ -18,6 +18,7 @@
 #include <rmm/mr/per_device_resource.hpp>
 #include <rmm/mr/polymorphic_allocator.hpp>
 
+#include <cuda/functional>
 #include <cuda/std/iterator>
 #include <cuda/std/tuple>
 #include <thrust/binary_search.h>

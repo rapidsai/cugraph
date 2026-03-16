@@ -21,6 +21,7 @@
 #include <rmm/mr/per_device_resource.hpp>
 #include <rmm/mr/polymorphic_allocator.hpp>
 
+#include <cuda/atomic>
 #include <cuda/functional>
 #include <cuda/iterator>
 #include <cuda/std/tuple>

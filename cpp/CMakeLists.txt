@@ -188,6 +188,10 @@ set(CUGRAPH_SG_SOURCES
     src/utilities/path_retrieval_sg_v64_e64.cu
     src/structure/legacy/graph.cu
     src/linear_assignment/legacy/hungarian.cu
+    src/link_prediction/detail/similarity_mg_v32_e32.cu
+    src/link_prediction/detail/similarity_mg_v64_e64.cu
+    src/link_prediction/detail/similarity_sg_v32_e32.cu
+    src/link_prediction/detail/similarity_sg_v64_e64.cu
     src/link_prediction/jaccard_sg_v64_e64.cu
     src/link_prediction/jaccard_sg_v32_e32.cu
     src/link_prediction/sorensen_sg_v64_e64.cu
