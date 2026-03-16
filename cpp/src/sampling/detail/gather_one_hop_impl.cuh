@@ -24,6 +24,9 @@
 #include <raft/util/cudart_utils.hpp>
 
 #include <cuda/std/tuple>
+#include <thrust/binary_search.h>
+#include <thrust/iterator/zip_iterator.h>
+#include <thrust/tuple.h>
 
 #include <variant>
 
@@ -379,7 +382,7 @@ gather_one_hop_edgelist_to_unvisited_neighbors(
               return !thrust::binary_search(thrust::seq,
                                             iter_begin,
                                             iter_begin + visited_minors_size,
-                                            thrust::tuple(dsts[index], labels[index]));
+                                            thrust::make_tuple(dsts[index], labels[index]));
             })
         : detail::mark_entries(
             handle,
