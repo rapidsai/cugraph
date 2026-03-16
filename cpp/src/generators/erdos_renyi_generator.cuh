@@ -11,6 +11,7 @@
 #include <rmm/device_uvector.hpp>
 
 #include <cuda/functional>
+#include <cuda/iterator>
 #include <cuda/std/tuple>
 #include <thrust/copy.h>
 #include <thrust/count.h>
