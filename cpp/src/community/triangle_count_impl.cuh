@@ -18,6 +18,7 @@
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 
+#include <cuda/functional>
 #include <cuda/iterator>
 #include <cuda/std/optional>
 #include <cuda/std/tuple>

@@ -13,6 +13,7 @@
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/vertex_partition_device_view.cuh>
 
+#include <cuda/functional>
 #include <cuda/iterator>
 #include <cuda/std/functional>
 #include <cuda/std/tuple>

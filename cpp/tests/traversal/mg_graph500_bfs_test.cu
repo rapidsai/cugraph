@@ -37,6 +37,7 @@
 #include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
 
+#include <cuda/functional>
 #include <cuda/std/tuple>
 #include <thrust/merge.h>
 #include <thrust/set_operations.h>

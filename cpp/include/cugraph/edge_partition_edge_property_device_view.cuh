@@ -12,6 +12,7 @@
 
 #include <raft/core/device_span.hpp>
 
+#include <cuda/atomic>
 #include <cuda/std/optional>
 #include <cuda/std/tuple>
 #include <thrust/binary_search.h>
