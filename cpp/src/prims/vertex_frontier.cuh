@@ -7,6 +7,7 @@
 #include "prims/detail/multi_stream_utils.cuh"
 
 #include <cugraph/utilities/device_comm.hpp>
+#include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/packed_bool_utils.hpp>
@@ -243,7 +244,7 @@ class key_bucket_t {
 
   static_assert(std::is_same_v<tag_t, void> || std::is_arithmetic_v<tag_t>);
 
-  using optional_variant_type =
+  using optional_tag_variant_type =
     std::conditional_t<std::is_same_v<tag_t, void>,
                        std::byte /* dummy */,
                        std::variant<raft::device_span<tag_t const>, rmm::device_uvector<tag_t>>>;
@@ -581,7 +582,7 @@ class key_bucket_t {
 
   auto const cend() const
   {
-    return begin() +
+    return cbegin() +
            (vertices_.index() == 0 ? std::get<0>(vertices_).size() : std::get<1>(vertices_).size());
   }
 
@@ -664,7 +665,208 @@ class key_bucket_t {
  private:
   raft::handle_t const* handle_ptr_{nullptr};
   std::variant<raft::device_span<vertex_t const>, rmm::device_uvector<vertex_t>> vertices_{};
-  optional_variant_type tags_{};
+  optional_tag_variant_type tags_{};
+};
+
+// non-owning view of key_bucket_t
+template <typename vertex_t,
+          typename tag_t     = void,
+          bool multi_gpu     = false,
+          bool sorted_unique = false>
+class key_bucket_view_t {
+ public:
+  using key_type =
+    std::conditional_t<std::is_same_v<tag_t, void>, vertex_t, cuda::std::tuple<vertex_t, tag_t>>;
+  static bool constexpr is_sorted_unique = sorted_unique;
+
+  static_assert(std::is_same_v<tag_t, void> || std::is_arithmetic_v<tag_t>);
+
+  using optional_tag_type = std::conditional_t<std::is_same_v<tag_t, void>,
+                                               std::byte /* dummy */,
+                                               raft::device_span<tag_t const>>;
+
+  template <typename tag_type = tag_t, std::enable_if_t<std::is_same_v<tag_type, void>>* = nullptr>
+  key_bucket_view_t(raft::handle_t const& handle, raft::device_span<vertex_t const> vertices)
+    : handle_ptr_(&handle), vertices_(vertices), tags_(std::byte{0})
+  {
+  }
+
+  template <typename tag_type = tag_t, std::enable_if_t<!std::is_same_v<tag_type, void>>* = nullptr>
+  key_bucket_view_t(raft::handle_t const& handle,
+                    raft::device_span<vertex_t const> vertices,
+                    raft::device_span<tag_t const> tags)
+    : handle_ptr_(&handle), vertices_(vertices), tags_(tags)
+  {
+  }
+
+  size_t size() const { return vertices_.size(); }
+
+  template <bool do_aggregate = multi_gpu>
+  std::enable_if_t<do_aggregate, size_t> aggregate_size() const
+  {
+    return host_scalar_allreduce(handle_ptr_->get_comms(),
+                                 vertices_.size(),
+                                 raft::comms::op_t::SUM,
+                                 handle_ptr_->get_stream());
+  }
+
+  template <bool do_aggregate = multi_gpu>
+  std::enable_if_t<!do_aggregate, size_t> aggregate_size() const
+  {
+    return vertices_.size();
+  }
+
+  auto const cbegin() const
+  {
+    if constexpr (std::is_same_v<tag_t, void>) {
+      return vertices_.begin();
+    } else {
+      return thrust::make_zip_iterator(vertices_.begin(), tags_.begin());
+    }
+  }
+
+  auto const begin() const { return cbegin(); }
+
+  auto const cend() const { return cbegin() + vertices_.size(); }
+
+  auto const end() const { return cend(); }
+
+  auto const vertex_cbegin() const { return vertices_.begin(); }
+
+  auto const vertex_begin() const { return vertex_cbegin(); }
+
+  auto const vertex_cend() const { return vertices_.end(); }
+
+  auto const vertex_end() const { return vertex_cend(); }
+
+  template <typename tag_type = tag_t, std::enable_if_t<!std::is_same_v<tag_type, void>>* = nullptr>
+  auto tag_cbegin() const
+  {
+    return tags_.begin();
+  }
+
+  template <typename tag_type = tag_t, std::enable_if_t<!std::is_same_v<tag_type, void>>* = nullptr>
+  auto const tag_begin() const
+  {
+    return tag_cbegin();
+  }
+
+  template <typename tag_type = tag_t, std::enable_if_t<!std::is_same_v<tag_type, void>>* = nullptr>
+  auto tag_cend() const
+  {
+    return tags_.end();
+  }
+
+  template <typename tag_type = tag_t, std::enable_if_t<!std::is_same_v<tag_type, void>>* = nullptr>
+  auto const tag_end() const
+  {
+    return tag_cend();
+  }
+
+ private:
+  raft::handle_t const* handle_ptr_{nullptr};
+  raft::device_span<vertex_t const> vertices_{};
+  optional_tag_type tags_{};
+};
+
+template <typename vertex_t, typename idx_t>
+struct index_to_repeated_vertex_tuple_t {
+  raft::device_span<vertex_t const> vertices{};
+  idx_t repeat_count{};
+
+  __device__ cuda::std::tuple<vertex_t, idx_t> operator()(size_t i) const
+  {
+    return cuda::std::make_tuple(vertices[i / repeat_count], static_cast<idx_t>(i % repeat_count));
+  }
+};
+
+// from a set of vertices (say v0, v1, v2, ...) create a set of repeated vertices tagged with a
+// repeat index (e.g. (v0,0), (v0,1), (v0,2), (v1,0), (v1,1), (v1,2), (v2,0), (v2,1), (v2,2), ... if
+// the user provided repeat count is 3).
+// key type is cuda::std::tuple<vertex_t, idx_t>
+// if sorted_unique is true, stores unique key objects in the sorted (non-descending) order.
+// if false, there can be duplicates and the elements may not be sorted.
+template <typename vertex_t, typename idx_t, bool multi_gpu = false, bool sorted_unique = false>
+class repeated_vertex_bucket_view_t {
+ public:
+  using key_type                         = cuda::std::tuple<vertex_t, idx_t>;
+  static bool constexpr is_sorted_unique = sorted_unique;
+
+  static_assert(std::is_integral_v<idx_t>);
+
+  repeated_vertex_bucket_view_t(
+    raft::handle_t const& handle,
+    key_bucket_t<vertex_t, void, multi_gpu, sorted_unique> const& vertex_bucket,
+    idx_t repeat_count)
+    : handle_ptr_(&handle),
+      vertices_(
+        raft::device_span<vertex_t const>(vertex_bucket.vertex_begin(), vertex_bucket.size())),
+      repeat_count_(repeat_count)
+  {
+  }
+
+  size_t size() const { return vertices_.size() * repeat_count_; }
+
+  template <bool do_aggregate = multi_gpu>
+  std::enable_if_t<do_aggregate, size_t> aggregate_size() const
+  {
+    return host_scalar_allreduce(handle_ptr_->get_comms(),
+                                 vertices_.size() * repeat_count_,
+                                 raft::comms::op_t::SUM,
+                                 handle_ptr_->get_stream());
+  }
+
+  template <bool do_aggregate = multi_gpu>
+  std::enable_if_t<!do_aggregate, size_t> aggregate_size() const
+  {
+    return vertices_.size() * repeat_count_;
+  }
+
+  auto const cbegin() const
+  {
+    return cuda::make_transform_iterator(
+      thrust::make_counting_iterator(size_t{0}),
+      index_to_repeated_vertex_tuple_t<vertex_t, idx_t>{vertices_, repeat_count_});
+  }
+
+  auto const begin() const { return cbegin(); }
+
+  auto const cend() const { return cbegin() + this->size(); }
+
+  auto const end() const { return cend(); }
+
+  auto const vertex_cbegin() const
+  {
+    auto vertex_first = vertices_.begin();
+    return cuda::make_transform_iterator(
+      thrust::make_counting_iterator(size_t{0}),
+      detail::divide_and_indirection_t<size_t, decltype(vertex_first)>{
+        vertex_first, static_cast<size_t>(repeat_count_)});
+  }
+
+  auto const vertex_begin() const { return vertex_cbegin(); }
+
+  auto const vertex_cend() const { return vertex_cbegin() + this->size(); }
+
+  auto const vertex_end() const { return vertex_cend(); }
+
+  auto tag_cbegin() const
+  {
+    return cuda::make_transform_iterator(
+      thrust::make_counting_iterator(size_t{0}),
+      detail::modulo_t<size_t, idx_t>{static_cast<size_t>(repeat_count_)});
+  }
+
+  auto const tag_begin() const { return tag_cbegin(); }
+
+  auto tag_cend() const { return tag_cbegin() + this->size(); }
+
+  auto const tag_end() const { return tag_cend(); }
+
+ private:
+  raft::handle_t const* handle_ptr_{nullptr};
+  raft::device_span<vertex_t const> vertices_{};
+  idx_t repeat_count_{};
 };
 
 template <typename vertex_t,
