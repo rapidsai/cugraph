@@ -87,10 +87,6 @@ files:
       - depends_on_pylibcugraph
       - depends_on_cugraph
       - test_python
-  torch_only:
-    output: none
-    includes:
-      - depends_on_pytorch
   py_build_cugraph:
     output: pyproject
     pyproject_dir: python/cugraph
