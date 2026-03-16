@@ -28,6 +28,7 @@
 
 #include <rmm/device_uvector.hpp>
 
+#include <cuda/atomic>
 #include <cuda/functional>
 #include <cuda/iterator>
 #include <cuda/std/optional>

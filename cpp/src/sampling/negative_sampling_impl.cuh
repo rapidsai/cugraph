@@ -23,6 +23,7 @@
 
 #include <rmm/device_scalar.hpp>
 
+#include <cuda/functional>
 #include <cuda/iterator>
 #include <cuda/std/functional>
 #include <thrust/adjacent_difference.h>

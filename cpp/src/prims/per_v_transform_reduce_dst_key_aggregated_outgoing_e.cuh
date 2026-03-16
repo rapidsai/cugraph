@@ -29,6 +29,7 @@
 #include <rmm/mr/polymorphic_allocator.hpp>
 
 #include <cub/cub.cuh>
+#include <cuda/functional>
 #include <cuda/iterator>
 #include <cuda/std/functional>
 #include <cuda/std/optional>

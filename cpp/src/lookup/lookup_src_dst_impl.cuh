@@ -20,6 +20,7 @@
 
 #include <raft/core/handle.hpp>
 
+#include <cuda/functional>
 #include <cuda/std/iterator>
 #include <cuda/std/optional>
 #include <cuda/std/tuple>

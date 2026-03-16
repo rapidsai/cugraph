@@ -18,6 +18,7 @@
 #include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
 
+#include <cuda/atomic>
 #include <cuda/std/iterator>
 #include <cuda/std/tuple>
 #include <thrust/iterator/counting_iterator.h>

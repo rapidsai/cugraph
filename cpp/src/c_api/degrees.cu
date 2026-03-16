@@ -17,6 +17,7 @@
 #include <cugraph/shuffle_functions.hpp>
 #include <cugraph/vertex_partition_device_view.cuh>
 
+#include <cuda/functional>
 #include <cuda/iterator>
 #include <thrust/gather.h>
 

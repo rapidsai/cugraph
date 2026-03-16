@@ -41,6 +41,7 @@
 #include <rmm/device_uvector.hpp>
 #include <rmm/mr/host/pinned_memory_resource.hpp>
 
+#include <cuda/functional>
 #include <cuda/iterator>
 #include <cuda/std/tuple>
 #include <thrust/merge.h>

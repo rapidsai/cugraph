@@ -39,6 +39,7 @@
 #include <rmm/device_uvector.hpp>
 #include <rmm/mr/pinned_host_memory_resource.hpp>
 
+#include <cuda/functional>
 #include <thrust/merge.h>
 #include <thrust/set_operations.h>
 #include <thrust/sort.h>

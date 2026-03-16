@@ -19,6 +19,7 @@
 
 #include <raft/util/integer_utils.hpp>
 
+#include <cuda/atomic>
 #include <cuda/functional>
 #include <cuda/std/iterator>
 #include <cuda/std/optional>

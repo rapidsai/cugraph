@@ -27,6 +27,7 @@
 
 #include <rmm/device_uvector.hpp>
 
+#include <cuda/functional>
 #include <cuda/iterator>
 #include <cuda/std/tuple>
 #include <thrust/binary_search.h>

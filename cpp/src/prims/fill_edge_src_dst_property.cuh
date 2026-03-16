@@ -20,6 +20,8 @@
 
 #include <rmm/exec_policy.hpp>
 
+#include <cuda/atomic>
+#include <cuda/functional>
 #include <cuda/iterator>
 #include <cuda/std/tuple>
 #include <thrust/count.h>
