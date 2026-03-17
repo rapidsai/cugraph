@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -136,7 +136,7 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
         edgelist_edge_properties.push_back(
           concatenate<time_stamp_t>(handle_, edge_end_times_, num_arrays_));
 
-      std::tie(edgelist_srcs, edgelist_dsts, edgelist_edge_properties, std::ignore) =
+      std::tie(edgelist_srcs, edgelist_dsts, edgelist_edge_properties) =
         cugraph::shuffle_ext_edges(handle_,
                                    std::move(edgelist_srcs),
                                    std::move(edgelist_dsts),

@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -64,7 +64,7 @@ struct create_vertex_pairs_functor : public cugraph::c_api::abstract_functor {
       if constexpr (multi_gpu) {
         std::vector<cugraph::arithmetic_device_uvector_t> edge_properties{};
 
-        std::tie(first_copy, second_copy, std::ignore, std::ignore) =
+        std::tie(first_copy, second_copy, std::ignore) =
           cugraph::shuffle_ext_edges(handle_,
                                      std::move(first_copy),
                                      std::move(second_copy),

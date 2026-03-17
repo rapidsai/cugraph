@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -463,7 +463,7 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
         std::vector<cugraph::arithmetic_device_uvector_t> tmp_edge_properties{};
         if (tmp_weights_v) tmp_edge_properties.push_back(std::move(*tmp_weights_v));
 
-        std::tie(tmp_src_v, tmp_dst_v, tmp_edge_properties, std::ignore) =
+        std::tie(tmp_src_v, tmp_dst_v, tmp_edge_properties) =
           cugraph::shuffle_ext_edges(handle,
                                      std::move(tmp_src_v),
                                      std::move(tmp_dst_v),
