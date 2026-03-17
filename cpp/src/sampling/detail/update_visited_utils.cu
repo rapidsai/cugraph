@@ -13,11 +13,11 @@
 
 #include <rmm/exec_policy.hpp>
 
+#include <cuda/std/tuple>
 #include <thrust/copy.h>
 #include <thrust/for_each.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/sort.h>
-#include <thrust/tuple.h>
 #include <thrust/unique.h>
 
 namespace cugraph {
@@ -74,8 +74,8 @@ update_dst_visited_vertices_and_labels(
       thrust::unique(handle.get_thrust_policy(),
                      thrust::make_zip_iterator(new_samples.begin(), new_sample_labels->begin()),
                      thrust::make_zip_iterator(new_samples.end(), new_sample_labels->end()));
-    size_t new_size =
-      static_cast<size_t>(thrust::get<0>(new_zip_end.get_iterator_tuple()) - new_samples.begin());
+    size_t new_size = static_cast<size_t>(cuda::std::get<0>(new_zip_end.get_iterator_tuple()) -
+                                          new_samples.begin());
     new_samples.resize(new_size, handle.get_stream());
     new_sample_labels->resize(new_size, handle.get_stream());
   } else {

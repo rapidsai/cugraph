@@ -14,12 +14,12 @@
 #include <raft/core/copy.hpp>
 
 #include <cuda/std/functional>
+#include <cuda/std/tuple>
 #include <thrust/binary_search.h>
 #include <thrust/gather.h>
 #include <thrust/iterator/constant_iterator.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/sort.h>
-#include <thrust/tuple.h>
 #include <thrust/unique.h>
 
 // debugging
@@ -295,7 +295,7 @@ remove_duplicate_edges(raft::handle_t const& handle,
                                                              resample_majors_span.begin()),
                                    thrust::make_zip_iterator(resample_major_labels_span.end(),
                                                              resample_majors_span.end()),
-                                   thrust::make_tuple(labels[index], dsts[index]));
+                                   cuda::std::make_tuple(labels[index], dsts[index]));
                                });
       } else {
         std::tie(keep_count, keep_flags) = detail::mark_entries(
