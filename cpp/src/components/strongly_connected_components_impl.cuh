@@ -799,7 +799,7 @@ void strongly_connected_components_impl(
         handle, forward_graph_view, std::nullopt, std::nullopt, std::nullopt, std::nullopt);
     std::swap(edgelist_srcs, edgelist_dsts);
     if constexpr (multi_gpu) {
-      std::tie(edgelist_srcs, edgelist_dsts, std::ignore, std::ignore) =
+      std::tie(edgelist_srcs, edgelist_dsts, std::ignore) =
         shuffle_ext_edges(handle,
                           std::move(edgelist_srcs),
                           std::move(edgelist_dsts),
