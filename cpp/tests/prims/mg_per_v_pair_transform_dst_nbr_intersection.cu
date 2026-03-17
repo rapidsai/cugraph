@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -139,10 +139,7 @@ class Tests_MGPerVPairTransformDstNbrIntersection
     auto h_vertex_partition_range_lasts = mg_graph_view.vertex_partition_range_lasts();
     std::vector<cugraph::arithmetic_device_uvector_t> edge_properties{};
 
-    std::tie(std::get<0>(mg_vertex_pair_buffer),
-             std::get<1>(mg_vertex_pair_buffer),
-             std::ignore,
-             std::ignore) =
+    std::tie(std::get<0>(mg_vertex_pair_buffer), std::get<1>(mg_vertex_pair_buffer), std::ignore) =
       cugraph::shuffle_int_edges(*handle_,
                                  std::move(std::get<0>(mg_vertex_pair_buffer)),
                                  std::move(std::get<1>(mg_vertex_pair_buffer)),

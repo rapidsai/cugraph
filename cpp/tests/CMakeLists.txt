@@ -1,4 +1,4 @@
-﻿#=============================================================================
+#=============================================================================
 # cmake-format: off
 # SPDX-FileCopyrightText: Copyright (c) 2019-2026, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
@@ -354,11 +354,6 @@ ConfigureTest(EGONET_TEST community/egonet_test.cpp GPUS 1 PERCENT 75)
 ConfigureTest(LEGACY_FA2_TEST layout/legacy/force_atlas2_test.cu)
 
 ###################################################################################################
-# - STRONGLY CONNECTED COMPONENTS  tests ----------------------------------------------------------
-ConfigureTest(SCC_TEST components/scc_test.cu)
-target_include_directories(SCC_TEST PRIVATE "${CUGRAPH_SOURCE_DIR}/src")
-
-###################################################################################################
 #-Hungarian (Linear Assignment Problem)  tests ----------------------------------------------------
 ConfigureTest(HUNGARIAN_TEST linear_assignment/hungarian_test.cu)
 
@@ -470,6 +465,10 @@ ConfigureTest(EDGE_BETWEENNESS_CENTRALITY_TEST centrality/edge_betweenness_centr
 ###################################################################################################
 # - WEAKLY CONNECTED COMPONENTS tests -------------------------------------------------------------
 ConfigureTest(WEAKLY_CONNECTED_COMPONENTS_TEST components/weakly_connected_components_test.cpp)
+
+###################################################################################################
+# - STRONGLY CONNECTED COMPONENTS tests -------------------------------------------------------------
+# ConfigureTest(STRONGLY_CONNECTED_COMPONENTS_TEST components/strongly_connected_components_test.cpp)
 
 ###################################################################################################
 # - MIS tests -------------------------------------------------------------------------------------
@@ -684,6 +683,11 @@ if(BUILD_CUGRAPH_MG_TESTS)
     # - MG WEAKLY CONNECTED COMPONENTS tests ------------------------------------------------------
     ConfigureTestMG(MG_WEAKLY_CONNECTED_COMPONENTS_TEST
                     components/mg_weakly_connected_components_test.cpp)
+
+    ###############################################################################################
+    # - MG STRONGLY CONNECTED COMPONENTS tests ----------------------------------------------------
+    # ConfigureTestMG(MG_STRONGLY_CONNECTED_COMPONENTS_TEST
+    #                 components/mg_strongly_connected_components_test.cpp)
 
     ###############################################################################################
     # - MG EDGE SOURCE DESTINATION LOOKUP tests ---------------------------------------------------
