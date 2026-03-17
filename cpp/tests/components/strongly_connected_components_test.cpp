@@ -238,9 +238,9 @@ INSTANTIATE_TEST_SUITE_P(
                     std::make_tuple(StronglyConnectedComponents_Usecase{true},
                                     cugraph::test::File_Usecase("karate-asymmetric.csv")),
                     std::make_tuple(StronglyConnectedComponents_Usecase{false},
-                                    cugraph::test::File_Usecase("cage6.mtx")),
+                                    cugraph::test::File_Usecase("test/datasets/cage6.mtx")),
                     std::make_tuple(StronglyConnectedComponents_Usecase{true},
-                                    cugraph::test::File_Usecase("cage6.mtx"))));
+                                    cugraph::test::File_Usecase("test/datasets/cage6.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_small_test,
