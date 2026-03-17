@@ -27,6 +27,7 @@ rapids-pip-retry install \
     --prefer-binary \
     --constraint "${PIP_CONSTRAINT}" \
     "$(echo "${PYLIBCUGRAPH_WHEELHOUSE}"/pylibcugraph*.whl)[test]" \
-    "${LIBCUGRAPH_WHEELHOUSE}"/libcugraph*.whl
+    "${LIBCUGRAPH_WHEELHOUSE}"/libcugraph*.whl \
+    "${PYLIBCUDF_WHEELHOUSE}"/pylibcudf*.whl
 
 ./ci/test_wheel.sh pylibcugraph

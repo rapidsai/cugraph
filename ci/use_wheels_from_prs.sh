@@ -20,6 +20,8 @@ DASK_CUDF_WHEELHOUSE=$(
 LIBCUDF_WHEELHOUSE=$(
   RAPIDS_PY_WHEEL_NAME="libcudf_${RAPIDS_PY_CUDA_SUFFIX}" rapids-get-pr-artifact cudf 21671 cpp wheel "${CUDF_COMMIT}"
 )
+
+# shellcheck disable=SC2034
 PYLIBCUDF_WHEELHOUSE=$(
   rapids-get-pr-artifact cudf 21671 python wheel --pkg_name pylibcudf --stable "${CUDF_COMMIT}"
 )
@@ -69,12 +71,18 @@ UCXX_WHEELHOUSE=$(
   rapids-get-pr-artifact ucxx 604 python wheel --pkg_name ucxx --stable "${UCXX_COMMIT}"
 )
 
+# NOTE: pylibcudf is excluded below, because it's pulled in by cudf as pylibcudf-cu{12,13}[pyarrow],
+#       and 'pip' doesn't like constraints with extras.
+#
+#       AssertionError: Internal issue: Candidate is not for this requirement pylibcudf-cu12 vs pylibcudf-cu12[pyarrow]
+#
+#       So it's passed (temporarily!) as a requirement to 'pip install' in test scripts instead.
+
 # write a pip constraints file saying e.g. "whenever you encounter a requirement for 'librmm-cu12', use this wheel"
 cat >> "${PIP_CONSTRAINT}" <<EOF
 cudf-${RAPIDS_PY_CUDA_SUFFIX} @ file://$(echo "${CUDF_WHEELHOUSE}"/cudf*.whl)
 dask-cudf-${RAPIDS_PY_CUDA_SUFFIX} @ file://$(echo "${DASK_CUDF_WHEELHOUSE}"/dask_cudf*.whl)
 libcudf-${RAPIDS_PY_CUDA_SUFFIX} @ file://$(echo "${LIBCUDF_WHEELHOUSE}"/libcudf*.whl)
-pylibcudf-${RAPIDS_PY_CUDA_SUFFIX} @ file://$(echo "${PYLIBCUDF_WHEELHOUSE}"/pylibcudf*.whl)
 
 kvikio-${RAPIDS_PY_CUDA_SUFFIX} @ file://$(echo "${KVIKIO_WHEELHOUSE}"/kvikio_*.whl)
 libkvikio-${RAPIDS_PY_CUDA_SUFFIX} @ file://$(echo "${LIBKVIKIO_WHEELHOUSE}"/libkvikio*.whl)

@@ -45,6 +45,7 @@ rapids-pip-retry install \
     "$(echo "${CUGRAPH_WHEELHOUSE}"/cugraph*.whl)[test]" \
     "${PYLIBCUGRAPH_WHEELHOUSE}"/pylibcugraph*.whl \
     "${LIBCUGRAPH_WHEELHOUSE}"/libcugraph*.whl \
+    "${PYLIBCUDF_WHEELHOUSE}"/pylibcudf*.whl \
     "${PIP_INSTALL_ARGS[@]}"
 
 ./ci/test_wheel.sh cugraph
