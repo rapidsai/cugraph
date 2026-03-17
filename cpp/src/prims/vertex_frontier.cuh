@@ -675,14 +675,10 @@ class repeated_vertex_bucket_view_t {
 
   static_assert(std::is_integral_v<idx_t>);
 
-  repeated_vertex_bucket_view_t(
-    raft::handle_t const& handle,
-    key_bucket_t<vertex_t, void, multi_gpu, sorted_unique> const& vertex_bucket,
-    idx_t repeat_count)
-    : handle_ptr_(&handle),
-      vertices_(
-        raft::device_span<vertex_t const>(vertex_bucket.vertex_begin(), vertex_bucket.size())),
-      repeat_count_(repeat_count)
+  repeated_vertex_bucket_view_t(raft::handle_t const& handle,
+                                raft::device_span<vertex_t const> vertices,
+                                idx_t repeat_count)
+    : handle_ptr_(&handle), vertices_(vertices), repeat_count_(repeat_count)
   {
   }
 
