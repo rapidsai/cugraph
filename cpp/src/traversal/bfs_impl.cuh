@@ -356,15 +356,11 @@ void bfs(raft::handle_t const& handle,
 
   // 4. initialize BFS frontier
 
-  constexpr size_t bucket_idx_cur  = 0;
-  constexpr size_t bucket_idx_next = 1;
-  constexpr size_t num_buckets     = 2;
-
-  vertex_frontier_t<vertex_t, void, GraphViewType::is_multi_gpu, true> vertex_frontier(handle,
-                                                                                       num_buckets);
-  vertex_frontier.bucket(bucket_idx_cur) =
-    key_bucket_t<vertex_t, void, GraphViewType::is_multi_gpu, true>(
-      handle, raft::device_span<vertex_t const>(sources, n_sources));
+  std::optional<key_bucket_t<vertex_t, void, GraphViewType::is_multi_gpu, true>> cur_frontier{
+    std::nullopt};
+  key_bucket_t<vertex_t, void, GraphViewType::is_multi_gpu, true> next_frontier(handle);
+  key_bucket_view_t<vertex_t, void, GraphViewType::is_multi_gpu, true> cur_frontier_view{
+    handle, raft::device_span<vertex_t const>(sources, n_sources)};
 
   // 5. initialize BFS temporary state data
 
@@ -376,16 +372,15 @@ void bfs(raft::handle_t const& handle,
   fill_edge_dst_property(handle, graph_view, dst_visited_flags.mutable_view(), false);
   fill_edge_dst_property(handle,
                          graph_view,
-                         vertex_frontier.bucket(bucket_idx_cur).cbegin(),
-                         vertex_frontier.bucket(bucket_idx_cur).cend(),
+                         cur_frontier_view.cbegin(),
+                         cur_frontier_view.cend(),
                          prev_dst_visited_flags.mutable_view(),
                          true);
 
   // 6. BFS iteration
   vertex_t depth{0};
-  bool topdown = true;
-  auto cur_aggregate_frontier_size =
-    static_cast<vertex_t>(vertex_frontier.bucket(bucket_idx_cur).aggregate_size());
+  bool topdown                     = true;
+  auto cur_aggregate_frontier_size = static_cast<vertex_t>(cur_frontier_view.aggregate_size());
   while (true) {
     vertex_t next_aggregate_frontier_size{};
     if (topdown) {
@@ -402,7 +397,7 @@ void bfs(raft::handle_t const& handle,
         cugraph::transform_reduce_if_v_frontier_outgoing_e_by_dst(
           handle,
           graph_view,
-          vertex_frontier.bucket(bucket_idx_cur),
+          cur_frontier_view,
           edge_src_dummy_property_t{}.view(),
           edge_dst_dummy_property_t{}.view(),
           edge_dummy_property_t{}.view(),
@@ -420,27 +415,25 @@ void bfs(raft::handle_t const& handle,
           new_frontier_vertex_buffer.begin(),
           detail::shift_left_t<vertex_t>{graph_view.local_vertex_partition_range_first()}),
         thrust::make_zip_iterator(distances, predecessor_first));
-      vertex_frontier.bucket(bucket_idx_next) =
-        key_bucket_t<vertex_t, void, GraphViewType::is_multi_gpu, true>(
-          handle, std::move(new_frontier_vertex_buffer));
+      next_frontier = key_bucket_t<vertex_t, void, GraphViewType::is_multi_gpu, true>(
+        handle, std::move(new_frontier_vertex_buffer));
 
-      next_aggregate_frontier_size =
-        static_cast<vertex_t>(vertex_frontier.bucket(bucket_idx_next).aggregate_size());
+      next_aggregate_frontier_size = static_cast<vertex_t>(next_frontier.aggregate_size());
       if (next_aggregate_frontier_size == 0) { break; }
 
       fill_edge_dst_property(handle,
                              graph_view,
-                             vertex_frontier.bucket(bucket_idx_next).cbegin(),
-                             vertex_frontier.bucket(bucket_idx_next).cend(),
+                             next_frontier.cbegin(),
+                             next_frontier.cend(),
                              prev_dst_visited_flags.mutable_view(),
                              true);
 
       if (direction_optimizing) {
-        if (vertex_frontier.bucket(bucket_idx_next).size() > 0) {
+        if (next_frontier.size() > 0) {
           thrust::for_each(
             handle.get_thrust_policy(),
-            vertex_frontier.bucket(bucket_idx_next).cbegin(),
-            vertex_frontier.bucket(bucket_idx_next).cend(),
+            next_frontier.cbegin(),
+            next_frontier.cend(),
             [bitmap  = raft::device_span<uint32_t>((*aux_info).visited_bitmap.data(),
                                                   (*aux_info).visited_bitmap.size()),
              v_first = graph_view.local_vertex_partition_range_first()] __device__(auto v) {
@@ -461,8 +454,8 @@ void bfs(raft::handle_t const& handle,
             partition_size             = static_cast<size_t>(minor_comm_size);
           }
 
-          auto f_vertex_first = vertex_frontier.bucket(bucket_idx_next).cbegin();
-          auto f_vertex_last  = vertex_frontier.bucket(bucket_idx_next).cend();
+          auto f_vertex_first = next_frontier.cbegin();
+          auto f_vertex_last  = next_frontier.cend();
 
           if (segment_offsets) {
             // FIXME: this actually over-estimates for graphs with power-law degree distribution
@@ -471,8 +464,8 @@ void bfs(raft::handle_t const& handle,
             auto approx_hypersparse_segment_degree =
               static_cast<double>(partition_size) * hypersparse_threshold_ratio * 0.5;
             auto f_segment_offsets = compute_key_segment_offsets(
-              vertex_frontier.bucket(bucket_idx_next).cbegin(),
-              vertex_frontier.bucket(bucket_idx_next).cend(),
+              next_frontier.cbegin(),
+              next_frontier.cend(),
               raft::host_span<vertex_t const>((*segment_offsets).data(), (*segment_offsets).size()),
               graph_view.local_vertex_partition_range_first(),
               handle.get_stream());
@@ -576,17 +569,17 @@ void bfs(raft::handle_t const& handle,
       }
 
       if (topdown) {  // staying in top-down
-        vertex_frontier.bucket(bucket_idx_cur) =
-          key_bucket_t<vertex_t, void, GraphViewType::is_multi_gpu, true>(handle);
-        vertex_frontier.swap_buckets(bucket_idx_cur, bucket_idx_next);
+        cur_frontier      = std::move(next_frontier);
+        next_frontier     = key_bucket_t<vertex_t, void, GraphViewType::is_multi_gpu, true>(handle);
+        cur_frontier_view = key_bucket_view_t<vertex_t, void, GraphViewType::is_multi_gpu, true>(
+          handle, raft::device_span<vertex_t const>(cur_frontier->begin(), cur_frontier->size()));
       } else {  // swithcing to bottom-up
-        vertex_frontier.bucket(bucket_idx_cur) =
-          key_bucket_t<vertex_t, void, GraphViewType::is_multi_gpu, true>(
-            handle,
-            raft::device_span<vertex_t const>((*((*aux_info).nzd_unvisited_vertices)).data(),
-                                              (*((*aux_info).nzd_unvisited_vertices)).size()));
-        vertex_frontier.bucket(bucket_idx_next) =
-          key_bucket_t<vertex_t, void, GraphViewType::is_multi_gpu, true>(handle);
+        cur_frontier      = std::nullopt;
+        next_frontier     = key_bucket_t<vertex_t, void, GraphViewType::is_multi_gpu, true>(handle);
+        cur_frontier_view = key_bucket_view_t<vertex_t, void, GraphViewType::is_multi_gpu, true>(
+          handle,
+          raft::device_span<vertex_t const>((*((*aux_info).nzd_unvisited_vertices)).data(),
+                                            (*((*aux_info).nzd_unvisited_vertices)).size()));
       }
     } else {  // bottom up
       rmm::device_uvector<vertex_t> new_frontier_vertex_buffer(0, handle.get_stream());
@@ -598,11 +591,11 @@ void bfs(raft::handle_t const& handle,
             prev_dst_visited_flags.view());
         pred_op.dst_first = graph_view.local_edge_partition_dst_range_first();
 
-        rmm::device_uvector<vertex_t> predecessor_buffer(
-          vertex_frontier.bucket(bucket_idx_cur).size(), handle.get_stream());
+        rmm::device_uvector<vertex_t> predecessor_buffer(cur_frontier_view.size(),
+                                                         handle.get_stream());
         per_v_transform_reduce_if_outgoing_e(handle,
                                              graph_view,
-                                             vertex_frontier.bucket(bucket_idx_cur),
+                                             cur_frontier_view,
                                              edge_src_dummy_property_t{}.view(),
                                              edge_dst_dummy_property_t{}.view(),
                                              edge_dummy_property_t{}.view(),
@@ -621,7 +614,7 @@ void bfs(raft::handle_t const& handle,
           input_pair_first,
           input_pair_first + predecessor_buffer.size(),
           cuda::make_transform_iterator(
-            vertex_frontier.bucket(bucket_idx_cur).cbegin(),
+            cur_frontier_view.cbegin(),
             detail::shift_left_t<vertex_t>{graph_view.local_vertex_partition_range_first()}),
           predecessor_buffer.begin(),
           thrust::make_zip_iterator(distances, predecessor_first),
@@ -631,8 +624,8 @@ void bfs(raft::handle_t const& handle,
         new_frontier_vertex_buffer.resize(
           cuda::std::distance(new_frontier_vertex_buffer.begin(),
                               thrust::copy_if(handle.get_thrust_policy(),
-                                              vertex_frontier.bucket(bucket_idx_cur).cbegin(),
-                                              vertex_frontier.bucket(bucket_idx_cur).cend(),
+                                              cur_frontier_view.cbegin(),
+                                              cur_frontier_view.cend(),
                                               predecessor_buffer.begin(),
                                               new_frontier_vertex_buffer.begin(),
                                               detail::is_not_equal_t<vertex_t>{invalid_vertex})),
@@ -714,15 +707,18 @@ void bfs(raft::handle_t const& handle,
       }
 
       if (topdown) {  // swithcing to top-down
-        vertex_frontier.bucket(bucket_idx_cur) =
-          key_bucket_t<vertex_t, void, GraphViewType::is_multi_gpu, true>(
-            handle, std::move(new_frontier_vertex_buffer));
+        cur_frontier = key_bucket_t<vertex_t, void, GraphViewType::is_multi_gpu, true>(
+          handle, std::move(new_frontier_vertex_buffer));
+        next_frontier     = key_bucket_t<vertex_t, void, GraphViewType::is_multi_gpu, true>(handle);
+        cur_frontier_view = key_bucket_view_t<vertex_t, void, GraphViewType::is_multi_gpu, true>(
+          handle, raft::device_span<vertex_t const>(cur_frontier->begin(), cur_frontier->size()));
       } else {  // staying in bottom-up
-        vertex_frontier.bucket(bucket_idx_cur) =
-          key_bucket_t<vertex_t, void, GraphViewType::is_multi_gpu, true>(
-            handle,
-            raft::device_span<vertex_t const>((*((*aux_info).nzd_unvisited_vertices)).data(),
-                                              ((*(*aux_info).nzd_unvisited_vertices)).size()));
+        cur_frontier      = std::nullopt;
+        next_frontier     = key_bucket_t<vertex_t, void, GraphViewType::is_multi_gpu, true>(handle);
+        cur_frontier_view = key_bucket_view_t<vertex_t, void, GraphViewType::is_multi_gpu, true>(
+          handle,
+          raft::device_span<vertex_t const>((*((*aux_info).nzd_unvisited_vertices)).data(),
+                                            ((*(*aux_info).nzd_unvisited_vertices)).size()));
       }
     }
     cur_aggregate_frontier_size = next_aggregate_frontier_size;

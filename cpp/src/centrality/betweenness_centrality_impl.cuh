@@ -331,7 +331,7 @@ void accumulate_vertex_results(
 
     if (frontier_count > 0) {
       // Create key_bucket_t from the frontier vertices directly
-      key_bucket_t<vertex_t, void, multi_gpu, true> vertex_list(
+      key_bucket_view_t<vertex_t, void, multi_gpu, true> vertex_list_view(
         handle,
         raft::device_span<vertex_t const>(vertices_sorted.data() + h_bounds[d - 1],
                                           h_bounds[d] - h_bounds[d - 1]));
@@ -340,7 +340,7 @@ void accumulate_vertex_results(
       per_v_transform_reduce_outgoing_e(
         handle,
         graph_view,
-        vertex_list,
+        vertex_list_view,
         src_sigmas.view(),
         view_concat(dst_distances.view(), dst_sigmas.view(), dst_deltas.view()),
         cugraph::edge_dummy_property_t{}.view(),
@@ -359,11 +359,11 @@ void accumulate_vertex_results(
         reusable_delta_buffer.begin(),
         do_expensive_check);
 
-      // Only update deltas for vertices in vertex_list
+      // Only update deltas for vertices in vertex_list_view
       update_edge_dst_property(handle,
                                graph_view,
-                               vertex_list.cbegin(),
-                               vertex_list.cend(),
+                               vertex_list_view.cbegin(),
+                               vertex_list_view.cend(),
                                reusable_delta_buffer.begin(),
                                dst_deltas.mutable_view());
 
@@ -716,7 +716,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> multisour
     for (size_t batch_idx = 0; batch_idx < (batch_offsets.size() - 1); ++batch_idx) {
       // Step 2-1: Update the frontier for this batch
 
-      auto this_batch_frontier = key_bucket_t<vertex_t, origin_t, multi_gpu, true>(
+      auto this_batch_frontier_view = key_bucket_view_t<vertex_t, origin_t, multi_gpu, true>(
         handle,
         raft::device_span<vertex_t const>(cur_frontier.vertex_begin() + batch_offsets[batch_idx],
                                           batch_offsets[batch_idx + 1] - batch_offsets[batch_idx]),
@@ -729,7 +729,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> multisour
         extract_transform_if_v_frontier_outgoing_e(
           handle,
           graph_view,
-          this_batch_frontier,
+          this_batch_frontier_view,
           edge_src_dummy_property_t{}.view(),
           edge_dst_dummy_property_t{}.view(),
           edge_dummy_property_t{}.view(),
@@ -1082,7 +1082,7 @@ void multisource_backward_pass(
       for (size_t batch_idx = 0; batch_idx < (batch_offsets.size() - 1); ++batch_idx) {
         // Step 2-1: Update the frontier for this batch
 
-        auto this_batch_frontier = key_bucket_t<vertex_t, origin_t, multi_gpu, true>(
+        auto this_batch_frontier_view = key_bucket_view_t<vertex_t, origin_t, multi_gpu, true>(
           handle,
           raft::device_span<vertex_t const>(
             cur_frontier.vertex_begin() + batch_offsets[batch_idx],
@@ -1096,7 +1096,7 @@ void multisource_backward_pass(
         auto [srcs, source_indices, deltas] = extract_transform_if_v_frontier_outgoing_e(
           handle,
           graph_view,
-          this_batch_frontier,
+          this_batch_frontier_view,
           edge_src_dummy_property_t{}.view(),
           edge_dst_dummy_property_t{}.view(),
           edge_dummy_property_t{}.view(),
