@@ -6,9 +6,6 @@ set -euo pipefail
 
 source rapids-init-pip
 
-# TODO(jameslamb): revert before merging
-source ci/use_wheels_from_prs.sh
-
 package_name="libcugraph"
 package_dir="python/libcugraph"
 

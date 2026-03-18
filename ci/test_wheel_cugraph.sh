@@ -6,9 +6,6 @@ set -eoxu pipefail
 
 source rapids-init-pip
 
-# TODO(jameslamb): revert before merging
-source ci/use_wheels_from_prs.sh
-
 # Download the packages built in the previous step
 RAPIDS_PY_CUDA_SUFFIX="$(rapids-wheel-ctk-name-gen "${RAPIDS_CUDA_VERSION}")"
 
@@ -48,7 +45,6 @@ rapids-pip-retry install \
     "$(echo "${CUGRAPH_WHEELHOUSE}"/cugraph*.whl)[test]" \
     "${PYLIBCUGRAPH_WHEELHOUSE}"/pylibcugraph*.whl \
     "${LIBCUGRAPH_WHEELHOUSE}"/libcugraph*.whl \
-    "${PYLIBCUDF_WHEELHOUSE}"/pylibcudf*.whl \
     "${PIP_INSTALL_ARGS[@]}"
 
 ./ci/test_wheel.sh cugraph
