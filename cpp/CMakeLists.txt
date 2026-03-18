@@ -243,7 +243,6 @@ set(CUGRAPH_SG_SOURCES
     src/cores/core_number_sg_v32_e32.cu
     src/cores/k_core_sg_v64_e64.cu
     src/cores/k_core_sg_v32_e32.cu
-    src/components/legacy/connectivity.cu
     src/generators/generate_rmat_edgelist_sg_v32_e32.cu
     src/generators/generate_rmat_edgelist_sg_v64_e64.cu
     src/generators/generate_bipartite_rmat_edgelist_sg_v32_e32.cu
