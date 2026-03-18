@@ -26,6 +26,7 @@
 #include <rmm/device_uvector.hpp>
 
 #include <cstddef>
+#include <memory>
 
 namespace cugraph {
 namespace detail {
@@ -225,7 +226,7 @@ temporal_neighbor_sample_impl(
 
   for (size_t hop = 0; hop < num_hops; ++hop) {
     std::optional<std::vector<size_t>> level_Ks{std::nullopt};
-    std::optional<std::vector<uint8_t>> gather_flags{std::nullopt};
+    std::optional<std::vector<bool>> gather_flags{std::nullopt};
     std::vector<raft::device_span<vertex_t const>> next_frontier_vertex_spans{};
     auto next_frontier_vertex_label_spans =
       starting_vertex_labels ? std::make_optional<std::vector<raft::device_span<label_t const>>>()
@@ -249,10 +250,10 @@ temporal_neighbor_sample_impl(
         (*level_Ks)[i - start_offset] = fan_out[i];
       } else if (fan_out[i] < 0) {
         if (!gather_flags) {
-          gather_flags = std::vector<uint8_t>(num_edge_types ? *num_edge_types : edge_type_t{1},
-                                              static_cast<uint8_t>(false));
+          gather_flags =
+            std::vector<bool>(num_edge_types ? *num_edge_types : edge_type_t{1}, false);
         }
-        (*gather_flags)[i - start_offset] = static_cast<uint8_t>(true);
+        (*gather_flags)[i - start_offset] = true;
       }
     }
 
@@ -495,13 +496,16 @@ temporal_neighbor_sample_impl(
     }
 
     if (gather_flags) {
-      rmm::device_uvector<uint8_t> d_gather_flags(gather_flags->size(), handle.get_stream());
+      rmm::device_uvector<bool> d_gather_flags(gather_flags->size(), handle.get_stream());
+      bool* h_gather_flags = new bool[gather_flags->size()];
+      for (size_t i = 0; i < gather_flags->size(); ++i) {
+        h_gather_flags[i] = (*gather_flags)[i];
+      }
       raft::update_device(
-        d_gather_flags.data(), gather_flags->data(), gather_flags->size(), handle.get_stream());
-      auto gather_flags_span = gather_flags->size() > 1
-                                 ? std::make_optional(raft::device_span<uint8_t const>{
-                                     d_gather_flags.data(), d_gather_flags.size()})
-                                 : std::nullopt;
+        d_gather_flags.data(), h_gather_flags, gather_flags->size(), handle.get_stream());
+      delete[] h_gather_flags;
+      auto gather_flags_span = std::make_optional<raft::device_span<bool const>>(
+        d_gather_flags.data(), d_gather_flags.size());
 
       if (no_duplicates_size > 0) {
         std::vector<edge_arithmetic_property_view_t<edge_t>> edge_property_views{};

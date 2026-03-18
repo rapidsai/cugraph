@@ -226,7 +226,7 @@ set(CUGRAPH_SG_SOURCES
     src/sampling/detail/gather_one_hop_sg_v64_e64.cu
     src/sampling/detail/gather_sampled_properties.cu
     src/sampling/detail/update_visited_utils.cu
-    src/sampling/detail/remove_duplicate_edges.cu
+    src/sampling/detail/deduplicate_edges_by_minor.cu
     src/sampling/detail/sample_edges_sg_v64_e64.cu
     src/sampling/detail/sample_edges_sg_v32_e32.cu
     src/sampling/detail/temporal_sample_edges_sg_v64_e64.cu

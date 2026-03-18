@@ -258,6 +258,25 @@ struct segmented_fill_t {
   }
 };
 
+/**
+ * Helper function for random sampling of outgoing edges with a custom bias operator, used in
+ * homogeneous and heterogeneous sampling functions.  It can be called with different combinations
+ * of edge_property_view for different purposes as described below.
+ *
+ * 1. Standard biased sampling (sample_with_one_property): biases_op is sample_edge_biases_op_t;
+ *    edge_biases_view holds float or double weights. Optional edge_type_view for heterogeneous
+ *    type filtering. Used when sampling neighbors without an "unvisited" constraint.
+ *
+ * 2. Unvisited-neighbor biased sampling (sample_unvisited_with_one_property): biases_op is
+ *    sample_unvisited_edge_biases_op_t, which down-weights or excludes already-visited minors
+ *    (and optionally uses edge weights). edge_biases_view may be a real weight view or
+ *    edge_dummy_property_view_t when no edge weights are used.
+ *
+ * 3. Temporal sampling (temporal_sample_with_one_property): biases_op is
+ *    temporal_sample_edge_biases_op_t; edge_biases_view is either a concatenated (bias, time)
+ *    view or time-only view. Selection respects temporal_sampling_comparison (e.g. strictly
+ *    increasing time).
+ */
 template <typename vertex_t,
           typename edge_t,
           typename tag_t,
@@ -387,6 +406,10 @@ call_biased_per_v_random_select_transform_outgoing_e(
     std::move(labels), std::move(majors), std::move(minors), std::move(sampled_properties));
 }
 
+/**
+ * Helper function for random sampling of outgoing edges without a bias operator, used in
+ * homogeneous and heterogeneous sampling functions.
+ */
 template <typename vertex_t,
           typename edge_t,
           typename property_view_t,
@@ -495,6 +518,24 @@ call_unbiased_per_v_random_select_transform_outgoing_e(
     std::move(labels), std::move(majors), std::move(minors), std::move(sampled_properties));
 }
 
+/**
+ * Values passed as edge_property_view to sample_with_one_property,
+ * sample_unvisited_with_one_property, and temporal_sample_with_one_property (and thus to
+ * call_biased_* / call_unbiased_*):
+ *
+ * - edge_dummy_property_view_t{}: When edge_property_views.size() == 0 (no properties to return),
+ * or when edge_property_views.size() > 1 and the graph is not a multigraph (we only need topology;
+ *   gather_sampled_properties fetches all properties afterward using multi_index from the single
+ *   call that used a dummy view).
+ *
+ * - The single element of edge_property_views[0] (via variant_type_dispatch): When
+ *   edge_property_views.size() == 1. Type is one of edge_property_view_t<edge_t, T const*> for
+ *   T in {float, double, int32_t, int64_t, size_t}.
+ *
+ * - multi_index_property.view(): When edge_property_views.size() > 1 and
+ * graph_view.is_multigraph(). Used to sample multi-edge indices so that gather_sampled_properties
+ * can then gather all requested edge properties.
+ */
 template <typename vertex_t, typename edge_t, typename property_view_t, bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
@@ -712,15 +753,16 @@ sample_unvisited_with_one_property(
              visited_minors,
              visited_minor_labels,
              resample_active_majors,
-             resample_active_major_labels) = remove_duplicate_edges(handle,
-                                                                    graph_view,
-                                                                    std::move(sampled_majors),
-                                                                    std::move(sampled_minors),
-                                                                    std::move(sampled_properties),
-                                                                    std::move(sampled_labels),
-                                                                    std::move(visited_minors),
-                                                                    std::move(visited_minor_labels),
-                                                                    true);
+             resample_active_major_labels) =
+      deduplicate_edges_by_minor(handle,
+                                 graph_view,
+                                 std::move(sampled_majors),
+                                 std::move(sampled_minors),
+                                 std::move(sampled_properties),
+                                 std::move(sampled_labels),
+                                 std::move(visited_minors),
+                                 std::move(visited_minor_labels),
+                                 true);
 
     sampled_property = std::move(sampled_properties[0]);
 

@@ -62,7 +62,7 @@ std::tuple<size_t, size_t> check_edge_bias_values(
  * @param active_majors Device vector containing all the vertex id that are processed by
  * gpus in the column communicator
  * @param active_major_labels Optional device vector containing labels for each device vector
- * @param gather_flags Optional host span indicating whether to gather edge or not for each edge
+ * @param gather_flags Optional device span indicating whether to gather edge or not for each edge
  * type. @p gather_flags.has_value() should coincide with @p edge_type_view.has_value().
  * @return A tuple of device vectors containing the sampled majors, minors, edge properties and
  * optional label
@@ -79,7 +79,7 @@ gather_one_hop_edgelist(
   std::optional<edge_property_view_t<edge_t, int32_t const*>> edge_type_view,
   raft::device_span<vertex_t const> active_majors,
   std::optional<raft::device_span<int32_t const>> active_major_labels,
-  std::optional<raft::device_span<uint8_t const>> gather_flags,
+  std::optional<raft::device_span<bool const>> gather_flags,
   bool do_expensive_check);
 
 /**
@@ -102,7 +102,7 @@ gather_one_hop_edgelist_to_unvisited_neighbors(
   std::optional<edge_property_view_t<edge_t, int32_t const*>> edge_type_view,
   raft::device_span<vertex_t const> active_majors,
   std::optional<raft::device_span<int32_t const>> active_major_labels,
-  std::optional<raft::device_span<uint8_t const>> gather_flags,
+  std::optional<raft::device_span<bool const>> gather_flags,
   rmm::device_uvector<vertex_t>&& visited_minors,
   std::optional<rmm::device_uvector<int32_t>>&& visited_minor_labels,
   bool do_expensive_check);
@@ -133,7 +133,7 @@ gather_one_hop_edgelist_to_unvisited_neighbors(
  * Gathered edges will include only those edges that occurred after this timestamp for the specified
  * vertex.
  * @param active_major_labels Optional device vector containing labels for each device vector
- * @param gather_flags Optional host span indicating whether to gather edge or not for each edge
+ * @param gather_flags Optional device span indicating whether to gather edge or not for each edge
  * type. @p gather_flags.has_value() should coincide with @p edge_type_view.has_value().
  * @param temporal_sampling_comparison Temporal sampling comparison type
  * @return A tuple of device vectors containing the sampled majors, minors, edge properties and
@@ -153,7 +153,7 @@ temporal_gather_one_hop_edgelist(
   raft::device_span<vertex_t const> active_majors,
   raft::device_span<time_stamp_t const> active_major_times,
   std::optional<raft::device_span<int32_t const>> active_major_labels,
-  std::optional<raft::device_span<uint8_t const>> gather_flags,
+  std::optional<raft::device_span<bool const>> gather_flags,
   temporal_sampling_comparison_t temporal_sampling_comparison,
   bool do_expensive_check);
 
@@ -516,11 +516,11 @@ update_dst_visited_vertices_and_labels(
   std::optional<raft::device_span<int32_t const>> sampled_vertex_labels);
 
 /**
- * @brief Remove duplicate edges (by destination/minor) and update the visited set.
+ * @brief Deduplicate edges by minor (and optional label) and update the visited set.
  *
- * Filters the edge list to keep only edges whose (dst, label) or dst is not already in
- * (visited_minors, visited_minor_labels), deduplicates by keeping one edge per (label, minor),
- * then updates the visited sets with the kept edges' destinations.
+ * Keeps one edge per (label, minor) or per minor, then updates the visited sets with the kept
+ * edges' minors. When call_from_sampling is true, also returns majors (and optional labels) that
+ * need to be resampled because edges to them were removed.
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
@@ -548,15 +548,15 @@ std::tuple<rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<int32_t>>,
            std::optional<rmm::device_uvector<vertex_t>>,
            std::optional<rmm::device_uvector<int32_t>>>
-remove_duplicate_edges(raft::handle_t const& handle,
-                       graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
-                       rmm::device_uvector<vertex_t>&& result_majors,
-                       rmm::device_uvector<vertex_t>&& result_minors,
-                       std::vector<arithmetic_device_uvector_t>&& result_properties,
-                       std::optional<rmm::device_uvector<int32_t>>&& result_labels,
-                       rmm::device_uvector<vertex_t>&& visited_minors,
-                       std::optional<rmm::device_uvector<int32_t>>&& visited_minor_labels,
-                       bool call_from_sampling);
+deduplicate_edges_by_minor(raft::handle_t const& handle,
+                           graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+                           rmm::device_uvector<vertex_t>&& result_majors,
+                           rmm::device_uvector<vertex_t>&& result_minors,
+                           std::vector<arithmetic_device_uvector_t>&& result_properties,
+                           std::optional<rmm::device_uvector<int32_t>>&& result_labels,
+                           rmm::device_uvector<vertex_t>&& visited_minors,
+                           std::optional<rmm::device_uvector<int32_t>>&& visited_minor_labels,
+                           bool call_from_sampling);
 
 }  // namespace detail
 }  // namespace cugraph

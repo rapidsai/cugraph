@@ -37,15 +37,15 @@ std::tuple<rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<int32_t>>,
            std::optional<rmm::device_uvector<vertex_t>>,
            std::optional<rmm::device_uvector<int32_t>>>
-remove_duplicate_edges(raft::handle_t const& handle,
-                       graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
-                       rmm::device_uvector<vertex_t>&& result_majors,
-                       rmm::device_uvector<vertex_t>&& result_minors,
-                       std::vector<arithmetic_device_uvector_t>&& result_properties,
-                       std::optional<rmm::device_uvector<int32_t>>&& result_labels,
-                       rmm::device_uvector<vertex_t>&& visited_minors,
-                       std::optional<rmm::device_uvector<int32_t>>&& visited_minor_labels,
-                       bool call_from_sampling)
+deduplicate_edges_by_minor(raft::handle_t const& handle,
+                           graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+                           rmm::device_uvector<vertex_t>&& result_majors,
+                           rmm::device_uvector<vertex_t>&& result_minors,
+                           std::vector<arithmetic_device_uvector_t>&& result_properties,
+                           std::optional<rmm::device_uvector<int32_t>>&& result_labels,
+                           rmm::device_uvector<vertex_t>&& visited_minors,
+                           std::optional<rmm::device_uvector<int32_t>>&& visited_minor_labels,
+                           bool call_from_sampling)
 {
   std::optional<rmm::device_uvector<vertex_t>> resample_majors{std::nullopt};
   std::optional<rmm::device_uvector<int32_t>> resample_major_labels{std::nullopt};
@@ -369,7 +369,7 @@ remove_duplicate_edges(raft::handle_t const& handle,
       thrust::gather(handle.get_thrust_policy(),
                      keep_positions.begin(),
                      keep_positions.end(),
-                     result_minors.begin(),
+                     result_minors.data(),
                      tmp.begin());
       result_minors = std::move(tmp);
     }
@@ -428,15 +428,16 @@ template std::tuple<rmm::device_uvector<int32_t>,
                     std::optional<rmm::device_uvector<int32_t>>,
                     std::optional<rmm::device_uvector<int32_t>>,
                     std::optional<rmm::device_uvector<int32_t>>>
-remove_duplicate_edges<int32_t, int32_t, false>(raft::handle_t const&,
-                                                graph_view_t<int32_t, int32_t, false, false> const&,
-                                                rmm::device_uvector<int32_t>&&,
-                                                rmm::device_uvector<int32_t>&&,
-                                                std::vector<arithmetic_device_uvector_t>&&,
-                                                std::optional<rmm::device_uvector<int32_t>>&&,
-                                                rmm::device_uvector<int32_t>&&,
-                                                std::optional<rmm::device_uvector<int32_t>>&&,
-                                                bool);
+deduplicate_edges_by_minor<int32_t, int32_t, false>(
+  raft::handle_t const&,
+  graph_view_t<int32_t, int32_t, false, false> const&,
+  rmm::device_uvector<int32_t>&&,
+  rmm::device_uvector<int32_t>&&,
+  std::vector<arithmetic_device_uvector_t>&&,
+  std::optional<rmm::device_uvector<int32_t>>&&,
+  rmm::device_uvector<int32_t>&&,
+  std::optional<rmm::device_uvector<int32_t>>&&,
+  bool);
 
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
@@ -446,15 +447,16 @@ template std::tuple<rmm::device_uvector<int32_t>,
                     std::optional<rmm::device_uvector<int32_t>>,
                     std::optional<rmm::device_uvector<int32_t>>,
                     std::optional<rmm::device_uvector<int32_t>>>
-remove_duplicate_edges<int32_t, int32_t, true>(raft::handle_t const&,
-                                               graph_view_t<int32_t, int32_t, false, true> const&,
-                                               rmm::device_uvector<int32_t>&&,
-                                               rmm::device_uvector<int32_t>&&,
-                                               std::vector<arithmetic_device_uvector_t>&&,
-                                               std::optional<rmm::device_uvector<int32_t>>&&,
-                                               rmm::device_uvector<int32_t>&&,
-                                               std::optional<rmm::device_uvector<int32_t>>&&,
-                                               bool);
+deduplicate_edges_by_minor<int32_t, int32_t, true>(
+  raft::handle_t const&,
+  graph_view_t<int32_t, int32_t, false, true> const&,
+  rmm::device_uvector<int32_t>&&,
+  rmm::device_uvector<int32_t>&&,
+  std::vector<arithmetic_device_uvector_t>&&,
+  std::optional<rmm::device_uvector<int32_t>>&&,
+  rmm::device_uvector<int32_t>&&,
+  std::optional<rmm::device_uvector<int32_t>>&&,
+  bool);
 
 template std::tuple<rmm::device_uvector<int64_t>,
                     rmm::device_uvector<int64_t>,
@@ -464,15 +466,16 @@ template std::tuple<rmm::device_uvector<int64_t>,
                     std::optional<rmm::device_uvector<int32_t>>,
                     std::optional<rmm::device_uvector<int64_t>>,
                     std::optional<rmm::device_uvector<int32_t>>>
-remove_duplicate_edges<int64_t, int64_t, false>(raft::handle_t const&,
-                                                graph_view_t<int64_t, int64_t, false, false> const&,
-                                                rmm::device_uvector<int64_t>&&,
-                                                rmm::device_uvector<int64_t>&&,
-                                                std::vector<arithmetic_device_uvector_t>&&,
-                                                std::optional<rmm::device_uvector<int32_t>>&&,
-                                                rmm::device_uvector<int64_t>&&,
-                                                std::optional<rmm::device_uvector<int32_t>>&&,
-                                                bool);
+deduplicate_edges_by_minor<int64_t, int64_t, false>(
+  raft::handle_t const&,
+  graph_view_t<int64_t, int64_t, false, false> const&,
+  rmm::device_uvector<int64_t>&&,
+  rmm::device_uvector<int64_t>&&,
+  std::vector<arithmetic_device_uvector_t>&&,
+  std::optional<rmm::device_uvector<int32_t>>&&,
+  rmm::device_uvector<int64_t>&&,
+  std::optional<rmm::device_uvector<int32_t>>&&,
+  bool);
 
 template std::tuple<rmm::device_uvector<int64_t>,
                     rmm::device_uvector<int64_t>,
@@ -482,15 +485,16 @@ template std::tuple<rmm::device_uvector<int64_t>,
                     std::optional<rmm::device_uvector<int32_t>>,
                     std::optional<rmm::device_uvector<int64_t>>,
                     std::optional<rmm::device_uvector<int32_t>>>
-remove_duplicate_edges<int64_t, int64_t, true>(raft::handle_t const&,
-                                               graph_view_t<int64_t, int64_t, false, true> const&,
-                                               rmm::device_uvector<int64_t>&&,
-                                               rmm::device_uvector<int64_t>&&,
-                                               std::vector<arithmetic_device_uvector_t>&&,
-                                               std::optional<rmm::device_uvector<int32_t>>&&,
-                                               rmm::device_uvector<int64_t>&&,
-                                               std::optional<rmm::device_uvector<int32_t>>&&,
-                                               bool);
+deduplicate_edges_by_minor<int64_t, int64_t, true>(
+  raft::handle_t const&,
+  graph_view_t<int64_t, int64_t, false, true> const&,
+  rmm::device_uvector<int64_t>&&,
+  rmm::device_uvector<int64_t>&&,
+  std::vector<arithmetic_device_uvector_t>&&,
+  std::optional<rmm::device_uvector<int32_t>>&&,
+  rmm::device_uvector<int64_t>&&,
+  std::optional<rmm::device_uvector<int32_t>>&&,
+  bool);
 
 }  // namespace detail
 }  // namespace cugraph
