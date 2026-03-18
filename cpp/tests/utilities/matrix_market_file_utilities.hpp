@@ -70,15 +70,6 @@ int mm_to_coo(FILE* f,
               ValueType_* cooRVal,
               ValueType_* cooIVal);
 
-// FIXME: A similar function could be useful for CSC format
-//        There are functions above that operate coo -> csr and coo->csc
-/**
- * @tparam
- */
-template <typename vertex_t, typename edge_t, typename weight_t>
-std::unique_ptr<cugraph::legacy::GraphCSR<vertex_t, edge_t, weight_t>> generate_graph_csr_from_mm(
-  bool& directed, std::string mm_file);
-
 // returns a tuple of (rows, columns, weights, vertices, is_symmetric)
 template <typename vertex_t, typename weight_t>
 std::tuple<rmm::device_uvector<vertex_t>,

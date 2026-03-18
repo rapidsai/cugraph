@@ -206,52 +206,6 @@ int mm_to_coo(FILE* f,
   return 0;
 }
 
-// FIXME: A similar function could be useful for CSC format
-//        There are functions above that operate coo -> csr and coo->csc
-/**
- * @tparam
- */
-template <typename vertex_t, typename edge_t, typename weight_t>
-std::unique_ptr<cugraph::legacy::GraphCSR<vertex_t, edge_t, weight_t>> generate_graph_csr_from_mm(
-  bool& directed, std::string mm_file)
-{
-  vertex_t number_of_vertices;
-  edge_t number_of_edges;
-
-  FILE* fpin = fopen(mm_file.c_str(), "r");
-  CUGRAPH_EXPECTS(fpin != nullptr, "fopen (%s) failure.", mm_file.c_str());
-
-  vertex_t number_of_columns = 0;
-  MM_typecode mm_typecode{0};
-  CUGRAPH_EXPECTS(
-    mm_properties<vertex_t>(
-      fpin, 1, &mm_typecode, &number_of_vertices, &number_of_columns, &number_of_edges) == 0,
-    "mm_properties query failure.");
-  CUGRAPH_EXPECTS(mm_is_matrix(mm_typecode), "Invalid input file.");
-  CUGRAPH_EXPECTS(mm_is_coordinate(mm_typecode), "Invalid input file.");
-  CUGRAPH_EXPECTS(!mm_is_complex(mm_typecode), "Invalid input file.");
-  CUGRAPH_EXPECTS(!mm_is_skew(mm_typecode), "Invalid input file.");
-
-  directed = !mm_is_symmetric(mm_typecode);
-
-  // Allocate memory on host
-  std::vector<vertex_t> coo_row_ind(number_of_edges);
-  std::vector<vertex_t> coo_col_ind(number_of_edges);
-  std::vector<weight_t> coo_val(number_of_edges);
-
-  // Read
-  CUGRAPH_EXPECTS(
-    (mm_to_coo<vertex_t, weight_t>(
-      fpin, 1, number_of_edges, &coo_row_ind[0], &coo_col_ind[0], &coo_val[0], NULL)) == 0,
-    "file read failure.");
-  CUGRAPH_EXPECTS(fclose(fpin) == 0, "fclose failure.");
-
-  cugraph::legacy::GraphCOOView<vertex_t, edge_t, weight_t> cooview(
-    &coo_row_ind[0], &coo_col_ind[0], &coo_val[0], number_of_vertices, number_of_edges);
-
-  return cugraph::coo_to_csr(cooview);
-}
-
 template <typename vertex_t, typename weight_t>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
@@ -494,6 +448,8 @@ read_graph_from_matrix_market_file(raft::handle_t const& handle,
 
 // explicit instantiations
 
+template int mm_properties(FILE* f, int tg, MM_typecode* t, int32_t* m, int32_t* n, int32_t* nnz);
+
 template int32_t mm_to_coo(FILE* f,
                            int32_t tg,
                            int32_t nnz,
@@ -517,18 +473,6 @@ template int32_t mm_to_coo(FILE* f,
                            int32_t* cooColInd,
                            float* cooRVal,
                            float* cooIVal);
-
-template std::unique_ptr<cugraph::legacy::GraphCSR<int32_t, int32_t, float>>
-generate_graph_csr_from_mm(bool& directed, std::string mm_file);
-
-template std::unique_ptr<cugraph::legacy::GraphCSR<uint32_t, uint32_t, float>>
-generate_graph_csr_from_mm(bool& directed, std::string mm_file);
-
-template std::unique_ptr<cugraph::legacy::GraphCSR<int32_t, int32_t, double>>
-generate_graph_csr_from_mm(bool& directed, std::string mm_file);
-
-template std::unique_ptr<cugraph::legacy::GraphCSR<int64_t, int64_t, float>>
-generate_graph_csr_from_mm(bool& directed, std::string mm_file);
 
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
