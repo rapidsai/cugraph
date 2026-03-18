@@ -22,6 +22,8 @@
 #include <thrust/sort.h>
 #include <thrust/unique.h>
 
+#include <variant>
+
 // debugging
 #include <thrust/for_each.h>
 
@@ -31,7 +33,7 @@ namespace detail {
 template <typename vertex_t, typename edge_t, bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
-           std::vector<arithmetic_device_uvector_t>,
+           arithmetic_device_uvector_t,
            std::optional<rmm::device_uvector<int32_t>>,
            rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<int32_t>>,
@@ -41,7 +43,7 @@ deduplicate_edges_by_minor(raft::handle_t const& handle,
                            graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
                            rmm::device_uvector<vertex_t>&& result_majors,
                            rmm::device_uvector<vertex_t>&& result_minors,
-                           std::vector<arithmetic_device_uvector_t>&& result_properties,
+                           arithmetic_device_uvector_t&& tmp_edge_indices,
                            std::optional<rmm::device_uvector<int32_t>>&& result_labels,
                            rmm::device_uvector<vertex_t>&& visited_minors,
                            std::optional<rmm::device_uvector<int32_t>>&& visited_minor_labels,
@@ -63,7 +65,7 @@ deduplicate_edges_by_minor(raft::handle_t const& handle,
   if (result_size == 0) {
     return std::make_tuple(std::move(result_majors),
                            std::move(result_minors),
-                           std::move(result_properties),
+                           std::move(tmp_edge_indices),
                            std::move(result_labels),
                            std::move(visited_minors),
                            std::move(visited_minor_labels),
@@ -374,18 +376,17 @@ deduplicate_edges_by_minor(raft::handle_t const& handle,
       result_minors = std::move(tmp);
     }
 
-    for (size_t i = 0; i < result_properties.size(); i++) {
-      cugraph::variant_type_dispatch(
-        result_properties[i], [&handle, &keep_positions](auto& property) {
-          using T = typename std::remove_reference<decltype(property)>::type::value_type;
-          rmm::device_uvector<T> tmp(keep_positions.size(), handle.get_stream());
-          thrust::gather(handle.get_thrust_policy(),
-                         keep_positions.begin(),
-                         keep_positions.end(),
-                         property.data(),
-                         tmp.begin());
-          property = std::move(tmp);
-        });
+    if (!std::holds_alternative<std::monostate>(tmp_edge_indices)) {
+      cugraph::variant_type_dispatch(tmp_edge_indices, [&handle, &keep_positions](auto& property) {
+        using T = typename std::remove_reference<decltype(property)>::type::value_type;
+        rmm::device_uvector<T> tmp(keep_positions.size(), handle.get_stream());
+        thrust::gather(handle.get_thrust_policy(),
+                       keep_positions.begin(),
+                       keep_positions.end(),
+                       property.data(),
+                       tmp.begin());
+        property = std::move(tmp);
+      });
     }
     if (result_labels) {
       rmm::device_uvector<int32_t> tmp(keep_positions.size(), handle.get_stream());
@@ -411,7 +412,7 @@ deduplicate_edges_by_minor(raft::handle_t const& handle,
 
   return std::make_tuple(std::move(result_majors),
                          std::move(result_minors),
-                         std::move(result_properties),
+                         std::move(tmp_edge_indices),
                          std::move(result_labels),
                          std::move(visited_minors),
                          std::move(visited_minor_labels),
@@ -422,7 +423,7 @@ deduplicate_edges_by_minor(raft::handle_t const& handle,
 // Explicit instantiations for common configurations
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
-                    std::vector<arithmetic_device_uvector_t>,
+                    arithmetic_device_uvector_t,
                     std::optional<rmm::device_uvector<int32_t>>,
                     rmm::device_uvector<int32_t>,
                     std::optional<rmm::device_uvector<int32_t>>,
@@ -433,7 +434,7 @@ deduplicate_edges_by_minor<int32_t, int32_t, false>(
   graph_view_t<int32_t, int32_t, false, false> const&,
   rmm::device_uvector<int32_t>&&,
   rmm::device_uvector<int32_t>&&,
-  std::vector<arithmetic_device_uvector_t>&&,
+  arithmetic_device_uvector_t&&,
   std::optional<rmm::device_uvector<int32_t>>&&,
   rmm::device_uvector<int32_t>&&,
   std::optional<rmm::device_uvector<int32_t>>&&,
@@ -441,7 +442,7 @@ deduplicate_edges_by_minor<int32_t, int32_t, false>(
 
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
-                    std::vector<arithmetic_device_uvector_t>,
+                    arithmetic_device_uvector_t,
                     std::optional<rmm::device_uvector<int32_t>>,
                     rmm::device_uvector<int32_t>,
                     std::optional<rmm::device_uvector<int32_t>>,
@@ -452,7 +453,7 @@ deduplicate_edges_by_minor<int32_t, int32_t, true>(
   graph_view_t<int32_t, int32_t, false, true> const&,
   rmm::device_uvector<int32_t>&&,
   rmm::device_uvector<int32_t>&&,
-  std::vector<arithmetic_device_uvector_t>&&,
+  arithmetic_device_uvector_t&&,
   std::optional<rmm::device_uvector<int32_t>>&&,
   rmm::device_uvector<int32_t>&&,
   std::optional<rmm::device_uvector<int32_t>>&&,
@@ -460,7 +461,7 @@ deduplicate_edges_by_minor<int32_t, int32_t, true>(
 
 template std::tuple<rmm::device_uvector<int64_t>,
                     rmm::device_uvector<int64_t>,
-                    std::vector<arithmetic_device_uvector_t>,
+                    arithmetic_device_uvector_t,
                     std::optional<rmm::device_uvector<int32_t>>,
                     rmm::device_uvector<int64_t>,
                     std::optional<rmm::device_uvector<int32_t>>,
@@ -471,7 +472,7 @@ deduplicate_edges_by_minor<int64_t, int64_t, false>(
   graph_view_t<int64_t, int64_t, false, false> const&,
   rmm::device_uvector<int64_t>&&,
   rmm::device_uvector<int64_t>&&,
-  std::vector<arithmetic_device_uvector_t>&&,
+  arithmetic_device_uvector_t&&,
   std::optional<rmm::device_uvector<int32_t>>&&,
   rmm::device_uvector<int64_t>&&,
   std::optional<rmm::device_uvector<int32_t>>&&,
@@ -479,7 +480,7 @@ deduplicate_edges_by_minor<int64_t, int64_t, false>(
 
 template std::tuple<rmm::device_uvector<int64_t>,
                     rmm::device_uvector<int64_t>,
-                    std::vector<arithmetic_device_uvector_t>,
+                    arithmetic_device_uvector_t,
                     std::optional<rmm::device_uvector<int32_t>>,
                     rmm::device_uvector<int64_t>,
                     std::optional<rmm::device_uvector<int32_t>>,
@@ -490,7 +491,7 @@ deduplicate_edges_by_minor<int64_t, int64_t, true>(
   graph_view_t<int64_t, int64_t, false, true> const&,
   rmm::device_uvector<int64_t>&&,
   rmm::device_uvector<int64_t>&&,
-  std::vector<arithmetic_device_uvector_t>&&,
+  arithmetic_device_uvector_t&&,
   std::optional<rmm::device_uvector<int32_t>>&&,
   rmm::device_uvector<int64_t>&&,
   std::optional<rmm::device_uvector<int32_t>>&&,

@@ -5,7 +5,8 @@
 
 #pragma once
 
-#include "sampling/detail/sampling_utils.hpp"
+#include "detail/gather_sampled_properties.hpp"
+#include "detail/sampling_utils.hpp"
 #include "utilities/validation_checks.hpp"
 
 #include <cugraph/detail/utility_wrappers.hpp>
@@ -149,6 +150,16 @@ neighbor_sample_impl(raft::handle_t const& handle,
 
   std::vector<size_t> result_sizes{};
 
+  // Edge property views and span are unchanged across hop iterations; build once and reuse.
+  std::vector<edge_arithmetic_property_view_t<edge_t>> edge_property_views{};
+  if (edge_weight_view) edge_property_views.push_back(*edge_weight_view);
+  if (edge_id_view) edge_property_views.push_back(*edge_id_view);
+  if (edge_type_view) edge_property_views.push_back(*edge_type_view);
+  // edge_start_time_view and edge_end_time_view are always nullopt in this path
+  auto const edge_prop_span = raft::host_span<edge_arithmetic_property_view_t<edge_t>>{
+    edge_property_views.data(), edge_property_views.size()};
+  size_t const n_edge_props = edge_property_views.size();
+
   std::optional<rmm::device_uvector<vertex_t>> visited_minors{std::nullopt};
   std::optional<rmm::device_uvector<label_t>> visited_minor_labels{std::nullopt};
 
@@ -174,7 +185,7 @@ neighbor_sample_impl(raft::handle_t const& handle,
 
   for (size_t hop = 0; hop < num_hops; ++hop) {
     std::optional<std::vector<size_t>> level_Ks{std::nullopt};
-    std::optional<std::vector<bool>> gather_flags{std::nullopt};
+    std::unique_ptr<bool[]> gather_flags{};
     std::vector<raft::device_span<vertex_t const>> next_frontier_vertex_spans{};
     auto next_frontier_vertex_label_spans =
       starting_vertex_labels ? std::make_optional<std::vector<raft::device_span<label_t const>>>()
@@ -196,10 +207,10 @@ neighbor_sample_impl(raft::handle_t const& handle,
         (*level_Ks)[i - start_offset] = fan_out[i];
       } else if (fan_out[i] < 0) {
         if (!gather_flags) {
-          gather_flags =
-            std::vector<bool>(num_edge_types ? *num_edge_types : edge_type_t{1}, false);
+          gather_flags = std::make_unique<bool[]>(
+            static_cast<size_t>(num_edge_types ? *num_edge_types : edge_type_t{1}));
         }
-        (*gather_flags)[i - start_offset] = true;
+        gather_flags[i - start_offset] = true;
       }
     }
 
@@ -209,28 +220,19 @@ neighbor_sample_impl(raft::handle_t const& handle,
       std::nullopt};
 
     if (level_Ks) {
-      std::vector<edge_arithmetic_property_view_t<edge_t>> edge_property_views{};
-
-      if (edge_weight_view) edge_property_views.push_back(*edge_weight_view);
-      if (edge_id_view) edge_property_views.push_back(*edge_id_view);
-      if (edge_type_view) edge_property_views.push_back(*edge_type_view);
-      if (edge_start_time_view) edge_property_views.push_back(*edge_start_time_view);
-      if (edge_end_time_view) edge_property_views.push_back(*edge_end_time_view);
-
       rmm::device_uvector<vertex_t> srcs(0, handle.get_stream());
       rmm::device_uvector<vertex_t> dsts(0, handle.get_stream());
       std::vector<cugraph::arithmetic_device_uvector_t> sampled_edge_properties{};
       std::optional<rmm::device_uvector<label_t>> labels{std::nullopt};
 
       if (visited_minors) {
-        std::tie(
-          srcs, dsts, sampled_edge_properties, labels, visited_minors, visited_minor_labels) =
+        cugraph::arithmetic_device_uvector_t unvis_multi_index{std::monostate{}};
+        std::tie(srcs, dsts, unvis_multi_index, labels, visited_minors, visited_minor_labels) =
           sample_edges_to_unvisited_neighbors(
             handle,
             rng_state,
             graph_view,
-            raft::host_span<edge_arithmetic_property_view_t<edge_t>>{edge_property_views.data(),
-                                                                     edge_property_views.size()},
+            n_edge_props,
             edge_type_view
               ? std::make_optional<edge_arithmetic_property_view_t<edge_t>>(*edge_type_view)
               : std::nullopt,
@@ -249,13 +251,23 @@ neighbor_sample_impl(raft::handle_t const& handle,
             std::move(*visited_minors),
             std::move(visited_minor_labels),
             sampling_flags.with_replacement);
+        sampled_edge_properties.clear();
+        if (n_edge_props > 0) {
+          std::tie(srcs, dsts, sampled_edge_properties) =
+            gather_sampled_properties(handle,
+                                      graph_view,
+                                      std::move(srcs),
+                                      std::move(dsts),
+                                      std::move(unvis_multi_index),
+                                      edge_prop_span);
+        }
       } else {
-        std::tie(srcs, dsts, sampled_edge_properties, labels) = sample_edges(
+        cugraph::arithmetic_device_uvector_t hop_multi_index{std::monostate{}};
+        std::tie(srcs, dsts, hop_multi_index, labels) = sample_edges(
           handle,
           rng_state,
           graph_view,
-          raft::host_span<edge_arithmetic_property_view_t<edge_t>>{edge_property_views.data(),
-                                                                   edge_property_views.size()},
+          n_edge_props,
           edge_type_view
             ? std::make_optional<edge_arithmetic_property_view_t<edge_t>>(*edge_type_view)
             : std::nullopt,
@@ -272,6 +284,16 @@ neighbor_sample_impl(raft::handle_t const& handle,
             : std::nullopt,
           raft::host_span<size_t const>(level_Ks->data(), level_Ks->size()),
           sampling_flags.with_replacement);
+        sampled_edge_properties.clear();
+        if (n_edge_props > 0) {
+          std::tie(srcs, dsts, sampled_edge_properties) =
+            gather_sampled_properties(handle,
+                                      graph_view,
+                                      std::move(srcs),
+                                      std::move(dsts),
+                                      std::move(hop_multi_index),
+                                      edge_prop_span);
+        }
       }
 
       size_t pos{0};
@@ -317,25 +339,13 @@ neighbor_sample_impl(raft::handle_t const& handle,
     }
 
     if (gather_flags) {
-      rmm::device_uvector<bool> d_gather_flags(gather_flags->size(), handle.get_stream());
-
-      bool* h_gather_flags = new bool[gather_flags->size()];
-      for (size_t i = 0; i < gather_flags->size(); ++i) {
-        h_gather_flags[i] = (*gather_flags)[i];
-      }
+      auto const n_gather_flags =
+        static_cast<size_t>(num_edge_types ? *num_edge_types : edge_type_t{1});
+      rmm::device_uvector<bool> d_gather_flags(n_gather_flags, handle.get_stream());
       raft::update_device(
-        d_gather_flags.data(), h_gather_flags, gather_flags->size(), handle.get_stream());
-      delete[] h_gather_flags;
+        d_gather_flags.data(), gather_flags.get(), n_gather_flags, handle.get_stream());
       auto gather_flags_span = std::make_optional<raft::device_span<bool const>>(
         d_gather_flags.data(), d_gather_flags.size());
-
-      std::vector<edge_arithmetic_property_view_t<edge_t>> edge_property_views{};
-
-      if (edge_weight_view) edge_property_views.push_back(*edge_weight_view);
-      if (edge_id_view) edge_property_views.push_back(*edge_id_view);
-      if (edge_type_view) edge_property_views.push_back(*edge_type_view);
-      if (edge_start_time_view) edge_property_views.push_back(*edge_start_time_view);
-      if (edge_end_time_view) edge_property_views.push_back(*edge_end_time_view);
 
       rmm::device_uvector<vertex_t> srcs(0, handle.get_stream());
       rmm::device_uvector<vertex_t> dsts(0, handle.get_stream());
@@ -343,13 +353,12 @@ neighbor_sample_impl(raft::handle_t const& handle,
       std::optional<rmm::device_uvector<label_t>> labels{std::nullopt};
 
       if (visited_minors) {
-        std::tie(
-          srcs, dsts, sampled_edge_properties, labels, visited_minors, visited_minor_labels) =
+        cugraph::arithmetic_device_uvector_t unvis_multi_index{std::monostate{}};
+        std::tie(srcs, dsts, unvis_multi_index, labels, visited_minors, visited_minor_labels) =
           gather_one_hop_edgelist_to_unvisited_neighbors(
             handle,
             graph_view,
-            raft::host_span<edge_arithmetic_property_view_t<edge_t>>{edge_property_views.data(),
-                                                                     edge_property_views.size()},
+            n_edge_props,
             edge_type_view,
             hop == 0 ? starting_vertices
                      : raft::device_span<vertex_t const>(frontier_vertices.data(),
@@ -363,13 +372,29 @@ neighbor_sample_impl(raft::handle_t const& handle,
             std::move(*visited_minors),
             std::move(visited_minor_labels),
             do_expensive_check);
+        sampled_edge_properties.clear();
+        if (n_edge_props > 0) {
+          std::tie(srcs, dsts, sampled_edge_properties) =
+            gather_sampled_properties(handle,
+                                      graph_view,
+                                      std::move(srcs),
+                                      std::move(dsts),
+                                      std::move(unvis_multi_index),
+                                      edge_prop_span);
+        }
       } else {
-        std::tie(srcs, dsts, sampled_edge_properties, labels) = gather_one_hop_edgelist(
+        cugraph::arithmetic_device_uvector_t hop_multi_index{std::monostate{}};
+        std::tie(srcs, dsts, hop_multi_index, labels) = sample_edges(
           handle,
+          rng_state,
           graph_view,
-          raft::host_span<edge_arithmetic_property_view_t<edge_t>>{edge_property_views.data(),
-                                                                   edge_property_views.size()},
-          edge_type_view,
+          n_edge_props,
+          edge_type_view
+            ? std::make_optional<edge_arithmetic_property_view_t<edge_t>>(*edge_type_view)
+            : std::nullopt,
+          edge_bias_view
+            ? std::make_optional<edge_arithmetic_property_view_t<edge_t>>(*edge_bias_view)
+            : std::nullopt,
           hop == 0
             ? starting_vertices
             : raft::device_span<vertex_t const>(frontier_vertices.data(), frontier_vertices.size()),
@@ -378,8 +403,18 @@ neighbor_sample_impl(raft::handle_t const& handle,
             ? std::make_optional(raft::device_span<label_t const>(frontier_vertex_labels->data(),
                                                                   frontier_vertex_labels->size()))
             : std::nullopt,
-          gather_flags_span,
-          do_expensive_check);
+          raft::host_span<size_t const>(level_Ks->data(), level_Ks->size()),
+          sampling_flags.with_replacement);
+        sampled_edge_properties.clear();
+        if (n_edge_props > 0) {
+          std::tie(srcs, dsts, sampled_edge_properties) =
+            gather_sampled_properties(handle,
+                                      graph_view,
+                                      std::move(srcs),
+                                      std::move(dsts),
+                                      std::move(hop_multi_index),
+                                      edge_prop_span);
+        }
       }
 
       size_t pos{0};

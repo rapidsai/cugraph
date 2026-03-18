@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include "gather_sampled_properties.cuh"
+#include "gather_sampled_properties.hpp"
 #include "prims/edge_bucket.cuh"
 #include "prims/per_v_random_select_transform_outgoing_e.cuh"
 #include "prims/transform_gather_e.cuh"
@@ -742,13 +742,10 @@ sample_unvisited_with_one_property(
           with_replacement);
     }
 
-    std::vector<cugraph::arithmetic_device_uvector_t> sampled_properties{};
-    sampled_properties.push_back(std::move(sampled_property));
-
     // Check for duplicates in the sampled minor vertices
     std::tie(sampled_majors,
              sampled_minors,
-             sampled_properties,
+             sampled_property,
              sampled_labels,
              visited_minors,
              visited_minor_labels,
@@ -758,13 +755,11 @@ sample_unvisited_with_one_property(
                                  graph_view,
                                  std::move(sampled_majors),
                                  std::move(sampled_minors),
-                                 std::move(sampled_properties),
+                                 std::move(sampled_property),
                                  std::move(sampled_labels),
                                  std::move(visited_minors),
                                  std::move(visited_minor_labels),
                                  true);
-
-    sampled_property = std::move(sampled_properties[0]);
 
     if constexpr (multi_gpu) {
       sample_and_append =
@@ -848,12 +843,12 @@ sample_unvisited_with_one_property(
 template <typename vertex_t, typename edge_t, bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
-           std::vector<arithmetic_device_uvector_t>,
+           arithmetic_device_uvector_t,
            std::optional<rmm::device_uvector<int32_t>>>
 sample_edges(raft::handle_t const& handle,
              raft::random::RngState& rng_state,
              graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
-             raft::host_span<edge_arithmetic_property_view_t<edge_t>> edge_property_views,
+             size_t number_of_edge_properties,
              std::optional<edge_arithmetic_property_view_t<edge_t>> edge_type_view,
              std::optional<edge_arithmetic_property_view_t<edge_t>> edge_bias_view,
              raft::device_span<vertex_t const> active_majors,
@@ -873,11 +868,11 @@ sample_edges(raft::handle_t const& handle,
 
   rmm::device_uvector<vertex_t> majors(0, handle.get_stream());
   rmm::device_uvector<vertex_t> minors(0, handle.get_stream());
-  std::vector<arithmetic_device_uvector_t> edge_properties{};
+  arithmetic_device_uvector_t tmp_edge_indices{std::monostate{}};
   std::optional<rmm::device_uvector<int32_t>> labels{std::nullopt};
   std::optional<rmm::device_uvector<int32_t>> sample_labels{std::nullopt};
 
-  if (edge_property_views.size() == 0) {
+  if (number_of_edge_properties == 0) {
     std::tie(majors, minors, std::ignore, sample_labels) =
       sample_with_one_property(handle,
                                rng_state,
@@ -889,40 +884,12 @@ sample_edges(raft::handle_t const& handle,
                                Ks,
                                active_major_labels,
                                with_replacement);
-  } else if (edge_property_views.size() == 1) {
-    arithmetic_device_uvector_t tmp{std::monostate{}};
-    std::tie(majors, minors, tmp, sample_labels) =
-      cugraph::variant_type_dispatch(edge_property_views[0],
-                                     [&handle,
-                                      &rng_state,
-                                      &graph_view,
-                                      &edge_type_view,
-                                      &edge_bias_view,
-                                      &vertex_frontier,
-                                      &Ks,
-                                      &active_major_labels,
-                                      with_replacement](auto edge_property_view) {
-                                       return sample_with_one_property(handle,
-                                                                       rng_state,
-                                                                       graph_view,
-                                                                       edge_property_view,
-                                                                       edge_type_view,
-                                                                       edge_bias_view,
-                                                                       vertex_frontier,
-                                                                       Ks,
-                                                                       active_major_labels,
-                                                                       with_replacement);
-                                     });
-
-    edge_properties.push_back(std::move(tmp));
   } else {
-    arithmetic_device_uvector_t multi_index{std::monostate{}};
-
     if (graph_view.is_multigraph()) {
       cugraph::edge_multi_index_property_t<edge_t, vertex_t> multi_index_property(handle,
                                                                                   graph_view);
 
-      std::tie(majors, minors, multi_index, sample_labels) =
+      std::tie(majors, minors, tmp_edge_indices, sample_labels) =
         sample_with_one_property(handle,
                                  rng_state,
                                  graph_view,
@@ -947,21 +914,12 @@ sample_edges(raft::handle_t const& handle,
                                  active_major_labels,
                                  with_replacement);
     }
-
-    std::tie(majors, minors, edge_properties) =
-      gather_sampled_properties(handle,
-                                graph_view,
-                                std::move(majors),
-                                std::move(minors),
-                                std::move(multi_index),
-                                raft::host_span<edge_arithmetic_property_view_t<edge_t>>{
-                                  edge_property_views.data(), edge_property_views.size()});
   }
 
   labels = std::move(sample_labels);
 
   return std::make_tuple(
-    std::move(majors), std::move(minors), std::move(edge_properties), std::move(labels));
+    std::move(majors), std::move(minors), std::move(tmp_edge_indices), std::move(labels));
 }
 
 template <typename vertex_t,
@@ -1070,12 +1028,12 @@ temporal_sample_with_one_property(
 template <typename vertex_t, typename edge_t, typename time_stamp_t, bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
-           std::vector<arithmetic_device_uvector_t>,
+           arithmetic_device_uvector_t,
            std::optional<rmm::device_uvector<int32_t>>>
 temporal_sample_edges(raft::handle_t const& handle,
                       raft::random::RngState& rng_state,
                       graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
-                      raft::host_span<edge_arithmetic_property_view_t<edge_t>> edge_property_views,
+                      size_t number_of_edge_properties,
                       edge_property_view_t<edge_t, time_stamp_t const*> edge_time_view,
                       std::optional<edge_arithmetic_property_view_t<edge_t>> edge_type_view,
                       std::optional<edge_arithmetic_property_view_t<edge_t>> edge_bias_view,
@@ -1089,7 +1047,7 @@ temporal_sample_edges(raft::handle_t const& handle,
   CUGRAPH_EXPECTS(Ks.size() >= 1, "Must specify non-zero value for Ks");
   CUGRAPH_EXPECTS((Ks.size() == 1) || edge_type_view,
                   "If Ks has more than 1 element must specify types");
-  CUGRAPH_EXPECTS(edge_property_views.size() > 0,
+  CUGRAPH_EXPECTS(number_of_edge_properties > 0,
                   "Temporal sampling requires at least a time as a property");
 
   using tag_t = time_stamp_t;
@@ -1102,92 +1060,50 @@ temporal_sample_edges(raft::handle_t const& handle,
 
   rmm::device_uvector<vertex_t> majors(0, handle.get_stream());
   rmm::device_uvector<vertex_t> minors(0, handle.get_stream());
-  std::vector<arithmetic_device_uvector_t> edge_properties{};
+  arithmetic_device_uvector_t tmp_edge_indices{std::monostate{}};
   std::optional<rmm::device_uvector<int32_t>> labels{std::nullopt};
 
-  if (edge_property_views.size() == 1) {
-    arithmetic_device_uvector_t tmp{std::monostate{}};
-    std::tie(majors, minors, tmp, labels) = cugraph::variant_type_dispatch(
-      edge_property_views[0],
-      [&handle,
-       &rng_state,
-       &graph_view,
-       &edge_time_view,
-       &edge_type_view,
-       &edge_bias_view,
-       &vertex_frontier,
-       &Ks,
-       &active_major_labels,
-       with_replacement,
-       temporal_sampling_comparison](auto& edge_property_view) {
-        return temporal_sample_with_one_property(handle,
-                                                 rng_state,
-                                                 graph_view,
-                                                 edge_property_view,
-                                                 edge_time_view,
-                                                 edge_type_view,
-                                                 edge_bias_view,
-                                                 vertex_frontier,
-                                                 Ks,
-                                                 with_replacement,
-                                                 active_major_labels,
-                                                 temporal_sampling_comparison);
-      });
+  if (graph_view.is_multigraph()) {
+    cugraph::edge_multi_index_property_t<edge_t, vertex_t> multi_index_property(handle, graph_view);
 
-    edge_properties.push_back(std::move(tmp));
+    std::tie(majors, minors, tmp_edge_indices, labels) =
+      temporal_sample_with_one_property(handle,
+                                        rng_state,
+                                        graph_view,
+                                        multi_index_property.view(),
+                                        edge_time_view,
+                                        edge_type_view,
+                                        edge_bias_view,
+                                        vertex_frontier,
+                                        Ks,
+                                        with_replacement,
+                                        active_major_labels,
+                                        temporal_sampling_comparison);
+
   } else {
-    arithmetic_device_uvector_t multi_index{std::monostate{}};
-
-    if (graph_view.is_multigraph()) {
-      cugraph::edge_multi_index_property_t<edge_t, vertex_t> multi_index_property(handle,
-                                                                                  graph_view);
-
-      std::tie(majors, minors, multi_index, labels) =
-        temporal_sample_with_one_property(handle,
-                                          rng_state,
-                                          graph_view,
-                                          multi_index_property.view(),
-                                          edge_time_view,
-                                          edge_type_view,
-                                          edge_bias_view,
-                                          vertex_frontier,
-                                          Ks,
-                                          with_replacement,
-                                          active_major_labels,
-                                          temporal_sampling_comparison);
-
-    } else {
-      std::tie(majors, minors, std::ignore, labels) =
-        temporal_sample_with_one_property(handle,
-                                          rng_state,
-                                          graph_view,
-                                          cugraph::edge_dummy_property_view_t{},
-                                          edge_time_view,
-                                          edge_type_view,
-                                          edge_bias_view,
-                                          vertex_frontier,
-                                          Ks,
-                                          with_replacement,
-                                          active_major_labels,
-                                          temporal_sampling_comparison);
-    }
-
-    std::tie(majors, minors, edge_properties) = gather_sampled_properties(handle,
-                                                                          graph_view,
-                                                                          std::move(majors),
-                                                                          std::move(minors),
-                                                                          std::move(multi_index),
-                                                                          edge_property_views);
+    std::tie(majors, minors, std::ignore, labels) =
+      temporal_sample_with_one_property(handle,
+                                        rng_state,
+                                        graph_view,
+                                        cugraph::edge_dummy_property_view_t{},
+                                        edge_time_view,
+                                        edge_type_view,
+                                        edge_bias_view,
+                                        vertex_frontier,
+                                        Ks,
+                                        with_replacement,
+                                        active_major_labels,
+                                        temporal_sampling_comparison);
   }
 
   return std::make_tuple(
-    std::move(majors), std::move(minors), std::move(edge_properties), std::move(labels));
+    std::move(majors), std::move(minors), std::move(tmp_edge_indices), std::move(labels));
 }
 
 template <typename vertex_t, typename edge_t, bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
-           std::vector<arithmetic_device_uvector_t>,
+           arithmetic_device_uvector_t,
            std::optional<rmm::device_uvector<int32_t>>,
            rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<int32_t>>>
@@ -1195,7 +1111,7 @@ sample_edges_to_unvisited_neighbors(
   raft::handle_t const& handle,
   raft::random::RngState& rng_state,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
-  raft::host_span<edge_arithmetic_property_view_t<edge_t>> edge_property_views,
+  size_t number_of_edge_properties,
   std::optional<edge_arithmetic_property_view_t<edge_t>> edge_type_view,
   std::optional<edge_arithmetic_property_view_t<edge_t>> edge_bias_view,
   raft::device_span<vertex_t const> active_majors,
@@ -1214,7 +1130,7 @@ sample_edges_to_unvisited_neighbors(
 
   rmm::device_uvector<vertex_t> majors(0, handle.get_stream());
   rmm::device_uvector<vertex_t> minors(0, handle.get_stream());
-  std::vector<arithmetic_device_uvector_t> edge_properties{};
+  arithmetic_device_uvector_t tmp_edge_indices{std::monostate{}};
   std::optional<rmm::device_uvector<int32_t>> labels{std::nullopt};
   std::optional<rmm::device_uvector<size_t>> sample_offsets{std::nullopt};
 
@@ -1227,7 +1143,7 @@ sample_edges_to_unvisited_neighbors(
       thrust::make_zip_iterator(active_majors.begin(), active_major_labels->begin()),
       thrust::make_zip_iterator(active_majors.end(), active_major_labels->end()));
 
-    if (edge_property_views.size() == 0) {
+    if (number_of_edge_properties == 0) {
       std::tie(majors, minors, std::ignore, labels, visited_minors, visited_minor_labels) =
         sample_unvisited_with_one_property(handle,
                                            rng_state,
@@ -1241,44 +1157,12 @@ sample_edges_to_unvisited_neighbors(
                                            Ks,
                                            active_major_labels,
                                            with_replacement);
-    } else if (edge_property_views.size() == 1) {
-      arithmetic_device_uvector_t tmp{std::monostate{}};
-      std::tie(majors, minors, tmp, labels, visited_minors, visited_minor_labels) =
-        cugraph::variant_type_dispatch(edge_property_views[0],
-                                       [&handle,
-                                        &rng_state,
-                                        &graph_view,
-                                        &edge_type_view,
-                                        &edge_bias_view,
-                                        &vertex_frontier,
-                                        &visited_minors,
-                                        &visited_minor_labels,
-                                        &active_major_labels,
-                                        &Ks,
-                                        with_replacement](auto edge_property_view) {
-                                         return sample_unvisited_with_one_property(
-                                           handle,
-                                           rng_state,
-                                           graph_view,
-                                           edge_property_view,
-                                           edge_type_view,
-                                           edge_bias_view,
-                                           vertex_frontier,
-                                           std::move(visited_minors),
-                                           std::move(visited_minor_labels),
-                                           Ks,
-                                           active_major_labels,
-                                           with_replacement);
-                                       });
-      edge_properties.push_back(std::move(tmp));
     } else {
-      arithmetic_device_uvector_t multi_index{std::monostate{}};
-
       if (graph_view.is_multigraph()) {
         cugraph::edge_multi_index_property_t<edge_t, vertex_t> multi_index_property(handle,
                                                                                     graph_view);
 
-        std::tie(majors, minors, multi_index, labels, visited_minors, visited_minor_labels) =
+        std::tie(majors, minors, tmp_edge_indices, labels, visited_minors, visited_minor_labels) =
           sample_unvisited_with_one_property(handle,
                                              rng_state,
                                              graph_view,
@@ -1306,14 +1190,6 @@ sample_edges_to_unvisited_neighbors(
                                              active_major_labels,
                                              with_replacement);
       }
-      std::tie(majors, minors, edge_properties) =
-        gather_sampled_properties(handle,
-                                  graph_view,
-                                  std::move(majors),
-                                  std::move(minors),
-                                  std::move(multi_index),
-                                  raft::host_span<edge_arithmetic_property_view_t<edge_t>>{
-                                    edge_property_views.data(), edge_property_views.size()});
     }
 
   } else {
@@ -1323,7 +1199,7 @@ sample_edges_to_unvisited_neighbors(
 
     vertex_frontier.bucket(0).insert(active_majors.begin(), active_majors.end());
 
-    if (edge_property_views.size() == 0) {
+    if (number_of_edge_properties == 0) {
       std::tie(majors, minors, std::ignore, labels, visited_minors, visited_minor_labels) =
         sample_unvisited_with_one_property(handle,
                                            rng_state,
@@ -1337,43 +1213,11 @@ sample_edges_to_unvisited_neighbors(
                                            Ks,
                                            active_major_labels,
                                            with_replacement);
-    } else if (edge_property_views.size() == 1) {
-      arithmetic_device_uvector_t tmp{std::monostate{}};
-      std::tie(majors, minors, tmp, labels, visited_minors, visited_minor_labels) =
-        cugraph::variant_type_dispatch(edge_property_views[0],
-                                       [&handle,
-                                        &rng_state,
-                                        &graph_view,
-                                        &edge_type_view,
-                                        &edge_bias_view,
-                                        &vertex_frontier,
-                                        &visited_minors,
-                                        &visited_minor_labels,
-                                        &active_major_labels,
-                                        &Ks,
-                                        with_replacement](auto edge_property_view) {
-                                         return sample_unvisited_with_one_property(
-                                           handle,
-                                           rng_state,
-                                           graph_view,
-                                           edge_property_view,
-                                           edge_type_view,
-                                           edge_bias_view,
-                                           vertex_frontier,
-                                           std::move(visited_minors),
-                                           std::move(visited_minor_labels),
-                                           Ks,
-                                           active_major_labels,
-                                           with_replacement);
-                                       });
-      edge_properties.push_back(std::move(tmp));
     } else {
-      arithmetic_device_uvector_t multi_index{std::monostate{}};
-
       if (graph_view.is_multigraph()) {
         cugraph::edge_multi_index_property_t<edge_t, vertex_t> multi_index_property(handle,
                                                                                     graph_view);
-        std::tie(majors, minors, multi_index, labels, visited_minors, visited_minor_labels) =
+        std::tie(majors, minors, tmp_edge_indices, labels, visited_minors, visited_minor_labels) =
           sample_unvisited_with_one_property(handle,
                                              rng_state,
                                              graph_view,
@@ -1401,21 +1245,12 @@ sample_edges_to_unvisited_neighbors(
                                              active_major_labels,
                                              with_replacement);
       }
-
-      std::tie(majors, minors, edge_properties) =
-        gather_sampled_properties(handle,
-                                  graph_view,
-                                  std::move(majors),
-                                  std::move(minors),
-                                  std::move(multi_index),
-                                  raft::host_span<edge_arithmetic_property_view_t<edge_t>>{
-                                    edge_property_views.data(), edge_property_views.size()});
     }
   }
 
   return std::make_tuple(std::move(majors),
                          std::move(minors),
-                         std::move(edge_properties),
+                         std::move(tmp_edge_indices),
                          std::move(labels),
                          std::move(visited_minors),
                          std::move(visited_minor_labels));
