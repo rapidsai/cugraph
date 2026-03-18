@@ -67,6 +67,17 @@ struct indirection_t {
 };
 
 template <typename index_t, typename Iterator>
+struct divide_and_indirection_t {
+  Iterator first{};
+  index_t divisor{};
+
+  __device__ typename thrust::iterator_traits<Iterator>::value_type operator()(index_t i) const
+  {
+    return *(first + (i / divisor));
+  }
+};
+
+template <typename index_t, typename Iterator>
 struct indirection_if_idx_valid_t {
   using value_type = typename thrust::iterator_traits<Iterator>::value_type;
   Iterator first{};
@@ -169,6 +180,16 @@ struct divider_t {
   T divisor{};
 
   __device__ T operator()(T input) const { return input / divisor; }
+};
+
+template <typename input_t, typename output_t>
+struct modulo_t {
+  input_t modulus{};
+
+  __device__ output_t operator()(input_t input) const
+  {
+    return static_cast<output_t>(input % modulus);
+  }
 };
 
 template <typename T>
