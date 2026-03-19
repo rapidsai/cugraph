@@ -22,7 +22,6 @@ rapids-generate-pip-constraints test_python "${PIP_CONSTRAINT}"
 CUDA_MAJOR=$(echo "${RAPIDS_CUDA_VERSION}" | cut -d'.' -f1)
 CUDA_MINOR=$(echo "${RAPIDS_CUDA_VERSION}" | cut -d'.' -f2)
 PIP_INSTALL_ARGS=()
-torch_downloaded=false
 if \
     { [ "${CUDA_MAJOR}" -eq 12 ] && [ "${CUDA_MINOR}" -eq 9 ]; } \
     || { [ "${CUDA_MAJOR}" -eq 13 ] && [ "${CUDA_MINOR}" -eq 0 ]; }; \
@@ -32,7 +31,6 @@ then
     TORCH_WHEEL_DIR="$(mktemp -d)"
     ./ci/download-torch-wheels.sh "${TORCH_WHEEL_DIR}"
     PIP_INSTALL_ARGS+=("${TORCH_WHEEL_DIR}"/torch*.whl)
-    torch_downloaded=true
 fi
 
 # notes:
@@ -48,19 +46,5 @@ rapids-pip-retry install \
     "${PYLIBCUGRAPH_WHEELHOUSE}"/pylibcugraph*.whl \
     "${LIBCUGRAPH_WHEELHOUSE}"/libcugraph*.whl \
     "${PIP_INSTALL_ARGS[@]}"
-
-# TODO: remove this when RAPIDS wheels and 'torch' CUDA wheels have compatible package requirements
-#
-#    * https://github.com/rapidsai/cugraph/issues/5443
-#    * https://github.com/rapidsai/build-planning/issues/257
-#    * https://github.com/rapidsai/build-planning/issues/255
-#
-CUDA_MAJOR="${RAPIDS_CUDA_VERSION%%.*}"
-CUDA_MINOR=$(echo "${RAPIDS_CUDA_VERSION}" | cut -d'.' -f2)
-if [[ "${CUDA_MAJOR}" == "13" ]] && [[ "${torch_downloaded}" == "true" ]]; then
-    pip install \
-        --upgrade \
-        "nvidia-nvjitlink>=${CUDA_MAJOR}.${CUDA_MINOR}"
-fi
 
 ./ci/test_wheel.sh cugraph
