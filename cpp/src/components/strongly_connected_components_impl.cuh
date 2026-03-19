@@ -64,12 +64,15 @@ namespace cugraph {
 namespace {
 
 // Iteratively peel vertices with zero in-degree or zero out-degree.
-template <typename GraphViewType>
+template <typename GraphViewType, typename KVStoreViewType>
 rmm::device_uvector<typename GraphViewType::vertex_type> find_trivial_singleton_scc_vertices(
   raft::handle_t const& handle,
   GraphViewType const& graph_view,
   GraphViewType const& inverse_graph_view,
-  raft::device_span<typename GraphViewType::vertex_type const> inverse_renumber_map,
+  KVStoreViewType const&
+    to_inverse_renumber_map /* graph_view vertex ID => local inverse_graph_view vertex ID */,
+  raft::device_span<typename GraphViewType::vertex_type const>
+    from_inverse_renumber_map /* local inverse_graph_view vertex ID => graph_view vertex ID */,
   raft::device_span<typename GraphViewType::vertex_type const> candidate_vertices,
   rmm::device_uvector<typename GraphViewType::vertex_type>&& in_degrees,
   rmm::device_uvector<typename GraphViewType::vertex_type>&& out_degrees)
@@ -148,7 +151,7 @@ rmm::device_uvector<typename GraphViewType::vertex_type> find_trivial_singleton_
     // 3. Forward pass: traverse outgoing edges from frontier, decrement in_degrees of destinations
 
     {
-      key_bucket_t<vertex_t, void, multi_gpu, true> frontier(
+      key_bucket_view_t<vertex_t, void, multi_gpu, true> frontier(
         handle,
         raft::device_span<vertex_t const>(cur_candidates.data() + num_surviving, num_peeled));
 
@@ -193,13 +196,13 @@ rmm::device_uvector<typename GraphViewType::vertex_type> find_trivial_singleton_
                                std::vector<cugraph::arithmetic_device_uvector_t>{});
       }
 
-      renumber_local_ext_vertices<vertex_t, multi_gpu>(
-        handle,
-        inv_frontier_vertices.data(),
-        inv_frontier_vertices.size(),
-        inverse_renumber_map.data(),
-        inverse_graph_view.local_vertex_partition_range_first(),
-        inverse_graph_view.local_vertex_partition_range_last());
+      to_inverse_renumber_map.find(
+        inv_frontier_vertices.begin(),
+        inv_frontier_vertices.end(),
+        inv_frontier_vertices.begin(),
+        handle.get_stream()); /* functionally identical to renumber_local_ext_vertices but to avoid
+                                 repetitively rebuilding a kv_store_t object for the entire local
+                                 vertex partition range */
 
       thrust::sort(
         handle.get_thrust_policy(), inv_frontier_vertices.begin(), inv_frontier_vertices.end());
@@ -222,7 +225,7 @@ rmm::device_uvector<typename GraphViewType::vertex_type> find_trivial_singleton_
       unrenumber_local_int_vertices(handle,
                                     inv_dst_vertices.data(),
                                     inv_dst_vertices.size(),
-                                    inverse_renumber_map.data(),
+                                    from_inverse_renumber_map.data(),
                                     inverse_graph_view.local_vertex_partition_range_first(),
                                     inverse_graph_view.local_vertex_partition_range_last());
 
@@ -1324,7 +1327,7 @@ intersect_reachable_sets(
 }
 
 // return component_ids, component_offsets, component_vertices, num_unresolved_components
-template <typename GraphViewType>
+template <typename GraphViewType, typename KVStoreViewType>
 std::tuple<rmm::device_uvector<typename GraphViewType::vertex_type>,
            rmm::device_uvector<typename GraphViewType::vertex_type>,
            rmm::device_uvector<typename GraphViewType::vertex_type>,
@@ -1335,7 +1338,10 @@ forward_backward_intersect(
   raft::handle_t const& handle,
   GraphViewType const& graph_view,
   GraphViewType const& inverse_graph_view,
-  raft::device_span<typename GraphViewType::vertex_type const> inverse_renumber_map,
+  KVStoreViewType const&
+    to_inverse_renumber_map /* graph_view vertex ID => local inverse_graph_view vertex ID */,
+  raft::device_span<typename GraphViewType::vertex_type const>
+    from_inverse_renumber_map /* local inverse_graph_view vertex ID => graph_view vertex ID */,
   rmm::device_uvector<typename GraphViewType::vertex_type>&& unresolved_component_offsets,
   rmm::device_uvector<typename GraphViewType::vertex_type>&& unresolved_component_vertices)
 {
@@ -1350,10 +1356,10 @@ forward_backward_intersect(
                                                    handle.get_stream());
     if constexpr (multi_gpu) {
       auto tmp_vertices =
-        rmm::device_uvector<vertex_t>(inverse_renumber_map.size(), handle.get_stream());
+        rmm::device_uvector<vertex_t>(from_inverse_renumber_map.size(), handle.get_stream());
       thrust::copy(handle.get_thrust_policy(),
-                   inverse_renumber_map.begin(),
-                   inverse_renumber_map.end(),
+                   from_inverse_renumber_map.begin(),
+                   from_inverse_renumber_map.end(),
                    tmp_vertices.begin());
       std::vector<arithmetic_device_uvector_t> vertex_properties{};
       vertex_properties.push_back(std::move(in_degrees));
@@ -1375,7 +1381,7 @@ forward_backward_intersect(
       thrust::scatter(handle.get_thrust_policy(),
                       in_degrees.begin(),
                       in_degrees.end(),
-                      inverse_renumber_map.begin(),
+                      from_inverse_renumber_map.begin(),
                       tmp_degrees.begin());
     }
     in_degrees = std::move(tmp_degrees);
@@ -1406,7 +1412,8 @@ forward_backward_intersect(
     handle,
     graph_view,
     inverse_graph_view,
-    inverse_renumber_map,
+    to_inverse_renumber_map,
+    from_inverse_renumber_map,
     raft::device_span<vertex_t>(unresolved_component_vertices.data(),
                                 unresolved_component_vertices.size()),
     std::move(in_degrees),
@@ -1465,13 +1472,13 @@ forward_backward_intersect(
       pivot_unresolved_component_idxs =
         std::move(std::get<rmm::device_uvector<vertex_t>>(vertex_properties[0]));
     }
-    renumber_local_ext_vertices<vertex_t, multi_gpu>(
-      handle,
-      pivots.data(),
-      pivots.size(),
-      inverse_renumber_map.data(),
-      inverse_graph_view.local_vertex_partition_range_first(),
-      inverse_graph_view.local_vertex_partition_range_last());
+    to_inverse_renumber_map.find(
+      pivots.begin(),
+      pivots.end(),
+      pivots.begin(),
+      handle.get_stream()); /* functionally identical to renumber_local_ext_vertices but to avoid
+                               repetitively rebuilding a kv_store_t object for the entire local
+                               vertex partition range */
     thrust::sort_by_key(handle.get_thrust_policy(),
                         pivots.begin(),
                         pivots.end(),
@@ -1488,7 +1495,7 @@ forward_backward_intersect(
     unrenumber_local_int_vertices(handle,
                                   backward_set_vertices.data(),
                                   backward_set_vertices.size(),
-                                  inverse_renumber_map.data(),
+                                  from_inverse_renumber_map.data(),
                                   inverse_graph_view.local_vertex_partition_range_first(),
                                   inverse_graph_view.local_vertex_partition_range_last());
     rmm::device_uvector<vertex_t> tmp_unresolved_component_idxs(backward_set_vertices.size(),
@@ -1608,7 +1615,7 @@ void strongly_connected_components_impl(
   // 4. create an inverse graph
 
   graph_t<vertex_t, edge_t, store_transposed, multi_gpu> inverse_graph(handle);
-  rmm::device_uvector<vertex_t> inverse_renumber_map(0, handle.get_stream());
+  rmm::device_uvector<vertex_t> from_inverse_renumber_map(0, handle.get_stream());
   {
     rmm::device_uvector<vertex_t> vertices(graph_view.local_vertex_partition_range_size(),
                                            handle.get_stream());
@@ -1645,9 +1652,18 @@ void strongly_connected_components_impl(
         std::vector<cugraph::arithmetic_device_uvector_t>{},
         graph_properties_t{false, false},
         true);
-    inverse_renumber_map = std::move(*tmp_renumber_map);
+    from_inverse_renumber_map = std::move(*tmp_renumber_map);
   }
   auto inverse_graph_view = inverse_graph.view();
+  kv_store_t<vertex_t, vertex_t, false> to_inverse_renumber_map(
+    from_inverse_renumber_map.begin(),
+    from_inverse_renumber_map.end(),
+    thrust::make_counting_iterator(inverse_graph_view.local_vertex_partition_range_first()),
+    invalid_vertex_id_v<vertex_t>,
+    invalid_vertex_id_v<vertex_t>,
+    handle.get_stream());
+  auto to_inverse_renumber_map_view = to_inverse_renumber_map.view();
+
   edge_property_t<edge_t, bool> inverse_edge_mask(handle, inverse_graph_view);
   cugraph::fill_edge_property(handle, inverse_graph_view, inverse_edge_mask.mutable_view(), true);
   inverse_graph_view.attach_edge_mask(inverse_edge_mask.view());
@@ -1708,7 +1724,9 @@ void strongly_connected_components_impl(
         handle,
         forward_graph_view,
         inverse_graph_view,
-        raft::device_span<vertex_t const>(inverse_renumber_map.data(), inverse_renumber_map.size()),
+        to_inverse_renumber_map_view,
+        raft::device_span<vertex_t const>(from_inverse_renumber_map.data(),
+                                          from_inverse_renumber_map.size()),
         std::move(unresolved_component_offsets),
         std::move(unresolved_component_vertices));
 
@@ -1803,13 +1821,13 @@ void strongly_connected_components_impl(
       std::tie(tmp_vertices, vertex_properties) =
         shuffle_ext_vertices(handle, std::move(tmp_vertices), std::move(vertex_properties));
       tmp_components = std::move(std::get<rmm::device_uvector<vertex_t>>(vertex_properties[0]));
-      renumber_local_ext_vertices<vertex_t, multi_gpu>(
-        handle,
-        tmp_vertices.data(),
-        tmp_vertices.size(),
-        inverse_renumber_map.data(),
-        inverse_graph_view.local_vertex_partition_range_first(),
-        inverse_graph_view.local_vertex_partition_range_last());
+      to_inverse_renumber_map_view.find(
+        tmp_vertices.begin(),
+        tmp_vertices.end(),
+        tmp_vertices.begin(),
+        handle.get_stream()); /* functionally identical to renumber_local_ext_vertices but to avoid
+                                 repetitively rebuilding a kv_store_t object for the entire local
+                                 vertex partition range */
       thrust::sort_by_key(handle.get_thrust_policy(),
                           tmp_vertices.begin(),
                           tmp_vertices.end(),
@@ -1863,8 +1881,8 @@ void strongly_connected_components_impl(
         inverse_components = rmm::device_uvector<vertex_t>(
           inverse_graph_view.local_vertex_partition_range_size(), handle.get_stream());
         thrust::gather(handle.get_thrust_policy(),
-                       inverse_renumber_map.begin(),
-                       inverse_renumber_map.end(),
+                       from_inverse_renumber_map.begin(),
+                       from_inverse_renumber_map.end(),
                        components.begin(),
                        inverse_components->begin());
       }
