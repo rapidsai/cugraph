@@ -148,7 +148,7 @@ rmm::device_uvector<typename GraphViewType::vertex_type> find_trivial_singleton_
     // 3. Forward pass: traverse outgoing edges from frontier, decrement in_degrees of destinations
 
     {
-      key_bucket_t<vertex_t, void, multi_gpu, true> frontier(
+      key_bucket_view_t<vertex_t, void, multi_gpu, true> frontier(
         handle,
         raft::device_span<vertex_t const>(cur_candidates.data() + num_surviving, num_peeled));
 

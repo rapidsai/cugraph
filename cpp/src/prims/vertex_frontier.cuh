@@ -7,6 +7,7 @@
 #include "prims/detail/multi_stream_utils.cuh"
 
 #include <cugraph/utilities/device_comm.hpp>
+#include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/packed_bool_utils.hpp>
@@ -243,22 +244,14 @@ class key_bucket_t {
 
   static_assert(std::is_same_v<tag_t, void> || std::is_arithmetic_v<tag_t>);
 
-  using optional_variant_type =
-    std::conditional_t<std::is_same_v<tag_t, void>,
-                       std::byte /* dummy */,
-                       std::variant<raft::device_span<tag_t const>, rmm::device_uvector<tag_t>>>;
+  using optional_tag_type = std::
+    conditional_t<std::is_same_v<tag_t, void>, std::byte /* dummy */, rmm::device_uvector<tag_t>>;
 
   key_bucket_t() = delete;
 
   key_bucket_t(key_bucket_t const& other) = delete;
 
-  // The default move constructor should work fine but to silence a compiler warning (CUDA 12.8)
-  key_bucket_t(key_bucket_t&& other)
-  {
-    this->handle_ptr_ = other.handle_ptr_;
-    this->vertices_   = std::move(other.vertices_);
-    this->tags_       = std::move(other.tags_);
-  }
+  key_bucket_t(key_bucket_t&& other) = default;
 
   template <typename tag_type = tag_t, std::enable_if_t<std::is_same_v<tag_type, void>>* = nullptr>
   key_bucket_t(raft::handle_t const& handle)
@@ -290,48 +283,9 @@ class key_bucket_t {
   {
   }
 
-  template <typename tag_type = tag_t, std::enable_if_t<std::is_same_v<tag_type, void>>* = nullptr>
-  key_bucket_t(raft::handle_t const& handle, raft::device_span<vertex_t const> vertices)
-    : handle_ptr_(&handle), vertices_(vertices), tags_(std::byte{0})
-  {
-  }
-
-  template <typename tag_type = tag_t, std::enable_if_t<!std::is_same_v<tag_type, void>>* = nullptr>
-  key_bucket_t(raft::handle_t const& handle,
-               raft::device_span<vertex_t const> vertices,
-               raft::device_span<tag_t const> tags)
-    : handle_ptr_(&handle), vertices_(vertices), tags_(tags)
-  {
-  }
-
-  ~key_bucket_t()
-  {
-    // to silence a compiler warning with GCC 14 (otherwise, the default destructor will be
-    // sufficient)
-    if (vertices_.index() == 1) {
-      std::get<1>(vertices_).resize(0, std::get<1>(vertices_).stream());
-      std::get<1>(vertices_).shrink_to_fit(std::get<1>(vertices_).stream());
-    }
-  }
-
   key_bucket_t& operator=(key_bucket_t const& other) = delete;
 
-  // The default move operator should work fine but to silence a compiler warning (CUDA 12.8)
-  key_bucket_t& operator=(key_bucket_t&& other)
-  {
-    if (this != &other) {
-      this->handle_ptr_ = other.handle_ptr_;
-      // to silence a compiler warning with GCC 14 (otherwise, the default destructor will be
-      // sufficient)
-      if (other.vertices_.index() == 0) {
-        this->vertices_ = std::move(std::get<0>(other.vertices_));
-      } else {
-        this->vertices_ = std::move(std::get<1>(other.vertices_));
-      }
-      this->tags_ = std::move(other.tags_);
-    }
-    return *this;
-  }
+  key_bucket_t& operator=(key_bucket_t&& other) = default;
 
   /**
    * @ brief insert a vertex to the bucket
@@ -341,15 +295,12 @@ class key_bucket_t {
   template <typename tag_type = tag_t, std::enable_if_t<std::is_same_v<tag_type, void>>* = nullptr>
   void insert(vertex_t vertex)
   {
-    CUGRAPH_EXPECTS(vertices_.index() == 1,
-                    "insert() is supported only when this bucket holds an owning container.");
-    if (std::get<1>(vertices_).size() > 0) {
+    if (vertices_.size() > 0) {
       rmm::device_scalar<vertex_t> tmp(vertex, handle_ptr_->get_stream());
       insert(tmp.data(), tmp.data() + 1);
     } else {
-      std::get<1>(vertices_).resize(1, handle_ptr_->get_stream());
-      raft::update_device(
-        std::get<1>(vertices_).data(), &vertex, size_t{1}, handle_ptr_->get_stream());
+      vertices_.resize(1, handle_ptr_->get_stream());
+      raft::update_device(vertices_.data(), &vertex, size_t{1}, handle_ptr_->get_stream());
     }
   }
 
@@ -362,18 +313,15 @@ class key_bucket_t {
   template <typename tag_type = tag_t, std::enable_if_t<!std::is_same_v<tag_type, void>>* = nullptr>
   void insert(cuda::std::tuple<vertex_t, tag_type> key)
   {
-    CUGRAPH_EXPECTS(vertices_.index() == 1,
-                    "insert() is supported only when this bucket holds an owning container.");
-    if (std::get<1>(vertices_).size() > 0) {
+    if (vertices_.size() > 0) {
       rmm::device_scalar<vertex_t> tmp_vertex(cuda::std::get<0>(key), handle_ptr_->get_stream());
       rmm::device_scalar<tag_t> tmp_tag(cuda::std::get<1>(key), handle_ptr_->get_stream());
       auto pair_first = thrust::make_zip_iterator(tmp_vertex.data(), tmp_tag.data());
       insert(pair_first, pair_first + 1);
     } else {
-      std::get<1>(vertices_).resize(1, handle_ptr_->get_stream());
-      std::get<1>(tags_).resize(1, handle_ptr_->get_stream());
-      auto pair_first =
-        thrust::make_zip_iterator(std::get<1>(vertices_).begin(), std::get<1>(tags_).begin());
+      vertices_.resize(1, handle_ptr_->get_stream());
+      tags_.resize(1, handle_ptr_->get_stream());
+      auto pair_first = thrust::make_zip_iterator(vertices_.begin(), tags_.begin());
       thrust::fill(handle_ptr_->get_thrust_policy(), pair_first, pair_first + 1, key);
     }
   }
@@ -394,16 +342,14 @@ class key_bucket_t {
     static_assert(
       std::is_same_v<typename std::iterator_traits<VertexIterator>::value_type, vertex_t>);
 
-    CUGRAPH_EXPECTS(vertices_.index() == 1,
-                    "insert() is supported only when this bucket holds an owning container.");
-    if (std::get<1>(vertices_).size() > 0) {
+    if (vertices_.size() > 0) {
       if constexpr (sorted_unique) {
         rmm::device_uvector<vertex_t> merged_vertices(
-          std::get<1>(vertices_).size() + cuda::std::distance(vertex_first, vertex_last),
+          vertices_.size() + cuda::std::distance(vertex_first, vertex_last),
           handle_ptr_->get_stream());
         thrust::merge(handle_ptr_->get_thrust_policy(),
-                      std::get<1>(vertices_).begin(),
-                      std::get<1>(vertices_).end(),
+                      vertices_.begin(),
+                      vertices_.end(),
                       vertex_first,
                       vertex_last,
                       merged_vertices.begin());
@@ -412,23 +358,19 @@ class key_bucket_t {
                                                                   merged_vertices.begin(),
                                                                   merged_vertices.end())),
                                handle_ptr_->get_stream());
-        std::get<1>(vertices_) = std::move(merged_vertices);
+        vertices_ = std::move(merged_vertices);
       } else {
-        auto cur_size = std::get<1>(vertices_).size();
-        std::get<1>(vertices_).resize(cur_size + cuda::std::distance(vertex_first, vertex_last),
-                                      handle_ptr_->get_stream());
+        auto cur_size = vertices_.size();
+        vertices_.resize(cur_size + cuda::std::distance(vertex_first, vertex_last),
+                         handle_ptr_->get_stream());
         thrust::copy(handle_ptr_->get_thrust_policy(),
                      vertex_first,
                      vertex_last,
-                     std::get<1>(vertices_).begin() + cur_size);
+                     vertices_.begin() + cur_size);
       }
     } else {
-      std::get<1>(vertices_).resize(cuda::std::distance(vertex_first, vertex_last),
-                                    handle_ptr_->get_stream());
-      thrust::copy(handle_ptr_->get_thrust_policy(),
-                   vertex_first,
-                   vertex_last,
-                   std::get<1>(vertices_).begin());
+      vertices_.resize(cuda::std::distance(vertex_first, vertex_last), handle_ptr_->get_stream());
+      thrust::copy(handle_ptr_->get_thrust_policy(), vertex_first, vertex_last, vertices_.begin());
     }
   }
 
@@ -448,21 +390,17 @@ class key_bucket_t {
     static_assert(std::is_same_v<typename std::iterator_traits<KeyIterator>::value_type,
                                  cuda::std::tuple<vertex_t, tag_t>>);
 
-    CUGRAPH_EXPECTS(vertices_.index() == 1,
-                    "insert() is supported only when this bucket holds an owning container.");
-    if (std::get<1>(vertices_).size() > 0) {
+    if (vertices_.size() > 0) {
       if constexpr (sorted_unique) {
         rmm::device_uvector<vertex_t> merged_vertices(
-          std::get<1>(vertices_).size() + cuda::std::distance(key_first, key_last),
-          handle_ptr_->get_stream());
+          vertices_.size() + cuda::std::distance(key_first, key_last), handle_ptr_->get_stream());
         rmm::device_uvector<tag_t> merged_tags(merged_vertices.size(), handle_ptr_->get_stream());
-        auto old_pair_first =
-          thrust::make_zip_iterator(std::get<1>(vertices_).begin(), std::get<1>(tags_).begin());
+        auto old_pair_first = thrust::make_zip_iterator(vertices_.begin(), tags_.begin());
         auto merged_pair_first =
           thrust::make_zip_iterator(merged_vertices.begin(), merged_tags.begin());
         thrust::merge(handle_ptr_->get_thrust_policy(),
                       old_pair_first,
-                      old_pair_first + std::get<1>(vertices_).size(),
+                      old_pair_first + vertices_.size(),
                       key_first,
                       key_last,
                       merged_pair_first);
@@ -473,43 +411,34 @@ class key_bucket_t {
                                              merged_pair_first + merged_vertices.size())),
           handle_ptr_->get_stream());
         merged_tags.resize(merged_vertices.size(), handle_ptr_->get_stream());
-        std::get<1>(vertices_) = std::move(merged_vertices);
-        std::get<1>(tags_)     = std::move(merged_tags);
+        vertices_ = std::move(merged_vertices);
+        tags_     = std::move(merged_tags);
       } else {
-        auto cur_size = std::get<1>(vertices_).size();
-        std::get<1>(vertices_).resize(cur_size + cuda::std::distance(key_first, key_last),
-                                      handle_ptr_->get_stream());
-        std::get<1>(tags_).resize(std::get<1>(vertices_).size(), handle_ptr_->get_stream());
-        thrust::copy(
-          handle_ptr_->get_thrust_policy(),
-          key_first,
-          key_last,
-          thrust::make_zip_iterator(std::get<1>(vertices_).begin(), std::get<1>(tags_).begin()) +
-            cur_size);
+        auto cur_size = vertices_.size();
+        vertices_.resize(cur_size + cuda::std::distance(key_first, key_last),
+                         handle_ptr_->get_stream());
+        tags_.resize(vertices_.size(), handle_ptr_->get_stream());
+        thrust::copy(handle_ptr_->get_thrust_policy(),
+                     key_first,
+                     key_last,
+                     thrust::make_zip_iterator(vertices_.begin(), tags_.begin()) + cur_size);
       }
     } else {
-      std::get<1>(vertices_).resize(cuda::std::distance(key_first, key_last),
-                                    handle_ptr_->get_stream());
-      std::get<1>(tags_).resize(cuda::std::distance(key_first, key_last),
-                                handle_ptr_->get_stream());
-      thrust::copy(
-        handle_ptr_->get_thrust_policy(),
-        key_first,
-        key_last,
-        thrust::make_zip_iterator(std::get<1>(vertices_).begin(), std::get<1>(tags_).begin()));
+      vertices_.resize(cuda::std::distance(key_first, key_last), handle_ptr_->get_stream());
+      tags_.resize(cuda::std::distance(key_first, key_last), handle_ptr_->get_stream());
+      thrust::copy(handle_ptr_->get_thrust_policy(),
+                   key_first,
+                   key_last,
+                   thrust::make_zip_iterator(vertices_.begin(), tags_.begin()));
     }
   }
 
-  size_t size() const
-  {
-    return vertices_.index() == 0 ? std::get<0>(vertices_).size() : std::get<1>(vertices_).size();
-  }
+  size_t size() const { return vertices_.size(); }
 
   template <bool do_aggregate = multi_gpu>
   std::enable_if_t<do_aggregate, size_t> aggregate_size() const
   {
-    size_t ret =
-      (vertices_.index() == 0) ? std::get<0>(vertices_).size() : std::get<1>(vertices_).size();
+    size_t ret = vertices_.size();
 #if 1  // FIXME: we should add host_allreduce to raft
     ret = host_scalar_allreduce(
       handle_ptr_->get_comms(), ret, raft::comms::op_t::SUM, handle_ptr_->get_stream());
@@ -523,118 +452,71 @@ class key_bucket_t {
   template <bool do_aggregate = multi_gpu>
   std::enable_if_t<!do_aggregate, size_t> aggregate_size() const
   {
-    return vertices_.index() == 0 ? std::get<0>(vertices_).size() : std::get<1>(vertices_).size();
+    return vertices_.size();
   }
 
   void resize(size_t size)
   {
-    CUGRAPH_EXPECTS(vertices_.index() == 1,
-                    "resize() is supported only when this bucket holds an owning container.");
-    std::get<1>(vertices_).resize(size, handle_ptr_->get_stream());
-    if constexpr (!std::is_same_v<tag_t, void>) {
-      std::get<1>(tags_).resize(size, handle_ptr_->get_stream());
-    }
+    vertices_.resize(size, handle_ptr_->get_stream());
+    if constexpr (!std::is_same_v<tag_t, void>) { tags_.resize(size, handle_ptr_->get_stream()); }
   }
 
   void clear() { resize(0); }
 
   void shrink_to_fit()
   {
-    CUGRAPH_EXPECTS(
-      vertices_.index() == 1,
-      "shrink_to_fit() is supported only when this bucket holds an owning container.");
-    std::get<1>(vertices_).shrink_to_fit(handle_ptr_->get_stream());
-    if constexpr (!std::is_same_v<tag_t, void>) {
-      std::get<1>(tags_).shrink_to_fit(handle_ptr_->get_stream());
-    }
+    vertices_.shrink_to_fit(handle_ptr_->get_stream());
+    if constexpr (!std::is_same_v<tag_t, void>) { tags_.shrink_to_fit(handle_ptr_->get_stream()); }
   }
 
   auto begin()
   {
-    CUGRAPH_EXPECTS(
-      vertices_.index() == 1,
-      "non-const begin() is supported only when this bucket holds an owning container.");
     if constexpr (std::is_same_v<tag_t, void>) {
-      return std::get<1>(vertices_).begin();
+      return vertices_.begin();
     } else {
-      return thrust::make_zip_iterator(std::get<1>(vertices_).begin(), std::get<1>(tags_).begin());
+      return thrust::make_zip_iterator(vertices_.begin(), tags_.begin());
     }
   }
 
   auto const cbegin() const
   {
     if constexpr (std::is_same_v<tag_t, void>) {
-      return vertices_.index() == 0 ? std::get<0>(vertices_).begin()
-                                    : std::get<1>(vertices_).begin();
+      return vertices_.begin();
     } else {
-      return vertices_.index() == 0 ? thrust::make_zip_iterator(std::get<0>(vertices_).begin(),
-                                                                std::get<0>(tags_).begin())
-                                    : thrust::make_zip_iterator(std::get<1>(vertices_).begin(),
-                                                                std::get<1>(tags_).begin());
+      return thrust::make_zip_iterator(vertices_.begin(), tags_.begin());
     }
   }
 
   auto const begin() const { return cbegin(); }
 
-  auto end()
-  {
-    CUGRAPH_EXPECTS(
-      vertices_.index() == 1,
-      "non-const end() is supported only when this bucket holds an owning container.");
-    return begin() + std::get<1>(vertices_).size();
-  }
+  auto end() { return begin() + vertices_.size(); }
 
-  auto const cend() const
-  {
-    return begin() +
-           (vertices_.index() == 0 ? std::get<0>(vertices_).size() : std::get<1>(vertices_).size());
-  }
+  auto const cend() const { return cbegin() + vertices_.size(); }
 
   auto const end() const { return cend(); }
 
-  auto vertex_begin()
-  {
-    CUGRAPH_EXPECTS(
-      vertices_.index() == 1,
-      "non-const vertex_begin() is supported only when this bucket holds an owning container.");
-    return std::get<1>(vertices_).begin();
-  }
+  auto vertex_begin() { return vertices_.begin(); }
 
-  auto const vertex_cbegin() const
-  {
-    return vertices_.index() == 0 ? std::get<0>(vertices_).begin() : std::get<1>(vertices_).begin();
-  }
+  auto const vertex_cbegin() const { return vertices_.begin(); }
 
   auto const vertex_begin() const { return vertex_cbegin(); }
 
-  auto vertex_end()
-  {
-    CUGRAPH_EXPECTS(
-      vertices_.index() == 1,
-      "non-const vertex_end() is supported only when this bucket holds an owning container.");
-    return std::get<1>(vertices_).end();
-  }
+  auto vertex_end() { return vertices_.end(); }
 
-  auto const vertex_cend() const
-  {
-    return vertices_.index() == 0 ? std::get<0>(vertices_).end() : std::get<1>(vertices_).end();
-  }
+  auto const vertex_cend() const { return vertices_.end(); }
 
   auto const vertex_end() const { return vertex_cend(); }
 
   template <typename tag_type = tag_t, std::enable_if_t<!std::is_same_v<tag_type, void>>* = nullptr>
   auto tag_begin()
   {
-    CUGRAPH_EXPECTS(
-      tags_.index() == 1,
-      "non-const tag_begin() is supported only when this bucket holds an owning container.");
-    return std::get<1>(tags_).begin();
+    return tags_.begin();
   }
 
   template <typename tag_type = tag_t, std::enable_if_t<!std::is_same_v<tag_type, void>>* = nullptr>
   auto tag_cbegin() const
   {
-    return tags_.index() == 0 ? std::get<0>(tags_).begin() : std::get<1>(tags_).begin();
+    return tags_.begin();
   }
 
   template <typename tag_type = tag_t, std::enable_if_t<!std::is_same_v<tag_type, void>>* = nullptr>
@@ -646,16 +528,13 @@ class key_bucket_t {
   template <typename tag_type = tag_t, std::enable_if_t<!std::is_same_v<tag_type, void>>* = nullptr>
   auto tag_end()
   {
-    CUGRAPH_EXPECTS(
-      tags_.index() == 1,
-      "non-const tag_end() is supported only when this bucket holds an owning container.");
-    return std::get<1>(tags_).end();
+    return tags_.end();
   }
 
   template <typename tag_type = tag_t, std::enable_if_t<!std::is_same_v<tag_type, void>>* = nullptr>
   auto tag_cend() const
   {
-    return tags_.index() == 0 ? std::get<0>(tags_).end() : std::get<1>(tags_).end();
+    return tags_.end();
   }
 
   template <typename tag_type = tag_t, std::enable_if_t<!std::is_same_v<tag_type, void>>* = nullptr>
@@ -664,12 +543,207 @@ class key_bucket_t {
     return tag_cend();
   }
 
-  bool is_owning() { return (vertices_.index() == 1); }
+ private:
+  raft::handle_t const* handle_ptr_{nullptr};
+  rmm::device_uvector<vertex_t> vertices_;
+  optional_tag_type tags_;
+};
+
+// non-owning view of key_bucket_t
+template <typename vertex_t,
+          typename tag_t     = void,
+          bool multi_gpu     = false,
+          bool sorted_unique = false>
+class key_bucket_view_t {
+ public:
+  using key_type =
+    std::conditional_t<std::is_same_v<tag_t, void>, vertex_t, cuda::std::tuple<vertex_t, tag_t>>;
+  static bool constexpr is_sorted_unique = sorted_unique;
+
+  static_assert(std::is_same_v<tag_t, void> || std::is_arithmetic_v<tag_t>);
+
+  using optional_tag_type = std::conditional_t<std::is_same_v<tag_t, void>,
+                                               std::byte /* dummy */,
+                                               raft::device_span<tag_t const>>;
+
+  template <typename tag_type = tag_t, std::enable_if_t<std::is_same_v<tag_type, void>>* = nullptr>
+  key_bucket_view_t(raft::handle_t const& handle, raft::device_span<vertex_t const> vertices)
+    : handle_ptr_(&handle), vertices_(vertices), tags_(std::byte{0})
+  {
+  }
+
+  template <typename tag_type = tag_t, std::enable_if_t<!std::is_same_v<tag_type, void>>* = nullptr>
+  key_bucket_view_t(raft::handle_t const& handle,
+                    raft::device_span<vertex_t const> vertices,
+                    raft::device_span<tag_t const> tags)
+    : handle_ptr_(&handle), vertices_(vertices), tags_(tags)
+  {
+  }
+
+  size_t size() const { return vertices_.size(); }
+
+  template <bool do_aggregate = multi_gpu>
+  std::enable_if_t<do_aggregate, size_t> aggregate_size() const
+  {
+    return host_scalar_allreduce(handle_ptr_->get_comms(),
+                                 vertices_.size(),
+                                 raft::comms::op_t::SUM,
+                                 handle_ptr_->get_stream());
+  }
+
+  template <bool do_aggregate = multi_gpu>
+  std::enable_if_t<!do_aggregate, size_t> aggregate_size() const
+  {
+    return vertices_.size();
+  }
+
+  auto const cbegin() const
+  {
+    if constexpr (std::is_same_v<tag_t, void>) {
+      return vertices_.begin();
+    } else {
+      return thrust::make_zip_iterator(vertices_.begin(), tags_.begin());
+    }
+  }
+
+  auto const begin() const { return cbegin(); }
+
+  auto const cend() const { return cbegin() + vertices_.size(); }
+
+  auto const end() const { return cend(); }
+
+  auto const vertex_cbegin() const { return vertices_.begin(); }
+
+  auto const vertex_begin() const { return vertex_cbegin(); }
+
+  auto const vertex_cend() const { return vertices_.end(); }
+
+  auto const vertex_end() const { return vertex_cend(); }
+
+  template <typename tag_type = tag_t, std::enable_if_t<!std::is_same_v<tag_type, void>>* = nullptr>
+  auto tag_cbegin() const
+  {
+    return tags_.begin();
+  }
+
+  template <typename tag_type = tag_t, std::enable_if_t<!std::is_same_v<tag_type, void>>* = nullptr>
+  auto const tag_begin() const
+  {
+    return tag_cbegin();
+  }
+
+  template <typename tag_type = tag_t, std::enable_if_t<!std::is_same_v<tag_type, void>>* = nullptr>
+  auto tag_cend() const
+  {
+    return tags_.end();
+  }
+
+  template <typename tag_type = tag_t, std::enable_if_t<!std::is_same_v<tag_type, void>>* = nullptr>
+  auto const tag_end() const
+  {
+    return tag_cend();
+  }
 
  private:
   raft::handle_t const* handle_ptr_{nullptr};
-  std::variant<raft::device_span<vertex_t const>, rmm::device_uvector<vertex_t>> vertices_{};
-  optional_variant_type tags_{};
+  raft::device_span<vertex_t const> vertices_{};
+  optional_tag_type tags_{};
+};
+
+template <typename vertex_t, typename idx_t>
+struct index_to_repeated_vertex_tuple_t {
+  raft::device_span<vertex_t const> vertices{};
+  idx_t repeat_count{};
+
+  __device__ cuda::std::tuple<vertex_t, idx_t> operator()(size_t i) const
+  {
+    return cuda::std::make_tuple(vertices[i / repeat_count], static_cast<idx_t>(i % repeat_count));
+  }
+};
+
+// from a set of vertices (say v0, v1, v2, ...) create a set of repeated vertices tagged with a
+// repeat index (e.g. (v0,0), (v0,1), (v0,2), (v1,0), (v1,1), (v1,2), (v2,0), (v2,1), (v2,2), ... if
+// the user provided repeat count is 3).
+// key type is cuda::std::tuple<vertex_t, idx_t>
+// if sorted_unique is true, stores unique key objects in the sorted (non-descending) order.
+// if false, there can be duplicates and the elements may not be sorted.
+template <typename vertex_t, typename idx_t, bool multi_gpu = false, bool sorted_unique = false>
+class repeated_vertex_bucket_view_t {
+ public:
+  using key_type                         = cuda::std::tuple<vertex_t, idx_t>;
+  static bool constexpr is_sorted_unique = sorted_unique;
+
+  static_assert(std::is_integral_v<idx_t>);
+
+  repeated_vertex_bucket_view_t(raft::handle_t const& handle,
+                                raft::device_span<vertex_t const> vertices,
+                                idx_t repeat_count)
+    : handle_ptr_(&handle), vertices_(vertices), repeat_count_(repeat_count)
+  {
+  }
+
+  size_t size() const { return vertices_.size() * repeat_count_; }
+
+  template <bool do_aggregate = multi_gpu>
+  std::enable_if_t<do_aggregate, size_t> aggregate_size() const
+  {
+    return host_scalar_allreduce(handle_ptr_->get_comms(),
+                                 vertices_.size() * repeat_count_,
+                                 raft::comms::op_t::SUM,
+                                 handle_ptr_->get_stream());
+  }
+
+  template <bool do_aggregate = multi_gpu>
+  std::enable_if_t<!do_aggregate, size_t> aggregate_size() const
+  {
+    return vertices_.size() * repeat_count_;
+  }
+
+  auto const cbegin() const
+  {
+    return cuda::make_transform_iterator(
+      thrust::make_counting_iterator(size_t{0}),
+      index_to_repeated_vertex_tuple_t<vertex_t, idx_t>{vertices_, repeat_count_});
+  }
+
+  auto const begin() const { return cbegin(); }
+
+  auto const cend() const { return cbegin() + this->size(); }
+
+  auto const end() const { return cend(); }
+
+  auto const vertex_cbegin() const
+  {
+    auto vertex_first = vertices_.begin();
+    return cuda::make_transform_iterator(
+      thrust::make_counting_iterator(size_t{0}),
+      detail::divide_and_indirection_t<size_t, decltype(vertex_first)>{
+        vertex_first, static_cast<size_t>(repeat_count_)});
+  }
+
+  auto const vertex_begin() const { return vertex_cbegin(); }
+
+  auto const vertex_cend() const { return vertex_cbegin() + this->size(); }
+
+  auto const vertex_end() const { return vertex_cend(); }
+
+  auto tag_cbegin() const
+  {
+    return cuda::make_transform_iterator(
+      thrust::make_counting_iterator(size_t{0}),
+      detail::modulo_t<size_t, idx_t>{static_cast<size_t>(repeat_count_)});
+  }
+
+  auto const tag_begin() const { return tag_cbegin(); }
+
+  auto tag_cend() const { return tag_cbegin() + this->size(); }
+
+  auto const tag_end() const { return tag_cend(); }
+
+ private:
+  raft::handle_t const* handle_ptr_{nullptr};
+  raft::device_span<vertex_t const> vertices_{};
+  idx_t repeat_count_{};
 };
 
 template <typename vertex_t,
