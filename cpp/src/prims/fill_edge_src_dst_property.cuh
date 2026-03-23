@@ -471,8 +471,9 @@ void fill_edge_minor_property(raft::handle_t const& handle,
 
       auto h_aggregate_tmps = reinterpret_cast<uint32_t*>(h_staging_buffer_view.data());
       assert(h_staging_buffer_view.size() >=
-             major_comm_size *
-               (raft::round_up_safe(num_leading_words + packed_bool_word_bcast_alignment, 2) / 2));
+             major_comm_size * (raft::round_up_safe(
+                                  num_leading_words + packed_bool_word_bcast_alignment, size_t{2}) /
+                                size_t{2}));
       auto h_this_rank_aggregate_tmps =
         h_aggregate_tmps +
         (major_comm_rank * (num_leading_words + packed_bool_word_bcast_alignment));
@@ -679,7 +680,7 @@ void fill_edge_minor_property(raft::handle_t const& handle,
                                    // local_v_list_range_firsts[major_comm_rank]) to ensure that
                                    // the buffer size is identical in every major_comm_rank (to
                                    // use devcie_allgather) and cache line aligned
-          assert(retinerpret_cast<uintptr_t>(v_list_bitmap.data()) % cache_line_size == 0);
+          assert(reinterpret_cast<uintptr_t>(v_list_bitmap->data()) % cache_line_size == 0);
         }
       } else {
         if (aggregate_local_v_list_size >=
@@ -703,7 +704,7 @@ void fill_edge_minor_property(raft::handle_t const& handle,
                 }));  // last tmps.size() - local_v_list_sizes[major_comm_rank] elements
                       // have garbage values (this is OK as we won't use them)
             compressed_v_list = std::move(tmps);
-            assert(retinerpret_cast<uintptr_t>(compressed_v_list->data()) % cache_line_size == 0);
+            assert(reinterpret_cast<uintptr_t>(compressed_v_list->data()) % cache_line_size == 0);
           }
         }
         if (!compressed_v_list) {

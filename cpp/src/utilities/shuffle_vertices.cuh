@@ -40,7 +40,7 @@ struct vertex_groupby_functor_t {
       return partition_manager::compute_major_comm_rank_from_global_comm_rank(
         major_comm_size, minor_comm_size, comm_rank);
     } else {
-      assert(shuffle_mdoe == vertex_shuffle_mode_t::two_level_minor);
+      assert(shuffle_mode == vertex_shuffle_mode_t::two_level_minor);
       return partition_manager::compute_minor_comm_rank_from_global_comm_rank(
         major_comm_size, minor_comm_size, comm_rank);
     }
