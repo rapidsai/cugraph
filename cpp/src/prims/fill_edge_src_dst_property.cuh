@@ -722,7 +722,7 @@ void fill_edge_minor_property(raft::handle_t const& handle,
             tmps.begin());  // last tmps.size() - local_v_list_sizes[major_comm_rank]
                             // elements have garbage values (this is OK as we won't use them)
           padded_v_list = std::move(tmps);
-          assert(retinerpret_cast<uintptr_t>(padded_v_list->data()) % cache_line_size == 0);
+          assert(reinterpret_cast<uintptr_t>(padded_v_list->data()) % cache_line_size == 0);
         }
       }
     }
