@@ -579,7 +579,7 @@ temporal_gather_one_hop_edgelist(
     }
   }
 
-  if (gather_flags) {
+  if (edge_type_view) {
     std::tie(result_majors, result_minors, tmp_edge_indices, result_labels) =
       filter_edge_by_type(handle,
                           graph_view,
