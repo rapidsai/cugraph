@@ -62,6 +62,15 @@ files:
       - depends_on_libcugraph
       - depends_on_libcugraph_etl
       - depends_on_libcugraph_tests
+  run_notebooks:
+    output: none
+    includes:
+      - cuda_version
+      - py_version
+      - run_notebooks
+      - depends_on_cugraph
+      - depends_on_pylibcugraph
+      - depends_on_libcugraph
   test_notebooks:
     output: none
     includes:
@@ -483,8 +492,8 @@ dependencies:
       - output_types: [conda, requirements]
         packages:
           - certifi
-          - ipython
-          - notebook>=0.5.0
+          - &ipython ipython
+          - &notebook notebook>=0.5.0
   test_python_common:
     common:
       - output_types: [conda, pyproject, requirements]
@@ -494,17 +503,28 @@ dependencies:
           - pytest-benchmark
           - pytest-cov
           - pytest-xdist
-          - scipy
+          - &scipy scipy
   test_python_cugraph:
     common:
       - output_types: [conda, pyproject, requirements]
         packages:
           - certifi
-          - networkx>=2.5.1
+          - &networkx networkx>=2.5.1
           - *numpy
           - packaging
           - python-louvain
           - scikit-learn>=0.23.1
+  # Runtime dependencies for included cugraph notebooks, used in the
+  # rapidsai/notebooks Docker image. Only lists packages not already
+  # provided by cugraph, pylibcugraph, or libcugraph.
+  run_notebooks:
+    common:
+      - output_types: [conda]
+        packages:
+          - *ipython
+          - *networkx
+          - *notebook
+          - *scipy
   test_python_pylibcugraph:
     common:
       - output_types: [conda, pyproject, requirements]
