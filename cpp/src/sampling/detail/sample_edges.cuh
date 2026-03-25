@@ -747,19 +747,25 @@ sample_unvisited_with_one_property(
              sampled_minors,
              sampled_property,
              sampled_labels,
-             visited_minors,
-             visited_minor_labels,
              resample_active_majors,
-             resample_active_major_labels) =
-      deduplicate_edges_by_minor(handle,
-                                 graph_view,
-                                 std::move(sampled_majors),
-                                 std::move(sampled_minors),
-                                 std::move(sampled_property),
-                                 std::move(sampled_labels),
-                                 std::move(visited_minors),
-                                 std::move(visited_minor_labels),
-                                 true);
+             resample_active_major_labels) = deduplicate_edges_by_minor(handle,
+                                                                        graph_view,
+                                                                        std::move(sampled_majors),
+                                                                        std::move(sampled_minors),
+                                                                        std::move(sampled_property),
+                                                                        std::move(sampled_labels),
+                                                                        true);
+
+    std::tie(visited_minors, visited_minor_labels) =
+      detail::update_dst_visited_vertices_and_labels<vertex_t, edge_t, multi_gpu>(
+        handle,
+        graph_view,
+        std::move(visited_minors),
+        std::move(visited_minor_labels),
+        raft::device_span<vertex_t const>{sampled_minors.data(), sampled_minors.size()},
+        sampled_labels ? std::make_optional(raft::device_span<int32_t const>{
+                           sampled_labels->data(), sampled_labels->size()})
+                       : std::nullopt);
 
     if constexpr (multi_gpu) {
       sample_and_append =

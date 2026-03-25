@@ -489,11 +489,16 @@ update_dst_visited_vertices_and_labels(
   std::optional<raft::device_span<int32_t const>> sampled_vertex_labels);
 
 /**
- * @brief Deduplicate edges by minor (and optional label) and update the visited set.
+ * @brief Deduplicate edges by minor (and optional label).
  *
- * Keeps one edge per (label, minor) or per minor, then updates the visited sets with the kept
- * edges' minors. When call_from_sampling is true, also returns majors (and optional labels) that
- * need to be resampled because edges to them were removed.
+ * Keeps one edge per (label, minor) or per minor. Callers should merge the returned minors into
+ * visited sets via update_dst_visited_vertices_and_labels.
+ *
+ * When call_from_sampling is true, we need to skip all edges that come from any major vertex that
+ * we are going to skip.  So this function will return the majors that need to be resampled.
+ *
+ * FIXME: We should eliminate the call_from_sampling flag by refactoring
+ * sample_edges_to_unvisited_neighbors to use the partial results we return here.
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
@@ -505,20 +510,15 @@ update_dst_visited_vertices_and_labels(
  * @param tmp_edge_indices Multi-edge indices (or single property column) to filter in lockstep;
  *        arithmetic_device_uvector_t (monostate or device vector). Returned as filtered.
  * @param result_labels Optional device vector of labels per edge.
- * @param visited_minors Device vector of already visited minor vertices.
- * @param visited_minor_labels Optional device vector of labels for visited minor vertices.
  * @param call_from_sampling If true, the last two return values are populated with majors (and
  *        optional major labels) that need to be resampled (edges to those were removed).
- * @return Tuple of filtered (result_majors, result_minors, tmp_edge_indices, result_labels),
- *         updated (visited_minors, visited_minor_labels), and when call_from_sampling is true,
- *         optional (resample_majors, resample_major_labels).
+ * @return Tuple of filtered (result_majors, result_minors, tmp_edge_indices, result_labels), and
+ *         when call_from_sampling is true, optional (resample_majors, resample_major_labels).
  */
 template <typename vertex_t, typename edge_t, bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            arithmetic_device_uvector_t,
-           std::optional<rmm::device_uvector<int32_t>>,
-           rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<int32_t>>,
            std::optional<rmm::device_uvector<vertex_t>>,
            std::optional<rmm::device_uvector<int32_t>>>
@@ -528,8 +528,6 @@ deduplicate_edges_by_minor(raft::handle_t const& handle,
                            rmm::device_uvector<vertex_t>&& result_minors,
                            arithmetic_device_uvector_t&& tmp_edge_indices,
                            std::optional<rmm::device_uvector<int32_t>>&& result_labels,
-                           rmm::device_uvector<vertex_t>&& visited_minors,
-                           std::optional<rmm::device_uvector<int32_t>>&& visited_minor_labels,
                            bool call_from_sampling);
 
 }  // namespace detail

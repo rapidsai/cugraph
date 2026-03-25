@@ -24,9 +24,6 @@
 
 #include <variant>
 
-// debugging
-#include <thrust/for_each.h>
-
 namespace cugraph {
 namespace detail {
 
@@ -34,8 +31,6 @@ template <typename vertex_t, typename edge_t, bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            arithmetic_device_uvector_t,
-           std::optional<rmm::device_uvector<int32_t>>,
-           rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<int32_t>>,
            std::optional<rmm::device_uvector<vertex_t>>,
            std::optional<rmm::device_uvector<int32_t>>>
@@ -45,39 +40,25 @@ deduplicate_edges_by_minor(raft::handle_t const& handle,
                            rmm::device_uvector<vertex_t>&& result_minors,
                            arithmetic_device_uvector_t&& tmp_edge_indices,
                            std::optional<rmm::device_uvector<int32_t>>&& result_labels,
-                           rmm::device_uvector<vertex_t>&& visited_minors,
-                           std::optional<rmm::device_uvector<int32_t>>&& visited_minor_labels,
                            bool call_from_sampling)
 {
   std::optional<rmm::device_uvector<vertex_t>> resample_majors{std::nullopt};
   std::optional<rmm::device_uvector<int32_t>> resample_major_labels{std::nullopt};
-
-  CUGRAPH_EXPECTS(
-    visited_minor_labels.has_value() == result_labels.has_value(),
-    "Invalid input: visited_minor_labels and result_labels must have the same presence");
-
-  size_t result_size = result_minors.size();
-  if constexpr (multi_gpu) {
-    result_size = host_scalar_allreduce(
-      handle.get_comms(), result_size, raft::comms::op_t::SUM, handle.get_stream());
-  }
-
-  if (result_size == 0) {
-    return std::make_tuple(std::move(result_majors),
-                           std::move(result_minors),
-                           std::move(tmp_edge_indices),
-                           std::move(result_labels),
-                           std::move(visited_minors),
-                           std::move(visited_minor_labels),
-                           std::move(resample_majors),
-                           std::move(resample_major_labels));
-  }
 
   size_t total_edges = result_majors.size();
 
   if constexpr (multi_gpu) {
     total_edges = host_scalar_allreduce(
       handle.get_comms(), total_edges, raft::comms::op_t::SUM, handle.get_stream());
+  }
+
+  if (total_edges == 0) {
+    return std::make_tuple(std::move(result_majors),
+                           std::move(result_minors),
+                           std::move(tmp_edge_indices),
+                           std::move(result_labels),
+                           std::move(resample_majors),
+                           std::move(resample_major_labels));
   }
 
   // 1. Shuffle the edges to GPUs by minor vertex id if multi-gpu
@@ -118,7 +99,7 @@ deduplicate_edges_by_minor(raft::handle_t const& handle,
       shuffle_int_vertices(handle,
                            std::move(keep_minors),
                            std::move(shuffle_properties),
-                           raft::host_span<vertex_t const>{},
+                           graph_view.vertex_partition_range_lasts(),
                            std::nullopt);
 
     keep_majors    = std::move(std::get<rmm::device_uvector<vertex_t>>(shuffle_properties[0]));
@@ -179,15 +160,11 @@ deduplicate_edges_by_minor(raft::handle_t const& handle,
                                                 handle.get_stream());
   }
 
-  // TODO: think about this.  If global_remove_count is 0, we can just return the current
-  // result_majors and result_minors?
-
   // 4. If we have any duplicates on any GPU we need to remove them
   if (global_remove_count > 0) {
-    if (call_from_sampling) {
-      // FIXME: After we refactor sample_edges_to_unvisited_neighbors to use the partial results we
-      // can eliminate this if
+    bool skip_shuffle_back_to_ranks{false};
 
+    if (call_from_sampling) {
       // When called from sampling, we need to skip all edges that come from any major vertex that
       // we are going to skip.
       resample_majors =
@@ -204,10 +181,9 @@ deduplicate_edges_by_minor(raft::handle_t const& handle,
                    handle.get_stream());
       }
 
-      detail::swap_marked_and_unmarked_entries(
-        handle,
-        raft::device_span<uint32_t>{keep_flags.data(), keep_flags.size()},
-        keep_minors.size());
+      detail::invert_flags(handle,
+                           raft::device_span<uint32_t>{keep_flags.data(), keep_flags.size()},
+                           keep_minors.size());
 
       resample_majors = detail::keep_marked_entries(
         handle,
@@ -258,8 +234,9 @@ deduplicate_edges_by_minor(raft::handle_t const& handle,
       rmm::device_uvector<int32_t> resample_major_labels_gathered(0, handle.get_stream());
       raft::device_span<vertex_t const> resample_majors_span{resample_majors->data(),
                                                              resample_majors->size()};
-      raft::device_span<int32_t const> resample_major_labels_span{resample_major_labels->data(),
-                                                                  resample_major_labels->size()};
+      raft::device_span<int32_t const> resample_major_labels_span{
+        resample_major_labels ? resample_major_labels->data() : nullptr,
+        resample_major_labels ? resample_major_labels->size() : size_t{0}};
 
       if constexpr (multi_gpu) {
         auto& major_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
@@ -287,7 +264,7 @@ deduplicate_edges_by_minor(raft::handle_t const& handle,
         std::tie(keep_count, keep_flags) =
           detail::mark_entries(handle,
                                result_majors.size(),
-                               [dsts   = result_majors.data(),
+                               [majors = result_majors.data(),
                                 labels = result_labels->data(),
                                 resample_majors_span,
                                 resample_major_labels_span] __device__(auto index) {
@@ -297,15 +274,15 @@ deduplicate_edges_by_minor(raft::handle_t const& handle,
                                                              resample_majors_span.begin()),
                                    thrust::make_zip_iterator(resample_major_labels_span.end(),
                                                              resample_majors_span.end()),
-                                   cuda::std::make_tuple(labels[index], dsts[index]));
+                                   cuda::std::make_tuple(labels[index], majors[index]));
                                });
       } else {
         std::tie(keep_count, keep_flags) = detail::mark_entries(
           handle,
           result_majors.size(),
-          [dsts = result_majors.data(), resample_majors_span] __device__(auto index) {
+          [majors = result_majors.data(), resample_majors_span] __device__(auto index) {
             return !thrust::binary_search(
-              thrust::seq, resample_majors_span.begin(), resample_majors_span.end(), dsts[index]);
+              thrust::seq, resample_majors_span.begin(), resample_majors_span.end(), majors[index]);
           });
       }
 
@@ -317,6 +294,25 @@ deduplicate_edges_by_minor(raft::handle_t const& handle,
           resample_major_labels_gathered.shrink_to_fit(handle.get_stream());
         }
       }
+
+      raft::device_span<uint32_t const> const result_keep_flags{keep_flags.data(),
+                                                                keep_flags.size()};
+      result_majors = detail::keep_marked_entries(
+        handle, std::move(result_majors), result_keep_flags, keep_count);
+      result_minors = detail::keep_marked_entries(
+        handle, std::move(result_minors), result_keep_flags, keep_count);
+      if (!std::holds_alternative<std::monostate>(tmp_edge_indices)) {
+        cugraph::variant_type_dispatch(
+          tmp_edge_indices, [&handle, result_keep_flags, keep_count](auto& property) {
+            property = detail::keep_marked_entries(
+              handle, std::move(property), result_keep_flags, keep_count);
+          });
+      }
+      if (result_labels) {
+        *result_labels = detail::keep_marked_entries(
+          handle, std::move(*result_labels), result_keep_flags, keep_count);
+      }
+      skip_shuffle_back_to_ranks = true;
     } else {
       // Gather to reflect the original positions of the edges
       rmm::device_uvector<size_t> tmp(local_positions.size(), handle.get_stream());
@@ -328,94 +324,83 @@ deduplicate_edges_by_minor(raft::handle_t const& handle,
       keep_positions = std::move(tmp);
     }
 
-    // 5. Now keep_ranks and keep_positions need to be updated to reflect the new keep_flags and
-    // shuffled back to the original ranks (for multi-gpu)
-    if (keep_count < keep_minors.size()) {
-      if constexpr (multi_gpu) {
-        keep_ranks = detail::keep_marked_entries(
+    if (!skip_shuffle_back_to_ranks) {
+      // 5. Now keep_ranks and keep_positions need to be updated to reflect the new keep_flags and
+      // shuffled back to the original ranks (for multi-gpu)
+      if (keep_count < keep_minors.size()) {
+        if constexpr (multi_gpu) {
+          keep_ranks = detail::keep_marked_entries(
+            handle,
+            std::move(*keep_ranks),
+            raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
+            keep_count);
+        }
+        keep_positions = detail::keep_marked_entries(
           handle,
-          std::move(*keep_ranks),
+          std::move(keep_positions),
           raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
           keep_count);
       }
-      keep_positions = detail::keep_marked_entries(
-        handle,
-        std::move(keep_positions),
-        raft::device_span<uint32_t const>{keep_flags.data(), keep_flags.size()},
-        keep_count);
-    }
 
-    if constexpr (multi_gpu) {
-      std::tie(std::ignore, keep_positions, std::ignore) =
-        groupby_gpu_id_and_shuffle_kv_pairs(handle.get_comms(),
-                                            keep_ranks->begin(),
-                                            keep_ranks->end(),
-                                            keep_positions.begin(),
-                                            cuda::std::identity{},
-                                            handle.get_stream());
-    }
+      if constexpr (multi_gpu) {
+        std::tie(std::ignore, keep_positions, std::ignore) =
+          groupby_gpu_id_and_shuffle_kv_pairs(handle.get_comms(),
+                                              keep_ranks->begin(),
+                                              keep_ranks->end(),
+                                              keep_positions.begin(),
+                                              cuda::std::identity{},
+                                              handle.get_stream());
+      }
 
-    // 6. Now we can remove values from results arrays
-
-    {
-      rmm::device_uvector<vertex_t> tmp(keep_positions.size(), handle.get_stream());
-      thrust::gather(handle.get_thrust_policy(),
-                     keep_positions.begin(),
-                     keep_positions.end(),
-                     result_majors.data(),
-                     tmp.begin());
-      result_majors = std::move(tmp);
-    }
-    {
-      rmm::device_uvector<vertex_t> tmp(keep_positions.size(), handle.get_stream());
-      thrust::gather(handle.get_thrust_policy(),
-                     keep_positions.begin(),
-                     keep_positions.end(),
-                     result_minors.data(),
-                     tmp.begin());
-      result_minors = std::move(tmp);
-    }
-
-    if (!std::holds_alternative<std::monostate>(tmp_edge_indices)) {
-      cugraph::variant_type_dispatch(tmp_edge_indices, [&handle, &keep_positions](auto& property) {
-        using T = typename std::remove_reference<decltype(property)>::type::value_type;
-        rmm::device_uvector<T> tmp(keep_positions.size(), handle.get_stream());
+      // 6. Now we can remove values from results arrays
+      {
+        rmm::device_uvector<vertex_t> tmp(keep_positions.size(), handle.get_stream());
         thrust::gather(handle.get_thrust_policy(),
                        keep_positions.begin(),
                        keep_positions.end(),
-                       property.data(),
+                       result_majors.data(),
                        tmp.begin());
-        property = std::move(tmp);
-      });
-    }
-    if (result_labels) {
-      rmm::device_uvector<int32_t> tmp(keep_positions.size(), handle.get_stream());
-      thrust::gather(handle.get_thrust_policy(),
-                     keep_positions.begin(),
-                     keep_positions.end(),
-                     result_labels->begin(),
-                     tmp.begin());
-      *result_labels = std::move(tmp);
+        result_majors = std::move(tmp);
+      }
+      {
+        rmm::device_uvector<vertex_t> tmp(keep_positions.size(), handle.get_stream());
+        thrust::gather(handle.get_thrust_policy(),
+                       keep_positions.begin(),
+                       keep_positions.end(),
+                       result_minors.data(),
+                       tmp.begin());
+        result_minors = std::move(tmp);
+      }
+
+      if (!std::holds_alternative<std::monostate>(tmp_edge_indices)) {
+        cugraph::variant_type_dispatch(
+          tmp_edge_indices, [&handle, &keep_positions](auto& property) {
+            using T = typename std::remove_reference<decltype(property)>::type::value_type;
+            rmm::device_uvector<T> tmp(keep_positions.size(), handle.get_stream());
+            thrust::gather(handle.get_thrust_policy(),
+                           keep_positions.begin(),
+                           keep_positions.end(),
+                           property.data(),
+                           tmp.begin());
+            property = std::move(tmp);
+          });
+      }
+      if (result_labels) {
+        rmm::device_uvector<int32_t> tmp(keep_positions.size(), handle.get_stream());
+        thrust::gather(handle.get_thrust_policy(),
+                       keep_positions.begin(),
+                       keep_positions.end(),
+                       result_labels->begin(),
+                       tmp.begin());
+        *result_labels = std::move(tmp);
+      }
     }
   }
-
-  // Update visited sets with the kept edges' destinations
-  std::tie(visited_minors, visited_minor_labels) = update_dst_visited_vertices_and_labels(
-    handle,
-    graph_view,
-    std::move(visited_minors),
-    std::move(visited_minor_labels),
-    raft::device_span<vertex_t const>{result_minors.data(), result_minors.size()},
-    result_labels ? std::make_optional(raft::device_span<int32_t const>{result_labels->data(),
-                                                                        result_labels->size()})
-                  : std::nullopt);
 
   return std::make_tuple(std::move(result_majors),
                          std::move(result_minors),
                          std::move(tmp_edge_indices),
                          std::move(result_labels),
-                         std::move(visited_minors),
-                         std::move(visited_minor_labels),
                          std::move(resample_majors),
                          std::move(resample_major_labels));
 }
@@ -424,8 +409,6 @@ deduplicate_edges_by_minor(raft::handle_t const& handle,
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
                     arithmetic_device_uvector_t,
-                    std::optional<rmm::device_uvector<int32_t>>,
-                    rmm::device_uvector<int32_t>,
                     std::optional<rmm::device_uvector<int32_t>>,
                     std::optional<rmm::device_uvector<int32_t>>,
                     std::optional<rmm::device_uvector<int32_t>>>
@@ -436,15 +419,11 @@ deduplicate_edges_by_minor<int32_t, int32_t, false>(
   rmm::device_uvector<int32_t>&&,
   arithmetic_device_uvector_t&&,
   std::optional<rmm::device_uvector<int32_t>>&&,
-  rmm::device_uvector<int32_t>&&,
-  std::optional<rmm::device_uvector<int32_t>>&&,
   bool);
 
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
                     arithmetic_device_uvector_t,
-                    std::optional<rmm::device_uvector<int32_t>>,
-                    rmm::device_uvector<int32_t>,
                     std::optional<rmm::device_uvector<int32_t>>,
                     std::optional<rmm::device_uvector<int32_t>>,
                     std::optional<rmm::device_uvector<int32_t>>>
@@ -455,15 +434,11 @@ deduplicate_edges_by_minor<int32_t, int32_t, true>(
   rmm::device_uvector<int32_t>&&,
   arithmetic_device_uvector_t&&,
   std::optional<rmm::device_uvector<int32_t>>&&,
-  rmm::device_uvector<int32_t>&&,
-  std::optional<rmm::device_uvector<int32_t>>&&,
   bool);
 
 template std::tuple<rmm::device_uvector<int64_t>,
                     rmm::device_uvector<int64_t>,
                     arithmetic_device_uvector_t,
-                    std::optional<rmm::device_uvector<int32_t>>,
-                    rmm::device_uvector<int64_t>,
                     std::optional<rmm::device_uvector<int32_t>>,
                     std::optional<rmm::device_uvector<int64_t>>,
                     std::optional<rmm::device_uvector<int32_t>>>
@@ -474,15 +449,11 @@ deduplicate_edges_by_minor<int64_t, int64_t, false>(
   rmm::device_uvector<int64_t>&&,
   arithmetic_device_uvector_t&&,
   std::optional<rmm::device_uvector<int32_t>>&&,
-  rmm::device_uvector<int64_t>&&,
-  std::optional<rmm::device_uvector<int32_t>>&&,
   bool);
 
 template std::tuple<rmm::device_uvector<int64_t>,
                     rmm::device_uvector<int64_t>,
                     arithmetic_device_uvector_t,
-                    std::optional<rmm::device_uvector<int32_t>>,
-                    rmm::device_uvector<int64_t>,
                     std::optional<rmm::device_uvector<int32_t>>,
                     std::optional<rmm::device_uvector<int64_t>>,
                     std::optional<rmm::device_uvector<int32_t>>>
@@ -492,8 +463,6 @@ deduplicate_edges_by_minor<int64_t, int64_t, true>(
   rmm::device_uvector<int64_t>&&,
   rmm::device_uvector<int64_t>&&,
   arithmetic_device_uvector_t&&,
-  std::optional<rmm::device_uvector<int32_t>>&&,
-  rmm::device_uvector<int64_t>&&,
   std::optional<rmm::device_uvector<int32_t>>&&,
   bool);
 

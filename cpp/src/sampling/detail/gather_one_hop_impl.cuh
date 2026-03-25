@@ -400,22 +400,26 @@ gather_one_hop_edgelist_to_unvisited_neighbors(
     }
   }
 
-  std::tie(result_majors,
-           result_minors,
-           tmp_edge_indices,
-           result_labels,
-           visited_minors,
-           visited_minor_labels,
-           std::ignore,
-           std::ignore) = deduplicate_edges_by_minor(handle,
-                                                     graph_view,
-                                                     std::move(result_majors),
-                                                     std::move(result_minors),
-                                                     std::move(tmp_edge_indices),
-                                                     std::move(result_labels),
-                                                     std::move(visited_minors),
-                                                     std::move(visited_minor_labels),
-                                                     false);
+  std::tie(
+    result_majors, result_minors, tmp_edge_indices, result_labels, std::ignore, std::ignore) =
+    deduplicate_edges_by_minor(handle,
+                               graph_view,
+                               std::move(result_majors),
+                               std::move(result_minors),
+                               std::move(tmp_edge_indices),
+                               std::move(result_labels),
+                               false);
+
+  std::tie(visited_minors, visited_minor_labels) =
+    detail::update_dst_visited_vertices_and_labels<vertex_t, edge_t, multi_gpu>(
+      handle,
+      graph_view,
+      std::move(visited_minors),
+      std::move(visited_minor_labels),
+      raft::device_span<vertex_t const>{result_minors.data(), result_minors.size()},
+      result_labels ? std::make_optional(raft::device_span<int32_t const>{result_labels->data(),
+                                                                          result_labels->size()})
+                    : std::nullopt);
 
   return std::make_tuple(std::move(result_majors),
                          std::move(result_minors),

@@ -256,9 +256,10 @@ rmm::device_uvector<T> keep_marked_entries(
   return result;
 }
 
-void swap_marked_and_unmarked_entries(raft::handle_t const& handle,
-                                      raft::device_span<uint32_t> flags,
-                                      size_t num_entries);
+/** Bitwise invert packed-bool @p flags for @p num_entries logical bits (XOR each word). */
+void invert_flags(raft::handle_t const& handle,
+                  raft::device_span<uint32_t> flags,
+                  size_t num_entries);
 
 }  // namespace detail
 }  // namespace cugraph
