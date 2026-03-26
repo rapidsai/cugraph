@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -10,12 +10,12 @@ namespace detail {
 
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
-                    std::vector<arithmetic_device_uvector_t>,
+                    arithmetic_device_uvector_t,
                     std::optional<rmm::device_uvector<int32_t>>>
 temporal_sample_edges(raft::handle_t const& handle,
                       raft::random::RngState& rng_state,
                       graph_view_t<int32_t, int32_t, false, true> const& graph_view,
-                      raft::host_span<edge_arithmetic_property_view_t<int32_t>> edge_property_views,
+                      size_t number_of_edge_properties,
                       edge_property_view_t<int32_t, int32_t const*> edge_start_time_view,
                       std::optional<edge_arithmetic_property_view_t<int32_t>> edge_type_view,
                       std::optional<edge_arithmetic_property_view_t<int32_t>> edge_bias_view,
@@ -28,12 +28,12 @@ temporal_sample_edges(raft::handle_t const& handle,
 
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
-                    std::vector<arithmetic_device_uvector_t>,
+                    arithmetic_device_uvector_t,
                     std::optional<rmm::device_uvector<int32_t>>>
 temporal_sample_edges(raft::handle_t const& handle,
                       raft::random::RngState& rng_state,
                       graph_view_t<int32_t, int32_t, false, true> const& graph_view,
-                      raft::host_span<edge_arithmetic_property_view_t<int32_t>> edge_property_views,
+                      size_t number_of_edge_properties,
                       edge_property_view_t<int32_t, int64_t const*> edge_start_time_view,
                       std::optional<edge_arithmetic_property_view_t<int32_t>> edge_type_view,
                       std::optional<edge_arithmetic_property_view_t<int32_t>> edge_bias_view,
