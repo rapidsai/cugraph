@@ -389,7 +389,7 @@ call_biased_per_v_random_select_transform_outgoing_e(
                            false);
   }
 
-  if (offsets) {
+  if (active_major_labels) {
     labels =
       rmm::device_uvector<int32_t>(offsets->back_element(handle.get_stream()), handle.get_stream());
     auto num_segments = offsets->size() - size_t{1};
