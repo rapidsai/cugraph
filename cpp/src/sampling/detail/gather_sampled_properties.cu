@@ -5,12 +5,12 @@
 
 #include "detail/graph_partition_utils.cuh"
 #include "detail/shuffle_wrappers.hpp"
-#include "prims/edge_bucket.cuh"
-#include "prims/transform_gather_e.cuh"
 
 #include <cugraph/arithmetic_variant_types.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph_view.hpp>
+#include <cugraph/prims/edge_bucket.cuh>
+#include <cugraph/prims/transform_gather_e.cuh>
 #include <cugraph/shuffle_functions.hpp>
 
 #include <raft/core/handle.hpp>

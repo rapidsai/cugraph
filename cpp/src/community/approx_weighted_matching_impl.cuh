@@ -5,16 +5,16 @@
 #pragma once
 
 #include "detail/shuffle_wrappers.hpp"
-#include "prims/fill_edge_property.cuh"
-#include "prims/make_initialized_edge_property.cuh"
-#include "prims/reduce_op.cuh"
-#include "prims/transform_e.cuh"
-#include "prims/transform_reduce_e_by_src_dst_key.cuh"
-#include "prims/update_edge_src_dst_property.cuh"
 #include "utilities/collect_comm.cuh"
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
+#include <cugraph/prims/fill_edge_property.cuh>
+#include <cugraph/prims/make_initialized_edge_property.cuh>
+#include <cugraph/prims/reduce_op.cuh>
+#include <cugraph/prims/transform_e.cuh>
+#include <cugraph/prims/transform_reduce_e_by_src_dst_key.cuh>
+#include <cugraph/prims/update_edge_src_dst_property.cuh>
 #include <cugraph/shuffle_functions.hpp>
 
 #include <raft/core/handle.hpp>

@@ -11,12 +11,12 @@
 #include "community/detail/common_methods.hpp"
 #include "community/flatten_dendrogram.hpp"
 #include "detail/shuffle_wrappers.hpp"
-#include "prims/update_edge_src_dst_property.cuh"
 
 #include <cugraph/detail/collect_comm_wrapper.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>
+#include <cugraph/prims/update_edge_src_dst_property.cuh>
 #include <cugraph/shuffle_functions.hpp>
 
 #include <raft/random/rng_state.hpp>

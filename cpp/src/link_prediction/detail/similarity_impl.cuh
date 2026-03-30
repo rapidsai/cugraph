@@ -4,10 +4,6 @@
  */
 #pragma once
 
-#include "prims/count_if_e.cuh"
-#include "prims/per_v_pair_transform_dst_nbr_intersection.cuh"
-#include "prims/per_v_transform_reduce_incoming_outgoing_e.cuh"
-#include "prims/update_edge_src_dst_property.cuh"
 #include "similarity.hpp"
 #include "similarity_functor.cuh"
 #include "utilities/error_check_utils.cuh"
@@ -15,6 +11,10 @@
 #include <cugraph/algorithms.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
+#include <cugraph/prims/count_if_e.cuh>
+#include <cugraph/prims/per_v_pair_transform_dst_nbr_intersection.cuh>
+#include <cugraph/prims/per_v_transform_reduce_incoming_outgoing_e.cuh>
+#include <cugraph/prims/update_edge_src_dst_property.cuh>
 #include <cugraph/shuffle_functions.hpp>
 
 #include <raft/core/device_span.hpp>

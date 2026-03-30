@@ -5,15 +5,15 @@
 #pragma once
 
 #include "detail/shuffle_wrappers.hpp"
-#include "prims/extract_transform_if_e.cuh"
-#include "prims/fill_edge_property.cuh"
-#include "prims/make_initialized_edge_property.cuh"
-#include "prims/transform_e.cuh"
-#include "prims/transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v.cuh"
-#include "prims/update_edge_src_dst_property.cuh"
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/graph_functions.hpp>
+#include <cugraph/prims/extract_transform_if_e.cuh>
+#include <cugraph/prims/fill_edge_property.cuh>
+#include <cugraph/prims/make_initialized_edge_property.cuh>
+#include <cugraph/prims/transform_e.cuh>
+#include <cugraph/prims/transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v.cuh>
+#include <cugraph/prims/update_edge_src_dst_property.cuh>
 #include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>

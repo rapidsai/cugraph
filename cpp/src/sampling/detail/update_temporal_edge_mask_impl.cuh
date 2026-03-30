@@ -5,11 +5,10 @@
 
 #pragma once
 
-#include "prims/fill_edge_src_dst_property.cuh"
-#include "prims/transform_e.cuh"
-#include "prims/update_edge_src_dst_property.cuh"
-
 #include <cugraph/detail/utility_wrappers.hpp>
+#include <cugraph/prims/fill_edge_src_dst_property.cuh>
+#include <cugraph/prims/transform_e.cuh>
+#include <cugraph/prims/update_edge_src_dst_property.cuh>
 #include <cugraph/sampling_functions.hpp>
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/mask_utils.cuh>

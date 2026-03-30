@@ -3,9 +3,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include "prims/per_v_transform_reduce_incoming_outgoing_e.cuh"
-#include "prims/reduce_op.cuh"
-#include "prims/transform_reduce_e.cuh"
 #include "utilities/base_fixture.hpp"
 #include "utilities/test_graphs.hpp"
 
@@ -15,6 +12,9 @@
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
+#include <cugraph/prims/per_v_transform_reduce_incoming_outgoing_e.cuh>
+#include <cugraph/prims/reduce_op.cuh>
+#include <cugraph/prims/transform_reduce_e.cuh>
 #include <cugraph/utilities/high_res_timer.hpp>
 
 #include <raft/random/rng_state.hpp>

@@ -5,12 +5,12 @@
 
 #pragma once
 
-#include "prims/reduce_v.cuh"
-#include "prims/update_edge_src_dst_property.cuh"
 #include "utilities/collect_comm.cuh"
 
 #include <cugraph/detail/collect_comm_wrapper.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
+#include <cugraph/prims/reduce_v.cuh>
+#include <cugraph/prims/update_edge_src_dst_property.cuh>
 #include <cugraph/sampling_functions.hpp>
 #include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/device_comm.hpp>

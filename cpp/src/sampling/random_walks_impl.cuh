@@ -7,11 +7,6 @@
 
 #include "detail/graph_partition_utils.cuh"
 #include "detail/shuffle_wrappers.hpp"
-#include "prims/detail/nbr_intersection.cuh"
-#include "prims/per_v_random_select_transform_outgoing_e.cuh"
-#include "prims/property_op_utils.cuh"
-#include "prims/update_edge_src_dst_property.cuh"
-#include "prims/vertex_frontier.cuh"
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
@@ -20,6 +15,11 @@
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/partition_manager.hpp>
+#include <cugraph/prims/detail/nbr_intersection.cuh>
+#include <cugraph/prims/per_v_random_select_transform_outgoing_e.cuh>
+#include <cugraph/prims/property_op_utils.cuh>
+#include <cugraph/prims/update_edge_src_dst_property.cuh>
+#include <cugraph/prims/vertex_frontier.cuh>
 #include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>

@@ -4,8 +4,6 @@
  */
 #pragma once
 
-#include "prims/extract_transform_if_v_frontier_outgoing_e.cuh"
-#include "prims/vertex_frontier.cuh"
 #include "structure/detail/structure_utils.cuh"
 #include "utilities/collect_comm.cuh"
 
@@ -15,6 +13,8 @@
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/partition_manager.hpp>
+#include <cugraph/prims/extract_transform_if_v_frontier_outgoing_e.cuh>
+#include <cugraph/prims/vertex_frontier.cuh>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/misc_utils.cuh>
 #include <cugraph/vertex_partition_device_view.cuh>

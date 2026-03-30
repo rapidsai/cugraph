@@ -2,8 +2,6 @@
  * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
-#include "prims/extract_transform_v_frontier_outgoing_e.cuh"
-#include "prims/vertex_frontier.cuh"
 #include "utilities/collect_comm.cuh"
 
 #include <cugraph/algorithms.hpp>
@@ -13,6 +11,8 @@
 #include <cugraph/graph_view.hpp>
 #include <cugraph/large_buffer_manager.hpp>
 #include <cugraph/partition_manager.hpp>
+#include <cugraph/prims/extract_transform_v_frontier_outgoing_e.cuh>
+#include <cugraph/prims/vertex_frontier.cuh>
 #include <cugraph/utilities/packed_bool_utils.hpp>
 
 #include <raft/core/device_span.hpp>

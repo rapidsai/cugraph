@@ -5,7 +5,6 @@
 #pragma once
 
 #include "detail/graph_partition_utils.cuh"
-#include "prims/update_edge_src_dst_property.cuh"
 
 #include <cugraph/detail/decompress_edge_partition.cuh>
 #include <cugraph/edge_partition_edge_property_device_view.cuh>
@@ -14,6 +13,7 @@
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
+#include <cugraph/prims/update_edge_src_dst_property.cuh>
 #include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/error.hpp>

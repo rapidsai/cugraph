@@ -4,9 +4,10 @@
  */
 #pragma once
 
-#include "prims/transform_e.cuh"
-#include "prims/update_edge_src_dst_property.cuh"
 #include "utilities/property_generator_utilities.hpp"
+
+#include <cugraph/prims/transform_e.cuh>
+#include <cugraph/prims/update_edge_src_dst_property.cuh>
 
 #include <cuda/std/optional>
 #include <cuda/std/tuple>

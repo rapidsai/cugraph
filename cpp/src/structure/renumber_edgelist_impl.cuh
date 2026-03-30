@@ -5,10 +5,10 @@
 #pragma once
 
 #include "detail/graph_partition_utils.cuh"
-#include "prims/kv_store.cuh"
 
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
+#include <cugraph/prims/kv_store.cuh>
 #include <cugraph/utilities/device_comm.hpp>
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/error.hpp>

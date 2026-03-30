@@ -6,9 +6,6 @@
 #include "detail/graph500_forest_pruning_utils.cuh"
 #include "detail/graph500_nbr_unrenumber_cache.cuh"
 #include "detail/graph500_validation_utils.cuh"
-#include "prims/edge_bucket.cuh"
-#include "prims/transform_gather_e.cuh"
-#include "prims/update_edge_src_dst_property.cuh"
 #include "utilities/base_fixture.hpp"
 #include "utilities/collect_comm.cuh"
 #include "utilities/conversion_utilities.hpp"
@@ -27,6 +24,9 @@
 #include <cugraph/graph_view.hpp>
 #include <cugraph/large_buffer_manager.hpp>
 #include <cugraph/partition_manager.hpp>
+#include <cugraph/prims/edge_bucket.cuh>
+#include <cugraph/prims/transform_gather_e.cuh>
+#include <cugraph/prims/update_edge_src_dst_property.cuh>
 #include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/high_res_timer.hpp>

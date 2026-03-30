@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include "prims/count_if_v.cuh"
 #include "utilities/base_fixture.hpp"
 #include "utilities/conversion_utilities.hpp"
 #include "utilities/device_comm_wrapper.hpp"
@@ -13,6 +12,7 @@
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/graph_view.hpp>
+#include <cugraph/prims/count_if_v.cuh>
 #include <cugraph/utilities/high_res_timer.hpp>
 
 #include <raft/comms/mpi_comms.hpp>

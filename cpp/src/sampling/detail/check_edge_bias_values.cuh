@@ -5,12 +5,11 @@
 
 #pragma once
 
-#include "prims/count_if_e.cuh"
-
 #include <cugraph/edge_property.hpp>
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
+#include <cugraph/prims/count_if_e.cuh>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 
 #include <raft/core/handle.hpp>

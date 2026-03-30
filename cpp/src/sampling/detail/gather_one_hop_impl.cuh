@@ -6,16 +6,16 @@
 #pragma once
 
 #include "gather_sampled_properties.cuh"
-#include "prims/edge_bucket.cuh"
-#include "prims/extract_transform_if_v_frontier_outgoing_e.cuh"
-#include "prims/extract_transform_v_frontier_outgoing_e.cuh"
-#include "prims/kv_store.cuh"
-#include "prims/transform_gather_e.cuh"
-#include "prims/vertex_frontier.cuh"
 #include "utilities/collect_comm.cuh"
 
 #include <cugraph/arithmetic_variant_types.hpp>
 #include <cugraph/edge_property.hpp>
+#include <cugraph/prims/edge_bucket.cuh>
+#include <cugraph/prims/extract_transform_if_v_frontier_outgoing_e.cuh>
+#include <cugraph/prims/extract_transform_v_frontier_outgoing_e.cuh>
+#include <cugraph/prims/kv_store.cuh>
+#include <cugraph/prims/transform_gather_e.cuh>
+#include <cugraph/prims/vertex_frontier.cuh>
 #include <cugraph/sampling_functions.hpp>
 #include <cugraph/utilities/assert.cuh>
 #include <cugraph/utilities/mask_utils.cuh>

@@ -4,12 +4,12 @@
  */
 #pragma once
 
-#include "prims/transform_e.cuh"
-#include "prims/update_edge_src_dst_property.cuh"
 #include "utilities/property_generator_kernels.cuh"
 #include "utilities/property_generator_utilities.hpp"
 
 #include <cugraph/edge_src_dst_property.hpp>
+#include <cugraph/prims/transform_e.cuh>
+#include <cugraph/prims/update_edge_src_dst_property.cuh>
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/thrust_tuple_utils.hpp>
 

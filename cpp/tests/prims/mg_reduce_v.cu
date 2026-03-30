@@ -3,8 +3,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include "prims/property_op_utils.cuh"
-#include "prims/reduce_v.cuh"
 #include "result_compare.cuh"
 #include "utilities/base_fixture.hpp"
 #include "utilities/conversion_utilities.hpp"
@@ -16,6 +14,8 @@
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/graph_view.hpp>
+#include <cugraph/prims/property_op_utils.cuh>
+#include <cugraph/prims/reduce_v.cuh>
 #include <cugraph/utilities/high_res_timer.hpp>
 
 #include <raft/comms/mpi_comms.hpp>

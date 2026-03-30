@@ -4,8 +4,6 @@
  */
 #include "detail/graph_partition_utils.cuh"
 #include "detail/shuffle_wrappers.hpp"
-#include "prims/extract_transform_e.cuh"
-#include "prims/kv_store.cuh"
 #include "utilities/collect_comm.cuh"
 
 #include <cugraph/arithmetic_variant_types.hpp>
@@ -13,6 +11,8 @@
 #include <cugraph/detail/decompress_edge_partition.cuh>
 #include <cugraph/edge_property.hpp>
 #include <cugraph/graph.hpp>
+#include <cugraph/prims/extract_transform_e.cuh>
+#include <cugraph/prims/kv_store.cuh>
 #include <cugraph/shuffle_functions.hpp>
 #include <cugraph/src_dst_lookup_container.hpp>
 #include <cugraph/utilities/mask_utils.cuh>
