@@ -5,8 +5,6 @@
 
 #pragma once
 
-#include "utilities/error_check_utils.cuh"
-
 #include <cugraph/edge_property.hpp>
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_view.hpp>
@@ -16,6 +14,7 @@
 #include <cugraph/prims/reduce_op.cuh>
 #include <cugraph/utilities/atomic_ops.cuh>
 #include <cugraph/utilities/error.hpp>
+#include <cugraph/utilities/error_check_utils.cuh>
 #include <cugraph/utilities/graph_partition_utils.cuh>
 #include <cugraph/utilities/mask_utils.cuh>
 

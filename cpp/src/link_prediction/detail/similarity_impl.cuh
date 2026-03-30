@@ -6,7 +6,6 @@
 
 #include "similarity.hpp"
 #include "similarity_functor.cuh"
-#include "utilities/error_check_utils.cuh"
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/graph_functions.hpp>
@@ -16,6 +15,7 @@
 #include <cugraph/prims/per_v_transform_reduce_incoming_outgoing_e.cuh>
 #include <cugraph/prims/update_edge_src_dst_property.cuh>
 #include <cugraph/shuffle_functions.hpp>
+#include <cugraph/utilities/error_check_utils.cuh>
 
 #include <raft/core/device_span.hpp>
 #include <raft/core/handle.hpp>
