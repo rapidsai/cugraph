@@ -5,12 +5,6 @@
 
 #pragma once
 
-#include "prims/detail/multi_stream_utils.cuh"
-#include "prims/detail/optional_dataframe_buffer.hpp"
-#include "prims/detail/prim_functors.cuh"
-#include "prims/property_op_utils.cuh"
-#include "prims/vertex_frontier.cuh"
-
 #include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/edge_partition_edge_property_device_view.cuh>
 #include <cugraph/edge_partition_endpoint_property_device_view.cuh>
@@ -18,6 +12,11 @@
 #include <cugraph/graph_view.hpp>
 #include <cugraph/host_staging_buffer_manager.hpp>
 #include <cugraph/partition_manager.hpp>
+#include <cugraph/prims/detail/multi_stream_utils.cuh>
+#include <cugraph/prims/detail/optional_dataframe_buffer.hpp>
+#include <cugraph/prims/detail/prim_functors.cuh>
+#include <cugraph/prims/property_op_utils.cuh>
+#include <cugraph/prims/vertex_frontier.cuh>
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/device_comm.hpp>
 #include <cugraph/utilities/device_functors.cuh>

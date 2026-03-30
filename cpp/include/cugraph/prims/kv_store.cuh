@@ -4,9 +4,8 @@
  */
 #pragma once
 
-#include "prims/detail/optional_dataframe_buffer.hpp"
-
 #include <cugraph/graph.hpp>
+#include <cugraph/prims/detail/optional_dataframe_buffer.hpp>
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/device_functors.cuh>
 

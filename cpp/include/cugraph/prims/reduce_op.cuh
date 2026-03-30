@@ -5,9 +5,8 @@
 
 #pragma once
 
-#include "prims/property_op_utils.cuh"
-
 #include <cugraph/edge_partition_endpoint_property_device_view.cuh>
+#include <cugraph/prims/property_op_utils.cuh>
 #include <cugraph/utilities/atomic_ops.cuh>
 #include <cugraph/utilities/thrust_tuple_utils.hpp>
 

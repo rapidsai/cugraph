@@ -5,13 +5,13 @@
 #pragma once
 
 #include "detail/graph_partition_utils.cuh"
-#include "prims/vertex_frontier.cuh"
 
 #include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/edge_partition_endpoint_property_device_view.cuh>
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/partition_manager.hpp>
+#include <cugraph/prims/vertex_frontier.cuh>
 #include <cugraph/utilities/atomic_ops.cuh>
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/device_comm.hpp>

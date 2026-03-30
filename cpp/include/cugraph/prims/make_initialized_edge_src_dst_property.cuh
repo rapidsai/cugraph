@@ -4,10 +4,9 @@
  */
 #pragma once
 
-#include "prims/fill_edge_src_dst_property.cuh"
-
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_view.hpp>
+#include <cugraph/prims/fill_edge_src_dst_property.cuh>
 
 #include <raft/core/handle.hpp>
 

@@ -4,10 +4,9 @@
  */
 #pragma once
 
-#include "prims/property_op_utils.cuh"
-#include "prims/reduce_v.cuh"
-
 #include <cugraph/graph_view.hpp>
+#include <cugraph/prims/property_op_utils.cuh>
+#include <cugraph/prims/reduce_v.cuh>
 #include <cugraph/utilities/error.hpp>
 
 #include <raft/core/handle.hpp>

@@ -4,14 +4,13 @@
  */
 #pragma once
 
-#include "prims/detail/sample_and_compute_local_nbr_indices.cuh"
-#include "prims/property_op_utils.cuh"
-
 #include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/edge_partition_edge_property_device_view.cuh>
 #include <cugraph/edge_partition_endpoint_property_device_view.cuh>
 #include <cugraph/graph.hpp>
 #include <cugraph/partition_manager.hpp>
+#include <cugraph/prims/detail/sample_and_compute_local_nbr_indices.cuh>
+#include <cugraph/prims/property_op_utils.cuh>
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/mask_utils.cuh>

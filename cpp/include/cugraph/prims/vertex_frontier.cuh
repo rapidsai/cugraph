@@ -4,8 +4,7 @@
  */
 #pragma once
 
-#include "prims/detail/multi_stream_utils.cuh"
-
+#include <cugraph/prims/detail/multi_stream_utils.cuh>
 #include <cugraph/utilities/device_comm.hpp>
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/error.hpp>

@@ -4,11 +4,10 @@
  */
 #pragma once
 
-#include "prims/detail/extract_transform_if_v_frontier_e.cuh"
-#include "prims/property_op_utils.cuh"
-
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_view.hpp>
+#include <cugraph/prims/detail/extract_transform_if_v_frontier_e.cuh>
+#include <cugraph/prims/property_op_utils.cuh>
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/error.hpp>
 

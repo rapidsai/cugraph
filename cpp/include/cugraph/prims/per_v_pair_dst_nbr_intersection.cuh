@@ -4,7 +4,7 @@
  */
 #pragma once
 
-#include "prims/detail/nbr_intersection.cuh"
+#include <cugraph/prims/detail/nbr_intersection.cuh>
 
 #include <raft/core/handle.hpp>
 

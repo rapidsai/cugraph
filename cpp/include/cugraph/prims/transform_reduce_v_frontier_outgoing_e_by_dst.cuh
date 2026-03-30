@@ -4,15 +4,14 @@
  */
 #pragma once
 
-#include "prims/detail/optional_dataframe_buffer.hpp"
-#include "prims/detail/prim_functors.cuh"
-#include "prims/transform_reduce_if_v_frontier_outgoing_e_by_dst.cuh"
-
 #include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/edge_partition_endpoint_property_device_view.cuh>
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_view.hpp>
+#include <cugraph/prims/detail/optional_dataframe_buffer.hpp>
+#include <cugraph/prims/detail/prim_functors.cuh>
+#include <cugraph/prims/transform_reduce_if_v_frontier_outgoing_e_by_dst.cuh>
 #include <cugraph/utilities/dataframe_buffer.hpp>
 
 #include <raft/core/handle.hpp>

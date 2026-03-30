@@ -4,11 +4,10 @@
  */
 #pragma once
 
-#include "prims/detail/per_v_transform_reduce_e.cuh"
-#include "prims/vertex_frontier.cuh"
-
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_view.hpp>
+#include <cugraph/prims/detail/per_v_transform_reduce_e.cuh>
+#include <cugraph/prims/vertex_frontier.cuh>
 #include <cugraph/utilities/error.hpp>
 
 #include <raft/core/handle.hpp>

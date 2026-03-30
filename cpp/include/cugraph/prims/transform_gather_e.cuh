@@ -6,13 +6,13 @@
 
 #include "detail/optional_dataframe_buffer.hpp"
 #include "detail/prim_utils.cuh"
-#include "prims/property_op_utils.cuh"
 
 #include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/edge_partition_edge_property_device_view.cuh>
 #include <cugraph/edge_partition_endpoint_property_device_view.cuh>
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_view.hpp>
+#include <cugraph/prims/property_op_utils.cuh>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/mask_utils.cuh>
 #include <cugraph/utilities/packed_bool_utils.hpp>

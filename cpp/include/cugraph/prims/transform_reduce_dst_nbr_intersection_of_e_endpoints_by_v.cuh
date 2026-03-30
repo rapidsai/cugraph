@@ -5,14 +5,14 @@
 #pragma once
 
 #include "detail/graph_partition_utils.cuh"
-#include "prims/detail/nbr_intersection.cuh"
-#include "prims/property_op_utils.cuh"
 
 #include <cugraph/detail/decompress_edge_partition.cuh>
 #include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/edge_partition_endpoint_property_device_view.cuh>
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_view.hpp>
+#include <cugraph/prims/detail/nbr_intersection.cuh>
+#include <cugraph/prims/property_op_utils.cuh>
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/mask_utils.cuh>
