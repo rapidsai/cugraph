@@ -905,7 +905,7 @@ transform_reduce_if_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
         }
       }
       auto h_tx_buffer_last_boundaries = reinterpret_cast<edge_t*>(h_staging_buffer_view.data());
-      assert(h_staging_buffer_view.size() >= d_tx_last_buffer_boundaries.size());
+      assert(h_staging_buffer_view.size() >= d_tx_buffer_last_boundaries.size());
       raft::update_host(h_tx_buffer_last_boundaries,
                         d_tx_buffer_last_boundaries.data(),
                         d_tx_buffer_last_boundaries.size(),

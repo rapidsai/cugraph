@@ -174,7 +174,7 @@ void check_input_edges(raft::handle_t const& handle,
                                                    [](auto const& edgelist_edge_property) {
                                                      return edgelist_edge_property.size();
                                                    }) == edgelist_majors.size(),
-                    "Invalid input arguments: edgelist_edge_properties[%d].size() and "
+                    "Invalid input arguments: edgelist_edge_properties[%lu].size() and "
                     "edgelist_(srcs|dsts).size() should coincide.",
                     i);
   }
