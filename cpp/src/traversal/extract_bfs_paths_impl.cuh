@@ -4,13 +4,13 @@
  */
 #pragma once
 
-#include "detail/graph_partition_utils.cuh"
 #include "utilities/collect_comm.cuh"
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/utilities/error.hpp>
+#include <cugraph/utilities/graph_partition_utils.cuh>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
 #include <cugraph/vertex_partition_device_view.cuh>

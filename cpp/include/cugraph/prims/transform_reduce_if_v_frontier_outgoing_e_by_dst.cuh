@@ -4,8 +4,6 @@
  */
 #pragma once
 
-#include "detail/graph_partition_utils.cuh"
-
 #include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/edge_partition_endpoint_property_device_view.cuh>
 #include <cugraph/edge_src_dst_property.hpp>
@@ -22,6 +20,7 @@
 #include <cugraph/utilities/device_comm.hpp>
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/error.hpp>
+#include <cugraph/utilities/graph_partition_utils.cuh>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
 #include <cugraph/vertex_partition_device_view.cuh>

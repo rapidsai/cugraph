@@ -4,13 +4,12 @@
  */
 #pragma once
 
-#include "detail/graph_partition_utils.cuh"
-
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/prims/kv_store.cuh>
 #include <cugraph/utilities/error.hpp>
+#include <cugraph/utilities/graph_partition_utils.cuh>
 #include <cugraph/utilities/shuffle_comm.cuh>
 
 #include <raft/core/handle.hpp>

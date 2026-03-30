@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include "detail/graph_partition_utils.cuh"
 #include "detail/shuffle_wrappers.hpp"
 
 #include <cugraph/arithmetic_variant_types.hpp>
@@ -12,6 +11,7 @@
 #include <cugraph/prims/edge_bucket.cuh>
 #include <cugraph/prims/transform_gather_e.cuh>
 #include <cugraph/shuffle_functions.hpp>
+#include <cugraph/utilities/graph_partition_utils.cuh>
 
 #include <raft/core/handle.hpp>
 #include <raft/core/host_span.hpp>

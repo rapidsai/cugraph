@@ -4,8 +4,6 @@
  */
 #pragma once
 
-#include "detail/graph_partition_utils.cuh"
-
 #include <cugraph/detail/decompress_edge_partition.cuh>
 #include <cugraph/edge_partition_edge_property_device_view.cuh>
 #include <cugraph/edge_partition_endpoint_property_device_view.cuh>
@@ -17,6 +15,7 @@
 #include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/error.hpp>
+#include <cugraph/utilities/graph_partition_utils.cuh>
 
 #include <raft/core/handle.hpp>
 

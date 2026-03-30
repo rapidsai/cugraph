@@ -5,7 +5,6 @@
 #pragma once
 
 #include "common_methods.hpp"
-#include "detail/graph_partition_utils.cuh"
 #include "utilities/collect_comm.cuh"
 
 #include <cugraph/detail/utility_wrappers.hpp>
@@ -17,6 +16,7 @@
 #include <cugraph/prims/transform_reduce_e.cuh>
 #include <cugraph/prims/transform_reduce_e_by_src_dst_key.cuh>
 #include <cugraph/prims/update_edge_src_dst_property.cuh>
+#include <cugraph/utilities/graph_partition_utils.cuh>
 
 #include <cuda/functional>
 #include <cuda/iterator>

@@ -5,10 +5,9 @@
 
 #pragma once
 
-#include "detail/graph_partition_utils.cuh"
-
 #include <cugraph/arithmetic_variant_types.hpp>
 #include <cugraph/shuffle_functions.hpp>
+#include <cugraph/utilities/graph_partition_utils.cuh>
 #include <cugraph/utilities/shuffle_comm.cuh>
 
 #include <thrust/binary_search.h>

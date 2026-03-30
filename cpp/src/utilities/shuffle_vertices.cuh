@@ -5,12 +5,12 @@
 
 #pragma once
 
-#include "detail/graph_partition_utils.cuh"
 #include "detail/shuffle_wrappers.hpp"
 
 #include <cugraph/arithmetic_variant_types.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/large_buffer_manager.hpp>
+#include <cugraph/utilities/graph_partition_utils.cuh>
 #include <cugraph/utilities/shuffle_comm.cuh>
 
 #include <cuda/std/tuple>

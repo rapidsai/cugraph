@@ -5,7 +5,6 @@
 
 #pragma once
 
-#include "detail/graph_partition_utils.cuh"
 #include "utilities/error_check_utils.cuh"
 
 #include <cugraph/edge_property.hpp>
@@ -17,6 +16,7 @@
 #include <cugraph/prims/reduce_op.cuh>
 #include <cugraph/utilities/atomic_ops.cuh>
 #include <cugraph/utilities/error.hpp>
+#include <cugraph/utilities/graph_partition_utils.cuh>
 #include <cugraph/utilities/mask_utils.cuh>
 
 #include <raft/core/handle.hpp>

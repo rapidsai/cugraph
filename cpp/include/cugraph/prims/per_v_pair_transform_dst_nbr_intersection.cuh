@@ -4,7 +4,6 @@
  */
 #pragma once
 
-#include "detail/graph_partition_utils.cuh"
 #include "utilities/collect_comm.cuh"
 #include "utilities/error_check_utils.cuh"
 
@@ -16,6 +15,7 @@
 #include <cugraph/prims/property_op_utils.cuh>
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/error.hpp>
+#include <cugraph/utilities/graph_partition_utils.cuh>
 
 #include <raft/core/handle.hpp>
 

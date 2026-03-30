@@ -4,7 +4,6 @@
  */
 #pragma once
 
-#include "detail/graph_partition_utils.cuh"
 #include "utilities/collect_comm.cuh"
 
 #include <cugraph/detail/decompress_edge_partition.cuh>
@@ -17,6 +16,7 @@
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/error.hpp>
+#include <cugraph/utilities/graph_partition_utils.cuh>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/misc_utils.cuh>
 #include <cugraph/utilities/shuffle_comm.cuh>

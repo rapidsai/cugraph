@@ -4,7 +4,6 @@
  */
 #pragma once
 
-#include "detail/graph_partition_utils.cuh"
 #include "utilities/error_check_utils.cuh"
 
 #include <cugraph/edge_partition_device_view.cuh>
@@ -14,6 +13,7 @@
 #include <cugraph/prims/detail/optional_dataframe_buffer.hpp>
 #include <cugraph/prims/kv_store.cuh>
 #include <cugraph/utilities/device_functors.cuh>
+#include <cugraph/utilities/graph_partition_utils.cuh>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/mask_utils.cuh>
 #include <cugraph/utilities/shuffle_comm.cuh>

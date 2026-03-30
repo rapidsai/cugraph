@@ -5,8 +5,6 @@
 
 #pragma once
 
-#include "detail/graph_partition_utils.cuh"
-
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/prims/edge_bucket.cuh>
@@ -16,6 +14,7 @@
 #include <cugraph/prims/transform_e.cuh>
 #include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/error.hpp>
+#include <cugraph/utilities/graph_partition_utils.cuh>
 
 #include <raft/util/integer_utils.hpp>
 

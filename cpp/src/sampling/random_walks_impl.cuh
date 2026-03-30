@@ -5,7 +5,6 @@
 
 #pragma once
 
-#include "detail/graph_partition_utils.cuh"
 #include "detail/shuffle_wrappers.hpp"
 
 #include <cugraph/algorithms.hpp>
@@ -21,6 +20,7 @@
 #include <cugraph/prims/update_edge_src_dst_property.cuh>
 #include <cugraph/prims/vertex_frontier.cuh>
 #include <cugraph/shuffle_functions.hpp>
+#include <cugraph/utilities/graph_partition_utils.cuh>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
 

@@ -3,12 +3,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include "detail/graph_partition_utils.cuh"
 #include "mtmg/vertex_pairs_result.cuh"
 
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/mtmg/vertex_pair_result_view.hpp>
+#include <cugraph/utilities/graph_partition_utils.cuh>
 #include <cugraph/vertex_partition_device_view.cuh>
 
 #include <thrust/gather.h>

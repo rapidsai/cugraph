@@ -4,7 +4,6 @@
  */
 #pragma once
 
-#include "detail/graph_partition_utils.cuh"
 #include "utilities/collect_comm.cuh"
 
 #include <cugraph/graph.hpp>
@@ -12,6 +11,7 @@
 #include <cugraph/prims/kv_store.cuh>
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/error.hpp>
+#include <cugraph/utilities/graph_partition_utils.cuh>
 #include <cugraph/utilities/shuffle_comm.cuh>
 
 #include <rmm/mr/per_device_resource.hpp>
