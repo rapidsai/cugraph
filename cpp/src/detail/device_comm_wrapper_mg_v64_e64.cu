@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include "detail/collect_comm_wrapper.cuh"
+#include "detail/device_comm_wrapper.cuh"
 
 namespace cugraph {
 namespace detail {

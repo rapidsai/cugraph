@@ -10,6 +10,7 @@
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/prims/detail/optional_dataframe_buffer.hpp>
 #include <cugraph/prims/kv_store.cuh>
+#include <cugraph/utilities/device_comm.hpp>
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/error_check_utils.cuh>
 #include <cugraph/utilities/graph_partition_utils.cuh>
@@ -782,7 +783,7 @@ nbr_intersection(raft::handle_t const& handle,
             rx_counts.begin(), rx_counts.end(), rx_displacements.begin(), size_t{0});
           rmm::device_uvector<vertex_t> rx_unique_majors(rx_displacements.back() + rx_counts.back(),
                                                          handle.get_stream());
-          device_allgatherv(
+          cugraph::device_allgatherv(
             minor_comm,
             unique_majors.begin(),
             rx_unique_majors.begin(),
@@ -1186,7 +1187,7 @@ nbr_intersection(raft::handle_t const& handle,
                      get_dataframe_buffer_begin(vertex_pair_buffer) +
                        rx_v_pair_displacements[minor_comm_rank]);
 
-        device_allgatherv(
+        cugraph::device_allgatherv(
           minor_comm,
           get_dataframe_buffer_begin(vertex_pair_buffer) + rx_v_pair_displacements[minor_comm_rank],
           get_dataframe_buffer_begin(vertex_pair_buffer),

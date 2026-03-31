@@ -338,8 +338,8 @@ set(CUGRAPH_MG_SOURCES
     src/detail/collect_local_vertex_values_mg_v64_e64.cu
     src/detail/groupby_and_count_mg_v32_e32.cu
     src/detail/groupby_and_count_mg_v64_e64.cu
-    src/detail/collect_comm_wrapper_mg_v32_e32.cu
-    src/detail/collect_comm_wrapper_mg_v64_e64.cu
+    src/detail/device_comm_wrapper_mg_v32_e32.cu
+    src/detail/device_comm_wrapper_mg_v64_e64.cu
     src/sampling/random_walks_mg_v64_e64.cu
     src/sampling/random_walks_mg_v32_e32.cu
     src/community/detail/common_methods_mg_v64_e64.cu

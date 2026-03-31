@@ -6,8 +6,8 @@
 #include "utilities/collect_comm.cuh"
 
 #include <cugraph/arithmetic_variant_types.hpp>
-#include <cugraph/detail/collect_comm_wrapper.hpp>
 #include <cugraph/detail/decompress_edge_partition.cuh>
+#include <cugraph/detail/device_comm_wrapper.hpp>
 #include <cugraph/edge_property.hpp>
 #include <cugraph/graph.hpp>
 #include <cugraph/prims/extract_transform_e.cuh>

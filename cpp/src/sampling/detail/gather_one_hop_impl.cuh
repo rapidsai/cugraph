@@ -9,6 +9,7 @@
 #include "utilities/collect_comm.cuh"
 
 #include <cugraph/arithmetic_variant_types.hpp>
+#include <cugraph/detail/device_comm_wrapper.hpp>
 #include <cugraph/edge_property.hpp>
 #include <cugraph/prims/edge_bucket.cuh>
 #include <cugraph/prims/extract_transform_if_v_frontier_outgoing_e.cuh>

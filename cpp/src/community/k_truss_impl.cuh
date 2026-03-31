@@ -5,7 +5,7 @@
 #pragma once
 
 #include <cugraph/algorithms.hpp>
-#include <cugraph/detail/collect_comm_wrapper.hpp>
+#include <cugraph/detail/device_comm_wrapper.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/prims/edge_bucket.cuh>
 #include <cugraph/prims/extract_transform_if_e.cuh>

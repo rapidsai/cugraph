@@ -166,8 +166,8 @@ class Tests_MGTransformReduceE
         auto sg_vertex_prop =
           cugraph::test::generate<decltype(sg_graph_view), result_t>::vertex_property(
             *handle_,
-            thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_first()),
-            thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_last()),
+            sg_graph_view.local_vertex_partition_range_first(),
+            sg_graph_view.local_vertex_partition_range_last(),
             hash_bin_count);
         auto sg_src_prop = cugraph::test::generate<decltype(sg_graph_view), result_t>::src_property(
           *handle_, sg_graph_view, sg_vertex_prop);
