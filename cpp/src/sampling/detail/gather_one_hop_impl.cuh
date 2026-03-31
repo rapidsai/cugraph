@@ -6,7 +6,6 @@
 #pragma once
 
 #include "gather_sampled_properties.cuh"
-#include "utilities/collect_comm.cuh"
 
 #include <cugraph/arithmetic_variant_types.hpp>
 #include <cugraph/detail/device_comm_wrapper.hpp>
@@ -19,6 +18,7 @@
 #include <cugraph/prims/vertex_frontier.cuh>
 #include <cugraph/sampling_functions.hpp>
 #include <cugraph/utilities/assert.cuh>
+#include <cugraph/utilities/collect_comm.cuh>
 #include <cugraph/utilities/mask_utils.cuh>
 
 #include <raft/util/cudart_utils.hpp>

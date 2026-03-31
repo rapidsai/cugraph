@@ -5,7 +5,6 @@
 
 #include "detail/shuffle_wrappers.hpp"
 #include "graph500_misc.cuh"
-#include "utilities/collect_comm.cuh"
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/edge_property.hpp>
@@ -21,6 +20,7 @@
 #include <cugraph/prims/transform_e.cuh>
 #include <cugraph/prims/update_edge_src_dst_property.cuh>
 #include <cugraph/shuffle_functions.hpp>
+#include <cugraph/utilities/collect_comm.cuh>
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 

@@ -4,14 +4,13 @@
  */
 #pragma once
 
-#include "utilities/collect_comm.cuh"
-
 #include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/edge_partition_edge_property_device_view.cuh>
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/prims/detail/nbr_intersection.cuh>
 #include <cugraph/prims/property_op_utils.cuh>
+#include <cugraph/utilities/collect_comm.cuh>
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/error_check_utils.cuh>

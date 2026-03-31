@@ -5,7 +5,6 @@
 #pragma once
 
 #include "structure/detail/structure_utils.cuh"
-#include "utilities/collect_comm.cuh"
 
 #include <cugraph/detail/device_comm_wrapper.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
@@ -16,6 +15,7 @@
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/prims/extract_transform_if_v_frontier_outgoing_e.cuh>
 #include <cugraph/prims/vertex_frontier.cuh>
+#include <cugraph/utilities/collect_comm.cuh>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/misc_utils.cuh>
 #include <cugraph/vertex_partition_device_view.cuh>

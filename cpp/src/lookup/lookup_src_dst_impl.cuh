@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 #include "detail/shuffle_wrappers.hpp"
-#include "utilities/collect_comm.cuh"
 
 #include <cugraph/arithmetic_variant_types.hpp>
 #include <cugraph/detail/decompress_edge_partition.cuh>
@@ -14,6 +13,7 @@
 #include <cugraph/prims/kv_store.cuh>
 #include <cugraph/shuffle_functions.hpp>
 #include <cugraph/src_dst_lookup_container.hpp>
+#include <cugraph/utilities/collect_comm.cuh>
 #include <cugraph/utilities/graph_partition_utils.cuh>
 #include <cugraph/utilities/mask_utils.cuh>
 #include <cugraph/utilities/misc_utils.cuh>

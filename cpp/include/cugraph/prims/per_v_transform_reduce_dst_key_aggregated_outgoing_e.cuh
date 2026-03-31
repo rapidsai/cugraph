@@ -4,8 +4,6 @@
  */
 #pragma once
 
-#include "utilities/collect_comm.cuh"
-
 #include <cugraph/detail/decompress_edge_partition.cuh>
 #include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/edge_partition_endpoint_property_device_view.cuh>
@@ -13,6 +11,7 @@
 #include <cugraph/graph_view.hpp>
 #include <cugraph/prims/detail/optional_dataframe_buffer.hpp>
 #include <cugraph/prims/kv_store.cuh>
+#include <cugraph/utilities/collect_comm.cuh>
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/error.hpp>

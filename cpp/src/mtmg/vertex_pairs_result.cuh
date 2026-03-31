@@ -5,13 +5,12 @@
 
 #pragma once
 
-#include "utilities/collect_comm.cuh"
-
 #include <cugraph/detail/device_comm_wrapper.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/mtmg/vertex_pair_result_view.hpp>
 #include <cugraph/shuffle_functions.hpp>
+#include <cugraph/utilities/collect_comm.cuh>
 #include <cugraph/utilities/graph_partition_utils.cuh>
 #include <cugraph/vertex_partition_device_view.cuh>
 

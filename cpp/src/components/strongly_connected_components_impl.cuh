@@ -4,8 +4,6 @@
  */
 #pragma once
 
-#include "utilities/collect_comm.cuh"
-
 #include <cugraph/algorithms.hpp>
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_functions.hpp>
@@ -19,6 +17,7 @@
 #include <cugraph/prims/update_v_frontier.cuh>
 #include <cugraph/prims/vertex_frontier.cuh>
 #include <cugraph/shuffle_functions.hpp>
+#include <cugraph/utilities/collect_comm.cuh>
 #include <cugraph/utilities/device_comm.hpp>
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/error.hpp>

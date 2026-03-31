@@ -7,7 +7,6 @@
 #include "detail/graph500_nbr_unrenumber_cache.cuh"
 #include "detail/graph500_validation_utils.cuh"
 #include "utilities/base_fixture.hpp"
-#include "utilities/collect_comm.cuh"
 #include "utilities/conversion_utilities.hpp"
 #include "utilities/device_comm_wrapper.hpp"
 #include "utilities/mg_utilities.hpp"
@@ -28,6 +27,7 @@
 #include <cugraph/prims/transform_gather_e.cuh>
 #include <cugraph/prims/update_edge_src_dst_property.cuh>
 #include <cugraph/shuffle_functions.hpp>
+#include <cugraph/utilities/collect_comm.cuh>
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/high_res_timer.hpp>
 #include <cugraph/utilities/misc_utils.cuh>
