@@ -292,7 +292,7 @@ std::tuple<std::optional<rmm::device_uvector<int32_t>>,
 call_biased_per_v_random_select_transform_outgoing_e(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
-  cugraph::vertex_frontier_t<vertex_t, tag_t, multi_gpu, false> const& vertex_frontier,
+  cugraph::key_bucket_view_t<vertex_t, tag_t, multi_gpu, false> const& key_bucket_view,
   biases_view_t edge_biases_view,
   property_view_t edge_property_view,
   biases_op_t biases_op,
@@ -318,7 +318,7 @@ call_biased_per_v_random_select_transform_outgoing_e(
       (Ks.size() == 1) ? cugraph::per_v_random_select_transform_outgoing_e(
                            handle,
                            graph_view,
-                           vertex_frontier.bucket(0),
+                           key_bucket_view,
                            edge_src_dummy_property_t{}.view(),
                            edge_dst_dummy_property_t{}.view(),
                            edge_biases_view,
@@ -335,7 +335,7 @@ call_biased_per_v_random_select_transform_outgoing_e(
                        : cugraph::per_v_random_select_transform_outgoing_e(
                            handle,
                            graph_view,
-                           vertex_frontier.bucket(0),
+                           key_bucket_view,
                            edge_src_dummy_property_t{}.view(),
                            edge_dst_dummy_property_t{}.view(),
                            edge_biases_view,
@@ -355,7 +355,7 @@ call_biased_per_v_random_select_transform_outgoing_e(
       (Ks.size() == 1) ? cugraph::per_v_random_select_transform_outgoing_e(
                            handle,
                            graph_view,
-                           vertex_frontier.bucket(0),
+                           key_bucket_view,
                            edge_src_dummy_property_t{}.view(),
                            edge_dst_dummy_property_t{}.view(),
                            edge_biases_view,
@@ -372,7 +372,7 @@ call_biased_per_v_random_select_transform_outgoing_e(
                        : cugraph::per_v_random_select_transform_outgoing_e(
                            handle,
                            graph_view,
-                           vertex_frontier.bucket(0),
+                           key_bucket_view,
                            edge_src_dummy_property_t{}.view(),
                            edge_dst_dummy_property_t{}.view(),
                            edge_biases_view,
@@ -422,7 +422,7 @@ std::tuple<std::optional<rmm::device_uvector<int32_t>>,
 call_unbiased_per_v_random_select_transform_outgoing_e(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
-  cugraph::vertex_frontier_t<vertex_t, void, multi_gpu, false> const& vertex_frontier,
+  cugraph::key_bucket_view_t<vertex_t, void, multi_gpu, false> const& key_bucket_view,
   property_view_t edge_property_view,
   std::optional<cugraph::edge_property_view_t<edge_t, edge_type_t const*>> edge_type_view,
   raft::random::RngState& rng_state,
@@ -446,7 +446,7 @@ call_unbiased_per_v_random_select_transform_outgoing_e(
       (Ks.size() == 1) ? cugraph::per_v_random_select_transform_outgoing_e(
                            handle,
                            graph_view,
-                           vertex_frontier.bucket(0),
+                           key_bucket_view,
                            edge_src_dummy_property_t{}.view(),
                            edge_dst_dummy_property_t{}.view(),
                            edge_property_view,
@@ -459,7 +459,7 @@ call_unbiased_per_v_random_select_transform_outgoing_e(
                        : cugraph::per_v_random_select_transform_outgoing_e(
                            handle,
                            graph_view,
-                           vertex_frontier.bucket(0),
+                           key_bucket_view,
                            edge_src_dummy_property_t{}.view(),
                            edge_dst_dummy_property_t{}.view(),
                            edge_property_view,
@@ -475,7 +475,7 @@ call_unbiased_per_v_random_select_transform_outgoing_e(
       (Ks.size() == 1) ? cugraph::per_v_random_select_transform_outgoing_e(
                            handle,
                            graph_view,
-                           vertex_frontier.bucket(0),
+                           key_bucket_view,
                            edge_src_dummy_property_t{}.view(),
                            edge_dst_dummy_property_t{}.view(),
                            edge_property_view,
@@ -488,7 +488,7 @@ call_unbiased_per_v_random_select_transform_outgoing_e(
                        : cugraph::per_v_random_select_transform_outgoing_e(
                            handle,
                            graph_view,
-                           vertex_frontier.bucket(0),
+                           key_bucket_view,
                            edge_src_dummy_property_t{}.view(),
                            edge_dst_dummy_property_t{}.view(),
                            edge_property_view,
@@ -548,7 +548,7 @@ sample_with_one_property(
   property_view_t edge_property_view,
   std::optional<edge_arithmetic_property_view_t<edge_t>> edge_type_view,
   std::optional<edge_arithmetic_property_view_t<edge_t>> edge_bias_view,
-  cugraph::vertex_frontier_t<vertex_t, void, multi_gpu, false>& vertex_frontier,
+  cugraph::key_bucket_view_t<vertex_t, void, multi_gpu, false> const& key_bucket_view,
   raft::host_span<size_t const> Ks,
   std::optional<raft::device_span<int32_t const>> active_major_labels,
   bool with_replacement)
@@ -570,7 +570,7 @@ sample_with_one_property(
         call_biased_per_v_random_select_transform_outgoing_e(
           handle,
           graph_view,
-          vertex_frontier,
+          key_bucket_view,
           std::get<cugraph::edge_property_view_t<edge_t, bias_t const*>>(*edge_bias_view),
           edge_property_view,
           sample_edge_biases_op_t<vertex_t, bias_t>{},
@@ -590,7 +590,7 @@ sample_with_one_property(
         call_biased_per_v_random_select_transform_outgoing_e(
           handle,
           graph_view,
-          vertex_frontier,
+          key_bucket_view,
           std::get<cugraph::edge_property_view_t<edge_t, bias_t const*>>(*edge_bias_view),
           edge_property_view,
           sample_edge_biases_op_t<vertex_t, bias_t>{},
@@ -608,7 +608,7 @@ sample_with_one_property(
       call_unbiased_per_v_random_select_transform_outgoing_e(
         handle,
         graph_view,
-        vertex_frontier,
+        key_bucket_view,
         edge_property_view,
         edge_type_view
           ? std::make_optional(
@@ -642,7 +642,7 @@ sample_unvisited_with_one_property(
   property_view_t edge_property_view,
   std::optional<edge_arithmetic_property_view_t<edge_t>> edge_type_view,
   std::optional<edge_arithmetic_property_view_t<edge_t>> edge_bias_view,
-  cugraph::vertex_frontier_t<vertex_t, tag_t, multi_gpu, false>& vertex_frontier,
+  cugraph::key_bucket_view_t<vertex_t, tag_t, multi_gpu, false> const& key_bucket_view,
   rmm::device_uvector<vertex_t>&& visited_minors,
   std::optional<rmm::device_uvector<int32_t>>&& visited_minor_labels,
   raft::host_span<size_t const> Ks,
@@ -660,6 +660,9 @@ sample_unvisited_with_one_property(
   bool sample_and_append{true};
   std::optional<rmm::device_uvector<vertex_t>> resample_active_majors{std::nullopt};
   std::optional<rmm::device_uvector<int32_t>> resample_active_major_labels{std::nullopt};
+
+  cugraph::key_bucket_view_t<vertex_t, tag_t, multi_gpu, false> active_bucket_view =
+    key_bucket_view;
 
   // FIXME: We could explore increasing the rate of convergency by oversampling to allow
   // for some duplicates to be discarded.  This would allow some vertices to still have the
@@ -679,7 +682,7 @@ sample_unvisited_with_one_property(
           call_biased_per_v_random_select_transform_outgoing_e(
             handle,
             graph_view,
-            vertex_frontier,
+            active_bucket_view,
             std::get<cugraph::edge_property_view_t<edge_t, bias_t const*>>(*edge_bias_view),
             edge_property_view,
             sample_unvisited_edge_biases_op_t<vertex_t, bias_t>{
@@ -702,7 +705,7 @@ sample_unvisited_with_one_property(
           call_biased_per_v_random_select_transform_outgoing_e(
             handle,
             graph_view,
-            vertex_frontier,
+            active_bucket_view,
             std::get<cugraph::edge_property_view_t<edge_t, bias_t const*>>(*edge_bias_view),
             edge_property_view,
             sample_unvisited_edge_biases_op_t<vertex_t, bias_t>{
@@ -725,7 +728,7 @@ sample_unvisited_with_one_property(
         call_biased_per_v_random_select_transform_outgoing_e(
           handle,
           graph_view,
-          vertex_frontier,
+          active_bucket_view,
           cugraph::edge_dummy_property_view_t{},
           edge_property_view,
           sample_unvisited_edge_biases_op_t<vertex_t, bias_t>{
@@ -779,12 +782,12 @@ sample_unvisited_with_one_property(
 
     if (sample_and_append) {
       if constexpr (std::is_same_v<tag_t, void>) {
-        vertex_frontier.bucket(0) = cugraph::key_bucket_t<vertex_t, tag_t, multi_gpu, false>(
+        active_bucket_view = cugraph::key_bucket_view_t<vertex_t, tag_t, multi_gpu, false>(
           handle,
           raft::device_span<vertex_t const>{resample_active_majors->data(),
                                             resample_active_majors->size()});
       } else {
-        vertex_frontier.bucket(0) = cugraph::key_bucket_t<vertex_t, tag_t, multi_gpu, false>(
+        active_bucket_view = cugraph::key_bucket_view_t<vertex_t, tag_t, multi_gpu, false>(
           handle,
           raft::device_span<vertex_t const>{resample_active_majors->data(),
                                             resample_active_majors->size()},
@@ -870,13 +873,17 @@ sample_edges(raft::handle_t const& handle,
 
   cugraph::vertex_frontier_t<vertex_t, tag_t, multi_gpu, false> vertex_frontier(handle, 1);
 
-  vertex_frontier.bucket(0).insert(active_majors.begin(), active_majors.end());
+  auto& bucket0 = vertex_frontier.bucket(0);
+  bucket0.insert(active_majors.begin(), active_majors.end());
 
   rmm::device_uvector<vertex_t> majors(0, handle.get_stream());
   rmm::device_uvector<vertex_t> minors(0, handle.get_stream());
   arithmetic_device_uvector_t tmp_edge_indices{std::monostate{}};
   std::optional<rmm::device_uvector<int32_t>> labels{std::nullopt};
   std::optional<rmm::device_uvector<int32_t>> sample_labels{std::nullopt};
+
+  auto active_bucket_view = cugraph::key_bucket_view_t<vertex_t, void, multi_gpu, false>(
+    handle, raft::device_span<vertex_t const>(bucket0.begin(), bucket0.size()));
 
   if (number_of_edge_properties == 0) {
     std::tie(majors, minors, std::ignore, sample_labels) =
@@ -886,7 +893,7 @@ sample_edges(raft::handle_t const& handle,
                                cugraph::edge_dummy_property_view_t{},
                                edge_type_view,
                                edge_bias_view,
-                               vertex_frontier,
+                               active_bucket_view,
                                Ks,
                                active_major_labels,
                                with_replacement);
@@ -902,7 +909,7 @@ sample_edges(raft::handle_t const& handle,
                                  multi_index_property.view(),
                                  edge_type_view,
                                  edge_bias_view,
-                                 vertex_frontier,
+                                 active_bucket_view,
                                  Ks,
                                  active_major_labels,
                                  with_replacement);
@@ -915,7 +922,7 @@ sample_edges(raft::handle_t const& handle,
                                  cugraph::edge_dummy_property_view_t{},
                                  edge_type_view,
                                  edge_bias_view,
-                                 vertex_frontier,
+                                 active_bucket_view,
                                  Ks,
                                  active_major_labels,
                                  with_replacement);
@@ -945,7 +952,7 @@ temporal_sample_with_one_property(
   edge_property_view_t<edge_t, time_stamp_t const*> edge_time_view,
   std::optional<edge_arithmetic_property_view_t<edge_t>> edge_type_view,
   std::optional<edge_arithmetic_property_view_t<edge_t>> edge_bias_view,
-  cugraph::vertex_frontier_t<vertex_t, time_stamp_t, multi_gpu, false>& vertex_frontier,
+  cugraph::key_bucket_view_t<vertex_t, time_stamp_t, multi_gpu, false> const& key_bucket_view,
   raft::host_span<size_t const> Ks,
   bool with_replacement,
   std::optional<raft::device_span<int32_t const>> active_major_labels,
@@ -969,7 +976,7 @@ temporal_sample_with_one_property(
         call_biased_per_v_random_select_transform_outgoing_e(
           handle,
           graph_view,
-          vertex_frontier,
+          key_bucket_view,
           view_concat(
             std::get<cugraph::edge_property_view_t<edge_t, bias_t const*>>(*edge_bias_view),
             edge_time_view),
@@ -991,7 +998,7 @@ temporal_sample_with_one_property(
         call_biased_per_v_random_select_transform_outgoing_e(
           handle,
           graph_view,
-          vertex_frontier,
+          key_bucket_view,
           view_concat(
             std::get<cugraph::edge_property_view_t<edge_t, bias_t const*>>(*edge_bias_view),
             edge_time_view),
@@ -1013,7 +1020,7 @@ temporal_sample_with_one_property(
       call_biased_per_v_random_select_transform_outgoing_e(
         handle,
         graph_view,
-        vertex_frontier,
+        key_bucket_view,
         edge_time_view,
         edge_property_view,
         temporal_sample_edge_biases_op_t<vertex_t, bias_t>{temporal_sampling_comparison},
@@ -1060,9 +1067,14 @@ temporal_sample_edges(raft::handle_t const& handle,
 
   cugraph::vertex_frontier_t<vertex_t, tag_t, multi_gpu, false> vertex_frontier(handle, 1);
 
-  vertex_frontier.bucket(0).insert(
-    thrust::make_zip_iterator(active_majors.begin(), active_major_times.begin()),
-    thrust::make_zip_iterator(active_majors.end(), active_major_times.end()));
+  auto& bucket0 = vertex_frontier.bucket(0);
+  bucket0.insert(thrust::make_zip_iterator(active_majors.begin(), active_major_times.begin()),
+                 thrust::make_zip_iterator(active_majors.end(), active_major_times.end()));
+
+  auto active_bucket_view = cugraph::key_bucket_view_t<vertex_t, tag_t, multi_gpu, false>(
+    handle,
+    raft::device_span<vertex_t const>(bucket0.vertex_begin(), bucket0.size()),
+    raft::device_span<tag_t const>(bucket0.tag_begin(), bucket0.size()));
 
   rmm::device_uvector<vertex_t> majors(0, handle.get_stream());
   rmm::device_uvector<vertex_t> minors(0, handle.get_stream());
@@ -1080,7 +1092,7 @@ temporal_sample_edges(raft::handle_t const& handle,
                                         edge_time_view,
                                         edge_type_view,
                                         edge_bias_view,
-                                        vertex_frontier,
+                                        active_bucket_view,
                                         Ks,
                                         with_replacement,
                                         active_major_labels,
@@ -1095,7 +1107,7 @@ temporal_sample_edges(raft::handle_t const& handle,
                                         edge_time_view,
                                         edge_type_view,
                                         edge_bias_view,
-                                        vertex_frontier,
+                                        active_bucket_view,
                                         Ks,
                                         with_replacement,
                                         active_major_labels,
@@ -1145,9 +1157,14 @@ sample_edges_to_unvisited_neighbors(
 
     cugraph::vertex_frontier_t<vertex_t, tag_t, multi_gpu, false> vertex_frontier(handle, 1);
 
-    vertex_frontier.bucket(0).insert(
-      thrust::make_zip_iterator(active_majors.begin(), active_major_labels->begin()),
-      thrust::make_zip_iterator(active_majors.end(), active_major_labels->end()));
+    auto& bucket0 = vertex_frontier.bucket(0);
+    bucket0.insert(thrust::make_zip_iterator(active_majors.begin(), active_major_labels->begin()),
+                   thrust::make_zip_iterator(active_majors.end(), active_major_labels->end()));
+
+    auto active_bucket_view = cugraph::key_bucket_view_t<vertex_t, tag_t, multi_gpu, false>(
+      handle,
+      raft::device_span<vertex_t const>(bucket0.vertex_begin(), bucket0.size()),
+      raft::device_span<tag_t const>(bucket0.tag_begin(), bucket0.size()));
 
     if (number_of_edge_properties == 0) {
       std::tie(majors, minors, std::ignore, labels, visited_minors, visited_minor_labels) =
@@ -1157,7 +1174,7 @@ sample_edges_to_unvisited_neighbors(
                                            cugraph::edge_dummy_property_view_t{},
                                            edge_type_view,
                                            edge_bias_view,
-                                           vertex_frontier,
+                                           active_bucket_view,
                                            std::move(visited_minors),
                                            std::move(visited_minor_labels),
                                            Ks,
@@ -1175,7 +1192,7 @@ sample_edges_to_unvisited_neighbors(
                                              multi_index_property.view(),
                                              edge_type_view,
                                              edge_bias_view,
-                                             vertex_frontier,
+                                             active_bucket_view,
                                              std::move(visited_minors),
                                              std::move(visited_minor_labels),
                                              Ks,
@@ -1189,7 +1206,7 @@ sample_edges_to_unvisited_neighbors(
                                              cugraph::edge_dummy_property_view_t{},
                                              edge_type_view,
                                              edge_bias_view,
-                                             vertex_frontier,
+                                             active_bucket_view,
                                              std::move(visited_minors),
                                              std::move(visited_minor_labels),
                                              Ks,
@@ -1203,7 +1220,11 @@ sample_edges_to_unvisited_neighbors(
 
     cugraph::vertex_frontier_t<vertex_t, tag_t, multi_gpu, false> vertex_frontier(handle, 1);
 
-    vertex_frontier.bucket(0).insert(active_majors.begin(), active_majors.end());
+    auto& bucket0 = vertex_frontier.bucket(0);
+    bucket0.insert(active_majors.begin(), active_majors.end());
+
+    auto active_bucket_view = cugraph::key_bucket_view_t<vertex_t, void, multi_gpu, false>(
+      handle, raft::device_span<vertex_t const>(bucket0.begin(), bucket0.size()));
 
     if (number_of_edge_properties == 0) {
       std::tie(majors, minors, std::ignore, labels, visited_minors, visited_minor_labels) =
@@ -1213,7 +1234,7 @@ sample_edges_to_unvisited_neighbors(
                                            cugraph::edge_dummy_property_view_t{},
                                            edge_type_view,
                                            edge_bias_view,
-                                           vertex_frontier,
+                                           active_bucket_view,
                                            std::move(visited_minors),
                                            std::move(visited_minor_labels),
                                            Ks,
@@ -1230,7 +1251,7 @@ sample_edges_to_unvisited_neighbors(
                                              multi_index_property.view(),
                                              edge_type_view,
                                              edge_bias_view,
-                                             vertex_frontier,
+                                             active_bucket_view,
                                              std::move(visited_minors),
                                              std::move(visited_minor_labels),
                                              Ks,
@@ -1244,7 +1265,7 @@ sample_edges_to_unvisited_neighbors(
                                              cugraph::edge_dummy_property_view_t{},
                                              edge_type_view,
                                              edge_bias_view,
-                                             vertex_frontier,
+                                             active_bucket_view,
                                              std::move(visited_minors),
                                              std::move(visited_minor_labels),
                                              Ks,
