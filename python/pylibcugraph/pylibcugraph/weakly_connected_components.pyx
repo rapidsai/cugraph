@@ -209,7 +209,7 @@ def weakly_connected_components(ResourceHandle resource_handle,
     if labels is not None:
         labels_view_ptr = create_cugraph_type_erased_device_array_view_from_py_obj(
             labels)
-        cugraph_type_erased_device_array_view_copy(
+        error_code = cugraph_type_erased_device_array_view_copy(
             c_resource_handle_ptr,
             labels_view_ptr,
             labels_ptr,

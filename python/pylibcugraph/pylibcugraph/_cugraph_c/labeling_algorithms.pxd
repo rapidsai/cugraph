@@ -52,3 +52,12 @@ cdef extern from "cugraph_c/labeling_algorithms.h":
             cugraph_labeling_result_t** result,
             cugraph_error_t** error
         )
+
+    cdef cugraph_error_code_t \
+        cugraph_strongly_connected_components(
+            const cugraph_resource_handle_t* handle,
+            cugraph_graph_t* graph,
+            bool_t do_expensive_check,
+            cugraph_labeling_result_t** result,
+            cugraph_error_t** error
+        )

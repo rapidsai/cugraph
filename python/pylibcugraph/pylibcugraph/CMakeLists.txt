@@ -5,7 +5,6 @@
 # cmake-format: on
 # =============================================================================
 
-add_subdirectory(components)
 add_subdirectory(internal_types)
 add_subdirectory(testing)
 add_subdirectory(comms)
@@ -52,6 +51,7 @@ set(cython_sources
     biased_random_walks.pyx
     utils.pyx
     weakly_connected_components.pyx
+    strongly_connected_components.pyx
     replicate_edgelist.pyx
     degrees.pyx
     all_pairs_jaccard_coefficients.pyx

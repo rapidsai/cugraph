@@ -176,8 +176,8 @@ def which_cluster_idx(_cluster, _find_vertex):
 
 def assert_scipy_api_compat(G, dataset_path, api_type):
     """
-    Ensure cugraph.scc() and cugraph.connected_components() can be used as
-    drop-in replacements for scipy.connected_components():
+    Ensure cugraph.connected_components() can be used as drop-in replacements
+    for scipy.connected_components():
 
     scipy.sparse.csgraph.connected_components(csgraph,
                                               directed=True,
