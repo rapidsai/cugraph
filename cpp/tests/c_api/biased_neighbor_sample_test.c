@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -166,6 +166,11 @@ int generic_biased_neighbor_sample_test(const cugraph_resource_handle_t* handle,
 
   cugraph_sampling_options_free(sampling_options);
   cugraph_rng_state_free(rng_state);
+  /* Must free sample result or GPU memory leaks every test (order-dependent failures). */
+  if (result != NULL) {
+    cugraph_sample_result_free(result);
+    result = NULL;
+  }
   cugraph_type_erased_device_array_free(d_start);
   cugraph_type_erased_device_array_free(d_start_label_offsets);
   cugraph_type_erased_host_array_view_free(h_fan_out_view);
@@ -437,12 +442,6 @@ int test_biased_neighbor_sample_carry_over_sources(const cugraph_resource_handle
 
 int test_biased_neighbor_sample_renumber_results(const cugraph_resource_handle_t* handle)
 {
-  cugraph_data_type_id_t vertex_tid    = INT32;
-  cugraph_data_type_id_t edge_tid      = INT32;
-  cugraph_data_type_id_t weight_tid    = FLOAT32;
-  cugraph_data_type_id_t edge_id_tid   = INT32;
-  cugraph_data_type_id_t edge_type_tid = INT32;
-
   size_t num_edges               = 9;
   size_t num_vertices            = 6;
   size_t fan_out_size            = 3;
@@ -457,10 +456,6 @@ int test_biased_neighbor_sample_renumber_results(const cugraph_resource_handle_t
   vertex_t start[]             = {2, 3};
   size_t start_label_offsets[] = {0, 1, 2};
   int fan_out[]                = {-1, -1, -1};
-
-  int test_ret_value            = 0;
-  cugraph_error_code_t ret_code = CUGRAPH_SUCCESS;
-  cugraph_error_t* ret_error    = NULL;
 
   bool_t with_replacement                                 = FALSE;
   bool_t return_hops                                      = TRUE;

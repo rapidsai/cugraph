@@ -54,32 +54,56 @@ std::tuple<size_t, size_t> check_edge_bias_values(
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Graph View object to generate neighbor sampling on.
- * @param edge_property_views Span of property views holding edge properties for @p graph_view.  All
- * types included in this span will be sampled and returned with the result.
+ * @param number_of_edge_properties Number of edge property columns to gather later via
+ * gather_sampled_properties (0 means majors/minors only).
  * @param edge_type_view Optional view object holding edge types for @p graph_view.  If specified
- * this view will be used for heterogeneous type filtering.  The edge type view should also be part
- * of @p edge_property_views in order to be included in the sampled results.
+ * this view will be used for heterogeneous type filtering (requires number_of_edge_properties > 0).
  * @param active_majors Device vector containing all the vertex id that are processed by
  * gpus in the column communicator
  * @param active_major_labels Optional device vector containing labels for each device vector
- * @param gather_flags Optional host span indicating whether to gather edge or not for each edge
+ * @param gather_flags Optional device span indicating whether to gather edge or not for each edge
  * type. @p gather_flags.has_value() should coincide with @p edge_type_view.has_value().
- * @return A tuple of device vectors containing the sampled majors, minors, edge properties and
- * optional label
+ * @return Majors, minors, multi-edge index for gather_sampled_properties (monostate when
+ * number_of_edge_properties is 0), optional per-edge labels.
  */
 template <typename vertex_t, typename edge_t, bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
-           std::vector<arithmetic_device_uvector_t>,
+           arithmetic_device_uvector_t,
            std::optional<rmm::device_uvector<int32_t>>>
-gather_one_hop_edgelist(
+gather_one_hop_edgelist(raft::handle_t const& handle,
+                        graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+                        size_t number_of_edge_properties,
+                        std::optional<edge_property_view_t<edge_t, int32_t const*>> edge_type_view,
+                        raft::device_span<vertex_t const> active_majors,
+                        std::optional<raft::device_span<int32_t const>> active_major_labels,
+                        std::optional<raft::device_span<bool const>> gather_flags,
+                        bool do_expensive_check);
+
+/**
+ * @brief Gather one-hop edges to unvisited neighbors
+ *
+ * Like gather_one_hop_edgelist with @p number_of_edge_properties, but drops edges whose
+ * destinations are already in the visited sets. Caller should call gather_sampled_properties
+ * (if number_of_edge_properties > 0) to obtain edge properties from the returned indices.
+ */
+template <typename vertex_t, typename edge_t, bool multi_gpu>
+std::tuple<rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           arithmetic_device_uvector_t,
+           std::optional<rmm::device_uvector<int32_t>>,
+           rmm::device_uvector<vertex_t>,
+           std::optional<rmm::device_uvector<int32_t>>>
+gather_one_hop_edgelist_to_unvisited_neighbors(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
-  raft::host_span<edge_arithmetic_property_view_t<edge_t>> edge_property_views,
+  size_t number_of_edge_properties,
   std::optional<edge_property_view_t<edge_t, int32_t const*>> edge_type_view,
   raft::device_span<vertex_t const> active_majors,
   std::optional<raft::device_span<int32_t const>> active_major_labels,
-  std::optional<raft::device_span<uint8_t const>> gather_flags,
+  std::optional<raft::device_span<bool const>> gather_flags,
+  rmm::device_uvector<vertex_t>&& visited_minors,
+  std::optional<rmm::device_uvector<int32_t>>&& visited_minor_labels,
   bool do_expensive_check);
 
 /**
@@ -108,7 +132,7 @@ gather_one_hop_edgelist(
  * Gathered edges will include only those edges that occurred after this timestamp for the specified
  * vertex.
  * @param active_major_labels Optional device vector containing labels for each device vector
- * @param gather_flags Optional host span indicating whether to gather edge or not for each edge
+ * @param gather_flags Optional device span indicating whether to gather edge or not for each edge
  * type. @p gather_flags.has_value() should coincide with @p edge_type_view.has_value().
  * @param temporal_sampling_comparison Temporal sampling comparison type
  * @return A tuple of device vectors containing the sampled majors, minors, edge properties and
@@ -128,41 +152,29 @@ temporal_gather_one_hop_edgelist(
   raft::device_span<vertex_t const> active_majors,
   raft::device_span<time_stamp_t const> active_major_times,
   std::optional<raft::device_span<int32_t const>> active_major_labels,
-  std::optional<raft::device_span<uint8_t const>> gather_flags,
+  std::optional<raft::device_span<bool const>> gather_flags,
   temporal_sampling_comparison_t temporal_sampling_comparison,
   bool do_expensive_check);
 
 /**
  * @brief Randomly sample edges from the adjacency list of specified vertices
  *
+ * Returns majors, minors, and tmp_edge_indices (for gather_sampled_properties). Caller should call
+ * gather_sampled_properties (if number_of_edge_properties > 0) to obtain edge properties.
+ *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
  * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
- *
- * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
- * handles to various CUDA libraries) to run graph algorithms.
- * @param rng_state Random number generator state
- * @param graph_view Graph View object to generate neighbor sampling on.
- * @param edge_property_views Span of edge property view objects
- * @param edge_type_view Optional view object holding edge types for @p graph_view.
- * @param edge_bias_view Optional view object holding biases types for @p graph_view.
- * @param active_majors Device vector containing all the vertex id that are processed by
- * gpus in the column communicator
- * @param active_major_labels Optional device vector containing labels corresponding to each major
- * @param Ks How many edges to sample for each vertex per edge type
- * @param with_replacement If true sample with replacement, otherwise sample without replacement
- * @return A tuple of device vectors containing the majors, minors, edge properties and optional
- * labels
  */
 template <typename vertex_t, typename edge_t, bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
-           std::vector<arithmetic_device_uvector_t>,
+           arithmetic_device_uvector_t,
            std::optional<rmm::device_uvector<int32_t>>>
 sample_edges(raft::handle_t const& handle,
              raft::random::RngState& rng_state,
              graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
-             raft::host_span<edge_arithmetic_property_view_t<edge_t>> edge_property_views,
+             size_t number_of_edge_properties,
              std::optional<edge_arithmetic_property_view_t<edge_t>> edge_type_view,
              std::optional<edge_arithmetic_property_view_t<edge_t>> edge_bias_view,
              raft::device_span<vertex_t const> active_majors,
@@ -171,41 +183,58 @@ sample_edges(raft::handle_t const& handle,
              bool with_replacement);
 
 /**
- * @brief Randomly sample edges from the adjacency list of specified vertices
+ * @brief Randomly sample edges and update visited sets
+ *
+ * Like sample_edges with @p number_of_edge_properties, but filters by visited sets and updates
+ * them. Caller should call gather_sampled_properties (if number_of_edge_properties > 0) to get edge
+ * properties from the returned indices.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ */
+template <typename vertex_t, typename edge_t, bool multi_gpu>
+std::tuple<rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           arithmetic_device_uvector_t,
+           std::optional<rmm::device_uvector<int32_t>>,
+           rmm::device_uvector<vertex_t>,
+           std::optional<rmm::device_uvector<int32_t>>>
+sample_edges_to_unvisited_neighbors(
+  raft::handle_t const& handle,
+  raft::random::RngState& rng_state,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  size_t number_of_edge_properties,
+  std::optional<edge_arithmetic_property_view_t<edge_t>> edge_type_view,
+  std::optional<edge_arithmetic_property_view_t<edge_t>> edge_bias_view,
+  raft::device_span<vertex_t const> active_majors,
+  std::optional<raft::device_span<int32_t const>> active_major_labels,
+  raft::host_span<size_t const> Ks,
+  rmm::device_uvector<vertex_t>&& visited_minors,
+  std::optional<rmm::device_uvector<int32_t>>&& visited_minor_labels,
+  bool with_replacement);
+
+/**
+ * @brief Randomly sample edges with temporal filter
+ *
+ * Returns majors, minors, and tmp_edge_indices. Caller should call gather_sampled_properties
+ * (number_of_edge_properties > 0, required for temporal) to obtain edge properties.
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
  * @tparam time_stamp_t Type of time. Needs to be an integral type.
  * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU
  * (false)
- *
- * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
- * handles to various CUDA libraries) to run graph algorithms.
- * @param rng_state Random number generator state
- * @param graph_view Graph View object to generate neighbor sampling on.
- * @param edge_property_views Span of edge property view objects
- * @param edge_time_view View object holding edge times for @p graph_view.
- * @param edge_type_view Optional view object holding edge types for @p graph_view.
- * @param edge_bias_view Optional view object holding biases types for @p graph_view.
- * @param active_majors Device vector containing all the vertex id that are processed by
- * gpus in the column communicator
- * @param active_majors_times Device vector containing times corresponding to each major
- * @param active_major_labels Optional device vector containing labels corresponding to each major
- * @param Ks How many edges to sample for each vertex per edge type
- * @param with_replacement If true sample with replacement, otherwise sample without replacement
- * @param temporal_sampling_comparison Temporal sampling comparison type
- * @return A tuple of device vectors containing the majors, minors, edge properties and optional
- * labels
  */
 template <typename vertex_t, typename edge_t, typename time_stamp_t, bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
-           std::vector<arithmetic_device_uvector_t>,
+           arithmetic_device_uvector_t,
            std::optional<rmm::device_uvector<int32_t>>>
 temporal_sample_edges(raft::handle_t const& handle,
                       raft::random::RngState& rng_state,
                       graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
-                      raft::host_span<edge_arithmetic_property_view_t<edge_t>> edge_property_views,
+                      size_t number_of_edge_properties,
                       edge_property_view_t<edge_t, time_stamp_t const*> edge_time_view,
                       std::optional<edge_arithmetic_property_view_t<edge_t>> edge_type_view,
                       std::optional<edge_arithmetic_property_view_t<edge_t>> edge_bias_view,
@@ -431,6 +460,75 @@ void update_temporal_edge_mask(
   raft::device_span<time_stamp_t const> vertex_times,
   edge_property_view_t<edge_t, uint32_t*, bool> edge_time_mask_view,
   temporal_sampling_comparison_t temporal_sampling_comparison);
+
+/**
+ * @brief Update visited destination vertices and optional labels with newly sampled items.
+ *
+ * This updates the visited sets using the most recent sampling results. If labels are
+ * provided, the visited sets are treated as pairs of (vertex, label); otherwise only
+ * vertices are tracked.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ *
+ * @param handle RAFT handle object.
+ * @param graph_view Graph View object for context (partitioning, MG routing, etc.).
+ * @param visited_minors Device vector of already visited minor vertices.
+ * @param visited_minor_labels Optional device vector of labels for visited minor vertices.
+ * @param sampled_vertices Device span of newly sampled vertices to mark visited.
+ * @param sampled_vertex_labels Device span of labels corresponding to sampled vertices.
+ * @return Tuple with updated visited vertices and labels.
+ */
+template <typename vertex_t, typename edge_t, bool multi_gpu>
+std::tuple<rmm::device_uvector<vertex_t>, std::optional<rmm::device_uvector<int32_t>>>
+update_dst_visited_vertices_and_labels(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  rmm::device_uvector<vertex_t>&& visited_minors,
+  std::optional<rmm::device_uvector<int32_t>>&& visited_minor_labels,
+  raft::device_span<vertex_t const> sampled_vertices,
+  std::optional<raft::device_span<int32_t const>> sampled_vertex_labels);
+
+/**
+ * @brief Deduplicate edges by minor (and optional label).
+ *
+ * Keeps one edge per (label, minor) or per minor. Callers should merge the returned minors into
+ * visited sets via update_dst_visited_vertices_and_labels.
+ *
+ * When call_from_sampling is true, we need to skip all edges that come from any major vertex that
+ * we are going to skip.  So this function will return the majors that need to be resampled.
+ *
+ * FIXME: We should eliminate the call_from_sampling flag by refactoring
+ * sample_edges_to_unvisited_neighbors to use the partial results we return here.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * @param handle RAFT handle object.
+ * @param graph_view Graph View object for context (partitioning, MG routing, etc.).
+ * @param result_majors Device vector of edge major (source) vertices.
+ * @param result_minors Device vector of edge minor (destination) vertices.
+ * @param tmp_edge_indices Multi-edge indices (or single property column) to filter in lockstep;
+ *        arithmetic_device_uvector_t (monostate or device vector). Returned as filtered.
+ * @param result_labels Optional device vector of labels per edge.
+ * @param call_from_sampling If true, the last two return values are populated with majors (and
+ *        optional major labels) that need to be resampled (edges to those were removed).
+ * @return Tuple of filtered (result_majors, result_minors, tmp_edge_indices, result_labels), and
+ *         when call_from_sampling is true, optional (resample_majors, resample_major_labels).
+ */
+template <typename vertex_t, typename edge_t, bool multi_gpu>
+std::tuple<rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           arithmetic_device_uvector_t,
+           std::optional<rmm::device_uvector<int32_t>>,
+           std::optional<rmm::device_uvector<vertex_t>>,
+           std::optional<rmm::device_uvector<int32_t>>>
+deduplicate_edges_by_minor(raft::handle_t const& handle,
+                           graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+                           rmm::device_uvector<vertex_t>&& result_majors,
+                           rmm::device_uvector<vertex_t>&& result_minors,
+                           arithmetic_device_uvector_t&& tmp_edge_indices,
+                           std::optional<rmm::device_uvector<int32_t>>&& result_labels,
+                           bool call_from_sampling);
 
 }  // namespace detail
 }  // namespace cugraph
