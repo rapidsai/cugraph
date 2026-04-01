@@ -4,9 +4,10 @@
  */
 
 #include "sampling/detail/sampling_utils.hpp"
-#include "utilities/collect_comm.cuh"
 
+#include <cugraph/detail/device_comm_wrapper.hpp>
 #include <cugraph/shuffle_functions.hpp>
+#include <cugraph/utilities/collect_comm.cuh>
 #include <cugraph/utilities/device_comm.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/vertex_partition_device_view.cuh>
