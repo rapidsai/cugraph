@@ -2003,17 +2003,28 @@ void strongly_connected_components_impl(
   {
     if (forward_graph_view.has_edge_mask()) { forward_graph_view.clear_edge_mask(); }
     cugraph::fill_edge_property(handle, forward_graph_view, edge_mask.mutable_view(), false);
-    edge_multi_index_property_t<edge_t, vertex_t> edge_multi_indices(handle, graph_view);
-    transform_e(handle,
-                graph_view,
-                edge_src_dummy_property_t{}.view(),
-                edge_dst_dummy_property_t{}.view(),
-                edge_multi_indices.view(),
-                cuda::proclaim_return_type<bool>(
-                  [] __device__(auto src, auto dst, auto, auto, auto multi_edge_index) {
-                    return (src != dst) && (multi_edge_index == 0);
-                  }),
-                edge_mask.mutable_view());
+    if (graph_view.is_multigraph()) {
+      edge_multi_index_property_t<edge_t, vertex_t> edge_multi_indices(handle, graph_view);
+      transform_e(handle,
+                  graph_view,
+                  edge_src_dummy_property_t{}.view(),
+                  edge_dst_dummy_property_t{}.view(),
+                  edge_multi_indices.view(),
+                  cuda::proclaim_return_type<bool>(
+                    [] __device__(auto src, auto dst, auto, auto, auto multi_edge_index) {
+                      return (src != dst) && (multi_edge_index == 0);
+                    }),
+                  edge_mask.mutable_view());
+    } else {
+      transform_e(handle,
+                  graph_view,
+                  edge_src_dummy_property_t{}.view(),
+                  edge_dst_dummy_property_t{}.view(),
+                  edge_dummy_property_t{}.view(),
+                  cuda::proclaim_return_type<bool>(
+                    [] __device__(auto src, auto dst, auto, auto, auto) { return (src != dst); }),
+                  edge_mask.mutable_view());
+    }
     forward_graph_view.attach_edge_mask(edge_mask.view());
   }
 
