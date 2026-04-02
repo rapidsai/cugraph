@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include "prims/per_v_pair_transform_dst_nbr_intersection.cuh"
 #include "utilities/base_fixture.hpp"
 #include "utilities/conversion_utilities.hpp"
 #include "utilities/device_comm_wrapper.hpp"
@@ -16,6 +15,7 @@
 #include <cugraph/edge_partition_edge_property_device_view.cuh>
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_view.hpp>
+#include <cugraph/prims/per_v_pair_transform_dst_nbr_intersection.cuh>
 #include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>

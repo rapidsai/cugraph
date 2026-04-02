@@ -4,17 +4,18 @@
  */
 #pragma once
 
-#include "prims/extract_transform_if_v_frontier_outgoing_e.cuh"
-#include "prims/vertex_frontier.cuh"
 #include "structure/detail/structure_utils.cuh"
-#include "utilities/collect_comm.cuh"
 
+#include <cugraph/detail/device_comm_wrapper.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/edge_partition_edge_property_device_view.cuh>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/partition_manager.hpp>
+#include <cugraph/prims/extract_transform_if_v_frontier_outgoing_e.cuh>
+#include <cugraph/prims/vertex_frontier.cuh>
+#include <cugraph/utilities/collect_comm.cuh>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/misc_utils.cuh>
 #include <cugraph/vertex_partition_device_view.cuh>
@@ -174,9 +175,10 @@ extract_induced_subgraphs(
     auto const comm_rank = comm.get_rank();
     auto& major_comm     = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
 
-    dst_subgraph_vertices_v = cugraph::device_allgatherv(handle, major_comm, subgraph_vertices);
+    dst_subgraph_vertices_v =
+      cugraph::detail::device_allgatherv(handle, major_comm, subgraph_vertices);
 
-    graph_ids_v = cugraph::device_allgatherv(
+    graph_ids_v = cugraph::detail::device_allgatherv(
       handle, major_comm, raft::device_span<size_t const>(graph_ids_v.data(), graph_ids_v.size()));
 
     thrust::sort(handle.get_thrust_policy(),

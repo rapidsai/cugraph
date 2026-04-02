@@ -5,13 +5,13 @@
 
 #pragma once
 
-#include "detail/graph_partition_utils.cuh"
 #include "detail/shuffle_wrappers.hpp"
 
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/large_buffer_manager.hpp>
 #include <cugraph/partition_manager.hpp>
+#include <cugraph/utilities/graph_partition_utils.cuh>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
 
@@ -44,7 +44,7 @@ struct vertex_pair_groupby_functor_t {
       return partition_manager::compute_major_comm_rank_from_global_comm_rank(
         major_comm_size, minor_comm_size, comm_rank);
     } else {
-      assert(shuffle_mdoe == vertex_pair_shuffle_mode_t::two_level_minor);
+      assert(shuffle_mode == vertex_pair_shuffle_mode_t::two_level_minor);
       return partition_manager::compute_minor_comm_rank_from_global_comm_rank(
         major_comm_size, minor_comm_size, comm_rank);
     }

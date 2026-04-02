@@ -5,9 +5,8 @@
 
 #pragma once
 
-#include "prims/kv_store.cuh"
-
 #include <cugraph/arithmetic_variant_types.hpp>
+#include <cugraph/prims/kv_store.cuh>
 #include <cugraph/sampling_functions.hpp>
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/error.hpp>
@@ -174,7 +173,7 @@ void check_input_edges(raft::handle_t const& handle,
                                                    [](auto const& edgelist_edge_property) {
                                                      return edgelist_edge_property.size();
                                                    }) == edgelist_majors.size(),
-                    "Invalid input arguments: edgelist_edge_properties[%d].size() and "
+                    "Invalid input arguments: edgelist_edge_properties[%lu].size() and "
                     "edgelist_(srcs|dsts).size() should coincide.",
                     i);
   }

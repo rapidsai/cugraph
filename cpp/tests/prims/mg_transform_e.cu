@@ -3,11 +3,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include "prims/count_if_e.cuh"
-#include "prims/edge_bucket.cuh"
-#include "prims/extract_transform_if_e.cuh"
-#include "prims/fill_edge_property.cuh"
-#include "prims/transform_e.cuh"
 #include "utilities/base_fixture.hpp"
 #include "utilities/device_comm_wrapper.hpp"
 #include "utilities/mg_utilities.hpp"
@@ -19,6 +14,11 @@
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
+#include <cugraph/prims/count_if_e.cuh>
+#include <cugraph/prims/edge_bucket.cuh>
+#include <cugraph/prims/extract_transform_if_e.cuh>
+#include <cugraph/prims/fill_edge_property.cuh>
+#include <cugraph/prims/transform_e.cuh>
 #include <cugraph/utilities/high_res_timer.hpp>
 
 #include <raft/comms/mpi_comms.hpp>

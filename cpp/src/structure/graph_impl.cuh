@@ -5,7 +5,6 @@
 
 #pragma once
 
-#include "detail/graph_partition_utils.cuh"
 #include "structure/detail/structure_utils.cuh"
 
 #include <cugraph/graph.hpp>
@@ -13,6 +12,7 @@
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/error.hpp>
+#include <cugraph/utilities/graph_partition_utils.cuh>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/misc_utils.cuh>
 

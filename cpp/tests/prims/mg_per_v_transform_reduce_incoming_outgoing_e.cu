@@ -3,8 +3,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include "prims/per_v_transform_reduce_incoming_outgoing_e.cuh"
-#include "prims/reduce_op.cuh"
 #include "result_compare.cuh"
 #include "utilities/base_fixture.hpp"
 #include "utilities/conversion_utilities.hpp"
@@ -18,6 +16,8 @@
 #include <cugraph/edge_partition_view.hpp>
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_view.hpp>
+#include <cugraph/prims/per_v_transform_reduce_incoming_outgoing_e.cuh>
+#include <cugraph/prims/reduce_op.cuh>
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
 #include <cugraph/utilities/thrust_tuple_utils.hpp>
@@ -351,8 +351,8 @@ class Tests_MGPerVTransformReduceIncomingOutgoingE
           auto sg_vertex_prop =
             cugraph::test::generate<decltype(sg_graph_view), result_t>::vertex_property(
               *handle_,
-              thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_first()),
-              thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_last()),
+              sg_graph_view.local_vertex_partition_range_first(),
+              sg_graph_view.local_vertex_partition_range_last(),
               hash_bin_count);
           auto sg_src_prop =
             cugraph::test::generate<decltype(sg_graph_view), result_t>::src_property(

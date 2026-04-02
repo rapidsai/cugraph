@@ -314,16 +314,7 @@ dependencies:
           - libcurand-dev
           - libcusolver-dev
           - libcusparse-dev
-    specific:
-      - output_types: [conda]
-        matrices:
-          - matrix:
-              cuda: "13.*"
-            packages:
-              - libnvjitlink-dev
-          - matrix:
-              cuda: "12.*"
-            packages:
+          - libnvjitlink-dev
   cuda_wheels:
     specific:
       # cuGraph needs 'nvJitLink>={whatever-cuvs-was-built-against}' at runtime, and mixing

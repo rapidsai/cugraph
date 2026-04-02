@@ -3,9 +3,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include "detail/graph_partition_utils.cuh"
 #include "utilities/validation_utilities.hpp"
 
+#include <cugraph/utilities/graph_partition_utils.cuh>
 #include <cugraph/vertex_partition_device_view.cuh>
 
 #include <cuda/std/iterator>

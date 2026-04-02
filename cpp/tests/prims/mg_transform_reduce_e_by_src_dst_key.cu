@@ -3,8 +3,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include "prims/reduce_op.cuh"
-#include "prims/transform_reduce_e_by_src_dst_key.cuh"
 #include "result_compare.cuh"
 #include "utilities/base_fixture.hpp"
 #include "utilities/conversion_utilities.hpp"
@@ -18,6 +16,8 @@
 #include <cugraph/edge_partition_view.hpp>
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_view.hpp>
+#include <cugraph/prims/reduce_op.cuh>
+#include <cugraph/prims/transform_reduce_e_by_src_dst_key.cuh>
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
 
@@ -245,8 +245,8 @@ class Tests_MGTransformReduceEBySrcDstKey
         auto sg_vertex_prop =
           cugraph::test::generate<decltype(sg_graph_view), result_t>::vertex_property(
             *handle_,
-            thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_first()),
-            thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_last()),
+            sg_graph_view.local_vertex_partition_range_first(),
+            sg_graph_view.local_vertex_partition_range_last(),
             hash_bin_count);
         auto sg_src_prop = cugraph::test::generate<decltype(sg_graph_view), result_t>::src_property(
           *handle_, sg_graph_view, sg_vertex_prop);
@@ -256,8 +256,8 @@ class Tests_MGTransformReduceEBySrcDstKey
         auto sg_vertex_key =
           cugraph::test::generate<decltype(sg_graph_view), vertex_t>::vertex_property(
             *handle_,
-            thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_first()),
-            thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_last()),
+            sg_graph_view.local_vertex_partition_range_first(),
+            sg_graph_view.local_vertex_partition_range_last(),
             hash_bin_count);
         auto sg_src_key = cugraph::test::generate<decltype(sg_graph_view), vertex_t>::src_property(
           *handle_, sg_graph_view, sg_vertex_key);

@@ -1,14 +1,14 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include "detail/graph_partition_utils.cuh"
 #include "utilities/matrix_market_file_utilities.hpp"
 
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/legacy/functions.hpp>
 #include <cugraph/utilities/error.hpp>
+#include <cugraph/utilities/graph_partition_utils.cuh>
 
 #include <raft/util/cudart_utils.hpp>
 

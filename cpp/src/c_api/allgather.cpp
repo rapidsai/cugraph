@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2023-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -13,7 +13,7 @@
 #include <cugraph_c/graph_generators.h>
 
 #include <cugraph/algorithms.hpp>
-#include <cugraph/detail/collect_comm_wrapper.hpp>
+#include <cugraph/detail/device_comm_wrapper.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
 

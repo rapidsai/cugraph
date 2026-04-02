@@ -7,10 +7,10 @@
 #include "community/detail/common_methods.hpp"
 #include "community/detail/refine.hpp"
 #include "community/flatten_dendrogram.hpp"
-#include "prims/update_edge_src_dst_property.cuh"
 
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph.hpp>
+#include <cugraph/prims/update_edge_src_dst_property.cuh>
 #include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
 

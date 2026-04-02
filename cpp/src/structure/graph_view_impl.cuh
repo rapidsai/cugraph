@@ -5,18 +5,17 @@
 
 #pragma once
 
-#include "detail/graph_partition_utils.cuh"
-#include "prims/count_if_e.cuh"
-#include "prims/per_v_transform_reduce_incoming_outgoing_e.cuh"
-#include "prims/reduce_op.cuh"
-#include "utilities/error_check_utils.cuh"
-
 #include <cugraph/edge_property.hpp>
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/partition_manager.hpp>
+#include <cugraph/prims/count_if_e.cuh>
+#include <cugraph/prims/per_v_transform_reduce_incoming_outgoing_e.cuh>
+#include <cugraph/prims/reduce_op.cuh>
 #include <cugraph/utilities/atomic_ops.cuh>
 #include <cugraph/utilities/error.hpp>
+#include <cugraph/utilities/error_check_utils.cuh>
+#include <cugraph/utilities/graph_partition_utils.cuh>
 #include <cugraph/utilities/mask_utils.cuh>
 
 #include <raft/core/handle.hpp>
