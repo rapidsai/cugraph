@@ -11,6 +11,8 @@
 #include <cugraph/prims/fill_edge_property.cuh>
 #include <cugraph/prims/fill_edge_src_dst_property.cuh>
 #include <cugraph/prims/make_initialized_edge_property.cuh>
+#include <cugraph/prims/make_initialized_edge_src_dst_property.cuh>
+#include <cugraph/prims/per_v_transform_reduce_if_incoming_outgoing_e.cuh>
 #include <cugraph/prims/transform_e.cuh>
 #include <cugraph/prims/transform_reduce_v_frontier_outgoing_e_by_dst.cuh>
 #include <cugraph/prims/update_edge_src_dst_property.cuh>
