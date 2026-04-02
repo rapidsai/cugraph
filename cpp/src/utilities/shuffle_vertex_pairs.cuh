@@ -145,25 +145,6 @@ shuffle_vertex_pairs_with_values_by_gpu_id_impl(
                                    mem_frugal_threshold,
                                    handle.get_stream(),
                                    large_buffer_type);
-    } else if (edge_properties.size() == 1) {
-      d_tx_value_counts = cugraph::variant_type_dispatch(
-        edge_properties[0],
-        [&handle,
-         &majors,
-         &minors,
-         &groupby_functor,
-         &large_buffer_type,
-         this_step_comm_size,
-         mem_frugal_threshold](auto& prop) {
-          return cugraph::groupby_and_count(
-            thrust::make_zip_iterator(majors.begin(), minors.begin(), prop.begin()),
-            thrust::make_zip_iterator(majors.end(), minors.end(), prop.end()),
-            groupby_functor,
-            this_step_comm_size,
-            mem_frugal_threshold,
-            handle.get_stream(),
-            large_buffer_type);
-        });
     } else {
       rmm::device_uvector<size_t> property_position(majors.size(), handle.get_stream());
       detail::sequence_fill(
