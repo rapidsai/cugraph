@@ -12,6 +12,10 @@ template rmm::device_uvector<int64_t> device_allgatherv(raft::handle_t const& ha
                                                         raft::comms::comms_t const& comm,
                                                         raft::device_span<int64_t const> d_input);
 
+template rmm::device_uvector<size_t> device_allgatherv(raft::handle_t const& handle,
+                                                        raft::comms::comms_t const& comm,
+                                                        raft::device_span<size_t const> d_input);
+
 template rmm::device_uvector<double> device_allgatherv(raft::handle_t const& handle,
                                                        raft::comms::comms_t const& comm,
                                                        raft::device_span<double const> d_input);
