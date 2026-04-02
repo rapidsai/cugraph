@@ -4,10 +4,11 @@
  */
 
 #include "sampling/detail/sampling_utils.hpp"
-#include "utilities/collect_comm.cuh"
 
 #include <cugraph/arithmetic_variant_types.hpp>
+#include <cugraph/detail/device_comm_wrapper.hpp>
 #include <cugraph/shuffle_functions.hpp>
+#include <cugraph/utilities/collect_comm.cuh>
 #include <cugraph/utilities/mask_utils.cuh>
 #include <cugraph/utilities/shuffle_comm.cuh>
 
@@ -241,16 +242,15 @@ deduplicate_edges_by_minor(raft::handle_t const& handle,
       if constexpr (multi_gpu) {
         auto& major_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
 
-        resample_majors_gathered =
-          cugraph::device_allgatherv(handle, major_comm, resample_majors_span);
+        resample_majors_gathered = device_allgatherv(handle, major_comm, resample_majors_span);
         resample_majors_span = raft::device_span<vertex_t const>{resample_majors_gathered.data(),
                                                                  resample_majors_gathered.size()};
         if (resample_major_labels) {
-          resample_major_labels_gathered = cugraph::device_allgatherv(
-            handle,
-            major_comm,
-            raft::device_span<int32_t const>{resample_major_labels->data(),
-                                             resample_major_labels->size()});
+          resample_major_labels_gathered =
+            device_allgatherv(handle,
+                              major_comm,
+                              raft::device_span<int32_t const>{resample_major_labels->data(),
+                                                               resample_major_labels->size()});
           resample_major_labels_span = raft::device_span<int32_t const>{
             resample_major_labels_gathered.data(), resample_major_labels_gathered.size()};
         }

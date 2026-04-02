@@ -4,12 +4,12 @@
  */
 #pragma once
 
-#include "prims/transform_e.cuh"
-#include "prims/update_edge_src_dst_property.cuh"
 #include "utilities/property_generator_kernels.cuh"
 #include "utilities/property_generator_utilities.hpp"
 
 #include <cugraph/edge_src_dst_property.hpp>
+#include <cugraph/prims/transform_e.cuh>
+#include <cugraph/prims/update_edge_src_dst_property.cuh>
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/thrust_tuple_utils.hpp>
 
@@ -56,15 +56,15 @@ generate<GraphViewType, property_t>::vertex_property(raft::handle_t const& handl
 template <typename GraphViewType, typename property_t>
 typename generate<GraphViewType, property_t>::property_buffer_type
 generate<GraphViewType, property_t>::vertex_property(raft::handle_t const& handle,
-                                                     thrust::counting_iterator<vertex_type> begin,
-                                                     thrust::counting_iterator<vertex_type> end,
+                                                     vertex_type local_vertex_partition_range_first,
+                                                     vertex_type local_vertex_partition_range_last,
                                                      int32_t hash_bin_count)
 {
-  auto length = cuda::std::distance(begin, end);
-  auto data   = cugraph::allocate_dataframe_buffer<property_t>(length, handle.get_stream());
+  auto data = cugraph::allocate_dataframe_buffer<property_t>(
+    local_vertex_partition_range_last - local_vertex_partition_range_first, handle.get_stream());
   thrust::transform(handle.get_thrust_policy(),
-                    begin,
-                    end,
+                    thrust::make_counting_iterator(local_vertex_partition_range_first),
+                    thrust::make_counting_iterator(local_vertex_partition_range_last),
                     cugraph::get_dataframe_buffer_begin(data),
                     detail::vertex_property_transform<vertex_type, property_t>{hash_bin_count});
   return data;

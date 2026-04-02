@@ -5,9 +5,8 @@
 
 #pragma once
 
-#include "prims/kv_store.cuh"
-
 #include <cugraph/arithmetic_variant_types.hpp>
+#include <cugraph/prims/kv_store.cuh>
 #include <cugraph/sampling_functions.hpp>
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/error.hpp>

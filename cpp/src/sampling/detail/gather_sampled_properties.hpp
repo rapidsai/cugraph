@@ -7,6 +7,7 @@
 
 #include <cugraph/arithmetic_variant_types.hpp>
 #include <cugraph/graph_view.hpp>
+#include <cugraph/prims/edge_bucket.cuh>
 
 #include <raft/core/handle.hpp>
 #include <raft/core/host_span.hpp>

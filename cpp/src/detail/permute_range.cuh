@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include <cugraph/detail/collect_comm_wrapper.hpp>
+#include <cugraph/detail/device_comm_wrapper.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>

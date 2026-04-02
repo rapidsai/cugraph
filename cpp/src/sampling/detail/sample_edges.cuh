@@ -6,11 +6,6 @@
 #pragma once
 
 #include "gather_sampled_properties.hpp"
-#include "prims/edge_bucket.cuh"
-#include "prims/per_v_random_select_transform_outgoing_e.cuh"
-#include "prims/transform_gather_e.cuh"
-#include "prims/transform_reduce_e.cuh"
-#include "prims/vertex_frontier.cuh"
 #include "sampling_utils.hpp"
 
 #include <cugraph/arithmetic_variant_types.hpp>
@@ -18,6 +13,11 @@
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_view.hpp>
+#include <cugraph/prims/edge_bucket.cuh>
+#include <cugraph/prims/per_v_random_select_transform_outgoing_e.cuh>
+#include <cugraph/prims/transform_gather_e.cuh>
+#include <cugraph/prims/transform_reduce_e.cuh>
+#include <cugraph/prims/vertex_frontier.cuh>
 #include <cugraph/sampling_functions.hpp>
 #include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/mask_utils.cuh>

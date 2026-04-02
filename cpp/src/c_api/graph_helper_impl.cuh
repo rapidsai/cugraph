@@ -5,8 +5,8 @@
 #pragma once
 
 #include "c_api/array.hpp"
-#include "prims/fill_edge_property.cuh"
 
+#include <cugraph/prims/fill_edge_property.cuh>
 #include <cugraph/utilities/misc_utils.cuh>
 
 #include <cuda/functional>

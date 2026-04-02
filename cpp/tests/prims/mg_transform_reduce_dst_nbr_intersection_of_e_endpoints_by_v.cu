@@ -1,10 +1,8 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include "prims/transform_e.cuh"
-#include "prims/transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v.cuh"
 #include "utilities/base_fixture.hpp"
 #include "utilities/conversion_utilities.hpp"
 #include "utilities/device_comm_wrapper.hpp"
@@ -16,6 +14,8 @@
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
+#include <cugraph/prims/transform_e.cuh>
+#include <cugraph/prims/transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v.cuh>
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
@@ -181,8 +181,8 @@ class Tests_MGTransformReduceDstNbrIntersectionOfEEndpointsByV
         auto sg_vertex_prop =
           cugraph::test::generate<decltype(sg_graph_view), edge_t>::vertex_property(
             *handle_,
-            thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_first()),
-            thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_last()),
+            sg_graph_view.local_vertex_partition_range_first(),
+            sg_graph_view.local_vertex_partition_range_last(),
             hash_bin_count);
         auto sg_src_prop = cugraph::test::generate<decltype(sg_graph_view), edge_t>::src_property(
           *handle_, sg_graph_view, sg_vertex_prop);

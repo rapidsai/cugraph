@@ -5,13 +5,13 @@
 
 #pragma once
 
-#include "detail/graph_partition_utils.cuh"
-#include "utilities/collect_comm.cuh"
-
+#include <cugraph/detail/device_comm_wrapper.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/mtmg/vertex_pair_result_view.hpp>
 #include <cugraph/shuffle_functions.hpp>
+#include <cugraph/utilities/collect_comm.cuh>
+#include <cugraph/utilities/graph_partition_utils.cuh>
 #include <cugraph/vertex_partition_device_view.cuh>
 
 #include <cuda/functional>
@@ -63,11 +63,11 @@ std::
   //   on each GPU.  We should explore other options for this.  We could do it in batches, or we
   //   could ensure that the vertex pairs are partitioned a certain way and share the source vertces
   //   (v1) on the appropriate subset of GPUs.
-  auto all_vertices = cugraph::device_allgatherv(
+  auto all_vertices = cugraph::detail::device_allgatherv(
     handle.raft_handle(),
     handle.raft_handle().get_comms(),
     raft::device_span<vertex_t const>{local_vertices.data(), local_vertices.size()});
-  auto all_vertex_gpu_ids = cugraph::device_allgatherv(
+  auto all_vertex_gpu_ids = cugraph::detail::device_allgatherv(
     handle.raft_handle(),
     handle.raft_handle().get_comms(),
     raft::device_span<int const>{vertex_gpu_ids.data(), vertex_gpu_ids.size()});

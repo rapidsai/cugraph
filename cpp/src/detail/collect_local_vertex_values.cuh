@@ -5,9 +5,8 @@
 
 #pragma once
 
-#include "detail/graph_partition_utils.cuh"
-
 #include <cugraph/graph_functions.hpp>
+#include <cugraph/utilities/graph_partition_utils.cuh>
 #include <cugraph/utilities/shuffle_comm.cuh>
 
 #include <cuda/functional>
