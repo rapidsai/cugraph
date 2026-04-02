@@ -68,6 +68,7 @@ files:
       - cuda_version
       - py_version
       - run_notebooks
+      - depends_on_cudf
       - depends_on_cugraph
       - depends_on_pylibcugraph
       - depends_on_libcugraph
@@ -505,9 +506,9 @@ dependencies:
           - packaging
           - python-louvain
           - scikit-learn>=0.23.1
-  # Runtime dependencies for included cugraph notebooks, used in the
-  # rapidsai/notebooks Docker image. Only lists packages not already
-  # provided by cugraph, pylibcugraph, or libcugraph.
+  # Runtime dependencies for cuGraph notebooks tested in CI.
+  # Also used in the rapidsai/notebooks Docker image.
+  # Only lists packages that are directly imported in notebooks.
   run_notebooks:
     common:
       - output_types: [conda]
@@ -515,6 +516,8 @@ dependencies:
           - *ipython
           - *networkx
           - *notebook
+          - *pandas
+          - python-louvain
           - *scipy
   test_python_pylibcugraph:
     common:
