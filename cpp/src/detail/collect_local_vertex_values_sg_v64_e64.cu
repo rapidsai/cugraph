@@ -1,12 +1,12 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2024, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
 #include "detail/collect_local_vertex_values.cuh"
-#include "detail/graph_partition_utils.cuh"
 
 #include <cugraph/graph_functions.hpp>
+#include <cugraph/utilities/graph_partition_utils.cuh>
 #include <cugraph/utilities/shuffle_comm.cuh>
 
 #include <cuda/functional>

@@ -5,13 +5,12 @@
 
 #pragma once
 
-#include "detail/graph_partition_utils.cuh"
-
 #include <cugraph/detail/decompress_edge_partition.cuh>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/error.hpp>
+#include <cugraph/utilities/graph_partition_utils.cuh>
 #include <cugraph/utilities/mask_utils.cuh>
 
 #include <raft/core/handle.hpp>

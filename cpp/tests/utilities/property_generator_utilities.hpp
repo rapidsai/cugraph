@@ -1,10 +1,11 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
 #pragma once
 
+#include <cugraph/edge_property.hpp>
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/thrust_tuple_utils.hpp>
@@ -37,8 +38,8 @@ struct generate {
                                               int32_t hash_bin_count);
 
   static property_buffer_type vertex_property(raft::handle_t const& handle,
-                                              thrust::counting_iterator<vertex_type> begin,
-                                              thrust::counting_iterator<vertex_type> end,
+                                              vertex_type local_vertex_partition_range_first,
+                                              vertex_type local_vertex_partition_range_last,
                                               int32_t hash_bin_count);
 
   static cugraph::edge_src_property_t<vertex_type, property_t> src_property(

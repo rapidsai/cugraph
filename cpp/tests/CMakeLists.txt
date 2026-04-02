@@ -473,12 +473,10 @@ ConfigureTest(STRONGLY_CONNECTED_COMPONENTS_TEST components/strongly_connected_c
 ###################################################################################################
 # - MIS tests -------------------------------------------------------------------------------------
 ConfigureTest(MIS_TEST components/mis_test.cu)
-target_include_directories(MIS_TEST PRIVATE "${CUGRAPH_SOURCE_DIR}/src")
 
 ###################################################################################################
 # - VERTEX COLORING tests ----------------------------------------------------------------------
 ConfigureTest(VERTEX_COLORING_TEST components/vertex_coloring_test.cu)
-target_include_directories(VERTEX_COLORING_TEST PRIVATE "${CUGRAPH_SOURCE_DIR}/src")
 
 ###################################################################################################
 # - SIMILARITY tests ------------------------------------------------------------------------------

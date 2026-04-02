@@ -5,12 +5,11 @@
 
 #pragma once
 
-#include "detail/graph_partition_utils.cuh"
-
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/mtmg/vertex_result_view.hpp>
 #include <cugraph/utilities/device_functors.cuh>
+#include <cugraph/utilities/graph_partition_utils.cuh>
 #include <cugraph/vertex_partition_device_view.cuh>
 
 #include <cuda/functional>

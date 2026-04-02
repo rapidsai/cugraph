@@ -4,17 +4,16 @@
  */
 #pragma once
 
-#include "prims/count_if_v.cuh"
-#include "prims/fill_edge_src_dst_property.cuh"
-#include "prims/per_v_transform_reduce_incoming_outgoing_e.cuh"
-#include "prims/reduce_op.cuh"
-#include "prims/reduce_v.cuh"
-#include "prims/transform_reduce_v.cuh"
-#include "prims/update_edge_src_dst_property.cuh"
-
 #include <cugraph/algorithms.hpp>
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_view.hpp>
+#include <cugraph/prims/count_if_v.cuh>
+#include <cugraph/prims/fill_edge_src_dst_property.cuh>
+#include <cugraph/prims/per_v_transform_reduce_incoming_outgoing_e.cuh>
+#include <cugraph/prims/reduce_op.cuh>
+#include <cugraph/prims/reduce_v.cuh>
+#include <cugraph/prims/transform_reduce_v.cuh>
+#include <cugraph/prims/update_edge_src_dst_property.cuh>
 
 #include <cuda/iterator>
 #include <cuda/std/functional>

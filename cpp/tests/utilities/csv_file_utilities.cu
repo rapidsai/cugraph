@@ -3,11 +3,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include "detail/graph_partition_utils.cuh"
 #include "utilities/csv_file_utilities.hpp"
 
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/utilities/error.hpp>
+#include <cugraph/utilities/graph_partition_utils.cuh>
 
 #include <raft/core/handle.hpp>
 
