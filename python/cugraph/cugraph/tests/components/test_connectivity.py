@@ -210,6 +210,9 @@ def assert_scipy_api_compat(G, dataset_path, api_type):
             The number of connected components.
         labels : ndarray
             The length-N array of labels of the connected components.
+
+    Sparse-matrix calls use ``directed=False`` for weak and ``directed=True``
+    for strong (directed SCC).
     """
     api_call = {
         "strong": cugraph.strongly_connected_components,
@@ -217,6 +220,7 @@ def assert_scipy_api_compat(G, dataset_path, api_type):
     }[api_type]
     connection = api_type
     wrong_connection = {"strong": "weak", "weak": "strong"}[api_type]
+    matrix_directed = api_type == "strong"
 
     input_cugraph_graph = G
     input_coo_matrix = utils.create_obj_from_csv(
@@ -237,14 +241,16 @@ def assert_scipy_api_compat(G, dataset_path, api_type):
     # Invalid for the API
     with pytest.raises(TypeError):
         (n_components, labels) = api_call(
-            input_coo_matrix, directed=False, connection=wrong_connection
+            input_coo_matrix, directed=matrix_directed, connection=wrong_connection
         )
 
-    (n_components, labels) = api_call(input_coo_matrix, directed=False)
+    (n_components, labels) = api_call(input_coo_matrix, directed=matrix_directed)
     (n_components, labels) = api_call(
-        input_coo_matrix, directed=False, connection=connection
+        input_coo_matrix, directed=matrix_directed, connection=connection
     )
-    n_components = api_call(input_coo_matrix, directed=False, return_labels=False)
+    n_components = api_call(
+        input_coo_matrix, directed=matrix_directed, return_labels=False
+    )
     assert type(n_components) is int
 
 
@@ -417,7 +423,14 @@ def test_scipy_api_compat(connection_type):
     else:
         graph_file = DEFAULT_DATASETS[0]
 
-    input_cugraph_graph = graph_file.get_graph()
+    matrix_directed = connection_type == "strong"
+
+    if connection_type == "strong":
+        input_cugraph_graph = graph_file.get_graph(
+            create_using=cugraph.Graph(directed=True)
+        )
+    else:
+        input_cugraph_graph = graph_file.get_graph()
 
     dataset_path = graph_file.get_path()
 
@@ -447,9 +460,9 @@ def test_scipy_api_compat(connection_type):
         cugraph.connected_components(input_cugraph_graph, connection="invalid")
 
     (n_components, labels) = cugraph.connected_components(
-        input_coo_matrix, directed=False, connection=connection_type
+        input_coo_matrix, directed=matrix_directed, connection=connection_type
     )
-    # FIXME: connection should default to "weak", need to test that
+    # Default connection is "weak" -> WCC, which requires an undirected matrix graph
     (n_components, labels) = cugraph.connected_components(
         input_coo_matrix, directed=False
     )
