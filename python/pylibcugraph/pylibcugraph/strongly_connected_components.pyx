@@ -45,6 +45,7 @@ from pylibcugraph.utils cimport (
 
 
 def _ensure_args(graph, offsets, indices, weights):
+    i = 0
     if graph is not None:
         # ensure the remaining parametes are None
         invalid_input = [i for p in [offsets, indices, weights] if p is not None]
