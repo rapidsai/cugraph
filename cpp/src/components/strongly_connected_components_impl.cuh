@@ -761,6 +761,10 @@ find_pivots(
   rmm::device_uvector<vertex_t> pivots(component_idxs.size(), handle.get_stream());
   rmm::device_uvector<edge_t> priorities(component_idxs.size(), handle.get_stream());
   {
+    raft::print_device_vector("sorted_excluded_vertices",
+                              sorted_excluded_vertices.data(),
+                              std::min(sorted_excluded_vertices.size(), size_t{10}),
+                              std::cout);
     auto component_idx_first = cuda::make_transform_iterator(
       thrust::make_counting_iterator(vertex_t{0}),
       detail::segment_id_t<vertex_t>{raft::device_span<vertex_t const>(
@@ -802,6 +806,26 @@ find_pivots(
     std::cout << "sorted="
               << thrust::is_sorted(handle.get_thrust_policy(), tmps.begin(), tmps.end())
               << std::endl;
+    rmm::device_uvector<edge_t> tmp_prs(tmps.size(), handle.get_stream());
+    thrust::copy(
+      handle.get_thrust_policy(), priority_first, priority_first + tmp_prs.size(), tmp_prs.begin());
+    {
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());
+      std::cout << "TMP before thrust::reduec_by_key 0" << std::endl;
+      auto ret = thrust::reduce_by_key(
+        handle.get_thrust_policy(),
+        tmps.begin(),
+        tmps.end(),
+        thrust::make_zip_iterator(unresolved_component_vertices.begin(), tmp_prs.begin()),
+        component_idxs.begin(),
+        thrust::make_zip_iterator(pivots.begin(), priorities.begin()),
+        cuda::std::equal_to<vertex_t>{},
+        cuda::proclaim_return_type<cuda::std::tuple<vertex_t, edge_t>>(
+          [] __device__(auto lhs, auto rhs) {
+            return cuda::std::get<1>(lhs) >= cuda::std::get<1>(rhs) ? lhs : rhs;
+          }));
+      std::cout << "SIZE=" << cuda::std::distance(component_idxs.begin(), ret.first) << std::endl;
+    }
     RAFT_CUDA_TRY(cudaDeviceSynchronize());
     std::cout << "before thrust::reduec_by_key 0" << std::endl;
     auto ret = thrust::reduce_by_key(
