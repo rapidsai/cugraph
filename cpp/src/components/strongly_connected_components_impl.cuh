@@ -761,112 +761,42 @@ find_pivots(
   rmm::device_uvector<vertex_t> pivots(component_idxs.size(), handle.get_stream());
   rmm::device_uvector<edge_t> priorities(component_idxs.size(), handle.get_stream());
   {
-    raft::print_device_vector("sorted_excluded_vertices",
-                              sorted_excluded_vertices.data(),
-                              std::min(sorted_excluded_vertices.size(), size_t{10}),
-                              std::cout);
+    // FIXME: we can use cuda::transform_iterator to generate priority to avoid creating this
+    // temporary, but this caused the following thrust::reduce_by_key to fail on RTX Pro 6000
+    // (cudaErrorIllegalAddress), more investigation is necessary
+    rmm::device_uvector<edge_t> input_priorities(unresolved_component_vertices.size(),
+                                                 handle.get_stream());
+    auto triplet_first = thrust::make_zip_iterator(unresolved_component_vertices.begin(),
+                                                   unresolved_component_vertex_in_degrees.begin(),
+                                                   unresolved_component_vertex_out_degrees.begin());
+    thrust::transform(handle.get_thrust_policy(),
+                      triplet_first,
+                      triplet_first + input_priorities.size(),
+                      input_priorities.begin(),
+                      cuda::proclaim_return_type<edge_t>(
+                        [excluded_vertices = raft::device_span<vertex_t const>(
+                           sorted_excluded_vertices.data(),
+                           sorted_excluded_vertices.size())] __device__(auto triplet) {
+                          auto excluded = thrust::binary_search(thrust::seq,
+                                                                excluded_vertices.begin(),
+                                                                excluded_vertices.end(),
+                                                                cuda::std::get<0>(triplet));
+                          if (excluded)
+                            return edge_t{0};
+                          else
+                            return cuda::std::min(cuda::std::get<1>(triplet),
+                                                  cuda::std::get<2>(triplet));
+                        }));
+
     auto component_idx_first = cuda::make_transform_iterator(
       thrust::make_counting_iterator(vertex_t{0}),
       detail::segment_id_t<vertex_t>{raft::device_span<vertex_t const>(
         unresolved_component_offsets.data() + 1, unresolved_component_offsets.size() - 1)});
-    auto priority_first = cuda::make_transform_iterator(
-      thrust::make_zip_iterator(unresolved_component_vertices.begin(),
-                                unresolved_component_vertex_in_degrees.begin(),
-                                unresolved_component_vertex_out_degrees.begin()),
-      cuda::proclaim_return_type<edge_t>(
-        [excluded_vertices = raft::device_span<vertex_t const>(
-           sorted_excluded_vertices.data(),
-           sorted_excluded_vertices.size())] __device__(auto triplet) {
-          auto excluded = thrust::binary_search(thrust::seq,
-                                                excluded_vertices.begin(),
-                                                excluded_vertices.end(),
-                                                cuda::std::get<0>(triplet));
-          if (excluded)
-            return edge_t{0};
-          else
-            return cuda::std::min(cuda::std::get<1>(triplet), cuda::std::get<2>(triplet));
-        }));
-    raft::print_device_vector("unresolved_component_offsets",
-                              unresolved_component_offsets.data(),
-                              unresolved_component_offsets.size(),
-                              std::cout);
-    std::cout << "component_idxs.size()=" << component_idxs.size()
-              << " unresolved_component_vertices.size()=" << unresolved_component_vertices.size()
-              << " unresolved_component_vertex_in_degrees.size()="
-              << unresolved_component_vertex_in_degrees.size()
-              << " unresolved_component_vertex_out_degrees.size()="
-              << unresolved_component_vertex_out_degrees.size() << std::endl;
-    RAFT_CUDA_TRY(cudaDeviceSynchronize());
-    std::cout << "checking component_idx_first" << std::endl;
-    rmm::device_uvector<vertex_t> tmps(unresolved_component_vertices.size(), handle.get_stream());
-    thrust::copy(handle.get_thrust_policy(),
-                 component_idx_first,
-                 component_idx_first + unresolved_component_vertices.size(),
-                 tmps.begin());
-    std::cout << "sorted="
-              << thrust::is_sorted(handle.get_thrust_policy(), tmps.begin(), tmps.end())
-              << std::endl;
-    rmm::device_uvector<edge_t> tmp_prs(tmps.size(), handle.get_stream());
-    thrust::copy(
-      handle.get_thrust_policy(), priority_first, priority_first + tmp_prs.size(), tmp_prs.begin());
-    {
-      RAFT_CUDA_TRY(cudaDeviceSynchronize());
-      std::cout << "TMP A before thrust::reduec_by_key 0" << std::endl;
-      auto ret = thrust::reduce_by_key(
-        handle.get_thrust_policy(),
-        tmps.begin(),
-        tmps.end(),
-        thrust::make_zip_iterator(unresolved_component_vertices.begin(), tmp_prs.begin()),
-        component_idxs.begin(),
-        thrust::make_zip_iterator(pivots.begin(), priorities.begin()),
-        cuda::std::equal_to<vertex_t>{},
-        cuda::proclaim_return_type<cuda::std::tuple<vertex_t, edge_t>>(
-          [] __device__(auto lhs, auto rhs) {
-            return cuda::std::get<1>(lhs) >= cuda::std::get<1>(rhs) ? lhs : rhs;
-          }));
-      std::cout << "SIZE=" << cuda::std::distance(component_idxs.begin(), ret.first) << std::endl;
-    }
-    {
-      RAFT_CUDA_TRY(cudaDeviceSynchronize());
-      std::cout << "TMP B before thrust::reduec_by_key 0" << std::endl;
-      auto ret = thrust::reduce_by_key(
-        handle.get_thrust_policy(),
-        component_idx_first,
-        component_idx_first + unresolved_component_vertices.size(),
-        thrust::make_zip_iterator(unresolved_component_vertices.begin(), tmp_prs.begin()),
-        component_idxs.begin(),
-        thrust::make_zip_iterator(pivots.begin(), priorities.begin()),
-        cuda::std::equal_to<vertex_t>{},
-        cuda::proclaim_return_type<cuda::std::tuple<vertex_t, edge_t>>(
-          [] __device__(auto lhs, auto rhs) {
-            return cuda::std::get<1>(lhs) >= cuda::std::get<1>(rhs) ? lhs : rhs;
-          }));
-      std::cout << "SIZE=" << cuda::std::distance(component_idxs.begin(), ret.first) << std::endl;
-    }
-    {
-      RAFT_CUDA_TRY(cudaDeviceSynchronize());
-      std::cout << "TMP C before thrust::reduec_by_key 0" << std::endl;
-      auto ret = thrust::reduce_by_key(
-        handle.get_thrust_policy(),
-        tmps.begin(),
-        tmps.end(),
-        thrust::make_zip_iterator(unresolved_component_vertices.begin(), priority_first),
-        component_idxs.begin(),
-        thrust::make_zip_iterator(pivots.begin(), priorities.begin()),
-        cuda::std::equal_to<vertex_t>{},
-        cuda::proclaim_return_type<cuda::std::tuple<vertex_t, edge_t>>(
-          [] __device__(auto lhs, auto rhs) {
-            return cuda::std::get<1>(lhs) >= cuda::std::get<1>(rhs) ? lhs : rhs;
-          }));
-      std::cout << "SIZE=" << cuda::std::distance(component_idxs.begin(), ret.first) << std::endl;
-    }
-    RAFT_CUDA_TRY(cudaDeviceSynchronize());
-    std::cout << "before thrust::reduec_by_key 0" << std::endl;
     auto ret = thrust::reduce_by_key(
       handle.get_thrust_policy(),
       component_idx_first,
       component_idx_first + unresolved_component_vertices.size(),
-      thrust::make_zip_iterator(unresolved_component_vertices.begin(), priority_first),
+      thrust::make_zip_iterator(unresolved_component_vertices.begin(), input_priorities.begin()),
       component_idxs.begin(),
       thrust::make_zip_iterator(pivots.begin(), priorities.begin()),
       cuda::std::equal_to<vertex_t>{},
@@ -874,8 +804,6 @@ find_pivots(
         [] __device__(auto lhs, auto rhs) {
           return cuda::std::get<1>(lhs) >= cuda::std::get<1>(rhs) ? lhs : rhs;
         }));
-    RAFT_CUDA_TRY(cudaDeviceSynchronize());
-    std::cout << "after thrust::reduec_by_key 0" << std::endl;
     component_idxs.resize(cuda::std::distance(component_idxs.begin(), ret.first),
                           handle.get_stream());
     pivots.resize(component_idxs.size(), handle.get_stream());
@@ -925,8 +853,6 @@ find_pivots(
                                                      handle.get_stream());
     rmm::device_uvector<vertex_t> tmp_pivots(tmp_component_idxs.size(), handle.get_stream());
     rmm::device_uvector<edge_t> tmp_priorities(tmp_component_idxs.size(), handle.get_stream());
-    RAFT_CUDA_TRY(cudaDeviceSynchronize());
-    std::cout << "before thrust::reduec_by_key 1" << std::endl;
     auto ret =
       thrust::reduce_by_key(handle.get_thrust_policy(),
                             component_idxs.begin(),
@@ -939,8 +865,6 @@ find_pivots(
                               [] __device__(auto lhs, auto rhs) {
                                 return cuda::std::get<1>(lhs) >= cuda::std::get<1>(rhs) ? lhs : rhs;
                               }));
-    RAFT_CUDA_TRY(cudaDeviceSynchronize());
-    std::cout << "after thrust::reduec_by_key 1" << std::endl;
     tmp_priorities.resize(0, handle.get_stream());
     tmp_priorities.shrink_to_fit(handle.get_stream());
     tmp_component_idxs.resize(cuda::std::distance(tmp_component_idxs.begin(), ret.first),
@@ -1164,10 +1088,6 @@ intersect_reachable_sets(
 {
   using vertex_t = typename GraphViewType::vertex_type;
 
-#if 1
-  RAFT_CUDA_TRY(cudaDeviceSynchronize());
-  std::cout << "intersect 1" << std::endl;
-#endif
   auto num_old_unresolved_components =
     static_cast<vertex_t>(unresolved_component_offsets.size() - 1);
 
@@ -1338,10 +1258,6 @@ intersect_reachable_sets(
       scc_vertices.shrink_to_fit(handle.get_stream());
     }
   }
-#if 1
-  RAFT_CUDA_TRY(cudaDeviceSynchronize());
-  std::cout << "intersect 2" << std::endl;
-#endif
   unresolved_component_offsets.resize(0, handle.get_stream());
   unresolved_component_vertices.resize(0, handle.get_stream());
   forward_set_offsets.resize(0, handle.get_stream());
@@ -1376,10 +1292,6 @@ intersect_reachable_sets(
   vertex_t num_fwd_only_size1_vertices{0};
   vertex_t num_bwd_only_size1_vertices{0};
   vertex_t num_remaining_size1_vertices{0};
-#if 1
-  RAFT_CUDA_TRY(cudaDeviceSynchronize());
-  std::cout << "intersect 3" << std::endl;
-#endif
   {
     // For each subset (fwd, bwd, remainder, scc), find the local min vertex id per component idx
     // on the current GPU and perform global reduction.
@@ -1390,8 +1302,6 @@ intersect_reachable_sets(
       rmm::device_uvector<vertex_t> unique_idxs(component_idxs.size(), handle.get_stream());
       rmm::device_uvector<vertex_t> min_vertex_ids(component_idxs.size(), handle.get_stream());
 
-      RAFT_CUDA_TRY(cudaDeviceSynchronize());
-      std::cout << "before thrust::reduec_by_key 2" << std::endl;
       auto [unique_end, min_end] = thrust::reduce_by_key(handle.get_thrust_policy(),
                                                          component_idxs.begin(),
                                                          component_idxs.end(),
@@ -1400,8 +1310,6 @@ intersect_reachable_sets(
                                                          min_vertex_ids.begin(),
                                                          thrust::equal_to<vertex_t>{},
                                                          thrust::minimum<vertex_t>());
-      RAFT_CUDA_TRY(cudaDeviceSynchronize());
-      std::cout << "before thrust::reduec_by_key 2" << std::endl;
 
       unique_idxs.resize(cuda::std::distance(unique_idxs.begin(), unique_end), handle.get_stream());
       min_vertex_ids.resize(cuda::std::distance(min_vertex_ids.begin(), min_end),
@@ -1682,10 +1590,6 @@ intersect_reachable_sets(
                         std::move(remaining_vertices),
                         2);
   }
-#if 1
-  RAFT_CUDA_TRY(cudaDeviceSynchronize());
-  std::cout << "intersect 4" << std::endl;
-#endif
 
   rmm::device_uvector<vertex_t> new_unresolved_component_ids(0, handle.get_stream());
   rmm::device_uvector<vertex_t> new_unresolved_component_offsets(0, handle.get_stream());
@@ -1827,10 +1731,6 @@ intersect_reachable_sets(
                            new_scc_component_counts.end(),
                            new_scc_component_offsets.begin() + 1);
   }
-#if 1
-  RAFT_CUDA_TRY(cudaDeviceSynchronize());
-  std::cout << "intersect 5" << std::endl;
-#endif
 
   return std::make_tuple(std::move(new_unresolved_component_ids),
                          std::move(new_unresolved_component_offsets),
@@ -1864,10 +1764,6 @@ forward_backward_intersect(
 
   constexpr bool multi_gpu = GraphViewType::is_multi_gpu;
 
-#if 1
-  RAFT_CUDA_TRY(cudaDeviceSynchronize());
-  std::cout << "fwd-bwd 1" << std::endl;
-#endif
   auto in_degrees = inverse_graph_view.compute_out_degrees(handle);
   {
     auto tmp_degrees = rmm::device_uvector<edge_t>(graph_view.local_vertex_partition_range_size(),
@@ -1905,10 +1801,6 @@ forward_backward_intersect(
     in_degrees = std::move(tmp_degrees);
   }
   auto out_degrees = graph_view.compute_out_degrees(handle);
-#if 1
-  RAFT_CUDA_TRY(cudaDeviceSynchronize());
-  std::cout << "fwd-bwd 2" << std::endl;
-#endif
 
   rmm::device_uvector<edge_t> unresolved_component_vertex_in_degrees(
     unresolved_component_vertices.size(), handle.get_stream());
@@ -1929,10 +1821,6 @@ forward_backward_intersect(
                    out_degrees.begin(),
                    unresolved_component_vertex_out_degrees.begin());
   }
-#if 1
-  RAFT_CUDA_TRY(cudaDeviceSynchronize());
-  std::cout << "fwd-bwd 3" << std::endl;
-#endif
 
   auto trivial_singleton_scc_vertices = find_trivial_singleton_scc_vertices(
     handle,
@@ -1944,10 +1832,6 @@ forward_backward_intersect(
                                       unresolved_component_vertices.size()),
     std::move(in_degrees),
     std::move(out_degrees));
-#if 1
-  RAFT_CUDA_TRY(cudaDeviceSynchronize());
-  std::cout << "fwd-bwd 4" << std::endl;
-#endif
 
   auto [pivots, pivot_unresolved_component_idxs] =
     find_pivots(handle,
@@ -1966,20 +1850,12 @@ forward_backward_intersect(
   unresolved_component_vertex_in_degrees.shrink_to_fit(handle.get_stream());
   unresolved_component_vertex_out_degrees.resize(0, handle.get_stream());
   unresolved_component_vertex_out_degrees.shrink_to_fit(handle.get_stream());
-#if 1
-  RAFT_CUDA_TRY(cudaDeviceSynchronize());
-  std::cout << "fwd-bwd 5" << std::endl;
-#endif
 
   auto num_aggregate_pivots = pivots.size();
   if constexpr (GraphViewType::is_multi_gpu) {
     num_aggregate_pivots = host_scalar_allreduce(
       handle.get_comms(), num_aggregate_pivots, raft::comms::op_t::SUM, handle.get_stream());
   }
-#if 1
-  RAFT_CUDA_TRY(cudaDeviceSynchronize());
-  std::cout << "fwd-bwd 6" << std::endl;
-#endif
 
   rmm::device_uvector<vertex_t> forward_set_offsets(0, handle.get_stream());
   rmm::device_uvector<vertex_t> forward_set_vertices(0, handle.get_stream());
@@ -1998,10 +1874,6 @@ forward_backward_intersect(
                  forward_set_offsets.end(),
                  vertex_t{0});
   }
-#if 1
-  RAFT_CUDA_TRY(cudaDeviceSynchronize());
-  std::cout << "fwd-bwd 7" << std::endl;
-#endif
 
   rmm::device_uvector<vertex_t> backward_set_offsets(0, handle.get_stream());
   rmm::device_uvector<vertex_t> backward_set_vertices(0, handle.get_stream());
@@ -2085,10 +1957,6 @@ forward_backward_intersect(
                  backward_set_offsets.end(),
                  vertex_t{0});
   }
-#if 1
-  RAFT_CUDA_TRY(cudaDeviceSynchronize());
-  std::cout << "fwd-bwd 8" << std::endl;
-#endif
 
   return intersect_reachable_sets<GraphViewType>(handle,
                                                  std::move(unresolved_component_offsets),
@@ -2123,10 +1991,6 @@ void strongly_connected_components_impl(
   if (num_vertices == 0) { return; }
 
   // 1. check input arguments
-#if 1
-  RAFT_CUDA_TRY(cudaDeviceSynchronize());
-  std::cout << "SCC 1" << std::endl;
-#endif
 
   CUGRAPH_EXPECTS(
     !graph_view.is_symmetric(),
@@ -2137,19 +2001,11 @@ void strongly_connected_components_impl(
   }
 
   // 2. initialize component IDs (initially, every vertex belongs to one unresolved component)
-#if 1
-  RAFT_CUDA_TRY(cudaDeviceSynchronize());
-  std::cout << "SCC 2" << std::endl;
-#endif
 
   thrust::fill(handle.get_thrust_policy(), components.begin(), components.end(), vertex_t{0});
 
   // 3. create an edge mask and mask out self-loops & multi-edges (except for the first one); this
   // edge mask will be used to mask out edges between different components
-#if 1
-  RAFT_CUDA_TRY(cudaDeviceSynchronize());
-  std::cout << "SCC 3" << std::endl;
-#endif
 
   auto forward_graph_view = graph_view;
   edge_property_t<edge_t, bool> edge_mask(handle, forward_graph_view);
@@ -2182,10 +2038,6 @@ void strongly_connected_components_impl(
   }
 
   // 4. create an inverse graph
-#if 1
-  RAFT_CUDA_TRY(cudaDeviceSynchronize());
-  std::cout << "SCC 4" << std::endl;
-#endif
 
   graph_t<vertex_t, edge_t, store_transposed, multi_gpu> inverse_graph(handle);
   rmm::device_uvector<vertex_t> from_inverse_renumber_map(0, handle.get_stream());
@@ -2243,10 +2095,6 @@ void strongly_connected_components_impl(
 
   // 5. prepare for recursvie forward-backward SCC: set unresolved_component_offsets and
   // unresolved_component_vertices and initialzie edge_src|dst_components
-#if 1
-  RAFT_CUDA_TRY(cudaDeviceSynchronize());
-  std::cout << "SCC 5" << std::endl;
-#endif
 
   rmm::device_uvector<vertex_t> unresolved_component_offsets(2, handle.get_stream());
   rmm::device_uvector<vertex_t> unresolved_component_vertices(
@@ -2283,17 +2131,9 @@ void strongly_connected_components_impl(
   }
 
   // 6. recursive forward-backward SCC
-#if 1
-  RAFT_CUDA_TRY(cudaDeviceSynchronize());
-  std::cout << "SCC 6" << std::endl;
-#endif
 
   while ((unresolved_component_offsets.size() - 1) > 0) {
     // 6-1. perform forward-backward SCC
-#if 1
-    RAFT_CUDA_TRY(cudaDeviceSynchronize());
-    std::cout << "SCC 6-1" << std::endl;
-#endif
 
     rmm::device_uvector<vertex_t> unresolved_component_ids(0, handle.get_stream());
     rmm::device_uvector<vertex_t> scc_component_ids(0, handle.get_stream());
@@ -2316,10 +2156,6 @@ void strongly_connected_components_impl(
         std::move(unresolved_component_vertices));
 
     // 6-2. update components
-#if 1
-    RAFT_CUDA_TRY(cudaDeviceSynchronize());
-    std::cout << "SCC 6-2" << std::endl;
-#endif
 
     auto scatter_component_ids =
       [&handle,
@@ -2369,10 +2205,6 @@ void strongly_connected_components_impl(
     scc_component_vertices.shrink_to_fit(handle.get_stream());
 
     // 6-3. mask out edges between different components
-#if 1
-    RAFT_CUDA_TRY(cudaDeviceSynchronize());
-    std::cout << "SCC 6-3" << std::endl;
-#endif
 
     if constexpr (multi_gpu) {
       rmm::device_uvector<vertex_t> tmp_vertices(
@@ -2509,15 +2341,7 @@ void strongly_connected_components_impl(
       inverse_edge_mask = std::move(new_inverse_edge_mask);
       inverse_graph_view.attach_edge_mask(inverse_edge_mask.view());
     }
-#if 1
-    RAFT_CUDA_TRY(cudaDeviceSynchronize());
-    std::cout << "SCC 6-4" << std::endl;
-#endif
   }
-#if 1
-  RAFT_CUDA_TRY(cudaDeviceSynchronize());
-  std::cout << "SCC 7" << std::endl;
-#endif
 
   return;
 }
