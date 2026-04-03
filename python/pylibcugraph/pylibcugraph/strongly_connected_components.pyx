@@ -4,6 +4,8 @@
 # Have cython use python 3 syntax
 # cython: language_level = 3
 
+import numpy as np
+
 from pylibcugraph import GraphProperties, SGGraph
 
 from pylibcugraph._cugraph_c.types cimport (
@@ -44,7 +46,7 @@ from pylibcugraph.utils cimport (
 )
 
 
-def _ensure_args(graph, offsets, indices, weights):
+def _ensure_args(graph, offsets, indices, weights, labels):
     i = 0
     if graph is not None:
         # ensure the remaining parametes are None
@@ -63,6 +65,20 @@ def _ensure_args(graph, offsets, indices, weights):
             assert_CAI_type(offsets, "offsets")
             assert_CAI_type(indices, "indices")
             assert_CAI_type(weights, "weights", True)
+
+    if labels is not None:
+        assert_CAI_type(labels, "labels")
+        if input_type == "csr_arrays":
+            if np.dtype(offsets.dtype) != np.dtype(indices.dtype):
+                raise TypeError(
+                    "offsets dtype must match indices dtype "
+                    f"(got offsets.dtype={offsets.dtype!r}, indices.dtype={indices.dtype!r})"
+                )
+            if np.dtype(labels.dtype) != np.dtype(indices.dtype):
+                raise TypeError(
+                    "labels dtype must match indices dtype "
+                    f"(got labels.dtype={labels.dtype!r}, indices.dtype={indices.dtype!r})"
+                )
 
     return input_type
 
@@ -167,7 +183,7 @@ def strongly_connected_components(ResourceHandle resource_handle,
 
     """
 
-    input_type = _ensure_args(graph, offsets, indices, weights)
+    input_type = _ensure_args(graph, offsets, indices, weights, labels)
 
     if input_type == "csr_arrays":
         if resource_handle is None:
