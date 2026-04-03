@@ -782,6 +782,8 @@ find_pivots(
           else
             return cuda::std::min(cuda::std::get<1>(triplet), cuda::std::get<2>(triplet));
         }));
+    RAFT_CUDA_TRY(cudaDeviceSynchronize());
+    std::cout << "before thrust::reduec_by_key 0" << std::endl;
     auto ret = thrust::reduce_by_key(
       handle.get_thrust_policy(),
       component_idx_first,
@@ -794,6 +796,8 @@ find_pivots(
         [] __device__(auto lhs, auto rhs) {
           return cuda::std::get<1>(lhs) >= cuda::std::get<1>(rhs) ? lhs : rhs;
         }));
+    RAFT_CUDA_TRY(cudaDeviceSynchronize());
+    std::cout << "after thrust::reduec_by_key 0" << std::endl;
     component_idxs.resize(cuda::std::distance(component_idxs.begin(), ret.first),
                           handle.get_stream());
     pivots.resize(component_idxs.size(), handle.get_stream());
@@ -843,6 +847,8 @@ find_pivots(
                                                      handle.get_stream());
     rmm::device_uvector<vertex_t> tmp_pivots(tmp_component_idxs.size(), handle.get_stream());
     rmm::device_uvector<edge_t> tmp_priorities(tmp_component_idxs.size(), handle.get_stream());
+    RAFT_CUDA_TRY(cudaDeviceSynchronize());
+    std::cout << "before thrust::reduec_by_key 1" << std::endl;
     auto ret =
       thrust::reduce_by_key(handle.get_thrust_policy(),
                             component_idxs.begin(),
@@ -855,6 +861,8 @@ find_pivots(
                               [] __device__(auto lhs, auto rhs) {
                                 return cuda::std::get<1>(lhs) >= cuda::std::get<1>(rhs) ? lhs : rhs;
                               }));
+    RAFT_CUDA_TRY(cudaDeviceSynchronize());
+    std::cout << "after thrust::reduec_by_key 1" << std::endl;
     tmp_priorities.resize(0, handle.get_stream());
     tmp_priorities.shrink_to_fit(handle.get_stream());
     tmp_component_idxs.resize(cuda::std::distance(tmp_component_idxs.begin(), ret.first),
@@ -1304,6 +1312,8 @@ intersect_reachable_sets(
       rmm::device_uvector<vertex_t> unique_idxs(component_idxs.size(), handle.get_stream());
       rmm::device_uvector<vertex_t> min_vertex_ids(component_idxs.size(), handle.get_stream());
 
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());
+      std::cout << "before thrust::reduec_by_key 2" << std::endl;
       auto [unique_end, min_end] = thrust::reduce_by_key(handle.get_thrust_policy(),
                                                          component_idxs.begin(),
                                                          component_idxs.end(),
@@ -1312,6 +1322,8 @@ intersect_reachable_sets(
                                                          min_vertex_ids.begin(),
                                                          thrust::equal_to<vertex_t>{},
                                                          thrust::minimum<vertex_t>());
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());
+      std::cout << "before thrust::reduec_by_key 2" << std::endl;
 
       unique_idxs.resize(cuda::std::distance(unique_idxs.begin(), unique_end), handle.get_stream());
       min_vertex_ids.resize(cuda::std::distance(min_vertex_ids.begin(), min_end),
