@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -40,7 +40,7 @@ namespace cugraph {
 template <typename VT, typename ET, typename WT>
 std::unique_ptr<legacy::GraphCSR<VT, ET, WT>> coo_to_csr(
   legacy::GraphCOOView<VT, ET, WT> const& graph,
-  rmm::device_async_resource_ref mr = rmm::mr::get_current_device_resource());
+  rmm::device_async_resource_ref mr = rmm::mr::get_current_device_resource_ref());
 
 /**
  * @brief    Broadcast using handle communicator

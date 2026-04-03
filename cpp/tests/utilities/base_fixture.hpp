@@ -15,10 +15,11 @@
 #include <rmm/mr/binning_memory_resource.hpp>
 #include <rmm/mr/cuda_memory_resource.hpp>
 #include <rmm/mr/managed_memory_resource.hpp>
-#include <rmm/mr/owning_wrapper.hpp>
 #include <rmm/mr/per_device_resource.hpp>
 #include <rmm/mr/pool_memory_resource.hpp>
 #include <rmm/resource_ref.hpp>
+
+#include <cuda/memory_resource>
 
 #include <gtest/gtest.h>
 
@@ -42,7 +43,7 @@ namespace test {
  * ```
  **/
 class BaseFixture : public ::testing::Test {
-  rmm::device_async_resource_ref _mr{rmm::mr::get_current_device_resource()};
+  rmm::device_async_resource_ref _mr{rmm::mr::get_current_device_resource_ref()};
 
  public:
   /**
@@ -53,9 +54,9 @@ class BaseFixture : public ::testing::Test {
 };
 
 /// MR factory functions
-inline auto make_cuda() { return std::make_shared<rmm::mr::cuda_memory_resource>(); }
+inline auto make_cuda() { return rmm::mr::cuda_memory_resource(); }
 
-inline auto make_managed() { return std::make_shared<rmm::mr::managed_memory_resource>(); }
+inline auto make_managed() { return rmm::mr::managed_memory_resource(); }
 
 // use_max set to true will use half of available GPU memory for RMM, otherwise
 // otherwise we'll use 1/10.
@@ -69,7 +70,8 @@ inline auto make_pool(bool use_max = false)
   auto const min_alloc =
     use_max ? rmm::align_down(std::min(free, total / 2), rmm::CUDA_ALLOCATION_ALIGNMENT)
             : rmm::align_down(std::min(free, total / 10), rmm::CUDA_ALLOCATION_ALIGNMENT);
-  return rmm::mr::make_owning_wrapper<rmm::mr::pool_memory_resource>(make_cuda(), min_alloc);
+  auto upstream = make_cuda();
+  return rmm::mr::pool_memory_resource(upstream, min_alloc);
 }
 
 inline auto make_binning()
@@ -77,8 +79,7 @@ inline auto make_binning()
   auto pool = make_pool();
   // Add a fixed_size_memory_resource for bins of size 256, 512, 1024, 2048 and 4096KiB
   // Larger allocations will use the pool resource
-  auto mr = rmm::mr::make_owning_wrapper<rmm::mr::binning_memory_resource>(pool, 18, 22);
-  return mr;
+  return rmm::mr::binning_memory_resource(pool, 18, 22);
 }
 
 /**
@@ -96,7 +97,7 @@ inline auto make_binning()
  *        "maxpool" only.
  * @return Memory resource instance
  */
-inline std::shared_ptr<rmm::mr::device_memory_resource> create_memory_resource(
+inline cuda::mr::any_resource<cuda::mr::device_accessible> create_memory_resource(
   std::string const& allocation_mode)
 {
   if (allocation_mode == "binning") return make_binning();
@@ -200,7 +201,7 @@ inline auto parse_test_options(int argc, char** argv)
     auto const cmd_opts = parse_test_options(argc, argv);                               \
     auto const rmm_mode = cmd_opts["rmm_mode"].as<std::string>();                       \
     auto resource       = cugraph::test::create_memory_resource(rmm_mode);              \
-    rmm::mr::set_current_device_resource_ref(resource.get());                           \
+    rmm::mr::set_current_device_resource_ref(resource);                                 \
     cugraph::test::g_perf = cmd_opts["perf"].as<bool>();                                \
     cugraph::test::g_rmat_scale =                                                       \
       (cmd_opts.count("rmat_scale") > 0)                                                \
@@ -231,7 +232,7 @@ inline auto parse_test_options(int argc, char** argv)
     auto const cmd_opts = parse_test_options(argc, argv);                               \
     auto const rmm_mode = cmd_opts["rmm_mode"].as<std::string>();                       \
     auto resource       = cugraph::test::create_memory_resource(rmm_mode);              \
-    rmm::mr::set_current_device_resource_ref(resource.get());                           \
+    rmm::mr::set_current_device_resource_ref(resource);                                 \
     cugraph::test::g_perf = cmd_opts["perf"].as<bool>();                                \
     cugraph::test::g_rmat_scale =                                                       \
       (cmd_opts.count("rmat_scale") > 0)                                                \
