@@ -782,6 +782,26 @@ find_pivots(
           else
             return cuda::std::min(cuda::std::get<1>(triplet), cuda::std::get<2>(triplet));
         }));
+    raft::print_device_vector("unresolved_component_offsets",
+                              unresolved_component_offsets.data(),
+                              unresolved_component_offsets.size(),
+                              std::cout);
+    std::cout << "component_idxs.size()=" << component_idxs.size()
+              << " unresolved_component_vertices.size()=" << unresolved_component_vertices.size()
+              << " unresolved_component_vertex_in_degrees.size()="
+              << unresolved_component_vertex_in_degrees.size()
+              << " unresolved_component_vertex_out_degrees.size()="
+              << unresolved_component_vertex_out_degrees.size() << std::endl;
+    RAFT_CUDA_TRY(cudaDeviceSynchronize());
+    std::cout << "checking component_idx_first" << std::endl;
+    rmm::device_uvector<vertex_t> tmps(unresolved_component_vertices.size(), handle.get_stream());
+    thrust::copy(handle.get_thrust_policy(),
+                 component_idx_first,
+                 component_idx_first + unresolved_component_vertices.size(),
+                 tmps.begin());
+    std::cout << "sorted="
+              << thrust::is_sorted(handle.get_thrust_policy(), tmps.begin(), tmps.end())
+              << std::endl;
     RAFT_CUDA_TRY(cudaDeviceSynchronize());
     std::cout << "before thrust::reduec_by_key 0" << std::endl;
     auto ret = thrust::reduce_by_key(
