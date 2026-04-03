@@ -811,12 +811,46 @@ find_pivots(
       handle.get_thrust_policy(), priority_first, priority_first + tmp_prs.size(), tmp_prs.begin());
     {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());
-      std::cout << "TMP before thrust::reduec_by_key 0" << std::endl;
+      std::cout << "TMP A before thrust::reduec_by_key 0" << std::endl;
       auto ret = thrust::reduce_by_key(
         handle.get_thrust_policy(),
         tmps.begin(),
         tmps.end(),
         thrust::make_zip_iterator(unresolved_component_vertices.begin(), tmp_prs.begin()),
+        component_idxs.begin(),
+        thrust::make_zip_iterator(pivots.begin(), priorities.begin()),
+        cuda::std::equal_to<vertex_t>{},
+        cuda::proclaim_return_type<cuda::std::tuple<vertex_t, edge_t>>(
+          [] __device__(auto lhs, auto rhs) {
+            return cuda::std::get<1>(lhs) >= cuda::std::get<1>(rhs) ? lhs : rhs;
+          }));
+      std::cout << "SIZE=" << cuda::std::distance(component_idxs.begin(), ret.first) << std::endl;
+    }
+    {
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());
+      std::cout << "TMP B before thrust::reduec_by_key 0" << std::endl;
+      auto ret = thrust::reduce_by_key(
+        handle.get_thrust_policy(),
+        component_idx_first,
+        component_idx_first + unresolved_component_vertices.size(),
+        thrust::make_zip_iterator(unresolved_component_vertices.begin(), tmp_prs.begin()),
+        component_idxs.begin(),
+        thrust::make_zip_iterator(pivots.begin(), priorities.begin()),
+        cuda::std::equal_to<vertex_t>{},
+        cuda::proclaim_return_type<cuda::std::tuple<vertex_t, edge_t>>(
+          [] __device__(auto lhs, auto rhs) {
+            return cuda::std::get<1>(lhs) >= cuda::std::get<1>(rhs) ? lhs : rhs;
+          }));
+      std::cout << "SIZE=" << cuda::std::distance(component_idxs.begin(), ret.first) << std::endl;
+    }
+    {
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());
+      std::cout << "TMP C before thrust::reduec_by_key 0" << std::endl;
+      auto ret = thrust::reduce_by_key(
+        handle.get_thrust_policy(),
+        tmps.begin(),
+        tmps.end(),
+        thrust::make_zip_iterator(unresolved_component_vertices.begin(), priority_first),
         component_idxs.begin(),
         thrust::make_zip_iterator(pivots.begin(), priorities.begin()),
         cuda::std::equal_to<vertex_t>{},
