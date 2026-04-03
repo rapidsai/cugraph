@@ -249,8 +249,8 @@ def strongly_connected_components(
 
     Examples
     --------
-    >>> from cugraph.datasets import karate
-    >>> G = karate.get_graph(download=True)
+    >>> from cugraph.datasets import karate_asymmetric
+    >>> G = karate_asymmetric.get_graph(download=True, create_using=cugraph.Graph(directed=True))
     >>> df = cugraph.strongly_connected_components(G)
 
     """
