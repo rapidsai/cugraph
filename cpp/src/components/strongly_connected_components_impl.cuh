@@ -1981,6 +1981,10 @@ void strongly_connected_components_impl(
   if (num_vertices == 0) { return; }
 
   // 1. check input arguments
+#if 1
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
+  std::cout << "SCC 1" << std::endl;
+#endif
 
   CUGRAPH_EXPECTS(
     !graph_view.is_symmetric(),
@@ -1991,11 +1995,19 @@ void strongly_connected_components_impl(
   }
 
   // 2. initialize component IDs (initially, every vertex belongs to one unresolved component)
+#if 1
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
+  std::cout << "SCC 2" << std::endl;
+#endif
 
   thrust::fill(handle.get_thrust_policy(), components.begin(), components.end(), vertex_t{0});
 
   // 3. create an edge mask and mask out self-loops & multi-edges (except for the first one); this
   // edge mask will be used to mask out edges between different components
+#if 1
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
+  std::cout << "SCC 3" << std::endl;
+#endif
 
   auto forward_graph_view = graph_view;
   edge_property_t<edge_t, bool> edge_mask(handle, forward_graph_view);
@@ -2028,6 +2040,10 @@ void strongly_connected_components_impl(
   }
 
   // 4. create an inverse graph
+#if 1
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
+  std::cout << "SCC 4" << std::endl;
+#endif
 
   graph_t<vertex_t, edge_t, store_transposed, multi_gpu> inverse_graph(handle);
   rmm::device_uvector<vertex_t> from_inverse_renumber_map(0, handle.get_stream());
@@ -2085,6 +2101,10 @@ void strongly_connected_components_impl(
 
   // 5. prepare for recursvie forward-backward SCC: set unresolved_component_offsets and
   // unresolved_component_vertices and initialzie edge_src|dst_components
+#if 1
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
+  std::cout << "SCC 5" << std::endl;
+#endif
 
   rmm::device_uvector<vertex_t> unresolved_component_offsets(2, handle.get_stream());
   rmm::device_uvector<vertex_t> unresolved_component_vertices(
@@ -2121,9 +2141,17 @@ void strongly_connected_components_impl(
   }
 
   // 6. recursive forward-backward SCC
+#if 1
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
+  std::cout << "SCC 6" << std::endl;
+#endif
 
   while ((unresolved_component_offsets.size() - 1) > 0) {
     // 6-1. perform forward-backward SCC
+#if 1
+    RAFT_CUDA_TRY(cudaDeviceSynchronize());
+    std::cout << "SCC 6-1" << std::endl;
+#endif
 
     rmm::device_uvector<vertex_t> unresolved_component_ids(0, handle.get_stream());
     rmm::device_uvector<vertex_t> scc_component_ids(0, handle.get_stream());
@@ -2146,6 +2174,10 @@ void strongly_connected_components_impl(
         std::move(unresolved_component_vertices));
 
     // 6-2. update components
+#if 1
+    RAFT_CUDA_TRY(cudaDeviceSynchronize());
+    std::cout << "SCC 6-2" << std::endl;
+#endif
 
     auto scatter_component_ids =
       [&handle,
@@ -2195,6 +2227,10 @@ void strongly_connected_components_impl(
     scc_component_vertices.shrink_to_fit(handle.get_stream());
 
     // 6-3. mask out edges between different components
+#if 1
+    RAFT_CUDA_TRY(cudaDeviceSynchronize());
+    std::cout << "SCC 6-3" << std::endl;
+#endif
 
     if constexpr (multi_gpu) {
       rmm::device_uvector<vertex_t> tmp_vertices(
@@ -2331,7 +2367,15 @@ void strongly_connected_components_impl(
       inverse_edge_mask = std::move(new_inverse_edge_mask);
       inverse_graph_view.attach_edge_mask(inverse_edge_mask.view());
     }
+#if 1
+    RAFT_CUDA_TRY(cudaDeviceSynchronize());
+    std::cout << "SCC 6-4" << std::endl;
+#endif
   }
+#if 1
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
+  std::cout << "SCC 7" << std::endl;
+#endif
 
   return;
 }
