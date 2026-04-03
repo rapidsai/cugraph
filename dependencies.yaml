@@ -504,7 +504,7 @@ dependencies:
           - &networkx networkx>=2.5.1
           - *numpy
           - packaging
-          - python-louvain
+          - &python_louvain python-louvain
           - scikit-learn>=0.23.1
   # Runtime dependencies for cuGraph notebooks tested in CI.
   # Also used in the rapidsai/notebooks Docker image.
@@ -517,7 +517,7 @@ dependencies:
           - *networkx
           - *notebook
           - *pandas
-          - python-louvain
+          - *python_louvain
           - *scipy
   test_python_pylibcugraph:
     common:
