@@ -118,8 +118,8 @@ def strongly_connected_components(ResourceHandle resource_handle,
     --------
     >>> import pylibcugraph, cupy, numpy
     >>> from pylibcugraph import strongly_connected_components
-    >>> srcs = cupy.asarray([0, 1, 1, 2, 2, 0], dtype=numpy.int32)
-    >>> dsts = cupy.asarray([1, 0, 2, 1, 0, 2], dtype=numpy.int32)
+    >>> srcs = cupy.asarray([0, 0, 1, 1, 2, 2], dtype=numpy.int32)
+    >>> dsts = cupy.asarray([1, 2, 1, 2, 0, 1], dtype=numpy.int32)
     >>> weights = cupy.asarray(
     ...     [1.0, 1.0, 1.0, 1.0, 1.0, 1.0], dtype=numpy.float32)
     >>> resource_handle = pylibcugraph.ResourceHandle()
@@ -130,6 +130,41 @@ def strongly_connected_components(ResourceHandle resource_handle,
     ...     store_transposed=False, renumber=True, do_expensive_check=False)
     >>> (vertices, labels) = strongly_connected_components(
     ...     resource_handle, G, None, None, None, None, False)
+
+    >>> vertices
+    [0, 1, 2]
+    >>> labels
+    [0, 0, 0]
+
+    >>> import cupy as cp
+    >>> import numpy as np
+    >>> from scipy.sparse import csr_matrix
+    >>>
+    >>> graph = [
+    ... [0, 1, 1, 0, 0],
+    ... [0, 0, 1, 0, 0],
+    ... [0, 0, 0, 0, 0],
+    ... [0, 0, 0, 0, 1],
+    ... [0, 0, 0, 0, 0],
+    ... ]
+    >>> scipy_csr = csr_matrix(graph)
+    >>>
+    >>> cp_offsets = cp.asarray(scipy_csr.indptr)
+    >>> cp_indices = cp.asarray(scipy_csr.indices, dtype=np.int32)
+    >>>
+    >>> resource_handle = pylibcugraph.ResourceHandle()
+    >>> _, cp_labels = strongly_connected_components(
+    ...     resource_handle=resource_handle,
+    ...     graph=None,
+    ...     offsets=cp_offsets,
+    ...     indices=cp_indices,
+    ...     weights=None,
+    ...     labels=None,
+    ...     do_expensive_check=False,
+    ... )
+    >>> print(f"{len(set(cp_labels.tolist()))} - {cp_labels}")
+    5 - [0 1 2 3 4]
+
     """
 
     input_type = _ensure_args(graph, offsets, indices, weights)
