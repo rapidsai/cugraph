@@ -1078,6 +1078,10 @@ intersect_reachable_sets(
 {
   using vertex_t = typename GraphViewType::vertex_type;
 
+#if 1
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
+  std::cout << "intersect 1" << std::endl;
+#endif
   auto num_old_unresolved_components =
     static_cast<vertex_t>(unresolved_component_offsets.size() - 1);
 
@@ -1248,6 +1252,10 @@ intersect_reachable_sets(
       scc_vertices.shrink_to_fit(handle.get_stream());
     }
   }
+#if 1
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
+  std::cout << "intersect 2" << std::endl;
+#endif
   unresolved_component_offsets.resize(0, handle.get_stream());
   unresolved_component_vertices.resize(0, handle.get_stream());
   forward_set_offsets.resize(0, handle.get_stream());
@@ -1282,6 +1290,10 @@ intersect_reachable_sets(
   vertex_t num_fwd_only_size1_vertices{0};
   vertex_t num_bwd_only_size1_vertices{0};
   vertex_t num_remaining_size1_vertices{0};
+#if 1
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
+  std::cout << "intersect 3" << std::endl;
+#endif
   {
     // For each subset (fwd, bwd, remainder, scc), find the local min vertex id per component idx
     // on the current GPU and perform global reduction.
@@ -1580,6 +1592,10 @@ intersect_reachable_sets(
                         std::move(remaining_vertices),
                         2);
   }
+#if 1
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
+  std::cout << "intersect 4" << std::endl;
+#endif
 
   rmm::device_uvector<vertex_t> new_unresolved_component_ids(0, handle.get_stream());
   rmm::device_uvector<vertex_t> new_unresolved_component_offsets(0, handle.get_stream());
@@ -1721,6 +1737,10 @@ intersect_reachable_sets(
                            new_scc_component_counts.end(),
                            new_scc_component_offsets.begin() + 1);
   }
+#if 1
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
+  std::cout << "intersect 5" << std::endl;
+#endif
 
   return std::make_tuple(std::move(new_unresolved_component_ids),
                          std::move(new_unresolved_component_offsets),
@@ -1754,6 +1774,10 @@ forward_backward_intersect(
 
   constexpr bool multi_gpu = GraphViewType::is_multi_gpu;
 
+#if 1
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
+  std::cout << "fwd-bwd 1" << std::endl;
+#endif
   auto in_degrees = inverse_graph_view.compute_out_degrees(handle);
   {
     auto tmp_degrees = rmm::device_uvector<edge_t>(graph_view.local_vertex_partition_range_size(),
@@ -1791,6 +1815,10 @@ forward_backward_intersect(
     in_degrees = std::move(tmp_degrees);
   }
   auto out_degrees = graph_view.compute_out_degrees(handle);
+#if 1
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
+  std::cout << "fwd-bwd 2" << std::endl;
+#endif
 
   rmm::device_uvector<edge_t> unresolved_component_vertex_in_degrees(
     unresolved_component_vertices.size(), handle.get_stream());
@@ -1811,6 +1839,10 @@ forward_backward_intersect(
                    out_degrees.begin(),
                    unresolved_component_vertex_out_degrees.begin());
   }
+#if 1
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
+  std::cout << "fwd-bwd 3" << std::endl;
+#endif
 
   auto trivial_singleton_scc_vertices = find_trivial_singleton_scc_vertices(
     handle,
@@ -1822,6 +1854,10 @@ forward_backward_intersect(
                                       unresolved_component_vertices.size()),
     std::move(in_degrees),
     std::move(out_degrees));
+#if 1
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
+  std::cout << "fwd-bwd 4" << std::endl;
+#endif
 
   auto [pivots, pivot_unresolved_component_idxs] =
     find_pivots(handle,
@@ -1840,12 +1876,20 @@ forward_backward_intersect(
   unresolved_component_vertex_in_degrees.shrink_to_fit(handle.get_stream());
   unresolved_component_vertex_out_degrees.resize(0, handle.get_stream());
   unresolved_component_vertex_out_degrees.shrink_to_fit(handle.get_stream());
+#if 1
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
+  std::cout << "fwd-bwd 5" << std::endl;
+#endif
 
   auto num_aggregate_pivots = pivots.size();
   if constexpr (GraphViewType::is_multi_gpu) {
     num_aggregate_pivots = host_scalar_allreduce(
       handle.get_comms(), num_aggregate_pivots, raft::comms::op_t::SUM, handle.get_stream());
   }
+#if 1
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
+  std::cout << "fwd-bwd 6" << std::endl;
+#endif
 
   rmm::device_uvector<vertex_t> forward_set_offsets(0, handle.get_stream());
   rmm::device_uvector<vertex_t> forward_set_vertices(0, handle.get_stream());
@@ -1864,6 +1908,10 @@ forward_backward_intersect(
                  forward_set_offsets.end(),
                  vertex_t{0});
   }
+#if 1
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
+  std::cout << "fwd-bwd 7" << std::endl;
+#endif
 
   rmm::device_uvector<vertex_t> backward_set_offsets(0, handle.get_stream());
   rmm::device_uvector<vertex_t> backward_set_vertices(0, handle.get_stream());
@@ -1947,6 +1995,10 @@ forward_backward_intersect(
                  backward_set_offsets.end(),
                  vertex_t{0});
   }
+#if 1
+  RAFT_CUDA_TRY(cudaDeviceSynchronize());
+  std::cout << "fwd-bwd 8" << std::endl;
+#endif
 
   return intersect_reachable_sets<GraphViewType>(handle,
                                                  std::move(unresolved_component_offsets),
