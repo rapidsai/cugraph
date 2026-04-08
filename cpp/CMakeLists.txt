@@ -175,6 +175,8 @@ set(CUGRAPH_SG_SOURCES
     src/community/detail/common_methods_sg_v32_e32.cu
     src/community/detail/refine_sg_v64_e64.cu
     src/community/detail/refine_sg_v32_e32.cu
+    src/community/detail/decision_graph_mis_sg_v64_e64.cu
+    src/community/detail/decision_graph_mis_sg_v32_e32.cu
     src/community/edge_triangle_count_sg_v64_e64.cu
     src/community/edge_triangle_count_sg_v32_e32.cu
     src/community/detail/maximal_independent_moves_sg_v64_e64.cu
@@ -349,6 +351,8 @@ set(CUGRAPH_MG_SOURCES
     src/community/detail/common_methods_mg_v32_e32.cu
     src/community/detail/refine_mg_v64_e64.cu
     src/community/detail/refine_mg_v32_e32.cu
+    src/community/detail/decision_graph_mis_mg_v64_e64.cu
+    src/community/detail/decision_graph_mis_mg_v32_e32.cu
     src/community/edge_triangle_count_mg_v64_e64.cu
     src/community/edge_triangle_count_mg_v32_e32.cu
     src/community/detail/maximal_independent_moves_mg_v64_e64.cu

@@ -91,7 +91,7 @@ rmm::device_uvector<vertex_t> maximal_independent_moves(
     // Select a random set of candidate vertices
 
     vertex_t nr_remaining_vertices_to_check = remaining_vertices.size();
-    if (multi_gpu) {
+    if constexpr (multi_gpu) {
       nr_remaining_vertices_to_check = host_scalar_allreduce(handle.get_comms(),
                                                              nr_remaining_vertices_to_check,
                                                              raft::comms::op_t::SUM,
@@ -268,7 +268,7 @@ rmm::device_uvector<vertex_t> maximal_independent_moves(
                   remaining_vertices.begin());
 
     nr_remaining_vertices_to_check = remaining_vertices.size();
-    if (multi_gpu) {
+    if constexpr (multi_gpu) {
       nr_remaining_vertices_to_check = host_scalar_allreduce(handle.get_comms(),
                                                              nr_remaining_vertices_to_check,
                                                              raft::comms::op_t::SUM,
