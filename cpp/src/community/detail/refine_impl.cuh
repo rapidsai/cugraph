@@ -5,7 +5,7 @@
 #pragma once
 
 #include "common_methods.hpp"
-#include "decision_graph_mis.cuh"
+#include "decision_graph_mis.hpp"
 #include "detail/shuffle_wrappers.hpp"
 
 #include <cugraph/detail/utility_wrappers.hpp>
