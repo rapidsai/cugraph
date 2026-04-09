@@ -602,9 +602,11 @@ dependencies:
               cuda: "12.9"
               dependencies: "oldest"
               require_gpu: "true"
+            # this could be changed to a different, older version when 'torch' index metadata is corrected
+            # ref: https://github.com/pytorch/pytorch/issues/145501#issuecomment-4207316144
             packages:
               - &torch_cu129_index --extra-index-url=https://download.pytorch.org/whl/cu129
-              - torch==2.9.0+cu129
+              - torch==2.10.0+cu129
           - matrix:
               cuda: "12.9"
               require_gpu: "true"
