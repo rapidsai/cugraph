@@ -739,6 +739,53 @@ class kv_cuco_store_t {
     }
   }
 
+  template <typename KeyIterator, typename ValueIterator, typename StencilIterator, typename PredOp>
+  void insert_and_assign_if(KeyIterator key_first,
+                            KeyIterator key_last,
+                            ValueIterator value_first,
+                            StencilIterator stencil_first,
+                            PredOp pred_op,
+                            rmm::cuda_stream_view stream)
+  {
+    auto num_keys = static_cast<size_t>(cuda::std::distance(key_first, key_last));
+    if (num_keys == 0) return;
+
+    rmm::device_uvector<key_t> valid_keys(num_keys, stream);
+    if constexpr (std::is_arithmetic_v<value_t>) {
+      rmm::device_uvector<value_t> valid_values(num_keys, stream);
+      auto input_pair_first  = thrust::make_zip_iterator(key_first, value_first);
+      auto output_pair_first = thrust::make_zip_iterator(valid_keys.begin(), valid_values.begin());
+      valid_keys.resize(cuda::std::distance(output_pair_first,
+                                            thrust::copy_if(rmm::exec_policy(stream),
+                                                            input_pair_first,
+                                                            input_pair_first + num_keys,
+                                                            stencil_first,
+                                                            output_pair_first,
+                                                            pred_op)),
+                        stream);
+      valid_values.resize(valid_keys.size(), stream);
+      this->insert_and_assign(valid_keys.begin(), valid_keys.end(), valid_values.begin(), stream);
+    } else {
+      auto valid_values      = allocate_dataframe_buffer<value_t>(num_keys, stream);
+      auto input_pair_first  = thrust::make_zip_iterator(key_first, value_first);
+      auto output_pair_first = thrust::make_zip_iterator(
+        valid_keys.begin(), get_dataframe_buffer_begin<value_t>(valid_values));
+      valid_keys.resize(cuda::std::distance(output_pair_first,
+                                            thrust::copy_if(rmm::exec_policy(stream),
+                                                            input_pair_first,
+                                                            input_pair_first + num_keys,
+                                                            stencil_first,
+                                                            output_pair_first,
+                                                            pred_op)),
+                        stream);
+      resize_dataframe_buffer<value_t>(valid_values, valid_keys.size(), stream);
+      this->insert_and_assign(valid_keys.begin(),
+                              valid_keys.end(),
+                              get_dataframe_buffer_begin<value_t>(valid_values),
+                              stream);
+    }
+  }
+
   auto retrieve_all(rmm::cuda_stream_view stream)
   {
     rmm::device_uvector<key_t> keys(size_, stream);
@@ -967,6 +1014,22 @@ class kv_store_t {
                                                            rmm::cuda_stream_view stream)
   {
     store_.insert_and_assign(key_first, key_last, value_first, stream);
+  }
+
+  /* when use binary_search = false, this requires that the capacity is large enough */
+  template <typename KeyIterator,
+            typename ValueIterator,
+            typename StencilIterator,
+            typename PredOp,
+            bool binary_search = use_binary_search>
+  std::enable_if_t<!binary_search, void> insert_and_assign_if(KeyIterator key_first,
+                                                              KeyIterator key_last,
+                                                              ValueIterator value_first,
+                                                              StencilIterator stencil_first,
+                                                              PredOp pred_op,
+                                                              rmm::cuda_stream_view stream)
+  {
+    store_.insert_and_assign_if(key_first, key_last, value_first, stencil_first, pred_op, stream);
   }
 
   auto retrieve_all(rmm::cuda_stream_view stream) const { return store_.retrieve_all(stream); }

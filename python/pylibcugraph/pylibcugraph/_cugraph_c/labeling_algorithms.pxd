@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2022-2024, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 
 # Have cython use python 3 syntax
@@ -46,6 +46,15 @@ cdef extern from "cugraph_c/labeling_algorithms.h":
 
     cdef cugraph_error_code_t \
         cugraph_weakly_connected_components(
+            const cugraph_resource_handle_t* handle,
+            cugraph_graph_t* graph,
+            bool_t do_expensive_check,
+            cugraph_labeling_result_t** result,
+            cugraph_error_t** error
+        )
+
+    cdef cugraph_error_code_t \
+        cugraph_strongly_connected_components(
             const cugraph_resource_handle_t* handle,
             cugraph_graph_t* graph,
             bool_t do_expensive_check,
