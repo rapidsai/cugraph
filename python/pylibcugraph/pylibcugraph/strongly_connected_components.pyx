@@ -27,7 +27,7 @@ from pylibcugraph._cugraph_c.graph cimport (
 )
 from pylibcugraph._cugraph_c.labeling_algorithms cimport (
     cugraph_labeling_result_t,
-    cugraph_weakly_connected_components,
+    cugraph_strongly_connected_components,
     cugraph_labeling_result_get_vertices,
     cugraph_labeling_result_get_labels,
     cugraph_labeling_result_free,
@@ -83,16 +83,16 @@ def _ensure_args(graph, offsets, indices, weights, labels):
     return input_type
 
 
-def weakly_connected_components(ResourceHandle resource_handle,
-                                _GPUGraph graph,
-                                offsets,
-                                indices,
-                                weights,
-                                labels,
-                                bool_t do_expensive_check):
+def strongly_connected_components(ResourceHandle resource_handle,
+                                  _GPUGraph graph,
+                                  offsets,
+                                  indices,
+                                  weights,
+                                  labels,
+                                  bool_t do_expensive_check):
     """
-    Generate the Weakly Connected Components from either an input graph or
-    or CSR arrays('offsets', 'indices', 'weights') and attach a component label
+    Generate the Strongly Connected Components from either an input graph or
+    CSR arrays ('offsets', 'indices', 'weights') and attach a component label
     to each vertex.
 
     Parameters
@@ -130,28 +130,27 @@ def weakly_connected_components(ResourceHandle resource_handle,
         If ``labels`` is None, returns ``(vertices, labels)`` as device arrays.
         If ``labels`` is provided, returns None (output written in-place).
 
-
     Examples
     --------
     >>> import pylibcugraph, cupy, numpy
-    >>> from pylibcugraph import weakly_connected_components
-    >>> srcs = cupy.asarray([0, 1, 1, 2, 2, 0], dtype=numpy.int32)
-    >>> dsts = cupy.asarray([1, 0, 2, 1, 0, 2], dtype=numpy.int32)
+    >>> from pylibcugraph import strongly_connected_components
+    >>> srcs = cupy.asarray([0, 0, 1, 1, 2, 2], dtype=numpy.int32)
+    >>> dsts = cupy.asarray([1, 2, 1, 2, 0, 1], dtype=numpy.int32)
     >>> weights = cupy.asarray(
     ...     [1.0, 1.0, 1.0, 1.0, 1.0, 1.0], dtype=numpy.float32)
     >>> resource_handle = pylibcugraph.ResourceHandle()
     >>> graph_props = pylibcugraph.GraphProperties(
-    ...      is_symmetric=True, is_multigraph=False)
+    ...      is_symmetric=False, is_multigraph=False)
     >>> G = pylibcugraph.SGGraph(
     ...     resource_handle, graph_props, srcs, dsts, weight_array=weights,
     ...     store_transposed=False, renumber=True, do_expensive_check=False)
-    >>> (vertices, labels) = weakly_connected_components(
+    >>> (vertices, labels) = strongly_connected_components(
     ...     resource_handle, G, None, None, None, None, False)
 
     >>> vertices
     [0, 1, 2]
     >>> labels
-    [2, 2, 2]
+    [0, 0, 0]
 
     >>> import cupy as cp
     >>> import numpy as np
@@ -165,14 +164,12 @@ def weakly_connected_components(ResourceHandle resource_handle,
     ... [0, 0, 0, 0, 0],
     ... ]
     >>> scipy_csr = csr_matrix(graph)
-    >>> rows, cols = scipy_csr.nonzero()
-    >>> scipy_csr[cols, rows] = scipy_csr[rows, cols]
     >>>
     >>> cp_offsets = cp.asarray(scipy_csr.indptr)
     >>> cp_indices = cp.asarray(scipy_csr.indices, dtype=np.int32)
     >>>
     >>> resource_handle = pylibcugraph.ResourceHandle()
-    >>> _, cp_labels = weakly_connected_components(
+    >>> _, cp_labels = strongly_connected_components(
     ...     resource_handle=resource_handle,
     ...     graph=None,
     ...     offsets=cp_offsets,
@@ -182,20 +179,18 @@ def weakly_connected_components(ResourceHandle resource_handle,
     ...     do_expensive_check=False,
     ... )
     >>> print(f"{len(set(cp_labels.tolist()))} - {cp_labels}")
-    2 - [2 2 2 3 3]
+    5 - [0 1 2 3 4]
 
     """
 
-    # FIXME: Remove this function once the deprecation is completed
     input_type = _ensure_args(graph, offsets, indices, weights, labels)
 
     if input_type == "csr_arrays":
         if resource_handle is None:
-            # Get a default handle
             resource_handle = ResourceHandle()
 
         graph_props = GraphProperties(
-        is_symmetric=True, is_multigraph=False)
+        is_symmetric=False, is_multigraph=False)
         graph = SGGraph(
                 resource_handle,
                 graph_props,
@@ -216,15 +211,13 @@ def weakly_connected_components(ResourceHandle resource_handle,
     cdef cugraph_error_code_t error_code
     cdef cugraph_error_t* error_ptr
 
-    error_code = cugraph_weakly_connected_components(c_resource_handle_ptr,
-                                                     c_graph_ptr,
-                                                     do_expensive_check,
-                                                     &result_ptr,
-                                                     &error_ptr)
-    assert_success(error_code, error_ptr, "cugraph_weakly_connected_components")
+    error_code = cugraph_strongly_connected_components(c_resource_handle_ptr,
+                                                       c_graph_ptr,
+                                                       do_expensive_check,
+                                                       &result_ptr,
+                                                       &error_ptr)
+    assert_success(error_code, error_ptr, "cugraph_strongly_connected_components")
 
-    # Extract individual device array pointers from result and copy to cupy
-    # arrays for returning.
     cdef cugraph_type_erased_device_array_view_t* vertices_ptr = \
         cugraph_labeling_result_get_vertices(result_ptr)
     cdef cugraph_type_erased_device_array_view_t* labels_ptr = \
