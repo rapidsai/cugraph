@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include <cugraph/detail/compute_number_of_edges_functors.cuh>
 #include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/edge_partition_edge_property_device_view.cuh>
 #include <cugraph/edge_partition_endpoint_property_device_view.cuh>
@@ -1429,11 +1430,8 @@ extract_transform_if_v_frontier_e(raft::handle_t const& handle,
               if (keys.index() == 0) {
                 auto major_first = cuda::make_transform_iterator(
                   std::get<0>(keys).begin(),
-                  cuda::proclaim_return_type<vertex_t>(
-                    [range_first =
-                       local_frontier_range_firsts[partition_idx]] __device__(uint32_t v_offset) {
-                      return range_first + static_cast<vertex_t>(v_offset);
-                    }));
+                  detail::bitmap_offset_to_vertex_op_t<vertex_t>{
+                    local_frontier_range_firsts[partition_idx]});
                 if (edge_partition_e_mask) {
                   edge_partition.compute_number_of_edges_with_mask_async(
                     edge_partition_e_mask->value_first(),

@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cugraph/algorithms.hpp>
+#include <cugraph/detail/compute_number_of_edges_impl.cuh>
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
