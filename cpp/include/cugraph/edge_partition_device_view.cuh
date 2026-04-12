@@ -12,6 +12,7 @@
 #include <raft/core/device_span.hpp>
 
 #include <rmm/cuda_stream_view.hpp>
+#include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
 #include <rmm/exec_policy.hpp>
 
@@ -22,7 +23,6 @@
 #include <thrust/binary_search.h>
 #include <thrust/execution_policy.h>
 #include <thrust/transform.h>
-#include <thrust/transform_reduce.h>
 
 #include <cassert>
 #include <optional>
@@ -205,28 +205,26 @@ class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t
   }
 
   template <typename MajorIterator>
-  __host__ size_t compute_number_of_edges(MajorIterator major_first,
-                                          MajorIterator major_last,
-                                          rmm::cuda_stream_view stream) const;
-
-  template <typename MajorIterator>
   __host__ void compute_number_of_edges_async(MajorIterator major_first,
                                               MajorIterator major_last,
                                               raft::device_span<size_t> count /* size = 1 */,
                                               rmm::cuda_stream_view stream) const;
 
-  __host__ rmm::device_uvector<edge_t> compute_local_degrees(rmm::cuda_stream_view stream) const;
+  template <typename MajorIterator>
+  __host__ size_t compute_number_of_edges(MajorIterator major_first,
+                                          MajorIterator major_last,
+                                          rmm::cuda_stream_view stream) const
+  {
+    rmm::device_scalar<size_t> count(size_t{0}, stream);
+    compute_number_of_edges_async(
+      major_first, major_last, raft::device_span<size_t>(count.data(), 1), stream);
+    return count.value(stream);
+  }
 
   template <typename MajorIterator>
   __host__ rmm::device_uvector<edge_t> compute_local_degrees(MajorIterator major_first,
                                                              MajorIterator major_last,
                                                              rmm::cuda_stream_view stream) const;
-
-  template <typename MaskIterator, typename MajorIterator>
-  __host__ size_t compute_number_of_edges_with_mask(MaskIterator mask_first,
-                                                    MajorIterator major_first,
-                                                    MajorIterator major_last,
-                                                    rmm::cuda_stream_view stream) const;
 
   template <typename MaskIterator, typename MajorIterator>
   __host__ void compute_number_of_edges_with_mask_async(
@@ -235,6 +233,18 @@ class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t
     MajorIterator major_last,
     raft::device_span<size_t> count /* size = 1 */,
     rmm::cuda_stream_view stream) const;
+
+  template <typename MaskIterator, typename MajorIterator>
+  __host__ size_t compute_number_of_edges_with_mask(MaskIterator mask_first,
+                                                    MajorIterator major_first,
+                                                    MajorIterator major_last,
+                                                    rmm::cuda_stream_view stream) const
+  {
+    rmm::device_scalar<size_t> count(size_t{0}, stream);
+    compute_number_of_edges_with_mask_async(
+      mask_first, major_first, major_last, raft::device_span<size_t>(count.data(), 1), stream);
+    return count.value(stream);
+  }
 
   template <typename MaskIterator>
   __host__ rmm::device_uvector<edge_t> compute_local_degrees_with_mask(
@@ -392,17 +402,21 @@ class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t
   }
 
   template <typename MajorIterator>
-  __host__ size_t compute_number_of_edges(MajorIterator major_first,
-                                          MajorIterator major_last,
-                                          rmm::cuda_stream_view stream) const;
-
-  template <typename MajorIterator>
   __host__ void compute_number_of_edges_async(MajorIterator major_first,
                                               MajorIterator major_last,
                                               raft::device_span<size_t> count /* size = 1 */,
                                               rmm::cuda_stream_view stream) const;
 
-  __host__ rmm::device_uvector<edge_t> compute_local_degrees(rmm::cuda_stream_view stream) const;
+  template <typename MajorIterator>
+  __host__ size_t compute_number_of_edges(MajorIterator major_first,
+                                          MajorIterator major_last,
+                                          rmm::cuda_stream_view stream) const
+  {
+    rmm::device_scalar<size_t> count(size_t{0}, stream);
+    compute_number_of_edges_async(
+      major_first, major_last, raft::device_span<size_t>(count.data(), 1), stream);
+    return count.value(stream);
+  }
 
   template <typename MajorIterator>
   __host__ rmm::device_uvector<edge_t> compute_local_degrees(MajorIterator major_first,
@@ -410,10 +424,24 @@ class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t
                                                              rmm::cuda_stream_view stream) const;
 
   template <typename MaskIterator, typename MajorIterator>
+  __host__ void compute_number_of_edges_with_mask_async(
+    MaskIterator mask_first,
+    MajorIterator major_first,
+    MajorIterator major_last,
+    raft::device_span<size_t> count /* size = 1 */,
+    rmm::cuda_stream_view stream) const;
+
+  template <typename MaskIterator, typename MajorIterator>
   __host__ size_t compute_number_of_edges_with_mask(MaskIterator mask_first,
                                                     MajorIterator major_first,
                                                     MajorIterator major_last,
-                                                    rmm::cuda_stream_view stream) const;
+                                                    rmm::cuda_stream_view stream) const
+  {
+    rmm::device_scalar<size_t> count(size_t{0}, stream);
+    compute_number_of_edges_with_mask_async(
+      mask_first, major_first, major_last, raft::device_span<size_t>(count.data(), 1), stream);
+    return count.value(stream);
+  }
 
   template <typename MaskIterator>
   __host__ rmm::device_uvector<edge_t> compute_local_degrees_with_mask(
