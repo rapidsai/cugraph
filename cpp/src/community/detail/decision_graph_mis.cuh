@@ -28,13 +28,13 @@ rmm::device_uvector<vertex_t> vertices_in_mis_from_decision_edgelist(
   rmm::device_uvector<vertex_t>&& d_srcs,
   rmm::device_uvector<vertex_t>&& d_dsts)
 {
+  // NOTE: the maximum number of edges is the number of vertices in the graph,
+  // so we can use the vertex type for the edge type
   using edge_t = vertex_t;
 
   constexpr bool decision_store_transposed = false;
 
   cugraph::graph_t<vertex_t, edge_t, decision_store_transposed, multi_gpu> decision_graph(handle);
-
-  std::optional<rmm::device_uvector<vertex_t>> renumber_map{std::nullopt};
 
   if constexpr (multi_gpu) {
     std::tie(d_srcs, d_dsts, std::ignore) =
@@ -45,6 +45,7 @@ rmm::device_uvector<vertex_t> vertices_in_mis_from_decision_edgelist(
                                  false);
   }
 
+  std::optional<rmm::device_uvector<vertex_t>> renumber_map{std::nullopt};
   std::tie(decision_graph, std::ignore, renumber_map) =
     create_graph_from_edgelist<vertex_t, edge_t, decision_store_transposed, multi_gpu>(
       handle,
