@@ -180,6 +180,22 @@ class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t
     raft::device_span<size_t> count /* size = 1 */,
     rmm::cuda_stream_view stream) const;
 
+  template <typename MaskIterator, typename T, std::enable_if_t<!std::is_const_v<T>, int> = 0>
+  __host__ void compute_number_of_edges_with_mask_async(
+    MaskIterator mask_first,
+    T* major_first,
+    T* major_last,
+    raft::device_span<size_t> count,
+    rmm::cuda_stream_view stream) const
+  {
+    compute_number_of_edges_with_mask_async(
+      mask_first,
+      static_cast<T const*>(major_first),
+      static_cast<T const*>(major_last),
+      count,
+      stream);
+  }
+
   template <typename MajorIterator>
   __host__ void compute_number_of_edges_async(MajorIterator major_first,
                                               MajorIterator major_last,
@@ -227,6 +243,20 @@ class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t
     MajorIterator major_first,
     MajorIterator major_last,
     rmm::cuda_stream_view stream) const;
+
+  template <typename MaskIterator, typename T, std::enable_if_t<!std::is_const_v<T>, int> = 0>
+  __host__ rmm::device_uvector<edge_t> compute_local_degrees_with_mask(
+    MaskIterator mask_first,
+    T* major_first,
+    T* major_last,
+    rmm::cuda_stream_view stream) const
+  {
+    return compute_local_degrees_with_mask(
+      mask_first,
+      static_cast<T const*>(major_first),
+      static_cast<T const*>(major_last),
+      stream);
+  }
 
   template <typename MajorIterator>
   __host__ rmm::device_uvector<edge_t> compute_local_degrees(MajorIterator major_first,
@@ -389,6 +419,22 @@ class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t
     raft::device_span<size_t> count /* size = 1 */,
     rmm::cuda_stream_view stream) const;
 
+  template <typename MaskIterator, typename T, std::enable_if_t<!std::is_const_v<T>, int> = 0>
+  __host__ void compute_number_of_edges_with_mask_async(
+    MaskIterator mask_first,
+    T* major_first,
+    T* major_last,
+    raft::device_span<size_t> count,
+    rmm::cuda_stream_view stream) const
+  {
+    compute_number_of_edges_with_mask_async(
+      mask_first,
+      static_cast<T const*>(major_first),
+      static_cast<T const*>(major_last),
+      count,
+      stream);
+  }
+
   template <typename MajorIterator>
   __host__ void compute_number_of_edges_async(MajorIterator major_first,
                                               MajorIterator major_last,
@@ -436,6 +482,20 @@ class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t
     MajorIterator major_first,
     MajorIterator major_last,
     rmm::cuda_stream_view stream) const;
+
+  template <typename MaskIterator, typename T, std::enable_if_t<!std::is_const_v<T>, int> = 0>
+  __host__ rmm::device_uvector<edge_t> compute_local_degrees_with_mask(
+    MaskIterator mask_first,
+    T* major_first,
+    T* major_last,
+    rmm::cuda_stream_view stream) const
+  {
+    return compute_local_degrees_with_mask(
+      mask_first,
+      static_cast<T const*>(major_first),
+      static_cast<T const*>(major_last),
+      stream);
+  }
 
   template <typename MajorIterator>
   __host__ rmm::device_uvector<edge_t> compute_local_degrees(MajorIterator major_first,
