@@ -100,26 +100,24 @@ edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t<multi
       thrust::make_counting_iterator(this->major_range_first()),
       thrust::make_counting_iterator(this->major_range_last()),
       local_degrees.begin(),
-      detail::
-        local_degree_op_t<vertex_t, edge_t, edge_t, multi_gpu, true, MaskIterator>{
-          this->offsets_,
-          major_range_first_,
-          *dcs_nzd_vertices_,
-          major_hypersparse_first_.value_or(vertex_t{0}),
-          mask_first});
+      detail::local_degree_op_t<vertex_t, edge_t, edge_t, multi_gpu, true, MaskIterator>{
+        this->offsets_,
+        major_range_first_,
+        *dcs_nzd_vertices_,
+        major_hypersparse_first_.value_or(vertex_t{0}),
+        mask_first});
   } else {
     thrust::transform(
       rmm::exec_policy_nosync(stream),
       thrust::make_counting_iterator(this->major_range_first()),
       thrust::make_counting_iterator(this->major_range_last()),
       local_degrees.begin(),
-      detail::
-        local_degree_op_t<vertex_t, edge_t, edge_t, multi_gpu, false, MaskIterator>{
-          this->offsets_,
-          major_range_first_,
-          std::byte{0} /* dummy */,
-          std::byte{0} /* dummy */,
-          mask_first});
+      detail::local_degree_op_t<vertex_t, edge_t, edge_t, multi_gpu, false, MaskIterator>{
+        this->offsets_,
+        major_range_first_,
+        std::byte{0} /* dummy */,
+        std::byte{0} /* dummy */,
+        mask_first});
   }
   return local_degrees;
 }
@@ -153,13 +151,12 @@ edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t<multi
       major_first,
       major_last,
       local_degrees.begin(),
-      detail::
-        local_degree_op_t<vertex_t, edge_t, edge_t, multi_gpu, false, MaskIterator>{
-          this->offsets_,
-          major_range_first_,
-          std::byte{0} /* dummy */,
-          std::byte{0} /* dummy */,
-          mask_first});
+      detail::local_degree_op_t<vertex_t, edge_t, edge_t, multi_gpu, false, MaskIterator>{
+        this->offsets_,
+        major_range_first_,
+        std::byte{0} /* dummy */,
+        std::byte{0} /* dummy */,
+        mask_first});
   }
   return local_degrees;
 }

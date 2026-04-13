@@ -1428,10 +1428,10 @@ extract_transform_if_v_frontier_e(raft::handle_t const& handle,
             bool computed{false};
             if constexpr (try_bitmap) {
               if (keys.index() == 0) {
-                auto major_first = cuda::make_transform_iterator(
-                  std::get<0>(keys).begin(),
-                  detail::bitmap_offset_to_vertex_op_t<vertex_t>{
-                    local_frontier_range_firsts[partition_idx]});
+                auto major_first =
+                  cuda::make_transform_iterator(std::get<0>(keys).begin(),
+                                                detail::bitmap_offset_to_vertex_op_t<vertex_t>{
+                                                  local_frontier_range_firsts[partition_idx]});
                 if (edge_partition_e_mask) {
                   edge_partition.compute_number_of_edges_with_mask_async(
                     edge_partition_e_mask->value_first(),

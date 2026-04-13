@@ -4,8 +4,8 @@
  */
 #pragma once
 
-#include <cugraph/detail/decompress_edge_partition.cuh>
 #include <cugraph/detail/compute_number_of_edges_functors.cuh>
+#include <cugraph/detail/decompress_edge_partition.cuh>
 #include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/edge_partition_endpoint_property_device_view.cuh>
 #include <cugraph/edge_src_dst_property.hpp>
@@ -364,10 +364,9 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
           major_sparse_range_size + *(edge_partition.dcs_nzd_vertex_count()), handle.get_stream());
         auto major_first = cuda::make_transform_iterator(
           thrust::make_counting_iterator(vertex_t{0}),
-          detail::sparse_hypersparse_major_op_t<vertex_t>{
-            major_sparse_range_size,
-            edge_partition.major_range_first(),
-            *(edge_partition.dcs_nzd_vertices())});
+          detail::sparse_hypersparse_major_op_t<vertex_t>{major_sparse_range_size,
+                                                          edge_partition.major_range_first(),
+                                                          *(edge_partition.dcs_nzd_vertices())});
         degrees_with_mask =
           edge_partition.compute_local_degrees_with_mask((*edge_partition_e_mask).value_first(),
                                                          major_first,
