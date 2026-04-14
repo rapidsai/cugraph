@@ -8,9 +8,8 @@ import pytest
 import cugraph
 import cupyx
 import cudf
-from cugraph.testing import utils, UNDIRECTED_DATASETS
+from cugraph.testing import UNDIRECTED_DATASETS
 from cugraph.datasets import karate_asymmetric
-
 
 
 # =============================================================================
@@ -29,9 +28,8 @@ def cugraph_call(graph_file, edgevals=False, directed=False):
     return parts, mod
 
 
-
-# The goal is to just test that the code runs and returns a result.  
-# The C/C++ test perform a check for accuracy, but the python test 
+# The goal is to just test that the code runs and returns a result.
+# The C/C++ test perform a check for accuracy, but the python test
 # is not designed to be a 1:1 comparison with the C/C++ test.
 @pytest.mark.sg
 @pytest.mark.parametrize("graph_file", UNDIRECTED_DATASETS)

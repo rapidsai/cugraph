@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 
 import gc
@@ -81,7 +81,6 @@ def input_expected_output(input_combo):
         if G.renumbered is True:
             seeds = G.lookup_internal_vertex_id(seeds, seeds.columns)
 
-
     # Match the seed to the vertex dtype
     n_type = G.edgelist.edgelist_df["src"].dtype
     n = seeds.astype(n_type)
@@ -102,12 +101,8 @@ def input_expected_output(input_combo):
         df["weight"] = weight
 
     if G.renumbered:
-        df, src_names = G.unrenumber(df, "src", get_column_names=True)
-        df, dst_names = G.unrenumber(df, "dst", get_column_names=True)
-    else:
-        # FIXME: The original 'src' and 'dst' are not stored in 'simpleGraph'
-        src_names = "src"
-        dst_names = "dst"
+        df, _ = G.unrenumber(df, "src", get_column_names=True)
+        df, _ = G.unrenumber(df, "dst", get_column_names=True)
 
     offset = cudf.Series(offset)
     sg_cugraph_ego_graphs = (df, offset)
@@ -116,7 +111,6 @@ def input_expected_output(input_combo):
     # cuGraph runs. Other tests using the input_combo fixture will look for
     # them, and if not present they will have to re-run the same cuGraph call.
     input_combo["sg_cugraph_results"] = sg_cugraph_ego_graphs
-
 
     chunksize = dcg.get_chunksize(input_data_path)
     ddf = dask_cudf.read_csv(
