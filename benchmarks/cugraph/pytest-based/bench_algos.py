@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2020-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -219,12 +219,14 @@ def unweighted_graph(request, dataset):
     del G
     gc.collect()
 
+
 @pytest.fixture(scope="module")
 def unweighted_graph(request, dataset):
     G = dataset.get_graph(ignore_weights=True)
     yield G
     del G
     gc.collect()
+
 
 @pytest.fixture(scope="module")
 def directed_graph(request, dataset):
@@ -233,12 +235,14 @@ def directed_graph(request, dataset):
     del G
     gc.collect()
 
+
 @pytest.fixture(scope="module")
 def transposed_graph(request, dataset):
     G = dataset.get_graph(store_transposed=True)
     yield G
     del G
     gc.collect()
+
 
 ###############################################################################
 def is_graph_distributed(graph):
