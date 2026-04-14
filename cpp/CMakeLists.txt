@@ -487,6 +487,7 @@ foreach(suffix IN LISTS cugraph_suffixes)
                    CUDA_STANDARD_REQUIRED              ON
                    POSITION_INDEPENDENT_CODE           ON
                    INTERFACE_POSITION_INDEPENDENT_CODE ON
+                   NO_CUDART_DEP                       ON
     )
 
     ################################################################################
