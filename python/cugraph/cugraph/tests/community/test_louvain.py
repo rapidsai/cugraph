@@ -34,7 +34,6 @@ def cugraph_call(graph_file, edgevals=False, directed=False):
 @pytest.mark.sg
 @pytest.mark.parametrize("graph_file", UNDIRECTED_DATASETS)
 def test_louvain(graph_file):
-    dataset_path = graph_file.get_path()
     cu_parts, cu_mod = cugraph_call(graph_file, edgevals=True)
 
     assert len(cu_parts) > 0

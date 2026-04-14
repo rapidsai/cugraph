@@ -221,14 +221,6 @@ def unweighted_graph(request, dataset):
 
 
 @pytest.fixture(scope="module")
-def unweighted_graph(request, dataset):
-    G = dataset.get_graph(ignore_weights=True)
-    yield G
-    del G
-    gc.collect()
-
-
-@pytest.fixture(scope="module")
 def directed_graph(request, dataset):
     G = dataset.get_graph(create_using=cugraph.Graph(directed=True))
     yield G
