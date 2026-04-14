@@ -1094,6 +1094,36 @@ void bfs(raft::handle_t const& handle,
 
 /**
  * @ingroup traversal_cpp
+ * @brief Compute a topological ordering of a directed acyclic graph (DAG).
+ *
+ * Uses Kahn's algorithm (BFS-based in-degree peeling). For every directed edge (u, v),
+ * u appears before v in the returned ordering. Throws cugraph::logic_error if the graph
+ * contains a cycle.
+ *
+ * @throws cugraph::logic_error on erroneous input arguments or if the graph contains a cycle.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * or multi-GPU (true).
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Non-transposed directed graph view.
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ * @return Device vector of length number_of_vertices(). For each local vertex (indexed by local
+ * vertex partition offset), stores the topological level assigned by Kahn's algorithm (i.e. the
+ * BFS depth at which the vertex is processed). Disconnected vertices are assigned level 0.
+ * Vertices that are part of a cycle (only possible when do_expensive_check is false) are assigned
+ * cugraph::invalid_vertex_id<vertex_t>().
+ */
+template <typename vertex_t, typename edge_t, bool multi_gpu>
+rmm::device_uvector<vertex_t> topological_sort(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  bool do_expensive_check = false);
+
+/**
+ * @ingroup traversal_cpp
  * @brief Extract paths from breadth-first search output
  *
  * This function extracts paths from the BFS output.  BFS outputs distances
