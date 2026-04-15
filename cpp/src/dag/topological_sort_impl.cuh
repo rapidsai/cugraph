@@ -1,30 +1,36 @@
 /*
- * Copyright (c) 2026, NVIDIA CORPORATION.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION.
+ * SPDX-License-Identifier: Apache-2.0
  */
-// SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION. All rights reserved.
-// SPDX-License-Identifier: Apache-2.0
 
 #pragma once
 
 #include <cugraph/algorithms.hpp>
+#include <cugraph/arithmetic_variant_types.hpp>
+#include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_view.hpp>
+#include <cugraph/prims/reduce_op.cuh>
+#include <cugraph/prims/transform_reduce_v_frontier_outgoing_e_by_dst.cuh>
+#include <cugraph/prims/vertex_frontier.cuh>
+#include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/error.hpp>
+#include <cugraph/utilities/host_scalar_comm.hpp>
 
 #include <raft/core/handle.hpp>
 
 #include <rmm/device_uvector.hpp>
+
+#include <cuda/functional>
+#include <cuda/std/iterator>
+#include <cuda/std/tuple>
+#include <thrust/copy.h>
+#include <thrust/fill.h>
+#include <thrust/for_each.h>
+#include <thrust/iterator/constant_iterator.h>
+#include <thrust/iterator/counting_iterator.h>
+#include <thrust/iterator/zip_iterator.h>
+#include <thrust/reduce.h>
+#include <thrust/sort.h>
 
 namespace cugraph {
 
@@ -35,11 +41,11 @@ rmm::device_uvector<vertex_t> topological_sort(
   bool do_expensive_check)
 {
   // Topological sort exists only if graph is directed and does not contain any loops
-  CUGRAPH_EXPECTS(!graph_view.is_symmetric(), "topological sort requires graph to be directed");
+  CUGRAPH_EXPECTS(!graph_view.is_symmetric(), "Invalid input argument: topological sort requires graph to be directed");
 
   if (do_expensive_check) {
     auto num_self_loops = graph_view.count_self_loops(handle);
-    CUGRAPH_EXPECTS(num_self_loops == 0, "topological sort requires graph without self loops");
+    CUGRAPH_EXPECTS(num_self_loops == 0, "Invalid input argument: topological sort requires graph without self loops");
 
     auto components = strongly_connected_components(handle, graph_view, true);
 
@@ -68,7 +74,7 @@ rmm::device_uvector<vertex_t> topological_sort(
                                              vertex_t{0},
                                              cuda::maximum<vertex_t>());
 
-    CUGRAPH_EXPECTS(max_component_size == 1, "topological sort requires graph without loops");
+    CUGRAPH_EXPECTS(max_component_size == 1, "Invalid input argument: topological sort requires graph without cycles");
 
     if constexpr (multi_gpu) {
       std::vector<arithmetic_device_uvector_t> vertex_properties{};
@@ -174,16 +180,20 @@ rmm::device_uvector<vertex_t> topological_sort(
       });
 
     rmm::device_uvector<vertex_t> new_frontier_vertices(dst_vertices.size(), handle.get_stream());
-    auto last = thrust::copy_if(
-      handle.get_thrust_policy(),
-      dst_vertices.begin(),
-      dst_vertices.end(),
-      new_frontier_vertices.begin(),
-      [in_degrees = raft::device_span<edge_t>(in_degrees.data(), in_degrees.size()),
-       v_first    = graph_view.local_vertex_partition_range_first()] __device__(auto v) {
-        auto v_offset = v - v_first;
-        return in_degrees[v_offset] == 0;
-      });
+    
+    new_frontier_vertices.resize(
+      cuda::std::distance(new_frontier_vertices.begin(),
+                          thrust::copy_if(
+                            handle.get_thrust_policy(),
+                            dst_vertices.begin(),
+                            dst_vertices.end(),
+                            new_frontier_vertices.begin(),
+                            [in_degrees = raft::device_span<edge_t const>(in_degrees.data(), in_degrees.size()),
+                            v_first    = graph_view.local_vertex_partition_range_first()] __device__(auto v) {
+                              auto v_offset = v - v_first;
+                              return in_degrees[v_offset] == 0;
+                            })),
+      handle.get_stream());
 
     new_frontier_vertices.resize(cuda::std::distance(new_frontier_vertices.begin(), last),
                                  handle.get_stream());
@@ -204,7 +214,7 @@ rmm::device_uvector<vertex_t> topological_sort(
     level++;
   }
 
-  return std::move(topological_levels);
+  return topological_levels;
 }
 
 }  // namespace cugraph
