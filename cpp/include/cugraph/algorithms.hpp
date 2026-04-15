@@ -31,6 +31,9 @@
 /** @defgroup community_cpp C++ community Algorithms
  */
 
+/** @defgroup dag_cpp C++ DAG Algorithms
+ */
+
 /** @defgroup sampling_cpp C++ sampling algorithms
  */
 
@@ -1093,12 +1096,11 @@ void bfs(raft::handle_t const& handle,
          bool do_expensive_check   = false);
 
 /**
- * @ingroup traversal_cpp
+ * @ingroup dag_cpp
  * @brief Compute a topological ordering of a directed acyclic graph (DAG).
  *
- * Uses BFS-based in-degree peeling) For every directed edge (u, v),
- * u appears before v in the returned ordering. Throws cugraph::logic_error if the graph
- * contains a cycle.
+ * Uses BFS-based recursive 0 in-degree peeling. For every directed edge (u, v),
+ * u appears before v in the returned ordering.
  *
  * @throws cugraph::logic_error on erroneous input arguments, if the graph contains a cycle or
  * if the graph is symmetric (undirected).

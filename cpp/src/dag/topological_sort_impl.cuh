@@ -50,67 +50,14 @@ rmm::device_uvector<vertex_t> topological_sort(
     auto components = strongly_connected_components(handle, graph_view, true);
 
     thrust::sort(handle.get_thrust_policy(), components.begin(), components.end());
-
-    rmm::device_uvector<vertex_t> component_ids(components.size(), handle.get_stream());
-    rmm::device_uvector<vertex_t> counts(components.size(), handle.get_stream());
-
-    auto [unique_end, counts_end] =
-      thrust::reduce_by_key(handle.get_thrust_policy(),
-                            components.begin(),
-                            components.end(),
-                            thrust::make_constant_iterator(vertex_t{1}),
-                            component_ids.begin(),
-                            counts.begin());
-
-    component_ids.resize(cuda::std::distance(component_ids.begin(), unique_end),
-                         handle.get_stream());
-    counts.resize(cuda::std::distance(counts.begin(), counts_end), handle.get_stream());
-    component_ids.shrink_to_fit(handle.get_stream());
-    counts.shrink_to_fit(handle.get_stream());
-
-    auto max_component_size = thrust::reduce(handle.get_thrust_policy(),
-                                             counts.begin(),
-                                             counts.end(),
-                                             vertex_t{0},
-                                             cuda::maximum<vertex_t>());
-
-    CUGRAPH_EXPECTS(max_component_size == 1, "Invalid input argument: topological sort requires graph without cycles");
+    CUGRAPH_EXPECTS(thrust::unique_count(handle.get_thrust_policy(), components.begin(), components.end()) == components.size(), "Invalid input argument: topological sort requires graph without cycles");
 
     if constexpr (multi_gpu) {
-      std::vector<arithmetic_device_uvector_t> vertex_properties{};
-      vertex_properties.push_back(std::move(counts));
-      std::tie(component_ids, vertex_properties) =
-        shuffle_ext_vertices(handle, std::move(component_ids), std::move(vertex_properties));
-      counts = std::move(std::get<rmm::device_uvector<vertex_t>>(vertex_properties[0]));
+      std::tie(components, std::ignore) =
+        shuffle_ext_vertices(handle, std::move(components), std::vector<arithmetic_device_uvector_t>{});
 
-      thrust::sort_by_key(
-        handle.get_thrust_policy(), component_ids.begin(), component_ids.end(), counts.begin());
-
-      rmm::device_uvector<vertex_t> tmp_component_ids(component_ids.size(), handle.get_stream());
-      rmm::device_uvector<vertex_t> tmp_counts(counts.size(), handle.get_stream());
-
-      auto [tmp_end, tmp_counts_end] = thrust::reduce_by_key(handle.get_thrust_policy(),
-                                                             component_ids.begin(),
-                                                             component_ids.end(),
-                                                             counts.begin(),
-                                                             tmp_component_ids.begin(),
-                                                             tmp_counts.begin());
-
-      tmp_component_ids.resize(cuda::std::distance(tmp_component_ids.begin(), tmp_end),
-                               handle.get_stream());
-      tmp_counts.resize(cuda::std::distance(tmp_counts.begin(), tmp_counts_end),
-                        handle.get_stream());
-      tmp_component_ids.shrink_to_fit(handle.get_stream());
-      tmp_counts.shrink_to_fit(handle.get_stream());
-
-      auto local_components_max_size = thrust::reduce(handle.get_thrust_policy(),
-                                                      tmp_counts.begin(),
-                                                      tmp_counts.end(),
-                                                      vertex_t{0},
-                                                      cuda::maximum<vertex_t>());
-
-      CUGRAPH_EXPECTS(local_components_max_size == 1,
-                      "topological sort requires graph without loops");
+      thrust::sort(handle.get_thrust_policy(), components.begin(), components.end());
+      CUGRAPH_EXPECTS(thrust::unique_count(handle.get_thrust_policy(), components.begin(), components.end()) == components.size(), "Invalid input argument: topological sort requires graph without cycles");
     }
   }
 
@@ -194,9 +141,6 @@ rmm::device_uvector<vertex_t> topological_sort(
                               return in_degrees[v_offset] == 0;
                             })),
       handle.get_stream());
-
-    new_frontier_vertices.resize(cuda::std::distance(new_frontier_vertices.begin(), last),
-                                 handle.get_stream());
     new_frontier_vertices.shrink_to_fit(handle.get_stream());
 
     thrust::for_each(handle.get_thrust_policy(),
