@@ -305,16 +305,7 @@ dependencies:
           - libcurand-dev
           - libcusolver-dev
           - libcusparse-dev
-    specific:
-      - output_types: [conda]
-        matrices:
-          - matrix:
-              cuda: "13.*"
-            packages:
-              - libnvjitlink-dev
-          - matrix:
-              cuda: "12.*"
-            packages:
+          - libnvjitlink-dev
   cuda_wheels:
     specific:
       # cuGraph needs 'nvJitLink>={whatever-cuvs-was-built-against}' at runtime, and mixing
@@ -611,9 +602,11 @@ dependencies:
               cuda: "12.9"
               dependencies: "oldest"
               require_gpu: "true"
+            # this could be changed to a different, older version when 'torch' index metadata is corrected
+            # ref: https://github.com/pytorch/pytorch/issues/145501#issuecomment-4207316144
             packages:
               - &torch_cu129_index --extra-index-url=https://download.pytorch.org/whl/cu129
-              - torch==2.9.0+cu129
+              - torch==2.10.0+cu129
           - matrix:
               cuda: "12.9"
               require_gpu: "true"

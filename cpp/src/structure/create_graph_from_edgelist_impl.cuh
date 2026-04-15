@@ -5,7 +5,6 @@
 #pragma once
 
 #include "cugraph/edge_partition_view.hpp"
-#include "detail/graph_partition_utils.cuh"
 #include "detail/shuffle_wrappers.hpp"
 #include "structure/detail/structure_utils.cuh"
 
@@ -18,6 +17,7 @@
 #include <cugraph/utilities/device_comm.hpp>
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/error.hpp>
+#include <cugraph/utilities/graph_partition_utils.cuh>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 
 #include <raft/core/handle.hpp>

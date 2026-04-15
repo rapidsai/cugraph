@@ -4,24 +4,23 @@
  */
 #pragma once
 
-#include "prims/count_if_v.cuh"
-#include "prims/detail/prim_functors.cuh"
-#include "prims/edge_bucket.cuh"
-#include "prims/extract_transform_if_e.cuh"
-#include "prims/extract_transform_if_v_frontier_outgoing_e.cuh"
-#include "prims/fill_edge_property.cuh"
-#include "prims/make_initialized_edge_property.cuh"
-#include "prims/per_v_transform_reduce_incoming_outgoing_e.cuh"
-#include "prims/transform_e.cuh"
-#include "prims/transform_reduce_if_v_frontier_outgoing_e_by_dst.cuh"
-#include "prims/transform_reduce_v.cuh"
-#include "prims/update_edge_src_dst_property.cuh"
-#include "prims/update_v_frontier.cuh"
-#include "prims/vertex_frontier.cuh"
-
 #include <cugraph/algorithms.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/edge_src_dst_property.hpp>
+#include <cugraph/prims/count_if_v.cuh>
+#include <cugraph/prims/detail/prim_functors.cuh>
+#include <cugraph/prims/edge_bucket.cuh>
+#include <cugraph/prims/extract_transform_if_e.cuh>
+#include <cugraph/prims/extract_transform_if_v_frontier_outgoing_e.cuh>
+#include <cugraph/prims/fill_edge_property.cuh>
+#include <cugraph/prims/make_initialized_edge_property.cuh>
+#include <cugraph/prims/per_v_transform_reduce_incoming_outgoing_e.cuh>
+#include <cugraph/prims/transform_e.cuh>
+#include <cugraph/prims/transform_reduce_if_v_frontier_outgoing_e_by_dst.cuh>
+#include <cugraph/prims/transform_reduce_v.cuh>
+#include <cugraph/prims/update_edge_src_dst_property.cuh>
+#include <cugraph/prims/update_v_frontier.cuh>
+#include <cugraph/prims/vertex_frontier.cuh>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/vertex_partition_device_view.cuh>
 

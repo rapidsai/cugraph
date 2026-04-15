@@ -1,19 +1,19 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2023-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
 #pragma once
 
 #include "community/detail/common_methods.hpp"
-#include "prims/fill_edge_property.cuh"
-#include "prims/transform_e.cuh"
-#include "prims/update_edge_src_dst_property.cuh"
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/edge_property.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
+#include <cugraph/prims/fill_edge_property.cuh>
+#include <cugraph/prims/transform_e.cuh>
+#include <cugraph/prims/update_edge_src_dst_property.cuh>
 
 #include <raft/core/handle.hpp>
 #include <raft/random/rng_state.hpp>

@@ -5,17 +5,16 @@
 
 #pragma once
 
-#include "detail/graph_partition_utils.cuh"
-#include "prims/edge_bucket.cuh"
-#include "prims/fill_edge_property.cuh"
-#include "prims/make_initialized_edge_property.cuh"
-#include "prims/per_v_pair_dst_nbr_intersection.cuh"
-#include "prims/transform_e.cuh"
-
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
+#include <cugraph/prims/edge_bucket.cuh>
+#include <cugraph/prims/fill_edge_property.cuh>
+#include <cugraph/prims/make_initialized_edge_property.cuh>
+#include <cugraph/prims/per_v_pair_dst_nbr_intersection.cuh>
+#include <cugraph/prims/transform_e.cuh>
 #include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/error.hpp>
+#include <cugraph/utilities/graph_partition_utils.cuh>
 
 #include <raft/util/integer_utils.hpp>
 

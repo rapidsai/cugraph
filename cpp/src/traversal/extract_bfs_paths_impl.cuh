@@ -1,16 +1,15 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
 
-#include "detail/graph_partition_utils.cuh"
-#include "utilities/collect_comm.cuh"
-
 #include <cugraph/algorithms.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph_view.hpp>
+#include <cugraph/utilities/collect_comm.cuh>
 #include <cugraph/utilities/error.hpp>
+#include <cugraph/utilities/graph_partition_utils.cuh>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
 #include <cugraph/vertex_partition_device_view.cuh>

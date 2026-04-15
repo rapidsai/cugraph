@@ -1,8 +1,10 @@
-# SPDX-FileCopyrightText: Copyright (c) 2022-2024, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 
 # Have cython use python 3 syntax
 # cython: language_level = 3
+
+import numpy as np
 
 from pylibcugraph import GraphProperties, SGGraph
 
@@ -44,7 +46,7 @@ from pylibcugraph.utils cimport (
 )
 
 
-def _ensure_args(graph, offsets, indices, weights):
+def _ensure_args(graph, offsets, indices, weights, labels):
     i = 0
     if graph is not None:
         # ensure the remaining parametes are None
@@ -63,6 +65,20 @@ def _ensure_args(graph, offsets, indices, weights):
             assert_CAI_type(offsets, "offsets")
             assert_CAI_type(indices, "indices")
             assert_CAI_type(weights, "weights", True)
+
+    if labels is not None:
+        assert_CAI_type(labels, "labels")
+        if input_type == "csr_arrays":
+            if np.dtype(offsets.dtype) != np.dtype(indices.dtype):
+                raise TypeError(
+                    "offsets dtype must match indices dtype "
+                    f"(got offsets.dtype={offsets.dtype!r}, indices.dtype={indices.dtype!r})"
+                )
+            if np.dtype(labels.dtype) != np.dtype(indices.dtype):
+                raise TypeError(
+                    "labels dtype must match indices dtype "
+                    f"(got labels.dtype={labels.dtype!r}, indices.dtype={indices.dtype!r})"
+                )
 
     return input_type
 
@@ -100,14 +116,20 @@ def weakly_connected_components(ResourceHandle resource_handle,
         Array containing the weights values of a Compressed Sparse Row matrix
         that represents the graph
 
+    labels : optional, object supporting __cuda_array_interface__
+        If provided, component labels are copied into this array; otherwise
+        labels are returned in the result tuple.
+
     do_expensive_check : bool_t
         If True, performs more extensive tests on the inputs to ensure
         validitity, at the expense of increased run time.
 
     Returns
     -------
-    A tuple containing containing two device arrays which are respectively
-    vertices and their corresponding labels
+    tuple or None
+        If ``labels`` is None, returns ``(vertices, labels)`` as device arrays.
+        If ``labels`` is provided, returns None (output written in-place).
+
 
     Examples
     --------
@@ -150,19 +172,22 @@ def weakly_connected_components(ResourceHandle resource_handle,
     >>> cp_indices = cp.asarray(scipy_csr.indices, dtype=np.int32)
     >>>
     >>> resource_handle = pylibcugraph.ResourceHandle()
-    >>> weakly_connected_components(resource_handle=resource_handle,
-                                    graph=None,
-    ...                             offsets=cp_offsets,
-    ...                             indices=cp_indices,
-    ...                             weights=None,
-    ...                             False)
+    >>> _, cp_labels = weakly_connected_components(
+    ...     resource_handle=resource_handle,
+    ...     graph=None,
+    ...     offsets=cp_offsets,
+    ...     indices=cp_indices,
+    ...     weights=None,
+    ...     labels=None,
+    ...     do_expensive_check=False,
+    ... )
     >>> print(f"{len(set(cp_labels.tolist()))} - {cp_labels}")
-    2 - [2 2 2 4 4]
+    2 - [2 2 2 3 3]
 
     """
 
     # FIXME: Remove this function once the deprecation is completed
-    input_type = _ensure_args(graph, offsets, indices, weights)
+    input_type = _ensure_args(graph, offsets, indices, weights, labels)
 
     if input_type == "csr_arrays":
         if resource_handle is None:
@@ -209,7 +234,7 @@ def weakly_connected_components(ResourceHandle resource_handle,
     if labels is not None:
         labels_view_ptr = create_cugraph_type_erased_device_array_view_from_py_obj(
             labels)
-        cugraph_type_erased_device_array_view_copy(
+        error_code = cugraph_type_erased_device_array_view_copy(
             c_resource_handle_ptr,
             labels_view_ptr,
             labels_ptr,

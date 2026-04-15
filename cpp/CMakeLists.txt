@@ -165,6 +165,7 @@ set(CUGRAPH_SG_SOURCES
     src/sampling/detail/update_temporal_edge_mask_sg_v64_e64.cu
     src/utilities/shuffle_properties_mg.cu
     src/utilities/validation_checks.cu
+    src/utilities/invert_flags.cu
     src/detail/permute_range_v32.cu
     src/detail/permute_range_v64.cu
     src/detail/collect_local_vertex_values_sg_v32_e32.cu
@@ -228,6 +229,8 @@ set(CUGRAPH_SG_SOURCES
     src/sampling/detail/gather_one_hop_sg_v32_e32.cu
     src/sampling/detail/gather_one_hop_sg_v64_e64.cu
     src/sampling/detail/gather_sampled_properties.cu
+    src/sampling/detail/update_visited_utils.cu
+    src/sampling/detail/deduplicate_edges_by_minor.cu
     src/sampling/detail/sample_edges_sg_v64_e64.cu
     src/sampling/detail/sample_edges_sg_v32_e32.cu
     src/sampling/detail/temporal_sample_edges_sg_v64_e64.cu
@@ -243,7 +246,6 @@ set(CUGRAPH_SG_SOURCES
     src/cores/core_number_sg_v32_e32.cu
     src/cores/k_core_sg_v64_e64.cu
     src/cores/k_core_sg_v32_e32.cu
-    src/components/legacy/connectivity.cu
     src/generators/generate_rmat_edgelist_sg_v32_e32.cu
     src/generators/generate_rmat_edgelist_sg_v64_e64.cu
     src/generators/generate_bipartite_rmat_edgelist_sg_v32_e32.cu
@@ -338,8 +340,8 @@ set(CUGRAPH_MG_SOURCES
     src/detail/collect_local_vertex_values_mg_v64_e64.cu
     src/detail/groupby_and_count_mg_v32_e32.cu
     src/detail/groupby_and_count_mg_v64_e64.cu
-    src/detail/collect_comm_wrapper_mg_v32_e32.cu
-    src/detail/collect_comm_wrapper_mg_v64_e64.cu
+    src/detail/device_comm_wrapper_mg_v32_e32.cu
+    src/detail/device_comm_wrapper_mg_v64_e64.cu
     src/sampling/random_walks_mg_v64_e64.cu
     src/sampling/random_walks_mg_v32_e32.cu
     src/community/detail/common_methods_mg_v64_e64.cu
@@ -432,8 +434,8 @@ set(CUGRAPH_MG_SOURCES
     src/centrality/betweenness_centrality_mg_v32_e32.cu
     src/components/weakly_connected_components_mg_v64_e64.cu
     src/components/weakly_connected_components_mg_v32_e32.cu
-    # src/components/strongly_connected_components_mg_v64_e64.cu
-    # src/components/strongly_connected_components_mg_v32_e32.cu
+    src/components/strongly_connected_components_mg_v64_e64.cu
+    src/components/strongly_connected_components_mg_v32_e32.cu
     src/components/mis_mg_v64_e64.cu
     src/components/mis_mg_v32_e32.cu
     src/components/vertex_coloring_mg_v64_e64.cu

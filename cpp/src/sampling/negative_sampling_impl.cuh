@@ -5,14 +5,13 @@
 
 #pragma once
 
-#include "prims/reduce_v.cuh"
-#include "prims/update_edge_src_dst_property.cuh"
-#include "utilities/collect_comm.cuh"
-
-#include <cugraph/detail/collect_comm_wrapper.hpp>
+#include <cugraph/detail/device_comm_wrapper.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
+#include <cugraph/prims/reduce_v.cuh>
+#include <cugraph/prims/update_edge_src_dst_property.cuh>
 #include <cugraph/sampling_functions.hpp>
 #include <cugraph/shuffle_functions.hpp>
+#include <cugraph/utilities/collect_comm.cuh>
 #include <cugraph/utilities/device_comm.hpp>
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/host_scalar_comm.hpp>
@@ -78,7 +77,7 @@ normalize_biases(raft::handle_t const& handle,
   if constexpr (multi_gpu) {
     rmm::device_scalar<weight_t> d_sum(sum, handle.get_stream());
 
-    gpu_biases = cugraph::device_allgatherv(
+    gpu_biases = cugraph::detail::device_allgatherv(
       handle, handle.get_comms(), raft::device_span<weight_t const>{d_sum.data(), d_sum.size()});
 
     weight_t aggregate_sum = thrust::reduce(

@@ -5,13 +5,13 @@
 
 #pragma once
 
-#include "detail/graph_partition_utils.cuh"
 #include "detail/shuffle_wrappers.hpp"
 
 #include <cugraph/arithmetic_variant_types.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/partition_manager.hpp>
+#include <cugraph/utilities/graph_partition_utils.cuh>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
 
@@ -109,38 +109,6 @@ rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
                                           handle.get_stream(),
                                           large_buffer_type);
     }
-  } else if (edgelist_properties.size() == 1) {
-    counts = cugraph::variant_type_dispatch(
-      edgelist_properties[0],
-      [&handle,
-       large_buffer_type,
-       pair_first,
-       size = edgelist_majors.size(),
-       local_edge_partition_include_minor_op,
-       local_edge_partition_op,
-       comm_size,
-       mem_frugal_threshold,
-       groupby_and_count_local_partition_by_minor](auto& prop) {
-        if (groupby_and_count_local_partition_by_minor) {
-          return cugraph::groupby_and_count(pair_first,
-                                            pair_first + size,
-                                            prop.begin(),
-                                            local_edge_partition_include_minor_op,
-                                            comm_size,
-                                            mem_frugal_threshold,
-                                            handle.get_stream(),
-                                            large_buffer_type);
-        } else {
-          return cugraph::groupby_and_count(pair_first,
-                                            pair_first + size,
-                                            prop.begin(),
-                                            local_edge_partition_op,
-                                            comm_size,
-                                            mem_frugal_threshold,
-                                            handle.get_stream(),
-                                            large_buffer_type);
-        }
-      });
   } else {
     auto property_positions =
       large_buffer_type ? large_buffer_manager::allocate_memory_buffer<size_t>(

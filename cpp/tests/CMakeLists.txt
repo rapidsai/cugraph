@@ -473,12 +473,10 @@ ConfigureTest(STRONGLY_CONNECTED_COMPONENTS_TEST components/strongly_connected_c
 ###################################################################################################
 # - MIS tests -------------------------------------------------------------------------------------
 ConfigureTest(MIS_TEST components/mis_test.cu)
-target_include_directories(MIS_TEST PRIVATE "${CUGRAPH_SOURCE_DIR}/src")
 
 ###################################################################################################
 # - VERTEX COLORING tests ----------------------------------------------------------------------
 ConfigureTest(VERTEX_COLORING_TEST components/vertex_coloring_test.cu)
-target_include_directories(VERTEX_COLORING_TEST PRIVATE "${CUGRAPH_SOURCE_DIR}/src")
 
 ###################################################################################################
 # - SIMILARITY tests ------------------------------------------------------------------------------
@@ -686,8 +684,8 @@ if(BUILD_CUGRAPH_MG_TESTS)
 
     ###############################################################################################
     # - MG STRONGLY CONNECTED COMPONENTS tests ----------------------------------------------------
-    # ConfigureTestMG(MG_STRONGLY_CONNECTED_COMPONENTS_TEST
-    #                components/mg_strongly_connected_components_test.cpp)
+    ConfigureTestMG(MG_STRONGLY_CONNECTED_COMPONENTS_TEST
+                    components/mg_strongly_connected_components_test.cpp)
 
     ###############################################################################################
     # - MG EDGE SOURCE DESTINATION LOOKUP tests ---------------------------------------------------
