@@ -70,8 +70,7 @@ inline auto make_pool(bool use_max = false)
   auto const min_alloc =
     use_max ? rmm::align_down(std::min(free, total / 2), rmm::CUDA_ALLOCATION_ALIGNMENT)
             : rmm::align_down(std::min(free, total / 10), rmm::CUDA_ALLOCATION_ALIGNMENT);
-  auto upstream = make_cuda();
-  return rmm::mr::pool_memory_resource(upstream, min_alloc);
+  return rmm::mr::pool_memory_resource(make_cuda(), min_alloc);
 }
 
 inline auto make_binning()
