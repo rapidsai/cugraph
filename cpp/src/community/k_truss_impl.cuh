@@ -25,11 +25,13 @@
 #include <cuda/std/optional>
 #include <cuda/std/tuple>
 #include <cuda/std/utility>
+#include <thrust/binary_search.h>
 #include <thrust/copy.h>
 #include <thrust/count.h>
 #include <thrust/execution_policy.h>
 #include <thrust/sort.h>
 #include <thrust/transform.h>
+#include <thrust/unique.h>
 
 namespace cugraph {
 
@@ -476,13 +478,52 @@ k_truss(raft::handle_t const& handle,
 
       rmm::device_uvector<edge_t> decrease_count(unique_pair_count, handle.get_stream());
 
-      thrust::reduce_by_key(handle.get_thrust_policy(),
-                            get_dataframe_buffer_begin(edgelist_to_update_count),
-                            get_dataframe_buffer_end(edgelist_to_update_count),
-                            cuda::make_constant_iterator(size_t{1}),
-                            get_dataframe_buffer_begin(vertex_pair_buffer_unique),
-                            decrease_count.begin(),
-                            cuda::std::equal_to<cuda::std::tuple<vertex_t, vertex_t>>{});
+      // FIXME: The original thrust::reduce_by_key call below produces corrupted output
+      // when compiled with nvcc 13.0 + CCCL 3.4.0 on Blackwell (sm_120).
+      // The bug does not occur in nvcc 13.2. Remove this workaround once nvcc 13.0 is no
+      // longer supported.
+      //
+      // Original (buggy) call:
+      //   thrust::reduce_by_key(handle.get_thrust_policy(),
+      //                         get_dataframe_buffer_begin(edgelist_to_update_count),
+      //                         get_dataframe_buffer_end(edgelist_to_update_count),
+      //                         cuda::make_constant_iterator(size_t{1}),
+      //                         get_dataframe_buffer_begin(vertex_pair_buffer_unique),
+      //                         decrease_count.begin(),
+      //                         cuda::std::equal_to<cuda::std::tuple<vertex_t, vertex_t>>{});
+      //
+      // See https://github.com/rapidsai/cugraph/issues/5494
+      thrust::unique_copy(handle.get_thrust_policy(),
+                          get_dataframe_buffer_begin(edgelist_to_update_count),
+                          get_dataframe_buffer_end(edgelist_to_update_count),
+                          get_dataframe_buffer_begin(vertex_pair_buffer_unique));
+
+      rmm::device_uvector<edge_t> d_lower_bounds(unique_pair_count, handle.get_stream());
+      rmm::device_uvector<edge_t> d_upper_bounds(unique_pair_count, handle.get_stream());
+
+      thrust::lower_bound(handle.get_thrust_policy(),
+                          get_dataframe_buffer_begin(edgelist_to_update_count),
+                          get_dataframe_buffer_end(edgelist_to_update_count),
+                          get_dataframe_buffer_begin(vertex_pair_buffer_unique),
+                          get_dataframe_buffer_begin(vertex_pair_buffer_unique) + unique_pair_count,
+                          d_lower_bounds.begin());
+
+      thrust::upper_bound(handle.get_thrust_policy(),
+                          get_dataframe_buffer_begin(edgelist_to_update_count),
+                          get_dataframe_buffer_end(edgelist_to_update_count),
+                          get_dataframe_buffer_begin(vertex_pair_buffer_unique),
+                          get_dataframe_buffer_begin(vertex_pair_buffer_unique) + unique_pair_count,
+                          d_upper_bounds.begin());
+
+      thrust::transform(handle.get_thrust_policy(),
+                        d_lower_bounds.begin(),
+                        d_lower_bounds.end(),
+                        d_upper_bounds.begin(),
+                        decrease_count.begin(),
+                        cuda::proclaim_return_type<edge_t>(
+                          [] __device__(edge_t d_lower, edge_t d_upper) {
+                            return d_upper - d_lower;
+                          }));
 
       std::tie(std::get<0>(vertex_pair_buffer_unique),
                std::get<1>(vertex_pair_buffer_unique),
