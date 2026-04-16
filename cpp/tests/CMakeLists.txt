@@ -471,6 +471,10 @@ ConfigureTest(WEAKLY_CONNECTED_COMPONENTS_TEST components/weakly_connected_compo
 ConfigureTest(STRONGLY_CONNECTED_COMPONENTS_TEST components/strongly_connected_components_test.cpp)
 
 ###################################################################################################
+# - TOPOLOGICAL SORT tests ------------------------------------------------------------------------
+ConfigureTest(TOPOLOGICAL_SORT_TEST dag/topological_sort_test.cpp)
+
+###################################################################################################
 # - MIS tests -------------------------------------------------------------------------------------
 ConfigureTest(MIS_TEST components/mis_test.cu)
 
@@ -686,6 +690,10 @@ if(BUILD_CUGRAPH_MG_TESTS)
     # - MG STRONGLY CONNECTED COMPONENTS tests ----------------------------------------------------
     ConfigureTestMG(MG_STRONGLY_CONNECTED_COMPONENTS_TEST
                     components/mg_strongly_connected_components_test.cpp)
+
+    ###############################################################################################
+    # - MG TOPOLOGICAL SORT tests -----------------------------------------------------------------
+    ConfigureTestMG(MG_TOPOLOGICAL_SORT_TEST dag/mg_topological_sort_test.cpp)
 
     ###############################################################################################
     # - MG EDGE SOURCE DESTINATION LOOKUP tests ---------------------------------------------------
