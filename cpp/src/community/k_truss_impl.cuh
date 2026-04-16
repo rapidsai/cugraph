@@ -515,15 +515,14 @@ k_truss(raft::handle_t const& handle,
                           get_dataframe_buffer_begin(vertex_pair_buffer_unique) + unique_pair_count,
                           d_upper_bounds.begin());
 
-      thrust::transform(handle.get_thrust_policy(),
-                        d_lower_bounds.begin(),
-                        d_lower_bounds.end(),
-                        d_upper_bounds.begin(),
-                        decrease_count.begin(),
-                        cuda::proclaim_return_type<edge_t>(
-                          [] __device__(edge_t d_lower, edge_t d_upper) {
-                            return d_upper - d_lower;
-                          }));
+      thrust::transform(
+        handle.get_thrust_policy(),
+        d_lower_bounds.begin(),
+        d_lower_bounds.end(),
+        d_upper_bounds.begin(),
+        decrease_count.begin(),
+        cuda::proclaim_return_type<edge_t>(
+          [] __device__(edge_t d_lower, edge_t d_upper) { return d_upper - d_lower; }));
 
       std::tie(std::get<0>(vertex_pair_buffer_unique),
                std::get<1>(vertex_pair_buffer_unique),
