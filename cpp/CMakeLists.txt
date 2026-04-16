@@ -471,6 +471,9 @@ SECTIONS
 }
 ]=])
 
+set_property(TARGET cugraph PROPERTY NO_CUDART_DEP ON)
+set_property(TARGET cugraph_mg PROPERTY NO_CUDART_DEP ON)
+
 set(cugraph_suffixes "" "_mg")
 foreach(suffix IN LISTS cugraph_suffixes)
     set_target_properties(cugraph${suffix}
@@ -511,13 +514,14 @@ foreach(suffix IN LISTS cugraph_suffixes)
     # - link libraries -------------------------------------------------------------
     target_link_libraries(cugraph${suffix}
         PUBLIC
-            rmm::rmm
             raft::raft
             $<BUILD_LOCAL_INTERFACE:CUDA::toolkit>
         PRIVATE
             ${COMPILED_RAFT_LIB}
             $<IF:$<BOOL:${CUGRAPH_USE_CUVS_STATIC}>,cuvs::cuvs_static,cuvs::cuvs> #
             cuco::cuco
+            rmm::rmm
+        INTERFACE $<COMPILE_ONLY:rmm::rmm>
     )
 
     ################################################################################
