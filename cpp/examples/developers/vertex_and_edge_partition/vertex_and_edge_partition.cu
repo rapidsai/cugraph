@@ -38,7 +38,7 @@ std::unique_ptr<raft::handle_t> initialize_mg_handle()
   RAFT_MPI_TRY(MPI_Comm_rank(MPI_COMM_WORLD, &comm_rank));
 
   auto resource = rmm::mr::cuda_memory_resource();
-  rmm::mr::set_current_device_resource_ref(resource);
+  rmm::mr::set_current_device_resource(resource);
 
   std::unique_ptr<raft::handle_t> handle =
     std::make_unique<raft::handle_t>(rmm::cuda_stream_per_thread);

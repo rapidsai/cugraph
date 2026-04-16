@@ -16,7 +16,7 @@ std::unique_ptr<raft::handle_t> initialize_sg_handle()
 {
   RAFT_CUDA_TRY(cudaSetDevice(0));
   auto resource = rmm::mr::cuda_memory_resource();
-  rmm::mr::set_current_device_resource_ref(resource);
+  rmm::mr::set_current_device_resource(resource);
 
   std::unique_ptr<raft::handle_t> handle = std::make_unique<raft::handle_t>();
   return std::move(handle);
