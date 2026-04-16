@@ -28,6 +28,5 @@ else
        -v \
        --import-mode=append \
        --benchmark-disable \
-       "${@:2}" \
        "./python/${package_name}/${python_package_name}/tests"
 fi
