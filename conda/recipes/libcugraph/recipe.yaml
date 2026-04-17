@@ -171,13 +171,16 @@ outputs:
         - cuda-version =${{ cuda_version }}
         - libcudf =${{ minor_version }}
         - librmm =${{ minor_version }}
+        - cuda-cudart-dev
       run:
         - ${{ pin_compatible("cuda-version", upper_bound="x", lower_bound="x") }}
         - ${{ pin_subpackage("libcugraph", exact=True) }}
         - libcudf =${{ minor_version }}
         - librmm =${{ minor_version }}
+        - cuda-cudart
       ignore_run_exports:
         by_name:
+          - cuda-cudart
           - cuda-nvtx
           - cuda-version
           - libcublas
