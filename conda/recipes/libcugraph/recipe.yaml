@@ -113,6 +113,7 @@ outputs:
         - cuda-version =${{ cuda_version }}
         - librmm =${{ minor_version }}
         - rapids-logger =0.2
+        - cuda-cudart-dev
         - libcublas-dev
         - libcurand-dev
         - libcusolver-dev
