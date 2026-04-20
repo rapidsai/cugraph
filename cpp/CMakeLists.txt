@@ -471,9 +471,6 @@ SECTIONS
 }
 ]=])
 
-set_property(TARGET cugraph PROPERTY NO_CUDART_DEP ON)
-set_property(TARGET cugraph_mg PROPERTY NO_CUDART_DEP ON)
-
 set(cugraph_suffixes "" "_mg")
 foreach(suffix IN LISTS cugraph_suffixes)
     set_target_properties(cugraph${suffix}
