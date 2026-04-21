@@ -146,12 +146,11 @@ class Tests_MGTopologicalSort
 
         // 3-3. compare
 
-        auto h_mg_aggregate_levels =
-          cugraph::test::to_host(*handle_, d_mg_aggregate_levels);
-        auto h_sg_levels = cugraph::test::to_host(*handle_, d_sg_levels);
+        auto h_mg_aggregate_levels = cugraph::test::to_host(*handle_, d_mg_aggregate_levels);
+        auto h_sg_levels           = cugraph::test::to_host(*handle_, d_sg_levels);
 
-        ASSERT_TRUE(std::equal(
-          h_sg_levels.begin(), h_sg_levels.end(), h_mg_aggregate_levels.begin()))
+        ASSERT_TRUE(
+          std::equal(h_sg_levels.begin(), h_sg_levels.end(), h_mg_aggregate_levels.begin()))
           << "Topological sort levels do not match with the SG values.";
       }
     }

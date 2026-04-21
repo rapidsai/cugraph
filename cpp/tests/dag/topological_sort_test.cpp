@@ -155,8 +155,8 @@ class Tests_TopologicalSort
 
       auto h_cugraph_levels = cugraph::test::to_host(handle, d_levels);
 
-      ASSERT_TRUE(std::equal(
-        h_reference_levels.begin(), h_reference_levels.end(), h_cugraph_levels.begin()))
+      ASSERT_TRUE(
+        std::equal(h_reference_levels.begin(), h_reference_levels.end(), h_cugraph_levels.begin()))
         << "topological levels do not match with the reference values.";
     }
   }
@@ -189,8 +189,9 @@ INSTANTIATE_TEST_SUITE_P(
   file_test,
   Tests_TopologicalSort_File,
   ::testing::Values(
-    std::make_tuple(TopologicalSort_Usecase{false},
-                    cugraph::test::File_Usecase("karate-asymmetric.csv")),  // TODO: replace with real DAG dataset
+    std::make_tuple(
+      TopologicalSort_Usecase{false},
+      cugraph::test::File_Usecase("karate-asymmetric.csv")),  // TODO: replace with real DAG dataset
     std::make_tuple(TopologicalSort_Usecase{true},
                     cugraph::test::File_Usecase("karate-asymmetric.csv")),
     std::make_tuple(TopologicalSort_Usecase{false},

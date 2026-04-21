@@ -35,24 +35,21 @@ cugraph::edge_property_t<edge_t, bool> build_acyclic_edge_mask(
 
   cugraph::edge_src_property_t<vertex_t, vertex_t> src_labels(handle, graph_view);
   cugraph::edge_dst_property_t<vertex_t, vertex_t> dst_labels(handle, graph_view);
-  cugraph::update_edge_src_property(
-    handle, graph_view, labels.begin(), src_labels.mutable_view());
-  cugraph::update_edge_dst_property(
-    handle, graph_view, labels.begin(), dst_labels.mutable_view());
+  cugraph::update_edge_src_property(handle, graph_view, labels.begin(), src_labels.mutable_view());
+  cugraph::update_edge_dst_property(handle, graph_view, labels.begin(), dst_labels.mutable_view());
 
   auto edge_mask = make_initialized_edge_property(handle, graph_view, false);
 
-  cugraph::transform_e(
-    handle,
-    graph_view,
-    src_labels.view(),
-    dst_labels.view(),
-    cugraph::edge_dummy_property_t{}.view(),
-    cuda::proclaim_return_type<bool>(
-      [] __device__(auto src, auto dst, auto src_label, auto dst_label, auto) {
-        return (src != dst) && (src_label != dst_label);
-      }),
-    edge_mask.mutable_view());
+  cugraph::transform_e(handle,
+                       graph_view,
+                       src_labels.view(),
+                       dst_labels.view(),
+                       cugraph::edge_dummy_property_t{}.view(),
+                       cuda::proclaim_return_type<bool>(
+                         [] __device__(auto src, auto dst, auto src_label, auto dst_label, auto) {
+                           return (src != dst) && (src_label != dst_label);
+                         }),
+                       edge_mask.mutable_view());
 
   return edge_mask;
 }

@@ -41,23 +41,31 @@ rmm::device_uvector<vertex_t> topological_sort(
   bool do_expensive_check)
 {
   // Topological sort exists only if graph is directed and does not contain any loops
-  CUGRAPH_EXPECTS(!graph_view.is_symmetric(), "Invalid input argument: topological sort requires graph to be directed");
+  CUGRAPH_EXPECTS(!graph_view.is_symmetric(),
+                  "Invalid input argument: topological sort requires graph to be directed");
 
   if (do_expensive_check) {
     auto num_self_loops = graph_view.count_self_loops(handle);
-    CUGRAPH_EXPECTS(num_self_loops == 0, "Invalid input argument: topological sort requires graph without self loops");
+    CUGRAPH_EXPECTS(num_self_loops == 0,
+                    "Invalid input argument: topological sort requires graph without self loops");
 
     auto components = strongly_connected_components(handle, graph_view, true);
 
     thrust::sort(handle.get_thrust_policy(), components.begin(), components.end());
-    CUGRAPH_EXPECTS(thrust::unique_count(handle.get_thrust_policy(), components.begin(), components.end()) == components.size(), "Invalid input argument: topological sort requires graph without cycles");
+    CUGRAPH_EXPECTS(
+      thrust::unique_count(handle.get_thrust_policy(), components.begin(), components.end()) ==
+        components.size(),
+      "Invalid input argument: topological sort requires graph without cycles");
 
     if constexpr (multi_gpu) {
-      std::tie(components, std::ignore) =
-        shuffle_ext_vertices(handle, std::move(components), std::vector<arithmetic_device_uvector_t>{});
+      std::tie(components, std::ignore) = shuffle_ext_vertices(
+        handle, std::move(components), std::vector<arithmetic_device_uvector_t>{});
 
       thrust::sort(handle.get_thrust_policy(), components.begin(), components.end());
-      CUGRAPH_EXPECTS(thrust::unique_count(handle.get_thrust_policy(), components.begin(), components.end()) == components.size(), "Invalid input argument: topological sort requires graph without cycles");
+      CUGRAPH_EXPECTS(
+        thrust::unique_count(handle.get_thrust_policy(), components.begin(), components.end()) ==
+          components.size(),
+        "Invalid input argument: topological sort requires graph without cycles");
     }
   }
 
@@ -86,7 +94,7 @@ rmm::device_uvector<vertex_t> topological_sort(
   thrust::fill(
     handle.get_thrust_policy(), topological_levels.begin(), topological_levels.end(), vertex_t{0});
 
-  auto level = 0;
+  auto level                       = 0;
   auto sum_aggregate_frontier_size = 0;
 
   while (true) {
@@ -103,17 +111,16 @@ rmm::device_uvector<vertex_t> topological_sort(
       handle,
       raft::device_span<vertex_t const>(frontier_vertices.data(), frontier_vertices.size()));
 
-    auto [dst_vertices, decrement_counts] =
-      cugraph::transform_reduce_v_frontier_outgoing_e_by_dst(
-        handle,
-        graph_view,
-        frontier,
-        edge_src_dummy_property_t{}.view(),
-        edge_dst_dummy_property_t{}.view(),
-        edge_dummy_property_t{}.view(),
-        cuda::proclaim_return_type<edge_t>(
-          [] __device__(auto src, auto dst, auto, auto, auto) { return edge_t{1}; }),
-        reduce_op::plus<edge_t>());
+    auto [dst_vertices, decrement_counts] = cugraph::transform_reduce_v_frontier_outgoing_e_by_dst(
+      handle,
+      graph_view,
+      frontier,
+      edge_src_dummy_property_t{}.view(),
+      edge_dst_dummy_property_t{}.view(),
+      edge_dummy_property_t{}.view(),
+      cuda::proclaim_return_type<edge_t>(
+        [] __device__(auto src, auto dst, auto, auto, auto) { return edge_t{1}; }),
+      reduce_op::plus<edge_t>());
 
     thrust::for_each(
       handle.get_thrust_policy(),
@@ -127,19 +134,20 @@ rmm::device_uvector<vertex_t> topological_sort(
       });
 
     rmm::device_uvector<vertex_t> new_frontier_vertices(dst_vertices.size(), handle.get_stream());
-    
+
     new_frontier_vertices.resize(
-      cuda::std::distance(new_frontier_vertices.begin(),
-                          thrust::copy_if(
-                            handle.get_thrust_policy(),
-                            dst_vertices.begin(),
-                            dst_vertices.end(),
-                            new_frontier_vertices.begin(),
-                            [in_degrees = raft::device_span<edge_t const>(in_degrees.data(), in_degrees.size()),
-                            v_first    = graph_view.local_vertex_partition_range_first()] __device__(auto v) {
-                              auto v_offset = v - v_first;
-                              return in_degrees[v_offset] == 0;
-                            })),
+      cuda::std::distance(
+        new_frontier_vertices.begin(),
+        thrust::copy_if(
+          handle.get_thrust_policy(),
+          dst_vertices.begin(),
+          dst_vertices.end(),
+          new_frontier_vertices.begin(),
+          [in_degrees = raft::device_span<edge_t const>(in_degrees.data(), in_degrees.size()),
+           v_first    = graph_view.local_vertex_partition_range_first()] __device__(auto v) {
+            auto v_offset = v - v_first;
+            return in_degrees[v_offset] == 0;
+          })),
       handle.get_stream());
     new_frontier_vertices.shrink_to_fit(handle.get_stream());
 
@@ -147,18 +155,19 @@ rmm::device_uvector<vertex_t> topological_sort(
     level++;
 
     thrust::for_each(handle.get_thrust_policy(),
-    frontier_vertices.begin(),
-    frontier_vertices.end(),
-    [topological_levels = raft::device_span<vertex_t>(topological_levels.data(),
-                                                      topological_levels.size()),
-     v_first            = graph_view.local_vertex_partition_range_first(),
-     level              = level] __device__(auto v) {
-      auto v_offset                = v - v_first;
-      topological_levels[v_offset] = level;
-    });
+                     frontier_vertices.begin(),
+                     frontier_vertices.end(),
+                     [topological_levels = raft::device_span<vertex_t>(topological_levels.data(),
+                                                                       topological_levels.size()),
+                      v_first            = graph_view.local_vertex_partition_range_first(),
+                      level              = level] __device__(auto v) {
+                       auto v_offset                = v - v_first;
+                       topological_levels[v_offset] = level;
+                     });
   }
 
-  CUGRAPH_EXPECTS(sum_aggregate_frontier_size == graph_view.number_of_vertices(), "Invalid input argument: graph may contain cycles");
+  CUGRAPH_EXPECTS(sum_aggregate_frontier_size == graph_view.number_of_vertices(),
+                  "Invalid input argument: graph may contain cycles");
 
   return topological_levels;
 }
