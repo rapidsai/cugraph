@@ -87,8 +87,10 @@ class Tests_MGTopologicalSort
     }
 
     // Mask out every edge that lives inside a non-trivial SCC (and every self-loop) so the graph
-    // handed to topological_sort is acyclic. If a random mask is already attached, the call below
-    // composes with it (edges already masked stay masked).
+    // handed to topological_sort is acyclic.
+
+    if (mg_graph_view.has_edge_mask()) { mg_graph_view.clear_edge_mask(); }
+
     auto acyclic_mask = cugraph::test::build_acyclic_edge_mask(*handle_, mg_graph_view);
     mg_graph_view.attach_edge_mask(acyclic_mask.view());
 
@@ -204,7 +206,11 @@ INSTANTIATE_TEST_SUITE_P(
                     cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false))));
 
 INSTANTIATE_TEST_SUITE_P(
-  rmat_benchmark_test,
+  rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
+                       --gtest_filter to select only the rmat_benchmark_test with a specific
+                       vertex & edge type combination) by command line arguments and do not
+                       include more than one Rmat_Usecase that differ only in scale or edge
+                       factor (to avoid running same benchmarks more than once) */
   Tests_MGTopologicalSort_Rmat,
   ::testing::Values(
     std::make_tuple(TopologicalSort_Usecase{false, false},

@@ -17,9 +17,7 @@ namespace test {
 // strongly connected component, plus every self-loop. Intended for DAG algorithm tests (e.g.
 // topological_sort) so a cyclic test dataset can be masked down to a DAG before the algorithm
 // is invoked.
-//
-// If @p graph_view already has an edge mask attached, the returned mask composes with it:
-// edges already masked out stay masked (transform_e writes false for them automatically).
+
 template <typename vertex_t, typename edge_t, bool multi_gpu>
 cugraph::edge_property_t<edge_t, bool> build_acyclic_edge_mask(
   raft::handle_t const& handle,

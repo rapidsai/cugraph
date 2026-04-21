@@ -1111,9 +1111,9 @@ void bfs(raft::handle_t const& handle,
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Graph view object.
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
- * @return Device vector containing the topological sorting levels. For each local vertex (indexed by local
- * vertex partition offset), stores the topological level (i.e. the
- * BFS depth at which the vertex is processed). Disconnected vertices are assigned level 0.
+ * @return Device vector containing the topological sorting levels. For each local vertex (indexed
+ * by local vertex partition offset), stores the topological level. Disconnected vertices are
+ * assigned level 0.
  */
 template <typename vertex_t, typename edge_t, bool multi_gpu>
 rmm::device_uvector<vertex_t> topological_sort(

@@ -27,10 +27,6 @@ cugraph::edge_property_t<edge_t, bool> build_acyclic_edge_mask(
   raft::handle_t const& handle,
   cugraph::graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view)
 {
-  // SCC partitions vertices into strongly connected components. Two vertices share a label iff
-  // they are in the same SCC. A non-self-loop edge u->v is contained in a cycle iff u and v are
-  // in the same SCC (and that SCC has >1 vertex, which is implied by u != v && label(u) ==
-  // label(v)). So: keep edge <=> (u != v) && (label(u) != label(v)).
   auto labels = cugraph::strongly_connected_components(handle, graph_view, false);
 
   cugraph::edge_src_property_t<vertex_t, vertex_t> src_labels(handle, graph_view);

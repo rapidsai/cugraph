@@ -53,8 +53,8 @@ rmm::device_uvector<vertex_t> topological_sort(
 
     thrust::sort(handle.get_thrust_policy(), components.begin(), components.end());
     CUGRAPH_EXPECTS(
-      thrust::unique_count(handle.get_thrust_policy(), components.begin(), components.end()) ==
-        components.size(),
+      static_cast<size_t>(thrust::unique_count(
+        handle.get_thrust_policy(), components.begin(), components.end())) == components.size(),
       "Invalid input argument: topological sort requires graph without cycles");
 
     if constexpr (multi_gpu) {
@@ -63,8 +63,8 @@ rmm::device_uvector<vertex_t> topological_sort(
 
       thrust::sort(handle.get_thrust_policy(), components.begin(), components.end());
       CUGRAPH_EXPECTS(
-        thrust::unique_count(handle.get_thrust_policy(), components.begin(), components.end()) ==
-          components.size(),
+        static_cast<size_t>(thrust::unique_count(
+          handle.get_thrust_policy(), components.begin(), components.end())) == components.size(),
         "Invalid input argument: topological sort requires graph without cycles");
     }
   }

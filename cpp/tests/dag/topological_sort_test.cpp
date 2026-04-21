@@ -122,8 +122,10 @@ class Tests_TopologicalSort
     }
 
     // Mask out every edge that lives inside a non-trivial SCC (and every self-loop) so the graph
-    // handed to topological_sort is acyclic. If a random mask is already attached, the call below
-    // composes with it (edges already masked stay masked).
+    // handed to topological_sort is acyclic.
+
+    if (graph_view.has_edge_mask()) { graph_view.clear_edge_mask(); }
+
     auto acyclic_mask = cugraph::test::build_acyclic_edge_mask(handle, graph_view);
     graph_view.attach_edge_mask(acyclic_mask.view());
 
