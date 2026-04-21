@@ -1098,12 +1098,11 @@ void bfs(raft::handle_t const& handle,
 /**
  * @ingroup dag_cpp
  * @brief Compute a topological ordering of a directed acyclic graph (DAG).
- *
- * Uses BFS-based recursive 0 in-degree peeling. For every directed edge (u, v),
- * u appears before v in the returned ordering.
+ * For every directed edge (u, v), u appears before v in the returned ordering.
  *
  * @throws cugraph::logic_error on erroneous input arguments, if the graph contains a cycle or
  * if the graph is symmetric (undirected).
+ *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
  * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
@@ -1112,7 +1111,7 @@ void bfs(raft::handle_t const& handle,
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Graph view object.
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
- * @return Device vector of length number_of_vertices(). For each local vertex (indexed by local
+ * @return Device vector containing the topological sorting levels. For each local vertex (indexed by local
  * vertex partition offset), stores the topological level (i.e. the
  * BFS depth at which the vertex is processed). Disconnected vertices are assigned level 0.
  */

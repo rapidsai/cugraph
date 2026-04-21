@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include "dag/dag_test_utilities.hpp"
 #include "utilities/base_fixture.hpp"
 #include "utilities/conversion_utilities.hpp"
 #include "utilities/device_comm_wrapper.hpp"
@@ -48,7 +49,112 @@ class Tests_MGTopologicalSort
   void run_current_test(TopologicalSort_Usecase const& topological_sort_usecase,
                         input_usecase_t const& input_usecase)
   {
-    // TODO: fill in test body
+    using weight_t    = float;
+    using edge_type_t = int32_t;
+
+    HighResTimer hr_timer{};
+
+    // 1. create MG graph
+
+    if (cugraph::test::g_perf) {
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      handle_->get_comms().barrier();
+      hr_timer.start("MG Construct graph");
+    }
+
+    cugraph::graph_t<vertex_t, edge_t, false, true> mg_graph(*handle_);
+    std::optional<rmm::device_uvector<vertex_t>> mg_renumber_map{std::nullopt};
+    std::tie(mg_graph, std::ignore, mg_renumber_map) =
+      cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, true>(
+        *handle_, input_usecase, false, true);
+
+    if (cugraph::test::g_perf) {
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      handle_->get_comms().barrier();
+      hr_timer.stop();
+      hr_timer.display_and_clear(std::cout);
+    }
+
+    auto mg_graph_view = mg_graph.view();
+    ASSERT_FALSE(mg_graph_view.is_symmetric())
+      << "Topological sort works only on directed (asymmetric) graphs.";
+
+    std::optional<cugraph::edge_property_t<edge_t, bool>> random_mask{std::nullopt};
+    if (topological_sort_usecase.edge_masking) {
+      random_mask = cugraph::test::generate<decltype(mg_graph_view), bool>::edge_property(
+        *handle_, mg_graph_view, 2);
+      mg_graph_view.attach_edge_mask(random_mask->view());
+    }
+
+    // Mask out every edge that lives inside a non-trivial SCC (and every self-loop) so the graph
+    // handed to topological_sort is acyclic. If a random mask is already attached, the call below
+    // composes with it (edges already masked stay masked).
+    auto acyclic_mask = cugraph::test::build_acyclic_edge_mask(*handle_, mg_graph_view);
+    mg_graph_view.attach_edge_mask(acyclic_mask.view());
+
+    // 2. run MG topological sort
+
+    if (cugraph::test::g_perf) {
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      handle_->get_comms().barrier();
+      hr_timer.start("MG topological_sort");
+    }
+
+    auto d_mg_levels = cugraph::topological_sort(*handle_, mg_graph_view);
+
+    if (cugraph::test::g_perf) {
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      handle_->get_comms().barrier();
+      hr_timer.stop();
+      hr_timer.display_and_clear(std::cout);
+    }
+
+    // 3. compare SG & MG results
+
+    if (topological_sort_usecase.check_correctness) {
+      // 3-1. aggregate MG results
+
+      rmm::device_uvector<vertex_t> d_mg_aggregate_levels(0, handle_->get_stream());
+      std::tie(std::ignore, d_mg_aggregate_levels) =
+        cugraph::test::mg_vertex_property_values_to_sg_vertex_property_values(
+          *handle_,
+          std::optional<raft::device_span<vertex_t const>>{std::nullopt},
+          mg_graph_view.local_vertex_partition_range(),
+          std::optional<raft::device_span<vertex_t const>>{std::nullopt},
+          std::optional<raft::device_span<vertex_t const>>{std::nullopt},
+          raft::device_span<vertex_t const>(d_mg_levels.data(), d_mg_levels.size()));
+
+      cugraph::graph_t<vertex_t, edge_t, false, false> sg_graph(*handle_);
+      std::tie(sg_graph, std::ignore, std::ignore, std::ignore, std::ignore) =
+        cugraph::test::mg_graph_to_sg_graph(
+          *handle_,
+          mg_graph_view,
+          std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},
+          std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
+          std::optional<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>{std::nullopt},
+          std::optional<raft::device_span<vertex_t const>>{std::nullopt},
+          false);
+
+      if (handle_->get_comms().get_rank() == int{0}) {
+        // 3-2. run SG topological sort
+
+        auto sg_graph_view = sg_graph.view();
+
+        ASSERT_TRUE(mg_graph_view.number_of_vertices() == sg_graph_view.number_of_vertices());
+
+        auto d_sg_levels = cugraph::topological_sort(*handle_, sg_graph_view);
+
+        // 3-3. compare
+
+        auto h_mg_aggregate_levels =
+          cugraph::test::to_host(*handle_, d_mg_aggregate_levels);
+        auto h_sg_levels = cugraph::test::to_host(*handle_, d_sg_levels);
+
+        ASSERT_TRUE(std::equal(
+          h_sg_levels.begin(), h_sg_levels.end(), h_mg_aggregate_levels.begin()))
+          << "Topological sort levels do not match with the SG values.";
+      }
+    }
   }
 
  private:
@@ -86,8 +192,8 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_MGTopologicalSort_File,
   ::testing::Combine(
     ::testing::Values(TopologicalSort_Usecase{false}, TopologicalSort_Usecase{true}),
-    ::testing::Values(
-      cugraph::test::File_Usecase("test/datasets/dag_small.csv"))));  // TODO: replace with real DAG dataset
+    ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate-asymmetric.csv"),
+                      cugraph::test::File_Usecase("test/datasets/cage6.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_small_test,

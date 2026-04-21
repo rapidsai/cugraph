@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include "dag/dag_test_utilities.hpp"
 #include "utilities/base_fixture.hpp"
 #include "utilities/conversion_utilities.hpp"
 #include "utilities/property_generator_utilities.hpp"
@@ -113,12 +114,18 @@ class Tests_TopologicalSort
     ASSERT_FALSE(graph_view.is_symmetric())
       << "Topological sort works only on directed (asymmetric) graphs.";
 
-    std::optional<cugraph::edge_property_t<edge_t, bool>> edge_mask{std::nullopt};
+    std::optional<cugraph::edge_property_t<edge_t, bool>> random_mask{std::nullopt};
     if (topological_sort_usecase.edge_masking) {
-      edge_mask =
+      random_mask =
         cugraph::test::generate<decltype(graph_view), bool>::edge_property(handle, graph_view, 2);
-      graph_view.attach_edge_mask(edge_mask->view());
+      graph_view.attach_edge_mask(random_mask->view());
     }
+
+    // Mask out every edge that lives inside a non-trivial SCC (and every self-loop) so the graph
+    // handed to topological_sort is acyclic. If a random mask is already attached, the call below
+    // composes with it (edges already masked stay masked).
+    auto acyclic_mask = cugraph::test::build_acyclic_edge_mask(handle, graph_view);
+    graph_view.attach_edge_mask(acyclic_mask.view());
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -138,13 +145,7 @@ class Tests_TopologicalSort
       std::vector<vertex_t> h_indices{};
       std::tie(h_offsets, h_indices, std::ignore) =
         cugraph::test::graph_to_host_csr<vertex_t, edge_t, weight_t, false, false>(
-          handle,
-          graph_view,
-          std::nullopt,
-          d_renumber_map_labels
-            ? std::make_optional<raft::device_span<vertex_t const>>(
-                d_renumber_map_labels->data(), d_renumber_map_labels->size())
-            : std::nullopt);
+          handle, graph_view, std::nullopt, std::nullopt);
 
       std::vector<vertex_t> h_reference_levels(graph_view.number_of_vertices());
       topological_sort_reference(h_offsets.data(),
@@ -152,16 +153,7 @@ class Tests_TopologicalSort
                                  h_reference_levels.data(),
                                  graph_view.number_of_vertices());
 
-      std::vector<vertex_t> h_cugraph_levels{};
-      if (renumber) {
-        rmm::device_uvector<vertex_t> d_unrenumbered_levels(size_t{0}, handle.get_stream());
-        std::tie(std::ignore, d_unrenumbered_levels) =
-          cugraph::test::sort_by_key<vertex_t, vertex_t>(
-            handle, *d_renumber_map_labels, d_levels);
-        h_cugraph_levels = cugraph::test::to_host(handle, d_unrenumbered_levels);
-      } else {
-        h_cugraph_levels = cugraph::test::to_host(handle, d_levels);
-      }
+      auto h_cugraph_levels = cugraph::test::to_host(handle, d_levels);
 
       ASSERT_TRUE(std::equal(
         h_reference_levels.begin(), h_reference_levels.end(), h_cugraph_levels.begin()))
@@ -198,9 +190,13 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_TopologicalSort_File,
   ::testing::Values(
     std::make_tuple(TopologicalSort_Usecase{false},
-                    cugraph::test::File_Usecase("test/datasets/dag_small.csv")),  // TODO: replace with real DAG dataset
+                    cugraph::test::File_Usecase("karate-asymmetric.csv")),  // TODO: replace with real DAG dataset
     std::make_tuple(TopologicalSort_Usecase{true},
-                    cugraph::test::File_Usecase("test/datasets/dag_small.csv"))));
+                    cugraph::test::File_Usecase("karate-asymmetric.csv")),
+    std::make_tuple(TopologicalSort_Usecase{false},
+                    cugraph::test::File_Usecase("test/datasets/cage6.mtx")),
+    std::make_tuple(TopologicalSort_Usecase{true},
+                    cugraph::test::File_Usecase("test/datasets/cage6.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_small_test,

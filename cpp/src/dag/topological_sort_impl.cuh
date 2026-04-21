@@ -81,29 +81,29 @@ rmm::device_uvector<vertex_t> topological_sort(
           }))),
     handle.get_stream());
 
-  auto aggregate_frontier_size = 0;
-
   rmm::device_uvector<vertex_t> topological_levels(graph_view.local_vertex_partition_range_size(),
                                                    handle.get_stream());
   thrust::fill(
     handle.get_thrust_policy(), topological_levels.begin(), topological_levels.end(), vertex_t{0});
 
   auto level = 0;
+  auto sum_aggregate_frontier_size = 0;
+
   while (true) {
-    aggregate_frontier_size = frontier_vertices.size();
+    auto aggregate_frontier_size = frontier_vertices.size();
     if constexpr (multi_gpu) {
       aggregate_frontier_size = host_scalar_allreduce(
         handle.get_comms(), aggregate_frontier_size, raft::comms::op_t::SUM, handle.get_stream());
     }
     if (aggregate_frontier_size == 0) { break; }
 
+    sum_aggregate_frontier_size += aggregate_frontier_size;
+
     key_bucket_view_t<vertex_t, void, multi_gpu, true> frontier(
       handle,
       raft::device_span<vertex_t const>(frontier_vertices.data(), frontier_vertices.size()));
 
-    rmm::device_uvector<vertex_t> dst_vertices(0, handle.get_stream());
-    rmm::device_uvector<edge_t> decrement_counts(0, handle.get_stream());
-    std::tie(dst_vertices, decrement_counts) =
+    auto [dst_vertices, decrement_counts] =
       cugraph::transform_reduce_v_frontier_outgoing_e_by_dst(
         handle,
         graph_view,
@@ -143,20 +143,22 @@ rmm::device_uvector<vertex_t> topological_sort(
       handle.get_stream());
     new_frontier_vertices.shrink_to_fit(handle.get_stream());
 
-    thrust::for_each(handle.get_thrust_policy(),
-                     frontier_vertices.begin(),
-                     frontier_vertices.end(),
-                     [topological_levels = raft::device_span<vertex_t>(topological_levels.data(),
-                                                                       topological_levels.size()),
-                      v_first            = graph_view.local_vertex_partition_range_first(),
-                      level              = level] __device__(auto v) {
-                       auto v_offset                = v - v_first;
-                       topological_levels[v_offset] = level;
-                     });
-
     frontier_vertices = std::move(new_frontier_vertices);
     level++;
+
+    thrust::for_each(handle.get_thrust_policy(),
+    frontier_vertices.begin(),
+    frontier_vertices.end(),
+    [topological_levels = raft::device_span<vertex_t>(topological_levels.data(),
+                                                      topological_levels.size()),
+     v_first            = graph_view.local_vertex_partition_range_first(),
+     level              = level] __device__(auto v) {
+      auto v_offset                = v - v_first;
+      topological_levels[v_offset] = level;
+    });
   }
+
+  CUGRAPH_EXPECTS(sum_aggregate_frontier_size == graph_view.number_of_vertices(), "Invalid input argument: graph may contain cycles");
 
   return topological_levels;
 }
