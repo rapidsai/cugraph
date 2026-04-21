@@ -4,8 +4,6 @@
 import pytest
 import numpy as np
 
-import gc
-
 import rmm
 import dask_cudf
 from pylibcugraph.testing import gen_fixture_params_product
@@ -200,40 +198,30 @@ def dataset(request, rmm_config):
 def edgelist(request, dataset):
     df = dataset.get_edgelist()
     yield df
-    del df
-    gc.collect()
 
 
 @pytest.fixture(scope="module")
 def graph(request, dataset):
     G = dataset.get_graph()
     yield G
-    del G
-    gc.collect()
 
 
 @pytest.fixture(scope="module")
 def unweighted_graph(request, dataset):
     G = dataset.get_graph(ignore_weights=True)
     yield G
-    del G
-    gc.collect()
 
 
 @pytest.fixture(scope="module")
 def directed_graph(request, dataset):
     G = dataset.get_graph(create_using=cugraph.Graph(directed=True))
     yield G
-    del G
-    gc.collect()
 
 
 @pytest.fixture(scope="module")
 def transposed_graph(request, dataset):
     G = dataset.get_graph(store_transposed=True)
     yield G
-    del G
-    gc.collect()
 
 
 ###############################################################################
