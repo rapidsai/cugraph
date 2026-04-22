@@ -60,7 +60,7 @@ message(VERBOSE "CUGRAPH: CUGRAPH_USE_CUVS_STATIC=${CUGRAPH_USE_CUVS_STATIC}")
 set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
 
 # CUDA runtime
-rapids_cuda_init_runtime(USE_STATIC ON)
+rapids_cuda_init_runtime(USE_STATIC OFF)
 
 rapids_find_package(CUDAToolkit REQUIRED
     BUILD_EXPORT_SET    cugraph-exports
