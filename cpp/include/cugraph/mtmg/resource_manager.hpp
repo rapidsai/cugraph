@@ -13,8 +13,9 @@
 
 #include <rmm/cuda_device.hpp>
 #include <rmm/mr/cuda_memory_resource.hpp>
-#include <rmm/mr/owning_wrapper.hpp>
 #include <rmm/mr/pool_memory_resource.hpp>
+
+#include <cuda/memory_resource>
 
 #include <nccl.h>
 
@@ -95,19 +96,17 @@ class resource_manager_t {
     // (or the constructor of the object) to configure this behavior
 #if 0
     auto per_device_it = per_device_rmm_resources_.insert(
-      std::pair{global_rank, std::make_shared<rmm::mr::cuda_memory_resource>()});
+      std::pair{global_rank, rmm::mr::cuda_memory_resource()});
 #else
     auto const [free, total] = rmm::available_device_memory();
     auto const min_alloc =
       rmm::align_down(std::min(free, total / 6), rmm::CUDA_ALLOCATION_ALIGNMENT);
 
-    auto per_device_it = per_device_rmm_resources_.insert(
-      std::pair{global_rank,
-                rmm::mr::make_owning_wrapper<rmm::mr::pool_memory_resource>(
-                  std::make_shared<rmm::mr::cuda_memory_resource>(), min_alloc)});
+    auto per_device_it = per_device_rmm_resources_.insert(std::pair{
+      global_rank, rmm::mr::pool_memory_resource(rmm::mr::cuda_memory_resource(), min_alloc)});
 #endif
 
-    rmm::mr::set_per_device_resource_ref(local_device_id, per_device_it.first->second.get());
+    rmm::mr::set_per_device_resource(local_device_id, per_device_it.first->second);
   }
 
   /**
@@ -243,7 +242,7 @@ class resource_manager_t {
   mutable std::mutex lock_{};
   std::map<int, rmm::cuda_device_id> local_rank_map_{};
   std::set<int> remote_rank_set_{};
-  std::map<int, std::shared_ptr<rmm::mr::device_memory_resource>> per_device_rmm_resources_{};
+  std::map<int, cuda::mr::any_resource<cuda::mr::device_accessible>> per_device_rmm_resources_{};
 };
 
 }  // namespace mtmg
