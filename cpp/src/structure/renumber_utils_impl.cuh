@@ -543,7 +543,7 @@ void unrenumber_int_vertices(raft::handle_t const& handle,
       "+ num_vertices).");
   }
 
-  if (multi_gpu) {
+  if constexpr (multi_gpu) {
     auto& comm                 = handle.get_comms();
     auto const comm_size       = comm.get_size();
     auto const comm_rank       = comm.get_rank();
