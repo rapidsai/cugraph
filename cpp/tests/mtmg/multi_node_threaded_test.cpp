@@ -473,7 +473,7 @@ int main(int argc, char** argv)
   auto const cmd_opts = parse_test_options(argc, argv);
   auto const rmm_mode = cmd_opts["rmm_mode"].as<std::string>();
   auto resource       = cugraph::test::create_memory_resource(rmm_mode);
-  rmm::mr::set_current_device_resource(resource.get());
+  rmm::mr::set_current_device_resource(resource);
   cugraph::test::g_perf       = cmd_opts["perf"].as<bool>();
   cugraph::test::g_rmat_scale = (cmd_opts.count("rmat_scale") > 0)
                                   ? std::make_optional<size_t>(cmd_opts["rmat_scale"].as<size_t>())
