@@ -95,24 +95,18 @@ class resource_manager_t {
     // Ultimately there should be some RMM parameters passed into this function
     // (or the constructor of the object) to configure this behavior
 #if 0
-    per_device_rmm_resources_.insert(
-      std::pair{global_rank,
-                cuda::mr::any_resource<cuda::mr::device_accessible>(
-                  rmm::mr::cuda_memory_resource())});
+    auto per_device_it = per_device_rmm_resources_.insert(
+      std::pair{global_rank, rmm::mr::cuda_memory_resource()});
 #else
     auto const [free, total] = rmm::available_device_memory();
     auto const min_alloc =
       rmm::align_down(std::min(free, total / 6), rmm::CUDA_ALLOCATION_ALIGNMENT);
 
-    auto upstream = rmm::mr::cuda_memory_resource();
-    per_device_rmm_resources_.insert(
-      std::pair{global_rank,
-                cuda::mr::any_resource<cuda::mr::device_accessible>(
-                  rmm::mr::pool_memory_resource(upstream, min_alloc))});
+    auto per_device_it = per_device_rmm_resources_.insert(std::pair{
+      global_rank, rmm::mr::pool_memory_resource(rmm::mr::cuda_memory_resource(), min_alloc)});
 #endif
 
-    rmm::mr::set_per_device_resource_ref(local_device_id,
-                                         per_device_rmm_resources_.find(global_rank)->second);
+    rmm::mr::set_per_device_resource(local_device_id, per_device_it.first->second);
   }
 
   /**
@@ -186,8 +180,10 @@ class resource_manager_t {
       rmm::cuda_set_device_raii local_set_device(pos->second);
 
       nccl_comms.push_back(std::make_unique<ncclComm_t>());
-      handles.push_back(std::make_unique<raft::handle_t>(
-        rmm::cuda_stream_per_thread, std::make_shared<rmm::cuda_stream_pool>(n_streams)));
+      handles.push_back(
+        std::make_unique<raft::handle_t>(rmm::cuda_stream_per_thread,
+                                         std::make_shared<rmm::cuda_stream_pool>(n_streams),
+                                         per_device_rmm_resources_.find(rank)->second));
       device_ids.push_back(pos->second);
 
       RAFT_NCCL_TRY(

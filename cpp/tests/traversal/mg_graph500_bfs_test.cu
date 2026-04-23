@@ -79,9 +79,9 @@ class Tests_GRAPH500_MGBFS
 
     cugraph::large_buffer_manager::init(
       *handle_,
-      cugraph::large_buffer_manager::create_memory_buffer_resource(*pinned_mr_),
+      cugraph::large_buffer_manager::create_memory_buffer_resource(pinned_mr_.value()),
       std::nullopt);
-    cugraph::host_staging_buffer_manager::init(*handle_, *pinned_mr_);
+    cugraph::host_staging_buffer_manager::init(*handle_, pinned_mr_.value());
   }
 
   static void TearDownTestCase()

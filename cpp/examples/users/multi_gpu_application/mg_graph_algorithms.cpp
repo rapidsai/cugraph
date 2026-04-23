@@ -36,7 +36,7 @@ std::unique_ptr<raft::handle_t> initialize_mg_handle()
   rmm::mr::set_current_device_resource(resource);
 
   std::unique_ptr<raft::handle_t> handle =
-    std::make_unique<raft::handle_t>(rmm::cuda_stream_per_thread);
+    std::make_unique<raft::handle_t>(rmm::cuda_stream_per_thread, nullptr, resource);
 
   raft::comms::initialize_mpi_comms(handle.get(), MPI_COMM_WORLD);
   auto& comm           = handle->get_comms();

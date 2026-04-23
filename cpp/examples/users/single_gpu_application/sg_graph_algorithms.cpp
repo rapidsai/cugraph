@@ -18,7 +18,8 @@ std::unique_ptr<raft::handle_t> initialize_sg_handle()
   auto resource = rmm::mr::cuda_memory_resource();
   rmm::mr::set_current_device_resource(resource);
 
-  std::unique_ptr<raft::handle_t> handle = std::make_unique<raft::handle_t>();
+  std::unique_ptr<raft::handle_t> handle =
+    std::make_unique<raft::handle_t>(rmm::cuda_stream_per_thread, nullptr, resource);
   return std::move(handle);
 }
 

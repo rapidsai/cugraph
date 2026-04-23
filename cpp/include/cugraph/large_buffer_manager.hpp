@@ -23,7 +23,7 @@ namespace detail {
 class large_memory_buffer_resource_t {
  public:
   large_memory_buffer_resource_t() = delete;
-  large_memory_buffer_resource_t(rmm::mr::pinned_host_memory_resource mr) : mr_(mr) {}
+  large_memory_buffer_resource_t(rmm::mr::pinned_host_memory_resource mr) : mr_(std::move(mr)) {}
 
   rmm::device_async_resource_ref get() { return mr_; }
 
@@ -91,7 +91,7 @@ class large_buffer_manager {
   static detail::large_memory_buffer_resource_t create_memory_buffer_resource(
     rmm::mr::pinned_host_memory_resource mr)
   {
-    return detail::large_memory_buffer_resource_t(mr);
+    return detail::large_memory_buffer_resource_t(std::move(mr));
   }
 
   static detail::large_storage_buffer_resource_t create_storage_buffer_resource()

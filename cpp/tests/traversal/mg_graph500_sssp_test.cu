@@ -80,7 +80,7 @@ class Tests_GRAPH500_MGSSSP
 
     cugraph::large_buffer_manager::init(
       *handle_,
-      cugraph::large_buffer_manager::create_memory_buffer_resource(*pinned_mr_),
+      cugraph::large_buffer_manager::create_memory_buffer_resource(pinned_mr_.value()),
       std::nullopt);
   }
 
