@@ -47,6 +47,7 @@ target_compile_options(cugraphtestutil
 )
 
 set_property(TARGET cugraphtestutil PROPERTY POSITION_INDEPENDENT_CODE ON)
+set_property(TARGET cugraphtestutil PROPERTY NO_CUDART_DEP ON)
 
 target_include_directories(cugraphtestutil
     PUBLIC
@@ -83,6 +84,7 @@ target_include_directories(cugraph_c_testutil
 )
 
 set_property(TARGET cugraph_c_testutil PROPERTY POSITION_INDEPENDENT_CODE ON)
+set_property(TARGET cugraph_c_testutil PROPERTY NO_CUDART_DEP ON)
 
 target_link_libraries(cugraph_c_testutil
     PUBLIC
@@ -114,6 +116,7 @@ if(BUILD_CUGRAPH_MG_TESTS)
                 )
 
     set_property(TARGET cugraphmgtestutil PROPERTY POSITION_INDEPENDENT_CODE ON)
+    set_property(TARGET cugraphmgtestutil PROPERTY NO_CUDART_DEP ON)
 
     target_compile_options(cugraphmgtestutil
                 PUBLIC "$<$<COMPILE_LANGUAGE:CXX>:${CUGRAPH_CXX_FLAGS}>"
