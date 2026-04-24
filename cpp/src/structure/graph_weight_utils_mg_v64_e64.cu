@@ -32,26 +32,6 @@ template rmm::device_uvector<double> compute_in_weight_sums<int64_t, int64_t, do
 
 // compute_out_weight_sums
 
-template rmm::device_uvector<float> compute_out_weight_sums<int64_t, int64_t, float, false, true>(
-  raft::handle_t const& handle,
-  graph_view_t<int64_t, int64_t, false, true> const& graph_view,
-  edge_property_view_t<int64_t, float const*> edge_weight_view);
-
-template rmm::device_uvector<float> compute_out_weight_sums<int64_t, int64_t, float, true, true>(
-  raft::handle_t const& handle,
-  graph_view_t<int64_t, int64_t, true, true> const& graph_view,
-  edge_property_view_t<int64_t, float const*> edge_weight_view);
-
-template rmm::device_uvector<double> compute_out_weight_sums<int64_t, int64_t, double, false, true>(
-  raft::handle_t const& handle,
-  graph_view_t<int64_t, int64_t, false, true> const& graph_view,
-  edge_property_view_t<int64_t, double const*> edge_weight_view);
-
-template rmm::device_uvector<double> compute_out_weight_sums<int64_t, int64_t, double, true, true>(
-  raft::handle_t const& handle,
-  graph_view_t<int64_t, int64_t, true, true> const& graph_view,
-  edge_property_view_t<int64_t, double const*> edge_weight_view);
-
 // compute_max_in_weight_sum
 
 template float compute_max_in_weight_sum<int64_t, int64_t, float, false, true>(
