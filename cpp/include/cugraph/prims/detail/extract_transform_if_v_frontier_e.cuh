@@ -5,7 +5,6 @@
 
 #pragma once
 
-#include <cugraph/detail/compute_number_of_edges_functors.cuh>
 #include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/edge_partition_edge_property_device_view.cuh>
 #include <cugraph/edge_partition_endpoint_property_device_view.cuh>
@@ -902,11 +901,11 @@ extract_transform_if_v_frontier_e(raft::handle_t const& handle,
     auto frontier_major_last =
       thrust_tuple_get_or_identity<decltype(frontier_key_last), 0>(frontier_key_last);
     if (edge_partition_e_mask) {
-      local_max_pushes =
-        edge_partition.compute_number_of_edges_with_mask(edge_partition_e_mask->value_first(),
-                                                         frontier_major_first,
-                                                         frontier_major_last,
-                                                         handle.get_stream());
+      auto edge_partition_e_mask_span =
+        raft::device_span<uint32_t const>(edge_partition_e_mask->value_first(),
+                                          static_cast<size_t>(edge_partition.number_of_edges()));
+      local_max_pushes = edge_partition.compute_number_of_edges_with_mask(
+        edge_partition_e_mask_span, frontier_major_first, frontier_major_last, handle.get_stream());
     } else {
       local_max_pushes = edge_partition.compute_number_of_edges(
         frontier_major_first, frontier_major_last, handle.get_stream());
@@ -1428,13 +1427,15 @@ extract_transform_if_v_frontier_e(raft::handle_t const& handle,
             bool computed{false};
             if constexpr (try_bitmap) {
               if (keys.index() == 0) {
-                auto major_first =
-                  cuda::make_transform_iterator(std::get<0>(keys).begin(),
-                                                detail::bitmap_offset_to_vertex_op_t<vertex_t>{
-                                                  local_frontier_range_firsts[partition_idx]});
+                auto major_first = cuda::make_transform_iterator(
+                  std::get<0>(keys).begin(),
+                  detail::shift_right_t<vertex_t>{local_frontier_range_firsts[partition_idx]});
                 if (edge_partition_e_mask) {
-                  edge_partition.compute_number_of_edges_with_mask_async(
+                  auto edge_partition_e_mask_span = raft::device_span<uint32_t const>(
                     edge_partition_e_mask->value_first(),
+                    static_cast<size_t>(edge_partition.number_of_edges()));
+                  edge_partition.compute_number_of_edges_with_mask_async(
+                    edge_partition_e_mask_span,
                     major_first,
                     major_first + std::get<0>(keys).size(),
                     raft::device_span<size_t>(counters.data() + j, size_t{1}),
@@ -1462,8 +1463,11 @@ extract_transform_if_v_frontier_e(raft::handle_t const& handle,
               }
               auto major_first = thrust_tuple_get_or_identity<decltype(key_first), 0>(key_first);
               if (edge_partition_e_mask) {
-                edge_partition.compute_number_of_edges_with_mask_async(
+                auto edge_partition_e_mask_span = raft::device_span<uint32_t const>(
                   edge_partition_e_mask->value_first(),
+                  static_cast<size_t>(edge_partition.number_of_edges()));
+                edge_partition.compute_number_of_edges_with_mask_async(
+                  edge_partition_e_mask_span,
                   major_first,
                   major_first + num_keys,
                   raft::device_span<size_t>(counters.data() + j, size_t{1}),

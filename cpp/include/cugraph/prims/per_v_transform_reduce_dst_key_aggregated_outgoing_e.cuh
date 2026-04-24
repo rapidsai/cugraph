@@ -4,7 +4,6 @@
  */
 #pragma once
 
-#include <cugraph/detail/compute_number_of_edges_functors.cuh>
 #include <cugraph/detail/decompress_edge_partition.cuh>
 #include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/edge_partition_endpoint_property_device_view.cuh>
@@ -354,6 +353,9 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
 
     std::optional<rmm::device_uvector<edge_t>> offsets_with_mask{std::nullopt};
     if (edge_partition_e_mask) {
+      auto edge_partition_mask_span =
+        raft::device_span<uint32_t const>((*edge_partition_e_mask).value_first(),
+                                          static_cast<size_t>(edge_partition.number_of_edges()));
       rmm::device_uvector<edge_t> degrees_with_mask(0, handle.get_stream());
       if (edge_partition.dcs_nzd_vertices()) {
         auto segment_offsets = graph_view.local_edge_partition_segment_offsets(i);
@@ -364,17 +366,16 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
           major_sparse_range_size + *(edge_partition.dcs_nzd_vertex_count()), handle.get_stream());
         auto major_first = cuda::make_transform_iterator(
           thrust::make_counting_iterator(vertex_t{0}),
-          detail::sparse_hypersparse_major_op_t<vertex_t>{major_sparse_range_size,
-                                                          edge_partition.major_range_first(),
-                                                          *(edge_partition.dcs_nzd_vertices())});
+          detail::sparse_hypersparse_major_op_t<vertex_t, edge_t, GraphViewType::is_multi_gpu>{
+            edge_partition});
         degrees_with_mask =
-          edge_partition.compute_local_degrees_with_mask((*edge_partition_e_mask).value_first(),
+          edge_partition.compute_local_degrees_with_mask(edge_partition_mask_span,
                                                          major_first,
                                                          major_first + degrees_with_mask.size(),
                                                          handle.get_stream());
       } else {
         degrees_with_mask = edge_partition.compute_local_degrees_with_mask(
-          (*edge_partition_e_mask).value_first(),
+          edge_partition_mask_span,
           thrust::make_counting_iterator(edge_partition.major_range_first()),
           thrust::make_counting_iterator(edge_partition.major_range_last()),
           handle.get_stream());

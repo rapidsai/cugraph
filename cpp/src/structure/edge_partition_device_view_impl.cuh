@@ -23,10 +23,10 @@ namespace cugraph {
 // ============================================================================
 
 template <typename vertex_t, typename edge_t, bool multi_gpu>
-template <typename MaskIterator, typename MajorIterator>
+template <typename MajorIterator>
 __host__ void
 edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t<multi_gpu>>::
-  compute_number_of_edges_with_mask_async(MaskIterator mask_first,
+  compute_number_of_edges_with_mask_async(raft::device_span<uint32_t const> edge_mask,
                                           MajorIterator major_first,
                                           MajorIterator major_last,
                                           raft::device_span<size_t> count,
@@ -42,12 +42,12 @@ edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t<multi
   if (dcs_nzd_vertices_) {
     auto local_degree_first = cuda::make_transform_iterator(
       major_first,
-      detail::local_degree_op_t<vertex_t, edge_t, size_t, multi_gpu, true, MaskIterator>{
+      detail::local_degree_op_t<vertex_t, edge_t, size_t, multi_gpu, true>{
         this->offsets_,
         major_range_first_,
         *dcs_nzd_vertices_,
         *major_hypersparse_first_,
-        mask_first});
+        edge_mask.data()});
     cub::DeviceReduce::Sum(static_cast<void*>(nullptr),
                            tmp_storage_bytes,
                            local_degree_first,
@@ -64,12 +64,12 @@ edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t<multi
   } else {
     auto local_degree_first = cuda::make_transform_iterator(
       major_first,
-      detail::local_degree_op_t<vertex_t, edge_t, size_t, multi_gpu, false, MaskIterator>{
+      detail::local_degree_op_t<vertex_t, edge_t, size_t, multi_gpu, false>{
         this->offsets_,
         major_range_first_,
         std::byte{0} /* dummy */,
         std::byte{0} /* dummy */,
-        mask_first});
+        edge_mask.data()});
     cub::DeviceReduce::Sum(static_cast<void*>(nullptr),
                            tmp_storage_bytes,
                            local_degree_first,
@@ -87,46 +87,10 @@ edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t<multi
 }
 
 template <typename vertex_t, typename edge_t, bool multi_gpu>
-template <typename MaskIterator>
+template <typename MajorIterator>
 __host__ rmm::device_uvector<edge_t>
 edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t<multi_gpu>>::
-  compute_local_degrees_with_mask(MaskIterator mask_first, rmm::cuda_stream_view stream) const
-{
-  rmm::device_uvector<edge_t> local_degrees(this->major_range_size(), stream);
-  if (dcs_nzd_vertices_) {
-    assert(major_hypersparse_first_);
-    thrust::transform(
-      rmm::exec_policy_nosync(stream),
-      thrust::make_counting_iterator(this->major_range_first()),
-      thrust::make_counting_iterator(this->major_range_last()),
-      local_degrees.begin(),
-      detail::local_degree_op_t<vertex_t, edge_t, edge_t, multi_gpu, true, MaskIterator>{
-        this->offsets_,
-        major_range_first_,
-        *dcs_nzd_vertices_,
-        major_hypersparse_first_.value_or(vertex_t{0}),
-        mask_first});
-  } else {
-    thrust::transform(
-      rmm::exec_policy_nosync(stream),
-      thrust::make_counting_iterator(this->major_range_first()),
-      thrust::make_counting_iterator(this->major_range_last()),
-      local_degrees.begin(),
-      detail::local_degree_op_t<vertex_t, edge_t, edge_t, multi_gpu, false, MaskIterator>{
-        this->offsets_,
-        major_range_first_,
-        std::byte{0} /* dummy */,
-        std::byte{0} /* dummy */,
-        mask_first});
-  }
-  return local_degrees;
-}
-
-template <typename vertex_t, typename edge_t, bool multi_gpu>
-template <typename MaskIterator, typename MajorIterator>
-__host__ rmm::device_uvector<edge_t>
-edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t<multi_gpu>>::
-  compute_local_degrees_with_mask(MaskIterator mask_first,
+  compute_local_degrees_with_mask(raft::device_span<uint32_t const> edge_mask,
                                   MajorIterator major_first,
                                   MajorIterator major_last,
                                   rmm::cuda_stream_view stream) const
@@ -134,29 +98,27 @@ edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t<multi
   rmm::device_uvector<edge_t> local_degrees(cuda::std::distance(major_first, major_last), stream);
   if (dcs_nzd_vertices_) {
     assert(major_hypersparse_first_);
-    thrust::transform(
-      rmm::exec_policy_nosync(stream),
-      major_first,
-      major_last,
-      local_degrees.begin(),
-      detail::local_degree_op_t<vertex_t, edge_t, edge_t, multi_gpu, true, MaskIterator>{
-        this->offsets_,
-        major_range_first_,
-        dcs_nzd_vertices_.value(),
-        major_hypersparse_first_.value_or(vertex_t{0}),
-        mask_first});
+    thrust::transform(rmm::exec_policy_nosync(stream),
+                      major_first,
+                      major_last,
+                      local_degrees.begin(),
+                      detail::local_degree_op_t<vertex_t, edge_t, edge_t, multi_gpu, true>{
+                        this->offsets_,
+                        major_range_first_,
+                        dcs_nzd_vertices_.value(),
+                        major_hypersparse_first_.value_or(vertex_t{0}),
+                        edge_mask.data()});
   } else {
-    thrust::transform(
-      rmm::exec_policy_nosync(stream),
-      major_first,
-      major_last,
-      local_degrees.begin(),
-      detail::local_degree_op_t<vertex_t, edge_t, edge_t, multi_gpu, false, MaskIterator>{
-        this->offsets_,
-        major_range_first_,
-        std::byte{0} /* dummy */,
-        std::byte{0} /* dummy */,
-        mask_first});
+    thrust::transform(rmm::exec_policy_nosync(stream),
+                      major_first,
+                      major_last,
+                      local_degrees.begin(),
+                      detail::local_degree_op_t<vertex_t, edge_t, edge_t, multi_gpu, false>{
+                        this->offsets_,
+                        major_range_first_,
+                        std::byte{0} /* dummy */,
+                        std::byte{0} /* dummy */,
+                        edge_mask.data()});
   }
   return local_degrees;
 }
@@ -166,10 +128,10 @@ edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t<multi
 // ============================================================================
 
 template <typename vertex_t, typename edge_t, bool multi_gpu>
-template <typename MaskIterator, typename MajorIterator>
+template <typename MajorIterator>
 __host__ void
 edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t<!multi_gpu>>::
-  compute_number_of_edges_with_mask_async(MaskIterator mask_first,
+  compute_number_of_edges_with_mask_async(raft::device_span<uint32_t const> edge_mask,
                                           MajorIterator major_first,
                                           MajorIterator major_last,
                                           raft::device_span<size_t> count,
@@ -185,12 +147,11 @@ edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t<!mult
 
   auto local_degree_first = cuda::make_transform_iterator(
     major_first,
-    detail::local_degree_op_t<vertex_t, edge_t, size_t, multi_gpu, false, MaskIterator>{
-      this->offsets_,
-      std::byte{0} /* dummy */,
-      std::byte{0} /* dummy */,
-      std::byte{0} /* dummy */,
-      mask_first});
+    detail::local_degree_op_t<vertex_t, edge_t, size_t, multi_gpu, false>{this->offsets_,
+                                                                          std::byte{0} /* dummy */,
+                                                                          std::byte{0} /* dummy */,
+                                                                          std::byte{0} /* dummy */,
+                                                                          edge_mask.data()});
   cub::DeviceReduce::Sum(static_cast<void*>(nullptr),
                          tmp_storage_bytes,
                          local_degree_first,
@@ -207,31 +168,10 @@ edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t<!mult
 }
 
 template <typename vertex_t, typename edge_t, bool multi_gpu>
-template <typename MaskIterator>
+template <typename MajorIterator>
 __host__ rmm::device_uvector<edge_t>
 edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t<!multi_gpu>>::
-  compute_local_degrees_with_mask(MaskIterator mask_first, rmm::cuda_stream_view stream) const
-{
-  rmm::device_uvector<edge_t> local_degrees(this->major_range_size(), stream);
-  thrust::transform(
-    rmm::exec_policy_nosync(stream),
-    thrust::make_counting_iterator(this->major_range_first()),
-    thrust::make_counting_iterator(this->major_range_last()),
-    local_degrees.begin(),
-    detail::local_degree_op_t<vertex_t, edge_t, edge_t, multi_gpu, false, MaskIterator>{
-      this->offsets_,
-      std::byte{0} /* dummy */,
-      std::byte{0} /* dummy */,
-      std::byte{0} /* dummy */,
-      mask_first});
-  return local_degrees;
-}
-
-template <typename vertex_t, typename edge_t, bool multi_gpu>
-template <typename MaskIterator, typename MajorIterator>
-__host__ rmm::device_uvector<edge_t>
-edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t<!multi_gpu>>::
-  compute_local_degrees_with_mask(MaskIterator mask_first,
+  compute_local_degrees_with_mask(raft::device_span<uint32_t const> edge_mask,
                                   MajorIterator major_first,
                                   MajorIterator major_last,
                                   rmm::cuda_stream_view stream) const
@@ -242,12 +182,11 @@ edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t<!mult
     major_first,
     major_last,
     local_degrees.begin(),
-    detail::local_degree_op_t<vertex_t, edge_t, edge_t, multi_gpu, false, MaskIterator>{
-      this->offsets_,
-      std::byte{0} /* dummy */,
-      std::byte{0} /* dummy */,
-      std::byte{0} /* dummy */,
-      mask_first});
+    detail::local_degree_op_t<vertex_t, edge_t, edge_t, multi_gpu, false>{this->offsets_,
+                                                                          std::byte{0} /* dummy */,
+                                                                          std::byte{0} /* dummy */,
+                                                                          std::byte{0} /* dummy */,
+                                                                          edge_mask.data()});
   return local_degrees;
 }
 
