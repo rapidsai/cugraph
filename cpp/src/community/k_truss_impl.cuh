@@ -478,21 +478,11 @@ k_truss(raft::handle_t const& handle,
 
       rmm::device_uvector<edge_t> decrease_count(unique_pair_count, handle.get_stream());
 
-      // FIXME: The original thrust::reduce_by_key call below produces corrupted output
-      // when compiled with nvcc 13.0 + CCCL 3.4.0 on Blackwell (sm_120).
-      // The bug does not occur in nvcc 13.2. Remove this workaround once nvcc 13.0 is no
-      // longer supported.
-      //
-      // Original (buggy) call:
-      //   thrust::reduce_by_key(handle.get_thrust_policy(),
-      //                         get_dataframe_buffer_begin(edgelist_to_update_count),
-      //                         get_dataframe_buffer_end(edgelist_to_update_count),
-      //                         cuda::make_constant_iterator(size_t{1}),
-      //                         get_dataframe_buffer_begin(vertex_pair_buffer_unique),
-      //                         decrease_count.begin(),
-      //                         cuda::std::equal_to<cuda::std::tuple<vertex_t, vertex_t>>{});
-      //
+      // FIXME: thrust::reduce_by_key produces corrupted output when compiled with
+      // nvcc 13.0 + CCCL 3.4.0 on Blackwell (sm_120). The bug does not occur in nvcc 13.2.
+      // Remove this workaround (set to #if 0) once nvcc 13.0 is no longer supported.
       // See https://github.com/rapidsai/cugraph/issues/5494
+#if 1
       thrust::unique_copy(handle.get_thrust_policy(),
                           get_dataframe_buffer_begin(edgelist_to_update_count),
                           get_dataframe_buffer_end(edgelist_to_update_count),
@@ -523,6 +513,15 @@ k_truss(raft::handle_t const& handle,
         decrease_count.begin(),
         cuda::proclaim_return_type<edge_t>(
           [] __device__(edge_t d_lower, edge_t d_upper) { return d_upper - d_lower; }));
+#else
+      thrust::reduce_by_key(handle.get_thrust_policy(),
+                            get_dataframe_buffer_begin(edgelist_to_update_count),
+                            get_dataframe_buffer_end(edgelist_to_update_count),
+                            cuda::make_constant_iterator(size_t{1}),
+                            get_dataframe_buffer_begin(vertex_pair_buffer_unique),
+                            decrease_count.begin(),
+                            cuda::std::equal_to<cuda::std::tuple<vertex_t, vertex_t>>{});
+#endif
 
       std::tie(std::get<0>(vertex_pair_buffer_unique),
                std::get<1>(vertex_pair_buffer_unique),
