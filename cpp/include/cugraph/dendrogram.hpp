@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2024, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -18,7 +18,7 @@ class Dendrogram {
   void add_level(vertex_t first_index,
                  vertex_t num_verts,
                  rmm::cuda_stream_view stream_view,
-                 rmm::device_async_resource_ref mr = rmm::mr::get_current_device_resource())
+                 rmm::device_async_resource_ref mr = rmm::mr::get_current_device_resource_ref())
   {
     level_ptr_.push_back(
       std::make_unique<rmm::device_uvector<vertex_t>>(num_verts, stream_view, mr));
