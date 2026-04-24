@@ -488,31 +488,19 @@ k_truss(raft::handle_t const& handle,
                           get_dataframe_buffer_end(edgelist_to_update_count),
                           get_dataframe_buffer_begin(vertex_pair_buffer_unique));
 
-      rmm::device_uvector<edge_t> d_lower_bounds(unique_pair_count, handle.get_stream());
-      rmm::device_uvector<edge_t> d_upper_bounds(unique_pair_count, handle.get_stream());
-
-      thrust::lower_bound(handle.get_thrust_policy(),
-                          get_dataframe_buffer_begin(edgelist_to_update_count),
-                          get_dataframe_buffer_end(edgelist_to_update_count),
-                          get_dataframe_buffer_begin(vertex_pair_buffer_unique),
-                          get_dataframe_buffer_begin(vertex_pair_buffer_unique) + unique_pair_count,
-                          d_lower_bounds.begin());
-
-      thrust::upper_bound(handle.get_thrust_policy(),
-                          get_dataframe_buffer_begin(edgelist_to_update_count),
-                          get_dataframe_buffer_end(edgelist_to_update_count),
-                          get_dataframe_buffer_begin(vertex_pair_buffer_unique),
-                          get_dataframe_buffer_begin(vertex_pair_buffer_unique) + unique_pair_count,
-                          d_upper_bounds.begin());
-
       thrust::transform(
         handle.get_thrust_policy(),
-        d_lower_bounds.begin(),
-        d_lower_bounds.end(),
-        d_upper_bounds.begin(),
+        get_dataframe_buffer_begin(vertex_pair_buffer_unique),
+        get_dataframe_buffer_begin(vertex_pair_buffer_unique) + unique_pair_count,
         decrease_count.begin(),
         cuda::proclaim_return_type<edge_t>(
-          [] __device__(edge_t d_lower, edge_t d_upper) { return d_upper - d_lower; }));
+          [edgelist_first = get_dataframe_buffer_begin(edgelist_to_update_count),
+           edgelist_last  = get_dataframe_buffer_end(edgelist_to_update_count)] __device__(
+            auto pair) {
+            return static_cast<edge_t>(cuda::std::distance(
+              thrust::lower_bound(thrust::seq, edgelist_first, edgelist_last, pair),
+              thrust::upper_bound(thrust::seq, edgelist_first, edgelist_last, pair)));
+          }));
 #else
       thrust::reduce_by_key(handle.get_thrust_policy(),
                             get_dataframe_buffer_begin(edgelist_to_update_count),
