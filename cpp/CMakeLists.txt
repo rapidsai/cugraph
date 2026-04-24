@@ -60,7 +60,7 @@ message(VERBOSE "CUGRAPH: CUGRAPH_USE_CUVS_STATIC=${CUGRAPH_USE_CUVS_STATIC}")
 set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
 
 # CUDA runtime
-rapids_cuda_init_runtime(USE_STATIC ON)
+rapids_cuda_init_runtime(USE_STATIC OFF)
 
 rapids_find_package(CUDAToolkit REQUIRED
     BUILD_EXPORT_SET    cugraph-exports
@@ -175,6 +175,8 @@ set(CUGRAPH_SG_SOURCES
     src/community/detail/common_methods_sg_v32_e32.cu
     src/community/detail/refine_sg_v64_e64.cu
     src/community/detail/refine_sg_v32_e32.cu
+    src/community/detail/decision_graph_mis_sg_v64_e64.cu
+    src/community/detail/decision_graph_mis_sg_v32_e32.cu
     src/community/edge_triangle_count_sg_v64_e64.cu
     src/community/edge_triangle_count_sg_v32_e32.cu
     src/community/detail/maximal_independent_moves_sg_v64_e64.cu
@@ -292,6 +294,8 @@ set(CUGRAPH_SG_SOURCES
     src/traversal/sssp_sg_v32_e32.cu
     src/traversal/od_shortest_distances_sg_v64_e64.cu
     src/traversal/od_shortest_distances_sg_v32_e32.cu
+    src/dag/topological_sort_sg_v64_e64.cu
+    src/dag/topological_sort_sg_v32_e32.cu
     src/link_analysis/hits_sg_v64_e64.cu
     src/link_analysis/hits_sg_v32_e32.cu
     src/link_analysis/pagerank_sg_v64_e64.cu
@@ -350,6 +354,8 @@ set(CUGRAPH_MG_SOURCES
     src/community/detail/common_methods_mg_v32_e32.cu
     src/community/detail/refine_mg_v64_e64.cu
     src/community/detail/refine_mg_v32_e32.cu
+    src/community/detail/decision_graph_mis_mg_v64_e64.cu
+    src/community/detail/decision_graph_mis_mg_v32_e32.cu
     src/community/edge_triangle_count_mg_v64_e64.cu
     src/community/edge_triangle_count_mg_v32_e32.cu
     src/community/detail/maximal_independent_moves_mg_v64_e64.cu
@@ -426,6 +432,8 @@ set(CUGRAPH_MG_SOURCES
     src/traversal/bfs_mg_v32_e32.cu
     src/traversal/sssp_mg_v64_e64.cu
     src/traversal/sssp_mg_v32_e32.cu
+    src/dag/topological_sort_mg_v64_e64.cu
+    src/dag/topological_sort_mg_v32_e32.cu
     src/link_analysis/hits_mg_v64_e64.cu
     src/link_analysis/hits_mg_v32_e32.cu
     src/link_analysis/pagerank_mg_v64_e64.cu
@@ -475,6 +483,9 @@ SECTIONS
 }
 ]=])
 
+set_property(TARGET cugraph PROPERTY NO_CUDART_DEP ON)
+set_property(TARGET cugraph_mg PROPERTY NO_CUDART_DEP ON)
+
 set(cugraph_suffixes "" "_mg")
 foreach(suffix IN LISTS cugraph_suffixes)
     set_target_properties(cugraph${suffix}
@@ -487,6 +498,7 @@ foreach(suffix IN LISTS cugraph_suffixes)
                    CUDA_STANDARD_REQUIRED              ON
                    POSITION_INDEPENDENT_CODE           ON
                    INTERFACE_POSITION_INDEPENDENT_CODE ON
+                   NO_CUDART_DEP                       ON
     )
 
     ################################################################################
@@ -515,13 +527,14 @@ foreach(suffix IN LISTS cugraph_suffixes)
     # - link libraries -------------------------------------------------------------
     target_link_libraries(cugraph${suffix}
         PUBLIC
-            rmm::rmm
             raft::raft
             $<BUILD_LOCAL_INTERFACE:CUDA::toolkit>
         PRIVATE
             ${COMPILED_RAFT_LIB}
             $<IF:$<BOOL:${CUGRAPH_USE_CUVS_STATIC}>,cuvs::cuvs_static,cuvs::cuvs> #
             cuco::cuco
+            rmm::rmm
+        INTERFACE $<COMPILE_ONLY:rmm::rmm>
     )
 
     ################################################################################

@@ -11,6 +11,7 @@ dependencies:
 - certifi
 - cmake>=3.30.4
 - cuda-nvcc
+- cuda-nvrtc-dev
 - cuda-nvtx-dev
 - cuda-profiler-api
 - cuda-python>=13.0.1,<14.0

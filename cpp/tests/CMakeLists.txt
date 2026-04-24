@@ -47,6 +47,7 @@ target_compile_options(cugraphtestutil
 )
 
 set_property(TARGET cugraphtestutil PROPERTY POSITION_INDEPENDENT_CODE ON)
+set_property(TARGET cugraphtestutil PROPERTY NO_CUDART_DEP ON)
 
 target_include_directories(cugraphtestutil
     PUBLIC
@@ -83,6 +84,7 @@ target_include_directories(cugraph_c_testutil
 )
 
 set_property(TARGET cugraph_c_testutil PROPERTY POSITION_INDEPENDENT_CODE ON)
+set_property(TARGET cugraph_c_testutil PROPERTY NO_CUDART_DEP ON)
 
 target_link_libraries(cugraph_c_testutil
     PUBLIC
@@ -114,6 +116,7 @@ if(BUILD_CUGRAPH_MG_TESTS)
                 )
 
     set_property(TARGET cugraphmgtestutil PROPERTY POSITION_INDEPENDENT_CODE ON)
+    set_property(TARGET cugraphmgtestutil PROPERTY NO_CUDART_DEP ON)
 
     target_compile_options(cugraphmgtestutil
                 PUBLIC "$<$<COMPILE_LANGUAGE:CXX>:${CUGRAPH_CXX_FLAGS}>"
@@ -471,6 +474,10 @@ ConfigureTest(WEAKLY_CONNECTED_COMPONENTS_TEST components/weakly_connected_compo
 ConfigureTest(STRONGLY_CONNECTED_COMPONENTS_TEST components/strongly_connected_components_test.cpp)
 
 ###################################################################################################
+# - TOPOLOGICAL SORT tests ------------------------------------------------------------------------
+ConfigureTest(TOPOLOGICAL_SORT_TEST dag/topological_sort_test.cpp dag/dag_test_utilities_sg.cu)
+
+###################################################################################################
 # - MIS tests -------------------------------------------------------------------------------------
 ConfigureTest(MIS_TEST components/mis_test.cu)
 
@@ -686,6 +693,11 @@ if(BUILD_CUGRAPH_MG_TESTS)
     # - MG STRONGLY CONNECTED COMPONENTS tests ----------------------------------------------------
     ConfigureTestMG(MG_STRONGLY_CONNECTED_COMPONENTS_TEST
                     components/mg_strongly_connected_components_test.cpp)
+
+    ###############################################################################################
+    # - MG TOPOLOGICAL SORT tests -----------------------------------------------------------------
+    ConfigureTestMG(MG_TOPOLOGICAL_SORT_TEST dag/mg_topological_sort_test.cpp
+                    dag/dag_test_utilities_mg.cu)
 
     ###############################################################################################
     # - MG EDGE SOURCE DESTINATION LOOKUP tests ---------------------------------------------------

@@ -79,6 +79,8 @@ cache:
       - nccl ${{ nccl_version }}
       - openmpi <5.0.3 # Required for building cpp-mgtests (multi-GPU tests)
       - rapids-build-backend >=0.4.0,<0.5.0
+      - cuda-cudart-dev
+      - cuda-nvrtc-dev
       - cuda-nvtx-dev
       - cuda-profiler-api
       - libcublas-dev
@@ -111,6 +113,8 @@ outputs:
         - cuda-version =${{ cuda_version }}
         - librmm =${{ minor_version }}
         - rapids-logger =0.2
+        - cuda-cudart-dev
+        - cuda-nvrtc-dev
         - libcublas-dev
         - libcurand-dev
         - libcusolver-dev
@@ -120,6 +124,8 @@ outputs:
         - libraft =${{ minor_version }}
         - librmm =${{ minor_version }}
         - nccl ${{ nccl_version }}
+        - cuda-cudart
+        - cuda-nvrtc
         - cuda-profiler-api
         - libcublas
         - libcurand
@@ -127,6 +133,8 @@ outputs:
         - libcusparse
       ignore_run_exports:
         by_name:
+          - cuda-cudart
+          - cuda-nvrtc
           - cuda-nvtx
           - cuda-version
           - libcublas
@@ -166,13 +174,19 @@ outputs:
         - cuda-version =${{ cuda_version }}
         - libcudf =${{ minor_version }}
         - librmm =${{ minor_version }}
+        - cuda-cudart-dev
+        - cuda-nvrtc-dev
       run:
         - ${{ pin_compatible("cuda-version", upper_bound="x", lower_bound="x") }}
         - ${{ pin_subpackage("libcugraph", exact=True) }}
         - libcudf =${{ minor_version }}
         - librmm =${{ minor_version }}
+        - cuda-cudart
+        - cuda-nvrtc
       ignore_run_exports:
         by_name:
+          - cuda-cudart
+          - cuda-nvrtc
           - cuda-nvtx
           - cuda-version
           - libcublas
@@ -209,6 +223,8 @@ outputs:
       host:
         - ${{ pin_subpackage("libcugraph", exact=True) }}
         - cuda-version =${{ cuda_version }}
+        - cuda-cudart-dev
+        - cuda-nvrtc-dev
         - nccl ${{ nccl_version }}
         - openmpi <5.0.3 # Required for building cpp-mgtests (multi-GPU tests)
         - rapids-logger =0.2
@@ -216,8 +232,12 @@ outputs:
         - ${{ pin_compatible("cuda-version", upper_bound="x", lower_bound="x") }}
         - ${{ pin_subpackage("libcugraph", exact=True) }}
         - ${{ pin_subpackage("libcugraph_etl", exact=True) }}
+        - cuda-cudart
+        - cuda-nvrtc
       ignore_run_exports:
         by_name:
+          - cuda-cudart
+          - cuda-nvrtc
           - cuda-nvtx
           - cuda-version
           - libcublas

@@ -31,6 +31,9 @@
 /** @defgroup community_cpp C++ community Algorithms
  */
 
+/** @defgroup dag_cpp C++ DAG Algorithms
+ */
+
 /** @defgroup sampling_cpp C++ sampling algorithms
  */
 
@@ -801,7 +804,7 @@ template <typename vertex_t, typename edge_t, typename weight_t>
 std::unique_ptr<legacy::GraphCOO<vertex_t, edge_t, weight_t>> minimum_spanning_tree(
   raft::handle_t const& handle,
   legacy::GraphCSRView<vertex_t, edge_t, weight_t> const& graph,
-  rmm::device_async_resource_ref mr = rmm::mr::get_current_device_resource());
+  rmm::device_async_resource_ref mr = rmm::mr::get_current_device_resource_ref());
 
 namespace subgraph {
 /**
@@ -1091,6 +1094,32 @@ void bfs(raft::handle_t const& handle,
          bool direction_optimizing = false,
          vertex_t depth_limit      = std::numeric_limits<vertex_t>::max(),
          bool do_expensive_check   = false);
+
+/**
+ * @ingroup dag_cpp
+ * @brief Compute a topological ordering of a directed acyclic graph (DAG).
+ * For every directed edge (u, v), u appears before v in the returned ordering.
+ *
+ * @throws cugraph::logic_error on erroneous input arguments, if the graph contains a cycle or
+ * if the graph is symmetric (undirected).
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * or multi-GPU (true).
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Graph view object.
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ * @return Device vector containing the topological sorting levels. For each local vertex (indexed
+ * by local vertex partition offset), stores the topological level. Disconnected vertices are
+ * assigned level 0.
+ */
+template <typename vertex_t, typename edge_t, bool multi_gpu>
+rmm::device_uvector<vertex_t> topological_sort(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  bool do_expensive_check = false);
 
 /**
  * @ingroup traversal_cpp
