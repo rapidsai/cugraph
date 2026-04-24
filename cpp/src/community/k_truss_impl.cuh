@@ -495,8 +495,8 @@ k_truss(raft::handle_t const& handle,
         decrease_count.begin(),
         cuda::proclaim_return_type<edge_t>(
           [edgelist_first = get_dataframe_buffer_begin(edgelist_to_update_count),
-           edgelist_last  = get_dataframe_buffer_end(edgelist_to_update_count)] __device__(
-            auto pair) {
+           edgelist_last =
+             get_dataframe_buffer_end(edgelist_to_update_count)] __device__(auto pair) {
             return static_cast<edge_t>(cuda::std::distance(
               thrust::lower_bound(thrust::seq, edgelist_first, edgelist_last, pair),
               thrust::upper_bound(thrust::seq, edgelist_first, edgelist_last, pair)));
