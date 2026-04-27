@@ -256,9 +256,12 @@ Current validation performed:
 - `cpp/build/conda/cuda-13.1/release/gtests/STREAM_TEST`
 - direct `dlopen()` of `libcugraph_common.so`, `libcugraph.so`, and `libcugraph_mg.so`
 - Python imports of `libcugraph` and `pylibcugraph`
+- temporary install with `cmake --install cpp/build/conda/cuda-13.1/release --prefix /tmp/cugraph-install-check`
 
 Observed dependency shape:
 
 - `libcugraph.so` depends on `libcugraph_common.so` and `libcuvs.so`
 - `libcugraph.so` does not depend on `libcugraph_mg.so`
 - `libcugraph_mg.so` depends on `libcugraph_common.so`
+- install tree contains `libcugraph_common.so`
+- installed CMake exports include `cugraph::cugraph_common`
