@@ -414,10 +414,6 @@ class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t
     raft::device_span<size_t> count /* size = 1 */,
     rmm::cuda_stream_view stream) const;
 
-  // OK... the next step is to support raft::device_span<T const*> instead of
-  // major_first/major_last, and a variation for T major_first and T major_last for the counting
-  // iterator/transform_iterator cases Need to think about how to consolidate MG/SG variations. also
-  // do this for the other compute* functions.
   template <typename T, std::enable_if_t<!std::is_const_v<T>, int> = 0>
   __host__ void compute_number_of_edges_with_mask_async(raft::device_span<uint32_t const> edge_mask,
                                                         T* major_first,
