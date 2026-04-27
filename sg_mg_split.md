@@ -163,11 +163,8 @@ These are common because SG and MG both consume neutral graph-structure explicit
 
 ### Sampling shared helpers
 
-These are common because sampling helper implementations are reused across SG- and MG-facing code paths:
+These are common because sampling helper implementations are reused across SG- and MG-facing code paths and are not themselves SG/MG algorithm instantiations:
 
-- `src/sampling/detail/gather_sampled_properties.cu`
-- `src/sampling/detail/update_visited_utils.cu`
-- `src/sampling/detail/deduplicate_edges_by_minor.cu`
 - `src/sampling/detail/shuffle_and_organize_output.cu`
 - `src/sampling/detail/remove_visited_vertices_from_frontier_common_v32_e32.cu`
 - `src/sampling/detail/remove_visited_vertices_from_frontier_common_v64_e64.cu`
@@ -197,6 +194,8 @@ The mixed SG/MG instantiation files have been split out of common:
 
 - `validation_checks_*` now has separate SG and MG instantiation files
 - `update_visited_utils_*` now has separate SG and MG instantiation files backed by `update_visited_utils_impl.cuh`
+- `deduplicate_edges_by_minor_*` now has separate SG and MG instantiation files backed by `deduplicate_edges_by_minor_impl.cuh`
+- `gather_sampled_properties_*` now has separate SG and MG instantiation files backed by `gather_sampled_properties_impl.cuh`
 
 ### Distributed common infrastructure
 
