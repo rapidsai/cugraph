@@ -779,7 +779,7 @@ rapids_export(INSTALL cugraph
 # - build export ---------------------------------------------------------------
 rapids_export(BUILD cugraph
     EXPORT_SET cugraph-exports
-    GLOBAL_TARGETS cugraph cugraph_mg cugraph_c
+    GLOBAL_TARGETS cugraph cugraph_mg cugraph_common cugraph_c
     NAMESPACE cugraph::
     DOCUMENTATION doc_string
     )

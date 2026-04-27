@@ -244,5 +244,21 @@ Current achieved state:
 - no `_sg_` or `_mg_` files in `CUGRAPH_COMMON_SOURCES`
 - `libcugraph.so` does not link `libcugraph_mg.so`
 - both `libcugraph.so` and `libcugraph_mg.so` link `libcugraph_common.so`
+- `libcugraph_common.so` is included in both install and build exports
 
 This establishes clean source-list ownership. Remaining work is about semantic API boundaries, not filename cleanup.
+
+## Validation checklist
+
+Current validation performed:
+
+- `build-cugraph -j0`
+- `cpp/build/conda/cuda-13.1/release/gtests/STREAM_TEST`
+- direct `dlopen()` of `libcugraph_common.so`, `libcugraph.so`, and `libcugraph_mg.so`
+- Python imports of `libcugraph` and `pylibcugraph`
+
+Observed dependency shape:
+
+- `libcugraph.so` depends on `libcugraph_common.so` and `libcuvs.so`
+- `libcugraph.so` does not depend on `libcugraph_mg.so`
+- `libcugraph_mg.so` depends on `libcugraph_common.so`
