@@ -41,6 +41,9 @@ jobs:
       date: ${{ inputs.date }}
       script: ci/test_cpp.sh
       sha: ${{ inputs.sha }}
+      # TODO(#5498): Drop this filter once libcugraph no longer requires a CUDA >= 12.8
+      # cudart at runtime (ideally by statically linking libcudart again).
+      matrix_filter: map(select(.CUDA_VER | split(".") | map(tonumber) >= [12, 9]))
   conda-python-tests:
     secrets: inherit
     uses: rapidsai/shared-workflows/.github/workflows/conda-python-tests.yaml@main
@@ -50,6 +53,9 @@ jobs:
       date: ${{ inputs.date }}
       script: ci/test_python.sh
       sha: ${{ inputs.sha }}
+      # TODO(#5498): Drop this filter once libcugraph no longer requires a CUDA >= 12.8
+      # cudart at runtime (ideally by statically linking libcudart again).
+      matrix_filter: map(select(.CUDA_VER | split(".") | map(tonumber) >= [12, 9]))
   wheel-tests-pylibcugraph:
     secrets: inherit
     uses: rapidsai/shared-workflows/.github/workflows/wheels-test.yaml@main
@@ -59,6 +65,9 @@ jobs:
       date: ${{ inputs.date }}
       sha: ${{ inputs.sha }}
       script: ci/test_wheel_pylibcugraph.sh
+      # TODO(#5498): Drop this filter once libcugraph no longer requires a CUDA >= 12.8
+      # cudart at runtime (ideally by statically linking libcudart again).
+      matrix_filter: map(select(.CUDA_VER | split(".") | map(tonumber) >= [12, 9]))
   wheel-tests-cugraph:
     secrets: inherit
     uses: rapidsai/shared-workflows/.github/workflows/wheels-test.yaml@main
@@ -68,3 +77,6 @@ jobs:
       date: ${{ inputs.date }}
       sha: ${{ inputs.sha }}
       script: ci/test_wheel_cugraph.sh
+      # TODO(#5498): Drop this filter once libcugraph no longer requires a CUDA >= 12.8
+      # cudart at runtime (ideally by statically linking libcudart again).
+      matrix_filter: map(select(.CUDA_VER | split(".") | map(tonumber) >= [12, 9]))
