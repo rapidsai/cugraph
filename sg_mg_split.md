@@ -209,6 +209,11 @@ These files are neutral by name and behavior. They should remain in `libcugraph_
 
 These files are common because they own explicit instantiations or helper logic that is naturally reused by both SG and MG paths. No immediate API redesign is needed.
 
+The mixed SG/MG instantiation files have been split out of common:
+
+- `validation_checks_*` now has separate SG and MG instantiation files
+- `update_visited_utils_*` now has separate SG and MG instantiation files backed by `update_visited_utils_impl.cuh`
+
 ### Distributed common infrastructure
 
 The distributed communication and shuffle bucket is common by behavior but deserves clearer architecture over time. It is not SG or MG algorithm code; it is a distributed primitive layer used by both sides.

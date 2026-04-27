@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#pragma once
+
 #include "sampling/detail/sampling_utils.hpp"
 
 #include <cugraph/detail/device_comm_wrapper.hpp>
@@ -38,7 +40,6 @@ update_dst_visited_vertices_and_labels(
     visited_minor_labels.has_value() == sampled_vertex_labels.has_value(),
     "Invalid input: visited_minor_labels and sampled_vertex_labels must have the same presence");
 
-  // 1) Shuffle sampled items to the owning GPU by vertex partitioning (minor path context)
   rmm::device_uvector<vertex_t> new_samples(sampled_vertices.size(), handle.get_stream());
   thrust::copy(handle.get_thrust_policy(),
                sampled_vertices.begin(),
@@ -66,7 +67,6 @@ update_dst_visited_vertices_and_labels(
     }
   }
 
-  // 2) Sort and dedupe the new sampled items (reduce comm and storage)
   if (new_sample_labels) {
     thrust::sort(handle.get_thrust_policy(),
                  thrust::make_zip_iterator(new_samples.begin(), new_sample_labels->begin()),
@@ -81,13 +81,11 @@ update_dst_visited_vertices_and_labels(
     new_sample_labels->resize(new_size, handle.get_stream());
   } else {
     thrust::sort(handle.get_thrust_policy(), new_samples.begin(), new_samples.end());
-    auto new_end =
-      thrust::unique(handle.get_thrust_policy(), new_samples.begin(), new_samples.end());
+    auto new_end = thrust::unique(handle.get_thrust_policy(), new_samples.begin(), new_samples.end());
     size_t n_keep = static_cast<size_t>(new_end - new_samples.begin());
     new_samples.resize(n_keep, handle.get_stream());
   }
 
-  // 3) Aggregate new samples across minor_comm (unify per-minor partition)
   if constexpr (multi_gpu) {
     auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
 
@@ -103,7 +101,6 @@ update_dst_visited_vertices_and_labels(
     }
   }
 
-  // 4) Single-GPU: append local new samples (already deduped) at tail and sort
   auto const orig_size = static_cast<size_t>(visited_minors.size());
   visited_minors.resize(orig_size + new_samples.size(), handle.get_stream());
   thrust::copy(handle.get_thrust_policy(),
@@ -127,43 +124,6 @@ update_dst_visited_vertices_and_labels(
 
   return std::make_tuple(std::move(visited_minors), std::move(visited_minor_labels));
 }
-
-// Explicit instantiations for common configurations
-template std::tuple<rmm::device_uvector<int32_t>, std::optional<rmm::device_uvector<int32_t>>>
-update_dst_visited_vertices_and_labels<int32_t, int32_t, false>(
-  raft::handle_t const&,
-  graph_view_t<int32_t, int32_t, false, false> const&,
-  rmm::device_uvector<int32_t>&&,
-  std::optional<rmm::device_uvector<int32_t>>&&,
-  raft::device_span<int32_t const>,
-  std::optional<raft::device_span<int32_t const>>);
-
-template std::tuple<rmm::device_uvector<int32_t>, std::optional<rmm::device_uvector<int32_t>>>
-update_dst_visited_vertices_and_labels<int32_t, int32_t, true>(
-  raft::handle_t const&,
-  graph_view_t<int32_t, int32_t, false, true> const&,
-  rmm::device_uvector<int32_t>&&,
-  std::optional<rmm::device_uvector<int32_t>>&&,
-  raft::device_span<int32_t const>,
-  std::optional<raft::device_span<int32_t const>>);
-
-template std::tuple<rmm::device_uvector<int64_t>, std::optional<rmm::device_uvector<int32_t>>>
-update_dst_visited_vertices_and_labels<int64_t, int64_t, false>(
-  raft::handle_t const&,
-  graph_view_t<int64_t, int64_t, false, false> const&,
-  rmm::device_uvector<int64_t>&&,
-  std::optional<rmm::device_uvector<int32_t>>&&,
-  raft::device_span<int64_t const>,
-  std::optional<raft::device_span<int32_t const>>);
-
-template std::tuple<rmm::device_uvector<int64_t>, std::optional<rmm::device_uvector<int32_t>>>
-update_dst_visited_vertices_and_labels<int64_t, int64_t, true>(
-  raft::handle_t const&,
-  graph_view_t<int64_t, int64_t, false, true> const&,
-  rmm::device_uvector<int64_t>&&,
-  std::optional<rmm::device_uvector<int32_t>>&&,
-  raft::device_span<int64_t const>,
-  std::optional<raft::device_span<int32_t const>>);
 
 }  // namespace detail
 }  // namespace cugraph

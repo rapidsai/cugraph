@@ -164,7 +164,6 @@ set(CUGRAPH_COMMON_UTILITY_SOURCES
     src/detail/permute_range_v32.cu
     src/detail/permute_range_v64.cu
     src/utilities/invert_flags.cu
-    src/utilities/validation_checks.cu
 )
 
 set(CUGRAPH_COMMON_DISTRIBUTED_SOURCES
@@ -179,7 +178,6 @@ set(CUGRAPH_COMMON_DISTRIBUTED_SOURCES
 
 set(CUGRAPH_COMMON_SAMPLING_SOURCES
     src/sampling/detail/gather_sampled_properties.cu
-    src/sampling/detail/update_visited_utils.cu
     src/sampling/detail/deduplicate_edges_by_minor.cu
     src/sampling/detail/shuffle_and_organize_output.cu
     src/sampling/detail/remove_visited_vertices_from_frontier_common_v32_e32.cu
@@ -219,8 +217,12 @@ set(CUGRAPH_COMMON_SOURCES
 set(CUGRAPH_SG_SOURCES
     src/sampling/temporal_sampling_sg_v32_e32.cu
     src/sampling/temporal_sampling_sg_v64_e64.cu
+    src/sampling/detail/update_visited_utils_sg_v32_e32.cu
+    src/sampling/detail/update_visited_utils_sg_v64_e64.cu
     src/sampling/detail/update_temporal_edge_mask_sg_v32_e32.cu
     src/sampling/detail/update_temporal_edge_mask_sg_v64_e64.cu
+    src/utilities/validation_checks_sg_v32_e32.cu
+    src/utilities/validation_checks_sg_v64_e64.cu
     src/detail/collect_local_vertex_values_sg_v32_e32.cu
     src/detail/collect_local_vertex_values_sg_v64_e64.cu
     src/sampling/detail/conversion_utilities.cu
@@ -375,8 +377,12 @@ set(CUGRAPH_SG_SOURCES
 set(CUGRAPH_MG_SOURCES
     src/sampling/temporal_sampling_mg_v32_e32.cu
     src/sampling/temporal_sampling_mg_v64_e64.cu
+    src/sampling/detail/update_visited_utils_mg_v32_e32.cu
+    src/sampling/detail/update_visited_utils_mg_v64_e64.cu
     src/sampling/detail/update_temporal_edge_mask_mg_v32_e32.cu
     src/sampling/detail/update_temporal_edge_mask_mg_v64_e64.cu
+    src/utilities/validation_checks_mg_v32_e32.cu
+    src/utilities/validation_checks_mg_v64_e64.cu
     src/utilities/shuffle_local_edge_srcs_dsts_mg_v32.cu
     src/utilities/shuffle_local_edge_srcs_dsts_mg_v64.cu
     src/detail/collect_local_vertex_values_mg_v32_e32.cu
