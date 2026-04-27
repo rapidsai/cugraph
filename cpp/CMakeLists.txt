@@ -158,20 +158,26 @@ endif()
 #       since ninja will run them in parallel in this order,
 #       which should give us a better parallel schedule.
 
-set(CUGRAPH_COMMON_SOURCES
+set(CUGRAPH_COMMON_UTILITY_SOURCES
     src/detail/utility_wrappers_32.cu
     src/detail/utility_wrappers_64.cu
     src/detail/permute_range_v32.cu
     src/detail/permute_range_v64.cu
-    src/detail/device_comm_wrapper_common_v32_e32.cu
-    src/detail/device_comm_wrapper_common_v64_e64.cu
     src/utilities/invert_flags.cu
     src/utilities/validation_checks.cu
+)
+
+set(CUGRAPH_COMMON_DISTRIBUTED_SOURCES
+    src/detail/device_comm_wrapper_common_v32_e32.cu
+    src/detail/device_comm_wrapper_common_v64_e64.cu
     src/utilities/shuffle_properties_common.cu
     src/utilities/shuffle_vertices_common_v32.cu
     src/utilities/shuffle_vertices_common_v64.cu
     src/utilities/shuffle_vertex_pairs_common_v32_e32.cu
     src/utilities/shuffle_vertex_pairs_common_v64_e64.cu
+)
+
+set(CUGRAPH_COMMON_SAMPLING_SOURCES
     src/sampling/detail/gather_sampled_properties.cu
     src/sampling/detail/update_visited_utils.cu
     src/sampling/detail/deduplicate_edges_by_minor.cu
@@ -180,16 +186,34 @@ set(CUGRAPH_COMMON_SOURCES
     src/sampling/detail/remove_visited_vertices_from_frontier_common_v64_e64.cu
     src/sampling/detail/temporal_partition_vertices_v64.cu
     src/sampling/detail/temporal_partition_vertices_v32.cu
+)
+
+set(CUGRAPH_COMMON_TRAVERSAL_SOURCES
     src/traversal/k_hop_nbrs_common_v32_e32.cu
     src/traversal/k_hop_nbrs_common_v64_e64.cu
+)
+
+set(CUGRAPH_COMMON_STRUCTURE_SOURCES
     src/structure/graph_view_common_v32_e32.cu
     src/structure/graph_view_common_v64_e64.cu
     src/structure/graph_weight_utils_common_v32_e32.cu
     src/structure/graph_weight_utils_common_v64_e64.cu
     src/structure/renumber_utils_common_v64_e64.cu
     src/structure/renumber_utils_common_v32_e32.cu
+)
+
+set(CUGRAPH_COMMON_LINK_PREDICTION_SOURCES
     src/link_prediction/detail/similarity_common_v32_e32.cu
     src/link_prediction/detail/similarity_common_v64_e64.cu
+)
+
+set(CUGRAPH_COMMON_SOURCES
+    ${CUGRAPH_COMMON_UTILITY_SOURCES}
+    ${CUGRAPH_COMMON_DISTRIBUTED_SOURCES}
+    ${CUGRAPH_COMMON_SAMPLING_SOURCES}
+    ${CUGRAPH_COMMON_TRAVERSAL_SOURCES}
+    ${CUGRAPH_COMMON_STRUCTURE_SOURCES}
+    ${CUGRAPH_COMMON_LINK_PREDICTION_SOURCES}
 )
 
 set(CUGRAPH_SG_SOURCES
@@ -218,8 +242,6 @@ set(CUGRAPH_SG_SOURCES
     src/utilities/path_retrieval_sg_v64_e64.cu
     src/structure/legacy/graph.cu
     src/linear_assignment/legacy/hungarian.cu
-    src/link_prediction/detail/similarity_mg_v32_e32.cu
-    src/link_prediction/detail/similarity_mg_v64_e64.cu
     src/link_prediction/detail/similarity_sg_v32_e32.cu
     src/link_prediction/detail/similarity_sg_v64_e64.cu
     src/link_prediction/jaccard_sg_v64_e64.cu
