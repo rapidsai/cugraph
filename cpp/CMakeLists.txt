@@ -186,32 +186,16 @@ set(CUGRAPH_COMMON_SAMPLING_SOURCES
     src/sampling/detail/temporal_partition_vertices_v32.cu
 )
 
-set(CUGRAPH_COMMON_TRAVERSAL_SOURCES
-    src/traversal/k_hop_nbrs_common_v32_e32.cu
-    src/traversal/k_hop_nbrs_common_v64_e64.cu
-)
-
 set(CUGRAPH_COMMON_STRUCTURE_SOURCES
-    src/structure/graph_view_common_v32_e32.cu
-    src/structure/graph_view_common_v64_e64.cu
-    src/structure/graph_weight_utils_common_v32_e32.cu
-    src/structure/graph_weight_utils_common_v64_e64.cu
     src/structure/renumber_utils_common_v64_e64.cu
     src/structure/renumber_utils_common_v32_e32.cu
-)
-
-set(CUGRAPH_COMMON_LINK_PREDICTION_SOURCES
-    src/link_prediction/detail/similarity_common_v32_e32.cu
-    src/link_prediction/detail/similarity_common_v64_e64.cu
 )
 
 set(CUGRAPH_COMMON_SOURCES
     ${CUGRAPH_COMMON_UTILITY_SOURCES}
     ${CUGRAPH_COMMON_DISTRIBUTED_SOURCES}
     ${CUGRAPH_COMMON_SAMPLING_SOURCES}
-    ${CUGRAPH_COMMON_TRAVERSAL_SOURCES}
     ${CUGRAPH_COMMON_STRUCTURE_SOURCES}
-    ${CUGRAPH_COMMON_LINK_PREDICTION_SOURCES}
 )
 
 set(CUGRAPH_SG_SOURCES
@@ -401,6 +385,8 @@ set(CUGRAPH_MG_SOURCES
     src/community/edge_triangle_count_mg_v32_e32.cu
     src/community/detail/maximal_independent_moves_mg_v64_e64.cu
     src/community/detail/maximal_independent_moves_mg_v32_e32.cu
+    src/link_prediction/detail/similarity_mg_v32_e32.cu
+    src/link_prediction/detail/similarity_mg_v64_e64.cu
     src/link_prediction/jaccard_mg_v64_e64.cu
     src/link_prediction/jaccard_mg_v32_e32.cu
     src/link_prediction/sorensen_mg_v64_e64.cu
@@ -455,6 +441,10 @@ set(CUGRAPH_MG_SOURCES
     src/structure/graph_weight_utils_mg_v32_e32.cu
     src/structure/renumber_edgelist_mg_v64_e64.cu
     src/structure/renumber_edgelist_mg_v32_e32.cu
+    src/structure/graph_view_mg_v64_e64.cu
+    src/structure/graph_view_mg_v32_e32.cu
+    src/structure/graph_weight_utils_mg_v64_e64.cu
+    src/structure/graph_weight_utils_mg_v32_e32.cu
     src/structure/renumber_utils_mg_v64_e64.cu
     src/structure/renumber_utils_mg_v32_e32.cu
     src/structure/relabel_mg_v64_e64.cu
@@ -465,6 +455,8 @@ set(CUGRAPH_MG_SOURCES
     src/structure/select_random_vertices_mg_v32_e32.cu
     src/traversal/extract_bfs_paths_mg_v64_e64.cu
     src/traversal/extract_bfs_paths_mg_v32_e32.cu
+    src/traversal/k_hop_nbrs_mg_v64_e64.cu
+    src/traversal/k_hop_nbrs_mg_v32_e32.cu
     src/traversal/bfs_mg_v64_e64.cu
     src/traversal/bfs_mg_v32_e32.cu
     src/traversal/sssp_mg_v64_e64.cu

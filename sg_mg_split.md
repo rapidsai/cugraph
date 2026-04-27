@@ -154,14 +154,10 @@ These are common because both SG-facing code paths and MG algorithms use distrib
 - `src/utilities/shuffle_vertex_pairs_common_v32_e32.cu`
 - `src/utilities/shuffle_vertex_pairs_common_v64_e64.cu`
 
-### Graph view / graph structure primitives
+### Graph structure primitives
 
-These are common because SG and MG both consume graph-view and graph-structure explicit instantiations:
+These are common because SG and MG both consume neutral graph-structure explicit instantiations:
 
-- `src/structure/graph_view_common_v32_e32.cu`
-- `src/structure/graph_view_common_v64_e64.cu`
-- `src/structure/graph_weight_utils_common_v32_e32.cu`
-- `src/structure/graph_weight_utils_common_v64_e64.cu`
 - `src/structure/renumber_utils_common_v32_e32.cu`
 - `src/structure/renumber_utils_common_v64_e64.cu`
 
@@ -177,16 +173,6 @@ These are common because sampling helper implementations are reused across SG- a
 - `src/sampling/detail/remove_visited_vertices_from_frontier_common_v64_e64.cu`
 - `src/sampling/detail/temporal_partition_vertices_v32.cu`
 - `src/sampling/detail/temporal_partition_vertices_v64.cu`
-
-### Link prediction shared instantiations
-
-- `src/link_prediction/detail/similarity_common_v32_e32.cu`
-- `src/link_prediction/detail/similarity_common_v64_e64.cu`
-
-### Traversal shared instantiations
-
-- `src/traversal/k_hop_nbrs_common_v32_e32.cu`
-- `src/traversal/k_hop_nbrs_common_v64_e64.cu`
 
 ## Next-stage recommendations
 
@@ -204,8 +190,6 @@ These files are neutral by name and behavior. They should remain in `libcugraph_
 
 - generic utility instantiations
 - sampling shared helpers
-- link-prediction shared instantiations
-- traversal shared instantiations
 
 These files are common because they own explicit instantiations or helper logic that is naturally reused by both SG and MG paths. No immediate API redesign is needed.
 
@@ -226,19 +210,6 @@ Files in this bucket include:
 - `shuffle_vertex_pairs_common_*`
 
 Recommendation: keep these in common, but consider documenting this bucket as a distributed primitive layer rather than generic utilities.
-
-### MG-flavored common instantiations
-
-The graph-view / graph-structure bucket is the most semantically important remaining area. Files like:
-
-- `graph_view_common_*`
-- `graph_weight_utils_common_*`
-
-own `multi_gpu=true` instantiations that are consumed by both SG-facing and MG-facing DSOs. These are common by ownership but MG-flavored by template parameters.
-
-This is acceptable in the current architecture because it lets `libcugraph.so` avoid depending on `libcugraph_mg.so`. However, it also marks the main future design question: should SG-facing code consume MG-flavored graph-view functionality at all, or should those call paths be refactored behind a more explicit distributed/common API?
-
-Recommendation: keep these in common for now, but treat them as the main target for a future API-boundary review.
 
 ## Current milestone
 
