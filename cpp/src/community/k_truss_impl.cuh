@@ -482,7 +482,7 @@ k_truss(raft::handle_t const& handle,
       // nvcc 13.0 + CCCL 3.4.0 on Blackwell (sm_120). The bug does not occur in nvcc 13.1+.
       // See https://github.com/rapidsai/cugraph/issues/5494
 #if defined(__CUDACC_VER_MAJOR__) && defined(__CUDACC_VER_MINOR__) && \
-    (__CUDACC_VER_MAJOR__ == 13) && (__CUDACC_VER_MINOR__ == 0)
+  (__CUDACC_VER_MAJOR__ == 13) && (__CUDACC_VER_MINOR__ == 0)
       thrust::unique_copy(handle.get_thrust_policy(),
                           get_dataframe_buffer_begin(edgelist_to_update_count),
                           get_dataframe_buffer_end(edgelist_to_update_count),
