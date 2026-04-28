@@ -38,9 +38,11 @@ def load_library():
         # their symbols
         import librmm
         import libraft
+        import libcuvs
 
         librmm.load_library()
         libraft.load_library()
+        libcuvs.load_library()
     except ModuleNotFoundError:
         # These runtime dependencies might be satisfied by conda packages (which do not
         # have any Python modules) instead of wheels. In that situation, assume that

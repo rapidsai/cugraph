@@ -70,6 +70,7 @@ sccache --show-adv-stats
 sccache --stop-server >/dev/null 2>&1 || true
 
 EXCLUDE_ARGS=(
+  --exclude "libcuvs.so"
   --exclude "libraft.so"
 )
 
