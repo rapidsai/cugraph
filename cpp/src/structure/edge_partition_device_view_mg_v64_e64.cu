@@ -1,0 +1,52 @@
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
+ * SPDX-License-Identifier: Apache-2.0
+ */
+#include "edge_partition_device_view_impl.cuh"
+
+#include <cugraph/utilities/device_functors.cuh>
+
+namespace cugraph {
+
+using view_t = edge_partition_device_view_t<int64_t, int64_t, true>;
+
+// compute_number_of_edges_with_mask_async
+template void view_t::compute_number_of_edges_with_mask_async<int64_t const*>(
+  raft::device_span<uint32_t const>,
+  int64_t const*,
+  int64_t const*,
+  raft::device_span<size_t>,
+  rmm::cuda_stream_view) const;
+template void view_t::compute_number_of_edges_with_mask_async<thrust::counting_iterator<int64_t>>(
+  raft::device_span<uint32_t const>,
+  thrust::counting_iterator<int64_t>,
+  thrust::counting_iterator<int64_t>,
+  raft::device_span<size_t>,
+  rmm::cuda_stream_view) const;
+
+// compute_local_degrees_with_mask (MaskIterator + MajorIterator)
+template rmm::device_uvector<int64_t> view_t::compute_local_degrees_with_mask<int64_t const*>(
+  raft::device_span<uint32_t const>, int64_t const*, int64_t const*, rmm::cuda_stream_view) const;
+template rmm::device_uvector<int64_t> view_t::compute_local_degrees_with_mask<
+  thrust::counting_iterator<int64_t>>(raft::device_span<uint32_t const>,
+                                      thrust::counting_iterator<int64_t>,
+                                      thrust::counting_iterator<int64_t>,
+                                      rmm::cuda_stream_view) const;
+
+// bitmap iterator
+using bitmap_iter_64_t = cuda::transform_iterator<detail::shift_right_t<int64_t>, uint32_t const*>;
+template void view_t::compute_number_of_edges_with_mask_async<bitmap_iter_64_t>(
+  raft::device_span<uint32_t const>,
+  bitmap_iter_64_t,
+  bitmap_iter_64_t,
+  raft::device_span<size_t>,
+  rmm::cuda_stream_view) const;
+
+// sparse-hypersparse iterator
+using sh_iter_64_t =
+  cuda::transform_iterator<detail::sparse_hypersparse_major_op_t<int64_t, int64_t, true>,
+                           thrust::counting_iterator<int64_t>>;
+template rmm::device_uvector<int64_t> view_t::compute_local_degrees_with_mask<sh_iter_64_t>(
+  raft::device_span<uint32_t const>, sh_iter_64_t, sh_iter_64_t, rmm::cuda_stream_view) const;
+
+}  // namespace cugraph
