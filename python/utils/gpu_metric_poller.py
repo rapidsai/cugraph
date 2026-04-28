@@ -88,7 +88,7 @@ class GPUMetricPoller(threading.Thread):
         childWritePipe = os.fdopen(writeFileNo, "w")
 
         # hack - get actual device ID somehow
-        devObj = system.Device(0)
+        devObj = system.Device(index=0)
         memObj = devObj.memory_info
         utilObj = devObj.utilization
         initialMemUsed = memObj.used
