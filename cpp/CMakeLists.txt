@@ -196,6 +196,17 @@ set(CUGRAPH_COMMON_SOURCES
     ${CUGRAPH_COMMON_STRUCTURE_SOURCES}
 )
 
+set(CUGRAPH_MTMG_SOURCES
+    src/mtmg/vertex_result_sg_v32_e32.cu
+    src/mtmg/vertex_result_sg_v64_e64.cu
+    src/mtmg/vertex_pairs_result_sg_v32_e32.cu
+    src/mtmg/vertex_pairs_result_sg_v64_e64.cu
+    src/mtmg/vertex_result_mg_v32_e32.cu
+    src/mtmg/vertex_result_mg_v64_e64.cu
+    src/mtmg/vertex_pairs_result_mg_v32_e32.cu
+    src/mtmg/vertex_pairs_result_mg_v64_e64.cu
+)
+
 set(CUGRAPH_SG_SOURCES
     src/sampling/temporal_sampling_sg_v32_e32.cu
     src/sampling/temporal_sampling_sg_v64_e64.cu
@@ -354,10 +365,6 @@ set(CUGRAPH_SG_SOURCES
     src/community/approx_weighted_matching_sg_v32_e32.cu
     src/traversal/k_hop_nbrs_sg_v64_e64.cu
     src/traversal/k_hop_nbrs_sg_v32_e32.cu
-    src/mtmg/vertex_result_sg_v32_e32.cu
-    src/mtmg/vertex_result_sg_v64_e64.cu
-    src/mtmg/vertex_pairs_result_sg_v32_e32.cu
-    src/mtmg/vertex_pairs_result_sg_v64_e64.cu
 )
 
 set(CUGRAPH_MG_SOURCES
@@ -495,10 +502,6 @@ set(CUGRAPH_MG_SOURCES
     src/community/triangle_count_mg_v32_e32.cu
     src/community/approx_weighted_matching_mg_v64_e64.cu
     src/community/approx_weighted_matching_mg_v32_e32.cu
-    src/mtmg/vertex_result_mg_v32_e32.cu
-    src/mtmg/vertex_result_mg_v64_e64.cu
-    src/mtmg/vertex_pairs_result_mg_v32_e32.cu
-    src/mtmg/vertex_pairs_result_mg_v64_e64.cu
 )
 
 add_library(cugraph ${CUGRAPH_SG_SOURCES})
@@ -506,6 +509,9 @@ add_library(cugraph::cugraph ALIAS cugraph)
 
 add_library(cugraph_mg ${CUGRAPH_MG_SOURCES})
 add_library(cugraph::cugraph_mg ALIAS cugraph_mg)
+
+add_library(cugraph_mtmg ${CUGRAPH_MTMG_SOURCES})
+add_library(cugraph::cugraph_mtmg ALIAS cugraph_mtmg)
 
 add_library(cugraph_common SHARED ${CUGRAPH_COMMON_SOURCES})
 add_library(cugraph::cugraph_common ALIAS cugraph_common)
@@ -521,6 +527,7 @@ SECTIONS
 
 set_property(TARGET cugraph PROPERTY NO_CUDART_DEP ON)
 set_property(TARGET cugraph_mg PROPERTY NO_CUDART_DEP ON)
+set_property(TARGET cugraph_mtmg PROPERTY NO_CUDART_DEP ON)
 set_property(TARGET cugraph_common PROPERTY NO_CUDART_DEP ON)
 
 set_target_properties(cugraph_common
@@ -565,7 +572,7 @@ target_link_libraries(cugraph_common
 target_link_options(cugraph_common PRIVATE "${CUGRAPH_BINARY_DIR}/fatbin.ld")
 target_link_options(cugraph_common PUBLIC "$<BUILD_LOCAL_INTERFACE:-Wl,--allow-shlib-undefined>")
 
-set(cugraph_suffixes "" "_mg")
+set(cugraph_suffixes "" "_mg" "_mtmg")
 foreach(suffix IN LISTS cugraph_suffixes)
     set_target_properties(cugraph${suffix}
         PROPERTIES BUILD_RPATH                         "\$ORIGIN"
@@ -624,6 +631,7 @@ endforeach()
 
 target_link_libraries(cugraph PUBLIC cugraph_common)
 target_link_libraries(cugraph_mg PRIVATE cugraph_common)
+target_link_libraries(cugraph_mtmg PRIVATE cugraph_common)
 
 
 
@@ -740,7 +748,7 @@ endif()
 rapids_cmake_install_lib_dir( lib_dir )
 include(CPack)
 
-install(TARGETS cugraph cugraph_mg cugraph_common
+install(TARGETS cugraph cugraph_mg cugraph_mtmg cugraph_common
         DESTINATION ${lib_dir}
         EXPORT cugraph-exports)
 
@@ -774,7 +782,7 @@ cuGraph library is a collection of GPU accelerated graph algorithms that process
 
 rapids_export(INSTALL cugraph
     EXPORT_SET cugraph-exports
-    GLOBAL_TARGETS cugraph cugraph_mg cugraph_common cugraph_c
+    GLOBAL_TARGETS cugraph cugraph_mg cugraph_mtmg cugraph_common cugraph_c
     NAMESPACE cugraph::
     DOCUMENTATION doc_string
     )
@@ -783,7 +791,7 @@ rapids_export(INSTALL cugraph
 # - build export ---------------------------------------------------------------
 rapids_export(BUILD cugraph
     EXPORT_SET cugraph-exports
-    GLOBAL_TARGETS cugraph cugraph_mg cugraph_common cugraph_c
+    GLOBAL_TARGETS cugraph cugraph_mg cugraph_mtmg cugraph_common cugraph_c
     NAMESPACE cugraph::
     DOCUMENTATION doc_string
     )
