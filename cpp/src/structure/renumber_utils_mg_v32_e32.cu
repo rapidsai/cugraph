@@ -7,7 +7,7 @@
 
 namespace cugraph {
 
-// SG instantiation
+// MG instantiation
 
 template void unrenumber_local_int_edges<int32_t, false, true>(
   raft::handle_t const& handle,
