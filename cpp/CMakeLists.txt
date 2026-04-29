@@ -270,8 +270,6 @@ set(CUGRAPH_SG_SOURCES
     src/sampling/random_walks_sg_v32_e32.cu
     src/sampling/detail/prepare_next_frontier_sg_v64_e64.cu
     src/sampling/detail/prepare_next_frontier_sg_v32_e32.cu
-    src/sampling/detail/remove_visited_vertices_from_frontier_sg_v32_e32.cu
-    src/sampling/detail/remove_visited_vertices_from_frontier_sg_v64_e64.cu
     src/sampling/detail/check_edge_bias_values_sg_v64_e64.cu
     src/sampling/detail/check_edge_bias_values_sg_v32_e32.cu
     src/sampling/detail/gather_one_hop_sg_v32_e32.cu
