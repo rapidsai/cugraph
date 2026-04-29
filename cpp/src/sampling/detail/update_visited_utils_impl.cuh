@@ -81,7 +81,8 @@ update_dst_visited_vertices_and_labels(
     new_sample_labels->resize(new_size, handle.get_stream());
   } else {
     thrust::sort(handle.get_thrust_policy(), new_samples.begin(), new_samples.end());
-    auto new_end = thrust::unique(handle.get_thrust_policy(), new_samples.begin(), new_samples.end());
+    auto new_end =
+      thrust::unique(handle.get_thrust_policy(), new_samples.begin(), new_samples.end());
     size_t n_keep = static_cast<size_t>(new_end - new_samples.begin());
     new_samples.resize(n_keep, handle.get_stream());
   }
