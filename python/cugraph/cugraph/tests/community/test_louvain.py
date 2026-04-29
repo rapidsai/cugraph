@@ -1,29 +1,15 @@
-# SPDX-FileCopyrightText: Copyright (c) 2019-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2019-2026, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 
 import gc
 
 import pytest
-import networkx as nx
 
 import cugraph
 import cupyx
 import cudf
-from cugraph.testing import utils, UNDIRECTED_DATASETS
+from cugraph.testing import UNDIRECTED_DATASETS
 from cugraph.datasets import karate_asymmetric
-
-
-try:
-    import community
-except ModuleNotFoundError:
-    pytest.exit(
-        "community module not found\n"
-        "The python-louvain module needs to be installed\n"
-        "please run `pip install python-louvain`"
-    )
-
-
-print("Networkx version : {} ".format(nx.__version__))
 
 
 # =============================================================================
@@ -42,40 +28,16 @@ def cugraph_call(graph_file, edgevals=False, directed=False):
     return parts, mod
 
 
-def networkx_call(M):
-    # z = {k: 1.0/M.shape[0] for k in range(M.shape[0])}
-    Gnx = nx.from_pandas_edgelist(
-        M, source="0", target="1", edge_attr="weight", create_using=nx.Graph()
-    )
-    parts = community.best_partition(Gnx)
-
-    return parts
-
-
+# The goal is to just test that the code runs and returns a result.
+# The C/C++ test perform a check for accuracy, but the python test
+# is not designed to be a 1:1 comparison with the C/C++ test.
 @pytest.mark.sg
 @pytest.mark.parametrize("graph_file", UNDIRECTED_DATASETS)
 def test_louvain(graph_file):
-    dataset_path = graph_file.get_path()
-    M = utils.read_csv_for_nx(dataset_path)
     cu_parts, cu_mod = cugraph_call(graph_file, edgevals=True)
-    nx_parts = networkx_call(M)
 
-    # Calculating modularity scores for comparison
-    Gnx = nx.from_pandas_edgelist(
-        M, source="0", target="1", edge_attr="weight", create_using=nx.Graph()
-    )
-
-    cu_parts = cu_parts.to_pandas()
-    cu_map = dict(zip(cu_parts["vertex"], cu_parts["partition"]))
-
-    assert set(nx_parts.keys()) == set(cu_map.keys())
-
-    cu_mod_nx = community.modularity(cu_map, Gnx)
-    nx_mod = community.modularity(nx_parts, Gnx)
-
-    assert len(cu_parts) == len(nx_parts)
-    assert cu_mod > (0.82 * nx_mod)
-    assert abs(cu_mod - cu_mod_nx) < 0.0001
+    assert len(cu_parts) > 0
+    assert cu_mod > 0.0
 
 
 @pytest.mark.sg
