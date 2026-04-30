@@ -961,6 +961,7 @@ if (BUILD_CUGRAPH_MTMG_TESTS)
                           PRIVATE
                           cuco::cuco
                           cugraphmgtestutil
+                          cugraph::cugraph_mtmg
                           ${COMPILED_RAFT_LIB}
                           ucx::ucp
                           ucx::ucs
@@ -972,6 +973,7 @@ if (BUILD_CUGRAPH_MTMG_TESTS)
                           PRIVATE
                           cuco::cuco
                           cugraphmgtestutil
+                          cugraph::cugraph_mtmg
                           ${COMPILED_RAFT_LIB}
                           ucx::ucp
                           ucx::ucs
@@ -983,6 +985,7 @@ if (BUILD_CUGRAPH_MTMG_TESTS)
                           PRIVATE
                           cuco::cuco
                           cugraphmgtestutil
+                          cugraph::cugraph_mtmg
                           ${COMPILED_RAFT_LIB}
                           ucx::ucp
                           ucx::ucs
@@ -997,6 +1000,7 @@ if (BUILD_CUGRAPH_MTMG_TESTS)
                               PRIVATE
                               cuco::cuco
                               cugraphmgtestutil
+                              cugraph::cugraph_mtmg
                               ${COMPILED_RAFT_LIB}
                               ucx::ucp
                               ucx::ucs
