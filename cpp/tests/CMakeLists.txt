@@ -131,10 +131,11 @@ if(BUILD_CUGRAPH_MG_TESTS)
     )
 
     target_link_libraries(cugraphmgtestutil
+        PUBLIC
+            cugraph::cugraph_mg
         PRIVATE
             cuco::cuco
             cugraph::cugraph
-            cugraph::cugraph_mg
             NCCL::NCCL
             MPI::MPI_CXX
             GTest::gtest
