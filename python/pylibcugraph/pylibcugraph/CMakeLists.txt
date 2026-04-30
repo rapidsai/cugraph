@@ -74,7 +74,7 @@ set(cython_sources
     minimum_spanning_tree.pyx
     extract_vertex_list.pyx
 )
-set(linked_libraries cugraph::cugraph;cugraph::cugraph_c)
+set(linked_libraries cugraph::cugraph;cugraph::cugraph_mg;cugraph::cugraph_c)
 
 rapids_cython_create_modules(
   CXX

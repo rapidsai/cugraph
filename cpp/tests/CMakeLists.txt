@@ -134,6 +134,7 @@ if(BUILD_CUGRAPH_MG_TESTS)
         PRIVATE
             cuco::cuco
             cugraph::cugraph
+            cugraph::cugraph_mg
             NCCL::NCCL
             MPI::MPI_CXX
             GTest::gtest
