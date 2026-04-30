@@ -37,6 +37,7 @@
 #include <thrust/transform.h>
 
 #include <limits>
+#include <tuple>
 #include <type_traits>
 
 namespace cugraph {
@@ -325,20 +326,20 @@ void bfs(raft::handle_t const& handle,
                                 // partition_size * 0.5 & partition_size *
                                 // hypersparse_threshold_ratio * 0.5 as approximate out degrees
       if (edge_partition_e_mask) {
-        auto edge_partition_mask_span =
-          raft::device_span<uint32_t const>((*edge_partition_e_mask).value_first(),
-                                            static_cast<size_t>(edge_partition.number_of_edges()));
+        auto edge_partition_mask_span = raft::device_span<uint32_t const>(
+          (*edge_partition_e_mask).value_first(),
+          packed_bool_size(static_cast<size_t>(edge_partition.number_of_edges())));
         approx_out_degrees = edge_partition.compute_local_degrees_with_mask(
           edge_partition_mask_span,
-          thrust::make_counting_iterator(graph_view.local_vertex_partition_range_first()),
-          thrust::make_counting_iterator(graph_view.local_vertex_partition_range_first()) +
-            high_and_mid_degree_segment_size,
+          std::make_tuple(graph_view.local_vertex_partition_range_first(),
+                          graph_view.local_vertex_partition_range_first() +
+                            static_cast<vertex_t>(high_and_mid_degree_segment_size)),
           handle.get_stream());
       } else {
         approx_out_degrees = edge_partition.compute_local_degrees(
-          thrust::make_counting_iterator(graph_view.local_vertex_partition_range_first()),
-          thrust::make_counting_iterator(graph_view.local_vertex_partition_range_first()) +
-            high_and_mid_degree_segment_size,
+          std::make_tuple(graph_view.local_vertex_partition_range_first(),
+                          graph_view.local_vertex_partition_range_first() +
+                            static_cast<vertex_t>(high_and_mid_degree_segment_size)),
           handle.get_stream());
       }
       thrust::transform(handle.get_thrust_policy(),

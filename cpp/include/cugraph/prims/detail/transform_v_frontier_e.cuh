@@ -427,9 +427,9 @@ auto transform_v_frontier_e(raft::handle_t const& handle,
     cuda::std::optional<raft::device_span<uint32_t const>> edge_partition_mask_span{
       cuda::std::nullopt};
     if (edge_partition_e_mask) {
-      edge_partition_mask_span =
-        raft::device_span<uint32_t const>((*edge_partition_e_mask).value_first(),
-                                          static_cast<size_t>(edge_partition.number_of_edges()));
+      edge_partition_mask_span = raft::device_span<uint32_t const>(
+        (*edge_partition_e_mask).value_first(),
+        packed_bool_size(static_cast<size_t>(edge_partition.number_of_edges())));
     }
 
     auto edge_partition_frontier_local_degrees =

@@ -2416,7 +2416,7 @@ compute_aggregate_local_frontier_local_degrees(raft::handle_t const& handle,
         : edge_partition.compute_local_degrees_with_mask(
             raft::device_span<uint32_t const>(
               (*edge_partition_e_mask).value_first(),
-              static_cast<size_t>(edge_partition.number_of_edges())),
+              packed_bool_size(static_cast<size_t>(edge_partition.number_of_edges()))),
             aggregate_local_frontier_major_first + local_frontier_offsets[i],
             aggregate_local_frontier_major_first + local_frontier_offsets[i + 1],
             handle.get_stream());

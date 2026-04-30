@@ -44,6 +44,7 @@
 #include <thrust/transform.h>
 #include <thrust/unique.h>
 
+#include <tuple>
 #include <type_traits>
 
 namespace cugraph {
@@ -353,9 +354,9 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
 
     std::optional<rmm::device_uvector<edge_t>> offsets_with_mask{std::nullopt};
     if (edge_partition_e_mask) {
-      auto edge_partition_mask_span =
-        raft::device_span<uint32_t const>((*edge_partition_e_mask).value_first(),
-                                          static_cast<size_t>(edge_partition.number_of_edges()));
+      auto edge_partition_mask_span = raft::device_span<uint32_t const>(
+        (*edge_partition_e_mask).value_first(),
+        packed_bool_size(static_cast<size_t>(edge_partition.number_of_edges())));
       rmm::device_uvector<edge_t> degrees_with_mask(0, handle.get_stream());
       if (edge_partition.dcs_nzd_vertices()) {
         auto segment_offsets = graph_view.local_edge_partition_segment_offsets(i);
@@ -376,8 +377,8 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
       } else {
         degrees_with_mask = edge_partition.compute_local_degrees_with_mask(
           edge_partition_mask_span,
-          thrust::make_counting_iterator(edge_partition.major_range_first()),
-          thrust::make_counting_iterator(edge_partition.major_range_last()),
+          std::tuple<vertex_t, vertex_t>{edge_partition.major_range_first(),
+                                         edge_partition.major_range_last()},
           handle.get_stream());
       }
       offsets_with_mask =

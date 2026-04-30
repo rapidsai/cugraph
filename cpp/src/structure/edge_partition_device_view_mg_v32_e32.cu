@@ -4,25 +4,53 @@
  */
 #include "edge_partition_device_view_impl.cuh"
 
+#include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/utilities/device_functors.cuh>
 
 namespace cugraph {
 
 using view_t = edge_partition_device_view_t<int32_t, int32_t, true>;
 
-// compute_number_of_edges_with_mask_async
-template void view_t::compute_number_of_edges_with_mask_async<int32_t const*>(
+// detail::compute_number_of_edges_with_mask_async_mg
+template __host__ void detail::compute_number_of_edges_with_mask_async_mg<int32_t, int32_t>(
   raft::device_span<uint32_t const>,
-  int32_t const*,
-  int32_t const*,
+  raft::device_span<int32_t const>,
   raft::device_span<size_t>,
-  rmm::cuda_stream_view) const;
-template void view_t::compute_number_of_edges_with_mask_async<thrust::counting_iterator<int32_t>>(
+  cuda::std::optional<raft::device_span<int32_t const>>,
+  int32_t,
+  cuda::std::optional<int32_t>,
+  raft::device_span<int32_t const>,
+  rmm::cuda_stream_view);
+
+template __host__ void detail::compute_number_of_edges_with_mask_async_mg<int32_t, int32_t>(
   raft::device_span<uint32_t const>,
-  thrust::counting_iterator<int32_t>,
-  thrust::counting_iterator<int32_t>,
+  std::tuple<int32_t, int32_t>,
   raft::device_span<size_t>,
-  rmm::cuda_stream_view) const;
+  cuda::std::optional<raft::device_span<int32_t const>>,
+  int32_t,
+  cuda::std::optional<int32_t>,
+  raft::device_span<int32_t const>,
+  rmm::cuda_stream_view);
+
+template __host__ rmm::device_uvector<int32_t>
+detail::compute_local_degrees_with_mask_mg<int32_t, int32_t>(
+  raft::device_span<uint32_t const>,
+  raft::device_span<int32_t const>,
+  cuda::std::optional<raft::device_span<int32_t const>>,
+  int32_t,
+  cuda::std::optional<int32_t>,
+  raft::device_span<int32_t const>,
+  rmm::cuda_stream_view);
+
+template __host__ rmm::device_uvector<int32_t>
+detail::compute_local_degrees_with_mask_mg<int32_t, int32_t>(
+  raft::device_span<uint32_t const>,
+  std::tuple<int32_t, int32_t>,
+  cuda::std::optional<raft::device_span<int32_t const>>,
+  int32_t,
+  cuda::std::optional<int32_t>,
+  raft::device_span<int32_t const>,
+  rmm::cuda_stream_view);
 
 // compute_local_degrees_with_mask (MaskIterator + MajorIterator)
 template rmm::device_uvector<int32_t> view_t::compute_local_degrees_with_mask<int32_t const*>(
@@ -32,15 +60,6 @@ template rmm::device_uvector<int32_t> view_t::compute_local_degrees_with_mask<
                                       thrust::counting_iterator<int32_t>,
                                       thrust::counting_iterator<int32_t>,
                                       rmm::cuda_stream_view) const;
-
-// bitmap iterator
-using bitmap_iter_32_t = cuda::transform_iterator<detail::shift_right_t<int32_t>, uint32_t const*>;
-template void view_t::compute_number_of_edges_with_mask_async<bitmap_iter_32_t>(
-  raft::device_span<uint32_t const>,
-  bitmap_iter_32_t,
-  bitmap_iter_32_t,
-  raft::device_span<size_t>,
-  rmm::cuda_stream_view) const;
 
 // sparse-hypersparse iterator
 using sh_iter_32_t =

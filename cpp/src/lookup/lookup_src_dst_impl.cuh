@@ -588,13 +588,12 @@ EdgeTypeAndIdToSrcDstLookupContainerType build_edge_id_and_type_to_src_dst_looku
 
     auto number_of_local_edges = edge_partition.number_of_edges();
     if (graph_view.has_edge_mask()) {
-      auto edge_partition_mask_span =
-        raft::device_span<uint32_t const>((*edge_partition_mask_view).value_first(),
-                                          static_cast<size_t>(edge_partition.number_of_edges()));
+      auto edge_partition_mask_span = raft::device_span<uint32_t const>(
+        (*edge_partition_mask_view).value_first(),
+        packed_bool_size(static_cast<size_t>(edge_partition.number_of_edges())));
       number_of_local_edges = edge_partition.compute_number_of_edges_with_mask(
         edge_partition_mask_span,
-        thrust::make_counting_iterator(edge_partition.major_range_first()),
-        thrust::make_counting_iterator(edge_partition.major_range_last()),
+        std::make_tuple(edge_partition.major_range_first(), edge_partition.major_range_last()),
         handle.get_stream());
     }
 
