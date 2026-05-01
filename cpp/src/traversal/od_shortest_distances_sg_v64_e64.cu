@@ -1,8 +1,7 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2023-2024, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
-#include "structure/edge_partition_device_view_impl.cuh"
 #include "traversal/od_shortest_distances_impl.cuh"
 
 namespace cugraph {
@@ -26,15 +25,5 @@ template rmm::device_uvector<double> od_shortest_distances(
   raft::device_span<int64_t const> destinations,
   double cutoff,
   bool do_expensive_check);
-
-using view_t = edge_partition_device_view_t<int64_t, int64_t, false>;
-using od_extract_iter_t =
-  cuda::transform_iterator<extract_v_t<int64_t, uint32_t, uint64_t>, uint64_t const*>;
-template void view_t::compute_number_of_edges_with_mask_async<od_extract_iter_t>(
-  raft::device_span<uint32_t const>,
-  od_extract_iter_t,
-  od_extract_iter_t,
-  raft::device_span<size_t>,
-  rmm::cuda_stream_view) const;
 
 }  // namespace cugraph

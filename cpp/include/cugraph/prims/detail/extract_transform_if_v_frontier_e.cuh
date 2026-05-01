@@ -896,18 +896,38 @@ extract_transform_if_v_frontier_e(raft::handle_t const& handle,
             detail::edge_partition_edge_property_device_view_t<edge_t, uint32_t const*, bool>>(
             *edge_mask_view, partition_idx)
         : cuda::std::nullopt;
-    auto frontier_majors = raft::device_span<vertex_t const>{
-      thrust_tuple_get_or_identity<decltype(frontier_key_first), 0>(frontier_key_first),
-      static_cast<size_t>(cuda::std::distance(frontier_key_first, frontier_key_last))};
-    if (edge_partition_e_mask) {
-      auto edge_partition_e_mask_span = raft::device_span<uint32_t const>(
-        edge_partition_e_mask->value_first(),
-        packed_bool_size(static_cast<size_t>(edge_partition.number_of_edges())));
-      local_max_pushes = edge_partition.compute_number_of_edges_with_mask(
-        edge_partition_e_mask_span, frontier_majors, handle.get_stream());
+    auto frontier_majors_first =
+      thrust_tuple_get_or_identity<decltype(frontier_key_first), 0>(frontier_key_first);
+    size_t frontier_majors_size =
+      static_cast<size_t>(cuda::std::distance(frontier_key_first, frontier_key_last));
+
+    if constexpr (std::is_pointer_v<std::decay<decltype(frontier_majors_first)>>) {
+      auto frontier_majors =
+        raft::device_span<vertex_t const>(frontier_majors_first, frontier_majors_size);
+      if (edge_partition_e_mask) {
+        auto edge_partition_e_mask_span = raft::device_span<uint32_t const>(
+          edge_partition_e_mask->value_first(),
+          packed_bool_size(static_cast<size_t>(edge_partition.number_of_edges())));
+        local_max_pushes = edge_partition.compute_number_of_edges_with_mask(
+          edge_partition_e_mask_span, frontier_majors, handle.get_stream());
+      } else {
+        local_max_pushes =
+          edge_partition.compute_number_of_edges(frontier_majors, handle.get_stream());
+      }
     } else {
-      local_max_pushes =
-        edge_partition.compute_number_of_edges(frontier_majors, handle.get_stream());
+      if (edge_partition_e_mask) {
+        auto edge_partition_e_mask_span = raft::device_span<uint32_t const>(
+          edge_partition_e_mask->value_first(),
+          packed_bool_size(static_cast<size_t>(edge_partition.number_of_edges())));
+        local_max_pushes = edge_partition.compute_number_of_edges_with_mask(
+          edge_partition_e_mask_span,
+          frontier_majors_first,
+          frontier_majors_first + frontier_majors_size,
+          handle.get_stream());
+      } else {
+        local_max_pushes = edge_partition.compute_number_of_edges(
+          frontier_majors_first, frontier_majors_first + frontier_majors_size, handle.get_stream());
+      }
     }
   }
 
@@ -1467,12 +1487,12 @@ extract_transform_if_v_frontier_e(raft::handle_t const& handle,
                   packed_bool_size(static_cast<size_t>(edge_partition.number_of_edges())));
                 edge_partition.compute_number_of_edges_with_mask_async(
                   edge_partition_e_mask_span,
-                  raft::device_span<vertex_t const>{major_first, num_keys},
+                  raft::device_span<vertex_t const>(major_first, num_keys),
                   raft::device_span<size_t>(counters.data() + j, size_t{1}),
                   loop_stream);
               } else {
                 edge_partition.compute_number_of_edges_async(
-                  raft::device_span<vertex_t const>{major_first, num_keys},
+                  raft::device_span<vertex_t const>(major_first, num_keys),
                   raft::device_span<size_t>(counters.data() + j, size_t{1}),
                   loop_stream);
               }

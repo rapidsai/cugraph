@@ -1199,11 +1199,11 @@ size_t compute_num_out_nbrs_from_frontier(raft::handle_t const& handle,
           packed_bool_size(static_cast<size_t>(edge_partition.number_of_edges())));
         ret += edge_partition.compute_number_of_edges_with_mask(
           edge_partition_mask_span,
-          raft::device_span<vertex_t const>{local_frontier_vertex_first, frontier.size()},
+          raft::device_span<vertex_t const>(local_frontier_vertex_first, frontier.size()),
           handle.get_stream());
       } else {
         ret += edge_partition.compute_number_of_edges(
-          raft::device_span<vertex_t const>{local_frontier_vertex_first, frontier.size()},
+          raft::device_span<vertex_t const>(local_frontier_vertex_first, frontier.size()),
           handle.get_stream());
       }
     }
