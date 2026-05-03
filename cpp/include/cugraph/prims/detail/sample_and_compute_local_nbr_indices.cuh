@@ -5425,10 +5425,14 @@ heterogeneous_uniform_sample_and_compute_local_nbr_indices(
 
       aggregate_local_frontier_unique_key_per_type_local_degree_offsets.set_element_to_zero_async(
         0, handle.get_stream());
+      auto typecasted_per_type_local_degree_first = cuda::make_transform_iterator(
+        aggregate_local_frontier_unique_key_per_type_local_degrees.begin(),
+        typecast_t<edge_t, size_t>{});
       thrust::inclusive_scan(
         handle.get_thrust_policy(),
-        aggregate_local_frontier_unique_key_per_type_local_degrees.begin(),
-        aggregate_local_frontier_unique_key_per_type_local_degrees.end(),
+        typecasted_per_type_local_degree_first,
+        typecasted_per_type_local_degree_first +
+          aggregate_local_frontier_unique_key_per_type_local_degrees.size(),
         aggregate_local_frontier_unique_key_per_type_local_degree_offsets.begin() + 1);
     }
 
@@ -5890,10 +5894,14 @@ heterogeneous_biased_sample_and_compute_local_nbr_indices(
         aggregate_local_frontier_unique_key_per_type_local_degrees.size() + 1, handle.get_stream());
       aggregate_local_frontier_unique_key_per_type_local_degree_offsets.set_element_to_zero_async(
         0, handle.get_stream());
+      auto typecasted_per_type_local_degree_first = cuda::make_transform_iterator(
+        aggregate_local_frontier_unique_key_per_type_local_degrees.begin(),
+        typecast_t<edge_t, size_t>{});
       thrust::inclusive_scan(
         handle.get_thrust_policy(),
-        aggregate_local_frontier_unique_key_per_type_local_degrees.begin(),
-        aggregate_local_frontier_unique_key_per_type_local_degrees.end(),
+        typecasted_per_type_local_degree_first,
+        typecasted_per_type_local_degree_first +
+          aggregate_local_frontier_unique_key_per_type_local_degrees.size(),
         aggregate_local_frontier_unique_key_per_type_local_degree_offsets.begin() + 1);
       aggregate_local_frontier_unique_key_edge_types.resize(0, handle.get_stream());
       aggregate_local_frontier_unique_key_edge_types.shrink_to_fit(handle.get_stream());
