@@ -20,6 +20,14 @@ struct typecast_t {
   __device__ output_t operator()(input_t val) const { return static_cast<output_t>(val); }
 };
 
+template <typename input_t, typename output_t>
+struct converting_plus_t {
+  __device__ output_t operator()(input_t lhs, input_t rhs) const
+  {
+    return static_cast<output_t>(lhs) + static_cast<output_t>(rhs);
+  }
+};
+
 template <typename BoolIterator>
 struct pack_bool_t {
   BoolIterator bool_first{};
