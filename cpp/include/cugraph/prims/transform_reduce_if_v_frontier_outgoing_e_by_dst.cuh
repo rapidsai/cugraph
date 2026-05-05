@@ -1178,30 +1178,33 @@ size_t compute_num_out_nbrs_from_frontier(raft::handle_t const& handle,
                    local_frontier_sizes[i],
                    static_cast<int>(i),
                    handle.get_stream());
+      auto edge_partition_frontier_vertices_span = raft::device_span<vertex_t const>{
+        edge_partition_frontier_vertices.data(), edge_partition_frontier_vertices.size()};
 
       if (edge_partition_e_mask) {
-        ret +=
-          edge_partition.compute_number_of_edges_with_mask((*edge_partition_e_mask).value_first(),
-                                                           edge_partition_frontier_vertices.begin(),
-                                                           edge_partition_frontier_vertices.end(),
-                                                           handle.get_stream());
+        auto edge_partition_mask_span = raft::device_span<uint32_t const>(
+          (*edge_partition_e_mask).value_first(),
+          packed_bool_size(static_cast<size_t>(edge_partition.number_of_edges())));
+        ret += edge_partition.compute_number_of_edges_with_mask(
+          edge_partition_mask_span, edge_partition_frontier_vertices_span, handle.get_stream());
       } else {
-        ret += edge_partition.compute_number_of_edges(edge_partition_frontier_vertices.begin(),
-                                                      edge_partition_frontier_vertices.end(),
+        ret += edge_partition.compute_number_of_edges(edge_partition_frontier_vertices_span,
                                                       handle.get_stream());
       }
     } else {
       assert(i == 0);
       if (edge_partition_e_mask) {
-        ret += edge_partition.compute_number_of_edges_with_mask(
+        auto edge_partition_mask_span = raft::device_span<uint32_t const>(
           (*edge_partition_e_mask).value_first(),
-          local_frontier_vertex_first,
-          local_frontier_vertex_first + frontier.size(),
+          packed_bool_size(static_cast<size_t>(edge_partition.number_of_edges())));
+        ret += edge_partition.compute_number_of_edges_with_mask(
+          edge_partition_mask_span,
+          raft::device_span<vertex_t const>(local_frontier_vertex_first, frontier.size()),
           handle.get_stream());
       } else {
-        ret += edge_partition.compute_number_of_edges(local_frontier_vertex_first,
-                                                      local_frontier_vertex_first + frontier.size(),
-                                                      handle.get_stream());
+        ret += edge_partition.compute_number_of_edges(
+          raft::device_span<vertex_t const>(local_frontier_vertex_first, frontier.size()),
+          handle.get_stream());
       }
     }
   }

@@ -302,6 +302,8 @@ set(CUGRAPH_SG_SOURCES
     src/structure/graph_sg_v32_e32.cu
     src/structure/graph_view_sg_v64_e64.cu
     src/structure/graph_view_sg_v32_e32.cu
+    src/structure/edge_partition_device_view_sg_v64_e64.cu
+    src/structure/edge_partition_device_view_sg_v32_e32.cu
     src/structure/decompress_to_edgelist_sg_v64_e64.cu
     src/structure/decompress_to_edgelist_sg_v32_e32.cu
     src/structure/symmetrize_graph_sg_v64_e64.cu
@@ -398,6 +400,10 @@ set(CUGRAPH_MG_SOURCES
     src/community/detail/maximal_independent_moves_mg_v32_e32.cu
     src/link_prediction/detail/similarity_mg_v32_e32.cu
     src/link_prediction/detail/similarity_mg_v64_e64.cu
+    src/structure/graph_view_mg_v64_e64.cu
+    src/structure/graph_view_mg_v32_e32.cu
+    src/structure/edge_partition_device_view_mg_v64_e64.cu
+    src/structure/edge_partition_device_view_mg_v32_e32.cu
     src/link_prediction/jaccard_mg_v64_e64.cu
     src/link_prediction/jaccard_mg_v32_e32.cu
     src/link_prediction/sorensen_mg_v64_e64.cu
@@ -452,8 +458,6 @@ set(CUGRAPH_MG_SOURCES
     src/structure/graph_weight_utils_mg_v32_e32.cu
     src/structure/renumber_edgelist_mg_v64_e64.cu
     src/structure/renumber_edgelist_mg_v32_e32.cu
-    src/structure/graph_view_mg_v64_e64.cu
-    src/structure/graph_view_mg_v32_e32.cu
     src/structure/graph_weight_utils_mg_v64_e64.cu
     src/structure/graph_weight_utils_mg_v32_e32.cu
     src/structure/renumber_utils_mg_v64_e64.cu
