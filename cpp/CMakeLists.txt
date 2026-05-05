@@ -159,11 +159,11 @@ endif()
 #       which should give us a better parallel schedule.
 
 set(CUGRAPH_COMMON_UTILITY_SOURCES
-    src/detail/utility_wrappers_32.cu
-    src/detail/utility_wrappers_64.cu
-    src/detail/permute_range_v32.cu
-    src/detail/permute_range_v64.cu
-    src/utilities/invert_flags.cu
+    src/detail/utility_wrappers_32_common.cu
+    src/detail/utility_wrappers_64_common.cu
+    src/detail/permute_range_common_v32.cu
+    src/detail/permute_range_common_v64.cu
+    src/utilities/invert_flags_common.cu
 )
 
 set(CUGRAPH_COMMON_DISTRIBUTED_SOURCES
@@ -177,11 +177,11 @@ set(CUGRAPH_COMMON_DISTRIBUTED_SOURCES
 )
 
 set(CUGRAPH_COMMON_SAMPLING_SOURCES
-    src/sampling/detail/shuffle_and_organize_output.cu
+    src/sampling/detail/shuffle_and_organize_output_common.cu
     src/sampling/detail/remove_visited_vertices_from_frontier_common_v32_e32.cu
     src/sampling/detail/remove_visited_vertices_from_frontier_common_v64_e64.cu
-    src/sampling/detail/temporal_partition_vertices_v64.cu
-    src/sampling/detail/temporal_partition_vertices_v32.cu
+    src/sampling/detail/temporal_partition_vertices_common_v64.cu
+    src/sampling/detail/temporal_partition_vertices_common_v32.cu
 )
 
 set(CUGRAPH_COMMON_STRUCTURE_SOURCES
@@ -222,7 +222,7 @@ set(CUGRAPH_SG_SOURCES
     src/utilities/validation_checks_sg_v64_e64.cu
     src/detail/collect_local_vertex_values_sg_v32_e32.cu
     src/detail/collect_local_vertex_values_sg_v64_e64.cu
-    src/sampling/detail/conversion_utilities.cu
+    src/sampling/detail/conversion_utilities_sg.cu
     src/community/detail/common_methods_sg_v64_e64.cu
     src/community/detail/common_methods_sg_v32_e32.cu
     src/community/detail/refine_sg_v64_e64.cu
