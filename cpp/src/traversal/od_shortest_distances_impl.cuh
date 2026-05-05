@@ -348,7 +348,9 @@ kv_store_t<key_t, weight_t, false /* use_binary_search */> filter_key_to_dist_ma
       edge_partition_device_view_t<vertex_t, edge_t, GraphViewType::is_multi_gpu>(
         graph_view.local_edge_partition_view(0));
     auto num_edges = edge_partition.compute_number_of_edges(
-      near_bucket.vertex_begin(), near_bucket.vertex_end(), handle.get_stream());
+      raft::device_span<vertex_t const>{near_bucket.vertex_begin(), near_bucket.size()},
+      handle.get_stream());
+
     for (size_t i = 0; i < far_buffers.size(); ++i) {
       auto far_vertex_first = cuda::make_transform_iterator(
         far_buffers[i].begin(),
