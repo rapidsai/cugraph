@@ -60,6 +60,21 @@ set_property(
   APPEND
 )
 set_property(
+  TARGET cugraph_common
+  PROPERTY INSTALL_RPATH ${rpaths}
+  APPEND
+)
+set_property(
+  TARGET cugraph_mg
+  PROPERTY INSTALL_RPATH ${rpaths}
+  APPEND
+)
+set_property(
+  TARGET cugraph_mtmg
+  PROPERTY INSTALL_RPATH ${rpaths}
+  APPEND
+)
+set_property(
   TARGET cugraph_c
   PROPERTY INSTALL_RPATH ${rpaths}
   APPEND

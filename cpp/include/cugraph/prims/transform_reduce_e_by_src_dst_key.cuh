@@ -556,8 +556,11 @@ transform_reduce_e_by_src_dst_key(raft::handle_t const& handle,
     rmm::device_uvector<vertex_t> tmp_keys(0, handle.get_stream());
     std::optional<rmm::device_uvector<edge_t>> edge_offsets_with_mask{std::nullopt};
     if (edge_partition_e_mask) {
-      auto local_degrees = edge_partition.compute_local_degrees_with_mask(
-        (*edge_partition_e_mask).value_first(), handle.get_stream());
+      auto edge_partition_mask_span = raft::device_span<uint32_t const>(
+        (*edge_partition_e_mask).value_first(),
+        packed_bool_size(static_cast<size_t>(edge_partition.number_of_edges())));
+      auto local_degrees = edge_partition.compute_local_degrees_with_mask(edge_partition_mask_span,
+                                                                          handle.get_stream());
       edge_offsets_with_mask =
         rmm::device_uvector<edge_t>(edge_partition.major_range_size() + 1, handle.get_stream());
       (*edge_offsets_with_mask).set_element_to_zero_async(0, handle.get_stream());

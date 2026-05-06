@@ -104,6 +104,9 @@ outputs:
           # See https://github.com/rapidsai/build-planning/issues/160
           - lib/libcugraph.so
           - lib/libcugraph_c.so
+          - lib/libcugraph_common.so
+          - lib/libcugraph_mg.so
+          - lib/libcugraph_mtmg.so
       string: cuda${{ cuda_major }}_${{ date_string }}_${{ head_rev }}
     requirements:
       build:

@@ -23,8 +23,8 @@ endif(RAPIDS_DATASET_ROOT_DIR)
 # - common C++ test utils -----------------------------------------------------------------------------
 
 add_library(cugraphtestutil STATIC
-            utilities/matrix_market_file_utilities.cu
-            utilities/csv_file_utilities.cu
+            utilities/matrix_market_file_utilities_sg.cu
+            utilities/csv_file_utilities_sg.cu
             utilities/property_generator_utilities_sg.cu
             utilities/thrust_wrapper.cu
             utilities/misc_utilities.cpp
@@ -108,6 +108,8 @@ if(BUILD_CUGRAPH_MG_TESTS)
     add_library(cugraphmgtestutil STATIC
                 utilities/device_comm_wrapper.cu
                 utilities/mg_utilities.cpp
+                utilities/csv_file_utilities_mg.cu
+                utilities/matrix_market_file_utilities_mg.cu
                 utilities/conversion_utilities_mg.cu
                 utilities/property_generator_utilities_mg.cu
                 utilities/debug_utilities_mg.cpp
@@ -127,10 +129,13 @@ if(BUILD_CUGRAPH_MG_TESTS)
         PRIVATE
         "${CMAKE_CURRENT_SOURCE_DIR}/../include"
         "${CMAKE_CURRENT_SOURCE_DIR}"
+        "${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/mmio"
         "${CUGRAPH_SOURCE_DIR}/src"
     )
 
     target_link_libraries(cugraphmgtestutil
+        PUBLIC
+            cugraph::cugraph_mg
         PRIVATE
             cuco::cuco
             cugraph::cugraph
@@ -474,6 +479,10 @@ ConfigureTest(WEAKLY_CONNECTED_COMPONENTS_TEST components/weakly_connected_compo
 ConfigureTest(STRONGLY_CONNECTED_COMPONENTS_TEST components/strongly_connected_components_test.cpp)
 
 ###################################################################################################
+# - TOPOLOGICAL SORT tests ------------------------------------------------------------------------
+ConfigureTest(TOPOLOGICAL_SORT_TEST dag/topological_sort_test.cpp dag/dag_test_utilities_sg.cu)
+
+###################################################################################################
 # - MIS tests -------------------------------------------------------------------------------------
 ConfigureTest(MIS_TEST components/mis_test.cu)
 
@@ -512,7 +521,7 @@ ConfigureTest(
 ###################################################################################################
 # - HETEROGENEOUS BIASED NBR SAMPLING tests -------------------------------------------------------
 ConfigureTest(
-    HETEROGENEOUS_BIASED_NEIGHBOR_SAMPLING_TESTT sampling/heterogeneous_biased_neighbor_sampling.cpp
+    HETEROGENEOUS_BIASED_NEIGHBOR_SAMPLING_TEST sampling/heterogeneous_biased_neighbor_sampling.cpp
         GPUS 1 PERCENT 75)
 
 ###################################################################################################
@@ -689,6 +698,11 @@ if(BUILD_CUGRAPH_MG_TESTS)
     # - MG STRONGLY CONNECTED COMPONENTS tests ----------------------------------------------------
     ConfigureTestMG(MG_STRONGLY_CONNECTED_COMPONENTS_TEST
                     components/mg_strongly_connected_components_test.cpp)
+
+    ###############################################################################################
+    # - MG TOPOLOGICAL SORT tests -----------------------------------------------------------------
+    ConfigureTestMG(MG_TOPOLOGICAL_SORT_TEST dag/mg_topological_sort_test.cpp
+                    dag/dag_test_utilities_mg.cu)
 
     ###############################################################################################
     # - MG EDGE SOURCE DESTINATION LOOKUP tests ---------------------------------------------------
@@ -950,6 +964,7 @@ if (BUILD_CUGRAPH_MTMG_TESTS)
                           PRIVATE
                           cuco::cuco
                           cugraphmgtestutil
+                          cugraph::cugraph_mtmg
                           ${COMPILED_RAFT_LIB}
                           ucx::ucp
                           ucx::ucs
@@ -961,6 +976,7 @@ if (BUILD_CUGRAPH_MTMG_TESTS)
                           PRIVATE
                           cuco::cuco
                           cugraphmgtestutil
+                          cugraph::cugraph_mtmg
                           ${COMPILED_RAFT_LIB}
                           ucx::ucp
                           ucx::ucs
@@ -972,6 +988,7 @@ if (BUILD_CUGRAPH_MTMG_TESTS)
                           PRIVATE
                           cuco::cuco
                           cugraphmgtestutil
+                          cugraph::cugraph_mtmg
                           ${COMPILED_RAFT_LIB}
                           ucx::ucp
                           ucx::ucs
@@ -986,6 +1003,7 @@ if (BUILD_CUGRAPH_MTMG_TESTS)
                               PRIVATE
                               cuco::cuco
                               cugraphmgtestutil
+                              cugraph::cugraph_mtmg
                               ${COMPILED_RAFT_LIB}
                               ucx::ucp
                               ucx::ucs

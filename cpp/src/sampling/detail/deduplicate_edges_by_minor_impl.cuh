@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#pragma once
+
 #include "sampling/detail/sampling_utils.hpp"
 
 #include <cugraph/arithmetic_variant_types.hpp>
@@ -404,67 +406,6 @@ deduplicate_edges_by_minor(raft::handle_t const& handle,
                          std::move(resample_majors),
                          std::move(resample_major_labels));
 }
-
-// Explicit instantiations for common configurations
-template std::tuple<rmm::device_uvector<int32_t>,
-                    rmm::device_uvector<int32_t>,
-                    arithmetic_device_uvector_t,
-                    std::optional<rmm::device_uvector<int32_t>>,
-                    std::optional<rmm::device_uvector<int32_t>>,
-                    std::optional<rmm::device_uvector<int32_t>>>
-deduplicate_edges_by_minor<int32_t, int32_t, false>(
-  raft::handle_t const&,
-  graph_view_t<int32_t, int32_t, false, false> const&,
-  rmm::device_uvector<int32_t>&&,
-  rmm::device_uvector<int32_t>&&,
-  arithmetic_device_uvector_t&&,
-  std::optional<rmm::device_uvector<int32_t>>&&,
-  bool);
-
-template std::tuple<rmm::device_uvector<int32_t>,
-                    rmm::device_uvector<int32_t>,
-                    arithmetic_device_uvector_t,
-                    std::optional<rmm::device_uvector<int32_t>>,
-                    std::optional<rmm::device_uvector<int32_t>>,
-                    std::optional<rmm::device_uvector<int32_t>>>
-deduplicate_edges_by_minor<int32_t, int32_t, true>(
-  raft::handle_t const&,
-  graph_view_t<int32_t, int32_t, false, true> const&,
-  rmm::device_uvector<int32_t>&&,
-  rmm::device_uvector<int32_t>&&,
-  arithmetic_device_uvector_t&&,
-  std::optional<rmm::device_uvector<int32_t>>&&,
-  bool);
-
-template std::tuple<rmm::device_uvector<int64_t>,
-                    rmm::device_uvector<int64_t>,
-                    arithmetic_device_uvector_t,
-                    std::optional<rmm::device_uvector<int32_t>>,
-                    std::optional<rmm::device_uvector<int64_t>>,
-                    std::optional<rmm::device_uvector<int32_t>>>
-deduplicate_edges_by_minor<int64_t, int64_t, false>(
-  raft::handle_t const&,
-  graph_view_t<int64_t, int64_t, false, false> const&,
-  rmm::device_uvector<int64_t>&&,
-  rmm::device_uvector<int64_t>&&,
-  arithmetic_device_uvector_t&&,
-  std::optional<rmm::device_uvector<int32_t>>&&,
-  bool);
-
-template std::tuple<rmm::device_uvector<int64_t>,
-                    rmm::device_uvector<int64_t>,
-                    arithmetic_device_uvector_t,
-                    std::optional<rmm::device_uvector<int32_t>>,
-                    std::optional<rmm::device_uvector<int64_t>>,
-                    std::optional<rmm::device_uvector<int32_t>>>
-deduplicate_edges_by_minor<int64_t, int64_t, true>(
-  raft::handle_t const&,
-  graph_view_t<int64_t, int64_t, false, true> const&,
-  rmm::device_uvector<int64_t>&&,
-  rmm::device_uvector<int64_t>&&,
-  arithmetic_device_uvector_t&&,
-  std::optional<rmm::device_uvector<int32_t>>&&,
-  bool);
 
 }  // namespace detail
 }  // namespace cugraph

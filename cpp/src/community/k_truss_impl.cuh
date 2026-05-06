@@ -25,11 +25,13 @@
 #include <cuda/std/optional>
 #include <cuda/std/tuple>
 #include <cuda/std/utility>
+#include <thrust/binary_search.h>
 #include <thrust/copy.h>
 #include <thrust/count.h>
 #include <thrust/execution_policy.h>
 #include <thrust/sort.h>
 #include <thrust/transform.h>
+#include <thrust/unique.h>
 
 namespace cugraph {
 
@@ -476,6 +478,30 @@ k_truss(raft::handle_t const& handle,
 
       rmm::device_uvector<edge_t> decrease_count(unique_pair_count, handle.get_stream());
 
+      // FIXME: thrust::reduce_by_key produces corrupted output when compiled with
+      // nvcc 13.0 + CCCL 3.4.0 on Blackwell (sm_120). The bug does not occur in nvcc 13.1+.
+      // See https://github.com/rapidsai/cugraph/issues/5494
+#if defined(__CUDACC_VER_MAJOR__) && defined(__CUDACC_VER_MINOR__) && \
+  (__CUDACC_VER_MAJOR__ == 13) && (__CUDACC_VER_MINOR__ == 0)
+      thrust::unique_copy(handle.get_thrust_policy(),
+                          get_dataframe_buffer_begin(edgelist_to_update_count),
+                          get_dataframe_buffer_end(edgelist_to_update_count),
+                          get_dataframe_buffer_begin(vertex_pair_buffer_unique));
+
+      thrust::transform(
+        handle.get_thrust_policy(),
+        get_dataframe_buffer_begin(vertex_pair_buffer_unique),
+        get_dataframe_buffer_begin(vertex_pair_buffer_unique) + unique_pair_count,
+        decrease_count.begin(),
+        cuda::proclaim_return_type<edge_t>(
+          [edgelist_first = get_dataframe_buffer_begin(edgelist_to_update_count),
+           edgelist_last =
+             get_dataframe_buffer_end(edgelist_to_update_count)] __device__(auto pair) {
+            return static_cast<edge_t>(cuda::std::distance(
+              thrust::lower_bound(thrust::seq, edgelist_first, edgelist_last, pair),
+              thrust::upper_bound(thrust::seq, edgelist_first, edgelist_last, pair)));
+          }));
+#else
       thrust::reduce_by_key(handle.get_thrust_policy(),
                             get_dataframe_buffer_begin(edgelist_to_update_count),
                             get_dataframe_buffer_end(edgelist_to_update_count),
@@ -483,6 +509,7 @@ k_truss(raft::handle_t const& handle,
                             get_dataframe_buffer_begin(vertex_pair_buffer_unique),
                             decrease_count.begin(),
                             cuda::std::equal_to<cuda::std::tuple<vertex_t, vertex_t>>{});
+#endif
 
       std::tie(std::get<0>(vertex_pair_buffer_unique),
                std::get<1>(vertex_pair_buffer_unique),

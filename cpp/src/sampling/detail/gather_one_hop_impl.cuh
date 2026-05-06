@@ -483,7 +483,7 @@ temporal_gather_one_hop_edgelist(
                                                             handle.get_stream());
 
     size_t starting_pos{0};
-    if (multi_gpu) {
+    if constexpr (multi_gpu) {
       auto sizes = cugraph::host_scalar_allgather(
         handle.get_comms(), active_majors.size(), handle.get_stream());
       std::exclusive_scan(sizes.begin(), sizes.end(), sizes.begin(), size_t{0});
@@ -495,7 +495,7 @@ temporal_gather_one_hop_edgelist(
                      vertex_label_time_positions.end(),
                      starting_pos);
 
-    if (multi_gpu) {
+    if constexpr (multi_gpu) {
       auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
 
       auto all_minor_keys =

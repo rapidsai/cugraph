@@ -496,7 +496,6 @@ dependencies:
           - networkx>=2.5.1
           - *numpy
           - packaging
-          - python-louvain
           - scikit-learn>=0.23.1
   test_python_pylibcugraph:
     common:
