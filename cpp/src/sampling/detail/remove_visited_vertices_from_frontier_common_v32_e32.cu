@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2023-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #include "sampling/detail/remove_visited_vertices_from_frontier.cuh"
@@ -10,8 +10,6 @@
 #include <rmm/device_uvector.hpp>
 
 #include <cuda/std/tuple>
-#include <thrust/binary_search.h>
-#include <thrust/remove.h>
 
 #include <optional>
 
