@@ -39,7 +39,6 @@ cache:
         CMAKE_CUDA_COMPILER_LAUNCHER: ${{ env.get("CMAKE_CUDA_COMPILER_LAUNCHER") }}
         CMAKE_CXX_COMPILER_LAUNCHER: ${{ env.get("CMAKE_CXX_COMPILER_LAUNCHER") }}
         CMAKE_GENERATOR: ${{ env.get("CMAKE_GENERATOR") }}
-        EXTRA_CMAKE_ARGS: "-DCUGRAPH_COMPILE_CUVS=ON"
         NVCC_APPEND_FLAGS: ${{ env.get("NVCC_APPEND_FLAGS", default="") }}
         PARALLEL_LEVEL: ${{ env.get("PARALLEL_LEVEL", default="8") }}
         RAPIDS_ARTIFACTS_DIR: ${{ env.get("RAPIDS_ARTIFACTS_DIR", default="") }}
@@ -73,6 +72,7 @@ cache:
     host:
       - cuda-version =${{ cuda_version }}
       - libcudf =${{ minor_version }}
+      - libcuvs =${{ minor_version }}
       - libraft =${{ minor_version }}
       - librmm =${{ minor_version }}
       - libucxx ${{ libucxx_version }}
@@ -115,6 +115,7 @@ outputs:
       host:
         - cuda-version =${{ cuda_version }}
         - librmm =${{ minor_version }}
+        - libcuvs =${{ minor_version }}
         - rapids-logger =0.2
         - cuda-cudart-dev
         - cuda-nvrtc-dev
@@ -126,6 +127,7 @@ outputs:
         - ${{ pin_compatible("cuda-version", upper_bound="x", lower_bound="x") }}
         - libraft =${{ minor_version }}
         - librmm =${{ minor_version }}
+        - libcuvs =${{ minor_version }}
         - nccl ${{ nccl_version }}
         - cuda-cudart
         - cuda-nvrtc
