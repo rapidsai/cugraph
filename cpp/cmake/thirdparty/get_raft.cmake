@@ -1,5 +1,5 @@
 #=============================================================================
-# SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 #=============================================================================
 
@@ -55,8 +55,8 @@ endfunction()
 # To use a different RAFT locally, set the CMake variable
 # CPM_raft_SOURCE=/path/to/local/raft
 find_and_configure_raft(VERSION    ${CUGRAPH_MIN_VERSION_raft}
-                        FORK       rapidsai
-                        PINNED_TAG ${rapids-cmake-checkout-tag}
+                        FORK       achirkin
+                        PINNED_TAG enh-predictable-resources
 
                         # When PINNED_TAG above doesn't match cugraph,
                         # force local raft clone in build directory
