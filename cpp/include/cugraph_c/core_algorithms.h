@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2023, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -12,6 +12,8 @@
 
 /** @defgroup core Core algorithms
  */
+
+#include <cugraph_c/export.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -43,12 +45,12 @@ typedef struct {
  *                           be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_core_result_create(
-  const cugraph_resource_handle_t* handle,
-  cugraph_type_erased_device_array_view_t* vertices,
-  cugraph_type_erased_device_array_view_t* core_numbers,
-  cugraph_core_result_t** core_result,
-  cugraph_error_t** error);
+CUGRAPH_EXPORT cugraph_error_code_t
+cugraph_core_result_create(const cugraph_resource_handle_t* handle,
+                           cugraph_type_erased_device_array_view_t* vertices,
+                           cugraph_type_erased_device_array_view_t* core_numbers,
+                           cugraph_core_result_t** core_result,
+                           cugraph_error_t** error);
 
 /**
  * @ingroup core
@@ -57,7 +59,7 @@ cugraph_error_code_t cugraph_core_result_create(
  * @param [in]     result   The result from core number
  * @return type erased array of vertex ids
  */
-cugraph_type_erased_device_array_view_t* cugraph_core_result_get_vertices(
+CUGRAPH_EXPORT cugraph_type_erased_device_array_view_t* cugraph_core_result_get_vertices(
   cugraph_core_result_t* result);
 
 /**
@@ -67,7 +69,7 @@ cugraph_type_erased_device_array_view_t* cugraph_core_result_get_vertices(
  * @param [in]    result    The result from core number
  * @return type erased array of core numbers
  */
-cugraph_type_erased_device_array_view_t* cugraph_core_result_get_core_numbers(
+CUGRAPH_EXPORT cugraph_type_erased_device_array_view_t* cugraph_core_result_get_core_numbers(
   cugraph_core_result_t* result);
 
 /**
@@ -76,7 +78,7 @@ cugraph_type_erased_device_array_view_t* cugraph_core_result_get_core_numbers(
  *
  * @param [in]    result    The result from core number
  */
-void cugraph_core_result_free(cugraph_core_result_t* result);
+CUGRAPH_EXPORT void cugraph_core_result_free(cugraph_core_result_t* result);
 
 /**
  * @ingroup core
@@ -85,7 +87,7 @@ void cugraph_core_result_free(cugraph_core_result_t* result);
  * @param [in]     result   The result from k-core
  * @return type erased array of src vertex ids
  */
-cugraph_type_erased_device_array_view_t* cugraph_k_core_result_get_src_vertices(
+CUGRAPH_EXPORT cugraph_type_erased_device_array_view_t* cugraph_k_core_result_get_src_vertices(
   cugraph_k_core_result_t* result);
 
 /**
@@ -95,7 +97,7 @@ cugraph_type_erased_device_array_view_t* cugraph_k_core_result_get_src_vertices(
  * @param [in]     result   The result from k-core
  * @return type erased array of dst vertex ids
  */
-cugraph_type_erased_device_array_view_t* cugraph_k_core_result_get_dst_vertices(
+CUGRAPH_EXPORT cugraph_type_erased_device_array_view_t* cugraph_k_core_result_get_dst_vertices(
   cugraph_k_core_result_t* result);
 
 /**
@@ -107,7 +109,7 @@ cugraph_type_erased_device_array_view_t* cugraph_k_core_result_get_dst_vertices(
  * @param [in]     result   The result from k-core
  * @return type erased array of weights
  */
-cugraph_type_erased_device_array_view_t* cugraph_k_core_result_get_weights(
+CUGRAPH_EXPORT cugraph_type_erased_device_array_view_t* cugraph_k_core_result_get_weights(
   cugraph_k_core_result_t* result);
 
 /**
@@ -116,7 +118,7 @@ cugraph_type_erased_device_array_view_t* cugraph_k_core_result_get_weights(
  *
  * @param [in]    result    The result from k-core
  */
-void cugraph_k_core_result_free(cugraph_k_core_result_t* result);
+CUGRAPH_EXPORT void cugraph_k_core_result_free(cugraph_k_core_result_t* result);
 
 /**
  * @ingroup core
@@ -141,12 +143,12 @@ typedef enum {
  *                           be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_core_number(const cugraph_resource_handle_t* handle,
-                                         cugraph_graph_t* graph,
-                                         cugraph_k_core_degree_type_t degree_type,
-                                         bool_t do_expensive_check,
-                                         cugraph_core_result_t** result,
-                                         cugraph_error_t** error);
+CUGRAPH_EXPORT cugraph_error_code_t cugraph_core_number(const cugraph_resource_handle_t* handle,
+                                                        cugraph_graph_t* graph,
+                                                        cugraph_k_core_degree_type_t degree_type,
+                                                        bool_t do_expensive_check,
+                                                        cugraph_core_result_t** result,
+                                                        cugraph_error_t** error);
 
 /**
  * @brief     Perform k_core using output from core_number
@@ -165,14 +167,16 @@ cugraph_error_code_t cugraph_core_number(const cugraph_resource_handle_t* handle
  *                           be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_k_core(const cugraph_resource_handle_t* handle,
-                                    cugraph_graph_t* graph,
-                                    size_t k,
-                                    cugraph_k_core_degree_type_t degree_type,
-                                    const cugraph_core_result_t* core_result,
-                                    bool_t do_expensive_check,
-                                    cugraph_k_core_result_t** result,
-                                    cugraph_error_t** error);
+CUGRAPH_EXPORT cugraph_error_code_t cugraph_k_core(const cugraph_resource_handle_t* handle,
+                                                   cugraph_graph_t* graph,
+                                                   size_t k,
+                                                   cugraph_k_core_degree_type_t degree_type,
+                                                   const cugraph_core_result_t* core_result,
+                                                   bool_t do_expensive_check,
+                                                   cugraph_k_core_result_t** result,
+                                                   cugraph_error_t** error);
+
+#include <cugraph_c/export.h>
 
 #ifdef __cplusplus
 }
