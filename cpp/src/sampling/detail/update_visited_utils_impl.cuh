@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#pragma once
+
 #include "sampling/detail/sampling_utils.hpp"
 
 #include <cugraph/detail/device_comm_wrapper.hpp>
@@ -127,43 +129,6 @@ update_dst_visited_vertices_and_labels(
 
   return std::make_tuple(std::move(visited_minors), std::move(visited_minor_labels));
 }
-
-// Explicit instantiations for common configurations
-template std::tuple<rmm::device_uvector<int32_t>, std::optional<rmm::device_uvector<int32_t>>>
-update_dst_visited_vertices_and_labels<int32_t, int32_t, false>(
-  raft::handle_t const&,
-  graph_view_t<int32_t, int32_t, false, false> const&,
-  rmm::device_uvector<int32_t>&&,
-  std::optional<rmm::device_uvector<int32_t>>&&,
-  raft::device_span<int32_t const>,
-  std::optional<raft::device_span<int32_t const>>);
-
-template std::tuple<rmm::device_uvector<int32_t>, std::optional<rmm::device_uvector<int32_t>>>
-update_dst_visited_vertices_and_labels<int32_t, int32_t, true>(
-  raft::handle_t const&,
-  graph_view_t<int32_t, int32_t, false, true> const&,
-  rmm::device_uvector<int32_t>&&,
-  std::optional<rmm::device_uvector<int32_t>>&&,
-  raft::device_span<int32_t const>,
-  std::optional<raft::device_span<int32_t const>>);
-
-template std::tuple<rmm::device_uvector<int64_t>, std::optional<rmm::device_uvector<int32_t>>>
-update_dst_visited_vertices_and_labels<int64_t, int64_t, false>(
-  raft::handle_t const&,
-  graph_view_t<int64_t, int64_t, false, false> const&,
-  rmm::device_uvector<int64_t>&&,
-  std::optional<rmm::device_uvector<int32_t>>&&,
-  raft::device_span<int64_t const>,
-  std::optional<raft::device_span<int32_t const>>);
-
-template std::tuple<rmm::device_uvector<int64_t>, std::optional<rmm::device_uvector<int32_t>>>
-update_dst_visited_vertices_and_labels<int64_t, int64_t, true>(
-  raft::handle_t const&,
-  graph_view_t<int64_t, int64_t, false, true> const&,
-  rmm::device_uvector<int64_t>&&,
-  std::optional<rmm::device_uvector<int32_t>>&&,
-  raft::device_span<int64_t const>,
-  std::optional<raft::device_span<int32_t const>>);
 
 }  // namespace detail
 }  // namespace cugraph

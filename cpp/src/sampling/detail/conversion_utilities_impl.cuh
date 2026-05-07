@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#pragma once
+
 #include "sampling/detail/sampling_utils.hpp"
 
 #include <cugraph/utilities/misc_utils.cuh>
@@ -41,11 +43,6 @@ rmm::device_uvector<int32_t> flatten_label_map(
 
   return label_map;
 }
-
-template rmm::device_uvector<int32_t> flatten_label_map(
-  raft::handle_t const& handle,
-  std::tuple<raft::device_span<int32_t const>, raft::device_span<int32_t const>>
-    label_to_output_comm_rank);
 
 }  // namespace detail
 }  // namespace cugraph
