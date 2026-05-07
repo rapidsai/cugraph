@@ -3,7 +3,10 @@ on:
   issues:
     types:
       - opened
-  pull_request_target:
+  # `zizmor` always flags these triggers because they are easy to use
+  # incorrectly. These usages are ok and don't execute any PR-specific
+  # code (and so aren't susceptible to exploits from forked PRs)
+  pull_request_target: # zizmor: ignore[dangerous-triggers]
     types:
       - opened
 
