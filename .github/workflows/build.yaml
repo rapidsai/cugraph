@@ -1,5 +1,4 @@
 name: build
-
 on:
   push:
     branches:
@@ -27,10 +26,11 @@ on:
         description: "build_type: one of [branch, nightly, pull-request]"
         type: string
         default: nightly
-
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
   cancel-in-progress: true
+
+permissions: {}
 
 jobs:
   cpp-build:
@@ -43,6 +43,12 @@ jobs:
       node_type: cpu16
       script: ci/build_cpp.sh
       sha: ${{ inputs.sha }}
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+      packages: read
+      pull-requests: read
   python-build:
     needs: [cpp-build]
     secrets: inherit
@@ -55,6 +61,12 @@ jobs:
       sha: ${{ inputs.sha }}
       # Build a conda package for each CUDA x ARCH x minimum supported Python version
       matrix_filter: group_by({CUDA_VER, ARCH}) | map(min_by(.PY_VER | split(".") | map(tonumber)))
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+      packages: read
+      pull-requests: read
   upload-conda:
     needs: [cpp-build, python-build]
     secrets: inherit
@@ -64,6 +76,12 @@ jobs:
       branch: ${{ inputs.branch }}
       date: ${{ inputs.date }}
       sha: ${{ inputs.sha }}
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+      packages: read
+      pull-requests: read
   docs-build:
     if: github.ref_type == 'branch'
     needs: python-build
@@ -78,6 +96,12 @@ jobs:
       node_type: "gpu-l4-latest-1"
       script: "ci/build_docs.sh"
       sha: ${{ inputs.sha }}
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+      packages: read
+      pull-requests: read
   wheel-build-libcugraph:
     secrets: inherit
     uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@main
@@ -92,6 +116,12 @@ jobs:
       node_type: cpu16
       package-name: libcugraph
       package-type: cpp
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+      packages: read
+      pull-requests: read
   wheel-publish-libcugraph:
     needs: wheel-build-libcugraph
     secrets: inherit
@@ -103,6 +133,12 @@ jobs:
       date: ${{ inputs.date }}
       package-name: libcugraph
       package-type: cpp
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+      packages: read
+      pull-requests: read
   wheel-build-pylibcugraph:
     needs: wheel-build-libcugraph
     secrets: inherit
@@ -118,6 +154,12 @@ jobs:
       package-type: python
       # Build a wheel for each CUDA x ARCH x minimum supported Python version
       matrix_filter: group_by({CUDA_VER, ARCH}) | map(min_by(.PY_VER | split(".") | map(tonumber)))
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+      packages: read
+      pull-requests: read
   wheel-publish-pylibcugraph:
     needs: wheel-build-pylibcugraph
     secrets: inherit
@@ -130,6 +172,12 @@ jobs:
       package-name: pylibcugraph
       package-type: python
       publish-wheel-search-key: pylibcugraph_wheel_python_abi3
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+      packages: read
+      pull-requests: read
   wheel-build-cugraph:
     needs: wheel-build-pylibcugraph
     secrets: inherit
@@ -145,6 +193,12 @@ jobs:
       package-type: python
       # Build a wheel for each CUDA x ARCH x minimum supported Python version
       matrix_filter: group_by({CUDA_VER, ARCH}) | map(min_by(.PY_VER | split(".") | map(tonumber)))
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+      packages: read
+      pull-requests: read
   wheel-publish-cugraph:
     needs: wheel-build-cugraph
     secrets: inherit
@@ -157,3 +211,9 @@ jobs:
       package-name: cugraph
       package-type: python
       publish-wheel-search-key: cugraph_wheel_python_abi3
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+      packages: read
+      pull-requests: read

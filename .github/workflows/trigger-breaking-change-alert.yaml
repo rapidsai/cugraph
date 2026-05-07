@@ -1,5 +1,4 @@
 name: Trigger Breaking Change Notifications
-
 on:
   pull_request_target:
     types:
@@ -7,6 +6,8 @@ on:
       - reopened
       - labeled
       - unlabeled
+
+permissions: {}
 
 jobs:
   trigger-notifier:
@@ -24,3 +25,5 @@ jobs:
       pr_author: ${{ github.event.pull_request.user.login }}
       event_action: ${{ github.event.action }}
       pr_merged: ${{ github.event.pull_request.merged }}
+    permissions:
+      contents: read

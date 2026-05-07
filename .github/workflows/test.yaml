@@ -1,5 +1,4 @@
 name: test
-
 on:
   workflow_dispatch:
     inputs:
@@ -22,6 +21,8 @@ on:
         type: string
         default: nightly
 
+permissions: {}
+
 jobs:
   conda-cpp-checks:
     secrets: inherit
@@ -32,6 +33,12 @@ jobs:
       date: ${{ inputs.date }}
       sha: ${{ inputs.sha }}
       symbol_exclusions: (cugraph::ops|hornet|void writeEdgeCountsKernel|void markUniqueOffsetsKernel)
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+      packages: read
+      pull-requests: read
   conda-cpp-tests:
     secrets: inherit
     uses: rapidsai/shared-workflows/.github/workflows/conda-cpp-tests.yaml@main
@@ -44,6 +51,12 @@ jobs:
       # TODO(#5498): Drop this filter once libcugraph no longer requires a CUDA >= 12.8
       # cudart at runtime (ideally by statically linking libcudart again).
       matrix_filter: map(select(.CUDA_VER | split(".") | map(tonumber) >= [12, 9]))
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+      packages: read
+      pull-requests: read
   conda-python-tests:
     secrets: inherit
     uses: rapidsai/shared-workflows/.github/workflows/conda-python-tests.yaml@main
@@ -56,6 +69,12 @@ jobs:
       # TODO(#5498): Drop this filter once libcugraph no longer requires a CUDA >= 12.8
       # cudart at runtime (ideally by statically linking libcudart again).
       matrix_filter: map(select(.CUDA_VER | split(".") | map(tonumber) >= [12, 9]))
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+      packages: read
+      pull-requests: read
   wheel-tests-pylibcugraph:
     secrets: inherit
     uses: rapidsai/shared-workflows/.github/workflows/wheels-test.yaml@main
@@ -68,6 +87,12 @@ jobs:
       # TODO(#5498): Drop this filter once libcugraph no longer requires a CUDA >= 12.8
       # cudart at runtime (ideally by statically linking libcudart again).
       matrix_filter: map(select(.CUDA_VER | split(".") | map(tonumber) >= [12, 9]))
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+      packages: read
+      pull-requests: read
   wheel-tests-cugraph:
     secrets: inherit
     uses: rapidsai/shared-workflows/.github/workflows/wheels-test.yaml@main
@@ -80,3 +105,9 @@ jobs:
       # TODO(#5498): Drop this filter once libcugraph no longer requires a CUDA >= 12.8
       # cudart at runtime (ideally by statically linking libcudart again).
       matrix_filter: map(select(.CUDA_VER | split(".") | map(tonumber) >= [12, 9]))
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+      packages: read
+      pull-requests: read

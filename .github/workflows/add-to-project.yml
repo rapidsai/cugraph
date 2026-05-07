@@ -1,13 +1,13 @@
 name: Add new issue/PR to project
-
 on:
   issues:
     types:
       - opened
-
   pull_request_target:
     types:
       - opened
+
+permissions: {}
 
 jobs:
   add-to-project:
