@@ -1,12 +1,14 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2022, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
 
+#include <cugraph/export.hpp>
+
 #include <type_traits>
 
-namespace cugraph {
+namespace CUGRAPH_EXPORT cugraph {
 
 namespace detail {
 
@@ -68,4 +70,4 @@ class vertex_partition_view_t<vertex_t, multi_gpu, std::enable_if_t<!multi_gpu>>
   vertex_t local_vertex_partition_range_last() const { return this->number_of_vertices(); }
 };
 
-}  // namespace cugraph
+}  // namespace CUGRAPH_EXPORT cugraph

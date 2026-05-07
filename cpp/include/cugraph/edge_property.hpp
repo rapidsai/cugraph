@@ -1,10 +1,11 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
 #pragma once
 
+#include <cugraph/export.hpp>
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/packed_bool_utils.hpp>
@@ -20,7 +21,7 @@
 #include <optional>
 #include <type_traits>
 
-namespace cugraph {
+namespace CUGRAPH_EXPORT cugraph {
 
 template <typename edge_t,
           typename ValueIterator,
@@ -261,4 +262,4 @@ auto view_concat(edge_property_view_t<edge_t, Iters, Types> const&... views)
     edge_partition_concat_value_firsts, first_view.edge_counts());
 }
 
-}  // namespace cugraph
+}  // namespace CUGRAPH_EXPORT cugraph

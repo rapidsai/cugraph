@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cugraph/edge_partition_view.hpp>
+#include <cugraph/export.hpp>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/mask_utils.cuh>
 #include <cugraph/utilities/misc_utils.cuh>
@@ -29,7 +30,7 @@
 #include <tuple>
 #include <type_traits>
 
-namespace cugraph {
+namespace CUGRAPH_EXPORT cugraph {
 
 namespace detail {
 
@@ -1129,4 +1130,4 @@ struct sparse_hypersparse_major_op_t {
 
 }  // namespace detail
 
-}  // namespace cugraph
+}  // namespace CUGRAPH_EXPORT cugraph

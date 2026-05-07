@@ -4,6 +4,7 @@
  */
 #pragma once
 
+#include <cugraph/export.hpp>
 #include <cugraph/utilities/iterator_utils.hpp>
 #include <cugraph/utilities/thrust_tuple_utils.hpp>
 
@@ -19,7 +20,7 @@
 
 #include <numeric>
 #include <type_traits>
-namespace cugraph {
+namespace CUGRAPH_EXPORT cugraph {
 
 namespace detail {
 
@@ -1271,4 +1272,4 @@ inline void device_group_start(raft::comms::comms_t const& comm) { comm.group_st
 
 inline void device_group_end(raft::comms::comms_t const& comm) { comm.group_end(); }
 
-}  // namespace cugraph
+}  // namespace CUGRAPH_EXPORT cugraph

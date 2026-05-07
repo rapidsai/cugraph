@@ -1,12 +1,14 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2019-2022, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2019-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
 
+#include <cugraph/export.hpp>
+
 #include <raft/core/error.hpp>
 
-namespace cugraph {
+namespace CUGRAPH_EXPORT cugraph {
 
 /**
  * @brief Exception thrown when logical precondition is violated.
@@ -20,7 +22,7 @@ struct logic_error : public raft::exception {
   explicit logic_error(std::string const& message) : raft::exception(message) {}
 };
 
-}  // namespace cugraph
+}  // namespace CUGRAPH_EXPORT cugraph
 
 /**
  * @brief Macro for checking (pre-)conditions that throws an exception when a condition is false

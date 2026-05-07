@@ -1,8 +1,10 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2023-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
+
+#include <cugraph/export.hpp>
 
 #include <raft/core/device_span.hpp>
 #include <raft/core/handle.hpp>
@@ -11,7 +13,7 @@
 
 #include <optional>
 
-namespace cugraph {
+namespace CUGRAPH_EXPORT cugraph {
 namespace detail {
 
 /** @defgroup collect_comm_wrapper_cpp C++ Shuffle Wrappers
@@ -34,7 +36,7 @@ rmm::device_uvector<T> device_allgatherv(raft::handle_t const& handle,
                                          raft::device_span<T const> d_input);
 
 }  // namespace detail
-}  // namespace cugraph
+}  // namespace CUGRAPH_EXPORT cugraph
 /**
  * @}
  */
