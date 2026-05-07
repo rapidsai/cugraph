@@ -14,7 +14,7 @@ jobs:
     name: Add issue or PR to project
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/add-to-project@v0.3.0
+      - uses: actions/add-to-project@a9f041ddd462ed185893ea1024cec954f50dbe42 # v0.3.0
         with:
           project-url: https://github.com/orgs/rapidsai/projects/47
           github-token: ${{ secrets.ADD_TO_PROJECT_GITHUB_TOKEN }}
