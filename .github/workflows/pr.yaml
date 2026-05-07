@@ -6,9 +6,7 @@ on:
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
-
 permissions: {}
-
 jobs:
   # Please keep pr-builder as the top job here
   pr-builder:
@@ -30,7 +28,6 @@ jobs:
       - wheel-tests-cugraph
       - telemetry-setup
       - devcontainer
-    secrets: inherit
     uses: rapidsai/shared-workflows/.github/workflows/pr-builder.yaml@main
     if: always()
     with:
@@ -65,7 +62,6 @@ jobs:
           # TODO: remove this when nightly tests are passing again (ref: https://github.com/rapidsai/cugraph/issues/5421)
           max-days-without-success: 21
   changed-files:
-    secrets: inherit
     needs: telemetry-setup
     uses: rapidsai/shared-workflows/.github/workflows/changed-files.yaml@main
     with:
@@ -223,7 +219,6 @@ jobs:
       packages: read
       pull-requests: read
   checks:
-    secrets: inherit
     needs: telemetry-setup
     uses: rapidsai/shared-workflows/.github/workflows/checks.yaml@main
     with:
@@ -233,7 +228,7 @@ jobs:
       contents: read
   conda-cpp-build:
     needs: checks
-    secrets: inherit
+    secrets: inherit # zizmor: ignore[secrets-inherit]
     uses: rapidsai/shared-workflows/.github/workflows/conda-cpp-build.yaml@main
     with:
       build_type: pull-request
@@ -247,7 +242,7 @@ jobs:
       pull-requests: read
   conda-cpp-tests:
     needs: [conda-cpp-build, changed-files]
-    secrets: inherit
+    secrets: inherit # zizmor: ignore[secrets-inherit]
     uses: rapidsai/shared-workflows/.github/workflows/conda-cpp-tests.yaml@main
     if: fromJSON(needs.changed-files.outputs.changed_file_groups).test_cpp
     with:
@@ -264,7 +259,6 @@ jobs:
       pull-requests: read
   conda-cpp-checks:
     needs: conda-cpp-build
-    secrets: inherit
     uses: rapidsai/shared-workflows/.github/workflows/conda-cpp-post-build-checks.yaml@main
     with:
       build_type: pull-request
@@ -277,7 +271,7 @@ jobs:
       pull-requests: read
   conda-python-build:
     needs: conda-cpp-build
-    secrets: inherit
+    secrets: inherit # zizmor: ignore[secrets-inherit]
     uses: rapidsai/shared-workflows/.github/workflows/conda-python-build.yaml@main
     with:
       build_type: pull-request
@@ -292,7 +286,7 @@ jobs:
       pull-requests: read
   conda-python-tests:
     needs: [conda-python-build, changed-files]
-    secrets: inherit
+    secrets: inherit # zizmor: ignore[secrets-inherit]
     uses: rapidsai/shared-workflows/.github/workflows/conda-python-tests.yaml@main
     if: fromJSON(needs.changed-files.outputs.changed_file_groups).test_python_conda
     with:
@@ -309,7 +303,7 @@ jobs:
       pull-requests: read
   conda-notebook-tests:
     needs: [conda-python-build, changed-files]
-    secrets: inherit
+    secrets: inherit # zizmor: ignore[secrets-inherit]
     uses: rapidsai/shared-workflows/.github/workflows/custom-job.yaml@main
     if: fromJSON(needs.changed-files.outputs.changed_file_groups).test_notebooks
     with:
@@ -326,7 +320,7 @@ jobs:
       pull-requests: read
   docs-build:
     needs: [conda-python-build, changed-files]
-    secrets: inherit
+    secrets: inherit # zizmor: ignore[secrets-inherit]
     uses: rapidsai/shared-workflows/.github/workflows/custom-job.yaml@main
     if: fromJSON(needs.changed-files.outputs.changed_file_groups).build_docs
     with:
@@ -343,7 +337,7 @@ jobs:
       pull-requests: read
   wheel-build-libcugraph:
     needs: checks
-    secrets: inherit
+    secrets: inherit # zizmor: ignore[secrets-inherit]
     uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@main
     with:
       # build for every combination of arch and CUDA version, but only for the latest Python
@@ -361,7 +355,7 @@ jobs:
       pull-requests: read
   wheel-build-pylibcugraph:
     needs: wheel-build-libcugraph
-    secrets: inherit
+    secrets: inherit # zizmor: ignore[secrets-inherit]
     uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@main
     with:
       build_type: pull-request
@@ -379,7 +373,7 @@ jobs:
       pull-requests: read
   wheel-tests-pylibcugraph:
     needs: [wheel-build-pylibcugraph, changed-files]
-    secrets: inherit
+    secrets: inherit # zizmor: ignore[secrets-inherit]
     uses: rapidsai/shared-workflows/.github/workflows/wheels-test.yaml@main
     if: fromJSON(needs.changed-files.outputs.changed_file_groups).test_python_wheels
     with:
@@ -396,7 +390,7 @@ jobs:
       pull-requests: read
   wheel-build-cugraph:
     needs: wheel-build-pylibcugraph
-    secrets: inherit
+    secrets: inherit # zizmor: ignore[secrets-inherit]
     uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@main
     with:
       build_type: pull-request
@@ -414,7 +408,7 @@ jobs:
       pull-requests: read
   wheel-tests-cugraph:
     needs: [wheel-build-cugraph, changed-files]
-    secrets: inherit
+    secrets: inherit # zizmor: ignore[secrets-inherit]
     uses: rapidsai/shared-workflows/.github/workflows/wheels-test.yaml@main
     if: fromJSON(needs.changed-files.outputs.changed_file_groups).test_python_wheels
     with:
@@ -430,7 +424,7 @@ jobs:
       packages: read
       pull-requests: read
   devcontainer:
-    secrets: inherit
+    secrets: inherit # zizmor: ignore[secrets-inherit]
     needs: telemetry-setup
     uses: rapidsai/shared-workflows/.github/workflows/build-in-devcontainer.yaml@main
     with:
