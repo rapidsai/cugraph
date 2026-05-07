@@ -1,20 +1,23 @@
 name: Add new issue/PR to project
-
 on:
   issues:
     types:
       - opened
-
-  pull_request_target:
+  # `zizmor` always flags these triggers because they are easy to use
+  # incorrectly. These usages are ok and don't execute any PR-specific
+  # code (and so aren't susceptible to exploits from forked PRs)
+  pull_request_target: # zizmor: ignore[dangerous-triggers]
     types:
       - opened
+
+permissions: {}
 
 jobs:
   add-to-project:
     name: Add issue or PR to project
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/add-to-project@v0.3.0
+      - uses: actions/add-to-project@a9f041ddd462ed185893ea1024cec954f50dbe42 # v0.3.0
         with:
           project-url: https://github.com/orgs/rapidsai/projects/47
           github-token: ${{ secrets.ADD_TO_PROJECT_GITHUB_TOKEN }}
