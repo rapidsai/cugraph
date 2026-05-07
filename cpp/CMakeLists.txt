@@ -542,6 +542,11 @@ set_target_properties(cugraph_common
                POSITION_INDEPENDENT_CODE           ON
                INTERFACE_POSITION_INDEPENDENT_CODE ON
 )
+set_target_properties(cugraph_common
+    PROPERTIES CXX_VISIBILITY_PRESET hidden
+               CUDA_VISIBILITY_PRESET hidden
+               VISIBILITY_INLINES_HIDDEN ON
+)
 
 target_compile_options(cugraph_common
             PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:${CUGRAPH_CXX_FLAGS}>"
@@ -587,6 +592,11 @@ foreach(suffix IN LISTS cugraph_suffixes)
                    POSITION_INDEPENDENT_CODE           ON
                    INTERFACE_POSITION_INDEPENDENT_CODE ON
                    NO_CUDART_DEP                       ON
+    )
+    set_target_properties(cugraph${suffix}
+        PROPERTIES CXX_VISIBILITY_PRESET hidden
+                   CUDA_VISIBILITY_PRESET hidden
+                   VISIBILITY_INLINES_HIDDEN ON
     )
 
     ################################################################################
@@ -709,6 +719,11 @@ set_target_properties(cugraph_c
                CUDA_STANDARD_REQUIRED              ON
                POSITION_INDEPENDENT_CODE           ON
                INTERFACE_POSITION_INDEPENDENT_CODE ON
+)
+set_target_properties(cugraph_c
+    PROPERTIES CXX_VISIBILITY_PRESET hidden
+               CUDA_VISIBILITY_PRESET hidden
+               VISIBILITY_INLINES_HIDDEN ON
 )
 
 target_compile_options(cugraph_c
