@@ -1,13 +1,16 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #include "groupby_and_count.cuh"
 
+#include <cugraph/export.hpp>
+
 namespace cugraph {
 namespace detail {
 
-template rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
+template CUGRAPH_EXPORT rmm::device_uvector<size_t>
+groupby_and_count_edgelist_by_local_partition_id(
   raft::handle_t const& handle,
   raft::device_span<int64_t> edgelist_majors,
   raft::device_span<int64_t> edgelist_minors,

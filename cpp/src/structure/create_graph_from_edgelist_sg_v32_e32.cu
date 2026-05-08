@@ -1,16 +1,18 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2024-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #include "create_graph_from_edgelist_impl.cuh"
+
+#include <cugraph/export.hpp>
 
 namespace cugraph {
 
 // explicit instantiations
 
-template std::tuple<graph_t<int32_t, int32_t, false, false>,
-                    std::vector<edge_arithmetic_property_t<int32_t>>,
-                    std::optional<rmm::device_uvector<int32_t>>>
+template CUGRAPH_EXPORT std::tuple<graph_t<int32_t, int32_t, false, false>,
+                                   std::vector<edge_arithmetic_property_t<int32_t>>,
+                                   std::optional<rmm::device_uvector<int32_t>>>
 create_graph_from_edgelist<int32_t, int32_t, false, false>(
   raft::handle_t const& handle,
   std::optional<rmm::device_uvector<int32_t>>&& vertices,
@@ -23,9 +25,9 @@ create_graph_from_edgelist<int32_t, int32_t, false, false>(
   std::optional<large_buffer_type_t> large_edge_buffer_type,
   bool do_expensive_check);
 
-template std::tuple<graph_t<int32_t, int32_t, true, false>,
-                    std::vector<edge_arithmetic_property_t<int32_t>>,
-                    std::optional<rmm::device_uvector<int32_t>>>
+template CUGRAPH_EXPORT std::tuple<graph_t<int32_t, int32_t, true, false>,
+                                   std::vector<edge_arithmetic_property_t<int32_t>>,
+                                   std::optional<rmm::device_uvector<int32_t>>>
 create_graph_from_edgelist<int32_t, int32_t, true, false>(
   raft::handle_t const& handle,
   std::optional<rmm::device_uvector<int32_t>>&& vertices,
@@ -38,9 +40,9 @@ create_graph_from_edgelist<int32_t, int32_t, true, false>(
   std::optional<large_buffer_type_t> large_edge_buffer_type,
   bool do_expensive_check);
 
-template std::tuple<graph_t<int32_t, int32_t, false, false>,
-                    std::vector<edge_arithmetic_property_t<int32_t>>,
-                    std::optional<rmm::device_uvector<int32_t>>>
+template CUGRAPH_EXPORT std::tuple<graph_t<int32_t, int32_t, false, false>,
+                                   std::vector<edge_arithmetic_property_t<int32_t>>,
+                                   std::optional<rmm::device_uvector<int32_t>>>
 create_graph_from_edgelist<int32_t, int32_t, false, false>(
   raft::handle_t const& handle,
   std::optional<rmm::device_uvector<int32_t>>&& vertices,
@@ -53,9 +55,9 @@ create_graph_from_edgelist<int32_t, int32_t, false, false>(
   std::optional<large_buffer_type_t> large_edge_buffer_type,
   bool do_expensive_check);
 
-template std::tuple<graph_t<int32_t, int32_t, true, false>,
-                    std::vector<edge_arithmetic_property_t<int32_t>>,
-                    std::optional<rmm::device_uvector<int32_t>>>
+template CUGRAPH_EXPORT std::tuple<graph_t<int32_t, int32_t, true, false>,
+                                   std::vector<edge_arithmetic_property_t<int32_t>>,
+                                   std::optional<rmm::device_uvector<int32_t>>>
 create_graph_from_edgelist<int32_t, int32_t, true, false>(
   raft::handle_t const& handle,
   std::optional<rmm::device_uvector<int32_t>>&& vertices,

@@ -5,15 +5,17 @@
 
 #include "sampling/detail/deduplicate_edges_by_minor_impl.cuh"
 
+#include <cugraph/export.hpp>
+
 namespace cugraph {
 namespace detail {
 
-template std::tuple<rmm::device_uvector<int32_t>,
-                    rmm::device_uvector<int32_t>,
-                    arithmetic_device_uvector_t,
-                    std::optional<rmm::device_uvector<int32_t>>,
-                    std::optional<rmm::device_uvector<int32_t>>,
-                    std::optional<rmm::device_uvector<int32_t>>>
+template CUGRAPH_EXPORT std::tuple<rmm::device_uvector<int32_t>,
+                                   rmm::device_uvector<int32_t>,
+                                   arithmetic_device_uvector_t,
+                                   std::optional<rmm::device_uvector<int32_t>>,
+                                   std::optional<rmm::device_uvector<int32_t>>,
+                                   std::optional<rmm::device_uvector<int32_t>>>
 deduplicate_edges_by_minor<int32_t, int32_t, false>(
   raft::handle_t const&,
   graph_view_t<int32_t, int32_t, false, false> const&,
