@@ -17,6 +17,7 @@
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/host_scalar_comm.hpp>
+#include <cugraph/utilities/iterator_utils.hpp>
 #include <cugraph/utilities/mask_utils.cuh>
 #include <cugraph/utilities/misc_utils.cuh>
 #include <cugraph/utilities/shuffle_comm.cuh>
@@ -42,6 +43,7 @@
 
 #include <optional>
 #include <tuple>
+#include <type_traits>
 
 namespace CUGRAPH_EXPORT cugraph {
 
@@ -521,10 +523,25 @@ compute_valid_local_nbr_count_inclusive_sums(raft::handle_t const& handle,
             *edge_mask_view, i)
         : cuda::std::nullopt;
 
-    auto edge_partition_local_degrees = edge_partition.compute_local_degrees(
-      aggregate_local_frontier_major_first + local_frontier_offsets[i],
-      aggregate_local_frontier_major_first + local_frontier_offsets[i + 1],
-      handle.get_stream());
+    auto const frontier_partition_size = local_frontier_offsets[i + 1] - local_frontier_offsets[i];
+    auto edge_partition_major_first =
+      aggregate_local_frontier_major_first + local_frontier_offsets[i];
+
+    auto edge_partition_local_degrees = [&]() {
+      if constexpr (is_arithmetic_pointer_iterator_v<
+                      std::decay_t<decltype(edge_partition_major_first)>>) {
+        using major_t = std::remove_cv_t<
+          std::remove_pointer_t<std::decay_t<decltype(edge_partition_major_first)>>>;
+        auto const majors_span = raft::device_span<major_t const>(
+          edge_partition_major_first, static_cast<size_t>(frontier_partition_size));
+        return edge_partition.compute_local_degrees(majors_span, handle.get_stream());
+      } else {
+        return edge_partition.compute_local_degrees(
+          edge_partition_major_first,
+          edge_partition_major_first + frontier_partition_size,
+          handle.get_stream());
+      }
+    }();
     auto inclusive_sum_offsets = rmm::device_uvector<size_t>(
       (local_frontier_offsets[i + 1] - local_frontier_offsets[i]) + 1, handle.get_stream());
     inclusive_sum_offsets.set_element_to_zero_async(0, handle.get_stream());
@@ -2409,19 +2426,40 @@ compute_aggregate_local_frontier_local_degrees(raft::handle_t const& handle,
             *edge_mask_view, i)
         : cuda::std::nullopt;
 
-    auto edge_partition_frontier_local_degrees =
-      !edge_partition_e_mask
-        ? edge_partition.compute_local_degrees(
-            aggregate_local_frontier_major_first + local_frontier_offsets[i],
-            aggregate_local_frontier_major_first + local_frontier_offsets[i + 1],
-            handle.get_stream())
-        : edge_partition.compute_local_degrees_with_mask(
-            raft::device_span<uint32_t const>(
-              (*edge_partition_e_mask).value_first(),
-              packed_bool_size(static_cast<size_t>(edge_partition.number_of_edges()))),
-            aggregate_local_frontier_major_first + local_frontier_offsets[i],
-            aggregate_local_frontier_major_first + local_frontier_offsets[i + 1],
-            handle.get_stream());
+    auto const frontier_partition_size = local_frontier_offsets[i + 1] - local_frontier_offsets[i];
+    auto edge_partition_major_first =
+      aggregate_local_frontier_major_first + local_frontier_offsets[i];
+
+    auto edge_partition_frontier_local_degrees = [&]() {
+      if constexpr (is_arithmetic_pointer_iterator_v<
+                      std::decay_t<decltype(edge_partition_major_first)>>) {
+        using major_t = std::remove_cv_t<
+          std::remove_pointer_t<std::decay_t<decltype(edge_partition_major_first)>>>;
+        auto const majors_span = raft::device_span<major_t const>(
+          edge_partition_major_first, static_cast<size_t>(frontier_partition_size));
+        return !edge_partition_e_mask
+                 ? edge_partition.compute_local_degrees(majors_span, handle.get_stream())
+                 : edge_partition.compute_local_degrees_with_mask(
+                     raft::device_span<uint32_t const>(
+                       (*edge_partition_e_mask).value_first(),
+                       packed_bool_size(static_cast<size_t>(edge_partition.number_of_edges()))),
+                     majors_span,
+                     handle.get_stream());
+      } else {
+        return !edge_partition_e_mask
+                 ? edge_partition.compute_local_degrees(
+                     edge_partition_major_first,
+                     edge_partition_major_first + frontier_partition_size,
+                     handle.get_stream())
+                 : edge_partition.compute_local_degrees_with_mask(
+                     raft::device_span<uint32_t const>(
+                       (*edge_partition_e_mask).value_first(),
+                       packed_bool_size(static_cast<size_t>(edge_partition.number_of_edges()))),
+                     edge_partition_major_first,
+                     edge_partition_major_first + frontier_partition_size,
+                     handle.get_stream());
+      }
+    }();
 
     // FIXME: this copy is unnecessary if edge_partition.compute_local_degrees() takes a pointer
     // to the output array
