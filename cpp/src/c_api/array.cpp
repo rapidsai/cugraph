@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2024, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -7,6 +7,8 @@
 
 #include "c_api/error.hpp"
 #include "c_api/resource_handle.hpp"
+
+#include <cugraph_c/array.h>
 
 namespace cugraph {
 namespace c_api {
@@ -236,8 +238,8 @@ extern "C" size_t cugraph_type_erased_host_array_size(
   return internal_pointer->size_;
 }
 
-extern "C" cugraph_data_type_id_t cugraph_type_erased_host_array_view_type(
-  const cugraph_type_erased_host_array_view_t* p)
+extern "C" CUGRAPH_EXPORT cugraph_data_type_id_t
+cugraph_type_erased_host_array_view_type(const cugraph_type_erased_host_array_view_t* p)
 {
   auto internal_pointer =
     reinterpret_cast<cugraph::c_api::cugraph_type_erased_host_array_view_t const*>(p);
