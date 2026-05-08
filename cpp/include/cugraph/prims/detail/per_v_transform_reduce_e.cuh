@@ -1589,7 +1589,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
         if (v_list_size > 0) {
           auto h_staging_buffer_ptr = reinterpret_cast<vertex_t*>(h_staging_buffer_view.data());
           assert(h_staging_buffer_view.size() >= size_t{2});
-          if constexpr (std::is_pointer_v<std::decay<OptionalKeyIterator>>) {
+          if constexpr (std::is_pointer_v<std::decay_t<OptionalKeyIterator>>) {
             raft::update_host(
               h_staging_buffer_ptr, sorted_unique_key_first, size_t{1}, handle.get_stream());
             raft::update_host(h_staging_buffer_ptr + 1,
