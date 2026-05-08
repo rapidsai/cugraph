@@ -215,10 +215,10 @@ graph_contraction(raft::handle_t const& handle,
   auto new_graph_view = new_graph.view();
 
   rmm::device_uvector<vertex_t> numbering_indices((*numbering_map).size(), handle.get_stream());
-  detail::sequence_fill(handle.get_stream(),
-                        numbering_indices.data(),
+  detail::sequence_fill(numbering_indices.data(),
                         numbering_indices.size(),
-                        new_graph_view.local_vertex_partition_range_first());
+                        new_graph_view.local_vertex_partition_range_first(),
+                        handle.get_stream());
 
   relabel<vertex_t, multi_gpu>(
     handle,

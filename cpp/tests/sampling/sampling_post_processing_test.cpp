@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -88,12 +88,12 @@ class Tests_SamplingPostProcessing
       sampling_post_processing_usecase.num_labels *
         sampling_post_processing_usecase.num_seeds_per_label,
       handle.get_stream());
-    cugraph::detail::uniform_random_fill(handle.get_stream(),
-                                         starting_vertices.data(),
+    cugraph::detail::uniform_random_fill(starting_vertices.data(),
                                          starting_vertices.size(),
                                          vertex_t{0},
                                          graph_view.number_of_vertices(),
-                                         rng_state);
+                                         rng_state,
+                                         handle.get_stream());
     auto starting_vertex_labels = (sampling_post_processing_usecase.num_labels > 1)
                                     ? std::make_optional<rmm::device_uvector<label_t>>(
                                         starting_vertices.size(), handle.get_stream())
@@ -106,16 +106,16 @@ class Tests_SamplingPostProcessing
     if (starting_vertex_labels) {
       auto num_seeds_per_label = sampling_post_processing_usecase.num_seeds_per_label;
       for (size_t i = 0; i < sampling_post_processing_usecase.num_labels; ++i) {
-        cugraph::detail::scalar_fill(handle.get_stream(),
-                                     (*starting_vertex_labels).data() + i * num_seeds_per_label,
+        cugraph::detail::scalar_fill((*starting_vertex_labels).data() + i * num_seeds_per_label,
                                      num_seeds_per_label,
-                                     static_cast<label_t>(i));
+                                     static_cast<label_t>(i),
+                                     handle.get_stream());
       }
-      cugraph::detail::stride_fill(handle.get_stream(),
-                                   (*starting_vertex_label_offsets).data(),
+      cugraph::detail::stride_fill((*starting_vertex_label_offsets).data(),
                                    (*starting_vertex_label_offsets).size(),
                                    size_t{0},
-                                   num_seeds_per_label);
+                                   num_seeds_per_label,
+                                   handle.get_stream());
     }
 
     // 3. sampling

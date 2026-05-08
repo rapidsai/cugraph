@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -235,18 +235,18 @@ class Tests_RemoveMultiEdges
     for (size_t i = 0; i < src_chunks.size(); ++i) {
       edge_id_chunks[i].resize(src_chunks[i].size(), handle.get_stream());
       edge_type_chunks[i].resize(src_chunks[i].size(), handle.get_stream());
-      cugraph::detail::uniform_random_fill(handle.get_stream(),
-                                           edge_id_chunks[i].data(),
+      cugraph::detail::uniform_random_fill(edge_id_chunks[i].data(),
                                            edge_id_chunks[i].size(),
                                            edge_t{0},
                                            std::numeric_limits<edge_t>::max(),
-                                           rng_state);
-      cugraph::detail::uniform_random_fill(handle.get_stream(),
-                                           edge_type_chunks[i].data(),
+                                           rng_state,
+                                           handle.get_stream());
+      cugraph::detail::uniform_random_fill(edge_type_chunks[i].data(),
                                            edge_type_chunks[i].size(),
                                            edge_type_t{0},
                                            std::numeric_limits<edge_type_t>::max(),
-                                           rng_state);
+                                           rng_state,
+                                           handle.get_stream());
     }
 
     if (cugraph::test::g_perf) {

@@ -73,13 +73,13 @@ gather_sampled_properties(
 
     original_positions.resize(majors.size(), handle.get_stream());
     detail::sequence_fill(
-      handle.get_stream(), original_positions.data(), original_positions.size(), size_t{0});
+      original_positions.data(), original_positions.size(), size_t{0}, handle.get_stream());
     edge_properties.push_back(std::move(original_positions));
     original_gpu_ids.resize(majors.size(), handle.get_stream());
-    detail::scalar_fill(handle.get_stream(),
-                        original_gpu_ids.data(),
+    detail::scalar_fill(original_gpu_ids.data(),
                         original_gpu_ids.size(),
-                        handle.get_comms().get_rank());
+                        handle.get_comms().get_rank(),
+                        handle.get_stream());
     edge_properties.push_back(std::move(original_gpu_ids));
 
     if (std::holds_alternative<rmm::device_uvector<edge_t>>(multi_index))
@@ -154,7 +154,7 @@ gather_sampled_properties(
 
     rmm::device_uvector<size_t> property_position(majors.size(), handle.get_stream());
     detail::sequence_fill(
-      handle.get_stream(), property_position.data(), property_position.size(), size_t{0});
+      property_position.data(), property_position.size(), size_t{0}, handle.get_stream());
     thrust::sort_by_key(handle.get_thrust_policy(),
                         original_positions.begin(),
                         original_positions.end(),

@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -321,7 +321,7 @@ mg_graph_to_sg_graph(
     if (!renumber_map) {
       vertices.resize(graph_view.number_of_vertices(), handle.get_stream());
       cugraph::detail::sequence_fill(
-        handle.get_stream(), vertices.data(), vertices.size(), vertex_t{0});
+        vertices.data(), vertices.size(), vertex_t{0}, handle.get_stream());
     }
 
     std::vector<cugraph::edge_arithmetic_property_t<edge_t>> sg_edge_properties{};

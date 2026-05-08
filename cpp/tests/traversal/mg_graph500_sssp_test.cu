@@ -444,12 +444,12 @@ class Tests_GRAPH500_MGSSSP
       rmm::device_uvector<vertex_t> d_starting_vertices(
         num_warmup_starting_vertices + num_timed_starting_vertices, handle_->get_stream());
       if (comm_rank == 0) {
-        cugraph::detail::uniform_random_fill(handle_->get_stream(),
-                                             d_starting_vertices.data(),
+        cugraph::detail::uniform_random_fill(d_starting_vertices.data(),
                                              d_starting_vertices.size(),
                                              vertex_partition_range_offsets[0],
                                              vertex_partition_range_offsets.back(),
-                                             rng_state);
+                                             rng_state,
+                                             handle_->get_stream());
         raft::print_device_vector(
           "d_starting_vertices", d_starting_vertices.data(), d_starting_vertices.size(), std::cout);
       }

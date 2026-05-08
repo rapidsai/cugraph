@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -72,12 +72,12 @@ class Tests_Temporal_Neighbor_Sampling
       [&rng_state](raft::handle_t const& handle, size_t size, size_t base_offset) {
         rmm::device_uvector<time_stamp_t> result(size, handle.get_stream());
 
-        cugraph::detail::uniform_random_fill(handle.get_stream(),
-                                             result.data(),
+        cugraph::detail::uniform_random_fill(result.data(),
                                              result.size(),
                                              time_stamp_t{0},
                                              time_stamp_t{20000},
-                                             rng_state);
+                                             rng_state,
+                                             handle.get_stream());
 
         return std::move(result);
       });
@@ -142,12 +142,12 @@ class Tests_Temporal_Neighbor_Sampling
     //
     rmm::device_uvector<float> random_numbers(random_sources.size(), handle.get_stream());
 
-    cugraph::detail::uniform_random_fill(handle.get_stream(),
-                                         random_numbers.data(),
+    cugraph::detail::uniform_random_fill(random_numbers.data(),
                                          random_numbers.size(),
                                          float{0},
                                          float{1},
-                                         rng_state);
+                                         rng_state,
+                                         handle.get_stream());
 
     std::tie(random_numbers, random_sources) = cugraph::test::sort_by_key<float, vertex_t>(
       handle, std::move(random_numbers), std::move(random_sources));
@@ -192,12 +192,12 @@ class Tests_Temporal_Neighbor_Sampling
     if (temporal_neighbor_sampling_usecase.starting_vertex_times) {
       starting_vertex_times = std::make_optional(
         rmm::device_uvector<time_stamp_t>(random_sources.size(), handle.get_stream()));
-      cugraph::detail::uniform_random_fill(handle.get_stream(),
-                                           starting_vertex_times->data(),
+      cugraph::detail::uniform_random_fill(starting_vertex_times->data(),
                                            starting_vertex_times->size(),
                                            time_stamp_t{0},
                                            time_stamp_t{20000},
-                                           rng_state);
+                                           rng_state,
+                                           handle.get_stream());
     }
 
     if (temporal_neighbor_sampling_usecase.biased) {

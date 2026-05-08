@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2024-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -82,18 +82,18 @@ class Tests_HasEdgeAndComputeMultiplicity
     rmm::device_uvector<vertex_t> edge_srcs(
       has_edge_and_compute_multiplicity_usecase.num_vertex_pairs, handle.get_stream());
     rmm::device_uvector<vertex_t> edge_dsts(edge_srcs.size(), handle.get_stream());
-    cugraph::detail::uniform_random_fill(handle.get_stream(),
-                                         edge_srcs.data(),
+    cugraph::detail::uniform_random_fill(edge_srcs.data(),
                                          edge_srcs.size(),
                                          vertex_t{0},
                                          graph_view.number_of_vertices(),
-                                         rng_state);
-    cugraph::detail::uniform_random_fill(handle.get_stream(),
-                                         edge_dsts.data(),
+                                         rng_state,
+                                         handle.get_stream());
+    cugraph::detail::uniform_random_fill(edge_dsts.data(),
                                          edge_dsts.size(),
                                          vertex_t{0},
                                          graph_view.number_of_vertices(),
-                                         rng_state);
+                                         rng_state,
+                                         handle.get_stream());
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement

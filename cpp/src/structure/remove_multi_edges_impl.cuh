@@ -538,10 +538,10 @@ remove_multi_edges_impl(
         (*edgelist_edge_end_times)[i] = std::move(*tmp);
       }
     } else {
-      detail::sequence_fill(handle.get_stream(),
-                            (*edgelist_indices)[i].data(),
+      detail::sequence_fill((*edgelist_indices)[i].data(),
                             (*edgelist_indices)[i].size(),
-                            size_t{0});
+                            size_t{0},
+                            handle.get_stream());
       std::optional<rmm::device_uvector<size_t>> tmp{std::nullopt};
       std::tie(edgelist_srcs[i], edgelist_dsts[i], tmp, group_counts[i]) =
         detail::group_edges<vertex_t, size_t>(handle,

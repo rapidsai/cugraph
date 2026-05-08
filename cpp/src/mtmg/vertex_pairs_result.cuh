@@ -45,7 +45,7 @@ std::
 
   raft::copy(local_vertices.data(), vertices.data(), vertices.size(), stream);
   cugraph::detail::scalar_fill(
-    stream, vertex_gpu_ids.data(), vertex_gpu_ids.size(), handle.get_rank());
+    vertex_gpu_ids.data(), vertex_gpu_ids.size(), handle.get_rank(), stream);
 
   if (renumber_map_view) {
     cugraph::renumber_ext_vertices<vertex_t, multi_gpu>(

@@ -439,12 +439,12 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
                               tmp_src_v.size(), handle.get_stream())
                           : rmm::device_uvector<weight_t>(tmp_src_v.size(), handle.get_stream());
 
-        cugraph::detail::uniform_random_fill(handle.get_stream(),
-                                             tmp_weights_v->data(),
+        cugraph::detail::uniform_random_fill(tmp_weights_v->data(),
                                              tmp_weights_v->size(),
                                              weight_t{0.0},
                                              weight_t{1.0},
-                                             rng_state);
+                                             rng_state,
+                                             handle.get_stream());
       }
 
       translate(handle, tmp_src_v, tmp_dst_v);
@@ -493,10 +493,10 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
                       : rmm::device_uvector<vertex_t>(tot_vertex_counts, handle.get_stream());
     size_t v_offset{0};
     for (size_t i = 0; i < partition_vertex_firsts.size(); ++i) {
-      cugraph::detail::sequence_fill(handle.get_stream(),
-                                     vertex_v.begin() + v_offset,
+      cugraph::detail::sequence_fill(vertex_v.begin() + v_offset,
                                      partition_vertex_lasts[i] - partition_vertex_firsts[i],
-                                     partition_vertex_firsts[i]);
+                                     partition_vertex_firsts[i],
+                                     handle.get_stream());
       v_offset += partition_vertex_lasts[i] - partition_vertex_firsts[i];
     }
     if (scramble_vertex_ids_) {

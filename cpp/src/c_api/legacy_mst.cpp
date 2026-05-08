@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -68,7 +68,8 @@ struct minimum_spanning_tree_functor : public cugraph::c_api::abstract_functor {
       rmm::device_uvector<weight_t> tmp_weights(0, handle_.get_stream());
       if (edge_weights == nullptr) {
         tmp_weights.resize(edge_partition_view.indices().size(), handle_.get_stream());
-        cugraph::detail::scalar_fill(handle_, tmp_weights.data(), tmp_weights.size(), weight_t{1});
+        cugraph::detail::scalar_fill(
+          tmp_weights.data(), tmp_weights.size(), weight_t{1}, handle_.get_stream());
       }
 
       cugraph::legacy::GraphCSRView<vertex_t, edge_t, weight_t> legacy_csr_graph_view(

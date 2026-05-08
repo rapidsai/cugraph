@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -104,9 +104,9 @@ struct bfs_functor : public abstract_functor {
                                                  do_expensive_check_);
 
       size_t invalid_count = cugraph::detail::count_values(
-        handle_,
         raft::device_span<vertex_t const>{sources.data(), sources.size()},
-        cugraph::invalid_vertex_id<vertex_t>::value);
+        cugraph::invalid_vertex_id<vertex_t>::value,
+        handle_.get_stream());
 
       if constexpr (multi_gpu) {
         invalid_count = cugraph::host_scalar_allreduce(

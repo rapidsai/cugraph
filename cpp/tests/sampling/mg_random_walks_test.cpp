@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2024, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -143,10 +143,10 @@ class Tests_MGRandomWalks : public ::testing::TestWithParam<tuple_t> {
       d_start.resize(std::min(10, mg_graph_view.local_vertex_partition_range_size()),
                      handle_->get_stream());
 
-      cugraph::detail::sequence_fill(handle_->get_stream(),
-                                     d_start.begin(),
+      cugraph::detail::sequence_fill(d_start.begin(),
                                      d_start.size(),
-                                     mg_graph_view.local_vertex_partition_range_first());
+                                     mg_graph_view.local_vertex_partition_range_first(),
+                                     handle_->get_stream());
     }
 
     if (cugraph::test::g_perf) {

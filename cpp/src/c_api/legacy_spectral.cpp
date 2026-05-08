@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2023-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -111,7 +111,8 @@ struct balanced_cut_clustering_functor : public cugraph::c_api::abstract_functor
       rmm::device_uvector<weight_t> tmp_weights(0, handle_.get_stream());
       if (edge_weights == nullptr) {
         tmp_weights.resize(edge_partition_view.indices().size(), handle_.get_stream());
-        cugraph::detail::scalar_fill(handle_, tmp_weights.data(), tmp_weights.size(), weight_t{1});
+        cugraph::detail::scalar_fill(
+          tmp_weights.data(), tmp_weights.size(), weight_t{1}, handle_.get_stream());
       }
 
       cugraph::legacy::GraphCSRView<vertex_t, edge_t, weight_t> legacy_graph_view(
@@ -228,7 +229,8 @@ struct spectral_clustering_functor : public cugraph::c_api::abstract_functor {
       rmm::device_uvector<weight_t> tmp_weights(0, handle_.get_stream());
       if (edge_weights == nullptr) {
         tmp_weights.resize(edge_partition_view.indices().size(), handle_.get_stream());
-        cugraph::detail::scalar_fill(handle_, tmp_weights.data(), tmp_weights.size(), weight_t{1});
+        cugraph::detail::scalar_fill(
+          tmp_weights.data(), tmp_weights.size(), weight_t{1}, handle_.get_stream());
       }
 
       cugraph::legacy::GraphCSRView<vertex_t, edge_t, weight_t> legacy_graph_view(
@@ -332,7 +334,8 @@ struct analyze_clustering_ratio_cut_functor : public cugraph::c_api::abstract_fu
       rmm::device_uvector<weight_t> tmp_weights(0, handle_.get_stream());
       if (edge_weights == nullptr) {
         tmp_weights.resize(edge_partition_view.indices().size(), handle_.get_stream());
-        cugraph::detail::scalar_fill(handle_, tmp_weights.data(), tmp_weights.size(), weight_t{1});
+        cugraph::detail::scalar_fill(
+          tmp_weights.data(), tmp_weights.size(), weight_t{1}, handle_.get_stream());
       }
 
       cugraph::legacy::GraphCSRView<vertex_t, edge_t, weight_t> legacy_graph_view(
@@ -347,10 +350,10 @@ struct analyze_clustering_ratio_cut_functor : public cugraph::c_api::abstract_fu
       weight_t score;
 
       if (cugraph::detail::is_equal(
-            handle_,
             raft::device_span<vertex_t const>{vertices_->as_type<vertex_t const>(),
                                               vertices_->size_},
-            raft::device_span<vertex_t const>{number_map->data(), number_map->size()})) {
+            raft::device_span<vertex_t const>{number_map->data(), number_map->size()},
+            handle_.get_stream())) {
         cugraph::ext_raft::analyzeClustering_ratio_cut(
           handle_, legacy_graph_view, n_clusters_, clusters_->as_type<vertex_t>(), &score);
       } else {
@@ -452,7 +455,8 @@ struct analyze_clustering_edge_cut_functor : public cugraph::c_api::abstract_fun
       rmm::device_uvector<weight_t> tmp_weights(0, handle_.get_stream());
       if (edge_weights == nullptr) {
         tmp_weights.resize(edge_partition_view.indices().size(), handle_.get_stream());
-        cugraph::detail::scalar_fill(handle_, tmp_weights.data(), tmp_weights.size(), weight_t{1});
+        cugraph::detail::scalar_fill(
+          tmp_weights.data(), tmp_weights.size(), weight_t{1}, handle_.get_stream());
       }
 
       cugraph::legacy::GraphCSRView<vertex_t, edge_t, weight_t> legacy_graph_view(
@@ -467,10 +471,10 @@ struct analyze_clustering_edge_cut_functor : public cugraph::c_api::abstract_fun
       weight_t score;
 
       if (cugraph::detail::is_equal(
-            handle_,
             raft::device_span<vertex_t const>{vertices_->as_type<vertex_t const>(),
                                               vertices_->size_},
-            raft::device_span<vertex_t const>{number_map->data(), number_map->size()})) {
+            raft::device_span<vertex_t const>{number_map->data(), number_map->size()},
+            handle_.get_stream())) {
         cugraph::ext_raft::analyzeClustering_edge_cut(
           handle_, legacy_graph_view, n_clusters_, clusters_->as_type<vertex_t>(), &score);
       } else {
@@ -572,7 +576,8 @@ struct analyze_clustering_modularity_functor : public cugraph::c_api::abstract_f
       rmm::device_uvector<weight_t> tmp_weights(0, handle_.get_stream());
       if (edge_weights == nullptr) {
         tmp_weights.resize(edge_partition_view.indices().size(), handle_.get_stream());
-        cugraph::detail::scalar_fill(handle_, tmp_weights.data(), tmp_weights.size(), weight_t{1});
+        cugraph::detail::scalar_fill(
+          tmp_weights.data(), tmp_weights.size(), weight_t{1}, handle_.get_stream());
       }
 
       cugraph::legacy::GraphCSRView<vertex_t, edge_t, weight_t> legacy_graph_view(
@@ -587,10 +592,10 @@ struct analyze_clustering_modularity_functor : public cugraph::c_api::abstract_f
       weight_t score;
 
       if (cugraph::detail::is_equal(
-            handle_,
             raft::device_span<vertex_t const>{vertices_->as_type<vertex_t const>(),
                                               vertices_->size_},
-            raft::device_span<vertex_t const>{number_map->data(), number_map->size()})) {
+            raft::device_span<vertex_t const>{number_map->data(), number_map->size()},
+            handle_.get_stream())) {
         cugraph::ext_raft::analyzeClustering_modularity(
           handle_, legacy_graph_view, n_clusters_, clusters_->as_type<vertex_t>(), &score);
       } else {

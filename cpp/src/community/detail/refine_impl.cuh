@@ -279,10 +279,10 @@ refine_clustering(raft::handle_t const& handle,
   rmm::device_uvector<vertex_t> leiden_assignment = rmm::device_uvector<vertex_t>(
     graph_view.local_vertex_partition_range_size(), handle.get_stream());
 
-  detail::sequence_fill(handle.get_stream(),
-                        leiden_assignment.begin(),
+  detail::sequence_fill(leiden_assignment.begin(),
                         leiden_assignment.size(),
-                        graph_view.local_vertex_partition_range_first());
+                        graph_view.local_vertex_partition_range_first(),
+                        handle.get_stream());
 
   edge_src_property_t<vertex_t, vertex_t> src_leiden_assignment_cache(handle);
   edge_dst_property_t<vertex_t, vertex_t> dst_leiden_assignment_cache(handle);
@@ -586,10 +586,10 @@ refine_clustering(raft::handle_t const& handle,
     }
 
     rmm::device_uvector<vertex_t> d_srcs(n_local_vertices, handle.get_stream());
-    detail::sequence_fill(handle.get_stream(),
-                          d_srcs.data(),
+    detail::sequence_fill(d_srcs.data(),
                           d_srcs.size(),
-                          graph_view.local_vertex_partition_range_first());
+                          graph_view.local_vertex_partition_range_first(),
+                          handle.get_stream());
 
     rmm::device_uvector<vertex_t> d_dsts(keep_count, handle.get_stream());
     copy_if_mask_set(handle,

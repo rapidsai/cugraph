@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -313,10 +313,10 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
         *number_map = std::move(new_number_map.value());
       } else {
         number_map->resize(graph->number_of_vertices(), handle_.get_stream());
-        cugraph::detail::sequence_fill(handle_.get_stream(),
-                                       number_map->data(),
+        cugraph::detail::sequence_fill(number_map->data(),
                                        number_map->size(),
-                                       graph->view().local_vertex_partition_range_first());
+                                       graph->view().local_vertex_partition_range_first(),
+                                       handle_.get_stream());
 
         if (vertices_) {
           vertex_list = rmm::device_uvector<vertex_t>(vertices_->size_, handle_.get_stream());
@@ -326,9 +326,9 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
                                handle_.get_stream());
 
           auto is_consecutive = cugraph::detail::is_equal(
-            handle_.get_stream(),
             raft::device_span<vertex_t>{vertex_list->data(), vertex_list->size()},
-            raft::device_span<vertex_t>{number_map->data(), number_map->size()});
+            raft::device_span<vertex_t>{number_map->data(), number_map->size()},
+            handle_.get_stream());
 
           if (!is_consecutive) {
             mark_error(
@@ -454,7 +454,7 @@ struct create_graph_csr_functor : public cugraph::c_api::abstract_functor {
         rmm::device_uvector<vertex_t>(offsets_->size_ - 1, handle_.get_stream()));
 
       cugraph::detail::sequence_fill(
-        handle_.get_stream(), vertex_list->data(), vertex_list->size(), vertex_t{0});
+        vertex_list->data(), vertex_list->size(), vertex_t{0}, handle_.get_stream());
 
       rmm::device_uvector<vertex_t> edgelist_srcs(0, handle_.get_stream());
       rmm::device_uvector<vertex_t> edgelist_dsts(indices_->size_, handle_.get_stream());
@@ -576,10 +576,10 @@ struct create_graph_csr_functor : public cugraph::c_api::abstract_functor {
         *number_map = std::move(new_number_map.value());
       } else {
         number_map->resize(graph->number_of_vertices(), handle_.get_stream());
-        cugraph::detail::sequence_fill(handle_.get_stream(),
-                                       number_map->data(),
+        cugraph::detail::sequence_fill(number_map->data(),
                                        number_map->size(),
-                                       graph->view().local_vertex_partition_range_first());
+                                       graph->view().local_vertex_partition_range_first(),
+                                       handle_.get_stream());
       }
 
       cugraph::edge_property_t<edge_t, weight_t>* edge_weights_property{nullptr};

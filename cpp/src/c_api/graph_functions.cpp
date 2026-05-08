@@ -153,10 +153,10 @@ struct two_hop_neighbors_functor : public cugraph::c_api::abstract_functor {
 
       } else {
         start_vertices.resize(graph_view.local_vertex_partition_range_size(), handle_.get_stream());
-        cugraph::detail::sequence_fill(handle_.get_stream(),
-                                       start_vertices.data(),
+        cugraph::detail::sequence_fill(start_vertices.data(),
                                        start_vertices.size(),
-                                       graph_view.local_vertex_partition_range_first());
+                                       graph_view.local_vertex_partition_range_first(),
+                                       handle_.get_stream());
       }
 
       auto [offsets, dst] = cugraph::k_hop_nbrs(

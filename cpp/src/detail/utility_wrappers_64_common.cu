@@ -28,40 +28,45 @@
 namespace cugraph {
 namespace detail {
 
-template void uniform_random_fill(rmm::cuda_stream_view const& stream_view,
-                                  int64_t* d_value,
+template void uniform_random_fill(int64_t* d_value,
                                   size_t size,
                                   int64_t min_value,
                                   int64_t max_value,
-                                  raft::random::RngState& rng_state);
+                                  raft::random::RngState& rng_state,
+                                  rmm::cuda_stream_view const& stream_view);
 
-template void uniform_random_fill(rmm::cuda_stream_view const& stream_view,
-                                  double* d_value,
+template void uniform_random_fill(double* d_value,
                                   size_t size,
                                   double min_value,
                                   double max_value,
-                                  raft::random::RngState& rng_state);
+                                  raft::random::RngState& rng_state,
+                                  rmm::cuda_stream_view const& stream_view);
 
-template void scalar_fill(raft::handle_t const& handle,
-                          int64_t* d_value,
+template void scalar_fill(int64_t* d_value,
                           size_t size,
-                          int64_t value);
+                          int64_t value,
+                          rmm::cuda_stream_view const& stream_view);
 
-template void scalar_fill(raft::handle_t const& handle, double* d_value, size_t size, double value);
+template void scalar_fill(double* d_value,
+                          size_t size,
+                          double value,
+                          rmm::cuda_stream_view const& stream_view);
 
-template void sort_ints(raft::handle_t const& handle, raft::device_span<int64_t> values);
+template void sort_ints(raft::device_span<int64_t> values,
+                        rmm::cuda_stream_view const& stream_view);
 
-template size_t unique_ints(raft::handle_t const& handle, raft::device_span<int64_t> values);
+template size_t unique_ints(raft::device_span<int64_t> values,
+                            rmm::cuda_stream_view const& stream_view);
 
-template void sequence_fill(rmm::cuda_stream_view const& stream_view,
-                            int64_t* d_value,
+template void sequence_fill(int64_t* d_value,
                             size_t size,
-                            int64_t start_value);
+                            int64_t start_value,
+                            rmm::cuda_stream_view const& stream_view);
 
-template void sequence_fill(rmm::cuda_stream_view const& stream_view,
-                            uint64_t* d_value,
+template void sequence_fill(uint64_t* d_value,
                             size_t size,
-                            uint64_t start_value);
+                            uint64_t start_value,
+                            rmm::cuda_stream_view const& stream_view);
 
 template void transform_increment_ints(raft::device_span<int64_t> values,
                                        int64_t value,
@@ -72,36 +77,37 @@ template void transform_not_equal(raft::device_span<int64_t> values,
                                   int64_t compare,
                                   rmm::cuda_stream_view const& stream_view);
 
-template void stride_fill(rmm::cuda_stream_view const& stream_view,
-                          int64_t* d_value,
+template void stride_fill(int64_t* d_value,
                           size_t size,
                           int64_t start_value,
-                          int64_t stride);
+                          int64_t stride,
+                          rmm::cuda_stream_view const& stream_view);
 
-template void stride_fill(rmm::cuda_stream_view const& stream_view,
-                          uint64_t* d_value,
+template void stride_fill(uint64_t* d_value,
                           size_t size,
                           uint64_t start_value,
-                          uint64_t stride);
+                          uint64_t stride,
+                          rmm::cuda_stream_view const& stream_view);
 
-template int64_t compute_maximum_vertex_id(rmm::cuda_stream_view const& stream_view,
-                                           int64_t const* d_edgelist_srcs,
+template int64_t compute_maximum_vertex_id(int64_t const* d_edgelist_srcs,
                                            int64_t const* d_edgelist_dsts,
-                                           size_t num_edges);
+                                           size_t num_edges,
+                                           rmm::cuda_stream_view const& stream_view);
 
-template bool is_sorted(raft::handle_t const& handle, raft::device_span<int64_t> span);
-template bool is_sorted(raft::handle_t const& handle, raft::device_span<int64_t const> span);
+template bool is_sorted(raft::device_span<int64_t> span, rmm::cuda_stream_view const& stream_view);
+template bool is_sorted(raft::device_span<int64_t const> span,
+                        rmm::cuda_stream_view const& stream_view);
 
-template bool is_equal(raft::handle_t const& handle,
-                       raft::device_span<int64_t> span1,
-                       raft::device_span<int64_t> span2);
-template bool is_equal(raft::handle_t const& handle,
-                       raft::device_span<int64_t const> span1,
-                       raft::device_span<int64_t const> span2);
+template bool is_equal(raft::device_span<int64_t> span1,
+                       raft::device_span<int64_t> span2,
+                       rmm::cuda_stream_view const& stream_view);
+template bool is_equal(raft::device_span<int64_t const> span1,
+                       raft::device_span<int64_t const> span2,
+                       rmm::cuda_stream_view const& stream_view);
 
-template size_t count_values<int64_t>(raft::handle_t const& handle,
-                                      raft::device_span<int64_t const> span,
-                                      int64_t value);
+template size_t count_values<int64_t>(raft::device_span<int64_t const> span,
+                                      int64_t value,
+                                      rmm::cuda_stream_view const& stream_view);
 
 }  // namespace detail
 }  // namespace cugraph

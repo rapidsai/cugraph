@@ -125,15 +125,15 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
       cluster_keys.resize(vertex_weights.size(), handle.get_stream());
       cluster_weights.resize(vertex_weights.size(), handle.get_stream());
 
-      detail::sequence_fill(handle.get_stream(),
-                            dendrogram->current_level_begin(),
+      detail::sequence_fill(dendrogram->current_level_begin(),
                             dendrogram->current_level_size(),
-                            current_graph_view.local_vertex_partition_range_first());
+                            current_graph_view.local_vertex_partition_range_first(),
+                            handle.get_stream());
 
-      detail::sequence_fill(handle.get_stream(),
-                            cluster_keys.begin(),
+      detail::sequence_fill(cluster_keys.begin(),
                             cluster_keys.size(),
-                            current_graph_view.local_vertex_partition_range_first());
+                            current_graph_view.local_vertex_partition_range_first(),
+                            handle.get_stream());
 
       raft::copy(cluster_weights.begin(),
                  vertex_weights.begin(),
@@ -489,10 +489,10 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
         rmm::device_uvector<vertex_t> numeric_sequence(
           current_graph_view.local_vertex_partition_range_size(), handle.get_stream());
 
-        detail::sequence_fill(handle.get_stream(),
-                              numeric_sequence.data(),
+        detail::sequence_fill(numeric_sequence.data(),
                               numeric_sequence.size(),
-                              current_graph_view.local_vertex_partition_range_first());
+                              current_graph_view.local_vertex_partition_range_first(),
+                              handle.get_stream());
 
         relabel<vertex_t, multi_gpu>(
           handle,
@@ -576,10 +576,10 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
     } else {
       // Reset dendrogram.
       //    FIXME: Revisit how dendrogram is populated
-      detail::sequence_fill(handle.get_stream(),
-                            dendrogram->current_level_begin(),
+      detail::sequence_fill(dendrogram->current_level_begin(),
                             dendrogram->current_level_size(),
-                            current_graph_view.local_vertex_partition_range_first());
+                            current_graph_view.local_vertex_partition_range_first(),
+                            handle.get_stream());
     }
 
     copied_louvain_partition.resize(0, handle.get_stream());
@@ -623,10 +623,10 @@ void relabel_cluster_ids(raft::handle_t const& handle,
   }
 
   rmm::device_uvector<vertex_t> numbering_indices(unique_cluster_ids.size(), handle.get_stream());
-  detail::sequence_fill(handle.get_stream(),
-                        numbering_indices.data(),
+  detail::sequence_fill(numbering_indices.data(),
                         numbering_indices.size(),
-                        local_cluster_id_first);
+                        local_cluster_id_first,
+                        handle.get_stream());
 
   relabel<vertex_t, multi_gpu>(
     handle,
@@ -647,10 +647,10 @@ void flatten_leiden_dendrogram(raft::handle_t const& handle,
   rmm::device_uvector<vertex_t> vertex_ids_v(graph_view.local_vertex_partition_range_size(),
                                              handle.get_stream());
 
-  detail::sequence_fill(handle.get_stream(),
-                        vertex_ids_v.begin(),
+  detail::sequence_fill(vertex_ids_v.begin(),
                         vertex_ids_v.size(),
-                        graph_view.local_vertex_partition_range_first());
+                        graph_view.local_vertex_partition_range_first(),
+                        handle.get_stream());
 
   partition_at_level<vertex_t, multi_gpu>(
     handle, dendrogram, vertex_ids_v.data(), clustering, dendrogram.num_levels());

@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2024-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -88,12 +88,12 @@ class Tests_MGNegative_Sampling : public ::testing::TestWithParam<input_usecase_
     if (negative_sampling_usecase.use_src_bias) {
       src_bias_v.resize(graph_view.local_vertex_partition_range_size(), handle_->get_stream());
 
-      cugraph::detail::uniform_random_fill(handle_->get_stream(),
-                                           src_bias_v.data(),
+      cugraph::detail::uniform_random_fill(src_bias_v.data(),
                                            src_bias_v.size(),
                                            weight_t{1},
                                            weight_t{10},
-                                           rng_state);
+                                           rng_state,
+                                           handle_->get_stream());
 
       src_bias = raft::device_span<weight_t const>{src_bias_v.data(), src_bias_v.size()};
     }
@@ -101,12 +101,12 @@ class Tests_MGNegative_Sampling : public ::testing::TestWithParam<input_usecase_
     if (negative_sampling_usecase.use_dst_bias) {
       dst_bias_v.resize(graph_view.local_vertex_partition_range_size(), handle_->get_stream());
 
-      cugraph::detail::uniform_random_fill(handle_->get_stream(),
-                                           dst_bias_v.data(),
+      cugraph::detail::uniform_random_fill(dst_bias_v.data(),
                                            dst_bias_v.size(),
                                            weight_t{1},
                                            weight_t{10},
-                                           rng_state);
+                                           rng_state,
+                                           handle_->get_stream());
 
       dst_bias = raft::device_span<weight_t const>{dst_bias_v.data(), dst_bias_v.size()};
     }

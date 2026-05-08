@@ -126,14 +126,14 @@ rmm::device_uvector<vertex_t> select_random_vertices(
 
   if (with_replacement) {
     mg_sample_buffer.resize(this_gpu_select_count, handle.get_stream());
-    cugraph::detail::uniform_random_fill(handle.get_stream(),
-                                         mg_sample_buffer.data(),
+    cugraph::detail::uniform_random_fill(mg_sample_buffer.data(),
                                          mg_sample_buffer.size(),
                                          vertex_t{0},
                                          given_set
                                            ? static_cast<vertex_t>(num_of_elements_in_given_set)
                                            : graph_view.number_of_vertices(),
-                                         rng_state);
+                                         rng_state,
+                                         handle.get_stream());
   } else {
     mg_sample_buffer = rmm::device_uvector<vertex_t>(local_int_vertex_last - local_int_vertex_first,
                                                      handle.get_stream());
@@ -144,12 +144,12 @@ rmm::device_uvector<vertex_t> select_random_vertices(
 
     {  // random shuffle (use this instead of thrust::shuffle to use raft::random::RngState)
       rmm::device_uvector<float> random_numbers(mg_sample_buffer.size(), handle.get_stream());
-      cugraph::detail::uniform_random_fill(handle.get_stream(),
-                                           random_numbers.data(),
+      cugraph::detail::uniform_random_fill(random_numbers.data(),
                                            random_numbers.size(),
                                            float{0.0},
                                            float{1.0},
-                                           rng_state);
+                                           rng_state,
+                                           handle.get_stream());
       thrust::sort_by_key(handle.get_thrust_policy(),
                           random_numbers.begin(),
                           random_numbers.end(),
@@ -169,12 +169,12 @@ rmm::device_uvector<vertex_t> select_random_vertices(
       {
         rmm::device_uvector<vertex_t> d_random_numbers(mg_sample_buffer.size() % comm_size,
                                                        handle.get_stream());
-        cugraph::detail::uniform_random_fill(handle.get_stream(),
-                                             d_random_numbers.data(),
+        cugraph::detail::uniform_random_fill(d_random_numbers.data(),
                                              d_random_numbers.size(),
                                              vertex_t{0},
                                              vertex_t{comm_size},
-                                             rng_state);
+                                             rng_state,
+                                             handle.get_stream());
 
         h_random_numbers.resize(d_random_numbers.size());
 
@@ -196,12 +196,12 @@ rmm::device_uvector<vertex_t> select_random_vertices(
 
       {  // random shuffle (use this instead of thrust::shuffle to use raft::random::RngState)
         rmm::device_uvector<float> random_numbers(mg_sample_buffer.size(), handle.get_stream());
-        cugraph::detail::uniform_random_fill(handle.get_stream(),
-                                             random_numbers.data(),
+        cugraph::detail::uniform_random_fill(random_numbers.data(),
                                              random_numbers.size(),
                                              float{0.0},
                                              float{1.0},
-                                             rng_state);
+                                             rng_state,
+                                             handle.get_stream());
         thrust::sort_by_key(handle.get_thrust_policy(),
                             random_numbers.begin(),
                             random_numbers.end(),

@@ -148,7 +148,7 @@ shuffle_vertex_pairs_with_values_by_gpu_id_impl(
     } else {
       rmm::device_uvector<size_t> property_position(majors.size(), handle.get_stream());
       detail::sequence_fill(
-        handle.get_stream(), property_position.data(), property_position.size(), size_t{0});
+        property_position.data(), property_position.size(), size_t{0}, handle.get_stream());
 
       d_tx_value_counts = cugraph::groupby_and_count(
         thrust::make_zip_iterator(majors.begin(), minors.begin(), property_position.begin()),

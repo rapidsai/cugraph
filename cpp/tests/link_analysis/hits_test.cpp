@@ -190,12 +190,12 @@ class Tests_Hits : public ::testing::TestWithParam<std::tuple<Hits_Usecase, inpu
     if (hits_usecase.check_initial_input) {
       raft::random::RngState rng_state(0);
       d_initial_random_hubs = rmm::device_uvector<weight_t>(d_hubs.size(), handle.get_stream());
-      cugraph::detail::uniform_random_fill(handle.get_stream(),
-                                           (*d_initial_random_hubs).data(),
+      cugraph::detail::uniform_random_fill((*d_initial_random_hubs).data(),
                                            (*d_initial_random_hubs).size(),
                                            weight_t{0.0},
                                            weight_t{1.0},
-                                           rng_state);
+                                           rng_state,
+                                           handle.get_stream());
       raft::copy(d_hubs.data(),
                  (*d_initial_random_hubs).data(),
                  (*d_initial_random_hubs).size(),

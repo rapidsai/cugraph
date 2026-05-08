@@ -791,8 +791,10 @@ temporal_neighbor_sample_impl(
     result_hops   = rmm::device_uvector<int32_t>(result_size, handle.get_stream());
     output_offset = 0;
     for (size_t i = 0; i < result_vector_hops.size(); ++i) {
-      scalar_fill(
-        handle, result_hops->data() + output_offset, result_vector_sizes[i], result_vector_hops[i]);
+      scalar_fill(result_hops->data() + output_offset,
+                  result_vector_sizes[i],
+                  result_vector_hops[i],
+                  handle.get_stream());
       output_offset += result_vector_sizes[i];
     }
   }

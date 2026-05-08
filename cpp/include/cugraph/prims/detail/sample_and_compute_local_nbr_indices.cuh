@@ -658,12 +658,12 @@ void sample_nbr_index_with_replacement(
   auto num_keys = frontier_indices ? (*frontier_indices).size() : frontier_degrees.size();
 
   rmm::device_uvector<bias_t> sample_random_numbers(num_keys * K, handle.get_stream());
-  cugraph::detail::uniform_random_fill(handle.get_stream(),
-                                       sample_random_numbers.data(),
+  cugraph::detail::uniform_random_fill(sample_random_numbers.data(),
                                        sample_random_numbers.size(),
                                        bias_t{0.0},
                                        bias_t{1.0},
-                                       rng_state);
+                                       rng_state,
+                                       handle.get_stream());
 
   auto pair_first = thrust::make_zip_iterator(thrust::make_counting_iterator(size_t{0}),
                                               sample_random_numbers.begin());
@@ -720,12 +720,12 @@ void sample_nbr_index_with_replacement(
     input_r_offsets ? (*input_r_offsets).back_element(handle.get_stream())
                     : (num_keys / num_edge_types) * K_sum,
     handle.get_stream());
-  cugraph::detail::uniform_random_fill(handle.get_stream(),
-                                       sample_random_numbers.data(),
+  cugraph::detail::uniform_random_fill(sample_random_numbers.data(),
                                        sample_random_numbers.size(),
                                        bias_t{0.0},
                                        bias_t{1.0},
-                                       rng_state);
+                                       rng_state,
+                                       handle.get_stream());
 
   auto pair_first = thrust::make_zip_iterator(thrust::make_counting_iterator(size_t{0}),
                                               sample_random_numbers.begin());
@@ -856,12 +856,12 @@ void sample_nbr_index_without_replacement(
 
     rmm::device_uvector<bias_t> sample_random_numbers(
       input_r_offsets.back_element(handle.get_stream()), handle.get_stream());
-    cugraph::detail::uniform_random_fill(handle.get_stream(),
-                                         sample_random_numbers.data(),
+    cugraph::detail::uniform_random_fill(sample_random_numbers.data(),
                                          sample_random_numbers.size(),
                                          bias_t{0.0},
                                          bias_t{1.0},
-                                         rng_state);
+                                         rng_state,
+                                         handle.get_stream());
 
     thrust::for_each(
       handle.get_thrust_policy(),
@@ -1012,12 +1012,12 @@ void sample_nbr_index_without_replacement(
 
     rmm::device_uvector<bias_t> sample_random_numbers(
       input_r_offsets.back_element(handle.get_stream()), handle.get_stream());
-    cugraph::detail::uniform_random_fill(handle.get_stream(),
-                                         sample_random_numbers.data(),
+    cugraph::detail::uniform_random_fill(sample_random_numbers.data(),
                                          sample_random_numbers.size(),
                                          bias_t{0.0},
                                          bias_t{1.0},
-                                         rng_state);
+                                         rng_state,
+                                         handle.get_stream());
 
     // based on reservoir sampling, algorithm R
 
@@ -1974,7 +1974,7 @@ void compute_homogeneous_biased_sampling_index_without_replacement(
       rmm::device_uvector<bias_t> keys(num_chunk_pairs, handle.get_stream());
 
       cugraph::detail::uniform_random_fill(
-        handle.get_stream(), keys.data(), keys.size(), bias_t{0.0}, bias_t{1.0}, rng_state);
+        keys.data(), keys.size(), bias_t{0.0}, bias_t{1.0}, rng_state, handle.get_stream());
 
       if (packed_input_degree_offsets) {
         auto bias_first = cuda::make_transform_iterator(
@@ -2236,7 +2236,7 @@ void compute_heterogeneous_biased_sampling_index_without_replacement(
       rmm::device_uvector<bias_t> keys(num_chunk_pairs, handle.get_stream());
 
       cugraph::detail::uniform_random_fill(
-        handle.get_stream(), keys.data(), keys.size(), bias_t{0.0}, bias_t{1.0}, rng_state);
+        keys.data(), keys.size(), bias_t{0.0}, bias_t{1.0}, rng_state, handle.get_stream());
 
       if (packed_input_per_type_degree_offsets) {
         auto bias_first = cuda::make_transform_iterator(
@@ -3351,12 +3351,12 @@ biased_sample_with_replacement(
       (local_frontier_offsets[minor_comm_rank + 1] - local_frontier_offsets[minor_comm_rank]) *
         K_sum,
       handle.get_stream());
-    cugraph::detail::uniform_random_fill(handle.get_stream(),
-                                         sample_random_numbers.data(),
+    cugraph::detail::uniform_random_fill(sample_random_numbers.data(),
                                          sample_random_numbers.size(),
                                          bias_t{0.0},
                                          bias_t{1.0},
-                                         rng_state);
+                                         rng_state,
+                                         handle.get_stream());
     thrust::transform(
       handle.get_thrust_policy(),
       sample_random_numbers.begin(),

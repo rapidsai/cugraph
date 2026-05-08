@@ -77,7 +77,7 @@ void exact_fa2(raft::handle_t const& handle,
   d_traction   = traction.data();
 
   // Initialize positions with random values
-  uniform_random_fill(handle.get_stream(), pos, n * 2, -100.0f, 100.0f, rng_state);
+  uniform_random_fill(pos, n * 2, -100.0f, 100.0f, rng_state, handle.get_stream());
 
   if (x_start && y_start) {
     raft::copy(pos, x_start, n, stream_view.value());

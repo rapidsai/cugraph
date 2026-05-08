@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -95,12 +95,12 @@ class Tests_MGHits : public ::testing::TestWithParam<std::tuple<Hits_Usecase, in
       raft::random::RngState rng_state(handle_->get_comms().get_rank());
       d_mg_initial_random_hubs =
         rmm::device_uvector<weight_t>(d_mg_hubs.size(), handle_->get_stream());
-      cugraph::detail::uniform_random_fill(handle_->get_stream(),
-                                           (*d_mg_initial_random_hubs).data(),
+      cugraph::detail::uniform_random_fill((*d_mg_initial_random_hubs).data(),
                                            (*d_mg_initial_random_hubs).size(),
                                            weight_t{0.0},
                                            weight_t{1.0},
-                                           rng_state);
+                                           rng_state,
+                                           handle_->get_stream());
       raft::copy(d_mg_hubs.data(),
                  (*d_mg_initial_random_hubs).data(),
                  (*d_mg_initial_random_hubs).size(),

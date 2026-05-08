@@ -31,12 +31,12 @@ namespace cugraph {
 namespace detail {
 
 template <typename value_t>
-void uniform_random_fill(rmm::cuda_stream_view const& stream_view,
-                         value_t* d_value,
+void uniform_random_fill(value_t* d_value,
                          size_t size,
                          value_t min_value,
                          value_t max_value,
-                         raft::random::RngState& rng_state)
+                         raft::random::RngState& rng_state,
+                         rmm::cuda_stream_view const& stream_view)
 {
   if constexpr (std::is_integral<value_t>::value) {
     raft::random::uniformInt<value_t, size_t>(
@@ -48,30 +48,33 @@ void uniform_random_fill(rmm::cuda_stream_view const& stream_view,
 }
 
 template <typename value_t>
-void scalar_fill(raft::handle_t const& handle, value_t* d_value, size_t size, value_t value)
+void scalar_fill(value_t* d_value,
+                 size_t size,
+                 value_t value,
+                 rmm::cuda_stream_view const& stream_view)
 {
-  thrust::fill_n(handle.get_thrust_policy(), d_value, size, value);
+  thrust::fill_n(rmm::exec_policy(stream_view), d_value, size, value);
 }
 
 template <typename value_t>
-void sort_ints(raft::handle_t const& handle, raft::device_span<value_t> values)
+void sort_ints(raft::device_span<value_t> values, rmm::cuda_stream_view const& stream_view)
 {
-  thrust::sort(handle.get_thrust_policy(), values.begin(), values.end());
+  thrust::sort(rmm::exec_policy(stream_view), values.begin(), values.end());
 }
 
 template <typename value_t>
-size_t unique_ints(raft::handle_t const& handle, raft::device_span<value_t> values)
+size_t unique_ints(raft::device_span<value_t> values, rmm::cuda_stream_view const& stream_view)
 {
   auto unique_element_last =
-    thrust::unique(handle.get_thrust_policy(), values.begin(), values.end());
+    thrust::unique(rmm::exec_policy(stream_view), values.begin(), values.end());
   return cuda::std::distance(values.begin(), unique_element_last);
 }
 
 template <typename value_t>
-void sequence_fill(rmm::cuda_stream_view const& stream_view,
-                   value_t* d_value,
+void sequence_fill(value_t* d_value,
                    size_t size,
-                   value_t start_value)
+                   value_t start_value,
+                   rmm::cuda_stream_view const& stream_view)
 {
   thrust::sequence(rmm::exec_policy(stream_view), d_value, d_value + size, start_value);
 }
@@ -105,11 +108,11 @@ void transform_not_equal(raft::device_span<value_t> values,
 }
 
 template <typename value_t>
-void stride_fill(rmm::cuda_stream_view const& stream_view,
-                 value_t* d_value,
+void stride_fill(value_t* d_value,
                  size_t size,
                  value_t start_value,
-                 value_t stride)
+                 value_t stride,
+                 rmm::cuda_stream_view const& stream_view)
 {
   thrust::transform(rmm::exec_policy(stream_view),
                     thrust::make_counting_iterator(size_t{0}),
@@ -121,10 +124,10 @@ void stride_fill(rmm::cuda_stream_view const& stream_view,
 }
 
 template <typename vertex_t>
-vertex_t compute_maximum_vertex_id(rmm::cuda_stream_view const& stream_view,
-                                   vertex_t const* d_edgelist_srcs,
+vertex_t compute_maximum_vertex_id(vertex_t const* d_edgelist_srcs,
                                    vertex_t const* d_edgelist_dsts,
-                                   size_t num_edges)
+                                   size_t num_edges,
+                                   rmm::cuda_stream_view const& stream_view)
 {
   auto max_v_first = cuda::make_transform_iterator(
     thrust::make_zip_iterator(d_edgelist_srcs, d_edgelist_dsts),
@@ -139,25 +142,25 @@ vertex_t compute_maximum_vertex_id(rmm::cuda_stream_view const& stream_view,
 }
 
 template <typename data_t>
-bool is_sorted(raft::handle_t const& handle, raft::device_span<data_t> span)
+bool is_sorted(raft::device_span<data_t> span, rmm::cuda_stream_view const& stream_view)
 {
-  return thrust::is_sorted(handle.get_thrust_policy(), span.begin(), span.end());
+  return thrust::is_sorted(rmm::exec_policy(stream_view), span.begin(), span.end());
 }
 
 template <typename data_t>
-bool is_equal(raft::handle_t const& handle,
-              raft::device_span<data_t> span1,
-              raft::device_span<data_t> span2)
+bool is_equal(raft::device_span<data_t> span1,
+              raft::device_span<data_t> span2,
+              rmm::cuda_stream_view const& stream_view)
 {
-  return thrust::equal(handle.get_thrust_policy(), span1.begin(), span1.end(), span2.begin());
+  return thrust::equal(rmm::exec_policy(stream_view), span1.begin(), span1.end(), span2.begin());
 }
 
 template <typename data_t>
-size_t count_values(raft::handle_t const& handle,
-                    raft::device_span<data_t const> span,
-                    data_t value)
+size_t count_values(raft::device_span<data_t const> span,
+                    data_t value,
+                    rmm::cuda_stream_view const& stream_view)
 {
-  return thrust::count(handle.get_thrust_policy(), span.begin(), span.end(), value);
+  return thrust::count(rmm::exec_policy(stream_view), span.begin(), span.end(), value);
 }
 
 }  // namespace detail

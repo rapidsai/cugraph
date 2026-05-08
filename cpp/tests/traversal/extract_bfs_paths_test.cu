@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -121,7 +121,7 @@ class Tests_ExtractBfsPaths
       constexpr vertex_t invalid_vertex = cugraph::invalid_vertex_id<vertex_t>::value;
       auto local_vertex_first           = vertex_t{0};
       cugraph::detail::sequence_fill(
-        handle.get_stream(), d_vertices.begin(), d_vertices.size(), local_vertex_first);
+        d_vertices.begin(), d_vertices.size(), local_vertex_first, handle.get_stream());
       auto end_iter = thrust::remove_if(
         handle.get_thrust_policy(),
         d_vertices.begin(),

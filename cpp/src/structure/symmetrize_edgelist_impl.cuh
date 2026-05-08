@@ -495,7 +495,7 @@ symmetrize_edgelist(raft::handle_t const& handle,
   } else {
     rmm::device_uvector<edge_t> property_position(edgelist_majors.size(), handle.get_stream());
     detail::sequence_fill(
-      handle.get_stream(), property_position.data(), property_position.size(), edge_t{0});
+      property_position.data(), property_position.size(), edge_t{0}, handle.get_stream());
 
     auto edge_first = thrust::make_zip_iterator(
       edgelist_majors.begin(), edgelist_minors.begin(), property_position.begin());
@@ -840,7 +840,7 @@ symmetrize_edgelist(raft::handle_t const& handle,
     rmm::device_uvector<edge_t> property_position(
       lower_triangular_majors.size() + upper_triangular_majors.size(), handle.get_stream());
     detail::sequence_fill(
-      handle.get_stream(), property_position.data(), property_position.size(), edge_t{0});
+      property_position.data(), property_position.size(), edge_t{0}, handle.get_stream());
 
     std::tie(merged_lower_triangular_majors, merged_lower_triangular_minors, property_position) =
       merge_lower_triangular(handle,

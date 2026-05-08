@@ -176,10 +176,12 @@ class Tests_Multithreaded
                d_dst_v.size(),
                handle.get_stream());
     cugraph::detail::sort_ints(
-      handle, raft::device_span<vertex_t>{d_unique_vertices.data(), d_unique_vertices.size()});
+      raft::device_span<vertex_t>{d_unique_vertices.data(), d_unique_vertices.size()},
+      handle.get_stream());
     d_unique_vertices.resize(
       cugraph::detail::unique_ints(
-        handle, raft::device_span<vertex_t>{d_unique_vertices.data(), d_unique_vertices.size()}),
+        raft::device_span<vertex_t>{d_unique_vertices.data(), d_unique_vertices.size()},
+        handle.get_stream()),
       handle.get_stream());
 
     auto h_src_v         = cugraph::test::to_host(handle, d_src_v);

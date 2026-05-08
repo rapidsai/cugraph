@@ -115,7 +115,7 @@ rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
                             edgelist_majors.size(), handle.get_stream())
                         : rmm::device_uvector<size_t>(edgelist_majors.size(), handle.get_stream());
     detail::sequence_fill(
-      handle.get_stream(), property_positions.data(), property_positions.size(), size_t{0});
+      property_positions.data(), property_positions.size(), size_t{0}, handle.get_stream());
 
     if (groupby_and_count_local_partition_by_minor) {
       counts = cugraph::groupby_and_count(pair_first,

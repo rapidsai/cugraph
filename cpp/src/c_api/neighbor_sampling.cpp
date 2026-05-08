@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -174,21 +174,21 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
           // Get unique labels
           // sort the start_vertex_labels
           cugraph::detail::sort_ints(
-            handle_.get_stream(),
-            raft::device_span<label_t>{unique_labels.data(), unique_labels.size()});
+            raft::device_span<label_t>{unique_labels.data(), unique_labels.size()},
+            handle_.get_stream());
 
           auto num_unique_labels = cugraph::detail::unique_ints(
-            handle_.get_stream(),
-            raft::device_span<label_t>{unique_labels.data(), unique_labels.size()});
+            raft::device_span<label_t>{unique_labels.data(), unique_labels.size()},
+            handle_.get_stream());
 
           rmm::device_uvector<label_t> local_label_to_comm_rank(num_unique_labels,
                                                                 handle_.get_stream());
 
           cugraph::detail::scalar_fill(
-            handle_.get_stream(),
             local_label_to_comm_rank.begin(),  // This should be rename to rank
             local_label_to_comm_rank.size(),
-            label_t{handle_.get_comms().get_rank()});
+            label_t{handle_.get_comms().get_rank()},
+            handle_.get_stream());
 
           // Perform allgather to get global_label_to_comm_rank_d_vector
           auto recvcounts = cugraph::host_scalar_allgather(
@@ -567,13 +567,11 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
             if (vertex_type_offsets_ == nullptr) {
               // If no 'vertex_type_offsets' is provided, all vertices are assumed to have
               // a vertex type of value 1.
-              cugraph::detail::stride_fill(handle_.get_stream(),
-                                           vertex_type_offsets.begin(),
+              cugraph::detail::stride_fill(vertex_type_offsets.begin(),
                                            vertex_type_offsets.size(),
                                            vertex_t{0},
-                                           vertex_t{graph_view.local_vertex_partition_range_size()}
-
-              );
+                                           vertex_t{graph_view.local_vertex_partition_range_size()},
+                                           handle_.get_stream());
             }
 
             rmm::device_uvector<vertex_t> output_majors(0, handle_.get_stream());
@@ -635,10 +633,10 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
                             .back() -
                           1,
                         handle_.get_stream());
-              cugraph::detail::sequence_fill(handle_.get_stream(),
-                                             (*sampled_edge_type).begin(),
+              cugraph::detail::sequence_fill((*sampled_edge_type).begin(),
                                              (*sampled_edge_type).size(),
-                                             edge_type_t{0});
+                                             edge_type_t{0},
+                                             handle_.get_stream());
             }
 
             size_t pos = 0;

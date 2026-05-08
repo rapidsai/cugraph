@@ -40,8 +40,8 @@ rmm::device_uvector<result_t> vertex_result_view_t<result_t>::gather(
 
   if constexpr (multi_gpu) {
     cugraph::detail::scalar_fill(
-      stream, vertex_gpu_ids.data(), vertex_gpu_ids.size(), handle.get_rank());
-    cugraph::detail::sequence_fill(stream, vertex_pos.data(), vertex_pos.size(), size_t{0});
+      vertex_gpu_ids.data(), vertex_gpu_ids.size(), handle.get_rank(), handle.get_stream());
+    cugraph::detail::sequence_fill(vertex_pos.data(), vertex_pos.size(), size_t{0}, stream);
 
     auto const comm_size = handle.raft_handle().get_comms().get_size();
     auto const major_comm_size =
@@ -91,7 +91,7 @@ rmm::device_uvector<result_t> vertex_result_view_t<result_t>::gather(
   //  Now gather
   //
   rmm::device_uvector<result_t> result(local_vertices.size(), stream);
-  cugraph::detail::scalar_fill(stream, result.data(), result.size(), default_value);
+  cugraph::detail::scalar_fill(result.data(), result.size(), default_value, handle.get_stream());
 
   auto& wrapped = this->get(handle);
 
@@ -126,7 +126,7 @@ rmm::device_uvector<result_t> vertex_result_view_t<result_t>::gather(
     // Finally, reorder result
     //
     result.resize(tmp_result.size(), stream);
-    cugraph::detail::scalar_fill(stream, result.data(), result.size(), default_value);
+    cugraph::detail::scalar_fill(result.data(), result.size(), default_value, handle.get_stream());
 
     thrust::scatter(rmm::exec_policy(stream),
                     tmp_result.begin(),

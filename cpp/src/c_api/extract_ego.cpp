@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -92,10 +92,10 @@ struct extract_ego_functor : public cugraph::c_api::abstract_functor {
         std::exclusive_scan(
           displacements.begin(), displacements.end(), displacements.begin(), size_t{0});
         source_indices = rmm::device_uvector<size_t>(source_vertices.size(), handle_.get_stream());
-        cugraph::detail::sequence_fill(handle_.get_stream(),
-                                       (*source_indices).data(),
+        cugraph::detail::sequence_fill((*source_indices).data(),
                                        (*source_indices).size(),
-                                       displacements[handle_.get_comms().get_rank()]);
+                                       displacements[handle_.get_comms().get_rank()],
+                                       handle_.get_stream());
 
         std::vector<cugraph::arithmetic_device_uvector_t> vertex_properties{};
         vertex_properties.push_back(std::move(*source_indices));

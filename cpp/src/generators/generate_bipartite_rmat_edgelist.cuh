@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2023-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -60,12 +60,12 @@ generate_bipartite_rmat_edgelist(raft::handle_t const& handle,
       std::min(num_edges - num_edges_generated, max_edges_to_generate_per_iteration);
     auto pair_first = thrust::make_zip_iterator(srcs.begin(), dsts.begin()) + num_edges_generated;
 
-    detail::uniform_random_fill(handle.get_stream(),
-                                rands.data(),
+    detail::uniform_random_fill(rands.data(),
                                 num_edges_to_generate * (src_scale + dst_scale),
                                 0.0f,
                                 1.0f,
-                                rng_state);
+                                rng_state,
+                                handle.get_stream());
 
     thrust::transform(
       handle.get_thrust_policy(),

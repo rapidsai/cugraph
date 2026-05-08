@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2023-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #include "c_api/array.hpp"
@@ -295,24 +295,24 @@ extern "C" cugraph_error_code_t cugraph_generate_edge_weights(
   switch (dtype) {
     case cugraph_data_type_id_t::FLOAT32: {
       rmm::device_uvector<float> tmp(local_coo->src_->size_, local_handle.get_stream());
-      cugraph::detail::uniform_random_fill(local_handle.get_stream(),
-                                           tmp.data(),
+      cugraph::detail::uniform_random_fill(tmp.data(),
                                            tmp.size(),
                                            static_cast<float>(minimum_weight),
                                            static_cast<float>(maximum_weight),
-                                           local_rng_state);
+                                           local_rng_state,
+                                           local_handle.get_stream());
       local_coo->wgt_ =
         std::make_unique<cugraph::c_api::cugraph_type_erased_device_array_t>(tmp, dtype);
       break;
     }
     case cugraph_data_type_id_t::FLOAT64: {
       rmm::device_uvector<double> tmp(local_coo->src_->size_, local_handle.get_stream());
-      cugraph::detail::uniform_random_fill(local_handle.get_stream(),
-                                           tmp.data(),
+      cugraph::detail::uniform_random_fill(tmp.data(),
                                            tmp.size(),
                                            minimum_weight,
                                            maximum_weight,
-                                           local_rng_state);
+                                           local_rng_state,
+                                           local_handle.get_stream());
       local_coo->wgt_ =
         std::make_unique<cugraph::c_api::cugraph_type_erased_device_array_t>(tmp, dtype);
       break;
@@ -357,7 +357,7 @@ extern "C" cugraph_error_code_t cugraph_generate_edge_ids(const cugraph_resource
     rmm::device_uvector<int32_t> tmp(local_coo->src_->size_, local_handle.get_stream());
 
     cugraph::detail::sequence_fill(
-      local_handle.get_stream(), tmp.data(), tmp.size(), static_cast<int32_t>(base_edge_id));
+      tmp.data(), tmp.size(), static_cast<int32_t>(base_edge_id), local_handle.get_stream());
 
     local_coo->id_ = std::make_unique<cugraph::c_api::cugraph_type_erased_device_array_t>(
       tmp, cugraph_data_type_id_t::INT32);
@@ -365,7 +365,7 @@ extern "C" cugraph_error_code_t cugraph_generate_edge_ids(const cugraph_resource
     rmm::device_uvector<int64_t> tmp(local_coo->src_->size_, local_handle.get_stream());
 
     cugraph::detail::sequence_fill(
-      local_handle.get_stream(), tmp.data(), tmp.size(), static_cast<int64_t>(base_edge_id));
+      tmp.data(), tmp.size(), static_cast<int64_t>(base_edge_id), local_handle.get_stream());
 
     local_coo->id_ = std::make_unique<cugraph::c_api::cugraph_type_erased_device_array_t>(
       tmp, cugraph_data_type_id_t::INT64);
@@ -389,12 +389,12 @@ extern "C" cugraph_error_code_t cugraph_generate_edge_types(const cugraph_resour
   auto local_coo = reinterpret_cast<cugraph::c_api::cugraph_coo_t*>(coo);
 
   rmm::device_uvector<int32_t> tmp(local_coo->src_->size_, local_handle.get_stream());
-  cugraph::detail::uniform_random_fill(local_handle.get_stream(),
-                                       tmp.data(),
+  cugraph::detail::uniform_random_fill(tmp.data(),
                                        tmp.size(),
                                        min_edge_type,
                                        max_edge_type,
-                                       local_rng_state);
+                                       local_rng_state,
+                                       local_handle.get_stream());
   local_coo->type_ = std::make_unique<cugraph::c_api::cugraph_type_erased_device_array_t>(
     tmp, cugraph_data_type_id_t::INT32);
 

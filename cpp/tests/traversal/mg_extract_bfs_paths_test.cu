@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -125,7 +125,7 @@ class Tests_MGExtractBFSPaths
       constexpr vertex_t invalid_vertex = cugraph::invalid_vertex_id<vertex_t>::value;
       auto local_vertex_first           = mg_graph_view.local_vertex_partition_range_first();
       cugraph::detail::sequence_fill(
-        handle_->get_stream(), d_vertices.begin(), d_vertices.size(), local_vertex_first);
+        d_vertices.begin(), d_vertices.size(), local_vertex_first, handle_->get_stream());
       auto end_iter = thrust::remove_if(
         handle_->get_thrust_policy(),
         d_vertices.begin(),

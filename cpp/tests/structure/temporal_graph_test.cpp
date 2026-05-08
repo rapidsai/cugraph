@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2024-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -91,22 +91,22 @@ class Tests_TemporalGraph
     for (size_t i = 0; i < edge_src_chunks.size(); ++i) {
       edge_start_time_chunks->push_back(
         rmm::device_uvector<time_stamp_t>(edge_src_chunks[i].size(), handle.get_stream()));
-      cugraph::detail::uniform_random_fill(handle.get_stream(),
-                                           edge_start_time_chunks->back().data(),
+      cugraph::detail::uniform_random_fill(edge_start_time_chunks->back().data(),
                                            edge_start_time_chunks->back().size(),
                                            time_stamp_t{0},
                                            time_stamp_t{20000},
-                                           rng_state);
+                                           rng_state,
+                                           handle.get_stream());
 
       if (temporal_graph_usecase.use_end_time) {
         edge_end_time_chunks->push_back(
           rmm::device_uvector<time_stamp_t>(edge_src_chunks[i].size(), handle.get_stream()));
-        cugraph::detail::uniform_random_fill(handle.get_stream(),
-                                             edge_start_time_chunks->back().data(),
+        cugraph::detail::uniform_random_fill(edge_start_time_chunks->back().data(),
                                              edge_start_time_chunks->back().size(),
                                              time_stamp_t{20000},
                                              time_stamp_t{40000},
-                                             rng_state);
+                                             rng_state,
+                                             handle.get_stream());
       }
     }
 

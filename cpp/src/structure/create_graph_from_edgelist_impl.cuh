@@ -595,7 +595,7 @@ create_graph_from_partitioned_edgelist(
                                   : rmm::device_uvector<edge_t>(
                                       edge_partition_edgelist_srcs[i].size(), handle.get_stream());
       detail::sequence_fill(
-        handle.get_stream(), property_positions.data(), property_positions.size(), edge_t{0});
+        property_positions.data(), property_positions.size(), edge_t{0}, handle.get_stream());
 
       std::tie(offsets, indices, property_positions, dcs_nzd_vertices) =
         detail::sort_and_compress_edgelist<vertex_t, edge_t, edge_t, store_transposed>(
@@ -672,7 +672,7 @@ create_graph_from_partitioned_edgelist(
                                                                  handle.get_stream())
           : rmm::device_uvector<edge_t>(edge_partition_indices[i].size(), handle.get_stream());
       detail::sequence_fill(
-        handle.get_stream(), property_positions.data(), property_positions.size(), edge_t{0});
+        property_positions.data(), property_positions.size(), edge_t{0}, handle.get_stream());
 
       detail::sort_adjacency_list(handle,
                                   raft::device_span<edge_t const>(edge_partition_offsets[i].data(),
@@ -1507,7 +1507,7 @@ create_graph_from_edgelist_impl(raft::handle_t const& handle,
     } else {
       if (edgelist_srcs.size() > 0) {
         num_vertices = 1 + cugraph::detail::compute_maximum_vertex_id(
-                             handle.get_stream(), edgelist_srcs, edgelist_dsts);
+                             edgelist_srcs, edgelist_dsts, handle.get_stream());
       } else {
         num_vertices = 0;
       }
@@ -1592,7 +1592,7 @@ create_graph_from_edgelist_impl(raft::handle_t const& handle,
                                                                handle.get_stream())
         : rmm::device_uvector<edge_t>(edgelist_srcs.size(), handle.get_stream());
     detail::sequence_fill(
-      handle.get_stream(), property_positions.data(), property_positions.size(), edge_t{0});
+      property_positions.data(), property_positions.size(), edge_t{0}, handle.get_stream());
 
     std::tie(offsets, indices, property_positions, std::ignore) =
       detail::sort_and_compress_edgelist<vertex_t, edge_t, edge_t, store_transposed>(

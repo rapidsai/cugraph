@@ -95,18 +95,18 @@ class Tests_MGHasEdgeAndComputeMultiplicity
          : size_t{0});
     rmm::device_uvector<vertex_t> d_mg_edge_srcs(num_vertex_pairs_this_gpu, handle_->get_stream());
     rmm::device_uvector<vertex_t> d_mg_edge_dsts(d_mg_edge_srcs.size(), handle_->get_stream());
-    cugraph::detail::uniform_random_fill(handle_->get_stream(),
-                                         d_mg_edge_srcs.data(),
+    cugraph::detail::uniform_random_fill(d_mg_edge_srcs.data(),
                                          d_mg_edge_srcs.size(),
                                          vertex_t{0},
                                          mg_graph_view.number_of_vertices(),
-                                         rng_state);
-    cugraph::detail::uniform_random_fill(handle_->get_stream(),
-                                         d_mg_edge_dsts.data(),
+                                         rng_state,
+                                         handle_->get_stream());
+    cugraph::detail::uniform_random_fill(d_mg_edge_dsts.data(),
                                          d_mg_edge_dsts.size(),
                                          vertex_t{0},
                                          mg_graph_view.number_of_vertices(),
-                                         rng_state);
+                                         rng_state,
+                                         handle_->get_stream());
     std::vector<cugraph::arithmetic_device_uvector_t> edge_properties{};
 
     std::tie(d_mg_edge_srcs, d_mg_edge_dsts, std::ignore) =

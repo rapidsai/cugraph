@@ -62,10 +62,10 @@ rmm::device_uvector<vertex_t> vertices_in_mis_from_decision_edgelist(
     maximal_independent_moves<vertex_t, edge_t, multi_gpu>(handle, decision_graph_view, rng_state);
 
   rmm::device_uvector<vertex_t> numbering_indices((*renumber_map).size(), handle.get_stream());
-  detail::sequence_fill(handle.get_stream(),
-                        numbering_indices.data(),
+  detail::sequence_fill(numbering_indices.data(),
                         numbering_indices.size(),
-                        decision_graph_view.local_vertex_partition_range_first());
+                        decision_graph_view.local_vertex_partition_range_first(),
+                        handle.get_stream());
 
   relabel<vertex_t, multi_gpu>(
     handle,

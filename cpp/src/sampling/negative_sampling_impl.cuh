@@ -150,12 +150,12 @@ rmm::device_uvector<vertex_t> create_local_samples(
       thrust::sequence(handle.get_thrust_policy(), position.begin(), position.end());
 
       rmm::device_uvector<weight_t> random_values(samples_in_this_batch, handle.get_stream());
-      detail::uniform_random_fill(handle.get_stream(),
-                                  random_values.data(),
+      detail::uniform_random_fill(random_values.data(),
                                   random_values.size(),
                                   weight_t{0},
                                   weight_t{1},
-                                  rng_state);
+                                  rng_state,
+                                  handle.get_stream());
 
       thrust::sort(handle.get_thrust_policy(),
                    thrust::make_zip_iterator(random_values.begin(), position.begin()),
@@ -198,12 +198,12 @@ rmm::device_uvector<vertex_t> create_local_samples(
     //         generated random values.
     rmm::device_uvector<weight_t> random_values(samples_to_generate, handle.get_stream());
     samples.resize(samples_to_generate, handle.get_stream());
-    detail::uniform_random_fill(handle.get_stream(),
-                                random_values.data(),
+    detail::uniform_random_fill(random_values.data(),
                                 random_values.size(),
                                 weight_t{0},
                                 weight_t{1},
-                                rng_state);
+                                rng_state,
+                                handle.get_stream());
 
     thrust::transform(
       handle.get_thrust_policy(),
@@ -244,12 +244,12 @@ rmm::device_uvector<vertex_t> create_local_samples(
     samples.resize(samples_in_this_batch, handle.get_stream());
 
     // Uniformly select a vertex from any GPU
-    detail::uniform_random_fill(handle.get_stream(),
-                                samples.data(),
+    detail::uniform_random_fill(samples.data(),
                                 samples.size(),
                                 vertex_t{0},
                                 graph_view.number_of_vertices(),
-                                rng_state);
+                                rng_state,
+                                handle.get_stream());
   }
 
   return samples;
@@ -469,12 +469,12 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> negativ
     //
     rmm::device_uvector<int> gpu_assignment(srcs.size(), handle.get_stream());
 
-    cugraph::detail::uniform_random_fill(handle.get_stream(),
-                                         gpu_assignment.data(),
+    cugraph::detail::uniform_random_fill(gpu_assignment.data(),
                                          gpu_assignment.size(),
                                          int{0},
                                          int{comm_size},
-                                         rng_state);
+                                         rng_state,
+                                         handle.get_stream());
 
     thrust::sort_by_key(handle.get_thrust_policy(),
                         gpu_assignment.begin(),
@@ -507,12 +507,12 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> negativ
 
     rmm::device_uvector<float> fractional_random_numbers(srcs.size(), handle.get_stream());
 
-    cugraph::detail::uniform_random_fill(handle.get_stream(),
-                                         fractional_random_numbers.data(),
+    cugraph::detail::uniform_random_fill(fractional_random_numbers.data(),
                                          fractional_random_numbers.size(),
                                          float{0.0},
                                          float{1.0},
-                                         rng_state);
+                                         rng_state,
+                                         handle.get_stream());
     thrust::sort_by_key(handle.get_thrust_policy(),
                         fractional_random_numbers.begin(),
                         fractional_random_numbers.end(),

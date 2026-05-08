@@ -145,8 +145,8 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> brandes_b
                                      handle.get_stream());
   rmm::device_uvector<vertex_t> distances(graph_view.local_vertex_partition_range_size(),
                                           handle.get_stream());
-  detail::scalar_fill(handle, distances.data(), distances.size(), invalid_distance);
-  detail::scalar_fill(handle, sigmas.data(), sigmas.size(), edge_t{0});
+  detail::scalar_fill(distances.data(), distances.size(), invalid_distance, handle.get_stream());
+  detail::scalar_fill(sigmas.data(), sigmas.size(), edge_t{0}, handle.get_stream());
 
   edge_src_property_t<vertex_t, edge_t> src_sigmas(handle, graph_view);
   edge_dst_property_t<vertex_t, vertex_t> dst_distances(handle, graph_view);
@@ -407,7 +407,7 @@ void accumulate_edge_results(
     do_expensive_check);
 
   rmm::device_uvector<weight_t> deltas(sigmas.size(), handle.get_stream());
-  detail::scalar_fill(handle, deltas.data(), deltas.size(), weight_t{0});
+  detail::scalar_fill(deltas.data(), deltas.size(), weight_t{0}, handle.get_stream());
 
   edge_src_property_t<vertex_t, cuda::std::tuple<vertex_t, edge_t, weight_t>> src_properties(
     handle, graph_view);
@@ -672,8 +672,9 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> multisour
                                         handle.get_stream());
   rmm::device_uvector<vertex_t> distances_2d(num_sources * local_vertex_partition_range_size,
                                              handle.get_stream());
-  detail::scalar_fill(handle, sigmas_2d.data(), sigmas_2d.size(), edge_t{0});
-  detail::scalar_fill(handle, distances_2d.data(), distances_2d.size(), invalid_distance);
+  detail::scalar_fill(sigmas_2d.data(), sigmas_2d.size(), edge_t{0}, handle.get_stream());
+  detail::scalar_fill(
+    distances_2d.data(), distances_2d.size(), invalid_distance, handle.get_stream());
 
   {
     auto tagged_source_first =
@@ -1312,7 +1313,7 @@ rmm::device_uvector<weight_t> betweenness_centrality(
 
   rmm::device_uvector<weight_t> centralities(graph_view.local_vertex_partition_range_size(),
                                              handle.get_stream());
-  detail::scalar_fill(handle, centralities.data(), centralities.size(), weight_t{0});
+  detail::scalar_fill(centralities.data(), centralities.size(), weight_t{0}, handle.get_stream());
 
   size_t num_sources = cuda::std::distance(vertices_begin, vertices_end);
   std::vector<size_t> source_offsets{{0, num_sources}};

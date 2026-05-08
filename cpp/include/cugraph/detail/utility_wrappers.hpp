@@ -1,13 +1,13 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
 
 #include <raft/core/device_span.hpp>
-#include <raft/core/handle.hpp>
 #include <raft/random/rng_state.hpp>
 
+#include <rmm/cuda_stream_view.hpp>
 #include <rmm/device_uvector.hpp>
 
 #include <thrust/sequence.h>
@@ -28,21 +28,21 @@ namespace detail {
  * @tparam      value_t      type of the value to operate on (currently supports int32_t, int64_t,
  * float and double)
  *
- * @param[in]   stream_view  stream view
  * @param[out]  d_value      device array to fill
  * @param[in]   size         number of elements in array
  * @param[in]   min_value    minimum value (inclusive)
  * @param[in]   max_value    maximum value (exclusive)
  * @param[in]   rng_state    The RngState instance holding pseudo-random number generator state.
+ * @param[in]   stream_view  stream view
  *
  */
 template <typename value_t>
-void uniform_random_fill(rmm::cuda_stream_view const& stream_view,
-                         value_t* d_value,
+void uniform_random_fill(value_t* d_value,
                          size_t size,
                          value_t min_value,
                          value_t max_value,
-                         raft::random::RngState& rng_state);
+                         raft::random::RngState& rng_state,
+                         rmm::cuda_stream_view const& stream_view);
 
 /**
  * @ingroup utility_wrappers_cpp
@@ -50,15 +50,17 @@ void uniform_random_fill(rmm::cuda_stream_view const& stream_view,
  *
  * @tparam      value_t      type of the value to operate on
  *
- * @param [in]  handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator,
- * and handles to various CUDA libraries) to run graph algorithms.
  * @param[out]  d_value      device array to fill
  * @param[in]   size         number of elements in array
  * @param[in]   value        value
+ * @param[in]   stream_view  CUDA stream
  *
  */
 template <typename value_t>
-void scalar_fill(raft::handle_t const& handle, value_t* d_value, size_t size, value_t value);
+void scalar_fill(value_t* d_value,
+                 size_t size,
+                 value_t value,
+                 rmm::cuda_stream_view const& stream_view);
 
 /**
  * @ingroup utility_wrappers_cpp
@@ -66,13 +68,12 @@ void scalar_fill(raft::handle_t const& handle, value_t* d_value, size_t size, va
  *
  * @tparam      value_t      type of the value to operate on. Must be either int32_t or int64_t.
  *
- * @param [in]  handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator,
- * and handles to various CUDA libraries) to run graph algorithms.
- * @param[out]  values      device span to sort
+ * @param[out]  values       device span to sort
+ * @param[in]   stream_view  CUDA stream
  *
  */
 template <typename value_t>
-void sort_ints(raft::handle_t const& handle, raft::device_span<value_t> values);
+void sort_ints(raft::device_span<value_t> values, rmm::cuda_stream_view const& stream_view);
 
 /**
  * @ingroup utility_wrappers_cpp
@@ -80,14 +81,13 @@ void sort_ints(raft::handle_t const& handle, raft::device_span<value_t> values);
  *
  * @tparam      value_t      type of the value to operate on. Must be either int32_t or int64_t.
  *
- * @param [in]  handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator,
- * and handles to various CUDA libraries) to run graph algorithms.
- * @param[in]  values      device span of unique elements.
+ * @param[in]  values       device span of sorted elements; consecutive duplicates are collapsed.
+ * @param[in]  stream_view  CUDA stream
  * @return the number of unique elements.
  *
  */
 template <typename value_t>
-size_t unique_ints(raft::handle_t const& handle, raft::device_span<value_t> values);
+size_t unique_ints(raft::device_span<value_t> values, rmm::cuda_stream_view const& stream_view);
 
 /**
  * @ingroup utility_wrappers_cpp
@@ -134,17 +134,17 @@ void transform_not_equal(raft::device_span<value_t> values,
  *
  * @tparam      value_t      type of the value to operate on.
  *
- * @param[in]   stream_view  stream view
  * @param[out]  d_value      device array to fill
  * @param[in]   size         number of elements in array
  * @param[in]   start_value  starting value for sequence
+ * @param[in]   stream_view  stream view
  *
  */
 template <typename value_t>
-void sequence_fill(rmm::cuda_stream_view const& stream_view,
-                   value_t* d_value,
+void sequence_fill(value_t* d_value,
                    size_t size,
-                   value_t start_value);
+                   value_t start_value,
+                   rmm::cuda_stream_view const& stream_view);
 
 /**
  * @ingroup utility_wrappers_cpp
@@ -155,19 +155,19 @@ void sequence_fill(rmm::cuda_stream_view const& stream_view,
  *
  * @tparam      value_t      type of the value to operate on
  *
- * @param[in]   stream_view  stream view
  * @param[out]  d_value      device array to fill
  * @param[in]   size         number of elements in array
  * @param[in]   start_value  starting value for sequence
  * @param[in]   stride       input stride
+ * @param[in]   stream_view  stream view
  *
  */
 template <typename value_t>
-void stride_fill(rmm::cuda_stream_view const& stream_view,
-                 value_t* d_value,
+void stride_fill(value_t* d_value,
                  size_t size,
                  value_t start_value,
-                 value_t stride);
+                 value_t stride,
+                 rmm::cuda_stream_view const& stream_view);
 
 /**
  * @ingroup utility_wrappers_cpp
@@ -177,18 +177,18 @@ void stride_fill(rmm::cuda_stream_view const& stream_view,
  *
  * @tparam      vertex_t        vertex type
  *
- * @param[in]   stream_view     stream view
  * @param[in]   d_edgelist_srcs device array storing edge source IDs
  * @param[in]   d_edgelist_dsts device array storing edge destination IDs
  * @param[in]   num_edges       number of edges in the input source & destination arrays
+ * @param[in]   stream_view     stream view
  *
  * @param the maximum value occurring in the edge list
  */
 template <typename vertex_t>
-vertex_t compute_maximum_vertex_id(rmm::cuda_stream_view const& stream_view,
-                                   vertex_t const* d_edgelist_srcs,
+vertex_t compute_maximum_vertex_id(vertex_t const* d_edgelist_srcs,
                                    vertex_t const* d_edgelist_dsts,
-                                   size_t num_edges);
+                                   size_t num_edges,
+                                   rmm::cuda_stream_view const& stream_view);
 
 /**
  * @ingroup utility_wrappers_cpp
@@ -198,19 +198,19 @@ vertex_t compute_maximum_vertex_id(rmm::cuda_stream_view const& stream_view,
  *
  * @tparam      vertex_t        vertex type
  *
- * @param[in]   stream_view     stream view
  * @param[in]   d_edgelist_srcs device array storing source IDs
  * @param[in]   d_edgelist_dsts device array storing destination IDs
+ * @param[in]   stream_view     stream view
  *
  * @param the maximum value occurring in the edge list
  */
 template <typename vertex_t>
-vertex_t compute_maximum_vertex_id(rmm::cuda_stream_view const& stream_view,
-                                   rmm::device_uvector<vertex_t> const& d_edgelist_srcs,
-                                   rmm::device_uvector<vertex_t> const& d_edgelist_dsts)
+vertex_t compute_maximum_vertex_id(rmm::device_uvector<vertex_t> const& d_edgelist_srcs,
+                                   rmm::device_uvector<vertex_t> const& d_edgelist_dsts,
+                                   rmm::cuda_stream_view const& stream_view)
 {
   return compute_maximum_vertex_id(
-    stream_view, d_edgelist_srcs.data(), d_edgelist_dsts.data(), d_edgelist_srcs.size());
+    d_edgelist_srcs.data(), d_edgelist_dsts.data(), d_edgelist_srcs.size(), stream_view);
 }
 
 /**
@@ -218,13 +218,12 @@ vertex_t compute_maximum_vertex_id(rmm::cuda_stream_view const& stream_view,
  * @brief Check if device span is sorted
  *
  * @tparam data_t type of data in span
- * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
- * handles to various CUDA libraries) to run graph algorithms.
  * @param span The span of data to check
+ * @param stream_view CUDA stream
  * @return true if sorted, false if not sorted
  */
 template <typename data_t>
-bool is_sorted(raft::handle_t const& handle, raft::device_span<data_t> span);
+bool is_sorted(raft::device_span<data_t> span, rmm::cuda_stream_view const& stream_view);
 
 /**
  * @ingroup utility_wrappers_cpp
@@ -232,32 +231,30 @@ bool is_sorted(raft::handle_t const& handle, raft::device_span<data_t> span);
  * equal.
  *
  * @tparam data_t type of data in span
- * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
- * handles to various CUDA libraries) to run graph algorithms.
  * @param span1 The span of data to compare
  * @param span2 The span of data to compare
+ * @param stream_view CUDA stream
  * @return true if equal, false if not equal
  */
 template <typename data_t>
-bool is_equal(raft::handle_t const& handle,
-              raft::device_span<data_t> span1,
-              raft::device_span<data_t> span2);
+bool is_equal(raft::device_span<data_t> span1,
+              raft::device_span<data_t> span2,
+              rmm::cuda_stream_view const& stream_view);
 
 /**
  * @ingroup utility_wrappers_cpp
  * @brief Count the number of times a value appears in a span
  *
  * @tparam data_t type of data in span
- * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
- * handles to various CUDA libraries) to run graph algorithms.
  * @param span The span of data to compare
  * @param value The value to count
+ * @param stream_view CUDA stream
  * @return The count of how many instances of that value occur
  */
 template <typename data_t>
-size_t count_values(raft::handle_t const& handle,
-                    raft::device_span<data_t const> span,
-                    data_t value);
+size_t count_values(raft::device_span<data_t const> span,
+                    data_t value,
+                    rmm::cuda_stream_view const& stream_view);
 
 }  // namespace detail
 }  // namespace cugraph

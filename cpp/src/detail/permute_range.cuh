@@ -54,7 +54,7 @@ rmm::device_uvector<vertex_t> permute_range(raft::handle_t const& handle,
 
   // generate as many integers as #local_range_size on each GPU
   detail::sequence_fill(
-    handle.get_stream(), permuted_integers.begin(), permuted_integers.size(), local_range_start);
+    permuted_integers.begin(), permuted_integers.size(), local_range_start, handle.get_stream());
 
   if (multi_gpu) {
     // randomly distribute integers to all GPUs
@@ -67,12 +67,12 @@ rmm::device_uvector<vertex_t> permute_range(raft::handle_t const& handle,
     {
       rmm::device_uvector<vertex_t> d_target_ranks(permuted_integers.size(), handle.get_stream());
 
-      cugraph::detail::uniform_random_fill(handle.get_stream(),
-                                           d_target_ranks.data(),
+      cugraph::detail::uniform_random_fill(d_target_ranks.data(),
                                            d_target_ranks.size(),
                                            vertex_t{0},
                                            vertex_t{comm_size},
-                                           rng_state);
+                                           rng_state,
+                                           handle.get_stream());
 
       thrust::sort_by_key(handle.get_thrust_policy(),
                           d_target_ranks.begin(),
@@ -118,12 +118,12 @@ rmm::device_uvector<vertex_t> permute_range(raft::handle_t const& handle,
   rmm::device_uvector<float> fractional_random_numbers(permuted_integers.size(),
                                                        handle.get_stream());
 
-  cugraph::detail::uniform_random_fill(handle.get_stream(),
-                                       fractional_random_numbers.data(),
+  cugraph::detail::uniform_random_fill(fractional_random_numbers.data(),
                                        fractional_random_numbers.size(),
                                        float{0.0},
                                        float{1.0},
-                                       rng_state);
+                                       rng_state,
+                                       handle.get_stream());
   thrust::sort_by_key(handle.get_thrust_policy(),
                       fractional_random_numbers.begin(),
                       fractional_random_numbers.end(),

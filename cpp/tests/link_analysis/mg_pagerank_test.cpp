@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -109,12 +109,12 @@ class Tests_MGPageRank
         false);
       d_mg_personalization_values = rmm::device_uvector<result_t>(
         (*d_mg_personalization_vertices).size(), handle_->get_stream());
-      cugraph::detail::uniform_random_fill(handle_->get_stream(),
-                                           (*d_mg_personalization_values).data(),
+      cugraph::detail::uniform_random_fill((*d_mg_personalization_values).data(),
                                            (*d_mg_personalization_values).size(),
                                            result_t{0.0},
                                            result_t{1.0},
-                                           rng_state);
+                                           rng_state,
+                                           handle_->get_stream());
 
       handle_->sync_stream();  // before rng_state goes out-of-scope
     }

@@ -74,10 +74,10 @@ std::tuple<rmm::device_uvector<vertex_t>, weight_t> approximate_weighted_matchin
 
   rmm::device_uvector<vertex_t> local_vertices(
     current_graph_view.local_vertex_partition_range_size(), handle.get_stream());
-  detail::sequence_fill(handle.get_stream(),
-                        local_vertices.begin(),
+  detail::sequence_fill(local_vertices.begin(),
                         local_vertices.size(),
-                        current_graph_view.local_vertex_partition_range_first());
+                        current_graph_view.local_vertex_partition_range_first(),
+                        handle.get_stream());
 
   cugraph::edge_src_property_t<vertex_t, vertex_t> src_key_cache(handle);
   cugraph::edge_src_property_t<vertex_t, bool> src_match_flags(handle);

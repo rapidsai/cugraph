@@ -128,7 +128,7 @@ void barnes_hut(raft::handle_t const& handle,
   } else {
     // Initialize positions with random values
     uniform_random_fill(
-      handle.get_stream(), nodes_pos, (nnodes + 1) * 2, -100.0f, 100.0f, rng_state);
+      nodes_pos, (nnodes + 1) * 2, -100.0f, 100.0f, rng_state, handle.get_stream());
   }
 
   // Allocate arrays for force computation

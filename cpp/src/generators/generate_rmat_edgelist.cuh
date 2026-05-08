@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -65,7 +65,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> generat
     auto pair_first = thrust::make_zip_iterator(srcs.begin(), dsts.begin()) + num_edges_generated;
 
     detail::uniform_random_fill(
-      handle.get_stream(), rands.data(), num_edges_to_generate * 2 * scale, 0.0f, 1.0f, rng_state);
+      rands.data(), num_edges_to_generate * 2 * scale, 0.0f, 1.0f, rng_state, handle.get_stream());
 
     thrust::transform(
       handle.get_thrust_policy(),
@@ -135,12 +135,12 @@ generate_rmat_edgelists(raft::handle_t const& handle,
   rmm::device_uvector<vertex_t> d_scale(n_edgelists, handle.get_stream());
 
   if (size_distribution == generator_distribution_t::UNIFORM) {
-    detail::uniform_random_fill(handle.get_stream(),
-                                d_scale.data(),
+    detail::uniform_random_fill(d_scale.data(),
                                 d_scale.size(),
                                 static_cast<vertex_t>(min_scale),
                                 static_cast<vertex_t>(max_scale),
-                                rng_state);
+                                rng_state,
+                                handle.get_stream());
   } else {
     // May expose lambda as a parameter in the future
     rmm::device_uvector<float> rand(n_edgelists, handle.get_stream());
