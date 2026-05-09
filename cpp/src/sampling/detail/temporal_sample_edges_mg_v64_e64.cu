@@ -5,13 +5,15 @@
 
 #include "sampling/detail/sample_edges.cuh"
 
+#include <cugraph/export.hpp>
+
 namespace cugraph {
 namespace detail {
 
-template std::tuple<rmm::device_uvector<int64_t>,
-                    rmm::device_uvector<int64_t>,
-                    arithmetic_device_uvector_t,
-                    std::optional<rmm::device_uvector<int32_t>>>
+template CUGRAPH_EXPORT std::tuple<rmm::device_uvector<int64_t>,
+                                   rmm::device_uvector<int64_t>,
+                                   arithmetic_device_uvector_t,
+                                   std::optional<rmm::device_uvector<int32_t>>>
 temporal_sample_edges(raft::handle_t const& handle,
                       raft::random::RngState& rng_state,
                       graph_view_t<int64_t, int64_t, false, true> const& graph_view,
@@ -26,10 +28,10 @@ temporal_sample_edges(raft::handle_t const& handle,
                       bool with_replacement,
                       temporal_sampling_comparison_t temporal_sampling_comparison);
 
-template std::tuple<rmm::device_uvector<int64_t>,
-                    rmm::device_uvector<int64_t>,
-                    arithmetic_device_uvector_t,
-                    std::optional<rmm::device_uvector<int32_t>>>
+template CUGRAPH_EXPORT std::tuple<rmm::device_uvector<int64_t>,
+                                   rmm::device_uvector<int64_t>,
+                                   arithmetic_device_uvector_t,
+                                   std::optional<rmm::device_uvector<int32_t>>>
 temporal_sample_edges(raft::handle_t const& handle,
                       raft::random::RngState& rng_state,
                       graph_view_t<int64_t, int64_t, false, true> const& graph_view,

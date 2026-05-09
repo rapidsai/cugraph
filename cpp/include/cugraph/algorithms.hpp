@@ -7,6 +7,7 @@
 #include <cugraph/api_helpers.hpp>
 #include <cugraph/dendrogram.hpp>
 #include <cugraph/edge_property.hpp>
+#include <cugraph/export.hpp>
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/legacy/graph.hpp>
@@ -61,7 +62,7 @@
 /** @defgroup utility_cpp C++ utility algorithms
  */
 
-namespace cugraph {
+namespace CUGRAPH_EXPORT cugraph {
 
 /**
  * @ingroup similarity_cpp
@@ -2376,7 +2377,7 @@ std::tuple<rmm::device_uvector<vertex_t>, weight_t> approximate_weighted_matchin
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   edge_property_view_t<edge_t, weight_t const*> edge_weight_view);
-}  // namespace cugraph
+}  // namespace CUGRAPH_EXPORT cugraph
 
 /**
  * @}

@@ -1,11 +1,12 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2023, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
 #pragma once
 
 #include <cugraph_c/error.h>
+#include <cugraph_c/export.h>
 #include <cugraph_c/graph.h>
 #include <cugraph_c/resource_handle.h>
 
@@ -30,7 +31,7 @@ typedef struct {
  * @param [in]   result   The result from a labeling algorithm
  * @return type erased array of vertex ids
  */
-cugraph_type_erased_device_array_view_t* cugraph_labeling_result_get_vertices(
+CUGRAPH_EXPORT cugraph_type_erased_device_array_view_t* cugraph_labeling_result_get_vertices(
   cugraph_labeling_result_t* result);
 
 /**
@@ -40,7 +41,7 @@ cugraph_type_erased_device_array_view_t* cugraph_labeling_result_get_vertices(
  * @param [in]   result   The result from a labeling algorithm
  * @return type erased array of label values
  */
-cugraph_type_erased_device_array_view_t* cugraph_labeling_result_get_labels(
+CUGRAPH_EXPORT cugraph_type_erased_device_array_view_t* cugraph_labeling_result_get_labels(
   cugraph_labeling_result_t* result);
 
 /**
@@ -49,7 +50,7 @@ cugraph_type_erased_device_array_view_t* cugraph_labeling_result_get_labels(
  *
  * @param [in]   result   The result from a labeling algorithm
  */
-void cugraph_labeling_result_free(cugraph_labeling_result_t* result);
+CUGRAPH_EXPORT void cugraph_labeling_result_free(cugraph_labeling_result_t* result);
 
 /**
  * @brief Labels each vertex in the input graph with its (weakly-connected-)component ID
@@ -65,11 +66,12 @@ void cugraph_labeling_result_free(cugraph_labeling_result_t* result);
  * @param [out] error       Pointer to an error object storing details of any error.  Will
  *                          be populated if error code is not CUGRAPH_SUCCESS
  */
-cugraph_error_code_t cugraph_weakly_connected_components(const cugraph_resource_handle_t* handle,
-                                                         cugraph_graph_t* graph,
-                                                         bool_t do_expensive_check,
-                                                         cugraph_labeling_result_t** result,
-                                                         cugraph_error_t** error);
+CUGRAPH_EXPORT cugraph_error_code_t
+cugraph_weakly_connected_components(const cugraph_resource_handle_t* handle,
+                                    cugraph_graph_t* graph,
+                                    bool_t do_expensive_check,
+                                    cugraph_labeling_result_t** result,
+                                    cugraph_error_t** error);
 
 /**
  * @brief Labels each vertex in the input graph with its (strongly-connected-)component ID
@@ -85,11 +87,14 @@ cugraph_error_code_t cugraph_weakly_connected_components(const cugraph_resource_
  * @param [out] error       Pointer to an error object storing details of any error.  Will
  *                          be populated if error code is not CUGRAPH_SUCCESS
  */
-cugraph_error_code_t cugraph_strongly_connected_components(const cugraph_resource_handle_t* handle,
-                                                           cugraph_graph_t* graph,
-                                                           bool_t do_expensive_check,
-                                                           cugraph_labeling_result_t** result,
-                                                           cugraph_error_t** error);
+CUGRAPH_EXPORT cugraph_error_code_t
+cugraph_strongly_connected_components(const cugraph_resource_handle_t* handle,
+                                      cugraph_graph_t* graph,
+                                      bool_t do_expensive_check,
+                                      cugraph_labeling_result_t** result,
+                                      cugraph_error_t** error);
+
+#include <cugraph_c/export.h>
 
 #ifdef __cplusplus
 }

@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cugraph/edge_src_dst_property.hpp>
+#include <cugraph/export.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/prims/detail/extract_transform_if_v_frontier_e.cuh>
 #include <cugraph/prims/property_op_utils.cuh>
@@ -16,7 +17,7 @@
 #include <cstdint>
 #include <numeric>
 
-namespace cugraph {
+namespace CUGRAPH_EXPORT cugraph {
 
 /**
  * @brief Iterate over outgoing_edges from the current vertex frontier and extract the valid edge
@@ -107,4 +108,4 @@ extract_transform_if_v_frontier_outgoing_e(raft::handle_t const& handle,
   return value_buffer;
 }
 
-}  // namespace cugraph
+}  // namespace CUGRAPH_EXPORT cugraph

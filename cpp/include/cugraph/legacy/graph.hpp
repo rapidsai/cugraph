@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
+#include <cugraph/export.hpp>
+
 #include <raft/core/handle.hpp>
 
 #include <rmm/device_buffer.hpp>
@@ -15,7 +17,7 @@
 #include <iostream>
 #include <memory>
 
-namespace cugraph {
+namespace CUGRAPH_EXPORT cugraph {
 namespace legacy {
 
 enum class PropType { PROP_UNDEF, PROP_FALSE, PROP_TRUE };
@@ -584,6 +586,6 @@ template <typename edge_t>
 struct invalid_edge_id : invalid_idx<edge_t> {};
 
 }  // namespace legacy
-}  // namespace cugraph
+}  // namespace CUGRAPH_EXPORT cugraph
 
 #include "eidecl_graph.hpp"

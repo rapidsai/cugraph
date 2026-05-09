@@ -168,4 +168,5 @@ void GraphCompressedSparseBaseView<VT, ET, WT>::degree(ET* degree, DegreeDirecti
 }  // namespace legacy
 }  // namespace cugraph
 
+#include <cugraph/export.hpp>
 #include <cugraph/legacy/eidir_graph.hpp>

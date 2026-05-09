@@ -1,11 +1,12 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
 #include "detail/shuffle_wrappers.hpp"
 
 #include <cugraph/arithmetic_variant_types.hpp>
+#include <cugraph/export.hpp>
 #include <cugraph/large_buffer_manager.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
 
@@ -24,7 +25,7 @@
 
 namespace cugraph {
 
-std::vector<arithmetic_device_uvector_t> shuffle_properties(
+CUGRAPH_EXPORT std::vector<arithmetic_device_uvector_t> shuffle_properties(
   raft::handle_t const& handle,
   rmm::device_uvector<int>&& gpus,
   std::vector<arithmetic_device_uvector_t>&& properties,

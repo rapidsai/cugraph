@@ -1,13 +1,15 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2024, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
 #pragma once
 
+#include <cugraph/export.hpp>
+
 #include <type_traits>
 
-namespace cugraph {
+namespace CUGRAPH_EXPORT cugraph {
 
 // primary template:
 //
@@ -65,4 +67,4 @@ struct is_candidate_legacy {
                                 is_one_of<weight_t, float, double>::value;
 };
 
-}  // namespace cugraph
+}  // namespace CUGRAPH_EXPORT cugraph

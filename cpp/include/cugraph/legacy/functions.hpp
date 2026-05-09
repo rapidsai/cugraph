@@ -4,6 +4,7 @@
  */
 #pragma once
 
+#include <cugraph/export.hpp>
 #include <cugraph/legacy/graph.hpp>
 
 #include <raft/core/handle.hpp>
@@ -11,7 +12,7 @@
 #include <rmm/device_buffer.hpp>
 #include <rmm/resource_ref.hpp>
 
-namespace cugraph {
+namespace CUGRAPH_EXPORT cugraph {
 
 /** @defgroup legacy_functions_cpp C++ Shuffle Wrappers
  */
@@ -63,7 +64,7 @@ void comms_bcast(const raft::handle_t& handle, value_t* value, size_t count)
   handle.get_comms().bcast(value, count, 0, handle.get_stream());
 }
 
-}  // namespace cugraph
+}  // namespace CUGRAPH_EXPORT cugraph
 
 /**
  * @}

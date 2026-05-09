@@ -5,6 +5,7 @@
 
 #include <cugraph/arithmetic_variant_types.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
+#include <cugraph/export.hpp>
 #include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/graph_partition_utils.cuh>
@@ -24,10 +25,10 @@
 namespace cugraph {
 namespace detail {
 
-std::tuple<std::vector<cugraph::arithmetic_device_uvector_t>,
-           std::optional<rmm::device_uvector<int32_t>>,
-           std::optional<rmm::device_uvector<int32_t>>,
-           std::optional<rmm::device_uvector<size_t>>>
+CUGRAPH_EXPORT std::tuple<std::vector<cugraph::arithmetic_device_uvector_t>,
+                          std::optional<rmm::device_uvector<int32_t>>,
+                          std::optional<rmm::device_uvector<int32_t>>,
+                          std::optional<rmm::device_uvector<size_t>>>
 shuffle_and_organize_output(
   raft::handle_t const& handle,
   std::vector<cugraph::arithmetic_device_uvector_t>&& property_edges,
