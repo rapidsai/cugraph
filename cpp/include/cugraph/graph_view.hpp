@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -7,6 +7,7 @@
 
 #include <cugraph/edge_partition_view.hpp>
 #include <cugraph/edge_property.hpp>
+#include <cugraph/export.hpp>
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/vertex_partition_view.hpp>
@@ -25,7 +26,7 @@
 #include <type_traits>
 #include <vector>
 
-namespace cugraph {
+namespace CUGRAPH_EXPORT cugraph {
 
 /**
  * @brief store graph vertex/edge partitioning map
@@ -1118,4 +1119,4 @@ class graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if
   std::optional<edge_property_view_t<edge_t, uint32_t const*, bool>> edge_mask_view_{std::nullopt};
 };
 
-}  // namespace cugraph
+}  // namespace CUGRAPH_EXPORT cugraph

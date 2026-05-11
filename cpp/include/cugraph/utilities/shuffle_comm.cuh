@@ -4,6 +4,7 @@
  */
 #pragma once
 
+#include <cugraph/export.hpp>
 #include <cugraph/large_buffer_manager.hpp>
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/device_comm.hpp>
@@ -38,7 +39,7 @@
 #include <numeric>
 #include <vector>
 
-namespace cugraph {
+namespace CUGRAPH_EXPORT cugraph {
 
 namespace detail {
 
@@ -1352,4 +1353,4 @@ auto groupby_gpu_id_and_shuffle_kv_pairs(
   return std::make_tuple(std::move(rx_keys), std::move(rx_value_buffer), rx_counts);
 }
 
-}  // namespace cugraph
+}  // namespace CUGRAPH_EXPORT cugraph

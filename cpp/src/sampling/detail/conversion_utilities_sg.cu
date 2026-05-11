@@ -5,10 +5,12 @@
 
 #include "sampling/detail/conversion_utilities_impl.cuh"
 
+#include <cugraph/export.hpp>
+
 namespace cugraph {
 namespace detail {
 
-template rmm::device_uvector<int32_t> flatten_label_map(
+template CUGRAPH_EXPORT rmm::device_uvector<int32_t> flatten_label_map(
   raft::handle_t const& handle,
   std::tuple<raft::device_span<int32_t const>, raft::device_span<int32_t const>>
     label_to_output_comm_rank);

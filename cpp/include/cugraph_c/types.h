@@ -1,9 +1,11 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2024, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
 #pragma once
+
+#include <cugraph_c/export.h>
 
 #include <stdint.h>
 
@@ -30,6 +32,8 @@ typedef enum data_type_id_ {
   BOOL,
   NTYPES
 } cugraph_data_type_id_t;
+
+#include <cugraph_c/export.h>
 
 #ifdef __cplusplus
 }

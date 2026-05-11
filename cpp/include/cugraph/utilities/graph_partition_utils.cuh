@@ -4,6 +4,7 @@
  */
 #pragma once
 
+#include <cugraph/export.hpp>
 #include <cugraph/partition_manager.hpp>
 
 #include <raft/core/device_span.hpp>
@@ -22,7 +23,7 @@
 #include <numeric>
 #include <vector>
 
-namespace cugraph {
+namespace CUGRAPH_EXPORT cugraph {
 namespace detail {
 
 template <typename vertex_t>
@@ -315,4 +316,4 @@ struct compute_local_edge_partition_minor_range_vertex_partition_id_t {
 };
 
 }  // namespace detail
-}  // namespace cugraph
+}  // namespace CUGRAPH_EXPORT cugraph

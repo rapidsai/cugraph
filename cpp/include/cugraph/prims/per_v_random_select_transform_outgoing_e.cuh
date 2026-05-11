@@ -7,6 +7,7 @@
 #include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/edge_partition_edge_property_device_view.cuh>
 #include <cugraph/edge_partition_endpoint_property_device_view.cuh>
+#include <cugraph/export.hpp>
 #include <cugraph/graph.hpp>
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/prims/detail/sample_and_compute_local_nbr_indices.cuh>
@@ -36,7 +37,7 @@
 #include <optional>
 #include <tuple>
 
-namespace cugraph {
+namespace CUGRAPH_EXPORT cugraph {
 
 namespace detail {
 
@@ -1116,4 +1117,4 @@ per_v_random_select_transform_outgoing_e(raft::handle_t const& handle,
                                                         do_expensive_check);
 }
 
-}  // namespace cugraph
+}  // namespace CUGRAPH_EXPORT cugraph

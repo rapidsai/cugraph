@@ -5,13 +5,14 @@
 #pragma once
 
 #include <cugraph/edge_src_dst_property.hpp>
+#include <cugraph/export.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/prims/detail/per_v_transform_reduce_e.cuh>
 #include <cugraph/utilities/error.hpp>
 
 #include <raft/core/handle.hpp>
 
-namespace cugraph {
+namespace CUGRAPH_EXPORT cugraph {
 
 /**
  * @brief Iterate over every vertex's incoming edges to update vertex properties.
@@ -398,4 +399,4 @@ void per_v_transform_reduce_outgoing_e(raft::handle_t const& handle,
     vertex_value_output_first);
 }
 
-}  // namespace cugraph
+}  // namespace CUGRAPH_EXPORT cugraph

@@ -7,6 +7,7 @@
 
 #include "sampling/detail/sampling_utils.hpp"
 
+#include <cugraph/export.hpp>
 #include <cugraph/utilities/misc_utils.cuh>
 
 #include <cuda/functional>
@@ -14,7 +15,7 @@
 namespace cugraph {
 namespace detail {
 
-rmm::device_uvector<int32_t> convert_starting_vertex_label_offsets_to_labels(
+CUGRAPH_EXPORT rmm::device_uvector<int32_t> convert_starting_vertex_label_offsets_to_labels(
   raft::handle_t const& handle, raft::device_span<size_t const> starting_vertex_label_offsets)
 {
   return expand_sparse_offsets(starting_vertex_label_offsets, int32_t{0}, handle.get_stream());

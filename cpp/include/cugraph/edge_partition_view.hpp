@@ -1,15 +1,17 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2024, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
+
+#include <cugraph/export.hpp>
 
 #include <raft/core/device_span.hpp>
 
 #include <optional>
 #include <type_traits>
 
-namespace cugraph {
+namespace CUGRAPH_EXPORT cugraph {
 
 namespace detail {
 
@@ -122,4 +124,4 @@ class edge_partition_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t<!multi
   vertex_t number_of_vertices_{0};
 };
 
-}  // namespace cugraph
+}  // namespace CUGRAPH_EXPORT cugraph

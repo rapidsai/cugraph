@@ -60,7 +60,7 @@ message(VERBOSE "CUGRAPH: CUGRAPH_USE_CUVS_STATIC=${CUGRAPH_USE_CUVS_STATIC}")
 set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
 
 # CUDA runtime
-rapids_cuda_init_runtime(USE_STATIC OFF)
+rapids_cuda_init_runtime(USE_STATIC ON)
 
 rapids_find_package(CUDAToolkit REQUIRED
     BUILD_EXPORT_SET    cugraph-exports
@@ -527,11 +527,6 @@ SECTIONS
 }
 ]=])
 
-set_property(TARGET cugraph PROPERTY NO_CUDART_DEP ON)
-set_property(TARGET cugraph_mg PROPERTY NO_CUDART_DEP ON)
-set_property(TARGET cugraph_mtmg PROPERTY NO_CUDART_DEP ON)
-set_property(TARGET cugraph_common PROPERTY NO_CUDART_DEP ON)
-
 set_target_properties(cugraph_common
     PROPERTIES BUILD_RPATH                         "\$ORIGIN"
                INSTALL_RPATH                       "\$ORIGIN"
@@ -541,6 +536,11 @@ set_target_properties(cugraph_common
                CUDA_STANDARD_REQUIRED              ON
                POSITION_INDEPENDENT_CODE           ON
                INTERFACE_POSITION_INDEPENDENT_CODE ON
+)
+set_target_properties(cugraph_common
+    PROPERTIES CXX_VISIBILITY_PRESET hidden
+               CUDA_VISIBILITY_PRESET hidden
+               VISIBILITY_INLINES_HIDDEN ON
 )
 
 target_compile_options(cugraph_common
@@ -586,7 +586,11 @@ foreach(suffix IN LISTS cugraph_suffixes)
                    CUDA_STANDARD_REQUIRED              ON
                    POSITION_INDEPENDENT_CODE           ON
                    INTERFACE_POSITION_INDEPENDENT_CODE ON
-                   NO_CUDART_DEP                       ON
+    )
+    set_target_properties(cugraph${suffix}
+        PROPERTIES CXX_VISIBILITY_PRESET hidden
+                   CUDA_VISIBILITY_PRESET hidden
+                   VISIBILITY_INLINES_HIDDEN ON
     )
 
     ################################################################################
@@ -709,6 +713,11 @@ set_target_properties(cugraph_c
                CUDA_STANDARD_REQUIRED              ON
                POSITION_INDEPENDENT_CODE           ON
                INTERFACE_POSITION_INDEPENDENT_CODE ON
+)
+set_target_properties(cugraph_c
+    PROPERTIES CXX_VISIBILITY_PRESET hidden
+               CUDA_VISIBILITY_PRESET hidden
+               VISIBILITY_INLINES_HIDDEN ON
 )
 
 target_compile_options(cugraph_c
