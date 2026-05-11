@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -13,6 +13,8 @@
 
 /** @defgroup layout Layout algorithms
  */
+
+#include <cugraph_c/export.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -98,52 +100,52 @@ typedef struct {
  *                               be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_force_atlas2(
-  const cugraph_resource_handle_t* handle,
-  cugraph_rng_state_t* rng_state,
-  cugraph_graph_t* graph,
-  int max_iter,
-  cugraph_type_erased_device_array_view_t* start_vertices,
-  cugraph_type_erased_device_array_view_t* x_start,
-  cugraph_type_erased_device_array_view_t* y_start,
-  bool_t outbound_attraction_distribution,
-  bool_t lin_log_mode,
-  bool_t prevent_overlapping,
-  cugraph_type_erased_device_array_view_t* vertex_radius_vertices,
-  cugraph_type_erased_device_array_view_t* vertex_radius_values,
-  double overlap_scaling_ratio,
-  double edge_weight_influence,
-  double jitter_tolerance,
-  bool_t barnes_hut_optimize,
-  double barnes_hut_theta,
-  double scaling_ratio,
-  bool_t strong_gravity_mode,
-  double gravity,
-  cugraph_type_erased_device_array_view_t* vertex_mobility_vertices,
-  cugraph_type_erased_device_array_view_t* vertex_mobility_values,
-  cugraph_type_erased_device_array_view_t* vertex_mass_vertices,
-  cugraph_type_erased_device_array_view_t* vertex_mass_values,
-  bool_t verbose,
-  bool_t do_expensive_check,
-  cugraph_layout_result_t** result,
-  cugraph_error_t** error);
+CUGRAPH_EXPORT cugraph_error_code_t
+cugraph_force_atlas2(const cugraph_resource_handle_t* handle,
+                     cugraph_rng_state_t* rng_state,
+                     cugraph_graph_t* graph,
+                     int max_iter,
+                     cugraph_type_erased_device_array_view_t* start_vertices,
+                     cugraph_type_erased_device_array_view_t* x_start,
+                     cugraph_type_erased_device_array_view_t* y_start,
+                     bool_t outbound_attraction_distribution,
+                     bool_t lin_log_mode,
+                     bool_t prevent_overlapping,
+                     cugraph_type_erased_device_array_view_t* vertex_radius_vertices,
+                     cugraph_type_erased_device_array_view_t* vertex_radius_values,
+                     double overlap_scaling_ratio,
+                     double edge_weight_influence,
+                     double jitter_tolerance,
+                     bool_t barnes_hut_optimize,
+                     double barnes_hut_theta,
+                     double scaling_ratio,
+                     bool_t strong_gravity_mode,
+                     double gravity,
+                     cugraph_type_erased_device_array_view_t* vertex_mobility_vertices,
+                     cugraph_type_erased_device_array_view_t* vertex_mobility_values,
+                     cugraph_type_erased_device_array_view_t* vertex_mass_vertices,
+                     cugraph_type_erased_device_array_view_t* vertex_mass_values,
+                     bool_t verbose,
+                     bool_t do_expensive_check,
+                     cugraph_layout_result_t** result,
+                     cugraph_error_t** error);
 
 /**
  * @brief     Get layout vertices
  */
-cugraph_type_erased_device_array_view_t* cugraph_layout_result_get_vertices(
+CUGRAPH_EXPORT cugraph_type_erased_device_array_view_t* cugraph_layout_result_get_vertices(
   cugraph_layout_result_t* result);
 
 /**
  * @brief     Get layout x-axis
  */
-cugraph_type_erased_device_array_view_t* cugraph_layout_result_get_x_axis(
+CUGRAPH_EXPORT cugraph_type_erased_device_array_view_t* cugraph_layout_result_get_x_axis(
   cugraph_layout_result_t* result);
 
 /**
  * @brief     Get layout y-axis
  */
-cugraph_type_erased_device_array_view_t* cugraph_layout_result_get_y_axis(
+CUGRAPH_EXPORT cugraph_type_erased_device_array_view_t* cugraph_layout_result_get_y_axis(
   cugraph_layout_result_t* result);
 
 /**
@@ -151,7 +153,9 @@ cugraph_type_erased_device_array_view_t* cugraph_layout_result_get_y_axis(
  *
  * @param [in] result     The result from a layout algorithm
  */
-void cugraph_layout_result_free(cugraph_layout_result_t* result);
+CUGRAPH_EXPORT void cugraph_layout_result_free(cugraph_layout_result_t* result);
+
+#include <cugraph_c/export.h>
 
 #ifdef __cplusplus
 }

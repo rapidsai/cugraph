@@ -8,6 +8,7 @@
 #include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/edge_partition_edge_property_device_view.cuh>
 #include <cugraph/edge_partition_endpoint_property_device_view.cuh>
+#include <cugraph/export.hpp>
 #include <cugraph/graph.hpp>
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/prims/detail/partition_v_frontier.cuh>
@@ -42,7 +43,7 @@
 #include <optional>
 #include <tuple>
 
-namespace cugraph {
+namespace CUGRAPH_EXPORT cugraph {
 
 namespace detail {
 
@@ -6006,4 +6007,4 @@ heterogeneous_biased_sample_and_compute_local_nbr_indices(
 
 }  // namespace detail
 
-}  // namespace cugraph
+}  // namespace CUGRAPH_EXPORT cugraph

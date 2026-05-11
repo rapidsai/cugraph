@@ -6,13 +6,14 @@
 
 #include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/edge_partition_edge_property_device_view.cuh>
+#include <cugraph/export.hpp>
 
 #include <cuda/std/tuple>
 
 #include <limits>
 #include <type_traits>
 
-namespace cugraph {
+namespace CUGRAPH_EXPORT cugraph {
 
 namespace detail {
 
@@ -124,4 +125,4 @@ __host__ __device__ int priority_to_rank(
 
 }  // namespace detail
 
-}  // namespace cugraph
+}  // namespace CUGRAPH_EXPORT cugraph

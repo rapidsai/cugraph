@@ -1,16 +1,17 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2023-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
 #pragma once
 
+#include <cugraph/export.hpp>
 #include <cugraph/mtmg/detail/device_shared_wrapper.hpp>
 #include <cugraph/mtmg/detail/per_device_edgelist.hpp>
 
 #include <vector>
 
-namespace cugraph {
+namespace CUGRAPH_EXPORT cugraph {
 namespace mtmg {
 
 /**
@@ -53,4 +54,4 @@ class edgelist_t : public detail::device_shared_wrapper_t<detail::per_device_edg
 };
 
 }  // namespace mtmg
-}  // namespace cugraph
+}  // namespace CUGRAPH_EXPORT cugraph

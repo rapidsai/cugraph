@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2024, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -12,6 +12,8 @@
 /** @defgroup traversal Traversal Algorithms
  *  @ingroup c_api
  */
+
+#include <cugraph_c/export.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -34,7 +36,7 @@ typedef struct {
  * @param [in]   result   The result from bfs or sssp
  * @return type erased array of vertex ids
  */
-cugraph_type_erased_device_array_view_t* cugraph_paths_result_get_vertices(
+CUGRAPH_EXPORT cugraph_type_erased_device_array_view_t* cugraph_paths_result_get_vertices(
   cugraph_paths_result_t* result);
 
 /**
@@ -44,7 +46,7 @@ cugraph_type_erased_device_array_view_t* cugraph_paths_result_get_vertices(
  * @param [in]   result   The result from bfs or sssp
  * @return type erased array of distances
  */
-cugraph_type_erased_device_array_view_t* cugraph_paths_result_get_distances(
+CUGRAPH_EXPORT cugraph_type_erased_device_array_view_t* cugraph_paths_result_get_distances(
   cugraph_paths_result_t* result);
 
 /**
@@ -56,7 +58,7 @@ cugraph_type_erased_device_array_view_t* cugraph_paths_result_get_distances(
  *         compute_predecessors was FALSE in the call to bfs or sssp that
  *         produced this result.
  */
-cugraph_type_erased_device_array_view_t* cugraph_paths_result_get_predecessors(
+CUGRAPH_EXPORT cugraph_type_erased_device_array_view_t* cugraph_paths_result_get_predecessors(
   cugraph_paths_result_t* result);
 
 /**
@@ -65,7 +67,7 @@ cugraph_type_erased_device_array_view_t* cugraph_paths_result_get_predecessors(
  *
  * @param [in]   result   The result from bfs or sssp
  */
-void cugraph_paths_result_free(cugraph_paths_result_t* result);
+CUGRAPH_EXPORT void cugraph_paths_result_free(cugraph_paths_result_t* result);
 
 /**
  * @brief     Perform a breadth first search from a set of seed vertices.
@@ -94,17 +96,17 @@ void cugraph_paths_result_free(cugraph_paths_result_t* result);
  *                           be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_bfs(
-  const cugraph_resource_handle_t* handle,
-  cugraph_graph_t* graph,
-  // FIXME:  Make this const, copy it if I need to temporarily modify internally
-  cugraph_type_erased_device_array_view_t* sources,
-  bool_t direction_optimizing,
-  size_t depth_limit,
-  bool_t compute_predecessors,
-  bool_t do_expensive_check,
-  cugraph_paths_result_t** result,
-  cugraph_error_t** error);
+CUGRAPH_EXPORT cugraph_error_code_t
+cugraph_bfs(const cugraph_resource_handle_t* handle,
+            cugraph_graph_t* graph,
+            // FIXME:  Make this const, copy it if I need to temporarily modify internally
+            cugraph_type_erased_device_array_view_t* sources,
+            bool_t direction_optimizing,
+            size_t depth_limit,
+            bool_t compute_predecessors,
+            bool_t do_expensive_check,
+            cugraph_paths_result_t** result,
+            cugraph_error_t** error);
 
 /**
  * @brief     Perform single-source shortest-path to compute the minimum distances
@@ -127,14 +129,14 @@ cugraph_error_code_t cugraph_bfs(
  *                           be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_sssp(const cugraph_resource_handle_t* handle,
-                                  cugraph_graph_t* graph,
-                                  size_t source,
-                                  double cutoff,
-                                  bool_t compute_predecessors,
-                                  bool_t do_expensive_check,
-                                  cugraph_paths_result_t** result,
-                                  cugraph_error_t** error);
+CUGRAPH_EXPORT cugraph_error_code_t cugraph_sssp(const cugraph_resource_handle_t* handle,
+                                                 cugraph_graph_t* graph,
+                                                 size_t source,
+                                                 double cutoff,
+                                                 bool_t compute_predecessors,
+                                                 bool_t do_expensive_check,
+                                                 cugraph_paths_result_t** result,
+                                                 cugraph_error_t** error);
 
 /**
  * @brief     Opaque extract_paths result type
@@ -162,14 +164,14 @@ typedef struct {
  *                           be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_extract_paths(
-  const cugraph_resource_handle_t* handle,
-  cugraph_graph_t* graph,
-  const cugraph_type_erased_device_array_view_t* sources,
-  const cugraph_paths_result_t* paths_result,
-  const cugraph_type_erased_device_array_view_t* destinations,
-  cugraph_extract_paths_result_t** result,
-  cugraph_error_t** error);
+CUGRAPH_EXPORT cugraph_error_code_t
+cugraph_extract_paths(const cugraph_resource_handle_t* handle,
+                      cugraph_graph_t* graph,
+                      const cugraph_type_erased_device_array_view_t* sources,
+                      const cugraph_paths_result_t* paths_result,
+                      const cugraph_type_erased_device_array_view_t* destinations,
+                      cugraph_extract_paths_result_t** result,
+                      cugraph_error_t** error);
 
 /**
  * @brief     Get the max path length from extract_paths result
@@ -177,7 +179,8 @@ cugraph_error_code_t cugraph_extract_paths(
  * @param [in]   result   The result from extract_paths
  * @return maximum path length
  */
-size_t cugraph_extract_paths_result_get_max_path_length(cugraph_extract_paths_result_t* result);
+CUGRAPH_EXPORT size_t
+cugraph_extract_paths_result_get_max_path_length(cugraph_extract_paths_result_t* result);
 
 /**
  * @ingroup traversal
@@ -186,7 +189,7 @@ size_t cugraph_extract_paths_result_get_max_path_length(cugraph_extract_paths_re
  * @param [in]   result   The result from extract_paths
  * @return type erased array pointing to the matrix in device memory
  */
-cugraph_type_erased_device_array_view_t* cugraph_extract_paths_result_get_paths(
+CUGRAPH_EXPORT cugraph_type_erased_device_array_view_t* cugraph_extract_paths_result_get_paths(
   cugraph_extract_paths_result_t* result);
 
 /**
@@ -195,7 +198,9 @@ cugraph_type_erased_device_array_view_t* cugraph_extract_paths_result_get_paths(
  *
  * @param [in]   result   The result from extract_paths
  */
-void cugraph_extract_paths_result_free(cugraph_extract_paths_result_t* result);
+CUGRAPH_EXPORT void cugraph_extract_paths_result_free(cugraph_extract_paths_result_t* result);
+
+#include <cugraph_c/export.h>
 
 #ifdef __cplusplus
 }

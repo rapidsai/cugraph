@@ -1,9 +1,10 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
 
+#include <cugraph/export.hpp>
 #include <cugraph/large_buffer_manager.hpp>
 
 #include <raft/core/handle.hpp>
@@ -18,7 +19,7 @@
 /** @defgroup graph_generators_cpp C++ Graph Generators
  */
 
-namespace cugraph {
+namespace CUGRAPH_EXPORT cugraph {
 
 /**
  * @ingroup graph_generators_cpp
@@ -422,4 +423,4 @@ combine_edgelists(raft::handle_t const& handle,
                   std::optional<std::vector<rmm::device_uvector<weight_t>>>&& optional_d_weights,
                   bool remove_multi_edges = true);
 
-}  // namespace cugraph
+}  // namespace CUGRAPH_EXPORT cugraph

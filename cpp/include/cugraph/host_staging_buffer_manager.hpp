@@ -4,6 +4,7 @@
  */
 #pragma once
 
+#include <cugraph/export.hpp>
 #include <cugraph/utilities/error.hpp>
 
 #include <raft/core/handle.hpp>
@@ -16,7 +17,7 @@
 #include <cstddef>
 #include <optional>
 
-namespace cugraph {
+namespace CUGRAPH_EXPORT cugraph {
 
 class host_staging_buffer_manager {
  public:
@@ -65,4 +66,4 @@ class host_staging_buffer_manager {
   };
 };
 
-}  // namespace cugraph
+}  // namespace CUGRAPH_EXPORT cugraph

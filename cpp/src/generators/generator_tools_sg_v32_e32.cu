@@ -1,11 +1,12 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
 #include "generators/generator_tools.cuh"
 #include "generators/scramble.cuh"
 
+#include <cugraph/export.hpp>
 #include <cugraph/graph_generators.hpp>
 #include <cugraph/utilities/error.hpp>
 
@@ -28,31 +29,30 @@
 
 namespace cugraph {
 
-template rmm::device_uvector<int32_t> scramble_vertex_ids(raft::handle_t const& handle,
-                                                          rmm::device_uvector<int32_t>&& vertices,
-                                                          size_t lgN);
+template CUGRAPH_EXPORT rmm::device_uvector<int32_t> scramble_vertex_ids(
+  raft::handle_t const& handle, rmm::device_uvector<int32_t>&& vertices, size_t lgN);
 
-template std::tuple<rmm::device_uvector<int32_t>,
-                    rmm::device_uvector<int32_t>,
-                    std::optional<rmm::device_uvector<float>>>
+template CUGRAPH_EXPORT std::tuple<rmm::device_uvector<int32_t>,
+                                   rmm::device_uvector<int32_t>,
+                                   std::optional<rmm::device_uvector<float>>>
 combine_edgelists(raft::handle_t const& handle,
                   std::vector<rmm::device_uvector<int32_t>>&& sources,
                   std::vector<rmm::device_uvector<int32_t>>&& dests,
                   std::optional<std::vector<rmm::device_uvector<float>>>&& optional_d_weights,
                   bool remove_multi_edges);
 
-template std::tuple<rmm::device_uvector<int32_t>,
-                    rmm::device_uvector<int32_t>,
-                    std::optional<rmm::device_uvector<double>>>
+template CUGRAPH_EXPORT std::tuple<rmm::device_uvector<int32_t>,
+                                   rmm::device_uvector<int32_t>,
+                                   std::optional<rmm::device_uvector<double>>>
 combine_edgelists(raft::handle_t const& handle,
                   std::vector<rmm::device_uvector<int32_t>>&& sources,
                   std::vector<rmm::device_uvector<int32_t>>&& dests,
                   std::optional<std::vector<rmm::device_uvector<double>>>&& optional_d_weights,
                   bool remove_multi_edges);
 
-template std::tuple<rmm::device_uvector<int32_t>,
-                    rmm::device_uvector<int32_t>,
-                    std::optional<rmm::device_uvector<float>>>
+template CUGRAPH_EXPORT std::tuple<rmm::device_uvector<int32_t>,
+                                   rmm::device_uvector<int32_t>,
+                                   std::optional<rmm::device_uvector<float>>>
 symmetrize_edgelist_from_triangular(raft::handle_t const& handle,
                                     rmm::device_uvector<int32_t>&& d_src_v,
                                     rmm::device_uvector<int32_t>&& d_dst_v,
@@ -60,9 +60,9 @@ symmetrize_edgelist_from_triangular(raft::handle_t const& handle,
                                     bool check_diagonal,
                                     std::optional<large_buffer_type_t> large_buffer_type);
 
-template std::tuple<rmm::device_uvector<int32_t>,
-                    rmm::device_uvector<int32_t>,
-                    std::optional<rmm::device_uvector<double>>>
+template CUGRAPH_EXPORT std::tuple<rmm::device_uvector<int32_t>,
+                                   rmm::device_uvector<int32_t>,
+                                   std::optional<rmm::device_uvector<double>>>
 symmetrize_edgelist_from_triangular(raft::handle_t const& handle,
                                     rmm::device_uvector<int32_t>&& d_src_v,
                                     rmm::device_uvector<int32_t>&& d_dst_v,

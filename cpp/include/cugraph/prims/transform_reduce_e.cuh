@@ -9,6 +9,7 @@
 #include <cugraph/edge_partition_endpoint_property_device_view.cuh>
 #include <cugraph/edge_partition_view.hpp>
 #include <cugraph/edge_src_dst_property.hpp>
+#include <cugraph/export.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/prims/detail/prim_functors.cuh>
 #include <cugraph/prims/property_op_utils.cuh>
@@ -34,7 +35,7 @@
 #include <cstdint>
 #include <type_traits>
 
-namespace cugraph {
+namespace CUGRAPH_EXPORT cugraph {
 
 namespace detail {
 
@@ -664,4 +665,4 @@ auto transform_reduce_e(raft::handle_t const& handle,
     handle, graph_view, edge_src_value_input, edge_dst_value_input, edge_value_input, e_op, T{});
 }
 
-}  // namespace cugraph
+}  // namespace CUGRAPH_EXPORT cugraph

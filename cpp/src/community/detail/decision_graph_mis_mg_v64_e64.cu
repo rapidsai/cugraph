@@ -4,10 +4,13 @@
  */
 #include "decision_graph_mis.cuh"
 
+#include <cugraph/export.hpp>
+
 namespace cugraph {
 namespace detail {
 
-template rmm::device_uvector<int64_t> vertices_in_mis_from_decision_edgelist<int64_t, true>(
+template CUGRAPH_EXPORT rmm::device_uvector<int64_t>
+vertices_in_mis_from_decision_edgelist<int64_t, true>(
   raft::handle_t const& handle,
   raft::random::RngState& rng_state,
   raft::host_span<int64_t const> vertex_partition_range_lasts,
