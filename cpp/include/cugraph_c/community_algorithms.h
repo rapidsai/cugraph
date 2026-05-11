@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -13,6 +13,8 @@
 
 /** @defgroup community Community algorithms
  */
+
+#include <cugraph_c/export.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -40,25 +42,26 @@ typedef struct {
  *                           be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_triangle_count(const cugraph_resource_handle_t* handle,
-                                            cugraph_graph_t* graph,
-                                            const cugraph_type_erased_device_array_view_t* start,
-                                            bool_t do_expensive_check,
-                                            cugraph_triangle_count_result_t** result,
-                                            cugraph_error_t** error);
+CUGRAPH_EXPORT cugraph_error_code_t
+cugraph_triangle_count(const cugraph_resource_handle_t* handle,
+                       cugraph_graph_t* graph,
+                       const cugraph_type_erased_device_array_view_t* start,
+                       bool_t do_expensive_check,
+                       cugraph_triangle_count_result_t** result,
+                       cugraph_error_t** error);
 
 /**
  * @ingroup community
  * @brief     Get triangle counting vertices
  */
-cugraph_type_erased_device_array_view_t* cugraph_triangle_count_result_get_vertices(
+CUGRAPH_EXPORT cugraph_type_erased_device_array_view_t* cugraph_triangle_count_result_get_vertices(
   cugraph_triangle_count_result_t* result);
 
 /**
  * @ingroup community
  * @brief     Get triangle counting counts
  */
-cugraph_type_erased_device_array_view_t* cugraph_triangle_count_result_get_counts(
+CUGRAPH_EXPORT cugraph_type_erased_device_array_view_t* cugraph_triangle_count_result_get_counts(
   cugraph_triangle_count_result_t* result);
 
 /**
@@ -67,7 +70,7 @@ cugraph_type_erased_device_array_view_t* cugraph_triangle_count_result_get_count
  *
  * @param [in] result     The result from a sampling algorithm
  */
-void cugraph_triangle_count_result_free(cugraph_triangle_count_result_t* result);
+CUGRAPH_EXPORT void cugraph_triangle_count_result_free(cugraph_triangle_count_result_t* result);
 
 /**
  * @brief     Opaque hierarchical clustering output
@@ -95,14 +98,15 @@ typedef struct {
  *                           be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_louvain(const cugraph_resource_handle_t* handle,
-                                     cugraph_graph_t* graph,
-                                     size_t max_level,
-                                     double threshold,
-                                     double resolution,
-                                     bool_t do_expensive_check,
-                                     cugraph_hierarchical_clustering_result_t** result,
-                                     cugraph_error_t** error);
+CUGRAPH_EXPORT cugraph_error_code_t
+cugraph_louvain(const cugraph_resource_handle_t* handle,
+                cugraph_graph_t* graph,
+                size_t max_level,
+                double threshold,
+                double resolution,
+                bool_t do_expensive_check,
+                cugraph_hierarchical_clustering_result_t** result,
+                cugraph_error_t** error);
 
 /**
  * @brief     Compute Leiden
@@ -127,35 +131,38 @@ cugraph_error_code_t cugraph_louvain(const cugraph_resource_handle_t* handle,
  *                           be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_leiden(const cugraph_resource_handle_t* handle,
-                                    cugraph_rng_state_t* rng_state,
-                                    cugraph_graph_t* graph,
-                                    size_t max_level,
-                                    double resolution,
-                                    double theta,
-                                    bool_t do_expensive_check,
-                                    cugraph_hierarchical_clustering_result_t** result,
-                                    cugraph_error_t** error);
+CUGRAPH_EXPORT cugraph_error_code_t
+cugraph_leiden(const cugraph_resource_handle_t* handle,
+               cugraph_rng_state_t* rng_state,
+               cugraph_graph_t* graph,
+               size_t max_level,
+               double resolution,
+               double theta,
+               bool_t do_expensive_check,
+               cugraph_hierarchical_clustering_result_t** result,
+               cugraph_error_t** error);
 
 /**
  * @ingroup community
  * @brief     Get hierarchical clustering vertices
  */
-cugraph_type_erased_device_array_view_t* cugraph_hierarchical_clustering_result_get_vertices(
+CUGRAPH_EXPORT cugraph_type_erased_device_array_view_t*
+cugraph_hierarchical_clustering_result_get_vertices(
   cugraph_hierarchical_clustering_result_t* result);
 
 /**
  * @ingroup community
  * @brief     Get hierarchical clustering clusters
  */
-cugraph_type_erased_device_array_view_t* cugraph_hierarchical_clustering_result_get_clusters(
+CUGRAPH_EXPORT cugraph_type_erased_device_array_view_t*
+cugraph_hierarchical_clustering_result_get_clusters(
   cugraph_hierarchical_clustering_result_t* result);
 
 /**
  * @ingroup community
  * @brief     Get modularity
  */
-double cugraph_hierarchical_clustering_result_get_modularity(
+CUGRAPH_EXPORT double cugraph_hierarchical_clustering_result_get_modularity(
   cugraph_hierarchical_clustering_result_t* result);
 
 /**
@@ -164,7 +171,8 @@ double cugraph_hierarchical_clustering_result_get_modularity(
  *
  * @param [in] result     The result from a sampling algorithm
  */
-void cugraph_hierarchical_clustering_result_free(cugraph_hierarchical_clustering_result_t* result);
+CUGRAPH_EXPORT void cugraph_hierarchical_clustering_result_free(
+  cugraph_hierarchical_clustering_result_t* result);
 
 /**
  * @brief     Compute ECG clustering
@@ -189,17 +197,17 @@ void cugraph_hierarchical_clustering_result_free(cugraph_hierarchical_clustering
  *                            be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_ecg(const cugraph_resource_handle_t* handle,
-                                 cugraph_rng_state_t* rng_state,
-                                 cugraph_graph_t* graph,
-                                 double min_weight,
-                                 size_t ensemble_size,
-                                 size_t max_level,
-                                 double threshold,
-                                 double resolution,
-                                 bool_t do_expensive_check,
-                                 cugraph_hierarchical_clustering_result_t** result,
-                                 cugraph_error_t** error);
+CUGRAPH_EXPORT cugraph_error_code_t cugraph_ecg(const cugraph_resource_handle_t* handle,
+                                                cugraph_rng_state_t* rng_state,
+                                                cugraph_graph_t* graph,
+                                                double min_weight,
+                                                size_t ensemble_size,
+                                                size_t max_level,
+                                                double threshold,
+                                                double resolution,
+                                                bool_t do_expensive_check,
+                                                cugraph_hierarchical_clustering_result_t** result,
+                                                cugraph_error_t** error);
 
 /**
  * @brief   Extract ego graphs
@@ -216,14 +224,14 @@ cugraph_error_code_t cugraph_ecg(const cugraph_resource_handle_t* handle,
  *                               be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_extract_ego(
-  const cugraph_resource_handle_t* handle,
-  cugraph_graph_t* graph,
-  const cugraph_type_erased_device_array_view_t* source_vertices,
-  size_t radius,
-  bool_t do_expensive_check,
-  cugraph_induced_subgraph_result_t** result,
-  cugraph_error_t** error);
+CUGRAPH_EXPORT cugraph_error_code_t
+cugraph_extract_ego(const cugraph_resource_handle_t* handle,
+                    cugraph_graph_t* graph,
+                    const cugraph_type_erased_device_array_view_t* source_vertices,
+                    size_t radius,
+                    bool_t do_expensive_check,
+                    cugraph_induced_subgraph_result_t** result,
+                    cugraph_error_t** error);
 
 /**
  * @brief   Extract k truss for a graph
@@ -239,12 +247,13 @@ cugraph_error_code_t cugraph_extract_ego(
  *                              be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_k_truss_subgraph(const cugraph_resource_handle_t* handle,
-                                              cugraph_graph_t* graph,
-                                              size_t k,
-                                              bool_t do_expensive_check,
-                                              cugraph_induced_subgraph_result_t** result,
-                                              cugraph_error_t** error);
+CUGRAPH_EXPORT cugraph_error_code_t
+cugraph_k_truss_subgraph(const cugraph_resource_handle_t* handle,
+                         cugraph_graph_t* graph,
+                         size_t k,
+                         bool_t do_expensive_check,
+                         cugraph_induced_subgraph_result_t** result,
+                         cugraph_error_t** error);
 
 /**
  * @brief     Opaque clustering output
@@ -279,18 +288,19 @@ typedef struct {
  *                               be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_balanced_cut_clustering(const cugraph_resource_handle_t* handle,
-                                                     cugraph_rng_state_t* rng_state,
-                                                     cugraph_graph_t* graph,
-                                                     size_t n_clusters,
-                                                     size_t n_eigenvectors,
-                                                     double evs_tolerance,
-                                                     int evs_max_iterations,
-                                                     double k_means_tolerance,
-                                                     int k_means_max_iterations,
-                                                     bool_t do_expensive_check,
-                                                     cugraph_clustering_result_t** result,
-                                                     cugraph_error_t** error);
+CUGRAPH_EXPORT cugraph_error_code_t
+cugraph_balanced_cut_clustering(const cugraph_resource_handle_t* handle,
+                                cugraph_rng_state_t* rng_state,
+                                cugraph_graph_t* graph,
+                                size_t n_clusters,
+                                size_t n_eigenvectors,
+                                double evs_tolerance,
+                                int evs_max_iterations,
+                                double k_means_tolerance,
+                                int k_means_max_iterations,
+                                bool_t do_expensive_check,
+                                cugraph_clustering_result_t** result,
+                                cugraph_error_t** error);
 
 /**
  * @brief   Spectral clustering
@@ -315,19 +325,19 @@ cugraph_error_code_t cugraph_balanced_cut_clustering(const cugraph_resource_hand
  *                               be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_spectral_modularity_maximization(
-  const cugraph_resource_handle_t* handle,
-  cugraph_rng_state_t* rng_state,
-  cugraph_graph_t* graph,
-  size_t n_clusters,
-  size_t n_eigenvectors,
-  double evs_tolerance,
-  int evs_max_iterations,
-  double k_means_tolerance,
-  int k_means_max_iterations,
-  bool_t do_expensive_check,
-  cugraph_clustering_result_t** result,
-  cugraph_error_t** error);
+CUGRAPH_EXPORT cugraph_error_code_t
+cugraph_spectral_modularity_maximization(const cugraph_resource_handle_t* handle,
+                                         cugraph_rng_state_t* rng_state,
+                                         cugraph_graph_t* graph,
+                                         size_t n_clusters,
+                                         size_t n_eigenvectors,
+                                         double evs_tolerance,
+                                         int evs_max_iterations,
+                                         double k_means_tolerance,
+                                         int k_means_max_iterations,
+                                         bool_t do_expensive_check,
+                                         cugraph_clustering_result_t** result,
+                                         cugraph_error_t** error);
 
 /**
  * @brief   Compute modularity of the specified clustering
@@ -346,14 +356,14 @@ cugraph_error_code_t cugraph_spectral_modularity_maximization(
  *                              be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_analyze_clustering_modularity(
-  const cugraph_resource_handle_t* handle,
-  cugraph_graph_t* graph,
-  size_t n_clusters,
-  const cugraph_type_erased_device_array_view_t* vertices,
-  const cugraph_type_erased_device_array_view_t* clusters,
-  double* score,
-  cugraph_error_t** error);
+CUGRAPH_EXPORT cugraph_error_code_t
+cugraph_analyze_clustering_modularity(const cugraph_resource_handle_t* handle,
+                                      cugraph_graph_t* graph,
+                                      size_t n_clusters,
+                                      const cugraph_type_erased_device_array_view_t* vertices,
+                                      const cugraph_type_erased_device_array_view_t* clusters,
+                                      double* score,
+                                      cugraph_error_t** error);
 
 /**
  * @brief   Compute edge cut of the specified clustering
@@ -372,14 +382,14 @@ cugraph_error_code_t cugraph_analyze_clustering_modularity(
  *                              be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_analyze_clustering_edge_cut(
-  const cugraph_resource_handle_t* handle,
-  cugraph_graph_t* graph,
-  size_t n_clusters,
-  const cugraph_type_erased_device_array_view_t* vertices,
-  const cugraph_type_erased_device_array_view_t* clusters,
-  double* score,
-  cugraph_error_t** error);
+CUGRAPH_EXPORT cugraph_error_code_t
+cugraph_analyze_clustering_edge_cut(const cugraph_resource_handle_t* handle,
+                                    cugraph_graph_t* graph,
+                                    size_t n_clusters,
+                                    const cugraph_type_erased_device_array_view_t* vertices,
+                                    const cugraph_type_erased_device_array_view_t* clusters,
+                                    double* score,
+                                    cugraph_error_t** error);
 
 /**
  * @brief   Compute ratio cut of the specified clustering
@@ -398,25 +408,25 @@ cugraph_error_code_t cugraph_analyze_clustering_edge_cut(
  *                              be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_analyze_clustering_ratio_cut(
-  const cugraph_resource_handle_t* handle,
-  cugraph_graph_t* graph,
-  size_t n_clusters,
-  const cugraph_type_erased_device_array_view_t* vertices,
-  const cugraph_type_erased_device_array_view_t* clusters,
-  double* score,
-  cugraph_error_t** error);
+CUGRAPH_EXPORT cugraph_error_code_t
+cugraph_analyze_clustering_ratio_cut(const cugraph_resource_handle_t* handle,
+                                     cugraph_graph_t* graph,
+                                     size_t n_clusters,
+                                     const cugraph_type_erased_device_array_view_t* vertices,
+                                     const cugraph_type_erased_device_array_view_t* clusters,
+                                     double* score,
+                                     cugraph_error_t** error);
 
 /**
  * @brief     Get clustering vertices
  */
-cugraph_type_erased_device_array_view_t* cugraph_clustering_result_get_vertices(
+CUGRAPH_EXPORT cugraph_type_erased_device_array_view_t* cugraph_clustering_result_get_vertices(
   cugraph_clustering_result_t* result);
 
 /**
  * @brief     Get clustering clusters
  */
-cugraph_type_erased_device_array_view_t* cugraph_clustering_result_get_clusters(
+CUGRAPH_EXPORT cugraph_type_erased_device_array_view_t* cugraph_clustering_result_get_clusters(
   cugraph_clustering_result_t* result);
 
 /**
@@ -424,7 +434,9 @@ cugraph_type_erased_device_array_view_t* cugraph_clustering_result_get_clusters(
  *
  * @param [in] result     The result from a sampling algorithm
  */
-void cugraph_clustering_result_free(cugraph_clustering_result_t* result);
+CUGRAPH_EXPORT void cugraph_clustering_result_free(cugraph_clustering_result_t* result);
+
+#include <cugraph_c/export.h>
 
 #ifdef __cplusplus
 }

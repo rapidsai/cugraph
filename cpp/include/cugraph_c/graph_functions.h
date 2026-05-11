@@ -1,11 +1,12 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
 #pragma once
 
 #include <cugraph_c/array.h>
+#include <cugraph_c/export.h>
 #include <cugraph_c/graph.h>
 #include <cugraph_c/resource_handle.h>
 
@@ -35,13 +36,13 @@ typedef struct {
  *                           be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_create_vertex_pairs(
-  const cugraph_resource_handle_t* handle,
-  cugraph_graph_t* graph,
-  const cugraph_type_erased_device_array_view_t* first,
-  const cugraph_type_erased_device_array_view_t* second,
-  cugraph_vertex_pairs_t** vertex_pairs,
-  cugraph_error_t** error);
+CUGRAPH_EXPORT cugraph_error_code_t
+cugraph_create_vertex_pairs(const cugraph_resource_handle_t* handle,
+                            cugraph_graph_t* graph,
+                            const cugraph_type_erased_device_array_view_t* first,
+                            const cugraph_type_erased_device_array_view_t* second,
+                            cugraph_vertex_pairs_t** vertex_pairs,
+                            cugraph_error_t** error);
 
 /**
  * @brief       Get the first vertex id array
@@ -49,7 +50,7 @@ cugraph_error_code_t cugraph_create_vertex_pairs(
  * @param [in]     vertex_pairs   A vertex_pairs
  * @return type erased array of vertex ids
  */
-cugraph_type_erased_device_array_view_t* cugraph_vertex_pairs_get_first(
+CUGRAPH_EXPORT cugraph_type_erased_device_array_view_t* cugraph_vertex_pairs_get_first(
   cugraph_vertex_pairs_t* vertex_pairs);
 
 /**
@@ -58,7 +59,7 @@ cugraph_type_erased_device_array_view_t* cugraph_vertex_pairs_get_first(
  * @param [in]     vertex_pairs   A vertex_pairs
  * @return type erased array of vertex ids
  */
-cugraph_type_erased_device_array_view_t* cugraph_vertex_pairs_get_second(
+CUGRAPH_EXPORT cugraph_type_erased_device_array_view_t* cugraph_vertex_pairs_get_second(
   cugraph_vertex_pairs_t* vertex_pairs);
 
 /**
@@ -66,7 +67,7 @@ cugraph_type_erased_device_array_view_t* cugraph_vertex_pairs_get_second(
  *
  * @param [in]    vertex_pairs The vertex pairs
  */
-void cugraph_vertex_pairs_free(cugraph_vertex_pairs_t* vertex_pairs);
+CUGRAPH_EXPORT void cugraph_vertex_pairs_free(cugraph_vertex_pairs_t* vertex_pairs);
 
 /**
  * @brief      Find all 2-hop neighbors in the graph
@@ -83,13 +84,13 @@ void cugraph_vertex_pairs_free(cugraph_vertex_pairs_t* vertex_pairs);
  *                             be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_two_hop_neighbors(
-  const cugraph_resource_handle_t* handle,
-  cugraph_graph_t* graph,
-  const cugraph_type_erased_device_array_view_t* start_vertices,
-  bool_t do_expensive_check,
-  cugraph_vertex_pairs_t** result,
-  cugraph_error_t** error);
+CUGRAPH_EXPORT cugraph_error_code_t
+cugraph_two_hop_neighbors(const cugraph_resource_handle_t* handle,
+                          cugraph_graph_t* graph,
+                          const cugraph_type_erased_device_array_view_t* start_vertices,
+                          bool_t do_expensive_check,
+                          cugraph_vertex_pairs_t** result,
+                          cugraph_error_t** error);
 
 /**
  * @brief      Verify if a vertex exists in the graph
@@ -104,12 +105,13 @@ cugraph_error_code_t cugraph_two_hop_neighbors(
  *                             be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_has_vertex(const cugraph_resource_handle_t* handle,
-                                        cugraph_graph_t* graph,
-                                        cugraph_type_erased_device_array_view_t* vertices,
-                                        bool_t do_expensive_check,
-                                        cugraph_type_erased_device_array_t** result,
-                                        cugraph_error_t** error);
+CUGRAPH_EXPORT cugraph_error_code_t
+cugraph_has_vertex(const cugraph_resource_handle_t* handle,
+                   cugraph_graph_t* graph,
+                   cugraph_type_erased_device_array_view_t* vertices,
+                   bool_t do_expensive_check,
+                   cugraph_type_erased_device_array_t** result,
+                   cugraph_error_t** error);
 
 /**
  * @brief       Opaque induced subgraph type
@@ -128,7 +130,7 @@ typedef struct {
  * @param [in]     induced_subgraph   Opaque pointer to induced subgraph
  * @return type erased array view of source vertex ids
  */
-cugraph_type_erased_device_array_view_t* cugraph_induced_subgraph_get_sources(
+CUGRAPH_EXPORT cugraph_type_erased_device_array_view_t* cugraph_induced_subgraph_get_sources(
   cugraph_induced_subgraph_result_t* induced_subgraph);
 
 /**
@@ -139,7 +141,7 @@ cugraph_type_erased_device_array_view_t* cugraph_induced_subgraph_get_sources(
  * @param [in]     induced_subgraph   Opaque pointer to induced subgraph
  * @return type erased array view of destination vertex ids
  */
-cugraph_type_erased_device_array_view_t* cugraph_induced_subgraph_get_destinations(
+CUGRAPH_EXPORT cugraph_type_erased_device_array_view_t* cugraph_induced_subgraph_get_destinations(
   cugraph_induced_subgraph_result_t* induced_subgraph);
 
 /**
@@ -150,7 +152,7 @@ cugraph_type_erased_device_array_view_t* cugraph_induced_subgraph_get_destinatio
  * @param [in]     induced_subgraph   Opaque pointer to induced subgraph
  * @return type erased array view of edge weights
  */
-cugraph_type_erased_device_array_view_t* cugraph_induced_subgraph_get_edge_weights(
+CUGRAPH_EXPORT cugraph_type_erased_device_array_view_t* cugraph_induced_subgraph_get_edge_weights(
   cugraph_induced_subgraph_result_t* induced_subgraph);
 
 /**
@@ -161,7 +163,7 @@ cugraph_type_erased_device_array_view_t* cugraph_induced_subgraph_get_edge_weigh
  * @param [in]     induced_subgraph   Opaque pointer to induced subgraph
  * @return type erased array view of edge ids
  */
-cugraph_type_erased_device_array_view_t* cugraph_induced_subgraph_get_edge_ids(
+CUGRAPH_EXPORT cugraph_type_erased_device_array_view_t* cugraph_induced_subgraph_get_edge_ids(
   cugraph_induced_subgraph_result_t* induced_subgraph);
 
 /**
@@ -172,7 +174,7 @@ cugraph_type_erased_device_array_view_t* cugraph_induced_subgraph_get_edge_ids(
  * @param [in]     induced_subgraph   Opaque pointer to induced subgraph
  * @return type erased array view of edge types
  */
-cugraph_type_erased_device_array_view_t* cugraph_induced_subgraph_get_edge_type_ids(
+CUGRAPH_EXPORT cugraph_type_erased_device_array_view_t* cugraph_induced_subgraph_get_edge_type_ids(
   cugraph_induced_subgraph_result_t* induced_subgraph);
 
 /**
@@ -183,8 +185,8 @@ cugraph_type_erased_device_array_view_t* cugraph_induced_subgraph_get_edge_type_
  * @param [in]     induced_subgraph   Opaque pointer to induced subgraph
  * @return type erased array view of subgraph identifiers
  */
-cugraph_type_erased_device_array_view_t* cugraph_induced_subgraph_get_subgraph_offsets(
-  cugraph_induced_subgraph_result_t* induced_subgraph);
+CUGRAPH_EXPORT cugraph_type_erased_device_array_view_t*
+cugraph_induced_subgraph_get_subgraph_offsets(cugraph_induced_subgraph_result_t* induced_subgraph);
 
 /**
  * @brief     Free induced subgraph
@@ -193,7 +195,8 @@ cugraph_type_erased_device_array_view_t* cugraph_induced_subgraph_get_subgraph_o
  *
  * @param [in]    induced subgraph   Opaque pointer to induced subgraph
  */
-void cugraph_induced_subgraph_result_free(cugraph_induced_subgraph_result_t* induced_subgraph);
+CUGRAPH_EXPORT void cugraph_induced_subgraph_result_free(
+  cugraph_induced_subgraph_result_t* induced_subgraph);
 
 /**
  * @brief      Extract induced subgraph(s)
@@ -218,14 +221,14 @@ void cugraph_induced_subgraph_result_free(cugraph_induced_subgraph_result_t* ind
  *                                be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_extract_induced_subgraph(
-  const cugraph_resource_handle_t* handle,
-  cugraph_graph_t* graph,
-  const cugraph_type_erased_device_array_view_t* subgraph_offsets,
-  const cugraph_type_erased_device_array_view_t* subgraph_vertices,
-  bool_t do_expensive_check,
-  cugraph_induced_subgraph_result_t** result,
-  cugraph_error_t** error);
+CUGRAPH_EXPORT cugraph_error_code_t
+cugraph_extract_induced_subgraph(const cugraph_resource_handle_t* handle,
+                                 cugraph_graph_t* graph,
+                                 const cugraph_type_erased_device_array_view_t* subgraph_offsets,
+                                 const cugraph_type_erased_device_array_view_t* subgraph_vertices,
+                                 bool_t do_expensive_check,
+                                 cugraph_induced_subgraph_result_t** result,
+                                 cugraph_error_t** error);
 
 // FIXME: Rename the return type
 /**
@@ -245,14 +248,15 @@ cugraph_error_code_t cugraph_extract_induced_subgraph(
  *                                be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_allgather(const cugraph_resource_handle_t* handle,
-                                       const cugraph_type_erased_device_array_view_t* src,
-                                       const cugraph_type_erased_device_array_view_t* dst,
-                                       const cugraph_type_erased_device_array_view_t* weights,
-                                       const cugraph_type_erased_device_array_view_t* edge_ids,
-                                       const cugraph_type_erased_device_array_view_t* edge_type_ids,
-                                       cugraph_induced_subgraph_result_t** result,
-                                       cugraph_error_t** error);
+CUGRAPH_EXPORT cugraph_error_code_t
+cugraph_allgather(const cugraph_resource_handle_t* handle,
+                  const cugraph_type_erased_device_array_view_t* src,
+                  const cugraph_type_erased_device_array_view_t* dst,
+                  const cugraph_type_erased_device_array_view_t* weights,
+                  const cugraph_type_erased_device_array_view_t* edge_ids,
+                  const cugraph_type_erased_device_array_view_t* edge_type_ids,
+                  cugraph_induced_subgraph_result_t** result,
+                  cugraph_error_t** error);
 
 /**
  * @brief      Count multi_edges
@@ -268,11 +272,12 @@ cugraph_error_code_t cugraph_allgather(const cugraph_resource_handle_t* handle,
  *                                  be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_count_multi_edges(const cugraph_resource_handle_t* handle,
-                                               cugraph_graph_t* graph,
-                                               bool_t do_expensive_check,
-                                               size_t* result,
-                                               cugraph_error_t** error);
+CUGRAPH_EXPORT cugraph_error_code_t
+cugraph_count_multi_edges(const cugraph_resource_handle_t* handle,
+                          cugraph_graph_t* graph,
+                          bool_t do_expensive_check,
+                          size_t* result,
+                          cugraph_error_t** error);
 
 /**
  * @brief       Opaque degree result type
@@ -296,13 +301,13 @@ typedef struct {
  *                                  be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_in_degrees(
-  const cugraph_resource_handle_t* handle,
-  cugraph_graph_t* graph,
-  const cugraph_type_erased_device_array_view_t* source_vertices,
-  bool_t do_expensive_check,
-  cugraph_degrees_result_t** result,
-  cugraph_error_t** error);
+CUGRAPH_EXPORT cugraph_error_code_t
+cugraph_in_degrees(const cugraph_resource_handle_t* handle,
+                   cugraph_graph_t* graph,
+                   const cugraph_type_erased_device_array_view_t* source_vertices,
+                   bool_t do_expensive_check,
+                   cugraph_degrees_result_t** result,
+                   cugraph_error_t** error);
 
 /**
  * @brief      Compute out degrees
@@ -319,13 +324,13 @@ cugraph_error_code_t cugraph_in_degrees(
  *                                  be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_out_degrees(
-  const cugraph_resource_handle_t* handle,
-  cugraph_graph_t* graph,
-  const cugraph_type_erased_device_array_view_t* source_vertices,
-  bool_t do_expensive_check,
-  cugraph_degrees_result_t** result,
-  cugraph_error_t** error);
+CUGRAPH_EXPORT cugraph_error_code_t
+cugraph_out_degrees(const cugraph_resource_handle_t* handle,
+                    cugraph_graph_t* graph,
+                    const cugraph_type_erased_device_array_view_t* source_vertices,
+                    bool_t do_expensive_check,
+                    cugraph_degrees_result_t** result,
+                    cugraph_error_t** error);
 
 /**
  * @brief      Compute degrees
@@ -342,12 +347,13 @@ cugraph_error_code_t cugraph_out_degrees(
  *                                  be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_degrees(const cugraph_resource_handle_t* handle,
-                                     cugraph_graph_t* graph,
-                                     const cugraph_type_erased_device_array_view_t* source_vertices,
-                                     bool_t do_expensive_check,
-                                     cugraph_degrees_result_t** result,
-                                     cugraph_error_t** error);
+CUGRAPH_EXPORT cugraph_error_code_t
+cugraph_degrees(const cugraph_resource_handle_t* handle,
+                cugraph_graph_t* graph,
+                const cugraph_type_erased_device_array_view_t* source_vertices,
+                bool_t do_expensive_check,
+                cugraph_degrees_result_t** result,
+                cugraph_error_t** error);
 
 /**
  * @brief       Get the vertex ids
@@ -355,7 +361,7 @@ cugraph_error_code_t cugraph_degrees(const cugraph_resource_handle_t* handle,
  * @param [in]     degrees_result   Opaque pointer to degree result
  * @return type erased array view of vertex ids
  */
-cugraph_type_erased_device_array_view_t* cugraph_degrees_result_get_vertices(
+CUGRAPH_EXPORT cugraph_type_erased_device_array_view_t* cugraph_degrees_result_get_vertices(
   cugraph_degrees_result_t* degrees_result);
 
 /**
@@ -364,7 +370,7 @@ cugraph_type_erased_device_array_view_t* cugraph_degrees_result_get_vertices(
  * @param [in]     degrees_result   Opaque pointer to degree result
  * @return type erased array view of vertex ids
  */
-cugraph_type_erased_device_array_view_t* cugraph_degrees_result_get_in_degrees(
+CUGRAPH_EXPORT cugraph_type_erased_device_array_view_t* cugraph_degrees_result_get_in_degrees(
   cugraph_degrees_result_t* degrees_result);
 
 /**
@@ -376,7 +382,7 @@ cugraph_type_erased_device_array_view_t* cugraph_degrees_result_get_in_degrees(
  * @param [in]     degrees_result   Opaque pointer to degree result
  * @return type erased array view of vertex ids
  */
-cugraph_type_erased_device_array_view_t* cugraph_degrees_result_get_out_degrees(
+CUGRAPH_EXPORT cugraph_type_erased_device_array_view_t* cugraph_degrees_result_get_out_degrees(
   cugraph_degrees_result_t* degrees_result);
 
 /**
@@ -384,7 +390,7 @@ cugraph_type_erased_device_array_view_t* cugraph_degrees_result_get_out_degrees(
  *
  * @param [in]    degrees_result   Opaque pointer to degree result
  */
-void cugraph_degrees_result_free(cugraph_degrees_result_t* degrees_result);
+CUGRAPH_EXPORT void cugraph_degrees_result_free(cugraph_degrees_result_t* degrees_result);
 
 /**
  * @brief       Opaque edgelist type
@@ -400,7 +406,8 @@ typedef struct {
  * @param [in]     edgelist   Opaque pointer to edgelist
  * @return type erased array view of source vertex ids
  */
-cugraph_type_erased_device_array_view_t* cugraph_edgelist_get_sources(cugraph_edgelist_t* edgelist);
+CUGRAPH_EXPORT cugraph_type_erased_device_array_view_t* cugraph_edgelist_get_sources(
+  cugraph_edgelist_t* edgelist);
 
 /**
  * @brief       Get the destination vertex ids
@@ -408,7 +415,7 @@ cugraph_type_erased_device_array_view_t* cugraph_edgelist_get_sources(cugraph_ed
  * @param [in]     edgelist   Opaque pointer to edgelist
  * @return type erased array view of destination vertex ids
  */
-cugraph_type_erased_device_array_view_t* cugraph_edgelist_get_destinations(
+CUGRAPH_EXPORT cugraph_type_erased_device_array_view_t* cugraph_edgelist_get_destinations(
   cugraph_edgelist_t* edgelist);
 
 /**
@@ -417,7 +424,7 @@ cugraph_type_erased_device_array_view_t* cugraph_edgelist_get_destinations(
  * @param [in]     edgelist   Opaque pointer to edgelist
  * @return type erased array view of edge weights
  */
-cugraph_type_erased_device_array_view_t* cugraph_edgelist_get_edge_weights(
+CUGRAPH_EXPORT cugraph_type_erased_device_array_view_t* cugraph_edgelist_get_edge_weights(
   cugraph_edgelist_t* edgelist);
 
 /**
@@ -426,7 +433,7 @@ cugraph_type_erased_device_array_view_t* cugraph_edgelist_get_edge_weights(
  * @param [in]     edgelist   Opaque pointer to edgelist
  * @return type erased array view of edge ids
  */
-cugraph_type_erased_device_array_view_t* cugraph_edgelist_get_edge_ids(
+CUGRAPH_EXPORT cugraph_type_erased_device_array_view_t* cugraph_edgelist_get_edge_ids(
   cugraph_edgelist_t* edgelist);
 
 /**
@@ -435,7 +442,7 @@ cugraph_type_erased_device_array_view_t* cugraph_edgelist_get_edge_ids(
  * @param [in]     edgelist   Opaque pointer to edgelist
  * @return type erased array view of edge types
  */
-cugraph_type_erased_device_array_view_t* cugraph_edgelist_get_edge_type_ids(
+CUGRAPH_EXPORT cugraph_type_erased_device_array_view_t* cugraph_edgelist_get_edge_type_ids(
   cugraph_edgelist_t* edgelist);
 
 /**
@@ -444,7 +451,7 @@ cugraph_type_erased_device_array_view_t* cugraph_edgelist_get_edge_type_ids(
  * @param [in]     edgelist   Opaque pointer to edgelist
  * @return type erased array view of subgraph identifiers
  */
-cugraph_type_erased_device_array_view_t* cugraph_edgelist_get_edge_offsets(
+CUGRAPH_EXPORT cugraph_type_erased_device_array_view_t* cugraph_edgelist_get_edge_offsets(
   cugraph_edgelist_t* edgelist);
 
 /**
@@ -452,7 +459,7 @@ cugraph_type_erased_device_array_view_t* cugraph_edgelist_get_edge_offsets(
  *
  * @param [in]    edgelist   Opaque pointer to edgelist
  */
-void cugraph_edgelist_free(cugraph_edgelist_t* edgelist);
+CUGRAPH_EXPORT void cugraph_edgelist_free(cugraph_edgelist_t* edgelist);
 
 /**
  * @brief       Construct the edge list from the graph view object.
@@ -466,11 +473,12 @@ void cugraph_edgelist_free(cugraph_edgelist_t* edgelist);
  *                                  be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_decompress_to_edgelist(const cugraph_resource_handle_t* handle,
-                                                    cugraph_graph_t* graph,
-                                                    bool_t do_expensive_check,
-                                                    cugraph_edgelist_t** result,
-                                                    cugraph_error_t** error);
+CUGRAPH_EXPORT cugraph_error_code_t
+cugraph_decompress_to_edgelist(const cugraph_resource_handle_t* handle,
+                               cugraph_graph_t* graph,
+                               bool_t do_expensive_check,
+                               cugraph_edgelist_t** result,
+                               cugraph_error_t** error);
 
 /**
  * @brief       Extract the vertex list from the graph view object.
@@ -484,11 +492,12 @@ cugraph_error_code_t cugraph_decompress_to_edgelist(const cugraph_resource_handl
  *                                  be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_extract_vertex_list(const cugraph_resource_handle_t* handle,
-                                                 cugraph_graph_t* graph,
-                                                 bool_t do_expensive_check,
-                                                 cugraph_type_erased_device_array_t** result,
-                                                 cugraph_error_t** error);
+CUGRAPH_EXPORT cugraph_error_code_t
+cugraph_extract_vertex_list(const cugraph_resource_handle_t* handle,
+                            cugraph_graph_t* graph,
+                            bool_t do_expensive_check,
+                            cugraph_type_erased_device_array_t** result,
+                            cugraph_error_t** error);
 
 /**
  * @brief     Renumber arbitrary edgelist
@@ -504,12 +513,14 @@ cugraph_error_code_t cugraph_extract_vertex_list(const cugraph_resource_handle_t
  * @param [out] error             Pointer to an error object storing details of any error.  Will
  *                                be populated if error code is not CUGRAPH_SUCCESS
  */
-cugraph_error_code_t cugraph_renumber_arbitrary_edgelist(
-  const cugraph_resource_handle_t* handle,
-  const cugraph_type_erased_host_array_view_t* renumber_map,
-  cugraph_type_erased_device_array_view_t* srcs,
-  cugraph_type_erased_device_array_view_t* dsts,
-  cugraph_error_t** error);
+CUGRAPH_EXPORT cugraph_error_code_t
+cugraph_renumber_arbitrary_edgelist(const cugraph_resource_handle_t* handle,
+                                    const cugraph_type_erased_host_array_view_t* renumber_map,
+                                    cugraph_type_erased_device_array_view_t* srcs,
+                                    cugraph_type_erased_device_array_view_t* dsts,
+                                    cugraph_error_t** error);
+
+#include <cugraph_c/export.h>
 
 #ifdef __cplusplus
 }

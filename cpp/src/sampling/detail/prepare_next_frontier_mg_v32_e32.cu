@@ -1,58 +1,62 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
 #include "sampling/detail/prepare_next_frontier_impl.cuh"
 
+#include <cugraph/export.hpp>
+
 namespace cugraph {
 namespace detail {
 
-template std::tuple<rmm::device_uvector<int32_t>,
-                    std::optional<rmm::device_uvector<int32_t>>,
-                    std::optional<rmm::device_uvector<int32_t>>,
-                    std::optional<std::tuple<rmm::device_uvector<int32_t>,
-                                             std::optional<rmm::device_uvector<int32_t>>,
-                                             std::optional<rmm::device_uvector<int32_t>>>>>
-prepare_next_frontier(
-  raft::handle_t const& handle,
-  raft::device_span<int32_t const> sampled_src_vertices,
-  std::optional<raft::device_span<int32_t const>> sampled_src_vertex_labels,
-  std::optional<raft::device_span<int32_t const>> sampled_src_vertex_times,
-  raft::host_span<raft::device_span<int32_t const>> sampled_dst_vertices,
-  std::optional<raft::host_span<raft::device_span<int32_t const>>> sampled_dst_vertex_labels,
-  std::optional<raft::host_span<raft::device_span<int32_t const>>> sampled_dst_vertex_times,
-  std::optional<std::tuple<rmm::device_uvector<int32_t>,
-                           std::optional<rmm::device_uvector<int32_t>>,
-                           std::optional<rmm::device_uvector<int32_t>>>>&& vertex_used_as_source,
-  raft::host_span<int32_t const> vertex_partition_range_lasts,
-  prior_sources_behavior_t prior_sources_behavior,
-  bool dedupe_sources,
-  bool multi_gpu,
-  bool do_expensive_check);
+template CUGRAPH_EXPORT
+  std::tuple<rmm::device_uvector<int32_t>,
+             std::optional<rmm::device_uvector<int32_t>>,
+             std::optional<rmm::device_uvector<int32_t>>,
+             std::optional<std::tuple<rmm::device_uvector<int32_t>,
+                                      std::optional<rmm::device_uvector<int32_t>>,
+                                      std::optional<rmm::device_uvector<int32_t>>>>>
+  prepare_next_frontier(
+    raft::handle_t const& handle,
+    raft::device_span<int32_t const> sampled_src_vertices,
+    std::optional<raft::device_span<int32_t const>> sampled_src_vertex_labels,
+    std::optional<raft::device_span<int32_t const>> sampled_src_vertex_times,
+    raft::host_span<raft::device_span<int32_t const>> sampled_dst_vertices,
+    std::optional<raft::host_span<raft::device_span<int32_t const>>> sampled_dst_vertex_labels,
+    std::optional<raft::host_span<raft::device_span<int32_t const>>> sampled_dst_vertex_times,
+    std::optional<std::tuple<rmm::device_uvector<int32_t>,
+                             std::optional<rmm::device_uvector<int32_t>>,
+                             std::optional<rmm::device_uvector<int32_t>>>>&& vertex_used_as_source,
+    raft::host_span<int32_t const> vertex_partition_range_lasts,
+    prior_sources_behavior_t prior_sources_behavior,
+    bool dedupe_sources,
+    bool multi_gpu,
+    bool do_expensive_check);
 
-template std::tuple<rmm::device_uvector<int32_t>,
-                    std::optional<rmm::device_uvector<int32_t>>,
-                    std::optional<rmm::device_uvector<int64_t>>,
-                    std::optional<std::tuple<rmm::device_uvector<int32_t>,
-                                             std::optional<rmm::device_uvector<int32_t>>,
-                                             std::optional<rmm::device_uvector<int64_t>>>>>
-prepare_next_frontier(
-  raft::handle_t const& handle,
-  raft::device_span<int32_t const> sampled_src_vertices,
-  std::optional<raft::device_span<int32_t const>> sampled_src_vertex_labels,
-  std::optional<raft::device_span<int64_t const>> sampled_src_vertex_times,
-  raft::host_span<raft::device_span<int32_t const>> sampled_dst_vertices,
-  std::optional<raft::host_span<raft::device_span<int32_t const>>> sampled_dst_vertex_labels,
-  std::optional<raft::host_span<raft::device_span<int64_t const>>> sampled_dst_vertex_times,
-  std::optional<std::tuple<rmm::device_uvector<int32_t>,
-                           std::optional<rmm::device_uvector<int32_t>>,
-                           std::optional<rmm::device_uvector<int64_t>>>>&& vertex_used_as_source,
-  raft::host_span<int32_t const> vertex_partition_range_lasts,
-  prior_sources_behavior_t prior_sources_behavior,
-  bool dedupe_sources,
-  bool multi_gpu,
-  bool do_expensive_check);
+template CUGRAPH_EXPORT
+  std::tuple<rmm::device_uvector<int32_t>,
+             std::optional<rmm::device_uvector<int32_t>>,
+             std::optional<rmm::device_uvector<int64_t>>,
+             std::optional<std::tuple<rmm::device_uvector<int32_t>,
+                                      std::optional<rmm::device_uvector<int32_t>>,
+                                      std::optional<rmm::device_uvector<int64_t>>>>>
+  prepare_next_frontier(
+    raft::handle_t const& handle,
+    raft::device_span<int32_t const> sampled_src_vertices,
+    std::optional<raft::device_span<int32_t const>> sampled_src_vertex_labels,
+    std::optional<raft::device_span<int64_t const>> sampled_src_vertex_times,
+    raft::host_span<raft::device_span<int32_t const>> sampled_dst_vertices,
+    std::optional<raft::host_span<raft::device_span<int32_t const>>> sampled_dst_vertex_labels,
+    std::optional<raft::host_span<raft::device_span<int64_t const>>> sampled_dst_vertex_times,
+    std::optional<std::tuple<rmm::device_uvector<int32_t>,
+                             std::optional<rmm::device_uvector<int32_t>>,
+                             std::optional<rmm::device_uvector<int64_t>>>>&& vertex_used_as_source,
+    raft::host_span<int32_t const> vertex_partition_range_lasts,
+    prior_sources_behavior_t prior_sources_behavior,
+    bool dedupe_sources,
+    bool multi_gpu,
+    bool do_expensive_check);
 
 }  // namespace detail
 }  // namespace cugraph

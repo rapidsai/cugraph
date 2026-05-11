@@ -4,13 +4,15 @@
  */
 #pragma once
 
+#include <cugraph/export.hpp>
+
 #include <rmm/device_uvector.hpp>
 #include <rmm/resource_ref.hpp>
 
 #include <memory>
 #include <vector>
 
-namespace cugraph {
+namespace CUGRAPH_EXPORT cugraph {
 
 template <typename vertex_t>
 class Dendrogram {
@@ -57,4 +59,4 @@ class Dendrogram {
   std::vector<std::unique_ptr<rmm::device_uvector<vertex_t>>> level_ptr_;
 };
 
-}  // namespace cugraph
+}  // namespace CUGRAPH_EXPORT cugraph

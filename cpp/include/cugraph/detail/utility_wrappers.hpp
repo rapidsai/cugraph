@@ -1,8 +1,10 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
+
+#include <cugraph/export.hpp>
 
 #include <raft/core/device_span.hpp>
 #include <raft/core/handle.hpp>
@@ -12,7 +14,7 @@
 
 #include <thrust/sequence.h>
 
-namespace cugraph {
+namespace CUGRAPH_EXPORT cugraph {
 namespace detail {
 
 /** @defgroup utility_wrappers_cpp C++ Utility Wrappers
@@ -260,4 +262,4 @@ size_t count_values(raft::handle_t const& handle,
                     data_t value);
 
 }  // namespace detail
-}  // namespace cugraph
+}  // namespace CUGRAPH_EXPORT cugraph

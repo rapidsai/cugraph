@@ -4,6 +4,8 @@
  */
 #include "sampling/detail/remove_visited_vertices_from_frontier.cuh"
 
+#include <cugraph/export.hpp>
+
 #include <raft/core/device_span.hpp>
 #include <raft/core/handle.hpp>
 
@@ -16,9 +18,9 @@
 namespace cugraph {
 namespace detail {
 
-template std::tuple<rmm::device_uvector<int32_t>,
-                    std::optional<rmm::device_uvector<int32_t>>,
-                    std::optional<rmm::device_uvector<int32_t>>>
+template CUGRAPH_EXPORT std::tuple<rmm::device_uvector<int32_t>,
+                                   std::optional<rmm::device_uvector<int32_t>>,
+                                   std::optional<rmm::device_uvector<int32_t>>>
 remove_visited_vertices_from_frontier(
   raft::handle_t const& handle,
   rmm::device_uvector<int32_t>&& frontier_vertices,
@@ -27,9 +29,9 @@ remove_visited_vertices_from_frontier(
   raft::device_span<int32_t const> vertices_used_as_source,
   std::optional<raft::device_span<int32_t const>> vertex_labels_used_as_source);
 
-template std::tuple<rmm::device_uvector<int32_t>,
-                    std::optional<rmm::device_uvector<int32_t>>,
-                    std::optional<rmm::device_uvector<int64_t>>>
+template CUGRAPH_EXPORT std::tuple<rmm::device_uvector<int32_t>,
+                                   std::optional<rmm::device_uvector<int32_t>>,
+                                   std::optional<rmm::device_uvector<int64_t>>>
 remove_visited_vertices_from_frontier(
   raft::handle_t const& handle,
   rmm::device_uvector<int32_t>&& frontier_vertices,

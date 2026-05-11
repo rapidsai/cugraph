@@ -1,10 +1,11 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
+#include <cugraph/export.hpp>
 #include <cugraph/legacy/graph.hpp>
 #include <cugraph/utilities/error.hpp>
 
@@ -320,27 +321,7 @@ void analyzeClustering_ratio_cut(raft::handle_t const& handle,
   detail::analyzeBalancedCut_impl(handle, graph, n_clusters, clustering, &dummy, score);
 }
 
-template void balancedCutClustering<int, int, float>(raft::handle_t const& handle,
-                                                     raft::random::RngState&,
-                                                     legacy::GraphCSRView<int, int, float> const&,
-                                                     int,
-                                                     int,
-                                                     float,
-                                                     int,
-                                                     float,
-                                                     int,
-                                                     int*);
-template void balancedCutClustering<int, int, double>(raft::handle_t const& handle,
-                                                      raft::random::RngState&,
-                                                      legacy::GraphCSRView<int, int, double> const&,
-                                                      int,
-                                                      int,
-                                                      double,
-                                                      int,
-                                                      double,
-                                                      int,
-                                                      int*);
-template void spectralModularityMaximization<int, int, float>(
+template CUGRAPH_EXPORT void balancedCutClustering<int, int, float>(
   raft::handle_t const& handle,
   raft::random::RngState&,
   legacy::GraphCSRView<int, int, float> const&,
@@ -351,7 +332,7 @@ template void spectralModularityMaximization<int, int, float>(
   float,
   int,
   int*);
-template void spectralModularityMaximization<int, int, double>(
+template CUGRAPH_EXPORT void balancedCutClustering<int, int, double>(
   raft::handle_t const& handle,
   raft::random::RngState&,
   legacy::GraphCSRView<int, int, double> const&,
@@ -362,37 +343,59 @@ template void spectralModularityMaximization<int, int, double>(
   double,
   int,
   int*);
-template void analyzeClustering_modularity<int, int, float>(
+template CUGRAPH_EXPORT void spectralModularityMaximization<int, int, float>(
+  raft::handle_t const& handle,
+  raft::random::RngState&,
+  legacy::GraphCSRView<int, int, float> const&,
+  int,
+  int,
+  float,
+  int,
+  float,
+  int,
+  int*);
+template CUGRAPH_EXPORT void spectralModularityMaximization<int, int, double>(
+  raft::handle_t const& handle,
+  raft::random::RngState&,
+  legacy::GraphCSRView<int, int, double> const&,
+  int,
+  int,
+  double,
+  int,
+  double,
+  int,
+  int*);
+template CUGRAPH_EXPORT void analyzeClustering_modularity<int, int, float>(
   raft::handle_t const& handle,
   legacy::GraphCSRView<int, int, float> const&,
   int,
   int const*,
   float*);
-template void analyzeClustering_modularity<int, int, double>(
+template CUGRAPH_EXPORT void analyzeClustering_modularity<int, int, double>(
   raft::handle_t const& handle,
   legacy::GraphCSRView<int, int, double> const&,
   int,
   int const*,
   double*);
-template void analyzeClustering_edge_cut<int, int, float>(
+template CUGRAPH_EXPORT void analyzeClustering_edge_cut<int, int, float>(
   raft::handle_t const& handle,
   legacy::GraphCSRView<int, int, float> const&,
   int,
   int const*,
   float*);
-template void analyzeClustering_edge_cut<int, int, double>(
+template CUGRAPH_EXPORT void analyzeClustering_edge_cut<int, int, double>(
   raft::handle_t const& handle,
   legacy::GraphCSRView<int, int, double> const&,
   int,
   int const*,
   double*);
-template void analyzeClustering_ratio_cut<int, int, float>(
+template CUGRAPH_EXPORT void analyzeClustering_ratio_cut<int, int, float>(
   raft::handle_t const& handle,
   legacy::GraphCSRView<int, int, float> const&,
   int,
   int const*,
   float*);
-template void analyzeClustering_ratio_cut<int, int, double>(
+template CUGRAPH_EXPORT void analyzeClustering_ratio_cut<int, int, double>(
   raft::handle_t const& handle,
   legacy::GraphCSRView<int, int, double> const&,
   int,

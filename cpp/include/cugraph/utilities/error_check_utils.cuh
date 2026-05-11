@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include <cugraph/export.hpp>
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
@@ -22,7 +23,7 @@
 
 #include <vector>
 
-namespace cugraph {
+namespace CUGRAPH_EXPORT cugraph {
 namespace detail {
 
 // check vertices in the pair are in [0, num_vertices) and belongs to one of the local edge
@@ -133,4 +134,4 @@ size_t count_invalid_vertex_pairs(raft::handle_t const& handle,
 }
 
 }  // namespace detail
-}  // namespace cugraph
+}  // namespace CUGRAPH_EXPORT cugraph

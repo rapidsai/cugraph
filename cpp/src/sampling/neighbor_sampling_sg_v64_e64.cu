@@ -1,22 +1,23 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
 #include "neighbor_sampling_impl.hpp"
 
 #include <cugraph/algorithms.hpp>
+#include <cugraph/export.hpp>
 #include <cugraph/sampling_functions.hpp>
 
 namespace cugraph {
 
-template std::tuple<rmm::device_uvector<int64_t>,
-                    rmm::device_uvector<int64_t>,
-                    std::optional<rmm::device_uvector<float>>,
-                    std::optional<rmm::device_uvector<int64_t>>,
-                    std::optional<rmm::device_uvector<int32_t>>,
-                    std::optional<rmm::device_uvector<int32_t>>,
-                    std::optional<rmm::device_uvector<size_t>>>
+template CUGRAPH_EXPORT std::tuple<rmm::device_uvector<int64_t>,
+                                   rmm::device_uvector<int64_t>,
+                                   std::optional<rmm::device_uvector<float>>,
+                                   std::optional<rmm::device_uvector<int64_t>>,
+                                   std::optional<rmm::device_uvector<int32_t>>,
+                                   std::optional<rmm::device_uvector<int32_t>>,
+                                   std::optional<rmm::device_uvector<size_t>>>
 heterogeneous_uniform_neighbor_sample(
   raft::handle_t const& handle,
   raft::random::RngState& rng_state,
@@ -32,13 +33,13 @@ heterogeneous_uniform_neighbor_sample(
   sampling_flags_t sampling_flags,
   bool do_expensive_check);
 
-template std::tuple<rmm::device_uvector<int64_t>,
-                    rmm::device_uvector<int64_t>,
-                    std::optional<rmm::device_uvector<double>>,
-                    std::optional<rmm::device_uvector<int64_t>>,
-                    std::optional<rmm::device_uvector<int32_t>>,
-                    std::optional<rmm::device_uvector<int32_t>>,
-                    std::optional<rmm::device_uvector<size_t>>>
+template CUGRAPH_EXPORT std::tuple<rmm::device_uvector<int64_t>,
+                                   rmm::device_uvector<int64_t>,
+                                   std::optional<rmm::device_uvector<double>>,
+                                   std::optional<rmm::device_uvector<int64_t>>,
+                                   std::optional<rmm::device_uvector<int32_t>>,
+                                   std::optional<rmm::device_uvector<int32_t>>,
+                                   std::optional<rmm::device_uvector<size_t>>>
 heterogeneous_uniform_neighbor_sample(
   raft::handle_t const& handle,
   raft::random::RngState& rng_state,
@@ -54,13 +55,13 @@ heterogeneous_uniform_neighbor_sample(
   sampling_flags_t sampling_flags,
   bool do_expensive_check);
 
-template std::tuple<rmm::device_uvector<int64_t>,
-                    rmm::device_uvector<int64_t>,
-                    std::optional<rmm::device_uvector<double>>,
-                    std::optional<rmm::device_uvector<int64_t>>,
-                    std::optional<rmm::device_uvector<int32_t>>,
-                    std::optional<rmm::device_uvector<int32_t>>,
-                    std::optional<rmm::device_uvector<size_t>>>
+template CUGRAPH_EXPORT std::tuple<rmm::device_uvector<int64_t>,
+                                   rmm::device_uvector<int64_t>,
+                                   std::optional<rmm::device_uvector<double>>,
+                                   std::optional<rmm::device_uvector<int64_t>>,
+                                   std::optional<rmm::device_uvector<int32_t>>,
+                                   std::optional<rmm::device_uvector<int32_t>>,
+                                   std::optional<rmm::device_uvector<size_t>>>
 heterogeneous_biased_neighbor_sample(
   raft::handle_t const& handle,
   raft::random::RngState& rng_state,
@@ -77,13 +78,13 @@ heterogeneous_biased_neighbor_sample(
   sampling_flags_t sampling_flags,
   bool do_expensive_check);
 
-template std::tuple<rmm::device_uvector<int64_t>,
-                    rmm::device_uvector<int64_t>,
-                    std::optional<rmm::device_uvector<float>>,
-                    std::optional<rmm::device_uvector<int64_t>>,
-                    std::optional<rmm::device_uvector<int32_t>>,
-                    std::optional<rmm::device_uvector<int32_t>>,
-                    std::optional<rmm::device_uvector<size_t>>>
+template CUGRAPH_EXPORT std::tuple<rmm::device_uvector<int64_t>,
+                                   rmm::device_uvector<int64_t>,
+                                   std::optional<rmm::device_uvector<float>>,
+                                   std::optional<rmm::device_uvector<int64_t>>,
+                                   std::optional<rmm::device_uvector<int32_t>>,
+                                   std::optional<rmm::device_uvector<int32_t>>,
+                                   std::optional<rmm::device_uvector<size_t>>>
 heterogeneous_biased_neighbor_sample(
   raft::handle_t const& handle,
   raft::random::RngState& rng_state,
@@ -100,13 +101,13 @@ heterogeneous_biased_neighbor_sample(
   sampling_flags_t sampling_flags,
   bool do_expensive_check);
 
-template std::tuple<rmm::device_uvector<int64_t>,
-                    rmm::device_uvector<int64_t>,
-                    std::optional<rmm::device_uvector<float>>,
-                    std::optional<rmm::device_uvector<int64_t>>,
-                    std::optional<rmm::device_uvector<int32_t>>,
-                    std::optional<rmm::device_uvector<int32_t>>,
-                    std::optional<rmm::device_uvector<size_t>>>
+template CUGRAPH_EXPORT std::tuple<rmm::device_uvector<int64_t>,
+                                   rmm::device_uvector<int64_t>,
+                                   std::optional<rmm::device_uvector<float>>,
+                                   std::optional<rmm::device_uvector<int64_t>>,
+                                   std::optional<rmm::device_uvector<int32_t>>,
+                                   std::optional<rmm::device_uvector<int32_t>>,
+                                   std::optional<rmm::device_uvector<size_t>>>
 homogeneous_uniform_neighbor_sample(
   raft::handle_t const& handle,
   raft::random::RngState& rng_state,
@@ -121,13 +122,13 @@ homogeneous_uniform_neighbor_sample(
   sampling_flags_t sampling_flags,
   bool do_expensive_check);
 
-template std::tuple<rmm::device_uvector<int64_t>,
-                    rmm::device_uvector<int64_t>,
-                    std::optional<rmm::device_uvector<double>>,
-                    std::optional<rmm::device_uvector<int64_t>>,
-                    std::optional<rmm::device_uvector<int32_t>>,
-                    std::optional<rmm::device_uvector<int32_t>>,
-                    std::optional<rmm::device_uvector<size_t>>>
+template CUGRAPH_EXPORT std::tuple<rmm::device_uvector<int64_t>,
+                                   rmm::device_uvector<int64_t>,
+                                   std::optional<rmm::device_uvector<double>>,
+                                   std::optional<rmm::device_uvector<int64_t>>,
+                                   std::optional<rmm::device_uvector<int32_t>>,
+                                   std::optional<rmm::device_uvector<int32_t>>,
+                                   std::optional<rmm::device_uvector<size_t>>>
 homogeneous_uniform_neighbor_sample(
   raft::handle_t const& handle,
   raft::random::RngState& rng_state,
@@ -142,13 +143,13 @@ homogeneous_uniform_neighbor_sample(
   sampling_flags_t sampling_flags,
   bool do_expensive_check);
 
-template std::tuple<rmm::device_uvector<int64_t>,
-                    rmm::device_uvector<int64_t>,
-                    std::optional<rmm::device_uvector<double>>,
-                    std::optional<rmm::device_uvector<int64_t>>,
-                    std::optional<rmm::device_uvector<int32_t>>,
-                    std::optional<rmm::device_uvector<int32_t>>,
-                    std::optional<rmm::device_uvector<size_t>>>
+template CUGRAPH_EXPORT std::tuple<rmm::device_uvector<int64_t>,
+                                   rmm::device_uvector<int64_t>,
+                                   std::optional<rmm::device_uvector<double>>,
+                                   std::optional<rmm::device_uvector<int64_t>>,
+                                   std::optional<rmm::device_uvector<int32_t>>,
+                                   std::optional<rmm::device_uvector<int32_t>>,
+                                   std::optional<rmm::device_uvector<size_t>>>
 homogeneous_biased_neighbor_sample(
   raft::handle_t const& handle,
   raft::random::RngState& rng_state,
@@ -164,13 +165,13 @@ homogeneous_biased_neighbor_sample(
   sampling_flags_t sampling_flags,
   bool do_expensive_check);
 
-template std::tuple<rmm::device_uvector<int64_t>,
-                    rmm::device_uvector<int64_t>,
-                    std::optional<rmm::device_uvector<float>>,
-                    std::optional<rmm::device_uvector<int64_t>>,
-                    std::optional<rmm::device_uvector<int32_t>>,
-                    std::optional<rmm::device_uvector<int32_t>>,
-                    std::optional<rmm::device_uvector<size_t>>>
+template CUGRAPH_EXPORT std::tuple<rmm::device_uvector<int64_t>,
+                                   rmm::device_uvector<int64_t>,
+                                   std::optional<rmm::device_uvector<float>>,
+                                   std::optional<rmm::device_uvector<int64_t>>,
+                                   std::optional<rmm::device_uvector<int32_t>>,
+                                   std::optional<rmm::device_uvector<int32_t>>,
+                                   std::optional<rmm::device_uvector<size_t>>>
 homogeneous_biased_neighbor_sample(
   raft::handle_t const& handle,
   raft::random::RngState& rng_state,
