@@ -6,6 +6,7 @@ on:
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
+permissions: {}
 jobs:
   # Please keep pr-builder as the top job here
   pr-builder:
@@ -27,11 +28,12 @@ jobs:
       - wheel-tests-cugraph
       - telemetry-setup
       - devcontainer
-    secrets: inherit
     uses: rapidsai/shared-workflows/.github/workflows/pr-builder.yaml@main
     if: always()
     with:
       needs: ${{ toJSON(needs) }}
+    permissions:
+      contents: read
   telemetry-setup:
     runs-on: ubuntu-latest
     continue-on-error: true
@@ -51,7 +53,7 @@ jobs:
     steps:
       - name: Get PR Info
         id: get-pr-info
-        uses: nv-gha-runners/get-pr-info@main
+        uses: nv-gha-runners/get-pr-info@090577647b8ddc4e06e809e264f7881650ecdccf # main
       - name: Check if nightly CI is passing
         uses: rapidsai/shared-actions/check_nightly_success/dispatch@main
         with:
@@ -60,7 +62,6 @@ jobs:
           # TODO: remove this when nightly tests are passing again (ref: https://github.com/rapidsai/cugraph/issues/5421)
           max-days-without-success: 21
   changed-files:
-    secrets: inherit
     needs: telemetry-setup
     uses: rapidsai/shared-workflows/.github/workflows/changed-files.yaml@main
     with:
@@ -212,24 +213,36 @@ jobs:
           - '!img/**'
           - '!notebooks/**'
           - '!readme_pages/**'
+    permissions:
+      actions: read
+      contents: read
+      packages: read
+      pull-requests: read
   checks:
-    secrets: inherit
     needs: telemetry-setup
     uses: rapidsai/shared-workflows/.github/workflows/checks.yaml@main
     with:
       enable_check_generated_files: false
       ignored_pr_jobs: telemetry-summarize
+    permissions:
+      contents: read
   conda-cpp-build:
     needs: checks
-    secrets: inherit
+    secrets: inherit # zizmor: ignore[secrets-inherit]
     uses: rapidsai/shared-workflows/.github/workflows/conda-cpp-build.yaml@main
     with:
       build_type: pull-request
       node_type: cpu16
       script: ci/build_cpp.sh
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+      packages: read
+      pull-requests: read
   conda-cpp-tests:
     needs: [conda-cpp-build, changed-files]
-    secrets: inherit
+    secrets: inherit # zizmor: ignore[secrets-inherit]
     uses: rapidsai/shared-workflows/.github/workflows/conda-cpp-tests.yaml@main
     if: fromJSON(needs.changed-files.outputs.changed_file_groups).test_cpp
     with:
@@ -238,25 +251,42 @@ jobs:
       # TODO(#5498): Drop this filter once libcugraph no longer requires a CUDA >= 12.8
       # cudart at runtime (ideally by statically linking libcudart again).
       matrix_filter: map(select(.CUDA_VER | split(".") | map(tonumber) >= [12, 9]))
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+      packages: read
+      pull-requests: read
   conda-cpp-checks:
     needs: conda-cpp-build
-    secrets: inherit
     uses: rapidsai/shared-workflows/.github/workflows/conda-cpp-post-build-checks.yaml@main
     with:
       build_type: pull-request
       symbol_exclusions: (cugraph::ops|hornet|void writeEdgeCountsKernel|void markUniqueOffsetsKernel)
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+      packages: read
+      pull-requests: read
   conda-python-build:
     needs: conda-cpp-build
-    secrets: inherit
+    secrets: inherit # zizmor: ignore[secrets-inherit]
     uses: rapidsai/shared-workflows/.github/workflows/conda-python-build.yaml@main
     with:
       build_type: pull-request
       script: ci/build_python.sh
       # Build a conda package for each CUDA x ARCH x minimum supported Python version
       matrix_filter: group_by({CUDA_VER, ARCH}) | map(min_by(.PY_VER | split(".") | map(tonumber)))
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+      packages: read
+      pull-requests: read
   conda-python-tests:
     needs: [conda-python-build, changed-files]
-    secrets: inherit
+    secrets: inherit # zizmor: ignore[secrets-inherit]
     uses: rapidsai/shared-workflows/.github/workflows/conda-python-tests.yaml@main
     if: fromJSON(needs.changed-files.outputs.changed_file_groups).test_python_conda
     with:
@@ -265,9 +295,15 @@ jobs:
       # TODO(#5498): Drop this filter once libcugraph no longer requires a CUDA >= 12.8
       # cudart at runtime (ideally by statically linking libcudart again).
       matrix_filter: map(select(.CUDA_VER | split(".") | map(tonumber) >= [12, 9]))
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+      packages: read
+      pull-requests: read
   conda-notebook-tests:
     needs: [conda-python-build, changed-files]
-    secrets: inherit
+    secrets: inherit # zizmor: ignore[secrets-inherit]
     uses: rapidsai/shared-workflows/.github/workflows/custom-job.yaml@main
     if: fromJSON(needs.changed-files.outputs.changed_file_groups).test_notebooks
     with:
@@ -276,9 +312,15 @@ jobs:
       arch: "amd64"
       container_image: "rapidsai/ci-conda:26.06-latest"
       script: "ci/test_notebooks.sh"
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+      packages: read
+      pull-requests: read
   docs-build:
     needs: [conda-python-build, changed-files]
-    secrets: inherit
+    secrets: inherit # zizmor: ignore[secrets-inherit]
     uses: rapidsai/shared-workflows/.github/workflows/custom-job.yaml@main
     if: fromJSON(needs.changed-files.outputs.changed_file_groups).build_docs
     with:
@@ -287,9 +329,15 @@ jobs:
       arch: "amd64"
       container_image: "rapidsai/ci-conda:26.06-latest"
       script: "ci/build_docs.sh"
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+      packages: read
+      pull-requests: read
   wheel-build-libcugraph:
     needs: checks
-    secrets: inherit
+    secrets: inherit # zizmor: ignore[secrets-inherit]
     uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@main
     with:
       # build for every combination of arch and CUDA version, but only for the latest Python
@@ -299,9 +347,15 @@ jobs:
       script: ci/build_wheel_libcugraph.sh
       package-name: libcugraph
       package-type: cpp
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+      packages: read
+      pull-requests: read
   wheel-build-pylibcugraph:
     needs: wheel-build-libcugraph
-    secrets: inherit
+    secrets: inherit # zizmor: ignore[secrets-inherit]
     uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@main
     with:
       build_type: pull-request
@@ -311,9 +365,15 @@ jobs:
       package-type: python
       # Build a wheel for each CUDA x ARCH x minimum supported Python version
       matrix_filter: group_by({CUDA_VER, ARCH}) | map(min_by(.PY_VER | split(".") | map(tonumber)))
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+      packages: read
+      pull-requests: read
   wheel-tests-pylibcugraph:
     needs: [wheel-build-pylibcugraph, changed-files]
-    secrets: inherit
+    secrets: inherit # zizmor: ignore[secrets-inherit]
     uses: rapidsai/shared-workflows/.github/workflows/wheels-test.yaml@main
     if: fromJSON(needs.changed-files.outputs.changed_file_groups).test_python_wheels
     with:
@@ -322,9 +382,15 @@ jobs:
       # TODO(#5498): Drop this filter once libcugraph no longer requires a CUDA >= 12.8
       # cudart at runtime (ideally by statically linking libcudart again).
       matrix_filter: map(select(.CUDA_VER | split(".") | map(tonumber) >= [12, 9]))
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+      packages: read
+      pull-requests: read
   wheel-build-cugraph:
     needs: wheel-build-pylibcugraph
-    secrets: inherit
+    secrets: inherit # zizmor: ignore[secrets-inherit]
     uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@main
     with:
       build_type: pull-request
@@ -334,9 +400,15 @@ jobs:
       package-type: python
       # Build a wheel for each CUDA x ARCH x minimum supported Python version
       matrix_filter: group_by({CUDA_VER, ARCH}) | map(min_by(.PY_VER | split(".") | map(tonumber)))
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+      packages: read
+      pull-requests: read
   wheel-tests-cugraph:
     needs: [wheel-build-cugraph, changed-files]
-    secrets: inherit
+    secrets: inherit # zizmor: ignore[secrets-inherit]
     uses: rapidsai/shared-workflows/.github/workflows/wheels-test.yaml@main
     if: fromJSON(needs.changed-files.outputs.changed_file_groups).test_python_wheels
     with:
@@ -345,8 +417,14 @@ jobs:
       # TODO(#5498): Drop this filter once libcugraph no longer requires a CUDA >= 12.8
       # cudart at runtime (ideally by statically linking libcudart again).
       matrix_filter: map(select(.CUDA_VER | split(".") | map(tonumber) >= [12, 9]))
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+      packages: read
+      pull-requests: read
   devcontainer:
-    secrets: inherit
+    secrets: inherit # zizmor: ignore[secrets-inherit]
     needs: telemetry-setup
     uses: rapidsai/shared-workflows/.github/workflows/build-in-devcontainer.yaml@main
     with:
@@ -361,6 +439,12 @@ jobs:
         sccache --zero-stats;
         build-all -j0 --verbose -DBUILD_CUGRAPH_MG_TESTS=ON 2>&1 | tee telemetry-artifacts/build.log;
         sccache --show-adv-stats | tee telemetry-artifacts/sccache-stats.txt;
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+      packages: read
+      pull-requests: read
   telemetry-summarize:
     # This job must use a self-hosted runner to record telemetry traces.
     runs-on: linux-amd64-cpu4
