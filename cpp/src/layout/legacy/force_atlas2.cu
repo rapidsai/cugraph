@@ -1,10 +1,12 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
 #include "barnes_hut.cuh"
 #include "exact_fa2.cuh"
+
+#include <cugraph/export.hpp>
 
 namespace cugraph {
 
@@ -84,7 +86,7 @@ void force_atlas2(raft::handle_t const& handle,
   }
 }
 
-template void force_atlas2<int32_t, int32_t, float>(
+template CUGRAPH_EXPORT void force_atlas2<int32_t, int32_t, float>(
   raft::handle_t const& handle,
   raft::random::RngState& rng_state,
   legacy::GraphCOOView<int32_t, int32_t, float>& graph,
@@ -109,7 +111,7 @@ template void force_atlas2<int32_t, int32_t, float>(
   bool verbose,
   internals::GraphBasedDimRedCallback* callback);
 
-template void force_atlas2<int32_t, int32_t, double>(
+template CUGRAPH_EXPORT void force_atlas2<int32_t, int32_t, double>(
   raft::handle_t const& handle,
   raft::random::RngState& rng_state,
   legacy::GraphCOOView<int32_t, int32_t, double>& graph,
@@ -134,7 +136,7 @@ template void force_atlas2<int32_t, int32_t, double>(
   bool verbose,
   internals::GraphBasedDimRedCallback* callback);
 
-template void force_atlas2<int64_t, int64_t, float>(
+template CUGRAPH_EXPORT void force_atlas2<int64_t, int64_t, float>(
   raft::handle_t const& handle,
   raft::random::RngState& rng_state,
   legacy::GraphCOOView<int64_t, int64_t, float>& graph,
@@ -159,7 +161,7 @@ template void force_atlas2<int64_t, int64_t, float>(
   bool verbose,
   internals::GraphBasedDimRedCallback* callback);
 
-template void force_atlas2<int64_t, int64_t, double>(
+template CUGRAPH_EXPORT void force_atlas2<int64_t, int64_t, double>(
   raft::handle_t const& handle,
   raft::random::RngState& rng_state,
   legacy::GraphCOOView<int64_t, int64_t, double>& graph,

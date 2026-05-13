@@ -5,12 +5,13 @@
 #pragma once
 
 #include <cugraph/edge_src_dst_property.hpp>
+#include <cugraph/export.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/prims/fill_edge_src_dst_property.cuh>
 
 #include <raft/core/handle.hpp>
 
-namespace cugraph {
+namespace CUGRAPH_EXPORT cugraph {
 
 /**
  * @brief Create an edge source property and fill the entire buffer with the given value.
@@ -84,4 +85,4 @@ edge_dst_property_t<typename GraphViewType::vertex_type, T> make_initialized_edg
   return edge_dst_prop;
 }
 
-}  // namespace cugraph
+}  // namespace CUGRAPH_EXPORT cugraph

@@ -4,6 +4,7 @@
  */
 #pragma once
 
+#include <cugraph/export.hpp>
 #include <cugraph/utilities/iterator_utils.hpp>
 #include <cugraph/utilities/packed_bool_utils.hpp>
 #include <cugraph/utilities/thrust_tuple_utils.hpp>
@@ -14,7 +15,7 @@
 #include <thrust/iterator/detail/any_assign.h>
 #include <thrust/memory.h>
 
-namespace cugraph {
+namespace CUGRAPH_EXPORT cugraph {
 
 namespace detail {
 
@@ -258,4 +259,4 @@ __device__ void packed_bool_atomic_set(Iterator iter, T offset, bool val)
   }
 }
 
-}  // namespace cugraph
+}  // namespace CUGRAPH_EXPORT cugraph

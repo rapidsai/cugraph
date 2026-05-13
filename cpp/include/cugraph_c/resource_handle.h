@@ -1,11 +1,12 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2024, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
 #pragma once
 
 #include <cugraph_c/error.h>
+#include <cugraph_c/export.h>
 #include <cugraph_c/types.h>
 
 #include <stddef.h>
@@ -31,7 +32,7 @@ typedef struct cugraph_resource_handle_ {
  *
  * @return A graph resource handle
  */
-cugraph_resource_handle_t* cugraph_create_resource_handle(void* raft_handle);
+CUGRAPH_EXPORT cugraph_resource_handle_t* cugraph_create_resource_handle(void* raft_handle);
 
 /**
  * @brief get comm_size from resource handle
@@ -43,7 +44,7 @@ cugraph_resource_handle_t* cugraph_create_resource_handle(void* raft_handle);
  * @param [in]  handle          Handle for accessing resources
  * @return comm_size
  */
-int cugraph_resource_handle_get_comm_size(const cugraph_resource_handle_t* handle);
+CUGRAPH_EXPORT int cugraph_resource_handle_get_comm_size(const cugraph_resource_handle_t* handle);
 
 /**
  * @brief get rank from resource handle
@@ -55,14 +56,16 @@ int cugraph_resource_handle_get_comm_size(const cugraph_resource_handle_t* handl
  * @param [in]  handle          Handle for accessing resources
  * @return rank
  */
-int cugraph_resource_handle_get_rank(const cugraph_resource_handle_t* handle);
+CUGRAPH_EXPORT int cugraph_resource_handle_get_rank(const cugraph_resource_handle_t* handle);
 
 /**
  * @brief     Free resources in the resource handle
  *
  * @param [in]  handle          Handle for accessing resources
  */
-void cugraph_free_resource_handle(cugraph_resource_handle_t* handle);
+CUGRAPH_EXPORT void cugraph_free_resource_handle(cugraph_resource_handle_t* handle);
+
+#include <cugraph_c/export.h>
 
 #ifdef __cplusplus
 }

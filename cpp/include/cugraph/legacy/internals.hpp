@@ -1,13 +1,15 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2022, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
 #pragma once
 
+#include <cugraph/export.hpp>
+
 #include <type_traits>
 
-namespace cugraph {
+namespace CUGRAPH_EXPORT cugraph {
 namespace internals {
 
 class Callback {
@@ -35,4 +37,4 @@ class GraphBasedDimRedCallback : public Callback {
 };
 
 }  // namespace internals
-}  // namespace cugraph
+}  // namespace CUGRAPH_EXPORT cugraph

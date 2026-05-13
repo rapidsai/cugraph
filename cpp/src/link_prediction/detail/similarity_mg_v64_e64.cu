@@ -5,10 +5,12 @@
 
 #include "link_prediction/detail/similarity_impl.cuh"
 
+#include <cugraph/export.hpp>
+
 namespace cugraph {
 namespace detail {
 
-template rmm::device_uvector<float> similarity<int64_t, int64_t, float, true>(
+template CUGRAPH_EXPORT rmm::device_uvector<float> similarity<int64_t, int64_t, float, true>(
   raft::handle_t const& handle,
   graph_view_t<int64_t, int64_t, false, true> const& graph_view,
   std::optional<edge_property_view_t<int64_t, float const*>> edge_weight_view,
@@ -16,7 +18,7 @@ template rmm::device_uvector<float> similarity<int64_t, int64_t, float, true>(
   coefficient_t coeff,
   bool do_expensive_check);
 
-template rmm::device_uvector<double> similarity<int64_t, int64_t, double, true>(
+template CUGRAPH_EXPORT rmm::device_uvector<double> similarity<int64_t, int64_t, double, true>(
   raft::handle_t const& handle,
   graph_view_t<int64_t, int64_t, false, true> const& graph_view,
   std::optional<edge_property_view_t<int64_t, double const*>> edge_weight_view,
@@ -24,8 +26,8 @@ template rmm::device_uvector<double> similarity<int64_t, int64_t, double, true>(
   coefficient_t coeff,
   bool do_expensive_check);
 
-template std::
-  tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<int64_t>, rmm::device_uvector<float>>
+template CUGRAPH_EXPORT
+  std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<int64_t>, rmm::device_uvector<float>>
   all_pairs_similarity<int64_t, int64_t, float, true>(
     raft::handle_t const& handle,
     graph_view_t<int64_t, int64_t, false, true> const& graph_view,
@@ -35,7 +37,7 @@ template std::
     coefficient_t coeff,
     bool do_expensive_check);
 
-template std::
+template CUGRAPH_EXPORT std::
   tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<int64_t>, rmm::device_uvector<double>>
   all_pairs_similarity<int64_t, int64_t, double, true>(
     raft::handle_t const& handle,

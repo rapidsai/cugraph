@@ -4,6 +4,8 @@
  */
 #pragma once
 
+#include <cugraph/export.hpp>
+
 #include <raft/core/device_span.hpp>
 #include <raft/core/handle.hpp>
 #include <raft/util/cudart_utils.hpp>
@@ -23,7 +25,7 @@
 #include <tuple>
 #include <vector>
 
-namespace cugraph {
+namespace CUGRAPH_EXPORT cugraph {
 
 namespace detail {
 
@@ -129,4 +131,4 @@ rmm::device_uvector<idx_t> expand_sparse_offsets(raft::device_span<offset_t cons
 
 }  // namespace detail
 
-}  // namespace cugraph
+}  // namespace CUGRAPH_EXPORT cugraph

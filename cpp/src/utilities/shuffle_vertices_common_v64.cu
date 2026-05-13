@@ -1,0 +1,27 @@
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+#include "shuffle_vertices.cuh"
+
+#include <cugraph/export.hpp>
+
+namespace cugraph {
+
+template CUGRAPH_EXPORT
+  std::tuple<rmm::device_uvector<int64_t>, std::vector<arithmetic_device_uvector_t>>
+  shuffle_ext_vertices(raft::handle_t const& handle,
+                       rmm::device_uvector<int64_t>&& vertices,
+                       std::vector<arithmetic_device_uvector_t>&& vertex_properties,
+                       std::optional<large_buffer_type_t> large_buffer_type);
+
+template CUGRAPH_EXPORT
+  std::tuple<rmm::device_uvector<int64_t>, std::vector<arithmetic_device_uvector_t>>
+  shuffle_int_vertices(raft::handle_t const& handle,
+                       rmm::device_uvector<int64_t>&& vertices,
+                       std::vector<arithmetic_device_uvector_t>&& vertex_properties,
+                       raft::host_span<int64_t const> vertex_partition_range_last,
+                       std::optional<large_buffer_type_t> large_buffer_type);
+
+}  // namespace cugraph
