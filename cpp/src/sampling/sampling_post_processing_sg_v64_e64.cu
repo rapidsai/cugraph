@@ -1,22 +1,23 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2023-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
 #include "sampling_post_processing_impl.cuh"
 
+#include <cugraph/export.hpp>
 #include <cugraph/sampling_functions.hpp>
 
 namespace cugraph {
 
-template std::tuple<std::optional<rmm::device_uvector<int64_t>>,
-                    rmm::device_uvector<size_t>,
-                    rmm::device_uvector<int64_t>,
-                    std::vector<arithmetic_device_uvector_t>,
-                    std::optional<rmm::device_uvector<int32_t>>,
-                    std::optional<rmm::device_uvector<size_t>>,
-                    rmm::device_uvector<int64_t>,
-                    std::optional<rmm::device_uvector<size_t>>>
+template CUGRAPH_EXPORT std::tuple<std::optional<rmm::device_uvector<int64_t>>,
+                                   rmm::device_uvector<size_t>,
+                                   rmm::device_uvector<int64_t>,
+                                   std::vector<arithmetic_device_uvector_t>,
+                                   std::optional<rmm::device_uvector<int32_t>>,
+                                   std::optional<rmm::device_uvector<size_t>>,
+                                   rmm::device_uvector<int64_t>,
+                                   std::optional<rmm::device_uvector<size_t>>>
 renumber_and_compress_sampled_edgelist(
   raft::handle_t const& handle,
   rmm::device_uvector<int64_t>&& edgelist_srcs,
@@ -34,12 +35,12 @@ renumber_and_compress_sampled_edgelist(
   bool doubly_compress,
   bool do_expensive_check);
 
-template std::tuple<rmm::device_uvector<int64_t>,
-                    rmm::device_uvector<int64_t>,
-                    std::vector<arithmetic_device_uvector_t>,
-                    std::optional<rmm::device_uvector<size_t>>,
-                    rmm::device_uvector<int64_t>,
-                    std::optional<rmm::device_uvector<size_t>>>
+template CUGRAPH_EXPORT std::tuple<rmm::device_uvector<int64_t>,
+                                   rmm::device_uvector<int64_t>,
+                                   std::vector<arithmetic_device_uvector_t>,
+                                   std::optional<rmm::device_uvector<size_t>>,
+                                   rmm::device_uvector<int64_t>,
+                                   std::optional<rmm::device_uvector<size_t>>>
 renumber_and_sort_sampled_edgelist(
   raft::handle_t const& handle,
   rmm::device_uvector<int64_t>&& edgelist_srcs,
@@ -54,15 +55,15 @@ renumber_and_sort_sampled_edgelist(
   bool src_is_major,
   bool do_expensive_check);
 
-template std::tuple<rmm::device_uvector<int64_t>,
-                    rmm::device_uvector<int64_t>,
-                    std::vector<arithmetic_device_uvector_t>,
-                    std::optional<rmm::device_uvector<int64_t>>,
-                    std::optional<rmm::device_uvector<size_t>>,
-                    rmm::device_uvector<int64_t>,
-                    rmm::device_uvector<size_t>,
-                    std::optional<rmm::device_uvector<int64_t>>,
-                    std::optional<rmm::device_uvector<size_t>>>
+template CUGRAPH_EXPORT std::tuple<rmm::device_uvector<int64_t>,
+                                   rmm::device_uvector<int64_t>,
+                                   std::vector<arithmetic_device_uvector_t>,
+                                   std::optional<rmm::device_uvector<int64_t>>,
+                                   std::optional<rmm::device_uvector<size_t>>,
+                                   rmm::device_uvector<int64_t>,
+                                   rmm::device_uvector<size_t>,
+                                   std::optional<rmm::device_uvector<int64_t>>,
+                                   std::optional<rmm::device_uvector<size_t>>>
 heterogeneous_renumber_and_sort_sampled_edgelist(
   raft::handle_t const& handle,
   rmm::device_uvector<int64_t>&& edgelist_srcs,
@@ -82,10 +83,10 @@ heterogeneous_renumber_and_sort_sampled_edgelist(
   bool src_is_major,
   bool do_expensive_check);
 
-template std::tuple<rmm::device_uvector<int64_t>,
-                    rmm::device_uvector<int64_t>,
-                    std::vector<arithmetic_device_uvector_t>,
-                    std::optional<rmm::device_uvector<size_t>>>
+template CUGRAPH_EXPORT std::tuple<rmm::device_uvector<int64_t>,
+                                   rmm::device_uvector<int64_t>,
+                                   std::vector<arithmetic_device_uvector_t>,
+                                   std::optional<rmm::device_uvector<size_t>>>
 sort_sampled_edgelist(raft::handle_t const& handle,
                       rmm::device_uvector<int64_t>&& edgelist_srcs,
                       rmm::device_uvector<int64_t>&& edgelist_dsts,

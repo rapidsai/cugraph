@@ -1,11 +1,10 @@
 # =============================================================================
 # cmake-format: off
-# SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 # cmake-format: on
 # =============================================================================
 
-add_subdirectory(components)
 add_subdirectory(internal_types)
 add_subdirectory(testing)
 add_subdirectory(comms)
@@ -52,6 +51,7 @@ set(cython_sources
     biased_random_walks.pyx
     utils.pyx
     weakly_connected_components.pyx
+    strongly_connected_components.pyx
     replicate_edgelist.pyx
     degrees.pyx
     all_pairs_jaccard_coefficients.pyx
@@ -74,7 +74,7 @@ set(cython_sources
     minimum_spanning_tree.pyx
     extract_vertex_list.pyx
 )
-set(linked_libraries cugraph::cugraph;cugraph::cugraph_c)
+set(linked_libraries cugraph::cugraph;cugraph::cugraph_mg;cugraph::cugraph_c)
 
 rapids_cython_create_modules(
   CXX

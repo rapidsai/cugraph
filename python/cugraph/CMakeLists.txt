@@ -1,6 +1,8 @@
 # =============================================================================
-# SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+# cmake-format: off
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
+# cmake-format: on
 # =============================================================================
 
 cmake_minimum_required(VERSION 3.30.4 FATAL_ERROR)
@@ -24,7 +26,6 @@ include(rapids-cython-core)
 
 rapids_cython_init()
 
-add_subdirectory(cugraph/components)
 add_subdirectory(cugraph/dask/structure)
 add_subdirectory(cugraph/internals)
 add_subdirectory(cugraph/linear_assignment)

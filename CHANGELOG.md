@@ -1,3 +1,53 @@
+# cugraph 26.04.00 (8 Apr 2026)
+
+### 🚨 Breaking Changes
+* cuGraph now is two shared libraries due to linker requirements by @robertmaynard in https://github.com/rapidsai/cugraph/pull/5452
+### 🐛 Bug Fixes
+* We updated RAPIDS to use C++ 20, but missed updating cugraph etl by @ChuckHastings in https://github.com/rapidsai/cugraph/pull/5408
+* Add our own is_discard_iterator as thrust removed it in 3.2 by @robertmaynard in https://github.com/rapidsai/cugraph/pull/5416
+* Fix memory allocation failure in SG betweenness centrality for small-diameter graphs by @seunghwak in https://github.com/rapidsai/cugraph/pull/5432
+* Fix null optional dereference in temporal_partition_vertices by @ChuckHastings in https://github.com/rapidsai/cugraph/pull/5446
+### 🚀 New Features
+* Add RAPIDS Doctor Smoke Test/Smoke Check for cuGraph by @alexbarghi-nv in https://github.com/rapidsai/cugraph/pull/5451
+### 🛠️ Improvements
+* Drop Python 3.10 support by @gforsyth in https://github.com/rapidsai/cugraph/pull/5412
+* Use verify-hardcoded-version pre-commit hook by @KyleFromNVIDIA in https://github.com/rapidsai/cugraph/pull/5411
+* tighten wheel size limits, expand CI-skipping logic, other small build changes by @jameslamb in https://github.com/rapidsai/cugraph/pull/5413
+* remove pip.conf migration code in CI scripts, update CI-skipping rules by @jameslamb in https://github.com/rapidsai/cugraph/pull/5415
+* Replace .values_host with .to_numpy() by @bdice in https://github.com/rapidsai/cugraph/pull/5420
+* refactor: build wheels and conda packages using Python limited API by @gforsyth in https://github.com/rapidsai/cugraph/pull/5419
+* Use GHA id-token for `sccache-dist` auth token by @trxcllnt in https://github.com/rapidsai/cugraph/pull/5425
+* Temporarily disable RTX PRO 6000 PR CI by @bdice in https://github.com/rapidsai/cugraph/pull/5422
+* refactor C++ examples for new RAPIDS branching strategy by @jameslamb in https://github.com/rapidsai/cugraph/pull/5423
+* check-nightly-ci: update to new version by @jameslamb in https://github.com/rapidsai/cugraph/pull/5433
+* Temporarily disables tests on RTX Pro 6000 for nightly runs by @rlratzel in https://github.com/rapidsai/cugraph/pull/5434
+* remove references to 'nvidia' and 'pytorch' conda channels by @jameslamb in https://github.com/rapidsai/cugraph/pull/5426
+* check-nightly-ci: remove testing config by @jameslamb in https://github.com/rapidsai/cugraph/pull/5436
+* Update raft headers by @aamijar in https://github.com/rapidsai/cugraph/pull/5429
+* Drop `thrust::constant_iterator` in favor of `cuda::constant_iterator` by @miscco in https://github.com/rapidsai/cugraph/pull/5430
+* Drop usage of thrust function objects in favor of cuda::std ones by @miscco in https://github.com/rapidsai/cugraph/pull/5431
+* Fix ucx link errors in pip devcontainers by @trxcllnt in https://github.com/rapidsai/cugraph/pull/5435
+* Drop `thrust::transform_iterator` in favor of `cuda::transform_iterator` by @miscco in https://github.com/rapidsai/cugraph/pull/5428
+* refactor(limited api): add explicit `wheel.py-api` to `pyproject.toml`
+ by @gforsyth in https://github.com/rapidsai/cugraph/pull/5440
+* Add make_initialized_edge_(src|dst_)property utility functions. by @seunghwak in https://github.com/rapidsai/cugraph/pull/5441
+* Update Cython lower bound pin to 3.2.2 by @vyasr in https://github.com/rapidsai/cugraph/pull/5449
+* Remove pytest upper bound pin by @vyasr in https://github.com/rapidsai/cugraph/pull/5450
+* Add support for Python 3.14 by @gforsyth in https://github.com/rapidsai/cugraph/pull/5439
+* wheels: use cuda-toolkit runtime wheels by @jameslamb in https://github.com/rapidsai/cugraph/pull/5444
+* Avoid deprecated jit_unspill in dask tests by @TomAugspurger in https://github.com/rapidsai/cugraph/pull/5456
+* add no_pytorch matrix option in dependencies.yaml by @trxcllnt in https://github.com/rapidsai/cugraph/pull/5454
+* fix verify-hardcoded-versions issues by @jameslamb in https://github.com/rapidsai/cugraph/pull/5462
+* ensure 'torch' CUDA wheels are installed in CI, remove unused dependencies by @jameslamb in https://github.com/rapidsai/cugraph/pull/5453
+* Re-enables tests on RTX Pro 6000 by @rlratzel in https://github.com/rapidsai/cugraph/pull/5445
+* enforce a floor on libnvjitlink, build wheels with CUDA 13.0.x, test wheels against mix of CTK versions by @jameslamb in https://github.com/rapidsai/cugraph/pull/5457
+* C++ Disjoint sampling implementation by @ChuckHastings in https://github.com/rapidsai/cugraph/pull/5414
+
+## New Contributors
+* @aamijar made their first contribution in https://github.com/rapidsai/cugraph/pull/5429
+
+**Full Changelog**: https://github.com/rapidsai/cugraph/compare/v26.04.00a...release/26.04
+
 # cugraph 26.02.00 (4 Feb 2026)
 
 ### 🚨 Breaking Changes

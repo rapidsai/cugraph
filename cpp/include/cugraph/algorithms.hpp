@@ -7,6 +7,7 @@
 #include <cugraph/api_helpers.hpp>
 #include <cugraph/dendrogram.hpp>
 #include <cugraph/edge_property.hpp>
+#include <cugraph/export.hpp>
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/legacy/graph.hpp>
@@ -29,6 +30,9 @@
  */
 
 /** @defgroup community_cpp C++ community Algorithms
+ */
+
+/** @defgroup dag_cpp C++ DAG Algorithms
  */
 
 /** @defgroup sampling_cpp C++ sampling algorithms
@@ -58,7 +62,7 @@
 /** @defgroup utility_cpp C++ utility algorithms
  */
 
-namespace cugraph {
+namespace CUGRAPH_EXPORT cugraph {
 
 /**
  * @ingroup similarity_cpp
@@ -428,45 +432,6 @@ edge_property_t<edge_t, weight_t> edge_betweenness_centrality(
   std::optional<raft::device_span<vertex_t const>> vertices,
   bool normalized         = true,
   bool do_expensive_check = false);
-
-enum class cugraph_cc_t {
-  CUGRAPH_STRONG,  ///> Strongly Connected Components
-  NUM_CONNECTIVITY_TYPES
-};
-
-/**
- * @ingroup components_cpp
- * @brief      Compute connected components.
- *
- * This implementation comes from [1] and solves component labeling problem in
- * parallel on CSR-indexes based upon the vertex degree and adjacency graph.
- *
- * [1] Hawick, K.A et al, 2010. "Parallel graph component labelling with GPUs and CUDA"
- *
- * The strong version (for directed or undirected graphs) is based on:
- * [2] Gilbert, J. et al, 2011. "Graph Algorithms in the Language of Linear Algebra"
- *
- * C = I | A | A^2 |...| A^k
- * where matrix multiplication is via semi-ring:
- * (combine, reduce) == (&, |) (bitwise ops)
- * Then: X = C & transpose(C); and finally, apply get_labels(X);
- *
- * @throws                cugraph::logic_error when an error occurs.
- *
- * @tparam VT                     Type of vertex identifiers. Supported value : int (signed, 32-bit)
- * @tparam ET                     Type of edge identifiers.  Supported value : int (signed, 32-bit)
- * @tparam WT                     Type of edge weights. Supported values : float or double.
- *
- * @param[in] graph               cuGraph graph descriptor, should contain the connectivity
- * information as a CSR
- * @param[in] connectivity_type   STRONG or WEAK
- * @param[out] labels             Device array of component labels (labels[i] indicates the label
- * associated with vertex id i.
- */
-template <typename VT, typename ET, typename WT>
-void connected_components(legacy::GraphCSRView<VT, ET, WT> const& graph,
-                          cugraph_cc_t connectivity_type,
-                          VT* labels);
 
 /**
  * @ingroup linear_cpp
@@ -840,7 +805,7 @@ template <typename vertex_t, typename edge_t, typename weight_t>
 std::unique_ptr<legacy::GraphCOO<vertex_t, edge_t, weight_t>> minimum_spanning_tree(
   raft::handle_t const& handle,
   legacy::GraphCSRView<vertex_t, edge_t, weight_t> const& graph,
-  rmm::device_async_resource_ref mr = rmm::mr::get_current_device_resource());
+  rmm::device_async_resource_ref mr = rmm::mr::get_current_device_resource_ref());
 
 namespace subgraph {
 /**
@@ -1130,6 +1095,32 @@ void bfs(raft::handle_t const& handle,
          bool direction_optimizing = false,
          vertex_t depth_limit      = std::numeric_limits<vertex_t>::max(),
          bool do_expensive_check   = false);
+
+/**
+ * @ingroup dag_cpp
+ * @brief Compute a topological ordering of a directed acyclic graph (DAG).
+ * For every directed edge (u, v), u appears before v in the returned ordering.
+ *
+ * @throws cugraph::logic_error on erroneous input arguments, if the graph contains a cycle or
+ * if the graph is symmetric (undirected).
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * or multi-GPU (true).
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Graph view object.
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ * @return Device vector containing the topological sorting levels. For each local vertex (indexed
+ * by local vertex partition offset), stores the topological level. Disconnected vertices are
+ * assigned level 0.
+ */
+template <typename vertex_t, typename edge_t, bool multi_gpu>
+rmm::device_uvector<vertex_t> topological_sort(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  bool do_expensive_check = false);
 
 /**
  * @ingroup traversal_cpp
@@ -2386,7 +2377,7 @@ std::tuple<rmm::device_uvector<vertex_t>, weight_t> approximate_weighted_matchin
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   edge_property_view_t<edge_t, weight_t const*> edge_weight_view);
-}  // namespace cugraph
+}  // namespace CUGRAPH_EXPORT cugraph
 
 /**
  * @}

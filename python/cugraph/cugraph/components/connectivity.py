@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2019-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2019-2026, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 
 
@@ -9,9 +9,9 @@ from cugraph.utilities import (
     cupy_package as cp,
 )
 from cugraph.structure import Graph
-from cugraph.components import connectivity_wrapper
 import cudf
 from pylibcugraph import weakly_connected_components as pylibcugraph_wcc
+from pylibcugraph import strongly_connected_components as pylibcugraph_scc
 from pylibcugraph import ResourceHandle
 
 
@@ -249,8 +249,8 @@ def strongly_connected_components(
 
     Examples
     --------
-    >>> from cugraph.datasets import karate
-    >>> G = karate.get_graph(download=True)
+    >>> from cugraph.datasets import karate_asymmetric
+    >>> G = karate_asymmetric.get_graph(download=True, create_using=cugraph.Graph(directed=True))
     >>> df = cugraph.strongly_connected_components(G)
 
     """
@@ -260,22 +260,19 @@ def strongly_connected_components(
 
     (G, input_type) = ensure_cugraph_obj(G, matrix_graph_type=Graph(directed=directed))
 
-    # Renumber the vertices so that they are contiguous (required)
-    # FIXME: Remove 'renumbering' once the algo leverage the CAPI graph
-    if not G.renumbered:
-        edgelist = G.edgelist.edgelist_df
-        renumbered_edgelist_df, renumber_map = G.renumber_map.renumber(
-            edgelist, ["src"], ["dst"]
-        )
-        renumbered_src_col_name = renumber_map.renumbered_src_col_name
-        renumbered_dst_col_name = renumber_map.renumbered_dst_col_name
-        G.edgelist.edgelist_df = renumbered_edgelist_df.rename(
-            columns={renumbered_src_col_name: "src", renumbered_dst_col_name: "dst"}
-        )
-        G.properties.renumbered = True
-        G.renumber_map = renumber_map
+    vertex, labels = pylibcugraph_scc(
+        resource_handle=ResourceHandle(),
+        graph=G._plc_graph,
+        offsets=None,
+        indices=None,
+        weights=None,
+        labels=None,
+        do_expensive_check=False,
+    )
 
-    df = connectivity_wrapper.strongly_connected_components(G)
+    df = cudf.DataFrame()
+    df["vertex"] = vertex
+    df["labels"] = labels
 
     if G.renumbered:
         df = G.unrenumber(df, "vertex")
@@ -317,7 +314,7 @@ def connected_components(G, directed=None, connection="weak", return_labels=None
             For Graph-type values of G, weak components are only
             supported for undirected graphs.
 
-        [‘weak’|’strong’]. Return either weakly or strongly connected
+        ['weak'|'strong']. Return either weakly or strongly connected
         components.
 
     return_labels : bool, optional (default=True)

@@ -1,11 +1,12 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
 
 #include <cugraph/arithmetic_variant_types.hpp>
 #include <cugraph/edge_property.hpp>
+#include <cugraph/export.hpp>
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/large_buffer_manager.hpp>
@@ -24,7 +25,7 @@
 /** @defgroup graph_functions_cpp C++ Graph Funtions
  */
 
-namespace cugraph {
+namespace CUGRAPH_EXPORT cugraph {
 
 template <typename vertex_t, typename edge_t, bool multi_gpu, typename Enable = void>
 struct renumber_meta_t;
@@ -1212,4 +1213,4 @@ remove_multi_edges(
   bool keep_min_value_edge                             = false,
   std::optional<large_buffer_type_t> large_buffer_type = std::nullopt);
 
-}  // namespace cugraph
+}  // namespace CUGRAPH_EXPORT cugraph

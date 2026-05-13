@@ -1,11 +1,12 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
 #pragma once
 
 #include <cugraph_c/array.h>
+#include <cugraph_c/export.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -64,23 +65,23 @@ typedef struct {
  *
  * @return error code
  */
-cugraph_error_code_t cugraph_graph_create_sg(
-  const cugraph_resource_handle_t* handle,
-  const cugraph_graph_properties_t* properties,
-  const cugraph_type_erased_device_array_view_t* vertices,
-  const cugraph_type_erased_device_array_view_t* src,
-  const cugraph_type_erased_device_array_view_t* dst,
-  const cugraph_type_erased_device_array_view_t* weights,
-  const cugraph_type_erased_device_array_view_t* edge_ids,
-  const cugraph_type_erased_device_array_view_t* edge_type_ids,
-  bool_t store_transposed,
-  bool_t renumber,
-  bool_t drop_self_loops,
-  bool_t drop_multi_edges,
-  bool_t symmetrize,
-  bool_t do_expensive_check,
-  cugraph_graph_t** graph,
-  cugraph_error_t** error);
+CUGRAPH_EXPORT cugraph_error_code_t
+cugraph_graph_create_sg(const cugraph_resource_handle_t* handle,
+                        const cugraph_graph_properties_t* properties,
+                        const cugraph_type_erased_device_array_view_t* vertices,
+                        const cugraph_type_erased_device_array_view_t* src,
+                        const cugraph_type_erased_device_array_view_t* dst,
+                        const cugraph_type_erased_device_array_view_t* weights,
+                        const cugraph_type_erased_device_array_view_t* edge_ids,
+                        const cugraph_type_erased_device_array_view_t* edge_type_ids,
+                        bool_t store_transposed,
+                        bool_t renumber,
+                        bool_t drop_self_loops,
+                        bool_t drop_multi_edges,
+                        bool_t symmetrize,
+                        bool_t do_expensive_check,
+                        cugraph_graph_t** graph,
+                        cugraph_error_t** error);
 
 /**
  * @brief     Construct an SG graph
@@ -124,7 +125,7 @@ cugraph_error_code_t cugraph_graph_create_sg(
  *
  * @return error code
  */
-cugraph_error_code_t cugraph_graph_create_with_times_sg(
+CUGRAPH_EXPORT cugraph_error_code_t cugraph_graph_create_with_times_sg(
   const cugraph_resource_handle_t* handle,
   const cugraph_graph_properties_t* properties,
   const cugraph_type_erased_device_array_view_t* vertices,
@@ -172,20 +173,20 @@ cugraph_error_code_t cugraph_graph_create_with_times_sg(
  *
  * @return error code
  */
-cugraph_error_code_t cugraph_graph_create_sg_from_csr(
-  const cugraph_resource_handle_t* handle,
-  const cugraph_graph_properties_t* properties,
-  const cugraph_type_erased_device_array_view_t* offsets,
-  const cugraph_type_erased_device_array_view_t* indices,
-  const cugraph_type_erased_device_array_view_t* weights,
-  const cugraph_type_erased_device_array_view_t* edge_ids,
-  const cugraph_type_erased_device_array_view_t* edge_type_ids,
-  bool_t store_transposed,
-  bool_t renumber,
-  bool_t symmetrize,
-  bool_t do_expensive_check,
-  cugraph_graph_t** graph,
-  cugraph_error_t** error);
+CUGRAPH_EXPORT cugraph_error_code_t
+cugraph_graph_create_sg_from_csr(const cugraph_resource_handle_t* handle,
+                                 const cugraph_graph_properties_t* properties,
+                                 const cugraph_type_erased_device_array_view_t* offsets,
+                                 const cugraph_type_erased_device_array_view_t* indices,
+                                 const cugraph_type_erased_device_array_view_t* weights,
+                                 const cugraph_type_erased_device_array_view_t* edge_ids,
+                                 const cugraph_type_erased_device_array_view_t* edge_type_ids,
+                                 bool_t store_transposed,
+                                 bool_t renumber,
+                                 bool_t symmetrize,
+                                 bool_t do_expensive_check,
+                                 cugraph_graph_t** graph,
+                                 cugraph_error_t** error);
 
 /**
  * @brief     Construct an MG graph
@@ -234,23 +235,23 @@ cugraph_error_code_t cugraph_graph_create_sg_from_csr(
  *                              be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_graph_create_mg(
-  cugraph_resource_handle_t const* handle,
-  cugraph_graph_properties_t const* properties,
-  cugraph_type_erased_device_array_view_t const* const* vertices,
-  cugraph_type_erased_device_array_view_t const* const* src,
-  cugraph_type_erased_device_array_view_t const* const* dst,
-  cugraph_type_erased_device_array_view_t const* const* weights,
-  cugraph_type_erased_device_array_view_t const* const* edge_ids,
-  cugraph_type_erased_device_array_view_t const* const* edge_type_ids,
-  bool_t store_transposed,
-  size_t num_arrays,
-  bool_t drop_self_loops,
-  bool_t drop_multi_edges,
-  bool_t symmetrize,
-  bool_t do_expensive_check,
-  cugraph_graph_t** graph,
-  cugraph_error_t** error);
+CUGRAPH_EXPORT cugraph_error_code_t
+cugraph_graph_create_mg(cugraph_resource_handle_t const* handle,
+                        cugraph_graph_properties_t const* properties,
+                        cugraph_type_erased_device_array_view_t const* const* vertices,
+                        cugraph_type_erased_device_array_view_t const* const* src,
+                        cugraph_type_erased_device_array_view_t const* const* dst,
+                        cugraph_type_erased_device_array_view_t const* const* weights,
+                        cugraph_type_erased_device_array_view_t const* const* edge_ids,
+                        cugraph_type_erased_device_array_view_t const* const* edge_type_ids,
+                        bool_t store_transposed,
+                        size_t num_arrays,
+                        bool_t drop_self_loops,
+                        bool_t drop_multi_edges,
+                        bool_t symmetrize,
+                        bool_t do_expensive_check,
+                        cugraph_graph_t** graph,
+                        cugraph_error_t** error);
 
 /**
  * @brief     Construct an MG graph
@@ -306,7 +307,7 @@ cugraph_error_code_t cugraph_graph_create_mg(
  *                              be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_graph_create_with_times_mg(
+CUGRAPH_EXPORT cugraph_error_code_t cugraph_graph_create_with_times_mg(
   cugraph_resource_handle_t const* handle,
   cugraph_graph_properties_t const* properties,
   cugraph_type_erased_device_array_view_t const* const* vertices,
@@ -331,7 +332,7 @@ cugraph_error_code_t cugraph_graph_create_with_times_mg(
  *
  * @param [in]  graph  A pointer to the graph object to destroy
  */
-void cugraph_graph_free(cugraph_graph_t* graph);
+CUGRAPH_EXPORT void cugraph_graph_free(cugraph_graph_t* graph);
 
 /**
  * @brief     Create a data mask
@@ -349,13 +350,13 @@ void cugraph_graph_free(cugraph_graph_t* graph);
  *                              be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_data_mask_create(
-  const cugraph_resource_handle_t* handle,
-  const cugraph_type_erased_device_array_view_t* vertex_bit_mask,
-  const cugraph_type_erased_device_array_view_t* edge_bit_mask,
-  bool_t complement,
-  cugraph_data_mask_t** mask,
-  cugraph_error_t** error);
+CUGRAPH_EXPORT cugraph_error_code_t
+cugraph_data_mask_create(const cugraph_resource_handle_t* handle,
+                         const cugraph_type_erased_device_array_view_t* vertex_bit_mask,
+                         const cugraph_type_erased_device_array_view_t* edge_bit_mask,
+                         bool_t complement,
+                         cugraph_data_mask_t** mask,
+                         cugraph_error_t** error);
 
 /**
  * @brief     Get the data mask currently associated with a graph
@@ -368,9 +369,9 @@ cugraph_error_code_t cugraph_data_mask_create(
  *                          be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_graph_get_data_mask(cugraph_graph_t* graph,
-                                                 cugraph_data_mask_t** mask,
-                                                 cugraph_error_t** error);
+CUGRAPH_EXPORT cugraph_error_code_t cugraph_graph_get_data_mask(cugraph_graph_t* graph,
+                                                                cugraph_data_mask_t** mask,
+                                                                cugraph_error_t** error);
 
 /**
  * @brief     Associate a data mask with a graph
@@ -383,9 +384,9 @@ cugraph_error_code_t cugraph_graph_get_data_mask(cugraph_graph_t* graph,
  *                          be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_graph_add_data_mask(cugraph_graph_t* graph,
-                                                 cugraph_data_mask_t* mask,
-                                                 cugraph_error_t** error);
+CUGRAPH_EXPORT cugraph_error_code_t cugraph_graph_add_data_mask(cugraph_graph_t* graph,
+                                                                cugraph_data_mask_t* mask,
+                                                                cugraph_error_t** error);
 
 /**
  * @brief     Release the data mask currently associated with a graph
@@ -407,16 +408,18 @@ cugraph_error_code_t cugraph_graph_add_data_mask(cugraph_graph_t* graph,
  *                          be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_graph_release_data_mask(cugraph_graph_t* graph,
-                                                     cugraph_data_mask_t** mask,
-                                                     cugraph_error_t** error);
+CUGRAPH_EXPORT cugraph_error_code_t cugraph_graph_release_data_mask(cugraph_graph_t* graph,
+                                                                    cugraph_data_mask_t** mask,
+                                                                    cugraph_error_t** error);
 
 /**
  * @brief     Destroy a data mask
  *
  * @param [in]  mask  A pointer to the data mask to destroy
  */
-void cugraph_data_mask_destroy(cugraph_data_mask_t* mask);
+CUGRAPH_EXPORT void cugraph_data_mask_destroy(cugraph_data_mask_t* mask);
+
+#include <cugraph_c/export.h>
 
 #ifdef __cplusplus
 }

@@ -8,6 +8,7 @@
 #include <cugraph/edge_partition_edge_property_device_view.cuh>
 #include <cugraph/edge_partition_endpoint_property_device_view.cuh>
 #include <cugraph/edge_src_dst_property.hpp>
+#include <cugraph/export.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/prims/detail/partition_v_frontier.cuh>
 #include <cugraph/prims/property_op_utils.cuh>
@@ -25,7 +26,7 @@
 
 #include <type_traits>
 
-namespace cugraph {
+namespace CUGRAPH_EXPORT cugraph {
 
 namespace detail {
 
@@ -424,10 +425,17 @@ auto transform_v_frontier_e(raft::handle_t const& handle,
       aggregate_local_frontier_key_first + local_frontier_offsets[i];
     auto edge_partition_frontier_major_first =
       thrust_tuple_get_or_identity<KeyIterator, 0>(edge_partition_frontier_key_first);
+    cuda::std::optional<raft::device_span<uint32_t const>> edge_partition_mask_span{
+      cuda::std::nullopt};
+    if (edge_partition_e_mask) {
+      edge_partition_mask_span = raft::device_span<uint32_t const>(
+        (*edge_partition_e_mask).value_first(),
+        packed_bool_size(static_cast<size_t>(edge_partition.number_of_edges())));
+    }
 
     auto edge_partition_frontier_local_degrees =
       edge_partition_e_mask ? edge_partition.compute_local_degrees_with_mask(
-                                (*edge_partition_e_mask).value_first(),
+                                edge_partition_mask_span.value(),
                                 edge_partition_frontier_major_first,
                                 edge_partition_frontier_major_first +
                                   (local_frontier_offsets[i + 1] - local_frontier_offsets[i]),
@@ -619,4 +627,4 @@ auto transform_v_frontier_e(raft::handle_t const& handle,
 
 }  // namespace detail
 
-}  // namespace cugraph
+}  // namespace CUGRAPH_EXPORT cugraph

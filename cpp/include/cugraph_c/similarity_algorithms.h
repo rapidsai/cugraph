@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2024, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -13,6 +13,8 @@
 
 /** @defgroup similarity Similarity algorithms
  */
+
+#include <cugraph_c/export.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -32,7 +34,7 @@ typedef struct {
  * @param [in]     result   The result from a similarity algorithm
  * @return vertex pairs
  */
-cugraph_vertex_pairs_t* cugraph_similarity_result_get_vertex_pairs(
+CUGRAPH_EXPORT cugraph_vertex_pairs_t* cugraph_similarity_result_get_vertex_pairs(
   cugraph_similarity_result_t* result);
 
 /**
@@ -42,7 +44,7 @@ cugraph_vertex_pairs_t* cugraph_similarity_result_get_vertex_pairs(
  * @param [in]     result   The result from a similarity algorithm
  * @return type erased array of similarity coefficients
  */
-cugraph_type_erased_device_array_view_t* cugraph_similarity_result_get_similarity(
+CUGRAPH_EXPORT cugraph_type_erased_device_array_view_t* cugraph_similarity_result_get_similarity(
   cugraph_similarity_result_t* result);
 
 /**
@@ -51,7 +53,7 @@ cugraph_type_erased_device_array_view_t* cugraph_similarity_result_get_similarit
  *
  * @param [in]    result    The result from a similarity algorithm
  */
-void cugraph_similarity_result_free(cugraph_similarity_result_t* result);
+CUGRAPH_EXPORT void cugraph_similarity_result_free(cugraph_similarity_result_t* result);
 
 /**
  * @brief     Perform Jaccard similarity computation
@@ -72,13 +74,14 @@ void cugraph_similarity_result_free(cugraph_similarity_result_t* result);
  *                           be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_jaccard_coefficients(const cugraph_resource_handle_t* handle,
-                                                  cugraph_graph_t* graph,
-                                                  const cugraph_vertex_pairs_t* vertex_pairs,
-                                                  bool_t use_weight,
-                                                  bool_t do_expensive_check,
-                                                  cugraph_similarity_result_t** result,
-                                                  cugraph_error_t** error);
+CUGRAPH_EXPORT cugraph_error_code_t
+cugraph_jaccard_coefficients(const cugraph_resource_handle_t* handle,
+                             cugraph_graph_t* graph,
+                             const cugraph_vertex_pairs_t* vertex_pairs,
+                             bool_t use_weight,
+                             bool_t do_expensive_check,
+                             cugraph_similarity_result_t** result,
+                             cugraph_error_t** error);
 
 /**
  * @brief     Perform Sorensen similarity computation
@@ -99,13 +102,14 @@ cugraph_error_code_t cugraph_jaccard_coefficients(const cugraph_resource_handle_
  *                           be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_sorensen_coefficients(const cugraph_resource_handle_t* handle,
-                                                   cugraph_graph_t* graph,
-                                                   const cugraph_vertex_pairs_t* vertex_pairs,
-                                                   bool_t use_weight,
-                                                   bool_t do_expensive_check,
-                                                   cugraph_similarity_result_t** result,
-                                                   cugraph_error_t** error);
+CUGRAPH_EXPORT cugraph_error_code_t
+cugraph_sorensen_coefficients(const cugraph_resource_handle_t* handle,
+                              cugraph_graph_t* graph,
+                              const cugraph_vertex_pairs_t* vertex_pairs,
+                              bool_t use_weight,
+                              bool_t do_expensive_check,
+                              cugraph_similarity_result_t** result,
+                              cugraph_error_t** error);
 
 /**
  * @brief     Perform overlap similarity computation
@@ -126,13 +130,14 @@ cugraph_error_code_t cugraph_sorensen_coefficients(const cugraph_resource_handle
  *                           be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_overlap_coefficients(const cugraph_resource_handle_t* handle,
-                                                  cugraph_graph_t* graph,
-                                                  const cugraph_vertex_pairs_t* vertex_pairs,
-                                                  bool_t use_weight,
-                                                  bool_t do_expensive_check,
-                                                  cugraph_similarity_result_t** result,
-                                                  cugraph_error_t** error);
+CUGRAPH_EXPORT cugraph_error_code_t
+cugraph_overlap_coefficients(const cugraph_resource_handle_t* handle,
+                             cugraph_graph_t* graph,
+                             const cugraph_vertex_pairs_t* vertex_pairs,
+                             bool_t use_weight,
+                             bool_t do_expensive_check,
+                             cugraph_similarity_result_t** result,
+                             cugraph_error_t** error);
 
 /**
  * @brief     Perform cosine similarity computation
@@ -153,14 +158,14 @@ cugraph_error_code_t cugraph_overlap_coefficients(const cugraph_resource_handle_
  *                           be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_cosine_similarity_coefficients(
-  const cugraph_resource_handle_t* handle,
-  cugraph_graph_t* graph,
-  const cugraph_vertex_pairs_t* vertex_pairs,
-  bool_t use_weight,
-  bool_t do_expensive_check,
-  cugraph_similarity_result_t** result,
-  cugraph_error_t** error);
+CUGRAPH_EXPORT cugraph_error_code_t
+cugraph_cosine_similarity_coefficients(const cugraph_resource_handle_t* handle,
+                                       cugraph_graph_t* graph,
+                                       const cugraph_vertex_pairs_t* vertex_pairs,
+                                       bool_t use_weight,
+                                       bool_t do_expensive_check,
+                                       cugraph_similarity_result_t** result,
+                                       cugraph_error_t** error);
 
 /**
  * @brief     Perform All-Pairs Jaccard similarity computation
@@ -190,15 +195,15 @@ cugraph_error_code_t cugraph_cosine_similarity_coefficients(
  *                           be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_all_pairs_jaccard_coefficients(
-  const cugraph_resource_handle_t* handle,
-  cugraph_graph_t* graph,
-  const cugraph_type_erased_device_array_view_t* vertices,
-  bool_t use_weight,
-  size_t topk,
-  bool_t do_expensive_check,
-  cugraph_similarity_result_t** result,
-  cugraph_error_t** error);
+CUGRAPH_EXPORT cugraph_error_code_t
+cugraph_all_pairs_jaccard_coefficients(const cugraph_resource_handle_t* handle,
+                                       cugraph_graph_t* graph,
+                                       const cugraph_type_erased_device_array_view_t* vertices,
+                                       bool_t use_weight,
+                                       size_t topk,
+                                       bool_t do_expensive_check,
+                                       cugraph_similarity_result_t** result,
+                                       cugraph_error_t** error);
 
 /**
  * @brief     Perform All Pairs Sorensen similarity computation
@@ -228,15 +233,15 @@ cugraph_error_code_t cugraph_all_pairs_jaccard_coefficients(
  *                           be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_all_pairs_sorensen_coefficients(
-  const cugraph_resource_handle_t* handle,
-  cugraph_graph_t* graph,
-  const cugraph_type_erased_device_array_view_t* vertices,
-  bool_t use_weight,
-  size_t topk,
-  bool_t do_expensive_check,
-  cugraph_similarity_result_t** result,
-  cugraph_error_t** error);
+CUGRAPH_EXPORT cugraph_error_code_t
+cugraph_all_pairs_sorensen_coefficients(const cugraph_resource_handle_t* handle,
+                                        cugraph_graph_t* graph,
+                                        const cugraph_type_erased_device_array_view_t* vertices,
+                                        bool_t use_weight,
+                                        size_t topk,
+                                        bool_t do_expensive_check,
+                                        cugraph_similarity_result_t** result,
+                                        cugraph_error_t** error);
 
 /**
  * @brief     Perform All Pairs overlap similarity computation
@@ -266,15 +271,15 @@ cugraph_error_code_t cugraph_all_pairs_sorensen_coefficients(
  *                           be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_all_pairs_overlap_coefficients(
-  const cugraph_resource_handle_t* handle,
-  cugraph_graph_t* graph,
-  const cugraph_type_erased_device_array_view_t* vertices,
-  bool_t use_weight,
-  size_t topk,
-  bool_t do_expensive_check,
-  cugraph_similarity_result_t** result,
-  cugraph_error_t** error);
+CUGRAPH_EXPORT cugraph_error_code_t
+cugraph_all_pairs_overlap_coefficients(const cugraph_resource_handle_t* handle,
+                                       cugraph_graph_t* graph,
+                                       const cugraph_type_erased_device_array_view_t* vertices,
+                                       bool_t use_weight,
+                                       size_t topk,
+                                       bool_t do_expensive_check,
+                                       cugraph_similarity_result_t** result,
+                                       cugraph_error_t** error);
 
 /**
  * @brief     Perform All Pairs cosine similarity computation
@@ -304,7 +309,7 @@ cugraph_error_code_t cugraph_all_pairs_overlap_coefficients(
  *                           be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_all_pairs_cosine_similarity_coefficients(
+CUGRAPH_EXPORT cugraph_error_code_t cugraph_all_pairs_cosine_similarity_coefficients(
   const cugraph_resource_handle_t* handle,
   cugraph_graph_t* graph,
   const cugraph_type_erased_device_array_view_t* vertices,
@@ -313,6 +318,8 @@ cugraph_error_code_t cugraph_all_pairs_cosine_similarity_coefficients(
   bool_t do_expensive_check,
   cugraph_similarity_result_t** result,
   cugraph_error_t** error);
+
+#include <cugraph_c/export.h>
 
 #ifdef __cplusplus
 }

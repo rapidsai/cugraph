@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2020-2021, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 
 # cython: profile=False
@@ -106,7 +106,7 @@ def dense_hungarian(costs, num_rows, num_columns, epsilon):
     elif costs.dtype == np.float64:
         cost = c_dense_hungarian[int,double](handle_[0], <double*> c_costs, num_rows, num_columns, <int*> c_assignment, c_epsilon_double)
     elif costs.dtype == np.int32:
-        cost = c_dense_hungarian[int,double](handle_[0], <double*> c_costs, num_rows, num_columns, <int*> c_assignment)
+        cost = c_dense_hungarian[int,int](handle_[0], <int*> c_costs, num_rows, num_columns, <int*> c_assignment)
     else:
         raise("unsported type: ", costs.dtype)
 

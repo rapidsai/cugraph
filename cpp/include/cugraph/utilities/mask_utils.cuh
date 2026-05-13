@@ -4,6 +4,7 @@
  */
 #pragma once
 
+#include <cugraph/export.hpp>
 #include <cugraph/large_buffer_manager.hpp>
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/packed_bool_utils.hpp>
@@ -18,7 +19,7 @@
 #include <thrust/transform.h>
 #include <thrust/transform_reduce.h>
 
-namespace cugraph {
+namespace CUGRAPH_EXPORT cugraph {
 
 namespace detail {
 
@@ -262,4 +263,4 @@ void invert_flags(raft::handle_t const& handle,
                   size_t num_entries);
 
 }  // namespace detail
-}  // namespace cugraph
+}  // namespace CUGRAPH_EXPORT cugraph

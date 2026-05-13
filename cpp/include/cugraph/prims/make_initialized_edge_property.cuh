@@ -5,12 +5,13 @@
 #pragma once
 
 #include <cugraph/edge_property.hpp>
+#include <cugraph/export.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/prims/fill_edge_property.cuh>
 
 #include <raft/core/handle.hpp>
 
-namespace cugraph {
+namespace CUGRAPH_EXPORT cugraph {
 
 /**
  * @brief Create an edge property and fill the entire buffer with the given value.
@@ -52,4 +53,4 @@ edge_property_t<typename GraphViewType::edge_type, T> make_initialized_edge_prop
   return edge_prop;
 }
 
-}  // namespace cugraph
+}  // namespace CUGRAPH_EXPORT cugraph

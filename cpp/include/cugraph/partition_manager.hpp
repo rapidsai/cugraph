@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include <cugraph/export.hpp>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
@@ -14,7 +15,7 @@
 
 #include <string>
 
-namespace cugraph {
+namespace CUGRAPH_EXPORT cugraph {
 
 /**
  * managed the mapping between graph partitioning and GPU partitioning
@@ -177,4 +178,4 @@ class partition_manager {
   };
 };
 
-}  // namespace cugraph
+}  // namespace CUGRAPH_EXPORT cugraph

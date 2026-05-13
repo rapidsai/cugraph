@@ -75,13 +75,13 @@ class Tests_GRAPH500_MGBFS
            // than pool_size to avoid false dependency among different streams
 
     handle_    = cugraph::test::initialize_mg_handle(pool_size);
-    pinned_mr_ = std::make_shared<rmm::mr::pinned_host_memory_resource>();
+    pinned_mr_ = rmm::mr::pinned_host_memory_resource();
 
     cugraph::large_buffer_manager::init(
       *handle_,
-      cugraph::large_buffer_manager::create_memory_buffer_resource(pinned_mr_),
+      cugraph::large_buffer_manager::create_memory_buffer_resource(pinned_mr_.value()),
       std::nullopt);
-    cugraph::host_staging_buffer_manager::init(*handle_, pinned_mr_);
+    cugraph::host_staging_buffer_manager::init(*handle_, pinned_mr_.value());
   }
 
   static void TearDownTestCase()
@@ -989,14 +989,14 @@ class Tests_GRAPH500_MGBFS
 
  private:
   static std::unique_ptr<raft::handle_t> handle_;
-  static std::shared_ptr<rmm::mr::pinned_host_memory_resource> pinned_mr_;
+  static std::optional<rmm::mr::pinned_host_memory_resource> pinned_mr_;
 };
 
 template <typename input_usecase_t>
 std::unique_ptr<raft::handle_t> Tests_GRAPH500_MGBFS<input_usecase_t>::handle_ = nullptr;
 template <typename input_usecase_t>
-std::shared_ptr<rmm::mr::pinned_host_memory_resource>
-  Tests_GRAPH500_MGBFS<input_usecase_t>::pinned_mr_ = nullptr;
+std::optional<rmm::mr::pinned_host_memory_resource>
+  Tests_GRAPH500_MGBFS<input_usecase_t>::pinned_mr_ = std::nullopt;
 
 using Tests_GRAPH500_MGBFS_Rmat = Tests_GRAPH500_MGBFS<cugraph::test::Rmat_Usecase>;
 

@@ -1,0 +1,21 @@
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION.
+ * SPDX-License-Identifier: Apache-2.0
+ */
+#include "decision_graph_mis.cuh"
+
+#include <cugraph/export.hpp>
+
+namespace cugraph {
+namespace detail {
+
+template CUGRAPH_EXPORT rmm::device_uvector<int64_t>
+vertices_in_mis_from_decision_edgelist<int64_t, true>(
+  raft::handle_t const& handle,
+  raft::random::RngState& rng_state,
+  raft::host_span<int64_t const> vertex_partition_range_lasts,
+  rmm::device_uvector<int64_t>&& d_srcs,
+  rmm::device_uvector<int64_t>&& d_dsts);
+
+}  // namespace detail
+}  // namespace cugraph

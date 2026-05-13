@@ -21,7 +21,7 @@ PYDISTCHECK_ARGS=(
 if [[ "${package_dir}" == "python/libcugraph" ]]; then
     if [[ "${RAPIDS_CUDA_MAJOR}" == "12" ]]; then
         PYDISTCHECK_ARGS+=(
-            --max-allowed-size-compressed '1.6Gi'
+            --max-allowed-size-compressed '1.65Gi'
         )
     else
         PYDISTCHECK_ARGS+=(

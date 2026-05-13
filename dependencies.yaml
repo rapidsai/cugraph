@@ -171,6 +171,7 @@ files:
       table: project
     includes:
       - cuda_wheels
+      - depends_on_libcuvs
       - depends_on_libraft
       - depends_on_librmm
   py_build_pylibcugraph:
@@ -309,6 +310,7 @@ dependencies:
     common:
       - output_types: [conda]
         packages:
+          - cuda-nvrtc-dev
           - cuda-nvtx-dev
           - cuda-profiler-api
           - libcublas-dev
@@ -338,13 +340,13 @@ dependencies:
               cuda: "12.9"
               use_cuda_wheels: "true"
             packages:
-              - cuda-toolkit[cublas,curand,cusolver,cusparse]==12.*
+              - cuda-toolkit[cublas,curand,cusolver,cusparse,nvrtc]==12.*
               - nvidia-nvjitlink-cu12>=12.9,<13
           - matrix:
               cuda: "13.*"
               use_cuda_wheels: "true"
             packages:
-              - &ctk_cu13 cuda-toolkit[cublas,curand,cusolver,cusparse]==13.*
+              - &ctk_cu13 cuda-toolkit[cublas,curand,cusolver,cusparse,nvrtc]==13.*
               - &nvjitlink_cu13 nvidia-nvjitlink>=13.0,<14
           # if no matching matrix selectors passed, list the CUDA 13 requirement
           # (just as a source of documentation, as this populates pyproject.toml in source control)
@@ -504,7 +506,6 @@ dependencies:
           - &networkx networkx>=2.5.1
           - *numpy
           - packaging
-          - &python_louvain python-louvain
           - scikit-learn>=0.23.1
   # Runtime dependencies for cuGraph notebooks tested in CI.
   # Also used in the rapidsai/notebooks Docker image.
@@ -517,7 +518,6 @@ dependencies:
           - *networkx
           - *notebook
           - *pandas
-          - *python_louvain
           - *scipy
   test_python_pylibcugraph:
     common:
@@ -681,7 +681,25 @@ dependencies:
     common:
       - output_types: conda
         packages:
-          - libcuvs==26.6.*,>=0.0.0a0
+          - &libcuvs_unsuffixed libcuvs==26.6.*,>=0.0.0a0
+      - output_types: requirements
+        packages:
+          # pip recognizes the index as a global option for the requirements.txt file
+          - --extra-index-url=https://pypi.anaconda.org/rapidsai-wheels-nightly/simple
+    specific:
+      - output_types: [requirements, pyproject]
+        matrices:
+          - matrix:
+              cuda: "12.*"
+              cuda_suffixed: "true"
+            packages:
+              - libcuvs-cu12==26.6.*,>=0.0.0a0
+          - matrix:
+              cuda: "13.*"
+              cuda_suffixed: "true"
+            packages:
+              - libcuvs-cu13==26.6.*,>=0.0.0a0
+          - {matrix: null, packages: [*libcuvs_unsuffixed]}
   depends_on_librmm:
     common:
       - output_types: conda

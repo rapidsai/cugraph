@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 
 # If libcugraph was installed as a wheel, we must request it to load the library
@@ -13,10 +13,6 @@ else:
     del libcugraph
 
 import pylibcugraph.comms
-
-from pylibcugraph.components._connectivity import (
-    strongly_connected_components,
-)
 
 from pylibcugraph.graphs import SGGraph, MGGraph
 
@@ -82,6 +78,8 @@ from pylibcugraph.triangle_count import triangle_count
 from pylibcugraph.egonet import ego_graph
 
 from pylibcugraph.weakly_connected_components import weakly_connected_components
+
+from pylibcugraph.strongly_connected_components import strongly_connected_components
 
 from pylibcugraph.uniform_random_walks import uniform_random_walks
 
