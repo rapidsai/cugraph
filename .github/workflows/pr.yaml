@@ -248,9 +248,6 @@ jobs:
     with:
       build_type: pull-request
       script: ci/test_cpp.sh
-      # TODO(#5498): Drop this filter once libcugraph no longer requires a CUDA >= 12.8
-      # cudart at runtime (ideally by statically linking libcudart again).
-      matrix_filter: map(select(.CUDA_VER | split(".") | map(tonumber) >= [12, 9]))
     permissions:
       actions: read
       contents: read
@@ -292,9 +289,6 @@ jobs:
     with:
       build_type: pull-request
       script: ci/test_python.sh
-      # TODO(#5498): Drop this filter once libcugraph no longer requires a CUDA >= 12.8
-      # cudart at runtime (ideally by statically linking libcudart again).
-      matrix_filter: map(select(.CUDA_VER | split(".") | map(tonumber) >= [12, 9]))
     permissions:
       actions: read
       contents: read
@@ -379,9 +373,6 @@ jobs:
     with:
       build_type: pull-request
       script: ci/test_wheel_pylibcugraph.sh
-      # TODO(#5498): Drop this filter once libcugraph no longer requires a CUDA >= 12.8
-      # cudart at runtime (ideally by statically linking libcudart again).
-      matrix_filter: map(select(.CUDA_VER | split(".") | map(tonumber) >= [12, 9]))
     permissions:
       actions: read
       contents: read
@@ -414,9 +405,6 @@ jobs:
     with:
       build_type: pull-request
       script: ci/test_wheel_cugraph.sh
-      # TODO(#5498): Drop this filter once libcugraph no longer requires a CUDA >= 12.8
-      # cudart at runtime (ideally by statically linking libcudart again).
-      matrix_filter: map(select(.CUDA_VER | split(".") | map(tonumber) >= [12, 9]))
     permissions:
       actions: read
       contents: read
@@ -456,3 +444,5 @@ jobs:
         uses: rapidsai/shared-actions/telemetry-dispatch-summarize@main
     env:
       GH_TOKEN: ${{ github.token }}
+    permissions:
+      actions: write
