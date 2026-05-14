@@ -4,6 +4,7 @@
  */
 #pragma once
 
+#include <cugraph/export.hpp>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 
@@ -33,7 +34,7 @@
 #include <type_traits>
 #include <vector>
 
-namespace cugraph {
+namespace CUGRAPH_EXPORT cugraph {
 
 // edges are uniquely indexed by either source and destination vertex ID pairs or source,
 // destination, and multi-edge index triplets; the latter for multi-graphs.
@@ -336,4 +337,4 @@ class edge_bucket_t {
   std::optional<rmm::device_uvector<edge_t>> multi_edge_indices_{std::nullopt};
 };
 
-}  // namespace cugraph
+}  // namespace CUGRAPH_EXPORT cugraph

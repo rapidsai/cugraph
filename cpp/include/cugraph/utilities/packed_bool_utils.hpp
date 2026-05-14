@@ -1,9 +1,10 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2023-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
 
+#include <cugraph/export.hpp>
 #include <cugraph/utilities/thrust_tuple_utils.hpp>
 
 #include <cuda/std/tuple>
@@ -12,7 +13,7 @@
 #include <type_traits>
 #include <utility>
 
-namespace cugraph {
+namespace CUGRAPH_EXPORT cugraph {
 
 namespace detail {
 
@@ -96,4 +97,4 @@ constexpr T packed_bool_offset(T bool_offset)
   return bool_offset / (sizeof(uint32_t) * 8);
 }
 
-}  // namespace cugraph
+}  // namespace CUGRAPH_EXPORT cugraph

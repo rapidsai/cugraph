@@ -6,6 +6,7 @@
 
 #include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/edge_partition_edge_property_device_view.cuh>
+#include <cugraph/export.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/utilities/mask_utils.cuh>
 
@@ -24,7 +25,7 @@
 #include <optional>
 #include <vector>
 
-namespace cugraph {
+namespace CUGRAPH_EXPORT cugraph {
 namespace detail {
 
 // FIXME: block size requires tuning
@@ -284,4 +285,4 @@ void decompress_edge_partition_to_edgelist(
 }
 
 }  // namespace detail
-}  // namespace cugraph
+}  // namespace CUGRAPH_EXPORT cugraph

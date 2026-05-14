@@ -1,8 +1,10 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
+
+#include <cugraph/export.hpp>
 
 #include <raft/core/device_span.hpp>
 
@@ -15,7 +17,7 @@
 #include <array>
 #include <type_traits>
 
-namespace cugraph {
+namespace CUGRAPH_EXPORT cugraph {
 
 namespace detail {
 
@@ -432,4 +434,4 @@ decltype(auto) get_first_of_pack(T&& t, Ts&&...)
   return std::forward<T>(t);
 }
 
-}  // namespace cugraph
+}  // namespace CUGRAPH_EXPORT cugraph

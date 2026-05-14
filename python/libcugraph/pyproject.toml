@@ -27,6 +27,7 @@ classifiers = [
 ]
 dependencies = [
     "cuda-toolkit[cublas,curand,cusolver,cusparse,nvrtc]==13.*",
+    "libcuvs==26.6.*,>=0.0.0a0",
     "libraft==26.6.*,>=0.0.0a0",
     "librmm==26.6.*,>=0.0.0a0",
     "nvidia-nvjitlink>=13.0,<14",

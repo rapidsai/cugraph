@@ -6,7 +6,7 @@ files:
   all:
     output: [conda]
     matrix:
-      cuda: ["12.9", "13.1"]
+      cuda: ["12.9", "13.2"]
       arch: [x86_64, aarch64]
     includes:
       - checks
@@ -161,6 +161,7 @@ files:
       table: project
     includes:
       - cuda_wheels
+      - depends_on_libcuvs
       - depends_on_libraft
       - depends_on_librmm
   py_build_pylibcugraph:
@@ -250,6 +251,10 @@ dependencies:
               cuda: "13.1"
             packages:
               - cuda-version=13.1
+          - matrix:
+              cuda: "13.2"
+            packages:
+              - cuda-version=13.2
       - output_types: requirements
         matrices:
           # if use_cuda_wheels=false is provided, do not add dependencies on any CUDA wheels
@@ -295,6 +300,11 @@ dependencies:
               use_cuda_wheels: "true"
             packages:
               - cuda-toolkit==13.1.*
+          - matrix:
+              cuda: "13.2"
+              use_cuda_wheels: "true"
+            packages:
+              - cuda-toolkit==13.2.*
   cuda:
     common:
       - output_types: [conda]
@@ -658,7 +668,25 @@ dependencies:
     common:
       - output_types: conda
         packages:
-          - libcuvs==26.6.*,>=0.0.0a0
+          - &libcuvs_unsuffixed libcuvs==26.6.*,>=0.0.0a0
+      - output_types: requirements
+        packages:
+          # pip recognizes the index as a global option for the requirements.txt file
+          - --extra-index-url=https://pypi.anaconda.org/rapidsai-wheels-nightly/simple
+    specific:
+      - output_types: [requirements, pyproject]
+        matrices:
+          - matrix:
+              cuda: "12.*"
+              cuda_suffixed: "true"
+            packages:
+              - libcuvs-cu12==26.6.*,>=0.0.0a0
+          - matrix:
+              cuda: "13.*"
+              cuda_suffixed: "true"
+            packages:
+              - libcuvs-cu13==26.6.*,>=0.0.0a0
+          - {matrix: null, packages: [*libcuvs_unsuffixed]}
   depends_on_librmm:
     common:
       - output_types: conda

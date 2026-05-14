@@ -1,9 +1,10 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
 
+#include <cugraph/export.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/utilities/error.hpp>
 
@@ -22,7 +23,7 @@
  *  @{
  */
 
-namespace cugraph {
+namespace CUGRAPH_EXPORT cugraph {
 
 template <typename vertex_t, typename edge_t, bool multi_gpu, typename Enable = void>
 struct graph_meta_t;
@@ -359,7 +360,7 @@ __host__ __device__ std::enable_if_t<std::is_unsigned<vertex_t>::value, bool> is
   return v < num_vertices;
 }
 
-}  // namespace cugraph
+}  // namespace CUGRAPH_EXPORT cugraph
 
 #include "eidecl_graph.hpp"
 

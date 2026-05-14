@@ -7,6 +7,7 @@
 #include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/edge_partition_endpoint_property_device_view.cuh>
 #include <cugraph/edge_src_dst_property.hpp>
+#include <cugraph/export.hpp>
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/prims/detail/optional_dataframe_buffer.hpp>
@@ -19,7 +20,7 @@
 #include <tuple>
 #include <type_traits>
 
-namespace cugraph {
+namespace CUGRAPH_EXPORT cugraph {
 
 /**
  * @brief Iterate over outgoing edges from the current vertex frontier and reduce all edge functor
@@ -110,4 +111,4 @@ transform_reduce_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
     do_expensive_check);
 }
 
-}  // namespace cugraph
+}  // namespace CUGRAPH_EXPORT cugraph

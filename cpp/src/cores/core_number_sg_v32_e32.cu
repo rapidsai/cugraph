@@ -1,20 +1,23 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2024, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
 #include "cores/core_number_impl.cuh"
 
+#include <cugraph/export.hpp>
+
 namespace cugraph {
 
 // MG instantiation
 
-template void core_number(raft::handle_t const& handle,
-                          graph_view_t<int32_t, int32_t, false, false> const& graph_view,
-                          int32_t* core_numbers,
-                          k_core_degree_type_t degree_type,
-                          size_t k_first,
-                          size_t k_last,
-                          bool do_expensive_check);
+template CUGRAPH_EXPORT void core_number(
+  raft::handle_t const& handle,
+  graph_view_t<int32_t, int32_t, false, false> const& graph_view,
+  int32_t* core_numbers,
+  k_core_degree_type_t degree_type,
+  size_t k_first,
+  size_t k_last,
+  bool do_expensive_check);
 
 }  // namespace cugraph

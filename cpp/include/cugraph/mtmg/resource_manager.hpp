@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include <cugraph/export.hpp>
 #include <cugraph/mtmg/handle.hpp>
 #include <cugraph/mtmg/instance_manager.hpp>
 #include <cugraph/partition_manager.hpp>
@@ -21,7 +22,7 @@
 
 #include <execution>
 
-namespace cugraph {
+namespace CUGRAPH_EXPORT cugraph {
 namespace mtmg {
 
 /**
@@ -246,4 +247,4 @@ class resource_manager_t {
 };
 
 }  // namespace mtmg
-}  // namespace cugraph
+}  // namespace CUGRAPH_EXPORT cugraph

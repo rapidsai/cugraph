@@ -23,8 +23,8 @@ endif(RAPIDS_DATASET_ROOT_DIR)
 # - common C++ test utils -----------------------------------------------------------------------------
 
 add_library(cugraphtestutil STATIC
-            utilities/matrix_market_file_utilities.cu
-            utilities/csv_file_utilities.cu
+            utilities/matrix_market_file_utilities_sg.cu
+            utilities/csv_file_utilities_sg.cu
             utilities/property_generator_utilities_sg.cu
             utilities/thrust_wrapper.cu
             utilities/misc_utilities.cpp
@@ -47,7 +47,6 @@ target_compile_options(cugraphtestutil
 )
 
 set_property(TARGET cugraphtestutil PROPERTY POSITION_INDEPENDENT_CODE ON)
-set_property(TARGET cugraphtestutil PROPERTY NO_CUDART_DEP ON)
 
 target_include_directories(cugraphtestutil
     PUBLIC
@@ -84,7 +83,6 @@ target_include_directories(cugraph_c_testutil
 )
 
 set_property(TARGET cugraph_c_testutil PROPERTY POSITION_INDEPENDENT_CODE ON)
-set_property(TARGET cugraph_c_testutil PROPERTY NO_CUDART_DEP ON)
 
 target_link_libraries(cugraph_c_testutil
     PUBLIC
@@ -108,6 +106,8 @@ if(BUILD_CUGRAPH_MG_TESTS)
     add_library(cugraphmgtestutil STATIC
                 utilities/device_comm_wrapper.cu
                 utilities/mg_utilities.cpp
+                utilities/csv_file_utilities_mg.cu
+                utilities/matrix_market_file_utilities_mg.cu
                 utilities/conversion_utilities_mg.cu
                 utilities/property_generator_utilities_mg.cu
                 utilities/debug_utilities_mg.cpp
@@ -116,7 +116,6 @@ if(BUILD_CUGRAPH_MG_TESTS)
                 )
 
     set_property(TARGET cugraphmgtestutil PROPERTY POSITION_INDEPENDENT_CODE ON)
-    set_property(TARGET cugraphmgtestutil PROPERTY NO_CUDART_DEP ON)
 
     target_compile_options(cugraphmgtestutil
                 PUBLIC "$<$<COMPILE_LANGUAGE:CXX>:${CUGRAPH_CXX_FLAGS}>"
@@ -127,10 +126,13 @@ if(BUILD_CUGRAPH_MG_TESTS)
         PRIVATE
         "${CMAKE_CURRENT_SOURCE_DIR}/../include"
         "${CMAKE_CURRENT_SOURCE_DIR}"
+        "${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/mmio"
         "${CUGRAPH_SOURCE_DIR}/src"
     )
 
     target_link_libraries(cugraphmgtestutil
+        PUBLIC
+            cugraph::cugraph_mg
         PRIVATE
             cuco::cuco
             cugraph::cugraph
@@ -516,7 +518,7 @@ ConfigureTest(
 ###################################################################################################
 # - HETEROGENEOUS BIASED NBR SAMPLING tests -------------------------------------------------------
 ConfigureTest(
-    HETEROGENEOUS_BIASED_NEIGHBOR_SAMPLING_TESTT sampling/heterogeneous_biased_neighbor_sampling.cpp
+    HETEROGENEOUS_BIASED_NEIGHBOR_SAMPLING_TEST sampling/heterogeneous_biased_neighbor_sampling.cpp
         GPUS 1 PERCENT 75)
 
 ###################################################################################################
@@ -959,6 +961,7 @@ if (BUILD_CUGRAPH_MTMG_TESTS)
                           PRIVATE
                           cuco::cuco
                           cugraphmgtestutil
+                          cugraph::cugraph_mtmg
                           ${COMPILED_RAFT_LIB}
                           ucx::ucp
                           ucx::ucs
@@ -970,6 +973,7 @@ if (BUILD_CUGRAPH_MTMG_TESTS)
                           PRIVATE
                           cuco::cuco
                           cugraphmgtestutil
+                          cugraph::cugraph_mtmg
                           ${COMPILED_RAFT_LIB}
                           ucx::ucp
                           ucx::ucs
@@ -981,6 +985,7 @@ if (BUILD_CUGRAPH_MTMG_TESTS)
                           PRIVATE
                           cuco::cuco
                           cugraphmgtestutil
+                          cugraph::cugraph_mtmg
                           ${COMPILED_RAFT_LIB}
                           ucx::ucp
                           ucx::ucs
@@ -995,6 +1000,7 @@ if (BUILD_CUGRAPH_MTMG_TESTS)
                               PRIVATE
                               cuco::cuco
                               cugraphmgtestutil
+                              cugraph::cugraph_mtmg
                               ${COMPILED_RAFT_LIB}
                               ucx::ucp
                               ucx::ucs
