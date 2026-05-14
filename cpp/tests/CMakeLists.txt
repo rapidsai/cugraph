@@ -795,14 +795,14 @@ if(BUILD_CUGRAPH_MG_TESTS)
     ConfigureTestMG(MG_EXTRACT_TRANSFORM_IF_E_TEST prims/mg_extract_transform_if_e.cu)
 
     ###############################################################################################
-    # - MG PRIMS EXTRACT_TRANSFORM_V_FRONTIER_OUTGOING_E tests ------------------------------------
-    ConfigureTestMG(MG_EXTRACT_TRANSFORM_V_FRONTIER_OUTGOING_E_TEST
-                    prims/mg_extract_transform_v_frontier_outgoing_e.cu)
+    # - MG PRIMS EXTRACT_TRANSFORM_V_FRONTIER_INCOMING_OUTGOING_E tests ---------------------------
+    ConfigureTestMG(MG_EXTRACT_TRANSFORM_V_FRONTIER_INCOMING_OUTGOING_E_TEST
+                    prims/mg_extract_transform_v_frontier_incoming_outgoing_e.cu)
 
     ###############################################################################################
-    # - MG PRIMS EXTRACT_TRANSFORM_IF_V_FRONTIER_OUTGOING_E tests ---------------------------------
-    ConfigureTestMG(MG_EXTRACT_TRANSFORM_IF_V_FRONTIER_OUTGOING_E_TEST
-                    prims/mg_extract_transform_if_v_frontier_outgoing_e.cu)
+    # - MG PRIMS EXTRACT_TRANSFORM_IF_V_FRONTIER_INCOMING_OUTGOING_E tests ------------------------
+    ConfigureTestMG(MG_EXTRACT_TRANSFORM_IF_V_FRONTIER_INCOMING_OUTGOING_E_TEST
+                    prims/mg_extract_transform_if_v_frontier_incoming_outgoing_e.cu)
 
     ###############################################################################################
     # - MG PRIMS PER_V_RANDOM_SELECT_TRANSFORM_OUTGOING_E tests -----------------------------------
