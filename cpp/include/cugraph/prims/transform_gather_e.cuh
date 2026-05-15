@@ -43,13 +43,12 @@ template <typename GraphViewType,
           typename EdgePartitionEdgeValueInputWrapper,
           typename EdgeOp>
 struct return_e_value_t {
-  using e_op_result_t =
-    typename detail::edge_op_result_type<GraphViewType,
-                                         typename GraphViewType::vertex_type,
-                                         EdgePartitionSrcValueInputWrapper,
-                                         EdgePartitionDstValueInputWrapper,
-                                         EdgePartitionEdgeValueInputWrapper,
-                                         EdgeOp>::type;
+  using e_op_result_t = typename detail::edge_op_result_type<GraphViewType,
+                                                             typename GraphViewType::vertex_type,
+                                                             EdgePartitionSrcValueInputWrapper,
+                                                             EdgePartitionDstValueInputWrapper,
+                                                             EdgePartitionEdgeValueInputWrapper,
+                                                             EdgeOp>::type;
 
   edge_partition_device_view_t<typename GraphViewType::vertex_type,
                                typename GraphViewType::edge_type,

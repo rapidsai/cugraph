@@ -65,13 +65,12 @@ template <typename GraphViewType,
           typename EdgeValueInputWrapper,
           typename EdgeOp,
           typename PredOp>
-dataframe_buffer_type_t<
-  typename detail::edge_op_result_type<GraphViewType,
-                                       typename KeyBucketType::key_type,
-                                       EdgeSrcValueInputWrapper,
-                                       EdgeDstValueInputWrapper,
-                                       EdgeValueInputWrapper,
-                                       EdgeOp>::type>
+dataframe_buffer_type_t<typename detail::edge_op_result_type<GraphViewType,
+                                                             typename KeyBucketType::key_type,
+                                                             EdgeSrcValueInputWrapper,
+                                                             EdgeDstValueInputWrapper,
+                                                             EdgeValueInputWrapper,
+                                                             EdgeOp>::type>
 extract_transform_if_v_frontier_incoming_e(raft::handle_t const& handle,
                                            GraphViewType const& graph_view,
                                            KeyBucketType const& frontier,
@@ -84,13 +83,12 @@ extract_transform_if_v_frontier_incoming_e(raft::handle_t const& handle,
 {
   static_assert(GraphViewType::is_storage_transposed);
 
-  using e_op_result_t =
-    typename detail::edge_op_result_type<GraphViewType,
-                                         typename KeyBucketType::key_type,
-                                         EdgeSrcValueInputWrapper,
-                                         EdgeDstValueInputWrapper,
-                                         EdgeValueInputWrapper,
-                                         EdgeOp>::type;
+  using e_op_result_t = typename detail::edge_op_result_type<GraphViewType,
+                                                             typename KeyBucketType::key_type,
+                                                             EdgeSrcValueInputWrapper,
+                                                             EdgeDstValueInputWrapper,
+                                                             EdgeValueInputWrapper,
+                                                             EdgeOp>::type;
   static_assert(!std::is_same_v<e_op_result_t, void>);
 
   auto value_buffer = allocate_dataframe_buffer<e_op_result_t>(size_t{0}, handle.get_stream());
@@ -154,13 +152,12 @@ template <typename GraphViewType,
           typename EdgeValueInputWrapper,
           typename EdgeOp,
           typename PredOp>
-dataframe_buffer_type_t<
-  typename detail::edge_op_result_type<GraphViewType,
-                                       typename KeyBucketType::key_type,
-                                       EdgeSrcValueInputWrapper,
-                                       EdgeDstValueInputWrapper,
-                                       EdgeValueInputWrapper,
-                                       EdgeOp>::type>
+dataframe_buffer_type_t<typename detail::edge_op_result_type<GraphViewType,
+                                                             typename KeyBucketType::key_type,
+                                                             EdgeSrcValueInputWrapper,
+                                                             EdgeDstValueInputWrapper,
+                                                             EdgeValueInputWrapper,
+                                                             EdgeOp>::type>
 extract_transform_if_v_frontier_outgoing_e(raft::handle_t const& handle,
                                            GraphViewType const& graph_view,
                                            KeyBucketType const& frontier,
@@ -173,13 +170,12 @@ extract_transform_if_v_frontier_outgoing_e(raft::handle_t const& handle,
 {
   static_assert(!GraphViewType::is_storage_transposed);
 
-  using e_op_result_t =
-    typename detail::edge_op_result_type<GraphViewType,
-                                         typename KeyBucketType::key_type,
-                                         EdgeSrcValueInputWrapper,
-                                         EdgeDstValueInputWrapper,
-                                         EdgeValueInputWrapper,
-                                         EdgeOp>::type;
+  using e_op_result_t = typename detail::edge_op_result_type<GraphViewType,
+                                                             typename KeyBucketType::key_type,
+                                                             EdgeSrcValueInputWrapper,
+                                                             EdgeDstValueInputWrapper,
+                                                             EdgeValueInputWrapper,
+                                                             EdgeOp>::type;
   static_assert(!std::is_same_v<e_op_result_t, void>);
 
   auto value_buffer = allocate_dataframe_buffer<e_op_result_t>(size_t{0}, handle.get_stream());

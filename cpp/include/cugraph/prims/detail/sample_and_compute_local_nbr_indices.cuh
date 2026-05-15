@@ -2492,7 +2492,7 @@ template <typename GraphViewType,
           typename BiasEdgeOp>
 std::tuple<rmm::device_uvector<
              typename edge_op_result_type<GraphViewType,
-	                                  typename thrust::iterator_traits<KeyIterator>::value_type,
+                                          typename thrust::iterator_traits<KeyIterator>::value_type,
                                           EdgeSrcValueInputWrapper,
                                           EdgeDstValueInputWrapper,
                                           EdgeValueInputWrapper,
@@ -2514,7 +2514,7 @@ compute_aggregate_local_frontier_biases(raft::handle_t const& handle,
   using key_t    = typename thrust::iterator_traits<KeyIterator>::value_type;
 
   using bias_t = typename edge_op_result_type<GraphViewType,
-					      key_t,
+                                              key_t,
                                               EdgeSrcValueInputWrapper,
                                               EdgeDstValueInputWrapper,
                                               EdgeValueInputWrapper,
@@ -2639,7 +2639,7 @@ template <typename GraphViewType,
           typename EdgeTypeInputWrapper>
 std::tuple<rmm::device_uvector<
              typename edge_op_result_type<GraphViewType,
-	                                  typename thrust::iterator_traits<KeyIterator>::value_type,
+                                          typename thrust::iterator_traits<KeyIterator>::value_type,
                                           EdgeSrcValueInputWrapper,
                                           EdgeDstValueInputWrapper,
                                           EdgeValueInputWrapper,
@@ -2666,7 +2666,7 @@ compute_aggregate_local_frontier_bias_type_pairs(
   using edge_value_t = typename EdgeValueInputWrapper::value_type;
   using edge_type_t  = typename EdgeTypeInputWrapper::value_type;
   using bias_t       = typename edge_op_result_type<GraphViewType,
-	                                            key_t,
+                                                    key_t,
                                                     EdgeSrcValueInputWrapper,
                                                     EdgeDstValueInputWrapper,
                                                     EdgeValueInputWrapper,
@@ -5546,7 +5546,7 @@ homogeneous_biased_sample_and_compute_local_nbr_indices(
   using key_t    = typename thrust::iterator_traits<KeyIterator>::value_type;
 
   using bias_t      = typename edge_op_result_type<GraphViewType,
-	                                           key_t,
+                                                   key_t,
                                                    EdgeSrcValueInputWrapper,
                                                    EdgeDstValueInputWrapper,
                                                    EdgeValueInputWrapper,
@@ -5735,7 +5735,7 @@ heterogeneous_biased_sample_and_compute_local_nbr_indices(
   using key_t    = typename thrust::iterator_traits<KeyIterator>::value_type;
 
   using bias_t      = typename edge_op_result_type<GraphViewType,
-	                                           key_t,
+                                                   key_t,
                                                    EdgeSrcValueInputWrapper,
                                                    EdgeDstValueInputWrapper,
                                                    EdgeValueInputWrapper,

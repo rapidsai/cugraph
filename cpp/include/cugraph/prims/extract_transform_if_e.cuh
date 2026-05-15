@@ -73,13 +73,12 @@ template <typename GraphViewType,
           typename EdgeValueInputWrapper,
           typename EdgeOp,
           typename PredOp>
-dataframe_buffer_type_t<
-  typename detail::edge_op_result_type<GraphViewType,
-                                       typename GraphViewType::vertex_type,
-                                       EdgeSrcValueInputWrapper,
-                                       EdgeDstValueInputWrapper,
-                                       EdgeValueInputWrapper,
-                                       EdgeOp>::type>
+dataframe_buffer_type_t<typename detail::edge_op_result_type<GraphViewType,
+                                                             typename GraphViewType::vertex_type,
+                                                             EdgeSrcValueInputWrapper,
+                                                             EdgeDstValueInputWrapper,
+                                                             EdgeValueInputWrapper,
+                                                             EdgeOp>::type>
 extract_transform_if_e(raft::handle_t const& handle,
                        GraphViewType const& graph_view,
                        EdgeSrcValueInputWrapper edge_src_value_input,
@@ -89,14 +88,13 @@ extract_transform_if_e(raft::handle_t const& handle,
                        PredOp pred_op,
                        bool do_expensive_check = false)
 {
-  using vertex_t = typename GraphViewType::vertex_type;
-  using e_op_result_t =
-    typename detail::edge_op_result_type<GraphViewType,
-                                         typename GraphViewType::vertex_type,
-                                         EdgeSrcValueInputWrapper,
-                                         EdgeDstValueInputWrapper,
-                                         EdgeValueInputWrapper,
-                                         EdgeOp>::type;
+  using vertex_t      = typename GraphViewType::vertex_type;
+  using e_op_result_t = typename detail::edge_op_result_type<GraphViewType,
+                                                             typename GraphViewType::vertex_type,
+                                                             EdgeSrcValueInputWrapper,
+                                                             EdgeDstValueInputWrapper,
+                                                             EdgeValueInputWrapper,
+                                                             EdgeOp>::type;
   static_assert(!std::is_same_v<e_op_result_t, void>);
 
   // FIXME: Consider updating detail::extract_transform_if_v_forntier_e to take std::nullopt to as a
