@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -160,6 +160,137 @@ int generic_uniform_neighbor_sample_test(const cugraph_resource_handle_t* handle
   cugraph_type_erased_host_array_view_free(h_fan_out_view);
   cugraph_type_erased_device_array_free(d_start);
   cugraph_type_erased_device_array_free(d_start_label_offsets);
+
+  return test_ret_value;
+}
+
+/*
+ * Disjoint sampling on a multigraph: parallel edges (duplicate src,dst) with
+ * is_multigraph=true. Single batch of seeds (NULL starting_vertex_label_offsets).
+ * Expects implementation to allow disjoint sampling when the graph is a multigraph.
+ */
+int generic_uniform_neighbor_sample_disjoint_multigraph_test(
+  const cugraph_resource_handle_t* handle,
+  vertex_t* h_src,
+  vertex_t* h_dst,
+  weight_t* h_wgt,
+  edge_t* h_edge_ids,
+  int32_t* h_edge_types,
+  size_t num_vertices,
+  size_t num_edges,
+  vertex_t* h_start,
+  size_t num_start_vertices,
+  int* fan_out,
+  size_t fan_out_size,
+  bool_t with_replacement,
+  bool_t return_hops,
+  cugraph_prior_sources_behavior_t prior_sources_behavior,
+  bool_t dedupe_sources,
+  bool_t renumber_results)
+{
+  int test_ret_value              = 0;
+  cugraph_error_code_t ret_code   = CUGRAPH_SUCCESS;
+  cugraph_error_t* ret_error      = NULL;
+  cugraph_graph_t* graph          = NULL;
+  cugraph_sample_result_t* result = NULL;
+
+  ret_code = create_sg_test_graph(handle,
+                                  vertex_tid,
+                                  edge_tid,
+                                  h_src,
+                                  h_dst,
+                                  weight_tid,
+                                  h_wgt,
+                                  edge_type_tid,
+                                  h_edge_types,
+                                  edge_id_tid,
+                                  h_edge_ids,
+                                  INT32,
+                                  NULL,
+                                  NULL,
+                                  num_edges,
+                                  FALSE,
+                                  TRUE,
+                                  FALSE,
+                                  TRUE,
+                                  &graph,
+                                  &ret_error);
+
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "graph creation failed.");
+
+  cugraph_type_erased_device_array_t* d_start           = NULL;
+  cugraph_type_erased_device_array_view_t* d_start_view = NULL;
+  cugraph_type_erased_host_array_view_t* h_fan_out_view = NULL;
+
+  ret_code = cugraph_type_erased_device_array_create(
+    handle, num_start_vertices, INT32, &d_start, &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "d_start create failed.");
+
+  d_start_view = cugraph_type_erased_device_array_view(d_start);
+
+  ret_code = cugraph_type_erased_device_array_view_copy_from_host(
+    handle, d_start_view, (byte_t*)h_start, &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "start vertices copy_from_host failed.");
+
+  h_fan_out_view = cugraph_type_erased_host_array_view_create(fan_out, fan_out_size, INT32);
+
+  cugraph_rng_state_t* rng_state;
+  ret_code = cugraph_rng_state_create(handle, 0, &rng_state, &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "rng_state create failed.");
+
+  cugraph_sampling_options_t* sampling_options;
+
+  ret_code = cugraph_sampling_options_create(&sampling_options, &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "sampling_options create failed.");
+
+  cugraph_sampling_set_with_replacement(sampling_options, with_replacement);
+  cugraph_sampling_set_return_hops(sampling_options, return_hops);
+  cugraph_sampling_set_prior_sources_behavior(sampling_options, prior_sources_behavior);
+  cugraph_sampling_set_dedupe_sources(sampling_options, dedupe_sources);
+  cugraph_sampling_set_renumber_results(sampling_options, renumber_results);
+  cugraph_sampling_set_disjoint_sampling(sampling_options, TRUE);
+
+  ret_code = cugraph_homogeneous_uniform_neighbor_sample(handle,
+                                                         rng_state,
+                                                         graph,
+                                                         d_start_view,
+                                                         NULL,
+                                                         h_fan_out_view,
+                                                         sampling_options,
+                                                         FALSE,
+                                                         &result,
+                                                         &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "uniform_neighbor_sample failed.");
+
+  test_ret_value = validate_sample_result(handle,
+                                          result,
+                                          h_src,
+                                          h_dst,
+                                          h_wgt,
+                                          h_edge_ids,
+                                          h_edge_types,
+                                          NULL,
+                                          NULL,
+                                          num_vertices,
+                                          num_edges,
+                                          h_start,
+                                          num_start_vertices,
+                                          NULL,
+                                          0,
+                                          fan_out,
+                                          fan_out_size,
+                                          sampling_options,
+                                          FALSE);
+  TEST_ASSERT(test_ret_value, test_ret_value == 0, "validate_sample_result failed.");
+
+  cugraph_sampling_options_free(sampling_options);
+  cugraph_rng_state_free(rng_state);
+  cugraph_sample_result_free(result);
+  cugraph_graph_free(graph);
+  cugraph_type_erased_device_array_view_free(d_start_view);
+  cugraph_type_erased_host_array_view_free(h_fan_out_view);
+  cugraph_type_erased_device_array_free(d_start);
 
   return test_ret_value;
 }
@@ -528,6 +659,46 @@ int test_uniform_neighbor_sample_renumber_results(const cugraph_resource_handle_
                                               renumber_results);
 }
 
+int test_uniform_neighbor_sample_disjoint_multigraph(const cugraph_resource_handle_t* handle)
+{
+  size_t num_edges    = 10;
+  size_t num_vertices = 6;
+  size_t fan_out_size = 3;
+  size_t num_starts   = 1;
+
+  vertex_t src[]       = {0, 0, 0, 1, 1, 2, 2, 2, 3, 4};
+  vertex_t dst[]       = {1, 1, 3, 3, 4, 0, 1, 3, 5, 5};
+  edge_t edge_ids[]    = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
+  weight_t weight[]    = {0.05f, 0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f, 0.9f};
+  int32_t edge_types[] = {9, 8, 7, 6, 5, 4, 3, 2, 1, 0};
+  vertex_t start[]     = {0};
+  int fan_out[]        = {3, 3, 3};
+
+  bool_t with_replacement                                 = FALSE;
+  bool_t return_hops                                      = TRUE;
+  cugraph_prior_sources_behavior_t prior_sources_behavior = DEFAULT;
+  bool_t dedupe_sources                                   = FALSE;
+  bool_t renumber_results                                 = FALSE;
+
+  return generic_uniform_neighbor_sample_disjoint_multigraph_test(handle,
+                                                                  src,
+                                                                  dst,
+                                                                  weight,
+                                                                  edge_ids,
+                                                                  edge_types,
+                                                                  num_vertices,
+                                                                  num_edges,
+                                                                  start,
+                                                                  num_starts,
+                                                                  fan_out,
+                                                                  fan_out_size,
+                                                                  with_replacement,
+                                                                  return_hops,
+                                                                  prior_sources_behavior,
+                                                                  dedupe_sources,
+                                                                  renumber_results);
+}
+
 int main(int argc, char** argv)
 {
   cugraph_resource_handle_t* handle = NULL;
@@ -540,6 +711,7 @@ int main(int argc, char** argv)
   result |= RUN_TEST_NEW(test_uniform_neighbor_sample_unique_sources, handle);
   result |= RUN_TEST_NEW(test_uniform_neighbor_sample_carry_over_sources, handle);
   result |= RUN_TEST_NEW(test_uniform_neighbor_sample_renumber_results, handle);
+  result |= RUN_TEST_NEW(test_uniform_neighbor_sample_disjoint_multigraph, handle);
 
   cugraph_free_resource_handle(handle);
 

@@ -9,6 +9,7 @@
 #include "sampling_utils.hpp"
 
 #include <cugraph/arithmetic_variant_types.hpp>
+#include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/edge_property.hpp>
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph.hpp>
@@ -19,21 +20,33 @@
 #include <cugraph/prims/transform_reduce_e.cuh>
 #include <cugraph/prims/vertex_frontier.cuh>
 #include <cugraph/sampling_functions.hpp>
-#include <cugraph/shuffle_functions.hpp>
+#include <cugraph/utilities/device_functors.cuh>
+#include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/mask_utils.cuh>
 #include <cugraph/utilities/thrust_tuple_utils.hpp>
 
 #include <raft/core/handle.hpp>
+#include <raft/util/cudart_utils.hpp>
 
 #include <rmm/device_uvector.hpp>
 
 #include <cuda/std/optional>
 #include <cuda/std/tuple>
+#include <thrust/count.h>
+#include <thrust/distance.h>
+#include <thrust/fill.h>
+#include <thrust/for_each.h>
+#include <thrust/iterator/constant_iterator.h>
+#include <thrust/iterator/counting_iterator.h>
+#include <thrust/iterator/zip_iterator.h>
+#include <thrust/reduce.h>
 #include <thrust/sort.h>
+#include <thrust/unique.h>
 
 #include <optional>
 #include <tuple>
 #include <type_traits>
+#include <vector>
 
 namespace cugraph {
 namespace detail {
@@ -658,8 +671,10 @@ sample_unvisited_with_one_property(
   std::optional<rmm::device_uvector<int32_t>> result_labels{std::nullopt};
 
   bool sample_and_append{true};
-  std::optional<rmm::device_uvector<vertex_t>> resample_active_majors{std::nullopt};
-  std::optional<rmm::device_uvector<int32_t>> resample_active_major_labels{std::nullopt};
+  rmm::device_uvector<vertex_t> carryover_frontier_majors(0, handle.get_stream());
+  std::optional<rmm::device_uvector<int32_t>> carryover_frontier_labels{std::nullopt};
+  std::optional<rmm::device_uvector<int32_t>> carryover_frontier_types{std::nullopt};
+  rmm::device_uvector<size_t> carryover_frontier_capacity(0, handle.get_stream());
 
   cugraph::key_bucket_view_t<vertex_t, tag_t, multi_gpu, false> active_bucket_view =
     key_bucket_view;
@@ -667,7 +682,10 @@ sample_unvisited_with_one_property(
   // FIXME: We could explore increasing the rate of convergency by oversampling to allow
   // for some duplicates to be discarded.  This would allow some vertices to still have the
   // first sampling result be sufficient.  For now we'll leave this as a future optimization.
+  size_t disjoint_resample_iteration = 0;
   while (sample_and_append) {
+    ++disjoint_resample_iteration;
+
     std::optional<rmm::device_uvector<int32_t>> sampled_labels{std::nullopt};
     rmm::device_uvector<vertex_t> sampled_majors(0, handle.get_stream());
     rmm::device_uvector<vertex_t> sampled_minors(0, handle.get_stream());
@@ -687,8 +705,9 @@ sample_unvisited_with_one_property(
             edge_property_view,
             sample_unvisited_edge_biases_op_t<vertex_t, bias_t>{
               raft::device_span<vertex_t const>{visited_minors.data(), visited_minors.size()},
-              raft::device_span<int32_t const>{visited_minor_labels->data(),
-                                               visited_minor_labels->size()}},
+              visited_minor_labels ? cuda::std::make_optional(raft::device_span<int32_t const>{
+                                       visited_minor_labels->data(), visited_minor_labels->size()})
+                                   : cuda::std::nullopt},
             edge_type_view ? std::make_optional(
                                std::get<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>(
                                  *edge_type_view))
@@ -710,8 +729,9 @@ sample_unvisited_with_one_property(
             edge_property_view,
             sample_unvisited_edge_biases_op_t<vertex_t, bias_t>{
               raft::device_span<vertex_t const>{visited_minors.data(), visited_minors.size()},
-              raft::device_span<int32_t const>{visited_minor_labels->data(),
-                                               visited_minor_labels->size()}},
+              visited_minor_labels ? cuda::std::make_optional(raft::device_span<int32_t const>{
+                                       visited_minor_labels->data(), visited_minor_labels->size()})
+                                   : cuda::std::nullopt},
             edge_type_view ? std::make_optional(
                                std::get<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>(
                                  *edge_type_view))
@@ -733,8 +753,9 @@ sample_unvisited_with_one_property(
           edge_property_view,
           sample_unvisited_edge_biases_op_t<vertex_t, bias_t>{
             raft::device_span<vertex_t const>{visited_minors.data(), visited_minors.size()},
-            raft::device_span<int32_t const>{visited_minor_labels->data(),
-                                             visited_minor_labels->size()}},
+            visited_minor_labels ? cuda::std::make_optional(raft::device_span<int32_t const>{
+                                     visited_minor_labels->data(), visited_minor_labels->size()})
+                                 : cuda::std::nullopt},
           edge_type_view ? std::make_optional(
                              std::get<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>(
                                *edge_type_view))
@@ -745,19 +766,355 @@ sample_unvisited_with_one_property(
           with_replacement);
     }
 
+    if (carryover_frontier_capacity.size() > 0) {
+      rmm::device_uvector<vertex_t> majors               = std::move(sampled_majors);
+      rmm::device_uvector<vertex_t> minors               = std::move(sampled_minors);
+      arithmetic_device_uvector_t prop                   = std::move(sampled_property);
+      std::optional<rmm::device_uvector<int32_t>> labels = std::move(sampled_labels);
+
+      if (carryover_frontier_types) {
+        CUGRAPH_EXPECTS(
+          std::holds_alternative<rmm::device_uvector<int32_t>>(prop),
+          "Expected rmm::device_uvector<int32_t> for prop with heterogeneous discards.");
+      }
+
+      rmm::device_uvector<float> random_numbers =
+        rmm::device_uvector<float>(majors.size(), handle.get_stream());
+      uniform_random_fill(
+        handle.get_stream(), random_numbers.data(), random_numbers.size(), 0.0f, 1.0f, rng_state);
+
+      size_t keep_count{0};
+      rmm::device_uvector<uint32_t> keep_flags(0, handle.get_stream());
+
+      if (carryover_frontier_types) {
+        auto& types = std::get<rmm::device_uvector<int32_t>>(prop);
+
+        if (labels) {
+          CUGRAPH_EXPECTS(carryover_frontier_labels.has_value(),
+                          "Heterogeneous tagged disjoint carry requires frontier labels.");
+
+          thrust::sort_by_key(
+            handle.get_thrust_policy(),
+            thrust::make_zip_iterator(
+              labels->begin(), majors.begin(), types.begin(), random_numbers.begin()),
+            thrust::make_zip_iterator(
+              labels->end(), majors.end(), types.end(), random_numbers.end()),
+            minors.begin());
+
+          random_numbers.resize(0, handle.get_stream());
+          random_numbers.shrink_to_fit(handle.get_stream());
+
+          std::tie(keep_count, keep_flags) = detail::mark_entries(
+            handle,
+            majors.size(),
+            cuda::proclaim_return_type<bool>(
+              [majors_size             = majors.size(),
+               d_labels                = labels->data(),
+               d_majors                = majors.data(),
+               d_types                 = types.data(),
+               carry_frontier_size     = carryover_frontier_majors.size(),
+               carry_frontier_labels   = carryover_frontier_labels->data(),
+               carry_frontier_majors   = carryover_frontier_majors.data(),
+               carry_frontier_types    = carryover_frontier_types->data(),
+               carry_frontier_capacity = carryover_frontier_capacity.data()] __device__(size_t i) {
+                auto key = cuda::std::make_tuple(d_labels[i], d_majors[i], d_types[i]);
+                auto carry_frontier_begin = thrust::make_zip_iterator(
+                  carry_frontier_labels, carry_frontier_majors, carry_frontier_types);
+                auto lb = thrust::lower_bound(thrust::seq,
+                                              carry_frontier_begin,
+                                              carry_frontier_begin + carry_frontier_size,
+                                              key);
+
+                auto pos = cuda::std::distance(carry_frontier_begin, lb);
+
+                if ((pos == carry_frontier_size) || (*lb != key)) { return false; }
+
+                auto needed_count = carry_frontier_capacity[pos];
+
+                auto d_begin = thrust::make_zip_iterator(d_labels, d_majors, d_types);
+                auto lb2 = thrust::lower_bound(thrust::seq, d_begin, d_begin + majors_size, key);
+
+                auto position_count = (i - cuda::std::distance(d_begin, lb2));
+                return position_count < needed_count;
+              }),
+            std::nullopt);
+
+        } else {
+          thrust::sort_by_key(
+            handle.get_thrust_policy(),
+            thrust::make_zip_iterator(majors.begin(), types.begin(), random_numbers.begin()),
+            thrust::make_zip_iterator(majors.end(), types.end(), random_numbers.end()),
+            minors.begin());
+
+          random_numbers.resize(0, handle.get_stream());
+          random_numbers.shrink_to_fit(handle.get_stream());
+
+          std::tie(keep_count, keep_flags) = detail::mark_entries(
+            handle,
+            majors.size(),
+            cuda::proclaim_return_type<bool>(
+              [majors_size             = majors.size(),
+               d_majors                = majors.data(),
+               d_types                 = types.data(),
+               carry_frontier_size     = carryover_frontier_majors.size(),
+               carry_frontier_majors   = carryover_frontier_majors.data(),
+               carry_frontier_types    = carryover_frontier_types->data(),
+               carry_frontier_capacity = carryover_frontier_capacity.data()] __device__(size_t i) {
+                auto key = cuda::std::make_tuple(d_majors[i], d_types[i]);
+                auto carry_frontier_begin =
+                  thrust::make_zip_iterator(carry_frontier_majors, carry_frontier_types);
+                auto lb = thrust::lower_bound(thrust::seq,
+                                              carry_frontier_begin,
+                                              carry_frontier_begin + carry_frontier_size,
+                                              key);
+
+                auto pos = cuda::std::distance(carry_frontier_begin, lb);
+
+                if ((pos == carry_frontier_size) || (*lb != key)) { return false; }
+
+                auto needed_count = carry_frontier_capacity[pos];
+
+                auto d_begin = thrust::make_zip_iterator(d_majors, d_types);
+                auto lb2 = thrust::lower_bound(thrust::seq, d_begin, d_begin + majors_size, key);
+
+                auto position_count = (i - cuda::std::distance(d_begin, lb2));
+                return position_count < needed_count;
+              }),
+            std::nullopt);
+        }
+      } else {
+        if (labels) {
+          CUGRAPH_EXPECTS(carryover_frontier_labels.has_value(),
+                          "Tagged homogeneous disjoint carry requires frontier labels.");
+
+          thrust::sort_by_key(
+            handle.get_thrust_policy(),
+            thrust::make_zip_iterator(labels->begin(), majors.begin(), random_numbers.begin()),
+            thrust::make_zip_iterator(labels->end(), majors.end(), random_numbers.end()),
+            minors.begin());
+
+          random_numbers.resize(0, handle.get_stream());
+          random_numbers.shrink_to_fit(handle.get_stream());
+
+          std::tie(keep_count, keep_flags) = detail::mark_entries(
+            handle,
+            majors.size(),
+            cuda::proclaim_return_type<bool>(
+              [majors_size             = majors.size(),
+               d_labels                = labels->data(),
+               d_majors                = majors.data(),
+               carry_frontier_size     = carryover_frontier_majors.size(),
+               carry_frontier_labels   = carryover_frontier_labels->data(),
+               carry_frontier_majors   = carryover_frontier_majors.data(),
+               carry_frontier_capacity = carryover_frontier_capacity.data()] __device__(size_t i) {
+                auto key = cuda::std::make_tuple(d_labels[i], d_majors[i]);
+                auto carry_frontier_begin =
+                  thrust::make_zip_iterator(carry_frontier_labels, carry_frontier_majors);
+                auto lb = thrust::lower_bound(thrust::seq,
+                                              carry_frontier_begin,
+                                              carry_frontier_begin + carry_frontier_size,
+                                              key);
+
+                auto pos = cuda::std::distance(carry_frontier_begin, lb);
+
+                if ((pos == carry_frontier_size) || (*lb != key)) { return false; }
+
+                auto needed_count = carry_frontier_capacity[pos];
+
+                auto d_begin = thrust::make_zip_iterator(d_labels, d_majors);
+                auto lb2 = thrust::lower_bound(thrust::seq, d_begin, d_begin + majors_size, key);
+
+                auto position_count = (i - cuda::std::distance(d_begin, lb2));
+                return position_count < needed_count;
+              }),
+            std::nullopt);
+
+        } else {
+          thrust::sort_by_key(handle.get_thrust_policy(),
+                              thrust::make_zip_iterator(majors.begin(), random_numbers.begin()),
+                              thrust::make_zip_iterator(majors.end(), random_numbers.end()),
+                              minors.begin());
+
+          random_numbers.resize(0, handle.get_stream());
+          random_numbers.shrink_to_fit(handle.get_stream());
+
+          std::tie(keep_count, keep_flags) = detail::mark_entries(
+            handle,
+            majors.size(),
+            cuda::proclaim_return_type<bool>(
+              [majors_size             = majors.size(),
+               d_majors                = majors.data(),
+               carry_frontier_size     = carryover_frontier_majors.size(),
+               carry_frontier_majors   = carryover_frontier_majors.data(),
+               carry_frontier_capacity = carryover_frontier_capacity.data()] __device__(size_t i) {
+                auto key = d_majors[i];
+                auto lb  = thrust::lower_bound(thrust::seq,
+                                              carry_frontier_majors,
+                                              carry_frontier_majors + carry_frontier_size,
+                                              key);
+
+                auto pos = cuda::std::distance(carry_frontier_majors, lb);
+
+                if ((pos == carry_frontier_size) || (*lb != key)) { return false; }
+
+                auto needed_count = carry_frontier_capacity[pos];
+
+                auto lb2 = thrust::lower_bound(thrust::seq, d_majors, d_majors + majors_size, key);
+
+                auto position_count = (i - cuda::std::distance(d_majors, lb2));
+                return position_count < needed_count;
+              }),
+            std::nullopt);
+        }
+      }
+
+      raft::device_span<uint32_t const> const keep_mask{keep_flags.data(), keep_flags.size()};
+      majors = detail::keep_marked_entries(handle, std::move(majors), keep_mask, keep_count);
+      minors = detail::keep_marked_entries(handle, std::move(minors), keep_mask, keep_count);
+      if (carryover_frontier_types) {
+        prop = detail::keep_marked_entries(
+          handle, std::move(std::get<rmm::device_uvector<int32_t>>(prop)), keep_mask, keep_count);
+      }
+      if (labels) {
+        *labels = detail::keep_marked_entries(handle, std::move(*labels), keep_mask, keep_count);
+      }
+
+      sampled_majors   = std::move(majors);
+      sampled_minors   = std::move(minors);
+      sampled_property = std::move(prop);
+      sampled_labels   = std::move(labels);
+    }
+
     // Check for duplicates in the sampled minor vertices
+    [[maybe_unused]] rmm::device_uvector<vertex_t> discarded_minors(0, handle.get_stream());
+    [[maybe_unused]] arithmetic_device_uvector_t discarded_tmp_indices{std::monostate{}};
+    rmm::device_uvector<vertex_t> discarded_majors(0, handle.get_stream());
+    std::optional<rmm::device_uvector<int32_t>> discarded_major_labels{std::nullopt};
+
     std::tie(sampled_majors,
              sampled_minors,
              sampled_property,
              sampled_labels,
-             resample_active_majors,
-             resample_active_major_labels) = deduplicate_edges_by_minor(handle,
-                                                                        graph_view,
-                                                                        std::move(sampled_majors),
-                                                                        std::move(sampled_minors),
-                                                                        std::move(sampled_property),
-                                                                        std::move(sampled_labels),
-                                                                        true);
+             discarded_majors,
+             discarded_minors,
+             discarded_tmp_indices,
+             discarded_major_labels) = deduplicate_edges_by_minor(handle,
+                                                                  graph_view,
+                                                                  std::move(sampled_majors),
+                                                                  std::move(sampled_minors),
+                                                                  std::move(sampled_property),
+                                                                  std::move(sampled_labels));
+
+    carryover_frontier_labels   = std::nullopt;
+    carryover_frontier_types    = std::nullopt;
+    carryover_frontier_majors   = rmm::device_uvector<vertex_t>(0, handle.get_stream());
+    carryover_frontier_capacity = rmm::device_uvector<size_t>(0, handle.get_stream());
+
+    if (discarded_majors.size() != 0) {
+      size_t const num_types = Ks.size();
+      CUGRAPH_EXPECTS(num_types >= 1, "Ks must be non-empty.");
+
+      rmm::device_uvector<vertex_t> agg_majors               = std::move(discarded_majors);
+      std::optional<rmm::device_uvector<int32_t>> agg_labels = std::move(discarded_major_labels);
+
+      if (num_types == size_t{1}) {
+        if (agg_labels) {
+          thrust::sort(handle.get_thrust_policy(),
+                       thrust::make_zip_iterator(agg_labels->begin(), agg_majors.begin()),
+                       thrust::make_zip_iterator(agg_labels->end(), agg_majors.end()));
+        } else {
+          cugraph::detail::sort_ints(
+            handle, raft::device_span<vertex_t>{agg_majors.data(), agg_majors.size()});
+        }
+
+        rmm::device_uvector<size_t> agg_counts(agg_majors.size(), handle.get_stream());
+
+        if (agg_labels) {
+          auto ends = thrust::reduce_by_key(
+            handle.get_thrust_policy(),
+            thrust::make_zip_iterator(agg_labels->begin(), agg_majors.begin()),
+            thrust::make_zip_iterator(agg_labels->end(), agg_majors.end()),
+            thrust::make_constant_iterator(size_t{1}),
+            thrust::make_zip_iterator(agg_labels->begin(), agg_majors.begin()),
+            agg_counts.begin());
+          agg_labels->resize(
+            static_cast<size_t>(cuda::std::distance(
+              thrust::make_zip_iterator(agg_labels->begin(), agg_majors.begin()), ends.first)),
+            handle.get_stream());
+          agg_majors.resize(agg_labels->size(), handle.get_stream());
+          agg_counts.resize(agg_labels->size(), handle.get_stream());
+          carryover_frontier_labels = std::move(agg_labels);
+          carryover_frontier_majors = std::move(agg_majors);
+        } else {
+          auto ends = thrust::reduce_by_key(handle.get_thrust_policy(),
+                                            agg_majors.begin(),
+                                            agg_majors.end(),
+                                            thrust::make_constant_iterator(size_t{1}),
+                                            agg_majors.begin(),
+                                            agg_counts.begin());
+          agg_majors.resize(
+            static_cast<size_t>(cuda::std::distance(agg_majors.begin(), ends.first)),
+            handle.get_stream());
+          agg_counts.resize(agg_majors.size(), handle.get_stream());
+          carryover_frontier_majors = std::move(agg_majors);
+        }
+        carryover_frontier_capacity = std::move(agg_counts);
+      } else {
+        CUGRAPH_EXPECTS(
+          std::holds_alternative<rmm::device_uvector<int32_t>>(discarded_tmp_indices),
+          "Heterogeneous disjoint carry requires int32_t edge types on discarded rows.");
+        rmm::device_uvector<int32_t> types =
+          std::get<rmm::device_uvector<int32_t>>(std::move(discarded_tmp_indices));
+        CUGRAPH_EXPECTS(types.size() == agg_majors.size(),
+                        "discarded edge types must match discarded majors size.");
+
+        if (agg_labels) {
+          thrust::sort(
+            handle.get_thrust_policy(),
+            thrust::make_zip_iterator(agg_labels->begin(), agg_majors.begin(), types.begin()),
+            thrust::make_zip_iterator(agg_labels->end(), agg_majors.end(), types.end()));
+        } else {
+          thrust::sort(handle.get_thrust_policy(),
+                       thrust::make_zip_iterator(agg_majors.begin(), types.begin()),
+                       thrust::make_zip_iterator(agg_majors.end(), types.end()));
+        }
+
+        rmm::device_uvector<size_t> kr_cnt(agg_majors.size(), handle.get_stream());
+
+        size_t nt = 0;
+        if (agg_labels) {
+          auto zip_keys_begin =
+            thrust::make_zip_iterator(agg_labels->begin(), agg_majors.begin(), types.begin());
+          auto ends = thrust::reduce_by_key(
+            handle.get_thrust_policy(),
+            zip_keys_begin,
+            thrust::make_zip_iterator(agg_labels->end(), agg_majors.end(), types.end()),
+            thrust::make_constant_iterator(size_t{1}),
+            zip_keys_begin,
+            kr_cnt.begin());
+          nt = static_cast<size_t>(cuda::std::distance(kr_cnt.begin(), ends.second));
+        } else {
+          auto zip_keys_begin = thrust::make_zip_iterator(agg_majors.begin(), types.begin());
+          auto ends =
+            thrust::reduce_by_key(handle.get_thrust_policy(),
+                                  zip_keys_begin,
+                                  thrust::make_zip_iterator(agg_majors.end(), types.end()),
+                                  thrust::make_constant_iterator(size_t{1}),
+                                  zip_keys_begin,
+                                  kr_cnt.begin());
+          nt = static_cast<size_t>(cuda::std::distance(kr_cnt.begin(), ends.second));
+        }
+        if (agg_labels) { agg_labels->resize(nt, handle.get_stream()); }
+        agg_majors.resize(nt, handle.get_stream());
+        types.resize(nt, handle.get_stream());
+        kr_cnt.resize(nt, handle.get_stream());
+
+        carryover_frontier_majors   = std::move(agg_majors);
+        carryover_frontier_labels   = std::move(agg_labels);
+        carryover_frontier_types    = std::make_optional(std::move(types));
+        carryover_frontier_capacity = std::move(kr_cnt);
+      }
+    }
 
     std::tie(visited_minors, visited_minor_labels) =
       detail::update_dst_visited_vertices_and_labels<vertex_t, edge_t, multi_gpu>(
@@ -771,31 +1128,42 @@ sample_unvisited_with_one_property(
                        : std::nullopt);
 
     if constexpr (multi_gpu) {
-      sample_and_append =
-        (host_scalar_allreduce(handle.get_comms(),
-                               (resample_active_majors ? resample_active_majors->size() : 0),
-                               raft::comms::op_t::SUM,
-                               handle.get_stream()) > 0);
+      sample_and_append = (host_scalar_allreduce(handle.get_comms(),
+                                                 carryover_frontier_majors.size(),
+                                                 raft::comms::op_t::SUM,
+                                                 handle.get_stream()) > 0);
     } else {
-      sample_and_append = (resample_active_majors ? resample_active_majors->size() : 0) > 0;
+      sample_and_append = carryover_frontier_majors.size() > 0;
     }
 
     if (sample_and_append) {
-      if constexpr (std::is_same_v<tag_t, void>) {
-        active_bucket_view = cugraph::key_bucket_view_t<vertex_t, tag_t, multi_gpu, false>(
-          handle,
-          raft::device_span<vertex_t const>{resample_active_majors->data(),
-                                            resample_active_majors->size()});
+      if (carryover_frontier_majors.size() > 0) {
+        if constexpr (std::is_same_v<tag_t, void>) {
+          active_bucket_view = cugraph::key_bucket_view_t<vertex_t, tag_t, multi_gpu, false>(
+            handle,
+            raft::device_span<vertex_t const>{carryover_frontier_majors.data(),
+                                              carryover_frontier_majors.size()});
+        } else {
+          active_bucket_view = cugraph::key_bucket_view_t<vertex_t, tag_t, multi_gpu, false>(
+            handle,
+            raft::device_span<vertex_t const>{carryover_frontier_majors.data(),
+                                              carryover_frontier_majors.size()},
+            raft::device_span<tag_t const>{carryover_frontier_labels->data(),
+                                           carryover_frontier_labels->size()});
+          handle.sync_stream();
+          active_major_labels = raft::device_span<int32_t const>{carryover_frontier_labels->data(),
+                                                                 carryover_frontier_labels->size()};
+        }
       } else {
-        active_bucket_view = cugraph::key_bucket_view_t<vertex_t, tag_t, multi_gpu, false>(
-          handle,
-          raft::device_span<vertex_t const>{resample_active_majors->data(),
-                                            resample_active_majors->size()},
-          raft::device_span<tag_t const>{resample_active_major_labels->data(),
-                                         resample_active_major_labels->size()});
-        handle.sync_stream();
-        active_major_labels = raft::device_span<int32_t const>{
-          resample_active_major_labels->data(), resample_active_major_labels->size()};
+        if constexpr (std::is_same_v<tag_t, void>) {
+          active_bucket_view = cugraph::key_bucket_view_t<vertex_t, tag_t, multi_gpu, false>(
+            handle, raft::device_span<vertex_t const>(nullptr, size_t(0)));
+        } else {
+          active_bucket_view = cugraph::key_bucket_view_t<vertex_t, tag_t, multi_gpu, false>(
+            handle,
+            raft::device_span<vertex_t const>(nullptr, size_t(0)),
+            raft::device_span<tag_t const>(nullptr, size_t(0)));
+        }
       }
     }
 
