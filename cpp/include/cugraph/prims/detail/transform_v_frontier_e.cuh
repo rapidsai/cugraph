@@ -369,11 +369,11 @@ auto transform_v_frontier_e(raft::handle_t const& handle,
   using key_t    = typename thrust::iterator_traits<KeyIterator>::value_type;
 
   using e_op_result_t =
-    typename detail::edge_op_result_type<key_t,
-                                         vertex_t,
-                                         typename EdgeSrcValueInputWrapper::value_type,
-                                         typename EdgeDstValueInputWrapper::value_type,
-                                         typename EdgeValueInputWrapper::value_type,
+    typename detail::edge_op_result_type<GraphViewType,
+                                         key_t,
+                                         EdgeSrcValueInputWrapper,
+                                         EdgeDstValueInputWrapper,
+                                         EdgeValueInputWrapper,
                                          EdgeOp>::type;
   static_assert(is_arithmetic_or_thrust_tuple_of_arithmetic<e_op_result_t>::value);
 

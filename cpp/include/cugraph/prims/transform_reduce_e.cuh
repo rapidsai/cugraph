@@ -650,11 +650,8 @@ auto transform_reduce_e(raft::handle_t const& handle,
                         bool do_expensive_check = false)
 {
   using vertex_t    = typename GraphViewType::vertex_type;
-  using src_value_t = typename EdgeSrcValueInputWrapper::value_type;
-  using dst_value_t = typename EdgeDstValueInputWrapper::value_type;
-  using e_value_t   = typename EdgeValueInputWrapper::value_type;
   using T           = typename detail::
-    edge_op_result_type<vertex_t, vertex_t, src_value_t, dst_value_t, e_value_t, EdgeOp>::type;
+    edge_op_result_type<GraphViewType, typename GraphViewType::vertex_type, EdgeSrcValueInputWrapper, EdgeDstValueInputWrapper, EdgeValueInputWrapper, EdgeOp>::type;
   static_assert(!std::is_same_v<T, void>);
 
   if (do_expensive_check) {

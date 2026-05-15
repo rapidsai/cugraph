@@ -257,11 +257,11 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
 
   static_assert(GraphViewType::is_storage_transposed == incoming);
   static_assert(std::is_same_v<
-                typename detail::edge_op_result_type<key_t,
-                                                     vertex_t,
-                                                     typename EdgeSrcValueInputWrapper::value_type,
-                                                     typename EdgeDstValueInputWrapper::value_type,
-                                                     typename EdgeValueInputWrapper::value_type,
+                typename detail::edge_op_result_type<GraphViewType,
+		                                     key_t,
+                                                     EdgeSrcValueInputWrapper,
+                                                     EdgeDstValueInputWrapper,
+                                                     EdgeValueInputWrapper,
                                                      EdgeOp>::type,
                 T>);
 

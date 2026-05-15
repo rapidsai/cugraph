@@ -70,12 +70,13 @@ template <typename GraphViewType,
           typename EdgeValueInputWrapper,
           typename EdgeOp>
 dataframe_buffer_type_t<
-  typename detail::edge_op_result_type<typename GraphViewType::vertex_type,
+  typename detail::edge_op_result_type<GraphViewType,
                                        typename GraphViewType::vertex_type,
-                                       typename EdgeSrcValueInputWrapper::value_type,
-                                       typename EdgeDstValueInputWrapper::value_type,
-                                       typename EdgeValueInputWrapper::value_type,
-                                       EdgeOp>::type>
+                                       EdgeSrcValueInputWrapper,
+                                       EdgeDstValueInputWrapper,
+                                       EdgeValueInputWrapper,
+                                       EdgeOp
+				       >::type>
 extract_transform_e(raft::handle_t const& handle,
                     GraphViewType const& graph_view,
                     EdgeSrcValueInputWrapper edge_src_value_input,
@@ -86,11 +87,11 @@ extract_transform_e(raft::handle_t const& handle,
 {
   using vertex_t = typename GraphViewType::vertex_type;
   using e_op_result_t =
-    typename detail::edge_op_result_type<typename GraphViewType::vertex_type,
+    typename detail::edge_op_result_type<GraphViewType,
                                          typename GraphViewType::vertex_type,
-                                         typename EdgeSrcValueInputWrapper::value_type,
-                                         typename EdgeDstValueInputWrapper::value_type,
-                                         typename EdgeValueInputWrapper::value_type,
+                                         EdgeSrcValueInputWrapper,
+                                         EdgeDstValueInputWrapper,
+                                         EdgeValueInputWrapper,
                                          EdgeOp>::type;
   static_assert(!std::is_same_v<e_op_result_t, void>);
 
