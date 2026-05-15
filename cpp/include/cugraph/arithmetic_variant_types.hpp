@@ -1,10 +1,11 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
 
 #include <cugraph/edge_property.hpp>
+#include <cugraph/export.hpp>
 #include <cugraph/utilities/error.hpp>
 
 #include <raft/core/device_span.hpp>
@@ -13,7 +14,7 @@
 
 #include <variant>
 
-namespace cugraph {
+namespace CUGRAPH_EXPORT cugraph {
 
 using arithmetic_type_t = std::variant<std::monostate, float, double, int32_t, int64_t, size_t>;
 
@@ -129,4 +130,4 @@ inline std::vector<const_arithmetic_device_span_t> make_const_arithmetic_device_
   return results;
 }
 
-}  // namespace cugraph
+}  // namespace CUGRAPH_EXPORT cugraph

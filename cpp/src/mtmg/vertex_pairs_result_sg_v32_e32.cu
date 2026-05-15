@@ -6,6 +6,7 @@
 #include "mtmg/vertex_pairs_result.cuh"
 
 #include <cugraph/detail/utility_wrappers.hpp>
+#include <cugraph/export.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/mtmg/vertex_pair_result_view.hpp>
 #include <cugraph/utilities/graph_partition_utils.cuh>
@@ -16,8 +17,8 @@
 namespace cugraph {
 namespace mtmg {
 
-template std::
-  tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>, rmm::device_uvector<float>>
+template CUGRAPH_EXPORT
+  std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>, rmm::device_uvector<float>>
   vertex_pair_result_view_t<int32_t, float>::gather(
     handle_t const& handle,
     raft::device_span<int32_t const> vertices,
@@ -25,7 +26,7 @@ template std::
     vertex_partition_view_t<int32_t, false> vertex_partition_view,
     std::optional<cugraph::mtmg::renumber_map_view_t<int32_t>>& renumber_map_view);
 
-template std::
+template CUGRAPH_EXPORT std::
   tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>, rmm::device_uvector<double>>
   vertex_pair_result_view_t<int32_t, double>::gather(
     handle_t const& handle,
@@ -34,7 +35,7 @@ template std::
     vertex_partition_view_t<int32_t, false> vertex_partition_view,
     std::optional<cugraph::mtmg::renumber_map_view_t<int32_t>>& renumber_map_view);
 
-template std::
+template CUGRAPH_EXPORT std::
   tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>>
   vertex_pair_result_view_t<int32_t, int32_t>::gather(
     handle_t const& handle,

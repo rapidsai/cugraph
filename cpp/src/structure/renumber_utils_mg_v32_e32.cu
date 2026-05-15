@@ -5,11 +5,13 @@
 
 #include "structure/renumber_utils_impl.cuh"
 
+#include <cugraph/export.hpp>
+
 namespace cugraph {
 
 // MG instantiation
 
-template void unrenumber_local_int_edges<int32_t, false, true>(
+template CUGRAPH_EXPORT void unrenumber_local_int_edges<int32_t, false, true>(
   raft::handle_t const& handle,
   std::vector<int32_t*> const& edgelist_srcs /* [INOUT] */,
   std::vector<int32_t*> const& edgelist_dsts /* [INOUT] */,
@@ -19,7 +21,7 @@ template void unrenumber_local_int_edges<int32_t, false, true>(
   std::optional<std::vector<std::vector<size_t>>> const& edgelist_intra_partition_segment_offsets,
   bool do_expensive_check);
 
-template void unrenumber_local_int_edges<int32_t, true, true>(
+template CUGRAPH_EXPORT void unrenumber_local_int_edges<int32_t, true, true>(
   raft::handle_t const& handle,
   std::vector<int32_t*> const& edgelist_srcs /* [INOUT] */,
   std::vector<int32_t*> const& edgelist_dsts /* [INOUT] */,

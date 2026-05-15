@@ -5,6 +5,7 @@
 
 #include "detail/collect_local_vertex_values.cuh"
 
+#include <cugraph/export.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/utilities/graph_partition_utils.cuh>
 #include <cugraph/utilities/shuffle_comm.cuh>
@@ -14,7 +15,7 @@
 namespace cugraph {
 namespace detail {
 
-template rmm::device_uvector<float>
+template CUGRAPH_EXPORT rmm::device_uvector<float>
 collect_local_vertex_values_from_ext_vertex_value_pairs<int64_t, float, false>(
   raft::handle_t const& handle,
   rmm::device_uvector<int64_t>&& d_vertices,
@@ -25,7 +26,7 @@ collect_local_vertex_values_from_ext_vertex_value_pairs<int64_t, float, false>(
   float default_value,
   bool do_expensive_check);
 
-template rmm::device_uvector<double>
+template CUGRAPH_EXPORT rmm::device_uvector<double>
 collect_local_vertex_values_from_ext_vertex_value_pairs<int64_t, double, false>(
   raft::handle_t const& handle,
   rmm::device_uvector<int64_t>&& d_vertices,
@@ -36,7 +37,7 @@ collect_local_vertex_values_from_ext_vertex_value_pairs<int64_t, double, false>(
   double default_value,
   bool do_expensive_check);
 
-template rmm::device_uvector<int64_t>
+template CUGRAPH_EXPORT rmm::device_uvector<int64_t>
 collect_local_vertex_values_from_ext_vertex_value_pairs<int64_t, int64_t, false>(
   raft::handle_t const& handle,
   rmm::device_uvector<int64_t>&& d_vertices,

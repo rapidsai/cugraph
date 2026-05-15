@@ -1,10 +1,11 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
 #pragma once
 
+#include <cugraph/export.hpp>
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/packed_bool_utils.hpp>
@@ -23,7 +24,7 @@
 #include <type_traits>
 #include <variant>
 
-namespace cugraph {
+namespace CUGRAPH_EXPORT cugraph {
 
 namespace detail {
 
@@ -825,4 +826,4 @@ auto view_concat(detail::edge_endpoint_property_view_t<vertex_t, Iters, Types> c
   }
 }
 
-}  // namespace cugraph
+}  // namespace CUGRAPH_EXPORT cugraph

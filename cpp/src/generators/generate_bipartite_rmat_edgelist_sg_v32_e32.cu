@@ -1,11 +1,12 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2023-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
 #include "generate_bipartite_rmat_edgelist.cuh"
 
 #include <cugraph/detail/utility_wrappers.hpp>
+#include <cugraph/export.hpp>
 #include <cugraph/graph_generators.hpp>
 #include <cugraph/utilities/error.hpp>
 
@@ -24,7 +25,7 @@
 
 namespace cugraph {
 
-template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>>
+template CUGRAPH_EXPORT std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>>
 generate_bipartite_rmat_edgelist<int32_t>(raft::handle_t const& handle,
                                           raft::random::RngState& rng_state,
                                           size_t src_scale,

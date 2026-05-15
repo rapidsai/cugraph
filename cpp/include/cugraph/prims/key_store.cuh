@@ -4,6 +4,8 @@
  */
 #pragma once
 
+#include <cugraph/export.hpp>
+
 #include <rmm/device_uvector.hpp>
 #include <rmm/mr/polymorphic_allocator.hpp>
 
@@ -23,7 +25,7 @@
 #include <optional>
 #include <type_traits>
 
-namespace cugraph {
+namespace CUGRAPH_EXPORT cugraph {
 
 namespace detail {
 
@@ -446,4 +448,4 @@ class key_store_t {
     store_;
 };
 
-}  // namespace cugraph
+}  // namespace CUGRAPH_EXPORT cugraph

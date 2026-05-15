@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -13,6 +13,8 @@
 
 /** @defgroup layout Layout algorithms
  */
+
+#include <cugraph_c/export.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -41,11 +43,14 @@ typedef struct {
  *                               be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_minimum_spanning_tree(const cugraph_resource_handle_t* handle,
-                                                   cugraph_graph_t* graph,
-                                                   bool_t do_expensive_check,
-                                                   cugraph_induced_subgraph_result_t** result,
-                                                   cugraph_error_t** error);
+CUGRAPH_EXPORT cugraph_error_code_t
+cugraph_minimum_spanning_tree(const cugraph_resource_handle_t* handle,
+                              cugraph_graph_t* graph,
+                              bool_t do_expensive_check,
+                              cugraph_induced_subgraph_result_t** result,
+                              cugraph_error_t** error);
+
+#include <cugraph_c/export.h>
 
 #ifdef __cplusplus
 }

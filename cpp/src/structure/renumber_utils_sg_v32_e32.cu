@@ -5,19 +5,22 @@
 
 #include "structure/renumber_utils_impl.cuh"
 
+#include <cugraph/export.hpp>
+
 namespace cugraph {
 
 // SG instantiation
 
-template void unrenumber_local_int_vertices<int32_t>(raft::handle_t const& handle,
-                                                     int32_t* vertices,
-                                                     size_t num_vertices,
-                                                     int32_t const* renumber_map_labels,
-                                                     int32_t local_int_vertex_first,
-                                                     int32_t local_int_vertex_last,
-                                                     bool do_expensive_check);
+template CUGRAPH_EXPORT void unrenumber_local_int_vertices<int32_t>(
+  raft::handle_t const& handle,
+  int32_t* vertices,
+  size_t num_vertices,
+  int32_t const* renumber_map_labels,
+  int32_t local_int_vertex_first,
+  int32_t local_int_vertex_last,
+  bool do_expensive_check);
 
-template void unrenumber_local_int_edges<int32_t, false, false>(
+template CUGRAPH_EXPORT void unrenumber_local_int_edges<int32_t, false, false>(
   raft::handle_t const& handle,
   int32_t* edgelist_srcs /* [INOUT] */,
   int32_t* edgelist_dsts /* [INOUT] */,
@@ -26,12 +29,13 @@ template void unrenumber_local_int_edges<int32_t, false, false>(
   int32_t num_vertices,
   bool do_expensive_check);
 
-template void unrenumber_local_int_edges<int32_t, true, false>(raft::handle_t const& handle,
-                                                               int32_t* edgelist_srcs /* [INOUT] */,
-                                                               int32_t* edgelist_dsts /* [INOUT] */,
-                                                               size_t num_edgelist_edges,
-                                                               int32_t const* renumber_map_labels,
-                                                               int32_t num_vertices,
-                                                               bool do_expensive_check);
+template CUGRAPH_EXPORT void unrenumber_local_int_edges<int32_t, true, false>(
+  raft::handle_t const& handle,
+  int32_t* edgelist_srcs /* [INOUT] */,
+  int32_t* edgelist_dsts /* [INOUT] */,
+  size_t num_edgelist_edges,
+  int32_t const* renumber_map_labels,
+  int32_t num_vertices,
+  bool do_expensive_check);
 
 }  // namespace cugraph

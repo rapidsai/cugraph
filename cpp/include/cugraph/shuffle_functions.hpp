@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cugraph/arithmetic_variant_types.hpp>
+#include <cugraph/export.hpp>
 #include <cugraph/large_buffer_manager.hpp>
 #include <cugraph/utilities/dataframe_buffer.hpp>
 
@@ -21,7 +22,7 @@
 /** @defgroup shuffle_functions_cpp C++ Vertex/Edge Shuffle Funtions
  */
 
-namespace cugraph {
+namespace CUGRAPH_EXPORT cugraph {
 
 /**
  * @ingroup shuffle_functions_cpp
@@ -171,4 +172,4 @@ shuffle_local_edge_dsts(raft::handle_t const& handle,
                         raft::host_span<vertex_t const> vertex_partition_range_lasts,
                         bool store_transposed);
 
-}  // namespace cugraph
+}  // namespace CUGRAPH_EXPORT cugraph

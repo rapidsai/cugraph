@@ -1,10 +1,11 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2023, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
 #pragma once
 
+#include <cugraph_c/export.h>
 #include <cugraph_c/resource_handle.h>
 
 #ifdef __cplusplus
@@ -38,12 +39,12 @@ typedef struct {
  *                          be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_type_erased_device_array_create(
-  const cugraph_resource_handle_t* handle,
-  size_t n_elems,
-  cugraph_data_type_id_t dtype,
-  cugraph_type_erased_device_array_t** array,
-  cugraph_error_t** error);
+CUGRAPH_EXPORT cugraph_error_code_t
+cugraph_type_erased_device_array_create(const cugraph_resource_handle_t* handle,
+                                        size_t n_elems,
+                                        cugraph_data_type_id_t dtype,
+                                        cugraph_type_erased_device_array_t** array,
+                                        cugraph_error_t** error);
 
 /**
  * @brief     Create a type erased device array from a view
@@ -57,7 +58,7 @@ cugraph_error_code_t cugraph_type_erased_device_array_create(
  *                     be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_type_erased_device_array_create_from_view(
+CUGRAPH_EXPORT cugraph_error_code_t cugraph_type_erased_device_array_create_from_view(
   const cugraph_resource_handle_t* handle,
   const cugraph_type_erased_device_array_view_t* view,
   cugraph_type_erased_device_array_t** array,
@@ -68,7 +69,7 @@ cugraph_error_code_t cugraph_type_erased_device_array_create_from_view(
  *
  * @param [in]  p    Pointer to the type erased device array
  */
-void cugraph_type_erased_device_array_free(cugraph_type_erased_device_array_t* p);
+CUGRAPH_EXPORT void cugraph_type_erased_device_array_free(cugraph_type_erased_device_array_t* p);
 
 #if 0
 // FIXME: Not implemented, need to discuss if this can work.  We will either implement
@@ -81,7 +82,7 @@ void cugraph_type_erased_device_array_free(cugraph_type_erased_device_array_t* p
  * @param [in]  p    Pointer to the type erased device array
  * @return Pointer (device memory) for the data in the array
  */
-void* cugraph_type_erased_device_array_release(cugraph_type_erased_device_array_t* p);
+CUGRAPH_EXPORT void* cugraph_type_erased_device_array_release(cugraph_type_erased_device_array_t* p);
 #endif
 
 /**
@@ -91,7 +92,7 @@ void* cugraph_type_erased_device_array_release(cugraph_type_erased_device_array_
  * @param [in]  array       Pointer to the type erased device array
  * @return Pointer to the view of the host array
  */
-cugraph_type_erased_device_array_view_t* cugraph_type_erased_device_array_view(
+CUGRAPH_EXPORT cugraph_type_erased_device_array_view_t* cugraph_type_erased_device_array_view(
   cugraph_type_erased_device_array_t* array);
 
 /**
@@ -112,11 +113,11 @@ cugraph_type_erased_device_array_view_t* cugraph_type_erased_device_array_view(
  *                           be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_type_erased_device_array_view_as_type(
-  cugraph_type_erased_device_array_t* array,
-  cugraph_data_type_id_t dtype,
-  cugraph_type_erased_device_array_view_t** result_view,
-  cugraph_error_t** error);
+CUGRAPH_EXPORT cugraph_error_code_t
+cugraph_type_erased_device_array_view_as_type(cugraph_type_erased_device_array_t* array,
+                                              cugraph_data_type_id_t dtype,
+                                              cugraph_type_erased_device_array_view_t** result_view,
+                                              cugraph_error_t** error);
 
 /**
  * @brief    Create a type erased device array view from
@@ -127,15 +128,18 @@ cugraph_error_code_t cugraph_type_erased_device_array_view_as_type(
  * @param [in]  dtype       The type of array to create
  * @return Pointer to the view of the host array
  */
-cugraph_type_erased_device_array_view_t* cugraph_type_erased_device_array_view_create(
-  void* pointer, size_t n_elems, cugraph_data_type_id_t dtype);
+CUGRAPH_EXPORT cugraph_type_erased_device_array_view_t*
+cugraph_type_erased_device_array_view_create(void* pointer,
+                                             size_t n_elems,
+                                             cugraph_data_type_id_t dtype);
 
 /**
  * @brief    Destroy a type erased device array view
  *
  * @param [in]  p    Pointer to the type erased device array view
  */
-void cugraph_type_erased_device_array_view_free(cugraph_type_erased_device_array_view_t* p);
+CUGRAPH_EXPORT void cugraph_type_erased_device_array_view_free(
+  cugraph_type_erased_device_array_view_t* p);
 
 /**
  * @brief    Get the size of a type erased device array view
@@ -143,7 +147,8 @@ void cugraph_type_erased_device_array_view_free(cugraph_type_erased_device_array
  * @param [in]  p    Pointer to the type erased device array view
  * @return The number of elements in the array
  */
-size_t cugraph_type_erased_device_array_view_size(const cugraph_type_erased_device_array_view_t* p);
+CUGRAPH_EXPORT size_t
+cugraph_type_erased_device_array_view_size(const cugraph_type_erased_device_array_view_t* p);
 
 /**
  * @brief    Get the type of a type erased device array view
@@ -151,8 +156,8 @@ size_t cugraph_type_erased_device_array_view_size(const cugraph_type_erased_devi
  * @param [in]  p    Pointer to the type erased device array view
  * @return The type of the elements in the array
  */
-cugraph_data_type_id_t cugraph_type_erased_device_array_view_type(
-  const cugraph_type_erased_device_array_view_t* p);
+CUGRAPH_EXPORT cugraph_data_type_id_t
+cugraph_type_erased_device_array_view_type(const cugraph_type_erased_device_array_view_t* p);
 
 /**
  * @brief    Get the raw pointer of the type erased device array view
@@ -160,7 +165,7 @@ cugraph_data_type_id_t cugraph_type_erased_device_array_view_type(
  * @param [in]  p    Pointer to the type erased device array view
  * @return Pointer (device memory) for the data in the array
  */
-const void* cugraph_type_erased_device_array_view_pointer(
+CUGRAPH_EXPORT const void* cugraph_type_erased_device_array_view_pointer(
   const cugraph_type_erased_device_array_view_t* p);
 
 /**
@@ -174,18 +179,19 @@ const void* cugraph_type_erased_device_array_view_pointer(
  *                          be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_type_erased_host_array_create(const cugraph_resource_handle_t* handle,
-                                                           size_t n_elems,
-                                                           cugraph_data_type_id_t dtype,
-                                                           cugraph_type_erased_host_array_t** array,
-                                                           cugraph_error_t** error);
+CUGRAPH_EXPORT cugraph_error_code_t
+cugraph_type_erased_host_array_create(const cugraph_resource_handle_t* handle,
+                                      size_t n_elems,
+                                      cugraph_data_type_id_t dtype,
+                                      cugraph_type_erased_host_array_t** array,
+                                      cugraph_error_t** error);
 
 /**
  * @brief    Destroy a type erased host array
  *
  * @param [in]  p    Pointer to the type erased host array
  */
-void cugraph_type_erased_host_array_free(cugraph_type_erased_host_array_t* p);
+CUGRAPH_EXPORT void cugraph_type_erased_host_array_free(cugraph_type_erased_host_array_t* p);
 
 #if 0
 // FIXME: Not implemented, need to discuss if this can work.  We will either implement
@@ -198,7 +204,7 @@ void cugraph_type_erased_host_array_free(cugraph_type_erased_host_array_t* p);
  * @param [in]  p    Pointer to the type erased host array
  * @return Pointer (host memory) for the data in the array
  */
-void* cugraph_type_erased_host_array_release(cugraph_type_erased_host_array_t* p);
+CUGRAPH_EXPORT void* cugraph_type_erased_host_array_release(cugraph_type_erased_host_array_t* p);
 #endif
 
 /**
@@ -208,7 +214,7 @@ void* cugraph_type_erased_host_array_release(cugraph_type_erased_host_array_t* p
  * @param [in]  array       Pointer to the type erased host array
  * @return Pointer to the view of the host array
  */
-cugraph_type_erased_host_array_view_t* cugraph_type_erased_host_array_view(
+CUGRAPH_EXPORT cugraph_type_erased_host_array_view_t* cugraph_type_erased_host_array_view(
   cugraph_type_erased_host_array_t* array);
 
 /**
@@ -220,7 +226,7 @@ cugraph_type_erased_host_array_view_t* cugraph_type_erased_host_array_view(
  * @param [in]  dtype       The type of array to create
  * @return pointer to the view of the host array
  */
-cugraph_type_erased_host_array_view_t* cugraph_type_erased_host_array_view_create(
+CUGRAPH_EXPORT cugraph_type_erased_host_array_view_t* cugraph_type_erased_host_array_view_create(
   void* pointer, size_t n_elems, cugraph_data_type_id_t dtype);
 
 /**
@@ -228,7 +234,8 @@ cugraph_type_erased_host_array_view_t* cugraph_type_erased_host_array_view_creat
  *
  * @param [in]  p    Pointer to the type erased host array view
  */
-void cugraph_type_erased_host_array_view_free(cugraph_type_erased_host_array_view_t* p);
+CUGRAPH_EXPORT void cugraph_type_erased_host_array_view_free(
+  cugraph_type_erased_host_array_view_t* p);
 
 /**
  * @brief    Get the size of a type erased host array view
@@ -236,7 +243,8 @@ void cugraph_type_erased_host_array_view_free(cugraph_type_erased_host_array_vie
  * @param [in]  p    Pointer to the type erased host array view
  * @return The number of elements in the array
  */
-size_t cugraph_type_erased_host_array_size(const cugraph_type_erased_host_array_view_t* p);
+CUGRAPH_EXPORT size_t
+cugraph_type_erased_host_array_size(const cugraph_type_erased_host_array_view_t* p);
 
 /**
  * @brief    Get the type of a type erased host array view
@@ -244,8 +252,8 @@ size_t cugraph_type_erased_host_array_size(const cugraph_type_erased_host_array_
  * @param [in]  p    Pointer to the type erased host array view
  * @return The type of the elements in the array
  */
-cugraph_data_type_id_t cugraph_type_erased_host_array_type(
-  const cugraph_type_erased_host_array_view_t* p);
+CUGRAPH_EXPORT cugraph_data_type_id_t
+cugraph_type_erased_host_array_type(const cugraph_type_erased_host_array_view_t* p);
 
 /**
  * @brief    Get the raw pointer of the type erased host array view
@@ -253,7 +261,8 @@ cugraph_data_type_id_t cugraph_type_erased_host_array_type(
  * @param [in]  p    Pointer to the type erased host array view
  * @return Pointer (host memory) for the data in the array
  */
-void* cugraph_type_erased_host_array_pointer(const cugraph_type_erased_host_array_view_t* p);
+CUGRAPH_EXPORT void* cugraph_type_erased_host_array_pointer(
+  const cugraph_type_erased_host_array_view_t* p);
 
 /**
  * @brief    Copy data between two type erased device array views
@@ -265,11 +274,11 @@ void* cugraph_type_erased_host_array_pointer(const cugraph_type_erased_host_arra
  *                          be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_type_erased_host_array_view_copy(
-  const cugraph_resource_handle_t* handle,
-  cugraph_type_erased_host_array_view_t* dst,
-  const cugraph_type_erased_host_array_view_t* src,
-  cugraph_error_t** error);
+CUGRAPH_EXPORT cugraph_error_code_t
+cugraph_type_erased_host_array_view_copy(const cugraph_resource_handle_t* handle,
+                                         cugraph_type_erased_host_array_view_t* dst,
+                                         const cugraph_type_erased_host_array_view_t* src,
+                                         cugraph_error_t** error);
 
 /**
  * @brief    Copy data from host to a type erased device array view
@@ -281,11 +290,11 @@ cugraph_error_code_t cugraph_type_erased_host_array_view_copy(
  *                          be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_type_erased_device_array_view_copy_from_host(
-  const cugraph_resource_handle_t* handle,
-  cugraph_type_erased_device_array_view_t* dst,
-  const byte_t* h_src,
-  cugraph_error_t** error);
+CUGRAPH_EXPORT cugraph_error_code_t
+cugraph_type_erased_device_array_view_copy_from_host(const cugraph_resource_handle_t* handle,
+                                                     cugraph_type_erased_device_array_view_t* dst,
+                                                     const byte_t* h_src,
+                                                     cugraph_error_t** error);
 
 /**
  * @brief    Copy data from device to a type erased host array
@@ -297,7 +306,7 @@ cugraph_error_code_t cugraph_type_erased_device_array_view_copy_from_host(
  *                          be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_type_erased_device_array_view_copy_to_host(
+CUGRAPH_EXPORT cugraph_error_code_t cugraph_type_erased_device_array_view_copy_to_host(
   const cugraph_resource_handle_t* handle,
   byte_t* h_dst,
   const cugraph_type_erased_device_array_view_t* src,
@@ -313,11 +322,13 @@ cugraph_error_code_t cugraph_type_erased_device_array_view_copy_to_host(
  *                          be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_type_erased_device_array_view_copy(
-  const cugraph_resource_handle_t* handle,
-  cugraph_type_erased_device_array_view_t* dst,
-  const cugraph_type_erased_device_array_view_t* src,
-  cugraph_error_t** error);
+CUGRAPH_EXPORT cugraph_error_code_t
+cugraph_type_erased_device_array_view_copy(const cugraph_resource_handle_t* handle,
+                                           cugraph_type_erased_device_array_view_t* dst,
+                                           const cugraph_type_erased_device_array_view_t* src,
+                                           cugraph_error_t** error);
+
+#include <cugraph_c/export.h>
 
 #ifdef __cplusplus
 }

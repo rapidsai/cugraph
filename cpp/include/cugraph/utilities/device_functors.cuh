@@ -4,6 +4,7 @@
  */
 #pragma once
 
+#include <cugraph/export.hpp>
 #include <cugraph/utilities/packed_bool_utils.hpp>
 
 #include <thrust/binary_search.h>
@@ -11,7 +12,7 @@
 
 #include <cstddef>
 
-namespace cugraph {
+namespace CUGRAPH_EXPORT cugraph {
 
 namespace detail {
 
@@ -214,4 +215,4 @@ struct segment_id_t {
 
 }  // namespace detail
 
-}  // namespace cugraph
+}  // namespace CUGRAPH_EXPORT cugraph

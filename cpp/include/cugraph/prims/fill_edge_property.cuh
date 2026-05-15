@@ -6,6 +6,7 @@
 
 #include <cugraph/edge_partition_edge_property_device_view.cuh>
 #include <cugraph/edge_property.hpp>
+#include <cugraph/export.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/utilities/error.hpp>
 
@@ -21,7 +22,7 @@
 
 #include <cstddef>
 
-namespace cugraph {
+namespace CUGRAPH_EXPORT cugraph {
 
 namespace detail {
 
@@ -139,4 +140,4 @@ void fill_edge_property(raft::handle_t const& handle,
   detail::fill_edge_property(handle, graph_view, edge_property_output, input);
 }
 
-}  // namespace cugraph
+}  // namespace CUGRAPH_EXPORT cugraph

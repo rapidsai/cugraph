@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2023-2024, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -7,6 +7,7 @@
 
 #include <cugraph_c/array.h>
 #include <cugraph_c/coo.h>
+#include <cugraph_c/export.h>
 #include <cugraph_c/graph.h>
 #include <cugraph_c/random.h>
 #include <cugraph_c/resource_handle.h>
@@ -49,17 +50,18 @@ typedef enum { POWER_LAW = 0, UNIFORM } cugraph_generator_distribution_t;
  *                                    be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_generate_rmat_edgelist(const cugraph_resource_handle_t* handle,
-                                                    cugraph_rng_state_t* rng_state,
-                                                    size_t scale,
-                                                    size_t num_edges,
-                                                    double a,
-                                                    double b,
-                                                    double c,
-                                                    bool_t clip_and_flip,
-                                                    bool_t scramble_vertex_ids,
-                                                    cugraph_coo_t** result,
-                                                    cugraph_error_t** error);
+CUGRAPH_EXPORT cugraph_error_code_t
+cugraph_generate_rmat_edgelist(const cugraph_resource_handle_t* handle,
+                               cugraph_rng_state_t* rng_state,
+                               size_t scale,
+                               size_t num_edges,
+                               double a,
+                               double b,
+                               double c,
+                               bool_t clip_and_flip,
+                               bool_t scramble_vertex_ids,
+                               cugraph_coo_t** result,
+                               cugraph_error_t** error);
 
 /**
  * @brief      Generate RMAT edge lists
@@ -89,19 +91,19 @@ cugraph_error_code_t cugraph_generate_rmat_edgelist(const cugraph_resource_handl
  *                                    be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_generate_rmat_edgelists(
-  const cugraph_resource_handle_t* handle,
-  cugraph_rng_state_t* rng_state,
-  size_t n_edgelists,
-  size_t min_scale,
-  size_t max_scale,
-  size_t edge_factor,
-  cugraph_generator_distribution_t size_distribution,
-  cugraph_generator_distribution_t edge_distribution,
-  bool_t clip_and_flip,
-  bool_t scramble_vertex_ids,
-  cugraph_coo_list_t** result,
-  cugraph_error_t** error);
+CUGRAPH_EXPORT cugraph_error_code_t
+cugraph_generate_rmat_edgelists(const cugraph_resource_handle_t* handle,
+                                cugraph_rng_state_t* rng_state,
+                                size_t n_edgelists,
+                                size_t min_scale,
+                                size_t max_scale,
+                                size_t edge_factor,
+                                cugraph_generator_distribution_t size_distribution,
+                                cugraph_generator_distribution_t edge_distribution,
+                                bool_t clip_and_flip,
+                                bool_t scramble_vertex_ids,
+                                cugraph_coo_list_t** result,
+                                cugraph_error_t** error);
 
 /**
  * @brief      Generate edge weights and add to an rmat edge list
@@ -119,13 +121,14 @@ cugraph_error_code_t cugraph_generate_rmat_edgelists(
  * @param [out]    error              Pointer to an error object storing details of any error.  Will
  *                                    be populated if error code is not CUGRAPH_SUCCESS
  */
-cugraph_error_code_t cugraph_generate_edge_weights(const cugraph_resource_handle_t* handle,
-                                                   cugraph_rng_state_t* rng_state,
-                                                   cugraph_coo_t* coo,
-                                                   cugraph_data_type_id_t dtype,
-                                                   double minimum_weight,
-                                                   double maximum_weight,
-                                                   cugraph_error_t** error);
+CUGRAPH_EXPORT cugraph_error_code_t
+cugraph_generate_edge_weights(const cugraph_resource_handle_t* handle,
+                              cugraph_rng_state_t* rng_state,
+                              cugraph_coo_t* coo,
+                              cugraph_data_type_id_t dtype,
+                              double minimum_weight,
+                              double maximum_weight,
+                              cugraph_error_t** error);
 
 /**
  * @brief      Add edge ids to an COO
@@ -140,10 +143,11 @@ cugraph_error_code_t cugraph_generate_edge_weights(const cugraph_resource_handle
  * @param [out]    error              Pointer to an error object storing details of any error.  Will
  *                                    be populated if error code is not CUGRAPH_SUCCESS
  */
-cugraph_error_code_t cugraph_generate_edge_ids(const cugraph_resource_handle_t* handle,
-                                               cugraph_coo_t* coo,
-                                               bool_t multi_gpu,
-                                               cugraph_error_t** error);
+CUGRAPH_EXPORT cugraph_error_code_t
+cugraph_generate_edge_ids(const cugraph_resource_handle_t* handle,
+                          cugraph_coo_t* coo,
+                          bool_t multi_gpu,
+                          cugraph_error_t** error);
 
 /**
  * @brief      Generate random edge types, add them to an COO
@@ -159,12 +163,15 @@ cugraph_error_code_t cugraph_generate_edge_ids(const cugraph_resource_handle_t* 
  * @param [out]    error              Pointer to an error object storing details of any error.  Will
  *                                    be populated if error code is not CUGRAPH_SUCCESS
  */
-cugraph_error_code_t cugraph_generate_edge_types(const cugraph_resource_handle_t* handle,
-                                                 cugraph_rng_state_t* rng_state,
-                                                 cugraph_coo_t* coo,
-                                                 int32_t min_edge_type,
-                                                 int32_t max_edge_type,
-                                                 cugraph_error_t** error);
+CUGRAPH_EXPORT cugraph_error_code_t
+cugraph_generate_edge_types(const cugraph_resource_handle_t* handle,
+                            cugraph_rng_state_t* rng_state,
+                            cugraph_coo_t* coo,
+                            int32_t min_edge_type,
+                            int32_t max_edge_type,
+                            cugraph_error_t** error);
+
+#include <cugraph_c/export.h>
 
 #ifdef __cplusplus
 }

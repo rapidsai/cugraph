@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2022, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -10,7 +10,9 @@
 
 #pragma once
 
-namespace cugraph {
+#include <cugraph/export.hpp>
+
+namespace CUGRAPH_EXPORT cugraph {
 
 enum class sampling_strategy_t : int { UNIFORM = 0, BIASED, NODE2VEC };
 
@@ -44,4 +46,4 @@ struct sampling_params_t {
   double q_;
   bool use_alpha_cache_{false};
 };
-}  // namespace cugraph
+}  // namespace CUGRAPH_EXPORT cugraph

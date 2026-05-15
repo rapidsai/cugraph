@@ -4,6 +4,7 @@
  */
 #pragma once
 
+#include <cugraph/export.hpp>
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/error.hpp>
 
@@ -16,7 +17,7 @@
 
 #include <optional>
 
-namespace cugraph {
+namespace CUGRAPH_EXPORT cugraph {
 
 namespace detail {
 
@@ -113,4 +114,4 @@ class large_buffer_manager {
   }
 };
 
-}  // namespace cugraph
+}  // namespace CUGRAPH_EXPORT cugraph
