@@ -14,7 +14,7 @@
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
-#include <cugraph/prims/per_v_pair_transform_dst_nbr_intersection.cuh>
+#include <cugraph/prims/per_v_pair_transform_src_dst_nbr_intersection.cuh>
 #include <cugraph/prims/transform_e.cuh>
 #include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/dataframe_buffer.hpp>

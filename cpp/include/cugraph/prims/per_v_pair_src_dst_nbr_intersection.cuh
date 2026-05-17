@@ -47,7 +47,7 @@ per_v_pair_src_nbr_intersection(raft::handle_t const& handle,
                                   cugraph::edge_dummy_property_t{}.view(),
                                   vertex_pair_first,
                                   vertex_pair_last,
-                                  std::array<bool, 2>{false, false},
+                                  std::array<bool, 2>{true, true},
                                   do_expensive_check);
 }
 
