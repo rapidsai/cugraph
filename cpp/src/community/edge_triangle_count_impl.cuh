@@ -10,7 +10,7 @@
 #include <cugraph/prims/edge_bucket.cuh>
 #include <cugraph/prims/fill_edge_property.cuh>
 #include <cugraph/prims/make_initialized_edge_property.cuh>
-#include <cugraph/prims/per_v_pair_dst_nbr_intersection.cuh>
+#include <cugraph/prims/per_v_pair_src_dst_nbr_intersection.cuh>
 #include <cugraph/prims/transform_e.cuh>
 #include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/error.hpp>
