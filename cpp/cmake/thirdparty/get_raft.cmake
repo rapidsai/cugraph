@@ -6,6 +6,8 @@
 #=============================================================================
 
 set(CUGRAPH_MIN_VERSION_raft "${CUGRAPH_VERSION_MAJOR}.${CUGRAPH_VERSION_MINOR}.00")
+set(RAFT_FORK "achirkin")
+set(RAFT_PINNED_TAG "enh-predictable-resources")
 
 function(find_and_configure_raft)
 
@@ -27,6 +29,9 @@ function(find_and_configure_raft)
         string(APPEND RAFT_COMPONENTS " compiled_static")
       endif()
     endif()
+
+    include("${rapids-cmake-dir}/cpm/package_override.cmake")
+    rapids_cpm_package_override("${CMAKE_CURRENT_LIST_DIR}/raft_cpm_override.json")
 
     rapids_cpm_find(raft ${PKG_VERSION}
       GLOBAL_TARGETS      raft::raft
@@ -57,8 +62,8 @@ endfunction()
 # To use a different RAFT locally, set the CMake variable
 # CPM_raft_SOURCE=/path/to/local/raft
 find_and_configure_raft(VERSION    ${CUGRAPH_MIN_VERSION_raft}
-                        FORK       achirkin
-                        PINNED_TAG enh-predictable-resources
+                        FORK       ${RAFT_FORK}
+                        PINNED_TAG ${RAFT_PINNED_TAG}
 
                         # When PINNED_TAG above doesn't match cugraph,
                         # force local raft clone in build directory
