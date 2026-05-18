@@ -5,13 +5,15 @@
 
 #include "sampling/detail/sample_edges.cuh"
 
+#include <cugraph/export.hpp>
+
 namespace cugraph {
 namespace detail {
 
-template std::tuple<rmm::device_uvector<int32_t>,
-                    rmm::device_uvector<int32_t>,
-                    arithmetic_device_uvector_t,
-                    std::optional<rmm::device_uvector<int32_t>>>
+template CUGRAPH_EXPORT std::tuple<rmm::device_uvector<int32_t>,
+                                   rmm::device_uvector<int32_t>,
+                                   arithmetic_device_uvector_t,
+                                   std::optional<rmm::device_uvector<int32_t>>>
 sample_edges(raft::handle_t const& handle,
              raft::random::RngState& rng_state,
              graph_view_t<int32_t, int32_t, false, false> const& graph_view,
@@ -23,12 +25,12 @@ sample_edges(raft::handle_t const& handle,
              raft::host_span<size_t const> Ks,
              bool with_replacement);
 
-template std::tuple<rmm::device_uvector<int32_t>,
-                    rmm::device_uvector<int32_t>,
-                    arithmetic_device_uvector_t,
-                    std::optional<rmm::device_uvector<int32_t>>,
-                    rmm::device_uvector<int32_t>,
-                    std::optional<rmm::device_uvector<int32_t>>>
+template CUGRAPH_EXPORT std::tuple<rmm::device_uvector<int32_t>,
+                                   rmm::device_uvector<int32_t>,
+                                   arithmetic_device_uvector_t,
+                                   std::optional<rmm::device_uvector<int32_t>>,
+                                   rmm::device_uvector<int32_t>,
+                                   std::optional<rmm::device_uvector<int32_t>>>
 sample_edges_to_unvisited_neighbors(
   raft::handle_t const& handle,
   raft::random::RngState& rng_state,

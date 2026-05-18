@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -51,7 +51,7 @@ void timer_display_and_clear(raft::handle_t const& handle,
                              HighResTimer const& hr_timer,
                              std::ostream& os)
 {
-  if (multi_gpu) {
+  if constexpr (multi_gpu) {
     if (handle.get_comms().get_rank() == 0) hr_timer.display_and_clear(os);
   } else {
     hr_timer.display_and_clear(os);

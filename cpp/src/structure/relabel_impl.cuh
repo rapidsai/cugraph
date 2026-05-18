@@ -47,7 +47,7 @@ void relabel(raft::handle_t const& handle,
              bool skip_missing_labels,
              bool do_expensive_check)
 {
-  if (multi_gpu) {
+  if constexpr (multi_gpu) {
     auto& comm                 = handle.get_comms();
     auto const comm_size       = comm.get_size();
     auto& major_comm           = handle.get_subcomm(cugraph::partition_manager::major_comm_name());

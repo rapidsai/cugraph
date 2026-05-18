@@ -1,18 +1,20 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #include "structure/decompress_to_edgelist_impl.cuh"
+
+#include <cugraph/export.hpp>
 
 namespace cugraph {
 
 // MG instantiation
 
-template std::tuple<rmm::device_uvector<int32_t>,
-                    rmm::device_uvector<int32_t>,
-                    std::optional<rmm::device_uvector<float>>,
-                    std::optional<rmm::device_uvector<int32_t>>,
-                    std::optional<rmm::device_uvector<int32_t>>>
+template CUGRAPH_EXPORT std::tuple<rmm::device_uvector<int32_t>,
+                                   rmm::device_uvector<int32_t>,
+                                   std::optional<rmm::device_uvector<float>>,
+                                   std::optional<rmm::device_uvector<int32_t>>,
+                                   std::optional<rmm::device_uvector<int32_t>>>
 decompress_to_edgelist<int32_t, int32_t, float, int32_t, false, true>(
   raft::handle_t const& handle,
   graph_view_t<int32_t, int32_t, false, true> const& graph_view,
@@ -23,11 +25,11 @@ decompress_to_edgelist<int32_t, int32_t, float, int32_t, false, true>(
   std::optional<large_buffer_type_t> large_buffer_type,
   bool do_expensive_check);
 
-template std::tuple<rmm::device_uvector<int32_t>,
-                    rmm::device_uvector<int32_t>,
-                    std::optional<rmm::device_uvector<float>>,
-                    std::optional<rmm::device_uvector<int32_t>>,
-                    std::optional<rmm::device_uvector<int32_t>>>
+template CUGRAPH_EXPORT std::tuple<rmm::device_uvector<int32_t>,
+                                   rmm::device_uvector<int32_t>,
+                                   std::optional<rmm::device_uvector<float>>,
+                                   std::optional<rmm::device_uvector<int32_t>>,
+                                   std::optional<rmm::device_uvector<int32_t>>>
 decompress_to_edgelist<int32_t, int32_t, float, int32_t, true, true>(
   raft::handle_t const& handle,
   graph_view_t<int32_t, int32_t, true, true> const& graph_view,
@@ -38,11 +40,11 @@ decompress_to_edgelist<int32_t, int32_t, float, int32_t, true, true>(
   std::optional<large_buffer_type_t> large_buffer_type,
   bool do_expensive_check);
 
-template std::tuple<rmm::device_uvector<int32_t>,
-                    rmm::device_uvector<int32_t>,
-                    std::optional<rmm::device_uvector<double>>,
-                    std::optional<rmm::device_uvector<int32_t>>,
-                    std::optional<rmm::device_uvector<int32_t>>>
+template CUGRAPH_EXPORT std::tuple<rmm::device_uvector<int32_t>,
+                                   rmm::device_uvector<int32_t>,
+                                   std::optional<rmm::device_uvector<double>>,
+                                   std::optional<rmm::device_uvector<int32_t>>,
+                                   std::optional<rmm::device_uvector<int32_t>>>
 decompress_to_edgelist<int32_t, int32_t, double, int32_t, false, true>(
   raft::handle_t const& handle,
   graph_view_t<int32_t, int32_t, false, true> const& graph_view,
@@ -53,11 +55,11 @@ decompress_to_edgelist<int32_t, int32_t, double, int32_t, false, true>(
   std::optional<large_buffer_type_t> large_buffer_type,
   bool do_expensive_check);
 
-template std::tuple<rmm::device_uvector<int32_t>,
-                    rmm::device_uvector<int32_t>,
-                    std::optional<rmm::device_uvector<double>>,
-                    std::optional<rmm::device_uvector<int32_t>>,
-                    std::optional<rmm::device_uvector<int32_t>>>
+template CUGRAPH_EXPORT std::tuple<rmm::device_uvector<int32_t>,
+                                   rmm::device_uvector<int32_t>,
+                                   std::optional<rmm::device_uvector<double>>,
+                                   std::optional<rmm::device_uvector<int32_t>>,
+                                   std::optional<rmm::device_uvector<int32_t>>>
 decompress_to_edgelist<int32_t, int32_t, double, int32_t, true, true>(
   raft::handle_t const& handle,
   graph_view_t<int32_t, int32_t, true, true> const& graph_view,

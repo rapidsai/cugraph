@@ -4,6 +4,7 @@
  */
 #pragma once
 
+#include <cugraph/export.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/prims/property_op_utils.cuh>
 #include <cugraph/prims/reduce_v.cuh>
@@ -17,7 +18,7 @@
 #include <thrust/iterator/iterator_traits.h>
 #include <thrust/transform_reduce.h>
 
-namespace cugraph {
+namespace CUGRAPH_EXPORT cugraph {
 
 namespace detail {
 
@@ -172,4 +173,4 @@ auto transform_reduce_v(raft::handle_t const& handle,
     handle, graph_view, vertex_value_input_first, v_op, T{}, reduce_op::plus<T>{});
 }
 
-}  // namespace cugraph
+}  // namespace CUGRAPH_EXPORT cugraph

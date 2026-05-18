@@ -5,7 +5,7 @@
 # cmake-format: on
 # =============================================================================
 
-cmake_minimum_required(VERSION 3.30.4 FATAL_ERROR)
+cmake_minimum_required(VERSION 4.0 FATAL_ERROR)
 
 include(../../cmake/rapids_config.cmake)
 
@@ -37,10 +37,6 @@ set(CMAKE_CUDA_LINEINFO OFF)
 set(USE_RAFT_STATIC OFF)
 set(CUGRAPH_COMPILE_RAFT_LIB ON)
 
-# --- cuvs --- #
-set(CUGRAPH_COMPILE_CUVS ON)
-set(CUGRAPH_USE_CUVS_STATIC ON)
-
 add_subdirectory(../../cpp cugraph-cpp)
 
 # assumes libcugraph.so is installed 2 levels deep, e.g. site-packages/libcugraph/lib64/libcugraph.so
@@ -60,6 +56,21 @@ endif()
 
 set_property(
   TARGET cugraph
+  PROPERTY INSTALL_RPATH ${rpaths}
+  APPEND
+)
+set_property(
+  TARGET cugraph_common
+  PROPERTY INSTALL_RPATH ${rpaths}
+  APPEND
+)
+set_property(
+  TARGET cugraph_mg
+  PROPERTY INSTALL_RPATH ${rpaths}
+  APPEND
+)
+set_property(
+  TARGET cugraph_mtmg
   PROPERTY INSTALL_RPATH ${rpaths}
   APPEND
 )

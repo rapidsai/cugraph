@@ -4,6 +4,7 @@
  */
 #pragma once
 
+#include <cugraph/export.hpp>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/thrust_tuple_utils.hpp>
 
@@ -21,7 +22,7 @@
 #include <array>
 #include <type_traits>
 
-namespace cugraph {
+namespace CUGRAPH_EXPORT cugraph {
 
 namespace detail {
 
@@ -157,4 +158,4 @@ constexpr std::enable_if_t<std::is_arithmetic<T>::value, T> max_identity_element
   return std::numeric_limits<T>::max();
 }
 
-}  // namespace cugraph
+}  // namespace CUGRAPH_EXPORT cugraph

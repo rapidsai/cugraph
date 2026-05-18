@@ -1,14 +1,16 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2024, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #include "centrality/eigenvector_centrality_impl.cuh"
+
+#include <cugraph/export.hpp>
 
 namespace cugraph {
 
 // SG instantiation
 
-template rmm::device_uvector<float> eigenvector_centrality(
+template CUGRAPH_EXPORT rmm::device_uvector<float> eigenvector_centrality(
   raft::handle_t const& handle,
   graph_view_t<int32_t, int32_t, true, false> const& graph_view,
   std::optional<edge_property_view_t<int32_t, float const*>> edge_weight_view,
@@ -17,7 +19,7 @@ template rmm::device_uvector<float> eigenvector_centrality(
   size_t max_iterations,
   bool do_expensive_check);
 
-template rmm::device_uvector<double> eigenvector_centrality(
+template CUGRAPH_EXPORT rmm::device_uvector<double> eigenvector_centrality(
   raft::handle_t const& handle,
   graph_view_t<int32_t, int32_t, true, false> const& graph_view,
   std::optional<edge_property_view_t<int32_t, double const*>> edge_weight_view,

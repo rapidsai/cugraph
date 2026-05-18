@@ -1,15 +1,16 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2023-2024, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
 #pragma once
 
+#include <cugraph/export.hpp>
 #include <cugraph/mtmg/detail/device_shared_device_span.hpp>
 
 #include <rmm/device_uvector.hpp>
 
-namespace cugraph {
+namespace CUGRAPH_EXPORT cugraph {
 namespace mtmg {
 namespace detail {
 
@@ -43,4 +44,4 @@ class device_shared_device_vector_t : public device_shared_wrapper_t<rmm::device
 
 }  // namespace detail
 }  // namespace mtmg
-}  // namespace cugraph
+}  // namespace CUGRAPH_EXPORT cugraph

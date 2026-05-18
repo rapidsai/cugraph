@@ -6,6 +6,7 @@
 #pragma once
 
 #include <cugraph/arithmetic_variant_types.hpp>
+#include <cugraph/export.hpp>
 #include <cugraph/mtmg/handle.hpp>
 #include <cugraph/shuffle_functions.hpp>
 
@@ -14,7 +15,7 @@
 
 #include <rmm/device_uvector.hpp>
 
-namespace cugraph {
+namespace CUGRAPH_EXPORT cugraph {
 namespace mtmg {
 
 using arithmetic_host_vector_t = std::variant<std::monostate,
@@ -365,4 +366,4 @@ class per_device_edgelist_t {
 
 }  // namespace detail
 }  // namespace mtmg
-}  // namespace cugraph
+}  // namespace CUGRAPH_EXPORT cugraph

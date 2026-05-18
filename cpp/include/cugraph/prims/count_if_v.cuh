@@ -4,6 +4,7 @@
  */
 #pragma once
 
+#include <cugraph/export.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
@@ -18,7 +19,7 @@
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/reduce.h>
 
-namespace cugraph {
+namespace CUGRAPH_EXPORT cugraph {
 
 namespace detail {
 
@@ -87,4 +88,4 @@ typename GraphViewType::vertex_type count_if_v(raft::handle_t const& handle,
   return count;
 }
 
-}  // namespace cugraph
+}  // namespace CUGRAPH_EXPORT cugraph

@@ -1,9 +1,11 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2022, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
 #pragma once
+
+#include <cugraph_c/export.h>
 
 #include <stdint.h>
 
@@ -31,14 +33,16 @@ typedef struct cugraph_error_ {
  * @param [in]  error       The error object from some cugraph function call
  * @return a C-style string that provides detail for the error
  */
-const char* cugraph_error_message(const cugraph_error_t* error);
+CUGRAPH_EXPORT const char* cugraph_error_message(const cugraph_error_t* error);
 
 /**
  * @brief    Destroy an error message
  *
  * @param [in]  error       The error object from some cugraph function call
  */
-void cugraph_error_free(cugraph_error_t* error);
+CUGRAPH_EXPORT void cugraph_error_free(cugraph_error_t* error);
+
+#include <cugraph_c/export.h>
 
 #ifdef __cplusplus
 }

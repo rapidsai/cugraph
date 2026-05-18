@@ -1,8 +1,10 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
+#include <cugraph/export.hpp>
+
 #include <raft/core/handle.hpp>
 
 #include <rmm/device_buffer.hpp>
@@ -15,7 +17,7 @@
 #include <iostream>
 #include <memory>
 
-namespace cugraph {
+namespace CUGRAPH_EXPORT cugraph {
 namespace legacy {
 
 enum class PropType { PROP_UNDEF, PROP_FALSE, PROP_TRUE };
@@ -358,7 +360,7 @@ class GraphCOO {
            edge_t number_of_edges,
            bool has_data                     = false,
            cudaStream_t stream               = nullptr,
-           rmm::device_async_resource_ref mr = rmm::mr::get_current_device_resource())
+           rmm::device_async_resource_ref mr = rmm::mr::get_current_device_resource_ref())
     : number_of_vertices_p(number_of_vertices),
       number_of_edges_p(number_of_edges),
       src_indices_p(sizeof(vertex_t) * number_of_edges, stream, mr),
@@ -369,7 +371,7 @@ class GraphCOO {
 
   GraphCOO(GraphCOOView<vertex_t, edge_t, weight_t> const& graph,
            cudaStream_t stream               = nullptr,
-           rmm::device_async_resource_ref mr = rmm::mr::get_current_device_resource())
+           rmm::device_async_resource_ref mr = rmm::mr::get_current_device_resource_ref())
     : number_of_vertices_p(graph.number_of_vertices),
       number_of_edges_p(graph.number_of_edges),
       src_indices_p(graph.src_indices, graph.number_of_edges * sizeof(vertex_t), stream, mr),
@@ -540,7 +542,7 @@ class GraphCSR : public GraphCompressedSparseBase<vertex_t, edge_t, weight_t> {
            edge_t number_of_edges_,
            bool has_data_                    = false,
            cudaStream_t stream               = nullptr,
-           rmm::device_async_resource_ref mr = rmm::mr::get_current_device_resource())
+           rmm::device_async_resource_ref mr = rmm::mr::get_current_device_resource_ref())
     : GraphCompressedSparseBase<vertex_t, edge_t, weight_t>(
         number_of_vertices_, number_of_edges_, has_data_, stream, mr)
   {
@@ -584,6 +586,6 @@ template <typename edge_t>
 struct invalid_edge_id : invalid_idx<edge_t> {};
 
 }  // namespace legacy
-}  // namespace cugraph
+}  // namespace CUGRAPH_EXPORT cugraph
 
 #include "eidecl_graph.hpp"

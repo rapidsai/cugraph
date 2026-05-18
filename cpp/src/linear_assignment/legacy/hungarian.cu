@@ -10,6 +10,8 @@
 #include <cugraph/utilities/high_res_timer.hpp>
 #endif
 
+#include <cugraph/export.hpp>
+
 #include <raft/solver/linear_assignment.cuh>
 
 #include <rmm/cuda_stream_view.hpp>
@@ -273,22 +275,22 @@ weight_t hungarian(raft::handle_t const& handle,
   return detail::hungarian_sparse(handle, graph, num_workers, workers, assignment, epsilon);
 }
 
-template int32_t hungarian<int32_t, int32_t, int32_t>(
-  raft::handle_t const&,
-  legacy::GraphCOOView<int32_t, int32_t, int32_t> const&,
-  int32_t,
-  int32_t const*,
-  int32_t*,
-  int32_t);
+template CUGRAPH_EXPORT int32_t
+hungarian<int32_t, int32_t, int32_t>(raft::handle_t const&,
+                                     legacy::GraphCOOView<int32_t, int32_t, int32_t> const&,
+                                     int32_t,
+                                     int32_t const*,
+                                     int32_t*,
+                                     int32_t);
 
-template float hungarian<int32_t, int32_t, float>(
+template CUGRAPH_EXPORT float hungarian<int32_t, int32_t, float>(
   raft::handle_t const&,
   legacy::GraphCOOView<int32_t, int32_t, float> const&,
   int32_t,
   int32_t const*,
   int32_t*,
   float);
-template double hungarian<int32_t, int32_t, double>(
+template CUGRAPH_EXPORT double hungarian<int32_t, int32_t, double>(
   raft::handle_t const&,
   legacy::GraphCOOView<int32_t, int32_t, double> const&,
   int32_t,
@@ -296,20 +298,20 @@ template double hungarian<int32_t, int32_t, double>(
   int32_t*,
   double);
 
-template int32_t hungarian<int32_t, int32_t, int32_t>(
-  raft::handle_t const&,
-  legacy::GraphCOOView<int32_t, int32_t, int32_t> const&,
-  int32_t,
-  int32_t const*,
-  int32_t*);
+template CUGRAPH_EXPORT int32_t
+hungarian<int32_t, int32_t, int32_t>(raft::handle_t const&,
+                                     legacy::GraphCOOView<int32_t, int32_t, int32_t> const&,
+                                     int32_t,
+                                     int32_t const*,
+                                     int32_t*);
 
-template float hungarian<int32_t, int32_t, float>(
+template CUGRAPH_EXPORT float hungarian<int32_t, int32_t, float>(
   raft::handle_t const&,
   legacy::GraphCOOView<int32_t, int32_t, float> const&,
   int32_t,
   int32_t const*,
   int32_t*);
-template double hungarian<int32_t, int32_t, double>(
+template CUGRAPH_EXPORT double hungarian<int32_t, int32_t, double>(
   raft::handle_t const&,
   legacy::GraphCOOView<int32_t, int32_t, double> const&,
   int32_t,
@@ -340,17 +342,17 @@ weight_t hungarian(raft::handle_t const& handle,
   return detail::hungarian(handle, num_rows, num_cols, costs, assignment, epsilon);
 }
 
-template int32_t hungarian<int32_t, int32_t>(
-  raft::handle_t const&, int32_t const*, int32_t, int32_t, int32_t*);
-template float hungarian<int32_t, float>(
+template CUGRAPH_EXPORT int32_t
+hungarian<int32_t, int32_t>(raft::handle_t const&, int32_t const*, int32_t, int32_t, int32_t*);
+template CUGRAPH_EXPORT float hungarian<int32_t, float>(
   raft::handle_t const&, float const*, int32_t, int32_t, int32_t*);
-template double hungarian<int32_t, double>(
+template CUGRAPH_EXPORT double hungarian<int32_t, double>(
   raft::handle_t const&, double const*, int32_t, int32_t, int32_t*);
-template int32_t hungarian<int32_t, int32_t>(
+template CUGRAPH_EXPORT int32_t hungarian<int32_t, int32_t>(
   raft::handle_t const&, int32_t const*, int32_t, int32_t, int32_t*, int32_t);
-template float hungarian<int32_t, float>(
+template CUGRAPH_EXPORT float hungarian<int32_t, float>(
   raft::handle_t const&, float const*, int32_t, int32_t, int32_t*, float);
-template double hungarian<int32_t, double>(
+template CUGRAPH_EXPORT double hungarian<int32_t, double>(
   raft::handle_t const&, double const*, int32_t, int32_t, int32_t*, double);
 
 }  // namespace dense

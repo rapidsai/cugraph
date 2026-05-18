@@ -7,6 +7,7 @@
 #include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/edge_partition_endpoint_property_device_view.cuh>
 #include <cugraph/edge_src_dst_property.hpp>
+#include <cugraph/export.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/prims/vertex_frontier.cuh>
@@ -43,7 +44,7 @@
 #include <utility>
 #include <variant>
 
-namespace cugraph {
+namespace CUGRAPH_EXPORT cugraph {
 
 namespace detail {
 
@@ -1147,4 +1148,4 @@ void update_edge_dst_property(raft::handle_t const& handle,
   }
 }
 
-}  // namespace cugraph
+}  // namespace CUGRAPH_EXPORT cugraph
