@@ -810,19 +810,19 @@ if(BUILD_CUGRAPH_MG_TESTS)
                     prims/mg_per_v_random_select_transform_outgoing_e.cu)
 
     ###############################################################################################
-    # - MG PRIMS PER_V_PAIR_TRANSFORM_DST_NBR_INTERSECTION tests ----------------------------------
-    ConfigureTestMG(MG_PER_V_PAIR_TRANSFORM_DST_NBR_INTERSECTION_TEST
-                    prims/mg_per_v_pair_transform_dst_nbr_intersection.cu)
+    # - MG PRIMS PER_V_PAIR_TRANSFORM_SRC_DST_NBR_INTERSECTION tests ------------------------------
+    ConfigureTestMG(MG_PER_V_PAIR_TRANSFORM_SRC_DST_NBR_INTERSECTION_TEST
+                    prims/mg_per_v_pair_transform_src_dst_nbr_intersection.cu)
 
     ###############################################################################################
-    # - MG PRIMS TRANSFORM_REDUCE_DST_NBR_INTERSECTION OF_E_ENDPOINTS_BY_V tests ------------------
-    ConfigureTestMG(MG_TRANSFORM_REDUCE_DST_NBR_INTERSECTION_BY_E_ENDPOINTS_BY_V_TEST
-                    prims/mg_transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v.cu)
+    # - MG PRIMS TRANSFORM_REDUCE_SRC_DST_NBR_INTERSECTION OF_E_ENDPOINTS_BY_V tests --------------
+    ConfigureTestMG(MG_TRANSFORM_REDUCE_SRC_DST_NBR_INTERSECTION_BY_E_ENDPOINTS_BY_V_TEST
+                    prims/mg_transform_reduce_src_dst_nbr_intersection_of_e_endpoints_by_v.cu)
 
     ###############################################################################################
-    # - MG PRIMS PER_V_PAIR_TRANSFORM_DST_NBR_WEIGHTED_INTERSECTION tests -------------------------
-    ConfigureTestMG(MG_PER_V_PAIR_TRANSFORM_DST_NBR_WEIGHTED_INTERSECTION_TEST
-                    prims/mg_per_v_pair_transform_dst_nbr_weighted_intersection.cu)
+    # - MG PRIMS PER_V_PAIR_TRANSFORM_SRC_DST_NBR_WEIGHTED_INTERSECTION tests ---------------------
+    ConfigureTestMG(MG_PER_V_PAIR_TRANSFORM_SRC_DST_NBR_WEIGHTED_INTERSECTION_TEST
+                    prims/mg_per_v_pair_transform_src_dst_nbr_weighted_intersection.cu)
 
     ###############################################################################################
     # - MG HOMOGENEOUS UNIFORM NBR SAMPLING tests -------------------------------------------------
