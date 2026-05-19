@@ -716,7 +716,7 @@ sample_unvisited_with_one_property(
   bool sample_and_append{true};
   rmm::device_uvector<vertex_t> carryover_frontier_majors(0, handle.get_stream());
   std::optional<rmm::device_uvector<int32_t>> carryover_frontier_labels{std::nullopt};
-  std::optional<rmm::device_uvector<int32_t>> carryover_frontier_types{std::nullopt};
+  std::optional<rmm::device_uvector<edge_type_t>> carryover_frontier_types{std::nullopt};
   rmm::device_uvector<size_t> carryover_frontier_capacity(0, handle.get_stream());
 
   auto active_bucket_view = key_bucket_view;
@@ -840,7 +840,7 @@ sample_unvisited_with_one_property(
       rmm::device_uvector<uint32_t> keep_flags(0, handle.get_stream());
 
       if (carryover_frontier_types) {
-        auto& type_vec = std::get<rmm::device_uvector<int32_t>>(types);
+        auto& type_vec = std::get<rmm::device_uvector<edge_type_t>>(types);
 
         if (labels) {
           thrust::sort_by_key(
@@ -1116,8 +1116,8 @@ sample_unvisited_with_one_property(
         }
         carryover_frontier_capacity = std::move(agg_counts);
       } else {
-        rmm::device_uvector<int32_t> types =
-          std::get<rmm::device_uvector<int32_t>>(std::move(discarded_types));
+        rmm::device_uvector<edge_type_t> types =
+          std::get<rmm::device_uvector<edge_type_t>>(std::move(discarded_types));
 
         if (agg_labels) {
           thrust::sort(
