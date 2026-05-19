@@ -6,8 +6,6 @@
 #=============================================================================
 
 set(CUGRAPH_MIN_VERSION_cuvs "${CUGRAPH_VERSION_MAJOR}.${CUGRAPH_VERSION_MINOR}.00")
-set(CUVS_FORK "rapidsai")
-set(CUVS_PINNED_TAG "achirkin-patch-5")
 
 function(find_and_configure_cuvs)
     set(oneValueArgs VERSION FORK PINNED_TAG EXCLUDE_FROM_ALL CLONE_ON_PIN)
@@ -21,9 +19,6 @@ function(find_and_configure_cuvs)
 
     # Disable multi-GPU algorithms to avoid NCCL dependency
     set(CUVS_BUILD_MG_ALGOS OFF)
-
-    include("${rapids-cmake-dir}/cpm/package_override.cmake")
-    rapids_cpm_package_override("${CMAKE_CURRENT_LIST_DIR}/cuvs_cpm_override.json")
 
     rapids_cpm_find(cuvs ${PKG_VERSION}
       GLOBAL_TARGETS      cuvs::cuvs
@@ -51,8 +46,8 @@ endfunction()
 # To use a different cuVS locally, set the CMake variable
 # CPM_cuvs_SOURCE=/path/to/local/cuvs
 find_and_configure_cuvs(VERSION          ${CUGRAPH_MIN_VERSION_cuvs}
-                        FORK             ${CUVS_FORK}
-                        PINNED_TAG       ${CUVS_PINNED_TAG}
+                        FORK             rapidsai
+                        PINNED_TAG       ${rapids-cmake-checkout-tag}
 
                         # When PINNED_TAG above doesn't match cugraph,
                         # force local cuVS clone in build directory

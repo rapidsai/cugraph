@@ -558,7 +558,7 @@ target_link_libraries(cugraph_common
         $<BUILD_LOCAL_INTERFACE:CUDA::toolkit>
     PRIVATE
         ${COMPILED_RAFT_LIB}
-        cuvs::cuvs_static
+        $<IF:$<BOOL:${CUGRAPH_USE_CUVS_STATIC}>,cuvs::cuvs_static,cuvs::cuvs>
         cuco::cuco
         rmm::rmm
     INTERFACE $<COMPILE_ONLY:rmm::rmm>
@@ -616,7 +616,7 @@ foreach(suffix IN LISTS cugraph_suffixes)
             $<BUILD_LOCAL_INTERFACE:CUDA::toolkit>
         PRIVATE
             ${COMPILED_RAFT_LIB}
-            cuvs::cuvs_static
+            cuvs::cuvs
             cuco::cuco
             rmm::rmm
         INTERFACE $<COMPILE_ONLY:rmm::rmm>

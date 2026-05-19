@@ -15,6 +15,7 @@ LIBCUGRAPH_WHEELHOUSE=$(RAPIDS_PY_WHEEL_NAME="libcugraph_${RAPIDS_PY_CUDA_SUFFIX
 
 # generate constraints (possibly pinning to oldest support versions of dependencies)
 rapids-generate-pip-constraints test_python "${PIP_CONSTRAINT}"
+source "$(dirname "$(realpath "${BASH_SOURCE[0]}")")/use_dependent_pr_artifacts.sh"
 
 # Update this when 'torch' publishes CUDA wheels supporting newer CTKs.
 #

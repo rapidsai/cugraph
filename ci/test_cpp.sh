@@ -1,11 +1,13 @@
 #!/bin/bash
-# SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 
 set -euo pipefail
 
 # Support invoking test_cpp.sh outside the script directory
 cd "$(dirname "$(realpath "${BASH_SOURCE[0]}")")"/../
+
+source "$(dirname "$(realpath "${BASH_SOURCE[0]}")")/ci/use_dependent_pr_artifacts.sh"
 
 . /opt/conda/etc/profile.d/conda.sh
 
