@@ -231,12 +231,11 @@ deduplicate_edges_by_minor(raft::handle_t const& handle,
     }
 
     if (has_types) {
-      auto& types    = std::get<rmm::device_uvector<int32_t>>(result_types);
-      auto discarded = rmm::device_uvector<int32_t>(discard_count, handle.get_stream());
+      auto& types     = std::get<rmm::device_uvector<int32_t>>(result_types);
+      auto& discarded = std::get<rmm::device_uvector<int32_t>>(discarded_types);
+      discarded.resize(discard_count, handle.get_stream());
       detail::copy_if_mask_unset(
         handle, types.begin(), types.end(), keep_flags.begin(), discarded.begin());
-      types = detail::keep_marked_entries(handle, std::move(types), keep_flags_span, keep_count);
-      discarded_types = std::move(discarded);
     }
 
     if (has_labels) {
@@ -252,12 +251,17 @@ deduplicate_edges_by_minor(raft::handle_t const& handle,
     }
   }
 
+  if (has_types) {
+    auto& types = std::get<rmm::device_uvector<int32_t>>(result_types);
+    types.resize(0, handle.get_stream());
+    types.shrink_to_fit(handle.get_stream());
+  }
+
   // 4. Shuffle edges back to the source-owner GPU (inverse of step 1's shuffle by minor).
   if constexpr (multi_gpu) {
     std::vector<arithmetic_device_uvector_t> shuffle_properties{};
     shuffle_properties.push_back(std::move(result_minors));
     if (has_edge_property) { shuffle_properties.push_back(std::move(result_edge_property)); }
-    if (has_types) { shuffle_properties.push_back(std::move(result_types)); }
     if (has_labels) { shuffle_properties.push_back(std::move(*result_labels)); }
 
     std::tie(result_majors, shuffle_properties) =
@@ -272,7 +276,6 @@ deduplicate_edges_by_minor(raft::handle_t const& handle,
     if (has_edge_property) {
       result_edge_property = std::move(shuffle_properties[shuffle_prop_idx++]);
     }
-    if (has_types) { result_types = std::move(shuffle_properties[shuffle_prop_idx++]); }
     if (has_labels) {
       result_labels =
         std::move(std::get<rmm::device_uvector<int32_t>>(shuffle_properties[shuffle_prop_idx++]));

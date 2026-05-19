@@ -509,7 +509,7 @@ update_dst_visited_vertices_and_labels(
  * @param result_edge_property Per-edge property column in lockstep with majors/minors
  *        (monostate if none, or rmm::device_uvector<edge_t> multi-edge index when present).
  * @param result_types Optional per-edge edge-type column (monostate or int32_t), in lockstep when
- *        present; used for heterogeneous disjoint carryover while result_edge_property holds index.
+ *        present for sort/split; only discarded_types is returned, not kept types.
  * @param result_labels Optional device vector of labels per edge.
  * @return Tuple of kept (majors, minors, result_edge_property, labels), then discarded (majors,
  *         minors, discarded_edge_property, discarded_types, labels). Kept rows are the first edge
