@@ -4,6 +4,7 @@
  */
 #pragma once
 
+#include <cugraph/export.hpp>
 #include <cugraph/prims/detail/nbr_intersection.cuh>
 
 #include <raft/core/handle.hpp>
@@ -12,7 +13,7 @@
 
 #include <tuple>
 
-namespace cugraph {
+namespace CUGRAPH_EXPORT cugraph {
 
 /**
  * @brief Iterate over each input vertex pair and returns the common destination neighbor list
@@ -50,4 +51,4 @@ per_v_pair_dst_nbr_intersection(raft::handle_t const& handle,
                                   do_expensive_check);
 }
 
-}  // namespace cugraph
+}  // namespace CUGRAPH_EXPORT cugraph

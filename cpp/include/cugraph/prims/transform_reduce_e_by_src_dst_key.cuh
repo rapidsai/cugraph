@@ -8,6 +8,7 @@
 #include <cugraph/edge_partition_edge_property_device_view.cuh>
 #include <cugraph/edge_partition_endpoint_property_device_view.cuh>
 #include <cugraph/edge_src_dst_property.hpp>
+#include <cugraph/export.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/prims/property_op_utils.cuh>
@@ -30,7 +31,7 @@
 
 #include <type_traits>
 
-namespace cugraph {
+namespace CUGRAPH_EXPORT cugraph {
 
 namespace detail {
 
@@ -556,8 +557,11 @@ transform_reduce_e_by_src_dst_key(raft::handle_t const& handle,
     rmm::device_uvector<vertex_t> tmp_keys(0, handle.get_stream());
     std::optional<rmm::device_uvector<edge_t>> edge_offsets_with_mask{std::nullopt};
     if (edge_partition_e_mask) {
-      auto local_degrees = edge_partition.compute_local_degrees_with_mask(
-        (*edge_partition_e_mask).value_first(), handle.get_stream());
+      auto edge_partition_mask_span = raft::device_span<uint32_t const>(
+        (*edge_partition_e_mask).value_first(),
+        packed_bool_size(static_cast<size_t>(edge_partition.number_of_edges())));
+      auto local_degrees = edge_partition.compute_local_degrees_with_mask(edge_partition_mask_span,
+                                                                          handle.get_stream());
       edge_offsets_with_mask =
         rmm::device_uvector<edge_t>(edge_partition.major_range_size() + 1, handle.get_stream());
       (*edge_offsets_with_mask).set_element_to_zero_async(0, handle.get_stream());
@@ -960,4 +964,4 @@ auto transform_reduce_e_by_dst_key(raft::handle_t const& handle,
                                                           reduce_op);
 }
 
-}  // namespace cugraph
+}  // namespace CUGRAPH_EXPORT cugraph

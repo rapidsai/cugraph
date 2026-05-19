@@ -9,6 +9,7 @@
 #include <cugraph/edge_partition_edge_property_device_view.cuh>
 #include <cugraph/edge_partition_endpoint_property_device_view.cuh>
 #include <cugraph/edge_src_dst_property.hpp>
+#include <cugraph/export.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/prims/detail/extract_transform_if_v_frontier_e.cuh>
 #include <cugraph/prims/property_op_utils.cuh>
@@ -29,7 +30,7 @@
 #include <tuple>
 #include <type_traits>
 
-namespace cugraph {
+namespace CUGRAPH_EXPORT cugraph {
 
 /**
  * @brief Iterate over the entire set of edges and extract the valid edge functor outputs.
@@ -123,4 +124,4 @@ extract_transform_if_e(raft::handle_t const& handle,
   return value_buffer;
 }
 
-}  // namespace cugraph
+}  // namespace CUGRAPH_EXPORT cugraph

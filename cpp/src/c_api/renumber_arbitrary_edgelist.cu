@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -9,6 +9,7 @@
 #include <cugraph_c/error.h>
 #include <cugraph_c/graph_functions.h>
 
+#include <cugraph/export.hpp>
 #include <cugraph/graph.hpp>
 #include <cugraph/utilities/error.hpp>
 

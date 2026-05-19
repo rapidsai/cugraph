@@ -1,9 +1,10 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
 
+#include <cugraph/export.hpp>
 #include <cugraph/legacy/graph.hpp>
 
 #include <raft/core/handle.hpp>
@@ -11,7 +12,7 @@
 #include <rmm/device_buffer.hpp>
 #include <rmm/resource_ref.hpp>
 
-namespace cugraph {
+namespace CUGRAPH_EXPORT cugraph {
 
 /** @defgroup legacy_functions_cpp C++ Shuffle Wrappers
  */
@@ -40,7 +41,7 @@ namespace cugraph {
 template <typename VT, typename ET, typename WT>
 std::unique_ptr<legacy::GraphCSR<VT, ET, WT>> coo_to_csr(
   legacy::GraphCOOView<VT, ET, WT> const& graph,
-  rmm::device_async_resource_ref mr = rmm::mr::get_current_device_resource());
+  rmm::device_async_resource_ref mr = rmm::mr::get_current_device_resource_ref());
 
 /**
  * @brief    Broadcast using handle communicator
@@ -63,7 +64,7 @@ void comms_bcast(const raft::handle_t& handle, value_t* value, size_t count)
   handle.get_comms().bcast(value, count, 0, handle.get_stream());
 }
 
-}  // namespace cugraph
+}  // namespace CUGRAPH_EXPORT cugraph
 
 /**
  * @}

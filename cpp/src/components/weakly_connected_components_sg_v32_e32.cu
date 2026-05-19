@@ -1,15 +1,17 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2024, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
 #include "components/weakly_connected_components_impl.cuh"
 
+#include <cugraph/export.hpp>
+
 namespace cugraph {
 
 // SG instantiations
 
-template void weakly_connected_components(
+template CUGRAPH_EXPORT void weakly_connected_components(
   raft::handle_t const& handle,
   graph_view_t<int32_t, int32_t, false, false> const& graph_view,
   int32_t* components,

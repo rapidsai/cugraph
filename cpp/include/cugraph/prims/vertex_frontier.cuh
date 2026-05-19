@@ -4,6 +4,7 @@
  */
 #pragma once
 
+#include <cugraph/export.hpp>
 #include <cugraph/prims/detail/multi_stream_utils.cuh>
 #include <cugraph/utilities/device_comm.hpp>
 #include <cugraph/utilities/device_functors.cuh>
@@ -43,7 +44,7 @@
 #include <variant>
 #include <vector>
 
-namespace cugraph {
+namespace CUGRAPH_EXPORT cugraph {
 
 template <typename vertex_t, typename KeyIterator>
 KeyIterator compute_key_lower_bound(KeyIterator sorted_unique_key_first,
@@ -935,4 +936,4 @@ class vertex_frontier_t {
   std::vector<key_bucket_t<vertex_t, tag_t, multi_gpu, sorted_unique_key_bucket>> buckets_{};
 };
 
-}  // namespace cugraph
+}  // namespace CUGRAPH_EXPORT cugraph

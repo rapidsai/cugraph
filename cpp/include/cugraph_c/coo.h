@@ -1,11 +1,12 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2024, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
 #pragma once
 
 #include <cugraph_c/array.h>
+#include <cugraph_c/export.h>
 #include <cugraph_c/graph.h>
 #include <cugraph_c/random.h>
 #include <cugraph_c/resource_handle.h>
@@ -34,7 +35,7 @@ typedef struct {
  * @param [in]     coo   Opaque pointer to COO
  * @return type erased array view of source vertex ids
  */
-cugraph_type_erased_device_array_view_t* cugraph_coo_get_sources(cugraph_coo_t* coo);
+CUGRAPH_EXPORT cugraph_type_erased_device_array_view_t* cugraph_coo_get_sources(cugraph_coo_t* coo);
 
 /**
  * @brief       Get the destination vertex ids
@@ -42,7 +43,8 @@ cugraph_type_erased_device_array_view_t* cugraph_coo_get_sources(cugraph_coo_t* 
  * @param [in]     coo   Opaque pointer to COO
  * @return type erased array view of destination vertex ids
  */
-cugraph_type_erased_device_array_view_t* cugraph_coo_get_destinations(cugraph_coo_t* coo);
+CUGRAPH_EXPORT cugraph_type_erased_device_array_view_t* cugraph_coo_get_destinations(
+  cugraph_coo_t* coo);
 
 /**
  * @brief       Get the edge weights
@@ -50,7 +52,8 @@ cugraph_type_erased_device_array_view_t* cugraph_coo_get_destinations(cugraph_co
  * @param [in]     coo   Opaque pointer to COO
  * @return type erased array view of edge weights, NULL if no edge weights in COO
  */
-cugraph_type_erased_device_array_view_t* cugraph_coo_get_edge_weights(cugraph_coo_t* coo);
+CUGRAPH_EXPORT cugraph_type_erased_device_array_view_t* cugraph_coo_get_edge_weights(
+  cugraph_coo_t* coo);
 
 /**
  * @brief       Get the edge id
@@ -58,7 +61,7 @@ cugraph_type_erased_device_array_view_t* cugraph_coo_get_edge_weights(cugraph_co
  * @param [in]     coo   Opaque pointer to COO
  * @return type erased array view of edge id, NULL if no edge ids in COO
  */
-cugraph_type_erased_device_array_view_t* cugraph_coo_get_edge_id(cugraph_coo_t* coo);
+CUGRAPH_EXPORT cugraph_type_erased_device_array_view_t* cugraph_coo_get_edge_id(cugraph_coo_t* coo);
 
 /**
  * @brief       Get the edge type
@@ -66,7 +69,8 @@ cugraph_type_erased_device_array_view_t* cugraph_coo_get_edge_id(cugraph_coo_t* 
  * @param [in]     coo   Opaque pointer to COO
  * @return type erased array view of edge type, NULL if no edge types in COO
  */
-cugraph_type_erased_device_array_view_t* cugraph_coo_get_edge_type(cugraph_coo_t* coo);
+CUGRAPH_EXPORT cugraph_type_erased_device_array_view_t* cugraph_coo_get_edge_type(
+  cugraph_coo_t* coo);
 
 /**
  * @brief       Get the number of coo object in the list
@@ -74,7 +78,7 @@ cugraph_type_erased_device_array_view_t* cugraph_coo_get_edge_type(cugraph_coo_t
  * @param [in]     coo_list   Opaque pointer to COO list
  * @return number of elements
  */
-size_t cugraph_coo_list_size(const cugraph_coo_list_t* coo_list);
+CUGRAPH_EXPORT size_t cugraph_coo_list_size(const cugraph_coo_list_t* coo_list);
 
 /**
  * @brief       Get a COO from the list
@@ -83,21 +87,23 @@ size_t cugraph_coo_list_size(const cugraph_coo_list_t* coo_list);
  * @param [in]     index      Index of desired COO from list
  * @return a cugraph_coo_t* object from the list
  */
-cugraph_coo_t* cugraph_coo_list_element(cugraph_coo_list_t* coo_list, size_t index);
+CUGRAPH_EXPORT cugraph_coo_t* cugraph_coo_list_element(cugraph_coo_list_t* coo_list, size_t index);
 
 /**
  * @brief     Free coo object
  *
  * @param [in]    coo Opaque pointer to COO
  */
-void cugraph_coo_free(cugraph_coo_t* coo);
+CUGRAPH_EXPORT void cugraph_coo_free(cugraph_coo_t* coo);
 
 /**
  * @brief     Free coo list
  *
  * @param [in]    coo_list Opaque pointer to list of COO objects
  */
-void cugraph_coo_list_free(cugraph_coo_list_t* coo_list);
+CUGRAPH_EXPORT void cugraph_coo_list_free(cugraph_coo_list_t* coo_list);
+
+#include <cugraph_c/export.h>
 
 #ifdef __cplusplus
 }

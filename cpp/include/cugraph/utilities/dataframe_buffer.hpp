@@ -1,9 +1,10 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
 
+#include <cugraph/export.hpp>
 #include <cugraph/utilities/thrust_tuple_utils.hpp>
 
 #include <raft/core/handle.hpp>
@@ -16,7 +17,7 @@
 
 #include <type_traits>
 
-namespace cugraph {
+namespace CUGRAPH_EXPORT cugraph {
 
 namespace detail {
 
@@ -305,4 +306,4 @@ auto get_dataframe_buffer_cend(BufferType& buffer)
     std::make_index_sequence<std::tuple_size<BufferType>::value>(), buffer);
 }
 
-}  // namespace cugraph
+}  // namespace CUGRAPH_EXPORT cugraph

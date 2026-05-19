@@ -4,6 +4,7 @@
  */
 #pragma once
 
+#include <cugraph/export.hpp>
 #include <cugraph/utilities/packed_bool_utils.hpp>
 
 #include <thrust/binary_search.h>
@@ -11,13 +12,21 @@
 
 #include <cstddef>
 
-namespace cugraph {
+namespace CUGRAPH_EXPORT cugraph {
 
 namespace detail {
 
 template <typename input_t, typename output_t>
 struct typecast_t {
   __device__ output_t operator()(input_t val) const { return static_cast<output_t>(val); }
+};
+
+template <typename input_t, typename output_t>
+struct converting_plus_t {
+  __device__ output_t operator()(input_t lhs, input_t rhs) const
+  {
+    return static_cast<output_t>(lhs) + static_cast<output_t>(rhs);
+  }
 };
 
 template <typename BoolIterator>
@@ -206,4 +215,4 @@ struct segment_id_t {
 
 }  // namespace detail
 
-}  // namespace cugraph
+}  // namespace CUGRAPH_EXPORT cugraph

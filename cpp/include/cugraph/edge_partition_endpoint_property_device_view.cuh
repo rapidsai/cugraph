@@ -6,6 +6,7 @@
 #pragma once
 
 #include <cugraph/edge_src_dst_property.hpp>
+#include <cugraph/export.hpp>
 #include <cugraph/utilities/atomic_ops.cuh>
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/packed_bool_utils.hpp>
@@ -21,7 +22,7 @@
 #include <thrust/fill.h>
 #include <thrust/iterator/iterator_traits.h>
 
-namespace cugraph {
+namespace CUGRAPH_EXPORT cugraph {
 
 namespace detail {
 
@@ -228,4 +229,4 @@ class edge_partition_endpoint_dummy_property_device_view_t {
 
 }  // namespace detail
 
-}  // namespace cugraph
+}  // namespace CUGRAPH_EXPORT cugraph

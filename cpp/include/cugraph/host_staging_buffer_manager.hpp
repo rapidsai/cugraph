@@ -4,21 +4,20 @@
  */
 #pragma once
 
+#include <cugraph/export.hpp>
 #include <cugraph/utilities/error.hpp>
 
 #include <raft/core/handle.hpp>
 
 #include <rmm/cuda_stream_view.hpp>
 #include <rmm/device_uvector.hpp>
-#include <rmm/mr/owning_wrapper.hpp>
 #include <rmm/mr/pinned_host_memory_resource.hpp>
 #include <rmm/mr/pool_memory_resource.hpp>
 
 #include <cstddef>
-#include <memory>
 #include <optional>
 
-namespace cugraph {
+namespace CUGRAPH_EXPORT cugraph {
 
 class host_staging_buffer_manager {
  public:
@@ -32,14 +31,12 @@ class host_staging_buffer_manager {
     return s.initialized;
   }
 
-  static void init(raft::handle_t const& handle,
-                   std::shared_ptr<rmm::mr::pinned_host_memory_resource> pinned_mr)
+  static void init(raft::handle_t const& handle, rmm::mr::pinned_host_memory_resource pinned_mr)
   {
     auto& s = state();
     CUGRAPH_EXPECTS(s.initialized == false, "host_staging_buffer_manager is already initialized.");
-    s.initialized    = true;
-    s.pinned_pool_mr = rmm::mr::make_owning_wrapper<rmm::mr::pool_memory_resource>(
-      std::move(pinned_mr), init_staging_buffer_size, max_staging_buffer_size);
+    s.initialized = true;
+    s.pinned_pool_mr.emplace(pinned_mr, init_staging_buffer_size, max_staging_buffer_size);
   }
 
   static void clear()
@@ -53,16 +50,13 @@ class host_staging_buffer_manager {
   static rmm::device_uvector<T> allocate_staging_buffer(size_t size, rmm::cuda_stream_view stream)
   {
     auto& s = state();
-    return rmm::device_uvector<T>(size, stream, s.pinned_pool_mr.get());
+    return rmm::device_uvector<T>(size, stream, *s.pinned_pool_mr);
   }
 
  private:
   struct state_t {
     bool initialized = false;
-    std::shared_ptr<
-      rmm::mr::owning_wrapper<rmm::mr::pool_memory_resource<rmm::mr::pinned_host_memory_resource>,
-                              rmm::mr::pinned_host_memory_resource>>
-      pinned_pool_mr{};
+    std::optional<rmm::mr::pool_memory_resource> pinned_pool_mr{};
   };
 
   static state_t& state()
@@ -72,4 +66,4 @@ class host_staging_buffer_manager {
   };
 };
 
-}  // namespace cugraph
+}  // namespace CUGRAPH_EXPORT cugraph

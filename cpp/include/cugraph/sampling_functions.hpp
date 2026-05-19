@@ -1,10 +1,11 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
 
 #include <cugraph/arithmetic_variant_types.hpp>
+#include <cugraph/export.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/src_dst_lookup_container.hpp>
 
@@ -20,7 +21,7 @@
 /** @defgroup sampling_functions_cpp C++ Sampling Functions
  */
 
-namespace cugraph {
+namespace CUGRAPH_EXPORT cugraph {
 
 /**
  * @ingroup sampling_functions_cpp
@@ -1329,4 +1330,4 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> negativ
   bool exact_number_of_samples,
   bool do_expensive_check);
 
-}  // namespace cugraph
+}  // namespace CUGRAPH_EXPORT cugraph

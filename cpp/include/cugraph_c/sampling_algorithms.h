@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -14,6 +14,8 @@
 
 /** @defgroup samplingC Sampling algorithms
  */
+
+#include <cugraph_c/export.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -40,14 +42,14 @@ typedef struct {
  *                              be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_uniform_random_walks(
-  const cugraph_resource_handle_t* handle,
-  cugraph_rng_state_t* rng_state,
-  cugraph_graph_t* graph,
-  const cugraph_type_erased_device_array_view_t* start_vertices,
-  size_t max_length,
-  cugraph_random_walk_result_t** result,
-  cugraph_error_t** error);
+CUGRAPH_EXPORT cugraph_error_code_t
+cugraph_uniform_random_walks(const cugraph_resource_handle_t* handle,
+                             cugraph_rng_state_t* rng_state,
+                             cugraph_graph_t* graph,
+                             const cugraph_type_erased_device_array_view_t* start_vertices,
+                             size_t max_length,
+                             cugraph_random_walk_result_t** result,
+                             cugraph_error_t** error);
 
 /**
  * @brief  Compute biased random walks
@@ -63,14 +65,14 @@ cugraph_error_code_t cugraph_uniform_random_walks(
  *                              be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_biased_random_walks(
-  const cugraph_resource_handle_t* handle,
-  cugraph_rng_state_t* rng_state,
-  cugraph_graph_t* graph,
-  const cugraph_type_erased_device_array_view_t* start_vertices,
-  size_t max_length,
-  cugraph_random_walk_result_t** result,
-  cugraph_error_t** error);
+CUGRAPH_EXPORT cugraph_error_code_t
+cugraph_biased_random_walks(const cugraph_resource_handle_t* handle,
+                            cugraph_rng_state_t* rng_state,
+                            cugraph_graph_t* graph,
+                            const cugraph_type_erased_device_array_view_t* start_vertices,
+                            size_t max_length,
+                            cugraph_random_walk_result_t** result,
+                            cugraph_error_t** error);
 
 /**
  * @brief  Compute random walks using the node2vec framework.
@@ -90,16 +92,16 @@ cugraph_error_code_t cugraph_biased_random_walks(
  *                              be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_node2vec_random_walks(
-  const cugraph_resource_handle_t* handle,
-  cugraph_rng_state_t* rng_state,
-  cugraph_graph_t* graph,
-  const cugraph_type_erased_device_array_view_t* start_vertices,
-  size_t max_length,
-  double p,
-  double q,
-  cugraph_random_walk_result_t** result,
-  cugraph_error_t** error);
+CUGRAPH_EXPORT cugraph_error_code_t
+cugraph_node2vec_random_walks(const cugraph_resource_handle_t* handle,
+                              cugraph_rng_state_t* rng_state,
+                              cugraph_graph_t* graph,
+                              const cugraph_type_erased_device_array_view_t* start_vertices,
+                              size_t max_length,
+                              double p,
+                              double q,
+                              cugraph_random_walk_result_t** result,
+                              cugraph_error_t** error);
 
 /**
  * @ingroup samplingC
@@ -108,7 +110,8 @@ cugraph_error_code_t cugraph_node2vec_random_walks(
  * @param [in]   result   The result from random walks
  * @return maximum path length
  */
-size_t cugraph_random_walk_result_get_max_path_length(cugraph_random_walk_result_t* result);
+CUGRAPH_EXPORT size_t
+cugraph_random_walk_result_get_max_path_length(cugraph_random_walk_result_t* result);
 
 // FIXME:  Should this be the same as extract_paths_result_t?  The only
 //         difference at the moment is that RW results contain weights
@@ -120,7 +123,7 @@ size_t cugraph_random_walk_result_get_max_path_length(cugraph_random_walk_result
  * @param [in]   result   The result from a random walk algorithm
  * @return type erased array pointing to the path matrix in device memory
  */
-cugraph_type_erased_device_array_view_t* cugraph_random_walk_result_get_paths(
+CUGRAPH_EXPORT cugraph_type_erased_device_array_view_t* cugraph_random_walk_result_get_paths(
   cugraph_random_walk_result_t* result);
 
 /**
@@ -130,7 +133,7 @@ cugraph_type_erased_device_array_view_t* cugraph_random_walk_result_get_paths(
  * @param [in]   result   The result from a random walk algorithm
  * @return type erased array pointing to the path edge weights in device memory
  */
-cugraph_type_erased_device_array_view_t* cugraph_random_walk_result_get_weights(
+CUGRAPH_EXPORT cugraph_type_erased_device_array_view_t* cugraph_random_walk_result_get_weights(
   cugraph_random_walk_result_t* result);
 
 /**
@@ -141,7 +144,7 @@ cugraph_type_erased_device_array_view_t* cugraph_random_walk_result_get_weights(
  * @param [in]   result   The result from a random walk algorithm
  * @return type erased array pointing to the path sizes in device memory
  */
-cugraph_type_erased_device_array_view_t* cugraph_random_walk_result_get_path_sizes(
+CUGRAPH_EXPORT cugraph_type_erased_device_array_view_t* cugraph_random_walk_result_get_path_sizes(
   cugraph_random_walk_result_t* result);
 
 /**
@@ -150,7 +153,7 @@ cugraph_type_erased_device_array_view_t* cugraph_random_walk_result_get_path_siz
  *
  * @param [in]   result   The result from random walks
  */
-void cugraph_random_walk_result_free(cugraph_random_walk_result_t* result);
+CUGRAPH_EXPORT void cugraph_random_walk_result_free(cugraph_random_walk_result_t* result);
 
 /**
  * @brief     Opaque neighborhood sampling result type
@@ -222,8 +225,8 @@ typedef enum cugraph_compression_type_t {
  * @param [out] error   Pointer to an error object storing details of any error.  Will
  *                      be populated if error code is not CUGRAPH_SUCCESS
  */
-cugraph_error_code_t cugraph_sampling_options_create(cugraph_sampling_options_t** options,
-                                                     cugraph_error_t** error);
+CUGRAPH_EXPORT cugraph_error_code_t
+cugraph_sampling_options_create(cugraph_sampling_options_t** options, cugraph_error_t** error);
 
 /**
  * @ingroup samplingC
@@ -232,7 +235,8 @@ cugraph_error_code_t cugraph_sampling_options_create(cugraph_sampling_options_t*
  * @param options - opaque pointer to the sampling options
  * @param value - Boolean value to assign to the option
  */
-void cugraph_sampling_set_retain_seeds(cugraph_sampling_options_t* options, bool_t value);
+CUGRAPH_EXPORT void cugraph_sampling_set_retain_seeds(cugraph_sampling_options_t* options,
+                                                      bool_t value);
 
 /**
  * @ingroup samplingC
@@ -241,7 +245,8 @@ void cugraph_sampling_set_retain_seeds(cugraph_sampling_options_t* options, bool
  * @param options - opaque pointer to the sampling options
  * @param value - Boolean value to assign to the option
  */
-void cugraph_sampling_set_renumber_results(cugraph_sampling_options_t* options, bool_t value);
+CUGRAPH_EXPORT void cugraph_sampling_set_renumber_results(cugraph_sampling_options_t* options,
+                                                          bool_t value);
 
 /**
  * @ingroup samplingC
@@ -250,7 +255,8 @@ void cugraph_sampling_set_renumber_results(cugraph_sampling_options_t* options, 
  * @param options - opaque pointer to the sampling options
  * @param value - Boolean value to assign to the option
  */
-void cugraph_sampling_set_compress_per_hop(cugraph_sampling_options_t* options, bool_t value);
+CUGRAPH_EXPORT void cugraph_sampling_set_compress_per_hop(cugraph_sampling_options_t* options,
+                                                          bool_t value);
 
 /**
  * @ingroup samplingC
@@ -259,7 +265,8 @@ void cugraph_sampling_set_compress_per_hop(cugraph_sampling_options_t* options, 
  * @param options - opaque pointer to the sampling options
  * @param value - Boolean value to assign to the option
  */
-void cugraph_sampling_set_with_replacement(cugraph_sampling_options_t* options, bool_t value);
+CUGRAPH_EXPORT void cugraph_sampling_set_with_replacement(cugraph_sampling_options_t* options,
+                                                          bool_t value);
 
 /**
  * @ingroup samplingC
@@ -268,7 +275,8 @@ void cugraph_sampling_set_with_replacement(cugraph_sampling_options_t* options, 
  * @param options - opaque pointer to the sampling options
  * @param value - Boolean value to assign to the option
  */
-void cugraph_sampling_set_return_hops(cugraph_sampling_options_t* options, bool_t value);
+CUGRAPH_EXPORT void cugraph_sampling_set_return_hops(cugraph_sampling_options_t* options,
+                                                     bool_t value);
 
 /**
  * @ingroup samplingC
@@ -277,8 +285,8 @@ void cugraph_sampling_set_return_hops(cugraph_sampling_options_t* options, bool_
  * @param options - opaque pointer to the sampling options
  * @param value - Enum defining the compresion type
  */
-void cugraph_sampling_set_compression_type(cugraph_sampling_options_t* options,
-                                           cugraph_compression_type_t value);
+CUGRAPH_EXPORT void cugraph_sampling_set_compression_type(cugraph_sampling_options_t* options,
+                                                          cugraph_compression_type_t value);
 
 /**
  * @ingroup samplingC
@@ -287,8 +295,8 @@ void cugraph_sampling_set_compression_type(cugraph_sampling_options_t* options,
  * @param options - opaque pointer to the sampling options
  * @param value - Enum defining prior sources behavior
  */
-void cugraph_sampling_set_prior_sources_behavior(cugraph_sampling_options_t* options,
-                                                 cugraph_prior_sources_behavior_t value);
+CUGRAPH_EXPORT void cugraph_sampling_set_prior_sources_behavior(
+  cugraph_sampling_options_t* options, cugraph_prior_sources_behavior_t value);
 
 /**
  * @ingroup samplingC
@@ -297,7 +305,8 @@ void cugraph_sampling_set_prior_sources_behavior(cugraph_sampling_options_t* opt
  * @param options - opaque pointer to the sampling options
  * @param value - Boolean value to assign to the option
  */
-void cugraph_sampling_set_dedupe_sources(cugraph_sampling_options_t* options, bool_t value);
+CUGRAPH_EXPORT void cugraph_sampling_set_dedupe_sources(cugraph_sampling_options_t* options,
+                                                        bool_t value);
 
 /**
  * @ingroup samplingC
@@ -306,7 +315,7 @@ void cugraph_sampling_set_dedupe_sources(cugraph_sampling_options_t* options, bo
  * @param options - opaque pointer to the sampling options
  * @param comparison - Comparison value to assign to the option
  */
-void cugraph_sampling_set_temporal_sampling_comparison(
+CUGRAPH_EXPORT void cugraph_sampling_set_temporal_sampling_comparison(
   cugraph_sampling_options_t* options, cugraph_temporal_sampling_comparison_t comparison);
 
 /**
@@ -318,7 +327,8 @@ void cugraph_sampling_set_temporal_sampling_comparison(
  * @param options - opaque pointer to the sampling options
  * @param value - Boolean value to assign to the option
  */
-void cugraph_sampling_set_disjoint_sampling(cugraph_sampling_options_t* options, bool_t value);
+CUGRAPH_EXPORT void cugraph_sampling_set_disjoint_sampling(cugraph_sampling_options_t* options,
+                                                           bool_t value);
 
 /**
  * @ingroup samplingC
@@ -326,7 +336,7 @@ void cugraph_sampling_set_disjoint_sampling(cugraph_sampling_options_t* options,
  *
  * @param [in]   options   Opaque pointer to sampling object
  */
-void cugraph_sampling_options_free(cugraph_sampling_options_t* options);
+CUGRAPH_EXPORT void cugraph_sampling_options_free(cugraph_sampling_options_t* options);
 
 /**
  * @brief     Homogeneous Uniform Neighborhood Sampling
@@ -358,7 +368,7 @@ void cugraph_sampling_options_free(cugraph_sampling_options_t* options);
  *                           be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_homogeneous_uniform_neighbor_sample(
+CUGRAPH_EXPORT cugraph_error_code_t cugraph_homogeneous_uniform_neighbor_sample(
   const cugraph_resource_handle_t* handle,
   cugraph_rng_state_t* rng_state,
   cugraph_graph_t* graph,
@@ -402,7 +412,7 @@ cugraph_error_code_t cugraph_homogeneous_uniform_neighbor_sample(
  *                           be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_homogeneous_biased_neighbor_sample(
+CUGRAPH_EXPORT cugraph_error_code_t cugraph_homogeneous_biased_neighbor_sample(
   const cugraph_resource_handle_t* handle,
   cugraph_rng_state_t* rng_state,
   cugraph_graph_t* graph,
@@ -449,7 +459,7 @@ cugraph_error_code_t cugraph_homogeneous_biased_neighbor_sample(
  *                           be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_heterogeneous_uniform_neighbor_sample(
+CUGRAPH_EXPORT cugraph_error_code_t cugraph_heterogeneous_uniform_neighbor_sample(
   const cugraph_resource_handle_t* handle,
   cugraph_rng_state_t* rng_state,
   cugraph_graph_t* graph,
@@ -499,7 +509,7 @@ cugraph_error_code_t cugraph_heterogeneous_uniform_neighbor_sample(
  *                           be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_heterogeneous_biased_neighbor_sample(
+CUGRAPH_EXPORT cugraph_error_code_t cugraph_heterogeneous_biased_neighbor_sample(
   const cugraph_resource_handle_t* handle,
   cugraph_rng_state_t* rng_state,
   cugraph_graph_t* graph,
@@ -553,7 +563,7 @@ cugraph_error_code_t cugraph_heterogeneous_biased_neighbor_sample(
  *                           be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_homogeneous_uniform_temporal_neighbor_sample(
+CUGRAPH_EXPORT cugraph_error_code_t cugraph_homogeneous_uniform_temporal_neighbor_sample(
   const cugraph_resource_handle_t* handle,
   cugraph_rng_state_t* rng_state,
   cugraph_graph_t* graph,
@@ -608,7 +618,7 @@ cugraph_error_code_t cugraph_homogeneous_uniform_temporal_neighbor_sample(
  *                           be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_homogeneous_biased_temporal_neighbor_sample(
+CUGRAPH_EXPORT cugraph_error_code_t cugraph_homogeneous_biased_temporal_neighbor_sample(
   const cugraph_resource_handle_t* handle,
   cugraph_rng_state_t* rng_state,
   cugraph_graph_t* graph,
@@ -666,7 +676,7 @@ cugraph_error_code_t cugraph_homogeneous_biased_temporal_neighbor_sample(
  *                           be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_heterogeneous_uniform_temporal_neighbor_sample(
+CUGRAPH_EXPORT cugraph_error_code_t cugraph_heterogeneous_uniform_temporal_neighbor_sample(
   const cugraph_resource_handle_t* handle,
   cugraph_rng_state_t* rng_state,
   cugraph_graph_t* graph,
@@ -727,7 +737,7 @@ cugraph_error_code_t cugraph_heterogeneous_uniform_temporal_neighbor_sample(
  *                           be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_heterogeneous_biased_temporal_neighbor_sample(
+CUGRAPH_EXPORT cugraph_error_code_t cugraph_heterogeneous_biased_temporal_neighbor_sample(
   const cugraph_resource_handle_t* handle,
   cugraph_rng_state_t* rng_state,
   cugraph_graph_t* graph,
@@ -751,7 +761,7 @@ cugraph_error_code_t cugraph_heterogeneous_biased_temporal_neighbor_sample(
  * @param [in]   result   The result from a sampling algorithm
  * @return type erased array pointing to the source vertices in device memory
  */
-cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_sources(
+CUGRAPH_EXPORT cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_sources(
   const cugraph_sample_result_t* result);
 
 /**
@@ -761,7 +771,7 @@ cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_sources(
  * @param [in]   result   The result from a sampling algorithm
  * @return type erased array pointing to the destination vertices in device memory
  */
-cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_destinations(
+CUGRAPH_EXPORT cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_destinations(
   const cugraph_sample_result_t* result);
 
 /**
@@ -771,7 +781,7 @@ cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_destinations(
  * @param [in]   result   The result from a sampling algorithm
  * @return type erased array pointing to the major vertices in device memory
  */
-cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_majors(
+CUGRAPH_EXPORT cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_majors(
   const cugraph_sample_result_t* result);
 
 /**
@@ -781,7 +791,7 @@ cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_majors(
  * @param [in]   result   The result from a sampling algorithm
  * @return type erased array pointing to the minor vertices in device memory
  */
-cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_minors(
+CUGRAPH_EXPORT cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_minors(
   const cugraph_sample_result_t* result);
 
 /**
@@ -791,7 +801,7 @@ cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_minors(
  * @param [in]   result   The result from a sampling algorithm
  * @return type erased array pointing to the major offsets in device memory
  */
-cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_major_offsets(
+CUGRAPH_EXPORT cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_major_offsets(
   const cugraph_sample_result_t* result);
 
 /**
@@ -801,7 +811,7 @@ cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_major_offsets
  * @param [in]   result   The result from a sampling algorithm
  * @return type erased array pointing to the start labels
  */
-cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_start_labels(
+CUGRAPH_EXPORT cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_start_labels(
   const cugraph_sample_result_t* result);
 
 /**
@@ -811,7 +821,7 @@ cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_start_labels(
  * @param [in]   result   The result from a sampling algorithm
  * @return type erased array pointing to the edge_id
  */
-cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_edge_id(
+CUGRAPH_EXPORT cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_edge_id(
   const cugraph_sample_result_t* result);
 
 /**
@@ -821,7 +831,7 @@ cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_edge_id(
  * @param [in]   result   The result from a sampling algorithm
  * @return type erased array pointing to the edge_type
  */
-cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_edge_type(
+CUGRAPH_EXPORT cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_edge_type(
   const cugraph_sample_result_t* result);
 
 /**
@@ -831,7 +841,7 @@ cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_edge_type(
  * @param [in]   result   The result from a sampling algorithm
  * @return type erased array pointing to the edge_weight
  */
-cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_edge_weight(
+CUGRAPH_EXPORT cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_edge_weight(
   const cugraph_sample_result_t* result);
 
 /**
@@ -841,7 +851,7 @@ cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_edge_weight(
  * @param [in]   result   The result from a sampling algorithm
  * @return type erased array pointing to the edge_start_time
  */
-cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_edge_start_time(
+CUGRAPH_EXPORT cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_edge_start_time(
   const cugraph_sample_result_t* result);
 
 /**
@@ -851,7 +861,7 @@ cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_edge_start_ti
  * @param [in]   result   The result from a sampling algorithm
  * @return type erased array pointing to the edge_end_time
  */
-cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_edge_end_time(
+CUGRAPH_EXPORT cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_edge_end_time(
   const cugraph_sample_result_t* result);
 
 /**
@@ -861,7 +871,7 @@ cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_edge_end_time
  * @param [in]   result   The result from a sampling algorithm
  * @return type erased array pointing to the hop
  */
-cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_hop(
+CUGRAPH_EXPORT cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_hop(
   const cugraph_sample_result_t* result);
 
 /**
@@ -871,7 +881,7 @@ cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_hop(
  * @param [in]   result   The result from a sampling algorithm
  * @return type erased array pointing to the label-hop offsets
  */
-cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_label_hop_offsets(
+CUGRAPH_EXPORT cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_label_hop_offsets(
   const cugraph_sample_result_t* result);
 
 /**
@@ -881,8 +891,8 @@ cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_label_hop_off
  * @param [in]   result   The result from a sampling algorithm
  * @return type erased array pointing to the label-type-hop offsets
  */
-cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_label_type_hop_offsets(
-  const cugraph_sample_result_t* result);
+CUGRAPH_EXPORT cugraph_type_erased_device_array_view_t*
+cugraph_sample_result_get_label_type_hop_offsets(const cugraph_sample_result_t* result);
 
 /**
  * @ingroup samplingC
@@ -891,7 +901,7 @@ cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_label_type_ho
  * @param [in]   result   The result from a sampling algorithm
  * @return type erased array pointing to the index
  */
-cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_index(
+CUGRAPH_EXPORT cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_index(
   const cugraph_sample_result_t* result);
 
 /**
@@ -901,7 +911,7 @@ cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_index(
  * @param [in]   result   The result from a sampling algorithm
  * @return type erased array pointing to the result offsets
  */
-cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_offsets(
+CUGRAPH_EXPORT cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_offsets(
   const cugraph_sample_result_t* result);
 
 /**
@@ -911,7 +921,7 @@ cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_offsets(
  * @param [in]   result   The result from a sampling algorithm
  * @return type erased array pointing to the renumber map
  */
-cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_renumber_map(
+CUGRAPH_EXPORT cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_renumber_map(
   const cugraph_sample_result_t* result);
 
 /**
@@ -921,8 +931,8 @@ cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_renumber_map(
  * @param [in]   result   The result from a sampling algorithm
  * @return type erased array pointing to the renumber map offsets
  */
-cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_renumber_map_offsets(
-  const cugraph_sample_result_t* result);
+CUGRAPH_EXPORT cugraph_type_erased_device_array_view_t*
+cugraph_sample_result_get_renumber_map_offsets(const cugraph_sample_result_t* result);
 
 /**
  * @ingroup samplingC
@@ -931,7 +941,7 @@ cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_renumber_map_
  * @param [in]   result   The result from a sampling algorithm
  * @return type erased array pointing to the renumber map
  */
-cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_edge_renumber_map(
+CUGRAPH_EXPORT cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_edge_renumber_map(
   const cugraph_sample_result_t* result);
 
 /**
@@ -941,8 +951,8 @@ cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_edge_renumber
  * @param [in]   result   The result from a sampling algorithm
  * @return type erased array pointing to the renumber map
  */
-cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_edge_renumber_map_offsets(
-  const cugraph_sample_result_t* result);
+CUGRAPH_EXPORT cugraph_type_erased_device_array_view_t*
+cugraph_sample_result_get_edge_renumber_map_offsets(const cugraph_sample_result_t* result);
 
 /**
  * @ingroup samplingC
@@ -950,7 +960,7 @@ cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_edge_renumber
  *
  * @param [in]   result   The result from a sampling algorithm
  */
-void cugraph_sample_result_free(cugraph_sample_result_t* result);
+CUGRAPH_EXPORT void cugraph_sample_result_free(cugraph_sample_result_t* result);
 
 /**
  * @ingroup samplingC
@@ -971,17 +981,17 @@ void cugraph_sample_result_free(cugraph_sample_result_t* result);
  *                              not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_test_sample_result_create(
-  const cugraph_resource_handle_t* handle,
-  const cugraph_type_erased_device_array_view_t* srcs,
-  const cugraph_type_erased_device_array_view_t* dsts,
-  const cugraph_type_erased_device_array_view_t* edge_id,
-  const cugraph_type_erased_device_array_view_t* edge_type,
-  const cugraph_type_erased_device_array_view_t* wgt,
-  const cugraph_type_erased_device_array_view_t* hop,
-  const cugraph_type_erased_device_array_view_t* label,
-  cugraph_sample_result_t** result,
-  cugraph_error_t** error);
+CUGRAPH_EXPORT cugraph_error_code_t
+cugraph_test_sample_result_create(const cugraph_resource_handle_t* handle,
+                                  const cugraph_type_erased_device_array_view_t* srcs,
+                                  const cugraph_type_erased_device_array_view_t* dsts,
+                                  const cugraph_type_erased_device_array_view_t* edge_id,
+                                  const cugraph_type_erased_device_array_view_t* edge_type,
+                                  const cugraph_type_erased_device_array_view_t* wgt,
+                                  const cugraph_type_erased_device_array_view_t* hop,
+                                  const cugraph_type_erased_device_array_view_t* label,
+                                  cugraph_sample_result_t** result,
+                                  cugraph_error_t** error);
 
 /**
  * @ingroup samplingC
@@ -1002,7 +1012,7 @@ cugraph_error_code_t cugraph_test_sample_result_create(
  *                              not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_test_uniform_neighborhood_sample_result_create(
+CUGRAPH_EXPORT cugraph_error_code_t cugraph_test_uniform_neighborhood_sample_result_create(
   const cugraph_resource_handle_t* handle,
   const cugraph_type_erased_device_array_view_t* srcs,
   const cugraph_type_erased_device_array_view_t* dsts,
@@ -1028,12 +1038,13 @@ cugraph_error_code_t cugraph_test_uniform_neighborhood_sample_result_create(
  *                                not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_select_random_vertices(const cugraph_resource_handle_t* handle,
-                                                    const cugraph_graph_t* graph,
-                                                    cugraph_rng_state_t* rng_state,
-                                                    size_t num_vertices,
-                                                    cugraph_type_erased_device_array_t** vertices,
-                                                    cugraph_error_t** error);
+CUGRAPH_EXPORT cugraph_error_code_t
+cugraph_select_random_vertices(const cugraph_resource_handle_t* handle,
+                               const cugraph_graph_t* graph,
+                               cugraph_rng_state_t* rng_state,
+                               size_t num_vertices,
+                               cugraph_type_erased_device_array_t** vertices,
+                               cugraph_error_t** error);
 
 /**
  * @ingroup samplingC
@@ -1071,20 +1082,22 @@ cugraph_error_code_t cugraph_select_random_vertices(const cugraph_resource_handl
  *                                         Will be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_negative_sampling(
-  const cugraph_resource_handle_t* handle,
-  cugraph_rng_state_t* rng_state,
-  cugraph_graph_t* graph,
-  const cugraph_type_erased_device_array_view_t* vertices,
-  const cugraph_type_erased_device_array_view_t* src_biases,
-  const cugraph_type_erased_device_array_view_t* dst_biases,
-  size_t num_samples,
-  bool_t remove_duplicates,
-  bool_t remove_existing_edges,
-  bool_t exact_number_of_samples,
-  bool_t do_expensive_check,
-  cugraph_coo_t** result,
-  cugraph_error_t** error);
+CUGRAPH_EXPORT cugraph_error_code_t
+cugraph_negative_sampling(const cugraph_resource_handle_t* handle,
+                          cugraph_rng_state_t* rng_state,
+                          cugraph_graph_t* graph,
+                          const cugraph_type_erased_device_array_view_t* vertices,
+                          const cugraph_type_erased_device_array_view_t* src_biases,
+                          const cugraph_type_erased_device_array_view_t* dst_biases,
+                          size_t num_samples,
+                          bool_t remove_duplicates,
+                          bool_t remove_existing_edges,
+                          bool_t exact_number_of_samples,
+                          bool_t do_expensive_check,
+                          cugraph_coo_t** result,
+                          cugraph_error_t** error);
+
+#include <cugraph_c/export.h>
 
 #ifdef __cplusplus
 }

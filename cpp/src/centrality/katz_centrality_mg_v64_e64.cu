@@ -1,14 +1,16 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2024, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #include "centrality/katz_centrality_impl.cuh"
+
+#include <cugraph/export.hpp>
 
 namespace cugraph {
 
 // MG instantiation
 
-template void katz_centrality(
+template CUGRAPH_EXPORT void katz_centrality(
   raft::handle_t const& handle,
   graph_view_t<int64_t, int64_t, true, true> const& graph_view,
   std::optional<edge_property_view_t<int64_t, float const*>> edge_weight_view,
@@ -22,7 +24,7 @@ template void katz_centrality(
   bool normalize,
   bool do_expensive_check);
 
-template void katz_centrality(
+template CUGRAPH_EXPORT void katz_centrality(
   raft::handle_t const& handle,
   graph_view_t<int64_t, int64_t, true, true> const& graph_view,
   std::optional<edge_property_view_t<int64_t, double const*>> edge_weight_view,
