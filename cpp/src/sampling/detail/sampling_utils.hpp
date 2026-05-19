@@ -495,7 +495,7 @@ update_dst_visited_vertices_and_labels(
  * visited sets via update_dst_visited_vertices_and_labels.
  *
  * When edges are removed, the last four return values contain the discarded edges (majors, minors,
- * tmp_edge_indices, labels in lockstep). Callers such as sample_unvisited_with_one_property use
+ * edge_property, labels in lockstep). Callers such as sample_unvisited_with_one_property use
  * those to build the resample frontier. When there are no duplicates, discarded bundles are empty
  * (length zero / monostate / nullopt).
  *
@@ -506,15 +506,15 @@ update_dst_visited_vertices_and_labels(
  * @param graph_view Graph View object for context (partitioning, MG routing, etc.).
  * @param result_majors Device vector of edge major (source) vertices.
  * @param result_minors Device vector of edge minor (destination) vertices.
- * @param tmp_edge_indices Multi-edge indices (or single property column) to filter in lockstep;
- *        arithmetic_device_uvector_t (monostate or device vector). Returned as filtered.
+ * @param result_edge_property Per-edge property column in lockstep with majors/minors
+ *        (monostate if none, or rmm::device_uvector<edge_t> multi-edge index when present).
+ * @param result_types Optional per-edge edge-type column (monostate or int32_t), in lockstep when
+ *        present; used for heterogeneous disjoint carryover while result_edge_property holds index.
  * @param result_labels Optional device vector of labels per edge.
- * @return Tuple of kept (majors, minors, tmp_edge_indices, labels), then discarded (majors, minors,
- *         tmp_edge_indices, labels). Kept rows are the first edge per (label, minor) or per minor
- *         after sorting the shard by that key plus a unique per-row index, then gathered back to
- * the caller's original layout. When duplicates exist, the discarded tuple lists the non-kept rows
- * (mapped to this rank's original input indices). Callers that do not need discards may bind the
- * last four tuple elements to `std::ignore`.
+ * @return Tuple of kept (majors, minors, result_edge_property, labels), then discarded (majors,
+ *         minors, discarded_edge_property, discarded_types, labels). Kept rows are the first edge
+ *         per (label, minor) or per minor after sorting by that key. Callers that do not need
+ *         discards may bind the last five tuple elements to `std::ignore`.
  */
 template <typename vertex_t, typename edge_t, bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>,
@@ -524,12 +524,14 @@ std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            arithmetic_device_uvector_t,
+           arithmetic_device_uvector_t,
            std::optional<rmm::device_uvector<int32_t>>>
 deduplicate_edges_by_minor(raft::handle_t const& handle,
                            graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
                            rmm::device_uvector<vertex_t>&& result_majors,
                            rmm::device_uvector<vertex_t>&& result_minors,
-                           arithmetic_device_uvector_t&& tmp_edge_indices,
+                           arithmetic_device_uvector_t&& result_edge_property,
+                           arithmetic_device_uvector_t&& result_types,
                            std::optional<rmm::device_uvector<int32_t>>&& result_labels);
 
 }  // namespace detail

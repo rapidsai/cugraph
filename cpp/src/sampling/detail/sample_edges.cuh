@@ -637,6 +637,43 @@ sample_with_one_property(
     std::move(majors), std::move(minors), std::move(sampled_properties), std::move(labels));
 }
 
+template <typename vertex_t, typename edge_t, bool multi_gpu>
+rmm::device_uvector<int32_t> gather_edge_types_for_sampled_edgelist(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  edge_property_view_t<edge_t, int32_t const*> edge_type_view,
+  raft::device_span<vertex_t const> majors,
+  raft::device_span<vertex_t const> minors,
+  arithmetic_device_uvector_t& multi_edge_index)
+{
+  CUGRAPH_EXPECTS(std::holds_alternative<rmm::device_uvector<edge_t>>(multi_edge_index),
+                  "Multi-edge indices must be of type edge_t");
+
+  using edge_type_t = int32_t;
+
+  constexpr bool store_transposed = false;
+
+  rmm::device_uvector<edge_type_t> edge_types(majors.size(), handle.get_stream());
+
+  cugraph::edge_bucket_t<vertex_t, edge_t, !store_transposed, multi_gpu, false> edge_list(
+    handle, graph_view.is_multigraph());
+
+  auto& indices = std::get<rmm::device_uvector<edge_t>>(multi_edge_index);
+  edge_list.insert(
+    majors.begin(), majors.end(), minors.begin(), std::make_optional(indices.begin()));
+
+  cugraph::transform_gather_e(handle,
+                              graph_view,
+                              edge_list,
+                              edge_src_dummy_property_t{}.view(),
+                              edge_dst_dummy_property_t{}.view(),
+                              edge_type_view,
+                              return_edge_property_t{},
+                              edge_types.begin());
+
+  return edge_types;
+}
+
 template <typename vertex_t,
           typename edge_t,
           typename tag_t,
@@ -766,16 +803,32 @@ sample_unvisited_with_one_property(
           with_replacement);
     }
 
+    arithmetic_device_uvector_t sampled_types{std::monostate{}};
+    bool const gather_sampled_edge_types =
+      edge_type_view.has_value() && (Ks.size() > 1) &&
+      !std::holds_alternative<std::monostate>(sampled_property);
+    if (gather_sampled_edge_types) {
+      auto const edge_type_prop =
+        std::get<cugraph::edge_property_view_t<edge_t, edge_type_t const*>>(*edge_type_view);
+      sampled_types = gather_edge_types_for_sampled_edgelist(
+        handle,
+        graph_view,
+        edge_type_prop,
+        raft::device_span<vertex_t const>{sampled_majors.data(), sampled_majors.size()},
+        raft::device_span<vertex_t const>{sampled_minors.data(), sampled_minors.size()},
+        sampled_property);
+    }
+
     if (carryover_frontier_capacity.size() > 0) {
       rmm::device_uvector<vertex_t> majors               = std::move(sampled_majors);
       rmm::device_uvector<vertex_t> minors               = std::move(sampled_minors);
       arithmetic_device_uvector_t prop                   = std::move(sampled_property);
+      arithmetic_device_uvector_t types                  = std::move(sampled_types);
       std::optional<rmm::device_uvector<int32_t>> labels = std::move(sampled_labels);
 
       if (carryover_frontier_types) {
-        CUGRAPH_EXPECTS(
-          std::holds_alternative<rmm::device_uvector<int32_t>>(prop),
-          "Expected rmm::device_uvector<int32_t> for prop with heterogeneous discards.");
+        CUGRAPH_EXPECTS(std::holds_alternative<rmm::device_uvector<int32_t>>(types),
+                        "heterogeneous disjoint carry requires gathered int32_t edge types.");
       }
 
       rmm::device_uvector<float> random_numbers =
@@ -787,7 +840,7 @@ sample_unvisited_with_one_property(
       rmm::device_uvector<uint32_t> keep_flags(0, handle.get_stream());
 
       if (carryover_frontier_types) {
-        auto& types = std::get<rmm::device_uvector<int32_t>>(prop);
+        auto& type_vec = std::get<rmm::device_uvector<int32_t>>(types);
 
         if (labels) {
           CUGRAPH_EXPECTS(carryover_frontier_labels.has_value(),
@@ -796,9 +849,9 @@ sample_unvisited_with_one_property(
           thrust::sort_by_key(
             handle.get_thrust_policy(),
             thrust::make_zip_iterator(
-              labels->begin(), majors.begin(), types.begin(), random_numbers.begin()),
+              labels->begin(), majors.begin(), type_vec.begin(), random_numbers.begin()),
             thrust::make_zip_iterator(
-              labels->end(), majors.end(), types.end(), random_numbers.end()),
+              labels->end(), majors.end(), type_vec.end(), random_numbers.end()),
             minors.begin());
 
           random_numbers.resize(0, handle.get_stream());
@@ -811,7 +864,7 @@ sample_unvisited_with_one_property(
               [majors_size             = majors.size(),
                d_labels                = labels->data(),
                d_majors                = majors.data(),
-               d_types                 = types.data(),
+               d_types                 = type_vec.data(),
                carry_frontier_size     = carryover_frontier_majors.size(),
                carry_frontier_labels   = carryover_frontier_labels->data(),
                carry_frontier_majors   = carryover_frontier_majors.data(),
@@ -842,8 +895,8 @@ sample_unvisited_with_one_property(
         } else {
           thrust::sort_by_key(
             handle.get_thrust_policy(),
-            thrust::make_zip_iterator(majors.begin(), types.begin(), random_numbers.begin()),
-            thrust::make_zip_iterator(majors.end(), types.end(), random_numbers.end()),
+            thrust::make_zip_iterator(majors.begin(), type_vec.begin(), random_numbers.begin()),
+            thrust::make_zip_iterator(majors.end(), type_vec.end(), random_numbers.end()),
             minors.begin());
 
           random_numbers.resize(0, handle.get_stream());
@@ -855,7 +908,7 @@ sample_unvisited_with_one_property(
             cuda::proclaim_return_type<bool>(
               [majors_size             = majors.size(),
                d_majors                = majors.data(),
-               d_types                 = types.data(),
+               d_types                 = type_vec.data(),
                carry_frontier_size     = carryover_frontier_majors.size(),
                carry_frontier_majors   = carryover_frontier_majors.data(),
                carry_frontier_types    = carryover_frontier_types->data(),
@@ -972,8 +1025,14 @@ sample_unvisited_with_one_property(
       majors = detail::keep_marked_entries(handle, std::move(majors), keep_mask, keep_count);
       minors = detail::keep_marked_entries(handle, std::move(minors), keep_mask, keep_count);
       if (carryover_frontier_types) {
-        prop = detail::keep_marked_entries(
-          handle, std::move(std::get<rmm::device_uvector<int32_t>>(prop)), keep_mask, keep_count);
+        types = arithmetic_device_uvector_t{detail::keep_marked_entries(
+          handle, std::move(std::get<rmm::device_uvector<int32_t>>(types)), keep_mask, keep_count)};
+      }
+      if (!std::holds_alternative<std::monostate>(prop)) {
+        prop = cugraph::variant_type_dispatch(prop, [&](auto& index_vec) {
+          return arithmetic_device_uvector_t{
+            detail::keep_marked_entries(handle, std::move(index_vec), keep_mask, keep_count)};
+        });
       }
       if (labels) {
         *labels = detail::keep_marked_entries(handle, std::move(*labels), keep_mask, keep_count);
@@ -982,12 +1041,14 @@ sample_unvisited_with_one_property(
       sampled_majors   = std::move(majors);
       sampled_minors   = std::move(minors);
       sampled_property = std::move(prop);
+      sampled_types    = std::move(types);
       sampled_labels   = std::move(labels);
     }
 
     // Check for duplicates in the sampled minor vertices
     [[maybe_unused]] rmm::device_uvector<vertex_t> discarded_minors(0, handle.get_stream());
-    [[maybe_unused]] arithmetic_device_uvector_t discarded_tmp_indices{std::monostate{}};
+    [[maybe_unused]] arithmetic_device_uvector_t discarded_edge_property{std::monostate{}};
+    [[maybe_unused]] arithmetic_device_uvector_t discarded_types{std::monostate{}};
     rmm::device_uvector<vertex_t> discarded_majors(0, handle.get_stream());
     std::optional<rmm::device_uvector<int32_t>> discarded_major_labels{std::nullopt};
 
@@ -997,12 +1058,14 @@ sample_unvisited_with_one_property(
              sampled_labels,
              discarded_majors,
              discarded_minors,
-             discarded_tmp_indices,
+             discarded_edge_property,
+             discarded_types,
              discarded_major_labels) = deduplicate_edges_by_minor(handle,
                                                                   graph_view,
                                                                   std::move(sampled_majors),
                                                                   std::move(sampled_minors),
                                                                   std::move(sampled_property),
+                                                                  std::move(sampled_types),
                                                                   std::move(sampled_labels));
 
     carryover_frontier_labels   = std::nullopt;
@@ -1061,10 +1124,10 @@ sample_unvisited_with_one_property(
         carryover_frontier_capacity = std::move(agg_counts);
       } else {
         CUGRAPH_EXPECTS(
-          std::holds_alternative<rmm::device_uvector<int32_t>>(discarded_tmp_indices),
+          std::holds_alternative<rmm::device_uvector<int32_t>>(discarded_types),
           "Heterogeneous disjoint carry requires int32_t edge types on discarded rows.");
         rmm::device_uvector<int32_t> types =
-          std::get<rmm::device_uvector<int32_t>>(std::move(discarded_tmp_indices));
+          std::get<rmm::device_uvector<int32_t>>(std::move(discarded_types));
         CUGRAPH_EXPECTS(types.size() == agg_majors.size(),
                         "discarded edge types must match discarded majors size.");
 
