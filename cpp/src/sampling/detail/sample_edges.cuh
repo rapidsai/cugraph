@@ -702,6 +702,12 @@ sample_unvisited_with_one_property(
   using edge_type_t = int32_t;
   using T           = typename decltype(edge_property_view)::value_type;
 
+  CUGRAPH_EXPECTS(Ks.size() >= 1, "Ks must be non-empty.");
+
+  if (Ks.size() > 1) {
+    CUGRAPH_EXPECTS(edge_type_view.has_value(), "heterogeneous sampling requires edge_type_view.");
+  }
+
   rmm::device_uvector<vertex_t> result_majors(0, handle.get_stream());
   rmm::device_uvector<vertex_t> result_minors(0, handle.get_stream());
   arithmetic_device_uvector_t result_properties{std::monostate{}};
@@ -713,8 +719,7 @@ sample_unvisited_with_one_property(
   std::optional<rmm::device_uvector<int32_t>> carryover_frontier_types{std::nullopt};
   rmm::device_uvector<size_t> carryover_frontier_capacity(0, handle.get_stream());
 
-  cugraph::key_bucket_view_t<vertex_t, tag_t, multi_gpu, false> active_bucket_view =
-    key_bucket_view;
+  auto active_bucket_view = key_bucket_view;
 
   // FIXME: We could explore increasing the rate of convergency by oversampling to allow
   // for some duplicates to be discarded.  This would allow some vertices to still have the
@@ -826,11 +831,6 @@ sample_unvisited_with_one_property(
       arithmetic_device_uvector_t types                  = std::move(sampled_types);
       std::optional<rmm::device_uvector<int32_t>> labels = std::move(sampled_labels);
 
-      if (carryover_frontier_types) {
-        CUGRAPH_EXPECTS(std::holds_alternative<rmm::device_uvector<int32_t>>(types),
-                        "heterogeneous disjoint carry requires gathered int32_t edge types.");
-      }
-
       rmm::device_uvector<float> random_numbers =
         rmm::device_uvector<float>(majors.size(), handle.get_stream());
       uniform_random_fill(
@@ -843,9 +843,6 @@ sample_unvisited_with_one_property(
         auto& type_vec = std::get<rmm::device_uvector<int32_t>>(types);
 
         if (labels) {
-          CUGRAPH_EXPECTS(carryover_frontier_labels.has_value(),
-                          "Heterogeneous tagged disjoint carry requires frontier labels.");
-
           thrust::sort_by_key(
             handle.get_thrust_policy(),
             thrust::make_zip_iterator(
@@ -937,9 +934,6 @@ sample_unvisited_with_one_property(
         }
       } else {
         if (labels) {
-          CUGRAPH_EXPECTS(carryover_frontier_labels.has_value(),
-                          "Tagged homogeneous disjoint carry requires frontier labels.");
-
           thrust::sort_by_key(
             handle.get_thrust_policy(),
             thrust::make_zip_iterator(labels->begin(), majors.begin(), random_numbers.begin()),
@@ -1075,7 +1069,6 @@ sample_unvisited_with_one_property(
 
     if (discarded_majors.size() != 0) {
       size_t const num_types = Ks.size();
-      CUGRAPH_EXPECTS(num_types >= 1, "Ks must be non-empty.");
 
       rmm::device_uvector<vertex_t> agg_majors               = std::move(discarded_majors);
       std::optional<rmm::device_uvector<int32_t>> agg_labels = std::move(discarded_major_labels);
@@ -1123,13 +1116,8 @@ sample_unvisited_with_one_property(
         }
         carryover_frontier_capacity = std::move(agg_counts);
       } else {
-        CUGRAPH_EXPECTS(
-          std::holds_alternative<rmm::device_uvector<int32_t>>(discarded_types),
-          "Heterogeneous disjoint carry requires int32_t edge types on discarded rows.");
         rmm::device_uvector<int32_t> types =
           std::get<rmm::device_uvector<int32_t>>(std::move(discarded_types));
-        CUGRAPH_EXPECTS(types.size() == agg_majors.size(),
-                        "discarded edge types must match discarded majors size.");
 
         if (agg_labels) {
           thrust::sort(
