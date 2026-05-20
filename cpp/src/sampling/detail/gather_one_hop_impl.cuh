@@ -401,15 +401,21 @@ gather_one_hop_edgelist_to_unvisited_neighbors(
     }
   }
 
-  std::tie(
-    result_majors, result_minors, tmp_edge_indices, result_labels, std::ignore, std::ignore) =
-    deduplicate_edges_by_minor(handle,
-                               graph_view,
-                               std::move(result_majors),
-                               std::move(result_minors),
-                               std::move(tmp_edge_indices),
-                               std::move(result_labels),
-                               false);
+  std::tie(result_majors,
+           result_minors,
+           tmp_edge_indices,
+           result_labels,
+           std::ignore,
+           std::ignore,
+           std::ignore,
+           std::ignore,
+           std::ignore) = deduplicate_edges_by_minor(handle,
+                                                     graph_view,
+                                                     std::move(result_majors),
+                                                     std::move(result_minors),
+                                                     std::move(tmp_edge_indices),
+                                                     arithmetic_device_uvector_t{std::monostate{}},
+                                                     std::move(result_labels));
 
   std::tie(visited_minors, visited_minor_labels) =
     detail::update_dst_visited_vertices_and_labels<vertex_t, edge_t, multi_gpu>(
