@@ -112,6 +112,11 @@ temporal_neighbor_sample_impl(
     "Invalid input argument: number of levels should not overflow int32_t");  // as we use int32_t
                                                                               // to store hops
 
+  CUGRAPH_EXPECTS(
+    !sampling_flags.disjoint_sampling,
+    "Invalid input argument: disjoint sampling is not supported for temporal neighbor "
+    "sampling.");
+
   // Get the number of hop.
   auto num_hops = raft::div_rounding_up_safe(
     fan_out.size(), static_cast<size_t>(num_edge_types ? *num_edge_types : edge_type_t{1}));
@@ -214,27 +219,6 @@ temporal_neighbor_sample_impl(
   rmm::device_uvector<vertex_t> frontier_vertices_has_duplicates(0, handle.get_stream());
   rmm::device_uvector<time_stamp_t> frontier_vertex_times_has_duplicates(0, handle.get_stream());
   std::optional<rmm::device_uvector<label_t>> frontier_vertex_labels_has_duplicates{std::nullopt};
-
-  auto visited_minors =
-    (sampling_flags.disjoint_sampling)
-      ? std::make_optional(rmm::device_uvector<vertex_t>(0, handle.get_stream()))
-      : std::nullopt;
-
-  if (visited_minors) {
-    thrust::fill(handle.get_thrust_policy(),
-                 visited_minors->begin(),
-                 visited_minors->end(),
-                 cugraph::invalid_vertex_id<vertex_t>());
-
-    thrust::scatter(
-      handle.get_thrust_policy(),
-      starting_vertices.begin(),
-      starting_vertices.end(),
-      thrust::make_transform_iterator(
-        starting_vertices.begin(),
-        detail::shift_left_t<vertex_t>{graph_view.local_vertex_partition_range_first()}),
-      visited_minors->begin());
-  }
 
   for (size_t hop = 0; hop < num_hops; ++hop) {
     std::optional<std::vector<size_t>> level_Ks{std::nullopt};
@@ -902,9 +886,6 @@ homogeneous_uniform_temporal_neighbor_sample(
   CUGRAPH_EXPECTS(!(sampling_flags.with_replacement && sampling_flags.disjoint_sampling),
                   "Invalid input argument: disjoint sampling and sampling with replacement are "
                   "mutually exclusive.");
-  CUGRAPH_EXPECTS(!(sampling_flags.disjoint_sampling && graph_view.is_multigraph()),
-                  "Invalid input argument: disjoint sampling is not supported for multi-graphs.");
-
   return detail::
     temporal_neighbor_sample_impl<vertex_t, edge_t, weight_t, edge_type_t, time_stamp_t, bias_t>(
       handle,
@@ -966,9 +947,6 @@ heterogeneous_uniform_temporal_neighbor_sample(
   CUGRAPH_EXPECTS(!(sampling_flags.with_replacement && sampling_flags.disjoint_sampling),
                   "Invalid input argument: disjoint sampling and sampling with replacement are "
                   "mutually exclusive.");
-  CUGRAPH_EXPECTS(!(sampling_flags.disjoint_sampling && graph_view.is_multigraph()),
-                  "Invalid input argument: disjoint sampling is not supported for multi-graphs.");
-
   return detail::
     temporal_neighbor_sample_impl<vertex_t, edge_t, weight_t, edge_type_t, time_stamp_t, bias_t>(
       handle,
@@ -1029,9 +1007,6 @@ homogeneous_biased_temporal_neighbor_sample(
   CUGRAPH_EXPECTS(!(sampling_flags.with_replacement && sampling_flags.disjoint_sampling),
                   "Invalid input argument: disjoint sampling and sampling with replacement are "
                   "mutually exclusive.");
-  CUGRAPH_EXPECTS(!(sampling_flags.disjoint_sampling && graph_view.is_multigraph()),
-                  "Invalid input argument: disjoint sampling is not supported for multi-graphs.");
-
   return detail::
     temporal_neighbor_sample_impl<vertex_t, edge_t, weight_t, edge_type_t, time_stamp_t, bias_t>(
       handle,
@@ -1092,9 +1067,6 @@ heterogeneous_biased_temporal_neighbor_sample(
   CUGRAPH_EXPECTS(!(sampling_flags.with_replacement && sampling_flags.disjoint_sampling),
                   "Invalid input argument: disjoint sampling and sampling with replacement are "
                   "mutually exclusive.");
-  CUGRAPH_EXPECTS(!(sampling_flags.disjoint_sampling && graph_view.is_multigraph()),
-                  "Invalid input argument: disjoint sampling is not supported for multi-graphs.");
-
   return detail::
     temporal_neighbor_sample_impl<vertex_t, edge_t, weight_t, edge_type_t, time_stamp_t, bias_t>(
       handle,
