@@ -12,11 +12,13 @@
 #include <cugraph/prims/fill_edge_property.cuh>
 #include <cugraph/prims/make_initialized_edge_property.cuh>
 #include <cugraph/prims/per_v_pair_dst_nbr_intersection.cuh>
+#include <cugraph/prims/per_v_pair_dst_nbr_intersection_for_each.cuh>
 #include <cugraph/prims/transform_e.cuh>
 #include <cugraph/prims/transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v.cuh>
 #include <cugraph/prims/update_edge_src_dst_property.cuh>
 #include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/error.hpp>
+#include <cugraph/utilities/packed_bool_utils.hpp>
 
 #include <raft/util/integer_utils.hpp>
 
@@ -29,6 +31,8 @@
 #include <thrust/copy.h>
 #include <thrust/count.h>
 #include <thrust/execution_policy.h>
+#include <thrust/fill.h>
+#include <thrust/for_each.h>
 #include <thrust/sort.h>
 #include <thrust/transform.h>
 #include <thrust/unique.h>
@@ -156,6 +160,97 @@ struct decrement_edge_triangle_count_t {
   }
 };
 
+// Sets the bit corresponding to each weak edge (p, q) at its DODG offset in
+// @p bitmask.
+template <typename vertex_t, typename edge_t>
+struct set_weak_bitmask_t {
+  vertex_t const* srcs;
+  vertex_t const* dsts;
+  edge_t const* offsets_ptr;
+  vertex_t const* indices_ptr;
+  uint32_t* bitmask;
+
+  __device__ void operator()(size_t i) const
+  {
+    auto p     = srcs[i];
+    auto q     = dsts[i];
+    auto start = offsets_ptr[p];
+    auto end   = offsets_ptr[p + 1];
+    auto pos   = thrust::lower_bound(thrust::seq, indices_ptr + start, indices_ptr + end, q);
+    if (pos != indices_ptr + end && *pos == q) {
+      auto eid = static_cast<edge_t>(pos - indices_ptr);
+      atomicOr(&bitmask[packed_bool_offset(eid)], packed_bool_mask(eid));
+    }
+  }
+};
+
+// For each triangle (p, q, r) discovered from a weak edge (p, q):
+//   1. Orient (p, r) and (q, r) to their DODG direction, using O(log D)
+//      binary search when the orientation is reversed.
+//   2. Test weakness of (p, r) and (q, r) via the packed weak bitmask.
+//   3. Apply a lexicographic ownership rule on (min, max) endpoints so each
+//      triangle is decremented by exactly one weak edge.
+//   4. If (p, q) owns the triangle, atomically subtract one from counts at
+//      the DODG offsets of all three sides.
+template <typename vertex_t, typename edge_t>
+struct decrement_weak_selective_t {
+  edge_t*         counts;
+  uint32_t const* weak_bitmask;
+  edge_t   const* offsets_ptr;
+  vertex_t const* indices_ptr;
+  edge_t   const* out_degrees;
+
+  __device__ edge_t find_dodg_offset(vertex_t u, vertex_t v) const
+  {
+    if (out_degrees[u] > out_degrees[v] ||
+        (out_degrees[u] == out_degrees[v] && u > v)) {
+      auto tmp = u; u = v; v = tmp;
+    }
+    auto start = offsets_ptr[u];
+    auto end   = offsets_ptr[u + 1];
+    auto pos   = thrust::lower_bound(thrust::seq, indices_ptr + start, indices_ptr + end, v);
+    return static_cast<edge_t>(pos - indices_ptr);
+  }
+
+  __device__ bool is_weak(edge_t dodg_off) const
+  {
+    return (weak_bitmask[packed_bool_offset(dodg_off)] & packed_bool_mask(dodg_off)) != 0u;
+  }
+
+  __device__ void operator()(vertex_t p, vertex_t q, vertex_t r,
+                             edge_t pq_off, edge_t pr_off, edge_t qr_off) const
+  {
+    edge_t dodg_pr = (out_degrees[p] < out_degrees[r] ||
+                      (out_degrees[p] == out_degrees[r] && p < r))
+                       ? pr_off
+                       : find_dodg_offset(r, p);
+    edge_t dodg_qr = (out_degrees[q] < out_degrees[r] ||
+                      (out_degrees[q] == out_degrees[r] && q < r))
+                       ? qr_off
+                       : find_dodg_offset(r, q);
+
+    bool pr_weak = is_weak(dodg_pr);
+    bool qr_weak = is_weak(dodg_qr);
+
+    auto pq_lo = min(p, q);
+    auto pq_hi = max(p, q);
+    if (pr_weak) {
+      auto pr_lo = min(p, r);
+      auto pr_hi = max(p, r);
+      if (pr_lo < pq_lo || (pr_lo == pq_lo && pr_hi < pq_hi)) return;
+    }
+    if (qr_weak) {
+      auto qr_lo = min(q, r);
+      auto qr_hi = max(q, r);
+      if (qr_lo < pq_lo || (qr_lo == pq_lo && qr_hi < pq_hi)) return;
+    }
+
+    atomicAdd(&counts[pq_off],  edge_t{-1});
+    atomicAdd(&counts[dodg_pr], edge_t{-1});
+    atomicAdd(&counts[dodg_qr], edge_t{-1});
+  }
+};
+
 }  // namespace
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
@@ -262,9 +357,12 @@ k_truss(raft::handle_t const& handle,
   edge_src_property_t<vertex_t, edge_t> edge_src_out_degrees(handle, cur_graph_view);
   edge_dst_property_t<vertex_t, edge_t> edge_dst_out_degrees(handle, cur_graph_view);
 
+  // Per-vertex out-degree, computed before the DODG mask is attached and
+  // reused in section 4 to determine DODG orientation.
+  auto out_degrees = cur_graph_view.compute_out_degrees(handle);
+
   auto dodg_mask = make_initialized_edge_property(handle, cur_graph_view, false);
   {
-    auto out_degrees = cur_graph_view.compute_out_degrees(handle);
     update_edge_src_property(
       handle, cur_graph_view, out_degrees.begin(), edge_src_out_degrees.mutable_view());
     update_edge_dst_property(
@@ -336,6 +434,7 @@ k_truss(raft::handle_t const& handle,
       // Attach the weak edge mask
       cur_graph_view.attach_edge_mask(weak_edges_mask.view());
 
+      if constexpr (multi_gpu) {
       auto [intersection_offsets, intersection_indices] = per_v_pair_dst_nbr_intersection(
         handle, cur_graph_view, weak_edgelist_first, weak_edgelist_last, do_expensive_check);
 
@@ -588,6 +687,38 @@ k_truss(raft::handle_t const& handle,
           raft::device_span<edge_t const>(decrease_count.data(), decrease_count.size())},
         edge_triangle_counts.mutable_view(),
         do_expensive_check);
+      } else {
+        // Decrement triangle counts via neighbor intersection.
+        auto edge_partition = cur_graph_view.local_edge_partition_view(size_t{0});
+        auto offsets_ptr    = edge_partition.offsets().data();
+        auto indices_ptr    = edge_partition.indices().data();
+
+        // Build a weak-edge bitmask indexed by DODG offset.
+        auto weak_bitmask = make_initialized_edge_property(handle, cur_graph_view, false);
+
+        thrust::for_each(handle.get_thrust_policy(),
+                         thrust::make_counting_iterator<size_t>(0),
+                         thrust::make_counting_iterator<size_t>(weak_edgelist_srcs.size()),
+                         set_weak_bitmask_t<vertex_t, edge_t>{
+                           weak_edgelist_srcs.data(),
+                           weak_edgelist_dsts.data(),
+                           offsets_ptr,
+                           indices_ptr,
+                           weak_bitmask.mutable_view().value_firsts()[0]});
+
+        per_v_pair_dst_nbr_intersection_for_each(
+          handle,
+          cur_graph_view,
+          weak_edgelist_first,
+          weak_edgelist_last,
+          decrement_weak_selective_t<vertex_t, edge_t>{
+            edge_triangle_counts.mutable_view().value_firsts()[0],
+            weak_bitmask.view().value_firsts()[0],
+            offsets_ptr,
+            indices_ptr,
+            out_degrees.data()},
+          do_expensive_check);
+      }
 
       edgelist_weak.clear();
 
