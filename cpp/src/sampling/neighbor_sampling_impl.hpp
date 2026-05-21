@@ -661,9 +661,6 @@ homogeneous_uniform_neighbor_sample(
   CUGRAPH_EXPECTS(!(sampling_flags.with_replacement && sampling_flags.disjoint_sampling),
                   "Invalid input argument: disjoint sampling and sampling with replacement are "
                   "mutually exclusive.");
-  CUGRAPH_EXPECTS(!(sampling_flags.disjoint_sampling && graph_view.is_multigraph()),
-                  "Invalid input argument: disjoint sampling is not supported for multi-graphs.");
-
   auto [majors, minors, weights, edge_ids, edge_types, hops, labels, offsets] =
     detail::neighbor_sample_impl<vertex_t, edge_t, weight_t, edge_type_t, bias_t>(
       handle,
@@ -724,9 +721,6 @@ heterogeneous_uniform_neighbor_sample(
   CUGRAPH_EXPECTS(!(sampling_flags.with_replacement && sampling_flags.disjoint_sampling),
                   "Invalid input argument: disjoint sampling and sampling with replacement are "
                   "mutually exclusive.");
-  CUGRAPH_EXPECTS(!(sampling_flags.disjoint_sampling && graph_view.is_multigraph()),
-                  "Invalid input argument: disjoint sampling is not supported for multi-graphs.");
-
   auto [majors, minors, weights, edge_ids, edge_types, hops, labels, offsets] =
     detail::neighbor_sample_impl<vertex_t, edge_t, weight_t, edge_type_t, bias_t>(
       handle,
@@ -786,9 +780,6 @@ homogeneous_biased_neighbor_sample(
   CUGRAPH_EXPECTS(!(sampling_flags.with_replacement && sampling_flags.disjoint_sampling),
                   "Invalid input argument: disjoint sampling and sampling with replacement are "
                   "mutually exclusive.");
-  CUGRAPH_EXPECTS(!(sampling_flags.disjoint_sampling && graph_view.is_multigraph()),
-                  "Invalid input argument: disjoint sampling is not supported for multi-graphs.");
-
   auto [majors, minors, weights, edge_ids, edge_types, hops, labels, offsets] =
     detail::neighbor_sample_impl<vertex_t, edge_t, weight_t, edge_type_t, bias_t>(
       handle,
@@ -848,9 +839,6 @@ heterogeneous_biased_neighbor_sample(
   CUGRAPH_EXPECTS(!(sampling_flags.with_replacement && sampling_flags.disjoint_sampling),
                   "Invalid input argument: disjoint sampling and sampling with replacement are "
                   "mutually exclusive.");
-  CUGRAPH_EXPECTS(!(sampling_flags.disjoint_sampling && graph_view.is_multigraph()),
-                  "Invalid input argument: disjoint sampling is not supported for multi-graphs.");
-
   auto [majors, minors, weights, edge_ids, edge_types, hops, labels, offsets] =
     detail::neighbor_sample_impl<vertex_t, edge_t, weight_t, edge_type_t, bias_t>(
       handle,
