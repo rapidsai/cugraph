@@ -11,6 +11,7 @@
 #include <cugraph/prims/fill_edge_property.cuh>
 #include <cugraph/prims/make_initialized_edge_property.cuh>
 #include <cugraph/prims/per_v_pair_dst_nbr_intersection.cuh>
+#include <cugraph/prims/per_v_pair_dst_nbr_intersection_for_each.cuh>
 #include <cugraph/prims/transform_e.cuh>
 #include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/error.hpp>
@@ -115,6 +116,24 @@ struct extract_q_r {
   }
 };
 
+// For each triangle (p, q, r), atomically increment the triangle count of
+// all three edges at their CSR offsets.
+template <typename vertex_t, typename edge_t>
+struct increment_triangle_counts_t {
+  edge_t* counts;
+
+  __device__ void operator()(vertex_t, vertex_t, vertex_t,
+                             edge_t pq_offset, edge_t pr_offset, edge_t qr_offset) const
+  {
+    cuda::atomic_ref<edge_t, cuda::thread_scope_device> ref_pq(counts[pq_offset]);
+    ref_pq.fetch_add(edge_t{1}, cuda::std::memory_order_relaxed);
+    cuda::atomic_ref<edge_t, cuda::thread_scope_device> ref_pr(counts[pr_offset]);
+    ref_pr.fetch_add(edge_t{1}, cuda::std::memory_order_relaxed);
+    cuda::atomic_ref<edge_t, cuda::thread_scope_device> ref_qr(counts[qr_offset]);
+    ref_qr.fetch_add(edge_t{1}, cuda::std::memory_order_relaxed);
+  }
+};
+
 template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
 edge_property_t<edge_t, edge_t> edge_triangle_count_impl(
   raft::handle_t const& handle,
@@ -146,6 +165,20 @@ edge_property_t<edge_t, edge_t> edge_triangle_count_impl(
                 self_loop_edge_mask->mutable_view());
 
     cur_graph_view.attach_edge_mask(self_loop_edge_mask->view());
+  }
+
+  // Compute triangle counts via neighbor intersection.
+  if constexpr (!multi_gpu) {
+    auto counts = make_initialized_edge_property(handle, cur_graph_view, edge_t{0});
+
+    per_v_pair_dst_nbr_intersection_for_each(
+      handle,
+      cur_graph_view,
+      increment_triangle_counts_t<vertex_t, edge_t>{
+        counts.mutable_view().value_firsts()[0]},
+      do_expensive_check);
+
+    return counts;
   }
 
   rmm::device_uvector<vertex_t> edgelist_srcs(0, handle.get_stream());
