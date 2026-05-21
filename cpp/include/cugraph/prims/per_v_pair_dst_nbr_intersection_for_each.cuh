@@ -45,14 +45,13 @@ struct edge_active_flag_t {
 
 /**
  * @brief Iterate over each input vertex pair, compute the destination neighbor intersection,
- * and invoke a user-provided operator for each common neighbor without materializing the
- * intersection indices.
+ * and apply an operator to each common neighbor.
  *
- * For single-GPU: uses degree-based binning (thread/warp/block per pair) to dispatch intersection
- * work according to min(degree(src), degree(dst)).
+ * For single-GPU, intersection work is dispatched by min(degree(src), degree(dst)) to thread,
+ * warp, or block-level kernels.
  *
- * For multi-GPU: falls back to the materializing per_v_pair_dst_nbr_intersection, then iterates
- * over the returned indices to invoke the operator.
+ * For multi-GPU, falls back to per_v_pair_dst_nbr_intersection and replays the result through
+ * the operator.
  *
  * @tparam GraphViewType Type of the passed non-owning graph object.
  * @tparam VertexPairIterator Type of the iterator for input vertex pairs.
@@ -395,11 +394,10 @@ struct scatter_active_edges_t {
 
 /**
  * @brief Iterate over all active edges in the graph, compute the destination neighbor intersection
- * for each edge, and invoke a user-provided operator for each common neighbor without
- * materializing an edge list or intersection indices.
+ * for each edge, and apply an operator to each common neighbor.
  *
- * For single-GPU: works directly with the CSR, using degree-based binning (thread/warp/block per
- * pair) to dispatch intersection work according to min(degree(src), degree(dst)).
+ * Intersection work is dispatched by min(degree(src), degree(dst)) to thread, warp, or
+ * block-level kernels.  Single-GPU only.
  *
  * @tparam GraphViewType Type of the passed non-owning graph object.
  * @tparam IntersectionOp Device-callable senary operator with signature
