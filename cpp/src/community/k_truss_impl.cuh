@@ -251,6 +251,62 @@ struct decrement_weak_selective_t {
   }
 };
 
+// For each edge offset @p e in the DODG, append (src, dst) to the weak edge
+// list when count(e) < k - 2 and count(e) != 0.  When @p update_masks is
+// true, also clear dodg_mask + weak_edges_mask (both directions) in the same
+// pass.
+template <typename vertex_t, typename edge_t, bool update_masks>
+struct extract_weak_and_update_masks_t {
+  edge_t   const* offsets_ptr;
+  vertex_t const* indices_ptr;
+  edge_t   const* counts_ptr;
+  uint32_t*       dodg_mask_ptr;
+  uint32_t*       weak_mask_ptr;
+  edge_t          k;
+  vertex_t*       out_srcs;
+  vertex_t*       out_dsts;
+  size_t*         out_counter;
+  vertex_t        num_vertices;
+
+  __device__ void operator()(edge_t e) const
+  {
+    if (!(dodg_mask_ptr[packed_bool_offset(e)] & packed_bool_mask(e))) return;
+
+    auto c = counts_ptr[e];
+    if (c >= k - 2 || c == 0) return;
+
+    edge_t lo = 0, hi = static_cast<edge_t>(num_vertices);
+    while (lo < hi) {
+      auto mid = lo + (hi - lo) / 2;
+      if (offsets_ptr[mid + 1] <= e) {
+        lo = mid + 1;
+      } else {
+        hi = mid;
+      }
+    }
+    vertex_t src = static_cast<vertex_t>(lo);
+    vertex_t dst = indices_ptr[e];
+
+    if constexpr (update_masks) {
+      atomicAnd(&dodg_mask_ptr[packed_bool_offset(e)], ~packed_bool_mask(e));
+      atomicAnd(&weak_mask_ptr[packed_bool_offset(e)], ~packed_bool_mask(e));
+
+      auto rev_start = offsets_ptr[dst];
+      auto rev_end   = offsets_ptr[dst + 1];
+      auto pos = thrust::lower_bound(
+        thrust::seq, indices_ptr + rev_start, indices_ptr + rev_end, src);
+      if (pos != indices_ptr + rev_end && *pos == src) {
+        auto rev_e = static_cast<edge_t>(pos - indices_ptr);
+        atomicAnd(&weak_mask_ptr[packed_bool_offset(rev_e)], ~packed_bool_mask(rev_e));
+      }
+    }
+
+    auto idx = atomicAdd(out_counter, size_t{1});
+    out_srcs[idx] = src;
+    out_dsts[idx] = dst;
+  }
+};
+
 }  // namespace
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
@@ -405,20 +461,55 @@ k_truss(raft::handle_t const& handle,
     size_t prev_chunk_size = 0;  // FIXME: Add support for chunking
 
     while (true) {
+      rmm::device_uvector<vertex_t> weak_edgelist_srcs(0, handle.get_stream());
+      rmm::device_uvector<vertex_t> weak_edgelist_dsts(0, handle.get_stream());
+
       // Extract weak edges
-      auto [weak_edgelist_srcs, weak_edgelist_dsts] = extract_transform_if_e(
-        handle,
-        cur_graph_view,
-        edge_src_dummy_property_t{}.view(),
-        edge_dst_dummy_property_t{}.view(),
-        edge_triangle_counts.view(),
-        cuda::proclaim_return_type<cuda::std::tuple<vertex_t, vertex_t>>(
-          [] __device__(vertex_t src, vertex_t dst, auto, auto, auto) {
-            return cuda::std::make_tuple(src, dst);
-          }),
-        cuda::proclaim_return_type<bool>([k] __device__(auto, auto, auto, auto, edge_t count) {
-          return ((count < k - 2) && (count != 0));
-        }));
+      if constexpr (multi_gpu) {
+        std::tie(weak_edgelist_srcs, weak_edgelist_dsts) = extract_transform_if_e(
+          handle,
+          cur_graph_view,
+          edge_src_dummy_property_t{}.view(),
+          edge_dst_dummy_property_t{}.view(),
+          edge_triangle_counts.view(),
+          cuda::proclaim_return_type<cuda::std::tuple<vertex_t, vertex_t>>(
+            [] __device__(vertex_t src, vertex_t dst, auto, auto, auto) {
+              return cuda::std::make_tuple(src, dst);
+            }),
+          cuda::proclaim_return_type<bool>([k] __device__(auto, auto, auto, auto, edge_t count) {
+            return ((count < k - 2) && (count != 0));
+          }));
+      } else {
+        auto edge_partition  = cur_graph_view.local_edge_partition_view(size_t{0});
+        auto offsets_ptr     = edge_partition.offsets().data();
+        auto indices_ptr     = edge_partition.indices().data();
+        auto num_edges_total = edge_partition.number_of_edges();
+        auto num_vertices    = cur_graph_view.local_vertex_partition_range_size();
+
+        weak_edgelist_srcs.resize(num_edges_total, handle.get_stream());
+        weak_edgelist_dsts.resize(num_edges_total, handle.get_stream());
+        rmm::device_scalar<size_t> weak_count(size_t{0}, handle.get_stream());
+
+        thrust::for_each(
+          handle.get_thrust_policy(),
+          thrust::make_counting_iterator(edge_t{0}),
+          thrust::make_counting_iterator(static_cast<edge_t>(num_edges_total)),
+          extract_weak_and_update_masks_t<vertex_t, edge_t, false>{
+            offsets_ptr,
+            indices_ptr,
+            edge_triangle_counts.view().value_firsts()[0],
+            dodg_mask.mutable_view().value_firsts()[0],
+            weak_edges_mask.mutable_view().value_firsts()[0],
+            k,
+            weak_edgelist_srcs.data(),
+            weak_edgelist_dsts.data(),
+            weak_count.data(),
+            static_cast<vertex_t>(num_vertices)});
+
+        size_t num_weak = weak_count.value(handle.get_stream());
+        weak_edgelist_srcs.resize(num_weak, handle.get_stream());
+        weak_edgelist_dsts.resize(num_weak, handle.get_stream());
+      }
 
       auto weak_edgelist_first =
         thrust::make_zip_iterator(weak_edgelist_srcs.begin(), weak_edgelist_dsts.begin());
