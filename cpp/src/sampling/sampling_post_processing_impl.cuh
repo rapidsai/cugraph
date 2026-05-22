@@ -6,12 +6,14 @@
 #pragma once
 
 #include <cugraph/arithmetic_variant_types.hpp>
+#include <cugraph/detail/utility_wrappers_device_sort.cuh>
 #include <cugraph/prims/kv_store.cuh>
 #include <cugraph/sampling_functions.hpp>
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/misc_utils.cuh>
 
+#include <raft/core/device_span.hpp>
 #include <raft/core/handle.hpp>
 
 #include <rmm/device_uvector.hpp>
@@ -29,11 +31,11 @@
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/merge.h>
 #include <thrust/set_operations.h>
-#include <thrust/sort.h>
 #include <thrust/transform.h>
 #include <thrust/unique.h>
 
 #include <optional>
+#include <type_traits>
 
 namespace cugraph {
 
@@ -347,7 +349,8 @@ void check_input_edges(raft::handle_t const& handle,
           handle.get_thrust_policy(), edge_types.begin(), edge_types.end(), tmp_edge_types.begin());
         auto triplet_first =
           thrust::make_zip_iterator(tmp_edge_types.begin(), tmp_majors.begin(), tmp_minors.begin());
-        thrust::sort(handle.get_thrust_policy(), triplet_first, triplet_first + tmp_majors.size());
+        cugraph::detail::device_sort(
+          handle.get_thrust_policy(), triplet_first, triplet_first + tmp_majors.size());
         CUGRAPH_EXPECTS(
           thrust::count_if(
             handle.get_thrust_policy(),
@@ -394,7 +397,8 @@ void check_input_edges(raft::handle_t const& handle,
           "have an identical vertex type.");
       } else {
         auto pair_first = thrust::make_zip_iterator(tmp_majors.begin(), tmp_minors.begin());
-        thrust::sort(handle.get_thrust_policy(), pair_first, pair_first + tmp_majors.size());
+        cugraph::detail::device_sort(
+          handle.get_thrust_policy(), pair_first, pair_first + tmp_majors.size());
         CUGRAPH_EXPECTS(
           thrust::count_if(
             handle.get_thrust_policy(),
@@ -458,9 +462,9 @@ void check_input_edges(raft::handle_t const& handle,
                        (*seed_vertices).begin() + start_offset,
                        (*seed_vertices).begin() + end_offset,
                        this_label_seed_vertices.begin());
-          thrust::sort(handle.get_thrust_policy(),
-                       this_label_seed_vertices.begin(),
-                       this_label_seed_vertices.end());
+          cugraph::detail::device_sort(handle.get_thrust_policy(),
+                                       this_label_seed_vertices.begin(),
+                                       this_label_seed_vertices.end());
           this_label_seed_vertices.resize(
             cuda::std::distance(this_label_seed_vertices.begin(),
                                 thrust::unique(handle.get_thrust_policy(),
@@ -497,9 +501,9 @@ void check_input_edges(raft::handle_t const& handle,
                          edgelist_majors.begin() + end_offset,
                          this_label_zero_hop_majors.begin());
           }
-          thrust::sort(handle.get_thrust_policy(),
-                       this_label_zero_hop_majors.begin(),
-                       this_label_zero_hop_majors.end());
+          cugraph::detail::device_sort(handle.get_thrust_policy(),
+                                       this_label_zero_hop_majors.begin(),
+                                       this_label_zero_hop_majors.end());
           this_label_zero_hop_majors.resize(
             cuda::std::distance(this_label_zero_hop_majors.begin(),
                                 thrust::unique(handle.get_thrust_policy(),
@@ -563,7 +567,7 @@ compute_min_hop_for_unique_label_vertex_pairs(
       // cub::DeviceSegmentedSort currently does not suuport cuda::std::tuple type keys, sorting in
       // chunks still helps in limiting the binary search range and improving memory locality
       for (size_t i = 0; i < num_chunks; ++i) {
-        thrust::sort(
+        cugraph::detail::device_sort(
           handle.get_thrust_policy(),
           tmp_indices.begin() + h_edge_offsets[i],
           tmp_indices.begin() + h_edge_offsets[i + 1],
@@ -917,7 +921,8 @@ compute_min_hop_for_unique_label_vertex_pairs(
       auto pair_first = thrust::make_zip_iterator(
         tmp_vertices.begin(),
         (*tmp_hops).begin());  // vertex is a primary key, hop is a secondary key
-      thrust::sort(handle.get_thrust_policy(), pair_first, pair_first + tmp_vertices.size());
+      cugraph::detail::device_sort(
+        handle.get_thrust_policy(), pair_first, pair_first + tmp_vertices.size());
       tmp_vertices.resize(
         cuda::std::distance(tmp_vertices.begin(),
                             cuda::std::get<0>(thrust::unique_by_key(handle.get_thrust_policy(),
@@ -929,7 +934,8 @@ compute_min_hop_for_unique_label_vertex_pairs(
       tmp_vertices.shrink_to_fit(handle.get_stream());
       (*tmp_hops).shrink_to_fit(handle.get_stream());
     } else {
-      thrust::sort(handle.get_thrust_policy(), tmp_vertices.begin(), tmp_vertices.end());
+      cugraph::detail::device_sort(
+        handle.get_thrust_policy(), tmp_vertices.begin(), tmp_vertices.end());
       tmp_vertices.resize(
         cuda::std::distance(
           tmp_vertices.begin(),
@@ -947,7 +953,7 @@ compute_min_hop_for_unique_label_vertex_pairs(
                    (*seed_vertices).begin(),
                    (*seed_vertices).end(),
                    unique_seed_vertices.begin());
-      thrust::sort(
+      cugraph::detail::device_sort(
         handle.get_thrust_policy(), unique_seed_vertices.begin(), unique_seed_vertices.end());
       unique_seed_vertices.resize(cuda::std::distance(unique_seed_vertices.begin(),
                                                       thrust::unique(handle.get_thrust_policy(),
@@ -1157,7 +1163,7 @@ compute_vertex_renumber_map(
                                                             merged_vertices.begin(),
                                                             merged_hops.begin(),
                                                             merged_flags.begin());
-          thrust::sort(
+          cugraph::detail::device_sort(
             handle.get_thrust_policy(),
             quadraplet_first,
             quadraplet_first + merged_vertices.size(),
@@ -1220,7 +1226,7 @@ compute_vertex_renumber_map(
         if (vertex_type_offsets) {
           auto triplet_first = thrust::make_zip_iterator(
             merged_label_indices.begin(), merged_vertices.begin(), merged_flags.begin());
-          thrust::sort(
+          cugraph::detail::device_sort(
             handle.get_thrust_policy(),
             triplet_first,
             triplet_first + merged_vertices.size(),
@@ -1344,7 +1350,7 @@ compute_vertex_renumber_map(
       if (vertex_type_offsets) {
         auto triplet_first = thrust::make_zip_iterator(
           merged_vertices.begin(), merged_hops.begin(), merged_flags.begin());
-        thrust::sort(
+        cugraph::detail::device_sort(
           handle.get_thrust_policy(),
           triplet_first,
           triplet_first + merged_vertices.size(),
@@ -1467,7 +1473,7 @@ compute_edge_id_renumber_map(
     for (size_t i = 0; i < num_chunks; ++i) {
       // sort by (label, (type), id, (hop))
 
-      thrust::sort(
+      cugraph::detail::device_sort(
         handle.get_thrust_policy(),
         tmp_indices.begin() + h_edge_offsets[i],
         tmp_indices.begin() + h_edge_offsets[i + 1],
@@ -1532,7 +1538,7 @@ compute_edge_id_renumber_map(
       // sort by (label, (type), (min_hop), id)
 
       if (edgelist_hops) {
-        thrust::sort(
+        cugraph::detail::device_sort(
           handle.get_thrust_policy(),
           tmp_indices.begin() + h_edge_offsets[i],
           last,
@@ -1671,17 +1677,20 @@ compute_edge_id_renumber_map(
       if (tmp_hops) {
         auto triplet_first =
           thrust::make_zip_iterator((*tmp_types).begin(), tmp_ids.begin(), (*tmp_hops).begin());
-        thrust::sort(handle.get_thrust_policy(), triplet_first, triplet_first + tmp_ids.size());
+        cugraph::detail::device_sort(
+          handle.get_thrust_policy(), triplet_first, triplet_first + tmp_ids.size());
       } else {
         auto pair_first = thrust::make_zip_iterator((*tmp_types).begin(), tmp_ids.begin());
-        thrust::sort(handle.get_thrust_policy(), pair_first, pair_first + tmp_ids.size());
+        cugraph::detail::device_sort(
+          handle.get_thrust_policy(), pair_first, pair_first + tmp_ids.size());
       }
     } else {
       if (tmp_hops) {
         auto pair_first = thrust::make_zip_iterator(tmp_ids.begin(), (*tmp_hops).begin());
-        thrust::sort(handle.get_thrust_policy(), pair_first, pair_first + tmp_ids.size());
+        cugraph::detail::device_sort(
+          handle.get_thrust_policy(), pair_first, pair_first + tmp_ids.size());
       } else {
-        thrust::sort(handle.get_thrust_policy(), tmp_ids.begin(), tmp_ids.end());
+        cugraph::detail::device_sort(handle.get_thrust_policy(), tmp_ids.begin(), tmp_ids.end());
       }
     }
 
@@ -1730,10 +1739,12 @@ compute_edge_id_renumber_map(
       if (tmp_types) {
         auto triplet_first =
           thrust::make_zip_iterator((*tmp_types).begin(), (*tmp_hops).begin(), tmp_ids.begin());
-        thrust::sort(handle.get_thrust_policy(), triplet_first, triplet_first + tmp_ids.size());
+        cugraph::detail::device_sort(
+          handle.get_thrust_policy(), triplet_first, triplet_first + tmp_ids.size());
       } else {
         auto pair_first = thrust::make_zip_iterator((*tmp_hops).begin(), tmp_ids.begin());
-        thrust::sort(handle.get_thrust_policy(), pair_first, pair_first + tmp_ids.size());
+        cugraph::detail::device_sort(
+          handle.get_thrust_policy(), pair_first, pair_first + tmp_ids.size());
       }
     }
 
@@ -2528,7 +2539,8 @@ sort_sampled_edge_tuples(raft::handle_t const& handle,
       raft::device_span<vertex_t const>(edgelist_majors.data() + h_edge_offsets[i], indices.size()),
       raft::device_span<vertex_t const>(edgelist_minors.data() + h_edge_offsets[i],
                                         indices.size())};
-    thrust::sort(handle.get_thrust_policy(), indices.begin(), indices.end(), edge_order_comp);
+    cugraph::detail::device_sort(
+      handle.get_thrust_policy(), indices.begin(), indices.end(), edge_order_comp);
 
     permute_array(handle,
                   indices.begin(),
@@ -2697,11 +2709,12 @@ renumber_and_compress_sampled_edgelist(
         *seed_vertex_label_offsets, label_index_t{0}, handle.get_stream());
       auto pair_first =
         thrust::make_zip_iterator(label_indices.begin(), (*renumbered_seed_vertices).begin());
-      thrust::sort(handle.get_thrust_policy(), pair_first, pair_first + label_indices.size());
+      cugraph::detail::device_sort(
+        handle.get_thrust_policy(), pair_first, pair_first + label_indices.size());
     } else {
-      thrust::sort(handle.get_thrust_policy(),
-                   (*renumbered_seed_vertices).begin(),
-                   (*renumbered_seed_vertices).end());
+      cugraph::detail::device_sort(handle.get_thrust_policy(),
+                                   (*renumbered_seed_vertices).begin(),
+                                   (*renumbered_seed_vertices).end());
     }
   }
 

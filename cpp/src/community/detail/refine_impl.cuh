@@ -8,7 +8,7 @@
 #include "decision_graph_mis.hpp"
 #include "detail/shuffle_wrappers.hpp"
 
-#include <cugraph/detail/utility_wrappers.hpp>
+#include <cugraph/detail/utility_wrappers_device_sort.cuh>
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/prims/per_v_transform_reduce_dst_key_aggregated_outgoing_e.cuh>
@@ -38,7 +38,6 @@
 #include <thrust/scatter.h>
 #include <thrust/sequence.h>
 #include <thrust/shuffle.h>
-#include <thrust/sort.h>
 #include <thrust/tabulate.h>
 #include <thrust/transform.h>
 #include <thrust/transform_reduce.h>
@@ -646,8 +645,7 @@ refine_clustering(raft::handle_t const& handle,
     vertices_in_mis.resize(0, handle.get_stream());
     vertices_in_mis.shrink_to_fit(handle.get_stream());
 
-    thrust::sort(handle.get_thrust_policy(), dst_vertices.begin(), dst_vertices.end());
-
+    device_sort(handle.get_thrust_policy(), dst_vertices.begin(), dst_vertices.end());
     dst_vertices.resize(
       static_cast<size_t>(cuda::std::distance(
         dst_vertices.begin(),
@@ -662,8 +660,7 @@ refine_clustering(raft::handle_t const& handle,
                                       std::vector<cugraph::arithmetic_device_uvector_t>{},
                                       graph_view.vertex_partition_range_lasts());
 
-      thrust::sort(handle.get_thrust_policy(), dst_vertices.begin(), dst_vertices.end());
-
+      device_sort(handle.get_thrust_policy(), dst_vertices.begin(), dst_vertices.end());
       dst_vertices.resize(
         static_cast<size_t>(cuda::std::distance(
           dst_vertices.begin(),
@@ -707,10 +704,9 @@ refine_clustering(raft::handle_t const& handle,
                leiden_assignment.end(),
                leiden_keys_to_read_louvain.begin());
 
-  thrust::sort(handle.get_thrust_policy(),
-               leiden_keys_to_read_louvain.begin(),
-               leiden_keys_to_read_louvain.end());
-
+  device_sort(handle.get_thrust_policy(),
+              leiden_keys_to_read_louvain.begin(),
+              leiden_keys_to_read_louvain.end());
   auto nr_unique_leiden_clusters =
     static_cast<size_t>(cuda::std::distance(leiden_keys_to_read_louvain.begin(),
                                             thrust::unique(handle.get_thrust_policy(),
@@ -728,10 +724,9 @@ refine_clustering(raft::handle_t const& handle,
                                     std::vector<cugraph::arithmetic_device_uvector_t>{},
                                     graph_view.vertex_partition_range_lasts());
 
-    thrust::sort(handle.get_thrust_policy(),
-                 leiden_keys_to_read_louvain.begin(),
-                 leiden_keys_to_read_louvain.end());
-
+    device_sort(handle.get_thrust_policy(),
+                leiden_keys_to_read_louvain.begin(),
+                leiden_keys_to_read_louvain.end());
     nr_unique_leiden_clusters =
       static_cast<size_t>(cuda::std::distance(leiden_keys_to_read_louvain.begin(),
                                               thrust::unique(handle.get_thrust_policy(),

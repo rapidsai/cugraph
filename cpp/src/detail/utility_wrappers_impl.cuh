@@ -56,10 +56,20 @@ void scalar_fill(value_t* d_value,
   thrust::fill_n(rmm::exec_policy(stream_view), d_value, size, value);
 }
 
-template <typename value_t>
-void sort_ints(raft::device_span<value_t> values, rmm::cuda_stream_view const& stream_view)
+template <typename RandomAccessIterator>
+void device_sort_impl(rmm::exec_policy const& policy,
+                      RandomAccessIterator first,
+                      RandomAccessIterator last)
 {
-  thrust::sort(rmm::exec_policy(stream_view), values.begin(), values.end());
+  thrust::sort(policy, first, last);
+}
+
+template <typename RandomAccessIterator>
+void device_sort_impl(rmm::exec_policy_nosync const& policy,
+                      RandomAccessIterator first,
+                      RandomAccessIterator last)
+{
+  thrust::sort(policy, first, last);
 }
 
 template <typename value_t>

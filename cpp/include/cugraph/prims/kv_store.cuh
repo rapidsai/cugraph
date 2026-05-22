@@ -4,6 +4,7 @@
  */
 #pragma once
 
+#include <cugraph/detail/utility_wrappers_device_sort.cuh>
 #include <cugraph/graph.hpp>
 #include <cugraph/prims/detail/optional_dataframe_buffer.hpp>
 #include <cugraph/utilities/dataframe_buffer.hpp>
@@ -24,7 +25,6 @@
 #include <thrust/iterator/iterator_traits.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/remove.h>
-#include <thrust/sort.h>
 #include <thrust/unique.h>
 
 #include <cuco/static_map.cuh>
@@ -706,12 +706,12 @@ class kv_cuco_store_t {
       store_value_offsets.resize(0, stream);
       store_value_offsets.shrink_to_fit(stream);
 
-      thrust::sort(rmm::exec_policy(stream),
-                   kv_indices.begin(),
-                   kv_indices.end(),
-                   [key_first] __device__(auto lhs, auto rhs) {
-                     return *(key_first + lhs) < *(key_first + rhs);
-                   });
+      device_sort(rmm::exec_policy(stream),
+                  kv_indices.begin(),
+                  kv_indices.end(),
+                  [key_first] __device__(auto lhs, auto rhs) {
+                    return *(key_first + lhs) < *(key_first + rhs);
+                  });
       kv_indices.resize(
         cuda::std::distance(kv_indices.begin(),
                             thrust::unique(rmm::exec_policy(stream),

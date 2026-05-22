@@ -5,7 +5,7 @@
 #pragma once
 
 #include <cugraph/algorithms.hpp>
-#include <cugraph/detail/utility_wrappers.hpp>
+#include <cugraph/detail/utility_wrappers_device_sort.cuh>
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/prims/count_if_v.cuh>
 #include <cugraph/prims/detail/prim_functors.cuh>
@@ -38,7 +38,6 @@
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/reduce.h>
-#include <thrust/sort.h>
 #include <thrust/transform.h>
 
 //
@@ -457,7 +456,7 @@ void accumulate_edge_results(
                                                              do_expensive_check);
 
       auto triplet_first = thrust::make_zip_iterator(srcs.begin(), dsts.begin(), indices->begin());
-      thrust::sort(handle.get_thrust_policy(), triplet_first, triplet_first + srcs.size());
+      device_sort(handle.get_thrust_policy(), triplet_first, triplet_first + srcs.size());
     } else {
       std::tie(srcs, dsts) = extract_transform_if_e(handle,
                                                     graph_view,
@@ -468,7 +467,7 @@ void accumulate_edge_results(
                                                     extract_edge_pred_op_t<vertex_t>{d},
                                                     do_expensive_check);
       auto pair_first      = thrust::make_zip_iterator(srcs.begin(), dsts.begin());
-      thrust::sort(handle.get_thrust_policy(), pair_first, pair_first + srcs.size());
+      device_sort(handle.get_thrust_policy(), pair_first, pair_first + srcs.size());
     }
     edge_list.insert(srcs.begin(),
                      srcs.end(),
@@ -592,7 +591,7 @@ batch_partition_frontier(raft::handle_t const& handle,
 
   std::vector<size_t> batch_offsets{0, frontier.size()};
   if (source_lasts) {
-    thrust::sort(
+    device_sort(
       handle.get_thrust_policy(),
       frontier.begin(),
       frontier.end(),

@@ -4,13 +4,20 @@
  */
 #pragma once
 
+#include <cugraph/detail/utility_wrappers_device_sort_scalar.hpp>
+
 #include <raft/core/device_span.hpp>
 #include <raft/random/rng_state.hpp>
 
 #include <rmm/cuda_stream_view.hpp>
 #include <rmm/device_uvector.hpp>
+#include <rmm/exec_policy.hpp>
 
 #include <thrust/sequence.h>
+
+#include <cstdint>
+#include <iterator>
+#include <type_traits>
 
 namespace cugraph {
 namespace detail {
@@ -64,16 +71,48 @@ void scalar_fill(value_t* d_value,
 
 /**
  * @ingroup utility_wrappers_cpp
- * @brief    Sort a device span
+ * @brief    Sort elements in [first, last) on the given CUDA stream (out-of-line implementation).
  *
- * @tparam      value_t      type of the value to operate on. Must be either int32_t or int64_t.
+ * @tparam      RandomAccessIterator  iterator type; must match an explicit instantiation in
+ *                                     @c utility_wrappers_*_common.cu or
+ *                                     @c utility_wrappers_zip_device_sort_inst.cu.
  *
- * @param[out]  values       device span to sort
- * @param[in]   stream_view  CUDA stream
+ * @param[in]   policy       @c rmm::exec_policy or @c rmm::exec_policy_nosync (e.g.
+ *                           @c handle.get_thrust_policy())
+ * @param[in]   first        beginning of the range to sort
+ * @param[in]   last         end of the range to sort
  *
  */
-template <typename value_t>
-void sort_ints(raft::device_span<value_t> values, rmm::cuda_stream_view const& stream_view);
+template <typename RandomAccessIterator>
+void device_sort_impl(rmm::exec_policy const& policy,
+                      RandomAccessIterator first,
+                      RandomAccessIterator last);
+
+template <typename RandomAccessIterator>
+void device_sort_impl(rmm::exec_policy_nosync const& policy,
+                      RandomAccessIterator first,
+                      RandomAccessIterator last);
+
+/**
+ * @ingroup utility_wrappers_cpp
+ * @brief    Sort elements in a device span
+ *
+ * Dispatches to @ref device_sort_impl for scalar element types (@ref device_sort_scalar_value_v).
+ * For zip-iterator or other iterator ranges, include @c utility_wrappers_device_sort.cuh.
+ *
+ * @tparam      value_t      element type; must satisfy @ref device_sort_scalar_value_v
+ *
+ * @param[in]   policy       Thrust execution policy (e.g. @c handle.get_thrust_policy())
+ * @param[in]   values       device span to sort in-place
+ *
+ */
+template <typename ExecutionPolicy,
+          typename value_t,
+          std::enable_if_t<device_sort_scalar_value_v<value_t>, int> = 0>
+void device_sort(ExecutionPolicy const& policy, raft::device_span<value_t> values)
+{
+  device_sort_impl(policy, values.data(), values.data() + values.size());
+}
 
 /**
  * @ingroup utility_wrappers_cpp

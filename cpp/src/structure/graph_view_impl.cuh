@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include <cugraph/detail/utility_wrappers_device_sort.cuh>
 #include <cugraph/edge_property.hpp>
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_view.hpp>
@@ -35,7 +36,6 @@
 #include <thrust/for_each.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
-#include <thrust/sort.h>
 #include <thrust/tabulate.h>
 #include <thrust/transform.h>
 #include <thrust/transform_reduce.h>
@@ -428,12 +428,12 @@ compute_edge_indices_and_edge_partition_offsets(
 
   rmm::device_uvector<size_t> edge_indices(edge_majors.size(), handle.get_stream());
   thrust::sequence(handle.get_thrust_policy(), edge_indices.begin(), edge_indices.end(), size_t{0});
-  thrust::sort(handle.get_thrust_policy(),
-               edge_indices.begin(),
-               edge_indices.end(),
-               [edge_first] __device__(size_t lhs, size_t rhs) {
-                 return *(edge_first + lhs) < *(edge_first + rhs);
-               });
+  detail::device_sort(handle.get_thrust_policy(),
+                      edge_indices.begin(),
+                      edge_indices.end(),
+                      [edge_first] __device__(size_t lhs, size_t rhs) {
+                        return *(edge_first + lhs) < *(edge_first + rhs);
+                      });
 
   std::vector<size_t> h_major_range_lasts(graph_view.number_of_local_edge_partitions());
   for (size_t i = 0; i < h_major_range_lasts.size(); ++i) {

@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -8,12 +8,14 @@
 #include "detail/shuffle_wrappers.hpp"
 #include "sampling/detail/sampling_utils.hpp"
 
+#include <cugraph/detail/utility_wrappers_device_sort.cuh>
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/sampling_functions.hpp>
 #include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/thrust_tuple_utils.hpp>
 
+#include <raft/core/device_span.hpp>
 #include <raft/core/handle.hpp>
 #include <raft/util/cudart_utils.hpp>
 
@@ -21,7 +23,6 @@
 
 #include <cuda/std/iterator>
 #include <cuda/std/tuple>
-#include <thrust/sort.h>
 #include <thrust/unique.h>
 
 #include <algorithm>
@@ -196,9 +197,8 @@ prepare_next_frontier(
                           begin_iter,
                           begin_iter + frontier_vertices.size(),
                           frontier_vertex_times->begin());
-
     } else {
-      thrust::sort(handle.get_thrust_policy(), begin_iter, begin_iter + frontier_vertices.size());
+      device_sort(handle.get_thrust_policy(), begin_iter, begin_iter + frontier_vertices.size());
     }
   } else {
     if (frontier_vertex_times) {
@@ -206,9 +206,8 @@ prepare_next_frontier(
                           frontier_vertices.begin(),
                           frontier_vertices.end(),
                           frontier_vertex_times->begin());
-
     } else {
-      thrust::sort(handle.get_thrust_policy(), frontier_vertices.begin(), frontier_vertices.end());
+      device_sort(handle.get_thrust_policy(), frontier_vertices.begin(), frontier_vertices.end());
     }
   }
 
@@ -249,7 +248,7 @@ prepare_next_frontier(
       if (sampled_src_vertex_times) {
         auto begin_iter = thrust::make_zip_iterator(verts.begin(), labels->begin(), times->begin());
 
-        thrust::sort(handle.get_thrust_policy(), begin_iter, begin_iter + new_verts_size);
+        device_sort(handle.get_thrust_policy(), begin_iter, begin_iter + new_verts_size);
 
         auto end_iter =
           thrust::unique(handle.get_thrust_policy(), begin_iter, begin_iter + new_verts_size);
@@ -260,7 +259,7 @@ prepare_next_frontier(
       } else {
         auto begin_iter = thrust::make_zip_iterator(verts.begin(), labels->begin());
 
-        thrust::sort(handle.get_thrust_policy(), begin_iter, begin_iter + new_verts_size);
+        device_sort(handle.get_thrust_policy(), begin_iter, begin_iter + new_verts_size);
 
         auto end_iter =
           thrust::unique(handle.get_thrust_policy(), begin_iter, begin_iter + new_verts_size);
@@ -272,7 +271,7 @@ prepare_next_frontier(
       if (sampled_src_vertex_times) {
         auto begin_iter = thrust::make_zip_iterator(verts.begin(), times->begin());
 
-        thrust::sort(handle.get_thrust_policy(), begin_iter, begin_iter + new_verts_size);
+        device_sort(handle.get_thrust_policy(), begin_iter, begin_iter + new_verts_size);
 
         auto end_iter =
           thrust::unique(handle.get_thrust_policy(), begin_iter, begin_iter + new_verts_size);
@@ -281,8 +280,7 @@ prepare_next_frontier(
         times->resize(cuda::std::distance(begin_iter, end_iter), handle.get_stream());
 
       } else {
-        thrust::sort(handle.get_thrust_policy(), verts.begin(), verts.end());
-
+        device_sort(handle.get_thrust_policy(), verts.data(), verts.data() + (verts.size()));
         auto end_iter = thrust::unique(handle.get_thrust_policy(), verts.begin(), verts.end());
 
         verts.resize(cuda::std::distance(verts.begin(), end_iter), handle.get_stream());

@@ -6,7 +6,7 @@
 
 #include "detail/shuffle_wrappers.hpp"
 
-#include <cugraph/detail/utility_wrappers.hpp>
+#include <cugraph/detail/utility_wrappers_device_sort.cuh>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/device_functors.cuh>
@@ -14,6 +14,7 @@
 #include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
 
+#include <raft/core/device_span.hpp>
 #include <raft/core/handle.hpp>
 
 #include <rmm/device_scalar.hpp>
@@ -23,7 +24,6 @@
 #include <thrust/gather.h>
 #include <thrust/logical.h>
 #include <thrust/sequence.h>
-#include <thrust/sort.h>
 
 #include <chrono>
 #include <cstdlib>
@@ -247,7 +247,8 @@ rmm::device_uvector<vertex_t> select_random_vertices(
   }
 
   if (sort_vertices) {
-    thrust::sort(handle.get_thrust_policy(), mg_sample_buffer.begin(), mg_sample_buffer.end());
+    detail::device_sort(
+      handle.get_thrust_policy(), mg_sample_buffer.begin(), mg_sample_buffer.end());
   }
 
   return mg_sample_buffer;

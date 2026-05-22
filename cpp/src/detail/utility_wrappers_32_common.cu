@@ -21,7 +21,6 @@
 #include <thrust/reduce.h>
 #include <thrust/remove.h>
 #include <thrust/sequence.h>
-#include <thrust/sort.h>
 #include <thrust/transform.h>
 #include <thrust/transform_reduce.h>
 
@@ -57,8 +56,19 @@ template void scalar_fill(float* d_value,
                           float value,
                           rmm::cuda_stream_view const& stream_view);
 
-template void sort_ints(raft::device_span<int32_t> values,
-                        rmm::cuda_stream_view const& stream_view);
+template void device_sort_impl<int32_t*>(rmm::exec_policy const& policy,
+                                         int32_t* first,
+                                         int32_t* last);
+template void device_sort_impl<int32_t*>(rmm::exec_policy_nosync const& policy,
+                                         int32_t* first,
+                                         int32_t* last);
+
+template void device_sort_impl<uint32_t*>(rmm::exec_policy const& policy,
+                                          uint32_t* first,
+                                          uint32_t* last);
+template void device_sort_impl<uint32_t*>(rmm::exec_policy_nosync const& policy,
+                                          uint32_t* first,
+                                          uint32_t* last);
 
 template size_t unique_ints(raft::device_span<int32_t> values,
                             rmm::cuda_stream_view const& stream_view);

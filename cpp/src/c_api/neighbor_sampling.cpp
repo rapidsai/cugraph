@@ -173,9 +173,9 @@ struct neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
 
           // Get unique labels
           // sort the start_vertex_labels
-          cugraph::detail::sort_ints(
-            raft::device_span<label_t>{unique_labels.data(), unique_labels.size()},
-            handle_.get_stream());
+          cugraph::detail::device_sort(
+            handle_.get_thrust_policy(),
+            raft::device_span<label_t>{unique_labels.data(), unique_labels.size()});
 
           auto num_unique_labels = cugraph::detail::unique_ints(
             raft::device_span<label_t>{unique_labels.data(), unique_labels.size()},

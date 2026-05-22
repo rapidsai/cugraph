@@ -8,6 +8,7 @@
 #include "sampling/detail/sampling_utils.hpp"
 
 #include <cugraph/detail/device_comm_wrapper.hpp>
+#include <cugraph/detail/utility_wrappers_device_sort.cuh>
 #include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/collect_comm.cuh>
 #include <cugraph/utilities/device_comm.hpp>
@@ -20,7 +21,6 @@
 #include <thrust/copy.h>
 #include <thrust/for_each.h>
 #include <thrust/iterator/counting_iterator.h>
-#include <thrust/sort.h>
 #include <thrust/unique.h>
 
 namespace cugraph {
@@ -70,9 +70,9 @@ update_dst_visited_vertices_and_labels(
 
   // 2) Sort and dedupe the new sampled items (reduce comm and storage)
   if (new_sample_labels) {
-    thrust::sort(handle.get_thrust_policy(),
-                 thrust::make_zip_iterator(new_samples.begin(), new_sample_labels->begin()),
-                 thrust::make_zip_iterator(new_samples.end(), new_sample_labels->end()));
+    device_sort(handle.get_thrust_policy(),
+                thrust::make_zip_iterator(new_samples.begin(), new_sample_labels->begin()),
+                thrust::make_zip_iterator(new_samples.end(), new_sample_labels->end()));
     auto new_zip_end =
       thrust::unique(handle.get_thrust_policy(),
                      thrust::make_zip_iterator(new_samples.begin(), new_sample_labels->begin()),
@@ -82,7 +82,7 @@ update_dst_visited_vertices_and_labels(
     new_samples.resize(new_size, handle.get_stream());
     new_sample_labels->resize(new_size, handle.get_stream());
   } else {
-    thrust::sort(handle.get_thrust_policy(), new_samples.begin(), new_samples.end());
+    device_sort(handle.get_thrust_policy(), new_samples.begin(), new_samples.end());
     auto new_end =
       thrust::unique(handle.get_thrust_policy(), new_samples.begin(), new_samples.end());
     size_t n_keep = static_cast<size_t>(new_end - new_samples.begin());
@@ -120,11 +120,11 @@ update_dst_visited_vertices_and_labels(
                  new_sample_labels->end(),
                  visited_minor_labels->begin() + orig_size);
 
-    thrust::sort(handle.get_thrust_policy(),
-                 thrust::make_zip_iterator(visited_minors.begin(), visited_minor_labels->begin()),
-                 thrust::make_zip_iterator(visited_minors.end(), visited_minor_labels->end()));
+    device_sort(handle.get_thrust_policy(),
+                thrust::make_zip_iterator(visited_minors.begin(), visited_minor_labels->begin()),
+                thrust::make_zip_iterator(visited_minors.end(), visited_minor_labels->end()));
   } else {
-    thrust::sort(handle.get_thrust_policy(), visited_minors.begin(), visited_minors.end());
+    device_sort(handle.get_thrust_policy(), visited_minors.begin(), visited_minors.end());
   }
 
   return std::make_tuple(std::move(visited_minors), std::move(visited_minor_labels));

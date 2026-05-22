@@ -4,6 +4,7 @@
  */
 #pragma once
 
+#include <cugraph/detail/utility_wrappers_device_sort.cuh>
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/prims/kv_store.cuh>
@@ -24,7 +25,6 @@
 #include <thrust/count.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
-#include <thrust/sort.h>
 #include <thrust/transform.h>
 #include <thrust/unique.h>
 
@@ -343,7 +343,7 @@ void renumber_ext_vertices(raft::handle_t const& handle,
                  renumber_map_labels,
                  renumber_map_labels + labels.size(),
                  labels.begin());
-    thrust::sort(handle.get_thrust_policy(), labels.begin(), labels.end());
+    detail::device_sort(handle.get_thrust_policy(), labels.begin(), labels.end());
     CUGRAPH_EXPECTS(
       thrust::unique(handle.get_thrust_policy(), labels.begin(), labels.end()) == labels.end(),
       "Invalid input arguments: renumber_map_labels have duplicate elements.");
@@ -368,9 +368,9 @@ void renumber_ext_vertices(raft::handle_t const& handle,
                         sorted_unique_ext_vertices.begin(),
                         [] __device__(auto v) { return v != invalid_vertex_id<vertex_t>::value; })),
       handle.get_stream());
-    thrust::sort(handle.get_thrust_policy(),
-                 sorted_unique_ext_vertices.begin(),
-                 sorted_unique_ext_vertices.end());
+    detail::device_sort(handle.get_thrust_policy(),
+                        sorted_unique_ext_vertices.begin(),
+                        sorted_unique_ext_vertices.end());
     sorted_unique_ext_vertices.resize(
       cuda::std::distance(sorted_unique_ext_vertices.begin(),
                           thrust::unique(handle.get_thrust_policy(),
@@ -451,7 +451,7 @@ void renumber_local_ext_vertices(raft::handle_t const& handle,
                  renumber_map_labels,
                  renumber_map_labels + labels.size(),
                  labels.begin());
-    thrust::sort(handle.get_thrust_policy(), labels.begin(), labels.end());
+    detail::device_sort(handle.get_thrust_policy(), labels.begin(), labels.end());
     CUGRAPH_EXPECTS(
       thrust::unique(handle.get_thrust_policy(), labels.begin(), labels.end()) == labels.end(),
       "Invalid input arguments: renumber_map_labels have duplicate elements.");
@@ -571,9 +571,9 @@ void unrenumber_int_vertices(raft::handle_t const& handle,
                         sorted_unique_int_vertices.begin(),
                         [] __device__(auto v) { return v != invalid_vertex_id<vertex_t>::value; })),
       handle.get_stream());
-    thrust::sort(handle.get_thrust_policy(),
-                 sorted_unique_int_vertices.begin(),
-                 sorted_unique_int_vertices.end());
+    detail::device_sort(handle.get_thrust_policy(),
+                        sorted_unique_int_vertices.begin(),
+                        sorted_unique_int_vertices.end());
     sorted_unique_int_vertices.resize(
       cuda::std::distance(sorted_unique_int_vertices.begin(),
                           thrust::unique(handle.get_thrust_policy(),

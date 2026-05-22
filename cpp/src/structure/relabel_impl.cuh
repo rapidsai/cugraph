@@ -4,6 +4,7 @@
  */
 #pragma once
 
+#include <cugraph/detail/utility_wrappers_device_sort.cuh>
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
@@ -25,7 +26,6 @@
 #include <thrust/count.h>
 #include <thrust/iterator/discard_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
-#include <thrust/sort.h>
 #include <thrust/transform.h>
 #include <thrust/unique.h>
 
@@ -62,7 +62,8 @@ void relabel(raft::handle_t const& handle,
 
     rmm::device_uvector<vertex_t> unique_old_labels(num_labels, handle.get_stream());
     thrust::copy(handle.get_thrust_policy(), labels, labels + num_labels, unique_old_labels.data());
-    thrust::sort(handle.get_thrust_policy(), unique_old_labels.begin(), unique_old_labels.end());
+    detail::device_sort(
+      handle.get_thrust_policy(), unique_old_labels.begin(), unique_old_labels.end());
     unique_old_labels.resize(cuda::std::distance(unique_old_labels.begin(),
                                                  thrust::unique(handle.get_thrust_policy(),
                                                                 unique_old_labels.begin(),

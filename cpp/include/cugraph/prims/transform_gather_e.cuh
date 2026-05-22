@@ -4,6 +4,7 @@
  */
 #pragma once
 
+#include <cugraph/detail/utility_wrappers_device_sort.cuh>
 #include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/edge_partition_edge_property_device_view.cuh>
 #include <cugraph/edge_partition_endpoint_property_device_view.cuh>
@@ -232,12 +233,12 @@ void transform_gather_e(raft::handle_t const& handle,
   if constexpr (!EdgeBucketType::is_sorted_unique) {
     thrust::sequence(
       handle.get_thrust_policy(), output_indices.begin(), output_indices.end(), size_t{0});
-    thrust::sort(handle.get_thrust_policy(),
-                 output_indices.begin(),
-                 output_indices.end(),
-                 cuda::proclaim_return_type<bool>([edge_first] __device__(auto l, auto r) {
-                   return *(edge_first + l) < *(edge_first + r);
-                 }));
+    detail::device_sort(handle.get_thrust_policy(),
+                        output_indices.begin(),
+                        output_indices.end(),
+                        cuda::proclaim_return_type<bool>([edge_first] __device__(auto l, auto r) {
+                          return *(edge_first + l) < *(edge_first + r);
+                        }));
   }
 
   std::vector<size_t> edge_partition_offsets(graph_view.number_of_local_edge_partitions() + 1, 0);

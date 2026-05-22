@@ -7,7 +7,7 @@
 #include "structure/detail/structure_utils.cuh"
 
 #include <cugraph/detail/device_comm_wrapper.hpp>
-#include <cugraph/detail/utility_wrappers.hpp>
+#include <cugraph/detail/utility_wrappers_device_sort.cuh>
 #include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/edge_partition_edge_property_device_view.cuh>
 #include <cugraph/graph_functions.hpp>
@@ -36,7 +36,6 @@
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/scan.h>
-#include <thrust/sort.h>
 #include <thrust/transform.h>
 
 #include <tuple>
@@ -181,9 +180,10 @@ extract_induced_subgraphs(
     graph_ids_v = cugraph::detail::device_allgatherv(
       handle, major_comm, raft::device_span<size_t const>(graph_ids_v.data(), graph_ids_v.size()));
 
-    thrust::sort(handle.get_thrust_policy(),
-                 thrust::make_zip_iterator(graph_ids_v.begin(), dst_subgraph_vertices_v.begin()),
-                 thrust::make_zip_iterator(graph_ids_v.end(), dst_subgraph_vertices_v.end()));
+    detail::device_sort(
+      handle.get_thrust_policy(),
+      thrust::make_zip_iterator(graph_ids_v.begin(), dst_subgraph_vertices_v.begin()),
+      thrust::make_zip_iterator(graph_ids_v.end(), dst_subgraph_vertices_v.end()));
 
     dst_subgraph_offsets_v =
       detail::compute_sparse_offsets<size_t>(handle,
@@ -201,9 +201,10 @@ extract_induced_subgraphs(
                subgraph_vertices.data(),
                subgraph_vertices.size(),
                handle.get_stream());
-    thrust::sort(handle.get_thrust_policy(),
-                 thrust::make_zip_iterator(graph_ids_v.begin(), dst_subgraph_vertices_v.begin()),
-                 thrust::make_zip_iterator(graph_ids_v.end(), dst_subgraph_vertices_v.end()));
+    detail::device_sort(
+      handle.get_thrust_policy(),
+      thrust::make_zip_iterator(graph_ids_v.begin(), dst_subgraph_vertices_v.begin()),
+      thrust::make_zip_iterator(graph_ids_v.end(), dst_subgraph_vertices_v.end()));
   }
 
   graph_ids_v.resize(0, handle.get_stream());
@@ -268,11 +269,12 @@ extract_induced_subgraphs(
           dst_subgraph_offsets, dst_subgraph_vertices},
         do_expensive_check);
 
-    thrust::sort(handle.get_thrust_policy(),
-                 thrust::make_zip_iterator(
-                   subgraph_edge_graph_ids.begin(), edge_majors.begin(), edge_minors.begin()),
-                 thrust::make_zip_iterator(
-                   subgraph_edge_graph_ids.end(), edge_majors.end(), edge_minors.end()));
+    detail::device_sort(
+      handle.get_thrust_policy(),
+      thrust::make_zip_iterator(
+        subgraph_edge_graph_ids.begin(), edge_majors.begin(), edge_minors.begin()),
+      thrust::make_zip_iterator(
+        subgraph_edge_graph_ids.end(), edge_majors.end(), edge_minors.end()));
   }
 
   auto subgraph_edge_offsets =

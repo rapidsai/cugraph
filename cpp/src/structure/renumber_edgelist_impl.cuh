@@ -4,6 +4,7 @@
  */
 #pragma once
 
+#include <cugraph/detail/utility_wrappers_device_sort.cuh>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/prims/kv_store.cuh>
@@ -35,7 +36,6 @@
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/merge.h>
 #include <thrust/reduce.h>
-#include <thrust/sort.h>
 #include <thrust/unique.h>
 
 #include <cuco/hash_functions.cuh>
@@ -123,7 +123,7 @@ rmm::device_uvector<vertex_t> find_uniques(raft::handle_t const& handle,
                  vertices.begin(),
                  vertices.begin() + first_half_size,
                  first_half_uniques.begin());
-    thrust::sort(handle.get_thrust_policy(), first_half_uniques.begin(), first_half_uniques.end());
+    device_sort(handle.get_thrust_policy(), first_half_uniques.begin(), first_half_uniques.end());
     first_half_uniques.resize(cuda::std::distance(first_half_uniques.begin(),
                                                   thrust::unique(handle.get_thrust_policy(),
                                                                  first_half_uniques.begin(),
@@ -142,8 +142,7 @@ rmm::device_uvector<vertex_t> find_uniques(raft::handle_t const& handle,
                  vertices.begin() + first_half_size,
                  vertices.end(),
                  second_half_uniques.begin());
-    thrust::sort(
-      handle.get_thrust_policy(), second_half_uniques.begin(), second_half_uniques.end());
+    device_sort(handle.get_thrust_policy(), second_half_uniques.begin(), second_half_uniques.end());
     second_half_uniques.resize(cuda::std::distance(second_half_uniques.begin(),
                                                    thrust::unique(handle.get_thrust_policy(),
                                                                   second_half_uniques.begin(),
@@ -178,7 +177,7 @@ rmm::device_uvector<vertex_t> find_uniques(raft::handle_t const& handle,
                                                                               handle.get_stream())
                      : rmm::device_uvector<vertex_t>(vertices.size(), handle.get_stream());
     thrust::copy(handle.get_thrust_policy(), vertices.begin(), vertices.end(), uniques.begin());
-    thrust::sort(handle.get_thrust_policy(), uniques.begin(), uniques.end());
+    device_sort(handle.get_thrust_policy(), uniques.begin(), uniques.end());
     uniques.resize(cuda::std::distance(
                      uniques.begin(),
                      thrust::unique(handle.get_thrust_policy(), uniques.begin(), uniques.end())),
@@ -390,7 +389,7 @@ void compute_sorted_local_major_degrees_without_atomics(
           return static_cast<vertex_t>(cuda::std::distance(
             sorted_local_majors.begin(), thrust::lower_bound(thrust::seq, first, last, major)));
         }));
-    thrust::sort(
+    device_sort(
       handle.get_thrust_policy(), indices.begin(), indices.begin() + num_edges_to_process);
     auto it          = thrust::reduce_by_key(handle.get_thrust_policy(),
                                     indices.begin(),
@@ -605,8 +604,9 @@ compute_renumber_map(raft::handle_t const& handle,
     sorted_local_vertices.shrink_to_fit(handle.get_stream());
   } else {
     sorted_local_vertices = std::move(*local_vertices);
-    thrust::sort(
-      handle.get_thrust_policy(), sorted_local_vertices.begin(), sorted_local_vertices.end());
+    device_sort(handle.get_thrust_policy(),
+                sorted_local_vertices.data(),
+                sorted_local_vertices.data() + (sorted_local_vertices.size()));
   }
 
   // 2. find an unused vertex ID
@@ -840,8 +840,9 @@ void expensive_check_edgelist(
                  (*local_vertices).begin(),
                  (*local_vertices).end(),
                  (*sorted_local_vertices).begin());
-    thrust::sort(
-      handle.get_thrust_policy(), (*sorted_local_vertices).begin(), (*sorted_local_vertices).end());
+    device_sort(handle.get_thrust_policy(),
+                (*sorted_local_vertices).data(),
+                (*sorted_local_vertices).data() + ((*sorted_local_vertices).size()));
     CUGRAPH_EXPECTS(
       static_cast<size_t>(cuda::std::distance((*sorted_local_vertices).begin(),
                                               thrust::unique(handle.get_thrust_policy(),
@@ -948,8 +949,9 @@ void expensive_check_edgelist(
                         raft::host_span<size_t const>(recvcounts.data(), recvcounts.size()),
                         raft::host_span<size_t const>(displacements.data(), displacements.size()),
                         handle.get_stream());
-      thrust::sort(handle.get_thrust_policy(), sorted_minors.begin(), sorted_minors.end());
-
+      device_sort(handle.get_thrust_policy(),
+                  sorted_minors.data(),
+                  sorted_minors.data() + (sorted_minors.size()));
       auto major_range_sizes =
         host_scalar_allgather(minor_comm, (*sorted_local_vertices).size(), handle.get_stream());
       for (size_t i = 0; i < edgelist_majors.size(); ++i) {

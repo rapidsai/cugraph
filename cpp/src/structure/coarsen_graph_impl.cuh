@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cugraph/detail/decompress_edge_partition.cuh>
+#include <cugraph/detail/utility_wrappers_device_sort.cuh>
 #include <cugraph/edge_partition_edge_property_device_view.cuh>
 #include <cugraph/edge_partition_endpoint_property_device_view.cuh>
 #include <cugraph/edge_src_dst_property.hpp>
@@ -17,6 +18,7 @@
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/graph_partition_utils.cuh>
 
+#include <raft/core/device_span.hpp>
 #include <raft/core/handle.hpp>
 
 #include <rmm/device_uvector.hpp>
@@ -34,7 +36,6 @@
 #include <thrust/reduce.h>
 #include <thrust/remove.h>
 #include <thrust/scan.h>
-#include <thrust/sort.h>
 #include <thrust/transform.h>
 #include <thrust/unique.h>
 
@@ -42,6 +43,7 @@
 #include <iterator>
 #include <numeric>
 #include <tuple>
+#include <type_traits>
 #include <utility>
 
 namespace cugraph {
@@ -109,7 +111,8 @@ groupby_e_and_coarsen_edgelist(rmm::device_uvector<vertex_t>&& edgelist_majors,
                            std::move(tmp_edgelist_minors),
                            std::move(tmp_edgelist_weights));
   } else {
-    thrust::sort(rmm::exec_policy(stream_view), pair_first, pair_first + edgelist_majors.size());
+    cugraph::detail::device_sort(
+      rmm::exec_policy_nosync(stream_view), pair_first, pair_first + edgelist_majors.size());
     auto num_uniques = static_cast<size_t>(cuda::std::distance(
       pair_first,
       thrust::unique(
@@ -505,7 +508,7 @@ coarsen_graph(raft::handle_t const& handle,
                                               handle.get_stream());
   thrust::copy(
     handle.get_thrust_policy(), labels, labels + unique_labels.size(), unique_labels.begin());
-  thrust::sort(handle.get_thrust_policy(), unique_labels.begin(), unique_labels.end());
+  device_sort(handle.get_thrust_policy(), unique_labels.begin(), unique_labels.end());
   unique_labels.resize(
     cuda::std::distance(
       unique_labels.begin(),
@@ -515,7 +518,7 @@ coarsen_graph(raft::handle_t const& handle,
   std::tie(unique_labels, std::ignore) = cugraph::shuffle_ext_vertices(
     handle, std::move(unique_labels), std::vector<cugraph::arithmetic_device_uvector_t>{});
 
-  thrust::sort(handle.get_thrust_policy(), unique_labels.begin(), unique_labels.end());
+  device_sort(handle.get_thrust_policy(), unique_labels.begin(), unique_labels.end());
   unique_labels.resize(
     cuda::std::distance(
       unique_labels.begin(),
@@ -666,7 +669,7 @@ coarsen_graph(raft::handle_t const& handle,
   rmm::device_uvector<vertex_t> vertices(graph_view.number_of_vertices(), handle.get_stream());
   if (renumber) {
     thrust::copy(handle.get_thrust_policy(), labels, labels + vertices.size(), vertices.begin());
-    thrust::sort(handle.get_thrust_policy(), vertices.begin(), vertices.end());
+    device_sort(handle.get_thrust_policy(), vertices.begin(), vertices.end());
     vertices.resize(cuda::std::distance(
                       vertices.begin(),
                       thrust::unique(handle.get_thrust_policy(), vertices.begin(), vertices.end())),

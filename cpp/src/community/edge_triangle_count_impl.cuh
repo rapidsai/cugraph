@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include <cugraph/detail/utility_wrappers_device_sort.cuh>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/prims/edge_bucket.cuh>
@@ -25,7 +26,6 @@
 #include <cuda/std/tuple>
 #include <thrust/adjacent_difference.h>
 #include <thrust/iterator/zip_iterator.h>
-#include <thrust/sort.h>
 
 namespace cugraph {
 
@@ -228,9 +228,9 @@ edge_property_t<edge_t, edge_t> edge_triangle_count_impl(
                                             intersection_indices.size()),
           edge_first});
 
-      thrust::sort(handle.get_thrust_policy(),
-                   get_dataframe_buffer_begin(vertex_pair_buffer_tmp),
-                   get_dataframe_buffer_end(vertex_pair_buffer_tmp));
+      device_sort(handle.get_thrust_policy(),
+                  get_dataframe_buffer_begin(vertex_pair_buffer_tmp),
+                  get_dataframe_buffer_end(vertex_pair_buffer_tmp));
 
       rmm::device_uvector<edge_t> increase_count_tmp(2 * intersection_indices.size(),
                                                      handle.get_stream());

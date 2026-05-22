@@ -4,7 +4,7 @@
  */
 #pragma once
 
-#include <cugraph/detail/utility_wrappers.hpp>
+#include <cugraph/detail/utility_wrappers_device_sort.cuh>
 #include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/edge_partition_edge_property_device_view.cuh>
 #include <cugraph/edge_partition_endpoint_property_device_view.cuh>
@@ -36,7 +36,6 @@
 #include <thrust/count.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/remove.h>
-#include <thrust/sort.h>
 #include <thrust/tabulate.h>
 #include <thrust/unique.h>
 
@@ -401,9 +400,9 @@ compute_unique_keys(raft::handle_t const& handle,
                  aggregate_local_frontier_key_first + local_frontier_offsets[i],
                  aggregate_local_frontier_key_first + local_frontier_offsets[i + 1],
                  get_dataframe_buffer_begin(tmp_keys) + local_frontier_offsets[i]);
-    thrust::sort(handle.get_thrust_policy(),
-                 get_dataframe_buffer_begin(tmp_keys) + local_frontier_offsets[i],
-                 get_dataframe_buffer_begin(tmp_keys) + local_frontier_offsets[i + 1]);
+    device_sort(handle.get_thrust_policy(),
+                get_dataframe_buffer_begin(tmp_keys) + local_frontier_offsets[i],
+                get_dataframe_buffer_begin(tmp_keys) + local_frontier_offsets[i + 1]);
     local_frontier_unique_key_sizes[i] = cuda::std::distance(
       get_dataframe_buffer_begin(tmp_keys) + local_frontier_offsets[i],
       thrust::unique(handle.get_thrust_policy(),

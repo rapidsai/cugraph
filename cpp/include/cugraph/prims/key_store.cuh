@@ -4,6 +4,8 @@
  */
 #pragma once
 
+#include <cugraph/detail/utility_wrappers_device_sort.cuh>
+
 #include <rmm/device_uvector.hpp>
 #include <rmm/mr/polymorphic_allocator.hpp>
 
@@ -13,7 +15,6 @@
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
 #include <thrust/iterator/iterator_traits.h>
-#include <thrust/sort.h>
 
 #include <cuco/static_set.cuh>
 
@@ -188,7 +189,7 @@ class key_binary_search_store_t {
   {
     thrust::copy(rmm::exec_policy(stream), key_first, key_last, store_keys_.begin());
     if (!key_sorted) {
-      thrust::sort(rmm::exec_policy(stream), store_keys_.begin(), store_keys_.end());
+      device_sort(rmm::exec_policy(stream), store_keys_.begin(), store_keys_.end());
     }
   }
 
@@ -201,7 +202,7 @@ class key_binary_search_store_t {
     : store_keys_(std::move(keys))
   {
     if (!key_sorted) {
-      thrust::sort(rmm::exec_policy(stream), store_keys_.begin(), store_keys_.end());
+      device_sort(rmm::exec_policy(stream), store_keys_.begin(), store_keys_.end());
     }
   }
 

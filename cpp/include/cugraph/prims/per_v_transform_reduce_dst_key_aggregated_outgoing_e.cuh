@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cugraph/detail/decompress_edge_partition.cuh>
+#include <cugraph/detail/utility_wrappers_device_sort.cuh>
 #include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/edge_partition_endpoint_property_device_view.cuh>
 #include <cugraph/edge_src_dst_property.hpp>
@@ -40,7 +41,6 @@
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/reduce.h>
 #include <thrust/scatter.h>
-#include <thrust/sort.h>
 #include <thrust/transform.h>
 #include <thrust/unique.h>
 
@@ -674,7 +674,7 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
             handle.get_thrust_policy(), tmp_majors.begin(), tmp_majors.end(), majors.begin());
 
           auto pair_first = thrust::make_zip_iterator(minor_comm_ranks.begin(), majors.begin());
-          thrust::sort(
+          detail::device_sort(
             handle.get_thrust_policy(), pair_first, pair_first + minor_comm_ranks.size());
           auto unique_pair_last = thrust::unique(
             handle.get_thrust_policy(), pair_first, pair_first + minor_comm_ranks.size());
@@ -882,11 +882,12 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
                                          int{1},
                                          handle.get_stream());
 
-          thrust::sort(handle.get_thrust_policy(), key_pair_first, second_first);
+          detail::device_sort(handle.get_thrust_policy(), key_pair_first, second_first);
 
-          thrust::sort(handle.get_thrust_policy(), second_first, key_pair_first + rx_majors.size());
+          detail::device_sort(
+            handle.get_thrust_policy(), second_first, key_pair_first + rx_majors.size());
         } else {
-          thrust::sort(
+          detail::device_sort(
             handle.get_thrust_policy(), key_pair_first, key_pair_first + rx_majors.size());
         }
 
@@ -918,7 +919,8 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
                    tmp_minor_keys.begin(),
                    tmp_minor_keys.end(),
                    unique_minor_keys.begin());
-      thrust::sort(handle.get_thrust_policy(), unique_minor_keys.begin(), unique_minor_keys.end());
+      cugraph::detail::device_sort(
+        handle.get_thrust_policy(), unique_minor_keys.begin(), unique_minor_keys.end());
       unique_minor_keys.resize(cuda::std::distance(unique_minor_keys.begin(),
                                                    thrust::unique(handle.get_thrust_policy(),
                                                                   unique_minor_keys.begin(),

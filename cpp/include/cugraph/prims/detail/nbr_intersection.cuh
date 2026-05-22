@@ -4,6 +4,7 @@
  */
 #pragma once
 
+#include <cugraph/detail/utility_wrappers_device_sort.cuh>
 #include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/edge_partition_edge_property_device_view.cuh>
 #include <cugraph/graph.hpp>
@@ -43,7 +44,6 @@
 #include <thrust/remove.h>
 #include <thrust/scan.h>
 #include <thrust/set_operations.h>
-#include <thrust/sort.h>
 #include <thrust/tabulate.h>
 #include <thrust/transform.h>
 #include <thrust/unique.h>
@@ -763,7 +763,8 @@ nbr_intersection(raft::handle_t const& handle,
                      second_element_first + input_size,
                      unique_majors.begin());
 
-        thrust::sort(handle.get_thrust_policy(), unique_majors.begin(), unique_majors.end());
+        cugraph::detail::device_sort(
+          handle.get_thrust_policy(), unique_majors.begin(), unique_majors.end());
         unique_majors.resize(
           cuda::std::distance(
             unique_majors.begin(),
@@ -792,7 +793,8 @@ nbr_intersection(raft::handle_t const& handle,
             handle.get_stream());
           unique_majors = std::move(rx_unique_majors);
 
-          thrust::sort(handle.get_thrust_policy(), unique_majors.begin(), unique_majors.end());
+          cugraph::detail::device_sort(
+            handle.get_thrust_policy(), unique_majors.begin(), unique_majors.end());
           unique_majors.resize(cuda::std::distance(unique_majors.begin(),
                                                    thrust::unique(handle.get_thrust_policy(),
                                                                   unique_majors.begin(),

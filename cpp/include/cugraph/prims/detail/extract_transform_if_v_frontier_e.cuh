@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include <cugraph/detail/utility_wrappers_device_sort.cuh>
 #include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/edge_partition_edge_property_device_view.cuh>
 #include <cugraph/edge_partition_endpoint_property_device_view.cuh>
@@ -39,7 +40,6 @@
 #include <thrust/count.h>
 #include <thrust/execution_policy.h>
 #include <thrust/iterator/iterator_traits.h>
-#include <thrust/sort.h>
 
 #include <algorithm>
 #include <cstdlib>
@@ -844,9 +844,9 @@ extract_transform_if_v_frontier_e(raft::handle_t const& handle,
                  frontier_key_first,
                  frontier_key_last,
                  get_dataframe_buffer_begin(frontier_keys));
-    thrust::sort(handle.get_thrust_policy(),
-                 get_dataframe_buffer_begin(frontier_keys),
-                 get_dataframe_buffer_end(frontier_keys));
+    cugraph::detail::device_sort(handle.get_thrust_policy(),
+                                 get_dataframe_buffer_begin(frontier_keys),
+                                 get_dataframe_buffer_end(frontier_keys));
     frontier_key_first = get_dataframe_buffer_begin(frontier_keys);
     frontier_key_last  = get_dataframe_buffer_end(frontier_keys);
   }

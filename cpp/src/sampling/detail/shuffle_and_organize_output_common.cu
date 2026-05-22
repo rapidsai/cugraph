@@ -4,7 +4,7 @@
  */
 
 #include <cugraph/arithmetic_variant_types.hpp>
-#include <cugraph/detail/utility_wrappers.hpp>
+#include <cugraph/detail/utility_wrappers_device_sort.cuh>
 #include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/graph_partition_utils.cuh>
@@ -135,7 +135,7 @@ shuffle_and_organize_output(
     // Need to generate offsets for each unique label (not each seed) on each GPU
     rmm::device_uvector<int32_t> unique_labels(labels->size(), handle.get_stream());
     raft::copy(unique_labels.data(), labels->data(), labels->size(), handle.get_stream());
-    thrust::sort(handle.get_thrust_policy(), unique_labels.begin(), unique_labels.end());
+    device_sort(handle.get_thrust_policy(), unique_labels.begin(), unique_labels.end());
     auto unique_end =
       thrust::unique(handle.get_thrust_policy(), unique_labels.begin(), unique_labels.end());
     size_t num_unique_labels =

@@ -161,6 +161,7 @@ endif()
 set(CUGRAPH_COMMON_UTILITY_SOURCES
     src/detail/utility_wrappers_32_common.cu
     src/detail/utility_wrappers_64_common.cu
+    src/detail/utility_wrappers_zip_device_sort_inst.cu
     src/detail/permute_range_common_v32.cu
     src/detail/permute_range_common_v64.cu
     src/utilities/invert_flags_common.cu

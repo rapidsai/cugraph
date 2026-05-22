@@ -9,12 +9,14 @@
 
 #include <cugraph/arithmetic_variant_types.hpp>
 #include <cugraph/detail/device_comm_wrapper.hpp>
+#include <cugraph/detail/utility_wrappers_device_sort.cuh>
 #include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/collect_comm.cuh>
 #include <cugraph/utilities/mask_utils.cuh>
 #include <cugraph/utilities/shuffle_comm.cuh>
 
 #include <raft/core/copy.hpp>
+#include <raft/core/device_span.hpp>
 
 #include <cuda/std/functional>
 #include <cuda/std/tuple>
@@ -22,7 +24,6 @@
 #include <thrust/gather.h>
 #include <thrust/iterator/constant_iterator.h>
 #include <thrust/iterator/counting_iterator.h>
-#include <thrust/sort.h>
 #include <thrust/unique.h>
 
 #include <variant>
@@ -123,14 +124,14 @@ deduplicate_edges_by_minor(raft::handle_t const& handle,
   //        can remove the majors from this sort.  Until then we need to sort by (label, minor,
   //        major, position) to guarantee that each iteration of the outer loop makes progress.
   if (keep_labels) {
-    thrust::sort(
+    device_sort(
       handle.get_thrust_policy(),
       thrust::make_zip_iterator(
         keep_labels->begin(), keep_minors.begin(), keep_majors.begin(), local_positions.begin()),
       thrust::make_zip_iterator(
         keep_labels->end(), keep_minors.end(), keep_majors.end(), local_positions.end()));
   } else {
-    thrust::sort(
+    device_sort(
       handle.get_thrust_policy(),
       thrust::make_zip_iterator(keep_minors.begin(), keep_majors.begin(), local_positions.begin()),
       thrust::make_zip_iterator(keep_minors.end(), keep_majors.end(), local_positions.end()));
@@ -220,13 +221,13 @@ deduplicate_edges_by_minor(raft::handle_t const& handle,
       if (resample_major_labels) {
         auto new_begin =
           thrust::make_zip_iterator(resample_major_labels->begin(), resample_majors->begin());
-        thrust::sort(handle.get_thrust_policy(), new_begin, new_begin + resample_majors->size());
+        device_sort(handle.get_thrust_policy(), new_begin, new_begin + resample_majors->size());
         auto new_end = thrust::unique(
           handle.get_thrust_policy(), new_begin, new_begin + resample_majors->size());
         resample_majors->resize(cuda::std::distance(new_begin, new_end), handle.get_stream());
         resample_major_labels->resize(cuda::std::distance(new_begin, new_end), handle.get_stream());
       } else {
-        thrust::sort(handle.get_thrust_policy(), resample_majors->begin(), resample_majors->end());
+        device_sort(handle.get_thrust_policy(), resample_majors->begin(), resample_majors->end());
         auto new_end = thrust::unique(
           handle.get_thrust_policy(), resample_majors->begin(), resample_majors->end());
         resample_majors->resize(cuda::std::distance(resample_majors->begin(), new_end),

@@ -9,6 +9,7 @@
 #include "utilities/thrust_wrapper.hpp"
 
 #include <cugraph/algorithms.hpp>
+#include <cugraph/detail/utility_wrappers_device_sort.cuh>
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
@@ -159,14 +160,11 @@ class Tests_Multithreaded
                d_dst_v.begin(),
                d_dst_v.size(),
                handle.get_stream());
-    cugraph::detail::sort_ints(
-      raft::device_span<vertex_t>{d_unique_vertices.data(), d_unique_vertices.size()},
-      handle.get_stream());
+    auto unique_vertices_span =
+      raft::device_span<vertex_t>{d_unique_vertices.data(), d_unique_vertices.size()};
+    cugraph::detail::device_sort(handle.get_thrust_policy(), unique_vertices_span);
     d_unique_vertices.resize(
-      cugraph::detail::unique_ints(
-        raft::device_span<vertex_t>{d_unique_vertices.data(), d_unique_vertices.size()},
-        handle.get_stream()),
-      handle.get_stream());
+      cugraph::detail::unique_ints(unique_vertices_span, handle.get_stream()), handle.get_stream());
 
     auto h_src_v         = cugraph::test::to_host(handle, d_src_v);
     auto h_dst_v         = cugraph::test::to_host(handle, d_dst_v);

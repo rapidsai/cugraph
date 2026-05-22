@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cugraph/detail/decompress_edge_partition.cuh>
+#include <cugraph/detail/utility_wrappers_device_sort.cuh>
 #include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/edge_partition_endpoint_property_device_view.cuh>
 #include <cugraph/edge_src_dst_property.hpp>
@@ -34,7 +35,6 @@
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/merge.h>
 #include <thrust/reduce.h>
-#include <thrust/sort.h>
 #include <thrust/tabulate.h>
 
 #include <type_traits>
@@ -344,11 +344,10 @@ void transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v(
     for (size_t j = 0; j < h_chunk_sizes.size(); ++j) {
       auto this_chunk_size = h_chunk_sizes[j];
 
-      thrust::sort(
-        handle.get_thrust_policy(),
-        chunk_vertex_pair_first,
-        chunk_vertex_pair_first + this_chunk_size);  // detail::nbr_intersection() requires the
-                                                     // input vertex pairs to be sorted.
+      detail::device_sort(handle.get_thrust_policy(),
+                          chunk_vertex_pair_first,
+                          chunk_vertex_pair_first + this_chunk_size);
+      // detail::nbr_intersection() requires the input vertex pairs to be sorted.
 
       auto [intersection_offsets, intersection_indices] =
         detail::nbr_intersection(handle,

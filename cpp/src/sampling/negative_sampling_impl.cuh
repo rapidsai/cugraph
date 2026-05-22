@@ -6,7 +6,7 @@
 #pragma once
 
 #include <cugraph/detail/device_comm_wrapper.hpp>
-#include <cugraph/detail/utility_wrappers.hpp>
+#include <cugraph/detail/utility_wrappers_device_sort.cuh>
 #include <cugraph/prims/reduce_v.cuh>
 #include <cugraph/prims/update_edge_src_dst_property.cuh>
 #include <cugraph/sampling_functions.hpp>
@@ -157,9 +157,9 @@ rmm::device_uvector<vertex_t> create_local_samples(
                                   rng_state,
                                   handle.get_stream());
 
-      thrust::sort(handle.get_thrust_policy(),
-                   thrust::make_zip_iterator(random_values.begin(), position.begin()),
-                   thrust::make_zip_iterator(random_values.end(), position.end()));
+      device_sort(handle.get_thrust_policy(),
+                  thrust::make_zip_iterator(random_values.begin(), position.begin()),
+                  thrust::make_zip_iterator(random_values.end(), position.end()));
 
       thrust::upper_bound(handle.get_thrust_policy(),
                           random_values.begin(),
@@ -236,9 +236,9 @@ rmm::device_uvector<vertex_t> create_local_samples(
                                                      sample_count_from_each_gpu.size()),
                        handle.get_stream());
 
-      thrust::sort(handle.get_thrust_policy(),
-                   thrust::make_zip_iterator(position.begin(), samples.begin()),
-                   thrust::make_zip_iterator(position.end(), samples.begin()));
+      device_sort(handle.get_thrust_policy(),
+                  thrust::make_zip_iterator(position.begin(), samples.begin()),
+                  thrust::make_zip_iterator(position.end(), samples.end()));
     }
   } else {
     samples.resize(samples_in_this_batch, handle.get_stream());
@@ -352,9 +352,9 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> negativ
     }
 
     if (remove_duplicates) {
-      thrust::sort(handle.get_thrust_policy(),
-                   thrust::make_zip_iterator(batch_srcs.begin(), batch_dsts.begin()),
-                   thrust::make_zip_iterator(batch_srcs.end(), batch_dsts.end()));
+      detail::device_sort(handle.get_thrust_policy(),
+                          thrust::make_zip_iterator(batch_srcs.begin(), batch_dsts.begin()),
+                          thrust::make_zip_iterator(batch_srcs.end(), batch_dsts.end()));
 
       auto new_end =
         thrust::unique(handle.get_thrust_policy(),

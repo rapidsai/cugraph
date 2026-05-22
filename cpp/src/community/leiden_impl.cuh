@@ -8,7 +8,7 @@
 #include "community/detail/refine.hpp"
 #include "community/flatten_dendrogram.hpp"
 
-#include <cugraph/detail/utility_wrappers.hpp>
+#include <cugraph/detail/utility_wrappers_device_sort.cuh>
 #include <cugraph/graph.hpp>
 #include <cugraph/prims/update_edge_src_dst_property.cuh>
 #include <cugraph/shuffle_functions.hpp>
@@ -17,7 +17,6 @@
 #include <rmm/device_uvector.hpp>
 
 #include <cuda/std/iterator>
-#include <thrust/sort.h>
 #include <thrust/unique.h>
 
 namespace cugraph {
@@ -36,8 +35,7 @@ void check_clustering(graph_view_t<vertex_t, edge_t, false, multi_gpu> const& gr
 template <typename vertex_t, bool multi_gpu>
 vertex_t remove_duplicates(raft::handle_t const& handle, rmm::device_uvector<vertex_t>& input_array)
 {
-  thrust::sort(handle.get_thrust_policy(), input_array.begin(), input_array.end());
-
+  device_sort(handle.get_thrust_policy(), input_array.begin(), input_array.end());
   auto nr_unique_elements = static_cast<vertex_t>(cuda::std::distance(
     input_array.begin(),
     thrust::unique(handle.get_thrust_policy(), input_array.begin(), input_array.end())));
@@ -48,8 +46,7 @@ vertex_t remove_duplicates(raft::handle_t const& handle, rmm::device_uvector<ver
     std::tie(input_array, std::ignore) = shuffle_ext_vertices(
       handle, std::move(input_array), std::vector<cugraph::arithmetic_device_uvector_t>{});
 
-    thrust::sort(handle.get_thrust_policy(), input_array.begin(), input_array.end());
-
+    device_sort(handle.get_thrust_policy(), input_array.begin(), input_array.end());
     nr_unique_elements = static_cast<vertex_t>(cuda::std::distance(
       input_array.begin(),
       thrust::unique(handle.get_thrust_policy(), input_array.begin(), input_array.end())));
@@ -525,9 +522,9 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
                    louvain_of_refined_graph.size(),
                    handle.get_stream());
 
-        thrust::sort(handle.get_thrust_policy(),
-                     thrust::make_zip_iterator(numbering_map->begin(), numeric_sequence.begin()),
-                     thrust::make_zip_iterator(numbering_map->end(), numeric_sequence.end()));
+        device_sort(handle.get_thrust_policy(),
+                    thrust::make_zip_iterator(numbering_map->begin(), numeric_sequence.begin()),
+                    thrust::make_zip_iterator(numbering_map->end(), numeric_sequence.end()));
 
         size_t new_size = cuda::std::distance(numbering_map->begin(),
                                               thrust::unique_by_key(handle.get_thrust_policy(),
@@ -549,9 +546,9 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
               std::move(std::get<rmm::device_uvector<vertex_t>>(vertex_properties[0]));
           }
 
-          thrust::sort(handle.get_thrust_policy(),
-                       thrust::make_zip_iterator(numbering_map->begin(), numeric_sequence.begin()),
-                       thrust::make_zip_iterator(numbering_map->end(), numeric_sequence.end()));
+          device_sort(handle.get_thrust_policy(),
+                      thrust::make_zip_iterator(numbering_map->begin(), numeric_sequence.begin()),
+                      thrust::make_zip_iterator(numbering_map->end(), numeric_sequence.end()));
 
           size_t new_size = cuda::std::distance(numbering_map->begin(),
                                                 thrust::unique_by_key(handle.get_thrust_policy(),

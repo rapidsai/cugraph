@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cugraph/algorithms.hpp>
+#include <cugraph/detail/utility_wrappers_device_sort.cuh>
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
@@ -158,9 +159,9 @@ centrality_algorithm_metadata_t pagerank(
                    std::get<0>(*personalization).end(),
                    check_for_duplicates.begin());
 
-      thrust::sort(
-        handle.get_thrust_policy(), check_for_duplicates.begin(), check_for_duplicates.end());
-
+      device_sort(handle.get_thrust_policy(),
+                  check_for_duplicates.data(),
+                  check_for_duplicates.data() + check_for_duplicates.size());
       auto num_uniques =
         thrust::count_if(handle.get_thrust_policy(),
                          thrust::make_counting_iterator(size_t{0}),

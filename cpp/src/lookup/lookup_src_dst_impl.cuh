@@ -7,6 +7,7 @@
 #include <cugraph/arithmetic_variant_types.hpp>
 #include <cugraph/detail/decompress_edge_partition.cuh>
 #include <cugraph/detail/device_comm_wrapper.hpp>
+#include <cugraph/detail/utility_wrappers_device_sort.cuh>
 #include <cugraph/edge_property.hpp>
 #include <cugraph/graph.hpp>
 #include <cugraph/prims/extract_transform_e.cuh>
@@ -232,7 +233,7 @@ struct lookup_container_t<edge_id_t, edge_type_t, vertex_t, value_t>::lookup_con
         handle.get_stream());
       unique_types = std::move(rx_unique_types);
 
-      thrust::sort(handle.get_thrust_policy(), unique_types.begin(), unique_types.end());
+      detail::device_sort(handle.get_thrust_policy(), unique_types.begin(), unique_types.end());
 
       unique_types.resize(
         cuda::std::distance(
@@ -425,9 +426,9 @@ EdgeTypeAndIdToSrcDstLookupContainerType build_edge_id_and_type_to_src_dst_looku
     auto type_and_gpu_id_pair_begin =
       thrust::make_zip_iterator(edge_types.begin(), gpu_ids.begin());
 
-    thrust::sort(handle.get_thrust_policy(),
-                 type_and_gpu_id_pair_begin,
-                 type_and_gpu_id_pair_begin + edge_types.size());
+    detail::device_sort(handle.get_thrust_policy(),
+                        type_and_gpu_id_pair_begin,
+                        type_and_gpu_id_pair_begin + edge_types.size());
 
     auto nr_unique_pairs = thrust::count_if(
       handle.get_thrust_policy(),
@@ -516,7 +517,7 @@ EdgeTypeAndIdToSrcDstLookupContainerType build_edge_id_and_type_to_src_dst_looku
           return et;
         }));
 
-    thrust::sort(handle.get_thrust_policy(), edge_types.begin(), edge_types.end());
+    detail::device_sort(handle.get_thrust_policy(), edge_types.begin(), edge_types.end());
 
     auto nr_unique_types =
       thrust::count_if(handle.get_thrust_policy(),

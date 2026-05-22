@@ -8,7 +8,7 @@
 #include "detail/shuffle_wrappers.hpp"
 
 #include <cugraph/algorithms.hpp>
-#include <cugraph/detail/utility_wrappers.hpp>
+#include <cugraph/detail/utility_wrappers_device_sort.cuh>
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>
@@ -32,6 +32,7 @@
 #include <cuda/iterator>
 #include <cuda/std/optional>
 #include <cuda/std/tuple>
+#include <thrust/iterator/zip_iterator.h>
 
 #include <limits>
 #include <numeric>
@@ -643,17 +644,17 @@ random_walk_impl(raft::handle_t const& handle,
     //  Sort for nbr_intersection, must sort all together
     if (previous_vertices) {
       if constexpr (multi_gpu) {
-        thrust::sort(handle.get_thrust_policy(),
-                     thrust::make_zip_iterator(current_vertices.begin(),
-                                               (*previous_vertices).begin(),
-                                               current_position.begin(),
-                                               current_gpu.begin()),
-                     thrust::make_zip_iterator(current_vertices.end(),
-                                               (*previous_vertices).end(),
-                                               current_position.end(),
-                                               current_gpu.end()));
+        device_sort(handle.get_thrust_policy(),
+                    thrust::make_zip_iterator(current_vertices.begin(),
+                                              (*previous_vertices).begin(),
+                                              current_position.begin(),
+                                              current_gpu.begin()),
+                    thrust::make_zip_iterator(current_vertices.end(),
+                                              (*previous_vertices).end(),
+                                              current_position.end(),
+                                              current_gpu.end()));
       } else {
-        thrust::sort(
+        device_sort(
           handle.get_thrust_policy(),
           thrust::make_zip_iterator(
             current_vertices.begin(), (*previous_vertices).begin(), current_position.begin()),
