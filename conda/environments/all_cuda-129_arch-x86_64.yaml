@@ -37,7 +37,7 @@ dependencies:
 - libraft==26.8.*,>=0.0.0a0
 - librmm==26.8.*,>=0.0.0a0
 - nbsphinx
-- nccl>=2.19
+- nccl>=2.28
 - networkx>=2.5.1
 - ninja
 - notebook>=0.5.0
