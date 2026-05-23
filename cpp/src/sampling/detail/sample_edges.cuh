@@ -10,6 +10,7 @@
 
 #include <cugraph/arithmetic_variant_types.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
+#include <cugraph/detail/utility_wrappers_device_sort.cuh>
 #include <cugraph/edge_property.hpp>
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph.hpp>
@@ -40,7 +41,6 @@
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/reduce.h>
-#include <thrust/sort.h>
 #include <thrust/unique.h>
 
 #include <optional>
@@ -834,7 +834,7 @@ sample_unvisited_with_one_property(
       rmm::device_uvector<float> random_numbers =
         rmm::device_uvector<float>(majors.size(), handle.get_stream());
       uniform_random_fill(
-        handle.get_stream(), random_numbers.data(), random_numbers.size(), 0.0f, 1.0f, rng_state);
+        random_numbers.data(), random_numbers.size(), 0.0f, 1.0f, rng_state, handle.get_stream());
 
       size_t keep_count{0};
       rmm::device_uvector<uint32_t> keep_flags(0, handle.get_stream());
@@ -1075,12 +1075,12 @@ sample_unvisited_with_one_property(
 
       if (num_types == size_t{1}) {
         if (agg_labels) {
-          thrust::sort(handle.get_thrust_policy(),
-                       thrust::make_zip_iterator(agg_labels->begin(), agg_majors.begin()),
-                       thrust::make_zip_iterator(agg_labels->end(), agg_majors.end()));
+          device_sort(handle.get_thrust_policy(),
+                      thrust::make_zip_iterator(agg_labels->begin(), agg_majors.begin()),
+                      thrust::make_zip_iterator(agg_labels->end(), agg_majors.end()));
         } else {
-          cugraph::detail::sort_ints(
-            handle, raft::device_span<vertex_t>{agg_majors.data(), agg_majors.size()});
+          device_sort(handle.get_thrust_policy(),
+                      raft::device_span<vertex_t>{agg_majors.data(), agg_majors.size()});
         }
 
         rmm::device_uvector<size_t> agg_counts(agg_majors.size(), handle.get_stream());
@@ -1120,14 +1120,14 @@ sample_unvisited_with_one_property(
           std::get<rmm::device_uvector<edge_type_t>>(std::move(discarded_types));
 
         if (agg_labels) {
-          thrust::sort(
+          device_sort(
             handle.get_thrust_policy(),
             thrust::make_zip_iterator(agg_labels->begin(), agg_majors.begin(), types.begin()),
             thrust::make_zip_iterator(agg_labels->end(), agg_majors.end(), types.end()));
         } else {
-          thrust::sort(handle.get_thrust_policy(),
-                       thrust::make_zip_iterator(agg_majors.begin(), types.begin()),
-                       thrust::make_zip_iterator(agg_majors.end(), types.end()));
+          device_sort(handle.get_thrust_policy(),
+                      thrust::make_zip_iterator(agg_majors.begin(), types.begin()),
+                      thrust::make_zip_iterator(agg_majors.end(), types.end()));
         }
 
         rmm::device_uvector<size_t> kr_cnt(agg_majors.size(), handle.get_stream());
