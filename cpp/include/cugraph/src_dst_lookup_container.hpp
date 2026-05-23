@@ -1,9 +1,10 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2024-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
 
+#include <cugraph/export.hpp>
 #include <cugraph/graph.hpp>
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/thrust_tuple_utils.hpp>
@@ -18,7 +19,7 @@
 #include <unordered_map>
 #include <vector>
 
-namespace cugraph {
+namespace CUGRAPH_EXPORT cugraph {
 
 template <typename edge_id_t,
           typename edge_type_t,
@@ -64,4 +65,4 @@ class lookup_container_t {
     bool multi_gpu) const;
 };
 
-}  // namespace cugraph
+}  // namespace CUGRAPH_EXPORT cugraph

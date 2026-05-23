@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cugraph/detail/utility_wrappers_device_sort.cuh>
+#include <cugraph/export.hpp>
 #include <cugraph/graph.hpp>
 #include <cugraph/prims/detail/optional_dataframe_buffer.hpp>
 #include <cugraph/utilities/dataframe_buffer.hpp>
@@ -39,7 +40,7 @@
 // under cpp/include/cugraph; this requires exposing cuco in the public interface and is currently
 // problematic.
 
-namespace cugraph {
+namespace CUGRAPH_EXPORT cugraph {
 
 namespace detail {
 
@@ -1073,4 +1074,4 @@ class kv_store_t {
     store_;
 };
 
-}  // namespace cugraph
+}  // namespace CUGRAPH_EXPORT cugraph

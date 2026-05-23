@@ -8,6 +8,7 @@
 #include <cugraph/edge_partition_edge_property_device_view.cuh>
 #include <cugraph/edge_partition_endpoint_property_device_view.cuh>
 #include <cugraph/edge_src_dst_property.hpp>
+#include <cugraph/export.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/prims/property_op_utils.cuh>
@@ -30,7 +31,7 @@
 
 #include <type_traits>
 
-namespace cugraph {
+namespace CUGRAPH_EXPORT cugraph {
 
 namespace detail {
 
@@ -963,4 +964,4 @@ auto transform_reduce_e_by_dst_key(raft::handle_t const& handle,
                                                           reduce_op);
 }
 
-}  // namespace cugraph
+}  // namespace CUGRAPH_EXPORT cugraph

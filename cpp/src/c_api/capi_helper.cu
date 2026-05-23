@@ -43,12 +43,12 @@ shuffle_vertex_ids_and_offsets(raft::handle_t const& handle,
   return std::make_tuple(std::move(vertices), std::move(return_offsets));
 }
 
-template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<size_t>>
+template CUGRAPH_EXPORT std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<size_t>>
 shuffle_vertex_ids_and_offsets(raft::handle_t const& handle,
                                rmm::device_uvector<int32_t>&& vertices,
                                raft::device_span<size_t const> offsets);
 
-template std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<size_t>>
+template CUGRAPH_EXPORT std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<size_t>>
 shuffle_vertex_ids_and_offsets(raft::handle_t const& handle,
                                rmm::device_uvector<int64_t>&& vertices,
                                raft::device_span<size_t const> offsets);
@@ -73,43 +73,43 @@ void sort_tuple_by_key(raft::handle_t const& handle,
     thrust::make_zip_iterator(std::get<0>(values).begin(), std::get<1>(values).begin()));
 }
 
-template void sort_by_key(raft::handle_t const& handle,
-                          raft::device_span<int32_t> keys,
-                          raft::device_span<int32_t> values);
-template void sort_by_key(raft::handle_t const& handle,
-                          raft::device_span<int64_t> keys,
-                          raft::device_span<int64_t> values);
+template CUGRAPH_EXPORT void sort_by_key(raft::handle_t const& handle,
+                                         raft::device_span<int32_t> keys,
+                                         raft::device_span<int32_t> values);
+template CUGRAPH_EXPORT void sort_by_key(raft::handle_t const& handle,
+                                         raft::device_span<int64_t> keys,
+                                         raft::device_span<int64_t> values);
 
-template void sort_by_key(raft::handle_t const& handle,
-                          raft::device_span<int32_t> keys,
-                          raft::device_span<float> values);
-template void sort_by_key(raft::handle_t const& handle,
-                          raft::device_span<int64_t> keys,
-                          raft::device_span<float> values);
+template CUGRAPH_EXPORT void sort_by_key(raft::handle_t const& handle,
+                                         raft::device_span<int32_t> keys,
+                                         raft::device_span<float> values);
+template CUGRAPH_EXPORT void sort_by_key(raft::handle_t const& handle,
+                                         raft::device_span<int64_t> keys,
+                                         raft::device_span<float> values);
 
-template void sort_by_key(raft::handle_t const& handle,
-                          raft::device_span<int32_t> keys,
-                          raft::device_span<double> values);
-template void sort_by_key(raft::handle_t const& handle,
-                          raft::device_span<int64_t> keys,
-                          raft::device_span<double> values);
+template CUGRAPH_EXPORT void sort_by_key(raft::handle_t const& handle,
+                                         raft::device_span<int32_t> keys,
+                                         raft::device_span<double> values);
+template CUGRAPH_EXPORT void sort_by_key(raft::handle_t const& handle,
+                                         raft::device_span<int64_t> keys,
+                                         raft::device_span<double> values);
 
-template void sort_tuple_by_key(
+template CUGRAPH_EXPORT void sort_tuple_by_key(
   raft::handle_t const& handle,
   raft::device_span<int32_t> keys,
   std::tuple<raft::device_span<float>, raft::device_span<float>> values);
 
-template void sort_tuple_by_key(
+template CUGRAPH_EXPORT void sort_tuple_by_key(
   raft::handle_t const& handle,
   raft::device_span<int32_t> keys,
   std::tuple<raft::device_span<double>, raft::device_span<double>> values);
 
-template void sort_tuple_by_key(
+template CUGRAPH_EXPORT void sort_tuple_by_key(
   raft::handle_t const& handle,
   raft::device_span<int64_t> keys,
   std::tuple<raft::device_span<float>, raft::device_span<float>> values);
 
-template void sort_tuple_by_key(
+template CUGRAPH_EXPORT void sort_tuple_by_key(
   raft::handle_t const& handle,
   raft::device_span<int64_t> keys,
   std::tuple<raft::device_span<double>, raft::device_span<double>> values);
@@ -169,10 +169,10 @@ reorder_extracted_egonets(raft::handle_t const& handle,
     std::move(offsets), std::move(edge_srcs), std::move(edge_dsts), std::move(edge_weights));
 }
 
-template std::tuple<rmm::device_uvector<size_t>,
-                    rmm::device_uvector<int32_t>,
-                    rmm::device_uvector<int32_t>,
-                    std::optional<rmm::device_uvector<float>>>
+template CUGRAPH_EXPORT std::tuple<rmm::device_uvector<size_t>,
+                                   rmm::device_uvector<int32_t>,
+                                   rmm::device_uvector<int32_t>,
+                                   std::optional<rmm::device_uvector<float>>>
 reorder_extracted_egonets(raft::handle_t const& handle,
                           rmm::device_uvector<size_t>&& source_indices,
                           rmm::device_uvector<size_t>&& offsets,
@@ -180,10 +180,10 @@ reorder_extracted_egonets(raft::handle_t const& handle,
                           rmm::device_uvector<int32_t>&& edge_dsts,
                           std::optional<rmm::device_uvector<float>>&& edge_weights);
 
-template std::tuple<rmm::device_uvector<size_t>,
-                    rmm::device_uvector<int32_t>,
-                    rmm::device_uvector<int32_t>,
-                    std::optional<rmm::device_uvector<double>>>
+template CUGRAPH_EXPORT std::tuple<rmm::device_uvector<size_t>,
+                                   rmm::device_uvector<int32_t>,
+                                   rmm::device_uvector<int32_t>,
+                                   std::optional<rmm::device_uvector<double>>>
 reorder_extracted_egonets(raft::handle_t const& handle,
                           rmm::device_uvector<size_t>&& source_indices,
                           rmm::device_uvector<size_t>&& offsets,
@@ -191,10 +191,10 @@ reorder_extracted_egonets(raft::handle_t const& handle,
                           rmm::device_uvector<int32_t>&& edge_dsts,
                           std::optional<rmm::device_uvector<double>>&& edge_weights);
 
-template std::tuple<rmm::device_uvector<size_t>,
-                    rmm::device_uvector<int64_t>,
-                    rmm::device_uvector<int64_t>,
-                    std::optional<rmm::device_uvector<float>>>
+template CUGRAPH_EXPORT std::tuple<rmm::device_uvector<size_t>,
+                                   rmm::device_uvector<int64_t>,
+                                   rmm::device_uvector<int64_t>,
+                                   std::optional<rmm::device_uvector<float>>>
 reorder_extracted_egonets(raft::handle_t const& handle,
                           rmm::device_uvector<size_t>&& source_indices,
                           rmm::device_uvector<size_t>&& offsets,
@@ -202,10 +202,10 @@ reorder_extracted_egonets(raft::handle_t const& handle,
                           rmm::device_uvector<int64_t>&& edge_dsts,
                           std::optional<rmm::device_uvector<float>>&& edge_weights);
 
-template std::tuple<rmm::device_uvector<size_t>,
-                    rmm::device_uvector<int64_t>,
-                    rmm::device_uvector<int64_t>,
-                    std::optional<rmm::device_uvector<double>>>
+template CUGRAPH_EXPORT std::tuple<rmm::device_uvector<size_t>,
+                                   rmm::device_uvector<int64_t>,
+                                   rmm::device_uvector<int64_t>,
+                                   std::optional<rmm::device_uvector<double>>>
 reorder_extracted_egonets(raft::handle_t const& handle,
                           rmm::device_uvector<size_t>&& source_indices,
                           rmm::device_uvector<size_t>&& offsets,

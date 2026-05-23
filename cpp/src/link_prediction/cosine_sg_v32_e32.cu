@@ -1,27 +1,29 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2024, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #include "link_prediction/cosine_similarity_impl.cuh"
 
+#include <cugraph/export.hpp>
+
 namespace cugraph {
 
-template rmm::device_uvector<float> cosine_similarity_coefficients(
+template CUGRAPH_EXPORT rmm::device_uvector<float> cosine_similarity_coefficients(
   raft::handle_t const& handle,
   graph_view_t<int32_t, int32_t, false, false> const& graph_view,
   std::optional<edge_property_view_t<int32_t, float const*>> edge_weight_view,
   std::tuple<raft::device_span<int32_t const>, raft::device_span<int32_t const>> vertex_pairs,
   bool do_expensive_check);
 
-template rmm::device_uvector<double> cosine_similarity_coefficients(
+template CUGRAPH_EXPORT rmm::device_uvector<double> cosine_similarity_coefficients(
   raft::handle_t const& handle,
   graph_view_t<int32_t, int32_t, false, false> const& graph_view,
   std::optional<edge_property_view_t<int32_t, double const*>> edge_weight_view,
   std::tuple<raft::device_span<int32_t const>, raft::device_span<int32_t const>> vertex_pairs,
   bool do_expensive_check);
 
-template std::
-  tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>, rmm::device_uvector<float>>
+template CUGRAPH_EXPORT
+  std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>, rmm::device_uvector<float>>
   cosine_similarity_all_pairs_coefficients(
     raft::handle_t const& handle,
     graph_view_t<int32_t, int32_t, false, false> const& graph_view,
@@ -30,7 +32,7 @@ template std::
     std::optional<size_t> topk,
     bool do_expensive_check);
 
-template std::
+template CUGRAPH_EXPORT std::
   tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>, rmm::device_uvector<double>>
   cosine_similarity_all_pairs_coefficients(
     raft::handle_t const& handle,

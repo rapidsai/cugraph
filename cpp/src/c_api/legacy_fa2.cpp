@@ -11,6 +11,7 @@
 #include "c_api/utils.hpp"
 
 #include <cugraph_c/algorithms.h>
+#include <cugraph_c/export.h>
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
@@ -372,15 +373,15 @@ struct force_atlas2_functor : public cugraph::c_api::abstract_functor {
 
 }  // namespace
 
-extern "C" cugraph_type_erased_device_array_view_t* cugraph_layout_result_get_vertices(
-  cugraph::c_api::cugraph_layout_result_t* result)
+extern "C" CUGRAPH_EXPORT cugraph_type_erased_device_array_view_t*
+cugraph_layout_result_get_vertices(cugraph::c_api::cugraph_layout_result_t* result)
 {
   auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_layout_result_t*>(result);
   return reinterpret_cast<cugraph_type_erased_device_array_view_t*>(
     internal_pointer->vertices_->view());
 }
 
-extern "C" cugraph_type_erased_device_array_view_t* cugraph_layout_result_get_x_axis(
+extern "C" CUGRAPH_EXPORT cugraph_type_erased_device_array_view_t* cugraph_layout_result_get_x_axis(
   cugraph::c_api::cugraph_layout_result_t* result)
 {
   auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_layout_result_t*>(result);
@@ -388,7 +389,7 @@ extern "C" cugraph_type_erased_device_array_view_t* cugraph_layout_result_get_x_
     internal_pointer->x_axis_->view());
 }
 
-extern "C" cugraph_type_erased_device_array_view_t* cugraph_layout_result_get_y_axis(
+extern "C" CUGRAPH_EXPORT cugraph_type_erased_device_array_view_t* cugraph_layout_result_get_y_axis(
   cugraph::c_api::cugraph_layout_result_t* result)
 {
   auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_layout_result_t*>(result);
@@ -396,7 +397,8 @@ extern "C" cugraph_type_erased_device_array_view_t* cugraph_layout_result_get_y_
     internal_pointer->y_axis_->view());
 }
 
-extern "C" void cugraph_layout_result_free(cugraph::c_api::cugraph_layout_result_t* result)
+extern "C" CUGRAPH_EXPORT void cugraph_layout_result_free(
+  cugraph::c_api::cugraph_layout_result_t* result)
 {
   auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_layout_result_t*>(result);
   delete internal_pointer->vertices_;
@@ -405,35 +407,35 @@ extern "C" void cugraph_layout_result_free(cugraph::c_api::cugraph_layout_result
   delete internal_pointer;
 }
 
-extern "C" cugraph_error_code_t cugraph_force_atlas2(
-  const cugraph_resource_handle_t* handle,
-  cugraph_rng_state_t* rng_state,
-  cugraph_graph_t* graph,
-  int max_iter,
-  const cugraph_type_erased_device_array_view_t* start_vertices,
-  const cugraph_type_erased_device_array_view_t* x_start,
-  const cugraph_type_erased_device_array_view_t* y_start,
-  bool_t outbound_attraction_distribution,
-  bool_t lin_log_mode,
-  bool_t prevent_overlapping,
-  const cugraph_type_erased_device_array_view_t* vertex_radius_vertices,
-  const cugraph_type_erased_device_array_view_t* vertex_radius_values,
-  double overlap_scaling_ratio,
-  double edge_weight_influence,
-  double jitter_tolerance,
-  bool_t barnes_hut_optimize,
-  double barnes_hut_theta,
-  double scaling_ratio,
-  bool_t strong_gravity_mode,
-  double gravity,
-  const cugraph_type_erased_device_array_view_t* vertex_mobility_vertices,
-  const cugraph_type_erased_device_array_view_t* vertex_mobility_values,
-  const cugraph_type_erased_device_array_view_t* vertex_mass_vertices,
-  const cugraph_type_erased_device_array_view_t* vertex_mass_values,
-  bool_t verbose,
-  bool_t do_expensive_check,
-  cugraph::c_api::cugraph_layout_result_t** result,
-  cugraph_error_t** error)
+extern "C" CUGRAPH_EXPORT cugraph_error_code_t
+cugraph_force_atlas2(const cugraph_resource_handle_t* handle,
+                     cugraph_rng_state_t* rng_state,
+                     cugraph_graph_t* graph,
+                     int max_iter,
+                     const cugraph_type_erased_device_array_view_t* start_vertices,
+                     const cugraph_type_erased_device_array_view_t* x_start,
+                     const cugraph_type_erased_device_array_view_t* y_start,
+                     bool_t outbound_attraction_distribution,
+                     bool_t lin_log_mode,
+                     bool_t prevent_overlapping,
+                     const cugraph_type_erased_device_array_view_t* vertex_radius_vertices,
+                     const cugraph_type_erased_device_array_view_t* vertex_radius_values,
+                     double overlap_scaling_ratio,
+                     double edge_weight_influence,
+                     double jitter_tolerance,
+                     bool_t barnes_hut_optimize,
+                     double barnes_hut_theta,
+                     double scaling_ratio,
+                     bool_t strong_gravity_mode,
+                     double gravity,
+                     const cugraph_type_erased_device_array_view_t* vertex_mobility_vertices,
+                     const cugraph_type_erased_device_array_view_t* vertex_mobility_values,
+                     const cugraph_type_erased_device_array_view_t* vertex_mass_vertices,
+                     const cugraph_type_erased_device_array_view_t* vertex_mass_values,
+                     bool_t verbose,
+                     bool_t do_expensive_check,
+                     cugraph::c_api::cugraph_layout_result_t** result,
+                     cugraph_error_t** error)
 {
   CAPI_EXPECTS(((x_start == nullptr) && (y_start == nullptr) && start_vertices == nullptr) ||
                  ((x_start != nullptr) && (y_start != nullptr) && (start_vertices != nullptr)),

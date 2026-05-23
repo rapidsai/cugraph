@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2024, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -16,6 +16,7 @@
 // correlating a property to a particular vertex or edge.
 //
 
+#include <cugraph_c/export.h>
 #include <cugraph_c/resource_handle.h>
 
 #ifdef __cplusplus
@@ -54,7 +55,7 @@ typedef struct {
  *                                be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_vertex_property_create(
+CUGRAPH_EXPORT cugraph_error_code_t cugraph_vertex_property_create(
   const cugraph_resource_handle_t* handle,
   const cugraph_graph_t * graph,
   const cugraph_type_erased_device_array_t* vertex_ids,
@@ -77,7 +78,7 @@ cugraph_error_code_t cugraph_vertex_property_create(
  *                                be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_edge_property_create(
+CUGRAPH_EXPORT cugraph_error_code_t cugraph_edge_property_create(
   const cugraph_resource_handle_t* handle,
   const cugraph_graph_t * graph,
   const cugraph_lookup_container_t* lookup_container,
@@ -99,7 +100,7 @@ cugraph_error_code_t cugraph_edge_property_create(
  *                                be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_vertex_property_update(
+CUGRAPH_EXPORT cugraph_error_code_t cugraph_vertex_property_update(
   const cugraph_resource_handle_t* handle,
   const cugraph_graph_t * graph,
   const cugraph_type_erased_device_array_t* vertex_ids,
@@ -121,7 +122,7 @@ cugraph_error_code_t cugraph_vertex_property_update(
  *                                be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_edge_property_create(
+CUGRAPH_EXPORT cugraph_error_code_t cugraph_edge_property_create(
   const cugraph_resource_handle_t* handle,
   const cugraph_graph_t * graph,
   const cugraph_lookup_container_t* lookup_container,
@@ -136,7 +137,7 @@ cugraph_error_code_t cugraph_edge_property_create(
  * @param [in]  vertex_property   Pointer to the vertex property object
  * @return Pointer to the view of the host array
  */
-cugraph_vertex_property_view_t* cugraph_vertex_property_view(
+CUGRAPH_EXPORT cugraph_vertex_property_view_t* cugraph_vertex_property_view(
   cugraph_vertex_property_view* vertex_property);
 
 /**
@@ -145,7 +146,7 @@ cugraph_vertex_property_view_t* cugraph_vertex_property_view(
  * @param [in]  edge_property   Pointer to the edge property object
  * @return Pointer to the view of the host array
  */
-cugraph_edge_property_view_t* cugraph_edge_property_view(
+CUGRAPH_EXPORT cugraph_edge_property_view_t* cugraph_edge_property_view(
   cugraph_edge_property_view* edge_property);
 
 /**
@@ -153,29 +154,31 @@ cugraph_edge_property_view_t* cugraph_edge_property_view(
  *
  * @param [in]  p    Pointer to the vertex_property object
  */
-void cugraph_vertex_property_free(cugraph_vertex_property_t* p);
+CUGRAPH_EXPORT void cugraph_vertex_property_free(cugraph_vertex_property_t* p);
 
 /**
  * @brief    Destroy a edge_property object
  *
  * @param [in]  p    Pointer to the edge_property object
  */
-void cugraph_edge_property_free(cugraph_edge_property_t* p);
+CUGRAPH_EXPORT void cugraph_edge_property_free(cugraph_edge_property_t* p);
 
 /**
  * @brief    Destroy a vertex_property_view object
  *
  * @param [in]  p    Pointer to the vertex_property_view object
  */
-void cugraph_vertex_property_view_free(cugraph_vertex_property__viewt* p);
+CUGRAPH_EXPORT void cugraph_vertex_property_view_free(cugraph_vertex_property__viewt* p);
 
 /**
  * @brief    Destroy a edge_property_view object
  *
  * @param [in]  p    Pointer to the edge_property_view object
  */
-void cugraph_edge_property_view_free(cugraph_edge_property_view_t* p);
+CUGRAPH_EXPORT void cugraph_edge_property_view_free(cugraph_edge_property_view_t* p);
 #endif
+
+#include <cugraph_c/export.h>
 
 #ifdef __cplusplus
 }

@@ -9,6 +9,7 @@
 #include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/edge_partition_endpoint_property_device_view.cuh>
 #include <cugraph/edge_src_dst_property.hpp>
+#include <cugraph/export.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/prims/detail/optional_dataframe_buffer.hpp>
 #include <cugraph/prims/kv_store.cuh>
@@ -47,7 +48,7 @@
 #include <tuple>
 #include <type_traits>
 
-namespace cugraph {
+namespace CUGRAPH_EXPORT cugraph {
 
 namespace detail {
 
@@ -1122,4 +1123,4 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
   }
 }
 
-}  // namespace cugraph
+}  // namespace CUGRAPH_EXPORT cugraph

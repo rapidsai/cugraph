@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cugraph/detail/utility_wrappers_device_sort_scalar.hpp>
+#include <cugraph/export.hpp>
 
 #include <raft/core/device_span.hpp>
 #include <raft/random/rng_state.hpp>
@@ -19,7 +20,7 @@
 #include <iterator>
 #include <type_traits>
 
-namespace cugraph {
+namespace CUGRAPH_EXPORT cugraph {
 namespace detail {
 
 /** @defgroup utility_wrappers_cpp C++ Utility Wrappers
@@ -296,4 +297,4 @@ size_t count_values(raft::device_span<data_t const> span,
                     rmm::cuda_stream_view const& stream_view);
 
 }  // namespace detail
-}  // namespace cugraph
+}  // namespace CUGRAPH_EXPORT cugraph

@@ -1,14 +1,17 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #include "structure/renumber_edgelist_impl.cuh"
+
+#include <cugraph/export.hpp>
 
 namespace cugraph {
 
 // MG instantiation
 
-template std::tuple<rmm::device_uvector<int64_t>, renumber_meta_t<int64_t, int64_t, true>>
+template CUGRAPH_EXPORT std::tuple<rmm::device_uvector<int64_t>,
+                                   renumber_meta_t<int64_t, int64_t, true>>
 renumber_edgelist<int64_t, int64_t, true>(
   raft::handle_t const& handle,
   std::optional<rmm::device_uvector<int64_t>>&& local_vertices,

@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2023, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -13,6 +13,8 @@
 
 /** @defgroup centrality Centrality algorithms
  */
+
+#include <cugraph_c/export.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -32,7 +34,7 @@ typedef struct {
  * @param [in]   result   The result from a centrality algorithm
  * @return type erased array of vertex ids
  */
-cugraph_type_erased_device_array_view_t* cugraph_centrality_result_get_vertices(
+CUGRAPH_EXPORT cugraph_type_erased_device_array_view_t* cugraph_centrality_result_get_vertices(
   cugraph_centrality_result_t* result);
 
 /**
@@ -42,7 +44,7 @@ cugraph_type_erased_device_array_view_t* cugraph_centrality_result_get_vertices(
  * @param [in]   result   The result from a centrality algorithm
  * @return type erased array view of centrality values
  */
-cugraph_type_erased_device_array_view_t* cugraph_centrality_result_get_values(
+CUGRAPH_EXPORT cugraph_type_erased_device_array_view_t* cugraph_centrality_result_get_values(
   cugraph_centrality_result_t* result);
 
 /**
@@ -52,7 +54,8 @@ cugraph_type_erased_device_array_view_t* cugraph_centrality_result_get_values(
  * @param [in]   result   The result from a centrality algorithm
  * @return the number of iterations
  */
-size_t cugraph_centrality_result_get_num_iterations(cugraph_centrality_result_t* result);
+CUGRAPH_EXPORT size_t
+cugraph_centrality_result_get_num_iterations(cugraph_centrality_result_t* result);
 
 /**
  * @ingroup centrality
@@ -61,7 +64,7 @@ size_t cugraph_centrality_result_get_num_iterations(cugraph_centrality_result_t*
  * @param [in]   result   The result from a centrality algorithm
  * @return True if the centrality algorithm converged, false otherwise
  */
-bool_t cugraph_centrality_result_converged(cugraph_centrality_result_t* result);
+CUGRAPH_EXPORT bool_t cugraph_centrality_result_converged(cugraph_centrality_result_t* result);
 
 /**
  * @ingroup centrality
@@ -69,7 +72,7 @@ bool_t cugraph_centrality_result_converged(cugraph_centrality_result_t* result);
  *
  * @param [in]   result   The result from a centrality algorithm
  */
-void cugraph_centrality_result_free(cugraph_centrality_result_t* result);
+CUGRAPH_EXPORT void cugraph_centrality_result_free(cugraph_centrality_result_t* result);
 
 /**
  * @brief     Compute pagerank
@@ -108,7 +111,7 @@ void cugraph_centrality_result_free(cugraph_centrality_result_t* result);
  *                          be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_pagerank(
+CUGRAPH_EXPORT cugraph_error_code_t cugraph_pagerank(
   const cugraph_resource_handle_t* handle,
   cugraph_graph_t* graph,
   const cugraph_type_erased_device_array_view_t* precomputed_vertex_out_weight_vertices,
@@ -163,7 +166,7 @@ cugraph_error_code_t cugraph_pagerank(
  *                          be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_pagerank_allow_nonconvergence(
+CUGRAPH_EXPORT cugraph_error_code_t cugraph_pagerank_allow_nonconvergence(
   const cugraph_resource_handle_t* handle,
   cugraph_graph_t* graph,
   const cugraph_type_erased_device_array_view_t* precomputed_vertex_out_weight_vertices,
@@ -222,7 +225,7 @@ cugraph_error_code_t cugraph_pagerank_allow_nonconvergence(
  *                          be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_personalized_pagerank(
+CUGRAPH_EXPORT cugraph_error_code_t cugraph_personalized_pagerank(
   const cugraph_resource_handle_t* handle,
   cugraph_graph_t* graph,
   const cugraph_type_erased_device_array_view_t* precomputed_vertex_out_weight_vertices,
@@ -279,7 +282,7 @@ cugraph_error_code_t cugraph_personalized_pagerank(
  *                          be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_personalized_pagerank_allow_nonconvergence(
+CUGRAPH_EXPORT cugraph_error_code_t cugraph_personalized_pagerank_allow_nonconvergence(
   const cugraph_resource_handle_t* handle,
   cugraph_graph_t* graph,
   const cugraph_type_erased_device_array_view_t* precomputed_vertex_out_weight_vertices,
@@ -313,13 +316,14 @@ cugraph_error_code_t cugraph_personalized_pagerank_allow_nonconvergence(
  *                          be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_eigenvector_centrality(const cugraph_resource_handle_t* handle,
-                                                    cugraph_graph_t* graph,
-                                                    double epsilon,
-                                                    size_t max_iterations,
-                                                    bool_t do_expensive_check,
-                                                    cugraph_centrality_result_t** result,
-                                                    cugraph_error_t** error);
+CUGRAPH_EXPORT cugraph_error_code_t
+cugraph_eigenvector_centrality(const cugraph_resource_handle_t* handle,
+                               cugraph_graph_t* graph,
+                               double epsilon,
+                               size_t max_iterations,
+                               bool_t do_expensive_check,
+                               cugraph_centrality_result_t** result,
+                               cugraph_error_t** error);
 
 /**
  * @brief     Compute katz centrality
@@ -346,16 +350,17 @@ cugraph_error_code_t cugraph_eigenvector_centrality(const cugraph_resource_handl
  *                          be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_katz_centrality(const cugraph_resource_handle_t* handle,
-                                             cugraph_graph_t* graph,
-                                             const cugraph_type_erased_device_array_view_t* betas,
-                                             double alpha,
-                                             double beta,
-                                             double epsilon,
-                                             size_t max_iterations,
-                                             bool_t do_expensive_check,
-                                             cugraph_centrality_result_t** result,
-                                             cugraph_error_t** error);
+CUGRAPH_EXPORT cugraph_error_code_t
+cugraph_katz_centrality(const cugraph_resource_handle_t* handle,
+                        cugraph_graph_t* graph,
+                        const cugraph_type_erased_device_array_view_t* betas,
+                        double alpha,
+                        double beta,
+                        double epsilon,
+                        size_t max_iterations,
+                        bool_t do_expensive_check,
+                        cugraph_centrality_result_t** result,
+                        cugraph_error_t** error);
 
 /**
  * @brief     Compute betweenness centrality
@@ -383,15 +388,15 @@ cugraph_error_code_t cugraph_katz_centrality(const cugraph_resource_handle_t* ha
  *                                 be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_betweenness_centrality(
-  const cugraph_resource_handle_t* handle,
-  cugraph_graph_t* graph,
-  const cugraph_type_erased_device_array_view_t* vertex_list,
-  bool_t normalized,
-  bool_t include_endpoints,
-  bool_t do_expensive_check,
-  cugraph_centrality_result_t** result,
-  cugraph_error_t** error);
+CUGRAPH_EXPORT cugraph_error_code_t
+cugraph_betweenness_centrality(const cugraph_resource_handle_t* handle,
+                               cugraph_graph_t* graph,
+                               const cugraph_type_erased_device_array_view_t* vertex_list,
+                               bool_t normalized,
+                               bool_t include_endpoints,
+                               bool_t do_expensive_check,
+                               cugraph_centrality_result_t** result,
+                               cugraph_error_t** error);
 
 /**
  * @brief     Opaque edge centrality result type
@@ -407,8 +412,8 @@ typedef struct {
  * @param [in]   result   The result from an edge centrality algorithm
  * @return type erased array of src vertex ids
  */
-cugraph_type_erased_device_array_view_t* cugraph_edge_centrality_result_get_src_vertices(
-  cugraph_edge_centrality_result_t* result);
+CUGRAPH_EXPORT cugraph_type_erased_device_array_view_t*
+cugraph_edge_centrality_result_get_src_vertices(cugraph_edge_centrality_result_t* result);
 
 /**
  * @ingroup centrality
@@ -417,8 +422,8 @@ cugraph_type_erased_device_array_view_t* cugraph_edge_centrality_result_get_src_
  * @param [in]   result   The result from an edge centrality algorithm
  * @return type erased array of dst vertex ids
  */
-cugraph_type_erased_device_array_view_t* cugraph_edge_centrality_result_get_dst_vertices(
-  cugraph_edge_centrality_result_t* result);
+CUGRAPH_EXPORT cugraph_type_erased_device_array_view_t*
+cugraph_edge_centrality_result_get_dst_vertices(cugraph_edge_centrality_result_t* result);
 
 /**
  * @ingroup centrality
@@ -427,7 +432,7 @@ cugraph_type_erased_device_array_view_t* cugraph_edge_centrality_result_get_dst_
  * @param [in]   result   The result from an edge centrality algorithm
  * @return type erased array of edge ids
  */
-cugraph_type_erased_device_array_view_t* cugraph_edge_centrality_result_get_edge_ids(
+CUGRAPH_EXPORT cugraph_type_erased_device_array_view_t* cugraph_edge_centrality_result_get_edge_ids(
   cugraph_edge_centrality_result_t* result);
 
 /**
@@ -437,7 +442,7 @@ cugraph_type_erased_device_array_view_t* cugraph_edge_centrality_result_get_edge
  * @param [in]   result   The result from an edge centrality algorithm
  * @return type erased array view of centrality values
  */
-cugraph_type_erased_device_array_view_t* cugraph_edge_centrality_result_get_values(
+CUGRAPH_EXPORT cugraph_type_erased_device_array_view_t* cugraph_edge_centrality_result_get_values(
   cugraph_edge_centrality_result_t* result);
 
 /**
@@ -446,7 +451,7 @@ cugraph_type_erased_device_array_view_t* cugraph_edge_centrality_result_get_valu
  *
  * @param [in]   result   The result from a centrality algorithm
  */
-void cugraph_edge_centrality_result_free(cugraph_edge_centrality_result_t* result);
+CUGRAPH_EXPORT void cugraph_edge_centrality_result_free(cugraph_edge_centrality_result_t* result);
 
 /**
  * @brief     Compute edge betweenness centrality
@@ -471,14 +476,14 @@ void cugraph_edge_centrality_result_free(cugraph_edge_centrality_result_t* resul
  *                                 be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_edge_betweenness_centrality(
-  const cugraph_resource_handle_t* handle,
-  cugraph_graph_t* graph,
-  const cugraph_type_erased_device_array_view_t* vertex_list,
-  bool_t normalized,
-  bool_t do_expensive_check,
-  cugraph_edge_centrality_result_t** result,
-  cugraph_error_t** error);
+CUGRAPH_EXPORT cugraph_error_code_t
+cugraph_edge_betweenness_centrality(const cugraph_resource_handle_t* handle,
+                                    cugraph_graph_t* graph,
+                                    const cugraph_type_erased_device_array_view_t* vertex_list,
+                                    bool_t normalized,
+                                    bool_t do_expensive_check,
+                                    cugraph_edge_centrality_result_t** result,
+                                    cugraph_error_t** error);
 
 /**
  * @brief     Opaque hits result type
@@ -494,7 +499,7 @@ typedef struct {
  * @param [in]   result   The result from hits
  * @return type erased array of vertex ids
  */
-cugraph_type_erased_device_array_view_t* cugraph_hits_result_get_vertices(
+CUGRAPH_EXPORT cugraph_type_erased_device_array_view_t* cugraph_hits_result_get_vertices(
   cugraph_hits_result_t* result);
 
 /**
@@ -504,7 +509,7 @@ cugraph_type_erased_device_array_view_t* cugraph_hits_result_get_vertices(
  * @param [in]   result   The result from hits
  * @return type erased array of hubs values
  */
-cugraph_type_erased_device_array_view_t* cugraph_hits_result_get_hubs(
+CUGRAPH_EXPORT cugraph_type_erased_device_array_view_t* cugraph_hits_result_get_hubs(
   cugraph_hits_result_t* result);
 
 /**
@@ -514,7 +519,7 @@ cugraph_type_erased_device_array_view_t* cugraph_hits_result_get_hubs(
  * @param [in]   result   The result from hits
  * @return type erased array of authorities values
  */
-cugraph_type_erased_device_array_view_t* cugraph_hits_result_get_authorities(
+CUGRAPH_EXPORT cugraph_type_erased_device_array_view_t* cugraph_hits_result_get_authorities(
   cugraph_hits_result_t* result);
 
 /**
@@ -524,7 +529,7 @@ cugraph_type_erased_device_array_view_t* cugraph_hits_result_get_authorities(
  * @param [in]   result   The result from hits
  * @return score differences
  */
-double cugraph_hits_result_get_hub_score_differences(cugraph_hits_result_t* result);
+CUGRAPH_EXPORT double cugraph_hits_result_get_hub_score_differences(cugraph_hits_result_t* result);
 
 /**
  * @ingroup centrality
@@ -533,7 +538,7 @@ double cugraph_hits_result_get_hub_score_differences(cugraph_hits_result_t* resu
  * @param [in]   result   The result from hits
  * @return actual number of iterations
  */
-size_t cugraph_hits_result_get_number_of_iterations(cugraph_hits_result_t* result);
+CUGRAPH_EXPORT size_t cugraph_hits_result_get_number_of_iterations(cugraph_hits_result_t* result);
 
 /**
  * @ingroup centrality
@@ -541,7 +546,7 @@ size_t cugraph_hits_result_get_number_of_iterations(cugraph_hits_result_t* resul
  *
  * @param [in]   result   The result from hits
  */
-void cugraph_hits_result_free(cugraph_hits_result_t* result);
+CUGRAPH_EXPORT void cugraph_hits_result_free(cugraph_hits_result_t* result);
 
 /**
  * @brief     Compute hits
@@ -573,17 +578,19 @@ void cugraph_hits_result_free(cugraph_hits_result_t* result);
  *                          be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_hits(
-  const cugraph_resource_handle_t* handle,
-  cugraph_graph_t* graph,
-  double epsilon,
-  size_t max_iterations,
-  const cugraph_type_erased_device_array_view_t* initial_hubs_guess_vertices,
-  const cugraph_type_erased_device_array_view_t* initial_hubs_guess_values,
-  bool_t normalize,
-  bool_t do_expensive_check,
-  cugraph_hits_result_t** result,
-  cugraph_error_t** error);
+CUGRAPH_EXPORT cugraph_error_code_t
+cugraph_hits(const cugraph_resource_handle_t* handle,
+             cugraph_graph_t* graph,
+             double epsilon,
+             size_t max_iterations,
+             const cugraph_type_erased_device_array_view_t* initial_hubs_guess_vertices,
+             const cugraph_type_erased_device_array_view_t* initial_hubs_guess_values,
+             bool_t normalize,
+             bool_t do_expensive_check,
+             cugraph_hits_result_t** result,
+             cugraph_error_t** error);
+
+#include <cugraph_c/export.h>
 
 #ifdef __cplusplus
 }

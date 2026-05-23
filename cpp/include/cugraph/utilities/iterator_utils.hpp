@@ -4,6 +4,8 @@
  */
 #pragma once
 
+#include <cugraph/export.hpp>
+
 #include <thrust/device_ptr.h>
 #include <thrust/iterator/detail/normal_iterator.h>
 #include <thrust/iterator/discard_iterator.h>
@@ -11,7 +13,7 @@
 
 #include <type_traits>
 
-namespace cugraph {
+namespace CUGRAPH_EXPORT cugraph {
 
 namespace detail {
 
@@ -47,4 +49,4 @@ auto iter_to_raw_ptr(thrust::detail::normal_iterator<thrust::device_ptr<T>> iter
 }
 
 }  // namespace detail
-}  // namespace cugraph
+}  // namespace CUGRAPH_EXPORT cugraph

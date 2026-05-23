@@ -9,6 +9,7 @@
 #include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/edge_partition_endpoint_property_device_view.cuh>
 #include <cugraph/edge_src_dst_property.hpp>
+#include <cugraph/export.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/prims/detail/nbr_intersection.cuh>
 #include <cugraph/prims/property_op_utils.cuh>
@@ -39,7 +40,7 @@
 
 #include <type_traits>
 
-namespace cugraph {
+namespace CUGRAPH_EXPORT cugraph {
 
 namespace detail {
 
@@ -530,4 +531,4 @@ void transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v(
   }
 }
 
-}  // namespace cugraph
+}  // namespace CUGRAPH_EXPORT cugraph

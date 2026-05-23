@@ -6,17 +6,19 @@
  * across libcugraph (lexicographic multi-column sorts). Iterator types match
  * utility_wrappers_device_sort_zip_types.hpp (see @ref device_sort_supported_v).
  */
+
 #include "detail/utility_wrappers_impl.cuh"
 
 #include <cugraph/detail/utility_wrappers_device_sort_zip_types.hpp>
+#include <cugraph/export.hpp>
 
 namespace cugraph {
 namespace detail {
 
 #define CUGRAPH_DEVICE_SORT_ZIP_INST(ZipType)                     \
-  template void device_sort_impl<ZipType>(                        \
+  template CUGRAPH_EXPORT void device_sort_impl<ZipType>(         \
     rmm::exec_policy const& policy, ZipType first, ZipType last); \
-  template void device_sort_impl<ZipType>(                        \
+  template CUGRAPH_EXPORT void device_sort_impl<ZipType>(         \
     rmm::exec_policy_nosync const& policy, ZipType first, ZipType last)
 
 CUGRAPH_DEVICE_SORT_ZIP_INST(zip_i32_i32);

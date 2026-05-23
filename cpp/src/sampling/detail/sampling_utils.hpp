@@ -494,11 +494,10 @@ update_dst_visited_vertices_and_labels(
  * Keeps one edge per (label, minor) or per minor. Callers should merge the returned minors into
  * visited sets via update_dst_visited_vertices_and_labels.
  *
- * When call_from_sampling is true, we need to skip all edges that come from any major vertex that
- * we are going to skip.  So this function will return the majors that need to be resampled.
- *
- * FIXME: We should eliminate the call_from_sampling flag by refactoring
- * sample_edges_to_unvisited_neighbors to use the partial results we return here.
+ * When edges are removed, the last four return values contain the discarded edges (majors, minors,
+ * edge_property, labels in lockstep). Callers such as sample_unvisited_with_one_property use
+ * those to build the resample frontier. When there are no duplicates, discarded bundles are empty
+ * (length zero / monostate / nullopt).
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
@@ -507,28 +506,33 @@ update_dst_visited_vertices_and_labels(
  * @param graph_view Graph View object for context (partitioning, MG routing, etc.).
  * @param result_majors Device vector of edge major (source) vertices.
  * @param result_minors Device vector of edge minor (destination) vertices.
- * @param tmp_edge_indices Multi-edge indices (or single property column) to filter in lockstep;
- *        arithmetic_device_uvector_t (monostate or device vector). Returned as filtered.
+ * @param result_edge_property Per-edge property column in lockstep with majors/minors
+ *        (monostate if none, or rmm::device_uvector<edge_t> multi-edge index when present).
+ * @param result_types Optional per-edge edge-type column (monostate or int32_t), in lockstep when
+ *        present for sort/split; only discarded_types is returned, not kept types.
  * @param result_labels Optional device vector of labels per edge.
- * @param call_from_sampling If true, the last two return values are populated with majors (and
- *        optional major labels) that need to be resampled (edges to those were removed).
- * @return Tuple of filtered (result_majors, result_minors, tmp_edge_indices, result_labels), and
- *         when call_from_sampling is true, optional (resample_majors, resample_major_labels).
+ * @return Tuple of kept (majors, minors, result_edge_property, labels), then discarded (majors,
+ *         minors, discarded_edge_property, discarded_types, labels). Kept rows are the first edge
+ *         per (label, minor) or per minor after sorting by that key. Callers that do not need
+ *         discards may bind the last five tuple elements to `std::ignore`.
  */
 template <typename vertex_t, typename edge_t, bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            arithmetic_device_uvector_t,
            std::optional<rmm::device_uvector<int32_t>>,
-           std::optional<rmm::device_uvector<vertex_t>>,
+           rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           arithmetic_device_uvector_t,
+           arithmetic_device_uvector_t,
            std::optional<rmm::device_uvector<int32_t>>>
 deduplicate_edges_by_minor(raft::handle_t const& handle,
                            graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
                            rmm::device_uvector<vertex_t>&& result_majors,
                            rmm::device_uvector<vertex_t>&& result_minors,
-                           arithmetic_device_uvector_t&& tmp_edge_indices,
-                           std::optional<rmm::device_uvector<int32_t>>&& result_labels,
-                           bool call_from_sampling);
+                           arithmetic_device_uvector_t&& result_edge_property,
+                           arithmetic_device_uvector_t&& result_types,
+                           std::optional<rmm::device_uvector<int32_t>>&& result_labels);
 
 }  // namespace detail
 }  // namespace cugraph

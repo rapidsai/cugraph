@@ -10,6 +10,7 @@
 #include <cugraph_c/graph_functions.h>
 
 #include <cugraph/detail/utility_wrappers_device_sort.cuh>
+#include <cugraph/export.hpp>
 #include <cugraph/graph.hpp>
 #include <cugraph/utilities/error.hpp>
 

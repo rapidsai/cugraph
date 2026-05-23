@@ -1,11 +1,12 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2024, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
 #pragma once
 
 #include <cugraph_c/array.h>
+#include <cugraph_c/export.h>
 #include <cugraph_c/graph.h>
 #include <cugraph_c/resource_handle.h>
 
@@ -40,11 +41,11 @@ typedef struct {
  *                           be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_build_edge_id_and_type_to_src_dst_lookup_map(
-  const cugraph_resource_handle_t* handle,
-  cugraph_graph_t* graph,
-  cugraph_lookup_container_t** lookup_container,
-  cugraph_error_t** error);
+CUGRAPH_EXPORT cugraph_error_code_t
+cugraph_build_edge_id_and_type_to_src_dst_lookup_map(const cugraph_resource_handle_t* handle,
+                                                     cugraph_graph_t* graph,
+                                                     cugraph_lookup_container_t** lookup_container,
+                                                     cugraph_error_t** error);
 
 /**
  * @brief Lookup edge sources and destinations using edge ids and a single edge type.
@@ -62,7 +63,7 @@ cugraph_error_code_t cugraph_build_edge_id_and_type_to_src_dst_lookup_map(
  *                           be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_lookup_endpoints_from_edge_ids_and_single_type(
+CUGRAPH_EXPORT cugraph_error_code_t cugraph_lookup_endpoints_from_edge_ids_and_single_type(
   const cugraph_resource_handle_t* handle,
   cugraph_graph_t* graph,
   const cugraph_lookup_container_t* lookup_container,
@@ -88,7 +89,7 @@ cugraph_error_code_t cugraph_lookup_endpoints_from_edge_ids_and_single_type(
  *                           be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_lookup_endpoints_from_edge_ids_and_types(
+CUGRAPH_EXPORT cugraph_error_code_t cugraph_lookup_endpoints_from_edge_ids_and_types(
   const cugraph_resource_handle_t* handle,
   cugraph_graph_t* graph,
   const cugraph_lookup_container_t* lookup_container,
@@ -104,7 +105,7 @@ cugraph_error_code_t cugraph_lookup_endpoints_from_edge_ids_and_types(
  * @param [in]  result  The result from src-dst lookup using edge ids and type(s)
  * @return type erased array pointing to the edge sources
  */
-cugraph_type_erased_device_array_view_t* cugraph_lookup_result_get_srcs(
+CUGRAPH_EXPORT cugraph_type_erased_device_array_view_t* cugraph_lookup_result_get_srcs(
   const cugraph_lookup_result_t* result);
 
 /**
@@ -114,7 +115,7 @@ cugraph_type_erased_device_array_view_t* cugraph_lookup_result_get_srcs(
  * @param [in]  result  The result from src-dst lookup using edge ids and type(s)
  * @return type erased array pointing to the edge destinations
  */
-cugraph_type_erased_device_array_view_t* cugraph_lookup_result_get_dsts(
+CUGRAPH_EXPORT cugraph_type_erased_device_array_view_t* cugraph_lookup_result_get_dsts(
   const cugraph_lookup_result_t* result);
 
 /**
@@ -123,7 +124,7 @@ cugraph_type_erased_device_array_view_t* cugraph_lookup_result_get_dsts(
  *
  * @param [in] result     The result from src-dst lookup using edge ids and type(s)
  */
-void cugraph_lookup_result_free(cugraph_lookup_result_t* result);
+CUGRAPH_EXPORT void cugraph_lookup_result_free(cugraph_lookup_result_t* result);
 
 /**
  * @ingroup samplingC
@@ -131,7 +132,9 @@ void cugraph_lookup_result_free(cugraph_lookup_result_t* result);
  *
  * @param [in] container     The sampling lookup map (a.k.a. container).
  */
-void cugraph_lookup_container_free(cugraph_lookup_container_t* container);
+CUGRAPH_EXPORT void cugraph_lookup_container_free(cugraph_lookup_container_t* container);
+
+#include <cugraph_c/export.h>
 
 #ifdef __cplusplus
 }

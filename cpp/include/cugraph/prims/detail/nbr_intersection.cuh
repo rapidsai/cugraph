@@ -7,6 +7,7 @@
 #include <cugraph/detail/utility_wrappers_device_sort.cuh>
 #include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/edge_partition_edge_property_device_view.cuh>
+#include <cugraph/export.hpp>
 #include <cugraph/graph.hpp>
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/prims/detail/optional_dataframe_buffer.hpp>
@@ -51,7 +52,7 @@
 #include <array>
 #include <type_traits>
 
-namespace cugraph {
+namespace CUGRAPH_EXPORT cugraph {
 
 namespace detail {
 
@@ -1877,4 +1878,4 @@ nbr_intersection(raft::handle_t const& handle,
 
 }  // namespace detail
 
-}  // namespace cugraph
+}  // namespace CUGRAPH_EXPORT cugraph

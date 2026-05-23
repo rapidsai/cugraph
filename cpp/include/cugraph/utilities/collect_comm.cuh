@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cugraph/detail/utility_wrappers_device_sort.cuh>
+#include <cugraph/export.hpp>
 #include <cugraph/graph.hpp>
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/prims/kv_store.cuh>
@@ -37,7 +38,7 @@
 #include <type_traits>
 #include <vector>
 
-namespace cugraph {
+namespace CUGRAPH_EXPORT cugraph {
 
 namespace detail {
 
@@ -602,4 +603,4 @@ collect_values_for_int_vertices(
   return value_buffer;
 }
 
-}  // namespace cugraph
+}  // namespace CUGRAPH_EXPORT cugraph

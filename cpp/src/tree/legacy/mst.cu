@@ -1,9 +1,10 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2024, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
 #include <cugraph/algorithms.hpp>
+#include <cugraph/export.hpp>
 #include <cugraph/legacy/graph.hpp>
 #include <cugraph/utilities/error.hpp>
 
@@ -61,11 +62,11 @@ std::unique_ptr<legacy::GraphCOO<vertex_t, edge_t, weight_t>> minimum_spanning_t
   return detail::mst_impl(handle, graph, mr);
 }
 
-template std::unique_ptr<legacy::GraphCOO<int, int, float>> minimum_spanning_tree<int, int, float>(
-  raft::handle_t const& handle,
-  legacy::GraphCSRView<int, int, float> const& graph,
-  rmm::device_async_resource_ref mr);
-template std::unique_ptr<legacy::GraphCOO<int, int, double>>
+template CUGRAPH_EXPORT std::unique_ptr<legacy::GraphCOO<int, int, float>>
+minimum_spanning_tree<int, int, float>(raft::handle_t const& handle,
+                                       legacy::GraphCSRView<int, int, float> const& graph,
+                                       rmm::device_async_resource_ref mr);
+template CUGRAPH_EXPORT std::unique_ptr<legacy::GraphCOO<int, int, double>>
 minimum_spanning_tree<int, int, double>(raft::handle_t const& handle,
                                         legacy::GraphCSRView<int, int, double> const& graph,
                                         rmm::device_async_resource_ref mr);

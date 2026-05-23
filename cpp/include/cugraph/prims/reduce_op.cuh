@@ -6,6 +6,7 @@
 #pragma once
 
 #include <cugraph/edge_partition_endpoint_property_device_view.cuh>
+#include <cugraph/export.hpp>
 #include <cugraph/prims/property_op_utils.cuh>
 #include <cugraph/utilities/atomic_ops.cuh>
 #include <cugraph/utilities/thrust_tuple_utils.hpp>
@@ -17,7 +18,7 @@
 
 #include <utility>
 
-namespace cugraph {
+namespace CUGRAPH_EXPORT cugraph {
 namespace reduce_op {
 
 namespace detail {
@@ -281,4 +282,4 @@ __device__ std::enable_if_t<has_compatible_raft_comms_op_v<ReduceOp>, void> atom
 }
 
 }  // namespace reduce_op
-}  // namespace cugraph
+}  // namespace CUGRAPH_EXPORT cugraph
