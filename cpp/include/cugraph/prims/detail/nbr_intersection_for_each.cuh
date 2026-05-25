@@ -60,6 +60,7 @@ __global__ static void intersection_low_degree(
 
     auto orig_indices = edge_partition.indices();
 
+    bool p_is_short;
     edge_t short_offset, short_degree, long_offset, long_degree;
     vertex_t const* short_indices;
     vertex_t const* long_indices;
@@ -67,7 +68,7 @@ __global__ static void intersection_low_degree(
     if constexpr (use_compact_csr) {
       edge_t cp = compact_offsets[p_idx], dp = compact_offsets[p_idx + 1] - cp;
       edge_t cq = compact_offsets[q_idx], dq = compact_offsets[q_idx + 1] - cq;
-      bool p_is_short = (dp <= dq);
+      p_is_short   = (dp <= dq);
       short_offset = p_is_short ? cp : cq;
       short_degree = p_is_short ? dp : dq;
       long_offset  = p_is_short ? cq : cp;
@@ -77,7 +78,7 @@ __global__ static void intersection_low_degree(
     } else {
       edge_t op = edge_partition.local_offset(p_idx), dp = edge_partition.local_degree(p_idx);
       edge_t oq = edge_partition.local_offset(q_idx), dq = edge_partition.local_degree(q_idx);
-      bool p_is_short = (dp <= dq);
+      p_is_short   = (dp <= dq);
       short_offset = p_is_short ? op : oq;
       short_degree = p_is_short ? dp : dq;
       long_offset  = p_is_short ? oq : op;
@@ -93,11 +94,6 @@ __global__ static void intersection_low_degree(
       orig_indices + edge_partition.local_offset(p_idx) + edge_partition.local_degree(p_idx),
       q);
     edge_t pq_edge_offset = static_cast<edge_t>(pq_itr - orig_indices);
-
-    bool p_is_short = use_compact_csr
-      ? ((compact_offsets[p_idx + 1] - compact_offsets[p_idx]) <=
-         (compact_offsets[q_idx + 1] - compact_offsets[q_idx]))
-      : (edge_partition.local_degree(p_idx) <= edge_partition.local_degree(q_idx));
 
     // --- ORIGINAL: binary search (commented out for comparison) ---
     // for (edge_t si = 0; si < short_degree; ++si) {
