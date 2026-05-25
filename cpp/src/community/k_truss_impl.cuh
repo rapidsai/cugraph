@@ -307,6 +307,20 @@ struct extract_weak_and_update_masks_t {
   }
 };
 
+// For each triangle (p, q, r), atomically increment the triangle count of
+// all three edges at their CSR offsets.
+template <typename vertex_t, typename edge_t>
+struct increment_triangle_counts_t {
+  edge_t* counts;
+  __device__ void operator()(vertex_t, vertex_t, vertex_t,
+                             edge_t pq_offset, edge_t pr_offset, edge_t qr_offset) const
+  {
+    atomicAdd(&counts[pq_offset], edge_t{1});
+    atomicAdd(&counts[pr_offset], edge_t{1});
+    atomicAdd(&counts[qr_offset], edge_t{1});
+  }
+};
+
 }  // namespace
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
@@ -459,10 +473,18 @@ k_truss(raft::handle_t const& handle,
     cugraph::edge_bucket_t<vertex_t, edge_t, true, multi_gpu, true> edges_to_decrement_count(
       handle, false /* multigraph */);
     size_t prev_chunk_size = 0;  // FIXME: Add support for chunking
+    int peel_iter = 0;
 
     while (true) {
       rmm::device_uvector<vertex_t> weak_edgelist_srcs(0, handle.get_stream());
       rmm::device_uvector<vertex_t> weak_edgelist_dsts(0, handle.get_stream());
+
+      // Compute edge count BEFORE extraction (SG iter 0 fused extract modifies
+      // the mask in place, so capturing this afterwards would invalidate the
+      // convergence check).
+      cur_graph_view.clear_edge_mask();
+      cur_graph_view.attach_edge_mask(weak_edges_mask.view());
+      auto prev_number_of_edges = cur_graph_view.compute_number_of_edges(handle);
 
       // Extract weak edges
       if constexpr (multi_gpu) {
@@ -826,8 +848,6 @@ k_truss(raft::handle_t const& handle,
       // Get undirected graph view
       cur_graph_view.clear_edge_mask();
       cur_graph_view.attach_edge_mask(weak_edges_mask.view());
-
-      auto prev_number_of_edges = cur_graph_view.compute_number_of_edges(handle);
 
       cugraph::transform_e(
         handle,
