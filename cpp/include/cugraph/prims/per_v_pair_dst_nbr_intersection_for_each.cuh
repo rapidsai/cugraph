@@ -184,6 +184,7 @@ void per_v_pair_dst_nbr_intersection_for_each(raft::handle_t const& handle,
                      vertex_degrees.begin(), dst_degrees.begin());
 
       rmm::device_uvector<edge_t> min_degrees(input_size, stream);
+      // compute the minimum of the src and dst degrees for each edge pair
       thrust::transform(handle.get_thrust_policy(),
                         src_degrees.begin(), src_degrees.end(),
                         dst_degrees.begin(),

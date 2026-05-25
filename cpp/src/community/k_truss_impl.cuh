@@ -512,21 +512,41 @@ k_truss(raft::handle_t const& handle,
         weak_edgelist_dsts.resize(num_edges_total, handle.get_stream());
         rmm::device_scalar<size_t> weak_count(size_t{0}, handle.get_stream());
 
-        thrust::for_each(
-          handle.get_thrust_policy(),
-          thrust::make_counting_iterator(edge_t{0}),
-          thrust::make_counting_iterator(static_cast<edge_t>(num_edges_total)),
-          extract_weak_and_update_masks_t<vertex_t, edge_t, false>{
-            offsets_ptr,
-            indices_ptr,
-            edge_triangle_counts.view().value_firsts()[0],
-            dodg_mask.mutable_view().value_firsts()[0],
-            weak_edges_mask.mutable_view().value_firsts()[0],
-            k,
-            weak_edgelist_srcs.data(),
-            weak_edgelist_dsts.data(),
-            weak_count.data(),
-            static_cast<vertex_t>(num_vertices)});
+        // Iter 0: fuse mask updates (no peeling intersection follows).
+        // Iter 1+: extract only -- masks are updated after the intersection.
+        if (peel_iter == 0) {
+          thrust::for_each(
+            handle.get_thrust_policy(),
+            thrust::make_counting_iterator(edge_t{0}),
+            thrust::make_counting_iterator(static_cast<edge_t>(num_edges_total)),
+            extract_weak_and_update_masks_t<vertex_t, edge_t, true>{
+              offsets_ptr,
+              indices_ptr,
+              edge_triangle_counts.view().value_firsts()[0],
+              dodg_mask.mutable_view().value_firsts()[0],
+              weak_edges_mask.mutable_view().value_firsts()[0],
+              k,
+              weak_edgelist_srcs.data(),
+              weak_edgelist_dsts.data(),
+              weak_count.data(),
+              static_cast<vertex_t>(num_vertices)});
+        } else {
+          thrust::for_each(
+            handle.get_thrust_policy(),
+            thrust::make_counting_iterator(edge_t{0}),
+            thrust::make_counting_iterator(static_cast<edge_t>(num_edges_total)),
+            extract_weak_and_update_masks_t<vertex_t, edge_t, false>{
+              offsets_ptr,
+              indices_ptr,
+              edge_triangle_counts.view().value_firsts()[0],
+              dodg_mask.mutable_view().value_firsts()[0],
+              weak_edges_mask.mutable_view().value_firsts()[0],
+              k,
+              weak_edgelist_srcs.data(),
+              weak_edgelist_dsts.data(),
+              weak_count.data(),
+              static_cast<vertex_t>(num_vertices)});
+        }
 
         size_t num_weak = weak_count.value(handle.get_stream());
         weak_edgelist_srcs.resize(num_weak, handle.get_stream());
@@ -801,115 +821,153 @@ k_truss(raft::handle_t const& handle,
         edge_triangle_counts.mutable_view(),
         do_expensive_check);
       } else {
-        // Decrement triangle counts via neighbor intersection.
-        auto edge_partition = cur_graph_view.local_edge_partition_view(size_t{0});
-        auto offsets_ptr    = edge_partition.offsets().data();
-        auto indices_ptr    = edge_partition.indices().data();
+        // Iter 0: skip the peeling intersection.  Counts are still fresh from
+        // edge_triangle_count(); the fused extract has removed the weak edges
+        // from the masks, and the iter-0 recount further down rebuilds counts
+        // on the pruned DODG.
+        if (peel_iter > 0) {
+          // Decrement triangle counts via neighbor intersection.
+          auto edge_partition = cur_graph_view.local_edge_partition_view(size_t{0});
+          auto offsets_ptr    = edge_partition.offsets().data();
+          auto indices_ptr    = edge_partition.indices().data();
 
-        // Build a weak-edge bitmask indexed by DODG offset.
-        auto weak_bitmask = make_initialized_edge_property(handle, cur_graph_view, false);
+          // Build a weak-edge bitmask indexed by DODG offset.
+          auto weak_bitmask = make_initialized_edge_property(handle, cur_graph_view, false);
 
-        thrust::for_each(handle.get_thrust_policy(),
-                         thrust::make_counting_iterator<size_t>(0),
-                         thrust::make_counting_iterator<size_t>(weak_edgelist_srcs.size()),
-                         set_weak_bitmask_t<vertex_t, edge_t>{
-                           weak_edgelist_srcs.data(),
-                           weak_edgelist_dsts.data(),
-                           offsets_ptr,
-                           indices_ptr,
-                           weak_bitmask.mutable_view().value_firsts()[0]});
+          thrust::for_each(handle.get_thrust_policy(),
+                           thrust::make_counting_iterator<size_t>(0),
+                           thrust::make_counting_iterator<size_t>(weak_edgelist_srcs.size()),
+                           set_weak_bitmask_t<vertex_t, edge_t>{
+                             weak_edgelist_srcs.data(),
+                             weak_edgelist_dsts.data(),
+                             offsets_ptr,
+                             indices_ptr,
+                             weak_bitmask.mutable_view().value_firsts()[0]});
 
-        per_v_pair_dst_nbr_intersection_for_each(
+          per_v_pair_dst_nbr_intersection_for_each(
+            handle,
+            cur_graph_view,
+            weak_edgelist_first,
+            weak_edgelist_last,
+            decrement_weak_selective_t<vertex_t, edge_t>{
+              edge_triangle_counts.mutable_view().value_firsts()[0],
+              weak_bitmask.view().value_firsts()[0],
+              offsets_ptr,
+              indices_ptr,
+              out_degrees.data()},
+            do_expensive_check);
+        }
+      }
+
+      // SG iter 0 has its masks already updated by the fused extract; skip
+      // the trailing transform_e cleanup in that case.  Otherwise (MG always,
+      // SG iter 1+) flip the bits for the weak edges in both directions.
+      if (multi_gpu || peel_iter > 0) {
+        edgelist_weak.clear();
+
+        thrust::sort(
+          handle.get_thrust_policy(),
+          thrust::make_zip_iterator(weak_edgelist_srcs.begin(), weak_edgelist_dsts.begin()),
+          thrust::make_zip_iterator(weak_edgelist_srcs.end(), weak_edgelist_dsts.end()));
+
+        edgelist_weak.insert(weak_edgelist_srcs.begin(),
+                             weak_edgelist_srcs.end(),
+                             weak_edgelist_dsts.begin(),
+                             std::optional<edge_t const*>{std::nullopt});
+
+        // Get undirected graph view
+        cur_graph_view.clear_edge_mask();
+        cur_graph_view.attach_edge_mask(weak_edges_mask.view());
+
+        cugraph::transform_e(
           handle,
           cur_graph_view,
-          weak_edgelist_first,
-          weak_edgelist_last,
-          decrement_weak_selective_t<vertex_t, edge_t>{
-            edge_triangle_counts.mutable_view().value_firsts()[0],
-            weak_bitmask.view().value_firsts()[0],
-            offsets_ptr,
-            indices_ptr,
-            out_degrees.data()},
+          edgelist_weak,
+          cugraph::edge_src_dummy_property_t{}.view(),
+          cugraph::edge_dst_dummy_property_t{}.view(),
+          cugraph::edge_dummy_property_t{}.view(),
+          cuda::proclaim_return_type<bool>(
+            [] __device__(
+              auto src, auto dst, cuda::std::nullopt_t, cuda::std::nullopt_t, cuda::std::nullopt_t) {
+              return false;
+            }),
+          weak_edges_mask.mutable_view(),
+          do_expensive_check);
+
+        edgelist_weak.clear();
+
+        // shuffle the edges if multi_gpu
+        if constexpr (multi_gpu) {
+          std::vector<cugraph::arithmetic_device_uvector_t> edge_properties{};
+
+          std::tie(weak_edgelist_dsts, weak_edgelist_srcs, std::ignore) =
+            shuffle_int_edges(handle,
+                              std::move(weak_edgelist_dsts),
+                              std::move(weak_edgelist_srcs),
+                              std::move(edge_properties),
+                              false,
+                              cur_graph_view.vertex_partition_range_lasts());
+        }
+
+        thrust::sort(
+          handle.get_thrust_policy(),
+          thrust::make_zip_iterator(weak_edgelist_dsts.begin(), weak_edgelist_srcs.begin()),
+          thrust::make_zip_iterator(weak_edgelist_dsts.end(), weak_edgelist_srcs.end()));
+
+        edgelist_weak.insert(weak_edgelist_dsts.begin(),
+                             weak_edgelist_dsts.end(),
+                             weak_edgelist_srcs.begin(),
+                             std::optional<edge_t const*>{std::nullopt});
+
+        cugraph::transform_e(
+          handle,
+          cur_graph_view,
+          edgelist_weak,
+          cugraph::edge_src_dummy_property_t{}.view(),
+          cugraph::edge_dst_dummy_property_t{}.view(),
+          cugraph::edge_dummy_property_t{}.view(),
+          cuda::proclaim_return_type<bool>(
+            [] __device__(
+              auto src, auto dst, cuda::std::nullopt_t, cuda::std::nullopt_t, cuda::std::nullopt_t) {
+              return false;
+            }),
+          weak_edges_mask.mutable_view(),
           do_expensive_check);
       }
 
-      edgelist_weak.clear();
-
-      thrust::sort(
-        handle.get_thrust_policy(),
-        thrust::make_zip_iterator(weak_edgelist_srcs.begin(), weak_edgelist_dsts.begin()),
-        thrust::make_zip_iterator(weak_edgelist_srcs.end(), weak_edgelist_dsts.end()));
-
-      edgelist_weak.insert(weak_edgelist_srcs.begin(),
-                           weak_edgelist_srcs.end(),
-                           weak_edgelist_dsts.begin(),
-                           std::optional<edge_t const*>{std::nullopt});
-
-      // Get undirected graph view
       cur_graph_view.clear_edge_mask();
-      cur_graph_view.attach_edge_mask(weak_edges_mask.view());
-
-      cugraph::transform_e(
-        handle,
-        cur_graph_view,
-        edgelist_weak,
-        cugraph::edge_src_dummy_property_t{}.view(),
-        cugraph::edge_dst_dummy_property_t{}.view(),
-        cugraph::edge_dummy_property_t{}.view(),
-        cuda::proclaim_return_type<bool>(
-          [] __device__(
-            auto src, auto dst, cuda::std::nullopt_t, cuda::std::nullopt_t, cuda::std::nullopt_t) {
-            return false;
-          }),
-        weak_edges_mask.mutable_view(),
-        do_expensive_check);
-
-      edgelist_weak.clear();
-
-      // shuffle the edges if multi_gpu
-      if constexpr (multi_gpu) {
-        std::vector<cugraph::arithmetic_device_uvector_t> edge_properties{};
-
-        std::tie(weak_edgelist_dsts, weak_edgelist_srcs, std::ignore) =
-          shuffle_int_edges(handle,
-                            std::move(weak_edgelist_dsts),
-                            std::move(weak_edgelist_srcs),
-                            std::move(edge_properties),
-                            false,
-                            cur_graph_view.vertex_partition_range_lasts());
-      }
-
-      thrust::sort(
-        handle.get_thrust_policy(),
-        thrust::make_zip_iterator(weak_edgelist_dsts.begin(), weak_edgelist_srcs.begin()),
-        thrust::make_zip_iterator(weak_edgelist_dsts.end(), weak_edgelist_srcs.end()));
-
-      edgelist_weak.insert(weak_edgelist_dsts.begin(),
-                           weak_edgelist_dsts.end(),
-                           weak_edgelist_srcs.begin(),
-                           std::optional<edge_t const*>{std::nullopt});
-
-      cugraph::transform_e(
-        handle,
-        cur_graph_view,
-        edgelist_weak,
-        cugraph::edge_src_dummy_property_t{}.view(),
-        cugraph::edge_dst_dummy_property_t{}.view(),
-        cugraph::edge_dummy_property_t{}.view(),
-        cuda::proclaim_return_type<bool>(
-          [] __device__(
-            auto src, auto dst, cuda::std::nullopt_t, cuda::std::nullopt_t, cuda::std::nullopt_t) {
-            return false;
-          }),
-        weak_edges_mask.mutable_view(),
-        do_expensive_check);
-
       cur_graph_view.attach_edge_mask(weak_edges_mask.view());
 
       if (prev_number_of_edges == cur_graph_view.compute_number_of_edges(handle)) { break; }
 
       cur_graph_view.clear_edge_mask();
       cur_graph_view.attach_edge_mask(dodg_mask.view());
+
+      // Iter-0 recount (SG only): the peeling intersection was skipped on
+      // iter 0, so triangle counts inherited from edge_triangle_count() are
+      // stale with respect to the now-pruned DODG.  Zero them and recount on
+      // the pruned graph.
+      if constexpr (!multi_gpu) {
+        if (peel_iter == 0) {
+          {
+            auto unmasked = cur_graph_view;
+            if (unmasked.has_edge_mask()) { unmasked.clear_edge_mask(); }
+            cugraph::fill_edge_property(handle,
+                                        unmasked,
+                                        edge_triangle_counts.mutable_view(),
+                                        edge_t{0});
+          }
+
+          per_v_pair_dst_nbr_intersection_for_each(
+            handle,
+            cur_graph_view,
+            increment_triangle_counts_t<vertex_t, edge_t>{
+              edge_triangle_counts.mutable_view().value_firsts()[0]},
+            do_expensive_check);
+        }
+      }
+
+      ++peel_iter;
     }
 
     cur_graph_view.clear_edge_mask();
