@@ -512,8 +512,12 @@ k_truss(raft::handle_t const& handle,
         weak_edgelist_dsts.resize(num_edges_total, handle.get_stream());
         rmm::device_scalar<size_t> weak_count(size_t{0}, handle.get_stream());
 
-        // Iter 0: fuse mask updates (no peeling intersection follows).
-        // Iter 1+: extract only -- masks are updated after the intersection.
+        // Iter 0: identify weak edges and clear them from dodg_mask and
+        // weak_edges_mask (both directions) in one pass, then skip the peeling
+        // intersection below.  The iter-0 recount further down rebuilds triangle
+        // counts on the pruned DODG.  Iter 1+: extract only, since the peeling
+        // intersection updates counts and the trailing transform_e calls update
+        // the masks.
         if (peel_iter == 0) {
           thrust::for_each(
             handle.get_thrust_policy(),

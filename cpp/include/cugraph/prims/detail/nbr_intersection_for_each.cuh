@@ -139,6 +139,7 @@ __global__ static void intersection_low_degree(
         else {
           edge_t pr_orig, qr_orig;
           if constexpr (use_compact_csr) {
+            // retrieve the original edge indices from the compact edge map
             pr_orig = p_is_short ? compact_edge_map[short_offset + si] : compact_edge_map[long_offset + li];
             qr_orig = p_is_short ? compact_edge_map[long_offset + li] : compact_edge_map[short_offset + si];
           } else {
