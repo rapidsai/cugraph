@@ -12,8 +12,8 @@
 #include <cugraph/detail/device_comm_wrapper.hpp>
 #include <cugraph/edge_property.hpp>
 #include <cugraph/prims/edge_bucket.cuh>
-#include <cugraph/prims/extract_transform_if_v_frontier_outgoing_e.cuh>
-#include <cugraph/prims/extract_transform_v_frontier_outgoing_e.cuh>
+#include <cugraph/prims/extract_transform_if_v_frontier_incoming_outgoing_e.cuh>
+#include <cugraph/prims/extract_transform_v_frontier_incoming_outgoing_e.cuh>
 #include <cugraph/prims/kv_store.cuh>
 #include <cugraph/prims/transform_gather_e.cuh>
 #include <cugraph/prims/vertex_frontier.cuh>

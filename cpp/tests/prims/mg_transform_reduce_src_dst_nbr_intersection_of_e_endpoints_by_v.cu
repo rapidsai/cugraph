@@ -15,7 +15,7 @@
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/prims/transform_e.cuh>
-#include <cugraph/prims/transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v.cuh>
+#include <cugraph/prims/transform_reduce_src_dst_nbr_intersection_of_e_endpoints_by_v.cuh>
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
@@ -56,10 +56,10 @@ struct Prims_Usecase {
 };
 
 template <typename input_usecase_t>
-class Tests_MGTransformReduceDstNbrIntersectionOfEEndpointsByV
+class Tests_MGTransformReduceSrcDstNbrIntersectionOfEEndpointsByV
   : public ::testing::TestWithParam<std::tuple<Prims_Usecase, input_usecase_t>> {
  public:
-  Tests_MGTransformReduceDstNbrIntersectionOfEEndpointsByV() {}
+  Tests_MGTransformReduceSrcDstNbrIntersectionOfEEndpointsByV() {}
 
   static void SetUpTestCase() { handle_ = cugraph::test::initialize_mg_handle(); }
 
@@ -68,8 +68,8 @@ class Tests_MGTransformReduceDstNbrIntersectionOfEEndpointsByV
   virtual void SetUp() {}
   virtual void TearDown() {}
 
-  // Verify the results of transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v primitive
-  template <typename vertex_t, typename edge_t, typename weight_t>
+  // Verify the results of transform_reduce_(src|dst)_nbr_intersection_of_e_endpoints_by_v primitive
+  template <typename vertex_t, typename edge_t, typename weight_t, bool store_transposed>
   void run_current_test(Prims_Usecase const& prims_usecase, input_usecase_t const& input_usecase)
   {
     using edge_type_t = int32_t;
@@ -87,10 +87,10 @@ class Tests_MGTransformReduceDstNbrIntersectionOfEEndpointsByV
       hr_timer.start("MG Construct graph");
     }
 
-    cugraph::graph_t<vertex_t, edge_t, false, true> mg_graph(*handle_);
+    cugraph::graph_t<vertex_t, edge_t, store_transposed, true> mg_graph(*handle_);
     std::optional<rmm::device_uvector<vertex_t>> mg_renumber_map{std::nullopt};
     std::tie(mg_graph, std::ignore, mg_renumber_map) =
-      cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, true>(
+      cugraph::test::construct_graph<vertex_t, edge_t, weight_t, store_transposed, true>(
         *handle_, input_usecase, false, true);
 
     if (cugraph::test::g_perf) {
@@ -109,7 +109,7 @@ class Tests_MGTransformReduceDstNbrIntersectionOfEEndpointsByV
       mg_graph_view.attach_edge_mask((*edge_mask).view());
     }
 
-    // 2. run MG transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v primitive
+    // 2. run MG transform_reduce_(src|dst)_nbr_intersection_of_e_endpoints_by_v primitive
 
     const int hash_bin_count = 5;
     const int initial_value  = 4;
@@ -130,17 +130,28 @@ class Tests_MGTransformReduceDstNbrIntersectionOfEEndpointsByV
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle_->get_comms().barrier();
-      hr_timer.start("MG transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v");
+      hr_timer.start("MG transform_reduce_(src|dst)_nbr_intersection_of_e_endpoints_by_v");
     }
 
-    cugraph::transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v(
-      *handle_,
-      mg_graph_view,
-      mg_src_prop.view(),
-      mg_dst_prop.view(),
-      intersection_op_t<vertex_t, edge_t>{},
-      property_initial_value,
-      mg_result_buffer.begin());
+    if constexpr (store_transposed) {
+      cugraph::transform_reduce_src_nbr_intersection_of_e_endpoints_by_v(
+        *handle_,
+        mg_graph_view,
+        mg_src_prop.view(),
+        mg_dst_prop.view(),
+        intersection_op_t<vertex_t, edge_t>{},
+        property_initial_value,
+        mg_result_buffer.begin());
+    } else {
+      cugraph::transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v(
+        *handle_,
+        mg_graph_view,
+        mg_src_prop.view(),
+        mg_dst_prop.view(),
+        intersection_op_t<vertex_t, edge_t>{},
+        property_initial_value,
+        mg_result_buffer.begin());
+    }
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -163,7 +174,7 @@ class Tests_MGTransformReduceDstNbrIntersectionOfEEndpointsByV
           std::optional<raft::device_span<vertex_t const>>{std::nullopt},
           raft::device_span<edge_t const>(mg_result_buffer.data(), mg_result_buffer.size()));
 
-      cugraph::graph_t<vertex_t, edge_t, false, false> sg_graph(*handle_);
+      cugraph::graph_t<vertex_t, edge_t, store_transposed, false> sg_graph(*handle_);
       std::tie(sg_graph, std::ignore, std::ignore, std::ignore, std::ignore) =
         cugraph::test::mg_graph_to_sg_graph(
           *handle_,
@@ -192,14 +203,25 @@ class Tests_MGTransformReduceDstNbrIntersectionOfEEndpointsByV
         auto sg_result_buffer = cugraph::allocate_dataframe_buffer<edge_t>(
           sg_graph_view.number_of_vertices(), handle_->get_stream());
 
-        cugraph::transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v(
-          *handle_,
-          sg_graph_view,
-          sg_src_prop.view(),
-          sg_dst_prop.view(),
-          intersection_op_t<vertex_t, edge_t>{},
-          property_initial_value,
-          sg_result_buffer.begin());
+        if constexpr (store_transposed) {
+          cugraph::transform_reduce_src_nbr_intersection_of_e_endpoints_by_v(
+            *handle_,
+            sg_graph_view,
+            sg_src_prop.view(),
+            sg_dst_prop.view(),
+            intersection_op_t<vertex_t, edge_t>{},
+            property_initial_value,
+            sg_result_buffer.begin());
+        } else {
+          cugraph::transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v(
+            *handle_,
+            sg_graph_view,
+            sg_src_prop.view(),
+            sg_dst_prop.view(),
+            intersection_op_t<vertex_t, edge_t>{},
+            property_initial_value,
+            sg_result_buffer.begin());
+        }
 
         bool valid = thrust::equal(handle_->get_thrust_policy(),
                                    mg_aggregate_result_buffer.begin(),
@@ -217,45 +239,73 @@ class Tests_MGTransformReduceDstNbrIntersectionOfEEndpointsByV
 
 template <typename input_usecase_t>
 std::unique_ptr<raft::handle_t>
-  Tests_MGTransformReduceDstNbrIntersectionOfEEndpointsByV<input_usecase_t>::handle_ = nullptr;
+  Tests_MGTransformReduceSrcDstNbrIntersectionOfEEndpointsByV<input_usecase_t>::handle_ = nullptr;
 
-using Tests_MGTransformReduceDstNbrIntersectionOfEEndpointsByV_File =
-  Tests_MGTransformReduceDstNbrIntersectionOfEEndpointsByV<cugraph::test::File_Usecase>;
-using Tests_MGTransformReduceDstNbrIntersectionOfEEndpointsByV_Rmat =
-  Tests_MGTransformReduceDstNbrIntersectionOfEEndpointsByV<cugraph::test::Rmat_Usecase>;
+using Tests_MGTransformReduceSrcDstNbrIntersectionOfEEndpointsByV_File =
+  Tests_MGTransformReduceSrcDstNbrIntersectionOfEEndpointsByV<cugraph::test::File_Usecase>;
+using Tests_MGTransformReduceSrcDstNbrIntersectionOfEEndpointsByV_Rmat =
+  Tests_MGTransformReduceSrcDstNbrIntersectionOfEEndpointsByV<cugraph::test::Rmat_Usecase>;
 
-TEST_P(Tests_MGTransformReduceDstNbrIntersectionOfEEndpointsByV_File, CheckInt32Int32Float)
+TEST_P(Tests_MGTransformReduceSrcDstNbrIntersectionOfEEndpointsByV_File,
+       CheckInt32Int32FloatTransposeFalse)
 {
   auto param = GetParam();
-  run_current_test<int32_t, int32_t, float>(std::get<0>(param), std::get<1>(param));
+  run_current_test<int32_t, int32_t, float, false>(std::get<0>(param), std::get<1>(param));
 }
 
-TEST_P(Tests_MGTransformReduceDstNbrIntersectionOfEEndpointsByV_Rmat, CheckInt32Int32Float)
+TEST_P(Tests_MGTransformReduceSrcDstNbrIntersectionOfEEndpointsByV_File,
+       CheckInt32Int32FloatTransposeTrue)
 {
   auto param = GetParam();
-  run_current_test<int32_t, int32_t, float>(
+  run_current_test<int32_t, int32_t, float, true>(std::get<0>(param), std::get<1>(param));
+}
+
+TEST_P(Tests_MGTransformReduceSrcDstNbrIntersectionOfEEndpointsByV_Rmat,
+       CheckInt32Int32FloatTransposeFalse)
+{
+  auto param = GetParam();
+  run_current_test<int32_t, int32_t, float, false>(
     std::get<0>(param),
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
 
-TEST_P(Tests_MGTransformReduceDstNbrIntersectionOfEEndpointsByV_Rmat, CheckInt64Int64Float)
+TEST_P(Tests_MGTransformReduceSrcDstNbrIntersectionOfEEndpointsByV_Rmat,
+       CheckInt32Int32FloatTransposeTrue)
 {
   auto param = GetParam();
-  run_current_test<int64_t, int64_t, float>(
+  run_current_test<int32_t, int32_t, float, true>(
+    std::get<0>(param),
+    cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
+}
+
+TEST_P(Tests_MGTransformReduceSrcDstNbrIntersectionOfEEndpointsByV_Rmat,
+       CheckInt64Int64FloatTransposeFalse)
+{
+  auto param = GetParam();
+  run_current_test<int64_t, int64_t, float, false>(
+    std::get<0>(param),
+    cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
+}
+
+TEST_P(Tests_MGTransformReduceSrcDstNbrIntersectionOfEEndpointsByV_Rmat,
+       CheckInt64Int64FloatTransposeTrue)
+{
+  auto param = GetParam();
+  run_current_test<int64_t, int64_t, float, true>(
     std::get<0>(param),
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
 
 INSTANTIATE_TEST_SUITE_P(
   file_test,
-  Tests_MGTransformReduceDstNbrIntersectionOfEEndpointsByV_File,
+  Tests_MGTransformReduceSrcDstNbrIntersectionOfEEndpointsByV_File,
   ::testing::Combine(
     ::testing::Values(Prims_Usecase{false, true}, Prims_Usecase{true, true}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
                       cugraph::test::File_Usecase("test/datasets/netscience.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(rmat_small_test,
-                         Tests_MGTransformReduceDstNbrIntersectionOfEEndpointsByV_Rmat,
+                         Tests_MGTransformReduceSrcDstNbrIntersectionOfEEndpointsByV_Rmat,
                          ::testing::Combine(::testing::Values(Prims_Usecase{false, true},
                                                               Prims_Usecase{true, true}),
                                             ::testing::Values(cugraph::test::Rmat_Usecase(
@@ -267,7 +317,7 @@ INSTANTIATE_TEST_SUITE_P(
                           vertex & edge type combination) by command line arguments and do not
                           include more than one Rmat_Usecase that differ only in scale or edge
                           factor (to avoid running same benchmarks more than once) */
-  Tests_MGTransformReduceDstNbrIntersectionOfEEndpointsByV_Rmat,
+  Tests_MGTransformReduceSrcDstNbrIntersectionOfEEndpointsByV_Rmat,
   ::testing::Combine(
     ::testing::Values(Prims_Usecase{false, false}, Prims_Usecase{true, false}),
     ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false))));

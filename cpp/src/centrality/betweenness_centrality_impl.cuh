@@ -11,7 +11,7 @@
 #include <cugraph/prims/detail/prim_functors.cuh>
 #include <cugraph/prims/edge_bucket.cuh>
 #include <cugraph/prims/extract_transform_if_e.cuh>
-#include <cugraph/prims/extract_transform_if_v_frontier_outgoing_e.cuh>
+#include <cugraph/prims/extract_transform_if_v_frontier_incoming_outgoing_e.cuh>
 #include <cugraph/prims/fill_edge_property.cuh>
 #include <cugraph/prims/make_initialized_edge_property.cuh>
 #include <cugraph/prims/per_v_transform_reduce_incoming_outgoing_e.cuh>
