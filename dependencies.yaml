@@ -52,7 +52,6 @@ files:
       - depends_on_pylibcugraph
       - depends_on_cugraph
       - depends_on_libcugraph_etl
-      - depends_on_pytorch
   test_cpp:
     output: none
     includes:
@@ -87,7 +86,6 @@ files:
     includes:
       - cuda_version
       - depends_on_cudf
-      - depends_on_pytorch
       - py_version
       - test_python_common
       - test_python_cugraph
@@ -216,10 +214,6 @@ files:
       - depends_on_cudf
       - test_python_common
       - test_python_pylibcugraph
-  torch_only:
-    output: none
-    includes:
-      - depends_on_pytorch
 channels:
   - rapidsai-nightly
   - rapidsai
