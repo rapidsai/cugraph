@@ -2491,11 +2491,11 @@ template <typename GraphViewType,
           typename EdgeValueInputWrapper,
           typename BiasEdgeOp>
 std::tuple<rmm::device_uvector<
-             typename edge_op_result_type<typename thrust::iterator_traits<KeyIterator>::value_type,
-                                          typename GraphViewType::vertex_type,
-                                          typename EdgeSrcValueInputWrapper::value_type,
-                                          typename EdgeDstValueInputWrapper::value_type,
-                                          typename EdgeValueInputWrapper::value_type,
+             typename edge_op_result_type<GraphViewType,
+                                          typename thrust::iterator_traits<KeyIterator>::value_type,
+                                          EdgeSrcValueInputWrapper,
+                                          EdgeDstValueInputWrapper,
+                                          EdgeValueInputWrapper,
                                           BiasEdgeOp>::type>,
            rmm::device_uvector<typename GraphViewType::edge_type>,
            rmm::device_uvector<size_t>>
@@ -2513,11 +2513,11 @@ compute_aggregate_local_frontier_biases(raft::handle_t const& handle,
   using edge_t   = typename GraphViewType::edge_type;
   using key_t    = typename thrust::iterator_traits<KeyIterator>::value_type;
 
-  using bias_t = typename edge_op_result_type<key_t,
-                                              vertex_t,
-                                              typename EdgeSrcValueInputWrapper::value_type,
-                                              typename EdgeDstValueInputWrapper::value_type,
-                                              typename EdgeValueInputWrapper::value_type,
+  using bias_t = typename edge_op_result_type<GraphViewType,
+                                              key_t,
+                                              EdgeSrcValueInputWrapper,
+                                              EdgeDstValueInputWrapper,
+                                              EdgeValueInputWrapper,
                                               BiasEdgeOp>::type;
 
   // 1. collect bias values from local neighbors
@@ -2638,11 +2638,11 @@ template <typename GraphViewType,
           typename BiasEdgeOp,
           typename EdgeTypeInputWrapper>
 std::tuple<rmm::device_uvector<
-             typename edge_op_result_type<typename thrust::iterator_traits<KeyIterator>::value_type,
-                                          typename GraphViewType::vertex_type,
-                                          typename EdgeSrcValueInputWrapper::value_type,
-                                          typename EdgeDstValueInputWrapper::value_type,
-                                          typename EdgeValueInputWrapper::value_type,
+             typename edge_op_result_type<GraphViewType,
+                                          typename thrust::iterator_traits<KeyIterator>::value_type,
+                                          EdgeSrcValueInputWrapper,
+                                          EdgeDstValueInputWrapper,
+                                          EdgeValueInputWrapper,
                                           BiasEdgeOp>::type>,
            rmm::device_uvector<typename EdgeTypeInputWrapper::value_type>,
            rmm::device_uvector<typename GraphViewType::edge_type>,
@@ -2665,11 +2665,11 @@ compute_aggregate_local_frontier_bias_type_pairs(
 
   using edge_value_t = typename EdgeValueInputWrapper::value_type;
   using edge_type_t  = typename EdgeTypeInputWrapper::value_type;
-  using bias_t       = typename edge_op_result_type<key_t,
-                                                    vertex_t,
-                                                    typename EdgeSrcValueInputWrapper::value_type,
-                                                    typename EdgeDstValueInputWrapper::value_type,
-                                                    typename EdgeValueInputWrapper::value_type,
+  using bias_t       = typename edge_op_result_type<GraphViewType,
+                                                    key_t,
+                                                    EdgeSrcValueInputWrapper,
+                                                    EdgeDstValueInputWrapper,
+                                                    EdgeValueInputWrapper,
                                                     BiasEdgeOp>::type;
   static_assert(std::is_arithmetic_v<bias_t>);
   static_assert(std::is_integral_v<edge_type_t>);
@@ -5545,11 +5545,11 @@ homogeneous_biased_sample_and_compute_local_nbr_indices(
   using edge_t   = typename GraphViewType::edge_type;
   using key_t    = typename thrust::iterator_traits<KeyIterator>::value_type;
 
-  using bias_t      = typename edge_op_result_type<key_t,
-                                                   vertex_t,
-                                                   typename EdgeSrcValueInputWrapper::value_type,
-                                                   typename EdgeDstValueInputWrapper::value_type,
-                                                   typename EdgeValueInputWrapper::value_type,
+  using bias_t      = typename edge_op_result_type<GraphViewType,
+                                                   key_t,
+                                                   EdgeSrcValueInputWrapper,
+                                                   EdgeDstValueInputWrapper,
+                                                   EdgeValueInputWrapper,
                                                    BiasEdgeOp>::type;
   using edge_type_t = int32_t;  // dummy
 
@@ -5734,11 +5734,11 @@ heterogeneous_biased_sample_and_compute_local_nbr_indices(
   using edge_t   = typename GraphViewType::edge_type;
   using key_t    = typename thrust::iterator_traits<KeyIterator>::value_type;
 
-  using bias_t      = typename edge_op_result_type<key_t,
-                                                   vertex_t,
-                                                   typename EdgeSrcValueInputWrapper::value_type,
-                                                   typename EdgeDstValueInputWrapper::value_type,
-                                                   typename EdgeValueInputWrapper::value_type,
+  using bias_t      = typename edge_op_result_type<GraphViewType,
+                                                   key_t,
+                                                   EdgeSrcValueInputWrapper,
+                                                   EdgeDstValueInputWrapper,
+                                                   EdgeValueInputWrapper,
                                                    BiasEdgeOp>::type;
   using edge_type_t = typename EdgeTypeInputWrapper::value_type;
 

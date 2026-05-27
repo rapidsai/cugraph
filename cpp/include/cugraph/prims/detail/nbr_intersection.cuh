@@ -666,7 +666,7 @@ nbr_intersection(raft::handle_t const& handle,
                  EdgeValueInputWrapper edge_value_input,
                  VertexPairIterator vertex_pair_first,
                  VertexPairIterator vertex_pair_last,
-                 std::array<bool, 2> intersect_dst_nbr,
+                 std::array<bool, 2> intersect_minor_nbr,
                  bool do_expensive_check = false)
 {
   using vertex_t = typename GraphViewType::vertex_type;
@@ -703,10 +703,6 @@ nbr_intersection(raft::handle_t const& handle,
                                cuda::std::tuple<vertex_t, vertex_t>>);
 
   size_t input_size = static_cast<size_t>(cuda::std::distance(vertex_pair_first, vertex_pair_last));
-
-  std::array<bool, 2> intersect_minor_nbr = {
-    intersect_dst_nbr[0] != GraphViewType::is_storage_transposed,
-    intersect_dst_nbr[1] != GraphViewType::is_storage_transposed};
 
   // 1. Check input arguments
 

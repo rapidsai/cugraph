@@ -11,7 +11,7 @@
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/prims/count_if_e.cuh>
-#include <cugraph/prims/per_v_pair_transform_dst_nbr_intersection.cuh>
+#include <cugraph/prims/per_v_pair_transform_src_dst_nbr_intersection.cuh>
 #include <cugraph/prims/per_v_transform_reduce_incoming_outgoing_e.cuh>
 #include <cugraph/prims/update_edge_src_dst_property.cuh>
 #include <cugraph/shuffle_functions.hpp>
