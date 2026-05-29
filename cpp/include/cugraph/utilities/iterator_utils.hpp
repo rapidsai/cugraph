@@ -32,15 +32,21 @@ inline constexpr bool is_arithmetic_pointer_v =
 
 template <typename T>
 T* iter_to_raw_ptr(T* ptr)
-{ return ptr; }
+{
+  return ptr;
+}
 
 template <typename T>
 T* iter_to_raw_ptr(thrust::device_ptr<T> ptr)
-{ return thrust::raw_pointer_cast(ptr); }
+{
+  return thrust::raw_pointer_cast(ptr);
+}
 
 template <typename T>
 auto iter_to_raw_ptr(thrust::detail::normal_iterator<thrust::device_ptr<T>> iter)
-{ return thrust::raw_pointer_cast(iter.base()); }
+{
+  return thrust::raw_pointer_cast(iter.base());
+}
 
 }  // namespace detail
 }  // namespace CUGRAPH_EXPORT cugraph

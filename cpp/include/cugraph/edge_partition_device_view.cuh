@@ -120,7 +120,9 @@ class edge_partition_device_view_base_t {
   }
 
   __host__ __device__ edge_t number_of_edges() const
-  { return static_cast<edge_t>(indices_.size()); }
+  {
+    return static_cast<edge_t>(indices_.size());
+  }
 
   __host__ __device__ edge_t const* offsets() const { return offsets_.data(); }
   __host__ __device__ vertex_t const* indices() const { return indices_.data(); }
@@ -144,7 +146,9 @@ class edge_partition_device_view_base_t {
 
   // major_idx == major offset if CSR/CSC, major_offset != major_idx if DCSR/DCSC
   __device__ edge_t local_degree(vertex_t major_idx) const noexcept
-  { return offsets_[major_idx + 1] - offsets_[major_idx]; }
+  {
+    return offsets_[major_idx + 1] - offsets_[major_idx];
+  }
 
   // major_idx == major offset if CSR/CSC, major_offset != major_idx if DCSR/DCSC
   __device__ edge_t local_offset(vertex_t major_idx) const noexcept { return offsets_[major_idx]; }
@@ -773,33 +777,47 @@ class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t
   }
 
   __host__ __device__ vertex_t major_value_start_offset() const
-  { return major_value_start_offset_; }
+  {
+    return major_value_start_offset_;
+  }
 
   __host__ __device__ cuda::std::optional<vertex_t> major_hypersparse_first() const noexcept
-  { return major_hypersparse_first_; }
+  {
+    return major_hypersparse_first_;
+  }
 
   __host__ __device__ vertex_t major_range_first() const noexcept { return major_range_first_; }
 
   __host__ __device__ vertex_t major_range_last() const noexcept { return major_range_last_; }
 
   __host__ __device__ vertex_t major_range_size() const noexcept
-  { return major_range_last_ - major_range_first_; }
+  {
+    return major_range_last_ - major_range_first_;
+  }
 
   __host__ __device__ vertex_t minor_range_first() const noexcept { return minor_range_first_; }
 
   __host__ __device__ vertex_t minor_range_last() const noexcept { return minor_range_last_; }
 
   __host__ __device__ vertex_t minor_range_size() const noexcept
-  { return minor_range_last_ - minor_range_first_; }
+  {
+    return minor_range_last_ - minor_range_first_;
+  }
 
   __host__ __device__ vertex_t major_offset_from_major_nocheck(vertex_t major) const noexcept
-  { return major - major_range_first_; }
+  {
+    return major - major_range_first_;
+  }
 
   __host__ __device__ vertex_t minor_offset_from_minor_nocheck(vertex_t minor) const noexcept
-  { return minor - minor_range_first_; }
+  {
+    return minor - minor_range_first_;
+  }
 
   __host__ __device__ vertex_t major_from_major_offset_nocheck(vertex_t major_offset) const noexcept
-  { return major_range_first_ + major_offset; }
+  {
+    return major_range_first_ + major_offset;
+  }
 
   __device__ cuda::std::optional<vertex_t> major_idx_from_major_nocheck(
     vertex_t major) const noexcept
@@ -848,11 +866,15 @@ class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t
   }
 
   __host__ __device__ vertex_t minor_from_minor_offset_nocheck(vertex_t minor_offset) const noexcept
-  { return minor_range_first_ + minor_offset; }
+  {
+    return minor_range_first_ + minor_offset;
+  }
 
   __host__ __device__ cuda::std::optional<raft::device_span<vertex_t const>> dcs_nzd_vertices()
     const
-  { return dcs_nzd_vertices_; }
+  {
+    return dcs_nzd_vertices_;
+  }
 
   __host__ __device__ cuda::std::optional<vertex_t> dcs_nzd_vertex_count() const
   {
@@ -1128,20 +1150,30 @@ class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t
   __host__ __device__ vertex_t minor_range_size() const noexcept { return number_of_vertices_; }
 
   __host__ __device__ vertex_t major_offset_from_major_nocheck(vertex_t major) const noexcept
-  { return major; }
+  {
+    return major;
+  }
 
   __host__ __device__ vertex_t minor_offset_from_minor_nocheck(vertex_t minor) const noexcept
-  { return minor; }
+  {
+    return minor;
+  }
 
   __host__ __device__ vertex_t major_from_major_offset_nocheck(vertex_t major_offset) const noexcept
-  { return major_offset; }
+  {
+    return major_offset;
+  }
 
   __device__ cuda::std::optional<vertex_t> major_idx_from_major_nocheck(
     vertex_t major) const noexcept
-  { return major_offset_from_major_nocheck(major); }
+  {
+    return major_offset_from_major_nocheck(major);
+  }
 
   __device__ vertex_t major_from_major_idx_nocheck(vertex_t major_idx) const noexcept
-  { return major_from_major_offset_nocheck(major_idx); }
+  {
+    return major_from_major_offset_nocheck(major_idx);
+  }
 
   // major_hypersparse_idx: index within the hypersparse segment
   __device__ cuda::std::optional<vertex_t> major_hypersparse_idx_from_major_nocheck(
@@ -1160,14 +1192,20 @@ class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t
   }
 
   __host__ __device__ vertex_t minor_from_minor_offset_nocheck(vertex_t minor_offset) const noexcept
-  { return minor_offset; }
+  {
+    return minor_offset;
+  }
 
   __host__ __device__ cuda::std::optional<raft::device_span<vertex_t const>> dcs_nzd_vertices()
     const
-  { return cuda::std::nullopt; }
+  {
+    return cuda::std::nullopt;
+  }
 
   __host__ __device__ cuda::std::optional<vertex_t> dcs_nzd_vertex_count() const
-  { return cuda::std::nullopt; }
+  {
+    return cuda::std::nullopt;
+  }
 
  private:
   vertex_t number_of_vertices_{};
@@ -1181,7 +1219,9 @@ template <typename vertex_t, typename edge_t, bool multi_gpu>
 struct sparse_hypersparse_major_op_t {
   edge_partition_device_view_t<vertex_t, edge_t, multi_gpu> edge_partition;
   __device__ vertex_t operator()(vertex_t i) const
-  { return edge_partition.major_from_major_idx_nocheck(i); }
+  {
+    return edge_partition.major_from_major_idx_nocheck(i);
+  }
 };
 
 }  // namespace detail

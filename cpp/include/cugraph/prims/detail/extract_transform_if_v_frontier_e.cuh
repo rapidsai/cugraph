@@ -1186,7 +1186,7 @@ extract_transform_if_v_frontier_e(raft::handle_t const& handle,
   if (stream_pool_indices) {
     assert(stream_pool_indices->size() >= num_streams_per_loop);
     num_concurrent_loops     = std::min(graph_view.number_of_local_edge_partitions(),
-                                        (*stream_pool_indices).size() / num_streams_per_loop);
+                                    (*stream_pool_indices).size() / num_streams_per_loop);
     loop_stream_pool_indices = std::vector<size_t>(num_concurrent_loops);
     std::iota((*loop_stream_pool_indices).begin(), (*loop_stream_pool_indices).end(), size_t{0});
   }
@@ -1423,9 +1423,9 @@ extract_transform_if_v_frontier_e(raft::handle_t const& handle,
 
         for (size_t j = 0; j < loop_count; ++j) {
           auto partition_idx = i + j;
-          auto loop_stream = loop_stream_pool_indices
-                               ? handle.get_stream_from_stream_pool((*loop_stream_pool_indices)[j])
-                               : handle.get_stream();
+          auto loop_stream   = loop_stream_pool_indices
+                                 ? handle.get_stream_from_stream_pool((*loop_stream_pool_indices)[j])
+                                 : handle.get_stream();
 
           if ((static_cast<int>(partition_idx) != minor_comm_rank) && nonzero_key_lists[j]) {
             auto edge_partition =
