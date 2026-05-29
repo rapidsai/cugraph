@@ -79,7 +79,7 @@ requirements:
     - scikit-build-core>=0.11.0
   run:
     - ${{ pin_compatible("cuda-version", upper_bound="x", lower_bound="x") }}
-    - cupy >=13.6.0
+    - cupy >=13.6.0,!=14.0.0,!=14.1.0
     - libcugraph =${{ version }}
     - numpy>=1.23,<3.0
     - pylibraft =${{ minor_version }}
