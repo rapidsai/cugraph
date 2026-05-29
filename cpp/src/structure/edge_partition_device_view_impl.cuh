@@ -76,8 +76,8 @@ CUGRAPH_EXPORT __host__ void compute_number_of_edges_with_mask_async_mg(
   raft::device_span<edge_t const> offsets,
   rmm::cuda_stream_view stream)
 {
-  auto major_first =
-    cuda::make_transform_iterator(majors.offsets.data(), shift_right_t<vertex_t>{majors.base_major});
+  auto major_first = cuda::make_transform_iterator(majors.offsets.data(),
+                                                   shift_right_t<vertex_t>{majors.base_major});
   compute_number_of_edges_with_mask_async_mg(edge_mask,
                                              major_first,
                                              major_first + majors.offsets.size(),

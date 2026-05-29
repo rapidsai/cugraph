@@ -1186,7 +1186,7 @@ extract_transform_if_v_frontier_e(raft::handle_t const& handle,
   if (stream_pool_indices) {
     assert(stream_pool_indices->size() >= num_streams_per_loop);
     num_concurrent_loops     = std::min(graph_view.number_of_local_edge_partitions(),
-                                    (*stream_pool_indices).size() / num_streams_per_loop);
+                                        (*stream_pool_indices).size() / num_streams_per_loop);
     loop_stream_pool_indices = std::vector<size_t>(num_concurrent_loops);
     std::iota((*loop_stream_pool_indices).begin(), (*loop_stream_pool_indices).end(), size_t{0});
   }
@@ -1423,9 +1423,9 @@ extract_transform_if_v_frontier_e(raft::handle_t const& handle,
 
         for (size_t j = 0; j < loop_count; ++j) {
           auto partition_idx = i + j;
-          auto loop_stream   = loop_stream_pool_indices
-                                 ? handle.get_stream_from_stream_pool((*loop_stream_pool_indices)[j])
-                                 : handle.get_stream();
+          auto loop_stream = loop_stream_pool_indices
+                               ? handle.get_stream_from_stream_pool((*loop_stream_pool_indices)[j])
+                               : handle.get_stream();
 
           if ((static_cast<int>(partition_idx) != minor_comm_rank) && nonzero_key_lists[j]) {
             auto edge_partition =
@@ -1447,9 +1447,8 @@ extract_transform_if_v_frontier_e(raft::handle_t const& handle,
                 auto const& keys_uint32 = std::get<0>(keys);
                 auto local_majors_span =
                   raft::device_span<uint32_t const>(keys_uint32.data(), keys_uint32.size());
-                auto majors =
-                  majors_from_offsets_t<uint32_t, vertex_t>{local_majors_span,
-                                                            local_frontier_range_firsts[partition_idx]};
+                auto majors = majors_from_offsets_t<uint32_t, vertex_t>{
+                  local_majors_span, local_frontier_range_firsts[partition_idx]};
                 if (edge_partition_e_mask) {
                   auto edge_partition_e_mask_span = raft::device_span<uint32_t const>(
                     edge_partition_e_mask->value_first(),
@@ -1461,9 +1460,7 @@ extract_transform_if_v_frontier_e(raft::handle_t const& handle,
                     loop_stream);
                 } else {
                   edge_partition.compute_number_of_edges_async(
-                    majors,
-                    raft::device_span<size_t>(counters.data() + j, size_t{1}),
-                    loop_stream);
+                    majors, raft::device_span<size_t>(counters.data() + j, size_t{1}), loop_stream);
                 }
                 computed = true;
               }
