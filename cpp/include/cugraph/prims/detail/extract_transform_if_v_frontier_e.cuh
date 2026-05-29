@@ -1447,20 +1447,21 @@ extract_transform_if_v_frontier_e(raft::handle_t const& handle,
                 auto const& keys_uint32 = std::get<0>(keys);
                 auto local_majors_span =
                   raft::device_span<uint32_t const>(keys_uint32.data(), keys_uint32.size());
+                auto majors =
+                  majors_from_offsets_t<uint32_t, vertex_t>{local_majors_span,
+                                                            local_frontier_range_firsts[partition_idx]};
                 if (edge_partition_e_mask) {
                   auto edge_partition_e_mask_span = raft::device_span<uint32_t const>(
                     edge_partition_e_mask->value_first(),
                     packed_bool_size(static_cast<size_t>(edge_partition.number_of_edges())));
-                  edge_partition.compute_number_of_edges_with_mask_async_with_local_major_offsets(
+                  edge_partition.compute_number_of_edges_with_mask_async(
                     edge_partition_e_mask_span,
-                    local_majors_span,
-                    local_frontier_range_firsts[partition_idx],
+                    majors,
                     raft::device_span<size_t>(counters.data() + j, size_t{1}),
                     loop_stream);
                 } else {
-                  edge_partition.compute_number_of_edges_async_with_local_major_offsets(
-                    local_majors_span,
-                    local_frontier_range_firsts[partition_idx],
+                  edge_partition.compute_number_of_edges_async(
+                    majors,
                     raft::device_span<size_t>(counters.data() + j, size_t{1}),
                     loop_stream);
                 }

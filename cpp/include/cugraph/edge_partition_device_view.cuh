@@ -34,6 +34,12 @@
 
 namespace CUGRAPH_EXPORT cugraph {
 
+template <typename offset_t, typename vertex_t>
+struct majors_from_offsets_t {
+  raft::device_span<offset_t const> offsets{};
+  vertex_t base_major{};
+};
+
 namespace detail {
 
 template <typename vertex_t>
@@ -214,10 +220,9 @@ __host__ void compute_number_of_edges_with_mask_async_mg(
 }
 
 template <typename vertex_t, typename edge_t>
-__host__ void compute_number_of_edges_with_mask_async_mg_with_local_major_offsets(
+__host__ void compute_number_of_edges_with_mask_async_mg(
   cuda::std::optional<uint32_t const*> edge_mask,
-  raft::device_span<uint32_t const> local_major_offsets,
-  vertex_t local_range_first,
+  majors_from_offsets_t<uint32_t, vertex_t> majors,
   raft::device_span<size_t> count,
   cuda::std::optional<raft::device_span<vertex_t const>> dcs_nzd_vertices,
   vertex_t major_range_first,
@@ -467,20 +472,17 @@ class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t
       stream);
   }
 
-  /// Sum masked degrees for majors stored as local offsets in \p local_major_offsets; each global
-  /// major is <tt>local_range_first + local_offset</tt> (same convention as compressed bitmap
-  /// frontiers).
-  __host__ void compute_number_of_edges_with_mask_async_with_local_major_offsets(
+  /// Sum masked degrees for majors stored as local offsets; each global major is
+  /// <tt>majors.base_major + offset</tt> (same convention as compressed bitmap frontiers).
+  __host__ void compute_number_of_edges_with_mask_async(
     raft::device_span<uint32_t const> edge_mask,
-    raft::device_span<uint32_t const> local_major_offsets,
-    vertex_t local_range_first,
+    majors_from_offsets_t<uint32_t, vertex_t> majors,
     raft::device_span<size_t> count,
     rmm::cuda_stream_view stream) const
   {
-    detail::compute_number_of_edges_with_mask_async_mg_with_local_major_offsets(
+    detail::compute_number_of_edges_with_mask_async_mg(
       cuda::std::optional<uint32_t const*>{edge_mask.data()},
-      local_major_offsets,
-      local_range_first,
+      majors,
       count,
       dcs_nzd_vertices_,
       major_range_first_,
@@ -489,16 +491,14 @@ class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t
       stream);
   }
 
-  __host__ void compute_number_of_edges_async_with_local_major_offsets(
-    raft::device_span<uint32_t const> local_major_offsets,
-    vertex_t local_range_first,
+  __host__ void compute_number_of_edges_async(
+    majors_from_offsets_t<uint32_t, vertex_t> majors,
     raft::device_span<size_t> count,
     rmm::cuda_stream_view stream) const
   {
-    detail::compute_number_of_edges_with_mask_async_mg_with_local_major_offsets(
+    detail::compute_number_of_edges_with_mask_async_mg(
       cuda::std::nullopt,
-      local_major_offsets,
-      local_range_first,
+      majors,
       count,
       dcs_nzd_vertices_,
       major_range_first_,
@@ -590,17 +590,15 @@ class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t
     return count.value(stream);
   }
 
-  __host__ size_t compute_number_of_edges_with_mask_with_local_major_offsets(
+  __host__ size_t compute_number_of_edges_with_mask(
     raft::device_span<uint32_t const> edge_mask,
-    raft::device_span<uint32_t const> local_major_offsets,
-    vertex_t local_range_first,
+    majors_from_offsets_t<uint32_t, vertex_t> majors,
     rmm::cuda_stream_view stream) const
   {
     rmm::device_scalar<size_t> count(size_t{0}, stream);
-    detail::compute_number_of_edges_with_mask_async_mg_with_local_major_offsets(
+    detail::compute_number_of_edges_with_mask_async_mg(
       cuda::std::optional<uint32_t const*>{edge_mask.data()},
-      local_major_offsets,
-      local_range_first,
+      majors,
       raft::device_span<size_t>{count.data(), 1},
       dcs_nzd_vertices_,
       major_range_first_,
@@ -649,16 +647,13 @@ class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t
     return count.value(stream);
   }
 
-  __host__ size_t compute_number_of_edges_with_local_major_offsets(
-    raft::device_span<uint32_t const> local_major_offsets,
-    vertex_t local_range_first,
-    rmm::cuda_stream_view stream) const
+  __host__ size_t compute_number_of_edges(majors_from_offsets_t<uint32_t, vertex_t> majors,
+                                          rmm::cuda_stream_view stream) const
   {
     rmm::device_scalar<size_t> count(size_t{0}, stream);
-    detail::compute_number_of_edges_with_mask_async_mg_with_local_major_offsets(
+    detail::compute_number_of_edges_with_mask_async_mg(
       cuda::std::nullopt,
-      local_major_offsets,
-      local_range_first,
+      majors,
       raft::device_span<size_t>{count.data(), 1},
       dcs_nzd_vertices_,
       major_range_first_,

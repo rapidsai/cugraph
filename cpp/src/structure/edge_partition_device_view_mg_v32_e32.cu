@@ -52,11 +52,9 @@ template CUGRAPH_EXPORT __host__ void compute_number_of_edges_with_mask_async_mg
   raft::device_span<edge_t const> offsets,
   rmm::cuda_stream_view stream);
 
-template CUGRAPH_EXPORT __host__ void
-compute_number_of_edges_with_mask_async_mg_with_local_major_offsets<vertex_t, edge_t>(
+template CUGRAPH_EXPORT __host__ void compute_number_of_edges_with_mask_async_mg<vertex_t, edge_t>(
   cuda::std::optional<uint32_t const*> edge_mask,
-  raft::device_span<uint32_t const> local_major_offsets,
-  vertex_t local_range_first,
+  majors_from_offsets_t<uint32_t, vertex_t> majors,
   raft::device_span<size_t> count,
   cuda::std::optional<raft::device_span<vertex_t const>> dcs_nzd_vertices,
   vertex_t major_range_first,
