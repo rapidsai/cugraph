@@ -436,11 +436,9 @@ auto transform_v_frontier_e(raft::handle_t const& handle,
     auto const frontier_partition_size = local_frontier_offsets[i + 1] - local_frontier_offsets[i];
 
     auto edge_partition_frontier_local_degrees = [&]() {
-      if constexpr (is_arithmetic_pointer_iterator_v<
+      if constexpr (is_arithmetic_pointer_v<
                       std::decay_t<decltype(edge_partition_frontier_major_first)>>) {
-        using major_t = std::remove_cv_t<
-          std::remove_pointer_t<std::decay_t<decltype(edge_partition_frontier_major_first)>>>;
-        auto const majors_span = raft::device_span<major_t const>(
+        auto const majors_span = raft::device_span<vertex_t const>(
           edge_partition_frontier_major_first, static_cast<size_t>(frontier_partition_size));
         return edge_partition_e_mask
                  ? edge_partition.compute_local_degrees_with_mask(

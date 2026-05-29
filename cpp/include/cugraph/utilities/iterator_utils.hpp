@@ -26,7 +26,7 @@ struct is_discard_iterator<thrust::discard_iterator<System>> : public std::true_
 /// True if \p Iterator is a pointer and its pointee (after cv-removal) is a standard arithmetic
 /// type.
 template <typename Iterator>
-inline constexpr bool is_arithmetic_pointer_iterator_v =
+inline constexpr bool is_arithmetic_pointer_v =
   std::is_pointer_v<std::decay_t<Iterator>> &&
   std::is_arithmetic_v<std::remove_cv_t<std::remove_pointer_t<std::decay_t<Iterator>>>>;
 
