@@ -595,7 +595,7 @@ compute_min_hop_for_unique_label_vertex_pairs(
                          tmp_indices.begin(),
                          tmp_indices.end(),
                          [edgelist_label_offsets = *edgelist_label_offsets,
-                          edgelist_vertices] __device__(size_t l_idx, size_t r_idx) {
+                          edgelist_vertices] __device__(size_t l_idx, size_t r_idx) -> bool {
                            auto l_it = thrust::upper_bound(thrust::seq,
                                                            edgelist_label_offsets.begin() + 1,
                                                            edgelist_label_offsets.end(),
@@ -1511,7 +1511,7 @@ compute_edge_id_renumber_map(
         tmp_indices.begin() + h_edge_offsets[i + 1],
         [edgelist_label_offsets = *edgelist_label_offsets,
          edgelist_edge_types    = detail::to_thrust_optional(edgelist_edge_types),
-         edgelist_edge_ids] __device__(size_t l_idx, size_t r_idx) {
+         edgelist_edge_ids] __device__(size_t l_idx, size_t r_idx) -> bool {
           auto l_it = thrust::upper_bound(
             thrust::seq, edgelist_label_offsets.begin() + 1, edgelist_label_offsets.end(), l_idx);
           auto r_it = thrust::upper_bound(
