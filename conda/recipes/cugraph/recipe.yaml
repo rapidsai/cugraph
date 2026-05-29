@@ -92,7 +92,7 @@ requirements:
     - ${{ pin_compatible("cuda-version", upper_bound="x", lower_bound="x") }}
     - aiohttp
     - cudf =${{ minor_version }}
-    - cupy >=13.6.0
+    - cupy >=13.6.0,!=14.0.0,!=14.1.0
     - dask-cuda =${{ minor_version }}
     - dask-cudf =${{ minor_version }}
     - fsspec>=0.6.0
