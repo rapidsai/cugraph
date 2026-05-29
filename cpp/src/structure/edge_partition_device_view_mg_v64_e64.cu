@@ -52,7 +52,7 @@ template CUGRAPH_EXPORT __host__ rmm::device_uvector<edge_t> compute_local_degre
   raft::device_span<edge_t const> offsets,
   rmm::cuda_stream_view stream);
 
-template __host__ void
+template CUGRAPH_EXPORT __host__ void
 compute_number_of_edges_with_mask_async_mg_with_local_major_offsets<vertex_t, edge_t>(
   cuda::std::optional<uint32_t const*> edge_mask,
   raft::device_span<uint32_t const> local_major_offsets,
