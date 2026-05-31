@@ -404,36 +404,50 @@ __device__ edge_t set_intersection_by_key_with_mask(InputKeyIterator0 input_key_
 
 constexpr size_t nbr_intersection_block_size = 256;
 
-// Local edge offset and degree of a major's neighbor list. In multi-GPU a low-degree major may be
-// stored in the compressed hypersparse region and is looked up via
-// major_hypersparse_idx_from_major_nocheck; a major absent from that region has degree 0.
-template <typename vertex_t, typename edge_t, bool multi_gpu>
-__device__ void nbr_intersection_local_nbr_list(
+// Resolve a pair endpoint's neighbor list: the base indices pointer, the offset into it, and the
+// degree. When the endpoint resides locally (ElementToIdxMap is void*), it is read from the edge
+// partition (multi-GPU low-degree majors are looked up in the hypersparse region; a major absent
+// from it has degree 0). Otherwise the endpoint's neighbor list was gathered from another rank and
+// is read from element_indices / element_offsets via the idx-map.
+template <typename vertex_t, typename edge_t, bool multi_gpu, typename ElementToIdxMap>
+__device__ void nbr_intersection_nbr_list(
   edge_partition_device_view_t<vertex_t, edge_t, multi_gpu> const& edge_partition,
-  vertex_t major,
-  edge_t& local_offset,
-  edge_t& local_degree)
+  ElementToIdxMap element_to_idx_map,
+  raft::device_span<edge_t const> element_offsets,
+  raft::device_span<vertex_t const> element_indices,
+  vertex_t v,
+  vertex_t const*& nbr_indices,
+  edge_t& nbr_offset,
+  edge_t& nbr_degree)
 {
-  if constexpr (multi_gpu) {
-    if (edge_partition.major_hypersparse_first() &&
-        major >= *(edge_partition.major_hypersparse_first())) {
-      auto hypersparse_idx = edge_partition.major_hypersparse_idx_from_major_nocheck(major);
-      if (hypersparse_idx) {
-        auto major_idx =
-          (*(edge_partition.major_hypersparse_first()) - edge_partition.major_range_first()) +
-          *hypersparse_idx;
-        local_offset = edge_partition.local_offset(major_idx);
-        local_degree = edge_partition.local_degree(major_idx);
-      } else {
-        local_offset = edge_t{0};
-        local_degree = edge_t{0};
+  if constexpr (std::is_same_v<ElementToIdxMap, void*>) {
+    nbr_indices = edge_partition.indices();
+    if constexpr (multi_gpu) {
+      if (edge_partition.major_hypersparse_first() &&
+          v >= *(edge_partition.major_hypersparse_first())) {
+        auto hypersparse_idx = edge_partition.major_hypersparse_idx_from_major_nocheck(v);
+        if (hypersparse_idx) {
+          auto major_idx =
+            (*(edge_partition.major_hypersparse_first()) - edge_partition.major_range_first()) +
+            *hypersparse_idx;
+          nbr_offset = edge_partition.local_offset(major_idx);
+          nbr_degree = edge_partition.local_degree(major_idx);
+        } else {
+          nbr_offset = edge_t{0};
+          nbr_degree = edge_t{0};
+        }
+        return;
       }
-      return;
     }
+    auto major_idx = edge_partition.major_offset_from_major_nocheck(v);
+    nbr_offset     = edge_partition.local_offset(major_idx);
+    nbr_degree     = edge_partition.local_degree(major_idx);
+  } else {
+    auto idx    = element_to_idx_map.find(v);
+    nbr_indices = element_indices.begin();
+    nbr_offset  = element_offsets[idx];
+    nbr_degree  = static_cast<edge_t>(element_offsets[idx + 1] - element_offsets[idx]);
   }
-  auto major_idx = edge_partition.major_offset_from_major_nocheck(major);
-  local_offset   = edge_partition.local_offset(major_idx);
-  local_degree   = edge_partition.local_degree(major_idx);
 }
 
 // Single thread per pair: merge-walk the two endpoints' sorted neighbor lists.
@@ -442,14 +456,25 @@ template <bool check_edge_mask,
           typename edge_t,
           bool multi_gpu,
           typename VertexPairIterator,
+          typename FirstElementToIdxMap,
+          typename SecondElementToIdxMap,
           typename IntersectionOp>
 __global__ static void nbr_intersection_low_degree(
   edge_partition_device_view_t<vertex_t, edge_t, multi_gpu> edge_partition,
   VertexPairIterator vertex_pair_first,
   raft::device_span<size_t const> pair_indices,
+  FirstElementToIdxMap first_element_to_idx_map,
+  raft::device_span<edge_t const> first_element_offsets,
+  raft::device_span<vertex_t const> first_element_indices,
+  SecondElementToIdxMap second_element_to_idx_map,
+  raft::device_span<edge_t const> second_element_offsets,
+  raft::device_span<vertex_t const> second_element_indices,
   IntersectionOp intersection_op,
   uint32_t const* edge_mask)
 {
+  constexpr bool v0_local = std::is_same_v<FirstElementToIdxMap, void*>;
+  constexpr bool v1_local = std::is_same_v<SecondElementToIdxMap, void*>;
+
   auto const tid = threadIdx.x + static_cast<size_t>(blockIdx.x) * blockDim.x;
   size_t idx     = tid;
 
@@ -461,31 +486,48 @@ __global__ static void nbr_intersection_low_degree(
     auto v0   = cuda::std::get<0>(pair);
     auto v1   = cuda::std::get<1>(pair);
 
-    auto indices = edge_partition.indices();
+    vertex_t const* v0_indices{nullptr};
+    vertex_t const* v1_indices{nullptr};
     edge_t v0_off{}, v0_deg{}, v1_off{}, v1_deg{};
-    nbr_intersection_local_nbr_list(edge_partition, v0, v0_off, v0_deg);
-    nbr_intersection_local_nbr_list(edge_partition, v1, v1_off, v1_deg);
+    nbr_intersection_nbr_list(edge_partition,
+                              first_element_to_idx_map,
+                              first_element_offsets,
+                              first_element_indices,
+                              v0,
+                              v0_indices,
+                              v0_off,
+                              v0_deg);
+    nbr_intersection_nbr_list(edge_partition,
+                              second_element_to_idx_map,
+                              second_element_offsets,
+                              second_element_indices,
+                              v1,
+                              v1_indices,
+                              v1_off,
+                              v1_deg);
 
     // Offset of edge (v0, v1): position of v1 in v0's neighbor list.
     auto v0_v1_itr =
-      thrust::lower_bound(thrust::seq, indices + v0_off, indices + v0_off + v0_deg, v1);
-    edge_t v0_v1_edge_offset = static_cast<edge_t>(v0_v1_itr - indices);
+      thrust::lower_bound(thrust::seq, v0_indices + v0_off, v0_indices + v0_off + v0_deg, v1);
+    edge_t v0_v1_edge_offset = static_cast<edge_t>(v0_v1_itr - v0_indices);
 
     edge_t i0 = 0;
     edge_t i1 = 0;
     while (i0 < v0_deg && i1 < v1_deg) {
-      if constexpr (check_edge_mask) {
+      if constexpr (check_edge_mask && v0_local) {
         if (!check_bit_set(v0_off + i0)) {
           ++i0;
           continue;
         }
+      }
+      if constexpr (check_edge_mask && v1_local) {
         if (!check_bit_set(v1_off + i1)) {
           ++i1;
           continue;
         }
       }
-      auto n0 = indices[v0_off + i0];
-      auto n1 = indices[v1_off + i1];
+      auto n0 = v0_indices[v0_off + i0];
+      auto n1 = v1_indices[v1_off + i1];
       if (n0 < n1) {
         ++i0;
       } else if (n0 > n1) {
@@ -508,14 +550,25 @@ template <bool check_edge_mask,
           typename edge_t,
           bool multi_gpu,
           typename VertexPairIterator,
+          typename FirstElementToIdxMap,
+          typename SecondElementToIdxMap,
           typename IntersectionOp>
 __global__ static void nbr_intersection_mid_degree(
   edge_partition_device_view_t<vertex_t, edge_t, multi_gpu> edge_partition,
   VertexPairIterator vertex_pair_first,
   raft::device_span<size_t const> pair_indices,
+  FirstElementToIdxMap first_element_to_idx_map,
+  raft::device_span<edge_t const> first_element_offsets,
+  raft::device_span<vertex_t const> first_element_indices,
+  SecondElementToIdxMap second_element_to_idx_map,
+  raft::device_span<edge_t const> second_element_offsets,
+  raft::device_span<vertex_t const> second_element_indices,
   IntersectionOp intersection_op,
   uint32_t const* edge_mask)
 {
+  constexpr bool v0_local = std::is_same_v<FirstElementToIdxMap, void*>;
+  constexpr bool v1_local = std::is_same_v<SecondElementToIdxMap, void*>;
+
   auto const tid     = threadIdx.x + static_cast<size_t>(blockIdx.x) * blockDim.x;
   auto const lane_id = static_cast<edge_t>(tid % raft::warp_size());
   size_t idx         = tid / raft::warp_size();
@@ -528,46 +581,65 @@ __global__ static void nbr_intersection_mid_degree(
     auto v0   = cuda::std::get<0>(pair);
     auto v1   = cuda::std::get<1>(pair);
 
-    auto indices = edge_partition.indices();
+    vertex_t const* v0_indices{nullptr};
+    vertex_t const* v1_indices{nullptr};
     edge_t v0_off{}, v0_deg{}, v1_off{}, v1_deg{};
-    nbr_intersection_local_nbr_list(edge_partition, v0, v0_off, v0_deg);
-    nbr_intersection_local_nbr_list(edge_partition, v1, v1_off, v1_deg);
+    nbr_intersection_nbr_list(edge_partition,
+                              first_element_to_idx_map,
+                              first_element_offsets,
+                              first_element_indices,
+                              v0,
+                              v0_indices,
+                              v0_off,
+                              v0_deg);
+    nbr_intersection_nbr_list(edge_partition,
+                              second_element_to_idx_map,
+                              second_element_offsets,
+                              second_element_indices,
+                              v1,
+                              v1_indices,
+                              v1_off,
+                              v1_deg);
 
     // Scan the shorter neighbor list, binary-search the longer one.
-    bool v0_is_short = (v0_deg <= v1_deg);
-    edge_t short_off = v0_is_short ? v0_off : v1_off;
-    edge_t short_deg = v0_is_short ? v0_deg : v1_deg;
-    edge_t long_off  = v0_is_short ? v1_off : v0_off;
-    edge_t long_deg  = v0_is_short ? v1_deg : v0_deg;
+    bool v0_is_short              = (v0_deg <= v1_deg);
+    vertex_t const* short_indices = v0_is_short ? v0_indices : v1_indices;
+    vertex_t const* long_indices  = v0_is_short ? v1_indices : v0_indices;
+    edge_t short_off              = v0_is_short ? v0_off : v1_off;
+    edge_t short_deg              = v0_is_short ? v0_deg : v1_deg;
+    edge_t long_off               = v0_is_short ? v1_off : v0_off;
+    edge_t long_deg               = v0_is_short ? v1_deg : v0_deg;
+    bool short_local              = v0_is_short ? v0_local : v1_local;
+    bool long_local               = v0_is_short ? v1_local : v0_local;
 
     // Offset of edge (v0, v1): position of v1 in v0's neighbor list (computed once per warp).
     edge_t v0_v1_edge_offset{};
     if (lane_id == 0) {
       auto v0_v1_itr =
-        thrust::lower_bound(thrust::seq, indices + v0_off, indices + v0_off + v0_deg, v1);
-      v0_v1_edge_offset = static_cast<edge_t>(v0_v1_itr - indices);
+        thrust::lower_bound(thrust::seq, v0_indices + v0_off, v0_indices + v0_off + v0_deg, v1);
+      v0_v1_edge_offset = static_cast<edge_t>(v0_v1_itr - v0_indices);
     }
     v0_v1_edge_offset = __shfl_sync(uint32_t{0xffffffff}, v0_v1_edge_offset, 0);
 
     for (edge_t s = lane_id; s < short_deg; s += static_cast<edge_t>(raft::warp_size())) {
       if constexpr (check_edge_mask) {
-        if (!check_bit_set(short_off + s)) { continue; }
+        if (short_local && !check_bit_set(short_off + s)) { continue; }
       }
-      auto w = indices[short_off + s];
+      auto w = short_indices[short_off + s];
 
       edge_t lo = long_off;
       edge_t hi = long_off + long_deg;
       while (lo < hi) {
         auto mid = lo + (hi - lo) / 2;
-        if (indices[mid] < w) {
+        if (long_indices[mid] < w) {
           lo = mid + 1;
         } else {
           hi = mid;
         }
       }
-      if (lo < long_off + long_deg && indices[lo] == w) {
+      if (lo < long_off + long_deg && long_indices[lo] == w) {
         if constexpr (check_edge_mask) {
-          if (!check_bit_set(lo)) { continue; }
+          if (long_local && !check_bit_set(lo)) { continue; }
         }
         edge_t v0_w_edge_offset = v0_is_short ? (short_off + s) : lo;
         edge_t v1_w_edge_offset = v0_is_short ? lo : (short_off + s);
@@ -586,14 +658,25 @@ template <bool check_edge_mask,
           typename edge_t,
           bool multi_gpu,
           typename VertexPairIterator,
+          typename FirstElementToIdxMap,
+          typename SecondElementToIdxMap,
           typename IntersectionOp>
 __global__ static void nbr_intersection_high_degree(
   edge_partition_device_view_t<vertex_t, edge_t, multi_gpu> edge_partition,
   VertexPairIterator vertex_pair_first,
   raft::device_span<size_t const> pair_indices,
+  FirstElementToIdxMap first_element_to_idx_map,
+  raft::device_span<edge_t const> first_element_offsets,
+  raft::device_span<vertex_t const> first_element_indices,
+  SecondElementToIdxMap second_element_to_idx_map,
+  raft::device_span<edge_t const> second_element_offsets,
+  raft::device_span<vertex_t const> second_element_indices,
   IntersectionOp intersection_op,
   uint32_t const* edge_mask)
 {
+  constexpr bool v0_local = std::is_same_v<FirstElementToIdxMap, void*>;
+  constexpr bool v1_local = std::is_same_v<SecondElementToIdxMap, void*>;
+
   size_t idx = static_cast<size_t>(blockIdx.x);
 
   check_bit_set_t<uint32_t const*, edge_t> check_bit_set{edge_mask, edge_t{0}};
@@ -606,22 +689,41 @@ __global__ static void nbr_intersection_high_degree(
     auto v0   = cuda::std::get<0>(pair);
     auto v1   = cuda::std::get<1>(pair);
 
-    auto indices = edge_partition.indices();
+    vertex_t const* v0_indices{nullptr};
+    vertex_t const* v1_indices{nullptr};
     edge_t v0_off{}, v0_deg{}, v1_off{}, v1_deg{};
-    nbr_intersection_local_nbr_list(edge_partition, v0, v0_off, v0_deg);
-    nbr_intersection_local_nbr_list(edge_partition, v1, v1_off, v1_deg);
+    nbr_intersection_nbr_list(edge_partition,
+                              first_element_to_idx_map,
+                              first_element_offsets,
+                              first_element_indices,
+                              v0,
+                              v0_indices,
+                              v0_off,
+                              v0_deg);
+    nbr_intersection_nbr_list(edge_partition,
+                              second_element_to_idx_map,
+                              second_element_offsets,
+                              second_element_indices,
+                              v1,
+                              v1_indices,
+                              v1_off,
+                              v1_deg);
 
-    bool v0_is_short = (v0_deg <= v1_deg);
-    edge_t short_off = v0_is_short ? v0_off : v1_off;
-    edge_t short_deg = v0_is_short ? v0_deg : v1_deg;
-    edge_t long_off  = v0_is_short ? v1_off : v0_off;
-    edge_t long_deg  = v0_is_short ? v1_deg : v0_deg;
+    bool v0_is_short              = (v0_deg <= v1_deg);
+    vertex_t const* short_indices = v0_is_short ? v0_indices : v1_indices;
+    vertex_t const* long_indices  = v0_is_short ? v1_indices : v0_indices;
+    edge_t short_off              = v0_is_short ? v0_off : v1_off;
+    edge_t short_deg              = v0_is_short ? v0_deg : v1_deg;
+    edge_t long_off               = v0_is_short ? v1_off : v0_off;
+    edge_t long_deg               = v0_is_short ? v1_deg : v0_deg;
+    bool short_local              = v0_is_short ? v0_local : v1_local;
+    bool long_local               = v0_is_short ? v1_local : v0_local;
 
     // Offset of edge (v0, v1): position of v1 in v0's neighbor list (computed once per block).
     if (threadIdx.x == 0) {
       auto v0_v1_itr =
-        thrust::lower_bound(thrust::seq, indices + v0_off, indices + v0_off + v0_deg, v1);
-      shared_v0_v1_edge_offset = static_cast<edge_t>(v0_v1_itr - indices);
+        thrust::lower_bound(thrust::seq, v0_indices + v0_off, v0_indices + v0_off + v0_deg, v1);
+      shared_v0_v1_edge_offset = static_cast<edge_t>(v0_v1_itr - v0_indices);
     }
     __syncthreads();
     edge_t v0_v1_edge_offset = shared_v0_v1_edge_offset;
@@ -629,23 +731,23 @@ __global__ static void nbr_intersection_high_degree(
     for (edge_t s = static_cast<edge_t>(threadIdx.x); s < short_deg;
          s += static_cast<edge_t>(blockDim.x)) {
       if constexpr (check_edge_mask) {
-        if (!check_bit_set(short_off + s)) { continue; }
+        if (short_local && !check_bit_set(short_off + s)) { continue; }
       }
-      auto w = indices[short_off + s];
+      auto w = short_indices[short_off + s];
 
       edge_t lo = long_off;
       edge_t hi = long_off + long_deg;
       while (lo < hi) {
         auto mid = lo + (hi - lo) / 2;
-        if (indices[mid] < w) {
+        if (long_indices[mid] < w) {
           lo = mid + 1;
         } else {
           hi = mid;
         }
       }
-      if (lo < long_off + long_deg && indices[lo] == w) {
+      if (lo < long_off + long_deg && long_indices[lo] == w) {
         if constexpr (check_edge_mask) {
-          if (!check_bit_set(lo)) { continue; }
+          if (long_local && !check_bit_set(lo)) { continue; }
         }
         edge_t v0_w_edge_offset = v0_is_short ? (short_off + s) : lo;
         edge_t v1_w_edge_offset = v0_is_short ? lo : (short_off + s);
@@ -745,17 +847,28 @@ void nbr_intersection(raft::handle_t const& handle,
 
   auto max_grid_size = handle.get_device_properties().maxGridSize[0];
 
+  // Single-GPU: both endpoints are local, so no idx-maps and no gathered neighbor arrays are
+  // passed (void* maps select the local resolution path in nbr_intersection_nbr_list).
+  void* first_element_to_idx_map  = nullptr;
+  void* second_element_to_idx_map = nullptr;
+  auto empty_offsets              = raft::device_span<edge_t const>{};
+  auto empty_indices              = raft::device_span<vertex_t const>{};
+
   if (num_low > 0) {
     raft::grid_1d_thread_t grid(num_low, nbr_intersection_block_size, max_grid_size);
     auto pairs = raft::device_span<size_t const>(low_indices.data(), num_low);
     if (edge_mask != nullptr) {
       nbr_intersection_low_degree<true, vertex_t, edge_t, multi_gpu>
         <<<grid.num_blocks, grid.block_size, 0, stream>>>(
-          edge_partition, vertex_pair_first, pairs, intersection_op, edge_mask);
+          edge_partition, vertex_pair_first, pairs, first_element_to_idx_map, empty_offsets,
+          empty_indices, second_element_to_idx_map, empty_offsets, empty_indices, intersection_op,
+          edge_mask);
     } else {
       nbr_intersection_low_degree<false, vertex_t, edge_t, multi_gpu>
         <<<grid.num_blocks, grid.block_size, 0, stream>>>(
-          edge_partition, vertex_pair_first, pairs, intersection_op, nullptr);
+          edge_partition, vertex_pair_first, pairs, first_element_to_idx_map, empty_offsets,
+          empty_indices, second_element_to_idx_map, empty_offsets, empty_indices, intersection_op,
+          nullptr);
     }
   }
 
@@ -765,11 +878,15 @@ void nbr_intersection(raft::handle_t const& handle,
     if (edge_mask != nullptr) {
       nbr_intersection_mid_degree<true, vertex_t, edge_t, multi_gpu>
         <<<grid.num_blocks, grid.block_size, 0, stream>>>(
-          edge_partition, vertex_pair_first, pairs, intersection_op, edge_mask);
+          edge_partition, vertex_pair_first, pairs, first_element_to_idx_map, empty_offsets,
+          empty_indices, second_element_to_idx_map, empty_offsets, empty_indices, intersection_op,
+          edge_mask);
     } else {
       nbr_intersection_mid_degree<false, vertex_t, edge_t, multi_gpu>
         <<<grid.num_blocks, grid.block_size, 0, stream>>>(
-          edge_partition, vertex_pair_first, pairs, intersection_op, nullptr);
+          edge_partition, vertex_pair_first, pairs, first_element_to_idx_map, empty_offsets,
+          empty_indices, second_element_to_idx_map, empty_offsets, empty_indices, intersection_op,
+          nullptr);
     }
   }
 
@@ -779,11 +896,15 @@ void nbr_intersection(raft::handle_t const& handle,
     if (edge_mask != nullptr) {
       nbr_intersection_high_degree<true, vertex_t, edge_t, multi_gpu>
         <<<grid.num_blocks, grid.block_size, 0, stream>>>(
-          edge_partition, vertex_pair_first, pairs, intersection_op, edge_mask);
+          edge_partition, vertex_pair_first, pairs, first_element_to_idx_map, empty_offsets,
+          empty_indices, second_element_to_idx_map, empty_offsets, empty_indices, intersection_op,
+          edge_mask);
     } else {
       nbr_intersection_high_degree<false, vertex_t, edge_t, multi_gpu>
         <<<grid.num_blocks, grid.block_size, 0, stream>>>(
-          edge_partition, vertex_pair_first, pairs, intersection_op, nullptr);
+          edge_partition, vertex_pair_first, pairs, first_element_to_idx_map, empty_offsets,
+          empty_indices, second_element_to_idx_map, empty_offsets, empty_indices, intersection_op,
+          nullptr);
     }
   }
 }
