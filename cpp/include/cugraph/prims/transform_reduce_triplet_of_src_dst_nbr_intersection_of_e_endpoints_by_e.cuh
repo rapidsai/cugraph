@@ -212,6 +212,7 @@ transform_reduce_triplet_of_minor_nbr_intersection_of_e_endpoints_by_e(
     auto accumulator_first = get_dataframe_buffer_begin(edge_accumulator);
     detail::nbr_intersection(
       handle,
+      graph_view,
       edge_partition,
       vertex_pair_first,
       vertex_pair_first + majors.size(),
