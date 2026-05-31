@@ -10,6 +10,7 @@
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/export.hpp>
 #include <cugraph/graph_view.hpp>
+#include <cugraph/prims/detail/nbr_intersection.cuh>
 #include <cugraph/prims/property_op_utils.cuh>
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/error.hpp>
@@ -20,9 +21,18 @@
 #include <rmm/device_uvector.hpp>
 #include <rmm/exec_policy.hpp>
 
+#include <cuda/atomic>
+#include <cuda/functional>
 #include <cuda/std/optional>
 #include <cuda/std/tuple>
+#include <thrust/binary_search.h>
+#include <thrust/copy.h>
+#include <thrust/count.h>
+#include <thrust/distance.h>
+#include <thrust/execution_policy.h>
 #include <thrust/fill.h>
+#include <thrust/iterator/counting_iterator.h>
+#include <thrust/iterator/transform_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
 
 #include <tuple>
@@ -31,6 +41,62 @@
 namespace CUGRAPH_EXPORT cugraph {
 
 namespace detail {
+
+// Called by detail::nbr_intersection once per common neighbor w of a pair (v0, v1). Evaluates the
+// user operator and adds its returned values to the per-edge accumulator at the (v0, v1), (v0, w)
+// and (v1, w) edge offsets. The (v0, v1) and (v0, w) edges are local; (v1, w) is local in
+// single-GPU and may be remote in multi-GPU.
+template <typename GraphViewType,
+          typename EdgePartitionSrcValueInputWrapper,
+          typename EdgePartitionDstValueInputWrapper,
+          typename IntersectionOp,
+          typename T,
+          typename AccumulatorIterator>
+struct accumulate_triplet_op_t {
+  using vertex_t = typename GraphViewType::vertex_type;
+  using edge_t   = typename GraphViewType::edge_type;
+
+  edge_partition_device_view_t<vertex_t, edge_t, GraphViewType::is_multi_gpu> edge_partition{};
+  EdgePartitionSrcValueInputWrapper edge_partition_src_value_input{};
+  EdgePartitionDstValueInputWrapper edge_partition_dst_value_input{};
+  IntersectionOp intersection_op{};
+  AccumulatorIterator accumulator{};
+  T identity{};
+
+  __device__ void operator()(vertex_t v0,
+                             vertex_t v1,
+                             vertex_t w,
+                             edge_t v0_v1_edge_offset,
+                             edge_t v0_w_edge_offset,
+                             edge_t v1_w_edge_offset) const
+  {
+    auto major_offset = edge_partition.major_offset_from_major_nocheck(v0);
+    auto minor_offset = edge_partition.minor_offset_from_minor_nocheck(v1);
+    auto src          = GraphViewType::is_storage_transposed ? v1 : v0;
+    auto dst          = GraphViewType::is_storage_transposed ? v0 : v1;
+    auto src_offset   = GraphViewType::is_storage_transposed ? minor_offset : major_offset;
+    auto dst_offset   = GraphViewType::is_storage_transposed ? major_offset : minor_offset;
+
+    auto result = intersection_op(src,
+                                  dst,
+                                  edge_partition_src_value_input.get(src_offset),
+                                  edge_partition_dst_value_input.get(dst_offset),
+                                  w);
+    auto edge_value       = cuda::std::get<0>(result);
+    auto supporting_value = cuda::std::get<1>(result);
+
+    cuda::atomic_ref<T, cuda::thread_scope_device> v0_v1_ref(accumulator[v0_v1_edge_offset]);
+    v0_v1_ref.fetch_add(edge_value, cuda::memory_order_relaxed);
+    // Skip the supporting contribution when it is the additive identity: it is a no-op locally and
+    // (in multi-GPU) avoids buffering/shuffling an identity contribution for no effect.
+    if (supporting_value != identity) {
+      cuda::atomic_ref<T, cuda::thread_scope_device> v0_w_ref(accumulator[v0_w_edge_offset]);
+      v0_w_ref.fetch_add(supporting_value, cuda::memory_order_relaxed);
+      cuda::atomic_ref<T, cuda::thread_scope_device> v1_w_ref(accumulator[v1_w_edge_offset]);
+      v1_w_ref.fetch_add(supporting_value, cuda::memory_order_relaxed);
+    }
+  }
+};
 
 template <typename GraphViewType,
           typename EdgeSrcValueInputWrapper,
@@ -130,10 +196,7 @@ transform_reduce_triplet_of_minor_nbr_intersection_of_e_endpoints_by_e(
 
     auto vertex_pair_first = thrust::make_zip_iterator(majors.begin(), minors.begin());
 
-    // Per-edge accumulator: one slot per edge in this partition's CSR, indexed by edge offset.
-    // The intersection kernel atomically adds the operator's emission values into pq / pr / qr
-    // offsets, so the accumulator must span the full CSR edge range (including masked-out edges,
-    // since offsets index the full indices[] array).
+    // Per-edge accumulator, indexed by CSR edge offset (sized over the full edge range).
     auto edge_accumulator = allocate_dataframe_buffer<T>(
       static_cast<size_t>(edge_partition.number_of_edges()), handle.get_stream());
     thrust::fill(handle.get_thrust_policy(),
@@ -141,8 +204,78 @@ transform_reduce_triplet_of_minor_nbr_intersection_of_e_endpoints_by_e(
                  get_dataframe_buffer_end(edge_accumulator),
                  init);
 
-    // === STEP 3: non-materializing intersection kernel (atomicAdd emission tuple per (edge, r)) ===
-    // === STEP 4: stream-compact accumulator into (src, dst, value) triplets, append to result ===
+    uint32_t const* edge_mask =
+      edge_partition_e_mask ? (*edge_partition_e_mask).value_first() : nullptr;
+
+    // Compute the intersection without materializing it, accumulating the operator's values per
+    // edge.
+    auto accumulator_first = get_dataframe_buffer_begin(edge_accumulator);
+    detail::nbr_intersection(
+      handle,
+      edge_partition,
+      vertex_pair_first,
+      vertex_pair_first + majors.size(),
+      accumulate_triplet_op_t<GraphViewType,
+                              edge_partition_src_input_device_view_t,
+                              edge_partition_dst_input_device_view_t,
+                              IntersectionOp,
+                              T,
+                              decltype(accumulator_first)>{edge_partition,
+                                                           edge_partition_src_value_input,
+                                                           edge_partition_dst_value_input,
+                                                           intersection_op,
+                                                           accumulator_first,
+                                                           init},
+      edge_mask);
+
+    // Stream-compact the accumulator to (src, dst, value) triplets for the updated edges. The
+    // accumulator is indexed by CSR edge offset, so dst(e) = indices[e] and src(e) is the major
+    // whose offset range contains e (found by upper_bound on offsets[]). Only edges whose value
+    // changed from init are kept.
+    auto num_partition_edges = static_cast<size_t>(edge_partition.number_of_edges());
+    auto offsets_ptr         = edge_partition.offsets();
+    auto indices_ptr         = edge_partition.indices();
+    auto num_majors          = edge_partition.major_range_size();
+    auto major_range_first   = edge_partition.major_range_first();
+
+    auto num_updated = static_cast<size_t>(thrust::count_if(
+      handle.get_thrust_policy(),
+      accumulator_first,
+      accumulator_first + num_partition_edges,
+      cuda::proclaim_return_type<bool>([init] __device__(auto v) { return v != init; })));
+
+    rmm::device_uvector<vertex_t> chunk_srcs(num_updated, handle.get_stream());
+    rmm::device_uvector<vertex_t> chunk_dsts(num_updated, handle.get_stream());
+    auto chunk_vals = allocate_dataframe_buffer<T>(num_updated, handle.get_stream());
+
+    auto src_first = thrust::make_transform_iterator(
+      thrust::make_counting_iterator(edge_t{0}),
+      cuda::proclaim_return_type<vertex_t>(
+        [offsets_ptr, num_majors, major_range_first] __device__(edge_t e) {
+          auto it = thrust::upper_bound(thrust::seq, offsets_ptr, offsets_ptr + num_majors + 1, e);
+          return static_cast<vertex_t>(major_range_first +
+                                       (thrust::distance(offsets_ptr, it) - edge_t{1}));
+        }));
+    auto dst_first = thrust::make_transform_iterator(
+      thrust::make_counting_iterator(edge_t{0}),
+      cuda::proclaim_return_type<vertex_t>(
+        [indices_ptr] __device__(edge_t e) { return indices_ptr[e]; }));
+    auto input_first  = thrust::make_zip_iterator(src_first, dst_first, accumulator_first);
+    auto output_first = thrust::make_zip_iterator(
+      chunk_srcs.begin(), chunk_dsts.begin(), get_dataframe_buffer_begin(chunk_vals));
+
+    thrust::copy_if(handle.get_thrust_policy(),
+                    input_first,
+                    input_first + num_partition_edges,
+                    accumulator_first,
+                    output_first,
+                    cuda::proclaim_return_type<bool>([init] __device__(auto v) { return v != init; }));
+
+    // Single-GPU has one local edge partition, so this chunk is the whole result. (MG with
+    // multiple local partitions / cross-rank ownership restructures this tail; see section 5.)
+    result_srcs   = std::move(chunk_srcs);
+    result_dsts   = std::move(chunk_dsts);
+    result_values = std::move(chunk_vals);
   }
 
   return std::make_tuple(
