@@ -14,10 +14,13 @@
 #include <cugraph/prims/property_op_utils.cuh>
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/error.hpp>
+#include <cugraph/utilities/graph_partition_utils.cuh>
 #include <cugraph/utilities/mask_utils.cuh>
+#include <cugraph/utilities/shuffle_comm.cuh>
 
 #include <raft/core/handle.hpp>
 
+#include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
 #include <rmm/exec_policy.hpp>
 
@@ -34,6 +37,8 @@
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/transform_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
+#include <thrust/reduce.h>
+#include <thrust/sort.h>
 
 #include <tuple>
 #include <type_traits>
@@ -41,6 +46,20 @@
 namespace CUGRAPH_EXPORT cugraph {
 
 namespace detail {
+
+// Counts how many times the operator is invoked (one per common neighbor). Used in multi-GPU to
+// size the buffer of remote (v1, w) contributions before the accumulating pass.
+template <typename vertex_t, typename edge_t>
+struct count_intersections_op_t {
+  size_t* count{nullptr};
+
+  __device__ void operator()(
+    vertex_t, vertex_t, vertex_t, edge_t, edge_t, edge_t) const
+  {
+    cuda::atomic_ref<size_t, cuda::thread_scope_device> counter(*count);
+    counter.fetch_add(size_t{1}, cuda::memory_order_relaxed);
+  }
+};
 
 // Called by detail::nbr_intersection once per common neighbor w of a pair (v0, v1). Evaluates the
 // user operator and adds its returned values to the per-edge accumulator at the (v0, v1), (v0, w)
@@ -62,6 +81,13 @@ struct accumulate_triplet_op_t {
   IntersectionOp intersection_op{};
   AccumulatorIterator accumulator{};
   T identity{};
+
+  // Multi-GPU only: the (v1, w) edge may be owned by another rank, so its contribution is appended
+  // here (keyed by the vertices) for a bulk shuffle instead of a local atomic. Unused in single-GPU.
+  vertex_t* remote_srcs{nullptr};
+  vertex_t* remote_dsts{nullptr};
+  T* remote_values{nullptr};
+  size_t* remote_count{nullptr};
 
   __device__ void operator()(vertex_t v0,
                              vertex_t v1,
@@ -85,6 +111,7 @@ struct accumulate_triplet_op_t {
     auto edge_value       = cuda::std::get<0>(result);
     auto supporting_value = cuda::std::get<1>(result);
 
+    // (v0, v1) and (v0, w) are local edges, applied with a local atomic.
     cuda::atomic_ref<T, cuda::thread_scope_device> v0_v1_ref(accumulator[v0_v1_edge_offset]);
     v0_v1_ref.fetch_add(edge_value, cuda::memory_order_relaxed);
     // Skip the supporting contribution when it is the additive identity: it is a no-op locally and
@@ -92,8 +119,17 @@ struct accumulate_triplet_op_t {
     if (supporting_value != identity) {
       cuda::atomic_ref<T, cuda::thread_scope_device> v0_w_ref(accumulator[v0_w_edge_offset]);
       v0_w_ref.fetch_add(supporting_value, cuda::memory_order_relaxed);
-      cuda::atomic_ref<T, cuda::thread_scope_device> v1_w_ref(accumulator[v1_w_edge_offset]);
-      v1_w_ref.fetch_add(supporting_value, cuda::memory_order_relaxed);
+      if constexpr (GraphViewType::is_multi_gpu) {
+        // (v1, w) may be owned by another rank; append it for the bulk shuffle.
+        cuda::atomic_ref<size_t, cuda::thread_scope_device> counter(*remote_count);
+        auto pos          = counter.fetch_add(size_t{1}, cuda::memory_order_relaxed);
+        remote_srcs[pos]  = v1;
+        remote_dsts[pos]  = w;
+        remote_values[pos] = supporting_value;
+      } else {
+        cuda::atomic_ref<T, cuda::thread_scope_device> v1_w_ref(accumulator[v1_w_edge_offset]);
+        v1_w_ref.fetch_add(supporting_value, cuda::memory_order_relaxed);
+      }
     }
   }
 };
@@ -207,9 +243,31 @@ transform_reduce_triplet_of_minor_nbr_intersection_of_e_endpoints_by_e(
     uint32_t const* edge_mask =
       edge_partition_e_mask ? (*edge_partition_e_mask).value_first() : nullptr;
 
-    // Compute the intersection without materializing it, accumulating the operator's values per
-    // edge.
     auto accumulator_first = get_dataframe_buffer_begin(edge_accumulator);
+
+    // Multi-GPU: the (v1, w) edges may be owned by other ranks, so their contributions are buffered
+    // (keyed by vertices) and shuffled later. Size the buffer with a counting pass first.
+    rmm::device_uvector<vertex_t> remote_srcs(size_t{0}, handle.get_stream());
+    rmm::device_uvector<vertex_t> remote_dsts(size_t{0}, handle.get_stream());
+    auto remote_vals = allocate_dataframe_buffer<T>(size_t{0}, handle.get_stream());
+    rmm::device_scalar<size_t> remote_count(size_t{0}, handle.get_stream());
+    if constexpr (GraphViewType::is_multi_gpu) {
+      rmm::device_scalar<size_t> match_count(size_t{0}, handle.get_stream());
+      detail::nbr_intersection(handle,
+                               graph_view,
+                               edge_partition,
+                               vertex_pair_first,
+                               vertex_pair_first + majors.size(),
+                               count_intersections_op_t<vertex_t, edge_t>{match_count.data()},
+                               edge_mask);
+      auto n = match_count.value(handle.get_stream());
+      remote_srcs.resize(n, handle.get_stream());
+      remote_dsts.resize(n, handle.get_stream());
+      resize_dataframe_buffer(remote_vals, n, handle.get_stream());
+    }
+
+    // Accumulate pass: (v0, v1) and (v0, w) go into the local accumulator; (v1, w) is added locally
+    // in single-GPU and buffered for the shuffle in multi-GPU.
     detail::nbr_intersection(
       handle,
       graph_view,
@@ -221,12 +279,17 @@ transform_reduce_triplet_of_minor_nbr_intersection_of_e_endpoints_by_e(
                               edge_partition_dst_input_device_view_t,
                               IntersectionOp,
                               T,
-                              decltype(accumulator_first)>{edge_partition,
-                                                           edge_partition_src_value_input,
-                                                           edge_partition_dst_value_input,
-                                                           intersection_op,
-                                                           accumulator_first,
-                                                           init},
+                              decltype(accumulator_first)>{
+        edge_partition,
+        edge_partition_src_value_input,
+        edge_partition_dst_value_input,
+        intersection_op,
+        accumulator_first,
+        init,
+        remote_srcs.data(),
+        remote_dsts.data(),
+        get_dataframe_buffer_begin(remote_vals),
+        remote_count.data()},
       edge_mask);
 
     // Stream-compact the accumulator to (src, dst, value) triplets for the updated edges. The
@@ -272,11 +335,94 @@ transform_reduce_triplet_of_minor_nbr_intersection_of_e_endpoints_by_e(
                     output_first,
                     cuda::proclaim_return_type<bool>([init] __device__(auto v) { return v != init; }));
 
-    // Single-GPU has one local edge partition, so this chunk is the whole result. (MG with
-    // multiple local partitions / cross-rank ownership restructures this tail; see section 5.)
-    result_srcs   = std::move(chunk_srcs);
-    result_dsts   = std::move(chunk_dsts);
-    result_values = std::move(chunk_vals);
+    if constexpr (!GraphViewType::is_multi_gpu) {
+      // Single-GPU has one local edge partition, so this chunk is the whole result.
+      result_srcs   = std::move(chunk_srcs);
+      result_dsts   = std::move(chunk_dsts);
+      result_values = std::move(chunk_vals);
+    } else {
+      // Append the buffered remote (v1, w) contributions to the local (v0, v1) / (v0, w) triplets,
+      // shuffle every (src, dst, value) to the rank owning the edge, and reduce per edge there.
+      auto rn = remote_count.value(handle.get_stream());
+      remote_srcs.resize(rn, handle.get_stream());
+      remote_dsts.resize(rn, handle.get_stream());
+      resize_dataframe_buffer(remote_vals, rn, handle.get_stream());
+
+      rmm::device_uvector<vertex_t> all_srcs(num_updated + rn, handle.get_stream());
+      rmm::device_uvector<vertex_t> all_dsts(num_updated + rn, handle.get_stream());
+      auto all_vals = allocate_dataframe_buffer<T>(num_updated + rn, handle.get_stream());
+      thrust::copy(
+        handle.get_thrust_policy(), chunk_srcs.begin(), chunk_srcs.end(), all_srcs.begin());
+      thrust::copy(
+        handle.get_thrust_policy(), chunk_dsts.begin(), chunk_dsts.end(), all_dsts.begin());
+      thrust::copy(handle.get_thrust_policy(),
+                   get_dataframe_buffer_begin(chunk_vals),
+                   get_dataframe_buffer_end(chunk_vals),
+                   get_dataframe_buffer_begin(all_vals));
+      thrust::copy(
+        handle.get_thrust_policy(), remote_srcs.begin(), remote_srcs.end(), all_srcs.begin() + num_updated);
+      thrust::copy(
+        handle.get_thrust_policy(), remote_dsts.begin(), remote_dsts.end(), all_dsts.begin() + num_updated);
+      thrust::copy(handle.get_thrust_policy(),
+                   get_dataframe_buffer_begin(remote_vals),
+                   get_dataframe_buffer_end(remote_vals),
+                   get_dataframe_buffer_begin(all_vals) + num_updated);
+
+      // Shuffle each (src, dst, value) to the rank that owns the edge (by edge partitioning).
+      auto h_vertex_partition_range_lasts = graph_view.vertex_partition_range_lasts();
+      rmm::device_uvector<vertex_t> d_vertex_partition_range_lasts(
+        h_vertex_partition_range_lasts.size(), handle.get_stream());
+      raft::update_device(d_vertex_partition_range_lasts.data(),
+                          h_vertex_partition_range_lasts.data(),
+                          h_vertex_partition_range_lasts.size(),
+                          handle.get_stream());
+      auto& comm                 = handle.get_comms();
+      auto const comm_size       = comm.get_size();
+      auto& major_comm           = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
+      auto const major_comm_size = major_comm.get_size();
+      auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+      auto const minor_comm_size = minor_comm.get_size();
+
+      auto rx_value_buffer = allocate_dataframe_buffer<T>(size_t{0}, handle.get_stream());
+      auto [rx_srcs, rx_dsts] = std::make_tuple(rmm::device_uvector<vertex_t>(0, handle.get_stream()),
+                                                rmm::device_uvector<vertex_t>(0, handle.get_stream()));
+      std::tie(rx_srcs, rx_dsts, rx_value_buffer, std::ignore) =
+        groupby_gpu_id_and_shuffle_kv_pairs(
+          comm,
+          thrust::make_zip_iterator(all_srcs.begin(), all_dsts.begin()),
+          thrust::make_zip_iterator(all_srcs.end(), all_dsts.end()),
+          get_dataframe_buffer_begin(all_vals),
+          cugraph::detail::compute_gpu_id_from_int_edge_endpoints_t<vertex_t>{
+            raft::device_span<vertex_t const>(d_vertex_partition_range_lasts.data(),
+                                              d_vertex_partition_range_lasts.size()),
+            comm_size,
+            major_comm_size,
+            minor_comm_size},
+          handle.get_stream());
+
+      // Reduce the received contributions per edge.
+      auto rx_edge_first = thrust::make_zip_iterator(rx_srcs.begin(), rx_dsts.begin());
+      thrust::sort_by_key(handle.get_thrust_policy(),
+                          rx_edge_first,
+                          rx_edge_first + rx_srcs.size(),
+                          get_dataframe_buffer_begin(rx_value_buffer));
+      result_srcs.resize(rx_srcs.size(), handle.get_stream());
+      result_dsts.resize(rx_srcs.size(), handle.get_stream());
+      resize_dataframe_buffer(result_values, rx_srcs.size(), handle.get_stream());
+      auto reduced_end = thrust::reduce_by_key(
+        handle.get_thrust_policy(),
+        rx_edge_first,
+        rx_edge_first + rx_srcs.size(),
+        get_dataframe_buffer_begin(rx_value_buffer),
+        thrust::make_zip_iterator(result_srcs.begin(), result_dsts.begin()),
+        get_dataframe_buffer_begin(result_values));
+      auto num_reduced = static_cast<size_t>(
+        thrust::distance(thrust::make_zip_iterator(result_srcs.begin(), result_dsts.begin()),
+                         reduced_end.first));
+      result_srcs.resize(num_reduced, handle.get_stream());
+      result_dsts.resize(num_reduced, handle.get_stream());
+      resize_dataframe_buffer(result_values, num_reduced, handle.get_stream());
+    }
   }
 
   return std::make_tuple(

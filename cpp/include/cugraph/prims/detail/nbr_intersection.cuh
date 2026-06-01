@@ -1102,14 +1102,10 @@ void nbr_intersection(raft::handle_t const& handle,
     major_nbr_indices    = std::move(n);
   }
 
-  // Per-vertex degrees (mask-aware) of the local (first) endpoints used to bin each pair.
-  auto vertex_degrees = (edge_mask != nullptr)
-                          ? edge_partition.compute_local_degrees_with_mask(edge_mask, stream)
-                          : edge_partition.compute_local_degrees(stream);
-  auto degrees = vertex_degrees.data();
-
-  // min(degree(v0), degree(v1)) for each pair. v0 is local; v1's degree is local in single-GPU and
-  // comes from the gathered offsets (via the map) in multi-GPU.
+  // min(degree(v0), degree(v1)) for each pair, used only to choose the per-pair kernel. v0 is local
+  // (degree from the edge partition); v1's degree is local in single-GPU and comes from the gathered
+  // offsets (via the map) in multi-GPU. The full (unmasked) degree is fine here, since this only
+  // selects the kernel; the kernels themselves honor the edge mask.
   rmm::device_uvector<edge_t> min_degrees(num_pairs, stream);
   if constexpr (multi_gpu) {
     auto map_view = detail::kv_cuco_store_find_device_view_t((*major_to_idx_map_ptr)->view());
@@ -1121,10 +1117,10 @@ void nbr_intersection(raft::handle_t const& handle,
       thrust::make_counting_iterator(num_pairs),
       min_degrees.begin(),
       cuda::proclaim_return_type<edge_t>(
-        [vertex_pair_first, edge_partition, degrees, map_view, nbr_offsets] __device__(size_t i) {
+        [vertex_pair_first, edge_partition, map_view, nbr_offsets] __device__(size_t i) {
           auto pair = *(vertex_pair_first + i);
-          auto d0   = degrees[edge_partition.major_offset_from_major_nocheck(
-            cuda::std::get<0>(pair))];
+          auto d0   = edge_partition.local_degree(
+            edge_partition.major_offset_from_major_nocheck(cuda::std::get<0>(pair)));
           auto idx  = map_view.find(cuda::std::get<1>(pair));
           auto d1   = static_cast<edge_t>(nbr_offsets[idx + 1] - nbr_offsets[idx]);
           return d0 < d1 ? d0 : d1;
@@ -1135,12 +1131,12 @@ void nbr_intersection(raft::handle_t const& handle,
                       thrust::make_counting_iterator(num_pairs),
                       min_degrees.begin(),
                       cuda::proclaim_return_type<edge_t>(
-                        [vertex_pair_first, edge_partition, degrees] __device__(size_t i) {
+                        [vertex_pair_first, edge_partition] __device__(size_t i) {
                           auto pair = *(vertex_pair_first + i);
-                          auto d0   = degrees[edge_partition.major_offset_from_major_nocheck(
-                            cuda::std::get<0>(pair))];
-                          auto d1   = degrees[edge_partition.major_offset_from_major_nocheck(
-                            cuda::std::get<1>(pair))];
+                          auto d0   = edge_partition.local_degree(
+                            edge_partition.major_offset_from_major_nocheck(cuda::std::get<0>(pair)));
+                          auto d1   = edge_partition.local_degree(
+                            edge_partition.major_offset_from_major_nocheck(cuda::std::get<1>(pair)));
                           return d0 < d1 ? d0 : d1;
                         }));
   }
