@@ -323,6 +323,8 @@ set(CUGRAPH_SG_SOURCES
     src/traversal/extract_bfs_paths_sg_v32_e32.cu
     src/traversal/bfs_sg_v64_e64.cu
     src/traversal/bfs_sg_v32_e32.cu
+    src/traversal/dawn_bfs_sg_v64_e64.cu
+    src/traversal/dawn_bfs_sg_v32_e32.cu
     src/traversal/sssp_sg_v64_e64.cu
     src/traversal/sssp_sg_v32_e32.cu
     src/traversal/od_shortest_distances_sg_v64_e64.cu

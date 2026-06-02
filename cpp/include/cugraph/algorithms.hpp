@@ -1097,6 +1097,24 @@ void bfs(raft::handle_t const& handle,
          bool do_expensive_check   = false);
 
 /**
+ * @ingroup traversal_cpp
+ * @brief Run DAWN breadth-first search from one or more sources.
+ *
+ * This experimental API computes hop distances using the DAWN standard traversal path. It is
+ * currently instantiated for single-GPU int32/int32 and int64/int64 vertex/edge IDs. For
+ * multi-source input, all sources are used as one initial frontier and @p distances contains one
+ * graph-sized nearest-source distance vector.
+ */
+template <typename vertex_t, typename edge_t, bool multi_gpu>
+void dawn_bfs(raft::handle_t const& handle,
+              graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+              vertex_t* distances,
+              vertex_t const* sources,
+              size_t n_sources        = 1,
+              vertex_t depth_limit    = std::numeric_limits<vertex_t>::max(),
+              bool do_expensive_check = false);
+
+/**
  * @ingroup dag_cpp
  * @brief Compute a topological ordering of a directed acyclic graph (DAG).
  * For every directed edge (u, v), u appears before v in the returned ordering.
