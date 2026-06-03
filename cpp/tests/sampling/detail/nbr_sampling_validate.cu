@@ -78,21 +78,17 @@ struct ArithmeticZipLess {
 // FIXME: Consider moving this to thrust_tuple_utils and making it
 //        generic for any tuple that supports < operator
 struct ArithmeticZipEqual {
-  template <typename vertex_t, typename weight_t>
-  __device__ bool operator()(cuda::std::tuple<vertex_t, vertex_t, weight_t> const& left,
-                             cuda::std::tuple<vertex_t, vertex_t, weight_t> const& right)
+  template <typename left_t, typename right_t>
+  __device__ bool operator()(left_t const& left, right_t const& right) const
   {
-    return (cuda::std::get<0>(left) == cuda::std::get<0>(right)) &&
-           (cuda::std::get<1>(left) == cuda::std::get<1>(right)) &&
-           (cuda::std::get<2>(left) == cuda::std::get<2>(right));
-  }
-
-  template <typename vertex_t>
-  __device__ bool operator()(cuda::std::tuple<vertex_t, vertex_t> const& left,
-                             cuda::std::tuple<vertex_t, vertex_t> const& right)
-  {
-    return (cuda::std::get<0>(left) == cuda::std::get<0>(right)) &&
-           (cuda::std::get<1>(left) == cuda::std::get<1>(right));
+    if constexpr (cuda::std::tuple_size<left_t>::value > 2) {
+      return (cuda::std::get<0>(left) == cuda::std::get<0>(right)) &&
+             (cuda::std::get<1>(left) == cuda::std::get<1>(right)) &&
+             (cuda::std::get<2>(left) == cuda::std::get<2>(right));
+    } else {
+      return (cuda::std::get<0>(left) == cuda::std::get<0>(right)) &&
+             (cuda::std::get<1>(left) == cuda::std::get<1>(right));
+    }
   }
 };
 
