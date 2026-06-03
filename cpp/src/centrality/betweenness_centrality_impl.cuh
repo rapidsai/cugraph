@@ -22,6 +22,7 @@
 #include <cugraph/prims/update_v_frontier.cuh>
 #include <cugraph/prims/vertex_frontier.cuh>
 #include <cugraph/utilities/error.hpp>
+#include <cugraph/utilities/thrust_wrappers.hpp>
 #include <cugraph/vertex_partition_device_view.cuh>
 
 #include <raft/core/handle.hpp>
@@ -457,7 +458,7 @@ void accumulate_edge_results(
                                                              do_expensive_check);
 
       auto triplet_first = thrust::make_zip_iterator(srcs.begin(), dsts.begin(), indices->begin());
-      thrust::sort(handle.get_thrust_policy(), triplet_first, triplet_first + srcs.size());
+      cugraph::sort_wrapper(handle.get_thrust_policy(), triplet_first, triplet_first + srcs.size());
     } else {
       std::tie(srcs, dsts) = extract_transform_if_e(handle,
                                                     graph_view,
@@ -468,7 +469,7 @@ void accumulate_edge_results(
                                                     extract_edge_pred_op_t<vertex_t>{d},
                                                     do_expensive_check);
       auto pair_first      = thrust::make_zip_iterator(srcs.begin(), dsts.begin());
-      thrust::sort(handle.get_thrust_policy(), pair_first, pair_first + srcs.size());
+      cugraph::sort_wrapper(handle.get_thrust_policy(), pair_first, pair_first + srcs.size());
     }
     edge_list.insert(srcs.begin(),
                      srcs.end(),
@@ -592,7 +593,7 @@ batch_partition_frontier(raft::handle_t const& handle,
 
   std::vector<size_t> batch_offsets{0, frontier.size()};
   if (source_lasts) {
-    thrust::sort(
+    cugraph::sort_wrapper(
       handle.get_thrust_policy(),
       frontier.begin(),
       frontier.end(),

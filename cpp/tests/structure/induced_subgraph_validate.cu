@@ -4,6 +4,8 @@
  */
 #include "structure/induced_subgraph_validate.hpp"
 
+#include <cugraph/utilities/thrust_wrappers.hpp>
+
 #include <raft/core/handle.hpp>
 
 #include <rmm/device_uvector.hpp>
@@ -96,20 +98,20 @@ void induced_subgraph_validate(
       << "Extracted subgraph edges do not match with the edges extracted by the reference "
          "implementation.";
   } else {
-    thrust::sort(handle.get_thrust_policy(),
-                 thrust::make_zip_iterator(d_subgraph_index.begin(),
-                                           d_reference_subgraph_edgelist_majors.begin(),
-                                           d_reference_subgraph_edgelist_minors.begin()),
-                 thrust::make_zip_iterator(d_subgraph_index.end(),
-                                           d_reference_subgraph_edgelist_majors.end(),
-                                           d_reference_subgraph_edgelist_minors.end()));
-    thrust::sort(handle.get_thrust_policy(),
-                 thrust::make_zip_iterator(d_subgraph_index.begin(),
-                                           d_cugraph_subgraph_edgelist_majors.begin(),
-                                           d_cugraph_subgraph_edgelist_minors.begin()),
-                 thrust::make_zip_iterator(d_subgraph_index.end(),
-                                           d_cugraph_subgraph_edgelist_majors.end(),
-                                           d_cugraph_subgraph_edgelist_minors.end()));
+    cugraph::sort_wrapper(handle.get_thrust_policy(),
+                          thrust::make_zip_iterator(d_subgraph_index.begin(),
+                                                    d_reference_subgraph_edgelist_majors.begin(),
+                                                    d_reference_subgraph_edgelist_minors.begin()),
+                          thrust::make_zip_iterator(d_subgraph_index.end(),
+                                                    d_reference_subgraph_edgelist_majors.end(),
+                                                    d_reference_subgraph_edgelist_minors.end()));
+    cugraph::sort_wrapper(handle.get_thrust_policy(),
+                          thrust::make_zip_iterator(d_subgraph_index.begin(),
+                                                    d_cugraph_subgraph_edgelist_majors.begin(),
+                                                    d_cugraph_subgraph_edgelist_minors.begin()),
+                          thrust::make_zip_iterator(d_subgraph_index.end(),
+                                                    d_cugraph_subgraph_edgelist_majors.end(),
+                                                    d_cugraph_subgraph_edgelist_minors.end()));
 
     ASSERT_TRUE(
       thrust::equal(handle.get_thrust_policy(),

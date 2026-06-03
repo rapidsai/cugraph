@@ -160,6 +160,10 @@ neighbor_sample_impl(raft::handle_t const& handle,
     edge_property_views.data(), edge_property_views.size()};
   size_t const n_edge_props = edge_property_views.size();
 
+  // Edge types are only a filter key for heterogeneous sampling. Homogeneous sampling may still
+  // carry edge types as an output property, so keep edge_type_view in edge_property_views above.
+  auto const edge_type_filter_view = num_edge_types ? edge_type_view : std::nullopt;
+
   std::optional<rmm::device_uvector<vertex_t>> visited_minors{std::nullopt};
   std::optional<rmm::device_uvector<label_t>> visited_minor_labels{std::nullopt};
 
@@ -359,7 +363,7 @@ neighbor_sample_impl(raft::handle_t const& handle,
             handle,
             graph_view,
             n_edge_props,
-            edge_type_view,
+            edge_type_filter_view,
             hop == 0 ? starting_vertices
                      : raft::device_span<vertex_t const>(frontier_vertices.data(),
                                                          frontier_vertices.size()),
@@ -388,7 +392,7 @@ neighbor_sample_impl(raft::handle_t const& handle,
           handle,
           graph_view,
           n_edge_props,
-          edge_type_view,
+          edge_type_filter_view,
           hop == 0
             ? starting_vertices
             : raft::device_span<vertex_t const>(frontier_vertices.data(), frontier_vertices.size()),

@@ -209,6 +209,10 @@ temporal_neighbor_sample_impl(
     edge_property_views.data(), edge_property_views.size()};
   size_t const n_edge_props = edge_property_views.size();
 
+  // Edge types are only a filter key for heterogeneous sampling. Homogeneous temporal sampling may
+  // still carry edge types as an output property, so keep edge_type_view in edge_property_views.
+  auto const edge_type_filter_view = num_edge_types ? edge_type_view : std::nullopt;
+
   graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> temporal_graph_view{graph_view};
 
   cugraph::edge_property_t<edge_t, bool> edge_time_mask(handle, graph_view);
@@ -514,7 +518,7 @@ temporal_neighbor_sample_impl(
           handle,
           temporal_graph_view,
           n_edge_props,
-          edge_type_view,
+          edge_type_filter_view,
           raft::device_span<vertex_t const>{frontier_vertices_no_duplicates.data(),
                                             frontier_vertices_no_duplicates.size()},
           frontier_vertex_labels_no_duplicates
@@ -584,7 +588,7 @@ temporal_neighbor_sample_impl(
           graph_view,
           edge_prop_span,
           edge_start_time_view,
-          edge_type_view,
+          edge_type_filter_view,
           raft::device_span<vertex_t const>{frontier_vertices_has_duplicates.data(),
                                             frontier_vertices_has_duplicates.size()},
 

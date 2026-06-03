@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -15,6 +15,7 @@
 #include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
 #include <cugraph/utilities/misc_utils.cuh>
+#include <cugraph/utilities/thrust_wrappers.hpp>
 
 #include <raft/comms/mpi_comms.hpp>
 #include <raft/core/comms.hpp>
@@ -185,9 +186,9 @@ class Tests_MGEgonet
                             triplet_first + d_mg_aggregate_edgelist_src.size(),
                             d_mg_aggregate_edgelist_wgt->begin());
       } else {
-        thrust::sort(handle_->get_thrust_policy(),
-                     triplet_first,
-                     triplet_first + d_mg_aggregate_edgelist_src.size());
+        cugraph::sort_wrapper(handle_->get_thrust_policy(),
+                              triplet_first,
+                              triplet_first + d_mg_aggregate_edgelist_src.size());
       }
 
       cugraph::graph_t<vertex_t, edge_t, false, false> sg_graph(*handle_);

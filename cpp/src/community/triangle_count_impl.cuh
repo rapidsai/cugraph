@@ -17,6 +17,7 @@
 #include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
+#include <cugraph/utilities/thrust_wrappers.hpp>
 
 #include <cuda/functional>
 #include <cuda/iterator>
@@ -195,7 +196,8 @@ void triangle_count(raft::handle_t const& handle,
     rmm::device_uvector<vertex_t> unique_vertices((*vertices).size(), handle.get_stream());
     thrust::copy(
       handle.get_thrust_policy(), (*vertices).begin(), (*vertices).end(), unique_vertices.begin());
-    thrust::sort(handle.get_thrust_policy(), unique_vertices.begin(), unique_vertices.end());
+    cugraph::sort_wrapper(
+      handle.get_thrust_policy(), unique_vertices.begin(), unique_vertices.end());
     unique_vertices.resize(
       cuda::std::distance(
         unique_vertices.begin(),
@@ -216,7 +218,7 @@ void triangle_count(raft::handle_t const& handle,
                  unique_one_hop_nbrs.begin());
     one_hop_nbrs.resize(0, handle.get_stream());
     one_hop_nbrs.shrink_to_fit(handle.get_stream());
-    thrust::sort(
+    cugraph::sort_wrapper(
       handle.get_thrust_policy(), unique_one_hop_nbrs.begin(), unique_one_hop_nbrs.end());
     unique_one_hop_nbrs.resize(cuda::std::distance(unique_one_hop_nbrs.begin(),
                                                    thrust::unique(handle.get_thrust_policy(),
@@ -230,7 +232,7 @@ void triangle_count(raft::handle_t const& handle,
                              std::move(unique_one_hop_nbrs),
                              std::vector<cugraph::arithmetic_device_uvector_t>{},
                              cur_graph_view.vertex_partition_range_lasts());
-      thrust::sort(
+      cugraph::sort_wrapper(
         handle.get_thrust_policy(), unique_one_hop_nbrs.begin(), unique_one_hop_nbrs.end());
       unique_one_hop_nbrs.resize(cuda::std::distance(unique_one_hop_nbrs.begin(),
                                                      thrust::unique(handle.get_thrust_policy(),
@@ -253,7 +255,7 @@ void triangle_count(raft::handle_t const& handle,
                  unique_two_hop_nbrs.begin());
     two_hop_nbrs.resize(0, handle.get_stream());
     two_hop_nbrs.shrink_to_fit(handle.get_stream());
-    thrust::sort(
+    cugraph::sort_wrapper(
       handle.get_thrust_policy(), unique_two_hop_nbrs.begin(), unique_two_hop_nbrs.end());
     unique_two_hop_nbrs.resize(cuda::std::distance(unique_two_hop_nbrs.begin(),
                                                    thrust::unique(handle.get_thrust_policy(),
@@ -267,7 +269,7 @@ void triangle_count(raft::handle_t const& handle,
                              std::move(unique_two_hop_nbrs),
                              std::vector<cugraph::arithmetic_device_uvector_t>{},
                              cur_graph_view.vertex_partition_range_lasts());
-      thrust::sort(
+      cugraph::sort_wrapper(
         handle.get_thrust_policy(), unique_two_hop_nbrs.begin(), unique_two_hop_nbrs.end());
       unique_two_hop_nbrs.resize(cuda::std::distance(unique_two_hop_nbrs.begin(),
                                                      thrust::unique(handle.get_thrust_policy(),

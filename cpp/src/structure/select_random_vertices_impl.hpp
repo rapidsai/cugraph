@@ -13,6 +13,7 @@
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
+#include <cugraph/utilities/thrust_wrappers.hpp>
 
 #include <raft/core/handle.hpp>
 
@@ -247,7 +248,8 @@ rmm::device_uvector<vertex_t> select_random_vertices(
   }
 
   if (sort_vertices) {
-    thrust::sort(handle.get_thrust_policy(), mg_sample_buffer.begin(), mg_sample_buffer.end());
+    cugraph::sort_wrapper(
+      handle.get_thrust_policy(), mg_sample_buffer.begin(), mg_sample_buffer.end());
   }
 
   return mg_sample_buffer;

@@ -13,6 +13,7 @@
 #include <cugraph/utilities/collect_comm.cuh>
 #include <cugraph/utilities/mask_utils.cuh>
 #include <cugraph/utilities/shuffle_comm.cuh>
+#include <cugraph/utilities/thrust_wrappers.hpp>
 
 #include <raft/core/copy.hpp>
 
@@ -109,19 +110,19 @@ deduplicate_edges_by_minor(raft::handle_t const& handle,
     if (has_types) {
       auto& types = std::get<rmm::device_uvector<int32_t>>(result_types);
       if (has_labels) {
-        thrust::sort(handle.get_thrust_policy(),
-                     thrust::make_zip_iterator(result_labels->begin(),
-                                               result_minors.begin(),
-                                               result_majors.begin(),
-                                               property.begin(),
-                                               types.begin()),
-                     thrust::make_zip_iterator(result_labels->end(),
-                                               result_minors.end(),
-                                               result_majors.end(),
-                                               property.end(),
-                                               types.end()));
+        cugraph::sort_wrapper(handle.get_thrust_policy(),
+                              thrust::make_zip_iterator(result_labels->begin(),
+                                                        result_minors.begin(),
+                                                        result_majors.begin(),
+                                                        property.begin(),
+                                                        types.begin()),
+                              thrust::make_zip_iterator(result_labels->end(),
+                                                        result_minors.end(),
+                                                        result_majors.end(),
+                                                        property.end(),
+                                                        types.end()));
       } else {
-        thrust::sort(
+        cugraph::sort_wrapper(
           handle.get_thrust_policy(),
           thrust::make_zip_iterator(
             result_minors.begin(), result_majors.begin(), property.begin(), types.begin()),
@@ -129,14 +130,14 @@ deduplicate_edges_by_minor(raft::handle_t const& handle,
             result_minors.end(), result_majors.end(), property.end(), types.end()));
       }
     } else if (has_labels) {
-      thrust::sort(
+      cugraph::sort_wrapper(
         handle.get_thrust_policy(),
         thrust::make_zip_iterator(
           result_labels->begin(), result_minors.begin(), result_majors.begin(), property.begin()),
         thrust::make_zip_iterator(
           result_labels->end(), result_minors.end(), result_majors.end(), property.end()));
     } else {
-      thrust::sort(
+      cugraph::sort_wrapper(
         handle.get_thrust_policy(),
         thrust::make_zip_iterator(result_minors.begin(), result_majors.begin(), property.begin()),
         thrust::make_zip_iterator(result_minors.end(), result_majors.end(), property.end()));
@@ -145,28 +146,28 @@ deduplicate_edges_by_minor(raft::handle_t const& handle,
     if (has_types) {
       auto& types = std::get<rmm::device_uvector<int32_t>>(result_types);
       if (has_labels) {
-        thrust::sort(
+        cugraph::sort_wrapper(
           handle.get_thrust_policy(),
           thrust::make_zip_iterator(
             result_labels->begin(), result_minors.begin(), result_majors.begin(), types.begin()),
           thrust::make_zip_iterator(
             result_labels->end(), result_minors.end(), result_majors.end(), types.end()));
       } else {
-        thrust::sort(
+        cugraph::sort_wrapper(
           handle.get_thrust_policy(),
           thrust::make_zip_iterator(result_minors.begin(), result_majors.begin(), types.begin()),
           thrust::make_zip_iterator(result_minors.end(), result_majors.end(), types.end()));
       }
     } else if (has_labels) {
-      thrust::sort(
+      cugraph::sort_wrapper(
         handle.get_thrust_policy(),
         thrust::make_zip_iterator(
           result_labels->begin(), result_minors.begin(), result_majors.begin()),
         thrust::make_zip_iterator(result_labels->end(), result_minors.end(), result_majors.end()));
     } else {
-      thrust::sort(handle.get_thrust_policy(),
-                   thrust::make_zip_iterator(result_minors.begin(), result_majors.begin()),
-                   thrust::make_zip_iterator(result_minors.end(), result_majors.end()));
+      cugraph::sort_wrapper(handle.get_thrust_policy(),
+                            thrust::make_zip_iterator(result_minors.begin(), result_majors.begin()),
+                            thrust::make_zip_iterator(result_minors.end(), result_majors.end()));
     }
   }
 

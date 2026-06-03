@@ -9,6 +9,7 @@
 #include <cugraph/graph_view.hpp>
 #include <cugraph/sampling_functions.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
+#include <cugraph/utilities/thrust_wrappers.hpp>
 
 #include <raft/core/device_span.hpp>
 #include <raft/core/handle.hpp>
@@ -118,7 +119,7 @@ bool validate_extracted_graph_is_subgraph(
     raft::copy(wgt_v.data(), wgt->data(), wgt->size(), handle.get_stream());
 
     auto graph_iter = thrust::make_zip_iterator(src_v.begin(), dst_v.begin(), wgt_v.begin());
-    thrust::sort(
+    cugraph::sort_wrapper(
       handle.get_thrust_policy(), graph_iter, graph_iter + src_v.size(), ArithmeticZipLess{});
     auto graph_iter_end = thrust::unique(
       handle.get_thrust_policy(), graph_iter, graph_iter + src_v.size(), ArithmeticZipEqual{});
@@ -140,7 +141,7 @@ bool validate_extracted_graph_is_subgraph(
                        });
   } else {
     auto graph_iter = thrust::make_zip_iterator(src_v.begin(), dst_v.begin());
-    thrust::sort(
+    cugraph::sort_wrapper(
       handle.get_thrust_policy(), graph_iter, graph_iter + src_v.size(), ArithmeticZipLess{});
     auto graph_iter_end = thrust::unique(
       handle.get_thrust_policy(), graph_iter, graph_iter + src_v.size(), ArithmeticZipEqual{});
@@ -313,9 +314,9 @@ bool validate_temporal_integrity(
   raft::copy(sorted_dsts.begin(), dsts.begin(), dsts.size(), handle.get_stream());
   raft::copy(sorted_dst_times.begin(), edge_times.begin(), edge_times.size(), handle.get_stream());
 
-  thrust::sort(handle.get_thrust_policy(),
-               thrust::make_zip_iterator(sorted_dsts.begin(), sorted_dst_times.begin()),
-               thrust::make_zip_iterator(sorted_dsts.end(), sorted_dst_times.end()));
+  cugraph::sort_wrapper(handle.get_thrust_policy(),
+                        thrust::make_zip_iterator(sorted_dsts.begin(), sorted_dst_times.begin()),
+                        thrust::make_zip_iterator(sorted_dsts.end(), sorted_dst_times.end()));
 
   if ((temporal_sampling_comparison ==
        cugraph::temporal_sampling_comparison_t::MONOTONICALLY_INCREASING) ||

@@ -53,9 +53,6 @@ template CUGRAPH_EXPORT void scalar_fill(raft::handle_t const& handle,
                                          size_t size,
                                          double value);
 
-template CUGRAPH_EXPORT void sort_ints(raft::handle_t const& handle,
-                                       raft::device_span<int64_t> values);
-
 template CUGRAPH_EXPORT size_t unique_ints(raft::handle_t const& handle,
                                            raft::device_span<int64_t> values);
 

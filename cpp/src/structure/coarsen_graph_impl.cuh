@@ -16,6 +16,7 @@
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/graph_partition_utils.cuh>
+#include <cugraph/utilities/thrust_wrappers.hpp>
 
 #include <raft/core/handle.hpp>
 
@@ -109,7 +110,8 @@ groupby_e_and_coarsen_edgelist(rmm::device_uvector<vertex_t>&& edgelist_majors,
                            std::move(tmp_edgelist_minors),
                            std::move(tmp_edgelist_weights));
   } else {
-    thrust::sort(rmm::exec_policy(stream_view), pair_first, pair_first + edgelist_majors.size());
+    cugraph::sort_wrapper(
+      rmm::exec_policy(stream_view), pair_first, pair_first + edgelist_majors.size());
     auto num_uniques = static_cast<size_t>(cuda::std::distance(
       pair_first,
       thrust::unique(
@@ -505,7 +507,7 @@ coarsen_graph(raft::handle_t const& handle,
                                               handle.get_stream());
   thrust::copy(
     handle.get_thrust_policy(), labels, labels + unique_labels.size(), unique_labels.begin());
-  thrust::sort(handle.get_thrust_policy(), unique_labels.begin(), unique_labels.end());
+  cugraph::sort_wrapper(handle.get_thrust_policy(), unique_labels.begin(), unique_labels.end());
   unique_labels.resize(
     cuda::std::distance(
       unique_labels.begin(),
@@ -515,7 +517,7 @@ coarsen_graph(raft::handle_t const& handle,
   std::tie(unique_labels, std::ignore) = cugraph::shuffle_ext_vertices(
     handle, std::move(unique_labels), std::vector<cugraph::arithmetic_device_uvector_t>{});
 
-  thrust::sort(handle.get_thrust_policy(), unique_labels.begin(), unique_labels.end());
+  cugraph::sort_wrapper(handle.get_thrust_policy(), unique_labels.begin(), unique_labels.end());
   unique_labels.resize(
     cuda::std::distance(
       unique_labels.begin(),
@@ -666,7 +668,7 @@ coarsen_graph(raft::handle_t const& handle,
   rmm::device_uvector<vertex_t> vertices(graph_view.number_of_vertices(), handle.get_stream());
   if (renumber) {
     thrust::copy(handle.get_thrust_policy(), labels, labels + vertices.size(), vertices.begin());
-    thrust::sort(handle.get_thrust_policy(), vertices.begin(), vertices.end());
+    cugraph::sort_wrapper(handle.get_thrust_policy(), vertices.begin(), vertices.end());
     vertices.resize(cuda::std::distance(
                       vertices.begin(),
                       thrust::unique(handle.get_thrust_policy(), vertices.begin(), vertices.end())),
