@@ -7,15 +7,18 @@ set -euo pipefail
 source rapids-configure-sccache
 source rapids-date-string
 
+# fake a build from a tag
+# (do this after rapids-configure-sccache, to get a cached build)
+GITHUB_REF="refs/tags/v26.06.00"
+export GITHUB_REF
+
 export CMAKE_GENERATOR=Ninja
 
 rapids-print-env
 
 CPP_CHANNEL=$(rapids-download-conda-from-github cpp)
 
-rapids-generate-version > ./VERSION
-
-RAPIDS_PACKAGE_VERSION=$(head -1 ./VERSION)
+RAPIDS_PACKAGE_VERSION="26.06.00"
 export RAPIDS_PACKAGE_VERSION
 
 # populates `RATTLER_CHANNELS` array and `RATTLER_ARGS` array
@@ -32,7 +35,7 @@ rapids-logger "Building pylibcugraph"
 # --no-build-id allows for caching with `sccache`
 # more info is available at
 # https://rattler.build/latest/tips_and_tricks/#using-sccache-or-ccache-with-rattler-build
-rattler-build build --recipe conda/recipes/pylibcugraph \
+rattler-build build -vvv --recipe conda/recipes/pylibcugraph \
                     "${RATTLER_ARGS[@]}" \
                     "${RATTLER_CHANNELS[@]}"
 
@@ -41,7 +44,7 @@ sccache --stop-server >/dev/null 2>&1 || true
 
 rapids-logger "Building cugraph"
 
-rattler-build build --recipe conda/recipes/cugraph \
+rattler-build build -vvv --recipe conda/recipes/cugraph \
                     "${RATTLER_ARGS[@]}" \
                     "${RATTLER_CHANNELS[@]}"
 
