@@ -18,6 +18,10 @@ rapids-print-env
 
 CPP_CHANNEL=$(rapids-download-conda-from-github cpp)
 
+echo "--- CPP channel (${CPP_CHANNEL}) contents ---"
+find "${CPP_CHANNEL}" -type f -name '*'
+echo ""
+
 RAPIDS_PACKAGE_VERSION="26.06.00"
 export RAPIDS_PACKAGE_VERSION
 
@@ -28,7 +32,7 @@ source rapids-rattler-channel-string
 RATTLER_ARGS=(
     "--experimental"
     "--no-build-id"
-    "--channel-priority" "flexible"
+    "--channel-priority" "disabled"
     "--output-dir" "$RAPIDS_CONDA_BLD_OUTPUT_DIR"
 )
 
