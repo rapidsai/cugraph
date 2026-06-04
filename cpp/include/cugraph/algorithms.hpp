@@ -528,7 +528,11 @@ weight_t hungarian(raft::handle_t const& handle,
  *                               are assumed to be 1.0.
   @param[out] clustering         Pointer to device array where the clustering should be stored
  * @param[in]  max_level         (optional) maximum number of levels to run (default 100)
- * @param[in]  threshold         (optional) threshold for convergence at each level (default 1e-7)
+ * @param[in]  threshold         (optional) Minimum modularity gain threshold for each level.
+ *                               A vertex move is accepted only if its delta modularity exceeds
+ *                               @p threshold, and an iteration is committed / the level loop
+ *                               continues only if the global modularity gain exceeds @p threshold.
+ *                               (default 1e-7)
  * @param[in]  resolution        (optional) The value of the resolution parameter to use.
  *                               Called gamma in the modularity formula, this changes the size
  *                               of the communities.  Higher resolutions lead to more smaller
@@ -577,7 +581,11 @@ std::pair<size_t, weight_t> louvain(
  *                               If @pedge_weight_view.has_value() == false, edge weights
  *                               are assumed to be 1.0.
  * @param[in]  max_level         (optional) maximum number of levels to run (default 100)
- * @param[in]  threshold         (optional) threshold for convergence at each level (default 1e-7)
+ * @param[in]  threshold         (optional) Minimum modularity gain threshold for each level.
+ *                               A vertex move is accepted only if its delta modularity exceeds
+ *                               @p threshold, and an iteration is committed / the level loop
+ *                               continues only if the global modularity gain exceeds @p threshold.
+ *                               (default 1e-7)
  * @param[in]  resolution        (optional) The value of the resolution parameter to use.
  *                               Called gamma in the modularity formula, this changes the size
  *                               of the communities.  Higher resolutions lead to more smaller
@@ -755,7 +763,11 @@ std::pair<size_t, weight_t> leiden(
  *                               algorithm if an edge does not appear in any of the ensemble runs.
  * @param[in]  ensemble_size     The ensemble size parameter
  * @param[in]  max_level         (optional) maximum number of levels to run (default 100)
- * @param[in]  threshold         (optional) threshold for convergence at each level (default 1e-7)
+ * @param[in]  threshold         (optional) Minimum modularity gain threshold for each level.
+ *                               A vertex move is accepted only if its delta modularity exceeds
+ *                               @p threshold, and an iteration is committed / the level loop
+ *                               continues only if the global modularity gain exceeds @p threshold.
+ *                               (default 1e-7)
  * @param[in]  resolution        (optional) The value of the resolution parameter to use.
  *                               Called gamma in the modularity formula, this changes the size
  *                               of the communities.  Higher resolutions lead to more smaller

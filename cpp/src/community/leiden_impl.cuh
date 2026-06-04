@@ -322,7 +322,8 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
                                                       src_vertex_weights_cache,
                                                       src_louvain_assignment_cache,
                                                       dst_louvain_assignment_cache,
-                                                      up_down);
+                                                      up_down,
+                                                      weight_t{0});
 
       if constexpr (graph_view_t::is_multi_gpu) {
         update_edge_src_property(handle,

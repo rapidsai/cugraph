@@ -201,7 +201,8 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
                                                                       src_vertex_weights_cache,
                                                                       src_clusters_cache,
                                                                       dst_clusters_cache,
-                                                                      up_down);
+                                                                      up_down,
+                                                                      threshold);
 
       if constexpr (graph_view_t::is_multi_gpu) {
         update_edge_src_property(
@@ -225,7 +226,7 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
                                          total_edge_weight,
                                          resolution);
 
-      if (new_Q > cur_Q) {
+      if (new_Q > (cur_Q + threshold)) {
         raft::copy(dendrogram->current_level_begin(),
                    next_clusters_v.begin(),
                    next_clusters_v.size(),
