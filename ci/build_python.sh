@@ -43,7 +43,7 @@ rapids-logger "Building pylibcugraph"
 # --no-build-id allows for caching with `sccache`
 # more info is available at
 # https://rattler.build/latest/tips_and_tricks/#using-sccache-or-ccache-with-rattler-build
-rattler-build build -vvv --trace --recipe conda/recipes/pylibcugraph \
+rattler-build build -vvv --recipe conda/recipes/pylibcugraph \
                     "${RATTLER_ARGS[@]}" \
                     "${RATTLER_CHANNELS[@]}"
 
