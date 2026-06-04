@@ -16,6 +16,7 @@
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/error_check_utils.cuh>
 #include <cugraph/utilities/graph_partition_utils.cuh>
+#include <cugraph/utilities/thrust_wrappers.hpp>
 
 #include <raft/core/handle.hpp>
 
@@ -226,9 +227,9 @@ void per_v_pair_transform_minor_nbr_intersection(
                  elem1_first,
                  elem1_first + num_input_pairs,
                  (*sorted_unique_vertices).begin() + num_input_pairs);
-    thrust::sort(handle.get_thrust_policy(),
-                 (*sorted_unique_vertices).begin(),
-                 (*sorted_unique_vertices).end());
+    cugraph::sort_wrapper(handle.get_thrust_policy(),
+                          (*sorted_unique_vertices).begin(),
+                          (*sorted_unique_vertices).end());
     (*sorted_unique_vertices)
       .resize(cuda::std::distance((*sorted_unique_vertices).begin(),
                                   thrust::unique(handle.get_thrust_policy(),
@@ -326,12 +327,12 @@ void per_v_pair_transform_minor_nbr_intersection(
     for (size_t j = 0; j < h_chunk_sizes.size(); ++j) {
       auto this_chunk_size = h_chunk_sizes[j];
 
-      thrust::sort(handle.get_thrust_policy(),
-                   chunk_vertex_pair_index_first,
-                   chunk_vertex_pair_index_first + this_chunk_size,
-                   detail::indirection_compare_less_t<VertexPairIterator>{
-                     vertex_pair_first});  // detail::nbr_intersection() requires the input vertex
-                                           // pairs to be sorted.
+      cugraph::sort_wrapper(handle.get_thrust_policy(),
+                            chunk_vertex_pair_index_first,
+                            chunk_vertex_pair_index_first + this_chunk_size,
+                            detail::indirection_compare_less_t<VertexPairIterator>{
+                              vertex_pair_first});  // detail::nbr_intersection() requires the input
+                                                    // vertex pairs to be sorted.
 
       // FIXME: better restrict detail::nbr_intersection input vertex pairs to a single edge
       // partition? This may provide additional performance improvement opportunities???

@@ -9,6 +9,7 @@
 
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/mask_utils.cuh>
+#include <cugraph/utilities/thrust_wrappers.hpp>
 
 #include <raft/core/handle.hpp>
 #include <raft/core/resource/thrust_policy.hpp>
@@ -57,15 +58,15 @@ temporal_partition_vertices(raft::handle_t const& handle,
                  vertex_labels->end(),
                  vertex_labels_p1->begin());
 
-    thrust::sort(
+    cugraph::sort_wrapper(
       handle.get_thrust_policy(),
       thrust::make_zip_iterator(
         vertices_p1.begin(), vertex_times_p1.begin(), vertex_labels_p1->begin()),
       thrust::make_zip_iterator(vertices_p1.end(), vertex_times_p1.end(), vertex_labels_p1->end()));
   } else {
-    thrust::sort(handle.get_thrust_policy(),
-                 thrust::make_zip_iterator(vertices_p1.begin(), vertex_times_p1.begin()),
-                 thrust::make_zip_iterator(vertices_p1.end(), vertex_times_p1.end()));
+    cugraph::sort_wrapper(handle.get_thrust_policy(),
+                          thrust::make_zip_iterator(vertices_p1.begin(), vertex_times_p1.begin()),
+                          thrust::make_zip_iterator(vertices_p1.end(), vertex_times_p1.end()));
   }
 
   rmm::device_uvector<uint32_t> vertex_partition_mask(cugraph::packed_bool_size(vertices_p1.size()),

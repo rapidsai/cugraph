@@ -32,6 +32,7 @@
 #include <cugraph/utilities/high_res_timer.hpp>
 #include <cugraph/utilities/misc_utils.cuh>
 #include <cugraph/utilities/shuffle_comm.cuh>
+#include <cugraph/utilities/thrust_wrappers.hpp>
 
 #include <raft/comms/mpi_comms.hpp>
 #include <raft/core/comms.hpp>
@@ -903,7 +904,7 @@ class Tests_GRAPH500_MGSSSP
             cugraph::edge_bucket_t<vertex_t, edge_t, !store_transposed, multi_gpu, true> edge_list(
               *handle_, false);
             auto edge_pair_first = thrust::make_zip_iterator(tree_srcs.begin(), tree_dsts.begin());
-            thrust::sort(
+            cugraph::sort_wrapper(
               handle_->get_thrust_policy(), edge_pair_first, edge_pair_first + tree_srcs.size());
             edge_list.insert(tree_srcs.begin(),
                              tree_srcs.end(),

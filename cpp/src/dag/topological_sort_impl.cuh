@@ -15,6 +15,7 @@
 #include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
+#include <cugraph/utilities/thrust_wrappers.hpp>
 
 #include <raft/core/handle.hpp>
 
@@ -30,7 +31,6 @@
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/reduce.h>
-#include <thrust/sort.h>
 
 namespace cugraph {
 
@@ -51,7 +51,7 @@ rmm::device_uvector<vertex_t> topological_sort(
 
     auto components = strongly_connected_components(handle, graph_view, true);
 
-    thrust::sort(handle.get_thrust_policy(), components.begin(), components.end());
+    cugraph::sort_wrapper(handle.get_thrust_policy(), components.begin(), components.end());
     CUGRAPH_EXPECTS(
       static_cast<size_t>(thrust::unique_count(
         handle.get_thrust_policy(), components.begin(), components.end())) == components.size(),
@@ -61,7 +61,7 @@ rmm::device_uvector<vertex_t> topological_sort(
       std::tie(components, std::ignore) = shuffle_ext_vertices(
         handle, std::move(components), std::vector<arithmetic_device_uvector_t>{});
 
-      thrust::sort(handle.get_thrust_policy(), components.begin(), components.end());
+      cugraph::sort_wrapper(handle.get_thrust_policy(), components.begin(), components.end());
       CUGRAPH_EXPECTS(
         static_cast<size_t>(thrust::unique_count(
           handle.get_thrust_policy(), components.begin(), components.end())) == components.size(),

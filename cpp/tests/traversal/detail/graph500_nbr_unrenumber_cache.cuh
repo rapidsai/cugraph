@@ -13,6 +13,7 @@
 #include <cugraph/prims/vertex_frontier.cuh>
 #include <cugraph/utilities/collect_comm.cuh>
 #include <cugraph/utilities/packed_bool_utils.hpp>
+#include <cugraph/utilities/thrust_wrappers.hpp>
 
 #include <raft/core/device_span.hpp>
 #include <raft/core/handle.hpp>
@@ -702,7 +703,8 @@ nbr_unrenumber_cache_t<vertex_t> build_nbr_unrenumber_cache(
                              handle.get_stream());
       this_round_nbrs.shrink_to_fit(handle.get_stream());
     }
-    thrust::sort(handle.get_thrust_policy(), this_round_nbrs.begin(), this_round_nbrs.end());
+    cugraph::sort_wrapper(
+      handle.get_thrust_policy(), this_round_nbrs.begin(), this_round_nbrs.end());
     this_round_nbrs.resize(
       cuda::std::distance(
         this_round_nbrs.begin(),

@@ -15,6 +15,7 @@
 #include <cugraph/shuffle_functions.hpp>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/graph_partition_utils.cuh>
+#include <cugraph/utilities/thrust_wrappers.hpp>
 
 #include <raft/util/integer_utils.hpp>
 
@@ -25,7 +26,6 @@
 #include <cuda/std/tuple>
 #include <thrust/adjacent_difference.h>
 #include <thrust/iterator/zip_iterator.h>
-#include <thrust/sort.h>
 
 namespace cugraph {
 
@@ -228,9 +228,9 @@ edge_property_t<edge_t, edge_t> edge_triangle_count_impl(
                                             intersection_indices.size()),
           edge_first});
 
-      thrust::sort(handle.get_thrust_policy(),
-                   get_dataframe_buffer_begin(vertex_pair_buffer_tmp),
-                   get_dataframe_buffer_end(vertex_pair_buffer_tmp));
+      cugraph::sort_wrapper(handle.get_thrust_policy(),
+                            get_dataframe_buffer_begin(vertex_pair_buffer_tmp),
+                            get_dataframe_buffer_end(vertex_pair_buffer_tmp));
 
       rmm::device_uvector<edge_t> increase_count_tmp(2 * intersection_indices.size(),
                                                      handle.get_stream());

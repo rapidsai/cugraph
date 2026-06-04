@@ -157,6 +157,7 @@ set(CUGRAPH_COMMON_UTILITY_SOURCES
     src/detail/permute_range_common_v32.cu
     src/detail/permute_range_common_v64.cu
     src/utilities/invert_flags_common.cu
+    src/utilities/thrust_wrappers.cu
 )
 
 set(CUGRAPH_COMMON_DISTRIBUTED_SOURCES

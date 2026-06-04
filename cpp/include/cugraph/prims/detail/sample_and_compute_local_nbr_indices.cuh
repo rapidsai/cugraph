@@ -21,6 +21,7 @@
 #include <cugraph/utilities/mask_utils.cuh>
 #include <cugraph/utilities/misc_utils.cuh>
 #include <cugraph/utilities/shuffle_comm.cuh>
+#include <cugraph/utilities/thrust_wrappers.hpp>
 #include <cugraph/vertex_partition_device_view.cuh>
 
 #include <raft/random/rng.cuh>
@@ -402,9 +403,9 @@ compute_unique_keys(raft::handle_t const& handle,
                  aggregate_local_frontier_key_first + local_frontier_offsets[i],
                  aggregate_local_frontier_key_first + local_frontier_offsets[i + 1],
                  get_dataframe_buffer_begin(tmp_keys) + local_frontier_offsets[i]);
-    thrust::sort(handle.get_thrust_policy(),
-                 get_dataframe_buffer_begin(tmp_keys) + local_frontier_offsets[i],
-                 get_dataframe_buffer_begin(tmp_keys) + local_frontier_offsets[i + 1]);
+    cugraph::sort_wrapper(handle.get_thrust_policy(),
+                          get_dataframe_buffer_begin(tmp_keys) + local_frontier_offsets[i],
+                          get_dataframe_buffer_begin(tmp_keys) + local_frontier_offsets[i + 1]);
     local_frontier_unique_key_sizes[i] = cuda::std::distance(
       get_dataframe_buffer_begin(tmp_keys) + local_frontier_offsets[i],
       thrust::unique(handle.get_thrust_policy(),

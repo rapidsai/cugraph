@@ -18,6 +18,7 @@
 #include <cugraph/mtmg/renumber_map.hpp>
 #include <cugraph/mtmg/resource_manager.hpp>
 #include <cugraph/mtmg/vertex_result.hpp>
+#include <cugraph/utilities/thrust_wrappers.hpp>
 
 #include <raft/util/cudart_utils.hpp>
 
@@ -175,8 +176,8 @@ class Tests_Multithreaded
                d_dst_v.begin(),
                d_dst_v.size(),
                handle.get_stream());
-    cugraph::detail::sort_ints(
-      handle, raft::device_span<vertex_t>{d_unique_vertices.data(), d_unique_vertices.size()});
+    cugraph::sort_wrapper(
+      handle.get_thrust_policy(), d_unique_vertices.begin(), d_unique_vertices.end());
     d_unique_vertices.resize(
       cugraph::detail::unique_ints(
         handle, raft::device_span<vertex_t>{d_unique_vertices.data(), d_unique_vertices.size()}),

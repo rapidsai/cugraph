@@ -19,6 +19,7 @@
 #include <cugraph/utilities/mask_utils.cuh>
 #include <cugraph/utilities/shuffle_comm.cuh>
 #include <cugraph/utilities/thrust_tuple_utils.hpp>
+#include <cugraph/utilities/thrust_wrappers.hpp>
 
 #include <raft/core/device_span.hpp>
 #include <raft/core/handle.hpp>
@@ -760,7 +761,8 @@ nbr_intersection(raft::handle_t const& handle,
                      second_element_first + input_size,
                      unique_majors.begin());
 
-        thrust::sort(handle.get_thrust_policy(), unique_majors.begin(), unique_majors.end());
+        cugraph::sort_wrapper(
+          handle.get_thrust_policy(), unique_majors.begin(), unique_majors.end());
         unique_majors.resize(
           cuda::std::distance(
             unique_majors.begin(),
@@ -789,7 +791,8 @@ nbr_intersection(raft::handle_t const& handle,
             handle.get_stream());
           unique_majors = std::move(rx_unique_majors);
 
-          thrust::sort(handle.get_thrust_policy(), unique_majors.begin(), unique_majors.end());
+          cugraph::sort_wrapper(
+            handle.get_thrust_policy(), unique_majors.begin(), unique_majors.end());
           unique_majors.resize(cuda::std::distance(unique_majors.begin(),
                                                    thrust::unique(handle.get_thrust_policy(),
                                                                   unique_majors.begin(),

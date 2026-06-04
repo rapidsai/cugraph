@@ -16,6 +16,7 @@
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/graph_partition_utils.cuh>
 #include <cugraph/utilities/mask_utils.cuh>
+#include <cugraph/utilities/thrust_wrappers.hpp>
 
 #include <raft/core/handle.hpp>
 
@@ -299,7 +300,7 @@ void transform_reduce_minor_nbr_intersection_of_e_endpoints_by_v(
     for (size_t j = 0; j < h_chunk_sizes.size(); ++j) {
       auto this_chunk_size = h_chunk_sizes[j];
 
-      thrust::sort(
+      cugraph::sort_wrapper(
         handle.get_thrust_policy(),
         chunk_vertex_pair_first,
         chunk_vertex_pair_first + this_chunk_size);  // detail::nbr_intersection() requires the
