@@ -60,7 +60,7 @@ echo "--- rattler cache contents ---"
 find /github/home/.cache/rattler -name '*'
 echo ""
 
-rattler-build build -vvv --trace --recipe conda/recipes/cugraph \
+rattler-build build -vvv --recipe conda/recipes/cugraph \
                     "${RATTLER_ARGS[@]}" \
                     "${RATTLER_CHANNELS[@]}"
 
