@@ -52,6 +52,7 @@
 
 #include <array>
 #include <type_traits>
+#include <vector>
 
 namespace CUGRAPH_EXPORT cugraph {
 
@@ -392,8 +393,10 @@ __device__ edge_t set_intersection_by_key_with_mask(InputKeyIterator0 input_key_
 // input pair (v0, v1) and each common neighbor w of v0 and v1, they call a user-provided device
 // operator once and move on, so nothing that grows with the intersection size is allocated:
 //
-//   intersection_op(v0, v1, w, v0_v1_edge_offset, v0_w_edge_offset, v1_w_edge_offset);
+//   intersection_op(v0, v1, w, v0_v1_edge_offset, v0_w_edge_offset, v1_w_edge_offset, pair_idx);
 //
+// pair_idx is the index of (v0, v1) in the input pair range (used by callers that accumulate a
+// per-pair value, e.g. the multi-GPU by-edge primitive after a minor_comm pair broadcast).
 // The three offsets are the positions, in this edge partition's neighbor array (the CSR indices[]
 // array), of the edges (v0, v1), (v0, w) and (v1, w). Passing these positions lets the operator
 // act on those edges without searching the graph itself.
@@ -447,6 +450,75 @@ __device__ void nbr_intersection_nbr_list(
     nbr_indices = element_indices.begin();
     nbr_offset  = element_offsets[idx];
     nbr_degree  = static_cast<edge_t>(element_offsets[idx + 1] - element_offsets[idx]);
+  }
+}
+
+// Emit the operator for the common neighbor w located at short-list position (short_off + s) by the
+// scan-shorter / binary-search-longer kernels (mid- and high-degree). To stay consistent with the
+// merge-walk used by the low-degree kernel and the materializing nbr_intersection, duplicate
+// neighbors (multigraphs) are paired one-to-one between the two lists, so w contributes
+// min(multiplicity in short, multiplicity in long) times (not the short-list multiplicity). Only the
+// first occurrence of w in the sorted short list does the work for the whole duplicate run.
+template <bool check_edge_mask,
+          typename vertex_t,
+          typename edge_t,
+          typename CheckBitSet,
+          typename IntersectionOp>
+__device__ void nbr_intersection_emit_intersecting_w(vertex_t v0,
+                                                     vertex_t v1,
+                                                     size_t pair_idx,
+                                                     edge_t v0_v1_edge_offset,
+                                                     vertex_t const* short_indices,
+                                                     edge_t short_off,
+                                                     edge_t short_deg,
+                                                     bool short_local,
+                                                     vertex_t const* long_indices,
+                                                     edge_t long_off,
+                                                     edge_t long_deg,
+                                                     bool long_local,
+                                                     bool v0_is_short,
+                                                     edge_t s,
+                                                     CheckBitSet check_bit_set,
+                                                     IntersectionOp intersection_op)
+{
+  auto p = short_off + s;
+  auto w = short_indices[p];
+  // Defer to the first occurrence of w in the sorted short list.
+  if (s > edge_t{0} && short_indices[p - 1] == w) { return; }
+
+  edge_t lo = long_off;
+  edge_t hi = long_off + long_deg;
+  while (lo < hi) {
+    auto mid = lo + (hi - lo) / 2;
+    if (long_indices[mid] < w) {
+      lo = mid + 1;
+    } else {
+      hi = mid;
+    }
+  }
+  if (lo >= long_off + long_deg || long_indices[lo] != w) { return; }
+
+  // Merge-walk the two duplicate runs of w, pairing (unmasked) occurrences one-to-one.
+  auto short_end = short_off + short_deg;
+  auto long_end  = long_off + long_deg;
+  edge_t sk      = p;
+  edge_t lk      = lo;
+  while (sk < short_end && short_indices[sk] == w && lk < long_end && long_indices[lk] == w) {
+    if constexpr (check_edge_mask) {
+      if (short_local && !check_bit_set(sk)) {
+        ++sk;
+        continue;
+      }
+      if (long_local && !check_bit_set(lk)) {
+        ++lk;
+        continue;
+      }
+    }
+    edge_t v0_w_edge_offset = v0_is_short ? sk : lk;
+    edge_t v1_w_edge_offset = v0_is_short ? lk : sk;
+    intersection_op(v0, v1, w, v0_v1_edge_offset, v0_w_edge_offset, v1_w_edge_offset, pair_idx);
+    ++sk;
+    ++lk;
   }
 }
 
@@ -533,7 +605,7 @@ __global__ static void nbr_intersection_low_degree(
       } else if (n0 > n1) {
         ++i1;
       } else {
-        intersection_op(v0, v1, n0, v0_v1_edge_offset, v0_off + i0, v1_off + i1);
+        intersection_op(v0, v1, n0, v0_v1_edge_offset, v0_off + i0, v1_off + i1, i);
         ++i0;
         ++i1;
       }
@@ -542,6 +614,105 @@ __global__ static void nbr_intersection_low_degree(
     idx += static_cast<size_t>(gridDim.x) * blockDim.x;
   }
 }
+
+// Single thread per pair, binary-search variant: instead of merge-walking, the thread scans the
+// shorter neighbor list and binary-searches each element in the longer one (same emit helper as the
+// mid/high kernels). Disabled (kept for reference): an experiment showed binary search beats the
+// merge-walk low kernel on skewed (RMAT) graphs, motivating a future asymmetry-ratio-based adaptive
+// dispatch. Re-enable to route the low-degree bin through binary search.
+#if 0
+template <bool check_edge_mask,
+          typename vertex_t,
+          typename edge_t,
+          bool multi_gpu,
+          typename VertexPairIterator,
+          typename FirstElementToIdxMap,
+          typename SecondElementToIdxMap,
+          typename IntersectionOp>
+__global__ static void nbr_intersection_low_degree_binary(
+  edge_partition_device_view_t<vertex_t, edge_t, multi_gpu> edge_partition,
+  VertexPairIterator vertex_pair_first,
+  raft::device_span<size_t const> pair_indices,
+  FirstElementToIdxMap first_element_to_idx_map,
+  raft::device_span<edge_t const> first_element_offsets,
+  raft::device_span<vertex_t const> first_element_indices,
+  SecondElementToIdxMap second_element_to_idx_map,
+  raft::device_span<edge_t const> second_element_offsets,
+  raft::device_span<vertex_t const> second_element_indices,
+  IntersectionOp intersection_op,
+  uint32_t const* edge_mask)
+{
+  constexpr bool v0_local = std::is_same_v<FirstElementToIdxMap, void*>;
+  constexpr bool v1_local = std::is_same_v<SecondElementToIdxMap, void*>;
+
+  auto const tid = threadIdx.x + static_cast<size_t>(blockIdx.x) * blockDim.x;
+  size_t idx     = tid;
+
+  check_bit_set_t<uint32_t const*, edge_t> check_bit_set{edge_mask, edge_t{0}};
+
+  while (idx < pair_indices.size()) {
+    auto i    = pair_indices[idx];
+    auto pair = *(vertex_pair_first + i);
+    auto v0   = cuda::std::get<0>(pair);
+    auto v1   = cuda::std::get<1>(pair);
+
+    vertex_t const* v0_indices{nullptr};
+    vertex_t const* v1_indices{nullptr};
+    edge_t v0_off{}, v0_deg{}, v1_off{}, v1_deg{};
+    nbr_intersection_nbr_list(edge_partition,
+                              first_element_to_idx_map,
+                              first_element_offsets,
+                              first_element_indices,
+                              v0,
+                              v0_indices,
+                              v0_off,
+                              v0_deg);
+    nbr_intersection_nbr_list(edge_partition,
+                              second_element_to_idx_map,
+                              second_element_offsets,
+                              second_element_indices,
+                              v1,
+                              v1_indices,
+                              v1_off,
+                              v1_deg);
+
+    bool v0_is_short              = (v0_deg <= v1_deg);
+    vertex_t const* short_indices = v0_is_short ? v0_indices : v1_indices;
+    vertex_t const* long_indices  = v0_is_short ? v1_indices : v0_indices;
+    edge_t short_off              = v0_is_short ? v0_off : v1_off;
+    edge_t short_deg              = v0_is_short ? v0_deg : v1_deg;
+    edge_t long_off               = v0_is_short ? v1_off : v0_off;
+    edge_t long_deg               = v0_is_short ? v1_deg : v0_deg;
+    bool short_local              = v0_is_short ? v0_local : v1_local;
+    bool long_local               = v0_is_short ? v1_local : v0_local;
+
+    auto v0_v1_itr =
+      thrust::lower_bound(thrust::seq, v0_indices + v0_off, v0_indices + v0_off + v0_deg, v1);
+    edge_t v0_v1_edge_offset = static_cast<edge_t>(v0_v1_itr - v0_indices);
+
+    for (edge_t s = 0; s < short_deg; ++s) {
+      nbr_intersection_emit_intersecting_w<check_edge_mask>(v0,
+                                                            v1,
+                                                            i,
+                                                            v0_v1_edge_offset,
+                                                            short_indices,
+                                                            short_off,
+                                                            short_deg,
+                                                            short_local,
+                                                            long_indices,
+                                                            long_off,
+                                                            long_deg,
+                                                            long_local,
+                                                            v0_is_short,
+                                                            s,
+                                                            check_bit_set,
+                                                            intersection_op);
+    }
+
+    idx += static_cast<size_t>(gridDim.x) * blockDim.x;
+  }
+}
+#endif
 
 // One warp per pair: each lane scans part of the shorter neighbor list and binary-searches the
 // longer one.
@@ -622,29 +793,22 @@ __global__ static void nbr_intersection_mid_degree(
     v0_v1_edge_offset = __shfl_sync(uint32_t{0xffffffff}, v0_v1_edge_offset, 0);
 
     for (edge_t s = lane_id; s < short_deg; s += static_cast<edge_t>(raft::warp_size())) {
-      if constexpr (check_edge_mask) {
-        if (short_local && !check_bit_set(short_off + s)) { continue; }
-      }
-      auto w = short_indices[short_off + s];
-
-      edge_t lo = long_off;
-      edge_t hi = long_off + long_deg;
-      while (lo < hi) {
-        auto mid = lo + (hi - lo) / 2;
-        if (long_indices[mid] < w) {
-          lo = mid + 1;
-        } else {
-          hi = mid;
-        }
-      }
-      if (lo < long_off + long_deg && long_indices[lo] == w) {
-        if constexpr (check_edge_mask) {
-          if (long_local && !check_bit_set(lo)) { continue; }
-        }
-        edge_t v0_w_edge_offset = v0_is_short ? (short_off + s) : lo;
-        edge_t v1_w_edge_offset = v0_is_short ? lo : (short_off + s);
-        intersection_op(v0, v1, w, v0_v1_edge_offset, v0_w_edge_offset, v1_w_edge_offset);
-      }
+      nbr_intersection_emit_intersecting_w<check_edge_mask>(v0,
+                                                            v1,
+                                                            i,
+                                                            v0_v1_edge_offset,
+                                                            short_indices,
+                                                            short_off,
+                                                            short_deg,
+                                                            short_local,
+                                                            long_indices,
+                                                            long_off,
+                                                            long_deg,
+                                                            long_local,
+                                                            v0_is_short,
+                                                            s,
+                                                            check_bit_set,
+                                                            intersection_op);
     }
 
     idx += static_cast<size_t>(gridDim.x) * (blockDim.x / raft::warp_size());
@@ -730,29 +894,22 @@ __global__ static void nbr_intersection_high_degree(
 
     for (edge_t s = static_cast<edge_t>(threadIdx.x); s < short_deg;
          s += static_cast<edge_t>(blockDim.x)) {
-      if constexpr (check_edge_mask) {
-        if (short_local && !check_bit_set(short_off + s)) { continue; }
-      }
-      auto w = short_indices[short_off + s];
-
-      edge_t lo = long_off;
-      edge_t hi = long_off + long_deg;
-      while (lo < hi) {
-        auto mid = lo + (hi - lo) / 2;
-        if (long_indices[mid] < w) {
-          lo = mid + 1;
-        } else {
-          hi = mid;
-        }
-      }
-      if (lo < long_off + long_deg && long_indices[lo] == w) {
-        if constexpr (check_edge_mask) {
-          if (long_local && !check_bit_set(lo)) { continue; }
-        }
-        edge_t v0_w_edge_offset = v0_is_short ? (short_off + s) : lo;
-        edge_t v1_w_edge_offset = v0_is_short ? lo : (short_off + s);
-        intersection_op(v0, v1, w, v0_v1_edge_offset, v0_w_edge_offset, v1_w_edge_offset);
-      }
+      nbr_intersection_emit_intersecting_w<check_edge_mask>(v0,
+                                                            v1,
+                                                            i,
+                                                            v0_v1_edge_offset,
+                                                            short_indices,
+                                                            short_off,
+                                                            short_deg,
+                                                            short_local,
+                                                            long_indices,
+                                                            long_off,
+                                                            long_deg,
+                                                            long_local,
+                                                            v0_is_short,
+                                                            s,
+                                                            check_bit_set,
+                                                            intersection_op);
     }
 
     idx += static_cast<size_t>(gridDim.x);
