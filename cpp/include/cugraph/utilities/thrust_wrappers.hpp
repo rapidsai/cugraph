@@ -20,9 +20,9 @@
 namespace CUGRAPH_EXPORT cugraph {
 namespace detail {
 
-/** @brief True for value types dispatched to @ref sort_impl without Thrust in headers. */
+/** @brief Whether iterator type @p T has an out-of-line @ref sort_impl lexicographic sort. */
 template <typename T>
-inline constexpr bool sort_scalar_value_v =
+inline constexpr bool sort_supported_arithmetic_scalar_v =
   std::disjunction_v<std::is_same<std::remove_cv_t<T>, std::int32_t>,
                      std::is_same<std::remove_cv_t<T>, std::uint32_t>,
                      std::is_same<std::remove_cv_t<T>, std::int64_t>>;
@@ -31,7 +31,7 @@ inline constexpr bool sort_scalar_value_v =
  *
  *  Supported @c thrust::make_zip_iterator(...) iterator types are listed in
  *  thrust_wrappers_zip_types.hpp and instantiated in thrust_wrappers.cu. Scalar element sorts use
- *  @ref sort_scalar_value_v and @ref sort_impl for @c rmm::exec_policy and
+ *  @ref sort_supported_arithmetic_scalar_v and @ref sort_impl for @c rmm::exec_policy and
  *  @c rmm::exec_policy_nosync.
  *
  *  Keep this in lockstep with those explicit instantiations: add a disjunct only when you add the
@@ -40,7 +40,7 @@ inline constexpr bool sort_scalar_value_v =
  *  time).
  */
 template <typename T>
-inline constexpr bool sort_supported_v =
+inline constexpr bool sort_supported_zip_v =
   std::disjunction_v<std::is_same<std::remove_cv_t<T>, zip_i32_i32>,
                      std::is_same<std::remove_cv_t<T>, zip_i64_i64>,
                      std::is_same<std::remove_cv_t<T>, zip_i64_i32>,
@@ -118,8 +118,8 @@ void sort_wrapper(ExecutionPolicy const& policy,
                   RandomAccessIterator last)
 {
   using value_t = detail::sort_iterator_value_t<RandomAccessIterator>;
-  if constexpr (detail::sort_scalar_value_v<value_t> ||
-                detail::sort_supported_v<std::remove_cv_t<RandomAccessIterator>>) {
+  if constexpr (detail::sort_supported_arithmetic_scalar_v<value_t> ||
+                detail::sort_supported_zip_v<std::remove_cv_t<RandomAccessIterator>>) {
     detail::sort_impl(policy, first, last);
   } else {
     thrust::sort(policy, first, last);
