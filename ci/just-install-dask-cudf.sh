@@ -36,11 +36,23 @@ echo "---"
 # find "${HOME}" -name '*' || true
 # echo ""
 
+echo "--- checking caching (conda-forge linux64) ---"
+curl -I https://conda.anaconda.org/conda-forge/linux-64/repodata.json
+
+echo "--- checking caching (conda-forge noarch) ---"
+curl -I https://conda.anaconda.org/conda-forge/noarch/repodata.json
+
+echo "--- checking caching (rapidsai linux64) ---"
+curl -I https://conda.anaconda.org/rapidsai/linux-64/repodata.json
+
+echo "--- checking caching (rapidsai noarch) ---"
+curl -I https://conda.anaconda.org/rapidsai/noarch/repodata.json
+
 echo "--- trying to install 'dask-cudf' ---"
 conda config --system --remove channels rapidsai-nightly
 conda info
 conda install \
-  -vvv \
+  -vv \
   --yes \
   -c rapidsai \
   -c conda-forge \
