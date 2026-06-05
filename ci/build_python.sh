@@ -16,7 +16,15 @@ export CMAKE_GENERATOR=Ninja
 
 rapids-print-env
 
-CPP_CHANNEL=$(rapids-download-conda-from-github cpp)
+# try turning off the proxy cache
+unset CONDA_CHANNEL_ALIAS
+
+#CPP_CHANNEL=$(rapids-download-conda-from-github cpp)
+CUGRAPH_COMMIT=bbe88597298aba868fe7d2afc96c5b367590ab4a
+CPP_CHANNEL=$(
+    RAPIDS_BUILD_WORKFLOW_NAME=build.yaml \
+    rapids-get-pr-artifact cugraph 5542 cpp conda "${CUGRAPH_COMMIT}"
+)
 
 echo "--- CPP channel (${CPP_CHANNEL}) contents ---"
 find "${CPP_CHANNEL}" -type f -name '*'
@@ -57,7 +65,7 @@ sccache --stop-server >/dev/null 2>&1 || true
 rapids-logger "Building cugraph"
 
 echo "--- rattler cache contents ---"
-find /github/home/.cache/rattler -name '*'
+find ${HOME}/.cache/rattler -name '*'
 echo ""
 
 rattler-build build -vvv --recipe conda/recipes/cugraph \

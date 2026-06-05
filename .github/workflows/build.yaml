@@ -9,24 +9,7 @@ concurrency:
   cancel-in-progress: true
 permissions: {}
 jobs:
-  cpp-build:
-    secrets: inherit # zizmor: ignore[secrets-inherit]
-    uses: rapidsai/shared-workflows/.github/workflows/conda-cpp-build.yaml@release/26.06
-    with:
-      build_type: ${{ inputs.build_type || 'branch' }}
-      branch: ${{ inputs.branch }}
-      date: ${{ inputs.date }}
-      node_type: cpu16
-      script: ci/build_cpp.sh
-      sha: ${{ inputs.sha }}
-    permissions:
-      actions: read
-      contents: read
-      id-token: write
-      packages: read
-      pull-requests: read
   python-build:
-    needs: [cpp-build]
     secrets: inherit # zizmor: ignore[secrets-inherit]
     uses: rapidsai/shared-workflows/.github/workflows/conda-python-build.yaml@release/26.06
     with:
