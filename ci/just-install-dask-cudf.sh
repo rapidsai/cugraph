@@ -52,6 +52,7 @@ echo "--- checking sharded repo metadata (rapidsai noarch) ---"
 curl -I https://conda.anaconda.org/rapidsai/noarch/repodata_shards.msgpack.zst
 
 echo "--- trying to install 'dask-cudf' ---"
+CONDA_PLUGINS_USE_SHARDED_REPODATA=false
 conda config --system --remove channels rapidsai-nightly
 conda info
 conda install \
