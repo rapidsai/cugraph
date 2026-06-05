@@ -69,7 +69,7 @@ find ${HOME}/.cache/rattler -name '*'
 echo ""
 
 echo "--- (before build) is there a local dask-cudf somewhere? ---"
-find / -name '*dask-cudf*'
+find / -name '*dask-cudf*' || true
 echo ""
 
 rattler-build build -vvv --recipe conda/recipes/cugraph \
@@ -77,7 +77,7 @@ rattler-build build -vvv --recipe conda/recipes/cugraph \
                     "${RATTLER_CHANNELS[@]}" || true
 
 echo "--- (after build) is there a local dask-cudf somewhere? ---"
-find / -name '*dask-cudf*'
+find / -name '*dask-cudf*' || true
 echo ""
 
 exit 1
