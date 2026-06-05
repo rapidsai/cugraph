@@ -16,8 +16,21 @@ conda clean --yes --index-cache
 conda clean --yes --all
 
 echo "--- looking for ANY local repodata ---"
-find / -name '*repodata*'
+find / -name '*repodata*' || true
 echo "---"
+
+# check the volumes GitHub mounts in
+# -v "/home/runner/_work":"/__w"
+# -v "/home/runner/externals":"/__e":ro
+# -v "/home/runner/_work/_temp":"/__w/_temp"
+# -v "/home/runner/_work/_actions":"/__w/_actions"
+# -v "/home/runner/_work/_tool":"/__w/_tool"
+# -v "/home/runner/_work/_temp/_github_home":"/github/home"
+# -v "/home/runner/_work/_temp/_github_workflow":"/github/workflow"
+
+echo "--- checking HOME (${HOME}) ---"
+find / -name '*' || true
+echo ""
 
 echo "--- trying to install 'dask-cudf' ---"
 conda config --system --remove channels rapidsai-nightly
