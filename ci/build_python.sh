@@ -19,6 +19,7 @@ unset CONDA_CHANNEL_ALIAS
 
 echo "--- trying to install 'dask-cudf' ---"
 conda config --system --remove channels rapidsai-nightly
+conda info
 conda install \
   -vv \
   --yes \
