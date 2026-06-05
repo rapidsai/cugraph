@@ -14,10 +14,23 @@ export GITHUB_REF
 
 export CMAKE_GENERATOR=Ninja
 
-rapids-print-env
-
 # try turning off the proxy cache
 unset CONDA_CHANNEL_ALIAS
+
+echo "--- trying to install 'dask-cudf' ---"
+conda config --system --remove channels rapidsai-nightly
+conda install \
+  --yes \
+  -c rapidsai \
+  -c conda-forge \
+  'dask-cudf=26.6.*'
+echo "---"
+
+exit 1
+
+rapids-print-env
+
+conda install -c rapidsai -c conda-forge 'dask-cudf=26.6.*'
 
 #CPP_CHANNEL=$(rapids-download-conda-from-github cpp)
 CUGRAPH_COMMIT=bbe88597298aba868fe7d2afc96c5b367590ab4a
