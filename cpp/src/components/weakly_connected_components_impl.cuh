@@ -129,10 +129,10 @@ accumulate_new_roots(raft::handle_t const& handle,
         [vertex_partition, degrees] __device__(auto v) {
           return degrees[vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(v)];
         });
-      thrust::inclusive_scan(handle.get_thrust_policy(),
-                             tmp_cumulative_degrees.begin(),
-                             tmp_cumulative_degrees.end(),
-                             tmp_cumulative_degrees.begin());
+      cugraph::inclusive_scan_wrapper(handle.get_thrust_policy(),
+                                      tmp_cumulative_degrees.begin(),
+                                      tmp_cumulative_degrees.end(),
+                                      tmp_cumulative_degrees.begin());
       auto last = thrust::lower_bound(handle.get_thrust_policy(),
                                       tmp_cumulative_degrees.begin(),
                                       tmp_cumulative_degrees.end(),

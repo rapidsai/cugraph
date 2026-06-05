@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cugraph/export.hpp>
+#include <cugraph/utilities/thrust_wrappers.hpp>
 
 #include <raft/core/device_span.hpp>
 #include <raft/core/handle.hpp>
@@ -122,7 +123,7 @@ rmm::device_uvector<idx_t> expand_sparse_offsets(raft::device_span<offset_t cons
           atomic_counter.fetch_add(idx_t{1}, cuda::std::memory_order_relaxed);
         }
       });
-    thrust::inclusive_scan(
+    cugraph::inclusive_scan_wrapper(
       rmm::exec_policy(stream_view), results.begin(), results.end(), results.begin());
   }
 

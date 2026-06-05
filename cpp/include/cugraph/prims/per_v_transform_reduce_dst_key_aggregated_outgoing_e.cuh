@@ -386,10 +386,10 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
       offsets_with_mask =
         rmm::device_uvector<edge_t>(degrees_with_mask.size() + 1, handle.get_stream());
       (*offsets_with_mask).set_element_to_zero_async(0, handle.get_stream());
-      thrust::inclusive_scan(handle.get_thrust_policy(),
-                             degrees_with_mask.begin(),
-                             degrees_with_mask.end(),
-                             (*offsets_with_mask).begin() + 1);
+      cugraph::inclusive_scan_wrapper(handle.get_thrust_policy(),
+                                      degrees_with_mask.begin(),
+                                      degrees_with_mask.end(),
+                                      (*offsets_with_mask).begin() + 1);
     }
 
     rmm::device_uvector<vertex_t> tmp_majors(
@@ -656,10 +656,10 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
         {
           rmm::device_uvector<size_t> minor_comm_rank_lasts(d_tx_value_counts.size(),
                                                             handle.get_stream());
-          thrust::inclusive_scan(handle.get_thrust_policy(),
-                                 d_tx_value_counts.begin(),
-                                 d_tx_value_counts.end(),
-                                 minor_comm_rank_lasts.begin());
+          cugraph::inclusive_scan_wrapper(handle.get_thrust_policy(),
+                                          d_tx_value_counts.begin(),
+                                          d_tx_value_counts.end(),
+                                          minor_comm_rank_lasts.begin());
           rmm::device_uvector<int> minor_comm_ranks(tmp_majors.size(), handle.get_stream());
           thrust::tabulate(
             handle.get_thrust_policy(),

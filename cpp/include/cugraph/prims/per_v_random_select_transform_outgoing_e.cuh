@@ -571,10 +571,10 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
       (*sample_offsets).set_element_to_zero_async(size_t{0}, handle.get_stream());
       auto typecasted_sample_count_first =
         cuda::make_transform_iterator(sample_counts.begin(), typecast_t<int32_t, size_t>{});
-      thrust::inclusive_scan(handle.get_thrust_policy(),
-                             typecasted_sample_count_first,
-                             typecasted_sample_count_first + sample_counts.size(),
-                             (*sample_offsets).begin() + 1);
+      cugraph::inclusive_scan_wrapper(handle.get_thrust_policy(),
+                                      typecasted_sample_count_first,
+                                      typecasted_sample_count_first + sample_counts.size(),
+                                      (*sample_offsets).begin() + 1);
       sample_counts.resize(0, handle.get_stream());
       sample_counts.shrink_to_fit(handle.get_stream());
 
@@ -610,10 +610,10 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
       (*sample_offsets).set_element_to_zero_async(size_t{0}, handle.get_stream());
       auto typecasted_sample_count_first =
         cuda::make_transform_iterator(sample_counts.begin(), typecast_t<int32_t, size_t>{});
-      thrust::inclusive_scan(handle.get_thrust_policy(),
-                             typecasted_sample_count_first,
-                             typecasted_sample_count_first + sample_counts.size(),
-                             (*sample_offsets).begin() + 1);
+      cugraph::inclusive_scan_wrapper(handle.get_thrust_policy(),
+                                      typecasted_sample_count_first,
+                                      typecasted_sample_count_first + sample_counts.size(),
+                                      (*sample_offsets).begin() + 1);
       sample_counts.resize(0, handle.get_stream());
       sample_counts.shrink_to_fit(handle.get_stream());
 

@@ -205,7 +205,7 @@ k_hop_nbrs(raft::handle_t const& handle,
         start_vertex_displacements[GraphViewType::is_multi_gpu ? handle.get_comms().get_rank()
                                                                : int{0}]}),
     offsets.begin());
-  thrust::exclusive_scan(
+  cugraph::exclusive_scan(
     handle.get_thrust_policy(), offsets.begin(), offsets.end(), offsets.begin(), size_t{0});
 
   return std::make_tuple(std::move(offsets), std::move(nbrs));

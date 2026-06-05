@@ -1572,10 +1572,10 @@ extract_transform_if_v_frontier_e(raft::handle_t const& handle,
                     auto major_offset = edge_partition.major_offset_from_major_nocheck(major);
                     return static_cast<size_t>(edge_partition.local_degree(major_offset));
                   }));
-              thrust::inclusive_scan(rmm::exec_policy_nosync(loop_stream),
-                                     key_local_degree_first,
-                                     key_local_degree_first + key_segment_offsets[1],
-                                     high_segment_key_local_degree_offsets.begin() + 1);
+              cugraph::inclusive_scan_wrapper(rmm::exec_policy_nosync(loop_stream),
+                                              key_local_degree_first,
+                                              key_local_degree_first + key_segment_offsets[1],
+                                              high_segment_key_local_degree_offsets.begin() + 1);
               computed = true;
             }
           }
@@ -1596,10 +1596,10 @@ extract_transform_if_v_frontier_e(raft::handle_t const& handle,
                 auto major_offset = edge_partition.major_offset_from_major_nocheck(major);
                 return static_cast<size_t>(edge_partition.local_degree(major_offset));
               }));
-            thrust::inclusive_scan(rmm::exec_policy_nosync(loop_stream),
-                                   key_local_degree_first,
-                                   key_local_degree_first + key_segment_offsets[1],
-                                   high_segment_key_local_degree_offsets.begin() + 1);
+            cugraph::inclusive_scan_wrapper(rmm::exec_policy_nosync(loop_stream),
+                                            key_local_degree_first,
+                                            key_local_degree_first + key_segment_offsets[1],
+                                            high_segment_key_local_degree_offsets.begin() + 1);
           }
           thrust::copy(rmm::exec_policy_nosync(loop_stream),
                        high_segment_key_local_degree_offsets.begin() + key_segment_offsets[1],

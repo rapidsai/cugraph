@@ -376,10 +376,10 @@ struct node2vec_selector {
         raft::host_span<size_t const>(displacements.data(), displacements.size()),
         handle.get_stream());
 
-      thrust::exclusive_scan(handle.get_thrust_policy(),
-                             aggregate_offsets.begin(),
-                             aggregate_offsets.end(),
-                             aggregate_offsets.begin());
+      cugraph::exclusive_scan(handle.get_thrust_policy(),
+                              aggregate_offsets.begin(),
+                              aggregate_offsets.end(),
+                              aggregate_offsets.begin());
 
       aggregate_currents.resize(displacements.back() + recv_counts.back(), handle.get_stream());
 
