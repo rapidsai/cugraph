@@ -66,11 +66,11 @@ rapids-logger "Building cugraph"
 
 echo "--- rattler cache contents ---"
 find ${HOME}/.cache/rattler -name '*'
-echo ""
+echo "---"
 
 echo "--- (before build) is there a local dask-cudf somewhere? ---"
 find / -name '*dask-cudf*' || true
-echo ""
+echo "---"
 
 rattler-build build -vvv --recipe conda/recipes/cugraph \
                     "${RATTLER_ARGS[@]}" \
@@ -79,6 +79,15 @@ rattler-build build -vvv --recipe conda/recipes/cugraph \
 echo "--- (after build) is there a local dask-cudf somewhere? ---"
 find / -name '*dask-cudf*' || true
 echo ""
+
+echo "--- trying to install dask-cudf directly ---"
+conda install \
+  -vvv \
+  --yes \
+  -c rapidsai \
+  -c conda-forge \
+  'dask-cudf=26.6.*'
+echo "---"
 
 exit 1
 
