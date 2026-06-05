@@ -19,18 +19,12 @@ export CMAKE_GENERATOR=Ninja
 
 rapids-print-env
 
-conda install -c rapidsai -c conda-forge 'dask-cudf=26.6.*'
-
 #CPP_CHANNEL=$(rapids-download-conda-from-github cpp)
 CUGRAPH_COMMIT=bbe88597298aba868fe7d2afc96c5b367590ab4a
 CPP_CHANNEL=$(
     RAPIDS_BUILD_WORKFLOW_NAME=build.yaml \
     rapids-get-pr-artifact cugraph 5542 cpp conda "${CUGRAPH_COMMIT}"
 )
-
-echo "--- CPP channel (${CPP_CHANNEL}) contents ---"
-find "${CPP_CHANNEL}" -type f -name '*'
-echo ""
 
 RAPIDS_PACKAGE_VERSION="26.06.00"
 export RAPIDS_PACKAGE_VERSION
@@ -66,32 +60,9 @@ sccache --stop-server >/dev/null 2>&1 || true
 
 rapids-logger "Building cugraph"
 
-echo "--- rattler cache contents ---"
-find ${HOME}/.cache/rattler -name '*'
-echo "---"
-
-echo "--- (before build) is there a local dask-cudf somewhere? ---"
-find / -name '*dask-cudf*' || true
-echo "---"
-
 rattler-build build -vvv --recipe conda/recipes/cugraph \
                     "${RATTLER_ARGS[@]}" \
                     "${RATTLER_CHANNELS[@]}" || true
-
-echo "--- (after build) is there a local dask-cudf somewhere? ---"
-find / -name '*dask-cudf*' || true
-echo ""
-
-echo "--- trying to install dask-cudf directly ---"
-conda install \
-  -vvv \
-  --yes \
-  -c rapidsai \
-  -c conda-forge \
-  'dask-cudf=26.6.*'
-echo "---"
-
-exit 1
 
 sccache --show-adv-stats
 sccache --stop-server >/dev/null 2>&1 || true
