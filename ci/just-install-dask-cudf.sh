@@ -7,6 +7,10 @@ set -euo pipefail
 # try turning off the proxy cache
 unset CONDA_CHANNEL_ALIAS
 
+# try to match 'conda info' from a passing (local) run to see if that matters
+export CONDA_OVERRIDE_ARCHSPEC=aarch64
+export CONDA_OVERRIDE_LINUX="6.5.0=0"
+
 echo "--- trying to install 'dask-cudf' ---"
 conda config --system --remove channels rapidsai-nightly
 conda info
