@@ -29,7 +29,7 @@ echo "---"
 # -v "/home/runner/_work/_temp/_github_workflow":"/github/workflow"
 
 echo "--- checking HOME (${HOME}) ---"
-find / -name '*' || true
+find "${HOME}" -name '*' || true
 echo ""
 
 echo "--- trying to install 'dask-cudf' ---"
