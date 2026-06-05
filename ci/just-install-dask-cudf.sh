@@ -15,6 +15,10 @@ export CONDA_OVERRIDE_LINUX="6.5.0=0"
 conda clean --yes --index-cache
 conda clean --yes --all
 
+echo "--- looking for ANY local repodata ---"
+find / -name '*repodata*'
+echo "---"
+
 echo "--- trying to install 'dask-cudf' ---"
 conda config --system --remove channels rapidsai-nightly
 conda info
