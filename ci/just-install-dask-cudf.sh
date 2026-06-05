@@ -11,6 +11,10 @@ unset CONDA_CHANNEL_ALIAS
 export CONDA_OVERRIDE_ARCHSPEC=aarch64
 export CONDA_OVERRIDE_LINUX="6.5.0=0"
 
+# clear the cache
+conda clean --yes --index-cache
+conda clean --yes --all
+
 echo "--- trying to install 'dask-cudf' ---"
 conda config --system --remove channels rapidsai-nightly
 conda info
