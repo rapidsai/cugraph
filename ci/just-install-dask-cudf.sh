@@ -48,6 +48,9 @@ curl -I https://conda.anaconda.org/rapidsai/linux-64/repodata.json
 echo "--- checking caching (rapidsai noarch) ---"
 curl -I https://conda.anaconda.org/rapidsai/noarch/repodata.json
 
+echo "--- checking sharded repo metadata (rapidsai noarch) ---"
+curl -I https://conda.anaconda.org/rapidsai/noarch/repodata_shards.msgpack.zst
+
 echo "--- trying to install 'dask-cudf' ---"
 conda config --system --remove channels rapidsai-nightly
 conda info
