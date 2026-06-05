@@ -68,9 +68,19 @@ echo "--- rattler cache contents ---"
 find ${HOME}/.cache/rattler -name '*'
 echo ""
 
+echo "--- (before build) is there a local dask-cudf somewhere? ---"
+find / -name '*dask-cudf*'
+echo ""
+
 rattler-build build -vvv --recipe conda/recipes/cugraph \
                     "${RATTLER_ARGS[@]}" \
-                    "${RATTLER_CHANNELS[@]}"
+                    "${RATTLER_CHANNELS[@]}" || true
+
+echo "--- (after build) is there a local dask-cudf somewhere? ---"
+find / -name '*dask-cudf*'
+echo ""
+
+exit 1
 
 sccache --show-adv-stats
 sccache --stop-server >/dev/null 2>&1 || true
