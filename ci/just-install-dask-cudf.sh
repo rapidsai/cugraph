@@ -12,8 +12,8 @@ unset CONDA_CHANNEL_ALIAS
 # export CONDA_OVERRIDE_LINUX="6.5.0=0"
 
 # clear the cache
-conda clean --yes --index-cache
-conda clean --yes --all
+# conda clean --yes --index-cache
+# conda clean --yes --all
 
 echo "--- env ---"
 env
