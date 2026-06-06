@@ -83,7 +83,9 @@ struct compute_gpu_id_from_edge_endpoints_in_triplet_t {
 // Called by detail::nbr_intersection once per common neighbor w of a pair (v0, v1). Evaluates the
 // user operator and adds its returned values to the per-edge accumulator at the (v0, v1), (v0, w)
 // and (v1, w) edge offsets. The (v0, v1) and (v0, w) edges are local; (v1, w) is local in
-// single-GPU and may be remote in multi-GPU.
+// single-GPU and may be remote in multi-GPU. Accumulation uses cuda::atomic_ref<T>::fetch_add, so T
+// must be a scalar arithmetic type; a tuple T would instead use cugraph::atomic_add (element-wise).
+// See the @tparam T note on the public API.
 template <typename GraphViewType,
           typename EdgePartitionSrcValueInputWrapper,
           typename EdgePartitionDstValueInputWrapper,
@@ -137,6 +139,12 @@ struct accumulate_triplet_op_t {
     auto edge_value       = cuda::std::get<0>(result);
     auto supporting_value = cuda::std::get<1>(result);
 
+    // The accumulator is indexed by local CSR edge offset, so a contribution can use it only if its
+    // edge lands in this partition. (v0, w) always does (w was found by walking v0's local
+    // adjacency, so w is in this minor slice). (v0, v1) may not: after the minor_comm broadcast v1
+    // can lie outside this minor slice, so its base goes to the per-pair buffer. (v1, w) is keyed on
+    // v1, generally not a local major, so it goes to the remote buffer.
+
     // Base edge (v0, v1).
     if constexpr (GraphViewType::is_multi_gpu) {
       // Accumulate per broadcast-pair index; the per-rank partials are summed at the owner by the
@@ -189,7 +197,7 @@ transform_reduce_triplet_of_minor_nbr_intersection_of_e_endpoints_by_e(
   using vertex_t = typename GraphViewType::vertex_type;
   using edge_t   = typename GraphViewType::edge_type;
   using weight_t = float;  // dummy
-
+  
   using edge_partition_src_input_device_view_t = std::conditional_t<
     std::is_same_v<typename EdgeSrcValueInputWrapper::value_type, cuda::std::nullopt_t>,
     detail::edge_partition_endpoint_dummy_property_device_view_t<vertex_t>,
@@ -211,6 +219,8 @@ transform_reduce_triplet_of_minor_nbr_intersection_of_e_endpoints_by_e(
 
   rmm::device_uvector<vertex_t> result_srcs(size_t{0}, handle.get_stream());
   rmm::device_uvector<vertex_t> result_dsts(size_t{0}, handle.get_stream());
+  // reduction values are held in allocate_dataframe_buffer<T> so a tuple value type T is
+  // supported in the future.
   auto result_values = allocate_dataframe_buffer<T>(size_t{0}, handle.get_stream());
 
   // Per-edge (src, dst, value) contributions, accumulated across all local edge partitions. A rank
@@ -223,9 +233,11 @@ transform_reduce_triplet_of_minor_nbr_intersection_of_e_endpoints_by_e(
   auto edge_mask_view = graph_view.edge_mask_view();
 
   for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
+    // retrieve the i-th local edge partition
     auto edge_partition =
       edge_partition_device_view_t<vertex_t, edge_t, GraphViewType::is_multi_gpu>(
         graph_view.local_edge_partition_view(i));
+    // retrieve the i-th edge mask (optional)
     auto edge_partition_e_mask =
       edge_mask_view
         ? std::make_optional<
@@ -272,11 +284,10 @@ transform_reduce_triplet_of_minor_nbr_intersection_of_e_endpoints_by_e(
       std::nullopt,
       segment_offsets);
 
-    // Multi-GPU: broadcast this partition's (major, minor) pairs across minor_comm so that every
-    // rank in the major column processes all of the column's pairs against its own minor slice (the
-    // common neighbors of a pair are scattered across the minor_comm ranks). The base (v0, v1)
-    // contribution each rank finds is a partial that is summed at the edge's owner by the post-loop
-    // reduction. detail::nbr_intersection requires sorted input pairs.
+    // Multi-GPU: a vertex's neighbors are split across the minor_comm row, so broadcast this
+    // partition's (major, minor) pairs across minor_comm. Each rank then intersects every pair
+    // against its own slice and finds a partial; the partials are summed at the owner later.
+    // detail::nbr_intersection requires sorted input pairs.
     if constexpr (GraphViewType::is_multi_gpu) {
       auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
       if (minor_comm.get_size() > 1) {
@@ -313,7 +324,19 @@ transform_reduce_triplet_of_minor_nbr_intersection_of_e_endpoints_by_e(
 
     auto vertex_pair_first = thrust::make_zip_iterator(majors.begin(), minors.begin());
 
-    // Per-edge accumulator, indexed by CSR edge offset (sized over the full edge range).
+    // Each common neighbor w of a pair (v0, v1) produces up to three (edge, value) contributions,
+    // routed into one of three buffers by where the target edge lands:
+    //   - edge_accumulator (-> compacted into local_*): dense, one slot per local CSR edge, indexed
+    //     by edge offset. Holds contributions whose edge is in THIS partition: (v0, w) always; plus
+    //     (v0, v1) and (v1, w) in single-GPU.
+    //   - per_pair_buffer ("base"): multi-GPU only. One slot per broadcast pair for the (v0, v1)
+    //     contribution, whose edge may lie outside this minor slice after the broadcast. Each rank's
+    //     value is a cross-rank partial.
+    //   - remote_* ("remote"): multi-GPU only. Buffered (v1, w) contributions whose edge is owned by
+    //     another rank (v1 is generally not a local major).
+    // All three are partials; the post-loop shuffle-to-owner + reduce_by_key combines them per edge.
+
+    // edge_accumulator: sized to number_of_edges() (one slot per edge of this local partition).
     auto edge_accumulator = allocate_dataframe_buffer<T>(
       static_cast<size_t>(edge_partition.number_of_edges()), handle.get_stream());
     thrust::fill(handle.get_thrust_policy(),
@@ -326,9 +349,7 @@ transform_reduce_triplet_of_minor_nbr_intersection_of_e_endpoints_by_e(
 
     auto accumulator_first = get_dataframe_buffer_begin(edge_accumulator);
 
-    // Multi-GPU: per-broadcast-pair base (v0, v1) accumulator (the (v0, v1) edge is not local to a
-    // rank that received the pair via the minor_comm broadcast, so its value can't go to the CSR
-    // accumulator). Each entry is this rank's partial; partials are summed at the owner later.
+    // per_pair_buffer ("base"): one slot per broadcast pair (multi-GPU only).
     auto per_pair_buffer = allocate_dataframe_buffer<T>(
       GraphViewType::is_multi_gpu ? majors.size() : size_t{0}, handle.get_stream());
     thrust::fill(handle.get_thrust_policy(),
@@ -336,13 +357,24 @@ transform_reduce_triplet_of_minor_nbr_intersection_of_e_endpoints_by_e(
                  get_dataframe_buffer_end(per_pair_buffer),
                  init);
 
-    // Multi-GPU: the (v1, w) edges may be owned by other ranks, so their contributions are buffered
-    // (keyed by vertices) and shuffled later. Size the buffer with a counting pass first.
+    // remote_* ("remote"): buffered (v1, w) contributions (multi-GPU only). This is the one triangle
+    // leg multi-GPU must materialize: (v1, w) is owned by another rank and a remote edge cannot be
+    // atomic-added, so these contributions are bulked here and shuffled to the owner (the (v0, v1)
+    // and (v0, w) legs stay non-materialized). Bounded by the intersection count; size it with a
+    // counting pass (count_intersections_op_t) first, since that count isn't known ahead.
     rmm::device_uvector<vertex_t> remote_srcs(size_t{0}, handle.get_stream());
     rmm::device_uvector<vertex_t> remote_dsts(size_t{0}, handle.get_stream());
     auto remote_vals = allocate_dataframe_buffer<T>(size_t{0}, handle.get_stream());
     rmm::device_scalar<size_t> remote_count(size_t{0}, handle.get_stream());
     if constexpr (GraphViewType::is_multi_gpu) {
+      // The counting pass runs nbr_intersection twice (count, then accumulate); alternatives, both
+      // traded away for exact, minimal sizing:
+      //   - Over-allocate to the free upper bound Sum(min(deg(v0), deg(v1))) (min_degrees is already
+      //     computed for kernel binning), single pass. Cost: large over-allocation on skewed graphs,
+      //     undercutting the primitive's bounded-memory goal.
+      //   - Speculative single pass with a guessed size + grow-and-retry on overflow. Cost: a full
+      //     re-run when the guess is too small (atomics can't keep partial results), i.e. two passes
+      //     plus wasted work in the worst case.
       rmm::device_scalar<size_t> match_count(size_t{0}, handle.get_stream());
       detail::nbr_intersection(handle,
                                graph_view,
@@ -351,14 +383,15 @@ transform_reduce_triplet_of_minor_nbr_intersection_of_e_endpoints_by_e(
                                vertex_pair_first + majors.size(),
                                count_intersections_op_t<vertex_t, edge_t>{match_count.data()},
                                edge_mask);
-      auto n = match_count.value(handle.get_stream());
-      remote_srcs.resize(n, handle.get_stream());
-      remote_dsts.resize(n, handle.get_stream());
-      resize_dataframe_buffer(remote_vals, n, handle.get_stream());
+      auto match_count_h = match_count.value(handle.get_stream());
+      remote_srcs.resize(match_count_h, handle.get_stream());
+      remote_dsts.resize(match_count_h, handle.get_stream());
+      resize_dataframe_buffer(remote_vals, match_count_h, handle.get_stream());
     }
 
-    // Accumulate pass: (v0, v1) and (v0, w) go into the local accumulator; (v1, w) is added locally
-    // in single-GPU and buffered for the shuffle in multi-GPU.
+    // Accumulate pass: invokes accumulate_triplet_op_t per common neighbor, routing contributions
+    // into the three buffers above. nbr_intersection reads N(v0) locally and gathers N(v1)
+    // internally (see nbr_intersection_collect_second_nbrs).
     detail::nbr_intersection(
       handle,
       graph_view,
@@ -400,9 +433,9 @@ transform_reduce_triplet_of_minor_nbr_intersection_of_e_endpoints_by_e(
       accumulator_first + num_partition_edges,
       cuda::proclaim_return_type<bool>([init] __device__(auto v) { return v != init; })));
 
-    rmm::device_uvector<vertex_t> chunk_srcs(num_updated, handle.get_stream());
-    rmm::device_uvector<vertex_t> chunk_dsts(num_updated, handle.get_stream());
-    auto chunk_vals = allocate_dataframe_buffer<T>(num_updated, handle.get_stream());
+    rmm::device_uvector<vertex_t> local_srcs(num_updated, handle.get_stream());
+    rmm::device_uvector<vertex_t> local_dsts(num_updated, handle.get_stream());
+    auto local_vals = allocate_dataframe_buffer<T>(num_updated, handle.get_stream());
 
     auto src_first = thrust::make_transform_iterator(
       thrust::make_counting_iterator(edge_t{0}),
@@ -418,7 +451,7 @@ transform_reduce_triplet_of_minor_nbr_intersection_of_e_endpoints_by_e(
         [indices_ptr] __device__(edge_t e) { return indices_ptr[e]; }));
     auto input_first  = thrust::make_zip_iterator(src_first, dst_first, accumulator_first);
     auto output_first = thrust::make_zip_iterator(
-      chunk_srcs.begin(), chunk_dsts.begin(), get_dataframe_buffer_begin(chunk_vals));
+      local_srcs.begin(), local_dsts.begin(), get_dataframe_buffer_begin(local_vals));
 
     thrust::copy_if(handle.get_thrust_policy(),
                     input_first,
@@ -427,16 +460,52 @@ transform_reduce_triplet_of_minor_nbr_intersection_of_e_endpoints_by_e(
                     output_first,
                     cuda::proclaim_return_type<bool>([init] __device__(auto v) { return v != init; }));
 
-    // Append this partition's local (chunk) contributions, plus (in multi-GPU) the buffered remote
+    // Append this partition's local contributions, plus (in multi-GPU) the buffered remote
     // (v1, w) contributions, to the aggregate buffers. They are combined after the loop. Appending
     // (instead of overwriting result_*) is required because a rank may own multiple local edge
     // partitions in multi-GPU.
-    size_t rn = 0;
+    // match_count (1st pass) is the exact intersection size (every common neighbor); remote_* is
+    // sized to it. remote_count is the number actually appended: contributions whose supporting
+    // value is the identity are skipped (e.g. peeling-style ops can return identity; triangle
+    // counting returns non-identity, so for it remote_count == match_count). Duplicate (v1, w) are
+    // kept and reduced globally later. Shrink remote_* from match_count down to remote_count.
+    size_t num_remote = 0;
     if constexpr (GraphViewType::is_multi_gpu) {
-      rn = remote_count.value(handle.get_stream());
-      remote_srcs.resize(rn, handle.get_stream());
-      remote_dsts.resize(rn, handle.get_stream());
-      resize_dataframe_buffer(remote_vals, rn, handle.get_stream());
+      num_remote = remote_count.value(handle.get_stream());
+      remote_srcs.resize(num_remote, handle.get_stream());
+      remote_dsts.resize(num_remote, handle.get_stream());
+      resize_dataframe_buffer(remote_vals, num_remote, handle.get_stream());
+
+      // Pre-reduce remote_* per (v1, w) before it accumulates into agg_*: sum duplicate remote edges
+      // so only distinct ones are kept. remote_* is the dominant contributor, so this bounds agg_*'s
+      // peak memory. This is only a within-rank partial sum; the post-shuffle reduce_by_key combines
+      // the per-rank partials at each edge's owner, yielding the full intersection value for the
+      // edges that owner holds.
+      auto remote_key_first = thrust::make_zip_iterator(remote_srcs.begin(), remote_dsts.begin());
+      thrust::sort_by_key(handle.get_thrust_policy(),
+                          remote_key_first,
+                          remote_key_first + num_remote,
+                          get_dataframe_buffer_begin(remote_vals));
+      rmm::device_uvector<vertex_t> reduced_remote_srcs(num_remote, handle.get_stream());
+      rmm::device_uvector<vertex_t> reduced_remote_dsts(num_remote, handle.get_stream());
+      auto reduced_remote_vals = allocate_dataframe_buffer<T>(num_remote, handle.get_stream());
+      auto remote_reduced_end  = thrust::reduce_by_key(
+        handle.get_thrust_policy(),
+        remote_key_first,
+        remote_key_first + num_remote,
+        get_dataframe_buffer_begin(remote_vals),
+        thrust::make_zip_iterator(reduced_remote_srcs.begin(), reduced_remote_dsts.begin()),
+        get_dataframe_buffer_begin(reduced_remote_vals));
+      num_remote = static_cast<size_t>(
+        thrust::distance(thrust::make_zip_iterator(reduced_remote_srcs.begin(),
+                                                   reduced_remote_dsts.begin()),
+                         remote_reduced_end.first));
+      reduced_remote_srcs.resize(num_remote, handle.get_stream());
+      reduced_remote_dsts.resize(num_remote, handle.get_stream());
+      resize_dataframe_buffer(reduced_remote_vals, num_remote, handle.get_stream());
+      remote_srcs = std::move(reduced_remote_srcs);
+      remote_dsts = std::move(reduced_remote_dsts);
+      remote_vals = std::move(reduced_remote_vals);
     }
 
     // Multi-GPU: compact the per-broadcast-pair base (v0, v1) values into (src, dst, value) triplets
@@ -467,18 +536,24 @@ transform_reduce_triplet_of_minor_nbr_intersection_of_e_endpoints_by_e(
         cuda::proclaim_return_type<bool>([init] __device__(auto v) { return v != init; }));
     }
 
+    // agg_* accumulates all local edge partitions' contributions (mostly remote_*, ~O(this rank's
+    // total intersection)) before the single post-loop shuffle + reduce, so its peak scales with the
+    // rank's whole intersection, not one partition's. If that peak becomes a concern, shuffle +
+    // reduce_by_key per partition instead, bounding the footprint to ~one partition's contributions
+    // at the cost of minor_comm_size separate collectives (and reserving agg_* up front avoids the
+    // per-partition resize growth).
     auto old_size = agg_srcs.size();
-    agg_srcs.resize(old_size + num_updated + rn + num_base, handle.get_stream());
-    agg_dsts.resize(old_size + num_updated + rn + num_base, handle.get_stream());
+    agg_srcs.resize(old_size + num_updated + num_remote + num_base, handle.get_stream());
+    agg_dsts.resize(old_size + num_updated + num_remote + num_base, handle.get_stream());
     resize_dataframe_buffer(
-      agg_values, old_size + num_updated + rn + num_base, handle.get_stream());
+      agg_values, old_size + num_updated + num_remote + num_base, handle.get_stream());
     thrust::copy(
-      handle.get_thrust_policy(), chunk_srcs.begin(), chunk_srcs.end(), agg_srcs.begin() + old_size);
+      handle.get_thrust_policy(), local_srcs.begin(), local_srcs.end(), agg_srcs.begin() + old_size);
     thrust::copy(
-      handle.get_thrust_policy(), chunk_dsts.begin(), chunk_dsts.end(), agg_dsts.begin() + old_size);
+      handle.get_thrust_policy(), local_dsts.begin(), local_dsts.end(), agg_dsts.begin() + old_size);
     thrust::copy(handle.get_thrust_policy(),
-                 get_dataframe_buffer_begin(chunk_vals),
-                 get_dataframe_buffer_end(chunk_vals),
+                 get_dataframe_buffer_begin(local_vals),
+                 get_dataframe_buffer_end(local_vals),
                  get_dataframe_buffer_begin(agg_values) + old_size);
     if constexpr (GraphViewType::is_multi_gpu) {
       thrust::copy(handle.get_thrust_policy(),
@@ -496,15 +571,15 @@ transform_reduce_triplet_of_minor_nbr_intersection_of_e_endpoints_by_e(
       thrust::copy(handle.get_thrust_policy(),
                    base_srcs.begin(),
                    base_srcs.end(),
-                   agg_srcs.begin() + old_size + num_updated + rn);
+                   agg_srcs.begin() + old_size + num_updated + num_remote);
       thrust::copy(handle.get_thrust_policy(),
                    base_dsts.begin(),
                    base_dsts.end(),
-                   agg_dsts.begin() + old_size + num_updated + rn);
+                   agg_dsts.begin() + old_size + num_updated + num_remote);
       thrust::copy(handle.get_thrust_policy(),
                    get_dataframe_buffer_begin(base_vals),
                    get_dataframe_buffer_end(base_vals),
-                   get_dataframe_buffer_begin(agg_values) + old_size + num_updated + rn);
+                   get_dataframe_buffer_begin(agg_values) + old_size + num_updated + num_remote);
     }
   }
 
@@ -517,6 +592,12 @@ transform_reduce_triplet_of_minor_nbr_intersection_of_e_endpoints_by_e(
     // Multi-GPU: shuffle every (src, dst, value) contribution to the rank that owns the edge, then
     // reduce per edge. This merges contributions to the same edge coming from different local edge
     // partitions and from remote (v1, w) buffers across ranks.
+    //
+    // All contributions (local + base + remote) are shuffled uniformly to each edge's owner and
+    // reduced per edge. The local_* contributions are edges this rank already owns, so a future
+    // optimization could keep them out of the shuffle and merge them in after the reduce, trading
+    // a smaller shuffle for an extra merge path. The uniform shuffle (no special-casing of local
+    // edges) is used here for simplicity.
     auto h_vertex_partition_range_lasts = graph_view.vertex_partition_range_lasts();
     rmm::device_uvector<vertex_t> d_vertex_partition_range_lasts(
       h_vertex_partition_range_lasts.size(), handle.get_stream());
@@ -530,6 +611,36 @@ transform_reduce_triplet_of_minor_nbr_intersection_of_e_endpoints_by_e(
     auto const major_comm_size = major_comm.get_size();
     auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
     auto const minor_comm_size = minor_comm.get_size();
+
+    // Locally reduce agg_* per edge before the shuffle: collapse same-(src, dst) contributions from
+    // all legs (local/base/remote) and all local edge partitions into one row, cutting the shuffle
+    // volume. The post-shuffle reduce_by_key below still merges the per-rank partials.
+    {
+      auto agg_edge_first = thrust::make_zip_iterator(agg_srcs.begin(), agg_dsts.begin());
+      thrust::sort_by_key(handle.get_thrust_policy(),
+                          agg_edge_first,
+                          agg_edge_first + agg_srcs.size(),
+                          get_dataframe_buffer_begin(agg_values));
+      rmm::device_uvector<vertex_t> reduced_agg_srcs(agg_srcs.size(), handle.get_stream());
+      rmm::device_uvector<vertex_t> reduced_agg_dsts(agg_srcs.size(), handle.get_stream());
+      auto reduced_agg_values = allocate_dataframe_buffer<T>(agg_srcs.size(), handle.get_stream());
+      auto agg_reduced_end    = thrust::reduce_by_key(
+        handle.get_thrust_policy(),
+        agg_edge_first,
+        agg_edge_first + agg_srcs.size(),
+        get_dataframe_buffer_begin(agg_values),
+        thrust::make_zip_iterator(reduced_agg_srcs.begin(), reduced_agg_dsts.begin()),
+        get_dataframe_buffer_begin(reduced_agg_values));
+      auto num_agg_reduced = static_cast<size_t>(
+        thrust::distance(thrust::make_zip_iterator(reduced_agg_srcs.begin(), reduced_agg_dsts.begin()),
+                         agg_reduced_end.first));
+      reduced_agg_srcs.resize(num_agg_reduced, handle.get_stream());
+      reduced_agg_dsts.resize(num_agg_reduced, handle.get_stream());
+      resize_dataframe_buffer(reduced_agg_values, num_agg_reduced, handle.get_stream());
+      agg_srcs   = std::move(reduced_agg_srcs);
+      agg_dsts   = std::move(reduced_agg_dsts);
+      agg_values = std::move(reduced_agg_values);
+    }
 
     // Shuffle the (src, dst, value) triplets to the rank that owns each edge. The triplet is
     // shuffled as a single value buffer (a zip of src, dst, value) keyed by the edge endpoints.
@@ -596,13 +707,21 @@ transform_reduce_triplet_of_minor_nbr_intersection_of_e_endpoints_by_e(
  * intersection, so it can emit a different value for each (edge, r) triplet. We may add a per-edge
  * variant (transform_reduce_src_nbr_intersection_of_e_endpoints_by_e) in the future that invokes
  * the functor once per edge with the full intersection list, for callers whose emitted value does
- * not vary per intersection vertex. This function is inspired by thrust::transform_reduce().
+ * not vary per intersection vertex. The functor output values are reduced per-edge by summation
+ * (each @p intersection_op return value is added into @p init); we may add a reduce_op parameter in
+ * the future to support other reductions (e.g. minimum or maximum), as in cugraph's
+ * per_v_transform_reduce_* primitives. This function is inspired by thrust::transform_reduce().
  *
  * @tparam GraphViewType Type of the passed non-owning graph object.
  * @tparam EdgeSrcValueInputWrapper Type of the wrapper for edge source property values.
  * @tparam EdgeDstValueInputWrapper Type of the wrapper for edge destination property values.
  * @tparam IntersectionOp Type of the quinary per (edge, intersection vertex) operator.
- * @tparam T Type of the per-edge reduction value.
+ * @tparam T Type of the per-edge reduction value. Currently restricted to a scalar arithmetic type:
+ * contributions are accumulated with cuda::atomic_ref<T>::fetch_add and merged with a plain
+ * reduce_by_key (cuda::std::plus). Supporting a tuple T (or non-additive reductions) would accumulate
+ * with cugraph::atomic_add (which handles a tuple T element-wise) and reduce with
+ * property_op<T, cuda::std::plus> or a reduce_op, as transform_reduce_e and
+ * transform_reduce_src_dst_nbr_intersection_of_e_endpoints_by_v do.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Non-owning graph object.
@@ -667,13 +786,21 @@ transform_reduce_triplet_of_src_nbr_intersection_of_e_endpoints_by_e(
  * intersection, so it can emit a different value for each (edge, r) triplet. We may add a per-edge
  * variant (transform_reduce_dst_nbr_intersection_of_e_endpoints_by_e) in the future that invokes
  * the functor once per edge with the full intersection list, for callers whose emitted value does
- * not vary per intersection vertex. This function is inspired by thrust::transform_reduce().
+ * not vary per intersection vertex. The functor output values are reduced per-edge by summation
+ * (each @p intersection_op return value is added into @p init); we may add a reduce_op parameter in
+ * the future to support other reductions (e.g. minimum or maximum), as in cugraph's
+ * per_v_transform_reduce_* primitives. This function is inspired by thrust::transform_reduce().
  *
  * @tparam GraphViewType Type of the passed non-owning graph object.
  * @tparam EdgeSrcValueInputWrapper Type of the wrapper for edge source property values.
  * @tparam EdgeDstValueInputWrapper Type of the wrapper for edge destination property values.
  * @tparam IntersectionOp Type of the quinary per (edge, intersection vertex) operator.
- * @tparam T Type of the per-edge reduction value.
+ * @tparam T Type of the per-edge reduction value. Currently restricted to a scalar arithmetic type:
+ * contributions are accumulated with cuda::atomic_ref<T>::fetch_add and merged with a plain
+ * reduce_by_key (cuda::std::plus). Supporting a tuple T (or non-additive reductions) would accumulate
+ * with cugraph::atomic_add (which handles a tuple T element-wise) and reduce with
+ * property_op<T, cuda::std::plus> or a reduce_op, as transform_reduce_e and
+ * transform_reduce_src_dst_nbr_intersection_of_e_endpoints_by_v do.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Non-owning graph object.
